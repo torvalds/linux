@@ -70,6 +70,7 @@ static struct at91_twi_pdata at91rm9200_config = {
 	.has_hold_field = false,
 	.has_dig_filtr = false,
 	.has_adv_dig_filtr = false,
+	.has_ana_filtr = false,
 };
 
 static struct at91_twi_pdata at91sam9261_config = {
@@ -80,6 +81,7 @@ static struct at91_twi_pdata at91sam9261_config = {
 	.has_hold_field = false,
 	.has_dig_filtr = false,
 	.has_adv_dig_filtr = false,
+	.has_ana_filtr = false,
 };
 
 static struct at91_twi_pdata at91sam9260_config = {
@@ -90,6 +92,7 @@ static struct at91_twi_pdata at91sam9260_config = {
 	.has_hold_field = false,
 	.has_dig_filtr = false,
 	.has_adv_dig_filtr = false,
+	.has_ana_filtr = false,
 };
 
 static struct at91_twi_pdata at91sam9g20_config = {
@@ -100,6 +103,7 @@ static struct at91_twi_pdata at91sam9g20_config = {
 	.has_hold_field = false,
 	.has_dig_filtr = false,
 	.has_adv_dig_filtr = false,
+	.has_ana_filtr = false,
 };
 
 static struct at91_twi_pdata at91sam9g10_config = {
@@ -110,6 +114,7 @@ static struct at91_twi_pdata at91sam9g10_config = {
 	.has_hold_field = false,
 	.has_dig_filtr = false,
 	.has_adv_dig_filtr = false,
+	.has_ana_filtr = false,
 };
 
 static const struct platform_device_id at91_twi_devtypes[] = {
@@ -142,6 +147,7 @@ static struct at91_twi_pdata at91sam9x5_config = {
 	.has_hold_field = false,
 	.has_dig_filtr = false,
 	.has_adv_dig_filtr = false,
+	.has_ana_filtr = false,
 };
 
 static struct at91_twi_pdata sama5d4_config = {
@@ -152,6 +158,7 @@ static struct at91_twi_pdata sama5d4_config = {
 	.has_hold_field = true,
 	.has_dig_filtr = true,
 	.has_adv_dig_filtr = false,
+	.has_ana_filtr = false,
 };
 
 static struct at91_twi_pdata sama5d2_config = {
@@ -162,6 +169,7 @@ static struct at91_twi_pdata sama5d2_config = {
 	.has_hold_field = true,
 	.has_dig_filtr = true,
 	.has_adv_dig_filtr = true,
+	.has_ana_filtr = true,
 };
 
 static struct at91_twi_pdata sam9x60_config = {
@@ -172,6 +180,7 @@ static struct at91_twi_pdata sam9x60_config = {
 	.has_hold_field = true,
 	.has_dig_filtr = true,
 	.has_adv_dig_filtr = true,
+	.has_ana_filtr = true,
 };
 
 static const struct of_device_id atmel_twi_dt_ids[] = {
