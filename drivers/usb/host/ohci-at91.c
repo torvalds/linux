@@ -628,6 +628,7 @@ ohci_hcd_at91_drv_suspend(struct device *dev)
 
 		/* flush the writes */
 		(void) ohci_readl (ohci, &ohci->regs->control);
+		msleep(1);
 		at91_stop_clock(ohci_at91);
 	}
 
