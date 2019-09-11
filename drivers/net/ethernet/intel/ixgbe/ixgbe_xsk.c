@@ -633,19 +633,17 @@ static void ixgbe_clean_xdp_tx_buffer(struct ixgbe_ring *tx_ring,
 bool ixgbe_clean_xdp_tx_irq(struct ixgbe_q_vector *q_vector,
 			    struct ixgbe_ring *tx_ring, int napi_budget)
 {
+	u16 ntc = tx_ring->next_to_clean, ntu = tx_ring->next_to_use;
 	unsigned int total_packets = 0, total_bytes = 0;
-	u32 i = tx_ring->next_to_clean, xsk_frames = 0;
-	unsigned int budget = q_vector->tx.work_limit;
 	struct xdp_umem *umem = tx_ring->xsk_umem;
 	union ixgbe_adv_tx_desc *tx_desc;
 	struct ixgbe_tx_buffer *tx_bi;
-	bool xmit_done;
+	u32 xsk_frames = 0;
 
-	tx_bi = &tx_ring->tx_buffer_info[i];
-	tx_desc = IXGBE_TX_DESC(tx_ring, i);
-	i -= tx_ring->count;
+	tx_bi = &tx_ring->tx_buffer_info[ntc];
+	tx_desc = IXGBE_TX_DESC(tx_ring, ntc);
 
-	do {
+	while (ntc != ntu) {
 		if (!(tx_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)))
 			break;
 
@@ -661,22 +659,18 @@ bool ixgbe_clean_xdp_tx_irq(struct ixgbe_q_vector *q_vector,
 
 		tx_bi++;
 		tx_desc++;
-		i++;
-		if (unlikely(!i)) {
-			i -= tx_ring->count;
+		ntc++;
+		if (unlikely(ntc == tx_ring->count)) {
+			ntc = 0;
 			tx_bi = tx_ring->tx_buffer_info;
 			tx_desc = IXGBE_TX_DESC(tx_ring, 0);
 		}
 
 		/* issue prefetch for next Tx descriptor */
 		prefetch(tx_desc);
+	}
 
-		/* update budget accounting */
-		budget--;
-	} while (likely(budget));
-
-	i += tx_ring->count;
-	tx_ring->next_to_clean = i;
+	tx_ring->next_to_clean = ntc;
 
 	u64_stats_update_begin(&tx_ring->syncp);
 	tx_ring->stats.bytes += total_bytes;
@@ -688,8 +682,7 @@ bool ixgbe_clean_xdp_tx_irq(struct ixgbe_q_vector *q_vector,
 	if (xsk_frames)
 		xsk_umem_complete_tx(umem, xsk_frames);
 
-	xmit_done = ixgbe_xmit_zc(tx_ring, q_vector->tx.work_limit);
-	return budget > 0 && xmit_done;
+	return ixgbe_xmit_zc(tx_ring, q_vector->tx.work_limit);
 }
 
 int ixgbe_xsk_async_xmit(struct net_device *dev, u32 qid)
