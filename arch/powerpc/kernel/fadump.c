@@ -391,6 +391,8 @@ int __init fadump_reserve_mem(void)
 	else
 		memory_boundary = memblock_end_of_DRAM();
 
+	size = get_fadump_area_size();
+	fw_dump.reserve_dump_area_size = size;
 	if (fw_dump.dump_active) {
 		pr_info("Firmware-assisted dump is active.\n");
 
@@ -416,11 +418,14 @@ int __init fadump_reserve_mem(void)
 				be64_to_cpu(fdm_active->rmr_region.destination_address) +
 				be64_to_cpu(fdm_active->rmr_region.source_len);
 		pr_debug("fadumphdr_addr = %pa\n", &fw_dump.fadumphdr_addr);
-		fw_dump.reserve_dump_area_start = base;
-		fw_dump.reserve_dump_area_size = size;
-	} else {
-		size = get_fadump_area_size();
 
+		/*
+		 * Start address of reserve dump area (permanent reservation)
+		 * for re-registering FADump after dump capture.
+		 */
+		fw_dump.reserve_dump_area_start =
+			be64_to_cpu(fdm_active->cpu_state_data.destination_address);
+	} else {
 		/*
 		 * Reserve memory at an offset closer to bottom of the RAM to
 		 * minimize the impact of memory hot-remove operation. We can't
@@ -447,7 +452,6 @@ int __init fadump_reserve_mem(void)
 			(unsigned long)(memblock_phys_mem_size() >> 20));
 
 		fw_dump.reserve_dump_area_start = base;
-		fw_dump.reserve_dump_area_size = size;
 		return fadump_cma_init();
 	}
 	return 1;
@@ -1265,34 +1269,16 @@ static void fadump_release_memory(unsigned long begin, unsigned long end)
 
 static void fadump_invalidate_release_mem(void)
 {
-	unsigned long reserved_area_start, reserved_area_end;
-	unsigned long destination_address;
-
 	mutex_lock(&fadump_mutex);
 	if (!fw_dump.dump_active) {
 		mutex_unlock(&fadump_mutex);
 		return;
 	}
 
-	destination_address = be64_to_cpu(fdm_active->cpu_state_data.destination_address);
 	fadump_cleanup();
 	mutex_unlock(&fadump_mutex);
 
-	/*
-	 * Save the current reserved memory bounds we will require them
-	 * later for releasing the memory for general use.
-	 */
-	reserved_area_start = fw_dump.reserve_dump_area_start;
-	reserved_area_end = reserved_area_start +
-			fw_dump.reserve_dump_area_size;
-	/*
-	 * Setup reserve_dump_area_start and its size so that we can
-	 * reuse this reserved memory for Re-registration.
-	 */
-	fw_dump.reserve_dump_area_start = destination_address;
-	fw_dump.reserve_dump_area_size = get_fadump_area_size();
-
-	fadump_release_memory(reserved_area_start, reserved_area_end);
+	fadump_release_memory(fw_dump.boot_memory_size, memblock_end_of_DRAM());
 	fadump_free_cpu_notes_buf();
 
 	/* Initialize the kernel dump memory structure for FAD registration. */
