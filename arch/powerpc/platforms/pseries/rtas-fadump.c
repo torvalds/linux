@@ -204,10 +204,10 @@ static void rtas_fadump_region_show(struct fw_dump *fadump_conf,
 		   be64_to_cpu(fdm_ptr->hpte_region.source_len),
 		   be64_to_cpu(fdm_ptr->hpte_region.bytes_dumped));
 
-	seq_printf(m, "DUMP: [%#016llx-%#016llx] %#llx bytes, Dumped: %#llx\n",
-		   be64_to_cpu(fdm_ptr->rmr_region.destination_address),
-		   be64_to_cpu(fdm_ptr->rmr_region.destination_address) +
-		   be64_to_cpu(fdm_ptr->rmr_region.source_len) - 1,
+	seq_printf(m, "DUMP: Src: %#016llx, Dest: %#016llx, ",
+		   be64_to_cpu(fdm_ptr->rmr_region.source_address),
+		   be64_to_cpu(fdm_ptr->rmr_region.destination_address));
+	seq_printf(m, "Size: %#llx, Dumped: %#llx bytes\n",
 		   be64_to_cpu(fdm_ptr->rmr_region.source_len),
 		   be64_to_cpu(fdm_ptr->rmr_region.bytes_dumped));
 }
