@@ -64,7 +64,8 @@
 #define KVM_INST_MTSRIN		0x7c0001e4
 
 static bool kvm_patching_worked = true;
-char kvm_tmp[1024 * 1024];
+extern char kvm_tmp[];
+extern char kvm_tmp_end[];
 static int kvm_tmp_index;
 
 static inline void kvm_patch_ins(u32 *inst, u32 new_inst)
@@ -132,7 +133,7 @@ static u32 *kvm_alloc(int len)
 {
 	u32 *p;
 
-	if ((kvm_tmp_index + len) > ARRAY_SIZE(kvm_tmp)) {
+	if ((kvm_tmp_index + len) > (kvm_tmp_end - kvm_tmp)) {
 		printk(KERN_ERR "KVM: No more space (%d + %d)\n",
 				kvm_tmp_index, len);
 		kvm_patching_worked = false;
@@ -699,25 +700,13 @@ static void kvm_use_magic_page(void)
 			 kvm_patching_worked ? "worked" : "failed");
 }
 
-static __init void kvm_free_tmp(void)
-{
-	/*
-	 * Inform kmemleak about the hole in the .bss section since the
-	 * corresponding pages will be unmapped with DEBUG_PAGEALLOC=y.
-	 */
-	kmemleak_free_part(&kvm_tmp[kvm_tmp_index],
-			   ARRAY_SIZE(kvm_tmp) - kvm_tmp_index);
-	free_reserved_area(&kvm_tmp[kvm_tmp_index],
-			   &kvm_tmp[ARRAY_SIZE(kvm_tmp)], -1, NULL);
-}
-
 static int __init kvm_guest_init(void)
 {
 	if (!kvm_para_available())
-		goto free_tmp;
+		return 0;
 
 	if (!epapr_paravirt_enabled)
-		goto free_tmp;
+		return 0;
 
 	if (kvm_para_has_feature(KVM_FEATURE_MAGIC_PAGE))
 		kvm_use_magic_page();
@@ -726,9 +715,6 @@ static int __init kvm_guest_init(void)
 	/* Enable napping */
 	powersave_nap = 1;
 #endif
-
-free_tmp:
-	kvm_free_tmp();
 
 	return 0;
 }

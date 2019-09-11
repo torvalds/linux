@@ -334,5 +334,13 @@ kvm_emulate_mtsrin_orig_ins_offs:
 kvm_emulate_mtsrin_len:
 	.long (kvm_emulate_mtsrin_end - kvm_emulate_mtsrin) / 4
 
+	.balign 4
+	.global kvm_tmp
+kvm_tmp:
+	.space	(64 * 1024)
+
+.global kvm_tmp_end
+kvm_tmp_end:
+
 .global kvm_template_end
 kvm_template_end:
