@@ -1167,26 +1167,22 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 		return -ENOENT;
 	}
 	gbo = drm_gem_vram_of_gem(obj);
-
-	ret = drm_gem_vram_pin(gbo, 0);
-	if (ret)
-		goto err_drm_gem_object_put_unlocked;
-	src = drm_gem_vram_kmap(gbo, true, NULL);
+	src = drm_gem_vram_vmap(gbo);
 	if (IS_ERR(src)) {
 		ret = PTR_ERR(src);
-		goto err_drm_gem_vram_unpin;
+		goto err_drm_gem_object_put_unlocked;
 	}
 
 	dst = drm_gem_vram_kmap(drm_gem_vram_of_gem(ast->cursor_cache),
 				false, NULL);
 	if (IS_ERR(dst)) {
 		ret = PTR_ERR(dst);
-		goto err_drm_gem_vram_kunmap;
+		goto err_drm_gem_vram_vunmap;
 	}
 	dst_gpu = drm_gem_vram_offset(drm_gem_vram_of_gem(ast->cursor_cache));
 	if (dst_gpu < 0) {
 		ret = (int)dst_gpu;
-		goto err_drm_gem_vram_kunmap;
+		goto err_drm_gem_vram_vunmap;
 	}
 
 	dst += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor;
@@ -1221,16 +1217,13 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 
 	ast_show_cursor(crtc);
 
-	drm_gem_vram_kunmap(gbo);
-	drm_gem_vram_unpin(gbo);
+	drm_gem_vram_vunmap(gbo, src);
 	drm_gem_object_put_unlocked(obj);
 
 	return 0;
 
-err_drm_gem_vram_kunmap:
-	drm_gem_vram_kunmap(gbo);
-err_drm_gem_vram_unpin:
-	drm_gem_vram_unpin(gbo);
+err_drm_gem_vram_vunmap:
+	drm_gem_vram_vunmap(gbo, src);
 err_drm_gem_object_put_unlocked:
 	drm_gem_object_put_unlocked(obj);
 	return ret;
