@@ -107,11 +107,20 @@ static int __init fadump_cma_init(void) { return 1; }
 int __init early_init_dt_scan_fw_dump(unsigned long node, const char *uname,
 				      int depth, void *data)
 {
-	if (depth != 1 || strcmp(uname, "rtas") != 0)
+	if (depth != 1)
 		return 0;
 
-	rtas_fadump_dt_scan(&fw_dump, node);
-	return 1;
+	if (strcmp(uname, "rtas") == 0) {
+		rtas_fadump_dt_scan(&fw_dump, node);
+		return 1;
+	}
+
+	if (strcmp(uname, "ibm,opal") == 0) {
+		opal_fadump_dt_scan(&fw_dump, node);
+		return 1;
+	}
+
+	return 0;
 }
 
 /*

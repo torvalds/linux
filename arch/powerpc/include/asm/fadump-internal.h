@@ -135,4 +135,11 @@ static inline void
 rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node) { }
 #endif
 
+#ifdef CONFIG_PPC_POWERNV
+extern void opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node);
+#else
+static inline void
+opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node) { }
+#endif
+
 #endif /* _ASM_POWERPC_FADUMP_INTERNAL_H */
