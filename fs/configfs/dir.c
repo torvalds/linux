@@ -253,6 +253,18 @@ int configfs_make_dirent(struct configfs_dirent * parent_sd,
 	return 0;
 }
 
+static void configfs_remove_dirent(struct dentry *dentry)
+{
+	struct configfs_dirent *sd = dentry->d_fsdata;
+
+	if (!sd)
+		return;
+	spin_lock(&configfs_dirent_lock);
+	list_del_init(&sd->s_sibling);
+	spin_unlock(&configfs_dirent_lock);
+	configfs_put(sd);
+}
+
 static void init_dir(struct inode * inode)
 {
 	inode->i_op = &configfs_dir_inode_operations;
@@ -309,18 +321,15 @@ static int configfs_create_dir(struct config_item *item, struct dentry *dentry,
 
 	configfs_set_dir_dirent_depth(p->d_fsdata, dentry->d_fsdata);
 	error = configfs_create(dentry, mode, init_dir);
-	if (!error) {
-		inc_nlink(d_inode(p));
-		item->ci_dentry = dentry;
-	} else {
-		struct configfs_dirent *sd = dentry->d_fsdata;
-		if (sd) {
-			spin_lock(&configfs_dirent_lock);
-			list_del_init(&sd->s_sibling);
-			spin_unlock(&configfs_dirent_lock);
-			configfs_put(sd);
-		}
-	}
+	if (error)
+		goto out_remove;
+
+	inc_nlink(d_inode(p));
+	item->ci_dentry = dentry;
+	return 0;
+
+out_remove:
+	configfs_remove_dirent(dentry);
 	return error;
 }
 
@@ -372,31 +381,25 @@ int configfs_create_link(struct configfs_symlink *sl,
 
 	err = configfs_make_dirent(p, dentry, sl, mode,
 				   CONFIGFS_ITEM_LINK, p->s_frag);
-	if (!err) {
-		err = configfs_create(dentry, mode, init_symlink);
-		if (err) {
-			struct configfs_dirent *sd = dentry->d_fsdata;
-			if (sd) {
-				spin_lock(&configfs_dirent_lock);
-				list_del_init(&sd->s_sibling);
-				spin_unlock(&configfs_dirent_lock);
-				configfs_put(sd);
-			}
-		}
-	}
+	if (err)
+		return err;
+
+	err = configfs_create(dentry, mode, init_symlink);
+	if (err)
+		goto out_remove;
+	return 0;
+
+out_remove:
+	configfs_remove_dirent(dentry);
 	return err;
 }
 
 static void remove_dir(struct dentry * d)
 {
 	struct dentry * parent = dget(d->d_parent);
-	struct configfs_dirent * sd;
 
-	sd = d->d_fsdata;
-	spin_lock(&configfs_dirent_lock);
-	list_del_init(&sd->s_sibling);
-	spin_unlock(&configfs_dirent_lock);
-	configfs_put(sd);
+	configfs_remove_dirent(d);
+
 	if (d_really_is_positive(d))
 		simple_rmdir(d_inode(parent),d);
 
