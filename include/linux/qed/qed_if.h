@@ -1143,6 +1143,14 @@ struct qed_common_ops {
  */
 	int (*read_nvm_cfg)(struct qed_dev *cdev, u8 **buf, u32 cmd,
 			    u32 entity_id);
+/**
+ * @brief read_nvm_cfg - Read NVM config attribute value.
+ * @param cdev
+ * @param cmd - NVM CFG command id
+ *
+ * @return config id length, 0 on error.
+ */
+	int (*read_nvm_cfg_len)(struct qed_dev *cdev, u32 cmd);
 
 /**
  * @brief set_grc_config - Configure value for grc config id.

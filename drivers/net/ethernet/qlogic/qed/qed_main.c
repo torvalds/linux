@@ -2300,6 +2300,31 @@ static int qed_nvm_flash_cfg_write(struct qed_dev *cdev, const u8 **data)
 	return rc;
 }
 
+#define QED_MAX_NVM_BUF_LEN	32
+static int qed_nvm_flash_cfg_len(struct qed_dev *cdev, u32 cmd)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	u8 buf[QED_MAX_NVM_BUF_LEN];
+	struct qed_ptt *ptt;
+	u32 len;
+	int rc;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return QED_MAX_NVM_BUF_LEN;
+
+	rc = qed_mcp_nvm_get_cfg(hwfn, ptt, cmd, 0, QED_NVM_CFG_GET_FLAGS, buf,
+				 &len);
+	if (rc || !len) {
+		DP_ERR(cdev, "Error %d reading %d\n", rc, cmd);
+		len = QED_MAX_NVM_BUF_LEN;
+	}
+
+	qed_ptt_release(hwfn, ptt);
+
+	return len;
+}
+
 static int qed_nvm_flash_cfg_read(struct qed_dev *cdev, u8 **data,
 				  u32 cmd, u32 entity_id)
 {
@@ -2657,6 +2682,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.read_module_eeprom = &qed_read_module_eeprom,
 	.get_affin_hwfn_idx = &qed_get_affin_hwfn_idx,
 	.read_nvm_cfg = &qed_nvm_flash_cfg_read,
+	.read_nvm_cfg_len = &qed_nvm_flash_cfg_len,
 	.set_grc_config = &qed_set_grc_config,
 };
 
