@@ -369,6 +369,14 @@ static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
 	kfree(rtd->codec_dais);
 	snd_soc_rtdcom_del_all(rtd);
 	list_del(&rtd->list);
+
+	/*
+	 * we don't need to call kfree() for rtd->dev
+	 * see
+	 *	soc_release_rtd_dev()
+	 */
+	if (rtd->dev)
+		device_unregister(rtd->dev);
 	kfree(rtd);
 }
 
@@ -433,8 +441,6 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	list_add_tail(&rtd->list, &card->rtd_list);
 	rtd->num = card->num_rtd;
 	card->num_rtd++;
-
-	rtd->dev_registered = 1;
 
 	return rtd;
 
@@ -1169,7 +1175,6 @@ static int soc_probe_dai(struct snd_soc_dai *dai, int order)
 	return 0;
 }
 
-static void soc_rtd_free(struct snd_soc_pcm_runtime *rtd); /* remove me */
 static void soc_remove_link_dais(struct snd_soc_card *card)
 {
 	int i;
@@ -1179,10 +1184,6 @@ static void soc_remove_link_dais(struct snd_soc_card *card)
 
 	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd) {
-
-			/* finalize rtd device */
-			soc_rtd_free(rtd);
-
 			/* remove the CODEC DAI */
 			for_each_rtd_codec_dai(rtd, i, codec_dai)
 				soc_remove_dai(codec_dai, order);
@@ -1459,15 +1460,6 @@ void snd_soc_remove_dai_link(struct snd_soc_card *card,
 	list_del(&dai_link->list);
 }
 EXPORT_SYMBOL_GPL(snd_soc_remove_dai_link);
-
-static void soc_rtd_free(struct snd_soc_pcm_runtime *rtd)
-{
-	if (rtd->dev_registered) {
-		/* we don't need to call kfree() for rtd->dev */
-		device_unregister(rtd->dev);
-		rtd->dev_registered = 0;
-	}
-}
 
 static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
 				struct snd_soc_pcm_runtime *rtd)
