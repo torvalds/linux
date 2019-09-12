@@ -1109,8 +1109,8 @@ static int gmc_v9_0_sw_fini(void *handle)
 	void *stolen_vga_buf;
 
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC) &&
-			adev->gmc.umc_ras_if) {
-		struct ras_common_if *ras_if = adev->gmc.umc_ras_if;
+			adev->umc.ras_if) {
+		struct ras_common_if *ras_if = adev->umc.ras_if;
 		struct ras_ih_if ih_info = {
 			.head = *ras_if,
 		};

@@ -181,7 +181,6 @@ struct amdgpu_gmc {
 
 	struct amdgpu_xgmi xgmi;
 	struct amdgpu_irq_src	ecc_irq;
-	struct ras_common_if    *umc_ras_if;
 	struct ras_common_if    *mmhub_ras_if;
 };
 

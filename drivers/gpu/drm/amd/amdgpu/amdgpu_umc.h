@@ -77,6 +77,7 @@ struct amdgpu_umc {
 	uint32_t channel_offs;
 	/* channel index table of interleaved memory */
 	const uint32_t *channel_idx_tbl;
+	struct ras_common_if *ras_if;
 
 	const struct amdgpu_umc_funcs *funcs;
 };

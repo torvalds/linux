@@ -35,24 +35,24 @@ int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, void *ras_ih_info)
 	if (!ih_info)
 		return -EINVAL;
 
-	if (!adev->gmc.umc_ras_if) {
-		adev->gmc.umc_ras_if =
+	if (!adev->umc.ras_if) {
+		adev->umc.ras_if =
 			kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
-		if (!adev->gmc.umc_ras_if)
+		if (!adev->umc.ras_if)
 			return -ENOMEM;
-		adev->gmc.umc_ras_if->block = AMDGPU_RAS_BLOCK__UMC;
-		adev->gmc.umc_ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
-		adev->gmc.umc_ras_if->sub_block_index = 0;
-		strcpy(adev->gmc.umc_ras_if->name, "umc");
+		adev->umc.ras_if->block = AMDGPU_RAS_BLOCK__UMC;
+		adev->umc.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->umc.ras_if->sub_block_index = 0;
+		strcpy(adev->umc.ras_if->name, "umc");
 	}
-	ih_info->head = fs_info.head = *adev->gmc.umc_ras_if;
+	ih_info->head = fs_info.head = *adev->umc.ras_if;
 
-	r = amdgpu_ras_late_init(adev, adev->gmc.umc_ras_if,
+	r = amdgpu_ras_late_init(adev, adev->umc.ras_if,
 				 &fs_info, ih_info);
 	if (r)
 		goto free;
 
-	if (amdgpu_ras_is_supported(adev, adev->gmc.umc_ras_if->block)) {
+	if (amdgpu_ras_is_supported(adev, adev->umc.ras_if->block)) {
 		r = amdgpu_irq_get(adev, &adev->gmc.ecc_irq, 0);
 		if (r)
 			goto late_fini;
@@ -68,10 +68,10 @@ int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, void *ras_ih_info)
 	return 0;
 
 late_fini:
-	amdgpu_ras_late_fini(adev, adev->gmc.umc_ras_if, ih_info);
+	amdgpu_ras_late_fini(adev, adev->umc.ras_if, ih_info);
 free:
-	kfree(adev->gmc.umc_ras_if);
-	adev->gmc.umc_ras_if = NULL;
+	kfree(adev->umc.ras_if);
+	adev->umc.ras_if = NULL;
 	return r;
 }
 
@@ -125,7 +125,7 @@ int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
 		struct amdgpu_irq_src *source,
 		struct amdgpu_iv_entry *entry)
 {
-	struct ras_common_if *ras_if = adev->gmc.umc_ras_if;
+	struct ras_common_if *ras_if = adev->umc.ras_if;
 	struct ras_dispatch_if ih_data = {
 		.entry = entry,
 	};
