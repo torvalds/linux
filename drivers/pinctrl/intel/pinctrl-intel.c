@@ -838,7 +838,7 @@ static int intel_gpio_to_pin(struct intel_pinctrl *pctrl, unsigned int offset,
  *
  * Translate the pin number of pinctrl to GPIO offset
  */
-static int intel_pin_to_gpio(struct intel_pinctrl *pctrl, int pin)
+static __maybe_unused int intel_pin_to_gpio(struct intel_pinctrl *pctrl, int pin)
 {
 	const struct intel_community *community;
 	const struct intel_padgroup *padgrp;
