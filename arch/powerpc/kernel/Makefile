@@ -188,15 +188,13 @@ extra-$(CONFIG_ALTIVEC)		+= vector.o
 extra-$(CONFIG_PPC64)		+= entry_64.o
 extra-$(CONFIG_PPC_OF_BOOT_TRAMPOLINE)	+= prom_init.o
 
-ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
-$(obj)/built-in.a:		prom_init_check
+extra-$(CONFIG_PPC_OF_BOOT_TRAMPOLINE)	+= prom_init_check
 
-quiet_cmd_prom_init_check = CALL    $<
-      cmd_prom_init_check = $(CONFIG_SHELL) $< "$(NM)" "$(obj)/prom_init.o"
+quiet_cmd_prom_init_check = PROMCHK $@
+      cmd_prom_init_check = $(CONFIG_SHELL) $< "$(NM)" $(obj)/prom_init.o; touch $@
 
-PHONY += prom_init_check
-prom_init_check: $(src)/prom_init_check.sh $(obj)/prom_init.o
-	$(call cmd,prom_init_check)
-endif
+$(obj)/prom_init_check: $(src)/prom_init_check.sh $(obj)/prom_init.o FORCE
+	$(call if_changed,prom_init_check)
+targets += prom_init_check
 
 clean-files := vmlinux.lds
