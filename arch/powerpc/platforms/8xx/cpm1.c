@@ -130,7 +130,7 @@ static const struct irq_domain_ops cpm_pic_host_ops = {
 	.map = cpm_pic_host_map,
 };
 
-unsigned int cpm_pic_init(void)
+unsigned int __init cpm_pic_init(void)
 {
 	struct device_node *np = NULL;
 	struct resource res;
@@ -306,7 +306,7 @@ struct cpm_ioport32e {
 	__be32 dir, par, sor, odr, dat;
 };
 
-static void cpm1_set_pin32(int port, int pin, int flags)
+static void __init cpm1_set_pin32(int port, int pin, int flags)
 {
 	struct cpm_ioport32e __iomem *iop;
 	pin = 1 << (31 - pin);
@@ -348,7 +348,7 @@ static void cpm1_set_pin32(int port, int pin, int flags)
 	}
 }
 
-static void cpm1_set_pin16(int port, int pin, int flags)
+static void __init cpm1_set_pin16(int port, int pin, int flags)
 {
 	struct cpm_ioport16 __iomem *iop =
 		(struct cpm_ioport16 __iomem *)&mpc8xx_immr->im_ioport;
@@ -386,7 +386,7 @@ static void cpm1_set_pin16(int port, int pin, int flags)
 	}
 }
 
-void cpm1_set_pin(enum cpm_port port, int pin, int flags)
+void __init cpm1_set_pin(enum cpm_port port, int pin, int flags)
 {
 	if (port == CPM_PORTB || port == CPM_PORTE)
 		cpm1_set_pin32(port, pin, flags);
@@ -394,7 +394,7 @@ void cpm1_set_pin(enum cpm_port port, int pin, int flags)
 		cpm1_set_pin16(port, pin, flags);
 }
 
-int cpm1_clk_setup(enum cpm_clk_target target, int clock, int mode)
+int __init cpm1_clk_setup(enum cpm_clk_target target, int clock, int mode)
 {
 	int shift;
 	int i, bits = 0;
