@@ -107,7 +107,7 @@ static const struct omap_clkctrl_reg_data am3_l4hs_clkctrl_regs[] __initconst = 
 };
 
 static const struct omap_clkctrl_reg_data am3_pruss_ocp_clkctrl_regs[] __initconst = {
-	{ AM3_PRUSS_OCP_PRUSS_CLKCTRL, NULL, CLKF_SW_SUP, "pruss_ocp_gclk" },
+	{ AM3_PRUSS_OCP_PRUSS_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_NO_IDLEST, "pruss_ocp_gclk" },
 	{ 0 },
 };
 
