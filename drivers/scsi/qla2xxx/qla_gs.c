@@ -3571,7 +3571,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 	u8 recheck = 0;
 	u16 dup = 0, dup_cnt = 0;
 
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
+	ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
 	    "%s enter\n", __func__);
 
 	if (sp->gen1 != vha->hw->base_qpair->chip_reset) {
@@ -3588,8 +3588,9 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		} else {
-			ql_dbg(ql_dbg_disc, vha, 0xffff,
-			    "Fabric scan failed on all retries.\n");
+			ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
+			    "%s: Fabric scan failed for %d retries.\n",
+			    __func__, vha->scan.scan_retry);
 		}
 		goto out;
 	}
@@ -4055,7 +4056,7 @@ done_free_sp:
 
 void qla24xx_async_gpnft_done(scsi_qla_host_t *vha, srb_t *sp)
 {
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
+	ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
 	    "%s enter\n", __func__);
 	qla24xx_async_gnnft(vha, sp, sp->gen2);
 }
@@ -4069,7 +4070,7 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 	u32 rspsz;
 	unsigned long flags;
 
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
+	ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
 	    "%s enter\n", __func__);
 
 	if (!vha->flags.online)
@@ -4078,14 +4079,15 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 	spin_lock_irqsave(&vha->work_lock, flags);
 	if (vha->scan.scan_flags & SF_SCANNING) {
 		spin_unlock_irqrestore(&vha->work_lock, flags);
-		ql_dbg(ql_dbg_disc, vha, 0xffff, "scan active\n");
+		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
+		    "%s: scan active\n", __func__);
 		return rval;
 	}
 	vha->scan.scan_flags |= SF_SCANNING;
 	spin_unlock_irqrestore(&vha->work_lock, flags);
 
 	if (fc4_type == FC4_TYPE_FCP_SCSI) {
-		ql_dbg(ql_dbg_disc, vha, 0xffff,
+		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
 		    "%s: Performing FCP Scan\n", __func__);
 
 		if (sp)
@@ -4140,7 +4142,7 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 		}
 		sp->u.iocb_cmd.u.ctarg.rsp_size = rspsz;
 
-		ql_dbg(ql_dbg_disc, vha, 0xffff,
+		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
 		    "%s scan list size %d\n", __func__, vha->scan.size);
 
 		memset(vha->scan.l, 0, vha->scan.size);
@@ -4205,8 +4207,8 @@ done_free_sp:
 	spin_lock_irqsave(&vha->work_lock, flags);
 	vha->scan.scan_flags &= ~SF_SCANNING;
 	if (vha->scan.scan_flags == 0) {
-		ql_dbg(ql_dbg_disc, vha, 0xffff,
-		    "%s: schedule\n", __func__);
+		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
+		    "%s: Scan scheduled.\n", __func__);
 		vha->scan.scan_flags |= SF_QUEUED;
 		schedule_delayed_work(&vha->scan.scan_work, 5);
 	}
