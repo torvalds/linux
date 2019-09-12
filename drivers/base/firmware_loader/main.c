@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2003 Manuel Estrada Sainz
  *
- * Please see Documentation/firmware_class/ for more information.
+ * Please see Documentation/driver-api/firmware/ for more information.
  *
  */
 
