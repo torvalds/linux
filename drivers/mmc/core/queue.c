@@ -399,6 +399,11 @@ static void mmc_setup_queue(struct mmc_queue *mq, struct mmc_card *card)
 	init_waitqueue_head(&mq->wait);
 }
 
+static inline bool mmc_merge_capable(struct mmc_host *host)
+{
+	return host->caps2 & MMC_CAP2_MERGE_CAPABLE;
+}
+
 /* Set queue depth to get a reasonable value for q->nr_requests */
 #define MMC_QUEUE_DEPTH 64
 
@@ -441,7 +446,8 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
 	 * the host->can_dma_map_merge should be set before to get max_segs
 	 * from mmc_get_max_segments().
 	 */
-	if (host->max_segs < MMC_DMA_MAP_MERGE_SEGMENTS &&
+	if (mmc_merge_capable(host) &&
+	    host->max_segs < MMC_DMA_MAP_MERGE_SEGMENTS &&
 	    dma_get_merge_boundary(mmc_dev(host)))
 		host->can_dma_map_merge = 1;
 	else
