@@ -51,6 +51,7 @@
 #define VSEN1_HV_HL_REG		0x00	/* Bank 1; 2 regs (HV/LV) per sensor */
 #define VSEN1_LV_HL_REG		0x01	/* Bank 1; 2 regs (HV/LV) per sensor */
 #define SMI_STS1_REG		0xC1	/* Bank 0; SMI Status Register */
+#define SMI_STS3_REG		0xC3	/* Bank 0; SMI Status Register */
 #define SMI_STS5_REG		0xC5	/* Bank 0; SMI Status Register */
 #define SMI_STS7_REG		0xC7	/* Bank 0; SMI Status Register */
 #define SMI_STS8_REG		0xC8	/* Bank 0; SMI Status Register */
@@ -210,7 +211,7 @@ static int nct7904_read_fan(struct device *dev, u32 attr, int channel,
 		return 0;
 	case hwmon_fan_alarm:
 		ret = nct7904_read_reg(data, BANK_0,
-				       SMI_STS7_REG + (channel >> 3));
+				       SMI_STS5_REG + (channel >> 3));
 		if (ret < 0)
 			return ret;
 		*val = (ret >> (channel & 0x07)) & 1;
@@ -351,7 +352,13 @@ static int nct7904_read_temp(struct device *dev, u32 attr, int channel,
 		*val = sign_extend32(temp, 10) * 125;
 		return 0;
 	case hwmon_temp_alarm:
-		if (channel < 5) {
+		if (channel == 4) {
+			ret = nct7904_read_reg(data, BANK_0,
+					       SMI_STS3_REG);
+			if (ret < 0)
+				return ret;
+			*val = (ret >> 1) & 1;
+		} else if (channel < 4) {
 			ret = nct7904_read_reg(data, BANK_0,
 					       SMI_STS1_REG);
 			if (ret < 0)
