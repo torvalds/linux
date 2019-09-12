@@ -55,7 +55,7 @@
 
 struct amdgpu_umc_funcs {
 	void (*err_cnt_init)(struct amdgpu_device *adev);
-	int (*ras_late_init)(struct amdgpu_device *adev, void *ras_ih_info);
+	int (*ras_late_init)(struct amdgpu_device *adev);
 	void (*query_ras_error_count)(struct amdgpu_device *adev,
 					void *ras_error_status);
 	void (*query_ras_error_address)(struct amdgpu_device *adev,
@@ -82,7 +82,7 @@ struct amdgpu_umc {
 	const struct amdgpu_umc_funcs *funcs;
 };
 
-int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, void *ras_ih_info);
+int amdgpu_umc_ras_late_init(struct amdgpu_device *adev);
 int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 		void *ras_error_status,
 		struct amdgpu_iv_entry *entry);

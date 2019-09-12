@@ -740,12 +740,9 @@ static int gmc_v9_0_ecc_late_init(void *handle)
 {
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct ras_ih_if umc_ih_info = {
-		.cb = amdgpu_umc_process_ras_data_cb,
-	};
 
 	if (adev->umc.funcs && adev->umc.funcs->ras_late_init) {
-		r = adev->umc.funcs->ras_late_init(adev, &umc_ih_info);
+		r = adev->umc.funcs->ras_late_init(adev);
 		if (r)
 			return r;
 	}

@@ -23,17 +23,16 @@
 
 #include "amdgpu_ras.h"
 
-int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, void *ras_ih_info)
+int amdgpu_umc_ras_late_init(struct amdgpu_device *adev)
 {
 	int r;
-	struct ras_ih_if *ih_info = (struct ras_ih_if *)ras_ih_info;
 	struct ras_fs_if fs_info = {
 		.sysfs_name = "umc_err_count",
 		.debugfs_name = "umc_err_inject",
 	};
-
-	if (!ih_info)
-		return -EINVAL;
+	struct ras_ih_if ih_info = {
+		.cb = amdgpu_umc_process_ras_data_cb,
+	};
 
 	if (!adev->umc.ras_if) {
 		adev->umc.ras_if =
@@ -45,10 +44,10 @@ int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, void *ras_ih_info)
 		adev->umc.ras_if->sub_block_index = 0;
 		strcpy(adev->umc.ras_if->name, "umc");
 	}
-	ih_info->head = fs_info.head = *adev->umc.ras_if;
+	ih_info.head = fs_info.head = *adev->umc.ras_if;
 
 	r = amdgpu_ras_late_init(adev, adev->umc.ras_if,
-				 &fs_info, ih_info);
+				 &fs_info, &ih_info);
 	if (r)
 		goto free;
 
@@ -68,7 +67,7 @@ int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, void *ras_ih_info)
 	return 0;
 
 late_fini:
-	amdgpu_ras_late_fini(adev, adev->umc.ras_if, ih_info);
+	amdgpu_ras_late_fini(adev, adev->umc.ras_if, &ih_info);
 free:
 	kfree(adev->umc.ras_if);
 	adev->umc.ras_if = NULL;
