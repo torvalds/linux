@@ -745,7 +745,6 @@ struct mlx5dr_action {
 		struct {
 			struct mlx5dr_domain *dmn;
 			struct mlx5dr_cmd_vport_cap *caps;
-			u32 num;
 		} vport;
 		struct {
 			u32 vlan_hdr; /* tpid_pcp_dei_vid */
