@@ -355,6 +355,13 @@ EXPORT_SYMBOL_GPL(snd_soc_get_dai_substream);
 
 static const struct snd_soc_ops null_snd_soc_ops;
 
+static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
+{
+	kfree(rtd->codec_dais);
+	snd_soc_rtdcom_del_all(rtd);
+	kfree(rtd);
+}
+
 static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	struct snd_soc_card *card, struct snd_soc_dai_link *dai_link)
 {
@@ -379,13 +386,6 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	}
 
 	return rtd;
-}
-
-static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
-{
-	kfree(rtd->codec_dais);
-	snd_soc_rtdcom_del_all(rtd);
-	kfree(rtd);
 }
 
 static void soc_add_pcm_runtime(struct snd_soc_card *card,
