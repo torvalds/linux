@@ -150,22 +150,6 @@ static void mt76x0_init_mac_registers(struct mt76x02_dev *dev)
 	mt76_rmw(dev, MT_WMM_CTRL, 0x3ff, 0x201);
 }
 
-int mt76x0_mac_start(struct mt76x02_dev *dev)
-{
-	mt76x02_mac_reset_counters(dev);
-	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
-
-	if (!mt76x02_wait_for_wpdma(&dev->mt76, 200000))
-		return -ETIMEDOUT;
-
-	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
-	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
-
-	return !mt76x02_wait_for_wpdma(&dev->mt76, 50) ? -ETIMEDOUT : 0;
-}
-EXPORT_SYMBOL_GPL(mt76x0_mac_start);
-
 void mt76x0_mac_stop(struct mt76x02_dev *dev)
 {
 	int i = 200, ok = 0;

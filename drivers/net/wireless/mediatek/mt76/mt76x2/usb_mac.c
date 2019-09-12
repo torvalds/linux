@@ -92,23 +92,6 @@ int mt76x2u_mac_reset(struct mt76x02_dev *dev)
 	return 0;
 }
 
-int mt76x2u_mac_start(struct mt76x02_dev *dev)
-{
-	mt76x02_mac_reset_counters(dev);
-
-	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
-	mt76x02_wait_for_wpdma(&dev->mt76, 1000);
-	usleep_range(50, 100);
-
-	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
-
-	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		MT_MAC_SYS_CTRL_ENABLE_TX |
-		MT_MAC_SYS_CTRL_ENABLE_RX);
-
-	return 0;
-}
-
 int mt76x2u_mac_stop(struct mt76x02_dev *dev)
 {
 	int i, count = 0, val;

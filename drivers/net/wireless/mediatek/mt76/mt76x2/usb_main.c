@@ -4,13 +4,14 @@
  */
 
 #include "mt76x2u.h"
+#include "../mt76x02_usb.h"
 
 static int mt76x2u_start(struct ieee80211_hw *hw)
 {
 	struct mt76x02_dev *dev = hw->priv;
 	int ret;
 
-	ret = mt76x2u_mac_start(dev);
+	ret = mt76x02u_mac_start(dev);
 	if (ret)
 		return ret;
 

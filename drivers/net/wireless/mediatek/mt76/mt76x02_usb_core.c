@@ -23,6 +23,27 @@ void mt76x02u_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
 }
 EXPORT_SYMBOL_GPL(mt76x02u_tx_complete_skb);
 
+int mt76x02u_mac_start(struct mt76x02_dev *dev)
+{
+	mt76x02_mac_reset_counters(dev);
+
+	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
+	if (!mt76x02_wait_for_wpdma(&dev->mt76, 200000))
+		return -ETIMEDOUT;
+
+	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
+
+	mt76_wr(dev, MT_MAC_SYS_CTRL,
+		MT_MAC_SYS_CTRL_ENABLE_TX |
+		MT_MAC_SYS_CTRL_ENABLE_RX);
+
+	if (!mt76x02_wait_for_wpdma(&dev->mt76, 50))
+		return -ETIMEDOUT;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76x02u_mac_start);
+
 int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 {
 	struct sk_buff *iter, *last = skb;
