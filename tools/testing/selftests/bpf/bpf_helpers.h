@@ -1,12 +1,6 @@
 /* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
-#ifndef __BPF_HELPERS_H
-#define __BPF_HELPERS_H
-
-/* helper macro to place programs, maps, license in
- * different sections in elf_bpf file. Section names
- * are interpreted by elf_bpf loader
- */
-#define SEC(NAME) __attribute__((section(NAME), used))
+#ifndef __BPF_HELPERS__
+#define __BPF_HELPERS__
 
 #define __uint(name, val) int (*name)[val]
 #define __type(name, val) val *name
@@ -18,6 +12,14 @@
 	bpf_trace_printk(____fmt, sizeof(____fmt),	\
 			 ##__VA_ARGS__);		\
 })
+
+#ifdef __clang__
+
+/* helper macro to place programs, maps, license in
+ * different sections in elf_bpf file. Section names
+ * are interpreted by elf_bpf loader
+ */
+#define SEC(NAME) __attribute__((section(NAME), used))
 
 /* helper functions called from eBPF programs written in C */
 static void *(*bpf_map_lookup_elem)(void *map, const void *key) =
@@ -255,6 +257,12 @@ struct bpf_map_def {
 	unsigned int inner_map_idx;
 	unsigned int numa_node;
 };
+
+#else
+
+#include <bpf-helpers.h>
+
+#endif
 
 #define BPF_ANNOTATE_KV_PAIR(name, type_key, type_val)		\
 	struct ____btf_map_##name {				\
