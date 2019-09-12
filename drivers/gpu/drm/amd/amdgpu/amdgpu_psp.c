@@ -253,7 +253,8 @@ static int psp_tmr_init(struct psp_context *psp)
 
 	/* For ASICs support RLC autoload, psp will parse the toc
 	 * and calculate the total size of TMR needed */
-	if (psp->toc_start_addr &&
+	if (!amdgpu_sriov_vf(psp->adev) &&
+	    psp->toc_start_addr &&
 	    psp->toc_bin_size &&
 	    psp->fw_pri_buf) {
 		ret = psp_load_toc(psp, &tmr_size);
@@ -1304,9 +1305,6 @@ int psp_rlc_autoload_start(struct psp_context *psp)
 {
 	int ret;
 	struct psp_gfx_cmd_resp *cmd;
-
-	if (amdgpu_sriov_vf(psp->adev))
-		return 0;
 
 	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!cmd)
