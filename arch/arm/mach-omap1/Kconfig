@@ -28,6 +28,10 @@ config ARCH_OMAP16XX
 	select CPU_ARM926T
 	select OMAP_DM_TIMER
 
+config ARCH_OMAP1_ANY
+	select ARCH_OMAP
+	def_bool ARCH_OMAP730 || ARCH_OMAP850 || ARCH_OMAP15XX || ARCH_OMAP16XX
+
 config ARCH_OMAP
 	bool
 
