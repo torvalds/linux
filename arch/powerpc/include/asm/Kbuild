@@ -12,3 +12,4 @@ generic-y += mcs_spinlock.h
 generic-y += preempt.h
 generic-y += vtime.h
 generic-y += msi.h
+generic-y += early_ioremap.h

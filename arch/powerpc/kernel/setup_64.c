@@ -65,6 +65,7 @@
 #include <asm/hw_irq.h>
 #include <asm/feature-fixups.h>
 #include <asm/kup.h>
+#include <asm/early_ioremap.h>
 
 #include "setup.h"
 
@@ -331,6 +332,8 @@ void __init early_setup(unsigned long dt_ptr)
 	/* Apply all the dynamic patching */
 	apply_feature_fixups();
 	setup_feature_keys();
+
+	early_ioremap_setup();
 
 	/* Initialize the hash table or TLB handling */
 	early_init_mmu();
