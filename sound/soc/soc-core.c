@@ -355,8 +355,17 @@ EXPORT_SYMBOL_GPL(snd_soc_get_dai_substream);
 
 static const struct snd_soc_ops null_snd_soc_ops;
 
+static void soc_release_rtd_dev(struct device *dev)
+{
+	/* "dev" means "rtd->dev" */
+	kfree(dev);
+}
+
 static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
 {
+	if (!rtd)
+		return;
+
 	kfree(rtd->codec_dais);
 	snd_soc_rtdcom_del_all(rtd);
 	list_del(&rtd->list);
@@ -367,20 +376,54 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	struct snd_soc_card *card, struct snd_soc_dai_link *dai_link)
 {
 	struct snd_soc_pcm_runtime *rtd;
+	int ret;
 
+	/*
+	 * for rtd
+	 */
 	rtd = kzalloc(sizeof(struct snd_soc_pcm_runtime), GFP_KERNEL);
 	if (!rtd)
-		return NULL;
+		goto free_rtd;
 
+	/*
+	 * for rtd->codec_dais
+	 */
 	rtd->codec_dais = kcalloc(dai_link->num_codecs,
 					sizeof(struct snd_soc_dai *),
 					GFP_KERNEL);
-	if (!rtd->codec_dais) {
-		kfree(rtd);
-		return NULL;
+	if (!rtd->codec_dais)
+		goto free_rtd;
+
+	/*
+	 * for rtd->dev
+	 */
+	rtd->dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+	if (!rtd->dev)
+		goto free_rtd;
+
+	rtd->dev->parent = card->dev;
+	rtd->dev->release = soc_release_rtd_dev;
+	rtd->dev->groups = soc_dev_attr_groups;
+
+	dev_set_name(rtd->dev, "%s", dai_link->name);
+	dev_set_drvdata(rtd->dev, rtd);
+
+	ret = device_register(rtd->dev);
+	if (ret < 0) {
+		put_device(rtd->dev); /* soc_release_rtd_dev */
+		rtd->dev = NULL;
+		goto free_rtd;
 	}
 
+	/*
+	 * rtd remaining settings
+	 */
 	INIT_LIST_HEAD(&rtd->component_list);
+	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_PLAYBACK].be_clients);
+	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_CAPTURE].be_clients);
+	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_PLAYBACK].fe_clients);
+	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_CAPTURE].fe_clients);
+
 	rtd->card = card;
 	rtd->dai_link = dai_link;
 	if (!rtd->dai_link->ops)
@@ -391,7 +434,13 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	rtd->num = card->num_rtd;
 	card->num_rtd++;
 
+	rtd->dev_registered = 1;
+
 	return rtd;
+
+free_rtd:
+	soc_free_pcm_runtime(rtd);
+	return NULL;
 }
 
 static void soc_remove_pcm_runtimes(struct snd_soc_card *card)
@@ -1420,40 +1469,6 @@ static void soc_rtd_free(struct snd_soc_pcm_runtime *rtd)
 	}
 }
 
-static void soc_rtd_release(struct device *dev)
-{
-	kfree(dev);
-}
-
-static int soc_rtd_init(struct snd_soc_pcm_runtime *rtd, const char *name)
-{
-	int ret = 0;
-
-	/* register the rtd device */
-	rtd->dev = kzalloc(sizeof(struct device), GFP_KERNEL);
-	if (!rtd->dev)
-		return -ENOMEM;
-	rtd->dev->parent = rtd->card->dev;
-	rtd->dev->release = soc_rtd_release;
-	rtd->dev->groups = soc_dev_attr_groups;
-	dev_set_name(rtd->dev, "%s", name);
-	dev_set_drvdata(rtd->dev, rtd);
-	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_PLAYBACK].be_clients);
-	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_CAPTURE].be_clients);
-	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_PLAYBACK].fe_clients);
-	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_CAPTURE].fe_clients);
-	ret = device_register(rtd->dev);
-	if (ret < 0) {
-		/* calling put_device() here to free the rtd->dev */
-		put_device(rtd->dev);
-		dev_err(rtd->card->dev,
-			"ASoC: failed to register runtime device: %d\n", ret);
-		return ret;
-	}
-	rtd->dev_registered = 1;
-	return 0;
-}
-
 static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
 				struct snd_soc_pcm_runtime *rtd)
 {
@@ -1502,10 +1517,6 @@ static int soc_link_init(struct snd_soc_card *card,
 		if (ret)
 			return ret;
 	}
-
-	ret = soc_rtd_init(rtd, dai_link->name);
-	if (ret)
-		return ret;
 
 	/* add DPCM sysfs entries */
 	soc_dpcm_debugfs_add(rtd);
