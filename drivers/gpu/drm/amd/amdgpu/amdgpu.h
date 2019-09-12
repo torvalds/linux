@@ -925,7 +925,6 @@ struct amdgpu_device {
 	uint32_t 		*reg_offset[MAX_HWIP][HWIP_MAX_INSTANCE];
 
 	const struct amdgpu_df_funcs	*df_funcs;
-	const struct amdgpu_mmhub_funcs	*mmhub_funcs;
 
 	/* delayed work_func for deferring clockgating during resume */
 	struct delayed_work     delayed_init_work;

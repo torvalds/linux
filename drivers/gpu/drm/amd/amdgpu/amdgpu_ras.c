@@ -687,8 +687,8 @@ int amdgpu_ras_error_query(struct amdgpu_device *adev,
 			adev->gfx.funcs->query_ras_error_count(adev, &err_data);
 		break;
 	case AMDGPU_RAS_BLOCK__MMHUB:
-		if (adev->mmhub_funcs->query_ras_error_count)
-			adev->mmhub_funcs->query_ras_error_count(adev, &err_data);
+		if (adev->mmhub.funcs->query_ras_error_count)
+			adev->mmhub.funcs->query_ras_error_count(adev, &err_data);
 		break;
 	case AMDGPU_RAS_BLOCK__PCIE_BIF:
 		if (adev->nbio.funcs->query_ras_error_count)

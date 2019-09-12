@@ -655,7 +655,7 @@ static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
-		adev->mmhub_funcs = &mmhub_v1_0_funcs;
+		adev->mmhub.funcs = &mmhub_v1_0_funcs;
 		break;
 	default:
 		break;
@@ -750,8 +750,8 @@ static int gmc_v9_0_ecc_late_init(void *handle)
 			return r;
 	}
 
-	if (adev->mmhub_funcs && adev->mmhub_funcs->ras_late_init) {
-		r = adev->mmhub_funcs->ras_late_init(adev);
+	if (adev->mmhub.funcs && adev->mmhub.funcs->ras_late_init) {
+		r = adev->mmhub.funcs->ras_late_init(adev);
 		if (r)
 			return r;
 	}
