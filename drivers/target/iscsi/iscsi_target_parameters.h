@@ -93,9 +93,6 @@ extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
 #define OFMARKER			"OFMarker"
 #define IFMARKINT			"IFMarkInt"
 #define OFMARKINT			"OFMarkInt"
-#define X_EXTENSIONKEY			"X-com.sbei.version"
-#define X_EXTENSIONKEY_CISCO_NEW	"X-com.cisco.protocol"
-#define X_EXTENSIONKEY_CISCO_OLD	"X-com.cisco.iscsi.draft"
 
 /*
  * Parameter names of iSCSI Extentions for RDMA (iSER).  See RFC-5046
