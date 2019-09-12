@@ -54,7 +54,7 @@ struct ad7949_adc_chip {
 	u8 resolution;
 	u16 cfg;
 	unsigned int current_channel;
-	u32 buffer ____cacheline_aligned;
+	u16 buffer ____cacheline_aligned;
 };
 
 static int ad7949_spi_write_cfg(struct ad7949_adc_chip *ad7949_adc, u16 val,
@@ -67,7 +67,7 @@ static int ad7949_spi_write_cfg(struct ad7949_adc_chip *ad7949_adc, u16 val,
 	struct spi_transfer tx[] = {
 		{
 			.tx_buf = &ad7949_adc->buffer,
-			.len = 4,
+			.len = 2,
 			.bits_per_word = bits_per_word,
 		},
 	};
@@ -95,7 +95,7 @@ static int ad7949_spi_read_channel(struct ad7949_adc_chip *ad7949_adc, int *val,
 	struct spi_transfer tx[] = {
 		{
 			.rx_buf = &ad7949_adc->buffer,
-			.len = 4,
+			.len = 2,
 			.bits_per_word = bits_per_word,
 		},
 	};
