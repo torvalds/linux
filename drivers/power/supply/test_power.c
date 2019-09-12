@@ -34,6 +34,7 @@ static int battery_technology		= POWER_SUPPLY_TECHNOLOGY_LION;
 static int battery_capacity		= 50;
 static int battery_voltage		= 3300;
 static int battery_charge_counter	= -1000;
+static int battery_current		= 1600;
 
 static bool module_initialized;
 
@@ -118,6 +119,10 @@ static int test_power_get_battery_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		val->intval = battery_voltage;
 		break;
+	case POWER_SUPPLY_PROP_CURRENT_AVG:
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		val->intval = battery_current;
+		break;
 	default:
 		pr_info("%s: some properties deliberately report errors.\n",
 			__func__);
@@ -149,6 +154,8 @@ static enum power_supply_property test_power_battery_props[] = {
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_AVG,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
 static char *test_power_ac_supplied_to[] = {
@@ -467,6 +474,21 @@ static int param_set_battery_charge_counter(const char *key,
 
 #define param_get_battery_charge_counter param_get_int
 
+static int param_set_battery_current(const char *key,
+					const struct kernel_param *kp)
+{
+	int tmp;
+
+	if (1 != sscanf(key, "%d", &tmp))
+		return -EINVAL;
+
+	battery_current = tmp;
+	signal_power_supply_changed(test_power_supplies[TEST_BATTERY]);
+	return 0;
+}
+
+#define param_get_battery_current param_get_int
+
 static const struct kernel_param_ops param_ops_ac_online = {
 	.set = param_set_ac_online,
 	.get = param_get_ac_online,
@@ -512,6 +534,11 @@ static const struct kernel_param_ops param_ops_battery_charge_counter = {
 	.get = param_get_battery_charge_counter,
 };
 
+static const struct kernel_param_ops param_ops_battery_current = {
+	.set = param_set_battery_current,
+	.get = param_get_battery_current,
+};
+
 #define param_check_ac_online(name, p) __param_check(name, p, void);
 #define param_check_usb_online(name, p) __param_check(name, p, void);
 #define param_check_battery_status(name, p) __param_check(name, p, void);
@@ -521,6 +548,7 @@ static const struct kernel_param_ops param_ops_battery_charge_counter = {
 #define param_check_battery_capacity(name, p) __param_check(name, p, void);
 #define param_check_battery_voltage(name, p) __param_check(name, p, void);
 #define param_check_battery_charge_counter(name, p) __param_check(name, p, void);
+#define param_check_battery_current(name, p) __param_check(name, p, void);
 
 
 module_param(ac_online, ac_online, 0644);
@@ -554,6 +582,9 @@ MODULE_PARM_DESC(battery_voltage, "battery voltage (millivolts)");
 module_param(battery_charge_counter, battery_charge_counter, 0644);
 MODULE_PARM_DESC(battery_charge_counter,
 	"battery charge counter (microampere-hours)");
+
+module_param(battery_current, battery_current, 0644);
+MODULE_PARM_DESC(battery_current, "battery current (milliampere)");
 
 MODULE_DESCRIPTION("Power supply driver for testing");
 MODULE_AUTHOR("Anton Vorontsov <cbouatmailru@gmail.com>");
