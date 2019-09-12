@@ -1628,9 +1628,9 @@ static void query_phy_status_page0(struct rtw_dev *rtwdev, u8 *phy_status,
 	else if (gain_a > u_bnd)
 		rx_power[RF_PATH_A] -= (gain_a - u_bnd) << 1;
 	if (gain_b < l_bnd)
-		rx_power[RF_PATH_A] += (l_bnd - gain_b) << 1;
+		rx_power[RF_PATH_B] += (l_bnd - gain_b) << 1;
 	else if (gain_b > u_bnd)
-		rx_power[RF_PATH_A] -= (gain_b - u_bnd) << 1;
+		rx_power[RF_PATH_B] -= (gain_b - u_bnd) << 1;
 
 	rx_power[RF_PATH_A] -= 110;
 	rx_power[RF_PATH_B] -= 110;
