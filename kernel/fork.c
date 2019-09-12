@@ -2338,6 +2338,8 @@ struct mm_struct *copy_init_mm(void)
  *
  * It copies the process, and if successful kick-starts
  * it and waits for it to finish using the VM if required.
+ *
+ * args->exit_signal is expected to be checked for sanity by the caller.
  */
 long _do_fork(struct kernel_clone_args *args)
 {
@@ -2561,6 +2563,14 @@ noinline static int copy_clone_args_from_user(struct kernel_clone_args *kargs,
 
 	if (copy_from_user(&args, uargs, size))
 		return -EFAULT;
+
+	/*
+	 * Verify that higher 32bits of exit_signal are unset and that
+	 * it is a valid signal
+	 */
+	if (unlikely((args.exit_signal & ~((u64)CSIGNAL)) ||
+		     !valid_signal(args.exit_signal)))
+		return -EINVAL;
 
 	*kargs = (struct kernel_clone_args){
 		.flags		= args.flags,
