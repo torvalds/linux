@@ -298,6 +298,7 @@ struct ti_clk_features {
 
 void ti_clk_setup_features(struct ti_clk_features *features);
 const struct ti_clk_features *ti_clk_get_features(void);
+bool ti_clk_is_in_standby(struct clk *clk);
 int omap3_noncore_dpll_save_context(struct clk_hw *hw);
 void omap3_noncore_dpll_restore_context(struct clk_hw *hw);
 
