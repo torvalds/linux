@@ -191,7 +191,6 @@ static int sd_set_sample_push_timing_sd30(struct rtsx_pcr *pcr)
 
 static int rts5260_card_power_on(struct rtsx_pcr *pcr, int card)
 {
-	int err = 0;
 	struct rtsx_cr_option *option = &pcr->option;
 
 	if (option->ocp_en)
@@ -231,7 +230,7 @@ static int rts5260_card_power_on(struct rtsx_pcr *pcr, int card)
 
 	rtsx_pci_write_register(pcr, REG_PRE_RW_MODE, EN_INFINITE_MODE, 0);
 
-	return err;
+	return 0;
 }
 
 static int rts5260_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
