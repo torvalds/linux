@@ -7,6 +7,7 @@
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
+#include <linux/dmi.h>
 #include <linux/errno.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
@@ -18,6 +19,11 @@
 #include <linux/pinctrl/pinctrl.h>
 
 #include "gpiolib.h"
+
+static int run_edge_events_on_boot = -1;
+module_param(run_edge_events_on_boot, int, 0444);
+MODULE_PARM_DESC(run_edge_events_on_boot,
+		 "Run edge _AEI event-handlers at boot: 0=no, 1=yes, -1=auto");
 
 /**
  * struct acpi_gpio_event - ACPI GPIO event handler data
@@ -170,10 +176,13 @@ static void acpi_gpiochip_request_irq(struct acpi_gpio_chip *acpi_gpio,
 	event->irq_requested = true;
 
 	/* Make sure we trigger the initial state of edge-triggered IRQs */
-	value = gpiod_get_raw_value_cansleep(event->desc);
-	if (((event->irqflags & IRQF_TRIGGER_RISING) && value == 1) ||
-	    ((event->irqflags & IRQF_TRIGGER_FALLING) && value == 0))
-		event->handler(event->irq, event);
+	if (run_edge_events_on_boot &&
+	    (event->irqflags & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING))) {
+		value = gpiod_get_raw_value_cansleep(event->desc);
+		if (((event->irqflags & IRQF_TRIGGER_RISING) && value == 1) ||
+		    ((event->irqflags & IRQF_TRIGGER_FALLING) && value == 0))
+			event->handler(event->irq, event);
+	}
 }
 
 static void acpi_gpiochip_request_irqs(struct acpi_gpio_chip *acpi_gpio)
@@ -1283,3 +1292,28 @@ static int acpi_gpio_handle_deferred_request_irqs(void)
 }
 /* We must use _sync so that this runs after the first deferred_probe run */
 late_initcall_sync(acpi_gpio_handle_deferred_request_irqs);
+
+static const struct dmi_system_id run_edge_events_on_boot_blacklist[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MINIX"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
+		}
+	},
+	{} /* Terminating entry */
+};
+
+static int acpi_gpio_setup_params(void)
+{
+	if (run_edge_events_on_boot < 0) {
+		if (dmi_check_system(run_edge_events_on_boot_blacklist))
+			run_edge_events_on_boot = 0;
+		else
+			run_edge_events_on_boot = 1;
+	}
+
+	return 0;
+}
+
+/* Directly after dmi_setup() which runs as core_initcall() */
+postcore_initcall(acpi_gpio_setup_params);
