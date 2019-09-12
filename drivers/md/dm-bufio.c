@@ -285,13 +285,21 @@ static void __remove(struct dm_bufio_client *c, struct dm_buffer *b)
 
 /*----------------------------------------------------------------*/
 
-static void adjust_total_allocated(unsigned char data_mode, long diff)
+static void adjust_total_allocated(struct dm_buffer *b, bool unlink)
 {
+	unsigned char data_mode;
+	long diff;
+
 	static unsigned long * const class_ptr[DATA_MODE_LIMIT] = {
 		&dm_bufio_allocated_kmem_cache,
 		&dm_bufio_allocated_get_free_pages,
 		&dm_bufio_allocated_vmalloc,
 	};
+
+	data_mode = b->data_mode;
+	diff = (long)b->c->block_size;
+	if (unlink)
+		diff = -diff;
 
 	spin_lock(&param_spinlock);
 
@@ -462,7 +470,7 @@ static void __link_buffer(struct dm_buffer *b, sector_t block, int dirty)
 	__insert(b->c, b);
 	b->last_accessed = jiffies;
 
-	adjust_total_allocated(b->data_mode, (long)c->block_size);
+	adjust_total_allocated(b, false);
 }
 
 /*
@@ -478,7 +486,7 @@ static void __unlink_buffer(struct dm_buffer *b)
 	__remove(b->c, b);
 	list_del(&b->lru_list);
 
-	adjust_total_allocated(b->data_mode, -(long)c->block_size);
+	adjust_total_allocated(b, true);
 }
 
 /*
