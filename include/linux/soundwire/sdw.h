@@ -630,6 +630,7 @@ struct sdw_md_driver {
 	int (*remove)(struct sdw_master_device *md);
 	int (*autonomous_clock_stop_enable)(struct sdw_master_device *md,
 					    bool state);
+	struct device_driver driver;
 };
 
 #define SDW_SLAVE_ENTRY(_mfg_id, _part_id, _drv_data) \
