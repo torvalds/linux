@@ -51,7 +51,7 @@
 #define CPM_MAP_SIZE    (0x4000)
 
 cpm8xx_t __iomem *cpmp;  /* Pointer to comm processor space */
-immap_t __iomem *mpc8xx_immr;
+immap_t __iomem *mpc8xx_immr = (void __iomem *)VIRT_IMMR_BASE;
 static cpic8xx_t __iomem *cpic_reg;
 
 static struct irq_domain *cpm_pic_host;
@@ -200,12 +200,6 @@ end:
 void __init cpm_reset(void)
 {
 	sysconf8xx_t __iomem *siu_conf;
-
-	mpc8xx_immr = ioremap(get_immrbase(), 0x4000);
-	if (!mpc8xx_immr) {
-		printk(KERN_CRIT "Could not map IMMR\n");
-		return;
-	}
 
 	cpmp = &mpc8xx_immr->im_cpm;
 
