@@ -1961,30 +1961,10 @@ static int sdma_v4_0_process_ras_data_cb(struct amdgpu_device *adev,
 			return 0;
 		}
 
-		kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
-
-		amdgpu_ras_reset_gpu(adev, 0);
+		amdgpu_sdma_process_ras_data_cb(adev, err_data, entry);
 	}
 
 	return AMDGPU_RAS_SUCCESS;
-}
-
-static int sdma_v4_0_process_ecc_irq(struct amdgpu_device *adev,
-				      struct amdgpu_irq_src *source,
-				      struct amdgpu_iv_entry *entry)
-{
-	struct ras_common_if *ras_if = adev->sdma.ras_if;
-	struct ras_dispatch_if ih_data = {
-		.entry = entry,
-	};
-
-	if (!ras_if)
-		return 0;
-
-	ih_data.head = *ras_if;
-
-	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
-	return 0;
 }
 
 static int sdma_v4_0_process_illegal_inst_irq(struct amdgpu_device *adev,
@@ -2334,7 +2314,7 @@ static const struct amdgpu_irq_src_funcs sdma_v4_0_illegal_inst_irq_funcs = {
 
 static const struct amdgpu_irq_src_funcs sdma_v4_0_ecc_irq_funcs = {
 	.set = sdma_v4_0_set_ecc_irq_state,
-	.process = sdma_v4_0_process_ecc_irq,
+	.process = amdgpu_sdma_process_ecc_irq,
 };
 
 

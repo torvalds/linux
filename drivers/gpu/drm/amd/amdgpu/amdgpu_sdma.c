@@ -135,3 +135,31 @@ free:
 	adev->sdma.ras_if = NULL;
 	return r;
 }
+
+int amdgpu_sdma_process_ras_data_cb(struct amdgpu_device *adev,
+		void *err_data,
+		struct amdgpu_iv_entry *entry)
+{
+	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
+	amdgpu_ras_reset_gpu(adev, 0);
+
+	return AMDGPU_RAS_SUCCESS;
+}
+
+int amdgpu_sdma_process_ecc_irq(struct amdgpu_device *adev,
+				      struct amdgpu_irq_src *source,
+				      struct amdgpu_iv_entry *entry)
+{
+	struct ras_common_if *ras_if = adev->sdma.ras_if;
+	struct ras_dispatch_if ih_data = {
+		.entry = entry,
+	};
+
+	if (!ras_if)
+		return 0;
+
+	ih_data.head = *ras_if;
+
+	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
+	return 0;
+}
