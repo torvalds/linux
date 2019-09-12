@@ -359,6 +359,7 @@ static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
 {
 	kfree(rtd->codec_dais);
 	snd_soc_rtdcom_del_all(rtd);
+	list_del(&rtd->list);
 	kfree(rtd);
 }
 
@@ -397,10 +398,8 @@ static void soc_remove_pcm_runtimes(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd, *_rtd;
 
-	for_each_card_rtds_safe(card, rtd, _rtd) {
-		list_del(&rtd->list);
+	for_each_card_rtds_safe(card, rtd, _rtd)
 		soc_free_pcm_runtime(rtd);
-	}
 
 	card->num_rtd = 0;
 }
