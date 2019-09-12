@@ -171,6 +171,8 @@ extern int amdgpu_noretry;
 extern int amdgpu_force_asic_type;
 #ifdef CONFIG_HSA_AMD
 extern int sched_policy;
+#else
+static const int sched_policy = KFD_SCHED_POLICY_HWS;
 #endif
 
 #ifdef CONFIG_DRM_AMDGPU_SI
