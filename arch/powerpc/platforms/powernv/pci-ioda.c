@@ -3107,6 +3107,33 @@ static int pnv_pci_diag_data_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(pnv_pci_diag_data_fops, NULL, pnv_pci_diag_data_set,
 			 "%llu\n");
 
+static int pnv_pci_ioda_pe_dump(void *data, u64 val)
+{
+	struct pnv_phb *phb = data;
+	int pe_num;
+
+	for (pe_num = 0; pe_num < phb->ioda.total_pe_num; pe_num++) {
+		struct pnv_ioda_pe *pe = &phb->ioda.pe_array[pe_num];
+
+		if (!test_bit(pe_num, phb->ioda.pe_alloc))
+			continue;
+
+		pe_warn(pe, "rid: %04x dev count: %2d flags: %s%s%s%s%s%s\n",
+			pe->rid, pe->device_count,
+			(pe->flags & PNV_IODA_PE_DEV) ? "dev " : "",
+			(pe->flags & PNV_IODA_PE_BUS) ? "bus " : "",
+			(pe->flags & PNV_IODA_PE_BUS_ALL) ? "all " : "",
+			(pe->flags & PNV_IODA_PE_MASTER) ? "master " : "",
+			(pe->flags & PNV_IODA_PE_SLAVE) ? "slave " : "",
+			(pe->flags & PNV_IODA_PE_VF) ? "vf " : "");
+	}
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(pnv_pci_ioda_pe_dump_fops, NULL,
+			 pnv_pci_ioda_pe_dump, "%llu\n");
+
 #endif /* CONFIG_DEBUG_FS */
 
 static void pnv_pci_ioda_create_dbgfs(void)
@@ -3132,6 +3159,8 @@ static void pnv_pci_ioda_create_dbgfs(void)
 
 		debugfs_create_file_unsafe("dump_diag_regs", 0200, phb->dbgfs,
 					   phb, &pnv_pci_diag_data_fops);
+		debugfs_create_file_unsafe("dump_ioda_pe_state", 0200, phb->dbgfs,
+					   phb, &pnv_pci_ioda_pe_dump_fops);
 	}
 #endif /* CONFIG_DEBUG_FS */
 }
