@@ -28,6 +28,11 @@ struct amdgpu_mmhub_funcs {
 					void *ras_error_status);
 };
 
+struct amdgpu_mmhub {
+	struct ras_common_if *ras_if;
+	const struct amdgpu_mmhub_funcs *funcs;
+};
+
 int amdgpu_mmhub_ras_late_init(struct amdgpu_device *adev);
 
 #endif

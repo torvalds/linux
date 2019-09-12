@@ -868,6 +868,9 @@ struct amdgpu_device {
 	/* nbio */
 	struct amdgpu_nbio		nbio;
 
+	/* mmhub */
+	struct amdgpu_mmhub		mmhub;
+
 	/* gfx */
 	struct amdgpu_gfx		gfx;
 
