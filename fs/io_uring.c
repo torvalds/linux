@@ -3356,15 +3356,12 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 	 * Just return the requested submit count, and wake the thread if
 	 * we were asked to.
 	 */
+	ret = 0;
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
 		if (flags & IORING_ENTER_SQ_WAKEUP)
 			wake_up(&ctx->sqo_wait);
 		submitted = to_submit;
-		goto out_ctx;
-	}
-
-	ret = 0;
-	if (to_submit) {
+	} else if (to_submit) {
 		bool block_for_last = false;
 
 		to_submit = min(to_submit, ctx->sq_entries);
@@ -3394,7 +3391,6 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		}
 	}
 
-out_ctx:
 	io_ring_drop_ctx_refs(ctx, 1);
 out_fput:
 	fdput(f);
