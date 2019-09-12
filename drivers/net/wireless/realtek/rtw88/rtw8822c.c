@@ -1635,9 +1635,9 @@ static void query_phy_status_page0(struct rtw_dev *rtwdev, u8 *phy_status,
 	rx_power[RF_PATH_A] -= 110;
 	rx_power[RF_PATH_B] -= 110;
 
-	pkt_stat->rx_power[RF_PATH_A] = max3(rx_power[RF_PATH_A],
-					     rx_power[RF_PATH_B],
-					     min_rx_power);
+	pkt_stat->rx_power[RF_PATH_A] = rx_power[RF_PATH_A];
+	pkt_stat->rx_power[RF_PATH_B] = rx_power[RF_PATH_B];
+
 	pkt_stat->rssi = rtw_phy_rf_power_2_rssi(pkt_stat->rx_power, 1);
 	pkt_stat->bw = RTW_CHANNEL_WIDTH_20;
 	pkt_stat->signal_power = max(pkt_stat->rx_power[RF_PATH_A],

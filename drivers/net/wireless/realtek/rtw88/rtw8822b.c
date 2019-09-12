@@ -766,6 +766,7 @@ static void query_phy_status_page0(struct rtw_dev *rtwdev, u8 *phy_status,
 	s8 min_rx_power = -120;
 	u8 pwdb = GET_PHY_STAT_P0_PWDB(phy_status);
 
+	/* 8822B uses only 1 antenna to RX CCK rates */
 	pkt_stat->rx_power[RF_PATH_A] = pwdb - 110;
 	pkt_stat->rssi = rtw_phy_rf_power_2_rssi(pkt_stat->rx_power, 1);
 	pkt_stat->bw = RTW_CHANNEL_WIDTH_20;
