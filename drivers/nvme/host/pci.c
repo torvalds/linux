@@ -1555,7 +1555,6 @@ static int nvme_create_queue(struct nvme_queue *nvmeq, int qid, bool polled)
 	nvme_init_queue(nvmeq, qid);
 
 	if (!polled) {
-		nvmeq->cq_vector = vector;
 		result = queue_request_irq(nvmeq);
 		if (result < 0)
 			goto release_sq;
