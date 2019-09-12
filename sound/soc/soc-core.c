@@ -288,26 +288,27 @@ static int snd_soc_rtdcom_add(struct snd_soc_pcm_runtime *rtd,
 			return 0;
 	}
 
-	rtdcom = kmalloc(sizeof(*rtdcom), GFP_KERNEL);
+	/*
+	 * created rtdcom here will be freed when rtd->dev was freed.
+	 * see
+	 *	soc_free_pcm_runtime() :: device_unregister(rtd->dev)
+	 */
+	rtdcom = devm_kzalloc(rtd->dev, sizeof(*rtdcom), GFP_KERNEL);
 	if (!rtdcom)
 		return -ENOMEM;
 
 	rtdcom->component = component;
 	INIT_LIST_HEAD(&rtdcom->list);
 
+	/*
+	 * When rtd was freed, created rtdcom here will be
+	 * also freed.
+	 * And we don't need to call list_del(&rtdcom->list)
+	 * when freed, because rtd is also freed.
+	 */
 	list_add_tail(&rtdcom->list, &rtd->component_list);
 
 	return 0;
-}
-
-static void snd_soc_rtdcom_del_all(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_rtdcom_list *rtdcom1, *rtdcom2;
-
-	for_each_rtdcom_safe(rtd, rtdcom1, rtdcom2)
-		kfree(rtdcom1);
-
-	INIT_LIST_HEAD(&rtd->component_list);
 }
 
 struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
@@ -370,7 +371,6 @@ static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
 		return;
 
 	kfree(rtd->codec_dais);
-	snd_soc_rtdcom_del_all(rtd);
 	list_del(&rtd->list);
 
 	/*
