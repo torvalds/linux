@@ -112,6 +112,14 @@ static void drop_current_rng(void)
 }
 
 /* Returns ERR_PTR(), NULL or refcounted hwrng */
+static struct hwrng *get_current_rng_nolock(void)
+{
+	if (current_rng)
+		kref_get(&current_rng->ref);
+
+	return current_rng;
+}
+
 static struct hwrng *get_current_rng(void)
 {
 	struct hwrng *rng;
@@ -119,9 +127,7 @@ static struct hwrng *get_current_rng(void)
 	if (mutex_lock_interruptible(&rng_mutex))
 		return ERR_PTR(-ERESTARTSYS);
 
-	rng = current_rng;
-	if (rng)
-		kref_get(&rng->ref);
+	rng = get_current_rng_nolock();
 
 	mutex_unlock(&rng_mutex);
 	return rng;
@@ -156,8 +162,6 @@ static int hwrng_init(struct hwrng *rng)
 	reinit_completion(&rng->cleanup_done);
 
 skip_init:
-	add_early_randomness(rng);
-
 	current_quality = rng->quality ? : default_quality;
 	if (current_quality > 1024)
 		current_quality = 1024;
@@ -321,12 +325,13 @@ static ssize_t hwrng_attr_current_store(struct device *dev,
 					const char *buf, size_t len)
 {
 	int err = -ENODEV;
-	struct hwrng *rng;
+	struct hwrng *rng, *old_rng, *new_rng;
 
 	err = mutex_lock_interruptible(&rng_mutex);
 	if (err)
 		return -ERESTARTSYS;
 
+	old_rng = current_rng;
 	if (sysfs_streq(buf, "")) {
 		err = enable_best_rng();
 	} else {
@@ -338,8 +343,14 @@ static ssize_t hwrng_attr_current_store(struct device *dev,
 			}
 		}
 	}
-
+	new_rng = get_current_rng_nolock();
 	mutex_unlock(&rng_mutex);
+
+	if (new_rng) {
+		if (new_rng != old_rng)
+			add_early_randomness(new_rng);
+		put_rng(new_rng);
+	}
 
 	return err ? : len;
 }
@@ -460,13 +471,17 @@ static void start_khwrngd(void)
 int hwrng_register(struct hwrng *rng)
 {
 	int err = -EINVAL;
-	struct hwrng *old_rng, *tmp;
+	struct hwrng *old_rng, *new_rng, *tmp;
 	struct list_head *rng_list_ptr;
 
 	if (!rng->name || (!rng->data_read && !rng->read))
 		goto out;
 
 	mutex_lock(&rng_mutex);
+
+	old_rng = current_rng;
+	new_rng = NULL;
+
 	/* Must not register two RNGs with the same name. */
 	err = -EEXIST;
 	list_for_each_entry(tmp, &rng_list, list) {
@@ -485,7 +500,6 @@ int hwrng_register(struct hwrng *rng)
 	}
 	list_add_tail(&rng->list, rng_list_ptr);
 
-	old_rng = current_rng;
 	err = 0;
 	if (!old_rng ||
 	    (!cur_rng_set_by_user && rng->quality > old_rng->quality)) {
@@ -499,19 +513,24 @@ int hwrng_register(struct hwrng *rng)
 			goto out_unlock;
 	}
 
-	if (old_rng && !rng->init) {
+	new_rng = rng;
+	kref_get(&new_rng->ref);
+out_unlock:
+	mutex_unlock(&rng_mutex);
+
+	if (new_rng) {
+		if (new_rng != old_rng || !rng->init) {
 		/*
 		 * Use a new device's input to add some randomness to
 		 * the system.  If this rng device isn't going to be
 		 * used right away, its init function hasn't been
-		 * called yet; so only use the randomness from devices
-		 * that don't need an init callback.
+		 * called yet by set_current_rng(); so only use the
+		 * randomness from devices that don't need an init callback
 		 */
-		add_early_randomness(rng);
+			add_early_randomness(new_rng);
+		}
+		put_rng(new_rng);
 	}
-
-out_unlock:
-	mutex_unlock(&rng_mutex);
 out:
 	return err;
 }
@@ -519,10 +538,12 @@ EXPORT_SYMBOL_GPL(hwrng_register);
 
 void hwrng_unregister(struct hwrng *rng)
 {
+	struct hwrng *old_rng, *new_rng;
 	int err;
 
 	mutex_lock(&rng_mutex);
 
+	old_rng = current_rng;
 	list_del(&rng->list);
 	if (current_rng == rng) {
 		err = enable_best_rng();
@@ -532,12 +553,19 @@ void hwrng_unregister(struct hwrng *rng)
 		}
 	}
 
+	new_rng = get_current_rng_nolock();
 	if (list_empty(&rng_list)) {
 		mutex_unlock(&rng_mutex);
 		if (hwrng_fill)
 			kthread_stop(hwrng_fill);
 	} else
 		mutex_unlock(&rng_mutex);
+
+	if (new_rng) {
+		if (old_rng != new_rng)
+			add_early_randomness(new_rng);
+		put_rng(new_rng);
+	}
 
 	wait_for_completion(&rng->cleanup_done);
 }
