@@ -560,15 +560,15 @@ int aa_new_mount(struct aa_label *label, const char *dev_name,
 		goto out;
 	}
 	if (dev_path) {
-		error = fn_for_each_confined(label, profile,
-			match_mnt(profile, path, buffer, dev_path, dev_buffer,
-				  type, flags, data, binary));
-	} else {
 		dev_buffer = aa_get_buffer();
 		if (!dev_buffer) {
 			error = -ENOMEM;
 			goto out;
 		}
+		error = fn_for_each_confined(label, profile,
+			match_mnt(profile, path, buffer, dev_path, dev_buffer,
+				  type, flags, data, binary));
+	} else {
 		error = fn_for_each_confined(label, profile,
 			match_mnt_path_str(profile, path, buffer, dev_name,
 					   type, flags, data, binary, NULL));
