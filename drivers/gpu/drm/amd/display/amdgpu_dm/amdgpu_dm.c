@@ -5866,6 +5866,7 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 	uint32_t formats[32];
 	int num_formats;
 	int res = -EPERM;
+	unsigned int supported_rotations;
 
 	num_formats = get_plane_formats(plane, plane_cap, formats,
 					ARRAY_SIZE(formats));
@@ -5899,6 +5900,13 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 			BIT(DRM_COLOR_YCBCR_FULL_RANGE),
 			DRM_COLOR_YCBCR_BT709, DRM_COLOR_YCBCR_LIMITED_RANGE);
 	}
+
+	supported_rotations =
+		DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
+		DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270;
+
+	drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
+					   supported_rotations);
 
 	drm_plane_helper_add(plane, &dm_plane_helper_funcs);
 
