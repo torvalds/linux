@@ -132,6 +132,7 @@ enum data_mode {
 struct dm_buffer {
 	struct rb_node node;
 	struct list_head lru_list;
+	struct list_head global_list;
 	sector_t block;
 	void *data;
 	unsigned char data_mode;		/* DATA_MODE_* */
@@ -192,7 +193,9 @@ static unsigned long dm_bufio_cache_size;
  */
 static unsigned long dm_bufio_cache_size_latch;
 
-static DEFINE_SPINLOCK(param_spinlock);
+static DEFINE_SPINLOCK(global_spinlock);
+
+static LIST_HEAD(global_queue);
 
 /*
  * Buffers are freed after this timeout
@@ -301,7 +304,7 @@ static void adjust_total_allocated(struct dm_buffer *b, bool unlink)
 	if (unlink)
 		diff = -diff;
 
-	spin_lock(&param_spinlock);
+	spin_lock(&global_spinlock);
 
 	*class_ptr[data_mode] += diff;
 
@@ -310,7 +313,13 @@ static void adjust_total_allocated(struct dm_buffer *b, bool unlink)
 	if (dm_bufio_current_allocated > dm_bufio_peak_allocated)
 		dm_bufio_peak_allocated = dm_bufio_current_allocated;
 
-	spin_unlock(&param_spinlock);
+	if (!unlink) {
+		list_add(&b->global_list, &global_queue);
+	} else {
+		list_del(&b->global_list);
+	}
+
+	spin_unlock(&global_spinlock);
 }
 
 /*
