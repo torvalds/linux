@@ -1656,11 +1656,14 @@ bool dp_verify_link_cap_with_retries(
 
 	for (i = 0; i < attempts; i++) {
 		int fail_count = 0;
-		enum dc_connection_type type;
+		enum dc_connection_type type = dc_connection_none;
 
 		memset(&link->verified_link_cap, 0,
 				sizeof(struct dc_link_settings));
-		if (!dc_link_detect_sink(link, &type)) {
+		if (!dc_link_detect_sink(link, &type) || type == dc_connection_none) {
+			link->verified_link_cap.lane_count = LANE_COUNT_ONE;
+			link->verified_link_cap.link_rate = LINK_RATE_LOW;
+			link->verified_link_cap.link_spread = LINK_SPREAD_DISABLED;
 			break;
 		} else if (dp_verify_link_cap(link,
 				&link->reported_link_cap,
