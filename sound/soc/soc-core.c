@@ -125,6 +125,9 @@ static umode_t soc_dev_attr_is_visible(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct snd_soc_pcm_runtime *rtd = dev_get_drvdata(dev);
 
+	if (!rtd)
+		return 0;
+
 	if (attr == &dev_attr_pmdown_time.attr)
 		return attr->mode; /* always visible */
 	return rtd->num_codecs ? attr->mode : 0; /* enabled only with codec */
@@ -374,9 +377,13 @@ static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
 	 * we don't need to call kfree() for rtd->dev
 	 * see
 	 *	soc_release_rtd_dev()
+	 *
+	 * We don't need rtd->dev NULL check, because
+	 * it is alloced *before* rtd.
+	 * see
+	 *	soc_new_pcm_runtime()
 	 */
-	if (rtd->dev)
-		device_unregister(rtd->dev);
+	device_unregister(rtd->dev);
 	kfree(rtd);
 }
 
@@ -384,7 +391,27 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	struct snd_soc_card *card, struct snd_soc_dai_link *dai_link)
 {
 	struct snd_soc_pcm_runtime *rtd;
+	struct device *dev;
 	int ret;
+
+	/*
+	 * for rtd->dev
+	 */
+	dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+	if (!dev)
+		return NULL;
+
+	dev->parent	= card->dev;
+	dev->release	= soc_release_rtd_dev;
+	dev->groups	= soc_dev_attr_groups;
+
+	dev_set_name(dev, "%s", dai_link->name);
+
+	ret = device_register(dev);
+	if (ret < 0) {
+		put_device(dev); /* soc_release_rtd_dev */
+		return NULL;
+	}
 
 	/*
 	 * for rtd
@@ -392,6 +419,9 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	rtd = kzalloc(sizeof(struct snd_soc_pcm_runtime), GFP_KERNEL);
 	if (!rtd)
 		goto free_rtd;
+
+	rtd->dev = dev;
+	dev_set_drvdata(dev, rtd);
 
 	/*
 	 * for rtd->codec_dais
@@ -401,27 +431,6 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 					GFP_KERNEL);
 	if (!rtd->codec_dais)
 		goto free_rtd;
-
-	/*
-	 * for rtd->dev
-	 */
-	rtd->dev = kzalloc(sizeof(struct device), GFP_KERNEL);
-	if (!rtd->dev)
-		goto free_rtd;
-
-	rtd->dev->parent = card->dev;
-	rtd->dev->release = soc_release_rtd_dev;
-	rtd->dev->groups = soc_dev_attr_groups;
-
-	dev_set_name(rtd->dev, "%s", dai_link->name);
-	dev_set_drvdata(rtd->dev, rtd);
-
-	ret = device_register(rtd->dev);
-	if (ret < 0) {
-		put_device(rtd->dev); /* soc_release_rtd_dev */
-		rtd->dev = NULL;
-		goto free_rtd;
-	}
 
 	/*
 	 * rtd remaining settings
