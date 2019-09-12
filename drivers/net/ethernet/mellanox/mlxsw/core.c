@@ -80,7 +80,6 @@ struct mlxsw_core {
 	struct mlxsw_thermal *thermal;
 	struct mlxsw_core_port *ports;
 	unsigned int max_ports;
-	bool reload_fail;
 	bool fw_flash_in_progress;
 	unsigned long driver_priv[0];
 	/* driver_priv has to be always the last item */
@@ -1002,15 +1001,11 @@ mlxsw_devlink_core_bus_device_reload_up(struct devlink *devlink,
 					struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
-	int err;
 
-	err = mlxsw_core_bus_device_register(mlxsw_core->bus_info,
-					     mlxsw_core->bus,
-					     mlxsw_core->bus_priv, true,
-					     devlink);
-	mlxsw_core->reload_fail = !!err;
-
-	return err;
+	return mlxsw_core_bus_device_register(mlxsw_core->bus_info,
+					      mlxsw_core->bus,
+					      mlxsw_core->bus_priv, true,
+					      devlink);
 }
 
 static int mlxsw_devlink_flash_update(struct devlink *devlink,
@@ -1254,7 +1249,7 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_core);
 
-	if (mlxsw_core->reload_fail) {
+	if (devlink_is_reload_failed(devlink)) {
 		if (!reload)
 			/* Only the parts that were not de-initialized in the
 			 * failed reload attempt need to be de-initialized.

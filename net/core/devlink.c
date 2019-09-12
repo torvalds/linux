@@ -471,6 +471,8 @@ static int devlink_nl_fill(struct sk_buff *msg, struct devlink *devlink,
 
 	if (devlink_nl_put_handle(msg, devlink))
 		goto nla_put_failure;
+	if (nla_put_u8(msg, DEVLINK_ATTR_RELOAD_FAILED, devlink->reload_failed))
+		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
 	return 0;
@@ -2677,6 +2679,21 @@ static bool devlink_reload_supported(struct devlink *devlink)
 	return devlink->ops->reload_down && devlink->ops->reload_up;
 }
 
+static void devlink_reload_failed_set(struct devlink *devlink,
+				      bool reload_failed)
+{
+	if (devlink->reload_failed == reload_failed)
+		return;
+	devlink->reload_failed = reload_failed;
+	devlink_notify(devlink, DEVLINK_CMD_NEW);
+}
+
+bool devlink_is_reload_failed(const struct devlink *devlink)
+{
+	return devlink->reload_failed;
+}
+EXPORT_SYMBOL_GPL(devlink_is_reload_failed);
+
 static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
@@ -2693,7 +2710,9 @@ static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 	err = devlink->ops->reload_down(devlink, info->extack);
 	if (err)
 		return err;
-	return devlink->ops->reload_up(devlink, info->extack);
+	err = devlink->ops->reload_up(devlink, info->extack);
+	devlink_reload_failed_set(devlink, !!err);
+	return err;
 }
 
 static int devlink_nl_flash_update_fill(struct sk_buff *msg,

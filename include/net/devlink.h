@@ -38,6 +38,7 @@ struct devlink {
 	struct device *dev;
 	possible_net_t _net;
 	struct mutex lock;
+	bool reload_failed;
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
@@ -944,6 +945,8 @@ int devlink_health_report(struct devlink_health_reporter *reporter,
 void
 devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
 				     enum devlink_health_reporter_state state);
+
+bool devlink_is_reload_failed(const struct devlink *devlink);
 
 void devlink_flash_update_begin_notify(struct devlink *devlink);
 void devlink_flash_update_end_notify(struct devlink *devlink);
