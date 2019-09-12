@@ -62,9 +62,11 @@
 #include <linux/medusa/l1/file_handlers.h>
 #include <linux/medusa/l1/task.h>
 #include <linux/medusa/l1/process_handlers.h>
+#include <linux/medusa/l1/socket.h>
 #include "../l2/kobject_process.h"
 #include "../l2/kobject_file.h"
 #include "../l2/kobject_fuck.h"
+#include "../l2/kobject_socket.h"
 #include "../l0/init_medusa.h"
 #include "../../../ipc/util.h"
 
@@ -931,7 +933,12 @@ static int medusa_l1_unix_may_send(struct socket *sock, struct socket *other)
 /*
 static int medusa_l1_socket_create(int family, int type, int protocol, int kern)
 {
-	//printk("medusa: socket_create called\n"); 
+	if (kern)
+		return 0;
+
+	if (medusa_socket_create(family, type, protocol) == MED_ERR)
+		return -EACCES;
+
 	return 0;
 }
 */
@@ -940,6 +947,13 @@ static int medusa_l1_socket_create(int family, int type, int protocol, int kern)
 static int medusa_l1_socket_post_create(struct socket *sock, int family, int type,
 				int protocol, int kern)
 {
+	struct medusa_l1_socket_s *sk_sec;
+
+	if (sock->sk) {
+		sk_sec = &sock_security(sock->sk);
+		sk_sec->addrlen = 0;
+	}
+
 	return 0;
 }
 */
@@ -948,6 +962,13 @@ static int medusa_l1_socket_post_create(struct socket *sock, int family, int typ
 static int medusa_l1_socket_bind(struct socket *sock, struct sockaddr *address,
 				int addrlen)
 {
+	if (!sock->sk) {
+		return 0;
+	}
+
+	if (medusa_socket_bind(sock, address, addrlen) == MED_ERR)
+		return -EACCES;
+
 	return 0;
 }
 */
@@ -956,7 +977,13 @@ static int medusa_l1_socket_bind(struct socket *sock, struct sockaddr *address,
 static int medusa_l1_socket_connect(struct socket *sock, struct sockaddr *address,
 				int addrlen)
 {
-	//printk("medusa: socket_connect called\n");
+	if (!sock->sk) {
+		return 0;
+	}
+
+	if (medusa_socket_connect(sock, address, addrlen) == MED_ERR)
+		return -EACCES;
+
 	return 0;
 }
 */
@@ -964,6 +991,13 @@ static int medusa_l1_socket_connect(struct socket *sock, struct sockaddr *addres
 /*
 static int medusa_l1_socket_listen(struct socket *sock, int backlog)
 {
+	if (!sock->sk) {
+		return 0;
+	}
+
+	if (medusa_socket_listen(sock, backlog) == MED_ERR)
+		return -EACCES;
+
 	return 0;
 }
 */
@@ -971,6 +1005,13 @@ static int medusa_l1_socket_listen(struct socket *sock, int backlog)
 /*
 static int medusa_l1_socket_accept(struct socket *sock, struct socket *newsock)
 {
+	if (!sock->sk) {
+		return 0;
+	}
+
+	if (medusa_socket_accept(sock, newsock) == MED_ERR)
+		return -EACCES;
+
 	return 0;
 }
 */
@@ -978,6 +1019,13 @@ static int medusa_l1_socket_accept(struct socket *sock, struct socket *newsock)
 /*
 static int medusa_l1_socket_sendmsg(struct socket *sock, struct msghdr *msg, int size)
 {
+	if (!sock->sk) {
+		return 0;
+	}
+
+	if (medusa_socket_sendmsg(sock, msg, size) == MED_ERR)
+		return -EACCES;
+
 	return 0;
 }
 */
@@ -986,6 +1034,13 @@ static int medusa_l1_socket_sendmsg(struct socket *sock, struct msghdr *msg, int
 static int medusa_l1_socket_recvmsg(struct socket *sock, struct msghdr *msg,
 				int size, int flags)
 {
+	if (!sock->sk) {
+		return 0;
+	}
+
+	if (medusa_socket_recvmsg(sock, msg, size, flags) == MED_ERR)
+		return -EACCES;
+
 	return 0;
 }
 */
@@ -1052,6 +1107,12 @@ static int medusa_l1_socket_getpeersec_dgram(struct socket *sock,
 /*
 static int medusa_l1_sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 {
+	sk->sk_security = (struct medusa_l1_socket_s*) kmalloc(sizeof(struct medusa_l1_socket_s), GFP_KERNEL);
+
+	if (!sk->sk_security) {
+		return -1;
+	}
+
 	return 0;
 }
 */
@@ -1059,12 +1120,25 @@ static int medusa_l1_sk_alloc_security(struct sock *sk, int family, gfp_t priori
 /*
 static void medusa_l1_sk_free_security(struct sock *sk)
 {
+	struct medusa_l1_socket_s *med;
+
+	if (sk->sk_security != NULL) {
+		med = sk->sk_security;
+		sk->sk_security = NULL;
+		kfree(med);
+	}
 }
 */
 
 /*
 static void medusa_l1_sk_clone_security(const struct sock *sk, struct sock *newsk)
 {
+	struct medusa_l1_socket_s *sk_sec = sk->sk_security;
+	struct medusa_l1_socket_s *newsk_sec = newsk->sk_security;
+
+	newsk_sec = (struct medusa_l1_socket_s*) kmalloc(sizeof(struct medusa_l1_socket_s), GFP_KERNEL);
+	newsk_sec->addrlen = 0;
+	COPY_MEDUSA_OBJECT_VARS(newsk_sec, sk_sec);
 }
 */
 
