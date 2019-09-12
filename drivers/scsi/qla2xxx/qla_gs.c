@@ -3102,7 +3102,8 @@ int qla24xx_post_gpnid_work(struct scsi_qla_host *vha, port_id_t *id)
 {
 	struct qla_work_evt *e;
 
-	if (test_bit(UNLOADING, &vha->dpc_flags))
+	if (test_bit(UNLOADING, &vha->dpc_flags) ||
+	    (vha->vp_idx && test_bit(VPORT_DELETE, &vha->dpc_flags)))
 		return 0;
 
 	e = qla2x00_alloc_work(vha, QLA_EVT_GPNID);

@@ -1115,6 +1115,7 @@ void qlt_free_session_done(struct work_struct *work)
 		wake_up_all(&tgt->waitQ);
 
 	if (!test_bit(PFLG_DRIVER_REMOVING, &base_vha->pci_flags) &&
+	    !(vha->vp_idx && test_bit(VPORT_DELETE, &vha->dpc_flags)) &&
 	    (!tgt || !tgt->tgt_stop) && !LOOP_TRANSITION(vha)) {
 		switch (vha->host->active_mode) {
 		case MODE_INITIATOR:
