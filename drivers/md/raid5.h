@@ -492,9 +492,7 @@ struct disk_info {
  */
 static inline struct bio *r5_next_bio(struct bio *bio, sector_t sector)
 {
-	int sectors = bio_sectors(bio);
-
-	if (bio->bi_iter.bi_sector + sectors < sector + STRIPE_SECTORS)
+	if (bio_end_sector(bio) < sector + STRIPE_SECTORS)
 		return bio->bi_next;
 	else
 		return NULL;
