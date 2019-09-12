@@ -3093,9 +3093,6 @@ static int pnv_pci_diag_data_set(void *data, u64 val)
 	struct pnv_phb *phb = data;
 	s64 ret;
 
-	if (val != 1ULL)
-		return -EINVAL;
-
 	/* Retrieve the diag data from firmware */
 	ret = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag_data,
 					  phb->diag_data_size);
