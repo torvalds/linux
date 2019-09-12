@@ -440,6 +440,19 @@ config HW_RANDOM_OPTEE
 
 	  If unsure, say Y.
 
+config HW_RANDOM_NPCM
+	tristate "NPCM Random Number Generator support"
+	depends on ARCH_NPCM || COMPILE_TEST
+	default HW_RANDOM
+	help
+ 	  This driver provides support for the Random Number
+	  Generator hardware available in Nuvoton NPCM SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called npcm-rng.
+
+ 	  If unsure, say Y.
+
 endif # HW_RANDOM
 
 config UML_RANDOM
