@@ -362,7 +362,7 @@ struct ras_err_handler_data {
 };
 
 typedef int (*ras_ih_cb)(struct amdgpu_device *adev,
-		struct ras_err_data *err_data,
+		void *err_data,
 		struct amdgpu_iv_entry *entry);
 
 struct ras_ih_data {

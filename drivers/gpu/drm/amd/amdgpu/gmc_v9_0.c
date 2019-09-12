@@ -246,16 +246,18 @@ static int gmc_v9_0_ecc_interrupt_state(struct amdgpu_device *adev,
 }
 
 static int gmc_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
-		struct ras_err_data *err_data,
+		void *ras_error_status,
 		struct amdgpu_iv_entry *entry)
 {
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
+
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
 		return AMDGPU_RAS_SUCCESS;
 
 	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
 	if (adev->umc.funcs &&
 	    adev->umc.funcs->query_ras_error_count)
-	    adev->umc.funcs->query_ras_error_count(adev, err_data);
+	    adev->umc.funcs->query_ras_error_count(adev, ras_error_status);
 
 	if (adev->umc.funcs &&
 	    adev->umc.funcs->query_ras_error_address &&
