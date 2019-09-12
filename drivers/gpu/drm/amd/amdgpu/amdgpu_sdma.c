@@ -136,6 +136,25 @@ free:
 	return r;
 }
 
+void amdgpu_sdma_ras_fini(struct amdgpu_device *adev)
+{
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__SDMA) &&
+			adev->sdma.ras_if) {
+		struct ras_common_if *ras_if = adev->sdma.ras_if;
+		struct ras_ih_if ih_info = {
+			.head = *ras_if,
+			/* the cb member will not be used by
+			 * amdgpu_ras_interrupt_remove_handler, init it only
+			 * to cheat the check in ras_late_fini
+			 */
+			.cb = amdgpu_sdma_process_ras_data_cb,
+		};
+
+		amdgpu_ras_late_fini(adev, ras_if, &ih_info);
+		kfree(ras_if);
+	}
+}
+
 int amdgpu_sdma_process_ras_data_cb(struct amdgpu_device *adev,
 		void *err_data,
 		struct amdgpu_iv_entry *entry)
