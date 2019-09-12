@@ -376,7 +376,7 @@ static __net_init int ctinfo_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, ctinfo_net_id);
 
-	return tc_action_net_init(tn, &act_ctinfo_ops);
+	return tc_action_net_init(net, tn, &act_ctinfo_ops);
 }
 
 static void __net_exit ctinfo_exit_net(struct list_head *net_list)

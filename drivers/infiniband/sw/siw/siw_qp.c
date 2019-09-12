@@ -949,7 +949,7 @@ skip_irq:
 				rv = -EINVAL;
 				goto out;
 			}
-			wqe->sqe.sge[0].laddr = (u64)&wqe->sqe.sge[1];
+			wqe->sqe.sge[0].laddr = (uintptr_t)&wqe->sqe.sge[1];
 			wqe->sqe.sge[0].lkey = 0;
 			wqe->sqe.num_sge = 1;
 		}

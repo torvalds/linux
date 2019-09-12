@@ -94,7 +94,7 @@ static int tc_fill_entry(struct stmmac_priv *priv,
 	struct stmmac_tc_entry *entry, *frag = NULL;
 	struct tc_u32_sel *sel = cls->knode.sel;
 	u32 off, data, mask, real_off, rem;
-	u32 prio = cls->common.prio;
+	u32 prio = cls->common.prio << 16;
 	int ret;
 
 	/* Only 1 match per entry */

@@ -12,6 +12,26 @@
 
 bool enable_evmcs;
 
+int vcpu_enable_evmcs(struct kvm_vm *vm, int vcpu_id)
+{
+	uint16_t evmcs_ver;
+
+	struct kvm_enable_cap enable_evmcs_cap = {
+		.cap = KVM_CAP_HYPERV_ENLIGHTENED_VMCS,
+		 .args[0] = (unsigned long)&evmcs_ver
+	};
+
+	vcpu_ioctl(vm, vcpu_id, KVM_ENABLE_CAP, &enable_evmcs_cap);
+
+	/* KVM should return supported EVMCS version range */
+	TEST_ASSERT(((evmcs_ver >> 8) >= (evmcs_ver & 0xff)) &&
+		    (evmcs_ver & 0xff) > 0,
+		    "Incorrect EVMCS version range: %x:%x\n",
+		    evmcs_ver & 0xff, evmcs_ver >> 8);
+
+	return evmcs_ver;
+}
+
 /* Allocate memory regions for nested VMX tests.
  *
  * Input Args:

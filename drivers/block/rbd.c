@@ -3038,6 +3038,17 @@ again:
 		}
 		return true;
 	case RBD_OBJ_READ_PARENT:
+		/*
+		 * The parent image is read only up to the overlap -- zero-fill
+		 * from the overlap to the end of the request.
+		 */
+		if (!*result) {
+			u32 obj_overlap = rbd_obj_img_extents_bytes(obj_req);
+
+			if (obj_overlap < obj_req->ex.oe_len)
+				rbd_obj_zero_range(obj_req, obj_overlap,
+					    obj_req->ex.oe_len - obj_overlap);
+		}
 		return true;
 	default:
 		BUG();

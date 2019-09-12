@@ -939,7 +939,7 @@ static __net_init int ct_init_net(struct net *net)
 		tn->labels = true;
 	}
 
-	return tc_action_net_init(&tn->tn, &act_ct_ops);
+	return tc_action_net_init(net, &tn->tn, &act_ct_ops);
 }
 
 static void __net_exit ct_exit_net(struct list_head *net_list)

@@ -103,10 +103,11 @@ void nft_offload_update_dependency(struct nft_offload_ctx *ctx,
 }
 
 static void nft_flow_offload_common_init(struct flow_cls_common_offload *common,
-					 __be16 proto,
-					struct netlink_ext_ack *extack)
+					 __be16 proto, int priority,
+					 struct netlink_ext_ack *extack)
 {
 	common->protocol = proto;
+	common->prio = priority;
 	common->extack = extack;
 }
 
@@ -121,6 +122,15 @@ static int nft_setup_cb_call(struct nft_base_chain *basechain,
 		if (err < 0)
 			return err;
 	}
+	return 0;
+}
+
+int nft_chain_offload_priority(struct nft_base_chain *basechain)
+{
+	if (basechain->ops.priority <= 0 ||
+	    basechain->ops.priority > USHRT_MAX)
+		return -1;
+
 	return 0;
 }
 
@@ -142,7 +152,8 @@ static int nft_flow_offload_rule(struct nft_trans *trans,
 	if (flow)
 		proto = flow->proto;
 
-	nft_flow_offload_common_init(&cls_flow.common, proto, &extack);
+	nft_flow_offload_common_init(&cls_flow.common, proto,
+				     basechain->ops.priority, &extack);
 	cls_flow.command = command;
 	cls_flow.cookie = (unsigned long) rule;
 	if (flow)

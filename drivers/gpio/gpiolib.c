@@ -1091,9 +1091,11 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (test_bit(FLAG_ACTIVE_LOW, &desc->flags))
 			lineinfo.flags |= GPIOLINE_FLAG_ACTIVE_LOW;
 		if (test_bit(FLAG_OPEN_DRAIN, &desc->flags))
-			lineinfo.flags |= GPIOLINE_FLAG_OPEN_DRAIN;
+			lineinfo.flags |= (GPIOLINE_FLAG_OPEN_DRAIN |
+					   GPIOLINE_FLAG_IS_OUT);
 		if (test_bit(FLAG_OPEN_SOURCE, &desc->flags))
-			lineinfo.flags |= GPIOLINE_FLAG_OPEN_SOURCE;
+			lineinfo.flags |= (GPIOLINE_FLAG_OPEN_SOURCE |
+					   GPIOLINE_FLAG_IS_OUT);
 
 		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo)))
 			return -EFAULT;
@@ -1371,21 +1373,13 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 	if (status)
 		goto err_remove_from_list;
 
-	status = gpiochip_irqchip_init_valid_mask(chip);
+	status = gpiochip_alloc_valid_mask(chip);
 	if (status)
 		goto err_remove_from_list;
 
-	status = gpiochip_alloc_valid_mask(chip);
-	if (status)
-		goto err_remove_irqchip_mask;
-
-	status = gpiochip_add_irqchip(chip, lock_key, request_key);
-	if (status)
-		goto err_free_gpiochip_mask;
-
 	status = of_gpiochip_add(chip);
 	if (status)
-		goto err_remove_chip;
+		goto err_free_gpiochip_mask;
 
 	status = gpiochip_init_valid_mask(chip);
 	if (status)
@@ -1411,6 +1405,14 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 
 	machine_gpiochip_add(chip);
 
+	status = gpiochip_irqchip_init_valid_mask(chip);
+	if (status)
+		goto err_remove_acpi_chip;
+
+	status = gpiochip_add_irqchip(chip, lock_key, request_key);
+	if (status)
+		goto err_remove_irqchip_mask;
+
 	/*
 	 * By first adding the chardev, and then adding the device,
 	 * we get a device node entry in sysfs under
@@ -1422,21 +1424,21 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 	if (gpiolib_initialized) {
 		status = gpiochip_setup_dev(gdev);
 		if (status)
-			goto err_remove_acpi_chip;
+			goto err_remove_irqchip;
 	}
 	return 0;
 
+err_remove_irqchip:
+	gpiochip_irqchip_remove(chip);
+err_remove_irqchip_mask:
+	gpiochip_irqchip_free_valid_mask(chip);
 err_remove_acpi_chip:
 	acpi_gpiochip_remove(chip);
 err_remove_of_chip:
 	gpiochip_free_hogs(chip);
 	of_gpiochip_remove(chip);
-err_remove_chip:
-	gpiochip_irqchip_remove(chip);
 err_free_gpiochip_mask:
 	gpiochip_free_valid_mask(chip);
-err_remove_irqchip_mask:
-	gpiochip_irqchip_free_valid_mask(chip);
 err_remove_from_list:
 	spin_lock_irqsave(&gpio_lock, flags);
 	list_del(&gdev->list);

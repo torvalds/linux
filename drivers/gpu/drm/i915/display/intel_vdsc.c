@@ -541,7 +541,7 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 	pps_val |= DSC_PIC_HEIGHT(vdsc_cfg->pic_height) |
 		DSC_PIC_WIDTH(vdsc_cfg->pic_width / num_vdsc_instances);
 	DRM_INFO("PPS2 = 0x%08x\n", pps_val);
-	if (encoder->type == INTEL_OUTPUT_EDP) {
+	if (cpu_transcoder == TRANSCODER_EDP) {
 		I915_WRITE(DSCA_PICTURE_PARAMETER_SET_2, pps_val);
 		/*
 		 * If 2 VDSC instances are needed, configure PPS for second

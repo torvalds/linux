@@ -590,7 +590,8 @@ mlx5_fw_fatal_reporter_dump(struct devlink_health_reporter *reporter,
 			data_size = crdump_size - offset;
 		else
 			data_size = MLX5_CR_DUMP_CHUNK_SIZE;
-		err = devlink_fmsg_binary_put(fmsg, cr_data, data_size);
+		err = devlink_fmsg_binary_put(fmsg, (char *)cr_data + offset,
+					      data_size);
 		if (err)
 			goto free_data;
 	}
@@ -700,6 +701,16 @@ static void poll_health(struct timer_list *t)
 	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
 		goto out;
 
+	fatal_error = check_fatal_sensors(dev);
+
+	if (fatal_error && !health->fatal_error) {
+		mlx5_core_err(dev, "Fatal error %u detected\n", fatal_error);
+		dev->priv.health.fatal_error = fatal_error;
+		print_health_info(dev);
+		mlx5_trigger_health_work(dev);
+		goto out;
+	}
+
 	count = ioread32be(health->health_counter);
 	if (count == health->prev)
 		++health->miss_counter;
@@ -717,15 +728,6 @@ static void poll_health(struct timer_list *t)
 	health->synd = ioread8(&h->synd);
 	if (health->synd && health->synd != prev_synd)
 		queue_work(health->wq, &health->report_work);
-
-	fatal_error = check_fatal_sensors(dev);
-
-	if (fatal_error && !health->fatal_error) {
-		mlx5_core_err(dev, "Fatal error %u detected\n", fatal_error);
-		dev->priv.health.fatal_error = fatal_error;
-		print_health_info(dev);
-		mlx5_trigger_health_work(dev);
-	}
 
 out:
 	mod_timer(&health->timer, get_next_poll_jiffies());

@@ -679,6 +679,13 @@ static void io_put_req(struct io_kiocb *req)
 		io_free_req(req);
 }
 
+static unsigned io_cqring_events(struct io_cq_ring *ring)
+{
+	/* See comment at the top of this file */
+	smp_rmb();
+	return READ_ONCE(ring->r.tail) - READ_ONCE(ring->r.head);
+}
+
 /*
  * Find and free completed poll iocbs
  */
@@ -771,7 +778,7 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 static int io_iopoll_getevents(struct io_ring_ctx *ctx, unsigned int *nr_events,
 				long min)
 {
-	while (!list_empty(&ctx->poll_list)) {
+	while (!list_empty(&ctx->poll_list) && !need_resched()) {
 		int ret;
 
 		ret = io_do_iopoll(ctx, nr_events, min);
@@ -798,6 +805,12 @@ static void io_iopoll_reap_events(struct io_ring_ctx *ctx)
 		unsigned int nr_events = 0;
 
 		io_iopoll_getevents(ctx, &nr_events, 1);
+
+		/*
+		 * Ensure we allow local-to-the-cpu processing to take place,
+		 * in this case we need to ensure that we reap all events.
+		 */
+		cond_resched();
 	}
 	mutex_unlock(&ctx->uring_lock);
 }
@@ -805,10 +818,41 @@ static void io_iopoll_reap_events(struct io_ring_ctx *ctx)
 static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
 			   long min)
 {
-	int ret = 0;
+	int iters, ret = 0;
 
+	/*
+	 * We disallow the app entering submit/complete with polling, but we
+	 * still need to lock the ring to prevent racing with polled issue
+	 * that got punted to a workqueue.
+	 */
+	mutex_lock(&ctx->uring_lock);
+
+	iters = 0;
 	do {
 		int tmin = 0;
+
+		/*
+		 * Don't enter poll loop if we already have events pending.
+		 * If we do, we can potentially be spinning for commands that
+		 * already triggered a CQE (eg in error).
+		 */
+		if (io_cqring_events(ctx->cq_ring))
+			break;
+
+		/*
+		 * If a submit got punted to a workqueue, we can have the
+		 * application entering polling for a command before it gets
+		 * issued. That app will hold the uring_lock for the duration
+		 * of the poll right here, so we need to take a breather every
+		 * now and then to ensure that the issue has a chance to add
+		 * the poll to the issued list. Otherwise we can spin here
+		 * forever, while the workqueue is stuck trying to acquire the
+		 * very same mutex.
+		 */
+		if (!(++iters & 7)) {
+			mutex_unlock(&ctx->uring_lock);
+			mutex_lock(&ctx->uring_lock);
+		}
 
 		if (*nr_events < min)
 			tmin = min - *nr_events;
@@ -819,6 +863,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
 		ret = 0;
 	} while (min && !*nr_events && !need_resched());
 
+	mutex_unlock(&ctx->uring_lock);
 	return ret;
 }
 
@@ -2280,15 +2325,7 @@ static int io_sq_thread(void *data)
 			unsigned nr_events = 0;
 
 			if (ctx->flags & IORING_SETUP_IOPOLL) {
-				/*
-				 * We disallow the app entering submit/complete
-				 * with polling, but we still need to lock the
-				 * ring to prevent racing with polled issue
-				 * that got punted to a workqueue.
-				 */
-				mutex_lock(&ctx->uring_lock);
 				io_iopoll_check(ctx, &nr_events, 0);
-				mutex_unlock(&ctx->uring_lock);
 			} else {
 				/*
 				 * Normal IO, just pretend everything completed.
@@ -2431,13 +2468,6 @@ static int io_ring_submit(struct io_ring_ctx *ctx, unsigned int to_submit)
 		io_submit_state_end(statep);
 
 	return submit;
-}
-
-static unsigned io_cqring_events(struct io_cq_ring *ring)
-{
-	/* See comment at the top of this file */
-	smp_rmb();
-	return READ_ONCE(ring->r.tail) - READ_ONCE(ring->r.head);
 }
 
 /*
@@ -3190,9 +3220,7 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		min_complete = min(min_complete, ctx->cq_entries);
 
 		if (ctx->flags & IORING_SETUP_IOPOLL) {
-			mutex_lock(&ctx->uring_lock);
 			ret = io_iopoll_check(ctx, &nr_events, min_complete);
-			mutex_unlock(&ctx->uring_lock);
 		} else {
 			ret = io_cqring_wait(ctx, min_complete, sig, sigsz);
 		}

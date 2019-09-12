@@ -128,6 +128,7 @@ static inline void ksz_pwrite32(struct ksz_device *dev, int port, int offset,
 
 #define KSZ_REGMAP_ENTRY(width, swp, regbits, regpad, regalign)		\
 	{								\
+		.name = #width,						\
 		.val_bits = (width),					\
 		.reg_stride = (width) / 8,				\
 		.reg_bits = (regbits) + (regalign),			\

@@ -28,6 +28,7 @@
  *
  * RSV - VID[9]:
  *	To be used for further expansion of SWITCH_ID or for other purposes.
+ *	Must be transmitted as zero and ignored on receive.
  *
  * SWITCH_ID - VID[8:6]:
  *	Index of switch within DSA tree. Must be between 0 and
@@ -35,6 +36,7 @@
  *
  * RSV - VID[5:4]:
  *	To be used for further expansion of PORT or for other purposes.
+ *	Must be transmitted as zero and ignored on receive.
  *
  * PORT - VID[3:0]:
  *	Index of switch port. Must be between 0 and DSA_MAX_PORTS - 1.

@@ -480,6 +480,7 @@ void komeda_pipeline_dump_register(struct komeda_pipeline *pipe,
 				   struct seq_file *sf);
 
 /* component APIs */
+extern __printf(10, 11)
 struct komeda_component *
 komeda_component_add(struct komeda_pipeline *pipe,
 		     size_t comp_sz, u32 id, u32 hw_id,

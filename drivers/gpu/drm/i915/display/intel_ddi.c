@@ -1465,8 +1465,8 @@ static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
 	else if (intel_crtc_has_dp_encoder(pipe_config))
 		dotclock = intel_dotclock_calculate(pipe_config->port_clock,
 						    &pipe_config->dp_m_n);
-	else if (pipe_config->has_hdmi_sink && pipe_config->pipe_bpp == 36)
-		dotclock = pipe_config->port_clock * 2 / 3;
+	else if (pipe_config->has_hdmi_sink && pipe_config->pipe_bpp > 24)
+		dotclock = pipe_config->port_clock * 24 / pipe_config->pipe_bpp;
 	else
 		dotclock = pipe_config->port_clock;
 

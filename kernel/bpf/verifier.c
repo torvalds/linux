@@ -985,9 +985,6 @@ static void __mark_reg_unbounded(struct bpf_reg_state *reg)
 	reg->smax_value = S64_MAX;
 	reg->umin_value = 0;
 	reg->umax_value = U64_MAX;
-
-	/* constant backtracking is enabled for root only for now */
-	reg->precise = capable(CAP_SYS_ADMIN) ? false : true;
 }
 
 /* Mark a register as having a completely unknown (scalar) value. */
@@ -1014,7 +1011,11 @@ static void mark_reg_unknown(struct bpf_verifier_env *env,
 			__mark_reg_not_init(regs + regno);
 		return;
 	}
-	__mark_reg_unknown(regs + regno);
+	regs += regno;
+	__mark_reg_unknown(regs);
+	/* constant backtracking is enabled for root without bpf2bpf calls */
+	regs->precise = env->subprog_cnt > 1 || !env->allow_ptr_leaks ?
+			true : false;
 }
 
 static void __mark_reg_not_init(struct bpf_reg_state *reg)

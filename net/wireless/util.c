@@ -233,25 +233,30 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 
 	switch (params->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
+		/* Extended Key ID can only be used with CCMP/GCMP ciphers */
+		if ((pairwise && key_idx) ||
+		    params->mode != NL80211_KEY_RX_TX)
+			return -EINVAL;
+		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
-		/* IEEE802.11-2016 allows only 0 and - when using Extended Key
-		 * ID - 1 as index for pairwise keys.
+		/* IEEE802.11-2016 allows only 0 and - when supporting
+		 * Extended Key ID - 1 as index for pairwise keys.
 		 * @NL80211_KEY_NO_TX is only allowed for pairwise keys when
 		 * the driver supports Extended Key ID.
 		 * @NL80211_KEY_SET_TX can't be set when installing and
 		 * validating a key.
 		 */
-		if (params->mode == NL80211_KEY_NO_TX) {
-			if (!wiphy_ext_feature_isset(&rdev->wiphy,
-						     NL80211_EXT_FEATURE_EXT_KEY_ID))
+		if ((params->mode == NL80211_KEY_NO_TX && !pairwise) ||
+		    params->mode == NL80211_KEY_SET_TX)
+			return -EINVAL;
+		if (wiphy_ext_feature_isset(&rdev->wiphy,
+					    NL80211_EXT_FEATURE_EXT_KEY_ID)) {
+			if (pairwise && (key_idx < 0 || key_idx > 1))
 				return -EINVAL;
-			else if (!pairwise || key_idx < 0 || key_idx > 1)
-				return -EINVAL;
-		} else if ((pairwise && key_idx) ||
-			   params->mode == NL80211_KEY_SET_TX) {
+		} else if (pairwise && key_idx) {
 			return -EINVAL;
 		}
 		break;

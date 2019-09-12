@@ -993,6 +993,7 @@ static ssize_t sun6i_dsi_transfer(struct mipi_dsi_host *host,
 			ret = sun6i_dsi_dcs_read(dsi, msg);
 			break;
 		}
+		/* Else, fall through */
 
 	default:
 		ret = -EINVAL;

@@ -895,7 +895,8 @@ void trace_probe_cleanup(struct trace_probe *tp)
 	for (i = 0; i < tp->nr_args; i++)
 		traceprobe_free_probe_arg(&tp->args[i]);
 
-	kfree(call->class->system);
+	if (call->class)
+		kfree(call->class->system);
 	kfree(call->name);
 	kfree(call->print_fmt);
 }

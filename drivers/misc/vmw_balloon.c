@@ -691,7 +691,6 @@ static int vmballoon_alloc_page_list(struct vmballoon *b,
 		}
 
 		if (page) {
-			vmballoon_mark_page_offline(page, ctl->page_size);
 			/* Success. Add the page to the list and continue. */
 			list_add(&page->lru, &ctl->pages);
 			continue;
@@ -930,7 +929,6 @@ static void vmballoon_release_page_list(struct list_head *page_list,
 
 	list_for_each_entry_safe(page, tmp, page_list, lru) {
 		list_del(&page->lru);
-		vmballoon_mark_page_online(page, page_size);
 		__free_pages(page, vmballoon_page_order(page_size));
 	}
 
@@ -1005,6 +1003,7 @@ static void vmballoon_enqueue_page_list(struct vmballoon *b,
 					enum vmballoon_page_size_type page_size)
 {
 	unsigned long flags;
+	struct page *page;
 
 	if (page_size == VMW_BALLOON_4K_PAGE) {
 		balloon_page_list_enqueue(&b->b_dev_info, pages);
@@ -1014,6 +1013,11 @@ static void vmballoon_enqueue_page_list(struct vmballoon *b,
 		 * for the balloon compaction mechanism.
 		 */
 		spin_lock_irqsave(&b->b_dev_info.pages_lock, flags);
+
+		list_for_each_entry(page, pages, lru) {
+			vmballoon_mark_page_offline(page, VMW_BALLOON_2M_PAGE);
+		}
+
 		list_splice_init(pages, &b->huge_pages);
 		__count_vm_events(BALLOON_INFLATE, *n_pages *
 				  vmballoon_page_in_frames(VMW_BALLOON_2M_PAGE));
@@ -1056,6 +1060,8 @@ static void vmballoon_dequeue_page_list(struct vmballoon *b,
 	/* 2MB pages */
 	spin_lock_irqsave(&b->b_dev_info.pages_lock, flags);
 	list_for_each_entry_safe(page, tmp, &b->huge_pages, lru) {
+		vmballoon_mark_page_online(page, VMW_BALLOON_2M_PAGE);
+
 		list_move(&page->lru, pages);
 		if (++i == n_req_pages)
 			break;

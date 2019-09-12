@@ -829,7 +829,7 @@ struct intel_crtc_state {
 
 	/*
 	 * Frequence the dpll for the port should run at. Differs from the
-	 * adjusted dotclock e.g. for DP or 12bpc hdmi mode. This is also
+	 * adjusted dotclock e.g. for DP or 10/12bpc hdmi mode. This is also
 	 * already multiplied by pixel_multiplier.
 	 */
 	int port_clock;

@@ -102,13 +102,17 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	s->rate = rate;
 	s->psample_group_num = psample_group_num;
-	RCU_INIT_POINTER(s->psample_group, psample_group);
+	rcu_swap_protected(s->psample_group, psample_group,
+			   lockdep_is_held(&s->tcf_lock));
 
 	if (tb[TCA_SAMPLE_TRUNC_SIZE]) {
 		s->truncate = true;
 		s->trunc_size = nla_get_u32(tb[TCA_SAMPLE_TRUNC_SIZE]);
 	}
 	spin_unlock_bh(&s->tcf_lock);
+
+	if (psample_group)
+		psample_group_put(psample_group);
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);
 
@@ -265,7 +269,7 @@ static __net_init int sample_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, sample_net_id);
 
-	return tc_action_net_init(tn, &act_sample_ops);
+	return tc_action_net_init(net, tn, &act_sample_ops);
 }
 
 static void __net_exit sample_exit_net(struct list_head *net_list)

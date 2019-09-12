@@ -669,7 +669,7 @@ static int pdev_probe(struct platform_device *pdev)
 	if (omapdss_is_initialized() == false)
 		return -EPROBE_DEFER;
 
-	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to set the DMA mask\n");
 		return ret;

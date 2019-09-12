@@ -141,12 +141,6 @@ static inline unsigned int nexthop_num_path(const struct nexthop *nh)
 
 		nh_grp = rcu_dereference_rtnl(nh->nh_grp);
 		rc = nh_grp->num_nh;
-	} else {
-		const struct nh_info *nhi;
-
-		nhi = rcu_dereference_rtnl(nh->nh_info);
-		if (nhi->reject_nh)
-			rc = 0;
 	}
 
 	return rc;

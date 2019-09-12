@@ -278,6 +278,7 @@ struct hci_dev {
 	__u16		conn_info_min_age;
 	__u16		conn_info_max_age;
 	__u16		auth_payload_timeout;
+	__u8		min_enc_key_size;
 	__u8		ssp_debug_mode;
 	__u8		hw_error_code;
 	__u32		clock;

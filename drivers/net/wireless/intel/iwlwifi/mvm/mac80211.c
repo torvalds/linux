@@ -3327,10 +3327,20 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		/* enable beacon filtering */
 		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
 
+		/*
+		 * Now that the station is authorized, i.e., keys were already
+		 * installed, need to indicate to the FW that
+		 * multicast data frames can be forwarded to the driver
+		 */
+		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+
 		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
 				     true);
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
+		/* Multicast data frames are no longer allowed */
+		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+
 		/* disable beacon filtering */
 		ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
 		WARN_ON(ret &&

@@ -47,7 +47,8 @@ static int ncsi_validate_rsp_pkt(struct ncsi_request *nr,
 	if (ntohs(h->code) != NCSI_PKT_RSP_C_COMPLETED ||
 	    ntohs(h->reason) != NCSI_PKT_RSP_R_NO_ERROR) {
 		netdev_dbg(nr->ndp->ndev.dev,
-			   "NCSI: non zero response/reason code\n");
+			   "NCSI: non zero response/reason code %04xh, %04xh\n",
+			    ntohs(h->code), ntohs(h->reason));
 		return -EPERM;
 	}
 
@@ -55,7 +56,7 @@ static int ncsi_validate_rsp_pkt(struct ncsi_request *nr,
 	 * sender doesn't support checksum according to NCSI
 	 * specification.
 	 */
-	pchecksum = (__be32 *)((void *)(h + 1) + payload - 4);
+	pchecksum = (__be32 *)((void *)(h + 1) + ALIGN(payload, 4) - 4);
 	if (ntohl(*pchecksum) == 0)
 		return 0;
 
@@ -63,7 +64,9 @@ static int ncsi_validate_rsp_pkt(struct ncsi_request *nr,
 					   sizeof(*h) + payload - 4);
 
 	if (*pchecksum != htonl(checksum)) {
-		netdev_dbg(nr->ndp->ndev.dev, "NCSI: checksum mismatched\n");
+		netdev_dbg(nr->ndp->ndev.dev,
+			   "NCSI: checksum mismatched; recd: %08x calc: %08x\n",
+			   *pchecksum, htonl(checksum));
 		return -EINVAL;
 	}
 

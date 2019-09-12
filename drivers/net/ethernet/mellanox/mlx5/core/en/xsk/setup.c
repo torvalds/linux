@@ -143,7 +143,10 @@ void mlx5e_activate_xsk(struct mlx5e_channel *c)
 {
 	set_bit(MLX5E_RQ_STATE_ENABLED, &c->xskrq.state);
 	/* TX queue is created active. */
+
+	spin_lock(&c->xskicosq_lock);
 	mlx5e_trigger_irq(&c->xskicosq);
+	spin_unlock(&c->xskicosq_lock);
 }
 
 void mlx5e_deactivate_xsk(struct mlx5e_channel *c)

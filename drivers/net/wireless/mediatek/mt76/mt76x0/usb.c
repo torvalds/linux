@@ -136,11 +136,11 @@ static const struct ieee80211_ops mt76x0u_ops = {
 	.release_buffered_frames = mt76_release_buffered_frames,
 };
 
-static int mt76x0u_init_hardware(struct mt76x02_dev *dev)
+static int mt76x0u_init_hardware(struct mt76x02_dev *dev, bool reset)
 {
 	int err;
 
-	mt76x0_chip_onoff(dev, true, true);
+	mt76x0_chip_onoff(dev, true, reset);
 
 	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
@@ -173,7 +173,7 @@ static int mt76x0u_register_device(struct mt76x02_dev *dev)
 	if (err < 0)
 		goto out_err;
 
-	err = mt76x0u_init_hardware(dev);
+	err = mt76x0u_init_hardware(dev, true);
 	if (err < 0)
 		goto out_err;
 
@@ -309,7 +309,7 @@ static int __maybe_unused mt76x0_resume(struct usb_interface *usb_intf)
 	if (ret < 0)
 		goto err;
 
-	ret = mt76x0u_init_hardware(dev);
+	ret = mt76x0u_init_hardware(dev, false);
 	if (ret)
 		goto err;
 

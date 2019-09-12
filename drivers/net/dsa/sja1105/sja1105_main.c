@@ -1223,11 +1223,7 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 {
 	struct sja1105_private *priv = ds->priv;
 	struct device *dev = ds->dev;
-	u16 rx_vid, tx_vid;
 	int i;
-
-	rx_vid = dsa_8021q_rx_vid(ds, port);
-	tx_vid = dsa_8021q_tx_vid(ds, port);
 
 	for (i = 0; i < SJA1105_MAX_L2_LOOKUP_COUNT; i++) {
 		struct sja1105_l2_lookup_entry l2_lookup = {0};
