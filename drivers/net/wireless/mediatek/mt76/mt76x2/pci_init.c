@@ -148,15 +148,7 @@ int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 
 int mt76x2_mac_start(struct mt76x02_dev *dev)
 {
-	int i;
-
-	for (i = 0; i < 16; i++)
-		mt76_rr(dev, MT_TX_AGG_CNT(i));
-
-	for (i = 0; i < 16; i++)
-		mt76_rr(dev, MT_TX_STAT_FIFO);
-
-	memset(dev->aggr_stats, 0, sizeof(dev->aggr_stats));
+	mt76x02_mac_reset_counters(dev);
 	mt76x02_mac_start(dev);
 
 	return 0;
