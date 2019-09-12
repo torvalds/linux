@@ -21,7 +21,6 @@
  *
  */
 
-#include "amdgpu.h"
 #include "amdgpu_ras.h"
 
 int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, void *ras_ih_info)
@@ -74,4 +73,68 @@ free:
 	kfree(adev->gmc.umc_ras_if);
 	adev->gmc.umc_ras_if = NULL;
 	return r;
+}
+
+int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
+		void *ras_error_status,
+		struct amdgpu_iv_entry *entry)
+{
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
+
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
+		return AMDGPU_RAS_SUCCESS;
+
+	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
+	if (adev->umc.funcs &&
+	    adev->umc.funcs->query_ras_error_count)
+	    adev->umc.funcs->query_ras_error_count(adev, ras_error_status);
+
+	if (adev->umc.funcs &&
+	    adev->umc.funcs->query_ras_error_address &&
+	    adev->umc.max_ras_err_cnt_per_query) {
+		err_data->err_addr =
+			kcalloc(adev->umc.max_ras_err_cnt_per_query,
+				sizeof(struct eeprom_table_record), GFP_KERNEL);
+		/* still call query_ras_error_address to clear error status
+		 * even NOMEM error is encountered
+		 */
+		if(!err_data->err_addr)
+			DRM_WARN("Failed to alloc memory for umc error address record!\n");
+
+		/* umc query_ras_error_address is also responsible for clearing
+		 * error status
+		 */
+		adev->umc.funcs->query_ras_error_address(adev, ras_error_status);
+	}
+
+	/* only uncorrectable error needs gpu reset */
+	if (err_data->ue_count) {
+		if (err_data->err_addr_cnt &&
+		    amdgpu_ras_add_bad_pages(adev, err_data->err_addr,
+						err_data->err_addr_cnt))
+			DRM_WARN("Failed to add ras bad page!\n");
+
+		amdgpu_ras_reset_gpu(adev, 0);
+	}
+
+	kfree(err_data->err_addr);
+	return AMDGPU_RAS_SUCCESS;
+}
+
+int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
+		struct amdgpu_irq_src *source,
+		struct amdgpu_iv_entry *entry)
+{
+	struct ras_common_if *ras_if = adev->gmc.umc_ras_if;
+	struct ras_dispatch_if ih_data = {
+		.entry = entry,
+	};
+
+	if (!ras_if)
+		return 0;
+
+	ih_data.head = *ras_if;
+
+	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
+	return 0;
 }
