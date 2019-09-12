@@ -1073,6 +1073,9 @@ static int vim2m_start_streaming(struct vb2_queue *q, unsigned int count)
 	if (!q_data)
 		return -EINVAL;
 
+	if (V4L2_TYPE_IS_OUTPUT(q->type))
+		ctx->aborting = 0;
+
 	q_data->sequence = 0;
 	return 0;
 }
