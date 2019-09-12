@@ -718,20 +718,12 @@ static int medusa_l1_task_movememory(struct task_struct *p)
 }
 */
 
-/* TODO TODO TODO: add support of 'cred' in medusa_sendsig() */
-static int medusa_l1_task_kill(struct task_struct *p, struct kernel_siginfo *info,
-			 int sig, const struct cred *cred)
+static int medusa_l1_task_kill(struct task_struct *p, struct siginfo *info,
+			 int sig, u32 secid)
 {
-	/*
-	 * something goes wrong...
-	 */
+	/* if(medusa_sendsig(sig, info, p) == MED_NO)
+		return -EPERM; */
 	return 0;
-
-	/*
-	if(medusa_sendsig(sig, info, p) == MED_NO)
-		return -EPERM;
-	return 0;
-	*/
 }
 
 /*

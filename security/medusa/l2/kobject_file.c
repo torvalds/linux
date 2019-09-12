@@ -151,7 +151,7 @@ void file_kobj_dentry2string(struct dentry * dentry, char * buf)
 	dput(dentry);
 }
 
-static struct file_kobject storage;
+// static struct file_kobject storage;
 
 static inline struct inode * __lookup_inode_by_key(struct file_kobject * key_obj)
 {
@@ -177,9 +177,9 @@ static struct medusa_kobject_s * file_fetch(struct medusa_kobject_s * key_obj)
 
 	p = __lookup_inode_by_key((struct file_kobject *)key_obj);
 	if (p) {
-		file_kern2kobj(&storage, p);
+		file_kern2kobj((struct file_kobject*)key_obj, p);
 		__unlookup();
-		return (struct medusa_kobject_s *)&storage;
+		return (struct medusa_kobject_s *)key_obj;
 	}
 	__unlookup();
 	return NULL;
