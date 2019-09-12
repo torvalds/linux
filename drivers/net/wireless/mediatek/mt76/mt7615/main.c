@@ -263,6 +263,11 @@ static void mt7615_configure_filter(struct ieee80211_hw *hw,
 				    u64 multicast)
 {
 	struct mt7615_dev *dev = hw->priv;
+	u32 ctl_flags = MT_WF_RFCR1_DROP_ACK |
+			MT_WF_RFCR1_DROP_BF_POLL |
+			MT_WF_RFCR1_DROP_BA |
+			MT_WF_RFCR1_DROP_CFEND |
+			MT_WF_RFCR1_DROP_CFACK;
 	u32 flags = 0;
 
 #define MT76_FILTER(_flag, _hw) do { \
@@ -296,6 +301,11 @@ static void mt7615_configure_filter(struct ieee80211_hw *hw,
 
 	*total_flags = flags;
 	mt76_wr(dev, MT_WF_RFCR, dev->mt76.rxfilter);
+
+	if (*total_flags & FIF_CONTROL)
+		mt76_clear(dev, MT_WF_RFCR1, ctl_flags);
+	else
+		mt76_set(dev, MT_WF_RFCR1, ctl_flags);
 }
 
 static void mt7615_bss_info_changed(struct ieee80211_hw *hw,

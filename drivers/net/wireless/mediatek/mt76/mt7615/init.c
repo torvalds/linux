@@ -20,7 +20,7 @@ static void mt7615_phy_init(struct mt7615_dev *dev)
 
 static void mt7615_mac_init(struct mt7615_dev *dev)
 {
-	u32 val;
+	u32 val, mask, set;
 
 	/* enable band 0/1 clk */
 	mt76_set(dev, MT_CFG_CCR,
@@ -85,6 +85,17 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 		 MT_AGG_ARCR_RATE_DOWN_RATIO_EN |
 		 FIELD_PREP(MT_AGG_ARCR_RATE_DOWN_RATIO, 1) |
 		 FIELD_PREP(MT_AGG_ARCR_RATE_UP_EXTRA_TH, 4)));
+
+	mask = MT_DMA_RCFR0_MCU_RX_MGMT |
+	       MT_DMA_RCFR0_MCU_RX_CTL_NON_BAR |
+	       MT_DMA_RCFR0_MCU_RX_CTL_BAR |
+	       MT_DMA_RCFR0_MCU_RX_BYPASS |
+	       MT_DMA_RCFR0_RX_DROPPED_UCAST |
+	       MT_DMA_RCFR0_RX_DROPPED_MCAST;
+	set = FIELD_PREP(MT_DMA_RCFR0_RX_DROPPED_UCAST, 2) |
+	      FIELD_PREP(MT_DMA_RCFR0_RX_DROPPED_MCAST, 2);
+	mt76_rmw(dev, MT_DMA_BN0RCFR0, mask, set);
+	mt76_rmw(dev, MT_DMA_BN1RCFR0, mask, set);
 }
 
 static int mt7615_init_hardware(struct mt7615_dev *dev)
