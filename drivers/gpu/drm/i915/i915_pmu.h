@@ -97,9 +97,9 @@ struct i915_pmu {
 	 */
 	struct i915_pmu_sample sample[__I915_NUM_PMU_SAMPLERS];
 	/**
-	 * @suspended_time_last: Cached suspend time from PM core.
+	 * @sleep_last: Last time GT parked for RC6 estimation.
 	 */
-	u64 suspended_time_last;
+	ktime_t sleep_last;
 	/**
 	 * @i915_attr: Memory block holding device attributes.
 	 */

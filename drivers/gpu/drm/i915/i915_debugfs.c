@@ -3995,13 +3995,12 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 static int i915_forcewake_open(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *i915 = inode->i_private;
+	struct intel_gt *gt = &i915->gt;
 
-	if (INTEL_GEN(i915) < 6)
-		return 0;
-
-	file->private_data =
-		(void *)(uintptr_t)intel_runtime_pm_get(&i915->runtime_pm);
-	intel_uncore_forcewake_user_get(&i915->uncore);
+	atomic_inc(&gt->user_wakeref);
+	intel_gt_pm_get(gt);
+	if (INTEL_GEN(i915) >= 6)
+		intel_uncore_forcewake_user_get(gt->uncore);
 
 	return 0;
 }
@@ -4009,13 +4008,12 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 static int i915_forcewake_release(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *i915 = inode->i_private;
+	struct intel_gt *gt = &i915->gt;
 
-	if (INTEL_GEN(i915) < 6)
-		return 0;
-
-	intel_uncore_forcewake_user_put(&i915->uncore);
-	intel_runtime_pm_put(&i915->runtime_pm,
-			     (intel_wakeref_t)(uintptr_t)file->private_data);
+	if (INTEL_GEN(i915) >= 6)
+		intel_uncore_forcewake_user_put(&i915->uncore);
+	intel_gt_pm_put(gt);
+	atomic_dec(&gt->user_wakeref);
 
 	return 0;
 }
