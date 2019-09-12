@@ -534,6 +534,8 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 
 		gen8_display_interrupt_info(m);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
+		intel_wakeref_t pref;
+
 		seq_printf(m, "Display IER:\t%08x\n",
 			   I915_READ(VLV_IER));
 		seq_printf(m, "Display IIR:\t%08x\n",
@@ -544,7 +546,6 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			   I915_READ(VLV_IMR));
 		for_each_pipe(dev_priv, pipe) {
 			enum intel_display_power_domain power_domain;
-			intel_wakeref_t pref;
 
 			power_domain = POWER_DOMAIN_PIPE(pipe);
 			pref = intel_display_power_get_if_enabled(dev_priv,
@@ -578,12 +579,14 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		seq_printf(m, "PM IMR:\t\t%08x\n",
 			   I915_READ(GEN6_PMIMR));
 
+		pref = intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 		seq_printf(m, "Port hotplug:\t%08x\n",
 			   I915_READ(PORT_HOTPLUG_EN));
 		seq_printf(m, "DPFLIPSTAT:\t%08x\n",
 			   I915_READ(VLV_DPFLIPSTAT));
 		seq_printf(m, "DPINVGTT:\t%08x\n",
 			   I915_READ(DPINVGTT));
+		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT, pref);
 
 	} else if (!HAS_PCH_SPLIT(dev_priv)) {
 		seq_printf(m, "Interrupt enable:    %08x\n",
