@@ -153,7 +153,7 @@ struct clk_hw_omap {
 	u8			fixed_div;
 	struct clk_omap_reg	enable_reg;
 	u8			enable_bit;
-	u8			flags;
+	unsigned long		flags;
 	struct clk_omap_reg	clksel_reg;
 	struct dpll_data	*dpll_data;
 	const char		*clkdm_name;
