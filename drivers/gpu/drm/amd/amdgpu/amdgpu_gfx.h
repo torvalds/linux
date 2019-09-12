@@ -360,4 +360,10 @@ bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev, int me,
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable);
 int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev,
 			     void *ras_ih_info);
+int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
+		void *err_data,
+		struct amdgpu_iv_entry *entry);
+int amdgpu_gfx_cp_ecc_error_irq(struct amdgpu_device *adev,
+				  struct amdgpu_irq_src *source,
+				  struct amdgpu_iv_entry *entry);
 #endif

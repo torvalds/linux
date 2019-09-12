@@ -4203,15 +4203,11 @@ static int gfx_v9_0_early_init(void *handle)
 	return 0;
 }
 
-static int gfx_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
-		void *err_data,
-		struct amdgpu_iv_entry *entry);
-
 static int gfx_v9_0_ecc_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct ras_ih_if ih_info = {
-		.cb = gfx_v9_0_process_ras_data_cb,
+		.cb = amdgpu_gfx_process_ras_data_cb,
 	};
 	int r;
 
@@ -5456,20 +5452,6 @@ static int gfx_v9_0_priv_inst_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int gfx_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
-		void *err_data,
-		struct amdgpu_iv_entry *entry)
-{
-	/* TODO ue will trigger an interrupt. */
-	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX)) {
-		kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
-		if (adev->gfx.funcs->query_ras_error_count)
-			adev->gfx.funcs->query_ras_error_count(adev, err_data);
-		amdgpu_ras_reset_gpu(adev, 0);
-	}
-	return AMDGPU_RAS_SUCCESS;
-}
-
 static const struct {
 	const char *name;
 	uint32_t ip;
@@ -5878,25 +5860,6 @@ static int gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int gfx_v9_0_cp_ecc_error_irq(struct amdgpu_device *adev,
-				  struct amdgpu_irq_src *source,
-				  struct amdgpu_iv_entry *entry)
-{
-	struct ras_common_if *ras_if = adev->gfx.ras_if;
-	struct ras_dispatch_if ih_data = {
-		.entry = entry,
-	};
-
-	if (!ras_if)
-		return 0;
-
-	ih_data.head = *ras_if;
-
-	DRM_ERROR("CP ECC ERROR IRQ\n");
-	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
-	return 0;
-}
-
 static const struct amd_ip_funcs gfx_v9_0_ip_funcs = {
 	.name = "gfx_v9_0",
 	.early_init = gfx_v9_0_early_init,
@@ -6060,7 +6023,7 @@ static const struct amdgpu_irq_src_funcs gfx_v9_0_priv_inst_irq_funcs = {
 
 static const struct amdgpu_irq_src_funcs gfx_v9_0_cp_ecc_error_irq_funcs = {
 	.set = gfx_v9_0_set_cp_ecc_error_state,
-	.process = gfx_v9_0_cp_ecc_error_irq,
+	.process = amdgpu_gfx_cp_ecc_error_irq,
 };
 
 
