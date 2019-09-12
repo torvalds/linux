@@ -984,16 +984,26 @@ mlxsw_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	return 0;
 }
 
-static int mlxsw_devlink_core_bus_device_reload(struct devlink *devlink,
-						struct netlink_ext_ack *extack)
+static int
+mlxsw_devlink_core_bus_device_reload_down(struct devlink *devlink,
+					  struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
-	int err;
 
 	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_RESET))
 		return -EOPNOTSUPP;
 
 	mlxsw_core_bus_device_unregister(mlxsw_core, true);
+	return 0;
+}
+
+static int
+mlxsw_devlink_core_bus_device_reload_up(struct devlink *devlink,
+					struct netlink_ext_ack *extack)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+	int err;
+
 	err = mlxsw_core_bus_device_register(mlxsw_core->bus_info,
 					     mlxsw_core->bus,
 					     mlxsw_core->bus_priv, true,
@@ -1066,7 +1076,8 @@ mlxsw_devlink_trap_group_init(struct devlink *devlink,
 }
 
 static const struct devlink_ops mlxsw_devlink_ops = {
-	.reload				= mlxsw_devlink_core_bus_device_reload,
+	.reload_down		= mlxsw_devlink_core_bus_device_reload_down,
+	.reload_up		= mlxsw_devlink_core_bus_device_reload_up,
 	.port_type_set			= mlxsw_devlink_port_type_set,
 	.port_split			= mlxsw_devlink_port_split,
 	.port_unsplit			= mlxsw_devlink_port_unsplit,

@@ -3935,17 +3935,27 @@ static void mlx4_restart_one_down(struct pci_dev *pdev);
 static int mlx4_restart_one_up(struct pci_dev *pdev, bool reload,
 			       struct devlink *devlink);
 
-static int mlx4_devlink_reload(struct devlink *devlink,
-			       struct netlink_ext_ack *extack)
+static int mlx4_devlink_reload_down(struct devlink *devlink,
+				    struct netlink_ext_ack *extack)
+{
+	struct mlx4_priv *priv = devlink_priv(devlink);
+	struct mlx4_dev *dev = &priv->dev;
+	struct mlx4_dev_persistent *persist = dev->persist;
+
+	if (persist->num_vfs)
+		mlx4_warn(persist->dev, "Reload performed on PF, will cause reset on operating Virtual Functions\n");
+	mlx4_restart_one_down(persist->pdev);
+	return 0;
+}
+
+static int mlx4_devlink_reload_up(struct devlink *devlink,
+				  struct netlink_ext_ack *extack)
 {
 	struct mlx4_priv *priv = devlink_priv(devlink);
 	struct mlx4_dev *dev = &priv->dev;
 	struct mlx4_dev_persistent *persist = dev->persist;
 	int err;
 
-	if (persist->num_vfs)
-		mlx4_warn(persist->dev, "Reload performed on PF, will cause reset on operating Virtual Functions\n");
-	mlx4_restart_one_down(persist->pdev);
 	err = mlx4_restart_one_up(persist->pdev, true, devlink);
 	if (err)
 		mlx4_err(persist->dev, "mlx4_restart_one_up failed, ret=%d\n",
@@ -3956,7 +3966,8 @@ static int mlx4_devlink_reload(struct devlink *devlink,
 
 static const struct devlink_ops mlx4_devlink_ops = {
 	.port_type_set	= mlx4_devlink_port_type_set,
-	.reload		= mlx4_devlink_reload,
+	.reload_down	= mlx4_devlink_reload_down,
+	.reload_up	= mlx4_devlink_reload_up,
 };
 
 static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
