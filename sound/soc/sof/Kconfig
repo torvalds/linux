@@ -158,6 +158,14 @@ config SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST
 	  Say Y if you want to enable IPC flood test.
 	  If unsure, select "N".
 
+config SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT
+	bool "SOF retain DSP context on any FW exceptions"
+	help
+	  This option keeps the DSP in D0 state so that firmware debug
+	  information can be retained and dumped to userspace.
+	  Say Y if you want to retain DSP context for FW exceptions.
+	  If unsure, select "N".
+
 endif ## SND_SOC_SOF_DEBUG
 
 endif ## SND_SOC_SOF_OPTIONS
