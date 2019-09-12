@@ -31,7 +31,7 @@ static const struct omap_clkctrl_reg_data omap5_mpu_clkctrl_regs[] __initconst =
 };
 
 static const struct omap_clkctrl_reg_data omap5_dsp_clkctrl_regs[] __initconst = {
-	{ OMAP5_MMU_DSP_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_iva_h11x2_ck" },
+	{ OMAP5_MMU_DSP_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_iva_h11x2_ck" },
 	{ 0 },
 };
 
@@ -145,7 +145,7 @@ static const struct omap_clkctrl_reg_data omap5_l3main2_clkctrl_regs[] __initcon
 };
 
 static const struct omap_clkctrl_reg_data omap5_ipu_clkctrl_regs[] __initconst = {
-	{ OMAP5_MMU_IPU_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_core_h22x2_ck" },
+	{ OMAP5_MMU_IPU_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_core_h22x2_ck" },
 	{ 0 },
 };
 
