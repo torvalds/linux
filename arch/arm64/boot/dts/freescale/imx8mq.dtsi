@@ -235,10 +235,24 @@
 			thermal-sensors = <&tmu 1>;
 
 			trips {
+				gpu_alert: gpu-alert {
+					temperature = <80000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
 				gpu-crit {
 					temperature = <90000>;
 					hysteresis = <2000>;
 					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&gpu_alert>;
+					cooling-device =
+						<&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -949,6 +963,7 @@
 			         <&clk IMX8MQ_CLK_GPU_AXI>,
 			         <&clk IMX8MQ_CLK_GPU_AHB>;
 			clock-names = "core", "shader", "bus", "reg";
+			#cooling-cells = <2>;
 			assigned-clocks = <&clk IMX8MQ_CLK_GPU_CORE_SRC>,
 			                  <&clk IMX8MQ_CLK_GPU_SHADER_SRC>,
 			                  <&clk IMX8MQ_CLK_GPU_AXI>,
