@@ -152,6 +152,7 @@ static void mt76x0_init_mac_registers(struct mt76x02_dev *dev)
 
 int mt76x0_mac_start(struct mt76x02_dev *dev)
 {
+	mt76x02_mac_reset_counters(dev);
 	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
 
 	if (!mt76x02_wait_for_wpdma(&dev->mt76, 200000))
@@ -233,8 +234,6 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 
 	for (i = 0; i < 256; i++)
 		mt76x02_mac_wcid_setup(dev, i, 0, NULL);
-
-	mt76x02_mac_reset_counters(dev);
 
 	ret = mt76x0_eeprom_init(dev);
 	if (ret)
