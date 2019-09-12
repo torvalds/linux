@@ -35,21 +35,21 @@ int amdgpu_mmhub_ras_late_init(struct amdgpu_device *adev)
 		.debugfs_name = "mmhub_err_inject",
 	};
 
-	if (!adev->gmc.mmhub_ras_if) {
-		adev->gmc.mmhub_ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
-		if (!adev->gmc.mmhub_ras_if)
+	if (!adev->mmhub.ras_if) {
+		adev->mmhub.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
+		if (!adev->mmhub.ras_if)
 			return -ENOMEM;
-		adev->gmc.mmhub_ras_if->block = AMDGPU_RAS_BLOCK__MMHUB;
-		adev->gmc.mmhub_ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
-		adev->gmc.mmhub_ras_if->sub_block_index = 0;
-		strcpy(adev->gmc.mmhub_ras_if->name, "mmhub");
+		adev->mmhub.ras_if->block = AMDGPU_RAS_BLOCK__MMHUB;
+		adev->mmhub.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->mmhub.ras_if->sub_block_index = 0;
+		strcpy(adev->mmhub.ras_if->name, "mmhub");
 	}
-	ih_info.head = fs_info.head = *adev->gmc.mmhub_ras_if;
-	r = amdgpu_ras_late_init(adev, adev->gmc.mmhub_ras_if,
+	ih_info.head = fs_info.head = *adev->mmhub.ras_if;
+	r = amdgpu_ras_late_init(adev, adev->mmhub.ras_if,
 				 &fs_info, &ih_info);
-	if (r || !amdgpu_ras_is_supported(adev, adev->gmc.mmhub_ras_if->block)) {
-		kfree(adev->gmc.mmhub_ras_if);
-		adev->gmc.mmhub_ras_if = NULL;
+	if (r || !amdgpu_ras_is_supported(adev, adev->mmhub.ras_if->block)) {
+		kfree(adev->mmhub.ras_if);
+		adev->mmhub.ras_if = NULL;
 	}
 
 	return r;

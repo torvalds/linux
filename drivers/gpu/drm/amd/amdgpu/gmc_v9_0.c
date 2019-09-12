@@ -1125,8 +1125,8 @@ static int gmc_v9_0_sw_fini(void *handle)
 	}
 
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__MMHUB) &&
-			adev->gmc.mmhub_ras_if) {
-		struct ras_common_if *ras_if = adev->gmc.mmhub_ras_if;
+			adev->mmhub.ras_if) {
+		struct ras_common_if *ras_if = adev->mmhub.ras_if;
 
 		/* remove fs and disable ras feature */
 		amdgpu_ras_debugfs_remove(adev, ras_if);
