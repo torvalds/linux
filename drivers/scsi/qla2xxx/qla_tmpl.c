@@ -1017,8 +1017,9 @@ qla27xx_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 		uint j;
 		ulong len;
 		void *buf = vha->hw->fw_dump;
+		uint count = vha->hw->fw_dump_mpi ? 2 : 1;
 
-		for (j = 0; j < 2; j++, fwdt++, buf += len) {
+		for (j = 0; j < count; j++, fwdt++, buf += len) {
 			ql_log(ql_log_warn, vha, 0xd011,
 			    "-> fwdt%u running...\n", j);
 			if (!fwdt->template) {
@@ -1046,6 +1047,7 @@ qla27xx_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 	}
 
 bailout:
+	vha->hw->fw_dump_mpi = 0;
 #ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
