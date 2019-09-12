@@ -5,9 +5,18 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/kthread.h>
+#include <linux/uaccess.h>
 #include <uapi/linux/sched/types.h>
+
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_prime.h>
 #include <drm/drm_of.h>
+#include <drm/drm_vblank.h>
 
 #include "msm_drv.h"
 #include "msm_debugfs.h"
@@ -16,7 +25,6 @@
 #include "msm_gpu.h"
 #include "msm_kms.h"
 #include "adreno/adreno_gpu.h"
-
 
 /*
  * MSM driver version:
@@ -74,46 +82,6 @@ module_param(modeset, bool, 0600);
 /*
  * Util/helpers:
  */
-
-int msm_clk_bulk_get(struct device *dev, struct clk_bulk_data **bulk)
-{
-	struct property *prop;
-	const char *name;
-	struct clk_bulk_data *local;
-	int i = 0, ret, count;
-
-	count = of_property_count_strings(dev->of_node, "clock-names");
-	if (count < 1)
-		return 0;
-
-	local = devm_kcalloc(dev, sizeof(struct clk_bulk_data *),
-		count, GFP_KERNEL);
-	if (!local)
-		return -ENOMEM;
-
-	of_property_for_each_string(dev->of_node, "clock-names", prop, name) {
-		local[i].id = devm_kstrdup(dev, name, GFP_KERNEL);
-		if (!local[i].id) {
-			devm_kfree(dev, local);
-			return -ENOMEM;
-		}
-
-		i++;
-	}
-
-	ret = devm_clk_bulk_get(dev, count, local);
-
-	if (ret) {
-		for (i = 0; i < count; i++)
-			devm_kfree(dev, (void *) local[i].id);
-		devm_kfree(dev, local);
-
-		return ret;
-	}
-
-	*bulk = local;
-	return count;
-}
 
 struct clk *msm_clk_bulk_get_clock(struct clk_bulk_data *bulk, int count,
 		const char *name)
@@ -505,6 +473,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	ddev->mode_config.normalize_zpos = true;
 
 	if (kms) {
+		kms->dev = ddev;
 		ret = kms->funcs->hw_init(kms);
 		if (ret) {
 			DRM_DEV_ERROR(dev, "kms hw init failed: %d\n", ret);

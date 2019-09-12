@@ -784,7 +784,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 
 static int get_clocks(struct platform_device *pdev, struct msm_gpu *gpu)
 {
-	int ret = msm_clk_bulk_get(&pdev->dev, &gpu->grp_clks);
+	int ret = devm_clk_bulk_get_all(&pdev->dev, &gpu->grp_clks);
 
 	if (ret < 1) {
 		gpu->nr_clocks = 0;
