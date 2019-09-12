@@ -304,7 +304,13 @@ static void do_host_cpuid(struct kvm_cpuid_entry2 *entry, u32 function,
 	case 7:
 	case 0xb:
 	case 0xd:
+	case 0xf:
+	case 0x10:
+	case 0x12:
 	case 0x14:
+	case 0x17:
+	case 0x18:
+	case 0x1f:
 	case 0x8000001d:
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		break;
