@@ -7,6 +7,7 @@
 #include "mt76x2.h"
 #include "eeprom.h"
 #include "mcu.h"
+#include "../mt76x02_mac.h"
 
 static void
 mt76x2_mac_pbf_init(struct mt76x02_dev *dev)
@@ -146,14 +147,6 @@ int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 	return 0;
 }
 
-int mt76x2_mac_start(struct mt76x02_dev *dev)
-{
-	mt76x02_mac_reset_counters(dev);
-	mt76x02_mac_start(dev);
-
-	return 0;
-}
-
 static void
 mt76x2_power_on_rf_patch(struct mt76x02_dev *dev)
 {
@@ -256,9 +249,7 @@ static int mt76x2_init_hardware(struct mt76x02_dev *dev)
 		return ret;
 
 	set_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
-	ret = mt76x2_mac_start(dev);
-	if (ret)
-		return ret;
+	mt76x02_mac_start(dev);
 
 	ret = mt76x2_mcu_init(dev);
 	if (ret)

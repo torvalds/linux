@@ -4,6 +4,7 @@
  */
 
 #include "mt76x2.h"
+#include "../mt76x02_mac.h"
 
 static int
 mt76x2_start(struct ieee80211_hw *hw)
@@ -11,10 +12,7 @@ mt76x2_start(struct ieee80211_hw *hw)
 	struct mt76x02_dev *dev = hw->priv;
 	int ret;
 
-	ret = mt76x2_mac_start(dev);
-	if (ret)
-		return ret;
-
+	mt76x02_mac_start(dev);
 	ret = mt76x2_phy_start(dev);
 	if (ret)
 		return ret;
