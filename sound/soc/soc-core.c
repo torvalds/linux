@@ -385,16 +385,12 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 		return NULL;
 	}
 
-	return rtd;
-}
-
-static void soc_add_pcm_runtime(struct snd_soc_card *card,
-		struct snd_soc_pcm_runtime *rtd)
-{
 	/* see for_each_card_rtds */
 	list_add_tail(&rtd->list, &card->rtd_list);
 	rtd->num = card->num_rtd;
 	card->num_rtd++;
+
+	return rtd;
 }
 
 static void soc_remove_pcm_runtimes(struct snd_soc_card *card)
@@ -930,7 +926,6 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 		}
 	}
 
-	soc_add_pcm_runtime(card, rtd);
 	return 0;
 
 _err_defer:
