@@ -43,7 +43,7 @@
 			opp-hz = /bits/ 64 <792000000>;
 			opp-microvolt = <1000000>;
 			clock-latency-ns = <150000>;
-			opp-supported-hw = <0xf>, <0xf>;
+			opp-supported-hw = <0xd>, <0xf>;
 		};
 
 		opp-996000000 {
