@@ -2445,6 +2445,7 @@ out_replay:
 	intel_ring_update_space(ce->ring);
 	__execlists_reset_reg_state(ce, engine);
 	__execlists_update_reg_state(ce, engine);
+	ce->lrc_desc |= CTX_DESC_FORCE_RESTORE; /* paranoid: GPU was reset! */
 	mutex_release(&ce->pin_mutex.dep_map, 0, _THIS_IP_);
 
 unwind:
