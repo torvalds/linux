@@ -31,6 +31,16 @@ mt76_start_tx_ac(struct mt7603_dev *dev, u32 mask)
 	mt76_set(dev, MT_WF_ARB_TX_START_0, mt7603_ac_queue_mask0(mask));
 }
 
+void mt7603_mac_reset_counters(struct mt7603_dev *dev)
+{
+	int i;
+
+	for (i = 0; i < 2; i++)
+		mt76_rr(dev, MT_TX_AGG_CNT(i));
+
+	memset(dev->mt76.aggr_stats, 0, sizeof(dev->mt76.aggr_stats));
+}
+
 void mt7603_mac_set_timing(struct mt7603_dev *dev)
 {
 	u32 cck = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 231) |
@@ -1677,6 +1687,7 @@ void mt7603_mac_work(struct work_struct *work)
 	struct mt7603_dev *dev = container_of(work, struct mt7603_dev,
 					      mt76.mac_work.work);
 	bool reset = false;
+	int i, idx;
 
 	mt76_tx_status_check(&dev->mt76, NULL, false);
 
@@ -1685,6 +1696,13 @@ void mt7603_mac_work(struct work_struct *work)
 	dev->mac_work_count++;
 	mt7603_update_channel(&dev->mt76);
 	mt7603_edcca_check(dev);
+
+	for (i = 0, idx = 0; i < 2; i++) {
+		u32 val = mt76_rr(dev, MT_TX_AGG_CNT(i));
+
+		dev->mt76.aggr_stats[idx++] += val & 0xffff;
+		dev->mt76.aggr_stats[idx++] += val >> 16;
+	}
 
 	if (dev->mac_work_count == 10)
 		mt7603_false_cca_check(dev);

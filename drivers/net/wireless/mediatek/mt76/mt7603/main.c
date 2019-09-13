@@ -13,6 +13,7 @@ mt7603_start(struct ieee80211_hw *hw)
 {
 	struct mt7603_dev *dev = hw->priv;
 
+	mt7603_mac_reset_counters(dev);
 	mt7603_mac_start(dev);
 	dev->mt76.survey_time = ktime_get_boottime();
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
