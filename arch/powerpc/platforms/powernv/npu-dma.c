@@ -89,6 +89,7 @@ struct pci_dev *pnv_pci_get_npu_dev(struct pci_dev *gpdev, int index)
 }
 EXPORT_SYMBOL(pnv_pci_get_npu_dev);
 
+#ifdef CONFIG_IOMMU_API
 /*
  * Returns the PE assoicated with the PCI device of the given
  * NPU. Returns the linked pci device if pci_dev != NULL.
@@ -192,7 +193,6 @@ static long pnv_npu_unset_window(struct iommu_table_group *table_group, int num)
 	return 0;
 }
 
-#ifdef CONFIG_IOMMU_API
 /* Switch ownership from platform code to external user (e.g. VFIO) */
 static void pnv_npu_take_ownership(struct iommu_table_group *table_group)
 {
