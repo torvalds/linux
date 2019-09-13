@@ -42,21 +42,17 @@
 
 static int mdiobus_register_gpiod(struct mdio_device *mdiodev)
 {
-	struct gpio_desc *gpiod = NULL;
+	int error;
 
 	/* Deassert the optional reset signal */
-	if (mdiodev->dev.of_node)
-		gpiod = fwnode_get_named_gpiod(&mdiodev->dev.of_node->fwnode,
-					       "reset-gpios", 0, GPIOD_OUT_LOW,
-					       "PHY reset");
-	if (IS_ERR(gpiod)) {
-		if (PTR_ERR(gpiod) == -ENOENT || PTR_ERR(gpiod) == -ENOSYS)
-			gpiod = NULL;
-		else
-			return PTR_ERR(gpiod);
-	}
+	mdiodev->reset_gpio = gpiod_get_optional(&mdiodev->dev,
+						 "reset", GPIOD_OUT_LOW);
+	error = PTR_ERR_OR_ZERO(mdiodev->reset_gpio);
+	if (error)
+		return error;
 
-	mdiodev->reset_gpio = gpiod;
+	if (mdiodev->reset_gpio)
+		gpiod_set_consumer_name(mdiodev->reset_gpio, "PHY reset");
 
 	return 0;
 }
