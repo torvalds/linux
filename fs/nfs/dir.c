@@ -1677,14 +1677,10 @@ nfs_add_or_obtain(struct dentry *dentry, struct nfs_fh *fhandle,
 	struct dentry *parent = dget_parent(dentry);
 	struct inode *dir = d_inode(parent);
 	struct inode *inode;
-	struct dentry *d = NULL;
+	struct dentry *d;
 	int error;
 
 	d_drop(dentry);
-
-	/* We may have been initialized further down */
-	if (d_really_is_positive(dentry))
-		goto out;
 
 	if (fhandle->size == 0) {
 		error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, fhandle, fattr, NULL);
