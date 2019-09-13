@@ -3297,6 +3297,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_dsack_dups = tp->dsack_dups;
 	info->tcpi_reord_seen = tp->reord_seen;
 	info->tcpi_rcv_ooopack = tp->rcv_ooopack;
+	info->tcpi_snd_wnd = tp->snd_wnd;
 	unlock_sock_fast(sk, slow);
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
