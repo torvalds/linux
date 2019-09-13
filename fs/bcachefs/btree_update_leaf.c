@@ -34,7 +34,7 @@ static inline bool same_leaf_as_prev(struct btree_trans *trans,
 }
 
 #define trans_for_each_update_sorted(_trans, _i, _iter)			\
-	for (iter = 0;							\
+	for (_iter = 0;							\
 	     _iter < _trans->nr_updates &&				\
 	     (_i = _trans->updates + _trans->updates_sorted[_iter], 1);	\
 	     _iter++)
