@@ -10193,6 +10193,8 @@ scsih_scan_start(struct Scsi_Host *shost)
 	int rc;
 	if (diag_buffer_enable != -1 && diag_buffer_enable != 0)
 		mpt3sas_enable_diag_buffer(ioc, diag_buffer_enable);
+	else if (ioc->manu_pg11.HostTraceBufferMaxSizeKB != 0)
+		mpt3sas_enable_diag_buffer(ioc, 1);
 
 	if (disable_discovery > 0)
 		return;

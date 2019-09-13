@@ -1669,6 +1669,10 @@ void
 mpt3sas_enable_diag_buffer(struct MPT3SAS_ADAPTER *ioc, u8 bits_to_register)
 {
 	struct mpt3_diag_register diag_register;
+	u32 ret_val;
+	u32 trace_buff_size = ioc->manu_pg11.HostTraceBufferMaxSizeKB<<10;
+	u32 min_trace_buff_size = 0;
+	u32 decr_trace_buff_size = 0;
 
 	memset(&diag_register, 0, sizeof(struct mpt3_diag_register));
 
@@ -1677,10 +1681,61 @@ mpt3sas_enable_diag_buffer(struct MPT3SAS_ADAPTER *ioc, u8 bits_to_register)
 		ioc->diag_trigger_master.MasterData =
 		    (MASTER_TRIGGER_FW_FAULT + MASTER_TRIGGER_ADAPTER_RESET);
 		diag_register.buffer_type = MPI2_DIAG_BUF_TYPE_TRACE;
-		/* register for 2MB buffers  */
-		diag_register.requested_buffer_size = 2 * (1024 * 1024);
 		diag_register.unique_id = 0x7075900;
-		_ctl_diag_register_2(ioc,  &diag_register);
+
+		if (trace_buff_size != 0) {
+			diag_register.requested_buffer_size = trace_buff_size;
+			min_trace_buff_size =
+			    ioc->manu_pg11.HostTraceBufferMinSizeKB<<10;
+			decr_trace_buff_size =
+			    ioc->manu_pg11.HostTraceBufferDecrementSizeKB<<10;
+
+			if (min_trace_buff_size > trace_buff_size) {
+				/* The buff size is not set correctly */
+				ioc_err(ioc,
+				    "Min Trace Buff size (%d KB) greater than Max Trace Buff size (%d KB)\n",
+				     min_trace_buff_size>>10,
+				     trace_buff_size>>10);
+				ioc_err(ioc,
+				    "Using zero Min Trace Buff Size\n");
+				    min_trace_buff_size = 0;
+			}
+
+			if (decr_trace_buff_size == 0) {
+				/*
+				 * retry the min size if decrement
+				 * is not available.
+				 */
+				decr_trace_buff_size =
+				    trace_buff_size - min_trace_buff_size;
+			}
+		} else {
+			/* register for 2MB buffers  */
+			diag_register.requested_buffer_size = 2 * (1024 * 1024);
+		}
+
+		do {
+			ret_val = _ctl_diag_register_2(ioc,  &diag_register);
+
+			if (ret_val == -ENOMEM && min_trace_buff_size &&
+			    (trace_buff_size - decr_trace_buff_size) >=
+			    min_trace_buff_size) {
+				/* adjust the buffer size */
+				trace_buff_size -= decr_trace_buff_size;
+				diag_register.requested_buffer_size =
+				    trace_buff_size;
+			} else
+				break;
+		} while (true);
+
+		if (ret_val == -ENOMEM)
+			ioc_err(ioc,
+			    "Cannot allocate trace buffer memory. Last memory tried = %d KB\n",
+			    diag_register.requested_buffer_size>>10);
+		else if (ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE]
+		    & MPT3_DIAG_BUFFER_IS_REGISTERED)
+			ioc_err(ioc, "Trace buffer memory %d KB allocated\n",
+			    diag_register.requested_buffer_size>>10);
 	}
 
 	if (bits_to_register & 2) {
@@ -3130,7 +3185,15 @@ host_trace_buffer_enable_store(struct device *cdev,
 		memset(&diag_register, 0, sizeof(struct mpt3_diag_register));
 		ioc_info(ioc, "posting host trace buffers\n");
 		diag_register.buffer_type = MPI2_DIAG_BUF_TYPE_TRACE;
-		diag_register.requested_buffer_size = (1024 * 1024);
+
+		if (ioc->manu_pg11.HostTraceBufferMaxSizeKB != 0 &&
+		    ioc->diag_buffer_sz[MPI2_DIAG_BUF_TYPE_TRACE] != 0) {
+			/* post the same buffer allocated previously */
+			diag_register.requested_buffer_size =
+			    ioc->diag_buffer_sz[MPI2_DIAG_BUF_TYPE_TRACE];
+		} else
+			diag_register.requested_buffer_size = (1024 * 1024);
+
 		diag_register.unique_id = 0x7075900;
 		ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE] = 0;
 		_ctl_diag_register_2(ioc,  &diag_register);

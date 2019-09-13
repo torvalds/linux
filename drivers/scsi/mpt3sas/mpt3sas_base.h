@@ -391,9 +391,12 @@ struct Mpi2ManufacturingPage11_t {
 	u8	Reserved6;			/* 2Fh */
 	__le32	Reserved7[7];			/* 30h - 4Bh */
 	u8	NVMeAbortTO;			/* 4Ch */
-	u8	Reserved8;			/* 4Dh */
-	u16	Reserved9;			/* 4Eh */
-	__le32	Reserved10[4];			/* 50h - 60h */
+	u8	NumPerDevEvents;		/* 4Dh */
+	u8	HostTraceBufferDecrementSizeKB;	/* 4Eh */
+	u8	HostTraceBufferFlags;		/* 4Fh */
+	u16	HostTraceBufferMaxSizeKB;	/* 50h */
+	u16	HostTraceBufferMinSizeKB;	/* 52h */
+	__le32	Reserved10[2];			/* 54h - 5Bh */
 };
 
 /**
