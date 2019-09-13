@@ -1706,7 +1706,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			ttm = container_of(bo->tbo.ttm, struct ttm_dma_tt, ttm);
 			pages_addr = ttm->dma_address;
 		}
-		exclusive = dma_resv_get_excl(bo->tbo.base.resv);
+		exclusive = bo->tbo.moving;
 	}
 
 	if (bo) {
