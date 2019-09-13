@@ -4055,6 +4055,7 @@ static void smb2_decrypt_offload(struct work_struct *work)
 		goto free_pages;
 	}
 
+	dw->server->lstrp = jiffies;
 	mid = smb2_find_mid(dw->server, dw->buf);
 	if (mid == NULL)
 		cifs_dbg(FYI, "mid not found\n");
@@ -4063,13 +4064,9 @@ static void smb2_decrypt_offload(struct work_struct *work)
 		rc = handle_read_data(dw->server, mid, dw->buf,
 				      dw->server->vals->read_rsp_size,
 				      dw->ppages, dw->npages, dw->len);
+		mid->callback(mid);
+		cifs_mid_q_entry_release(mid);
 	}
-
-	dw->server->lstrp = jiffies;
-
-	mid->callback(mid);
-
-	cifs_mid_q_entry_release(mid);
 
 free_pages:
 	for (i = dw->npages-1; i >= 0; i--)
