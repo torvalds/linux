@@ -120,8 +120,8 @@ increase the chances of your change being accepted.
   completely initialize your chip and your driver first, then register with
   the hwmon subsystem.
 
-* Use devm_hwmon_device_register_with_groups() or, if your driver needs a remove
-  function, hwmon_device_register_with_groups() to register your driver with the
+* Use devm_hwmon_device_register_with_info() or, if your driver needs a remove
+  function, hwmon_device_register_with_info() to register your driver with the
   hwmon subsystem. Try using devm_add_action() instead of a remove function if
   possible. Do not use hwmon_device_register().
 
