@@ -3757,7 +3757,7 @@ void pt_update_intercept_for_msr(struct vcpu_vmx *vmx)
 	}
 }
 
-static bool vmx_get_enable_apicv(struct kvm_vcpu *vcpu)
+static bool vmx_get_enable_apicv(struct kvm *kvm)
 {
 	return enable_apicv;
 }

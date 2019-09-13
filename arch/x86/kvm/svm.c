@@ -5112,9 +5112,9 @@ static void svm_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 	return;
 }
 
-static bool svm_get_enable_apicv(struct kvm_vcpu *vcpu)
+static bool svm_get_enable_apicv(struct kvm *kvm)
 {
-	return avic && irqchip_split(vcpu->kvm);
+	return avic && irqchip_split(kvm);
 }
 
 static void svm_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr)
