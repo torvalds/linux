@@ -1425,7 +1425,7 @@ static void free_pagetable(struct protection_domain *domain)
 	BUG_ON(domain->mode < PAGE_MODE_NONE ||
 	       domain->mode > PAGE_MODE_6_LEVEL);
 
-	free_sub_pt(root, domain->mode, freelist);
+	freelist = free_sub_pt(root, domain->mode, freelist);
 
 	free_page_list(freelist);
 }
