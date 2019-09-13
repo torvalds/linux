@@ -373,6 +373,7 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_CRYPTO_ALG_XCBC128	(0x1 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_XCBC192	(0x2 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_XCBC256	(0x3 << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_SM3		(0x7 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_POLY1305	(0xf << 23)
 #define CONTEXT_CONTROL_INV_FR			(0x5 << 24)
 #define CONTEXT_CONTROL_INV_TR			(0x6 << 24)
@@ -663,6 +664,12 @@ enum safexcel_eip_version {
 /* Priority we use for advertising our algorithms */
 #define SAFEXCEL_CRA_PRIORITY		300
 
+/* SM3 digest result for zero length message */
+#define EIP197_SM3_ZEROM_HASH	"\x1A\xB2\x1D\x83\x55\xCF\xA1\x7F" \
+				"\x8E\x61\x19\x48\x31\xE8\x1A\x8F" \
+				"\x22\xBE\xC8\xC7\x28\xFE\xFB\x74" \
+				"\x7E\xD0\x35\xEB\x50\x82\xAA\x2B"
+
 /* EIP algorithm presence flags */
 enum safexcel_eip_algorithms {
 	SAFEXCEL_ALG_BC0      = BIT(5),
@@ -869,5 +876,6 @@ extern struct safexcel_alg_template safexcel_alg_cmac;
 extern struct safexcel_alg_template safexcel_alg_chacha20;
 extern struct safexcel_alg_template safexcel_alg_chachapoly;
 extern struct safexcel_alg_template safexcel_alg_chachapoly_esp;
+extern struct safexcel_alg_template safexcel_alg_sm3;
 
 #endif
