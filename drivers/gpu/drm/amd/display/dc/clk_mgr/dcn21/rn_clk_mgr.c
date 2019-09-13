@@ -472,7 +472,7 @@ struct clk_bw_params rn_bw_params = {
 	}
 };
 
-void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_range_sets *ranges)
+void rn_build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_range_sets *ranges)
 {
 	int i, num_valid_sets;
 
@@ -529,7 +529,7 @@ void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_ra
 
 }
 
-unsigned int find_dcfclk_for_voltage(struct dpm_clocks *clock_table, unsigned int voltage)
+static unsigned int find_dcfclk_for_voltage(struct dpm_clocks *clock_table, unsigned int voltage)
 {
 	int i;
 
@@ -542,7 +542,7 @@ unsigned int find_dcfclk_for_voltage(struct dpm_clocks *clock_table, unsigned in
 	return 0;
 }
 
-void clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struct dpm_clocks *clock_table, struct hw_asic_id *asic_id)
+void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struct dpm_clocks *clock_table, struct hw_asic_id *asic_id)
 {
 	int i, j = 0;
 
@@ -557,21 +557,14 @@ void clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struct d
 		}
 	}
 
-	for (i = 0; i < PP_SMU_NUM_FCLK_DPM_LEVELS; i++) {
-		if (j < 0) {
-			/* Invalid entries */
-			bw_params->clk_table.entries[i].fclk_mhz = 0;
-			continue;
-		}
+	bw_params->clk_table.num_entries = j + 1;
+
+	for (i = 0; i < bw_params->clk_table.num_entries; i++, j--) {
 		bw_params->clk_table.entries[i].fclk_mhz = clock_table->FClocks[j].Freq;
 		bw_params->clk_table.entries[i].memclk_mhz = clock_table->MemClocks[j].Freq;
 		bw_params->clk_table.entries[i].voltage = clock_table->FClocks[j].Vol;
 		bw_params->clk_table.entries[i].dcfclk_mhz = find_dcfclk_for_voltage(clock_table, clock_table->FClocks[j].Vol);
-		j--;
 	}
-
-
-	bw_params->clk_table.num_entries = i;
 
 	bw_params->vram_type = asic_id->vram_type;
 	bw_params->num_channels = asic_id->vram_width / DDR4_DRAM_WIDTH;
@@ -658,7 +651,7 @@ void rn_clk_mgr_construct(
 
 	if (pp_smu) {
 		pp_smu->rn_funcs.get_dpm_clock_table(&pp_smu->rn_funcs.pp_smu, &clock_table);
-		clk_mgr_helper_populate_bw_params(clk_mgr->base.bw_params, &clock_table, &ctx->asic_id);
+		rn_clk_mgr_helper_populate_bw_params(clk_mgr->base.bw_params, &clock_table, &ctx->asic_id);
 	}
 
 	/*
@@ -669,7 +662,7 @@ void rn_clk_mgr_construct(
 	if (!debug->disable_pplib_wm_range) {
 		struct pp_smu_wm_range_sets ranges = {0};
 
-		build_watermark_ranges(clk_mgr->base.bw_params, &ranges);
+		rn_build_watermark_ranges(clk_mgr->base.bw_params, &ranges);
 
 		/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
 		if (pp_smu && pp_smu->rn_funcs.set_wm_ranges)

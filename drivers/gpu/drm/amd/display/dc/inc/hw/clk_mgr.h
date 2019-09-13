@@ -47,7 +47,7 @@
 #ifdef CONFIG_DRM_AMD_DC_DCN2_1
 /* Will these bw structures be ASIC specific? */
 
-#define MAX_NUM_DPM_LVL		4
+#define MAX_NUM_DPM_LVL		8
 #define WM_SET_COUNT 		4
 
 
@@ -149,6 +149,7 @@ struct wm_table {
 struct clk_bw_params {
 	unsigned int vram_type;
 	unsigned int num_channels;
+	unsigned int dispclk_vco_khz;
 	struct clk_limit_table clk_table;
 	struct wm_table wm_table;
 };

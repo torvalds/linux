@@ -1278,7 +1278,6 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 	dcn2_1_ip.max_num_otg = pool->base.res_cap->num_timing_generator;
 	dcn2_1_ip.max_num_dpp = pool->base.pipe_count;
 	dcn2_1_soc.num_chans = bw_params->num_channels;
-	dcn2_1_soc.num_states = 0;
 
 	for (i = 0; i < clk_table->num_entries; i++) {
 
@@ -1288,8 +1287,9 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 		dcn2_1_soc.clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
 		/* This is probably wrong, TODO: find correct calculation */
 		dcn2_1_soc.clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 16 / 1000;
-		dcn2_1_soc.num_states++;
 	}
+	dcn2_1_soc.clock_limits[i] = dcn2_1_soc.clock_limits[i - i];
+	dcn2_1_soc.num_states = i;
 }
 
 /* Temporary Place holder until we can get them from fuse */
@@ -1317,20 +1317,20 @@ static struct dpm_clocks dummy_clocks = {
 
 };
 
-enum pp_smu_status dummy_set_wm_ranges(struct pp_smu *pp,
+static enum pp_smu_status dummy_set_wm_ranges(struct pp_smu *pp,
 		struct pp_smu_wm_range_sets *ranges)
 {
 	return PP_SMU_RESULT_OK;
 }
 
-enum pp_smu_status dummy_get_dpm_clock_table(struct pp_smu *pp,
+static enum pp_smu_status dummy_get_dpm_clock_table(struct pp_smu *pp,
 		struct dpm_clocks *clock_table)
 {
 	*clock_table = dummy_clocks;
 	return PP_SMU_RESULT_OK;
 }
 
-struct pp_smu_funcs *dcn21_pp_smu_create(struct dc_context *ctx)
+static struct pp_smu_funcs *dcn21_pp_smu_create(struct dc_context *ctx)
 {
 	struct pp_smu_funcs *pp_smu = kzalloc(sizeof(*pp_smu), GFP_KERNEL);
 
@@ -1352,7 +1352,7 @@ struct pp_smu_funcs *dcn21_pp_smu_create(struct dc_context *ctx)
 	return pp_smu;
 }
 
-void dcn21_pp_smu_destroy(struct pp_smu_funcs **pp_smu)
+static void dcn21_pp_smu_destroy(struct pp_smu_funcs **pp_smu)
 {
 	if (pp_smu && *pp_smu) {
 		kfree(*pp_smu);
