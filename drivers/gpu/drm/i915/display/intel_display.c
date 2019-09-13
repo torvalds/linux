@@ -11760,25 +11760,24 @@ static bool c8_planes_changed(const struct intel_crtc_state *new_crtc_state)
 	return !old_crtc_state->c8_planes != !new_crtc_state->c8_planes;
 }
 
-static int intel_crtc_atomic_check(struct drm_crtc *crtc,
-				   struct drm_crtc_state *crtc_state)
+static int intel_crtc_atomic_check(struct drm_crtc *_crtc,
+				   struct drm_crtc_state *_crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_crtc_state *pipe_config =
-		to_intel_crtc_state(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(_crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(_crtc_state);
 	int ret;
-	bool mode_changed = needs_modeset(pipe_config);
+	bool mode_changed = needs_modeset(crtc_state);
 
 	if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv) &&
-	    mode_changed && !crtc_state->active)
-		pipe_config->update_wm_post = true;
+	    mode_changed && !crtc_state->base.active)
+		crtc_state->update_wm_post = true;
 
-	if (mode_changed && crtc_state->enable &&
+	if (mode_changed && crtc_state->base.enable &&
 	    dev_priv->display.crtc_compute_clock &&
-	    !WARN_ON(pipe_config->shared_dpll)) {
-		ret = dev_priv->display.crtc_compute_clock(intel_crtc,
-							   pipe_config);
+	    !WARN_ON(crtc_state->shared_dpll)) {
+		ret = dev_priv->display.crtc_compute_clock(crtc, crtc_state);
 		if (ret)
 			return ret;
 	}
@@ -11787,19 +11786,19 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 	 * May need to update pipe gamma enable bits
 	 * when C8 planes are getting enabled/disabled.
 	 */
-	if (c8_planes_changed(pipe_config))
-		crtc_state->color_mgmt_changed = true;
+	if (c8_planes_changed(crtc_state))
+		crtc_state->base.color_mgmt_changed = true;
 
-	if (mode_changed || pipe_config->update_pipe ||
-	    crtc_state->color_mgmt_changed) {
-		ret = intel_color_check(pipe_config);
+	if (mode_changed || crtc_state->update_pipe ||
+	    crtc_state->base.color_mgmt_changed) {
+		ret = intel_color_check(crtc_state);
 		if (ret)
 			return ret;
 	}
 
 	ret = 0;
 	if (dev_priv->display.compute_pipe_wm) {
-		ret = dev_priv->display.compute_pipe_wm(pipe_config);
+		ret = dev_priv->display.compute_pipe_wm(crtc_state);
 		if (ret) {
 			DRM_DEBUG_KMS("Target pipe watermarks are invalid\n");
 			return ret;
@@ -11815,7 +11814,7 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 		 * old state and the new state.  We can program these
 		 * immediately.
 		 */
-		ret = dev_priv->display.compute_intermediate_wm(pipe_config);
+		ret = dev_priv->display.compute_intermediate_wm(crtc_state);
 		if (ret) {
 			DRM_DEBUG_KMS("No valid intermediate pipe watermarks are possible\n");
 			return ret;
@@ -11823,21 +11822,20 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	if (INTEL_GEN(dev_priv) >= 9) {
-		if (mode_changed || pipe_config->update_pipe)
-			ret = skl_update_scaler_crtc(pipe_config);
+		if (mode_changed || crtc_state->update_pipe)
+			ret = skl_update_scaler_crtc(crtc_state);
 
 		if (!ret)
-			ret = icl_check_nv12_planes(pipe_config);
+			ret = icl_check_nv12_planes(crtc_state);
 		if (!ret)
-			ret = skl_check_pipe_max_pixel_rate(intel_crtc,
-							    pipe_config);
+			ret = skl_check_pipe_max_pixel_rate(crtc, crtc_state);
 		if (!ret)
-			ret = intel_atomic_setup_scalers(dev_priv, intel_crtc,
-							 pipe_config);
+			ret = intel_atomic_setup_scalers(dev_priv, crtc,
+							 crtc_state);
 	}
 
 	if (HAS_IPS(dev_priv))
-		pipe_config->ips_enabled = hsw_compute_ips_config(pipe_config);
+		crtc_state->ips_enabled = hsw_compute_ips_config(crtc_state);
 
 	return ret;
 }
