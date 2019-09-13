@@ -17646,7 +17646,7 @@ F:	Documentation/ABI/testing/sysfs-hypervisor-xen
 
 XEN NETWORK BACKEND DRIVER
 M:	Wei Liu <wei.liu@kernel.org>
-M:	Paul Durrant <paul.durrant@citrix.com>
+M:	Paul Durrant <paul@xen.org>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 L:	netdev@vger.kernel.org
 S:	Supported
