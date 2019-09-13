@@ -3324,6 +3324,16 @@ static int tcf_tunnel_encap_get_tunnel(struct flow_action_entry *entry,
 	return 0;
 }
 
+static void tcf_sample_get_group(struct flow_action_entry *entry,
+				 const struct tc_action *act)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	entry->sample.psample_group =
+		act->ops->get_psample_group(act, &entry->destructor);
+	entry->destructor_priv = entry->sample.psample_group;
+#endif
+}
+
 int tc_setup_flow_action(struct flow_action *flow_action,
 			 const struct tcf_exts *exts, bool rtnl_held)
 {
@@ -3417,11 +3427,10 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 			entry->mark = tcf_skbedit_mark(act);
 		} else if (is_tcf_sample(act)) {
 			entry->id = FLOW_ACTION_SAMPLE;
-			entry->sample.psample_group =
-				tcf_sample_psample_group(act);
 			entry->sample.trunc_size = tcf_sample_trunc_size(act);
 			entry->sample.truncate = tcf_sample_truncate(act);
 			entry->sample.rate = tcf_sample_rate(act);
+			tcf_sample_get_group(entry, act);
 		} else if (is_tcf_police(act)) {
 			entry->id = FLOW_ACTION_POLICE;
 			entry->police.burst = tcf_police_tcfp_burst(act);

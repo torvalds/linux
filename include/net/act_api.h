@@ -78,6 +78,8 @@ static inline void tcf_tm_dump(struct tcf_t *dtm, const struct tcf_t *stm)
 #define ACT_P_CREATED 1
 #define ACT_P_DELETED 1
 
+typedef void (*tc_action_priv_destructor)(void *priv);
+
 struct tc_action_ops {
 	struct list_head head;
 	char    kind[IFNAMSIZ];
@@ -101,6 +103,9 @@ struct tc_action_ops {
 	size_t  (*get_fill_size)(const struct tc_action *act);
 	struct net_device *(*get_dev)(const struct tc_action *a);
 	void	(*put_dev)(struct net_device *dev);
+	struct psample_group *
+	(*get_psample_group)(const struct tc_action *a,
+			     tc_action_priv_destructor *destructor);
 };
 
 struct tc_action_net {
