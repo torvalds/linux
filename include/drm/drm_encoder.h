@@ -140,7 +140,7 @@ struct drm_encoder {
 	 * @possible_crtcs: Bitmask of potential CRTC bindings, using
 	 * drm_crtc_index() as the index into the bitfield. The driver must set
 	 * the bits for all &drm_crtc objects this encoder can be connected to
-	 * before calling drm_encoder_init().
+	 * before calling drm_dev_register().
 	 *
 	 * In reality almost every driver gets this wrong.
 	 *
