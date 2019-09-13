@@ -1177,6 +1177,7 @@ static struct safexcel_alg_template *safexcel_algs[] = {
 	&safexcel_alg_chachapoly,
 	&safexcel_alg_chachapoly_esp,
 	&safexcel_alg_sm3,
+	&safexcel_alg_hmac_sm3,
 };
 
 static int safexcel_register_algorithms(struct safexcel_crypto_priv *priv)

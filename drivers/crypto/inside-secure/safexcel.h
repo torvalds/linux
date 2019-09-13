@@ -877,5 +877,6 @@ extern struct safexcel_alg_template safexcel_alg_chacha20;
 extern struct safexcel_alg_template safexcel_alg_chachapoly;
 extern struct safexcel_alg_template safexcel_alg_chachapoly_esp;
 extern struct safexcel_alg_template safexcel_alg_sm3;
+extern struct safexcel_alg_template safexcel_alg_hmac_sm3;
 
 #endif
