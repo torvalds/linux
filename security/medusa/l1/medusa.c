@@ -392,14 +392,6 @@ static int medusa_l1_inode_listxattr(struct dentry *dentry)
 */
 
 /*
-static int medusa_l1_inode_getsecurity(struct inode *inode, const char *name,
-				 void **buffer, bool alloc)
-{
-	return -EOPNOTSUPP;
-}
-*/
-
-/*
 static int medusa_l1_inode_setsecurity(struct inode *inode, const char *name,
 				 const void *value, size_t size, int flags)
 {
@@ -654,12 +646,6 @@ static int medusa_l1_kernel_module_request(char *kmod_name)
 	return 0;
 }
 */
-
-static int medusa_l1_task_fix_setuid(struct cred *new, const struct cred *old,
-								int flags)
-{
-	return cap_task_fix_setuid(new, old, flags);
-}
 
 /*
 static int medusa_l1_task_setpgid(struct task_struct *p, pid_t pgid)
@@ -1459,62 +1445,7 @@ static void medusa_l1_audit_rule_free(void *lsmrule)
 #endif /* CONFIG_AUDIT */
 
 /*
-static int medusa_l1_ptrace_access_check(struct task_struct *child,
-					 unsigned int mode)
-{
-	return 0;
-}
-*/
-
-/*
-static int medusa_l1_ptrace_traceme(struct task_struct *parent)
-{
-	return 0;
-}
-*/
-
-/*
-static int medusa_l1_capget(struct task_struct *target, kernel_cap_t *effective,
-			kernel_cap_t *inheritable, kernel_cap_t *permitted)
-{
-	return 0;
-}
-*/
-
-/*
-static int medusa_l1_capset(struct cred *new, const struct cred *old,
-			const kernel_cap_t *effective,
-			const kernel_cap_t *inheritable,
-			const kernel_cap_t *permitted)
-{
-	return 0;	
-}
-*/
-
-/*
-static int medusa_l1_capable(const struct cred *cred,
-			struct user_namespace *ns, int cap, unsigned int audit)
-{
-	return 0;
-}
-*/
-
-/*
 static int medusa_l1_syslog(int type)
-{
-	return 0;
-}
-*/
-
-/*
-static int medusa_l1_settime(const struct timespec64 *ts, const struct timezone *tz)
-{
-	return 0;
-}
-*/
-
-/*
-static int medusa_l1_vm_enough_memory(struct mm_struct *mm, long pages)
 {
 	return 0;
 }
@@ -1527,66 +1458,6 @@ static int medusa_l1_netlink_send(struct sock *sk, struct sk_buff *skb)
 }
 */
 
-static int medusa_l1_bprm_set_creds(struct linux_binprm *bprm)
-{
-	return 0;
-//	struct inode* inode = file_inode(bprm->file);
-//	if (!work)
-//		return 0;
-//#ifdef CONFIG_MEDUSA_FILE_CAPABILITIES
-//	if (MED_MAGIC_VALID(&inode_security(inode)) ||
-//			file_kobj_validate_dentry(bprm->file->f_dentry,NULL) > 0) {
-//		/* If the security daemon sets the file capabilities, use them */
-//		bprm->cred->cap_inheritable = inode_security(inode).icap;
-//		bprm->cred->cap_permitted = inode_security(inode).pcap;
-//		bprm->cred->cap_effective = inode_security(inode).ecap;
-//	}
-//#endif /* CONFIG_MEDUSA_FILE_CAPABILITIES */
-//
-//	{
-//		int retval;
-//#ifndef CONFIG_MEDUSA_FILE_CAPABILITIES
-//		kernel_cap_t new_permitted, working;
-//
-///* Privilege elevation check copied from compute_creds() */
-//		new_permitted = cap_intersect(bprm->cap_permitted, cap_bset);
-//		working = cap_intersect(bprm->cap_inheritable,
-//					current->cap_inheritable);
-//		new_permitted = cap_combine(new_permitted, working);
-//#endif
-//		if (!uid_eq(bprm->cred->euid,task_uid(current)) || !gid_eq(bprm->cred->egid, task_gid(current))
-//#ifndef CONFIG_MEDUSA_FILE_CAPABILITIES
-//			|| !cap_issubset(new_permitted, current->cap_permitted)
-//#endif
-//		) {
-//			if ((retval = medusa_sexec(bprm)) == MED_NO)
-//				return -EPERM;
-//			if (retval == MED_SKIP) {
-//				bprm->cred->euid = task_euid(current);
-//				bprm->cred->egid = task_egid(current);
-//#ifndef CONFIG_MEDUSA_FILE_CAPABILITIES
-//				cap_clear(bprm->cap_inheritable);
-//				bprm->cap_permitted = current->cap_permitted;
-//				bprm->cap_effective = current->cap_effective;
-//#endif
-//			}
-//		}
-//	}
-//	return 0;
-}
-
-/*
-// bprm_secureexec removed from v4.14
-static int medusa_l1_bprm_secureexec(struct linux_binprm *bprm)
-{
-	return 0;
-	if (medusa_sexec(bprm) == MED_NO)
-		return -EPERM;
-
-	return 0;
-}
-*/
-	
 static int medusa_l1_inode_setxattr(struct dentry *dentry, const char *name,
 					const void *value, size_t size, int flags)
 {
@@ -1599,54 +1470,10 @@ static int medusa_l1_inode_removexattr(struct dentry *dentry, const char *name)
 	return cap_inode_removexattr(dentry, name);
 } 
 
-static int medusa_l1_inode_need_killpriv(struct dentry *dentry) 
-{
-	return cap_inode_need_killpriv(dentry);
-}
-
 static int medusa_l1_inode_killpriv(struct dentry *dentry)
 {
 	return cap_inode_killpriv(dentry);
 }
-
-static int medusa_l1_mmap_addr(unsigned long addr) 
-{
-	return cap_mmap_addr(addr);
-}
-
-/*
-static int medusa_l1_mmap_file(struct file *file, unsigned long reqprot, unsigned long prot, unsigned long flags)
-{
-	//printk("medusa: file_mmap called\n");
-	return 0;
-} 
-*/
-
-static int medusa_l1_task_setnice(struct task_struct *p, int nice)
-{
-	return cap_task_setnice(p, nice);
-} 
-
-
-static int medusa_l1_task_setioprio(struct task_struct *p, int ioprio)
-{
-	return cap_task_setioprio(p, ioprio);
-} 
-
-static int medusa_l1_task_setscheduler(struct task_struct *p)
-{
-	return cap_task_setscheduler(p);
-} 
-
-static int medusa_l1_task_prctl(int option, unsigned long arg2,
-						unsigned long arg3, unsigned long arg4,
-						unsigned long arg5)
-{
-	return cap_task_prctl(option, arg2, arg3, arg4, arg5);
-}
-
-
-
 
 static struct security_hook_list medusa_l1_hooks[] = {
 	//LSM_HOOK_INIT(ptrace_access_check, medusa_l1_ptrace_access_check),
