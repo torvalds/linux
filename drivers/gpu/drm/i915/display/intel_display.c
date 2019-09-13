@@ -15381,7 +15381,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 
 	intel_pps_init(dev_priv);
 
-	if (!HAS_DISPLAY(dev_priv))
+	if (!HAS_DISPLAY(dev_priv) || !INTEL_DISPLAY_ENABLED(dev_priv))
 		return;
 
 	if (INTEL_GEN(dev_priv) >= 12) {
@@ -17293,7 +17293,7 @@ intel_display_capture_error_state(struct drm_i915_private *dev_priv)
 
 	BUILD_BUG_ON(ARRAY_SIZE(transcoders) != ARRAY_SIZE(error->transcoder));
 
-	if (!HAS_DISPLAY(dev_priv))
+	if (!HAS_DISPLAY(dev_priv) || !INTEL_DISPLAY_ENABLED(dev_priv))
 		return NULL;
 
 	error = kzalloc(sizeof(*error), GFP_ATOMIC);
