@@ -402,16 +402,16 @@ static int hammer_event(struct hid_device *hid, struct hid_field *field,
 	    usage->hid == WHISKERS_KBD_FOLDED) {
 		spin_lock_irqsave(&cbas_ec_lock, flags);
 
+		/*
+		 * If we are getting events from Whiskers that means that it
+		 * is attached to the lid.
+		 */
+		cbas_ec.base_present = true;
 		cbas_ec.base_folded = value;
 		hid_dbg(hid, "%s: base: %d, folded: %d\n", __func__,
 			cbas_ec.base_present, cbas_ec.base_folded);
 
-		/*
-		 * We should not get event if base is detached, but in case
-		 * we happen to service HID and EC notifications out of order
-		 * let's still check the "base present" flag.
-		 */
-		if (cbas_ec.input && cbas_ec.base_present) {
+		if (cbas_ec.input) {
 			input_report_switch(cbas_ec.input,
 					    SW_TABLET_MODE, value);
 			input_sync(cbas_ec.input);
