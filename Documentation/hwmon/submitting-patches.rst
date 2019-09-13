@@ -20,6 +20,10 @@ increase the chances of your change being accepted.
   errors, no warnings, and few if any check messages. If there are any
   messages, please be prepared to explain.
 
+* Please use the standard multi-line comment style. Do not mix C and C++
+  style comments in a single driver (with the exception of the SPDX license
+  identifier).
+
 * If your patch generates checkpatch errors, warnings, or check messages,
   please refrain from explanations such as "I prefer that coding style".
   Keep in mind that each unnecessary message helps hiding a real problem,
