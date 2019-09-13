@@ -883,5 +883,6 @@ extern struct safexcel_alg_template safexcel_alg_ecb_sm4;
 extern struct safexcel_alg_template safexcel_alg_cbc_sm4;
 extern struct safexcel_alg_template safexcel_alg_ofb_sm4;
 extern struct safexcel_alg_template safexcel_alg_cfb_sm4;
+extern struct safexcel_alg_template safexcel_alg_ctr_sm4;
 
 #endif

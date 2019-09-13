@@ -2815,3 +2815,54 @@ struct safexcel_alg_template safexcel_alg_cfb_sm4 = {
 		},
 	},
 };
+
+static int safexcel_skcipher_sm4ctr_setkey(struct crypto_skcipher *ctfm,
+					   const u8 *key, unsigned int len)
+{
+	struct crypto_tfm *tfm = crypto_skcipher_tfm(ctfm);
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	/* last 4 bytes of key are the nonce! */
+	ctx->nonce = *(u32 *)(key + len - CTR_RFC3686_NONCE_SIZE);
+	/* exclude the nonce here */
+	len -= CTR_RFC3686_NONCE_SIZE;
+
+	return safexcel_skcipher_sm4_setkey(ctfm, key, len);
+}
+
+static int safexcel_skcipher_sm4_ctr_cra_init(struct crypto_tfm *tfm)
+{
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	safexcel_skcipher_cra_init(tfm);
+	ctx->alg  = SAFEXCEL_SM4;
+	ctx->mode = CONTEXT_CONTROL_CRYPTO_MODE_CTR_LOAD;
+	return 0;
+}
+
+struct safexcel_alg_template safexcel_alg_ctr_sm4 = {
+	.type = SAFEXCEL_ALG_TYPE_SKCIPHER,
+	.algo_mask = SAFEXCEL_ALG_SM4,
+	.alg.skcipher = {
+		.setkey = safexcel_skcipher_sm4ctr_setkey,
+		.encrypt = safexcel_encrypt,
+		.decrypt = safexcel_decrypt,
+		/* Add nonce size */
+		.min_keysize = SM4_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
+		.max_keysize = SM4_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
+		.ivsize = CTR_RFC3686_IV_SIZE,
+		.base = {
+			.cra_name = "rfc3686(ctr(sm4))",
+			.cra_driver_name = "safexcel-ctr-sm4",
+			.cra_priority = SAFEXCEL_CRA_PRIORITY,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize = 1,
+			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
+			.cra_alignmask = 0,
+			.cra_init = safexcel_skcipher_sm4_ctr_cra_init,
+			.cra_exit = safexcel_skcipher_cra_exit,
+			.cra_module = THIS_MODULE,
+		},
+	},
+};
