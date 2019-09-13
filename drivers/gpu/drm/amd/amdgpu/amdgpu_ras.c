@@ -71,12 +71,6 @@ const char *ras_block_string[] = {
 
 atomic_t amdgpu_ras_in_intr = ATOMIC_INIT(0);
 
-static int amdgpu_ras_reserve_vram(struct amdgpu_device *adev,
-		uint64_t offset, uint64_t size,
-		struct amdgpu_bo **bo_ptr);
-static int amdgpu_ras_release_vram(struct amdgpu_device *adev,
-		struct amdgpu_bo **bo_ptr);
-
 static ssize_t amdgpu_ras_debugfs_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
@@ -1260,75 +1254,6 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 	atomic_set(&ras->in_recovery, 0);
 }
 
-static int amdgpu_ras_release_vram(struct amdgpu_device *adev,
-		struct amdgpu_bo **bo_ptr)
-{
-	/* no need to free it actually. */
-	amdgpu_bo_free_kernel(bo_ptr, NULL, NULL);
-	return 0;
-}
-
-/* reserve vram with size@offset */
-static int amdgpu_ras_reserve_vram(struct amdgpu_device *adev,
-		uint64_t offset, uint64_t size,
-		struct amdgpu_bo **bo_ptr)
-{
-	struct ttm_operation_ctx ctx = { false, false };
-	struct amdgpu_bo_param bp;
-	int r = 0;
-	int i;
-	struct amdgpu_bo *bo;
-
-	if (bo_ptr)
-		*bo_ptr = NULL;
-	memset(&bp, 0, sizeof(bp));
-	bp.size = size;
-	bp.byte_align = PAGE_SIZE;
-	bp.domain = AMDGPU_GEM_DOMAIN_VRAM;
-	bp.flags = AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
-		AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
-	bp.type = ttm_bo_type_kernel;
-	bp.resv = NULL;
-
-	r = amdgpu_bo_create(adev, &bp, &bo);
-	if (r)
-		return -EINVAL;
-
-	r = amdgpu_bo_reserve(bo, false);
-	if (r)
-		goto error_reserve;
-
-	offset = ALIGN(offset, PAGE_SIZE);
-	for (i = 0; i < bo->placement.num_placement; ++i) {
-		bo->placements[i].fpfn = offset >> PAGE_SHIFT;
-		bo->placements[i].lpfn = (offset + size) >> PAGE_SHIFT;
-	}
-
-	ttm_bo_mem_put(&bo->tbo, &bo->tbo.mem);
-	r = ttm_bo_mem_space(&bo->tbo, &bo->placement, &bo->tbo.mem, &ctx);
-	if (r)
-		goto error_pin;
-
-	r = amdgpu_bo_pin_restricted(bo,
-			AMDGPU_GEM_DOMAIN_VRAM,
-			offset,
-			offset + size);
-	if (r)
-		goto error_pin;
-
-	if (bo_ptr)
-		*bo_ptr = bo;
-
-	amdgpu_bo_unreserve(bo);
-	return r;
-
-error_pin:
-	amdgpu_bo_unreserve(bo);
-error_reserve:
-	amdgpu_bo_unref(&bo);
-	return r;
-}
-
 /* alloc/realloc bps array */
 static int amdgpu_ras_realloc_eh_data_space(struct amdgpu_device *adev,
 		struct ras_err_handler_data *data, int pages)
@@ -1464,7 +1389,7 @@ int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data *data;
 	uint64_t bp;
-	struct amdgpu_bo *bo;
+	struct amdgpu_bo *bo = NULL;
 	int i, ret = 0;
 
 	if (!con || !con->eh_data)
@@ -1478,12 +1403,14 @@ int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev)
 	for (i = data->last_reserved; i < data->count; i++) {
 		bp = data->bps[i].retired_page;
 
-		if (amdgpu_ras_reserve_vram(adev, bp << PAGE_SHIFT,
-					PAGE_SIZE, &bo))
+		if (amdgpu_bo_create_kernel_at(adev, bp << PAGE_SHIFT, PAGE_SIZE,
+					       AMDGPU_GEM_DOMAIN_VRAM,
+					       &bo, NULL))
 			DRM_ERROR("RAS ERROR: reserve vram %llx fail\n", bp);
 
 		data->bps_bo[i] = bo;
 		data->last_reserved = i + 1;
+		bo = NULL;
 	}
 
 	/* continue to save bad pages to eeprom even reesrve_vram fails */
@@ -1512,7 +1439,7 @@ static int amdgpu_ras_release_bad_pages(struct amdgpu_device *adev)
 	for (i = data->last_reserved - 1; i >= 0; i--) {
 		bo = data->bps_bo[i];
 
-		amdgpu_ras_release_vram(adev, &bo);
+		amdgpu_bo_free_kernel(&bo, NULL, NULL);
 
 		data->bps_bo[i] = bo;
 		data->last_reserved = i;
