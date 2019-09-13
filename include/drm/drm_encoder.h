@@ -154,7 +154,7 @@ struct drm_encoder {
 	 * using drm_encoder_index() as the index into the bitfield. The driver
 	 * must set the bits for all &drm_encoder objects which can clone a
 	 * &drm_crtc together with this encoder before calling
-	 * drm_encoder_init(). Drivers should set the bit representing the
+	 * drm_dev_register(). Drivers should set the bit representing the
 	 * encoder itself, too. Cloning bits should be set such that when two
 	 * encoders can be used in a cloned configuration, they both should have
 	 * each another bits set.
