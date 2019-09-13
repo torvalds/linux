@@ -3288,22 +3288,15 @@ void tc_cleanup_flow_action(struct flow_action *flow_action)
 }
 EXPORT_SYMBOL(tc_cleanup_flow_action);
 
-static void tcf_mirred_put_dev(void *priv)
-{
-	struct net_device *dev = priv;
-
-	dev_put(dev);
-}
-
 static void tcf_mirred_get_dev(struct flow_action_entry *entry,
 			       const struct tc_action *act)
 {
-	entry->dev = tcf_mirred_dev(act);
+#ifdef CONFIG_NET_CLS_ACT
+	entry->dev = act->ops->get_dev(act, &entry->destructor);
 	if (!entry->dev)
 		return;
-	dev_hold(entry->dev);
-	entry->destructor = tcf_mirred_put_dev;
 	entry->destructor_priv = entry->dev;
+#endif
 }
 
 static void tcf_tunnel_encap_put_tunnel(void *priv)

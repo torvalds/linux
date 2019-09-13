@@ -101,8 +101,8 @@ struct tc_action_ops {
 			struct netlink_ext_ack *);
 	void	(*stats_update)(struct tc_action *, u64, u32, u64, bool);
 	size_t  (*get_fill_size)(const struct tc_action *act);
-	struct net_device *(*get_dev)(const struct tc_action *a);
-	void	(*put_dev)(struct net_device *dev);
+	struct net_device *(*get_dev)(const struct tc_action *a,
+				      tc_action_priv_destructor *destructor);
 	struct psample_group *
 	(*get_psample_group)(const struct tc_action *a,
 			     tc_action_priv_destructor *destructor);
