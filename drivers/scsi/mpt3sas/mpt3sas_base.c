@@ -3044,11 +3044,11 @@ _base_alloc_irq_vectors(struct MPT3SAS_ADAPTER *ioc)
 		descp = NULL;
 
 	ioc_info(ioc, " %d %d\n", ioc->high_iops_queues,
-	    ioc->msix_vector_count);
+	    ioc->reply_queue_count);
 
 	i = pci_alloc_irq_vectors_affinity(ioc->pdev,
 	    ioc->high_iops_queues,
-	    ioc->msix_vector_count, irq_flags, descp);
+	    ioc->reply_queue_count, irq_flags, descp);
 
 	return i;
 }
