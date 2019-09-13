@@ -154,8 +154,12 @@ enum flow_action_mangle_base {
 	FLOW_ACT_MANGLE_HDR_TYPE_UDP,
 };
 
+typedef void (*action_destr)(void *priv);
+
 struct flow_action_entry {
 	enum flow_action_id		id;
+	action_destr			destructor;
+	void				*destructor_priv;
 	union {
 		u32			chain_index;	/* FLOW_ACTION_GOTO */
 		struct net_device	*dev;		/* FLOW_ACTION_REDIRECT */
@@ -170,7 +174,7 @@ struct flow_action_entry {
 			u32		mask;
 			u32		val;
 		} mangle;
-		const struct ip_tunnel_info *tunnel;	/* FLOW_ACTION_TUNNEL_ENCAP */
+		struct ip_tunnel_info	*tunnel;	/* FLOW_ACTION_TUNNEL_ENCAP */
 		u32			csum_flags;	/* FLOW_ACTION_CSUM */
 		u32			mark;		/* FLOW_ACTION_MARK */
 		u16                     ptype;          /* FLOW_ACTION_PTYPE */

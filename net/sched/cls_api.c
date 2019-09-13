@@ -3282,24 +3282,47 @@ void tc_cleanup_flow_action(struct flow_action *flow_action)
 	struct flow_action_entry *entry;
 	int i;
 
-	flow_action_for_each(i, entry, flow_action) {
-		switch (entry->id) {
-		case FLOW_ACTION_REDIRECT:
-		case FLOW_ACTION_MIRRED:
-		case FLOW_ACTION_REDIRECT_INGRESS:
-		case FLOW_ACTION_MIRRED_INGRESS:
-			if (entry->dev)
-				dev_put(entry->dev);
-			break;
-		case FLOW_ACTION_TUNNEL_ENCAP:
-			kfree(entry->tunnel);
-			break;
-		default:
-			break;
-		}
-	}
+	flow_action_for_each(i, entry, flow_action)
+		if (entry->destructor)
+			entry->destructor(entry->destructor_priv);
 }
 EXPORT_SYMBOL(tc_cleanup_flow_action);
+
+static void tcf_mirred_put_dev(void *priv)
+{
+	struct net_device *dev = priv;
+
+	dev_put(dev);
+}
+
+static void tcf_mirred_get_dev(struct flow_action_entry *entry,
+			       const struct tc_action *act)
+{
+	entry->dev = tcf_mirred_dev(act);
+	if (!entry->dev)
+		return;
+	dev_hold(entry->dev);
+	entry->destructor = tcf_mirred_put_dev;
+	entry->destructor_priv = entry->dev;
+}
+
+static void tcf_tunnel_encap_put_tunnel(void *priv)
+{
+	struct ip_tunnel_info *tunnel = priv;
+
+	kfree(tunnel);
+}
+
+static int tcf_tunnel_encap_get_tunnel(struct flow_action_entry *entry,
+				       const struct tc_action *act)
+{
+	entry->tunnel = tcf_tunnel_info_copy(act);
+	if (!entry->tunnel)
+		return -ENOMEM;
+	entry->destructor = tcf_tunnel_encap_put_tunnel;
+	entry->destructor_priv = entry->tunnel;
+	return 0;
+}
 
 int tc_setup_flow_action(struct flow_action *flow_action,
 			 const struct tcf_exts *exts, bool rtnl_held)
@@ -3329,24 +3352,16 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 			entry->chain_index = tcf_gact_goto_chain_index(act);
 		} else if (is_tcf_mirred_egress_redirect(act)) {
 			entry->id = FLOW_ACTION_REDIRECT;
-			entry->dev = tcf_mirred_dev(act);
-			if (entry->dev)
-				dev_hold(entry->dev);
+			tcf_mirred_get_dev(entry, act);
 		} else if (is_tcf_mirred_egress_mirror(act)) {
 			entry->id = FLOW_ACTION_MIRRED;
-			entry->dev = tcf_mirred_dev(act);
-			if (entry->dev)
-				dev_hold(entry->dev);
+			tcf_mirred_get_dev(entry, act);
 		} else if (is_tcf_mirred_ingress_redirect(act)) {
 			entry->id = FLOW_ACTION_REDIRECT_INGRESS;
-			entry->dev = tcf_mirred_dev(act);
-			if (entry->dev)
-				dev_hold(entry->dev);
+			tcf_mirred_get_dev(entry, act);
 		} else if (is_tcf_mirred_ingress_mirror(act)) {
 			entry->id = FLOW_ACTION_MIRRED_INGRESS;
-			entry->dev = tcf_mirred_dev(act);
-			if (entry->dev)
-				dev_hold(entry->dev);
+			tcf_mirred_get_dev(entry, act);
 		} else if (is_tcf_vlan(act)) {
 			switch (tcf_vlan_action(act)) {
 			case TCA_VLAN_ACT_PUSH:
@@ -3370,11 +3385,9 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 			}
 		} else if (is_tcf_tunnel_set(act)) {
 			entry->id = FLOW_ACTION_TUNNEL_ENCAP;
-			entry->tunnel = tcf_tunnel_info_copy(act);
-			if (!entry->tunnel) {
-				err = -ENOMEM;
+			err = tcf_tunnel_encap_get_tunnel(entry, act);
+			if (err)
 				goto err_out;
-			}
 		} else if (is_tcf_tunnel_release(act)) {
 			entry->id = FLOW_ACTION_TUNNEL_DECAP;
 		} else if (is_tcf_pedit(act)) {
