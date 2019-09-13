@@ -18,6 +18,8 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
+#include <linux/qcom_scm.h>
+
 #define PDC_MAX_IRQS		168
 #define PDC_MAX_GPIO_IRQS	256
 
@@ -35,10 +37,20 @@ struct pdc_pin_region {
 	u32 cnt;
 };
 
+struct spi_cfg_regs {
+	union {
+		u64 start;
+		void __iomem *base;
+	};
+	resource_size_t size;
+	bool scm_io;
+};
+
 static DEFINE_RAW_SPINLOCK(pdc_lock);
 static void __iomem *pdc_base;
 static struct pdc_pin_region *pdc_region;
 static int pdc_region_cnt;
+static struct spi_cfg_regs *spi_cfg;
 
 static void pdc_reg_write(int reg, u32 i, u32 val)
 {
@@ -100,6 +112,57 @@ static void qcom_pdc_gic_unmask(struct irq_data *d)
 	irq_chip_unmask_parent(d);
 }
 
+static u32 __spi_pin_read(unsigned int pin)
+{
+	void __iomem *cfg_reg = spi_cfg->base + pin * 4;
+	u64 scm_cfg_reg = spi_cfg->start + pin * 4;
+
+	if (spi_cfg->scm_io) {
+		unsigned int val;
+
+		qcom_scm_io_readl(scm_cfg_reg, &val);
+		return val;
+	} else {
+		return readl(cfg_reg);
+	}
+}
+
+static void __spi_pin_write(unsigned int pin, unsigned int val)
+{
+	void __iomem *cfg_reg = spi_cfg->base + pin * 4;
+	u64 scm_cfg_reg = spi_cfg->start + pin * 4;
+
+	if (spi_cfg->scm_io)
+		qcom_scm_io_writel(scm_cfg_reg, val);
+	else
+		writel(val, cfg_reg);
+}
+
+static int spi_configure_type(irq_hw_number_t hwirq, unsigned int type)
+{
+	int spi = hwirq - 32;
+	u32 pin = spi / 32;
+	u32 mask = BIT(spi % 32);
+	u32 val;
+	unsigned long flags;
+
+	if (!spi_cfg)
+		return 0;
+
+	if (pin * 4 > spi_cfg->size)
+		return -EFAULT;
+
+	raw_spin_lock_irqsave(&pdc_lock, flags);
+	val = __spi_pin_read(pin);
+	val &= ~mask;
+	if (type & IRQ_TYPE_LEVEL_MASK)
+		val |= mask;
+	__spi_pin_write(pin, val);
+	raw_spin_unlock_irqrestore(&pdc_lock, flags);
+
+	return 0;
+}
+
 /*
  * GIC does not handle falling edge or active low. To allow falling edge and
  * active low interrupts to be handled at GIC, PDC has an inverter that inverts
@@ -137,7 +200,9 @@ enum pdc_irq_config_bits {
 static int qcom_pdc_gic_set_type(struct irq_data *d, unsigned int type)
 {
 	int pin_out = d->hwirq;
+	int parent_hwirq = d->parent_data->hwirq;
 	enum pdc_irq_config_bits pdc_type;
+	int ret;
 
 	if (pin_out == GPIO_NO_WAKE_IRQ)
 		return 0;
@@ -167,6 +232,11 @@ static int qcom_pdc_gic_set_type(struct irq_data *d, unsigned int type)
 	}
 
 	pdc_reg_write(IRQ_i_CFG, pin_out, pdc_type);
+
+	/* Additionally, configure (only) the GPIO in the f/w */
+	ret = spi_configure_type(parent_hwirq, type);
+	if (ret)
+		return ret;
 
 	return irq_chip_set_type_parent(d, type);
 }
@@ -354,6 +424,7 @@ static int pdc_setup_pin_mapping(struct device_node *np)
 static int qcom_pdc_init(struct device_node *node, struct device_node *parent)
 {
 	struct irq_domain *parent_domain, *pdc_domain, *pdc_gpio_domain;
+	struct resource res;
 	int ret;
 
 	pdc_base = of_iomap(node, 0);
@@ -384,6 +455,27 @@ static int qcom_pdc_init(struct device_node *node, struct device_node *parent)
 		goto fail;
 	}
 
+	ret = of_address_to_resource(node, 1, &res);
+	if (!ret) {
+		spi_cfg = kcalloc(1, sizeof(*spi_cfg), GFP_KERNEL);
+		if (!spi_cfg) {
+			ret = -ENOMEM;
+			goto remove;
+		}
+		spi_cfg->scm_io = of_find_property(node,
+						   "qcom,scm-spi-cfg", NULL);
+		spi_cfg->size = resource_size(&res);
+		if (spi_cfg->scm_io) {
+			spi_cfg->start = res.start;
+		} else {
+			spi_cfg->base = ioremap(res.start, spi_cfg->size);
+			if (!spi_cfg->base) {
+				ret = -ENOMEM;
+				goto remove;
+			}
+		}
+	}
+
 	pdc_gpio_domain = irq_domain_create_hierarchy(parent_domain,
 						      IRQ_DOMAIN_FLAG_QCOM_PDC_WAKEUP,
 						      PDC_MAX_GPIO_IRQS,
@@ -401,6 +493,7 @@ static int qcom_pdc_init(struct device_node *node, struct device_node *parent)
 
 remove:
 	irq_domain_remove(pdc_domain);
+	kfree(spi_cfg);
 fail:
 	kfree(pdc_region);
 	iounmap(pdc_base);
