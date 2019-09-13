@@ -481,6 +481,17 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 	__drm_helper_disable_unused_functions(dev);
 }
 
+/*
+ * For connectors that support multiple encoders, either the
+ * .atomic_best_encoder() or .best_encoder() operation must be implemented.
+ */
+struct drm_encoder *
+drm_connector_get_single_encoder(struct drm_connector *connector)
+{
+	WARN_ON(connector->encoder_ids[1]);
+	return drm_encoder_find(connector->dev, NULL, connector->encoder_ids[0]);
+}
+
 /**
  * drm_crtc_helper_set_config - set a new config from userspace
  * @set: mode set configuration
@@ -646,7 +657,11 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 		new_encoder = connector->encoder;
 		for (ro = 0; ro < set->num_connectors; ro++) {
 			if (set->connectors[ro] == connector) {
-				new_encoder = connector_funcs->best_encoder(connector);
+				if (connector_funcs->best_encoder)
+					new_encoder = connector_funcs->best_encoder(connector);
+				else
+					new_encoder = drm_connector_get_single_encoder(connector);
+
 				/* if we can't get an encoder for a connector
 				   we are setting now - then fail */
 				if (new_encoder == NULL)

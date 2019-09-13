@@ -90,13 +90,6 @@ udl_detect(struct drm_connector *connector, bool force)
 	return connector_status_connected;
 }
 
-static struct drm_encoder*
-udl_best_single_encoder(struct drm_connector *connector)
-{
-	int enc_id = connector->encoder_ids[0];
-	return drm_encoder_find(connector->dev, NULL, enc_id);
-}
-
 static int udl_connector_set_property(struct drm_connector *connector,
 				      struct drm_property *property,
 				      uint64_t val)
@@ -120,7 +113,6 @@ static void udl_connector_destroy(struct drm_connector *connector)
 static const struct drm_connector_helper_funcs udl_connector_helper_funcs = {
 	.get_modes = udl_get_modes,
 	.mode_valid = udl_mode_valid,
-	.best_encoder = udl_best_single_encoder,
 };
 
 static const struct drm_connector_funcs udl_connector_funcs = {

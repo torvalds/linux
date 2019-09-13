@@ -1638,16 +1638,6 @@ static enum drm_mode_status mga_vga_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static struct drm_encoder *mga_connector_best_encoder(struct drm_connector
-						  *connector)
-{
-	int enc_id = connector->encoder_ids[0];
-	/* pick the encoder ids */
-	if (enc_id)
-		return drm_encoder_find(connector->dev, NULL, enc_id);
-	return NULL;
-}
-
 static void mga_connector_destroy(struct drm_connector *connector)
 {
 	struct mga_connector *mga_connector = to_mga_connector(connector);
@@ -1659,7 +1649,6 @@ static void mga_connector_destroy(struct drm_connector *connector)
 static const struct drm_connector_helper_funcs mga_vga_connector_helper_funcs = {
 	.get_modes = mga_vga_get_modes,
 	.mode_valid = mga_vga_mode_valid,
-	.best_encoder = mga_connector_best_encoder,
 };
 
 static const struct drm_connector_funcs mga_vga_connector_funcs = {

@@ -687,17 +687,6 @@ static void ast_encoder_destroy(struct drm_encoder *encoder)
 	kfree(encoder);
 }
 
-
-static struct drm_encoder *ast_best_single_encoder(struct drm_connector *connector)
-{
-	int enc_id = connector->encoder_ids[0];
-	/* pick the encoder ids */
-	if (enc_id)
-		return drm_encoder_find(connector->dev, NULL, enc_id);
-	return NULL;
-}
-
-
 static const struct drm_encoder_funcs ast_enc_funcs = {
 	.destroy = ast_encoder_destroy,
 };
@@ -847,7 +836,6 @@ static void ast_connector_destroy(struct drm_connector *connector)
 static const struct drm_connector_helper_funcs ast_connector_helper_funcs = {
 	.mode_valid = ast_mode_valid,
 	.get_modes = ast_get_modes,
-	.best_encoder = ast_best_single_encoder,
 };
 
 static const struct drm_connector_funcs ast_connector_funcs = {
