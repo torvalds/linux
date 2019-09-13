@@ -716,14 +716,11 @@ void arc_mmu_init(void)
 	if (IS_ENABLED(CONFIG_ARC_HAS_PAE40) && !mmu->pae)
 		panic("Hardware doesn't support PAE40\n");
 
-	/* Enable the MMU */
-	write_aux_reg(ARC_REG_PID, MMU_ENABLE);
+	/* Enable the MMU with ASID 0 */
+	mmu_setup_asid(NULL, 0);
 
-	/* In arc700/smp needed for re-entrant interrupt handling */
-#ifdef CONFIG_ISA_ARCV2
-	/* swapper_pg_dir is the pgd for the kernel, used by vmalloc */
-	write_aux_reg(ARC_REG_SCRATCH_DATA0, swapper_pg_dir);
-#endif
+	/* cache the pgd pointer in MMU SCRATCH reg (ARCv2 only) */
+	mmu_setup_pgd(NULL, swapper_pg_dir);
 
 	if (pae40_exist_but_not_enab())
 		write_aux_reg(ARC_REG_TLBPD1HI, 0);
