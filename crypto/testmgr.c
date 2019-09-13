@@ -4126,6 +4126,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.cipher = __VECS(aes_cfb_tv_template)
 		},
 	}, {
+		.alg = "cfb(sm4)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(sm4_cfb_tv_template)
+		}
+	}, {
 		.alg = "chacha20",
 		.test = alg_test_skcipher,
 		.suite = {
@@ -4796,6 +4802,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "ofb(paes)",
 		.test = alg_test_null,
 		.fips_allowed = 1,
+	}, {
+		.alg = "ofb(sm4)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(sm4_ofb_tv_template)
+		}
 	}, {
 		.alg = "pcbc(fcrypt)",
 		.test = alg_test_skcipher,
