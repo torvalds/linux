@@ -1153,7 +1153,8 @@ EXPORT_SYMBOL_GPL(amdtp_domain_init);
  */
 void amdtp_domain_destroy(struct amdtp_domain *d)
 {
-	WARN_ON(!list_empty(&d->streams));
+	// At present nothing to do.
+	return;
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_destroy);
 

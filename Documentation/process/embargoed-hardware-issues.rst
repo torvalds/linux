@@ -5,7 +5,7 @@ Scope
 -----
 
 Hardware issues which result in security problems are a different category
-of security bugs than pure software bugs which  only affect the Linux
+of security bugs than pure software bugs which only affect the Linux
 kernel.
 
 Hardware issues like Meltdown, Spectre, L1TF etc. must be treated
@@ -159,7 +159,7 @@ Mitigation development
 
 The initial response team sets up an encrypted mailing-list or repurposes
 an existing one if appropriate. The disclosing party should provide a list
-of contacts for all other parties who have already been, or should be
+of contacts for all other parties who have already been, or should be,
 informed about the issue. The response team contacts these parties so they
 can name experts who should be subscribed to the mailing-list.
 
@@ -217,11 +217,11 @@ an involved disclosed party. The current ambassadors list:
   AMD
   IBM
   Intel
-  Qualcomm
+  Qualcomm	Trilok Soni <tsoni@codeaurora.org>
 
-  Microsoft
+  Microsoft	Sasha Levin <sashal@kernel.org>
   VMware
-  XEN
+  Xen		Andrew Cooper <andrew.cooper3@citrix.com>
 
   Canonical	Tyler Hicks <tyhicks@canonical.com>
   Debian	Ben Hutchings <ben@decadent.org.uk>
@@ -230,8 +230,8 @@ an involved disclosed party. The current ambassadors list:
   SUSE		Jiri Kosina <jkosina@suse.cz>
 
   Amazon
-  Google
-  ============== ========================================================
+  Google	Kees Cook <keescook@chromium.org>
+  ============= ========================================================
 
 If you want your organization to be added to the ambassadors list, please
 contact the hardware security team. The nominated ambassador has to

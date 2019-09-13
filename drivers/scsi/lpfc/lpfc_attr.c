@@ -5715,7 +5715,7 @@ LPFC_ATTR_RW(nvme_embed_cmd, 1, 0, 2,
  *      0    = Set nr_hw_queues by the number of CPUs or HW queues.
  *      1,128 = Manually specify the maximum nr_hw_queue value to be set,
  *
- * Value range is [0,128]. Default value is 8.
+ * Value range is [0,256]. Default value is 8.
  */
 LPFC_ATTR_R(fcp_mq_threshold, LPFC_FCP_MQ_THRESHOLD_DEF,
 	    LPFC_FCP_MQ_THRESHOLD_MIN, LPFC_FCP_MQ_THRESHOLD_MAX,
