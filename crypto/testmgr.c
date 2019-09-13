@@ -4847,6 +4847,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.cipher = __VECS(aes_ctr_rfc3686_tv_template)
 		}
 	}, {
+		.alg = "rfc3686(ctr(sm4))",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(sm4_ctr_rfc3686_tv_template)
+		}
+	}, {
 		.alg = "rfc4106(gcm(aes))",
 		.generic_driver = "rfc4106(gcm_base(ctr(aes-generic),ghash-generic))",
 		.test = alg_test_aead,
