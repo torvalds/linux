@@ -2367,6 +2367,8 @@ _ctl_diag_read_buffer(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	if (ioc_status == MPI2_IOCSTATUS_SUCCESS) {
 		ioc->diag_buffer_status[buffer_type] |=
 		    MPT3_DIAG_BUFFER_IS_REGISTERED;
+		ioc->diag_buffer_status[buffer_type] &=
+		    ~MPT3_DIAG_BUFFER_IS_RELEASED;
 		dctlprintk(ioc, ioc_info(ioc, "%s: success\n", __func__));
 	} else {
 		ioc_info(ioc, "%s: ioc_status(0x%04x) log_info(0x%08x)\n",
