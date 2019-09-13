@@ -2853,7 +2853,7 @@ static int nf_tables_newrule(struct net *net, struct sock *nlsk,
 		return nft_table_validate(net, table);
 
 	if (chain->flags & NFT_CHAIN_HW_OFFLOAD) {
-		flow = nft_flow_rule_create(rule);
+		flow = nft_flow_rule_create(net, rule);
 		if (IS_ERR(flow))
 			return PTR_ERR(flow);
 
@@ -5151,7 +5151,7 @@ static int nf_tables_updobj(const struct nft_ctx *ctx,
 	newobj = nft_obj_init(ctx, type, attr);
 	if (IS_ERR(newobj)) {
 		err = PTR_ERR(newobj);
-		goto err1;
+		goto err_free_trans;
 	}
 
 	nft_trans_obj(trans) = obj;
@@ -5160,9 +5160,9 @@ static int nf_tables_updobj(const struct nft_ctx *ctx,
 	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
 
 	return 0;
-err1:
+
+err_free_trans:
 	kfree(trans);
-	kfree(newobj);
 	return err;
 }
 
@@ -7669,11 +7669,6 @@ static struct pernet_operations nf_tables_net_ops = {
 	.exit	= nf_tables_exit_net,
 };
 
-static struct flow_indr_block_ing_entry block_ing_entry = {
-	.cb = nft_indr_block_get_and_ing_cmd,
-	.list = LIST_HEAD_INIT(block_ing_entry.list),
-};
-
 static int __init nf_tables_module_init(void)
 {
 	int err;
@@ -7699,14 +7694,20 @@ static int __init nf_tables_module_init(void)
 	if (err < 0)
 		goto err4;
 
-	/* must be last */
-	err = nfnetlink_subsys_register(&nf_tables_subsys);
+	err = nft_offload_init();
 	if (err < 0)
 		goto err5;
 
+	/* must be last */
+	err = nfnetlink_subsys_register(&nf_tables_subsys);
+	if (err < 0)
+		goto err6;
+
 	nft_chain_route_init();
-	flow_indr_add_block_ing_cb(&block_ing_entry);
+
 	return err;
+err6:
+	nft_offload_exit();
 err5:
 	rhltable_destroy(&nft_objname_ht);
 err4:
@@ -7722,8 +7723,8 @@ err1:
 
 static void __exit nf_tables_module_exit(void)
 {
-	flow_indr_del_block_ing_cb(&block_ing_entry);
 	nfnetlink_subsys_unregister(&nf_tables_subsys);
+	nft_offload_exit();
 	unregister_netdevice_notifier(&nf_tables_flowtable_notifier);
 	nft_chain_filter_fini();
 	nft_chain_route_fini();
