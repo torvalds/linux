@@ -2653,6 +2653,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->rx_opt.saw_tstamp = 0;
 	tp->rx_opt.dsack = 0;
 	tp->rx_opt.num_sacks = 0;
+	tp->rcv_ooopack = 0;
 
 
 	/* Clean up fastopen related fields */
@@ -3295,6 +3296,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_bytes_retrans = tp->bytes_retrans;
 	info->tcpi_dsack_dups = tp->dsack_dups;
 	info->tcpi_reord_seen = tp->reord_seen;
+	info->tcpi_rcv_ooopack = tp->rcv_ooopack;
 	unlock_sock_fast(sk, slow);
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
