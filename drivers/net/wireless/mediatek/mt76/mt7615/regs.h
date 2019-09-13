@@ -65,6 +65,17 @@
 #define MT_WPDMA_ABT_CFG		MT_HIF(0x530)
 #define MT_WPDMA_ABT_CFG1		MT_HIF(0x534)
 
+#define MT_PLE_BASE			0x8000
+#define MT_PLE(ofs)			(MT_PLE_BASE + (ofs))
+
+#define MT_PLE_FL_Q0_CTRL		MT_PLE(0x1b0)
+#define MT_PLE_FL_Q1_CTRL		MT_PLE(0x1b4)
+#define MT_PLE_FL_Q2_CTRL		MT_PLE(0x1b8)
+#define MT_PLE_FL_Q3_CTRL		MT_PLE(0x1bc)
+
+#define MT_PLE_AC_QEMPTY(ac, n)		MT_PLE(0x300 + 0x10 * (ac) + \
+					       ((n) << 2))
+
 #define MT_WF_PHY_BASE			0x10000
 #define MT_WF_PHY(ofs)			(MT_WF_PHY_BASE + (ofs))
 
