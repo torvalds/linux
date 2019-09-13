@@ -908,6 +908,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 		       eeh_pe_loc_get(pe), eeh_pe_loc_get(phb_pe));
 	}
 
+#ifdef CONFIG_STACKTRACE
 	/*
 	 * Print the saved stack trace now that we've verified there's
 	 * something to recover.
@@ -926,7 +927,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 
 		pe->trace_entries = 0;
 	}
-
+#endif /* CONFIG_STACKTRACE */
 
 	eeh_pe_update_time_stamp(pe);
 	pe->freeze_count++;
