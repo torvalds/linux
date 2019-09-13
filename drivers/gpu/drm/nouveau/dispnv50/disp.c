@@ -2386,6 +2386,18 @@ nv50_display_create(struct drm_device *dev)
 				head->msto = NULL;
 				goto out;
 			}
+
+			/*
+			 * FIXME: This is a hack to workaround the following
+			 * issues:
+			 *
+			 * https://gitlab.gnome.org/GNOME/mutter/issues/759
+			 * https://gitlab.freedesktop.org/xorg/xserver/merge_requests/277
+			 *
+			 * Once these issues are closed, this should be
+			 * removed
+			 */
+			head->msto->encoder.possible_crtcs = crtcs;
 		}
 	}
 
