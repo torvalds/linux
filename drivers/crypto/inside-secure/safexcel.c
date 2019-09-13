@@ -1789,32 +1789,50 @@ static struct pci_driver safexcel_pci_driver = {
 };
 #endif
 
+/* Unfortunately, we have to resort to global variables here */
+#if IS_ENABLED(CONFIG_PCI)
+int pcireg_rc = -EINVAL; /* Default safe value */
+#endif
+#if IS_ENABLED(CONFIG_OF)
+int ofreg_rc = -EINVAL; /* Default safe value */
+#endif
+
 static int __init safexcel_init(void)
 {
-	int rc;
+#if IS_ENABLED(CONFIG_PCI)
+	/* Register PCI driver */
+	pcireg_rc = pci_register_driver(&safexcel_pci_driver);
+#endif
 
 #if IS_ENABLED(CONFIG_OF)
-		/* Register platform driver */
-		platform_driver_register(&crypto_safexcel);
+	/* Register platform driver */
+	ofreg_rc = platform_driver_register(&crypto_safexcel);
+ #if IS_ENABLED(CONFIG_PCI)
+	/* Return success if either PCI or OF registered OK */
+	return pcireg_rc ? ofreg_rc : 0;
+ #else
+	return ofreg_rc;
+ #endif
+#else
+ #if IS_ENABLED(CONFIG_PCI)
+	return pcireg_rc;
+ #else
+	return -EINVAL;
+ #endif
 #endif
-
-#if IS_ENABLED(CONFIG_PCI)
-		/* Register PCI driver */
-		rc = pci_register_driver(&safexcel_pci_driver);
-#endif
-
-	return 0;
 }
 
 static void __exit safexcel_exit(void)
 {
 #if IS_ENABLED(CONFIG_OF)
-		/* Unregister platform driver */
+	/* Unregister platform driver */
+	if (!ofreg_rc)
 		platform_driver_unregister(&crypto_safexcel);
 #endif
 
 #if IS_ENABLED(CONFIG_PCI)
-		/* Unregister PCI driver if successfully registered before */
+	/* Unregister PCI driver if successfully registered before */
+	if (!pcireg_rc)
 		pci_unregister_driver(&safexcel_pci_driver);
 #endif
 }
