@@ -799,6 +799,7 @@ static const struct intel_device_info intel_tigerlake_12_info = {
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
 	.has_rc6 = false, /* XXX disabled for debugging */
 	.has_logical_ring_preemption = false, /* XXX disabled for debugging */
+	.engine_mask = BIT(RCS0), /* XXX reduced for debugging */
 };
 
 #undef GEN
