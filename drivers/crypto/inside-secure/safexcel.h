@@ -360,6 +360,7 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_CRYPTO_ALG_AES256	(0x7 << 17)
 #define CONTEXT_CONTROL_CRYPTO_ALG_CHACHA20	(0x8 << 17)
 #define CONTEXT_CONTROL_CRYPTO_ALG_SM4		(0xd << 17)
+#define CONTEXT_CONTROL_DIGEST_INITIAL		(0x0 << 21)
 #define CONTEXT_CONTROL_DIGEST_PRECOMPUTED	(0x1 << 21)
 #define CONTEXT_CONTROL_DIGEST_XCM		(0x2 << 21)
 #define CONTEXT_CONTROL_DIGEST_HMAC		(0x3 << 21)
@@ -375,6 +376,10 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_CRYPTO_ALG_XCBC192	(0x2 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_XCBC256	(0x3 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_SM3		(0x7 << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_SHA3_256	(0xb << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_SHA3_224	(0xc << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_SHA3_512	(0xd << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_SHA3_384	(0xe << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_POLY1305	(0xf << 23)
 #define CONTEXT_CONTROL_INV_FR			(0x5 << 24)
 #define CONTEXT_CONTROL_INV_TR			(0x6 << 24)
@@ -888,5 +893,9 @@ extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_cbc_sm4;
 extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sm3_cbc_sm4;
 extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_ctr_sm4;
 extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sm3_ctr_sm4;
+extern struct safexcel_alg_template safexcel_alg_sha3_224;
+extern struct safexcel_alg_template safexcel_alg_sha3_256;
+extern struct safexcel_alg_template safexcel_alg_sha3_384;
+extern struct safexcel_alg_template safexcel_alg_sha3_512;
 
 #endif
