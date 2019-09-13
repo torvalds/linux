@@ -147,7 +147,10 @@ tlc591xx_configure(struct device *dev,
 	unsigned int i;
 	int err = 0;
 
-	tlc591xx_set_mode(priv->regmap, MODE2_DIM);
+	err = tlc591xx_set_mode(priv->regmap, MODE2_DIM);
+	if (err < 0)
+		return err;
+
 	for (i = 0; i < TLC591XX_MAX_LEDS; i++) {
 		struct tlc591xx_led *led = &priv->leds[i];
 
