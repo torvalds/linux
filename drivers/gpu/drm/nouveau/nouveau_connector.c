@@ -366,9 +366,8 @@ find_encoder(struct drm_connector *connector, int type)
 {
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *enc;
-	int i;
 
-	drm_connector_for_each_possible_encoder(connector, enc, i) {
+	drm_connector_for_each_possible_encoder(connector, enc) {
 		nv_encoder = nouveau_encoder(enc);
 
 		if (type == DCB_OUTPUT_ANY ||
@@ -415,10 +414,10 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct nouveau_encoder *nv_encoder = NULL, *found = NULL;
 	struct drm_encoder *encoder;
-	int i, ret;
+	int ret;
 	bool switcheroo_ddc = false;
 
-	drm_connector_for_each_possible_encoder(connector, encoder, i) {
+	drm_connector_for_each_possible_encoder(connector, encoder) {
 		nv_encoder = nouveau_encoder(encoder);
 
 		switch (nv_encoder->dcb->type) {

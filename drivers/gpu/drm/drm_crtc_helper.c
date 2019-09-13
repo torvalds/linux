@@ -488,8 +488,13 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 struct drm_encoder *
 drm_connector_get_single_encoder(struct drm_connector *connector)
 {
-	WARN_ON(connector->encoder_ids[1]);
-	return drm_encoder_find(connector->dev, NULL, connector->encoder_ids[0]);
+	struct drm_encoder *encoder;
+
+	WARN_ON(hweight32(connector->possible_encoders) > 1);
+	drm_connector_for_each_possible_encoder(connector, encoder)
+		return encoder;
+
+	return NULL;
 }
 
 /**

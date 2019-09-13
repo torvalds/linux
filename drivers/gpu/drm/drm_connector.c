@@ -365,8 +365,6 @@ EXPORT_SYMBOL(drm_connector_attach_edid_property);
 int drm_connector_attach_encoder(struct drm_connector *connector,
 				 struct drm_encoder *encoder)
 {
-	int i;
-
 	/*
 	 * In the past, drivers have attempted to model the static association
 	 * of connector to encoder in simple connector/encoder devices using a
@@ -381,18 +379,15 @@ int drm_connector_attach_encoder(struct drm_connector *connector,
 	if (WARN_ON(connector->encoder))
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(connector->encoder_ids); i++) {
-		if (connector->encoder_ids[i] == 0) {
-			connector->encoder_ids[i] = encoder->base.id;
-			return 0;
-		}
-	}
-	return -ENOMEM;
+	connector->possible_encoders |= drm_encoder_mask(encoder);
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_connector_attach_encoder);
 
 /**
- * drm_connector_has_possible_encoder - check if the connector and encoder are assosicated with each other
+ * drm_connector_has_possible_encoder - check if the connector and encoder are
+ * associated with each other
  * @connector: the connector
  * @encoder: the encoder
  *
@@ -402,15 +397,7 @@ EXPORT_SYMBOL(drm_connector_attach_encoder);
 bool drm_connector_has_possible_encoder(struct drm_connector *connector,
 					struct drm_encoder *encoder)
 {
-	struct drm_encoder *enc;
-	int i;
-
-	drm_connector_for_each_possible_encoder(connector, enc, i) {
-		if (enc == encoder)
-			return true;
-	}
-
-	return false;
+	return connector->possible_encoders & drm_encoder_mask(encoder);
 }
 EXPORT_SYMBOL(drm_connector_has_possible_encoder);
 
@@ -2121,7 +2108,6 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	int encoders_count = 0;
 	int ret = 0;
 	int copied = 0;
-	int i;
 	struct drm_mode_modeinfo u_mode;
 	struct drm_mode_modeinfo __user *mode_ptr;
 	uint32_t __user *encoder_ptr;
@@ -2136,14 +2122,13 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	if (!connector)
 		return -ENOENT;
 
-	drm_connector_for_each_possible_encoder(connector, encoder, i)
-		encoders_count++;
+	encoders_count = hweight32(connector->possible_encoders);
 
 	if ((out_resp->count_encoders >= encoders_count) && encoders_count) {
 		copied = 0;
 		encoder_ptr = (uint32_t __user *)(unsigned long)(out_resp->encoders_ptr);
 
-		drm_connector_for_each_possible_encoder(connector, encoder, i) {
+		drm_connector_for_each_possible_encoder(connector, encoder) {
 			if (put_user(encoder->base.id, encoder_ptr + copied)) {
 				ret = -EFAULT;
 				goto out;

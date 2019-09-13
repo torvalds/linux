@@ -93,7 +93,6 @@ drm_mode_validate_pipeline(struct drm_display_mode *mode,
 	struct drm_device *dev = connector->dev;
 	enum drm_mode_status ret = MODE_OK;
 	struct drm_encoder *encoder;
-	int i;
 
 	/* Step 1: Validate against connector */
 	ret = drm_connector_mode_valid(connector, mode);
@@ -101,7 +100,7 @@ drm_mode_validate_pipeline(struct drm_display_mode *mode,
 		return ret;
 
 	/* Step 2: Validate against encoders and crtcs */
-	drm_connector_for_each_possible_encoder(connector, encoder, i) {
+	drm_connector_for_each_possible_encoder(connector, encoder) {
 		struct drm_crtc *crtc;
 
 		ret = drm_encoder_mode_valid(encoder, mode);
