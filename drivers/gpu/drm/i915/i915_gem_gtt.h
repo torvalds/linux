@@ -437,7 +437,9 @@ struct gen6_ppgtt {
 	struct i915_vma *vma;
 	gen6_pte_t __iomem *pd_addr;
 
-	unsigned int pin_count;
+	atomic_t pin_count;
+	struct mutex pin_mutex;
+
 	bool scan_for_unused_pt;
 };
 

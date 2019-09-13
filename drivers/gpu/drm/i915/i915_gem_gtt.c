@@ -1790,6 +1790,8 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 
 	gen6_ppgtt_free_pd(ppgtt);
 	free_scratch(vm);
+
+	mutex_destroy(&ppgtt->pin_mutex);
 	kfree(ppgtt->base.pd);
 }
 
@@ -1895,7 +1897,7 @@ static struct i915_vma *pd_vma_create(struct gen6_ppgtt *ppgtt, int size)
 int gen6_ppgtt_pin(struct i915_ppgtt *base)
 {
 	struct gen6_ppgtt *ppgtt = to_gen6_ppgtt(base);
-	int err;
+	int err = 0;
 
 	GEM_BUG_ON(ppgtt->base.vm.closed);
 
@@ -1905,24 +1907,26 @@ int gen6_ppgtt_pin(struct i915_ppgtt *base)
 	 * (When vma->pin_count becomes atomic, I expect we will naturally
 	 * need a larger, unpacked, type and kill this redundancy.)
 	 */
-	if (ppgtt->pin_count++)
+	if (atomic_add_unless(&ppgtt->pin_count, 1, 0))
 		return 0;
+
+	if (mutex_lock_interruptible(&ppgtt->pin_mutex))
+		return -EINTR;
 
 	/*
 	 * PPGTT PDEs reside in the GGTT and consists of 512 entries. The
 	 * allocator works in address space sizes, so it's multiplied by page
 	 * size. We allocate at the top of the GTT to avoid fragmentation.
 	 */
-	err = i915_vma_pin(ppgtt->vma,
-			   0, GEN6_PD_ALIGN,
-			   PIN_GLOBAL | PIN_HIGH);
-	if (err)
-		goto unpin;
+	if (!atomic_read(&ppgtt->pin_count)) {
+		err = i915_vma_pin(ppgtt->vma,
+				   0, GEN6_PD_ALIGN,
+				   PIN_GLOBAL | PIN_HIGH);
+	}
+	if (!err)
+		atomic_inc(&ppgtt->pin_count);
+	mutex_unlock(&ppgtt->pin_mutex);
 
-	return 0;
-
-unpin:
-	ppgtt->pin_count = 0;
 	return err;
 }
 
@@ -1930,22 +1934,20 @@ void gen6_ppgtt_unpin(struct i915_ppgtt *base)
 {
 	struct gen6_ppgtt *ppgtt = to_gen6_ppgtt(base);
 
-	GEM_BUG_ON(!ppgtt->pin_count);
-	if (--ppgtt->pin_count)
-		return;
-
-	i915_vma_unpin(ppgtt->vma);
+	GEM_BUG_ON(!atomic_read(&ppgtt->pin_count));
+	if (atomic_dec_and_test(&ppgtt->pin_count))
+		i915_vma_unpin(ppgtt->vma);
 }
 
 void gen6_ppgtt_unpin_all(struct i915_ppgtt *base)
 {
 	struct gen6_ppgtt *ppgtt = to_gen6_ppgtt(base);
 
-	if (!ppgtt->pin_count)
+	if (!atomic_read(&ppgtt->pin_count))
 		return;
 
-	ppgtt->pin_count = 0;
 	i915_vma_unpin(ppgtt->vma);
+	atomic_set(&ppgtt->pin_count, 0);
 }
 
 static struct i915_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
@@ -1957,6 +1959,8 @@ static struct i915_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
 	if (!ppgtt)
 		return ERR_PTR(-ENOMEM);
+
+	mutex_init(&ppgtt->pin_mutex);
 
 	ppgtt_init(&ppgtt->base, &i915->gt);
 	ppgtt->base.vm.top = 1;
