@@ -580,7 +580,7 @@ static void i7300_enable_error_reporting(struct mem_ctl_info *mci)
  * @ch: Channel number within the branch (0 or 1)
  * @branch: Branch number (0 or 1)
  * @dinfo: Pointer to DIMM info where dimm size is stored
- * @p_csrow: Pointer to the struct csrow_info that corresponds to that element
+ * @dimm: Pointer to the struct dimm_info that corresponds to that element
  */
 static int decode_mtr(struct i7300_pvt *pvt,
 		      int slot, int ch, int branch,
