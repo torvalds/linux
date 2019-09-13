@@ -37,6 +37,44 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_scs, mt7615_scs_get,
 			 mt7615_scs_set, "%lld\n");
 
 static int
+mt7615_ampdu_stat_read(struct seq_file *file, void *data)
+{
+	struct mt7615_dev *dev = file->private;
+	int bound[7], i, range;
+
+	range = mt76_rr(dev, MT_AGG_ASRCR0);
+	for (i = 0; i < 4; i++)
+		bound[i] = MT_AGG_ASRCR_RANGE(range, i) + 1;
+	range = mt76_rr(dev, MT_AGG_ASRCR1);
+	for (i = 0; i < 3; i++)
+		bound[i + 4] = MT_AGG_ASRCR_RANGE(range, i) + 1;
+
+	seq_printf(file, "Length: %8d | ", bound[0]);
+	for (i = 0; i < ARRAY_SIZE(bound) - 1; i++)
+		seq_printf(file, "%3d -%3d | ",
+			   bound[i], bound[i + 1]);
+	seq_puts(file, "\nCount:  ");
+	for (i = 0; i < ARRAY_SIZE(bound); i++)
+		seq_printf(file, "%8d | ", dev->mt76.aggr_stats[i]);
+	seq_puts(file, "\n");
+
+	return 0;
+}
+
+static int
+mt7615_ampdu_stat_open(struct inode *inode, struct file *f)
+{
+	return single_open(f, mt7615_ampdu_stat_read, inode->i_private);
+}
+
+static const struct file_operations fops_ampdu_stat = {
+	.open = mt7615_ampdu_stat_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int
 mt7615_radio_read(struct seq_file *s, void *data)
 {
 	struct mt7615_dev *dev = dev_get_drvdata(s->private);
@@ -130,6 +168,7 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 				    mt7615_queues_read);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "acq", dir,
 				    mt7615_queues_acq);
+	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
 	debugfs_create_file("scs", 0600, dir, dev, &fops_scs);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "radio", dir,
 				    mt7615_radio_read);

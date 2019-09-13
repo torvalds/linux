@@ -41,6 +41,16 @@ static struct mt76_wcid *mt7615_rx_get_wcid(struct mt7615_dev *dev,
 	return &sta->vif->sta.wcid;
 }
 
+void mt7615_mac_reset_counters(struct mt7615_dev *dev)
+{
+	int i;
+
+	for (i = 0; i < 4; i++)
+		mt76_rr(dev, MT_TX_AGG_CNT(i));
+
+	memset(dev->mt76.aggr_stats, 0, sizeof(dev->mt76.aggr_stats));
+}
+
 int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
@@ -1261,6 +1271,7 @@ void mt7615_update_channel(struct mt76_dev *mdev)
 void mt7615_mac_work(struct work_struct *work)
 {
 	struct mt7615_dev *dev;
+	int i, idx;
 
 	dev = (struct mt7615_dev *)container_of(work, struct mt76_dev,
 						mac_work.work);
@@ -1270,6 +1281,13 @@ void mt7615_mac_work(struct work_struct *work)
 	if (++dev->mac_work_count == 5) {
 		mt7615_mac_scs_check(dev);
 		dev->mac_work_count = 0;
+	}
+
+	for (i = 0, idx = 0; i < 4; i++) {
+		u32 val = mt76_rr(dev, MT_TX_AGG_CNT(i));
+
+		dev->mt76.aggr_stats[idx++] += val & 0xffff;
+		dev->mt76.aggr_stats[idx++] += val >> 16;
 	}
 	mutex_unlock(&dev->mt76.mutex);
 

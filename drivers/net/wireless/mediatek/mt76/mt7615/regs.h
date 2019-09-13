@@ -136,6 +136,10 @@
 					MT_AGG_ARxCR_LIMIT_SHIFT(_n), \
 					MT_AGG_ARxCR_LIMIT_SHIFT(_n))
 
+#define MT_AGG_ASRCR0			MT_WF_AGG(0x060)
+#define MT_AGG_ASRCR1			MT_WF_AGG(0x064)
+#define MT_AGG_ASRCR_RANGE(val, n)	(((val) >> ((n) << 3)) & GENMASK(5, 0))
+
 #define MT_AGG_ACR0			MT_WF_AGG(0x070)
 #define MT_AGG_ACR1			MT_WF_AGG(0x170)
 #define MT_AGG_ACR_NO_BA_RULE		BIT(0)
@@ -284,6 +288,8 @@
 
 #define MT_MIB_SDR16(n)			MT_WF_MIB(0x48 + ((n) << 9))
 #define MT_MIB_BUSY_MASK		GENMASK(23, 0)
+
+#define MT_TX_AGG_CNT(n)		MT_WF_MIB(0xa8 + ((n) << 2))
 
 #define MT_EFUSE_BASE			0x81070000
 #define MT_EFUSE_BASE_CTRL		0x000
