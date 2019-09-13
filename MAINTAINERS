@@ -5582,12 +5582,6 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/radio/dsbr100.c
 
-DSCC4 DRIVER
-M:	Francois Romieu <romieu@fr.zoreil.com>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	drivers/net/wan/dscc4.c
-
 DT3155 MEDIA DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
