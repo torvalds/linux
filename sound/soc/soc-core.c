@@ -975,7 +975,9 @@ static void soc_set_name_prefix(struct snd_soc_card *card,
 
 static void soc_cleanup_component(struct snd_soc_component *component)
 {
+	/* For framework level robustness */
 	snd_soc_component_set_jack(component, NULL, NULL);
+
 	list_del(&component->card_list);
 	snd_soc_dapm_free(snd_soc_component_get_dapm(component));
 	soc_cleanup_component_debugfs(component);
@@ -1104,51 +1106,118 @@ static void soc_remove_dai(struct snd_soc_dai *dai, int order)
 	dai->probed = 0;
 }
 
+static int soc_probe_dai(struct snd_soc_dai *dai, int order)
+{
+	int ret;
+
+	if (dai->probed ||
+	    dai->driver->probe_order != order)
+		return 0;
+
+	ret = snd_soc_dai_probe(dai);
+	if (ret < 0) {
+		dev_err(dai->dev, "ASoC: failed to probe DAI %s: %d\n",
+			dai->name, ret);
+		return ret;
+	}
+
+	dai->probed = 1;
+
+	return 0;
+}
+
 static void soc_rtd_free(struct snd_soc_pcm_runtime *rtd); /* remove me */
-static void soc_remove_link_dais(struct snd_soc_card *card,
-		struct snd_soc_pcm_runtime *rtd, int order)
+static void soc_remove_link_dais(struct snd_soc_card *card)
 {
 	int i;
 	struct snd_soc_dai *codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	int order;
 
-	/* finalize rtd device */
-	soc_rtd_free(rtd);
+	for_each_comp_order(order) {
+		for_each_card_rtds(card, rtd) {
 
-	/* remove the CODEC DAI */
-	for_each_rtd_codec_dai(rtd, i, codec_dai)
-		soc_remove_dai(codec_dai, order);
+			/* finalize rtd device */
+			soc_rtd_free(rtd);
 
-	soc_remove_dai(rtd->cpu_dai, order);
-}
+			/* remove the CODEC DAI */
+			for_each_rtd_codec_dai(rtd, i, codec_dai)
+				soc_remove_dai(codec_dai, order);
 
-static void soc_remove_link_components(struct snd_soc_card *card,
-	struct snd_soc_pcm_runtime *rtd, int order)
-{
-	struct snd_soc_component *component;
-	struct snd_soc_rtdcom_list *rtdcom;
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (component->driver->remove_order == order)
-			soc_remove_component(component);
+			soc_remove_dai(rtd->cpu_dai, order);
+		}
 	}
 }
 
-static int soc_probe_link_components(struct snd_soc_card *card,
-				     struct snd_soc_pcm_runtime *rtd, int order)
+static int soc_probe_link_dais(struct snd_soc_card *card)
+{
+	struct snd_soc_dai *codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	int i, order, ret;
+
+	for_each_comp_order(order) {
+		for_each_card_rtds(card, rtd) {
+
+			dev_dbg(card->dev,
+				"ASoC: probe %s dai link %d late %d\n",
+				card->name, rtd->num, order);
+
+			ret = soc_probe_dai(rtd->cpu_dai, order);
+			if (ret)
+				return ret;
+
+			/* probe the CODEC DAI */
+			for_each_rtd_codec_dai(rtd, i, codec_dai) {
+				ret = soc_probe_dai(codec_dai, order);
+				if (ret)
+					return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static void soc_remove_link_components(struct snd_soc_card *card)
 {
 	struct snd_soc_component *component;
+	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_rtdcom_list *rtdcom;
-	int ret;
+	int order;
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
+	for_each_comp_order(order) {
+		for_each_card_rtds(card, rtd) {
+			for_each_rtdcom(rtd, rtdcom) {
+				component = rtdcom->component;
 
-		if (component->driver->probe_order == order) {
-			ret = soc_probe_component(card, component);
-			if (ret < 0)
-				return ret;
+				if (component->driver->remove_order != order)
+					continue;
+
+				soc_remove_component(component);
+			}
+		}
+	}
+}
+
+static int soc_probe_link_components(struct snd_soc_card *card)
+{
+	struct snd_soc_component *component;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_rtdcom_list *rtdcom;
+	int ret, order;
+
+	for_each_comp_order(order) {
+		for_each_card_rtds(card, rtd) {
+			for_each_rtdcom(rtd, rtdcom) {
+				component = rtdcom->component;
+
+				if (component->driver->probe_order != order)
+					continue;
+
+				ret = soc_probe_component(card, component);
+				if (ret < 0)
+					return ret;
+			}
 		}
 	}
 
@@ -1157,19 +1226,11 @@ static int soc_probe_link_components(struct snd_soc_card *card,
 
 static void soc_remove_dai_links(struct snd_soc_card *card)
 {
-	int order;
-	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link *link, *_link;
 
-	for_each_comp_order(order) {
-		for_each_card_rtds(card, rtd)
-			soc_remove_link_dais(card, rtd, order);
-	}
+	soc_remove_link_dais(card);
 
-	for_each_comp_order(order) {
-		for_each_card_rtds(card, rtd)
-			soc_remove_link_components(card, rtd, order);
-	}
+	soc_remove_link_components(card);
 
 	for_each_card_links_safe(card, link, _link) {
 		if (link->dobj.type == SND_SOC_DOBJ_DAI_LINK)
@@ -1399,26 +1460,6 @@ static int soc_rtd_init(struct snd_soc_pcm_runtime *rtd, const char *name)
 	return 0;
 }
 
-static int soc_probe_dai(struct snd_soc_dai *dai, int order)
-{
-	int ret;
-
-	if (dai->probed ||
-	    dai->driver->probe_order != order)
-		return 0;
-
-	ret = snd_soc_dai_probe(dai);
-	if (ret < 0) {
-		dev_err(dai->dev, "ASoC: failed to probe DAI %s: %d\n",
-			dai->name, ret);
-		return ret;
-	}
-
-	dai->probed = 1;
-
-	return 0;
-}
-
 static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
 				struct snd_soc_pcm_runtime *rtd)
 {
@@ -1440,36 +1481,17 @@ static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
 	return 0;
 }
 
-static int soc_probe_link_dais(struct snd_soc_card *card,
-		struct snd_soc_pcm_runtime *rtd, int order)
+static int soc_link_init(struct snd_soc_card *card,
+			 struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_component *component;
-	struct snd_soc_dai *codec_dai;
-	int i, ret, num;
-
-	dev_dbg(card->dev, "ASoC: probe %s dai link %d late %d\n",
-			card->name, rtd->num, order);
+	int ret, num;
 
 	/* set default power off timeout */
 	rtd->pmdown_time = pmdown_time;
-
-	ret = soc_probe_dai(cpu_dai, order);
-	if (ret)
-		return ret;
-
-	/* probe the CODEC DAI */
-	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		ret = soc_probe_dai(codec_dai, order);
-		if (ret)
-			return ret;
-	}
-
-	/* complete DAI probe during last probe */
-	if (order != SND_SOC_COMP_ORDER_LAST)
-		return 0;
 
 	/* do machine specific initialization */
 	if (dai_link->init) {
@@ -1537,20 +1559,32 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 	return ret;
 }
 
-static int soc_bind_aux_dev(struct snd_soc_card *card,
-			    struct snd_soc_aux_dev *aux_dev)
+static void soc_unbind_aux_dev(struct snd_soc_card *card)
+{
+	struct snd_soc_component *component, *_component;
+
+	for_each_card_auxs_safe(card, component, _component) {
+		component->init = NULL;
+		list_del(&component->card_aux_list);
+	}
+}
+
+static int soc_bind_aux_dev(struct snd_soc_card *card)
 {
 	struct snd_soc_component *component;
+	struct snd_soc_aux_dev *aux;
+	int i;
 
-	/* codecs, usually analog devices */
-	component = soc_find_component(&aux_dev->dlc);
-	if (!component)
-		return -EPROBE_DEFER;
+	for_each_card_pre_auxs(card, i, aux) {
+		/* codecs, usually analog devices */
+		component = soc_find_component(&aux->dlc);
+		if (!component)
+			return -EPROBE_DEFER;
 
-	component->init = aux_dev->init;
-	/* see for_each_card_auxs */
-	list_add(&component->card_aux_list, &card->aux_comp_list);
-
+		component->init = aux->init;
+		/* see for_each_card_auxs */
+		list_add(&component->card_aux_list, &card->aux_comp_list);
+	}
 	return 0;
 }
 
@@ -1584,12 +1618,8 @@ static void soc_remove_aux_devices(struct snd_soc_card *card)
 
 	for_each_comp_order(order) {
 		for_each_card_auxs_safe(card, comp, _comp) {
-
-			if (comp->driver->remove_order == order) {
+			if (comp->driver->remove_order == order)
 				soc_remove_component(comp);
-				/* remove it from the card's aux_comp_list */
-				list_del(&comp->card_aux_list);
-			}
 		}
 	}
 }
@@ -1902,6 +1932,7 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 
 	/* remove auxiliary devices */
 	soc_remove_aux_devices(card);
+	soc_unbind_aux_dev(card);
 
 	snd_soc_dapm_free(&card->dapm);
 	soc_cleanup_card_debugfs(card);
@@ -1915,8 +1946,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link *dai_link;
-	struct snd_soc_aux_dev *aux;
-	int ret, i, order;
+	int ret, i;
 
 	mutex_lock(&client_mutex);
 	for_each_card_prelinks(card, i, dai_link) {
@@ -1943,11 +1973,9 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 
 	/* bind aux_devs too */
-	for_each_card_pre_auxs(card, i, aux) {
-		ret = soc_bind_aux_dev(card, aux);
-		if (ret != 0)
-			goto probe_end;
-	}
+	ret = soc_bind_aux_dev(card);
+	if (ret < 0)
+		goto probe_end;
 
 	/* add predefined DAI links to the list */
 	for_each_card_prelinks(card, i, dai_link) {
@@ -1988,16 +2016,11 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 
 	/* probe all components used by DAI links on this card */
-	for_each_comp_order(order) {
-		for_each_card_rtds(card, rtd) {
-			ret = soc_probe_link_components(card, rtd, order);
-			if (ret < 0) {
-				dev_err(card->dev,
-					"ASoC: failed to instantiate card %d\n",
-					ret);
-				goto probe_end;
-			}
-		}
+	ret = soc_probe_link_components(card);
+	if (ret < 0) {
+		dev_err(card->dev,
+			"ASoC: failed to instantiate card %d\n", ret);
+		goto probe_end;
 	}
 
 	/* probe auxiliary components */
@@ -2022,17 +2045,15 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 
 	/* probe all DAI links on this card */
-	for_each_comp_order(order) {
-		for_each_card_rtds(card, rtd) {
-			ret = soc_probe_link_dais(card, rtd, order);
-			if (ret < 0) {
-				dev_err(card->dev,
-					"ASoC: failed to instantiate card %d\n",
-					ret);
-				goto probe_end;
-			}
-		}
+	ret = soc_probe_link_dais(card);
+	if (ret < 0) {
+		dev_err(card->dev,
+			"ASoC: failed to instantiate card %d\n", ret);
+		goto probe_end;
 	}
+
+	for_each_card_rtds(card, rtd)
+		soc_link_init(card, rtd);
 
 	snd_soc_dapm_link_dai_widgets(card);
 	snd_soc_dapm_connect_dai_link_widgets(card);
@@ -2392,20 +2413,13 @@ EXPORT_SYMBOL_GPL(snd_soc_register_card);
 
 static void snd_soc_unbind_card(struct snd_soc_card *card, bool unregister)
 {
-	struct snd_soc_pcm_runtime *rtd;
-	int order;
-
 	if (card->instantiated) {
 		card->instantiated = false;
 		snd_soc_dapm_shutdown(card);
 		snd_soc_flush_all_delayed_work(card);
 
 		/* remove all components used by DAI links on this card */
-		for_each_comp_order(order) {
-			for_each_card_rtds(card, rtd) {
-				soc_remove_link_components(card, rtd, order);
-			}
-		}
+		soc_remove_link_components(card);
 
 		soc_cleanup_card_resources(card);
 		if (!unregister)
