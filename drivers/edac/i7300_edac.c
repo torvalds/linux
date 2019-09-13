@@ -817,7 +817,7 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 
 /**
  * decode_mir() - Decodes Memory Interleave Register (MIR) info
- * @int mir_no: number of the MIR register to decode
+ * @mir_no: number of the MIR register to decode
  * @mir: array with the MIR data cached on the driver
  */
 static void decode_mir(int mir_no, u16 mir[MAX_MIR])
