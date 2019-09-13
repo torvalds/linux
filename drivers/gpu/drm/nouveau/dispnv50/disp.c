@@ -660,7 +660,6 @@ struct nv50_mstm {
 	struct nouveau_encoder *outp;
 
 	struct drm_dp_mst_topology_mgr mgr;
-	struct nv50_msto *msto[4];
 
 	bool modified;
 	bool disabled;
@@ -726,7 +725,6 @@ nv50_msto_cleanup(struct nv50_msto *msto)
 	drm_dp_mst_deallocate_vcpi(&mstm->mgr, mstc->port);
 
 	msto->mstc = NULL;
-	msto->head = NULL;
 	msto->disabled = false;
 }
 
@@ -872,7 +870,6 @@ nv50_msto_enable(struct drm_encoder *encoder)
 	mstm->outp->update(mstm->outp, head->base.index, armh, proto,
 			   nv50_dp_bpc_to_depth(armh->or.bpc));
 
-	msto->head = head;
 	msto->mstc = mstc;
 	mstm->modified = true;
 }
@@ -913,37 +910,40 @@ nv50_msto = {
 	.destroy = nv50_msto_destroy,
 };
 
-static int
-nv50_msto_new(struct drm_device *dev, u32 heads, const char *name, int id,
-	      struct nv50_msto **pmsto)
+static struct nv50_msto *
+nv50_msto_new(struct drm_device *dev, struct nv50_head *head, int id)
 {
 	struct nv50_msto *msto;
 	int ret;
 
-	if (!(msto = *pmsto = kzalloc(sizeof(*msto), GFP_KERNEL)))
-		return -ENOMEM;
+	msto = kzalloc(sizeof(*msto), GFP_KERNEL);
+	if (!msto)
+		return ERR_PTR(-ENOMEM);
 
 	ret = drm_encoder_init(dev, &msto->encoder, &nv50_msto,
-			       DRM_MODE_ENCODER_DPMST, "%s-mst-%d", name, id);
+			       DRM_MODE_ENCODER_DPMST, "mst-%d", id);
 	if (ret) {
-		kfree(*pmsto);
-		*pmsto = NULL;
-		return ret;
+		kfree(msto);
+		return ERR_PTR(ret);
 	}
 
 	drm_encoder_helper_add(&msto->encoder, &nv50_msto_help);
-	msto->encoder.possible_crtcs = heads;
-	return 0;
+	msto->encoder.possible_crtcs = drm_crtc_mask(&head->base.base);
+	msto->head = head;
+	return msto;
 }
 
 static struct drm_encoder *
 nv50_mstc_atomic_best_encoder(struct drm_connector *connector,
 			      struct drm_connector_state *connector_state)
 {
-	struct nv50_head *head = nv50_head(connector_state->crtc);
 	struct nv50_mstc *mstc = nv50_mstc(connector);
+	struct drm_crtc *crtc = connector_state->crtc;
 
-	return &mstc->mstm->msto[head->base.index]->encoder;
+	if (!(mstc->mstm->outp->dcb->heads & drm_crtc_mask(crtc)))
+		return NULL;
+
+	return &nv50_head(crtc)->msto->encoder;
 }
 
 static enum drm_mode_status
@@ -1062,8 +1062,9 @@ nv50_mstc_new(struct nv50_mstm *mstm, struct drm_dp_mst_port *port,
 	      const char *path, struct nv50_mstc **pmstc)
 {
 	struct drm_device *dev = mstm->outp->base.base.dev;
+	struct drm_crtc *crtc;
 	struct nv50_mstc *mstc;
-	int ret, i;
+	int ret;
 
 	if (!(mstc = *pmstc = kzalloc(sizeof(*mstc), GFP_KERNEL)))
 		return -ENOMEM;
@@ -1083,8 +1084,13 @@ nv50_mstc_new(struct nv50_mstm *mstm, struct drm_dp_mst_port *port,
 	mstc->connector.funcs->reset(&mstc->connector);
 	nouveau_conn_attach_properties(&mstc->connector);
 
-	for (i = 0; i < ARRAY_SIZE(mstm->msto) && mstm->msto[i]; i++)
-		drm_connector_attach_encoder(&mstc->connector, &mstm->msto[i]->encoder);
+	drm_for_each_crtc(crtc, dev) {
+		if (!(mstm->outp->dcb->heads & drm_crtc_mask(crtc)))
+			continue;
+
+		drm_connector_attach_encoder(&mstc->connector,
+					     &nv50_head(crtc)->msto->encoder);
+	}
 
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.path_property, 0);
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.tile_property, 0);
@@ -1358,7 +1364,7 @@ nv50_mstm_new(struct nouveau_encoder *outp, struct drm_dp_aux *aux, int aux_max,
 	const int max_payloads = hweight8(outp->dcb->heads);
 	struct drm_device *dev = outp->base.base.dev;
 	struct nv50_mstm *mstm;
-	int ret, i;
+	int ret;
 	u8 dpcd;
 
 	/* This is a workaround for some monitors not functioning
@@ -1380,13 +1386,6 @@ nv50_mstm_new(struct nouveau_encoder *outp, struct drm_dp_aux *aux, int aux_max,
 					   max_payloads, conn_base_id);
 	if (ret)
 		return ret;
-
-	for (i = 0; i < max_payloads; i++) {
-		ret = nv50_msto_new(dev, outp->dcb->heads, outp->base.base.name,
-				    i, &mstm->msto[i]);
-		if (ret)
-			return ret;
-	}
 
 	return 0;
 }
@@ -1560,17 +1559,24 @@ nv50_sor_func = {
 	.destroy = nv50_sor_destroy,
 };
 
+static bool nv50_has_mst(struct nouveau_drm *drm)
+{
+	struct nvkm_bios *bios = nvxx_bios(&drm->client.device);
+	u32 data;
+	u8 ver, hdr, cnt, len;
+
+	data = nvbios_dp_table(bios, &ver, &hdr, &cnt, &len);
+	return data && ver >= 0x40 && (nvbios_rd08(bios, data + 0x08) & 0x04);
+}
+
 static int
 nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nvkm_bios *bios = nvxx_bios(&drm->client.device);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
-	u8 ver, hdr, cnt, len;
-	u32 data;
 	int type, ret;
 
 	switch (dcbe->type) {
@@ -1615,10 +1621,9 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 		}
 
 		if (nv_connector->type != DCB_CONNECTOR_eDP &&
-		    (data = nvbios_dp_table(bios, &ver, &hdr, &cnt, &len)) &&
-		    ver >= 0x40 && (nvbios_rd08(bios, data + 0x08) & 0x04)) {
-			ret = nv50_mstm_new(nv_encoder, &nv_connector->aux, 16,
-					    nv_connector->base.base.id,
+		    nv50_has_mst(drm)) {
+			ret = nv50_mstm_new(nv_encoder, &nv_connector->aux,
+					    16, nv_connector->base.base.id,
 					    &nv_encoder->dp.mstm);
 			if (ret)
 				return ret;
@@ -2314,6 +2319,7 @@ nv50_display_create(struct drm_device *dev)
 	struct nv50_disp *disp;
 	struct dcb_output *dcbe;
 	int crtcs, ret, i;
+	bool has_mst = nv50_has_mst(drm);
 
 	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
 	if (!disp)
@@ -2362,11 +2368,25 @@ nv50_display_create(struct drm_device *dev)
 		crtcs = 0x3;
 
 	for (i = 0; i < fls(crtcs); i++) {
+		struct nv50_head *head;
+
 		if (!(crtcs & (1 << i)))
 			continue;
-		ret = nv50_head_create(dev, i);
-		if (ret)
+
+		head = nv50_head_create(dev, i);
+		if (IS_ERR(head)) {
+			ret = PTR_ERR(head);
 			goto out;
+		}
+
+		if (has_mst) {
+			head->msto = nv50_msto_new(dev, head, i);
+			if (IS_ERR(head->msto)) {
+				ret = PTR_ERR(head->msto);
+				head->msto = NULL;
+				goto out;
+			}
+		}
 	}
 
 	/* create encoder/connector objects based on VBIOS DCB table */

@@ -11,9 +11,10 @@ struct nv50_head {
 	const struct nv50_head_func *func;
 	struct nouveau_crtc base;
 	struct nv50_lut olut;
+	struct nv50_msto *msto;
 };
 
-int nv50_head_create(struct drm_device *, int index);
+struct nv50_head *nv50_head_create(struct drm_device *, int index);
 void nv50_head_flush_set(struct nv50_head *, struct nv50_head_atom *);
 void nv50_head_flush_clr(struct nv50_head *, struct nv50_head_atom *, bool y);
 

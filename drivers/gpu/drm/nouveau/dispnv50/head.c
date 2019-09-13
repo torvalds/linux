@@ -483,7 +483,7 @@ nv50_head_func = {
 	.atomic_destroy_state = nv50_head_atomic_destroy_state,
 };
 
-int
+struct nv50_head *
 nv50_head_create(struct drm_device *dev, int index)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -495,7 +495,7 @@ nv50_head_create(struct drm_device *dev, int index)
 
 	head = kzalloc(sizeof(*head), GFP_KERNEL);
 	if (!head)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	head->func = disp->core->func->head;
 	head->base.index = index;
@@ -513,7 +513,7 @@ nv50_head_create(struct drm_device *dev, int index)
 		ret = nv50_curs_new(drm, head->base.index, &curs);
 	if (ret) {
 		kfree(head);
-		return ret;
+		return ERR_PTR(ret);
 	}
 
 	crtc = &head->base.base;
@@ -528,12 +528,11 @@ nv50_head_create(struct drm_device *dev, int index)
 
 	if (head->func->olut_set) {
 		ret = nv50_lut_init(disp, &drm->client.mmu, &head->olut);
-		if (ret)
-			goto out;
+		if (ret) {
+			nv50_head_destroy(crtc);
+			return ERR_PTR(ret);
+		}
 	}
 
-out:
-	if (ret)
-		nv50_head_destroy(crtc);
-	return ret;
+	return head;
 }
