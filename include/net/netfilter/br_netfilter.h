@@ -68,7 +68,7 @@ static inline int br_validate_ipv6(struct net *net, struct sk_buff *skb)
 }
 
 static inline unsigned int
-br_nf_pre_routing_ipv6(const struct nf_hook_ops *ops, struct sk_buff *skb,
+br_nf_pre_routing_ipv6(void *priv, struct sk_buff *skb,
 		       const struct nf_hook_state *state)
 {
 	return NF_ACCEPT;
