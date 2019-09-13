@@ -2033,8 +2033,10 @@ struct drm_i915_query {
  *           (data[X / 8] >> (X % 8)) & 1
  *
  * - the subslice mask for each slice with one bit per subslice telling
- *   whether a subslice is available. The availability of subslice Y in slice
- *   X can be queried with the following formula :
+ *   whether a subslice is available. Gen12 has dual-subslices, which are
+ *   similar to two gen11 subslices. For gen12, this array represents dual-
+ *   subslices. The availability of subslice Y in slice X can be queried
+ *   with the following formula :
  *
  *           (data[subslice_offset +
  *                 X * subslice_stride +

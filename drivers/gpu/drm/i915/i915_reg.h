@@ -2956,6 +2956,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 #define GEN11_GT_SUBSLICE_DISABLE _MMIO(0x913C)
 
+#define GEN12_GT_DSS_ENABLE _MMIO(0x913C)
+
 #define GEN6_BSD_SLEEP_PSMI_CONTROL	_MMIO(0x12050)
 #define   GEN6_BSD_SLEEP_MSG_DISABLE	(1 << 0)
 #define   GEN6_BSD_SLEEP_FLUSH_DISABLE	(1 << 2)

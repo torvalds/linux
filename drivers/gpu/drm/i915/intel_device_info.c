@@ -182,13 +182,69 @@ static u16 compute_eu_total(const struct sseu_dev_info *sseu)
 	return total;
 }
 
+static void gen11_compute_sseu_info(struct sseu_dev_info *sseu,
+				    u8 s_en, u32 ss_en, u16 eu_en)
+{
+	int s, ss;
+
+	/* ss_en represents entire subslice mask across all slices */
+	GEM_BUG_ON(sseu->max_slices * sseu->max_subslices >
+		   sizeof(ss_en) * BITS_PER_BYTE);
+
+	for (s = 0; s < sseu->max_slices; s++) {
+		if ((s_en & BIT(s)) == 0)
+			continue;
+
+		sseu->slice_mask |= BIT(s);
+
+		intel_sseu_set_subslices(sseu, s, ss_en);
+
+		for (ss = 0; ss < sseu->max_subslices; ss++)
+			if (intel_sseu_has_subslice(sseu, s, ss))
+				sseu_set_eus(sseu, s, ss, eu_en);
+	}
+	sseu->eu_per_subslice = hweight16(eu_en);
+	sseu->eu_total = compute_eu_total(sseu);
+}
+
+static void gen12_sseu_info_init(struct drm_i915_private *dev_priv)
+{
+	struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
+	u8 s_en;
+	u32 dss_en;
+	u16 eu_en = 0;
+	u8 eu_en_fuse;
+	int eu;
+
+	/*
+	 * Gen12 has Dual-Subslices, which behave similarly to 2 gen11 SS.
+	 * Instead of splitting these, provide userspace with an array
+	 * of DSS to more closely represent the hardware resource.
+	 */
+	intel_sseu_set_info(sseu, 1, 6, 16);
+
+	s_en = I915_READ(GEN11_GT_SLICE_ENABLE) & GEN11_GT_S_ENA_MASK;
+
+	dss_en = I915_READ(GEN12_GT_DSS_ENABLE);
+
+	/* one bit per pair of EUs */
+	eu_en_fuse = ~(I915_READ(GEN11_EU_DISABLE) & GEN11_EU_DIS_MASK);
+	for (eu = 0; eu < sseu->max_eus_per_subslice / 2; eu++)
+		if (eu_en_fuse & BIT(eu))
+			eu_en |= BIT(eu * 2) | BIT(eu * 2 + 1);
+
+	gen11_compute_sseu_info(sseu, s_en, dss_en, eu_en);
+
+	/* TGL only supports slice-level power gating */
+	sseu->has_slice_pg = 1;
+}
+
 static void gen11_sseu_info_init(struct drm_i915_private *dev_priv)
 {
 	struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	u8 s_en;
-	u32 ss_en, ss_en_mask;
+	u32 ss_en;
 	u8 eu_en;
-	int s;
 
 	if (IS_ELKHARTLAKE(dev_priv))
 		intel_sseu_set_info(sseu, 1, 4, 8);
@@ -197,26 +253,9 @@ static void gen11_sseu_info_init(struct drm_i915_private *dev_priv)
 
 	s_en = I915_READ(GEN11_GT_SLICE_ENABLE) & GEN11_GT_S_ENA_MASK;
 	ss_en = ~I915_READ(GEN11_GT_SUBSLICE_DISABLE);
-	ss_en_mask = BIT(sseu->max_subslices) - 1;
 	eu_en = ~(I915_READ(GEN11_EU_DISABLE) & GEN11_EU_DIS_MASK);
 
-	for (s = 0; s < sseu->max_slices; s++) {
-		if (s_en & BIT(s)) {
-			int ss_idx = sseu->max_subslices * s;
-			int ss;
-
-			sseu->slice_mask |= BIT(s);
-
-			intel_sseu_set_subslices(sseu, s, (ss_en >> ss_idx) &
-							  ss_en_mask);
-
-			for (ss = 0; ss < sseu->max_subslices; ss++)
-				if (intel_sseu_has_subslice(sseu, s, ss))
-					sseu_set_eus(sseu, s, ss, eu_en);
-		}
-	}
-	sseu->eu_per_subslice = hweight8(eu_en);
-	sseu->eu_total = compute_eu_total(sseu);
+	gen11_compute_sseu_info(sseu, s_en, ss_en, eu_en);
 
 	/* ICL has no power gating restrictions. */
 	sseu->has_slice_pg = 1;
@@ -955,8 +994,10 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		gen9_sseu_info_init(dev_priv);
 	else if (IS_GEN(dev_priv, 10))
 		gen10_sseu_info_init(dev_priv);
-	else if (INTEL_GEN(dev_priv) >= 11)
+	else if (IS_GEN(dev_priv, 11))
 		gen11_sseu_info_init(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 12)
+		gen12_sseu_info_init(dev_priv);
 
 	if (IS_GEN(dev_priv, 6) && intel_vtd_active()) {
 		DRM_INFO("Disabling ppGTT for VT-d support\n");

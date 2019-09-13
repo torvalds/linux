@@ -3823,7 +3823,8 @@ static void gen10_sseu_device_status(struct drm_i915_private *dev_priv,
 		for (ss = 0; ss < info->sseu.max_subslices; ss++) {
 			unsigned int eu_cnt;
 
-			if (!(s_reg[s] & (GEN9_PGCTL_SS_ACK(ss))))
+			if (info->sseu.has_subslice_pg &&
+			    !(s_reg[s] & (GEN9_PGCTL_SS_ACK(ss))))
 				/* skip disabled subslice */
 				continue;
 
