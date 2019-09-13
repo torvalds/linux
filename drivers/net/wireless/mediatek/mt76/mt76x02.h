@@ -92,8 +92,6 @@ struct mt76x02_dev {
 
 	const struct mt76x02_beacon_ops *beacon_ops;
 
-	u32 aggr_stats[32];
-
 	struct sk_buff *beacons[8];
 	u8 beacon_data_mask;
 
