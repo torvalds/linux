@@ -5743,6 +5743,7 @@ restart:
 static void kvm_mmu_zap_all_fast(struct kvm *kvm)
 {
 	spin_lock(&kvm->mmu_lock);
+	trace_kvm_mmu_zap_all_fast(kvm);
 	kvm->arch.mmu_valid_gen++;
 
 	kvm_zap_obsolete_pages(kvm);

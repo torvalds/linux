@@ -283,6 +283,27 @@ TRACE_EVENT(
 );
 
 TRACE_EVENT(
+	kvm_mmu_zap_all_fast,
+	TP_PROTO(struct kvm *kvm),
+	TP_ARGS(kvm),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, mmu_valid_gen)
+		__field(unsigned int, mmu_used_pages)
+	),
+
+	TP_fast_assign(
+		__entry->mmu_valid_gen = kvm->arch.mmu_valid_gen;
+		__entry->mmu_used_pages = kvm->arch.n_used_mmu_pages;
+	),
+
+	TP_printk("kvm-mmu-valid-gen %lx used_pages %x",
+		  __entry->mmu_valid_gen, __entry->mmu_used_pages
+	)
+);
+
+
+TRACE_EVENT(
 	check_mmio_spte,
 	TP_PROTO(u64 spte, unsigned int kvm_gen, unsigned int spte_gen),
 	TP_ARGS(spte, kvm_gen, spte_gen),
