@@ -498,11 +498,33 @@ static int hammer_probe(struct hid_device *hdev,
 
 static void hammer_remove(struct hid_device *hdev)
 {
+	unsigned long flags;
+
 	if (hdev->product == USB_DEVICE_ID_GOOGLE_WHISKERS &&
-			hammer_is_keyboard_interface(hdev))
+			hammer_is_keyboard_interface(hdev)) {
 		hid_hw_close(hdev);
 
+		/*
+		 * If we are disconnecting then most likely Whiskers is
+		 * being removed. Even if it is not removed, without proper
+		 * keyboard we should not stay in clamshell mode.
+		 *
+		 * The reason for doing it here and not waiting for signal
+		 * from EC, is that on some devices there are high leakage
+		 * on Whiskers pins and we do not detect disconnect reliably,
+		 * resulting in devices being stuck in clamshell mode.
+		 */
+		spin_lock_irqsave(&cbas_ec_lock, flags);
+		if (cbas_ec.input && cbas_ec.base_present) {
+			input_report_switch(cbas_ec.input, SW_TABLET_MODE, 1);
+			input_sync(cbas_ec.input);
+		}
+		cbas_ec.base_present = false;
+		spin_unlock_irqrestore(&cbas_ec_lock, flags);
+	}
+
 	hammer_unregister_leds(hdev);
+
 	hid_hw_stop(hdev);
 }
 
