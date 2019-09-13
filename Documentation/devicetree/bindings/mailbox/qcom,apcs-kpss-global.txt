@@ -15,6 +15,7 @@ platforms.
 		    "qcom,sc7180-apss-shared"
 		    "qcom,sdm845-apss-shared"
 		    "qcom,sm8150-apss-shared"
+		    "qcom,ipq8074-apcs-apps-global"
 
 - reg:
 	Usage: required
