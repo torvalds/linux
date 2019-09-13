@@ -21,6 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include "intel_atomic.h"
 #include "intel_cdclk.h"
 #include "intel_display_types.h"
 #include "intel_sideband.h"
@@ -1772,9 +1773,9 @@ bool intel_cdclk_needs_modeset(const struct intel_cdclk_state *a,
  * Returns:
  * True if the CDCLK states require just a cd2x divider update, false if not.
  */
-bool intel_cdclk_needs_cd2x_update(struct drm_i915_private *dev_priv,
-				   const struct intel_cdclk_state *a,
-				   const struct intel_cdclk_state *b)
+static bool intel_cdclk_needs_cd2x_update(struct drm_i915_private *dev_priv,
+					  const struct intel_cdclk_state *a,
+					  const struct intel_cdclk_state *b)
 {
 	/* Older hw doesn't have the capability */
 	if (INTEL_GEN(dev_priv) < 10 && !IS_GEN9_LP(dev_priv))
@@ -1793,8 +1794,8 @@ bool intel_cdclk_needs_cd2x_update(struct drm_i915_private *dev_priv,
  * Returns:
  * True if the CDCLK states don't match, false if they do.
  */
-bool intel_cdclk_changed(const struct intel_cdclk_state *a,
-			 const struct intel_cdclk_state *b)
+static bool intel_cdclk_changed(const struct intel_cdclk_state *a,
+				const struct intel_cdclk_state *b)
 {
 	return intel_cdclk_needs_modeset(a, b) ||
 		a->voltage_level != b->voltage_level;
@@ -2216,6 +2217,130 @@ static int bxt_modeset_calc_cdclk(struct intel_atomic_state *state)
 	} else {
 		state->cdclk.actual = state->cdclk.logical;
 	}
+
+	return 0;
+}
+
+static int intel_lock_all_pipes(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc *crtc;
+
+	/* Add all pipes to the state */
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		struct intel_crtc_state *crtc_state;
+
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+	}
+
+	return 0;
+}
+
+static int intel_modeset_all_pipes(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc *crtc;
+
+	/*
+	 * Add all pipes to the state, and force
+	 * a modeset on all the active ones.
+	 */
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		struct intel_crtc_state *crtc_state;
+		int ret;
+
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		if (!crtc_state->base.active ||
+		    drm_atomic_crtc_needs_modeset(&crtc_state->base))
+			continue;
+
+		crtc_state->base.mode_changed = true;
+
+		ret = drm_atomic_add_affected_connectors(&state->base,
+							 &crtc->base);
+		if (ret)
+			return ret;
+
+		ret = drm_atomic_add_affected_planes(&state->base,
+						     &crtc->base);
+		if (ret)
+			return ret;
+
+		crtc_state->update_planes |= crtc_state->active_planes;
+	}
+
+	return 0;
+}
+
+int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	enum pipe pipe;
+	int ret;
+
+	if (!dev_priv->display.modeset_calc_cdclk)
+		return 0;
+
+	ret = dev_priv->display.modeset_calc_cdclk(state);
+	if (ret)
+		return ret;
+
+	/*
+	 * Writes to dev_priv->cdclk.logical must protected by
+	 * holding all the crtc locks, even if we don't end up
+	 * touching the hardware
+	 */
+	if (intel_cdclk_changed(&dev_priv->cdclk.logical,
+				&state->cdclk.logical)) {
+		ret = intel_lock_all_pipes(state);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (is_power_of_2(state->active_pipes)) {
+		struct intel_crtc *crtc;
+		struct intel_crtc_state *crtc_state;
+
+		pipe = ilog2(state->active_pipes);
+		crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+		crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
+		if (crtc_state &&
+		    drm_atomic_crtc_needs_modeset(&crtc_state->base))
+			pipe = INVALID_PIPE;
+	} else {
+		pipe = INVALID_PIPE;
+	}
+
+	/* All pipes must be switched off while we change the cdclk. */
+	if (pipe != INVALID_PIPE &&
+	    intel_cdclk_needs_cd2x_update(dev_priv,
+					  &dev_priv->cdclk.actual,
+					  &state->cdclk.actual)) {
+		ret = intel_lock_all_pipes(state);
+		if (ret)
+			return ret;
+
+		state->cdclk.pipe = pipe;
+	} else if (intel_cdclk_needs_modeset(&dev_priv->cdclk.actual,
+					     &state->cdclk.actual)) {
+		ret = intel_modeset_all_pipes(state);
+		if (ret)
+			return ret;
+
+		state->cdclk.pipe = INVALID_PIPE;
+	}
+
+	DRM_DEBUG_KMS("New cdclk calculated to be logical %u kHz, actual %u kHz\n",
+		      state->cdclk.logical.cdclk,
+		      state->cdclk.actual.cdclk);
+	DRM_DEBUG_KMS("New voltage level calculated to be logical %u, actual %u\n",
+		      state->cdclk.logical.voltage_level,
+		      state->cdclk.actual.voltage_level);
 
 	return 0;
 }

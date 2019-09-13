@@ -13433,65 +13433,12 @@ static int haswell_mode_set_planes_workaround(struct intel_atomic_state *state)
 	return 0;
 }
 
-static int intel_lock_all_pipes(struct intel_atomic_state *state)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc *crtc;
-
-	/* Add all pipes to the state */
-	for_each_intel_crtc(&dev_priv->drm, crtc) {
-		struct intel_crtc_state *crtc_state;
-
-		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
-		if (IS_ERR(crtc_state))
-			return PTR_ERR(crtc_state);
-	}
-
-	return 0;
-}
-
-static int intel_modeset_all_pipes(struct intel_atomic_state *state)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc *crtc;
-
-	/*
-	 * Add all pipes to the state, and force
-	 * a modeset on all the active ones.
-	 */
-	for_each_intel_crtc(&dev_priv->drm, crtc) {
-		struct intel_crtc_state *crtc_state;
-		int ret;
-
-		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
-		if (IS_ERR(crtc_state))
-			return PTR_ERR(crtc_state);
-
-		if (!crtc_state->base.active || needs_modeset(crtc_state))
-			continue;
-
-		crtc_state->base.mode_changed = true;
-
-		ret = drm_atomic_add_affected_connectors(&state->base,
-							 &crtc->base);
-		if (ret)
-			return ret;
-
-		ret = drm_atomic_add_affected_planes(&state->base,
-						     &crtc->base);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 static int intel_modeset_checks(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
 	struct intel_crtc *crtc;
-	int ret = 0, i;
+	int ret, i;
 
 	if (!check_digital_port_conflicts(state)) {
 		DRM_DEBUG_KMS("rejecting conflicting digital port configuration\n");
@@ -13519,71 +13466,9 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 			state->active_pipe_changes |= BIT(crtc->pipe);
 	}
 
-	/*
-	 * See if the config requires any additional preparation, e.g.
-	 * to adjust global state with pipes off.  We need to do this
-	 * here so we can get the modeset_pipe updated config for the new
-	 * mode set on this crtc.  For other crtcs we need to use the
-	 * adjusted_mode bits in the crtc directly.
-	 */
-	if (dev_priv->display.modeset_calc_cdclk) {
-		enum pipe pipe;
-
-		ret = dev_priv->display.modeset_calc_cdclk(state);
-		if (ret < 0)
-			return ret;
-
-		/*
-		 * Writes to dev_priv->cdclk.logical must protected by
-		 * holding all the crtc locks, even if we don't end up
-		 * touching the hardware
-		 */
-		if (intel_cdclk_changed(&dev_priv->cdclk.logical,
-					&state->cdclk.logical)) {
-			ret = intel_lock_all_pipes(state);
-			if (ret < 0)
-				return ret;
-		}
-
-		if (is_power_of_2(state->active_pipes)) {
-			struct intel_crtc *crtc;
-			struct intel_crtc_state *crtc_state;
-
-			pipe = ilog2(state->active_pipes);
-			crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
-			crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
-			if (crtc_state && needs_modeset(crtc_state))
-				pipe = INVALID_PIPE;
-		} else {
-			pipe = INVALID_PIPE;
-		}
-
-		/* All pipes must be switched off while we change the cdclk. */
-		if (pipe != INVALID_PIPE &&
-		    intel_cdclk_needs_cd2x_update(dev_priv,
-						  &dev_priv->cdclk.actual,
-						  &state->cdclk.actual)) {
-			ret = intel_lock_all_pipes(state);
-			if (ret < 0)
-				return ret;
-
-			state->cdclk.pipe = pipe;
-		} else if (intel_cdclk_needs_modeset(&dev_priv->cdclk.actual,
-						     &state->cdclk.actual)) {
-			ret = intel_modeset_all_pipes(state);
-			if (ret < 0)
-				return ret;
-
-			state->cdclk.pipe = INVALID_PIPE;
-		}
-
-		DRM_DEBUG_KMS("New cdclk calculated to be logical %u kHz, actual %u kHz\n",
-			      state->cdclk.logical.cdclk,
-			      state->cdclk.actual.cdclk);
-		DRM_DEBUG_KMS("New voltage level calculated to be logical %u, actual %u\n",
-			      state->cdclk.logical.voltage_level,
-			      state->cdclk.actual.voltage_level);
-	}
+	ret = intel_modeset_calc_cdclk(state);
+	if (ret)
+		return ret;
 
 	intel_modeset_clear_plls(state);
 
