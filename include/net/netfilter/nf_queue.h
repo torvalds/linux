@@ -15,9 +15,7 @@ struct nf_queue_entry {
 	unsigned int		id;
 	unsigned int		hook_index;	/* index in hook_entries->hook[] */
 
-#if IS_ENABLED(CONFIG_NETFILTER)
 	struct nf_hook_state	state;
-#endif
 	u16			size; /* sizeof(entry) + saved route keys */
 
 	/* extra space to store route keys */
@@ -123,9 +121,7 @@ nfqueue_hash(const struct sk_buff *skb, u16 queue, u16 queues_total, u8 family,
 	return queue;
 }
 
-#if IS_ENABLED(CONFIG_NETFILTER)
 int nf_queue(struct sk_buff *skb, struct nf_hook_state *state,
 	     unsigned int index, unsigned int verdict);
-#endif
 
 #endif /* _NF_QUEUE_H */

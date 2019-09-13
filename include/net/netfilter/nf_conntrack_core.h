@@ -22,9 +22,8 @@
    standalone connection tracking module, and the compatibility layer's use
    of connection tracking. */
 
-#if IS_ENABLED(CONFIG_NETFILTER)
-unsigned int nf_conntrack_in(struct sk_buff *skb, const struct nf_hook_state *state);
-#endif
+unsigned int nf_conntrack_in(struct sk_buff *skb,
+			     const struct nf_hook_state *state);
 
 int nf_conntrack_init_net(struct net *net);
 void nf_conntrack_cleanup_net(struct net *net);

@@ -17,9 +17,7 @@ struct nf_flowtable_type {
 	int				family;
 	int				(*init)(struct nf_flowtable *ft);
 	void				(*free)(struct nf_flowtable *ft);
-#if IS_ENABLED(CONFIG_NETFILTER)
 	nf_hookfn			*hook;
-#endif
 	struct module			*owner;
 };
 
@@ -117,12 +115,10 @@ struct flow_ports {
 	__be16 source, dest;
 };
 
-#if IS_ENABLED(CONFIG_NETFILTER)
 unsigned int nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 				     const struct nf_hook_state *state);
 unsigned int nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 				       const struct nf_hook_state *state);
-#endif
 
 #define MODULE_ALIAS_NF_FLOWTABLE(family)	\
 	MODULE_ALIAS("nf-flowtable-" __stringify(family))

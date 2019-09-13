@@ -15,7 +15,6 @@
 #include <linux/netdevice.h>
 #include <net/net_namespace.h>
 
-#ifdef CONFIG_NETFILTER
 static inline int NF_DROP_GETERR(int verdict)
 {
 	return -(verdict >> NF_VERDICT_QBITS);
@@ -118,6 +117,7 @@ struct nf_hook_entries {
 	 */
 };
 
+#ifdef CONFIG_NETFILTER
 static inline struct nf_hook_ops **nf_hook_entries_get_hook_ops(const struct nf_hook_entries *e)
 {
 	unsigned int n = e->num_hook_entries;
