@@ -521,8 +521,14 @@ static void nsim_dev_traps_exit(struct devlink *devlink)
 	kfree(nsim_dev->trap_data);
 }
 
-static int nsim_dev_reload(struct devlink *devlink,
-			   struct netlink_ext_ack *extack)
+static int nsim_dev_reload_down(struct devlink *devlink,
+				struct netlink_ext_ack *extack)
+{
+	return 0;
+}
+
+static int nsim_dev_reload_up(struct devlink *devlink,
+			      struct netlink_ext_ack *extack)
 {
 	enum nsim_resource_id res_ids[] = {
 		NSIM_RESOURCE_IPV4_FIB, NSIM_RESOURCE_IPV4_FIB_RULES,
@@ -638,7 +644,8 @@ nsim_dev_devlink_trap_action_set(struct devlink *devlink,
 }
 
 static const struct devlink_ops nsim_dev_devlink_ops = {
-	.reload = nsim_dev_reload,
+	.reload_down = nsim_dev_reload_down,
+	.reload_up = nsim_dev_reload_up,
 	.flash_update = nsim_dev_flash_update,
 	.trap_init = nsim_dev_devlink_trap_init,
 	.trap_action_set = nsim_dev_devlink_trap_action_set,
