@@ -28,9 +28,6 @@
 
 /* TODO: Check the calls to l3; they can't be called from a lock. */
 
-
-#include <linux/medusa/l3/arch.h>
-
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/reboot.h>
@@ -40,25 +37,24 @@
 #include <linux/fs.h>
 #include <linux/wait.h>
 #include <linux/poll.h>
-//#include <linux/devfs_fs_kernel.h>
 #include <linux/semaphore.h>
-#include <asm/atomic.h>
-#include <asm/uaccess.h>
 #include <linux/jiffies.h>
 #include <linux/sched/task.h>
+#include <linux/uaccess.h>
+#include <linux/slab.h>
 
-#define MEDUSA_MAJOR 111
-#define MODULENAME "chardev/linux"
-//#define wakeup(p) wake_up(p)
-#define CURRENTPTR current
-#define FAT_PTR_OFFSET_TYPE uint32_t
-#define FAT_PTR_OFFSET sizeof(FAT_PTR_OFFSET_TYPE)
-
+#include <linux/medusa/l3/arch.h>
 #include <linux/medusa/l3/registry.h>
 #include <linux/medusa/l3/server.h>
 #include <linux/medusa/l4/comm.h>
 
 #include "teleport.h"
+
+#define MEDUSA_MAJOR 111
+#define MODULENAME "chardev/linux"
+#define CURRENTPTR current
+#define FAT_PTR_OFFSET_TYPE uint32_t
+#define FAT_PTR_OFFSET sizeof(FAT_PTR_OFFSET_TYPE)
 
 static int user_release(struct inode *inode, struct file *file);
 
@@ -714,7 +710,7 @@ static ssize_t user_read(struct file * filp, char __user * buf,
 		ls_unlock(&lightswitch, &ls_switch);
 		return -ESPIPE;
 	}
-	if (!access_ok(VERIFY_WRITE, buf, count)){
+	if (!access_ok(buf, count)){
 		ls_unlock(&lightswitch, &ls_switch);
 		return -EFAULT;
 	}
@@ -820,7 +816,7 @@ static ssize_t user_write(struct file *filp, const char __user *buf, size_t coun
 		pr_err("write: uncorrect file position\n");
 		return -ESPIPE;
 	}
-	if (!access_ok(VERIFY_READ, buf, count)) {
+	if (!access_ok(buf, count)) {
 		ls_unlock(&lightswitch, &ls_switch);
 		pr_err("write: cant read buffer\n");
 		return -EFAULT;
