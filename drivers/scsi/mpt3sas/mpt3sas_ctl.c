@@ -1617,6 +1617,19 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 			    __func__, buffer_type);
 			return -EINVAL;
 		}
+	} else if (ioc->diag_buffer_status[buffer_type] &
+	    MPT3_DIAG_BUFFER_IS_DRIVER_ALLOCATED) {
+
+		if (ioc->unique_id[buffer_type] != MPT3DIAGBUFFUNIQUEID ||
+		    ioc->diag_buffer_sz[buffer_type] !=
+		    diag_register->requested_buffer_size) {
+
+			ioc_err(ioc,
+			    "%s: already a buffer is allocated for buffer_type(0x%02x) of size %d bytes, so please try registering again with same size\n",
+			     __func__, buffer_type,
+			    ioc->diag_buffer_sz[buffer_type]);
+			return -EINVAL;
+		}
 	}
 
 	if (diag_register->requested_buffer_size % 4)  {
@@ -1641,7 +1654,8 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 	request_data = ioc->diag_buffer[buffer_type];
 	request_data_sz = diag_register->requested_buffer_size;
 	ioc->unique_id[buffer_type] = diag_register->unique_id;
-	ioc->diag_buffer_status[buffer_type] = 0;
+	ioc->diag_buffer_status[buffer_type] &=
+	    MPT3_DIAG_BUFFER_IS_DRIVER_ALLOCATED;
 	memcpy(ioc->product_specific[buffer_type],
 	    diag_register->product_specific, MPT3_PRODUCT_SPECIFIC_DWORDS);
 	ioc->diagnostic_flags[buffer_type] = diag_register->diagnostic_flags;
@@ -1731,9 +1745,12 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 
  out:
 
-	if (rc && request_data)
+	if (rc && request_data) {
 		dma_free_coherent(&ioc->pdev->dev, request_data_sz,
 		    request_data, request_data_dma);
+		ioc->diag_buffer_status[buffer_type] &=
+		    ~MPT3_DIAG_BUFFER_IS_DRIVER_ALLOCATED;
+	}
 
 	ioc->ctl_cmds.status = MPT3_CMD_NOT_USED;
 	return rc;
@@ -1817,9 +1834,14 @@ mpt3sas_enable_diag_buffer(struct MPT3SAS_ADAPTER *ioc, u8 bits_to_register)
 			    "Cannot allocate trace buffer memory. Last memory tried = %d KB\n",
 			    diag_register.requested_buffer_size>>10);
 		else if (ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE]
-		    & MPT3_DIAG_BUFFER_IS_REGISTERED)
+		    & MPT3_DIAG_BUFFER_IS_REGISTERED) {
 			ioc_err(ioc, "Trace buffer memory %d KB allocated\n",
 			    diag_register.requested_buffer_size>>10);
+			if (ioc->hba_mpi_version_belonged != MPI2_VERSION)
+				ioc->diag_buffer_status[
+				    MPI2_DIAG_BUF_TYPE_TRACE] |=
+				    MPT3_DIAG_BUFFER_IS_DRIVER_ALLOCATED;
+		}
 	}
 
 	if (bits_to_register & 2) {
@@ -1930,12 +1952,19 @@ _ctl_diag_unregister(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		return -ENOMEM;
 	}
 
-	request_data_sz = ioc->diag_buffer_sz[buffer_type];
-	request_data_dma = ioc->diag_buffer_dma[buffer_type];
-	dma_free_coherent(&ioc->pdev->dev, request_data_sz,
-			request_data, request_data_dma);
-	ioc->diag_buffer[buffer_type] = NULL;
-	ioc->diag_buffer_status[buffer_type] = 0;
+	if (ioc->diag_buffer_status[buffer_type] &
+	    MPT3_DIAG_BUFFER_IS_DRIVER_ALLOCATED) {
+		ioc->unique_id[buffer_type] = MPT3DIAGBUFFUNIQUEID;
+		ioc->diag_buffer_status[buffer_type] &=
+		    ~MPT3_DIAG_BUFFER_IS_REGISTERED;
+	} else {
+		request_data_sz = ioc->diag_buffer_sz[buffer_type];
+		request_data_dma = ioc->diag_buffer_dma[buffer_type];
+		dma_free_coherent(&ioc->pdev->dev, request_data_sz,
+				request_data, request_data_dma);
+		ioc->diag_buffer[buffer_type] = NULL;
+		ioc->diag_buffer_status[buffer_type] = 0;
+	}
 	return 0;
 }
 
@@ -1974,11 +2003,14 @@ _ctl_diag_query(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		return -EPERM;
 	}
 
-	if ((ioc->diag_buffer_status[buffer_type] &
-	    MPT3_DIAG_BUFFER_IS_REGISTERED) == 0) {
-		ioc_err(ioc, "%s: buffer_type(0x%02x) is not registered\n",
-			__func__, buffer_type);
-		return -EINVAL;
+	if (!(ioc->diag_buffer_status[buffer_type] &
+	    MPT3_DIAG_BUFFER_IS_DRIVER_ALLOCATED)) {
+		if ((ioc->diag_buffer_status[buffer_type] &
+		    MPT3_DIAG_BUFFER_IS_REGISTERED) == 0) {
+			ioc_err(ioc, "%s: buffer_type(0x%02x) is not registered\n",
+				__func__, buffer_type);
+			return -EINVAL;
+		}
 	}
 
 	if (karg.unique_id) {
@@ -1996,13 +2028,17 @@ _ctl_diag_query(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		return -ENOMEM;
 	}
 
-	if (ioc->diag_buffer_status[buffer_type] & MPT3_DIAG_BUFFER_IS_RELEASED)
-		karg.application_flags = (MPT3_APP_FLAGS_APP_OWNED |
-		    MPT3_APP_FLAGS_BUFFER_VALID);
-	else
-		karg.application_flags = (MPT3_APP_FLAGS_APP_OWNED |
-		    MPT3_APP_FLAGS_BUFFER_VALID |
-		    MPT3_APP_FLAGS_FW_BUFFER_ACCESS);
+	if ((ioc->diag_buffer_status[buffer_type] &
+	    MPT3_DIAG_BUFFER_IS_REGISTERED))
+		karg.application_flags |= MPT3_APP_FLAGS_BUFFER_VALID;
+
+	if (!(ioc->diag_buffer_status[buffer_type] &
+	     MPT3_DIAG_BUFFER_IS_RELEASED))
+		karg.application_flags |= MPT3_APP_FLAGS_FW_BUFFER_ACCESS;
+
+	if (!(ioc->diag_buffer_status[buffer_type] &
+	    MPT3_DIAG_BUFFER_IS_DRIVER_ALLOCATED))
+		karg.application_flags |= MPT3_APP_FLAGS_DYNAMIC_BUFFER_ALLOC;
 
 	for (i = 0; i < MPT3_PRODUCT_SPECIFIC_DWORDS; i++)
 		karg.product_specific[i] =
@@ -3303,6 +3339,16 @@ host_trace_buffer_enable_store(struct device *cdev,
 		    (MPT2DIAGBUFFUNIQUEID):(MPT3DIAGBUFFUNIQUEID);
 		ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE] = 0;
 		_ctl_diag_register_2(ioc,  &diag_register);
+		if (ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE] &
+		    MPT3_DIAG_BUFFER_IS_REGISTERED) {
+			ioc_info(ioc,
+			    "Trace buffer %d KB allocated through sysfs\n",
+			    diag_register.requested_buffer_size>>10);
+			if (ioc->hba_mpi_version_belonged != MPI2_VERSION)
+				ioc->diag_buffer_status[
+				    MPI2_DIAG_BUF_TYPE_TRACE] |=
+				    MPT3_DIAG_BUFFER_IS_DRIVER_ALLOCATED;
+		}
 	} else if (!strcmp(str, "release")) {
 		/* exit out if host buffers are already released */
 		if (!ioc->diag_buffer[MPI2_DIAG_BUF_TYPE_TRACE])

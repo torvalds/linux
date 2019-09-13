@@ -303,6 +303,7 @@ struct mpt3sas_nvme_cmd {
 #define MPT3_DIAG_BUFFER_IS_REGISTERED	(0x01)
 #define MPT3_DIAG_BUFFER_IS_RELEASED	(0x02)
 #define MPT3_DIAG_BUFFER_IS_DIAG_RESET	(0x04)
+#define MPT3_DIAG_BUFFER_IS_DRIVER_ALLOCATED (0x08)
 
 /*
  * HP HBA branding

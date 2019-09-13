@@ -318,6 +318,7 @@ struct mpt3_ioctl_btdh_mapping {
 #define MPT3_APP_FLAGS_APP_OWNED	(0x0001)
 #define MPT3_APP_FLAGS_BUFFER_VALID	(0x0002)
 #define MPT3_APP_FLAGS_FW_BUFFER_ACCESS	(0x0004)
+#define MPT3_APP_FLAGS_DYNAMIC_BUFFER_ALLOC (0x0008)
 
 /* flags for mpt3_diag_read_buffer */
 #define MPT3_FLAGS_REREGISTER		(0x0001)
