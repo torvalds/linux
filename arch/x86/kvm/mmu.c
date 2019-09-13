@@ -5696,11 +5696,15 @@ restart:
 		if (sp->role.invalid)
 			continue;
 
+		/*
+		 * No need to flush the TLB since we're only zapping shadow
+		 * pages with an obsolete generation number and all vCPUS have
+		 * loaded a new root, i.e. the shadow pages being zapped cannot
+		 * be in active use by the guest.
+		 */
 		if (batch >= BATCH_ZAP_PAGES &&
-		    (need_resched() || spin_needbreak(&kvm->mmu_lock))) {
+		    cond_resched_lock(&kvm->mmu_lock)) {
 			batch = 0;
-			kvm_mmu_commit_zap_page(kvm, &invalid_list);
-			cond_resched_lock(&kvm->mmu_lock);
 			goto restart;
 		}
 
@@ -5711,6 +5715,11 @@ restart:
 		}
 	}
 
+	/*
+	 * Trigger a remote TLB flush before freeing the page tables to ensure
+	 * KVM is not in the middle of a lockless shadow page table walk, which
+	 * may reference the pages.
+	 */
 	kvm_mmu_commit_zap_page(kvm, &invalid_list);
 }
 
@@ -5728,6 +5737,16 @@ static void kvm_mmu_zap_all_fast(struct kvm *kvm)
 	spin_lock(&kvm->mmu_lock);
 	trace_kvm_mmu_zap_all_fast(kvm);
 	kvm->arch.mmu_valid_gen++;
+
+	/*
+	 * Notify all vcpus to reload its shadow page table and flush TLB.
+	 * Then all vcpus will switch to new shadow page table with the new
+	 * mmu_valid_gen.
+	 *
+	 * Note: we need to do this under the protection of mmu_lock,
+	 * otherwise, vcpu would purge shadow page but miss tlb flush.
+	 */
+	kvm_reload_remote_mmus(kvm);
 
 	kvm_zap_obsolete_pages(kvm);
 	spin_unlock(&kvm->mmu_lock);
