@@ -30,6 +30,7 @@
 #include "nbio/nbio_7_4_0_smn.h"
 #include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
 #include <uapi/linux/kfd_ioctl.h>
+#include "amdgpu_ras.h"
 
 #define smnNBIF_MGCG_CTRL_LCLK	0x1013a21c
 
@@ -329,6 +330,8 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 						BIF_DOORBELL_INT_CNTL,
 						RAS_CNTLR_INTERRUPT_CLEAR, 1);
 		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
+
+		amdgpu_ras_global_ras_isr(adev);
 	}
 }
 
@@ -344,6 +347,8 @@ static void nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring(struct amdgpu_d
 						BIF_DOORBELL_INT_CNTL,
 						RAS_ATHUB_ERR_EVENT_INTERRUPT_CLEAR, 1);
 		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
+
+		amdgpu_ras_global_ras_isr(adev);
 	}
 }
 

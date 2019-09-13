@@ -1004,6 +1004,12 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	/* Ensure IB tests are run on ring */
 	flush_delayed_work(&adev->delayed_init_work);
 
+
+	if (amdgpu_ras_intr_triggered()) {
+		DRM_ERROR("RAS Intr triggered, device disabled!!");
+		return -EHWPOISON;
+	}
+
 	file_priv->driver_priv = NULL;
 
 	r = pm_runtime_get_sync(dev->dev);

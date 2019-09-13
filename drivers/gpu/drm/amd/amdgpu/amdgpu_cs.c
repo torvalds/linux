@@ -35,6 +35,7 @@
 #include "amdgpu_trace.h"
 #include "amdgpu_gmc.h"
 #include "amdgpu_gem.h"
+#include "amdgpu_ras.h"
 
 static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 				      struct drm_amdgpu_cs_chunk_fence *data,
@@ -1289,6 +1290,9 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	struct amdgpu_cs_parser parser = {};
 	bool reserved_buffers = false;
 	int i, r;
+
+	if (amdgpu_ras_intr_triggered())
+		return -EHWPOISON;
 
 	if (!adev->accel_working)
 		return -EBUSY;

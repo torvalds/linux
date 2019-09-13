@@ -3736,24 +3736,17 @@ static bool amdgpu_device_lock_adev(struct amdgpu_device *adev, bool trylock)
 		adev->mp1_state = PP_MP1_STATE_NONE;
 		break;
 	}
-	/* Block kfd: SRIOV would do it separately */
-	if (!amdgpu_sriov_vf(adev))
-                amdgpu_amdkfd_pre_reset(adev);
 
 	return true;
 }
 
 static void amdgpu_device_unlock_adev(struct amdgpu_device *adev)
 {
-	/*unlock kfd: SRIOV would do it separately */
-	if (!amdgpu_sriov_vf(adev))
-                amdgpu_amdkfd_post_reset(adev);
 	amdgpu_vf_error_trans_all(adev);
 	adev->mp1_state = PP_MP1_STATE_NONE;
 	adev->in_gpu_reset = 0;
 	mutex_unlock(&adev->lock_reset);
 }
-
 
 /**
  * amdgpu_device_gpu_recover - reset the asic and recover scheduler
@@ -3774,11 +3767,12 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	struct amdgpu_hive_info *hive = NULL;
 	struct amdgpu_device *tmp_adev = NULL;
 	int i, r = 0;
+	bool in_ras_intr = amdgpu_ras_intr_triggered();
 
 	need_full_reset = job_signaled = false;
 	INIT_LIST_HEAD(&device_list);
 
-	dev_info(adev->dev, "GPU reset begin!\n");
+	dev_info(adev->dev, "GPU %s begin!\n", in_ras_intr ? "jobs stop":"reset");
 
 	cancel_delayed_work_sync(&adev->delayed_init_work);
 
@@ -3805,9 +3799,16 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		return 0;
 	}
 
+	/* Block kfd: SRIOV would do it separately */
+	if (!amdgpu_sriov_vf(adev))
+                amdgpu_amdkfd_pre_reset(adev);
+
 	/* Build list of devices to reset */
 	if  (adev->gmc.xgmi.num_physical_nodes > 1) {
 		if (!hive) {
+			/*unlock kfd: SRIOV would do it separately */
+			if (!amdgpu_sriov_vf(adev))
+		                amdgpu_amdkfd_post_reset(adev);
 			amdgpu_device_unlock_adev(adev);
 			return -ENODEV;
 		}
@@ -3825,8 +3826,12 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 	/* block all schedulers and reset given job's ring */
 	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
-		if (tmp_adev != adev)
+		if (tmp_adev != adev) {
 			amdgpu_device_lock_adev(tmp_adev, false);
+			if (!amdgpu_sriov_vf(tmp_adev))
+			                amdgpu_amdkfd_pre_reset(tmp_adev);
+		}
+
 		/*
 		 * Mark these ASICs to be reseted as untracked first
 		 * And add them back after reset completed
@@ -3834,7 +3839,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		amdgpu_unregister_gpu_instance(tmp_adev);
 
 		/* disable ras on ALL IPs */
-		if (amdgpu_device_ip_need_full_reset(tmp_adev))
+		if (!in_ras_intr && amdgpu_device_ip_need_full_reset(tmp_adev))
 			amdgpu_ras_suspend(tmp_adev);
 
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
@@ -3844,9 +3849,15 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 				continue;
 
 			drm_sched_stop(&ring->sched, job ? &job->base : NULL);
+
+			if (in_ras_intr)
+				amdgpu_job_stop_all_jobs_on_sched(&ring->sched);
 		}
 	}
 
+
+	if (in_ras_intr)
+		goto skip_sched_resume;
 
 	/*
 	 * Must check guilty signal here since after this point all old
@@ -3906,6 +3917,7 @@ skip_hw_reset:
 
 	/* Post ASIC reset for all devs .*/
 	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
+
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = tmp_adev->rings[i];
 
@@ -3932,7 +3944,13 @@ skip_hw_reset:
 		} else {
 			dev_info(tmp_adev->dev, "GPU reset(%d) succeeded!\n", atomic_read(&tmp_adev->gpu_reset_counter));
 		}
+	}
 
+skip_sched_resume:
+	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
+		/*unlock kfd: SRIOV would do it separately */
+		if (!in_ras_intr && !amdgpu_sriov_vf(tmp_adev))
+	                amdgpu_amdkfd_post_reset(tmp_adev);
 		amdgpu_device_unlock_adev(tmp_adev);
 	}
 

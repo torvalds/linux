@@ -1979,24 +1979,26 @@ static int sdma_v4_0_process_ras_data_cb(struct amdgpu_device *adev,
 	uint32_t err_source;
 	int instance;
 
-	instance = sdma_v4_0_irq_id_to_seq(entry->client_id);
-	if (instance < 0)
-		return 0;
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX)) {
+		instance = sdma_v4_0_irq_id_to_seq(entry->client_id);
+		if (instance < 0)
+			return 0;
 
-	switch (entry->src_id) {
-	case SDMA0_4_0__SRCID__SDMA_SRAM_ECC:
-		err_source = 0;
-		break;
-	case SDMA0_4_0__SRCID__SDMA_ECC:
-		err_source = 1;
-		break;
-	default:
-		return 0;
+		switch (entry->src_id) {
+		case SDMA0_4_0__SRCID__SDMA_SRAM_ECC:
+			err_source = 0;
+			break;
+		case SDMA0_4_0__SRCID__SDMA_ECC:
+			err_source = 1;
+			break;
+		default:
+			return 0;
+		}
+
+		kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
+
+		amdgpu_ras_reset_gpu(adev, 0);
 	}
-
-	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
-
-	amdgpu_ras_reset_gpu(adev, 0);
 
 	return AMDGPU_RAS_SUCCESS;
 }
