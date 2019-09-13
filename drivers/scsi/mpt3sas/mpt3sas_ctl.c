@@ -2235,7 +2235,7 @@ _ctl_diag_release(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	    MPT3_DIAG_BUFFER_IS_RELEASED) {
 		ioc_err(ioc, "%s: buffer_type(0x%02x) is already released\n",
 			__func__, buffer_type);
-		return 0;
+		return -EINVAL;
 	}
 
 	request_data = ioc->diag_buffer[buffer_type];
