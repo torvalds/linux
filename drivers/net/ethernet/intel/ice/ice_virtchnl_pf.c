@@ -1443,6 +1443,12 @@ int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	struct ice_pf *pf = pci_get_drvdata(pdev);
 
+	if (ice_is_safe_mode(pf)) {
+		dev_err(&pf->pdev->dev,
+			"SR-IOV cannot be configured - Device is in Safe Mode\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (num_vfs)
 		return ice_pci_sriov_ena(pf, num_vfs);
 
