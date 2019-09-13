@@ -1565,6 +1565,16 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 		return -EINVAL;
 	}
 
+	if ((ioc->diag_buffer_status[buffer_type] &
+	    MPT3_DIAG_BUFFER_IS_APP_OWNED) &&
+	    !(ioc->diag_buffer_status[buffer_type] &
+	    MPT3_DIAG_BUFFER_IS_RELEASED)) {
+		ioc_err(ioc,
+		    "%s: buffer_type(0x%02x) is already registered by application with UID(0x%08x)\n",
+		    __func__, buffer_type, ioc->unique_id[buffer_type]);
+		return -EINVAL;
+	}
+
 	if (ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_REGISTERED) {
 		/*
@@ -1884,6 +1894,12 @@ _ctl_diag_register(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	}
 
 	rc = _ctl_diag_register_2(ioc, &karg);
+
+	if (!rc && (ioc->diag_buffer_status[karg.buffer_type] &
+	    MPT3_DIAG_BUFFER_IS_REGISTERED))
+		ioc->diag_buffer_status[karg.buffer_type] |=
+		    MPT3_DIAG_BUFFER_IS_APP_OWNED;
+
 	return rc;
 }
 
@@ -1955,6 +1971,8 @@ _ctl_diag_unregister(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	if (ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_DRIVER_ALLOCATED) {
 		ioc->unique_id[buffer_type] = MPT3DIAGBUFFUNIQUEID;
+		ioc->diag_buffer_status[buffer_type] &=
+		    ~MPT3_DIAG_BUFFER_IS_APP_OWNED;
 		ioc->diag_buffer_status[buffer_type] &=
 		    ~MPT3_DIAG_BUFFER_IS_REGISTERED;
 	} else {
@@ -2039,6 +2057,10 @@ _ctl_diag_query(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	if (!(ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_DRIVER_ALLOCATED))
 		karg.application_flags |= MPT3_APP_FLAGS_DYNAMIC_BUFFER_ALLOC;
+
+	if ((ioc->diag_buffer_status[buffer_type] &
+	    MPT3_DIAG_BUFFER_IS_APP_OWNED))
+		karg.application_flags |= MPT3_APP_FLAGS_APP_OWNED;
 
 	for (i = 0; i < MPT3_PRODUCT_SPECIFIC_DWORDS; i++)
 		karg.product_specific[i] =
@@ -3331,8 +3353,27 @@ host_trace_buffer_enable_store(struct device *cdev,
 			/* post the same buffer allocated previously */
 			diag_register.requested_buffer_size =
 			    ioc->diag_buffer_sz[MPI2_DIAG_BUF_TYPE_TRACE];
-		} else
+		} else {
+			/*
+			 * Free the diag buffer memory which was previously
+			 * allocated by an application.
+			 */
+			if ((ioc->diag_buffer_sz[MPI2_DIAG_BUF_TYPE_TRACE] != 0)
+			    &&
+			    (ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE] &
+			    MPT3_DIAG_BUFFER_IS_APP_OWNED)) {
+				pci_free_consistent(ioc->pdev,
+				    ioc->diag_buffer_sz[
+				    MPI2_DIAG_BUF_TYPE_TRACE],
+				    ioc->diag_buffer[MPI2_DIAG_BUF_TYPE_TRACE],
+				    ioc->diag_buffer_dma[
+				    MPI2_DIAG_BUF_TYPE_TRACE]);
+				ioc->diag_buffer[MPI2_DIAG_BUF_TYPE_TRACE] =
+				    NULL;
+			}
+
 			diag_register.requested_buffer_size = (1024 * 1024);
+		}
 
 		diag_register.unique_id =
 		    (ioc->hba_mpi_version_belonged == MPI2_VERSION) ?
