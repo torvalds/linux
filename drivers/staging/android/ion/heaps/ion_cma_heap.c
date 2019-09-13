@@ -18,7 +18,7 @@
 struct ion_cma_heap {
 	struct ion_heap heap;
 	struct cma *cma;
-};
+} cma_heaps[MAX_CMA_AREAS];
 
 #define to_cma_heap(x) container_of(x, struct ion_cma_heap, heap)
 
@@ -97,38 +97,52 @@ static struct ion_heap_ops ion_cma_ops = {
 	.free = ion_cma_free,
 };
 
-static struct ion_heap *__ion_cma_heap_create(struct cma *cma)
+static int __ion_add_cma_heap(struct cma *cma, void *data)
 {
+	int *cma_nr = data;
 	struct ion_cma_heap *cma_heap;
+	int ret;
 
-	cma_heap = kzalloc(sizeof(*cma_heap), GFP_KERNEL);
+	if (*cma_nr >= MAX_CMA_AREAS)
+		return -EINVAL;
 
-	if (!cma_heap)
-		return ERR_PTR(-ENOMEM);
-
+	cma_heap = &cma_heaps[*cma_nr];
 	cma_heap->heap.ops = &ion_cma_ops;
-	cma_heap->cma = cma;
 	cma_heap->heap.type = ION_HEAP_TYPE_DMA;
-	return &cma_heap->heap;
-}
+	cma_heap->heap.name = cma_get_name(cma);
 
-static int __ion_add_cma_heaps(struct cma *cma, void *data)
-{
-	struct ion_heap *heap;
+	ret = ion_device_add_heap(&cma_heap->heap);
+	if (ret)
+		goto out;
 
-	heap = __ion_cma_heap_create(cma);
-	if (IS_ERR(heap))
-		return PTR_ERR(heap);
-
-	heap->name = cma_get_name(cma);
-
-	ion_device_add_heap(heap);
+	cma_heap->cma = cma;
+	*cma_nr += 1;
+out:
 	return 0;
 }
 
-static int ion_add_cma_heaps(void)
+static int __init ion_cma_heap_init(void)
 {
-	cma_for_each_area(__ion_add_cma_heaps, NULL);
-	return 0;
+	int ret;
+	int nr = 0;
+
+	ret = cma_for_each_area(__ion_add_cma_heap, &nr);
+	if (ret) {
+		for (nr = 0; nr < MAX_CMA_AREAS && cma_heaps[nr].cma; nr++)
+			ion_device_remove_heap(&cma_heaps[nr].heap);
+	}
+
+	return ret;
 }
-device_initcall(ion_add_cma_heaps);
+
+static void __exit ion_cma_heap_exit(void)
+{
+	int nr;
+
+	for (nr = 0; nr < MAX_CMA_AREAS && cma_heaps[nr].cma; nr++)
+		ion_device_remove_heap(&cma_heaps[nr].heap);
+}
+
+module_init(ion_cma_heap_init);
+module_exit(ion_cma_heap_exit);
+MODULE_LICENSE("GPL v2");
