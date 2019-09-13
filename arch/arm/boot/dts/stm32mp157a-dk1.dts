@@ -449,3 +449,10 @@
 	pinctrl-0 = <&uart4_pins_a>;
 	status = "okay";
 };
+
+&vrefbuf {
+	regulator-min-microvolt = <2500000>;
+	regulator-max-microvolt = <2500000>;
+	vdda-supply = <&vdd>;
+	status = "okay";
+};
