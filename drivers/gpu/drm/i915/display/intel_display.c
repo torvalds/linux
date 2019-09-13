@@ -14556,7 +14556,7 @@ skl_max_scale(const struct intel_crtc_state *crtc_state,
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	int max_scale, mult;
+	int max_scale;
 	int crtc_clock, max_dotclk, tmpclk1, tmpclk2;
 
 	if (!crtc_state->base.enable)
@@ -14577,8 +14577,11 @@ skl_max_scale(const struct intel_crtc_state *crtc_state,
 	 *            or
 	 *    cdclk/crtc_clock
 	 */
-	mult = drm_format_info_is_yuv_semiplanar(format) ? 2 : 3;
-	tmpclk1 = (1 << 16) * mult - 1;
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv) ||
+	    !drm_format_info_is_yuv_semiplanar(format))
+		tmpclk1 = 0x30000 - 1;
+	else
+		tmpclk1 = 0x20000 - 1;
 	tmpclk2 = (1 << 8) * ((max_dotclk << 8) / crtc_clock);
 	max_scale = min(tmpclk1, tmpclk2);
 
