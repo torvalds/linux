@@ -77,6 +77,8 @@ void mt7603_init_debugfs(struct mt7603_dev *dev)
 	if (!dir)
 		return;
 
+	debugfs_create_devm_seqfile(dev->mt76.dev, "queues", dir,
+				    mt76_queues_read);
 	debugfs_create_file("edcca", 0600, dir, dev, &fops_edcca);
 	debugfs_create_u32("reset_test", 0600, dir, &dev->reset_test);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "reset", dir,
