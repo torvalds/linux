@@ -5693,11 +5693,12 @@ restart:
 			break;
 
 		/*
-		 * Since we are reversely walking the list and the invalid
-		 * list will be moved to the head, skip the invalid page
-		 * can help us to avoid the infinity list walking.
+		 * Skip invalid pages with a non-zero root count, zapping pages
+		 * with a non-zero root count will never succeed, i.e. the page
+		 * will get thrown back on active_mmu_pages and we'll get stuck
+		 * in an infinite loop.
 		 */
-		if (sp->role.invalid)
+		if (sp->role.invalid && sp->root_count)
 			continue;
 
 		/*
