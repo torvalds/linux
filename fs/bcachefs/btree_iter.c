@@ -742,18 +742,29 @@ static void btree_iter_verify_new_node(struct btree_iter *iter, struct btree *b)
 		btree_node_unlock(iter, b->c.level + 1);
 }
 
+static inline bool btree_iter_pos_before_node(struct btree_iter *iter,
+					      struct btree *b)
+{
+	return bkey_cmp(iter->pos, b->data->min_key) < 0;
+}
+
 static inline bool btree_iter_pos_after_node(struct btree_iter *iter,
 					     struct btree *b)
 {
-	return __btree_iter_pos_cmp(iter, NULL,
-			bkey_to_packed(&b->key), true) < 0;
+	int cmp = bkey_cmp(b->key.k.p, iter->pos);
+
+	if (!cmp &&
+	    (iter->flags & BTREE_ITER_IS_EXTENTS) &&
+	    bkey_cmp(b->key.k.p, POS_MAX))
+		cmp = -1;
+	return cmp < 0;
 }
 
 static inline bool btree_iter_pos_in_node(struct btree_iter *iter,
 					  struct btree *b)
 {
 	return iter->btree_id == b->c.btree_id &&
-		bkey_cmp(iter->pos, b->data->min_key) >= 0 &&
+		!btree_iter_pos_before_node(iter, b) &&
 		!btree_iter_pos_after_node(iter, b);
 }
 
