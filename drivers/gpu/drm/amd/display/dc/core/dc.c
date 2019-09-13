@@ -761,8 +761,13 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 			disable_all_writeback_pipes_for_stream(dc, old_stream, dangling_context);
 #endif
-			dc->hwss.apply_ctx_for_surface(dc, old_stream, 0, dangling_context);
+			if (dc->hwss.apply_ctx_for_surface)
+				dc->hwss.apply_ctx_for_surface(dc, old_stream, 0, dangling_context);
 		}
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+		if (dc->hwss.program_front_end_for_ctx)
+			dc->hwss.program_front_end_for_ctx(dc, dangling_context);
+#endif
 	}
 
 	current_ctx = dc->current_state;
@@ -1073,15 +1078,20 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	/* re-program planes for existing stream, in case we need to
 	 * free up plane resource for later use
 	 */
-	for (i = 0; i < context->stream_count; i++) {
-		if (context->streams[i]->mode_changed)
-			continue;
+	if (dc->hwss.apply_ctx_for_surface)
+		for (i = 0; i < context->stream_count; i++) {
+			if (context->streams[i]->mode_changed)
+				continue;
 
-		dc->hwss.apply_ctx_for_surface(
-			dc, context->streams[i],
-			context->stream_status[i].plane_count,
-			context); /* use new pipe config in new context */
-	}
+			dc->hwss.apply_ctx_for_surface(
+				dc, context->streams[i],
+				context->stream_status[i].plane_count,
+				context); /* use new pipe config in new context */
+		}
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	if (dc->hwss.program_front_end_for_ctx)
+		dc->hwss.program_front_end_for_ctx(dc, context);
+#endif
 
 	/* Program hardware */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -1100,16 +1110,21 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	}
 
 	/* Program all planes within new context*/
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	if (dc->hwss.program_front_end_for_ctx)
+		dc->hwss.program_front_end_for_ctx(dc, context);
+#endif
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_link *link = context->streams[i]->link;
 
 		if (!context->streams[i]->mode_changed)
 			continue;
 
-		dc->hwss.apply_ctx_for_surface(
-				dc, context->streams[i],
-				context->stream_status[i].plane_count,
-				context);
+		if (dc->hwss.apply_ctx_for_surface)
+			dc->hwss.apply_ctx_for_surface(
+					dc, context->streams[i],
+					context->stream_status[i].plane_count,
+					context);
 
 		/*
 		 * enable stereo
@@ -1492,20 +1507,15 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
 	union surface_update_flags *update_flags = &u->surface->update_flags;
 
-	update_flags->raw = 0; // Reset all flags
-
 	if (u->flip_addr)
 		update_flags->bits.addr_update = 1;
 
-	if (!is_surface_in_context(context, u->surface)) {
-		update_flags->bits.new_plane = 1;
+	if (!is_surface_in_context(context, u->surface) || u->surface->force_full_update) {
+		update_flags->raw = 0xFFFFFFFF;
 		return UPDATE_TYPE_FULL;
 	}
 
-	if (u->surface->force_full_update) {
-		update_flags->bits.full_update = 1;
-		return UPDATE_TYPE_FULL;
-	}
+	update_flags->raw = 0; // Reset all flags
 
 	type = get_plane_info_update_type(u);
 	elevate_update_type(&overall_type, type);
@@ -1563,39 +1573,42 @@ static enum surface_update_type check_update_surfaces_for_stream(
 	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
 
 	if (stream_status == NULL || stream_status->plane_count != surface_count)
-		return UPDATE_TYPE_FULL;
+		overall_type = UPDATE_TYPE_FULL;
 
 	/* some stream updates require passive update */
 	if (stream_update) {
-		if ((stream_update->src.height != 0) &&
-				(stream_update->src.width != 0))
-			return UPDATE_TYPE_FULL;
+		union stream_update_flags *su_flags = &stream_update->stream->update_flags;
 
-		if ((stream_update->dst.height != 0) &&
-				(stream_update->dst.width != 0))
-			return UPDATE_TYPE_FULL;
+		if ((stream_update->src.height != 0 && stream_update->src.width != 0) ||
+				(stream_update->dst.height != 0 && stream_update->dst.width != 0))
+			su_flags->bits.scaling = 1;
 
 		if (stream_update->out_transfer_func)
-			return UPDATE_TYPE_FULL;
+			su_flags->bits.out_tf = 1;
 
 		if (stream_update->abm_level)
-			return UPDATE_TYPE_FULL;
+			su_flags->bits.abm_level = 1;
 
 		if (stream_update->dpms_off)
-			return UPDATE_TYPE_FULL;
+			su_flags->bits.dpms_off = 1;
+
+		if (stream_update->gamut_remap)
+			su_flags->bits.gamut_remap = 1;
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 		if (stream_update->wb_update)
-			return UPDATE_TYPE_FULL;
+			su_flags->bits.wb_update = 1;
 #endif
+		if (su_flags->raw != 0)
+			overall_type = UPDATE_TYPE_FULL;
+
+		if (stream_update->output_csc_transform || stream_update->output_color_space)
+			su_flags->bits.out_csc = 1;
 	}
 
 	for (i = 0 ; i < surface_count; i++) {
 		enum surface_update_type type =
 				det_surface_update(dc, &updates[i]);
-
-		if (type == UPDATE_TYPE_FULL)
-			return type;
 
 		elevate_update_type(&overall_type, type);
 	}
@@ -1618,13 +1631,18 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 	int i;
 	enum surface_update_type type;
 
+	if (stream_update)
+		stream_update->stream->update_flags.raw = 0;
 	for (i = 0; i < surface_count; i++)
 		updates[i].surface->update_flags.raw = 0;
 
 	type = check_update_surfaces_for_stream(dc, updates, surface_count, stream_update, stream_status);
-	if (type == UPDATE_TYPE_FULL)
+	if (type == UPDATE_TYPE_FULL) {
+		if (stream_update)
+			stream_update->stream->update_flags.raw = 0xFFFFFFFF;
 		for (i = 0; i < surface_count; i++)
 			updates[i].surface->update_flags.raw = 0xFFFFFFFF;
+	}
 
 	if (type == UPDATE_TYPE_FAST && memcmp(&dc->current_state->bw_ctx.bw.dcn.clk, &dc->clk_mgr->clks, offsetof(struct dc_clocks, prev_p_state_change_support)) != 0)
 		dc->optimized_required = true;
@@ -2000,7 +2018,13 @@ static void commit_planes_for_stream(struct dc *dc,
 		 * In case of turning off screen, no need to program front end a second time.
 		 * just return after program blank.
 		 */
-		dc->hwss.apply_ctx_for_surface(dc, stream, 0, context);
+		if (dc->hwss.apply_ctx_for_surface)
+			dc->hwss.apply_ctx_for_surface(dc, stream, 0, context);
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+		if (dc->hwss.program_front_end_for_ctx)
+			dc->hwss.program_front_end_for_ctx(dc, context);
+#endif
+
 		return;
 	}
 
@@ -2060,10 +2084,15 @@ static void commit_planes_for_stream(struct dc *dc,
 			stream_status =
 				stream_get_status(context, pipe_ctx->stream);
 
-			dc->hwss.apply_ctx_for_surface(
+			if (dc->hwss.apply_ctx_for_surface)
+				dc->hwss.apply_ctx_for_surface(
 					dc, pipe_ctx->stream, stream_status->plane_count, context);
 		}
 	}
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	if (dc->hwss.program_front_end_for_ctx && update_type != UPDATE_TYPE_FAST)
+		dc->hwss.program_front_end_for_ctx(dc, context);
+#endif
 
 	// Update Type FAST, Surface updates
 	if (update_type == UPDATE_TYPE_FAST) {
