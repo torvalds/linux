@@ -466,6 +466,13 @@ void mpt3sas_ctl_pre_reset_handler(struct MPT3SAS_ADAPTER *ioc)
 		if ((ioc->diag_buffer_status[i] &
 		     MPT3_DIAG_BUFFER_IS_RELEASED))
 			continue;
+
+		/*
+		 * add a log message to indicate the release
+		 */
+		ioc_info(ioc,
+		    "%s: Releasing the trace buffer due to adapter reset.",
+		    __func__);
 		mpt3sas_send_diag_release(ioc, i, &issue_reset);
 	}
 }
