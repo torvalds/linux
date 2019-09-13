@@ -456,6 +456,12 @@ void xprt_release_rqst_cong(struct rpc_task *task)
 }
 EXPORT_SYMBOL_GPL(xprt_release_rqst_cong);
 
+static void xprt_clear_congestion_window_wait_locked(struct rpc_xprt *xprt)
+{
+	if (test_and_clear_bit(XPRT_CWND_WAIT, &xprt->state))
+		__xprt_lock_write_next_cong(xprt);
+}
+
 /*
  * Clear the congestion window wait flag and wake up the next
  * entry on xprt->sending
@@ -671,6 +677,7 @@ void xprt_disconnect_done(struct rpc_xprt *xprt)
 	spin_lock(&xprt->transport_lock);
 	xprt_clear_connected(xprt);
 	xprt_clear_write_space_locked(xprt);
+	xprt_clear_congestion_window_wait_locked(xprt);
 	xprt_wake_pending_tasks(xprt, -ENOTCONN);
 	spin_unlock(&xprt->transport_lock);
 }
