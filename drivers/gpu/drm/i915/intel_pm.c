@@ -4009,7 +4009,8 @@ skl_ddb_get_hw_plane_state(struct drm_i915_private *dev_priv,
 		val = I915_READ(PLANE_BUF_CFG(pipe, plane_id));
 		val2 = I915_READ(PLANE_NV12_BUF_CFG(pipe, plane_id));
 
-		if (is_planar_yuv_format(fourcc))
+		if (fourcc &&
+		    drm_format_info_is_yuv_semiplanar(drm_format_info(fourcc)))
 			swap(val, val2);
 
 		skl_ddb_entry_init_from_hw(dev_priv, ddb_y, val);
@@ -4197,25 +4198,23 @@ int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 static u64
 skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 			     const struct intel_plane_state *plane_state,
-			     const int plane)
+			     int color_plane)
 {
-	struct intel_plane *intel_plane = to_intel_plane(plane_state->base.plane);
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
 	u32 data_rate;
 	u32 width = 0, height = 0;
-	struct drm_framebuffer *fb;
-	u32 format;
 	uint_fixed_16_16_t down_scale_amount;
 	u64 rate;
 
 	if (!plane_state->base.visible)
 		return 0;
 
-	fb = plane_state->base.fb;
-	format = fb->format->format;
-
-	if (intel_plane->id == PLANE_CURSOR)
+	if (plane->id == PLANE_CURSOR)
 		return 0;
-	if (plane == 1 && !is_planar_yuv_format(format))
+
+	if (color_plane == 1 &&
+	    !drm_format_info_is_yuv_semiplanar(fb->format))
 		return 0;
 
 	/*
@@ -4227,7 +4226,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 	height = drm_rect_height(&plane_state->base.src) >> 16;
 
 	/* UV plane does 1/2 pixel sub-sampling */
-	if (plane == 1 && is_planar_yuv_format(format)) {
+	if (color_plane == 1) {
 		width /= 2;
 		height /= 2;
 	}
@@ -4238,7 +4237,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 
 	rate = mul_round_up_u32_fixed16(data_rate, down_scale_amount);
 
-	rate *= fb->format->cpp[plane];
+	rate *= fb->format->cpp[color_plane];
 	return rate;
 }
 
@@ -4643,7 +4642,7 @@ skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 	u32 interm_pbpl;
 
 	/* only planar format has two planes */
-	if (color_plane == 1 && !is_planar_yuv_format(format->format)) {
+	if (color_plane == 1 && !drm_format_info_is_yuv_semiplanar(format)) {
 		DRM_DEBUG_KMS("Non planar format have single plane\n");
 		return -EINVAL;
 	}
@@ -4655,7 +4654,7 @@ skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 	wp->x_tiled = modifier == I915_FORMAT_MOD_X_TILED;
 	wp->rc_surface = modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
 			 modifier == I915_FORMAT_MOD_Yf_TILED_CCS;
-	wp->is_planar = is_planar_yuv_format(format->format);
+	wp->is_planar = drm_format_info_is_yuv_semiplanar(format);
 
 	wp->width = width;
 	if (color_plane == 1 && wp->is_planar)

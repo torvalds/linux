@@ -3545,7 +3545,7 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	 * Handle the AUX surface first since
 	 * the main surface setup depends on it.
 	 */
-	if (is_planar_yuv_format(fb->format->format)) {
+	if (drm_format_info_is_yuv_semiplanar(fb->format)) {
 		ret = skl_check_nv12_aux_surface(plane_state);
 		if (ret)
 			return ret;
@@ -5463,7 +5463,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 		return 0;
 	}
 
-	if (format && is_planar_yuv_format(format->format) &&
+	if (format && drm_format_info_is_yuv_semiplanar(format) &&
 	    (src_h < SKL_MIN_YUV_420_SRC_H || src_w < SKL_MIN_YUV_420_SRC_W)) {
 		DRM_DEBUG_KMS("Planar YUV: src dimensions not met\n");
 		return -EINVAL;
@@ -5540,7 +5540,7 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 
 	/* Pre-gen11 and SDR planes always need a scaler for planar formats. */
 	if (!icl_is_hdr_plane(dev_priv, intel_plane->id) &&
-	    fb && is_planar_yuv_format(fb->format->format))
+	    fb && drm_format_info_is_yuv_semiplanar(fb->format))
 		need_scaler = true;
 
 	ret = skl_update_scaler(crtc_state, force_detach,
@@ -14552,7 +14552,7 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 
 int
 skl_max_scale(const struct intel_crtc_state *crtc_state,
-	      u32 pixel_format)
+	      const struct drm_format_info *format)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -14577,7 +14577,7 @@ skl_max_scale(const struct intel_crtc_state *crtc_state,
 	 *            or
 	 *    cdclk/crtc_clock
 	 */
-	mult = is_planar_yuv_format(pixel_format) ? 2 : 3;
+	mult = drm_format_info_is_yuv_semiplanar(format) ? 2 : 3;
 	tmpclk1 = (1 << 16) * mult - 1;
 	tmpclk2 = (1 << 8) * ((max_dotclk << 8) / crtc_clock);
 	max_scale = min(tmpclk1, tmpclk2);

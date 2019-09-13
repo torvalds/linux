@@ -34,6 +34,7 @@ struct drm_connector;
 struct drm_device;
 struct drm_encoder;
 struct drm_file;
+struct drm_format_info;
 struct drm_framebuffer;
 struct drm_i915_error_state_buf;
 struct drm_i915_gem_object;
@@ -548,7 +549,7 @@ void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
 u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_center);
 int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state);
 int skl_max_scale(const struct intel_crtc_state *crtc_state,
-		  u32 pixel_format);
+		  const struct drm_format_info *format);
 u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state);
 u32 glk_plane_color_ctl_crtc(const struct intel_crtc_state *crtc_state);

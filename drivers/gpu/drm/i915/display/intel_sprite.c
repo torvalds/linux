@@ -48,19 +48,6 @@
 #include "intel_psr.h"
 #include "intel_sprite.h"
 
-bool is_planar_yuv_format(u32 pixelformat)
-{
-	switch (pixelformat) {
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_P010:
-	case DRM_FORMAT_P012:
-	case DRM_FORMAT_P016:
-		return true;
-	default:
-		return false;
-	}
-}
-
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			     int usecs)
 {
@@ -361,6 +348,7 @@ skl_program_scaler(struct intel_plane *plane,
 		   const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
 	enum pipe pipe = plane->pipe;
 	int scaler_id = plane_state->scaler_id;
 	const struct intel_scaler *scaler =
@@ -381,7 +369,7 @@ skl_program_scaler(struct intel_plane *plane,
 				      0, INT_MAX);
 
 	/* TODO: handle sub-pixel coordinates */
-	if (is_planar_yuv_format(plane_state->base.fb->format->format) &&
+	if (drm_format_info_is_yuv_semiplanar(fb->format) &&
 	    !icl_is_hdr_plane(dev_priv, plane->id)) {
 		y_hphase = skl_scaler_calc_phase(1, hscale, false);
 		y_vphase = skl_scaler_calc_phase(1, vscale, false);
@@ -1790,7 +1778,7 @@ static int skl_plane_check_nv12_rotation(const struct intel_plane_state *plane_s
 	int src_w = drm_rect_width(&plane_state->base.src) >> 16;
 
 	/* Display WA #1106 */
-	if (is_planar_yuv_format(fb->format->format) && src_w & 3 &&
+	if (drm_format_info_is_yuv_semiplanar(fb->format) && src_w & 3 &&
 	    (rotation == DRM_MODE_ROTATE_270 ||
 	     rotation == (DRM_MODE_REFLECT_X | DRM_MODE_ROTATE_90))) {
 		DRM_DEBUG_KMS("src width must be multiple of 4 for rotated planar YUV\n");
@@ -1817,7 +1805,7 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	/* use scaler when colorkey is not required */
 	if (!plane_state->ckey.flags && intel_fb_scalable(fb)) {
 		min_scale = 1;
-		max_scale = skl_max_scale(crtc_state, fb->format->format);
+		max_scale = skl_max_scale(crtc_state, fb->format);
 	}
 
 	ret = drm_atomic_helper_check_plane_state(&plane_state->base,

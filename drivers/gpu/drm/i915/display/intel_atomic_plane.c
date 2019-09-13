@@ -144,6 +144,7 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 					struct intel_plane_state *new_plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(new_plane_state->base.plane);
+	const struct drm_framebuffer *fb = new_plane_state->base.fb;
 	int ret;
 
 	new_crtc_state->active_planes &= ~BIT(plane->id);
@@ -164,11 +165,11 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 		new_crtc_state->active_planes |= BIT(plane->id);
 
 	if (new_plane_state->base.visible &&
-	    is_planar_yuv_format(new_plane_state->base.fb->format->format))
+	    drm_format_info_is_yuv_semiplanar(fb->format))
 		new_crtc_state->nv12_planes |= BIT(plane->id);
 
 	if (new_plane_state->base.visible &&
-	    new_plane_state->base.fb->format->format == DRM_FORMAT_C8)
+	    fb->format->format == DRM_FORMAT_C8)
 		new_crtc_state->c8_planes |= BIT(plane->id);
 
 	if (new_plane_state->base.visible || old_plane_state->base.visible)
