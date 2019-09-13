@@ -884,5 +884,9 @@ extern struct safexcel_alg_template safexcel_alg_cbc_sm4;
 extern struct safexcel_alg_template safexcel_alg_ofb_sm4;
 extern struct safexcel_alg_template safexcel_alg_cfb_sm4;
 extern struct safexcel_alg_template safexcel_alg_ctr_sm4;
+extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_cbc_sm4;
+extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sm3_cbc_sm4;
+extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_ctr_sm4;
+extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sm3_ctr_sm4;
 
 #endif

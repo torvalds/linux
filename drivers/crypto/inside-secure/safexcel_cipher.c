@@ -19,6 +19,7 @@
 #include <crypto/ghash.h>
 #include <crypto/poly1305.h>
 #include <crypto/sha.h>
+#include <crypto/sm3.h>
 #include <crypto/sm4.h>
 #include <crypto/xts.h>
 #include <crypto/skcipher.h>
@@ -349,19 +350,18 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 	struct crypto_aes_ctx aes;
 	int err = -EINVAL;
 
-	if (crypto_authenc_extractkeys(&keys, key, len) != 0)
+	if (unlikely(crypto_authenc_extractkeys(&keys, key, len)))
 		goto badkey;
 
 	if (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CTR_LOAD) {
-		/* Minimum keysize is minimum AES key size + nonce size */
-		if (keys.enckeylen < (AES_MIN_KEY_SIZE +
-				      CTR_RFC3686_NONCE_SIZE))
+		/* Must have at least space for the nonce here */
+		if (unlikely(keys.enckeylen < CTR_RFC3686_NONCE_SIZE))
 			goto badkey;
 		/* last 4 bytes of key are the nonce! */
 		ctx->nonce = *(u32 *)(keys.enckey + keys.enckeylen -
 				      CTR_RFC3686_NONCE_SIZE);
 		/* exclude the nonce here */
-		keys.enckeylen -= CONTEXT_CONTROL_CRYPTO_MODE_CTR_LOAD;
+		keys.enckeylen -= CTR_RFC3686_NONCE_SIZE;
 	}
 
 	/* Encryption key */
@@ -374,6 +374,10 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 	case SAFEXCEL_AES:
 		err = aes_expandkey(&aes, keys.enckey, keys.enckeylen);
 		if (unlikely(err))
+			goto badkey;
+		break;
+	case SAFEXCEL_SM4:
+		if (unlikely(keys.enckeylen != SM4_KEY_SIZE))
 			goto badkey;
 		break;
 	default:
@@ -409,6 +413,11 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 		break;
 	case CONTEXT_CONTROL_CRYPTO_ALG_SHA512:
 		if (safexcel_hmac_setkey("safexcel-sha512", keys.authkey,
+					 keys.authkeylen, &istate, &ostate))
+			goto badkey;
+		break;
+	case CONTEXT_CONTROL_CRYPTO_ALG_SM3:
+		if (safexcel_hmac_setkey("safexcel-sm3", keys.authkey,
 					 keys.authkeylen, &istate, &ostate))
 			goto badkey;
 		break;
@@ -2522,18 +2531,13 @@ static int safexcel_aead_chachapoly_decrypt(struct aead_request *req)
 	return safexcel_aead_chachapoly_crypt(req, SAFEXCEL_DECRYPT);
 }
 
-static int safexcel_aead_chachapoly_cra_init(struct crypto_tfm *tfm)
+static int safexcel_aead_fallback_cra_init(struct crypto_tfm *tfm)
 {
 	struct crypto_aead *aead = __crypto_aead_cast(tfm);
 	struct aead_alg *alg = crypto_aead_alg(aead);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	safexcel_aead_cra_init(tfm);
-	ctx->alg  = SAFEXCEL_CHACHA20;
-	ctx->mode = CONTEXT_CONTROL_CHACHA20_MODE_256_32 |
-		    CONTEXT_CONTROL_CHACHA20_MODE_CALC_OTK;
-	ctx->hash_alg = CONTEXT_CONTROL_CRYPTO_ALG_POLY1305;
-	ctx->state_sz = 0; /* Precomputed by HW */
 
 	/* Allocate fallback implementation */
 	ctx->fback = crypto_alloc_aead(alg->base.cra_name, 0,
@@ -2549,7 +2553,20 @@ static int safexcel_aead_chachapoly_cra_init(struct crypto_tfm *tfm)
 	return 0;
 }
 
-static void safexcel_aead_chachapoly_cra_exit(struct crypto_tfm *tfm)
+static int safexcel_aead_chachapoly_cra_init(struct crypto_tfm *tfm)
+{
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	safexcel_aead_fallback_cra_init(tfm);
+	ctx->alg  = SAFEXCEL_CHACHA20;
+	ctx->mode = CONTEXT_CONTROL_CHACHA20_MODE_256_32 |
+		    CONTEXT_CONTROL_CHACHA20_MODE_CALC_OTK;
+	ctx->hash_alg = CONTEXT_CONTROL_CRYPTO_ALG_POLY1305;
+	ctx->state_sz = 0; /* Precomputed by HW */
+	return 0;
+}
+
+static void safexcel_aead_fallback_cra_exit(struct crypto_tfm *tfm)
 {
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
@@ -2579,7 +2596,7 @@ struct safexcel_alg_template safexcel_alg_chachapoly = {
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
 			.cra_alignmask = 0,
 			.cra_init = safexcel_aead_chachapoly_cra_init,
-			.cra_exit = safexcel_aead_chachapoly_cra_exit,
+			.cra_exit = safexcel_aead_fallback_cra_exit,
 			.cra_module = THIS_MODULE,
 		},
 	},
@@ -2617,7 +2634,7 @@ struct safexcel_alg_template safexcel_alg_chachapoly_esp = {
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
 			.cra_alignmask = 0,
 			.cra_init = safexcel_aead_chachapolyesp_cra_init,
-			.cra_exit = safexcel_aead_chachapoly_cra_exit,
+			.cra_exit = safexcel_aead_fallback_cra_exit,
 			.cra_module = THIS_MODULE,
 		},
 	},
@@ -2862,6 +2879,241 @@ struct safexcel_alg_template safexcel_alg_ctr_sm4 = {
 			.cra_alignmask = 0,
 			.cra_init = safexcel_skcipher_sm4_ctr_cra_init,
 			.cra_exit = safexcel_skcipher_cra_exit,
+			.cra_module = THIS_MODULE,
+		},
+	},
+};
+
+static int safexcel_aead_sm4_blk_encrypt(struct aead_request *req)
+{
+	/* Workaround for HW bug: EIP96 4.3 does not report blocksize error */
+	if (req->cryptlen & (SM4_BLOCK_SIZE - 1))
+		return -EINVAL;
+
+	return safexcel_queue_req(&req->base, aead_request_ctx(req),
+				  SAFEXCEL_ENCRYPT);
+}
+
+static int safexcel_aead_sm4_blk_decrypt(struct aead_request *req)
+{
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+
+	/* Workaround for HW bug: EIP96 4.3 does not report blocksize error */
+	if ((req->cryptlen - crypto_aead_authsize(tfm)) & (SM4_BLOCK_SIZE - 1))
+		return -EINVAL;
+
+	return safexcel_queue_req(&req->base, aead_request_ctx(req),
+				  SAFEXCEL_DECRYPT);
+}
+
+static int safexcel_aead_sm4cbc_sha1_cra_init(struct crypto_tfm *tfm)
+{
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	safexcel_aead_cra_init(tfm);
+	ctx->alg = SAFEXCEL_SM4;
+	ctx->hash_alg = CONTEXT_CONTROL_CRYPTO_ALG_SHA1;
+	ctx->state_sz = SHA1_DIGEST_SIZE;
+	return 0;
+}
+
+struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_cbc_sm4 = {
+	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_SM4 | SAFEXCEL_ALG_SHA1,
+	.alg.aead = {
+		.setkey = safexcel_aead_setkey,
+		.encrypt = safexcel_aead_sm4_blk_encrypt,
+		.decrypt = safexcel_aead_sm4_blk_decrypt,
+		.ivsize = SM4_BLOCK_SIZE,
+		.maxauthsize = SHA1_DIGEST_SIZE,
+		.base = {
+			.cra_name = "authenc(hmac(sha1),cbc(sm4))",
+			.cra_driver_name = "safexcel-authenc-hmac-sha1-cbc-sm4",
+			.cra_priority = SAFEXCEL_CRA_PRIORITY,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize = SM4_BLOCK_SIZE,
+			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
+			.cra_alignmask = 0,
+			.cra_init = safexcel_aead_sm4cbc_sha1_cra_init,
+			.cra_exit = safexcel_aead_cra_exit,
+			.cra_module = THIS_MODULE,
+		},
+	},
+};
+
+static int safexcel_aead_fallback_setkey(struct crypto_aead *ctfm,
+					 const u8 *key, unsigned int len)
+{
+	struct crypto_tfm *tfm = crypto_aead_tfm(ctfm);
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	/* Keep fallback cipher synchronized */
+	return crypto_aead_setkey(ctx->fback, (u8 *)key, len) ?:
+	       safexcel_aead_setkey(ctfm, key, len);
+}
+
+static int safexcel_aead_fallback_setauthsize(struct crypto_aead *ctfm,
+					      unsigned int authsize)
+{
+	struct crypto_tfm *tfm = crypto_aead_tfm(ctfm);
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	/* Keep fallback cipher synchronized */
+	return crypto_aead_setauthsize(ctx->fback, authsize);
+}
+
+static int safexcel_aead_fallback_crypt(struct aead_request *req,
+					enum safexcel_cipher_direction dir)
+{
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct crypto_tfm *tfm = crypto_aead_tfm(aead);
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct aead_request *subreq = aead_request_ctx(req);
+
+	aead_request_set_tfm(subreq, ctx->fback);
+	aead_request_set_callback(subreq, req->base.flags, req->base.complete,
+				  req->base.data);
+	aead_request_set_crypt(subreq, req->src, req->dst, req->cryptlen,
+			       req->iv);
+	aead_request_set_ad(subreq, req->assoclen);
+
+	return (dir ==  SAFEXCEL_ENCRYPT) ?
+		crypto_aead_encrypt(subreq) :
+		crypto_aead_decrypt(subreq);
+}
+
+static int safexcel_aead_sm4cbc_sm3_encrypt(struct aead_request *req)
+{
+	struct safexcel_cipher_req *creq = aead_request_ctx(req);
+
+	/* Workaround for HW bug: EIP96 4.3 does not report blocksize error */
+	if (req->cryptlen & (SM4_BLOCK_SIZE - 1))
+		return -EINVAL;
+	else if (req->cryptlen || req->assoclen) /* If input length > 0 only */
+		return safexcel_queue_req(&req->base, creq, SAFEXCEL_ENCRYPT);
+
+	/* HW cannot do full (AAD+payload) zero length, use fallback */
+	return safexcel_aead_fallback_crypt(req, SAFEXCEL_ENCRYPT);
+}
+
+static int safexcel_aead_sm4cbc_sm3_decrypt(struct aead_request *req)
+{
+	struct safexcel_cipher_req *creq = aead_request_ctx(req);
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+
+	/* Workaround for HW bug: EIP96 4.3 does not report blocksize error */
+	if ((req->cryptlen - crypto_aead_authsize(tfm)) & (SM4_BLOCK_SIZE - 1))
+		return -EINVAL;
+	else if (req->cryptlen > crypto_aead_authsize(tfm) || req->assoclen)
+		/* If input length > 0 only */
+		return safexcel_queue_req(&req->base, creq, SAFEXCEL_DECRYPT);
+
+	/* HW cannot do full (AAD+payload) zero length, use fallback */
+	return safexcel_aead_fallback_crypt(req, SAFEXCEL_DECRYPT);
+}
+
+static int safexcel_aead_sm4cbc_sm3_cra_init(struct crypto_tfm *tfm)
+{
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	safexcel_aead_fallback_cra_init(tfm);
+	ctx->alg = SAFEXCEL_SM4;
+	ctx->hash_alg = CONTEXT_CONTROL_CRYPTO_ALG_SM3;
+	ctx->state_sz = SM3_DIGEST_SIZE;
+	return 0;
+}
+
+struct safexcel_alg_template safexcel_alg_authenc_hmac_sm3_cbc_sm4 = {
+	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_SM4 | SAFEXCEL_ALG_SM3,
+	.alg.aead = {
+		.setkey = safexcel_aead_fallback_setkey,
+		.setauthsize = safexcel_aead_fallback_setauthsize,
+		.encrypt = safexcel_aead_sm4cbc_sm3_encrypt,
+		.decrypt = safexcel_aead_sm4cbc_sm3_decrypt,
+		.ivsize = SM4_BLOCK_SIZE,
+		.maxauthsize = SM3_DIGEST_SIZE,
+		.base = {
+			.cra_name = "authenc(hmac(sm3),cbc(sm4))",
+			.cra_driver_name = "safexcel-authenc-hmac-sm3-cbc-sm4",
+			.cra_priority = SAFEXCEL_CRA_PRIORITY,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY |
+				     CRYPTO_ALG_NEED_FALLBACK,
+			.cra_blocksize = SM4_BLOCK_SIZE,
+			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
+			.cra_alignmask = 0,
+			.cra_init = safexcel_aead_sm4cbc_sm3_cra_init,
+			.cra_exit = safexcel_aead_fallback_cra_exit,
+			.cra_module = THIS_MODULE,
+		},
+	},
+};
+
+static int safexcel_aead_sm4ctr_sha1_cra_init(struct crypto_tfm *tfm)
+{
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	safexcel_aead_sm4cbc_sha1_cra_init(tfm);
+	ctx->mode = CONTEXT_CONTROL_CRYPTO_MODE_CTR_LOAD;
+	return 0;
+}
+
+struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_ctr_sm4 = {
+	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_SM4 | SAFEXCEL_ALG_SHA1,
+	.alg.aead = {
+		.setkey = safexcel_aead_setkey,
+		.encrypt = safexcel_aead_encrypt,
+		.decrypt = safexcel_aead_decrypt,
+		.ivsize = CTR_RFC3686_IV_SIZE,
+		.maxauthsize = SHA1_DIGEST_SIZE,
+		.base = {
+			.cra_name = "authenc(hmac(sha1),rfc3686(ctr(sm4)))",
+			.cra_driver_name = "safexcel-authenc-hmac-sha1-ctr-sm4",
+			.cra_priority = SAFEXCEL_CRA_PRIORITY,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize = 1,
+			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
+			.cra_alignmask = 0,
+			.cra_init = safexcel_aead_sm4ctr_sha1_cra_init,
+			.cra_exit = safexcel_aead_cra_exit,
+			.cra_module = THIS_MODULE,
+		},
+	},
+};
+
+static int safexcel_aead_sm4ctr_sm3_cra_init(struct crypto_tfm *tfm)
+{
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	safexcel_aead_sm4cbc_sm3_cra_init(tfm);
+	ctx->mode = CONTEXT_CONTROL_CRYPTO_MODE_CTR_LOAD;
+	return 0;
+}
+
+struct safexcel_alg_template safexcel_alg_authenc_hmac_sm3_ctr_sm4 = {
+	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_SM4 | SAFEXCEL_ALG_SM3,
+	.alg.aead = {
+		.setkey = safexcel_aead_setkey,
+		.encrypt = safexcel_aead_encrypt,
+		.decrypt = safexcel_aead_decrypt,
+		.ivsize = CTR_RFC3686_IV_SIZE,
+		.maxauthsize = SM3_DIGEST_SIZE,
+		.base = {
+			.cra_name = "authenc(hmac(sm3),rfc3686(ctr(sm4)))",
+			.cra_driver_name = "safexcel-authenc-hmac-sm3-ctr-sm4",
+			.cra_priority = SAFEXCEL_CRA_PRIORITY,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize = 1,
+			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
+			.cra_alignmask = 0,
+			.cra_init = safexcel_aead_sm4ctr_sm3_cra_init,
+			.cra_exit = safexcel_aead_cra_exit,
 			.cra_module = THIS_MODULE,
 		},
 	},
