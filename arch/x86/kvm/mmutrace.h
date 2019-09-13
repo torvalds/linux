@@ -8,11 +8,11 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvmmmu
 
-#define KVM_MMU_PAGE_FIELDS			\
-	__field(unsigned long, mmu_valid_gen)	\
-	__field(__u64, gfn)			\
-	__field(__u32, role)			\
-	__field(__u32, root_count)		\
+#define KVM_MMU_PAGE_FIELDS		\
+	__field(__u8, mmu_valid_gen)	\
+	__field(__u64, gfn)		\
+	__field(__u32, role)		\
+	__field(__u32, root_count)	\
 	__field(bool, unsync)
 
 #define KVM_MMU_PAGE_ASSIGN(sp)				\
@@ -31,7 +31,7 @@
 								        \
 	role.word = __entry->role;					\
 									\
-	trace_seq_printf(p, "sp gen %lx gfn %llx l%u %u-byte q%u%s %s%s"\
+	trace_seq_printf(p, "sp gen %u gfn %llx l%u %u-byte q%u%s %s%s"	\
 			 " %snxe %sad root %u %s%c",			\
 			 __entry->mmu_valid_gen,			\
 			 __entry->gfn, role.level,			\
@@ -288,7 +288,7 @@ TRACE_EVENT(
 	TP_ARGS(kvm),
 
 	TP_STRUCT__entry(
-		__field(unsigned long, mmu_valid_gen)
+		__field(__u8, mmu_valid_gen)
 		__field(unsigned int, mmu_used_pages)
 	),
 
@@ -297,7 +297,7 @@ TRACE_EVENT(
 		__entry->mmu_used_pages = kvm->arch.n_used_mmu_pages;
 	),
 
-	TP_printk("kvm-mmu-valid-gen %lx used_pages %x",
+	TP_printk("kvm-mmu-valid-gen %u used_pages %x",
 		  __entry->mmu_valid_gen, __entry->mmu_used_pages
 	)
 );
