@@ -38,6 +38,7 @@ static int fact_avx = 0xFF;
 static unsigned long long fact_trl;
 static int out_format_json;
 static int cmd_help;
+static int force_online_offline;
 
 /* clos related */
 static int current_clos = -1;
@@ -138,14 +139,14 @@ int out_format_is_json(void)
 int get_physical_package_id(int cpu)
 {
 	return parse_int_file(
-		1, "/sys/devices/system/cpu/cpu%d/topology/physical_package_id",
+		0, "/sys/devices/system/cpu/cpu%d/topology/physical_package_id",
 		cpu);
 }
 
 int get_physical_core_id(int cpu)
 {
 	return parse_int_file(
-		1, "/sys/devices/system/cpu/cpu%d/topology/core_id", cpu);
+		0, "/sys/devices/system/cpu/cpu%d/topology/core_id", cpu);
 }
 
 int get_physical_die_id(int cpu)
@@ -163,6 +164,26 @@ int get_physical_die_id(int cpu)
 int get_topo_max_cpus(void)
 {
 	return topo_max_cpus;
+}
+
+static void set_cpu_online_offline(int cpu, int state)
+{
+	char buffer[128];
+	int fd;
+
+	snprintf(buffer, sizeof(buffer),
+		 "/sys/devices/system/cpu/cpu%d/online", cpu);
+
+	fd = open(buffer, O_WRONLY);
+	if (fd < 0)
+		err(-1, "%s open failed", buffer);
+
+	if (state)
+		write(fd, "1\n", 2);
+	else
+		write(fd, "0\n", 2);
+
+	close(fd);
 }
 
 #define MAX_PACKAGE_COUNT 8
@@ -736,9 +757,34 @@ static void set_tdp_level_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	ret = isst_set_tdp_level(cpu, tdp_level);
 	if (ret)
 		perror("set_tdp_level_for_cpu");
-	else
+	else {
 		isst_display_result(cpu, outf, "perf-profile", "set_tdp_level",
 				    ret);
+		if (force_online_offline) {
+			struct isst_pkg_ctdp_level_info ctdp_level;
+			int pkg_id = get_physical_package_id(cpu);
+			int die_id = get_physical_die_id(cpu);
+
+			fprintf(stderr, "Option is set to online/offline\n");
+			ctdp_level.core_cpumask_size =
+				alloc_cpu_set(&ctdp_level.core_cpumask);
+			isst_get_coremask_info(cpu, tdp_level, &ctdp_level);
+			if (ctdp_level.cpu_count) {
+				int i, max_cpus = get_topo_max_cpus();
+				for (i = 0; i < max_cpus; ++i) {
+					if (pkg_id != get_physical_package_id(i) || die_id != get_physical_die_id(i))
+						continue;
+					if (CPU_ISSET_S(i, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask)) {
+						fprintf(stderr, "online cpu %d\n", i);
+						set_cpu_online_offline(i, 1);
+					} else {
+						fprintf(stderr, "offline cpu %d\n", i);
+						set_cpu_online_offline(i, 0);
+					}
+				}
+			}
+		}
+	}
 }
 
 static void set_tdp_level(void)
@@ -747,6 +793,8 @@ static void set_tdp_level(void)
 		fprintf(stderr, "Set Config TDP level\n");
 		fprintf(stderr,
 			"\t Arguments: -l|--level : Specify tdp level\n");
+		fprintf(stderr,
+			"\t Optional Arguments: -o | online : online/offline for the tdp level\n");
 		exit(0);
 	}
 
@@ -1319,6 +1367,7 @@ static void parse_cmd_args(int argc, int start, char **argv)
 	static struct option long_options[] = {
 		{ "bucket", required_argument, 0, 'b' },
 		{ "level", required_argument, 0, 'l' },
+		{ "online", required_argument, 0, 'o' },
 		{ "trl-type", required_argument, 0, 'r' },
 		{ "trl", required_argument, 0, 't' },
 		{ "help", no_argument, 0, 'h' },
@@ -1335,7 +1384,7 @@ static void parse_cmd_args(int argc, int start, char **argv)
 	option_index = start;
 
 	optind = start + 1;
-	while ((opt = getopt_long(argc, argv, "b:l:t:c:d:e:n:m:p:w:h",
+	while ((opt = getopt_long(argc, argv, "b:l:t:c:d:e:n:m:p:w:ho",
 				  long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'b':
@@ -1346,6 +1395,9 @@ static void parse_cmd_args(int argc, int start, char **argv)
 			break;
 		case 'l':
 			tdp_level = atoi(optarg);
+			break;
+		case 'o':
+			force_online_offline = 1;
 			break;
 		case 't':
 			sscanf(optarg, "0x%llx", &fact_trl);
