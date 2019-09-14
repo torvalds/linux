@@ -111,6 +111,7 @@ static void axg_card_clean_references(struct axg_card *priv)
 	struct snd_soc_card *card = &priv->card;
 	struct snd_soc_dai_link *link;
 	struct snd_soc_dai_link_component *codec;
+	struct snd_soc_aux_dev *aux;
 	int i, j;
 
 	if (card->dai_link) {
@@ -123,8 +124,8 @@ static void axg_card_clean_references(struct axg_card *priv)
 	}
 
 	if (card->aux_dev) {
-		for (i = 0; i < card->num_aux_devs; i++)
-			of_node_put(card->aux_dev[i].codec_of_node);
+		for_each_card_pre_auxs(card, i, aux)
+			of_node_put(aux->dlc.of_node);
 	}
 
 	kfree(card->dai_link);
@@ -157,10 +158,10 @@ static int axg_card_add_aux_devices(struct snd_soc_card *card)
 	card->aux_dev = aux;
 	card->num_aux_devs = num;
 
-	for (i = 0; i < card->num_aux_devs; i++, aux++) {
-		aux->codec_of_node =
+	for_each_card_pre_auxs(card, i, aux) {
+		aux->dlc.of_node =
 			of_parse_phandle(node, "audio-aux-devs", i);
-		if (!aux->codec_of_node)
+		if (!aux->dlc.of_node)
 			return -EINVAL;
 	}
 

@@ -79,7 +79,6 @@ count for the TTM, which will call your initialization function.
 
 See the radeon_ttm.c file for an example of usage.
 
-
 The Graphics Execution Manager (GEM)
 ====================================
 
@@ -378,6 +377,39 @@ GEM CMA Helper Functions Reference
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
+   :export:
+
+VRAM Helper Function Reference
+==============================
+
+.. kernel-doc:: drivers/gpu/drm/drm_vram_helper_common.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_gem_vram_helper.h
+   :internal:
+
+GEM VRAM Helper Functions Reference
+-----------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_vram_helper.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_gem_vram_helper.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_vram_helper.c
+   :export:
+
+VRAM MM Helper Functions Reference
+----------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_vram_mm_helper.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_vram_mm_helper.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_vram_mm_helper.c
    :export:
 
 VMA Offset Manager

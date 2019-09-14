@@ -14,8 +14,6 @@
 #include <linux/etherdevice.h>
 #include <net/dsa.h>
 
-struct ksz_io_ops;
-
 struct vlan_table {
 	u32 table[3];
 };
@@ -49,14 +47,13 @@ struct ksz_device {
 	const char *name;
 
 	struct mutex dev_mutex;		/* device access */
-	struct mutex reg_mutex;		/* register access */
 	struct mutex stats_mutex;	/* status access */
 	struct mutex alu_mutex;		/* ALU access */
 	struct mutex vlan_mutex;	/* vlan access */
-	const struct ksz_io_ops *ops;
 	const struct ksz_dev_ops *dev_ops;
 
 	struct device *dev;
+	struct regmap *regmap[3];
 
 	void *priv;
 
@@ -77,10 +74,10 @@ struct ksz_device {
 	int last_port;			/* ports after that not used */
 	phy_interface_t interface;
 	u32 regs_size;
+	bool phy_errata_9477;
+	bool synclko_125;
 
 	struct vlan_table *vlan_cache;
-
-	u8 *txbuf;
 
 	struct ksz_port *ports;
 	struct timer_list mib_read_timer;
@@ -98,19 +95,6 @@ struct ksz_device {
 	u32 overrides;			/* chip functions set by user */
 	u16 host_mask;
 	u16 port_mask;
-};
-
-struct ksz_io_ops {
-	int (*read8)(struct ksz_device *dev, u32 reg, u8 *value);
-	int (*read16)(struct ksz_device *dev, u32 reg, u16 *value);
-	int (*read24)(struct ksz_device *dev, u32 reg, u32 *value);
-	int (*read32)(struct ksz_device *dev, u32 reg, u32 *value);
-	int (*write8)(struct ksz_device *dev, u32 reg, u8 value);
-	int (*write16)(struct ksz_device *dev, u32 reg, u16 value);
-	int (*write24)(struct ksz_device *dev, u32 reg, u32 value);
-	int (*write32)(struct ksz_device *dev, u32 reg, u32 value);
-	int (*get)(struct ksz_device *dev, u32 reg, void *data, size_t len);
-	int (*set)(struct ksz_device *dev, u32 reg, void *data, size_t len);
 };
 
 struct alu_struct {
@@ -161,8 +145,7 @@ struct ksz_dev_ops {
 	void (*exit)(struct ksz_device *dev);
 };
 
-struct ksz_device *ksz_switch_alloc(struct device *base,
-				    const struct ksz_io_ops *ops, void *priv);
+struct ksz_device *ksz_switch_alloc(struct device *base, void *priv);
 int ksz_switch_register(struct ksz_device *dev,
 			const struct ksz_dev_ops *ops);
 void ksz_switch_remove(struct ksz_device *dev);

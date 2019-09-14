@@ -611,9 +611,6 @@ static int dpu_encoder_virt_atomic_check(
 		}
 	}
 
-	if (!ret)
-		drm_mode_set_crtcinfo(adj_mode, 0);
-
 	trace_dpu_enc_atomic_check_flags(DRMID(drm_enc), adj_mode->flags,
 			adj_mode->private_flags);
 
@@ -1974,8 +1971,6 @@ static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 	/* create overall sub-directory for the encoder */
 	dpu_enc->debugfs_root = debugfs_create_dir(name,
 			drm_enc->dev->primary->debugfs_root);
-	if (!dpu_enc->debugfs_root)
-		return -ENOMEM;
 
 	/* don't error check these */
 	debugfs_create_file("status", 0600,
@@ -2226,8 +2221,6 @@ int dpu_encoder_setup(struct drm_device *dev, struct drm_encoder *enc,
 	if (ret)
 		goto fail;
 
-	spin_lock_init(&dpu_enc->enc_spinlock);
-
 	atomic_set(&dpu_enc->frame_done_timeout_ms, 0);
 	timer_setup(&dpu_enc->frame_done_timer,
 			dpu_encoder_frame_done_timeout, 0);
@@ -2281,6 +2274,7 @@ struct drm_encoder *dpu_encoder_init(struct drm_device *dev,
 
 	drm_encoder_helper_add(&dpu_enc->base, &dpu_encoder_helper_funcs);
 
+	spin_lock_init(&dpu_enc->enc_spinlock);
 	dpu_enc->enabled = false;
 
 	return &dpu_enc->base;

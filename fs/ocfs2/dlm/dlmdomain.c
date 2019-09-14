@@ -1881,11 +1881,7 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 		goto bail;
 	}
 
-	status = dlm_debug_init(dlm);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
+	dlm_debug_init(dlm);
 
 	snprintf(wq_name, O2NM_MAX_NAME_LEN, "dlm_wq-%s", dlm->name);
 	dlm->dlm_worker = alloc_workqueue(wq_name, WQ_MEM_RECLAIM, 0);
@@ -2346,9 +2342,7 @@ static int __init dlm_init(void)
 		goto error;
 	}
 
-	status = dlm_create_debugfs_root();
-	if (status)
-		goto error;
+	dlm_create_debugfs_root();
 
 	return 0;
 error:

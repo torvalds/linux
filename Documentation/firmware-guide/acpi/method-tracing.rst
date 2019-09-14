@@ -68,7 +68,7 @@ c. Filter out the debug layer/level matched logs when the specified
 
 Where:
    0xXXXXXXXX/0xYYYYYYYY
-     Refer to Documentation/acpi/debug.txt for possible debug layer/level
+     Refer to Documentation/firmware-guide/acpi/debug.rst for possible debug layer/level
      masking values.
    \PPPP.AAAA.TTTT.HHHH
      Full path of a control method that can be found in the ACPI namespace.

@@ -19,13 +19,15 @@ quiet_cmd_mk_schema = SCHEMA  $@
 
 DT_DOCS = $(shell \
 	cd $(srctree)/$(src) && \
-	find * \( -name '*.yaml' ! -name $(DT_TMP_SCHEMA) \) \
+	find * \( -name '*.yaml' ! \
+		-name $(DT_TMP_SCHEMA) ! \
+		-name '*.example.dt.yaml' \) \
 	)
 
 DT_SCHEMA_FILES ?= $(addprefix $(src)/,$(DT_DOCS))
 
 extra-y += $(patsubst $(src)/%.yaml,%.example.dts, $(DT_SCHEMA_FILES))
-extra-y += $(patsubst $(src)/%.yaml,%.example.dtb, $(DT_SCHEMA_FILES))
+extra-y += $(patsubst $(src)/%.yaml,%.example.dt.yaml, $(DT_SCHEMA_FILES))
 
 $(obj)/$(DT_TMP_SCHEMA): $(DT_SCHEMA_FILES) FORCE
 	$(call if_changed,mk_schema)

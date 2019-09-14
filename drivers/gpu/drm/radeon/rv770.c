@@ -25,16 +25,20 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+
 #include <linux/firmware.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_pci.h>
+#include <drm/radeon_drm.h>
+
+#include "atom.h"
+#include "avivod.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"
-#include <drm/radeon_drm.h>
 #include "rv770d.h"
-#include "atom.h"
-#include "avivod.h"
 
 #define R700_PFP_UCODE_SIZE 848
 #define R700_PM4_UCODE_SIZE 1360

@@ -7,6 +7,7 @@ Required properties:
 
 - compatible:		Must be one of
 			 "fsl,ls1021a-qdma": for LS1021A Board
+			 "fsl,ls1028a-qdma": for LS1028A Board
 			 "fsl,ls1043a-qdma": for ls1043A Board
 			 "fsl,ls1046a-qdma": for ls1046A Board
 - reg:			Should contain the register's base address and length.

@@ -2,6 +2,7 @@
 #ifndef _PARISC_PGTABLE_H
 #define _PARISC_PGTABLE_H
 
+#include <asm/page.h>
 #include <asm-generic/4level-fixup.h>
 
 #include <asm/fixmap.h>
@@ -97,8 +98,6 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 	} while (0)
 
 #endif /* !__ASSEMBLY__ */
-
-#include <asm/page.h>
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))

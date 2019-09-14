@@ -23,6 +23,9 @@
  *
  */
 
+#include <linux/delay.h>
+#include <linux/slab.h>
+
 #include "core_types.h"
 #include "link_encoder.h"
 #include "dce_dmcu.h"
@@ -388,6 +391,9 @@ static bool dcn10_dmcu_init(struct dmcu *dmcu)
 		/* Set initialized ramping boundary value */
 		REG_WRITE(MASTER_COMM_DATA_REG1, 0xFFFF);
 
+		/* Set backlight ramping stepsize */
+		REG_WRITE(MASTER_COMM_DATA_REG2, abm_gain_stepsize);
+
 		/* Set command to initialize microcontroller */
 		REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0,
 			MCP_INIT_DMCU);
@@ -723,6 +729,56 @@ static bool dcn10_is_dmcu_initialized(struct dmcu *dmcu)
 
 #endif //(CONFIG_DRM_AMD_DC_DCN1_0)
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+
+static bool dcn20_lock_phy(struct dmcu *dmcu)
+{
+	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
+
+	/* If microcontroller is not running, do nothing */
+	if (dmcu->dmcu_state != DMCU_RUNNING)
+		return false;
+
+	/* waitDMCUReadyForCmd */
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 1, 10000);
+
+	/* setDMCUParam_Cmd */
+	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, MCP_SYNC_PHY_LOCK);
+
+	/* notifyDMCUMsg */
+	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+
+	/* waitDMCUReadyForCmd */
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 1, 10000);
+
+	return true;
+}
+
+static bool dcn20_unlock_phy(struct dmcu *dmcu)
+{
+	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
+
+	/* If microcontroller is not running, do nothing */
+	if (dmcu->dmcu_state != DMCU_RUNNING)
+		return false;
+
+	/* waitDMCUReadyForCmd */
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 1, 10000);
+
+	/* setDMCUParam_Cmd */
+	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, MCP_SYNC_PHY_UNLOCK);
+
+	/* notifyDMCUMsg */
+	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+
+	/* waitDMCUReadyForCmd */
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 1, 10000);
+
+	return true;
+}
+
+#endif //(CONFIG_DRM_AMD_DC_DCN2_0)
+
 static const struct dmcu_funcs dce_funcs = {
 	.dmcu_init = dce_dmcu_init,
 	.load_iram = dce_dmcu_load_iram,
@@ -744,6 +800,21 @@ static const struct dmcu_funcs dcn10_funcs = {
 	.set_psr_wait_loop = dcn10_psr_wait_loop,
 	.get_psr_wait_loop = dcn10_get_psr_wait_loop,
 	.is_dmcu_initialized = dcn10_is_dmcu_initialized
+};
+#endif
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+static const struct dmcu_funcs dcn20_funcs = {
+	.dmcu_init = dcn10_dmcu_init,
+	.load_iram = dcn10_dmcu_load_iram,
+	.set_psr_enable = dcn10_dmcu_set_psr_enable,
+	.setup_psr = dcn10_dmcu_setup_psr,
+	.get_psr_state = dcn10_get_dmcu_psr_state,
+	.set_psr_wait_loop = dcn10_psr_wait_loop,
+	.get_psr_wait_loop = dcn10_get_psr_wait_loop,
+	.is_dmcu_initialized = dcn10_is_dmcu_initialized,
+	.lock_phy = dcn20_lock_phy,
+	.unlock_phy = dcn20_unlock_phy
 };
 #endif
 
@@ -809,9 +880,35 @@ struct dmcu *dcn10_dmcu_create(
 }
 #endif
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+struct dmcu *dcn20_dmcu_create(
+	struct dc_context *ctx,
+	const struct dce_dmcu_registers *regs,
+	const struct dce_dmcu_shift *dmcu_shift,
+	const struct dce_dmcu_mask *dmcu_mask)
+{
+	struct dce_dmcu *dmcu_dce = kzalloc(sizeof(*dmcu_dce), GFP_KERNEL);
+
+	if (dmcu_dce == NULL) {
+		BREAK_TO_DEBUGGER();
+		return NULL;
+	}
+
+	dce_dmcu_construct(
+		dmcu_dce, ctx, regs, dmcu_shift, dmcu_mask);
+
+	dmcu_dce->base.funcs = &dcn20_funcs;
+
+	return &dmcu_dce->base;
+}
+#endif
+
 void dce_dmcu_destroy(struct dmcu **dmcu)
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(*dmcu);
+
+	if (dmcu_dce->base.dmcu_state == DMCU_RUNNING)
+		dmcu_dce->base.funcs->set_psr_enable(*dmcu, false, true);
 
 	kfree(dmcu_dce);
 	*dmcu = NULL;

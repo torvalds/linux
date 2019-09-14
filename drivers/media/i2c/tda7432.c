@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * For the STS-Thompson TDA7432 audio processor chip
  *
@@ -9,7 +10,7 @@
  *
  * Copyright (c) 2000 Eric Sandeen <eric_sandeen@bigfoot.com>
  * Copyright (c) 2006 Mauro Carvalho Chehab <mchehab@kernel.org>
- * This code is placed under the terms of the GNU General Public License
+ *
  * Based on tda9855.c by Steve VanDeBogart (vandebo@uclink.berkeley.edu)
  * Which was based on tda8425.c by Greg Alexander (c) 1998
  *

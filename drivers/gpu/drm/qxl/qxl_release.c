@@ -256,7 +256,7 @@ int qxl_release_reserve_list(struct qxl_release *release, bool no_intr)
 		return 0;
 
 	ret = ttm_eu_reserve_buffers(&release->ticket, &release->bos,
-				     !no_intr, NULL);
+				     !no_intr, NULL, true);
 	if (ret)
 		return ret;
 

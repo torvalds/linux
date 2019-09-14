@@ -39,7 +39,7 @@ and elsewhere regarding submitting Linux kernel patches.
 
 6) Any new or modified ``CONFIG`` options do not muck up the config menu and
    default to off unless they meet the exception criteria documented in
-   ``Documentation/kbuild/kconfig-language.txt`` Menu attributes: default value.
+   ``Documentation/kbuild/kconfig-language.rst`` Menu attributes: default value.
 
 7) All new ``Kconfig`` options have help text.
 
@@ -107,7 +107,7 @@ and elsewhere regarding submitting Linux kernel patches.
     and why.
 
 26) If any ioctl's are added by the patch, then also update
-    ``Documentation/ioctl/ioctl-number.txt``.
+    ``Documentation/ioctl/ioctl-number.rst``.
 
 27) If your modified source code depends on or uses any of the kernel
     APIs or features that are related to the following ``Kconfig`` symbols,

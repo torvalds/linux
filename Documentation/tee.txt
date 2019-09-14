@@ -32,7 +32,7 @@ User space (the client) connects to the driver by opening /dev/tee[0-9]* or
   memory.
 
 - TEE_IOC_VERSION lets user space know which TEE this driver handles and
-  the its capabilities.
+  its capabilities.
 
 - TEE_IOC_OPEN_SESSION opens a new session to a Trusted Application.
 

@@ -604,7 +604,7 @@ static void update_main_config_table(struct pm8001_hba_info *pm8001_ha)
 		pm8001_ha->main_cfg_tbl.pm80xx_tbl.port_recovery_timer &=
 					0x0000ffff;
 		pm8001_ha->main_cfg_tbl.pm80xx_tbl.port_recovery_timer |=
-					0x140000;
+					CHIP_8006_PORT_RECOVERY_TIMEOUT;
 	}
 	pm8001_mw32(address, MAIN_PORT_RECOVERY_TIMER,
 			pm8001_ha->main_cfg_tbl.pm80xx_tbl.port_recovery_timer);
@@ -2066,7 +2066,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	if ((status != IO_SUCCESS) && (status != IO_OVERFLOW) &&
 		(status != IO_UNDERFLOW)) {
 		if (!((t->dev->parent) &&
-			(DEV_IS_EXPANDER(t->dev->parent->dev_type)))) {
+			(dev_is_expander(t->dev->parent->dev_type)))) {
 			for (i = 0 , j = 4; i <= 3 && j <= 7; i++ , j++)
 				sata_addr_low[i] = pm8001_ha->sas_addr[j];
 			for (i = 0 , j = 0; i <= 3 && j <= 3; i++ , j++)
@@ -4561,7 +4561,7 @@ static int pm80xx_chip_reg_dev_req(struct pm8001_hba_info *pm8001_ha,
 			pm8001_dev->dev_type == SAS_FANOUT_EXPANDER_DEVICE)
 			stp_sspsmp_sata = 0x01; /*ssp or smp*/
 	}
-	if (parent_dev && DEV_IS_EXPANDER(parent_dev->dev_type))
+	if (parent_dev && dev_is_expander(parent_dev->dev_type))
 		phy_id = parent_dev->ex_dev.ex_phy->phy_id;
 	else
 		phy_id = pm8001_dev->attached_phy;

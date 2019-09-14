@@ -176,7 +176,7 @@ __kprobes ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 	}
 	force_sig_fault(sig, code,
 			(void __user *) (regs->cr_iip + ia64_psr(regs)->ri),
-			break_num, 0 /* clear __ISR_VALID */, 0, current);
+			break_num, 0 /* clear __ISR_VALID */, 0);
 }
 
 /*
@@ -353,7 +353,7 @@ handle_fpu_swa (int fp_fault, struct pt_regs *regs, unsigned long isr)
 			}
 			force_sig_fault(SIGFPE, si_code,
 					(void __user *) (regs->cr_iip + ia64_psr(regs)->ri),
-					0, __ISR_VALID, isr, current);
+					0, __ISR_VALID, isr);
 		}
 	} else {
 		if (exception == -1) {
@@ -373,7 +373,7 @@ handle_fpu_swa (int fp_fault, struct pt_regs *regs, unsigned long isr)
 			}
 			force_sig_fault(SIGFPE, si_code,
 					(void __user *) (regs->cr_iip + ia64_psr(regs)->ri),
-					0, __ISR_VALID, isr, current);
+					0, __ISR_VALID, isr);
 		}
 	}
 	return 0;
@@ -408,7 +408,7 @@ ia64_illegal_op_fault (unsigned long ec, long arg1, long arg2, long arg3,
 
 	force_sig_fault(SIGILL, ILL_ILLOPC,
 			(void __user *) (regs.cr_iip + ia64_psr(&regs)->ri),
-			0, 0, 0, current);
+			0, 0, 0);
 	return rv;
 }
 
@@ -483,7 +483,7 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 							+ ia64_psr(&regs)->ri);
 			}
 			force_sig_fault(sig, code, addr,
-					vector, __ISR_VALID, isr, current);
+					vector, __ISR_VALID, isr);
 			return;
 		} else if (ia64_done_with_exception(&regs))
 			return;
@@ -493,7 +493,7 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 	      case 31: /* Unsupported Data Reference */
 		if (user_mode(&regs)) {
 			force_sig_fault(SIGILL, ILL_ILLOPN, (void __user *) iip,
-					vector, __ISR_VALID, isr, current);
+					vector, __ISR_VALID, isr);
 			return;
 		}
 		sprintf(buf, "Unsupported data reference");
@@ -542,7 +542,7 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 			       	== NOTIFY_STOP)
 			return;
 		force_sig_fault(SIGTRAP, si_code, (void __user *) ifa,
-				0, __ISR_VALID, isr, current);
+				0, __ISR_VALID, isr);
 		return;
 
 	      case 32: /* fp fault */
@@ -550,7 +550,7 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 		result = handle_fpu_swa((vector == 32) ? 1 : 0, &regs, isr);
 		if ((result < 0) || (current->thread.flags & IA64_THREAD_FPEMU_SIGFPE)) {
 			force_sig_fault(SIGFPE, FPE_FLTINV, (void __user *) iip,
-					0, __ISR_VALID, isr, current);
+					0, __ISR_VALID, isr);
 		}
 		return;
 
@@ -578,7 +578,7 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 			if (user_mode(&regs)) {
 				force_sig_fault(SIGILL, ILL_BADIADDR,
 						(void __user *) iip,
-						0, 0, 0, current);
+						0, 0, 0);
 				return;
 			}
 			sprintf(buf, "Unimplemented Instruction Address fault");
@@ -589,14 +589,14 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 		printk(KERN_ERR "Unexpected IA-32 exception (Trap 45)\n");
 		printk(KERN_ERR "  iip - 0x%lx, ifa - 0x%lx, isr - 0x%lx\n",
 		       iip, ifa, isr);
-		force_sig(SIGSEGV, current);
+		force_sig(SIGSEGV);
 		return;
 
 	      case 46:
 		printk(KERN_ERR "Unexpected IA-32 intercept trap (Trap 46)\n");
 		printk(KERN_ERR "  iip - 0x%lx, ifa - 0x%lx, isr - 0x%lx, iim - 0x%lx\n",
 		       iip, ifa, isr, iim);
-		force_sig(SIGSEGV, current);
+		force_sig(SIGSEGV);
 		return;
 
 	      case 47:
@@ -608,5 +608,5 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 		break;
 	}
 	if (!die_if_kernel(buf, &regs, error))
-		force_sig(SIGILL, current);
+		force_sig(SIGILL);
 }

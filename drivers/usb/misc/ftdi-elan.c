@@ -2023,13 +2023,6 @@ static int ftdi_elan_synchronize(struct usb_ftdi *ftdi)
 						goto read;
 					} else
 						goto reset;
-				} else if (s1 == 0x31 && s2 == 0x60) {
-					if (read_stop-- > 0) {
-						goto read;
-					} else {
-						dev_err(&ftdi->udev->dev, "retry limit reached\n");
-						continue;
-					}
 				} else {
 					if (read_stop-- > 0) {
 						goto read;

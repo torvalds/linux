@@ -148,12 +148,12 @@ struct tcp_estats_basic_event {
 	struct tcp_estats_conn_id conn_id;
 };
 
-struct bpf_map_def SEC("maps") ev_record_map = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct tcp_estats_basic_event),
-	.max_entries = 1024,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 1024);
+	__type(key, __u32);
+	__type(value, struct tcp_estats_basic_event);
+} ev_record_map SEC(".maps");
 
 struct dummy_tracepoint_args {
 	unsigned long long pad;

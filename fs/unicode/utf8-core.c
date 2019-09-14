@@ -73,6 +73,34 @@ int utf8_strncasecmp(const struct unicode_map *um,
 }
 EXPORT_SYMBOL(utf8_strncasecmp);
 
+/* String cf is expected to be a valid UTF-8 casefolded
+ * string.
+ */
+int utf8_strncasecmp_folded(const struct unicode_map *um,
+			    const struct qstr *cf,
+			    const struct qstr *s1)
+{
+	const struct utf8data *data = utf8nfdicf(um->version);
+	struct utf8cursor cur1;
+	int c1, c2;
+	int i = 0;
+
+	if (utf8ncursor(&cur1, data, s1->name, s1->len) < 0)
+		return -EINVAL;
+
+	do {
+		c1 = utf8byte(&cur1);
+		c2 = cf->name[i++];
+		if (c1 < 0)
+			return -EINVAL;
+		if (c1 != c2)
+			return 1;
+	} while (c1);
+
+	return 0;
+}
+EXPORT_SYMBOL(utf8_strncasecmp_folded);
+
 int utf8_casefold(const struct unicode_map *um, const struct qstr *str,
 		  unsigned char *dest, size_t dlen)
 {

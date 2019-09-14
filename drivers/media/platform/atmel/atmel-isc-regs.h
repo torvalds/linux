@@ -100,13 +100,15 @@
 #define ISC_WB_O_RGR	0x00000060
 
 /* ISC White Balance Offset for B, GB Register */
-#define ISC_WB_O_BGR	0x00000064
+#define ISC_WB_O_BGB	0x00000064
 
 /* ISC White Balance Gain for R, GR Register */
 #define ISC_WB_G_RGR	0x00000068
 
 /* ISC White Balance Gain for B, GB Register */
-#define ISC_WB_G_BGR	0x0000006c
+#define ISC_WB_G_BGB	0x0000006c
+
+#define ISC_WB_O_ZERO_VAL	(1 << 13)
 
 /* ISC Color Filter Array Control Register */
 #define ISC_CFA_CTRL    0x00000070

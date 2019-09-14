@@ -1,0 +1,130 @@
+================================================
+SH7760/SH7763 integrated LCDC Framebuffer driver
+================================================
+
+0. Overview
+-----------
+The SH7760/SH7763 have an integrated LCD Display controller (LCDC) which
+supports (in theory) resolutions ranging from 1x1 to 1024x1024,
+with color depths ranging from 1 to 16 bits, on STN, DSTN and TFT Panels.
+
+Caveats:
+
+* Framebuffer memory must be a large chunk allocated at the top
+  of Area3 (HW requirement). Because of this requirement you should NOT
+  make the driver a module since at runtime it may become impossible to
+  get a large enough contiguous chunk of memory.
+
+* The driver does not support changing resolution while loaded
+  (displays aren't hotpluggable anyway)
+
+* Heavy flickering may be observed
+  a) if you're using 15/16bit color modes at >= 640x480 px resolutions,
+  b) during PCMCIA (or any other slow bus) activity.
+
+* Rotation works only 90degress clockwise, and only if horizontal
+  resolution is <= 320 pixels.
+
+Files:
+	- drivers/video/sh7760fb.c
+	- include/asm-sh/sh7760fb.h
+	- Documentation/fb/sh7760fb.rst
+
+1. Platform setup
+-----------------
+SH7760:
+ Video data is fetched via the DMABRG DMA engine, so you have to
+ configure the SH DMAC for DMABRG mode (write 0x94808080 to the
+ DMARSRA register somewhere at boot).
+
+ PFC registers PCCR and PCDR must be set to peripheral mode.
+ (write zeros to both).
+
+The driver does NOT do the above for you since board setup is, well, job
+of the board setup code.
+
+2. Panel definitions
+--------------------
+The LCDC must explicitly be told about the type of LCD panel
+attached.  Data must be wrapped in a "struct sh7760fb_platdata" and
+passed to the driver as platform_data.
+
+Suggest you take a closer look at the SH7760 Manual, Section 30.
+(http://documentation.renesas.com/eng/products/mpumcu/e602291_sh7760.pdf)
+
+The following code illustrates what needs to be done to
+get the framebuffer working on a 640x480 TFT::
+
+  #include <linux/fb.h>
+  #include <asm/sh7760fb.h>
+
+  /*
+   * NEC NL6440bc26-01 640x480 TFT
+   * dotclock 25175 kHz
+   * Xres                640     Yres            480
+   * Htotal      800     Vtotal          525
+   * HsynStart   656     VsynStart       490
+   * HsynLenn    30      VsynLenn        2
+   *
+   * The linux framebuffer layer does not use the syncstart/synclen
+   * values but right/left/upper/lower margin values. The comments
+   * for the x_margin explain how to calculate those from given
+   * panel sync timings.
+   */
+  static struct fb_videomode nl6448bc26 = {
+         .name           = "NL6448BC26",
+         .refresh        = 60,
+         .xres           = 640,
+         .yres           = 480,
+         .pixclock       = 39683,        /* in picoseconds! */
+         .hsync_len      = 30,
+         .vsync_len      = 2,
+         .left_margin    = 114,  /* HTOT - (HSYNSLEN + HSYNSTART) */
+         .right_margin   = 16,   /* HSYNSTART - XRES */
+         .upper_margin   = 33,   /* VTOT - (VSYNLEN + VSYNSTART) */
+         .lower_margin   = 10,   /* VSYNSTART - YRES */
+         .sync           = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+         .vmode          = FB_VMODE_NONINTERLACED,
+         .flag           = 0,
+  };
+
+  static struct sh7760fb_platdata sh7760fb_nl6448 = {
+         .def_mode       = &nl6448bc26,
+         .ldmtr          = LDMTR_TFT_COLOR_16,   /* 16bit TFT panel */
+         .lddfr          = LDDFR_8BPP,           /* we want 8bit output */
+         .ldpmmr         = 0x0070,
+         .ldpspr         = 0x0500,
+         .ldaclnr        = 0,
+         .ldickr         = LDICKR_CLKSRC(LCDC_CLKSRC_EXTERNAL) |
+			 LDICKR_CLKDIV(1),
+         .rotate         = 0,
+         .novsync        = 1,
+         .blank          = NULL,
+  };
+
+  /* SH7760:
+   * 0xFE300800: 256 * 4byte xRGB palette ram
+   * 0xFE300C00: 42 bytes ctrl registers
+   */
+  static struct resource sh7760_lcdc_res[] = {
+         [0] = {
+	       .start  = 0xFE300800,
+	       .end    = 0xFE300CFF,
+	       .flags  = IORESOURCE_MEM,
+         },
+         [1] = {
+	       .start  = 65,
+	       .end    = 65,
+	       .flags  = IORESOURCE_IRQ,
+         },
+  };
+
+  static struct platform_device sh7760_lcdc_dev = {
+         .dev    = {
+	       .platform_data = &sh7760fb_nl6448,
+         },
+         .name           = "sh7760-lcdc",
+         .id             = -1,
+         .resource       = sh7760_lcdc_res,
+         .num_resources  = ARRAY_SIZE(sh7760_lcdc_res),
+  };

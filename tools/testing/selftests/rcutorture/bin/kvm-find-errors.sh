@@ -11,6 +11,7 @@
 #
 # The "directory" above should end with the date/time directory, for example,
 # "tools/testing/selftests/rcutorture/res/2018.02.25-14:27:27".
+# Returns error status reflecting the success (or not) of the specified run.
 #
 # Copyright (C) IBM Corporation, 2018
 #
@@ -56,6 +57,8 @@ done
 if test -n "$files"
 then
 	$editor $files
+	exit 1
 else
 	echo No errors in console logs.
+	exit 0
 fi

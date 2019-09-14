@@ -291,7 +291,7 @@ config RTC
 	  and set the RTC in an SMP compatible fashion.
 
 	  If you think you have a use for such a device (such as periodic data
-	  sampling), then say Y here, and read <file:Documentation/rtc.txt>
+	  sampling), then say Y here, and read <file:Documentation/admin-guide/rtc.rst>
 	  for details.
 
 	  To compile this driver as a module, choose M here: the
@@ -313,7 +313,7 @@ config JS_RTC
 	  /dev/rtc.
 
 	  If you think you have a use for such a device (such as periodic data
-	  sampling), then say Y here, and read <file:Documentation/rtc.txt>
+	  sampling), then say Y here, and read <file:Documentation/admin-guide/rtc.rst>
 	  for details.
 
 	  To compile this driver as a module, choose M here: the
@@ -382,7 +382,7 @@ config SONYPI
 	  Device which can be found in many (all ?) Sony Vaio laptops.
 
 	  If you have one of those laptops, read
-	  <file:Documentation/laptops/sonypi.txt>, and say Y or M here.
+	  <file:Documentation/admin-guide/laptops/sonypi.rst>, and say Y or M here.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sonypi.

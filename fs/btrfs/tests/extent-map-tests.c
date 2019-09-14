@@ -66,7 +66,9 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 	em->len = SZ_16K;
 	em->block_start = 0;
 	em->block_len = SZ_16K;
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
+	write_unlock(&em_tree->lock);
 	if (ret < 0) {
 		test_err("cannot add extent range [0, 16K)");
 		goto out;
@@ -85,7 +87,9 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 	em->len = SZ_4K;
 	em->block_start = SZ_32K; /* avoid merging */
 	em->block_len = SZ_4K;
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
+	write_unlock(&em_tree->lock);
 	if (ret < 0) {
 		test_err("cannot add extent range [16K, 20K)");
 		goto out;
@@ -104,7 +108,9 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 	em->len = len;
 	em->block_start = start;
 	em->block_len = len;
+	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
+	write_unlock(&em_tree->lock);
 	if (ret) {
 		test_err("case1 [%llu %llu]: ret %d", start, start + len, ret);
 		goto out;
@@ -148,7 +154,9 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	em->len = SZ_1K;
 	em->block_start = EXTENT_MAP_INLINE;
 	em->block_len = (u64)-1;
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
+	write_unlock(&em_tree->lock);
 	if (ret < 0) {
 		test_err("cannot add extent range [0, 1K)");
 		goto out;
@@ -167,7 +175,9 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	em->len = SZ_4K;
 	em->block_start = SZ_4K;
 	em->block_len = SZ_4K;
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
+	write_unlock(&em_tree->lock);
 	if (ret < 0) {
 		test_err("cannot add extent range [4K, 8K)");
 		goto out;
@@ -186,7 +196,9 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	em->len = SZ_1K;
 	em->block_start = EXTENT_MAP_INLINE;
 	em->block_len = (u64)-1;
+	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
+	write_unlock(&em_tree->lock);
 	if (ret) {
 		test_err("case2 [0 1K]: ret %d", ret);
 		goto out;
@@ -225,7 +237,9 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	em->len = SZ_4K;
 	em->block_start = SZ_4K;
 	em->block_len = SZ_4K;
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
+	write_unlock(&em_tree->lock);
 	if (ret < 0) {
 		test_err("cannot add extent range [4K, 8K)");
 		goto out;
@@ -244,7 +258,9 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	em->len = SZ_16K;
 	em->block_start = 0;
 	em->block_len = SZ_16K;
+	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, start, len);
+	write_unlock(&em_tree->lock);
 	if (ret) {
 		test_err("case3 [0x%llx 0x%llx): ret %d",
 			 start, start + len, ret);
@@ -320,7 +336,9 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	em->len = SZ_8K;
 	em->block_start = 0;
 	em->block_len = SZ_8K;
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
+	write_unlock(&em_tree->lock);
 	if (ret < 0) {
 		test_err("cannot add extent range [0, 8K)");
 		goto out;
@@ -339,7 +357,9 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	em->len = 24 * SZ_1K;
 	em->block_start = SZ_16K; /* avoid merging */
 	em->block_len = 24 * SZ_1K;
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
+	write_unlock(&em_tree->lock);
 	if (ret < 0) {
 		test_err("cannot add extent range [8K, 32K)");
 		goto out;
@@ -357,7 +377,9 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	em->len = SZ_32K;
 	em->block_start = 0;
 	em->block_len = SZ_32K;
+	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, start, len);
+	write_unlock(&em_tree->lock);
 	if (ret) {
 		test_err("case4 [0x%llx 0x%llx): ret %d",
 			 start, len, ret);

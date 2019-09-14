@@ -66,4 +66,6 @@ int ceph_extent_to_file(struct ceph_file_layout *l,
 			struct ceph_file_extent **file_extents,
 			u32 *num_file_extents);
 
+u64 ceph_get_num_objects(struct ceph_file_layout *l, u64 size);
+
 #endif

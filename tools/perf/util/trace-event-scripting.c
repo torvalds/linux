@@ -12,8 +12,8 @@
 
 #include "../perf.h"
 #include "debug.h"
-#include "util.h"
 #include "trace-event.h"
+#include <linux/zalloc.h>
 
 struct scripting_context *scripting_context;
 

@@ -42,12 +42,13 @@
  * Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_mm.h>
-#include <linux/slab.h>
-#include <linux/seq_file.h>
 #include <linux/export.h>
 #include <linux/interval_tree_generic.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/stacktrace.h>
+
+#include <drm/drm_mm.h>
 
 /**
  * DOC: Overview

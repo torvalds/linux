@@ -51,25 +51,13 @@ DEFINE_SHOW_ATTRIBUTE(mic_intr);
  */
 void __init mic_create_card_debug_dir(struct mic_driver *mdrv)
 {
-	struct dentry *d;
-
 	if (!mic_dbg)
 		return;
 
 	mdrv->dbg_dir = debugfs_create_dir(mdrv->name, mic_dbg);
-	if (!mdrv->dbg_dir) {
-		dev_err(mdrv->dev, "Cant create dbg_dir %s\n", mdrv->name);
-		return;
-	}
 
-	d = debugfs_create_file("intr_test", 0444, mdrv->dbg_dir,
-		mdrv, &mic_intr_fops);
-
-	if (!d) {
-		dev_err(mdrv->dev,
-			"Cant create dbg intr_test %s\n", mdrv->name);
-		return;
-	}
+	debugfs_create_file("intr_test", 0444, mdrv->dbg_dir, mdrv,
+			    &mic_intr_fops);
 }
 
 /**
@@ -89,8 +77,6 @@ void mic_delete_card_debug_dir(struct mic_driver *mdrv)
 void __init mic_init_card_debugfs(void)
 {
 	mic_dbg = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!mic_dbg)
-		pr_err("can't create debugfs dir\n");
 }
 
 /**

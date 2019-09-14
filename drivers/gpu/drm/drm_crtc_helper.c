@@ -29,21 +29,23 @@
  *      Jesse Barnes <jesse.barnes@intel.com>
  */
 
-#include <linux/kernel.h>
 #include <linux/export.h>
+#include <linux/kernel.h>
 #include <linux/moduleparam.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_encoder.h>
-#include <drm/drm_fourcc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_plane_helper.h>
-#include <drm/drm_atomic_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_print.h>
+#include <drm/drm_vblank.h>
 
 /**
  * DOC: overview

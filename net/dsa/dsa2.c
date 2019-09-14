@@ -257,7 +257,7 @@ static int dsa_port_setup(struct dsa_port *dp)
 	enum devlink_port_flavour flavour;
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_switch_tree *dst = ds->dst;
-	int err;
+	int err = 0;
 
 	if (dp->type == DSA_PORT_TYPE_UNUSED)
 		return 0;
@@ -295,19 +295,15 @@ static int dsa_port_setup(struct dsa_port *dp)
 		break;
 	case DSA_PORT_TYPE_CPU:
 		err = dsa_port_link_register_of(dp);
-		if (err) {
+		if (err)
 			dev_err(ds->dev, "failed to setup link for port %d.%d\n",
 				ds->index, dp->index);
-			return err;
-		}
 		break;
 	case DSA_PORT_TYPE_DSA:
 		err = dsa_port_link_register_of(dp);
-		if (err) {
+		if (err)
 			dev_err(ds->dev, "failed to setup link for port %d.%d\n",
 				ds->index, dp->index);
-			return err;
-		}
 		break;
 	case DSA_PORT_TYPE_USER:
 		err = dsa_slave_create(dp);
@@ -319,7 +315,10 @@ static int dsa_port_setup(struct dsa_port *dp)
 		break;
 	}
 
-	return 0;
+	if (err)
+		devlink_port_unregister(&dp->devlink_port);
+
+	return err;
 }
 
 static void dsa_port_teardown(struct dsa_port *dp)
@@ -347,7 +346,7 @@ static void dsa_port_teardown(struct dsa_port *dp)
 
 static int dsa_switch_setup(struct dsa_switch *ds)
 {
-	int err;
+	int err = 0;
 
 	/* Initialize ds->phys_mii_mask before registering the slave MDIO bus
 	 * driver and before ops->setup() has run, since the switch drivers and
@@ -365,29 +364,41 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 
 	err = devlink_register(ds->devlink, ds->dev);
 	if (err)
-		return err;
+		goto free_devlink;
 
 	err = dsa_switch_register_notifier(ds);
 	if (err)
-		return err;
+		goto unregister_devlink;
 
 	err = ds->ops->setup(ds);
 	if (err < 0)
-		return err;
+		goto unregister_notifier;
 
 	if (!ds->slave_mii_bus && ds->ops->phy_read) {
 		ds->slave_mii_bus = devm_mdiobus_alloc(ds->dev);
-		if (!ds->slave_mii_bus)
-			return -ENOMEM;
+		if (!ds->slave_mii_bus) {
+			err = -ENOMEM;
+			goto unregister_notifier;
+		}
 
 		dsa_slave_mii_bus_init(ds);
 
 		err = mdiobus_register(ds->slave_mii_bus);
 		if (err < 0)
-			return err;
+			goto unregister_notifier;
 	}
 
 	return 0;
+
+unregister_notifier:
+	dsa_switch_unregister_notifier(ds);
+unregister_devlink:
+	devlink_unregister(ds->devlink);
+free_devlink:
+	devlink_free(ds->devlink);
+	ds->devlink = NULL;
+
+	return err;
 }
 
 static void dsa_switch_teardown(struct dsa_switch *ds)
@@ -396,6 +407,9 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 		mdiobus_unregister(ds->slave_mii_bus);
 
 	dsa_switch_unregister_notifier(ds);
+
+	if (ds->ops->teardown)
+		ds->ops->teardown(ds);
 
 	if (ds->devlink) {
 		devlink_unregister(ds->devlink);
@@ -409,8 +423,8 @@ static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 {
 	struct dsa_switch *ds;
 	struct dsa_port *dp;
-	int device, port;
-	int err;
+	int device, port, i;
+	int err = 0;
 
 	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
 		ds = dst->ds[device];
@@ -419,18 +433,41 @@ static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 
 		err = dsa_switch_setup(ds);
 		if (err)
-			return err;
+			goto switch_teardown;
 
 		for (port = 0; port < ds->num_ports; port++) {
 			dp = &ds->ports[port];
 
 			err = dsa_port_setup(dp);
 			if (err)
-				return err;
+				goto ports_teardown;
 		}
 	}
 
 	return 0;
+
+ports_teardown:
+	for (i = 0; i < port; i++)
+		dsa_port_teardown(&ds->ports[i]);
+
+	dsa_switch_teardown(ds);
+
+switch_teardown:
+	for (i = 0; i < device; i++) {
+		ds = dst->ds[i];
+		if (!ds)
+			continue;
+
+		for (port = 0; port < ds->num_ports; port++) {
+			dp = &ds->ports[port];
+
+			dsa_port_teardown(dp);
+		}
+
+		dsa_switch_teardown(ds);
+	}
+
+	return err;
 }
 
 static void dsa_tree_teardown_switches(struct dsa_switch_tree *dst)
@@ -492,17 +529,24 @@ static int dsa_tree_setup(struct dsa_switch_tree *dst)
 
 	err = dsa_tree_setup_switches(dst);
 	if (err)
-		return err;
+		goto teardown_default_cpu;
 
 	err = dsa_tree_setup_master(dst);
 	if (err)
-		return err;
+		goto teardown_switches;
 
 	dst->setup = true;
 
 	pr_info("DSA: tree %d setup\n", dst->index);
 
 	return 0;
+
+teardown_switches:
+	dsa_tree_teardown_switches(dst);
+teardown_default_cpu:
+	dsa_tree_teardown_default_cpu(dst);
+
+	return err;
 }
 
 static void dsa_tree_teardown(struct dsa_switch_tree *dst)
@@ -543,8 +587,10 @@ static int dsa_tree_add_switch(struct dsa_switch_tree *dst,
 	dst->ds[index] = ds;
 
 	err = dsa_tree_setup(dst);
-	if (err)
-		dsa_tree_remove_switch(dst, index);
+	if (err) {
+		dst->ds[index] = NULL;
+		dsa_tree_put(dst);
+	}
 
 	return err;
 }

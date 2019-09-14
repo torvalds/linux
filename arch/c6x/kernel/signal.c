@@ -90,7 +90,7 @@ asmlinkage int do_rt_sigreturn(struct pt_regs *regs)
 	return regs->a4;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 

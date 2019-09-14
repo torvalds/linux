@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 
 #include "include/logger_interface.h"
@@ -36,7 +38,7 @@
 
 #include "irq_service_dcn10.h"
 
-#include "ivsrcid/irqsrcs_dcn_1_0.h"
+#include "ivsrcid/dcn/irqsrcs_dcn_1_0.h"
 
 enum dc_irq_source to_dal_irq_source_dcn10(
 		struct irq_service *irq_service,

@@ -277,7 +277,7 @@ void __rseq_handle_notify_resume(struct ksignal *ksig, struct pt_regs *regs)
 
 error:
 	sig = ksig ? ksig->sig : 0;
-	force_sigsegv(sig, t);
+	force_sigsegv(sig);
 }
 
 #ifdef CONFIG_DEBUG_RSEQ
@@ -296,7 +296,7 @@ void rseq_syscall(struct pt_regs *regs)
 		return;
 	if (!access_ok(t->rseq, sizeof(*t->rseq)) ||
 	    rseq_get_rseq_cs(t, &rseq_cs) || in_rseq_cs(ip, &rseq_cs))
-		force_sig(SIGSEGV, t);
+		force_sig(SIGSEGV);
 }
 
 #endif

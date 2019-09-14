@@ -198,7 +198,7 @@ call to set the mask to the value returned.
 ::
 
 	size_t
-	dma_direct_max_mapping_size(struct device *dev);
+	dma_max_mapping_size(struct device *dev);
 
 Returns the maximum size of a mapping for the device. The size parameter
 of the mapping functions like dma_map_single(), dma_map_page() and

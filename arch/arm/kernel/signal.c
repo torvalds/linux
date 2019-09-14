@@ -247,7 +247,7 @@ asmlinkage int sys_sigreturn(struct pt_regs *regs)
 	return regs->ARM_r0;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -280,7 +280,7 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 	return regs->ARM_r0;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -596,6 +596,7 @@ static int do_signal(struct pt_regs *regs, int syscall)
 		switch (retval) {
 		case -ERESTART_RESTARTBLOCK:
 			restart -= 2;
+			/* Fall through */
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:

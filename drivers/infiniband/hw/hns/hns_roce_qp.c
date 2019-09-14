@@ -64,7 +64,6 @@ void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 	if (atomic_dec_and_test(&qp->refcount))
 		complete(&qp->free);
 }
-EXPORT_SYMBOL_GPL(hns_roce_qp_event);
 
 static void hns_roce_ib_qp_event(struct hns_roce_qp *hr_qp,
 				 enum hns_roce_event type)
@@ -139,7 +138,6 @@ enum hns_roce_qp_state to_hns_roce_state(enum ib_qp_state state)
 		return HNS_ROCE_QP_NUM_STATE;
 	}
 }
-EXPORT_SYMBOL_GPL(to_hns_roce_state);
 
 static int hns_roce_gsi_qp_alloc(struct hns_roce_dev *hr_dev, unsigned long qpn,
 				 struct hns_roce_qp *hr_qp)
@@ -242,7 +240,6 @@ void hns_roce_qp_remove(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 	__xa_erase(xa, hr_qp->qpn & (hr_dev->caps.num_qps - 1));
 	xa_unlock_irqrestore(xa, flags);
 }
-EXPORT_SYMBOL_GPL(hns_roce_qp_remove);
 
 void hns_roce_qp_free(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 {
@@ -257,22 +254,19 @@ void hns_roce_qp_free(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 			hns_roce_table_put(hr_dev, &qp_table->trrl_table,
 					   hr_qp->qpn);
 		hns_roce_table_put(hr_dev, &qp_table->irrl_table, hr_qp->qpn);
-		hns_roce_table_put(hr_dev, &qp_table->qp_table, hr_qp->qpn);
 	}
 }
-EXPORT_SYMBOL_GPL(hns_roce_qp_free);
 
 void hns_roce_release_range_qp(struct hns_roce_dev *hr_dev, int base_qpn,
 			       int cnt)
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
 
-	if (base_qpn < SQP_NUM)
+	if (base_qpn < hr_dev->caps.reserved_qps)
 		return;
 
 	hns_roce_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt, BITMAP_RR);
 }
-EXPORT_SYMBOL_GPL(hns_roce_release_range_qp);
 
 static int hns_roce_set_rq_size(struct hns_roce_dev *hr_dev,
 				struct ib_qp_cap *cap, bool is_user, int has_rq,
@@ -392,8 +386,8 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 					     hr_qp->sq.wqe_shift), PAGE_SIZE);
 	} else {
 		page_size = 1 << (hr_dev->caps.mtt_buf_pg_sz + PAGE_SHIFT);
-		hr_qp->sge.sge_cnt =
-		       max(page_size / (1 << hr_qp->sge.sge_shift), ex_sge_num);
+		hr_qp->sge.sge_cnt = ex_sge_num ?
+		   max(page_size / (1 << hr_qp->sge.sge_shift), ex_sge_num) : 0;
 		hr_qp->buff_size = HNS_ROCE_ALOGN_UP((hr_qp->rq.wqe_cnt <<
 					     hr_qp->rq.wqe_shift), page_size) +
 				   HNS_ROCE_ALOGN_UP((hr_qp->sge.sge_cnt <<
@@ -420,6 +414,91 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 	}
 
 	return 0;
+}
+
+static int split_wqe_buf_region(struct hns_roce_dev *hr_dev,
+				struct hns_roce_qp *hr_qp,
+				struct hns_roce_buf_region *regions,
+				int region_max, int page_shift)
+{
+	int page_size = 1 << page_shift;
+	bool is_extend_sge;
+	int region_cnt = 0;
+	int buf_size;
+	int buf_cnt;
+
+	if (hr_qp->buff_size < 1 || region_max < 1)
+		return region_cnt;
+
+	if (hr_qp->sge.sge_cnt > 0)
+		is_extend_sge = true;
+	else
+		is_extend_sge = false;
+
+	/* sq region */
+	if (is_extend_sge)
+		buf_size = hr_qp->sge.offset - hr_qp->sq.offset;
+	else
+		buf_size = hr_qp->rq.offset - hr_qp->sq.offset;
+
+	if (buf_size > 0 && region_cnt < region_max) {
+		buf_cnt = DIV_ROUND_UP(buf_size, page_size);
+		hns_roce_init_buf_region(&regions[region_cnt],
+					 hr_dev->caps.wqe_sq_hop_num,
+					 hr_qp->sq.offset / page_size,
+					 buf_cnt);
+		region_cnt++;
+	}
+
+	/* sge region */
+	if (is_extend_sge) {
+		buf_size = hr_qp->rq.offset - hr_qp->sge.offset;
+		if (buf_size > 0 && region_cnt < region_max) {
+			buf_cnt = DIV_ROUND_UP(buf_size, page_size);
+			hns_roce_init_buf_region(&regions[region_cnt],
+						 hr_dev->caps.wqe_sge_hop_num,
+						 hr_qp->sge.offset / page_size,
+						 buf_cnt);
+			region_cnt++;
+		}
+	}
+
+	/* rq region */
+	buf_size = hr_qp->buff_size - hr_qp->rq.offset;
+	if (buf_size > 0) {
+		buf_cnt = DIV_ROUND_UP(buf_size, page_size);
+		hns_roce_init_buf_region(&regions[region_cnt],
+					 hr_dev->caps.wqe_rq_hop_num,
+					 hr_qp->rq.offset / page_size,
+					 buf_cnt);
+		region_cnt++;
+	}
+
+	return region_cnt;
+}
+
+static int calc_wqe_bt_page_shift(struct hns_roce_dev *hr_dev,
+				  struct hns_roce_buf_region *regions,
+				  int region_cnt)
+{
+	int bt_pg_shift;
+	int ba_num;
+	int ret;
+
+	bt_pg_shift = PAGE_SHIFT + hr_dev->caps.mtt_ba_pg_sz;
+
+	/* all root ba entries must in one bt page */
+	do {
+		ba_num = (1 << bt_pg_shift) / BA_BYTE_LEN;
+		ret = hns_roce_hem_list_calc_root_ba(regions, region_cnt,
+						     ba_num);
+		if (ret <= ba_num)
+			break;
+
+		bt_pg_shift++;
+	} while (ret > ba_num);
+
+	return bt_pg_shift - PAGE_SHIFT;
 }
 
 static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
@@ -534,15 +613,17 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				     struct ib_udata *udata, unsigned long sqpn,
 				     struct hns_roce_qp *hr_qp)
 {
+	dma_addr_t *buf_list[ARRAY_SIZE(hr_qp->regions)] = { 0 };
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_ib_create_qp ucmd;
 	struct hns_roce_ib_create_qp_resp resp = {};
 	struct hns_roce_ucontext *uctx = rdma_udata_to_drv_context(
 		udata, struct hns_roce_ucontext, ibucontext);
+	struct hns_roce_buf_region *r;
 	unsigned long qpn = 0;
-	int ret = 0;
 	u32 page_shift;
-	u32 npages;
+	int buf_count;
+	int ret;
 	int i;
 
 	mutex_init(&hr_qp->mutex);
@@ -596,6 +677,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				init_attr->cap.max_recv_sge];
 	}
 
+	page_shift = PAGE_SHIFT + hr_dev->caps.mtt_buf_pg_sz;
 	if (udata) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
 			dev_err(dev, "ib_copy_from_udata error for create qp\n");
@@ -617,32 +699,28 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 			ret = PTR_ERR(hr_qp->umem);
 			goto err_rq_sge_list;
 		}
-
-		hr_qp->mtt.mtt_type = MTT_TYPE_WQE;
-		page_shift = PAGE_SHIFT;
-		if (hr_dev->caps.mtt_buf_pg_sz) {
-			npages = (ib_umem_page_count(hr_qp->umem) +
-				  (1 << hr_dev->caps.mtt_buf_pg_sz) - 1) /
-				 (1 << hr_dev->caps.mtt_buf_pg_sz);
-			page_shift += hr_dev->caps.mtt_buf_pg_sz;
-			ret = hns_roce_mtt_init(hr_dev, npages,
-				    page_shift,
-				    &hr_qp->mtt);
-		} else {
-			ret = hns_roce_mtt_init(hr_dev,
-						ib_umem_page_count(hr_qp->umem),
-						page_shift, &hr_qp->mtt);
-		}
+		hr_qp->region_cnt = split_wqe_buf_region(hr_dev, hr_qp,
+				hr_qp->regions, ARRAY_SIZE(hr_qp->regions),
+				page_shift);
+		ret = hns_roce_alloc_buf_list(hr_qp->regions, buf_list,
+					      hr_qp->region_cnt);
 		if (ret) {
-			dev_err(dev, "hns_roce_mtt_init error for create qp\n");
-			goto err_buf;
+			dev_err(dev, "alloc buf_list error for create qp\n");
+			goto err_alloc_list;
 		}
 
-		ret = hns_roce_ib_umem_write_mtt(hr_dev, &hr_qp->mtt,
-						 hr_qp->umem);
-		if (ret) {
-			dev_err(dev, "hns_roce_ib_umem_write_mtt error for create qp\n");
-			goto err_mtt;
+		for (i = 0; i < hr_qp->region_cnt; i++) {
+			r = &hr_qp->regions[i];
+			buf_count = hns_roce_get_umem_bufs(hr_dev,
+					buf_list[i], r->count, r->offset,
+					hr_qp->umem, page_shift);
+			if (buf_count != r->count) {
+				dev_err(dev,
+					"get umem buf err, expect %d,ret %d.\n",
+					r->count, buf_count);
+				ret = -ENOBUFS;
+				goto err_get_bufs;
+			}
 		}
 
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SQ_RECORD_DB) &&
@@ -653,7 +731,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 						   &hr_qp->sdb);
 			if (ret) {
 				dev_err(dev, "sq record doorbell map failed!\n");
-				goto err_mtt;
+				goto err_get_bufs;
 			}
 
 			/* indicate kernel supports sq record db */
@@ -715,7 +793,6 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		}
 
 		/* Allocate QP buf */
-		page_shift = PAGE_SHIFT + hr_dev->caps.mtt_buf_pg_sz;
 		if (hns_roce_buf_alloc(hr_dev, hr_qp->buff_size,
 				       (1 << page_shift) * 2,
 				       &hr_qp->hr_buf, page_shift)) {
@@ -723,21 +800,28 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 			ret = -ENOMEM;
 			goto err_db;
 		}
-
-		hr_qp->mtt.mtt_type = MTT_TYPE_WQE;
-		/* Write MTT */
-		ret = hns_roce_mtt_init(hr_dev, hr_qp->hr_buf.npages,
-					hr_qp->hr_buf.page_shift, &hr_qp->mtt);
+		hr_qp->region_cnt = split_wqe_buf_region(hr_dev, hr_qp,
+				hr_qp->regions, ARRAY_SIZE(hr_qp->regions),
+				page_shift);
+		ret = hns_roce_alloc_buf_list(hr_qp->regions, buf_list,
+					      hr_qp->region_cnt);
 		if (ret) {
-			dev_err(dev, "hns_roce_mtt_init error for kernel create qp\n");
-			goto err_buf;
+			dev_err(dev, "alloc buf_list error for create qp!\n");
+			goto err_alloc_list;
 		}
 
-		ret = hns_roce_buf_write_mtt(hr_dev, &hr_qp->mtt,
-					     &hr_qp->hr_buf);
-		if (ret) {
-			dev_err(dev, "hns_roce_buf_write_mtt error for kernel create qp\n");
-			goto err_mtt;
+		for (i = 0; i < hr_qp->region_cnt; i++) {
+			r = &hr_qp->regions[i];
+			buf_count = hns_roce_get_kmem_bufs(hr_dev,
+					buf_list[i], r->count, r->offset,
+					&hr_qp->hr_buf);
+			if (buf_count != r->count) {
+				dev_err(dev,
+					"get kmem buf err, expect %d,ret %d.\n",
+					r->count, buf_count);
+				ret = -ENOBUFS;
+				goto err_get_bufs;
+			}
 		}
 
 		hr_qp->sq.wrid = kcalloc(hr_qp->sq.wqe_cnt, sizeof(u64),
@@ -759,6 +843,17 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 			dev_err(dev, "hns_roce_reserve_range_qp alloc qpn error\n");
 			goto err_wrid;
 		}
+	}
+
+	hr_qp->wqe_bt_pg_shift = calc_wqe_bt_page_shift(hr_dev, hr_qp->regions,
+							hr_qp->region_cnt);
+	hns_roce_mtr_init(&hr_qp->mtr, PAGE_SHIFT + hr_qp->wqe_bt_pg_shift,
+			  page_shift);
+	ret = hns_roce_mtr_attach(hr_dev, &hr_qp->mtr, buf_list,
+				  hr_qp->regions, hr_qp->region_cnt);
+	if (ret) {
+		dev_err(dev, "mtr attach error for create qp\n");
+		goto err_mtr;
 	}
 
 	if (init_attr->qp_type == IB_QPT_GSI &&
@@ -796,6 +891,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	}
 
 	hr_qp->event = hns_roce_ib_qp_event;
+	hns_roce_free_buf_list(buf_list, hr_qp->region_cnt);
 
 	return 0;
 
@@ -809,6 +905,9 @@ err_qp:
 err_qpn:
 	if (!sqpn)
 		hns_roce_release_range_qp(hr_dev, qpn, 1);
+
+err_mtr:
+	hns_roce_mtr_cleanup(hr_dev, &hr_qp->mtr);
 
 err_wrid:
 	if (udata) {
@@ -829,14 +928,13 @@ err_sq_dbmap:
 		    hns_roce_qp_has_sq(init_attr))
 			hns_roce_db_unmap_user(uctx, &hr_qp->sdb);
 
-err_mtt:
-	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
+err_get_bufs:
+	hns_roce_free_buf_list(buf_list, hr_qp->region_cnt);
 
-err_buf:
-	if (hr_qp->umem)
-		ib_umem_release(hr_qp->umem);
-	else
+err_alloc_list:
+	if (!hr_qp->umem)
 		hns_roce_buf_free(hr_dev, hr_qp->buff_size, &hr_qp->hr_buf);
+	ib_umem_release(hr_qp->umem);
 
 err_db:
 	if (!udata && hns_roce_qp_has_rq(init_attr) &&
@@ -923,7 +1021,6 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 
 	return &hr_qp->ibqp;
 }
-EXPORT_SYMBOL_GPL(hns_roce_create_qp);
 
 int to_hr_qp_type(int qp_type)
 {
@@ -942,7 +1039,6 @@ int to_hr_qp_type(int qp_type)
 
 	return transport_type;
 }
-EXPORT_SYMBOL_GPL(to_hr_qp_type);
 
 int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		       int attr_mask, struct ib_udata *udata)
@@ -1062,7 +1158,6 @@ void hns_roce_lock_cqs(struct hns_roce_cq *send_cq, struct hns_roce_cq *recv_cq)
 		spin_lock_nested(&send_cq->lock, SINGLE_DEPTH_NESTING);
 	}
 }
-EXPORT_SYMBOL_GPL(hns_roce_lock_cqs);
 
 void hns_roce_unlock_cqs(struct hns_roce_cq *send_cq,
 			 struct hns_roce_cq *recv_cq) __releases(&send_cq->lock)
@@ -1079,7 +1174,6 @@ void hns_roce_unlock_cqs(struct hns_roce_cq *send_cq,
 		spin_unlock_irq(&recv_cq->lock);
 	}
 }
-EXPORT_SYMBOL_GPL(hns_roce_unlock_cqs);
 
 static void *get_wqe(struct hns_roce_qp *hr_qp, int offset)
 {
@@ -1091,20 +1185,17 @@ void *get_recv_wqe(struct hns_roce_qp *hr_qp, int n)
 {
 	return get_wqe(hr_qp, hr_qp->rq.offset + (n << hr_qp->rq.wqe_shift));
 }
-EXPORT_SYMBOL_GPL(get_recv_wqe);
 
 void *get_send_wqe(struct hns_roce_qp *hr_qp, int n)
 {
 	return get_wqe(hr_qp, hr_qp->sq.offset + (n << hr_qp->sq.wqe_shift));
 }
-EXPORT_SYMBOL_GPL(get_send_wqe);
 
 void *get_send_extend_sge(struct hns_roce_qp *hr_qp, int n)
 {
 	return hns_roce_buf_offset(&hr_qp->hr_buf, hr_qp->sge.offset +
 					(n << hr_qp->sge.sge_shift));
 }
-EXPORT_SYMBOL_GPL(get_send_extend_sge);
 
 bool hns_roce_wq_overflow(struct hns_roce_wq *hr_wq, int nreq,
 			  struct ib_cq *ib_cq)
@@ -1123,7 +1214,6 @@ bool hns_roce_wq_overflow(struct hns_roce_wq *hr_wq, int nreq,
 
 	return cur + nreq >= hr_wq->max_post;
 }
-EXPORT_SYMBOL_GPL(hns_roce_wq_overflow);
 
 int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 {
@@ -1135,11 +1225,7 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 	mutex_init(&qp_table->scc_mutex);
 	xa_init(&hr_dev->qp_table_xa);
 
-	/* In hw v1, a port include two SQP, six ports total 12 */
-	if (hr_dev->caps.max_sq_sg <= 2)
-		reserved_from_bot = SQP_NUM;
-	else
-		reserved_from_bot = hr_dev->caps.reserved_qps;
+	reserved_from_bot = hr_dev->caps.reserved_qps;
 
 	ret = hns_roce_bitmap_init(&qp_table->bitmap, hr_dev->caps.num_qps,
 				   hr_dev->caps.num_qps - 1, reserved_from_bot,

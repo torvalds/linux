@@ -824,7 +824,7 @@ static int __init prng_init(void)
 
 	/* check if the CPU has a PRNG */
 	if (!cpacf_query_func(CPACF_KMC, CPACF_KMC_PRNG))
-		return -EOPNOTSUPP;
+		return -ENODEV;
 
 	/* check if TRNG subfunction is available */
 	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG))
@@ -837,7 +837,7 @@ static int __init prng_init(void)
 			if (prng_mode == PRNG_MODE_SHA512) {
 				pr_err("The prng module cannot "
 				       "start in SHA-512 mode\n");
-				return -EOPNOTSUPP;
+				return -ENODEV;
 			}
 			prng_mode = PRNG_MODE_TDES;
 		} else

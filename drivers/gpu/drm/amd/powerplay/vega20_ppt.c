@@ -36,12 +36,28 @@
 #include "vega20_pptable.h"
 #include "vega20_ppsmc.h"
 #include "nbio/nbio_7_4_sh_mask.h"
+#include "asic_reg/thm/thm_11_0_2_offset.h"
+#include "asic_reg/thm/thm_11_0_2_sh_mask.h"
 
 #define smnPCIE_LC_SPEED_CNTL			0x11140290
 #define smnPCIE_LC_LINK_WIDTH_CNTL		0x11140288
 
+#define CTF_OFFSET_EDGE			5
+#define CTF_OFFSET_HOTSPOT		5
+#define CTF_OFFSET_HBM			5
+
 #define MSG_MAP(msg) \
 	[SMU_MSG_##msg] = PPSMC_MSG_##msg
+
+#define SMC_DPM_FEATURE (FEATURE_DPM_PREFETCHER_MASK | \
+			 FEATURE_DPM_GFXCLK_MASK | \
+			 FEATURE_DPM_UCLK_MASK | \
+			 FEATURE_DPM_SOCCLK_MASK | \
+			 FEATURE_DPM_UVD_MASK | \
+			 FEATURE_DPM_VCE_MASK | \
+			 FEATURE_DPM_MP0CLK_MASK | \
+			 FEATURE_DPM_LINK_MASK | \
+			 FEATURE_DPM_DCEFCLK_MASK)
 
 static int vega20_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage),
@@ -129,6 +145,136 @@ static int vega20_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(GetAVFSVoltageByDpm),
 };
 
+static int vega20_clk_map[SMU_CLK_COUNT] = {
+	CLK_MAP(GFXCLK, PPCLK_GFXCLK),
+	CLK_MAP(VCLK, PPCLK_VCLK),
+	CLK_MAP(DCLK, PPCLK_DCLK),
+	CLK_MAP(ECLK, PPCLK_ECLK),
+	CLK_MAP(SOCCLK, PPCLK_SOCCLK),
+	CLK_MAP(UCLK, PPCLK_UCLK),
+	CLK_MAP(DCEFCLK, PPCLK_DCEFCLK),
+	CLK_MAP(DISPCLK, PPCLK_DISPCLK),
+	CLK_MAP(PIXCLK, PPCLK_PIXCLK),
+	CLK_MAP(PHYCLK, PPCLK_PHYCLK),
+	CLK_MAP(FCLK, PPCLK_FCLK),
+};
+
+static int vega20_feature_mask_map[SMU_FEATURE_COUNT] = {
+	FEA_MAP(DPM_PREFETCHER),
+	FEA_MAP(DPM_GFXCLK),
+	FEA_MAP(DPM_UCLK),
+	FEA_MAP(DPM_SOCCLK),
+	FEA_MAP(DPM_UVD),
+	FEA_MAP(DPM_VCE),
+	FEA_MAP(ULV),
+	FEA_MAP(DPM_MP0CLK),
+	FEA_MAP(DPM_LINK),
+	FEA_MAP(DPM_DCEFCLK),
+	FEA_MAP(DS_GFXCLK),
+	FEA_MAP(DS_SOCCLK),
+	FEA_MAP(DS_LCLK),
+	FEA_MAP(PPT),
+	FEA_MAP(TDC),
+	FEA_MAP(THERMAL),
+	FEA_MAP(GFX_PER_CU_CG),
+	FEA_MAP(RM),
+	FEA_MAP(DS_DCEFCLK),
+	FEA_MAP(ACDC),
+	FEA_MAP(VR0HOT),
+	FEA_MAP(VR1HOT),
+	FEA_MAP(FW_CTF),
+	FEA_MAP(LED_DISPLAY),
+	FEA_MAP(FAN_CONTROL),
+	FEA_MAP(GFX_EDC),
+	FEA_MAP(GFXOFF),
+	FEA_MAP(CG),
+	FEA_MAP(DPM_FCLK),
+	FEA_MAP(DS_FCLK),
+	FEA_MAP(DS_MP1CLK),
+	FEA_MAP(DS_MP0CLK),
+	FEA_MAP(XGMI),
+};
+
+static int vega20_table_map[SMU_TABLE_COUNT] = {
+	TAB_MAP(PPTABLE),
+	TAB_MAP(WATERMARKS),
+	TAB_MAP(AVFS),
+	TAB_MAP(AVFS_PSM_DEBUG),
+	TAB_MAP(AVFS_FUSE_OVERRIDE),
+	TAB_MAP(PMSTATUSLOG),
+	TAB_MAP(SMU_METRICS),
+	TAB_MAP(DRIVER_SMU_CONFIG),
+	TAB_MAP(ACTIVITY_MONITOR_COEFF),
+	TAB_MAP(OVERDRIVE),
+};
+
+static int vega20_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
+	PWR_MAP(AC),
+	PWR_MAP(DC),
+};
+
+static int vega20_workload_map[] = {
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT,	WORKLOAD_DEFAULT_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_FULLSCREEN3D,		WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_POWERSAVING,		WORKLOAD_PPLIB_POWER_SAVING_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VIDEO,		WORKLOAD_PPLIB_VIDEO_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VR,			WORKLOAD_PPLIB_VR_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_CUSTOM_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
+};
+
+static int vega20_get_smu_table_index(struct smu_context *smc, uint32_t index)
+{
+	int val;
+	if (index >= SMU_TABLE_COUNT)
+		return -EINVAL;
+
+	val = vega20_table_map[index];
+	if (val >= TABLE_COUNT)
+		return -EINVAL;
+
+	return val;
+}
+
+static int vega20_get_pwr_src_index(struct smu_context *smc, uint32_t index)
+{
+	int val;
+	if (index >= SMU_POWER_SOURCE_COUNT)
+		return -EINVAL;
+
+	val = vega20_pwr_src_map[index];
+	if (val >= POWER_SOURCE_COUNT)
+		return -EINVAL;
+
+	return val;
+}
+
+static int vega20_get_smu_feature_index(struct smu_context *smc, uint32_t index)
+{
+	int val;
+	if (index >= SMU_FEATURE_COUNT)
+		return -EINVAL;
+
+	val = vega20_feature_mask_map[index];
+	if (val > 64)
+		return -EINVAL;
+
+	return val;
+}
+
+static int vega20_get_smu_clk_index(struct smu_context *smc, uint32_t index)
+{
+	int val;
+	if (index >= SMU_CLK_COUNT)
+		return -EINVAL;
+
+	val = vega20_clk_map[index];
+	if (val >= PPCLK_COUNT)
+		return -EINVAL;
+
+	return val;
+}
+
 static int vega20_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
 	int val;
@@ -141,6 +287,43 @@ static int vega20_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 		return -EINVAL;
 
 	return val;
+}
+
+static int vega20_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER_PROFILE profile)
+{
+	int val;
+	if (profile > PP_SMC_POWER_PROFILE_CUSTOM)
+		return -EINVAL;
+
+	val = vega20_workload_map[profile];
+
+	return val;
+}
+
+static int vega20_tables_init(struct smu_context *smu, struct smu_table *tables)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+
+	SMU_TABLE_INIT(tables, SMU_TABLE_PPTABLE, sizeof(PPTable_t),
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, SMU_TABLE_OVERDRIVE, sizeof(OverDriveTable_t),
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, SMU_TABLE_PMSTATUSLOG, SMU11_TOOL_SIZE,
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, SMU_TABLE_ACTIVITY_MONITOR_COEFF,
+		       sizeof(DpmActivityMonitorCoeffInt_t), PAGE_SIZE,
+	               AMDGPU_GEM_DOMAIN_VRAM);
+
+	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
+	if (!smu_table->metrics_table)
+		return -ENOMEM;
+	smu_table->metrics_time = 0;
+
+	return 0;
 }
 
 static int vega20_allocate_dpm_context(struct smu_context *smu)
@@ -182,6 +365,7 @@ static int vega20_setup_od8_information(struct smu_context *smu)
 {
 	ATOM_Vega20_POWERPLAYTABLE *powerplay_table = NULL;
 	struct smu_table_context *table_context = &smu->smu_table;
+	struct vega20_od8_settings *od8_settings = (struct vega20_od8_settings *)smu->od_settings;
 
 	uint32_t od_feature_count, od_feature_array_size,
 		 od_setting_count, od_setting_array_size;
@@ -202,13 +386,13 @@ static int vega20_setup_od8_information(struct smu_context *smu)
 
 		od_feature_array_size = sizeof(uint8_t) * od_feature_count;
 
-		if (table_context->od_feature_capabilities)
+		if (od8_settings->od_feature_capabilities)
 			return -EINVAL;
 
-		table_context->od_feature_capabilities = kmemdup(&powerplay_table->OverDrive8Table.ODFeatureCapabilities,
+		od8_settings->od_feature_capabilities = kmemdup(&powerplay_table->OverDrive8Table.ODFeatureCapabilities,
 								 od_feature_array_size,
 								 GFP_KERNEL);
-		if (!table_context->od_feature_capabilities)
+		if (!od8_settings->od_feature_capabilities)
 			return -ENOMEM;
 
 		/* Setup correct ODSettingCount, and store ODSettingArray from
@@ -221,31 +405,31 @@ static int vega20_setup_od8_information(struct smu_context *smu)
 
 		od_setting_array_size = sizeof(uint32_t) * od_setting_count;
 
-		if (table_context->od_settings_max)
+		if (od8_settings->od_settings_max)
 			return -EINVAL;
 
-		table_context->od_settings_max = kmemdup(&powerplay_table->OverDrive8Table.ODSettingsMax,
+		od8_settings->od_settings_max = kmemdup(&powerplay_table->OverDrive8Table.ODSettingsMax,
 							 od_setting_array_size,
 							 GFP_KERNEL);
 
-		if (!table_context->od_settings_max) {
-			kfree(table_context->od_feature_capabilities);
-			table_context->od_feature_capabilities = NULL;
+		if (!od8_settings->od_settings_max) {
+			kfree(od8_settings->od_feature_capabilities);
+			od8_settings->od_feature_capabilities = NULL;
 			return -ENOMEM;
 		}
 
-		if (table_context->od_settings_min)
+		if (od8_settings->od_settings_min)
 			return -EINVAL;
 
-		table_context->od_settings_min = kmemdup(&powerplay_table->OverDrive8Table.ODSettingsMin,
+		od8_settings->od_settings_min = kmemdup(&powerplay_table->OverDrive8Table.ODSettingsMin,
 							 od_setting_array_size,
 							 GFP_KERNEL);
 
-		if (!table_context->od_settings_min) {
-			kfree(table_context->od_feature_capabilities);
-			table_context->od_feature_capabilities = NULL;
-			kfree(table_context->od_settings_max);
-			table_context->od_settings_max = NULL;
+		if (!od8_settings->od_settings_min) {
+			kfree(od8_settings->od_feature_capabilities);
+			od8_settings->od_feature_capabilities = NULL;
+			kfree(od8_settings->od_settings_max);
+			od8_settings->od_settings_max = NULL;
 			return -ENOMEM;
 		}
 	}
@@ -257,7 +441,6 @@ static int vega20_store_powerplay_table(struct smu_context *smu)
 {
 	ATOM_Vega20_POWERPLAYTABLE *powerplay_table = NULL;
 	struct smu_table_context *table_context = &smu->smu_table;
-	int ret;
 
 	if (!table_context->power_play_table)
 		return -EINVAL;
@@ -267,13 +450,10 @@ static int vega20_store_powerplay_table(struct smu_context *smu)
 	memcpy(table_context->driver_pptable, &powerplay_table->smcPPTable,
 	       sizeof(PPTable_t));
 
-	table_context->software_shutdown_temp = powerplay_table->usSoftwareShutdownTemp;
 	table_context->thermal_controller_type = powerplay_table->ucThermalControllerType;
 	table_context->TDPODLimit = le32_to_cpu(powerplay_table->OverDrive8Table.ODSettingsMax[ATOM_VEGA20_ODSETTING_POWERPERCENTAGE]);
 
-	ret = vega20_setup_od8_information(smu);
-
-	return ret;
+	return 0;
 }
 
 static int vega20_append_powerplay_table(struct smu_context *smu)
@@ -392,16 +572,42 @@ static int vega20_run_btc_afll(struct smu_context *smu)
 	return smu_send_smc_msg(smu, SMU_MSG_RunAfllBtc);
 }
 
+#define FEATURE_MASK(feature) (1ULL << feature)
 static int
-vega20_get_unallowed_feature_mask(struct smu_context *smu,
+vega20_get_allowed_feature_mask(struct smu_context *smu,
 				  uint32_t *feature_mask, uint32_t num)
 {
 	if (num > 2)
 		return -EINVAL;
 
-	feature_mask[0] = 0xE0041C00;
-	feature_mask[1] = 0xFFFFFFFE; /* bit32~bit63 is Unsupported */
+	memset(feature_mask, 0, sizeof(uint32_t) * num);
 
+	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT)
+				| FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_UVD_BIT)
+				| FEATURE_MASK(FEATURE_DPM_VCE_BIT)
+				| FEATURE_MASK(FEATURE_ULV_BIT)
+				| FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_LINK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT)
+				| FEATURE_MASK(FEATURE_PPT_BIT)
+				| FEATURE_MASK(FEATURE_TDC_BIT)
+				| FEATURE_MASK(FEATURE_THERMAL_BIT)
+				| FEATURE_MASK(FEATURE_GFX_PER_CU_CG_BIT)
+				| FEATURE_MASK(FEATURE_RM_BIT)
+				| FEATURE_MASK(FEATURE_ACDC_BIT)
+				| FEATURE_MASK(FEATURE_VR0HOT_BIT)
+				| FEATURE_MASK(FEATURE_VR1HOT_BIT)
+				| FEATURE_MASK(FEATURE_FW_CTF_BIT)
+				| FEATURE_MASK(FEATURE_LED_DISPLAY_BIT)
+				| FEATURE_MASK(FEATURE_FAN_CONTROL_BIT)
+				| FEATURE_MASK(FEATURE_GFX_EDC_BIT)
+				| FEATURE_MASK(FEATURE_GFXOFF_BIT)
+				| FEATURE_MASK(FEATURE_CG_BIT)
+				| FEATURE_MASK(FEATURE_DPM_FCLK_BIT)
+				| FEATURE_MASK(FEATURE_XGMI_BIT);
 	return 0;
 }
 
@@ -502,7 +708,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* socclk */
 	single_dpm_table = &(dpm_table->soc_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_SOCCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_SOCCLK);
 		if (ret) {
@@ -518,7 +724,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* gfxclk */
 	single_dpm_table = &(dpm_table->gfx_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_GFXCLK);
 		if (ret) {
@@ -534,7 +740,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* memclk */
 	single_dpm_table = &(dpm_table->mem_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_UCLK);
 		if (ret) {
@@ -550,7 +756,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* eclk */
 	single_dpm_table = &(dpm_table->eclk_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_VCE_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_VCE_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table, PPCLK_ECLK);
 		if (ret) {
 			pr_err("[SetupDefaultDpmTable] failed to get eclk dpm levels!");
@@ -565,7 +771,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* vclk */
 	single_dpm_table = &(dpm_table->vclk_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UVD_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table, PPCLK_VCLK);
 		if (ret) {
 			pr_err("[SetupDefaultDpmTable] failed to get vclk dpm levels!");
@@ -580,7 +786,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* dclk */
 	single_dpm_table = &(dpm_table->dclk_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UVD_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table, PPCLK_DCLK);
 		if (ret) {
 			pr_err("[SetupDefaultDpmTable] failed to get dclk dpm levels!");
@@ -595,7 +801,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* dcefclk */
 	single_dpm_table = &(dpm_table->dcef_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_DCEFCLK);
 		if (ret) {
@@ -611,7 +817,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* pixclk */
 	single_dpm_table = &(dpm_table->pixel_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_PIXCLK);
 		if (ret) {
@@ -626,7 +832,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* dispclk */
 	single_dpm_table = &(dpm_table->display_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_DISPCLK);
 		if (ret) {
@@ -641,7 +847,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* phyclk */
 	single_dpm_table = &(dpm_table->phy_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_PHYCLK);
 		if (ret) {
@@ -719,7 +925,7 @@ static int vega20_get_clk_table(struct smu_context *smu,
 }
 
 static int vega20_print_clk_levels(struct smu_context *smu,
-			enum pp_clock_type type, char *buf)
+			enum smu_clk_type type, char *buf)
 {
 	int i, now, size = 0;
 	int ret = 0;
@@ -731,7 +937,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct vega20_dpm_table *dpm_table = NULL;
 	struct vega20_od8_settings *od8_settings =
-		(struct vega20_od8_settings *)table_context->od8_settings;
+		(struct vega20_od8_settings *)smu->od_settings;
 	OverDriveTable_t *od_table =
 		(OverDriveTable_t *)(table_context->overdrive_table);
 	PPTable_t *pptable = (PPTable_t *)table_context->driver_pptable;
@@ -739,8 +945,8 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 	dpm_table = smu_dpm->dpm_context;
 
 	switch (type) {
-	case PP_SCLK:
-		ret = smu_get_current_clk_freq(smu, PPCLK_GFXCLK, &now);
+	case SMU_SCLK:
+		ret = smu_get_current_clk_freq(smu, SMU_GFXCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current gfx clk Failed!");
 			return ret;
@@ -760,8 +966,8 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 					? "*" : "");
 		break;
 
-	case PP_MCLK:
-		ret = smu_get_current_clk_freq(smu, PPCLK_UCLK, &now);
+	case SMU_MCLK:
+		ret = smu_get_current_clk_freq(smu, SMU_UCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current mclk Failed!");
 			return ret;
@@ -781,8 +987,8 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 				? "*" : "");
 		break;
 
-	case PP_SOCCLK:
-		ret = smu_get_current_clk_freq(smu, PPCLK_SOCCLK, &now);
+	case SMU_SOCCLK:
+		ret = smu_get_current_clk_freq(smu, SMU_SOCCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current socclk Failed!");
 			return ret;
@@ -802,8 +1008,8 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 				? "*" : "");
 		break;
 
-	case PP_FCLK:
-		ret = smu_get_current_clk_freq(smu, PPCLK_FCLK, &now);
+	case SMU_FCLK:
+		ret = smu_get_current_clk_freq(smu, SMU_FCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current fclk Failed!");
 			return ret;
@@ -817,8 +1023,8 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 				? "*" : "");
 		break;
 
-	case PP_DCEFCLK:
-		ret = smu_get_current_clk_freq(smu, PPCLK_DCEFCLK, &now);
+	case SMU_DCEFCLK:
+		ret = smu_get_current_clk_freq(smu, SMU_DCEFCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current dcefclk Failed!");
 			return ret;
@@ -837,7 +1043,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 				(clocks.data[i].clocks_in_khz == now * 10) ? "*" : "");
 		break;
 
-	case PP_PCIE:
+	case SMU_PCIE:
 		gen_speed = (RREG32_PCIE(smnPCIE_LC_SPEED_CNTL) &
 			     PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK)
 			>> PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
@@ -862,7 +1068,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 					"*" : "");
 		break;
 
-	case OD_SCLK:
+	case SMU_OD_SCLK:
 		if (od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].feature_id &&
 		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].feature_id) {
 			size = sprintf(buf, "%s:\n", "OD_SCLK");
@@ -874,7 +1080,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case OD_MCLK:
+	case SMU_OD_MCLK:
 		if (od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].feature_id) {
 			size = sprintf(buf, "%s:\n", "OD_MCLK");
 			size += sprintf(buf + size, "1: %10uMhz\n",
@@ -883,7 +1089,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case OD_VDDC_CURVE:
+	case SMU_OD_VDDC_CURVE:
 		if (od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ1].feature_id &&
 		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ2].feature_id &&
 		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ3].feature_id &&
@@ -904,7 +1110,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case OD_RANGE:
+	case SMU_OD_RANGE:
 		size = sprintf(buf, "%s:\n", "OD_RANGE");
 
 		if (od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].feature_id &&
@@ -971,7 +1177,7 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 
 	dpm_table = smu->smu_dpm.dpm_context;
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT) &&
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_GFXCLK_MASK)) {
 		single_dpm_table = &(dpm_table->gfx_table);
 		freq = max ? single_dpm_table->dpm_state.soft_max_level :
@@ -986,7 +1192,7 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT) &&
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_UCLK_MASK)) {
 		single_dpm_table = &(dpm_table->mem_table);
 		freq = max ? single_dpm_table->dpm_state.soft_max_level :
@@ -1001,7 +1207,7 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_SOCCLK_BIT) &&
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_SOCCLK_MASK)) {
 		single_dpm_table = &(dpm_table->soc_table);
 		freq = max ? single_dpm_table->dpm_state.soft_max_level :
@@ -1016,7 +1222,7 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_FCLK_BIT) &&
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_FCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_FCLK_MASK)) {
 		single_dpm_table = &(dpm_table->fclk_table);
 		freq = max ? single_dpm_table->dpm_state.soft_max_level :
@@ -1031,7 +1237,7 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT) &&
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_DCEFCLK_MASK)) {
 		single_dpm_table = &(dpm_table->dcef_table);
 		freq = single_dpm_table->dpm_state.hard_min_level;
@@ -1050,7 +1256,7 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 }
 
 static int vega20_force_clk_levels(struct smu_context *smu,
-			enum pp_clock_type type, uint32_t mask)
+			enum  smu_clk_type clk_type, uint32_t mask)
 {
 	struct vega20_dpm_table *dpm_table;
 	struct vega20_single_dpm_table *single_dpm_table;
@@ -1070,8 +1276,8 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 
 	dpm_table = smu->smu_dpm.dpm_context;
 
-	switch (type) {
-	case PP_SCLK:
+	switch (clk_type) {
+	case SMU_SCLK:
 		single_dpm_table = &(dpm_table->gfx_table);
 
 		if (soft_max_level >= single_dpm_table->count) {
@@ -1098,7 +1304,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case PP_MCLK:
+	case SMU_MCLK:
 		single_dpm_table = &(dpm_table->mem_table);
 
 		if (soft_max_level >= single_dpm_table->count) {
@@ -1125,7 +1331,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case PP_SOCCLK:
+	case SMU_SOCCLK:
 		single_dpm_table = &(dpm_table->soc_table);
 
 		if (soft_max_level >= single_dpm_table->count) {
@@ -1152,7 +1358,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case PP_FCLK:
+	case SMU_FCLK:
 		single_dpm_table = &(dpm_table->fclk_table);
 
 		if (soft_max_level >= single_dpm_table->count) {
@@ -1179,7 +1385,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case PP_DCEFCLK:
+	case SMU_DCEFCLK:
 		hard_min_level = soft_min_level;
 		single_dpm_table = &(dpm_table->dcef_table);
 
@@ -1199,7 +1405,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case PP_PCIE:
+	case SMU_PCIE:
 		if (soft_min_level >= NUM_LINK_LEVELS ||
 		    soft_max_level >= NUM_LINK_LEVELS) {
 			ret = -EINVAL;
@@ -1222,7 +1428,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 }
 
 static int vega20_get_clock_by_type_with_latency(struct smu_context *smu,
-						 enum amd_pp_clock_type type,
+						 enum smu_clk_type clk_type,
 						 struct pp_clock_levels_with_latency *clocks)
 {
 	int ret;
@@ -1234,20 +1440,20 @@ static int vega20_get_clock_by_type_with_latency(struct smu_context *smu,
 
 	mutex_lock(&smu->mutex);
 
-	switch (type) {
-	case amd_pp_sys_clock:
+	switch (clk_type) {
+	case SMU_GFXCLK:
 		single_dpm_table = &(dpm_table->gfx_table);
 		ret = vega20_get_clk_table(smu, clocks, single_dpm_table);
 		break;
-	case amd_pp_mem_clock:
+	case SMU_MCLK:
 		single_dpm_table = &(dpm_table->mem_table);
 		ret = vega20_get_clk_table(smu, clocks, single_dpm_table);
 		break;
-	case amd_pp_dcef_clock:
+	case SMU_DCEFCLK:
 		single_dpm_table = &(dpm_table->dcef_table);
 		ret = vega20_get_clk_table(smu, clocks, single_dpm_table);
 		break;
-	case amd_pp_soc_clock:
+	case SMU_SOCCLK:
 		single_dpm_table = &(dpm_table->soc_table);
 		ret = vega20_get_clk_table(smu, clocks, single_dpm_table);
 		break;
@@ -1287,23 +1493,28 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 	PPTable_t *smc_pptable = table_context->driver_pptable;
 	int i, ret;
 
-	if (table_context->od8_settings)
+	if (smu->od_settings)
 		return -EINVAL;
 
-	table_context->od8_settings = kzalloc(sizeof(struct vega20_od8_settings), GFP_KERNEL);
+	od8_settings = kzalloc(sizeof(struct vega20_od8_settings), GFP_KERNEL);
 
-	if (!table_context->od8_settings)
+	if (!od8_settings)
 		return -ENOMEM;
 
-	memset(table_context->od8_settings, 0, sizeof(struct vega20_od8_settings));
-	od8_settings = (struct vega20_od8_settings *)table_context->od8_settings;
+	smu->od_settings = (void *)od8_settings;
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_SOCCLK_BIT)) {
-		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_GFXCLK_LIMITS] &&
-		    table_context->od_settings_max[OD8_SETTING_GFXCLK_FMAX] > 0 &&
-		    table_context->od_settings_min[OD8_SETTING_GFXCLK_FMIN] > 0 &&
-		    (table_context->od_settings_max[OD8_SETTING_GFXCLK_FMAX] >=
-		     table_context->od_settings_min[OD8_SETTING_GFXCLK_FMIN])) {
+	ret = vega20_setup_od8_information(smu);
+	if (ret) {
+		pr_err("Retrieve board OD limits failed!\n");
+		return ret;
+	}
+
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
+		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_GFXCLK_LIMITS] &&
+		    od8_settings->od_settings_max[OD8_SETTING_GFXCLK_FMAX] > 0 &&
+		    od8_settings->od_settings_min[OD8_SETTING_GFXCLK_FMIN] > 0 &&
+		    (od8_settings->od_settings_max[OD8_SETTING_GFXCLK_FMAX] >=
+		     od8_settings->od_settings_min[OD8_SETTING_GFXCLK_FMIN])) {
 			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].feature_id =
 				OD8_GFXCLK_LIMITS;
 			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].feature_id =
@@ -1314,13 +1525,13 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 				od_table->GfxclkFmax;
 		}
 
-		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_GFXCLK_CURVE] &&
-		    (table_context->od_settings_min[OD8_SETTING_GFXCLK_VOLTAGE1] >=
+		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_GFXCLK_CURVE] &&
+		    (od8_settings->od_settings_min[OD8_SETTING_GFXCLK_VOLTAGE1] >=
 		     smc_pptable->MinVoltageGfx / VOLTAGE_SCALE) &&
-		    (table_context->od_settings_max[OD8_SETTING_GFXCLK_VOLTAGE3] <=
+		    (od8_settings->od_settings_max[OD8_SETTING_GFXCLK_VOLTAGE3] <=
 		     smc_pptable->MaxVoltageGfx / VOLTAGE_SCALE) &&
-		    (table_context->od_settings_min[OD8_SETTING_GFXCLK_VOLTAGE1] <=
-		     table_context->od_settings_max[OD8_SETTING_GFXCLK_VOLTAGE3])) {
+		    (od8_settings->od_settings_min[OD8_SETTING_GFXCLK_VOLTAGE1] <=
+		     od8_settings->od_settings_max[OD8_SETTING_GFXCLK_VOLTAGE3])) {
 			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ1].feature_id =
 				OD8_GFXCLK_CURVE;
 			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].feature_id =
@@ -1371,12 +1582,12 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
-		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_UCLK_MAX] &&
-		    table_context->od_settings_min[OD8_SETTING_UCLK_FMAX] > 0 &&
-		    table_context->od_settings_max[OD8_SETTING_UCLK_FMAX] > 0 &&
-		    (table_context->od_settings_max[OD8_SETTING_UCLK_FMAX] >=
-		     table_context->od_settings_min[OD8_SETTING_UCLK_FMAX])) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
+		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_UCLK_MAX] &&
+		    od8_settings->od_settings_min[OD8_SETTING_UCLK_FMAX] > 0 &&
+		    od8_settings->od_settings_max[OD8_SETTING_UCLK_FMAX] > 0 &&
+		    (od8_settings->od_settings_max[OD8_SETTING_UCLK_FMAX] >=
+		     od8_settings->od_settings_min[OD8_SETTING_UCLK_FMAX])) {
 			od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].feature_id =
 				OD8_UCLK_MAX;
 			od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].default_value =
@@ -1384,34 +1595,34 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 		}
 	}
 
-	if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_POWER_LIMIT] &&
-	    table_context->od_settings_min[OD8_SETTING_POWER_PERCENTAGE] > 0 &&
-	    table_context->od_settings_min[OD8_SETTING_POWER_PERCENTAGE] <= 100 &&
-	    table_context->od_settings_max[OD8_SETTING_POWER_PERCENTAGE] > 0 &&
-	    table_context->od_settings_max[OD8_SETTING_POWER_PERCENTAGE] <= 100) {
+	if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_POWER_LIMIT] &&
+	    od8_settings->od_settings_min[OD8_SETTING_POWER_PERCENTAGE] > 0 &&
+	    od8_settings->od_settings_min[OD8_SETTING_POWER_PERCENTAGE] <= 100 &&
+	    od8_settings->od_settings_max[OD8_SETTING_POWER_PERCENTAGE] > 0 &&
+	    od8_settings->od_settings_max[OD8_SETTING_POWER_PERCENTAGE] <= 100) {
 		od8_settings->od8_settings_array[OD8_SETTING_POWER_PERCENTAGE].feature_id =
 			OD8_POWER_LIMIT;
 		od8_settings->od8_settings_array[OD8_SETTING_POWER_PERCENTAGE].default_value =
 			od_table->OverDrivePct;
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_FAN_CONTROL_BIT)) {
-		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_FAN_ACOUSTIC_LIMIT] &&
-		    table_context->od_settings_min[OD8_SETTING_FAN_ACOUSTIC_LIMIT] > 0 &&
-		    table_context->od_settings_max[OD8_SETTING_FAN_ACOUSTIC_LIMIT] > 0 &&
-		    (table_context->od_settings_max[OD8_SETTING_FAN_ACOUSTIC_LIMIT] >=
-		     table_context->od_settings_min[OD8_SETTING_FAN_ACOUSTIC_LIMIT])) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_FAN_CONTROL_BIT)) {
+		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_FAN_ACOUSTIC_LIMIT] &&
+		    od8_settings->od_settings_min[OD8_SETTING_FAN_ACOUSTIC_LIMIT] > 0 &&
+		    od8_settings->od_settings_max[OD8_SETTING_FAN_ACOUSTIC_LIMIT] > 0 &&
+		    (od8_settings->od_settings_max[OD8_SETTING_FAN_ACOUSTIC_LIMIT] >=
+		     od8_settings->od_settings_min[OD8_SETTING_FAN_ACOUSTIC_LIMIT])) {
 			od8_settings->od8_settings_array[OD8_SETTING_FAN_ACOUSTIC_LIMIT].feature_id =
 				OD8_ACOUSTIC_LIMIT_SCLK;
 			od8_settings->od8_settings_array[OD8_SETTING_FAN_ACOUSTIC_LIMIT].default_value =
 				od_table->FanMaximumRpm;
 		}
 
-		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_FAN_SPEED_MIN] &&
-		    table_context->od_settings_min[OD8_SETTING_FAN_MIN_SPEED] > 0 &&
-		    table_context->od_settings_max[OD8_SETTING_FAN_MIN_SPEED] > 0 &&
-		    (table_context->od_settings_max[OD8_SETTING_FAN_MIN_SPEED] >=
-		     table_context->od_settings_min[OD8_SETTING_FAN_MIN_SPEED])) {
+		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_FAN_SPEED_MIN] &&
+		    od8_settings->od_settings_min[OD8_SETTING_FAN_MIN_SPEED] > 0 &&
+		    od8_settings->od_settings_max[OD8_SETTING_FAN_MIN_SPEED] > 0 &&
+		    (od8_settings->od_settings_max[OD8_SETTING_FAN_MIN_SPEED] >=
+		     od8_settings->od_settings_min[OD8_SETTING_FAN_MIN_SPEED])) {
 			od8_settings->od8_settings_array[OD8_SETTING_FAN_MIN_SPEED].feature_id =
 				OD8_FAN_SPEED_MIN;
 			od8_settings->od8_settings_array[OD8_SETTING_FAN_MIN_SPEED].default_value =
@@ -1419,23 +1630,23 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_THERMAL_BIT)) {
-		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_TEMPERATURE_FAN] &&
-		    table_context->od_settings_min[OD8_SETTING_FAN_TARGET_TEMP] > 0 &&
-		    table_context->od_settings_max[OD8_SETTING_FAN_TARGET_TEMP] > 0 &&
-		    (table_context->od_settings_max[OD8_SETTING_FAN_TARGET_TEMP] >=
-		     table_context->od_settings_min[OD8_SETTING_FAN_TARGET_TEMP])) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_THERMAL_BIT)) {
+		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_TEMPERATURE_FAN] &&
+		    od8_settings->od_settings_min[OD8_SETTING_FAN_TARGET_TEMP] > 0 &&
+		    od8_settings->od_settings_max[OD8_SETTING_FAN_TARGET_TEMP] > 0 &&
+		    (od8_settings->od_settings_max[OD8_SETTING_FAN_TARGET_TEMP] >=
+		     od8_settings->od_settings_min[OD8_SETTING_FAN_TARGET_TEMP])) {
 			od8_settings->od8_settings_array[OD8_SETTING_FAN_TARGET_TEMP].feature_id =
 				OD8_TEMPERATURE_FAN;
 			od8_settings->od8_settings_array[OD8_SETTING_FAN_TARGET_TEMP].default_value =
 				od_table->FanTargetTemperature;
 		}
 
-		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_TEMPERATURE_SYSTEM] &&
-		    table_context->od_settings_min[OD8_SETTING_OPERATING_TEMP_MAX] > 0 &&
-		    table_context->od_settings_max[OD8_SETTING_OPERATING_TEMP_MAX] > 0 &&
-		    (table_context->od_settings_max[OD8_SETTING_OPERATING_TEMP_MAX] >=
-		     table_context->od_settings_min[OD8_SETTING_OPERATING_TEMP_MAX])) {
+		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_TEMPERATURE_SYSTEM] &&
+		    od8_settings->od_settings_min[OD8_SETTING_OPERATING_TEMP_MAX] > 0 &&
+		    od8_settings->od_settings_max[OD8_SETTING_OPERATING_TEMP_MAX] > 0 &&
+		    (od8_settings->od_settings_max[OD8_SETTING_OPERATING_TEMP_MAX] >=
+		     od8_settings->od_settings_min[OD8_SETTING_OPERATING_TEMP_MAX])) {
 			od8_settings->od8_settings_array[OD8_SETTING_OPERATING_TEMP_MAX].feature_id =
 				OD8_TEMPERATURE_SYSTEM;
 			od8_settings->od8_settings_array[OD8_SETTING_OPERATING_TEMP_MAX].default_value =
@@ -1446,9 +1657,9 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 	for (i = 0; i < OD8_SETTING_COUNT; i++) {
 		if (od8_settings->od8_settings_array[i].feature_id) {
 			od8_settings->od8_settings_array[i].min_value =
-				table_context->od_settings_min[i];
+				od8_settings->od_settings_min[i];
 			od8_settings->od8_settings_array[i].max_value =
-				table_context->od_settings_max[i];
+				od8_settings->od_settings_max[i];
 			od8_settings->od8_settings_array[i].current_value =
 				od8_settings->od8_settings_array[i].default_value;
 		} else {
@@ -1461,8 +1672,66 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 	return 0;
 }
 
+static int vega20_get_metrics_table(struct smu_context *smu,
+				    SmuMetrics_t *metrics_table)
+{
+	struct smu_table_context *smu_table= &smu->smu_table;
+	int ret = 0;
+
+	if (!smu_table->metrics_time || time_after(jiffies, smu_table->metrics_time + HZ / 1000)) {
+		ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
+				(void *)smu_table->metrics_table, false);
+		if (ret) {
+			pr_info("Failed to export SMU metrics table!\n");
+			return ret;
+		}
+		smu_table->metrics_time = jiffies;
+	}
+
+	memcpy(metrics_table, smu_table->metrics_table, sizeof(SmuMetrics_t));
+
+	return ret;
+}
+
+static int vega20_set_default_od_settings(struct smu_context *smu,
+					  bool initialize)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	int ret;
+
+	if (initialize) {
+		if (table_context->overdrive_table)
+			return -EINVAL;
+
+		table_context->overdrive_table = kzalloc(sizeof(OverDriveTable_t), GFP_KERNEL);
+
+		if (!table_context->overdrive_table)
+			return -ENOMEM;
+
+		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0,
+				       table_context->overdrive_table, false);
+		if (ret) {
+			pr_err("Failed to export over drive table!\n");
+			return ret;
+		}
+
+		ret = vega20_set_default_od8_setttings(smu);
+		if (ret)
+			return ret;
+	}
+
+	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0,
+			       table_context->overdrive_table, true);
+	if (ret) {
+		pr_err("Failed to import over drive table!\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int vega20_get_od_percentage(struct smu_context *smu,
-				    enum pp_clock_type type)
+				    enum smu_clk_type clk_type)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct vega20_dpm_table *dpm_table = NULL;
@@ -1474,12 +1743,12 @@ static int vega20_get_od_percentage(struct smu_context *smu,
 	dpm_table = smu_dpm->dpm_context;
 	golden_table = smu_dpm->golden_dpm_context;
 
-	switch (type) {
-	case OD_SCLK:
+	switch (clk_type) {
+	case SMU_OD_SCLK:
 		single_dpm_table = &(dpm_table->gfx_table);
 		golden_dpm_table = &(golden_table->gfx_table);
 		break;
-	case OD_MCLK:
+	case SMU_OD_MCLK:
 		single_dpm_table = &(dpm_table->mem_table);
 		golden_dpm_table = &(golden_table->mem_table);
 		break;
@@ -1495,6 +1764,201 @@ static int vega20_get_od_percentage(struct smu_context *smu,
 	value = DIV_ROUND_UP(value * 100, golden_value);
 
 	return value;
+}
+
+static int vega20_get_power_profile_mode(struct smu_context *smu, char *buf)
+{
+	DpmActivityMonitorCoeffInt_t activity_monitor;
+	uint32_t i, size = 0;
+	uint16_t workload_type = 0;
+	static const char *profile_name[] = {
+					"BOOTUP_DEFAULT",
+					"3D_FULL_SCREEN",
+					"POWER_SAVING",
+					"VIDEO",
+					"VR",
+					"COMPUTE",
+					"CUSTOM"};
+	static const char *title[] = {
+			"PROFILE_INDEX(NAME)",
+			"CLOCK_TYPE(NAME)",
+			"FPS",
+			"UseRlcBusy",
+			"MinActiveFreqType",
+			"MinActiveFreq",
+			"BoosterFreqType",
+			"BoosterFreq",
+			"PD_Data_limit_c",
+			"PD_Data_error_coeff",
+			"PD_Data_error_rate_coeff"};
+	int result = 0;
+
+	if (!smu->pm_enabled || !buf)
+		return -EINVAL;
+
+	size += sprintf(buf + size, "%16s %s %s %s %s %s %s %s %s %s %s\n",
+			title[0], title[1], title[2], title[3], title[4], title[5],
+			title[6], title[7], title[8], title[9], title[10]);
+
+	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
+		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+		workload_type = smu_workload_get_type(smu, i);
+		result = smu_update_table(smu,
+					  SMU_TABLE_ACTIVITY_MONITOR_COEFF, workload_type,
+					  (void *)(&activity_monitor), false);
+		if (result) {
+			pr_err("[%s] Failed to get activity monitor!", __func__);
+			return result;
+		}
+
+		size += sprintf(buf + size, "%2d %14s%s:\n",
+			i, profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			0,
+			"GFXCLK",
+			activity_monitor.Gfx_FPS,
+			activity_monitor.Gfx_UseRlcBusy,
+			activity_monitor.Gfx_MinActiveFreqType,
+			activity_monitor.Gfx_MinActiveFreq,
+			activity_monitor.Gfx_BoosterFreqType,
+			activity_monitor.Gfx_BoosterFreq,
+			activity_monitor.Gfx_PD_Data_limit_c,
+			activity_monitor.Gfx_PD_Data_error_coeff,
+			activity_monitor.Gfx_PD_Data_error_rate_coeff);
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			1,
+			"SOCCLK",
+			activity_monitor.Soc_FPS,
+			activity_monitor.Soc_UseRlcBusy,
+			activity_monitor.Soc_MinActiveFreqType,
+			activity_monitor.Soc_MinActiveFreq,
+			activity_monitor.Soc_BoosterFreqType,
+			activity_monitor.Soc_BoosterFreq,
+			activity_monitor.Soc_PD_Data_limit_c,
+			activity_monitor.Soc_PD_Data_error_coeff,
+			activity_monitor.Soc_PD_Data_error_rate_coeff);
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			2,
+			"UCLK",
+			activity_monitor.Mem_FPS,
+			activity_monitor.Mem_UseRlcBusy,
+			activity_monitor.Mem_MinActiveFreqType,
+			activity_monitor.Mem_MinActiveFreq,
+			activity_monitor.Mem_BoosterFreqType,
+			activity_monitor.Mem_BoosterFreq,
+			activity_monitor.Mem_PD_Data_limit_c,
+			activity_monitor.Mem_PD_Data_error_coeff,
+			activity_monitor.Mem_PD_Data_error_rate_coeff);
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			3,
+			"FCLK",
+			activity_monitor.Fclk_FPS,
+			activity_monitor.Fclk_UseRlcBusy,
+			activity_monitor.Fclk_MinActiveFreqType,
+			activity_monitor.Fclk_MinActiveFreq,
+			activity_monitor.Fclk_BoosterFreqType,
+			activity_monitor.Fclk_BoosterFreq,
+			activity_monitor.Fclk_PD_Data_limit_c,
+			activity_monitor.Fclk_PD_Data_error_coeff,
+			activity_monitor.Fclk_PD_Data_error_rate_coeff);
+	}
+
+	return size;
+}
+
+static int vega20_set_power_profile_mode(struct smu_context *smu, long *input, uint32_t size)
+{
+	DpmActivityMonitorCoeffInt_t activity_monitor;
+	int workload_type = 0, ret = 0;
+
+	smu->power_profile_mode = input[size];
+
+	if (!smu->pm_enabled)
+		return ret;
+	if (smu->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+		pr_err("Invalid power profile mode %d\n", smu->power_profile_mode);
+		return -EINVAL;
+	}
+
+	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+		ret = smu_update_table(smu,
+				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
+				       (void *)(&activity_monitor), false);
+		if (ret) {
+			pr_err("[%s] Failed to get activity monitor!", __func__);
+			return ret;
+		}
+
+		switch (input[0]) {
+		case 0: /* Gfxclk */
+			activity_monitor.Gfx_FPS = input[1];
+			activity_monitor.Gfx_UseRlcBusy = input[2];
+			activity_monitor.Gfx_MinActiveFreqType = input[3];
+			activity_monitor.Gfx_MinActiveFreq = input[4];
+			activity_monitor.Gfx_BoosterFreqType = input[5];
+			activity_monitor.Gfx_BoosterFreq = input[6];
+			activity_monitor.Gfx_PD_Data_limit_c = input[7];
+			activity_monitor.Gfx_PD_Data_error_coeff = input[8];
+			activity_monitor.Gfx_PD_Data_error_rate_coeff = input[9];
+			break;
+		case 1: /* Socclk */
+			activity_monitor.Soc_FPS = input[1];
+			activity_monitor.Soc_UseRlcBusy = input[2];
+			activity_monitor.Soc_MinActiveFreqType = input[3];
+			activity_monitor.Soc_MinActiveFreq = input[4];
+			activity_monitor.Soc_BoosterFreqType = input[5];
+			activity_monitor.Soc_BoosterFreq = input[6];
+			activity_monitor.Soc_PD_Data_limit_c = input[7];
+			activity_monitor.Soc_PD_Data_error_coeff = input[8];
+			activity_monitor.Soc_PD_Data_error_rate_coeff = input[9];
+			break;
+		case 2: /* Uclk */
+			activity_monitor.Mem_FPS = input[1];
+			activity_monitor.Mem_UseRlcBusy = input[2];
+			activity_monitor.Mem_MinActiveFreqType = input[3];
+			activity_monitor.Mem_MinActiveFreq = input[4];
+			activity_monitor.Mem_BoosterFreqType = input[5];
+			activity_monitor.Mem_BoosterFreq = input[6];
+			activity_monitor.Mem_PD_Data_limit_c = input[7];
+			activity_monitor.Mem_PD_Data_error_coeff = input[8];
+			activity_monitor.Mem_PD_Data_error_rate_coeff = input[9];
+			break;
+		case 3: /* Fclk */
+			activity_monitor.Fclk_FPS = input[1];
+			activity_monitor.Fclk_UseRlcBusy = input[2];
+			activity_monitor.Fclk_MinActiveFreqType = input[3];
+			activity_monitor.Fclk_MinActiveFreq = input[4];
+			activity_monitor.Fclk_BoosterFreqType = input[5];
+			activity_monitor.Fclk_BoosterFreq = input[6];
+			activity_monitor.Fclk_PD_Data_limit_c = input[7];
+			activity_monitor.Fclk_PD_Data_error_coeff = input[8];
+			activity_monitor.Fclk_PD_Data_error_rate_coeff = input[9];
+			break;
+		}
+
+		ret = smu_update_table(smu,
+				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
+				       (void *)(&activity_monitor), true);
+		if (ret) {
+			pr_err("[%s] Failed to set activity monitor!", __func__);
+			return ret;
+		}
+	}
+
+	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+	workload_type = smu_workload_get_type(smu, smu->power_profile_mode);
+	smu_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
+				    1 << workload_type);
+
+	return ret;
 }
 
 static int
@@ -1550,7 +2014,7 @@ vega20_set_uclk_to_highest_dpm_level(struct smu_context *smu,
 	if (!smu_dpm_ctx->dpm_context)
 		return -EINVAL;
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		if (dpm_table->count <= 0) {
 			pr_err("[%s] Dpm table has no entry!", __func__);
 				return -EINVAL;
@@ -1594,17 +2058,9 @@ static int vega20_display_config_changed(struct smu_context *smu)
 {
 	int ret = 0;
 
-	if (!smu->funcs)
-		return -EINVAL;
-
-	if (!smu->smu_dpm.dpm_context ||
-	    !smu->smu_table.tables ||
-	    !smu->smu_table.tables[TABLE_WATERMARKS].cpu_addr)
-		return -EINVAL;
-
 	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
 	    !(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
-		ret = smu->funcs->write_watermarks_table(smu);
+		ret = smu_write_watermarks_table(smu);
 		if (ret) {
 			pr_err("Failed to update WMTABLE!");
 			return ret;
@@ -1613,8 +2069,8 @@ static int vega20_display_config_changed(struct smu_context *smu)
 	}
 
 	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
-	    smu_feature_is_supported(smu, FEATURE_DPM_DCEFCLK_BIT) &&
-	    smu_feature_is_supported(smu, FEATURE_DPM_SOCCLK_BIT)) {
+	    smu_feature_is_supported(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
+	    smu_feature_is_supported(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		smu_send_smc_msg_with_param(smu,
 					    SMU_MSG_NumOfDisplays,
 					    smu->display_config->num_display);
@@ -1783,11 +2239,11 @@ vega20_notify_smc_dispaly_config(struct smu_context *smu)
 	min_clocks.dcef_clock_in_sr = smu->display_config->min_dcef_deep_sleep_set_clk;
 	min_clocks.memory_clock = smu->display_config->min_mem_set_clock;
 
-	if (smu_feature_is_supported(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+	if (smu_feature_is_supported(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		clock_req.clock_type = amd_pp_dcef_clock;
 		clock_req.clock_freq_in_khz = min_clocks.dcef_clock * 10;
 		if (!smu->funcs->display_clock_voltage_request(smu, &clock_req)) {
-			if (smu_feature_is_supported(smu, FEATURE_DS_DCEFCLK_BIT)) {
+			if (smu_feature_is_supported(smu, SMU_FEATURE_DS_DCEFCLK_BIT)) {
 				ret = smu_send_smc_msg_with_param(smu,
 								  SMU_MSG_SetMinDeepSleepDcefclk,
 								  min_clocks.dcef_clock_in_sr/100);
@@ -1801,7 +2257,7 @@ vega20_notify_smc_dispaly_config(struct smu_context *smu)
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		memtable->dpm_state.hard_min_level = min_clocks.memory_clock/100;
 		ret = smu_send_smc_msg_with_param(smu,
 						  SMU_MSG_SetHardMinByFreq,
@@ -1939,57 +2395,17 @@ static int vega20_unforce_dpm_levels(struct smu_context *smu)
 	dpm_table->soc_table.dpm_state.soft_max_level =
 		dpm_table->soc_table.dpm_levels[soft_max_level].value;
 
-	ret = smu_upload_dpm_level(smu, false, 0xFFFFFFFF);
+	ret = vega20_upload_dpm_level(smu, false, 0xFFFFFFFF);
 	if (ret) {
 		pr_err("Failed to upload DPM Bootup Levels!");
 		return ret;
 	}
 
-	ret = smu_upload_dpm_level(smu, true, 0xFFFFFFFF);
+	ret = vega20_upload_dpm_level(smu, true, 0xFFFFFFFF);
 	if (ret) {
 		pr_err("Failed to upload DPM Max Levels!");
 		return ret;
 	}
-
-	return ret;
-}
-
-static enum amd_dpm_forced_level vega20_get_performance_level(struct smu_context *smu)
-{
-	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
-	if (!smu_dpm_ctx->dpm_context)
-		return -EINVAL;
-
-	if (smu_dpm_ctx->dpm_level != smu_dpm_ctx->saved_dpm_level) {
-		mutex_lock(&(smu->mutex));
-		smu_dpm_ctx->saved_dpm_level = smu_dpm_ctx->dpm_level;
-		mutex_unlock(&(smu->mutex));
-	}
-	return smu_dpm_ctx->dpm_level;
-}
-
-static int
-vega20_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
-{
-	int ret = 0;
-	int i;
-	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
-
-	if (!smu_dpm_ctx->dpm_context)
-		return -EINVAL;
-
-	for (i = 0; i < smu->adev->num_ip_blocks; i++) {
-		if (smu->adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC)
-			break;
-	}
-
-	mutex_lock(&smu->mutex);
-
-	smu->adev->ip_blocks[i].version->funcs->enable_umd_pstate(smu, &level);
-	ret = smu_handle_task(smu, level,
-			      AMD_PP_TASK_READJUST_POWER_STATE);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2002,7 +2418,7 @@ static int vega20_update_specified_od8_value(struct smu_context *smu,
 	OverDriveTable_t *od_table =
 		(OverDriveTable_t *)(table_context->overdrive_table);
 	struct vega20_od8_settings *od8_settings =
-		(struct vega20_od8_settings *)table_context->od8_settings;
+		(struct vega20_od8_settings *)smu->od_settings;
 
 	switch (index) {
 	case OD8_SETTING_GFXCLK_FMIN:
@@ -2071,8 +2487,36 @@ static int vega20_update_specified_od8_value(struct smu_context *smu,
 	return 0;
 }
 
+static int vega20_update_od8_settings(struct smu_context *smu,
+				      uint32_t index,
+				      uint32_t value)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	int ret;
+
+	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0,
+			       table_context->overdrive_table, false);
+	if (ret) {
+		pr_err("Failed to export over drive table!\n");
+		return ret;
+	}
+
+	ret = vega20_update_specified_od8_value(smu, index, value);
+	if (ret)
+		return ret;
+
+	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0,
+			       table_context->overdrive_table, true);
+	if (ret) {
+		pr_err("Failed to import over drive table!\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int vega20_set_od_percentage(struct smu_context *smu,
-				    enum pp_clock_type type,
+				    enum smu_clk_type clk_type,
 				    uint32_t value)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
@@ -2090,18 +2534,18 @@ static int vega20_set_od_percentage(struct smu_context *smu,
 	dpm_table = smu_dpm->dpm_context;
 	golden_table = smu_dpm->golden_dpm_context;
 
-	switch (type) {
-	case OD_SCLK:
+	switch (clk_type) {
+	case SMU_OD_SCLK:
 		single_dpm_table = &(dpm_table->gfx_table);
 		golden_dpm_table = &(golden_table->gfx_table);
-		feature_enabled = smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT);
+		feature_enabled = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT);
 		clk_id = PPCLK_GFXCLK;
 		index = OD8_SETTING_GFXCLK_FMAX;
 		break;
-	case OD_MCLK:
+	case SMU_OD_MCLK:
 		single_dpm_table = &(dpm_table->mem_table);
 		golden_dpm_table = &(golden_table->mem_table);
-		feature_enabled = smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT);
+		feature_enabled = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT);
 		clk_id = PPCLK_UCLK;
 		index = OD8_SETTING_UCLK_FMAX;
 		break;
@@ -2117,7 +2561,7 @@ static int vega20_set_od_percentage(struct smu_context *smu,
 	od_clk /= 100;
 	od_clk += golden_dpm_table->dpm_levels[golden_dpm_table->count - 1].value;
 
-	ret = smu_update_od8_settings(smu, index, od_clk);
+	ret = vega20_update_od8_settings(smu, index, od_clk);
 	if (ret) {
 		pr_err("[Setoverdrive] failed to set od clk!\n");
 		goto set_od_failed;
@@ -2155,7 +2599,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 	struct vega20_dpm_table *dpm_table = NULL;
 	struct vega20_single_dpm_table *single_dpm_table;
 	struct vega20_od8_settings *od8_settings =
-		(struct vega20_od8_settings *)table_context->od8_settings;
+		(struct vega20_od8_settings *)smu->od_settings;
 	struct pp_clock_levels_with_latency clocks;
 	int32_t input_index, input_clk, input_vol, i;
 	int od8_id;
@@ -2202,10 +2646,10 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 
 			if (input_index == 0 && od_table->GfxclkFmin != input_clk) {
 				od_table->GfxclkFmin = input_clk;
-				table_context->od_gfxclk_update = true;
+				od8_settings->od_gfxclk_update = true;
 			} else if (input_index == 1 && od_table->GfxclkFmax != input_clk) {
 				od_table->GfxclkFmax = input_clk;
-				table_context->od_gfxclk_update = true;
+				od8_settings->od_gfxclk_update = true;
 			}
 		}
 
@@ -2250,7 +2694,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 			}
 
 			if (input_index == 1 && od_table->UclkFmax != input_clk) {
-				table_context->od_gfxclk_update = true;
+				od8_settings->od_gfxclk_update = true;
 				od_table->UclkFmax = input_clk;
 			}
 		}
@@ -2325,7 +2769,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 		break;
 
 	case PP_OD_RESTORE_DEFAULT_TABLE:
-		ret = smu_update_table(smu, TABLE_OVERDRIVE, table_context->overdrive_table, false);
+		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, table_context->overdrive_table, false);
 		if (ret) {
 			pr_err("Failed to export over drive table!\n");
 			return ret;
@@ -2334,18 +2778,18 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 		break;
 
 	case PP_OD_COMMIT_DPM_TABLE:
-		ret = smu_update_table(smu, TABLE_OVERDRIVE, table_context->overdrive_table, true);
+		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, table_context->overdrive_table, true);
 		if (ret) {
 			pr_err("Failed to import over drive table!\n");
 			return ret;
 		}
 
 		/* retrieve updated gfxclk table */
-		if (table_context->od_gfxclk_update) {
-			table_context->od_gfxclk_update = false;
+		if (od8_settings->od_gfxclk_update) {
+			od8_settings->od_gfxclk_update = false;
 			single_dpm_table = &(dpm_table->gfx_table);
 
-			if (smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT)) {
+			if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
 				ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 								  PPCLK_GFXCLK);
 				if (ret) {
@@ -2374,14 +2818,467 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 	return ret;
 }
 
+static int vega20_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
+{
+	if (!smu_feature_is_supported(smu, SMU_FEATURE_DPM_UVD_BIT))
+		return 0;
+
+	if (enable == smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT))
+		return 0;
+
+	return smu_feature_set_enabled(smu, SMU_FEATURE_DPM_UVD_BIT, enable);
+}
+
+static int vega20_dpm_set_vce_enable(struct smu_context *smu, bool enable)
+{
+	if (!smu_feature_is_supported(smu, SMU_FEATURE_DPM_VCE_BIT))
+		return 0;
+
+	if (enable == smu_feature_is_enabled(smu, SMU_FEATURE_DPM_VCE_BIT))
+		return 0;
+
+	return smu_feature_set_enabled(smu, SMU_FEATURE_DPM_VCE_BIT, enable);
+}
+
+static int vega20_get_enabled_smc_features(struct smu_context *smu,
+		uint64_t *features_enabled)
+{
+	uint32_t feature_mask[2] = {0, 0};
+	int ret = 0;
+
+	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
+	if (ret)
+		return ret;
+
+	*features_enabled = ((((uint64_t)feature_mask[0] << SMU_FEATURES_LOW_SHIFT) & SMU_FEATURES_LOW_MASK) |
+			(((uint64_t)feature_mask[1] << SMU_FEATURES_HIGH_SHIFT) & SMU_FEATURES_HIGH_MASK));
+
+	return ret;
+}
+
+static int vega20_enable_smc_features(struct smu_context *smu,
+		bool enable, uint64_t feature_mask)
+{
+	uint32_t smu_features_low, smu_features_high;
+	int ret = 0;
+
+	smu_features_low = (uint32_t)((feature_mask & SMU_FEATURES_LOW_MASK) >> SMU_FEATURES_LOW_SHIFT);
+	smu_features_high = (uint32_t)((feature_mask & SMU_FEATURES_HIGH_MASK) >> SMU_FEATURES_HIGH_SHIFT);
+
+	if (enable) {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnableSmuFeaturesLow,
+						  smu_features_low);
+		if (ret)
+			return ret;
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnableSmuFeaturesHigh,
+						  smu_features_high);
+		if (ret)
+			return ret;
+	} else {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DisableSmuFeaturesLow,
+						  smu_features_low);
+		if (ret)
+			return ret;
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DisableSmuFeaturesHigh,
+						  smu_features_high);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+
+}
+
+static int vega20_get_ppfeature_status(struct smu_context *smu, char *buf)
+{
+	static const char *ppfeature_name[] = {
+				"DPM_PREFETCHER",
+				"GFXCLK_DPM",
+				"UCLK_DPM",
+				"SOCCLK_DPM",
+				"UVD_DPM",
+				"VCE_DPM",
+				"ULV",
+				"MP0CLK_DPM",
+				"LINK_DPM",
+				"DCEFCLK_DPM",
+				"GFXCLK_DS",
+				"SOCCLK_DS",
+				"LCLK_DS",
+				"PPT",
+				"TDC",
+				"THERMAL",
+				"GFX_PER_CU_CG",
+				"RM",
+				"DCEFCLK_DS",
+				"ACDC",
+				"VR0HOT",
+				"VR1HOT",
+				"FW_CTF",
+				"LED_DISPLAY",
+				"FAN_CONTROL",
+				"GFX_EDC",
+				"GFXOFF",
+				"CG",
+				"FCLK_DPM",
+				"FCLK_DS",
+				"MP1CLK_DS",
+				"MP0CLK_DS",
+				"XGMI",
+				"ECC"};
+	static const char *output_title[] = {
+				"FEATURES",
+				"BITMASK",
+				"ENABLEMENT"};
+	uint64_t features_enabled;
+	int i;
+	int ret = 0;
+	int size = 0;
+
+	ret = vega20_get_enabled_smc_features(smu, &features_enabled);
+	if (ret)
+		return ret;
+
+	size += sprintf(buf + size, "Current ppfeatures: 0x%016llx\n", features_enabled);
+	size += sprintf(buf + size, "%-19s %-22s %s\n",
+				output_title[0],
+				output_title[1],
+				output_title[2]);
+	for (i = 0; i < GNLD_FEATURES_MAX; i++) {
+		size += sprintf(buf + size, "%-19s 0x%016llx %6s\n",
+					ppfeature_name[i],
+					1ULL << i,
+					(features_enabled & (1ULL << i)) ? "Y" : "N");
+	}
+
+	return size;
+}
+
+static int vega20_set_ppfeature_status(struct smu_context *smu, uint64_t new_ppfeature_masks)
+{
+	uint64_t features_enabled;
+	uint64_t features_to_enable;
+	uint64_t features_to_disable;
+	int ret = 0;
+
+	if (new_ppfeature_masks >= (1ULL << GNLD_FEATURES_MAX))
+		return -EINVAL;
+
+	ret = vega20_get_enabled_smc_features(smu, &features_enabled);
+	if (ret)
+		return ret;
+
+	features_to_disable =
+		features_enabled & ~new_ppfeature_masks;
+	features_to_enable =
+		~features_enabled & new_ppfeature_masks;
+
+	pr_debug("features_to_disable 0x%llx\n", features_to_disable);
+	pr_debug("features_to_enable 0x%llx\n", features_to_enable);
+
+	if (features_to_disable) {
+		ret = vega20_enable_smc_features(smu, false, features_to_disable);
+		if (ret)
+			return ret;
+	}
+
+	if (features_to_enable) {
+		ret = vega20_enable_smc_features(smu, true, features_to_enable);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static bool vega20_is_dpm_running(struct smu_context *smu)
+{
+	int ret = 0;
+	uint32_t feature_mask[2];
+	unsigned long feature_enabled;
+	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
+	feature_enabled = (unsigned long)((uint64_t)feature_mask[0] |
+			   ((uint64_t)feature_mask[1] << 32));
+	return !!(feature_enabled & SMC_DPM_FEATURE);
+}
+
+static int vega20_set_thermal_fan_table(struct smu_context *smu)
+{
+	int ret;
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *pptable = table_context->driver_pptable;
+
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetFanTemperatureTarget,
+			(uint32_t)pptable->FanTargetTemperature);
+
+	return ret;
+}
+
+static int vega20_get_fan_speed_rpm(struct smu_context *smu,
+				    uint32_t *speed)
+{
+	int ret;
+
+	ret = smu_send_smc_msg(smu, SMU_MSG_GetCurrentRpm);
+
+	if (ret) {
+		pr_err("Attempt to get current RPM from SMC Failed!\n");
+		return ret;
+	}
+
+	smu_read_smc_arg(smu, speed);
+
+	return 0;
+}
+
+static int vega20_get_fan_speed_percent(struct smu_context *smu,
+					uint32_t *speed)
+{
+	int ret = 0;
+	uint32_t current_rpm = 0, percent = 0;
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+
+	ret = vega20_get_fan_speed_rpm(smu, &current_rpm);
+	if (ret)
+		return ret;
+
+	percent = current_rpm * 100 / pptable->FanMaximumRpm;
+	*speed = percent > 100 ? 100 : percent;
+
+	return 0;
+}
+
+static int vega20_get_gpu_power(struct smu_context *smu, uint32_t *value)
+{
+	uint32_t smu_version;
+	int ret = 0;
+	SmuMetrics_t metrics;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = vega20_get_metrics_table(smu, &metrics);
+	if (ret)
+		return ret;
+
+	ret = smu_get_smc_version(smu, NULL, &smu_version);
+	if (ret)
+		return ret;
+
+	/* For the 40.46 release, they changed the value name */
+	if (smu_version == 0x282e00)
+		*value = metrics.AverageSocketPower << 8;
+	else
+		*value = metrics.CurrSocketPower << 8;
+
+	return 0;
+}
+
+static int vega20_get_current_activity_percent(struct smu_context *smu,
+					       enum amd_pp_sensors sensor,
+					       uint32_t *value)
+{
+	int ret = 0;
+	SmuMetrics_t metrics;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = vega20_get_metrics_table(smu, &metrics);
+	if (ret)
+		return ret;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		*value = metrics.AverageGfxActivity;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
+		*value = metrics.AverageUclkActivity;
+		break;
+	default:
+		pr_err("Invalid sensor for retrieving clock activity\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int vega20_thermal_get_temperature(struct smu_context *smu,
+					     enum amd_pp_sensors sensor,
+					     uint32_t *value)
+{
+	struct amdgpu_device *adev = smu->adev;
+	SmuMetrics_t metrics;
+	uint32_t temp = 0;
+	int ret = 0;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = vega20_get_metrics_table(smu, &metrics);
+	if (ret)
+		return ret;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+		temp = RREG32_SOC15(THM, 0, mmCG_MULT_THERMAL_STATUS);
+		temp = (temp & CG_MULT_THERMAL_STATUS__CTF_TEMP_MASK) >>
+				CG_MULT_THERMAL_STATUS__CTF_TEMP__SHIFT;
+
+		temp = temp & 0x1ff;
+		temp *= SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+		*value = temp;
+		break;
+	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+		*value = metrics.TemperatureEdge *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		*value = metrics.TemperatureHBM *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	default:
+		pr_err("Invalid sensor for retrieving temp\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+static int vega20_read_sensor(struct smu_context *smu,
+				 enum amd_pp_sensors sensor,
+				 void *data, uint32_t *size)
+{
+	int ret = 0;
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *pptable = table_context->driver_pptable;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_MAX_FAN_RPM:
+		*(uint32_t *)data = pptable->FanMaximumRpm;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		ret = vega20_get_current_activity_percent(smu,
+						sensor,
+						(uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GPU_POWER:
+		ret = vega20_get_gpu_power(smu, (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		ret = vega20_thermal_get_temperature(smu, sensor, (uint32_t *)data);
+		*size = 4;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static int vega20_set_watermarks_table(struct smu_context *smu,
+				       void *watermarks, struct
+				       dm_pp_wm_sets_with_clock_ranges_soc15
+				       *clock_ranges)
+{
+	int i;
+	Watermarks_t *table = watermarks;
+
+	if (!table || !clock_ranges)
+		return -EINVAL;
+
+	if (clock_ranges->num_wm_dmif_sets > 4 ||
+	    clock_ranges->num_wm_mcif_sets > 4)
+		return -EINVAL;
+
+	for (i = 0; i < clock_ranges->num_wm_dmif_sets; i++) {
+		table->WatermarkRow[1][i].MinClock =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_dcfclk_clk_in_khz /
+			1000));
+		table->WatermarkRow[1][i].MaxClock =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_dcfclk_clk_in_khz /
+			1000));
+		table->WatermarkRow[1][i].MinUclk =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_mem_clk_in_khz /
+			1000));
+		table->WatermarkRow[1][i].MaxUclk =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_mem_clk_in_khz /
+			1000));
+		table->WatermarkRow[1][i].WmSetting = (uint8_t)
+				clock_ranges->wm_dmif_clocks_ranges[i].wm_set_id;
+	}
+
+	for (i = 0; i < clock_ranges->num_wm_mcif_sets; i++) {
+		table->WatermarkRow[0][i].MinClock =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_socclk_clk_in_khz /
+			1000));
+		table->WatermarkRow[0][i].MaxClock =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_socclk_clk_in_khz /
+			1000));
+		table->WatermarkRow[0][i].MinUclk =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_mem_clk_in_khz /
+			1000));
+		table->WatermarkRow[0][i].MaxUclk =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_mem_clk_in_khz /
+			1000));
+		table->WatermarkRow[0][i].WmSetting = (uint8_t)
+				clock_ranges->wm_mcif_clocks_ranges[i].wm_set_id;
+	}
+
+	return 0;
+}
+
+static int vega20_get_thermal_temperature_range(struct smu_context *smu,
+						struct smu_temperature_range *range)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	ATOM_Vega20_POWERPLAYTABLE *powerplay_table = table_context->power_play_table;
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+
+	if (!range || !powerplay_table)
+		return -EINVAL;
+
+	/* The unit is temperature */
+	range->min = 0;
+	range->max = powerplay_table->usSoftwareShutdownTemp;
+	range->edge_emergency_max = (pptable->TedgeLimit + CTF_OFFSET_EDGE);
+	range->hotspot_crit_max = pptable->ThotspotLimit;
+	range->hotspot_emergency_max = (pptable->ThotspotLimit + CTF_OFFSET_HOTSPOT);
+	range->mem_crit_max = pptable->ThbmLimit;
+	range->mem_emergency_max = (pptable->ThbmLimit + CTF_OFFSET_HBM);
+
+
+	return 0;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
+	.tables_init = vega20_tables_init,
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
 	.check_powerplay_table = vega20_check_powerplay_table,
 	.append_powerplay_table = vega20_append_powerplay_table,
 	.get_smu_msg_index = vega20_get_smu_msg_index,
+	.get_smu_clk_index = vega20_get_smu_clk_index,
+	.get_smu_feature_index = vega20_get_smu_feature_index,
+	.get_smu_table_index = vega20_get_smu_table_index,
+	.get_smu_power_index = vega20_get_pwr_src_index,
+	.get_workload_type = vega20_get_workload_type,
 	.run_afll_btc = vega20_run_btc_afll,
-	.get_unallowed_feature_mask = vega20_get_unallowed_feature_mask,
+	.get_allowed_feature_mask = vega20_get_allowed_feature_mask,
 	.get_current_power_state = vega20_get_current_power_state,
 	.set_default_dpm_table = vega20_set_default_dpm_table,
 	.set_power_state = NULL,
@@ -2389,25 +3286,37 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.print_clk_levels = vega20_print_clk_levels,
 	.force_clk_levels = vega20_force_clk_levels,
 	.get_clock_by_type_with_latency = vega20_get_clock_by_type_with_latency,
-	.set_default_od8_settings = vega20_set_default_od8_setttings,
 	.get_od_percentage = vega20_get_od_percentage,
-	.get_performance_level = vega20_get_performance_level,
-	.force_performance_level = vega20_force_performance_level,
-	.update_specified_od8_value = vega20_update_specified_od8_value,
+	.get_power_profile_mode = vega20_get_power_profile_mode,
+	.set_power_profile_mode = vega20_set_power_profile_mode,
 	.set_od_percentage = vega20_set_od_percentage,
+	.set_default_od_settings = vega20_set_default_od_settings,
 	.od_edit_dpm_table = vega20_odn_edit_dpm_table,
+	.dpm_set_uvd_enable = vega20_dpm_set_uvd_enable,
+	.dpm_set_vce_enable = vega20_dpm_set_vce_enable,
+	.read_sensor = vega20_read_sensor,
 	.pre_display_config_changed = vega20_pre_display_config_changed,
 	.display_config_changed = vega20_display_config_changed,
 	.apply_clocks_adjust_rules = vega20_apply_clocks_adjust_rules,
 	.notify_smc_dispaly_config = vega20_notify_smc_dispaly_config,
 	.force_dpm_limit_value = vega20_force_dpm_limit_value,
 	.unforce_dpm_levels = vega20_unforce_dpm_levels,
-	.upload_dpm_level = vega20_upload_dpm_level,
 	.get_profiling_clk_mask = vega20_get_profiling_clk_mask,
+	.set_ppfeature_status = vega20_set_ppfeature_status,
+	.get_ppfeature_status = vega20_get_ppfeature_status,
+	.is_dpm_running = vega20_is_dpm_running,
+	.set_thermal_fan_table = vega20_set_thermal_fan_table,
+	.get_fan_speed_percent = vega20_get_fan_speed_percent,
+	.get_fan_speed_rpm = vega20_get_fan_speed_rpm,
+	.set_watermarks_table = vega20_set_watermarks_table,
+	.get_thermal_temperature_range = vega20_get_thermal_temperature_range
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)
 {
+	struct smu_table_context *smu_table = &smu->smu_table;
+
 	smu->ppt_funcs = &vega20_ppt_funcs;
 	smu->smc_if_version = SMU11_DRIVER_IF_VERSION;
+	smu_table->table_count = TABLE_COUNT;
 }

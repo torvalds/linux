@@ -724,9 +724,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strscpy(cap->driver, "s2255", sizeof(cap->driver));
 	strscpy(cap->card, "s2255", sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
-		V4L2_CAP_READWRITE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -1657,6 +1654,8 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 		vc->vdev.ctrl_handler = &vc->hdl;
 		vc->vdev.lock = &dev->lock;
 		vc->vdev.v4l2_dev = &dev->v4l2_dev;
+		vc->vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE |
+				       V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
 		video_set_drvdata(&vc->vdev, vc);
 		if (video_nr == -1)
 			ret = video_register_device(&vc->vdev,

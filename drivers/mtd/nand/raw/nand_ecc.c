@@ -11,7 +11,7 @@
  *   Thomas Gleixner (tglx@linutronix.de)
  *
  * Information on how this algorithm works and how it was developed
- * can be found in Documentation/mtd/nand_ecc.txt
+ * can be found in Documentation/driver-api/mtd/nand_ecc.rst
  */
 
 #include <linux/types.h>

@@ -59,6 +59,8 @@ struct mlx5i_priv {
 	char  *mlx5e_priv[0];
 };
 
+int mlx5i_create_tis(struct mlx5_core_dev *mdev, u32 underlay_qpn, u32 *tisn);
+
 /* Underlay QP create/destroy functions */
 int mlx5i_create_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp);
 void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp);

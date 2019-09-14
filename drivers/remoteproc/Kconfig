@@ -16,7 +16,7 @@ if REMOTEPROC
 
 config IMX_REMOTEPROC
 	tristate "IMX6/7 remoteproc support"
-	depends on SOC_IMX6SX || SOC_IMX7D
+	depends on ARCH_MXC
 	help
 	  Say y here to support iMX's remote processors (Cortex M4
 	  on iMX7D) via the remote processor framework.
@@ -116,6 +116,7 @@ config QCOM_Q6V5_MSS
 	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
 	depends on QCOM_SYSMON || QCOM_SYSMON=n
 	select MFD_SYSCON
+	select QCOM_MDT_LOADER
 	select QCOM_Q6V5_COMMON
 	select QCOM_RPROC_COMMON
 	select QCOM_SCM
@@ -197,6 +198,21 @@ config ST_REMOTEPROC
 
 config ST_SLIM_REMOTEPROC
 	tristate
+
+config STM32_RPROC
+	tristate "STM32 remoteproc support"
+	depends on ARCH_STM32
+	depends on REMOTEPROC
+	select MAILBOX
+	help
+	  Say y here to support STM32 MCU processors via the
+	  remote processor framework.
+
+	  You want to say y here in order to enable AMP
+	  use-cases to run on your platform (dedicated firmware could be
+	  offloaded to remote MCU processors using this framework).
+
+	  This can be either built-in or a loadable module.
 
 endif # REMOTEPROC
 

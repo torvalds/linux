@@ -5,10 +5,10 @@
  * (c) 2010 Arnaldo Carvalho de Melo <acme@redhat.com>
  */
 
-#include "util.h"
 #include "pstack.h"
 #include "debug.h"
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 #include <stdlib.h>
 
 struct pstack {

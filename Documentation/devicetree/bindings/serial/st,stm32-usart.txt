@@ -13,6 +13,7 @@ Required properties:
 - clocks: The input clock of the USART instance
 
 Optional properties:
+- resets: Must contain the phandle to the reset controller.
 - pinctrl: The reference on the pins configuration
 - st,hw-flow-ctrl: bool flag to enable hardware flow control.
 - rs485-rts-delay, rs485-rx-during-tx, rs485-rts-active-low,

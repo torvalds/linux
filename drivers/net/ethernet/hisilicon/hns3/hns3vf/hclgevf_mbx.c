@@ -102,7 +102,8 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 					  ~HCLGE_MBX_NEED_RESP_BIT;
 	req->msg[0] = code;
 	req->msg[1] = subcode;
-	memcpy(&req->msg[2], msg_data, msg_len);
+	if (msg_data)
+		memcpy(&req->msg[2], msg_data, msg_len);
 
 	/* synchronous send */
 	if (need_resp) {
@@ -203,7 +204,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 		case HCLGE_MBX_LINK_STAT_CHANGE:
 		case HCLGE_MBX_ASSERTING_RESET:
 		case HCLGE_MBX_LINK_STAT_MODE:
-		case HLCGE_MBX_PUSH_VLAN_INFO:
+		case HCLGE_MBX_PUSH_VLAN_INFO:
 			/* set this mbx event as pending. This is required as we
 			 * might loose interrupt event when mbx task is busy
 			 * handling. This shall be cleared when mbx task just
@@ -306,7 +307,7 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 			hclgevf_reset_task_schedule(hdev);
 
 			break;
-		case HLCGE_MBX_PUSH_VLAN_INFO:
+		case HCLGE_MBX_PUSH_VLAN_INFO:
 			state = le16_to_cpu(msg_q[1]);
 			vlan_info = &msg_q[1];
 			hclgevf_update_port_base_vlan_info(hdev, state,

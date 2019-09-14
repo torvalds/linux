@@ -587,28 +587,18 @@ out_unlock:
 	return status;
 }
 
-struct ib_cq *usnic_ib_create_cq(struct ib_device *ibdev,
-				 const struct ib_cq_init_attr *attr,
-				 struct ib_udata *udata)
+int usnic_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		       struct ib_udata *udata)
 {
-	struct ib_cq *cq;
-
-	usnic_dbg("\n");
 	if (attr->flags)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq)
-		return ERR_PTR(-EBUSY);
-
-	return cq;
+	return 0;
 }
 
-int usnic_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
+void usnic_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
-	usnic_dbg("\n");
-	kfree(cq);
-	return 0;
+	return;
 }
 
 struct ib_mr *usnic_ib_reg_mr(struct ib_pd *pd, u64 start, u64 length,

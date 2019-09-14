@@ -599,7 +599,7 @@ static void do_unhandled_exception(int signr, char *str, unsigned long error,
 				   struct pt_regs *regs)
 {
 	if (user_mode(regs))
-		force_sig(signr, current);
+		force_sig(signr);
 
 	die_if_no_fixup(str, regs, error);
 }

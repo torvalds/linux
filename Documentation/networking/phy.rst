@@ -202,7 +202,8 @@ the PHY/controller, of which the PHY needs to be aware.
 
 *interface* is a u32 which specifies the connection type used
 between the controller and the PHY.  Examples are GMII, MII,
-RGMII, and SGMII.  For a full list, see include/linux/phy.h
+RGMII, and SGMII.  See "PHY interface mode" below.  For a full
+list, see include/linux/phy.h
 
 Now just make sure that phydev->supported and phydev->advertising have any
 values pruned from them which don't make sense for your controller (a 10/100
@@ -224,6 +225,48 @@ phylib state machine.
 When you want to disconnect from the network (even if just briefly), you call
 phy_stop(phydev). This function also stops the phylib state machine and
 disables PHY interrupts.
+
+PHY interface modes
+===================
+
+The PHY interface mode supplied in the phy_connect() family of functions
+defines the initial operating mode of the PHY interface.  This is not
+guaranteed to remain constant; there are PHYs which dynamically change
+their interface mode without software interaction depending on the
+negotiation results.
+
+Some of the interface modes are described below:
+
+``PHY_INTERFACE_MODE_1000BASEX``
+    This defines the 1000BASE-X single-lane serdes link as defined by the
+    802.3 standard section 36.  The link operates at a fixed bit rate of
+    1.25Gbaud using a 10B/8B encoding scheme, resulting in an underlying
+    data rate of 1Gbps.  Embedded in the data stream is a 16-bit control
+    word which is used to negotiate the duplex and pause modes with the
+    remote end.  This does not include "up-clocked" variants such as 2.5Gbps
+    speeds (see below.)
+
+``PHY_INTERFACE_MODE_2500BASEX``
+    This defines a variant of 1000BASE-X which is clocked 2.5 times faster,
+    than the 802.3 standard giving a fixed bit rate of 3.125Gbaud.
+
+``PHY_INTERFACE_MODE_SGMII``
+    This is used for Cisco SGMII, which is a modification of 1000BASE-X
+    as defined by the 802.3 standard.  The SGMII link consists of a single
+    serdes lane running at a fixed bit rate of 1.25Gbaud with 10B/8B
+    encoding.  The underlying data rate is 1Gbps, with the slower speeds of
+    100Mbps and 10Mbps being achieved through replication of each data symbol.
+    The 802.3 control word is re-purposed to send the negotiated speed and
+    duplex information from to the MAC, and for the MAC to acknowledge
+    receipt.  This does not include "up-clocked" variants such as 2.5Gbps
+    speeds.
+
+    Note: mismatched SGMII vs 1000BASE-X configuration on a link can
+    successfully pass data in some circumstances, but the 16-bit control
+    word will not be correctly interpreted, which may cause mismatches in
+    duplex, pause or other settings.  This is dependent on the MAC and/or
+    PHY behaviour.
+
 
 Pause frames / flow control
 ===========================

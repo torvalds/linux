@@ -1,11 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-vimc-objs := vimc-core.o
-vimc_capture-objs := vimc-capture.o
-vimc_common-objs := vimc-common.o
-vimc_debayer-objs := vimc-debayer.o
-vimc_scaler-objs := vimc-scaler.o
-vimc_sensor-objs := vimc-sensor.o
-vimc_streamer-objs := vimc-streamer.o
+vimc-y := vimc-core.o vimc-common.o vimc-streamer.o
 
-obj-$(CONFIG_VIDEO_VIMC) += vimc.o vimc_capture.o vimc_common.o vimc-debayer.o \
-			    vimc_scaler.o vimc_sensor.o vimc_streamer.o
+obj-$(CONFIG_VIDEO_VIMC) += vimc.o vimc-capture.o vimc-debayer.o \
+                vimc-scaler.o vimc-sensor.o

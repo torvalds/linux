@@ -43,7 +43,7 @@ enum HCLGE_MBX_OPCODE {
 	HCLGE_MBX_GET_QID_IN_PF,	/* (VF -> PF) get queue id in pf */
 	HCLGE_MBX_LINK_STAT_MODE,	/* (PF -> VF) link mode has changed */
 	HCLGE_MBX_GET_LINK_MODE,	/* (VF -> PF) get the link mode of pf */
-	HLCGE_MBX_PUSH_VLAN_INFO,	/* (PF -> VF) push port base vlan */
+	HCLGE_MBX_PUSH_VLAN_INFO,	/* (PF -> VF) push port base vlan */
 	HCLGE_MBX_GET_MEDIA_TYPE,       /* (VF -> PF) get media type */
 
 	HCLGE_MBX_GET_VF_FLR_STATUS = 200, /* (M7 -> PF) get vf reset status */
@@ -69,7 +69,7 @@ enum hclge_mbx_vlan_cfg_subcode {
 };
 
 #define HCLGE_MBX_MAX_MSG_SIZE	16
-#define HCLGE_MBX_MAX_RESP_DATA_SIZE	16
+#define HCLGE_MBX_MAX_RESP_DATA_SIZE	8
 #define HCLGE_MBX_RING_MAP_BASIC_MSG_NUM	3
 #define HCLGE_MBX_RING_NODE_VARIABLE_NUM	3
 

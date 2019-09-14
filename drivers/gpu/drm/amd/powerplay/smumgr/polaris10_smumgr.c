@@ -21,6 +21,8 @@
  *
  */
 
+#include <linux/pci.h>
+
 #include "pp_debug.h"
 #include "smumgr.h"
 #include "smu74.h"
@@ -2092,6 +2094,10 @@ static int polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 		return 0;
 	}
 
+	/* use hardware fan control */
+	if (hwmgr->thermal_controller.use_hw_fan_control)
+		return 0;
+
 	tmp64 = hwmgr->thermal_controller.advanceFanControlParameters.
 			usPWMMin * duty100;
 	do_div(tmp64, 10000);
@@ -2313,6 +2319,8 @@ static uint32_t polaris10_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU74_SoftRegisters, VoltageChangeTimeout);
 		case AverageGraphicsActivity:
 			return offsetof(SMU74_SoftRegisters, AverageGraphicsActivity);
+		case AverageMemoryActivity:
+			return offsetof(SMU74_SoftRegisters, AverageMemoryActivity);
 		case PreVBlankGap:
 			return offsetof(SMU74_SoftRegisters, PreVBlankGap);
 		case VBlankTimeout:
@@ -2548,6 +2556,7 @@ static int polaris10_update_dpm_settings(struct pp_hwmgr *hwmgr,
 }
 
 const struct pp_smumgr_func polaris10_smu_funcs = {
+	.name = "polaris10_smu",
 	.smu_init = polaris10_smu_init,
 	.smu_fini = smu7_smu_fini,
 	.start_smu = polaris10_start_smu,

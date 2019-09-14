@@ -4,24 +4,25 @@
  * Author: Benjamin Gaignard <benjamin.gaignard@st.com> for STMicroelectronics.
  */
 
-#include <drm/drmP.h>
-
 #include <linux/component.h>
-#include <linux/debugfs.h>
+#include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 
 #include "sti_crtc.h"
+#include "sti_drv.h"
 #include "sti_drv.h"
 #include "sti_plane.h"
 
@@ -95,7 +96,6 @@ static struct drm_info_list sti_drm_dbg_list[] = {
 
 static int sti_drm_dbg_init(struct drm_minor *minor)
 {
-	struct dentry *dentry;
 	int ret;
 
 	ret = drm_debugfs_create_files(sti_drm_dbg_list,
@@ -104,13 +104,8 @@ static int sti_drm_dbg_init(struct drm_minor *minor)
 	if (ret)
 		goto err;
 
-	dentry = debugfs_create_file("fps_show", S_IRUGO | S_IWUSR,
-				     minor->debugfs_root, minor->dev,
-				     &sti_drm_fps_fops);
-	if (!dentry) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	debugfs_create_file("fps_show", S_IRUGO | S_IWUSR, minor->debugfs_root,
+			    minor->dev, &sti_drm_fps_fops);
 
 	DRM_INFO("%s: debugfs installed\n", DRIVER_NAME);
 	return 0;

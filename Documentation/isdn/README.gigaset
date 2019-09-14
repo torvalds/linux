@@ -48,9 +48,8 @@ GigaSet 307x Device Driver
 
 1.2. Software
      --------
-     The driver works with the Kernel CAPI subsystem as well as the old
-     ISDN4Linux subsystem, so it can be used with any software which is able
-     to use CAPI 2.0 or ISDN4Linux for ISDN connections (voice or data).
+     The driver works with the Kernel CAPI subsystem and can be used with any
+     software which is able to use CAPI 2.0 for ISDN connections (voice or data).
 
      There are some user space tools available at
      https://sourceforge.net/projects/gigaset307x/
@@ -92,7 +91,7 @@ GigaSet 307x Device Driver
 	gigaset	 	debug	   debug level (see section 3.2.)
 
 			startmode  initial operation mode (see section 2.5.):
-	bas_gigaset )		   1=ISDN4linux/CAPI (default), 0=Unimodem
+	bas_gigaset )		   1=CAPI (default), 0=Unimodem
 	ser_gigaset )
 	usb_gigaset )	cidmode    initial Call-ID mode setting (see section
 				   2.5.): 1=on (default), 0=off
@@ -154,34 +153,16 @@ GigaSet 307x Device Driver
 
 2.3. CAPI
      ----
-     If the driver is compiled with CAPI support (kernel configuration option
-     GIGASET_CAPI) the devices will show up as CAPI controllers as soon as the
-     corresponding driver module is loaded, and can then be used with CAPI 2.0
-     kernel and user space applications. For user space access, the module
-     capi.ko must be loaded.
-
-     Legacy ISDN4Linux applications are supported via the capidrv
-     compatibility driver. The kernel module capidrv.ko must be loaded
-     explicitly with the command
-        modprobe capidrv
-     if needed, and cannot be unloaded again without unloading the driver
-     first. (These are limitations of capidrv.)
+     The devices will show up as CAPI controllers as soon as the
+     corresponding driver module is loaded, and can then be used with
+     CAPI 2.0 kernel and user space applications. For user space access,
+     the module capi.ko must be loaded.
 
      Most distributions handle loading and unloading of the various CAPI
      modules automatically via the command capiinit(1) from the capi4k-utils
      package or a similar mechanism. Note that capiinit(1) cannot unload the
      Gigaset drivers because it doesn't support more than one module per
      driver.
-
-2.4. ISDN4Linux
-     ----------
-     If the driver is compiled without CAPI support (native ISDN4Linux
-     variant), it registers the device with the legacy ISDN4Linux subsystem
-     after loading the module. It can then be used with ISDN4Linux
-     applications only. Most distributions provide some configuration utility
-     for setting up that subsystem. Otherwise you can use some HOWTOs like
-         http://www.linuxhaven.de/dlhp/HOWTO/DE-ISDN-HOWTO-5.html
-
 
 2.5. Unimodem mode
      -------------
@@ -281,8 +262,7 @@ GigaSet 307x Device Driver
      number. Dialing "***" (three asterisks) calls all extensions
      simultaneously (global call).
 
-     This holds for both CAPI 2.0 and ISDN4Linux applications. Unimodem mode
-     does not support internal calls.
+     Unimodem mode does not support internal calls.
 
 2.8. Unregistered Wireless Devices (M101/M105)
      -----------------------------------------

@@ -263,10 +263,8 @@ static int stm32_iwdg_probe(struct platform_device *pdev)
 	watchdog_init_timeout(wdd, 0, dev);
 
 	ret = devm_watchdog_register_device(dev, wdd);
-	if (ret) {
-		dev_err(dev, "failed to register watchdog device\n");
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, wdt);
 

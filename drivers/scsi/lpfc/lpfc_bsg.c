@@ -5741,7 +5741,7 @@ lpfc_get_trunk_info(struct bsg_job *job)
 
 	event_reply->port_speed = phba->sli4_hba.link_state.speed / 1000;
 	event_reply->logical_speed =
-				phba->sli4_hba.link_state.logical_speed / 100;
+				phba->sli4_hba.link_state.logical_speed / 1000;
 job_error:
 	bsg_reply->result = rc;
 	bsg_job_done(job, bsg_reply->result,

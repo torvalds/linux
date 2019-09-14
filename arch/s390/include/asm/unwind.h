@@ -79,23 +79,4 @@ static inline void unwind_module_init(struct module *mod, void *orc_ip,
 				      size_t orc_ip_size, void *orc,
 				      size_t orc_size) {}
 
-#ifdef CONFIG_KASAN
-/*
- * This disables KASAN checking when reading a value from another task's stack,
- * since the other task could be running on another CPU and could have poisoned
- * the stack in the meantime.
- */
-#define READ_ONCE_TASK_STACK(task, x)			\
-({							\
-	unsigned long val;				\
-	if (task == current)				\
-		val = READ_ONCE(x);			\
-	else						\
-		val = READ_ONCE_NOCHECK(x);		\
-	val;						\
-})
-#else
-#define READ_ONCE_TASK_STACK(task, x) READ_ONCE(x)
-#endif
-
 #endif /* _ASM_S390_UNWIND_H */

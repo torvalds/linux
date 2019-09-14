@@ -319,9 +319,9 @@
 
 	gpio_keys_pins: gpio-keys-pins {
 		pinctrl-single,pins = <
-			MFP_PIN_PXA300(14) MFP_AF0	/* SCK		*/
-			MFP_PIN_PXA300(115) MFP_AF0	/* MOSI		*/
-			MFP_PIN_PXA300(119) MFP_AF0	/* MISO		*/
+			MFP_PIN_PXA300(14) MFP_AF0	/* on-off	*/
+			MFP_PIN_PXA300(115) MFP_AF0	/* rescue boot	*/
+			MFP_PIN_PXA300(119) MFP_AF0	/* setup	*/
 		>;
 		pinctrl-single,low-power-mode = MFP_LPM(MFP_LPM_FLOAT);
 	};

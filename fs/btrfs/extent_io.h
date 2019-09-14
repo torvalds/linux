@@ -167,7 +167,7 @@ struct extent_buffer {
 	struct rcu_head rcu_head;
 	pid_t lock_owner;
 
-	atomic_t blocking_writers;
+	int blocking_writers;
 	atomic_t blocking_readers;
 	bool lock_nested;
 	/* >= 0 if eb belongs to a log tree, -1 otherwise */
@@ -187,10 +187,10 @@ struct extent_buffer {
 	wait_queue_head_t read_lock_wq;
 	struct page *pages[INLINE_EXTENT_BUFFER_PAGES];
 #ifdef CONFIG_BTRFS_DEBUG
-	atomic_t spinning_writers;
+	int spinning_writers;
 	atomic_t spinning_readers;
 	atomic_t read_locks;
-	atomic_t write_locks;
+	int write_locks;
 	struct list_head leak_list;
 #endif
 };
@@ -497,7 +497,7 @@ void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
 				 u64 delalloc_end, struct page *locked_page,
 				 unsigned bits_to_clear,
 				 unsigned long page_ops);
-struct bio *btrfs_bio_alloc(struct block_device *bdev, u64 first_byte);
+struct bio *btrfs_bio_alloc(u64 first_byte);
 struct bio *btrfs_io_bio_alloc(unsigned int nr_iovecs);
 struct bio *btrfs_bio_clone(struct bio *bio);
 struct bio *btrfs_bio_clone_partial(struct bio *orig, int offset, int size);
@@ -549,7 +549,7 @@ int free_io_failure(struct extent_io_tree *failure_tree,
 		    struct extent_io_tree *io_tree,
 		    struct io_failure_record *rec);
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-bool find_lock_delalloc_range(struct inode *inode, struct extent_io_tree *tree,
+bool find_lock_delalloc_range(struct inode *inode,
 			     struct page *locked_page, u64 *start,
 			     u64 *end);
 #endif

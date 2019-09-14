@@ -15,6 +15,7 @@ Required properties:
 	"fsl,imx6sll-ocotp" (i.MX6SLL),
 	"fsl,imx7ulp-ocotp" (i.MX7ULP),
 	"fsl,imx8mq-ocotp" (i.MX8MQ),
+	"fsl,imx8mm-ocotp" (i.MX8MM),
 	followed by "syscon".
 - #address-cells : Should be 1
 - #size-cells : Should be 1

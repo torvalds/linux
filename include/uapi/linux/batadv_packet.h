@@ -107,12 +107,20 @@ enum batadv_icmp_packettype {
  * @BATADV_MCAST_WANT_ALL_UNSNOOPABLES: we want all packets destined for
  *  224.0.0.0/24 or ff02::1
  * @BATADV_MCAST_WANT_ALL_IPV4: we want all IPv4 multicast packets
+ *  (both link-local and routable ones)
  * @BATADV_MCAST_WANT_ALL_IPV6: we want all IPv6 multicast packets
+ *  (both link-local and routable ones)
+ * @BATADV_MCAST_WANT_NO_RTR4: we have no IPv4 multicast router and therefore
+ * only need routable IPv4 multicast packets we signed up for explicitly
+ * @BATADV_MCAST_WANT_NO_RTR6: we have no IPv6 multicast router and therefore
+ * only need routable IPv6 multicast packets we signed up for explicitly
  */
 enum batadv_mcast_flags {
 	BATADV_MCAST_WANT_ALL_UNSNOOPABLES	= 1UL << 0,
 	BATADV_MCAST_WANT_ALL_IPV4		= 1UL << 1,
 	BATADV_MCAST_WANT_ALL_IPV6		= 1UL << 2,
+	BATADV_MCAST_WANT_NO_RTR4		= 1UL << 3,
+	BATADV_MCAST_WANT_NO_RTR6		= 1UL << 4,
 };
 
 /* tt data subtypes */

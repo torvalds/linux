@@ -34,7 +34,7 @@ transaction:
 	   D			A+B+C+D		X+n+m+o
 	    <object written to disk>
 	   E			   E		   Y (> X+n+m+o)
-	   F			  E+F		  Yٍ+p
+	   F			  E+F		  Y+p
 
 In other words, each time an object is relogged, the new transaction contains
 the aggregation of all the previous changes currently held only in the log.

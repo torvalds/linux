@@ -208,7 +208,6 @@ static inline int ap_query_configuration(struct ap_config_info *info)
 		return -EINVAL;
 	return ap_qci(info);
 }
-EXPORT_SYMBOL(ap_query_configuration);
 
 /**
  * ap_init_configuration(): Allocate and query configuration array.
@@ -1356,16 +1355,16 @@ static int ap_get_compatible_type(ap_qid_t qid, int rawtype, unsigned int func)
  * Helper function to be used with bus_find_dev
  * matches for the card device with the given id
  */
-static int __match_card_device_with_id(struct device *dev, void *data)
+static int __match_card_device_with_id(struct device *dev, const void *data)
 {
-	return is_card_dev(dev) && to_ap_card(dev)->id == (int)(long) data;
+	return is_card_dev(dev) && to_ap_card(dev)->id == (int)(long)(void *) data;
 }
 
 /*
  * Helper function to be used with bus_find_dev
  * matches for the queue device with a given qid
  */
-static int __match_queue_device_with_qid(struct device *dev, void *data)
+static int __match_queue_device_with_qid(struct device *dev, const void *data)
 {
 	return is_queue_dev(dev) && to_ap_queue(dev)->qid == (int)(long) data;
 }
@@ -1374,7 +1373,7 @@ static int __match_queue_device_with_qid(struct device *dev, void *data)
  * Helper function to be used with bus_find_dev
  * matches any queue device with given queue id
  */
-static int __match_queue_device_with_queue_id(struct device *dev, void *data)
+static int __match_queue_device_with_queue_id(struct device *dev, const void *data)
 {
 	return is_queue_dev(dev)
 		&& AP_QID_QUEUE(to_ap_queue(dev)->qid) == (int)(long) data;

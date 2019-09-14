@@ -164,6 +164,13 @@ xdr_decode_opaque_fixed(__be32 *p, void *ptr, unsigned int len)
 	return p + XDR_QUADLEN(len);
 }
 
+static inline void xdr_netobj_dup(struct xdr_netobj *dst,
+				  struct xdr_netobj *src, gfp_t gfp_mask)
+{
+	dst->data = kmemdup(src->data, src->len, gfp_mask);
+	dst->len = src->len;
+}
+
 /*
  * Adjust kvec to reflect end of xdr'ed data (RPC client XDR)
  */

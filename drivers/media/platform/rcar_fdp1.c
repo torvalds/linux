@@ -257,6 +257,8 @@ MODULE_PARM_DESC(debug, "activate debug info");
 #define FD1_IP_H3_ES1			0x02010101
 #define FD1_IP_M3W			0x02010202
 #define FD1_IP_H3			0x02010203
+#define FD1_IP_M3N			0x02010204
+#define FD1_IP_E3			0x02010205
 
 /* LUTs */
 #define FD1_LUT_DIF_ADJ			0x1000
@@ -1730,8 +1732,8 @@ static const char * const fdp1_ctrl_deint_menu[] = {
 static const struct v4l2_ioctl_ops fdp1_ioctl_ops = {
 	.vidioc_querycap	= fdp1_vidioc_querycap,
 
-	.vidioc_enum_fmt_vid_cap_mplane = fdp1_enum_fmt_vid_cap,
-	.vidioc_enum_fmt_vid_out_mplane = fdp1_enum_fmt_vid_out,
+	.vidioc_enum_fmt_vid_cap	= fdp1_enum_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_out	= fdp1_enum_fmt_vid_out,
 	.vidioc_g_fmt_vid_cap_mplane	= fdp1_g_fmt,
 	.vidioc_g_fmt_vid_out_mplane	= fdp1_g_fmt,
 	.vidioc_try_fmt_vid_cap_mplane	= fdp1_try_fmt,
@@ -2364,6 +2366,12 @@ static int fdp1_probe(struct platform_device *pdev)
 		break;
 	case FD1_IP_H3:
 		dprintk(fdp1, "FDP1 Version R-Car H3\n");
+		break;
+	case FD1_IP_M3N:
+		dprintk(fdp1, "FDP1 Version R-Car M3N\n");
+		break;
+	case FD1_IP_E3:
+		dprintk(fdp1, "FDP1 Version R-Car E3\n");
 		break;
 	default:
 		dev_err(fdp1->dev, "FDP1 Unidentifiable (0x%08x)\n",

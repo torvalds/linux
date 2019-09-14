@@ -260,9 +260,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strscpy(v->card, tea->card, sizeof(v->card));
 	strlcat(v->card, " TEA5777", sizeof(v->card));
 	strscpy(v->bus_info, tea->bus_info, sizeof(v->bus_info));
-	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
-	v->device_caps |= V4L2_CAP_HW_FREQ_SEEK;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -553,6 +550,8 @@ int radio_tea5777_init(struct radio_tea5777 *tea, struct module *owner)
 	strscpy(tea->vd.name, tea->v4l2_dev->name, sizeof(tea->vd.name));
 	tea->vd.lock = &tea->mutex;
 	tea->vd.v4l2_dev = tea->v4l2_dev;
+	tea->vd.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO |
+			      V4L2_CAP_HW_FREQ_SEEK;
 	tea->fops = tea575x_fops;
 	tea->fops.owner = owner;
 	tea->vd.fops = &tea->fops;

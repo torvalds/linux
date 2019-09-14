@@ -20,9 +20,6 @@
 
 #include "ipu3-mmu.h"
 
-#define IPU3_PAGE_SHIFT		12
-#define IPU3_PAGE_SIZE		(1UL << IPU3_PAGE_SHIFT)
-
 #define IPU3_PT_BITS		10
 #define IPU3_PT_PTES		(1UL << IPU3_PT_BITS)
 #define IPU3_PT_SIZE		(IPU3_PT_PTES << 2)
@@ -238,62 +235,31 @@ static int __imgu_mmu_map(struct imgu_mmu *mmu, unsigned long iova,
 	return 0;
 }
 
-/*
- * The following four functions are implemented based on iommu.c
- * drivers/iommu/iommu.c/iommu_pgsize().
+/**
+ * imgu_mmu_map - map a buffer to a physical address
+ *
+ * @info: MMU mappable range
+ * @iova: the virtual address
+ * @paddr: the physical address
+ * @size: length of the mappable area
+ *
+ * The function has been adapted from iommu_map() in
+ * drivers/iommu/iommu.c .
  */
-static size_t imgu_mmu_pgsize(unsigned long pgsize_bitmap,
-			      unsigned long addr_merge, size_t size)
-{
-	unsigned int pgsize_idx;
-	size_t pgsize;
-
-	/* Max page size that still fits into 'size' */
-	pgsize_idx = __fls(size);
-
-	/* need to consider alignment requirements ? */
-	if (likely(addr_merge)) {
-		/* Max page size allowed by address */
-		unsigned int align_pgsize_idx = __ffs(addr_merge);
-
-		pgsize_idx = min(pgsize_idx, align_pgsize_idx);
-	}
-
-	/* build a mask of acceptable page sizes */
-	pgsize = (1UL << (pgsize_idx + 1)) - 1;
-
-	/* throw away page sizes not supported by the hardware */
-	pgsize &= pgsize_bitmap;
-
-	/* make sure we're still sane */
-	WARN_ON(!pgsize);
-
-	/* pick the biggest page */
-	pgsize_idx = __fls(pgsize);
-	pgsize = 1UL << pgsize_idx;
-
-	return pgsize;
-}
-
-/* drivers/iommu/iommu.c/iommu_map() */
 int imgu_mmu_map(struct imgu_mmu_info *info, unsigned long iova,
 		 phys_addr_t paddr, size_t size)
 {
 	struct imgu_mmu *mmu = to_imgu_mmu(info);
-	unsigned int min_pagesz;
 	int ret = 0;
-
-	/* find out the minimum page size supported */
-	min_pagesz = 1 << __ffs(mmu->geometry.pgsize_bitmap);
 
 	/*
 	 * both the virtual address and the physical one, as well as
 	 * the size of the mapping, must be aligned (at least) to the
 	 * size of the smallest page supported by the hardware
 	 */
-	if (!IS_ALIGNED(iova | paddr | size, min_pagesz)) {
-		dev_err(mmu->dev, "unaligned: iova 0x%lx pa %pa size 0x%zx min_pagesz 0x%x\n",
-			iova, &paddr, size, min_pagesz);
+	if (!IS_ALIGNED(iova | paddr | size, IPU3_PAGE_SIZE)) {
+		dev_err(mmu->dev, "unaligned: iova 0x%lx pa %pa size 0x%zx\n",
+			iova, &paddr, size);
 		return -EINVAL;
 	}
 
@@ -301,19 +267,15 @@ int imgu_mmu_map(struct imgu_mmu_info *info, unsigned long iova,
 		iova, &paddr, size);
 
 	while (size) {
-		size_t pgsize = imgu_mmu_pgsize(mmu->geometry.pgsize_bitmap,
-						iova | paddr, size);
-
-		dev_dbg(mmu->dev, "mapping: iova 0x%lx pa %pa pgsize 0x%zx\n",
-			iova, &paddr, pgsize);
+		dev_dbg(mmu->dev, "mapping: iova 0x%lx pa %pa\n", iova, &paddr);
 
 		ret = __imgu_mmu_map(mmu, iova, paddr);
 		if (ret)
 			break;
 
-		iova += pgsize;
-		paddr += pgsize;
-		size -= pgsize;
+		iova += IPU3_PAGE_SIZE;
+		paddr += IPU3_PAGE_SIZE;
+		size -= IPU3_PAGE_SIZE;
 	}
 
 	call_if_imgu_is_powered(mmu, imgu_mmu_tlb_invalidate);
@@ -321,28 +283,36 @@ int imgu_mmu_map(struct imgu_mmu_info *info, unsigned long iova,
 	return ret;
 }
 
-/* drivers/iommu/iommu.c/default_iommu_map_sg() */
+/**
+ * imgu_mmu_map_sg - Map a scatterlist
+ *
+ * @info: MMU mappable range
+ * @iova: the virtual address
+ * @sg: the scatterlist to map
+ * @nents: number of entries in the scatterlist
+ *
+ * The function has been adapted from default_iommu_map_sg() in
+ * drivers/iommu/iommu.c .
+ */
 size_t imgu_mmu_map_sg(struct imgu_mmu_info *info, unsigned long iova,
 		       struct scatterlist *sg, unsigned int nents)
 {
 	struct imgu_mmu *mmu = to_imgu_mmu(info);
 	struct scatterlist *s;
 	size_t s_length, mapped = 0;
-	unsigned int i, min_pagesz;
+	unsigned int i;
 	int ret;
-
-	min_pagesz = 1 << __ffs(mmu->geometry.pgsize_bitmap);
 
 	for_each_sg(sg, s, nents, i) {
 		phys_addr_t phys = page_to_phys(sg_page(s)) + s->offset;
 
 		s_length = s->length;
 
-		if (!IS_ALIGNED(s->offset, min_pagesz))
+		if (!IS_ALIGNED(s->offset, IPU3_PAGE_SIZE))
 			goto out_err;
 
-		/* must be min_pagesz aligned to be mapped singlely */
-		if (i == nents - 1 && !IS_ALIGNED(s->length, min_pagesz))
+		/* must be IPU3_PAGE_SIZE aligned to be mapped singlely */
+		if (i == nents - 1 && !IS_ALIGNED(s->length, IPU3_PAGE_SIZE))
 			s_length = PAGE_ALIGN(s->length);
 
 		ret = imgu_mmu_map(info, iova + mapped, phys, s_length);
@@ -394,25 +364,30 @@ static size_t __imgu_mmu_unmap(struct imgu_mmu *mmu,
 	return unmap;
 }
 
-/* drivers/iommu/iommu.c/iommu_unmap() */
+/**
+ * imgu_mmu_unmap - Unmap a buffer
+ *
+ * @info: MMU mappable range
+ * @iova: the virtual address
+ * @size: the length of the buffer
+ *
+ * The function has been adapted from iommu_unmap() in
+ * drivers/iommu/iommu.c .
+ */
 size_t imgu_mmu_unmap(struct imgu_mmu_info *info, unsigned long iova,
 		      size_t size)
 {
 	struct imgu_mmu *mmu = to_imgu_mmu(info);
 	size_t unmapped_page, unmapped = 0;
-	unsigned int min_pagesz;
-
-	/* find out the minimum page size supported */
-	min_pagesz = 1 << __ffs(mmu->geometry.pgsize_bitmap);
 
 	/*
 	 * The virtual address, as well as the size of the mapping, must be
 	 * aligned (at least) to the size of the smallest page supported
 	 * by the hardware
 	 */
-	if (!IS_ALIGNED(iova | size, min_pagesz)) {
-		dev_err(mmu->dev, "unaligned: iova 0x%lx size 0x%zx min_pagesz 0x%x\n",
-			iova, size, min_pagesz);
+	if (!IS_ALIGNED(iova | size, IPU3_PAGE_SIZE)) {
+		dev_err(mmu->dev, "unaligned: iova 0x%lx size 0x%zx\n",
+			iova, size);
 		return -EINVAL;
 	}
 
@@ -423,10 +398,7 @@ size_t imgu_mmu_unmap(struct imgu_mmu_info *info, unsigned long iova,
 	 * or we hit an area that isn't mapped.
 	 */
 	while (unmapped < size) {
-		size_t pgsize = imgu_mmu_pgsize(mmu->geometry.pgsize_bitmap,
-						iova, size - unmapped);
-
-		unmapped_page = __imgu_mmu_unmap(mmu, iova, pgsize);
+		unmapped_page = __imgu_mmu_unmap(mmu, iova, IPU3_PAGE_SIZE);
 		if (!unmapped_page)
 			break;
 
@@ -444,6 +416,7 @@ size_t imgu_mmu_unmap(struct imgu_mmu_info *info, unsigned long iova,
 
 /**
  * imgu_mmu_init() - initialize IPU3 MMU block
+ *
  * @parent:	struct device parent
  * @base:	IOMEM base of hardware registers.
  *
@@ -505,7 +478,6 @@ struct imgu_mmu_info *imgu_mmu_init(struct device *parent, void __iomem *base)
 
 	mmu->geometry.aperture_start = 0;
 	mmu->geometry.aperture_end = DMA_BIT_MASK(IPU3_MMU_ADDRESS_BITS);
-	mmu->geometry.pgsize_bitmap = IPU3_PAGE_SIZE;
 
 	return &mmu->geometry;
 
@@ -523,7 +495,8 @@ fail_group:
 
 /**
  * imgu_mmu_exit() - clean up IPU3 MMU block
- * @info: IPU3 MMU private data
+ *
+ * @info: MMU mappable range
  */
 void imgu_mmu_exit(struct imgu_mmu_info *info)
 {

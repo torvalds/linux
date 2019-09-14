@@ -1013,11 +1013,6 @@ static int vidioc_querycap(struct file *file, void *fh,
 	strscpy(cap->driver, "meye", sizeof(cap->driver));
 	strscpy(cap->card, "meye", sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(meye.mchip_dev));
-
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
-			    V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
@@ -1529,6 +1524,7 @@ static const struct video_device meye_template = {
 	.fops		= &meye_fops,
 	.ioctl_ops	= &meye_ioctl_ops,
 	.release	= video_device_release_empty,
+	.device_caps	= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING,
 };
 
 static const struct v4l2_ctrl_ops meye_ctrl_ops = {

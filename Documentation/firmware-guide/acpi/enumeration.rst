@@ -316,7 +316,7 @@ specifies the path to the controller. In order to use these GPIOs in Linux
 we need to translate them to the corresponding Linux GPIO descriptors.
 
 There is a standard GPIO API for that and is documented in
-Documentation/gpio/.
+Documentation/admin-guide/gpio/.
 
 In the above example we can get the corresponding two GPIO descriptors with
 a code like this::
@@ -339,7 +339,7 @@ a code like this::
 There are also devm_* versions of these functions which release the
 descriptors once the device is released.
 
-See Documentation/acpi/gpio-properties.txt for more information about the
+See Documentation/firmware-guide/acpi/gpio-properties.rst for more information about the
 _DSD binding related to GPIOs.
 
 MFD devices

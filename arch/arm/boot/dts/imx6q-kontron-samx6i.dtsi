@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: GPL-2.0 OR X11
+/*
+ * Copyright 2019 (C) Pengutronix, Marco Felsch <kernel@pengutronix.de>
+ */
+
+#include "imx6q.dtsi"
+#include "imx6qdl-kontron-samx6i.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Kontron SMARC sAMX6i Quad/Dual";
+	compatible = "kontron,imx6q-samx6i", "fsl,imx6q";
+};
+
+/* Quad/Dual SoMs have 3 chip-select signals */
+&ecspi4 {
+	fsl,spi-num-chipselects = <3>;
+	cs-gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>,
+		   <&gpio3 29 GPIO_ACTIVE_HIGH>,
+		   <&gpio3 25 GPIO_ACTIVE_HIGH>;
+};
+
+&pinctrl_ecspi4 {
+	fsl,pins = <
+		MX6QDL_PAD_EIM_D21__ECSPI4_SCLK 0x100b1
+		MX6QDL_PAD_EIM_D28__ECSPI4_MOSI 0x100b1
+		MX6QDL_PAD_EIM_D22__ECSPI4_MISO 0x100b1
+
+		/* SPI4_IMX_CS2# - connected to internal flash */
+		MX6QDL_PAD_EIM_D24__GPIO3_IO24 0x1b0b0
+		/* SPI4_IMX_CS0# - connected to SMARC SPI0_CS0# */
+		MX6QDL_PAD_EIM_D29__GPIO3_IO29 0x1b0b0
+		/* SPI4_CS3# - connected to  SMARC SPI0_CS1# */
+		MX6QDL_PAD_EIM_D25__GPIO3_IO25 0x1b0b0
+	>;
+};

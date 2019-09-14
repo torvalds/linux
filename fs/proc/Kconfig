@@ -58,7 +58,8 @@ config PROC_VMCORE_DEVICE_DUMP
 	  snapshot.
 
 	  If you say Y here, the collected device dumps will be added
-	  as ELF notes to /proc/vmcore.
+	  as ELF notes to /proc/vmcore. You can still disable device
+	  dump using the kernel command line option 'novmcoredd'.
 
 config PROC_SYSCTL
 	bool "Sysctl support (/proc/sys)" if EXPERT
@@ -72,7 +73,7 @@ config PROC_SYSCTL
 	  interface is through /proc/sys.  If you say Y here a tree of
 	  modifiable sysctl entries will be generated beneath the
           /proc/sys directory. They are explained in the files
-	  in <file:Documentation/sysctl/>.  Note that enabling this
+	  in <file:Documentation/admin-guide/sysctl/>.  Note that enabling this
 	  option will enlarge the kernel by at least 8 KB.
 
 	  As it is generally a good thing, you should say Y here unless
@@ -98,3 +99,7 @@ config PROC_CHILDREN
 
 	  Say Y if you are running any user-space software which takes benefit from
 	  this interface. For example, rkt is such a piece of software.
+
+config PROC_PID_ARCH_STATUS
+	def_bool n
+	depends on PROC_FS

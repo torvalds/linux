@@ -11,7 +11,8 @@
 
 static struct dentry *hns3_dbgfs_root;
 
-static int hns3_dbg_queue_info(struct hnae3_handle *h, char *cmd_buf)
+static int hns3_dbg_queue_info(struct hnae3_handle *h,
+			       const char *cmd_buf)
 {
 	struct hns3_nic_priv *priv = h->priv;
 	struct hns3_nic_ring_data *ring_data;
@@ -155,7 +156,7 @@ static int hns3_dbg_queue_map(struct hnae3_handle *h)
 	return 0;
 }
 
-static int hns3_dbg_bd_info(struct hnae3_handle *h, char *cmd_buf)
+static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 {
 	struct hns3_nic_priv *priv = h->priv;
 	struct hns3_nic_ring_data *ring_data;
@@ -252,6 +253,7 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	dev_info(&h->pdev->dev, "dump qos buf cfg\n");
 	dev_info(&h->pdev->dev, "dump mng tbl\n");
 	dev_info(&h->pdev->dev, "dump reset info\n");
+	dev_info(&h->pdev->dev, "dump m7 info\n");
 	dev_info(&h->pdev->dev, "dump ncl_config <offset> <length>(in hex)\n");
 	dev_info(&h->pdev->dev, "dump mac tnl status\n");
 

@@ -7,7 +7,7 @@ config INFINIBAND_IPOIB
 	  transports IP packets over InfiniBand so you can use your IB
 	  device as a fancy NIC.
 
-	  See Documentation/infiniband/ipoib.txt for more information
+	  See Documentation/infiniband/ipoib.rst for more information
 
 config INFINIBAND_IPOIB_CM
 	bool "IP-over-InfiniBand Connected Mode support"

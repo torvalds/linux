@@ -6,7 +6,7 @@
 #ifndef _ASM_S390_SETUP_H
 #define _ASM_S390_SETUP_H
 
-#include <linux/const.h>
+#include <linux/bits.h>
 #include <uapi/asm/setup.h>
 
 #define EP_OFFSET		0x10008
@@ -21,25 +21,25 @@
  * Machine features detected in early.c
  */
 
-#define MACHINE_FLAG_VM		_BITUL(0)
-#define MACHINE_FLAG_KVM	_BITUL(1)
-#define MACHINE_FLAG_LPAR	_BITUL(2)
-#define MACHINE_FLAG_DIAG9C	_BITUL(3)
-#define MACHINE_FLAG_ESOP	_BITUL(4)
-#define MACHINE_FLAG_IDTE	_BITUL(5)
-#define MACHINE_FLAG_DIAG44	_BITUL(6)
-#define MACHINE_FLAG_EDAT1	_BITUL(7)
-#define MACHINE_FLAG_EDAT2	_BITUL(8)
-#define MACHINE_FLAG_TOPOLOGY	_BITUL(10)
-#define MACHINE_FLAG_TE		_BITUL(11)
-#define MACHINE_FLAG_TLB_LC	_BITUL(12)
-#define MACHINE_FLAG_VX		_BITUL(13)
-#define MACHINE_FLAG_TLB_GUEST	_BITUL(14)
-#define MACHINE_FLAG_NX		_BITUL(15)
-#define MACHINE_FLAG_GS		_BITUL(16)
-#define MACHINE_FLAG_SCC	_BITUL(17)
+#define MACHINE_FLAG_VM		BIT(0)
+#define MACHINE_FLAG_KVM	BIT(1)
+#define MACHINE_FLAG_LPAR	BIT(2)
+#define MACHINE_FLAG_DIAG9C	BIT(3)
+#define MACHINE_FLAG_ESOP	BIT(4)
+#define MACHINE_FLAG_IDTE	BIT(5)
+#define MACHINE_FLAG_DIAG44	BIT(6)
+#define MACHINE_FLAG_EDAT1	BIT(7)
+#define MACHINE_FLAG_EDAT2	BIT(8)
+#define MACHINE_FLAG_TOPOLOGY	BIT(10)
+#define MACHINE_FLAG_TE		BIT(11)
+#define MACHINE_FLAG_TLB_LC	BIT(12)
+#define MACHINE_FLAG_VX		BIT(13)
+#define MACHINE_FLAG_TLB_GUEST	BIT(14)
+#define MACHINE_FLAG_NX		BIT(15)
+#define MACHINE_FLAG_GS		BIT(16)
+#define MACHINE_FLAG_SCC	BIT(17)
 
-#define LPP_MAGIC		_BITUL(31)
+#define LPP_MAGIC		BIT(31)
 #define LPP_PID_MASK		_AC(0xffffffff, UL)
 
 /* Offsets to entry points in kernel/head.S  */
@@ -54,6 +54,7 @@
 #define INITRD_SIZE_OFFSET	0x10410
 #define OLDMEM_BASE_OFFSET	0x10418
 #define OLDMEM_SIZE_OFFSET	0x10420
+#define KERNEL_VERSION_OFFSET	0x10428
 #define COMMAND_LINE_OFFSET	0x10480
 
 #ifndef __ASSEMBLY__
@@ -74,7 +75,8 @@ struct parmarea {
 	unsigned long initrd_size;			/* 0x10410 */
 	unsigned long oldmem_base;			/* 0x10418 */
 	unsigned long oldmem_size;			/* 0x10420 */
-	char pad1[0x10480 - 0x10428];			/* 0x10428 - 0x10480 */
+	unsigned long kernel_version;			/* 0x10428 */
+	char pad1[0x10480 - 0x10430];			/* 0x10430 - 0x10480 */
 	char command_line[ARCH_COMMAND_LINE_SIZE];	/* 0x10480 */
 };
 
@@ -82,6 +84,7 @@ extern int noexec_disabled;
 extern int memory_end_set;
 extern unsigned long memory_end;
 extern unsigned long max_physmem_end;
+extern unsigned long __swsusp_reset_dma;
 
 #define MACHINE_IS_VM		(S390_lowcore.machine_flags & MACHINE_FLAG_VM)
 #define MACHINE_IS_KVM		(S390_lowcore.machine_flags & MACHINE_FLAG_KVM)

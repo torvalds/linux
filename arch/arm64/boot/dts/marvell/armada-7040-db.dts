@@ -28,6 +28,32 @@
 		ethernet2 = &cp0_eth2;
 	};
 
+	cp0_exp_usb3_0_current_regulator: gpio-regulator {
+		compatible = "regulator-gpio";
+		regulator-name = "cp0-usb3-0-current-regulator";
+		regulator-type = "current";
+		regulator-min-microamp = <500000>;
+		regulator-max-microamp = <900000>;
+		gpios = <&expander0 4 GPIO_ACTIVE_HIGH>;
+		states = <500000 0x0
+			  900000 0x1>;
+		enable-active-high;
+		gpios-states = <0>;
+	};
+
+	cp0_exp_usb3_1_current_regulator: gpio-regulator {
+		compatible = "regulator-gpio";
+		regulator-name = "cp0-usb3-1-current-regulator";
+		regulator-type = "current";
+		regulator-min-microamp = <500000>;
+		regulator-max-microamp = <900000>;
+		gpios = <&expander0 5 GPIO_ACTIVE_HIGH>;
+		states = <500000 0x0
+			  900000 0x1>;
+		enable-active-high;
+		gpios-states = <0>;
+	};
+
 	cp0_reg_usb3_0_vbus: cp0-usb3-0-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb3h0-vbus";
@@ -35,6 +61,7 @@
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
 		gpio = <&expander0 0 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&cp0_exp_usb3_0_current_regulator>;
 	};
 
 	cp0_reg_usb3_1_vbus: cp0-usb3-1-vbus {
@@ -44,6 +71,7 @@
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
 		gpio = <&expander0 1 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&cp0_exp_usb3_1_current_regulator>;
 	};
 
 	cp0_usb3_0_phy: cp0-usb3-0-phy {

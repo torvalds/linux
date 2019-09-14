@@ -6,14 +6,9 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
-#include "xfs_format.h"
 #include "xfs_log_format.h"
-#include "xfs_trans_resv.h"
-#include "xfs_bit.h"
-#include "xfs_mount.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
-#include "xfs_error.h"
 #include "xfs_icreate_item.h"
 #include "xfs_log.h"
 
@@ -56,80 +51,18 @@ xfs_icreate_item_format(
 			sizeof(struct xfs_icreate_log));
 }
 
-
-/* Pinning has no meaning for the create item, so just return. */
 STATIC void
-xfs_icreate_item_pin(
+xfs_icreate_item_release(
 	struct xfs_log_item	*lip)
 {
+	kmem_zone_free(xfs_icreate_zone, ICR_ITEM(lip));
 }
 
-
-/* pinning has no meaning for the create item, so just return. */
-STATIC void
-xfs_icreate_item_unpin(
-	struct xfs_log_item	*lip,
-	int			remove)
-{
-}
-
-STATIC void
-xfs_icreate_item_unlock(
-	struct xfs_log_item	*lip)
-{
-	struct xfs_icreate_item	*icp = ICR_ITEM(lip);
-
-	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
-		kmem_zone_free(xfs_icreate_zone, icp);
-	return;
-}
-
-/*
- * Because we have ordered buffers being tracked in the AIL for the inode
- * creation, we don't need the create item after this. Hence we can free
- * the log item and return -1 to tell the caller we're done with the item.
- */
-STATIC xfs_lsn_t
-xfs_icreate_item_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-	struct xfs_icreate_item	*icp = ICR_ITEM(lip);
-
-	kmem_zone_free(xfs_icreate_zone, icp);
-	return (xfs_lsn_t)-1;
-}
-
-/* item can never get into the AIL */
-STATIC uint
-xfs_icreate_item_push(
-	struct xfs_log_item	*lip,
-	struct list_head	*buffer_list)
-{
-	ASSERT(0);
-	return XFS_ITEM_SUCCESS;
-}
-
-/* Ordered buffers do the dependency tracking here, so this does nothing. */
-STATIC void
-xfs_icreate_item_committing(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-}
-
-/*
- * This is the ops vector shared by all buf log items.
- */
 static const struct xfs_item_ops xfs_icreate_item_ops = {
+	.flags		= XFS_ITEM_RELEASE_WHEN_COMMITTED,
 	.iop_size	= xfs_icreate_item_size,
 	.iop_format	= xfs_icreate_item_format,
-	.iop_pin	= xfs_icreate_item_pin,
-	.iop_unpin	= xfs_icreate_item_unpin,
-	.iop_push	= xfs_icreate_item_push,
-	.iop_unlock	= xfs_icreate_item_unlock,
-	.iop_committed	= xfs_icreate_item_committed,
-	.iop_committing = xfs_icreate_item_committing,
+	.iop_release	= xfs_icreate_item_release,
 };
 
 

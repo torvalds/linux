@@ -10,11 +10,22 @@
 #include <sysdep/ptrace.h>
 #include <sysdep/ptrace_user.h>
 #include <sysdep/syscalls.h>
+#include <shared/timer-internal.h>
 
 void handle_syscall(struct uml_pt_regs *r)
 {
 	struct pt_regs *regs = container_of(r, struct pt_regs, regs);
 	int syscall;
+
+	/*
+	 * If we have infinite CPU resources, then make every syscall also a
+	 * preemption point, since we don't have any other preemption in this
+	 * case, and kernel threads would basically never run until userspace
+	 * went to sleep, even if said userspace interacts with the kernel in
+	 * various ways.
+	 */
+	if (time_travel_mode == TT_MODE_INFCPU)
+		schedule();
 
 	/* Initialize the syscall number and default return value. */
 	UPT_SYSCALL_NR(r) = PT_SYSCALL_NR(r->gp);

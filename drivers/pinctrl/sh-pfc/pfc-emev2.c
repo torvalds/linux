@@ -19,6 +19,20 @@
 	PORT_1(155, fn, pfx##155, sfx), PORT_1(156, fn, pfx##156, sfx), \
 	PORT_1(157, fn, pfx##157, sfx), PORT_1(158, fn, pfx##158, sfx)
 
+#define CPU_ALL_NOGP(fn)		\
+	PIN_NOGP(LCD3_B2, "B15", fn),	\
+	PIN_NOGP(LCD3_B3, "C15", fn),	\
+	PIN_NOGP(LCD3_B4, "D15", fn),	\
+	PIN_NOGP(LCD3_B5, "B14", fn),	\
+	PIN_NOGP(LCD3_B6, "C14", fn),	\
+	PIN_NOGP(LCD3_B7, "D14", fn),	\
+	PIN_NOGP(LCD3_G2, "B17", fn),	\
+	PIN_NOGP(LCD3_G3, "C17", fn),	\
+	PIN_NOGP(LCD3_G4, "D17", fn),	\
+	PIN_NOGP(LCD3_G5, "B16", fn),	\
+	PIN_NOGP(LCD3_G6, "C16", fn),	\
+	PIN_NOGP(LCD3_G7, "D16", fn)
+
 enum {
 	PINMUX_RESERVED = 0,
 
@@ -218,10 +232,13 @@ enum {
 	PINMUX_MARK_END,
 };
 
-/* Pin numbers for pins without a corresponding GPIO port number are computed
- * from the row and column numbers with a 1000 offset to avoid collisions with
- * GPIO port numbers. */
-#define PIN_NUMBER(row, col)            (1000+((row)-1)*23+(col)-1)
+/*
+ * Pins not associated with a GPIO port.
+ */
+enum {
+	PORT_ASSIGN_LAST(),
+	NOGP_ALL(),
+};
 
 /* Expand to a list of sh_pfc_pin entries (named PORT#).
  * NOTE: No config are recorded since the driver do not handle pinconf. */
@@ -230,20 +247,7 @@ enum {
 
 static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_EMEV_GPIO_ALL(),
-
-	/* Pins not associated with a GPIO port */
-	SH_PFC_PIN_NAMED(2, 14, B14),
-	SH_PFC_PIN_NAMED(2, 15, B15),
-	SH_PFC_PIN_NAMED(2, 16, B16),
-	SH_PFC_PIN_NAMED(2, 17, B17),
-	SH_PFC_PIN_NAMED(3, 14, C14),
-	SH_PFC_PIN_NAMED(3, 15, C15),
-	SH_PFC_PIN_NAMED(3, 16, C16),
-	SH_PFC_PIN_NAMED(3, 17, C17),
-	SH_PFC_PIN_NAMED(4, 14, D14),
-	SH_PFC_PIN_NAMED(4, 15, D15),
-	SH_PFC_PIN_NAMED(4, 16, D16),
-	SH_PFC_PIN_NAMED(4, 17, D17),
+	PINMUX_NOGP_ALL(),
 };
 
 /* Expand to a list of name_DATA, name_FN marks */
@@ -829,12 +833,10 @@ static const unsigned int lcd3_rgb888_pins[] = {
 	/* R[0:7], G[0:7], B[0:7] */
 	32, 33, 34, 35,
 	36, 37, 38, 39,
-	40, 41, PIN_NUMBER(2, 17), PIN_NUMBER(3, 17),
-	PIN_NUMBER(4, 17), PIN_NUMBER(2, 16), PIN_NUMBER(3, 16),
-	PIN_NUMBER(4, 16),
-	42, 43, PIN_NUMBER(2, 15), PIN_NUMBER(3, 15),
-	PIN_NUMBER(4, 15), PIN_NUMBER(2, 14), PIN_NUMBER(3, 14),
-	PIN_NUMBER(4, 14)
+	40, 41, PIN_LCD3_G2, PIN_LCD3_G3,
+	PIN_LCD3_G4, PIN_LCD3_G5, PIN_LCD3_G6, PIN_LCD3_G7,
+	42, 43, PIN_LCD3_B2, PIN_LCD3_B3,
+	PIN_LCD3_B4, PIN_LCD3_B5, PIN_LCD3_B6, PIN_LCD3_B7
 };
 static const unsigned int lcd3_rgb888_mux[] = {
 	LCD3_R0_MARK, LCD3_R1_MARK, LCD3_R2_MARK, LCD3_R3_MARK,
@@ -850,12 +852,10 @@ static const unsigned int yuv3_pins[] = {
 	/* CLK_O, HS, VS, DE */
 	18, 21, 22, 23,
 	/* YUV3_D[0:15] */
-	40, 41, PIN_NUMBER(2, 17), PIN_NUMBER(3, 17),
-	PIN_NUMBER(4, 17), PIN_NUMBER(2, 16), PIN_NUMBER(3, 16),
-	PIN_NUMBER(4, 16),
-	42, 43, PIN_NUMBER(2, 15), PIN_NUMBER(3, 15),
-	PIN_NUMBER(4, 15), PIN_NUMBER(2, 14), PIN_NUMBER(3, 14),
-	PIN_NUMBER(4, 14),
+	40, 41, PIN_LCD3_G2, PIN_LCD3_G3,
+	PIN_LCD3_G4, PIN_LCD3_G5, PIN_LCD3_G6, PIN_LCD3_G7,
+	42, 43, PIN_LCD3_B2, PIN_LCD3_B3,
+	PIN_LCD3_B4, PIN_LCD3_B5, PIN_LCD3_B6, PIN_LCD3_B7,
 };
 static const unsigned int yuv3_mux[] = {
 	YUV3_CLK_O_MARK, YUV3_HS_MARK, YUV3_VS_MARK, YUV3_DE_MARK,
@@ -972,12 +972,10 @@ static const unsigned int tp33_pins[] = {
 	/* CLK, CTRL */
 	38, 39,
 	/* TP33_DATA[0:15] */
-	40, 41, PIN_NUMBER(2, 17), PIN_NUMBER(3, 17),
-	PIN_NUMBER(4, 17), PIN_NUMBER(2, 16), PIN_NUMBER(3, 16),
-	PIN_NUMBER(4, 16),
-	42, 43, PIN_NUMBER(2, 15), PIN_NUMBER(3, 15),
-	PIN_NUMBER(4, 15), PIN_NUMBER(2, 14), PIN_NUMBER(3, 14),
-	PIN_NUMBER(4, 14),
+	40, 41, PIN_LCD3_G2, PIN_LCD3_G3,
+	PIN_LCD3_G4, PIN_LCD3_G5, PIN_LCD3_G6, PIN_LCD3_G7,
+	42, 43, PIN_LCD3_B2, PIN_LCD3_B3,
+	PIN_LCD3_B4, PIN_LCD3_B5, PIN_LCD3_B6, PIN_LCD3_B7,
 };
 static const unsigned int tp33_mux[] = {
 	TP33_CLK_MARK, TP33_CTRL_MARK,

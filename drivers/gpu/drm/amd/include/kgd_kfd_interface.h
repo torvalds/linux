@@ -174,6 +174,7 @@ struct tile_config {
 #define ALLOC_MEM_FLAGS_GTT		(1 << 1)
 #define ALLOC_MEM_FLAGS_USERPTR		(1 << 2)
 #define ALLOC_MEM_FLAGS_DOORBELL	(1 << 3)
+#define ALLOC_MEM_FLAGS_MMIO_REMAP	(1 << 4)
 
 /*
  * Allocation flags attributes/access options.

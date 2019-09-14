@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 static uint32_t gk208_pmu_data[] = {
 /* 0x0000: proc_kern */
 	0x52544e49,

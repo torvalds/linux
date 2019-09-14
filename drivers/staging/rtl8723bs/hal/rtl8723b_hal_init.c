@@ -217,7 +217,7 @@ void _8051Reset8723(struct adapter *padapter)
 	DBG_8192C("%s: Finish\n", __func__);
 }
 
-u8 g_fwdl_chksum_fail = 0;
+u8 g_fwdl_chksum_fail;
 
 static s32 polling_fwdl_chksum(
 	struct adapter *adapter, u32 min_cnt, u32 timeout_ms
@@ -262,7 +262,7 @@ exit:
 	return ret;
 }
 
-u8 g_fwdl_wintint_rdy_fail = 0;
+u8 g_fwdl_wintint_rdy_fail;
 
 static s32 _FWFreeToGo(struct adapter *adapter, u32 min_cnt, u32 timeout_ms)
 {
@@ -742,7 +742,7 @@ static void Hal_BT_EfusePowerSwitch(
 )
 {
 	u8 tempval;
-	if (PwrState == true) {
+	if (PwrState) {
 		/*  enable BT power cut */
 		/*  0x6A[14] = 1 */
 		tempval = rtw_read8(padapter, 0x6B);
@@ -783,7 +783,7 @@ static void Hal_EfusePowerSwitch(
 	u16 tmpV16;
 
 
-	if (PwrState == true) {
+	if (PwrState) {
 		/*  To avoid cannot access efuse regsiters after disable/enable several times during DTM test. */
 		/*  Suggested by SD1 IsaacHsu. 2013.07.08, added by tynli. */
 		tempval = rtw_read8(padapter, SDIO_LOCAL_BASE|SDIO_REG_HSUS_CTRL);
@@ -833,7 +833,7 @@ static void Hal_EfusePowerSwitch(
 			rtw_write16(padapter, REG_SYS_CLKR, tmpV16);
 		}
 
-		if (bWrite == true) {
+		if (bWrite) {
 			/*  Enable LDO 2.5V before read/write action */
 			tempval = rtw_read8(padapter, EFUSE_TEST+3);
 			tempval &= 0x0F;
@@ -845,7 +845,7 @@ static void Hal_EfusePowerSwitch(
 	} else {
 		rtw_write8(padapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_OFF);
 
-		if (bWrite == true) {
+		if (bWrite) {
 			/*  Disable LDO 2.5V after read/write action */
 			tempval = rtw_read8(padapter, EFUSE_TEST+3);
 			rtw_write8(padapter, EFUSE_TEST+3, (tempval & 0x7F));
@@ -1023,7 +1023,7 @@ static void hal_ReadEFuse_BT(
 	}
 
 	efuseTbl = rtw_malloc(EFUSE_BT_MAP_LEN);
-	if (efuseTbl == NULL) {
+	if (!efuseTbl) {
 		DBG_8192C("%s: efuseTbl malloc fail!\n", __func__);
 		return;
 	}
@@ -2139,7 +2139,7 @@ static void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_l
 		return;
 
 	psta = pmlmeinfo->FW_sta_info[mac_id].psta;
-	if (psta == NULL)
+	if (!psta)
 		return;
 
 	shortGIrate = query_ra_short_GI(psta);
@@ -2153,7 +2153,7 @@ static void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_l
 
 	mask &= rate_bitmap;
 
-	rate_bitmap = rtw_btcoex_GetRaMask(padapter);
+	rate_bitmap = hal_btcoex_GetRaMask(padapter);
 	mask &= ~rate_bitmap;
 
 #ifdef CONFIG_CMCC_TEST
@@ -2166,7 +2166,7 @@ static void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_l
 	}
 #endif
 
-	if (pHalData->fw_ractrl == true) {
+	if (pHalData->fw_ractrl) {
 		rtl8723b_set_FwMacIdConfig_cmd(padapter, mac_id, psta->raid, psta->bw_mode, shortGIrate, mask);
 	}
 
@@ -2428,7 +2428,7 @@ void Hal_InitPGData(struct adapter *padapter, u8 *PROMContent)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
 
-	if (false == pEEPROM->bautoload_fail_flag) { /*  autoload OK. */
+	if (!pEEPROM->bautoload_fail_flag) { /*  autoload OK. */
 		if (!pEEPROM->EepromOrEfuse) {
 			/*  Read EFUSE real map to shadow. */
 			EFUSE_ShadowMapUpdate(padapter, EFUSE_WIFI, false);
@@ -2436,7 +2436,7 @@ void Hal_InitPGData(struct adapter *padapter, u8 *PROMContent)
 		}
 	} else {/* autoload fail */
 		RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("AutoLoad Fail reported from CR9346!!\n"));
-		if (false == pEEPROM->EepromOrEfuse)
+		if (!pEEPROM->EepromOrEfuse)
 			EFUSE_ShadowMapUpdate(padapter, EFUSE_WIFI, false);
 		memcpy((void *)PROMContent, (void *)pEEPROM->efuse_eeprom_data, HWSET_MAX_SIZE_8723B);
 	}
@@ -2694,11 +2694,11 @@ void Hal_EfuseParseBTCoexistInfo_8723B(
 		}
 	}
 
-	rtw_btcoex_SetBTCoexist(padapter, pHalData->EEPROMBluetoothCoexist);
-	rtw_btcoex_SetChipType(padapter, pHalData->EEPROMBluetoothType);
-	rtw_btcoex_SetPGAntNum(padapter, pHalData->EEPROMBluetoothAntNum == Ant_x2 ? 2 : 1);
+	hal_btcoex_SetBTCoexist(padapter, pHalData->EEPROMBluetoothCoexist);
+	hal_btcoex_SetChipType(padapter, pHalData->EEPROMBluetoothType);
+	hal_btcoex_SetPgAntNum(padapter, pHalData->EEPROMBluetoothAntNum == Ant_x2 ? 2 : 1);
 	if (pHalData->EEPROMBluetoothAntNum == Ant_x1)
-		rtw_btcoex_SetSingleAntPath(padapter, pHalData->ant_path);
+		hal_btcoex_SetSingleAntPath(padapter, pHalData->ant_path);
 
 	DBG_8192C(
 		"%s: %s BT-coex, ant_num =%d\n",
@@ -2842,12 +2842,12 @@ void Hal_EfuseParseThermalMeter_8723B(
 	/*  */
 	/*  ThermalMeter from EEPROM */
 	/*  */
-	if (false == AutoLoadFail)
+	if (!AutoLoadFail)
 		pHalData->EEPROMThermalMeter = PROMContent[EEPROM_THERMAL_METER_8723B];
 	else
 		pHalData->EEPROMThermalMeter = EEPROM_Default_ThermalMeter_8723B;
 
-	if ((pHalData->EEPROMThermalMeter == 0xff) || (true == AutoLoadFail)) {
+	if ((pHalData->EEPROMThermalMeter == 0xff) || AutoLoadFail) {
 		pHalData->bAPKThermalMeterIgnore = true;
 		pHalData->EEPROMThermalMeter = EEPROM_Default_ThermalMeter_8723B;
 	}
@@ -3094,12 +3094,12 @@ static void rtl8723b_fill_default_txdesc(
 			(pattrib->dhcp_pkt != 1) &&
 			(drv_userate != 1)
 #ifdef CONFIG_AUTO_AP_MODE
-			&& (pattrib->pctrl != true)
+			&& (!pattrib->pctrl)
 #endif
 		) {
 			/*  Non EAP & ARP & DHCP type data packet */
 
-			if (pattrib->ampdu_en == true) {
+			if (pattrib->ampdu_en) {
 				ptxdesc->agg_en = 1; /*  AGG EN */
 				ptxdesc->max_agg_num = 0x1f;
 				ptxdesc->ampdu_density = pattrib->ampdu_spacing;
@@ -3110,7 +3110,7 @@ static void rtl8723b_fill_default_txdesc(
 
 			ptxdesc->data_ratefb_lmt = 0x1F;
 
-			if (pHalData->fw_ractrl == false) {
+			if (!pHalData->fw_ractrl) {
 				ptxdesc->userate = 1;
 
 				if (pHalData->dmpriv.INIDATA_RATE[pattrib->mac_id] & BIT(7))
@@ -3162,7 +3162,7 @@ static void rtl8723b_fill_default_txdesc(
 		ptxdesc->mbssid = pattrib->mbssid & 0xF;
 
 		ptxdesc->rty_lmt_en = 1; /*  retry limit enable */
-		if (pattrib->retry_ctrl == true) {
+		if (pattrib->retry_ctrl) {
 			ptxdesc->data_rt_lmt = 6;
 		} else {
 			ptxdesc->data_rt_lmt = 12;
@@ -3265,14 +3265,14 @@ void rtl8723b_fill_fake_txdesc(
 	SET_TX_DESC_QUEUE_SEL_8723B(pDesc, QSLT_MGNT); /*  Fixed queue of Mgnt queue */
 
 	/*  Set NAVUSEHDR to prevent Ps-poll AId filed to be changed to error vlaue by Hw. */
-	if (true == IsPsPoll) {
+	if (IsPsPoll) {
 		SET_TX_DESC_NAV_USE_HDR_8723B(pDesc, 1);
 	} else {
 		SET_TX_DESC_HWSEQ_EN_8723B(pDesc, 1); /*  Hw set sequence number */
 		SET_TX_DESC_HWSEQ_SEL_8723B(pDesc, 0);
 	}
 
-	if (true == IsBTQosNull) {
+	if (IsBTQosNull) {
 		SET_TX_DESC_BT_INT_8723B(pDesc, 1);
 	}
 
@@ -3284,7 +3284,7 @@ void rtl8723b_fill_fake_txdesc(
 	/*  */
 	/*  Encrypt the data frame if under security mode excepct null data. Suggested by CCW. */
 	/*  */
-	if (true == bDataFrame) {
+	if (bDataFrame) {
 		u32 EncAlg;
 
 		EncAlg = padapter->securitypriv.dot11PrivacyAlgrthm;
@@ -3463,7 +3463,7 @@ static void hw_var_set_correct_tsf(struct adapter *padapter, u8 variable, u8 *va
 	pmlmeext = &padapter->mlmeextpriv;
 	pmlmeinfo = &pmlmeext->mlmext_info;
 
-	tsf = pmlmeext->TSFValue-rtw_modular64(pmlmeext->TSFValue, (pmlmeinfo->bcn_interval*1024))-1024; /* us */
+	tsf = pmlmeext->TSFValue-do_div(pmlmeext->TSFValue, (pmlmeinfo->bcn_interval*1024))-1024; /* us */
 
 	if (
 		((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) ||
@@ -3579,14 +3579,12 @@ static void hw_var_set_mlme_join(struct adapter *padapter, u8 variable, u8 *val)
 	u32 val32;
 	u8 RetryLimit;
 	u8 type;
-	struct hal_com_data *pHalData;
 	struct mlme_priv *pmlmepriv;
 	struct eeprom_priv *pEEPROM;
 
 
 	RetryLimit = 0x30;
 	type = *(u8 *)val;
-	pHalData = GET_HAL_DATA(padapter);
 	pmlmepriv = &padapter->mlmepriv;
 	pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
 
@@ -3695,7 +3693,7 @@ s32 c2h_handler_8723b(struct adapter *padapter, u8 *buf)
 		break;
 
 	case C2H_8723B_BT_INFO:
-		rtw_btcoex_BtInfoNotify(padapter, pC2hEvent->plen, pC2hEvent->payload);
+		hal_btcoex_BtInfoNotify(padapter, pC2hEvent->plen, pC2hEvent->payload);
 		break;
 
 	default:
@@ -3744,7 +3742,7 @@ static void process_c2h_event(struct adapter *padapter, PC2H_EVT_HDR pC2hEvent, 
 		break;
 
 	case C2H_8723B_BT_INFO:
-		rtw_btcoex_BtInfoNotify(padapter, pC2hEvent->CmdLen, c2hBuf);
+		hal_btcoex_BtInfoNotify(padapter, pC2hEvent->CmdLen, c2hBuf);
 		break;
 
 	default:
@@ -3759,7 +3757,7 @@ void C2HPacketHandler_8723B(struct adapter *padapter, u8 *pbuffer, u16 length)
 #ifdef CONFIG_WOWLAN
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 
-	if (pwrpriv->wowlan_mode == true) {
+	if (pwrpriv->wowlan_mode) {
 		DBG_871X("%s(): return because wowolan_mode ==true! CMDID =%d\n", __func__, pbuffer[0]);
 		return;
 	}
@@ -3878,7 +3876,7 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 	case HW_VAR_MLME_SITESURVEY:
 		hw_var_set_mlme_sitesurvey(padapter, variable,  val);
 
-		rtw_btcoex_ScanNotify(padapter, *val?true:false);
+		hal_btcoex_ScanNotify(padapter, *val?true:false);
 		break;
 
 	case HW_VAR_MLME_JOIN:
@@ -3887,11 +3885,11 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 		switch (*val) {
 		case 0:
 			/*  prepare to join */
-			rtw_btcoex_ConnectNotify(padapter, true);
+			hal_btcoex_ConnectNotify(padapter, true);
 			break;
 		case 1:
 			/*  joinbss_event callback when join res < 0 */
-			rtw_btcoex_ConnectNotify(padapter, false);
+			hal_btcoex_ConnectNotify(padapter, false);
 			break;
 		case 2:
 			/*  sta add event callback */
@@ -4119,7 +4117,7 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 			/*  keep sn */
 			padapter->xmitpriv.nqos_ssn = rtw_read16(padapter, REG_NQOS_SEQ);
 
-			if (pwrpriv->bkeepfwalive != true) {
+			if (!pwrpriv->bkeepfwalive) {
 				/* RX DMA stop */
 				val32 = rtw_read32(padapter, REG_RXPKT_NUM);
 				val32 |= RW_RELEASE_EN;
@@ -4274,7 +4272,7 @@ void GetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 			u32 valRCR;
 
 			if (
-				(padapter->bSurpriseRemoved == true) ||
+				padapter->bSurpriseRemoved  ||
 				(adapter_to_pwrctl(padapter)->rf_pwrstate == rf_off)
 			) {
 				/*  If it is in HW/SW Radio OFF or IPS state, we do not check Fw LPS Leave, */
@@ -4345,11 +4343,8 @@ void GetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
  */
 u8 SetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, void *pval)
 {
-	struct hal_com_data *pHalData;
 	u8 bResult;
 
-
-	pHalData = GET_HAL_DATA(padapter);
 	bResult = _SUCCESS;
 
 	switch (variable) {
@@ -4367,11 +4362,8 @@ u8 SetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, v
  */
 u8 GetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, void *pval)
 {
-	struct hal_com_data *pHalData;
 	u8 bResult;
 
-
-	pHalData = GET_HAL_DATA(padapter);
 	bResult = _SUCCESS;
 
 	switch (variable) {

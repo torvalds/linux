@@ -56,9 +56,9 @@
 #define	XFS_DIRREMOVE_SPACE_RES(mp)	\
 	XFS_DAREMOVE_SPACE_RES(mp, XFS_DATA_FORK)
 #define	XFS_IALLOC_SPACE_RES(mp)	\
-	((mp)->m_ialloc_blks + \
+	(M_IGEO(mp)->ialloc_blks + \
 	 (xfs_sb_version_hasfinobt(&mp->m_sb) ? 2 : 1 * \
-	  ((mp)->m_in_maxlevels - 1)))
+	  (M_IGEO(mp)->inobt_maxlevels - 1)))
 
 /*
  * Space reservation values for various transactions.
@@ -94,7 +94,8 @@
 #define	XFS_SYMLINK_SPACE_RES(mp,nl,b)	\
 	(XFS_IALLOC_SPACE_RES(mp) + XFS_DIRENTER_SPACE_RES(mp,nl) + (b))
 #define XFS_IFREE_SPACE_RES(mp)		\
-	(xfs_sb_version_hasfinobt(&mp->m_sb) ? (mp)->m_in_maxlevels : 0)
+	(xfs_sb_version_hasfinobt(&mp->m_sb) ? \
+			M_IGEO(mp)->inobt_maxlevels : 0)
 
 
 #endif	/* __XFS_TRANS_SPACE_H__ */

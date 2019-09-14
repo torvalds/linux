@@ -767,11 +767,12 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
  */
 static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 {
-	if (!(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
-		spin_lock(&bo->bdev->glob->lru_lock);
+	spin_lock(&bo->bdev->glob->lru_lock);
+	if (list_empty(&bo->lru))
 		ttm_bo_add_to_lru(bo);
-		spin_unlock(&bo->bdev->glob->lru_lock);
-	}
+	else
+		ttm_bo_move_to_lru_tail(bo, NULL);
+	spin_unlock(&bo->bdev->glob->lru_lock);
 	reservation_object_unlock(bo->resv);
 }
 

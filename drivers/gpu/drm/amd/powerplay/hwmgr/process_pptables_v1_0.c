@@ -916,8 +916,10 @@ static int init_thermal_controller(
 			PHM_PlatformCaps_ThermalController
 		  );
 
-	if (0 == powerplay_table->usFanTableOffset)
+	if (0 == powerplay_table->usFanTableOffset) {
+		hwmgr->thermal_controller.use_hw_fan_control = 1;
 		return 0;
+	}
 
 	fan_table = (const PPTable_Generic_SubTable_Header *)
 		(((unsigned long)powerplay_table) +
@@ -1064,8 +1066,6 @@ static int pp_tables_v1_0_initialize(struct pp_hwmgr *hwmgr)
 
 	PP_ASSERT_WITH_CODE((NULL != hwmgr->pptable),
 			    "Failed to allocate hwmgr->pptable!", return -ENOMEM);
-
-	memset(hwmgr->pptable, 0x00, sizeof(struct phm_ppt_v1_information));
 
 	powerplay_table = get_powerplay_table(hwmgr);
 

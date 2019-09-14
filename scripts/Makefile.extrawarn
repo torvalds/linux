@@ -34,7 +34,6 @@ warning-1 += $(call cc-option, -Wstringop-truncation)
 warning-1 += -Wno-missing-field-initializers
 warning-1 += -Wno-sign-compare
 
-warning-2 := -Waggregate-return
 warning-2 += -Wcast-align
 warning-2 += -Wdisabled-optimization
 warning-2 += -Wnested-externs
@@ -68,10 +67,8 @@ else
 
 ifdef CONFIG_CC_IS_CLANG
 KBUILD_CFLAGS += -Wno-initializer-overrides
-KBUILD_CFLAGS += -Wno-unused-value
 KBUILD_CFLAGS += -Wno-format
 KBUILD_CFLAGS += -Wno-sign-compare
 KBUILD_CFLAGS += -Wno-format-zero-length
-KBUILD_CFLAGS += -Wno-uninitialized
 endif
 endif

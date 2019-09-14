@@ -518,12 +518,6 @@ vchiq_free_service_internal(struct vchiq_service *service);
 extern VCHIQ_STATUS_T
 vchiq_shutdown_internal(struct vchiq_state *state, VCHIQ_INSTANCE_T instance);
 
-extern VCHIQ_STATUS_T
-vchiq_pause_internal(struct vchiq_state *state);
-
-extern VCHIQ_STATUS_T
-vchiq_resume_internal(struct vchiq_state *state);
-
 extern void
 remote_event_pollall(struct vchiq_state *state);
 
@@ -644,9 +638,6 @@ vchiq_on_remote_use_active(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
 vchiq_send_remote_use(struct vchiq_state *state);
-
-extern VCHIQ_STATUS_T
-vchiq_send_remote_release(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
 vchiq_send_remote_use_active(struct vchiq_state *state);

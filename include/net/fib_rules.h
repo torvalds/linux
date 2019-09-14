@@ -103,6 +103,7 @@ struct fib_rule_notifier_info {
 };
 
 #define FRA_GENERIC_POLICY \
+	[FRA_UNSPEC]	= { .strict_start_type = FRA_DPORT_RANGE + 1 }, \
 	[FRA_IIFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 }, \
 	[FRA_OIFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 }, \
 	[FRA_PRIORITY]	= { .type = NLA_U32 }, \
@@ -179,9 +180,9 @@ static inline bool fib_rule_port_range_compare(struct fib_rule_port_range *a,
 
 static inline bool fib_rule_requires_fldissect(struct fib_rule *rule)
 {
-	return rule->ip_proto ||
+	return rule->iifindex != LOOPBACK_IFINDEX && (rule->ip_proto ||
 		fib_rule_port_range_set(&rule->sport_range) ||
-		fib_rule_port_range_set(&rule->dport_range);
+		fib_rule_port_range_set(&rule->dport_range));
 }
 
 struct fib_rules_ops *fib_rules_register(const struct fib_rules_ops *,
