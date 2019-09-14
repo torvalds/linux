@@ -1138,6 +1138,8 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 		__bch2_cut_front(insert->k.p, k);
 		BUG_ON(bkey_deleted(k.k));
 		extent_save(l->b, _k, k.k);
+		bch2_btree_node_iter_fix(iter, l->b, &l->iter,
+					 _k, _k->u64s, _k->u64s);
 		verify_modified_extent(iter, _k);
 		break;
 
@@ -1207,6 +1209,8 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 		__bch2_cut_front(insert->k.p, k);
 		BUG_ON(bkey_deleted(k.k));
 		extent_save(l->b, _k, k.k);
+		bch2_btree_node_iter_fix(iter, l->b, &l->iter,
+					 _k, _k->u64s, _k->u64s);
 		verify_modified_extent(iter, _k);
 
 		extent_bset_insert(c, iter, &split.k);
