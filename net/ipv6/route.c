@@ -4388,13 +4388,14 @@ struct fib6_info *addrconf_f6i_alloc(struct net *net,
 	struct fib6_config cfg = {
 		.fc_table = l3mdev_fib_table(idev->dev) ? : RT6_TABLE_LOCAL,
 		.fc_ifindex = idev->dev->ifindex,
-		.fc_flags = RTF_UP | RTF_ADDRCONF | RTF_NONEXTHOP,
+		.fc_flags = RTF_UP | RTF_NONEXTHOP,
 		.fc_dst = *addr,
 		.fc_dst_len = 128,
 		.fc_protocol = RTPROT_KERNEL,
 		.fc_nlinfo.nl_net = net,
 		.fc_ignore_dev_down = true,
 	};
+	struct fib6_info *f6i;
 
 	if (anycast) {
 		cfg.fc_type = RTN_ANYCAST;
@@ -4404,7 +4405,10 @@ struct fib6_info *addrconf_f6i_alloc(struct net *net,
 		cfg.fc_flags |= RTF_LOCAL;
 	}
 
-	return ip6_route_info_create(&cfg, gfp_flags, NULL);
+	f6i = ip6_route_info_create(&cfg, gfp_flags, NULL);
+	if (!IS_ERR(f6i))
+		f6i->dst_nocount = true;
+	return f6i;
 }
 
 /* remove deleted ip from prefsrc entries */
@@ -5325,11 +5329,11 @@ static int rt6_fill_node_nexthop(struct sk_buff *skb, struct nexthop *nh,
 	if (nexthop_is_multipath(nh)) {
 		struct nlattr *mp;
 
-		mp = nla_nest_start(skb, RTA_MULTIPATH);
+		mp = nla_nest_start_noflag(skb, RTA_MULTIPATH);
 		if (!mp)
 			goto nla_put_failure;
 
-		if (nexthop_mpath_fill_node(skb, nh))
+		if (nexthop_mpath_fill_node(skb, nh, AF_INET6))
 			goto nla_put_failure;
 
 		nla_nest_end(skb, mp);
@@ -5337,7 +5341,7 @@ static int rt6_fill_node_nexthop(struct sk_buff *skb, struct nexthop *nh,
 		struct fib6_nh *fib6_nh;
 
 		fib6_nh = nexthop_fib6_nh(nh);
-		if (fib_nexthop_info(skb, &fib6_nh->nh_common,
+		if (fib_nexthop_info(skb, &fib6_nh->nh_common, AF_INET6,
 				     flags, false) < 0)
 			goto nla_put_failure;
 	}
@@ -5466,13 +5470,14 @@ static int rt6_fill_node(struct net *net, struct sk_buff *skb,
 			goto nla_put_failure;
 
 		if (fib_add_nexthop(skb, &rt->fib6_nh->nh_common,
-				    rt->fib6_nh->fib_nh_weight) < 0)
+				    rt->fib6_nh->fib_nh_weight, AF_INET6) < 0)
 			goto nla_put_failure;
 
 		list_for_each_entry_safe(sibling, next_sibling,
 					 &rt->fib6_siblings, fib6_siblings) {
 			if (fib_add_nexthop(skb, &sibling->fib6_nh->nh_common,
-					    sibling->fib6_nh->fib_nh_weight) < 0)
+					    sibling->fib6_nh->fib_nh_weight,
+					    AF_INET6) < 0)
 				goto nla_put_failure;
 		}
 
@@ -5489,7 +5494,7 @@ static int rt6_fill_node(struct net *net, struct sk_buff *skb,
 
 		rtm->rtm_flags |= nh_flags;
 	} else {
-		if (fib_nexthop_info(skb, &rt->fib6_nh->nh_common,
+		if (fib_nexthop_info(skb, &rt->fib6_nh->nh_common, AF_INET6,
 				     &nh_flags, false) < 0)
 			goto nla_put_failure;
 

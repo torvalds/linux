@@ -17699,8 +17699,7 @@ F:	include/uapi/linux/dqblk_xfs.h
 F:	include/uapi/linux/fsmap.h
 
 XILINX AXI ETHERNET DRIVER
-M:	Anirudha Sarangi <anirudh@xilinx.com>
-M:	John Linn <John.Linn@xilinx.com>
+M:	Radhey Shyam Pandey <radhey.shyam.pandey@xilinx.com>
 S:	Maintained
 F:	drivers/net/ethernet/xilinx/xilinx_axienet*
 

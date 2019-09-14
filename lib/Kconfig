@@ -631,6 +631,9 @@ config SBITMAP
 config PARMAN
 	tristate "parman" if COMPILE_TEST
 
+config OBJAGG
+	tristate "objagg" if COMPILE_TEST
+
 config STRING_SELFTEST
 	tristate "Test string functions"
 
@@ -653,6 +656,3 @@ config GENERIC_LIB_CMPDI2
 
 config GENERIC_LIB_UCMPDI2
 	bool
-
-config OBJAGG
-	tristate "objagg" if COMPILE_TEST
