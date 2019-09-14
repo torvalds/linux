@@ -309,7 +309,6 @@ void rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
 
 		WEP_SW_DEC_CNT_INC(psecuritypriv, prxattrib->ra);
 	}
-	return;
 }
 
 /* 3		=====TKIP related ===== */

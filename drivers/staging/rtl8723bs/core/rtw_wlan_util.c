@@ -1170,8 +1170,6 @@ void HT_info_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE)
 
 	pmlmeinfo->HT_info_enable = 1;
 	memcpy(&(pmlmeinfo->HT_info), pIE->data, pIE->Length);
-
-	return;
 }
 
 void HTOnAssocRsp(struct adapter *padapter)

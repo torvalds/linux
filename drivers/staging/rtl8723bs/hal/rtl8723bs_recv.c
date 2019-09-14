@@ -179,8 +179,6 @@ static void rtl8723bs_c2h_packet_handler(struct adapter *padapter,
 		kfree(tmp);
 
 	/* DBG_871X("-%s res(%d)\n", __func__, res); */
-
-	return;
 }
 
 static inline union recv_frame *try_alloc_recvframe(struct recv_priv *precvpriv,

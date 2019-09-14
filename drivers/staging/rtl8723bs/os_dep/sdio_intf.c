@@ -281,7 +281,6 @@ static void sdio_dvobj_deinit(struct sdio_func *func)
 		sdio_deinit(dvobj);
 		devobj_deinit(dvobj);
 	}
-	return;
 }
 
 void rtw_set_hal_ops(struct adapter *padapter)

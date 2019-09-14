@@ -1422,7 +1422,6 @@ void rtw_cfg80211_unlink_bss(struct adapter *padapter, struct wlan_network *pnet
 		DBG_8192C("%s(): cfg80211_unlink %s!! () ", __func__, select_network.Ssid.Ssid);
 		cfg80211_put_bss(padapter->rtw_wdev->wiphy, bss);
 	}
-	return;
 }
 
 void rtw_cfg80211_surveydone_event_callback(struct adapter *padapter)

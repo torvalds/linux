@@ -3773,7 +3773,6 @@ void C2HPacketHandler_8723B(struct adapter *padapter, u8 *pbuffer, u16 length)
 
 	process_c2h_event(padapter, &C2hEvent, tmpBuf);
 	/* c2h_handler_8723b(padapter,&C2hEvent); */
-	return;
 }
 
 void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
