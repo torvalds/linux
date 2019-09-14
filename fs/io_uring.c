@@ -75,7 +75,7 @@
 
 #include "internal.h"
 
-#define IORING_MAX_ENTRIES	4096
+#define IORING_MAX_ENTRIES	32768
 #define IORING_MAX_FIXED_FILES	1024
 
 struct io_uring {
