@@ -1249,7 +1249,7 @@ static void get_clos_assoc_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	if (ret)
 		perror("isst_clos_get_assoc_status");
 	else
-		isst_display_result(cpu, outf, "core-power", "get-assoc", clos);
+		isst_clos_display_assoc_information(cpu, outf, clos);
 }
 
 static void get_clos_assoc(void)
@@ -1259,13 +1259,17 @@ static void get_clos_assoc(void)
 		fprintf(stderr, "\tSpecify targeted cpu id with [--cpu|-c]\n");
 		exit(0);
 	}
-	if (max_target_cpus)
-		for_each_online_target_cpu_in_set(get_clos_assoc_for_cpu, NULL,
-						  NULL, NULL, NULL);
-	else {
+
+	if (!max_target_cpus) {
 		fprintf(stderr,
 			"Invalid target cpu. Specify with [-c|--cpu]\n");
+		exit(0);
 	}
+
+	isst_ctdp_display_information_start(outf);
+	for_each_online_target_cpu_in_set(get_clos_assoc_for_cpu, NULL,
+					  NULL, NULL, NULL);
+	isst_ctdp_display_information_end(outf);
 }
 
 static struct process_cmd_struct isst_cmds[] = {

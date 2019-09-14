@@ -225,7 +225,7 @@ extern int isst_clos_associate(int cpu, int clos);
 extern int isst_clos_get_assoc_status(int cpu, int *clos_id);
 extern void isst_clos_display_information(int cpu, FILE *outf, int clos,
 					  struct isst_clos_config *clos_config);
-
+extern void isst_clos_display_assoc_information(int cpu, FILE *outf, int clos);
 extern int isst_read_reg(unsigned short reg, unsigned int *val);
 extern int isst_write_reg(int reg, unsigned int val);
 

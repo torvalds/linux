@@ -503,6 +503,29 @@ void isst_clos_display_information(int cpu, FILE *outf, int clos,
 	format_and_print(outf, 1, NULL, NULL);
 }
 
+void isst_clos_display_assoc_information(int cpu, FILE *outf, int clos)
+{
+	char header[256];
+	char value[256];
+
+	snprintf(header, sizeof(header), "package-%d",
+		 get_physical_package_id(cpu));
+	format_and_print(outf, 1, header, NULL);
+	snprintf(header, sizeof(header), "die-%d", get_physical_die_id(cpu));
+	format_and_print(outf, 2, header, NULL);
+	snprintf(header, sizeof(header), "cpu-%d", cpu);
+	format_and_print(outf, 3, header, NULL);
+
+	snprintf(header, sizeof(header), "get-assoc");
+	format_and_print(outf, 4, header, NULL);
+
+	snprintf(header, sizeof(header), "clos");
+	snprintf(value, sizeof(value), "%d", clos);
+	format_and_print(outf, 5, header, value);
+
+	format_and_print(outf, 1, NULL, NULL);
+}
+
 void isst_display_result(int cpu, FILE *outf, char *feature, char *cmd,
 			 int result)
 {
