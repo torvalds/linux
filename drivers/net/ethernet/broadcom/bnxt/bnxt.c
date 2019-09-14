@@ -9557,14 +9557,16 @@ static bool bnxt_uc_list_updated(struct bnxt *bp)
 static void bnxt_set_rx_mode(struct net_device *dev)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
-	u32 mask = vnic->rx_mask;
+	struct bnxt_vnic_info *vnic;
 	bool mc_update = false;
 	bool uc_update;
+	u32 mask;
 
-	if (!netif_running(dev))
+	if (!test_bit(BNXT_STATE_OPEN, &bp->state))
 		return;
 
+	vnic = &bp->vnic_info[0];
+	mask = vnic->rx_mask;
 	mask &= ~(CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS |
 		  CFA_L2_SET_RX_MASK_REQ_MASK_MCAST |
 		  CFA_L2_SET_RX_MASK_REQ_MASK_ALL_MCAST |
