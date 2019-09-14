@@ -346,6 +346,7 @@ void rtw_coex_set_wl_rx_gain(struct rtw_dev *rtwdev, bool low_gain)
 }
 
 void rtw_coex_info_response(struct rtw_dev *rtwdev, struct sk_buff *skb);
+u32 rtw_coex_read_indirect_reg(struct rtw_dev *rtwdev, u16 addr);
 void rtw_coex_write_indirect_reg(struct rtw_dev *rtwdev, u16 addr,
 				 u32 mask, u32 val);
 void rtw_coex_write_scbd(struct rtw_dev *rtwdev, u16 bitpos, bool set);

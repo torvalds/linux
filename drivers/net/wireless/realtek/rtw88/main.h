@@ -640,7 +640,9 @@ struct rtw_chip_ops {
 			    u8 antenna_rx);
 	void (*cfg_ldo25)(struct rtw_dev *rtwdev, bool enable);
 	void (*false_alarm_statistics)(struct rtw_dev *rtwdev);
-	void (*do_iqk)(struct rtw_dev *rtwdev);
+	void (*phy_calibration)(struct rtw_dev *rtwdev);
+	void (*dpk_track)(struct rtw_dev *rtwdev);
+	void (*cck_pd_set)(struct rtw_dev *rtwdev, u8 level);
 
 	/* for coex */
 	void (*coex_set_init)(struct rtw_dev *rtwdev);
@@ -864,6 +866,9 @@ struct rtw_chip_info {
 	const struct rtw_rfe_def *rfe_defs;
 	u32 rfe_defs_size;
 
+	bool en_dis_dpd;
+	u16 dpd_ratemask;
+
 	/* coex paras */
 	u32 coex_para_ver;
 	u8 bt_desired_ver;
@@ -1075,6 +1080,44 @@ struct rtw_coex {
 	struct delayed_work defreeze_work;
 };
 
+#define DPK_RF_REG_NUM 7
+#define DPK_RF_PATH_NUM 2
+#define DPK_BB_REG_NUM 18
+#define DPK_CHANNEL_WIDTH_80 1
+
+DECLARE_EWMA(thermal, 10, 4);
+
+struct rtw_dpk_info {
+	bool is_dpk_pwr_on;
+	bool is_reload;
+
+	DECLARE_BITMAP(dpk_path_ok, DPK_RF_PATH_NUM);
+
+	u8 thermal_dpk[DPK_RF_PATH_NUM];
+	struct ewma_thermal avg_thermal[DPK_RF_PATH_NUM];
+
+	u32 gnt_control;
+	u32 gnt_value;
+
+	u8 result[RTW_RF_PATH_MAX];
+	u8 dpk_txagc[RTW_RF_PATH_MAX];
+	u32 coef[RTW_RF_PATH_MAX][20];
+	u16 dpk_gs[RTW_RF_PATH_MAX];
+	u8 thermal_dpk_delta[RTW_RF_PATH_MAX];
+	u8 pre_pwsf[RTW_RF_PATH_MAX];
+
+	u8 dpk_band;
+	u8 dpk_ch;
+	u8 dpk_bw;
+};
+
+struct rtw_phy_cck_pd_reg {
+	u32 reg_pd;
+	u32 mask_pd;
+	u32 reg_cs;
+	u32 mask_cs;
+};
+
 #define DACK_MSBK_BACKUP_NUM	0xf
 #define DACK_DCK_BACKUP_NUM	0x2
 
@@ -1108,6 +1151,12 @@ struct rtw_dm_info {
 	u32 dack_adck[RTW_RF_PATH_MAX];
 	u16 dack_msbk[RTW_RF_PATH_MAX][2][DACK_MSBK_BACKUP_NUM];
 	u8 dack_dck[RTW_RF_PATH_MAX][2][DACK_DCK_BACKUP_NUM];
+
+	struct rtw_dpk_info dpk_info;
+
+	/* [bandwidth 0:20M/1:40M][number of path] */
+	u8 cck_pd_lv[2][RTW_RF_PATH_MAX];
+	u32 cck_fa_avg;
 };
 
 struct rtw_efuse {
@@ -1342,6 +1391,11 @@ static inline void rtw_flag_clear(struct rtw_dev *rtwdev, enum rtw_flags flag)
 static inline void rtw_flag_set(struct rtw_dev *rtwdev, enum rtw_flags flag)
 {
 	set_bit(flag, rtwdev->flags);
+}
+
+static inline bool rtw_is_assoc(struct rtw_dev *rtwdev)
+{
+	return !!rtwdev->sta_cnt;
 }
 
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,

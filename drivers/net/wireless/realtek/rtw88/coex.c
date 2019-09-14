@@ -721,7 +721,7 @@ static void rtw_coex_set_rf_para(struct rtw_dev *rtwdev,
 	rtw_coex_set_bt_rx_gain(rtwdev, para.bt_lna_lvl);
 }
 
-static u32 rtw_coex_read_indirect_reg(struct rtw_dev *rtwdev, u16 addr)
+u32 rtw_coex_read_indirect_reg(struct rtw_dev *rtwdev, u16 addr)
 {
 	u32 val;
 

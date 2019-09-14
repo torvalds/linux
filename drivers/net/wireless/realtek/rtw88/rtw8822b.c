@@ -766,6 +766,7 @@ static void query_phy_status_page0(struct rtw_dev *rtwdev, u8 *phy_status,
 	s8 min_rx_power = -120;
 	u8 pwdb = GET_PHY_STAT_P0_PWDB(phy_status);
 
+	/* 8822B uses only 1 antenna to RX CCK rates */
 	pkt_stat->rx_power[RF_PATH_A] = pwdb - 110;
 	pkt_stat->rssi = rtw_phy_rf_power_2_rssi(pkt_stat->rx_power, 1);
 	pkt_stat->bw = RTW_CHANNEL_WIDTH_20;
@@ -999,6 +1000,11 @@ static void rtw8822b_do_iqk(struct rtw_dev *rtwdev)
 	rtw_dbg(rtwdev, RTW_DBG_PHY,
 		"iqk counter=%d reload=%d do_iqk_cnt=%d n_iqk_fail(mask)=0x%02x\n",
 		counter, reload, ++do_iqk_cnt, iqk_fail_mask);
+}
+
+static void rtw8822b_phy_calibration(struct rtw_dev *rtwdev)
+{
+	rtw8822b_do_iqk(rtwdev);
 }
 
 static void rtw8822b_coex_cfg_init(struct rtw_dev *rtwdev)
@@ -1794,7 +1800,7 @@ static struct rtw_chip_ops rtw8822b_ops = {
 	.set_antenna		= rtw8822b_set_antenna,
 	.cfg_ldo25		= rtw8822b_cfg_ldo25,
 	.false_alarm_statistics	= rtw8822b_false_alarm_statistics,
-	.do_iqk			= rtw8822b_do_iqk,
+	.phy_calibration	= rtw8822b_phy_calibration,
 
 	.coex_set_init		= rtw8822b_coex_cfg_init,
 	.coex_set_ant_switch	= rtw8822b_coex_cfg_ant_switch,
