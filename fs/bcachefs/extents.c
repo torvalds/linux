@@ -671,8 +671,7 @@ const char *bch2_btree_ptr_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	return bch2_bkey_ptrs_invalid(c, k);
 }
 
-void bch2_btree_ptr_debugcheck(struct bch_fs *c, struct btree *b,
-			       struct bkey_s_c k)
+void bch2_btree_ptr_debugcheck(struct bch_fs *c, struct bkey_s_c k)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const struct bch_extent_ptr *ptr;
@@ -894,6 +893,9 @@ static void extent_bset_insert(struct bch_fs *c, struct btree_iter *iter,
 
 	EBUG_ON(bkey_deleted(&insert->k) || !insert->k.size);
 	verify_extent_nonoverlapping(c, l->b, &l->iter, insert);
+
+	if (debug_check_bkeys(c))
+		bch2_bkey_debugcheck(c, l->b, bkey_i_to_s_c(insert));
 
 	node_iter = l->iter;
 	k = bch2_btree_node_iter_prev_filter(&node_iter, l->b, KEY_TYPE_discard);
@@ -1362,10 +1364,6 @@ void bch2_insert_fixup_extent(struct btree_trans *trans,
 		if (s.deleting)
 			tmp.k.k.type = KEY_TYPE_discard;
 
-		if (debug_check_bkeys(c))
-			bch2_bkey_debugcheck(c, iter->l[0].b,
-					     bkey_i_to_s_c(&tmp.k));
-
 		EBUG_ON(bkey_deleted(&tmp.k.k) || !tmp.k.k.size);
 
 		extent_bset_insert(c, iter, &tmp.k);
@@ -1390,8 +1388,7 @@ const char *bch2_extent_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	return bch2_bkey_ptrs_invalid(c, k);
 }
 
-void bch2_extent_debugcheck(struct bch_fs *c, struct btree *b,
-			    struct bkey_s_c k)
+void bch2_extent_debugcheck(struct bch_fs *c, struct bkey_s_c k)
 {
 	struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
 	const union bch_extent_entry *entry;
@@ -1764,6 +1761,12 @@ static bool bch2_extent_merge_inline(struct bch_fs *c,
 			      bkey_i_to_s(&ri.k));
 	if (ret == BCH_MERGE_NOMERGE)
 		return false;
+
+	if (debug_check_bkeys(c))
+		bch2_bkey_debugcheck(c, b, bkey_i_to_s_c(&li.k));
+	if (debug_check_bkeys(c) &&
+	    ret == BCH_MERGE_PARTIAL)
+		bch2_bkey_debugcheck(c, b, bkey_i_to_s_c(&ri.k));
 
 	/*
 	 * check if we overlap with deleted extents - would break the sort

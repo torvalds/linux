@@ -145,7 +145,7 @@ void bch2_bkey_debugcheck(struct bch_fs *c, struct btree *b, struct bkey_s_c k)
 	}
 
 	if (ops->key_debugcheck)
-		ops->key_debugcheck(c, b, k);
+		ops->key_debugcheck(c, k);
 }
 
 void bch2_bpos_to_text(struct printbuf *out, struct bpos pos)
