@@ -231,4 +231,9 @@ extern int isst_write_reg(int reg, unsigned int val);
 
 extern void isst_display_result(int cpu, FILE *outf, char *feature, char *cmd,
 				int result);
+
+extern int isst_clos_get_clos_information(int cpu, int *enable, int *type);
+extern void isst_clos_display_clos_information(int cpu, FILE *outf,
+					       int clos_enable, int type);
+
 #endif

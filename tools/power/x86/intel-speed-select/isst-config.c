@@ -1133,6 +1133,40 @@ static void dump_clos_config(void)
 	isst_ctdp_display_information_end(outf);
 }
 
+static void get_clos_info_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
+				  void *arg4)
+{
+	int enable, ret, prio_type;
+
+	ret = isst_clos_get_clos_information(cpu, &enable, &prio_type);
+	if (ret)
+		perror("isst_clos_get_info");
+	else
+		isst_clos_display_clos_information(cpu, outf, enable, prio_type);
+}
+
+static void dump_clos_info(void)
+{
+	if (cmd_help) {
+		fprintf(stderr,
+			"Print Intel Speed Select Technology core power information\n");
+		fprintf(stderr, "\tSpecify targeted cpu id with [--cpu|-c]\n");
+		exit(0);
+	}
+
+	if (!max_target_cpus) {
+		fprintf(stderr,
+			"Invalid target cpu. Specify with [-c|--cpu]\n");
+		exit(0);
+	}
+
+	isst_ctdp_display_information_start(outf);
+	for_each_online_target_cpu_in_set(get_clos_info_for_cpu, NULL,
+					  NULL, NULL, NULL);
+	isst_ctdp_display_information_end(outf);
+
+}
+
 static void set_clos_config_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 				    void *arg4)
 {
@@ -1286,10 +1320,11 @@ static struct process_cmd_struct isst_cmds[] = {
 	{ "turbo-freq", "info", dump_fact_config },
 	{ "turbo-freq", "enable", set_fact_enable },
 	{ "turbo-freq", "disable", set_fact_disable },
-	{ "core-power", "info", dump_clos_config },
+	{ "core-power", "info", dump_clos_info },
 	{ "core-power", "enable", set_clos_enable },
 	{ "core-power", "disable", set_clos_disable },
 	{ "core-power", "config", set_clos_config },
+	{ "core-power", "get-config", dump_clos_config },
 	{ "core-power", "assoc", set_clos_assoc },
 	{ "core-power", "get-assoc", get_clos_assoc },
 	{ NULL, NULL, NULL }
@@ -1491,6 +1526,7 @@ static void core_power_help(void)
 	printf("\tenable\n");
 	printf("\tdisable\n");
 	printf("\tconfig\n");
+	printf("\tget-config\n");
 	printf("\tassoc\n");
 	printf("\tget-assoc\n");
 }
