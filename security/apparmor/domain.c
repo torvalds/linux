@@ -896,7 +896,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 		ctx->nnp = aa_get_label(label);
 
 	/* buffer freed below, name is pointer into buffer */
-	buffer = aa_get_buffer();
+	buffer = aa_get_buffer(false);
 	if (!buffer) {
 		error = -ENOMEM;
 		goto done;

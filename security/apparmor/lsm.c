@@ -53,6 +53,10 @@ union aa_buffer {
 	char buffer[1];
 };
 
+#define RESERVE_COUNT 2
+static int reserve_count = RESERVE_COUNT;
+static int buffer_count;
+
 static LIST_HEAD(aa_global_buffers);
 static DEFINE_SPINLOCK(aa_buffers_lock);
 
@@ -452,7 +456,8 @@ static void apparmor_file_free_security(struct file *file)
 		aa_put_label(rcu_access_pointer(ctx->label));
 }
 
-static int common_file_perm(const char *op, struct file *file, u32 mask)
+static int common_file_perm(const char *op, struct file *file, u32 mask,
+			    bool in_atomic)
 {
 	struct aa_label *label;
 	int error = 0;
@@ -462,7 +467,7 @@ static int common_file_perm(const char *op, struct file *file, u32 mask)
 		return -EACCES;
 
 	label = __begin_current_label_crit_section();
-	error = aa_file_perm(op, label, file, mask);
+	error = aa_file_perm(op, label, file, mask, in_atomic);
 	__end_current_label_crit_section(label);
 
 	return error;
@@ -470,12 +475,13 @@ static int common_file_perm(const char *op, struct file *file, u32 mask)
 
 static int apparmor_file_receive(struct file *file)
 {
-	return common_file_perm(OP_FRECEIVE, file, aa_map_file_to_perms(file));
+	return common_file_perm(OP_FRECEIVE, file, aa_map_file_to_perms(file),
+				false);
 }
 
 static int apparmor_file_permission(struct file *file, int mask)
 {
-	return common_file_perm(OP_FPERM, file, mask);
+	return common_file_perm(OP_FPERM, file, mask, false);
 }
 
 static int apparmor_file_lock(struct file *file, unsigned int cmd)
@@ -485,11 +491,11 @@ static int apparmor_file_lock(struct file *file, unsigned int cmd)
 	if (cmd == F_WRLCK)
 		mask |= MAY_WRITE;
 
-	return common_file_perm(OP_FLOCK, file, mask);
+	return common_file_perm(OP_FLOCK, file, mask, false);
 }
 
 static int common_mmap(const char *op, struct file *file, unsigned long prot,
-		       unsigned long flags)
+		       unsigned long flags, bool in_atomic)
 {
 	int mask = 0;
 
@@ -507,20 +513,21 @@ static int common_mmap(const char *op, struct file *file, unsigned long prot,
 	if (prot & PROT_EXEC)
 		mask |= AA_EXEC_MMAP;
 
-	return common_file_perm(op, file, mask);
+	return common_file_perm(op, file, mask, in_atomic);
 }
 
 static int apparmor_mmap_file(struct file *file, unsigned long reqprot,
 			      unsigned long prot, unsigned long flags)
 {
-	return common_mmap(OP_FMMAP, file, prot, flags);
+	return common_mmap(OP_FMMAP, file, prot, flags, GFP_ATOMIC);
 }
 
 static int apparmor_file_mprotect(struct vm_area_struct *vma,
 				  unsigned long reqprot, unsigned long prot)
 {
 	return common_mmap(OP_FMPROT, vma->vm_file, prot,
-			   !(vma->vm_flags & VM_SHARED) ? MAP_PRIVATE : 0);
+			   !(vma->vm_flags & VM_SHARED) ? MAP_PRIVATE : 0,
+			   false);
 }
 
 static int apparmor_sb_mount(const char *dev_name, const struct path *path,
@@ -1571,24 +1578,36 @@ static int param_set_mode(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
-char *aa_get_buffer(void)
+char *aa_get_buffer(bool in_atomic)
 {
 	union aa_buffer *aa_buf;
 	bool try_again = true;
+	gfp_t flags = (GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 
 retry:
 	spin_lock(&aa_buffers_lock);
-	if (!list_empty(&aa_global_buffers)) {
+	if (buffer_count > reserve_count ||
+	    (in_atomic && !list_empty(&aa_global_buffers))) {
 		aa_buf = list_first_entry(&aa_global_buffers, union aa_buffer,
 					  list);
 		list_del(&aa_buf->list);
+		buffer_count--;
 		spin_unlock(&aa_buffers_lock);
 		return &aa_buf->buffer[0];
 	}
+	if (in_atomic) {
+		/*
+		 * out of reserve buffers and in atomic context so increase
+		 * how many buffers to keep in reserve
+		 */
+		reserve_count++;
+		flags = GFP_ATOMIC;
+	}
 	spin_unlock(&aa_buffers_lock);
 
-	aa_buf = kmalloc(aa_g_path_max, GFP_KERNEL | __GFP_RETRY_MAYFAIL |
-			 __GFP_NOWARN);
+	if (!in_atomic)
+		might_sleep();
+	aa_buf = kmalloc(aa_g_path_max, flags);
 	if (!aa_buf) {
 		if (try_again) {
 			try_again = false;
@@ -1610,6 +1629,7 @@ void aa_put_buffer(char *buf)
 
 	spin_lock(&aa_buffers_lock);
 	list_add(&aa_buf->list, &aa_global_buffers);
+	buffer_count++;
 	spin_unlock(&aa_buffers_lock);
 }
 
@@ -1661,9 +1681,9 @@ static int __init alloc_buffers(void)
 	 * disabled early at boot if aa_g_path_max is extremly high.
 	 */
 	if (num_online_cpus() > 1)
-		num = 4;
+		num = 4 + RESERVE_COUNT;
 	else
-		num = 2;
+		num = 2 + RESERVE_COUNT;
 
 	for (i = 0; i < num; i++) {
 

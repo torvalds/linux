@@ -336,7 +336,7 @@ int aa_path_perm(const char *op, struct aa_label *label,
 
 	flags |= PATH_DELEGATE_DELETED | (S_ISDIR(cond->mode) ? PATH_IS_DIR :
 								0);
-	buffer = aa_get_buffer();
+	buffer = aa_get_buffer(false);
 	if (!buffer)
 		return -ENOMEM;
 	error = fn_for_each_confined(label, profile,
@@ -481,8 +481,8 @@ int aa_path_link(struct aa_label *label, struct dentry *old_dentry,
 	int error;
 
 	/* buffer freed below, lname is pointer in buffer */
-	buffer = aa_get_buffer();
-	buffer2 = aa_get_buffer();
+	buffer = aa_get_buffer(false);
+	buffer2 = aa_get_buffer(false);
 	error = -ENOMEM;
 	if (!buffer || !buffer2)
 		goto out;
@@ -519,7 +519,7 @@ static void update_file_ctx(struct aa_file_ctx *fctx, struct aa_label *label,
 
 static int __file_path_perm(const char *op, struct aa_label *label,
 			    struct aa_label *flabel, struct file *file,
-			    u32 request, u32 denied)
+			    u32 request, u32 denied, bool in_atomic)
 {
 	struct aa_profile *profile;
 	struct aa_perms perms = {};
@@ -536,7 +536,7 @@ static int __file_path_perm(const char *op, struct aa_label *label,
 		return 0;
 
 	flags = PATH_DELEGATE_DELETED | (S_ISDIR(cond.mode) ? PATH_IS_DIR : 0);
-	buffer = aa_get_buffer();
+	buffer = aa_get_buffer(in_atomic);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -604,11 +604,12 @@ static int __file_sock_perm(const char *op, struct aa_label *label,
  * @label: label being enforced   (NOT NULL)
  * @file: file to revalidate access permissions on  (NOT NULL)
  * @request: requested permissions
+ * @in_atomic: whether allocations need to be done in atomic context
  *
  * Returns: %0 if access allowed else error
  */
 int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
-		 u32 request)
+		 u32 request, bool in_atomic)
 {
 	struct aa_file_ctx *fctx;
 	struct aa_label *flabel;
@@ -641,7 +642,7 @@ int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 
 	if (file->f_path.mnt && path_mediated_fs(file->f_path.dentry))
 		error = __file_path_perm(op, label, flabel, file, request,
-					 denied);
+					 denied, in_atomic);
 
 	else if (S_ISSOCK(file_inode(file)->i_mode))
 		error = __file_sock_perm(op, label, flabel, file, request,
@@ -669,7 +670,8 @@ static void revalidate_tty(struct aa_label *label)
 					     struct tty_file_private, list);
 		file = file_priv->file;
 
-		if (aa_file_perm(OP_INHERIT, label, file, MAY_READ | MAY_WRITE))
+		if (aa_file_perm(OP_INHERIT, label, file, MAY_READ | MAY_WRITE,
+				 IN_ATOMIC))
 			drop_tty = 1;
 	}
 	spin_unlock(&tty->files_lock);
@@ -683,7 +685,8 @@ static int match_file(const void *p, struct file *file, unsigned int fd)
 {
 	struct aa_label *label = (struct aa_label *)p;
 
-	if (aa_file_perm(OP_INHERIT, label, file, aa_map_file_to_perms(file)))
+	if (aa_file_perm(OP_INHERIT, label, file, aa_map_file_to_perms(file),
+			 IN_ATOMIC))
 		return fd + 1;
 	return 0;
 }

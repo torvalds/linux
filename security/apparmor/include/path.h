@@ -29,7 +29,8 @@ int aa_path_name(const struct path *path, int flags, char *buffer,
 		 const char **name, const char **info,
 		 const char *disconnected);
 
-char *aa_get_buffer(void);
+#define IN_ATOMIC true
+char *aa_get_buffer(bool in_atomic);
 void aa_put_buffer(char *buf);
 
 #endif /* __AA_PATH_H */
