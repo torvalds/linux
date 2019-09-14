@@ -216,29 +216,36 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
  *
  * Second member: struct ras_debug_if::op.
  * It has three kinds of operations.
- *  0: disable RAS on the block. Take ::head as its data.
- *  1: enable RAS on the block. Take ::head as its data.
- *  2: inject errors on the block. Take ::inject as its data.
+ *
+ * - 0: disable RAS on the block. Take ::head as its data.
+ * - 1: enable RAS on the block. Take ::head as its data.
+ * - 2: inject errors on the block. Take ::inject as its data.
  *
  * How to use the interface?
  * programs:
  * copy the struct ras_debug_if in your codes and initialize it.
  * write the struct to the control node.
  *
- * bash:
- * echo op block [error [sub_blcok address value]] > .../ras/ras_ctrl
- *	op: disable, enable, inject
- *		disable: only block is needed
- *		enable: block and error are needed
- *		inject: error, address, value are needed
- *	block: umc, smda, gfx, .........
- *		see ras_block_string[] for details
- *	error: ue, ce
- *		ue: multi_uncorrectable
- *		ce: single_correctable
- *	sub_block: sub block index, pass 0 if there is no sub block
+ * .. code-block:: bash
  *
- * here are some examples for bash commands,
+ *	echo op block [error [sub_blcok address value]] > .../ras/ras_ctrl
+ *
+ * op: disable, enable, inject
+ *	disable: only block is needed
+ *	enable: block and error are needed
+ *	inject: error, address, value are needed
+ * block: umc, smda, gfx, .........
+ *	see ras_block_string[] for details
+ * error: ue, ce
+ *	ue: multi_uncorrectable
+ *	ce: single_correctable
+ * sub_block:
+ *	sub block index, pass 0 if there is no sub block
+ *
+ * here are some examples for bash commands:
+ *
+ * .. code-block:: bash
+ *
  *	echo inject umc ue 0x0 0x0 0x0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
  *	echo inject umc ce 0 0 0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
  *	echo disable umc > /sys/kernel/debug/dri/0/ras/ras_ctrl
@@ -251,8 +258,9 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
  * For inject, please check corresponding err count at
  * /sys/class/drm/card[0/1/2...]/device/ras/[gfx/sdma/...]_err_count
  *
- * NOTE: operation is only allowed on blocks which are supported.
- * Please check ras mask at /sys/module/amdgpu/parameters/ras_mask
+ * .. note::
+ *	Operation is only allowed on blocks which are supported.
+ *	Please check ras mask at /sys/module/amdgpu/parameters/ras_mask
  */
 static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *buf,
 		size_t size, loff_t *pos)

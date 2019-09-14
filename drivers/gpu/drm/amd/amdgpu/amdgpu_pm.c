@@ -2196,9 +2196,9 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  *
  * - fan1_input: fan speed in RPM
  *
- * - fan[1-*]_target: Desired fan speed Unit: revolution/min (RPM)
+ * - fan[1-\*]_target: Desired fan speed Unit: revolution/min (RPM)
  *
- * - fan[1-*]_enable: Enable or disable the sensors.1: Enable 0: Disable
+ * - fan[1-\*]_enable: Enable or disable the sensors.1: Enable 0: Disable
  *
  * hwmon interfaces for GPU clocks:
  *

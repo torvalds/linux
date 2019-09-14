@@ -245,10 +245,13 @@ module_param_named(msi, amdgpu_msi, int, 0444);
  *
  * The format can be [Non-Compute] or [GFX,Compute,SDMA,Video]. That is there can be one or
  * multiple values specified. 0 and negative values are invalidated. They will be adjusted
- * to default timeout.
- *  - With one value specified, the setting will apply to all non-compute jobs.
- *  - With multiple values specified, the first one will be for GFX. The second one is for Compute.
- *    And the third and fourth ones are for SDMA and Video.
+ * to the default timeout.
+ *
+ * - With one value specified, the setting will apply to all non-compute jobs.
+ * - With multiple values specified, the first one will be for GFX.
+ *   The second one is for Compute. The third and fourth ones are
+ *   for SDMA and Video.
+ *
  * By default(with no lockup_timeout settings), the timeout for all non-compute(GFX, SDMA and Video)
  * jobs is 10000. And there is no timeout enforced on compute jobs.
  */
