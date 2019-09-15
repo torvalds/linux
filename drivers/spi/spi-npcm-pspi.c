@@ -341,7 +341,6 @@ static int npcm_pspi_probe(struct platform_device *pdev)
 {
 	struct npcm_pspi *priv;
 	struct spi_master *master;
-	struct resource *res;
 	unsigned long clk_hz;
 	struct device_node *np = pdev->dev.of_node;
 	int num_cs, i;
@@ -368,8 +367,7 @@ static int npcm_pspi_probe(struct platform_device *pdev)
 	priv->is_save_param = false;
 	priv->id = pdev->id;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, res);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {
 		ret = PTR_ERR(priv->base);
 		goto out_master_put;
@@ -388,7 +386,6 @@ static int npcm_pspi_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get IRQ\n");
 		ret = irq;
 		goto out_disable_clk;
 	}
