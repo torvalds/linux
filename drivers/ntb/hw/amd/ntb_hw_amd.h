@@ -52,7 +52,6 @@
 #include <linux/ntb.h>
 #include <linux/pci.h>
 
-#define PCI_DEVICE_ID_AMD_NTB	0x145B
 #define AMD_LINK_HB_TIMEOUT	msecs_to_jiffies(1000)
 #define AMD_LINK_STATUS_OFFSET	0x68
 #define NTB_LIN_STA_ACTIVE_BIT	0x00000002
