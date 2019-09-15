@@ -1619,14 +1619,18 @@ static int rt1011_hw_params(struct snd_pcm_substream *substream,
 static int rt1011_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_component *component = dai->component;
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
 	unsigned int reg_val = 0, reg_bclk_inv = 0;
+	int ret = 0;
 
+	snd_soc_dapm_mutex_lock(dapm);
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
 		reg_val |= RT1011_I2S_TDM_MS_S;
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
@@ -1636,7 +1640,7 @@ static int rt1011_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		reg_bclk_inv |= RT1011_TDM_INV_BCLK;
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -1652,7 +1656,7 @@ static int rt1011_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		reg_val |= RT1011_I2S_TDM_DF_PCM_B;
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
 	switch (dai->id) {
@@ -1667,9 +1671,11 @@ static int rt1011_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		break;
 	default:
 		dev_err(component->dev, "Invalid dai->id: %d\n", dai->id);
-		return -EINVAL;
+		ret = -EINVAL;
 	}
-	return 0;
+
+	snd_soc_dapm_mutex_unlock(dapm);
+	return ret;
 }
 
 static int rt1011_set_component_sysclk(struct snd_soc_component *component,
@@ -1788,8 +1794,12 @@ static int rt1011_set_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
 {
 	struct snd_soc_component *component = dai->component;
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
 	unsigned int val = 0, tdm_en = 0;
+	int ret = 0;
 
+	snd_soc_dapm_mutex_lock(dapm);
 	if (rx_mask || tx_mask)
 		tdm_en = RT1011_TDM_I2S_DOCK_EN_1;
 
@@ -1809,7 +1819,7 @@ static int rt1011_set_tdm_slot(struct snd_soc_dai *dai,
 	case 2:
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
 	switch (slot_width) {
@@ -1828,7 +1838,7 @@ static int rt1011_set_tdm_slot(struct snd_soc_dai *dai,
 	case 16:
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
 	snd_soc_component_update_bits(component, RT1011_TDM1_SET_1,
@@ -1845,7 +1855,8 @@ static int rt1011_set_tdm_slot(struct snd_soc_dai *dai,
 		RT1011_ADCDAT1_PIN_CONFIG | RT1011_ADCDAT2_PIN_CONFIG,
 		RT1011_ADCDAT1_OUTPUT | RT1011_ADCDAT2_OUTPUT);
 
-	return 0;
+	snd_soc_dapm_mutex_unlock(dapm);
+	return ret;
 }
 
 static int rt1011_probe(struct snd_soc_component *component)
