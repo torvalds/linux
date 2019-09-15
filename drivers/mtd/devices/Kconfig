@@ -79,24 +79,6 @@ config MTD_DATAFLASH_OTP
 	  other key product data.  The second half is programmed with a
 	  unique-to-each-chip bit pattern at the factory.
 
-config MTD_M25P80
-	tristate "Support most SPI Flash chips (AT26DF, M25P, W25X, ...)"
-	depends on SPI_MASTER && MTD_SPI_NOR
-	select SPI_MEM
-	help
-	  This enables access to most modern SPI flash chips, used for
-	  program and data storage.   Series supported include Atmel AT26DF,
-	  Spansion S25SL, SST 25VF, ST M25P, and Winbond W25X.  Other chips
-	  are supported as well.  See the driver source for the current list,
-	  or to add other chips.
-
-	  Note that the original DataFlash chips (AT45 series, not AT26DF),
-	  need an entirely different driver.
-
-	  Set up your spi devices with the right board-specific platform data,
-	  if you want to specify device partitioning or to use a device which
-	  doesn't support the JEDEC ID instruction.
-
 config MTD_MCHP23K256
 	tristate "Microchip 23K256 SRAM"
 	depends on SPI_MASTER
