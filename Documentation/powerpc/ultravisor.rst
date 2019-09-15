@@ -1,14 +1,11 @@
 .. SPDX-License-Identifier: GPL-2.0
-﻿.. _ultravisor:
+.. _ultravisor:
 
 ============================
 Protected Execution Facility
 ============================
 
 .. contents::
-    :depth: 3
-
-.. sectnum::
     :depth: 3
 
 Protected Execution Facility
@@ -255,10 +252,10 @@ Ultravisor calls API
     be made available in the public/OpenPower version of the PAPR
     specification.
 
-    **Note**
+    .. note::
 
-    If PEF is not enabled, the ultracalls will be redirected to the
-    Hypervisor which must handle/fail the calls.
+        If PEF is not enabled, the ultracalls will be redirected to the
+        Hypervisor which must handle/fail the calls.
 
 Ultracalls used by Hypervisor
 =============================
@@ -1054,4 +1051,4 @@ Use cases
 References
 ##########
 
-.. [1] `Supporting Protected Computing on IBM Power Architecture <https://developer.ibm.com/articles/l-support-protected-computing/>`_
+- `Supporting Protected Computing on IBM Power Architecture <https://developer.ibm.com/articles/l-support-protected-computing/>`_
