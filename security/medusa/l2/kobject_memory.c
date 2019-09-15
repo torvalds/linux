@@ -87,35 +87,30 @@ MODULE_LICENSE("GPL");
 
 /* implementation */
 
-static struct memory_kobject storage;
+// static struct memory_kobject storage;
 
 static struct medusa_kobject_s * memory_fetch(struct medusa_kobject_s * key_obj)
 {
 	int ret;
 	struct task_struct * p;
+	struct memory_kobject* kobj = (struct memory_kobject *) key_obj;
 
-        memset(&storage, '\0', sizeof(struct memory_kobject));
-
-	storage.pid = ((struct memory_kobject *) key_obj)->pid;
-	storage.address = ((struct memory_kobject *) key_obj)->address;
-	storage.size = ((struct memory_kobject *) key_obj)->size;
 	rcu_read_lock();
 	//p = find_task_by_pid(storage.pid);
-	p = pid_task(find_vpid(storage.pid), PIDTYPE_PID);
+	p = pid_task(find_vpid(kobj->pid), PIDTYPE_PID);
 	if (p) {
 		get_task_struct(p);
 		rcu_read_unlock();
-		/* TODO: access_process_vm() may sleep? we need it in RCU? */
-		ret = access_process_vm(p, (unsigned long)storage.address, storage.data, storage.size, 0);
+		ret = access_process_vm(p, (unsigned long)kobj->address, kobj->data, kobj->size, 0);
 		//free_task_struct(p);
 		free_task(p);
-		storage.retval = ret;
-		return (struct medusa_kobject_s *)&storage;
+		kobj->retval = ret;
+		return key_obj;
 	}
 	rcu_read_unlock();
 	/* subject to change */
-	storage.retval = -ESRCH;
-	return (struct medusa_kobject_s *)&storage;
+	kobj->retval = -ESRCH;
+	return key_obj;
 }
 
 static medusa_answer_t memory_update(struct medusa_kobject_s * kobj)
@@ -129,7 +124,6 @@ static medusa_answer_t memory_update(struct medusa_kobject_s * kobj)
 	if (p) {
 		get_task_struct(p);
 		rcu_read_unlock();
-		/* TODO: access_process_vm() may sleep? we need it in RCU? */
 		ret = access_process_vm(p,
 			(unsigned long)
 				((struct memory_kobject *) kobj)->address,

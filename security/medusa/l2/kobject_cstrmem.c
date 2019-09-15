@@ -88,39 +88,33 @@ MODULE_LICENSE("GPL");
 
 /* implementation */
 
-static struct cstrmem_kobject storage;
+// static struct cstrmem_kobject storage;
 
 static struct medusa_kobject_s * cstrmem_fetch(struct medusa_kobject_s * key_obj)
 {
 	int i, ret;
 	struct task_struct * p;
+	struct cstrmem_kobject* kobj = (struct cstrmem_kobject*) key_obj;
 
-        memset( &storage, '\0', sizeof(struct cstrmem_kobject));
-
-	storage.pid = ((struct cstrmem_kobject *) key_obj)->pid;
-	storage.address = ((struct cstrmem_kobject *) key_obj)->address;
-	storage.size = ((struct cstrmem_kobject *) key_obj)->size;
 	rcu_read_lock();
 	//p = find_task_by_pid(storage.pid);
-	p = pid_task(find_vpid(storage.pid), PIDTYPE_PID);
+	p = pid_task(find_vpid(kobj->pid), PIDTYPE_PID);
 	if (p) {
 		get_task_struct(p);
 		rcu_read_unlock();
-		/* TODO: can sleep this function? we would like use it in an RCU... */
-		ret = access_process_vm(p, (unsigned long)storage.address, storage.data, storage.size, 0);
+		ret = access_process_vm(p, (unsigned long)kobj->address, kobj->data, kobj->size, 0);
 		/* TODO: here it should count characters until the first #0 found in (0,size) boundary */
-		for (i = 0; (i < storage.size) && (((char*)storage.data)[i]); i++)
-			;
+		for (i = 0; (i < kobj->size) && (((char*)kobj->data)[i]); i++);
 		/* end - hope it works... */
 		//free_task_struct(p);
 		free_task(p);
 		/* original: storage.retval = ret; */
-		storage.retval = i;
-		return (struct medusa_kobject_s *)&storage;
+		kobj->retval = i;
+		return key_obj;
 	}
 	rcu_read_unlock();
 	/* subject to change */
-	storage.retval = -ESRCH;
-	return (struct medusa_kobject_s *)&storage;
+	kobj->retval = -ESRCH;
+	return key_obj;
 }
 
