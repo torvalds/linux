@@ -20,6 +20,15 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
+struct configfs_fragment {
+	atomic_t frag_count;
+	struct rw_semaphore frag_sem;
+	bool frag_dead;
+};
+
+void put_fragment(struct configfs_fragment *);
+struct configfs_fragment *get_fragment(struct configfs_fragment *);
+
 struct configfs_dirent {
 	atomic_t		s_count;
 	int			s_dependent_count;
@@ -34,6 +43,7 @@ struct configfs_dirent {
 #ifdef CONFIG_LOCKDEP
 	int			s_depth;
 #endif
+	struct configfs_fragment *s_frag;
 };
 
 #define CONFIGFS_ROOT		0x0001
@@ -61,8 +71,8 @@ extern int configfs_create(struct dentry *, umode_t mode, void (*init)(struct in
 extern int configfs_create_file(struct config_item *, const struct configfs_attribute *);
 extern int configfs_create_bin_file(struct config_item *,
 				    const struct configfs_bin_attribute *);
-extern int configfs_make_dirent(struct configfs_dirent *,
-				struct dentry *, void *, umode_t, int);
+extern int configfs_make_dirent(struct configfs_dirent *, struct dentry *,
+				void *, umode_t, int, struct configfs_fragment *);
 extern int configfs_dirent_is_ready(struct configfs_dirent *);
 
 extern void configfs_hash_and_remove(struct dentry * dir, const char * name);
@@ -137,6 +147,7 @@ static inline void release_configfs_dirent(struct configfs_dirent * sd)
 {
 	if (!(sd->s_type & CONFIGFS_ROOT)) {
 		kfree(sd->s_iattr);
+		put_fragment(sd->s_frag);
 		kmem_cache_free(configfs_dir_cachep, sd);
 	}
 }

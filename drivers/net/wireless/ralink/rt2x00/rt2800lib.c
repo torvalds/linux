@@ -1654,13 +1654,18 @@ static void rt2800_config_wcid_attr_cipher(struct rt2x00_dev *rt2x00dev,
 
 	offset = MAC_IVEIV_ENTRY(key->hw_key_idx);
 
-	rt2800_register_multiread(rt2x00dev, offset,
-				  &iveiv_entry, sizeof(iveiv_entry));
-	if ((crypto->cipher == CIPHER_TKIP) ||
-	    (crypto->cipher == CIPHER_TKIP_NO_MIC) ||
-	    (crypto->cipher == CIPHER_AES))
-		iveiv_entry.iv[3] |= 0x20;
-	iveiv_entry.iv[3] |= key->keyidx << 6;
+	if (crypto->cmd == SET_KEY) {
+		rt2800_register_multiread(rt2x00dev, offset,
+					  &iveiv_entry, sizeof(iveiv_entry));
+		if ((crypto->cipher == CIPHER_TKIP) ||
+		    (crypto->cipher == CIPHER_TKIP_NO_MIC) ||
+		    (crypto->cipher == CIPHER_AES))
+			iveiv_entry.iv[3] |= 0x20;
+		iveiv_entry.iv[3] |= key->keyidx << 6;
+	} else {
+		memset(&iveiv_entry, 0, sizeof(iveiv_entry));
+	}
+
 	rt2800_register_multiwrite(rt2x00dev, offset,
 				   &iveiv_entry, sizeof(iveiv_entry));
 }
@@ -4237,24 +4242,18 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	switch (rt2x00dev->default_ant.rx_chain_num) {
 	case 3:
 		/* Turn on tertiary LNAs */
-		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A2_EN,
-				   rf->channel > 14);
-		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G2_EN,
-				   rf->channel <= 14);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A2_EN, 1);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G2_EN, 1);
 		/* fall-through */
 	case 2:
 		/* Turn on secondary LNAs */
-		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A1_EN,
-				   rf->channel > 14);
-		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G1_EN,
-				   rf->channel <= 14);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A1_EN, 1);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G1_EN, 1);
 		/* fall-through */
 	case 1:
 		/* Turn on primary LNAs */
-		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A0_EN,
-				   rf->channel > 14);
-		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G0_EN,
-				   rf->channel <= 14);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A0_EN, 1);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G0_EN, 1);
 		break;
 	}
 

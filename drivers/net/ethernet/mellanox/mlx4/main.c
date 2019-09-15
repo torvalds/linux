@@ -2240,7 +2240,7 @@ static int mlx4_validate_optimized_steering(struct mlx4_dev *dev)
 	for (i = 1; i <= dev->caps.num_ports; i++) {
 		if (mlx4_dev_port(dev, i, &port_cap)) {
 			mlx4_err(dev,
-				 "QUERY_DEV_CAP command failed, can't veify DMFS high rate steering.\n");
+				 "QUERY_DEV_CAP command failed, can't verify DMFS high rate steering.\n");
 		} else if ((dev->caps.dmfs_high_steer_mode !=
 			    MLX4_STEERING_DMFS_A0_DEFAULT) &&
 			   (port_cap.dmfs_optimized_state ==

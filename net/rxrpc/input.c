@@ -1262,8 +1262,8 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 
 			if (nskb != skb) {
 				rxrpc_eaten_skb(skb, rxrpc_skb_received);
-				rxrpc_new_skb(skb, rxrpc_skb_unshared);
 				skb = nskb;
+				rxrpc_new_skb(skb, rxrpc_skb_unshared);
 				sp = rxrpc_skb(skb);
 			}
 		}

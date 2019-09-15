@@ -384,6 +384,9 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x13d3, 0x3526), .driver_info = BTUSB_REALTEK },
 	{ USB_DEVICE(0x0b05, 0x185c), .driver_info = BTUSB_REALTEK },
 
+	/* Additional Realtek 8822CE Bluetooth devices */
+	{ USB_DEVICE(0x04ca, 0x4005), .driver_info = BTUSB_REALTEK },
+
 	/* Silicon Wave based devices */
 	{ USB_DEVICE(0x0c10, 0x0000), .driver_info = BTUSB_SWAVE },
 
@@ -1201,10 +1204,6 @@ static int btusb_open(struct hci_dev *hdev)
 	}
 
 	data->intf->needs_remote_wakeup = 1;
-	/* device specific wakeup source enabled and required for USB
-	 * remote wakeup while host is suspended
-	 */
-	device_wakeup_enable(&data->udev->dev);
 
 	/* Disable device remote wakeup when host is suspended
 	 * For Realtek chips, global suspend without
@@ -1281,7 +1280,6 @@ static int btusb_close(struct hci_dev *hdev)
 	if (test_bit(BTUSB_WAKEUP_DISABLE, &data->flags))
 		data->intf->needs_remote_wakeup = 1;
 
-	device_wakeup_disable(&data->udev->dev);
 	usb_autopm_put_interface(data->intf);
 
 failed:

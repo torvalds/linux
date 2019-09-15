@@ -912,6 +912,7 @@ restart:
 		} else if (delta > 0) {
 			p = &parent->rb_right;
 		} else {
+			bool same_prefixlen = node->prefixlen == n->prefixlen;
 			struct xfrm_policy *tmp;
 
 			hlist_for_each_entry(tmp, &n->hhead, bydst) {
@@ -919,9 +920,11 @@ restart:
 				hlist_del_rcu(&tmp->bydst);
 			}
 
+			node->prefixlen = prefixlen;
+
 			xfrm_policy_inexact_list_reinsert(net, node, family);
 
-			if (node->prefixlen == n->prefixlen) {
+			if (same_prefixlen) {
 				kfree_rcu(n, rcu);
 				return;
 			}
@@ -929,7 +932,6 @@ restart:
 			rb_erase(*p, new);
 			kfree_rcu(n, rcu);
 			n = node;
-			n->prefixlen = prefixlen;
 			goto restart;
 		}
 	}

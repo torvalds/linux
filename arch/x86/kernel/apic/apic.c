@@ -834,6 +834,10 @@ bool __init apic_needs_pit(void)
 	if (!boot_cpu_has(X86_FEATURE_APIC))
 		return true;
 
+	/* Virt guests may lack ARAT, but still have DEADLINE */
+	if (!boot_cpu_has(X86_FEATURE_ARAT))
+		return true;
+
 	/* Deadline timer is based on TSC so no further PIT action required */
 	if (boot_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER))
 		return false;
@@ -1179,10 +1183,6 @@ void clear_local_APIC(void)
 	apic_write(APIC_LVT0, v | APIC_LVT_MASKED);
 	v = apic_read(APIC_LVT1);
 	apic_write(APIC_LVT1, v | APIC_LVT_MASKED);
-	if (!x2apic_enabled()) {
-		v = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
-		apic_write(APIC_LDR, v);
-	}
 	if (maxlvt >= 4) {
 		v = apic_read(APIC_LVTPC);
 		apic_write(APIC_LVTPC, v | APIC_LVT_MASKED);

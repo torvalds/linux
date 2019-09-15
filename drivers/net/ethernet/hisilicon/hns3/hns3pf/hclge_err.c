@@ -98,7 +98,7 @@ static const struct hclge_hw_error hclge_igu_egu_tnl_int[] = {
 	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(1), .msg = "rx_stp_fifo_overflow",
 	  .reset_level = HNAE3_GLOBAL_RESET },
-	{ .int_msk = BIT(2), .msg = "rx_stp_fifo_undeflow",
+	{ .int_msk = BIT(2), .msg = "rx_stp_fifo_underflow",
 	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(3), .msg = "tx_buf_overflow",
 	  .reset_level = HNAE3_GLOBAL_RESET },

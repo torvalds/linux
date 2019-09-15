@@ -4540,6 +4540,7 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 	int len;
 	gva_t gva = 0;
 	struct vmcs12 *vmcs12;
+	struct x86_exception e;
 	short offset;
 
 	if (!nested_vmx_check_permission(vcpu))
@@ -4588,7 +4589,8 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 				vmx_instruction_info, true, len, &gva))
 			return 1;
 		/* _system ok, nested_vmx_check_permission has verified cpl=0 */
-		kvm_write_guest_virt_system(vcpu, gva, &field_value, len, NULL);
+		if (kvm_write_guest_virt_system(vcpu, gva, &field_value, len, &e))
+			kvm_inject_page_fault(vcpu, &e);
 	}
 
 	return nested_vmx_succeed(vcpu);

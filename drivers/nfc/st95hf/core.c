@@ -316,7 +316,7 @@ static int st95hf_echo_command(struct st95hf_context *st95context)
 					  &echo_response);
 	if (result) {
 		dev_err(&st95context->spicontext.spidev->dev,
-			"err: echo response receieve error = 0x%x\n", result);
+			"err: echo response receive error = 0x%x\n", result);
 		return result;
 	}
 
