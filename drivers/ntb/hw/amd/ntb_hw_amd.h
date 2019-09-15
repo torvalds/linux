@@ -92,7 +92,6 @@ static inline void _write64(u64 val, void __iomem *mmio)
 
 enum {
 	/* AMD NTB Capability */
-	AMD_MW_CNT		= 3,
 	AMD_DB_CNT		= 16,
 	AMD_MSIX_VECTOR_CNT	= 24,
 	AMD_SPADS_CNT		= 16,
@@ -169,6 +168,11 @@ enum {
 	AMD_PEER_OFFSET		= 0x400,
 };
 
+struct ntb_dev_data {
+	const unsigned char mw_count;
+	const unsigned int mw_idx;
+};
+
 struct amd_ntb_dev;
 
 struct amd_ntb_vec {
@@ -184,6 +188,7 @@ struct amd_ntb_dev {
 	u32 cntl_sta;
 	u32 peer_sta;
 
+	struct ntb_dev_data *dev_data;
 	unsigned char mw_count;
 	unsigned char spad_count;
 	unsigned char db_count;
