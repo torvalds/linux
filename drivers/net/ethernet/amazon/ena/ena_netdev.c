@@ -823,7 +823,8 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 		above_thresh =
 			ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq,
 						     ENA_TX_WAKEUP_THRESH);
-		if (netif_tx_queue_stopped(txq) && above_thresh) {
+		if (netif_tx_queue_stopped(txq) && above_thresh &&
+		    test_bit(ENA_FLAG_DEV_UP, &tx_ring->adapter->flags)) {
 			netif_tx_wake_queue(txq);
 			u64_stats_update_begin(&tx_ring->syncp);
 			tx_ring->tx_stats.queue_wakeup++;
