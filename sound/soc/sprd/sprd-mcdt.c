@@ -959,10 +959,8 @@ static int sprd_mcdt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mcdt);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "Failed to get MCDT interrupt\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_irq(&pdev->dev, irq, sprd_mcdt_irq_handler,
 			       0, "sprd-mcdt", mcdt);
