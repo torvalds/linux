@@ -1898,6 +1898,15 @@ iwl_mvm_scan_umac_fill_probe_p_v3(struct iwl_mvm_scan_params *params,
 }
 
 static void
+iwl_mvm_scan_umac_fill_probe_p_v4(struct iwl_mvm_scan_params *params,
+				  struct iwl_scan_probe_params_v4 *pp,
+				  u32 *bitmap_ssid)
+{
+	pp->preq = params->preq;
+	iwl_scan_build_ssids(params, pp->direct_scan, bitmap_ssid);
+}
+
+static void
 iwl_mvm_scan_umac_fill_ch_p_v3(struct iwl_mvm *mvm,
 			       struct iwl_mvm_scan_params *params,
 			       struct ieee80211_vif *vif,
@@ -1915,14 +1924,17 @@ static void
 iwl_mvm_scan_umac_fill_ch_p_v4(struct iwl_mvm *mvm,
 			       struct iwl_mvm_scan_params *params,
 			       struct ieee80211_vif *vif,
-			       struct iwl_scan_channel_params_v4 *cp)
+			       struct iwl_scan_channel_params_v4 *cp,
+			       u32 channel_cfg_flags)
 {
 	cp->flags = iwl_mvm_scan_umac_chan_flags_v2(mvm, params, vif);
 	cp->count = params->n_channels;
 	cp->num_of_aps_override = IWL_SCAN_ADWELL_DEFAULT_N_APS_OVERRIDE;
 
 	iwl_mvm_umac_scan_cfg_channels_v4(mvm, params->channels, cp,
-					  params->n_channels, 0, vif->type);
+					  params->n_channels,
+					  channel_cfg_flags,
+					  vif->type);
 }
 
 static int iwl_mvm_scan_umac_v11(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -1984,7 +1996,41 @@ static int iwl_mvm_scan_umac_v12(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_scan_umac_fill_probe_p_v3(params, &scan_p->probe_params);
 	iwl_mvm_scan_umac_fill_ch_p_v4(mvm, params, vif,
-				       &scan_p->channel_params);
+				       &scan_p->channel_params, 0);
+
+	return 0;
+}
+
+static int iwl_mvm_scan_umac_v13(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				 struct iwl_mvm_scan_params *params, int type,
+				 int uid)
+{
+	struct iwl_scan_req_umac_v13 *cmd = mvm->scan_cmd;
+	struct iwl_scan_req_params_v13 *scan_p = &cmd->scan_params;
+	int ret;
+	u16 gen_flags;
+	u32 bitmap_ssid = 0;
+
+	mvm->scan_uid_status[uid] = type;
+
+	cmd->ooc_priority = cpu_to_le32(iwl_mvm_scan_umac_ooc_priority(params));
+	cmd->uid = cpu_to_le32(uid);
+
+	gen_flags = iwl_mvm_scan_umac_flags_v2(mvm, params, vif, type);
+	iwl_mvm_scan_umac_fill_general_p_v10(mvm, params, vif,
+					     &scan_p->general_params,
+					     gen_flags);
+
+	 ret = iwl_mvm_fill_scan_sched_params(params,
+					      scan_p->periodic_params.schedule,
+					      &scan_p->periodic_params.delay);
+	if (ret)
+		return ret;
+
+	iwl_mvm_scan_umac_fill_probe_p_v4(params, &scan_p->probe_params,
+					  &bitmap_ssid);
+	iwl_mvm_scan_umac_fill_ch_p_v4(mvm, params, vif,
+				       &scan_p->channel_params, bitmap_ssid);
 
 	return 0;
 }
@@ -2104,6 +2150,7 @@ struct iwl_scan_umac_handler {
 
 static const struct iwl_scan_umac_handler iwl_scan_umac_handlers[] = {
 	/* set the newest version first to shorten the list traverse time */
+	IWL_SCAN_UMAC_HANDLER(13),
 	IWL_SCAN_UMAC_HANDLER(12),
 	IWL_SCAN_UMAC_HANDLER(11),
 };
@@ -2462,6 +2509,7 @@ static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 static int iwl_scan_req_umac_get_size(u8 scan_ver)
 {
 	switch (scan_ver) {
+		IWL_SCAN_REQ_UMAC_HANDLE_SIZE(13);
 		IWL_SCAN_REQ_UMAC_HANDLE_SIZE(12);
 		IWL_SCAN_REQ_UMAC_HANDLE_SIZE(11);
 	}

@@ -664,6 +664,9 @@ enum iwl_umac_scan_general_flags2 {
  * @IWL_UMAC_SCAN_GEN_FLAGS_V2_MULTI_SSID: matching on multiple SSIDs
  * @IWL_UMAC_SCAN_GEN_FLAGS_V2_FORCE_PASSIVE: all the channels scanned
  *                                           as passive
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_TRIGGER_UHB_SCAN: at the end of 2.4GHz and
+ *		5.2Ghz bands scan, trigger scan on 6GHz band to discover
+ *		the reported collocated APs
  */
 enum iwl_umac_scan_general_flags_v2 {
 	IWL_UMAC_SCAN_GEN_FLAGS_V2_PERIODIC             = BIT(0),
@@ -678,6 +681,7 @@ enum iwl_umac_scan_general_flags_v2 {
 	IWL_UMAC_SCAN_GEN_FLAGS_V2_NTF_START            = BIT(9),
 	IWL_UMAC_SCAN_GEN_FLAGS_V2_MULTI_SSID           = BIT(10),
 	IWL_UMAC_SCAN_GEN_FLAGS_V2_FORCE_PASSIVE        = BIT(11),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_TRIGGER_UHB_SCAN     = BIT(12),
 };
 
 /**
@@ -893,7 +897,27 @@ struct iwl_scan_probe_params_v3 {
 	struct iwl_ssid_ie direct_scan[PROBE_OPTION_MAX];
 	__le32 short_ssid[SCAN_SHORT_SSID_MAX_SIZE];
 	u8 bssid_array[ETH_ALEN][SCAN_BSSID_MAX_SIZE];
-} __packed;
+} __packed; /* SCAN_PROBE_PARAMS_API_S_VER_3 */
+
+/**
+ * struct iwl_scan_probe_params_v4
+ * @preq: scan probe request params
+ * @short_ssid_num: number of valid short SSIDs in short ssid array
+ * @bssid_num: number of valid bssid in bssids array
+ * @reserved: reserved
+ * @direct_scan: list of ssids
+ * @short_ssid: array of short ssids
+ * @bssid_array: array of bssids
+ */
+struct iwl_scan_probe_params_v4 {
+	struct iwl_scan_probe_req preq;
+	u8 short_ssid_num;
+	u8 bssid_num;
+	__le16 reserved;
+	struct iwl_ssid_ie direct_scan[PROBE_OPTION_MAX];
+	__le32 short_ssid[SCAN_SHORT_SSID_MAX_SIZE];
+	u8 bssid_array[ETH_ALEN][SCAN_BSSID_MAX_SIZE];
+} __packed; /* SCAN_PROBE_PARAMS_API_S_VER_4 */
 
 #define SCAN_MAX_NUM_CHANS_V3 67
 
@@ -932,8 +956,8 @@ struct iwl_scan_channel_params_v4 {
 	u8 reserved;
 	struct iwl_scan_channel_cfg_umac channel_config[SCAN_MAX_NUM_CHANS_V3];
 	u8 adwell_ch_override_bitmap[16];
-} __packed; /* SCAN_CHANNEL_PARAMS_API_S_VER_4 */
-
+} __packed; /* SCAN_CHANNEL_PARAMS_API_S_VER_4 also
+	       SCAN_CHANNEL_PARAMS_API_S_VER_5 */
 /**
  * struct iwl_scan_general_params_v10
  * @flags: &enum iwl_umac_scan_flags
@@ -1015,6 +1039,20 @@ struct iwl_scan_req_params_v12 {
 } __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_12 */
 
 /**
+ * struct iwl_scan_req_params_v13
+ * @general_params: &struct iwl_scan_general_params_v10
+ * @channel_params: &struct iwl_scan_channel_params_v4
+ * @periodic_params: &struct iwl_scan_periodic_parms_v1
+ * @probe_params: &struct iwl_scan_probe_params_v4
+ */
+struct iwl_scan_req_params_v13 {
+	struct iwl_scan_general_params_v10 general_params;
+	struct iwl_scan_channel_params_v4 channel_params;
+	struct iwl_scan_periodic_parms_v1 periodic_params;
+	struct iwl_scan_probe_params_v4 probe_params;
+} __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_13 */
+
+/**
  * struct iwl_scan_req_umac_v11
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @ooc_priority: out of channel priority - &enum iwl_scan_priority
@@ -1037,6 +1075,18 @@ struct iwl_scan_req_umac_v12 {
 	__le32 ooc_priority;
 	struct iwl_scan_req_params_v12 scan_params;
 } __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_12 */
+
+/**
+ * struct iwl_scan_req_umac_v13
+ * @uid: scan id, &enum iwl_umac_scan_uid_offsets
+ * @ooc_priority: out of channel priority - &enum iwl_scan_priority
+ * @scan_params: scan parameters
+ */
+struct iwl_scan_req_umac_v13 {
+	__le32 uid;
+	__le32 ooc_priority;
+	struct iwl_scan_req_params_v13 scan_params;
+} __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_13 */
 
 /**
  * struct iwl_umac_scan_abort
