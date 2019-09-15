@@ -191,8 +191,6 @@ DECLARE_EWMA(signal, 10, 8);
 struct mt76_wcid {
 	struct mt76_rx_tid __rcu *aggr[IEEE80211_NUM_TIDS];
 
-	struct work_struct aggr_work;
-
 	unsigned long flags;
 
 	struct ewma_signal rssi;
