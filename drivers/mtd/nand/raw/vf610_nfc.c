@@ -862,6 +862,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 				dev_err(nfc->dev,
 					"Only one NAND chip supported!\n");
 				err = -EINVAL;
+				of_node_put(child);
 				goto err_disable_clk;
 			}
 
