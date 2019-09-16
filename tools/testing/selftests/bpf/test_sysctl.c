@@ -32,6 +32,7 @@ struct sysctl_test {
 	enum bpf_attach_type attach_type;
 	const char *sysctl;
 	int open_flags;
+	int seek;
 	const char *newval;
 	const char *oldval;
 	enum {
@@ -140,7 +141,7 @@ static struct sysctl_test tests[] = {
 			/* If (file_pos == X) */
 			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_1,
 				    offsetof(struct bpf_sysctl, file_pos)),
-			BPF_JMP_IMM(BPF_JNE, BPF_REG_7, 0, 2),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_7, 3, 2),
 
 			/* return ALLOW; */
 			BPF_MOV64_IMM(BPF_REG_0, 1),
@@ -153,6 +154,7 @@ static struct sysctl_test tests[] = {
 		.attach_type = BPF_CGROUP_SYSCTL,
 		.sysctl = "kernel/ostype",
 		.open_flags = O_RDONLY,
+		.seek = 3,
 		.result = SUCCESS,
 	},
 	{
@@ -1480,6 +1482,11 @@ static int access_sysctl(const char *sysctl_path,
 	fd = open(sysctl_path, test->open_flags | O_CLOEXEC);
 	if (fd < 0)
 		return fd;
+
+	if (test->seek && lseek(fd, test->seek, SEEK_SET) == -1) {
+		log_err("lseek(%d) failed", test->seek);
+		goto err;
+	}
 
 	if (test->open_flags == O_RDONLY) {
 		char buf[128];

@@ -1,23 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <error.h>
-#include <errno.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <pthread.h>
-
-#include <linux/filter.h>
-#include <bpf/bpf.h>
-#include <bpf/libbpf.h>
-
-#include "bpf_rlimit.h"
-#include "bpf_util.h"
+#include <test_progs.h>
 #include "cgroup_helpers.h"
-
-#define CG_PATH                                "/tcp_rtt"
 
 struct tcp_rtt_storage {
 	__u32 invoked;
@@ -31,8 +14,8 @@ static void send_byte(int fd)
 {
 	char b = 0x55;
 
-	if (write(fd, &b, sizeof(b)) != 1)
-		error(1, errno, "Failed to send single byte");
+	if (CHECK_FAIL(write(fd, &b, sizeof(b)) != 1))
+		perror("Failed to send single byte");
 }
 
 static int wait_for_ack(int fd, int retries)
@@ -66,8 +49,10 @@ static int verify_sk(int map_fd, int client_fd, const char *msg, __u32 invoked,
 	int err = 0;
 	struct tcp_rtt_storage val;
 
-	if (bpf_map_lookup_elem(map_fd, &client_fd, &val) < 0)
-		error(1, errno, "Failed to read socket storage");
+	if (CHECK_FAIL(bpf_map_lookup_elem(map_fd, &client_fd, &val) < 0)) {
+		perror("Failed to read socket storage");
+		return -1;
+	}
 
 	if (val.invoked != invoked) {
 		log_err("%s: unexpected bpf_tcp_sock.invoked %d != %d",
@@ -225,61 +210,47 @@ static void *server_thread(void *arg)
 	int fd = *(int *)arg;
 	int client_fd;
 
-	if (listen(fd, 1) < 0)
-		error(1, errno, "Failed to listed on socket");
+	if (CHECK_FAIL(listen(fd, 1)) < 0) {
+		perror("Failed to listed on socket");
+		return NULL;
+	}
 
 	client_fd = accept(fd, (struct sockaddr *)&addr, &len);
-	if (client_fd < 0)
-		error(1, errno, "Failed to accept client");
+	if (CHECK_FAIL(client_fd < 0)) {
+		perror("Failed to accept client");
+		return NULL;
+	}
 
 	/* Wait for the next connection (that never arrives)
 	 * to keep this thread alive to prevent calling
 	 * close() on client_fd.
 	 */
-	if (accept(fd, (struct sockaddr *)&addr, &len) >= 0)
-		error(1, errno, "Unexpected success in second accept");
+	if (CHECK_FAIL(accept(fd, (struct sockaddr *)&addr, &len) >= 0)) {
+		perror("Unexpected success in second accept");
+		return NULL;
+	}
 
 	close(client_fd);
 
 	return NULL;
 }
 
-int main(int args, char **argv)
+void test_tcp_rtt(void)
 {
 	int server_fd, cgroup_fd;
-	int err = EXIT_SUCCESS;
 	pthread_t tid;
 
-	if (setup_cgroup_environment())
-		goto cleanup_obj;
-
-	cgroup_fd = create_and_get_cgroup(CG_PATH);
-	if (cgroup_fd < 0)
-		goto cleanup_cgroup_env;
-
-	if (join_cgroup(CG_PATH))
-		goto cleanup_cgroup;
+	cgroup_fd = test__join_cgroup("/tcp_rtt");
+	if (CHECK_FAIL(cgroup_fd < 0))
+		return;
 
 	server_fd = start_server();
-	if (server_fd < 0) {
-		err = EXIT_FAILURE;
-		goto cleanup_cgroup;
-	}
+	if (CHECK_FAIL(server_fd < 0))
+		goto close_cgroup_fd;
 
 	pthread_create(&tid, NULL, server_thread, (void *)&server_fd);
-
-	if (run_test(cgroup_fd, server_fd))
-		err = EXIT_FAILURE;
-
+	CHECK_FAIL(run_test(cgroup_fd, server_fd));
 	close(server_fd);
-
-	printf("test_sockopt_sk: %s\n",
-	       err == EXIT_SUCCESS ? "PASSED" : "FAILED");
-
-cleanup_cgroup:
+close_cgroup_fd:
 	close(cgroup_fd);
-cleanup_cgroup_env:
-	cleanup_cgroup_environment();
-cleanup_obj:
-	return err;
 }

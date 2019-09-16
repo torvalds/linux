@@ -749,14 +749,14 @@ bpf_ctx_narrow_access_ok(u32 off, u32 size, u32 size_default)
 }
 
 static inline u8
-bpf_ctx_narrow_load_shift(u32 off, u32 size, u32 size_default)
+bpf_ctx_narrow_access_offset(u32 off, u32 size, u32 size_default)
 {
-	u8 load_off = off & (size_default - 1);
+	u8 access_off = off & (size_default - 1);
 
 #ifdef __LITTLE_ENDIAN
-	return load_off * 8;
+	return access_off;
 #else
-	return (size_default - (load_off + size)) * 8;
+	return size_default - (access_off + size);
 #endif
 }
 
