@@ -13,6 +13,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <uapi/linux/iommu.h>
 
 #define IOMMU_READ	(1 << 0)
 #define IOMMU_WRITE	(1 << 1)
@@ -29,6 +30,12 @@
  * if the IOMMU page table format is equivalent.
  */
 #define IOMMU_PRIV	(1 << 5)
+/*
+ * Non-coherent masters on few Qualcomm SoCs can use this page protection flag
+ * to set correct cacheability attributes to use an outer level of cache -
+ * last level cache, aka system cache.
+ */
+#define IOMMU_QCOM_SYS_CACHE	(1 << 6)
 
 struct iommu_ops;
 struct iommu_group;
@@ -37,6 +44,7 @@ struct device;
 struct iommu_domain;
 struct notifier_block;
 struct iommu_sva;
+struct iommu_fault_event;
 
 /* iommu fault flags */
 #define IOMMU_FAULT_READ	0x0
@@ -46,6 +54,7 @@ typedef int (*iommu_fault_handler_t)(struct iommu_domain *,
 			struct device *, unsigned long, int, void *);
 typedef int (*iommu_mm_exit_handler_t)(struct device *dev, struct iommu_sva *,
 				       void *);
+typedef int (*iommu_dev_fault_handler_t)(struct iommu_fault *, void *);
 
 struct iommu_domain_geometry {
 	dma_addr_t aperture_start; /* First address that can be mapped    */
@@ -123,6 +132,12 @@ enum iommu_attr {
 enum iommu_resv_type {
 	/* Memory regions which must be mapped 1:1 at all times */
 	IOMMU_RESV_DIRECT,
+	/*
+	 * Memory regions which are advertised to be 1:1 but are
+	 * commonly considered relaxable in some conditions,
+	 * for instance in device assignment use case (USB, Graphics)
+	 */
+	IOMMU_RESV_DIRECT_RELAXABLE,
 	/* Arbitrary "never map this or give it to a device" address ranges */
 	IOMMU_RESV_RESERVED,
 	/* Hardware MSI region (untranslated) */
@@ -212,6 +227,7 @@ struct iommu_sva_ops {
  * @sva_bind: Bind process address space to device
  * @sva_unbind: Unbind process address space from device
  * @sva_get_pasid: Get PASID associated to a SVA handle
+ * @page_response: handle page request response
  * @pgsize_bitmap: bitmap of all possible supported page sizes
  */
 struct iommu_ops {
@@ -272,6 +288,10 @@ struct iommu_ops {
 	void (*sva_unbind)(struct iommu_sva *handle);
 	int (*sva_get_pasid)(struct iommu_sva *handle);
 
+	int (*page_response)(struct device *dev,
+			     struct iommu_fault_event *evt,
+			     struct iommu_page_response *msg);
+
 	unsigned long pgsize_bitmap;
 };
 
@@ -287,6 +307,48 @@ struct iommu_device {
 	const struct iommu_ops *ops;
 	struct fwnode_handle *fwnode;
 	struct device *dev;
+};
+
+/**
+ * struct iommu_fault_event - Generic fault event
+ *
+ * Can represent recoverable faults such as a page requests or
+ * unrecoverable faults such as DMA or IRQ remapping faults.
+ *
+ * @fault: fault descriptor
+ * @list: pending fault event list, used for tracking responses
+ */
+struct iommu_fault_event {
+	struct iommu_fault fault;
+	struct list_head list;
+};
+
+/**
+ * struct iommu_fault_param - per-device IOMMU fault data
+ * @handler: Callback function to handle IOMMU faults at device level
+ * @data: handler private data
+ * @faults: holds the pending faults which needs response
+ * @lock: protect pending faults list
+ */
+struct iommu_fault_param {
+	iommu_dev_fault_handler_t handler;
+	void *data;
+	struct list_head faults;
+	struct mutex lock;
+};
+
+/**
+ * struct iommu_param - collection of per-device IOMMU data
+ *
+ * @fault_param: IOMMU detected device fault reporting data
+ *
+ * TODO: migrate other per device data pointers under iommu_dev_data, e.g.
+ *	struct iommu_group	*iommu_group;
+ *	struct iommu_fwspec	*iommu_fwspec;
+ */
+struct iommu_param {
+	struct mutex lock;
+	struct iommu_fault_param *fault_param;
 };
 
 int  iommu_device_register(struct iommu_device *iommu);
@@ -350,6 +412,7 @@ extern void iommu_set_fault_handler(struct iommu_domain *domain,
 extern void iommu_get_resv_regions(struct device *dev, struct list_head *list);
 extern void iommu_put_resv_regions(struct device *dev, struct list_head *list);
 extern int iommu_request_dm_for_dev(struct device *dev);
+extern int iommu_request_dma_domain_for_dev(struct device *dev);
 extern struct iommu_resv_region *
 iommu_alloc_resv_region(phys_addr_t start, size_t length, int prot,
 			enum iommu_resv_type type);
@@ -378,6 +441,17 @@ extern int iommu_group_register_notifier(struct iommu_group *group,
 					 struct notifier_block *nb);
 extern int iommu_group_unregister_notifier(struct iommu_group *group,
 					   struct notifier_block *nb);
+extern int iommu_register_device_fault_handler(struct device *dev,
+					iommu_dev_fault_handler_t handler,
+					void *data);
+
+extern int iommu_unregister_device_fault_handler(struct device *dev);
+
+extern int iommu_report_device_fault(struct device *dev,
+				     struct iommu_fault_event *evt);
+extern int iommu_page_response(struct device *dev,
+			       struct iommu_page_response *msg);
+
 extern int iommu_group_id(struct iommu_group *group);
 extern struct iommu_group *iommu_group_get_for_dev(struct device *dev);
 extern struct iommu_domain *iommu_group_default_domain(struct iommu_group *);
@@ -492,6 +566,7 @@ struct iommu_ops {};
 struct iommu_group {};
 struct iommu_fwspec {};
 struct iommu_device {};
+struct iommu_fault_param {};
 
 static inline bool iommu_present(struct bus_type *bus)
 {
@@ -614,6 +689,11 @@ static inline int iommu_request_dm_for_dev(struct device *dev)
 	return -ENODEV;
 }
 
+static inline int iommu_request_dma_domain_for_dev(struct device *dev)
+{
+	return -ENODEV;
+}
+
 static inline int iommu_attach_group(struct iommu_domain *domain,
 				     struct iommu_group *group)
 {
@@ -683,6 +763,31 @@ static inline int iommu_group_unregister_notifier(struct iommu_group *group,
 						  struct notifier_block *nb)
 {
 	return 0;
+}
+
+static inline
+int iommu_register_device_fault_handler(struct device *dev,
+					iommu_dev_fault_handler_t handler,
+					void *data)
+{
+	return -ENODEV;
+}
+
+static inline int iommu_unregister_device_fault_handler(struct device *dev)
+{
+	return 0;
+}
+
+static inline
+int iommu_report_device_fault(struct device *dev, struct iommu_fault_event *evt)
+{
+	return -ENODEV;
+}
+
+static inline int iommu_page_response(struct device *dev,
+				      struct iommu_page_response *msg)
+{
+	return -ENODEV;
 }
 
 static inline int iommu_group_id(struct iommu_group *group)

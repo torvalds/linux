@@ -190,27 +190,6 @@ struct regmap *syscon_regmap_lookup_by_compatible(const char *s)
 }
 EXPORT_SYMBOL_GPL(syscon_regmap_lookup_by_compatible);
 
-static int syscon_match_pdevname(struct device *dev, void *data)
-{
-	return !strcmp(dev_name(dev), (const char *)data);
-}
-
-struct regmap *syscon_regmap_lookup_by_pdevname(const char *s)
-{
-	struct device *dev;
-	struct syscon *syscon;
-
-	dev = driver_find_device(&syscon_driver.driver, NULL, (void *)s,
-				 syscon_match_pdevname);
-	if (!dev)
-		return ERR_PTR(-EPROBE_DEFER);
-
-	syscon = dev_get_drvdata(dev);
-
-	return syscon->regmap;
-}
-EXPORT_SYMBOL_GPL(syscon_regmap_lookup_by_pdevname);
-
 struct regmap *syscon_regmap_lookup_by_phandle(struct device_node *np,
 					const char *property)
 {

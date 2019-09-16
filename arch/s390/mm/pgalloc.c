@@ -17,8 +17,6 @@
 
 #ifdef CONFIG_PGSTE
 
-static int page_table_allocate_pgste_min = 0;
-static int page_table_allocate_pgste_max = 1;
 int page_table_allocate_pgste = 0;
 EXPORT_SYMBOL(page_table_allocate_pgste);
 
@@ -29,8 +27,8 @@ static struct ctl_table page_table_sysctl[] = {
 		.maxlen		= sizeof(int),
 		.mode		= S_IRUGO | S_IWUSR,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &page_table_allocate_pgste_min,
-		.extra2		= &page_table_allocate_pgste_max,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	},
 	{ }
 };

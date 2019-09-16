@@ -25,12 +25,15 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <drm/drmP.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_pci.h>
 #include <drm/radeon_drm.h>
-#include "radeon_reg.h"
+
+#include "atom.h"
 #include "radeon.h"
 #include "radeon_asic.h"
-#include "atom.h"
+#include "radeon_reg.h"
 
 /* 10 khz */
 uint32_t radeon_legacy_get_engine_clock(struct radeon_device *rdev)

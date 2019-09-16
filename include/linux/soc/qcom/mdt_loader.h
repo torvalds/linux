@@ -21,4 +21,6 @@ int qcom_mdt_load_no_init(struct device *dev, const struct firmware *fw,
 			  const char *fw_name, int pas_id, void *mem_region,
 			  phys_addr_t mem_phys, size_t mem_size,
 			  phys_addr_t *reloc_base);
+void *qcom_mdt_read_metadata(const struct firmware *fw, size_t *data_len);
+
 #endif

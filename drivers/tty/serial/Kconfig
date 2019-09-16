@@ -457,20 +457,6 @@ config SERIAL_21285_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
-config SERIAL_MPSC
-	bool "Marvell MPSC serial port support"
-	depends on MV64X60
-	select SERIAL_CORE
-	help
-	  Say Y here if you want to use the Marvell MPSC serial controller.
-
-config SERIAL_MPSC_CONSOLE
-	bool "Support for console on Marvell MPSC serial port"
-	depends on SERIAL_MPSC
-	select SERIAL_CORE_CONSOLE
-	help
-	  Say Y here if you want to support a serial console on a Marvell MPSC.
-
 config SERIAL_PXA
 	bool "PXA serial port support (DEPRECATED)"
 	depends on ARCH_PXA || ARCH_MMP
@@ -511,10 +497,11 @@ config SERIAL_SA1100
 	bool "SA1100 serial port support"
 	depends on ARCH_SA1100
 	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  If you have a machine based on a SA1100/SA1110 StrongARM(R) CPU you
 	  can enable its onboard serial port by enabling this option.
-	  Please read <file:Documentation/arm/SA1100/serial_UART> for further
+	  Please read <file:Documentation/arm/sa1100/serial_uart.rst> for further
 	  info.
 
 config SERIAL_SA1100_CONSOLE
@@ -1047,25 +1034,6 @@ config SERIAL_VT8500_CONSOLE
 	bool "VIA VT8500 serial console support"
 	depends on SERIAL_VT8500=y
 	select SERIAL_CORE_CONSOLE
-
-config SERIAL_NETX
-	tristate "NetX serial port support"
-	depends on ARCH_NETX
-	select SERIAL_CORE
-	help
-	  If you have a machine based on a Hilscher NetX SoC you
-	  can enable its onboard serial port by enabling this option.
-
-          To compile this driver as a module, choose M here: the
-          module will be called netx-serial.
-
-config SERIAL_NETX_CONSOLE
-	bool "Console on NetX serial port"
-	depends on SERIAL_NETX=y
-	select SERIAL_CORE_CONSOLE
-	help
-	  If you have enabled the serial port on the Hilscher NetX SoC
-	  you can make it the console by answering Y to this option.
 
 config SERIAL_OMAP
 	tristate "OMAP serial port support"

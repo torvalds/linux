@@ -70,6 +70,75 @@
 		snps,rxpbl = <8>;
 	};
 
+	aconnect {
+		compatible = "nvidia,tegra186-aconnect",
+			     "nvidia,tegra210-aconnect";
+		clocks = <&bpmp TEGRA186_CLK_APE>,
+			 <&bpmp TEGRA186_CLK_APB2APE>;
+		clock-names = "ape", "apb2ape";
+		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_AUD>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x02900000 0x0 0x02900000 0x200000>;
+		status = "disabled";
+
+		dma-controller@2930000 {
+			compatible = "nvidia,tegra186-adma";
+			reg = <0x02930000 0x20000>;
+			interrupt-parent = <&agic>;
+			interrupts =  <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			clocks = <&bpmp TEGRA186_CLK_AHUB>;
+			clock-names = "d_audio";
+			status = "disabled";
+		};
+
+		agic: interrupt-controller@2a40000 {
+			compatible = "nvidia,tegra186-agic",
+				     "nvidia,tegra210-agic";
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			reg = <0x02a41000 0x1000>,
+			      <0x02a42000 0x2000>;
+			interrupts = <GIC_SPI 145
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+			clocks = <&bpmp TEGRA186_CLK_APE>;
+			clock-names = "clk";
+			status = "disabled";
+		};
+	};
+
 	memory-controller@2c00000 {
 		compatible = "nvidia,tegra186-mc";
 		reg = <0x0 0x02c00000 0x0 0xb0000>;
@@ -173,6 +242,9 @@
 		clock-names = "div-clk";
 		resets = <&bpmp TEGRA186_RESET_I2C4>;
 		reset-names = "i2c";
+		pinctrl-names = "default", "idle";
+		pinctrl-0 = <&state_dpaux1_i2c>;
+		pinctrl-1 = <&state_dpaux1_off>;
 		status = "disabled";
 	};
 
@@ -201,6 +273,9 @@
 		clock-names = "div-clk";
 		resets = <&bpmp TEGRA186_RESET_I2C6>;
 		reset-names = "i2c";
+		pinctrl-names = "default", "idle";
+		pinctrl-0 = <&state_dpaux_i2c>;
+		pinctrl-1 = <&state_dpaux_off>;
 		status = "disabled";
 	};
 
@@ -1121,47 +1196,6 @@
 		};
 	};
 
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		cpu@0 {
-			compatible = "nvidia,tegra186-denver";
-			device_type = "cpu";
-			reg = <0x000>;
-		};
-
-		cpu@1 {
-			compatible = "nvidia,tegra186-denver";
-			device_type = "cpu";
-			reg = <0x001>;
-		};
-
-		cpu@2 {
-			compatible = "arm,cortex-a57";
-			device_type = "cpu";
-			reg = <0x100>;
-		};
-
-		cpu@3 {
-			compatible = "arm,cortex-a57";
-			device_type = "cpu";
-			reg = <0x101>;
-		};
-
-		cpu@4 {
-			compatible = "arm,cortex-a57";
-			device_type = "cpu";
-			reg = <0x102>;
-		};
-
-		cpu@5 {
-			compatible = "arm,cortex-a57";
-			device_type = "cpu";
-			reg = <0x103>;
-		};
-	};
-
 	bpmp: bpmp {
 		compatible = "nvidia,tegra186-bpmp";
 		iommus = <&smmu TEGRA186_SID_BPMP>;
@@ -1183,6 +1217,107 @@
 		bpmp_thermal: thermal {
 			compatible = "nvidia,tegra186-bpmp-thermal";
 			#thermal-sensor-cells = <1>;
+		};
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "nvidia,tegra186-denver";
+			device_type = "cpu";
+			i-cache-size = <0x20000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <512>;
+			d-cache-size = <0x10000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&L2_DENVER>;
+			reg = <0x000>;
+		};
+
+		cpu@1 {
+			compatible = "nvidia,tegra186-denver";
+			device_type = "cpu";
+			i-cache-size = <0x20000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <512>;
+			d-cache-size = <0x10000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&L2_DENVER>;
+			reg = <0x001>;
+		};
+
+		cpu@2 {
+			compatible = "arm,cortex-a57";
+			device_type = "cpu";
+			i-cache-size = <0xC000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&L2_A57>;
+			reg = <0x100>;
+		};
+
+		cpu@3 {
+			compatible = "arm,cortex-a57";
+			device_type = "cpu";
+			i-cache-size = <0xC000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&L2_A57>;
+			reg = <0x101>;
+		};
+
+		cpu@4 {
+			compatible = "arm,cortex-a57";
+			device_type = "cpu";
+			i-cache-size = <0xC000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&L2_A57>;
+			reg = <0x102>;
+		};
+
+		cpu@5 {
+			compatible = "arm,cortex-a57";
+			device_type = "cpu";
+			i-cache-size = <0xC000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&L2_A57>;
+			reg = <0x103>;
+		};
+
+		L2_DENVER: l2-cache0 {
+			compatible = "cache";
+			cache-unified;
+			cache-level = <2>;
+			cache-size = <0x200000>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+		};
+
+		L2_A57: l2-cache1 {
+			compatible = "cache";
+			cache-unified;
+			cache-level = <2>;
+			cache-size = <0x200000>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
 		};
 	};
 
@@ -1294,5 +1429,6 @@
 			     <GIC_PPI 10
 				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 		interrupt-parent = <&gic>;
+		always-on;
 	};
 };

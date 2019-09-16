@@ -150,6 +150,12 @@ static const struct lp87565_regulator regulators[] = {
 			  LP87565_REG_BUCK2_CTRL_1,
 			  LP87565_BUCK_CTRL_1_EN, 3230,
 			  buck0_1_2_3_ranges, LP87565_REG_BUCK2_CTRL_2),
+	LP87565_REGULATOR("BUCK3210", LP87565_BUCK_3210, "buck3210",
+			  lp87565_buck_ops, 256, LP87565_REG_BUCK0_VOUT,
+			  LP87565_BUCK_VSET, LP87565_REG_BUCK0_CTRL_1,
+			  LP87565_BUCK_CTRL_1_EN |
+			  LP87565_BUCK_CTRL_1_FPWM_MP_0_2, 3230,
+			  buck0_1_2_3_ranges, LP87565_REG_BUCK0_CTRL_2),
 };
 
 static int lp87565_regulator_probe(struct platform_device *pdev)
@@ -157,7 +163,7 @@ static int lp87565_regulator_probe(struct platform_device *pdev)
 	struct lp87565 *lp87565 = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };
 	struct regulator_dev *rdev;
-	int i, min_idx = LP87565_BUCK_0, max_idx = LP87565_BUCK_3;
+	int i, min_idx, max_idx;
 
 	platform_set_drvdata(pdev, lp87565);
 
@@ -166,9 +172,19 @@ static int lp87565_regulator_probe(struct platform_device *pdev)
 	config.driver_data = lp87565;
 	config.regmap = lp87565->regmap;
 
-	if (lp87565->dev_type == LP87565_DEVICE_TYPE_LP87565_Q1) {
+	switch (lp87565->dev_type) {
+	case LP87565_DEVICE_TYPE_LP87565_Q1:
 		min_idx = LP87565_BUCK_10;
 		max_idx = LP87565_BUCK_23;
+		break;
+	case LP87565_DEVICE_TYPE_LP87561_Q1:
+		min_idx = LP87565_BUCK_3210;
+		max_idx = LP87565_BUCK_3210;
+		break;
+	default:
+		min_idx = LP87565_BUCK_0;
+		max_idx = LP87565_BUCK_3;
+		break;
 	}
 
 	for (i = min_idx; i <= max_idx; i++) {

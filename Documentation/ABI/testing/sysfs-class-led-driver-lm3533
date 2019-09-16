@@ -4,7 +4,7 @@ KernelVersion:	3.5
 Contact:	Johan Hovold <jhovold@gmail.com>
 Description:
 		Set the ALS output channel to use as input in
-		ALS-current-control mode (1, 2), where
+		ALS-current-control mode (1, 2), where:
 
 		1 - out_current1
 		2 - out_current2
@@ -22,7 +22,7 @@ Date:		April 2012
 KernelVersion:	3.5
 Contact:	Johan Hovold <jhovold@gmail.com>
 Description:
-		Set the pattern generator fall and rise times (0..7), where
+		Set the pattern generator fall and rise times (0..7), where:
 
 		0 - 2048 us
 		1 - 262 ms
@@ -45,7 +45,7 @@ Date:		April 2012
 KernelVersion:	3.5
 Contact:	Johan Hovold <jhovold@gmail.com>
 Description:
-		Set the brightness-mapping mode (0, 1), where
+		Set the brightness-mapping mode (0, 1), where:
 
 		0 - exponential mode
 		1 - linear mode
@@ -55,7 +55,7 @@ Date:		April 2012
 KernelVersion:	3.5
 Contact:	Johan Hovold <jhovold@gmail.com>
 Description:
-		Set the PWM-input control mask (5 bits), where
+		Set the PWM-input control mask (5 bits), where:
 
 		bit 5 - PWM-input enabled in Zone 4
 		bit 4 - PWM-input enabled in Zone 3

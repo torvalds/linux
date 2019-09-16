@@ -127,7 +127,7 @@ int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	if (err < 0)
 		return err;
 
-	s->fdf = AMDTP_FDF_AM824 | s->sfc;
+	s->ctx_data.rx.fdf = AMDTP_FDF_AM824 | s->sfc;
 
 	p->pcm_channels = pcm_channels;
 

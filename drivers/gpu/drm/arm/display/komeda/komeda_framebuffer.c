@@ -37,51 +37,111 @@ static const struct drm_framebuffer_funcs komeda_fb_funcs = {
 };
 
 static int
+komeda_fb_afbc_size_check(struct komeda_fb *kfb, struct drm_file *file,
+			  const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	struct drm_framebuffer *fb = &kfb->base;
+	const struct drm_format_info *info = fb->format;
+	struct drm_gem_object *obj;
+	u32 alignment_w = 0, alignment_h = 0, alignment_header, n_blocks;
+	u64 min_size;
+
+	obj = drm_gem_object_lookup(file, mode_cmd->handles[0]);
+	if (!obj) {
+		DRM_DEBUG_KMS("Failed to lookup GEM object\n");
+		return -ENOENT;
+	}
+
+	switch (fb->modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK) {
+	case AFBC_FORMAT_MOD_BLOCK_SIZE_32x8:
+		alignment_w = 32;
+		alignment_h = 8;
+		break;
+	case AFBC_FORMAT_MOD_BLOCK_SIZE_16x16:
+		alignment_w = 16;
+		alignment_h = 16;
+		break;
+	default:
+		WARN(1, "Invalid AFBC_FORMAT_MOD_BLOCK_SIZE: %lld.\n",
+		     fb->modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK);
+		break;
+	}
+
+	/* tiled header afbc */
+	if (fb->modifier & AFBC_FORMAT_MOD_TILED) {
+		alignment_w *= AFBC_TH_LAYOUT_ALIGNMENT;
+		alignment_h *= AFBC_TH_LAYOUT_ALIGNMENT;
+		alignment_header = AFBC_TH_BODY_START_ALIGNMENT;
+	} else {
+		alignment_header = AFBC_BODY_START_ALIGNMENT;
+	}
+
+	kfb->aligned_w = ALIGN(fb->width, alignment_w);
+	kfb->aligned_h = ALIGN(fb->height, alignment_h);
+
+	if (fb->offsets[0] % alignment_header) {
+		DRM_DEBUG_KMS("afbc offset alignment check failed.\n");
+		goto check_failed;
+	}
+
+	n_blocks = (kfb->aligned_w * kfb->aligned_h) / AFBC_SUPERBLK_PIXELS;
+	kfb->offset_payload = ALIGN(n_blocks * AFBC_HEADER_SIZE,
+				    alignment_header);
+
+	kfb->afbc_size = kfb->offset_payload + n_blocks *
+			 ALIGN(info->cpp[0] * AFBC_SUPERBLK_PIXELS,
+			       AFBC_SUPERBLK_ALIGNMENT);
+	min_size = kfb->afbc_size + fb->offsets[0];
+	if (min_size > obj->size) {
+		DRM_DEBUG_KMS("afbc size check failed, obj_size: 0x%zx. min_size 0x%llx.\n",
+			      obj->size, min_size);
+		goto check_failed;
+	}
+
+	fb->obj[0] = obj;
+	return 0;
+
+check_failed:
+	drm_gem_object_put_unlocked(obj);
+	return -EINVAL;
+}
+
+static int
 komeda_fb_none_afbc_size_check(struct komeda_dev *mdev, struct komeda_fb *kfb,
 			       struct drm_file *file,
 			       const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_framebuffer *fb = &kfb->base;
+	const struct drm_format_info *info = fb->format;
 	struct drm_gem_object *obj;
-	u32 min_size = 0;
-	u32 i;
+	u32 i, block_h;
+	u64 min_size;
 
-	for (i = 0; i < fb->format->num_planes; i++) {
+	if (komeda_fb_check_src_coords(kfb, 0, 0, fb->width, fb->height))
+		return -EINVAL;
+
+	for (i = 0; i < info->num_planes; i++) {
 		obj = drm_gem_object_lookup(file, mode_cmd->handles[i]);
 		if (!obj) {
 			DRM_DEBUG_KMS("Failed to lookup GEM object\n");
-			fb->obj[i] = NULL;
-
 			return -ENOENT;
 		}
+		fb->obj[i] = obj;
 
-		kfb->aligned_w = fb->width / (i ? fb->format->hsub : 1);
-		kfb->aligned_h = fb->height / (i ? fb->format->vsub : 1);
-
-		if (fb->pitches[i] % mdev->chip.bus_width) {
+		block_h = drm_format_info_block_height(info, i);
+		if ((fb->pitches[i] * block_h) % mdev->chip.bus_width) {
 			DRM_DEBUG_KMS("Pitch[%d]: 0x%x doesn't align to 0x%x\n",
 				      i, fb->pitches[i], mdev->chip.bus_width);
-			drm_gem_object_put_unlocked(obj);
-			fb->obj[i] = NULL;
-
 			return -EINVAL;
 		}
 
-		min_size = ((kfb->aligned_h / kfb->format_caps->tile_size - 1)
-			    * fb->pitches[i])
-			    + (kfb->aligned_w * fb->format->cpp[i]
-			       * kfb->format_caps->tile_size)
-			    + fb->offsets[i];
-
+		min_size = komeda_fb_get_pixel_addr(kfb, 0, fb->height, i)
+			 - to_drm_gem_cma_obj(obj)->paddr;
 		if (obj->size < min_size) {
-			DRM_DEBUG_KMS("Fail to check none afbc fb size.\n");
-			drm_gem_object_put_unlocked(obj);
-			fb->obj[i] = NULL;
-
+			DRM_DEBUG_KMS("The fb->obj[%d] size: 0x%zx lower than the minimum requirement: 0x%llx.\n",
+				      i, obj->size, min_size);
 			return -EINVAL;
 		}
-
-		fb->obj[i] = obj;
 	}
 
 	if (fb->format->num_planes == 3) {
@@ -118,7 +178,10 @@ komeda_fb_create(struct drm_device *dev, struct drm_file *file,
 
 	drm_helper_mode_fill_fb_struct(dev, &kfb->base, mode_cmd);
 
-	ret = komeda_fb_none_afbc_size_check(mdev, kfb, file, mode_cmd);
+	if (kfb->base.modifier)
+		ret = komeda_fb_afbc_size_check(kfb, file, mode_cmd);
+	else
+		ret = komeda_fb_none_afbc_size_check(mdev, kfb, file, mode_cmd);
 	if (ret < 0)
 		goto err_cleanup;
 
@@ -128,6 +191,8 @@ komeda_fb_create(struct drm_device *dev, struct drm_file *file,
 
 		goto err_cleanup;
 	}
+
+	kfb->is_va = mdev->iommu ? true : false;
 
 	return &kfb->base;
 
@@ -139,12 +204,42 @@ err_cleanup:
 	return ERR_PTR(ret);
 }
 
+int komeda_fb_check_src_coords(const struct komeda_fb *kfb,
+			       u32 src_x, u32 src_y, u32 src_w, u32 src_h)
+{
+	const struct drm_framebuffer *fb = &kfb->base;
+	const struct drm_format_info *info = fb->format;
+	u32 block_w = drm_format_info_block_width(fb->format, 0);
+	u32 block_h = drm_format_info_block_height(fb->format, 0);
+
+	if ((src_x + src_w > fb->width) || (src_y + src_h > fb->height)) {
+		DRM_DEBUG_ATOMIC("Invalid source coordinate.\n");
+		return -EINVAL;
+	}
+
+	if ((src_x % info->hsub) || (src_w % info->hsub) ||
+	    (src_y % info->vsub) || (src_h % info->vsub)) {
+		DRM_DEBUG_ATOMIC("Wrong subsampling dimension x:%d, y:%d, w:%d, h:%d for format: %x.\n",
+				 src_x, src_y, src_w, src_h, info->format);
+		return -EINVAL;
+	}
+
+	if ((src_x % block_w) || (src_w % block_w) ||
+	    (src_y % block_h) || (src_h % block_h)) {
+		DRM_DEBUG_ATOMIC("x:%d, y:%d, w:%d, h:%d should be multiple of block_w/h for format: %x.\n",
+				 src_x, src_y, src_w, src_h, info->format);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 dma_addr_t
 komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane)
 {
 	struct drm_framebuffer *fb = &kfb->base;
 	const struct drm_gem_cma_object *obj;
-	u32 plane_x, plane_y, cpp, pitch, offset;
+	u32 offset, plane_x, plane_y, block_w, block_sz;
 
 	if (plane >= fb->format->num_planes) {
 		DRM_DEBUG_KMS("Out of max plane num.\n");
@@ -155,13 +250,33 @@ komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane)
 
 	offset = fb->offsets[plane];
 	if (!fb->modifier) {
+		block_w = drm_format_info_block_width(fb->format, plane);
+		block_sz = fb->format->char_per_block[plane];
 		plane_x = x / (plane ? fb->format->hsub : 1);
 		plane_y = y / (plane ? fb->format->vsub : 1);
-		cpp = fb->format->cpp[plane];
-		pitch = fb->pitches[plane];
-		offset += plane_x * cpp *  kfb->format_caps->tile_size +
-				(plane_y * pitch) / kfb->format_caps->tile_size;
+
+		offset += (plane_x / block_w) * block_sz
+			+ plane_y * fb->pitches[plane];
 	}
 
 	return obj->paddr + offset;
+}
+
+/* if the fb can be supported by a specific layer */
+bool komeda_fb_is_layer_supported(struct komeda_fb *kfb, u32 layer_type,
+				  u32 rot)
+{
+	struct drm_framebuffer *fb = &kfb->base;
+	struct komeda_dev *mdev = fb->dev->dev_private;
+	u32 fourcc = fb->format->format;
+	u64 modifier = fb->modifier;
+	bool supported;
+
+	supported = komeda_format_mod_supported(&mdev->fmt_tbl, layer_type,
+						fourcc, modifier, rot);
+	if (!supported)
+		DRM_DEBUG_ATOMIC("Layer TYPE: %d doesn't support fb FMT: %s.\n",
+			layer_type, komeda_get_format_name(fourcc, modifier));
+
+	return supported;
 }

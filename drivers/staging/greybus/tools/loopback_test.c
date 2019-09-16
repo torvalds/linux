@@ -414,12 +414,6 @@ static int get_results(struct loopback_test *t)
 	return 0;
 }
 
-void log_csv_error(int len, int err)
-{
-	fprintf(stderr, "unable to write %d bytes to csv %s\n", len,
-		strerror(err));
-}
-
 int format_output(struct loopback_test *t,
 		  struct loopback_results *r,
 		  const char *dev_name,

@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/magic.h>
 #include <linux/anon_inodes.h>
+#include <linux/pseudo_fs.h>
 
 #include <linux/uaccess.h>
 
@@ -39,16 +40,18 @@ static const struct dentry_operations anon_inodefs_dentry_operations = {
 	.d_dname	= anon_inodefs_dname,
 };
 
-static struct dentry *anon_inodefs_mount(struct file_system_type *fs_type,
-				int flags, const char *dev_name, void *data)
+static int anon_inodefs_init_fs_context(struct fs_context *fc)
 {
-	return mount_pseudo(fs_type, "anon_inode:", NULL,
-			&anon_inodefs_dentry_operations, ANON_INODE_FS_MAGIC);
+	struct pseudo_fs_context *ctx = init_pseudo(fc, ANON_INODE_FS_MAGIC);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->dops = &anon_inodefs_dentry_operations;
+	return 0;
 }
 
 static struct file_system_type anon_inode_fs_type = {
 	.name		= "anon_inodefs",
-	.mount		= anon_inodefs_mount,
+	.init_fs_context = anon_inodefs_init_fs_context,
 	.kill_sb	= kill_anon_super,
 };
 

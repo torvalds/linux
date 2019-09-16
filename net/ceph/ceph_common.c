@@ -776,9 +776,7 @@ static int __init init_ceph_lib(void)
 {
 	int ret = 0;
 
-	ret = ceph_debugfs_init();
-	if (ret < 0)
-		goto out;
+	ceph_debugfs_init();
 
 	ret = ceph_crypto_init();
 	if (ret < 0)
@@ -803,7 +801,6 @@ out_crypto:
 	ceph_crypto_shutdown();
 out_debugfs:
 	ceph_debugfs_cleanup();
-out:
 	return ret;
 }
 

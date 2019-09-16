@@ -88,13 +88,14 @@ static const struct ena_stats ena_stats_tx_strings[] = {
 static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(cnt),
 	ENA_STAT_RX_ENTRY(bytes),
+	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
+	ENA_STAT_RX_ENTRY(csum_good),
 	ENA_STAT_RX_ENTRY(refil_partial),
 	ENA_STAT_RX_ENTRY(bad_csum),
 	ENA_STAT_RX_ENTRY(page_alloc_fail),
 	ENA_STAT_RX_ENTRY(skb_alloc_fail),
 	ENA_STAT_RX_ENTRY(dma_mapping_err),
 	ENA_STAT_RX_ENTRY(bad_desc_num),
-	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
 	ENA_STAT_RX_ENTRY(bad_req_id),
 	ENA_STAT_RX_ENTRY(empty_rx_ring),
 	ENA_STAT_RX_ENTRY(csum_unchecked),
@@ -447,13 +448,32 @@ static void ena_get_ringparam(struct net_device *netdev,
 			      struct ethtool_ringparam *ring)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
-	struct ena_ring *tx_ring = &adapter->tx_ring[0];
-	struct ena_ring *rx_ring = &adapter->rx_ring[0];
 
-	ring->rx_max_pending = rx_ring->ring_size;
-	ring->tx_max_pending = tx_ring->ring_size;
-	ring->rx_pending = rx_ring->ring_size;
-	ring->tx_pending = tx_ring->ring_size;
+	ring->tx_max_pending = adapter->max_tx_ring_size;
+	ring->rx_max_pending = adapter->max_rx_ring_size;
+	ring->tx_pending = adapter->tx_ring[0].ring_size;
+	ring->rx_pending = adapter->rx_ring[0].ring_size;
+}
+
+static int ena_set_ringparam(struct net_device *netdev,
+			     struct ethtool_ringparam *ring)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	u32 new_tx_size, new_rx_size;
+
+	new_tx_size = ring->tx_pending < ENA_MIN_RING_SIZE ?
+			ENA_MIN_RING_SIZE : ring->tx_pending;
+	new_tx_size = rounddown_pow_of_two(new_tx_size);
+
+	new_rx_size = ring->rx_pending < ENA_MIN_RING_SIZE ?
+			ENA_MIN_RING_SIZE : ring->rx_pending;
+	new_rx_size = rounddown_pow_of_two(new_rx_size);
+
+	if (new_tx_size == adapter->requested_tx_ring_size &&
+	    new_rx_size == adapter->requested_rx_ring_size)
+		return 0;
+
+	return ena_update_queue_sizes(adapter, new_tx_size, new_rx_size);
 }
 
 static u32 ena_flow_hash_to_flow_type(u16 hash_fields)
@@ -807,6 +827,7 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.get_coalesce		= ena_get_coalesce,
 	.set_coalesce		= ena_set_coalesce,
 	.get_ringparam		= ena_get_ringparam,
+	.set_ringparam		= ena_set_ringparam,
 	.get_sset_count         = ena_get_sset_count,
 	.get_strings		= ena_get_strings,
 	.get_ethtool_stats      = ena_get_ethtool_stats,

@@ -16,6 +16,7 @@
 #include <linux/cpumask.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
+#include <linux/libfdt.h>
 
 #include <asm/prom.h>
 #include <asm/io.h>
@@ -659,6 +660,55 @@ static bool xive_get_max_prio(u8 *max_prio)
 	return true;
 }
 
+static const u8 *get_vec5_feature(unsigned int index)
+{
+	unsigned long root, chosen;
+	int size;
+	const u8 *vec5;
+
+	root = of_get_flat_dt_root();
+	chosen = of_get_flat_dt_subnode_by_name(root, "chosen");
+	if (chosen == -FDT_ERR_NOTFOUND)
+		return NULL;
+
+	vec5 = of_get_flat_dt_prop(chosen, "ibm,architecture-vec-5", &size);
+	if (!vec5)
+		return NULL;
+
+	if (size <= index)
+		return NULL;
+
+	return vec5 + index;
+}
+
+static bool xive_spapr_disabled(void)
+{
+	const u8 *vec5_xive;
+
+	vec5_xive = get_vec5_feature(OV5_INDX(OV5_XIVE_SUPPORT));
+	if (vec5_xive) {
+		u8 val;
+
+		val = *vec5_xive & OV5_FEAT(OV5_XIVE_SUPPORT);
+		switch (val) {
+		case OV5_FEAT(OV5_XIVE_EITHER):
+		case OV5_FEAT(OV5_XIVE_LEGACY):
+			break;
+		case OV5_FEAT(OV5_XIVE_EXPLOIT):
+			/* Hypervisor only supports XIVE */
+			if (xive_cmdline_disabled)
+				pr_warn("WARNING: Ignoring cmdline option xive=off\n");
+			return false;
+		default:
+			pr_warn("%s: Unknown xive support option: 0x%x\n",
+				__func__, val);
+			break;
+		}
+	}
+
+	return xive_cmdline_disabled;
+}
+
 bool __init xive_spapr_init(void)
 {
 	struct device_node *np;
@@ -671,7 +721,7 @@ bool __init xive_spapr_init(void)
 	const __be32 *reg;
 	int i;
 
-	if (xive_cmdline_disabled)
+	if (xive_spapr_disabled())
 		return false;
 
 	pr_devel("%s()\n", __func__);

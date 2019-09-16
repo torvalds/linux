@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/log2.h>
 #include <linux/types.h>
+#include <linux/zalloc.h>
 
 #include <opencsd/ocsd_if_types.h>
 #include <stdlib.h>
@@ -29,6 +30,7 @@
 #include "thread.h"
 #include "thread_map.h"
 #include "thread-stack.h"
+#include <tools/libc_compat.h>
 #include "util.h"
 
 #define MAX_TIMESTAMP (~0ULL)
@@ -60,32 +62,54 @@ struct cs_etm_auxtrace {
 	unsigned int pmu_type;
 };
 
-struct cs_etm_queue {
-	struct cs_etm_auxtrace *etm;
-	struct thread *thread;
-	struct cs_etm_decoder *decoder;
-	struct auxtrace_buffer *buffer;
-	union perf_event *event_buf;
-	unsigned int queue_nr;
+struct cs_etm_traceid_queue {
+	u8 trace_chan_id;
 	pid_t pid, tid;
-	int cpu;
-	u64 offset;
 	u64 period_instructions;
+	size_t last_branch_pos;
+	union perf_event *event_buf;
+	struct thread *thread;
 	struct branch_stack *last_branch;
 	struct branch_stack *last_branch_rb;
-	size_t last_branch_pos;
 	struct cs_etm_packet *prev_packet;
 	struct cs_etm_packet *packet;
+	struct cs_etm_packet_queue packet_queue;
+};
+
+struct cs_etm_queue {
+	struct cs_etm_auxtrace *etm;
+	struct cs_etm_decoder *decoder;
+	struct auxtrace_buffer *buffer;
+	unsigned int queue_nr;
+	u8 pending_timestamp;
+	u64 offset;
 	const unsigned char *buf;
 	size_t buf_len, buf_used;
+	/* Conversion between traceID and index in traceid_queues array */
+	struct intlist *traceid_queues_list;
+	struct cs_etm_traceid_queue **traceid_queues;
 };
 
 static int cs_etm__update_queues(struct cs_etm_auxtrace *etm);
+static int cs_etm__process_queues(struct cs_etm_auxtrace *etm);
 static int cs_etm__process_timeless_queues(struct cs_etm_auxtrace *etm,
 					   pid_t tid);
+static int cs_etm__get_data_block(struct cs_etm_queue *etmq);
+static int cs_etm__decode_data_block(struct cs_etm_queue *etmq);
 
 /* PTMs ETMIDR [11:8] set to b0011 */
 #define ETMIDR_PTM_VERSION 0x00000300
+
+/*
+ * A struct auxtrace_heap_item only has a queue_nr and a timestamp to
+ * work with.  One option is to modify to auxtrace_heap_XYZ() API or simply
+ * encode the etm queue number as the upper 16 bit and the channel as
+ * the lower 16 bit.
+ */
+#define TO_CS_QUEUE_NR(queue_nr, trace_id_chan)	\
+		      (queue_nr << 16 | trace_chan_id)
+#define TO_QUEUE_NR(cs_queue_nr) (cs_queue_nr >> 16)
+#define TO_TRACE_CHAN_ID(cs_queue_nr) (cs_queue_nr & 0x0000ffff)
 
 static u32 cs_etm__get_v7_protocol_version(u32 etmidr)
 {
@@ -123,6 +147,216 @@ int cs_etm__get_cpu(u8 trace_chan_id, int *cpu)
 	metadata = inode->priv;
 	*cpu = (int)metadata[CS_ETM_CPU];
 	return 0;
+}
+
+void cs_etm__etmq_set_traceid_queue_timestamp(struct cs_etm_queue *etmq,
+					      u8 trace_chan_id)
+{
+	/*
+	 * Wnen a timestamp packet is encountered the backend code
+	 * is stopped so that the front end has time to process packets
+	 * that were accumulated in the traceID queue.  Since there can
+	 * be more than one channel per cs_etm_queue, we need to specify
+	 * what traceID queue needs servicing.
+	 */
+	etmq->pending_timestamp = trace_chan_id;
+}
+
+static u64 cs_etm__etmq_get_timestamp(struct cs_etm_queue *etmq,
+				      u8 *trace_chan_id)
+{
+	struct cs_etm_packet_queue *packet_queue;
+
+	if (!etmq->pending_timestamp)
+		return 0;
+
+	if (trace_chan_id)
+		*trace_chan_id = etmq->pending_timestamp;
+
+	packet_queue = cs_etm__etmq_get_packet_queue(etmq,
+						     etmq->pending_timestamp);
+	if (!packet_queue)
+		return 0;
+
+	/* Acknowledge pending status */
+	etmq->pending_timestamp = 0;
+
+	/* See function cs_etm_decoder__do_{hard|soft}_timestamp() */
+	return packet_queue->timestamp;
+}
+
+static void cs_etm__clear_packet_queue(struct cs_etm_packet_queue *queue)
+{
+	int i;
+
+	queue->head = 0;
+	queue->tail = 0;
+	queue->packet_count = 0;
+	for (i = 0; i < CS_ETM_PACKET_MAX_BUFFER; i++) {
+		queue->packet_buffer[i].isa = CS_ETM_ISA_UNKNOWN;
+		queue->packet_buffer[i].start_addr = CS_ETM_INVAL_ADDR;
+		queue->packet_buffer[i].end_addr = CS_ETM_INVAL_ADDR;
+		queue->packet_buffer[i].instr_count = 0;
+		queue->packet_buffer[i].last_instr_taken_branch = false;
+		queue->packet_buffer[i].last_instr_size = 0;
+		queue->packet_buffer[i].last_instr_type = 0;
+		queue->packet_buffer[i].last_instr_subtype = 0;
+		queue->packet_buffer[i].last_instr_cond = 0;
+		queue->packet_buffer[i].flags = 0;
+		queue->packet_buffer[i].exception_number = UINT32_MAX;
+		queue->packet_buffer[i].trace_chan_id = UINT8_MAX;
+		queue->packet_buffer[i].cpu = INT_MIN;
+	}
+}
+
+static void cs_etm__clear_all_packet_queues(struct cs_etm_queue *etmq)
+{
+	int idx;
+	struct int_node *inode;
+	struct cs_etm_traceid_queue *tidq;
+	struct intlist *traceid_queues_list = etmq->traceid_queues_list;
+
+	intlist__for_each_entry(inode, traceid_queues_list) {
+		idx = (int)(intptr_t)inode->priv;
+		tidq = etmq->traceid_queues[idx];
+		cs_etm__clear_packet_queue(&tidq->packet_queue);
+	}
+}
+
+static int cs_etm__init_traceid_queue(struct cs_etm_queue *etmq,
+				      struct cs_etm_traceid_queue *tidq,
+				      u8 trace_chan_id)
+{
+	int rc = -ENOMEM;
+	struct auxtrace_queue *queue;
+	struct cs_etm_auxtrace *etm = etmq->etm;
+
+	cs_etm__clear_packet_queue(&tidq->packet_queue);
+
+	queue = &etmq->etm->queues.queue_array[etmq->queue_nr];
+	tidq->tid = queue->tid;
+	tidq->pid = -1;
+	tidq->trace_chan_id = trace_chan_id;
+
+	tidq->packet = zalloc(sizeof(struct cs_etm_packet));
+	if (!tidq->packet)
+		goto out;
+
+	tidq->prev_packet = zalloc(sizeof(struct cs_etm_packet));
+	if (!tidq->prev_packet)
+		goto out_free;
+
+	if (etm->synth_opts.last_branch) {
+		size_t sz = sizeof(struct branch_stack);
+
+		sz += etm->synth_opts.last_branch_sz *
+		      sizeof(struct branch_entry);
+		tidq->last_branch = zalloc(sz);
+		if (!tidq->last_branch)
+			goto out_free;
+		tidq->last_branch_rb = zalloc(sz);
+		if (!tidq->last_branch_rb)
+			goto out_free;
+	}
+
+	tidq->event_buf = malloc(PERF_SAMPLE_MAX_SIZE);
+	if (!tidq->event_buf)
+		goto out_free;
+
+	return 0;
+
+out_free:
+	zfree(&tidq->last_branch_rb);
+	zfree(&tidq->last_branch);
+	zfree(&tidq->prev_packet);
+	zfree(&tidq->packet);
+out:
+	return rc;
+}
+
+static struct cs_etm_traceid_queue
+*cs_etm__etmq_get_traceid_queue(struct cs_etm_queue *etmq, u8 trace_chan_id)
+{
+	int idx;
+	struct int_node *inode;
+	struct intlist *traceid_queues_list;
+	struct cs_etm_traceid_queue *tidq, **traceid_queues;
+	struct cs_etm_auxtrace *etm = etmq->etm;
+
+	if (etm->timeless_decoding)
+		trace_chan_id = CS_ETM_PER_THREAD_TRACEID;
+
+	traceid_queues_list = etmq->traceid_queues_list;
+
+	/*
+	 * Check if the traceid_queue exist for this traceID by looking
+	 * in the queue list.
+	 */
+	inode = intlist__find(traceid_queues_list, trace_chan_id);
+	if (inode) {
+		idx = (int)(intptr_t)inode->priv;
+		return etmq->traceid_queues[idx];
+	}
+
+	/* We couldn't find a traceid_queue for this traceID, allocate one */
+	tidq = malloc(sizeof(*tidq));
+	if (!tidq)
+		return NULL;
+
+	memset(tidq, 0, sizeof(*tidq));
+
+	/* Get a valid index for the new traceid_queue */
+	idx = intlist__nr_entries(traceid_queues_list);
+	/* Memory for the inode is free'ed in cs_etm_free_traceid_queues () */
+	inode = intlist__findnew(traceid_queues_list, trace_chan_id);
+	if (!inode)
+		goto out_free;
+
+	/* Associate this traceID with this index */
+	inode->priv = (void *)(intptr_t)idx;
+
+	if (cs_etm__init_traceid_queue(etmq, tidq, trace_chan_id))
+		goto out_free;
+
+	/* Grow the traceid_queues array by one unit */
+	traceid_queues = etmq->traceid_queues;
+	traceid_queues = reallocarray(traceid_queues,
+				      idx + 1,
+				      sizeof(*traceid_queues));
+
+	/*
+	 * On failure reallocarray() returns NULL and the original block of
+	 * memory is left untouched.
+	 */
+	if (!traceid_queues)
+		goto out_free;
+
+	traceid_queues[idx] = tidq;
+	etmq->traceid_queues = traceid_queues;
+
+	return etmq->traceid_queues[idx];
+
+out_free:
+	/*
+	 * Function intlist__remove() removes the inode from the list
+	 * and delete the memory associated to it.
+	 */
+	intlist__remove(traceid_queues_list, inode);
+	free(tidq);
+
+	return NULL;
+}
+
+struct cs_etm_packet_queue
+*cs_etm__etmq_get_packet_queue(struct cs_etm_queue *etmq, u8 trace_chan_id)
+{
+	struct cs_etm_traceid_queue *tidq;
+
+	tidq = cs_etm__etmq_get_traceid_queue(etmq, trace_chan_id);
+	if (tidq)
+		return &tidq->packet_queue;
+
+	return NULL;
 }
 
 static void cs_etm__packet_dump(const char *pkt_string)
@@ -276,15 +510,52 @@ static int cs_etm__flush_events(struct perf_session *session,
 	if (!tool->ordered_events)
 		return -EINVAL;
 
-	if (!etm->timeless_decoding)
-		return -EINVAL;
-
 	ret = cs_etm__update_queues(etm);
 
 	if (ret < 0)
 		return ret;
 
-	return cs_etm__process_timeless_queues(etm, -1);
+	if (etm->timeless_decoding)
+		return cs_etm__process_timeless_queues(etm, -1);
+
+	return cs_etm__process_queues(etm);
+}
+
+static void cs_etm__free_traceid_queues(struct cs_etm_queue *etmq)
+{
+	int idx;
+	uintptr_t priv;
+	struct int_node *inode, *tmp;
+	struct cs_etm_traceid_queue *tidq;
+	struct intlist *traceid_queues_list = etmq->traceid_queues_list;
+
+	intlist__for_each_entry_safe(inode, tmp, traceid_queues_list) {
+		priv = (uintptr_t)inode->priv;
+		idx = priv;
+
+		/* Free this traceid_queue from the array */
+		tidq = etmq->traceid_queues[idx];
+		thread__zput(tidq->thread);
+		zfree(&tidq->event_buf);
+		zfree(&tidq->last_branch);
+		zfree(&tidq->last_branch_rb);
+		zfree(&tidq->prev_packet);
+		zfree(&tidq->packet);
+		zfree(&tidq);
+
+		/*
+		 * Function intlist__remove() removes the inode from the list
+		 * and delete the memory associated to it.
+		 */
+		intlist__remove(traceid_queues_list, inode);
+	}
+
+	/* Then the RB tree itself */
+	intlist__delete(traceid_queues_list);
+	etmq->traceid_queues_list = NULL;
+
+	/* finally free the traceid_queues array */
+	zfree(&etmq->traceid_queues);
 }
 
 static void cs_etm__free_queue(void *priv)
@@ -294,13 +565,8 @@ static void cs_etm__free_queue(void *priv)
 	if (!etmq)
 		return;
 
-	thread__zput(etmq->thread);
 	cs_etm_decoder__free(etmq->decoder);
-	zfree(&etmq->event_buf);
-	zfree(&etmq->last_branch);
-	zfree(&etmq->last_branch_rb);
-	zfree(&etmq->prev_packet);
-	zfree(&etmq->packet);
+	cs_etm__free_traceid_queues(etmq);
 	free(etmq);
 }
 
@@ -365,23 +631,27 @@ static u8 cs_etm__cpu_mode(struct cs_etm_queue *etmq, u64 address)
 	}
 }
 
-static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u64 address,
-			      size_t size, u8 *buffer)
+static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
+			      u64 address, size_t size, u8 *buffer)
 {
 	u8  cpumode;
 	u64 offset;
 	int len;
-	struct	 thread *thread;
-	struct	 machine *machine;
-	struct	 addr_location al;
+	struct thread *thread;
+	struct machine *machine;
+	struct addr_location al;
+	struct cs_etm_traceid_queue *tidq;
 
 	if (!etmq)
 		return 0;
 
 	machine = etmq->etm->machine;
 	cpumode = cs_etm__cpu_mode(etmq, address);
+	tidq = cs_etm__etmq_get_traceid_queue(etmq, trace_chan_id);
+	if (!tidq)
+		return 0;
 
-	thread = etmq->thread;
+	thread = tidq->thread;
 	if (!thread) {
 		if (cpumode != PERF_RECORD_MISC_KERNEL)
 			return 0;
@@ -412,35 +682,13 @@ static struct cs_etm_queue *cs_etm__alloc_queue(struct cs_etm_auxtrace *etm)
 	struct cs_etm_decoder_params d_params;
 	struct cs_etm_trace_params  *t_params = NULL;
 	struct cs_etm_queue *etmq;
-	size_t szp = sizeof(struct cs_etm_packet);
 
 	etmq = zalloc(sizeof(*etmq));
 	if (!etmq)
 		return NULL;
 
-	etmq->packet = zalloc(szp);
-	if (!etmq->packet)
-		goto out_free;
-
-	etmq->prev_packet = zalloc(szp);
-	if (!etmq->prev_packet)
-		goto out_free;
-
-	if (etm->synth_opts.last_branch) {
-		size_t sz = sizeof(struct branch_stack);
-
-		sz += etm->synth_opts.last_branch_sz *
-		      sizeof(struct branch_entry);
-		etmq->last_branch = zalloc(sz);
-		if (!etmq->last_branch)
-			goto out_free;
-		etmq->last_branch_rb = zalloc(sz);
-		if (!etmq->last_branch_rb)
-			goto out_free;
-	}
-
-	etmq->event_buf = malloc(PERF_SAMPLE_MAX_SIZE);
-	if (!etmq->event_buf)
+	etmq->traceid_queues_list = intlist__new(NULL);
+	if (!etmq->traceid_queues_list)
 		goto out_free;
 
 	/* Use metadata to fill in trace parameters for trace decoder */
@@ -477,12 +725,7 @@ static struct cs_etm_queue *cs_etm__alloc_queue(struct cs_etm_auxtrace *etm)
 out_free_decoder:
 	cs_etm_decoder__free(etmq->decoder);
 out_free:
-	zfree(&t_params);
-	zfree(&etmq->event_buf);
-	zfree(&etmq->last_branch);
-	zfree(&etmq->last_branch_rb);
-	zfree(&etmq->prev_packet);
-	zfree(&etmq->packet);
+	intlist__delete(etmq->traceid_queues_list);
 	free(etmq);
 
 	return NULL;
@@ -493,6 +736,9 @@ static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 			       unsigned int queue_nr)
 {
 	int ret = 0;
+	unsigned int cs_queue_nr;
+	u8 trace_chan_id;
+	u64 timestamp;
 	struct cs_etm_queue *etmq = queue->priv;
 
 	if (list_empty(&queue->head) || etmq)
@@ -508,12 +754,69 @@ static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 	queue->priv = etmq;
 	etmq->etm = etm;
 	etmq->queue_nr = queue_nr;
-	etmq->cpu = queue->cpu;
-	etmq->tid = queue->tid;
-	etmq->pid = -1;
 	etmq->offset = 0;
-	etmq->period_instructions = 0;
 
+	if (etm->timeless_decoding)
+		goto out;
+
+	/*
+	 * We are under a CPU-wide trace scenario.  As such we need to know
+	 * when the code that generated the traces started to execute so that
+	 * it can be correlated with execution on other CPUs.  So we get a
+	 * handle on the beginning of traces and decode until we find a
+	 * timestamp.  The timestamp is then added to the auxtrace min heap
+	 * in order to know what nibble (of all the etmqs) to decode first.
+	 */
+	while (1) {
+		/*
+		 * Fetch an aux_buffer from this etmq.  Bail if no more
+		 * blocks or an error has been encountered.
+		 */
+		ret = cs_etm__get_data_block(etmq);
+		if (ret <= 0)
+			goto out;
+
+		/*
+		 * Run decoder on the trace block.  The decoder will stop when
+		 * encountering a timestamp, a full packet queue or the end of
+		 * trace for that block.
+		 */
+		ret = cs_etm__decode_data_block(etmq);
+		if (ret)
+			goto out;
+
+		/*
+		 * Function cs_etm_decoder__do_{hard|soft}_timestamp() does all
+		 * the timestamp calculation for us.
+		 */
+		timestamp = cs_etm__etmq_get_timestamp(etmq, &trace_chan_id);
+
+		/* We found a timestamp, no need to continue. */
+		if (timestamp)
+			break;
+
+		/*
+		 * We didn't find a timestamp so empty all the traceid packet
+		 * queues before looking for another timestamp packet, either
+		 * in the current data block or a new one.  Packets that were
+		 * just decoded are useless since no timestamp has been
+		 * associated with them.  As such simply discard them.
+		 */
+		cs_etm__clear_all_packet_queues(etmq);
+	}
+
+	/*
+	 * We have a timestamp.  Add it to the min heap to reflect when
+	 * instructions conveyed by the range packets of this traceID queue
+	 * started to execute.  Once the same has been done for all the traceID
+	 * queues of each etmq, redenring and decoding can start in
+	 * chronological order.
+	 *
+	 * Note that packets decoded above are still in the traceID's packet
+	 * queue and will be processed in cs_etm__process_queues().
+	 */
+	cs_queue_nr = TO_CS_QUEUE_NR(queue_nr, trace_id_chan);
+	ret = auxtrace_heap__add(&etm->heap, cs_queue_nr, timestamp);
 out:
 	return ret;
 }
@@ -545,10 +848,12 @@ static int cs_etm__update_queues(struct cs_etm_auxtrace *etm)
 	return 0;
 }
 
-static inline void cs_etm__copy_last_branch_rb(struct cs_etm_queue *etmq)
+static inline
+void cs_etm__copy_last_branch_rb(struct cs_etm_queue *etmq,
+				 struct cs_etm_traceid_queue *tidq)
 {
-	struct branch_stack *bs_src = etmq->last_branch_rb;
-	struct branch_stack *bs_dst = etmq->last_branch;
+	struct branch_stack *bs_src = tidq->last_branch_rb;
+	struct branch_stack *bs_dst = tidq->last_branch;
 	size_t nr = 0;
 
 	/*
@@ -568,9 +873,9 @@ static inline void cs_etm__copy_last_branch_rb(struct cs_etm_queue *etmq)
 	 * two steps.  First, copy the branches from the most recently inserted
 	 * branch ->last_branch_pos until the end of bs_src->entries buffer.
 	 */
-	nr = etmq->etm->synth_opts.last_branch_sz - etmq->last_branch_pos;
+	nr = etmq->etm->synth_opts.last_branch_sz - tidq->last_branch_pos;
 	memcpy(&bs_dst->entries[0],
-	       &bs_src->entries[etmq->last_branch_pos],
+	       &bs_src->entries[tidq->last_branch_pos],
 	       sizeof(struct branch_entry) * nr);
 
 	/*
@@ -583,21 +888,24 @@ static inline void cs_etm__copy_last_branch_rb(struct cs_etm_queue *etmq)
 	if (bs_src->nr >= etmq->etm->synth_opts.last_branch_sz) {
 		memcpy(&bs_dst->entries[nr],
 		       &bs_src->entries[0],
-		       sizeof(struct branch_entry) * etmq->last_branch_pos);
+		       sizeof(struct branch_entry) * tidq->last_branch_pos);
 	}
 }
 
-static inline void cs_etm__reset_last_branch_rb(struct cs_etm_queue *etmq)
+static inline
+void cs_etm__reset_last_branch_rb(struct cs_etm_traceid_queue *tidq)
 {
-	etmq->last_branch_pos = 0;
-	etmq->last_branch_rb->nr = 0;
+	tidq->last_branch_pos = 0;
+	tidq->last_branch_rb->nr = 0;
 }
 
 static inline int cs_etm__t32_instr_size(struct cs_etm_queue *etmq,
-					 u64 addr) {
+					 u8 trace_chan_id, u64 addr)
+{
 	u8 instrBytes[2];
 
-	cs_etm__mem_access(etmq, addr, ARRAY_SIZE(instrBytes), instrBytes);
+	cs_etm__mem_access(etmq, trace_chan_id, addr,
+			   ARRAY_SIZE(instrBytes), instrBytes);
 	/*
 	 * T32 instruction size is indicated by bits[15:11] of the first
 	 * 16-bit word of the instruction: 0b11101, 0b11110 and 0b11111
@@ -626,6 +934,7 @@ u64 cs_etm__last_executed_instr(const struct cs_etm_packet *packet)
 }
 
 static inline u64 cs_etm__instr_addr(struct cs_etm_queue *etmq,
+				     u64 trace_chan_id,
 				     const struct cs_etm_packet *packet,
 				     u64 offset)
 {
@@ -633,7 +942,8 @@ static inline u64 cs_etm__instr_addr(struct cs_etm_queue *etmq,
 		u64 addr = packet->start_addr;
 
 		while (offset > 0) {
-			addr += cs_etm__t32_instr_size(etmq, addr);
+			addr += cs_etm__t32_instr_size(etmq,
+						       trace_chan_id, addr);
 			offset--;
 		}
 		return addr;
@@ -643,9 +953,10 @@ static inline u64 cs_etm__instr_addr(struct cs_etm_queue *etmq,
 	return packet->start_addr + offset * 4;
 }
 
-static void cs_etm__update_last_branch_rb(struct cs_etm_queue *etmq)
+static void cs_etm__update_last_branch_rb(struct cs_etm_queue *etmq,
+					  struct cs_etm_traceid_queue *tidq)
 {
-	struct branch_stack *bs = etmq->last_branch_rb;
+	struct branch_stack *bs = tidq->last_branch_rb;
 	struct branch_entry *be;
 
 	/*
@@ -654,14 +965,14 @@ static void cs_etm__update_last_branch_rb(struct cs_etm_queue *etmq)
 	 * buffer down.  After writing the first element of the stack, move the
 	 * insert position back to the end of the buffer.
 	 */
-	if (!etmq->last_branch_pos)
-		etmq->last_branch_pos = etmq->etm->synth_opts.last_branch_sz;
+	if (!tidq->last_branch_pos)
+		tidq->last_branch_pos = etmq->etm->synth_opts.last_branch_sz;
 
-	etmq->last_branch_pos -= 1;
+	tidq->last_branch_pos -= 1;
 
-	be       = &bs->entries[etmq->last_branch_pos];
-	be->from = cs_etm__last_executed_instr(etmq->prev_packet);
-	be->to	 = cs_etm__first_executed_instr(etmq->packet);
+	be       = &bs->entries[tidq->last_branch_pos];
+	be->from = cs_etm__last_executed_instr(tidq->prev_packet);
+	be->to	 = cs_etm__first_executed_instr(tidq->packet);
 	/* No support for mispredict */
 	be->flags.mispred = 0;
 	be->flags.predicted = 1;
@@ -725,31 +1036,53 @@ cs_etm__get_trace(struct cs_etm_queue *etmq)
 }
 
 static void cs_etm__set_pid_tid_cpu(struct cs_etm_auxtrace *etm,
-				    struct auxtrace_queue *queue)
+				    struct cs_etm_traceid_queue *tidq)
 {
-	struct cs_etm_queue *etmq = queue->priv;
+	if ((!tidq->thread) && (tidq->tid != -1))
+		tidq->thread = machine__find_thread(etm->machine, -1,
+						    tidq->tid);
 
-	/* CPU-wide tracing isn't supported yet */
-	if (queue->tid == -1)
-		return;
+	if (tidq->thread)
+		tidq->pid = tidq->thread->pid_;
+}
 
-	if ((!etmq->thread) && (etmq->tid != -1))
-		etmq->thread = machine__find_thread(etm->machine, -1,
-						    etmq->tid);
+int cs_etm__etmq_set_tid(struct cs_etm_queue *etmq,
+			 pid_t tid, u8 trace_chan_id)
+{
+	int cpu, err = -EINVAL;
+	struct cs_etm_auxtrace *etm = etmq->etm;
+	struct cs_etm_traceid_queue *tidq;
 
-	if (etmq->thread) {
-		etmq->pid = etmq->thread->pid_;
-		if (queue->cpu == -1)
-			etmq->cpu = etmq->thread->cpu;
-	}
+	tidq = cs_etm__etmq_get_traceid_queue(etmq, trace_chan_id);
+	if (!tidq)
+		return err;
+
+	if (cs_etm__get_cpu(trace_chan_id, &cpu) < 0)
+		return err;
+
+	err = machine__set_current_tid(etm->machine, cpu, tid, tid);
+	if (err)
+		return err;
+
+	tidq->tid = tid;
+	thread__zput(tidq->thread);
+
+	cs_etm__set_pid_tid_cpu(etm, tidq);
+	return 0;
+}
+
+bool cs_etm__etmq_is_timeless(struct cs_etm_queue *etmq)
+{
+	return !!etmq->etm->timeless_decoding;
 }
 
 static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
+					    struct cs_etm_traceid_queue *tidq,
 					    u64 addr, u64 period)
 {
 	int ret = 0;
 	struct cs_etm_auxtrace *etm = etmq->etm;
-	union perf_event *event = etmq->event_buf;
+	union perf_event *event = tidq->event_buf;
 	struct perf_sample sample = {.ip = 0,};
 
 	event->sample.header.type = PERF_RECORD_SAMPLE;
@@ -757,19 +1090,19 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 	event->sample.header.size = sizeof(struct perf_event_header);
 
 	sample.ip = addr;
-	sample.pid = etmq->pid;
-	sample.tid = etmq->tid;
+	sample.pid = tidq->pid;
+	sample.tid = tidq->tid;
 	sample.id = etmq->etm->instructions_id;
 	sample.stream_id = etmq->etm->instructions_id;
 	sample.period = period;
-	sample.cpu = etmq->packet->cpu;
-	sample.flags = etmq->prev_packet->flags;
+	sample.cpu = tidq->packet->cpu;
+	sample.flags = tidq->prev_packet->flags;
 	sample.insn_len = 1;
 	sample.cpumode = event->sample.header.misc;
 
 	if (etm->synth_opts.last_branch) {
-		cs_etm__copy_last_branch_rb(etmq);
-		sample.branch_stack = etmq->last_branch;
+		cs_etm__copy_last_branch_rb(etmq, tidq);
+		sample.branch_stack = tidq->last_branch;
 	}
 
 	if (etm->synth_opts.inject) {
@@ -787,7 +1120,7 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 			ret);
 
 	if (etm->synth_opts.last_branch)
-		cs_etm__reset_last_branch_rb(etmq);
+		cs_etm__reset_last_branch_rb(tidq);
 
 	return ret;
 }
@@ -796,33 +1129,34 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
  * The cs etm packet encodes an instruction range between a branch target
  * and the next taken branch. Generate sample accordingly.
  */
-static int cs_etm__synth_branch_sample(struct cs_etm_queue *etmq)
+static int cs_etm__synth_branch_sample(struct cs_etm_queue *etmq,
+				       struct cs_etm_traceid_queue *tidq)
 {
 	int ret = 0;
 	struct cs_etm_auxtrace *etm = etmq->etm;
 	struct perf_sample sample = {.ip = 0,};
-	union perf_event *event = etmq->event_buf;
+	union perf_event *event = tidq->event_buf;
 	struct dummy_branch_stack {
 		u64			nr;
 		struct branch_entry	entries;
 	} dummy_bs;
 	u64 ip;
 
-	ip = cs_etm__last_executed_instr(etmq->prev_packet);
+	ip = cs_etm__last_executed_instr(tidq->prev_packet);
 
 	event->sample.header.type = PERF_RECORD_SAMPLE;
 	event->sample.header.misc = cs_etm__cpu_mode(etmq, ip);
 	event->sample.header.size = sizeof(struct perf_event_header);
 
 	sample.ip = ip;
-	sample.pid = etmq->pid;
-	sample.tid = etmq->tid;
-	sample.addr = cs_etm__first_executed_instr(etmq->packet);
+	sample.pid = tidq->pid;
+	sample.tid = tidq->tid;
+	sample.addr = cs_etm__first_executed_instr(tidq->packet);
 	sample.id = etmq->etm->branches_id;
 	sample.stream_id = etmq->etm->branches_id;
 	sample.period = 1;
-	sample.cpu = etmq->packet->cpu;
-	sample.flags = etmq->prev_packet->flags;
+	sample.cpu = tidq->packet->cpu;
+	sample.flags = tidq->prev_packet->flags;
 	sample.cpumode = event->sample.header.misc;
 
 	/*
@@ -965,33 +1299,35 @@ static int cs_etm__synth_events(struct cs_etm_auxtrace *etm,
 	return 0;
 }
 
-static int cs_etm__sample(struct cs_etm_queue *etmq)
+static int cs_etm__sample(struct cs_etm_queue *etmq,
+			  struct cs_etm_traceid_queue *tidq)
 {
 	struct cs_etm_auxtrace *etm = etmq->etm;
 	struct cs_etm_packet *tmp;
 	int ret;
-	u64 instrs_executed = etmq->packet->instr_count;
+	u8 trace_chan_id = tidq->trace_chan_id;
+	u64 instrs_executed = tidq->packet->instr_count;
 
-	etmq->period_instructions += instrs_executed;
+	tidq->period_instructions += instrs_executed;
 
 	/*
 	 * Record a branch when the last instruction in
 	 * PREV_PACKET is a branch.
 	 */
 	if (etm->synth_opts.last_branch &&
-	    etmq->prev_packet->sample_type == CS_ETM_RANGE &&
-	    etmq->prev_packet->last_instr_taken_branch)
-		cs_etm__update_last_branch_rb(etmq);
+	    tidq->prev_packet->sample_type == CS_ETM_RANGE &&
+	    tidq->prev_packet->last_instr_taken_branch)
+		cs_etm__update_last_branch_rb(etmq, tidq);
 
 	if (etm->sample_instructions &&
-	    etmq->period_instructions >= etm->instructions_sample_period) {
+	    tidq->period_instructions >= etm->instructions_sample_period) {
 		/*
 		 * Emit instruction sample periodically
 		 * TODO: allow period to be defined in cycles and clock time
 		 */
 
 		/* Get number of instructions executed after the sample point */
-		u64 instrs_over = etmq->period_instructions -
+		u64 instrs_over = tidq->period_instructions -
 			etm->instructions_sample_period;
 
 		/*
@@ -1000,31 +1336,32 @@ static int cs_etm__sample(struct cs_etm_queue *etmq)
 		 * executed, but PC has not advanced to next instruction)
 		 */
 		u64 offset = (instrs_executed - instrs_over - 1);
-		u64 addr = cs_etm__instr_addr(etmq, etmq->packet, offset);
+		u64 addr = cs_etm__instr_addr(etmq, trace_chan_id,
+					      tidq->packet, offset);
 
 		ret = cs_etm__synth_instruction_sample(
-			etmq, addr, etm->instructions_sample_period);
+			etmq, tidq, addr, etm->instructions_sample_period);
 		if (ret)
 			return ret;
 
 		/* Carry remaining instructions into next sample period */
-		etmq->period_instructions = instrs_over;
+		tidq->period_instructions = instrs_over;
 	}
 
 	if (etm->sample_branches) {
 		bool generate_sample = false;
 
 		/* Generate sample for tracing on packet */
-		if (etmq->prev_packet->sample_type == CS_ETM_DISCONTINUITY)
+		if (tidq->prev_packet->sample_type == CS_ETM_DISCONTINUITY)
 			generate_sample = true;
 
 		/* Generate sample for branch taken packet */
-		if (etmq->prev_packet->sample_type == CS_ETM_RANGE &&
-		    etmq->prev_packet->last_instr_taken_branch)
+		if (tidq->prev_packet->sample_type == CS_ETM_RANGE &&
+		    tidq->prev_packet->last_instr_taken_branch)
 			generate_sample = true;
 
 		if (generate_sample) {
-			ret = cs_etm__synth_branch_sample(etmq);
+			ret = cs_etm__synth_branch_sample(etmq, tidq);
 			if (ret)
 				return ret;
 		}
@@ -1035,15 +1372,15 @@ static int cs_etm__sample(struct cs_etm_queue *etmq)
 		 * Swap PACKET with PREV_PACKET: PACKET becomes PREV_PACKET for
 		 * the next incoming packet.
 		 */
-		tmp = etmq->packet;
-		etmq->packet = etmq->prev_packet;
-		etmq->prev_packet = tmp;
+		tmp = tidq->packet;
+		tidq->packet = tidq->prev_packet;
+		tidq->prev_packet = tmp;
 	}
 
 	return 0;
 }
 
-static int cs_etm__exception(struct cs_etm_queue *etmq)
+static int cs_etm__exception(struct cs_etm_traceid_queue *tidq)
 {
 	/*
 	 * When the exception packet is inserted, whether the last instruction
@@ -1056,24 +1393,25 @@ static int cs_etm__exception(struct cs_etm_queue *etmq)
 	 * swap PACKET with PREV_PACKET.  This keeps PREV_PACKET to be useful
 	 * for generating instruction and branch samples.
 	 */
-	if (etmq->prev_packet->sample_type == CS_ETM_RANGE)
-		etmq->prev_packet->last_instr_taken_branch = true;
+	if (tidq->prev_packet->sample_type == CS_ETM_RANGE)
+		tidq->prev_packet->last_instr_taken_branch = true;
 
 	return 0;
 }
 
-static int cs_etm__flush(struct cs_etm_queue *etmq)
+static int cs_etm__flush(struct cs_etm_queue *etmq,
+			 struct cs_etm_traceid_queue *tidq)
 {
 	int err = 0;
 	struct cs_etm_auxtrace *etm = etmq->etm;
 	struct cs_etm_packet *tmp;
 
 	/* Handle start tracing packet */
-	if (etmq->prev_packet->sample_type == CS_ETM_EMPTY)
+	if (tidq->prev_packet->sample_type == CS_ETM_EMPTY)
 		goto swap_packet;
 
 	if (etmq->etm->synth_opts.last_branch &&
-	    etmq->prev_packet->sample_type == CS_ETM_RANGE) {
+	    tidq->prev_packet->sample_type == CS_ETM_RANGE) {
 		/*
 		 * Generate a last branch event for the branches left in the
 		 * circular buffer at the end of the trace.
@@ -1081,21 +1419,21 @@ static int cs_etm__flush(struct cs_etm_queue *etmq)
 		 * Use the address of the end of the last reported execution
 		 * range
 		 */
-		u64 addr = cs_etm__last_executed_instr(etmq->prev_packet);
+		u64 addr = cs_etm__last_executed_instr(tidq->prev_packet);
 
 		err = cs_etm__synth_instruction_sample(
-			etmq, addr,
-			etmq->period_instructions);
+			etmq, tidq, addr,
+			tidq->period_instructions);
 		if (err)
 			return err;
 
-		etmq->period_instructions = 0;
+		tidq->period_instructions = 0;
 
 	}
 
 	if (etm->sample_branches &&
-	    etmq->prev_packet->sample_type == CS_ETM_RANGE) {
-		err = cs_etm__synth_branch_sample(etmq);
+	    tidq->prev_packet->sample_type == CS_ETM_RANGE) {
+		err = cs_etm__synth_branch_sample(etmq, tidq);
 		if (err)
 			return err;
 	}
@@ -1106,15 +1444,16 @@ swap_packet:
 		 * Swap PACKET with PREV_PACKET: PACKET becomes PREV_PACKET for
 		 * the next incoming packet.
 		 */
-		tmp = etmq->packet;
-		etmq->packet = etmq->prev_packet;
-		etmq->prev_packet = tmp;
+		tmp = tidq->packet;
+		tidq->packet = tidq->prev_packet;
+		tidq->prev_packet = tmp;
 	}
 
 	return err;
 }
 
-static int cs_etm__end_block(struct cs_etm_queue *etmq)
+static int cs_etm__end_block(struct cs_etm_queue *etmq,
+			     struct cs_etm_traceid_queue *tidq)
 {
 	int err;
 
@@ -1128,20 +1467,20 @@ static int cs_etm__end_block(struct cs_etm_queue *etmq)
 	 * the trace.
 	 */
 	if (etmq->etm->synth_opts.last_branch &&
-	    etmq->prev_packet->sample_type == CS_ETM_RANGE) {
+	    tidq->prev_packet->sample_type == CS_ETM_RANGE) {
 		/*
 		 * Use the address of the end of the last reported execution
 		 * range.
 		 */
-		u64 addr = cs_etm__last_executed_instr(etmq->prev_packet);
+		u64 addr = cs_etm__last_executed_instr(tidq->prev_packet);
 
 		err = cs_etm__synth_instruction_sample(
-			etmq, addr,
-			etmq->period_instructions);
+			etmq, tidq, addr,
+			tidq->period_instructions);
 		if (err)
 			return err;
 
-		etmq->period_instructions = 0;
+		tidq->period_instructions = 0;
 	}
 
 	return 0;
@@ -1173,12 +1512,13 @@ static int cs_etm__get_data_block(struct cs_etm_queue *etmq)
 	return etmq->buf_len;
 }
 
-static bool cs_etm__is_svc_instr(struct cs_etm_queue *etmq,
+static bool cs_etm__is_svc_instr(struct cs_etm_queue *etmq, u8 trace_chan_id,
 				 struct cs_etm_packet *packet,
 				 u64 end_addr)
 {
-	u16 instr16;
-	u32 instr32;
+	/* Initialise to keep compiler happy */
+	u16 instr16 = 0;
+	u32 instr32 = 0;
 	u64 addr;
 
 	switch (packet->isa) {
@@ -1196,7 +1536,8 @@ static bool cs_etm__is_svc_instr(struct cs_etm_queue *etmq,
 		 * so below only read 2 bytes as instruction size for T32.
 		 */
 		addr = end_addr - 2;
-		cs_etm__mem_access(etmq, addr, sizeof(instr16), (u8 *)&instr16);
+		cs_etm__mem_access(etmq, trace_chan_id, addr,
+				   sizeof(instr16), (u8 *)&instr16);
 		if ((instr16 & 0xFF00) == 0xDF00)
 			return true;
 
@@ -1211,7 +1552,8 @@ static bool cs_etm__is_svc_instr(struct cs_etm_queue *etmq,
 		 * +---------+---------+-------------------------+
 		 */
 		addr = end_addr - 4;
-		cs_etm__mem_access(etmq, addr, sizeof(instr32), (u8 *)&instr32);
+		cs_etm__mem_access(etmq, trace_chan_id, addr,
+				   sizeof(instr32), (u8 *)&instr32);
 		if ((instr32 & 0x0F000000) == 0x0F000000 &&
 		    (instr32 & 0xF0000000) != 0xF0000000)
 			return true;
@@ -1227,7 +1569,8 @@ static bool cs_etm__is_svc_instr(struct cs_etm_queue *etmq,
 		 * +-----------------------+---------+-----------+
 		 */
 		addr = end_addr - 4;
-		cs_etm__mem_access(etmq, addr, sizeof(instr32), (u8 *)&instr32);
+		cs_etm__mem_access(etmq, trace_chan_id, addr,
+				   sizeof(instr32), (u8 *)&instr32);
 		if ((instr32 & 0xFFE0001F) == 0xd4000001)
 			return true;
 
@@ -1240,10 +1583,12 @@ static bool cs_etm__is_svc_instr(struct cs_etm_queue *etmq,
 	return false;
 }
 
-static bool cs_etm__is_syscall(struct cs_etm_queue *etmq, u64 magic)
+static bool cs_etm__is_syscall(struct cs_etm_queue *etmq,
+			       struct cs_etm_traceid_queue *tidq, u64 magic)
 {
-	struct cs_etm_packet *packet = etmq->packet;
-	struct cs_etm_packet *prev_packet = etmq->prev_packet;
+	u8 trace_chan_id = tidq->trace_chan_id;
+	struct cs_etm_packet *packet = tidq->packet;
+	struct cs_etm_packet *prev_packet = tidq->prev_packet;
 
 	if (magic == __perf_cs_etmv3_magic)
 		if (packet->exception_number == CS_ETMV3_EXC_SVC)
@@ -1256,7 +1601,7 @@ static bool cs_etm__is_syscall(struct cs_etm_queue *etmq, u64 magic)
 	 */
 	if (magic == __perf_cs_etmv4_magic) {
 		if (packet->exception_number == CS_ETMV4_EXC_CALL &&
-		    cs_etm__is_svc_instr(etmq, prev_packet,
+		    cs_etm__is_svc_instr(etmq, trace_chan_id, prev_packet,
 					 prev_packet->end_addr))
 			return true;
 	}
@@ -1264,9 +1609,10 @@ static bool cs_etm__is_syscall(struct cs_etm_queue *etmq, u64 magic)
 	return false;
 }
 
-static bool cs_etm__is_async_exception(struct cs_etm_queue *etmq, u64 magic)
+static bool cs_etm__is_async_exception(struct cs_etm_traceid_queue *tidq,
+				       u64 magic)
 {
-	struct cs_etm_packet *packet = etmq->packet;
+	struct cs_etm_packet *packet = tidq->packet;
 
 	if (magic == __perf_cs_etmv3_magic)
 		if (packet->exception_number == CS_ETMV3_EXC_DEBUG_HALT ||
@@ -1289,10 +1635,13 @@ static bool cs_etm__is_async_exception(struct cs_etm_queue *etmq, u64 magic)
 	return false;
 }
 
-static bool cs_etm__is_sync_exception(struct cs_etm_queue *etmq, u64 magic)
+static bool cs_etm__is_sync_exception(struct cs_etm_queue *etmq,
+				      struct cs_etm_traceid_queue *tidq,
+				      u64 magic)
 {
-	struct cs_etm_packet *packet = etmq->packet;
-	struct cs_etm_packet *prev_packet = etmq->prev_packet;
+	u8 trace_chan_id = tidq->trace_chan_id;
+	struct cs_etm_packet *packet = tidq->packet;
+	struct cs_etm_packet *prev_packet = tidq->prev_packet;
 
 	if (magic == __perf_cs_etmv3_magic)
 		if (packet->exception_number == CS_ETMV3_EXC_SMC ||
@@ -1316,7 +1665,7 @@ static bool cs_etm__is_sync_exception(struct cs_etm_queue *etmq, u64 magic)
 		 * (SMC, HVC) are taken as sync exceptions.
 		 */
 		if (packet->exception_number == CS_ETMV4_EXC_CALL &&
-		    !cs_etm__is_svc_instr(etmq, prev_packet,
+		    !cs_etm__is_svc_instr(etmq, trace_chan_id, prev_packet,
 					  prev_packet->end_addr))
 			return true;
 
@@ -1335,10 +1684,12 @@ static bool cs_etm__is_sync_exception(struct cs_etm_queue *etmq, u64 magic)
 	return false;
 }
 
-static int cs_etm__set_sample_flags(struct cs_etm_queue *etmq)
+static int cs_etm__set_sample_flags(struct cs_etm_queue *etmq,
+				    struct cs_etm_traceid_queue *tidq)
 {
-	struct cs_etm_packet *packet = etmq->packet;
-	struct cs_etm_packet *prev_packet = etmq->prev_packet;
+	struct cs_etm_packet *packet = tidq->packet;
+	struct cs_etm_packet *prev_packet = tidq->prev_packet;
+	u8 trace_chan_id = tidq->trace_chan_id;
 	u64 magic;
 	int ret;
 
@@ -1419,7 +1770,8 @@ static int cs_etm__set_sample_flags(struct cs_etm_queue *etmq)
 		if (prev_packet->flags == (PERF_IP_FLAG_BRANCH |
 					   PERF_IP_FLAG_RETURN |
 					   PERF_IP_FLAG_INTERRUPT) &&
-		    cs_etm__is_svc_instr(etmq, packet, packet->start_addr))
+		    cs_etm__is_svc_instr(etmq, trace_chan_id,
+					 packet, packet->start_addr))
 			prev_packet->flags = PERF_IP_FLAG_BRANCH |
 					     PERF_IP_FLAG_RETURN |
 					     PERF_IP_FLAG_SYSCALLRET;
@@ -1440,7 +1792,7 @@ static int cs_etm__set_sample_flags(struct cs_etm_queue *etmq)
 			return ret;
 
 		/* The exception is for system call. */
-		if (cs_etm__is_syscall(etmq, magic))
+		if (cs_etm__is_syscall(etmq, tidq, magic))
 			packet->flags = PERF_IP_FLAG_BRANCH |
 					PERF_IP_FLAG_CALL |
 					PERF_IP_FLAG_SYSCALLRET;
@@ -1448,7 +1800,7 @@ static int cs_etm__set_sample_flags(struct cs_etm_queue *etmq)
 		 * The exceptions are triggered by external signals from bus,
 		 * interrupt controller, debug module, PE reset or halt.
 		 */
-		else if (cs_etm__is_async_exception(etmq, magic))
+		else if (cs_etm__is_async_exception(tidq, magic))
 			packet->flags = PERF_IP_FLAG_BRANCH |
 					PERF_IP_FLAG_CALL |
 					PERF_IP_FLAG_ASYNC |
@@ -1457,7 +1809,7 @@ static int cs_etm__set_sample_flags(struct cs_etm_queue *etmq)
 		 * Otherwise, exception is caused by trap, instruction &
 		 * data fault, or alignment errors.
 		 */
-		else if (cs_etm__is_sync_exception(etmq, magic))
+		else if (cs_etm__is_sync_exception(etmq, tidq, magic))
 			packet->flags = PERF_IP_FLAG_BRANCH |
 					PERF_IP_FLAG_CALL |
 					PERF_IP_FLAG_INTERRUPT;
@@ -1539,75 +1891,106 @@ out:
 	return ret;
 }
 
-static int cs_etm__process_decoder_queue(struct cs_etm_queue *etmq)
+static int cs_etm__process_traceid_queue(struct cs_etm_queue *etmq,
+					 struct cs_etm_traceid_queue *tidq)
 {
 	int ret;
+	struct cs_etm_packet_queue *packet_queue;
 
-		/* Process each packet in this chunk */
-		while (1) {
-			ret = cs_etm_decoder__get_packet(etmq->decoder,
-							 etmq->packet);
-			if (ret <= 0)
-				/*
-				 * Stop processing this chunk on
-				 * end of data or error
-				 */
-				break;
+	packet_queue = &tidq->packet_queue;
 
+	/* Process each packet in this chunk */
+	while (1) {
+		ret = cs_etm_decoder__get_packet(packet_queue,
+						 tidq->packet);
+		if (ret <= 0)
 			/*
-			 * Since packet addresses are swapped in packet
-			 * handling within below switch() statements,
-			 * thus setting sample flags must be called
-			 * prior to switch() statement to use address
-			 * information before packets swapping.
+			 * Stop processing this chunk on
+			 * end of data or error
 			 */
-			ret = cs_etm__set_sample_flags(etmq);
-			if (ret < 0)
-				break;
+			break;
 
-			switch (etmq->packet->sample_type) {
-			case CS_ETM_RANGE:
-				/*
-				 * If the packet contains an instruction
-				 * range, generate instruction sequence
-				 * events.
-				 */
-				cs_etm__sample(etmq);
-				break;
-			case CS_ETM_EXCEPTION:
-			case CS_ETM_EXCEPTION_RET:
-				/*
-				 * If the exception packet is coming,
-				 * make sure the previous instruction
-				 * range packet to be handled properly.
-				 */
-				cs_etm__exception(etmq);
-				break;
-			case CS_ETM_DISCONTINUITY:
-				/*
-				 * Discontinuity in trace, flush
-				 * previous branch stack
-				 */
-				cs_etm__flush(etmq);
-				break;
-			case CS_ETM_EMPTY:
-				/*
-				 * Should not receive empty packet,
-				 * report error.
-				 */
-				pr_err("CS ETM Trace: empty packet\n");
-				return -EINVAL;
-			default:
-				break;
-			}
+		/*
+		 * Since packet addresses are swapped in packet
+		 * handling within below switch() statements,
+		 * thus setting sample flags must be called
+		 * prior to switch() statement to use address
+		 * information before packets swapping.
+		 */
+		ret = cs_etm__set_sample_flags(etmq, tidq);
+		if (ret < 0)
+			break;
+
+		switch (tidq->packet->sample_type) {
+		case CS_ETM_RANGE:
+			/*
+			 * If the packet contains an instruction
+			 * range, generate instruction sequence
+			 * events.
+			 */
+			cs_etm__sample(etmq, tidq);
+			break;
+		case CS_ETM_EXCEPTION:
+		case CS_ETM_EXCEPTION_RET:
+			/*
+			 * If the exception packet is coming,
+			 * make sure the previous instruction
+			 * range packet to be handled properly.
+			 */
+			cs_etm__exception(tidq);
+			break;
+		case CS_ETM_DISCONTINUITY:
+			/*
+			 * Discontinuity in trace, flush
+			 * previous branch stack
+			 */
+			cs_etm__flush(etmq, tidq);
+			break;
+		case CS_ETM_EMPTY:
+			/*
+			 * Should not receive empty packet,
+			 * report error.
+			 */
+			pr_err("CS ETM Trace: empty packet\n");
+			return -EINVAL;
+		default:
+			break;
 		}
+	}
 
 	return ret;
+}
+
+static void cs_etm__clear_all_traceid_queues(struct cs_etm_queue *etmq)
+{
+	int idx;
+	struct int_node *inode;
+	struct cs_etm_traceid_queue *tidq;
+	struct intlist *traceid_queues_list = etmq->traceid_queues_list;
+
+	intlist__for_each_entry(inode, traceid_queues_list) {
+		idx = (int)(intptr_t)inode->priv;
+		tidq = etmq->traceid_queues[idx];
+
+		/* Ignore return value */
+		cs_etm__process_traceid_queue(etmq, tidq);
+
+		/*
+		 * Generate an instruction sample with the remaining
+		 * branchstack entries.
+		 */
+		cs_etm__flush(etmq, tidq);
+	}
 }
 
 static int cs_etm__run_decoder(struct cs_etm_queue *etmq)
 {
 	int err = 0;
+	struct cs_etm_traceid_queue *tidq;
+
+	tidq = cs_etm__etmq_get_traceid_queue(etmq, CS_ETM_PER_THREAD_TRACEID);
+	if (!tidq)
+		return -EINVAL;
 
 	/* Go through each buffer in the queue and decode them one by one */
 	while (1) {
@@ -1626,13 +2009,13 @@ static int cs_etm__run_decoder(struct cs_etm_queue *etmq)
 			 * an error occurs other than hoping the next one will
 			 * be better.
 			 */
-			err = cs_etm__process_decoder_queue(etmq);
+			err = cs_etm__process_traceid_queue(etmq, tidq);
 
 		} while (etmq->buf_len);
 
 		if (err == 0)
 			/* Flush any remaining branch stack entries */
-			err = cs_etm__end_block(etmq);
+			err = cs_etm__end_block(etmq, tidq);
 	}
 
 	return err;
@@ -1647,12 +2030,180 @@ static int cs_etm__process_timeless_queues(struct cs_etm_auxtrace *etm,
 	for (i = 0; i < queues->nr_queues; i++) {
 		struct auxtrace_queue *queue = &etm->queues.queue_array[i];
 		struct cs_etm_queue *etmq = queue->priv;
+		struct cs_etm_traceid_queue *tidq;
 
-		if (etmq && ((tid == -1) || (etmq->tid == tid))) {
-			cs_etm__set_pid_tid_cpu(etm, queue);
+		if (!etmq)
+			continue;
+
+		tidq = cs_etm__etmq_get_traceid_queue(etmq,
+						CS_ETM_PER_THREAD_TRACEID);
+
+		if (!tidq)
+			continue;
+
+		if ((tid == -1) || (tidq->tid == tid)) {
+			cs_etm__set_pid_tid_cpu(etm, tidq);
 			cs_etm__run_decoder(etmq);
 		}
 	}
+
+	return 0;
+}
+
+static int cs_etm__process_queues(struct cs_etm_auxtrace *etm)
+{
+	int ret = 0;
+	unsigned int cs_queue_nr, queue_nr;
+	u8 trace_chan_id;
+	u64 timestamp;
+	struct auxtrace_queue *queue;
+	struct cs_etm_queue *etmq;
+	struct cs_etm_traceid_queue *tidq;
+
+	while (1) {
+		if (!etm->heap.heap_cnt)
+			goto out;
+
+		/* Take the entry at the top of the min heap */
+		cs_queue_nr = etm->heap.heap_array[0].queue_nr;
+		queue_nr = TO_QUEUE_NR(cs_queue_nr);
+		trace_chan_id = TO_TRACE_CHAN_ID(cs_queue_nr);
+		queue = &etm->queues.queue_array[queue_nr];
+		etmq = queue->priv;
+
+		/*
+		 * Remove the top entry from the heap since we are about
+		 * to process it.
+		 */
+		auxtrace_heap__pop(&etm->heap);
+
+		tidq  = cs_etm__etmq_get_traceid_queue(etmq, trace_chan_id);
+		if (!tidq) {
+			/*
+			 * No traceID queue has been allocated for this traceID,
+			 * which means something somewhere went very wrong.  No
+			 * other choice than simply exit.
+			 */
+			ret = -EINVAL;
+			goto out;
+		}
+
+		/*
+		 * Packets associated with this timestamp are already in
+		 * the etmq's traceID queue, so process them.
+		 */
+		ret = cs_etm__process_traceid_queue(etmq, tidq);
+		if (ret < 0)
+			goto out;
+
+		/*
+		 * Packets for this timestamp have been processed, time to
+		 * move on to the next timestamp, fetching a new auxtrace_buffer
+		 * if need be.
+		 */
+refetch:
+		ret = cs_etm__get_data_block(etmq);
+		if (ret < 0)
+			goto out;
+
+		/*
+		 * No more auxtrace_buffers to process in this etmq, simply
+		 * move on to another entry in the auxtrace_heap.
+		 */
+		if (!ret)
+			continue;
+
+		ret = cs_etm__decode_data_block(etmq);
+		if (ret)
+			goto out;
+
+		timestamp = cs_etm__etmq_get_timestamp(etmq, &trace_chan_id);
+
+		if (!timestamp) {
+			/*
+			 * Function cs_etm__decode_data_block() returns when
+			 * there is no more traces to decode in the current
+			 * auxtrace_buffer OR when a timestamp has been
+			 * encountered on any of the traceID queues.  Since we
+			 * did not get a timestamp, there is no more traces to
+			 * process in this auxtrace_buffer.  As such empty and
+			 * flush all traceID queues.
+			 */
+			cs_etm__clear_all_traceid_queues(etmq);
+
+			/* Fetch another auxtrace_buffer for this etmq */
+			goto refetch;
+		}
+
+		/*
+		 * Add to the min heap the timestamp for packets that have
+		 * just been decoded.  They will be processed and synthesized
+		 * during the next call to cs_etm__process_traceid_queue() for
+		 * this queue/traceID.
+		 */
+		cs_queue_nr = TO_CS_QUEUE_NR(queue_nr, trace_chan_id);
+		ret = auxtrace_heap__add(&etm->heap, cs_queue_nr, timestamp);
+	}
+
+out:
+	return ret;
+}
+
+static int cs_etm__process_itrace_start(struct cs_etm_auxtrace *etm,
+					union perf_event *event)
+{
+	struct thread *th;
+
+	if (etm->timeless_decoding)
+		return 0;
+
+	/*
+	 * Add the tid/pid to the log so that we can get a match when
+	 * we get a contextID from the decoder.
+	 */
+	th = machine__findnew_thread(etm->machine,
+				     event->itrace_start.pid,
+				     event->itrace_start.tid);
+	if (!th)
+		return -ENOMEM;
+
+	thread__put(th);
+
+	return 0;
+}
+
+static int cs_etm__process_switch_cpu_wide(struct cs_etm_auxtrace *etm,
+					   union perf_event *event)
+{
+	struct thread *th;
+	bool out = event->header.misc & PERF_RECORD_MISC_SWITCH_OUT;
+
+	/*
+	 * Context switch in per-thread mode are irrelevant since perf
+	 * will start/stop tracing as the process is scheduled.
+	 */
+	if (etm->timeless_decoding)
+		return 0;
+
+	/*
+	 * SWITCH_IN events carry the next process to be switched out while
+	 * SWITCH_OUT events carry the process to be switched in.  As such
+	 * we don't care about IN events.
+	 */
+	if (!out)
+		return 0;
+
+	/*
+	 * Add the tid/pid to the log so that we can get a match when
+	 * we get a contextID from the decoder.
+	 */
+	th = machine__findnew_thread(etm->machine,
+				     event->context_switch.next_prev_pid,
+				     event->context_switch.next_prev_tid);
+	if (!th)
+		return -ENOMEM;
+
+	thread__put(th);
 
 	return 0;
 }
@@ -1676,9 +2227,6 @@ static int cs_etm__process_event(struct perf_session *session,
 		return -EINVAL;
 	}
 
-	if (!etm->timeless_decoding)
-		return -EINVAL;
-
 	if (sample->time && (sample->time != (u64) -1))
 		timestamp = sample->time;
 	else
@@ -1690,9 +2238,19 @@ static int cs_etm__process_event(struct perf_session *session,
 			return err;
 	}
 
-	if (event->header.type == PERF_RECORD_EXIT)
+	if (etm->timeless_decoding &&
+	    event->header.type == PERF_RECORD_EXIT)
 		return cs_etm__process_timeless_queues(etm,
 						       event->fork.tid);
+
+	if (event->header.type == PERF_RECORD_ITRACE_START)
+		return cs_etm__process_itrace_start(etm, event);
+	else if (event->header.type == PERF_RECORD_SWITCH_CPU_WIDE)
+		return cs_etm__process_switch_cpu_wide(etm, event);
+
+	if (!etm->timeless_decoding &&
+	    event->header.type == PERF_RECORD_AUX)
+		return cs_etm__process_queues(etm);
 
 	return 0;
 }
@@ -1902,7 +2460,7 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 
 		/* Something went wrong, no need to continue */
 		if (!inode) {
-			err = PTR_ERR(inode);
+			err = -ENOMEM;
 			goto err_free_metadata;
 		}
 
@@ -1959,8 +2517,10 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	session->auxtrace = &etm->auxtrace;
 
 	etm->unknown_thread = thread__new(999999999, 999999999);
-	if (!etm->unknown_thread)
+	if (!etm->unknown_thread) {
+		err = -ENOMEM;
 		goto err_free_queues;
+	}
 
 	/*
 	 * Initialize list node so that at thread__zput() we can avoid
@@ -1972,15 +2532,17 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	if (err)
 		goto err_delete_thread;
 
-	if (thread__init_map_groups(etm->unknown_thread, etm->machine))
+	if (thread__init_map_groups(etm->unknown_thread, etm->machine)) {
+		err = -ENOMEM;
 		goto err_delete_thread;
+	}
 
 	if (dump_trace) {
 		cs_etm__print_auxtrace_info(auxtrace_info->priv, num_cpu);
 		return 0;
 	}
 
-	if (session->itrace_synth_opts && session->itrace_synth_opts->set) {
+	if (session->itrace_synth_opts->set) {
 		etm->synth_opts = *session->itrace_synth_opts;
 	} else {
 		itrace_synth_opts__set_default(&etm->synth_opts,
@@ -2010,12 +2572,12 @@ err_free_etm:
 err_free_metadata:
 	/* No need to check @metadata[j], free(NULL) is supported */
 	for (j = 0; j < num_cpu; j++)
-		free(metadata[j]);
+		zfree(&metadata[j]);
 	zfree(&metadata);
 err_free_traceid_list:
 	intlist__delete(traceid_list);
 err_free_hdr:
 	zfree(&hdr);
 
-	return -EINVAL;
+	return err;
 }

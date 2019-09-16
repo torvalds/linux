@@ -65,11 +65,12 @@ static const struct uverbs_attr_spec mlx5_ib_flow_type[] = {
 static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 	struct uverbs_attr_bundle *attrs)
 {
-	struct mlx5_flow_act flow_act = {.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG};
+	struct mlx5_flow_context flow_context = {.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG};
 	struct mlx5_ib_flow_handler *flow_handler;
 	struct mlx5_ib_flow_matcher *fs_matcher;
 	struct ib_uobject **arr_flow_actions;
 	struct ib_uflow_resources *uflow_res;
+	struct mlx5_flow_act flow_act = {};
 	void *devx_obj;
 	int dest_id, dest_type;
 	void *cmd_in;
@@ -172,17 +173,19 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 				   arr_flow_actions[i]->object);
 	}
 
-	ret = uverbs_copy_from(&flow_act.flow_tag, attrs,
+	ret = uverbs_copy_from(&flow_context.flow_tag, attrs,
 			       MLX5_IB_ATTR_CREATE_FLOW_TAG);
 	if (!ret) {
-		if (flow_act.flow_tag >= BIT(24)) {
+		if (flow_context.flow_tag >= BIT(24)) {
 			ret = -EINVAL;
 			goto err_out;
 		}
-		flow_act.flags |= FLOW_ACT_HAS_TAG;
+		flow_context.flags |= FLOW_CONTEXT_HAS_TAG;
 	}
 
-	flow_handler = mlx5_ib_raw_fs_rule_add(dev, fs_matcher, &flow_act,
+	flow_handler = mlx5_ib_raw_fs_rule_add(dev, fs_matcher,
+					       &flow_context,
+					       &flow_act,
 					       counter_id,
 					       cmd_in, inlen,
 					       dest_id, dest_type);

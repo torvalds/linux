@@ -192,17 +192,6 @@ static int line6_send_raw_message_async_part(struct message *msg,
 }
 
 /*
-	Setup and start timer.
-*/
-void line6_start_timer(struct timer_list *timer, unsigned long msecs,
-		       void (*function)(struct timer_list *t))
-{
-	timer->function = function;
-	mod_timer(timer, jiffies + msecs_to_jiffies(msecs));
-}
-EXPORT_SYMBOL_GPL(line6_start_timer);
-
-/*
 	Asynchronously send raw message.
 */
 int line6_send_raw_message_async(struct usb_line6 *line6, const char *buffer,

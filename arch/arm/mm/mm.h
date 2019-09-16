@@ -8,6 +8,8 @@
 /* the upper-most page table pointer */
 extern pmd_t *top_pmd;
 
+extern int icache_size;
+
 /*
  * 0xffff8000 to 0xffffffff is reserved for any ARM architecture
  * specific hacks for copying pages efficiently, while 0xffff4000

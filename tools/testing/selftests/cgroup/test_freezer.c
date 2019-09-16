@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <sys/inotify.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 
 #include "../kselftest.h"

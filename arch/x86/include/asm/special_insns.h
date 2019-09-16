@@ -6,6 +6,8 @@
 #ifdef __KERNEL__
 
 #include <asm/nops.h>
+#include <asm/processor-flags.h>
+#include <linux/jump_label.h>
 
 /*
  * Volatile isn't enough to prevent the compiler from reordering the
@@ -16,16 +18,13 @@
  */
 extern unsigned long __force_order;
 
+void native_write_cr0(unsigned long val);
+
 static inline unsigned long native_read_cr0(void)
 {
 	unsigned long val;
 	asm volatile("mov %%cr0,%0\n\t" : "=r" (val), "=m" (__force_order));
 	return val;
-}
-
-static inline void native_write_cr0(unsigned long val)
-{
-	asm volatile("mov %0,%%cr0": : "r" (val), "m" (__force_order));
 }
 
 static inline unsigned long native_read_cr2(void)
@@ -72,10 +71,7 @@ static inline unsigned long native_read_cr4(void)
 	return val;
 }
 
-static inline void native_write_cr4(unsigned long val)
-{
-	asm volatile("mov %0,%%cr4": : "r" (val), "m" (__force_order));
-}
+void native_write_cr4(unsigned long val);
 
 #ifdef CONFIG_X86_64
 static inline unsigned long native_read_cr8(void)

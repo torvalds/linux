@@ -61,6 +61,10 @@ struct usnic_ib_pd {
 	struct usnic_uiom_pd		*umem_pd;
 };
 
+struct usnic_ib_cq {
+	struct ib_cq			ibcq;
+};
+
 struct usnic_ib_mr {
 	struct ib_mr			ibmr;
 	struct usnic_uiom_reg		*umem;

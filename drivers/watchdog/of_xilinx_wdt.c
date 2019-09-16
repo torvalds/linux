@@ -238,10 +238,8 @@ static int xwdt_probe(struct platform_device *pdev)
 	}
 
 	rc = devm_watchdog_register_device(dev, xilinx_wdt_wdd);
-	if (rc) {
-		dev_err(dev, "Cannot register watchdog (err=%d)\n", rc);
+	if (rc)
 		return rc;
-	}
 
 	clk_disable(xdev->clk);
 

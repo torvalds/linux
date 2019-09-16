@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  */
 
 #ifndef _CORE_H_
@@ -196,7 +196,7 @@ struct ath10k_fw_extd_stats_peer {
 	struct list_head list;
 
 	u8 peer_macaddr[ETH_ALEN];
-	u32 rx_duration;
+	u64 rx_duration;
 };
 
 struct ath10k_fw_stats_vdev {
@@ -400,6 +400,14 @@ struct ath10k_peer {
 
 	/* protected by ar->data_lock */
 	struct ieee80211_key_conf *keys[WMI_MAX_KEY_INDEX + 1];
+	union htt_rx_pn_t tids_last_pn[ATH10K_TXRX_NUM_EXT_TIDS];
+	bool tids_last_pn_valid[ATH10K_TXRX_NUM_EXT_TIDS];
+	union htt_rx_pn_t frag_tids_last_pn[ATH10K_TXRX_NUM_EXT_TIDS];
+	u32 frag_tids_seq[ATH10K_TXRX_NUM_EXT_TIDS];
+	struct {
+		enum htt_security_types sec_type;
+		int pn_len;
+	} rx_pn[ATH10K_HTT_TXRX_PEER_SECURITY_MAX];
 };
 
 struct ath10k_txq {
@@ -506,7 +514,8 @@ struct ath10k_sta {
 	u32 peer_ps_state;
 };
 
-#define ATH10K_VDEV_SETUP_TIMEOUT_HZ (5 * HZ)
+#define ATH10K_VDEV_SETUP_TIMEOUT_HZ	(5 * HZ)
+#define ATH10K_VDEV_DELETE_TIMEOUT_HZ	(5 * HZ)
 
 enum ath10k_beacon_state {
 	ATH10K_BEACON_SCHEDULED = 0,
@@ -571,6 +580,10 @@ struct ath10k_vif {
 	struct work_struct ap_csa_work;
 	struct delayed_work connection_loss_work;
 	struct cfg80211_bitrate_mask bitrate_mask;
+
+	/* For setting VHT peer fixed rate, protected by conf_mutex */
+	int vht_num_rates;
+	u8 vht_pfr;
 };
 
 struct ath10k_vif_iter {
@@ -614,6 +627,7 @@ struct ath10k_debug {
 	bool fw_stats_done;
 
 	unsigned long htt_stats_mask;
+	unsigned long reset_htt_stats;
 	struct delayed_work htt_stats_dwork;
 	struct ath10k_dfs_stats dfs_stats;
 	struct ath_dfs_pool_stats dfs_pool_stats;
@@ -631,6 +645,7 @@ struct ath10k_debug {
 	u32 nf_cal_period;
 	void *cal_data;
 	u32 enable_extd_tx_stats;
+	u8 fw_dbglog_mode;
 };
 
 enum ath10k_state {
@@ -760,6 +775,9 @@ enum ath10k_fw_features {
 
 	/* Firmware sends only one chan_info event per channel */
 	ATH10K_FW_FEATURE_SINGLE_CHAN_INFO_PER_CHANNEL = 20,
+
+	/* Firmware allows setting peer fixed rate */
+	ATH10K_FW_FEATURE_PEER_FIXED_RATE = 21,
 
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
@@ -919,6 +937,7 @@ struct ath10k_bus_params {
 	u32 chip_id;
 	enum ath10k_dev_type dev_type;
 	bool link_can_suspend;
+	bool hl_msdu_ids;
 };
 
 struct ath10k {
@@ -1055,6 +1074,7 @@ struct ath10k {
 
 	int last_wmi_vdev_start_status;
 	struct completion vdev_setup_done;
+	struct completion vdev_delete_done;
 
 	struct workqueue_struct *workqueue;
 	/* Auxiliary workqueue */
@@ -1189,6 +1209,7 @@ struct ath10k {
 	struct ath10k_radar_found_info last_radar_info;
 	struct work_struct radar_confirmation_work;
 	struct ath10k_bus_params bus_param;
+	struct completion peer_delete_done;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));

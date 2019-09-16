@@ -6,16 +6,18 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
+#include <linux/delay.h>
 #include <linux/i2c.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+
+#include "cdv_device.h"
 #include "framebuffer.h"
+#include "gma_display.h"
+#include "power.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "gma_display.h"
-#include "power.h"
-#include "cdv_device.h"
 
 static bool cdv_intel_find_dp_pll(const struct gma_limit_t *limit,
 				  struct drm_crtc *crtc, int target,

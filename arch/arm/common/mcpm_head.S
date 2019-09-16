@@ -5,7 +5,7 @@
  * Created by:  Nicolas Pitre, March 2012
  * Copyright:   (C) 2012-2013  Linaro Limited
  *
- * Refer to Documentation/arm/cluster-pm-race-avoidance.txt
+ * Refer to Documentation/arm/cluster-pm-race-avoidance.rst
  * for details of the synchronisation algorithms used here.
  */
 

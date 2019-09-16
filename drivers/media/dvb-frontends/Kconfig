@@ -1,5 +1,5 @@
 menu "Customise DVB Frontends"
-	visible if !MEDIA_SUBDRV_AUTOSELECT || COMPILE_TEST
+	visible if !MEDIA_SUBDRV_AUTOSELECT || COMPILE_TEST || EXPERT
 
 comment "Multistandard (satellite) frontends"
 	depends on DVB_CORE
@@ -945,5 +945,4 @@ comment "Tools to develop new frontends"
 config DVB_DUMMY_FE
 	tristate "Dummy frontend driver"
 	depends on DVB_CORE
-	default n
 endmenu

@@ -125,16 +125,16 @@ void ucall(uint64_t cmd, int nargs, ...)
 uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc)
 {
 	struct kvm_run *run = vcpu_state(vm, vcpu_id);
-
-	memset(uc, 0, sizeof(*uc));
+	struct ucall ucall = {};
+	bool got_ucall = false;
 
 #ifdef __x86_64__
 	if (ucall_type == UCALL_PIO && run->exit_reason == KVM_EXIT_IO &&
 	    run->io.port == UCALL_PIO_PORT) {
 		struct kvm_regs regs;
 		vcpu_regs_get(vm, vcpu_id, &regs);
-		memcpy(uc, addr_gva2hva(vm, (vm_vaddr_t)regs.rdi), sizeof(*uc));
-		return uc->cmd;
+		memcpy(&ucall, addr_gva2hva(vm, (vm_vaddr_t)regs.rdi), sizeof(ucall));
+		got_ucall = true;
 	}
 #endif
 	if (ucall_type == UCALL_MMIO && run->exit_reason == KVM_EXIT_MMIO &&
@@ -143,8 +143,15 @@ uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc)
 		TEST_ASSERT(run->mmio.is_write && run->mmio.len == 8,
 			    "Unexpected ucall exit mmio address access");
 		memcpy(&gva, run->mmio.data, sizeof(gva));
-		memcpy(uc, addr_gva2hva(vm, gva), sizeof(*uc));
+		memcpy(&ucall, addr_gva2hva(vm, gva), sizeof(ucall));
+		got_ucall = true;
 	}
 
-	return uc->cmd;
+	if (got_ucall) {
+		vcpu_run_complete_io(vm, vcpu_id);
+		if (uc)
+			memcpy(uc, &ucall, sizeof(ucall));
+	}
+
+	return ucall.cmd;
 }

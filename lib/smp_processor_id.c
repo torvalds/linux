@@ -23,7 +23,7 @@ unsigned int check_preemption_disabled(const char *what1, const char *what2)
 	 * Kernel threads bound to a single CPU can safely use
 	 * smp_processor_id():
 	 */
-	if (cpumask_equal(&current->cpus_allowed, cpumask_of(this_cpu)))
+	if (cpumask_equal(current->cpus_ptr, cpumask_of(this_cpu)))
 		goto out;
 
 	/*

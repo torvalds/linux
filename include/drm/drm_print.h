@@ -32,6 +32,8 @@
 #include <linux/device.h>
 #include <linux/debugfs.h>
 
+#include <drm/drm.h>
+
 /**
  * DOC: print
  *

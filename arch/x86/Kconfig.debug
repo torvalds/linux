@@ -156,7 +156,7 @@ config IOMMU_DEBUG
 	  code. When you use it make sure you have a big enough
 	  IOMMU/AGP aperture.  Most of the options enabled by this can
 	  be set more finegrained using the iommu= command line
-	  options. See Documentation/x86/x86_64/boot-options.txt for more
+	  options. See Documentation/x86/x86_64/boot-options.rst for more
 	  details.
 
 config IOMMU_LEAK
@@ -178,26 +178,6 @@ config X86_DECODER_SELFTEST
 	 This option is useful for checking the sanity of x86 instruction
 	 decoder code.
 	 If unsure, say "N".
-
-#
-# IO delay types:
-#
-
-config IO_DELAY_TYPE_0X80
-	int
-	default "0"
-
-config IO_DELAY_TYPE_0XED
-	int
-	default "1"
-
-config IO_DELAY_TYPE_UDELAY
-	int
-	default "2"
-
-config IO_DELAY_TYPE_NONE
-	int
-	default "3"
 
 choice
 	prompt "IO delay type"
@@ -228,30 +208,6 @@ config IO_DELAY_NONE
 	  delay for certain operations. Should work on most new machines.
 
 endchoice
-
-if IO_DELAY_0X80
-config DEFAULT_IO_DELAY_TYPE
-	int
-	default IO_DELAY_TYPE_0X80
-endif
-
-if IO_DELAY_0XED
-config DEFAULT_IO_DELAY_TYPE
-	int
-	default IO_DELAY_TYPE_0XED
-endif
-
-if IO_DELAY_UDELAY
-config DEFAULT_IO_DELAY_TYPE
-	int
-	default IO_DELAY_TYPE_UDELAY
-endif
-
-if IO_DELAY_NONE
-config DEFAULT_IO_DELAY_TYPE
-	int
-	default IO_DELAY_TYPE_NONE
-endif
 
 config DEBUG_BOOT_PARAMS
 	bool "Debug boot parameters"

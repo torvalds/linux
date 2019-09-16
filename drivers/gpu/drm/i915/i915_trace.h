@@ -8,9 +8,11 @@
 
 #include <drm/drm_drv.h>
 
+#include "gt/intel_engine.h"
+
 #include "i915_drv.h"
+#include "i915_irq.h"
 #include "intel_drv.h"
-#include "intel_ringbuffer.h"
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM i915
@@ -19,24 +21,22 @@
 /* watermark/fifo updates */
 
 TRACE_EVENT(intel_pipe_enable,
-	    TP_PROTO(struct drm_i915_private *dev_priv, enum pipe pipe),
-	    TP_ARGS(dev_priv, pipe),
+	    TP_PROTO(struct intel_crtc *crtc),
+	    TP_ARGS(crtc),
 
 	    TP_STRUCT__entry(
 			     __array(u32, frame, 3)
 			     __array(u32, scanline, 3)
 			     __field(enum pipe, pipe)
 			     ),
-
 	    TP_fast_assign(
-			   enum pipe _pipe;
-			   for_each_pipe(dev_priv, _pipe) {
-				   __entry->frame[_pipe] =
-					   dev_priv->drm.driver->get_vblank_counter(&dev_priv->drm, _pipe);
-				   __entry->scanline[_pipe] =
-					   intel_get_crtc_scanline(intel_get_crtc_for_pipe(dev_priv, _pipe));
+			   struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+			   struct intel_crtc *it__;
+			   for_each_intel_crtc(&dev_priv->drm, it__) {
+				   __entry->frame[it__->pipe] = intel_crtc_get_vblank_counter(it__);
+				   __entry->scanline[it__->pipe] = intel_get_crtc_scanline(it__);
 			   }
-			   __entry->pipe = pipe;
+			   __entry->pipe = crtc->pipe;
 			   ),
 
 	    TP_printk("pipe %c enable, pipe A: frame=%u, scanline=%u, pipe B: frame=%u, scanline=%u, pipe C: frame=%u, scanline=%u",
@@ -47,8 +47,8 @@ TRACE_EVENT(intel_pipe_enable,
 );
 
 TRACE_EVENT(intel_pipe_disable,
-	    TP_PROTO(struct drm_i915_private *dev_priv, enum pipe pipe),
-	    TP_ARGS(dev_priv, pipe),
+	    TP_PROTO(struct intel_crtc *crtc),
+	    TP_ARGS(crtc),
 
 	    TP_STRUCT__entry(
 			     __array(u32, frame, 3)
@@ -57,14 +57,13 @@ TRACE_EVENT(intel_pipe_disable,
 			     ),
 
 	    TP_fast_assign(
-			   enum pipe _pipe;
-			   for_each_pipe(dev_priv, _pipe) {
-				   __entry->frame[_pipe] =
-					   dev_priv->drm.driver->get_vblank_counter(&dev_priv->drm, _pipe);
-				   __entry->scanline[_pipe] =
-					   intel_get_crtc_scanline(intel_get_crtc_for_pipe(dev_priv, _pipe));
+			   struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+			   struct intel_crtc *it__;
+			   for_each_intel_crtc(&dev_priv->drm, it__) {
+				   __entry->frame[it__->pipe] = intel_crtc_get_vblank_counter(it__);
+				   __entry->scanline[it__->pipe] = intel_get_crtc_scanline(it__);
 			   }
-			   __entry->pipe = pipe;
+			   __entry->pipe = crtc->pipe;
 			   ),
 
 	    TP_printk("pipe %c disable, pipe A: frame=%u, scanline=%u, pipe B: frame=%u, scanline=%u, pipe C: frame=%u, scanline=%u",
@@ -87,8 +86,7 @@ TRACE_EVENT(intel_pipe_crc,
 
 	    TP_fast_assign(
 			   __entry->pipe = crtc->pipe;
-			   __entry->frame = crtc->base.dev->driver->get_vblank_counter(crtc->base.dev,
-										       crtc->pipe);
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
 			   memcpy(__entry->crcs, crcs, sizeof(__entry->crcs));
 			   ),
@@ -110,9 +108,10 @@ TRACE_EVENT(intel_cpu_fifo_underrun,
 			     ),
 
 	    TP_fast_assign(
+			    struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 			   __entry->pipe = pipe;
-			   __entry->frame = dev_priv->drm.driver->get_vblank_counter(&dev_priv->drm, pipe);
-			   __entry->scanline = intel_get_crtc_scanline(intel_get_crtc_for_pipe(dev_priv, pipe));
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
+			   __entry->scanline = intel_get_crtc_scanline(crtc);
 			   ),
 
 	    TP_printk("pipe %c, frame=%u, scanline=%u",
@@ -132,9 +131,10 @@ TRACE_EVENT(intel_pch_fifo_underrun,
 
 	    TP_fast_assign(
 			   enum pipe pipe = pch_transcoder;
+			   struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 			   __entry->pipe = pipe;
-			   __entry->frame = dev_priv->drm.driver->get_vblank_counter(&dev_priv->drm, pipe);
-			   __entry->scanline = intel_get_crtc_scanline(intel_get_crtc_for_pipe(dev_priv, pipe));
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
+			   __entry->scanline = intel_get_crtc_scanline(crtc);
 			   ),
 
 	    TP_printk("pch transcoder %c, frame=%u, scanline=%u",
@@ -154,12 +154,10 @@ TRACE_EVENT(intel_memory_cxsr,
 			     ),
 
 	    TP_fast_assign(
-			   enum pipe pipe;
-			   for_each_pipe(dev_priv, pipe) {
-				   __entry->frame[pipe] =
-					   dev_priv->drm.driver->get_vblank_counter(&dev_priv->drm, pipe);
-				   __entry->scanline[pipe] =
-					   intel_get_crtc_scanline(intel_get_crtc_for_pipe(dev_priv, pipe));
+			   struct intel_crtc *crtc;
+			   for_each_intel_crtc(&dev_priv->drm, crtc) {
+				   __entry->frame[crtc->pipe] = intel_crtc_get_vblank_counter(crtc);
+				   __entry->scanline[crtc->pipe] = intel_get_crtc_scanline(crtc);
 			   }
 			   __entry->old = old;
 			   __entry->new = new;
@@ -196,8 +194,7 @@ TRACE_EVENT(g4x_wm,
 
 	    TP_fast_assign(
 			   __entry->pipe = crtc->pipe;
-			   __entry->frame = crtc->base.dev->driver->get_vblank_counter(crtc->base.dev,
-										       crtc->pipe);
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
 			   __entry->primary = wm->pipe[crtc->pipe].plane[PLANE_PRIMARY];
 			   __entry->sprite = wm->pipe[crtc->pipe].plane[PLANE_SPRITE0];
@@ -241,8 +238,7 @@ TRACE_EVENT(vlv_wm,
 
 	    TP_fast_assign(
 			   __entry->pipe = crtc->pipe;
-			   __entry->frame = crtc->base.dev->driver->get_vblank_counter(crtc->base.dev,
-										       crtc->pipe);
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
 			   __entry->level = wm->level;
 			   __entry->cxsr = wm->cxsr;
@@ -276,8 +272,7 @@ TRACE_EVENT(vlv_fifo_size,
 
 	    TP_fast_assign(
 			   __entry->pipe = crtc->pipe;
-			   __entry->frame = crtc->base.dev->driver->get_vblank_counter(crtc->base.dev,
-										       crtc->pipe);
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
 			   __entry->sprite0_start = sprite0_start;
 			   __entry->sprite1_start = sprite1_start;
@@ -308,8 +303,7 @@ TRACE_EVENT(intel_update_plane,
 	    TP_fast_assign(
 			   __entry->pipe = crtc->pipe;
 			   __entry->name = plane->name;
-			   __entry->frame = crtc->base.dev->driver->get_vblank_counter(crtc->base.dev,
-										       crtc->pipe);
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
 			   memcpy(__entry->src, &plane->state->src, sizeof(__entry->src));
 			   memcpy(__entry->dst, &plane->state->dst, sizeof(__entry->dst));
@@ -336,8 +330,7 @@ TRACE_EVENT(intel_disable_plane,
 	    TP_fast_assign(
 			   __entry->pipe = crtc->pipe;
 			   __entry->name = plane->name;
-			   __entry->frame = crtc->base.dev->driver->get_vblank_counter(crtc->base.dev,
-										       crtc->pipe);
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
 			   ),
 
@@ -362,8 +355,7 @@ TRACE_EVENT(i915_pipe_update_start,
 
 	    TP_fast_assign(
 			   __entry->pipe = crtc->pipe;
-			   __entry->frame = crtc->base.dev->driver->get_vblank_counter(crtc->base.dev,
-										       crtc->pipe);
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
 			   __entry->min = crtc->debug.min_vbl;
 			   __entry->max = crtc->debug.max_vbl;
@@ -861,10 +853,9 @@ TRACE_EVENT(i915_request_wait_begin,
 			   __entry->flags = flags;
 			   ),
 
-	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%llu, seqno=%u, blocking=%u, flags=0x%x",
+	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%llu, seqno=%u, flags=0x%x",
 		      __entry->dev, __entry->class, __entry->instance,
 		      __entry->hw_id, __entry->ctx, __entry->seqno,
-		      !!(__entry->flags & I915_WAIT_LOCKED),
 		      __entry->flags)
 );
 
@@ -975,7 +966,7 @@ DECLARE_EVENT_CLASS(i915_context,
 			__entry->dev = ctx->i915->drm.primary->index;
 			__entry->ctx = ctx;
 			__entry->hw_id = ctx->hw_id;
-			__entry->vm = ctx->ppgtt ? &ctx->ppgtt->vm : NULL;
+			__entry->vm = ctx->vm;
 	),
 
 	TP_printk("dev=%u, ctx=%p, ctx_vm=%p, hw_id=%u",

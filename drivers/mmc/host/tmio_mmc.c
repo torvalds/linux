@@ -172,6 +172,8 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 	host->mmc->f_max = pdata->hclk;
 	host->mmc->f_min = pdata->hclk / 512;
 
+	pm_runtime_enable(&pdev->dev);
+
 	ret = tmio_mmc_host_probe(host);
 	if (ret)
 		goto host_free;
@@ -191,6 +193,7 @@ host_remove:
 	tmio_mmc_host_remove(host);
 host_free:
 	tmio_mmc_host_free(host);
+	pm_runtime_disable(&pdev->dev);
 cell_disable:
 	if (cell->disable)
 		cell->disable(pdev);
@@ -206,6 +209,8 @@ static int tmio_mmc_remove(struct platform_device *pdev)
 	tmio_mmc_host_remove(host);
 	if (cell->disable)
 		cell->disable(pdev);
+
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }

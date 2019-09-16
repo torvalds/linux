@@ -23,11 +23,9 @@ Description:
 
 		For writing, bytes 0-1 indicate the message type, one of enum
 		wilco_ec_msg_type. Byte 2+ consist of the data passed in the
-		request, starting at MBOX[0]
-
-		At least three bytes are required for writing, two for the type
-		and at least a single byte of data. Only the first
-		EC_MAILBOX_DATA_SIZE bytes of MBOX will be used.
+		request, starting at MBOX[0]. At least three bytes are required
+		for writing, two for the type and at least a single byte of
+		data.
 
 		Example:
 		// Request EC info type 3 (EC firmware build date)
@@ -40,7 +38,7 @@ Description:
 		$ cat /sys/kernel/debug/wilco_ec/raw
 		00 00 31 32 2f 32 31 2f 31 38 00 38 00 01 00 2f 00  ..12/21/18.8...
 
-		Note that the first 32 bytes of the received MBOX[] will be
-		printed, even if some of the data is junk. It is up to you to
-		know how many of the first bytes of data are the actual
-		response.
+		Note that the first 16 bytes of the received MBOX[] will be
+		printed, even if some of the data is junk, and skipping bytes
+		17 to 32. It is up to you to know how many of the first bytes of
+		data are the actual response.

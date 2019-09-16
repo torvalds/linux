@@ -284,7 +284,6 @@ struct etmv4_config {
 /**
  * struct etm4_drvdata - specifics associated to an ETM component
  * @base:       Memory mapped base address for this component.
- * @dev:        The device entity associated to this component.
  * @csdev:      Component vitals needed by the framework.
  * @spinlock:   Only one at a time pls.
  * @mode:	This tracer's mode, i.e sysFS, Perf or disabled.
@@ -340,7 +339,6 @@ struct etmv4_config {
  */
 struct etmv4_drvdata {
 	void __iomem			*base;
-	struct device			*dev;
 	struct coresight_device		*csdev;
 	spinlock_t			spinlock;
 	local_t				mode;

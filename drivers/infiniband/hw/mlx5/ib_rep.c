@@ -14,9 +14,10 @@ mlx5_ib_set_vport_rep(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	int vport_index;
 
 	ibdev = mlx5_ib_get_uplink_ibdev(dev->priv.eswitch);
-	vport_index = ibdev->free_port++;
+	vport_index = rep->vport_index;
 
 	ibdev->port[vport_index].rep = rep;
+	rep->rep_data[REP_IB].priv = ibdev;
 	write_lock(&ibdev->port[vport_index].roce.netdev_lock);
 	ibdev->port[vport_index].roce.netdev =
 		mlx5_ib_get_rep_netdev(dev->priv.eswitch, rep->vport);
@@ -28,7 +29,7 @@ mlx5_ib_set_vport_rep(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 static int
 mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 {
-	int num_ports = MLX5_TOTAL_VPORTS(dev);
+	int num_ports = mlx5_eswitch_get_total_vports(dev);
 	const struct mlx5_ib_profile *profile;
 	struct mlx5_ib_dev *ibdev;
 	int vport_index;
@@ -50,7 +51,7 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	}
 
 	ibdev->is_rep = true;
-	vport_index = ibdev->free_port++;
+	vport_index = rep->vport_index;
 	ibdev->port[vport_index].rep = rep;
 	ibdev->port[vport_index].roce.netdev =
 		mlx5_ib_get_rep_netdev(dev->priv.eswitch, rep->vport);
@@ -60,7 +61,7 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	if (!__mlx5_ib_add(ibdev, profile))
 		return -EINVAL;
 
-	rep->rep_if[REP_IB].priv = ibdev;
+	rep->rep_data[REP_IB].priv = ibdev;
 
 	return 0;
 }
@@ -68,15 +69,18 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 static void
 mlx5_ib_vport_rep_unload(struct mlx5_eswitch_rep *rep)
 {
-	struct mlx5_ib_dev *dev;
+	struct mlx5_ib_dev *dev = mlx5_ib_rep_to_dev(rep);
+	struct mlx5_ib_port *port;
 
-	if (!rep->rep_if[REP_IB].priv ||
-	    rep->vport != MLX5_VPORT_UPLINK)
-		return;
+	port = &dev->port[rep->vport_index];
+	write_lock(&port->roce.netdev_lock);
+	port->roce.netdev = NULL;
+	write_unlock(&port->roce.netdev_lock);
+	rep->rep_data[REP_IB].priv = NULL;
+	port->rep = NULL;
 
-	dev = mlx5_ib_rep_to_dev(rep);
-	__mlx5_ib_remove(dev, dev->profile, MLX5_IB_STAGE_MAX);
-	rep->rep_if[REP_IB].priv = NULL;
+	if (rep->vport == MLX5_VPORT_UPLINK)
+		__mlx5_ib_remove(dev, dev->profile, MLX5_IB_STAGE_MAX);
 }
 
 static void *mlx5_ib_vport_get_proto_dev(struct mlx5_eswitch_rep *rep)
@@ -84,16 +88,17 @@ static void *mlx5_ib_vport_get_proto_dev(struct mlx5_eswitch_rep *rep)
 	return mlx5_ib_rep_to_dev(rep);
 }
 
+static const struct mlx5_eswitch_rep_ops rep_ops = {
+	.load = mlx5_ib_vport_rep_load,
+	.unload = mlx5_ib_vport_rep_unload,
+	.get_proto_dev = mlx5_ib_vport_get_proto_dev,
+};
+
 void mlx5_ib_register_vport_reps(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_eswitch *esw = mdev->priv.eswitch;
-	struct mlx5_eswitch_rep_if rep_if = {};
 
-	rep_if.load = mlx5_ib_vport_rep_load;
-	rep_if.unload = mlx5_ib_vport_rep_unload;
-	rep_if.get_proto_dev = mlx5_ib_vport_get_proto_dev;
-
-	mlx5_eswitch_register_vport_reps(esw, &rep_if, REP_IB);
+	mlx5_eswitch_register_vport_reps(esw, &rep_ops, REP_IB);
 }
 
 void mlx5_ib_unregister_vport_reps(struct mlx5_core_dev *mdev)

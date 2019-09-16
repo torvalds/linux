@@ -2,7 +2,7 @@
 /*
  * ee1004 - driver for DDR4 SPD EEPROMs
  *
- * Copyright (C) 2017 Jean Delvare
+ * Copyright (C) 2017-2019 Jean Delvare
  *
  * Based on the at24 driver:
  * Copyright (C) 2005-2007 David Brownell
@@ -53,6 +53,24 @@ MODULE_DEVICE_TABLE(i2c, ee1004_ids);
 
 /*-------------------------------------------------------------------------*/
 
+static int ee1004_get_current_page(void)
+{
+	int err;
+
+	err = i2c_smbus_read_byte(ee1004_set_page[0]);
+	if (err == -ENXIO) {
+		/* Nack means page 1 is selected */
+		return 1;
+	}
+	if (err < 0) {
+		/* Anything else is a real error, bail out */
+		return err;
+	}
+
+	/* Ack means page 0 is selected, returned value meaningless */
+	return 0;
+}
+
 static ssize_t ee1004_eeprom_read(struct i2c_client *client, char *buf,
 				  unsigned int offset, size_t count)
 {
@@ -102,6 +120,16 @@ static ssize_t ee1004_read(struct file *filp, struct kobject *kobj,
 			/* Data is ignored */
 			status = i2c_smbus_write_byte(ee1004_set_page[page],
 						      0x00);
+			if (status == -ENXIO) {
+				/*
+				 * Don't give up just yet. Some memory
+				 * modules will select the page but not
+				 * ack the command. Check which page is
+				 * selected now.
+				 */
+				if (ee1004_get_current_page() == page)
+					status = 0;
+			}
 			if (status < 0) {
 				dev_err(dev, "Failed to select page %d (%d)\n",
 					page, status);
@@ -186,17 +214,10 @@ static int ee1004_probe(struct i2c_client *client,
 	}
 
 	/* Remember current page to avoid unneeded page select */
-	err = i2c_smbus_read_byte(ee1004_set_page[0]);
-	if (err == -ENXIO) {
-		/* Nack means page 1 is selected */
-		ee1004_current_page = 1;
-	} else if (err < 0) {
-		/* Anything else is a real error, bail out */
+	err = ee1004_get_current_page();
+	if (err < 0)
 		goto err_clients;
-	} else {
-		/* Ack means page 0 is selected, returned value meaningless */
-		ee1004_current_page = 0;
-	}
+	ee1004_current_page = err;
 	dev_dbg(&client->dev, "Currently selected page: %d\n",
 		ee1004_current_page);
 	mutex_unlock(&ee1004_bus_lock);

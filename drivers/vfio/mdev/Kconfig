@@ -6,7 +6,7 @@ config VFIO_MDEV
 	default n
 	help
 	  Provides a framework to virtualize devices.
-	  See Documentation/vfio-mediated-device.txt for more details.
+	  See Documentation/driver-api/vfio-mediated-device.rst for more details.
 
 	  If you don't know what do here, say N.
 

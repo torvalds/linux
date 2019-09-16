@@ -79,7 +79,7 @@ int test_vmxcopy()
 
 		"5:;"
 		"stxvd2x 40,0,%[vecoutptr];"
-		: [res]"=r"(aborted)
+		: [res]"=&r"(aborted)
 		: [vecinptr]"r"(&vecin),
 		  [vecoutptr]"r"(&vecout),
 		  [map]"r"(a)

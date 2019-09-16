@@ -531,14 +531,6 @@ config LRU_CACHE
 config CLZ_TAB
 	bool
 
-config DDR
-	bool "JEDEC DDR data"
-	help
-	  Data from JEDEC specs for DDR SDRAM memories,
-	  particularly the AC timing parameters and addressing
-	  information. This data is useful for drivers handling
-	  DDR SDRAM controllers.
-
 config IRQ_POLL
 	bool "IRQ polling library"
 	help
@@ -562,6 +554,14 @@ config SIGNATURE
 	  Digital signature verification. Currently only RSA is supported.
 	  Implementation is done using GnuPG MPI library
 
+config DIMLIB
+	bool "DIM library"
+	default y
+	help
+	  Dynamic Interrupt Moderation library.
+	  Implements an algorithm for dynamically change CQ modertion values
+	  according to run time performance.
+
 #
 # libfdt files, only selected if needed.
 #
@@ -575,6 +575,11 @@ config OID_REGISTRY
 
 config UCS2_STRING
         tristate
+
+#
+# generic vdso
+#
+source "lib/vdso/Kconfig"
 
 source "lib/fonts/Kconfig"
 

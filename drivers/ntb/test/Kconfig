@@ -26,3 +26,12 @@ config NTB_PERF
 	 to and from the window without additional software interaction.
 
 	 If unsure, say N.
+
+config NTB_MSI_TEST
+	tristate "NTB MSI Test Client"
+	depends on NTB_MSI
+	help
+	  This tool demonstrates the use of the NTB MSI library to
+	  send MSI interrupts between peers.
+
+	  If unsure, say N.

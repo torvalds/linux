@@ -113,7 +113,7 @@ static int setup_tx(char **ring)
 
 	*ring = mmap(0, req.tp_block_size * req.tp_block_nr,
 		     PROT_READ | PROT_WRITE, MAP_SHARED, fdt, 0);
-	if (!*ring)
+	if (*ring == MAP_FAILED)
 		error(1, errno, "mmap");
 
 	return fdt;

@@ -73,8 +73,8 @@ EXPORT_SYMBOL_GPL(driver_for_each_device);
  * return to the caller and not iterate over any more devices.
  */
 struct device *driver_find_device(struct device_driver *drv,
-				  struct device *start, void *data,
-				  int (*match)(struct device *dev, void *data))
+				  struct device *start, const void *data,
+				  int (*match)(struct device *dev, const void *data))
 {
 	struct klist_iter i;
 	struct device *dev;

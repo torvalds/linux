@@ -272,21 +272,8 @@ static int vfio_lock_acct(struct vfio_dma *dma, long npage, bool async)
 
 	ret = down_write_killable(&mm->mmap_sem);
 	if (!ret) {
-		if (npage > 0) {
-			if (!dma->lock_cap) {
-				unsigned long limit;
-
-				limit = task_rlimit(dma->task,
-						RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-
-				if (mm->locked_vm + npage > limit)
-					ret = -ENOMEM;
-			}
-		}
-
-		if (!ret)
-			mm->locked_vm += npage;
-
+		ret = __account_locked_vm(mm, abs(npage), npage > 0, dma->task,
+					  dma->lock_cap);
 		up_write(&mm->mmap_sem);
 	}
 

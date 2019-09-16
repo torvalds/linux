@@ -78,9 +78,10 @@ static const u32 mlx5e_ext_link_speed[MLX5E_EXT_LINK_MODES_NUMBER] = {
 };
 
 static void mlx5e_port_get_speed_arr(struct mlx5_core_dev *mdev,
-				     const u32 **arr, u32 *size)
+				     const u32 **arr, u32 *size,
+				     bool force_legacy)
 {
-	bool ext = MLX5_CAP_PCAM_FEATURE(mdev, ptys_extended_ethernet);
+	bool ext = force_legacy ? false : MLX5_CAP_PCAM_FEATURE(mdev, ptys_extended_ethernet);
 
 	*size = ext ? ARRAY_SIZE(mlx5e_ext_link_speed) :
 		      ARRAY_SIZE(mlx5e_link_speed);
@@ -152,7 +153,8 @@ int mlx5_port_set_eth_ptys(struct mlx5_core_dev *dev, bool an_disable,
 			    sizeof(out), MLX5_REG_PTYS, 0, 1);
 }
 
-u32 mlx5e_port_ptys2speed(struct mlx5_core_dev *mdev, u32 eth_proto_oper)
+u32 mlx5e_port_ptys2speed(struct mlx5_core_dev *mdev, u32 eth_proto_oper,
+			  bool force_legacy)
 {
 	unsigned long temp = eth_proto_oper;
 	const u32 *table;
@@ -160,7 +162,7 @@ u32 mlx5e_port_ptys2speed(struct mlx5_core_dev *mdev, u32 eth_proto_oper)
 	u32 max_size;
 	int i;
 
-	mlx5e_port_get_speed_arr(mdev, &table, &max_size);
+	mlx5e_port_get_speed_arr(mdev, &table, &max_size, force_legacy);
 	i = find_first_bit(&temp, max_size);
 	if (i < max_size)
 		speed = table[i];
@@ -170,6 +172,7 @@ u32 mlx5e_port_ptys2speed(struct mlx5_core_dev *mdev, u32 eth_proto_oper)
 int mlx5e_port_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
 {
 	struct mlx5e_port_eth_proto eproto;
+	bool force_legacy = false;
 	bool ext;
 	int err;
 
@@ -177,8 +180,13 @@ int mlx5e_port_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
 	err = mlx5_port_query_eth_proto(mdev, 1, ext, &eproto);
 	if (err)
 		goto out;
-
-	*speed = mlx5e_port_ptys2speed(mdev, eproto.oper);
+	if (ext && !eproto.admin) {
+		force_legacy = true;
+		err = mlx5_port_query_eth_proto(mdev, 1, false, &eproto);
+		if (err)
+			goto out;
+	}
+	*speed = mlx5e_port_ptys2speed(mdev, eproto.oper, force_legacy);
 	if (!(*speed))
 		err = -EINVAL;
 
@@ -201,7 +209,7 @@ int mlx5e_port_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
 	if (err)
 		return err;
 
-	mlx5e_port_get_speed_arr(mdev, &table, &max_size);
+	mlx5e_port_get_speed_arr(mdev, &table, &max_size, false);
 	for (i = 0; i < max_size; ++i)
 		if (eproto.cap & MLX5E_PROT_MASK(i))
 			max_speed = max(max_speed, table[i]);
@@ -210,14 +218,15 @@ int mlx5e_port_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
 	return 0;
 }
 
-u32 mlx5e_port_speed2linkmodes(struct mlx5_core_dev *mdev, u32 speed)
+u32 mlx5e_port_speed2linkmodes(struct mlx5_core_dev *mdev, u32 speed,
+			       bool force_legacy)
 {
 	u32 link_modes = 0;
 	const u32 *table;
 	u32 max_size;
 	int i;
 
-	mlx5e_port_get_speed_arr(mdev, &table, &max_size);
+	mlx5e_port_get_speed_arr(mdev, &table, &max_size, force_legacy);
 	for (i = 0; i < max_size; ++i) {
 		if (table[i] == speed)
 			link_modes |= MLX5E_PROT_MASK(i);

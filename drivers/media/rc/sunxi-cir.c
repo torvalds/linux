@@ -195,7 +195,6 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ir->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ir->base)) {
-		dev_err(dev, "failed to map registers\n");
 		ret = PTR_ERR(ir->base);
 		goto exit_clkdisable_clk;
 	}

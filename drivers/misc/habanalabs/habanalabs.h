@@ -34,6 +34,8 @@
 #define HL_ARMCP_INFO_TIMEOUT_USEC	10000000 /* 10s */
 #define HL_ARMCP_EEPROM_TIMEOUT_USEC	10000000 /* 10s */
 
+#define HL_PCI_ELBI_TIMEOUT_MSEC	10 /* 10ms */
+
 #define HL_MAX_QUEUES			128
 
 #define HL_MAX_JOBS_PER_CS		64
@@ -123,7 +125,7 @@ enum hl_device_hw_state {
 /**
  * struct asic_fixed_properties - ASIC specific immutable properties.
  * @hw_queues_props: H/W queues properties.
- * @armcp_info: received various information from ArmCP regarding the H/W. e.g.
+ * @armcp_info: received various information from ArmCP regarding the H/W, e.g.
  *		available sensors.
  * @uboot_ver: F/W U-boot version.
  * @preboot_ver: F/W Preboot version.
@@ -318,18 +320,8 @@ struct hl_cs_job;
 #define HL_EQ_LENGTH			64
 #define HL_EQ_SIZE_IN_BYTES		(HL_EQ_LENGTH * HL_EQ_ENTRY_SIZE)
 
-#define HL_CPU_PKT_SHIFT		5
-#define HL_CPU_PKT_SIZE			(1 << HL_CPU_PKT_SHIFT)
-#define HL_CPU_PKT_MASK			(~((1 << HL_CPU_PKT_SHIFT) - 1))
-#define HL_CPU_MAX_PKTS_IN_CB		32
-#define HL_CPU_CB_SIZE			(HL_CPU_PKT_SIZE * \
-					 HL_CPU_MAX_PKTS_IN_CB)
-#define HL_CPU_CB_QUEUE_SIZE		(HL_QUEUE_LENGTH * HL_CPU_CB_SIZE)
-
-/* KMD <-> ArmCP shared memory size (EQ + PQ + CPU CB queue) */
-#define HL_CPU_ACCESSIBLE_MEM_SIZE	(HL_EQ_SIZE_IN_BYTES + \
-					 HL_QUEUE_SIZE_IN_BYTES + \
-					 HL_CPU_CB_QUEUE_SIZE)
+/* KMD <-> ArmCP shared memory size */
+#define HL_CPU_ACCESSIBLE_MEM_SIZE	SZ_2M
 
 /**
  * struct hl_hw_queue - describes a H/W transport queue.
@@ -543,8 +535,9 @@ struct hl_asic_funcs {
 				enum dma_data_direction dir);
 	u32 (*get_dma_desc_list_size)(struct hl_device *hdev,
 					struct sg_table *sgt);
-	void (*add_end_of_cb_packets)(u64 kernel_address, u32 len, u64 cq_addr,
-					u32 cq_val, u32 msix_num);
+	void (*add_end_of_cb_packets)(struct hl_device *hdev,
+					u64 kernel_address, u32 len,
+					u64 cq_addr, u32 cq_val, u32 msix_num);
 	void (*update_eq_ci)(struct hl_device *hdev, u32 val);
 	int (*context_switch)(struct hl_device *hdev, u32 asid);
 	void (*restore_phase_topology)(struct hl_device *hdev);
@@ -564,7 +557,8 @@ struct hl_asic_funcs {
 			u32 asid, u64 va, u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);
 	int (*debug_coresight)(struct hl_device *hdev, void *data);
-	bool (*is_device_idle)(struct hl_device *hdev, char *buf, size_t size);
+	bool (*is_device_idle)(struct hl_device *hdev, u32 *mask,
+				struct seq_file *s);
 	int (*soft_reset_late_init)(struct hl_device *hdev);
 	void (*hw_queues_lock)(struct hl_device *hdev);
 	void (*hw_queues_unlock)(struct hl_device *hdev);
@@ -1065,12 +1059,71 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 	(cond) ? 0 : -ETIMEDOUT; \
 })
 
+/*
+ * address in this macro points always to a memory location in the
+ * host's (server's) memory. That location is updated asynchronously
+ * either by the direct access of the device or by another core.
+ *
+ * To work both in LE and BE architectures, we need to distinguish between the
+ * two states (device or another core updates the memory location). Therefore,
+ * if mem_written_by_device is true, the host memory being polled will be
+ * updated directly by the device. If false, the host memory being polled will
+ * be updated by host CPU. Required so host knows whether or not the memory
+ * might need to be byte-swapped before returning value to caller.
+ */
+#define hl_poll_timeout_memory(hdev, addr, val, cond, sleep_us, timeout_us, \
+				mem_written_by_device) \
+({ \
+	ktime_t __timeout; \
+	/* timeout should be longer when working with simulator */ \
+	if (hdev->pdev) \
+		__timeout = ktime_add_us(ktime_get(), timeout_us); \
+	else \
+		__timeout = ktime_add_us(ktime_get(), (timeout_us * 10)); \
+	might_sleep_if(sleep_us); \
+	for (;;) { \
+		/* Verify we read updates done by other cores or by device */ \
+		mb(); \
+		(val) = *((u32 *) (uintptr_t) (addr)); \
+		if (mem_written_by_device) \
+			(val) = le32_to_cpu(val); \
+		if (cond) \
+			break; \
+		if (timeout_us && ktime_compare(ktime_get(), __timeout) > 0) { \
+			(val) = *((u32 *) (uintptr_t) (addr)); \
+			if (mem_written_by_device) \
+				(val) = le32_to_cpu(val); \
+			break; \
+		} \
+		if (sleep_us) \
+			usleep_range((sleep_us >> 2) + 1, sleep_us); \
+	} \
+	(cond) ? 0 : -ETIMEDOUT; \
+})
 
-#define HL_ENG_BUSY(buf, size, fmt, ...) ({ \
-		if (buf) \
-			snprintf(buf, size, fmt, ##__VA_ARGS__); \
-		false; \
-	})
+#define hl_poll_timeout_device_memory(hdev, addr, val, cond, sleep_us, \
+					timeout_us) \
+({ \
+	ktime_t __timeout; \
+	/* timeout should be longer when working with simulator */ \
+	if (hdev->pdev) \
+		__timeout = ktime_add_us(ktime_get(), timeout_us); \
+	else \
+		__timeout = ktime_add_us(ktime_get(), (timeout_us * 10)); \
+	might_sleep_if(sleep_us); \
+	for (;;) { \
+		(val) = readl(addr); \
+		if (cond) \
+			break; \
+		if (timeout_us && ktime_compare(ktime_get(), __timeout) > 0) { \
+			(val) = readl(addr); \
+			break; \
+		} \
+		if (sleep_us) \
+			usleep_range((sleep_us >> 2) + 1, sleep_us); \
+	} \
+	(cond) ? 0 : -ETIMEDOUT; \
+})
 
 struct hwmon_chip_info;
 
@@ -1117,6 +1170,7 @@ struct hl_device_reset_work {
  *                    lock here so we can flush user processes which are opening
  *                    the device while we are trying to hard reset it
  * @send_cpu_message_lock: enforces only one message in KMD <-> ArmCP queue.
+ * @debug_lock: protects critical section of setting debug mode for device
  * @asic_prop: ASIC specific immutable properties.
  * @asic_funcs: ASIC specific functions.
  * @asic_specific: ASIC specific information to use only from ASIC files.
@@ -1159,6 +1213,8 @@ struct hl_device_reset_work {
  * @mmu_enable: is MMU enabled.
  * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
  * @dma_mask: the dma mask that was set for this device
+ * @in_debug: is device under debug. This, together with fd_open_cnt, enforces
+ *            that only a single user is configuring the debug infrastructure.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -1188,6 +1244,7 @@ struct hl_device {
 	/* TODO: remove fd_open_cnt_lock for multiple process support */
 	struct mutex			fd_open_cnt_lock;
 	struct mutex			send_cpu_message_lock;
+	struct mutex			debug_lock;
 	struct asic_fixed_properties	asic_prop;
 	const struct hl_asic_funcs	*asic_funcs;
 	void				*asic_specific;
@@ -1230,6 +1287,7 @@ struct hl_device {
 	u8				init_done;
 	u8				device_cpu_disabled;
 	u8				dma_mask;
+	u8				in_debug;
 
 	/* Parameters for bring-up */
 	u8				mmu_enable;
@@ -1325,13 +1383,10 @@ static inline bool hl_mem_area_crosses_range(u64 address, u32 size,
 int hl_device_open(struct inode *inode, struct file *filp);
 bool hl_device_disabled_or_in_reset(struct hl_device *hdev);
 enum hl_device_status hl_device_status(struct hl_device *hdev);
+int hl_device_set_debug_mode(struct hl_device *hdev, bool enable);
 int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 		enum hl_asic_type asic_type, int minor);
 void destroy_hdev(struct hl_device *hdev);
-int hl_poll_timeout_memory(struct hl_device *hdev, u64 addr, u32 timeout_us,
-				u32 *val);
-int hl_poll_timeout_device_memory(struct hl_device *hdev, void __iomem *addr,
-				u32 timeout_us, u32 *val);
 int hl_hw_queues_create(struct hl_device *hdev);
 void hl_hw_queues_destroy(struct hl_device *hdev);
 int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,

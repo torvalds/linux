@@ -74,121 +74,220 @@ int dprtc_close(struct fsl_mc_io *mc_io,
 }
 
 /**
- * dprtc_set_freq_compensation() - Sets a new frequency compensation value.
+ * dprtc_set_irq_enable() - Set overall interrupt state.
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPRTC object
+ * @irq_index:	The interrupt index to configure
+ * @en:		Interrupt state - enable = 1, disable = 0
  *
- * @mc_io:		Pointer to MC portal's I/O object
- * @cmd_flags:		Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:		Token of DPRTC object
- * @freq_compensation:	The new frequency compensation value to set.
+ * Allows GPP software to control when interrupts are generated.
+ * Each interrupt can have up to 32 causes.  The enable/disable control's the
+ * overall interrupt state. if the interrupt is disabled no causes will cause
+ * an interrupt.
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dprtc_set_freq_compensation(struct fsl_mc_io *mc_io,
-				u32 cmd_flags,
-				u16 token,
-				u32 freq_compensation)
+int dprtc_set_irq_enable(struct fsl_mc_io *mc_io,
+			 u32 cmd_flags,
+			 u16 token,
+			 u8 irq_index,
+			 u8 en)
 {
-	struct dprtc_get_freq_compensation *cmd_params;
+	struct dprtc_cmd_set_irq_enable *cmd_params;
 	struct fsl_mc_command cmd = { 0 };
 
-	cmd.header = mc_encode_cmd_header(DPRTC_CMDID_SET_FREQ_COMPENSATION,
+	cmd.header = mc_encode_cmd_header(DPRTC_CMDID_SET_IRQ_ENABLE,
 					  cmd_flags,
 					  token);
-	cmd_params = (struct dprtc_get_freq_compensation *)cmd.params;
-	cmd_params->freq_compensation = cpu_to_le32(freq_compensation);
+	cmd_params = (struct dprtc_cmd_set_irq_enable *)cmd.params;
+	cmd_params->irq_index = irq_index;
+	cmd_params->en = en;
 
 	return mc_send_command(mc_io, &cmd);
 }
 
 /**
- * dprtc_get_freq_compensation() - Retrieves the frequency compensation value
- *
- * @mc_io:		Pointer to MC portal's I/O object
- * @cmd_flags:		Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:		Token of DPRTC object
- * @freq_compensation:	Frequency compensation value
+ * dprtc_get_irq_enable() - Get overall interrupt state
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPRTC object
+ * @irq_index:	The interrupt index to configure
+ * @en:		Returned interrupt state - enable = 1, disable = 0
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dprtc_get_freq_compensation(struct fsl_mc_io *mc_io,
-				u32 cmd_flags,
-				u16 token,
-				u32 *freq_compensation)
+int dprtc_get_irq_enable(struct fsl_mc_io *mc_io,
+			 u32 cmd_flags,
+			 u16 token,
+			 u8 irq_index,
+			 u8 *en)
 {
-	struct dprtc_get_freq_compensation *rsp_params;
+	struct dprtc_rsp_get_irq_enable *rsp_params;
+	struct dprtc_cmd_get_irq *cmd_params;
 	struct fsl_mc_command cmd = { 0 };
 	int err;
 
-	cmd.header = mc_encode_cmd_header(DPRTC_CMDID_GET_FREQ_COMPENSATION,
+	cmd.header = mc_encode_cmd_header(DPRTC_CMDID_GET_IRQ_ENABLE,
 					  cmd_flags,
 					  token);
+	cmd_params = (struct dprtc_cmd_get_irq *)cmd.params;
+	cmd_params->irq_index = irq_index;
 
 	err = mc_send_command(mc_io, &cmd);
 	if (err)
 		return err;
 
-	rsp_params = (struct dprtc_get_freq_compensation *)cmd.params;
-	*freq_compensation = le32_to_cpu(rsp_params->freq_compensation);
+	rsp_params = (struct dprtc_rsp_get_irq_enable *)cmd.params;
+	*en = rsp_params->en;
 
 	return 0;
 }
 
 /**
- * dprtc_get_time() - Returns the current RTC time.
- *
+ * dprtc_set_irq_mask() - Set interrupt mask.
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPRTC object
- * @time:	Current RTC time.
+ * @irq_index:	The interrupt index to configure
+ * @mask:	Event mask to trigger interrupt;
+ *		each bit:
+ *			0 = ignore event
+ *			1 = consider event for asserting IRQ
+ *
+ * Every interrupt can have up to 32 causes and the interrupt model supports
+ * masking/unmasking each cause independently
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dprtc_get_time(struct fsl_mc_io *mc_io,
-		   u32 cmd_flags,
-		   u16 token,
-		   uint64_t *time)
+int dprtc_set_irq_mask(struct fsl_mc_io *mc_io,
+		       u32 cmd_flags,
+		       u16 token,
+		       u8 irq_index,
+		       u32 mask)
 {
-	struct dprtc_time *rsp_params;
+	struct dprtc_cmd_set_irq_mask *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	cmd.header = mc_encode_cmd_header(DPRTC_CMDID_SET_IRQ_MASK,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dprtc_cmd_set_irq_mask *)cmd.params;
+	cmd_params->mask = cpu_to_le32(mask);
+	cmd_params->irq_index = irq_index;
+
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dprtc_get_irq_mask() - Get interrupt mask.
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPRTC object
+ * @irq_index:	The interrupt index to configure
+ * @mask:	Returned event mask to trigger interrupt
+ *
+ * Every interrupt can have up to 32 causes and the interrupt model supports
+ * masking/unmasking each cause independently
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dprtc_get_irq_mask(struct fsl_mc_io *mc_io,
+		       u32 cmd_flags,
+		       u16 token,
+		       u8 irq_index,
+		       u32 *mask)
+{
+	struct dprtc_rsp_get_irq_mask *rsp_params;
+	struct dprtc_cmd_get_irq *cmd_params;
 	struct fsl_mc_command cmd = { 0 };
 	int err;
 
-	cmd.header = mc_encode_cmd_header(DPRTC_CMDID_GET_TIME,
+	cmd.header = mc_encode_cmd_header(DPRTC_CMDID_GET_IRQ_MASK,
 					  cmd_flags,
 					  token);
+	cmd_params = (struct dprtc_cmd_get_irq *)cmd.params;
+	cmd_params->irq_index = irq_index;
 
 	err = mc_send_command(mc_io, &cmd);
 	if (err)
 		return err;
 
-	rsp_params = (struct dprtc_time *)cmd.params;
-	*time = le64_to_cpu(rsp_params->time);
+	rsp_params = (struct dprtc_rsp_get_irq_mask *)cmd.params;
+	*mask = le32_to_cpu(rsp_params->mask);
 
 	return 0;
 }
 
 /**
- * dprtc_set_time() - Updates current RTC time.
+ * dprtc_get_irq_status() - Get the current status of any pending interrupts.
  *
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPRTC object
- * @time:	New RTC time.
+ * @irq_index:	The interrupt index to configure
+ * @status:	Returned interrupts status - one bit per cause:
+ *			0 = no interrupt pending
+ *			1 = interrupt pending
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dprtc_set_time(struct fsl_mc_io *mc_io,
-		   u32 cmd_flags,
-		   u16 token,
-		   uint64_t time)
+int dprtc_get_irq_status(struct fsl_mc_io *mc_io,
+			 u32 cmd_flags,
+			 u16 token,
+			 u8 irq_index,
+			 u32 *status)
 {
-	struct dprtc_time *cmd_params;
+	struct dprtc_cmd_get_irq_status *cmd_params;
+	struct dprtc_rsp_get_irq_status *rsp_params;
 	struct fsl_mc_command cmd = { 0 };
+	int err;
 
-	cmd.header = mc_encode_cmd_header(DPRTC_CMDID_SET_TIME,
+	cmd.header = mc_encode_cmd_header(DPRTC_CMDID_GET_IRQ_STATUS,
 					  cmd_flags,
 					  token);
-	cmd_params = (struct dprtc_time *)cmd.params;
-	cmd_params->time = cpu_to_le64(time);
+	cmd_params = (struct dprtc_cmd_get_irq_status *)cmd.params;
+	cmd_params->status = cpu_to_le32(*status);
+	cmd_params->irq_index = irq_index;
+
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	rsp_params = (struct dprtc_rsp_get_irq_status *)cmd.params;
+	*status = le32_to_cpu(rsp_params->status);
+
+	return 0;
+}
+
+/**
+ * dprtc_clear_irq_status() - Clear a pending interrupt's status
+ *
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPRTC object
+ * @irq_index:	The interrupt index to configure
+ * @status:	Bits to clear (W1C) - one bit per cause:
+ *			0 = don't change
+ *			1 = clear status bit
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dprtc_clear_irq_status(struct fsl_mc_io *mc_io,
+			   u32 cmd_flags,
+			   u16 token,
+			   u8 irq_index,
+			   u32 status)
+{
+	struct dprtc_cmd_clear_irq_status *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	cmd.header = mc_encode_cmd_header(DPRTC_CMDID_CLEAR_IRQ_STATUS,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dprtc_cmd_clear_irq_status *)cmd.params;
+	cmd_params->irq_index = irq_index;
+	cmd_params->status = cpu_to_le32(status);
 
 	return mc_send_command(mc_io, &cmd);
 }

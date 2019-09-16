@@ -65,8 +65,6 @@ static int sched_itmt_update_handler(struct ctl_table *table, int write,
 	return ret;
 }
 
-static unsigned int zero;
-static unsigned int one = 1;
 static struct ctl_table itmt_kern_table[] = {
 	{
 		.procname	= "sched_itmt_enabled",
@@ -74,8 +72,8 @@ static struct ctl_table itmt_kern_table[] = {
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= sched_itmt_update_handler,
-		.extra1		= &zero,
-		.extra2		= &one,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	},
 	{}
 };

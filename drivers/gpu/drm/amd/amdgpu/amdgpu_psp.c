@@ -24,7 +24,7 @@
  */
 
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
 #include "amdgpu_ucode.h"
@@ -46,12 +46,19 @@ static int psp_early_init(void *handle)
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 		psp_v3_1_set_psp_funcs(psp);
+		psp->autoload_supported = false;
 		break;
 	case CHIP_RAVEN:
 		psp_v10_0_set_psp_funcs(psp);
+		psp->autoload_supported = false;
 		break;
 	case CHIP_VEGA20:
 		psp_v11_0_set_psp_funcs(psp);
+		psp->autoload_supported = false;
+		break;
+	case CHIP_NAVI10:
+		psp_v11_0_set_psp_funcs(psp);
+		psp->autoload_supported = true;
 		break;
 	default:
 		return -EINVAL;
@@ -123,6 +130,8 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	int index;
 	int timeout = 2000;
 
+	mutex_lock(&psp->mutex);
+
 	memset(psp->cmd_buf_mem, 0, PSP_CMD_BUFFER_SIZE);
 
 	memcpy(psp->cmd_buf_mem, cmd, sizeof(struct psp_gfx_cmd_resp));
@@ -132,6 +141,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 			     fence_mc_addr, index);
 	if (ret) {
 		atomic_dec(&psp->fence_value);
+		mutex_unlock(&psp->mutex);
 		return ret;
 	}
 
@@ -154,8 +164,10 @@ psp_cmd_submit_buf(struct psp_context *psp,
 				  ucode->ucode_id);
 		DRM_WARN("psp command failed and response status is (%d)\n",
 			  psp->cmd_buf_mem->resp.status);
-		if (!timeout)
+		if (!timeout) {
+			mutex_unlock(&psp->mutex);
 			return -EINVAL;
+		}
 	}
 
 	/* get xGMI session id from response buffer */
@@ -165,6 +177,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		ucode->tmr_mc_addr_lo = psp->cmd_buf_mem->resp.fw_addr_lo;
 		ucode->tmr_mc_addr_hi = psp->cmd_buf_mem->resp.fw_addr_hi;
 	}
+	mutex_unlock(&psp->mutex);
 
 	return ret;
 }
@@ -182,10 +195,44 @@ static void psp_prep_tmr_cmd_buf(struct psp_context *psp,
 	cmd->cmd.cmd_setup_tmr.buf_size = size;
 }
 
+static void psp_prep_load_toc_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+				      uint64_t pri_buf_mc, uint32_t size)
+{
+	cmd->cmd_id = GFX_CMD_ID_LOAD_TOC;
+	cmd->cmd.cmd_load_toc.toc_phy_addr_lo = lower_32_bits(pri_buf_mc);
+	cmd->cmd.cmd_load_toc.toc_phy_addr_hi = upper_32_bits(pri_buf_mc);
+	cmd->cmd.cmd_load_toc.toc_size = size;
+}
+
+/* Issue LOAD TOC cmd to PSP to part toc and calculate tmr size needed */
+static int psp_load_toc(struct psp_context *psp,
+			uint32_t *tmr_size)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+	/* Copy toc to psp firmware private buffer */
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
+	memcpy(psp->fw_pri_buf, psp->toc_start_addr, psp->toc_bin_size);
+
+	psp_prep_load_toc_cmd_buf(cmd, psp->fw_pri_mc_addr, psp->toc_bin_size);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd,
+				 psp->fence_buf_mc_addr);
+	if (!ret)
+		*tmr_size = psp->cmd_buf_mem->resp.tmr_size;
+	kfree(cmd);
+	return ret;
+}
+
 /* Set up Trusted Memory Region */
 static int psp_tmr_init(struct psp_context *psp)
 {
 	int ret;
+	int tmr_size;
 
 	/*
 	 * According to HW engineer, they prefer the TMR address be "naturally
@@ -194,7 +241,21 @@ static int psp_tmr_init(struct psp_context *psp)
 	 * Note: this memory need be reserved till the driver
 	 * uninitializes.
 	 */
-	ret = amdgpu_bo_create_kernel(psp->adev, PSP_TMR_SIZE, PSP_TMR_SIZE,
+	tmr_size = PSP_TMR_SIZE;
+
+	/* For ASICs support RLC autoload, psp will parse the toc
+	 * and calculate the total size of TMR needed */
+	if (psp->toc_start_addr &&
+	    psp->toc_bin_size &&
+	    psp->fw_pri_buf) {
+		ret = psp_load_toc(psp, &tmr_size);
+		if (ret) {
+			DRM_ERROR("Failed to load toc\n");
+			return ret;
+		}
+	}
+
+	ret = amdgpu_bo_create_kernel(psp->adev, tmr_size, PSP_TMR_SIZE,
 				      AMDGPU_GEM_DOMAIN_VRAM,
 				      &psp->tmr_bo, &psp->tmr_mc_addr, &psp->tmr_buf);
 
@@ -210,9 +271,10 @@ static int psp_tmr_load(struct psp_context *psp)
 	if (!cmd)
 		return -ENOMEM;
 
-	psp_prep_tmr_cmd_buf(psp, cmd, psp->tmr_mc_addr, PSP_TMR_SIZE);
-	DRM_INFO("reserve 0x%x from 0x%llx for PSP TMR SIZE\n",
-			PSP_TMR_SIZE, psp->tmr_mc_addr);
+	psp_prep_tmr_cmd_buf(psp, cmd, psp->tmr_mc_addr,
+			     amdgpu_bo_size(psp->tmr_bo));
+	DRM_INFO("reserve 0x%lx from 0x%llx for PSP TMR\n",
+		 amdgpu_bo_size(psp->tmr_bo), psp->tmr_mc_addr);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
@@ -286,6 +348,34 @@ static int psp_asd_load(struct psp_context *psp)
 
 	kfree(cmd);
 
+	return ret;
+}
+
+static void psp_prep_reg_prog_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+		uint32_t id, uint32_t value)
+{
+	cmd->cmd_id = GFX_CMD_ID_PROG_REG;
+	cmd->cmd.cmd_setup_reg_prog.reg_value = value;
+	cmd->cmd.cmd_setup_reg_prog.reg_id = id;
+}
+
+int psp_reg_program(struct psp_context *psp, enum psp_reg_prog_id reg,
+		uint32_t value)
+{
+	struct psp_gfx_cmd_resp *cmd = NULL;
+	int ret = 0;
+
+	if (reg >= PSP_REG_LAST)
+		return -EINVAL;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	psp_prep_reg_prog_cmd_buf(cmd, reg, value);
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+
+	kfree(cmd);
 	return ret;
 }
 
@@ -679,6 +769,15 @@ static int psp_hw_start(struct psp_context *psp)
 	int ret;
 
 	if (!amdgpu_sriov_vf(adev) || !adev->in_gpu_reset) {
+		if (psp->kdb_bin_size &&
+		    (psp->funcs->bootloader_load_kdb != NULL)) {
+			ret = psp_bootloader_load_kdb(psp);
+			if (ret) {
+				DRM_ERROR("PSP load kdb failed!\n");
+				return ret;
+			}
+		}
+
 		ret = psp_bootloader_load_sysdrv(psp);
 		if (ret) {
 			DRM_ERROR("PSP load sysdrv failed!\n");
@@ -698,9 +797,21 @@ static int psp_hw_start(struct psp_context *psp)
 		return ret;
 	}
 
+	ret = psp_tmr_init(psp);
+	if (ret) {
+		DRM_ERROR("PSP tmr init failed!\n");
+		return ret;
+	}
+
 	ret = psp_tmr_load(psp);
 	if (ret) {
 		DRM_ERROR("PSP load tmr failed!\n");
+		return ret;
+	}
+
+	ret = psp_asd_init(psp);
+	if (ret) {
+		DRM_ERROR("PSP asd init failed!\n");
 		return ret;
 	}
 
@@ -795,6 +906,12 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_DMCU_INTV:
 		*type = GFX_FW_TYPE_DMCU_ISR;
 		break;
+	case AMDGPU_UCODE_ID_VCN0_RAM:
+		*type = GFX_FW_TYPE_VCN0_RAM;
+		break;
+	case AMDGPU_UCODE_ID_VCN1_RAM:
+		*type = GFX_FW_TYPE_VCN1_RAM;
+		break;
 	case AMDGPU_UCODE_ID_MAXIMUM:
 	default:
 		return -EINVAL;
@@ -823,19 +940,45 @@ static int psp_prep_load_ip_fw_cmd_buf(struct amdgpu_firmware_info *ucode,
 	return ret;
 }
 
+static int psp_execute_np_fw_load(struct psp_context *psp,
+			       struct amdgpu_firmware_info *ucode)
+{
+	int ret = 0;
+
+	ret = psp_prep_load_ip_fw_cmd_buf(ucode, psp->cmd);
+	if (ret)
+		return ret;
+
+	ret = psp_cmd_submit_buf(psp, ucode, psp->cmd,
+				 psp->fence_buf_mc_addr);
+
+	return ret;
+}
+
 static int psp_np_fw_load(struct psp_context *psp)
 {
 	int i, ret;
 	struct amdgpu_firmware_info *ucode;
 	struct amdgpu_device* adev = psp->adev;
 
+	if (psp->autoload_supported) {
+		ucode = &adev->firmware.ucode[AMDGPU_UCODE_ID_SMC];
+		if (!ucode->fw)
+			goto out;
+
+		ret = psp_execute_np_fw_load(psp, ucode);
+		if (ret)
+			return ret;
+	}
+
+out:
 	for (i = 0; i < adev->firmware.max_ucodes; i++) {
 		ucode = &adev->firmware.ucode[i];
 		if (!ucode->fw)
 			continue;
 
 		if (ucode->ucode_id == AMDGPU_UCODE_ID_SMC &&
-		    psp_smu_reload_quirk(psp))
+		    (psp_smu_reload_quirk(psp) || psp->autoload_supported))
 			continue;
 		if (amdgpu_sriov_vf(adev) &&
 		   (ucode->ucode_id == AMDGPU_UCODE_ID_SDMA0
@@ -843,16 +986,24 @@ static int psp_np_fw_load(struct psp_context *psp)
 		    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G))
 			/*skip ucode loading in SRIOV VF */
 			continue;
+		if (psp->autoload_supported &&
+		    (ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC1_JT ||
+		     ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC2_JT))
+			/* skip mec JT when autoload is enabled */
+			continue;
 
-		ret = psp_prep_load_ip_fw_cmd_buf(ucode, psp->cmd);
+		ret = psp_execute_np_fw_load(psp, ucode);
 		if (ret)
 			return ret;
 
-		ret = psp_cmd_submit_buf(psp, ucode, psp->cmd,
-					 psp->fence_buf_mc_addr);
-		if (ret)
-			return ret;
-
+		/* Start rlc autoload after psp recieved all the gfx firmware */
+		if (ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM) {
+			ret = psp_rlc_autoload(psp);
+			if (ret) {
+				DRM_ERROR("Failed to start rlc autoload\n");
+				return ret;
+			}
+		}
 #if 0
 		/* check if firmware loaded sucessfully */
 		if (!amdgpu_psp_check_fw_loading_status(adev, i))
@@ -908,18 +1059,6 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	ret = psp_ring_init(psp, PSP_RING_TYPE__KM);
 	if (ret) {
 		DRM_ERROR("PSP ring init failed!\n");
-		goto failed;
-	}
-
-	ret = psp_tmr_init(psp);
-	if (ret) {
-		DRM_ERROR("PSP tmr init failed!\n");
-		goto failed;
-	}
-
-	ret = psp_asd_init(psp);
-	if (ret) {
-		DRM_ERROR("PSP asd init failed!\n");
 		goto failed;
 	}
 
@@ -1064,10 +1203,49 @@ failed:
 
 int psp_gpu_reset(struct amdgpu_device *adev)
 {
+	int ret;
+
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		return 0;
 
-	return psp_mode1_reset(&adev->psp);
+	mutex_lock(&adev->psp.mutex);
+	ret = psp_mode1_reset(&adev->psp);
+	mutex_unlock(&adev->psp.mutex);
+
+	return ret;
+}
+
+int psp_rlc_autoload_start(struct psp_context *psp)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->cmd_id = GFX_CMD_ID_AUTOLOAD_RLC;
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd,
+				 psp->fence_buf_mc_addr);
+	kfree(cmd);
+	return ret;
+}
+
+int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,
+			uint64_t cmd_gpu_addr, int cmd_size)
+{
+	struct amdgpu_firmware_info ucode = {0};
+
+	ucode.ucode_id = inst_idx ? AMDGPU_UCODE_ID_VCN1_RAM :
+		AMDGPU_UCODE_ID_VCN0_RAM;
+	ucode.mc_addr = cmd_gpu_addr;
+	ucode.ucode_size = cmd_size;
+
+	return psp_execute_np_fw_load(&adev->psp, &ucode);
 }
 
 static bool psp_check_fw_loading_status(struct amdgpu_device *adev,

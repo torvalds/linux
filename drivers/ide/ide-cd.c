@@ -9,7 +9,7 @@
  * May be copied or modified under the terms of the GNU General Public
  * License.  See linux/COPYING for more information.
  *
- * See Documentation/cdrom/ide-cd for usage information.
+ * See Documentation/cdrom/ide-cd.rst for usage information.
  *
  * Suggestions are welcome. Patches that work are more welcome though. ;-)
  *

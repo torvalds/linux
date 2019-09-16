@@ -22,15 +22,17 @@
  * Authors: Alex Deucher
  */
 
-#include <drm/drmP.h>
+#include <linux/seq_file.h>
+
+#include <drm/drm_pci.h>
+
+#include "atom.h"
+#include "btc_dpm.h"
+#include "btcd.h"
+#include "cypress_dpm.h"
+#include "r600_dpm.h"
 #include "radeon.h"
 #include "radeon_asic.h"
-#include "btcd.h"
-#include "r600_dpm.h"
-#include "cypress_dpm.h"
-#include "btc_dpm.h"
-#include "atom.h"
-#include <linux/seq_file.h>
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b

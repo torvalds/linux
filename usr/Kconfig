@@ -18,7 +18,7 @@ config INITRAMFS_SOURCE
 	  When multiple directories and files are specified then the
 	  initramfs image will be the aggregate of all of them.
 
-	  See <file:Documentation/early-userspace/README> for more details.
+	  See <file:Documentation/driver-api/early-userspace/early_userspace_support.rst> for more details.
 
 	  If you are not sure, leave it blank.
 

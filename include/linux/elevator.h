@@ -34,7 +34,7 @@ struct elevator_mq_ops {
 	void (*depth_updated)(struct blk_mq_hw_ctx *);
 
 	bool (*allow_merge)(struct request_queue *, struct request *, struct bio *);
-	bool (*bio_merge)(struct blk_mq_hw_ctx *, struct bio *);
+	bool (*bio_merge)(struct blk_mq_hw_ctx *, struct bio *, unsigned int);
 	int (*request_merge)(struct request_queue *q, struct request **, struct bio *);
 	void (*request_merged)(struct request_queue *, struct request *, enum elv_merge);
 	void (*requests_merged)(struct request_queue *, struct request *, struct request *);
@@ -45,7 +45,6 @@ struct elevator_mq_ops {
 	struct request *(*dispatch_request)(struct blk_mq_hw_ctx *);
 	bool (*has_work)(struct blk_mq_hw_ctx *);
 	void (*completed_request)(struct request *, u64);
-	void (*started_request)(struct request *);
 	void (*requeue_request)(struct request *);
 	struct request *(*former_request)(struct request_queue *, struct request *);
 	struct request *(*next_request)(struct request_queue *, struct request *);
@@ -75,7 +74,7 @@ struct elevator_type
 	size_t icq_size;	/* see iocontext.h */
 	size_t icq_align;	/* ditto */
 	struct elv_fs_entry *elevator_attrs;
-	char elevator_name[ELV_NAME_MAX];
+	const char *elevator_name;
 	const char *elevator_alias;
 	struct module *elevator_owner;
 #ifdef CONFIG_BLK_DEBUG_FS
@@ -159,15 +158,6 @@ extern struct request *elv_rb_find(struct rb_root *, sector_t);
 #define ELEVATOR_INSERT_REQUEUE	4
 #define ELEVATOR_INSERT_FLUSH	5
 #define ELEVATOR_INSERT_SORT_MERGE	6
-
-/*
- * return values from elevator_may_queue_fn
- */
-enum {
-	ELV_MQUEUE_MAY,
-	ELV_MQUEUE_NO,
-	ELV_MQUEUE_MUST,
-};
 
 #define rq_end_sector(rq)	(blk_rq_pos(rq) + blk_rq_sectors(rq))
 #define rb_entry_rq(node)	rb_entry((node), struct request, rb_node)

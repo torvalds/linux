@@ -124,7 +124,7 @@ static void chacha_dosimd(u32 *state, u8 *dst, const u8 *src,
 }
 
 static int chacha_simd_stream_xor(struct skcipher_walk *walk,
-				  struct chacha_ctx *ctx, u8 *iv)
+				  const struct chacha_ctx *ctx, const u8 *iv)
 {
 	u32 *state, state_buf[16 + 2] __aligned(8);
 	int next_yield = 4096; /* bytes until next FPU yield */

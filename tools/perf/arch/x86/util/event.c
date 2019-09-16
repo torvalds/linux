@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include <linux/string.h>
+#include <linux/zalloc.h>
 
 #include "../../util/machine.h"
 #include "../../util/tool.h"
 #include "../../util/map.h"
-#include "../../util/util.h"
 #include "../../util/debug.h"
 
 #if defined(__x86_64__)

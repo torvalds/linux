@@ -35,8 +35,7 @@ struct remap_pfn {
 	pgprot_t prot;
 };
 
-static int remap_pfn(pte_t *pte, pgtable_t token,
-		     unsigned long addr, void *data)
+static int remap_pfn(pte_t *pte, unsigned long addr, void *data)
 {
 	struct remap_pfn *r = data;
 

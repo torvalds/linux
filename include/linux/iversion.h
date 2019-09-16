@@ -113,6 +113,30 @@ inode_peek_iversion_raw(const struct inode *inode)
 }
 
 /**
+ * inode_set_max_iversion_raw - update i_version new value is larger
+ * @inode: inode to set
+ * @val: new i_version to set
+ *
+ * Some self-managed filesystems (e.g Ceph) will only update the i_version
+ * value if the new value is larger than the one we already have.
+ */
+static inline void
+inode_set_max_iversion_raw(struct inode *inode, u64 val)
+{
+	u64 cur, old;
+
+	cur = inode_peek_iversion_raw(inode);
+	for (;;) {
+		if (cur > val)
+			break;
+		old = atomic64_cmpxchg(&inode->i_version, cur, val);
+		if (likely(old == cur))
+			break;
+		cur = old;
+	}
+}
+
+/**
  * inode_set_iversion - set i_version to a particular value
  * @inode: inode to set
  * @val: new i_version value to set

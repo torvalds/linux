@@ -28,6 +28,8 @@
 
 #include "mem_input.h"
 
+#define OPP_ID_INVALID 0xf
+
 
 enum cursor_pitch {
 	CURSOR_PITCH_64_PIXELS = 0,
@@ -36,6 +38,9 @@ enum cursor_pitch {
 };
 
 enum cursor_lines_per_chunk {
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	CURSOR_LINE_PER_CHUNK_1 = 0, /* new for DCN2 */
+#endif
 	CURSOR_LINE_PER_CHUNK_2 = 1,
 	CURSOR_LINE_PER_CHUNK_4,
 	CURSOR_LINE_PER_CHUNK_8,
@@ -78,8 +83,7 @@ struct hubp_funcs {
 	bool (*hubp_program_surface_flip_and_addr)(
 		struct hubp *hubp,
 		const struct dc_plane_address *address,
-		bool flip_immediate,
-		uint8_t vmid);
+		bool flip_immediate);
 
 	void (*hubp_program_pte_vm)(
 		struct hubp *hubp,
@@ -131,6 +135,28 @@ struct hubp_funcs {
 	void (*hubp_disable_control)(struct hubp *hubp, bool disable_hubp);
 	unsigned int (*hubp_get_underflow_status)(struct hubp *hubp);
 	void (*hubp_init)(struct hubp *hubp);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	void (*dmdata_set_attributes)(
+			struct hubp *hubp,
+			const struct dc_dmdata_attributes *attr);
+
+	void (*dmdata_load)(
+			struct hubp *hubp,
+			uint32_t dmdata_sw_size,
+			const uint32_t *dmdata_sw_data);
+	bool (*dmdata_status_done)(struct hubp *hubp);
+	void (*hubp_enable_tripleBuffer)(
+		struct hubp *hubp,
+		bool enable);
+
+	bool (*hubp_is_triplebuffer_enabled)(
+		struct hubp *hubp);
+
+	void (*hubp_set_flip_control_surface_gsl)(
+		struct hubp *hubp,
+		bool enable);
+#endif
 
 };
 

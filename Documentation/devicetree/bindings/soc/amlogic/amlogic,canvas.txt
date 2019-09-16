@@ -2,8 +2,8 @@ Amlogic Canvas
 ================================
 
 A canvas is a collection of metadata that describes a pixel buffer.
-Those metadata include: width, height, phyaddr, wrapping, block mode
-and endianness.
+Those metadata include: width, height, phyaddr, wrapping and block mode.
+Starting with GXBB the endianness can also be described.
 
 Many IPs within Amlogic SoCs rely on canvas indexes to read/write pixel data
 rather than use the phy addresses directly. For instance, this is the case for
@@ -18,7 +18,11 @@ Video Lookup Table
 --------------------------
 
 Required properties:
-- compatible: "amlogic,canvas"
+- compatible: has to be one of:
+		- "amlogic,meson8-canvas", "amlogic,canvas" on Meson8
+		- "amlogic,meson8b-canvas", "amlogic,canvas" on Meson8b
+		- "amlogic,meson8m2-canvas", "amlogic,canvas" on Meson8m2
+		- "amlogic,canvas" on GXBB and newer
 - reg: Base physical address and size of the canvas registers.
 
 Example:

@@ -27,6 +27,8 @@
  * Pre-requisites: headers required by header of this unit
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 
 #include "include/gpio_interface.h"

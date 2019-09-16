@@ -16,7 +16,7 @@
  * per cpu area, use weak definitions to force the compiler to
  * generate external references.
  */
-#if defined(CONFIG_SMP) && defined(MODULE)
+#if defined(MODULE)
 #define ARCH_NEEDS_WEAK_PER_CPU
 #endif
 

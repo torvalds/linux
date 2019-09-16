@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include "bnxt_hsi.h"
-#include <linux/net_dim.h>
+#include <linux/dim.h>
 #include "bnxt.h"
 #include "bnxt_debugfs.h"
 
@@ -21,7 +21,7 @@ static ssize_t debugfs_dim_read(struct file *filep,
 				char __user *buffer,
 				size_t count, loff_t *ppos)
 {
-	struct net_dim *dim = filep->private_data;
+	struct dim *dim = filep->private_data;
 	int len;
 	char *buf;
 
@@ -61,7 +61,7 @@ static const struct file_operations debugfs_dim_fops = {
 	.read = debugfs_dim_read,
 };
 
-static struct dentry *debugfs_dim_ring_init(struct net_dim *dim, int ring_idx,
+static struct dentry *debugfs_dim_ring_init(struct dim *dim, int ring_idx,
 					    struct dentry *dd)
 {
 	static char qname[16];

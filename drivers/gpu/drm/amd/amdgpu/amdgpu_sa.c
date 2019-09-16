@@ -41,7 +41,7 @@
  * If we are asked to block we wait on all the oldest fence of all
  * rings. We just wait for any of those fence to complete.
  */
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 
 static void amdgpu_sa_bo_remove_locked(struct amdgpu_sa_bo *sa_bo);

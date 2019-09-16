@@ -13,5 +13,6 @@ menuconfig NET_DSA_MICROCHIP_KSZ9477
 config NET_DSA_MICROCHIP_KSZ9477_SPI
 	tristate "KSZ9477 series SPI connected switch driver"
 	depends on NET_DSA_MICROCHIP_KSZ9477 && SPI
+	select REGMAP_SPI
 	help
 	  Select to enable support for registering switches configured through SPI.

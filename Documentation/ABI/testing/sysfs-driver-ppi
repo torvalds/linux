@@ -1,6 +1,6 @@
 What:		/sys/class/tpm/tpmX/ppi/
 Date:		August 2012
-Kernel Version:	3.6
+KernelVersion:	3.6
 Contact:	xiaoyan.zhang@intel.com
 Description:
 		This folder includes the attributes related with PPI (Physical

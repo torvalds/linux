@@ -1541,8 +1541,11 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 
 	clk = devm_clk_get(mmc_dev(host->mmc), NULL);
 	if (IS_ERR(clk)) {
-		dev_err(mmc_dev(host->mmc), "clk err\n");
 		rc = PTR_ERR(clk);
+
+		if (rc != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get clock: %d\n", rc);
+
 		goto err_clk_get;
 	}
 	clk_prepare_enable(clk);

@@ -26,13 +26,14 @@
  *	Eric Anholt <eric@anholt.net>
  *	Chris Wilson <chris@chris-wilson.co.uk>
  */
-#include <linux/module.h>
-#include <linux/i2c.h>
+
+#include <linux/delay.h>
 #include <linux/i2c-algo-bit.h>
-#include <drm/drmP.h>
-#include "psb_intel_drv.h"
-#include <drm/gma_drm.h>
+#include <linux/i2c.h>
+#include <linux/module.h>
+
 #include "psb_drv.h"
+#include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
 
 #define _wait_for(COND, MS, W) ({ \

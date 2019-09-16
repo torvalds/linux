@@ -482,8 +482,8 @@ unlock:
 
 static const struct v4l2_ioctl_ops vdec_ioctl_ops = {
 	.vidioc_querycap = vdec_querycap,
-	.vidioc_enum_fmt_vid_cap_mplane = vdec_enum_fmt,
-	.vidioc_enum_fmt_vid_out_mplane = vdec_enum_fmt,
+	.vidioc_enum_fmt_vid_cap = vdec_enum_fmt,
+	.vidioc_enum_fmt_vid_out = vdec_enum_fmt,
 	.vidioc_s_fmt_vid_cap_mplane = vdec_s_fmt,
 	.vidioc_s_fmt_vid_out_mplane = vdec_s_fmt,
 	.vidioc_g_fmt_vid_cap_mplane = vdec_g_fmt,

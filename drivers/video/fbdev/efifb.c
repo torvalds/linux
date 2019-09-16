@@ -169,6 +169,11 @@ static void efifb_show_boot_graphics(struct fb_info *info)
 		return;
 	}
 
+	if (bgrt_tab.status & 0x06) {
+		pr_info("efifb: BGRT rotation bits set, not showing boot graphics\n");
+		return;
+	}
+
 	/* Avoid flashing the logo if we're going to print std probe messages */
 	if (console_loglevel > CONSOLE_LOGLEVEL_QUIET)
 		return;
@@ -448,7 +453,6 @@ static int efifb_probe(struct platform_device *dev)
 
 	info = framebuffer_alloc(sizeof(u32) * 16, &dev->dev);
 	if (!info) {
-		pr_err("efifb: cannot allocate framebuffer\n");
 		err = -ENOMEM;
 		goto err_release_mem;
 	}

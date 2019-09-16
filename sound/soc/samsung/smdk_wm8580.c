@@ -140,27 +140,31 @@ enum {
 #define SMDK_DAI_FMT (SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | \
 	SND_SOC_DAIFMT_CBM_CFM)
 
+SND_SOC_DAILINK_DEFS(paif_rx,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.2")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8580.0-001b", "wm8580-hifi-playback")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
+SND_SOC_DAILINK_DEFS(paif_tx,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.2")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8580.0-001b", "wm8580-hifi-capture")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
 static struct snd_soc_dai_link smdk_dai[] = {
 	[PRI_PLAYBACK] = { /* Primary Playback i/f */
 		.name = "WM8580 PAIF RX",
 		.stream_name = "Playback",
-		.cpu_dai_name = "samsung-i2s.2",
-		.codec_dai_name = "wm8580-hifi-playback",
-		.platform_name = "samsung-i2s.0",
-		.codec_name = "wm8580.0-001b",
 		.dai_fmt = SMDK_DAI_FMT,
 		.ops = &smdk_ops,
+		SND_SOC_DAILINK_REG(paif_rx),
 	},
 	[PRI_CAPTURE] = { /* Primary Capture i/f */
 		.name = "WM8580 PAIF TX",
 		.stream_name = "Capture",
-		.cpu_dai_name = "samsung-i2s.2",
-		.codec_dai_name = "wm8580-hifi-capture",
-		.platform_name = "samsung-i2s.0",
-		.codec_name = "wm8580.0-001b",
 		.dai_fmt = SMDK_DAI_FMT,
 		.init = smdk_wm8580_init_paiftx,
 		.ops = &smdk_ops,
+		SND_SOC_DAILINK_REG(paif_tx),
 	},
 };
 

@@ -282,19 +282,6 @@ if G8SR_DEBUG_TIMESTAMP
         s_waitcnt lgkmcnt(0)         //FIXME, will cause xnack??
 end
 
-    //check whether there is mem_viol
-    s_getreg_b32    s_save_trapsts, hwreg(HW_REG_TRAPSTS)
-    s_and_b32   s_save_trapsts, s_save_trapsts, SQ_WAVE_TRAPSTS_MEM_VIOL_MASK
-    s_cbranch_scc0  L_NO_PC_REWIND
-
-    //if so, need rewind PC assuming GDS operation gets NACKed
-    s_mov_b32       s_save_tmp, 0                                                           //clear mem_viol bit
-    s_setreg_b32    hwreg(HW_REG_TRAPSTS, SQ_WAVE_TRAPSTS_MEM_VIOL_SHIFT, 1), s_save_tmp    //clear mem_viol bit
-    s_and_b32       s_save_pc_hi, s_save_pc_hi, 0x0000ffff    //pc[47:32]
-    s_sub_u32       s_save_pc_lo, s_save_pc_lo, 8             //pc[31:0]-8
-    s_subb_u32      s_save_pc_hi, s_save_pc_hi, 0x0           // -scc
-
-L_NO_PC_REWIND:
     s_mov_b32       s_save_tmp, 0                                                           //clear saveCtx bit
     s_setreg_b32    hwreg(HW_REG_TRAPSTS, SQ_WAVE_TRAPSTS_SAVECTX_SHIFT, 1), s_save_tmp     //clear saveCtx bit
 

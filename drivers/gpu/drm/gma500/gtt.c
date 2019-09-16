@@ -7,11 +7,12 @@
  *	    Alan Cox <alan@linux.intel.com>
  */
 
-#include <drm/drmP.h>
 #include <linux/shmem_fs.h>
+
 #include <asm/set_memory.h>
-#include "psb_drv.h"
+
 #include "blitter.h"
+#include "psb_drv.h"
 
 
 /*

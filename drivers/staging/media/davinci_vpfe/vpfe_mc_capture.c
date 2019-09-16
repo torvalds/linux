@@ -158,7 +158,7 @@ static irqreturn_t vpfe_isr(int irq, void *dev_id)
 {
 	struct vpfe_device *vpfe_dev = dev_id;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_isr\n");
+	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "%s\n", __func__);
 	vpfe_isif_buffer_isr(&vpfe_dev->vpfe_isif);
 	vpfe_resizer_buffer_isr(&vpfe_dev->vpfe_resizer);
 	return IRQ_HANDLED;
@@ -169,7 +169,7 @@ static irqreturn_t vpfe_vdint1_isr(int irq, void *dev_id)
 {
 	struct vpfe_device *vpfe_dev = dev_id;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_vdint1_isr\n");
+	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "%s\n", __func__);
 	vpfe_isif_vidint1_isr(&vpfe_dev->vpfe_isif);
 	return IRQ_HANDLED;
 }
@@ -179,7 +179,7 @@ static irqreturn_t vpfe_imp_dma_isr(int irq, void *dev_id)
 {
 	struct vpfe_device *vpfe_dev = dev_id;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_imp_dma_isr\n");
+	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "%s\n", __func__);
 	vpfe_ipipeif_ss_buffer_isr(&vpfe_dev->vpfe_ipipeif);
 	vpfe_resizer_dma_isr(&vpfe_dev->vpfe_resizer);
 	return IRQ_HANDLED;
@@ -691,7 +691,7 @@ static int vpfe_remove(struct platform_device *pdev)
 {
 	struct vpfe_device *vpfe_dev = platform_get_drvdata(pdev);
 
-	v4l2_info(pdev->dev.driver, "vpfe_remove\n");
+	v4l2_info(pdev->dev.driver, "%s\n", __func__);
 
 	kzfree(vpfe_dev->sd);
 	vpfe_detach_irq(vpfe_dev);

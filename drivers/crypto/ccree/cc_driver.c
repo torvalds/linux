@@ -48,6 +48,7 @@ struct cc_hw_data {
 };
 
 #define CC_NUM_IDRS 4
+#define CC_HW_RESET_LOOP_COUNT 10
 
 /* Note: PIDR3 holds CMOD/Rev so ignored for HW identification purposes */
 static const u32 pidr_0124_offsets[CC_NUM_IDRS] = {
@@ -133,6 +134,9 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	u32 imr;
 
 	/* STAT_OP_TYPE_GENERIC STAT_PHASE_0: Interrupt */
+	/* if driver suspended return, probebly shared interrupt */
+	if (cc_pm_is_dev_suspended(dev))
+		return IRQ_NONE;
 
 	/* read the interrupt status */
 	irr = cc_ioread(drvdata, CC_REG(HOST_IRR));
@@ -186,6 +190,31 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	}
 
 	return IRQ_HANDLED;
+}
+
+bool cc_wait_for_reset_completion(struct cc_drvdata *drvdata)
+{
+	unsigned int val;
+	unsigned int i;
+
+	/* 712/710/63 has no reset completion indication, always return true */
+	if (drvdata->hw_rev <= CC_HW_REV_712)
+		return true;
+
+	for (i = 0; i < CC_HW_RESET_LOOP_COUNT; i++) {
+		/* in cc7x3 NVM_IS_IDLE indicates that CC reset is
+		 *  completed and device is fully functional
+		 */
+		val = cc_ioread(drvdata, CC_REG(NVM_IS_IDLE));
+		if (val & CC_NVM_IS_IDLE_MASK) {
+			/* hw indicate reset completed */
+			return true;
+		}
+		/* allow scheduling other process on the processor */
+		schedule();
+	}
+	/* reset not completed */
+	return false;
 }
 
 int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe)
@@ -315,15 +344,6 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		return new_drvdata->irq;
 	}
 
-	rc = devm_request_irq(dev, new_drvdata->irq, cc_isr,
-			      IRQF_SHARED, "ccree", new_drvdata);
-	if (rc) {
-		dev_err(dev, "Could not register to interrupt %d\n",
-			new_drvdata->irq);
-		return rc;
-	}
-	dev_dbg(dev, "Registered to IRQ: %d\n", new_drvdata->irq);
-
 	init_completion(&new_drvdata->hw_queue_avail);
 
 	if (!plat_dev->dev.dma_mask)
@@ -351,6 +371,11 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 
 	new_drvdata->sec_disabled = cc_sec_disable;
+
+	/* wait for Crytpcell reset completion */
+	if (!cc_wait_for_reset_completion(new_drvdata)) {
+		dev_err(dev, "Cryptocell reset not completed");
+	}
 
 	if (hw_rev->rev <= CC_HW_REV_712) {
 		/* Verify correct mapping */
@@ -383,6 +408,24 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		}
 		sig_cidr = val;
 
+		/* Check HW engine configuration */
+		val = cc_ioread(new_drvdata, CC_REG(HOST_REMOVE_INPUT_PINS));
+		switch (val) {
+		case CC_PINS_FULL:
+			/* This is fine */
+			break;
+		case CC_PINS_SLIM:
+			if (new_drvdata->std_bodies & CC_STD_NIST) {
+				dev_warn(dev, "703 mode forced due to HW configuration.\n");
+				new_drvdata->std_bodies = CC_STD_OSCCA;
+			}
+			break;
+		default:
+			dev_err(dev, "Unsupported engines configration.\n");
+			rc = -EINVAL;
+			goto post_clk_err;
+		}
+
 		/* Check security disable state */
 		val = cc_ioread(new_drvdata, CC_REG(SECURITY_DISABLED));
 		val &= CC_SECURITY_DISABLED_MASK;
@@ -401,6 +444,15 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	/* Display HW versions */
 	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X/0x%8X, Driver version %s\n",
 		 hw_rev->name, hw_rev_pidr, sig_cidr, DRV_MODULE_VERSION);
+	/* register the driver isr function */
+	rc = devm_request_irq(dev, new_drvdata->irq, cc_isr,
+			      IRQF_SHARED, "ccree", new_drvdata);
+	if (rc) {
+		dev_err(dev, "Could not register to interrupt %d\n",
+			new_drvdata->irq);
+		goto post_clk_err;
+	}
+	dev_dbg(dev, "Registered to IRQ: %d\n", new_drvdata->irq);
 
 	rc = init_cc_regs(new_drvdata, true);
 	if (rc) {

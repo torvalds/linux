@@ -89,9 +89,6 @@ static int get_capability(struct hinic_hwdev *hwdev,
 	if (nic_cap->num_qps > HINIC_Q_CTXT_MAX)
 		nic_cap->num_qps = HINIC_Q_CTXT_MAX;
 
-	/* num_qps must be power of 2 */
-	nic_cap->num_qps = BIT(fls(nic_cap->num_qps) - 1);
-
 	nic_cap->max_qps = dev_cap->max_sqs + 1;
 	if (nic_cap->max_qps != (dev_cap->max_rqs + 1))
 		return -EFAULT;
@@ -303,6 +300,8 @@ static int set_hw_ioctxt(struct hinic_hwdev *hwdev, unsigned int rq_depth,
 
 	hw_ioctxt.set_cmdq_depth = HW_IOCTXT_SET_CMDQ_DEPTH_DEFAULT;
 	hw_ioctxt.cmdq_depth = 0;
+
+	hw_ioctxt.lro_en = 1;
 
 	hw_ioctxt.rq_depth  = ilog2(rq_depth);
 
@@ -870,6 +869,13 @@ void hinic_free_hwdev(struct hinic_hwdev *hwdev)
 	disable_msix(hwdev);
 
 	hinic_free_hwif(hwdev->hwif);
+}
+
+int hinic_hwdev_max_num_qps(struct hinic_hwdev *hwdev)
+{
+	struct hinic_cap *nic_cap = &hwdev->nic_cap;
+
+	return nic_cap->max_qps;
 }
 
 /**

@@ -37,12 +37,17 @@ int nf_conntrack_broadcast_help(struct sk_buff *skb,
 
 	in_dev = __in_dev_get_rcu(rt->dst.dev);
 	if (in_dev != NULL) {
-		for_primary_ifa(in_dev) {
+		const struct in_ifaddr *ifa;
+
+		in_dev_for_each_ifa_rcu(ifa, in_dev) {
+			if (ifa->ifa_flags & IFA_F_SECONDARY)
+				continue;
+
 			if (ifa->ifa_broadcast == iph->daddr) {
 				mask = ifa->ifa_mask;
 				break;
 			}
-		} endfor_ifa(in_dev);
+		}
 	}
 
 	if (mask == 0)
@@ -63,7 +68,7 @@ int nf_conntrack_broadcast_help(struct sk_buff *skb,
 	exp->class		  = NF_CT_EXPECT_CLASS_DEFAULT;
 	exp->helper               = NULL;
 
-	nf_ct_expect_related(exp);
+	nf_ct_expect_related(exp, 0);
 	nf_ct_expect_put(exp);
 
 	nf_ct_refresh(ct, skb, timeout * HZ);

@@ -319,7 +319,7 @@ quick way to lookup the sysfs interface for a device from the result of
 a stat(2) operation.
 
 More information can driver-model specific features can be found in
-Documentation/driver-model/. 
+Documentation/driver-api/driver-model/.
 
 
 TODO: Finish this section.

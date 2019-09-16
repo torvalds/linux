@@ -398,6 +398,12 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 
 		/* Processing Engine configuration */
 
+		/* Token & context configuration */
+		val = EIP197_PE_EIP96_TOKEN_CTRL_CTX_UPDATES |
+		      EIP197_PE_EIP96_TOKEN_CTRL_REUSE_CTX |
+		      EIP197_PE_EIP96_TOKEN_CTRL_POST_REUSE_CTX;
+		writel(val, EIP197_PE(priv) + EIP197_PE_EIP96_TOKEN_CTRL(pe));
+
 		/* H/W capabilities selection */
 		val = EIP197_FUNCTION_RSVD;
 		val |= EIP197_PROTOCOL_ENCRYPT_ONLY | EIP197_PROTOCOL_HASH_ONLY;
@@ -589,9 +595,9 @@ inline int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
 	if (rdesc->result_data.error_code & 0x407f) {
 		/* Fatal error (bits 0-7, 14) */
 		dev_err(priv->dev,
-			"cipher: result: result descriptor error (%d)\n",
+			"cipher: result: result descriptor error (0x%x)\n",
 			rdesc->result_data.error_code);
-		return -EIO;
+		return -EINVAL;
 	} else if (rdesc->result_data.error_code == BIT(9)) {
 		/* Authentication failed */
 		return -EBADMSG;
@@ -720,11 +726,10 @@ handle_results:
 	}
 
 acknowledge:
-	if (i) {
+	if (i)
 		writel(EIP197_xDR_PROC_xD_PKT(i) |
 		       EIP197_xDR_PROC_xD_COUNT(tot_descs * priv->config.rd_offset),
 		       EIP197_HIA_RDR(priv, ring) + EIP197_HIA_xDR_PROC_COUNT);
-	}
 
 	/* If the number of requests overflowed the counter, try to proceed more
 	 * requests.

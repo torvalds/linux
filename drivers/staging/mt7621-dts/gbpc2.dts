@@ -1,0 +1,21 @@
+/dts-v1/;
+
+#include "gbpc1.dts"
+
+/ {
+	compatible = "gnubee,gb-pc2", "mediatek,mt7621-soc";
+	model = "GB-PC2";
+};
+
+&default_gpio {
+	groups = "wdt", "uart3";
+	function = "gpio";
+};
+
+&gmac1 {
+	status = "ok";
+};
+
+&phy_external {
+	status = "ok";
+};

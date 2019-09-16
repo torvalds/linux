@@ -443,6 +443,36 @@ See also the examples in :ref:`control`.
       - n/a
       - A struct :c:type:`v4l2_ctrl_mpeg2_quantization`, containing MPEG-2
 	quantization matrices for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_H264_SPS``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_h264_sps`, containing H264
+	sequence parameters for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_H264_PPS``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_h264_pps`, containing H264
+	picture parameters for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_H264_SCALING_MATRIX``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_h264_scaling_matrix`, containing H264
+	scaling matrices for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_H264_SLICE_PARAMS``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_h264_slice_params`, containing H264
+	slice parameters for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_H264_DECODE_PARAMS``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_h264_decode_params`, containing H264
+	decode parameters for stateless video decoders.
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 

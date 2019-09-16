@@ -18,13 +18,19 @@
 int blk_rq_append_bio(struct request *rq, struct bio **bio)
 {
 	struct bio *orig_bio = *bio;
+	struct bvec_iter iter;
+	struct bio_vec bv;
+	unsigned int nr_segs = 0;
 
 	blk_queue_bounce(rq->q, bio);
 
+	bio_for_each_bvec(bv, *bio, iter)
+		nr_segs++;
+
 	if (!rq->bio) {
-		blk_rq_bio_prep(rq->q, rq, *bio);
+		blk_rq_bio_prep(rq, *bio, nr_segs);
 	} else {
-		if (!ll_back_merge_fn(rq->q, rq, *bio)) {
+		if (!ll_back_merge_fn(rq, *bio, nr_segs)) {
 			if (orig_bio != *bio) {
 				bio_put(*bio);
 				*bio = orig_bio;

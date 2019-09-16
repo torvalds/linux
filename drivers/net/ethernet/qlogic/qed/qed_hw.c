@@ -392,11 +392,15 @@ u32 qed_vfid_to_concrete(struct qed_hwfn *p_hwfn, u8 vfid)
 }
 
 /* DMAE */
+#define QED_DMAE_FLAGS_IS_SET(params, flag) \
+	((params) != NULL && ((params)->flags & QED_DMAE_FLAG_##flag))
+
 static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 			    const u8 is_src_type_grc,
 			    const u8 is_dst_type_grc,
 			    struct qed_dmae_params *p_params)
 {
+	u8 src_pfid, dst_pfid, port_id;
 	u16 opcode_b = 0;
 	u32 opcode = 0;
 
@@ -407,14 +411,18 @@ static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 	opcode |= (is_src_type_grc ? DMAE_CMD_SRC_MASK_GRC
 				   : DMAE_CMD_SRC_MASK_PCIE) <<
 		   DMAE_CMD_SRC_SHIFT;
-	opcode |= ((p_hwfn->rel_pf_id & DMAE_CMD_SRC_PF_ID_MASK) <<
+	src_pfid = QED_DMAE_FLAGS_IS_SET(p_params, PF_SRC) ?
+		   p_params->src_pfid : p_hwfn->rel_pf_id;
+	opcode |= ((src_pfid & DMAE_CMD_SRC_PF_ID_MASK) <<
 		   DMAE_CMD_SRC_PF_ID_SHIFT);
 
 	/* The destination of the DMA can be: 0-None 1-PCIe 2-GRC 3-None */
 	opcode |= (is_dst_type_grc ? DMAE_CMD_DST_MASK_GRC
 				   : DMAE_CMD_DST_MASK_PCIE) <<
 		   DMAE_CMD_DST_SHIFT;
-	opcode |= ((p_hwfn->rel_pf_id & DMAE_CMD_DST_PF_ID_MASK) <<
+	dst_pfid = QED_DMAE_FLAGS_IS_SET(p_params, PF_DST) ?
+		   p_params->dst_pfid : p_hwfn->rel_pf_id;
+	opcode |= ((dst_pfid & DMAE_CMD_DST_PF_ID_MASK) <<
 		   DMAE_CMD_DST_PF_ID_SHIFT);
 
 	/* Whether to write a completion word to the completion destination:
@@ -425,12 +433,14 @@ static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 	opcode |= (DMAE_CMD_SRC_ADDR_RESET_MASK <<
 		   DMAE_CMD_SRC_ADDR_RESET_SHIFT);
 
-	if (p_params->flags & QED_DMAE_FLAG_COMPLETION_DST)
+	if (QED_DMAE_FLAGS_IS_SET(p_params, COMPLETION_DST))
 		opcode |= (1 << DMAE_CMD_COMP_FUNC_SHIFT);
 
 	opcode |= (DMAE_CMD_ENDIANITY << DMAE_CMD_ENDIANITY_MODE_SHIFT);
 
-	opcode |= ((p_hwfn->port_id) << DMAE_CMD_PORT_ID_SHIFT);
+	port_id = (QED_DMAE_FLAGS_IS_SET(p_params, PORT)) ?
+		   p_params->port_id : p_hwfn->port_id;
+	opcode |= (port_id << DMAE_CMD_PORT_ID_SHIFT);
 
 	/* reset source address in next go */
 	opcode |= (DMAE_CMD_SRC_ADDR_RESET_MASK <<
@@ -441,7 +451,7 @@ static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 		   DMAE_CMD_DST_ADDR_RESET_SHIFT);
 
 	/* SRC/DST VFID: all 1's - pf, otherwise VF id */
-	if (p_params->flags & QED_DMAE_FLAG_VF_SRC) {
+	if (QED_DMAE_FLAGS_IS_SET(p_params, VF_SRC)) {
 		opcode |= 1 << DMAE_CMD_SRC_VF_ID_VALID_SHIFT;
 		opcode_b |= p_params->src_vfid << DMAE_CMD_SRC_VF_ID_SHIFT;
 	} else {
@@ -449,7 +459,7 @@ static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 			    DMAE_CMD_SRC_VF_ID_SHIFT;
 	}
 
-	if (p_params->flags & QED_DMAE_FLAG_VF_DST) {
+	if (QED_DMAE_FLAGS_IS_SET(p_params, VF_DST)) {
 		opcode |= 1 << DMAE_CMD_DST_VF_ID_VALID_SHIFT;
 		opcode_b |= p_params->dst_vfid << DMAE_CMD_DST_VF_ID_SHIFT;
 	} else {
@@ -733,7 +743,7 @@ static int qed_dmae_execute_command(struct qed_hwfn *p_hwfn,
 	for (i = 0; i <= cnt_split; i++) {
 		offset = length_limit * i;
 
-		if (!(p_params->flags & QED_DMAE_FLAG_RW_REPL_SRC)) {
+		if (!QED_DMAE_FLAGS_IS_SET(p_params, RW_REPL_SRC)) {
 			if (src_type == QED_DMAE_ADDRESS_GRC)
 				src_addr_split = src_addr + offset;
 			else
@@ -771,14 +781,12 @@ static int qed_dmae_execute_command(struct qed_hwfn *p_hwfn,
 
 int qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 		      struct qed_ptt *p_ptt,
-		  u64 source_addr, u32 grc_addr, u32 size_in_dwords, u32 flags)
+		      u64 source_addr, u32 grc_addr, u32 size_in_dwords,
+		      struct qed_dmae_params *p_params)
 {
 	u32 grc_addr_in_dw = grc_addr / sizeof(u32);
-	struct qed_dmae_params params;
 	int rc;
 
-	memset(&params, 0, sizeof(struct qed_dmae_params));
-	params.flags = flags;
 
 	mutex_lock(&p_hwfn->dmae_info.mutex);
 
@@ -786,7 +794,7 @@ int qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 				      grc_addr_in_dw,
 				      QED_DMAE_ADDRESS_HOST_VIRT,
 				      QED_DMAE_ADDRESS_GRC,
-				      size_in_dwords, &params);
+				      size_in_dwords, p_params);
 
 	mutex_unlock(&p_hwfn->dmae_info.mutex);
 
@@ -796,21 +804,19 @@ int qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 int qed_dmae_grc2host(struct qed_hwfn *p_hwfn,
 		      struct qed_ptt *p_ptt,
 		      u32 grc_addr,
-		      dma_addr_t dest_addr, u32 size_in_dwords, u32 flags)
+		      dma_addr_t dest_addr, u32 size_in_dwords,
+		      struct qed_dmae_params *p_params)
 {
 	u32 grc_addr_in_dw = grc_addr / sizeof(u32);
-	struct qed_dmae_params params;
 	int rc;
 
-	memset(&params, 0, sizeof(struct qed_dmae_params));
-	params.flags = flags;
 
 	mutex_lock(&p_hwfn->dmae_info.mutex);
 
 	rc = qed_dmae_execute_command(p_hwfn, p_ptt, grc_addr_in_dw,
 				      dest_addr, QED_DMAE_ADDRESS_GRC,
 				      QED_DMAE_ADDRESS_HOST_VIRT,
-				      size_in_dwords, &params);
+				      size_in_dwords, p_params);
 
 	mutex_unlock(&p_hwfn->dmae_info.mutex);
 
@@ -842,7 +848,6 @@ int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt, const char *phase)
 {
 	u32 size = PAGE_SIZE / 2, val;
-	struct qed_dmae_params params;
 	int rc = 0;
 	dma_addr_t p_phys;
 	void *p_virt;
@@ -875,9 +880,8 @@ int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
 		   (u64)p_phys,
 		   p_virt, (u64)(p_phys + size), (u8 *)p_virt + size, size);
 
-	memset(&params, 0, sizeof(params));
 	rc = qed_dmae_host2host(p_hwfn, p_ptt, p_phys, p_phys + size,
-				size / 4 /* size_in_dwords */, &params);
+				size / 4, NULL);
 	if (rc) {
 		DP_NOTICE(p_hwfn,
 			  "DMAE sanity [%s]: qed_dmae_host2host() failed. rc = %d.\n",

@@ -45,8 +45,6 @@
 /* init funcs */
 static void __init hackkit_map_io(void);
 
-static u_int hackkit_get_mctrl(struct uart_port *port);
-static void hackkit_set_mctrl(struct uart_port *port, u_int mctrl);
 static void hackkit_uart_pm(struct uart_port *port, u_int state, u_int oldstate);
 
 /**********************************************************************
@@ -67,8 +65,6 @@ static struct map_desc hackkit_io_desc[] __initdata = {
 };
 
 static struct sa1100_port_fns hackkit_port_fns __initdata = {
-	.set_mctrl	= hackkit_set_mctrl,
-	.get_mctrl	= hackkit_get_mctrl,
 	.pm		= hackkit_uart_pm,
 };
 
@@ -99,50 +95,6 @@ static void __init hackkit_map_io(void)
 static void hackkit_uart_pm(struct uart_port *port, u_int state, u_int oldstate)
 {
 	/* TODO: switch on/off uart in powersave mode */
-}
-
-/*
- * Note! this can be called from IRQ context.
- * FIXME: No modem ctrl lines yet.
- */
-static void hackkit_set_mctrl(struct uart_port *port, u_int mctrl)
-{
-#if 0
-	if (port->mapbase == _Ser1UTCR0) {
-		u_int set = 0, clear = 0;
-
-		if (mctrl & TIOCM_RTS)
-			set |= PT_CTRL2_RS1_RTS;
-		else
-			clear |= PT_CTRL2_RS1_RTS;
-
-		if (mctrl & TIOCM_DTR)
-			set |= PT_CTRL2_RS1_DTR;
-		else
-			clear |= PT_CTRL2_RS1_DTR;
-
-		PTCTRL2_clear(clear);
-		PTCTRL2_set(set);
-	}
-#endif
-}
-
-static u_int hackkit_get_mctrl(struct uart_port *port)
-{
-	u_int ret = 0;
-#if 0
-	u_int irqsr = PT_IRQSR;
-
-	/* need 2 reads to read current value */
-	irqsr = PT_IRQSR;
-
-	/* TODO: check IRQ source register for modem/com
-	 status lines and set them correctly. */
-#endif
-
-	ret = TIOCM_CD | TIOCM_CTS | TIOCM_DSR;
-
-	return ret;
 }
 
 static struct mtd_partition hackkit_partitions[] = {

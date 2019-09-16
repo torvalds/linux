@@ -91,11 +91,27 @@ config BINFMT_SCRIPT
 
 	  Most systems will not boot if you say M or N here.  If unsure, say Y.
 
+config ARCH_HAS_BINFMT_FLAT
+	bool
+
 config BINFMT_FLAT
 	bool "Kernel support for flat binaries"
-	depends on !MMU || ARM || M68K
+	depends on ARCH_HAS_BINFMT_FLAT
 	help
 	  Support uClinux FLAT format binaries.
+
+config BINFMT_FLAT_ARGVP_ENVP_ON_STACK
+	bool
+
+config BINFMT_FLAT_OLD_ALWAYS_RAM
+	bool
+
+config BINFMT_FLAT_OLD
+	bool "Enable support for very old legacy flat binaries"
+	depends on BINFMT_FLAT
+	help
+	  Support decade old uClinux FLAT format binaries.  Unless you know
+	  you have some of those say N here.
 
 config BINFMT_ZFLAT
 	bool "Enable ZFLAT support"

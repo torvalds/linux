@@ -9,6 +9,10 @@ Required properties:
 - #size-cells: must be 0
 - #address-cells: must be 1
 
+Optional properties:
+
+- reset-gpios: GPIO to be used to reset the whole device
+
 Subnodes:
 
 The integrated switch subnode should be specified according to the binding
@@ -66,6 +70,7 @@ for the external mdio-bus configuration:
 			#address-cells = <1>;
 			#size-cells = <0>;
 
+			reset-gpios = <&gpio 42 GPIO_ACTIVE_LOW>;
 			reg = <0x10>;
 
 			ports {
@@ -123,6 +128,7 @@ for the internal master mdio-bus configuration:
 			#address-cells = <1>;
 			#size-cells = <0>;
 
+			reset-gpios = <&gpio 42 GPIO_ACTIVE_LOW>;
 			reg = <0x10>;
 
 			ports {

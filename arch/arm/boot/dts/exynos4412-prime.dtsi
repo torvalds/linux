@@ -38,3 +38,10 @@
 	cooling-device = <&cpu0 15 15>, <&cpu1 15 15>,
 			 <&cpu2 15 15>, <&cpu3 15 15>;
 };
+
+&gpu_opp_table {
+	opp-533000000 {
+		opp-hz = /bits/ 64 <533000000>;
+		opp-microvolt = <1075000>;
+	};
+};

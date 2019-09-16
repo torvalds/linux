@@ -93,18 +93,10 @@ sw1_create()
 	ip route add vrf v$ol1 192.0.2.16/28 \
 	   nexthop dev g1a \
 	   nexthop dev g1b
-
-	tc qdisc add dev $ul1 clsact
-	tc filter add dev $ul1 egress pref 111 prot ipv4 \
-	   flower dst_ip 192.0.2.66 action pass
-	tc filter add dev $ul1 egress pref 222 prot ipv4 \
-	   flower dst_ip 192.0.2.82 action pass
 }
 
 sw1_destroy()
 {
-	tc qdisc del dev $ul1 clsact
-
 	ip route del vrf v$ol1 192.0.2.16/28
 
 	ip route del vrf v$ol1 192.0.2.82/32 via 192.0.2.146
@@ -139,10 +131,18 @@ sw2_create()
 	ip route add vrf v$ol2 192.0.2.0/28 \
 	   nexthop dev g2a \
 	   nexthop dev g2b
+
+	tc qdisc add dev $ul2 clsact
+	tc filter add dev $ul2 ingress pref 111 prot 802.1Q \
+	   flower vlan_id 111 action pass
+	tc filter add dev $ul2 ingress pref 222 prot 802.1Q \
+	   flower vlan_id 222 action pass
 }
 
 sw2_destroy()
 {
+	tc qdisc del dev $ul2 clsact
+
 	ip route del vrf v$ol2 192.0.2.0/28
 
 	ip route del vrf v$ol2 192.0.2.81/32 via 192.0.2.145
@@ -187,11 +187,15 @@ setup_prepare()
 	sw1_create
 	sw2_create
 	h2_create
+
+	forwarding_enable
 }
 
 cleanup()
 {
 	pre_cleanup
+
+	forwarding_restore
 
 	h2_destroy
 	sw2_destroy
@@ -211,15 +215,15 @@ multipath4_test()
 	   nexthop dev g1a weight $weight1 \
 	   nexthop dev g1b weight $weight2
 
-	local t0_111=$(tc_rule_stats_get $ul1 111 egress)
-	local t0_222=$(tc_rule_stats_get $ul1 222 egress)
+	local t0_111=$(tc_rule_stats_get $ul2 111 ingress)
+	local t0_222=$(tc_rule_stats_get $ul2 222 ingress)
 
 	ip vrf exec v$h1 \
 	   $MZ $h1 -q -p 64 -A 192.0.2.1 -B 192.0.2.18 \
 	       -d 1msec -t udp "sp=1024,dp=0-32768"
 
-	local t1_111=$(tc_rule_stats_get $ul1 111 egress)
-	local t1_222=$(tc_rule_stats_get $ul1 222 egress)
+	local t1_111=$(tc_rule_stats_get $ul2 111 ingress)
+	local t1_222=$(tc_rule_stats_get $ul2 222 ingress)
 
 	local d111=$((t1_111 - t0_111))
 	local d222=$((t1_222 - t0_222))

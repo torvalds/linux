@@ -7,9 +7,10 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <string.h>
+#include <stdlib.h>
 #include <byteswap.h>
 #include <sys/stat.h>
-
+#include <linux/zalloc.h>
 
 static bool check_need_swap(int file_endian)
 {

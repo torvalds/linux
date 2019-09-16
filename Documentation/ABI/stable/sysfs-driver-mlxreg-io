@@ -1,5 +1,4 @@
-What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/
-							asic_health
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/asic_health
 
 Date:		June 2018
 KernelVersion:	4.19
@@ -9,9 +8,8 @@ Description:	This file shows ASIC health status. The possible values are:
 
 		The files are read only.
 
-What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/
-							cpld1_version
-							cpld2_version
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld1_version
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld2_version
 Date:		June 2018
 KernelVersion:	4.19
 Contact:	Vadim Pasternak <vadimpmellanox.com>
@@ -20,8 +18,7 @@ Description:	These files show with which CPLD versions have been burned
 
 		The files are read only.
 
-What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/
-							fan_dir
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/fan_dir
 
 Date:		December 2018
 KernelVersion:	5.0
@@ -32,8 +29,7 @@ Description:	This file shows the system fans direction:
 
 		The files are read only.
 
-What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/
-							jtag_enable
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/jtag_enable
 
 Date:		November 2018
 KernelVersion:	5.0
@@ -43,8 +39,7 @@ Description:	These files show with which CPLD versions have been burned
 
 		The files are read only.
 
-What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/
-							jtag_enable
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/jtag_enable
 
 Date:		November 2018
 KernelVersion:	5.0
@@ -87,16 +82,15 @@ Description:	These files allow asserting system power cycling, switching
 
 		The files are write only.
 
-What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/
-							reset_aux_pwr_or_ref
-							reset_asic_thermal
-							reset_hotswap_or_halt
-							reset_hotswap_or_wd
-							reset_fw_reset
-							reset_long_pb
-							reset_main_pwr_fail
-							reset_short_pb
-							reset_sw_reset
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_aux_pwr_or_ref
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_asic_thermal
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_hotswap_or_halt
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_hotswap_or_wd
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_fw_reset
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_long_pb
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_main_pwr_fail
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_short_pb
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_sw_reset
 Date:		June 2018
 KernelVersion:	4.19
 Contact:	Vadim Pasternak <vadimpmellanox.com>
@@ -110,11 +104,10 @@ Description:	These files show the system reset cause, as following: power
 
 		The files are read only.
 
-What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/
-						reset_comex_pwr_fail
-						reset_from_comex
-						reset_system
-						reset_voltmon_upgrade_fail
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_comex_pwr_fail
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_from_comex
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_system
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_voltmon_upgrade_fail
 
 Date:		November 2018
 KernelVersion:	5.0
@@ -127,3 +120,23 @@ Description:	These files show the system reset cause, as following: ComEx
 		the last reset cause.
 
 		The files are read only.
+
+Date:		June 2019
+KernelVersion:	5.3
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	These files show the system reset cause, as following:
+		COMEX thermal shutdown; wathchdog power off or reset was derived
+		by one of the next components: COMEX, switch board or by Small Form
+		Factor mezzanine, reset requested from ASIC, reset cuased by BIOS
+		reload. Value 1 in file means this is reset cause, 0 - otherwise.
+		Only one of the above causes could be 1 at the same time, representing
+		only last reset cause.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_comex_thermal
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_comex_wd
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_from_asic
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_reload_bios
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_sff_wd
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_swb_wd

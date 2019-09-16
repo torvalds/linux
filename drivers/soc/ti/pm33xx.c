@@ -178,6 +178,7 @@ static int am33xx_pm_suspend(suspend_state_t suspend_state)
 					  suspend_wfi_flags);
 
 		suspend_wfi_flags &= ~WFI_FLAG_RTC_ONLY;
+		dev_info(pm33xx_dev, "Entering RTC Only mode with DDR in self-refresh\n");
 
 		if (!ret) {
 			clk_restore_context();

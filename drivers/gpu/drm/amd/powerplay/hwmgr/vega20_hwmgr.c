@@ -97,6 +97,27 @@ static void vega20_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	if (hwmgr->smu_version < 0x282100)
 		data->registry_data.disallowed_features |= FEATURE_ECC_MASK;
 
+	if (!(hwmgr->feature_mask & PP_PCIE_DPM_MASK))
+		data->registry_data.disallowed_features |= FEATURE_DPM_LINK_MASK;
+
+	if (!(hwmgr->feature_mask & PP_SCLK_DPM_MASK))
+		data->registry_data.disallowed_features |= FEATURE_DPM_GFXCLK_MASK;
+
+	if (!(hwmgr->feature_mask & PP_SOCCLK_DPM_MASK))
+		data->registry_data.disallowed_features |= FEATURE_DPM_SOCCLK_MASK;
+
+	if (!(hwmgr->feature_mask & PP_MCLK_DPM_MASK))
+		data->registry_data.disallowed_features |= FEATURE_DPM_UCLK_MASK;
+
+	if (!(hwmgr->feature_mask & PP_DCEFCLK_DPM_MASK))
+		data->registry_data.disallowed_features |= FEATURE_DPM_DCEFCLK_MASK;
+
+	if (!(hwmgr->feature_mask & PP_ULV_MASK))
+		data->registry_data.disallowed_features |= FEATURE_ULV_MASK;
+
+	if (!(hwmgr->feature_mask & PP_SCLK_DEEP_SLEEP_MASK))
+		data->registry_data.disallowed_features |= FEATURE_DS_GFXCLK_MASK;
+
 	data->registry_data.od_state_in_dc_support = 0;
 	data->registry_data.thermal_support = 1;
 	data->registry_data.skip_baco_hardware = 0;
@@ -303,6 +324,8 @@ static int vega20_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 static void vega20_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 {
 	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
+	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t top32, bottom32;
 	int i;
 
 	data->smu_features[GNLD_DPM_PREFETCHER].smu_feature_id =
@@ -372,6 +395,14 @@ static void vega20_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 			((data->registry_data.disallowed_features >> i) & 1) ?
 			false : true;
 	}
+
+	/* Get the SN to turn into a Unique ID */
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumTop32);
+	top32 = smum_get_argument(hwmgr);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumBottom32);
+	bottom32 = smum_get_argument(hwmgr);
+
+	adev->unique_id = ((uint64_t)bottom32 << 32) | top32;
 }
 
 static int vega20_set_private_data_based_on_pptable(struct pp_hwmgr *hwmgr)
@@ -2094,6 +2125,7 @@ static int vega20_get_current_clk_freq(struct pp_hwmgr *hwmgr,
 }
 
 static int vega20_get_current_activity_percent(struct pp_hwmgr *hwmgr,
+		int idx,
 		uint32_t *activity_percent)
 {
 	int ret = 0;
@@ -2103,7 +2135,17 @@ static int vega20_get_current_activity_percent(struct pp_hwmgr *hwmgr,
 	if (ret)
 		return ret;
 
-	*activity_percent = metrics_table.AverageGfxActivity;
+	switch (idx) {
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		*activity_percent = metrics_table.AverageGfxActivity;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
+		*activity_percent = metrics_table.AverageUclkActivity;
+		break;
+	default:
+		pr_err("Invalid index for retrieving clock activity\n");
+		return -EINVAL;
+	}
 
 	return ret;
 }
@@ -2134,12 +2176,31 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = vega20_get_current_activity_percent(hwmgr, (uint32_t *)value);
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
+		ret = vega20_get_current_activity_percent(hwmgr, idx, (uint32_t *)value);
 		if (!ret)
 			*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_TEMP:
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
 		*((uint32_t *)value) = vega20_thermal_get_temperature(hwmgr);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+		ret = vega20_get_metrics_table(hwmgr, &metrics_table);
+		if (ret)
+			return ret;
+
+		*((uint32_t *)value) = metrics_table.TemperatureEdge *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		ret = vega20_get_metrics_table(hwmgr, &metrics_table);
+		if (ret)
+			return ret;
+
+		*((uint32_t *)value) = metrics_table.TemperatureHBM *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_UVD_POWER:
@@ -3974,12 +4035,23 @@ static int vega20_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 static int vega20_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
 		struct PP_TemperatureRange *thermal_data)
 {
-	struct phm_ppt_v3_information *pptable_information =
-		(struct phm_ppt_v3_information *)hwmgr->pptable;
+	struct vega20_hwmgr *data =
+			(struct vega20_hwmgr *)(hwmgr->backend);
+	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 
 	memcpy(thermal_data, &SMU7ThermalWithDelayPolicy[0], sizeof(struct PP_TemperatureRange));
 
-	thermal_data->max = pptable_information->us_software_shutdown_temp *
+	thermal_data->max = pp_table->TedgeLimit *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	thermal_data->edge_emergency_max = (pp_table->TedgeLimit + CTF_OFFSET_EDGE) *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	thermal_data->hotspot_crit_max = pp_table->ThotspotLimit *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	thermal_data->hotspot_emergency_max = (pp_table->ThotspotLimit + CTF_OFFSET_HOTSPOT) *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	thermal_data->mem_crit_max = pp_table->ThbmLimit *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	thermal_data->mem_emergency_max = (pp_table->ThbmLimit + CTF_OFFSET_HBM)*
 		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 	return 0;

@@ -182,13 +182,7 @@ static int max77620_wdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(wdt_dev, wdt);
 
 	watchdog_stop_on_unregister(wdt_dev);
-	ret = devm_watchdog_register_device(dev, wdt_dev);
-	if (ret < 0) {
-		dev_err(dev, "watchdog registration failed: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
+	return devm_watchdog_register_device(dev, wdt_dev);
 }
 
 static const struct platform_device_id max77620_wdt_devtype[] = {

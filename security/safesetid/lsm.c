@@ -14,67 +14,50 @@
 
 #define pr_fmt(fmt) "SafeSetID: " fmt
 
-#include <linux/hashtable.h>
 #include <linux/lsm_hooks.h>
 #include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/sched/task_stack.h>
 #include <linux/security.h>
+#include "lsm.h"
 
 /* Flag indicating whether initialization completed */
 int safesetid_initialized;
 
-#define NUM_BITS 8 /* 128 buckets in hash table */
+struct setuid_ruleset __rcu *safesetid_setuid_rules;
 
-static DEFINE_HASHTABLE(safesetid_whitelist_hashtable, NUM_BITS);
-
-/*
- * Hash table entry to store safesetid policy signifying that 'parent' user
- * can setid to 'child' user.
- */
-struct entry {
-	struct hlist_node next;
-	struct hlist_node dlist; /* for deletion cleanup */
-	uint64_t parent_kuid;
-	uint64_t child_kuid;
-};
-
-static DEFINE_SPINLOCK(safesetid_whitelist_hashtable_spinlock);
-
-static bool check_setuid_policy_hashtable_key(kuid_t parent)
+/* Compute a decision for a transition from @src to @dst under @policy. */
+enum sid_policy_type _setuid_policy_lookup(struct setuid_ruleset *policy,
+		kuid_t src, kuid_t dst)
 {
-	struct entry *entry;
+	struct setuid_rule *rule;
+	enum sid_policy_type result = SIDPOL_DEFAULT;
 
-	rcu_read_lock();
-	hash_for_each_possible_rcu(safesetid_whitelist_hashtable,
-				   entry, next, __kuid_val(parent)) {
-		if (entry->parent_kuid == __kuid_val(parent)) {
-			rcu_read_unlock();
-			return true;
-		}
+	hash_for_each_possible(policy->rules, rule, next, __kuid_val(src)) {
+		if (!uid_eq(rule->src_uid, src))
+			continue;
+		if (uid_eq(rule->dst_uid, dst))
+			return SIDPOL_ALLOWED;
+		result = SIDPOL_CONSTRAINED;
 	}
-	rcu_read_unlock();
-
-	return false;
+	return result;
 }
 
-static bool check_setuid_policy_hashtable_key_value(kuid_t parent,
-						    kuid_t child)
+/*
+ * Compute a decision for a transition from @src to @dst under the active
+ * policy.
+ */
+static enum sid_policy_type setuid_policy_lookup(kuid_t src, kuid_t dst)
 {
-	struct entry *entry;
+	enum sid_policy_type result = SIDPOL_DEFAULT;
+	struct setuid_ruleset *pol;
 
 	rcu_read_lock();
-	hash_for_each_possible_rcu(safesetid_whitelist_hashtable,
-				   entry, next, __kuid_val(parent)) {
-		if (entry->parent_kuid == __kuid_val(parent) &&
-		    entry->child_kuid == __kuid_val(child)) {
-			rcu_read_unlock();
-			return true;
-		}
-	}
+	pol = rcu_dereference(safesetid_setuid_rules);
+	if (pol)
+		result = _setuid_policy_lookup(pol, src, dst);
 	rcu_read_unlock();
-
-	return false;
+	return result;
 }
 
 static int safesetid_security_capable(const struct cred *cred,
@@ -82,37 +65,59 @@ static int safesetid_security_capable(const struct cred *cred,
 				      int cap,
 				      unsigned int opts)
 {
-	if (cap == CAP_SETUID &&
-	    check_setuid_policy_hashtable_key(cred->uid)) {
-		if (!(opts & CAP_OPT_INSETID)) {
-			/*
-			 * Deny if we're not in a set*uid() syscall to avoid
-			 * giving powers gated by CAP_SETUID that are related
-			 * to functionality other than calling set*uid() (e.g.
-			 * allowing user to set up userns uid mappings).
-			 */
-			pr_warn("Operation requires CAP_SETUID, which is not available to UID %u for operations besides approved set*uid transitions",
-				__kuid_val(cred->uid));
-			return -1;
-		}
-	}
-	return 0;
+	/* We're only interested in CAP_SETUID. */
+	if (cap != CAP_SETUID)
+		return 0;
+
+	/*
+	 * If CAP_SETUID is currently used for a set*uid() syscall, we want to
+	 * let it go through here; the real security check happens later, in the
+	 * task_fix_setuid hook.
+	 */
+	if ((opts & CAP_OPT_INSETID) != 0)
+		return 0;
+
+	/*
+	 * If no policy applies to this task, allow the use of CAP_SETUID for
+	 * other purposes.
+	 */
+	if (setuid_policy_lookup(cred->uid, INVALID_UID) == SIDPOL_DEFAULT)
+		return 0;
+
+	/*
+	 * Reject use of CAP_SETUID for functionality other than calling
+	 * set*uid() (e.g. setting up userns uid mappings).
+	 */
+	pr_warn("Operation requires CAP_SETUID, which is not available to UID %u for operations besides approved set*uid transitions\n",
+		__kuid_val(cred->uid));
+	return -EPERM;
 }
 
-static int check_uid_transition(kuid_t parent, kuid_t child)
+/*
+ * Check whether a caller with old credentials @old is allowed to switch to
+ * credentials that contain @new_uid.
+ */
+static bool uid_permitted_for_cred(const struct cred *old, kuid_t new_uid)
 {
-	if (check_setuid_policy_hashtable_key_value(parent, child))
-		return 0;
-	pr_warn("UID transition (%d -> %d) blocked",
-		__kuid_val(parent),
-		__kuid_val(child));
+	bool permitted;
+
+	/* If our old creds already had this UID in it, it's fine. */
+	if (uid_eq(new_uid, old->uid) || uid_eq(new_uid, old->euid) ||
+	    uid_eq(new_uid, old->suid))
+		return true;
+
 	/*
-	 * Kill this process to avoid potential security vulnerabilities
-	 * that could arise from a missing whitelist entry preventing a
-	 * privileged process from dropping to a lesser-privileged one.
+	 * Transitions to new UIDs require a check against the policy of the old
+	 * RUID.
 	 */
-	force_sig(SIGKILL, current);
-	return -EACCES;
+	permitted =
+	    setuid_policy_lookup(old->uid, new_uid) != SIDPOL_CONSTRAINED;
+	if (!permitted) {
+		pr_warn("UID transition ((%d,%d,%d) -> %d) blocked\n",
+			__kuid_val(old->uid), __kuid_val(old->euid),
+			__kuid_val(old->suid), __kuid_val(new_uid));
+	}
+	return permitted;
 }
 
 /*
@@ -125,134 +130,23 @@ static int safesetid_task_fix_setuid(struct cred *new,
 				     int flags)
 {
 
-	/* Do nothing if there are no setuid restrictions for this UID. */
-	if (!check_setuid_policy_hashtable_key(old->uid))
+	/* Do nothing if there are no setuid restrictions for our old RUID. */
+	if (setuid_policy_lookup(old->uid, INVALID_UID) == SIDPOL_DEFAULT)
 		return 0;
 
-	switch (flags) {
-	case LSM_SETID_RE:
-		/*
-		 * Users for which setuid restrictions exist can only set the
-		 * real UID to the real UID or the effective UID, unless an
-		 * explicit whitelist policy allows the transition.
-		 */
-		if (!uid_eq(old->uid, new->uid) &&
-			!uid_eq(old->euid, new->uid)) {
-			return check_uid_transition(old->uid, new->uid);
-		}
-		/*
-		 * Users for which setuid restrictions exist can only set the
-		 * effective UID to the real UID, the effective UID, or the
-		 * saved set-UID, unless an explicit whitelist policy allows
-		 * the transition.
-		 */
-		if (!uid_eq(old->uid, new->euid) &&
-			!uid_eq(old->euid, new->euid) &&
-			!uid_eq(old->suid, new->euid)) {
-			return check_uid_transition(old->euid, new->euid);
-		}
-		break;
-	case LSM_SETID_ID:
-		/*
-		 * Users for which setuid restrictions exist cannot change the
-		 * real UID or saved set-UID unless an explicit whitelist
-		 * policy allows the transition.
-		 */
-		if (!uid_eq(old->uid, new->uid))
-			return check_uid_transition(old->uid, new->uid);
-		if (!uid_eq(old->suid, new->suid))
-			return check_uid_transition(old->suid, new->suid);
-		break;
-	case LSM_SETID_RES:
-		/*
-		 * Users for which setuid restrictions exist cannot change the
-		 * real UID, effective UID, or saved set-UID to anything but
-		 * one of: the current real UID, the current effective UID or
-		 * the current saved set-user-ID unless an explicit whitelist
-		 * policy allows the transition.
-		 */
-		if (!uid_eq(new->uid, old->uid) &&
-			!uid_eq(new->uid, old->euid) &&
-			!uid_eq(new->uid, old->suid)) {
-			return check_uid_transition(old->uid, new->uid);
-		}
-		if (!uid_eq(new->euid, old->uid) &&
-			!uid_eq(new->euid, old->euid) &&
-			!uid_eq(new->euid, old->suid)) {
-			return check_uid_transition(old->euid, new->euid);
-		}
-		if (!uid_eq(new->suid, old->uid) &&
-			!uid_eq(new->suid, old->euid) &&
-			!uid_eq(new->suid, old->suid)) {
-			return check_uid_transition(old->suid, new->suid);
-		}
-		break;
-	case LSM_SETID_FS:
-		/*
-		 * Users for which setuid restrictions exist cannot change the
-		 * filesystem UID to anything but one of: the current real UID,
-		 * the current effective UID or the current saved set-UID
-		 * unless an explicit whitelist policy allows the transition.
-		 */
-		if (!uid_eq(new->fsuid, old->uid)  &&
-			!uid_eq(new->fsuid, old->euid)  &&
-			!uid_eq(new->fsuid, old->suid) &&
-			!uid_eq(new->fsuid, old->fsuid)) {
-			return check_uid_transition(old->fsuid, new->fsuid);
-		}
-		break;
-	default:
-		pr_warn("Unknown setid state %d\n", flags);
-		force_sig(SIGKILL, current);
-		return -EINVAL;
-	}
-	return 0;
-}
-
-int add_safesetid_whitelist_entry(kuid_t parent, kuid_t child)
-{
-	struct entry *new;
-
-	/* Return if entry already exists */
-	if (check_setuid_policy_hashtable_key_value(parent, child))
+	if (uid_permitted_for_cred(old, new->uid) &&
+	    uid_permitted_for_cred(old, new->euid) &&
+	    uid_permitted_for_cred(old, new->suid) &&
+	    uid_permitted_for_cred(old, new->fsuid))
 		return 0;
-
-	new = kzalloc(sizeof(struct entry), GFP_KERNEL);
-	if (!new)
-		return -ENOMEM;
-	new->parent_kuid = __kuid_val(parent);
-	new->child_kuid = __kuid_val(child);
-	spin_lock(&safesetid_whitelist_hashtable_spinlock);
-	hash_add_rcu(safesetid_whitelist_hashtable,
-		     &new->next,
-		     __kuid_val(parent));
-	spin_unlock(&safesetid_whitelist_hashtable_spinlock);
-	return 0;
-}
-
-void flush_safesetid_whitelist_entries(void)
-{
-	struct entry *entry;
-	struct hlist_node *hlist_node;
-	unsigned int bkt_loop_cursor;
-	HLIST_HEAD(free_list);
 
 	/*
-	 * Could probably use hash_for_each_rcu here instead, but this should
-	 * be fine as well.
+	 * Kill this process to avoid potential security vulnerabilities
+	 * that could arise from a missing whitelist entry preventing a
+	 * privileged process from dropping to a lesser-privileged one.
 	 */
-	spin_lock(&safesetid_whitelist_hashtable_spinlock);
-	hash_for_each_safe(safesetid_whitelist_hashtable, bkt_loop_cursor,
-			   hlist_node, entry, next) {
-		hash_del_rcu(&entry->next);
-		hlist_add_head(&entry->dlist, &free_list);
-	}
-	spin_unlock(&safesetid_whitelist_hashtable_spinlock);
-	synchronize_rcu();
-	hlist_for_each_entry_safe(entry, hlist_node, &free_list, dlist) {
-		hlist_del(&entry->dlist);
-		kfree(entry);
-	}
+	force_sig(SIGKILL);
+	return -EACCES;
 }
 
 static struct security_hook_list safesetid_security_hooks[] = {

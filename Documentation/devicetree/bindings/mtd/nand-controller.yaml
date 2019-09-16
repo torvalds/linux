@@ -40,6 +40,7 @@ properties:
 
 patternProperties:
   "^nand@[a-f0-9]$":
+    type: object
     properties:
       reg:
         description:

@@ -18,12 +18,9 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_gem_vram_helper.h>
 
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
-#include <drm/ttm/ttm_memory.h>
-#include <drm/ttm/ttm_module.h>
+#include <drm/drm_vram_mm_helper.h>
 
 #include "vboxvideo_guest.h"
 #include "vboxvideo_vbe.h"
@@ -77,10 +74,6 @@ struct vbox_private {
 
 	int fb_mtrr;
 
-	struct {
-		struct ttm_bo_device bdev;
-	} ttm;
-
 	struct mutex hw_mutex; /* protects modeset and accel/vbva accesses */
 	struct work_struct hotplug_work;
 	u32 input_mapping_width;
@@ -95,8 +88,6 @@ struct vbox_private {
 
 #undef CURSOR_PIXEL_COUNT
 #undef CURSOR_DATA_SIZE
-
-struct vbox_gem_object;
 
 struct vbox_connector {
 	struct drm_connector base;
@@ -170,73 +161,11 @@ int vboxfb_create(struct drm_fb_helper *helper,
 		  struct drm_fb_helper_surface_size *sizes);
 void vbox_fbdev_fini(struct vbox_private *vbox);
 
-struct vbox_bo {
-	struct ttm_buffer_object bo;
-	struct ttm_placement placement;
-	struct ttm_bo_kmap_obj kmap;
-	struct drm_gem_object gem;
-	struct ttm_place placements[3];
-	int pin_count;
-};
-
-#define gem_to_vbox_bo(gobj) container_of((gobj), struct vbox_bo, gem)
-
-static inline struct vbox_bo *vbox_bo(struct ttm_buffer_object *bo)
-{
-	return container_of(bo, struct vbox_bo, bo);
-}
-
-#define to_vbox_obj(x) container_of(x, struct vbox_gem_object, base)
-
-static inline u64 vbox_bo_gpu_offset(struct vbox_bo *bo)
-{
-	return bo->bo.offset;
-}
-
-int vbox_dumb_create(struct drm_file *file,
-		     struct drm_device *dev,
-		     struct drm_mode_create_dumb *args);
-
-void vbox_gem_free_object(struct drm_gem_object *obj);
-int vbox_dumb_mmap_offset(struct drm_file *file,
-			  struct drm_device *dev,
-			  u32 handle, u64 *offset);
-
 int vbox_mm_init(struct vbox_private *vbox);
 void vbox_mm_fini(struct vbox_private *vbox);
 
-int vbox_bo_create(struct vbox_private *vbox, int size, int align,
-		   u32 flags, struct vbox_bo **pvboxbo);
-
 int vbox_gem_create(struct vbox_private *vbox,
 		    u32 size, bool iskernel, struct drm_gem_object **obj);
-
-int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag);
-int vbox_bo_unpin(struct vbox_bo *bo);
-
-static inline int vbox_bo_reserve(struct vbox_bo *bo, bool no_wait)
-{
-	int ret;
-
-	ret = ttm_bo_reserve(&bo->bo, true, no_wait, NULL);
-	if (ret) {
-		if (ret != -ERESTARTSYS && ret != -EBUSY)
-			DRM_ERROR("reserve failed %p\n", bo);
-		return ret;
-	}
-	return 0;
-}
-
-static inline void vbox_bo_unreserve(struct vbox_bo *bo)
-{
-	ttm_bo_unreserve(&bo->bo);
-}
-
-void vbox_ttm_placement(struct vbox_bo *bo, int domain);
-int vbox_bo_push_sysram(struct vbox_bo *bo);
-int vbox_mmap(struct file *filp, struct vm_area_struct *vma);
-void *vbox_bo_kmap(struct vbox_bo *bo);
-void vbox_bo_kunmap(struct vbox_bo *bo);
 
 /* vbox_prime.c */
 int vbox_gem_prime_pin(struct drm_gem_object *obj);
