@@ -573,3 +573,12 @@ config RANDOM_TRUST_CPU
 	has not installed a hidden back door to compromise the CPU's
 	random number generation facilities. This can also be configured
 	at boot with "random.trust_cpu=on/off".
+
+config RANDOM_TRUST_BOOTLOADER
+	bool "Trust the bootloader to initialize Linux's CRNG"
+	help
+	Some bootloaders can provide entropy to increase the kernel's initial
+	device randomness. Say Y here to assume the entropy provided by the
+	booloader is trustworthy so it will be added to the kernel's entropy
+	pool. Otherwise, say N here so it will be regarded as device input that
+	only mixes the entropy pool.
