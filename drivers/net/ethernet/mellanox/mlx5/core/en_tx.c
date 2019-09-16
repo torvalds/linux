@@ -550,8 +550,8 @@ void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq)
 		wi = &sq->db.wqe_info[ci];
 		skb = wi->skb;
 
-		if (!skb) { /* nop */
-			sq->cc++;
+		if (!skb) {
+			sq->cc += wi->num_wqebbs;
 			continue;
 		}
 
