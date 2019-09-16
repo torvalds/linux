@@ -30,6 +30,7 @@
 #include <trace/events/block.h>
 
 #include <linux/blk-mq.h>
+#include <linux/t10-pi.h>
 #include "blk.h"
 #include "blk-mq.h"
 #include "blk-mq-debugfs.h"
@@ -700,6 +701,11 @@ void blk_mq_start_request(struct request *rq)
 		 */
 		rq->nr_phys_segments++;
 	}
+
+#ifdef CONFIG_BLK_DEV_INTEGRITY
+	if (blk_integrity_rq(rq) && req_op(rq) == REQ_OP_WRITE)
+		q->integrity.profile->prepare_fn(rq);
+#endif
 }
 EXPORT_SYMBOL(blk_mq_start_request);
 

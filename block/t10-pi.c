@@ -120,75 +120,21 @@ static blk_status_t t10_pi_type1_verify_ip(struct blk_integrity_iter *iter)
 	return t10_pi_verify(iter, t10_pi_ip_fn, T10_PI_TYPE1_PROTECTION);
 }
 
-static blk_status_t t10_pi_type3_generate_crc(struct blk_integrity_iter *iter)
-{
-	return t10_pi_generate(iter, t10_pi_crc_fn, T10_PI_TYPE3_PROTECTION);
-}
-
-static blk_status_t t10_pi_type3_generate_ip(struct blk_integrity_iter *iter)
-{
-	return t10_pi_generate(iter, t10_pi_ip_fn, T10_PI_TYPE3_PROTECTION);
-}
-
-static blk_status_t t10_pi_type3_verify_crc(struct blk_integrity_iter *iter)
-{
-	return t10_pi_verify(iter, t10_pi_crc_fn, T10_PI_TYPE3_PROTECTION);
-}
-
-static blk_status_t t10_pi_type3_verify_ip(struct blk_integrity_iter *iter)
-{
-	return t10_pi_verify(iter, t10_pi_ip_fn, T10_PI_TYPE3_PROTECTION);
-}
-
-const struct blk_integrity_profile t10_pi_type1_crc = {
-	.name			= "T10-DIF-TYPE1-CRC",
-	.generate_fn		= t10_pi_type1_generate_crc,
-	.verify_fn		= t10_pi_type1_verify_crc,
-};
-EXPORT_SYMBOL(t10_pi_type1_crc);
-
-const struct blk_integrity_profile t10_pi_type1_ip = {
-	.name			= "T10-DIF-TYPE1-IP",
-	.generate_fn		= t10_pi_type1_generate_ip,
-	.verify_fn		= t10_pi_type1_verify_ip,
-};
-EXPORT_SYMBOL(t10_pi_type1_ip);
-
-const struct blk_integrity_profile t10_pi_type3_crc = {
-	.name			= "T10-DIF-TYPE3-CRC",
-	.generate_fn		= t10_pi_type3_generate_crc,
-	.verify_fn		= t10_pi_type3_verify_crc,
-};
-EXPORT_SYMBOL(t10_pi_type3_crc);
-
-const struct blk_integrity_profile t10_pi_type3_ip = {
-	.name			= "T10-DIF-TYPE3-IP",
-	.generate_fn		= t10_pi_type3_generate_ip,
-	.verify_fn		= t10_pi_type3_verify_ip,
-};
-EXPORT_SYMBOL(t10_pi_type3_ip);
-
 /**
- * t10_pi_prepare - prepare PI prior submitting request to device
+ * t10_pi_type1_prepare - prepare PI prior submitting request to device
  * @rq:              request with PI that should be prepared
- * @protection_type: PI type (Type 1/Type 2/Type 3)
  *
  * For Type 1/Type 2, the virtual start sector is the one that was
  * originally submitted by the block layer for the ref_tag usage. Due to
  * partitioning, MD/DM cloning, etc. the actual physical start sector is
  * likely to be different. Remap protection information to match the
  * physical LBA.
- *
- * Type 3 does not have a reference tag so no remapping is required.
  */
-void t10_pi_prepare(struct request *rq, u8 protection_type)
+static void t10_pi_type1_prepare(struct request *rq)
 {
 	const int tuple_sz = rq->q->integrity.tuple_size;
 	u32 ref_tag = t10_pi_ref_tag(rq);
 	struct bio *bio;
-
-	if (protection_type == T10_PI_TYPE3_PROTECTION)
-		return;
 
 	__rq_for_each_bio(bio, rq) {
 		struct bio_integrity_payload *bip = bio_integrity(bio);
@@ -222,13 +168,11 @@ void t10_pi_prepare(struct request *rq, u8 protection_type)
 		bip->bip_flags |= BIP_MAPPED_INTEGRITY;
 	}
 }
-EXPORT_SYMBOL(t10_pi_prepare);
 
 /**
- * t10_pi_complete - prepare PI prior returning request to the block layer
+ * t10_pi_type1_complete - prepare PI prior returning request to the blk layer
  * @rq:              request with PI that should be prepared
- * @protection_type: PI type (Type 1/Type 2/Type 3)
- * @intervals:       total elements to prepare
+ * @nr_bytes:        total bytes to prepare
  *
  * For Type 1/Type 2, the virtual start sector is the one that was
  * originally submitted by the block layer for the ref_tag usage. Due to
@@ -236,18 +180,13 @@ EXPORT_SYMBOL(t10_pi_prepare);
  * likely to be different. Since the physical start sector was submitted
  * to the device, we should remap it back to virtual values expected by the
  * block layer.
- *
- * Type 3 does not have a reference tag so no remapping is required.
  */
-void t10_pi_complete(struct request *rq, u8 protection_type,
-		     unsigned int intervals)
+static void t10_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 {
+	unsigned intervals = nr_bytes >> rq->q->integrity.interval_exp;
 	const int tuple_sz = rq->q->integrity.tuple_size;
 	u32 ref_tag = t10_pi_ref_tag(rq);
 	struct bio *bio;
-
-	if (protection_type == T10_PI_TYPE3_PROTECTION)
-		return;
 
 	__rq_for_each_bio(bio, rq) {
 		struct bio_integrity_payload *bip = bio_integrity(bio);
@@ -276,4 +215,73 @@ void t10_pi_complete(struct request *rq, u8 protection_type,
 		}
 	}
 }
-EXPORT_SYMBOL(t10_pi_complete);
+
+static blk_status_t t10_pi_type3_generate_crc(struct blk_integrity_iter *iter)
+{
+	return t10_pi_generate(iter, t10_pi_crc_fn, T10_PI_TYPE3_PROTECTION);
+}
+
+static blk_status_t t10_pi_type3_generate_ip(struct blk_integrity_iter *iter)
+{
+	return t10_pi_generate(iter, t10_pi_ip_fn, T10_PI_TYPE3_PROTECTION);
+}
+
+static blk_status_t t10_pi_type3_verify_crc(struct blk_integrity_iter *iter)
+{
+	return t10_pi_verify(iter, t10_pi_crc_fn, T10_PI_TYPE3_PROTECTION);
+}
+
+static blk_status_t t10_pi_type3_verify_ip(struct blk_integrity_iter *iter)
+{
+	return t10_pi_verify(iter, t10_pi_ip_fn, T10_PI_TYPE3_PROTECTION);
+}
+
+/**
+ * Type 3 does not have a reference tag so no remapping is required.
+ */
+static void t10_pi_type3_prepare(struct request *rq)
+{
+}
+
+/**
+ * Type 3 does not have a reference tag so no remapping is required.
+ */
+static void t10_pi_type3_complete(struct request *rq, unsigned int nr_bytes)
+{
+}
+
+const struct blk_integrity_profile t10_pi_type1_crc = {
+	.name			= "T10-DIF-TYPE1-CRC",
+	.generate_fn		= t10_pi_type1_generate_crc,
+	.verify_fn		= t10_pi_type1_verify_crc,
+	.prepare_fn		= t10_pi_type1_prepare,
+	.complete_fn		= t10_pi_type1_complete,
+};
+EXPORT_SYMBOL(t10_pi_type1_crc);
+
+const struct blk_integrity_profile t10_pi_type1_ip = {
+	.name			= "T10-DIF-TYPE1-IP",
+	.generate_fn		= t10_pi_type1_generate_ip,
+	.verify_fn		= t10_pi_type1_verify_ip,
+	.prepare_fn		= t10_pi_type1_prepare,
+	.complete_fn		= t10_pi_type1_complete,
+};
+EXPORT_SYMBOL(t10_pi_type1_ip);
+
+const struct blk_integrity_profile t10_pi_type3_crc = {
+	.name			= "T10-DIF-TYPE3-CRC",
+	.generate_fn		= t10_pi_type3_generate_crc,
+	.verify_fn		= t10_pi_type3_verify_crc,
+	.prepare_fn		= t10_pi_type3_prepare,
+	.complete_fn		= t10_pi_type3_complete,
+};
+EXPORT_SYMBOL(t10_pi_type3_crc);
+
+const struct blk_integrity_profile t10_pi_type3_ip = {
+	.name			= "T10-DIF-TYPE3-IP",
+	.generate_fn		= t10_pi_type3_generate_ip,
+	.verify_fn		= t10_pi_type3_verify_ip,
+	.prepare_fn		= t10_pi_type3_prepare,
+	.complete_fn		= t10_pi_type3_complete,
+};
+EXPORT_SYMBOL(t10_pi_type3_ip);
