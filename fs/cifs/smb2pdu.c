@@ -3176,6 +3176,91 @@ SMB2_get_srv_num(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 /*
+ * CHANGE_NOTIFY Request is sent to get notifications on changes to a directory
+ * See MS-SMB2 2.2.35 and 2.2.36
+ */
+
+int
+SMB2_notify_init(const unsigned int xid, struct smb_rqst *rqst,
+		struct cifs_tcon *tcon, u64 persistent_fid, u64 volatile_fid,
+		u32 completion_filter, bool watch_tree)
+{
+	struct smb2_change_notify_req *req;
+	struct kvec *iov = rqst->rq_iov;
+	unsigned int total_len;
+	int rc;
+
+	rc = smb2_plain_req_init(SMB2_CHANGE_NOTIFY, tcon, (void **) &req, &total_len);
+	if (rc)
+		return rc;
+
+	req->PersistentFileId = persistent_fid;
+	req->VolatileFileId = volatile_fid;
+	req->OutputBufferLength = SMB2_MAX_BUFFER_SIZE - MAX_SMB2_HDR_SIZE;
+	req->CompletionFilter = cpu_to_le32(completion_filter);
+	if (watch_tree)
+		req->Flags = cpu_to_le16(SMB2_WATCH_TREE);
+	else
+		req->Flags = 0;
+
+	iov[0].iov_base = (char *)req;
+	iov[0].iov_len = total_len;
+
+	return 0;
+}
+
+int
+SMB2_change_notify(const unsigned int xid, struct cifs_tcon *tcon,
+		u64 persistent_fid, u64 volatile_fid, bool watch_tree,
+		u32 completion_filter)
+{
+	struct cifs_ses *ses = tcon->ses;
+	struct smb_rqst rqst;
+	struct kvec iov[1];
+	struct kvec rsp_iov = {NULL, 0};
+	int resp_buftype = CIFS_NO_BUFFER;
+	int flags = 0;
+	int rc = 0;
+
+	cifs_dbg(FYI, "change notify\n");
+	if (!ses || !(ses->server))
+		return -EIO;
+
+	if (smb3_encryption_required(tcon))
+		flags |= CIFS_TRANSFORM_REQ;
+
+	memset(&rqst, 0, sizeof(struct smb_rqst));
+	memset(&iov, 0, sizeof(iov));
+	rqst.rq_iov = iov;
+	rqst.rq_nvec = 1;
+
+	rc = SMB2_notify_init(xid, &rqst, tcon, persistent_fid, volatile_fid,
+			      completion_filter, watch_tree);
+	if (rc)
+		goto cnotify_exit;
+
+	trace_smb3_notify_enter(xid, persistent_fid, tcon->tid, ses->Suid,
+				(u8)watch_tree, completion_filter);
+	rc = cifs_send_recv(xid, ses, &rqst, &resp_buftype, flags, &rsp_iov);
+
+	if (rc != 0) {
+		cifs_stats_fail_inc(tcon, SMB2_CHANGE_NOTIFY_HE);
+		trace_smb3_notify_err(xid, persistent_fid, tcon->tid, ses->Suid,
+				(u8)watch_tree, completion_filter, rc);
+	} else
+		trace_smb3_notify_done(xid, persistent_fid, tcon->tid,
+				ses->Suid, (u8)watch_tree, completion_filter);
+
+ cnotify_exit:
+	if (rqst.rq_iov)
+		cifs_small_buf_release(rqst.rq_iov[0].iov_base); /* request */
+	free_rsp_buf(resp_buftype, rsp_iov.iov_base);
+	return rc;
+}
+
+
+
+/*
  * This is a no-op for now. We're not really interested in the reply, but
  * rather in the fact that the server sent one and that server->lstrp
  * gets updated.

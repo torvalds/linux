@@ -235,6 +235,8 @@ DEFINE_EVENT(smb3_inf_enter_class, smb3_##name,    \
 
 DEFINE_SMB3_INF_ENTER_EVENT(query_info_enter);
 DEFINE_SMB3_INF_ENTER_EVENT(query_info_done);
+DEFINE_SMB3_INF_ENTER_EVENT(notify_enter);
+DEFINE_SMB3_INF_ENTER_EVENT(notify_done);
 
 DECLARE_EVENT_CLASS(smb3_inf_err_class,
 	TP_PROTO(unsigned int xid,
@@ -281,6 +283,7 @@ DEFINE_EVENT(smb3_inf_err_class, smb3_##name,    \
 
 DEFINE_SMB3_INF_ERR_EVENT(query_info_err);
 DEFINE_SMB3_INF_ERR_EVENT(set_info_err);
+DEFINE_SMB3_INF_ERR_EVENT(notify_err);
 DEFINE_SMB3_INF_ERR_EVENT(fsctl_err);
 
 DECLARE_EVENT_CLASS(smb3_inf_compound_enter_class,
