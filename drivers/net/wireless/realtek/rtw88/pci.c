@@ -500,6 +500,17 @@ static void rtw_pci_dma_reset(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci)
 	rtwpci->rx_tag = 0;
 }
 
+static void rtw_pci_dma_release(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci)
+{
+	struct rtw_pci_tx_ring *tx_ring;
+	u8 queue;
+
+	for (queue = 0; queue < RTK_MAX_TX_QUEUE_NUM; queue++) {
+		tx_ring = &rtwpci->tx_rings[queue];
+		rtw_pci_free_tx_ring_skbs(rtwdev, tx_ring);
+	}
+}
+
 static int rtw_pci_start(struct rtw_dev *rtwdev)
 {
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
@@ -521,6 +532,7 @@ static void rtw_pci_stop(struct rtw_dev *rtwdev)
 
 	spin_lock_irqsave(&rtwpci->irq_lock, flags);
 	rtw_pci_disable_interrupt(rtwdev, rtwpci);
+	rtw_pci_dma_release(rtwdev, rtwpci);
 	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
 }
 
