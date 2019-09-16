@@ -1563,14 +1563,6 @@ static void ena_napi_enable_all(struct ena_adapter *adapter)
 		napi_enable(&adapter->ena_napi[i].napi);
 }
 
-static void ena_restore_ethtool_params(struct ena_adapter *adapter)
-{
-	adapter->tx_usecs = 0;
-	adapter->rx_usecs = 0;
-	adapter->tx_frames = 1;
-	adapter->rx_frames = 1;
-}
-
 /* Configure the Rx forwarding */
 static int ena_rss_configure(struct ena_adapter *adapter)
 {
@@ -1619,8 +1611,6 @@ static int ena_up_complete(struct ena_adapter *adapter)
 
 	/* enable transmits */
 	netif_tx_start_all_queues(adapter->netdev);
-
-	ena_restore_ethtool_params(adapter);
 
 	ena_napi_enable_all(adapter);
 

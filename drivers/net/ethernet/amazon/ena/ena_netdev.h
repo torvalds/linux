@@ -330,9 +330,6 @@ struct ena_adapter {
 
 	u32 missing_tx_completion_threshold;
 
-	u32 tx_usecs, rx_usecs; /* interrupt moderation */
-	u32 tx_frames, rx_frames; /* interrupt moderation */
-
 	u32 requested_tx_ring_size;
 	u32 requested_rx_ring_size;
 
