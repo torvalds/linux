@@ -2438,6 +2438,9 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev,
 		("K"[0] << ENA_ADMIN_HOST_INFO_MODULE_TYPE_SHIFT);
 	host_info->num_cpus = num_online_cpus();
 
+	host_info->driver_supported_features =
+		ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_MASK;
+
 	rc = ena_com_set_host_attributes(ena_dev);
 	if (rc) {
 		if (rc == -EOPNOTSUPP)
