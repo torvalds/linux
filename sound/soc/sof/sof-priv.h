@@ -28,10 +28,15 @@
 #include <uapi/sound/sof/fw.h>
 
 /* debug flags */
-#define SOF_DBG_REGS	BIT(1)
-#define SOF_DBG_MBOX	BIT(2)
-#define SOF_DBG_TEXT	BIT(3)
-#define SOF_DBG_PCI	BIT(4)
+#define SOF_DBG_ENABLE_TRACE	BIT(0)
+#define SOF_DBG_REGS		BIT(1)
+#define SOF_DBG_MBOX		BIT(2)
+#define SOF_DBG_TEXT		BIT(3)
+#define SOF_DBG_PCI		BIT(4)
+#define SOF_DBG_RETAIN_CTX	BIT(5)	/* prevent DSP D3 on FW exception */
+
+/* global debug state set by SOF_DBG_ flags */
+extern int sof_core_debug;
 
 /* max BARs mmaped devices can use */
 #define SND_SOF_BARS	8

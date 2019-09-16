@@ -16,11 +16,10 @@
 #include "sof-priv.h"
 #include "ops.h"
 
-static int sof_core_debug;
+/* see SOF_DBG_ flags */
+int sof_core_debug;
 module_param_named(sof_debug, sof_core_debug, int, 0444);
 MODULE_PARM_DESC(sof_debug, "SOF core debug options (0x0 all off)");
-
-#define SOF_CORE_ENABLE_TRACE BIT(0)
 
 /* SOF defaults if not provided by the platform in ms */
 #define TIMEOUT_DEFAULT_IPC_MS  500
@@ -357,7 +356,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	}
 
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE) ||
-	    (sof_core_debug & SOF_CORE_ENABLE_TRACE)) {
+	    (sof_core_debug & SOF_DBG_ENABLE_TRACE)) {
 		sdev->dtrace_is_supported = true;
 
 		/* init DMA trace */
