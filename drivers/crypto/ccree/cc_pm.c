@@ -103,20 +103,19 @@ int cc_pm_put_suspend(struct device *dev)
 
 int cc_pm_init(struct cc_drvdata *drvdata)
 {
-	int rc = 0;
 	struct device *dev = drvdata_to_dev(drvdata);
 
 	/* must be before the enabling to avoid resdundent suspending */
 	pm_runtime_set_autosuspend_delay(dev, CC_SUSPEND_TIMEOUT);
 	pm_runtime_use_autosuspend(dev);
 	/* activate the PM module */
-	rc = pm_runtime_set_active(dev);
-	if (rc)
-		return rc;
-	/* enable the PM module*/
-	pm_runtime_enable(dev);
+	return pm_runtime_set_active(dev);
+}
 
-	return rc;
+/* enable the PM module*/
+void cc_pm_go(struct cc_drvdata *drvdata)
+{
+	pm_runtime_enable(drvdata_to_dev(drvdata));
 }
 
 void cc_pm_fini(struct cc_drvdata *drvdata)

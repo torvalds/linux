@@ -336,10 +336,12 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	list_add(&cfile->tlist, &tcon->openFileList);
 
 	/* if readable file instance put first in list*/
+	spin_lock(&cinode->open_file_lock);
 	if (file->f_mode & FMODE_READ)
 		list_add(&cfile->flist, &cinode->openFileList);
 	else
 		list_add_tail(&cfile->flist, &cinode->openFileList);
+	spin_unlock(&cinode->open_file_lock);
 	spin_unlock(&tcon->open_file_lock);
 
 	if (fid->purge_cache)
@@ -411,7 +413,9 @@ void _cifsFileInfo_put(struct cifsFileInfo *cifs_file, bool wait_oplock_handler)
 	cifs_add_pending_open_locked(&fid, cifs_file->tlink, &open);
 
 	/* remove it from the lists */
+	spin_lock(&cifsi->open_file_lock);
 	list_del(&cifs_file->flist);
+	spin_unlock(&cifsi->open_file_lock);
 	list_del(&cifs_file->tlist);
 
 	if (list_empty(&cifsi->openFileList)) {
@@ -749,7 +753,8 @@ reopen_success:
 
 	if (can_flush) {
 		rc = filemap_write_and_wait(inode->i_mapping);
-		mapping_set_error(inode->i_mapping, rc);
+		if (!is_interrupt_error(rc))
+			mapping_set_error(inode->i_mapping, rc);
 
 		if (tcon->unix_ext)
 			rc = cifs_get_inode_info_unix(&inode, full_path,
@@ -1928,10 +1933,10 @@ refind_writable:
 		if (!rc)
 			return inv_file;
 		else {
-			spin_lock(&tcon->open_file_lock);
+			spin_lock(&cifs_inode->open_file_lock);
 			list_move_tail(&inv_file->flist,
 					&cifs_inode->openFileList);
-			spin_unlock(&tcon->open_file_lock);
+			spin_unlock(&cifs_inode->open_file_lock);
 			cifsFileInfo_put(inv_file);
 			++refind;
 			inv_file = NULL;
@@ -2137,6 +2142,7 @@ static int cifs_writepages(struct address_space *mapping,
 	pgoff_t end, index;
 	struct cifs_writedata *wdata;
 	int rc = 0;
+	int saved_rc = 0;
 
 	/*
 	 * If wsize is smaller than the page cache size, default to writing
@@ -2163,8 +2169,10 @@ retry:
 
 		rc = server->ops->wait_mtu_credits(server, cifs_sb->wsize,
 						   &wsize, &credits);
-		if (rc)
+		if (rc != 0) {
+			done = true;
 			break;
+		}
 
 		tofind = min((wsize / PAGE_SIZE) - 1, end - index) + 1;
 
@@ -2172,6 +2180,7 @@ retry:
 						  &found_pages);
 		if (!wdata) {
 			rc = -ENOMEM;
+			done = true;
 			add_credits_and_wake_if(server, credits, 0);
 			break;
 		}
@@ -2200,7 +2209,7 @@ retry:
 		if (rc != 0) {
 			add_credits_and_wake_if(server, wdata->credits, 0);
 			for (i = 0; i < nr_pages; ++i) {
-				if (rc == -EAGAIN)
+				if (is_retryable_error(rc))
 					redirty_page_for_writepage(wbc,
 							   wdata->pages[i]);
 				else
@@ -2208,7 +2217,7 @@ retry:
 				end_page_writeback(wdata->pages[i]);
 				put_page(wdata->pages[i]);
 			}
-			if (rc != -EAGAIN)
+			if (!is_retryable_error(rc))
 				mapping_set_error(mapping, rc);
 		}
 		kref_put(&wdata->refcount, cifs_writedata_release);
@@ -2217,6 +2226,15 @@ retry:
 			index = saved_index;
 			continue;
 		}
+
+		/* Return immediately if we received a signal during writing */
+		if (is_interrupt_error(rc)) {
+			done = true;
+			break;
+		}
+
+		if (rc != 0 && saved_rc == 0)
+			saved_rc = rc;
 
 		wbc->nr_to_write -= nr_pages;
 		if (wbc->nr_to_write <= 0)
@@ -2234,6 +2252,9 @@ retry:
 		index = 0;
 		goto retry;
 	}
+
+	if (saved_rc != 0)
+		rc = saved_rc;
 
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))
 		mapping->writeback_index = index;
@@ -2266,8 +2287,8 @@ cifs_writepage_locked(struct page *page, struct writeback_control *wbc)
 	set_page_writeback(page);
 retry_write:
 	rc = cifs_partialpagewrite(page, 0, PAGE_SIZE);
-	if (rc == -EAGAIN) {
-		if (wbc->sync_mode == WB_SYNC_ALL)
+	if (is_retryable_error(rc)) {
+		if (wbc->sync_mode == WB_SYNC_ALL && rc == -EAGAIN)
 			goto retry_write;
 		redirty_page_for_writepage(wbc, page);
 	} else if (rc != 0) {

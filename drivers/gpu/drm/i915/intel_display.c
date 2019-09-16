@@ -2712,6 +2712,17 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	if (size_aligned * 2 > dev_priv->stolen_usable_size)
 		return false;
 
+	switch (fb->modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+	case I915_FORMAT_MOD_Y_TILED:
+		break;
+	default:
+		DRM_DEBUG_DRIVER("Unsupported modifier for initial FB: 0x%llx\n",
+				 fb->modifier);
+		return false;
+	}
+
 	mutex_lock(&dev->struct_mutex);
 	obj = i915_gem_object_create_stolen_for_preallocated(dev_priv,
 							     base_aligned,
@@ -2721,8 +2732,17 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	if (!obj)
 		return false;
 
-	if (plane_config->tiling == I915_TILING_X)
-		obj->tiling_and_stride = fb->pitches[0] | I915_TILING_X;
+	switch (plane_config->tiling) {
+	case I915_TILING_NONE:
+		break;
+	case I915_TILING_X:
+	case I915_TILING_Y:
+		obj->tiling_and_stride = fb->pitches[0] | plane_config->tiling;
+		break;
+	default:
+		MISSING_CASE(plane_config->tiling);
+		return false;
+	}
 
 	mode_cmd.pixel_format = fb->format->format;
 	mode_cmd.width = fb->width;
@@ -3561,11 +3581,11 @@ static u32 skl_plane_ctl_tiling(uint64_t fb_modifier)
 	case I915_FORMAT_MOD_Y_TILED:
 		return PLANE_CTL_TILED_Y;
 	case I915_FORMAT_MOD_Y_TILED_CCS:
-		return PLANE_CTL_TILED_Y | PLANE_CTL_DECOMPRESSION_ENABLE;
+		return PLANE_CTL_TILED_Y | PLANE_CTL_RENDER_DECOMPRESSION_ENABLE;
 	case I915_FORMAT_MOD_Yf_TILED:
 		return PLANE_CTL_TILED_YF;
 	case I915_FORMAT_MOD_Yf_TILED_CCS:
-		return PLANE_CTL_TILED_YF | PLANE_CTL_DECOMPRESSION_ENABLE;
+		return PLANE_CTL_TILED_YF | PLANE_CTL_RENDER_DECOMPRESSION_ENABLE;
 	default:
 		MISSING_CASE(fb_modifier);
 	}
@@ -8812,13 +8832,14 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 		fb->modifier = I915_FORMAT_MOD_X_TILED;
 		break;
 	case PLANE_CTL_TILED_Y:
-		if (val & PLANE_CTL_DECOMPRESSION_ENABLE)
+		plane_config->tiling = I915_TILING_Y;
+		if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
 			fb->modifier = I915_FORMAT_MOD_Y_TILED_CCS;
 		else
 			fb->modifier = I915_FORMAT_MOD_Y_TILED;
 		break;
 	case PLANE_CTL_TILED_YF:
-		if (val & PLANE_CTL_DECOMPRESSION_ENABLE)
+		if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
 			fb->modifier = I915_FORMAT_MOD_Yf_TILED_CCS;
 		else
 			fb->modifier = I915_FORMAT_MOD_Yf_TILED;
@@ -15951,8 +15972,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	flush_work(&dev_priv->atomic_helper.free_work);
 	WARN_ON(!llist_empty(&dev_priv->atomic_helper.free_list));
 
-	intel_disable_gt_powersave(dev_priv);
-
 	/*
 	 * Interrupts and polling as the first thing to avoid creating havoc.
 	 * Too much stuff here (turning of connectors, ...) would
@@ -15979,8 +15998,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	drm_mode_config_cleanup(dev);
 
 	intel_cleanup_overlay(dev_priv);
-
-	intel_cleanup_gt_powersave(dev_priv);
 
 	intel_teardown_gmbus(dev_priv);
 

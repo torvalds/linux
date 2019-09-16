@@ -219,7 +219,7 @@ static void dm_end_request(struct request *clone, blk_status_t error)
 	struct request *rq = tio->orig;
 
 	blk_rq_unprep_clone(clone);
-	tio->ti->type->release_clone_rq(clone);
+	tio->ti->type->release_clone_rq(clone, NULL);
 
 	rq_end_stats(md, rq);
 	if (!rq->q->mq_ops)
@@ -270,7 +270,7 @@ static void dm_requeue_original_request(struct dm_rq_target_io *tio, bool delay_
 	rq_end_stats(md, rq);
 	if (tio->clone) {
 		blk_rq_unprep_clone(tio->clone);
-		tio->ti->type->release_clone_rq(tio->clone);
+		tio->ti->type->release_clone_rq(tio->clone, NULL);
 	}
 
 	if (!rq->q->mq_ops)
@@ -495,7 +495,7 @@ check_again:
 	case DM_MAPIO_REMAPPED:
 		if (setup_clone(clone, rq, tio, GFP_ATOMIC)) {
 			/* -ENOMEM */
-			ti->type->release_clone_rq(clone);
+			ti->type->release_clone_rq(clone, &tio->info);
 			return DM_MAPIO_REQUEUE;
 		}
 
@@ -505,7 +505,7 @@ check_again:
 		ret = dm_dispatch_clone_request(clone, rq);
 		if (ret == BLK_STS_RESOURCE || ret == BLK_STS_DEV_RESOURCE) {
 			blk_rq_unprep_clone(clone);
-			tio->ti->type->release_clone_rq(clone);
+			tio->ti->type->release_clone_rq(clone, &tio->info);
 			tio->clone = NULL;
 			if (!rq->q->mq_ops)
 				r = DM_MAPIO_DELAY_REQUEUE;

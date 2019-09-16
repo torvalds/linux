@@ -1789,7 +1789,7 @@ static int tc358743_s_edid(struct v4l2_subdev *sd,
 		return -E2BIG;
 	}
 	pa = cec_get_edid_phys_addr(edid->edid, edid->blocks * 128, NULL);
-	err = cec_phys_addr_validate(pa, &pa, NULL);
+	err = v4l2_phys_addr_validate(pa, &pa, NULL);
 	if (err)
 		return err;
 

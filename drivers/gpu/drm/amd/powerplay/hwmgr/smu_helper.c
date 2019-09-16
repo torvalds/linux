@@ -669,20 +669,20 @@ int smu_set_watermarks_for_clocks_ranges(void *wt_table,
 	for (i = 0; i < wm_with_clock_ranges->num_wm_dmif_sets; i++) {
 		table->WatermarkRow[1][i].MinClock =
 			cpu_to_le16((uint16_t)
-			(wm_with_clock_ranges->wm_dmif_clocks_ranges[i].wm_min_dcfclk_clk_in_khz) /
-			1000);
+			(wm_with_clock_ranges->wm_dmif_clocks_ranges[i].wm_min_dcfclk_clk_in_khz /
+			1000));
 		table->WatermarkRow[1][i].MaxClock =
 			cpu_to_le16((uint16_t)
-			(wm_with_clock_ranges->wm_dmif_clocks_ranges[i].wm_max_dcfclk_clk_in_khz) /
-			100);
+			(wm_with_clock_ranges->wm_dmif_clocks_ranges[i].wm_max_dcfclk_clk_in_khz /
+			1000));
 		table->WatermarkRow[1][i].MinUclk =
 			cpu_to_le16((uint16_t)
-			(wm_with_clock_ranges->wm_dmif_clocks_ranges[i].wm_min_mem_clk_in_khz) /
-			1000);
+			(wm_with_clock_ranges->wm_dmif_clocks_ranges[i].wm_min_mem_clk_in_khz /
+			1000));
 		table->WatermarkRow[1][i].MaxUclk =
 			cpu_to_le16((uint16_t)
-			(wm_with_clock_ranges->wm_dmif_clocks_ranges[i].wm_max_mem_clk_in_khz) /
-			1000);
+			(wm_with_clock_ranges->wm_dmif_clocks_ranges[i].wm_max_mem_clk_in_khz /
+			1000));
 		table->WatermarkRow[1][i].WmSetting = (uint8_t)
 				wm_with_clock_ranges->wm_dmif_clocks_ranges[i].wm_set_id;
 	}
@@ -690,20 +690,20 @@ int smu_set_watermarks_for_clocks_ranges(void *wt_table,
 	for (i = 0; i < wm_with_clock_ranges->num_wm_mcif_sets; i++) {
 		table->WatermarkRow[0][i].MinClock =
 			cpu_to_le16((uint16_t)
-			(wm_with_clock_ranges->wm_mcif_clocks_ranges[i].wm_min_socclk_clk_in_khz) /
-			1000);
+			(wm_with_clock_ranges->wm_mcif_clocks_ranges[i].wm_min_socclk_clk_in_khz /
+			1000));
 		table->WatermarkRow[0][i].MaxClock =
 			cpu_to_le16((uint16_t)
-			(wm_with_clock_ranges->wm_mcif_clocks_ranges[i].wm_max_socclk_clk_in_khz) /
-			1000);
+			(wm_with_clock_ranges->wm_mcif_clocks_ranges[i].wm_max_socclk_clk_in_khz /
+			1000));
 		table->WatermarkRow[0][i].MinUclk =
 			cpu_to_le16((uint16_t)
-			(wm_with_clock_ranges->wm_mcif_clocks_ranges[i].wm_min_mem_clk_in_khz) /
-			1000);
+			(wm_with_clock_ranges->wm_mcif_clocks_ranges[i].wm_min_mem_clk_in_khz /
+			1000));
 		table->WatermarkRow[0][i].MaxUclk =
 			cpu_to_le16((uint16_t)
-			(wm_with_clock_ranges->wm_mcif_clocks_ranges[i].wm_max_mem_clk_in_khz) /
-			1000);
+			(wm_with_clock_ranges->wm_mcif_clocks_ranges[i].wm_max_mem_clk_in_khz /
+			1000));
 		table->WatermarkRow[0][i].WmSetting = (uint8_t)
 				wm_with_clock_ranges->wm_mcif_clocks_ranges[i].wm_set_id;
 	}

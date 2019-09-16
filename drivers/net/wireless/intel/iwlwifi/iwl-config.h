@@ -574,11 +574,18 @@ extern const struct iwl_cfg iwl22000_2ac_cfg_hr;
 extern const struct iwl_cfg iwl22000_2ac_cfg_hr_cdb;
 extern const struct iwl_cfg iwl22000_2ac_cfg_jf;
 extern const struct iwl_cfg iwl22000_2ax_cfg_hr;
+extern const struct iwl_cfg iwl9461_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg iwl9462_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg iwl9560_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg killer1550i_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg killer1550s_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg iwl22000_2ax_cfg_jf;
 extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0_f0;
+extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_b0_f0;
 extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_b0;
 extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_jf_b0;
 extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0;
 extern const struct iwl_cfg iwl22560_2ax_cfg_su_cdb;
-#endif /* CONFIG_IWLMVM */
+#endif /* CPTCFG_IWLMVM || CPTCFG_IWLFMAC */
 
 #endif /* __IWL_CONFIG_H__ */
