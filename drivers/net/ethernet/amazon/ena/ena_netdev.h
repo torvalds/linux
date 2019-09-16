@@ -280,8 +280,6 @@ struct ena_ring {
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
 	u32  smoothed_interval;
 	u32  per_napi_packets;
-	u32  per_napi_bytes;
-	enum ena_intr_moder_level moder_tbl_idx;
 	u16 non_empty_napi_events;
 	struct u64_stats_sync syncp;
 	union {

@@ -158,7 +158,6 @@ static void ena_init_io_rings_common(struct ena_adapter *adapter,
 	ring->adapter = adapter;
 	ring->ena_dev = adapter->ena_dev;
 	ring->per_napi_packets = 0;
-	ring->per_napi_bytes = 0;
 	ring->cpu = 0;
 	ring->first_interrupt = false;
 	ring->no_interrupt_event_cnt = 0;
@@ -834,9 +833,6 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 		__netif_tx_unlock(txq);
 	}
 
-	tx_ring->per_napi_bytes += tx_bytes;
-	tx_ring->per_napi_packets += tx_pkts;
-
 	return tx_pkts;
 }
 
@@ -1120,7 +1116,6 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 	} while (likely(res_budget));
 
 	work_done = budget - res_budget;
-	rx_ring->per_napi_bytes += total_len;
 	rx_ring->per_napi_packets += work_done;
 	u64_stats_update_begin(&rx_ring->syncp);
 	rx_ring->rx_stats.bytes += total_len;
@@ -3641,7 +3636,6 @@ err_free_msix:
 	ena_free_mgmnt_irq(adapter);
 	ena_disable_msix(adapter);
 err_worker_destroy:
-	ena_com_destroy_interrupt_moderation(ena_dev);
 	del_timer(&adapter->timer_service);
 err_netdev_destroy:
 	free_netdev(netdev);
@@ -3701,8 +3695,6 @@ static void ena_remove(struct pci_dev *pdev)
 	ena_release_bars(ena_dev, pdev);
 
 	pci_disable_device(pdev);
-
-	ena_com_destroy_interrupt_moderation(ena_dev);
 
 	vfree(ena_dev);
 }
