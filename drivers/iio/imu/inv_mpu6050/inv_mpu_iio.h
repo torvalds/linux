@@ -130,6 +130,8 @@ struct inv_mpu6050_hw {
  *  @data_timestamp:	timestamp for next data sample.
  *  @vddio_supply	voltage regulator for the chip.
  *  @magn_disabled:     magnetometer disabled for backward compatibility reason.
+ *  @magn_raw_to_gauss:	coefficient to convert mag raw value to Gauss.
+ *  @magn_orient:       magnetometer sensor chip orientation if available.
  */
 struct inv_mpu6050_state {
 	struct mutex lock;
@@ -152,6 +154,8 @@ struct inv_mpu6050_state {
 	s64 data_timestamp;
 	struct regulator *vddio_supply;
 	bool magn_disabled;
+	s32 magn_raw_to_gauss[3];
+	struct iio_mount_matrix magn_orient;
 };
 
 /*register and associated bit definition*/
