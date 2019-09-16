@@ -11,10 +11,11 @@
 
 static bool mlx5_lag_multipath_check_prereq(struct mlx5_lag *ldev)
 {
-	if (!ldev->pf[0].dev || !ldev->pf[1].dev)
+	if (!ldev->pf[MLX5_LAG_P1].dev || !ldev->pf[MLX5_LAG_P2].dev)
 		return false;
 
-	return mlx5_esw_multipath_prereq(ldev->pf[0].dev, ldev->pf[1].dev);
+	return mlx5_esw_multipath_prereq(ldev->pf[MLX5_LAG_P1].dev,
+					 ldev->pf[MLX5_LAG_P2].dev);
 }
 
 static bool __mlx5_lag_is_multipath(struct mlx5_lag *ldev)
@@ -52,36 +53,36 @@ static void mlx5_lag_set_port_affinity(struct mlx5_lag *ldev, int port)
 
 	switch (port) {
 	case 0:
-		tracker.netdev_state[0].tx_enabled = true;
-		tracker.netdev_state[1].tx_enabled = true;
-		tracker.netdev_state[0].link_up = true;
-		tracker.netdev_state[1].link_up = true;
+		tracker.netdev_state[MLX5_LAG_P1].tx_enabled = true;
+		tracker.netdev_state[MLX5_LAG_P2].tx_enabled = true;
+		tracker.netdev_state[MLX5_LAG_P1].link_up = true;
+		tracker.netdev_state[MLX5_LAG_P2].link_up = true;
 		break;
 	case 1:
-		tracker.netdev_state[0].tx_enabled = true;
-		tracker.netdev_state[0].link_up = true;
-		tracker.netdev_state[1].tx_enabled = false;
-		tracker.netdev_state[1].link_up = false;
+		tracker.netdev_state[MLX5_LAG_P1].tx_enabled = true;
+		tracker.netdev_state[MLX5_LAG_P1].link_up = true;
+		tracker.netdev_state[MLX5_LAG_P2].tx_enabled = false;
+		tracker.netdev_state[MLX5_LAG_P2].link_up = false;
 		break;
 	case 2:
-		tracker.netdev_state[0].tx_enabled = false;
-		tracker.netdev_state[0].link_up = false;
-		tracker.netdev_state[1].tx_enabled = true;
-		tracker.netdev_state[1].link_up = true;
+		tracker.netdev_state[MLX5_LAG_P1].tx_enabled = false;
+		tracker.netdev_state[MLX5_LAG_P1].link_up = false;
+		tracker.netdev_state[MLX5_LAG_P2].tx_enabled = true;
+		tracker.netdev_state[MLX5_LAG_P2].link_up = true;
 		break;
 	default:
-		mlx5_core_warn(ldev->pf[0].dev, "Invalid affinity port %d",
-			       port);
+		mlx5_core_warn(ldev->pf[MLX5_LAG_P1].dev,
+			       "Invalid affinity port %d", port);
 		return;
 	}
 
-	if (tracker.netdev_state[0].tx_enabled)
-		mlx5_notifier_call_chain(ldev->pf[0].dev->priv.events,
+	if (tracker.netdev_state[MLX5_LAG_P1].tx_enabled)
+		mlx5_notifier_call_chain(ldev->pf[MLX5_LAG_P1].dev->priv.events,
 					 MLX5_DEV_EVENT_PORT_AFFINITY,
 					 (void *)0);
 
-	if (tracker.netdev_state[1].tx_enabled)
-		mlx5_notifier_call_chain(ldev->pf[1].dev->priv.events,
+	if (tracker.netdev_state[MLX5_LAG_P2].tx_enabled)
+		mlx5_notifier_call_chain(ldev->pf[MLX5_LAG_P2].dev->priv.events,
 					 MLX5_DEV_EVENT_PORT_AFFINITY,
 					 (void *)0);
 
@@ -141,11 +142,12 @@ static void mlx5_lag_fib_route_event(struct mlx5_lag *ldev,
 	/* Verify next hops are ports of the same hca */
 	fib_nh0 = fib_info_nh(fi, 0);
 	fib_nh1 = fib_info_nh(fi, 1);
-	if (!(fib_nh0->fib_nh_dev == ldev->pf[0].netdev &&
-	      fib_nh1->fib_nh_dev == ldev->pf[1].netdev) &&
-	    !(fib_nh0->fib_nh_dev == ldev->pf[1].netdev &&
-	      fib_nh1->fib_nh_dev == ldev->pf[0].netdev)) {
-		mlx5_core_warn(ldev->pf[0].dev, "Multipath offload require two ports of the same HCA\n");
+	if (!(fib_nh0->fib_nh_dev == ldev->pf[MLX5_LAG_P1].netdev &&
+	      fib_nh1->fib_nh_dev == ldev->pf[MLX5_LAG_P2].netdev) &&
+	    !(fib_nh0->fib_nh_dev == ldev->pf[MLX5_LAG_P2].netdev &&
+	      fib_nh1->fib_nh_dev == ldev->pf[MLX5_LAG_P1].netdev)) {
+		mlx5_core_warn(ldev->pf[MLX5_LAG_P1].dev,
+			       "Multipath offload require two ports of the same HCA\n");
 		return;
 	}
 
@@ -267,8 +269,8 @@ static int mlx5_lag_fib_event(struct notifier_block *nb,
 			return notifier_from_errno(-EINVAL);
 		}
 		fib_dev = fib_info_nh(fen_info->fi, 0)->fib_nh_dev;
-		if (fib_dev != ldev->pf[0].netdev &&
-		    fib_dev != ldev->pf[1].netdev) {
+		if (fib_dev != ldev->pf[MLX5_LAG_P1].netdev &&
+		    fib_dev != ldev->pf[MLX5_LAG_P2].netdev) {
 			return NOTIFY_DONE;
 		}
 		fib_work = mlx5_lag_init_fib_work(ldev, event);
