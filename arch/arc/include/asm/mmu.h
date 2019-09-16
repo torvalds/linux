@@ -84,6 +84,14 @@ static inline int is_pae40_enabled(void)
 
 extern int pae40_exist_but_not_enab(void);
 
+#else
+
+.macro ARC_MMU_REENABLE reg
+	lr \reg, [ARC_REG_PID]
+	or \reg, \reg, MMU_ENABLE
+	sr \reg, [ARC_REG_PID]
+.endm
+
 #endif	/* !__ASSEMBLY__ */
 
 #endif
