@@ -4,6 +4,7 @@
  * All rights reserved.
  */
 
+#include <linux/clk.h>
 #include <linux/spi/spi.h>
 
 #include "wilc_wfi_netdevice.h"
@@ -132,6 +133,12 @@ static int wilc_bus_probe(struct spi_device *spi)
 	wilc->bus_data = spi_priv;
 	wilc->gpio_irq = gpio;
 
+	wilc->rtc_clk = devm_clk_get(&spi->dev, "rtc_clk");
+	if (PTR_ERR_OR_ZERO(wilc->rtc_clk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+	else if (!IS_ERR(wilc->rtc_clk))
+		clk_prepare_enable(wilc->rtc_clk);
+
 	return 0;
 }
 
@@ -142,6 +149,10 @@ static int wilc_bus_remove(struct spi_device *spi)
 	/* free the GPIO in module remove */
 	if (wilc->gpio_irq)
 		gpiod_put(wilc->gpio_irq);
+
+	if (!IS_ERR(wilc->rtc_clk))
+		clk_disable_unprepare(wilc->rtc_clk);
+
 	wilc_netdev_cleanup(wilc);
 	return 0;
 }
