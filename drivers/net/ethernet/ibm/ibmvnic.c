@@ -4312,13 +4312,14 @@ static int handle_query_phys_parms_rsp(union ibmvnic_crq *crq,
 {
 	struct net_device *netdev = adapter->netdev;
 	int rc;
+	__be32 rspeed = cpu_to_be32(crq->query_phys_parms_rsp.speed);
 
 	rc = crq->query_phys_parms_rsp.rc.code;
 	if (rc) {
 		netdev_err(netdev, "Error %d in QUERY_PHYS_PARMS\n", rc);
 		return rc;
 	}
-	switch (cpu_to_be32(crq->query_phys_parms_rsp.speed)) {
+	switch (rspeed) {
 	case IBMVNIC_10MBPS:
 		adapter->speed = SPEED_10;
 		break;
@@ -4344,8 +4345,8 @@ static int handle_query_phys_parms_rsp(union ibmvnic_crq *crq,
 		adapter->speed = SPEED_100000;
 		break;
 	default:
-		netdev_warn(netdev, "Unknown speed 0x%08x\n",
-			    cpu_to_be32(crq->query_phys_parms_rsp.speed));
+		if (netif_carrier_ok(netdev))
+			netdev_warn(netdev, "Unknown speed 0x%08x\n", rspeed);
 		adapter->speed = SPEED_UNKNOWN;
 	}
 	if (crq->query_phys_parms_rsp.flags1 & IBMVNIC_FULL_DUPLEX)
