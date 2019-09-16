@@ -44,7 +44,8 @@ bool mlx5_lag_is_multipath(struct mlx5_core_dev *dev)
  *     2 - set affinity to port 2.
  *
  **/
-static void mlx5_lag_set_port_affinity(struct mlx5_lag *ldev, int port)
+static void mlx5_lag_set_port_affinity(struct mlx5_lag *ldev,
+				       enum mlx5_lag_port_affinity port)
 {
 	struct lag_tracker tracker;
 
@@ -52,19 +53,19 @@ static void mlx5_lag_set_port_affinity(struct mlx5_lag *ldev, int port)
 		return;
 
 	switch (port) {
-	case 0:
+	case MLX5_LAG_NORMAL_AFFINITY:
 		tracker.netdev_state[MLX5_LAG_P1].tx_enabled = true;
 		tracker.netdev_state[MLX5_LAG_P2].tx_enabled = true;
 		tracker.netdev_state[MLX5_LAG_P1].link_up = true;
 		tracker.netdev_state[MLX5_LAG_P2].link_up = true;
 		break;
-	case 1:
+	case MLX5_LAG_P1_AFFINITY:
 		tracker.netdev_state[MLX5_LAG_P1].tx_enabled = true;
 		tracker.netdev_state[MLX5_LAG_P1].link_up = true;
 		tracker.netdev_state[MLX5_LAG_P2].tx_enabled = false;
 		tracker.netdev_state[MLX5_LAG_P2].link_up = false;
 		break;
-	case 2:
+	case MLX5_LAG_P2_AFFINITY:
 		tracker.netdev_state[MLX5_LAG_P1].tx_enabled = false;
 		tracker.netdev_state[MLX5_LAG_P1].link_up = false;
 		tracker.netdev_state[MLX5_LAG_P2].tx_enabled = true;
@@ -159,7 +160,7 @@ static void mlx5_lag_fib_route_event(struct mlx5_lag *ldev,
 		mlx5_activate_lag(ldev, &tracker, MLX5_LAG_FLAG_MULTIPATH);
 	}
 
-	mlx5_lag_set_port_affinity(ldev, 0);
+	mlx5_lag_set_port_affinity(ldev, MLX5_LAG_NORMAL_AFFINITY);
 	mp->mfi = fi;
 }
 
@@ -184,7 +185,7 @@ static void mlx5_lag_fib_nexthop_event(struct mlx5_lag *ldev,
 		}
 	} else if (event == FIB_EVENT_NH_ADD &&
 		   fib_info_num_path(fi) == 2) {
-		mlx5_lag_set_port_affinity(ldev, 0);
+		mlx5_lag_set_port_affinity(ldev, MLX5_LAG_NORMAL_AFFINITY);
 	}
 }
 
