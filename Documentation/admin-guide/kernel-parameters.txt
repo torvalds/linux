@@ -2378,7 +2378,7 @@
 
 	machvec=	[IA-64] Force the use of a particular machine-vector
 			(machvec) in a generic kernel.
-			Example: machvec=hpzx1_swiotlb
+			Example: machvec=hpzx1
 
 	machtype=	[Loongson] Share the same kernel image file between different
 			 yeeloong laptop.

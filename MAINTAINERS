@@ -8413,12 +8413,6 @@ L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/sgi/ioc3-eth.c
 
-IOC3 SERIAL DRIVER
-M:	Pat Gefre <pfg@sgi.com>
-L:	linux-serial@vger.kernel.org
-S:	Maintained
-F:	drivers/tty/serial/ioc3_serial.c
-
 IOMAP FILESYSTEM LIBRARY
 M:	Christoph Hellwig <hch@infradead.org>
 M:	Darrick J. Wong <darrick.wong@oracle.com>
