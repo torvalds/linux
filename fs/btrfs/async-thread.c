@@ -226,7 +226,6 @@ static void run_ordered_work(struct __btrfs_workqueue *wq,
 	struct btrfs_work *work;
 	spinlock_t *lock = &wq->list_lock;
 	unsigned long flags;
-	void *wtag;
 	bool free_self = false;
 
 	while (1) {
@@ -281,21 +280,19 @@ static void run_ordered_work(struct __btrfs_workqueue *wq,
 		} else {
 			/*
 			 * We don't want to call the ordered free functions with
-			 * the lock held though. Save the work as tag for the
-			 * trace event, because the callback could free the
-			 * structure.
+			 * the lock held.
 			 */
-			wtag = work;
 			work->ordered_free(work);
-			trace_btrfs_all_work_done(wq->fs_info, wtag);
+			/* NB: work must not be dereferenced past this point. */
+			trace_btrfs_all_work_done(wq->fs_info, work);
 		}
 	}
 	spin_unlock_irqrestore(lock, flags);
 
 	if (free_self) {
-		wtag = self;
 		self->ordered_free(self);
-		trace_btrfs_all_work_done(wq->fs_info, wtag);
+		/* NB: self must not be dereferenced past this point. */
+		trace_btrfs_all_work_done(wq->fs_info, self);
 	}
 }
 
@@ -304,7 +301,6 @@ static void btrfs_work_helper(struct work_struct *normal_work)
 	struct btrfs_work *work = container_of(normal_work, struct btrfs_work,
 					       normal_work);
 	struct __btrfs_workqueue *wq;
-	void *wtag;
 	int need_order = 0;
 
 	/*
@@ -318,8 +314,6 @@ static void btrfs_work_helper(struct work_struct *normal_work)
 	if (work->ordered_func)
 		need_order = 1;
 	wq = work->wq;
-	/* Safe for tracepoints in case work gets freed by the callback */
-	wtag = work;
 
 	trace_btrfs_work_sched(work);
 	thresh_exec_hook(wq);
@@ -327,9 +321,10 @@ static void btrfs_work_helper(struct work_struct *normal_work)
 	if (need_order) {
 		set_bit(WORK_DONE_BIT, &work->flags);
 		run_ordered_work(wq, work);
+	} else {
+		/* NB: work must not be dereferenced past this point. */
+		trace_btrfs_all_work_done(wq->fs_info, work);
 	}
-	if (!need_order)
-		trace_btrfs_all_work_done(wq->fs_info, wtag);
 }
 
 void btrfs_init_work(struct btrfs_work *work, btrfs_func_t func,
