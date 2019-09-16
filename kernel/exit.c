@@ -1554,6 +1554,23 @@ end:
 	return retval;
 }
 
+static struct pid *pidfd_get_pid(unsigned int fd)
+{
+	struct fd f;
+	struct pid *pid;
+
+	f = fdget(fd);
+	if (!f.file)
+		return ERR_PTR(-EBADF);
+
+	pid = pidfd_pid(f.file);
+	if (!IS_ERR(pid))
+		get_pid(pid);
+
+	fdput(f);
+	return pid;
+}
+
 static long kernel_waitid(int which, pid_t upid, struct waitid_info *infop,
 			  int options, struct rusage *ru)
 {
@@ -1576,18 +1593,31 @@ static long kernel_waitid(int which, pid_t upid, struct waitid_info *infop,
 		type = PIDTYPE_PID;
 		if (upid <= 0)
 			return -EINVAL;
+
+		pid = find_get_pid(upid);
 		break;
 	case P_PGID:
 		type = PIDTYPE_PGID;
-		if (upid <= 0)
+		if (upid < 0)
 			return -EINVAL;
+
+		if (upid)
+			pid = find_get_pid(upid);
+		else
+			pid = get_task_pid(current, PIDTYPE_PGID);
+		break;
+	case P_PIDFD:
+		type = PIDTYPE_PID;
+		if (upid < 0)
+			return -EINVAL;
+
+		pid = pidfd_get_pid(upid);
+		if (IS_ERR(pid))
+			return PTR_ERR(pid);
 		break;
 	default:
 		return -EINVAL;
 	}
-
-	if (type < PIDTYPE_MAX)
-		pid = find_get_pid(upid);
 
 	wo.wo_type	= type;
 	wo.wo_pid	= pid;
