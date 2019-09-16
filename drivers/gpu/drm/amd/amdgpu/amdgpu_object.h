@@ -41,6 +41,7 @@ struct amdgpu_bo_param {
 	u32				preferred_domain;
 	u64				flags;
 	enum ttm_bo_type		type;
+	bool				no_wait_gpu;
 	struct dma_resv	*resv;
 };
 

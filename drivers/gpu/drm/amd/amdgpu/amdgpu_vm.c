@@ -821,7 +821,8 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
  * @bp: resulting BO allocation parameters
  */
 static void amdgpu_vm_bo_param(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			       int level, struct amdgpu_bo_param *bp)
+			       int level, bool direct,
+			       struct amdgpu_bo_param *bp)
 {
 	memset(bp, 0, sizeof(*bp));
 
@@ -836,6 +837,7 @@ static void amdgpu_vm_bo_param(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	else if (!vm->root.base.bo || vm->root.base.bo->shadow)
 		bp->flags |= AMDGPU_GEM_CREATE_SHADOW;
 	bp->type = ttm_bo_type_kernel;
+	bp->no_wait_gpu = direct;
 	if (vm->root.base.bo)
 		bp->resv = vm->root.base.bo->tbo.base.resv;
 }
@@ -877,7 +879,7 @@ static int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 	if (entry->base.bo)
 		return 0;
 
-	amdgpu_vm_bo_param(adev, vm, cursor->level, &bp);
+	amdgpu_vm_bo_param(adev, vm, cursor->level, direct, &bp);
 
 	r = amdgpu_bo_create(adev, &bp, &pt);
 	if (r)
@@ -2714,7 +2716,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		vm->update_funcs = &amdgpu_vm_sdma_funcs;
 	vm->last_update = NULL;
 
-	amdgpu_vm_bo_param(adev, vm, adev->vm_manager.root_level, &bp);
+	amdgpu_vm_bo_param(adev, vm, adev->vm_manager.root_level, false, &bp);
 	if (vm_context == AMDGPU_VM_CONTEXT_COMPUTE)
 		bp.flags &= ~AMDGPU_GEM_CREATE_SHADOW;
 	r = amdgpu_bo_create(adev, &bp, &root);
