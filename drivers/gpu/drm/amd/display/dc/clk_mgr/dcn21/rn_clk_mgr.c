@@ -649,7 +649,7 @@ void rn_clk_mgr_construct(
 			pp_smu->rn_funcs.set_wm_ranges(&pp_smu->rn_funcs.pp_smu, &ranges);
 	}
 
-	if (!IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
+	if (!IS_FPGA_MAXIMUS_DC(ctx->dce_environment) && clk_mgr->smu_ver >= 0x00371500) {
 		/* enable powerfeatures when displaycount goes to 0 */
 		rn_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(clk_mgr, !debug->disable_48mhz_pwrdwn);
 	}
