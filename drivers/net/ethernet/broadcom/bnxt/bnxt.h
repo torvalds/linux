@@ -648,6 +648,7 @@ struct nqe_cn {
 #define SHORT_HWRM_CMD_TIMEOUT		20
 #define HWRM_CMD_TIMEOUT		(bp->hwrm_cmd_timeout)
 #define HWRM_RESET_TIMEOUT		((HWRM_CMD_TIMEOUT) * 4)
+#define HWRM_COREDUMP_TIMEOUT		((HWRM_CMD_TIMEOUT) * 12)
 #define HWRM_RESP_ERR_CODE_MASK		0xffff
 #define HWRM_RESP_LEN_OFFSET		4
 #define HWRM_RESP_LEN_MASK		0xffff0000
@@ -1397,6 +1398,7 @@ struct bnxt_fw_reporter_ctx {
 #define BNXT_FW_HEALTH_WIN_MAP_OFF	8
 
 #define BNXT_FW_STATUS_HEALTHY		0x8000
+#define BNXT_FW_STATUS_SHUTDOWN		0x100000
 
 struct bnxt {
 	void __iomem		*bar0;
@@ -1654,6 +1656,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX	0x00010000
 	#define BNXT_FW_CAP_PCIE_STATS_SUPPORTED	0x00020000
 	#define BNXT_FW_CAP_EXT_STATS_SUPPORTED		0x00040000
+	#define BNXT_FW_CAP_ERR_RECOVER_RELOAD		0x00100000
 
 #define BNXT_NEW_RM(bp)		((bp)->fw_cap & BNXT_FW_CAP_NEW_RM)
 	u32			hwrm_spec_code;
@@ -1743,6 +1746,7 @@ struct bnxt {
 #define BNXT_FW_RESET_STATE_ENABLE_DEV	3
 #define BNXT_FW_RESET_STATE_POLL_FW	4
 #define BNXT_FW_RESET_STATE_OPENING	5
+#define BNXT_FW_RESET_STATE_POLL_FW_DOWN	6
 
 	u16			fw_reset_min_dsecs;
 #define BNXT_DFLT_FW_RST_MIN_DSECS	20
