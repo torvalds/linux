@@ -2786,7 +2786,7 @@ static int rtw_dbg_port(struct net_device *dev,
 
 					DBG_871X("oper_ch =%d\n", rtw_get_oper_ch(padapter));
 					DBG_871X("oper_bw =%d\n", rtw_get_oper_bw(padapter));
-					DBG_871X("oper_ch_offet =%d\n", rtw_get_oper_choffset(padapter));
+					DBG_871X("oper_ch_offset =%d\n", rtw_get_oper_choffset(padapter));
 
 					break;
 				case 0x05:
