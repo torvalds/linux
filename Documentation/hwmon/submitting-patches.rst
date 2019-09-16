@@ -20,6 +20,10 @@ increase the chances of your change being accepted.
   errors, no warnings, and few if any check messages. If there are any
   messages, please be prepared to explain.
 
+* Please use the standard multi-line comment style. Do not mix C and C++
+  style comments in a single driver (with the exception of the SPDX license
+  identifier).
+
 * If your patch generates checkpatch errors, warnings, or check messages,
   please refrain from explanations such as "I prefer that coding style".
   Keep in mind that each unnecessary message helps hiding a real problem,
@@ -120,8 +124,8 @@ increase the chances of your change being accepted.
   completely initialize your chip and your driver first, then register with
   the hwmon subsystem.
 
-* Use devm_hwmon_device_register_with_groups() or, if your driver needs a remove
-  function, hwmon_device_register_with_groups() to register your driver with the
+* Use devm_hwmon_device_register_with_info() or, if your driver needs a remove
+  function, hwmon_device_register_with_info() to register your driver with the
   hwmon subsystem. Try using devm_add_action() instead of a remove function if
   possible. Do not use hwmon_device_register().
 

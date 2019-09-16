@@ -517,14 +517,6 @@ W:	http://ez.analog.com/community/linux-device-drivers
 S:	Supported
 F:	drivers/video/backlight/adp8860_bl.c
 
-ADS1015 HARDWARE MONITOR DRIVER
-M:	Dirk Eibach <eibach@gdsys.de>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	Documentation/hwmon/ads1015.rst
-F:	drivers/hwmon/ads1015.c
-F:	include/linux/platform_data/ads1015.h
-
 ADT746X FAN DRIVER
 M:	Colin Leroy <colin@colino.net>
 S:	Maintained
