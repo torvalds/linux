@@ -3500,6 +3500,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	*/
 	ena_dev->intr_moder_tx_interval = ENA_INTR_INITIAL_TX_INTERVAL_USECS;
 	ena_dev->intr_moder_rx_interval = ENA_INTR_INITIAL_RX_INTERVAL_USECS;
+	ena_dev->intr_delay_resolution = ENA_DEFAULT_INTR_DELAY_RESOLUTION;
 	io_queue_num = ena_calc_io_queue_num(pdev, ena_dev, &get_feat_ctx);
 	rc = ena_calc_queue_size(&calc_queue_ctx);
 	if (rc || io_queue_num <= 0) {
