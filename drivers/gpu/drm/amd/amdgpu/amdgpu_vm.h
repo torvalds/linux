@@ -202,6 +202,11 @@ struct amdgpu_vm_update_params {
 	struct amdgpu_vm *vm;
 
 	/**
+	 * @direct: if changes should be made directly
+	 */
+	bool direct;
+
+	/**
 	 * @pages_addr:
 	 *
 	 * DMA addresses to use for mapping

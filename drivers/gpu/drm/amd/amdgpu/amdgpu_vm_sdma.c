@@ -68,17 +68,19 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 	if (r)
 		return r;
 
+	p->num_dw_left = ndw;
+
+	/* Wait for moves to be completed */
 	r = amdgpu_sync_fence(p->adev, &p->job->sync, exclusive, false);
 	if (r)
 		return r;
 
-	r = amdgpu_sync_resv(p->adev, &p->job->sync, root->tbo.base.resv,
-			     owner, false);
-	if (r)
-		return r;
+	/* Don't wait for any submissions during page fault handling */
+	if (p->direct)
+		return 0;
 
-	p->num_dw_left = ndw;
-	return 0;
+	return amdgpu_sync_resv(p->adev, &p->job->sync, root->tbo.base.resv,
+				owner, false);
 }
 
 /**
@@ -95,23 +97,23 @@ static int amdgpu_vm_sdma_commit(struct amdgpu_vm_update_params *p,
 {
 	struct amdgpu_bo *root = p->vm->root.base.bo;
 	struct amdgpu_ib *ib = p->job->ibs;
+	struct drm_sched_entity *entity;
 	struct amdgpu_ring *ring;
 	struct dma_fence *f;
 	int r;
 
-	ring = container_of(p->vm->delayed.rq->sched, struct amdgpu_ring,
-			    sched);
+	entity = p->direct ? &p->vm->direct : &p->vm->delayed;
+	ring = container_of(entity->rq->sched, struct amdgpu_ring, sched);
 
 	WARN_ON(ib->length_dw == 0);
 	amdgpu_ring_pad_ib(ring, ib);
 	WARN_ON(ib->length_dw > p->num_dw_left);
-	r = amdgpu_job_submit(p->job, &p->vm->delayed,
-			      AMDGPU_FENCE_OWNER_VM, &f);
+	r = amdgpu_job_submit(p->job, entity, AMDGPU_FENCE_OWNER_VM, &f);
 	if (r)
 		goto error;
 
 	amdgpu_bo_fence(root, f, true);
-	if (fence)
+	if (fence && !p->direct)
 		swap(*fence, f);
 	dma_fence_put(f);
 	return 0;
@@ -120,7 +122,6 @@ error:
 	amdgpu_job_free(p->job);
 	return r;
 }
-
 
 /**
  * amdgpu_vm_sdma_copy_ptes - copy the PTEs from mapping
