@@ -372,11 +372,8 @@ static void vcn_v2_0_mc_resume(struct amdgpu_device *adev)
 		WREG32_SOC15(UVD, 0, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH,
 			upper_32_bits(adev->vcn.gpu_addr));
 		offset = size;
-		/* No signed header for now from firmware
 		WREG32_SOC15(UVD, 0, mmUVD_VCPU_CACHE_OFFSET0,
 			AMDGPU_UVD_FIRMWARE_OFFSET >> 3);
-		*/
-		WREG32_SOC15(UVD, 0, mmUVD_VCPU_CACHE_OFFSET0, 0);
 	}
 
 	WREG32_SOC15(UVD, 0, mmUVD_VCPU_CACHE_SIZE0, size);

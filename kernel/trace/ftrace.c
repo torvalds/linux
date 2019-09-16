@@ -2814,7 +2814,7 @@ int ftrace_shutdown(struct ftrace_ops *ops, int command)
 		 * synchornize_rcu_tasks() will wait for those tasks to
 		 * execute and either schedule voluntarily or enter user space.
 		 */
-		if (IS_ENABLED(CONFIG_PREEMPT))
+		if (IS_ENABLED(CONFIG_PREEMPTION))
 			synchronize_rcu_tasks();
 
  free_ops:

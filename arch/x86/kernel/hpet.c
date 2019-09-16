@@ -827,10 +827,6 @@ int __init hpet_enable(void)
 	if (!hpet_cfg_working())
 		goto out_nohpet;
 
-	/* Validate that the counter is counting */
-	if (!hpet_counting())
-		goto out_nohpet;
-
 	/*
 	 * Read the period and check for a sane value:
 	 */
@@ -895,6 +891,14 @@ int __init hpet_enable(void)
 			pr_warn("Channel #%u config: Unknown bits %#x\n", i, cfg);
 	}
 	hpet_print_config();
+
+	/*
+	 * Validate that the counter is counting. This needs to be done
+	 * after sanitizing the config registers to properly deal with
+	 * force enabled HPETs.
+	 */
+	if (!hpet_counting())
+		goto out_nohpet;
 
 	clocksource_register_hz(&clocksource_hpet, (u32)hpet_freq);
 

@@ -532,6 +532,7 @@ static void read_edp_current_link_settings_on_detect(struct dc_link *link)
 	uint32_t read_dpcd_retry_cnt = 10;
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	int i;
+	union max_down_spread max_down_spread = { {0} };
 
 	// Read DPCD 00101h to find out the number of lanes currently set
 	for (i = 0; i < read_dpcd_retry_cnt; i++) {
@@ -552,8 +553,6 @@ static void read_edp_current_link_settings_on_detect(struct dc_link *link)
 
 		msleep(8);
 	}
-
-	ASSERT(status == DC_OK);
 
 	// Read DPCD 00100h to find if standard link rates are set
 	core_link_read_dpcd(link, DP_LINK_BW_SET,
@@ -576,6 +575,12 @@ static void read_edp_current_link_settings_on_detect(struct dc_link *link)
 		link->cur_link_settings.link_rate = link_bw_set;
 		link->cur_link_settings.use_link_rate_set = false;
 	}
+	// Read DPCD 00003h to find the max down spread.
+	core_link_read_dpcd(link, DP_MAX_DOWNSPREAD,
+			&max_down_spread.raw, sizeof(max_down_spread));
+	link->cur_link_settings.link_spread =
+		max_down_spread.bits.MAX_DOWN_SPREAD ?
+		LINK_SPREAD_05_DOWNSPREAD_30KHZ : LINK_SPREAD_DISABLED;
 }
 
 static bool detect_dp(
@@ -717,13 +722,6 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		return false;
 	}
 
-	if (link->connector_signal == SIGNAL_TYPE_EDP) {
-		/* On detect, we want to make sure current link settings are
-		 * up to date, especially if link was powered on by GOP.
-		 */
-		read_edp_current_link_settings_on_detect(link);
-	}
-
 	prev_sink = link->local_sink;
 	if (prev_sink != NULL) {
 		dc_sink_retain(prev_sink);
@@ -765,6 +763,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		}
 
 		case SIGNAL_TYPE_EDP: {
+			read_edp_current_link_settings_on_detect(link);
 			detect_edp_sink_caps(link);
 			sink_caps.transaction_type =
 				DDC_TRANSACTION_TYPE_I2C_OVER_AUX;
@@ -2329,7 +2328,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream) {
 				if (core_dc->current_state->res_ctx.
 						pipe_ctx[i].stream->link
-						== link)
+						== link) {
 					/* DMCU -1 for all controller id values,
 					 * therefore +1 here
 					 */
@@ -2337,6 +2336,13 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 						core_dc->current_state->
 						res_ctx.pipe_ctx[i].stream_res.tg->inst +
 						1;
+
+					/* Disable brightness ramping when the display is blanked
+					 * as it can hang the DMCU
+					 */
+					if (core_dc->current_state->res_ctx.pipe_ctx[i].plane_state == NULL)
+						frame_ramp = 0;
+				}
 			}
 		}
 		abm->funcs->set_backlight_level_pwm(
@@ -2984,8 +2990,10 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 
 	/* Retrain with preferred link settings only relevant for
 	 * DP signal type
+	 * Check for non-DP signal or if passive dongle present
 	 */
-	if (!dc_is_dp_signal(link->connector_signal))
+	if (!dc_is_dp_signal(link->connector_signal) ||
+		link->dongle_max_pix_clk > 0)
 		return;
 
 	for (i = 0; i < MAX_PIPES; i++) {

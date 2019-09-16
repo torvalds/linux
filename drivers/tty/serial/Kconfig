@@ -1035,25 +1035,6 @@ config SERIAL_VT8500_CONSOLE
 	depends on SERIAL_VT8500=y
 	select SERIAL_CORE_CONSOLE
 
-config SERIAL_NETX
-	tristate "NetX serial port support"
-	depends on ARCH_NETX
-	select SERIAL_CORE
-	help
-	  If you have a machine based on a Hilscher NetX SoC you
-	  can enable its onboard serial port by enabling this option.
-
-          To compile this driver as a module, choose M here: the
-          module will be called netx-serial.
-
-config SERIAL_NETX_CONSOLE
-	bool "Console on NetX serial port"
-	depends on SERIAL_NETX=y
-	select SERIAL_CORE_CONSOLE
-	help
-	  If you have enabled the serial port on the Hilscher NetX SoC
-	  you can make it the console by answering Y to this option.
-
 config SERIAL_OMAP
 	tristate "OMAP serial port support"
 	depends on ARCH_OMAP2PLUS

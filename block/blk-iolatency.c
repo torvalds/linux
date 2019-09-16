@@ -917,6 +917,9 @@ static size_t iolatency_pd_stat(struct blkg_policy_data *pd, char *buf,
 	unsigned long long avg_lat;
 	unsigned long long cur_win;
 
+	if (!blkcg_debug_stats)
+		return 0;
+
 	if (iolat->ssd)
 		return iolatency_ssd_stat(iolat, buf, size);
 

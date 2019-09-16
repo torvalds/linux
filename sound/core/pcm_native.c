@@ -77,7 +77,7 @@ void snd_pcm_group_init(struct snd_pcm_group *group)
 	spin_lock_init(&group->lock);
 	mutex_init(&group->mutex);
 	INIT_LIST_HEAD(&group->substreams);
-	refcount_set(&group->refs, 0);
+	refcount_set(&group->refs, 1);
 }
 
 /* define group lock helpers */
@@ -1096,8 +1096,7 @@ static void snd_pcm_group_unref(struct snd_pcm_group *group,
 
 	if (!group)
 		return;
-	do_free = refcount_dec_and_test(&group->refs) &&
-		list_empty(&group->substreams);
+	do_free = refcount_dec_and_test(&group->refs);
 	snd_pcm_group_unlock(group, substream->pcm->nonatomic);
 	if (do_free)
 		kfree(group);
@@ -2020,6 +2019,7 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	snd_pcm_group_lock_irq(target_group, nonatomic);
 	snd_pcm_stream_lock(substream1);
 	snd_pcm_group_assign(substream1, target_group);
+	refcount_inc(&target_group->refs);
 	snd_pcm_stream_unlock(substream1);
 	snd_pcm_group_unlock_irq(target_group, nonatomic);
  _end:
@@ -2056,13 +2056,14 @@ static int snd_pcm_unlink(struct snd_pcm_substream *substream)
 	snd_pcm_group_lock_irq(group, nonatomic);
 
 	relink_to_local(substream);
+	refcount_dec(&group->refs);
 
 	/* detach the last stream, too */
 	if (list_is_singular(&group->substreams)) {
 		relink_to_local(list_first_entry(&group->substreams,
 						 struct snd_pcm_substream,
 						 link_list));
-		do_free = !refcount_read(&group->refs);
+		do_free = refcount_dec_and_test(&group->refs);
 	}
 
 	snd_pcm_group_unlock_irq(group, nonatomic);

@@ -34,6 +34,7 @@
  * Data types shared between different Virtual HW blocks
  ******************************************************************************/
 
+#define MAX_AUDIOS 7
 #define MAX_PIPES 6
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #define MAX_DWB_PIPES	1

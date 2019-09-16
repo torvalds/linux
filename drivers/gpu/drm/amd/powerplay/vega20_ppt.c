@@ -3015,6 +3015,23 @@ static int vega20_set_thermal_fan_table(struct smu_context *smu)
 	return ret;
 }
 
+static int vega20_get_fan_speed_rpm(struct smu_context *smu,
+				    uint32_t *speed)
+{
+	int ret;
+
+	ret = smu_send_smc_msg(smu, SMU_MSG_GetCurrentRpm);
+
+	if (ret) {
+		pr_err("Attempt to get current RPM from SMC Failed!\n");
+		return ret;
+	}
+
+	smu_read_smc_arg(smu, speed);
+
+	return 0;
+}
+
 static int vega20_get_fan_speed_percent(struct smu_context *smu,
 					uint32_t *speed)
 {
@@ -3022,7 +3039,7 @@ static int vega20_get_fan_speed_percent(struct smu_context *smu,
 	uint32_t current_rpm = 0, percent = 0;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 
-	ret = smu_get_current_rpm(smu, &current_rpm);
+	ret = vega20_get_fan_speed_rpm(smu, &current_rpm);
 	if (ret)
 		return ret;
 
@@ -3293,6 +3310,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.is_dpm_running = vega20_is_dpm_running,
 	.set_thermal_fan_table = vega20_set_thermal_fan_table,
 	.get_fan_speed_percent = vega20_get_fan_speed_percent,
+	.get_fan_speed_rpm = vega20_get_fan_speed_rpm,
 	.set_watermarks_table = vega20_set_watermarks_table,
 	.get_thermal_temperature_range = vega20_get_thermal_temperature_range
 };

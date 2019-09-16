@@ -814,6 +814,7 @@ struct tee_client_device_id {
 /**
  * struct wmi_device_id - WMI device identifier
  * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
+ * @context: pointer to driver specific data
  */
 struct wmi_device_id {
 	const char guid_string[UUID_STRING_LEN+1];

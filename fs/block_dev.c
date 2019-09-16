@@ -345,15 +345,24 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	struct bio *bio;
 	bool is_poll = (iocb->ki_flags & IOCB_HIPRI) != 0;
 	bool is_read = (iov_iter_rw(iter) == READ), is_sync;
+	bool nowait = (iocb->ki_flags & IOCB_NOWAIT) != 0;
 	loff_t pos = iocb->ki_pos;
 	blk_qc_t qc = BLK_QC_T_NONE;
-	int ret = 0;
+	gfp_t gfp;
+	ssize_t ret;
 
 	if ((pos | iov_iter_alignment(iter)) &
 	    (bdev_logical_block_size(bdev) - 1))
 		return -EINVAL;
 
-	bio = bio_alloc_bioset(GFP_KERNEL, nr_pages, &blkdev_dio_pool);
+	if (nowait)
+		gfp = GFP_NOWAIT;
+	else
+		gfp = GFP_KERNEL;
+
+	bio = bio_alloc_bioset(gfp, nr_pages, &blkdev_dio_pool);
+	if (!bio)
+		return -EAGAIN;
 
 	dio = container_of(bio, struct blkdev_dio, bio);
 	dio->is_sync = is_sync = is_sync_kiocb(iocb);
@@ -375,7 +384,10 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	if (!is_poll)
 		blk_start_plug(&plug);
 
+	ret = 0;
 	for (;;) {
+		int err;
+
 		bio_set_dev(bio, bdev);
 		bio->bi_iter.bi_sector = pos >> 9;
 		bio->bi_write_hint = iocb->ki_hint;
@@ -383,8 +395,10 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 		bio->bi_end_io = blkdev_bio_end_io;
 		bio->bi_ioprio = iocb->ki_ioprio;
 
-		ret = bio_iov_iter_get_pages(bio, iter);
-		if (unlikely(ret)) {
+		err = bio_iov_iter_get_pages(bio, iter);
+		if (unlikely(err)) {
+			if (!ret)
+				ret = err;
 			bio->bi_status = BLK_STS_IOERR;
 			bio_endio(bio);
 			break;
@@ -399,6 +413,14 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 			task_io_account_write(bio->bi_iter.bi_size);
 		}
 
+		/*
+		 * Tell underlying layer to not block for resource shortage.
+		 * And if we would have blocked, return error inline instead
+		 * of through the bio->bi_end_io() callback.
+		 */
+		if (nowait)
+			bio->bi_opf |= (REQ_NOWAIT | REQ_NOWAIT_INLINE);
+
 		dio->size += bio->bi_iter.bi_size;
 		pos += bio->bi_iter.bi_size;
 
@@ -412,6 +434,11 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 			}
 
 			qc = submit_bio(bio);
+			if (qc == BLK_QC_T_EAGAIN) {
+				if (!ret)
+					ret = -EAGAIN;
+				goto error;
+			}
 
 			if (polled)
 				WRITE_ONCE(iocb->ki_cookie, qc);
@@ -432,8 +459,20 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 			atomic_inc(&dio->ref);
 		}
 
-		submit_bio(bio);
-		bio = bio_alloc(GFP_KERNEL, nr_pages);
+		qc = submit_bio(bio);
+		if (qc == BLK_QC_T_EAGAIN) {
+			if (!ret)
+				ret = -EAGAIN;
+			goto error;
+		}
+		ret += bio->bi_iter.bi_size;
+
+		bio = bio_alloc(gfp, nr_pages);
+		if (!bio) {
+			if (!ret)
+				ret = -EAGAIN;
+			goto error;
+		}
 	}
 
 	if (!is_poll)
@@ -453,13 +492,16 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	}
 	__set_current_state(TASK_RUNNING);
 
+out:
 	if (!ret)
 		ret = blk_status_to_errno(dio->bio.bi_status);
-	if (likely(!ret))
-		ret = dio->size;
 
 	bio_put(&dio->bio);
 	return ret;
+error:
+	if (!is_poll)
+		blk_finish_plug(&plug);
+	goto out;
 }
 
 static ssize_t

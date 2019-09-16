@@ -174,7 +174,7 @@ struct task_struct init_task
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	.ret_stack	= NULL,
 #endif
-#if defined(CONFIG_TRACING) && defined(CONFIG_PREEMPT)
+#if defined(CONFIG_TRACING) && defined(CONFIG_PREEMPTION)
 	.trace_recursion = 0,
 #endif
 #ifdef CONFIG_LIVEPATCH

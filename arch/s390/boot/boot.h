@@ -12,6 +12,7 @@ void print_missing_facilities(void);
 unsigned long get_random_base(unsigned long safe_addr);
 
 extern int kaslr_enabled;
+extern const char kernel_version[];
 
 unsigned long read_ipl_report(unsigned long safe_offset);
 

@@ -1195,16 +1195,7 @@ static void dcn10_init_hw(struct dc *dc)
 	 * everything down.
 	 */
 	if (dcb->funcs->is_accelerated_mode(dcb) || dc->config.power_down_display_on_boot) {
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct hubp *hubp = dc->res_pool->hubps[i];
-			struct dpp *dpp = dc->res_pool->dpps[i];
-
-			hubp->funcs->hubp_init(hubp);
-			dc->res_pool->opps[i]->mpc_tree_params.opp_id = dc->res_pool->opps[i]->inst;
-			plane_atomic_power_down(dc, dpp, hubp);
-		}
-
-		apply_DEGVIDCN10_253_wa(dc);
+		dc->hwss.init_pipes(dc, dc->current_state);
 	}
 
 	for (i = 0; i < dc->res_pool->audio_count; i++) {
@@ -1374,10 +1365,6 @@ static bool dcn10_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 
 	return result;
 }
-
-
-
-
 
 static bool
 dcn10_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
@@ -2515,6 +2502,12 @@ static void dcn10_apply_ctx_for_surface(
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (removed_pipe[i])
 			dcn10_disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++)
+		if (removed_pipe[i]) {
+			dc->hwss.optimize_bandwidth(dc, context);
+			break;
+		}
 
 	if (dc->hwseq->wa.DEGVIDCN10_254)
 		hubbub1_wm_change_req_wa(dc->res_pool->hubbub);
