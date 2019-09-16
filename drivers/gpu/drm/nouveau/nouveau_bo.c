@@ -186,8 +186,8 @@ nouveau_bo_fixup_align(struct nouveau_bo *nvbo, u32 flags,
 }
 
 struct nouveau_bo *
-nouveau_bo_alloc(struct nouveau_cli *cli, u64 size, u32 flags, u32 tile_mode,
-		 u32 tile_flags)
+nouveau_bo_alloc(struct nouveau_cli *cli, u64 *size, int *align, u32 flags,
+		 u32 tile_mode, u32 tile_flags)
 {
 	struct nouveau_drm *drm = cli->drm;
 	struct nouveau_bo *nvbo;
@@ -195,8 +195,8 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 size, u32 flags, u32 tile_mode,
 	struct nvif_vmm *vmm = cli->svm.cli ? &cli->svm.vmm : &cli->vmm.vmm;
 	int i, pi = -1;
 
-	if (!size) {
-		NV_WARN(drm, "skipped size %016llx\n", size);
+	if (!*size) {
+		NV_WARN(drm, "skipped size %016llx\n", *size);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -266,7 +266,7 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 size, u32 flags, u32 tile_mode,
 			pi = i;
 
 		/* Stop once the buffer is larger than the current page size. */
-		if (size >= 1ULL << vmm->page[i].shift)
+		if (*size >= 1ULL << vmm->page[i].shift)
 			break;
 	}
 
@@ -281,6 +281,8 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 size, u32 flags, u32 tile_mode,
 	}
 	nvbo->page = vmm->page[pi].shift;
 
+	nouveau_bo_fixup_align(nvbo, flags, align, size);
+
 	return nvbo;
 }
 
@@ -294,7 +296,6 @@ nouveau_bo_init(struct nouveau_bo *nvbo, u64 size, int align, u32 flags,
 
 	acc_size = ttm_bo_dma_acc_size(nvbo->bo.bdev, size, sizeof(*nvbo));
 
-	nouveau_bo_fixup_align(nvbo, flags, &align, &size);
 	nvbo->bo.mem.num_pages = size >> PAGE_SHIFT;
 	nouveau_bo_placement_set(nvbo, flags, 0);
 
@@ -318,7 +319,8 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	struct nouveau_bo *nvbo;
 	int ret;
 
-	nvbo = nouveau_bo_alloc(cli, size, flags, tile_mode, tile_flags);
+	nvbo = nouveau_bo_alloc(cli, &size, &align, flags, tile_mode,
+				tile_flags);
 	if (IS_ERR(nvbo))
 		return PTR_ERR(nvbo);
 
