@@ -92,7 +92,7 @@ mlx5e_fill_sq_frag_edge(struct mlx5e_txqsq *sq, struct mlx5_wq_cyc *wq,
 
 	/* fill sq frag edge with nops to avoid wqe wrapping two pages */
 	for (; wi < edge_wi; wi++) {
-		wi->skb        = NULL;
+		memset(wi, 0, sizeof(*wi));
 		wi->num_wqebbs = 1;
 		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
 	}
