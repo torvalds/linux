@@ -519,8 +519,7 @@ static void gmc_v10_0_vram_gtt_location(struct amdgpu_device *adev,
 {
 	u64 base = 0;
 
-	if (!amdgpu_sriov_vf(adev))
-		base = gfxhub_v2_0_get_fb_location(adev);
+	base = gfxhub_v2_0_get_fb_location(adev);
 
 	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
 	amdgpu_gmc_gart_location(adev, mc);
