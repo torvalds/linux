@@ -24,10 +24,33 @@ static void fuse_advise_use_readdirplus(struct inode *dir)
 	set_bit(FUSE_I_ADVISE_RDPLUS, &fi->state);
 }
 
+#if BITS_PER_LONG >= 64
+static inline void __fuse_dentry_settime(struct dentry *entry, u64 time)
+{
+	entry->d_fsdata = (void *) time;
+}
+
+static inline u64 fuse_dentry_time(const struct dentry *entry)
+{
+	return (u64)entry->d_fsdata;
+}
+
+#else
 union fuse_dentry {
 	u64 time;
 	struct rcu_head rcu;
 };
+
+static inline void __fuse_dentry_settime(struct dentry *dentry, u64 time)
+{
+	((union fuse_dentry *) dentry->d_fsdata)->time = time;
+}
+
+static inline u64 fuse_dentry_time(const struct dentry *entry)
+{
+	return ((union fuse_dentry *) entry->d_fsdata)->time;
+}
+#endif
 
 static void fuse_dentry_settime(struct dentry *dentry, u64 time)
 {
@@ -47,12 +70,7 @@ static void fuse_dentry_settime(struct dentry *dentry, u64 time)
 		spin_unlock(&dentry->d_lock);
 	}
 
-	((union fuse_dentry *) dentry->d_fsdata)->time = time;
-}
-
-static inline u64 fuse_dentry_time(const struct dentry *entry)
-{
-	return ((union fuse_dentry *) entry->d_fsdata)->time;
+	__fuse_dentry_settime(dentry, time);
 }
 
 /*
@@ -258,6 +276,7 @@ invalid:
 	goto out;
 }
 
+#if BITS_PER_LONG < 64
 static int fuse_dentry_init(struct dentry *dentry)
 {
 	dentry->d_fsdata = kzalloc(sizeof(union fuse_dentry), GFP_KERNEL);
@@ -270,6 +289,7 @@ static void fuse_dentry_release(struct dentry *dentry)
 
 	kfree_rcu(fd, rcu);
 }
+#endif
 
 static int fuse_dentry_delete(const struct dentry *dentry)
 {
@@ -279,13 +299,17 @@ static int fuse_dentry_delete(const struct dentry *dentry)
 const struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
 	.d_delete	= fuse_dentry_delete,
+#if BITS_PER_LONG < 64
 	.d_init		= fuse_dentry_init,
 	.d_release	= fuse_dentry_release,
+#endif
 };
 
 const struct dentry_operations fuse_root_dentry_operations = {
+#if BITS_PER_LONG < 64
 	.d_init		= fuse_dentry_init,
 	.d_release	= fuse_dentry_release,
+#endif
 };
 
 int fuse_valid_type(int m)
