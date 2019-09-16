@@ -487,6 +487,9 @@ static void net_dm_packet_trace_kfree_skb_hit(void *ignore,
 	struct sk_buff *nskb;
 	unsigned long flags;
 
+	if (!skb_mac_header_was_set(skb))
+		return;
+
 	nskb = skb_clone(skb, GFP_ATOMIC);
 	if (!nskb)
 		return;
@@ -899,6 +902,9 @@ net_dm_hw_packet_probe(struct sk_buff *skb,
 	struct per_cpu_dm_data *hw_data;
 	struct sk_buff *nskb;
 	unsigned long flags;
+
+	if (!skb_mac_header_was_set(skb))
+		return;
 
 	nskb = skb_clone(skb, GFP_ATOMIC);
 	if (!nskb)
