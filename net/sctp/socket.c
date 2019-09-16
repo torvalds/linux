@@ -309,7 +309,7 @@ static int sctp_bind(struct sock *sk, struct sockaddr *addr, int addr_len)
 	return retval;
 }
 
-static long sctp_get_port_local(struct sock *, union sctp_addr *);
+static int sctp_get_port_local(struct sock *, union sctp_addr *);
 
 /* Verify this is a valid sockaddr. */
 static struct sctp_af *sctp_sockaddr_af(struct sctp_sock *opt,
@@ -399,9 +399,8 @@ static int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 	 * detection.
 	 */
 	addr->v4.sin_port = htons(snum);
-	if ((ret = sctp_get_port_local(sk, addr))) {
+	if (sctp_get_port_local(sk, addr))
 		return -EADDRINUSE;
-	}
 
 	/* Refresh ephemeral port.  */
 	if (!bp->port)
@@ -413,11 +412,13 @@ static int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 	ret = sctp_add_bind_addr(bp, addr, af->sockaddr_len,
 				 SCTP_ADDR_SRC, GFP_ATOMIC);
 
-	/* Copy back into socket for getsockname() use. */
-	if (!ret) {
-		inet_sk(sk)->inet_sport = htons(inet_sk(sk)->inet_num);
-		sp->pf->to_sk_saddr(addr, sk);
+	if (ret) {
+		sctp_put_port(sk);
+		return ret;
 	}
+	/* Copy back into socket for getsockname() use. */
+	inet_sk(sk)->inet_sport = htons(inet_sk(sk)->inet_num);
+	sp->pf->to_sk_saddr(addr, sk);
 
 	return ret;
 }
@@ -7173,7 +7174,7 @@ static int sctp_getsockopt_paddr_thresholds(struct sock *sk,
 		val.spt_pathmaxrxt = trans->pathmaxrxt;
 		val.spt_pathpfthld = trans->pf_retrans;
 
-		return 0;
+		goto out;
 	}
 
 	asoc = sctp_id2assoc(sk, val.spt_assoc_id);
@@ -7191,6 +7192,7 @@ static int sctp_getsockopt_paddr_thresholds(struct sock *sk,
 		val.spt_pathmaxrxt = sp->pathmaxrxt;
 	}
 
+out:
 	if (put_user(len, optlen) || copy_to_user(optval, &val, len))
 		return -EFAULT;
 
@@ -7998,7 +8000,7 @@ static void sctp_unhash(struct sock *sk)
 static struct sctp_bind_bucket *sctp_bucket_create(
 	struct sctp_bind_hashbucket *head, struct net *, unsigned short snum);
 
-static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
+static int sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 {
 	struct sctp_sock *sp = sctp_sk(sk);
 	bool reuse = (sk->sk_reuse || sp->reuse);
@@ -8108,7 +8110,7 @@ pp_found:
 
 			if (sctp_bind_addr_conflict(&ep2->base.bind_addr,
 						    addr, sp2, sp)) {
-				ret = (long)sk2;
+				ret = 1;
 				goto fail_unlock;
 			}
 		}
@@ -8180,7 +8182,7 @@ static int sctp_get_port(struct sock *sk, unsigned short snum)
 	addr.v4.sin_port = htons(snum);
 
 	/* Note: sk->sk_num gets filled in if ephemeral port request. */
-	return !!sctp_get_port_local(sk, &addr);
+	return sctp_get_port_local(sk, &addr);
 }
 
 /*

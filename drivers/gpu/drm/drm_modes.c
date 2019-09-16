@@ -1677,7 +1677,7 @@ static int drm_mode_parse_cmdline_options(char *str, size_t len,
 	return 0;
 }
 
-static const char *drm_named_modes_whitelist[] = {
+static const char * const drm_named_modes_whitelist[] = {
 	"NTSC",
 	"PAL",
 };
