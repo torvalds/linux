@@ -433,6 +433,16 @@ config SPI_MT7621
 	help
 	  This selects a driver for the MediaTek MT7621 SPI Controller.
 
+config SPI_NPCM_FIU
+	tristate "Nuvoton NPCM FLASH Interface Unit"
+	depends on ARCH_NPCM || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	help
+	  This enables support for the Flash Interface Unit SPI controller
+	  in master mode.
+	  This driver does not support generic SPI. The implementation only
+	  supports spi-mem interface.
+
 config SPI_NPCM_PSPI
 	tristate "Nuvoton NPCM PSPI Controller"
 	depends on ARCH_NPCM || COMPILE_TEST
