@@ -317,8 +317,6 @@ struct amdgpu_ras {
 	struct list_head head;
 	/* debugfs */
 	struct dentry *dir;
-	/* debugfs ctrl */
-	struct dentry *ent;
 	/* sysfs */
 	struct device_attribute features_attr;
 	struct bin_attribute badpages_attr;

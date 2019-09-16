@@ -980,10 +980,10 @@ static void amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
 	struct drm_minor *minor = adev->ddev->primary;
 
 	con->dir = debugfs_create_dir("ras", minor->debugfs_root);
-	con->ent = debugfs_create_file("ras_ctrl", S_IWUGO | S_IRUGO, con->dir,
-				       adev, &amdgpu_ras_debugfs_ctrl_ops);
-	con->ent = debugfs_create_file("ras_eeprom_reset", S_IWUGO | S_IRUGO, con->dir,
-					       adev, &amdgpu_ras_debugfs_eeprom_ops);
+	debugfs_create_file("ras_ctrl", S_IWUGO | S_IRUGO, con->dir,
+				adev, &amdgpu_ras_debugfs_ctrl_ops);
+	debugfs_create_file("ras_eeprom_reset", S_IWUGO | S_IRUGO, con->dir,
+				adev, &amdgpu_ras_debugfs_eeprom_ops);
 }
 
 void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
@@ -1028,10 +1028,8 @@ static void amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
 		amdgpu_ras_debugfs_remove(adev, &obj->head);
 	}
 
-	debugfs_remove(con->ent);
-	debugfs_remove(con->dir);
+	debugfs_remove_recursive(con->dir);
 	con->dir = NULL;
-	con->ent = NULL;
 }
 /* debugfs end */
 
