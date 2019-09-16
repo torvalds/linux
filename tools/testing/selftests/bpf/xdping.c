@@ -53,7 +53,7 @@ static int get_stats(int fd, __u16 count, __u32 raddr)
 		if (pinginfo.times[i] == 0)
 			break;
 
-		printf("64 bytes from %s: icmp_seq=%d ttl=64 time=%#.5f ms\n",
+		printf("PMC-custom: 64 bytes from %s: icmp_seq=%d ttl=64 time=%#.5f ms\n",
 		       inet_ntop(AF_INET, &inaddr, inaddrbuf,
 				 sizeof(inaddrbuf)),
 		       count + i + 1,
