@@ -6329,15 +6329,6 @@ S:	Odd Fixes
 L:	linux-block@vger.kernel.org
 F:	drivers/block/floppy.c
 
-FMC SUBSYSTEM
-M:	Alessandro Rubini <rubini@gnudd.com>
-W:	http://www.ohwr.org/projects/fmc-bus
-S:	Supported
-F:	drivers/fmc/
-F:	include/linux/fmc*.h
-F:	include/linux/ipmi-fru.h
-K:	fmc_d.*register
-
 FPGA MANAGER FRAMEWORK
 M:	Moritz Fischer <mdf@kernel.org>
 L:	linux-fpga@vger.kernel.org
@@ -8382,12 +8373,6 @@ S:	Supported
 F:	Documentation/x86/intel_txt.rst
 F:	include/linux/tboot.h
 F:	arch/x86/kernel/tboot.c
-
-INTEL-MID GPIO DRIVER
-M:	David Cohen <david.a.cohen@linux.intel.com>
-L:	linux-gpio@vger.kernel.org
-S:	Maintained
-F:	drivers/gpio/gpio-intel-mid.c
 
 INTERCONNECT API
 M:	Georgi Djakov <georgi.djakov@linaro.org>
