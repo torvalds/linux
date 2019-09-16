@@ -1237,16 +1237,29 @@ xdr_encode_word(struct xdr_buf *buf, unsigned int base, u32 obj)
 EXPORT_SYMBOL_GPL(xdr_encode_word);
 
 /* If the netobj starting offset bytes from the start of xdr_buf is contained
- * entirely in the head or the tail, set object to point to it; otherwise
- * try to find space for it at the end of the tail, copy it there, and
- * set obj to point to it. */
+ * entirely in the head, pages, or tail, set object to point to it; otherwise
+ * shift the buffer until it is contained entirely within the pages or tail.
+ */
 int xdr_buf_read_netobj(struct xdr_buf *buf, struct xdr_netobj *obj, unsigned int offset)
 {
 	struct xdr_buf subbuf;
+	unsigned int boundary;
 
 	if (xdr_decode_word(buf, offset, &obj->len))
 		return -EFAULT;
-	if (xdr_buf_subsegment(buf, &subbuf, offset + 4, obj->len))
+	offset += 4;
+
+	/* Is the obj partially in the head? */
+	boundary = buf->head[0].iov_len;
+	if (offset < boundary && (offset + obj->len) > boundary)
+		xdr_shift_buf(buf, boundary - offset);
+
+	/* Is the obj partially in the pages? */
+	boundary += buf->page_len;
+	if (offset < boundary && (offset + obj->len) > boundary)
+		xdr_shrink_pagelen(buf, boundary - offset);
+
+	if (xdr_buf_subsegment(buf, &subbuf, offset, obj->len))
 		return -EFAULT;
 
 	/* Is the obj contained entirely in the head? */
@@ -1258,11 +1271,7 @@ int xdr_buf_read_netobj(struct xdr_buf *buf, struct xdr_netobj *obj, unsigned in
 	if (subbuf.tail[0].iov_len == obj->len)
 		return 0;
 
-	/* use end of tail as storage for obj:
-	 * (We don't copy to the beginning because then we'd have
-	 * to worry about doing a potentially overlapping copy.
-	 * This assumes the object is at most half the length of the
-	 * tail.) */
+	/* Find a contiguous area in @buf to hold all of @obj */
 	if (obj->len > buf->buflen - buf->len)
 		return -ENOMEM;
 	if (buf->tail[0].iov_len != 0)
