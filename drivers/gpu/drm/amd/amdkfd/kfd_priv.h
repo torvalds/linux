@@ -179,10 +179,6 @@ enum cache_policy {
 	cache_policy_noncoherent
 };
 
-#define KFD_IS_VI(chip) ((chip) >= CHIP_CARRIZO && (chip) <= CHIP_POLARIS11)
-#define KFD_IS_DGPU(chip) (((chip) >= CHIP_TONGA && \
-			   (chip) <= CHIP_NAVI10) || \
-			   (chip) == CHIP_HAWAII)
 #define KFD_IS_SOC15(chip) ((chip) >= CHIP_VEGA10)
 
 struct kfd_event_interrupt_class {
