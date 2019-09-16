@@ -2,6 +2,9 @@
 #ifndef __BLK_NULL_BLK_H
 #define __BLK_NULL_BLK_H
 
+#undef pr_fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/blk-mq.h>
@@ -96,7 +99,7 @@ blk_status_t null_handle_zoned(struct nullb_cmd *cmd,
 #else
 static inline int null_zone_init(struct nullb_device *dev)
 {
-	pr_err("null_blk: CONFIG_BLK_DEV_ZONED not enabled\n");
+	pr_err("CONFIG_BLK_DEV_ZONED not enabled\n");
 	return -EINVAL;
 }
 static inline void null_zone_exit(struct nullb_device *dev) {}

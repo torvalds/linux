@@ -17,7 +17,7 @@ int null_zone_init(struct nullb_device *dev)
 	unsigned int i;
 
 	if (!is_power_of_2(dev->zone_size)) {
-		pr_err("null_blk: zone_size must be power-of-two\n");
+		pr_err("zone_size must be power-of-two\n");
 		return -EINVAL;
 	}
 
@@ -31,7 +31,7 @@ int null_zone_init(struct nullb_device *dev)
 
 	if (dev->zone_nr_conv >= dev->nr_zones) {
 		dev->zone_nr_conv = dev->nr_zones - 1;
-		pr_info("null_blk: changed the number of conventional zones to %u",
+		pr_info("changed the number of conventional zones to %u",
 			dev->zone_nr_conv);
 	}
 

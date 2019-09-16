@@ -1315,7 +1315,7 @@ static bool should_requeue_request(struct request *rq)
 
 static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
 {
-	pr_info("null_blk: rq %p timed out\n", rq);
+	pr_info("rq %p timed out\n", rq);
 	blk_mq_complete_request(rq);
 	return BLK_EH_DONE;
 }
@@ -1748,28 +1748,28 @@ static int __init null_init(void)
 	struct nullb_device *dev;
 
 	if (g_bs > PAGE_SIZE) {
-		pr_warn("null_blk: invalid block size\n");
-		pr_warn("null_blk: defaults block size to %lu\n", PAGE_SIZE);
+		pr_warn("invalid block size\n");
+		pr_warn("defaults block size to %lu\n", PAGE_SIZE);
 		g_bs = PAGE_SIZE;
 	}
 
 	if (!is_power_of_2(g_zone_size)) {
-		pr_err("null_blk: zone_size must be power-of-two\n");
+		pr_err("zone_size must be power-of-two\n");
 		return -EINVAL;
 	}
 
 	if (g_home_node != NUMA_NO_NODE && g_home_node >= nr_online_nodes) {
-		pr_err("null_blk: invalid home_node value\n");
+		pr_err("invalid home_node value\n");
 		g_home_node = NUMA_NO_NODE;
 	}
 
 	if (g_queue_mode == NULL_Q_RQ) {
-		pr_err("null_blk: legacy IO path no longer available\n");
+		pr_err("legacy IO path no longer available\n");
 		return -EINVAL;
 	}
 	if (g_queue_mode == NULL_Q_MQ && g_use_per_node_hctx) {
 		if (g_submit_queues != nr_online_nodes) {
-			pr_warn("null_blk: submit_queues param is set to %u.\n",
+			pr_warn("submit_queues param is set to %u.\n",
 							nr_online_nodes);
 			g_submit_queues = nr_online_nodes;
 		}
@@ -1812,7 +1812,7 @@ static int __init null_init(void)
 		}
 	}
 
-	pr_info("null_blk: module loaded\n");
+	pr_info("module loaded\n");
 	return 0;
 
 err_dev:
