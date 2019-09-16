@@ -749,7 +749,6 @@ void init_entity_runnable_average(struct sched_entity *se)
 	/* when this task enqueue'ed, it will contribute to its cfs_rq's load_avg */
 }
 
-static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq);
 static void attach_entity_cfs_rq(struct sched_entity *se);
 
 /*
@@ -4376,15 +4375,6 @@ static inline struct cfs_bandwidth *tg_cfs_bandwidth(struct task_group *tg)
 	return &tg->cfs_bandwidth;
 }
 
-/* rq->task_clock normalized against any time this cfs_rq has spent throttled */
-static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq)
-{
-	if (unlikely(cfs_rq->throttle_count))
-		return cfs_rq->throttled_clock_task - cfs_rq->throttled_clock_task_time;
-
-	return rq_clock_task(rq_of(cfs_rq)) - cfs_rq->throttled_clock_task_time;
-}
-
 /* returns 0 on failure to allocate runtime */
 static int assign_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 {
@@ -4476,7 +4466,6 @@ static int tg_unthrottle_up(struct task_group *tg, void *data)
 
 	cfs_rq->throttle_count--;
 	if (!cfs_rq->throttle_count) {
-		/* adjust cfs_rq_clock_task() */
 		cfs_rq->throttled_clock_task_time += rq_clock_task(rq) -
 					     cfs_rq->throttled_clock_task;
 
@@ -5078,11 +5067,6 @@ static void __maybe_unused unthrottle_offline_cfs_rqs(struct rq *rq)
 static inline bool cfs_bandwidth_used(void)
 {
 	return false;
-}
-
-static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq)
-{
-	return rq_clock_task(rq_of(cfs_rq));
 }
 
 static void account_cfs_rq_runtime(struct cfs_rq *cfs_rq, u64 delta_exec) {}
