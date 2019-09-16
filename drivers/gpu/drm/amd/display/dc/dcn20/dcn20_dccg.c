@@ -119,32 +119,6 @@ void dccg2_get_dccg_ref_freq(struct dccg *dccg,
 
 void dccg2_init(struct dccg *dccg)
 {
-	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
-
-	// Fallthrough intentional to program all available dpp_dto's
-	switch (dccg_dcn->base.ctx->dc->res_pool->pipe_count) {
-	case 6:
-		REG_UPDATE(DPPCLK_DTO_CTRL, DPPCLK_DTO_DB_EN[5], 1);
-		/* Fall through */
-	case 5:
-		REG_UPDATE(DPPCLK_DTO_CTRL, DPPCLK_DTO_DB_EN[4], 1);
-		/* Fall through */
-	case 4:
-		REG_UPDATE(DPPCLK_DTO_CTRL, DPPCLK_DTO_DB_EN[3], 1);
-		/* Fall through */
-	case 3:
-		REG_UPDATE(DPPCLK_DTO_CTRL, DPPCLK_DTO_DB_EN[2], 1);
-		/* Fall through */
-	case 2:
-		REG_UPDATE(DPPCLK_DTO_CTRL, DPPCLK_DTO_DB_EN[1], 1);
-		/* Fall through */
-	case 1:
-		REG_UPDATE(DPPCLK_DTO_CTRL, DPPCLK_DTO_DB_EN[0], 1);
-		break;
-	default:
-		ASSERT(false);
-		break;
-	}
 }
 
 static const struct dccg_funcs dccg2_funcs = {
