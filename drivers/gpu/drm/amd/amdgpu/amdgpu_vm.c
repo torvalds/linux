@@ -825,6 +825,8 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  * @vm: requesting vm
+ * @level: the page table level
+ * @direct: use a direct update
  * @bp: resulting BO allocation parameters
  */
 static void amdgpu_vm_bo_param(struct amdgpu_device *adev, struct amdgpu_vm *vm,
