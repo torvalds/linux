@@ -1297,9 +1297,6 @@ static int ena_com_init_interrupt_moderation_table(struct ena_com_dev *ena_dev)
 static void ena_com_update_intr_delay_resolution(struct ena_com_dev *ena_dev,
 						 u16 intr_delay_resolution)
 {
-	struct ena_intr_moder_entry *intr_moder_tbl = ena_dev->intr_moder_tbl;
-	unsigned int i;
-
 	if (!intr_delay_resolution) {
 		pr_err("Illegal intr_delay_resolution provided. Going to use default 1 usec resolution\n");
 		intr_delay_resolution = 1;
@@ -1307,8 +1304,7 @@ static void ena_com_update_intr_delay_resolution(struct ena_com_dev *ena_dev,
 	ena_dev->intr_delay_resolution = intr_delay_resolution;
 
 	/* update Rx */
-	for (i = 0; i < ENA_INTR_MAX_NUM_OF_LEVELS; i++)
-		intr_moder_tbl[i].intr_moder_interval /= intr_delay_resolution;
+	ena_dev->intr_moder_rx_interval /= intr_delay_resolution;
 
 	/* update Tx */
 	ena_dev->intr_moder_tx_interval /= intr_delay_resolution;
@@ -2798,11 +2794,8 @@ int ena_com_update_nonadaptive_moderation_interval_rx(struct ena_com_dev *ena_de
 		return -EFAULT;
 	}
 
-	/* We use LOWEST entry of moderation table for storing
-	 * nonadaptive interrupt coalescing values
-	 */
-	ena_dev->intr_moder_tbl[ENA_INTR_MODER_LOWEST].intr_moder_interval =
-		rx_coalesce_usecs / ena_dev->intr_delay_resolution;
+	ena_dev->intr_moder_rx_interval = rx_coalesce_usecs /
+		ena_dev->intr_delay_resolution;
 
 	return 0;
 }
@@ -2907,12 +2900,7 @@ unsigned int ena_com_get_nonadaptive_moderation_interval_tx(struct ena_com_dev *
 
 unsigned int ena_com_get_nonadaptive_moderation_interval_rx(struct ena_com_dev *ena_dev)
 {
-	struct ena_intr_moder_entry *intr_moder_tbl = ena_dev->intr_moder_tbl;
-
-	if (intr_moder_tbl)
-		return intr_moder_tbl[ENA_INTR_MODER_LOWEST].intr_moder_interval;
-
-	return 0;
+	return ena_dev->intr_moder_rx_interval;
 }
 
 void ena_com_init_intr_moderation_entry(struct ena_com_dev *ena_dev,
