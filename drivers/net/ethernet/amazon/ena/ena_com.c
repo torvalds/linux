@@ -2839,9 +2839,7 @@ int ena_com_init_interrupt_moderation(struct ena_com_dev *ena_dev)
 	delay_resolution = get_resp.u.intr_moderation.intr_delay_resolution;
 	ena_com_update_intr_delay_resolution(ena_dev, delay_resolution);
 
-	/* Disable adaptive moderation by default - can be enabled from
-	 * ethtool
-	 */
+	/* Disable adaptive moderation by default - can be enabled later */
 	ena_com_disable_adaptive_moderation(ena_dev);
 
 	return 0;

@@ -196,6 +196,7 @@ static void ena_init_io_rings(struct ena_adapter *adapter)
 		rxr->smoothed_interval =
 			ena_com_get_nonadaptive_moderation_interval_rx(ena_dev);
 		rxr->empty_rx_queue = 0;
+		adapter->ena_napi[i].dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
 	}
 }
 
@@ -712,6 +713,7 @@ static void ena_destroy_all_rx_queues(struct ena_adapter *adapter)
 
 	for (i = 0; i < adapter->num_queues; i++) {
 		ena_qid = ENA_IO_RXQ_IDX(i);
+		cancel_work_sync(&adapter->ena_napi[i].dim.work);
 		ena_com_destroy_io_queue(adapter->ena_dev, ena_qid);
 	}
 }
@@ -1155,23 +1157,35 @@ error:
 	return 0;
 }
 
-void ena_adjust_intr_moderation(struct ena_ring *rx_ring,
-				       struct ena_ring *tx_ring)
+static void ena_dim_work(struct work_struct *w)
 {
-	/* We apply adaptive moderation on Rx path only.
-	 * Tx uses static interrupt moderation.
-	 */
-	ena_com_calculate_interrupt_delay(rx_ring->ena_dev,
-					  rx_ring->per_napi_packets,
-					  rx_ring->per_napi_bytes,
-					  &rx_ring->smoothed_interval,
-					  &rx_ring->moder_tbl_idx);
+	struct dim *dim = container_of(w, struct dim, work);
+	struct dim_cq_moder cur_moder =
+		net_dim_get_rx_moderation(dim->mode, dim->profile_ix);
+	struct ena_napi *ena_napi = container_of(dim, struct ena_napi, dim);
 
-	/* Reset per napi packets/bytes */
-	tx_ring->per_napi_packets = 0;
-	tx_ring->per_napi_bytes = 0;
+	ena_napi->rx_ring->smoothed_interval = cur_moder.usec;
+	dim->state = DIM_START_MEASURE;
+}
+
+static void ena_adjust_adaptive_rx_intr_moderation(struct ena_napi *ena_napi)
+{
+	struct dim_sample dim_sample;
+	struct ena_ring *rx_ring = ena_napi->rx_ring;
+
+	if (!rx_ring->per_napi_packets)
+		return;
+
+	rx_ring->non_empty_napi_events++;
+
+	dim_update_sample(rx_ring->non_empty_napi_events,
+			  rx_ring->rx_stats.cnt,
+			  rx_ring->rx_stats.bytes,
+			  &dim_sample);
+
+	net_dim(&ena_napi->dim, dim_sample);
+
 	rx_ring->per_napi_packets = 0;
-	rx_ring->per_napi_bytes = 0;
 }
 
 static void ena_unmask_interrupt(struct ena_ring *tx_ring,
@@ -1260,9 +1274,11 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 		 * from the interrupt context (vs from sk_busy_loop)
 		 */
 		if (napi_complete_done(napi, rx_work_done)) {
-			/* Tx and Rx share the same interrupt vector */
+			/* We apply adaptive moderation on Rx path only.
+			 * Tx uses static interrupt moderation.
+			 */
 			if (ena_com_get_adaptive_moderation_enabled(rx_ring->ena_dev))
-				ena_adjust_intr_moderation(rx_ring, tx_ring);
+				ena_adjust_adaptive_rx_intr_moderation(ena_napi);
 
 			ena_unmask_interrupt(tx_ring, rx_ring);
 		}
@@ -1740,13 +1756,16 @@ static int ena_create_all_io_rx_queues(struct ena_adapter *adapter)
 		rc = ena_create_io_rx_queue(adapter, i);
 		if (rc)
 			goto create_err;
+		INIT_WORK(&adapter->ena_napi[i].dim.work, ena_dim_work);
 	}
 
 	return 0;
 
 create_err:
-	while (i--)
+	while (i--) {
+		cancel_work_sync(&adapter->ena_napi[i].dim.work);
 		ena_com_destroy_io_queue(ena_dev, ENA_IO_RXQ_IDX(i));
+	}
 
 	return rc;
 }

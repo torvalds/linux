@@ -34,6 +34,7 @@
 #define ENA_H
 
 #include <linux/bitops.h>
+#include <linux/dim.h>
 #include <linux/etherdevice.h>
 #include <linux/inetdevice.h>
 #include <linux/interrupt.h>
@@ -153,6 +154,7 @@ struct ena_napi {
 	struct ena_ring *tx_ring;
 	struct ena_ring *rx_ring;
 	u32 qid;
+	struct dim dim;
 };
 
 struct ena_calc_queue_size_ctx {
@@ -280,6 +282,7 @@ struct ena_ring {
 	u32  per_napi_packets;
 	u32  per_napi_bytes;
 	enum ena_intr_moder_level moder_tbl_idx;
+	u16 non_empty_napi_events;
 	struct u64_stats_sync syncp;
 	union {
 		struct ena_stats_tx tx_stats;
