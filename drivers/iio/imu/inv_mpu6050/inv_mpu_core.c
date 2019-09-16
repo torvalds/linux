@@ -1156,9 +1156,6 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		return result;
 	}
 
-	if (inv_mpu_bus_setup)
-		inv_mpu_bus_setup(indio_dev);
-
 	dev_set_drvdata(dev, indio_dev);
 	indio_dev->dev.parent = dev;
 	/* name will be NULL when enumerated via ACPI */
@@ -1166,6 +1163,10 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		indio_dev->name = name;
 	else
 		indio_dev->name = dev_name(dev);
+
+	/* requires parent device set in indio_dev */
+	if (inv_mpu_bus_setup)
+		inv_mpu_bus_setup(indio_dev);
 
 	if (chip_type == INV_ICM20602) {
 		indio_dev->channels = inv_icm20602_channels;

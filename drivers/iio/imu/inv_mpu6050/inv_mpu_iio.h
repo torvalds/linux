@@ -125,6 +125,7 @@ struct inv_mpu6050_hw {
  *  @it_timestamp:	timestamp from previous interrupt.
  *  @data_timestamp:	timestamp for next data sample.
  *  @vddio_supply	voltage regulator for the chip.
+ *  @magn_disabled:     magnetometer disabled for backward compatibility reason.
  */
 struct inv_mpu6050_state {
 	struct mutex lock;
@@ -146,6 +147,7 @@ struct inv_mpu6050_state {
 	s64 it_timestamp;
 	s64 data_timestamp;
 	struct regulator *vddio_supply;
+	bool magn_disabled;
 };
 
 /*register and associated bit definition*/
