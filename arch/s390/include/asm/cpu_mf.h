@@ -70,7 +70,7 @@ struct hws_qsi_info_block {	    /* Bit(s) */
 	unsigned long tear;	    /* 24-31: TEAR contents		 */
 	unsigned long dear;	    /* 32-39: DEAR contents		 */
 	unsigned int rsvrd0;	    /* 40-43: reserved			 */
-	unsigned int cpu_speed;     /* 44-47: CPU speed 		 */
+	unsigned int cpu_speed;     /* 44-47: CPU speed			 */
 	unsigned long long rsvrd1;  /* 48-55: reserved			 */
 	unsigned long long rsvrd2;  /* 56-63: reserved			 */
 } __packed;
@@ -89,10 +89,10 @@ struct hws_lsctl_request_block {
 	unsigned long tear;	    /* 16-23: TEAR contents		 */
 	unsigned long dear;	    /* 24-31: DEAR contents		 */
 	/* 32-63:							 */
-	unsigned long rsvrd1;	    /* reserved 			 */
-	unsigned long rsvrd2;	    /* reserved 			 */
-	unsigned long rsvrd3;	    /* reserved 			 */
-	unsigned long rsvrd4;	    /* reserved 			 */
+	unsigned long rsvrd1;	    /* reserved				 */
+	unsigned long rsvrd2;	    /* reserved				 */
+	unsigned long rsvrd3;	    /* reserved				 */
+	unsigned long rsvrd4;	    /* reserved				 */
 } __packed;
 
 struct hws_basic_entry {
