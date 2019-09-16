@@ -278,6 +278,32 @@ static enum amd_pm_state_type renoir_get_current_power_state(struct smu_context 
 	return pm_type;
 }
 
+static int renoir_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
+{
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_power_gate *power_gate = &smu_power->power_gate;
+	int ret = 0;
+
+	if (enable) {
+		/* vcn dpm on is a prerequisite for vcn power gate messages */
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 1);
+			if (ret)
+				return ret;
+		}
+		power_gate->vcn_gated = false;
+	} else {
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
+			ret = smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn);
+			if (ret)
+				return ret;
+		}
+		power_gate->vcn_gated = true;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_msg_index = renoir_get_smu_msg_index,
 	.get_smu_table_index = renoir_get_smu_table_index,
@@ -286,7 +312,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_dpm_uclk_limited = renoir_get_dpm_uclk_limited,
 	.print_clk_levels = renoir_print_clk_levels,
 	.get_current_power_state = renoir_get_current_power_state,
-
+	.dpm_set_uvd_enable = renoir_dpm_set_uvd_enable,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)
