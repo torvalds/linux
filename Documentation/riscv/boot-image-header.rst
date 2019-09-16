@@ -21,7 +21,7 @@ The following 64-byte header is present in decompressed Linux kernel image::
 	u32 res1 = 0;		  /* Reserved */
 	u64 res2 = 0;		  /* Reserved */
 	u64 magic = 0x5643534952; /* Magic number, little endian, "RISCV" */
-	u32 magic2 = 0x56534905;  /* Magic number 2, little endian, "RSC\x05" */
+	u32 magic2 = 0x05435352;  /* Magic number 2, little endian, "RSC\x05" */
 	u32 res4;		  /* Reserved for PE COFF offset */
 
 This header format is compliant with PE/COFF header and largely inspired from
