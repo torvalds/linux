@@ -64,6 +64,13 @@ enum fixed_addresses {
 	FIX_IMMR_BASE = __ALIGN_MASK(FIX_IMMR_START, FIX_IMMR_SIZE - 1) - 1 +
 		       FIX_IMMR_SIZE,
 #endif
+#ifdef CONFIG_PPC_83xx
+	/* For IMMR we need an aligned 2M area */
+#define FIX_IMMR_SIZE	(SZ_2M / PAGE_SIZE)
+	FIX_IMMR_START,
+	FIX_IMMR_BASE = __ALIGN_MASK(FIX_IMMR_START, FIX_IMMR_SIZE - 1) - 1 +
+		       FIX_IMMR_SIZE,
+#endif
 	/* FIX_PCIE_MCFG, */
 	__end_of_permanent_fixed_addresses,
 
