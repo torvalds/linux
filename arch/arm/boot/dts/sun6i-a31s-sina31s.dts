@@ -115,14 +115,10 @@
 &gmac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac_mii_pins>;
-	phy = <&phy1>;
+	phy-handle = <&phy1>;
 	phy-mode = "mii";
 	phy-supply = <&reg_dldo1>;
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &hdmi {
@@ -157,6 +153,12 @@
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <349206>;
+	};
+};
+
+&mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
 	};
 };
 

@@ -5,7 +5,7 @@
  */
 
 / {
-	model = "Phytec phyBOARD-Segin i.MX6 UltraLite";
+	model = "PHYTEC phyBOARD-Segin i.MX6 UltraLite";
 	compatible = "phytec,imx6ul-pbacd-10", "phytec,imx6ul-pcl063", "fsl,imx6ul";
 
 	aliases {
@@ -103,11 +103,18 @@
 	assigned-clock-rates = <786432000>;
 };
 
+&ecspi3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi3>;
+	cs-gpios = <&gpio1 20 GPIO_ACTIVE_HIGH>;
+	status = "disabled";
+};
+
 &fec2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet2>;
 	phy-mode = "rmii";
-	phy-handle = <&ethphy1>;
+	phy-handle = <&ethphy2>;
 	status = "disabled";
 };
 
@@ -160,11 +167,12 @@
 };
 
 &mdio {
-	ethphy1: ethernet-phy@2 {
+	ethphy2: ethernet-phy@2 {
 		reg = <2>;
 		micrel,led-mode = <1>;
 		clocks = <&clks IMX6UL_CLK_ENET2_REF>;
 		clock-names = "rmii-ref";
+		status = "disabled";
 	};
 };
 
@@ -224,16 +232,25 @@
 		>;
 	};
 
+	pinctrl_ecspi3: ecspi3grp {
+		fsl,pins = <
+			MX6UL_PAD_UART2_RTS_B__ECSPI3_MISO	0x10b0
+			MX6UL_PAD_UART2_CTS_B__ECSPI3_MOSI	0x10b0
+			MX6UL_PAD_UART2_RX_DATA__ECSPI3_SCLK	0x10b0
+			MX6UL_PAD_UART2_TX_DATA__GPIO1_IO20	0x10b0
+		>;
+	};
+
 	pinctrl_enet2: enet2grp {
 		fsl,pins = <
 			MX6UL_PAD_ENET2_RX_EN__ENET2_RX_EN	0x1b0b0
 			MX6UL_PAD_ENET2_RX_ER__ENET2_RX_ER	0x1b0b0
 			MX6UL_PAD_ENET2_RX_DATA0__ENET2_RDATA00	0x1b0b0
 			MX6UL_PAD_ENET2_RX_DATA1__ENET2_RDATA01	0x1b0b0
-			MX6UL_PAD_ENET2_TX_EN__ENET2_TX_EN	0x1b0b0
-			MX6UL_PAD_ENET2_TX_DATA0__ENET2_TDATA00	0x1b0b0
-			MX6UL_PAD_ENET2_TX_DATA1__ENET2_TDATA01	0x1b0b0
-			MX6UL_PAD_ENET2_TX_CLK__ENET2_REF_CLK2	0x4001b031
+			MX6UL_PAD_ENET2_TX_EN__ENET2_TX_EN	0x1b010
+			MX6UL_PAD_ENET2_TX_DATA0__ENET2_TDATA00	0x1b010
+			MX6UL_PAD_ENET2_TX_DATA1__ENET2_TDATA01	0x1b010
+			MX6UL_PAD_ENET2_TX_CLK__ENET2_REF_CLK2	0x4001b010
 		>;
 	};
 

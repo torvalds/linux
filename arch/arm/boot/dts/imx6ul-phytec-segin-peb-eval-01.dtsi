@@ -21,20 +21,22 @@
 		};
 	};
 
-	user_leds: leds {
+	user_leds: user-leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_user_leds>;
 		status = "disabled";
 
-		led_yellow {
-			gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-on";
+		user-led1 {
+			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "gpio";
+			default-state = "on";
 		};
 
-		led_red {
-			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-on";
+		user-led2 {
+			gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "gpio";
+			default-state = "on";
 		};
 	};
 };

@@ -45,6 +45,7 @@ description: |
   	mtp
   	sbc
   	hk01
+  	qrd
 
   The 'soc_version' and 'board_version' elements take the form of v<Major>.<Minor>
   where the minor number may be omitted when it's zero, i.e.  v1.0 is the same
@@ -113,6 +114,13 @@ properties:
       - items:
           - const: qcom,msm8916-mtp/1
           - const: qcom,msm8916-mtp
+          - const: qcom,msm8916
+
+      - items:
+          - enum:
+              - longcheer,l8150
+              - samsung,a3u-eur
+              - samsung,a5u-eur
           - const: qcom,msm8916
 
       - items:
