@@ -37,7 +37,6 @@
 #define MP0_SRAM			0x03900000
 #define MP1_Public			0x03b00000
 #define MP1_SRAM			0x03c00004
-#define MP1_SMC_SIZE		0x40000
 
 /* address block */
 #define smnMP1_FIRMWARE_FLAGS		0x3010024
