@@ -894,12 +894,8 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 			runtime->num_sprites[pipe] = 1;
 	}
 
-	if (i915_modparams.disable_display) {
-		DRM_INFO("Display disabled (module parameter)\n");
-		info->pipe_mask = 0;
-	} else if (HAS_DISPLAY(dev_priv) &&
-		   (IS_GEN_RANGE(dev_priv, 7, 8)) &&
-		   HAS_PCH_SPLIT(dev_priv)) {
+	if (HAS_DISPLAY(dev_priv) && IS_GEN_RANGE(dev_priv, 7, 8) &&
+	    HAS_PCH_SPLIT(dev_priv)) {
 		u32 fuse_strap = I915_READ(FUSE_STRAP);
 		u32 sfuse_strap = I915_READ(SFUSE_STRAP);
 

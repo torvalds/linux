@@ -16167,11 +16167,13 @@ int intel_modeset_init(struct drm_device *dev)
 		      INTEL_NUM_PIPES(dev_priv),
 		      INTEL_NUM_PIPES(dev_priv) > 1 ? "s" : "");
 
-	for_each_pipe(dev_priv, pipe) {
-		ret = intel_crtc_init(dev_priv, pipe);
-		if (ret) {
-			drm_mode_config_cleanup(dev);
-			return ret;
+	if (HAS_DISPLAY(dev_priv) && INTEL_DISPLAY_ENABLED(dev_priv)) {
+		for_each_pipe(dev_priv, pipe) {
+			ret = intel_crtc_init(dev_priv, pipe);
+			if (ret) {
+				drm_mode_config_cleanup(dev);
+				return ret;
+			}
 		}
 	}
 
