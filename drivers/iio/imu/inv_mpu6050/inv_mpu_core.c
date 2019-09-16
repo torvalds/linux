@@ -104,6 +104,7 @@ static const struct inv_mpu6050_chip_config chip_config_6050 = {
 	.divider = INV_MPU6050_FIFO_RATE_TO_DIVIDER(INV_MPU6050_INIT_FIFO_RATE),
 	.gyro_fifo_enable = false,
 	.accl_fifo_enable = false,
+	.magn_fifo_enable = false,
 	.accl_fs = INV_MPU6050_FS_02G,
 	.user_ctrl = 0,
 };
