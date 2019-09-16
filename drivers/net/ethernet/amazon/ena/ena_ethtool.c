@@ -310,14 +310,15 @@ static int ena_get_coalesce(struct net_device *net_dev,
 		/* the devie doesn't support interrupt moderation */
 		return -EOPNOTSUPP;
 	}
+
 	coalesce->tx_coalesce_usecs =
-		ena_com_get_nonadaptive_moderation_interval_tx(ena_dev) /
+		ena_com_get_nonadaptive_moderation_interval_tx(ena_dev) *
 			ena_dev->intr_delay_resolution;
 
 	if (!ena_com_get_adaptive_moderation_enabled(ena_dev))
 		coalesce->rx_coalesce_usecs =
 			ena_com_get_nonadaptive_moderation_interval_rx(ena_dev)
-			/ ena_dev->intr_delay_resolution;
+			* ena_dev->intr_delay_resolution;
 
 	coalesce->use_adaptive_rx_coalesce =
 		ena_com_get_adaptive_moderation_enabled(ena_dev);
