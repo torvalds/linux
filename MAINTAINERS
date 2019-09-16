@@ -5761,6 +5761,11 @@ S:	Supported
 F:	drivers/edac/aspeed_edac.c
 F:	Documentation/devicetree/bindings/edac/aspeed-sdram-edac.txt
 
+EDAC-BLUEFIELD
+M:	Shravan Kumar Ramani <sramani@mellanox.com>
+S:	Supported
+F:	drivers/edac/bluefield_edac.c
+
 EDAC-CALXEDA
 M:	Robert Richter <rric@kernel.org>
 L:	linux-edac@vger.kernel.org
@@ -5785,10 +5790,11 @@ F:	drivers/edac/thunderx_edac*
 EDAC-CORE
 M:	Borislav Petkov <bp@alien8.de>
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
+M:	Tony Luck <tony.luck@intel.com>
 R:	James Morse <james.morse@arm.com>
+R:	Robert Richter <rrichter@marvell.com>
 L:	linux-edac@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bp/bp.git for-next
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-edac.git linux_next
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ras/ras.git edac-for-next
 S:	Supported
 F:	Documentation/admin-guide/ras.rst
 F:	Documentation/driver-api/edac.rst
