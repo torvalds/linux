@@ -30,10 +30,6 @@
 #define CREATE_TRACE_POINTS
 #include "dpu_trace.h"
 
-static const char * const iommu_ports[] = {
-		"mdp_0",
-};
-
 /*
  * To enable overall DRM driver logging
  * # echo 0x2 > /sys/module/drm/parameters/debug
@@ -703,8 +699,7 @@ static void _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms)
 
 	mmu = dpu_kms->base.aspace->mmu;
 
-	mmu->funcs->detach(mmu, (const char **)iommu_ports,
-			ARRAY_SIZE(iommu_ports));
+	mmu->funcs->detach(mmu);
 	msm_gem_address_space_put(dpu_kms->base.aspace);
 
 	dpu_kms->base.aspace = NULL;
@@ -730,8 +725,7 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 		return PTR_ERR(aspace);
 	}
 
-	ret = aspace->mmu->funcs->attach(aspace->mmu, iommu_ports,
-			ARRAY_SIZE(iommu_ports));
+	ret = aspace->mmu->funcs->attach(aspace->mmu);
 	if (ret) {
 		DPU_ERROR("failed to attach iommu %d\n", ret);
 		msm_gem_address_space_put(aspace);
