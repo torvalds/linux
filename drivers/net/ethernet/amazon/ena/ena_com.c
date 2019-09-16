@@ -2772,32 +2772,34 @@ bool ena_com_interrupt_moderation_supported(struct ena_com_dev *ena_dev)
 						  ENA_ADMIN_INTERRUPT_MODERATION);
 }
 
-int ena_com_update_nonadaptive_moderation_interval_tx(struct ena_com_dev *ena_dev,
-						      u32 tx_coalesce_usecs)
+static int ena_com_update_nonadaptive_moderation_interval(u32 coalesce_usecs,
+							  u32 intr_delay_resolution,
+							  u32 *intr_moder_interval)
 {
-	if (!ena_dev->intr_delay_resolution) {
+	if (!intr_delay_resolution) {
 		pr_err("Illegal interrupt delay granularity value\n");
 		return -EFAULT;
 	}
 
-	ena_dev->intr_moder_tx_interval = tx_coalesce_usecs /
-		ena_dev->intr_delay_resolution;
+	*intr_moder_interval = coalesce_usecs / intr_delay_resolution;
 
 	return 0;
+}
+
+int ena_com_update_nonadaptive_moderation_interval_tx(struct ena_com_dev *ena_dev,
+						      u32 tx_coalesce_usecs)
+{
+	return ena_com_update_nonadaptive_moderation_interval(tx_coalesce_usecs,
+							      ena_dev->intr_delay_resolution,
+							      &ena_dev->intr_moder_tx_interval);
 }
 
 int ena_com_update_nonadaptive_moderation_interval_rx(struct ena_com_dev *ena_dev,
 						      u32 rx_coalesce_usecs)
 {
-	if (!ena_dev->intr_delay_resolution) {
-		pr_err("Illegal interrupt delay granularity value\n");
-		return -EFAULT;
-	}
-
-	ena_dev->intr_moder_rx_interval = rx_coalesce_usecs /
-		ena_dev->intr_delay_resolution;
-
-	return 0;
+	return ena_com_update_nonadaptive_moderation_interval(rx_coalesce_usecs,
+							      ena_dev->intr_delay_resolution,
+							      &ena_dev->intr_moder_rx_interval);
 }
 
 void ena_com_destroy_interrupt_moderation(struct ena_com_dev *ena_dev)
