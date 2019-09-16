@@ -3872,6 +3872,45 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_core_port_fini(mlxsw_sp->core, local_port);
 }
 
+static int mlxsw_sp_cpu_port_create(struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	int err;
+
+	mlxsw_sp_port = kzalloc(sizeof(*mlxsw_sp_port), GFP_KERNEL);
+	if (!mlxsw_sp_port)
+		return -ENOMEM;
+
+	mlxsw_sp_port->mlxsw_sp = mlxsw_sp;
+	mlxsw_sp_port->local_port = MLXSW_PORT_CPU_PORT;
+
+	err = mlxsw_core_cpu_port_init(mlxsw_sp->core,
+				       mlxsw_sp_port,
+				       mlxsw_sp->base_mac,
+				       sizeof(mlxsw_sp->base_mac));
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize core CPU port\n");
+		goto err_core_cpu_port_init;
+	}
+
+	mlxsw_sp->ports[MLXSW_PORT_CPU_PORT] = mlxsw_sp_port;
+	return 0;
+
+err_core_cpu_port_init:
+	kfree(mlxsw_sp_port);
+	return err;
+}
+
+static void mlxsw_sp_cpu_port_remove(struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port =
+				mlxsw_sp->ports[MLXSW_PORT_CPU_PORT];
+
+	mlxsw_core_cpu_port_fini(mlxsw_sp->core);
+	mlxsw_sp->ports[MLXSW_PORT_CPU_PORT] = NULL;
+	kfree(mlxsw_sp_port);
+}
+
 static bool mlxsw_sp_port_created(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 {
 	return mlxsw_sp->ports[local_port] != NULL;
@@ -3884,6 +3923,7 @@ static void mlxsw_sp_ports_remove(struct mlxsw_sp *mlxsw_sp)
 	for (i = 1; i < mlxsw_core_max_ports(mlxsw_sp->core); i++)
 		if (mlxsw_sp_port_created(mlxsw_sp, i))
 			mlxsw_sp_port_remove(mlxsw_sp, i);
+	mlxsw_sp_cpu_port_remove(mlxsw_sp);
 	kfree(mlxsw_sp->port_to_module);
 	kfree(mlxsw_sp->ports);
 }
@@ -3908,6 +3948,10 @@ static int mlxsw_sp_ports_create(struct mlxsw_sp *mlxsw_sp)
 		goto err_port_to_module_alloc;
 	}
 
+	err = mlxsw_sp_cpu_port_create(mlxsw_sp);
+	if (err)
+		goto err_cpu_port_create;
+
 	for (i = 1; i < max_ports; i++) {
 		/* Mark as invalid */
 		mlxsw_sp->port_to_module[i] = -1;
@@ -3931,6 +3975,8 @@ err_port_module_info_get:
 	for (i--; i >= 1; i--)
 		if (mlxsw_sp_port_created(mlxsw_sp, i))
 			mlxsw_sp_port_remove(mlxsw_sp, i);
+	mlxsw_sp_cpu_port_remove(mlxsw_sp);
+err_cpu_port_create:
 	kfree(mlxsw_sp->port_to_module);
 err_port_to_module_alloc:
 	kfree(mlxsw_sp->ports);
