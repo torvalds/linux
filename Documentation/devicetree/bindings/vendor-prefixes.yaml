@@ -575,6 +575,8 @@ patternProperties:
     description: Micro Crystal AG
   "^micron,.*":
     description: Micron Technology Inc.
+  "^microsoft,.*":
+    description: Microsoft Corporation
   "^mikroe,.*":
     description: MikroElektronika d.o.o.
   "^miniand,.*":

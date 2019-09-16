@@ -6,3 +6,4 @@ Trusted Platform Module documentation
 
    tpm_vtpm_proxy
    xen-tpmfront
+   tpm_ftpm_tee
