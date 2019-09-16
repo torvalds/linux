@@ -17261,6 +17261,7 @@ F:	Documentation/power/regulator/
 F:	drivers/regulator/
 F:	include/dt-bindings/regulator/
 F:	include/linux/regulator/
+K:	regulator_get_optional
 
 VRF
 M:	David Ahern <dsa@cumulusnetworks.com>
