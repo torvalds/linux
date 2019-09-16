@@ -559,7 +559,7 @@ static int hisi_zip_acompress(struct acomp_req *acomp_req)
 	struct hisi_zip_ctx *ctx = crypto_tfm_ctx(acomp_req->base.tfm);
 	struct hisi_zip_qp_ctx *qp_ctx = &ctx->qp_ctx[QPC_COMP];
 	struct hisi_zip_req *req;
-	size_t head_size;
+	int head_size;
 	int ret;
 
 	/* let's output compression head now */
@@ -567,7 +567,7 @@ static int hisi_zip_acompress(struct acomp_req *acomp_req)
 	if (head_size < 0)
 		return -ENOMEM;
 
-	req = hisi_zip_create_req(acomp_req, qp_ctx, head_size, true);
+	req = hisi_zip_create_req(acomp_req, qp_ctx, (size_t)head_size, true);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
