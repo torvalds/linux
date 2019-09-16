@@ -51,10 +51,6 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 	if (gem->import_attach)
 		drm_prime_gem_destroy(gem, nvbo->bo.sg);
 
-	drm_gem_object_release(gem);
-
-	/* reset filp so nouveau_bo_del_ttm() can test for it */
-	gem->filp = NULL;
 	ttm_bo_put(&nvbo->bo);
 
 	pm_runtime_mark_last_busy(dev);
