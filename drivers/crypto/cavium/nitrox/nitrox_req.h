@@ -10,6 +10,8 @@
 #define PENDING_SIG	0xFFFFFFFFFFFFFFFFUL
 #define PRIO 4001
 
+typedef void (*sereq_completion_t)(void *req, int err);
+
 /**
  * struct gphdr - General purpose Header
  * @param0: first parameter.
@@ -203,12 +205,14 @@ struct nitrox_crypto_ctx {
 		struct flexi_crypto_context *fctx;
 	} u;
 	struct crypto_ctx_hdr *chdr;
+	sereq_completion_t callback;
 };
 
 struct nitrox_kcrypt_request {
 	struct se_crypto_request creq;
 	u8 *src;
 	u8 *dst;
+	u8 *iv_out;
 };
 
 /**

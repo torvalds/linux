@@ -6,6 +6,7 @@
 
 #include <crypto/aes.h>
 #include <crypto/skcipher.h>
+#include <crypto/scatterwalk.h>
 #include <crypto/ctr.h>
 #include <crypto/internal/des.h>
 #include <crypto/xts.h>
@@ -47,6 +48,63 @@ static enum flexi_cipher flexi_cipher_type(const char *name)
 	return cipher->value;
 }
 
+static void free_src_sglist(struct skcipher_request *skreq)
+{
+	struct nitrox_kcrypt_request *nkreq = skcipher_request_ctx(skreq);
+
+	kfree(nkreq->src);
+}
+
+static void free_dst_sglist(struct skcipher_request *skreq)
+{
+	struct nitrox_kcrypt_request *nkreq = skcipher_request_ctx(skreq);
+
+	kfree(nkreq->dst);
+}
+
+static void nitrox_skcipher_callback(void *arg, int err)
+{
+	struct skcipher_request *skreq = arg;
+
+	free_src_sglist(skreq);
+	free_dst_sglist(skreq);
+	if (err) {
+		pr_err_ratelimited("request failed status 0x%0x\n", err);
+		err = -EINVAL;
+	}
+
+	skcipher_request_complete(skreq, err);
+}
+
+static void nitrox_cbc_cipher_callback(void *arg, int err)
+{
+	struct skcipher_request *skreq = arg;
+	struct nitrox_kcrypt_request *nkreq = skcipher_request_ctx(skreq);
+	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(skreq);
+	int ivsize = crypto_skcipher_ivsize(cipher);
+	unsigned int start = skreq->cryptlen - ivsize;
+
+	if (err) {
+		nitrox_skcipher_callback(arg, err);
+		return;
+	}
+
+	if (nkreq->creq.ctrl.s.arg == ENCRYPT) {
+		scatterwalk_map_and_copy(skreq->iv, skreq->dst, start, ivsize,
+					 0);
+	} else {
+		if (skreq->src != skreq->dst) {
+			scatterwalk_map_and_copy(skreq->iv, skreq->src, start,
+						 ivsize, 0);
+		} else {
+			memcpy(skreq->iv, nkreq->iv_out, ivsize);
+			kfree(nkreq->iv_out);
+		}
+	}
+
+	nitrox_skcipher_callback(arg, err);
+}
+
 static int nitrox_skcipher_init(struct crypto_skcipher *tfm)
 {
 	struct nitrox_crypto_ctx *nctx = crypto_skcipher_ctx(tfm);
@@ -63,11 +121,26 @@ static int nitrox_skcipher_init(struct crypto_skcipher *tfm)
 		nitrox_put_device(nctx->ndev);
 		return -ENOMEM;
 	}
+
+	nctx->callback = nitrox_skcipher_callback;
 	nctx->chdr = chdr;
 	nctx->u.ctx_handle = (uintptr_t)((u8 *)chdr->vaddr +
 					 sizeof(struct ctx_hdr));
 	crypto_skcipher_set_reqsize(tfm, crypto_skcipher_reqsize(tfm) +
 				    sizeof(struct nitrox_kcrypt_request));
+	return 0;
+}
+
+static int nitrox_cbc_init(struct crypto_skcipher *tfm)
+{
+	int err;
+	struct nitrox_crypto_ctx *nctx = crypto_skcipher_ctx(tfm);
+
+	err = nitrox_skcipher_init(tfm);
+	if (err)
+		return err;
+
+	nctx->callback = nitrox_cbc_cipher_callback;
 	return 0;
 }
 
@@ -173,34 +246,6 @@ static int alloc_dst_sglist(struct skcipher_request *skreq, int ivsize)
 	return 0;
 }
 
-static void free_src_sglist(struct skcipher_request *skreq)
-{
-	struct nitrox_kcrypt_request *nkreq = skcipher_request_ctx(skreq);
-
-	kfree(nkreq->src);
-}
-
-static void free_dst_sglist(struct skcipher_request *skreq)
-{
-	struct nitrox_kcrypt_request *nkreq = skcipher_request_ctx(skreq);
-
-	kfree(nkreq->dst);
-}
-
-static void nitrox_skcipher_callback(void *arg, int err)
-{
-	struct skcipher_request *skreq = arg;
-
-	free_src_sglist(skreq);
-	free_dst_sglist(skreq);
-	if (err) {
-		pr_err_ratelimited("request failed status 0x%0x\n", err);
-		err = -EINVAL;
-	}
-
-	skcipher_request_complete(skreq, err);
-}
-
 static int nitrox_skcipher_crypt(struct skcipher_request *skreq, bool enc)
 {
 	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(skreq);
@@ -240,8 +285,28 @@ static int nitrox_skcipher_crypt(struct skcipher_request *skreq, bool enc)
 	}
 
 	/* send the crypto request */
-	return nitrox_process_se_request(nctx->ndev, creq,
-					 nitrox_skcipher_callback, skreq);
+	return nitrox_process_se_request(nctx->ndev, creq, nctx->callback,
+					 skreq);
+}
+
+static int nitrox_cbc_decrypt(struct skcipher_request *skreq)
+{
+	struct nitrox_kcrypt_request *nkreq = skcipher_request_ctx(skreq);
+	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(skreq);
+	int ivsize = crypto_skcipher_ivsize(cipher);
+	gfp_t flags = (skreq->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
+			GFP_KERNEL : GFP_ATOMIC;
+	unsigned int start = skreq->cryptlen - ivsize;
+
+	if (skreq->src != skreq->dst)
+		return nitrox_skcipher_crypt(skreq, false);
+
+	nkreq->iv_out = kmalloc(ivsize, flags);
+	if (!nkreq->iv_out)
+		return -ENOMEM;
+
+	scatterwalk_map_and_copy(nkreq->iv_out, skreq->src, start, ivsize, 0);
+	return nitrox_skcipher_crypt(skreq, false);
 }
 
 static int nitrox_aes_encrypt(struct skcipher_request *skreq)
@@ -340,8 +405,8 @@ static struct skcipher_alg nitrox_skciphers[] = { {
 	.ivsize = AES_BLOCK_SIZE,
 	.setkey = nitrox_aes_setkey,
 	.encrypt = nitrox_aes_encrypt,
-	.decrypt = nitrox_aes_decrypt,
-	.init = nitrox_skcipher_init,
+	.decrypt = nitrox_cbc_decrypt,
+	.init = nitrox_cbc_init,
 	.exit = nitrox_skcipher_exit,
 }, {
 	.base = {
@@ -455,8 +520,8 @@ static struct skcipher_alg nitrox_skciphers[] = { {
 	.ivsize = DES3_EDE_BLOCK_SIZE,
 	.setkey = nitrox_3des_setkey,
 	.encrypt = nitrox_3des_encrypt,
-	.decrypt = nitrox_3des_decrypt,
-	.init = nitrox_skcipher_init,
+	.decrypt = nitrox_cbc_decrypt,
+	.init = nitrox_cbc_init,
 	.exit = nitrox_skcipher_exit,
 }, {
 	.base = {
