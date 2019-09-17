@@ -105,6 +105,7 @@ config S390
 	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
 	select ARCH_KEEP_MEMBLOCK
 	select ARCH_SAVE_PAGE_KEYS if HIBERNATION
+	select ARCH_STACKWALK
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_USE_BUILTIN_BSWAP
@@ -236,6 +237,10 @@ config HAVE_MARCH_Z14_FEATURES
 	def_bool n
 	select HAVE_MARCH_Z13_FEATURES
 
+config HAVE_MARCH_Z15_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z14_FEATURES
+
 choice
 	prompt "Processor type"
 	default MARCH_Z196
@@ -307,6 +312,14 @@ config MARCH_Z14
 	  and 3906 series). The kernel will be slightly faster but will not
 	  work on older machines.
 
+config MARCH_Z15
+	bool "IBM z15"
+	select HAVE_MARCH_Z15_FEATURES
+	help
+	  Select this to enable optimizations for IBM z15 (8562
+	  and 8561 series). The kernel will be slightly faster but will not
+	  work on older machines.
+
 endchoice
 
 config MARCH_Z900_TUNE
@@ -332,6 +345,9 @@ config MARCH_Z13_TUNE
 
 config MARCH_Z14_TUNE
 	def_bool TUNE_Z14 || MARCH_Z14 && TUNE_DEFAULT
+
+config MARCH_Z15_TUNE
+	def_bool TUNE_Z15 || MARCH_Z15 && TUNE_DEFAULT
 
 choice
 	prompt "Tune code generation"
@@ -376,6 +392,9 @@ config TUNE_Z13
 
 config TUNE_Z14
 	bool "IBM z14"
+
+config TUNE_Z15
+	bool "IBM z15"
 
 endchoice
 

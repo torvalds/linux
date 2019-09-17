@@ -35,6 +35,7 @@
 
 #include "zcrypt_msgtype6.h"
 #include "zcrypt_msgtype50.h"
+#include "zcrypt_ccamisc.h"
 
 /*
  * Module description.
@@ -1160,6 +1161,34 @@ void zcrypt_device_status_mask_ext(struct zcrypt_device_status_ext *devstatus)
 }
 EXPORT_SYMBOL(zcrypt_device_status_mask_ext);
 
+int zcrypt_device_status_ext(int card, int queue,
+			     struct zcrypt_device_status_ext *devstat)
+{
+	struct zcrypt_card *zc;
+	struct zcrypt_queue *zq;
+
+	memset(devstat, 0, sizeof(*devstat));
+
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		for_each_zcrypt_queue(zq, zc) {
+			if (card == AP_QID_CARD(zq->queue->qid) &&
+			    queue == AP_QID_QUEUE(zq->queue->qid)) {
+				devstat->hwtype = zc->card->ap_dev.device_type;
+				devstat->functions = zc->card->functions >> 26;
+				devstat->qid = zq->queue->qid;
+				devstat->online = zq->online ? 0x01 : 0x00;
+				spin_unlock(&zcrypt_list_lock);
+				return 0;
+			}
+		}
+	}
+	spin_unlock(&zcrypt_list_lock);
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL(zcrypt_device_status_ext);
+
 static void zcrypt_status_mask(char status[], size_t max_adapters)
 {
 	struct zcrypt_card *zc;
@@ -1874,6 +1903,7 @@ void __exit zcrypt_api_exit(void)
 	misc_deregister(&zcrypt_misc_device);
 	zcrypt_msgtype6_exit();
 	zcrypt_msgtype50_exit();
+	zcrypt_ccamisc_exit();
 	zcrypt_debug_exit();
 }
 
