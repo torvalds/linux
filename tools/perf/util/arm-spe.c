@@ -8,6 +8,8 @@
 #include <errno.h>
 #include <byteswap.h>
 #include <inttypes.h>
+#include <unistd.h>
+#include <stdlib.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
@@ -17,10 +19,8 @@
 #include "cpumap.h"
 #include "color.h"
 #include "evsel.h"
-#include "evlist.h"
 #include "machine.h"
 #include "session.h"
-#include "thread.h"
 #include "debug.h"
 #include "auxtrace.h"
 #include "arm-spe.h"
@@ -181,7 +181,7 @@ static const char * const arm_spe_info_fmts[] = {
 	[ARM_SPE_PMU_TYPE]		= "  PMU Type           %"PRId64"\n",
 };
 
-static void arm_spe_print_info(u64 *arr)
+static void arm_spe_print_info(__u64 *arr)
 {
 	if (!dump_trace)
 		return;
@@ -192,12 +192,12 @@ static void arm_spe_print_info(u64 *arr)
 int arm_spe_process_auxtrace_info(union perf_event *event,
 				  struct perf_session *session)
 {
-	struct auxtrace_info_event *auxtrace_info = &event->auxtrace_info;
+	struct perf_record_auxtrace_info *auxtrace_info = &event->auxtrace_info;
 	size_t min_sz = sizeof(u64) * ARM_SPE_PMU_TYPE;
 	struct arm_spe *spe;
 	int err;
 
-	if (auxtrace_info->header.size < sizeof(struct auxtrace_info_event) +
+	if (auxtrace_info->header.size < sizeof(struct perf_record_auxtrace_info) +
 					min_sz)
 		return -EINVAL;
 

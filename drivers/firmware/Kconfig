@@ -271,6 +271,20 @@ config TRUSTED_FOUNDATIONS
 
 	  Choose N if you don't know what this is about.
 
+config TURRIS_MOX_RWTM
+	tristate "Turris Mox rWTM secure firmware driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on HAS_DMA && OF
+	depends on MAILBOX
+	select HW_RANDOM
+	select ARMADA_37XX_RWTM_MBOX
+	help
+	  This driver communicates with the firmware on the Cortex-M3 secure
+	  processor of the Turris Mox router. Enable if you are building for
+	  Turris Mox, and you will be able to read the device serial number and
+	  other manufacturing data and also utilize the Entropy Bit Generator
+	  for hardware random number generation.
+
 config HAVE_ARM_SMCCC
 	bool
 

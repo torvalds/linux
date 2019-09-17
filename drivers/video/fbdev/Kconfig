@@ -1924,20 +1924,6 @@ config FB_S3C2410_DEBUG
 	  Turn on debugging messages. Note that you can set/unset at run time
 	  through sysfs
 
-config FB_NUC900
-	tristate "NUC900 LCD framebuffer support"
-	depends on FB && ARCH_W90X900
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	---help---
-	  Frame buffer driver for the built-in LCD controller in the Nuvoton
-	  NUC900 processor
-
-config GPM1040A0_320X240
-	bool "Giantplus Technology GPM1040A0 320x240 Color TFT LCD"
-	depends on FB_NUC900
-
 config FB_SM501
 	tristate "Silicon Motion SM501 framebuffer support"
 	depends on FB && MFD_SM501

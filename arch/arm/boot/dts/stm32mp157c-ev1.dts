@@ -101,6 +101,7 @@
 &dsi {
 	#address-cells = <1>;
 	#size-cells = <0>;
+	phy-dsi-supply = <&reg18>;
 	status = "okay";
 
 	ports {
@@ -154,6 +155,22 @@
 		phy0: ethernet-phy@0 {
 			reg = <0>;
 		};
+	};
+};
+
+&fmc {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&fmc_pins_a>;
+	pinctrl-1 = <&fmc_sleep_pins_a>;
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	nand@0 {
+		reg = <0>;
+		nand-on-flash-bbt;
+		#address-cells = <1>;
+		#size-cells = <1>;
 	};
 };
 

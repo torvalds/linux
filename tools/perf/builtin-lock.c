@@ -4,13 +4,13 @@
 #include "builtin.h"
 #include "perf.h"
 
-#include "util/evlist.h"
+#include "util/evlist.h" // for struct evsel_str_handler
 #include "util/evsel.h"
-#include "util/cache.h"
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/header.h"
 
+#include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include "util/trace-event.h"
 
@@ -347,16 +347,16 @@ alloc_failed:
 }
 
 struct trace_lock_handler {
-	int (*acquire_event)(struct perf_evsel *evsel,
+	int (*acquire_event)(struct evsel *evsel,
 			     struct perf_sample *sample);
 
-	int (*acquired_event)(struct perf_evsel *evsel,
+	int (*acquired_event)(struct evsel *evsel,
 			      struct perf_sample *sample);
 
-	int (*contended_event)(struct perf_evsel *evsel,
+	int (*contended_event)(struct evsel *evsel,
 			       struct perf_sample *sample);
 
-	int (*release_event)(struct perf_evsel *evsel,
+	int (*release_event)(struct evsel *evsel,
 			     struct perf_sample *sample);
 };
 
@@ -396,7 +396,7 @@ enum acquire_flags {
 	READ_LOCK = 2,
 };
 
-static int report_lock_acquire_event(struct perf_evsel *evsel,
+static int report_lock_acquire_event(struct evsel *evsel,
 				     struct perf_sample *sample)
 {
 	void *addr;
@@ -468,7 +468,7 @@ end:
 	return 0;
 }
 
-static int report_lock_acquired_event(struct perf_evsel *evsel,
+static int report_lock_acquired_event(struct evsel *evsel,
 				      struct perf_sample *sample)
 {
 	void *addr;
@@ -531,7 +531,7 @@ end:
 	return 0;
 }
 
-static int report_lock_contended_event(struct perf_evsel *evsel,
+static int report_lock_contended_event(struct evsel *evsel,
 				       struct perf_sample *sample)
 {
 	void *addr;
@@ -586,7 +586,7 @@ end:
 	return 0;
 }
 
-static int report_lock_release_event(struct perf_evsel *evsel,
+static int report_lock_release_event(struct evsel *evsel,
 				     struct perf_sample *sample)
 {
 	void *addr;
@@ -656,7 +656,7 @@ static struct trace_lock_handler report_lock_ops  = {
 
 static struct trace_lock_handler *trace_handler;
 
-static int perf_evsel__process_lock_acquire(struct perf_evsel *evsel,
+static int perf_evsel__process_lock_acquire(struct evsel *evsel,
 					     struct perf_sample *sample)
 {
 	if (trace_handler->acquire_event)
@@ -664,7 +664,7 @@ static int perf_evsel__process_lock_acquire(struct perf_evsel *evsel,
 	return 0;
 }
 
-static int perf_evsel__process_lock_acquired(struct perf_evsel *evsel,
+static int perf_evsel__process_lock_acquired(struct evsel *evsel,
 					      struct perf_sample *sample)
 {
 	if (trace_handler->acquired_event)
@@ -672,7 +672,7 @@ static int perf_evsel__process_lock_acquired(struct perf_evsel *evsel,
 	return 0;
 }
 
-static int perf_evsel__process_lock_contended(struct perf_evsel *evsel,
+static int perf_evsel__process_lock_contended(struct evsel *evsel,
 					      struct perf_sample *sample)
 {
 	if (trace_handler->contended_event)
@@ -680,7 +680,7 @@ static int perf_evsel__process_lock_contended(struct perf_evsel *evsel,
 	return 0;
 }
 
-static int perf_evsel__process_lock_release(struct perf_evsel *evsel,
+static int perf_evsel__process_lock_release(struct evsel *evsel,
 					    struct perf_sample *sample)
 {
 	if (trace_handler->release_event)
@@ -806,13 +806,13 @@ static int dump_info(void)
 	return rc;
 }
 
-typedef int (*tracepoint_handler)(struct perf_evsel *evsel,
+typedef int (*tracepoint_handler)(struct evsel *evsel,
 				  struct perf_sample *sample);
 
 static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine)
 {
 	int err = 0;
@@ -847,7 +847,7 @@ static void sort_result(void)
 	}
 }
 
-static const struct perf_evsel_str_handler lock_tracepoints[] = {
+static const struct evsel_str_handler lock_tracepoints[] = {
 	{ "lock:lock_acquire",	 perf_evsel__process_lock_acquire,   }, /* CONFIG_LOCKDEP */
 	{ "lock:lock_acquired",	 perf_evsel__process_lock_acquired,  }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
 	{ "lock:lock_contended", perf_evsel__process_lock_contended, }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */

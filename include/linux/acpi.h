@@ -994,62 +994,11 @@ void __acpi_handle_debug(struct _ddebug *descriptor, acpi_handle handle, const c
 #endif
 #endif
 
-struct acpi_gpio_params {
-	unsigned int crs_entry_index;
-	unsigned int line_index;
-	bool active_low;
-};
-
-struct acpi_gpio_mapping {
-	const char *name;
-	const struct acpi_gpio_params *data;
-	unsigned int size;
-
-/* Ignore IoRestriction field */
-#define ACPI_GPIO_QUIRK_NO_IO_RESTRICTION	BIT(0)
-/*
- * When ACPI GPIO mapping table is in use the index parameter inside it
- * refers to the GPIO resource in _CRS method. That index has no
- * distinction of actual type of the resource. When consumer wants to
- * get GpioIo type explicitly, this quirk may be used.
- */
-#define ACPI_GPIO_QUIRK_ONLY_GPIOIO		BIT(1)
-
-	unsigned int quirks;
-};
-
 #if defined(CONFIG_ACPI) && defined(CONFIG_GPIOLIB)
-int acpi_dev_add_driver_gpios(struct acpi_device *adev,
-			      const struct acpi_gpio_mapping *gpios);
-
-static inline void acpi_dev_remove_driver_gpios(struct acpi_device *adev)
-{
-	if (adev)
-		adev->driver_gpios = NULL;
-}
-
-int devm_acpi_dev_add_driver_gpios(struct device *dev,
-				   const struct acpi_gpio_mapping *gpios);
-void devm_acpi_dev_remove_driver_gpios(struct device *dev);
-
 bool acpi_gpio_get_irq_resource(struct acpi_resource *ares,
 				struct acpi_resource_gpio **agpio);
 int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index);
 #else
-static inline int acpi_dev_add_driver_gpios(struct acpi_device *adev,
-			      const struct acpi_gpio_mapping *gpios)
-{
-	return -ENXIO;
-}
-static inline void acpi_dev_remove_driver_gpios(struct acpi_device *adev) {}
-
-static inline int devm_acpi_dev_add_driver_gpios(struct device *dev,
-			      const struct acpi_gpio_mapping *gpios)
-{
-	return -ENXIO;
-}
-static inline void devm_acpi_dev_remove_driver_gpios(struct device *dev) {}
-
 static inline bool acpi_gpio_get_irq_resource(struct acpi_resource *ares,
 					      struct acpi_resource_gpio **agpio)
 {
@@ -1302,11 +1251,16 @@ static inline int lpit_read_residency_count_address(u64 *address)
 #endif
 
 #ifdef CONFIG_ACPI_PPTT
+int acpi_pptt_cpu_is_thread(unsigned int cpu);
 int find_acpi_cpu_topology(unsigned int cpu, int level);
 int find_acpi_cpu_topology_package(unsigned int cpu);
 int find_acpi_cpu_topology_hetero_id(unsigned int cpu);
 int find_acpi_cpu_cache_topology(unsigned int cpu, int level);
 #else
+static inline int acpi_pptt_cpu_is_thread(unsigned int cpu)
+{
+	return -EINVAL;
+}
 static inline int find_acpi_cpu_topology(unsigned int cpu, int level)
 {
 	return -EINVAL;

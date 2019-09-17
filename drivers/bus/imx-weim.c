@@ -19,6 +19,8 @@ struct imx_weim_devtype {
 	unsigned int	cs_count;
 	unsigned int	cs_regs_count;
 	unsigned int	cs_stride;
+	unsigned int	wcr_offset;
+	unsigned int	wcr_bcm;
 };
 
 static const struct imx_weim_devtype imx1_weim_devtype = {
@@ -37,6 +39,8 @@ static const struct imx_weim_devtype imx50_weim_devtype = {
 	.cs_count	= 4,
 	.cs_regs_count	= 6,
 	.cs_stride	= 0x18,
+	.wcr_offset	= 0x90,
+	.wcr_bcm	= BIT(0),
 };
 
 static const struct imx_weim_devtype imx51_weim_devtype = {
@@ -72,7 +76,7 @@ static const struct of_device_id weim_id_table[] = {
 };
 MODULE_DEVICE_TABLE(of, weim_id_table);
 
-static int __init imx_weim_gpr_setup(struct platform_device *pdev)
+static int imx_weim_gpr_setup(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct property *prop;
@@ -122,10 +126,10 @@ err:
 }
 
 /* Parse and set the timing for this device. */
-static int __init weim_timing_setup(struct device *dev,
-				    struct device_node *np, void __iomem *base,
-				    const struct imx_weim_devtype *devtype,
-				    struct cs_timing_state *ts)
+static int weim_timing_setup(struct device *dev,
+			     struct device_node *np, void __iomem *base,
+			     const struct imx_weim_devtype *devtype,
+			     struct cs_timing_state *ts)
 {
 	u32 cs_idx, value[MAX_CS_REGS_COUNT];
 	int i, ret;
@@ -183,8 +187,7 @@ static int __init weim_timing_setup(struct device *dev,
 	return 0;
 }
 
-static int __init weim_parse_dt(struct platform_device *pdev,
-				void __iomem *base)
+static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
 {
 	const struct of_device_id *of_id = of_match_device(weim_id_table,
 							   &pdev->dev);
@@ -192,11 +195,23 @@ static int __init weim_parse_dt(struct platform_device *pdev,
 	struct device_node *child;
 	int ret, have_child = 0;
 	struct cs_timing_state ts = {};
+	u32 reg;
 
 	if (devtype == &imx50_weim_devtype) {
 		ret = imx_weim_gpr_setup(pdev);
 		if (ret)
 			return ret;
+	}
+
+	if (of_property_read_bool(pdev->dev.of_node, "fsl,burst-clk-enable")) {
+		if (devtype->wcr_bcm) {
+			reg = readl(base + devtype->wcr_offset);
+			writel(reg | devtype->wcr_bcm,
+				base + devtype->wcr_offset);
+		} else {
+			dev_err(&pdev->dev, "burst clk mode not supported.\n");
+			return -EINVAL;
+		}
 	}
 
 	for_each_available_child_of_node(pdev->dev.of_node, child) {
@@ -217,7 +232,7 @@ static int __init weim_parse_dt(struct platform_device *pdev,
 	return ret;
 }
 
-static int __init weim_probe(struct platform_device *pdev)
+static int weim_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct clk *clk;
@@ -254,8 +269,9 @@ static struct platform_driver weim_driver = {
 		.name		= "imx-weim",
 		.of_match_table	= weim_id_table,
 	},
+	.probe = weim_probe,
 };
-module_platform_driver_probe(weim_driver, weim_probe);
+module_platform_driver(weim_driver);
 
 MODULE_AUTHOR("Freescale Semiconductor Inc.");
 MODULE_DESCRIPTION("i.MX EIM Controller Driver");

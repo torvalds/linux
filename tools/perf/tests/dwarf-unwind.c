@@ -3,6 +3,7 @@
 #include <linux/types.h>
 #include <linux/zalloc.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <unistd.h>
 #include "tests.h"
 #include "debug.h"

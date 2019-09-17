@@ -25,8 +25,8 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
-#include <mach/platform.h>
-#include <mach/hardware.h>
+#include <linux/sizes.h>
+#include <linux/soc/nxp/lpc32xx-misc.h>
 
 /*
  * High Speed UART register offsets
@@ -80,6 +80,8 @@
 #define LPC32XX_HSU_TX_TL4B			(0x1 << 0)
 #define LPC32XX_HSU_TX_TL8B			(0x2 << 0)
 #define LPC32XX_HSU_TX_TL16B			(0x3 << 0)
+
+#define LPC32XX_MAIN_OSC_FREQ			13000000
 
 #define MODNAME "lpc32xx_hsuart"
 
@@ -150,8 +152,6 @@ static void lpc32xx_hsuart_console_write(struct console *co, const char *s,
 		spin_unlock(&up->port.lock);
 	local_irq_restore(flags);
 }
-
-static void lpc32xx_loopback_set(resource_size_t mapbase, int state);
 
 static int __init lpc32xx_hsuart_console_setup(struct console *co,
 					       char *options)
@@ -437,35 +437,6 @@ static void serial_lpc32xx_break_ctl(struct uart_port *port,
 		tmp &= ~LPC32XX_HSU_BREAK;
 	writel(tmp, LPC32XX_HSUART_CTRL(port->membase));
 	spin_unlock_irqrestore(&port->lock, flags);
-}
-
-/* LPC3250 Errata HSUART.1: Hang workaround via loopback mode on inactivity */
-static void lpc32xx_loopback_set(resource_size_t mapbase, int state)
-{
-	int bit;
-	u32 tmp;
-
-	switch (mapbase) {
-	case LPC32XX_HS_UART1_BASE:
-		bit = 0;
-		break;
-	case LPC32XX_HS_UART2_BASE:
-		bit = 1;
-		break;
-	case LPC32XX_HS_UART7_BASE:
-		bit = 6;
-		break;
-	default:
-		WARN(1, "lpc32xx_hs: Warning: Unknown port at %08x\n", mapbase);
-		return;
-	}
-
-	tmp = readl(LPC32XX_UARTCTL_CLOOP);
-	if (state)
-		tmp |= (1 << bit);
-	else
-		tmp &= ~(1 << bit);
-	writel(tmp, LPC32XX_UARTCTL_CLOOP);
 }
 
 /* port->lock is not held.  */

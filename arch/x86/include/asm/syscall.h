@@ -36,6 +36,10 @@ extern const sys_call_ptr_t sys_call_table[];
 extern const sys_call_ptr_t ia32_sys_call_table[];
 #endif
 
+#ifdef CONFIG_X86_X32_ABI
+extern const sys_call_ptr_t x32_sys_call_table[];
+#endif
+
 /*
  * Only the low 32 bits of orig_ax are meaningful, so we return int.
  * This importantly ignores the high bits on 64-bit, so comparisons

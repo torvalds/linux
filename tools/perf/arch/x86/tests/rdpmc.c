@@ -6,11 +6,13 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <linux/string.h>
 #include <linux/types.h>
-#include "perf.h"
+#include "perf-sys.h"
 #include "debug.h"
 #include "tests/tests.h"
 #include "cloexec.h"
+#include "event.h"
 #include "util.h"
 #include "arch-tests.h"
 

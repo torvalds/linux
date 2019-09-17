@@ -8,6 +8,7 @@
 #include "../../util/util.h"
 #include "../../util/debug.h"
 #include "../../util/map.h"
+#include "../../util/dso.h"
 #include "../../util/symbol.h"
 #include "../browser.h"
 #include "../helpline.h"

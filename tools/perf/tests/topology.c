@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <perf/cpumap.h>
 #include "tests.h"
 #include "util.h"
 #include "session.h"
@@ -57,7 +58,7 @@ static int session_write_header(char *path)
 	return 0;
 }
 
-static int check_cpu_topology(char *path, struct cpu_map *map)
+static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 {
 	struct perf_session *session;
 	struct perf_data data = {
@@ -116,7 +117,7 @@ static int check_cpu_topology(char *path, struct cpu_map *map)
 int test__session_topology(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	char path[PATH_MAX];
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 	int ret = TEST_FAIL;
 
 	TEST_ASSERT_VAL("can't get templ file", !get_temp(path));
@@ -126,14 +127,14 @@ int test__session_topology(struct test *test __maybe_unused, int subtest __maybe
 	if (session_write_header(path))
 		goto free_path;
 
-	map = cpu_map__new(NULL);
+	map = perf_cpu_map__new(NULL);
 	if (map == NULL) {
 		pr_debug("failed to get system cpumap\n");
 		goto free_path;
 	}
 
 	ret = check_cpu_topology(path, map);
-	cpu_map__put(map);
+	perf_cpu_map__put(map);
 
 free_path:
 	unlink(path);

@@ -216,6 +216,29 @@ extern int crash_prepare_elf64_headers(struct crash_mem *mem, int kernel_map,
 				       void **addr, unsigned long *sz);
 #endif /* CONFIG_KEXEC_FILE */
 
+#ifdef CONFIG_KEXEC_ELF
+struct kexec_elf_info {
+	/*
+	 * Where the ELF binary contents are kept.
+	 * Memory managed by the user of the struct.
+	 */
+	const char *buffer;
+
+	const struct elfhdr *ehdr;
+	const struct elf_phdr *proghdrs;
+};
+
+int kexec_build_elf_info(const char *buf, size_t len, struct elfhdr *ehdr,
+			       struct kexec_elf_info *elf_info);
+
+int kexec_elf_load(struct kimage *image, struct elfhdr *ehdr,
+			 struct kexec_elf_info *elf_info,
+			 struct kexec_buf *kbuf,
+			 unsigned long *lowest_load_addr);
+
+void kexec_free_elf_info(struct kexec_elf_info *elf_info);
+int kexec_elf_probe(const char *buf, unsigned long len);
+#endif
 struct kimage {
 	kimage_entry_t head;
 	kimage_entry_t *entry;

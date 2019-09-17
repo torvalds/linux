@@ -19,7 +19,17 @@ Supported chips:
 
     Addresses scanned: none
 
-    Datasheet: Not publicly available
+    Datasheet: http://www.sensirion.com/file/datasheet_shtw1
+
+
+
+  * Sensirion SHTC3
+
+    Prefix: 'shtc3'
+
+    Addresses scanned: none
+
+    Datasheet: http://www.sensirion.com/file/datasheet_shtc3
 
 
 
@@ -30,10 +40,9 @@ Author:
 Description
 -----------
 
-This driver implements support for the Sensirion SHTC1 chip, a humidity and
-temperature sensor. Temperature is measured in degrees celsius, relative
-humidity is expressed as a percentage. Driver can be used as well for SHTW1
-chip, which has the same electrical interface.
+This driver implements support for the Sensirion SHTC1, SHTW1, and SHTC3
+chips, a humidity and temperature sensor. Temperature is measured in degrees
+celsius, relative humidity is expressed as a percentage.
 
 The device communicates with the I2C protocol. All sensors are set to I2C
 address 0x70. See Documentation/i2c/instantiating-devices for methods to

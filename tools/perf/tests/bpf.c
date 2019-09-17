@@ -5,17 +5,20 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <util/record.h>
 #include <util/util.h>
 #include <util/bpf-loader.h>
 #include <util/evlist.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <api/fs/fs.h>
 #include <bpf/bpf.h>
 #include "tests.h"
 #include "llvm.h"
 #include "debug.h"
+#include "parse-events.h"
 #define NR_ITERS       111
 #define PERF_TEST_BPF_PATH "/sys/fs/bpf/perf_test"
 
@@ -118,7 +121,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 
 	char pid[16];
 	char sbuf[STRERR_BUFSIZE];
-	struct perf_evlist *evlist;
+	struct evlist *evlist;
 	int i, ret = TEST_FAIL, err = 0, count = 0;
 
 	struct parse_events_state parse_state;
@@ -140,7 +143,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	opts.target.tid = opts.target.pid = pid;
 
 	/* Instead of perf_evlist__new_default, don't add default events */
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (!evlist) {
 		pr_debug("Not enough memory to create evlist\n");
 		return TEST_FAIL;
@@ -157,7 +160,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 
 	perf_evlist__config(evlist, &opts, NULL);
 
-	err = perf_evlist__open(evlist);
+	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
@@ -171,9 +174,9 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 	(*func)();
-	perf_evlist__disable(evlist);
+	evlist__disable(evlist);
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
 		union perf_event *event;
@@ -200,7 +203,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	ret = TEST_OK;
 
 out_delete_evlist:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	return ret;
 }
 

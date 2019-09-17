@@ -142,7 +142,7 @@ static const struct gpio_chip template_chip = {
 static int arizona_gpio_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
-	struct arizona_pdata *pdata = dev_get_platdata(arizona->dev);
+	struct arizona_pdata *pdata = &arizona->pdata;
 	struct arizona_gpio *arizona_gpio;
 	int ret;
 
@@ -177,7 +177,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (pdata && pdata->gpio_base)
+	if (pdata->gpio_base)
 		arizona_gpio->gpio_chip.base = pdata->gpio_base;
 	else
 		arizona_gpio->gpio_chip.base = -1;

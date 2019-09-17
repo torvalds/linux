@@ -739,7 +739,8 @@ config SERIAL_PNX8XXX_CONSOLE
 
 config SERIAL_HS_LPC32XX
 	tristate "LPC32XX high speed serial port support"
-	depends on ARCH_LPC32XX && OF
+	depends on ARCH_LPC32XX || COMPILE_TEST
+	depends on OF
 	select SERIAL_CORE
 	help
 	  Support for the LPC32XX high speed serial ports (up to 900kbps).
@@ -854,16 +855,6 @@ config SERIAL_CPM_CONSOLE
 	  "console=ttyCPM0". (Try "man bootparam" or see the documentation of
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
-
-config SERIAL_SGI_L1_CONSOLE
-	bool "SGI Altix L1 serial console support"
-	depends on IA64_GENERIC || IA64_SGI_SN2
-	select SERIAL_CORE
-	select SERIAL_CORE_CONSOLE
-	help
-		If you have an SGI Altix and you would like to use the system
-		controller serial port as your console (you want this!),
-		say Y.  Otherwise, say N.
 
 config SERIAL_PIC32
 	tristate "Microchip PIC32 serial support"
@@ -981,23 +972,6 @@ config SERIAL_JSM
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called jsm.
-
-config SERIAL_SGI_IOC4
-	tristate "SGI IOC4 controller serial support"
-	depends on (IA64_GENERIC || IA64_SGI_SN2) && SGI_IOC4
-	select SERIAL_CORE
-	help
-		If you have an SGI Altix with an IOC4 based Base IO card
-		and wish to use the serial ports on this card, say Y.
-		Otherwise, say N.
-
-config SERIAL_SGI_IOC3
-	tristate "SGI Altix IOC3 serial support"
-	depends on (IA64_GENERIC || IA64_SGI_SN2) && SGI_IOC3
-	select SERIAL_CORE
-	help
-	  If you have an SGI Altix with an IOC3 serial card,
-	  say Y or M.  Otherwise, say N.
 
 config SERIAL_MSM
 	tristate "MSM on-chip serial port support"
