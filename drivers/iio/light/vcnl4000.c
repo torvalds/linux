@@ -409,6 +409,10 @@ static const struct of_device_id vcnl_4000_of_match[] = {
 		.data = (void *)VCNL4010,
 	},
 	{
+		.compatible = "vishay,vcnl4040",
+		.data = (void *)VCNL4040,
+	},
+	{
 		.compatible = "vishay,vcnl4200",
 		.data = (void *)VCNL4200,
 	},
