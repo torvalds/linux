@@ -445,11 +445,20 @@ struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 		goto error;
 	}
 
-	if (desc->of_parse_cb && desc->of_parse_cb(child, desc, config)) {
-		dev_err(dev,
-			"driver callback failed to parse DT for regulator %pOFn\n",
-			child);
-		goto error;
+	if (desc->of_parse_cb) {
+		int ret;
+
+		ret = desc->of_parse_cb(child, desc, config);
+		if (ret) {
+			if (ret == -EPROBE_DEFER) {
+				of_node_put(child);
+				return ERR_PTR(-EPROBE_DEFER);
+			}
+			dev_err(dev,
+				"driver callback failed to parse DT for regulator %pOFn\n",
+				child);
+			goto error;
+		}
 	}
 
 	*node = child;
