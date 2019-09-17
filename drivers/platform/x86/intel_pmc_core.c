@@ -806,12 +806,12 @@ static inline void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 #endif /* CONFIG_DEBUG_FS */
 
 static const struct x86_cpu_id intel_pmc_core_ids[] = {
-	INTEL_CPU_FAM6(SKYLAKE_MOBILE, spt_reg_map),
-	INTEL_CPU_FAM6(SKYLAKE_DESKTOP, spt_reg_map),
-	INTEL_CPU_FAM6(KABYLAKE_MOBILE, spt_reg_map),
-	INTEL_CPU_FAM6(KABYLAKE_DESKTOP, spt_reg_map),
-	INTEL_CPU_FAM6(CANNONLAKE_MOBILE, cnp_reg_map),
-	INTEL_CPU_FAM6(ICELAKE_MOBILE, icl_reg_map),
+	INTEL_CPU_FAM6(SKYLAKE_L, spt_reg_map),
+	INTEL_CPU_FAM6(SKYLAKE, spt_reg_map),
+	INTEL_CPU_FAM6(KABYLAKE_L, spt_reg_map),
+	INTEL_CPU_FAM6(KABYLAKE, spt_reg_map),
+	INTEL_CPU_FAM6(CANNONLAKE_L, cnp_reg_map),
+	INTEL_CPU_FAM6(ICELAKE_L, icl_reg_map),
 	INTEL_CPU_FAM6(ICELAKE_NNPI, icl_reg_map),
 	{}
 };

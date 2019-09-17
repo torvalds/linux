@@ -30,12 +30,12 @@ static struct platform_device pmc_core_device = {
  * other list may grow, but this list should not.
  */
 static const struct x86_cpu_id intel_pmc_core_platform_ids[] = {
-	INTEL_CPU_FAM6(SKYLAKE_MOBILE, pmc_core_device),
-	INTEL_CPU_FAM6(SKYLAKE_DESKTOP, pmc_core_device),
-	INTEL_CPU_FAM6(KABYLAKE_MOBILE, pmc_core_device),
-	INTEL_CPU_FAM6(KABYLAKE_DESKTOP, pmc_core_device),
-	INTEL_CPU_FAM6(CANNONLAKE_MOBILE, pmc_core_device),
-	INTEL_CPU_FAM6(ICELAKE_MOBILE, pmc_core_device),
+	INTEL_CPU_FAM6(SKYLAKE_L, pmc_core_device),
+	INTEL_CPU_FAM6(SKYLAKE, pmc_core_device),
+	INTEL_CPU_FAM6(KABYLAKE_L, pmc_core_device),
+	INTEL_CPU_FAM6(KABYLAKE, pmc_core_device),
+	INTEL_CPU_FAM6(CANNONLAKE_L, pmc_core_device),
+	INTEL_CPU_FAM6(ICELAKE_L, pmc_core_device),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_pmc_core_platform_ids);

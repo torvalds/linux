@@ -20,7 +20,6 @@ struct real_mode_header {
 	u32	ro_end;
 	/* SMP trampoline */
 	u32	trampoline_start;
-	u32	trampoline_status;
 	u32	trampoline_header;
 #ifdef CONFIG_X86_64
 	u32	trampoline_pgd;
