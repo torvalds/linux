@@ -27,6 +27,10 @@
 
 #define VIMC_FRAME_INDEX(lin, col, width, bpp) ((lin * width + col) * bpp)
 
+/* Source and sink pad checks */
+#define VIMC_IS_SRC(pad)	(pad)
+#define VIMC_IS_SINK(pad)	(!(pad))
+
 /**
  * struct vimc_colorimetry_clamp - Adjust colorimetry parameters
  *
