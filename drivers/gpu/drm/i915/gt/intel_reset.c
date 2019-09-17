@@ -792,6 +792,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 {
 	struct intel_gt_timelines *timelines = &gt->timelines;
 	struct intel_timeline *tl;
+	unsigned long flags;
 
 	if (!test_bit(I915_WEDGED, &gt->reset.flags))
 		return true;
@@ -811,7 +812,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	 *
 	 * No more can be submitted until we reset the wedged bit.
 	 */
-	spin_lock(&timelines->lock);
+	spin_lock_irqsave(&timelines->lock, flags);
 	list_for_each_entry(tl, &timelines->active_list, link) {
 		struct i915_request *rq;
 
@@ -819,7 +820,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 		if (!rq)
 			continue;
 
-		spin_unlock(&timelines->lock);
+		spin_unlock_irqrestore(&timelines->lock, flags);
 
 		/*
 		 * All internal dependencies (i915_requests) will have
@@ -832,10 +833,10 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 		i915_request_put(rq);
 
 		/* Restart iteration after droping lock */
-		spin_lock(&timelines->lock);
+		spin_lock_irqsave(&timelines->lock, flags);
 		tl = list_entry(&timelines->active_list, typeof(*tl), link);
 	}
-	spin_unlock(&timelines->lock);
+	spin_unlock_irqrestore(&timelines->lock, flags);
 
 	intel_gt_sanitize(gt, false);
 

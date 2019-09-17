@@ -39,27 +39,32 @@ static int __engine_unpark(struct intel_wakeref *wf)
 
 #if IS_ENABLED(CONFIG_LOCKDEP)
 
-static inline void __timeline_mark_lock(struct intel_context *ce)
+static inline unsigned long __timeline_mark_lock(struct intel_context *ce)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
 	mutex_acquire(&ce->timeline->mutex.dep_map, 2, 0, _THIS_IP_);
-	local_irq_restore(flags);
+
+	return flags;
 }
 
-static inline void __timeline_mark_unlock(struct intel_context *ce)
+static inline void __timeline_mark_unlock(struct intel_context *ce,
+					  unsigned long flags)
 {
 	mutex_release(&ce->timeline->mutex.dep_map, 0, _THIS_IP_);
+	local_irq_restore(flags);
 }
 
 #else
 
-static inline void __timeline_mark_lock(struct intel_context *ce)
+static inline unsigned long __timeline_mark_lock(struct intel_context *ce)
 {
+	return 0;
 }
 
-static inline void __timeline_mark_unlock(struct intel_context *ce)
+static inline void __timeline_mark_unlock(struct intel_context *ce,
+					  unsigned long flags)
 {
 }
 
@@ -68,6 +73,8 @@ static inline void __timeline_mark_unlock(struct intel_context *ce)
 static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 {
 	struct i915_request *rq;
+	unsigned long flags;
+	bool result = true;
 
 	/* Already inside the kernel context, safe to power down. */
 	if (engine->wakeref_serial == engine->serial)
@@ -89,12 +96,12 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	 * retiring the last request, thus all rings should be empty and
 	 * all timelines idle.
 	 */
-	__timeline_mark_lock(engine->kernel_context);
+	flags = __timeline_mark_lock(engine->kernel_context);
 
 	rq = __i915_request_create(engine->kernel_context, GFP_NOWAIT);
 	if (IS_ERR(rq))
 		/* Context switch failed, hope for the best! Maybe reset? */
-		return true;
+		goto out_unlock;
 
 	intel_timeline_enter(rq->timeline);
 
@@ -110,9 +117,10 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	__intel_wakeref_defer_park(&engine->wakeref);
 	__i915_request_queue(rq, NULL);
 
-	__timeline_mark_unlock(engine->kernel_context);
-
-	return false;
+	result = false;
+out_unlock:
+	__timeline_mark_unlock(engine->kernel_context, flags);
+	return result;
 }
 
 static int __engine_park(struct intel_wakeref *wf)

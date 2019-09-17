@@ -265,7 +265,7 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
 				       PIN_MAPPABLE |
 				       PIN_NONBLOCK /* NOWARN */ |
-				       PIN_NOSEARCH);
+				       PIN_NOEVICT);
 	if (IS_ERR(vma)) {
 		/* Use a partial view if it is bigger than available space */
 		struct i915_ggtt_view view =

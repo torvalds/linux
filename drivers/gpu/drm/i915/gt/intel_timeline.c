@@ -337,6 +337,7 @@ int intel_timeline_pin(struct intel_timeline *tl)
 void intel_timeline_enter(struct intel_timeline *tl)
 {
 	struct intel_gt_timelines *timelines = &tl->gt->timelines;
+	unsigned long flags;
 
 	lockdep_assert_held(&tl->mutex);
 
@@ -345,14 +346,15 @@ void intel_timeline_enter(struct intel_timeline *tl)
 		return;
 	GEM_BUG_ON(!tl->active_count); /* overflow? */
 
-	spin_lock(&timelines->lock);
+	spin_lock_irqsave(&timelines->lock, flags);
 	list_add(&tl->link, &timelines->active_list);
-	spin_unlock(&timelines->lock);
+	spin_unlock_irqrestore(&timelines->lock, flags);
 }
 
 void intel_timeline_exit(struct intel_timeline *tl)
 {
 	struct intel_gt_timelines *timelines = &tl->gt->timelines;
+	unsigned long flags;
 
 	lockdep_assert_held(&tl->mutex);
 
@@ -360,9 +362,9 @@ void intel_timeline_exit(struct intel_timeline *tl)
 	if (--tl->active_count)
 		return;
 
-	spin_lock(&timelines->lock);
+	spin_lock_irqsave(&timelines->lock, flags);
 	list_del(&tl->link);
-	spin_unlock(&timelines->lock);
+	spin_unlock_irqrestore(&timelines->lock, flags);
 
 	/*
 	 * Since this timeline is idle, all bariers upon which we were waiting
