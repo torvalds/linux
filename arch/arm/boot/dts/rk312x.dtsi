@@ -465,6 +465,18 @@
 		};
 	};
 
+	rng: rng@100fc000 {
+		compatible = "rockchip,cryptov1-rng";
+		reg = <0x100fc000 0x4000>;
+		clocks = <&cru SCLK_CRYPTO>, <&cru HCLK_CRYPTO>;
+		clock-names = "clk_crypto", "hclk_crypto";
+		assigned-clocks = <&cru SCLK_CRYPTO>, <&cru HCLK_CRYPTO>;
+		assigned-clock-rates = <150000000>, <100000000>;
+		resets = <&cru SRST_CRYPTO>;
+		reset-names = "reset";
+		status = "disabled";
+	};
+
 	hevc: hevc_service@10104000 {
 		compatible = "rockchip,sub";
 		reg = <0x10104000 0x400>;
