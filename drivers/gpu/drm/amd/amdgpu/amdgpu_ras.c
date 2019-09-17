@@ -1416,7 +1416,8 @@ int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev)
 		 * 2) a ras bad page has been reserved (duplicate error injection
 		 *    for one page);
 		 */
-		if (amdgpu_bo_create_kernel_at(adev, bp << PAGE_SHIFT, PAGE_SIZE,
+		if (amdgpu_bo_create_kernel_at(adev, bp << AMDGPU_GPU_PAGE_SHIFT,
+					       AMDGPU_GPU_PAGE_SIZE,
 					       AMDGPU_GEM_DOMAIN_VRAM,
 					       &bo, NULL))
 			DRM_WARN("RAS WARN: reserve vram for retired page %llx fail\n", bp);
