@@ -122,7 +122,7 @@ static irqreturn_t int0002_irq(int irq, void *data)
 	generic_handle_irq(irq_find_mapping(chip->irq.domain,
 					    GPE0A_PME_B0_VIRT_GPIO_PIN));
 
-	pm_system_wakeup();
+	pm_wakeup_hard_event(chip->parent);
 
 	return IRQ_HANDLED;
 }
@@ -144,6 +144,7 @@ static struct irq_chip int0002_cht_irqchip = {
 	 * No set_wake, on CHT the IRQ is typically shared with the ACPI SCI
 	 * and we don't want to mess with the ACPI SCI irq settings.
 	 */
+	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
 static const struct x86_cpu_id int0002_cpu_ids[] = {
@@ -173,10 +174,8 @@ static int int0002_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "Error getting IRQ: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -221,6 +220,13 @@ static int int0002_probe(struct platform_device *pdev)
 
 	gpiochip_set_chained_irqchip(chip, irq_chip, irq, NULL);
 
+	device_init_wakeup(dev, true);
+	return 0;
+}
+
+static int int0002_remove(struct platform_device *pdev)
+{
+	device_init_wakeup(&pdev->dev, false);
 	return 0;
 }
 
@@ -236,6 +242,7 @@ static struct platform_driver int0002_driver = {
 		.acpi_match_table	= int0002_acpi_ids,
 	},
 	.probe	= int0002_probe,
+	.remove	= int0002_remove,
 };
 
 module_platform_driver(int0002_driver);
