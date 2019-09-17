@@ -1882,6 +1882,11 @@ config VM_EVENT_COUNTERS
 	  on EXPERT systems.  /proc/vmstat will only show page counts
 	  if VM event counters are disabled.
 
+config SLUB_SYSFS
+	bool "Enable SLUB sysfs interface"
+	depends on SLUB && SYSFS
+	default y
+
 config SLUB_DEBUG
 	default y
 	bool "Enable SLUB debugging support" if EXPERT
