@@ -311,6 +311,7 @@ config ARCH_DISCONTIGMEM_DEFAULT
 config NUMA
 	bool "NUMA support"
 	depends on !FLATMEM
+	select SMP
 	help
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
 	  Access).  This option is for configuring high-end multiprocessor
