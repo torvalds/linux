@@ -263,20 +263,19 @@ static int usb251x_check_gpio_chip(struct usb251xb *hub)
 }
 #endif
 
-static void usb251xb_reset(struct usb251xb *hub, int state)
+static void usb251xb_reset(struct usb251xb *hub)
 {
 	if (!hub->gpio_reset)
 		return;
 
 	i2c_lock_bus(hub->i2c->adapter, I2C_LOCK_SEGMENT);
 
-	gpiod_set_value_cansleep(hub->gpio_reset, state);
+	gpiod_set_value_cansleep(hub->gpio_reset, 1);
+	usleep_range(1, 10);	/* >=1us RESET_N asserted */
+	gpiod_set_value_cansleep(hub->gpio_reset, 0);
 
 	/* wait for hub recovery/stabilization */
-	if (!state)
-		usleep_range(500, 750);	/* >=500us at power on */
-	else
-		usleep_range(1, 10);	/* >=1us at power down */
+	usleep_range(500, 750);	/* >=500us after RESET_N deasserted */
 
 	i2c_unlock_bus(hub->i2c->adapter, I2C_LOCK_SEGMENT);
 }
@@ -294,7 +293,7 @@ static int usb251xb_connect(struct usb251xb *hub)
 		i2c_wb[0] = 0x01;
 		i2c_wb[1] = USB251XB_STATUS_COMMAND_ATTACH;
 
-		usb251xb_reset(hub, 0);
+		usb251xb_reset(hub);
 
 		err = i2c_smbus_write_i2c_block_data(hub->i2c,
 				USB251XB_ADDR_STATUS_COMMAND, 2, i2c_wb);
@@ -344,7 +343,7 @@ static int usb251xb_connect(struct usb251xb *hub)
 	i2c_wb[USB251XB_ADDR_PORT_MAP_7]        = hub->port_map7;
 	i2c_wb[USB251XB_ADDR_STATUS_COMMAND] = USB251XB_STATUS_COMMAND_ATTACH;
 
-	usb251xb_reset(hub, 0);
+	usb251xb_reset(hub);
 
 	/* write registers */
 	for (i = 0; i < (USB251XB_I2C_REG_SZ / USB251XB_I2C_WRITE_SZ); i++) {
