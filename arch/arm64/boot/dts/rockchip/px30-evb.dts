@@ -61,6 +61,13 @@
 		power-supply = <&vcc3v3_lcd>;
 	};
 
+	emmc_pwrseq: emmc-pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		pinctrl-0 = <&emmc_reset>;
+		pinctrl-names = "default";
+		reset-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
+	};
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
@@ -110,6 +117,7 @@
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
 	non-removable;
+	mmc-pwrseq = <&emmc_pwrseq>;
 	vmmc-supply = <&vcc_3v0>;
 	vqmmc-supply = <&vccio_flash>;
 	status = "okay";
@@ -361,6 +369,12 @@
 		hp_det: hp-det {
 			rockchip,pins =
 				<2 RK_PB0 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	emmc {
+		emmc_reset: emmc-reset {
+			rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
