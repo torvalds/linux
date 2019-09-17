@@ -482,7 +482,6 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 	blk_mq_quiesce_queue(q);
 
 	wbt_set_min_lat(q, val);
-	wbt_update_limits(q);
 
 	blk_mq_unquiesce_queue(q);
 	blk_mq_unfreeze_queue(q);
