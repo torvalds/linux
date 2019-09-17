@@ -43,6 +43,14 @@
 	status = "okay";
 };
 
+&can1 {
+	status = "okay";
+};
+
+&can2 {
+	status = "disabled";
+};
+
 &hdmi {
 	ddc-i2c-bus = <&i2c2>;
 	status = "okay";
