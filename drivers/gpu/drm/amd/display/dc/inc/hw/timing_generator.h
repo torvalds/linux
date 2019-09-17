@@ -261,6 +261,8 @@ struct timing_generator_funcs {
 
 	void (*program_manual_trigger)(struct timing_generator *optc);
 	void (*setup_manual_trigger)(struct timing_generator *optc);
+	bool (*get_hw_timing)(struct timing_generator *optc,
+			struct dc_crtc_timing *hw_crtc_timing);
 
 	void (*set_vtg_params)(struct timing_generator *optc,
 			const struct dc_crtc_timing *dc_crtc_timing);

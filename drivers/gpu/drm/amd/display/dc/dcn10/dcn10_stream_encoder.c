@@ -1553,6 +1553,66 @@ unsigned int enc1_dig_source_otg(
 	return tg_inst;
 }
 
+bool enc1_stream_encoder_dp_get_pixel_format(
+	struct stream_encoder *enc,
+	enum dc_pixel_encoding *encoding,
+	enum dc_color_depth *depth)
+{
+	uint32_t hw_encoding = 0;
+	uint32_t hw_depth = 0;
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+
+	if (enc == NULL ||
+		encoding == NULL ||
+		depth == NULL)
+		return false;
+
+	REG_GET_2(DP_PIXEL_FORMAT,
+		DP_PIXEL_ENCODING, &hw_encoding,
+		DP_COMPONENT_DEPTH, &hw_depth);
+
+	switch (hw_depth) {
+	case DP_COMPONENT_PIXEL_DEPTH_6BPC:
+		*depth = COLOR_DEPTH_666;
+		break;
+	case DP_COMPONENT_PIXEL_DEPTH_8BPC:
+		*depth = COLOR_DEPTH_888;
+		break;
+	case DP_COMPONENT_PIXEL_DEPTH_10BPC:
+		*depth = COLOR_DEPTH_101010;
+		break;
+	case DP_COMPONENT_PIXEL_DEPTH_12BPC:
+		*depth = COLOR_DEPTH_121212;
+		break;
+	case DP_COMPONENT_PIXEL_DEPTH_16BPC:
+		*depth = COLOR_DEPTH_161616;
+		break;
+	default:
+		*depth = COLOR_DEPTH_UNDEFINED;
+		break;
+	}
+
+	switch (hw_encoding) {
+	case DP_PIXEL_ENCODING_TYPE_RGB444:
+		*encoding = PIXEL_ENCODING_RGB;
+		break;
+	case DP_PIXEL_ENCODING_TYPE_YCBCR422:
+		*encoding = PIXEL_ENCODING_YCBCR422;
+		break;
+	case DP_PIXEL_ENCODING_TYPE_YCBCR444:
+	case DP_PIXEL_ENCODING_TYPE_Y_ONLY:
+		*encoding = PIXEL_ENCODING_YCBCR444;
+		break;
+	case DP_PIXEL_ENCODING_TYPE_YCBCR420:
+		*encoding = PIXEL_ENCODING_YCBCR420;
+		break;
+	default:
+		*encoding = PIXEL_ENCODING_UNDEFINED;
+		break;
+	}
+	return true;
+}
+
 static const struct stream_encoder_funcs dcn10_str_enc_funcs = {
 	.dp_set_stream_attribute =
 		enc1_stream_encoder_dp_set_stream_attribute,
@@ -1589,6 +1649,8 @@ static const struct stream_encoder_funcs dcn10_str_enc_funcs = {
 	.dig_connect_to_otg  = enc1_dig_connect_to_otg,
 	.hdmi_reset_stream_attribute = enc1_reset_hdmi_stream_attribute,
 	.dig_source_otg = enc1_dig_source_otg,
+
+	.dp_get_pixel_format  = enc1_stream_encoder_dp_get_pixel_format,
 };
 
 void dcn10_stream_encoder_construct(

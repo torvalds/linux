@@ -1004,6 +1004,10 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 				struct dc_crtc_timing *crtc_timing)
 {
 	struct timing_generator *tg;
+	struct stream_encoder *se;
+
+	struct dc_crtc_timing hw_crtc_timing = {0};
+
 	struct dc_link *link = sink->link;
 	unsigned int i, enc_inst, tg_inst = 0;
 
@@ -1023,6 +1027,9 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 
 	for (i = 0; i < dc->res_pool->stream_enc_count; i++) {
 		if (dc->res_pool->stream_enc[i]->id == enc_inst) {
+
+			se = dc->res_pool->stream_enc[i];
+
 			tg_inst = dc->res_pool->stream_enc[i]->funcs->dig_source_otg(
 				dc->res_pool->stream_enc[i]);
 			break;
@@ -1038,10 +1045,46 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 
 	tg = dc->res_pool->timing_generators[tg_inst];
 
-	if (!tg->funcs->is_matching_timing)
+	if (!tg->funcs->get_hw_timing)
 		return false;
 
-	if (!tg->funcs->is_matching_timing(tg, crtc_timing))
+	if (!tg->funcs->get_hw_timing(tg, &hw_crtc_timing))
+		return false;
+
+	if (crtc_timing->h_total != hw_crtc_timing.h_total)
+		return false;
+
+	if (crtc_timing->h_border_left != hw_crtc_timing.h_border_left)
+		return false;
+
+	if (crtc_timing->h_addressable != hw_crtc_timing.h_addressable)
+		return false;
+
+	if (crtc_timing->h_border_right != hw_crtc_timing.h_border_right)
+		return false;
+
+	if (crtc_timing->h_front_porch != hw_crtc_timing.h_front_porch)
+		return false;
+
+	if (crtc_timing->h_sync_width != hw_crtc_timing.h_sync_width)
+		return false;
+
+	if (crtc_timing->v_total != hw_crtc_timing.v_total)
+		return false;
+
+	if (crtc_timing->v_border_top != hw_crtc_timing.v_border_top)
+		return false;
+
+	if (crtc_timing->v_addressable != hw_crtc_timing.v_addressable)
+		return false;
+
+	if (crtc_timing->v_border_bottom != hw_crtc_timing.v_border_bottom)
+		return false;
+
+	if (crtc_timing->v_front_porch != hw_crtc_timing.v_front_porch)
+		return false;
+
+	if (crtc_timing->v_sync_width != hw_crtc_timing.v_sync_width)
 		return false;
 
 	if (dc_is_dp_signal(link->connector_signal)) {
@@ -1054,6 +1097,20 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 		if (crtc_timing->pix_clk_100hz != pix_clk_100hz)
 			return false;
 
+		if (!se->funcs->dp_get_pixel_format)
+			return false;
+
+		if (!se->funcs->dp_get_pixel_format(
+			se,
+			&hw_crtc_timing.pixel_encoding,
+			&hw_crtc_timing.display_color_depth))
+			return false;
+
+		if (hw_crtc_timing.display_color_depth != crtc_timing->display_color_depth)
+			return false;
+
+		if (hw_crtc_timing.pixel_encoding != crtc_timing->pixel_encoding)
+			return false;
 	}
 
 	return true;
