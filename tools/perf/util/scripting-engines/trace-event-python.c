@@ -31,8 +31,10 @@
 #include <linux/compiler.h>
 #include <linux/time64.h>
 
-#include "../../perf.h"
+#include "../build-id.h"
+#include "../counts.h"
 #include "../debug.h"
+#include "../dso.h"
 #include "../callchain.h"
 #include "../evsel.h"
 #include "../util.h"
@@ -392,7 +394,7 @@ static const char *get_dsoname(struct map *map)
 }
 
 static PyObject *python_process_callchain(struct perf_sample *sample,
-					 struct perf_evsel *evsel,
+					 struct evsel *evsel,
 					 struct addr_location *al)
 {
 	PyObject *pylist;
@@ -634,9 +636,9 @@ static PyObject *get_sample_value_as_tuple(struct sample_read_value *value)
 
 static void set_sample_read_in_dict(PyObject *dict_sample,
 					 struct perf_sample *sample,
-					 struct perf_evsel *evsel)
+					 struct evsel *evsel)
 {
-	u64 read_format = evsel->attr.read_format;
+	u64 read_format = evsel->core.attr.read_format;
 	PyObject *values;
 	unsigned int i;
 
@@ -705,9 +707,9 @@ static int regs_map(struct regs_dump *regs, uint64_t mask, char *bf, int size)
 
 static void set_regs_in_dict(PyObject *dict,
 			     struct perf_sample *sample,
-			     struct perf_evsel *evsel)
+			     struct evsel *evsel)
 {
-	struct perf_event_attr *attr = &evsel->attr;
+	struct perf_event_attr *attr = &evsel->core.attr;
 	char bf[512];
 
 	regs_map(&sample->intr_regs, attr->sample_regs_intr, bf, sizeof(bf));
@@ -722,7 +724,7 @@ static void set_regs_in_dict(PyObject *dict,
 }
 
 static PyObject *get_perf_sample_dict(struct perf_sample *sample,
-					 struct perf_evsel *evsel,
+					 struct evsel *evsel,
 					 struct addr_location *al,
 					 PyObject *callchain)
 {
@@ -737,7 +739,7 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 		Py_FatalError("couldn't create Python dictionary");
 
 	pydict_set_item_string_decref(dict, "ev_name", _PyUnicode_FromString(perf_evsel__name(evsel)));
-	pydict_set_item_string_decref(dict, "attr", _PyBytes_FromStringAndSize((const char *)&evsel->attr, sizeof(evsel->attr)));
+	pydict_set_item_string_decref(dict, "attr", _PyBytes_FromStringAndSize((const char *)&evsel->core.attr, sizeof(evsel->core.attr)));
 
 	pydict_set_item_string_decref(dict_sample, "pid",
 			_PyLong_FromLong(sample->pid));
@@ -790,7 +792,7 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 }
 
 static void python_process_tracepoint(struct perf_sample *sample,
-				      struct perf_evsel *evsel,
+				      struct evsel *evsel,
 				      struct addr_location *al)
 {
 	struct tep_event *event = evsel->tp_format;
@@ -809,7 +811,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 
 	if (!event) {
 		snprintf(handler_name, sizeof(handler_name),
-			 "ug! no event found for type %" PRIu64, (u64)evsel->attr.config);
+			 "ug! no event found for type %" PRIu64, (u64)evsel->core.attr.config);
 		Py_FatalError(handler_name);
 	}
 
@@ -955,7 +957,7 @@ static int tuple_set_bytes(PyObject *t, unsigned int pos, void *bytes,
 	return PyTuple_SetItem(t, pos, _PyBytes_FromStringAndSize(bytes, sz));
 }
 
-static int python_export_evsel(struct db_export *dbe, struct perf_evsel *evsel)
+static int python_export_evsel(struct db_export *dbe, struct evsel *evsel)
 {
 	struct tables *tables = container_of(dbe, struct tables, dbe);
 	PyObject *t;
@@ -1163,7 +1165,7 @@ static void python_export_synth(struct db_export *dbe, struct export_sample *es)
 	t = tuple_new(3);
 
 	tuple_set_u64(t, 0, es->db_id);
-	tuple_set_u64(t, 1, es->evsel->attr.config);
+	tuple_set_u64(t, 1, es->evsel->core.attr.config);
 	tuple_set_bytes(t, 2, es->sample->raw_data, es->sample->raw_size);
 
 	call_object(tables->synth_handler, t, "synth_data");
@@ -1178,7 +1180,7 @@ static int python_export_sample(struct db_export *dbe,
 
 	python_export_sample_table(dbe, es);
 
-	if (es->evsel->attr.type == PERF_TYPE_SYNTH && tables->synth_handler)
+	if (es->evsel->core.attr.type == PERF_TYPE_SYNTH && tables->synth_handler)
 		python_export_synth(dbe, es);
 
 	return 0;
@@ -1275,7 +1277,7 @@ static int python_process_call_return(struct call_return *cr, u64 *parent_db_id,
 }
 
 static void python_process_general_event(struct perf_sample *sample,
-					 struct perf_evsel *evsel,
+					 struct evsel *evsel,
 					 struct addr_location *al)
 {
 	PyObject *handler, *t, *dict, *callchain;
@@ -1311,12 +1313,12 @@ static void python_process_general_event(struct perf_sample *sample,
 
 static void python_process_event(union perf_event *event,
 				 struct perf_sample *sample,
-				 struct perf_evsel *evsel,
+				 struct evsel *evsel,
 				 struct addr_location *al)
 {
 	struct tables *tables = &tables_global;
 
-	switch (evsel->attr.type) {
+	switch (evsel->core.attr.type) {
 	case PERF_TYPE_TRACEPOINT:
 		python_process_tracepoint(sample, evsel, al);
 		break;
@@ -1340,7 +1342,7 @@ static void python_process_switch(union perf_event *event,
 }
 
 static void get_handler_name(char *str, size_t size,
-			     struct perf_evsel *evsel)
+			     struct evsel *evsel)
 {
 	char *p = str;
 
@@ -1353,7 +1355,7 @@ static void get_handler_name(char *str, size_t size,
 }
 
 static void
-process_stat(struct perf_evsel *counter, int cpu, int thread, u64 tstamp,
+process_stat(struct evsel *counter, int cpu, int thread, u64 tstamp,
 	     struct perf_counts_values *count)
 {
 	PyObject *handler, *t;
@@ -1390,10 +1392,10 @@ process_stat(struct perf_evsel *counter, int cpu, int thread, u64 tstamp,
 }
 
 static void python_process_stat(struct perf_stat_config *config,
-				struct perf_evsel *counter, u64 tstamp)
+				struct evsel *counter, u64 tstamp)
 {
-	struct thread_map *threads = counter->threads;
-	struct cpu_map *cpus = counter->cpus;
+	struct perf_thread_map *threads = counter->core.threads;
+	struct perf_cpu_map *cpus = counter->core.cpus;
 	int cpu, thread;
 
 	if (config->aggr_mode == AGGR_GLOBAL) {
@@ -1405,7 +1407,7 @@ static void python_process_stat(struct perf_stat_config *config,
 	for (thread = 0; thread < threads->nr; thread++) {
 		for (cpu = 0; cpu < cpus->nr; cpu++) {
 			process_stat(counter, cpus->map[cpu],
-				     thread_map__pid(threads, thread), tstamp,
+				     perf_thread_map__pid(threads, thread), tstamp,
 				     perf_counts(counter->counts, cpu, thread));
 		}
 	}

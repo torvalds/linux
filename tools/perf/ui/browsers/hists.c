@@ -11,17 +11,23 @@
 #include <linux/time64.h>
 #include <linux/zalloc.h>
 
+#include "../../util/debug.h"
+#include "../../util/dso.h"
 #include "../../util/callchain.h"
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"
+#include "../../util/header.h"
 #include "../../util/hist.h"
 #include "../../util/map.h"
 #include "../../util/symbol.h"
+#include "../../util/map_symbol.h"
+#include "../../util/branch.h"
 #include "../../util/pstack.h"
 #include "../../util/sort.h"
 #include "../../util/top.h"
 #include "../../util/thread.h"
 #include "../../arch/common.h"
+#include "../../perf.h"
 
 #include "../browsers/hists.h"
 #include "../helpline.h"
@@ -2187,7 +2193,7 @@ struct hist_browser *hist_browser__new(struct hists *hists)
 }
 
 static struct hist_browser *
-perf_evsel_browser__new(struct perf_evsel *evsel,
+perf_evsel_browser__new(struct evsel *evsel,
 			struct hist_browser_timer *hbt,
 			struct perf_env *env,
 			struct annotation_options *annotation_opts)
@@ -2352,7 +2358,7 @@ struct popup_action {
 	struct thread 		*thread;
 	struct map_symbol 	ms;
 	int			socket;
-	struct perf_evsel	*evsel;
+	struct evsel	*evsel;
 	enum rstype		rstype;
 
 	int (*fn)(struct hist_browser *browser, struct popup_action *act);
@@ -2361,7 +2367,7 @@ struct popup_action {
 static int
 do_annotate(struct hist_browser *browser, struct popup_action *act)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct annotation *notes;
 	struct hist_entry *he;
 	int err;
@@ -2596,7 +2602,7 @@ static int
 add_script_opt_2(struct hist_browser *browser __maybe_unused,
 	       struct popup_action *act, char **optstr,
 	       struct thread *thread, struct symbol *sym,
-	       struct perf_evsel *evsel, const char *tstr)
+	       struct evsel *evsel, const char *tstr)
 {
 
 	if (thread) {
@@ -2623,7 +2629,7 @@ static int
 add_script_opt(struct hist_browser *browser,
 	       struct popup_action *act, char **optstr,
 	       struct thread *thread, struct symbol *sym,
-	       struct perf_evsel *evsel)
+	       struct evsel *evsel)
 {
 	int n, j;
 	struct hist_entry *he;
@@ -2653,7 +2659,7 @@ static int
 add_res_sample_opt(struct hist_browser *browser __maybe_unused,
 		   struct popup_action *act, char **optstr,
 		   struct res_sample *res_sample,
-		   struct perf_evsel *evsel,
+		   struct evsel *evsel,
 		   enum rstype type)
 {
 	if (!res_sample)
@@ -2814,7 +2820,7 @@ next:
 	}
 }
 
-static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
+static int perf_evsel__hists_browse(struct evsel *evsel, int nr_events,
 				    const char *helpline,
 				    bool left_exits,
 				    struct hist_browser_timer *hbt,
@@ -2893,6 +2899,9 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 	if (symbol_conf.col_width_list_str)
 		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
+
+	if (!is_report_browser(hbt))
+		browser->b.no_samples_msg = "Collecting samples...";
 
 	while (1) {
 		struct thread *thread = NULL;
@@ -3198,9 +3207,9 @@ out:
 	return key;
 }
 
-struct perf_evsel_menu {
+struct evsel_menu {
 	struct ui_browser b;
-	struct perf_evsel *selection;
+	struct evsel *selection;
 	struct annotation_options *annotation_opts;
 	bool lost_events, lost_events_warned;
 	float min_pcnt;
@@ -3210,9 +3219,9 @@ struct perf_evsel_menu {
 static void perf_evsel_menu__write(struct ui_browser *browser,
 				   void *entry, int row)
 {
-	struct perf_evsel_menu *menu = container_of(browser,
-						    struct perf_evsel_menu, b);
-	struct perf_evsel *evsel = list_entry(entry, struct perf_evsel, node);
+	struct evsel_menu *menu = container_of(browser,
+						    struct evsel_menu, b);
+	struct evsel *evsel = list_entry(entry, struct evsel, core.node);
 	struct hists *hists = evsel__hists(evsel);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
 	unsigned long nr_events = hists->stats.nr_events[PERF_RECORD_SAMPLE];
@@ -3225,7 +3234,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 						       HE_COLORSET_NORMAL);
 
 	if (perf_evsel__is_group_event(evsel)) {
-		struct perf_evsel *pos;
+		struct evsel *pos;
 
 		ev_name = perf_evsel__group_name(evsel);
 
@@ -3257,13 +3266,13 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 		menu->selection = evsel;
 }
 
-static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
+static int perf_evsel_menu__run(struct evsel_menu *menu,
 				int nr_events, const char *help,
 				struct hist_browser_timer *hbt,
 				bool warn_lost_event)
 {
-	struct perf_evlist *evlist = menu->b.priv;
-	struct perf_evsel *pos;
+	struct evlist *evlist = menu->b.priv;
+	struct evsel *pos;
 	const char *title = "Available samples";
 	int delay_secs = hbt ? hbt->refresh : 0;
 	int key;
@@ -3309,13 +3318,13 @@ browse_hists:
 			ui_browser__show_title(&menu->b, title);
 			switch (key) {
 			case K_TAB:
-				if (pos->node.next == &evlist->entries)
+				if (pos->core.node.next == &evlist->core.entries)
 					pos = perf_evlist__first(evlist);
 				else
 					pos = perf_evsel__next(pos);
 				goto browse_hists;
 			case K_UNTAB:
-				if (pos->node.prev == &evlist->entries)
+				if (pos->core.node.prev == &evlist->core.entries)
 					pos = perf_evlist__last(evlist);
 				else
 					pos = perf_evsel__prev(pos);
@@ -3351,7 +3360,7 @@ out:
 static bool filter_group_entries(struct ui_browser *browser __maybe_unused,
 				 void *entry)
 {
-	struct perf_evsel *evsel = list_entry(entry, struct perf_evsel, node);
+	struct evsel *evsel = list_entry(entry, struct evsel, core.node);
 
 	if (symbol_conf.event_group && !perf_evsel__is_group_leader(evsel))
 		return true;
@@ -3359,7 +3368,7 @@ static bool filter_group_entries(struct ui_browser *browser __maybe_unused,
 	return false;
 }
 
-static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
+static int __perf_evlist__tui_browse_hists(struct evlist *evlist,
 					   int nr_entries, const char *help,
 					   struct hist_browser_timer *hbt,
 					   float min_pcnt,
@@ -3367,10 +3376,10 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 					   bool warn_lost_event,
 					   struct annotation_options *annotation_opts)
 {
-	struct perf_evsel *pos;
-	struct perf_evsel_menu menu = {
+	struct evsel *pos;
+	struct evsel_menu menu = {
 		.b = {
-			.entries    = &evlist->entries,
+			.entries    = &evlist->core.entries,
 			.refresh    = ui_browser__list_head_refresh,
 			.seek	    = ui_browser__list_head_seek,
 			.write	    = perf_evsel_menu__write,
@@ -3397,18 +3406,18 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 				    hbt, warn_lost_event);
 }
 
-int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
+int perf_evlist__tui_browse_hists(struct evlist *evlist, const char *help,
 				  struct hist_browser_timer *hbt,
 				  float min_pcnt,
 				  struct perf_env *env,
 				  bool warn_lost_event,
 				  struct annotation_options *annotation_opts)
 {
-	int nr_entries = evlist->nr_entries;
+	int nr_entries = evlist->core.nr_entries;
 
 single_entry:
 	if (nr_entries == 1) {
-		struct perf_evsel *first = perf_evlist__first(evlist);
+		struct evsel *first = perf_evlist__first(evlist);
 
 		return perf_evsel__hists_browse(first, nr_entries, help,
 						false, hbt, min_pcnt,
@@ -3417,7 +3426,7 @@ single_entry:
 	}
 
 	if (symbol_conf.event_group) {
-		struct perf_evsel *pos;
+		struct evsel *pos;
 
 		nr_entries = 0;
 		evlist__for_each_entry(evlist, pos) {
