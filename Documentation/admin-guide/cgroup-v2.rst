@@ -1469,6 +1469,103 @@ IO Interface Files
 	  8:16 rbytes=1459200 wbytes=314773504 rios=192 wios=353 dbytes=0 dios=0
 	  8:0 rbytes=90430464 wbytes=299008000 rios=8950 wios=1252 dbytes=50331648 dios=3021
 
+  io.cost.qos
+	A read-write nested-keyed file with exists only on the root
+	cgroup.
+
+	This file configures the Quality of Service of the IO cost
+	model based controller (CONFIG_BLK_CGROUP_IOCOST) which
+	currently implements "io.weight" proportional control.  Lines
+	are keyed by $MAJ:$MIN device numbers and not ordered.  The
+	line for a given device is populated on the first write for
+	the device on "io.cost.qos" or "io.cost.model".  The following
+	nested keys are defined.
+
+	  ======	=====================================
+	  enable	Weight-based control enable
+	  ctrl		"auto" or "user"
+	  rpct		Read latency percentile    [0, 100]
+	  rlat		Read latency threshold
+	  wpct		Write latency percentile   [0, 100]
+	  wlat		Write latency threshold
+	  min		Minimum scaling percentage [1, 10000]
+	  max		Maximum scaling percentage [1, 10000]
+	  ======	=====================================
+
+	The controller is disabled by default and can be enabled by
+	setting "enable" to 1.  "rpct" and "wpct" parameters default
+	to zero and the controller uses internal device saturation
+	state to adjust the overall IO rate between "min" and "max".
+
+	When a better control quality is needed, latency QoS
+	parameters can be configured.  For example::
+
+	  8:16 enable=1 ctrl=auto rpct=95.00 rlat=75000 wpct=95.00 wlat=150000 min=50.00 max=150.0
+
+	shows that on sdb, the controller is enabled, will consider
+	the device saturated if the 95th percentile of read completion
+	latencies is above 75ms or write 150ms, and adjust the overall
+	IO issue rate between 50% and 150% accordingly.
+
+	The lower the saturation point, the better the latency QoS at
+	the cost of aggregate bandwidth.  The narrower the allowed
+	adjustment range between "min" and "max", the more conformant
+	to the cost model the IO behavior.  Note that the IO issue
+	base rate may be far off from 100% and setting "min" and "max"
+	blindly can lead to a significant loss of device capacity or
+	control quality.  "min" and "max" are useful for regulating
+	devices which show wide temporary behavior changes - e.g. a
+	ssd which accepts writes at the line speed for a while and
+	then completely stalls for multiple seconds.
+
+	When "ctrl" is "auto", the parameters are controlled by the
+	kernel and may change automatically.  Setting "ctrl" to "user"
+	or setting any of the percentile and latency parameters puts
+	it into "user" mode and disables the automatic changes.  The
+	automatic mode can be restored by setting "ctrl" to "auto".
+
+  io.cost.model
+	A read-write nested-keyed file with exists only on the root
+	cgroup.
+
+	This file configures the cost model of the IO cost model based
+	controller (CONFIG_BLK_CGROUP_IOCOST) which currently
+	implements "io.weight" proportional control.  Lines are keyed
+	by $MAJ:$MIN device numbers and not ordered.  The line for a
+	given device is populated on the first write for the device on
+	"io.cost.qos" or "io.cost.model".  The following nested keys
+	are defined.
+
+	  =====		================================
+	  ctrl		"auto" or "user"
+	  model		The cost model in use - "linear"
+	  =====		================================
+
+	When "ctrl" is "auto", the kernel may change all parameters
+	dynamically.  When "ctrl" is set to "user" or any other
+	parameters are written to, "ctrl" become "user" and the
+	automatic changes are disabled.
+
+	When "model" is "linear", the following model parameters are
+	defined.
+
+	  =============	========================================
+	  [r|w]bps	The maximum sequential IO throughput
+	  [r|w]seqiops	The maximum 4k sequential IOs per second
+	  [r|w]randiops	The maximum 4k random IOs per second
+	  =============	========================================
+
+	From the above, the builtin linear model determines the base
+	costs of a sequential and random IO and the cost coefficient
+	for the IO size.  While simple, this model can cover most
+	common device classes acceptably.
+
+	The IO cost model isn't expected to be accurate in absolute
+	sense and is scaled to the device behavior dynamically.
+
+	If needed, tools/cgroup/iocost_coef_gen.py can be used to
+	generate device-specific coefficients.
+
   io.weight
 	A read-write flat-keyed file which exists on non-root cgroups.
 	The default is "default 100".

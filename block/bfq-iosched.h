@@ -168,6 +168,9 @@ struct bfq_entity {
 	/* budget, used also to calculate F_i: F_i = S_i + @budget / @weight */
 	int budget;
 
+	/* device weight, if non-zero, it overrides the default weight of
+	 * bfq_group_data */
+	int dev_weight;
 	/* weight of the queue */
 	int weight;
 	/* next weight if a change is in progress */
