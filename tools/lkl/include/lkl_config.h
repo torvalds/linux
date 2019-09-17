@@ -52,7 +52,7 @@ struct lkl_config {
 
 int lkl_load_config_json(struct lkl_config *cfg, char *jstr);
 int lkl_load_config_env(struct lkl_config *cfg);
-void show_config(struct lkl_config *cfg);
+void lkl_show_config(struct lkl_config *cfg);
 int lkl_load_config_pre(struct lkl_config *cfg);
 int lkl_load_config_post(struct lkl_config *cfg);
 int lkl_unload_config(struct lkl_config *cfg);

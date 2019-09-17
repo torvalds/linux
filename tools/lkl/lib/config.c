@@ -786,7 +786,6 @@ int lkl_unload_config(struct lkl_config *cfg)
 		}
 
 		lkl_clean_config(cfg);
-		free(cfg);
 	}
 
 	return 0;
