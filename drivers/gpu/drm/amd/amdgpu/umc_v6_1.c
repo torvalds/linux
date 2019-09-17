@@ -213,7 +213,7 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 				== 1) {
 			err_rec->address = err_addr;
 			/* page frame address is saved */
-			err_rec->retired_page = retired_page >> PAGE_SHIFT;
+			err_rec->retired_page = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
 			err_rec->ts = (uint64_t)ktime_get_real_seconds();
 			err_rec->err_type = AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE;
 			err_rec->cu = 0;
