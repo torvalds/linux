@@ -1109,6 +1109,14 @@ EXPORT_SYMBOL(drm_dp_aux_init);
  * @aux: DisplayPort AUX channel
  *
  * Automatically calls drm_dp_aux_init() if this hasn't been done yet.
+ * This should only be called when the underlying &struct drm_connector is
+ * initialiazed already. Therefore the best place to call this is from
+ * &drm_connector_funcs.late_register. Not that drivers which don't follow this
+ * will Oops when CONFIG_DRM_DP_AUX_CHARDEV is enabled.
+ *
+ * Drivers which need to use the aux channel before that point (e.g. at driver
+ * load time, before drm_dev_register() has been called) need to call
+ * drm_dp_aux_init().
  *
  * Returns 0 on success or a negative error code on failure.
  */

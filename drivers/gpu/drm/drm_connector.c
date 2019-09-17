@@ -467,7 +467,10 @@ EXPORT_SYMBOL(drm_connector_cleanup);
  * drm_connector_register - register a connector
  * @connector: the connector to register
  *
- * Register userspace interfaces for a connector
+ * Register userspace interfaces for a connector. Only call this for connectors
+ * which can be hotplugged after drm_dev_register() has been called already,
+ * e.g. DP MST connectors. All other connectors will be registered automatically
+ * when calling drm_dev_register().
  *
  * Returns:
  * Zero on success, error code on failure.
@@ -513,7 +516,10 @@ EXPORT_SYMBOL(drm_connector_register);
  * drm_connector_unregister - unregister a connector
  * @connector: the connector to unregister
  *
- * Unregister userspace interfaces for a connector
+ * Unregister userspace interfaces for a connector. Only call this for
+ * connectors which have registered explicitly by calling drm_dev_register(),
+ * since connectors are unregistered automatically when drm_dev_unregister() is
+ * called.
  */
 void drm_connector_unregister(struct drm_connector *connector)
 {

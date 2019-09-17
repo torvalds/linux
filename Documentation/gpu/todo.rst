@@ -284,6 +284,18 @@ drm_fb_helper tasks
   removed: drm_fb_helper_single_add_all_connectors(),
   drm_fb_helper_add_one_connector() and drm_fb_helper_remove_one_connector().
 
+connector register/unregister fixes
+-----------------------------------
+
+- For most connectors it's a no-op to call drm_connector_register/unregister
+  directly from driver code, drm_dev_register/unregister take care of this
+  already. We can remove all of them.
+
+- For dp drivers it's a bit more a mess, since we need the connector to be
+  registered when calling drm_dp_aux_register. Fix this by instead calling
+  drm_dp_aux_init, and moving the actual registering into a late_register
+  callback as recommended in the kerneldoc.
+
 Core refactorings
 =================
 
