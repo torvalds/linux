@@ -1159,11 +1159,6 @@
 				rockchip,pins =
 					<0 RK_PB5 1 &pcfg_pull_none>;
 			};
-
-			uart0_rts_gpio: uart0-rts-gpio {
-				rockchip,pins =
-					<0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
-			};
 		};
 
 		uart1 {
@@ -1181,11 +1176,6 @@
 			uart1_rts: uart1-rts {
 				rockchip,pins =
 					<1 RK_PC3 1 &pcfg_pull_none>;
-			};
-
-			uart1_rts_gpio: uart1-rts-gpio {
-				rockchip,pins =
-					<1 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 		};
 
@@ -1221,11 +1211,6 @@
 				rockchip,pins =
 					<0 RK_PC3 2 &pcfg_pull_none>;
 			};
-
-			uart3m0_rts_gpio: uart3m0-rts-gpio {
-				rockchip,pins =
-					<0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
-			};
 		};
 
 		uart3-m1 {
@@ -1243,11 +1228,6 @@
 			uart3m1_rts: uart3m1-rts {
 				rockchip,pins =
 					<1 RK_PB5 2 &pcfg_pull_none>;
-			};
-
-			uart3m1_rts_gpio: uart3m1-rts-gpio {
-				rockchip,pins =
-					<1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 		};
 
@@ -1597,16 +1577,6 @@
 					<1 RK_PD4 1 &pcfg_pull_up_8ma>,
 					<1 RK_PD5 1 &pcfg_pull_up_8ma>;
 			};
-
-			sdmmc_gpio: sdmmc-gpio {
-				rockchip,pins =
-					<1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PD6 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PD7 RK_FUNC_GPIO &pcfg_pull_up_4ma>;
-			};
 		};
 
 		sdio {
@@ -1626,16 +1596,6 @@
 					<1 RK_PC7 1 &pcfg_pull_up>,
 					<1 RK_PD0 1 &pcfg_pull_up>,
 					<1 RK_PD1 1 &pcfg_pull_up>;
-			};
-
-			sdio_gpio: sdio-gpio {
-				rockchip,pins =
-					<1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>,
-					<1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>,
-					<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>,
-					<1 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>,
-					<1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>,
-					<1 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
 			};
 		};
 
