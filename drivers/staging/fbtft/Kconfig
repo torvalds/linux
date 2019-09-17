@@ -205,7 +205,3 @@ config FB_FLEX
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for TFT LCD displays.
-
-config FB_TFT_FBTFT_DEVICE
-	tristate "Module to for adding FBTFT devices"
-	depends on FB_TFT
