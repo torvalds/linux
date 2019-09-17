@@ -523,10 +523,6 @@ static int panfrost_probe(struct platform_device *pdev)
 	mutex_init(&pfdev->shrinker_lock);
 	INIT_LIST_HEAD(&pfdev->shrinker_list);
 
-	pm_runtime_use_autosuspend(pfdev->dev);
-	pm_runtime_set_autosuspend_delay(pfdev->dev, 50); /* ~3 frames */
-	pm_runtime_enable(pfdev->dev);
-
 	err = panfrost_device_init(pfdev);
 	if (err) {
 		if (err != -EPROBE_DEFER)
@@ -540,6 +536,12 @@ static int panfrost_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Fatal error during devfreq init\n");
 		goto err_out1;
 	}
+
+	pm_runtime_set_active(pfdev->dev);
+	pm_runtime_mark_last_busy(pfdev->dev);
+	pm_runtime_enable(pfdev->dev);
+	pm_runtime_set_autosuspend_delay(pfdev->dev, 50); /* ~3 frames */
+	pm_runtime_use_autosuspend(pfdev->dev);
 
 	/*
 	 * Register the DRM device with the core and the connectors with
@@ -570,11 +572,13 @@ static int panfrost_remove(struct platform_device *pdev)
 
 	drm_dev_unregister(ddev);
 	panfrost_gem_shrinker_cleanup(ddev);
+
 	pm_runtime_get_sync(pfdev->dev);
-	pm_runtime_put_sync_autosuspend(pfdev->dev);
-	pm_runtime_disable(pfdev->dev);
 	panfrost_devfreq_fini(pfdev);
 	panfrost_device_fini(pfdev);
+	pm_runtime_put_sync_suspend(pfdev->dev);
+	pm_runtime_disable(pfdev->dev);
+
 	drm_dev_put(ddev);
 	return 0;
 }

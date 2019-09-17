@@ -5,7 +5,6 @@
 #include <linux/clk.h>
 #include <linux/reset.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 
 #include "panfrost_device.h"
@@ -125,7 +124,6 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 	INIT_LIST_HEAD(&pfdev->scheduled_jobs);
 	INIT_LIST_HEAD(&pfdev->as_lru_list);
 
-	spin_lock_init(&pfdev->hwaccess_lock);
 	spin_lock_init(&pfdev->as_lock);
 
 	err = panfrost_clk_init(pfdev);
@@ -165,14 +163,6 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 	err = panfrost_job_init(pfdev);
 	if (err)
 		goto err_out4;
-
-	/* runtime PM will wake us up later */
-	panfrost_gpu_power_off(pfdev);
-
-	pm_runtime_set_active(pfdev->dev);
-	pm_runtime_get_sync(pfdev->dev);
-	pm_runtime_mark_last_busy(pfdev->dev);
-	pm_runtime_put_autosuspend(pfdev->dev);
 
 	err = panfrost_perfcnt_init(pfdev);
 	if (err)

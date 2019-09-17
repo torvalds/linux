@@ -80,19 +80,11 @@ static void lock_region(struct panfrost_device *pfdev, u32 as_nr,
 }
 
 
-static int mmu_hw_do_operation(struct panfrost_device *pfdev,
-			       struct panfrost_mmu *mmu,
-			       u64 iova, size_t size, u32 op)
+static int mmu_hw_do_operation_locked(struct panfrost_device *pfdev, int as_nr,
+				      u64 iova, size_t size, u32 op)
 {
-	int ret, as_nr;
-
-	spin_lock(&pfdev->as_lock);
-	as_nr = mmu->as;
-
-	if (as_nr < 0) {
-		spin_unlock(&pfdev->as_lock);
+	if (as_nr < 0)
 		return 0;
-	}
 
 	if (op != AS_COMMAND_UNLOCK)
 		lock_region(pfdev, as_nr, iova, size);
@@ -101,10 +93,18 @@ static int mmu_hw_do_operation(struct panfrost_device *pfdev,
 	write_cmd(pfdev, as_nr, op);
 
 	/* Wait for the flush to complete */
-	ret = wait_ready(pfdev, as_nr);
+	return wait_ready(pfdev, as_nr);
+}
 
+static int mmu_hw_do_operation(struct panfrost_device *pfdev,
+			       struct panfrost_mmu *mmu,
+			       u64 iova, size_t size, u32 op)
+{
+	int ret;
+
+	spin_lock(&pfdev->as_lock);
+	ret = mmu_hw_do_operation_locked(pfdev, mmu->as, iova, size, op);
 	spin_unlock(&pfdev->as_lock);
-
 	return ret;
 }
 
@@ -114,6 +114,8 @@ static void panfrost_mmu_enable(struct panfrost_device *pfdev, struct panfrost_m
 	struct io_pgtable_cfg *cfg = &mmu->pgtbl_cfg;
 	u64 transtab = cfg->arm_mali_lpae_cfg.transtab;
 	u64 memattr = cfg->arm_mali_lpae_cfg.memattr;
+
+	mmu_hw_do_operation_locked(pfdev, as_nr, 0, ~0UL, AS_COMMAND_FLUSH_MEM);
 
 	mmu_write(pfdev, AS_TRANSTAB_LO(as_nr), transtab & 0xffffffffUL);
 	mmu_write(pfdev, AS_TRANSTAB_HI(as_nr), transtab >> 32);
@@ -127,8 +129,10 @@ static void panfrost_mmu_enable(struct panfrost_device *pfdev, struct panfrost_m
 	write_cmd(pfdev, as_nr, AS_COMMAND_UPDATE);
 }
 
-static void mmu_disable(struct panfrost_device *pfdev, u32 as_nr)
+static void panfrost_mmu_disable(struct panfrost_device *pfdev, u32 as_nr)
 {
+	mmu_hw_do_operation_locked(pfdev, as_nr, 0, ~0UL, AS_COMMAND_FLUSH_MEM);
+
 	mmu_write(pfdev, AS_TRANSTAB_LO(as_nr), 0);
 	mmu_write(pfdev, AS_TRANSTAB_HI(as_nr), 0);
 
@@ -220,6 +224,22 @@ static size_t get_pgsize(u64 addr, size_t size)
 	return SZ_2M;
 }
 
+void panfrost_mmu_flush_range(struct panfrost_device *pfdev,
+			      struct panfrost_mmu *mmu,
+			      u64 iova, size_t size)
+{
+	if (mmu->as < 0)
+		return;
+
+	pm_runtime_get_noresume(pfdev->dev);
+
+	/* Flush the PTs only if we're already awake */
+	if (pm_runtime_active(pfdev->dev))
+		mmu_hw_do_operation(pfdev, mmu, iova, size, AS_COMMAND_FLUSH_PT);
+
+	pm_runtime_put_sync_autosuspend(pfdev->dev);
+}
+
 static int mmu_map_sg(struct panfrost_device *pfdev, struct panfrost_mmu *mmu,
 		      u64 iova, int prot, struct sg_table *sgt)
 {
@@ -227,8 +247,6 @@ static int mmu_map_sg(struct panfrost_device *pfdev, struct panfrost_mmu *mmu,
 	struct scatterlist *sgl;
 	struct io_pgtable_ops *ops = mmu->pgtbl_ops;
 	u64 start_iova = iova;
-
-	mutex_lock(&mmu->lock);
 
 	for_each_sg(sgt->sgl, sgl, sgt->nents, count) {
 		unsigned long paddr = sg_dma_address(sgl);
@@ -246,10 +264,7 @@ static int mmu_map_sg(struct panfrost_device *pfdev, struct panfrost_mmu *mmu,
 		}
 	}
 
-	mmu_hw_do_operation(pfdev, mmu, start_iova, iova - start_iova,
-			    AS_COMMAND_FLUSH_PT);
-
-	mutex_unlock(&mmu->lock);
+	panfrost_mmu_flush_range(pfdev, mmu, start_iova, iova - start_iova);
 
 	return 0;
 }
@@ -259,7 +274,6 @@ int panfrost_mmu_map(struct panfrost_gem_object *bo)
 	struct drm_gem_object *obj = &bo->base.base;
 	struct panfrost_device *pfdev = to_panfrost_device(obj->dev);
 	struct sg_table *sgt;
-	int ret;
 	int prot = IOMMU_READ | IOMMU_WRITE;
 
 	if (WARN_ON(bo->is_mapped))
@@ -272,14 +286,7 @@ int panfrost_mmu_map(struct panfrost_gem_object *bo)
 	if (WARN_ON(IS_ERR(sgt)))
 		return PTR_ERR(sgt);
 
-	ret = pm_runtime_get_sync(pfdev->dev);
-	if (ret < 0)
-		return ret;
-
 	mmu_map_sg(pfdev, bo->mmu, bo->node.start << PAGE_SHIFT, prot, sgt);
-
-	pm_runtime_mark_last_busy(pfdev->dev);
-	pm_runtime_put_autosuspend(pfdev->dev);
 	bo->is_mapped = true;
 
 	return 0;
@@ -293,18 +300,11 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 	u64 iova = bo->node.start << PAGE_SHIFT;
 	size_t len = bo->node.size << PAGE_SHIFT;
 	size_t unmapped_len = 0;
-	int ret;
 
 	if (WARN_ON(!bo->is_mapped))
 		return;
 
 	dev_dbg(pfdev->dev, "unmap: as=%d, iova=%llx, len=%zx", bo->mmu->as, iova, len);
-
-	ret = pm_runtime_get_sync(pfdev->dev);
-	if (ret < 0)
-		return;
-
-	mutex_lock(&bo->mmu->lock);
 
 	while (unmapped_len < len) {
 		size_t unmapped_page;
@@ -318,22 +318,12 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 		unmapped_len += pgsize;
 	}
 
-	mmu_hw_do_operation(pfdev, bo->mmu, bo->node.start << PAGE_SHIFT,
-			    bo->node.size << PAGE_SHIFT, AS_COMMAND_FLUSH_PT);
-
-	mutex_unlock(&bo->mmu->lock);
-
-	pm_runtime_mark_last_busy(pfdev->dev);
-	pm_runtime_put_autosuspend(pfdev->dev);
+	panfrost_mmu_flush_range(pfdev, bo->mmu, bo->node.start << PAGE_SHIFT, len);
 	bo->is_mapped = false;
 }
 
 static void mmu_tlb_inv_context_s1(void *cookie)
-{
-	struct panfrost_file_priv *priv = cookie;
-
-	mmu_hw_do_operation(priv->pfdev, &priv->mmu, 0, ~0UL, AS_COMMAND_FLUSH_MEM);
-}
+{}
 
 static void mmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 				     size_t granule, bool leaf, void *cookie)
@@ -356,7 +346,6 @@ int panfrost_mmu_pgtable_alloc(struct panfrost_file_priv *priv)
 	struct panfrost_mmu *mmu = &priv->mmu;
 	struct panfrost_device *pfdev = priv->pfdev;
 
-	mutex_init(&mmu->lock);
 	INIT_LIST_HEAD(&mmu->list);
 	mmu->as = -1;
 
@@ -383,6 +372,11 @@ void panfrost_mmu_pgtable_free(struct panfrost_file_priv *priv)
 
 	spin_lock(&pfdev->as_lock);
 	if (mmu->as >= 0) {
+		pm_runtime_get_noresume(pfdev->dev);
+		if (pm_runtime_active(pfdev->dev))
+			panfrost_mmu_disable(pfdev, mmu->as);
+		pm_runtime_put_autosuspend(pfdev->dev);
+
 		clear_bit(mmu->as, &pfdev->as_alloc_mask);
 		clear_bit(mmu->as, &pfdev->as_in_use_mask);
 		list_del(&mmu->list);
@@ -627,5 +621,4 @@ int panfrost_mmu_init(struct panfrost_device *pfdev)
 void panfrost_mmu_fini(struct panfrost_device *pfdev)
 {
 	mmu_write(pfdev, MMU_INT_MASK, 0);
-	mmu_disable(pfdev, 0);
 }

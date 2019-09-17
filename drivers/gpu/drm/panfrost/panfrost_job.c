@@ -141,7 +141,6 @@ static void panfrost_job_write_affinity(struct panfrost_device *pfdev,
 static void panfrost_job_hw_submit(struct panfrost_job *job, int js)
 {
 	struct panfrost_device *pfdev = job->pfdev;
-	unsigned long flags;
 	u32 cfg;
 	u64 jc_head = job->jc;
 	int ret;
@@ -150,13 +149,14 @@ static void panfrost_job_hw_submit(struct panfrost_job *job, int js)
 	if (ret < 0)
 		return;
 
-	if (WARN_ON(job_read(pfdev, JS_COMMAND_NEXT(js))))
-		goto end;
+	if (WARN_ON(job_read(pfdev, JS_COMMAND_NEXT(js)))) {
+		pm_runtime_put_sync_autosuspend(pfdev->dev);
+		return;
+	}
 
 	cfg = panfrost_mmu_as_get(pfdev, &job->file_priv->mmu);
 
 	panfrost_devfreq_record_transition(pfdev, js);
-	spin_lock_irqsave(&pfdev->hwaccess_lock, flags);
 
 	job_write(pfdev, JS_HEAD_NEXT_LO(js), jc_head & 0xFFFFFFFF);
 	job_write(pfdev, JS_HEAD_NEXT_HI(js), jc_head >> 32);
@@ -185,12 +185,6 @@ static void panfrost_job_hw_submit(struct panfrost_job *job, int js)
 				job, js, jc_head);
 
 	job_write(pfdev, JS_COMMAND_NEXT(js), JS_COMMAND_START);
-
-	spin_unlock_irqrestore(&pfdev->hwaccess_lock, flags);
-
-end:
-	pm_runtime_mark_last_busy(pfdev->dev);
-	pm_runtime_put_autosuspend(pfdev->dev);
 }
 
 static void panfrost_acquire_object_fences(struct drm_gem_object **bos,
@@ -369,6 +363,7 @@ static void panfrost_job_timedout(struct drm_sched_job *sched_job)
 	struct panfrost_job *job = to_panfrost_job(sched_job);
 	struct panfrost_device *pfdev = job->pfdev;
 	int js = panfrost_job_get_slot(job);
+	unsigned long flags;
 	int i;
 
 	/*
@@ -393,6 +388,15 @@ static void panfrost_job_timedout(struct drm_sched_job *sched_job)
 
 	if (sched_job)
 		drm_sched_increase_karma(sched_job);
+
+	spin_lock_irqsave(&pfdev->js->job_lock, flags);
+	for (i = 0; i < NUM_JOB_SLOTS; i++) {
+		if (pfdev->jobs[i]) {
+			pm_runtime_put_noidle(pfdev->dev);
+			pfdev->jobs[i] = NULL;
+		}
+	}
+	spin_unlock_irqrestore(&pfdev->js->job_lock, flags);
 
 	/* panfrost_core_dump(pfdev); */
 
@@ -450,12 +454,21 @@ static irqreturn_t panfrost_job_irq_handler(int irq, void *data)
 		}
 
 		if (status & JOB_INT_MASK_DONE(j)) {
-			struct panfrost_job *job = pfdev->jobs[j];
+			struct panfrost_job *job;
 
-			pfdev->jobs[j] = NULL;
-			panfrost_mmu_as_put(pfdev, &job->file_priv->mmu);
-			panfrost_devfreq_record_transition(pfdev, j);
-			dma_fence_signal(job->done_fence);
+			spin_lock(&pfdev->js->job_lock);
+			job = pfdev->jobs[j];
+			/* Only NULL if job timeout occurred */
+			if (job) {
+				pfdev->jobs[j] = NULL;
+
+				panfrost_mmu_as_put(pfdev, &job->file_priv->mmu);
+				panfrost_devfreq_record_transition(pfdev, j);
+
+				dma_fence_signal_locked(job->done_fence);
+				pm_runtime_put_autosuspend(pfdev->dev);
+			}
+			spin_unlock(&pfdev->js->job_lock);
 		}
 
 		status &= ~mask;
