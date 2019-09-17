@@ -77,7 +77,6 @@ int main(void)
 	ENTRY(cr2);
 	ENTRY(cr3);
 	ENTRY(cr4);
-	ENTRY(cr8);
 	ENTRY(gdt_desc);
 	BLANK();
 #undef ENTRY
