@@ -3,6 +3,7 @@ Rockchip Hardware Random Number Generator
 Required properties:
 
 - compatible  : should be one of the following.
+		"rockchip,cryptov1-rng" for crypto v1
 		"rockchip,cryptov2-rng" for crypto v2
 - reg         : Specifies base physical address and size of the registers map.
 - clocks      : Phandle to clock-controller plus clock-specifier pair.
@@ -14,6 +15,18 @@ Required properties:
 - resets      : Used for module reset
 - reset-names : Reset names, should be "reset"
 Example:
+
+	rng: rng@100fc000 {
+		compatible = "rockchip,cryptov1-rng";
+		reg = <0x100fc000 0x4000>;
+		clocks = <&cru SCLK_CRYPTO>, <&cru HCLK_CRYPTO>;
+		clock-names = "clk_crypto", "hclk_crypto";
+		assigned-clocks = <&cru SCLK_CRYPTO>, <&cru HCLK_CRYPTO>;
+		assigned-clock-rates = <150000000>, <100000000>;
+		resets = <&cru SRST_CRYPTO>;
+		reset-names = "reset";
+		status = "disabled";
+	};
 
 	rng: rng@ff2f0000 {
 		compatible = "rockchip,cryptov2-rng";
