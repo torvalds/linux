@@ -1336,13 +1336,13 @@ static int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data *data;
-	struct amdgpu_ras_eeprom_control *control =
-					&adev->psp.ras.ras->eeprom_control;
+	struct amdgpu_ras_eeprom_control *control;
 	int save_count;
 
 	if (!con || !con->eh_data)
 		return 0;
 
+	control = &con->eeprom_control;
 	data = con->eh_data;
 	save_count = data->count - control->num_recs;
 	/* only new entries are saved */
