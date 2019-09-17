@@ -220,6 +220,8 @@ struct komeda_dev *dev_to_mdev(struct device *dev);
 
 #ifdef CONFIG_DRM_KOMEDA_ERROR_PRINT
 void komeda_print_events(struct komeda_events *evts);
+#else
+static inline void komeda_print_events(struct komeda_events *evts) {}
 #endif
 
 #endif /*_KOMEDA_DEV_H_*/

@@ -47,9 +47,7 @@ static irqreturn_t komeda_kms_irq_handler(int irq, void *data)
 	memset(&evts, 0, sizeof(evts));
 	status = mdev->funcs->irq_handler(mdev, &evts);
 
-#ifdef CONFIG_DRM_KOMEDA_ERROR_PRINT
 	komeda_print_events(&evts);
-#endif
 
 	/* Notify the crtc to handle the events */
 	for (i = 0; i < kms->n_crtcs; i++)
