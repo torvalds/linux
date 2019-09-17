@@ -47,7 +47,7 @@ struct safexcel_cipher_ctx {
 
 	u32 mode;
 	enum safexcel_cipher_alg alg;
-	char aead; /* !=0=AEAD, 2=IPSec ESP AEAD */
+	char aead; /* !=0=AEAD, 2=IPSec ESP AEAD, 3=IPsec ESP GMAC */
 	char xcm;  /* 0=authenc, 1=GCM, 2 reserved for CCM */
 
 	__le32 key[16];
@@ -78,7 +78,7 @@ static void safexcel_cipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 	u32 block_sz = 0;
 
 	if (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CTR_LOAD ||
-	    ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP) {
+	    ctx->aead & EIP197_AEAD_TYPE_IPSEC_ESP) { /* _ESP and _ESP_GMAC */
 		cdesc->control_data.options |= EIP197_OPTION_4_TOKEN_IV_CMD;
 
 		/* 32 bit nonce */
@@ -219,7 +219,7 @@ static void safexcel_aead_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 	}
 
 	if (ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP) {
-		/* For ESP mode, skip over the IV */
+		/* For ESP mode (and not GMAC), skip over the IV */
 		token[7].opcode = EIP197_TOKEN_OPCODE_DIRECTION;
 		token[7].packet_length = EIP197_AEAD_IPSEC_IV_SIZE;
 
@@ -235,10 +235,18 @@ static void safexcel_aead_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 		token[10].opcode = EIP197_TOKEN_OPCODE_DIRECTION;
 		token[10].packet_length = cryptlen;
 		token[10].stat = EIP197_TOKEN_STAT_LAST_HASH;
-		token[10].instructions = EIP197_TOKEN_INS_LAST |
-					 EIP197_TOKEN_INS_TYPE_CRYPTO |
-					 EIP197_TOKEN_INS_TYPE_HASH |
-					 EIP197_TOKEN_INS_TYPE_OUTPUT;
+		if (unlikely(ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP_GMAC)) {
+			token[6].instructions = EIP197_TOKEN_INS_TYPE_HASH;
+			/* Do not send to crypt engine in case of GMAC */
+			token[10].instructions = EIP197_TOKEN_INS_LAST |
+						 EIP197_TOKEN_INS_TYPE_HASH |
+						 EIP197_TOKEN_INS_TYPE_OUTPUT;
+		} else {
+			token[10].instructions = EIP197_TOKEN_INS_LAST |
+						 EIP197_TOKEN_INS_TYPE_CRYPTO |
+						 EIP197_TOKEN_INS_TYPE_HASH |
+						 EIP197_TOKEN_INS_TYPE_OUTPUT;
+		}
 	} else if (ctx->xcm != EIP197_XCM_MODE_CCM) {
 		token[6].stat = EIP197_TOKEN_STAT_LAST_HASH;
 	}
@@ -494,17 +502,21 @@ static int safexcel_context_control(struct safexcel_cipher_ctx *ctx,
 				ctx->hash_alg |
 				CONTEXT_CONTROL_SIZE(ctrl_size);
 		}
-		if (sreq->direction == SAFEXCEL_ENCRYPT)
-			cdesc->control_data.control0 |=
-				(ctx->xcm == EIP197_XCM_MODE_CCM) ?
-					CONTEXT_CONTROL_TYPE_HASH_ENCRYPT_OUT :
-					CONTEXT_CONTROL_TYPE_ENCRYPT_HASH_OUT;
 
+		if (sreq->direction == SAFEXCEL_ENCRYPT &&
+		    (ctx->xcm == EIP197_XCM_MODE_CCM ||
+		     ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP_GMAC))
+			cdesc->control_data.control0 |=
+				CONTEXT_CONTROL_TYPE_HASH_ENCRYPT_OUT;
+		else if (sreq->direction == SAFEXCEL_ENCRYPT)
+			cdesc->control_data.control0 |=
+				CONTEXT_CONTROL_TYPE_ENCRYPT_HASH_OUT;
+		else if (ctx->xcm == EIP197_XCM_MODE_CCM)
+			cdesc->control_data.control0 |=
+				CONTEXT_CONTROL_TYPE_DECRYPT_HASH_IN;
 		else
 			cdesc->control_data.control0 |=
-				(ctx->xcm == EIP197_XCM_MODE_CCM) ?
-					CONTEXT_CONTROL_TYPE_DECRYPT_HASH_IN :
-					CONTEXT_CONTROL_TYPE_HASH_DECRYPT_IN;
+				CONTEXT_CONTROL_TYPE_HASH_DECRYPT_IN;
 	} else {
 		if (sreq->direction == SAFEXCEL_ENCRYPT)
 			cdesc->control_data.control0 =
@@ -3491,6 +3503,50 @@ struct safexcel_alg_template safexcel_alg_rfc4106_gcm = {
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
 			.cra_alignmask = 0,
 			.cra_init = safexcel_rfc4106_gcm_cra_init,
+			.cra_exit = safexcel_aead_gcm_cra_exit,
+		},
+	},
+};
+
+static int safexcel_rfc4543_gcm_setauthsize(struct crypto_aead *tfm,
+					    unsigned int authsize)
+{
+	if (authsize != GHASH_DIGEST_SIZE)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int safexcel_rfc4543_gcm_cra_init(struct crypto_tfm *tfm)
+{
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	int ret;
+
+	ret = safexcel_aead_gcm_cra_init(tfm);
+	ctx->aead  = EIP197_AEAD_TYPE_IPSEC_ESP_GMAC;
+	return ret;
+}
+
+struct safexcel_alg_template safexcel_alg_rfc4543_gcm = {
+	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_AES | SAFEXCEL_ALG_GHASH,
+	.alg.aead = {
+		.setkey = safexcel_rfc4106_gcm_setkey,
+		.setauthsize = safexcel_rfc4543_gcm_setauthsize,
+		.encrypt = safexcel_rfc4106_encrypt,
+		.decrypt = safexcel_rfc4106_decrypt,
+		.ivsize = GCM_RFC4543_IV_SIZE,
+		.maxauthsize = GHASH_DIGEST_SIZE,
+		.base = {
+			.cra_name = "rfc4543(gcm(aes))",
+			.cra_driver_name = "safexcel-rfc4543-gcm-aes",
+			.cra_priority = SAFEXCEL_CRA_PRIORITY,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize = 1,
+			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
+			.cra_alignmask = 0,
+			.cra_init = safexcel_rfc4543_gcm_cra_init,
 			.cra_exit = safexcel_aead_gcm_cra_exit,
 		},
 	},

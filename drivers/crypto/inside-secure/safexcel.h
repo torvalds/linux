@@ -407,6 +407,7 @@ struct safexcel_context_record {
 #define EIP197_XCM_MODE_CCM			2
 
 #define EIP197_AEAD_TYPE_IPSEC_ESP		2
+#define EIP197_AEAD_TYPE_IPSEC_ESP_GMAC		3
 #define EIP197_AEAD_IPSEC_IV_SIZE		8
 #define EIP197_AEAD_IPSEC_NONCE_SIZE		4
 
@@ -913,5 +914,6 @@ extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha224_cbc_des;
 extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha512_cbc_des;
 extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha384_cbc_des;
 extern struct safexcel_alg_template safexcel_alg_rfc4106_gcm;
+extern struct safexcel_alg_template safexcel_alg_rfc4543_gcm;
 
 #endif
