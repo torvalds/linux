@@ -245,10 +245,7 @@ void __init setup_per_cpu_areas(void)
 		gi->cpu_map		= &cpu_map[unit];
 	}
 
-	rc = pcpu_setup_first_chunk(ai, base);
-	if (rc)
-		panic("failed to setup percpu area (err=%d)", rc);
-
+	pcpu_setup_first_chunk(ai, base);
 	pcpu_free_alloc_info(ai);
 }
 #endif
