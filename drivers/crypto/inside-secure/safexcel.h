@@ -912,5 +912,6 @@ extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha256_cbc_des;
 extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha224_cbc_des;
 extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha512_cbc_des;
 extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha384_cbc_des;
+extern struct safexcel_alg_template safexcel_alg_rfc4106_gcm;
 
 #endif

@@ -77,47 +77,47 @@ static void safexcel_cipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 {
 	u32 block_sz = 0;
 
-	if (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CTR_LOAD) {
+	if (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CTR_LOAD ||
+	    ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP) {
 		cdesc->control_data.options |= EIP197_OPTION_4_TOKEN_IV_CMD;
 
 		/* 32 bit nonce */
 		cdesc->control_data.token[0] = ctx->nonce;
 		/* 64 bit IV part */
 		memcpy(&cdesc->control_data.token[1], iv, 8);
-		/* 32 bit counter, start at 1 (big endian!) */
-		cdesc->control_data.token[3] = cpu_to_be32(1);
+
+		if (ctx->alg == SAFEXCEL_CHACHA20) {
+			/* 32 bit counter, starting at 0 */
+			cdesc->control_data.token[3] = 0;
+		} else {
+			/* 32 bit counter, start at 1 (big endian!) */
+			cdesc->control_data.token[3] = cpu_to_be32(1);
+		}
+
+		return;
+	} else if (ctx->xcm == EIP197_XCM_MODE_GCM ||
+		   (ctx->aead && ctx->alg == SAFEXCEL_CHACHA20)) {
+		cdesc->control_data.options |= EIP197_OPTION_4_TOKEN_IV_CMD;
+
+		/* 96 bit IV part */
+		memcpy(&cdesc->control_data.token[0], iv, 12);
+
+		if (ctx->alg == SAFEXCEL_CHACHA20) {
+			/* 32 bit counter, starting at 0 */
+			cdesc->control_data.token[3] = 0;
+		} else {
+			/* 32 bit counter, start at 1 (big endian!) */
+			cdesc->control_data.token[3] = cpu_to_be32(1);
+		}
 
 		return;
 	} else if (ctx->alg == SAFEXCEL_CHACHA20) {
 		cdesc->control_data.options |= EIP197_OPTION_4_TOKEN_IV_CMD;
 
-		if (ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP) {
-			/* 32 bit nonce part */
-			cdesc->control_data.token[0] = ctx->nonce;
-			/* 64 bit IV part */
-			memcpy(&cdesc->control_data.token[1], iv, 8);
-			/* 32 bit counter, starting at 0 */
-			cdesc->control_data.token[3] = 0;
-		} else if (ctx->aead) {
-			/* 96 bit nonce part */
-			memcpy(&cdesc->control_data.token[0], iv, 12);
-			/* 32 bit counter, starting at 0 */
-			cdesc->control_data.token[3] = 0;
-		} else {
-			/* 96 bit nonce part */
-			memcpy(&cdesc->control_data.token[0], &iv[4], 12);
-			/* 32 bit counter */
-			cdesc->control_data.token[3] = *(u32 *)iv;
-		}
-
-		return;
-	} else if (ctx->xcm == EIP197_XCM_MODE_GCM) {
-		cdesc->control_data.options |= EIP197_OPTION_4_TOKEN_IV_CMD;
-
-		/* 96 bit IV part */
-		memcpy(&cdesc->control_data.token[0], iv, 12);
-		/* 32 bit counter, start at 1 (big endian!) */
-		cdesc->control_data.token[3] = cpu_to_be32(1);
+		/* 96 bit nonce part */
+		memcpy(&cdesc->control_data.token[0], &iv[4], 12);
+		/* 32 bit counter */
+		cdesc->control_data.token[3] = *(u32 *)iv;
 
 		return;
 	} else if (ctx->xcm == EIP197_XCM_MODE_CCM) {
@@ -3426,6 +3426,72 @@ struct safexcel_alg_template safexcel_alg_authenc_hmac_sm3_ctr_sm4 = {
 			.cra_init = safexcel_aead_sm4ctr_sm3_cra_init,
 			.cra_exit = safexcel_aead_cra_exit,
 			.cra_module = THIS_MODULE,
+		},
+	},
+};
+
+static int safexcel_rfc4106_gcm_setkey(struct crypto_aead *ctfm, const u8 *key,
+				       unsigned int len)
+{
+	struct crypto_tfm *tfm = crypto_aead_tfm(ctfm);
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	/* last 4 bytes of key are the nonce! */
+	ctx->nonce = *(u32 *)(key + len - CTR_RFC3686_NONCE_SIZE);
+
+	len -= CTR_RFC3686_NONCE_SIZE;
+	return safexcel_aead_gcm_setkey(ctfm, key, len);
+}
+
+static int safexcel_rfc4106_gcm_setauthsize(struct crypto_aead *tfm,
+					    unsigned int authsize)
+{
+	return crypto_rfc4106_check_authsize(authsize);
+}
+
+static int safexcel_rfc4106_encrypt(struct aead_request *req)
+{
+	return crypto_ipsec_check_assoclen(req->assoclen) ?:
+	       safexcel_aead_encrypt(req);
+}
+
+static int safexcel_rfc4106_decrypt(struct aead_request *req)
+{
+	return crypto_ipsec_check_assoclen(req->assoclen) ?:
+	       safexcel_aead_decrypt(req);
+}
+
+static int safexcel_rfc4106_gcm_cra_init(struct crypto_tfm *tfm)
+{
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	int ret;
+
+	ret = safexcel_aead_gcm_cra_init(tfm);
+	ctx->aead  = EIP197_AEAD_TYPE_IPSEC_ESP;
+	return ret;
+}
+
+struct safexcel_alg_template safexcel_alg_rfc4106_gcm = {
+	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_AES | SAFEXCEL_ALG_GHASH,
+	.alg.aead = {
+		.setkey = safexcel_rfc4106_gcm_setkey,
+		.setauthsize = safexcel_rfc4106_gcm_setauthsize,
+		.encrypt = safexcel_rfc4106_encrypt,
+		.decrypt = safexcel_rfc4106_decrypt,
+		.ivsize = GCM_RFC4106_IV_SIZE,
+		.maxauthsize = GHASH_DIGEST_SIZE,
+		.base = {
+			.cra_name = "rfc4106(gcm(aes))",
+			.cra_driver_name = "safexcel-rfc4106-gcm-aes",
+			.cra_priority = SAFEXCEL_CRA_PRIORITY,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize = 1,
+			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
+			.cra_alignmask = 0,
+			.cra_init = safexcel_rfc4106_gcm_cra_init,
+			.cra_exit = safexcel_aead_gcm_cra_exit,
 		},
 	},
 };
