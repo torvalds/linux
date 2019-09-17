@@ -2,6 +2,7 @@
 
 /* Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd */
 
+#include <linux/fs.h>
 #include <linux/kthread.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
