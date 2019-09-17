@@ -104,7 +104,7 @@ struct kmem_cache {
 	unsigned int red_left_pad;	/* Left redzone padding size */
 	const char *name;	/* Name (only for display!) */
 	struct list_head list;	/* List of slab caches */
-#ifdef CONFIG_SYSFS
+#ifdef CONFIG_SLUB_SYSFS
 	struct kobject kobj;	/* For sysfs */
 	struct work_struct kobj_remove_work;
 #endif
@@ -112,7 +112,7 @@ struct kmem_cache {
 	struct memcg_cache_params memcg_params;
 	/* for propagation, maximum size of a stored attr */
 	unsigned int max_attr_size;
-#ifdef CONFIG_SYSFS
+#ifdef CONFIG_SLUB_SYSFS
 	struct kset *memcg_kset;
 #endif
 #endif
@@ -153,7 +153,7 @@ struct kmem_cache {
 #define slub_set_cpu_partial(s, n)
 #endif // CONFIG_SLUB_CPU_PARTIAL
 
-#ifdef CONFIG_SYSFS
+#ifdef CONFIG_SLUB_SYSFS
 #define SLAB_SUPPORTS_SYSFS
 void sysfs_slab_unlink(struct kmem_cache *);
 void sysfs_slab_release(struct kmem_cache *);
