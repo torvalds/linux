@@ -38,6 +38,7 @@
 #include <linux/of.h>
 #include <linux/of_pci.h>
 #include <linux/memblock.h>
+#include <linux/swiotlb.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -67,6 +68,7 @@
 #include <asm/isa-bridge.h>
 #include <asm/security_features.h>
 #include <asm/asm-const.h>
+#include <asm/swiotlb.h>
 
 #include "pseries.h"
 #include "../../../../drivers/pci/pci.h"
@@ -273,46 +275,16 @@ struct kmem_cache *dtl_cache;
  */
 static int alloc_dispatch_logs(void)
 {
-	int cpu, ret;
-	struct paca_struct *pp;
-	struct dtl_entry *dtl;
-
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return 0;
 
 	if (!dtl_cache)
 		return 0;
 
-	for_each_possible_cpu(cpu) {
-		pp = paca_ptrs[cpu];
-		dtl = kmem_cache_alloc(dtl_cache, GFP_KERNEL);
-		if (!dtl) {
-			pr_warn("Failed to allocate dispatch trace log for cpu %d\n",
-				cpu);
-			pr_warn("Stolen time statistics will be unreliable\n");
-			break;
-		}
-
-		pp->dtl_ridx = 0;
-		pp->dispatch_log = dtl;
-		pp->dispatch_log_end = dtl + N_DISPATCH_LOG;
-		pp->dtl_curr = dtl;
-	}
+	alloc_dtl_buffers(0);
 
 	/* Register the DTL for the current (boot) cpu */
-	dtl = get_paca()->dispatch_log;
-	get_paca()->dtl_ridx = 0;
-	get_paca()->dtl_curr = dtl;
-	get_paca()->lppaca_ptr->dtl_idx = 0;
-
-	/* hypervisor reads buffer length from this field */
-	dtl->enqueue_to_dispatch_time = cpu_to_be32(DISPATCH_LOG_BYTES);
-	ret = register_dtl(hard_smp_processor_id(), __pa(dtl));
-	if (ret)
-		pr_err("WARNING: DTL registration of cpu %d (hw %d) failed "
-		       "with %d\n", smp_processor_id(),
-		       hard_smp_processor_id(), ret);
-	get_paca()->lppaca_ptr->dtl_enable_mask = 2;
+	register_dtl_buffer(smp_processor_id());
 
 	return 0;
 }
@@ -793,6 +765,9 @@ static void __init pSeries_setup_arch(void)
 	}
 
 	ppc_md.pcibios_root_bridge_prepare = pseries_root_bridge_prepare;
+
+	if (swiotlb_force == SWIOTLB_FORCE)
+		ppc_swiotlb_enable = 1;
 }
 
 static void pseries_panic(char *str)

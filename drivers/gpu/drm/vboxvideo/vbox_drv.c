@@ -191,13 +191,7 @@ static struct pci_driver vbox_pci_driver = {
 
 static const struct file_operations vbox_fops = {
 	.owner = THIS_MODULE,
-	.open = drm_open,
-	.release = drm_release,
-	.unlocked_ioctl = drm_ioctl,
-	.compat_ioctl = drm_compat_ioctl,
-	.mmap = vbox_mmap,
-	.poll = drm_poll,
-	.read = drm_read,
+	DRM_VRAM_MM_FILE_OPERATIONS
 };
 
 static struct drm_driver driver = {
@@ -215,9 +209,7 @@ static struct drm_driver driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 
-	.gem_free_object_unlocked = vbox_gem_free_object,
-	.dumb_create = vbox_dumb_create,
-	.dumb_map_offset = vbox_dumb_mmap_offset,
+	DRM_GEM_VRAM_DRIVER,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = drm_gem_prime_export,

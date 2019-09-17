@@ -1067,7 +1067,6 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 	unsigned int length = 0;
 	struct hostif_data_request *pp;
 	unsigned char *p;
-	int result = 0;
 	unsigned short eth_proto;
 	struct ether_hdr *eth_hdr;
 	unsigned short keyinfo = 0;
@@ -1209,8 +1208,8 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 	pp->header.event = cpu_to_le16(HIF_DATA_REQ);
 
 	/* tx request */
-	result = ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp) + skb_len),
-			       send_packet_complete, skb);
+	ret = ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp) + skb_len),
+			    send_packet_complete, skb);
 
 	/* MIC FAILURE REPORT check */
 	if (eth_proto == ETH_P_PAE &&
@@ -1225,7 +1224,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 			priv->wpa.mic_failure.stop = 1;
 	}
 
-	return result;
+	return ret;
 
 err_kfree:
 	kfree(pp);

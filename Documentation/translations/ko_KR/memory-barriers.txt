@@ -24,7 +24,7 @@ Documentation/memory-barriers.txt
 			 =========================
 
 저자: David Howells <dhowells@redhat.com>
-      Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+      Paul E. McKenney <paulmck@linux.ibm.com>
       Will Deacon <will.deacon@arm.com>
       Peter Zijlstra <peterz@infradead.org>
 
@@ -569,7 +569,7 @@ ACQUIRE 는 해당 오퍼레이션의 로드 부분에만 적용되고 RELEASE �
 
 	[*] 버스 마스터링 DMA 와 일관성에 대해서는 다음을 참고하시기 바랍니다:
 
-	    Documentation/PCI/pci.txt
+	    Documentation/driver-api/pci/pci.rst
 	    Documentation/DMA-API-HOWTO.txt
 	    Documentation/DMA-API.txt
 

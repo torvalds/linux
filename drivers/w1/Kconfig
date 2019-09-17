@@ -19,7 +19,7 @@ config W1_CON
 	default y
 	---help---
 	  This allows to communicate with userspace using connector. For more
-	  information see <file:Documentation/connector/connector.txt>.
+	  information see <file:Documentation/driver-api/connector.rst>.
 	  There are three types of messages between w1 core and userspace:
 	  1. Events. They are generated each time new master or slave device found
 		either due to automatic or requested search.

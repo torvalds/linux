@@ -25,6 +25,9 @@ from tdc_helper import *
 import TdcPlugin
 from TdcResults import *
 
+class PluginDependencyException(Exception):
+    def __init__(self, missing_pg):
+        self.missing_pg = missing_pg
 
 class PluginMgrTestFail(Exception):
     def __init__(self, stage, output, message):
@@ -37,7 +40,7 @@ class PluginMgr:
         super().__init__()
         self.plugins = {}
         self.plugin_instances = []
-        self.args = []
+        self.failed_plugins = {}
         self.argparser = argparser
 
         # TODO, put plugins in order
@@ -53,6 +56,64 @@ class PluginMgr:
                     self.plugins[mn] = foo
                     self.plugin_instances.append(foo.SubPlugin())
 
+    def load_plugin(self, pgdir, pgname):
+        pgname = pgname[0:-3]
+        foo = importlib.import_module('{}.{}'.format(pgdir, pgname))
+        self.plugins[pgname] = foo
+        self.plugin_instances.append(foo.SubPlugin())
+        self.plugin_instances[-1].check_args(self.args, None)
+
+    def get_required_plugins(self, testlist):
+        '''
+        Get all required plugins from the list of test cases and return
+        all unique items.
+        '''
+        reqs = []
+        for t in testlist:
+            try:
+                if 'requires' in t['plugins']:
+                    if isinstance(t['plugins']['requires'], list):
+                        reqs.extend(t['plugins']['requires'])
+                    else:
+                        reqs.append(t['plugins']['requires'])
+            except KeyError:
+                continue
+        reqs = get_unique_item(reqs)
+        return reqs
+
+    def load_required_plugins(self, reqs, parser, args, remaining):
+        '''
+        Get all required plugins from the list of test cases and load any plugin
+        that is not already enabled.
+        '''
+        pgd = ['plugin-lib', 'plugin-lib-custom']
+        pnf = []
+
+        for r in reqs:
+            if r not in self.plugins:
+                fname = '{}.py'.format(r)
+                source_path = []
+                for d in pgd:
+                    pgpath = '{}/{}'.format(d, fname)
+                    if os.path.isfile(pgpath):
+                        source_path.append(pgpath)
+                if len(source_path) == 0:
+                    print('ERROR: unable to find required plugin {}'.format(r))
+                    pnf.append(fname)
+                    continue
+                elif len(source_path) > 1:
+                    print('WARNING: multiple copies of plugin {} found, using version found')
+                    print('at {}'.format(source_path[0]))
+                pgdir = source_path[0]
+                pgdir = pgdir.split('/')[0]
+                self.load_plugin(pgdir, fname)
+        if len(pnf) > 0:
+            raise PluginDependencyException(pnf)
+
+        parser = self.call_add_args(parser)
+        (args, remaining) = parser.parse_known_args(args=remaining, namespace=args)
+        return args
+
     def call_pre_suite(self, testcount, testidlist):
         for pgn_inst in self.plugin_instances:
             pgn_inst.pre_suite(testcount, testidlist)
@@ -61,15 +122,15 @@ class PluginMgr:
         for pgn_inst in reversed(self.plugin_instances):
             pgn_inst.post_suite(index)
 
-    def call_pre_case(self, testid, test_name, *, test_skip=False):
+    def call_pre_case(self, caseinfo, *, test_skip=False):
         for pgn_inst in self.plugin_instances:
             try:
-                pgn_inst.pre_case(testid, test_name, test_skip)
+                pgn_inst.pre_case(caseinfo, test_skip)
             except Exception as ee:
                 print('exception {} in call to pre_case for {} plugin'.
                       format(ee, pgn_inst.__class__))
                 print('test_ordinal is {}'.format(test_ordinal))
-                print('testid is {}'.format(testid))
+                print('testid is {}'.format(caseinfo['id']))
                 raise
 
     def call_post_case(self):
@@ -97,6 +158,9 @@ class PluginMgr:
         for pgn_inst in self.plugin_instances:
             command = pgn_inst.adjust_command(stage, command)
         return command
+
+    def set_args(self, args):
+        self.args = args
 
     @staticmethod
     def _make_argparser(args):
@@ -197,14 +261,14 @@ def run_one_test(pm, args, index, tidx):
             res = TestResult(tidx['id'], tidx['name'])
             res.set_result(ResultState.skip)
             res.set_errormsg('Test case designated as skipped.')
-            pm.call_pre_case(tidx['id'], tidx['name'], test_skip=True)
+            pm.call_pre_case(tidx, test_skip=True)
             pm.call_post_execute()
             return res
 
     # populate NAMES with TESTID for this test
     NAMES['TESTID'] = tidx['id']
 
-    pm.call_pre_case(tidx['id'], tidx['name'])
+    pm.call_pre_case(tidx)
     prepare_env(args, pm, 'setup', "-----> prepare stage", tidx["setup"])
 
     if (args.verbose > 0):
@@ -550,6 +614,7 @@ def filter_tests_by_category(args, testlist):
 
     return answer
 
+
 def get_test_cases(args):
     """
     If a test case file is specified, retrieve tests from that file.
@@ -611,7 +676,7 @@ def get_test_cases(args):
     return allcatlist, allidlist, testcases_by_cats, alltestcases
 
 
-def set_operation_mode(pm, args):
+def set_operation_mode(pm, parser, args, remaining):
     """
     Load the test case data and process remaining arguments to determine
     what the script should do for this run, and call the appropriate
@@ -649,6 +714,12 @@ def set_operation_mode(pm, args):
             exit(0)
 
     if len(alltests):
+        req_plugins = pm.get_required_plugins(alltests)
+        try:
+            args = pm.load_required_plugins(req_plugins, parser, args, remaining)
+        except PluginDependencyException as pde:
+            print('The following plugins were not found:')
+            print('{}'.format(pde.missing_pg))
         catresults = test_runner(pm, args, alltests)
         if args.format == 'none':
             print('Test results output suppression requested\n')
@@ -686,11 +757,12 @@ def main():
     parser = pm.call_add_args(parser)
     (args, remaining) = parser.parse_known_args()
     args.NAMES = NAMES
+    pm.set_args(args)
     check_default_settings(args, remaining, pm)
     if args.verbose > 2:
         print('args is {}'.format(args))
 
-    set_operation_mode(pm, args)
+    set_operation_mode(pm, parser, args, remaining)
 
     exit(0)
 

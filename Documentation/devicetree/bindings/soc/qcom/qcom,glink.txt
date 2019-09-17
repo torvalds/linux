@@ -21,6 +21,11 @@ edge.
 	Definition: should specify the IRQ used by the remote processor to
 		    signal this processor about communication related events
 
+- qcom,remote-pid:
+	Usage: required for glink-smem
+	Value type: <u32>
+	Definition: specifies the identifier of the remote endpoint of this edge
+
 - qcom,rpm-msg-ram:
 	Usage: required for glink-rpm
 	Value type: <prop-encoded-array>

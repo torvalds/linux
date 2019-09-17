@@ -346,22 +346,19 @@ void km_state_expired(struct xfrm_state *x, int hard, u32 portid);
 int __xfrm_state_delete(struct xfrm_state *x);
 
 struct xfrm_state_afinfo {
-	unsigned int			family;
-	unsigned int			proto;
-	__be16				eth_proto;
-	struct module			*owner;
-	const struct xfrm_type		*type_map[IPPROTO_MAX];
-	const struct xfrm_type_offload	*type_offload_map[IPPROTO_MAX];
+	u8				family;
+	u8				proto;
 
-	int			(*init_flags)(struct xfrm_state *x);
-	void			(*init_tempsel)(struct xfrm_selector *sel,
-						const struct flowi *fl);
-	void			(*init_temprop)(struct xfrm_state *x,
-						const struct xfrm_tmpl *tmpl,
-						const xfrm_address_t *daddr,
-						const xfrm_address_t *saddr);
-	int			(*tmpl_sort)(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n);
-	int			(*state_sort)(struct xfrm_state **dst, struct xfrm_state **src, int n);
+	const struct xfrm_type_offload *type_offload_esp;
+
+	const struct xfrm_type		*type_esp;
+	const struct xfrm_type		*type_ipip;
+	const struct xfrm_type		*type_ipip6;
+	const struct xfrm_type		*type_comp;
+	const struct xfrm_type		*type_ah;
+	const struct xfrm_type		*type_routing;
+	const struct xfrm_type		*type_dstopts;
+
 	int			(*output)(struct net *net, struct sock *sk, struct sk_buff *skb);
 	int			(*output_finish)(struct sock *sk, struct sk_buff *skb);
 	int			(*extract_input)(struct xfrm_state *x,
@@ -407,12 +404,10 @@ struct xfrm_type {
 	int			(*reject)(struct xfrm_state *, struct sk_buff *,
 					  const struct flowi *);
 	int			(*hdr_offset)(struct xfrm_state *, struct sk_buff *, u8 **);
-	/* Estimate maximal size of result of transformation of a dgram */
-	u32			(*get_mtu)(struct xfrm_state *, int size);
 };
 
 int xfrm_register_type(const struct xfrm_type *type, unsigned short family);
-int xfrm_unregister_type(const struct xfrm_type *type, unsigned short family);
+void xfrm_unregister_type(const struct xfrm_type *type, unsigned short family);
 
 struct xfrm_type_offload {
 	char		*description;
@@ -424,7 +419,7 @@ struct xfrm_type_offload {
 };
 
 int xfrm_register_type_offload(const struct xfrm_type_offload *type, unsigned short family);
-int xfrm_unregister_type_offload(const struct xfrm_type_offload *type, unsigned short family);
+void xfrm_unregister_type_offload(const struct xfrm_type_offload *type, unsigned short family);
 
 static inline int xfrm_af2proto(unsigned int family)
 {
@@ -988,7 +983,6 @@ static inline void xfrm_dst_destroy(struct xfrm_dst *xdst)
 void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev);
 
 struct xfrm_if_parms {
-	char name[IFNAMSIZ];	/* name of XFRM device */
 	int link;		/* ifindex of underlying L2 interface */
 	u32 if_id;		/* interface identifyer */
 };
@@ -996,7 +990,6 @@ struct xfrm_if_parms {
 struct xfrm_if {
 	struct xfrm_if __rcu *next;	/* next interface in list */
 	struct net_device *dev;		/* virtual device associated with interface */
-	struct net_device *phydev;	/* physical device */
 	struct net *net;		/* netns for packet i/o */
 	struct xfrm_if_parms p;		/* interface parms */
 
@@ -1508,21 +1501,19 @@ struct xfrm_state *xfrm_state_lookup_byaddr(struct net *net, u32 mark,
 					    u8 proto,
 					    unsigned short family);
 #ifdef CONFIG_XFRM_SUB_POLICY
-int xfrm_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n,
-		   unsigned short family, struct net *net);
-int xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **src, int n,
+void xfrm_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n,
 		    unsigned short family);
+void xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **src, int n,
+		     unsigned short family);
 #else
-static inline int xfrm_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src,
-				 int n, unsigned short family, struct net *net)
-{
-	return -ENOSYS;
-}
-
-static inline int xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **src,
+static inline void xfrm_tmpl_sort(struct xfrm_tmpl **d, struct xfrm_tmpl **s,
 				  int n, unsigned short family)
 {
-	return -ENOSYS;
+}
+
+static inline void xfrm_state_sort(struct xfrm_state **d, struct xfrm_state **s,
+				   int n, unsigned short family)
+{
 }
 #endif
 
@@ -1551,7 +1542,7 @@ void xfrm_sad_getinfo(struct net *net, struct xfrmk_sadinfo *si);
 void xfrm_spd_getinfo(struct net *net, struct xfrmk_spdinfo *si);
 u32 xfrm_replay_seqhi(struct xfrm_state *x, __be32 net_seq);
 int xfrm_init_replay(struct xfrm_state *x);
-int xfrm_state_mtu(struct xfrm_state *x, int mtu);
+u32 xfrm_state_mtu(struct xfrm_state *x, int mtu);
 int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload);
 int xfrm_init_state(struct xfrm_state *x);
 int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type);

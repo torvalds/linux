@@ -22,7 +22,6 @@
  * Authors: monk liu <monk.liu@amd.com>
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_auth.h>
 #include "amdgpu.h"
 #include "amdgpu_sched.h"
@@ -535,21 +534,24 @@ int amdgpu_ctx_wait_prev_fence(struct amdgpu_ctx *ctx,
 			       struct drm_sched_entity *entity)
 {
 	struct amdgpu_ctx_entity *centity = to_amdgpu_ctx_entity(entity);
-	unsigned idx = centity->sequence & (amdgpu_sched_jobs - 1);
-	struct dma_fence *other = centity->fences[idx];
+	struct dma_fence *other;
+	unsigned idx;
+	long r;
 
-	if (other) {
-		signed long r;
-		r = dma_fence_wait(other, true);
-		if (r < 0) {
-			if (r != -ERESTARTSYS)
-				DRM_ERROR("Error (%ld) waiting for fence!\n", r);
+	spin_lock(&ctx->ring_lock);
+	idx = centity->sequence & (amdgpu_sched_jobs - 1);
+	other = dma_fence_get(centity->fences[idx]);
+	spin_unlock(&ctx->ring_lock);
 
-			return r;
-		}
-	}
+	if (!other)
+		return 0;
 
-	return 0;
+	r = dma_fence_wait(other, true);
+	if (r < 0 && r != -ERESTARTSYS)
+		DRM_ERROR("Error (%ld) waiting for fence!\n", r);
+
+	dma_fence_put(other);
+	return r;
 }
 
 void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr)

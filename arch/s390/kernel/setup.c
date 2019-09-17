@@ -461,11 +461,9 @@ static void __init setup_lowcore_dat_off(void)
 	mem_assign_absolute(S390_lowcore.restart_source, lc->restart_source);
 	mem_assign_absolute(S390_lowcore.restart_psw, lc->restart_psw);
 
-#ifdef CONFIG_SMP
 	lc->spinlock_lockval = arch_spin_lockval(0);
 	lc->spinlock_index = 0;
 	arch_spin_lock_setup(0);
-#endif
 	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
 
 	set_prefix((u32)(unsigned long) lc);
@@ -1116,8 +1114,7 @@ void __init setup_arch(char **cmdline_p)
 
         ROOT_DEV = Root_RAM0;
 
-	/* Is init_mm really needed? */
-	init_mm.start_code = PAGE_OFFSET;
+	init_mm.start_code = (unsigned long) _text;
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
 	init_mm.brk = (unsigned long) _end;

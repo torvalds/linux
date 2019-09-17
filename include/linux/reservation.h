@@ -216,8 +216,12 @@ reservation_object_unlock(struct reservation_object *obj)
 {
 #ifdef CONFIG_DEBUG_MUTEXES
 	/* Test shared fence slot reservation */
-	if (obj->fence)
-		obj->fence->shared_max = obj->fence->shared_count;
+	if (rcu_access_pointer(obj->fence)) {
+		struct reservation_object_list *fence =
+			reservation_object_get_list(obj);
+
+		fence->shared_max = fence->shared_count;
+	}
 #endif
 	ww_mutex_unlock(&obj->lock);
 }

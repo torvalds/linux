@@ -4,8 +4,11 @@ config ARM
 	default y
 	select ARCH_32BIT_OFF_T
 	select ARCH_CLOCKSOURCE_DATA
+	select ARCH_HAS_BINFMT_FLAT
 	select ARCH_HAS_DEBUG_VIRTUAL if MMU
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
+	select ARCH_HAS_DMA_COHERENT_TO_PFN if SWIOTLB
+	select ARCH_HAS_DMA_MMAP_PGPROT if SWIOTLB
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_KEEPINITRD
@@ -17,6 +20,8 @@ config ARM
 	select ARCH_HAS_SET_MEMORY
 	select ARCH_HAS_STRICT_KERNEL_RWX if MMU && !XIP_KERNEL
 	select ARCH_HAS_STRICT_MODULE_RWX if MMU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE if SWIOTLB
+	select ARCH_HAS_SYNC_DMA_FOR_CPU if SWIOTLB
 	select ARCH_HAS_TEARDOWN_DMA_OPS if MMU
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAVE_CUSTOM_GPIO_H
@@ -30,6 +35,7 @@ config ARM
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_WANT_IPC_PARSE_VERSION
+	select BINFMT_FLAT_ARGVP_ENVP_ON_STACK
 	select BUILDTIME_EXTABLE_SORT if MMU
 	select CLONE_BACKWARDS
 	select CPU_PM if SUSPEND || CPU_IDLE
@@ -73,6 +79,7 @@ config ARM
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS if HAVE_DYNAMIC_FTRACE
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS if (CPU_V6 || CPU_V6K || CPU_V7) && MMU
 	select HAVE_EXIT_THREAD
+	select HAVE_FAST_GUP if ARM_LPAE
 	select HAVE_FTRACE_MCOUNT_RECORD if !XIP_KERNEL
 	select HAVE_FUNCTION_GRAPH_TRACER if !THUMB2_KERNEL && !CC_IS_CLANG
 	select HAVE_FUNCTION_TRACER if !XIP_KERNEL
@@ -374,15 +381,6 @@ config ARCH_FOOTBRIDGE
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
 
-config ARCH_NETX
-	bool "Hilscher NetX based"
-	select ARM_VIC
-	select CLKSRC_MMIO
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	help
-	  This enables support for systems based on the Hilscher NetX Soc
-
 config ARCH_IOP13XX
 	bool "IOP13xx-based"
 	depends on MMU
@@ -528,7 +526,7 @@ config ARCH_RPC
 	select ARCH_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
 	select ARCH_SPARSEMEM_ENABLE
-	select ARCH_USES_GETTIMEOFFSET
+	select ARM_HAS_SG_CHAIN
 	select CPU_SA110
 	select FIQ
 	select HAVE_IDE
@@ -549,6 +547,7 @@ config ARCH_SA1100
 	select CLKSRC_MMIO
 	select CLKSRC_PXA
 	select TIMER_OF if OF
+	select COMMON_CLK
 	select CPU_FREQ
 	select CPU_SA1100
 	select GENERIC_CLOCKEVENTS
@@ -766,8 +765,6 @@ source "arch/arm/mach-mv78xx0/Kconfig"
 source "arch/arm/mach-mvebu/Kconfig"
 
 source "arch/arm/mach-mxs/Kconfig"
-
-source "arch/arm/mach-netx/Kconfig"
 
 source "arch/arm/mach-nomadik/Kconfig"
 
@@ -1175,6 +1172,14 @@ config ARM_ERRATA_825619
 	  DMB NSHST or DMB ISHST instruction followed by a mix of Cacheable
 	  and Device/Strongly-Ordered loads and stores might cause deadlock
 
+config ARM_ERRATA_857271
+	bool "ARM errata: A12: CPU might deadlock under some very rare internal conditions"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 857271 Cortex-A12
+	  (all revs) erratum. Under very rare timing conditions, the CPU might
+	  hang. The workaround is expected to have a < 1% performance impact.
+
 config ARM_ERRATA_852421
 	bool "ARM errata: A17: DMB ST might fail to create order between stores"
 	depends on CPU_V7
@@ -1193,6 +1198,16 @@ config ARM_ERRATA_852423
 	    lead to either a data corruption or a CPU deadlock.  Not fixed in
 	    any Cortex-A17 cores yet.
 	  This is identical to Cortex-A12 erratum 852422.  It is a separate
+	  config option from the A12 erratum due to the way errata are checked
+	  for and handled.
+
+config ARM_ERRATA_857272
+	bool "ARM errata: A17: CPU might deadlock under some very rare internal conditions"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 857272 Cortex-A17 erratum.
+	  This erratum is not known to be fixed in any A17 revision.
+	  This is identical to Cortex-A12 erratum 857271.  It is a separate
 	  config option from the A12 erratum due to the way errata are checked
 	  for and handled.
 
@@ -1232,6 +1247,18 @@ config PCI_HOST_ITE8152
 	default y
 	select DMABOUNCE
 
+config ARM_ERRATA_814220
+	bool "ARM errata: Cache maintenance by set/way operations can execute out of order"
+	depends on CPU_V7
+	help
+	  The v7 ARM states that all cache and branch predictor maintenance
+	  operations that do not specify an address execute, relative to
+	  each other, in program order.
+	  However, because of this erratum, an L2 set/way cache maintenance
+	  operation can overtake an L1 set/way cache maintenance operation.
+	  This ERRATA only affected the Cortex-A7 and present in r0p2, r0p3,
+	  r0p4, r0p5.
+
 endmenu
 
 menu "Kernel Features"
@@ -1263,8 +1290,8 @@ config SMP
 	  uniprocessor machines. On a uniprocessor machine, the kernel
 	  will run faster if you say N here.
 
-	  See also <file:Documentation/x86/i386/IO-APIC.txt>,
-	  <file:Documentation/lockup-watchdogs.txt> and the SMP-HOWTO available at
+	  See also <file:Documentation/x86/i386/IO-APIC.rst>,
+	  <file:Documentation/admin-guide/lockup-watchdogs.rst> and the SMP-HOWTO available at
 	  <http://tldp.org/HOWTO/SMP-HOWTO.html>.
 
 	  If you don't know what to do here, say N.
@@ -1590,15 +1617,8 @@ config ARCH_SPARSEMEM_ENABLE
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool ARCH_SPARSEMEM_ENABLE
 
-config ARCH_SELECT_MEMORY_MODEL
-	def_bool ARCH_SPARSEMEM_ENABLE
-
 config HAVE_ARCH_PFN_VALID
 	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
-
-config HAVE_GENERIC_GUP
-	def_bool y
-	depends on ARM_LPAE
 
 config HIGHMEM
 	bool "High Memory Support"
@@ -2010,7 +2030,7 @@ config CRASH_DUMP
 	  kdump/kexec. The crash dump kernel must be compiled to a
 	  memory address not used by the main kernel
 
-	  For more details see Documentation/kdump/kdump.txt
+	  For more details see Documentation/admin-guide/kdump/kdump.rst
 
 config AUTO_ZRELADDR
 	bool "Auto calculation of the decompressed kernel image address"
@@ -2116,7 +2136,7 @@ config VFP
 	  Say Y to include VFP support code in the kernel. This is needed
 	  if your hardware includes a VFP unit.
 
-	  Please see <file:Documentation/arm/VFP/release-notes.txt> for
+	  Please see <file:Documentation/arm/vfp/release-notes.rst> for
 	  release notes and additional status information.
 
 	  Say N if your target does not have VFP hardware.

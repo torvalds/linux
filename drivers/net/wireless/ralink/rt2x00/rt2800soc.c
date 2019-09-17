@@ -171,6 +171,7 @@ static const struct rt2800_ops rt2800soc_rt2800_ops = {
 	.drv_write_firmware	= rt2800soc_write_firmware,
 	.drv_init_registers	= rt2800mmio_init_registers,
 	.drv_get_txwi		= rt2800mmio_get_txwi,
+	.drv_get_dma_done	= rt2800mmio_get_dma_done,
 };
 
 static const struct rt2x00lib_ops rt2800soc_rt2x00_ops = {
@@ -195,6 +196,7 @@ static const struct rt2x00lib_ops rt2800soc_rt2x00_ops = {
 	.link_tuner		= rt2800_link_tuner,
 	.gain_calibration	= rt2800_gain_calibration,
 	.vco_calibration	= rt2800_vco_calibration,
+	.watchdog		= rt2800_watchdog,
 	.start_queue		= rt2800mmio_start_queue,
 	.kick_queue		= rt2800mmio_kick_queue,
 	.stop_queue		= rt2800mmio_stop_queue,
@@ -211,6 +213,7 @@ static const struct rt2x00lib_ops rt2800soc_rt2x00_ops = {
 	.config_erp		= rt2800_config_erp,
 	.config_ant		= rt2800_config_ant,
 	.config			= rt2800_config,
+	.pre_reset_hw		= rt2800_pre_reset_hw,
 };
 
 static const struct rt2x00_ops rt2800soc_ops = {

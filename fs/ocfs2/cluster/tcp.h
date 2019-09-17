@@ -109,16 +109,15 @@ struct o2net_send_tracking;
 struct o2net_sock_container;
 
 #ifdef CONFIG_DEBUG_FS
-int o2net_debugfs_init(void);
+void o2net_debugfs_init(void);
 void o2net_debugfs_exit(void);
 void o2net_debug_add_nst(struct o2net_send_tracking *nst);
 void o2net_debug_del_nst(struct o2net_send_tracking *nst);
 void o2net_debug_add_sc(struct o2net_sock_container *sc);
 void o2net_debug_del_sc(struct o2net_sock_container *sc);
 #else
-static inline int o2net_debugfs_init(void)
+static inline void o2net_debugfs_init(void)
 {
-	return 0;
 }
 static inline void o2net_debugfs_exit(void)
 {

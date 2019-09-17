@@ -134,6 +134,7 @@ static int pm_runlist_v9(struct packet_manager *pm, uint32_t *buffer,
 	packet->bitfields4.ib_size = ib_size_in_dwords;
 	packet->bitfields4.chain = chain ? 1 : 0;
 	packet->bitfields4.offload_polling = 0;
+	packet->bitfields4.chained_runlist_idle_disable = chain ? 1 : 0;
 	packet->bitfields4.valid = 1;
 	packet->bitfields4.process_cnt = concurrent_proc_cnt;
 	packet->ordinal2 = lower_32_bits(ib);
@@ -153,14 +154,13 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 
 	packet->header.u32All = pm_build_pm4_header(IT_MAP_QUEUES,
 					sizeof(struct pm4_mes_map_queues));
-	packet->bitfields2.alloc_format =
-		alloc_format__mes_map_queues__one_per_pipe_vi;
 	packet->bitfields2.num_queues = 1;
 	packet->bitfields2.queue_sel =
 		queue_sel__mes_map_queues__map_to_hws_determined_queue_slots_vi;
 
 	packet->bitfields2.engine_sel =
 		engine_sel__mes_map_queues__compute_vi;
+	packet->bitfields2.gws_control_queue = q->gws ? 1 : 0;
 	packet->bitfields2.queue_type =
 		queue_type__mes_map_queues__normal_compute_vi;
 
@@ -175,6 +175,7 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 			queue_type__mes_map_queues__debug_interface_queue_vi;
 		break;
 	case KFD_QUEUE_TYPE_SDMA:
+	case KFD_QUEUE_TYPE_SDMA_XGMI:
 		packet->bitfields2.engine_sel = q->properties.sdma_engine_id +
 				engine_sel__mes_map_queues__sdma0_vi;
 		use_static = false; /* no static queues under SDMA */
@@ -221,6 +222,7 @@ static int pm_unmap_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 			engine_sel__mes_unmap_queues__compute;
 		break;
 	case KFD_QUEUE_TYPE_SDMA:
+	case KFD_QUEUE_TYPE_SDMA_XGMI:
 		packet->bitfields2.engine_sel =
 			engine_sel__mes_unmap_queues__sdma0 + sdma_engine;
 		break;

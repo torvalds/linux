@@ -50,6 +50,7 @@
 #ifdef __KERNEL__
 
 #include <linux/device.h>
+#include <linux/mm.h>
 
 struct cma;
 struct page;
@@ -111,6 +112,8 @@ struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
 				       unsigned int order, bool no_warn);
 bool dma_release_from_contiguous(struct device *dev, struct page *pages,
 				 int count);
+struct page *dma_alloc_contiguous(struct device *dev, size_t size, gfp_t gfp);
+void dma_free_contiguous(struct device *dev, struct page *page, size_t size);
 
 #else
 
@@ -151,6 +154,19 @@ bool dma_release_from_contiguous(struct device *dev, struct page *pages,
 				 int count)
 {
 	return false;
+}
+
+/* Use fallback alloc() and free() when CONFIG_DMA_CMA=n */
+static inline struct page *dma_alloc_contiguous(struct device *dev, size_t size,
+		gfp_t gfp)
+{
+	return NULL;
+}
+
+static inline void dma_free_contiguous(struct device *dev, struct page *page,
+		size_t size)
+{
+	__free_pages(page, get_order(size));
 }
 
 #endif

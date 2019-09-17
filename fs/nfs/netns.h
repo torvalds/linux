@@ -15,6 +15,8 @@ struct bl_dev_msg {
 	uint32_t major, minor;
 };
 
+struct nfs_netns_client;
+
 struct nfs_net {
 	struct cache_detail *nfs_dns_resolve;
 	struct rpc_pipe *bl_device_pipe;
@@ -29,6 +31,7 @@ struct nfs_net {
 	unsigned short nfs_callback_tcpport6;
 	int cb_users[NFS4_MAX_MINOR_VERSION + 1];
 #endif
+	struct nfs_netns_client *nfs_client;
 	spinlock_t nfs_client_lock;
 	ktime_t boot_time;
 #ifdef CONFIG_PROC_FS

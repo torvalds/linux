@@ -22,7 +22,7 @@
 兴趣的是显卡驱动程序，你也许应该访问 XFree86 项目(http://www.xfree86.org/)
 和／或 X.org 项目 (http://x.org)。
 
-另请参阅 Documentation/Documentation/translations/zh_CN/process/submitting-patches.rst 文档。
+另请参阅 Documentation/translations/zh_CN/process/submitting-patches.rst 文档。
 
 
 分配设备号
@@ -97,7 +97,7 @@ Linux 2.6:
 		函数定义成返回 -ENOSYS（功能未实现）错误。你还应该尝试确
 		保你的驱动在什么都不干的情况下将耗电降到最低。要获得驱动
 		程序测试的指导，请参阅
-		Documentation/power/drivers-testing.txt。有关驱动程序电
+		Documentation/power/drivers-testing.rst。有关驱动程序电
 		源管理问题相对全面的概述，请参阅
 		Documentation/driver-api/pm/devices.rst。
 

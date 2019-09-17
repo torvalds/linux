@@ -77,6 +77,7 @@ static int sam9x5_wm8731_driver_probe(struct platform_device *pdev)
 	struct snd_soc_card *card;
 	struct snd_soc_dai_link *dai;
 	struct sam9x5_drvdata *priv;
+	struct snd_soc_dai_link_component *comp;
 	int ret;
 
 	if (!np) {
@@ -87,7 +88,8 @@ static int sam9x5_wm8731_driver_probe(struct platform_device *pdev)
 	card = devm_kzalloc(&pdev->dev, sizeof(*card), GFP_KERNEL);
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	dai = devm_kzalloc(&pdev->dev, sizeof(*dai), GFP_KERNEL);
-	if (!dai || !card || !priv) {
+	comp = devm_kzalloc(&pdev->dev, 3 * sizeof(*comp), GFP_KERNEL);
+	if (!dai || !card || !priv || !comp) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -100,9 +102,17 @@ static int sam9x5_wm8731_driver_probe(struct platform_device *pdev)
 	card->num_links = 1;
 	card->dapm_widgets = sam9x5_dapm_widgets;
 	card->num_dapm_widgets = ARRAY_SIZE(sam9x5_dapm_widgets);
+
+	dai->cpus = &comp[0];
+	dai->num_cpus = 1;
+	dai->codecs = &comp[1];
+	dai->num_codecs = 1;
+	dai->platforms = &comp[2];
+	dai->num_platforms = 1;
+
 	dai->name = "WM8731";
 	dai->stream_name = "WM8731 PCM";
-	dai->codec_dai_name = "wm8731-hifi";
+	dai->codecs->dai_name = "wm8731-hifi";
 	dai->init = sam9x5_wm8731_init;
 	dai->dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_NB_NF
 		| SND_SOC_DAIFMT_CBM_CFM;
@@ -126,7 +136,7 @@ static int sam9x5_wm8731_driver_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	dai->codec_of_node = codec_np;
+	dai->codecs->of_node = codec_np;
 
 	cpu_np = of_parse_phandle(np, "atmel,ssc-controller", 0);
 	if (!cpu_np) {
@@ -134,8 +144,8 @@ static int sam9x5_wm8731_driver_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto out;
 	}
-	dai->cpu_of_node = cpu_np;
-	dai->platform_of_node = cpu_np;
+	dai->cpus->of_node = cpu_np;
+	dai->platforms->of_node = cpu_np;
 
 	priv->ssc_id = of_alias_get_id(cpu_np, "ssc");
 

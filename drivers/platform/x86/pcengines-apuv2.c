@@ -77,7 +77,7 @@ static const struct gpio_led_platform_data apu2_leds_pdata = {
 	.leds		= apu2_leds,
 };
 
-struct gpiod_lookup_table gpios_led_table = {
+static struct gpiod_lookup_table gpios_led_table = {
 	.dev_id = "leds-gpio",
 	.table = {
 		GPIO_LOOKUP_IDX(AMD_FCH_GPIO_DRIVER_NAME, APU2_GPIO_LINE_LED1,
@@ -93,7 +93,7 @@ struct gpiod_lookup_table gpios_led_table = {
 
 static struct gpio_keys_button apu2_keys_buttons[] = {
 	{
-		.code			= KEY_SETUP,
+		.code			= KEY_RESTART,
 		.active_low		= 1,
 		.desc			= "front button",
 		.type			= EV_KEY,
@@ -110,7 +110,7 @@ static const struct gpio_keys_platform_data apu2_keys_pdata = {
 	.name		= "apu2-keys",
 };
 
-struct gpiod_lookup_table gpios_key_table = {
+static struct gpiod_lookup_table gpios_key_table = {
 	.dev_id = "gpio-keys-polled",
 	.table = {
 		GPIO_LOOKUP_IDX(AMD_FCH_GPIO_DRIVER_NAME, APU2_GPIO_LINE_MODESW,
@@ -255,6 +255,4 @@ MODULE_DESCRIPTION("PC Engines APUv2/APUv3 board GPIO/LED/keys driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(dmi, apu_gpio_dmi_table);
 MODULE_ALIAS("platform:pcengines-apuv2");
-MODULE_SOFTDEP("pre: platform:" AMD_FCH_GPIO_DRIVER_NAME);
-MODULE_SOFTDEP("pre: platform:leds-gpio");
-MODULE_SOFTDEP("pre: platform:gpio_keys_polled");
+MODULE_SOFTDEP("pre: platform:" AMD_FCH_GPIO_DRIVER_NAME " platform:leds-gpio platform:gpio_keys_polled");

@@ -1236,7 +1236,7 @@ void x86_pmu_enable_event(struct perf_event *event)
  * Add a single event to the PMU.
  *
  * The event is added to the group of enabled events
- * but only if it can be scehduled with existing events.
+ * but only if it can be scheduled with existing events.
  */
 static int x86_pmu_add(struct perf_event *event, int flags)
 {
@@ -1618,68 +1618,6 @@ static struct attribute_group x86_pmu_format_group __ro_after_init = {
 	.attrs = NULL,
 };
 
-/*
- * Remove all undefined events (x86_pmu.event_map(id) == 0)
- * out of events_attr attributes.
- */
-static void __init filter_events(struct attribute **attrs)
-{
-	struct device_attribute *d;
-	struct perf_pmu_events_attr *pmu_attr;
-	int offset = 0;
-	int i, j;
-
-	for (i = 0; attrs[i]; i++) {
-		d = (struct device_attribute *)attrs[i];
-		pmu_attr = container_of(d, struct perf_pmu_events_attr, attr);
-		/* str trumps id */
-		if (pmu_attr->event_str)
-			continue;
-		if (x86_pmu.event_map(i + offset))
-			continue;
-
-		for (j = i; attrs[j]; j++)
-			attrs[j] = attrs[j + 1];
-
-		/* Check the shifted attr. */
-		i--;
-
-		/*
-		 * event_map() is index based, the attrs array is organized
-		 * by increasing event index. If we shift the events, then
-		 * we need to compensate for the event_map(), otherwise
-		 * we are looking up the wrong event in the map
-		 */
-		offset++;
-	}
-}
-
-/* Merge two pointer arrays */
-__init struct attribute **merge_attr(struct attribute **a, struct attribute **b)
-{
-	struct attribute **new;
-	int j, i;
-
-	for (j = 0; a && a[j]; j++)
-		;
-	for (i = 0; b && b[i]; i++)
-		j++;
-	j++;
-
-	new = kmalloc_array(j, sizeof(struct attribute *), GFP_KERNEL);
-	if (!new)
-		return NULL;
-
-	j = 0;
-	for (i = 0; a && a[i]; i++)
-		new[j++] = a[i];
-	for (i = 0; b && b[i]; i++)
-		new[j++] = b[i];
-	new[j] = NULL;
-
-	return new;
-}
-
 ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr, char *page)
 {
 	struct perf_pmu_events_attr *pmu_attr = \
@@ -1744,9 +1682,24 @@ static struct attribute *events_attr[] = {
 	NULL,
 };
 
+/*
+ * Remove all undefined events (x86_pmu.event_map(id) == 0)
+ * out of events_attr attributes.
+ */
+static umode_t
+is_visible(struct kobject *kobj, struct attribute *attr, int idx)
+{
+	struct perf_pmu_events_attr *pmu_attr;
+
+	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr.attr);
+	/* str trumps id */
+	return pmu_attr->event_str || x86_pmu.event_map(idx) ? attr->mode : 0;
+}
+
 static struct attribute_group x86_pmu_events_group __ro_after_init = {
 	.name = "events",
 	.attrs = events_attr,
+	.is_visible = is_visible,
 };
 
 ssize_t x86_event_sysfs_show(char *page, u64 config, u64 event)
@@ -1842,37 +1795,10 @@ static int __init init_hw_perf_events(void)
 
 	x86_pmu_format_group.attrs = x86_pmu.format_attrs;
 
-	if (x86_pmu.caps_attrs) {
-		struct attribute **tmp;
-
-		tmp = merge_attr(x86_pmu_caps_group.attrs, x86_pmu.caps_attrs);
-		if (!WARN_ON(!tmp))
-			x86_pmu_caps_group.attrs = tmp;
-	}
-
-	if (x86_pmu.event_attrs)
-		x86_pmu_events_group.attrs = x86_pmu.event_attrs;
-
 	if (!x86_pmu.events_sysfs_show)
 		x86_pmu_events_group.attrs = &empty_attrs;
-	else
-		filter_events(x86_pmu_events_group.attrs);
 
-	if (x86_pmu.cpu_events) {
-		struct attribute **tmp;
-
-		tmp = merge_attr(x86_pmu_events_group.attrs, x86_pmu.cpu_events);
-		if (!WARN_ON(!tmp))
-			x86_pmu_events_group.attrs = tmp;
-	}
-
-	if (x86_pmu.attrs) {
-		struct attribute **tmp;
-
-		tmp = merge_attr(x86_pmu_attr_group.attrs, x86_pmu.attrs);
-		if (!WARN_ON(!tmp))
-			x86_pmu_attr_group.attrs = tmp;
-	}
+	pmu.attr_update = x86_pmu.attr_update;
 
 	pr_info("... version:                %d\n",     x86_pmu.version);
 	pr_info("... bit width:              %d\n",     x86_pmu.cntval_bits);
@@ -2179,7 +2105,7 @@ static void x86_pmu_event_mapped(struct perf_event *event, struct mm_struct *mm)
 	 * For now, this can't happen because all callers hold mmap_sem
 	 * for write.  If this changes, we'll need a different solution.
 	 */
-	lockdep_assert_held_exclusive(&mm->mmap_sem);
+	lockdep_assert_held_write(&mm->mmap_sem);
 
 	if (atomic_inc_return(&mm->context.perf_rdpmc_allowed) == 1)
 		on_each_cpu_mask(mm_cpumask(mm), refresh_pce, NULL, 1);

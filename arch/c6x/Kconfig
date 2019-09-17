@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
+# see Documentation/kbuild/kconfig-language.rst.
 #
 
 config C6X
 	def_bool y
 	select ARCH_32BIT_OFF_T
+	select ARCH_HAS_BINFMT_FLAT
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select CLKDEV_LOOKUP

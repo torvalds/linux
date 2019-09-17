@@ -53,6 +53,11 @@ disable rtcwake and require a user keypress to resume.
 Add the dmesg and ftrace logs to the html output. They will be viewable by
 clicking buttons in the timeline.
 .TP
+\fB-turbostat\fR
+Use turbostat to execute the command in freeze mode (default: disabled). This
+will provide turbostat output in the log which will tell you which actual
+power modes were entered.
+.TP
 \fB-result \fIfile\fR
 Export a results table to a text file for parsing.
 .TP
@@ -121,6 +126,10 @@ be created in a new subdirectory with a summary page: suspend-xN-{date}-{time}.
 Use ftrace to create device callgraphs (default: disabled). This can produce
 very large outputs, i.e. 10MB - 100MB.
 .TP
+\fB-ftop\fR
+Use ftrace on the top level call: "suspend_devices_and_enter" only (default: disabled).
+This option implies -f and creates a single callgraph covering all of suspend/resume.
+.TP
 \fB-maxdepth \fIlevel\fR
 limit the callgraph trace depth to \fIlevel\fR (default: 0=all). This is
 the best way to limit the output size when using callgraphs via -f.
@@ -138,8 +147,8 @@ which are barely visible in the timeline.
 The value is a float: e.g. 0.001 represents 1 us.
 .TP
 \fB-cgfilter \fI"func1,func2,..."\fR
-Reduce callgraph output in the timeline by limiting it to a list of calls. The
-argument can be a single function name or a comma delimited list.
+Reduce callgraph output in the timeline by limiting it certain devices. The
+argument can be a single device name or a comma delimited list.
 (default: none)
 .TP
 \fB-cgskip \fIfile\fR
@@ -182,6 +191,9 @@ Print out the contents of the ACPI Firmware Performance Data Table.
 .TP
 \fB-battery\fR
 Print out battery status and current charge.
+.TP
+\fB-wifi\fR
+Print out wifi status and connection details.
 .TP
 \fB-xon/-xoff/-xstandby/-xsuspend\fR
 Test xset by attempting to switch the display to the given mode. This

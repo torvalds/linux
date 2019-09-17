@@ -13,6 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/if_vlan.h>
+#include <linux/phylink.h>
 
 /* Packet size info */
 #define XAE_HDR_SIZE			14 /* Size of Ethernet header */
@@ -82,6 +83,8 @@
 
 #define XAXIDMA_CR_RUNSTOP_MASK	0x00000001 /* Start/stop DMA channel */
 #define XAXIDMA_CR_RESET_MASK	0x00000004 /* Reset DMA engine */
+
+#define XAXIDMA_SR_HALT_MASK	0x00000001 /* Indicates DMA channel halted */
 
 #define XAXIDMA_BD_NDESC_OFFSET		0x00 /* Next descriptor pointer */
 #define XAXIDMA_BD_BUFA_OFFSET		0x08 /* Buffer address */
@@ -356,9 +359,6 @@
  * @app2:         MM2S/S2MM User Application Field 2.
  * @app3:         MM2S/S2MM User Application Field 3.
  * @app4:         MM2S/S2MM User Application Field 4.
- * @sw_id_offset: MM2S/S2MM Sw ID
- * @reserved5:    Reserved and not used
- * @reserved6:    Reserved and not used
  */
 struct axidma_bd {
 	u32 next;	/* Physical address of next buffer descriptor */
@@ -373,11 +373,9 @@ struct axidma_bd {
 	u32 app1;	/* TX start << 16 | insert */
 	u32 app2;	/* TX csum seed */
 	u32 app3;
-	u32 app4;
-	u32 sw_id_offset;
-	u32 reserved5;
-	u32 reserved6;
-};
+	u32 app4;   /* Last field used by HW */
+	struct sk_buff *skb;
+} __aligned(XAXIDMA_BD_MINIMUM_ALIGNMENT);
 
 /**
  * struct axienet_local - axienet private per device data
@@ -385,6 +383,7 @@ struct axidma_bd {
  * @dev:	Pointer to device structure
  * @phy_node:	Pointer to device node structure
  * @mii_bus:	Pointer to MII bus structure
+ * @regs_start: Resource start for axienet device addresses
  * @regs:	Base address for the axienet_local device address space
  * @dma_regs:	Base address for the axidma device address space
  * @dma_err_tasklet: Tasklet structure to process Axi DMA errors
@@ -422,10 +421,17 @@ struct axienet_local {
 	/* Connection to PHY device */
 	struct device_node *phy_node;
 
+	struct phylink *phylink;
+	struct phylink_config phylink_config;
+
+	/* Clock for AXI bus */
+	struct clk *clk;
+
 	/* MDIO bus data */
 	struct mii_bus *mii_bus;	/* MII bus reference */
 
 	/* IO registers, dma functions and IRQs */
+	resource_size_t regs_start;
 	void __iomem *regs;
 	void __iomem *dma_regs;
 
@@ -433,17 +439,19 @@ struct axienet_local {
 
 	int tx_irq;
 	int rx_irq;
+	int eth_irq;
 	phy_interface_t phy_mode;
 
 	u32 options;			/* Current options word */
-	u32 last_link;
 	u32 features;
 
 	/* Buffer descriptors */
 	struct axidma_bd *tx_bd_v;
 	dma_addr_t tx_bd_p;
+	u32 tx_bd_num;
 	struct axidma_bd *rx_bd_v;
 	dma_addr_t rx_bd_p;
+	u32 rx_bd_num;
 	u32 tx_bd_ci;
 	u32 tx_bd_tail;
 	u32 rx_bd_ci;
@@ -481,7 +489,7 @@ struct axienet_option {
  */
 static inline u32 axienet_ior(struct axienet_local *lp, off_t offset)
 {
-	return in_be32(lp->regs + offset);
+	return ioread32(lp->regs + offset);
 }
 
 static inline u32 axinet_ior_read_mcr(struct axienet_local *lp)
@@ -501,12 +509,13 @@ static inline u32 axinet_ior_read_mcr(struct axienet_local *lp)
 static inline void axienet_iow(struct axienet_local *lp, off_t offset,
 			       u32 value)
 {
-	out_be32((lp->regs + offset), value);
+	iowrite32(value, lp->regs + offset);
 }
 
 /* Function prototypes visible in xilinx_axienet_mdio.c for other files */
-int axienet_mdio_setup(struct axienet_local *lp, struct device_node *np);
-int axienet_mdio_wait_until_ready(struct axienet_local *lp);
+int axienet_mdio_enable(struct axienet_local *lp);
+void axienet_mdio_disable(struct axienet_local *lp);
+int axienet_mdio_setup(struct axienet_local *lp);
 void axienet_mdio_teardown(struct axienet_local *lp);
 
 #endif /* XILINX_AXI_ENET_H */

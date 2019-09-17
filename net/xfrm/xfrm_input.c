@@ -359,28 +359,29 @@ static int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
 	afinfo = xfrm_state_afinfo_get_rcu(x->outer_mode.family);
 	if (likely(afinfo))
 		err = afinfo->extract_input(x, skb);
+	rcu_read_unlock();
 
-	if (err) {
-		rcu_read_unlock();
+	if (err)
 		return err;
-	}
 
 	if (x->sel.family == AF_UNSPEC) {
 		inner_mode = xfrm_ip2inner_mode(x, XFRM_MODE_SKB_CB(skb)->protocol);
-		if (!inner_mode) {
-			rcu_read_unlock();
+		if (!inner_mode)
 			return -EAFNOSUPPORT;
-		}
 	}
 
-	afinfo = xfrm_state_afinfo_get_rcu(inner_mode->family);
-	if (unlikely(!afinfo)) {
-		rcu_read_unlock();
-		return -EAFNOSUPPORT;
+	switch (inner_mode->family) {
+	case AF_INET:
+		skb->protocol = htons(ETH_P_IP);
+		break;
+	case AF_INET6:
+		skb->protocol = htons(ETH_P_IPV6);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		break;
 	}
 
-	skb->protocol = afinfo->eth_proto;
-	rcu_read_unlock();
 	return xfrm_inner_mode_encap_remove(x, inner_mode, skb);
 }
 

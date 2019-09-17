@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * soc-apci-intel-byt-match.c - tables and support for BYT ACPI enumeration.
+ * soc-acpi-intel-byt-match.c - tables and support for BYT ACPI enumeration.
  *
  * Copyright (c) 2017, Intel Corporation.
  */
@@ -224,6 +224,14 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.board = "cht-bsw",
 		.sof_fw_filename = "sof-byt.ri",
 		.sof_tplg_filename = "sof-byt-max98090.tplg",
+	},
+	{
+		.id = "14F10720",
+		.drv_name = "bytcht_cx2072x",
+		.fw_filename = "intel/fw_sst_0f28.bin",
+		.board = "bytcht_cx2072x",
+		.sof_fw_filename = "sof-byt.ri",
+		.sof_tplg_filename = "sof-byt-cx2072x.tplg",
 	},
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH)
 	/*

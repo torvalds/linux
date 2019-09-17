@@ -50,7 +50,6 @@
 #define S_ALIGN       1 /* multiple of 2 */
 
 struct prp_priv {
-	struct imx_media_dev *md;
 	struct imx_ic_priv *ic_priv;
 	struct media_pad pad[PRPENCVF_NUM_PADS];
 	/* the video device at output pad */
@@ -60,7 +59,6 @@ struct prp_priv {
 	struct mutex lock;
 
 	/* IPU units we require */
-	struct ipu_soc *ipu;
 	struct ipu_ic *ic;
 	struct ipuv3_channel *out_ch;
 	struct ipuv3_channel *rot_in_ch;
@@ -156,9 +154,7 @@ static int prp_get_ipu_resources(struct prp_priv *priv)
 	struct ipuv3_channel *out_ch, *rot_in_ch, *rot_out_ch;
 	int ret, task = ic_priv->task_id;
 
-	priv->ipu = priv->md->ipu[ic_priv->ipu_id];
-
-	ic = ipu_ic_get(priv->ipu, task);
+	ic = ipu_ic_get(ic_priv->ipu, task);
 	if (IS_ERR(ic)) {
 		v4l2_err(&ic_priv->sd, "failed to get IC\n");
 		ret = PTR_ERR(ic);
@@ -166,7 +162,7 @@ static int prp_get_ipu_resources(struct prp_priv *priv)
 	}
 	priv->ic = ic;
 
-	out_ch = ipu_idmac_get(priv->ipu, prp_channel[task].out_ch);
+	out_ch = ipu_idmac_get(ic_priv->ipu, prp_channel[task].out_ch);
 	if (IS_ERR(out_ch)) {
 		v4l2_err(&ic_priv->sd, "could not get IDMAC channel %u\n",
 			 prp_channel[task].out_ch);
@@ -175,7 +171,7 @@ static int prp_get_ipu_resources(struct prp_priv *priv)
 	}
 	priv->out_ch = out_ch;
 
-	rot_in_ch = ipu_idmac_get(priv->ipu, prp_channel[task].rot_in_ch);
+	rot_in_ch = ipu_idmac_get(ic_priv->ipu, prp_channel[task].rot_in_ch);
 	if (IS_ERR(rot_in_ch)) {
 		v4l2_err(&ic_priv->sd, "could not get IDMAC channel %u\n",
 			 prp_channel[task].rot_in_ch);
@@ -184,7 +180,7 @@ static int prp_get_ipu_resources(struct prp_priv *priv)
 	}
 	priv->rot_in_ch = rot_in_ch;
 
-	rot_out_ch = ipu_idmac_get(priv->ipu, prp_channel[task].rot_out_ch);
+	rot_out_ch = ipu_idmac_get(ic_priv->ipu, prp_channel[task].rot_out_ch);
 	if (IS_ERR(rot_out_ch)) {
 		v4l2_err(&ic_priv->sd, "could not get IDMAC channel %u\n",
 			 prp_channel[task].rot_out_ch);
@@ -456,6 +452,7 @@ static int prp_setup_rotation(struct prp_priv *priv)
 	const struct imx_media_pixfmt *outcc, *incc;
 	struct v4l2_mbus_framefmt *infmt;
 	struct v4l2_pix_format *outfmt;
+	struct ipu_ic_csc csc;
 	dma_addr_t phys[2];
 	int ret;
 
@@ -464,23 +461,33 @@ static int prp_setup_rotation(struct prp_priv *priv)
 	incc = priv->cc[PRPENCVF_SINK_PAD];
 	outcc = vdev->cc;
 
-	ret = imx_media_alloc_dma_buf(priv->md, &priv->rot_buf[0],
+	ret = ipu_ic_calc_csc(&csc,
+			      infmt->ycbcr_enc, infmt->quantization,
+			      incc->cs,
+			      outfmt->ycbcr_enc, outfmt->quantization,
+			      outcc->cs);
+	if (ret) {
+		v4l2_err(&ic_priv->sd, "ipu_ic_calc_csc failed, %d\n",
+			 ret);
+		return ret;
+	}
+
+	ret = imx_media_alloc_dma_buf(ic_priv->ipu_dev, &priv->rot_buf[0],
 				      outfmt->sizeimage);
 	if (ret) {
 		v4l2_err(&ic_priv->sd, "failed to alloc rot_buf[0], %d\n", ret);
 		return ret;
 	}
-	ret = imx_media_alloc_dma_buf(priv->md, &priv->rot_buf[1],
+	ret = imx_media_alloc_dma_buf(ic_priv->ipu_dev, &priv->rot_buf[1],
 				      outfmt->sizeimage);
 	if (ret) {
 		v4l2_err(&ic_priv->sd, "failed to alloc rot_buf[1], %d\n", ret);
 		goto free_rot0;
 	}
 
-	ret = ipu_ic_task_init(priv->ic,
+	ret = ipu_ic_task_init(priv->ic, &csc,
 			       infmt->width, infmt->height,
-			       outfmt->height, outfmt->width,
-			       incc->cs, outcc->cs);
+			       outfmt->height, outfmt->width);
 	if (ret) {
 		v4l2_err(&ic_priv->sd, "ipu_ic_task_init failed, %d\n", ret);
 		goto free_rot1;
@@ -543,14 +550,16 @@ static int prp_setup_rotation(struct prp_priv *priv)
 unsetup_vb2:
 	prp_unsetup_vb2_buf(priv, VB2_BUF_STATE_QUEUED);
 free_rot1:
-	imx_media_free_dma_buf(priv->md, &priv->rot_buf[1]);
+	imx_media_free_dma_buf(ic_priv->ipu_dev, &priv->rot_buf[1]);
 free_rot0:
-	imx_media_free_dma_buf(priv->md, &priv->rot_buf[0]);
+	imx_media_free_dma_buf(ic_priv->ipu_dev, &priv->rot_buf[0]);
 	return ret;
 }
 
 static void prp_unsetup_rotation(struct prp_priv *priv)
 {
+	struct imx_ic_priv *ic_priv = priv->ic_priv;
+
 	ipu_ic_task_disable(priv->ic);
 
 	ipu_idmac_disable_channel(priv->out_ch);
@@ -561,8 +570,8 @@ static void prp_unsetup_rotation(struct prp_priv *priv)
 
 	ipu_ic_disable(priv->ic);
 
-	imx_media_free_dma_buf(priv->md, &priv->rot_buf[0]);
-	imx_media_free_dma_buf(priv->md, &priv->rot_buf[1]);
+	imx_media_free_dma_buf(ic_priv->ipu_dev, &priv->rot_buf[0]);
+	imx_media_free_dma_buf(ic_priv->ipu_dev, &priv->rot_buf[1]);
 }
 
 static int prp_setup_norotation(struct prp_priv *priv)
@@ -572,6 +581,7 @@ static int prp_setup_norotation(struct prp_priv *priv)
 	const struct imx_media_pixfmt *outcc, *incc;
 	struct v4l2_mbus_framefmt *infmt;
 	struct v4l2_pix_format *outfmt;
+	struct ipu_ic_csc csc;
 	dma_addr_t phys[2];
 	int ret;
 
@@ -580,10 +590,20 @@ static int prp_setup_norotation(struct prp_priv *priv)
 	incc = priv->cc[PRPENCVF_SINK_PAD];
 	outcc = vdev->cc;
 
-	ret = ipu_ic_task_init(priv->ic,
+	ret = ipu_ic_calc_csc(&csc,
+			      infmt->ycbcr_enc, infmt->quantization,
+			      incc->cs,
+			      outfmt->ycbcr_enc, outfmt->quantization,
+			      outcc->cs);
+	if (ret) {
+		v4l2_err(&ic_priv->sd, "ipu_ic_calc_csc failed, %d\n",
+			 ret);
+		return ret;
+	}
+
+	ret = ipu_ic_task_init(priv->ic, &csc,
 			       infmt->width, infmt->height,
-			       outfmt->width, outfmt->height,
-			       incc->cs, outcc->cs);
+			       outfmt->width, outfmt->height);
 	if (ret) {
 		v4l2_err(&ic_priv->sd, "ipu_ic_task_init failed, %d\n", ret);
 		return ret;
@@ -602,7 +622,7 @@ static int prp_setup_norotation(struct prp_priv *priv)
 
 	ipu_cpmem_dump(priv->out_ch);
 	ipu_ic_dump(priv->ic);
-	ipu_dump(priv->ipu);
+	ipu_dump(ic_priv->ipu);
 
 	ipu_ic_enable(priv->ic);
 
@@ -654,7 +674,7 @@ static int prp_start(struct prp_priv *priv)
 
 	outfmt = &vdev->fmt.fmt.pix;
 
-	ret = imx_media_alloc_dma_buf(priv->md, &priv->underrun_buf,
+	ret = imx_media_alloc_dma_buf(ic_priv->ipu_dev, &priv->underrun_buf,
 				      outfmt->sizeimage);
 	if (ret)
 		goto out_put_ipu;
@@ -674,10 +694,10 @@ static int prp_start(struct prp_priv *priv)
 	if (ret)
 		goto out_free_underrun;
 
-	priv->nfb4eof_irq = ipu_idmac_channel_irq(priv->ipu,
+	priv->nfb4eof_irq = ipu_idmac_channel_irq(ic_priv->ipu,
 						  priv->out_ch,
 						  IPU_IRQ_NFB4EOF);
-	ret = devm_request_irq(ic_priv->dev, priv->nfb4eof_irq,
+	ret = devm_request_irq(ic_priv->ipu_dev, priv->nfb4eof_irq,
 			       prp_nfb4eof_interrupt, 0,
 			       "imx-ic-prp-nfb4eof", priv);
 	if (ret) {
@@ -688,12 +708,12 @@ static int prp_start(struct prp_priv *priv)
 
 	if (ipu_rot_mode_is_irt(priv->rot_mode))
 		priv->eof_irq = ipu_idmac_channel_irq(
-			priv->ipu, priv->rot_out_ch, IPU_IRQ_EOF);
+			ic_priv->ipu, priv->rot_out_ch, IPU_IRQ_EOF);
 	else
 		priv->eof_irq = ipu_idmac_channel_irq(
-			priv->ipu, priv->out_ch, IPU_IRQ_EOF);
+			ic_priv->ipu, priv->out_ch, IPU_IRQ_EOF);
 
-	ret = devm_request_irq(ic_priv->dev, priv->eof_irq,
+	ret = devm_request_irq(ic_priv->ipu_dev, priv->eof_irq,
 			       prp_eof_interrupt, 0,
 			       "imx-ic-prp-eof", priv);
 	if (ret) {
@@ -718,13 +738,13 @@ static int prp_start(struct prp_priv *priv)
 	return 0;
 
 out_free_eof_irq:
-	devm_free_irq(ic_priv->dev, priv->eof_irq, priv);
+	devm_free_irq(ic_priv->ipu_dev, priv->eof_irq, priv);
 out_free_nfb4eof_irq:
-	devm_free_irq(ic_priv->dev, priv->nfb4eof_irq, priv);
+	devm_free_irq(ic_priv->ipu_dev, priv->nfb4eof_irq, priv);
 out_unsetup:
 	prp_unsetup(priv, VB2_BUF_STATE_QUEUED);
 out_free_underrun:
-	imx_media_free_dma_buf(priv->md, &priv->underrun_buf);
+	imx_media_free_dma_buf(ic_priv->ipu_dev, &priv->underrun_buf);
 out_put_ipu:
 	prp_put_ipu_resources(priv);
 	return ret;
@@ -756,12 +776,12 @@ static void prp_stop(struct prp_priv *priv)
 		v4l2_warn(&ic_priv->sd,
 			  "upstream stream off failed: %d\n", ret);
 
-	devm_free_irq(ic_priv->dev, priv->eof_irq, priv);
-	devm_free_irq(ic_priv->dev, priv->nfb4eof_irq, priv);
+	devm_free_irq(ic_priv->ipu_dev, priv->eof_irq, priv);
+	devm_free_irq(ic_priv->ipu_dev, priv->nfb4eof_irq, priv);
 
 	prp_unsetup(priv, VB2_BUF_STATE_ERROR);
 
-	imx_media_free_dma_buf(priv->md, &priv->underrun_buf);
+	imx_media_free_dma_buf(ic_priv->ipu_dev, &priv->underrun_buf);
 
 	/* cancel the EOF timeout timer */
 	del_timer_sync(&priv->eof_timeout_timer);
@@ -885,8 +905,6 @@ static void prp_try_fmt(struct prp_priv *priv,
 		/* propagate colorimetry from sink */
 		sdformat->format.colorspace = infmt->colorspace;
 		sdformat->format.xfer_func = infmt->xfer_func;
-		sdformat->format.quantization = infmt->quantization;
-		sdformat->format.ycbcr_enc = infmt->ycbcr_enc;
 	} else {
 		v4l_bound_align_image(&sdformat->format.width,
 				      MIN_W_SINK, MAX_W_SINK, W_ALIGN_SINK,
@@ -894,9 +912,11 @@ static void prp_try_fmt(struct prp_priv *priv,
 				      MIN_H_SINK, MAX_H_SINK, H_ALIGN_SINK,
 				      S_ALIGN);
 
-		imx_media_fill_default_mbus_fields(&sdformat->format, infmt,
-						   true);
+		if (sdformat->format.field == V4L2_FIELD_ANY)
+			sdformat->format.field = V4L2_FIELD_NONE;
 	}
+
+	imx_media_try_colorimetry(&sdformat->format, true);
 }
 
 static int prp_set_fmt(struct v4l2_subdev *sd,
@@ -904,11 +924,8 @@ static int prp_set_fmt(struct v4l2_subdev *sd,
 		       struct v4l2_subdev_format *sdformat)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
-	struct imx_media_video_dev *vdev = priv->vdev;
 	const struct imx_media_pixfmt *cc;
-	struct v4l2_pix_format vdev_fmt;
 	struct v4l2_mbus_framefmt *fmt;
-	struct v4l2_rect vdev_compose;
 	int ret = 0;
 
 	if (sdformat->pad >= PRPENCVF_NUM_PADS)
@@ -944,19 +961,9 @@ static int prp_set_fmt(struct v4l2_subdev *sd,
 			priv->cc[PRPENCVF_SRC_PAD] = outcc;
 	}
 
-	if (sdformat->which == V4L2_SUBDEV_FORMAT_TRY)
-		goto out;
+	if (sdformat->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+		priv->cc[sdformat->pad] = cc;
 
-	priv->cc[sdformat->pad] = cc;
-
-	/* propagate output pad format to capture device */
-	imx_media_mbus_fmt_to_pix_fmt(&vdev_fmt, &vdev_compose,
-				      &priv->format_mbus[PRPENCVF_SRC_PAD],
-				      priv->cc[PRPENCVF_SRC_PAD]);
-	mutex_unlock(&priv->lock);
-	imx_media_capture_device_set_format(vdev, &vdev_fmt, &vdev_compose);
-
-	return 0;
 out:
 	mutex_unlock(&priv->lock);
 	return ret;
@@ -1011,8 +1018,8 @@ static int prp_link_setup(struct media_entity *entity,
 	struct v4l2_subdev *remote_sd;
 	int ret = 0;
 
-	dev_dbg(ic_priv->dev, "link setup %s -> %s", remote->entity->name,
-		local->entity->name);
+	dev_dbg(ic_priv->ipu_dev, "%s: link setup %s -> %s",
+		ic_priv->sd.name, remote->entity->name, local->entity->name);
 
 	mutex_lock(&priv->lock);
 
@@ -1178,7 +1185,8 @@ static int prp_s_stream(struct v4l2_subdev *sd, int enable)
 	if (priv->stream_count != !enable)
 		goto update_count;
 
-	dev_dbg(ic_priv->dev, "stream %s\n", enable ? "ON" : "OFF");
+	dev_dbg(ic_priv->ipu_dev, "%s: stream %s\n", sd->name,
+		enable ? "ON" : "OFF");
 
 	if (enable)
 		ret = prp_start(priv);
@@ -1241,9 +1249,6 @@ static int prp_registered(struct v4l2_subdev *sd)
 	int i, ret;
 	u32 code;
 
-	/* get media device */
-	priv->md = dev_get_drvdata(sd->v4l2_dev->dev);
-
 	for (i = 0; i < PRPENCVF_NUM_PADS; i++) {
 		priv->pad[i].flags = (i == PRPENCVF_SINK_PAD) ?
 			MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
@@ -1266,13 +1271,9 @@ static int prp_registered(struct v4l2_subdev *sd)
 	if (ret)
 		return ret;
 
-	ret = imx_media_capture_device_register(priv->md, priv->vdev);
+	ret = imx_media_capture_device_register(priv->vdev);
 	if (ret)
 		return ret;
-
-	ret = imx_media_add_video_device(priv->md, priv->vdev);
-	if (ret)
-		goto unreg;
 
 	ret = prp_init_controls(priv);
 	if (ret)
@@ -1325,7 +1326,7 @@ static int prp_init(struct imx_ic_priv *ic_priv)
 {
 	struct prp_priv *priv;
 
-	priv = devm_kzalloc(ic_priv->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(ic_priv->ipu_dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1335,7 +1336,8 @@ static int prp_init(struct imx_ic_priv *ic_priv)
 	spin_lock_init(&priv->irqlock);
 	timer_setup(&priv->eof_timeout_timer, prp_eof_timeout, 0);
 
-	priv->vdev = imx_media_capture_device_init(&ic_priv->sd,
+	priv->vdev = imx_media_capture_device_init(ic_priv->ipu_dev,
+						   &ic_priv->sd,
 						   PRPENCVF_SRC_PAD);
 	if (IS_ERR(priv->vdev))
 		return PTR_ERR(priv->vdev);

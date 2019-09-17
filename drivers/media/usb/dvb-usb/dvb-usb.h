@@ -129,6 +129,9 @@ struct usb_data_stream_properties {
  * @frontend_ctrl: called to power on/off active frontend.
  * @streaming_ctrl: called to start and stop the MPEG2-TS streaming of the
  *  device (not URB submitting/killing).
+ *  This callback will be called without data URBs being active - data URBs
+ *  will be submitted only after streaming_ctrl(1) returns successfully and
+ *  they will be killed before streaming_ctrl(0) gets called.
  * @pid_filter_ctrl: called to en/disable the PID filter, if any.
  * @pid_filter: called to set/unset a PID for filtering.
  * @frontend_attach: called to attach the possible frontends (fill fe-field
@@ -234,6 +237,11 @@ enum dvb_usb_mode {
  *
  * @size_of_priv: how many bytes shall be allocated for the private field
  *  of struct dvb_usb_device.
+ * @priv_init: optional callback to initialize the variable that private field
+ * of struct dvb_usb_device has pointer to just after it had been allocated and
+ * zeroed.
+ * @priv_destroy: just like priv_init, only called before deallocating
+ * the memory pointed by private field of struct dvb_usb_device.
  *
  * @power_ctrl: called to enable/disable power of the device.
  * @read_mac_address: called to read the MAC address of the device.
@@ -275,6 +283,8 @@ struct dvb_usb_device_properties {
 	int        no_reconnect;
 
 	int size_of_priv;
+	int (*priv_init)(struct dvb_usb_device *);
+	void (*priv_destroy)(struct dvb_usb_device *);
 
 	int num_adapters;
 	struct dvb_usb_adapter_properties adapter[MAX_NO_OF_ADAPTER_PER_DEVICE];

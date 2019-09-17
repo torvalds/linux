@@ -539,16 +539,14 @@ static void bL_switcher_trace_trigger_cpu(void *__always_unused info)
 
 int bL_switcher_trace_trigger(void)
 {
-	int ret;
-
 	preempt_disable();
 
 	bL_switcher_trace_trigger_cpu(NULL);
-	ret = smp_call_function(bL_switcher_trace_trigger_cpu, NULL, true);
+	smp_call_function(bL_switcher_trace_trigger_cpu, NULL, true);
 
 	preempt_enable();
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(bL_switcher_trace_trigger);
 

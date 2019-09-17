@@ -4097,9 +4097,9 @@ lpfc_topology_store(struct device *dev, struct device_attribute *attr,
 		}
 		if ((phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC ||
 		     phba->pcidev->device == PCI_DEVICE_ID_LANCER_G7_FC) &&
-		    val != FLAGS_TOPOLOGY_MODE_PT_PT) {
+		    val == 4) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				"3114 Only non-FC-AL mode is supported\n");
+				"3114 Loop mode not supported\n");
 			return -EINVAL;
 		}
 		phba->cfg_topology = val;
@@ -4959,6 +4959,64 @@ static DEVICE_ATTR(lpfc_req_fw_upgrade, S_IRUGO | S_IWUSR,
 		   lpfc_request_firmware_upgrade_store);
 
 /**
+ * lpfc_force_rscn_store
+ *
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: unused string
+ * @count: unused variable.
+ *
+ * Description:
+ * Force the switch to send a RSCN to all other NPorts in our zone
+ * If we are direct connect pt2pt, build the RSCN command ourself
+ * and send to the other NPort. Not supported for private loop.
+ *
+ * Returns:
+ * 0      - on success
+ * -EIO   - if command is not sent
+ **/
+static ssize_t
+lpfc_force_rscn_store(struct device *dev, struct device_attribute *attr,
+		      const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+	int i;
+
+	i = lpfc_issue_els_rscn(vport, 0);
+	if (i)
+		return -EIO;
+	return strlen(buf);
+}
+
+/*
+ * lpfc_force_rscn: Force an RSCN to be sent to all remote NPorts
+ * connected to  the HBA.
+ *
+ * Value range is any ascii value
+ */
+static int lpfc_force_rscn;
+module_param(lpfc_force_rscn, int, 0644);
+MODULE_PARM_DESC(lpfc_force_rscn,
+		 "Force an RSCN to be sent to all remote NPorts");
+lpfc_param_show(force_rscn)
+
+/**
+ * lpfc_force_rscn_init - Force an RSCN to be sent to all remote NPorts
+ * @phba: lpfc_hba pointer.
+ * @val: unused value.
+ *
+ * Returns:
+ * zero if val saved.
+ **/
+static int
+lpfc_force_rscn_init(struct lpfc_hba *phba, int val)
+{
+	return 0;
+}
+static DEVICE_ATTR_RW(lpfc_force_rscn);
+
+/**
  * lpfc_fcp_imax_store
  *
  * @dev: class device that is converted into a Scsi_host.
@@ -5122,7 +5180,8 @@ lpfc_cq_max_proc_limit_store(struct device *dev, struct device_attribute *attr,
 
 	/* set the values on the cq's */
 	for (i = 0; i < phba->cfg_irq_chann; i++) {
-		eq = phba->sli4_hba.hdwq[i].hba_eq;
+		/* Get the EQ corresponding to the IRQ vector */
+		eq = phba->sli4_hba.hba_eq_hdl[i].eq;
 		if (!eq)
 			continue;
 
@@ -5243,35 +5302,44 @@ lpfc_fcp_cpu_map_show(struct device *dev, struct device_attribute *attr,
 				len += scnprintf(
 					buf + len, PAGE_SIZE - len,
 					"CPU %02d hdwq None "
-					"physid %d coreid %d ht %d\n",
+					"physid %d coreid %d ht %d ua %d\n",
 					phba->sli4_hba.curr_disp_cpu,
-					cpup->phys_id,
-					cpup->core_id, cpup->hyper);
+					cpup->phys_id, cpup->core_id,
+					(cpup->flag & LPFC_CPU_MAP_HYPER),
+					(cpup->flag & LPFC_CPU_MAP_UNASSIGN));
 			else
 				len += scnprintf(
 					buf + len, PAGE_SIZE - len,
 					"CPU %02d EQ %04d hdwq %04d "
-					"physid %d coreid %d ht %d\n",
+					"physid %d coreid %d ht %d ua %d\n",
 					phba->sli4_hba.curr_disp_cpu,
 					cpup->eq, cpup->hdwq, cpup->phys_id,
-					cpup->core_id, cpup->hyper);
+					cpup->core_id,
+					(cpup->flag & LPFC_CPU_MAP_HYPER),
+					(cpup->flag & LPFC_CPU_MAP_UNASSIGN));
 		} else {
 			if (cpup->hdwq == LPFC_VECTOR_MAP_EMPTY)
 				len += scnprintf(
 					buf + len, PAGE_SIZE - len,
 					"CPU %02d hdwq None "
-					"physid %d coreid %d ht %d IRQ %d\n",
+					"physid %d coreid %d ht %d ua %d IRQ %d\n",
 					phba->sli4_hba.curr_disp_cpu,
 					cpup->phys_id,
-					cpup->core_id, cpup->hyper, cpup->irq);
+					cpup->core_id,
+					(cpup->flag & LPFC_CPU_MAP_HYPER),
+					(cpup->flag & LPFC_CPU_MAP_UNASSIGN),
+					cpup->irq);
 			else
 				len += scnprintf(
 					buf + len, PAGE_SIZE - len,
 					"CPU %02d EQ %04d hdwq %04d "
-					"physid %d coreid %d ht %d IRQ %d\n",
+					"physid %d coreid %d ht %d ua %d IRQ %d\n",
 					phba->sli4_hba.curr_disp_cpu,
 					cpup->eq, cpup->hdwq, cpup->phys_id,
-					cpup->core_id, cpup->hyper, cpup->irq);
+					cpup->core_id,
+					(cpup->flag & LPFC_CPU_MAP_HYPER),
+					(cpup->flag & LPFC_CPU_MAP_UNASSIGN),
+					cpup->irq);
 		}
 
 		phba->sli4_hba.curr_disp_cpu++;
@@ -5641,6 +5709,19 @@ LPFC_ATTR_RW(nvme_embed_cmd, 1, 0, 2,
 	     "Embed NVME Command in WQE");
 
 /*
+ * lpfc_fcp_mq_threshold: Set the maximum number of Hardware Queues
+ * the driver will advertise it supports to the SCSI layer.
+ *
+ *      0    = Set nr_hw_queues by the number of CPUs or HW queues.
+ *      1,128 = Manually specify the maximum nr_hw_queue value to be set,
+ *
+ * Value range is [0,256]. Default value is 8.
+ */
+LPFC_ATTR_R(fcp_mq_threshold, LPFC_FCP_MQ_THRESHOLD_DEF,
+	    LPFC_FCP_MQ_THRESHOLD_MIN, LPFC_FCP_MQ_THRESHOLD_MAX,
+	    "Set the number of SCSI Queues advertised");
+
+/*
  * lpfc_hdw_queue: Set the number of Hardware Queues the driver
  * will advertise it supports to the NVME and  SCSI layers. This also
  * will map to the number of CQ/WQ pairs the driver will create.
@@ -5958,9 +6039,11 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_nvme_oas,
 	&dev_attr_lpfc_nvme_embed_cmd,
 	&dev_attr_lpfc_fcp_imax,
+	&dev_attr_lpfc_force_rscn,
 	&dev_attr_lpfc_cq_poll_threshold,
 	&dev_attr_lpfc_cq_max_proc_limit,
 	&dev_attr_lpfc_fcp_cpu_map,
+	&dev_attr_lpfc_fcp_mq_threshold,
 	&dev_attr_lpfc_hdw_queue,
 	&dev_attr_lpfc_irq_chann,
 	&dev_attr_lpfc_suppress_rsp,
@@ -7005,6 +7088,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_nvme_oas_init(phba, lpfc_nvme_oas);
 	lpfc_nvme_embed_cmd_init(phba, lpfc_nvme_embed_cmd);
 	lpfc_fcp_imax_init(phba, lpfc_fcp_imax);
+	lpfc_force_rscn_init(phba, lpfc_force_rscn);
 	lpfc_cq_poll_threshold_init(phba, lpfc_cq_poll_threshold);
 	lpfc_cq_max_proc_limit_init(phba, lpfc_cq_max_proc_limit);
 	lpfc_fcp_cpu_map_init(phba, lpfc_fcp_cpu_map);
@@ -7042,6 +7126,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	/* Initialize first burst. Target vs Initiator are different. */
 	lpfc_nvme_enable_fb_init(phba, lpfc_nvme_enable_fb);
 	lpfc_nvmet_fb_size_init(phba, lpfc_nvmet_fb_size);
+	lpfc_fcp_mq_threshold_init(phba, lpfc_fcp_mq_threshold);
 	lpfc_hdw_queue_init(phba, lpfc_hdw_queue);
 	lpfc_irq_chann_init(phba, lpfc_irq_chann);
 	lpfc_enable_bbcr_init(phba, lpfc_enable_bbcr);

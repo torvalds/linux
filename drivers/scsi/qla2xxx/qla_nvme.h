@@ -34,10 +34,10 @@ struct nvme_private {
 	struct work_struct ls_work;
 	struct work_struct abort_work;
 	int comp_status;
+	spinlock_t cmd_lock;
 };
 
 struct qla_nvme_rport {
-	struct list_head list;
 	struct fc_port *fcport;
 };
 

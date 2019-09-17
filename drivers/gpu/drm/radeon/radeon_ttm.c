@@ -29,19 +29,27 @@
  *    Thomas Hellstrom <thomas-at-tungstengraphics-dot-com>
  *    Dave Airlie
  */
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
-#include <drm/ttm/ttm_module.h>
-#include <drm/ttm/ttm_page_alloc.h>
-#include <drm/drmP.h>
-#include <drm/radeon_drm.h>
+
+#include <linux/dma-mapping.h>
+#include <linux/pagemap.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <linux/swiotlb.h>
 #include <linux/swap.h>
-#include <linux/pagemap.h>
-#include <linux/debugfs.h>
+#include <linux/swiotlb.h>
+
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_prime.h>
+#include <drm/radeon_drm.h>
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_page_alloc.h>
+#include <drm/ttm/ttm_placement.h>
+
 #include "radeon_reg.h"
 #include "radeon.h"
 
@@ -1056,19 +1064,14 @@ static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 	unsigned count;
 
 	struct drm_minor *minor = rdev->ddev->primary;
-	struct dentry *ent, *root = minor->debugfs_root;
+	struct dentry *root = minor->debugfs_root;
 
-	ent = debugfs_create_file("radeon_vram", S_IFREG | S_IRUGO, root,
-				  rdev, &radeon_ttm_vram_fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
-	rdev->mman.vram = ent;
+	rdev->mman.vram = debugfs_create_file("radeon_vram", S_IFREG | S_IRUGO,
+					      root, rdev,
+					      &radeon_ttm_vram_fops);
 
-	ent = debugfs_create_file("radeon_gtt", S_IFREG | S_IRUGO, root,
-				  rdev, &radeon_ttm_gtt_fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
-	rdev->mman.gtt = ent;
+	rdev->mman.gtt = debugfs_create_file("radeon_gtt", S_IFREG | S_IRUGO,
+					     root, rdev, &radeon_ttm_gtt_fops);
 
 	count = ARRAY_SIZE(radeon_ttm_debugfs_list);
 

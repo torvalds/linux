@@ -12,6 +12,7 @@ Optional properties:
                    (active high shutdown input)
  - reset-gpios: OF device-tree gpio specification for RSTX pin
                 (active low system reset)
+ - toshiba,hpd-pin: TC358767 GPIO pin number to which HPD is connected to (0 or 1)
  - ports: the ports node can contain video interface port nodes to connect
    to a DPI/DSI source and to an eDP/DP sink according to [1][2]:
     - port@0: DSI input port

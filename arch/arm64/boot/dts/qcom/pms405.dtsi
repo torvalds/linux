@@ -98,7 +98,7 @@
 				qcom,pre-scaling = <1 1>;
 			};
 
-			vph_pwr {
+			pon_1: vph_pwr {
 				reg = <ADC5_VPH_PWR>;
 				qcom,pre-scaling = <1 3>;
 			};
@@ -108,18 +108,24 @@
 				qcom,pre-scaling = <1 1>;
 			};
 
-			xo_therm_100k_pu {
-				reg = <ADC5_XO_THERM_100K_PU>;
-				qcom,pre-scaling = <1 1>;
-			};
-
-			amux_thm1_100k_pu {
+			pa_therm1: thermistor1 {
 				reg = <ADC5_AMUX_THM1_100K_PU>;
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
 				qcom,pre-scaling = <1 1>;
 			};
 
-			amux_thm3_100k_pu {
+			pa_therm3: thermistor3 {
 				reg = <ADC5_AMUX_THM3_100K_PU>;
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,pre-scaling = <1 1>;
+			};
+
+			xo_therm: xo_temp {
+				reg = <ADC5_XO_THERM_100K_PU>;
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
 				qcom,pre-scaling = <1 1>;
 			};
 		};

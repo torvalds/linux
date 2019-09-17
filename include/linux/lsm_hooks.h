@@ -77,7 +77,7 @@
  *	state.  This is called immediately after commit_creds().
  *
  * Security hooks for mount using fs_context.
- *	[See also Documentation/filesystems/mounting.txt]
+ *	[See also Documentation/filesystems/mount_api.txt]
  *
  * @fs_context_dup:
  *	Allocate and attach a security structure to sc->security.  This pointer

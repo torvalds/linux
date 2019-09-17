@@ -6,6 +6,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "arch-tests.h"
+#include "util.h"
 
 #include <signal.h>
 #include <sys/mman.h>

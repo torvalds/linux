@@ -320,10 +320,8 @@ static int mtk_ir_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ir->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(ir->base)) {
-		dev_err(dev, "failed to map registers\n");
+	if (IS_ERR(ir->base))
 		return PTR_ERR(ir->base);
-	}
 
 	ir->rc = devm_rc_allocate_device(dev, RC_DRIVER_IR_RAW);
 	if (!ir->rc) {

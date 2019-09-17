@@ -8,7 +8,6 @@
  *			   & Marcus Metzler (mocm@thp.uni-koeln.de)
  * (c) 2002 Yurij Sysoev <yurij@naturesoft.net>
  * (c) 1999-2003 Gerd Knorr <kraxel@bytesex.org>
- *
  * (c) 2005 Mauro Carvalho Chehab <mchehab@kernel.org>
  *	- Multituner support and i2c address binding
  */

@@ -48,10 +48,12 @@ void mlx5_port_query_eth_autoneg(struct mlx5_core_dev *dev, u8 *an_status,
 				 u8 *an_disable_cap, u8 *an_disable_admin);
 int mlx5_port_set_eth_ptys(struct mlx5_core_dev *dev, bool an_disable,
 			   u32 proto_admin, bool ext);
-u32 mlx5e_port_ptys2speed(struct mlx5_core_dev *mdev, u32 eth_proto_oper);
+u32 mlx5e_port_ptys2speed(struct mlx5_core_dev *mdev, u32 eth_proto_oper,
+			  bool force_legacy);
 int mlx5e_port_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);
 int mlx5e_port_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);
-u32 mlx5e_port_speed2linkmodes(struct mlx5_core_dev *mdev, u32 speed);
+u32 mlx5e_port_speed2linkmodes(struct mlx5_core_dev *mdev, u32 speed,
+			       bool force_legacy);
 
 int mlx5e_port_query_pbmc(struct mlx5_core_dev *mdev, void *out);
 int mlx5e_port_set_pbmc(struct mlx5_core_dev *mdev, void *in);

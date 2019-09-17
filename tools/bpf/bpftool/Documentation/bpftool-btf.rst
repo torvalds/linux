@@ -19,10 +19,11 @@ SYNOPSIS
 BTF COMMANDS
 =============
 
-|	**bpftool** **btf dump** *BTF_SRC*
+|	**bpftool** **btf dump** *BTF_SRC* [**format** *FORMAT*]
 |	**bpftool** **btf help**
 |
 |	*BTF_SRC* := { **id** *BTF_ID* | **prog** *PROG* | **map** *MAP* [{**key** | **value** | **kv** | **all**}] | **file** *FILE* }
+|	*FORMAT* := { **raw** | **c** }
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
 |	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
 
@@ -31,23 +32,27 @@ DESCRIPTION
 	**bpftool btf dump** *BTF_SRC*
 		  Dump BTF entries from a given *BTF_SRC*.
 
-                  When **id** is specified, BTF object with that ID will be
-                  loaded and all its BTF types emitted.
+		  When **id** is specified, BTF object with that ID will be
+		  loaded and all its BTF types emitted.
 
-                  When **map** is provided, it's expected that map has
-                  associated BTF object with BTF types describing key and
-                  value. It's possible to select whether to dump only BTF
-                  type(s) associated with key (**key**), value (**value**),
-                  both key and value (**kv**), or all BTF types present in
-                  associated BTF object (**all**). If not specified, **kv**
-                  is assumed.
+		  When **map** is provided, it's expected that map has
+		  associated BTF object with BTF types describing key and
+		  value. It's possible to select whether to dump only BTF
+		  type(s) associated with key (**key**), value (**value**),
+		  both key and value (**kv**), or all BTF types present in
+		  associated BTF object (**all**). If not specified, **kv**
+		  is assumed.
 
-                  When **prog** is provided, it's expected that program has
-                  associated BTF object with BTF types.
+		  When **prog** is provided, it's expected that program has
+		  associated BTF object with BTF types.
 
-                  When specifying *FILE*, an ELF file is expected, containing
-                  .BTF section with well-defined BTF binary format data,
-                  typically produced by clang or pahole.
+		  When specifying *FILE*, an ELF file is expected, containing
+		  .BTF section with well-defined BTF binary format data,
+		  typically produced by clang or pahole.
+
+		  **format** option can be used to override default (raw)
+		  output format. Raw (**raw**) or C-syntax (**c**) output
+		  formats are supported.
 
 	**bpftool btf help**
 		  Print short help message.
@@ -66,6 +71,10 @@ OPTIONS
 
 	-p, --pretty
 		  Generate human-readable JSON output. Implies **-j**.
+
+	-d, --debug
+		  Print all logs available from libbpf, including debug-level
+		  information.
 
 EXAMPLES
 ========

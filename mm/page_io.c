@@ -163,7 +163,7 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 	blocks_per_page = PAGE_SIZE >> blkbits;
 
 	/*
-	 * Map all the blocks into the extent list.  This code doesn't try
+	 * Map all the blocks into the extent tree.  This code doesn't try
 	 * to be very smart.
 	 */
 	probe_block = 0;

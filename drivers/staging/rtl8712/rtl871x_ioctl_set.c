@@ -66,7 +66,7 @@ static u8 do_join(struct _adapter *padapter)
 	}
 
 	ret = r8712_select_and_join_from_scan(pmlmepriv);
-	if (ret == _SUCCESS) {
+	if (!ret) {
 		mod_timer(&pmlmepriv->assoc_timer,
 			  jiffies + msecs_to_jiffies(MAX_JOIN_TIMEOUT));
 	} else {
@@ -84,7 +84,7 @@ static u8 do_join(struct _adapter *padapter)
 			       sizeof(struct ndis_802_11_ssid));
 			r8712_update_registrypriv_dev_network(padapter);
 			r8712_generate_random_ibss(pibss);
-			if (r8712_createbss_cmd(padapter) != _SUCCESS)
+			if (r8712_createbss_cmd(padapter))
 				return false;
 			pmlmepriv->to_join = false;
 		} else {

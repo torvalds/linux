@@ -80,17 +80,6 @@ static void put_fb_info(struct fb_info *fb_info)
 		fb_info->fbops->fb_destroy(fb_info);
 }
 
-int lock_fb_info(struct fb_info *info)
-{
-	mutex_lock(&info->lock);
-	if (!info->fbops) {
-		mutex_unlock(&info->lock);
-		return 0;
-	}
-	return 1;
-}
-EXPORT_SYMBOL(lock_fb_info);
-
 /*
  * Helpers
  */
@@ -943,16 +932,13 @@ EXPORT_SYMBOL(fb_pan_display);
 static int fb_check_caps(struct fb_info *info, struct fb_var_screeninfo *var,
 			 u32 activate)
 {
-	struct fb_event event;
 	struct fb_blit_caps caps, fbcaps;
 	int err = 0;
 
 	memset(&caps, 0, sizeof(caps));
 	memset(&fbcaps, 0, sizeof(fbcaps));
 	caps.flags = (activate & FB_ACTIVATE_ALL) ? 1 : 0;
-	event.info = info;
-	event.data = &caps;
-	fb_notifier_call_chain(FB_EVENT_GET_REQ, &event);
+	fbcon_get_requirement(info, &caps);
 	info->fbops->fb_get_caps(info, &fbcaps, var);
 
 	if (((fbcaps.x ^ caps.x) & caps.x) ||
@@ -968,6 +954,10 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 {
 	int flags = info->flags;
 	int ret = 0;
+	u32 activate;
+	struct fb_var_screeninfo old_var;
+	struct fb_videomode mode;
+	struct fb_event event;
 
 	if (var->activate & FB_ACTIVATE_INV_MODE) {
 		struct fb_videomode mode1, mode2;
@@ -977,100 +967,90 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 		/* make sure we don't delete the videomode of current var */
 		ret = fb_mode_is_equal(&mode1, &mode2);
 
-		if (!ret) {
-		    struct fb_event event;
-
-		    event.info = info;
-		    event.data = &mode1;
-		    ret = fb_notifier_call_chain(FB_EVENT_MODE_DELETE, &event);
-		}
+		if (!ret)
+			fbcon_mode_deleted(info, &mode1);
 
 		if (!ret)
-		    fb_delete_videomode(&mode1, &info->modelist);
+			fb_delete_videomode(&mode1, &info->modelist);
 
 
-		ret = (ret) ? -EINVAL : 0;
-		goto done;
+		return ret ? -EINVAL : 0;
 	}
 
-	if ((var->activate & FB_ACTIVATE_FORCE) ||
-	    memcmp(&info->var, var, sizeof(struct fb_var_screeninfo))) {
-		u32 activate = var->activate;
+	if (!(var->activate & FB_ACTIVATE_FORCE) &&
+	    !memcmp(&info->var, var, sizeof(struct fb_var_screeninfo)))
+		return 0;
 
-		/* When using FOURCC mode, make sure the red, green, blue and
-		 * transp fields are set to 0.
-		 */
-		if ((info->fix.capabilities & FB_CAP_FOURCC) &&
-		    var->grayscale > 1) {
-			if (var->red.offset     || var->green.offset    ||
-			    var->blue.offset    || var->transp.offset   ||
-			    var->red.length     || var->green.length    ||
-			    var->blue.length    || var->transp.length   ||
-			    var->red.msb_right  || var->green.msb_right ||
-			    var->blue.msb_right || var->transp.msb_right)
-				return -EINVAL;
-		}
+	activate = var->activate;
 
-		if (!info->fbops->fb_check_var) {
-			*var = info->var;
-			goto done;
-		}
+	/* When using FOURCC mode, make sure the red, green, blue and
+	 * transp fields are set to 0.
+	 */
+	if ((info->fix.capabilities & FB_CAP_FOURCC) &&
+	    var->grayscale > 1) {
+		if (var->red.offset     || var->green.offset    ||
+		    var->blue.offset    || var->transp.offset   ||
+		    var->red.length     || var->green.length    ||
+		    var->blue.length    || var->transp.length   ||
+		    var->red.msb_right  || var->green.msb_right ||
+		    var->blue.msb_right || var->transp.msb_right)
+			return -EINVAL;
+	}
 
-		ret = info->fbops->fb_check_var(var, info);
+	if (!info->fbops->fb_check_var) {
+		*var = info->var;
+		return 0;
+	}
+
+	ret = info->fbops->fb_check_var(var, info);
+
+	if (ret)
+		return ret;
+
+	if ((var->activate & FB_ACTIVATE_MASK) != FB_ACTIVATE_NOW)
+		return 0;
+
+	if (info->fbops->fb_get_caps) {
+		ret = fb_check_caps(info, var, activate);
 
 		if (ret)
-			goto done;
+			return ret;
+	}
 
-		if ((var->activate & FB_ACTIVATE_MASK) == FB_ACTIVATE_NOW) {
-			struct fb_var_screeninfo old_var;
-			struct fb_videomode mode;
+	old_var = info->var;
+	info->var = *var;
 
-			if (info->fbops->fb_get_caps) {
-				ret = fb_check_caps(info, var, activate);
+	if (info->fbops->fb_set_par) {
+		ret = info->fbops->fb_set_par(info);
 
-				if (ret)
-					goto done;
-			}
-
-			old_var = info->var;
-			info->var = *var;
-
-			if (info->fbops->fb_set_par) {
-				ret = info->fbops->fb_set_par(info);
-
-				if (ret) {
-					info->var = old_var;
-					printk(KERN_WARNING "detected "
-						"fb_set_par error, "
-						"error code: %d\n", ret);
-					goto done;
-				}
-			}
-
-			fb_pan_display(info, &info->var);
-			fb_set_cmap(&info->cmap, info);
-			fb_var_to_videomode(&mode, &info->var);
-
-			if (info->modelist.prev && info->modelist.next &&
-			    !list_empty(&info->modelist))
-				ret = fb_add_videomode(&mode, &info->modelist);
-
-			if (!ret && (flags & FBINFO_MISC_USEREVENT)) {
-				struct fb_event event;
-				int evnt = (activate & FB_ACTIVATE_ALL) ?
-					FB_EVENT_MODE_CHANGE_ALL :
-					FB_EVENT_MODE_CHANGE;
-
-				info->flags &= ~FBINFO_MISC_USEREVENT;
-				event.info = info;
-				event.data = &mode;
-				fb_notifier_call_chain(evnt, &event);
-			}
+		if (ret) {
+			info->var = old_var;
+			printk(KERN_WARNING "detected "
+				"fb_set_par error, "
+				"error code: %d\n", ret);
+			return ret;
 		}
 	}
 
- done:
-	return ret;
+	fb_pan_display(info, &info->var);
+	fb_set_cmap(&info->cmap, info);
+	fb_var_to_videomode(&mode, &info->var);
+
+	if (info->modelist.prev && info->modelist.next &&
+	    !list_empty(&info->modelist))
+		ret = fb_add_videomode(&mode, &info->modelist);
+
+	if (ret)
+		return ret;
+
+	event.info = info;
+	event.data = &mode;
+	fb_notifier_call_chain(FB_EVENT_MODE_CHANGE, &event);
+
+	if (flags & FBINFO_MISC_USEREVENT)
+		fbcon_update_vcs(info, activate & FB_ACTIVATE_ALL);
+
+	return 0;
 }
 EXPORT_SYMBOL(fb_set_var);
 
@@ -1112,17 +1092,14 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	struct fb_ops *fb;
 	struct fb_var_screeninfo var;
 	struct fb_fix_screeninfo fix;
-	struct fb_con2fbmap con2fb;
 	struct fb_cmap cmap_from;
 	struct fb_cmap_user cmap;
-	struct fb_event event;
 	void __user *argp = (void __user *)arg;
 	long ret = 0;
 
 	switch (cmd) {
 	case FBIOGET_VSCREENINFO:
-		if (!lock_fb_info(info))
-			return -ENODEV;
+		lock_fb_info(info);
 		var = info->var;
 		unlock_fb_info(info);
 
@@ -1132,10 +1109,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		if (copy_from_user(&var, argp, sizeof(var)))
 			return -EFAULT;
 		console_lock();
-		if (!lock_fb_info(info)) {
-			console_unlock();
-			return -ENODEV;
-		}
+		lock_fb_info(info);
 		info->flags |= FBINFO_MISC_USEREVENT;
 		ret = fb_set_var(info, &var);
 		info->flags &= ~FBINFO_MISC_USEREVENT;
@@ -1145,8 +1119,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			ret = -EFAULT;
 		break;
 	case FBIOGET_FSCREENINFO:
-		if (!lock_fb_info(info))
-			return -ENODEV;
+		lock_fb_info(info);
 		fix = info->fix;
 		if (info->flags & FBINFO_HIDE_SMEM_START)
 			fix.smem_start = 0;
@@ -1162,8 +1135,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	case FBIOGETCMAP:
 		if (copy_from_user(&cmap, argp, sizeof(cmap)))
 			return -EFAULT;
-		if (!lock_fb_info(info))
-			return -ENODEV;
+		lock_fb_info(info);
 		cmap_from = info->cmap;
 		unlock_fb_info(info);
 		ret = fb_cmap_to_user(&cmap_from, &cmap);
@@ -1172,10 +1144,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		if (copy_from_user(&var, argp, sizeof(var)))
 			return -EFAULT;
 		console_lock();
-		if (!lock_fb_info(info)) {
-			console_unlock();
-			return -ENODEV;
-		}
+		lock_fb_info(info);
 		ret = fb_pan_display(info, &var);
 		unlock_fb_info(info);
 		console_unlock();
@@ -1186,58 +1155,22 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		ret = -EINVAL;
 		break;
 	case FBIOGET_CON2FBMAP:
-		if (copy_from_user(&con2fb, argp, sizeof(con2fb)))
-			return -EFAULT;
-		if (con2fb.console < 1 || con2fb.console > MAX_NR_CONSOLES)
-			return -EINVAL;
-		con2fb.framebuffer = -1;
-		event.data = &con2fb;
-		if (!lock_fb_info(info))
-			return -ENODEV;
-		event.info = info;
-		fb_notifier_call_chain(FB_EVENT_GET_CONSOLE_MAP, &event);
-		unlock_fb_info(info);
-		ret = copy_to_user(argp, &con2fb, sizeof(con2fb)) ? -EFAULT : 0;
+		ret = fbcon_get_con2fb_map_ioctl(argp);
 		break;
 	case FBIOPUT_CON2FBMAP:
-		if (copy_from_user(&con2fb, argp, sizeof(con2fb)))
-			return -EFAULT;
-		if (con2fb.console < 1 || con2fb.console > MAX_NR_CONSOLES)
-			return -EINVAL;
-		if (con2fb.framebuffer >= FB_MAX)
-			return -EINVAL;
-		if (!registered_fb[con2fb.framebuffer])
-			request_module("fb%d", con2fb.framebuffer);
-		if (!registered_fb[con2fb.framebuffer]) {
-			ret = -EINVAL;
-			break;
-		}
-		event.data = &con2fb;
-		console_lock();
-		if (!lock_fb_info(info)) {
-			console_unlock();
-			return -ENODEV;
-		}
-		event.info = info;
-		ret = fb_notifier_call_chain(FB_EVENT_SET_CONSOLE_MAP, &event);
-		unlock_fb_info(info);
-		console_unlock();
+		ret = fbcon_set_con2fb_map_ioctl(argp);
 		break;
 	case FBIOBLANK:
 		console_lock();
-		if (!lock_fb_info(info)) {
-			console_unlock();
-			return -ENODEV;
-		}
-		info->flags |= FBINFO_MISC_USEREVENT;
+		lock_fb_info(info);
 		ret = fb_blank(info, arg);
-		info->flags &= ~FBINFO_MISC_USEREVENT;
+		/* might again call into fb_blank */
+		fbcon_fb_blanked(info, arg);
 		unlock_fb_info(info);
 		console_unlock();
 		break;
 	default:
-		if (!lock_fb_info(info))
-			return -ENODEV;
+		lock_fb_info(info);
 		fb = info->fbops;
 		if (fb->fb_ioctl)
 			ret = fb->fb_ioctl(info, cmd, arg);
@@ -1357,8 +1290,7 @@ static int fb_get_fscreeninfo(struct fb_info *info, unsigned int cmd,
 {
 	struct fb_fix_screeninfo fix;
 
-	if (!lock_fb_info(info))
-		return -ENODEV;
+	lock_fb_info(info);
 	fix = info->fix;
 	if (info->flags & FBINFO_HIDE_SMEM_START)
 		fix.smem_start = 0;
@@ -1418,8 +1350,6 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	if (!info)
 		return -ENODEV;
 	fb = info->fbops;
-	if (!fb)
-		return -ENODEV;
 	mutex_lock(&info->mm_lock);
 	if (fb->fb_mmap) {
 		int res;
@@ -1483,7 +1413,7 @@ __releases(&info->lock)
 	if (IS_ERR(info))
 		return PTR_ERR(info);
 
-	mutex_lock(&info->lock);
+	lock_fb_info(info);
 	if (!try_module_get(info->fbops->owner)) {
 		res = -ENODEV;
 		goto out;
@@ -1499,7 +1429,7 @@ __releases(&info->lock)
 		fb_deferred_io_open(info, inode, file);
 #endif
 out:
-	mutex_unlock(&info->lock);
+	unlock_fb_info(info);
 	if (res)
 		put_fb_info(info);
 	return res;
@@ -1512,11 +1442,11 @@ __releases(&info->lock)
 {
 	struct fb_info * const info = file->private_data;
 
-	mutex_lock(&info->lock);
+	lock_fb_info(info);
 	if (info->fbops->fb_release)
 		info->fbops->fb_release(info,1);
 	module_put(info->fbops->owner);
-	mutex_unlock(&info->lock);
+	unlock_fb_info(info);
 	put_fb_info(info);
 	return 0;
 }
@@ -1621,13 +1551,13 @@ static bool fb_do_apertures_overlap(struct apertures_struct *gena,
 	return false;
 }
 
-static int do_unregister_framebuffer(struct fb_info *fb_info);
+static void do_unregister_framebuffer(struct fb_info *fb_info);
 
 #define VGA_FB_PHYS 0xA0000
-static int do_remove_conflicting_framebuffers(struct apertures_struct *a,
-					      const char *name, bool primary)
+static void do_remove_conflicting_framebuffers(struct apertures_struct *a,
+					       const char *name, bool primary)
 {
-	int i, ret;
+	int i;
 
 	/* check all firmware fbs and kick off if the base addr overlaps */
 	for_each_registered_fb(i) {
@@ -1643,13 +1573,9 @@ static int do_remove_conflicting_framebuffers(struct apertures_struct *a,
 
 			printk(KERN_INFO "fb%d: switching to %s from %s\n",
 			       i, name, registered_fb[i]->fix.id);
-			ret = do_unregister_framebuffer(registered_fb[i]);
-			if (ret)
-				return ret;
+			do_unregister_framebuffer(registered_fb[i]);
 		}
 	}
-
-	return 0;
 }
 
 static bool lockless_register_fb;
@@ -1660,17 +1586,14 @@ MODULE_PARM_DESC(lockless_register_fb,
 static int do_register_framebuffer(struct fb_info *fb_info)
 {
 	int i, ret;
-	struct fb_event event;
 	struct fb_videomode mode;
 
 	if (fb_check_foreignness(fb_info))
 		return -ENOSYS;
 
-	ret = do_remove_conflicting_framebuffers(fb_info->apertures,
-						 fb_info->fix.id,
-						 fb_is_primary_device(fb_info));
-	if (ret)
-		return ret;
+	do_remove_conflicting_framebuffers(fb_info->apertures,
+					   fb_info->fix.id,
+					   fb_is_primary_device(fb_info));
 
 	if (num_registered_fb == FB_MAX)
 		return -ENXIO;
@@ -1723,20 +1646,22 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	fb_add_videomode(&mode, &fb_info->modelist);
 	registered_fb[i] = fb_info;
 
-	event.info = fb_info;
+#ifdef CONFIG_GUMSTIX_AM200EPD
+	{
+		struct fb_event event;
+		event.info = fb_info;
+		fb_notifier_call_chain(FB_EVENT_FB_REGISTERED, &event);
+	}
+#endif
+
 	if (!lockless_register_fb)
 		console_lock();
 	else
 		atomic_inc(&ignore_console_lock_warning);
-	if (!lock_fb_info(fb_info)) {
-		ret = -ENODEV;
-		goto unlock_console;
-	}
-	ret = 0;
-
-	fb_notifier_call_chain(FB_EVENT_FB_REGISTERED, &event);
+	lock_fb_info(fb_info);
+	ret = fbcon_fb_registered(fb_info);
 	unlock_fb_info(fb_info);
-unlock_console:
+
 	if (!lockless_register_fb)
 		console_unlock();
 	else
@@ -1744,44 +1669,44 @@ unlock_console:
 	return ret;
 }
 
-static int unbind_console(struct fb_info *fb_info)
+static void unbind_console(struct fb_info *fb_info)
 {
-	struct fb_event event;
-	int ret;
 	int i = fb_info->node;
 
-	if (i < 0 || i >= FB_MAX || registered_fb[i] != fb_info)
-		return -EINVAL;
+	if (WARN_ON(i < 0 || i >= FB_MAX || registered_fb[i] != fb_info))
+		return;
 
 	console_lock();
-	if (!lock_fb_info(fb_info)) {
-		console_unlock();
-		return -ENODEV;
-	}
-
-	event.info = fb_info;
-	ret = fb_notifier_call_chain(FB_EVENT_FB_UNBIND, &event);
+	lock_fb_info(fb_info);
+	fbcon_fb_unbind(fb_info);
 	unlock_fb_info(fb_info);
 	console_unlock();
-
-	return ret;
 }
 
-static int __unlink_framebuffer(struct fb_info *fb_info);
-
-static int do_unregister_framebuffer(struct fb_info *fb_info)
+void unlink_framebuffer(struct fb_info *fb_info)
 {
-	struct fb_event event;
-	int ret;
+	int i;
 
-	ret = unbind_console(fb_info);
+	i = fb_info->node;
+	if (WARN_ON(i < 0 || i >= FB_MAX || registered_fb[i] != fb_info))
+		return;
 
-	if (ret)
-		return -EINVAL;
+	if (!fb_info->dev)
+		return;
+
+	device_destroy(fb_class, MKDEV(FB_MAJOR, i));
 
 	pm_vt_switch_unregister(fb_info->dev);
 
-	__unlink_framebuffer(fb_info);
+	unbind_console(fb_info);
+
+	fb_info->dev = NULL;
+}
+EXPORT_SYMBOL(unlink_framebuffer);
+
+static void do_unregister_framebuffer(struct fb_info *fb_info)
+{
+	unlink_framebuffer(fb_info);
 	if (fb_info->pixmap.addr &&
 	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
 		kfree(fb_info->pixmap.addr);
@@ -1789,45 +1714,20 @@ static int do_unregister_framebuffer(struct fb_info *fb_info)
 	registered_fb[fb_info->node] = NULL;
 	num_registered_fb--;
 	fb_cleanup_device(fb_info);
-	event.info = fb_info;
+#ifdef CONFIG_GUMSTIX_AM200EPD
+	{
+		struct fb_event event;
+		event.info = fb_info;
+		fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
+	}
+#endif
 	console_lock();
-	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
+	fbcon_fb_unregistered(fb_info);
 	console_unlock();
 
 	/* this may free fb info */
 	put_fb_info(fb_info);
-	return 0;
 }
-
-static int __unlink_framebuffer(struct fb_info *fb_info)
-{
-	int i;
-
-	i = fb_info->node;
-	if (i < 0 || i >= FB_MAX || registered_fb[i] != fb_info)
-		return -EINVAL;
-
-	if (fb_info->dev) {
-		device_destroy(fb_class, MKDEV(FB_MAJOR, i));
-		fb_info->dev = NULL;
-	}
-
-	return 0;
-}
-
-int unlink_framebuffer(struct fb_info *fb_info)
-{
-	int ret;
-
-	ret = __unlink_framebuffer(fb_info);
-	if (ret)
-		return ret;
-
-	unbind_console(fb_info);
-
-	return 0;
-}
-EXPORT_SYMBOL(unlink_framebuffer);
 
 /**
  * remove_conflicting_framebuffers - remove firmware-configured framebuffers
@@ -1842,7 +1742,6 @@ EXPORT_SYMBOL(unlink_framebuffer);
 int remove_conflicting_framebuffers(struct apertures_struct *a,
 				    const char *name, bool primary)
 {
-	int ret;
 	bool do_free = false;
 
 	if (!a) {
@@ -1856,13 +1755,13 @@ int remove_conflicting_framebuffers(struct apertures_struct *a,
 	}
 
 	mutex_lock(&registration_lock);
-	ret = do_remove_conflicting_framebuffers(a, name, primary);
+	do_remove_conflicting_framebuffers(a, name, primary);
 	mutex_unlock(&registration_lock);
 
 	if (do_free)
 		kfree(a);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(remove_conflicting_framebuffers);
 
@@ -1959,16 +1858,12 @@ EXPORT_SYMBOL(register_framebuffer);
  *      that the driver implements fb_open() and fb_release() to
  *      check that no processes are using the device.
  */
-int
+void
 unregister_framebuffer(struct fb_info *fb_info)
 {
-	int ret;
-
 	mutex_lock(&registration_lock);
-	ret = do_unregister_framebuffer(fb_info);
+	do_unregister_framebuffer(fb_info);
 	mutex_unlock(&registration_lock);
-
-	return ret;
 }
 EXPORT_SYMBOL(unregister_framebuffer);
 
@@ -1983,15 +1878,14 @@ EXPORT_SYMBOL(unregister_framebuffer);
  */
 void fb_set_suspend(struct fb_info *info, int state)
 {
-	struct fb_event event;
+	WARN_CONSOLE_UNLOCKED();
 
-	event.info = info;
 	if (state) {
-		fb_notifier_call_chain(FB_EVENT_SUSPEND, &event);
+		fbcon_suspended(info);
 		info->state = FBINFO_STATE_SUSPENDED;
 	} else {
 		info->state = FBINFO_STATE_RUNNING;
-		fb_notifier_call_chain(FB_EVENT_RESUME, &event);
+		fbcon_resumed(info);
 	}
 }
 EXPORT_SYMBOL(fb_set_suspend);
@@ -2059,7 +1953,6 @@ subsys_initcall(fbmem_init);
 
 int fb_new_modelist(struct fb_info *info)
 {
-	struct fb_event event;
 	struct fb_var_screeninfo var = info->var;
 	struct list_head *pos, *n;
 	struct fb_modelist *modelist;
@@ -2079,14 +1972,12 @@ int fb_new_modelist(struct fb_info *info)
 		}
 	}
 
-	err = 1;
+	if (list_empty(&info->modelist))
+		return 1;
 
-	if (!list_empty(&info->modelist)) {
-		event.info = info;
-		err = fb_notifier_call_chain(FB_EVENT_NEW_MODELIST, &event);
-	}
+	fbcon_new_modelist(info);
 
-	return err;
+	return 0;
 }
 
 MODULE_LICENSE("GPL");

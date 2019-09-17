@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * The file intends to implement the platform dependent EEH operations on
- * powernv platform. Actually, the powernv was created in order to fully
- * hypervisor support.
+ * PowerNV Platform dependent EEH operations
  *
  * Copyright Benjamin Herrenschmidt & Gavin Shan, IBM Corporation 2013.
  */

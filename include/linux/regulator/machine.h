@@ -153,7 +153,7 @@ struct regulation_constraints {
 	int system_load;
 
 	/* used for coupled regulators */
-	int max_spread;
+	u32 *max_spread;
 
 	/* used for changing voltage in steps */
 	int max_uV_step;

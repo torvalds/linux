@@ -869,8 +869,6 @@ static void lg_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id lg_devices[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER),
-		.driver_data = LG_RDESC | LG_WIRELESS },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER),
 		.driver_data = LG_RDESC | LG_WIRELESS },
 

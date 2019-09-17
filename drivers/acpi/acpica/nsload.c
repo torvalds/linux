@@ -109,18 +109,6 @@ unlock:
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "**** Completed Table Object Initialization\n"));
 
-	/*
-	 * This case handles the legacy option that groups all module-level
-	 * code blocks together and defers execution until all of the tables
-	 * are loaded. Execute all of these blocks at this time.
-	 * Execute any module-level code that was detected during the table
-	 * load phase.
-	 *
-	 * Note: this option is deprecated and will be eliminated in the
-	 * future. Use of this option can cause problems with AML code that
-	 * depends upon in-order immediate execution of module-level code.
-	 */
-	acpi_ns_exec_module_code_list();
 	return_ACPI_STATUS(status);
 }
 

@@ -122,15 +122,16 @@ static const struct clk_ops clk_gate2_ops = {
 	.is_enabled = clk_gate2_is_enabled,
 };
 
-struct clk *clk_register_gate2(struct device *dev, const char *name,
+struct clk_hw *clk_hw_register_gate2(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		void __iomem *reg, u8 bit_idx, u8 cgr_val,
 		u8 clk_gate2_flags, spinlock_t *lock,
 		unsigned int *share_count)
 {
 	struct clk_gate2 *gate;
-	struct clk *clk;
+	struct clk_hw *hw;
 	struct clk_init_data init;
+	int ret;
 
 	gate = kzalloc(sizeof(struct clk_gate2), GFP_KERNEL);
 	if (!gate)
@@ -151,10 +152,13 @@ struct clk *clk_register_gate2(struct device *dev, const char *name,
 	init.num_parents = parent_name ? 1 : 0;
 
 	gate->hw.init = &init;
+	hw = &gate->hw;
 
-	clk = clk_register(dev, &gate->hw);
-	if (IS_ERR(clk))
+	ret = clk_hw_register(NULL, hw);
+	if (ret) {
 		kfree(gate);
+		return ERR_PTR(ret);
+	}
 
-	return clk;
+	return hw;
 }

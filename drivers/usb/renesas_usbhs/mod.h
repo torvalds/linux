@@ -3,6 +3,7 @@
  * Renesas USB driver
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
+ * Copyright (C) 2019 Renesas Electronics Corporation
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  */
 #ifndef RENESAS_USB_MOD_H
@@ -84,15 +85,20 @@ struct usbhs_mod_info {
 	/*
 	 * INTSTS0 :: VBINT
 	 *
-	 * This function will be used as autonomy mode
-	 * when platform cannot call notify_hotplug.
+	 * This function will be used as autonomy mode (runtime_pwctrl == 0)
+	 * when the platform doesn't have own get_vbus function.
 	 *
-	 * This callback cannot be member of "struct usbhs_mod"
-	 * because it will be used even though
-	 * host/gadget has not been selected.
+	 * This callback cannot be member of "struct usbhs_mod" because it
+	 * will be used even though host/gadget has not been selected.
 	 */
 	int (*irq_vbus)(struct usbhs_priv *priv,
 			struct usbhs_irq_state *irq_state);
+
+	/*
+	 * This function will be used on any gadget mode. To simplify the code,
+	 * this member is in here.
+	 */
+	int (*get_vbus)(struct platform_device *pdev);
 };
 
 /*
@@ -107,6 +113,7 @@ int usbhs_mod_probe(struct usbhs_priv *priv);
 void usbhs_mod_remove(struct usbhs_priv *priv);
 
 void usbhs_mod_autonomy_mode(struct usbhs_priv *priv);
+void usbhs_mod_non_autonomy_mode(struct usbhs_priv *priv);
 
 /*
  *		status functions
@@ -128,6 +135,15 @@ void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod);
 		!mod->func	? 0 :			\
 		 mod->func(param);			\
 	})
+
+#define usbhs_priv_to_modinfo(priv) (&priv->mod_info)
+#define usbhs_mod_info_call(priv, func, param...)	\
+({							\
+	struct usbhs_mod_info *info;			\
+	info = usbhs_priv_to_modinfo(priv);		\
+	!info->func ? 0 :				\
+	 info->func(param);				\
+})
 
 /*
  * host / gadget control

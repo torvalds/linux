@@ -190,12 +190,8 @@ static int mlx90640_setup(struct video_i2c_data *data)
 	unsigned int n, idx;
 
 	for (n = 0; n < data->chip->num_frame_intervals - 1; n++) {
-		if (data->frame_interval.numerator
-				!= data->chip->frame_intervals[n].numerator)
-			continue;
-
-		if (data->frame_interval.denominator
-				== data->chip->frame_intervals[n].denominator)
+		if (V4L2_FRACT_COMPARE(data->frame_interval, ==,
+				       data->chip->frame_intervals[n]))
 			break;
 	}
 

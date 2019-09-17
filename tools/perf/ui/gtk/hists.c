@@ -9,6 +9,7 @@
 #include "../string2.h"
 #include "gtk.h"
 #include <signal.h>
+#include <linux/string.h>
 
 #define MAX_COLUMNS			32
 
@@ -459,7 +460,7 @@ static void perf_gtk__add_hierarchy_entries(struct hists *hists,
 			advance_hpp(hpp, ret + 2);
 		}
 
-		gtk_tree_store_set(store, &iter, col_idx, ltrim(rtrim(bf)), -1);
+		gtk_tree_store_set(store, &iter, col_idx, strim(bf), -1);
 
 		if (!he->leaf) {
 			hpp->buf = bf;
@@ -555,7 +556,7 @@ static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
 			first_col = false;
 
 			fmt->header(fmt, &hpp, hists, 0, NULL);
-			strcat(buf, ltrim(rtrim(hpp.buf)));
+			strcat(buf, strim(hpp.buf));
 		}
 	}
 

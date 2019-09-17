@@ -169,7 +169,7 @@ byte offsets over a base for the register block.
 
 If you want to dump an u32 array in debugfs, you can create file with:
 
-    struct dentry *debugfs_create_u32_array(const char *name, umode_t mode,
+    void debugfs_create_u32_array(const char *name, umode_t mode,
 			struct dentry *parent,
 			u32 *array, u32 elements);
 

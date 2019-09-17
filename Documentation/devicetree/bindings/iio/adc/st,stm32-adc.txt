@@ -38,6 +38,7 @@ Required properties:
     It's required on stm32h7.
 - clock-names: Must be "adc" and/or "bus" depending on part used.
 - interrupt-controller: Identifies the controller node as interrupt-parent
+- vdda-supply: Phandle to the vdda input analog voltage.
 - vref-supply: Phandle to the vref input analog reference voltage.
 - #interrupt-cells = <1>;
 - #address-cells = <1>;

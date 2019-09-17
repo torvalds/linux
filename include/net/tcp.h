@@ -43,6 +43,7 @@
 #include <linux/seq_file.h>
 #include <linux/memcontrol.h>
 #include <linux/bpf-cgroup.h>
+#include <linux/siphash.h>
 
 extern struct inet_hashinfo tcp_hashinfo;
 
@@ -1063,7 +1064,8 @@ void tcp_get_default_congestion_control(struct net *net, char *name);
 void tcp_get_available_congestion_control(char *buf, size_t len);
 void tcp_get_allowed_congestion_control(char *buf, size_t len);
 int tcp_set_allowed_congestion_control(char *allowed);
-int tcp_set_congestion_control(struct sock *sk, const char *name, bool load, bool reinit);
+int tcp_set_congestion_control(struct sock *sk, const char *name, bool load,
+			       bool reinit, bool cap_net_admin);
 u32 tcp_slow_start(struct tcp_sock *tp, u32 acked);
 void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w, u32 acked);
 
@@ -1612,7 +1614,7 @@ void tcp_free_fastopen_req(struct tcp_sock *tp);
 void tcp_fastopen_destroy_cipher(struct sock *sk);
 void tcp_fastopen_ctx_destroy(struct net *net);
 int tcp_fastopen_reset_cipher(struct net *net, struct sock *sk,
-			      void *key, unsigned int len);
+			      void *primary_key, void *backup_key);
 void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb);
 struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 			      struct request_sock *req,
@@ -1622,13 +1624,16 @@ void tcp_fastopen_init_key_once(struct net *net);
 bool tcp_fastopen_cookie_check(struct sock *sk, u16 *mss,
 			     struct tcp_fastopen_cookie *cookie);
 bool tcp_fastopen_defer_connect(struct sock *sk, int *err);
-#define TCP_FASTOPEN_KEY_LENGTH 16
+#define TCP_FASTOPEN_KEY_LENGTH sizeof(siphash_key_t)
+#define TCP_FASTOPEN_KEY_MAX 2
+#define TCP_FASTOPEN_KEY_BUF_LENGTH \
+	(TCP_FASTOPEN_KEY_LENGTH * TCP_FASTOPEN_KEY_MAX)
 
 /* Fastopen key context */
 struct tcp_fastopen_context {
-	struct crypto_cipher	*tfm;
-	__u8			key[TCP_FASTOPEN_KEY_LENGTH];
-	struct rcu_head		rcu;
+	siphash_key_t	key[TCP_FASTOPEN_KEY_MAX];
+	int		num;
+	struct rcu_head	rcu;
 };
 
 extern unsigned int sysctl_tcp_fastopen_blackhole_timeout;
@@ -1636,6 +1641,35 @@ void tcp_fastopen_active_disable(struct sock *sk);
 bool tcp_fastopen_active_should_disable(struct sock *sk);
 void tcp_fastopen_active_disable_ofo_check(struct sock *sk);
 void tcp_fastopen_active_detect_blackhole(struct sock *sk, bool expired);
+
+/* Caller needs to wrap with rcu_read_(un)lock() */
+static inline
+struct tcp_fastopen_context *tcp_fastopen_get_ctx(const struct sock *sk)
+{
+	struct tcp_fastopen_context *ctx;
+
+	ctx = rcu_dereference(inet_csk(sk)->icsk_accept_queue.fastopenq.ctx);
+	if (!ctx)
+		ctx = rcu_dereference(sock_net(sk)->ipv4.tcp_fastopen_ctx);
+	return ctx;
+}
+
+static inline
+bool tcp_fastopen_cookie_match(const struct tcp_fastopen_cookie *foc,
+			       const struct tcp_fastopen_cookie *orig)
+{
+	if (orig->len == TCP_FASTOPEN_COOKIE_SIZE &&
+	    orig->len == foc->len &&
+	    !memcmp(orig->val, foc->val, foc->len))
+		return true;
+	return false;
+}
+
+static inline
+int tcp_fastopen_context_len(const struct tcp_fastopen_context *ctx)
+{
+	return ctx->num;
+}
 
 /* Latencies incurred by various limits for a sender. They are
  * chronograph-like stats that are mutually exclusive.
@@ -1673,6 +1707,11 @@ void tcp_write_queue_purge(struct sock *sk);
 static inline struct sk_buff *tcp_rtx_queue_head(const struct sock *sk)
 {
 	return skb_rb_first(&sk->tcp_rtx_queue);
+}
+
+static inline struct sk_buff *tcp_rtx_queue_tail(const struct sock *sk)
+{
+	return skb_rb_last(&sk->tcp_rtx_queue);
 }
 
 static inline struct sk_buff *tcp_write_queue_head(const struct sock *sk)
@@ -2069,6 +2108,8 @@ struct tcp_ulp_ops {
 
 	/* initialize ulp */
 	int (*init)(struct sock *sk);
+	/* update ulp */
+	void (*update)(struct sock *sk, struct proto *p);
 	/* cleanup ulp */
 	void (*release)(struct sock *sk);
 
@@ -2080,6 +2121,7 @@ void tcp_unregister_ulp(struct tcp_ulp_ops *type);
 int tcp_set_ulp(struct sock *sk, const char *name);
 void tcp_get_available_ulp(char *buf, size_t len);
 void tcp_cleanup_ulp(struct sock *sk);
+void tcp_update_ulp(struct sock *sk, struct proto *p);
 
 #define MODULE_ALIAS_TCP_ULP(name)				\
 	__MODULE_INFO(alias, alias_userspace, name);		\
@@ -2188,6 +2230,12 @@ static inline bool tcp_bpf_ca_needs_ecn(struct sock *sk)
 	return (tcp_call_bpf(sk, BPF_SOCK_OPS_NEEDS_ECN, 0, NULL) == 1);
 }
 
+static inline void tcp_bpf_rtt(struct sock *sk)
+{
+	if (BPF_SOCK_OPS_TEST_FLAG(tcp_sk(sk), BPF_SOCK_OPS_RTT_CB_FLAG))
+		tcp_call_bpf(sk, BPF_SOCK_OPS_RTT_CB, 0, NULL);
+}
+
 #if IS_ENABLED(CONFIG_SMC)
 extern struct static_key_false tcp_have_smc;
 #endif
@@ -2198,5 +2246,27 @@ void clean_acked_data_enable(struct inet_connection_sock *icsk,
 void clean_acked_data_disable(struct inet_connection_sock *icsk);
 void clean_acked_data_flush(void);
 #endif
+
+DECLARE_STATIC_KEY_FALSE(tcp_tx_delay_enabled);
+static inline void tcp_add_tx_delay(struct sk_buff *skb,
+				    const struct tcp_sock *tp)
+{
+	if (static_branch_unlikely(&tcp_tx_delay_enabled))
+		skb->skb_mstamp_ns += (u64)tp->tcp_tx_delay * NSEC_PER_USEC;
+}
+
+/* Compute Earliest Departure Time for some control packets
+ * like ACK or RST for TIME_WAIT or non ESTABLISHED sockets.
+ */
+static inline u64 tcp_transmit_time(const struct sock *sk)
+{
+	if (static_branch_unlikely(&tcp_tx_delay_enabled)) {
+		u32 delay = (sk->sk_state == TCP_TIME_WAIT) ?
+			tcp_twsk(sk)->tw_tx_delay : tcp_sk(sk)->tcp_tx_delay;
+
+		return tcp_clock_ns() + (u64)delay * NSEC_PER_USEC;
+	}
+	return 0;
+}
 
 #endif	/* _TCP_H */

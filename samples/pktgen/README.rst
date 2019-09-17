@@ -20,6 +20,7 @@ across the sample scripts.  Usage example is printed on errors::
   -s : ($PKT_SIZE)  packet size
   -d : ($DEST_IP)   destination IP
   -m : ($DST_MAC)   destination MAC-addr
+  -p : ($DST_PORT)  destination PORT range (e.g. 433-444) is also allowed
   -t : ($THREADS)   threads to start
   -f : ($F_THREAD)  index of first thread (zero indexed CPU number)
   -c : ($SKB_CLONE) SKB clones send before alloc new SKB

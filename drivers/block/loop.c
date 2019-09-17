@@ -264,20 +264,12 @@ lo_do_transfer(struct loop_device *lo, int cmd,
 	return ret;
 }
 
-static inline void loop_iov_iter_bvec(struct iov_iter *i,
-		unsigned int direction, const struct bio_vec *bvec,
-		unsigned long nr_segs, size_t count)
-{
-	iov_iter_bvec(i, direction, bvec, nr_segs, count);
-	i->type |= ITER_BVEC_FLAG_NO_REF;
-}
-
 static int lo_write_bvec(struct file *file, struct bio_vec *bvec, loff_t *ppos)
 {
 	struct iov_iter i;
 	ssize_t bw;
 
-	loop_iov_iter_bvec(&i, WRITE, bvec, 1, bvec->bv_len);
+	iov_iter_bvec(&i, WRITE, bvec, 1, bvec->bv_len);
 
 	file_start_write(file);
 	bw = vfs_iter_write(file, &i, ppos, 0);
@@ -355,7 +347,7 @@ static int lo_read_simple(struct loop_device *lo, struct request *rq,
 	ssize_t len;
 
 	rq_for_each_segment(bvec, rq, iter) {
-		loop_iov_iter_bvec(&i, READ, &bvec, 1, bvec.bv_len);
+		iov_iter_bvec(&i, READ, &bvec, 1, bvec.bv_len);
 		len = vfs_iter_read(lo->lo_backing_file, &i, &pos, 0);
 		if (len < 0)
 			return len;
@@ -396,7 +388,7 @@ static int lo_read_transfer(struct loop_device *lo, struct request *rq,
 		b.bv_offset = 0;
 		b.bv_len = bvec.bv_len;
 
-		loop_iov_iter_bvec(&i, READ, &b, 1, b.bv_len);
+		iov_iter_bvec(&i, READ, &b, 1, b.bv_len);
 		len = vfs_iter_read(lo->lo_backing_file, &i, &pos, 0);
 		if (len < 0) {
 			ret = len;
@@ -563,7 +555,7 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 	}
 	atomic_set(&cmd->ref, 2);
 
-	loop_iov_iter_bvec(&iter, rw, bvec, nr_bvec, blk_rq_bytes(rq));
+	iov_iter_bvec(&iter, rw, bvec, nr_bvec, blk_rq_bytes(rq));
 	iter.iov_offset = offset;
 
 	cmd->iocb.ki_pos = pos;
@@ -893,7 +885,7 @@ static void loop_unprepare_queue(struct loop_device *lo)
 
 static int loop_kthread_worker_fn(void *worker_ptr)
 {
-	current->flags |= PF_LESS_THROTTLE;
+	current->flags |= PF_LESS_THROTTLE | PF_MEMALLOC_NOIO;
 	return kthread_worker_fn(worker_ptr);
 }
 
@@ -932,6 +924,7 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	struct file	*file;
 	struct inode	*inode;
 	struct address_space *mapping;
+	struct block_device *claimed_bdev = NULL;
 	int		lo_flags = 0;
 	int		error;
 	loff_t		size;
@@ -950,10 +943,11 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	 * here to avoid changing device under exclusive owner.
 	 */
 	if (!(mode & FMODE_EXCL)) {
-		bdgrab(bdev);
-		error = blkdev_get(bdev, mode | FMODE_EXCL, loop_set_fd);
-		if (error)
+		claimed_bdev = bd_start_claiming(bdev, loop_set_fd);
+		if (IS_ERR(claimed_bdev)) {
+			error = PTR_ERR(claimed_bdev);
 			goto out_putf;
+		}
 	}
 
 	error = mutex_lock_killable(&loop_ctl_mutex);
@@ -1023,15 +1017,15 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	mutex_unlock(&loop_ctl_mutex);
 	if (partscan)
 		loop_reread_partitions(lo, bdev);
-	if (!(mode & FMODE_EXCL))
-		blkdev_put(bdev, mode | FMODE_EXCL);
+	if (claimed_bdev)
+		bd_abort_claiming(bdev, claimed_bdev, loop_set_fd);
 	return 0;
 
 out_unlock:
 	mutex_unlock(&loop_ctl_mutex);
 out_bdev:
-	if (!(mode & FMODE_EXCL))
-		blkdev_put(bdev, mode | FMODE_EXCL);
+	if (claimed_bdev)
+		bd_abort_claiming(bdev, claimed_bdev, loop_set_fd);
 out_putf:
 	fput(file);
 out:

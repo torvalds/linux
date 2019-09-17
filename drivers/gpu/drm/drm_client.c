@@ -15,10 +15,10 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_print.h>
-#include <drm/drmP.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -27,7 +27,6 @@
  * DOC: overview
  *
  * This library provides support for clients running in the kernel like fbdev and bootsplash.
- * Currently it's only partially implemented, just enough to support fbdev.
  *
  * GEM drivers which provide a GEM based dumb buffer with a virtual address are supported.
  */
@@ -92,14 +91,20 @@ int drm_client_init(struct drm_device *dev, struct drm_client_dev *client,
 	client->name = name;
 	client->funcs = funcs;
 
-	ret = drm_client_open(client);
+	ret = drm_client_modeset_create(client);
 	if (ret)
 		goto err_put_module;
+
+	ret = drm_client_open(client);
+	if (ret)
+		goto err_free;
 
 	drm_dev_get(dev);
 
 	return 0;
 
+err_free:
+	drm_client_modeset_free(client);
 err_put_module:
 	if (funcs)
 		module_put(funcs->owner);
@@ -148,6 +153,7 @@ void drm_client_release(struct drm_client_dev *client)
 
 	DRM_DEV_DEBUG_KMS(dev->dev, "%s\n", client->name);
 
+	drm_client_modeset_free(client);
 	drm_client_close(client);
 	drm_dev_put(dev);
 	if (client->funcs)
@@ -243,11 +249,11 @@ static void drm_client_buffer_delete(struct drm_client_buffer *buffer)
 static struct drm_client_buffer *
 drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height, u32 format)
 {
+	const struct drm_format_info *info = drm_format_info(format);
 	struct drm_mode_create_dumb dumb_args = { };
 	struct drm_device *dev = client->dev;
 	struct drm_client_buffer *buffer;
 	struct drm_gem_object *obj;
-	void *vaddr;
 	int ret;
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
@@ -258,7 +264,7 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height, u
 
 	dumb_args.width = width;
 	dumb_args.height = height;
-	dumb_args.bpp = drm_format_plane_cpp(format, 0) * 8;
+	dumb_args.bpp = info->cpp[0] * 8;
 	ret = drm_mode_create_dumb(dev, &dumb_args, client->file);
 	if (ret)
 		goto err_delete;
@@ -274,6 +280,36 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height, u
 
 	buffer->gem = obj;
 
+	return buffer;
+
+err_delete:
+	drm_client_buffer_delete(buffer);
+
+	return ERR_PTR(ret);
+}
+
+/**
+ * drm_client_buffer_vmap - Map DRM client buffer into address space
+ * @buffer: DRM client buffer
+ *
+ * This function maps a client buffer into kernel address space. If the
+ * buffer is already mapped, it returns the mapping's address.
+ *
+ * Client buffer mappings are not ref'counted. Each call to
+ * drm_client_buffer_vmap() should be followed by a call to
+ * drm_client_buffer_vunmap(); or the client buffer should be mapped
+ * throughout its lifetime.
+ *
+ * Returns:
+ *	The mapped memory's address
+ */
+void *drm_client_buffer_vmap(struct drm_client_buffer *buffer)
+{
+	void *vaddr;
+
+	if (buffer->vaddr)
+		return buffer->vaddr;
+
 	/*
 	 * FIXME: The dependency on GEM here isn't required, we could
 	 * convert the driver handle to a dma-buf instead and use the
@@ -282,21 +318,30 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height, u
 	 * fd_install step out of the driver backend hooks, to make that
 	 * final step optional for internal users.
 	 */
-	vaddr = drm_gem_vmap(obj);
-	if (IS_ERR(vaddr)) {
-		ret = PTR_ERR(vaddr);
-		goto err_delete;
-	}
+	vaddr = drm_gem_vmap(buffer->gem);
+	if (IS_ERR(vaddr))
+		return vaddr;
 
 	buffer->vaddr = vaddr;
 
-	return buffer;
-
-err_delete:
-	drm_client_buffer_delete(buffer);
-
-	return ERR_PTR(ret);
+	return vaddr;
 }
+EXPORT_SYMBOL(drm_client_buffer_vmap);
+
+/**
+ * drm_client_buffer_vunmap - Unmap DRM client buffer
+ * @buffer: DRM client buffer
+ *
+ * This function removes a client buffer's memory mapping. Calling this
+ * function is only required by clients that manage their buffer mappings
+ * by themselves.
+ */
+void drm_client_buffer_vunmap(struct drm_client_buffer *buffer)
+{
+	drm_gem_vunmap(buffer->gem, buffer->vaddr);
+	buffer->vaddr = NULL;
+}
+EXPORT_SYMBOL(drm_client_buffer_vunmap);
 
 static void drm_client_buffer_rmfb(struct drm_client_buffer *buffer)
 {

@@ -6,8 +6,9 @@
 
 #include "igt_reset.h"
 
+#include "gt/intel_engine.h"
+
 #include "../i915_drv.h"
-#include "../intel_ringbuffer.h"
 
 void igt_global_reset_lock(struct drm_i915_private *i915)
 {
@@ -41,4 +42,12 @@ void igt_global_reset_unlock(struct drm_i915_private *i915)
 
 	clear_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags);
 	wake_up_all(&i915->gpu_error.reset_queue);
+}
+
+bool igt_force_reset(struct drm_i915_private *i915)
+{
+	i915_gem_set_wedged(i915);
+	i915_reset(i915, 0, NULL);
+
+	return !i915_reset_failed(i915);
 }

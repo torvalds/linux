@@ -437,7 +437,7 @@ int  genwqe_device_create(struct genwqe_dev *cd);
 int  genwqe_device_remove(struct genwqe_dev *cd);
 
 /* debugfs */
-int  genwqe_init_debugfs(struct genwqe_dev *cd);
+void genwqe_init_debugfs(struct genwqe_dev *cd);
 void genqwe_exit_debugfs(struct genwqe_dev *cd);
 
 int  genwqe_read_softreset(struct genwqe_dev *cd);

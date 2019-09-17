@@ -257,11 +257,7 @@ static int prop_compression_validate(const char *value, size_t len)
 	if (!value)
 		return 0;
 
-	if (!strncmp("lzo", value, 3))
-		return 0;
-	else if (!strncmp("zlib", value, 4))
-		return 0;
-	else if (!strncmp("zstd", value, 4))
+	if (btrfs_compress_is_valid_type(value, len))
 		return 0;
 
 	return -EINVAL;
@@ -341,7 +337,7 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 	for (i = 0; i < ARRAY_SIZE(prop_handlers); i++) {
 		const struct prop_handler *h = &prop_handlers[i];
 		const char *value;
-		u64 num_bytes;
+		u64 num_bytes = 0;
 
 		if (!h->inheritable)
 			continue;

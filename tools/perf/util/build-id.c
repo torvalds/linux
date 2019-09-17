@@ -29,7 +29,8 @@
 #include "probe-file.h"
 #include "strlist.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
+#include <linux/zalloc.h>
 
 static bool no_buildid_cache;
 

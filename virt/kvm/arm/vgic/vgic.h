@@ -42,7 +42,7 @@
 			    VGIC_AFFINITY_LEVEL(val, 3))
 
 /*
- * As per Documentation/virtual/kvm/devices/arm-vgic-v3.txt,
+ * As per Documentation/virt/kvm/devices/arm-vgic-v3.txt,
  * below macros are defined for CPUREG encoding.
  */
 #define KVM_REG_ARM_VGIC_SYSREG_OP0_MASK   0x000000000000c000
@@ -63,7 +63,7 @@
 				      KVM_REG_ARM_VGIC_SYSREG_OP2_MASK)
 
 /*
- * As per Documentation/virtual/kvm/devices/arm-vgic-its.txt,
+ * As per Documentation/virt/kvm/devices/arm-vgic-its.txt,
  * below macros are defined for ITS table entry encoding.
  */
 #define KVM_ITS_CTE_VALID_SHIFT		63
@@ -193,6 +193,7 @@ int vgic_register_dist_iodev(struct kvm *kvm, gpa_t dist_base_address,
 void vgic_v2_init_lrs(void);
 void vgic_v2_load(struct kvm_vcpu *vcpu);
 void vgic_v2_put(struct kvm_vcpu *vcpu);
+void vgic_v2_vmcr_sync(struct kvm_vcpu *vcpu);
 
 void vgic_v2_save_state(struct kvm_vcpu *vcpu);
 void vgic_v2_restore_state(struct kvm_vcpu *vcpu);
@@ -223,6 +224,7 @@ bool vgic_v3_check_base(struct kvm *kvm);
 
 void vgic_v3_load(struct kvm_vcpu *vcpu);
 void vgic_v3_put(struct kvm_vcpu *vcpu);
+void vgic_v3_vmcr_sync(struct kvm_vcpu *vcpu);
 
 bool vgic_has_its(struct kvm *kvm);
 int kvm_vgic_register_its_device(void);

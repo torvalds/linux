@@ -201,11 +201,8 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 		ddata->wdd.timeout = ddata->wdd.min_timeout;
 
 	ret = devm_watchdog_register_device(dev, &ddata->wdd);
-	if (ret) {
-		dev_err(dev, "cannot register watchdog device (err=%d)\n",
-			ret);
+	if (ret)
 		return ret;
-	}
 
 	dev_info(dev,
 		 "WDT driver for MPC8xxx initialized. mode:%s timeout=%d sec\n",

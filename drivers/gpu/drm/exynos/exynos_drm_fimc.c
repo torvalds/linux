@@ -6,21 +6,22 @@
  *	Jinyoung Jeon <jy0.jeon@samsung.com>
  *	Sangmin Lee <lsmin.lee@samsung.com>
  */
-#include <linux/kernel.h>
-#include <linux/component.h>
-#include <linux/platform_device.h>
-#include <linux/mfd/syscon.h>
-#include <linux/regmap.h>
+
 #include <linux/clk.h>
-#include <linux/pm_runtime.h>
+#include <linux/component.h>
+#include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/spinlock.h>
 
-#include <drm/drmP.h>
 #include <drm/exynos_drm.h>
-#include "regs-fimc.h"
+
 #include "exynos_drm_drv.h"
 #include "exynos_drm_ipp.h"
+#include "regs-fimc.h"
 
 /*
  * FIMC stands for Fully Interactive Mobile Camera and
@@ -43,7 +44,7 @@ static unsigned int fimc_mask = 0xc;
 module_param_named(fimc_devs, fimc_mask, uint, 0644);
 MODULE_PARM_DESC(fimc_devs, "Alias mask for assigning FIMC devices to Exynos DRM");
 
-#define get_fimc_context(dev)	platform_get_drvdata(to_platform_device(dev))
+#define get_fimc_context(dev)	dev_get_drvdata(dev)
 
 enum {
 	FIMC_CLK_LCLK,

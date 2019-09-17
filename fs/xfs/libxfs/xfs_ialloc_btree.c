@@ -11,14 +11,12 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_ialloc.h"
 #include "xfs_ialloc_btree.h"
 #include "xfs_alloc.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
-#include "xfs_cksum.h"
 #include "xfs_trans.h"
 #include "xfs_rmap.h"
 
@@ -28,7 +26,7 @@ xfs_inobt_get_minrecs(
 	struct xfs_btree_cur	*cur,
 	int			level)
 {
-	return cur->bc_mp->m_inobt_mnr[level != 0];
+	return M_IGEO(cur->bc_mp)->inobt_mnr[level != 0];
 }
 
 STATIC struct xfs_btree_cur *
@@ -164,7 +162,7 @@ xfs_inobt_get_maxrecs(
 	struct xfs_btree_cur	*cur,
 	int			level)
 {
-	return cur->bc_mp->m_inobt_mxr[level != 0];
+	return M_IGEO(cur->bc_mp)->inobt_mxr[level != 0];
 }
 
 STATIC void
@@ -255,7 +253,7 @@ static xfs_failaddr_t
 xfs_inobt_verify(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
 	xfs_failaddr_t		fa;
 	unsigned int		level;
@@ -281,10 +279,11 @@ xfs_inobt_verify(
 
 	/* level verification */
 	level = be16_to_cpu(block->bb_level);
-	if (level >= mp->m_in_maxlevels)
+	if (level >= M_IGEO(mp)->inobt_maxlevels)
 		return __this_address;
 
-	return xfs_btree_sblock_verify(bp, mp->m_inobt_mxr[level != 0]);
+	return xfs_btree_sblock_verify(bp,
+			M_IGEO(mp)->inobt_mxr[level != 0]);
 }
 
 static void
@@ -546,7 +545,7 @@ xfs_inobt_max_size(
 	xfs_agblock_t		agblocks = xfs_ag_block_count(mp, agno);
 
 	/* Bail out if we're uninitialized, which can happen in mkfs. */
-	if (mp->m_inobt_mxr[0] == 0)
+	if (M_IGEO(mp)->inobt_mxr[0] == 0)
 		return 0;
 
 	/*
@@ -558,9 +557,39 @@ xfs_inobt_max_size(
 	    XFS_FSB_TO_AGNO(mp, mp->m_sb.sb_logstart) == agno)
 		agblocks -= mp->m_sb.sb_logblocks;
 
-	return xfs_btree_calc_size(mp->m_inobt_mnr,
+	return xfs_btree_calc_size(M_IGEO(mp)->inobt_mnr,
 				(uint64_t)agblocks * mp->m_sb.sb_inopblock /
 					XFS_INODES_PER_CHUNK);
+}
+
+/* Read AGI and create inobt cursor. */
+int
+xfs_inobt_cur(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	xfs_agnumber_t		agno,
+	xfs_btnum_t		which,
+	struct xfs_btree_cur	**curpp,
+	struct xfs_buf		**agi_bpp)
+{
+	struct xfs_btree_cur	*cur;
+	int			error;
+
+	ASSERT(*agi_bpp == NULL);
+	ASSERT(*curpp == NULL);
+
+	error = xfs_ialloc_read_agi(mp, tp, agno, agi_bpp);
+	if (error)
+		return error;
+
+	cur = xfs_inobt_init_cursor(mp, tp, *agi_bpp, agno, which);
+	if (!cur) {
+		xfs_trans_brelse(tp, *agi_bpp);
+		*agi_bpp = NULL;
+		return -ENOMEM;
+	}
+	*curpp = cur;
+	return 0;
 }
 
 static int
@@ -571,15 +600,14 @@ xfs_inobt_count_blocks(
 	xfs_btnum_t		btnum,
 	xfs_extlen_t		*tree_blocks)
 {
-	struct xfs_buf		*agbp;
-	struct xfs_btree_cur	*cur;
+	struct xfs_buf		*agbp = NULL;
+	struct xfs_btree_cur	*cur = NULL;
 	int			error;
 
-	error = xfs_ialloc_read_agi(mp, tp, agno, &agbp);
+	error = xfs_inobt_cur(mp, tp, agno, btnum, &cur, &agbp);
 	if (error)
 		return error;
 
-	cur = xfs_inobt_init_cursor(mp, tp, agbp, agno, btnum);
 	error = xfs_btree_count_blocks(cur, tree_blocks);
 	xfs_btree_del_cursor(cur, error);
 	xfs_trans_brelse(tp, agbp);
@@ -619,5 +647,5 @@ xfs_iallocbt_calc_size(
 	struct xfs_mount	*mp,
 	unsigned long long	len)
 {
-	return xfs_btree_calc_size(mp->m_inobt_mnr, len);
+	return xfs_btree_calc_size(M_IGEO(mp)->inobt_mnr, len);
 }

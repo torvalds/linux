@@ -54,8 +54,8 @@ a limited few common behaviours and properties. This allows us to define
 a simple interface consisting of a character device and a set of sysfs files:
 
 See:
-Documentation/ABI/testing/sysfs-class-fieldbus-dev
-Documentation/ABI/testing/fieldbus-dev-cdev
+drivers/staging/fieldbus/Documentation/ABI/sysfs-class-fieldbus-dev
+drivers/staging/fieldbus/Documentation/ABI/fieldbus-dev-cdev
 
 Note that this simple interface does not provide a way to modify adapter
 configuration settings. It is therefore useful only for adapters that get their

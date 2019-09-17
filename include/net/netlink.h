@@ -378,13 +378,17 @@ struct nla_policy {
 /**
  * struct nl_info - netlink source information
  * @nlh: Netlink message header of original request
+ * @nl_net: Network namespace
  * @portid: Netlink PORTID of requesting application
+ * @skip_notify: Skip netlink notifications to user space
+ * @skip_notify_kernel: Skip selected in-kernel notifications
  */
 struct nl_info {
 	struct nlmsghdr		*nlh;
 	struct net		*nl_net;
 	u32			portid;
-	bool			skip_notify;
+	u8			skip_notify:1,
+				skip_notify_kernel:1;
 };
 
 /**
@@ -680,9 +684,8 @@ static inline int nlmsg_parse(const struct nlmsghdr *nlh, int hdrlen,
 			      const struct nla_policy *policy,
 			      struct netlink_ext_ack *extack)
 {
-	return __nla_parse(tb, maxtype, nlmsg_attrdata(nlh, hdrlen),
-			   nlmsg_attrlen(nlh, hdrlen), policy,
-			   NL_VALIDATE_STRICT, extack);
+	return __nlmsg_parse(nlh, hdrlen, tb, maxtype, policy,
+			     NL_VALIDATE_STRICT, extack);
 }
 
 /**
@@ -1752,6 +1755,15 @@ static inline int __nla_validate_nested(const struct nlattr *start, int maxtype,
 {
 	return __nla_validate(nla_data(start), nla_len(start), maxtype, policy,
 			      validate, extack);
+}
+
+static inline int
+nl80211_validate_nested(const struct nlattr *start, int maxtype,
+			const struct nla_policy *policy,
+			struct netlink_ext_ack *extack)
+{
+	return __nla_validate_nested(start, maxtype, policy,
+				     NL_VALIDATE_STRICT, extack);
 }
 
 static inline int

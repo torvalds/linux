@@ -106,7 +106,7 @@ void exynos_firmware_init(void);
 #define C2_STATE	(1 << 3)
 /*
  * Magic values for bootloader indicating chosen low power mode.
- * See also Documentation/arm/Samsung/Bootloader-interface.txt
+ * See also Documentation/arm/samsung/bootloader-interface.rst
  */
 #define EXYNOS_SLEEP_MAGIC	0x00000bad
 #define EXYNOS_AFTR_MAGIC	0xfcba0d10

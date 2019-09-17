@@ -200,32 +200,47 @@ static int be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+SND_SOC_DAILINK_DEFS(hifi,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(hifi_fe,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_DUMMY()),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(hifi_be,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_DUMMY()));
+
 static struct snd_soc_dai_link fsl_asoc_card_dai[] = {
 	/* Default ASoC DAI Link*/
 	{
 		.name = "HiFi",
 		.stream_name = "HiFi",
 		.ops = &fsl_asoc_card_ops,
+		SND_SOC_DAILINK_REG(hifi),
 	},
 	/* DPCM Link between Front-End and Back-End (Optional) */
 	{
 		.name = "HiFi-ASRC-FE",
 		.stream_name = "HiFi-ASRC-FE",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.dynamic = 1,
+		SND_SOC_DAILINK_REG(hifi_fe),
 	},
 	{
 		.name = "HiFi-ASRC-BE",
 		.stream_name = "HiFi-ASRC-BE",
-		.platform_name = "snd-soc-dummy",
 		.be_hw_params_fixup = be_hw_params_fixup,
 		.ops = &fsl_asoc_card_ops,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.no_pcm = 1,
+		SND_SOC_DAILINK_REG(hifi_be),
 	},
 };
 
@@ -616,11 +631,11 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	}
 
 	/* Normal DAI Link */
-	priv->dai_link[0].cpu_of_node = cpu_np;
-	priv->dai_link[0].codec_dai_name = codec_dai_name;
+	priv->dai_link[0].cpus->of_node = cpu_np;
+	priv->dai_link[0].codecs->dai_name = codec_dai_name;
 
 	if (!fsl_asoc_card_is_ac97(priv))
-		priv->dai_link[0].codec_of_node = codec_np;
+		priv->dai_link[0].codecs->of_node = codec_np;
 	else {
 		u32 idx;
 
@@ -631,29 +646,29 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 			goto asrc_fail;
 		}
 
-		priv->dai_link[0].codec_name =
+		priv->dai_link[0].codecs->name =
 				devm_kasprintf(&pdev->dev, GFP_KERNEL,
 					       "ac97-codec.%u",
 					       (unsigned int)idx);
-		if (!priv->dai_link[0].codec_name) {
+		if (!priv->dai_link[0].codecs->name) {
 			ret = -ENOMEM;
 			goto asrc_fail;
 		}
 	}
 
-	priv->dai_link[0].platform_of_node = cpu_np;
+	priv->dai_link[0].platforms->of_node = cpu_np;
 	priv->dai_link[0].dai_fmt = priv->dai_fmt;
 	priv->card.num_links = 1;
 
 	if (asrc_pdev) {
 		/* DPCM DAI Links only if ASRC exsits */
-		priv->dai_link[1].cpu_of_node = asrc_np;
-		priv->dai_link[1].platform_of_node = asrc_np;
-		priv->dai_link[2].codec_dai_name = codec_dai_name;
-		priv->dai_link[2].codec_of_node = codec_np;
-		priv->dai_link[2].codec_name =
-				priv->dai_link[0].codec_name;
-		priv->dai_link[2].cpu_of_node = cpu_np;
+		priv->dai_link[1].cpus->of_node = asrc_np;
+		priv->dai_link[1].platforms->of_node = asrc_np;
+		priv->dai_link[2].codecs->dai_name = codec_dai_name;
+		priv->dai_link[2].codecs->of_node = codec_np;
+		priv->dai_link[2].codecs->name =
+				priv->dai_link[0].codecs->name;
+		priv->dai_link[2].cpus->of_node = cpu_np;
 		priv->dai_link[2].dai_fmt = priv->dai_fmt;
 		priv->card.num_links = 3;
 

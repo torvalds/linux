@@ -133,8 +133,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strscpy(v->driver, "radio-sf16fmi", sizeof(v->driver));
 	strscpy(v->card, "SF16-FMI/FMP/FMD radio", sizeof(v->card));
 	strscpy(v->bus_info, "ISA:radio-sf16fmi", sizeof(v->bus_info));
-	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -345,6 +343,7 @@ static int __init fmi_init(void)
 	fmi->vdev.fops = &fmi_fops;
 	fmi->vdev.ioctl_ops = &fmi_ioctl_ops;
 	fmi->vdev.release = video_device_release_empty;
+	fmi->vdev.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
 	video_set_drvdata(&fmi->vdev, fmi);
 
 	mutex_init(&fmi->lock);

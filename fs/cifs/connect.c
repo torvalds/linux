@@ -96,7 +96,8 @@ enum {
 	Opt_multiuser, Opt_sloppy, Opt_nosharesock,
 	Opt_persistent, Opt_nopersistent,
 	Opt_resilient, Opt_noresilient,
-	Opt_domainauto, Opt_rdma,
+	Opt_domainauto, Opt_rdma, Opt_modesid,
+	Opt_compress,
 
 	/* Mount options which take numeric value */
 	Opt_backupuid, Opt_backupgid, Opt_uid,
@@ -175,6 +176,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_serverino, "serverino" },
 	{ Opt_noserverino, "noserverino" },
 	{ Opt_rwpidforward, "rwpidforward" },
+	{ Opt_modesid, "modefromsid" },
 	{ Opt_cifsacl, "cifsacl" },
 	{ Opt_nocifsacl, "nocifsacl" },
 	{ Opt_acl, "acl" },
@@ -212,6 +214,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_echo_interval, "echo_interval=%s" },
 	{ Opt_max_credits, "max_credits=%s" },
 	{ Opt_snapshot, "snapshot=%s" },
+	{ Opt_compress, "compress=%s" },
 
 	{ Opt_blank_user, "user=" },
 	{ Opt_blank_user, "username=" },
@@ -706,10 +709,10 @@ static bool
 server_unresponsive(struct TCP_Server_Info *server)
 {
 	/*
-	 * We need to wait 2 echo intervals to make sure we handle such
+	 * We need to wait 3 echo intervals to make sure we handle such
 	 * situations right:
 	 * 1s  client sends a normal SMB request
-	 * 2s  client gets a response
+	 * 3s  client gets a response
 	 * 30s echo workqueue job pops, and decides we got a response recently
 	 *     and don't need to send another
 	 * ...
@@ -718,9 +721,9 @@ server_unresponsive(struct TCP_Server_Info *server)
 	 */
 	if ((server->tcpStatus == CifsGood ||
 	    server->tcpStatus == CifsNeedNegotiate) &&
-	    time_after(jiffies, server->lstrp + 2 * server->echo_interval)) {
+	    time_after(jiffies, server->lstrp + 3 * server->echo_interval)) {
 		cifs_dbg(VFS, "Server %s has not responded in %lu seconds. Reconnecting...\n",
-			 server->hostname, (2 * server->echo_interval) / HZ);
+			 server->hostname, (3 * server->echo_interval) / HZ);
 		cifs_reconnect(server);
 		wake_up(&server->response_q);
 		return true;
@@ -1110,6 +1113,7 @@ cifs_demultiplex_thread(void *p)
 		mempool_resize(cifs_req_poolp, length + cifs_min_rcv);
 
 	set_freezable();
+	allow_kernel_signal(SIGKILL);
 	while (server->tcpStatus != CifsExiting) {
 		if (try_to_freeze())
 			continue;
@@ -1223,11 +1227,11 @@ next_pdu:
 					 atomic_read(&midCount));
 				cifs_dump_mem("Received Data is: ", bufs[i],
 					      HEADER_SIZE(server));
+				smb2_add_credits_from_hdr(bufs[i], server);
 #ifdef CONFIG_CIFS_DEBUG2
 				if (server->ops->dump_detail)
 					server->ops->dump_detail(bufs[i],
 								 server);
-				smb2_add_credits_from_hdr(bufs[i], server);
 				cifs_dump_mids(server);
 #endif /* CIFS_DEBUG2 */
 			}
@@ -1830,6 +1834,9 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		case Opt_rwpidforward:
 			vol->rwpidforward = 1;
 			break;
+		case Opt_modesid:
+			vol->mode_ace = 1;
+			break;
 		case Opt_cifsacl:
 			vol->cifs_acl = 1;
 			break;
@@ -1910,6 +1917,11 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			break;
 		case Opt_rdma:
 			vol->rdma = true;
+			break;
+		case Opt_compress:
+			vol->compression = UNKNOWN_TYPE;
+			cifs_dbg(VFS,
+				"SMB3 compression support is experimental\n");
 			break;
 
 		/* Numeric Values */
@@ -2544,8 +2556,15 @@ static int match_server(struct TCP_Server_Info *server, struct smb_vol *vol)
 	if (vol->nosharesock)
 		return 0;
 
-	/* BB update this for smb3any and default case */
-	if ((server->vals != vol->vals) || (server->ops != vol->ops))
+	/* If multidialect negotiation see if existing sessions match one */
+	if (strcmp(vol->vals->version_string, SMB3ANY_VERSION_STRING) == 0) {
+		if (server->vals->protocol_id < SMB30_PROT_ID)
+			return 0;
+	} else if (strcmp(vol->vals->version_string,
+		   SMBDEFAULT_VERSION_STRING) == 0) {
+		if (server->vals->protocol_id < SMB21_PROT_ID)
+			return 0;
+	} else if ((server->vals != vol->vals) || (server->ops != vol->ops))
 		return 0;
 
 	if (!net_eq(cifs_net_ns(server), current->nsproxy->net_ns))
@@ -2631,7 +2650,7 @@ cifs_put_tcp_session(struct TCP_Server_Info *server, int from_reconnect)
 
 	task = xchg(&server->tsk, NULL);
 	if (task)
-		force_sig(SIGKILL, task);
+		send_sig(SIGKILL, task, 1);
 }
 
 static struct TCP_Server_Info *
@@ -2680,6 +2699,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	tcp_ses->sequence_number = 0;
 	tcp_ses->reconnect_instance = 1;
 	tcp_ses->lstrp = jiffies;
+	tcp_ses->compress_algorithm = cpu_to_le16(volume_info->compression);
 	spin_lock_init(&tcp_ses->req_lock);
 	INIT_LIST_HEAD(&tcp_ses->tcp_ses_list);
 	INIT_LIST_HEAD(&tcp_ses->smb_ses_list);
@@ -2961,6 +2981,7 @@ static int
 cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 {
 	int rc = 0;
+	int is_domain = 0;
 	const char *delim, *payload;
 	char *desc;
 	ssize_t len;
@@ -3008,6 +3029,7 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 			rc = PTR_ERR(key);
 			goto out_err;
 		}
+		is_domain = 1;
 	}
 
 	down_read(&key->sem);
@@ -3063,6 +3085,26 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 		kfree(vol->username);
 		vol->username = NULL;
 		goto out_key_put;
+	}
+
+	/*
+	 * If we have a domain key then we must set the domainName in the
+	 * for the request.
+	 */
+	if (is_domain && ses->domainName) {
+		vol->domainname = kstrndup(ses->domainName,
+					   strlen(ses->domainName),
+					   GFP_KERNEL);
+		if (!vol->domainname) {
+			cifs_dbg(FYI, "Unable to allocate %zd bytes for "
+				 "domain\n", len);
+			rc = -ENOMEM;
+			kfree(vol->username);
+			vol->username = NULL;
+			kzfree(vol->password);
+			vol->password = NULL;
+			goto out_key_put;
+		}
 	}
 
 out_key_put:
@@ -3460,12 +3502,16 @@ compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
 {
 	struct cifs_sb_info *old = CIFS_SB(sb);
 	struct cifs_sb_info *new = mnt_data->cifs_sb;
+	unsigned int oldflags = old->mnt_cifs_flags & CIFS_MOUNT_MASK;
+	unsigned int newflags = new->mnt_cifs_flags & CIFS_MOUNT_MASK;
 
 	if ((sb->s_flags & CIFS_MS_MASK) != (mnt_data->flags & CIFS_MS_MASK))
 		return 0;
 
-	if ((old->mnt_cifs_flags & CIFS_MOUNT_MASK) !=
-	    (new->mnt_cifs_flags & CIFS_MOUNT_MASK))
+	if (old->mnt_cifs_serverino_autodisabled)
+		newflags &= ~CIFS_MOUNT_SERVER_INUM;
+
+	if (oldflags != newflags)
 		return 0;
 
 	/*
@@ -3965,6 +4011,8 @@ int cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NOPOSIXBRL;
 	if (pvolume_info->rwpidforward)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_RWPIDFORWARD;
+	if (pvolume_info->mode_ace)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MODE_FROM_SID;
 	if (pvolume_info->cifs_acl)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_ACL;
 	if (pvolume_info->backupuid_specified) {
@@ -4183,16 +4231,19 @@ build_unc_path_to_root(const struct smb_vol *vol,
 		strlen(vol->prepath) + 1 : 0;
 	unsigned int unc_len = strnlen(vol->UNC, MAX_TREE_SIZE + 1);
 
+	if (unc_len > MAX_TREE_SIZE)
+		return ERR_PTR(-EINVAL);
+
 	full_path = kmalloc(unc_len + pplen + 1, GFP_KERNEL);
 	if (full_path == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	strncpy(full_path, vol->UNC, unc_len);
+	memcpy(full_path, vol->UNC, unc_len);
 	pos = full_path + unc_len;
 
 	if (pplen) {
 		*pos = CIFS_DIR_SEP(cifs_sb);
-		strncpy(pos + 1, vol->prepath, pplen);
+		memcpy(pos + 1, vol->prepath, pplen);
 		pos += pplen;
 	}
 
@@ -4459,11 +4510,13 @@ cifs_are_all_path_components_accessible(struct TCP_Server_Info *server,
 					unsigned int xid,
 					struct cifs_tcon *tcon,
 					struct cifs_sb_info *cifs_sb,
-					char *full_path)
+					char *full_path,
+					int added_treename)
 {
 	int rc;
 	char *s;
 	char sep, tmp;
+	int skip = added_treename ? 1 : 0;
 
 	sep = CIFS_DIR_SEP(cifs_sb);
 	s = full_path;
@@ -4478,7 +4531,14 @@ cifs_are_all_path_components_accessible(struct TCP_Server_Info *server,
 		/* next separator */
 		while (*s && *s != sep)
 			s++;
-
+		/*
+		 * if the treename is added, we then have to skip the first
+		 * part within the separators
+		 */
+		if (skip) {
+			skip = 0;
+			continue;
+		}
 		/*
 		 * temporarily null-terminate the path at the end of
 		 * the current component
@@ -4526,8 +4586,7 @@ static int is_path_remote(struct cifs_sb_info *cifs_sb, struct smb_vol *vol,
 
 	if (rc != -EREMOTE) {
 		rc = cifs_are_all_path_components_accessible(server, xid, tcon,
-							     cifs_sb,
-							     full_path);
+			cifs_sb, full_path, tcon->Flags & SMB_SHARE_IS_IN_DFS);
 		if (rc != 0) {
 			cifs_dbg(VFS, "cannot query dirs between root and final path, "
 				 "enabling CIFS_MOUNT_USE_PREFIX_PATH\n");

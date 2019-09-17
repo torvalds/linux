@@ -247,16 +247,19 @@ static const struct snd_kcontrol_new aic33_n810_controls[] = {
 };
 
 /* Digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(aic33,
+	DAILINK_COMP_ARRAY(COMP_CPU("48076000.mcbsp")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("tlv320aic3x-codec.1-0018",
+				      "tlv320aic3x-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("48076000.mcbsp")));
+
 static struct snd_soc_dai_link n810_dai = {
 	.name = "TLV320AIC33",
 	.stream_name = "AIC33",
-	.cpu_dai_name = "48076000.mcbsp",
-	.platform_name = "48076000.mcbsp",
-	.codec_name = "tlv320aic3x-codec.1-0018",
-	.codec_dai_name = "tlv320aic3x-hifi",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBM_CFM,
 	.ops = &n810_ops,
+	SND_SOC_DAILINK_REG(aic33),
 };
 
 /* Audio machine driver */

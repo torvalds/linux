@@ -16,6 +16,7 @@
 #include <linux/tty.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
+#include <linux/gpio/machine.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/mach/map.h>
@@ -33,6 +34,29 @@
 #define IRQ_IOP3XX_I2C_0	IRQ_IOP33X_I2C_0
 #define IRQ_IOP3XX_I2C_1	IRQ_IOP33X_I2C_1
 #endif
+
+/*
+ * Each of the I2C busses have corresponding GPIO lines, and the driver
+ * need to access these directly to drive the bus low at times.
+ */
+
+struct gpiod_lookup_table iop3xx_i2c0_gpio_lookup = {
+	.dev_id = "IOP3xx-I2C.0",
+	.table = {
+		GPIO_LOOKUP("gpio-iop", 7, "scl", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-iop", 6, "sda", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
+struct gpiod_lookup_table iop3xx_i2c1_gpio_lookup = {
+	.dev_id = "IOP3xx-I2C.1",
+	.table = {
+		GPIO_LOOKUP("gpio-iop", 5, "scl", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-iop", 4, "sda", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
 
 static struct resource iop3xx_i2c0_resources[] = {
 	[0] = {

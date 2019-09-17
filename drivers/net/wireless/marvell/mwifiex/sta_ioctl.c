@@ -1351,7 +1351,7 @@ mwifiex_set_gen_ie_helper(struct mwifiex_private *priv, u8 *ie_data_ptr,
 			/* Test to see if it is a WPA IE, if not, then
 			 * it is a gen IE
 			 */
-			if (!memcmp(pvendor_ie->oui, wpa_oui,
+			if (!memcmp(&pvendor_ie->oui, wpa_oui,
 				    sizeof(wpa_oui))) {
 				/* IE is a WPA/WPA2 IE so call set_wpa function
 				 */
@@ -1361,7 +1361,7 @@ mwifiex_set_gen_ie_helper(struct mwifiex_private *priv, u8 *ie_data_ptr,
 				goto next_ie;
 			}
 
-			if (!memcmp(pvendor_ie->oui, wps_oui,
+			if (!memcmp(&pvendor_ie->oui, wps_oui,
 				    sizeof(wps_oui))) {
 				/* Test to see if it is a WPS IE,
 				 * if so, enable wps session flag

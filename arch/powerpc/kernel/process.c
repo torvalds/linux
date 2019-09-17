@@ -101,21 +101,8 @@ static void check_if_tm_restore_required(struct task_struct *tsk)
 	}
 }
 
-static bool tm_active_with_fp(struct task_struct *tsk)
-{
-	return MSR_TM_ACTIVE(tsk->thread.regs->msr) &&
-		(tsk->thread.ckpt_regs.msr & MSR_FP);
-}
-
-static bool tm_active_with_altivec(struct task_struct *tsk)
-{
-	return MSR_TM_ACTIVE(tsk->thread.regs->msr) &&
-		(tsk->thread.ckpt_regs.msr & MSR_VEC);
-}
 #else
 static inline void check_if_tm_restore_required(struct task_struct *tsk) { }
-static inline bool tm_active_with_fp(struct task_struct *tsk) { return false; }
-static inline bool tm_active_with_altivec(struct task_struct *tsk) { return false; }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 bool strict_msr_control;
@@ -252,7 +239,7 @@ EXPORT_SYMBOL(enable_kernel_fp);
 
 static int restore_fp(struct task_struct *tsk)
 {
-	if (tsk->thread.load_fp || tm_active_with_fp(tsk)) {
+	if (tsk->thread.load_fp) {
 		load_fp_state(&current->thread.fp_state);
 		current->thread.load_fp++;
 		return 1;
@@ -334,8 +321,7 @@ EXPORT_SYMBOL_GPL(flush_altivec_to_thread);
 
 static int restore_altivec(struct task_struct *tsk)
 {
-	if (cpu_has_feature(CPU_FTR_ALTIVEC) &&
-		(tsk->thread.load_vec || tm_active_with_altivec(tsk))) {
+	if (cpu_has_feature(CPU_FTR_ALTIVEC) && (tsk->thread.load_vec)) {
 		load_vr_state(&tsk->thread.vr_state);
 		tsk->thread.used_vr = 1;
 		tsk->thread.load_vec++;
@@ -497,13 +483,14 @@ void giveup_all(struct task_struct *tsk)
 	if (!tsk->thread.regs)
 		return;
 
+	check_if_tm_restore_required(tsk);
+
 	usermsr = tsk->thread.regs->msr;
 
 	if ((usermsr & msr_all_available) == 0)
 		return;
 
 	msr_check_and_set(msr_all_available);
-	check_if_tm_restore_required(tsk);
 
 	WARN_ON((usermsr & MSR_VSX) && !((usermsr & MSR_FP) && (usermsr & MSR_VEC)));
 
@@ -639,7 +626,7 @@ void do_break (struct pt_regs *regs, unsigned long address,
 	hw_breakpoint_disable();
 
 	/* Deliver the signal to userspace */
-	force_sig_fault(SIGTRAP, TRAP_HWBKPT, (void __user *)address, current);
+	force_sig_fault(SIGTRAP, TRAP_HWBKPT, (void __user *)address);
 }
 #endif	/* CONFIG_PPC_ADV_DEBUG_REGS */
 
@@ -791,34 +778,6 @@ static inline int set_dabr(struct arch_hw_breakpoint *brk)
 		return ppc_md.set_dabr(dabr, dabrx);
 
 	return __set_dabr(dabr, dabrx);
-}
-
-int set_dawr(struct arch_hw_breakpoint *brk)
-{
-	unsigned long dawr, dawrx, mrd;
-
-	dawr = brk->address;
-
-	dawrx  = (brk->type & (HW_BRK_TYPE_READ | HW_BRK_TYPE_WRITE)) \
-		                   << (63 - 58); //* read/write bits */
-	dawrx |= ((brk->type & (HW_BRK_TYPE_TRANSLATE)) >> 2) \
-		                   << (63 - 59); //* translate */
-	dawrx |= (brk->type & (HW_BRK_TYPE_PRIV_ALL)) \
-		                   >> 3; //* PRIM bits */
-	/* dawr length is stored in field MDR bits 48:53.  Matches range in
-	   doublewords (64 bits) baised by -1 eg. 0b000000=1DW and
-	   0b111111=64DW.
-	   brk->len is in bytes.
-	   This aligns up to double word size, shifts and does the bias.
-	*/
-	mrd = ((brk->len + 7) >> 3) - 1;
-	dawrx |= (mrd & 0x3f) << (63 - 53);
-
-	if (ppc_md.set_dawr)
-		return ppc_md.set_dawr(dawr, dawrx);
-	mtspr(SPRN_DAWR, dawr);
-	mtspr(SPRN_DAWRX, dawrx);
-	return 0;
 }
 
 void __set_breakpoint(struct arch_hw_breakpoint *brk)

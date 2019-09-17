@@ -88,6 +88,8 @@
  */
 #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
 
+#define typeof_member(T, m)	typeof(((T*)0)->m)
+
 #define DIV_ROUND_UP __KERNEL_DIV_ROUND_UP
 
 #define DIV_ROUND_DOWN_ULL(ll, d) \

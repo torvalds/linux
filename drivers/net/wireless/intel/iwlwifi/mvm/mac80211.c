@@ -207,6 +207,12 @@ static const struct cfg80211_pmsr_capabilities iwl_mvm_pmsr_capa = {
 	},
 };
 
+static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
+				 enum set_key_cmd cmd,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta,
+				 struct ieee80211_key_conf *key);
+
 void iwl_mvm_ref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type)
 {
 	if (!iwl_mvm_is_d0i3_supported(mvm))
@@ -468,7 +474,19 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
 	ieee80211_hw_set(hw, BUFF_MMPDU_TXQ);
 	ieee80211_hw_set(hw, STA_MMPDU_TXQ);
-	ieee80211_hw_set(hw, TX_AMSDU);
+	/*
+	 * On older devices, enabling TX A-MSDU occasionally leads to
+	 * something getting messed up, the command read from the FIFO
+	 * gets out of sync and isn't a TX command, so that we have an
+	 * assert EDC.
+	 *
+	 * It's not clear where the bug is, but since we didn't used to
+	 * support A-MSDU until moving the mac80211 iTXQs, just leave it
+	 * for older devices. We also don't see this issue on any newer
+	 * devices.
+	 */
+	if (mvm->cfg->device_family >= IWL_DEVICE_FAMILY_9000)
+		ieee80211_hw_set(hw, TX_AMSDU);
 	ieee80211_hw_set(hw, TX_FRAG_LIST);
 
 	if (iwl_mvm_has_tlc_offload(mvm)) {
@@ -1439,7 +1457,7 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	 */
 	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 
-	iwl_fw_cancel_dump(&mvm->fwrt);
+	iwl_fw_cancel_dumps(&mvm->fwrt);
 	cancel_delayed_work_sync(&mvm->cs_tx_unblock_dwork);
 	cancel_delayed_work_sync(&mvm->scan_timeout_dwork);
 	iwl_fw_free_dump_desc(&mvm->fwrt);
@@ -2365,22 +2383,23 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 
 	/* Mark MU EDCA as enabled, unless none detected on some AC */
 	flags |= STA_CTXT_HE_MU_EDCA_CW;
-	for (i = 0; i < AC_NUM; i++) {
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		struct ieee80211_he_mu_edca_param_ac_rec *mu_edca =
 			&mvmvif->queue_params[i].mu_edca_param_rec;
+		u8 ac = iwl_mvm_mac80211_ac_to_ucode_ac(i);
 
 		if (!mvmvif->queue_params[i].mu_edca) {
 			flags &= ~STA_CTXT_HE_MU_EDCA_CW;
 			break;
 		}
 
-		sta_ctxt_cmd.trig_based_txf[i].cwmin =
+		sta_ctxt_cmd.trig_based_txf[ac].cwmin =
 			cpu_to_le16(mu_edca->ecw_min_max & 0xf);
-		sta_ctxt_cmd.trig_based_txf[i].cwmax =
+		sta_ctxt_cmd.trig_based_txf[ac].cwmax =
 			cpu_to_le16((mu_edca->ecw_min_max & 0xf0) >> 4);
-		sta_ctxt_cmd.trig_based_txf[i].aifsn =
+		sta_ctxt_cmd.trig_based_txf[ac].aifsn =
 			cpu_to_le16(mu_edca->aifsn);
-		sta_ctxt_cmd.trig_based_txf[i].mu_time =
+		sta_ctxt_cmd.trig_based_txf[ac].mu_time =
 			cpu_to_le16(mu_edca->mu_edca_timer);
 	}
 
@@ -2636,7 +2655,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int ret;
+	int ret, i;
 
 	/*
 	 * iwl_mvm_mac_ctxt_add() might read directly from the device
@@ -2709,6 +2728,20 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 
 	/* must be set before quota calculations */
 	mvmvif->ap_ibss_active = true;
+
+	/* send all the early keys to the device now */
+	for (i = 0; i < ARRAY_SIZE(mvmvif->ap_early_keys); i++) {
+		struct ieee80211_key_conf *key = mvmvif->ap_early_keys[i];
+
+		if (!key)
+			continue;
+
+		mvmvif->ap_early_keys[i] = NULL;
+
+		ret = __iwl_mvm_mac_set_key(hw, SET_KEY, vif, NULL, key);
+		if (ret)
+			goto out_quota_failed;
+	}
 
 	if (vif->type == NL80211_IFTYPE_AP && !vif->p2p) {
 		iwl_mvm_vif_set_low_latency(mvmvif, true,
@@ -3294,10 +3327,20 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		/* enable beacon filtering */
 		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
 
+		/*
+		 * Now that the station is authorized, i.e., keys were already
+		 * installed, need to indicate to the FW that
+		 * multicast data frames can be forwarded to the driver
+		 */
+		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+
 		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
 				     true);
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
+		/* Multicast data frames are no longer allowed */
+		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+
 		/* disable beacon filtering */
 		ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
 		WARN_ON(ret &&
@@ -3473,17 +3516,18 @@ static int iwl_mvm_mac_sched_scan_stop(struct ieee80211_hw *hw,
 	return ret;
 }
 
-static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
-			       enum set_key_cmd cmd,
-			       struct ieee80211_vif *vif,
-			       struct ieee80211_sta *sta,
-			       struct ieee80211_key_conf *key)
+static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
+				 enum set_key_cmd cmd,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta,
+				 struct ieee80211_key_conf *key)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_sta *mvmsta;
 	struct iwl_mvm_key_pn *ptk_pn;
 	int keyidx = key->keyidx;
-	int ret;
+	int ret, i;
 	u8 key_offset;
 
 	if (iwlwifi_mod_params.swcrypto) {
@@ -3531,8 +3575,6 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			return -EOPNOTSUPP;
 	}
 
-	mutex_lock(&mvm->mutex);
-
 	switch (cmd) {
 	case SET_KEY:
 		if ((vif->type == NL80211_IFTYPE_ADHOC ||
@@ -3554,6 +3596,22 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			    key->cipher != WLAN_CIPHER_SUITE_GCMP_256 &&
 			    !iwl_mvm_has_new_tx_api(mvm)) {
 				key->hw_key_idx = STA_KEY_IDX_INVALID;
+				break;
+			}
+
+			if (!mvmvif->ap_ibss_active) {
+				for (i = 0;
+				     i < ARRAY_SIZE(mvmvif->ap_early_keys);
+				     i++) {
+					if (!mvmvif->ap_early_keys[i]) {
+						mvmvif->ap_early_keys[i] = key;
+						break;
+					}
+				}
+
+				if (i >= ARRAY_SIZE(mvmvif->ap_early_keys))
+					ret = -ENOSPC;
+
 				break;
 			}
 		}
@@ -3624,6 +3682,18 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 
 		break;
 	case DISABLE_KEY:
+		ret = -ENOENT;
+		for (i = 0; i < ARRAY_SIZE(mvmvif->ap_early_keys); i++) {
+			if (mvmvif->ap_early_keys[i] == key) {
+				mvmvif->ap_early_keys[i] = NULL;
+				ret = 0;
+			}
+		}
+
+		/* found in pending list - don't do anything else */
+		if (ret == 0)
+			break;
+
 		if (key->hw_key_idx == STA_KEY_IDX_INVALID) {
 			ret = 0;
 			break;
@@ -3650,7 +3720,22 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 		ret = -EINVAL;
 	}
 
+	return ret;
+}
+
+static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
+			       enum set_key_cmd cmd,
+			       struct ieee80211_vif *vif,
+			       struct ieee80211_sta *sta,
+			       struct ieee80211_key_conf *key)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+	ret = __iwl_mvm_mac_set_key(hw, cmd, vif, sta, key);
 	mutex_unlock(&mvm->mutex);
+
 	return ret;
 }
 
@@ -4991,7 +5076,6 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 	u32 qmask = BIT(mvm->trans->num_rx_queues) - 1;
 	int ret;
 
-	lockdep_assert_held(&mvm->mutex);
 
 	if (!iwl_mvm_has_new_rx_api(mvm))
 		return;
@@ -5002,13 +5086,15 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 		atomic_set(&mvm->queue_sync_counter,
 			   mvm->trans->num_rx_queues);
 
-	ret = iwl_mvm_notify_rx_queue(mvm, qmask, (u8 *)notif, size);
+	ret = iwl_mvm_notify_rx_queue(mvm, qmask, (u8 *)notif,
+				      size, !notif->sync);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to trigger RX queues sync (%d)\n", ret);
 		goto out;
 	}
 
 	if (notif->sync) {
+		lockdep_assert_held(&mvm->mutex);
 		ret = wait_event_timeout(mvm->rx_sync_waitq,
 					 atomic_read(&mvm->queue_sync_counter) == 0 ||
 					 iwl_mvm_is_radio_killed(mvm),

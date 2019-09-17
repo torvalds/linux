@@ -759,6 +759,32 @@ enum v4l2_mpeg_video_h264_level -
 
 
 
+.. _v4l2-mpeg-video-mpeg2-level:
+
+``V4L2_CID_MPEG_VIDEO_MPEG2_LEVEL``
+    (enum)
+
+enum v4l2_mpeg_video_mpeg2_level -
+    The level information for the MPEG2 elementary stream. Applicable to
+    MPEG2 codecs. Possible values are:
+
+
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - ``V4L2_MPEG_VIDEO_MPEG2_LEVEL_LOW``
+      - Low Level (LL)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_LEVEL_MAIN``
+      - Main Level (ML)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_LEVEL_HIGH_1440``
+      - High-1440 Level (H-14)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_LEVEL_HIGH``
+      - High Level (HL)
+
+
+
 .. _v4l2-mpeg-video-mpeg4-level:
 
 ``V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL``
@@ -842,6 +868,36 @@ enum v4l2_mpeg_video_h264_profile -
       - Stereo High profile
     * - ``V4L2_MPEG_VIDEO_H264_PROFILE_MULTIVIEW_HIGH``
       - Multiview High profile
+
+
+
+.. _v4l2-mpeg-video-mpeg2-profile:
+
+``V4L2_CID_MPEG_VIDEO_MPEG2_PROFILE``
+    (enum)
+
+enum v4l2_mpeg_video_mpeg2_profile -
+    The profile information for MPEG2. Applicable to MPEG2 codecs.
+    Possible values are:
+
+
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - ``V4L2_MPEG_VIDEO_MPEG2_PROFILE_SIMPLE``
+      - Simple profile (SP)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_PROFILE_MAIN``
+      - Main profile (MP)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_PROFILE_SNR_SCALABLE``
+      - SNR Scalable profile (SNR)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_PROFILE_SPATIALLY_SCALABLE``
+      - Spatially Scalable profile (Spt)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_PROFILE_HIGH``
+      - High profile (HP)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_PROFILE_MULTIVIEW``
+      - Multi-view profile (MVP)
 
 
 
@@ -1395,6 +1451,575 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       - Layer number
 
 
+.. _v4l2-mpeg-h264:
+
+``V4L2_CID_MPEG_VIDEO_H264_SPS (struct)``
+    Specifies the sequence parameter set (as extracted from the
+    bitstream) for the associated H264 slice data. This includes the
+    necessary parameters for configuring a stateless hardware decoding
+    pipeline for H264. The bitstream parameters are defined according
+    to :ref:`h264`, section 7.4.2.1.1 "Sequence Parameter Set Data
+    Semantics". For further documentation, refer to the above
+    specification, unless there is an explicit comment stating
+    otherwise.
+
+    .. note::
+
+       This compound control is not yet part of the public kernel API and
+       it is expected to change.
+
+.. c:type:: v4l2_ctrl_h264_sps
+
+.. cssclass:: longtable
+
+.. flat-table:: struct v4l2_ctrl_h264_sps
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u8
+      - ``profile_idc``
+      -
+    * - __u8
+      - ``constraint_set_flags``
+      - See :ref:`Sequence Parameter Set Constraints Set Flags <h264_sps_constraints_set_flags>`
+    * - __u8
+      - ``level_idc``
+      -
+    * - __u8
+      - ``seq_parameter_set_id``
+      -
+    * - __u8
+      - ``chroma_format_idc``
+      -
+    * - __u8
+      - ``bit_depth_luma_minus8``
+      -
+    * - __u8
+      - ``bit_depth_chroma_minus8``
+      -
+    * - __u8
+      - ``log2_max_frame_num_minus4``
+      -
+    * - __u8
+      - ``pic_order_cnt_type``
+      -
+    * - __u8
+      - ``log2_max_pic_order_cnt_lsb_minus4``
+      -
+    * - __u8
+      - ``max_num_ref_frames``
+      -
+    * - __u8
+      - ``num_ref_frames_in_pic_order_cnt_cycle``
+      -
+    * - __s32
+      - ``offset_for_ref_frame[255]``
+      -
+    * - __s32
+      - ``offset_for_non_ref_pic``
+      -
+    * - __s32
+      - ``offset_for_top_to_bottom_field``
+      -
+    * - __u16
+      - ``pic_width_in_mbs_minus1``
+      -
+    * - __u16
+      - ``pic_height_in_map_units_minus1``
+      -
+    * - __u32
+      - ``flags``
+      - See :ref:`Sequence Parameter Set Flags <h264_sps_flags>`
+
+.. _h264_sps_constraints_set_flags:
+
+``Sequence Parameter Set Constraints Set Flags``
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - ``V4L2_H264_SPS_CONSTRAINT_SET0_FLAG``
+      - 0x00000001
+      -
+    * - ``V4L2_H264_SPS_CONSTRAINT_SET1_FLAG``
+      - 0x00000002
+      -
+    * - ``V4L2_H264_SPS_CONSTRAINT_SET2_FLAG``
+      - 0x00000004
+      -
+    * - ``V4L2_H264_SPS_CONSTRAINT_SET3_FLAG``
+      - 0x00000008
+      -
+    * - ``V4L2_H264_SPS_CONSTRAINT_SET4_FLAG``
+      - 0x00000010
+      -
+    * - ``V4L2_H264_SPS_CONSTRAINT_SET5_FLAG``
+      - 0x00000020
+      -
+
+.. _h264_sps_flags:
+
+``Sequence Parameter Set Flags``
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - ``V4L2_H264_SPS_FLAG_SEPARATE_COLOUR_PLANE``
+      - 0x00000001
+      -
+    * - ``V4L2_H264_SPS_FLAG_QPPRIME_Y_ZERO_TRANSFORM_BYPASS``
+      - 0x00000002
+      -
+    * - ``V4L2_H264_SPS_FLAG_DELTA_PIC_ORDER_ALWAYS_ZERO``
+      - 0x00000004
+      -
+    * - ``V4L2_H264_SPS_FLAG_GAPS_IN_FRAME_NUM_VALUE_ALLOWED``
+      - 0x00000008
+      -
+    * - ``V4L2_H264_SPS_FLAG_FRAME_MBS_ONLY``
+      - 0x00000010
+      -
+    * - ``V4L2_H264_SPS_FLAG_MB_ADAPTIVE_FRAME_FIELD``
+      - 0x00000020
+      -
+    * - ``V4L2_H264_SPS_FLAG_DIRECT_8X8_INFERENCE``
+      - 0x00000040
+      -
+
+``V4L2_CID_MPEG_VIDEO_H264_PPS (struct)``
+    Specifies the picture parameter set (as extracted from the
+    bitstream) for the associated H264 slice data. This includes the
+    necessary parameters for configuring a stateless hardware decoding
+    pipeline for H264.  The bitstream parameters are defined according
+    to :ref:`h264`, section 7.4.2.2 "Picture Parameter Set RBSP
+    Semantics". For further documentation, refer to the above
+    specification, unless there is an explicit comment stating
+    otherwise.
+
+    .. note::
+
+       This compound control is not yet part of the public kernel API and
+       it is expected to change.
+
+.. c:type:: v4l2_ctrl_h264_pps
+
+.. cssclass:: longtable
+
+.. flat-table:: struct v4l2_ctrl_h264_pps
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u8
+      - ``pic_parameter_set_id``
+      -
+    * - __u8
+      - ``seq_parameter_set_id``
+      -
+    * - __u8
+      - ``num_slice_groups_minus1``
+      -
+    * - __u8
+      - ``num_ref_idx_l0_default_active_minus1``
+      -
+    * - __u8
+      - ``num_ref_idx_l1_default_active_minus1``
+      -
+    * - __u8
+      - ``weighted_bipred_idc``
+      -
+    * - __s8
+      - ``pic_init_qp_minus26``
+      -
+    * - __s8
+      - ``pic_init_qs_minus26``
+      -
+    * - __s8
+      - ``chroma_qp_index_offset``
+      -
+    * - __s8
+      - ``second_chroma_qp_index_offset``
+      -
+    * - __u16
+      - ``flags``
+      - See :ref:`Picture Parameter Set Flags <h264_pps_flags>`
+
+.. _h264_pps_flags:
+
+``Picture Parameter Set Flags``
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - ``V4L2_H264_PPS_FLAG_ENTROPY_CODING_MODE``
+      - 0x00000001
+      -
+    * - ``V4L2_H264_PPS_FLAG_BOTTOM_FIELD_PIC_ORDER_IN_FRAME_PRESENT``
+      - 0x00000002
+      -
+    * - ``V4L2_H264_PPS_FLAG_WEIGHTED_PRED``
+      - 0x00000004
+      -
+    * - ``V4L2_H264_PPS_FLAG_DEBLOCKING_FILTER_CONTROL_PRESENT``
+      - 0x00000008
+      -
+    * - ``V4L2_H264_PPS_FLAG_CONSTRAINED_INTRA_PRED``
+      - 0x00000010
+      -
+    * - ``V4L2_H264_PPS_FLAG_REDUNDANT_PIC_CNT_PRESENT``
+      - 0x00000020
+      -
+    * - ``V4L2_H264_PPS_FLAG_TRANSFORM_8X8_MODE``
+      - 0x00000040
+      -
+    * - ``V4L2_H264_PPS_FLAG_PIC_SCALING_MATRIX_PRESENT``
+      - 0x00000080
+      -
+
+``V4L2_CID_MPEG_VIDEO_H264_SCALING_MATRIX (struct)``
+    Specifies the scaling matrix (as extracted from the bitstream) for
+    the associated H264 slice data. The bitstream parameters are
+    defined according to :ref:`h264`, section 7.4.2.1.1.1 "Scaling
+    List Semantics". For further documentation, refer to the above
+    specification, unless there is an explicit comment stating
+    otherwise.
+
+    .. note::
+
+       This compound control is not yet part of the public kernel API and
+       it is expected to change.
+
+.. c:type:: v4l2_ctrl_h264_scaling_matrix
+
+.. cssclass:: longtable
+
+.. flat-table:: struct v4l2_ctrl_h264_scaling_matrix
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u8
+      - ``scaling_list_4x4[6][16]``
+      -
+    * - __u8
+      - ``scaling_list_8x8[6][64]``
+      -
+
+``V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAMS (struct)``
+    Specifies the slice parameters (as extracted from the bitstream)
+    for the associated H264 slice data. This includes the necessary
+    parameters for configuring a stateless hardware decoding pipeline
+    for H264.  The bitstream parameters are defined according to
+    :ref:`h264`, section 7.4.3 "Slice Header Semantics". For further
+    documentation, refer to the above specification, unless there is
+    an explicit comment stating otherwise.
+
+    .. note::
+
+       This compound control is not yet part of the public kernel API
+       and it is expected to change.
+
+       This structure is expected to be passed as an array, with one
+       entry for each slice included in the bitstream buffer.
+
+.. c:type:: v4l2_ctrl_h264_slice_params
+
+.. cssclass:: longtable
+
+.. flat-table:: struct v4l2_ctrl_h264_slice_params
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u32
+      - ``size``
+      -
+    * - __u32
+      - ``header_bit_size``
+      -
+    * - __u16
+      - ``first_mb_in_slice``
+      -
+    * - __u8
+      - ``slice_type``
+      -
+    * - __u8
+      - ``pic_parameter_set_id``
+      -
+    * - __u8
+      - ``colour_plane_id``
+      -
+    * - __u8
+      - ``redundant_pic_cnt``
+      -
+    * - __u16
+      - ``frame_num``
+      -
+    * - __u16
+      - ``idr_pic_id``
+      -
+    * - __u16
+      - ``pic_order_cnt_lsb``
+      -
+    * - __s32
+      - ``delta_pic_order_cnt_bottom``
+      -
+    * - __s32
+      - ``delta_pic_order_cnt0``
+      -
+    * - __s32
+      - ``delta_pic_order_cnt1``
+      -
+    * - struct :c:type:`v4l2_h264_pred_weight_table`
+      - ``pred_weight_table``
+      -
+    * - __u32
+      - ``dec_ref_pic_marking_bit_size``
+      -
+    * - __u32
+      - ``pic_order_cnt_bit_size``
+      -
+    * - __u8
+      - ``cabac_init_idc``
+      -
+    * - __s8
+      - ``slice_qp_delta``
+      -
+    * - __s8
+      - ``slice_qs_delta``
+      -
+    * - __u8
+      - ``disable_deblocking_filter_idc``
+      -
+    * - __s8
+      - ``slice_alpha_c0_offset_div2``
+      -
+    * - __s8
+      - ``slice_beta_offset_div2``
+      -
+    * - __u8
+      - ``num_ref_idx_l0_active_minus1``
+      -
+    * - __u8
+      - ``num_ref_idx_l1_active_minus1``
+      -
+    * - __u32
+      - ``slice_group_change_cycle``
+      -
+    * - __u8
+      - ``ref_pic_list0[32]``
+      - Reference picture list after applying the per-slice modifications
+    * - __u8
+      - ``ref_pic_list1[32]``
+      - Reference picture list after applying the per-slice modifications
+    * - __u32
+      - ``flags``
+      - See :ref:`Slice Parameter Flags <h264_slice_flags>`
+
+.. _h264_slice_flags:
+
+``Slice Parameter Set Flags``
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - ``V4L2_H264_SLICE_FLAG_FIELD_PIC``
+      - 0x00000001
+      -
+    * - ``V4L2_H264_SLICE_FLAG_BOTTOM_FIELD``
+      - 0x00000002
+      -
+    * - ``V4L2_H264_SLICE_FLAG_DIRECT_SPATIAL_MV_PRED``
+      - 0x00000004
+      -
+    * - ``V4L2_H264_SLICE_FLAG_SP_FOR_SWITCH``
+      - 0x00000008
+      -
+
+``Prediction Weight Table``
+
+    The bitstream parameters are defined according to :ref:`h264`,
+    section 7.4.3.2 "Prediction Weight Table Semantics". For further
+    documentation, refer to the above specification, unless there is
+    an explicit comment stating otherwise.
+
+.. c:type:: v4l2_h264_pred_weight_table
+
+.. cssclass:: longtable
+
+.. flat-table:: struct v4l2_h264_pred_weight_table
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u16
+      - ``luma_log2_weight_denom``
+      -
+    * - __u16
+      - ``chroma_log2_weight_denom``
+      -
+    * - struct :c:type:`v4l2_h264_weight_factors`
+      - ``weight_factors[2]``
+      - The weight factors at index 0 are the weight factors for the reference
+        list 0, the one at index 1 for the reference list 1.
+
+.. c:type:: v4l2_h264_weight_factors
+
+.. cssclass:: longtable
+
+.. flat-table:: struct v4l2_h264_weight_factors
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __s16
+      - ``luma_weight[32]``
+      -
+    * - __s16
+      - ``luma_offset[32]``
+      -
+    * - __s16
+      - ``chroma_weight[32][2]``
+      -
+    * - __s16
+      - ``chroma_offset[32][2]``
+      -
+
+``V4L2_CID_MPEG_VIDEO_H264_DECODE_PARAMS (struct)``
+    Specifies the decode parameters (as extracted from the bitstream)
+    for the associated H264 slice data. This includes the necessary
+    parameters for configuring a stateless hardware decoding pipeline
+    for H264. The bitstream parameters are defined according to
+    :ref:`h264`. For further documentation, refer to the above
+    specification, unless there is an explicit comment stating
+    otherwise.
+
+    .. note::
+
+       This compound control is not yet part of the public kernel API and
+       it is expected to change.
+
+.. c:type:: v4l2_ctrl_h264_decode_params
+
+.. cssclass:: longtable
+
+.. flat-table:: struct v4l2_ctrl_h264_decode_params
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - struct :c:type:`v4l2_h264_dpb_entry`
+      - ``dpb[16]``
+      -
+    * - __u16
+      - ``num_slices``
+      - Number of slices needed to decode the current frame
+    * - __u16
+      - ``nal_ref_idc``
+      - NAL reference ID value coming from the NAL Unit header
+    * - __u8
+      - ``ref_pic_list_p0[32]``
+      - Backward reference list used by P-frames in the original bitstream order
+    * - __u8
+      - ``ref_pic_list_b0[32]``
+      - Backward reference list used by B-frames in the original bitstream order
+    * - __u8
+      - ``ref_pic_list_b1[32]``
+      - Forward reference list used by B-frames in the original bitstream order
+    * - __s32
+      - ``top_field_order_cnt``
+      - Picture Order Count for the coded top field
+    * - __s32
+      - ``bottom_field_order_cnt``
+      - Picture Order Count for the coded bottom field
+    * - __u32
+      - ``flags``
+      - See :ref:`Decode Parameters Flags <h264_decode_params_flags>`
+
+.. _h264_decode_params_flags:
+
+``Decode Parameters Flags``
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - ``V4L2_H264_DECODE_PARAM_FLAG_IDR_PIC``
+      - 0x00000001
+      - That picture is an IDR picture
+
+.. c:type:: v4l2_h264_dpb_entry
+
+.. cssclass:: longtable
+
+.. flat-table:: struct v4l2_h264_dpb_entry
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u64
+      - ``reference_ts``
+      - Timestamp of the V4L2 capture buffer to use as reference, used
+        with B-coded and P-coded frames. The timestamp refers to the
+	``timestamp`` field in struct :c:type:`v4l2_buffer`. Use the
+	:c:func:`v4l2_timeval_to_ns()` function to convert the struct
+	:c:type:`timeval` in struct :c:type:`v4l2_buffer` to a __u64.
+    * - __u16
+      - ``frame_num``
+      -
+    * - __u16
+      - ``pic_num``
+      -
+    * - __s32
+      - ``top_field_order_cnt``
+      -
+    * - __s32
+      - ``bottom_field_order_cnt``
+      -
+    * - __u32
+      - ``flags``
+      - See :ref:`DPB Entry Flags <h264_dpb_flags>`
+
+.. _h264_dpb_flags:
+
+``DPB Entries Flags``
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - ``V4L2_H264_DPB_ENTRY_FLAG_VALID``
+      - 0x00000001
+      - The DPB entry is valid and should be considered
+    * - ``V4L2_H264_DPB_ENTRY_FLAG_ACTIVE``
+      - 0x00000002
+      - The DPB entry is currently being used as a reference frame
+    * - ``V4L2_H264_DPB_ENTRY_FLAG_LONG_TERM``
+      - 0x00000004
+      - The DPB entry is a long term reference frame
 
 .. _v4l2-mpeg-mpeg2:
 

@@ -52,8 +52,7 @@ struct snd_oxfw {
 	struct cmp_connection in_conn;
 	struct amdtp_stream tx_stream;
 	struct amdtp_stream rx_stream;
-	unsigned int capture_substreams;
-	unsigned int playback_substreams;
+	unsigned int substreams_count;
 
 	unsigned int midi_input_ports;
 	unsigned int midi_output_ports;
@@ -99,17 +98,14 @@ int avc_general_inquiry_sig_fmt(struct fw_unit *unit, unsigned int rate,
 				enum avc_general_plug_dir dir,
 				unsigned short pid);
 
-int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw,
-				 struct amdtp_stream *stream);
-int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw,
-				  struct amdtp_stream *stream,
-				  unsigned int rate, unsigned int pcm_channels);
-void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw,
-				  struct amdtp_stream *stream);
-void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw,
-				     struct amdtp_stream *stream);
-void snd_oxfw_stream_update_simplex(struct snd_oxfw *oxfw,
-				    struct amdtp_stream *stream);
+int snd_oxfw_stream_init_duplex(struct snd_oxfw *oxfw);
+int snd_oxfw_stream_reserve_duplex(struct snd_oxfw *oxfw,
+				   struct amdtp_stream *stream,
+				   unsigned int rate, unsigned int pcm_channels);
+int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw);
+void snd_oxfw_stream_stop_duplex(struct snd_oxfw *oxfw);
+void snd_oxfw_stream_destroy_duplex(struct snd_oxfw *oxfw);
+void snd_oxfw_stream_update_duplex(struct snd_oxfw *oxfw);
 
 struct snd_oxfw_stream_formation {
 	unsigned int rate;

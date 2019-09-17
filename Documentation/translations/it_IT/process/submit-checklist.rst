@@ -43,7 +43,7 @@ sottomissione delle patch, in particolare
 
 6) Le opzioni ``CONFIG``, nuove o modificate, non scombussolano il menu
    di configurazione e sono preimpostate come disabilitate a meno che non
-   soddisfino i criteri descritti in ``Documentation/kbuild/kconfig-language.txt``
+   soddisfino i criteri descritti in ``Documentation/kbuild/kconfig-language.rst``
    alla punto "Voci di menu: valori predefiniti".
 
 7) Tutte le nuove opzioni ``Kconfig`` hanno un messaggio di aiuto.
@@ -117,7 +117,7 @@ sottomissione delle patch, in particolare
     sorgenti che ne spieghi la logica: cosa fanno e perché.
 
 25) Se la patch aggiunge nuove chiamate ioctl, allora aggiornate
-    ``Documentation/ioctl/ioctl-number.txt``.
+    ``Documentation/ioctl/ioctl-number.rst``.
 
 26) Se il codice che avete modificato dipende o usa una qualsiasi interfaccia o
     funzionalità del kernel che è associata a uno dei seguenti simboli

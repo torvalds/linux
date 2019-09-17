@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "../../util/util.h"
 #include <signal.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdlib.h>
 #include <sys/ttydefaults.h>
 
 #include "../../util/cache.h"

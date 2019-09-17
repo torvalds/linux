@@ -81,7 +81,7 @@ static void sctp_v4_copy_addrlist(struct list_head *addrlist,
 		return;
 	}
 
-	for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
+	in_dev_for_each_ifa_rcu(ifa, in_dev) {
 		/* Add the address to the local list.  */
 		addr = kzalloc(sizeof(*addr), GFP_ATOMIC);
 		if (addr) {
@@ -1336,7 +1336,7 @@ static int __net_init sctp_ctrlsock_init(struct net *net)
 	return status;
 }
 
-static void __net_init sctp_ctrlsock_exit(struct net *net)
+static void __net_exit sctp_ctrlsock_exit(struct net *net)
 {
 	/* Free the control endpoint.  */
 	inet_ctl_sock_destroy(net->sctp.ctl_sock);

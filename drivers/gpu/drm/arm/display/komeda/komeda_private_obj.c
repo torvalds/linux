@@ -61,6 +61,49 @@ static int komeda_layer_obj_add(struct komeda_kms_dev *kms,
 }
 
 static struct drm_private_state *
+komeda_scaler_atomic_duplicate_state(struct drm_private_obj *obj)
+{
+	struct komeda_scaler_state *st;
+
+	st = kmemdup(obj->state, sizeof(*st), GFP_KERNEL);
+	if (!st)
+		return NULL;
+
+	komeda_component_state_reset(&st->base);
+	__drm_atomic_helper_private_obj_duplicate_state(obj, &st->base.obj);
+
+	return &st->base.obj;
+}
+
+static void
+komeda_scaler_atomic_destroy_state(struct drm_private_obj *obj,
+				   struct drm_private_state *state)
+{
+	kfree(to_scaler_st(priv_to_comp_st(state)));
+}
+
+static const struct drm_private_state_funcs komeda_scaler_obj_funcs = {
+	.atomic_duplicate_state	= komeda_scaler_atomic_duplicate_state,
+	.atomic_destroy_state	= komeda_scaler_atomic_destroy_state,
+};
+
+static int komeda_scaler_obj_add(struct komeda_kms_dev *kms,
+				 struct komeda_scaler *scaler)
+{
+	struct komeda_scaler_state *st;
+
+	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	if (!st)
+		return -ENOMEM;
+
+	st->base.component = &scaler->base;
+	drm_atomic_private_obj_init(&kms->base,
+				    &scaler->base.obj, &st->base.obj,
+				    &komeda_scaler_obj_funcs);
+	return 0;
+}
+
+static struct drm_private_state *
 komeda_compiz_atomic_duplicate_state(struct drm_private_obj *obj)
 {
 	struct komeda_compiz_state *st;
@@ -99,6 +142,93 @@ static int komeda_compiz_obj_add(struct komeda_kms_dev *kms,
 	st->base.component = &compiz->base;
 	drm_atomic_private_obj_init(&kms->base, &compiz->base.obj, &st->base.obj,
 				    &komeda_compiz_obj_funcs);
+
+	return 0;
+}
+
+static struct drm_private_state *
+komeda_splitter_atomic_duplicate_state(struct drm_private_obj *obj)
+{
+	struct komeda_splitter_state *st;
+
+	st = kmemdup(obj->state, sizeof(*st), GFP_KERNEL);
+	if (!st)
+		return NULL;
+
+	komeda_component_state_reset(&st->base);
+	__drm_atomic_helper_private_obj_duplicate_state(obj, &st->base.obj);
+
+	return &st->base.obj;
+}
+
+static void
+komeda_splitter_atomic_destroy_state(struct drm_private_obj *obj,
+				     struct drm_private_state *state)
+{
+	kfree(to_splitter_st(priv_to_comp_st(state)));
+}
+
+static const struct drm_private_state_funcs komeda_splitter_obj_funcs = {
+	.atomic_duplicate_state	= komeda_splitter_atomic_duplicate_state,
+	.atomic_destroy_state	= komeda_splitter_atomic_destroy_state,
+};
+
+static int komeda_splitter_obj_add(struct komeda_kms_dev *kms,
+				   struct komeda_splitter *splitter)
+{
+	struct komeda_splitter_state *st;
+
+	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	if (!st)
+		return -ENOMEM;
+
+	st->base.component = &splitter->base;
+	drm_atomic_private_obj_init(&kms->base,
+				    &splitter->base.obj, &st->base.obj,
+				    &komeda_splitter_obj_funcs);
+
+	return 0;
+}
+
+static struct drm_private_state *
+komeda_merger_atomic_duplicate_state(struct drm_private_obj *obj)
+{
+	struct komeda_merger_state *st;
+
+	st = kmemdup(obj->state, sizeof(*st), GFP_KERNEL);
+	if (!st)
+		return NULL;
+
+	komeda_component_state_reset(&st->base);
+	__drm_atomic_helper_private_obj_duplicate_state(obj, &st->base.obj);
+
+	return &st->base.obj;
+}
+
+static void komeda_merger_atomic_destroy_state(struct drm_private_obj *obj,
+					       struct drm_private_state *state)
+{
+	kfree(to_merger_st(priv_to_comp_st(state)));
+}
+
+static const struct drm_private_state_funcs komeda_merger_obj_funcs = {
+	.atomic_duplicate_state	= komeda_merger_atomic_duplicate_state,
+	.atomic_destroy_state	= komeda_merger_atomic_destroy_state,
+};
+
+static int komeda_merger_obj_add(struct komeda_kms_dev *kms,
+				 struct komeda_merger *merger)
+{
+	struct komeda_merger_state *st;
+
+	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	if (!st)
+		return -ENOMEM;
+
+	st->base.component = &merger->base;
+	drm_atomic_private_obj_init(&kms->base,
+				    &merger->base.obj, &st->base.obj,
+				    &komeda_merger_obj_funcs);
 
 	return 0;
 }
@@ -252,9 +382,33 @@ int komeda_kms_add_private_objs(struct komeda_kms_dev *kms,
 				return err;
 		}
 
+		if (pipe->wb_layer) {
+			err = komeda_layer_obj_add(kms, pipe->wb_layer);
+			if (err)
+				return err;
+		}
+
+		for (j = 0; j < pipe->n_scalers; j++) {
+			err = komeda_scaler_obj_add(kms, pipe->scalers[j]);
+			if (err)
+				return err;
+		}
+
 		err = komeda_compiz_obj_add(kms, pipe->compiz);
 		if (err)
 			return err;
+
+		if (pipe->splitter) {
+			err = komeda_splitter_obj_add(kms, pipe->splitter);
+			if (err)
+				return err;
+		}
+
+		if (pipe->merger) {
+			err = komeda_merger_obj_add(kms, pipe->merger);
+			if (err)
+				return err;
+		}
 
 		err = komeda_improc_obj_add(kms, pipe->improc);
 		if (err)

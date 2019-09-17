@@ -114,8 +114,6 @@ void __init pre_mmu_init(void)
 	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir);
 	TLBMISS_HANDLER_SETUP_PGD_KERNEL(swapper_pg_dir);
 
-	asid_cache(smp_processor_id()) = ASID_FIRST_VERSION;
-
 	/* Setup page mask to 4k */
 	write_mmu_pagemask(0);
 }

@@ -585,9 +585,6 @@ static void xfrm_bydst_resize(struct net *net, int dir)
 	odst = rcu_dereference_protected(net->xfrm.policy_bydst[dir].table,
 				lockdep_is_held(&net->xfrm.xfrm_policy_lock));
 
-	odst = rcu_dereference_protected(net->xfrm.policy_bydst[dir].table,
-				lockdep_is_held(&net->xfrm.xfrm_policy_lock));
-
 	for (i = hmask; i >= 0; i--)
 		xfrm_dst_hash_transfer(net, odst + i, ndst, nhashmask, dir);
 
@@ -915,6 +912,7 @@ restart:
 		} else if (delta > 0) {
 			p = &parent->rb_right;
 		} else {
+			bool same_prefixlen = node->prefixlen == n->prefixlen;
 			struct xfrm_policy *tmp;
 
 			hlist_for_each_entry(tmp, &n->hhead, bydst) {
@@ -922,9 +920,11 @@ restart:
 				hlist_del_rcu(&tmp->bydst);
 			}
 
+			node->prefixlen = prefixlen;
+
 			xfrm_policy_inexact_list_reinsert(net, node, family);
 
-			if (node->prefixlen == n->prefixlen) {
+			if (same_prefixlen) {
 				kfree_rcu(n, rcu);
 				return;
 			}
@@ -932,7 +932,6 @@ restart:
 			rb_erase(*p, new);
 			kfree_rcu(n, rcu);
 			n = node;
-			n->prefixlen = prefixlen;
 			goto restart;
 		}
 	}
@@ -1280,13 +1279,17 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 
 		hlist_for_each_entry_safe(policy, n,
 					  &net->xfrm.policy_inexact[dir],
-					  bydst_inexact_list)
+					  bydst_inexact_list) {
+			hlist_del_rcu(&policy->bydst);
 			hlist_del_init(&policy->bydst_inexact_list);
+		}
 
 		hmask = net->xfrm.policy_bydst[dir].hmask;
 		odst = net->xfrm.policy_bydst[dir].table;
-		for (i = hmask; i >= 0; i--)
-			INIT_HLIST_HEAD(odst + i);
+		for (i = hmask; i >= 0; i--) {
+			hlist_for_each_entry_safe(policy, n, odst + i, bydst)
+				hlist_del_rcu(&policy->bydst);
+		}
 		if ((dir & XFRM_POLICY_MASK) == XFRM_POLICY_OUT) {
 			/* dir out => dst = remote, src = local */
 			net->xfrm.policy_bydst[dir].dbits4 = rbits4;
@@ -1314,8 +1317,6 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 		newpos = NULL;
 		chain = policy_hash_bysel(net, &policy->selector,
 					  policy->family, dir);
-
-		hlist_del_rcu(&policy->bydst);
 
 		if (!chain) {
 			void *p = xfrm_policy_inexact_insert(policy, dir, 0);
@@ -3270,7 +3271,7 @@ decode_session4(struct sk_buff *skb, struct flowi *fl, bool reverse)
 	struct flowi4 *fl4 = &fl->u.ip4;
 	int oif = 0;
 
-	if (skb_dst(skb))
+	if (skb_dst(skb) && skb_dst(skb)->dev)
 		oif = skb_dst(skb)->dev->ifindex;
 
 	memset(fl4, 0, sizeof(struct flowi4));
@@ -3388,7 +3389,7 @@ decode_session6(struct sk_buff *skb, struct flowi *fl, bool reverse)
 
 	nexthdr = nh[nhoff];
 
-	if (skb_dst(skb))
+	if (skb_dst(skb) && skb_dst(skb)->dev)
 		oif = skb_dst(skb)->dev->ifindex;
 
 	memset(fl6, 0, sizeof(struct flowi6));
@@ -3628,7 +3629,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 		}
 		xfrm_nr = ti;
 		if (npols > 1) {
-			xfrm_tmpl_sort(stp, tpp, xfrm_nr, family, net);
+			xfrm_tmpl_sort(stp, tpp, xfrm_nr, family);
 			tpp = stp;
 		}
 

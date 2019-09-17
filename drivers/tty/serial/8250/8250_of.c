@@ -70,9 +70,10 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		/* Get clk rate through clk driver if present */
 		info->clk = devm_clk_get(&ofdev->dev, NULL);
 		if (IS_ERR(info->clk)) {
-			dev_warn(&ofdev->dev,
-				"clk or clock-frequency not defined\n");
 			ret = PTR_ERR(info->clk);
+			if (ret != -EPROBE_DEFER)
+				dev_warn(&ofdev->dev,
+					 "failed to get clock: %d\n", ret);
 			goto err_pmruntime;
 		}
 
@@ -205,18 +206,16 @@ err_pmruntime:
 /*
  * Try to register a serial port
  */
-static const struct of_device_id of_platform_serial_table[];
 static int of_platform_serial_probe(struct platform_device *ofdev)
 {
-	const struct of_device_id *match;
 	struct of_serial_info *info;
 	struct uart_8250_port port8250;
+	unsigned int port_type;
 	u32 tx_threshold;
-	int port_type;
 	int ret;
 
-	match = of_match_device(of_platform_serial_table, &ofdev->dev);
-	if (!match)
+	port_type = (unsigned long)of_device_get_match_data(&ofdev->dev);
+	if (port_type == PORT_UNKNOWN)
 		return -EINVAL;
 
 	if (of_property_read_bool(ofdev->dev.of_node, "used-by-rtas"))
@@ -226,7 +225,6 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 	if (info == NULL)
 		return -ENOMEM;
 
-	port_type = (unsigned long)match->data;
 	memset(&port8250, 0, sizeof(port8250));
 	ret = of_platform_serial_setup(ofdev, port_type, &port8250.port, info);
 	if (ret)

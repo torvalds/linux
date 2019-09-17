@@ -11,6 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/property.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio/consumer.h>
 
@@ -582,7 +584,7 @@ static ssize_t ad5758_write_powerdown(struct iio_dev *indio_dev,
 {
 	struct ad5758_state *st = iio_priv(indio_dev);
 	bool pwr_down;
-	unsigned int dc_dc_mode, dac_config_mode, val;
+	unsigned int dac_config_mode, val;
 	unsigned long int dac_config_msk;
 	int ret;
 
@@ -591,13 +593,10 @@ static ssize_t ad5758_write_powerdown(struct iio_dev *indio_dev,
 		return ret;
 
 	mutex_lock(&st->lock);
-	if (pwr_down) {
-		dc_dc_mode = AD5758_DCDC_MODE_POWER_OFF;
+	if (pwr_down)
 		val = 0;
-	} else {
-		dc_dc_mode = st->dc_dc_mode;
+	else
 		val = 1;
-	}
 
 	dac_config_mode = AD5758_DAC_CONFIG_OUT_EN_MODE(val) |
 			  AD5758_DAC_CONFIG_INT_EN_MODE(val);
@@ -885,9 +884,16 @@ static const struct spi_device_id ad5758_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, ad5758_id);
 
+static const struct of_device_id ad5758_of_match[] = {
+        { .compatible = "adi,ad5758" },
+        { },
+};
+MODULE_DEVICE_TABLE(of, ad5758_of_match);
+
 static struct spi_driver ad5758_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
+		.of_match_table = ad5758_of_match,
 	},
 	.probe = ad5758_probe,
 	.id_table = ad5758_id,

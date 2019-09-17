@@ -11,7 +11,6 @@
 #include "perf.h"
 
 #include "util/build-id.h"
-#include "util/util.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/config.h"
@@ -54,6 +53,7 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 
 struct switch_output {
 	bool		 enabled;
@@ -1110,7 +1110,7 @@ record__switch_output(struct record *rec, bool at_exit)
 		rec->switch_output.cur_file = n;
 		if (rec->switch_output.filenames[n]) {
 			remove(rec->switch_output.filenames[n]);
-			free(rec->switch_output.filenames[n]);
+			zfree(&rec->switch_output.filenames[n]);
 		}
 		rec->switch_output.filenames[n] = new_filename;
 	} else {
@@ -2191,6 +2191,10 @@ static struct option __record_options[] = {
 	OPT_BOOLEAN_FLAG(0, "all-user", &record.opts.all_user,
 			 "Configure all used events to run in user space.",
 			 PARSE_OPT_EXCLUSIVE),
+	OPT_BOOLEAN(0, "kernel-callchains", &record.opts.kernel_callchains,
+		    "collect kernel callchains"),
+	OPT_BOOLEAN(0, "user-callchains", &record.opts.user_callchains,
+		    "collect user callchains"),
 	OPT_STRING(0, "clang-path", &llvm_param.clang_path, "clang path",
 		   "clang binary to use for compiling BPF scriptlets"),
 	OPT_STRING(0, "clang-opt", &llvm_param.clang_opt, "clang options",

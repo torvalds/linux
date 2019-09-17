@@ -25,6 +25,12 @@
 #ifndef __I915_UTILS_H
 #define __I915_UTILS_H
 
+#include <linux/list.h>
+#include <linux/overflow.h>
+#include <linux/sched.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
+
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
 #if 0
@@ -73,6 +79,39 @@
 #define overflows_type(x, T) \
 	(sizeof(x) > sizeof(T) && (x) >> BITS_PER_TYPE(T))
 
+static inline bool
+__check_struct_size(size_t base, size_t arr, size_t count, size_t *size)
+{
+	size_t sz;
+
+	if (check_mul_overflow(count, arr, &sz))
+		return false;
+
+	if (check_add_overflow(sz, base, &sz))
+		return false;
+
+	*size = sz;
+	return true;
+}
+
+/**
+ * check_struct_size() - Calculate size of structure with trailing array.
+ * @p: Pointer to the structure.
+ * @member: Name of the array member.
+ * @n: Number of elements in the array.
+ * @sz: Total size of structure and array
+ *
+ * Calculates size of memory needed for structure @p followed by an
+ * array of @n @member elements, like struct_size() but reports
+ * whether it overflowed, and the resultant size in @sz
+ *
+ * Return: false if the calculation overflowed.
+ */
+#define check_struct_size(p, member, n, sz) \
+	likely(__check_struct_size(sizeof(*(p)), \
+				   sizeof(*(p)->member) + __must_be_array((p)->member), \
+				   n, sz))
+
 #define ptr_mask_bits(ptr, n) ({					\
 	unsigned long __v = (unsigned long)(ptr);			\
 	(typeof(ptr))(__v & -BIT(n));					\
@@ -97,6 +136,8 @@
 #define page_pack_bits(ptr, bits) ptr_pack_bits(ptr, bits, PAGE_SHIFT)
 #define page_unpack_bits(ptr, bits) ptr_unpack_bits(ptr, bits, PAGE_SHIFT)
 
+#define struct_member(T, member) (((T *)0)->member)
+
 #define ptr_offset(ptr, member) offsetof(typeof(*(ptr)), member)
 
 #define fetch_and_zero(ptr) ({						\
@@ -113,7 +154,7 @@
  */
 #define container_of_user(ptr, type, member) ({				\
 	void __user *__mptr = (void __user *)(ptr);			\
-	BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) &&	\
+	BUILD_BUG_ON_MSG(!__same_type(*(ptr), struct_member(type, member)) && \
 			 !__same_type(*(ptr), void),			\
 			 "pointer type mismatch in container_of()");	\
 	((type __user *)(__mptr - offsetof(type, member))); })
@@ -152,8 +193,6 @@ static inline u64 ptr_to_u64(const void *ptr)
 	__idx;								\
 })
 
-#include <linux/list.h>
-
 static inline void __list_del_many(struct list_head *head,
 				   struct list_head *first)
 {
@@ -173,6 +212,148 @@ static inline void drain_delayed_work(struct delayed_work *dw)
 			;
 	} while (delayed_work_pending(dw));
 }
+
+static inline unsigned long msecs_to_jiffies_timeout(const unsigned int m)
+{
+	unsigned long j = msecs_to_jiffies(m);
+
+	return min_t(unsigned long, MAX_JIFFY_OFFSET, j + 1);
+}
+
+/*
+ * If you need to wait X milliseconds between events A and B, but event B
+ * doesn't happen exactly after event A, you record the timestamp (jiffies) of
+ * when event A happened, then just before event B you call this function and
+ * pass the timestamp as the first argument, and X as the second argument.
+ */
+static inline void
+wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
+{
+	unsigned long target_jiffies, tmp_jiffies, remaining_jiffies;
+
+	/*
+	 * Don't re-read the value of "jiffies" every time since it may change
+	 * behind our back and break the math.
+	 */
+	tmp_jiffies = jiffies;
+	target_jiffies = timestamp_jiffies +
+			 msecs_to_jiffies_timeout(to_wait_ms);
+
+	if (time_after(target_jiffies, tmp_jiffies)) {
+		remaining_jiffies = target_jiffies - tmp_jiffies;
+		while (remaining_jiffies)
+			remaining_jiffies =
+			    schedule_timeout_uninterruptible(remaining_jiffies);
+	}
+}
+
+/**
+ * __wait_for - magic wait macro
+ *
+ * Macro to help avoid open coding check/wait/timeout patterns. Note that it's
+ * important that we check the condition again after having timed out, since the
+ * timeout could be due to preemption or similar and we've never had a chance to
+ * check the condition before the timeout.
+ */
+#define __wait_for(OP, COND, US, Wmin, Wmax) ({ \
+	const ktime_t end__ = ktime_add_ns(ktime_get_raw(), 1000ll * (US)); \
+	long wait__ = (Wmin); /* recommended min for usleep is 10 us */	\
+	int ret__;							\
+	might_sleep();							\
+	for (;;) {							\
+		const bool expired__ = ktime_after(ktime_get_raw(), end__); \
+		OP;							\
+		/* Guarantee COND check prior to timeout */		\
+		barrier();						\
+		if (COND) {						\
+			ret__ = 0;					\
+			break;						\
+		}							\
+		if (expired__) {					\
+			ret__ = -ETIMEDOUT;				\
+			break;						\
+		}							\
+		usleep_range(wait__, wait__ * 2);			\
+		if (wait__ < (Wmax))					\
+			wait__ <<= 1;					\
+	}								\
+	ret__;								\
+})
+
+#define _wait_for(COND, US, Wmin, Wmax)	__wait_for(, (COND), (US), (Wmin), \
+						   (Wmax))
+#define wait_for(COND, MS)		_wait_for((COND), (MS) * 1000, 10, 1000)
+
+/* If CONFIG_PREEMPT_COUNT is disabled, in_atomic() always reports false. */
+#if defined(CONFIG_DRM_I915_DEBUG) && defined(CONFIG_PREEMPT_COUNT)
+# define _WAIT_FOR_ATOMIC_CHECK(ATOMIC) WARN_ON_ONCE((ATOMIC) && !in_atomic())
+#else
+# define _WAIT_FOR_ATOMIC_CHECK(ATOMIC) do { } while (0)
+#endif
+
+#define _wait_for_atomic(COND, US, ATOMIC) \
+({ \
+	int cpu, ret, timeout = (US) * 1000; \
+	u64 base; \
+	_WAIT_FOR_ATOMIC_CHECK(ATOMIC); \
+	if (!(ATOMIC)) { \
+		preempt_disable(); \
+		cpu = smp_processor_id(); \
+	} \
+	base = local_clock(); \
+	for (;;) { \
+		u64 now = local_clock(); \
+		if (!(ATOMIC)) \
+			preempt_enable(); \
+		/* Guarantee COND check prior to timeout */ \
+		barrier(); \
+		if (COND) { \
+			ret = 0; \
+			break; \
+		} \
+		if (now - base >= timeout) { \
+			ret = -ETIMEDOUT; \
+			break; \
+		} \
+		cpu_relax(); \
+		if (!(ATOMIC)) { \
+			preempt_disable(); \
+			if (unlikely(cpu != smp_processor_id())) { \
+				timeout -= now - base; \
+				cpu = smp_processor_id(); \
+				base = local_clock(); \
+			} \
+		} \
+	} \
+	ret; \
+})
+
+#define wait_for_us(COND, US) \
+({ \
+	int ret__; \
+	BUILD_BUG_ON(!__builtin_constant_p(US)); \
+	if ((US) > 10) \
+		ret__ = _wait_for((COND), (US), 10, 10); \
+	else \
+		ret__ = _wait_for_atomic((COND), (US), 0); \
+	ret__; \
+})
+
+#define wait_for_atomic_us(COND, US) \
+({ \
+	BUILD_BUG_ON(!__builtin_constant_p(US)); \
+	BUILD_BUG_ON((US) > 50000); \
+	_wait_for_atomic((COND), (US), 1); \
+})
+
+#define wait_for_atomic(COND, MS) wait_for_atomic_us((COND), (MS) * 1000)
+
+#define KHz(x) (1000 * (x))
+#define MHz(x) KHz(1000 * (x))
+
+#define KBps(x) (1000 * (x))
+#define MBps(x) KBps(1000 * (x))
+#define GBps(x) ((u64)1000 * MBps((x)))
 
 static inline const char *yesno(bool v)
 {

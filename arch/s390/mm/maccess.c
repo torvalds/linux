@@ -52,21 +52,22 @@ static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t siz
  * Therefore we have a read-modify-write sequence: the function reads eight
  * bytes from destination at an eight byte boundary, modifies the bytes
  * requested and writes the result back in a loop.
- *
- * Note: this means that this function may not be called concurrently on
- *	 several cpus with overlapping words, since this may potentially
- *	 cause data corruption.
  */
+static DEFINE_SPINLOCK(s390_kernel_write_lock);
+
 void notrace s390_kernel_write(void *dst, const void *src, size_t size)
 {
+	unsigned long flags;
 	long copied;
 
+	spin_lock_irqsave(&s390_kernel_write_lock, flags);
 	while (size) {
 		copied = s390_kernel_write_odd(dst, src, size);
 		dst += copied;
 		src += copied;
 		size -= copied;
 	}
+	spin_unlock_irqrestore(&s390_kernel_write_lock, flags);
 }
 
 static int __memcpy_real(void *dest, void *src, size_t count)

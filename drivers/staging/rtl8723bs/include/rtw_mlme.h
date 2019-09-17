@@ -589,7 +589,6 @@ extern void rtw_scan_timeout_handler(struct timer_list *t);
 extern void rtw_dynamic_check_timer_handler(struct adapter *adapter);
 bool rtw_is_scan_deny(struct adapter *adapter);
 void rtw_clear_scan_deny(struct adapter *adapter);
-void rtw_set_scan_deny_timer_hdl(struct adapter *adapter);
 void rtw_set_scan_deny(struct adapter *adapter, u32 ms);
 
 void rtw_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv);
@@ -606,8 +605,6 @@ extern void _rtw_free_network_nolock(struct mlme_priv *pmlmepriv, struct wlan_ne
 
 
 extern struct wlan_network* _rtw_find_network(struct __queue *scanned_queue, u8 *addr);
-
-extern void _rtw_free_network_queue(struct adapter *padapter, u8 isfreeall);
 
 extern sint rtw_if_up(struct adapter *padapter);
 

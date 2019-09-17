@@ -265,7 +265,7 @@ static void ext_hw_queue_schedule_job(struct hl_cs_job *job)
 	cq = &hdev->completion_queue[q->hw_queue_id];
 	cq_addr = cq->bus_address + cq->pi * sizeof(struct hl_cq_entry);
 
-	hdev->asic_funcs->add_end_of_cb_packets(cb->kernel_address, len,
+	hdev->asic_funcs->add_end_of_cb_packets(hdev, cb->kernel_address, len,
 						cq_addr,
 						__le32_to_cpu(cq_pkt.data),
 						q->hw_queue_id);
@@ -290,23 +290,19 @@ static void int_hw_queue_schedule_job(struct hl_cs_job *job)
 	struct hl_device *hdev = job->cs->ctx->hdev;
 	struct hl_hw_queue *q = &hdev->kernel_queues[job->hw_queue_id];
 	struct hl_bd bd;
-	u64 *pi, *pbd = (u64 *) &bd;
+	__le64 *pi;
 
 	bd.ctl = 0;
-	bd.len = __cpu_to_le32(job->job_cb_size);
-	bd.ptr = __cpu_to_le64((u64) (uintptr_t) job->user_cb);
+	bd.len = cpu_to_le32(job->job_cb_size);
+	bd.ptr = cpu_to_le64((u64) (uintptr_t) job->user_cb);
 
-	pi = (u64 *) (uintptr_t) (q->kernel_address +
+	pi = (__le64 *) (uintptr_t) (q->kernel_address +
 		((q->pi & (q->int_queue_len - 1)) * sizeof(bd)));
-
-	pi[0] = pbd[0];
-	pi[1] = pbd[1];
 
 	q->pi++;
 	q->pi &= ((q->int_queue_len << 1) - 1);
 
-	/* Flush PQ entry write. Relevant only for specific ASICs */
-	hdev->asic_funcs->flush_pq_write(hdev, pi, pbd[0]);
+	hdev->asic_funcs->pqe_write(hdev, pi, &bd);
 
 	hdev->asic_funcs->ring_doorbell(hdev, q->hw_queue_id, q->pi);
 }

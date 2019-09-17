@@ -53,6 +53,9 @@ enum cc_std_body {
 
 #define CC_COHERENT_CACHE_PARAMS 0xEEE
 
+#define CC_PINS_FULL	0x0
+#define CC_PINS_SLIM	0x9F
+
 /* Maximum DMA mask supported by IP */
 #define DMA_BIT_MASK_LEN 48
 
@@ -66,6 +69,8 @@ enum cc_std_body {
 #define CC_COMP_IRQ_MASK BIT(CC_HOST_IRR_AXIM_COMP_INT_BIT_SHIFT)
 
 #define CC_SECURITY_DISABLED_MASK BIT(CC_SECURITY_DISABLED_VALUE_BIT_SHIFT)
+
+#define CC_NVM_IS_IDLE_MASK BIT(CC_NVM_IS_IDLE_VALUE_BIT_SHIFT)
 
 #define AXIM_MON_COMP_VALUE GENMASK(CC_AXIM_MON_COMP_VALUE_BIT_SIZE + \
 				    CC_AXIM_MON_COMP_VALUE_BIT_SHIFT, \
@@ -216,6 +221,7 @@ static inline void dump_byte_array(const char *name, const u8 *the_array,
 		__dump_byte_array(name, the_array, size);
 }
 
+bool cc_wait_for_reset_completion(struct cc_drvdata *drvdata);
 int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe);
 void fini_cc_regs(struct cc_drvdata *drvdata);
 int cc_clk_on(struct cc_drvdata *drvdata);

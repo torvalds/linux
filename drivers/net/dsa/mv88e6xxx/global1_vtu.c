@@ -303,6 +303,35 @@ static int mv88e6xxx_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_g1_vtu_vid_read(chip, entry);
 }
 
+int mv88e6250_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
+			     struct mv88e6xxx_vtu_entry *entry)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_g1_vtu_getnext(chip, entry);
+	if (err)
+		return err;
+
+	if (entry->valid) {
+		err = mv88e6185_g1_vtu_data_read(chip, entry);
+		if (err)
+			return err;
+
+		/* VTU DBNum[3:0] are located in VTU Operation 3:0
+		 * VTU DBNum[5:4] are located in VTU Operation 9:8
+		 */
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_VTU_OP, &val);
+		if (err)
+			return err;
+
+		entry->fid = val & 0x000f;
+		entry->fid |= (val & 0x0300) >> 4;
+	}
+
+	return 0;
+}
+
 int mv88e6185_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 			     struct mv88e6xxx_vtu_entry *entry)
 {
@@ -390,6 +419,35 @@ int mv88e6390_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 	}
 
 	return 0;
+}
+
+int mv88e6250_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
+			       struct mv88e6xxx_vtu_entry *entry)
+{
+	u16 op = MV88E6XXX_G1_VTU_OP_VTU_LOAD_PURGE;
+	int err;
+
+	err = mv88e6xxx_g1_vtu_op_wait(chip);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_vtu_vid_write(chip, entry);
+	if (err)
+		return err;
+
+	if (entry->valid) {
+		err = mv88e6185_g1_vtu_data_write(chip, entry);
+		if (err)
+			return err;
+
+		/* VTU DBNum[3:0] are located in VTU Operation 3:0
+		 * VTU DBNum[5:4] are located in VTU Operation 9:8
+		 */
+		op |= entry->fid & 0x000f;
+		op |= (entry->fid & 0x0030) << 4;
+	}
+
+	return mv88e6xxx_g1_vtu_op(chip, op);
 }
 
 int mv88e6185_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
@@ -521,7 +579,7 @@ static irqreturn_t mv88e6xxx_g1_vtu_prob_irq_thread_fn(int irq, void *dev_id)
 	int err;
 	u16 val;
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 
 	err = mv88e6xxx_g1_vtu_op(chip, MV88E6XXX_G1_VTU_OP_GET_CLR_VIOLATION);
 	if (err)
@@ -549,12 +607,12 @@ static irqreturn_t mv88e6xxx_g1_vtu_prob_irq_thread_fn(int irq, void *dev_id)
 		chip->ports[spid].vtu_miss_violation++;
 	}
 
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	return IRQ_HANDLED;
 
 out:
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	dev_err(chip->dev, "VTU problem: error %d while handling interrupt\n",
 		err);

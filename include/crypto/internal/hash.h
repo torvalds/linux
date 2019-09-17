@@ -196,12 +196,6 @@ static inline struct ahash_request *ahash_dequeue_request(
 	return ahash_request_cast(crypto_dequeue_request(queue));
 }
 
-static inline int ahash_tfm_in_queue(struct crypto_queue *queue,
-					  struct crypto_ahash *tfm)
-{
-	return crypto_tfm_in_queue(queue, crypto_ahash_tfm(tfm));
-}
-
 static inline void *crypto_shash_ctx(struct crypto_shash *tfm)
 {
 	return crypto_tfm_ctx(&tfm->base);

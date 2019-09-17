@@ -5,12 +5,13 @@
  * Author: Inki Dae <inki.dae@samsung.com>
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_vma_manager.h>
 
-#include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
 #include <linux/pfn_t.h>
+#include <linux/shmem_fs.h>
+
+#include <drm/drm_prime.h>
+#include <drm/drm_vma_manager.h>
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"

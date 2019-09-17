@@ -565,7 +565,7 @@ static inline unsigned int ct_header_get_action(u32 header)
 
 static inline bool ct_header_is_response(u32 header)
 {
-	return ct_header_get_action(header) == INTEL_GUC_ACTION_DEFAULT;
+	return !!(header & GUC_CT_MSG_IS_RESPONSE);
 }
 
 static int ctb_read(struct intel_guc_ct_buffer *ctb, u32 *data)
@@ -848,8 +848,6 @@ static void intel_guc_to_host_event_handler_ct(struct intel_guc *guc)
  * Allocate memory required for communication via
  * the CT channel.
  *
- * Shall only be called for platforms with HAS_GUC_CT.
- *
  * Return: 0 on success, a negative errno code on failure.
  */
 int intel_guc_ct_init(struct intel_guc_ct *ct)
@@ -875,8 +873,6 @@ int intel_guc_ct_init(struct intel_guc_ct *ct)
  *
  * Deallocate memory required for communication via
  * the CT channel.
- *
- * Shall only be called for platforms with HAS_GUC_CT.
  */
 void intel_guc_ct_fini(struct intel_guc_ct *ct)
 {
@@ -890,18 +886,13 @@ void intel_guc_ct_fini(struct intel_guc_ct *ct)
  * intel_guc_ct_enable - Enable buffer based command transport.
  * @ct: pointer to CT struct
  *
- * Shall only be called for platforms with HAS_GUC_CT.
- *
  * Return: 0 on success, a negative errno code on failure.
  */
 int intel_guc_ct_enable(struct intel_guc_ct *ct)
 {
 	struct intel_guc *guc = ct_to_guc(ct);
-	struct drm_i915_private *i915 = guc_to_i915(guc);
 	struct intel_guc_ct_channel *ctch = &ct->host_channel;
 	int err;
-
-	GEM_BUG_ON(!HAS_GUC_CT(i915));
 
 	if (ctch->enabled)
 		return 0;
@@ -920,16 +911,11 @@ int intel_guc_ct_enable(struct intel_guc_ct *ct)
 /**
  * intel_guc_ct_disable - Disable buffer based command transport.
  * @ct: pointer to CT struct
- *
- * Shall only be called for platforms with HAS_GUC_CT.
  */
 void intel_guc_ct_disable(struct intel_guc_ct *ct)
 {
 	struct intel_guc *guc = ct_to_guc(ct);
-	struct drm_i915_private *i915 = guc_to_i915(guc);
 	struct intel_guc_ct_channel *ctch = &ct->host_channel;
-
-	GEM_BUG_ON(!HAS_GUC_CT(i915));
 
 	if (!ctch->enabled)
 		return;

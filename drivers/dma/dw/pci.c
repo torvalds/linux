@@ -15,10 +15,13 @@
 struct dw_dma_pci_data {
 	const struct dw_dma_platform_data *pdata;
 	int (*probe)(struct dw_dma_chip *chip);
+	int (*remove)(struct dw_dma_chip *chip);
+	struct dw_dma_chip *chip;
 };
 
 static const struct dw_dma_pci_data dw_pci_data = {
 	.probe = dw_dma_probe,
+	.remove = dw_dma_remove,
 };
 
 static const struct dw_dma_platform_data idma32_pdata = {
@@ -34,11 +37,13 @@ static const struct dw_dma_platform_data idma32_pdata = {
 static const struct dw_dma_pci_data idma32_pci_data = {
 	.pdata = &idma32_pdata,
 	.probe = idma32_dma_probe,
+	.remove = idma32_dma_remove,
 };
 
 static int dw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
-	const struct dw_dma_pci_data *data = (void *)pid->driver_data;
+	const struct dw_dma_pci_data *drv_data = (void *)pid->driver_data;
+	struct dw_dma_pci_data *data;
 	struct dw_dma_chip *chip;
 	int ret;
 
@@ -63,6 +68,10 @@ static int dw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	if (ret)
 		return ret;
 
+	data = devm_kmemdup(&pdev->dev, drv_data, sizeof(*drv_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
@@ -73,21 +82,24 @@ static int dw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	chip->irq = pdev->irq;
 	chip->pdata = data->pdata;
 
+	data->chip = chip;
+
 	ret = data->probe(chip);
 	if (ret)
 		return ret;
 
-	pci_set_drvdata(pdev, chip);
+	pci_set_drvdata(pdev, data);
 
 	return 0;
 }
 
 static void dw_pci_remove(struct pci_dev *pdev)
 {
-	struct dw_dma_chip *chip = pci_get_drvdata(pdev);
+	struct dw_dma_pci_data *data = pci_get_drvdata(pdev);
+	struct dw_dma_chip *chip = data->chip;
 	int ret;
 
-	ret = dw_dma_remove(chip);
+	ret = data->remove(chip);
 	if (ret)
 		dev_warn(&pdev->dev, "can't remove device properly: %d\n", ret);
 }
@@ -96,16 +108,16 @@ static void dw_pci_remove(struct pci_dev *pdev)
 
 static int dw_pci_suspend_late(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
-	struct dw_dma_chip *chip = pci_get_drvdata(pci);
+	struct dw_dma_pci_data *data = dev_get_drvdata(dev);
+	struct dw_dma_chip *chip = data->chip;
 
 	return do_dw_dma_disable(chip);
 };
 
 static int dw_pci_resume_early(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
-	struct dw_dma_chip *chip = pci_get_drvdata(pci);
+	struct dw_dma_pci_data *data = dev_get_drvdata(dev);
+	struct dw_dma_chip *chip = data->chip;
 
 	return do_dw_dma_enable(chip);
 };
@@ -130,6 +142,11 @@ static const struct pci_device_id dw_pci_id_table[] = {
 	/* Braswell */
 	{ PCI_VDEVICE(INTEL, 0x2286), (kernel_ulong_t)&dw_pci_data },
 	{ PCI_VDEVICE(INTEL, 0x22c0), (kernel_ulong_t)&dw_pci_data },
+
+	/* Elkhart Lake iDMA 32-bit (OSE DMA) */
+	{ PCI_VDEVICE(INTEL, 0x4bb4), (kernel_ulong_t)&idma32_pci_data },
+	{ PCI_VDEVICE(INTEL, 0x4bb5), (kernel_ulong_t)&idma32_pci_data },
+	{ PCI_VDEVICE(INTEL, 0x4bb6), (kernel_ulong_t)&idma32_pci_data },
 
 	/* Haswell */
 	{ PCI_VDEVICE(INTEL, 0x9c60), (kernel_ulong_t)&dw_pci_data },

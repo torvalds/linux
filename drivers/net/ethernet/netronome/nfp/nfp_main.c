@@ -596,6 +596,10 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	struct nfp_pf *pf;
 	int err;
 
+	if (pdev->vendor == PCI_VENDOR_ID_NETRONOME &&
+	    pdev->device == PCI_DEVICE_ID_NETRONOME_NFP6000_VF)
+		dev_warn(&pdev->dev, "Binding NFP VF device to the NFP PF driver, the VF driver is called 'nfp_netvf'\n");
+
 	err = pci_enable_device(pdev);
 	if (err < 0)
 		return err;

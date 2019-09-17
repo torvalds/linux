@@ -46,7 +46,7 @@ device is turned off while the system as a whole remains running, we
 call it a "dynamic suspend" (also known as a "runtime suspend" or
 "selective suspend").  This document concentrates mostly on how
 dynamic PM is implemented in the USB subsystem, although system PM is
-covered to some extent (see ``Documentation/power/*.txt`` for more
+covered to some extent (see ``Documentation/power/*.rst`` for more
 information about system PM).
 
 System PM support is present only if the kernel was built with

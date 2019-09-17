@@ -130,6 +130,10 @@ static int dvb_usb_exit(struct dvb_usb_device *d)
 	dvb_usb_i2c_exit(d);
 	deb_info("state should be zero now: %x\n", d->state);
 	d->state = DVB_USB_STATE_INIT;
+
+	if (d->priv != NULL && d->props.priv_destroy != NULL)
+		d->props.priv_destroy(d);
+
 	kfree(d->priv);
 	kfree(d);
 	return 0;
@@ -150,6 +154,15 @@ static int dvb_usb_init(struct dvb_usb_device *d, short *adapter_nums)
 		if (d->priv == NULL) {
 			err("no memory for priv in 'struct dvb_usb_device'");
 			return -ENOMEM;
+		}
+
+		if (d->props.priv_init != NULL) {
+			ret = d->props.priv_init(d);
+			if (ret != 0) {
+				kfree(d->priv);
+				d->priv = NULL;
+				return ret;
+			}
 		}
 	}
 
@@ -284,12 +297,15 @@ EXPORT_SYMBOL(dvb_usb_device_init);
 void dvb_usb_device_exit(struct usb_interface *intf)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	const char *name = "generic DVB-USB module";
+	const char *default_name = "generic DVB-USB module";
+	char name[40];
 
 	usb_set_intfdata(intf, NULL);
 	if (d != NULL && d->desc != NULL) {
-		name = d->desc->name;
+		strscpy(name, d->desc->name, sizeof(name));
 		dvb_usb_exit(d);
+	} else {
+		strscpy(name, default_name, sizeof(name));
 	}
 	info("%s successfully deinitialized and disconnected.", name);
 

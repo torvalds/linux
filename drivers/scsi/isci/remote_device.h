@@ -295,11 +295,6 @@ static inline struct isci_remote_device *rnc_to_dev(struct sci_remote_node_conte
 	return idev;
 }
 
-static inline bool dev_is_expander(struct domain_device *dev)
-{
-	return dev->dev_type == SAS_EDGE_EXPANDER_DEVICE || dev->dev_type == SAS_FANOUT_EXPANDER_DEVICE;
-}
-
 static inline void sci_remote_device_decrement_request_count(struct isci_remote_device *idev)
 {
 	/* XXX delete this voodoo when converting to the top-level device

@@ -51,7 +51,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 				if (SN_EQUAL(pReorderEntry->SeqNum, pRxTs->rx_indicate_seq))
 					pRxTs->rx_indicate_seq = (pRxTs->rx_indicate_seq + 1) % 4096;
 
-				IEEE80211_DEBUG(IEEE80211_DL_REORDER, "RxPktPendingTimeout(): IndicateSeq: %d\n", pReorderEntry->SeqNum);
+				IEEE80211_DEBUG(IEEE80211_DL_REORDER, "%s: IndicateSeq: %d\n", __func__, pReorderEntry->SeqNum);
 				ieee->stats_IndicateArray[index] = pReorderEntry->prxb;
 				index++;
 
@@ -97,7 +97,7 @@ static void TsAddBaProcess(struct timer_list *t)
 	struct ieee80211_device *ieee = container_of(pTxTs, struct ieee80211_device, TxTsRecord[num]);
 
 	TsInitAddBA(ieee, pTxTs, BA_POLICY_IMMEDIATE, false);
-	IEEE80211_DEBUG(IEEE80211_DL_BA, "TsAddBaProcess(): ADDBA Req is started!! \n");
+	IEEE80211_DEBUG(IEEE80211_DL_BA, "%s: ADDBA Req is started!! \n", __func__);
 }
 
 
@@ -456,7 +456,7 @@ void RemovePeerTS(struct ieee80211_device *ieee, u8 *Addr)
 {
 	struct ts_common_info	*pTS, *pTmpTS;
 
-	printk("===========>RemovePeerTS,%pM\n", Addr);
+	printk("===========>%s,%pM\n", __func__, Addr);
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, list) {
 		if (memcmp(pTS->addr, Addr, 6) == 0) {
 			RemoveTsEntry(ieee, pTS, TX_DIR);
@@ -525,11 +525,11 @@ void TsStartAddBaProcess(struct ieee80211_device *ieee, struct tx_ts_record *pTx
 	if (!pTxTS->add_ba_req_in_progress) {
 		pTxTS->add_ba_req_in_progress = true;
 		if (pTxTS->add_ba_req_delayed)	{
-			IEEE80211_DEBUG(IEEE80211_DL_BA, "TsStartAddBaProcess(): Delayed Start ADDBA after 60 sec!!\n");
+			IEEE80211_DEBUG(IEEE80211_DL_BA, "%s: Delayed Start ADDBA after 60 sec!!\n", __func__);
 			mod_timer(&pTxTS->ts_add_ba_timer,
 				  jiffies + msecs_to_jiffies(TS_ADDBA_DELAY));
 		} else {
-			IEEE80211_DEBUG(IEEE80211_DL_BA, "TsStartAddBaProcess(): Immediately Start ADDBA now!!\n");
+			IEEE80211_DEBUG(IEEE80211_DL_BA, "%s: Immediately Start ADDBA now!!\n", __func__);
 			mod_timer(&pTxTS->ts_add_ba_timer, jiffies+10); //set 10 ticks
 		}
 	} else {

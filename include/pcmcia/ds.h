@@ -36,7 +36,7 @@ struct config_t;
 struct net_device;
 
 /* dynamic device IDs for PCMCIA device drivers. See
- * Documentation/pcmcia/driver.txt for details.
+ * Documentation/pcmcia/driver.rst for details.
 */
 struct pcmcia_dynids {
 	struct mutex		lock;

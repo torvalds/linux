@@ -20,7 +20,7 @@ EXPORT_SYMBOL_GPL(unwind_get_return_address);
 static bool outside_of_stack(struct unwind_state *state, unsigned long sp)
 {
 	return (sp <= state->sp) ||
-		(sp + sizeof(struct stack_frame) > state->stack_info.end);
+		(sp > state->stack_info.end - sizeof(struct stack_frame));
 }
 
 static bool update_stack_info(struct unwind_state *state, unsigned long sp)
@@ -46,18 +46,18 @@ bool unwind_next_frame(struct unwind_state *state)
 
 	regs = state->regs;
 	if (unlikely(regs)) {
-		sp = READ_ONCE_TASK_STACK(state->task, regs->gprs[15]);
+		sp = READ_ONCE_NOCHECK(regs->gprs[15]);
 		if (unlikely(outside_of_stack(state, sp))) {
 			if (!update_stack_info(state, sp))
 				goto out_err;
 		}
 		sf = (struct stack_frame *) sp;
-		ip = READ_ONCE_TASK_STACK(state->task, sf->gprs[8]);
+		ip = READ_ONCE_NOCHECK(sf->gprs[8]);
 		reliable = false;
 		regs = NULL;
 	} else {
 		sf = (struct stack_frame *) state->sp;
-		sp = READ_ONCE_TASK_STACK(state->task, sf->back_chain);
+		sp = READ_ONCE_NOCHECK(sf->back_chain);
 		if (likely(sp)) {
 			/* Non-zero back-chain points to the previous frame */
 			if (unlikely(outside_of_stack(state, sp))) {
@@ -65,7 +65,7 @@ bool unwind_next_frame(struct unwind_state *state)
 					goto out_err;
 			}
 			sf = (struct stack_frame *) sp;
-			ip = READ_ONCE_TASK_STACK(state->task, sf->gprs[8]);
+			ip = READ_ONCE_NOCHECK(sf->gprs[8]);
 			reliable = true;
 		} else {
 			/* No back-chain, look for a pt_regs structure */
@@ -73,9 +73,9 @@ bool unwind_next_frame(struct unwind_state *state)
 			if (!on_stack(info, sp, sizeof(struct pt_regs)))
 				goto out_stop;
 			regs = (struct pt_regs *) sp;
-			if (user_mode(regs))
+			if (READ_ONCE_NOCHECK(regs->psw.mask) & PSW_MASK_PSTATE)
 				goto out_stop;
-			ip = READ_ONCE_TASK_STACK(state->task, regs->psw.addr);
+			ip = READ_ONCE_NOCHECK(regs->psw.addr);
 			reliable = true;
 		}
 	}
@@ -132,11 +132,11 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 
 	/* Get the instruction pointer from pt_regs or the stack frame */
 	if (regs) {
-		ip = READ_ONCE_TASK_STACK(state->task, regs->psw.addr);
+		ip = READ_ONCE_NOCHECK(regs->psw.addr);
 		reliable = true;
 	} else {
 		sf = (struct stack_frame *) sp;
-		ip = READ_ONCE_TASK_STACK(state->task, sf->gprs[8]);
+		ip = READ_ONCE_NOCHECK(sf->gprs[8]);
 		reliable = false;
 	}
 

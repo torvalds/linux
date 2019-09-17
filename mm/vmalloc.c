@@ -365,6 +365,13 @@ static LIST_HEAD(free_vmap_area_list);
  */
 static struct rb_root free_vmap_area_root = RB_ROOT;
 
+/*
+ * Preload a CPU with one object for "no edge" split case. The
+ * aim is to get rid of allocations from the atomic context, thus
+ * to use more permissive allocation masks.
+ */
+static DEFINE_PER_CPU(struct vmap_area *, ne_fit_preload_node);
+
 static __always_inline unsigned long
 va_size(struct vmap_area *va)
 {
@@ -398,6 +405,13 @@ RB_DECLARE_CALLBACKS(static, free_vmap_area_rb_augment_cb,
 static void purge_vmap_area_lazy(void);
 static BLOCKING_NOTIFIER_HEAD(vmap_notify_list);
 static unsigned long lazy_max_pages(void);
+
+static atomic_long_t nr_vmalloc_pages;
+
+unsigned long vmalloc_nr_pages(void)
+{
+	return atomic_long_read(&nr_vmalloc_pages);
+}
 
 static struct vmap_area *__find_vmap_area(unsigned long addr)
 {
@@ -527,20 +541,17 @@ link_va(struct vmap_area *va, struct rb_root *root,
 static __always_inline void
 unlink_va(struct vmap_area *va, struct rb_root *root)
 {
-	/*
-	 * During merging a VA node can be empty, therefore
-	 * not linked with the tree nor list. Just check it.
-	 */
-	if (!RB_EMPTY_NODE(&va->rb_node)) {
-		if (root == &free_vmap_area_root)
-			rb_erase_augmented(&va->rb_node,
-				root, &free_vmap_area_rb_augment_cb);
-		else
-			rb_erase(&va->rb_node, root);
+	if (WARN_ON(RB_EMPTY_NODE(&va->rb_node)))
+		return;
 
-		list_del(&va->list);
-		RB_CLEAR_NODE(&va->rb_node);
-	}
+	if (root == &free_vmap_area_root)
+		rb_erase_augmented(&va->rb_node,
+			root, &free_vmap_area_rb_augment_cb);
+	else
+		rb_erase(&va->rb_node, root);
+
+	list_del(&va->list);
+	RB_CLEAR_NODE(&va->rb_node);
 }
 
 #if DEBUG_AUGMENT_PROPAGATE_CHECK
@@ -712,9 +723,6 @@ merge_or_add_vmap_area(struct vmap_area *va,
 			/* Check and update the tree if needed. */
 			augment_tree_propagate_from(sibling);
 
-			/* Remove this VA, it has been merged. */
-			unlink_va(va, root);
-
 			/* Free vmap_area object. */
 			kmem_cache_free(vmap_area_cachep, va);
 
@@ -739,12 +747,11 @@ merge_or_add_vmap_area(struct vmap_area *va,
 			/* Check and update the tree if needed. */
 			augment_tree_propagate_from(sibling);
 
-			/* Remove this VA, it has been merged. */
-			unlink_va(va, root);
+			if (merged)
+				unlink_va(va, root);
 
 			/* Free vmap_area object. */
 			kmem_cache_free(vmap_area_cachep, va);
-
 			return;
 		}
 	}
@@ -951,9 +958,24 @@ adjust_va_to_fit_type(struct vmap_area *va,
 		 *   L V  NVA  V R
 		 * |---|-------|---|
 		 */
-		lva = kmem_cache_alloc(vmap_area_cachep, GFP_NOWAIT);
-		if (unlikely(!lva))
-			return -1;
+		lva = __this_cpu_xchg(ne_fit_preload_node, NULL);
+		if (unlikely(!lva)) {
+			/*
+			 * For percpu allocator we do not do any pre-allocation
+			 * and leave it as it is. The reason is it most likely
+			 * never ends up with NE_FIT_TYPE splitting. In case of
+			 * percpu allocations offsets and sizes are aligned to
+			 * fixed align request, i.e. RE_FIT_TYPE and FL_FIT_TYPE
+			 * are its main fitting cases.
+			 *
+			 * There are a few exceptions though, as an example it is
+			 * a first allocation (early boot up) when we have "one"
+			 * big free space that has to be split.
+			 */
+			lva = kmem_cache_alloc(vmap_area_cachep, GFP_NOWAIT);
+			if (!lva)
+				return -1;
+		}
 
 		/*
 		 * Build the remainder.
@@ -986,7 +1008,7 @@ adjust_va_to_fit_type(struct vmap_area *va,
  */
 static __always_inline unsigned long
 __alloc_vmap_area(unsigned long size, unsigned long align,
-	unsigned long vstart, unsigned long vend, int node)
+	unsigned long vstart, unsigned long vend)
 {
 	unsigned long nva_start_addr;
 	struct vmap_area *va;
@@ -1032,7 +1054,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
 				unsigned long vstart, unsigned long vend,
 				int node, gfp_t gfp_mask)
 {
-	struct vmap_area *va;
+	struct vmap_area *va, *pva;
 	unsigned long addr;
 	int purged = 0;
 
@@ -1057,13 +1079,38 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
 	kmemleak_scan_area(&va->rb_node, SIZE_MAX, gfp_mask & GFP_RECLAIM_MASK);
 
 retry:
+	/*
+	 * Preload this CPU with one extra vmap_area object to ensure
+	 * that we have it available when fit type of free area is
+	 * NE_FIT_TYPE.
+	 *
+	 * The preload is done in non-atomic context, thus it allows us
+	 * to use more permissive allocation masks to be more stable under
+	 * low memory condition and high memory pressure.
+	 *
+	 * Even if it fails we do not really care about that. Just proceed
+	 * as it is. "overflow" path will refill the cache we allocate from.
+	 */
+	preempt_disable();
+	if (!__this_cpu_read(ne_fit_preload_node)) {
+		preempt_enable();
+		pva = kmem_cache_alloc_node(vmap_area_cachep, GFP_KERNEL, node);
+		preempt_disable();
+
+		if (__this_cpu_cmpxchg(ne_fit_preload_node, NULL, pva)) {
+			if (pva)
+				kmem_cache_free(vmap_area_cachep, pva);
+		}
+	}
+
 	spin_lock(&vmap_area_lock);
+	preempt_enable();
 
 	/*
 	 * If an allocation fails, the "vend" address is
 	 * returned. Therefore trigger the overflow path.
 	 */
-	addr = __alloc_vmap_area(size, align, vstart, vend, node);
+	addr = __alloc_vmap_area(size, align, vstart, vend);
 	if (unlikely(addr == vend))
 		goto overflow;
 
@@ -1119,8 +1166,6 @@ EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
 
 static void __free_vmap_area(struct vmap_area *va)
 {
-	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
-
 	/*
 	 * Remove from the busy tree/list.
 	 */
@@ -1212,6 +1257,12 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
 	valist = llist_del_all(&vmap_purge_list);
 	if (unlikely(valist == NULL))
 		return false;
+
+	/*
+	 * First make sure the mappings are removed from all page-tables
+	 * before they are freed.
+	 */
+	vmalloc_sync_all();
 
 	/*
 	 * TODO: to calculate a flush range without looping.
@@ -2128,17 +2179,6 @@ static void vm_remove_mappings(struct vm_struct *area, int deallocate_pages)
 	int flush_dmap = 0;
 	int i;
 
-	/*
-	 * The below block can be removed when all architectures that have
-	 * direct map permissions also have set_direct_map_() implementations.
-	 * This is concerned with resetting the direct map any an vm alias with
-	 * execute permissions, without leaving a RW+X window.
-	 */
-	if (flush_reset && !IS_ENABLED(CONFIG_ARCH_HAS_SET_DIRECT_MAP)) {
-		set_memory_nx((unsigned long)area->addr, area->nr_pages);
-		set_memory_rw((unsigned long)area->addr, area->nr_pages);
-	}
-
 	remove_vm_area(area->addr);
 
 	/* If this is not VM_FLUSH_RESET_PERMS memory, no need for the below. */
@@ -2210,6 +2250,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
 			BUG_ON(!page);
 			__free_pages(page, 0);
 		}
+		atomic_long_sub(area->nr_pages, &nr_vmalloc_pages);
 
 		kvfree(area->pages);
 	}
@@ -2387,12 +2428,14 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 		if (unlikely(!page)) {
 			/* Successfully allocated i pages, free them in __vunmap() */
 			area->nr_pages = i;
+			atomic_long_add(area->nr_pages, &nr_vmalloc_pages);
 			goto fail;
 		}
 		area->pages[i] = page;
 		if (gfpflags_allow_blocking(gfp_mask|highmem_mask))
 			cond_resched();
 	}
+	atomic_long_add(area->nr_pages, &nr_vmalloc_pages);
 
 	if (map_vm_area(area, prot, pages))
 		goto fail;
@@ -2785,7 +2828,7 @@ static int aligned_vwrite(char *buf, char *addr, unsigned long count)
  * Note: In usual ops, vread() is never necessary because the caller
  * should know vmalloc() area is valid and can use memcpy().
  * This is for routines which have to access vmalloc area without
- * any informaion, as /dev/kmem.
+ * any information, as /dev/kmem.
  *
  * Return: number of bytes for which addr and buf should be increased
  * (same number as @count) or %0 if [addr...addr+count) doesn't
@@ -2864,7 +2907,7 @@ finished:
  * Note: In usual ops, vwrite() is never necessary because the caller
  * should know vmalloc() area is valid and can use memcpy().
  * This is for routines which have to access vmalloc area without
- * any informaion, as /dev/kmem.
+ * any information, as /dev/kmem.
  *
  * Return: number of bytes for which addr and buf should be
  * increased (same number as @count) or %0 if [addr...addr+count)
@@ -3001,13 +3044,16 @@ EXPORT_SYMBOL(remap_vmalloc_range);
 /*
  * Implement a stub for vmalloc_sync_all() if the architecture chose not to
  * have one.
+ *
+ * The purpose of this function is to make sure the vmalloc area
+ * mappings are identical in all page-tables in the system.
  */
 void __weak vmalloc_sync_all(void)
 {
 }
 
 
-static int f(pte_t *pte, pgtable_t table, unsigned long addr, void *data)
+static int f(pte_t *pte, unsigned long addr, void *data)
 {
 	pte_t ***p = data;
 
@@ -3233,9 +3279,19 @@ retry:
 			goto overflow;
 
 		/*
+		 * If required width exeeds current VA block, move
+		 * base downwards and then recheck.
+		 */
+		if (base + end > va->va_end) {
+			base = pvm_determine_end_from_reverse(&va, align) - end;
+			term_area = area;
+			continue;
+		}
+
+		/*
 		 * If this VA does not fit, move base downwards and recheck.
 		 */
-		if (base + start < va->va_start || base + end > va->va_end) {
+		if (base + start < va->va_start) {
 			va = node_to_va(rb_prev(&va->rb_node));
 			base = pvm_determine_end_from_reverse(&va, align) - end;
 			term_area = area;

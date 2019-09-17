@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "debug.h"
-#include "util.h"
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 #include <errno.h>
+#include <stdlib.h>
 
 /*
  * Used as the default ->buf value, so that people can always assume

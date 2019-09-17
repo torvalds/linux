@@ -119,7 +119,7 @@
 
 &pinctrl {
 	state_default: pinctrl0 {
-		gpio {
+		default_gpio: gpio {
 			groups = "wdt", "rgmii2", "uart3";
 			function = "gpio";
 		};

@@ -366,7 +366,7 @@ trace_ignore_this_task(struct trace_pid_list *filtered_pids, struct task_struct 
 }
 
 /**
- * trace_pid_filter_add_remove_task - Add or remove a task from a pid_list
+ * trace_filter_add_remove_task - Add or remove a task from a pid_list
  * @pid_list: The list to modify
  * @self: The current task for fork or NULL for exit
  * @task: The task to add or remove
@@ -743,8 +743,7 @@ trace_event_setup(struct ring_buffer_event *event,
 {
 	struct trace_entry *ent = ring_buffer_event_data(event);
 
-	tracing_generic_entry_update(ent, flags, pc);
-	ent->type = type;
+	tracing_generic_entry_update(ent, type, flags, pc);
 }
 
 static __always_inline struct ring_buffer_event *
@@ -1568,9 +1567,9 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu,
 
 /**
  * update_max_tr_single - only copy one trace over, and reset the rest
- * @tr - tracer
- * @tsk - task with the latency
- * @cpu - the cpu of the buffer to copy.
+ * @tr: tracer
+ * @tsk: task with the latency
+ * @cpu: the cpu of the buffer to copy.
  *
  * Flip the trace of a single CPU buffer between the @tr and the max_tr.
  */
@@ -1768,7 +1767,7 @@ static void __init apply_trace_boot_options(void);
 
 /**
  * register_tracer - register a tracer with the ftrace system.
- * @type - the plugin for the tracer
+ * @type: the plugin for the tracer
  *
  * Register a new plugin tracer.
  */
@@ -2231,9 +2230,9 @@ static bool tracing_record_taskinfo_skip(int flags)
 /**
  * tracing_record_taskinfo - record the task info of a task
  *
- * @task  - task to record
- * @flags - TRACE_RECORD_CMDLINE for recording comm
- *        - TRACE_RECORD_TGID for recording tgid
+ * @task:  task to record
+ * @flags: TRACE_RECORD_CMDLINE for recording comm
+ *         TRACE_RECORD_TGID for recording tgid
  */
 void tracing_record_taskinfo(struct task_struct *task, int flags)
 {
@@ -2259,10 +2258,10 @@ void tracing_record_taskinfo(struct task_struct *task, int flags)
 /**
  * tracing_record_taskinfo_sched_switch - record task info for sched_switch
  *
- * @prev - previous task during sched_switch
- * @next - next task during sched_switch
- * @flags - TRACE_RECORD_CMDLINE for recording comm
- *          TRACE_RECORD_TGID for recording tgid
+ * @prev: previous task during sched_switch
+ * @next: next task during sched_switch
+ * @flags: TRACE_RECORD_CMDLINE for recording comm
+ *         TRACE_RECORD_TGID for recording tgid
  */
 void tracing_record_taskinfo_sched_switch(struct task_struct *prev,
 					  struct task_struct *next, int flags)
@@ -2312,13 +2311,14 @@ enum print_line_t trace_handle_return(struct trace_seq *s)
 EXPORT_SYMBOL_GPL(trace_handle_return);
 
 void
-tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
-			     int pc)
+tracing_generic_entry_update(struct trace_entry *entry, unsigned short type,
+			     unsigned long flags, int pc)
 {
 	struct task_struct *tsk = current;
 
 	entry->preempt_count		= pc & 0xff;
 	entry->pid			= (tsk) ? tsk->pid : 0;
+	entry->type			= type;
 	entry->flags =
 #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
 		(irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
@@ -3072,7 +3072,9 @@ static void trace_printk_start_stop_comm(int enabled)
 
 /**
  * trace_vbprintk - write binary msg to tracing buffer
- *
+ * @ip:    The address of the caller
+ * @fmt:   The string format to write to the buffer
+ * @args:  Arguments for @fmt
  */
 int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 {
@@ -4842,12 +4844,13 @@ static const char readme_msg[] =
 	"\t     args: <name>=fetcharg[:type]\n"
 	"\t fetcharg: %<register>, @<address>, @<symbol>[+|-<offset>],\n"
 #ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
-	"\t           $stack<index>, $stack, $retval, $comm, $arg<N>\n"
+	"\t           $stack<index>, $stack, $retval, $comm, $arg<N>,\n"
 #else
-	"\t           $stack<index>, $stack, $retval, $comm\n"
+	"\t           $stack<index>, $stack, $retval, $comm,\n"
 #endif
+	"\t           +|-[u]<offset>(<fetcharg>)\n"
 	"\t     type: s8/16/32/64, u8/16/32/64, x8/16/32/64, string, symbol,\n"
-	"\t           b<bit-width>@<bit-offset>/<container-size>,\n"
+	"\t           b<bit-width>@<bit-offset>/<container-size>, ustring,\n"
 	"\t           <type>\\[<array-size>\\]\n"
 #ifdef CONFIG_HIST_TRIGGERS
 	"\t    field: <stype> <name>;\n"
@@ -8618,10 +8621,6 @@ struct dentry *tracing_init_dentry(void)
 	 */
 	tr->dir = debugfs_create_automount("tracing", NULL,
 					   trace_automount, NULL);
-	if (!tr->dir) {
-		pr_warn_once("Could not create debugfs directory 'tracing'\n");
-		return ERR_PTR(-ENOMEM);
-	}
 
 	return NULL;
 }

@@ -778,55 +778,43 @@ err1:
 	return err;
 }
 
-static struct ib_cq *rxe_create_cq(struct ib_device *dev,
-				   const struct ib_cq_init_attr *attr,
-				   struct ib_udata *udata)
+static int rxe_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+			 struct ib_udata *udata)
 {
 	int err;
+	struct ib_device *dev = ibcq->device;
 	struct rxe_dev *rxe = to_rdev(dev);
-	struct rxe_cq *cq;
+	struct rxe_cq *cq = to_rcq(ibcq);
 	struct rxe_create_cq_resp __user *uresp = NULL;
 
 	if (udata) {
 		if (udata->outlen < sizeof(*uresp))
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 		uresp = udata->outbuf;
 	}
 
 	if (attr->flags)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	err = rxe_cq_chk_attr(rxe, NULL, attr->cqe, attr->comp_vector);
 	if (err)
-		goto err1;
-
-	cq = rxe_alloc(&rxe->cq_pool);
-	if (!cq) {
-		err = -ENOMEM;
-		goto err1;
-	}
+		return err;
 
 	err = rxe_cq_from_init(rxe, cq, attr->cqe, attr->comp_vector, udata,
 			       uresp);
 	if (err)
-		goto err2;
+		return err;
 
-	return &cq->ibcq;
-
-err2:
-	rxe_drop_ref(cq);
-err1:
-	return ERR_PTR(err);
+	return rxe_add_to_pool(&rxe->cq_pool, &cq->pelem);
 }
 
-static int rxe_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+static void rxe_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct rxe_cq *cq = to_rcq(ibcq);
 
 	rxe_cq_disable(cq);
 
 	rxe_drop_ref(cq);
-	return 0;
 }
 
 static int rxe_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
@@ -1111,6 +1099,10 @@ static int rxe_enable_driver(struct ib_device *ib_dev)
 }
 
 static const struct ib_device_ops rxe_dev_ops = {
+	.owner = THIS_MODULE,
+	.driver_id = RDMA_DRIVER_RXE,
+	.uverbs_abi_ver = RXE_UVERBS_ABI_VERSION,
+
 	.alloc_hw_stats = rxe_ib_alloc_hw_stats,
 	.alloc_mr = rxe_alloc_mr,
 	.alloc_pd = rxe_alloc_pd,
@@ -1157,6 +1149,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.resize_cq = rxe_resize_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, rxe_ah, ibah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, rxe_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, rxe_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_srq, rxe_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, rxe_ucontext, ibuc),
@@ -1170,7 +1163,6 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 
 	strlcpy(dev->node_desc, "rxe", sizeof(dev->node_desc));
 
-	dev->owner = THIS_MODULE;
 	dev->node_type = RDMA_NODE_IB_CA;
 	dev->phys_port_cnt = 1;
 	dev->num_comp_vectors = num_possible_cpus();
@@ -1182,7 +1174,6 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	dma_coerce_mask_and_coherent(&dev->dev,
 				     dma_get_required_mask(&dev->dev));
 
-	dev->uverbs_abi_ver = RXE_UVERBS_ABI_VERSION;
 	dev->uverbs_cmd_mask = BIT_ULL(IB_USER_VERBS_CMD_GET_CONTEXT)
 	    | BIT_ULL(IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL)
 	    | BIT_ULL(IB_USER_VERBS_CMD_QUERY_DEVICE)
@@ -1230,7 +1221,6 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	rxe->tfm = tfm;
 
 	rdma_set_device_sysfs_group(dev, &rxe_attr_group);
-	dev->driver_id = RDMA_DRIVER_RXE;
 	err = ib_register_device(dev, ibdev_name);
 	if (err)
 		pr_warn("%s failed with error %d\n", __func__, err);

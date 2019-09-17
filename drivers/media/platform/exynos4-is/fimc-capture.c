@@ -725,13 +725,12 @@ static int fimc_cap_querycap(struct file *file, void *priv,
 {
 	struct fimc_dev *fimc = video_drvdata(file);
 
-	__fimc_vidioc_querycap(&fimc->pdev->dev, cap, V4L2_CAP_STREAMING |
-					V4L2_CAP_VIDEO_CAPTURE_MPLANE);
+	__fimc_vidioc_querycap(&fimc->pdev->dev, cap);
 	return 0;
 }
 
-static int fimc_cap_enum_fmt_mplane(struct file *file, void *priv,
-				    struct v4l2_fmtdesc *f)
+static int fimc_cap_enum_fmt(struct file *file, void *priv,
+			     struct v4l2_fmtdesc *f)
 {
 	struct fimc_fmt *fmt;
 
@@ -1358,7 +1357,7 @@ static int fimc_cap_s_selection(struct file *file, void *fh,
 static const struct v4l2_ioctl_ops fimc_capture_ioctl_ops = {
 	.vidioc_querycap		= fimc_cap_querycap,
 
-	.vidioc_enum_fmt_vid_cap_mplane	= fimc_cap_enum_fmt_mplane,
+	.vidioc_enum_fmt_vid_cap	= fimc_cap_enum_fmt,
 	.vidioc_try_fmt_vid_cap_mplane	= fimc_cap_try_fmt_mplane,
 	.vidioc_s_fmt_vid_cap_mplane	= fimc_cap_s_fmt_mplane,
 	.vidioc_g_fmt_vid_cap_mplane	= fimc_cap_g_fmt_mplane,
@@ -1762,6 +1761,7 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	vfd->release	= video_device_release_empty;
 	vfd->queue	= q;
 	vfd->lock	= &fimc->lock;
+	vfd->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_CAPTURE_MPLANE;
 
 	video_set_drvdata(vfd, fimc);
 	vid_cap = &fimc->vid_cap;

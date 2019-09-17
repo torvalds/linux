@@ -5,8 +5,8 @@
 #define _IGC_DEFINES_H_
 
 /* Number of Transmit and Receive Descriptors must be a multiple of 8 */
-#define REQ_TX_DESCRIPTOR_MULTIPLE  8
-#define REQ_RX_DESCRIPTOR_MULTIPLE  8
+#define REQ_TX_DESCRIPTOR_MULTIPLE	8
+#define REQ_RX_DESCRIPTOR_MULTIPLE	8
 
 #define IGC_CTRL_EXT_DRV_LOAD	0x10000000 /* Drv loaded bit for FW */
 
@@ -28,12 +28,6 @@
 #define IGC_CTRL_GIO_MASTER_DISABLE	0x00000004
 /* Status of Master requests. */
 #define IGC_STATUS_GIO_MASTER_ENABLE	0x00080000
-
-/* PCI Express Control */
-#define IGC_GCR_CMPL_TMOUT_MASK		0x0000F000
-#define IGC_GCR_CMPL_TMOUT_10ms		0x00001000
-#define IGC_GCR_CMPL_TMOUT_RESEND	0x00010000
-#define IGC_GCR_CAP_VER2		0x00040000
 
 /* Receive Address
  * Number of high/low register pairs in the RAR. The RAR (Receive Address
@@ -71,6 +65,9 @@
 #define IGC_CTRL_TFCE		0x10000000  /* Transmit flow control enable */
 
 #define IGC_CONNSW_AUTOSENSE_EN	0x1
+
+/* As per the EAS the maximum supported size is 9.5KB (9728 bytes) */
+#define MAX_JUMBO_FRAME_SIZE	0x2600
 
 /* PBA constants */
 #define IGC_PBA_34K		0x0022
@@ -264,9 +261,6 @@
 #define IGC_TCTL_RTLC		0x01000000 /* Re-transmit on late collision */
 #define IGC_TCTL_MULR		0x10000000 /* Multiple request support */
 
-#define IGC_CT_SHIFT			4
-#define IGC_COLLISION_THRESHOLD		15
-
 /* Flow Control Constants */
 #define FLOW_CONTROL_ADDRESS_LOW	0x00C28001
 #define FLOW_CONTROL_ADDRESS_HIGH	0x00000100
@@ -398,7 +392,7 @@
 #define IGC_MDIC_ERROR		0x40000000
 #define IGC_MDIC_DEST		0x80000000
 
-#define IGC_N0_QUEUE -1
+#define IGC_N0_QUEUE		-1
 
 #define IGC_MAX_MAC_HDR_LEN	127
 #define IGC_MAX_NETWORK_HDR_LEN	511

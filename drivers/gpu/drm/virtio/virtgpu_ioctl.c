@@ -63,7 +63,7 @@ int virtio_gpu_object_list_validate(struct ww_acquire_ctx *ticket,
 	struct virtio_gpu_object *qobj;
 	int ret;
 
-	ret = ttm_eu_reserve_buffers(ticket, head, true, NULL);
+	ret = ttm_eu_reserve_buffers(ticket, head, true, NULL, true);
 	if (ret != 0)
 		return ret;
 
@@ -168,7 +168,7 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 			goto out_unused_fd;
 		}
 
-		user_bo_handles = (void __user *)(uintptr_t)exbuf->bo_handles;
+		user_bo_handles = u64_to_user_ptr(exbuf->bo_handles);
 		if (copy_from_user(bo_handles, user_bo_handles,
 				   exbuf->num_bo_handles * sizeof(uint32_t))) {
 			ret = -EFAULT;
@@ -195,8 +195,7 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto out_free;
 
-	buf = memdup_user((void __user *)(uintptr_t)exbuf->command,
-			  exbuf->size);
+	buf = memdup_user(u64_to_user_ptr(exbuf->command), exbuf->size);
 	if (IS_ERR(buf)) {
 		ret = PTR_ERR(buf);
 		goto out_unresv;
@@ -263,10 +262,9 @@ static int virtio_gpu_getparam_ioctl(struct drm_device *dev, void *data,
 	default:
 		return -EINVAL;
 	}
-	if (copy_to_user((void __user *)(unsigned long)param->value,
-			 &value, sizeof(int))) {
+	if (copy_to_user(u64_to_user_ptr(param->value), &value, sizeof(int)))
 		return -EFAULT;
-	}
+
 	return 0;
 }
 
@@ -526,7 +524,6 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 	list_for_each_entry(cache_ent, &vgdev->cap_cache, head) {
 		if (cache_ent->id == args->cap_set_id &&
 		    cache_ent->version == args->cap_set_ver) {
-			ptr = cache_ent->caps_cache;
 			spin_unlock(&vgdev->display_info_lock);
 			goto copy_exit;
 		}
@@ -537,15 +534,18 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 	virtio_gpu_cmd_get_capset(vgdev, found_valid, args->cap_set_ver,
 				  &cache_ent);
 
+copy_exit:
 	ret = wait_event_timeout(vgdev->resp_wq,
 				 atomic_read(&cache_ent->is_valid), 5 * HZ);
 	if (!ret)
 		return -EBUSY;
 
+	/* is_valid check must proceed before copy of the cache entry. */
+	smp_rmb();
+
 	ptr = cache_ent->caps_cache;
 
-copy_exit:
-	if (copy_to_user((void __user *)(unsigned long)args->addr, ptr, size))
+	if (copy_to_user(u64_to_user_ptr(args->addr), ptr, size))
 		return -EFAULT;
 
 	return 0;
@@ -553,34 +553,34 @@ copy_exit:
 
 struct drm_ioctl_desc virtio_gpu_ioctls[DRM_VIRTIO_NUM_IOCTLS] = {
 	DRM_IOCTL_DEF_DRV(VIRTGPU_MAP, virtio_gpu_map_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_AUTH | DRM_RENDER_ALLOW),
 
 	DRM_IOCTL_DEF_DRV(VIRTGPU_EXECBUFFER, virtio_gpu_execbuffer_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_AUTH | DRM_RENDER_ALLOW),
 
 	DRM_IOCTL_DEF_DRV(VIRTGPU_GETPARAM, virtio_gpu_getparam_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_AUTH | DRM_RENDER_ALLOW),
 
 	DRM_IOCTL_DEF_DRV(VIRTGPU_RESOURCE_CREATE,
 			  virtio_gpu_resource_create_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_AUTH | DRM_RENDER_ALLOW),
 
 	DRM_IOCTL_DEF_DRV(VIRTGPU_RESOURCE_INFO, virtio_gpu_resource_info_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_AUTH | DRM_RENDER_ALLOW),
 
 	/* make transfer async to the main ring? - no sure, can we
 	 * thread these in the underlying GL
 	 */
 	DRM_IOCTL_DEF_DRV(VIRTGPU_TRANSFER_FROM_HOST,
 			  virtio_gpu_transfer_from_host_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VIRTGPU_TRANSFER_TO_HOST,
 			  virtio_gpu_transfer_to_host_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_AUTH | DRM_RENDER_ALLOW),
 
 	DRM_IOCTL_DEF_DRV(VIRTGPU_WAIT, virtio_gpu_wait_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_AUTH | DRM_RENDER_ALLOW),
 
 	DRM_IOCTL_DEF_DRV(VIRTGPU_GET_CAPS, virtio_gpu_get_caps_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_AUTH | DRM_RENDER_ALLOW),
 };

@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/light/isl29018.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: |
+  Intersil 29018/29023/29035 Ambient Light, Infrared Light, and Proximity Sensor
+
+maintainers:
+  - Brian Masney <masneyb@onstation.org>
+
+description: |
+  Ambient and infrared light sensing with proximity detection over an i2c
+  interface.
+
+  https://www.renesas.com/us/en/www/doc/datasheet/isl29018.pdf
+  https://www.renesas.com/us/en/www/doc/datasheet/isl29023.pdf
+  https://www.renesas.com/us/en/www/doc/datasheet/isl29035.pdf
+
+properties:
+  compatible:
+    enum:
+      - isil,isl29018
+      - isil,isl29023
+      - isil,isl29035
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  vcc-supply:
+    description: Regulator that provides power to the sensor
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        sensor@44 {
+                compatible = "isil,isl29018";
+                reg = <0x44>;
+                interrupts-extended = <&msmgpio 61 IRQ_TYPE_LEVEL_HIGH>;
+        };
+    };
+...

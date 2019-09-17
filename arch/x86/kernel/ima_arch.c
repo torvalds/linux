@@ -11,10 +11,11 @@ extern struct boot_params boot_params;
 static enum efi_secureboot_mode get_sb_mode(void)
 {
 	efi_char16_t efi_SecureBoot_name[] = L"SecureBoot";
+	efi_char16_t efi_SetupMode_name[] = L"SecureBoot";
 	efi_guid_t efi_variable_guid = EFI_GLOBAL_VARIABLE_GUID;
 	efi_status_t status;
 	unsigned long size;
-	u8 secboot;
+	u8 secboot, setupmode;
 
 	size = sizeof(secboot);
 
@@ -36,7 +37,14 @@ static enum efi_secureboot_mode get_sb_mode(void)
 		return efi_secureboot_mode_unknown;
 	}
 
-	if (secboot == 0) {
+	size = sizeof(setupmode);
+	status = efi.get_variable(efi_SetupMode_name, &efi_variable_guid,
+				  NULL, &size, &setupmode);
+
+	if (status != EFI_SUCCESS)	/* ignore unknown SetupMode */
+		setupmode = 0;
+
+	if (secboot == 0 || setupmode == 1) {
 		pr_info("ima: secureboot mode disabled\n");
 		return efi_secureboot_mode_disabled;
 	}

@@ -72,6 +72,27 @@ void igc_reset(struct igc_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	struct igc_hw *hw = &adapter->hw;
+	struct igc_fc_info *fc = &hw->fc;
+	u32 pba, hwm;
+
+	/* Repartition PBA for greater than 9k MTU if required */
+	pba = IGC_PBA_34K;
+
+	/* flow control settings
+	 * The high water mark must be low enough to fit one full frame
+	 * after transmitting the pause frame.  As such we must have enough
+	 * space to allow for us to complete our current transmit and then
+	 * receive the frame that is in progress from the link partner.
+	 * Set it to:
+	 * - the full Rx FIFO size minus one full Tx plus one full Rx frame
+	 */
+	hwm = (pba << 10) - (adapter->max_frame_size + MAX_JUMBO_FRAME_SIZE);
+
+	fc->high_water = hwm & 0xFFFFFFF0;	/* 16-byte granularity */
+	fc->low_water = fc->high_water - 16;
+	fc->pause_time = 0xFFFF;
+	fc->send_xon = 1;
+	fc->current_mode = fc->requested_mode;
 
 	hw->mac.ops.reset_hw(hw);
 
@@ -3891,13 +3912,11 @@ void igc_write_pci_cfg(struct igc_hw *hw, u32 reg, u16 *value)
 s32 igc_read_pcie_cap_reg(struct igc_hw *hw, u32 reg, u16 *value)
 {
 	struct igc_adapter *adapter = hw->back;
-	u16 cap_offset;
 
-	cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
-	if (!cap_offset)
+	if (!pci_is_pcie(adapter->pdev))
 		return -IGC_ERR_CONFIG;
 
-	pci_read_config_word(adapter->pdev, cap_offset + reg, value);
+	pcie_capability_read_word(adapter->pdev, reg, value);
 
 	return IGC_SUCCESS;
 }
@@ -3905,13 +3924,11 @@ s32 igc_read_pcie_cap_reg(struct igc_hw *hw, u32 reg, u16 *value)
 s32 igc_write_pcie_cap_reg(struct igc_hw *hw, u32 reg, u16 *value)
 {
 	struct igc_adapter *adapter = hw->back;
-	u16 cap_offset;
 
-	cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
-	if (!cap_offset)
+	if (!pci_is_pcie(adapter->pdev))
 		return -IGC_ERR_CONFIG;
 
-	pci_write_config_word(adapter->pdev, cap_offset + reg, *value);
+	pcie_capability_write_word(adapter->pdev, reg, *value);
 
 	return IGC_SUCCESS;
 }
@@ -3934,6 +3951,7 @@ u32 igc_rd32(struct igc_hw *hw, u32 reg)
 		hw->hw_addr = NULL;
 		netif_device_detach(netdev);
 		netdev_err(netdev, "PCIe link lost, device now detached\n");
+		WARN(1, "igc: Failed to read reg 0x%x!\n", reg);
 	}
 
 	return value;

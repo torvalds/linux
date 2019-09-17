@@ -250,6 +250,8 @@ struct rds_info_rdma_connection {
 	__u32		rdma_mr_max;
 	__u32		rdma_mr_size;
 	__u8		tos;
+	__u8		sl;
+	__u32		cache_allocs;
 };
 
 struct rds6_info_rdma_connection {
@@ -264,6 +266,8 @@ struct rds6_info_rdma_connection {
 	__u32		rdma_mr_max;
 	__u32		rdma_mr_size;
 	__u8		tos;
+	__u8		sl;
+	__u32		cache_allocs;
 };
 
 /* RDS message Receive Path Latency points */
