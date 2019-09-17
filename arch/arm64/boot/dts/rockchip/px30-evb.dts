@@ -14,7 +14,7 @@
 	compatible = "rockchip,px30-evb", "rockchip,px30";
 
 	chosen {
-		stdout-path = "serial2:1500000n8";
+		stdout-path = "serial5:115200n8";
 	};
 
 	adc-keys {
@@ -454,7 +454,7 @@
 	status = "okay";
 };
 
-&uart2 {
+&uart5 {
 	status = "okay";
 };
 
