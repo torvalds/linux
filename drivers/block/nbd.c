@@ -26,6 +26,7 @@
 #include <linux/ioctl.h>
 #include <linux/mutex.h>
 #include <linux/compiler.h>
+#include <linux/completion.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -80,6 +81,9 @@ struct link_dead_args {
 #define NBD_RT_DESTROY_ON_DISCONNECT	6
 #define NBD_RT_DISCONNECT_ON_CLOSE	7
 
+#define NBD_DESTROY_ON_DISCONNECT	0
+#define NBD_DISCONNECT_REQUESTED	1
+
 struct nbd_config {
 	u32 flags;
 	unsigned long runtime_flags;
@@ -113,6 +117,9 @@ struct nbd_device {
 	struct list_head list;
 	struct task_struct *task_recv;
 	struct task_struct *task_setup;
+
+	struct completion *destroy_complete;
+	unsigned long flags;
 };
 
 #define NBD_CMD_REQUEUED	1
@@ -223,6 +230,16 @@ static void nbd_dev_remove(struct nbd_device *nbd)
 		disk->private_data = NULL;
 		put_disk(disk);
 	}
+
+	/*
+	 * Place this in the last just before the nbd is freed to
+	 * make sure that the disk and the related kobject are also
+	 * totally removed to avoid duplicate creation of the same
+	 * one.
+	 */
+	if (test_bit(NBD_DESTROY_ON_DISCONNECT, &nbd->flags) && nbd->destroy_complete)
+		complete(nbd->destroy_complete);
+
 	kfree(nbd);
 }
 
@@ -1125,6 +1142,7 @@ static int nbd_disconnect(struct nbd_device *nbd)
 
 	dev_info(disk_to_dev(nbd->disk), "NBD_DISCONNECT\n");
 	set_bit(NBD_RT_DISCONNECT_REQUESTED, &config->runtime_flags);
+	set_bit(NBD_DISCONNECT_REQUESTED, &nbd->flags);
 	send_disconnects(nbd);
 	return 0;
 }
@@ -1636,6 +1654,7 @@ static int nbd_dev_add(int index)
 	nbd->tag_set.flags = BLK_MQ_F_SHOULD_MERGE |
 		BLK_MQ_F_BLOCKING;
 	nbd->tag_set.driver_data = nbd;
+	nbd->destroy_complete = NULL;
 
 	err = blk_mq_alloc_tag_set(&nbd->tag_set);
 	if (err)
@@ -1750,6 +1769,7 @@ static int nbd_genl_size_set(struct genl_info *info, struct nbd_device *nbd)
 
 static int nbd_genl_connect(struct sk_buff *skb, struct genl_info *info)
 {
+	DECLARE_COMPLETION_ONSTACK(destroy_complete);
 	struct nbd_device *nbd = NULL;
 	struct nbd_config *config;
 	int index = -1;
@@ -1801,6 +1821,17 @@ again:
 		mutex_unlock(&nbd_index_mutex);
 		return -EINVAL;
 	}
+
+	if (test_bit(NBD_DESTROY_ON_DISCONNECT, &nbd->flags) &&
+	    test_bit(NBD_DISCONNECT_REQUESTED, &nbd->flags)) {
+		nbd->destroy_complete = &destroy_complete;
+		mutex_unlock(&nbd_index_mutex);
+
+		/* Wait untill the the nbd stuff is totally destroyed */
+		wait_for_completion(&destroy_complete);
+		goto again;
+	}
+
 	if (!refcount_inc_not_zero(&nbd->refs)) {
 		mutex_unlock(&nbd_index_mutex);
 		if (index == -1)
@@ -1855,7 +1886,10 @@ again:
 		if (flags & NBD_CFLAG_DESTROY_ON_DISCONNECT) {
 			set_bit(NBD_RT_DESTROY_ON_DISCONNECT,
 				&config->runtime_flags);
+			set_bit(NBD_DESTROY_ON_DISCONNECT, &nbd->flags);
 			put_dev = true;
+		} else {
+			clear_bit(NBD_DESTROY_ON_DISCONNECT, &nbd->flags);
 		}
 		if (flags & NBD_CFLAG_DISCONNECT_ON_CLOSE) {
 			set_bit(NBD_RT_DISCONNECT_ON_CLOSE,
@@ -2029,10 +2063,12 @@ static int nbd_genl_reconfigure(struct sk_buff *skb, struct genl_info *info)
 			if (!test_and_set_bit(NBD_RT_DESTROY_ON_DISCONNECT,
 					      &config->runtime_flags))
 				put_dev = true;
+			set_bit(NBD_DESTROY_ON_DISCONNECT, &nbd->flags);
 		} else {
 			if (test_and_clear_bit(NBD_RT_DESTROY_ON_DISCONNECT,
 					       &config->runtime_flags))
 				refcount_inc(&nbd->refs);
+			clear_bit(NBD_DESTROY_ON_DISCONNECT, &nbd->flags);
 		}
 
 		if (flags & NBD_CFLAG_DISCONNECT_ON_CLOSE) {
