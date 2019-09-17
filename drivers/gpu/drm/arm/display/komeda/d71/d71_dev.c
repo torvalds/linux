@@ -561,17 +561,18 @@ static int d71_disconnect_iommu(struct komeda_dev *mdev)
 }
 
 static const struct komeda_dev_funcs d71_chip_funcs = {
-	.init_format_table = d71_init_fmt_tbl,
-	.enum_resources	= d71_enum_resources,
-	.cleanup	= d71_cleanup,
-	.irq_handler	= d71_irq_handler,
-	.enable_irq	= d71_enable_irq,
-	.disable_irq	= d71_disable_irq,
-	.on_off_vblank	= d71_on_off_vblank,
-	.change_opmode	= d71_change_opmode,
-	.flush		= d71_flush,
-	.connect_iommu	= d71_connect_iommu,
-	.disconnect_iommu = d71_disconnect_iommu,
+	.init_format_table	= d71_init_fmt_tbl,
+	.enum_resources		= d71_enum_resources,
+	.cleanup		= d71_cleanup,
+	.irq_handler		= d71_irq_handler,
+	.enable_irq		= d71_enable_irq,
+	.disable_irq		= d71_disable_irq,
+	.on_off_vblank		= d71_on_off_vblank,
+	.change_opmode		= d71_change_opmode,
+	.flush			= d71_flush,
+	.connect_iommu		= d71_connect_iommu,
+	.disconnect_iommu	= d71_disconnect_iommu,
+	.dump_register		= d71_dump,
 };
 
 const struct komeda_dev_funcs *

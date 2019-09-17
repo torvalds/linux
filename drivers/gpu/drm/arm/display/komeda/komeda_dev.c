@@ -25,6 +25,8 @@ static int komeda_register_show(struct seq_file *sf, void *x)
 	struct komeda_dev *mdev = sf->private;
 	int i;
 
+	seq_puts(sf, "\n====== Komeda register dump =========\n");
+
 	if (mdev->funcs->dump_register)
 		mdev->funcs->dump_register(mdev, sf);
 
