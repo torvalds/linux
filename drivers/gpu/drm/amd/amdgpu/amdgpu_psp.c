@@ -151,10 +151,12 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		return ret;
 	}
 
+	amdgpu_asic_invalidate_hdp(psp->adev, NULL);
 	while (*((unsigned int *)psp->fence_buf) != index) {
 		if (--timeout == 0)
 			break;
 		msleep(1);
+		amdgpu_asic_invalidate_hdp(psp->adev, NULL);
 	}
 
 	/* In some cases, psp response status is not 0 even there is no
