@@ -976,7 +976,7 @@ static struct rockchip_clk_branch px30_clk_pmu_branches[] __initdata = {
 	GATE(0, "pclk_cru_pmu", "pclk_pmu_pre", CLK_IGNORE_UNUSED, PX30_PMU_CLKGATE_CON(0), 8, GFLAGS),
 };
 
-static const char *const px30_pmucru_critical_clocks[] __initconst = {
+static const char *const px30_cru_critical_clocks[] __initconst = {
 	"aclk_bus_pre",
 	"pclk_bus_pre",
 	"hclk_bus_pre",
@@ -1021,6 +1021,9 @@ static void __init px30_clk_init(struct device_node *np)
 				     &px30_cpuclk_data, px30_cpuclk_rates,
 				     ARRAY_SIZE(px30_cpuclk_rates));
 
+	rockchip_clk_protect_critical(px30_cru_critical_clocks,
+				      ARRAY_SIZE(px30_cru_critical_clocks));
+
 	rockchip_register_softrst(np, 12, reg_base + PX30_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
@@ -1052,9 +1055,6 @@ static void __init px30_pmu_clk_init(struct device_node *np)
 
 	rockchip_clk_register_branches(ctx, px30_clk_pmu_branches,
 				       ARRAY_SIZE(px30_clk_pmu_branches));
-
-	rockchip_clk_protect_critical(px30_pmucru_critical_clocks,
-				      ARRAY_SIZE(px30_pmucru_critical_clocks));
 
 	rockchip_clk_of_add_provider(np, ctx);
 }
