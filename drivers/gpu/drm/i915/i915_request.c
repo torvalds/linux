@@ -783,7 +783,9 @@ emit_semaphore_wait(struct i915_request *to,
 		    struct i915_request *from,
 		    gfp_t gfp)
 {
+	const int has_token = INTEL_GEN(to->i915) >= 12;
 	u32 hwsp_offset;
+	int len;
 	u32 *cs;
 	int err;
 
@@ -810,7 +812,11 @@ emit_semaphore_wait(struct i915_request *to,
 	if (err)
 		return err;
 
-	cs = intel_ring_begin(to, 4);
+	len = 4;
+	if (has_token)
+		len += 2;
+
+	cs = intel_ring_begin(to, len);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -822,13 +828,18 @@ emit_semaphore_wait(struct i915_request *to,
 	 * (post-wrap) values than they were expecting (and so wait
 	 * forever).
 	 */
-	*cs++ = MI_SEMAPHORE_WAIT |
-		MI_SEMAPHORE_GLOBAL_GTT |
-		MI_SEMAPHORE_POLL |
-		MI_SEMAPHORE_SAD_GTE_SDD;
+	*cs++ = (MI_SEMAPHORE_WAIT |
+		 MI_SEMAPHORE_GLOBAL_GTT |
+		 MI_SEMAPHORE_POLL |
+		 MI_SEMAPHORE_SAD_GTE_SDD) +
+		has_token;
 	*cs++ = from->fence.seqno;
 	*cs++ = hwsp_offset;
 	*cs++ = 0;
+	if (has_token) {
+		*cs++ = 0;
+		*cs++ = MI_NOOP;
+	}
 
 	intel_ring_advance(to, cs);
 	to->sched.semaphores |= from->engine->mask;

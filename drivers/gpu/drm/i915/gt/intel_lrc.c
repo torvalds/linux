@@ -2879,6 +2879,22 @@ static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 	return gen8_emit_fini_breadcrumb_footer(request, cs);
 }
 
+static u32 *
+gen11_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
+{
+	cs = gen8_emit_ggtt_write_rcs(cs,
+				      request->fence.seqno,
+				      request->timeline->hwsp_offset,
+				      PIPE_CONTROL_CS_STALL |
+				      PIPE_CONTROL_TILE_CACHE_FLUSH |
+				      PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH |
+				      PIPE_CONTROL_DEPTH_CACHE_FLUSH |
+				      PIPE_CONTROL_DC_FLUSH_ENABLE |
+				      PIPE_CONTROL_FLUSH_ENABLE);
+
+	return gen8_emit_fini_breadcrumb_footer(request, cs);
+}
+
 /*
  * Note that the CS instruction pre-parser will not stall on the breadcrumb
  * flush and will continue pre-fetching the instructions after it before the
@@ -2897,8 +2913,49 @@ static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
  * All the above applies only to the instructions themselves. Non-inline data
  * used by the instructions is not pre-fetched.
  */
-static u32 *gen11_emit_fini_breadcrumb_rcs(struct i915_request *request,
-					   u32 *cs)
+
+static u32 *gen12_emit_preempt_busywait(struct i915_request *request, u32 *cs)
+{
+	*cs++ = MI_SEMAPHORE_WAIT_TOKEN |
+		MI_SEMAPHORE_GLOBAL_GTT |
+		MI_SEMAPHORE_POLL |
+		MI_SEMAPHORE_SAD_EQ_SDD;
+	*cs++ = 0;
+	*cs++ = intel_hws_preempt_address(request->engine);
+	*cs++ = 0;
+	*cs++ = 0;
+	*cs++ = MI_NOOP;
+
+	return cs;
+}
+
+static __always_inline u32*
+gen12_emit_fini_breadcrumb_footer(struct i915_request *request, u32 *cs)
+{
+	*cs++ = MI_USER_INTERRUPT;
+
+	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+	if (intel_engine_has_semaphores(request->engine))
+		cs = gen12_emit_preempt_busywait(request, cs);
+
+	request->tail = intel_ring_offset(request, cs);
+	assert_ring_tail_valid(request->ring, request->tail);
+
+	return gen8_emit_wa_tail(request, cs);
+}
+
+static u32 *gen12_emit_fini_breadcrumb(struct i915_request *request, u32 *cs)
+{
+	cs = gen8_emit_ggtt_write(cs,
+				  request->fence.seqno,
+				  request->timeline->hwsp_offset,
+				  0);
+
+	return gen12_emit_fini_breadcrumb_footer(request, cs);
+}
+
+static u32 *
+gen12_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 {
 	cs = gen8_emit_ggtt_write_rcs(cs,
 				      request->fence.seqno,
@@ -2910,7 +2967,7 @@ static u32 *gen11_emit_fini_breadcrumb_rcs(struct i915_request *request,
 				      PIPE_CONTROL_DC_FLUSH_ENABLE |
 				      PIPE_CONTROL_FLUSH_ENABLE);
 
-	return gen8_emit_fini_breadcrumb_footer(request, cs);
+	return gen12_emit_fini_breadcrumb_footer(request, cs);
 }
 
 static void execlists_park(struct intel_engine_cs *engine)
@@ -2938,9 +2995,6 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 		if (HAS_LOGICAL_RING_PREEMPTION(engine->i915))
 			engine->flags |= I915_ENGINE_HAS_PREEMPTION;
 	}
-
-	if (INTEL_GEN(engine->i915) >= 12) /* XXX disabled for debugging */
-		engine->flags &= ~I915_ENGINE_HAS_SEMAPHORES;
 
 	if (engine->class != COPY_ENGINE_CLASS && INTEL_GEN(engine->i915) >= 12)
 		engine->flags |= I915_ENGINE_HAS_RELATIVE_MMIO;
@@ -2971,6 +3025,8 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	engine->emit_flush = gen8_emit_flush;
 	engine->emit_init_breadcrumb = gen8_emit_init_breadcrumb;
 	engine->emit_fini_breadcrumb = gen8_emit_fini_breadcrumb;
+	if (INTEL_GEN(engine->i915) >= 12)
+		engine->emit_fini_breadcrumb = gen12_emit_fini_breadcrumb;
 
 	engine->set_default_submission = intel_execlists_set_default_submission;
 
@@ -3016,6 +3072,9 @@ static void rcs_submission_override(struct intel_engine_cs *engine)
 {
 	switch (INTEL_GEN(engine->i915)) {
 	case 12:
+		engine->emit_flush = gen11_emit_flush_render;
+		engine->emit_fini_breadcrumb = gen12_emit_fini_breadcrumb_rcs;
+		break;
 	case 11:
 		engine->emit_flush = gen11_emit_flush_render;
 		engine->emit_fini_breadcrumb = gen11_emit_fini_breadcrumb_rcs;
