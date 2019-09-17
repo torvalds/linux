@@ -197,7 +197,7 @@ static int smm665_read_adc(struct smm665_data *data, int adc)
 	if (rv != -ENXIO) {
 		/*
 		 * We expect ENXIO to reflect NACK
-		 * (per Documentation/i2c/fault-codes).
+		 * (per Documentation/i2c/fault-codes.rst).
 		 * Everything else is an error.
 		 */
 		dev_dbg(&client->dev,

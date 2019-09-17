@@ -77,7 +77,7 @@
  * SMBus Host Notify			yes
  * Interrupt processing			yes
  *
- * See the file Documentation/i2c/busses/i2c-i801 for details.
+ * See the file Documentation/i2c/busses/i2c-i801.rst for details.
  */
 
 #include <linux/interrupt.h>
