@@ -986,6 +986,12 @@ int trace_probe_init(struct trace_probe *tp, const char *event,
 	if (!tp->event)
 		return -ENOMEM;
 
+	INIT_LIST_HEAD(&tp->event->files);
+	INIT_LIST_HEAD(&tp->event->class.fields);
+	INIT_LIST_HEAD(&tp->event->probes);
+	INIT_LIST_HEAD(&tp->list);
+	list_add(&tp->event->probes, &tp->list);
+
 	call = trace_probe_event_call(tp);
 	call->class = &tp->event->class;
 	call->name = kstrdup(event, GFP_KERNEL);
@@ -999,11 +1005,6 @@ int trace_probe_init(struct trace_probe *tp, const char *event,
 		ret = -ENOMEM;
 		goto error;
 	}
-	INIT_LIST_HEAD(&tp->event->files);
-	INIT_LIST_HEAD(&tp->event->class.fields);
-	INIT_LIST_HEAD(&tp->event->probes);
-	INIT_LIST_HEAD(&tp->list);
-	list_add(&tp->event->probes, &tp->list);
 
 	return 0;
 
