@@ -564,6 +564,15 @@ config SND_SOC_INTEL_SOUNDWIRE_RT700_MACH
 	  on link 0 or 1
 	  If unsure select "N"
 
+config SND_SOC_INTEL_SOUNDWIRE_RT711_MACH
+	tristate "SoundWire with RT711 codec"
+        depends on SOUNDWIRE && ACPI
+	select SND_SOC_RT711_SDW
+        help
+	  Add support for Intel SoundWire-based platforms connected to RT711
+	  on link 0 or 1
+	  If unsure select "N"
+
 config SND_SOC_INTEL_SOUNDWIRE_RT711_RT1308_RT715_MACH
 	tristate "SoundWire with RT711, RT1308 and RT715"
         depends on SOUNDWIRE && ACPI
