@@ -1058,10 +1058,10 @@ ENTRY(native_load_gs_index)
 ENDPROC(native_load_gs_index)
 EXPORT_SYMBOL(native_load_gs_index)
 
-	_ASM_EXTABLE(.Lgs_change, bad_gs)
+	_ASM_EXTABLE(.Lgs_change, .Lbad_gs)
 	.section .fixup, "ax"
 	/* running with kernelgs */
-bad_gs:
+.Lbad_gs:
 	SWAPGS					/* switch back to user gs */
 .macro ZAP_GS
 	/* This can't be a string because the preprocessor needs to see it. */
