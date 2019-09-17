@@ -1,3 +1,14 @@
+config GKI_HIDDEN_DRM_CONFIGS
+	bool "Hidden DRM configs needed for GKI"
+	select DRM_KMS_HELPER if (HAS_IOMEM && DRM)
+	select DRM_GEM_CMA_HELPER
+	select DRM_KMS_CMA_HELPER
+	select DRM_MIPI_DSI
+	help
+	  Dummy config option used to enable hidden DRM configs.
+	  These are normally selected implicitely when including a
+	  DRM module, but for GKI, the modules are built out-of-tree.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -7,6 +18,7 @@
 #
 config GKI_HACKS_TO_FIX
 	bool "GKI Dummy config options"
+	select GKI_HIDDEN_DRM_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.
