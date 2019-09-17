@@ -8,6 +8,7 @@
 #ifndef _VIMC_COMMON_H_
 #define _VIMC_COMMON_H_
 
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
@@ -110,6 +111,59 @@ struct vimc_ent_device {
 	void (*vdev_get_format)(struct vimc_ent_device *ved,
 			      struct v4l2_pix_format *fmt);
 };
+
+/**
+ * struct vimc_device - main device for vimc driver
+ *
+ * @pdev	pointer to the platform device
+ * @pipe_cfg	pointer to the vimc pipeline configuration structure
+ * @ent_devs	array of vimc_ent_device pointers
+ * @mdev	the associated media_device parent
+ * @v4l2_dev	Internal v4l2 parent device
+ */
+struct vimc_device {
+	struct platform_device pdev;
+	const struct vimc_pipeline_config *pipe_cfg;
+	struct vimc_ent_device **ent_devs;
+	struct media_device mdev;
+	struct v4l2_device v4l2_dev;
+};
+
+/**
+ * struct vimc_ent_config	Structure which describes individual
+ *				configuration for each entity
+ *
+ * @name			entity name
+ * @ved				pointer to vimc_ent_device (a node in the
+ *					topology)
+ * @add				subdev add hook - initializes and registers
+ *					subdev called from vimc-core
+ * @rm				subdev rm hook - unregisters and frees
+ *					subdev called from vimc-core
+ */
+struct vimc_ent_config {
+	const char *name;
+	struct vimc_ent_device *(*add)(struct vimc_device *vimc,
+				       const char *vcfg_name);
+	void (*rm)(struct vimc_device *vimc, struct vimc_ent_device *ved);
+};
+
+/* prototypes for vimc_ent_config add and rm hooks */
+struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
+				     const char *vcfg_name);
+void vimc_cap_rm(struct vimc_device *vimc, struct vimc_ent_device *ved);
+
+struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
+				     const char *vcfg_name);
+void vimc_deb_rm(struct vimc_device *vimc, struct vimc_ent_device *ved);
+
+struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
+				     const char *vcfg_name);
+void vimc_sca_rm(struct vimc_device *vimc, struct vimc_ent_device *ved);
+
+struct vimc_ent_device *vimc_sen_add(struct vimc_device *vimc,
+				     const char *vcfg_name);
+void vimc_sen_rm(struct vimc_device *vimc, struct vimc_ent_device *ved);
 
 /**
  * vimc_pads_init - initialize pads

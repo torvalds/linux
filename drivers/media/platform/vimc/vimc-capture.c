@@ -5,18 +5,12 @@
  * Copyright (C) 2015-2017 Helen Koike <helen.fornazier@gmail.com>
  */
 
-#include <linux/component.h>
-#include <linux/module.h>
-#include <linux/mod_devicetable.h>
-#include <linux/platform_device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-vmalloc.h>
 
 #include "vimc-common.h"
 #include "vimc-streamer.h"
-
-#define VIMC_CAP_DRV_NAME "vimc-capture"
 
 struct vimc_cap_device {
 	struct vimc_ent_device ved;
@@ -340,13 +334,11 @@ static void vimc_cap_release(struct video_device *vdev)
 	kfree(vcap);
 }
 
-static void vimc_cap_comp_unbind(struct device *comp, struct device *master,
-				 void *master_data)
+void vimc_cap_rm(struct vimc_device *vimc, struct vimc_ent_device *ved)
 {
-	struct vimc_ent_device *ved = dev_get_drvdata(comp);
-	struct vimc_cap_device *vcap = container_of(ved, struct vimc_cap_device,
-						    ved);
+	struct vimc_cap_device *vcap;
 
+	vcap = container_of(ved, struct vimc_cap_device, ved);
 	vb2_queue_release(&vcap->queue);
 	media_entity_cleanup(ved->ent);
 	video_unregister_device(&vcap->vdev);
@@ -391,11 +383,10 @@ static void *vimc_cap_process_frame(struct vimc_ent_device *ved,
 	return NULL;
 }
 
-static int vimc_cap_comp_bind(struct device *comp, struct device *master,
-			      void *master_data)
+struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
+				     const char *vcfg_name)
 {
-	struct v4l2_device *v4l2_dev = master_data;
-	struct vimc_platform_data *pdata = comp->platform_data;
+	struct v4l2_device *v4l2_dev = &vimc->v4l2_dev;
 	const struct vimc_pix_map *vpix;
 	struct vimc_cap_device *vcap;
 	struct video_device *vdev;
@@ -405,7 +396,7 @@ static int vimc_cap_comp_bind(struct device *comp, struct device *master,
 	/* Allocate the vimc_cap_device struct */
 	vcap = kzalloc(sizeof(*vcap), GFP_KERNEL);
 	if (!vcap)
-		return -ENOMEM;
+		return NULL;
 
 	/* Allocate the pads */
 	vcap->ved.pads =
@@ -416,7 +407,7 @@ static int vimc_cap_comp_bind(struct device *comp, struct device *master,
 	}
 
 	/* Initialize the media entity */
-	vcap->vdev.entity.name = pdata->entity_name;
+	vcap->vdev.entity.name = vcfg_name;
 	vcap->vdev.entity.function = MEDIA_ENT_F_IO_V4L;
 	ret = media_entity_pads_init(&vcap->vdev.entity,
 				     1, vcap->ved.pads);
@@ -440,8 +431,8 @@ static int vimc_cap_comp_bind(struct device *comp, struct device *master,
 
 	ret = vb2_queue_init(q);
 	if (ret) {
-		dev_err(comp, "%s: vb2 queue init failed (err=%d)\n",
-			pdata->entity_name, ret);
+		dev_err(&vimc->pdev.dev, "%s: vb2 queue init failed (err=%d)\n",
+			vcfg_name, ret);
 		goto err_clean_m_ent;
 	}
 
@@ -460,8 +451,7 @@ static int vimc_cap_comp_bind(struct device *comp, struct device *master,
 	vcap->ved.ent = &vcap->vdev.entity;
 	vcap->ved.process_frame = vimc_cap_process_frame;
 	vcap->ved.vdev_get_format = vimc_cap_get_format;
-	dev_set_drvdata(comp, &vcap->ved);
-	vcap->dev = comp;
+	vcap->dev = &vimc->pdev.dev;
 
 	/* Initialize the video_device struct */
 	vdev = &vcap->vdev;
@@ -474,18 +464,18 @@ static int vimc_cap_comp_bind(struct device *comp, struct device *master,
 	vdev->queue = q;
 	vdev->v4l2_dev = v4l2_dev;
 	vdev->vfl_dir = VFL_DIR_RX;
-	strscpy(vdev->name, pdata->entity_name, sizeof(vdev->name));
+	strscpy(vdev->name, vcfg_name, sizeof(vdev->name));
 	video_set_drvdata(vdev, &vcap->ved);
 
 	/* Register the video_device with the v4l2 and the media framework */
 	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
 	if (ret) {
-		dev_err(comp, "%s: video register failed (err=%d)\n",
+		dev_err(&vimc->pdev.dev, "%s: video register failed (err=%d)\n",
 			vcap->vdev.name, ret);
 		goto err_release_queue;
 	}
 
-	return 0;
+	return &vcap->ved;
 
 err_release_queue:
 	vb2_queue_release(q);
@@ -496,46 +486,5 @@ err_clean_pads:
 err_free_vcap:
 	kfree(vcap);
 
-	return ret;
+	return NULL;
 }
-
-static const struct component_ops vimc_cap_comp_ops = {
-	.bind = vimc_cap_comp_bind,
-	.unbind = vimc_cap_comp_unbind,
-};
-
-static int vimc_cap_probe(struct platform_device *pdev)
-{
-	return component_add(&pdev->dev, &vimc_cap_comp_ops);
-}
-
-static int vimc_cap_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &vimc_cap_comp_ops);
-
-	return 0;
-}
-
-static const struct platform_device_id vimc_cap_driver_ids[] = {
-	{
-		.name           = VIMC_CAP_DRV_NAME,
-	},
-	{ }
-};
-
-static struct platform_driver vimc_cap_pdrv = {
-	.probe		= vimc_cap_probe,
-	.remove		= vimc_cap_remove,
-	.id_table	= vimc_cap_driver_ids,
-	.driver		= {
-		.name	= VIMC_CAP_DRV_NAME,
-	},
-};
-
-module_platform_driver(vimc_cap_pdrv);
-
-MODULE_DEVICE_TABLE(platform, vimc_cap_driver_ids);
-
-MODULE_DESCRIPTION("Virtual Media Controller Driver (VIMC) Capture");
-MODULE_AUTHOR("Helen Mae Koike Fornazier <helen.fornazier@gmail.com>");
-MODULE_LICENSE("GPL");
