@@ -73,7 +73,7 @@ struct clk_core {
 	struct hlist_node	child_node;
 	struct hlist_head	clks;
 	unsigned int		notifier_count;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_COMMON_CLK_DEBUGFS
 	struct dentry		*dentry;
 	struct hlist_node	debug_node;
 #endif
@@ -2617,7 +2617,7 @@ EXPORT_SYMBOL_GPL(clk_is_match);
 
 /***        debugfs support        ***/
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_COMMON_CLK_DEBUGFS
 #include <linux/debugfs.h>
 
 static struct dentry *rootdir;

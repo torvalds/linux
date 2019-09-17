@@ -22,6 +22,13 @@ config COMMON_CLK
 menu "Common Clock Framework"
 	depends on COMMON_CLK
 
+config COMMON_CLK_DEBUGFS
+	bool "Common Clock DebugFS interface"
+	depends on COMMON_CLK && DEBUG_FS
+	default y
+	help
+	  Turns on the DebugFS interface for clock.
+
 config COMMON_CLK_WM831X
 	tristate "Clock driver for WM831x/2x PMICs"
 	depends on MFD_WM831X
