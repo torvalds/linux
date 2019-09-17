@@ -101,7 +101,7 @@ static void __restore_cpu_cpufeatures(void)
 	if (hv_mode) {
 		mtspr(SPRN_LPID, 0);
 		mtspr(SPRN_HFSCR, system_registers.hfscr);
-		mtspr(SPRN_PCR, 0);
+		mtspr(SPRN_PCR, PCR_MASK);
 	}
 	mtspr(SPRN_FSCR, system_registers.fscr);
 
@@ -144,6 +144,7 @@ static void __init cpufeatures_setup_cpu(void)
 		mtspr(SPRN_HFSCR, 0);
 	}
 	mtspr(SPRN_FSCR, 0);
+	mtspr(SPRN_PCR, PCR_MASK);
 
 	/*
 	 * LPCR does not get cleared, to match behaviour with secondaries

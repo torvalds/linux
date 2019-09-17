@@ -401,8 +401,11 @@ static int kvmppc_set_arch_compat(struct kvm_vcpu *vcpu, u32 arch_compat)
 
 	spin_lock(&vc->lock);
 	vc->arch_compat = arch_compat;
-	/* Set all PCR bits for which guest_pcr_bit <= bit < host_pcr_bit */
-	vc->pcr = host_pcr_bit - guest_pcr_bit;
+	/*
+	 * Set all PCR bits for which guest_pcr_bit <= bit < host_pcr_bit
+	 * Also set all reserved PCR bits
+	 */
+	vc->pcr = (host_pcr_bit - guest_pcr_bit) | PCR_MASK;
 	spin_unlock(&vc->lock);
 
 	return 0;
@@ -3410,7 +3413,7 @@ static int kvmhv_load_hv_regs_and_go(struct kvm_vcpu *vcpu, u64 time_limit,
 	}
 
 	if (vc->pcr)
-		mtspr(SPRN_PCR, vc->pcr);
+		mtspr(SPRN_PCR, vc->pcr | PCR_MASK);
 	mtspr(SPRN_DPDES, vc->dpdes);
 	mtspr(SPRN_VTB, vc->vtb);
 
@@ -3490,7 +3493,7 @@ static int kvmhv_load_hv_regs_and_go(struct kvm_vcpu *vcpu, u64 time_limit,
 	vc->vtb = mfspr(SPRN_VTB);
 	mtspr(SPRN_DPDES, 0);
 	if (vc->pcr)
-		mtspr(SPRN_PCR, 0);
+		mtspr(SPRN_PCR, PCR_MASK);
 
 	if (vc->tb_offset_applied) {
 		u64 new_tb = mftb() - vc->tb_offset_applied;
