@@ -12,6 +12,7 @@ Required properties :
 
 Optional properties :
  - reset-gpios : Should specify the gpio for hub reset
+ - vdd-supply : Should specify the phandle to the regulator supplying vdd
  - skip-config : Skip Hub configuration, but only send the USB-Attach command
  - vendor-id : Set USB Vendor ID of the hub (16 bit, default is 0x0424)
  - product-id : Set USB Product ID of the hub (16 bit, default depends on type)
