@@ -97,6 +97,7 @@ int main(int argc, char *argv[])
 	int c;
 	int oneshot = 0;
 	char *file = "/dev/watchdog";
+	struct watchdog_info info;
 
 	setbuf(stdout, NULL);
 
@@ -116,6 +117,16 @@ int main(int argc, char *argv[])
 			printf("Watchdog device open failed %s\n",
 				strerror(errno));
 		exit(-1);
+	}
+
+	/*
+	 * Validate that `file` is a watchdog device
+	 */
+	ret = ioctl(fd, WDIOC_GETSUPPORT, &info);
+	if (ret) {
+		printf("WDIOC_GETSUPPORT error '%s'\n", strerror(errno));
+		close(fd);
+		exit(ret);
 	}
 
 	optind = 0;
