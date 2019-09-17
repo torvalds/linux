@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/gpio/driver.h>
 
 #include <linux/io.h>
 #include <asm/coldfire.h>
