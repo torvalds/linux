@@ -736,6 +736,10 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 		channel->crop_st_y = stream->crop.top;
 		channel->width = stream->crop.width;
 		channel->height = stream->crop.height;
+	} else {
+		channel->width = stream->pixm.width;
+		channel->height = stream->pixm.height;
+		channel->crop_en = 1;
 	}
 
 	fmt = find_output_fmt(stream, stream->pixm.pixelformat);

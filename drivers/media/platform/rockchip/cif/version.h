@@ -21,6 +21,7 @@
  *6. fix the bug that dummpy buffer size is error
  *7. Add framesizes and frmintervals callback
  *8. fix dvp camera fails to link with cif on rk1808
+ *9. add camera support hotplug for n4
  */
 
 #define RKCIF_DRIVER_VERSION KERNEL_VERSION(0, 1, 0x2)
