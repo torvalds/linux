@@ -9,6 +9,14 @@ config GKI_HIDDEN_DRM_CONFIGS
 	  These are normally selected implicitely when including a
 	  DRM module, but for GKI, the modules are built out-of-tree.
 
+config GKI_HIDDEN_REGMAP_CONFIGS
+	bool "Hidden Regmap configs needed for GKI"
+	select REGMAP_IRQ
+	help
+	  Dummy config option used to enable hidden regmap configs.
+	  These are normally selected implicitely when a module
+	  that relies on it is configured.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -19,6 +27,7 @@ config GKI_HIDDEN_DRM_CONFIGS
 config GKI_HACKS_TO_FIX
 	bool "GKI Dummy config options"
 	select GKI_HIDDEN_DRM_CONFIGS
+	select GKI_HIDDEN_REGMAP_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.
