@@ -75,9 +75,9 @@ static void eip197_trc_cache_banksel(struct safexcel_crypto_priv *priv,
 }
 
 static u32 eip197_trc_cache_probe(struct safexcel_crypto_priv *priv,
-				  int maxbanks, u32 probemask)
+				  int maxbanks, u32 probemask, u32 stride)
 {
-	u32 val, addrhi, addrlo, addrmid;
+	u32 val, addrhi, addrlo, addrmid, addralias, delta, marker;
 	int actbank;
 
 	/*
@@ -87,32 +87,37 @@ static u32 eip197_trc_cache_probe(struct safexcel_crypto_priv *priv,
 	addrhi = 1 << (16 + maxbanks);
 	addrlo = 0;
 	actbank = min(maxbanks - 1, 0);
-	while ((addrhi - addrlo) > 32) {
+	while ((addrhi - addrlo) > stride) {
 		/* write marker to lowest address in top half */
 		addrmid = (addrhi + addrlo) >> 1;
+		marker = (addrmid ^ 0xabadbabe) & probemask; /* Unique */
 		eip197_trc_cache_banksel(priv, addrmid, &actbank);
-		writel((addrmid | (addrlo << 16)) & probemask,
+		writel(marker,
 			priv->base + EIP197_CLASSIFICATION_RAMS +
 			(addrmid & 0xffff));
 
-		/* write marker to lowest address in bottom half */
-		eip197_trc_cache_banksel(priv, addrlo, &actbank);
-		writel((addrlo | (addrhi << 16)) & probemask,
-			priv->base + EIP197_CLASSIFICATION_RAMS +
-			(addrlo & 0xffff));
+		/* write invalid markers to possible aliases */
+		delta = 1 << __fls(addrmid);
+		while (delta >= stride) {
+			addralias = addrmid - delta;
+			eip197_trc_cache_banksel(priv, addralias, &actbank);
+			writel(~marker,
+			       priv->base + EIP197_CLASSIFICATION_RAMS +
+			       (addralias & 0xffff));
+			delta >>= 1;
+		}
 
 		/* read back marker from top half */
 		eip197_trc_cache_banksel(priv, addrmid, &actbank);
 		val = readl(priv->base + EIP197_CLASSIFICATION_RAMS +
 			    (addrmid & 0xffff));
 
-		if (val == ((addrmid | (addrlo << 16)) & probemask)) {
+		if ((val & probemask) == marker)
 			/* read back correct, continue with top half */
 			addrlo = addrmid;
-		} else {
+		else
 			/* not read back correct, continue with bottom half */
 			addrhi = addrmid;
-		}
 	}
 	return addrhi;
 }
@@ -150,7 +155,7 @@ static void eip197_trc_cache_clear(struct safexcel_crypto_priv *priv,
 		       htable_offset + i * sizeof(u32));
 }
 
-static void eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
+static int eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
 {
 	u32 val, dsize, asize;
 	int cs_rc_max, cs_ht_wc, cs_trc_rec_wc, cs_trc_lg_rec_wc;
@@ -183,7 +188,7 @@ static void eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
 	writel(val, priv->base + EIP197_TRC_PARAMS);
 
 	/* Probed data RAM size in bytes */
-	dsize = eip197_trc_cache_probe(priv, maxbanks, 0xffffffff);
+	dsize = eip197_trc_cache_probe(priv, maxbanks, 0xffffffff, 32);
 
 	/*
 	 * Now probe the administration RAM size pretty much the same way
@@ -196,10 +201,17 @@ static void eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
 	writel(val, priv->base + EIP197_TRC_PARAMS);
 
 	/* Probed admin RAM size in admin words */
-	asize = eip197_trc_cache_probe(priv, 0, 0xbfffffff) >> 4;
+	asize = eip197_trc_cache_probe(priv, 0, 0x3fffffff, 16) >> 4;
 
 	/* Clear any ECC errors detected while probing! */
 	writel(0, priv->base + EIP197_TRC_ECCCTRL);
+
+	/* Sanity check probing results */
+	if (dsize < EIP197_MIN_DSIZE || asize < EIP197_MIN_ASIZE) {
+		dev_err(priv->dev, "Record cache probing failed (%d,%d).",
+			dsize, asize);
+		return -ENODEV;
+	}
 
 	/*
 	 * Determine optimal configuration from RAM sizes
@@ -251,6 +263,7 @@ static void eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
 
 	dev_info(priv->dev, "TRC init: %dd,%da (%dr,%dh)\n",
 		 dsize, asize, cs_rc_max, cs_ht_wc + cs_ht_wc);
+	return 0;
 }
 
 static void eip197_init_firmware(struct safexcel_crypto_priv *priv)
@@ -737,7 +750,10 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	writel(GENMASK(30, 20), EIP197_HIA_AIC_G(priv) + EIP197_HIA_AIC_G_ACK);
 
 	if (priv->flags & SAFEXCEL_HW_EIP197) {
-		eip197_trc_cache_init(priv);
+		ret = eip197_trc_cache_init(priv);
+		if (ret)
+			return ret;
+
 		priv->flags |= EIP197_TRC_CACHE;
 
 		ret = eip197_load_firmwares(priv);
