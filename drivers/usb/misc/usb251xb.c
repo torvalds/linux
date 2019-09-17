@@ -701,6 +701,29 @@ static int usb251xb_i2c_probe(struct i2c_client *i2c,
 	return usb251xb_probe(hub);
 }
 
+static int __maybe_unused usb251xb_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct usb251xb *hub = i2c_get_clientdata(client);
+
+	return regulator_disable(hub->vdd);
+}
+
+static int __maybe_unused usb251xb_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct usb251xb *hub = i2c_get_clientdata(client);
+	int err;
+
+	err = regulator_enable(hub->vdd);
+	if (err)
+		return err;
+
+	return usb251xb_connect(hub);
+}
+
+static SIMPLE_DEV_PM_OPS(usb251xb_pm_ops, usb251xb_suspend, usb251xb_resume);
+
 static const struct i2c_device_id usb251xb_id[] = {
 	{ "usb2512b", 0 },
 	{ "usb2512bi", 0 },
@@ -718,6 +741,7 @@ static struct i2c_driver usb251xb_i2c_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = of_match_ptr(usb251xb_of_match),
+		.pm = &usb251xb_pm_ops,
 	},
 	.probe    = usb251xb_i2c_probe,
 	.id_table = usb251xb_id,
