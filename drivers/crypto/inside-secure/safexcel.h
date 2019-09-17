@@ -28,7 +28,7 @@
 
 /* Static configuration */
 #define EIP197_DEFAULT_RING_SIZE		400
-#define EIP197_MAX_TOKENS			18
+#define EIP197_MAX_TOKENS			19
 #define EIP197_MAX_RINGS			4
 #define EIP197_FETCH_DEPTH			2
 #define EIP197_MAX_BATCH_SZ			64
@@ -410,6 +410,8 @@ struct safexcel_context_record {
 #define EIP197_AEAD_TYPE_IPSEC_ESP_GMAC		3
 #define EIP197_AEAD_IPSEC_IV_SIZE		8
 #define EIP197_AEAD_IPSEC_NONCE_SIZE		4
+#define EIP197_AEAD_IPSEC_COUNTER_SIZE		4
+#define EIP197_AEAD_IPSEC_CCM_NONCE_SIZE	3
 
 /* The hash counter given to the engine in the context has a granularity of
  * 64 bits.
@@ -915,5 +917,6 @@ extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha512_cbc_des;
 extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha384_cbc_des;
 extern struct safexcel_alg_template safexcel_alg_rfc4106_gcm;
 extern struct safexcel_alg_template safexcel_alg_rfc4543_gcm;
+extern struct safexcel_alg_template safexcel_alg_rfc4309_ccm;
 
 #endif
