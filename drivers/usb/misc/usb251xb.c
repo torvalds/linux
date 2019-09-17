@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/nls.h>
 #include <linux/of_device.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
 /* Internal Register Set Addresses & Default Values acc. to DS00001692C */
@@ -116,6 +117,7 @@
 struct usb251xb {
 	struct device *dev;
 	struct i2c_client *i2c;
+	struct regulator *vdd;
 	u8 skip_config;
 	struct gpio_desc *gpio_reset;
 	u16 vendor_id;
@@ -420,6 +422,10 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 		return err;
 	}
 
+	hub->vdd = devm_regulator_get(dev, "vdd");
+	if (IS_ERR(hub->vdd))
+		return PTR_ERR(hub->vdd);
+
 	if (of_property_read_u16_array(np, "vendor-id", &hub->vendor_id, 1))
 		hub->vendor_id = USB251XB_DEF_VENDOR_ID;
 
@@ -662,6 +668,10 @@ static int usb251xb_probe(struct usb251xb *hub)
 	 * the i2c-bus segment (it will cause a deadlock).
 	 */
 	err = usb251x_check_gpio_chip(hub);
+	if (err)
+		return err;
+
+	err = regulator_enable(hub->vdd);
 	if (err)
 		return err;
 
