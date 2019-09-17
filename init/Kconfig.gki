@@ -17,6 +17,14 @@ config GKI_HIDDEN_REGMAP_CONFIGS
 	  These are normally selected implicitely when a module
 	  that relies on it is configured.
 
+config GKI_HIDDEN_SND_SOC_CONFIGS
+	bool "Hidden SND_SOC configs needed for GKI"
+	select SND_SOC_GENERIC_DMAENGINE_PCM if (SND_SOC && SND)
+	help
+	  Dummy config option used to enable hidden SND_SOC configs.
+	  These are normally selected implicitely when a module
+	  that relies on it is configured.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -28,6 +36,7 @@ config GKI_HACKS_TO_FIX
 	bool "GKI Dummy config options"
 	select GKI_HIDDEN_DRM_CONFIGS
 	select GKI_HIDDEN_REGMAP_CONFIGS
+	select GKI_HIDDEN_SND_SOC_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.
