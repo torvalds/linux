@@ -79,6 +79,8 @@
 #define ID7_MINOR			GENMASK(3, 0)
 
 #define ARM_SMMU_GR0_sGFSR		0x48
+#define sGFSR_USF			BIT(1)
+
 #define ARM_SMMU_GR0_sGFSYNR0		0x50
 #define ARM_SMMU_GR0_sGFSYNR1		0x54
 #define ARM_SMMU_GR0_sGFSYNR2		0x58
