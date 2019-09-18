@@ -267,6 +267,13 @@ static inline bool amdgpu_dm_vrr_active(struct dm_crtc_state *dm_state)
 	       dm_state->freesync_config.state == VRR_STATE_ACTIVE_FIXED;
 }
 
+/**
+ * dm_pflip_high_irq() - Handle pageflip interrupt
+ * @interrupt_params: ignored
+ *
+ * Handles the pageflip interrupt by notifying all interested parties
+ * that the pageflip has been completed.
+ */
 static void dm_pflip_high_irq(void *interrupt_params)
 {
 	struct amdgpu_crtc *amdgpu_crtc;
@@ -411,6 +418,13 @@ static void dm_vupdate_high_irq(void *interrupt_params)
 	}
 }
 
+/**
+ * dm_crtc_high_irq() - Handles CRTC interrupt
+ * @interrupt_params: ignored
+ *
+ * Handles the CRTC/VSYNC interrupt by notfying DRM's VBLANK
+ * event handler.
+ */
 static void dm_crtc_high_irq(void *interrupt_params)
 {
 	struct common_irq_params *irq_params = interrupt_params;

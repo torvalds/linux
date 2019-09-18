@@ -108,6 +108,12 @@ struct amdgpu_dm_backlight_caps {
  * @display_indexes_num: Max number of display streams supported
  * @irq_handler_list_table_lock: Synchronizes access to IRQ tables
  * @backlight_dev: Backlight control device
+ * @backlight_link: Link on which to control backlight
+ * @backlight_caps: Capabilities of the backlight device
+ * @freesync_module: Module handling freesync calculations
+ * @fw_dmcu: Reference to DMCU firmware
+ * @dmcu_fw_version: Version of the DMCU firmware
+ * @soc_bounding_box: SOC bounding box values provided by gpu_info FW
  * @cached_state: Caches device atomic state for suspend/resume
  * @compressor: Frame buffer compression buffer. See &struct dm_comressor_info
  */
@@ -128,7 +134,7 @@ struct amdgpu_display_manager {
 	u16 display_indexes_num;
 
 	/**
-	 * @atomic_obj
+	 * @atomic_obj:
 	 *
 	 * In combination with &dm_atomic_state it helps manage
 	 * global atomic state that doesn't map cleanly into existing
@@ -237,6 +243,8 @@ struct amdgpu_display_manager {
 	uint32_t dmcu_fw_version;
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	/**
+	 * @soc_bounding_box:
+	 *
 	 * gpu_info FW provided soc bounding box struct or 0 if not
 	 * available in FW
 	 */
