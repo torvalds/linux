@@ -794,7 +794,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			priv->imode = CVMX_HELPER_INTERFACE_MODE_DISABLED;
 			priv->port = CVMX_PIP_NUM_INPUT_PORTS;
 			priv->queue = -1;
-			strcpy(dev->name, "pow%d");
+			strscpy(dev->name, "pow%d", sizeof(dev->name));
 			for (qos = 0; qos < 16; qos++)
 				skb_queue_head_init(&priv->tx_free_list[qos]);
 			dev->min_mtu = VLAN_ETH_ZLEN - mtu_overhead;
@@ -866,39 +866,39 @@ static int cvm_oct_probe(struct platform_device *pdev)
 
 			case CVMX_HELPER_INTERFACE_MODE_NPI:
 				dev->netdev_ops = &cvm_oct_npi_netdev_ops;
-				strcpy(dev->name, "npi%d");
+				strscpy(dev->name, "npi%d", sizeof(dev->name));
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_XAUI:
 				dev->netdev_ops = &cvm_oct_xaui_netdev_ops;
-				strcpy(dev->name, "xaui%d");
+				strscpy(dev->name, "xaui%d", sizeof(dev->name));
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_LOOP:
 				dev->netdev_ops = &cvm_oct_npi_netdev_ops;
-				strcpy(dev->name, "loop%d");
+				strscpy(dev->name, "loop%d", sizeof(dev->name));
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_SGMII:
 				priv->phy_mode = PHY_INTERFACE_MODE_SGMII;
 				dev->netdev_ops = &cvm_oct_sgmii_netdev_ops;
-				strcpy(dev->name, "eth%d");
+				strscpy(dev->name, "eth%d", sizeof(dev->name));
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_SPI:
 				dev->netdev_ops = &cvm_oct_spi_netdev_ops;
-				strcpy(dev->name, "spi%d");
+				strscpy(dev->name, "spi%d", sizeof(dev->name));
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_GMII:
 				priv->phy_mode = PHY_INTERFACE_MODE_GMII;
 				dev->netdev_ops = &cvm_oct_rgmii_netdev_ops;
-				strcpy(dev->name, "eth%d");
+				strscpy(dev->name, "eth%d", sizeof(dev->name));
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_RGMII:
 				dev->netdev_ops = &cvm_oct_rgmii_netdev_ops;
-				strcpy(dev->name, "eth%d");
+				strscpy(dev->name, "eth%d", sizeof(dev->name));
 				cvm_set_rgmii_delay(priv, interface,
 						    port_index);
 				break;

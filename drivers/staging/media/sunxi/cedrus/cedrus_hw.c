@@ -157,11 +157,8 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 	dev->capabilities = variant->capabilities;
 
 	irq_dec = platform_get_irq(dev->pdev, 0);
-	if (irq_dec <= 0) {
-		dev_err(dev->dev, "Failed to get IRQ\n");
-
+	if (irq_dec <= 0)
 		return irq_dec;
-	}
 	ret = devm_request_irq(dev->dev, irq_dec, cedrus_irq,
 			       0, dev_name(dev->dev), dev);
 	if (ret) {

@@ -10,8 +10,8 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/greybus.h>
 
-#include "greybus.h"
 #include "gbphy.h"
 
 /* Greybus USB request types */
