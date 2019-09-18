@@ -1472,8 +1472,11 @@ static int vmx_rtit_ctl_check(struct kvm_vcpu *vcpu, u64 data)
 	return 0;
 }
 
-
-static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
+/*
+ * Returns an int to be compatible with SVM implementation (which can fail).
+ * Do not use directly, use skip_emulated_instruction() instead.
+ */
+static int __skip_emulated_instruction(struct kvm_vcpu *vcpu)
 {
 	unsigned long rip;
 
@@ -1483,6 +1486,13 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 
 	/* skipping an emulated instruction also counts */
 	vmx_set_interrupt_shadow(vcpu, 0);
+
+	return EMULATE_DONE;
+}
+
+static inline void skip_emulated_instruction(struct kvm_vcpu *vcpu)
+{
+	(void)__skip_emulated_instruction(vcpu);
 }
 
 static void vmx_clear_hlt(struct kvm_vcpu *vcpu)
@@ -4026,7 +4036,7 @@ static void ept_set_mmio_spte_mask(void)
 	 * of an EPT paging-structure entry is 110b (write/execute).
 	 */
 	kvm_mmu_set_mmio_spte_mask(VMX_EPT_RWX_MASK,
-				   VMX_EPT_MISCONFIG_WX_VALUE);
+				   VMX_EPT_MISCONFIG_WX_VALUE, 0);
 }
 
 #define VMX_XSS_EXIT_BITMAP 0
@@ -4152,6 +4162,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 	vcpu->arch.microcode_version = 0x100000000ULL;
 	vmx->vcpu.arch.regs[VCPU_REGS_RDX] = get_rdx_init_val();
+	vmx->hv_deadline_tsc = -1;
 	kvm_set_cr8(vcpu, 0);
 
 	if (!init_event) {
@@ -4856,41 +4867,12 @@ static int handle_cpuid(struct kvm_vcpu *vcpu)
 
 static int handle_rdmsr(struct kvm_vcpu *vcpu)
 {
-	u32 ecx = kvm_rcx_read(vcpu);
-	struct msr_data msr_info;
-
-	msr_info.index = ecx;
-	msr_info.host_initiated = false;
-	if (vmx_get_msr(vcpu, &msr_info)) {
-		trace_kvm_msr_read_ex(ecx);
-		kvm_inject_gp(vcpu, 0);
-		return 1;
-	}
-
-	trace_kvm_msr_read(ecx, msr_info.data);
-
-	kvm_rax_write(vcpu, msr_info.data & -1u);
-	kvm_rdx_write(vcpu, (msr_info.data >> 32) & -1u);
-	return kvm_skip_emulated_instruction(vcpu);
+	return kvm_emulate_rdmsr(vcpu);
 }
 
 static int handle_wrmsr(struct kvm_vcpu *vcpu)
 {
-	struct msr_data msr;
-	u32 ecx = kvm_rcx_read(vcpu);
-	u64 data = kvm_read_edx_eax(vcpu);
-
-	msr.data = data;
-	msr.index = ecx;
-	msr.host_initiated = false;
-	if (kvm_set_msr(vcpu, &msr) != 0) {
-		trace_kvm_msr_write_ex(ecx, data);
-		kvm_inject_gp(vcpu, 0);
-		return 1;
-	}
-
-	trace_kvm_msr_write(ecx, data);
-	return kvm_skip_emulated_instruction(vcpu);
+	return kvm_emulate_wrmsr(vcpu);
 }
 
 static int handle_tpr_below_threshold(struct kvm_vcpu *vcpu)
@@ -5227,31 +5209,33 @@ emulation_error:
 static void grow_ple_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	int old = vmx->ple_window;
+	unsigned int old = vmx->ple_window;
 
 	vmx->ple_window = __grow_ple_window(old, ple_window,
 					    ple_window_grow,
 					    ple_window_max);
 
-	if (vmx->ple_window != old)
+	if (vmx->ple_window != old) {
 		vmx->ple_window_dirty = true;
-
-	trace_kvm_ple_window_grow(vcpu->vcpu_id, vmx->ple_window, old);
+		trace_kvm_ple_window_update(vcpu->vcpu_id,
+					    vmx->ple_window, old);
+	}
 }
 
 static void shrink_ple_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	int old = vmx->ple_window;
+	unsigned int old = vmx->ple_window;
 
 	vmx->ple_window = __shrink_ple_window(old, ple_window,
 					      ple_window_shrink,
 					      ple_window);
 
-	if (vmx->ple_window != old)
+	if (vmx->ple_window != old) {
 		vmx->ple_window_dirty = true;
-
-	trace_kvm_ple_window_shrink(vcpu->vcpu_id, vmx->ple_window, old);
+		trace_kvm_ple_window_update(vcpu->vcpu_id,
+					    vmx->ple_window, old);
+	}
 }
 
 /*
@@ -5887,8 +5871,13 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	else {
 		vcpu_unimpl(vcpu, "vmx: unexpected exit reason 0x%x\n",
 				exit_reason);
-		kvm_queue_exception(vcpu, UD_VECTOR);
-		return 1;
+		dump_vmcs();
+		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		vcpu->run->internal.suberror =
+			KVM_INTERNAL_ERROR_UNEXPECTED_EXIT_REASON;
+		vcpu->run->internal.ndata = 1;
+		vcpu->run->internal.data[0] = exit_reason;
+		return 0;
 	}
 }
 
@@ -6614,6 +6603,9 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	struct vcpu_vmx *vmx;
 	unsigned long *msr_bitmap;
 	int cpu;
+
+	BUILD_BUG_ON_MSG(offsetof(struct vcpu_vmx, vcpu) != 0,
+		"struct kvm_vcpu must be at offset 0 for arch usercopy region");
 
 	vmx = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL_ACCOUNT);
 	if (!vmx)
@@ -7369,10 +7361,14 @@ static int vmx_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
 		 * irqbalance to make the interrupts single-CPU.
 		 *
 		 * We will support full lowest-priority interrupt later.
+		 *
+		 * In addition, we can only inject generic interrupts using
+		 * the PI mechanism, refuse to route others through it.
 		 */
 
 		kvm_set_msi_irq(kvm, e, &irq);
-		if (!kvm_intr_is_single_vcpu(kvm, &irq, &vcpu)) {
+		if (!kvm_intr_is_single_vcpu(kvm, &irq, &vcpu) ||
+		    !kvm_irq_is_postable(&irq)) {
 			/*
 			 * Make sure the IRTE is in remapped mode if
 			 * we don't handle it in posted mode.
@@ -7472,6 +7468,11 @@ static int enable_smi_window(struct kvm_vcpu *vcpu)
 static bool vmx_need_emulation_on_page_fault(struct kvm_vcpu *vcpu)
 {
 	return false;
+}
+
+static bool vmx_apic_init_signal_blocked(struct kvm_vcpu *vcpu)
+{
+	return to_vmx(vcpu)->nested.vmxon;
 }
 
 static __init int hardware_setup(void)
@@ -7705,7 +7706,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 
 	.run = vmx_vcpu_run,
 	.handle_exit = vmx_handle_exit,
-	.skip_emulated_instruction = skip_emulated_instruction,
+	.skip_emulated_instruction = __skip_emulated_instruction,
 	.set_interrupt_shadow = vmx_set_interrupt_shadow,
 	.get_interrupt_shadow = vmx_get_interrupt_shadow,
 	.patch_hypercall = vmx_patch_hypercall,
@@ -7799,6 +7800,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.nested_enable_evmcs = NULL,
 	.nested_get_evmcs_version = NULL,
 	.need_emulation_on_page_fault = vmx_need_emulation_on_page_fault,
+	.apic_init_signal_blocked = vmx_apic_init_signal_blocked,
 };
 
 static void vmx_cleanup_l1d_flush(void)

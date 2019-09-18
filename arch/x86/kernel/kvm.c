@@ -502,16 +502,6 @@ static void kvm_send_ipi_mask_allbutself(const struct cpumask *mask, int vector)
 	__send_ipi_mask(local_mask, vector);
 }
 
-static void kvm_send_ipi_allbutself(int vector)
-{
-	kvm_send_ipi_mask_allbutself(cpu_online_mask, vector);
-}
-
-static void kvm_send_ipi_all(int vector)
-{
-	__send_ipi_mask(cpu_online_mask, vector);
-}
-
 /*
  * Set the IPI entry points
  */
@@ -519,8 +509,6 @@ static void kvm_setup_pv_ipi(void)
 {
 	apic->send_IPI_mask = kvm_send_ipi_mask;
 	apic->send_IPI_mask_allbutself = kvm_send_ipi_mask_allbutself;
-	apic->send_IPI_allbutself = kvm_send_ipi_allbutself;
-	apic->send_IPI_all = kvm_send_ipi_all;
 	pr_info("KVM setup pv IPIs\n");
 }
 
