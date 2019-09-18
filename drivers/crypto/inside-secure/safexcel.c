@@ -1308,6 +1308,9 @@ static void safexcel_configure(struct safexcel_crypto_priv *priv)
 
 	priv->config.pes = priv->hwconfig.hwnumpes;
 	priv->config.rings = min_t(u32, priv->hwconfig.hwnumrings, max_rings);
+	/* Cannot currently support more rings than we have ring AICs! */
+	priv->config.rings = min_t(u32, priv->config.rings,
+					priv->hwconfig.hwnumraic);
 
 	priv->config.cd_size = EIP197_CD64_FETCH_SIZE;
 	priv->config.cd_offset = (priv->config.cd_size + mask) & ~mask;
@@ -1481,6 +1484,15 @@ static int safexcel_probe_generic(void *pdev,
 					    EIP197_N_RINGS_MASK;
 	}
 
+	/* Scan for ring AIC's */
+	for (i = 0; i < EIP197_MAX_RING_AIC; i++) {
+		version = readl(EIP197_HIA_AIC_R(priv) +
+				EIP197_HIA_AIC_R_VERSION(i));
+		if (EIP197_REG_LO16(version) != EIP201_VERSION_LE)
+			break;
+	}
+	priv->hwconfig.hwnumraic = i;
+
 	/* Get supported algorithms from EIP96 transform engine */
 	priv->hwconfig.algo_flags = readl(EIP197_PE(priv) +
 				    EIP197_PE_EIP96_OPTIONS(0));
@@ -1488,10 +1500,10 @@ static int safexcel_probe_generic(void *pdev,
 	/* Print single info line describing what we just detected */
 	dev_info(priv->dev, "EIP%d:%x(%d,%d,%d,%d)-HIA:%x(%d,%d,%d),PE:%x,alg:%08x\n",
 		 peid, priv->hwconfig.hwver, hwctg, priv->hwconfig.hwnumpes,
-		 priv->hwconfig.hwnumrings, priv->hwconfig.hiaver,
-		 priv->hwconfig.hwdataw, priv->hwconfig.hwcfsize,
-		 priv->hwconfig.hwrfsize, priv->hwconfig.pever,
-		 priv->hwconfig.algo_flags);
+		 priv->hwconfig.hwnumrings, priv->hwconfig.hwnumraic,
+		 priv->hwconfig.hiaver, priv->hwconfig.hwdataw,
+		 priv->hwconfig.hwcfsize, priv->hwconfig.hwrfsize,
+		 priv->hwconfig.pever, priv->hwconfig.algo_flags);
 
 	safexcel_configure(priv);
 

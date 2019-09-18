@@ -19,6 +19,7 @@
 #define EIP97_VERSION_LE			0x9e61
 #define EIP197_VERSION_LE			0x3ac5
 #define EIP96_VERSION_LE			0x9f60
+#define EIP201_VERSION_LE			0x36c9
 #define EIP197_REG_LO16(reg)			(reg & 0xffff)
 #define EIP197_REG_HI16(reg)			((reg >> 16) & 0xffff)
 #define EIP197_VERSION_MASK(reg)		((reg >> 16) & 0xfff)
@@ -32,6 +33,7 @@
 #define EIP197_MAX_RINGS			4
 #define EIP197_FETCH_DEPTH			2
 #define EIP197_MAX_BATCH_SZ			64
+#define EIP197_MAX_RING_AIC			14
 
 #define EIP197_GFP_FLAGS(base)	((base).flags & CRYPTO_TFM_REQ_MAY_SLEEP ? \
 				 GFP_KERNEL : GFP_ATOMIC)
@@ -138,6 +140,7 @@
 #define EIP197_HIA_AIC_R_ENABLED_STAT(r)	(0xe010 - EIP197_HIA_AIC_R_OFF(r))
 #define EIP197_HIA_AIC_R_ACK(r)			(0xe010 - EIP197_HIA_AIC_R_OFF(r))
 #define EIP197_HIA_AIC_R_ENABLE_CLR(r)		(0xe014 - EIP197_HIA_AIC_R_OFF(r))
+#define EIP197_HIA_AIC_R_VERSION(r)		(0xe01c - EIP197_HIA_AIC_R_OFF(r))
 #define EIP197_HIA_AIC_G_ENABLE_CTRL		0xf808
 #define EIP197_HIA_AIC_G_ENABLED_STAT		0xf810
 #define EIP197_HIA_AIC_G_ACK			0xf810
@@ -740,6 +743,7 @@ struct safexcel_hwconfig {
 	int hwrfsize;
 	int hwnumpes;
 	int hwnumrings;
+	int hwnumraic;
 };
 
 struct safexcel_crypto_priv {
