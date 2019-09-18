@@ -660,7 +660,6 @@ static void autofs_set_leaf_automount_flags(struct dentry *dentry)
 
 static void autofs_clear_leaf_automount_flags(struct dentry *dentry)
 {
-	struct list_head *d_child;
 	struct dentry *parent;
 
 	/* flags for dentrys in the root are handled elsewhere */
@@ -673,10 +672,7 @@ static void autofs_clear_leaf_automount_flags(struct dentry *dentry)
 	/* only consider parents below dentrys in the root */
 	if (IS_ROOT(parent->d_parent))
 		return;
-	d_child = &dentry->d_child;
-	/* Set parent managed if it's becoming empty */
-	if (d_child->next == &parent->d_subdirs &&
-	    d_child->prev == &parent->d_subdirs)
+	if (atomic_read(&autofs_dentry_ino(parent)->count) == 2)
 		managed_dentry_set_managed(parent);
 }
 
