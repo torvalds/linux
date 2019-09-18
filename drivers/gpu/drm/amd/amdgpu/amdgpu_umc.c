@@ -74,6 +74,21 @@ free:
 	return r;
 }
 
+void amdgpu_umc_ras_fini(struct amdgpu_device *adev)
+{
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC) &&
+			adev->umc.ras_if) {
+		struct ras_common_if *ras_if = adev->umc.ras_if;
+		struct ras_ih_if ih_info = {
+			.head = *ras_if,
+			.cb = amdgpu_umc_process_ras_data_cb,
+		};
+
+		amdgpu_ras_late_fini(adev, ras_if, &ih_info);
+		kfree(ras_if);
+	}
+}
+
 int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 		void *ras_error_status,
 		struct amdgpu_iv_entry *entry)
