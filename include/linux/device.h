@@ -229,6 +229,8 @@ static inline struct device *bus_find_device_by_devt(struct bus_type *bus,
 /**
  * bus_find_next_device - Find the next device after a given device in a
  * given bus.
+ * @bus: bus type
+ * @cur: device to begin the search with.
  */
 static inline struct device *
 bus_find_next_device(struct bus_type *bus,struct device *cur)
@@ -346,6 +348,8 @@ enum probe_type {
  * @resume:	Called to bring a device from sleep mode.
  * @groups:	Default attributes that get created by the driver core
  *		automatically.
+ * @dev_groups:	Additional attributes attached to device instance once the
+ *		it is bound to the driver.
  * @pm:		Power management operations of the device which matched
  *		this driver.
  * @coredump:	Called when sysfs entry is written to. The device driver
@@ -380,6 +384,7 @@ struct device_driver {
 	int (*suspend) (struct device *dev, pm_message_t state);
 	int (*resume) (struct device *dev);
 	const struct attribute_group **groups;
+	const struct attribute_group **dev_groups;
 
 	const struct dev_pm_ops *pm;
 	void (*coredump) (struct device *dev);
@@ -429,7 +434,7 @@ struct device *driver_find_device(struct device_driver *drv,
 /**
  * driver_find_device_by_name - device iterator for locating a particular device
  * of a specific name.
- * @driver: the driver we're iterating
+ * @drv: the driver we're iterating
  * @name: name of the device to match
  */
 static inline struct device *driver_find_device_by_name(struct device_driver *drv,
@@ -441,7 +446,7 @@ static inline struct device *driver_find_device_by_name(struct device_driver *dr
 /**
  * driver_find_device_by_of_node- device iterator for locating a particular device
  * by of_node pointer.
- * @driver: the driver we're iterating
+ * @drv: the driver we're iterating
  * @np: of_node pointer to match.
  */
 static inline struct device *
@@ -454,7 +459,7 @@ driver_find_device_by_of_node(struct device_driver *drv,
 /**
  * driver_find_device_by_fwnode- device iterator for locating a particular device
  * by fwnode pointer.
- * @driver: the driver we're iterating
+ * @drv: the driver we're iterating
  * @fwnode: fwnode pointer to match.
  */
 static inline struct device *
@@ -467,7 +472,7 @@ driver_find_device_by_fwnode(struct device_driver *drv,
 /**
  * driver_find_device_by_devt- device iterator for locating a particular device
  * by devt.
- * @driver: the driver we're iterating
+ * @drv: the driver we're iterating
  * @devt: devt pointer to match.
  */
 static inline struct device *driver_find_device_by_devt(struct device_driver *drv,
@@ -486,7 +491,7 @@ static inline struct device *driver_find_next_device(struct device_driver *drv,
 /**
  * driver_find_device_by_acpi_dev : device iterator for locating a particular
  * device matching the ACPI_COMPANION device.
- * @driver: the driver we're iterating
+ * @drv: the driver we're iterating
  * @adev: ACPI_COMPANION device to match.
  */
 static inline struct device *
@@ -1064,12 +1069,13 @@ enum device_link_state {
 /*
  * Device link flags.
  *
- * STATELESS: The core won't track the presence of supplier/consumer drivers.
+ * STATELESS: The core will not remove this link automatically.
  * AUTOREMOVE_CONSUMER: Remove the link automatically on consumer driver unbind.
  * PM_RUNTIME: If set, the runtime PM framework will use this link.
  * RPM_ACTIVE: Run pm_runtime_get_sync() on the supplier during link creation.
  * AUTOREMOVE_SUPPLIER: Remove the link automatically on supplier driver unbind.
  * AUTOPROBE_CONSUMER: Probe consumer driver automatically after supplier binds.
+ * MANAGED: The core tracks presence of supplier/consumer drivers (internal).
  */
 #define DL_FLAG_STATELESS		BIT(0)
 #define DL_FLAG_AUTOREMOVE_CONSUMER	BIT(1)
@@ -1077,6 +1083,7 @@ enum device_link_state {
 #define DL_FLAG_RPM_ACTIVE		BIT(3)
 #define DL_FLAG_AUTOREMOVE_SUPPLIER	BIT(4)
 #define DL_FLAG_AUTOPROBE_CONSUMER	BIT(5)
+#define DL_FLAG_MANAGED			BIT(6)
 
 /**
  * struct device_link - Device link representation.
