@@ -67,7 +67,7 @@ xfs_find_handle(
 			return -EBADF;
 		inode = file_inode(f.file);
 	} else {
-		error = user_lpath((const char __user *)hreq->path, &path);
+		error = user_path_at(AT_FDCWD, hreq->path, 0, &path);
 		if (error)
 			return error;
 		inode = d_inode(path.dentry);
