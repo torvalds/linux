@@ -528,9 +528,52 @@ unreg:
 	return 0;
 }
 
+static bool trace_kprobe_has_same_kprobe(struct trace_kprobe *orig,
+					 struct trace_kprobe *comp)
+{
+	struct trace_probe_event *tpe = orig->tp.event;
+	struct trace_probe *pos;
+	int i;
+
+	list_for_each_entry(pos, &tpe->probes, list) {
+		orig = container_of(pos, struct trace_kprobe, tp);
+		if (strcmp(trace_kprobe_symbol(orig),
+			   trace_kprobe_symbol(comp)) ||
+		    trace_kprobe_offset(orig) != trace_kprobe_offset(comp))
+			continue;
+
+		/*
+		 * trace_probe_compare_arg_type() ensured that nr_args and
+		 * each argument name and type are same. Let's compare comm.
+		 */
+		for (i = 0; i < orig->tp.nr_args; i++) {
+			if (strcmp(orig->tp.args[i].comm,
+				   comp->tp.args[i].comm))
+				continue;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 static int append_trace_kprobe(struct trace_kprobe *tk, struct trace_kprobe *to)
 {
 	int ret;
+
+	ret = trace_probe_compare_arg_type(&tk->tp, &to->tp);
+	if (ret) {
+		/* Note that argument starts index = 2 */
+		trace_probe_log_set_index(ret + 1);
+		trace_probe_log_err(0, DIFF_ARG_TYPE);
+		return -EEXIST;
+	}
+	if (trace_kprobe_has_same_kprobe(to, tk)) {
+		trace_probe_log_set_index(0);
+		trace_probe_log_err(0, SAME_PROBE);
+		return -EEXIST;
+	}
 
 	/* Append to existing event */
 	ret = trace_probe_append(&tk->tp, &to->tp);
@@ -568,14 +611,7 @@ static int register_trace_kprobe(struct trace_kprobe *tk)
 			trace_probe_log_err(0, DIFF_PROBE_TYPE);
 			ret = -EEXIST;
 		} else {
-			ret = trace_probe_compare_arg_type(&tk->tp, &old_tk->tp);
-			if (ret) {
-				/* Note that argument starts index = 2 */
-				trace_probe_log_set_index(ret + 1);
-				trace_probe_log_err(0, DIFF_ARG_TYPE);
-				ret = -EEXIST;
-			} else
-				ret = append_trace_kprobe(tk, old_tk);
+			ret = append_trace_kprobe(tk, old_tk);
 		}
 		goto end;
 	}

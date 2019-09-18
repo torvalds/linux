@@ -410,9 +410,52 @@ unreg:
 	return 0;
 }
 
+static bool trace_uprobe_has_same_uprobe(struct trace_uprobe *orig,
+					 struct trace_uprobe *comp)
+{
+	struct trace_probe_event *tpe = orig->tp.event;
+	struct trace_probe *pos;
+	struct inode *comp_inode = d_real_inode(comp->path.dentry);
+	int i;
+
+	list_for_each_entry(pos, &tpe->probes, list) {
+		orig = container_of(pos, struct trace_uprobe, tp);
+		if (comp_inode != d_real_inode(orig->path.dentry) ||
+		    comp->offset != orig->offset)
+			continue;
+
+		/*
+		 * trace_probe_compare_arg_type() ensured that nr_args and
+		 * each argument name and type are same. Let's compare comm.
+		 */
+		for (i = 0; i < orig->tp.nr_args; i++) {
+			if (strcmp(orig->tp.args[i].comm,
+				   comp->tp.args[i].comm))
+				continue;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 static int append_trace_uprobe(struct trace_uprobe *tu, struct trace_uprobe *to)
 {
 	int ret;
+
+	ret = trace_probe_compare_arg_type(&tu->tp, &to->tp);
+	if (ret) {
+		/* Note that argument starts index = 2 */
+		trace_probe_log_set_index(ret + 1);
+		trace_probe_log_err(0, DIFF_ARG_TYPE);
+		return -EEXIST;
+	}
+	if (trace_uprobe_has_same_uprobe(to, tu)) {
+		trace_probe_log_set_index(0);
+		trace_probe_log_err(0, SAME_PROBE);
+		return -EEXIST;
+	}
 
 	/* Append to existing event */
 	ret = trace_probe_append(&tu->tp, &to->tp);
@@ -469,14 +512,7 @@ static int register_trace_uprobe(struct trace_uprobe *tu)
 			trace_probe_log_err(0, DIFF_PROBE_TYPE);
 			ret = -EEXIST;
 		} else {
-			ret = trace_probe_compare_arg_type(&tu->tp, &old_tu->tp);
-			if (ret) {
-				/* Note that argument starts index = 2 */
-				trace_probe_log_set_index(ret + 1);
-				trace_probe_log_err(0, DIFF_ARG_TYPE);
-				ret = -EEXIST;
-			} else
-				ret = append_trace_uprobe(tu, old_tu);
+			ret = append_trace_uprobe(tu, old_tu);
 		}
 		goto end;
 	}

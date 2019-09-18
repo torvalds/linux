@@ -436,7 +436,8 @@ extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 	C(BAD_INSN_BNDRY,	"Probe point is not an instruction boundary"),\
 	C(FAIL_REG_PROBE,	"Failed to register probe event"),\
 	C(DIFF_PROBE_TYPE,	"Probe type is different from existing probe"),\
-	C(DIFF_ARG_TYPE,	"Argument type or name is different from existing probe"),
+	C(DIFF_ARG_TYPE,	"Argument type or name is different from existing probe"),\
+	C(SAME_PROBE,		"There is already the exact same probe event"),
 
 #undef C
 #define C(a, b)		TP_ERR_##a
