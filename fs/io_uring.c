@@ -446,16 +446,15 @@ static void __io_commit_cqring(struct io_ring_ctx *ctx)
 static inline void io_queue_async_work(struct io_ring_ctx *ctx,
 				       struct io_kiocb *req)
 {
-	int rw;
+	int rw = 0;
 
-	switch (req->submit.sqe->opcode) {
-	case IORING_OP_WRITEV:
-	case IORING_OP_WRITE_FIXED:
-		rw = !(req->rw.ki_flags & IOCB_DIRECT);
-		break;
-	default:
-		rw = 0;
-		break;
+	if (req->submit.sqe) {
+		switch (req->submit.sqe->opcode) {
+		case IORING_OP_WRITEV:
+		case IORING_OP_WRITE_FIXED:
+			rw = !(req->rw.ki_flags & IOCB_DIRECT);
+			break;
+		}
 	}
 
 	queue_work(ctx->sqo_wq[rw], &req->work);
@@ -1714,6 +1713,7 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (!poll->file)
 		return -EBADF;
 
+	req->submit.sqe = NULL;
 	INIT_WORK(&req->work, io_poll_complete_work);
 	events = READ_ONCE(sqe->poll_events);
 	poll->events = demangle_poll(events) | EPOLLERR | EPOLLHUP;
