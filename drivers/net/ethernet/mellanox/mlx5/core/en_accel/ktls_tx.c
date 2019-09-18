@@ -179,7 +179,7 @@ struct tx_sync_info {
 	u64 rcd_sn;
 	s32 sync_len;
 	int nr_frags;
-	skb_frag_t *frags[MAX_SKB_FRAGS];
+	skb_frag_t frags[MAX_SKB_FRAGS];
 };
 
 static bool tx_sync_info_get(struct mlx5e_ktls_offload_context_tx *priv_tx,
@@ -212,11 +212,11 @@ static bool tx_sync_info_get(struct mlx5e_ktls_offload_context_tx *priv_tx,
 
 		get_page(skb_frag_page(frag));
 		remaining -= skb_frag_size(frag);
-		info->frags[i++] = frag;
+		info->frags[i++] = *frag;
 	}
 	/* reduce the part which will be sent with the original SKB */
 	if (remaining < 0)
-		skb_frag_size_add(info->frags[i - 1], remaining);
+		skb_frag_size_add(&info->frags[i - 1], remaining);
 	info->nr_frags = i;
 out:
 	spin_unlock_irqrestore(&tx_ctx->lock, flags);
@@ -365,7 +365,7 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 	tx_post_resync_params(sq, priv_tx, info.rcd_sn);
 
 	for (i = 0; i < info.nr_frags; i++)
-		if (tx_post_resync_dump(sq, info.frags[i], priv_tx->tisn, !i))
+		if (tx_post_resync_dump(sq, &info.frags[i], priv_tx->tisn, !i))
 			goto err_out;
 
 	/* If no dump WQE was sent, we need to have a fence NOP WQE before the
