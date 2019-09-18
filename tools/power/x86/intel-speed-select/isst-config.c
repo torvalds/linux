@@ -673,8 +673,8 @@ static void exec_on_get_ctdp_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	if (ret)
 		perror("get_tdp_*");
 	else
-		isst_display_result(cpu, outf, "perf-profile", (char *)arg3,
-				    *(unsigned int *)arg4);
+		isst_ctdp_display_core_info(cpu, outf, arg3,
+					    *(unsigned int *)arg4);
 }
 
 #define _get_tdp_level(desc, suffix, object, help)                                \
