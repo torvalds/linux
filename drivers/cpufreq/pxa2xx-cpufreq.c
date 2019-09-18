@@ -27,9 +27,6 @@
 #include <linux/soc/pxa/cpu.h>
 #include <linux/io.h>
 
-#include <mach/pxa2xx-regs.h>
-#include <mach/smemc.h>
-
 #ifdef DEBUG
 static unsigned int freq_debug;
 module_param(freq_debug, uint, 0);

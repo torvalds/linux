@@ -7,7 +7,6 @@
  */
 
 #include <linux/reboot.h>
-#include <mach/generic.h>
 
 struct irq_data;
 

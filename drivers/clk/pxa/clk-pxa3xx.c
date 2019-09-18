@@ -16,6 +16,7 @@
 #include <linux/of.h>
 #include <linux/soc/pxa/cpu.h>
 #include <mach/smemc.h>
+#include <linux/clk/pxa.h>
 #include <mach/pxa3xx-regs.h>
 
 #include <dt-bindings/clock/pxa-clock.h>
@@ -77,6 +78,21 @@ unsigned int pxa3xx_get_clk_frequency_khz(int info)
 			clks[4] / 1000000, (clks[4] % 1000000) / 10000);
 	}
 	return (unsigned int)clks[0] / KHz;
+}
+
+void pxa3xx_clk_update_accr(u32 disable, u32 enable, u32 xclkcfg, u32 mask)
+{
+	u32 accr = ACCR;
+
+	accr &= ~disable;
+	accr |= enable;
+
+	ACCR = accr;
+	if (xclkcfg)
+		__asm__("mcr p14, 0, %0, c6, c0, 0\n" : : "r"(xclkcfg));
+
+	while ((ACSR & mask) != (accr & mask))
+		cpu_relax();
 }
 
 static unsigned long clk_pxa3xx_ac97_get_rate(struct clk_hw *hw,
