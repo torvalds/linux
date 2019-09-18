@@ -691,11 +691,10 @@ static int autofs_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	if (sbi->flags & AUTOFS_SBI_CATATONIC)
 		return -EACCES;
 
-	spin_lock(&sbi->lookup_lock);
-	if (!simple_empty(dentry)) {
-		spin_unlock(&sbi->lookup_lock);
+	if (atomic_read(&ino->count) != 1)
 		return -ENOTEMPTY;
-	}
+
+	spin_lock(&sbi->lookup_lock);
 	__autofs_add_expiring(dentry);
 	d_drop(dentry);
 	spin_unlock(&sbi->lookup_lock);
