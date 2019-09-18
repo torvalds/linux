@@ -230,8 +230,7 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 		    (dmn->type == MLX5DR_DOMAIN_TYPE_FDB ||
 		     dmn->type == MLX5DR_DOMAIN_TYPE_NIC_RX)) {
 			ret = mlx5dr_ste_build_src_gvmi_qpn(&sb[idx++], &mask,
-							    &dmn->info.caps,
-							    inner, rx);
+							    dmn, inner, rx);
 			if (ret)
 				return ret;
 		}

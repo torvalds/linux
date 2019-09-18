@@ -837,6 +837,8 @@ static void dr_ste_copy_mask_misc(char *mask, struct mlx5dr_match_misc *spec)
 	spec->source_sqn = MLX5_GET(fte_match_set_misc, mask, source_sqn);
 
 	spec->source_port = MLX5_GET(fte_match_set_misc, mask, source_port);
+	spec->source_eswitch_owner_vhca_id = MLX5_GET(fte_match_set_misc, mask,
+						      source_eswitch_owner_vhca_id);
 
 	spec->outer_second_prio = MLX5_GET(fte_match_set_misc, mask, outer_second_prio);
 	spec->outer_second_cfi = MLX5_GET(fte_match_set_misc, mask, outer_second_cfi);
@@ -2250,11 +2252,18 @@ static int dr_ste_build_src_gvmi_qpn_bit_mask(struct mlx5dr_match_param *value,
 {
 	struct mlx5dr_match_misc *misc_mask = &value->misc;
 
-	if (misc_mask->source_port != 0xffff)
+	/* Partial misc source_port is not supported */
+	if (misc_mask->source_port && misc_mask->source_port != 0xffff)
+		return -EINVAL;
+
+	/* Partial misc source_eswitch_owner_vhca_id is not supported */
+	if (misc_mask->source_eswitch_owner_vhca_id &&
+	    misc_mask->source_eswitch_owner_vhca_id != 0xffff)
 		return -EINVAL;
 
 	DR_STE_SET_MASK(src_gvmi_qp, bit_mask, source_gvmi, misc_mask, source_port);
 	DR_STE_SET_MASK(src_gvmi_qp, bit_mask, source_qp, misc_mask, source_sqn);
+	misc_mask->source_eswitch_owner_vhca_id = 0;
 
 	return 0;
 }
@@ -2266,17 +2275,33 @@ static int dr_ste_build_src_gvmi_qpn_tag(struct mlx5dr_match_param *value,
 	struct dr_hw_ste_format *hw_ste = (struct dr_hw_ste_format *)hw_ste_p;
 	struct mlx5dr_match_misc *misc = &value->misc;
 	struct mlx5dr_cmd_vport_cap *vport_cap;
+	struct mlx5dr_domain *dmn = sb->dmn;
+	struct mlx5dr_cmd_caps *caps;
 	u8 *tag = hw_ste->tag;
 
 	DR_STE_SET_TAG(src_gvmi_qp, tag, source_qp, misc, source_sqn);
 
-	vport_cap = mlx5dr_get_vport_cap(sb->caps, misc->source_port);
+	if (sb->vhca_id_valid) {
+		/* Find port GVMI based on the eswitch_owner_vhca_id */
+		if (misc->source_eswitch_owner_vhca_id == dmn->info.caps.gvmi)
+			caps = &dmn->info.caps;
+		else if (dmn->peer_dmn && (misc->source_eswitch_owner_vhca_id ==
+					   dmn->peer_dmn->info.caps.gvmi))
+			caps = &dmn->peer_dmn->info.caps;
+		else
+			return -EINVAL;
+	} else {
+		caps = &dmn->info.caps;
+	}
+
+	vport_cap = mlx5dr_get_vport_cap(caps, misc->source_port);
 	if (!vport_cap)
 		return -EINVAL;
 
 	if (vport_cap->vport_gvmi)
 		MLX5_SET(ste_src_gvmi_qp, tag, source_gvmi, vport_cap->vport_gvmi);
 
+	misc->source_eswitch_owner_vhca_id = 0;
 	misc->source_port = 0;
 
 	return 0;
@@ -2284,17 +2309,20 @@ static int dr_ste_build_src_gvmi_qpn_tag(struct mlx5dr_match_param *value,
 
 int mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_build *sb,
 				  struct mlx5dr_match_param *mask,
-				  struct mlx5dr_cmd_caps *caps,
+				  struct mlx5dr_domain *dmn,
 				  bool inner, bool rx)
 {
 	int ret;
+
+	/* Set vhca_id_valid before we reset source_eswitch_owner_vhca_id */
+	sb->vhca_id_valid = mask->misc.source_eswitch_owner_vhca_id;
 
 	ret = dr_ste_build_src_gvmi_qpn_bit_mask(mask, sb->bit_mask);
 	if (ret)
 		return ret;
 
 	sb->rx = rx;
-	sb->caps = caps;
+	sb->dmn = dmn;
 	sb->inner = inner;
 	sb->lu_type = MLX5DR_STE_LU_TYPE_SRC_GVMI_AND_QP;
 	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
