@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/idr.h>
+#include <linux/vmalloc.h>
 
 #include "xdp_umem.h"
 #include "xsk_queue.h"
@@ -105,14 +106,22 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 	umem->dev = dev;
 	umem->queue_id = queue_id;
 
+	if (flags & XDP_USE_NEED_WAKEUP) {
+		umem->flags |= XDP_UMEM_USES_NEED_WAKEUP;
+		/* Tx needs to be explicitly woken up the first time.
+		 * Also for supporting drivers that do not implement this
+		 * feature. They will always have to call sendto().
+		 */
+		xsk_set_tx_need_wakeup(umem);
+	}
+
 	dev_hold(dev);
 
 	if (force_copy)
 		/* For copy-mode, we are done. */
 		return 0;
 
-	if (!dev->netdev_ops->ndo_bpf ||
-	    !dev->netdev_ops->ndo_xsk_async_xmit) {
+	if (!dev->netdev_ops->ndo_bpf || !dev->netdev_ops->ndo_xsk_wakeup) {
 		err = -EOPNOTSUPP;
 		goto err_unreg_umem;
 	}
@@ -164,6 +173,37 @@ void xdp_umem_clear_dev(struct xdp_umem *umem)
 	umem->zc = false;
 }
 
+static void xdp_umem_unmap_pages(struct xdp_umem *umem)
+{
+	unsigned int i;
+
+	for (i = 0; i < umem->npgs; i++)
+		if (PageHighMem(umem->pgs[i]))
+			vunmap(umem->pages[i].addr);
+}
+
+static int xdp_umem_map_pages(struct xdp_umem *umem)
+{
+	unsigned int i;
+	void *addr;
+
+	for (i = 0; i < umem->npgs; i++) {
+		if (PageHighMem(umem->pgs[i]))
+			addr = vmap(&umem->pgs[i], 1, VM_MAP, PAGE_KERNEL);
+		else
+			addr = page_address(umem->pgs[i]);
+
+		if (!addr) {
+			xdp_umem_unmap_pages(umem);
+			return -ENOMEM;
+		}
+
+		umem->pages[i].addr = addr;
+	}
+
+	return 0;
+}
+
 static void xdp_umem_unpin_pages(struct xdp_umem *umem)
 {
 	unsigned int i;
@@ -207,6 +247,7 @@ static void xdp_umem_release(struct xdp_umem *umem)
 
 	xsk_reuseq_destroy(umem);
 
+	xdp_umem_unmap_pages(umem);
 	xdp_umem_unpin_pages(umem);
 
 	kfree(umem->pages);
@@ -299,10 +340,11 @@ static int xdp_umem_account_pages(struct xdp_umem *umem)
 
 static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 {
+	bool unaligned_chunks = mr->flags & XDP_UMEM_UNALIGNED_CHUNK_FLAG;
 	u32 chunk_size = mr->chunk_size, headroom = mr->headroom;
 	unsigned int chunks, chunks_per_page;
 	u64 addr = mr->addr, size = mr->len;
-	int size_chk, err, i;
+	int size_chk, err;
 
 	if (chunk_size < XDP_UMEM_MIN_CHUNK_SIZE || chunk_size > PAGE_SIZE) {
 		/* Strictly speaking we could support this, if:
@@ -314,7 +356,11 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 		return -EINVAL;
 	}
 
-	if (!is_power_of_2(chunk_size))
+	if (mr->flags & ~(XDP_UMEM_UNALIGNED_CHUNK_FLAG |
+			XDP_UMEM_USES_NEED_WAKEUP))
+		return -EINVAL;
+
+	if (!unaligned_chunks && !is_power_of_2(chunk_size))
 		return -EINVAL;
 
 	if (!PAGE_ALIGNED(addr)) {
@@ -331,9 +377,11 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	if (chunks == 0)
 		return -EINVAL;
 
-	chunks_per_page = PAGE_SIZE / chunk_size;
-	if (chunks < chunks_per_page || chunks % chunks_per_page)
-		return -EINVAL;
+	if (!unaligned_chunks) {
+		chunks_per_page = PAGE_SIZE / chunk_size;
+		if (chunks < chunks_per_page || chunks % chunks_per_page)
+			return -EINVAL;
+	}
 
 	headroom = ALIGN(headroom, 64);
 
@@ -342,13 +390,15 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 		return -EINVAL;
 
 	umem->address = (unsigned long)addr;
-	umem->chunk_mask = ~((u64)chunk_size - 1);
+	umem->chunk_mask = unaligned_chunks ? XSK_UNALIGNED_BUF_ADDR_MASK
+					    : ~((u64)chunk_size - 1);
 	umem->size = size;
 	umem->headroom = headroom;
 	umem->chunk_size_nohr = chunk_size - headroom;
 	umem->npgs = size / PAGE_SIZE;
 	umem->pgs = NULL;
 	umem->user = NULL;
+	umem->flags = mr->flags;
 	INIT_LIST_HEAD(&umem->xsk_list);
 	spin_lock_init(&umem->xsk_list_lock);
 
@@ -368,10 +418,11 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 		goto out_pin;
 	}
 
-	for (i = 0; i < umem->npgs; i++)
-		umem->pages[i].addr = page_address(umem->pgs[i]);
+	err = xdp_umem_map_pages(umem);
+	if (!err)
+		return 0;
 
-	return 0;
+	kfree(umem->pages);
 
 out_pin:
 	xdp_umem_unpin_pages(umem);

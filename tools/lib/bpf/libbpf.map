@@ -183,4 +183,10 @@ LIBBPF_0.0.4 {
 		perf_buffer__new;
 		perf_buffer__new_raw;
 		perf_buffer__poll;
+		xsk_umem__create;
 } LIBBPF_0.0.3;
+
+LIBBPF_0.0.5 {
+	global:
+		bpf_btf_get_next_id;
+} LIBBPF_0.0.4;

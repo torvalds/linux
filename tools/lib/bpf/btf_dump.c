@@ -100,21 +100,6 @@ static bool str_equal_fn(const void *a, const void *b, void *ctx)
 	return strcmp(a, b) == 0;
 }
 
-static __u16 btf_kind_of(const struct btf_type *t)
-{
-	return BTF_INFO_KIND(t->info);
-}
-
-static __u16 btf_vlen_of(const struct btf_type *t)
-{
-	return BTF_INFO_VLEN(t->info);
-}
-
-static bool btf_kflag_of(const struct btf_type *t)
-{
-	return BTF_INFO_KFLAG(t->info);
-}
-
 static const char *btf_name_of(const struct btf_dump *d, __u32 name_off)
 {
 	return btf__name_by_offset(d->btf, name_off);
@@ -349,7 +334,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 	 */
 	struct btf_dump_type_aux_state *tstate = &d->type_states[id];
 	const struct btf_type *t;
-	__u16 kind, vlen;
+	__u16 vlen;
 	int err, i;
 
 	/* return true, letting typedefs know that it's ok to be emitted */
@@ -357,18 +342,16 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 		return 1;
 
 	t = btf__type_by_id(d->btf, id);
-	kind = btf_kind_of(t);
 
 	if (tstate->order_state == ORDERING) {
 		/* type loop, but resolvable through fwd declaration */
-		if ((kind == BTF_KIND_STRUCT || kind == BTF_KIND_UNION) &&
-		    through_ptr && t->name_off != 0)
+		if (btf_is_composite(t) && through_ptr && t->name_off != 0)
 			return 0;
 		pr_warning("unsatisfiable type cycle, id:[%u]\n", id);
 		return -ELOOP;
 	}
 
-	switch (kind) {
+	switch (btf_kind(t)) {
 	case BTF_KIND_INT:
 		tstate->order_state = ORDERED;
 		return 0;
@@ -378,14 +361,12 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 		tstate->order_state = ORDERED;
 		return err;
 
-	case BTF_KIND_ARRAY: {
-		const struct btf_array *a = (void *)(t + 1);
+	case BTF_KIND_ARRAY:
+		return btf_dump_order_type(d, btf_array(t)->type, through_ptr);
 
-		return btf_dump_order_type(d, a->type, through_ptr);
-	}
 	case BTF_KIND_STRUCT:
 	case BTF_KIND_UNION: {
-		const struct btf_member *m = (void *)(t + 1);
+		const struct btf_member *m = btf_members(t);
 		/*
 		 * struct/union is part of strong link, only if it's embedded
 		 * (so no ptr in a path) or it's anonymous (so has to be
@@ -396,7 +377,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 
 		tstate->order_state = ORDERING;
 
-		vlen = btf_vlen_of(t);
+		vlen = btf_vlen(t);
 		for (i = 0; i < vlen; i++, m++) {
 			err = btf_dump_order_type(d, m->type, false);
 			if (err < 0)
@@ -447,7 +428,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 		return btf_dump_order_type(d, t->type, through_ptr);
 
 	case BTF_KIND_FUNC_PROTO: {
-		const struct btf_param *p = (void *)(t + 1);
+		const struct btf_param *p = btf_params(t);
 		bool is_strong;
 
 		err = btf_dump_order_type(d, t->type, through_ptr);
@@ -455,7 +436,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 			return err;
 		is_strong = err > 0;
 
-		vlen = btf_vlen_of(t);
+		vlen = btf_vlen(t);
 		for (i = 0; i < vlen; i++, p++) {
 			err = btf_dump_order_type(d, p->type, through_ptr);
 			if (err < 0)
@@ -553,7 +534,7 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 		return;
 
 	t = btf__type_by_id(d->btf, id);
-	kind = btf_kind_of(t);
+	kind = btf_kind(t);
 
 	if (top_level_def && t->name_off == 0) {
 		pr_warning("unexpected nameless definition, id:[%u]\n", id);
@@ -618,12 +599,9 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 	case BTF_KIND_RESTRICT:
 		btf_dump_emit_type(d, t->type, cont_id);
 		break;
-	case BTF_KIND_ARRAY: {
-		const struct btf_array *a = (void *)(t + 1);
-
-		btf_dump_emit_type(d, a->type, cont_id);
+	case BTF_KIND_ARRAY:
+		btf_dump_emit_type(d, btf_array(t)->type, cont_id);
 		break;
-	}
 	case BTF_KIND_FWD:
 		btf_dump_emit_fwd_def(d, id, t);
 		btf_dump_printf(d, ";\n\n");
@@ -656,8 +634,8 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 		 * applicable
 		 */
 		if (top_level_def || t->name_off == 0) {
-			const struct btf_member *m = (void *)(t + 1);
-			__u16 vlen = btf_vlen_of(t);
+			const struct btf_member *m = btf_members(t);
+			__u16 vlen = btf_vlen(t);
 			int i, new_cont_id;
 
 			new_cont_id = t->name_off == 0 ? cont_id : id;
@@ -678,8 +656,8 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 		}
 		break;
 	case BTF_KIND_FUNC_PROTO: {
-		const struct btf_param *p = (void *)(t + 1);
-		__u16 vlen = btf_vlen_of(t);
+		const struct btf_param *p = btf_params(t);
+		__u16 vlen = btf_vlen(t);
 		int i;
 
 		btf_dump_emit_type(d, t->type, cont_id);
@@ -696,7 +674,7 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 static int btf_align_of(const struct btf *btf, __u32 id)
 {
 	const struct btf_type *t = btf__type_by_id(btf, id);
-	__u16 kind = btf_kind_of(t);
+	__u16 kind = btf_kind(t);
 
 	switch (kind) {
 	case BTF_KIND_INT:
@@ -709,15 +687,12 @@ static int btf_align_of(const struct btf *btf, __u32 id)
 	case BTF_KIND_CONST:
 	case BTF_KIND_RESTRICT:
 		return btf_align_of(btf, t->type);
-	case BTF_KIND_ARRAY: {
-		const struct btf_array *a = (void *)(t + 1);
-
-		return btf_align_of(btf, a->type);
-	}
+	case BTF_KIND_ARRAY:
+		return btf_align_of(btf, btf_array(t)->type);
 	case BTF_KIND_STRUCT:
 	case BTF_KIND_UNION: {
-		const struct btf_member *m = (void *)(t + 1);
-		__u16 vlen = btf_vlen_of(t);
+		const struct btf_member *m = btf_members(t);
+		__u16 vlen = btf_vlen(t);
 		int i, align = 1;
 
 		for (i = 0; i < vlen; i++, m++)
@@ -726,7 +701,7 @@ static int btf_align_of(const struct btf *btf, __u32 id)
 		return align;
 	}
 	default:
-		pr_warning("unsupported BTF_KIND:%u\n", btf_kind_of(t));
+		pr_warning("unsupported BTF_KIND:%u\n", btf_kind(t));
 		return 1;
 	}
 }
@@ -737,20 +712,18 @@ static bool btf_is_struct_packed(const struct btf *btf, __u32 id,
 	const struct btf_member *m;
 	int align, i, bit_sz;
 	__u16 vlen;
-	bool kflag;
 
 	align = btf_align_of(btf, id);
 	/* size of a non-packed struct has to be a multiple of its alignment*/
 	if (t->size % align)
 		return true;
 
-	m = (void *)(t + 1);
-	kflag = btf_kflag_of(t);
-	vlen = btf_vlen_of(t);
+	m = btf_members(t);
+	vlen = btf_vlen(t);
 	/* all non-bitfield fields have to be naturally aligned */
 	for (i = 0; i < vlen; i++, m++) {
 		align = btf_align_of(btf, m->type);
-		bit_sz = kflag ? BTF_MEMBER_BITFIELD_SIZE(m->offset) : 0;
+		bit_sz = btf_member_bitfield_size(t, i);
 		if (bit_sz == 0 && m->offset % (8 * align) != 0)
 			return true;
 	}
@@ -807,7 +780,7 @@ static void btf_dump_emit_struct_fwd(struct btf_dump *d, __u32 id,
 				     const struct btf_type *t)
 {
 	btf_dump_printf(d, "%s %s",
-			btf_kind_of(t) == BTF_KIND_STRUCT ? "struct" : "union",
+			btf_is_struct(t) ? "struct" : "union",
 			btf_dump_type_name(d, id));
 }
 
@@ -816,12 +789,11 @@ static void btf_dump_emit_struct_def(struct btf_dump *d,
 				     const struct btf_type *t,
 				     int lvl)
 {
-	const struct btf_member *m = (void *)(t + 1);
-	bool kflag = btf_kflag_of(t), is_struct;
+	const struct btf_member *m = btf_members(t);
+	bool is_struct = btf_is_struct(t);
 	int align, i, packed, off = 0;
-	__u16 vlen = btf_vlen_of(t);
+	__u16 vlen = btf_vlen(t);
 
-	is_struct = btf_kind_of(t) == BTF_KIND_STRUCT;
 	packed = is_struct ? btf_is_struct_packed(d->btf, id, t) : 0;
 	align = packed ? 1 : btf_align_of(d->btf, id);
 
@@ -835,8 +807,8 @@ static void btf_dump_emit_struct_def(struct btf_dump *d,
 		int m_off, m_sz;
 
 		fname = btf_name_of(d, m->name_off);
-		m_sz = kflag ? BTF_MEMBER_BITFIELD_SIZE(m->offset) : 0;
-		m_off = kflag ? BTF_MEMBER_BIT_OFFSET(m->offset) : m->offset;
+		m_sz = btf_member_bitfield_size(t, i);
+		m_off = btf_member_bit_offset(t, i);
 		align = packed ? 1 : btf_align_of(d->btf, m->type);
 
 		btf_dump_emit_bit_padding(d, off, m_off, m_sz, align, lvl + 1);
@@ -870,8 +842,8 @@ static void btf_dump_emit_enum_def(struct btf_dump *d, __u32 id,
 				   const struct btf_type *t,
 				   int lvl)
 {
-	const struct btf_enum *v = (void *)(t+1);
-	__u16 vlen = btf_vlen_of(t);
+	const struct btf_enum *v = btf_enum(t);
+	__u16 vlen = btf_vlen(t);
 	const char *name;
 	size_t dup_cnt;
 	int i;
@@ -905,7 +877,7 @@ static void btf_dump_emit_fwd_def(struct btf_dump *d, __u32 id,
 {
 	const char *name = btf_dump_type_name(d, id);
 
-	if (btf_kflag_of(t))
+	if (btf_kflag(t))
 		btf_dump_printf(d, "union %s", name);
 	else
 		btf_dump_printf(d, "struct %s", name);
@@ -987,7 +959,6 @@ static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 	struct id_stack decl_stack;
 	const struct btf_type *t;
 	int err, stack_start;
-	__u16 kind;
 
 	stack_start = d->decl_stack_cnt;
 	for (;;) {
@@ -1008,8 +979,7 @@ static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 			break;
 
 		t = btf__type_by_id(d->btf, id);
-		kind = btf_kind_of(t);
-		switch (kind) {
+		switch (btf_kind(t)) {
 		case BTF_KIND_PTR:
 		case BTF_KIND_VOLATILE:
 		case BTF_KIND_CONST:
@@ -1017,12 +987,9 @@ static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 		case BTF_KIND_FUNC_PROTO:
 			id = t->type;
 			break;
-		case BTF_KIND_ARRAY: {
-			const struct btf_array *a = (void *)(t + 1);
-
-			id = a->type;
+		case BTF_KIND_ARRAY:
+			id = btf_array(t)->type;
 			break;
-		}
 		case BTF_KIND_INT:
 		case BTF_KIND_ENUM:
 		case BTF_KIND_FWD:
@@ -1032,7 +999,7 @@ static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 			goto done;
 		default:
 			pr_warning("unexpected type in decl chain, kind:%u, id:[%u]\n",
-				   kind, id);
+				   btf_kind(t), id);
 			goto done;
 		}
 	}
@@ -1070,7 +1037,7 @@ static void btf_dump_emit_mods(struct btf_dump *d, struct id_stack *decl_stack)
 		id = decl_stack->ids[decl_stack->cnt - 1];
 		t = btf__type_by_id(d->btf, id);
 
-		switch (btf_kind_of(t)) {
+		switch (btf_kind(t)) {
 		case BTF_KIND_VOLATILE:
 			btf_dump_printf(d, "volatile ");
 			break;
@@ -1084,20 +1051,6 @@ static void btf_dump_emit_mods(struct btf_dump *d, struct id_stack *decl_stack)
 			return;
 		}
 		decl_stack->cnt--;
-	}
-}
-
-static bool btf_is_mod_kind(const struct btf *btf, __u32 id)
-{
-	const struct btf_type *t = btf__type_by_id(btf, id);
-
-	switch (btf_kind_of(t)) {
-	case BTF_KIND_VOLATILE:
-	case BTF_KIND_CONST:
-	case BTF_KIND_RESTRICT:
-		return true;
-	default:
-		return false;
 	}
 }
 
@@ -1139,7 +1092,7 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 		}
 
 		t = btf__type_by_id(d->btf, id);
-		kind = btf_kind_of(t);
+		kind = btf_kind(t);
 
 		switch (kind) {
 		case BTF_KIND_INT:
@@ -1185,7 +1138,7 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			btf_dump_printf(d, " restrict");
 			break;
 		case BTF_KIND_ARRAY: {
-			const struct btf_array *a = (void *)(t + 1);
+			const struct btf_array *a = btf_array(t);
 			const struct btf_type *next_t;
 			__u32 next_id;
 			bool multidim;
@@ -1201,7 +1154,8 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			 */
 			while (decls->cnt) {
 				next_id = decls->ids[decls->cnt - 1];
-				if (btf_is_mod_kind(d->btf, next_id))
+				next_t = btf__type_by_id(d->btf, next_id);
+				if (btf_is_mod(next_t))
 					decls->cnt--;
 				else
 					break;
@@ -1214,7 +1168,7 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			}
 
 			next_t = btf__type_by_id(d->btf, next_id);
-			multidim = btf_kind_of(next_t) == BTF_KIND_ARRAY;
+			multidim = btf_is_array(next_t);
 			/* we need space if we have named non-pointer */
 			if (fname[0] && !last_was_ptr)
 				btf_dump_printf(d, " ");
@@ -1228,8 +1182,8 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			return;
 		}
 		case BTF_KIND_FUNC_PROTO: {
-			const struct btf_param *p = (void *)(t + 1);
-			__u16 vlen = btf_vlen_of(t);
+			const struct btf_param *p = btf_params(t);
+			__u16 vlen = btf_vlen(t);
 			int i;
 
 			btf_dump_emit_mods(d, decls);

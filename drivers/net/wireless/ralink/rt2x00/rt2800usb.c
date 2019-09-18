@@ -1086,6 +1086,7 @@ static const struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x0846, 0x9013) },
 	{ USB_DEVICE(0x0846, 0x9019) },
 	/* Planex */
+	{ USB_DEVICE(0x2019, 0xed14) },
 	{ USB_DEVICE(0x2019, 0xed19) },
 	/* Ralink */
 	{ USB_DEVICE(0x148f, 0x3573) },

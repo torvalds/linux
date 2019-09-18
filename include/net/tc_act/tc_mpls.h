@@ -27,4 +27,79 @@ struct tcf_mpls {
 };
 #define to_mpls(a) ((struct tcf_mpls *)a)
 
+static inline bool is_tcf_mpls(const struct tc_action *a)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	if (a->ops && a->ops->id == TCA_ID_MPLS)
+		return true;
+#endif
+	return false;
+}
+
+static inline u32 tcf_mpls_action(const struct tc_action *a)
+{
+	u32 tcfm_action;
+
+	rcu_read_lock();
+	tcfm_action = rcu_dereference(to_mpls(a)->mpls_p)->tcfm_action;
+	rcu_read_unlock();
+
+	return tcfm_action;
+}
+
+static inline __be16 tcf_mpls_proto(const struct tc_action *a)
+{
+	__be16 tcfm_proto;
+
+	rcu_read_lock();
+	tcfm_proto = rcu_dereference(to_mpls(a)->mpls_p)->tcfm_proto;
+	rcu_read_unlock();
+
+	return tcfm_proto;
+}
+
+static inline u32 tcf_mpls_label(const struct tc_action *a)
+{
+	u32 tcfm_label;
+
+	rcu_read_lock();
+	tcfm_label = rcu_dereference(to_mpls(a)->mpls_p)->tcfm_label;
+	rcu_read_unlock();
+
+	return tcfm_label;
+}
+
+static inline u8 tcf_mpls_tc(const struct tc_action *a)
+{
+	u8 tcfm_tc;
+
+	rcu_read_lock();
+	tcfm_tc = rcu_dereference(to_mpls(a)->mpls_p)->tcfm_tc;
+	rcu_read_unlock();
+
+	return tcfm_tc;
+}
+
+static inline u8 tcf_mpls_bos(const struct tc_action *a)
+{
+	u8 tcfm_bos;
+
+	rcu_read_lock();
+	tcfm_bos = rcu_dereference(to_mpls(a)->mpls_p)->tcfm_bos;
+	rcu_read_unlock();
+
+	return tcfm_bos;
+}
+
+static inline u8 tcf_mpls_ttl(const struct tc_action *a)
+{
+	u8 tcfm_ttl;
+
+	rcu_read_lock();
+	tcfm_ttl = rcu_dereference(to_mpls(a)->mpls_p)->tcfm_ttl;
+	rcu_read_unlock();
+
+	return tcfm_ttl;
+}
+
 #endif /* __NET_TC_MPLS_H */

@@ -781,6 +781,7 @@ static int nfp_flower_init(struct nfp_app *app)
 
 	INIT_LIST_HEAD(&app_priv->indr_block_cb_priv);
 	INIT_LIST_HEAD(&app_priv->non_repr_priv);
+	app_priv->pre_tun_rule_cnt = 0;
 
 	return 0;
 

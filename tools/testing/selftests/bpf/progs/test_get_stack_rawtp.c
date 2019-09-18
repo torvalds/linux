@@ -55,7 +55,7 @@ struct {
 	__type(value, raw_stack_trace_t);
 } rawdata_map SEC(".maps");
 
-SEC("tracepoint/raw_syscalls/sys_enter")
+SEC("raw_tracepoint/sys_enter")
 int bpf_prog1(void *ctx)
 {
 	int max_len, max_buildid_len, usize, ksize, total_size;

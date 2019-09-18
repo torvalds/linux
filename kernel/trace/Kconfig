@@ -520,7 +520,8 @@ config BPF_EVENTS
 	bool
 	default y
 	help
-	  This allows the user to attach BPF programs to kprobe events.
+	  This allows the user to attach BPF programs to kprobe, uprobe, and
+	  tracepoint events.
 
 config DYNAMIC_EVENTS
 	def_bool n

@@ -348,7 +348,9 @@ int stmmac_mdio_register(struct net_device *ndev)
 		max_addr = PHY_MAX_ADDR;
 	}
 
-	new_bus->reset = &stmmac_mdio_reset;
+	if (mdio_bus_data->needs_reset)
+		new_bus->reset = &stmmac_mdio_reset;
+
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		 new_bus->name, priv->plat->bus_id);
 	new_bus->priv = ndev;

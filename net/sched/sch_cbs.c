@@ -299,7 +299,7 @@ static void cbs_set_port_rate(struct net_device *dev, struct cbs_sched_data *q)
 {
 	struct ethtool_link_ksettings ecmd;
 	int speed = SPEED_10;
-	int port_rate = -1;
+	int port_rate;
 	int err;
 
 	err = __ethtool_get_link_ksettings(dev, &ecmd);

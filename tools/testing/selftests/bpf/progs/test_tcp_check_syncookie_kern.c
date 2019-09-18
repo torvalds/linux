@@ -19,9 +19,28 @@
 struct bpf_map_def SEC("maps") results = {
 	.type = BPF_MAP_TYPE_ARRAY,
 	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u64),
-	.max_entries = 1,
+	.value_size = sizeof(__u32),
+	.max_entries = 3,
 };
+
+static __always_inline __s64 gen_syncookie(void *data_end, struct bpf_sock *sk,
+					   void *iph, __u32 ip_size,
+					   struct tcphdr *tcph)
+{
+	__u32 thlen = tcph->doff * 4;
+
+	if (tcph->syn && !tcph->ack) {
+		// packet should only have an MSS option
+		if (thlen != 24)
+			return 0;
+
+		if ((void *)tcph + thlen > data_end)
+			return 0;
+
+		return bpf_tcp_gen_syncookie(sk, iph, ip_size, tcph, thlen);
+	}
+	return 0;
+}
 
 static __always_inline void check_syncookie(void *ctx, void *data,
 					    void *data_end)
@@ -33,8 +52,10 @@ static __always_inline void check_syncookie(void *ctx, void *data,
 	struct ipv6hdr *ipv6h;
 	struct tcphdr *tcph;
 	int ret;
+	__u32 key_mss = 2;
+	__u32 key_gen = 1;
 	__u32 key = 0;
-	__u64 value = 1;
+	__s64 seq_mss;
 
 	ethh = data;
 	if (ethh + 1 > data_end)
@@ -66,6 +87,9 @@ static __always_inline void check_syncookie(void *ctx, void *data,
 		if (sk->state != BPF_TCP_LISTEN)
 			goto release;
 
+		seq_mss = gen_syncookie(data_end, sk, ipv4h, sizeof(*ipv4h),
+					tcph);
+
 		ret = bpf_tcp_check_syncookie(sk, ipv4h, sizeof(*ipv4h),
 					      tcph, sizeof(*tcph));
 		break;
@@ -95,6 +119,9 @@ static __always_inline void check_syncookie(void *ctx, void *data,
 		if (sk->state != BPF_TCP_LISTEN)
 			goto release;
 
+		seq_mss = gen_syncookie(data_end, sk, ipv6h, sizeof(*ipv6h),
+					tcph);
+
 		ret = bpf_tcp_check_syncookie(sk, ipv6h, sizeof(*ipv6h),
 					      tcph, sizeof(*tcph));
 		break;
@@ -103,8 +130,19 @@ static __always_inline void check_syncookie(void *ctx, void *data,
 		return;
 	}
 
-	if (ret == 0)
-		bpf_map_update_elem(&results, &key, &value, 0);
+	if (seq_mss > 0) {
+		__u32 cookie = (__u32)seq_mss;
+		__u32 mss = seq_mss >> 32;
+
+		bpf_map_update_elem(&results, &key_gen, &cookie, 0);
+		bpf_map_update_elem(&results, &key_mss, &mss, 0);
+	}
+
+	if (ret == 0) {
+		__u32 cookie = bpf_ntohl(tcph->ack_seq) - 1;
+
+		bpf_map_update_elem(&results, &key, &cookie, 0);
+	}
 
 release:
 	bpf_sk_release(sk);

@@ -19,23 +19,13 @@
 
 #include <net/dst.h>
 
-#include <asm/octeon/octeon.h>
-
-#include "ethernet-defines.h"
 #include "octeon-ethernet.h"
+#include "ethernet-defines.h"
 #include "ethernet-mem.h"
 #include "ethernet-rx.h"
 #include "ethernet-tx.h"
 #include "ethernet-mdio.h"
 #include "ethernet-util.h"
-
-#include <asm/octeon/cvmx-pip.h>
-#include <asm/octeon/cvmx-pko.h>
-#include <asm/octeon/cvmx-fau.h>
-#include <asm/octeon/cvmx-ipd.h>
-#include <asm/octeon/cvmx-helper.h>
-#include <asm/octeon/cvmx-asxx-defs.h>
-#include <asm/octeon/cvmx-gmxx-defs.h>
 
 #define OCTEON_MAX_MTU 65392
 

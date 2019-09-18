@@ -1281,6 +1281,8 @@ int br_vlan_get_info(const struct net_device *dev, u16 vid,
 
 	p_vinfo->vid = vid;
 	p_vinfo->flags = v->flags;
+	if (vid == br_get_pvid(vg))
+		p_vinfo->flags |= BRIDGE_VLAN_INFO_PVID;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(br_vlan_get_info);

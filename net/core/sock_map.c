@@ -345,7 +345,7 @@ static int sock_map_update_common(struct bpf_map *map, u32 idx,
 		return -EINVAL;
 	if (unlikely(idx >= map->max_entries))
 		return -E2BIG;
-	if (unlikely(icsk->icsk_ulp_data))
+	if (unlikely(rcu_access_pointer(icsk->icsk_ulp_data)))
 		return -EINVAL;
 
 	link = sk_psock_init_link();

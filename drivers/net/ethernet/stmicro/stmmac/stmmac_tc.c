@@ -242,9 +242,27 @@ static int tc_init(struct stmmac_priv *priv)
 {
 	struct dma_features *dma_cap = &priv->dma_cap;
 	unsigned int count;
+	int i;
 
+	if (dma_cap->l3l4fnum) {
+		priv->flow_entries_max = dma_cap->l3l4fnum;
+		priv->flow_entries = devm_kcalloc(priv->device,
+						  dma_cap->l3l4fnum,
+						  sizeof(*priv->flow_entries),
+						  GFP_KERNEL);
+		if (!priv->flow_entries)
+			return -ENOMEM;
+
+		for (i = 0; i < priv->flow_entries_max; i++)
+			priv->flow_entries[i].idx = i;
+
+		dev_info(priv->device, "Enabled Flow TC (entries=%d)\n",
+			 priv->flow_entries_max);
+	}
+
+	/* Fail silently as we can still use remaining features, e.g. CBS */
 	if (!dma_cap->frpsel)
-		return -EINVAL;
+		return 0;
 
 	switch (dma_cap->frpbs) {
 	case 0x0:
@@ -349,8 +367,235 @@ static int tc_setup_cbs(struct stmmac_priv *priv,
 	return 0;
 }
 
+static int tc_parse_flow_actions(struct stmmac_priv *priv,
+				 struct flow_action *action,
+				 struct stmmac_flow_entry *entry)
+{
+	struct flow_action_entry *act;
+	int i;
+
+	if (!flow_action_has_entries(action))
+		return -EINVAL;
+
+	flow_action_for_each(i, act, action) {
+		switch (act->id) {
+		case FLOW_ACTION_DROP:
+			entry->action |= STMMAC_FLOW_ACTION_DROP;
+			return 0;
+		default:
+			break;
+		}
+	}
+
+	/* Nothing to do, maybe inverse filter ? */
+	return 0;
+}
+
+static int tc_add_basic_flow(struct stmmac_priv *priv,
+			     struct flow_cls_offload *cls,
+			     struct stmmac_flow_entry *entry)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct flow_dissector *dissector = rule->match.dissector;
+	struct flow_match_basic match;
+
+	/* Nothing to do here */
+	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_BASIC))
+		return -EINVAL;
+
+	flow_rule_match_basic(rule, &match);
+	entry->ip_proto = match.key->ip_proto;
+	return 0;
+}
+
+static int tc_add_ip4_flow(struct stmmac_priv *priv,
+			   struct flow_cls_offload *cls,
+			   struct stmmac_flow_entry *entry)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct flow_dissector *dissector = rule->match.dissector;
+	bool inv = entry->action & STMMAC_FLOW_ACTION_DROP;
+	struct flow_match_ipv4_addrs match;
+	u32 hw_match;
+	int ret;
+
+	/* Nothing to do here */
+	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_IPV4_ADDRS))
+		return -EINVAL;
+
+	flow_rule_match_ipv4_addrs(rule, &match);
+	hw_match = ntohl(match.key->src) & ntohl(match.mask->src);
+	if (hw_match) {
+		ret = stmmac_config_l3_filter(priv, priv->hw, entry->idx, true,
+					      false, true, inv, hw_match);
+		if (ret)
+			return ret;
+	}
+
+	hw_match = ntohl(match.key->dst) & ntohl(match.mask->dst);
+	if (hw_match) {
+		ret = stmmac_config_l3_filter(priv, priv->hw, entry->idx, true,
+					      false, false, inv, hw_match);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int tc_add_ports_flow(struct stmmac_priv *priv,
+			     struct flow_cls_offload *cls,
+			     struct stmmac_flow_entry *entry)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct flow_dissector *dissector = rule->match.dissector;
+	bool inv = entry->action & STMMAC_FLOW_ACTION_DROP;
+	struct flow_match_ports match;
+	u32 hw_match;
+	bool is_udp;
+	int ret;
+
+	/* Nothing to do here */
+	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_PORTS))
+		return -EINVAL;
+
+	switch (entry->ip_proto) {
+	case IPPROTO_TCP:
+		is_udp = false;
+		break;
+	case IPPROTO_UDP:
+		is_udp = true;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	flow_rule_match_ports(rule, &match);
+
+	hw_match = ntohs(match.key->src) & ntohs(match.mask->src);
+	if (hw_match) {
+		ret = stmmac_config_l4_filter(priv, priv->hw, entry->idx, true,
+					      is_udp, true, inv, hw_match);
+		if (ret)
+			return ret;
+	}
+
+	hw_match = ntohs(match.key->dst) & ntohs(match.mask->dst);
+	if (hw_match) {
+		ret = stmmac_config_l4_filter(priv, priv->hw, entry->idx, true,
+					      is_udp, false, inv, hw_match);
+		if (ret)
+			return ret;
+	}
+
+	entry->is_l4 = true;
+	return 0;
+}
+
+static struct stmmac_flow_entry *tc_find_flow(struct stmmac_priv *priv,
+					      struct flow_cls_offload *cls,
+					      bool get_free)
+{
+	int i;
+
+	for (i = 0; i < priv->flow_entries_max; i++) {
+		struct stmmac_flow_entry *entry = &priv->flow_entries[i];
+
+		if (entry->cookie == cls->cookie)
+			return entry;
+		if (get_free && (entry->in_use == false))
+			return entry;
+	}
+
+	return NULL;
+}
+
+struct {
+	int (*fn)(struct stmmac_priv *priv, struct flow_cls_offload *cls,
+		  struct stmmac_flow_entry *entry);
+} tc_flow_parsers[] = {
+	{ .fn = tc_add_basic_flow },
+	{ .fn = tc_add_ip4_flow },
+	{ .fn = tc_add_ports_flow },
+};
+
+static int tc_add_flow(struct stmmac_priv *priv,
+		       struct flow_cls_offload *cls)
+{
+	struct stmmac_flow_entry *entry = tc_find_flow(priv, cls, false);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	int i, ret;
+
+	if (!entry) {
+		entry = tc_find_flow(priv, cls, true);
+		if (!entry)
+			return -ENOENT;
+	}
+
+	ret = tc_parse_flow_actions(priv, &rule->action, entry);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(tc_flow_parsers); i++) {
+		ret = tc_flow_parsers[i].fn(priv, cls, entry);
+		if (!ret) {
+			entry->in_use = true;
+			continue;
+		}
+	}
+
+	if (!entry->in_use)
+		return -EINVAL;
+
+	entry->cookie = cls->cookie;
+	return 0;
+}
+
+static int tc_del_flow(struct stmmac_priv *priv,
+		       struct flow_cls_offload *cls)
+{
+	struct stmmac_flow_entry *entry = tc_find_flow(priv, cls, false);
+	int ret;
+
+	if (!entry || !entry->in_use)
+		return -ENOENT;
+
+	if (entry->is_l4) {
+		ret = stmmac_config_l4_filter(priv, priv->hw, entry->idx, false,
+					      false, false, false, 0);
+	} else {
+		ret = stmmac_config_l3_filter(priv, priv->hw, entry->idx, false,
+					      false, false, false, 0);
+	}
+
+	entry->in_use = false;
+	entry->cookie = 0;
+	entry->is_l4 = false;
+	return ret;
+}
+
+static int tc_setup_cls(struct stmmac_priv *priv,
+			struct flow_cls_offload *cls)
+{
+	int ret = 0;
+
+	switch (cls->command) {
+	case FLOW_CLS_REPLACE:
+		ret = tc_add_flow(priv, cls);
+		break;
+	case FLOW_CLS_DESTROY:
+		ret = tc_del_flow(priv, cls);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return ret;
+}
+
 const struct stmmac_tc_ops dwmac510_tc_ops = {
 	.init = tc_init,
 	.setup_cls_u32 = tc_setup_cls_u32,
 	.setup_cbs = tc_setup_cbs,
+	.setup_cls = tc_setup_cls,
 };

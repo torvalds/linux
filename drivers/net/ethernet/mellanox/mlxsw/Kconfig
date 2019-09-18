@@ -71,7 +71,7 @@ config MLXSW_SWITCHX2
 	  module will be called mlxsw_switchx2.
 
 config MLXSW_SPECTRUM
-	tristate "Mellanox Technologies Spectrum support"
+	tristate "Mellanox Technologies Spectrum family support"
 	depends on MLXSW_CORE && MLXSW_PCI && NET_SWITCHDEV && VLAN_8021Q
 	depends on PSAMPLE || PSAMPLE=n
 	depends on BRIDGE || BRIDGE=n
@@ -87,8 +87,8 @@ config MLXSW_SPECTRUM
 	select NET_PTP_CLASSIFY if PTP_1588_CLOCK
 	default m
 	---help---
-	  This driver supports Mellanox Technologies Spectrum Ethernet
-	  Switch ASICs.
+	  This driver supports Mellanox Technologies
+	  Spectrum/Spectrum-2/Spectrum-3 Ethernet Switch ASICs.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mlxsw_spectrum.

@@ -81,13 +81,42 @@ static int tcp_diag_put_md5sig(struct sk_buff *skb,
 }
 #endif
 
+static int tcp_diag_put_ulp(struct sk_buff *skb, struct sock *sk,
+			    const struct tcp_ulp_ops *ulp_ops)
+{
+	struct nlattr *nest;
+	int err;
+
+	nest = nla_nest_start_noflag(skb, INET_DIAG_ULP_INFO);
+	if (!nest)
+		return -EMSGSIZE;
+
+	err = nla_put_string(skb, INET_ULP_INFO_NAME, ulp_ops->name);
+	if (err)
+		goto nla_failure;
+
+	if (ulp_ops->get_info)
+		err = ulp_ops->get_info(sk, skb);
+	if (err)
+		goto nla_failure;
+
+	nla_nest_end(skb, nest);
+	return 0;
+
+nla_failure:
+	nla_nest_cancel(skb, nest);
+	return err;
+}
+
 static int tcp_diag_get_aux(struct sock *sk, bool net_admin,
 			    struct sk_buff *skb)
 {
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	int err = 0;
+
 #ifdef CONFIG_TCP_MD5SIG
 	if (net_admin) {
 		struct tcp_md5sig_info *md5sig;
-		int err = 0;
 
 		rcu_read_lock();
 		md5sig = rcu_dereference(tcp_sk(sk)->md5sig_info);
@@ -99,11 +128,21 @@ static int tcp_diag_get_aux(struct sock *sk, bool net_admin,
 	}
 #endif
 
+	if (net_admin) {
+		const struct tcp_ulp_ops *ulp_ops;
+
+		ulp_ops = icsk->icsk_ulp_ops;
+		if (ulp_ops)
+			err = tcp_diag_put_ulp(skb, sk, ulp_ops);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
 static size_t tcp_diag_get_aux_size(struct sock *sk, bool net_admin)
 {
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	size_t size = 0;
 
 #ifdef CONFIG_TCP_MD5SIG
@@ -124,6 +163,17 @@ static size_t tcp_diag_get_aux_size(struct sock *sk, bool net_admin)
 	}
 #endif
 
+	if (net_admin && sk_fullsock(sk)) {
+		const struct tcp_ulp_ops *ulp_ops;
+
+		ulp_ops = icsk->icsk_ulp_ops;
+		if (ulp_ops) {
+			size += nla_total_size(0) +
+				nla_total_size(TCP_ULP_NAME_MAX);
+			if (ulp_ops->get_info_size)
+				size += ulp_ops->get_info_size(sk);
+		}
+	}
 	return size;
 }
 

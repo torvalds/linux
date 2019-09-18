@@ -12,10 +12,6 @@
 
 #define SR6_FLAG_ALERT (1 << 4)
 
-#define htonll(x) ((bpf_htonl(1)) == 1 ? (x) : ((uint64_t)bpf_htonl((x) & \
-				0xFFFFFFFF) << 32) | bpf_htonl((x) >> 32))
-#define ntohll(x) ((bpf_ntohl(1)) == 1 ? (x) : ((uint64_t)bpf_ntohl((x) & \
-				0xFFFFFFFF) << 32) | bpf_ntohl((x) >> 32))
 #define BPF_PACKET_HEADER __attribute__((packed))
 
 struct ip6_t {
@@ -251,8 +247,8 @@ int __add_egr_x(struct __sk_buff *skb)
 	if (err)
 		return BPF_DROP;
 
-	addr.lo = htonll(lo);
-	addr.hi = htonll(hi);
+	addr.lo = bpf_cpu_to_be64(lo);
+	addr.hi = bpf_cpu_to_be64(hi);
 	err = bpf_lwt_seg6_action(skb, SEG6_LOCAL_ACTION_END_X,
 				  (void *)&addr, sizeof(addr));
 	if (err)

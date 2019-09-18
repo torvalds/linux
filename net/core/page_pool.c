@@ -61,7 +61,7 @@ static int page_pool_init(struct page_pool *pool,
 struct page_pool *page_pool_create(const struct page_pool_params *params)
 {
 	struct page_pool *pool;
-	int err = 0;
+	int err;
 
 	pool = kzalloc_node(sizeof(*pool), GFP_KERNEL, params->nid);
 	if (!pool)
@@ -82,11 +82,8 @@ EXPORT_SYMBOL(page_pool_create);
 static struct page *__page_pool_get_cached(struct page_pool *pool)
 {
 	struct ptr_ring *r = &pool->ring;
+	bool refill = false;
 	struct page *page;
-
-	/* Quicker fallback, avoid locks when ring is empty */
-	if (__ptr_ring_empty(r))
-		return NULL;
 
 	/* Test for safe-context, caller should provide this guarantee */
 	if (likely(in_serving_softirq())) {
@@ -95,27 +92,23 @@ static struct page *__page_pool_get_cached(struct page_pool *pool)
 			page = pool->alloc.cache[--pool->alloc.count];
 			return page;
 		}
-		/* Slower-path: Alloc array empty, time to refill
-		 *
-		 * Open-coded bulk ptr_ring consumer.
-		 *
-		 * Discussion: the ring consumer lock is not really
-		 * needed due to the softirq/NAPI protection, but
-		 * later need the ability to reclaim pages on the
-		 * ring. Thus, keeping the locks.
-		 */
-		spin_lock(&r->consumer_lock);
-		while ((page = __ptr_ring_consume(r))) {
-			if (pool->alloc.count == PP_ALLOC_CACHE_REFILL)
-				break;
-			pool->alloc.cache[pool->alloc.count++] = page;
-		}
-		spin_unlock(&r->consumer_lock);
-		return page;
+		refill = true;
 	}
 
-	/* Slow-path: Get page from locked ring queue */
-	page = ptr_ring_consume(&pool->ring);
+	/* Quicker fallback, avoid locks when ring is empty */
+	if (__ptr_ring_empty(r))
+		return NULL;
+
+	/* Slow-path: Get page from locked ring queue,
+	 * refill alloc array if requested.
+	 */
+	spin_lock(&r->consumer_lock);
+	page = __ptr_ring_consume(r);
+	if (refill)
+		pool->alloc.count = __ptr_ring_consume_batched(r,
+							pool->alloc.cache,
+							PP_ALLOC_CACHE_REFILL);
+	spin_unlock(&r->consumer_lock);
 	return page;
 }
 

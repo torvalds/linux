@@ -1,7 +1,7 @@
 /* IPv6-specific defines for netfilter. 
  * (C)1998 Rusty Russell -- This code is GPL.
  * (C)1999 David Jeffery
- *   this header was blatantly ripped from netfilter_ipv4.h 
+ *   this header was blatantly ripped from netfilter_ipv4.h
  *   it's amazing what adding a bunch of 6s can do =8^)
  */
 #ifndef __LINUX_IP6_NETFILTER_H
@@ -9,6 +9,18 @@
 
 #include <uapi/linux/netfilter_ipv6.h>
 #include <net/tcp.h>
+
+/* Check for an extension */
+static inline int
+nf_ip6_ext_hdr(u8 nexthdr)
+{	return (nexthdr == IPPROTO_HOPOPTS) ||
+	       (nexthdr == IPPROTO_ROUTING) ||
+	       (nexthdr == IPPROTO_FRAGMENT) ||
+	       (nexthdr == IPPROTO_ESP) ||
+	       (nexthdr == IPPROTO_AH) ||
+	       (nexthdr == IPPROTO_NONE) ||
+	       (nexthdr == IPPROTO_DSTOPTS);
+}
 
 /* Extra routing may needed on local out, as the QUEUE target never returns
  * control to the table.
@@ -20,7 +32,7 @@ struct ip6_rt_info {
 };
 
 struct nf_queue_entry;
-struct nf_ct_bridge_frag_data;
+struct nf_bridge_frag_data;
 
 /*
  * Hook functions for ipv6 to allow xt_* modules to be built-in even
@@ -49,9 +61,9 @@ struct nf_ipv6_ops {
 	int (*br_defrag)(struct net *net, struct sk_buff *skb, u32 user);
 	int (*br_fragment)(struct net *net, struct sock *sk,
 			   struct sk_buff *skb,
-			   struct nf_ct_bridge_frag_data *data,
+			   struct nf_bridge_frag_data *data,
 			   int (*output)(struct net *, struct sock *sk,
-					 const struct nf_ct_bridge_frag_data *data,
+					 const struct nf_bridge_frag_data *data,
 					 struct sk_buff *));
 #endif
 };
@@ -123,16 +135,16 @@ static inline int nf_ipv6_br_defrag(struct net *net, struct sk_buff *skb,
 }
 
 int br_ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
-		    struct nf_ct_bridge_frag_data *data,
+		    struct nf_bridge_frag_data *data,
 		    int (*output)(struct net *, struct sock *sk,
-				  const struct nf_ct_bridge_frag_data *data,
+				  const struct nf_bridge_frag_data *data,
 				  struct sk_buff *));
 
 static inline int nf_br_ip6_fragment(struct net *net, struct sock *sk,
 				     struct sk_buff *skb,
-				     struct nf_ct_bridge_frag_data *data,
+				     struct nf_bridge_frag_data *data,
 				     int (*output)(struct net *, struct sock *sk,
-						   const struct nf_ct_bridge_frag_data *data,
+						   const struct nf_bridge_frag_data *data,
 						   struct sk_buff *))
 {
 #if IS_MODULE(CONFIG_IPV6)
