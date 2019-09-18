@@ -915,12 +915,15 @@ static int nct7904_probe(struct i2c_client *client,
 
 	data->temp_mode = 0;
 	for (i = 0; i < 4; i++) {
-		val = (ret & (0x03 << i)) >> (i * 2);
+		val = (ret >> (i * 2)) & 0x03;
 		bit = (1 << i);
-		if (val == 0)
+		if (val == 0) {
 			data->tcpu_mask &= ~bit;
-		else if (val == 0x1 || val == 0x2)
-			data->temp_mode |= bit;
+		} else {
+			if (val == 0x1 || val == 0x2)
+				data->temp_mode |= bit;
+			data->vsen_mask &= ~(0x06 << (i * 2));
+		}
 	}
 
 	/* PECI */
