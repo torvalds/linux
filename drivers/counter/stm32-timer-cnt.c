@@ -28,7 +28,7 @@ struct stm32_timer_cnt {
 };
 
 /**
- * stm32_count_function - enumerates stm32 timer counter encoder modes
+ * enum stm32_count_function - enumerates stm32 timer counter encoder modes
  * @STM32_COUNT_SLAVE_MODE_DISABLED: counts on internal clock when CEN=1
  * @STM32_COUNT_ENCODER_MODE_1: counts TI1FP1 edges, depending on TI2FP2 level
  * @STM32_COUNT_ENCODER_MODE_2: counts TI2FP2 edges, depending on TI1FP1 level
