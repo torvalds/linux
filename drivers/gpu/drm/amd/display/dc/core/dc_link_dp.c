@@ -2759,9 +2759,10 @@ static bool retrieve_link_cap(struct dc_link *link)
 	/* Set default timeout to 3.2ms and read LTTPR capabilities */
 	bool ext_timeout_support = link->dc->caps.extended_aux_timeout_support &&
 			!link->dc->config.disable_extended_timeout_support;
+	link->is_lttpr_mode_transparent = true;
+
 	if (ext_timeout_support) {
 		status = dc_link_aux_configure_timeout(link->ddc, LINK_AUX_DEFAULT_EXTENDED_TIMEOUT_PERIOD);
-		link->is_lttpr_mode_transparent = true;
 	}
 
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
@@ -2796,7 +2797,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 		return false;
 	}
 
-	if (ext_timeout_support) {
+	if (ext_timeout_support && link->dpcd_caps.dpcd_rev.raw >= 0x14) {
 		status = core_link_read_dpcd(
 				link,
 				DP_PHY_REPEATER_CNT,
