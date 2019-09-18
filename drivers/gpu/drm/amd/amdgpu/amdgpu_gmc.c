@@ -28,6 +28,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
+#include "amdgpu_xgmi.h"
 
 /**
  * amdgpu_gmc_get_pde_for_bo - get the PDE for a BO
@@ -311,15 +312,5 @@ void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
 {
 	amdgpu_umc_ras_fini(adev);
 	amdgpu_mmhub_ras_fini(adev);
-
-	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__XGMI_WAFL) &&
-			adev->gmc.xgmi.ras_if) {
-		struct ras_common_if *ras_if = adev->gmc.xgmi.ras_if;
-		struct ras_ih_if ih_info = {
-			.cb = NULL,
-		};
-
-		amdgpu_ras_late_fini(adev, ras_if, &ih_info);
-		kfree(ras_if);
-	}
+	amdgpu_xgmi_ras_fini(adev);
 }
