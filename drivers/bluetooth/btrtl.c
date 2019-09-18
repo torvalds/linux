@@ -418,7 +418,7 @@ static int rtl_download_firmware(struct hci_dev *hdev,
 		if (IS_ERR(skb)) {
 			rtl_dev_err(hdev, "download fw command failed (%ld)",
 				    PTR_ERR(skb));
-			ret = -PTR_ERR(skb);
+			ret = PTR_ERR(skb);
 			goto out;
 		}
 
