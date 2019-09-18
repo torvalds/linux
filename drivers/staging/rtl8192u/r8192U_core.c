@@ -614,13 +614,13 @@ static void rtl8192_proc_init_one(struct net_device *dev)
 		return;
 
 	proc_create_single("stats-rx", S_IFREG | S_IRUGO, dir,
-			proc_get_stats_rx);
+			   proc_get_stats_rx);
 	proc_create_single("stats-tx", S_IFREG | S_IRUGO, dir,
-			proc_get_stats_tx);
+			   proc_get_stats_tx);
 	proc_create_single("stats-ap", S_IFREG | S_IRUGO, dir,
-			proc_get_stats_ap);
+			   proc_get_stats_ap);
 	proc_create_single("registers", S_IFREG | S_IRUGO, dir,
-			proc_get_registers);
+			   proc_get_registers);
 }
 
 static void rtl8192_proc_remove_one(struct net_device *dev)
@@ -4508,7 +4508,7 @@ static void query_rxdesc_status(struct sk_buff *skb,
 		/* Rx A-MPDU */
 		if (driver_info->FirstAGGR == 1 || driver_info->PartAggr == 1)
 			RT_TRACE(COMP_RXDESC,
-				"driver_info->FirstAGGR = %d, driver_info->PartAggr = %d\n",
+				 "driver_info->FirstAGGR = %d, driver_info->PartAggr = %d\n",
 				 driver_info->FirstAGGR, driver_info->PartAggr);
 	}
 
