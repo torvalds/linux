@@ -371,31 +371,24 @@ static int enable_trace_kprobe(struct trace_event_call *call,
 	if (enabled)
 		return 0;
 
-	enabled = false;
 	list_for_each_entry(pos, trace_probe_probe_list(tp), list) {
 		tk = container_of(pos, struct trace_kprobe, tp);
 		if (trace_kprobe_has_gone(tk))
 			continue;
 		ret = __enable_trace_kprobe(tk);
-		if (ret) {
-			if (enabled) {
-				__disable_trace_kprobe(tp);
-				enabled = false;
-			}
+		if (ret)
 			break;
-		}
 		enabled = true;
 	}
 
-	if (!enabled) {
-		/* No probe is enabled. Roll back */
+	if (ret) {
+		/* Failed to enable one of them. Roll back all */
+		if (enabled)
+			__disable_trace_kprobe(tp);
 		if (file)
 			trace_probe_remove_file(tp, file);
 		else
 			trace_probe_clear_flag(tp, TP_FLAG_PROFILE);
-		if (!ret)
-			/* Since all probes are gone, this is not available */
-			ret = -EADDRNOTAVAIL;
 	}
 
 	return ret;
