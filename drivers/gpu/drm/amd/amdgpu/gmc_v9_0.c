@@ -736,26 +736,6 @@ static int gmc_v9_0_allocate_vm_inv_eng(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int gmc_v9_0_ecc_late_init(void *handle)
-{
-	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (adev->umc.funcs && adev->umc.funcs->ras_late_init) {
-		r = adev->umc.funcs->ras_late_init(adev);
-		if (r)
-			return r;
-	}
-
-	if (adev->mmhub.funcs && adev->mmhub.funcs->ras_late_init) {
-		r = adev->mmhub.funcs->ras_late_init(adev);
-		if (r)
-			return r;
-	}
-
-	return amdgpu_xgmi_ras_late_init(adev);
-}
-
 static int gmc_v9_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -793,7 +773,7 @@ static int gmc_v9_0_late_init(void *handle)
 		}
 	}
 
-	r = gmc_v9_0_ecc_late_init(handle);
+	r = amdgpu_gmc_ras_late_init(adev);
 	if (r)
 		return r;
 
