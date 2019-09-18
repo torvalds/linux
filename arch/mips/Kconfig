@@ -84,7 +84,7 @@ config MIPS
 	select RTC_LIB
 	select SYSCTL_EXCEPTION_TRACE
 	select VIRT_TO_BUS
-	select ARCH_HAS_PTE_SPECIAL
+	select ARCH_HAS_PTE_SPECIAL if !(32BIT && CPU_HAS_RIXI)
 
 menu "Machine selection"
 
