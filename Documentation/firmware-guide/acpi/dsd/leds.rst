@@ -1,4 +1,9 @@
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
+========================================
 Describing and referring to LEDs in ACPI
+========================================
 
 Individual LEDs are described by hierarchical data extension [6] nodes under the
 device node, the LED driver chip. The "reg" property in the LED specific nodes
@@ -25,8 +30,12 @@ entry shall contain the string "led@" followed by the number of the LED,
 followed by the referred object name. That object shall be named "LED" followed
 by the number of the LED.
 
-An ASL example of a camera sensor device and a LED driver device for two LEDs.
-Objects not relevant for LEDs or the references to them have been omitted.
+Example
+=======
+
+An ASL example of a camera sensor device and a LED driver device for two LEDs is
+show below. Objects not relevant for LEDs or the references to them have been
+omitted. ::
 
 	Device (LED)
 	{
@@ -71,12 +80,15 @@ Objects not relevant for LEDs or the references to them have been omitted.
 	}
 
 where
+::
 
 	LED	LED driver device
 	LED0	First LED
 	LED1	Second LED
-	SEN	Camera sensor device (or another device the LED is
-		related to)
+	SEN	Camera sensor device (or another device the LED is related to)
+
+References
+==========
 
 [1] Device tree. <URL:http://www.devicetree.org>, referenced 2019-02-21.
 
