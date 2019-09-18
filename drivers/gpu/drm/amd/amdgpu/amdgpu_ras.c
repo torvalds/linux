@@ -1386,7 +1386,7 @@ static int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 	save_count = data->count - control->num_recs;
 	/* only new entries are saved */
 	if (save_count > 0)
-		if (amdgpu_ras_eeprom_process_recods(&con->eeprom_control,
+		if (amdgpu_ras_eeprom_process_recods(control,
 							&data->bps[control->num_recs],
 							true,
 							save_count)) {
@@ -1524,11 +1524,11 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	atomic_set(&con->in_recovery, 0);
 	con->adev = adev;
 
-	ret = amdgpu_ras_eeprom_init(&adev->psp.ras.ras->eeprom_control);
+	ret = amdgpu_ras_eeprom_init(&con->eeprom_control);
 	if (ret)
 		goto free;
 
-	if (adev->psp.ras.ras->eeprom_control.num_recs) {
+	if (con->eeprom_control.num_recs) {
 		ret = amdgpu_ras_load_bad_pages(adev);
 		if (ret)
 			goto free;
