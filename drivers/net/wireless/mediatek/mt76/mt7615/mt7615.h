@@ -56,6 +56,9 @@ struct mt7615_sta {
 
 	struct mt7615_vif *vif;
 
+	struct list_head poll_list;
+	u32 airtime_ac[8];
+
 	struct ieee80211_tx_rate rates[4];
 
 	struct mt7615_rate_set rateset[2];
@@ -82,6 +85,9 @@ struct mt7615_dev {
 	u32 omac_mask;
 
 	__le32 rx_ampdu_ts;
+
+	struct list_head sta_poll_list;
+	spinlock_t sta_poll_lock;
 
 	struct {
 		u8 n_pulses;
@@ -235,6 +241,7 @@ bool mt7615_mac_wtbl_update(struct mt7615_dev *dev, int idx, u32 mask);
 void mt7615_mac_reset_counters(struct mt7615_dev *dev);
 void mt7615_mac_cca_stats_reset(struct mt7615_dev *dev);
 void mt7615_mac_set_scs(struct mt7615_dev *dev, bool enable);
+void mt7615_mac_sta_poll(struct mt7615_dev *dev);
 int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 			  struct sk_buff *skb, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta, int pid,
