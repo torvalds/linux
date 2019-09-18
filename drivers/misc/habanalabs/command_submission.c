@@ -178,11 +178,23 @@ static void cs_do_release(struct kref *ref)
 
 	/* We also need to update CI for internal queues */
 	if (cs->submitted) {
-		int cs_cnt = atomic_dec_return(&hdev->cs_active_cnt);
+		hdev->asic_funcs->hw_queues_lock(hdev);
 
-		WARN_ONCE((cs_cnt < 0),
-			"hl%d: error in CS active cnt %d\n",
-			hdev->id, cs_cnt);
+		hdev->cs_active_cnt--;
+		if (!hdev->cs_active_cnt) {
+			struct hl_device_idle_busy_ts *ts;
+
+			ts = &hdev->idle_busy_ts_arr[hdev->idle_busy_ts_idx++];
+			ts->busy_to_idle_ts = ktime_get();
+
+			if (hdev->idle_busy_ts_idx == HL_IDLE_BUSY_TS_ARR_SIZE)
+				hdev->idle_busy_ts_idx = 0;
+		} else if (hdev->cs_active_cnt < 0) {
+			dev_crit(hdev->dev, "CS active cnt %d is negative\n",
+				hdev->cs_active_cnt);
+		}
+
+		hdev->asic_funcs->hw_queues_unlock(hdev);
 
 		hl_int_hw_queue_update_ci(cs);
 
@@ -305,6 +317,8 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	other = ctx->cs_pending[fence->cs_seq & (HL_MAX_PENDING_CS - 1)];
 	if ((other) && (!dma_fence_is_signaled(other))) {
 		spin_unlock(&ctx->cs_lock);
+		dev_dbg(hdev->dev,
+			"Rejecting CS because of too many in-flights CS\n");
 		rc = -EAGAIN;
 		goto free_fence;
 	}
@@ -395,8 +409,9 @@ static struct hl_cb *validate_queue_index(struct hl_device *hdev,
 		return NULL;
 	}
 
-	if (hw_queue_prop->kmd_only) {
-		dev_err(hdev->dev, "Queue index %d is restricted for KMD\n",
+	if (hw_queue_prop->driver_only) {
+		dev_err(hdev->dev,
+			"Queue index %d is restricted for the kernel driver\n",
 			chunk->queue_index);
 		return NULL;
 	} else if (hw_queue_prop->type == QUEUE_TYPE_INT) {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -12,22 +12,12 @@
 #include <linux/platform_device.h>
 #include <soc/qcom/cmd-db.h>
 #include <soc/qcom/rpmh.h>
+#include <soc/qcom/tcs.h>
 
 #include <dt-bindings/clock/qcom,rpmh.h>
 
 #define CLK_RPMH_ARC_EN_OFFSET		0
 #define CLK_RPMH_VRM_EN_OFFSET		4
-
-#define BCM_TCS_CMD_COMMIT_MASK		0x40000000
-#define BCM_TCS_CMD_VALID_SHIFT		29
-#define BCM_TCS_CMD_VOTE_MASK		0x3fff
-#define BCM_TCS_CMD_VOTE_SHIFT		0
-
-#define BCM_TCS_CMD(valid, vote)				\
-	(BCM_TCS_CMD_COMMIT_MASK |				\
-	((valid) << BCM_TCS_CMD_VALID_SHIFT) |			\
-	((vote & BCM_TCS_CMD_VOTE_MASK)				\
-	<< BCM_TCS_CMD_VOTE_SHIFT))
 
 /**
  * struct bcm_db - Auxiliary data pertaining to each Bus Clock Manager(BCM)
@@ -269,7 +259,7 @@ static int clk_rpmh_bcm_send_cmd(struct clk_rpmh *c, bool enable)
 	}
 
 	cmd.addr = c->res_addr;
-	cmd.data = BCM_TCS_CMD(enable, cmd_state);
+	cmd.data = BCM_TCS_CMD(1, enable, 0, cmd_state);
 
 	ret = rpmh_write_async(c->dev, RPMH_ACTIVE_ONLY_STATE, &cmd, 1);
 	if (ret) {

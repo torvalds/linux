@@ -57,6 +57,7 @@ config PHY_MVEBU_CP110_COMPHY
 	tristate "Marvell CP110 comphy driver"
 	depends on ARCH_MVEBU || COMPILE_TEST
 	depends on OF
+	depends on HAVE_ARM_SMCCC
 	select GENERIC_PHY
 	help
 	  This driver allows to control the comphy, an hardware block providing
