@@ -194,6 +194,27 @@ static void free_capture_list(struct i915_request *request)
 	}
 }
 
+static void remove_from_engine(struct i915_request *rq)
+{
+	struct intel_engine_cs *engine, *locked;
+
+	/*
+	 * Virtual engines complicate acquiring the engine timeline lock,
+	 * as their rq->engine pointer is not stable until under that
+	 * engine lock. The simple ploy we use is to take the lock then
+	 * check that the rq still belongs to the newly locked engine.
+	 */
+	locked = READ_ONCE(rq->engine);
+	spin_lock(&locked->active.lock);
+	while (unlikely(locked != (engine = READ_ONCE(rq->engine)))) {
+		spin_unlock(&locked->active.lock);
+		spin_lock(&engine->active.lock);
+		locked = engine;
+	}
+	list_del(&rq->sched.link);
+	spin_unlock(&locked->active.lock);
+}
+
 static bool i915_request_retire(struct i915_request *rq)
 {
 	struct i915_active_request *active, *next;
@@ -259,9 +280,7 @@ static bool i915_request_retire(struct i915_request *rq)
 	 * request that we have removed from the HW and put back on a run
 	 * queue.
 	 */
-	spin_lock(&rq->engine->active.lock);
-	list_del(&rq->sched.link);
-	spin_unlock(&rq->engine->active.lock);
+	remove_from_engine(rq);
 
 	spin_lock(&rq->lock);
 	i915_request_mark_complete(rq);
