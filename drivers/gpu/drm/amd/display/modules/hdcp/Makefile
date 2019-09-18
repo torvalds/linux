@@ -24,7 +24,8 @@
 #
 
 HDCP = hdcp_ddc.o hdcp_log.o hdcp_psp.o hdcp.o \
-		hdcp1_execution.o hdcp1_transition.o
+		hdcp1_execution.o hdcp1_transition.o \
+		hdcp2_execution.o hdcp2_transition.o
 
 AMD_DAL_HDCP = $(addprefix $(AMDDALPATH)/modules/hdcp/,$(HDCP))
 #$(info ************  DAL-HDCP_MAKEFILE ************)
