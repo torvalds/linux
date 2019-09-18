@@ -111,8 +111,33 @@ struct mod_hdcp_message_hdcp1 {
 	uint16_t	binfo_dp;
 };
 
+struct mod_hdcp_message_hdcp2 {
+	uint8_t		hdcp2version_hdmi;
+	uint8_t		rxcaps_dp[3];
+	uint16_t	rxstatus;
+
+	uint8_t		ake_init[12];
+	uint8_t		ake_cert[534];
+	uint8_t		ake_no_stored_km[129];
+	uint8_t		ake_stored_km[33];
+	uint8_t		ake_h_prime[33];
+	uint8_t		ake_pairing_info[17];
+	uint8_t		lc_init[9];
+	uint8_t		lc_l_prime[33];
+	uint8_t		ske_eks[25];
+	uint8_t		rx_id_list[177]; // 22 + 5 * 31
+	uint16_t	rx_id_list_size;
+	uint8_t		repeater_auth_ack[17];
+	uint8_t		repeater_auth_stream_manage[68]; // 6 + 2 * 31
+	uint16_t	stream_manage_size;
+	uint8_t		repeater_auth_stream_ready[33];
+
+	uint8_t		content_stream_type_dp[2];
+};
+
 union mod_hdcp_message {
 	struct mod_hdcp_message_hdcp1 hdcp1;
+	struct mod_hdcp_message_hdcp2 hdcp2;
 };
 
 struct mod_hdcp_auth_counters {
@@ -234,6 +259,25 @@ enum mod_hdcp_status mod_hdcp_hdcp1_enable_dp_stream_encryption(
 enum mod_hdcp_status mod_hdcp_hdcp1_link_maintenance(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_hdcp1_get_link_encryption_status(struct mod_hdcp *hdcp,
 							       enum mod_hdcp_encryption_status *encryption_status);
+enum mod_hdcp_status mod_hdcp_hdcp2_create_session(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_destroy_session(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_prepare_ake_init(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_ake_cert(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_h_prime(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_prepare_lc_init(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_l_prime(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_prepare_eks(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_enable_encryption(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_rx_id_list(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_enable_dp_stream_encryption(
+		struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_prepare_stream_management(
+		struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_stream_ready(
+		struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_get_link_encryption_status(struct mod_hdcp *hdcp,
+							       enum mod_hdcp_encryption_status *encryption_status);
+
 /* ddc functions */
 enum mod_hdcp_status mod_hdcp_read_bksv(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_read_bcaps(struct mod_hdcp *hdcp);

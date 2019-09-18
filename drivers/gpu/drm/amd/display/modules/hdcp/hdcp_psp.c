@@ -31,6 +31,19 @@
 #include "amdgpu.h"
 #include "hdcp_psp.h"
 
+static void hdcp2_message_init(struct mod_hdcp *hdcp,
+			       struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 *in)
+{
+	in->session_handle = hdcp->auth.id;
+	in->prepare.msg1_id = TA_HDCP_HDCP2_MSG_ID__NULL_MESSAGE;
+	in->prepare.msg2_id = TA_HDCP_HDCP2_MSG_ID__NULL_MESSAGE;
+	in->process.msg1_desc.msg_id = TA_HDCP_HDCP2_MSG_ID__NULL_MESSAGE;
+	in->process.msg1_desc.msg_size = 0;
+	in->process.msg2_desc.msg_id = TA_HDCP_HDCP2_MSG_ID__NULL_MESSAGE;
+	in->process.msg2_desc.msg_size = 0;
+	in->process.msg3_desc.msg_id = TA_HDCP_HDCP2_MSG_ID__NULL_MESSAGE;
+	in->process.msg3_desc.msg_id = 0;
+}
 enum mod_hdcp_status mod_hdcp_remove_display_topology(struct mod_hdcp *hdcp)
 {
 
@@ -42,7 +55,7 @@ enum mod_hdcp_status mod_hdcp_remove_display_topology(struct mod_hdcp *hdcp)
 	dtm_cmd = (struct ta_dtm_shared_memory *)psp->dtm_context.dtm_shared_buf;
 
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
-		if (hdcp->connection.displays[i].state == MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED) {
+		if (is_display_added(&(hdcp->connection.displays[i]))) {
 
 			memset(dtm_cmd, 0, sizeof(struct ta_dtm_shared_memory));
 
@@ -326,3 +339,490 @@ enum mod_hdcp_status mod_hdcp_hdcp1_get_link_encryption_status(struct mod_hdcp *
 	return MOD_HDCP_STATUS_SUCCESS;
 }
 
+enum mod_hdcp_status mod_hdcp_hdcp2_create_session(struct mod_hdcp *hdcp)
+{
+	struct psp_context *psp = hdcp->config.psp.handle;
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+	struct mod_hdcp_display *display = get_first_added_display(hdcp);
+
+	if (!psp->hdcp_context.hdcp_initialized) {
+		DRM_ERROR("Failed to create hdcp session, HDCP TA is not initialized");
+		return MOD_HDCP_STATUS_FAILURE;
+	}
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	if (!display)
+		return MOD_HDCP_STATUS_DISPLAY_NOT_FOUND;
+
+	hdcp_cmd->in_msg.hdcp2_create_session_v2.display_handle = display->index;
+
+	if (hdcp->connection.link.adjust.hdcp2.disable_type1)
+		hdcp_cmd->in_msg.hdcp2_create_session_v2.negotiate_content_type =
+			TA_HDCP2_CONTENT_TYPE_NEGOTIATION_TYPE__FORCE_TYPE0;
+	else
+		hdcp_cmd->in_msg.hdcp2_create_session_v2.negotiate_content_type =
+			TA_HDCP2_CONTENT_TYPE_NEGOTIATION_TYPE__MAX_SUPPORTED;
+
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_CREATE_SESSION_V2;
+
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_HDCP2_CREATE_SESSION_FAILURE;
+
+	hdcp->auth.id = hdcp_cmd->out_msg.hdcp2_create_session_v2.session_handle;
+
+	return MOD_HDCP_STATUS_SUCCESS;
+}
+
+enum mod_hdcp_status mod_hdcp_hdcp2_destroy_session(struct mod_hdcp *hdcp)
+{
+	struct psp_context *psp = hdcp->config.psp.handle;
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	hdcp_cmd->in_msg.hdcp2_destroy_session.session_handle = hdcp->auth.id;
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_DESTROY_SESSION;
+
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_HDCP2_DESTROY_SESSION_FAILURE;
+
+	return MOD_HDCP_STATUS_SUCCESS;
+}
+
+enum mod_hdcp_status mod_hdcp_hdcp2_prepare_ake_init(struct mod_hdcp *hdcp)
+{
+	struct psp_context *psp = hdcp->config.psp.handle;
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 *msg_in;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_output_v2 *msg_out;
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	msg_in = &hdcp_cmd->in_msg.hdcp2_prepare_process_authentication_message_v2;
+	msg_out = &hdcp_cmd->out_msg.hdcp2_prepare_process_authentication_message_v2;
+
+	hdcp2_message_init(hdcp, msg_in);
+
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_PREPARE_PROCESS_AUTHENTICATION_MSG_V2;
+	msg_in->prepare.msg1_id = TA_HDCP_HDCP2_MSG_ID__AKE_INIT;
+
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_HDCP2_PREP_AKE_INIT_FAILURE;
+
+	memcpy(&hdcp->auth.msg.hdcp2.ake_init[0], &msg_out->prepare.transmitter_message[0],
+	       sizeof(hdcp->auth.msg.hdcp2.ake_init));
+
+	return MOD_HDCP_STATUS_SUCCESS;
+}
+
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_ake_cert(struct mod_hdcp *hdcp)
+{
+	struct psp_context *psp = hdcp->config.psp.handle;
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 *msg_in;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_output_v2 *msg_out;
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	msg_in = &hdcp_cmd->in_msg.hdcp2_prepare_process_authentication_message_v2;
+	msg_out = &hdcp_cmd->out_msg.hdcp2_prepare_process_authentication_message_v2;
+
+	hdcp2_message_init(hdcp, msg_in);
+
+	msg_in->process.msg1_desc.msg_id = TA_HDCP_HDCP2_MSG_ID__AKE_SEND_CERT;
+	msg_in->process.msg1_desc.msg_size = TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_SEND_CERT;
+
+	memcpy(&msg_in->process.receiver_message[0], hdcp->auth.msg.hdcp2.ake_cert,
+	       sizeof(hdcp->auth.msg.hdcp2.ake_cert));
+
+	msg_in->prepare.msg1_id = TA_HDCP_HDCP2_MSG_ID__AKE_NO_STORED_KM;
+	msg_in->prepare.msg2_id = TA_HDCP_HDCP2_MSG_ID__AKE_STORED_KM;
+
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_PREPARE_PROCESS_AUTHENTICATION_MSG_V2;
+
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_HDCP2_VALIDATE_AKE_CERT_FAILURE;
+
+	memcpy(hdcp->auth.msg.hdcp2.ake_no_stored_km, &msg_out->prepare.transmitter_message[0],
+	       sizeof(hdcp->auth.msg.hdcp2.ake_no_stored_km));
+
+	memcpy(hdcp->auth.msg.hdcp2.ake_stored_km,
+	       &msg_out->prepare.transmitter_message[sizeof(hdcp->auth.msg.hdcp2.ake_no_stored_km)],
+	       sizeof(hdcp->auth.msg.hdcp2.ake_stored_km));
+
+	if (msg_out->process.msg1_status == TA_HDCP2_MSG_AUTHENTICATION_STATUS__SUCCESS) {
+		hdcp->connection.is_km_stored = msg_out->process.is_km_stored ? 1 : 0;
+		hdcp->connection.is_repeater = msg_out->process.is_repeater ? 1 : 0;
+		return MOD_HDCP_STATUS_SUCCESS;
+	}
+
+	return MOD_HDCP_STATUS_FAILURE;
+}
+
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_h_prime(struct mod_hdcp *hdcp)
+{
+	struct psp_context *psp = hdcp->config.psp.handle;
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 *msg_in;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_output_v2 *msg_out;
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	msg_in = &hdcp_cmd->in_msg.hdcp2_prepare_process_authentication_message_v2;
+	msg_out = &hdcp_cmd->out_msg.hdcp2_prepare_process_authentication_message_v2;
+
+	hdcp2_message_init(hdcp, msg_in);
+
+	msg_in->process.msg1_desc.msg_id = TA_HDCP_HDCP2_MSG_ID__AKE_SEND_H_PRIME;
+	msg_in->process.msg1_desc.msg_size = TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_SEND_H_PRIME;
+
+	memcpy(&msg_in->process.receiver_message[0], hdcp->auth.msg.hdcp2.ake_h_prime,
+	       sizeof(hdcp->auth.msg.hdcp2.ake_h_prime));
+
+	if (!hdcp->connection.is_km_stored) {
+		msg_in->process.msg2_desc.msg_id = TA_HDCP_HDCP2_MSG_ID__AKE_SEND_PAIRING_INFO;
+		msg_in->process.msg2_desc.msg_size = TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_SEND_PAIRING_INFO;
+		memcpy(&msg_in->process.receiver_message[sizeof(hdcp->auth.msg.hdcp2.ake_h_prime)],
+		       hdcp->auth.msg.hdcp2.ake_pairing_info, sizeof(hdcp->auth.msg.hdcp2.ake_pairing_info));
+	}
+
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_PREPARE_PROCESS_AUTHENTICATION_MSG_V2;
+
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_HDCP2_VALIDATE_AKE_CERT_FAILURE;
+
+	if (msg_out->process.msg1_status != TA_HDCP2_MSG_AUTHENTICATION_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_HDCP2_VALIDATE_H_PRIME_FAILURE;
+	else if (!hdcp->connection.is_km_stored &&
+		 msg_out->process.msg2_status != TA_HDCP2_MSG_AUTHENTICATION_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_HDCP2_VALIDATE_PAIRING_INFO_FAILURE;
+
+
+	return MOD_HDCP_STATUS_SUCCESS;
+}
+
+enum mod_hdcp_status mod_hdcp_hdcp2_prepare_lc_init(struct mod_hdcp *hdcp)
+{
+	struct psp_context *psp = hdcp->config.psp.handle;
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 *msg_in;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_output_v2 *msg_out;
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	msg_in = &hdcp_cmd->in_msg.hdcp2_prepare_process_authentication_message_v2;
+	msg_out = &hdcp_cmd->out_msg.hdcp2_prepare_process_authentication_message_v2;
+
+	hdcp2_message_init(hdcp, msg_in);
+
+	msg_in->prepare.msg1_id = TA_HDCP_HDCP2_MSG_ID__LC_INIT;
+
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_PREPARE_PROCESS_AUTHENTICATION_MSG_V2;
+
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_HDCP2_PREP_LC_INIT_FAILURE;
+
+	memcpy(hdcp->auth.msg.hdcp2.lc_init, &msg_out->prepare.transmitter_message[0],
+	       sizeof(hdcp->auth.msg.hdcp2.lc_init));
+
+	return MOD_HDCP_STATUS_SUCCESS;
+}
+
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_l_prime(struct mod_hdcp *hdcp)
+{
+	struct psp_context *psp = hdcp->config.psp.handle;
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 *msg_in;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_output_v2 *msg_out;
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	msg_in = &hdcp_cmd->in_msg.hdcp2_prepare_process_authentication_message_v2;
+	msg_out = &hdcp_cmd->out_msg.hdcp2_prepare_process_authentication_message_v2;
+
+	hdcp2_message_init(hdcp, msg_in);
+
+	msg_in->process.msg1_desc.msg_id = TA_HDCP_HDCP2_MSG_ID__LC_SEND_L_PRIME;
+	msg_in->process.msg1_desc.msg_size = TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__LC_SEND_L_PRIME;
+
+	memcpy(&msg_in->process.receiver_message[0], hdcp->auth.msg.hdcp2.lc_l_prime,
+	       sizeof(hdcp->auth.msg.hdcp2.lc_l_prime));
+
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_PREPARE_PROCESS_AUTHENTICATION_MSG_V2;
+
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_HDCP2_VALIDATE_L_PRIME_FAILURE;
+
+	if (msg_out->process.msg1_status != TA_HDCP2_MSG_AUTHENTICATION_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_HDCP2_VALIDATE_L_PRIME_FAILURE;
+
+	return MOD_HDCP_STATUS_SUCCESS;
+}
+
+enum mod_hdcp_status mod_hdcp_hdcp2_prepare_eks(struct mod_hdcp *hdcp)
+{
+	struct psp_context *psp = hdcp->config.psp.handle;
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 *msg_in;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_output_v2 *msg_out;
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	msg_in = &hdcp_cmd->in_msg.hdcp2_prepare_process_authentication_message_v2;
+	msg_out = &hdcp_cmd->out_msg.hdcp2_prepare_process_authentication_message_v2;
+
+	hdcp2_message_init(hdcp, msg_in);
+
+	msg_in->prepare.msg1_id = TA_HDCP_HDCP2_MSG_ID__SKE_SEND_EKS;
+
+	if (is_dp_hdcp(hdcp))
+		msg_in->prepare.msg2_id = TA_HDCP_HDCP2_MSG_ID__SIGNAL_CONTENT_STREAM_TYPE_DP;
+
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_PREPARE_PROCESS_AUTHENTICATION_MSG_V2;
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_HDCP2_PREP_EKS_FAILURE;
+
+	memcpy(hdcp->auth.msg.hdcp2.ske_eks, &msg_out->prepare.transmitter_message[0],
+	       sizeof(hdcp->auth.msg.hdcp2.ske_eks));
+	msg_out->prepare.msg1_desc.msg_size = sizeof(hdcp->auth.msg.hdcp2.ske_eks);
+
+	if (is_dp_hdcp(hdcp)) {
+		memcpy(hdcp->auth.msg.hdcp2.content_stream_type_dp,
+		       &msg_out->prepare.transmitter_message[sizeof(hdcp->auth.msg.hdcp2.ske_eks)],
+		       sizeof(hdcp->auth.msg.hdcp2.content_stream_type_dp));
+	}
+
+	return MOD_HDCP_STATUS_SUCCESS;
+}
+
+enum mod_hdcp_status mod_hdcp_hdcp2_enable_encryption(struct mod_hdcp *hdcp)
+{
+	struct psp_context *psp = hdcp->config.psp.handle;
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 *msg_in;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_output_v2 *msg_out;
+	struct mod_hdcp_display *display = get_first_added_display(hdcp);
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	msg_in = &hdcp_cmd->in_msg.hdcp2_prepare_process_authentication_message_v2;
+	msg_out = &hdcp_cmd->out_msg.hdcp2_prepare_process_authentication_message_v2;
+
+	hdcp2_message_init(hdcp, msg_in);
+
+	if (!display)
+		return MOD_HDCP_STATUS_DISPLAY_NOT_FOUND;
+
+	hdcp_cmd->in_msg.hdcp1_enable_encryption.session_handle = hdcp->auth.id;
+
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_SET_ENCRYPTION;
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_HDCP2_ENABLE_ENCRYPTION_FAILURE;
+
+	if (!is_dp_mst_hdcp(hdcp)) {
+		display->state = MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED;
+	}
+
+	return MOD_HDCP_STATUS_SUCCESS;
+}
+
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_rx_id_list(struct mod_hdcp *hdcp)
+{
+	struct psp_context *psp = hdcp->config.psp.handle;
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 *msg_in;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_output_v2 *msg_out;
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	msg_in = &hdcp_cmd->in_msg.hdcp2_prepare_process_authentication_message_v2;
+	msg_out = &hdcp_cmd->out_msg.hdcp2_prepare_process_authentication_message_v2;
+
+	hdcp2_message_init(hdcp, msg_in);
+
+	msg_in->process.msg1_desc.msg_id = TA_HDCP_HDCP2_MSG_ID__REPEATERAUTH_SEND_RECEIVERID_LIST;
+	msg_in->process.msg1_desc.msg_size = sizeof(hdcp->auth.msg.hdcp2.rx_id_list);
+	memcpy(&msg_in->process.receiver_message[0], hdcp->auth.msg.hdcp2.rx_id_list,
+	       sizeof(hdcp->auth.msg.hdcp2.rx_id_list));
+
+	msg_in->prepare.msg1_id = TA_HDCP_HDCP2_MSG_ID__REPEATERAUTH_SEND_ACK;
+
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_PREPARE_PROCESS_AUTHENTICATION_MSG_V2;
+
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_HDCP2_VALIDATE_RX_ID_LIST_FAILURE;
+
+	memcpy(hdcp->auth.msg.hdcp2.repeater_auth_ack, &msg_out->prepare.transmitter_message[0],
+	       sizeof(hdcp->auth.msg.hdcp2.repeater_auth_ack));
+
+	if (msg_out->process.msg1_status == TA_HDCP2_MSG_AUTHENTICATION_STATUS__SUCCESS) {
+		hdcp->connection.is_km_stored = msg_out->process.is_km_stored ? 1 : 0;
+		hdcp->connection.is_repeater = msg_out->process.is_repeater ? 1 : 0;
+		return MOD_HDCP_STATUS_SUCCESS;
+	}
+
+
+	return MOD_HDCP_STATUS_HDCP2_VALIDATE_RX_ID_LIST_FAILURE;
+}
+
+enum mod_hdcp_status mod_hdcp_hdcp2_enable_dp_stream_encryption(struct mod_hdcp *hdcp)
+{
+	struct psp_context *psp = hdcp->config.psp.handle;
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 *msg_in;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_output_v2 *msg_out;
+	uint8_t i;
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	msg_in = &hdcp_cmd->in_msg.hdcp2_prepare_process_authentication_message_v2;
+	msg_out = &hdcp_cmd->out_msg.hdcp2_prepare_process_authentication_message_v2;
+
+	hdcp2_message_init(hdcp, msg_in);
+
+
+	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
+		if (hdcp->connection.displays[i].state != MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED ||
+		    hdcp->connection.displays[i].adjust.disable)
+			continue;
+		hdcp_cmd->in_msg.hdcp2_enable_dp_stream_encryption.display_handle = hdcp->connection.displays[i].index;
+		hdcp_cmd->in_msg.hdcp2_enable_dp_stream_encryption.session_handle = hdcp->auth.id;
+
+		hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_ENABLE_DP_STREAM_ENCRYPTION;
+		psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+		if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+			break;
+
+		hdcp->connection.displays[i].state = MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED;
+	}
+
+	return (hdcp_cmd->hdcp_status == TA_HDCP_STATUS__SUCCESS) ? MOD_HDCP_STATUS_SUCCESS
+								  : MOD_HDCP_STATUS_HDCP2_ENABLE_STREAM_ENCRYPTION;
+}
+
+enum mod_hdcp_status mod_hdcp_hdcp2_prepare_stream_management(struct mod_hdcp *hdcp)
+{
+
+	struct psp_context *psp = hdcp->config.psp.handle;
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 *msg_in;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_output_v2 *msg_out;
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	msg_in = &hdcp_cmd->in_msg.hdcp2_prepare_process_authentication_message_v2;
+	msg_out = &hdcp_cmd->out_msg.hdcp2_prepare_process_authentication_message_v2;
+
+	hdcp2_message_init(hdcp, msg_in);
+
+	msg_in->prepare.msg1_id = TA_HDCP_HDCP2_MSG_ID__REPEATERAUTH_STREAM_MANAGE;
+
+
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_PREPARE_PROCESS_AUTHENTICATION_MSG_V2;
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_HDCP2_PREPARE_STREAM_MANAGEMENT_FAILURE;
+
+	hdcp->auth.msg.hdcp2.stream_manage_size = msg_out->prepare.msg1_desc.msg_size;
+
+	memcpy(hdcp->auth.msg.hdcp2.repeater_auth_stream_manage, &msg_out->prepare.transmitter_message[0],
+	       sizeof(hdcp->auth.msg.hdcp2.repeater_auth_stream_manage));
+
+	return MOD_HDCP_STATUS_SUCCESS;
+}
+
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_stream_ready(struct mod_hdcp *hdcp)
+{
+	struct psp_context *psp = hdcp->config.psp.handle;
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 *msg_in;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_output_v2 *msg_out;
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	msg_in = &hdcp_cmd->in_msg.hdcp2_prepare_process_authentication_message_v2;
+	msg_out = &hdcp_cmd->out_msg.hdcp2_prepare_process_authentication_message_v2;
+
+	hdcp2_message_init(hdcp, msg_in);
+
+	msg_in->process.msg1_desc.msg_id = TA_HDCP_HDCP2_MSG_ID__REPEATERAUTH_STREAM_READY;
+
+	msg_in->process.msg1_desc.msg_size = sizeof(hdcp->auth.msg.hdcp2.repeater_auth_stream_ready);
+
+	memcpy(&msg_in->process.receiver_message[0], hdcp->auth.msg.hdcp2.repeater_auth_stream_ready,
+	       sizeof(hdcp->auth.msg.hdcp2.repeater_auth_stream_ready));
+
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_PREPARE_PROCESS_AUTHENTICATION_MSG_V2;
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	return (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS) &&
+			       (msg_out->process.msg1_status == TA_HDCP2_MSG_AUTHENTICATION_STATUS__SUCCESS)
+		       ? MOD_HDCP_STATUS_SUCCESS
+		       : MOD_HDCP_STATUS_HDCP2_VALIDATE_STREAM_READY_FAILURE;
+}
+
+enum mod_hdcp_status mod_hdcp_hdcp2_get_link_encryption_status(struct mod_hdcp *hdcp,
+							       enum mod_hdcp_encryption_status *encryption_status)
+{
+	struct psp_context *psp = hdcp->config.psp.handle;
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	hdcp_cmd->in_msg.hdcp2_get_encryption_status.session_handle = hdcp->auth.id;
+	hdcp_cmd->out_msg.hdcp2_get_encryption_status.protection_level = 0;
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_GET_ENCRYPTION_STATUS;
+	*encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
+
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_FAILURE;
+
+	if (hdcp_cmd->out_msg.hdcp2_get_encryption_status.protection_level == 1) {
+		if (hdcp_cmd->out_msg.hdcp2_get_encryption_status.hdcp2_type == TA_HDCP2_CONTENT_TYPE__TYPE1)
+			*encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON;
+		else
+			*encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE0_ON;
+	}
+
+	return MOD_HDCP_STATUS_SUCCESS;
+}

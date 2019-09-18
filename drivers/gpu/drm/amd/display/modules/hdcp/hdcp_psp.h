@@ -36,6 +36,11 @@ enum bgd_security_hdcp_encryption_level {
 	HDCP_ENCRYPTION_LEVEL__ON
 };
 
+enum bgd_security_hdcp2_content_type {
+	HDCP2_CONTENT_TYPE__INVALID = 0,
+	HDCP2_CONTENT_TYPE__TYPE0,
+	HDCP2_CONTENT_TYPE__TYPE1
+};
 enum ta_dtm_command {
 	TA_DTM_COMMAND__UNUSED_1 = 1,
 	TA_DTM_COMMAND__TOPOLOGY_UPDATE_V2,
@@ -121,8 +126,64 @@ enum ta_hdcp_command {
 	TA_HDCP_COMMAND__HDCP1_ENABLE_ENCRYPTION,
 	TA_HDCP_COMMAND__HDCP1_ENABLE_DP_STREAM_ENCRYPTION,
 	TA_HDCP_COMMAND__HDCP1_GET_ENCRYPTION_STATUS,
+	TA_HDCP_COMMAND__UNUSED_1,
+	TA_HDCP_COMMAND__HDCP2_DESTROY_SESSION,
+	TA_HDCP_COMMAND__UNUSED_2,
+	TA_HDCP_COMMAND__HDCP2_SET_ENCRYPTION,
+	TA_HDCP_COMMAND__HDCP2_GET_ENCRYPTION_STATUS,
+	TA_HDCP_COMMAND__UNUSED_3,
+	TA_HDCP_COMMAND__HDCP2_CREATE_SESSION_V2,
+	TA_HDCP_COMMAND__HDCP2_PREPARE_PROCESS_AUTHENTICATION_MSG_V2,
+	TA_HDCP_COMMAND__HDCP2_ENABLE_DP_STREAM_ENCRYPTION
 };
 
+enum ta_hdcp2_msg_id {
+	TA_HDCP_HDCP2_MSG_ID__NULL_MESSAGE = 1,
+	TA_HDCP_HDCP2_MSG_ID__AKE_INIT = 2,
+	TA_HDCP_HDCP2_MSG_ID__AKE_SEND_CERT = 3,
+	TA_HDCP_HDCP2_MSG_ID__AKE_NO_STORED_KM = 4,
+	TA_HDCP_HDCP2_MSG_ID__AKE_STORED_KM = 5,
+	TA_HDCP_HDCP2_MSG_ID__AKE_SEND_RRX = 6,
+	TA_HDCP_HDCP2_MSG_ID__AKE_SEND_H_PRIME = 7,
+	TA_HDCP_HDCP2_MSG_ID__AKE_SEND_PAIRING_INFO = 8,
+	TA_HDCP_HDCP2_MSG_ID__LC_INIT = 9,
+	TA_HDCP_HDCP2_MSG_ID__LC_SEND_L_PRIME = 10,
+	TA_HDCP_HDCP2_MSG_ID__SKE_SEND_EKS = 11,
+	TA_HDCP_HDCP2_MSG_ID__REPEATERAUTH_SEND_RECEIVERID_LIST = 12,
+	TA_HDCP_HDCP2_MSG_ID__RTT_READY = 13,
+	TA_HDCP_HDCP2_MSG_ID__RTT_CHALLENGE = 14,
+	TA_HDCP_HDCP2_MSG_ID__REPEATERAUTH_SEND_ACK = 15,
+	TA_HDCP_HDCP2_MSG_ID__REPEATERAUTH_STREAM_MANAGE = 16,
+	TA_HDCP_HDCP2_MSG_ID__REPEATERAUTH_STREAM_READY = 17,
+	TA_HDCP_HDCP2_MSG_ID__RECEIVER_AUTH_STATUS = 18,
+	TA_HDCP_HDCP2_MSG_ID__AKE_TRANSMITTER_INFO = 19,
+	TA_HDCP_HDCP2_MSG_ID__AKE_RECEIVER_INFO = 20,
+	TA_HDCP_HDCP2_MSG_ID__SIGNAL_CONTENT_STREAM_TYPE_DP = 129
+};
+
+enum ta_hdcp2_hdcp2_msg_id_max_size {
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__NULL_MESSAGE = 0,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_INIT = 12,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_SEND_CERT = 534,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_NO_STORED_KM = 129,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_STORED_KM = 33,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_SEND_RRX = 9,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_SEND_H_PRIME = 33,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_SEND_PAIRING_INFO = 17,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__LC_INIT = 9,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__LC_SEND_L_PRIME = 33,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__SKE_SEND_EKS = 25,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__REPEATERAUTH_SEND_RECEIVERID_LIST = 181,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__RTT_READY = 1,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__RTT_CHALLENGE = 17,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__REPEATERAUTH_SEND_RACK = 17,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__REPEATERAUTH_STREAM_MANAGE = 13,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__REPEATERAUTH_STREAM_READY = 33,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__RECEIVER_AUTH_STATUS = 4,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_TRANSMITTER_INFO = 6,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_RECEIVER_INFO = 6,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__SIGNAL_CONTENT_STREAM_TYPE_DP = 1
+};
 
 /* HDCP related enumerations */
 /**********************************************************/
@@ -131,6 +192,12 @@ enum ta_hdcp_command {
 #define TA_HDCP__HDCP1_KSV_SIZE 5
 #define TA_HDCP__HDCP1_KSV_LIST_MAX_ENTRIES 127
 #define TA_HDCP__HDCP1_V_PRIME_SIZE 20
+#define TA_HDCP__HDCP2_TX_BUF_MAX_SIZE                                                                                 \
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_NO_STORED_KM + TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_STORED_KM + 6
+
+// 64 bits boundaries
+#define TA_HDCP__HDCP2_RX_BUF_MAX_SIZE                                                                                 \
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_SEND_CERT + TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_RECEIVER_INFO + 4
 
 enum ta_hdcp_status {
 	TA_HDCP_STATUS__SUCCESS = 0x00,
@@ -165,9 +232,47 @@ enum ta_hdcp_authentication_status {
 	TA_HDCP_AUTHENTICATION_STATUS__HDCP1_FIRST_PART_COMPLETE = 0x02,
 	TA_HDCP_AUTHENTICATION_STATUS__HDCP1_SECOND_PART_FAILED = 0x03,
 	TA_HDCP_AUTHENTICATION_STATUS__HDCP1_AUTHENTICATED = 0x04,
+	TA_HDCP_AUTHENTICATION_STATUS__HDCP22_AUTHENTICATION_PENDING = 0x06,
+	TA_HDCP_AUTHENTICATION_STATUS__HDCP22_AUTHENTICATION_FAILED = 0x07,
+	TA_HDCP_AUTHENTICATION_STATUS__HDCP22_AUTHENTICATED = 0x08,
 	TA_HDCP_AUTHENTICATION_STATUS__HDCP1_KSV_VALIDATION_FAILED = 0x09
 };
 
+enum ta_hdcp2_msg_authentication_status {
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__SUCCESS = 0,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__KM_NOT_AVAILABLE,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__UNUSED,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__INVALID = 100, // everything above does not fail the request
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__NOT_ENOUGH_MEMORY,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__NOT_EXPECTED_MSG,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__SIGNATURE_CERTIFICAT_ERROR,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__INCORRECT_HDCP_VERSION,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__UNKNOWN_MESSAGE,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__INVALID_HMAC,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__INVALID_TOPOLOGY,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__INVALID_SEQ_NUM,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__INVALID_SIZE,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__INVALID_LENGTH,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__REAUTH_REQUEST
+};
+
+enum ta_hdcp_content_type {
+	TA_HDCP2_CONTENT_TYPE__TYPE0 = 1,
+	TA_HDCP2_CONTENT_TYPE__TYPE1,
+};
+
+enum ta_hdcp_content_type_negotiation_type {
+	TA_HDCP2_CONTENT_TYPE_NEGOTIATION_TYPE__FORCE_TYPE0 = 1,
+	TA_HDCP2_CONTENT_TYPE_NEGOTIATION_TYPE__FORCE_TYPE1,
+	TA_HDCP2_CONTENT_TYPE_NEGOTIATION_TYPE__MAX_SUPPORTED
+};
+
+enum ta_hdcp2_version {
+	TA_HDCP2_VERSION_UNKNOWN = 0,
+	TA_HDCP2_VERSION_2_0 = 20,
+	TA_HDCP2_VERSION_2_1 = 21,
+	TA_HDCP2_VERSION_2_2 = 22
+};
 
 /* input/output structures for HDCP commands */
 /**********************************************************/
@@ -232,6 +337,84 @@ struct ta_hdcp_cmd_hdcp1_get_encryption_status_output {
 	uint32_t protection_level;
 };
 
+struct ta_hdcp_cmd_hdcp2_create_session_input_v2 {
+	uint32_t display_handle;
+	enum ta_hdcp_content_type_negotiation_type negotiate_content_type;
+};
+
+struct ta_hdcp_cmd_hdcp2_create_session_output_v2 {
+	uint32_t session_handle;
+};
+
+struct ta_hdcp_cmd_hdcp2_destroy_session_input {
+	uint32_t session_handle;
+};
+
+struct ta_hdcp_cmd_hdcp2_authentication_message_v2 {
+	enum ta_hdcp2_msg_id msg_id;
+	uint32_t msg_size;
+};
+
+struct ta_hdcp_cmd_hdcp2_process_authentication_message_input_v2 {
+	struct ta_hdcp_cmd_hdcp2_authentication_message_v2 msg1_desc;
+	struct ta_hdcp_cmd_hdcp2_authentication_message_v2 msg2_desc;
+	struct ta_hdcp_cmd_hdcp2_authentication_message_v2 msg3_desc;
+	uint8_t receiver_message[TA_HDCP__HDCP2_RX_BUF_MAX_SIZE];
+};
+
+struct ta_hdcp_cmd_hdcp2_process_authentication_message_output_v2 {
+	uint32_t hdcp_version;
+	uint32_t is_km_stored;
+	uint32_t is_locality_precompute_support;
+	uint32_t is_repeater;
+	enum ta_hdcp2_msg_authentication_status msg1_status;
+	enum ta_hdcp2_msg_authentication_status msg2_status;
+	enum ta_hdcp2_msg_authentication_status msg3_status;
+};
+
+struct ta_hdcp_cmd_hdcp2_prepare_authentication_message_input_v2 {
+	enum ta_hdcp2_msg_id msg1_id;
+	enum ta_hdcp2_msg_id msg2_id;
+};
+
+struct ta_hdcp_cmd_hdcp2_prepare_authentication_message_output_v2 {
+	enum ta_hdcp2_msg_authentication_status msg1_status;
+	enum ta_hdcp2_msg_authentication_status msg2_status;
+	struct ta_hdcp_cmd_hdcp2_authentication_message_v2 msg1_desc;
+	struct ta_hdcp_cmd_hdcp2_authentication_message_v2 msg2_desc;
+	uint8_t transmitter_message[TA_HDCP__HDCP2_TX_BUF_MAX_SIZE];
+};
+
+struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 {
+	uint32_t session_handle;
+	struct ta_hdcp_cmd_hdcp2_process_authentication_message_input_v2 process;
+	struct ta_hdcp_cmd_hdcp2_prepare_authentication_message_input_v2 prepare;
+};
+
+struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_output_v2 {
+	uint32_t authentication_status;
+	struct ta_hdcp_cmd_hdcp2_process_authentication_message_output_v2 process;
+	struct ta_hdcp_cmd_hdcp2_prepare_authentication_message_output_v2 prepare;
+};
+
+struct ta_hdcp_cmd_hdcp2_set_encryption_input {
+	uint32_t session_handle;
+};
+
+struct ta_hdcp_cmd_hdcp2_get_encryption_status_input {
+	uint32_t session_handle;
+};
+
+struct ta_hdcp_cmd_hdcp2_get_encryption_status_output {
+	enum ta_hdcp_content_type hdcp2_type;
+	uint32_t protection_level;
+};
+
+struct ta_hdcp_cmd_hdcp2_enable_dp_stream_encryption_input {
+	uint32_t session_handle;
+	uint32_t display_handle;
+};
+
 /**********************************************************/
 /* Common input structure for HDCP callbacks */
 union ta_hdcp_cmd_input {
@@ -242,6 +425,13 @@ union ta_hdcp_cmd_input {
 	struct ta_hdcp_cmd_hdcp1_enable_encryption_input hdcp1_enable_encryption;
 	struct ta_hdcp_cmd_hdcp1_enable_dp_stream_encryption_input hdcp1_enable_dp_stream_encryption;
 	struct ta_hdcp_cmd_hdcp1_get_encryption_status_input hdcp1_get_encryption_status;
+	struct ta_hdcp_cmd_hdcp2_destroy_session_input hdcp2_destroy_session;
+	struct ta_hdcp_cmd_hdcp2_set_encryption_input hdcp2_set_encryption;
+	struct ta_hdcp_cmd_hdcp2_get_encryption_status_input hdcp2_get_encryption_status;
+	struct ta_hdcp_cmd_hdcp2_create_session_input_v2 hdcp2_create_session_v2;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2
+		hdcp2_prepare_process_authentication_message_v2;
+	struct ta_hdcp_cmd_hdcp2_enable_dp_stream_encryption_input hdcp2_enable_dp_stream_encryption;
 };
 
 /* Common output structure for HDCP callbacks */
@@ -250,6 +440,10 @@ union ta_hdcp_cmd_output {
 	struct ta_hdcp_cmd_hdcp1_first_part_authentication_output hdcp1_first_part_authentication;
 	struct ta_hdcp_cmd_hdcp1_second_part_authentication_output hdcp1_second_part_authentication;
 	struct ta_hdcp_cmd_hdcp1_get_encryption_status_output hdcp1_get_encryption_status;
+	struct ta_hdcp_cmd_hdcp2_get_encryption_status_output hdcp2_get_encryption_status;
+	struct ta_hdcp_cmd_hdcp2_create_session_output_v2 hdcp2_create_session_v2;
+	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_output_v2
+		hdcp2_prepare_process_authentication_message_v2;
 };
 /**********************************************************/
 
