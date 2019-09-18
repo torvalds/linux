@@ -4,7 +4,6 @@
  * Encryption hooks for higher-level filesystem operations.
  */
 
-#include <linux/ratelimit.h>
 #include "fscrypt_private.h"
 
 /**
