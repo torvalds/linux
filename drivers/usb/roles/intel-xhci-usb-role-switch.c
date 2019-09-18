@@ -39,6 +39,10 @@ struct intel_xhci_usb_data {
 	void __iomem *base;
 };
 
+static const struct software_node intel_xhci_usb_node = {
+	"intel-xhci-usb-sw",
+};
+
 static int intel_xhci_usb_set_role(struct device *dev, enum usb_role role)
 {
 	struct intel_xhci_usb_data *data = dev_get_drvdata(dev);
@@ -122,17 +126,13 @@ static enum usb_role intel_xhci_usb_get_role(struct device *dev)
 	return role;
 }
 
-static const struct usb_role_switch_desc sw_desc = {
-	.set = intel_xhci_usb_set_role,
-	.get = intel_xhci_usb_get_role,
-	.allow_userspace_control = true,
-};
-
 static int intel_xhci_usb_probe(struct platform_device *pdev)
 {
+	struct usb_role_switch_desc sw_desc = { };
 	struct device *dev = &pdev->dev;
 	struct intel_xhci_usb_data *data;
 	struct resource *res;
+	int ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -147,9 +147,20 @@ static int intel_xhci_usb_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
+	ret = software_node_register(&intel_xhci_usb_node);
+	if (ret)
+		return ret;
+
+	sw_desc.set = intel_xhci_usb_set_role,
+	sw_desc.get = intel_xhci_usb_get_role,
+	sw_desc.allow_userspace_control = true,
+	sw_desc.fwnode = software_node_fwnode(&intel_xhci_usb_node);
+
 	data->role_sw = usb_role_switch_register(dev, &sw_desc);
-	if (IS_ERR(data->role_sw))
+	if (IS_ERR(data->role_sw)) {
+		fwnode_handle_put(sw_desc.fwnode);
 		return PTR_ERR(data->role_sw);
+	}
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
@@ -164,6 +175,8 @@ static int intel_xhci_usb_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	usb_role_switch_unregister(data->role_sw);
+	fwnode_handle_put(software_node_fwnode(&intel_xhci_usb_node));
+
 	return 0;
 }
 
