@@ -331,4 +331,15 @@ void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
 		amdgpu_ras_late_fini(adev, ras_if, &ih_info);
 		kfree(ras_if);
 	}
+
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__XGMI_WAFL) &&
+			adev->gmc.xgmi.ras_if) {
+		struct ras_common_if *ras_if = adev->gmc.xgmi.ras_if;
+		struct ras_ih_if ih_info = {
+			.cb = NULL,
+		};
+
+		amdgpu_ras_late_fini(adev, ras_if, &ih_info);
+		kfree(ras_if);
+	}
 }
