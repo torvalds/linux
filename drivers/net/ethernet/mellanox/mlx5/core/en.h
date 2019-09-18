@@ -345,7 +345,7 @@ struct mlx5e_tx_wqe_info {
 	u8  num_wqebbs;
 	u8  num_dma;
 #ifdef CONFIG_MLX5_EN_TLS
-	skb_frag_t *resync_dump_frag;
+	struct page *resync_dump_frag_page;
 #endif
 };
 
