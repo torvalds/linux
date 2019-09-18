@@ -303,9 +303,16 @@ tx_post_resync_dump(struct mlx5e_txqsq *sq, skb_frag_t *frag, u32 tisn, bool fir
 
 void mlx5e_ktls_tx_handle_resync_dump_comp(struct mlx5e_txqsq *sq,
 					   struct mlx5e_tx_wqe_info *wi,
-					   struct mlx5e_sq_dma *dma)
+					   u32 *dma_fifo_cc)
 {
-	struct mlx5e_sq_stats *stats = sq->stats;
+	struct mlx5e_sq_stats *stats;
+	struct mlx5e_sq_dma *dma;
+
+	if (!wi->resync_dump_frag)
+		return;
+
+	dma = mlx5e_dma_get(sq, (*dma_fifo_cc)++);
+	stats = sq->stats;
 
 	mlx5e_tx_dma_unmap(sq->pdev, dma);
 	__skb_frag_unref(wi->resync_dump_frag);

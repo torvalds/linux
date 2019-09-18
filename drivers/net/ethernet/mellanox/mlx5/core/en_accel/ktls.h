@@ -86,13 +86,18 @@ struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
 					 struct mlx5e_tx_wqe **wqe, u16 *pi);
 void mlx5e_ktls_tx_handle_resync_dump_comp(struct mlx5e_txqsq *sq,
 					   struct mlx5e_tx_wqe_info *wi,
-					   struct mlx5e_sq_dma *dma);
+					   u32 *dma_fifo_cc);
 
 #else
 
 static inline void mlx5e_ktls_build_netdev(struct mlx5e_priv *priv)
 {
 }
+
+static inline void
+mlx5e_ktls_tx_handle_resync_dump_comp(struct mlx5e_txqsq *sq,
+				      struct mlx5e_tx_wqe_info *wi,
+				      u32 *dma_fifo_cc) {}
 
 #endif
 
