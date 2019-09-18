@@ -1559,7 +1559,8 @@ static int smu_enable_umd_pstate(void *handle,
 
 	struct smu_context *smu = (struct smu_context*)(handle);
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
-	if (!smu->pm_enabled || !smu_dpm_ctx->dpm_context)
+
+	if (!smu->is_apu && (!smu->pm_enabled || !smu_dpm_ctx->dpm_context))
 		return -EINVAL;
 
 	if (!(smu_dpm_ctx->dpm_level & profile_mode_mask)) {
@@ -1757,7 +1758,7 @@ enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu)
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
 	enum amd_dpm_forced_level level;
 
-	if (!smu_dpm_ctx->dpm_context)
+	if (!smu->is_apu && !smu_dpm_ctx->dpm_context)
 		return -EINVAL;
 
 	mutex_lock(&(smu->mutex));
@@ -1772,7 +1773,7 @@ int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_lev
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
 	int ret = 0;
 
-	if (!smu_dpm_ctx->dpm_context)
+	if (!smu->is_apu && !smu_dpm_ctx->dpm_context)
 		return -EINVAL;
 
 	ret = smu_enable_umd_pstate(smu, &level);

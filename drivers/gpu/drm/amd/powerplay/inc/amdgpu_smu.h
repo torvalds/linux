@@ -388,6 +388,7 @@ struct smu_context
 	uint32_t power_profile_mode;
 	uint32_t default_power_profile_mode;
 	bool pm_enabled;
+	bool is_apu;
 
 	uint32_t smc_if_version;
 

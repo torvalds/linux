@@ -319,4 +319,5 @@ void renoir_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &renoir_ppt_funcs;
 	smu->smc_if_version = SMU12_DRIVER_IF_VERSION;
+	smu->is_apu = true;
 }
