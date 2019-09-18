@@ -262,11 +262,6 @@ static struct class mdio_bus_class = {
 };
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
-/* Helper function for of_mdio_find_bus */
-static int of_mdio_bus_match(struct device *dev, const void *mdio_bus_np)
-{
-	return dev->of_node == mdio_bus_np;
-}
 /**
  * of_mdio_find_bus - Given an mii_bus node, find the mii_bus.
  * @mdio_bus_np: Pointer to the mii_bus.
@@ -287,9 +282,7 @@ struct mii_bus *of_mdio_find_bus(struct device_node *mdio_bus_np)
 	if (!mdio_bus_np)
 		return NULL;
 
-	d = class_find_device(&mdio_bus_class, NULL,  mdio_bus_np,
-			      of_mdio_bus_match);
-
+	d = class_find_device_by_of_node(&mdio_bus_class, mdio_bus_np);
 	return d ? to_mii_bus(d) : NULL;
 }
 EXPORT_SYMBOL(of_mdio_find_bus);

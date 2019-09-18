@@ -202,6 +202,4 @@ static inline void *coresight_get_uci_data(const struct amba_id *id)
 
 void coresight_release_platform_data(struct coresight_platform_data *pdata);
 
-int coresight_device_fwnode_match(struct device *dev, const void *fwnode);
-
 #endif

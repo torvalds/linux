@@ -133,19 +133,13 @@ static struct bus_type *generic_match_buses[] = {
 	NULL,
 };
 
-static int device_fwnode_match(struct device *dev, const void *fwnode)
-{
-	return dev_fwnode(dev) == fwnode;
-}
-
 static void *device_connection_fwnode_match(struct device_connection *con)
 {
 	struct bus_type *bus;
 	struct device *dev;
 
 	for (bus = generic_match_buses[0]; bus; bus++) {
-		dev = bus_find_device(bus, NULL, (void *)con->fwnode,
-				      device_fwnode_match);
+		dev = bus_find_device_by_fwnode(bus, con->fwnode);
 		if (dev && !strncmp(dev_name(dev), con->id, strlen(con->id)))
 			return dev;
 
