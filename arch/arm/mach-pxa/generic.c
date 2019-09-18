@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/soc/pxa/cpu.h>
 #include <linux/soc/pxa/smemc.h>
+#include <linux/clk/pxa.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach-types.h>
@@ -48,11 +49,11 @@ void clear_reset_status(unsigned int mask)
 void __init pxa_timer_init(void)
 {
 	if (cpu_is_pxa25x())
-		pxa25x_clocks_init();
+		pxa25x_clocks_init(io_p2v(0x41300000));
 	if (cpu_is_pxa27x())
-		pxa27x_clocks_init();
+		pxa27x_clocks_init(io_p2v(0x41300000));
 	if (cpu_is_pxa3xx())
-		pxa3xx_clocks_init();
+		pxa3xx_clocks_init(io_p2v(0x41340000), io_p2v(0x41350000));
 	pxa_timer_nodt_init(IRQ_OST0, io_p2v(0x40a00000));
 }
 

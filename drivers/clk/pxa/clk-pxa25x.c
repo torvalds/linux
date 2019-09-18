@@ -14,11 +14,11 @@
 #include <linux/clkdev.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <mach/pxa2xx-regs.h>
 #include <linux/soc/pxa/smemc.h>
 
 #include <dt-bindings/clock/pxa-clock.h>
 #include "clk-pxa.h"
+#include "clk-pxa2xx.h"
 
 #define KHz 1000
 #define MHz (1000 * 1000)
@@ -39,6 +39,7 @@ enum {
 /*
  * Various clock factors driven by the CCCR register.
  */
+static void __iomem *clk_regs;
 
 /* Crystal Frequency to Memory Frequency Multiplier (L) */
 static unsigned char L_clk_mult[32] = { 0, 27, 32, 36, 40, 45, 0, };
@@ -97,7 +98,7 @@ unsigned int pxa25x_get_clk_frequency_khz(int info)
 static unsigned long clk_pxa25x_memory_get_rate(struct clk_hw *hw,
 						unsigned long parent_rate)
 {
-	unsigned long cccr = readl(CCCR);
+	unsigned long cccr = readl(clk_regs + CCCR);
 	unsigned int m = M_clk_mult[(cccr >> 5) & 0x03];
 
 	return parent_rate / m;
@@ -201,7 +202,7 @@ MUX_OPS(clk_pxa25x_core, "core", CLK_SET_RATE_PARENT);
 static unsigned long clk_pxa25x_run_get_rate(struct clk_hw *hw,
 					     unsigned long parent_rate)
 {
-	unsigned long cccr = readl(CCCR);
+	unsigned long cccr = readl(clk_regs + CCCR);
 	unsigned int n2 = N2_clk_mult[(cccr >> 7) & 0x07];
 
 	return (parent_rate / n2) * 2;
@@ -212,7 +213,7 @@ RATE_RO_OPS(clk_pxa25x_run, "run");
 static unsigned long clk_pxa25x_cpll_get_rate(struct clk_hw *hw,
 	unsigned long parent_rate)
 {
-	unsigned long clkcfg, cccr = readl(CCCR);
+	unsigned long clkcfg, cccr = readl(clk_regs + CCCR);
 	unsigned int l, m, n2, t;
 
 	asm("mrc\tp14, 0, %0, c6, c0, 0" : "=r" (clkcfg));
@@ -244,7 +245,7 @@ static int clk_pxa25x_cpll_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (i >= ARRAY_SIZE(pxa25x_freqs))
 		return -EINVAL;
 
-	pxa2xx_cpll_change(&pxa25x_freqs[i], mdrefr_dri, CCCR);
+	pxa2xx_cpll_change(&pxa25x_freqs[i], mdrefr_dri, clk_regs + CCCR);
 
 	return 0;
 }
@@ -321,16 +322,17 @@ static void __init pxa25x_dummy_clocks_init(void)
 	}
 }
 
-int __init pxa25x_clocks_init(void)
+int __init pxa25x_clocks_init(void __iomem *regs)
 {
+	clk_regs = regs;
 	pxa25x_base_clocks_init();
 	pxa25x_dummy_clocks_init();
-	return clk_pxa_cken_init(pxa25x_clocks, ARRAY_SIZE(pxa25x_clocks));
+	return clk_pxa_cken_init(pxa25x_clocks, ARRAY_SIZE(pxa25x_clocks), clk_regs);
 }
 
 static void __init pxa25x_dt_clocks_init(struct device_node *np)
 {
-	pxa25x_clocks_init();
+	pxa25x_clocks_init(ioremap(0x41300000ul, 0x10));
 	clk_pxa_dt_common_init(np);
 }
 CLK_OF_DECLARE(pxa25x_clks, "marvell,pxa250-core-clocks",
