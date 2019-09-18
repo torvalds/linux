@@ -153,8 +153,8 @@ static int mt7615_set_channel(struct mt7615_dev *dev)
 	ret = mt7615_dfs_init_radar_detector(dev);
 	mt7615_mac_cca_stats_reset(dev);
 	dev->mt76.survey_time = ktime_get_boottime();
-	/* TODO: add DBDC support */
-	mt76_rr(dev, MT_MIB_SDR16(0));
+
+	mt7615_mac_reset_counters(dev);
 
 out:
 	clear_bit(MT76_RESET, &dev->mt76.state);

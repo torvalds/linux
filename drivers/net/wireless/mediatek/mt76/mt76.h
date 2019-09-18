@@ -322,6 +322,7 @@ struct mt76_driver_ops {
 struct mt76_channel_state {
 	u64 cc_active;
 	u64 cc_busy;
+	u64 cc_rx;
 	u64 cc_bss_rx;
 	u64 cc_tx;
 };

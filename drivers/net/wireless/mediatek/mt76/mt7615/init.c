@@ -96,6 +96,8 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 	      FIELD_PREP(MT_DMA_RCFR0_RX_DROPPED_MCAST, 2);
 	mt76_rmw(dev, MT_DMA_BN0RCFR0, mask, set);
 	mt76_rmw(dev, MT_DMA_BN1RCFR0, mask, set);
+
+	mt76_set(dev, MT_WF_RMAC_MIB_TIME0, MT_WF_RMAC_MIB_RXTIME_EN);
 }
 
 static int mt7615_init_hardware(struct mt7615_dev *dev)
