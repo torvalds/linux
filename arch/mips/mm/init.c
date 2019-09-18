@@ -446,6 +446,12 @@ static inline void __init mem_init_free_highmem(void)
 
 void __init mem_init(void)
 {
+	/*
+	 * When _PFN_SHIFT is greater than PAGE_SHIFT we won't have enough PTE
+	 * bits to hold a full 32b physical address on MIPS32 systems.
+	 */
+	BUILD_BUG_ON(IS_ENABLED(CONFIG_32BIT) && (_PFN_SHIFT > PAGE_SHIFT));
+
 #ifdef CONFIG_HIGHMEM
 #ifdef CONFIG_DISCONTIGMEM
 #error "CONFIG_HIGHMEM and CONFIG_DISCONTIGMEM dont work together yet"
