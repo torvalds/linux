@@ -1108,7 +1108,7 @@ struct drm_crtc {
 	/**
 	 * @self_refresh_data: Holds the state for the self refresh helpers
 	 *
-	 * Initialized via drm_self_refresh_helper_register().
+	 * Initialized via drm_self_refresh_helper_init().
 	 */
 	struct drm_self_refresh_data *self_refresh_data;
 };

@@ -53,7 +53,6 @@
 struct drm_self_refresh_data {
 	struct drm_crtc *crtc;
 	struct delayed_work entry_work;
-	struct drm_atomic_state *save_state;
 	unsigned int entry_delay_ms;
 };
 
