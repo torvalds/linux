@@ -180,6 +180,7 @@ struct safexcel_result_desc *safexcel_add_rdesc(struct safexcel_crypto_priv *pri
 
 	rdesc->first_seg = first;
 	rdesc->last_seg = last;
+	rdesc->result_size = EIP197_RD64_RESULT_SIZE;
 	rdesc->particle_size = len;
 	rdesc->data_lo = lower_32_bits(data);
 	rdesc->data_hi = upper_32_bits(data);

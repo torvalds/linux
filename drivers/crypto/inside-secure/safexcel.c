@@ -484,6 +484,14 @@ static int safexcel_hw_setup_cdesc_rings(struct safexcel_crypto_priv *priv)
 		cd_fetch_cnt = ((1 << priv->hwconfig.hwcfsize) /
 				cd_size_rnd) - 1;
 	}
+	/*
+	 * Since we're using command desc's way larger than formally specified,
+	 * we need to check whether we can fit even 1 for low-end EIP196's!
+	 */
+	if (!cd_fetch_cnt) {
+		dev_err(priv->dev, "Unable to fit even 1 command desc!\n");
+		return -ENODEV;
+	}
 
 	for (i = 0; i < priv->config.rings; i++) {
 		/* ring base address */
@@ -608,8 +616,8 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		writel(EIP197_DxE_THR_CTRL_RESET_PE,
 		       EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL(pe));
 
-		if (priv->flags & SAFEXCEL_HW_EIP197)
-			/* Reset HIA input interface arbiter (EIP197 only) */
+		if (priv->flags & EIP197_PE_ARB)
+			/* Reset HIA input interface arbiter (if present) */
 			writel(EIP197_HIA_RA_PE_CTRL_RESET,
 			       EIP197_HIA_AIC(priv) + EIP197_HIA_RA_PE_CTRL(pe));
 
@@ -756,22 +764,28 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	/* Clear any HIA interrupt */
 	writel(GENMASK(30, 20), EIP197_HIA_AIC_G(priv) + EIP197_HIA_AIC_G_ACK);
 
-	if (priv->flags & SAFEXCEL_HW_EIP197) {
+	if (priv->flags & EIP197_SIMPLE_TRC) {
+		writel(EIP197_STRC_CONFIG_INIT |
+		       EIP197_STRC_CONFIG_LARGE_REC(EIP197_CS_TRC_REC_WC) |
+		       EIP197_STRC_CONFIG_SMALL_REC(EIP197_CS_TRC_REC_WC),
+		       priv->base + EIP197_STRC_CONFIG);
+		writel(EIP197_PE_EIP96_TOKEN_CTRL2_CTX_DONE,
+		       EIP197_PE(priv) + EIP197_PE_EIP96_TOKEN_CTRL2(0));
+	} else if (priv->flags & SAFEXCEL_HW_EIP197) {
 		ret = eip197_trc_cache_init(priv);
 		if (ret)
 			return ret;
+	}
 
-		priv->flags |= EIP197_TRC_CACHE;
-
+	if (priv->flags & EIP197_ICE) {
 		ret = eip197_load_firmwares(priv);
 		if (ret)
 			return ret;
 	}
 
-	safexcel_hw_setup_cdesc_rings(priv);
-	safexcel_hw_setup_rdesc_rings(priv);
-
-	return 0;
+	return safexcel_hw_setup_cdesc_rings(priv) ?:
+	       safexcel_hw_setup_rdesc_rings(priv) ?:
+	       0;
 }
 
 /* Called with ring's lock taken */
@@ -1371,7 +1385,7 @@ static int safexcel_probe_generic(void *pdev,
 				  int is_pci_dev)
 {
 	struct device *dev = priv->dev;
-	u32 peid, version, mask, val, hiaopt;
+	u32 peid, version, mask, val, hiaopt, hwopt, peopt;
 	int i, ret, hwctg;
 
 	priv->context_pool = dmam_pool_create("safexcel-context", dev,
@@ -1433,19 +1447,30 @@ static int safexcel_probe_generic(void *pdev,
 	 */
 	version = readl(EIP197_GLOBAL(priv) + EIP197_VERSION);
 	if (((priv->flags & SAFEXCEL_HW_EIP197) &&
-	     (EIP197_REG_LO16(version) != EIP197_VERSION_LE)) ||
+	     (EIP197_REG_LO16(version) != EIP197_VERSION_LE) &&
+	     (EIP197_REG_LO16(version) != EIP196_VERSION_LE)) ||
 	    ((!(priv->flags & SAFEXCEL_HW_EIP197) &&
 	     (EIP197_REG_LO16(version) != EIP97_VERSION_LE)))) {
 		/*
 		 * We did not find the device that matched our initial probing
 		 * (or our initial probing failed) Report appropriate error.
 		 */
+		dev_err(priv->dev, "Probing for EIP97/EIP19x failed - no such device (read %08x)\n",
+			version);
 		return -ENODEV;
 	}
 
 	priv->hwconfig.hwver = EIP197_VERSION_MASK(version);
 	hwctg = version >> 28;
 	peid = version & 255;
+
+	/* Detect EIP206 processing pipe */
+	version = readl(EIP197_PE(priv) + + EIP197_PE_VERSION(0));
+	if (EIP197_REG_LO16(version) != EIP206_VERSION_LE) {
+		dev_err(priv->dev, "EIP%d: EIP206 not detected\n", peid);
+		return -ENODEV;
+	}
+	priv->hwconfig.ppver = EIP197_VERSION_MASK(version);
 
 	/* Detect EIP96 packet engine and version */
 	version = readl(EIP197_PE(priv) + EIP197_PE_EIP96_VERSION(0));
@@ -1455,10 +1480,13 @@ static int safexcel_probe_generic(void *pdev,
 	}
 	priv->hwconfig.pever = EIP197_VERSION_MASK(version);
 
+	hwopt = readl(EIP197_GLOBAL(priv) + EIP197_OPTIONS);
 	hiaopt = readl(EIP197_HIA_AIC(priv) + EIP197_HIA_OPTIONS);
 
 	if (priv->flags & SAFEXCEL_HW_EIP197) {
 		/* EIP197 */
+		peopt = readl(EIP197_PE(priv) + EIP197_PE_OPTIONS(0));
+
 		priv->hwconfig.hwdataw  = (hiaopt >> EIP197_HWDATAW_OFFSET) &
 					  EIP197_HWDATAW_MASK;
 		priv->hwconfig.hwcfsize = ((hiaopt >> EIP197_CFSIZE_OFFSET) &
@@ -1471,6 +1499,15 @@ static int safexcel_probe_generic(void *pdev,
 					  EIP197_N_PES_MASK;
 		priv->hwconfig.hwnumrings = (hiaopt >> EIP197_N_RINGS_OFFSET) &
 					    EIP197_N_RINGS_MASK;
+		if (hiaopt & EIP197_HIA_OPT_HAS_PE_ARB)
+			priv->flags |= EIP197_PE_ARB;
+		if (EIP206_OPT_ICE_TYPE(peopt) == 1)
+			priv->flags |= EIP197_ICE;
+		/* If not a full TRC, then assume simple TRC */
+		if (!(hwopt & EIP197_OPT_HAS_TRC))
+			priv->flags |= EIP197_SIMPLE_TRC;
+		/* EIP197 always has SOME form of TRC */
+		priv->flags |= EIP197_TRC_CACHE;
 	} else {
 		/* EIP97 */
 		priv->hwconfig.hwdataw  = (hiaopt >> EIP197_HWDATAW_OFFSET) &
@@ -1492,18 +1529,24 @@ static int safexcel_probe_generic(void *pdev,
 			break;
 	}
 	priv->hwconfig.hwnumraic = i;
+	/* Low-end EIP196 may not have any ring AIC's ... */
+	if (!priv->hwconfig.hwnumraic) {
+		dev_err(priv->dev, "No ring interrupt controller present!\n");
+		return -ENODEV;
+	}
 
 	/* Get supported algorithms from EIP96 transform engine */
 	priv->hwconfig.algo_flags = readl(EIP197_PE(priv) +
 				    EIP197_PE_EIP96_OPTIONS(0));
 
 	/* Print single info line describing what we just detected */
-	dev_info(priv->dev, "EIP%d:%x(%d,%d,%d,%d)-HIA:%x(%d,%d,%d),PE:%x,alg:%08x\n",
+	dev_info(priv->dev, "EIP%d:%x(%d,%d,%d,%d)-HIA:%x(%d,%d,%d),PE:%x/%x,alg:%08x\n",
 		 peid, priv->hwconfig.hwver, hwctg, priv->hwconfig.hwnumpes,
 		 priv->hwconfig.hwnumrings, priv->hwconfig.hwnumraic,
 		 priv->hwconfig.hiaver, priv->hwconfig.hwdataw,
 		 priv->hwconfig.hwcfsize, priv->hwconfig.hwrfsize,
-		 priv->hwconfig.pever, priv->hwconfig.algo_flags);
+		 priv->hwconfig.ppver, priv->hwconfig.pever,
+		 priv->hwconfig.algo_flags);
 
 	safexcel_configure(priv);
 

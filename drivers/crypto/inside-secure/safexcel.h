@@ -17,15 +17,26 @@
 #define EIP197_HIA_VERSION_BE			0xca35
 #define EIP197_HIA_VERSION_LE			0x35ca
 #define EIP97_VERSION_LE			0x9e61
+#define EIP196_VERSION_LE			0x3bc4
 #define EIP197_VERSION_LE			0x3ac5
 #define EIP96_VERSION_LE			0x9f60
 #define EIP201_VERSION_LE			0x36c9
+#define EIP206_VERSION_LE			0x31ce
 #define EIP197_REG_LO16(reg)			(reg & 0xffff)
 #define EIP197_REG_HI16(reg)			((reg >> 16) & 0xffff)
 #define EIP197_VERSION_MASK(reg)		((reg >> 16) & 0xfff)
 #define EIP197_VERSION_SWAP(reg)		(((reg & 0xf0) << 4) | \
 						((reg >> 4) & 0xf0) | \
 						((reg >> 12) & 0xf))
+
+/* EIP197 HIA OPTIONS ENCODING */
+#define EIP197_HIA_OPT_HAS_PE_ARB		BIT(29)
+
+/* EIP206 OPTIONS ENCODING */
+#define EIP206_OPT_ICE_TYPE(n)			((n>>8)&3)
+
+/* EIP197 OPTIONS ENCODING */
+#define EIP197_OPT_HAS_TRC			BIT(31)
 
 /* Static configuration */
 #define EIP197_DEFAULT_RING_SIZE		400
@@ -160,12 +171,16 @@
 #define EIP197_PE_EIP96_FUNCTION_EN(n)		(0x1004 + (0x2000 * (n)))
 #define EIP197_PE_EIP96_CONTEXT_CTRL(n)		(0x1008 + (0x2000 * (n)))
 #define EIP197_PE_EIP96_CONTEXT_STAT(n)		(0x100c + (0x2000 * (n)))
+#define EIP197_PE_EIP96_TOKEN_CTRL2(n)		(0x102c + (0x2000 * (n)))
 #define EIP197_PE_EIP96_FUNCTION2_EN(n)		(0x1030 + (0x2000 * (n)))
 #define EIP197_PE_EIP96_OPTIONS(n)		(0x13f8 + (0x2000 * (n)))
 #define EIP197_PE_EIP96_VERSION(n)		(0x13fc + (0x2000 * (n)))
 #define EIP197_PE_OUT_DBUF_THRES(n)		(0x1c00 + (0x2000 * (n)))
 #define EIP197_PE_OUT_TBUF_THRES(n)		(0x1d00 + (0x2000 * (n)))
+#define EIP197_PE_OPTIONS(n)			(0x1ff8 + (0x2000 * (n)))
+#define EIP197_PE_VERSION(n)			(0x1ffc + (0x2000 * (n)))
 #define EIP197_MST_CTRL				0xfff4
+#define EIP197_OPTIONS				0xfff8
 #define EIP197_VERSION				0xfffc
 
 /* EIP197-specific registers, no indirection */
@@ -181,6 +196,7 @@
 #define EIP197_TRC_ECCADMINSTAT			0xf0838
 #define EIP197_TRC_ECCDATASTAT			0xf083c
 #define EIP197_TRC_ECCDATA			0xf0840
+#define EIP197_STRC_CONFIG			0xf43f0
 #define EIP197_FLUE_CACHEBASE_LO(n)		(0xf6000 + (32 * (n)))
 #define EIP197_FLUE_CACHEBASE_HI(n)		(0xf6004 + (32 * (n)))
 #define EIP197_FLUE_CONFIG(n)			(0xf6010 + (32 * (n)))
@@ -331,6 +347,14 @@
 #define EIP197_ADDRESS_MODE			BIT(8)
 #define EIP197_CONTROL_MODE			BIT(9)
 
+/* EIP197_PE_EIP96_TOKEN_CTRL2 */
+#define EIP197_PE_EIP96_TOKEN_CTRL2_CTX_DONE	BIT(3)
+
+/* EIP197_STRC_CONFIG */
+#define EIP197_STRC_CONFIG_INIT			BIT(31)
+#define EIP197_STRC_CONFIG_LARGE_REC(s)		(s<<8)
+#define EIP197_STRC_CONFIG_SMALL_REC(s)		(s<<0)
+
 /* EIP197_FLUE_CONFIG */
 #define EIP197_FLUE_CONFIG_MAGIC		0xc7000004
 
@@ -472,7 +496,7 @@ struct result_data_desc {
 	u16 application_id;
 	u16 rsvd1;
 
-	u32 rsvd2;
+	u32 rsvd2[5];
 } __packed;
 
 
@@ -731,12 +755,16 @@ struct safexcel_register_offsets {
 enum safexcel_flags {
 	EIP197_TRC_CACHE	= BIT(0),
 	SAFEXCEL_HW_EIP197	= BIT(1),
+	EIP197_PE_ARB		= BIT(2),
+	EIP197_ICE		= BIT(3),
+	EIP197_SIMPLE_TRC	= BIT(4),
 };
 
 struct safexcel_hwconfig {
 	enum safexcel_eip_algorithms algo_flags;
 	int hwver;
 	int hiaver;
+	int ppver;
 	int pever;
 	int hwdataw;
 	int hwcfsize;
