@@ -569,9 +569,9 @@ static int autofs_dir_symlink(struct inode *dir,
 	d_add(dentry, inode);
 
 	dget(dentry);
-	atomic_inc(&ino->count);
+	ino->count++;
 	p_ino = autofs_dentry_ino(dentry->d_parent);
-	atomic_inc(&p_ino->count);
+	p_ino->count++;
 
 	dir->i_mtime = current_time(dir);
 
@@ -609,9 +609,9 @@ static int autofs_dir_unlink(struct inode *dir, struct dentry *dentry)
 	if (sbi->flags & AUTOFS_SBI_CATATONIC)
 		return -EACCES;
 
-	atomic_dec(&ino->count);
+	ino->count--;
 	p_ino = autofs_dentry_ino(dentry->d_parent);
-	atomic_dec(&p_ino->count);
+	p_ino->count--;
 	dput(ino->dentry);
 
 	d_inode(dentry)->i_size = 0;
@@ -669,7 +669,7 @@ static void autofs_clear_leaf_automount_flags(struct dentry *dentry)
 	/* only consider parents below dentrys in the root */
 	if (IS_ROOT(parent->d_parent))
 		return;
-	if (atomic_read(&autofs_dentry_ino(parent)->count) == 2)
+	if (autofs_dentry_ino(parent)->count == 2)
 		managed_dentry_set_managed(parent);
 }
 
@@ -691,7 +691,7 @@ static int autofs_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	if (sbi->flags & AUTOFS_SBI_CATATONIC)
 		return -EACCES;
 
-	if (atomic_read(&ino->count) != 1)
+	if (ino->count != 1)
 		return -ENOTEMPTY;
 
 	spin_lock(&sbi->lookup_lock);
@@ -702,9 +702,9 @@ static int autofs_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	if (sbi->version < 5)
 		autofs_clear_leaf_automount_flags(dentry);
 
-	atomic_dec(&ino->count);
+	ino->count--;
 	p_ino = autofs_dentry_ino(dentry->d_parent);
-	atomic_dec(&p_ino->count);
+	p_ino->count--;
 	dput(ino->dentry);
 	d_inode(dentry)->i_size = 0;
 	clear_nlink(d_inode(dentry));
@@ -750,9 +750,9 @@ static int autofs_dir_mkdir(struct inode *dir,
 		autofs_set_leaf_automount_flags(dentry);
 
 	dget(dentry);
-	atomic_inc(&ino->count);
+	ino->count++;
 	p_ino = autofs_dentry_ino(dentry->d_parent);
-	atomic_inc(&p_ino->count);
+	p_ino->count++;
 	inc_nlink(dir);
 	dir->i_mtime = current_time(dir);
 
