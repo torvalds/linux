@@ -34,6 +34,6 @@ struct amdgpu_mmhub {
 };
 
 int amdgpu_mmhub_ras_late_init(struct amdgpu_device *adev);
-
+void amdgpu_mmhub_ras_fini(struct amdgpu_device *adev);
 #endif
 

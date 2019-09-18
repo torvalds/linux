@@ -54,3 +54,17 @@ int amdgpu_mmhub_ras_late_init(struct amdgpu_device *adev)
 
 	return r;
 }
+
+void amdgpu_mmhub_ras_fini(struct amdgpu_device *adev)
+{
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__MMHUB) &&
+			adev->mmhub.ras_if) {
+		struct ras_common_if *ras_if = adev->mmhub.ras_if;
+		struct ras_ih_if ih_info = {
+			.cb = NULL,
+		};
+
+		amdgpu_ras_late_fini(adev, ras_if, &ih_info);
+		kfree(ras_if);
+	}
+}
