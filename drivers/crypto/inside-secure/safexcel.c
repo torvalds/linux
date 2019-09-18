@@ -492,12 +492,12 @@ static int safexcel_hw_setup_cdesc_rings(struct safexcel_crypto_priv *priv)
 		writel(upper_32_bits(priv->ring[i].cdr.base_dma),
 		       EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_RING_BASE_ADDR_HI);
 
-		writel(EIP197_xDR_DESC_MODE_64BIT | (priv->config.cd_offset << 16) |
+		writel(EIP197_xDR_DESC_MODE_64BIT | (priv->config.cd_offset << 14) |
 		       priv->config.cd_size,
 		       EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_DESC_SIZE);
 		writel(((cd_fetch_cnt *
 			 (cd_size_rnd << priv->hwconfig.hwdataw)) << 16) |
-		       (cd_fetch_cnt * priv->config.cd_offset),
+		       (cd_fetch_cnt * (priv->config.cd_offset / sizeof(u32))),
 		       EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_CFG);
 
 		/* Configure DMA tx control */
@@ -540,13 +540,13 @@ static int safexcel_hw_setup_rdesc_rings(struct safexcel_crypto_priv *priv)
 		writel(upper_32_bits(priv->ring[i].rdr.base_dma),
 		       EIP197_HIA_RDR(priv, i) + EIP197_HIA_xDR_RING_BASE_ADDR_HI);
 
-		writel(EIP197_xDR_DESC_MODE_64BIT | (priv->config.rd_offset << 16) |
+		writel(EIP197_xDR_DESC_MODE_64BIT | (priv->config.rd_offset << 14) |
 		       priv->config.rd_size,
 		       EIP197_HIA_RDR(priv, i) + EIP197_HIA_xDR_DESC_SIZE);
 
 		writel(((rd_fetch_cnt *
 			 (rd_size_rnd << priv->hwconfig.hwdataw)) << 16) |
-		       (rd_fetch_cnt * priv->config.rd_offset),
+		       (rd_fetch_cnt * (priv->config.rd_offset / sizeof(u32))),
 		       EIP197_HIA_RDR(priv, i) + EIP197_HIA_xDR_CFG);
 
 		/* Configure DMA tx control */
@@ -572,7 +572,7 @@ static int safexcel_hw_setup_rdesc_rings(struct safexcel_crypto_priv *priv)
 static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 {
 	u32 val;
-	int i, ret, pe;
+	int i, ret, pe, opbuflo, opbufhi;
 
 	dev_dbg(priv->dev, "HW init: using %d pipe(s) and %d ring(s)\n",
 		priv->config.pes, priv->config.rings);
@@ -652,9 +652,16 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 			;
 
 		/* DMA transfer size to use */
+		if (priv->hwconfig.hwnumpes > 4) {
+			opbuflo = 9;
+			opbufhi = 10;
+		} else {
+			opbuflo = 7;
+			opbufhi = 8;
+		}
 		val = EIP197_HIA_DSE_CFG_DIS_DEBUG;
-		val |= EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(7) |
-		       EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(8);
+		val |= EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(opbuflo) |
+		       EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(opbufhi);
 		val |= EIP197_HIA_DxE_CFG_DATA_CACHE_CTRL(WR_CACHE_3BITS);
 		val |= EIP197_HIA_DSE_CFG_ALWAYS_BUFFERABLE;
 		/* FIXME: instability issues can occur for EIP97 but disabling
@@ -668,8 +675,8 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		writel(0, EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_CTRL(pe));
 
 		/* Configure the procesing engine thresholds */
-		writel(EIP197_PE_OUT_DBUF_THRES_MIN(7) |
-		       EIP197_PE_OUT_DBUF_THRES_MAX(8),
+		writel(EIP197_PE_OUT_DBUF_THRES_MIN(opbuflo) |
+		       EIP197_PE_OUT_DBUF_THRES_MAX(opbufhi),
 		       EIP197_PE(priv) + EIP197_PE_OUT_DBUF_THRES(pe));
 
 		/* Processing Engine configuration */
@@ -709,7 +716,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		writel(0,
 		       EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_PROC_PNTR);
 
-		writel((EIP197_DEFAULT_RING_SIZE * priv->config.cd_offset) << 2,
+		writel((EIP197_DEFAULT_RING_SIZE * priv->config.cd_offset),
 		       EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_RING_SIZE);
 	}
 
@@ -732,7 +739,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		       EIP197_HIA_RDR(priv, i) + EIP197_HIA_xDR_PROC_PNTR);
 
 		/* Ring size */
-		writel((EIP197_DEFAULT_RING_SIZE * priv->config.rd_offset) << 2,
+		writel((EIP197_DEFAULT_RING_SIZE * priv->config.rd_offset),
 		       EIP197_HIA_RDR(priv, i) + EIP197_HIA_xDR_RING_SIZE);
 	}
 
@@ -852,20 +859,24 @@ finalize:
 	spin_unlock_bh(&priv->ring[ring].lock);
 
 	/* let the RDR know we have pending descriptors */
-	writel((rdesc * priv->config.rd_offset) << 2,
+	writel((rdesc * priv->config.rd_offset),
 	       EIP197_HIA_RDR(priv, ring) + EIP197_HIA_xDR_PREP_COUNT);
 
 	/* let the CDR know we have pending descriptors */
-	writel((cdesc * priv->config.cd_offset) << 2,
+	writel((cdesc * priv->config.cd_offset),
 	       EIP197_HIA_CDR(priv, ring) + EIP197_HIA_xDR_PREP_COUNT);
 }
 
 inline int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
-				       struct safexcel_result_desc *rdesc)
+				       void *rdp)
 {
-	if (likely((!rdesc->descriptor_overflow) &&
-		   (!rdesc->buffer_overflow) &&
-		   (!rdesc->result_data.error_code)))
+	struct safexcel_result_desc *rdesc = rdp;
+	struct result_data_desc *result_data = rdp + priv->config.res_offset;
+
+	if (likely((!rdesc->last_seg) || /* Rest only valid if last seg! */
+		   ((!rdesc->descriptor_overflow) &&
+		    (!rdesc->buffer_overflow) &&
+		    (!result_data->error_code))))
 		return 0;
 
 	if (rdesc->descriptor_overflow)
@@ -874,13 +885,14 @@ inline int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
 	if (rdesc->buffer_overflow)
 		dev_err(priv->dev, "Buffer overflow detected");
 
-	if (rdesc->result_data.error_code & 0x4066) {
+	if (result_data->error_code & 0x4066) {
 		/* Fatal error (bits 1,2,5,6 & 14) */
 		dev_err(priv->dev,
 			"result descriptor error (%x)",
-			rdesc->result_data.error_code);
+			result_data->error_code);
+
 		return -EIO;
-	} else if (rdesc->result_data.error_code &
+	} else if (result_data->error_code &
 		   (BIT(7) | BIT(4) | BIT(3) | BIT(0))) {
 		/*
 		 * Give priority over authentication fails:
@@ -888,7 +900,7 @@ inline int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
 		 * something wrong with the input!
 		 */
 		return -EINVAL;
-	} else if (rdesc->result_data.error_code & BIT(9)) {
+	} else if (result_data->error_code & BIT(9)) {
 		/* Authentication failed */
 		return -EBADMSG;
 	}
@@ -1019,7 +1031,7 @@ handle_results:
 acknowledge:
 	if (i)
 		writel(EIP197_xDR_PROC_xD_PKT(i) |
-		       EIP197_xDR_PROC_xD_COUNT(tot_descs * priv->config.rd_offset),
+		       (tot_descs * priv->config.rd_offset),
 		       EIP197_HIA_RDR(priv, ring) + EIP197_HIA_xDR_PROC_COUNT);
 
 	/* If the number of requests overflowed the counter, try to proceed more
@@ -1292,30 +1304,25 @@ static void safexcel_unregister_algorithms(struct safexcel_crypto_priv *priv)
 
 static void safexcel_configure(struct safexcel_crypto_priv *priv)
 {
-	u32 val, mask = 0;
+	u32 mask = BIT(priv->hwconfig.hwdataw) - 1;
 
-	val = readl(EIP197_HIA_AIC_G(priv) + EIP197_HIA_OPTIONS);
+	priv->config.pes = priv->hwconfig.hwnumpes;
+	priv->config.rings = min_t(u32, priv->hwconfig.hwnumrings, max_rings);
 
-	/* Read number of PEs from the engine */
-	if (priv->flags & SAFEXCEL_HW_EIP197)
-		/* Wider field width for all EIP197 type engines */
-		mask = EIP197_N_PES_MASK;
-	else
-		/* Narrow field width for EIP97 type engine */
-		mask = EIP97_N_PES_MASK;
-
-	priv->config.pes = (val >> EIP197_N_PES_OFFSET) & mask;
-
-	priv->config.rings = min_t(u32, val & GENMASK(3, 0), max_rings);
-
-	val = (val & GENMASK(27, 25)) >> 25;
-	mask = BIT(val) - 1;
-
-	priv->config.cd_size = (sizeof(struct safexcel_command_desc) / sizeof(u32));
+	priv->config.cd_size = EIP197_CD64_FETCH_SIZE;
 	priv->config.cd_offset = (priv->config.cd_size + mask) & ~mask;
 
-	priv->config.rd_size = (sizeof(struct safexcel_result_desc) / sizeof(u32));
+	/* res token is behind the descr, but ofs must be rounded to buswdth */
+	priv->config.res_offset = (EIP197_RD64_FETCH_SIZE + mask) & ~mask;
+	/* now the size of the descr is this 1st part plus the result struct */
+	priv->config.rd_size    = priv->config.res_offset +
+				  EIP197_RD64_RESULT_SIZE;
 	priv->config.rd_offset = (priv->config.rd_size + mask) & ~mask;
+
+	/* convert dwords to bytes */
+	priv->config.cd_offset *= sizeof(u32);
+	priv->config.rd_offset *= sizeof(u32);
+	priv->config.res_offset *= sizeof(u32);
 }
 
 static void safexcel_init_register_offsets(struct safexcel_crypto_priv *priv)
@@ -1457,6 +1464,10 @@ static int safexcel_probe_generic(void *pdev,
 		priv->hwconfig.hwrfsize = ((hiaopt >> EIP197_RFSIZE_OFFSET) &
 					   EIP197_RFSIZE_MASK) +
 					  EIP197_RFSIZE_ADJUST;
+		priv->hwconfig.hwnumpes	= (hiaopt >> EIP197_N_PES_OFFSET) &
+					  EIP197_N_PES_MASK;
+		priv->hwconfig.hwnumrings = (hiaopt >> EIP197_N_RINGS_OFFSET) &
+					    EIP197_N_RINGS_MASK;
 	} else {
 		/* EIP97 */
 		priv->hwconfig.hwdataw  = (hiaopt >> EIP197_HWDATAW_OFFSET) &
@@ -1465,6 +1476,9 @@ static int safexcel_probe_generic(void *pdev,
 					  EIP97_CFSIZE_MASK;
 		priv->hwconfig.hwrfsize = (hiaopt >> EIP97_RFSIZE_OFFSET) &
 					  EIP97_RFSIZE_MASK;
+		priv->hwconfig.hwnumpes	= 1; /* by definition */
+		priv->hwconfig.hwnumrings = (hiaopt >> EIP197_N_RINGS_OFFSET) &
+					    EIP197_N_RINGS_MASK;
 	}
 
 	/* Get supported algorithms from EIP96 transform engine */
@@ -1472,8 +1486,9 @@ static int safexcel_probe_generic(void *pdev,
 				    EIP197_PE_EIP96_OPTIONS(0));
 
 	/* Print single info line describing what we just detected */
-	dev_info(priv->dev, "EIP%d:%x(%d)-HIA:%x(%d,%d,%d),PE:%x,alg:%08x\n",
-		 peid, priv->hwconfig.hwver, hwctg, priv->hwconfig.hiaver,
+	dev_info(priv->dev, "EIP%d:%x(%d,%d,%d,%d)-HIA:%x(%d,%d,%d),PE:%x,alg:%08x\n",
+		 peid, priv->hwconfig.hwver, hwctg, priv->hwconfig.hwnumpes,
+		 priv->hwconfig.hwnumrings, priv->hwconfig.hiaver,
 		 priv->hwconfig.hwdataw, priv->hwconfig.hwcfsize,
 		 priv->hwconfig.hwrfsize, priv->hwconfig.pever,
 		 priv->hwconfig.algo_flags);

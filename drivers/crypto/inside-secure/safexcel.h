@@ -213,7 +213,6 @@
 /* EIP197_HIA_xDR_PROC_COUNT */
 #define EIP197_xDR_PROC_xD_PKT_OFFSET		24
 #define EIP197_xDR_PROC_xD_PKT_MASK		GENMASK(6, 0)
-#define EIP197_xDR_PROC_xD_COUNT(n)		((n) << 2)
 #define EIP197_xDR_PROC_xD_PKT(n)		((n) << 24)
 #define EIP197_xDR_PROC_CLR_COUNT		BIT(31)
 
@@ -228,6 +227,8 @@
 #define EIP197_HIA_RA_PE_CTRL_EN		BIT(30)
 
 /* EIP197_HIA_OPTIONS */
+#define EIP197_N_RINGS_OFFSET			0
+#define EIP197_N_RINGS_MASK			GENMASK(3, 0)
 #define EIP197_N_PES_OFFSET			4
 #define EIP197_N_PES_MASK			GENMASK(4, 0)
 #define EIP97_N_PES_MASK			GENMASK(2, 0)
@@ -486,16 +487,15 @@ struct safexcel_result_desc {
 
 	u32 data_lo;
 	u32 data_hi;
-
-	struct result_data_desc result_data;
 } __packed;
 
 /*
  * The EIP(1)97 only needs to fetch the descriptor part of
  * the result descriptor, not the result token part!
  */
-#define EIP197_RD64_FETCH_SIZE		((sizeof(struct safexcel_result_desc) -\
-					  sizeof(struct result_data_desc)) /\
+#define EIP197_RD64_FETCH_SIZE		(sizeof(struct safexcel_result_desc) /\
+					 sizeof(u32))
+#define EIP197_RD64_RESULT_SIZE		(sizeof(struct result_data_desc) /\
 					 sizeof(u32))
 
 struct safexcel_token {
@@ -582,6 +582,9 @@ struct safexcel_command_desc {
 	struct safexcel_control_data_desc control_data;
 } __packed;
 
+#define EIP197_CD64_FETCH_SIZE		(sizeof(struct safexcel_command_desc) /\
+					sizeof(u32))
+
 /*
  * Internal structures & functions
  */
@@ -625,6 +628,7 @@ struct safexcel_config {
 
 	u32 rd_size;
 	u32 rd_offset;
+	u32 res_offset;
 };
 
 struct safexcel_work_data {
@@ -734,6 +738,8 @@ struct safexcel_hwconfig {
 	int hwdataw;
 	int hwcfsize;
 	int hwrfsize;
+	int hwnumpes;
+	int hwnumrings;
 };
 
 struct safexcel_crypto_priv {
@@ -805,7 +811,7 @@ struct safexcel_inv_result {
 
 void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring);
 int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
-				struct safexcel_result_desc *rdesc);
+				void *rdp);
 void safexcel_complete(struct safexcel_crypto_priv *priv, int ring);
 int safexcel_invalidate_cache(struct crypto_async_request *async,
 			      struct safexcel_crypto_priv *priv,
