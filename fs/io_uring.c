@@ -2364,12 +2364,15 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, struct sqe_submit *sqes,
 		if (link && (sqes[i].sqe->flags & IOSQE_IO_DRAIN)) {
 			if (!shadow_req) {
 				shadow_req = io_get_req(ctx, NULL);
+				if (unlikely(!shadow_req))
+					goto out;
 				shadow_req->flags |= (REQ_F_IO_DRAIN | REQ_F_SHADOW_DRAIN);
 				refcount_dec(&shadow_req->refs);
 			}
 			shadow_req->sequence = sqes[i].sequence;
 		}
 
+out:
 		if (unlikely(mm_fault)) {
 			io_cqring_add_event(ctx, sqes[i].sqe->user_data,
 						-EFAULT);
@@ -2551,12 +2554,15 @@ static int io_ring_submit(struct io_ring_ctx *ctx, unsigned int to_submit,
 		if (link && (s.sqe->flags & IOSQE_IO_DRAIN)) {
 			if (!shadow_req) {
 				shadow_req = io_get_req(ctx, NULL);
+				if (unlikely(!shadow_req))
+					goto out;
 				shadow_req->flags |= (REQ_F_IO_DRAIN | REQ_F_SHADOW_DRAIN);
 				refcount_dec(&shadow_req->refs);
 			}
 			shadow_req->sequence = s.sequence;
 		}
 
+out:
 		s.has_user = true;
 		s.needs_lock = false;
 		s.needs_fixed_file = false;
