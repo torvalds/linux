@@ -2357,6 +2357,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, struct sqe_submit *sqes,
 			io_queue_link_head(ctx, link, &link->submit, shadow_req,
 						true);
 			link = NULL;
+			shadow_req = NULL;
 		}
 		prev_was_link = (sqes[i].sqe->flags & IOSQE_IO_LINK) != 0;
 
@@ -2543,6 +2544,7 @@ static int io_ring_submit(struct io_ring_ctx *ctx, unsigned int to_submit,
 			io_queue_link_head(ctx, link, &link->submit, shadow_req,
 						force_nonblock);
 			link = NULL;
+			shadow_req = NULL;
 		}
 		prev_was_link = (s.sqe->flags & IOSQE_IO_LINK) != 0;
 
