@@ -109,6 +109,13 @@ struct nitrox_q_vector {
 	};
 };
 
+enum mcode_type {
+	MCODE_TYPE_INVALID,
+	MCODE_TYPE_AE,
+	MCODE_TYPE_SE_SSL,
+	MCODE_TYPE_SE_IPSEC,
+};
+
 /**
  * mbox_msg - Mailbox message data
  * @type: message type
@@ -128,6 +135,14 @@ union mbox_msg {
 		u64 chipid: 8;
 		u64 vfid: 8;
 	} id;
+	struct {
+		u64 type: 2;
+		u64 opcode: 6;
+		u64 count: 4;
+		u64 info: 40;
+		u64 next_se_grp: 3;
+		u64 next_ae_grp: 3;
+	} mcode_info;
 };
 
 /**

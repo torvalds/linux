@@ -25,6 +25,7 @@ enum mbx_msg_opcode {
 	MSG_OP_VF_UP,
 	MSG_OP_VF_DOWN,
 	MSG_OP_CHIPID_VFID,
+	MSG_OP_MCODE_INFO = 11,
 };
 
 struct pf2vf_work {
@@ -72,6 +73,13 @@ static void pf2vf_send_response(struct nitrox_device *ndev,
 	case MSG_OP_VF_DOWN:
 		vfdev->nr_queues = 0;
 		atomic_set(&vfdev->state, __NDEV_NOT_READY);
+		break;
+	case MSG_OP_MCODE_INFO:
+		msg.data = 0;
+		msg.mcode_info.count = 2;
+		msg.mcode_info.info = MCODE_TYPE_SE_SSL | (MCODE_TYPE_AE << 5);
+		msg.mcode_info.next_se_grp = 1;
+		msg.mcode_info.next_ae_grp = 1;
 		break;
 	default:
 		msg.type = MBX_MSG_TYPE_NOP;
