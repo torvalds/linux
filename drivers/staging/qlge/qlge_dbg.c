@@ -389,7 +389,6 @@ static int ql_get_xgmac_regs(struct ql_adapter *qdev, u32 *buf,
 
 static int ql_get_ets_regs(struct ql_adapter *qdev, u32 *buf)
 {
-	int status = 0;
 	int i;
 
 	for (i = 0; i < 8; i++, buf++) {
@@ -402,7 +401,7 @@ static int ql_get_ets_regs(struct ql_adapter *qdev, u32 *buf)
 		*buf = ql_read32(qdev, CNA_ETS);
 	}
 
-	return status;
+	return 0;
 }
 
 static void ql_get_intr_states(struct ql_adapter *qdev, u32 *buf)
