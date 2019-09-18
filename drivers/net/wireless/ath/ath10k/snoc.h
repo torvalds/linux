@@ -69,6 +69,8 @@ struct ath10k_snoc {
 	size_t num_clks;
 	struct ath10k_qmi *qmi;
 	unsigned long flags;
+	bool xo_cal_supported;
+	u32 xo_cal_data;
 };
 
 static inline struct ath10k_snoc *ath10k_snoc_priv(struct ath10k *ar)

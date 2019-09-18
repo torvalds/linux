@@ -9,6 +9,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
 #include "ce.h"
@@ -1255,6 +1256,16 @@ static int ath10k_snoc_resource_init(struct ath10k *ar)
 		}
 		ar_snoc->ce_irqs[i].irq_line = res->start;
 	}
+
+	ret = device_property_read_u32(&pdev->dev, "qcom,xo-cal-data",
+				       &ar_snoc->xo_cal_data);
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc xo-cal-data return %d\n", ret);
+	if (ret == 0) {
+		ar_snoc->xo_cal_supported = true;
+		ath10k_dbg(ar, ATH10K_DBG_SNOC, "xo cal data %x\n",
+			   ar_snoc->xo_cal_data);
+	}
+	ret = 0;
 
 out:
 	return ret;
