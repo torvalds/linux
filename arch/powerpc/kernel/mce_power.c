@@ -29,7 +29,7 @@ unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr)
 {
 	pte_t *ptep;
 	unsigned int shift;
-	unsigned long flags;
+	unsigned long pfn, flags;
 	struct mm_struct *mm;
 
 	if (user_mode(regs))
@@ -39,18 +39,22 @@ unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr)
 
 	local_irq_save(flags);
 	ptep = __find_linux_pte(mm->pgd, addr, NULL, &shift);
-	local_irq_restore(flags);
 
-	if (!ptep || pte_special(*ptep))
-		return ULONG_MAX;
-
-	if (shift > PAGE_SHIFT) {
-		unsigned long rpnmask = (1ul << shift) - PAGE_SIZE;
-
-		return pte_pfn(__pte(pte_val(*ptep) | (addr & rpnmask)));
+	if (!ptep || pte_special(*ptep)) {
+		pfn = ULONG_MAX;
+		goto out;
 	}
 
-	return pte_pfn(*ptep);
+	if (shift <= PAGE_SHIFT)
+		pfn = pte_pfn(*ptep);
+	else {
+		unsigned long rpnmask = (1ul << shift) - PAGE_SIZE;
+		pfn = pte_pfn(__pte(pte_val(*ptep) | (addr & rpnmask)));
+	}
+
+out:
+	local_irq_restore(flags);
+	return pfn;
 }
 
 /* flush SLBs and reload */
