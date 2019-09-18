@@ -1164,7 +1164,7 @@ static int bch2_allocator_thread(void *arg)
 			 */
 			if (!nr ||
 			    (nr < ALLOC_SCAN_BATCH(ca) &&
-			     !fifo_full(&ca->free[RESERVE_MOVINGGC]))) {
+			     !fifo_empty(&ca->free[RESERVE_NONE]))) {
 				ret = wait_buckets_available(c, ca);
 				if (ret) {
 					up_read(&c->gc_lock);
