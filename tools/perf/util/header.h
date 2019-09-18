@@ -92,6 +92,24 @@ struct perf_header {
 	struct perf_env 	env;
 };
 
+struct feat_fd {
+	struct perf_header *ph;
+	int		   fd;
+	void		   *buf;	/* Either buf != NULL or fd >= 0 */
+	ssize_t		   offset;
+	size_t		   size;
+	struct evsel	   *events;
+};
+
+struct perf_header_feature_ops {
+	int	   (*write)(struct feat_fd *ff, struct evlist *evlist);
+	void	   (*print)(struct feat_fd *ff, FILE *fp);
+	int	   (*process)(struct feat_fd *ff, void *data);
+	const char *name;
+	bool	   full_only;
+	bool	   synthesize;
+};
+
 struct evlist;
 struct perf_session;
 struct perf_tool;
