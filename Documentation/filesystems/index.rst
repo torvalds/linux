@@ -36,3 +36,4 @@ filesystem implementations.
 
    journalling
    fscrypt
+   fsverity
