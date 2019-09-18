@@ -157,12 +157,6 @@ static const u32 hpd_icp[HPD_NUM_PINS] = {
 	[HPD_PORT_F] = SDE_TC_HOTPLUG_ICP(PORT_TC4),
 };
 
-static const u32 hpd_mcc[HPD_NUM_PINS] = {
-	[HPD_PORT_A] = SDE_DDI_HOTPLUG_ICP(PORT_A),
-	[HPD_PORT_B] = SDE_DDI_HOTPLUG_ICP(PORT_B),
-	[HPD_PORT_C] = SDE_TC_HOTPLUG_ICP(PORT_TC1),
-};
-
 static const u32 hpd_tgp[HPD_NUM_PINS] = {
 	[HPD_PORT_A] = SDE_DDI_HOTPLUG_ICP(PORT_A),
 	[HPD_PORT_B] = SDE_DDI_HOTPLUG_ICP(PORT_B),
@@ -2258,7 +2252,7 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	} else if (HAS_PCH_MCC(dev_priv)) {
 		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_TGP;
 		tc_hotplug_trigger = 0;
-		pins = hpd_mcc;
+		pins = hpd_icp;
 	} else {
 		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
 		tc_hotplug_trigger = pch_iir & SDE_TC_MASK_ICP;
@@ -3434,7 +3428,7 @@ static void mcc_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	icp_hpd_irq_setup(dev_priv,
 			  SDE_DDI_MASK_TGP, 0,
 			  TGP_DDI_HPD_ENABLE_MASK, 0,
-			  hpd_mcc);
+			  hpd_icp);
 }
 
 static void gen11_hpd_detection_setup(struct drm_i915_private *dev_priv)
