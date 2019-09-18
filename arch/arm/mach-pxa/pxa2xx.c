@@ -14,7 +14,10 @@
 
 #include <mach/pxa2xx-regs.h>
 #include "mfp-pxa25x.h"
+#include "generic.h"
 #include <mach/reset.h>
+#include <mach/smemc.h>
+#include <linux/soc/pxa/smemc.h>
 #include <linux/platform_data/irda-pxaficp.h>
 
 void pxa2xx_clear_reset_status(unsigned int mask)
@@ -50,3 +53,27 @@ void pxa2xx_transceiver_mode(struct device *dev, int mode)
 		BUG();
 }
 EXPORT_SYMBOL_GPL(pxa2xx_transceiver_mode);
+
+#define MDCNFG_DRAC2(mdcnfg)	(((mdcnfg) >> 21) & 0x3)
+#define MDCNFG_DRAC0(mdcnfg)	(((mdcnfg) >> 5) & 0x3)
+
+int pxa2xx_smemc_get_sdram_rows(void)
+{
+	static int sdram_rows;
+	unsigned int drac2 = 0, drac0 = 0;
+	u32 mdcnfg;
+
+	if (sdram_rows)
+		return sdram_rows;
+
+	mdcnfg = readl_relaxed(MDCNFG);
+
+	if (mdcnfg & (MDCNFG_DE2 | MDCNFG_DE3))
+		drac2 = MDCNFG_DRAC2(mdcnfg);
+
+	if (mdcnfg & (MDCNFG_DE0 | MDCNFG_DE1))
+		drac0 = MDCNFG_DRAC0(mdcnfg);
+
+	sdram_rows = 1 << (11 + max(drac0, drac2));
+	return sdram_rows;
+}

@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/soc/pxa/cpu.h>
+#include <linux/soc/pxa/smemc.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach-types.h>
@@ -83,6 +84,11 @@ void pxa_smemc_set_pcmcia_socket(int nr)
 	}
 }
 EXPORT_SYMBOL_GPL(pxa_smemc_set_pcmcia_socket);
+
+void __iomem *pxa_smemc_get_mdrefr(void)
+{
+	return MDREFR;
+}
 
 /*
  * Intel PXA2xx internal register mapping.

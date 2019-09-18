@@ -15,7 +15,7 @@
 #include <linux/clkdev.h>
 #include <linux/of.h>
 #include <linux/soc/pxa/cpu.h>
-#include <mach/smemc.h>
+#include <linux/soc/pxa/smemc.h>
 #include <linux/clk/pxa.h>
 #include <mach/pxa3xx-regs.h>
 
@@ -41,8 +41,6 @@ static unsigned char hss_mult[4] = { 8, 12, 16, 24 };
 
 /* crystal frequency to static memory controller multiplier (SMCFS) */
 static unsigned int smcfs_mult[8] = { 6, 0, 8, 0, 0, 16, };
-static unsigned int df_clkdiv[4] = { 1, 2, 4, 1 };
-
 static const char * const get_freq_khz[] = {
 	"core", "ring_osc_60mhz", "run", "cpll", "system_bus"
 };
@@ -118,10 +116,10 @@ static unsigned long clk_pxa3xx_smemc_get_rate(struct clk_hw *hw,
 					      unsigned long parent_rate)
 {
 	unsigned long acsr = ACSR;
-	unsigned long memclkcfg = __raw_readl(MEMCLKCFG);
 
 	return (parent_rate / 48)  * smcfs_mult[(acsr >> 23) & 0x7] /
-		df_clkdiv[(memclkcfg >> 16) & 0x3];
+		pxa3xx_smemc_get_memclkdiv();
+
 }
 PARENTS(clk_pxa3xx_smemc) = { "spll_624mhz" };
 RATE_RO_OPS(clk_pxa3xx_smemc, "smemc");
