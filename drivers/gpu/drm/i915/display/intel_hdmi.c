@@ -3028,7 +3028,7 @@ static u8 intel_hdmi_ddc_pin(struct drm_i915_private *dev_priv,
 
 	if (HAS_PCH_MCC(dev_priv))
 		ddc_pin = mcc_port_to_ddc_pin(dev_priv, port);
-	else if (HAS_PCH_TGP(dev_priv) || HAS_PCH_ICP(dev_priv))
+	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		ddc_pin = icl_port_to_ddc_pin(dev_priv, port);
 	else if (HAS_PCH_CNP(dev_priv))
 		ddc_pin = cnp_port_to_ddc_pin(dev_priv, port);
