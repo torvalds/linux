@@ -312,17 +312,15 @@ static void arm_smmu_tlb_inv_context_s2(void *cookie)
 }
 
 static void arm_smmu_tlb_inv_range_s1(unsigned long iova, size_t size,
-				      size_t granule, void *cookie, bool leaf)
+				      size_t granule, void *cookie, int reg)
 {
 	struct arm_smmu_domain *smmu_domain = cookie;
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
-	int reg, idx = cfg->cbndx;
+	int idx = cfg->cbndx;
 
 	if (smmu->features & ARM_SMMU_FEAT_COHERENT_WALK)
 		wmb();
-
-	reg = leaf ? ARM_SMMU_CB_S1_TLBIVAL : ARM_SMMU_CB_S1_TLBIVA;
 
 	if (cfg->fmt != ARM_SMMU_CTX_FMT_AARCH64) {
 		iova = (iova >> 12) << 12;
@@ -342,16 +340,15 @@ static void arm_smmu_tlb_inv_range_s1(unsigned long iova, size_t size,
 }
 
 static void arm_smmu_tlb_inv_range_s2(unsigned long iova, size_t size,
-				      size_t granule, void *cookie, bool leaf)
+				      size_t granule, void *cookie, int reg)
 {
 	struct arm_smmu_domain *smmu_domain = cookie;
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
-	int reg, idx = smmu_domain->cfg.cbndx;
+	int idx = smmu_domain->cfg.cbndx;
 
 	if (smmu->features & ARM_SMMU_FEAT_COHERENT_WALK)
 		wmb();
 
-	reg = leaf ? ARM_SMMU_CB_S2_TLBIIPAS2L : ARM_SMMU_CB_S2_TLBIIPAS2;
 	iova >>= 12;
 	do {
 		if (smmu_domain->cfg.fmt == ARM_SMMU_CTX_FMT_AARCH64)
@@ -365,14 +362,16 @@ static void arm_smmu_tlb_inv_range_s2(unsigned long iova, size_t size,
 static void arm_smmu_tlb_inv_walk_s1(unsigned long iova, size_t size,
 				     size_t granule, void *cookie)
 {
-	arm_smmu_tlb_inv_range_s1(iova, size, granule, cookie, false);
+	arm_smmu_tlb_inv_range_s1(iova, size, granule, cookie,
+				  ARM_SMMU_CB_S1_TLBIVA);
 	arm_smmu_tlb_sync_context(cookie);
 }
 
 static void arm_smmu_tlb_inv_leaf_s1(unsigned long iova, size_t size,
 				     size_t granule, void *cookie)
 {
-	arm_smmu_tlb_inv_range_s1(iova, size, granule, cookie, true);
+	arm_smmu_tlb_inv_range_s1(iova, size, granule, cookie,
+				  ARM_SMMU_CB_S1_TLBIVAL);
 	arm_smmu_tlb_sync_context(cookie);
 }
 
@@ -380,20 +379,23 @@ static void arm_smmu_tlb_add_page_s1(struct iommu_iotlb_gather *gather,
 				     unsigned long iova, size_t granule,
 				     void *cookie)
 {
-	arm_smmu_tlb_inv_range_s1(iova, granule, granule, cookie, true);
+	arm_smmu_tlb_inv_range_s1(iova, granule, granule, cookie,
+				  ARM_SMMU_CB_S1_TLBIVAL);
 }
 
 static void arm_smmu_tlb_inv_walk_s2(unsigned long iova, size_t size,
 				     size_t granule, void *cookie)
 {
-	arm_smmu_tlb_inv_range_s2(iova, size, granule, cookie, false);
+	arm_smmu_tlb_inv_range_s2(iova, size, granule, cookie,
+				  ARM_SMMU_CB_S2_TLBIIPAS2);
 	arm_smmu_tlb_sync_context(cookie);
 }
 
 static void arm_smmu_tlb_inv_leaf_s2(unsigned long iova, size_t size,
 				     size_t granule, void *cookie)
 {
-	arm_smmu_tlb_inv_range_s2(iova, size, granule, cookie, true);
+	arm_smmu_tlb_inv_range_s2(iova, size, granule, cookie,
+				  ARM_SMMU_CB_S2_TLBIIPAS2L);
 	arm_smmu_tlb_sync_context(cookie);
 }
 
@@ -401,7 +403,8 @@ static void arm_smmu_tlb_add_page_s2(struct iommu_iotlb_gather *gather,
 				     unsigned long iova, size_t granule,
 				     void *cookie)
 {
-	arm_smmu_tlb_inv_range_s2(iova, granule, granule, cookie, true);
+	arm_smmu_tlb_inv_range_s2(iova, granule, granule, cookie,
+				  ARM_SMMU_CB_S2_TLBIIPAS2L);
 }
 
 static void arm_smmu_tlb_inv_any_s2_v1(unsigned long iova, size_t size,
