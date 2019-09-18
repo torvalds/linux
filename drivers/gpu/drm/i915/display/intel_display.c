@@ -15753,6 +15753,7 @@ intel_mode_valid(struct drm_device *dev,
 			   DRM_MODE_FLAG_CLKDIV2))
 		return MODE_BAD;
 
+	/* Transcoder timing limits */
 	if (INTEL_GEN(dev_priv) >= 11) {
 		hdisplay_max = 16384;
 		vdisplay_max = 8192;
@@ -15786,6 +15787,41 @@ intel_mode_valid(struct drm_device *dev,
 	    mode->vsync_start > vtotal_max ||
 	    mode->vsync_end > vtotal_max ||
 	    mode->vtotal > vtotal_max)
+		return MODE_V_ILLEGAL;
+
+	return MODE_OK;
+}
+
+enum drm_mode_status
+intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
+				const struct drm_display_mode *mode)
+{
+	int plane_width_max, plane_height_max;
+
+	/*
+	 * intel_mode_valid() should be
+	 * sufficient on older platforms.
+	 */
+	if (INTEL_GEN(dev_priv) < 9)
+		return MODE_OK;
+
+	/*
+	 * Most people will probably want a fullscreen
+	 * plane so let's not advertize modes that are
+	 * too big for that.
+	 */
+	if (INTEL_GEN(dev_priv) >= 11) {
+		plane_width_max = 5120;
+		plane_height_max = 4320;
+	} else {
+		plane_width_max = 5120;
+		plane_height_max = 4096;
+	}
+
+	if (mode->hdisplay > plane_width_max)
+		return MODE_H_ILLEGAL;
+
+	if (mode->vdisplay > plane_height_max)
 		return MODE_V_ILLEGAL;
 
 	return MODE_OK;

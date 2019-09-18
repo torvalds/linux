@@ -562,7 +562,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return MODE_H_ILLEGAL;
 
-	return MODE_OK;
+	return intel_mode_valid_max_plane_size(dev_priv, mode);
 }
 
 u32 intel_dp_pack_aux(const u8 *src, int src_bytes)

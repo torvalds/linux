@@ -32,6 +32,7 @@ enum link_m_n_set;
 struct dpll;
 struct drm_connector;
 struct drm_device;
+struct drm_display_mode;
 struct drm_encoder;
 struct drm_file;
 struct drm_format_info;
@@ -448,6 +449,9 @@ void lpt_disable_clkout_dp(struct drm_i915_private *dev_priv);
 u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 			      u32 pixel_format, u64 modifier);
 bool intel_plane_can_remap(const struct intel_plane_state *plane_state);
+enum drm_mode_status
+intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
+				const struct drm_display_mode *mode);
 enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port);
 
 void intel_plane_destroy(struct drm_plane *plane);
