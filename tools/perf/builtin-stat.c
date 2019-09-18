@@ -61,6 +61,7 @@
 #include "util/tool.h"
 #include "util/string2.h"
 #include "util/metricgroup.h"
+#include "util/synthetic-events.h"
 #include "util/target.h"
 #include "util/time-utils.h"
 #include "util/top.h"

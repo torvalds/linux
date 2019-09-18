@@ -17,6 +17,7 @@
 #include "util/debug.h"
 #include "util/tool.h"
 #include "util/stat.h"
+#include "util/synthetic-events.h"
 #include "util/top.h"
 #include "util/data.h"
 #include "util/ordered-events.h"

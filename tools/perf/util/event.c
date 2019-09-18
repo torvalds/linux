@@ -32,6 +32,7 @@
 #include "stat.h"
 #include "session.h"
 #include "bpf-event.h"
+#include "synthetic-events.h"
 #include "tool.h"
 #include "../perf.h"
 

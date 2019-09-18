@@ -32,6 +32,7 @@
 #include "pmu.h"
 #include "evsel.h"
 #include "symbol.h"
+#include "util/synthetic-events.h"
 #include "thread_map.h"
 #include "asm/bug.h"
 #include "auxtrace.h"

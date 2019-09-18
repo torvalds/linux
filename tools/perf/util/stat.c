@@ -12,6 +12,7 @@
 #include "target.h"
 #include "evlist.h"
 #include "evsel.h"
+#include "util/synthetic-events.h"
 #include "thread_map.h"
 #include <linux/zalloc.h>
 

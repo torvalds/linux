@@ -40,6 +40,7 @@
 #include "trace-event.h"
 #include "stat.h"
 #include "string2.h"
+#include "util/synthetic-events.h"
 #include "memswap.h"
 #include "util.h"
 #include "../perf-sys.h"

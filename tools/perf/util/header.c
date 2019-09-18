@@ -45,6 +45,7 @@
 #include "util.h" // page_size, perf_exe()
 #include "cputopo.h"
 #include "bpf-event.h"
+#include "util/synthetic-events.h"
 
 #include <linux/ctype.h>
 #include <internal/lib.h>

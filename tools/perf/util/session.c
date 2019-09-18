@@ -29,6 +29,7 @@
 #include "thread-stack.h"
 #include "sample-raw.h"
 #include "stat.h"
+#include "util/synthetic-events.h"
 #include "util.h"
 #include "ui/progress.h"
 #include "../perf.h"

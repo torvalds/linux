@@ -12,6 +12,7 @@
 #include "event.h"
 #include "evsel.h"
 #include "debug.h"
+#include "util/synthetic-events.h"
 
 #include "tests.h"
 

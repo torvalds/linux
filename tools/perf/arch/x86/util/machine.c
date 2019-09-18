@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include <linux/string.h>
+#include <limits.h>
 #include <stdlib.h>
 
 #include "../../util/util.h" // page_size

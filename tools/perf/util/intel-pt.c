@@ -33,6 +33,7 @@
 #include "tsc.h"
 #include "intel-pt.h"
 #include "config.h"
+#include "util/synthetic-events.h"
 #include "time-utils.h"
 
 #include "../arch/x86/include/uapi/asm/perf_regs.h"

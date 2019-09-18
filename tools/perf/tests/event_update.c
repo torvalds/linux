@@ -7,6 +7,7 @@
 #include "evsel.h"
 #include "header.h"
 #include "machine.h"
+#include "util/synthetic-events.h"
 #include "tool.h"
 #include "tests.h"
 #include "debug.h"

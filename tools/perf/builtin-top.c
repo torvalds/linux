@@ -32,6 +32,7 @@
 #include "util/map.h"
 #include "util/session.h"
 #include "util/symbol.h"
+#include "util/synthetic-events.h"
 #include "util/top.h"
 #include "util/util.h"
 #include <linux/rbtree.h>
