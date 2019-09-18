@@ -492,6 +492,15 @@ static u32 mt7615_mac_wtbl_addr(int wcid)
 	return MT_WTBL_BASE + wcid * MT_WTBL_ENTRY_SIZE;
 }
 
+bool mt7615_mac_wtbl_update(struct mt7615_dev *dev, int idx, u32 mask)
+{
+	mt76_rmw(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_WLAN_IDX,
+		 FIELD_PREP(MT_WTBL_UPDATE_WLAN_IDX, idx) | mask);
+
+	return mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY,
+			 0, 5000);
+}
+
 void mt7615_mac_set_rates(struct mt7615_dev *dev, struct mt7615_sta *sta,
 			  struct ieee80211_tx_rate *probe_rate,
 			  struct ieee80211_tx_rate *rates)
@@ -724,11 +733,8 @@ mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 	mt76_wr(dev, MT_WTBL_RICR0, w0);
 	mt76_wr(dev, MT_WTBL_RICR1, w1);
 
-	mt76_wr(dev, MT_WTBL_UPDATE,
-		FIELD_PREP(MT_WTBL_UPDATE_WLAN_IDX, wcid->idx) |
-		MT_WTBL_UPDATE_RXINFO_UPDATE);
-
-	if (!mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY, 0, 5000))
+	if (!mt7615_mac_wtbl_update(dev, wcid->idx,
+				    MT_WTBL_UPDATE_RXINFO_UPDATE))
 		return -ETIMEDOUT;
 
 	return 0;

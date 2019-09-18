@@ -231,6 +231,7 @@ static inline void mt7615_irq_disable(struct mt7615_dev *dev, u32 mask)
 }
 
 void mt7615_update_channel(struct mt76_dev *mdev);
+bool mt7615_mac_wtbl_update(struct mt7615_dev *dev, int idx, u32 mask);
 void mt7615_mac_reset_counters(struct mt7615_dev *dev);
 void mt7615_mac_cca_stats_reset(struct mt7615_dev *dev);
 void mt7615_mac_set_scs(struct mt7615_dev *dev, bool enable);
