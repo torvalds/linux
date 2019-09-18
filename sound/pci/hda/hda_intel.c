@@ -46,6 +46,7 @@
 #include <sound/initval.h>
 #include <sound/hdaudio.h>
 #include <sound/hda_i915.h>
+#include <sound/intel-nhlt.h>
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 #include <linux/firmware.h>
@@ -84,8 +85,6 @@ enum {
 #define INTEL_SCH_HDA_DEVC      0x78
 #define INTEL_SCH_HDA_DEVC_NOSNOOP       (0x1<<11)
 
-/* Define IN stream 0 FIFO size offset in VIA controller */
-#define VIA_IN_STREAM0_FIFO_SIZE_OFFSET	0x90
 /* Define VIA HD Audio Device ID*/
 #define VIA_HDAC_DEVICE_ID		0x3288
 
@@ -125,6 +124,7 @@ static char *patch[SNDRV_CARDS];
 static bool beep_mode[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] =
 					CONFIG_SND_HDA_INPUT_BEEP_MODE};
 #endif
+static bool dmic_detect = IS_ENABLED(CONFIG_SND_HDA_INTEL_DETECT_DMIC);
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel HD audio interface.");
@@ -159,6 +159,8 @@ module_param_array(beep_mode, bool, NULL, 0444);
 MODULE_PARM_DESC(beep_mode, "Select HDA Beep registration mode "
 			    "(0=off, 1=on) (default=1).");
 #endif
+module_param(dmic_detect, bool, 0444);
+MODULE_PARM_DESC(dmic_detect, "DMIC detect on SKL+ platforms");
 
 #ifdef CONFIG_PM
 static int param_set_xint(const char *val, const struct kernel_param *kp);
@@ -267,6 +269,7 @@ enum {
 	AZX_DRIVER_CTX,
 	AZX_DRIVER_CTHDA,
 	AZX_DRIVER_CMEDIA,
+	AZX_DRIVER_ZHAOXIN,
 	AZX_DRIVER_GENERIC,
 	AZX_NUM_DRIVERS, /* keep this as last entry */
 };
@@ -353,7 +356,7 @@ enum {
  */
 #ifdef SUPPORT_VGA_SWITCHEROO
 #define use_vga_switcheroo(chip)	((chip)->use_vga_switcheroo)
-#define needs_eld_notify_link(chip)	((chip)->need_eld_notify_link)
+#define needs_eld_notify_link(chip)	((chip)->bus.keep_power)
 #else
 #define use_vga_switcheroo(chip)	0
 #define needs_eld_notify_link(chip)	false
@@ -385,6 +388,7 @@ static char *driver_short_names[] = {
 	[AZX_DRIVER_CTX] = "HDA Creative", 
 	[AZX_DRIVER_CTHDA] = "HDA Creative",
 	[AZX_DRIVER_CMEDIA] = "HDA C-Media",
+	[AZX_DRIVER_ZHAOXIN] = "HDA Zhaoxin",
 	[AZX_DRIVER_GENERIC] = "HD-Audio Generic",
 };
 
@@ -811,11 +815,7 @@ static unsigned int azx_via_get_position(struct azx *chip,
 	mod_dma_pos = le32_to_cpu(*azx_dev->core.posbuf);
 	mod_dma_pos %= azx_dev->core.period_bytes;
 
-	/* azx_dev->fifo_size can't get FIFO size of in stream.
-	 * Get from base address + offset.
-	 */
-	fifo_size = readw(azx_bus(chip)->remap_addr +
-			  VIA_IN_STREAM0_FIFO_SIZE_OFFSET);
+	fifo_size = azx_stream(azx_dev)->fifo_size - 1;
 
 	if (azx_dev->insufficient) {
 		/* Link position never gather than FIFO size */
@@ -1145,7 +1145,7 @@ static int azx_runtime_idle(struct device *dev)
 		return -EBUSY;
 
 	/* ELD notification gets broken when HD-audio bus is off */
-	if (needs_eld_notify_link(hda))
+	if (needs_eld_notify_link(chip))
 		return -EBUSY;
 
 	return 0;
@@ -1256,7 +1256,7 @@ static void setup_vga_switcheroo_runtime_pm(struct azx *chip)
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	struct hda_codec *codec;
 
-	if (hda->use_vga_switcheroo && !hda->need_eld_notify_link) {
+	if (hda->use_vga_switcheroo && !needs_eld_notify_link(chip)) {
 		list_for_each_codec(codec, &chip->bus)
 			codec->auto_runtime_pm = 1;
 		/* reset the power save setup */
@@ -1270,10 +1270,9 @@ static void azx_vs_gpu_bound(struct pci_dev *pci,
 {
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct azx *chip = card->private_data;
-	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 
 	if (client_id == VGA_SWITCHEROO_DIS)
-		hda->need_eld_notify_link = 0;
+		chip->bus.keep_power = 0;
 	setup_vga_switcheroo_runtime_pm(chip);
 }
 
@@ -1285,7 +1284,7 @@ static void init_vga_switcheroo(struct azx *chip)
 		dev_info(chip->card->dev,
 			 "Handle vga_switcheroo audio client\n");
 		hda->use_vga_switcheroo = 1;
-		hda->need_eld_notify_link = 1; /* cleared in gpu_bound op */
+		chip->bus.keep_power = 1; /* cleared in either gpu_bound op or codec probe */
 		chip->driver_caps |= AZX_DCAPS_PM_RUNTIME;
 		pci_dev_put(p);
 	}
@@ -1349,9 +1348,9 @@ static int azx_free(struct azx *chip)
 	}
 
 	if (bus->chip_init) {
+		azx_stop_chip(chip);
 		azx_clear_irq_pending(chip);
 		azx_stop_all_streams(chip);
-		azx_stop_chip(chip);
 	}
 
 	if (bus->irq >= 0)
@@ -1684,7 +1683,6 @@ static int default_bdl_pos_adj(struct azx *chip)
 /*
  * constructor
  */
-static const struct hdac_io_ops pci_hda_io_ops;
 static const struct hda_controller_ops pci_hda_ops;
 
 static int azx_create(struct snd_card *card, struct pci_dev *pci,
@@ -1744,12 +1742,16 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	else
 		chip->bdl_pos_adj = bdl_pos_adj[dev];
 
-	err = azx_bus_init(chip, model[dev], &pci_hda_io_ops);
+	err = azx_bus_init(chip, model[dev]);
 	if (err < 0) {
 		kfree(hda);
 		pci_disable_device(pci);
 		return err;
 	}
+
+	/* use the non-cached pages in non-snoop mode */
+	if (!azx_snoop(chip))
+		azx_bus(chip)->dma_type = SNDRV_DMA_TYPE_DEV_UC;
 
 	/* Workaround for a communication error on CFL (bko#199007) and CNL */
 	if (IS_CFL(pci) || IS_CNL(pci))
@@ -1985,41 +1987,6 @@ static void azx_firmware_cb(const struct firmware *fw, void *context)
 }
 #endif
 
-/*
- * HDA controller ops.
- */
-
-/* PCI register access. */
-static void pci_azx_writel(u32 value, u32 __iomem *addr)
-{
-	writel(value, addr);
-}
-
-static u32 pci_azx_readl(u32 __iomem *addr)
-{
-	return readl(addr);
-}
-
-static void pci_azx_writew(u16 value, u16 __iomem *addr)
-{
-	writew(value, addr);
-}
-
-static u16 pci_azx_readw(u16 __iomem *addr)
-{
-	return readw(addr);
-}
-
-static void pci_azx_writeb(u8 value, u8 __iomem *addr)
-{
-	writeb(value, addr);
-}
-
-static u8 pci_azx_readb(u8 __iomem *addr)
-{
-	return readb(addr);
-}
-
 static int disable_msi_reset_irq(struct azx *chip)
 {
 	struct hdac_bus *bus = azx_bus(chip);
@@ -2036,24 +2003,6 @@ static int disable_msi_reset_irq(struct azx *chip)
 	return 0;
 }
 
-/* DMA page allocation helpers.  */
-static int dma_alloc_pages(struct hdac_bus *bus,
-			   int type,
-			   size_t size,
-			   struct snd_dma_buffer *buf)
-{
-	struct azx *chip = bus_to_azx(bus);
-
-	if (!azx_snoop(chip) && type == SNDRV_DMA_TYPE_DEV)
-		type = SNDRV_DMA_TYPE_DEV_UC;
-	return snd_dma_alloc_pages(type, bus->dev, size, buf);
-}
-
-static void dma_free_pages(struct hdac_bus *bus, struct snd_dma_buffer *buf)
-{
-	snd_dma_free_pages(buf);
-}
-
 static void pcm_mmap_prepare(struct snd_pcm_substream *substream,
 			     struct vm_area_struct *area)
 {
@@ -2065,22 +2014,30 @@ static void pcm_mmap_prepare(struct snd_pcm_substream *substream,
 #endif
 }
 
-static const struct hdac_io_ops pci_hda_io_ops = {
-	.reg_writel = pci_azx_writel,
-	.reg_readl = pci_azx_readl,
-	.reg_writew = pci_azx_writew,
-	.reg_readw = pci_azx_readw,
-	.reg_writeb = pci_azx_writeb,
-	.reg_readb = pci_azx_readb,
-	.dma_alloc_pages = dma_alloc_pages,
-	.dma_free_pages = dma_free_pages,
-};
-
 static const struct hda_controller_ops pci_hda_ops = {
 	.disable_msi_reset_irq = disable_msi_reset_irq,
 	.pcm_mmap_prepare = pcm_mmap_prepare,
 	.position_check = azx_position_check,
 };
+
+static int azx_check_dmic(struct pci_dev *pci, struct azx *chip)
+{
+	struct nhlt_acpi_table *nhlt;
+	int ret = 0;
+
+	if (chip->driver_type == AZX_DRIVER_SKL &&
+	    pci->class != 0x040300) {
+		nhlt = intel_nhlt_init(&pci->dev);
+		if (nhlt) {
+			if (intel_nhlt_get_dmic_geo(&pci->dev, nhlt)) {
+				ret = -ENODEV;
+				dev_info(&pci->dev, "Digital mics found on Skylake+ platform, aborting probe\n");
+			}
+			intel_nhlt_free(nhlt);
+		}
+	}
+	return ret;
+}
 
 static int azx_probe(struct pci_dev *pci,
 		     const struct pci_device_id *pci_id)
@@ -2111,6 +2068,17 @@ static int azx_probe(struct pci_dev *pci,
 		goto out_free;
 	card->private_data = chip;
 	hda = container_of(chip, struct hda_intel, chip);
+
+	/*
+	 * stop probe if digital microphones detected on Skylake+ platform
+	 * with the DSP enabled. This is an opt-in behavior defined at build
+	 * time or at run-time with a module parameter
+	 */
+	if (dmic_detect) {
+		err = azx_check_dmic(pci, chip);
+		if (err < 0)
+			goto out_free;
+	}
 
 	pci_set_drvdata(pci, card);
 
@@ -2653,6 +2621,8 @@ static const struct pci_device_id azx_ids[] = {
 	  .class = PCI_CLASS_MULTIMEDIA_HD_AUDIO << 8,
 	  .class_mask = 0xffffff,
 	  .driver_data = AZX_DRIVER_GENERIC | AZX_DCAPS_PRESET_ATI_HDMI },
+	/* Zhaoxin */
+	{ PCI_DEVICE(0x1d17, 0x3288), .driver_data = AZX_DRIVER_ZHAOXIN },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, azx_ids);

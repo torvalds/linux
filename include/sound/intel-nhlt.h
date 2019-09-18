@@ -1,17 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  skl-nhlt.h - Intel HDA Platform NHLT header
+ *  intel-nhlt.h - Intel HDA Platform NHLT header
  *
- *  Copyright (C) 2015 Intel Corp
- *  Author: Sanjiv Kumar <sanjiv.kumar@intel.com>
- *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *  Copyright (c) 2015-2019 Intel Corporation
  */
-#ifndef __SKL_NHLT_H__
-#define __SKL_NHLT_H__
+
+#ifndef __INTEL_NHLT_H__
+#define __INTEL_NHLT_H__
 
 #include <linux/acpi.h>
+
+#if IS_ENABLED(CONFIG_ACPI) && IS_ENABLED(CONFIG_SND_INTEL_NHLT)
 
 struct wav_fmt {
 	u16 fmt_tag;
@@ -97,14 +96,20 @@ struct nhlt_resource_desc  {
 #define MIC_ARRAY_2CH 2
 #define MIC_ARRAY_4CH 4
 
-struct nhlt_tdm_config {
+struct nhlt_device_specific_config {
 	u8 virtual_slot;
 	u8 config_type;
 } __packed;
 
 struct nhlt_dmic_array_config {
-	struct nhlt_tdm_config tdm_config;
+	struct nhlt_device_specific_config device_config;
 	u8 array_type;
+} __packed;
+
+struct nhlt_vendor_dmic_array_config {
+	struct nhlt_dmic_array_config dmic_config;
+	u8 nb_mics;
+	/* TODO add vendor mic config */
 } __packed;
 
 enum {
@@ -115,5 +120,31 @@ enum {
 	NHLT_MIC_ARRAY_4CH_2ND_GEOM = 0xe,
 	NHLT_MIC_ARRAY_VENDOR_DEFINED = 0xf,
 };
+
+struct nhlt_acpi_table *intel_nhlt_init(struct device *dev);
+
+void intel_nhlt_free(struct nhlt_acpi_table *addr);
+
+int intel_nhlt_get_dmic_geo(struct device *dev, struct nhlt_acpi_table *nhlt);
+
+#else
+
+struct nhlt_acpi_table;
+
+static inline struct nhlt_acpi_table *intel_nhlt_init(struct device *dev)
+{
+	return NULL;
+}
+
+static inline void intel_nhlt_free(struct nhlt_acpi_table *addr)
+{
+}
+
+static inline int intel_nhlt_get_dmic_geo(struct device *dev,
+					  struct nhlt_acpi_table *nhlt)
+{
+	return 0;
+}
+#endif
 
 #endif
