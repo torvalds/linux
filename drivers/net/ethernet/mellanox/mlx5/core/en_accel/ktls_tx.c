@@ -329,7 +329,7 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 	struct tx_sync_info info = {};
 	u16 contig_wqebbs_room, pi;
 	u8 num_wqebbs;
-	int i;
+	int i = 0;
 
 	if (!tx_sync_info_get(priv_tx, seq, &info)) {
 		/* We might get here if a retransmission reaches the driver
@@ -364,7 +364,7 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 
 	tx_post_resync_params(sq, priv_tx, info.rcd_sn);
 
-	for (i = 0; i < info.nr_frags; i++)
+	for (; i < info.nr_frags; i++)
 		if (tx_post_resync_dump(sq, &info.frags[i], priv_tx->tisn, !i))
 			goto err_out;
 
@@ -377,6 +377,9 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 	return skb;
 
 err_out:
+	for (; i < info.nr_frags; i++)
+		put_page(skb_frag_page(&info.frags[i]));
+
 	dev_kfree_skb_any(skb);
 	return NULL;
 }
