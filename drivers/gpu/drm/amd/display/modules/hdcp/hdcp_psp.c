@@ -393,6 +393,8 @@ enum mod_hdcp_status mod_hdcp_hdcp2_destroy_session(struct mod_hdcp *hdcp)
 	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
 		return MOD_HDCP_STATUS_HDCP2_DESTROY_SESSION_FAILURE;
 
+	HDCP_TOP_HDCP2_DESTROY_SESSION_TRACE(hdcp);
+
 	return MOD_HDCP_STATUS_SUCCESS;
 }
 
@@ -649,6 +651,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_enable_encryption(struct mod_hdcp *hdcp)
 
 	if (!is_dp_mst_hdcp(hdcp)) {
 		display->state = MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED;
+		HDCP_HDCP2_ENABLED_TRACE(hdcp, display->index);
 	}
 
 	return MOD_HDCP_STATUS_SUCCESS;
@@ -727,6 +730,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_enable_dp_stream_encryption(struct mod_hdcp 
 			break;
 
 		hdcp->connection.displays[i].state = MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED;
+		HDCP_HDCP2_ENABLED_TRACE(hdcp, hdcp->connection.displays[i].index);
 	}
 
 	return (hdcp_cmd->hdcp_status == TA_HDCP_STATUS__SUCCESS) ? MOD_HDCP_STATUS_SUCCESS
