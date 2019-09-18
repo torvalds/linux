@@ -312,7 +312,6 @@ static const struct kfd2kgd_calls kfd2kgd = {
 			kgd_gfx_v9_get_atc_vmid_pasid_mapping_pasid,
 	.get_atc_vmid_pasid_mapping_valid =
 			kgd_gfx_v9_get_atc_vmid_pasid_mapping_valid,
-	.set_scratch_backing_va = kgd_gfx_v9_set_scratch_backing_va,
 	.get_tile_config = kgd_gfx_v9_get_tile_config,
 	.set_vm_context_page_table_base = kgd_gfx_v9_set_vm_context_page_table_base,
 	.invalidate_tlbs = kgd_gfx_v9_invalidate_tlbs,

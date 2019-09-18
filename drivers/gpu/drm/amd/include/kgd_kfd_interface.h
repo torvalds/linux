@@ -298,8 +298,13 @@ struct kfd2kgd_calls {
 					struct kgd_dev *kgd,
 					uint8_t vmid);
 
+	/* No longer needed from GFXv9 onward. The scratch base address is
+	 * passed to the shader by the CP. It's the user mode driver's
+	 * responsibility.
+	 */
 	void (*set_scratch_backing_va)(struct kgd_dev *kgd,
 				uint64_t va, uint32_t vmid);
+
 	int (*get_tile_config)(struct kgd_dev *kgd, struct tile_config *config);
 
 	void (*set_vm_context_page_table_base)(struct kgd_dev *kgd,

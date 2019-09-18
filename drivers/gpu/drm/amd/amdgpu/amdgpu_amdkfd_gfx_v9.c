@@ -781,15 +781,6 @@ uint32_t kgd_gfx_v9_address_watch_get_offset(struct kgd_dev *kgd,
 	return 0;
 }
 
-void kgd_gfx_v9_set_scratch_backing_va(struct kgd_dev *kgd,
-					uint64_t va, uint32_t vmid)
-{
-	/* No longer needed on GFXv9. The scratch base address is
-	 * passed to the shader by the CP. It's the user mode driver's
-	 * responsibility.
-	 */
-}
-
 void kgd_gfx_v9_set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 		uint64_t page_table_base)
 {
@@ -835,7 +826,6 @@ static const struct kfd2kgd_calls kfd2kgd = {
 			kgd_gfx_v9_get_atc_vmid_pasid_mapping_pasid,
 	.get_atc_vmid_pasid_mapping_valid =
 			kgd_gfx_v9_get_atc_vmid_pasid_mapping_valid,
-	.set_scratch_backing_va = kgd_gfx_v9_set_scratch_backing_va,
 	.get_tile_config = kgd_gfx_v9_get_tile_config,
 	.set_vm_context_page_table_base = kgd_gfx_v9_set_vm_context_page_table_base,
 	.invalidate_tlbs = kgd_gfx_v9_invalidate_tlbs,

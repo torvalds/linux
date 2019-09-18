@@ -220,8 +220,9 @@ static int allocate_vmid(struct device_queue_manager *dqm,
 	/* invalidate the VM context after pasid and vmid mapping is set up */
 	kfd_flush_tlb(qpd_to_pdd(qpd));
 
-	dqm->dev->kfd2kgd->set_scratch_backing_va(
-		dqm->dev->kgd, qpd->sh_hidden_private_base, qpd->vmid);
+	if (dqm->dev->kfd2kgd->set_scratch_backing_va)
+		dqm->dev->kfd2kgd->set_scratch_backing_va(dqm->dev->kgd,
+				qpd->sh_hidden_private_base, qpd->vmid);
 
 	return 0;
 }
