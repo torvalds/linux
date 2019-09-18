@@ -299,6 +299,8 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 {
 	int i;
 
+	for (i = 0; i < RCU_NUM_LVLS; i++)
+		levelspread[i] = INT_MIN;
 	if (rcu_fanout_exact) {
 		levelspread[rcu_num_lvls - 1] = rcu_fanout_leaf;
 		for (i = rcu_num_lvls - 2; i >= 0; i--)
