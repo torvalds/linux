@@ -2209,8 +2209,10 @@ static void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
 						    pipe_ctx->stream_res.stream_enc->id, true);
 
-	if (link->dc->hwss.program_dmdata_engine)
-		link->dc->hwss.program_dmdata_engine(pipe_ctx);
+	if (pipe_ctx->plane_state && pipe_ctx->plane_state->flip_immediate != 1) {
+		if (link->dc->hwss.program_dmdata_engine)
+			link->dc->hwss.program_dmdata_engine(pipe_ctx);
+	}
 
 	link->dc->hwss.update_info_frame(pipe_ctx);
 

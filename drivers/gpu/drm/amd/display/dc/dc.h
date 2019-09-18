@@ -245,6 +245,13 @@ enum wm_report_mode {
 	WM_REPORT_DEFAULT = 0,
 	WM_REPORT_OVERRIDE = 1,
 };
+enum dtm_pstate{
+	dtm_level_p0 = 0,/*highest voltage*/
+	dtm_level_p1,
+	dtm_level_p2,
+	dtm_level_p3,
+	dtm_level_p4,/*when active_display_count = 0*/
+};
 
 enum dcn_pwr_state {
 	DCN_PWR_STATE_OPTIMIZED = 0,
@@ -271,6 +278,7 @@ struct dc_clocks {
 	 * optimization required
 	 */
 	bool prev_p_state_change_support;
+	enum dtm_pstate dtm_level;
 	int max_supported_dppclk_khz;
 	int max_supported_dispclk_khz;
 	int bw_dppclk_khz; /*a copy of dppclk_khz*/
