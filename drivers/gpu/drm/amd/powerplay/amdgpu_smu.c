@@ -1813,6 +1813,41 @@ int smu_set_df_cstate(struct smu_context *smu,
 	return ret;
 }
 
+int smu_write_watermarks_table(struct smu_context *smu)
+{
+	int ret = 0;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *table = NULL;
+
+	table = &smu_table->tables[SMU_TABLE_WATERMARKS];
+
+	if (!table->cpu_addr)
+		return -EINVAL;
+
+	ret = smu_update_table(smu, SMU_TABLE_WATERMARKS, 0, table->cpu_addr,
+				true);
+
+	return ret;
+}
+
+int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
+		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges)
+{
+	int ret = 0;
+	struct smu_table *watermarks = &smu->smu_table.tables[SMU_TABLE_WATERMARKS];
+	void *table = watermarks->cpu_addr;
+
+	if (!smu->disable_watermark &&
+			smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
+			smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
+		smu_set_watermarks_table(smu, table, clock_ranges);
+		smu->watermarks_bitmap |= WATERMARKS_EXIST;
+		smu->watermarks_bitmap &= ~WATERMARKS_LOADED;
+	}
+
+	return ret;
+}
+
 const struct amd_ip_funcs smu_ip_funcs = {
 	.name = "smu",
 	.early_init = smu_early_init,

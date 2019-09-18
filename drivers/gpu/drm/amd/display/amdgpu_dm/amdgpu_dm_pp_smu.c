@@ -589,10 +589,9 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 	if (pp_funcs && pp_funcs->set_watermarks_for_clocks_ranges)
 		pp_funcs->set_watermarks_for_clocks_ranges(pp_handle,
 							   &wm_with_clock_ranges);
-	else if (adev->smu.funcs &&
-		 adev->smu.funcs->set_watermarks_for_clock_ranges)
+	else
 		smu_set_watermarks_for_clock_ranges(&adev->smu,
-						    &wm_with_clock_ranges);
+				&wm_with_clock_ranges);
 }
 
 void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
@@ -665,7 +664,6 @@ enum pp_smu_status pp_nv_set_wm_ranges(struct pp_smu *pp,
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
-	struct smu_context *smu = &adev->smu;
 	struct dm_pp_wm_sets_with_clock_ranges_soc15 wm_with_clock_ranges;
 	struct dm_pp_clock_range_for_dmif_wm_set_soc15 *wm_dce_clocks =
 			wm_with_clock_ranges.wm_dmif_clocks_ranges;
@@ -708,15 +706,7 @@ enum pp_smu_status pp_nv_set_wm_ranges(struct pp_smu *pp,
 			ranges->writer_wm_sets[i].min_drain_clk_mhz * 1000;
 	}
 
-	if (!smu->funcs)
-		return PP_SMU_RESULT_UNSUPPORTED;
-
-	/* 0: successful or smu.funcs->set_watermarks_for_clock_ranges = NULL;
-	 * 1: fail
-	 */
-	if (smu_set_watermarks_for_clock_ranges(&adev->smu,
-			&wm_with_clock_ranges))
-		return PP_SMU_RESULT_UNSUPPORTED;
+	smu_set_watermarks_for_clock_ranges(&adev->smu,	&wm_with_clock_ranges);
 
 	return PP_SMU_RESULT_OK;
 }

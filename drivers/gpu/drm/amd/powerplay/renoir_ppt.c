@@ -416,6 +416,40 @@ static int renoir_get_profiling_clk_mask(struct smu_context *smu,
 	return 0;
 }
 
+/**
+ * This interface get dpm clock table for dc
+ */
+static int renoir_get_dpm_clock_table(struct smu_context *smu, struct dpm_clocks *clock_table)
+{
+	DpmClocks_t *table = smu->smu_table.clocks_table;
+	int i;
+
+	if (!clock_table || !table)
+		return -EINVAL;
+
+	for (i = 0; i < PP_SMU_NUM_DCFCLK_DPM_LEVELS; i++) {
+		clock_table->DcfClocks[i].Freq = table->DcfClocks[i].Freq;
+		clock_table->DcfClocks[i].Vol = table->DcfClocks[i].Vol;
+	}
+
+	for (i = 0; i < PP_SMU_NUM_SOCCLK_DPM_LEVELS; i++) {
+		clock_table->SocClocks[i].Freq = table->SocClocks[i].Freq;
+		clock_table->SocClocks[i].Vol = table->SocClocks[i].Vol;
+	}
+
+	for (i = 0; i < PP_SMU_NUM_FCLK_DPM_LEVELS; i++) {
+		clock_table->FClocks[i].Freq = table->FClocks[i].Freq;
+		clock_table->FClocks[i].Vol = table->FClocks[i].Vol;
+	}
+
+	for (i = 0; i<  PP_SMU_NUM_MEMCLK_DPM_LEVELS; i++) {
+		clock_table->MemClocks[i].Freq = table->MemClocks[i].Freq;
+		clock_table->MemClocks[i].Vol = table->MemClocks[i].Vol;
+	}
+
+	return 0;
+}
+
 static int renoir_force_clk_levels(struct smu_context *smu,
 				   enum smu_clk_type clk_type, uint32_t mask)
 {
@@ -546,6 +580,66 @@ static int renoir_set_performance_level(struct smu_context *smu, enum amd_dpm_fo
 	return ret;
 }
 
+/* save watermark settings into pplib smu structure,
+ * also pass data to smu controller
+ */
+static int renoir_set_watermarks_table(
+		struct smu_context *smu,
+		void *watermarks,
+		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges)
+{
+	int i;
+	int ret = 0;
+	Watermarks_t *table = watermarks;
+
+	if (!table || !clock_ranges)
+		return -EINVAL;
+
+	if (clock_ranges->num_wm_dmif_sets > 4 ||
+			clock_ranges->num_wm_mcif_sets > 4)
+		return -EINVAL;
+
+	/* save into smu->smu_table.tables[SMU_TABLE_WATERMARKS]->cpu_addr*/
+	for (i = 0; i < clock_ranges->num_wm_dmif_sets; i++) {
+		table->WatermarkRow[WM_DCFCLK][i].MinClock =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_dcfclk_clk_in_khz));
+		table->WatermarkRow[WM_DCFCLK][i].MaxClock =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_dcfclk_clk_in_khz));
+		table->WatermarkRow[WM_DCFCLK][i].MinMclk =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_mem_clk_in_khz));
+		table->WatermarkRow[WM_DCFCLK][i].MaxMclk =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_mem_clk_in_khz));
+		table->WatermarkRow[WM_DCFCLK][i].WmSetting = (uint8_t)
+				clock_ranges->wm_dmif_clocks_ranges[i].wm_set_id;
+	}
+
+	for (i = 0; i < clock_ranges->num_wm_mcif_sets; i++) {
+		table->WatermarkRow[WM_SOCCLK][i].MinClock =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_socclk_clk_in_khz));
+		table->WatermarkRow[WM_SOCCLK][i].MaxClock =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_socclk_clk_in_khz));
+		table->WatermarkRow[WM_SOCCLK][i].MinMclk =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_mem_clk_in_khz));
+		table->WatermarkRow[WM_SOCCLK][i].MaxMclk =
+			cpu_to_le16((uint16_t)
+			(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_mem_clk_in_khz));
+		table->WatermarkRow[WM_SOCCLK][i].WmSetting = (uint8_t)
+				clock_ranges->wm_mcif_clocks_ranges[i].wm_set_id;
+	}
+
+	/* pass data to smu controller */
+	ret = smu_write_watermarks_table(smu);
+
+	return ret;
+}
+
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_msg_index = renoir_get_smu_msg_index,
 	.get_smu_table_index = renoir_get_smu_table_index,
@@ -562,6 +656,8 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.force_clk_levels = renoir_force_clk_levels,
 	.set_power_profile_mode = renoir_set_power_profile_mode,
 	.set_performance_level = renoir_set_performance_level,
+	.get_dpm_clock_table = renoir_get_dpm_clock_table,
+	.set_watermarks_table = renoir_set_watermarks_table,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)
