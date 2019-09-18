@@ -20,4 +20,4 @@ config VIDEO_HANTRO_ROCKCHIP
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	default y
 	help
-	  Enable support for RK3288 and RK3399 SoCs.
+	  Enable support for RK3288, RK3328, and RK3399 SoCs.

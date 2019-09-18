@@ -61,7 +61,6 @@ struct g2d_ctx {
 };
 
 struct g2d_fmt {
-	char	*name;
 	u32	fourcc;
 	int	depth;
 	u32	hw;

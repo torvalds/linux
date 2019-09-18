@@ -841,7 +841,7 @@ find_pipeline_entity(struct media_entity *start, u32 grp_id,
 		if (sd->grp_id & grp_id)
 			return &sd->entity;
 	} else if (buftype && is_media_entity_v4l2_video_device(start)) {
-		vfd = media_entity_to_video_device(pad->entity);
+		vfd = media_entity_to_video_device(start);
 		if (buftype == vfd->queue->type)
 			return &vfd->entity;
 	}

@@ -987,9 +987,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *private_data,
 	if (f->index != 0)
 		return -EINVAL;
 
-	f->flags = V4L2_FMT_FLAG_COMPRESSED;
-	strscpy(f->description, "MPEG2-TS with AVC/AAC streams",
-		sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_MPEG;
 
 	return 0;

@@ -1636,11 +1636,13 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 			dev_err(decoder->sd.dev,
 				 "missing type property in node %pOFn\n",
 				 child);
+			of_node_put(child);
 			goto err_connector;
 		}
 
 		if (input_type >= TVP5150_INPUT_NUM) {
 			ret = -EINVAL;
+			of_node_put(child);
 			goto err_connector;
 		}
 
@@ -1651,6 +1653,7 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 			dev_err(decoder->sd.dev,
 				 "input %s with same type already exists\n",
 				 input->name);
+			of_node_put(child);
 			ret = -EINVAL;
 			goto err_connector;
 		}
@@ -1672,6 +1675,7 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 			dev_err(decoder->sd.dev,
 				 "missing label property in node %pOFn\n",
 				 child);
+			of_node_put(child);
 			goto err_connector;
 		}
 
@@ -1691,8 +1695,7 @@ static const char * const tvp5150_test_patterns[2] = {
 	"Black screen"
 };
 
-static int tvp5150_probe(struct i2c_client *c,
-			 const struct i2c_device_id *id)
+static int tvp5150_probe(struct i2c_client *c)
 {
 	struct tvp5150 *core;
 	struct v4l2_subdev *sd;
@@ -1841,7 +1844,7 @@ static struct i2c_driver tvp5150_driver = {
 		.of_match_table = of_match_ptr(tvp5150_of_match),
 		.name	= "tvp5150",
 	},
-	.probe		= tvp5150_probe,
+	.probe_new	= tvp5150_probe,
 	.remove		= tvp5150_remove,
 	.id_table	= tvp5150_id,
 };
