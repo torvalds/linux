@@ -778,12 +778,6 @@ void ppc_printk_progress(char *s, unsigned short hex)
 	pr_info("%s\n", s);
 }
 
-void arch_setup_pdev_archdata(struct platform_device *pdev)
-{
-	pdev->archdata.dma_mask = DMA_BIT_MASK(32);
-	pdev->dev.dma_mask = &pdev->archdata.dma_mask;
-}
-
 static __init void print_system_info(void)
 {
 	pr_info("-----------------------------------------------------\n");

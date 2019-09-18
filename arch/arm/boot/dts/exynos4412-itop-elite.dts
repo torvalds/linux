@@ -146,13 +146,8 @@
 	/* In order to reset USB ethernet */
 	samsung,vbus-gpio = <&gpc0 1 GPIO_ACTIVE_HIGH>;
 
-	port@0 {
-		status = "okay";
-	};
-
-	port@2 {
-		status = "okay";
-	};
+	phys = <&exynos_usbphy 1>, <&exynos_usbphy 3>;
+	phy-names = "host", "hsic1";
 };
 
 &exynos_usbphy {
