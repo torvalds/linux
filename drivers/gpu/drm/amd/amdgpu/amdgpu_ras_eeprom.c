@@ -359,8 +359,9 @@ int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,
 					    int num)
 {
 	int i, ret = 0;
-	struct i2c_msg *msgs;
-	unsigned char *buffs;
+	struct i2c_msg *msgs, *msg;
+	unsigned char *buffs, *buff;
+	struct eeprom_table_record *record;
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 
 	if (adev->asic_type != CHIP_VEGA20)
@@ -390,9 +391,9 @@ int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,
 	 * 256b
 	 */
 	for (i = 0; i < num; i++) {
-		unsigned char *buff = &buffs[i * (EEPROM_ADDRESS_SIZE + EEPROM_TABLE_RECORD_SIZE)];
-		struct eeprom_table_record *record = &records[i];
-		struct i2c_msg *msg = &msgs[i];
+		buff = &buffs[i * (EEPROM_ADDRESS_SIZE + EEPROM_TABLE_RECORD_SIZE)];
+		record = &records[i];
+		msg = &msgs[i];
 
 		control->next_addr = __correct_eeprom_dest_address(control->next_addr);
 
@@ -432,8 +433,8 @@ int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,
 
 	if (!write) {
 		for (i = 0; i < num; i++) {
-			unsigned char *buff = &buffs[i*(EEPROM_ADDRESS_SIZE + EEPROM_TABLE_RECORD_SIZE)];
-			struct eeprom_table_record *record = &records[i];
+			buff = &buffs[i*(EEPROM_ADDRESS_SIZE + EEPROM_TABLE_RECORD_SIZE)];
+			record = &records[i];
 
 			__decode_table_record_from_buff(control, record, buff + EEPROM_ADDRESS_SIZE);
 		}
