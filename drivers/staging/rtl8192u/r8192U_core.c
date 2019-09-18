@@ -1893,10 +1893,9 @@ static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 	return 0;
 }
 
-static int rtl8192_handle_assoc_response(
-		struct net_device *dev,
-		struct ieee80211_assoc_response_frame *resp,
-		struct ieee80211_network *network)
+static int rtl8192_handle_assoc_response(struct net_device *dev,
+					 struct ieee80211_assoc_response_frame *resp,
+					 struct ieee80211_network *network)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -3808,10 +3807,9 @@ static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 	if (!pprevious_stats->bIsCCK &&
 	    (pprevious_stats->bPacketToSelf || pprevious_stats->bToSelfBA)) {
 		for (rfpath = RF90_PATH_A; rfpath < priv->NumTotalRFPath; rfpath++) {
-			if (!rtl8192_phy_CheckIsLegalRFPath(
-					priv->ieee80211->dev, rfpath))
+			if (!rtl8192_phy_CheckIsLegalRFPath(priv->ieee80211->dev,
+							    rfpath))
 				continue;
-
 			if (priv->stats.rx_rssi_percentage[rfpath] == 0)
 				priv->stats.rx_rssi_percentage[rfpath] =
 					pprevious_stats->RxMIMOSignalStrength[rfpath];
@@ -4139,8 +4137,7 @@ static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
 			else
 				continue;
 
-			if (!rtl8192_phy_CheckIsLegalRFPath(
-					priv->ieee80211->dev, i))
+			if (!rtl8192_phy_CheckIsLegalRFPath(priv->ieee80211->dev, i))
 				continue;
 
 			rx_pwr[i] =
@@ -4233,9 +4230,8 @@ static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
 	}
 }	/* QueryRxPhyStatus8190Pci */
 
-static void rtl8192_record_rxdesc_forlateruse(
-		struct ieee80211_rx_stats *psrc_stats,
-		struct ieee80211_rx_stats *ptarget_stats)
+static void rtl8192_record_rxdesc_forlateruse(struct ieee80211_rx_stats *psrc_stats,
+					      struct ieee80211_rx_stats *ptarget_stats)
 {
 	ptarget_stats->bIsAMPDU = psrc_stats->bIsAMPDU;
 	ptarget_stats->bFirstMPDU = psrc_stats->bFirstMPDU;
@@ -4466,8 +4462,7 @@ static void query_rxdesc_status(struct sk_buff *skb,
 	 * Driver info are written to the RxBuffer following rx desc
 	 */
 	if (stats->RxDrvInfoSize != 0) {
-		driver_info = (struct rx_drvinfo_819x_usb *)(
-				skb->data
+		driver_info = (struct rx_drvinfo_819x_usb *)(skb->data
 				+ sizeof(struct rx_desc_819x_usb)
 				+ stats->RxBufShift
 			      );
@@ -4575,9 +4570,8 @@ static void rtl8192_rx_nomal(struct sk_buff *skb)
 	}
 }
 
-static void rtl819xusb_process_received_packet(
-		struct net_device *dev,
-		struct ieee80211_rx_stats *pstats)
+static void rtl819xusb_process_received_packet(struct net_device *dev,
+					       struct ieee80211_rx_stats *pstats)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
