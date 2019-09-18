@@ -12,9 +12,11 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/sha256.h>
+#include <linux/export.h>
+#include <linux/module.h>
 #include <linux/string.h>
-#include <asm/byteorder.h>
+#include <crypto/sha.h>
+#include <asm/unaligned.h>
 
 static inline u32 Ch(u32 x, u32 y, u32 z)
 {
@@ -33,7 +35,7 @@ static inline u32 Maj(u32 x, u32 y, u32 z)
 
 static inline void LOAD_OP(int I, u32 *W, const u8 *input)
 {
-	W[I] = __be32_to_cpu(((__be32 *)(input))[I]);
+	W[I] = get_unaligned_be32((__u32 *)input + I);
 }
 
 static inline void BLEND_OP(int I, u32 *W)
@@ -92,131 +94,116 @@ static void sha256_transform(u32 *state, const u8 *input)
 	t1 = b + e1(g) + Ch(g, h, a) + 0x9bdc06a7 + W[14];
 	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1 + t2;
 	t1 = a + e1(f) + Ch(f, g, h) + 0xc19bf174 + W[15];
-	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
+	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1 + t2;
 
 	t1 = h + e1(e) + Ch(e, f, g) + 0xe49b69c1 + W[16];
-	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1+t2;
+	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1 + t2;
 	t1 = g + e1(d) + Ch(d, e, f) + 0xefbe4786 + W[17];
-	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1+t2;
+	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1 + t2;
 	t1 = f + e1(c) + Ch(c, d, e) + 0x0fc19dc6 + W[18];
-	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1+t2;
+	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1 + t2;
 	t1 = e + e1(b) + Ch(b, c, d) + 0x240ca1cc + W[19];
-	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1+t2;
+	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1 + t2;
 	t1 = d + e1(a) + Ch(a, b, c) + 0x2de92c6f + W[20];
-	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1+t2;
+	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1 + t2;
 	t1 = c + e1(h) + Ch(h, a, b) + 0x4a7484aa + W[21];
-	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1+t2;
+	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1 + t2;
 	t1 = b + e1(g) + Ch(g, h, a) + 0x5cb0a9dc + W[22];
-	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1+t2;
+	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1 + t2;
 	t1 = a + e1(f) + Ch(f, g, h) + 0x76f988da + W[23];
-	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
+	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1 + t2;
 
 	t1 = h + e1(e) + Ch(e, f, g) + 0x983e5152 + W[24];
-	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1+t2;
+	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1 + t2;
 	t1 = g + e1(d) + Ch(d, e, f) + 0xa831c66d + W[25];
-	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1+t2;
+	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1 + t2;
 	t1 = f + e1(c) + Ch(c, d, e) + 0xb00327c8 + W[26];
-	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1+t2;
+	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1 + t2;
 	t1 = e + e1(b) + Ch(b, c, d) + 0xbf597fc7 + W[27];
-	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1+t2;
+	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1 + t2;
 	t1 = d + e1(a) + Ch(a, b, c) + 0xc6e00bf3 + W[28];
-	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1+t2;
+	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1 + t2;
 	t1 = c + e1(h) + Ch(h, a, b) + 0xd5a79147 + W[29];
-	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1+t2;
+	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1 + t2;
 	t1 = b + e1(g) + Ch(g, h, a) + 0x06ca6351 + W[30];
-	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1+t2;
+	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1 + t2;
 	t1 = a + e1(f) + Ch(f, g, h) + 0x14292967 + W[31];
-	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
+	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1 + t2;
 
 	t1 = h + e1(e) + Ch(e, f, g) + 0x27b70a85 + W[32];
-	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1+t2;
+	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1 + t2;
 	t1 = g + e1(d) + Ch(d, e, f) + 0x2e1b2138 + W[33];
-	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1+t2;
+	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1 + t2;
 	t1 = f + e1(c) + Ch(c, d, e) + 0x4d2c6dfc + W[34];
-	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1+t2;
+	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1 + t2;
 	t1 = e + e1(b) + Ch(b, c, d) + 0x53380d13 + W[35];
-	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1+t2;
+	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1 + t2;
 	t1 = d + e1(a) + Ch(a, b, c) + 0x650a7354 + W[36];
-	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1+t2;
+	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1 + t2;
 	t1 = c + e1(h) + Ch(h, a, b) + 0x766a0abb + W[37];
-	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1+t2;
+	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1 + t2;
 	t1 = b + e1(g) + Ch(g, h, a) + 0x81c2c92e + W[38];
-	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1+t2;
+	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1 + t2;
 	t1 = a + e1(f) + Ch(f, g, h) + 0x92722c85 + W[39];
-	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
+	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1 + t2;
 
 	t1 = h + e1(e) + Ch(e, f, g) + 0xa2bfe8a1 + W[40];
-	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1+t2;
+	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1 + t2;
 	t1 = g + e1(d) + Ch(d, e, f) + 0xa81a664b + W[41];
-	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1+t2;
+	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1 + t2;
 	t1 = f + e1(c) + Ch(c, d, e) + 0xc24b8b70 + W[42];
-	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1+t2;
+	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1 + t2;
 	t1 = e + e1(b) + Ch(b, c, d) + 0xc76c51a3 + W[43];
-	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1+t2;
+	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1 + t2;
 	t1 = d + e1(a) + Ch(a, b, c) + 0xd192e819 + W[44];
-	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1+t2;
+	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1 + t2;
 	t1 = c + e1(h) + Ch(h, a, b) + 0xd6990624 + W[45];
-	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1+t2;
+	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1 + t2;
 	t1 = b + e1(g) + Ch(g, h, a) + 0xf40e3585 + W[46];
-	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1+t2;
+	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1 + t2;
 	t1 = a + e1(f) + Ch(f, g, h) + 0x106aa070 + W[47];
-	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
+	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1 + t2;
 
 	t1 = h + e1(e) + Ch(e, f, g) + 0x19a4c116 + W[48];
-	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1+t2;
+	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1 + t2;
 	t1 = g + e1(d) + Ch(d, e, f) + 0x1e376c08 + W[49];
-	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1+t2;
+	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1 + t2;
 	t1 = f + e1(c) + Ch(c, d, e) + 0x2748774c + W[50];
-	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1+t2;
+	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1 + t2;
 	t1 = e + e1(b) + Ch(b, c, d) + 0x34b0bcb5 + W[51];
-	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1+t2;
+	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1 + t2;
 	t1 = d + e1(a) + Ch(a, b, c) + 0x391c0cb3 + W[52];
-	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1+t2;
+	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1 + t2;
 	t1 = c + e1(h) + Ch(h, a, b) + 0x4ed8aa4a + W[53];
-	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1+t2;
+	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1 + t2;
 	t1 = b + e1(g) + Ch(g, h, a) + 0x5b9cca4f + W[54];
-	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1+t2;
+	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1 + t2;
 	t1 = a + e1(f) + Ch(f, g, h) + 0x682e6ff3 + W[55];
-	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
+	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1 + t2;
 
 	t1 = h + e1(e) + Ch(e, f, g) + 0x748f82ee + W[56];
-	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1+t2;
+	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1 + t2;
 	t1 = g + e1(d) + Ch(d, e, f) + 0x78a5636f + W[57];
-	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1+t2;
+	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1 + t2;
 	t1 = f + e1(c) + Ch(c, d, e) + 0x84c87814 + W[58];
-	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1+t2;
+	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1 + t2;
 	t1 = e + e1(b) + Ch(b, c, d) + 0x8cc70208 + W[59];
-	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1+t2;
+	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1 + t2;
 	t1 = d + e1(a) + Ch(a, b, c) + 0x90befffa + W[60];
-	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1+t2;
+	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1 + t2;
 	t1 = c + e1(h) + Ch(h, a, b) + 0xa4506ceb + W[61];
-	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1+t2;
+	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1 + t2;
 	t1 = b + e1(g) + Ch(g, h, a) + 0xbef9a3f7 + W[62];
-	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1+t2;
+	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1 + t2;
 	t1 = a + e1(f) + Ch(f, g, h) + 0xc67178f2 + W[63];
-	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
+	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1 + t2;
 
 	state[0] += a; state[1] += b; state[2] += c; state[3] += d;
 	state[4] += e; state[5] += f; state[6] += g; state[7] += h;
 
 	/* clear any sensitive info... */
 	a = b = c = d = e = f = g = h = t1 = t2 = 0;
-	memset(W, 0, 64 * sizeof(u32));
-}
-
-int sha256_init(struct sha256_state *sctx)
-{
-	sctx->state[0] = SHA256_H0;
-	sctx->state[1] = SHA256_H1;
-	sctx->state[2] = SHA256_H2;
-	sctx->state[3] = SHA256_H3;
-	sctx->state[4] = SHA256_H4;
-	sctx->state[5] = SHA256_H5;
-	sctx->state[6] = SHA256_H6;
-	sctx->state[7] = SHA256_H7;
-	sctx->count = 0;
-
-	return 0;
+	memzero_explicit(W, 64 * sizeof(u32));
 }
 
 int sha256_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
@@ -248,8 +235,15 @@ int sha256_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
 
 	return 0;
 }
+EXPORT_SYMBOL(sha256_update);
 
-int sha256_final(struct sha256_state *sctx, u8 *out)
+int sha224_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
+{
+	return sha256_update(sctx, data, len);
+}
+EXPORT_SYMBOL(sha224_update);
+
+static int __sha256_final(struct sha256_state *sctx, u8 *out, int digest_words)
 {
 	__be32 *dst = (__be32 *)out;
 	__be64 bits;
@@ -269,11 +263,25 @@ int sha256_final(struct sha256_state *sctx, u8 *out)
 	sha256_update(sctx, (const u8 *)&bits, sizeof(bits));
 
 	/* Store state in digest */
-	for (i = 0; i < 8; i++)
-		dst[i] = cpu_to_be32(sctx->state[i]);
+	for (i = 0; i < digest_words; i++)
+		put_unaligned_be32(sctx->state[i], &dst[i]);
 
 	/* Zeroize sensitive information. */
 	memset(sctx, 0, sizeof(*sctx));
 
 	return 0;
 }
+
+int sha256_final(struct sha256_state *sctx, u8 *out)
+{
+	return __sha256_final(sctx, out, 8);
+}
+EXPORT_SYMBOL(sha256_final);
+
+int sha224_final(struct sha256_state *sctx, u8 *out)
+{
+	return __sha256_final(sctx, out, 7);
+}
+EXPORT_SYMBOL(sha224_final);
+
+MODULE_LICENSE("GPL");

@@ -108,7 +108,7 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	return 0;
 }
 
-static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+static void crypto_aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
 
@@ -119,7 +119,7 @@ static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	cpacf_km(sctx->fc, &sctx->key, out, in, AES_BLOCK_SIZE);
 }
 
-static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+static void crypto_aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
 
@@ -172,8 +172,8 @@ static struct crypto_alg aes_alg = {
 			.cia_min_keysize	=	AES_MIN_KEY_SIZE,
 			.cia_max_keysize	=	AES_MAX_KEY_SIZE,
 			.cia_setkey		=	aes_set_key,
-			.cia_encrypt		=	aes_encrypt,
-			.cia_decrypt		=	aes_decrypt,
+			.cia_encrypt		=	crypto_aes_encrypt,
+			.cia_decrypt		=	crypto_aes_decrypt,
 		}
 	}
 };
@@ -512,7 +512,7 @@ static int xts_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	unsigned long fc;
 	int err;
 
-	err = xts_check_key(tfm, in_key, key_len);
+	err = xts_fallback_setkey(tfm, in_key, key_len);
 	if (err)
 		return err;
 
@@ -529,7 +529,7 @@ static int xts_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	/* Check if the function code is available */
 	xts_ctx->fc = (fc && cpacf_test_func(&km_functions, fc)) ? fc : 0;
 	if (!xts_ctx->fc)
-		return xts_fallback_setkey(tfm, in_key, key_len);
+		return 0;
 
 	/* Split the XTS key into the two subkeys */
 	key_len = key_len / 2;
@@ -589,7 +589,7 @@ static int xts_aes_encrypt(struct blkcipher_desc *desc,
 	if (!nbytes)
 		return -EINVAL;
 
-	if (unlikely(!xts_ctx->fc))
+	if (unlikely(!xts_ctx->fc || (nbytes % XTS_BLOCK_SIZE) != 0))
 		return xts_fallback_encrypt(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
@@ -606,7 +606,7 @@ static int xts_aes_decrypt(struct blkcipher_desc *desc,
 	if (!nbytes)
 		return -EINVAL;
 
-	if (unlikely(!xts_ctx->fc))
+	if (unlikely(!xts_ctx->fc || (nbytes % XTS_BLOCK_SIZE) != 0))
 		return xts_fallback_decrypt(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);

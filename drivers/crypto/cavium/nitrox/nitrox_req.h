@@ -400,6 +400,36 @@ struct nps_pkt_instr {
 };
 
 /**
+ * struct aqmq_command_s - The 32 byte command for AE processing.
+ * @opcode: Request opcode
+ * @param1: Request control parameter 1
+ * @param2: Request control parameter 2
+ * @dlen: Input length
+ * @dptr: Input pointer points to buffer in remote host
+ * @rptr: Result pointer points to buffer in remote host
+ * @grp: AQM Group (0..7)
+ * @cptr: Context pointer
+ */
+struct aqmq_command_s {
+	__be16 opcode;
+	__be16 param1;
+	__be16 param2;
+	__be16 dlen;
+	__be64 dptr;
+	__be64 rptr;
+	union {
+		__be64 word3;
+#if defined(__BIG_ENDIAN_BITFIELD)
+		u64 grp : 3;
+		u64 cptr : 61;
+#else
+		u64 cptr : 61;
+		u64 grp : 3;
+#endif
+	};
+};
+
+/**
  * struct ctx_hdr - Book keeping data about the crypto context
  * @pool: Pool used to allocate crypto context
  * @dma: Base DMA address of the cypto context

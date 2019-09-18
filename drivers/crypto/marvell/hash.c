@@ -1148,8 +1148,7 @@ static int mv_cesa_ahmac_pad_init(struct ahash_request *req,
 		}
 
 		/* Set the memory region to 0 to avoid any leak. */
-		memset(keydup, 0, keylen);
-		kfree(keydup);
+		kzfree(keydup);
 
 		if (ret)
 			return ret;
