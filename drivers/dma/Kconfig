@@ -295,7 +295,7 @@ config INTEL_IOATDMA
 
 config INTEL_IOP_ADMA
 	tristate "Intel IOP32x ADMA support"
-	depends on ARCH_IOP32X
+	depends on ARCH_IOP32X || COMPILE_TEST
 	select DMA_ENGINE
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	help
