@@ -304,14 +304,10 @@ enum arm_smmu_domain_stage {
 	ARM_SMMU_DOMAIN_BYPASS,
 };
 
-struct arm_smmu_flush_ops {
-	struct iommu_flush_ops		tlb;
-};
-
 struct arm_smmu_domain {
 	struct arm_smmu_device		*smmu;
 	struct io_pgtable_ops		*pgtbl_ops;
-	const struct arm_smmu_flush_ops	*flush_ops;
+	const struct iommu_flush_ops	*flush_ops;
 	struct arm_smmu_cfg		cfg;
 	enum arm_smmu_domain_stage	stage;
 	bool				non_strict;

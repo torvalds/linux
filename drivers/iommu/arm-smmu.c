@@ -427,31 +427,25 @@ static void arm_smmu_tlb_add_page_s2_v1(struct iommu_iotlb_gather *gather,
 	arm_smmu_gr0_write(smmu, ARM_SMMU_GR0_TLBIVMID, smmu_domain->cfg.vmid);
 }
 
-static const struct arm_smmu_flush_ops arm_smmu_s1_tlb_ops = {
-	.tlb = {
-		.tlb_flush_all	= arm_smmu_tlb_inv_context_s1,
-		.tlb_flush_walk	= arm_smmu_tlb_inv_walk_s1,
-		.tlb_flush_leaf	= arm_smmu_tlb_inv_leaf_s1,
-		.tlb_add_page	= arm_smmu_tlb_add_page_s1,
-	},
+static const struct iommu_flush_ops arm_smmu_s1_tlb_ops = {
+	.tlb_flush_all	= arm_smmu_tlb_inv_context_s1,
+	.tlb_flush_walk	= arm_smmu_tlb_inv_walk_s1,
+	.tlb_flush_leaf	= arm_smmu_tlb_inv_leaf_s1,
+	.tlb_add_page	= arm_smmu_tlb_add_page_s1,
 };
 
-static const struct arm_smmu_flush_ops arm_smmu_s2_tlb_ops_v2 = {
-	.tlb = {
-		.tlb_flush_all	= arm_smmu_tlb_inv_context_s2,
-		.tlb_flush_walk	= arm_smmu_tlb_inv_walk_s2,
-		.tlb_flush_leaf	= arm_smmu_tlb_inv_leaf_s2,
-		.tlb_add_page	= arm_smmu_tlb_add_page_s2,
-	},
+static const struct iommu_flush_ops arm_smmu_s2_tlb_ops_v2 = {
+	.tlb_flush_all	= arm_smmu_tlb_inv_context_s2,
+	.tlb_flush_walk	= arm_smmu_tlb_inv_walk_s2,
+	.tlb_flush_leaf	= arm_smmu_tlb_inv_leaf_s2,
+	.tlb_add_page	= arm_smmu_tlb_add_page_s2,
 };
 
-static const struct arm_smmu_flush_ops arm_smmu_s2_tlb_ops_v1 = {
-	.tlb = {
-		.tlb_flush_all	= arm_smmu_tlb_inv_context_s2,
-		.tlb_flush_walk	= arm_smmu_tlb_inv_any_s2_v1,
-		.tlb_flush_leaf	= arm_smmu_tlb_inv_any_s2_v1,
-		.tlb_add_page	= arm_smmu_tlb_add_page_s2_v1,
-	},
+static const struct iommu_flush_ops arm_smmu_s2_tlb_ops_v1 = {
+	.tlb_flush_all	= arm_smmu_tlb_inv_context_s2,
+	.tlb_flush_walk	= arm_smmu_tlb_inv_any_s2_v1,
+	.tlb_flush_leaf	= arm_smmu_tlb_inv_any_s2_v1,
+	.tlb_add_page	= arm_smmu_tlb_add_page_s2_v1,
 };
 
 static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
@@ -781,7 +775,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		.ias		= ias,
 		.oas		= oas,
 		.coherent_walk	= smmu->features & ARM_SMMU_FEAT_COHERENT_WALK,
-		.tlb		= &smmu_domain->flush_ops->tlb,
+		.tlb		= smmu_domain->flush_ops,
 		.iommu_dev	= smmu->dev,
 	};
 
@@ -1210,7 +1204,7 @@ static void arm_smmu_flush_iotlb_all(struct iommu_domain *domain)
 
 	if (smmu_domain->flush_ops) {
 		arm_smmu_rpm_get(smmu);
-		smmu_domain->flush_ops->tlb.tlb_flush_all(smmu_domain);
+		smmu_domain->flush_ops->tlb_flush_all(smmu_domain);
 		arm_smmu_rpm_put(smmu);
 	}
 }
