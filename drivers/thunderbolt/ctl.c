@@ -282,6 +282,10 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 		tb_ctl_WARN(ctl, "CFG_ERROR(%llx:%x): Route contains a loop\n",
 			res->response_route, res->response_port);
 		return;
+	case TB_CFG_ERROR_LOCK:
+		tb_ctl_warn(ctl, "%llx:%x: downstream port is locked\n",
+			    res->response_route, res->response_port);
+		return;
 	default:
 		/* 5,6,7,9 and 11 are also valid error codes */
 		tb_ctl_WARN(ctl, "CFG_ERROR(%llx:%x): Unknown error\n",
@@ -950,6 +954,9 @@ static int tb_cfg_get_error(struct tb_ctl *ctl, enum tb_cfg_space space,
 		return -ENODEV;
 
 	tb_cfg_print_error(ctl, res);
+
+	if (res->tb_error == TB_CFG_ERROR_LOCK)
+		return -EACCES;
 	return -EIO;
 }
 
