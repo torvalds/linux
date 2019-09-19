@@ -309,7 +309,7 @@ static int gen6_reset_engines(struct intel_gt *gt,
 	return gen6_hw_domain_reset(gt, hw_mask);
 }
 
-static u32 gen11_lock_sfc(struct intel_engine_cs *engine)
+static int gen11_lock_sfc(struct intel_engine_cs *engine, u32 *hw_mask)
 {
 	struct intel_uncore *uncore = engine->uncore;
 	u8 vdbox_sfc_access = RUNTIME_INFO(engine->i915)->vdbox_sfc_access;
@@ -318,6 +318,7 @@ static u32 gen11_lock_sfc(struct intel_engine_cs *engine)
 	i915_reg_t sfc_usage;
 	u32 sfc_usage_bit;
 	u32 sfc_reset_bit;
+	int ret;
 
 	switch (engine->class) {
 	case VIDEO_DECODE_CLASS:
@@ -352,27 +353,33 @@ static u32 gen11_lock_sfc(struct intel_engine_cs *engine)
 	}
 
 	/*
-	 * Tell the engine that a software reset is going to happen. The engine
-	 * will then try to force lock the SFC (if currently locked, it will
-	 * remain so until we tell the engine it is safe to unlock; if currently
-	 * unlocked, it will ignore this and all new lock requests). If SFC
-	 * ends up being locked to the engine we want to reset, we have to reset
-	 * it as well (we will unlock it once the reset sequence is completed).
+	 * If the engine is using a SFC, tell the engine that a software reset
+	 * is going to happen. The engine will then try to force lock the SFC.
+	 * If SFC ends up being locked to the engine we want to reset, we have
+	 * to reset it as well (we will unlock it once the reset sequence is
+	 * completed).
 	 */
+	if (!(intel_uncore_read_fw(uncore, sfc_usage) & sfc_usage_bit))
+		return 0;
+
 	rmw_set_fw(uncore, sfc_forced_lock, sfc_forced_lock_bit);
 
-	if (__intel_wait_for_register_fw(uncore,
-					 sfc_forced_lock_ack,
-					 sfc_forced_lock_ack_bit,
-					 sfc_forced_lock_ack_bit,
-					 1000, 0, NULL)) {
-		DRM_DEBUG_DRIVER("Wait for SFC forced lock ack failed\n");
+	ret = __intel_wait_for_register_fw(uncore,
+					   sfc_forced_lock_ack,
+					   sfc_forced_lock_ack_bit,
+					   sfc_forced_lock_ack_bit,
+					   1000, 0, NULL);
+
+	/* Was the SFC released while we were trying to lock it? */
+	if (!(intel_uncore_read_fw(uncore, sfc_usage) & sfc_usage_bit))
 		return 0;
+
+	if (ret) {
+		DRM_DEBUG_DRIVER("Wait for SFC forced lock ack failed\n");
+		return ret;
 	}
 
-	if (intel_uncore_read_fw(uncore, sfc_usage) & sfc_usage_bit)
-		return sfc_reset_bit;
-
+	*hw_mask |= sfc_reset_bit;
 	return 0;
 }
 
@@ -430,12 +437,21 @@ static int gen11_reset_engines(struct intel_gt *gt,
 		for_each_engine_masked(engine, gt->i915, engine_mask, tmp) {
 			GEM_BUG_ON(engine->id >= ARRAY_SIZE(hw_engine_mask));
 			hw_mask |= hw_engine_mask[engine->id];
-			hw_mask |= gen11_lock_sfc(engine);
+			ret = gen11_lock_sfc(engine, &hw_mask);
+			if (ret)
+				goto sfc_unlock;
 		}
 	}
 
 	ret = gen6_hw_domain_reset(gt, hw_mask);
 
+sfc_unlock:
+	/*
+	 * We unlock the SFC based on the lock status and not the result of
+	 * gen11_lock_sfc to make sure that we clean properly if something
+	 * wrong happened during the lock (e.g. lock acquired after timeout
+	 * expiration).
+	 */
 	if (engine_mask != ALL_ENGINES)
 		for_each_engine_masked(engine, gt->i915, engine_mask, tmp)
 			gen11_unlock_sfc(engine);
