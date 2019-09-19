@@ -9,6 +9,9 @@ wfx-y := \
 	fwio.o \
 	hif_tx.o \
 	hif_rx.o \
+	queue.o \
+	data_tx.o \
+	sta.o \
 	main.o \
 	sta.o \
 	debug.o

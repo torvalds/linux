@@ -88,6 +88,7 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request, void *reply, siz
 	}
 	if (!ret) {
 		dev_err(wdev->dev, "chip did not answer\n");
+		wfx_pending_dump_old_frames(wdev, 3000);
 		wdev->chip_frozen = 1;
 		reinit_completion(&wdev->hif_cmd.done);
 		ret = -ETIMEDOUT;

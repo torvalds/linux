@@ -53,6 +53,39 @@ static int hif_generic_confirm(struct wfx_dev *wdev, struct hif_msg *hif, void *
 	return status;
 }
 
+static int hif_tx_confirm(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
+{
+	struct hif_cnf_tx *body = buf;
+	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
+
+	WARN_ON(!wvif);
+	if (!wvif)
+		return -EFAULT;
+
+	wfx_tx_confirm_cb(wvif, body);
+	return 0;
+}
+
+static int hif_multi_tx_confirm(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
+{
+	struct hif_cnf_multi_transmit *body = buf;
+	struct hif_cnf_tx *buf_loc = (struct hif_cnf_tx *) &body->tx_conf_payload;
+	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
+	int count = body->num_tx_confs;
+	int i;
+
+	WARN(count <= 0, "corrupted message");
+	WARN_ON(!wvif);
+	if (!wvif)
+		return -EFAULT;
+
+	for (i = 0; i < count; ++i) {
+		wfx_tx_confirm_cb(wvif, buf_loc);
+		buf_loc++;
+	}
+	return 0;
+}
+
 static int hif_startup_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
 {
 	struct hif_ind_startup *body = buf;
@@ -174,6 +207,10 @@ static const struct {
 	int msg_id;
 	int (*handler)(struct wfx_dev *wdev, struct hif_msg *hif, void *buf);
 } hif_handlers[] = {
+	/* Confirmations */
+	{ HIF_CNF_ID_TX,                   hif_tx_confirm },
+	{ HIF_CNF_ID_MULTI_TRANSMIT,       hif_multi_tx_confirm },
+	/* Indications */
 	{ HIF_IND_ID_STARTUP,              hif_startup_indication },
 	{ HIF_IND_ID_WAKEUP,               hif_wakeup_indication },
 	{ HIF_IND_ID_JOIN_COMPLETE,        hif_join_complete_indication },

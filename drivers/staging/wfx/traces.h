@@ -12,6 +12,7 @@
 #define _WFX_TRACE_H
 
 #include <linux/tracepoint.h>
+#include <net/mac80211.h>
 
 #include "bus.h"
 #include "hif_api_cmd.h"
@@ -348,6 +349,79 @@ TRACE_EVENT(bh_stats,
 	)
 );
 #define _trace_bh_stats(ind, req, cnf, busy, release) trace_bh_stats(ind, req, cnf, busy, release)
+
+TRACE_EVENT(tx_stats,
+	TP_PROTO(struct hif_cnf_tx *tx_cnf, struct sk_buff *skb, int delay),
+	TP_ARGS(tx_cnf, skb, delay),
+	TP_STRUCT__entry(
+		__field(int, pkt_id)
+		__field(int, delay_media)
+		__field(int, delay_queue)
+		__field(int, delay_fw)
+		__field(int, ack_failures)
+		__field(int, flags)
+		__array(int, rate, 4)
+		__array(int, tx_count, 4)
+	),
+	TP_fast_assign(
+		// Keep sync with wfx_rates definition in main.c
+		static const int hw_rate[] = { 0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13 };
+		struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+		struct ieee80211_tx_rate *rates = tx_info->driver_rates;
+		int i;
+
+		__entry->pkt_id = tx_cnf->packet_id;
+		__entry->delay_media = tx_cnf->media_delay;
+		__entry->delay_queue = tx_cnf->tx_queue_delay;
+		__entry->delay_fw = delay;
+		__entry->ack_failures = tx_cnf->ack_failures;
+		if (!tx_cnf->status || __entry->ack_failures)
+			__entry->ack_failures += 1;
+
+		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+			if (rates[0].flags & IEEE80211_TX_RC_MCS)
+				__entry->rate[i] = rates[i].idx;
+			else
+				__entry->rate[i] = hw_rate[rates[i].idx];
+			__entry->tx_count[i] = rates[i].count;
+		}
+		__entry->flags = 0;
+		if (rates[0].flags & IEEE80211_TX_RC_MCS)
+			__entry->flags |= 0x01;
+		if (rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
+			__entry->flags |= 0x02;
+		if (rates[0].flags & IEEE80211_TX_RC_GREEN_FIELD)
+			__entry->flags |= 0x04;
+		if (rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
+			__entry->flags |= 0x08;
+		if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
+			__entry->flags |= 0x10;
+		if (tx_cnf->status)
+			__entry->flags |= 0x20;
+		if (tx_cnf->status == HIF_REQUEUE)
+			__entry->flags |= 0x40;
+	),
+	TP_printk("packet ID: %08x, rate policy: %s %d|%d %d|%d %d|%d %d|%d -> %d attempt, Delays media/queue/total: %4dus/%4dus/%4dus",
+		__entry->pkt_id,
+		__print_flags(__entry->flags, NULL,
+			{ 0x01, "M" }, { 0x02, "S" }, { 0x04, "G" },
+			{ 0x08, "R" }, { 0x10, "D" }, { 0x20, "F" },
+			{ 0x40, "Q" }),
+		__entry->rate[0],
+		__entry->tx_count[0],
+		__entry->rate[1],
+		__entry->tx_count[1],
+		__entry->rate[2],
+		__entry->tx_count[2],
+		__entry->rate[3],
+		__entry->tx_count[3],
+		__entry->ack_failures,
+		__entry->delay_media,
+		__entry->delay_queue,
+		__entry->delay_fw
+	)
+);
+#define _trace_tx_stats(tx_cnf, skb, delay) trace_tx_stats(tx_cnf, skb, delay)
 
 #endif
 

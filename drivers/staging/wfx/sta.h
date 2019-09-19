@@ -10,6 +10,14 @@
 
 #include <net/mac80211.h>
 
+#include "hif_api_cmd.h"
+
+struct wfx_edca_params {
+	/* NOTE: index is a linux queue id. */
+	struct hif_req_edca_queue_params params[IEEE80211_NUM_ACS];
+	bool uapsd_enable[IEEE80211_NUM_ACS];
+};
+
 struct wfx_sta_priv {
 	int link_id;
 	int vif_id;

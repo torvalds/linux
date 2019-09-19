@@ -28,6 +28,7 @@
 #include "bh.h"
 #include "sta.h"
 #include "debug.h"
+#include "data_tx.h"
 #include "secure_link.h"
 #include "hif_tx_mib.h"
 #include "hif_api_cmd.h"
@@ -53,6 +54,7 @@ static const struct ieee80211_ops wfx_ops = {
 	.stop			= wfx_stop,
 	.add_interface		= wfx_add_interface,
 	.remove_interface	= wfx_remove_interface,
+	.tx			= wfx_tx,
 };
 
 bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
@@ -215,6 +217,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	mutex_init(&wdev->rx_stats_lock);
 	init_completion(&wdev->firmware_ready);
 	wfx_init_hif_cmd(&wdev->hif_cmd);
+	wfx_tx_queues_init(wdev);
 
 	return wdev;
 }
@@ -222,6 +225,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 void wfx_free_common(struct wfx_dev *wdev)
 {
 	mutex_destroy(&wdev->rx_stats_lock);
+	wfx_tx_queues_deinit(wdev);
 	ieee80211_free_hw(wdev->hw);
 }
 

@@ -220,6 +220,8 @@ static int bh_work_tx(struct wfx_dev *wdev, int max_msg)
 			if (try_wait_for_completion(&wdev->hif_cmd.ready)) {
 				WARN(!mutex_is_locked(&wdev->hif_cmd.lock), "data locking error");
 				hif = wdev->hif_cmd.buf_send;
+			} else {
+				hif = wfx_tx_queues_get(wdev);
 			}
 		}
 		if (!hif)
