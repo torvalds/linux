@@ -2,12 +2,13 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2013,2017 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2019 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  * Author: Gary R Hook <gary.hook@amd.com>
  */
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
@@ -19,12 +20,26 @@
 #include <linux/delay.h>
 #include <linux/hw_random.h>
 #include <linux/cpu.h>
+#include <linux/atomic.h>
 #ifdef CONFIG_X86
 #include <asm/cpu_device_id.h>
 #endif
 #include <linux/ccp.h>
 
 #include "ccp-dev.h"
+
+#define MAX_CCPS 32
+
+/* Limit CCP use to a specifed number of queues per device */
+static unsigned int nqueues = 0;
+module_param(nqueues, uint, 0444);
+MODULE_PARM_DESC(nqueues, "Number of queues per CCP (minimum 1; default: all available)");
+
+/* Limit the maximum number of configured CCPs */
+static atomic_t dev_count = ATOMIC_INIT(0);
+static unsigned int max_devs = MAX_CCPS;
+module_param(max_devs, uint, 0444);
+MODULE_PARM_DESC(max_devs, "Maximum number of CCPs to enable (default: all; 0 disables all CCPs)");
 
 struct ccp_tasklet_data {
 	struct completion completion;
@@ -594,11 +609,23 @@ int ccp_dev_init(struct sp_device *sp)
 	struct ccp_device *ccp;
 	int ret;
 
+	/*
+	 * Check how many we have so far, and stop after reaching
+	 * that number
+	 */
+	if (atomic_inc_return(&dev_count) > max_devs)
+		return 0; /* don't fail the load */
+
 	ret = -ENOMEM;
 	ccp = ccp_alloc_struct(sp);
 	if (!ccp)
 		goto e_err;
 	sp->ccp_data = ccp;
+
+	if (!nqueues || (nqueues > MAX_HW_QUEUES))
+		ccp->max_q_count = MAX_HW_QUEUES;
+	else
+		ccp->max_q_count = nqueues;
 
 	ccp->vdata = (struct ccp_vdata *)sp->dev_vdata->ccp_vdata;
 	if (!ccp->vdata || !ccp->vdata->version) {

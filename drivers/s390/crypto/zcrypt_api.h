@@ -121,9 +121,6 @@ void zcrypt_card_get(struct zcrypt_card *);
 int zcrypt_card_put(struct zcrypt_card *);
 int zcrypt_card_register(struct zcrypt_card *);
 void zcrypt_card_unregister(struct zcrypt_card *);
-struct zcrypt_card *zcrypt_card_get_best(unsigned int *,
-					 unsigned int, unsigned int);
-void zcrypt_card_put_best(struct zcrypt_card *, unsigned int);
 
 struct zcrypt_queue *zcrypt_queue_alloc(size_t);
 void zcrypt_queue_free(struct zcrypt_queue *);
@@ -132,8 +129,6 @@ int zcrypt_queue_put(struct zcrypt_queue *);
 int zcrypt_queue_register(struct zcrypt_queue *);
 void zcrypt_queue_unregister(struct zcrypt_queue *);
 void zcrypt_queue_force_online(struct zcrypt_queue *, int);
-struct zcrypt_queue *zcrypt_queue_get_best(unsigned int, unsigned int);
-void  zcrypt_queue_put_best(struct zcrypt_queue *, unsigned int);
 
 int zcrypt_rng_device_add(void);
 void zcrypt_rng_device_remove(void);
@@ -145,5 +140,7 @@ int zcrypt_api_init(void);
 void zcrypt_api_exit(void);
 long zcrypt_send_cprb(struct ica_xcRB *xcRB);
 void zcrypt_device_status_mask_ext(struct zcrypt_device_status_ext *devstatus);
+int zcrypt_device_status_ext(int card, int queue,
+			     struct zcrypt_device_status_ext *devstatus);
 
 #endif /* _ZCRYPT_API_H_ */

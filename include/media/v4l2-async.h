@@ -172,13 +172,39 @@ int v4l2_async_notifier_add_subdev(struct v4l2_async_notifier *notifier,
  *		     the driver's async sub-device struct, i.e. both
  *		     begin at the same memory address.
  *
- * Allocate a fwnode-matched asd of size asd_struct_size, and add it
- * to the notifiers @asd_list.
+ * Allocate a fwnode-matched asd of size asd_struct_size, and add it to the
+ * notifiers @asd_list. The function also gets a reference of the fwnode which
+ * is released later at notifier cleanup time.
  */
 struct v4l2_async_subdev *
 v4l2_async_notifier_add_fwnode_subdev(struct v4l2_async_notifier *notifier,
 				      struct fwnode_handle *fwnode,
 				      unsigned int asd_struct_size);
+
+/**
+ * v4l2_async_notifier_add_fwnode_remote_subdev - Allocate and add a fwnode
+ *						  remote async subdev to the
+ *						  notifier's master asd_list.
+ *
+ * @notif: pointer to &struct v4l2_async_notifier
+ * @endpoint: local endpoint pointing to the remote sub-device to be matched
+ * @asd: Async sub-device struct allocated by the caller. The &struct
+ *	 v4l2_async_subdev shall be the first member of the driver's async
+ *	 sub-device struct, i.e. both begin at the same memory address.
+ *
+ * Gets the remote endpoint of a given local endpoint, set it up for fwnode
+ * matching and adds the async sub-device to the notifier's @asd_list. The
+ * function also gets a reference of the fwnode which is released later at
+ * notifier cleanup time.
+ *
+ * This is just like @v4l2_async_notifier_add_fwnode_subdev, but with the
+ * exception that the fwnode refers to a local endpoint, not the remote one, and
+ * the function relies on the caller to allocate the async sub-device struct.
+ */
+int
+v4l2_async_notifier_add_fwnode_remote_subdev(struct v4l2_async_notifier *notif,
+					     struct fwnode_handle *endpoint,
+					     struct v4l2_async_subdev *asd);
 
 /**
  * v4l2_async_notifier_add_i2c_subdev - Allocate and add an i2c async

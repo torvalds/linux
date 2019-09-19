@@ -29,9 +29,9 @@ struct xfs_refcount_intent {
 	xfs_extlen_t				ri_blockcount;
 };
 
-extern int xfs_refcount_increase_extent(struct xfs_trans *tp,
+void xfs_refcount_increase_extent(struct xfs_trans *tp,
 		struct xfs_bmbt_irec *irec);
-extern int xfs_refcount_decrease_extent(struct xfs_trans *tp,
+void xfs_refcount_decrease_extent(struct xfs_trans *tp,
 		struct xfs_bmbt_irec *irec);
 
 extern void xfs_refcount_finish_one_cleanup(struct xfs_trans *tp,
@@ -45,10 +45,10 @@ extern int xfs_refcount_find_shared(struct xfs_btree_cur *cur,
 		xfs_agblock_t agbno, xfs_extlen_t aglen, xfs_agblock_t *fbno,
 		xfs_extlen_t *flen, bool find_end_of_shared);
 
-extern int xfs_refcount_alloc_cow_extent(struct xfs_trans *tp,
-		xfs_fsblock_t fsb, xfs_extlen_t len);
-extern int xfs_refcount_free_cow_extent(struct xfs_trans *tp,
-		xfs_fsblock_t fsb, xfs_extlen_t len);
+void xfs_refcount_alloc_cow_extent(struct xfs_trans *tp, xfs_fsblock_t fsb,
+		xfs_extlen_t len);
+void xfs_refcount_free_cow_extent(struct xfs_trans *tp, xfs_fsblock_t fsb,
+		xfs_extlen_t len);
 extern int xfs_refcount_recover_cow_leftovers(struct xfs_mount *mp,
 		xfs_agnumber_t agno);
 

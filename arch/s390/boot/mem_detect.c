@@ -63,13 +63,6 @@ void add_mem_detect_block(u64 start, u64 end)
 	mem_detect.count++;
 }
 
-static unsigned long get_mem_detect_end(void)
-{
-	if (mem_detect.count)
-		return __get_mem_detect_block_ptr(mem_detect.count - 1)->end;
-	return 0;
-}
-
 static int __diag260(unsigned long rx1, unsigned long rx2)
 {
 	register unsigned long _rx1 asm("2") = rx1;

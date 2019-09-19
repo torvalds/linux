@@ -1198,10 +1198,8 @@ void kvm_apic_set_eoi_accelerated(struct kvm_vcpu *vcpu, int vector)
 }
 EXPORT_SYMBOL_GPL(kvm_apic_set_eoi_accelerated);
 
-static void apic_send_ipi(struct kvm_lapic *apic)
+static void apic_send_ipi(struct kvm_lapic *apic, u32 icr_low, u32 icr_high)
 {
-	u32 icr_low = kvm_lapic_get_reg(apic, APIC_ICR);
-	u32 icr_high = kvm_lapic_get_reg(apic, APIC_ICR2);
 	struct kvm_lapic_irq irq;
 
 	irq.vector = icr_low & APIC_VECTOR_MASK;
@@ -1598,7 +1596,7 @@ static void start_sw_tscdeadline(struct kvm_lapic *apic)
 	    likely(ns > apic->lapic_timer.timer_advance_ns)) {
 		expire = ktime_add_ns(now, ns);
 		expire = ktime_sub_ns(expire, ktimer->timer_advance_ns);
-		hrtimer_start(&ktimer->timer, expire, HRTIMER_MODE_ABS);
+		hrtimer_start(&ktimer->timer, expire, HRTIMER_MODE_ABS_HARD);
 	} else
 		apic_timer_expired(apic);
 
@@ -1914,8 +1912,9 @@ int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 	}
 	case APIC_ICR:
 		/* No delay here, so we always clear the pending bit */
-		kvm_lapic_set_reg(apic, APIC_ICR, val & ~(1 << 12));
-		apic_send_ipi(apic);
+		val &= ~(1 << 12);
+		apic_send_ipi(apic, val, kvm_lapic_get_reg(apic, APIC_ICR2));
+		kvm_lapic_set_reg(apic, APIC_ICR, val);
 		break;
 
 	case APIC_ICR2:
@@ -2299,7 +2298,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu, int timer_advance_ns)
 	apic->vcpu = vcpu;
 
 	hrtimer_init(&apic->lapic_timer.timer, CLOCK_MONOTONIC,
-		     HRTIMER_MODE_ABS);
+		     HRTIMER_MODE_ABS_HARD);
 	apic->lapic_timer.timer.function = apic_timer_fn;
 	if (timer_advance_ns == -1) {
 		apic->lapic_timer.timer_advance_ns = LAPIC_TIMER_ADVANCE_ADJUST_INIT;
@@ -2484,7 +2483,7 @@ void __kvm_migrate_apic_timer(struct kvm_vcpu *vcpu)
 
 	timer = &vcpu->arch.apic->lapic_timer.timer;
 	if (hrtimer_cancel(timer))
-		hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
+		hrtimer_start_expires(timer, HRTIMER_MODE_ABS_HARD);
 }
 
 /*
@@ -2707,11 +2706,14 @@ void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 		return;
 
 	/*
-	 * INITs are latched while in SMM.  Because an SMM CPU cannot
-	 * be in KVM_MP_STATE_INIT_RECEIVED state, just eat SIPIs
-	 * and delay processing of INIT until the next RSM.
+	 * INITs are latched while CPU is in specific states
+	 * (SMM, VMX non-root mode, SVM with GIF=0).
+	 * Because a CPU cannot be in these states immediately
+	 * after it has processed an INIT signal (and thus in
+	 * KVM_MP_STATE_INIT_RECEIVED state), just eat SIPIs
+	 * and leave the INIT pending.
 	 */
-	if (is_smm(vcpu)) {
+	if (is_smm(vcpu) || kvm_x86_ops->apic_init_signal_blocked(vcpu)) {
 		WARN_ON_ONCE(vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED);
 		if (test_bit(KVM_APIC_SIPI, &apic->pending_events))
 			clear_bit(KVM_APIC_SIPI, &apic->pending_events);

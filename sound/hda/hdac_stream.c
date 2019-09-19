@@ -229,11 +229,7 @@ int snd_hdac_stream_setup(struct hdac_stream *azx_dev)
 	/* set the interrupt enable bits in the descriptor control register */
 	snd_hdac_stream_updatel(azx_dev, SD_CTL, 0, SD_INT_MASK);
 
-	if (azx_dev->direction == SNDRV_PCM_STREAM_PLAYBACK)
-		azx_dev->fifo_size =
-			snd_hdac_stream_readw(azx_dev, SD_FIFOSIZE) + 1;
-	else
-		azx_dev->fifo_size = 0;
+	azx_dev->fifo_size = snd_hdac_stream_readw(azx_dev, SD_FIFOSIZE) + 1;
 
 	/* when LPIB delay correction gives a small negative value,
 	 * we ignore it; currently set the threshold statically to
@@ -680,8 +676,8 @@ int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
 	azx_dev->locked = true;
 	spin_unlock_irq(&bus->reg_lock);
 
-	err = bus->io_ops->dma_alloc_pages(bus, SNDRV_DMA_TYPE_DEV_SG,
-					   byte_size, bufp);
+	err = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV_SG, bus->dev,
+				  byte_size, bufp);
 	if (err < 0)
 		goto err_alloc;
 
@@ -707,7 +703,7 @@ int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
 	return azx_dev->stream_tag;
 
  error:
-	bus->io_ops->dma_free_pages(bus, bufp);
+	snd_dma_free_pages(bufp);
  err_alloc:
 	spin_lock_irq(&bus->reg_lock);
 	azx_dev->locked = false;
@@ -754,7 +750,7 @@ void snd_hdac_dsp_cleanup(struct hdac_stream *azx_dev,
 	azx_dev->period_bytes = 0;
 	azx_dev->format_val = 0;
 
-	bus->io_ops->dma_free_pages(bus, dmab);
+	snd_dma_free_pages(dmab);
 	dmab->area = NULL;
 
 	spin_lock_irq(&bus->reg_lock);

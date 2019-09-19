@@ -696,7 +696,7 @@ again:
 		if (gru_mq_desc == NULL) {
 			gru_mq_desc = kmalloc(sizeof(struct
 					      gru_message_queue_desc),
-					      GFP_KERNEL);
+					      GFP_ATOMIC);
 			if (gru_mq_desc == NULL) {
 				ret = xpNoMemory;
 				goto done;
@@ -1680,7 +1680,7 @@ xpc_received_payload_uv(struct xpc_channel *ch, void *payload)
 		XPC_DEACTIVATE_PARTITION(&xpc_partitions[ch->partid], ret);
 }
 
-static struct xpc_arch_operations xpc_arch_ops_uv = {
+static const struct xpc_arch_operations xpc_arch_ops_uv = {
 	.setup_partitions = xpc_setup_partitions_uv,
 	.teardown_partitions = xpc_teardown_partitions_uv,
 	.process_activate_IRQ_rcvd = xpc_process_activate_IRQ_rcvd_uv,

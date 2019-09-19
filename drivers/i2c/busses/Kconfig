@@ -1206,7 +1206,7 @@ config I2C_PARPORT
 	  and makes it easier to add support for new devices.
 
 	  An adapter type parameter is now mandatory.  Please read the file
-	  Documentation/i2c/busses/i2c-parport for details.
+	  Documentation/i2c/busses/i2c-parport.rst for details.
 
 	  Another driver exists, named i2c-parport-light, which doesn't depend
 	  on the parport driver.  This is meant for embedded systems. Don't say

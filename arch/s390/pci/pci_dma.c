@@ -674,9 +674,9 @@ EXPORT_SYMBOL_GPL(s390_pci_dma_ops);
 
 static int __init s390_iommu_setup(char *str)
 {
-	if (!strncmp(str, "strict", 6))
+	if (!strcmp(str, "strict"))
 		s390_iommu_strict = 1;
-	return 0;
+	return 1;
 }
 
 __setup("s390_iommu=", s390_iommu_setup);

@@ -353,7 +353,7 @@ static int friio_ext_ctl(struct dvb_usb_device *d,
 	ret += i2c_transfer(&d->i2c_adap, &msg, 1);
 
 	/* send 32bit(satur, R, G, B) data in serial */
-	mask = 1 << 31;
+	mask = 1UL << 31;
 	for (i = 0; i < 32; i++) {
 		buf[1] = power | FRIIO_CTL_STROBE;
 		if (sat_color & mask)

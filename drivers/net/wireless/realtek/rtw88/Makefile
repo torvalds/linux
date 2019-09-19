@@ -9,6 +9,7 @@ rtw88-y += main.o \
 	   rx.o \
 	   mac.o \
 	   phy.o \
+	   coex.o \
 	   efuse.o \
 	   fw.o \
 	   ps.o \

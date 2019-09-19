@@ -827,6 +827,8 @@ patternProperties:
     description: Semtech Corporation
   "^sensirion,.*":
     description: Sensirion AG
+  "^sensortek,.*":
+    description: Sensortek Technology Corporation
   "^sff,.*":
     description: Small Form Factor Committee
   "^sgd,.*":

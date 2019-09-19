@@ -98,9 +98,7 @@
  * To manipulate from user space the levels, create a debugfs dentry
  * and then register each submodule with:
  *
- *     result = d_level_register_debugfs("PREFIX_", submodule_X, parent);
- *     if (result < 0)
- *            goto error;
+ *     d_level_register_debugfs("PREFIX_", submodule_X, parent);
  *
  * Where PREFIX_ is a name of your chosing. This will create debugfs
  * file with a single numeric value that can be use to tweak it. To
@@ -408,25 +406,13 @@ do {							\
  * @submodule: name of submodule (not a string, just the name)
  * @dentry: debugfs parent dentry
  *
- * Returns: 0 if ok, < 0 errno on error.
- *
  * For removing, just use debugfs_remove_recursive() on the parent.
  */
 #define d_level_register_debugfs(prefix, name, parent)			\
 ({									\
-	int rc;								\
-	struct dentry *fd;						\
-	struct dentry *verify_parent_type = parent;			\
-	fd = debugfs_create_u8(						\
-		prefix #name, 0600, verify_parent_type,			\
+	debugfs_create_u8(						\
+		prefix #name, 0600, parent,				\
 		&(D_LEVEL[__D_SUBMODULE_ ## name].level));		\
-	rc = PTR_ERR(fd);						\
-	if (IS_ERR(fd) && rc != -ENODEV)				\
-		printk(KERN_ERR "%s: Can't create debugfs entry %s: "	\
-		       "%d\n", __func__, prefix #name, rc);		\
-	else								\
-		rc = 0;							\
-	rc;								\
 })
 
 

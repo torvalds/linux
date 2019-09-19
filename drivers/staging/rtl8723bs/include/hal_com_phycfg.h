@@ -213,23 +213,6 @@ PHY_GetTxPowerTrackingOffset(
 	u8 	RFPath
 	);
 
-u8
-PHY_GetTxPowerIndex(
-struct adapter *		padapter,
-u8 			RFPath,
-u8 			Rate,
-enum CHANNEL_WIDTH		BandWidth,
-u8 			Channel
-	);
-
-void
-PHY_SetTxPowerIndex(
-struct adapter *	padapter,
-u32 			PowerIndex,
-u8 		RFPath,
-u8 		Rate
-	);
-
 void
 Hal_ChannelPlanToRegulation(
 struct adapter *	Adapter,

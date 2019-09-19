@@ -554,8 +554,15 @@ re_probe:
 			goto probe_failed;
 	}
 
+	if (device_add_groups(dev, drv->dev_groups)) {
+		dev_err(dev, "device_add_groups() failed\n");
+		goto dev_groups_failed;
+	}
+
 	if (test_remove) {
 		test_remove = false;
+
+		device_remove_groups(dev, drv->dev_groups);
 
 		if (dev->bus->remove)
 			dev->bus->remove(dev);
@@ -584,6 +591,11 @@ re_probe:
 		 drv->bus->name, __func__, dev_name(dev), drv->name);
 	goto done;
 
+dev_groups_failed:
+	if (dev->bus->remove)
+		dev->bus->remove(dev);
+	else if (drv->remove)
+		drv->remove(dev);
 probe_failed:
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
@@ -1113,6 +1125,8 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 						     dev);
 
 		pm_runtime_put_sync(dev);
+
+		device_remove_groups(dev, drv->dev_groups);
 
 		if (dev->bus && dev->bus->remove)
 			dev->bus->remove(dev);

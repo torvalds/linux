@@ -394,7 +394,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	char *secdata = NULL;
 	u32 seclen = 0;
 
-	size =    nlmsg_total_size(sizeof(struct nfgenmsg))
+	size = nlmsg_total_size(sizeof(struct nfgenmsg))
 		+ nla_total_size(sizeof(struct nfqnl_msg_packet_hdr))
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
@@ -453,7 +453,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	}
 
 	if (queue->flags & NFQA_CFG_F_UID_GID) {
-		size +=  (nla_total_size(sizeof(u_int32_t))	/* uid */
+		size += (nla_total_size(sizeof(u_int32_t))	/* uid */
 			+ nla_total_size(sizeof(u_int32_t)));	/* gid */
 	}
 

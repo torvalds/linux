@@ -1659,10 +1659,8 @@ static int ceu_probe(struct platform_device *pdev)
 	}
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(dev, "Failed to get irq: %d\n", ret);
+	if (ret < 0)
 		goto error_free_ceudev;
-	}
 	irq = ret;
 
 	ret = devm_request_irq(dev, irq, ceu_irq,

@@ -25,14 +25,8 @@ static void dwmac4_core_init(struct mac_device_info *hw,
 {
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value = readl(ioaddr + GMAC_CONFIG);
-	int mtu = dev->mtu;
 
 	value |= GMAC_CORE_INIT;
-
-	if (mtu > 1500)
-		value |= GMAC_CONFIG_2K;
-	if (mtu > 2000)
-		value |= GMAC_CONFIG_JE;
 
 	if (hw->ps) {
 		value |= GMAC_CONFIG_TE;
@@ -737,6 +731,73 @@ static void dwmac4_set_mac_loopback(void __iomem *ioaddr, bool enable)
 	writel(value, ioaddr + GMAC_CONFIG);
 }
 
+static void dwmac4_update_vlan_hash(struct mac_device_info *hw, u32 hash,
+				    bool is_double)
+{
+	void __iomem *ioaddr = hw->pcsr;
+
+	writel(hash, ioaddr + GMAC_VLAN_HASH_TABLE);
+
+	if (hash) {
+		u32 value = GMAC_VLAN_VTHM | GMAC_VLAN_ETV;
+		if (is_double) {
+			value |= GMAC_VLAN_EDVLP;
+			value |= GMAC_VLAN_ESVL;
+			value |= GMAC_VLAN_DOVLTC;
+		}
+
+		writel(value, ioaddr + GMAC_VLAN_TAG);
+	} else {
+		u32 value = readl(ioaddr + GMAC_VLAN_TAG);
+
+		value &= ~(GMAC_VLAN_VTHM | GMAC_VLAN_ETV);
+		value &= ~(GMAC_VLAN_EDVLP | GMAC_VLAN_ESVL);
+		value &= ~GMAC_VLAN_DOVLTC;
+		value &= ~GMAC_VLAN_VID;
+
+		writel(value, ioaddr + GMAC_VLAN_TAG);
+	}
+}
+
+static void dwmac4_sarc_configure(void __iomem *ioaddr, int val)
+{
+	u32 value = readl(ioaddr + GMAC_CONFIG);
+
+	value &= ~GMAC_CONFIG_SARC;
+	value |= val << GMAC_CONFIG_SARC_SHIFT;
+
+	writel(value, ioaddr + GMAC_CONFIG);
+}
+
+static void dwmac4_enable_vlan(struct mac_device_info *hw, u32 type)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	value = readl(ioaddr + GMAC_VLAN_INCL);
+	value |= GMAC_VLAN_VLTI;
+	value |= GMAC_VLAN_CSVL; /* Only use SVLAN */
+	value &= ~GMAC_VLAN_VLC;
+	value |= (type << GMAC_VLAN_VLC_SHIFT) & GMAC_VLAN_VLC;
+	writel(value, ioaddr + GMAC_VLAN_INCL);
+}
+
+static void dwmac4_set_arp_offload(struct mac_device_info *hw, bool en,
+				   u32 addr)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	writel(addr, ioaddr + GMAC_ARP_ADDR);
+
+	value = readl(ioaddr + GMAC_CONFIG);
+	if (en)
+		value |= GMAC_CONFIG_ARPEN;
+	else
+		value &= ~GMAC_CONFIG_ARPEN;
+	writel(value, ioaddr + GMAC_CONFIG);
+}
+
 const struct stmmac_ops dwmac4_ops = {
 	.core_init = dwmac4_core_init,
 	.set_mac = stmmac_set_mac,
@@ -767,6 +828,10 @@ const struct stmmac_ops dwmac4_ops = {
 	.debug = dwmac4_debug,
 	.set_filter = dwmac4_set_filter,
 	.set_mac_loopback = dwmac4_set_mac_loopback,
+	.update_vlan_hash = dwmac4_update_vlan_hash,
+	.sarc_configure = dwmac4_sarc_configure,
+	.enable_vlan = dwmac4_enable_vlan,
+	.set_arp_offload = dwmac4_set_arp_offload,
 };
 
 const struct stmmac_ops dwmac410_ops = {
@@ -799,6 +864,10 @@ const struct stmmac_ops dwmac410_ops = {
 	.debug = dwmac4_debug,
 	.set_filter = dwmac4_set_filter,
 	.set_mac_loopback = dwmac4_set_mac_loopback,
+	.update_vlan_hash = dwmac4_update_vlan_hash,
+	.sarc_configure = dwmac4_sarc_configure,
+	.enable_vlan = dwmac4_enable_vlan,
+	.set_arp_offload = dwmac4_set_arp_offload,
 };
 
 const struct stmmac_ops dwmac510_ops = {
@@ -836,6 +905,10 @@ const struct stmmac_ops dwmac510_ops = {
 	.rxp_config = dwmac5_rxp_config,
 	.flex_pps_config = dwmac5_flex_pps_config,
 	.set_mac_loopback = dwmac4_set_mac_loopback,
+	.update_vlan_hash = dwmac4_update_vlan_hash,
+	.sarc_configure = dwmac4_sarc_configure,
+	.enable_vlan = dwmac4_enable_vlan,
+	.set_arp_offload = dwmac4_set_arp_offload,
 };
 
 int dwmac4_setup(struct stmmac_priv *priv)

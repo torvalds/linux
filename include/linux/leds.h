@@ -8,6 +8,7 @@
 #ifndef __LINUX_LEDS_H_INCLUDED
 #define __LINUX_LEDS_H_INCLUDED
 
+#include <dt-bindings/leds/common.h>
 #include <linux/device.h>
 #include <linux/kernfs.h>
 #include <linux/list.h>
@@ -28,6 +29,30 @@ enum led_brightness {
 	LED_ON		= 1,
 	LED_HALF	= 127,
 	LED_FULL	= 255,
+};
+
+struct led_init_data {
+	/* device fwnode handle */
+	struct fwnode_handle *fwnode;
+	/*
+	 * default <color:function> tuple, for backward compatibility
+	 * with in-driver hard-coded LED names used as a fallback when
+	 * DT "label" property is absent; it should be set to NULL
+	 * in new LED class drivers.
+	 */
+	const char *default_label;
+	/*
+	 * string to be used for devicename section of LED class device
+	 * either for label based LED name composition path or for fwnode
+	 * based when devname_mandatory is true
+	 */
+	const char *devicename;
+	/*
+	 * indicates if LED name should always comprise devicename section;
+	 * only LEDs exposed by drivers of hot-pluggable devices should
+	 * set it to true
+	 */
+	bool devname_mandatory;
 };
 
 struct led_classdev {
@@ -125,16 +150,46 @@ struct led_classdev {
 	struct mutex		led_access;
 };
 
-extern int of_led_classdev_register(struct device *parent,
-				    struct device_node *np,
-				    struct led_classdev *led_cdev);
-#define led_classdev_register(parent, led_cdev)				\
-	of_led_classdev_register(parent, NULL, led_cdev)
-extern int devm_of_led_classdev_register(struct device *parent,
-					 struct device_node *np,
-					 struct led_classdev *led_cdev);
-#define devm_led_classdev_register(parent, led_cdev)			\
-	devm_of_led_classdev_register(parent, NULL, led_cdev)
+/**
+ * led_classdev_register_ext - register a new object of LED class with
+ *			       init data
+ * @parent: LED controller device this LED is driven by
+ * @led_cdev: the led_classdev structure for this device
+ * @init_data: the LED class device initialization data
+ *
+ * Register a new object of LED class, with name derived from init_data.
+ *
+ * Returns: 0 on success or negative error value on failure
+ */
+extern int led_classdev_register_ext(struct device *parent,
+				     struct led_classdev *led_cdev,
+				     struct led_init_data *init_data);
+
+/**
+ * led_classdev_register - register a new object of LED class
+ * @parent: LED controller device this LED is driven by
+ * @led_cdev: the led_classdev structure for this device
+ *
+ * Register a new object of LED class, with name derived from the name property
+ * of passed led_cdev argument.
+ *
+ * Returns: 0 on success or negative error value on failure
+ */
+static inline int led_classdev_register(struct device *parent,
+					struct led_classdev *led_cdev)
+{
+	return led_classdev_register_ext(parent, led_cdev, NULL);
+}
+
+extern int devm_led_classdev_register_ext(struct device *parent,
+					  struct led_classdev *led_cdev,
+					  struct led_init_data *init_data);
+
+static inline int devm_led_classdev_register(struct device *parent,
+					     struct led_classdev *led_cdev)
+{
+	return devm_led_classdev_register_ext(parent, led_cdev, NULL);
+}
 extern void led_classdev_unregister(struct led_classdev *led_cdev);
 extern void devm_led_classdev_unregister(struct device *parent,
 					 struct led_classdev *led_cdev);
@@ -242,6 +297,22 @@ extern void led_sysfs_disable(struct led_classdev *led_cdev);
  * Enable the led_cdev's sysfs interface.
  */
 extern void led_sysfs_enable(struct led_classdev *led_cdev);
+
+/**
+ * led_compose_name - compose LED class device name
+ * @dev: LED controller device object
+ * @child: child fwnode_handle describing a LED or a group of synchronized LEDs;
+ *	   it must be provided only for fwnode based LEDs
+ * @led_classdev_name: composed LED class device name
+ *
+ * Create LED class device name basing on the provided init_data argument.
+ * The name can have <devicename:color:function> or <color:function>.
+ * form, depending on the init_data configuration.
+ *
+ * Returns: 0 on success or negative error value on failure
+ */
+extern int led_compose_name(struct device *dev, struct led_init_data *init_data,
+			    char *led_classdev_name);
 
 /**
  * led_sysfs_is_disabled - check if LED sysfs interface is disabled
@@ -418,6 +489,15 @@ struct led_info {
 struct led_platform_data {
 	int		num_leds;
 	struct led_info	*leds;
+};
+
+struct led_properties {
+	u32		color;
+	bool		color_present;
+	const char	*function;
+	u32		func_enum;
+	bool		func_enum_present;
+	const char	*label;
 };
 
 struct gpio_desc;

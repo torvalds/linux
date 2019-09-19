@@ -80,7 +80,6 @@ MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
 /* supported video standards */
 static struct cx231xx_fmt format[] = {
 	{
-	 .name = "16bpp YUY2, 4:2:2, packed",
 	 .fourcc = V4L2_PIX_FMT_YUYV,
 	 .depth = 16,
 	 .reg = 0,
@@ -1578,7 +1577,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	if (unlikely(f->index >= ARRAY_SIZE(format)))
 		return -EINVAL;
 
-	strscpy(f->description, format[f->index].name, sizeof(f->description));
 	f->pixelformat = format[f->index].fourcc;
 
 	return 0;
@@ -1839,7 +1837,7 @@ static int cx231xx_v4l2_open(struct file *filp)
 /*
  * cx231xx_realease_resources()
  * unregisters the v4l2,i2c and usb devices
- * called when the device gets disconected or at module unload
+ * called when the device gets disconnected or at module unload
 */
 void cx231xx_release_analog_resources(struct cx231xx *dev)
 {

@@ -116,9 +116,9 @@ static void __iop_adma_slot_cleanup(struct iop_adma_chan *iop_chan)
 	list_for_each_entry_safe(iter, _iter, &iop_chan->chain,
 					chain_node) {
 		pr_debug("\tcookie: %d slot: %d busy: %d "
-			"this_desc: %#x next_desc: %#llx ack: %d\n",
+			"this_desc: %pad next_desc: %#llx ack: %d\n",
 			iter->async_tx.cookie, iter->idx, busy,
-			iter->async_tx.phys, (u64)iop_desc_get_next_desc(iter),
+			&iter->async_tx.phys, (u64)iop_desc_get_next_desc(iter),
 			async_tx_test_ack(&iter->async_tx));
 		prefetch(_iter);
 		prefetch(&_iter->async_tx);
@@ -364,13 +364,11 @@ iop_adma_tx_submit(struct dma_async_tx_descriptor *tx)
 	struct iop_adma_chan *iop_chan = to_iop_adma_chan(tx->chan);
 	struct iop_adma_desc_slot *grp_start, *old_chain_tail;
 	int slot_cnt;
-	int slots_per_op;
 	dma_cookie_t cookie;
 	dma_addr_t next_dma;
 
 	grp_start = sw_desc->group_head;
 	slot_cnt = grp_start->slot_cnt;
-	slots_per_op = grp_start->slots_per_op;
 
 	spin_lock_bh(&iop_chan->lock);
 	cookie = dma_cookie_assign(tx);

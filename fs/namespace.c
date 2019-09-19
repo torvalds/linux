@@ -1643,13 +1643,18 @@ static inline bool may_mount(void)
 	return ns_capable(current->nsproxy->mnt_ns->user_ns, CAP_SYS_ADMIN);
 }
 
+#ifdef	CONFIG_MANDATORY_FILE_LOCKING
 static inline bool may_mandlock(void)
 {
-#ifndef	CONFIG_MANDATORY_FILE_LOCKING
-	return false;
-#endif
 	return capable(CAP_SYS_ADMIN);
 }
+#else
+static inline bool may_mandlock(void)
+{
+	pr_warn("VFS: \"mand\" mount option not supported");
+	return false;
+}
+#endif
 
 /*
  * Now umount can handle mount points as well as block devices.
@@ -1674,8 +1679,6 @@ int ksys_umount(char __user *name, int flags)
 
 	if (!(flags & UMOUNT_NOFOLLOW))
 		lookup_flags |= LOOKUP_FOLLOW;
-
-	lookup_flags |= LOOKUP_NO_EVAL;
 
 	retval = user_path_mountpoint_at(AT_FDCWD, name, lookup_flags, &path);
 	if (retval)
@@ -3046,7 +3049,7 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 		return -EINVAL;
 
 	/* ... and get the mountpoint */
-	retval = user_path(dir_name, &path);
+	retval = user_path_at(AT_FDCWD, dir_name, LOOKUP_FOLLOW, &path);
 	if (retval)
 		return retval;
 
@@ -3593,11 +3596,13 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	if (!may_mount())
 		return -EPERM;
 
-	error = user_path_dir(new_root, &new);
+	error = user_path_at(AT_FDCWD, new_root,
+			     LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &new);
 	if (error)
 		goto out0;
 
-	error = user_path_dir(put_old, &old);
+	error = user_path_at(AT_FDCWD, put_old,
+			     LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &old);
 	if (error)
 		goto out1;
 

@@ -419,8 +419,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 		pwep->KeyIndex |= 0x80000000;
 		memcpy(pwep->KeyMaterial, param->u.crypt.key, pwep->KeyLength);
 		if (param->u.crypt.set_tx) {
-			if (r8712_set_802_11_add_wep(padapter, pwep) ==
-			    (u8)_FAIL)
+			if (r8712_set_802_11_add_wep(padapter, pwep))
 				ret = -EOPNOTSUPP;
 		} else {
 			/* don't update "psecuritypriv->PrivacyAlgrthm" and
@@ -1585,7 +1584,7 @@ static int r8711_wx_set_enc(struct net_device *dev,
 	}
 	wep.KeyIndex |= 0x80000000;	/* transmit key */
 	memcpy(wep.KeyMaterial, keybuf, wep.KeyLength);
-	if (r8712_set_802_11_add_wep(padapter, &wep) == _FAIL)
+	if (r8712_set_802_11_add_wep(padapter, &wep))
 		return -EOPNOTSUPP;
 	return 0;
 }

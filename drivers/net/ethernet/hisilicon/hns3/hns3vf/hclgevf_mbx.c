@@ -277,9 +277,9 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 
 		switch (msg_q[0]) {
 		case HCLGE_MBX_LINK_STAT_CHANGE:
-			link_status = le16_to_cpu(msg_q[1]);
+			link_status = msg_q[1];
 			memcpy(&speed, &msg_q[2], sizeof(speed));
-			duplex = (u8)le16_to_cpu(msg_q[4]);
+			duplex = (u8)msg_q[4];
 
 			/* update upper layer with new link link status */
 			hclgevf_update_link_status(hdev, link_status);
@@ -287,7 +287,7 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 
 			break;
 		case HCLGE_MBX_LINK_STAT_MODE:
-			idx = (u8)le16_to_cpu(msg_q[1]);
+			idx = (u8)msg_q[1];
 			if (idx)
 				memcpy(&hdev->hw.mac.supported, &msg_q[2],
 				       sizeof(unsigned long));
@@ -301,14 +301,14 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 			 * has been completely reset. After this stack should
 			 * eventually be re-initialized.
 			 */
-			reset_type = le16_to_cpu(msg_q[1]);
+			reset_type = (enum hnae3_reset_type)msg_q[1];
 			set_bit(reset_type, &hdev->reset_pending);
 			set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
 			hclgevf_reset_task_schedule(hdev);
 
 			break;
 		case HCLGE_MBX_PUSH_VLAN_INFO:
-			state = le16_to_cpu(msg_q[1]);
+			state = msg_q[1];
 			vlan_info = &msg_q[1];
 			hclgevf_update_port_base_vlan_info(hdev, state,
 							   (u8 *)vlan_info, 8);

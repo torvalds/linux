@@ -308,7 +308,6 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
-	struct resource *res;
 	struct meson8b_dwmac *dwmac;
 	int ret;
 
@@ -332,8 +331,7 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err_remove_config_dt;
 	}
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	dwmac->regs = devm_ioremap_resource(&pdev->dev, res);
+	dwmac->regs = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(dwmac->regs)) {
 		ret = PTR_ERR(dwmac->regs);
 		goto err_remove_config_dt;

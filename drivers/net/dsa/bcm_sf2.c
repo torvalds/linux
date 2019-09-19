@@ -157,6 +157,9 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	unsigned int i;
 	u32 reg;
 
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
 	/* Clear the memory power down */
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
 	reg &= ~P_TXQ_PSM_VDD(port);
@@ -1047,7 +1050,6 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	struct b53_device *dev;
 	struct dsa_switch *ds;
 	void __iomem **base;
-	struct resource *r;
 	unsigned int i;
 	u32 reg, rev;
 	int ret;
@@ -1113,8 +1115,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 
 	base = &priv->core;
 	for (i = 0; i < BCM_SF2_REGS_NUM; i++) {
-		r = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		*base = devm_ioremap_resource(&pdev->dev, r);
+		*base = devm_platform_ioremap_resource(pdev, i);
 		if (IS_ERR(*base)) {
 			pr_err("unable to find register: %s\n", reg_names[i]);
 			return PTR_ERR(*base);

@@ -100,27 +100,6 @@ static unsigned int cc_get_sgl_nents(struct device *dev,
 }
 
 /**
- * cc_zero_sgl() - Zero scatter scatter list data.
- *
- * @sgl:
- */
-void cc_zero_sgl(struct scatterlist *sgl, u32 data_len)
-{
-	struct scatterlist *current_sg = sgl;
-	int sg_index = 0;
-
-	while (sg_index <= data_len) {
-		if (!current_sg) {
-			/* reached the end of the sgl --> just return back */
-			return;
-		}
-		memset(sg_virt(current_sg), 0, current_sg->length);
-		sg_index += current_sg->length;
-		current_sg = sg_next(current_sg);
-	}
-}
-
-/**
  * cc_copy_sg_portion() - Copy scatter list data,
  * from to_skip to end, to dest and vice versa
  *

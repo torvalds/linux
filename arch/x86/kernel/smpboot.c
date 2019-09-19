@@ -1591,7 +1591,12 @@ int native_cpu_disable(void)
 	if (ret)
 		return ret;
 
-	clear_local_APIC();
+	/*
+	 * Disable the local APIC. Otherwise IPI broadcasts will reach
+	 * it. It still responds normally to INIT, NMI, SMI, and SIPI
+	 * messages.
+	 */
+	apic_soft_disable();
 	cpu_disable_common();
 
 	return 0;

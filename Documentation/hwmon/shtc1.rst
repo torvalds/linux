@@ -45,7 +45,7 @@ chips, a humidity and temperature sensor. Temperature is measured in degrees
 celsius, relative humidity is expressed as a percentage.
 
 The device communicates with the I2C protocol. All sensors are set to I2C
-address 0x70. See Documentation/i2c/instantiating-devices for methods to
+address 0x70. See Documentation/i2c/instantiating-devices.rst for methods to
 instantiate the device.
 
 There are two options configurable by means of shtc1_platform_data:

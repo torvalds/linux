@@ -312,7 +312,7 @@ static enum hrtimer_restart idle_inject_timer_fn(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-void play_idle(unsigned long duration_ms)
+void play_idle(unsigned long duration_us)
 {
 	struct idle_timer it;
 
@@ -324,7 +324,7 @@ void play_idle(unsigned long duration_ms)
 	WARN_ON_ONCE(current->nr_cpus_allowed != 1);
 	WARN_ON_ONCE(!(current->flags & PF_KTHREAD));
 	WARN_ON_ONCE(!(current->flags & PF_NO_SETAFFINITY));
-	WARN_ON_ONCE(!duration_ms);
+	WARN_ON_ONCE(!duration_us);
 
 	rcu_sleep_check();
 	preempt_disable();
@@ -334,7 +334,8 @@ void play_idle(unsigned long duration_ms)
 	it.done = 0;
 	hrtimer_init_on_stack(&it.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	it.timer.function = idle_inject_timer_fn;
-	hrtimer_start(&it.timer, ms_to_ktime(duration_ms), HRTIMER_MODE_REL_PINNED);
+	hrtimer_start(&it.timer, ns_to_ktime(duration_us * NSEC_PER_USEC),
+		      HRTIMER_MODE_REL_PINNED);
 
 	while (!READ_ONCE(it.done))
 		do_idle();

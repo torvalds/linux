@@ -385,6 +385,7 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 	unsigned int posted = 0;
 	int ret = 0;
 	bool can_wait = !!(gfp & __GFP_DIRECT_RECLAIM);
+	bool must_wake = false;
 	u32 pos;
 
 	/* the goal here is to just make sure that someone, somewhere
@@ -405,6 +406,7 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 		recv = &ic->i_recvs[pos];
 		ret = rds_ib_recv_refill_one(conn, recv, gfp);
 		if (ret) {
+			must_wake = true;
 			break;
 		}
 
@@ -423,6 +425,11 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 		}
 
 		posted++;
+
+		if ((posted > 128 && need_resched()) || posted > 8192) {
+			must_wake = true;
+			break;
+		}
 	}
 
 	/* We're doing flow control - update the window. */
@@ -445,10 +452,13 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 	 * if we should requeue.
 	 */
 	if (rds_conn_up(conn) &&
-	    ((can_wait && rds_ib_ring_low(&ic->i_recv_ring)) ||
+	    (must_wake ||
+	    (can_wait && rds_ib_ring_low(&ic->i_recv_ring)) ||
 	    rds_ib_ring_empty(&ic->i_recv_ring))) {
 		queue_delayed_work(rds_wq, &conn->c_recv_w, 1);
 	}
+	if (can_wait)
+		cond_resched();
 }
 
 /*
@@ -1038,9 +1048,14 @@ int rds_ib_recv_init(void)
 	si_meminfo(&si);
 	rds_ib_sysctl_max_recv_allocation = si.totalram / 3 * PAGE_SIZE / RDS_FRAG_SIZE;
 
-	rds_ib_incoming_slab = kmem_cache_create("rds_ib_incoming",
-					sizeof(struct rds_ib_incoming),
-					0, SLAB_HWCACHE_ALIGN, NULL);
+	rds_ib_incoming_slab =
+		kmem_cache_create_usercopy("rds_ib_incoming",
+					   sizeof(struct rds_ib_incoming),
+					   0, SLAB_HWCACHE_ALIGN,
+					   offsetof(struct rds_ib_incoming,
+						    ii_inc.i_usercopy),
+					   sizeof(struct rds_inc_usercopy),
+					   NULL);
 	if (!rds_ib_incoming_slab)
 		goto out;
 

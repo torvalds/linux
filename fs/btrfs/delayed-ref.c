@@ -79,7 +79,7 @@ int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans)
 void btrfs_delayed_refs_rsv_release(struct btrfs_fs_info *fs_info, int nr)
 {
 	struct btrfs_block_rsv *block_rsv = &fs_info->delayed_refs_rsv;
-	u64 num_bytes = btrfs_calc_trans_metadata_size(fs_info, nr);
+	u64 num_bytes = btrfs_calc_insert_metadata_size(fs_info, nr);
 	u64 released = 0;
 
 	released = __btrfs_block_rsv_release(fs_info, block_rsv, num_bytes,
@@ -105,8 +105,8 @@ void btrfs_update_delayed_refs_rsv(struct btrfs_trans_handle *trans)
 	if (!trans->delayed_ref_updates)
 		return;
 
-	num_bytes = btrfs_calc_trans_metadata_size(fs_info,
-						   trans->delayed_ref_updates);
+	num_bytes = btrfs_calc_insert_metadata_size(fs_info,
+						    trans->delayed_ref_updates);
 	spin_lock(&delayed_rsv->lock);
 	delayed_rsv->size += num_bytes;
 	delayed_rsv->full = 0;
@@ -158,7 +158,7 @@ void btrfs_migrate_to_delayed_refs_rsv(struct btrfs_fs_info *fs_info,
 		trace_btrfs_space_reservation(fs_info, "delayed_refs_rsv",
 					      0, num_bytes, 1);
 	if (to_free)
-		btrfs_space_info_add_old_bytes(fs_info,
+		btrfs_space_info_free_bytes_may_use(fs_info,
 				delayed_refs_rsv->space_info, to_free);
 }
 
@@ -174,7 +174,7 @@ int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 				  enum btrfs_reserve_flush_enum flush)
 {
 	struct btrfs_block_rsv *block_rsv = &fs_info->delayed_refs_rsv;
-	u64 limit = btrfs_calc_trans_metadata_size(fs_info, 1);
+	u64 limit = btrfs_calc_insert_metadata_size(fs_info, 1);
 	u64 num_bytes = 0;
 	int ret = -ENOSPC;
 

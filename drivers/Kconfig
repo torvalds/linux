@@ -106,8 +106,6 @@ source "drivers/hid/Kconfig"
 
 source "drivers/usb/Kconfig"
 
-source "drivers/uwb/Kconfig"
-
 source "drivers/mmc/Kconfig"
 
 source "drivers/memstick/Kconfig"
@@ -143,6 +141,8 @@ source "drivers/virtio/Kconfig"
 source "drivers/hv/Kconfig"
 
 source "drivers/xen/Kconfig"
+
+source "drivers/greybus/Kconfig"
 
 source "drivers/staging/Kconfig"
 

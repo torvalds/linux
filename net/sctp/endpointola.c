@@ -43,62 +43,21 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 						gfp_t gfp)
 {
 	struct net *net = sock_net(sk);
-	struct sctp_hmac_algo_param *auth_hmacs = NULL;
-	struct sctp_chunks_param *auth_chunks = NULL;
 	struct sctp_shared_key *null_key;
-	int err;
 
 	ep->digest = kzalloc(SCTP_SIGNATURE_SIZE, gfp);
 	if (!ep->digest)
 		return NULL;
 
+	ep->asconf_enable = net->sctp.addip_enable;
 	ep->auth_enable = net->sctp.auth_enable;
 	if (ep->auth_enable) {
-		/* Allocate space for HMACS and CHUNKS authentication
-		 * variables.  There are arrays that we encode directly
-		 * into parameters to make the rest of the operations easier.
-		 */
-		auth_hmacs = kzalloc(struct_size(auth_hmacs, hmac_ids,
-						 SCTP_AUTH_NUM_HMACS), gfp);
-		if (!auth_hmacs)
+		if (sctp_auth_init(ep, gfp))
 			goto nomem;
-
-		auth_chunks = kzalloc(sizeof(*auth_chunks) +
-				      SCTP_NUM_CHUNK_TYPES, gfp);
-		if (!auth_chunks)
-			goto nomem;
-
-		/* Initialize the HMACS parameter.
-		 * SCTP-AUTH: Section 3.3
-		 *    Every endpoint supporting SCTP chunk authentication MUST
-		 *    support the HMAC based on the SHA-1 algorithm.
-		 */
-		auth_hmacs->param_hdr.type = SCTP_PARAM_HMAC_ALGO;
-		auth_hmacs->param_hdr.length =
-					htons(sizeof(struct sctp_paramhdr) + 2);
-		auth_hmacs->hmac_ids[0] = htons(SCTP_AUTH_HMAC_ID_SHA1);
-
-		/* Initialize the CHUNKS parameter */
-		auth_chunks->param_hdr.type = SCTP_PARAM_CHUNKS;
-		auth_chunks->param_hdr.length =
-					htons(sizeof(struct sctp_paramhdr));
-
-		/* If the Add-IP functionality is enabled, we must
-		 * authenticate, ASCONF and ASCONF-ACK chunks
-		 */
-		if (net->sctp.addip_enable) {
-			auth_chunks->chunks[0] = SCTP_CID_ASCONF;
-			auth_chunks->chunks[1] = SCTP_CID_ASCONF_ACK;
-			auth_chunks->param_hdr.length =
-					htons(sizeof(struct sctp_paramhdr) + 2);
+		if (ep->asconf_enable) {
+			sctp_auth_ep_add_chunkid(ep, SCTP_CID_ASCONF);
+			sctp_auth_ep_add_chunkid(ep, SCTP_CID_ASCONF_ACK);
 		}
-
-		/* Allocate and initialize transorms arrays for supported
-		 * HMACs.
-		 */
-		err = sctp_auth_init_hmacs(ep, gfp);
-		if (err)
-			goto nomem;
 	}
 
 	/* Initialize the base structure. */
@@ -145,10 +104,9 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	/* Add the null key to the endpoint shared keys list and
 	 * set the hmcas and chunks pointers.
 	 */
-	ep->auth_hmacs_list = auth_hmacs;
-	ep->auth_chunk_list = auth_chunks;
 	ep->prsctp_enable = net->sctp.prsctp_enable;
 	ep->reconf_enable = net->sctp.reconf_enable;
+	ep->ecn_enable = net->sctp.ecn_enable;
 
 	/* Remember who we are attached to.  */
 	ep->base.sk = sk;
@@ -157,11 +115,8 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	return ep;
 
 nomem_shkey:
-	sctp_auth_destroy_hmacs(ep->auth_hmacs);
+	sctp_auth_free(ep);
 nomem:
-	/* Free all allocations */
-	kfree(auth_hmacs);
-	kfree(auth_chunks);
 	kfree(ep->digest);
 	return NULL;
 
@@ -244,11 +199,7 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 	 * chunks and hmacs arrays that were allocated
 	 */
 	sctp_auth_destroy_keys(&ep->endpoint_shared_keys);
-	kfree(ep->auth_hmacs_list);
-	kfree(ep->auth_chunk_list);
-
-	/* AUTH - Free any allocated HMAC transform containers */
-	sctp_auth_destroy_hmacs(ep->auth_hmacs);
+	sctp_auth_free(ep);
 
 	/* Cleanup. */
 	sctp_inq_free(&ep->base.inqueue);

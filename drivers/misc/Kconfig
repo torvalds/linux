@@ -362,15 +362,6 @@ config DS1682
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds1682.
 
-config SPEAR13XX_PCIE_GADGET
-	bool "PCIe gadget support for SPEAr13XX platform"
-	depends on ARCH_SPEAR13XX && BROKEN
-	help
-	 This option enables gadget support for PCIe controller. If
-	 board file defines any controller as PCIe endpoint then a sysfs
-	 entry will be created for that controller. User can use these
-	 sysfs node to configure PCIe EP as per his requirements.
-
 config VMWARE_BALLOON
 	tristate "VMware Balloon Driver"
 	depends on VMWARE_VMCI && X86 && HYPERVISOR_GUEST

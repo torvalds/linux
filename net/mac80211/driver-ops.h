@@ -692,14 +692,16 @@ static inline int drv_remain_on_channel(struct ieee80211_local *local,
 	return ret;
 }
 
-static inline int drv_cancel_remain_on_channel(struct ieee80211_local *local)
+static inline int
+drv_cancel_remain_on_channel(struct ieee80211_local *local,
+			     struct ieee80211_sub_if_data *sdata)
 {
 	int ret;
 
 	might_sleep();
 
-	trace_drv_cancel_remain_on_channel(local);
-	ret = local->ops->cancel_remain_on_channel(&local->hw);
+	trace_drv_cancel_remain_on_channel(local, sdata);
+	ret = local->ops->cancel_remain_on_channel(&local->hw, &sdata->vif);
 	trace_drv_return_int(local, ret);
 
 	return ret;

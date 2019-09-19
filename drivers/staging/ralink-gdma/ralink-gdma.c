@@ -826,10 +826,8 @@ static int gdma_dma_probe(struct platform_device *pdev)
 	tasklet_init(&dma_dev->task, gdma_dma_tasklet, (unsigned long)dma_dev);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get irq\n");
+	if (irq < 0)
 		return -EINVAL;
-	}
 	ret = devm_request_irq(&pdev->dev, irq, gdma_dma_irq,
 			       0, dev_name(&pdev->dev), dma_dev);
 	if (ret) {

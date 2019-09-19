@@ -1050,11 +1050,22 @@ static int __tcp_transmit_skb(struct sock *sk, struct sk_buff *skb,
 	tcb = TCP_SKB_CB(skb);
 	memset(&opts, 0, sizeof(opts));
 
-	if (unlikely(tcb->tcp_flags & TCPHDR_SYN))
+	if (unlikely(tcb->tcp_flags & TCPHDR_SYN)) {
 		tcp_options_size = tcp_syn_options(sk, skb, &opts, &md5);
-	else
+	} else {
 		tcp_options_size = tcp_established_options(sk, skb, &opts,
 							   &md5);
+		/* Force a PSH flag on all (GSO) packets to expedite GRO flush
+		 * at receiver : This slightly improve GRO performance.
+		 * Note that we do not force the PSH flag for non GSO packets,
+		 * because they might be sent under high congestion events,
+		 * and in this case it is better to delay the delivery of 1-MSS
+		 * packets and thus the corresponding ACK packet that would
+		 * release the following packet.
+		 */
+		if (tcp_skb_pcount(skb) > 1)
+			tcb->tcp_flags |= TCPHDR_PSH;
+	}
 	tcp_header_size = tcp_options_size + sizeof(struct tcphdr);
 
 	/* if no packet is in qdisc/device queue, then allow XPS to select
@@ -1403,7 +1414,7 @@ static int __pskb_trim_head(struct sk_buff *skb, int len)
 		} else {
 			shinfo->frags[k] = shinfo->frags[i];
 			if (eat) {
-				shinfo->frags[k].page_offset += eat;
+				skb_frag_off_add(&shinfo->frags[k], eat);
 				skb_frag_size_sub(&shinfo->frags[k], eat);
 				eat = 0;
 			}

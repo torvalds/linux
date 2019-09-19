@@ -479,7 +479,6 @@ enum wireless_mode {
 #define P80211_OUI_LEN 3
 
 struct rtllib_snap_hdr {
-
 	u8    dsap;   /* always 0xAA */
 	u8    ssap;   /* always 0xAA */
 	u8    ctrl;   /* always 0x03 */
@@ -1940,7 +1939,7 @@ int rtllib_encrypt_fragment(
 	int hdr_len);
 
 int rtllib_xmit(struct sk_buff *skb,  struct net_device *dev);
-void rtllib_txb_free(struct rtllib_txb *);
+void rtllib_txb_free(struct rtllib_txb *txb);
 
 /* rtllib_rx.c */
 int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
@@ -2132,7 +2131,7 @@ static inline const char *escape_essid(const char *essid, u8 essid_len)
 		return escaped;
 	}
 
-	snprintf(escaped, sizeof(escaped), "%*pEn", essid_len, essid);
+	snprintf(escaped, sizeof(escaped), "%*pE", essid_len, essid);
 	return escaped;
 }
 

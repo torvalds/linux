@@ -32,19 +32,24 @@ int amdtp_tscm_set_parameters(struct amdtp_stream *s, unsigned int rate)
 	return amdtp_stream_set_parameters(s, rate, data_channels);
 }
 
-static void write_pcm_s32(struct amdtp_stream *s,
-			  struct snd_pcm_substream *pcm,
-			  __be32 *buffer, unsigned int frames)
+static void write_pcm_s32(struct amdtp_stream *s, struct snd_pcm_substream *pcm,
+			  __be32 *buffer, unsigned int frames,
+			  unsigned int pcm_frames)
 {
 	struct amdtp_tscm *p = s->protocol;
+	unsigned int channels = p->pcm_channels;
 	struct snd_pcm_runtime *runtime = pcm->runtime;
-	unsigned int channels, remaining_frames, i, c;
+	unsigned int pcm_buffer_pointer;
+	int remaining_frames;
 	const u32 *src;
+	int i, c;
 
-	channels = p->pcm_channels;
+	pcm_buffer_pointer = s->pcm_buffer_pointer + pcm_frames;
+	pcm_buffer_pointer %= runtime->buffer_size;
+
 	src = (void *)runtime->dma_area +
-			frames_to_bytes(runtime, s->pcm_buffer_pointer);
-	remaining_frames = runtime->buffer_size - s->pcm_buffer_pointer;
+				frames_to_bytes(runtime, pcm_buffer_pointer);
+	remaining_frames = runtime->buffer_size - pcm_buffer_pointer;
 
 	for (i = 0; i < frames; ++i) {
 		for (c = 0; c < channels; ++c) {
@@ -57,19 +62,24 @@ static void write_pcm_s32(struct amdtp_stream *s,
 	}
 }
 
-static void read_pcm_s32(struct amdtp_stream *s,
-			 struct snd_pcm_substream *pcm,
-			 __be32 *buffer, unsigned int frames)
+static void read_pcm_s32(struct amdtp_stream *s, struct snd_pcm_substream *pcm,
+			 __be32 *buffer, unsigned int frames,
+			 unsigned int pcm_frames)
 {
 	struct amdtp_tscm *p = s->protocol;
+	unsigned int channels = p->pcm_channels;
 	struct snd_pcm_runtime *runtime = pcm->runtime;
-	unsigned int channels, remaining_frames, i, c;
+	unsigned int pcm_buffer_pointer;
+	int remaining_frames;
 	u32 *dst;
+	int i, c;
 
-	channels = p->pcm_channels;
+	pcm_buffer_pointer = s->pcm_buffer_pointer + pcm_frames;
+	pcm_buffer_pointer %= runtime->buffer_size;
+
 	dst  = (void *)runtime->dma_area +
-			frames_to_bytes(runtime, s->pcm_buffer_pointer);
-	remaining_frames = runtime->buffer_size - s->pcm_buffer_pointer;
+				frames_to_bytes(runtime, pcm_buffer_pointer);
+	remaining_frames = runtime->buffer_size - pcm_buffer_pointer;
 
 	/* The first data channel is for event counter. */
 	buffer += 1;
@@ -165,65 +175,82 @@ static void read_status_messages(struct amdtp_stream *s,
 	}
 }
 
-static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
-					   __be32 *buffer,
-					   unsigned int data_blocks,
-					   unsigned int *syt)
+static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
+					    const struct pkt_desc *descs,
+					    unsigned int packets,
+					    struct snd_pcm_substream *pcm)
 {
-	struct snd_pcm_substream *pcm;
+	unsigned int pcm_frames = 0;
+	int i;
 
-	pcm = READ_ONCE(s->pcm);
-	if (data_blocks > 0 && pcm)
-		read_pcm_s32(s, pcm, buffer, data_blocks);
+	for (i = 0; i < packets; ++i) {
+		const struct pkt_desc *desc = descs + i;
+		__be32 *buf = desc->ctx_payload;
+		unsigned int data_blocks = desc->data_blocks;
 
-	read_status_messages(s, buffer, data_blocks);
+		if (pcm) {
+			read_pcm_s32(s, pcm, buf, data_blocks, pcm_frames);
+			pcm_frames += data_blocks;
+		}
 
-	return data_blocks;
+		read_status_messages(s, buf, data_blocks);
+	}
+
+	return pcm_frames;
 }
 
-static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
-					   __be32 *buffer,
-					   unsigned int data_blocks,
-					   unsigned int *syt)
+static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
+					    const struct pkt_desc *descs,
+					    unsigned int packets,
+					    struct snd_pcm_substream *pcm)
 {
-	struct snd_pcm_substream *pcm;
+	unsigned int pcm_frames = 0;
+	int i;
 
-	/* This field is not used. */
-	*syt = 0x0000;
+	for (i = 0; i < packets; ++i) {
+		const struct pkt_desc *desc = descs + i;
+		__be32 *buf = desc->ctx_payload;
+		unsigned int data_blocks = desc->data_blocks;
 
-	pcm = READ_ONCE(s->pcm);
-	if (pcm)
-		write_pcm_s32(s, pcm, buffer, data_blocks);
-	else
-		write_pcm_silence(s, buffer, data_blocks);
+		if (pcm) {
+			write_pcm_s32(s, pcm, buf, data_blocks, pcm_frames);
+			pcm_frames += data_blocks;
+		} else {
+			write_pcm_silence(s, buf, data_blocks);
+		}
+	}
 
-	return data_blocks;
+	return pcm_frames;
 }
 
 int amdtp_tscm_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir, unsigned int pcm_channels)
 {
-	amdtp_stream_process_data_blocks_t process_data_blocks;
+	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
 	struct amdtp_tscm *p;
 	unsigned int fmt;
 	int err;
 
 	if (dir == AMDTP_IN_STREAM) {
 		fmt = AMDTP_FMT_TSCM_TX;
-		process_data_blocks = process_tx_data_blocks;
+		process_ctx_payloads = process_ir_ctx_payloads;
 	} else {
 		fmt = AMDTP_FMT_TSCM_RX;
-		process_data_blocks = process_rx_data_blocks;
+		process_ctx_payloads = process_it_ctx_payloads;
 	}
 
 	err = amdtp_stream_init(s, unit, dir,
-				CIP_NONBLOCKING | CIP_SKIP_DBC_ZERO_CHECK, fmt,
-				process_data_blocks, sizeof(struct amdtp_tscm));
+			CIP_NONBLOCKING | CIP_SKIP_DBC_ZERO_CHECK, fmt,
+			process_ctx_payloads, sizeof(struct amdtp_tscm));
 	if (err < 0)
 		return 0;
 
-	/* Use fixed value for FDF field. */
-	s->ctx_data.rx.fdf = 0x00;
+	if (dir == AMDTP_OUT_STREAM) {
+		// Use fixed value for FDF field.
+		s->ctx_data.rx.fdf = 0x00;
+		// Not used.
+		s->ctx_data.rx.syt_override = 0x0000;
+	}
 
 	/* This protocol uses fixed number of data channels for PCM samples. */
 	p = s->protocol;
