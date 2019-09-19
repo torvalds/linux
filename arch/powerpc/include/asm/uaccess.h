@@ -306,6 +306,7 @@ extern unsigned long __copy_tofrom_user(void __user *to,
 static inline unsigned long
 raw_copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {
+	barrier_nospec();
 	return __copy_tofrom_user(to, from, n);
 }
 #endif /* __powerpc64__ */
