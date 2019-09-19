@@ -1233,23 +1233,24 @@ static void tb_dump_switch(const struct tb *tb, const struct tb_switch *sw)
 
 /**
  * reset_switch() - reconfigure route, enable and send TB_CFG_PKG_RESET
+ * @sw: Switch to reset
  *
  * Return: Returns 0 on success or an error code on failure.
  */
-int tb_switch_reset(struct tb *tb, u64 route)
+int tb_switch_reset(struct tb_switch *sw)
 {
 	struct tb_cfg_result res;
-	struct tb_regs_switch_header header = {
-		header.route_hi = route >> 32,
-		header.route_lo = route,
-		header.enabled = true,
-	};
-	tb_dbg(tb, "resetting switch at %llx\n", route);
-	res.err = tb_cfg_write(tb->ctl, ((u32 *) &header) + 2, route,
-			0, 2, 2, 2);
+
+	if (sw->generation > 1)
+		return 0;
+
+	tb_sw_dbg(sw, "resetting switch\n");
+
+	res.err = tb_sw_write(sw, ((u32 *) &sw->config) + 2,
+			      TB_CFG_SWITCH, 2, 2);
 	if (res.err)
 		return res.err;
-	res = tb_cfg_reset(tb->ctl, route, TB_CFG_DEFAULT_TIMEOUT);
+	res = tb_cfg_reset(sw->tb->ctl, tb_route(sw), TB_CFG_DEFAULT_TIMEOUT);
 	if (res.err > 0)
 		return -EIO;
 	return res.err;
