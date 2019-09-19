@@ -542,14 +542,14 @@ static void __bch2_btree_node_iter_fix(struct btree_iter *iter,
 		goto fixup_done;
 	} else {
 		/* Iterator is after key that changed */
-		goto out_verify;
+		return;
 	}
 found:
 	set->end = t->end_offset;
 
 	/* Iterator hasn't gotten to the key that changed yet: */
 	if (set->k < offset)
-		goto out_verify;
+		return;
 
 	if (new_u64s &&
 	    btree_iter_pos_cmp(iter, b, where) > 0) {
@@ -561,7 +561,7 @@ found:
 	} else {
 		/* Iterator is after key that changed */
 		set->k = (int) set->k + shift;
-		goto out_verify;
+		return;
 	}
 
 	bch2_btree_node_iter_sort(node_iter, b);
@@ -620,8 +620,6 @@ fixup_done:
 
 		btree_iter_set_dirty(iter, BTREE_ITER_NEED_PEEK);
 	}
-out_verify:
-	bch2_btree_node_iter_verify(node_iter, b);
 }
 
 void bch2_btree_node_iter_fix(struct btree_iter *iter,
@@ -634,14 +632,18 @@ void bch2_btree_node_iter_fix(struct btree_iter *iter,
 	struct bset_tree *t = bch2_bkey_to_bset_inlined(b, where);
 	struct btree_iter *linked;
 
-	if (node_iter != &iter->l[b->c.level].iter)
+	if (node_iter != &iter->l[b->c.level].iter) {
 		__bch2_btree_node_iter_fix(iter, b, node_iter, t,
-					  where, clobber_u64s, new_u64s);
+					   where, clobber_u64s, new_u64s);
+		bch2_btree_node_iter_verify(node_iter, b);
+	}
 
-	trans_for_each_iter_with_node(iter->trans, b, linked)
+	trans_for_each_iter_with_node(iter->trans, b, linked) {
 		__bch2_btree_node_iter_fix(linked, b,
-					  &linked->l[b->c.level].iter, t,
-					  where, clobber_u64s, new_u64s);
+					   &linked->l[b->c.level].iter, t,
+					   where, clobber_u64s, new_u64s);
+		__bch2_btree_iter_verify(linked, b);
+	}
 }
 
 static inline struct bkey_s_c __btree_iter_unpack(struct btree_iter *iter,
@@ -1341,14 +1343,20 @@ static inline struct bkey_s_c btree_iter_peek_uptodate(struct btree_iter *iter)
 	struct bkey_s_c ret = { .k = &iter->k };
 
 	if (!bkey_deleted(&iter->k)) {
-		EBUG_ON(bch2_btree_node_iter_end(&l->iter));
-		ret.v = bkeyp_val(&l->b->format,
-			__bch2_btree_node_iter_peek_all(&l->iter, l->b));
+		struct bkey_packed *_k =
+			__bch2_btree_node_iter_peek_all(&l->iter, l->b);
+
+		ret.v = bkeyp_val(&l->b->format, _k);
+
+		if (debug_check_iterators(iter->trans->c)) {
+			struct bkey k = bkey_unpack_key(l->b, _k);
+			BUG_ON(memcmp(&k, &iter->k, sizeof(k)));
+		}
+
+		if (debug_check_bkeys(iter->trans->c))
+			bch2_bkey_debugcheck(iter->trans->c, l->b, ret);
 	}
 
-	if (debug_check_bkeys(iter->trans->c) &&
-	    !bkey_deleted(ret.k))
-		bch2_bkey_debugcheck(iter->trans->c, l->b, ret);
 	return ret;
 }
 

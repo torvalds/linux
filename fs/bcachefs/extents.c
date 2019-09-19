@@ -875,13 +875,6 @@ static void verify_extent_nonoverlapping(struct bch_fs *c,
 #endif
 }
 
-static void verify_modified_extent(struct btree_iter *iter,
-				   struct bkey_packed *k)
-{
-	bch2_btree_iter_verify(iter, iter->l[0].b);
-	bch2_verify_insert_pos(iter->l[0].b, k, k, k->u64s);
-}
-
 static void extent_bset_insert(struct bch_fs *c, struct btree_iter *iter,
 			       struct bkey_i *insert)
 {
@@ -923,7 +916,6 @@ static void extent_bset_insert(struct bch_fs *c, struct btree_iter *iter,
 
 	bch2_bset_insert(l->b, &l->iter, k, insert, 0);
 	bch2_btree_node_iter_fix(iter, l->b, &l->iter, k, 0, k->u64s);
-	bch2_btree_iter_verify(iter, l->b);
 }
 
 static unsigned bch2_bkey_nr_alloc_ptrs(struct bkey_s_c k)
@@ -1138,17 +1130,16 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 	case BCH_EXTENT_OVERLAP_FRONT:
 		/* insert overlaps with start of k: */
 		__bch2_cut_front(insert->k.p, k);
-		BUG_ON(bkey_deleted(k.k));
+		EBUG_ON(bkey_deleted(k.k));
 		extent_save(l->b, _k, k.k);
 		bch2_btree_node_iter_fix(iter, l->b, &l->iter,
 					 _k, _k->u64s, _k->u64s);
-		verify_modified_extent(iter, _k);
 		break;
 
 	case BCH_EXTENT_OVERLAP_BACK:
 		/* insert overlaps with end of k: */
 		bch2_cut_back(bkey_start_pos(&insert->k), k.k);
-		BUG_ON(bkey_deleted(k.k));
+		EBUG_ON(bkey_deleted(k.k));
 		extent_save(l->b, _k, k.k);
 
 		/*
@@ -1159,7 +1150,6 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 		bch2_bset_fix_invalidated_key(l->b, _k);
 		bch2_btree_node_iter_fix(iter, l->b, &l->iter,
 					 _k, _k->u64s, _k->u64s);
-		verify_modified_extent(iter, _k);
 		break;
 
 	case BCH_EXTENT_OVERLAP_ALL: {
@@ -1176,12 +1166,10 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 			bch2_bset_delete(l->b, _k, _k->u64s);
 			bch2_btree_node_iter_fix(iter, l->b, &l->iter,
 						 _k, u64s, 0);
-			bch2_btree_iter_verify(iter, l->b);
 		} else {
 			extent_save(l->b, _k, k.k);
 			bch2_btree_node_iter_fix(iter, l->b, &l->iter,
 						 _k, _k->u64s, _k->u64s);
-			verify_modified_extent(iter, _k);
 		}
 
 		break;
@@ -1213,7 +1201,6 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 		extent_save(l->b, _k, k.k);
 		bch2_btree_node_iter_fix(iter, l->b, &l->iter,
 					 _k, _k->u64s, _k->u64s);
-		verify_modified_extent(iter, _k);
 
 		extent_bset_insert(c, iter, &split.k);
 		break;
@@ -1806,7 +1793,6 @@ static bool bch2_extent_merge_inline(struct bch_fs *c,
 	bch2_bset_fix_invalidated_key(b, m);
 	bch2_btree_node_iter_fix(iter, b, node_iter,
 				 m, m->u64s, m->u64s);
-	verify_modified_extent(iter, m);
 
 	return ret == BCH_MERGE_MERGE;
 }
