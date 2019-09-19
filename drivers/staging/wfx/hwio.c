@@ -12,6 +12,7 @@
 #include "hwio.h"
 #include "wfx.h"
 #include "bus.h"
+#include "traces.h"
 
 /*
  * Internal helpers.
@@ -63,6 +64,7 @@ static int read32_locked(struct wfx_dev *wdev, int reg, u32 *val)
 
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
 	ret = read32(wdev, reg, val);
+	_trace_io_read32(reg, *val);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	return ret;
 }
@@ -73,6 +75,7 @@ static int write32_locked(struct wfx_dev *wdev, int reg, u32 val)
 
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
 	ret = write32(wdev, reg, val);
+	_trace_io_write32(reg, val);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	return ret;
 }
@@ -86,11 +89,13 @@ static int write32_bits_locked(struct wfx_dev *wdev, int reg, u32 mask, u32 val)
 	val &= mask;
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
 	ret = read32(wdev, reg, &val_r);
+	_trace_io_read32(reg, val_r);
 	if (ret < 0)
 		goto err;
 	val_w = (val_r & ~mask) | val;
 	if (val_w != val_r) {
 		ret = write32(wdev, reg, val_w);
+		_trace_io_write32(reg, val_w);
 	}
 err:
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
@@ -166,6 +171,7 @@ static int indirect_read_locked(struct wfx_dev *wdev, int reg, u32 addr, void *b
 
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
 	ret = indirect_read(wdev, reg, addr, buf, len);
+	_trace_io_ind_read(reg, addr, buf, len);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	return ret;
 }
@@ -176,6 +182,7 @@ static int indirect_write_locked(struct wfx_dev *wdev, int reg, u32 addr, const 
 
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
 	ret = indirect_write(wdev, reg, addr, buf, len);
+	_trace_io_ind_write(reg, addr, buf, len);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	return ret;
 }
@@ -190,6 +197,7 @@ static int indirect_read32_locked(struct wfx_dev *wdev, int reg, u32 addr, u32 *
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
 	ret = indirect_read(wdev, reg, addr, tmp, sizeof(u32));
 	*val = cpu_to_le32(*tmp);
+	_trace_io_ind_read32(reg, addr, *val);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	kfree(tmp);
 	return ret;
@@ -205,6 +213,7 @@ static int indirect_write32_locked(struct wfx_dev *wdev, int reg, u32 addr, u32 
 	*tmp = cpu_to_le32(val);
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
 	ret = indirect_write(wdev, reg, addr, tmp, sizeof(u32));
+	_trace_io_ind_write32(reg, addr, val);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	kfree(tmp);
 	return ret;
@@ -217,6 +226,7 @@ int wfx_data_read(struct wfx_dev *wdev, void *buf, size_t len)
 	WARN((long) buf & 3, "%s: unaligned buffer", __func__);
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
 	ret = wdev->hwbus_ops->copy_from_io(wdev->hwbus_priv, WFX_REG_IN_OUT_QUEUE, buf, len);
+	_trace_io_read(WFX_REG_IN_OUT_QUEUE, buf, len);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	if (ret)
 		dev_err(wdev->dev, "%s: bus communication error: %d\n", __func__, ret);
@@ -230,6 +240,7 @@ int wfx_data_write(struct wfx_dev *wdev, const void *buf, size_t len)
 	WARN((long) buf & 3, "%s: unaligned buffer", __func__);
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
 	ret = wdev->hwbus_ops->copy_to_io(wdev->hwbus_priv, WFX_REG_IN_OUT_QUEUE, buf, len);
+	_trace_io_write(WFX_REG_IN_OUT_QUEUE, buf, len);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	if (ret)
 		dev_err(wdev->dev, "%s: bus communication error: %d\n", __func__, ret);
