@@ -342,7 +342,7 @@ static struct amdgpu_vm_pt *amdgpu_vm_pt_parent(struct amdgpu_vm_pt *pt)
 	return container_of(parent->vm_bo, struct amdgpu_vm_pt, base);
 }
 
-/**
+/*
  * amdgpu_vm_pt_cursor - state for for_each_amdgpu_vm_pt
  */
 struct amdgpu_vm_pt_cursor {
@@ -483,6 +483,7 @@ static void amdgpu_vm_pt_next(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device structure
  * @vm: amdgpu_vm structure
+ * @start: optional cursor to start with
  * @cursor: state to initialize
  *
  * Starts a deep first traversal of the PD/PT tree.
@@ -536,7 +537,7 @@ static void amdgpu_vm_pt_next_dfs(struct amdgpu_device *adev,
 		amdgpu_vm_pt_ancestor(cursor);
 }
 
-/**
+/*
  * for_each_amdgpu_vm_pt_dfs_safe - safe deep first search of all PDs/PTs
  */
 #define for_each_amdgpu_vm_pt_dfs_safe(adev, vm, start, cursor, entry)		\
@@ -857,6 +858,7 @@ static void amdgpu_vm_bo_param(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  * @adev: amdgpu_device pointer
  * @vm: VM to allocate page tables for
  * @cursor: Which page table to allocate
+ * @direct: use a direct update
  *
  * Make sure a specific page table or directory is allocated.
  *
@@ -1196,10 +1198,10 @@ uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr)
 	return result;
 }
 
-/*
+/**
  * amdgpu_vm_update_pde - update a single level in the hierarchy
  *
- * @param: parameters for the update
+ * @params: parameters for the update
  * @vm: requested vm
  * @entry: entry to update
  *
@@ -1223,7 +1225,7 @@ static int amdgpu_vm_update_pde(struct amdgpu_vm_update_params *params,
 	return vm->update_funcs->update(params, bo, pde, pt, 1, 0, flags);
 }
 
-/*
+/**
  * amdgpu_vm_invalidate_pds - mark all PDs as invalid
  *
  * @adev: amdgpu_device pointer
@@ -1242,7 +1244,7 @@ static void amdgpu_vm_invalidate_pds(struct amdgpu_device *adev,
 			amdgpu_vm_bo_relocated(&entry->base);
 }
 
-/*
+/**
  * amdgpu_vm_update_pdes - make sure that all directories are valid
  *
  * @adev: amdgpu_device pointer
@@ -1294,7 +1296,7 @@ error:
 	return r;
 }
 
-/**
+/*
  * amdgpu_vm_update_flags - figure out flags for PTE updates
  *
  * Make sure to set the right flags for the PTEs at the desired level.
@@ -2815,6 +2817,7 @@ static int amdgpu_vm_check_clean_reserved(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  * @vm: requested vm
+ * @pasid: pasid to use
  *
  * This only works on GFX VMs that don't have any BOs added and no
  * page tables allocated yet.
