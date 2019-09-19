@@ -113,6 +113,9 @@ bool intel_dp_needs_vsc_sdp(const struct intel_crtc_state *crtc_state,
 void intel_dp_vsc_enable(struct intel_dp *intel_dp,
 			 const struct intel_crtc_state *crtc_state,
 			 const struct drm_connector_state *conn_state);
+void intel_dp_hdr_metadata_enable(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state);
 bool intel_digital_port_connected(struct intel_encoder *encoder);
 
 static inline unsigned int intel_dp_unused_lane_mask(int lane_count)

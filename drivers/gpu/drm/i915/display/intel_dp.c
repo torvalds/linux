@@ -4624,6 +4624,86 @@ intel_dp_setup_vsc_sdp(struct intel_dp *intel_dp,
 			crtc_state, DP_SDP_VSC, &vsc_sdp, sizeof(vsc_sdp));
 }
 
+static void
+intel_dp_setup_hdr_metadata_infoframe_sdp(struct intel_dp *intel_dp,
+					  const struct intel_crtc_state *crtc_state,
+					  const struct drm_connector_state *conn_state)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct dp_sdp infoframe_sdp = {};
+	struct hdmi_drm_infoframe drm_infoframe = {};
+	const int infoframe_size = HDMI_INFOFRAME_HEADER_SIZE + HDMI_DRM_INFOFRAME_SIZE;
+	unsigned char buf[HDMI_INFOFRAME_HEADER_SIZE + HDMI_DRM_INFOFRAME_SIZE];
+	ssize_t len;
+	int ret;
+
+	ret = drm_hdmi_infoframe_set_hdr_metadata(&drm_infoframe, conn_state);
+	if (ret) {
+		DRM_DEBUG_KMS("couldn't set HDR metadata in infoframe\n");
+		return;
+	}
+
+	len = hdmi_drm_infoframe_pack_only(&drm_infoframe, buf, sizeof(buf));
+	if (len < 0) {
+		DRM_DEBUG_KMS("buffer size is smaller than hdr metadata infoframe\n");
+		return;
+	}
+
+	if (len != infoframe_size) {
+		DRM_DEBUG_KMS("wrong static hdr metadata size\n");
+		return;
+	}
+
+	/*
+	 * Set up the infoframe sdp packet for HDR static metadata.
+	 * Prepare VSC Header for SU as per DP 1.4a spec,
+	 * Table 2-100 and Table 2-101
+	 */
+
+	/* Packet ID, 00h for non-Audio INFOFRAME */
+	infoframe_sdp.sdp_header.HB0 = 0;
+	/*
+	 * Packet Type 80h + Non-audio INFOFRAME Type value
+	 * HDMI_INFOFRAME_TYPE_DRM: 0x87,
+	 */
+	infoframe_sdp.sdp_header.HB1 = drm_infoframe.type;
+	/*
+	 * Least Significant Eight Bits of (Data Byte Count – 1)
+	 * infoframe_size - 1,
+	 */
+	infoframe_sdp.sdp_header.HB2 = 0x1D;
+	/* INFOFRAME SDP Version Number */
+	infoframe_sdp.sdp_header.HB3 = (0x13 << 2);
+	/* CTA Header Byte 2 (INFOFRAME Version Number) */
+	infoframe_sdp.db[0] = drm_infoframe.version;
+	/* CTA Header Byte 3 (Length of INFOFRAME): HDMI_DRM_INFOFRAME_SIZE */
+	infoframe_sdp.db[1] = drm_infoframe.length;
+	/*
+	 * Copy HDMI_DRM_INFOFRAME_SIZE size from a buffer after
+	 * HDMI_INFOFRAME_HEADER_SIZE
+	 */
+	BUILD_BUG_ON(sizeof(infoframe_sdp.db) < HDMI_DRM_INFOFRAME_SIZE + 2);
+	memcpy(&infoframe_sdp.db[2], &buf[HDMI_INFOFRAME_HEADER_SIZE],
+	       HDMI_DRM_INFOFRAME_SIZE);
+
+	/*
+	 * Size of DP infoframe sdp packet for HDR static metadata is consist of
+	 * - DP SDP Header(struct dp_sdp_header): 4 bytes
+	 * - Two Data Blocks: 2 bytes
+	 *    CTA Header Byte2 (INFOFRAME Version Number)
+	 *    CTA Header Byte3 (Length of INFOFRAME)
+	 * - HDMI_DRM_INFOFRAME_SIZE: 26 bytes
+	 *
+	 * Prior to GEN11's GMP register size is identical to DP HDR static metadata
+	 * infoframe size. But GEN11+ has larger than that size, write_infoframe
+	 * will pad rest of the size.
+	 */
+	intel_dig_port->write_infoframe(&intel_dig_port->base, crtc_state,
+					HDMI_PACKET_TYPE_GAMUT_METADATA,
+					&infoframe_sdp,
+					sizeof(struct dp_sdp_header) + 2 + HDMI_DRM_INFOFRAME_SIZE);
+}
+
 void intel_dp_vsc_enable(struct intel_dp *intel_dp,
 			 const struct intel_crtc_state *crtc_state,
 			 const struct drm_connector_state *conn_state)
@@ -4632,6 +4712,18 @@ void intel_dp_vsc_enable(struct intel_dp *intel_dp,
 		return;
 
 	intel_dp_setup_vsc_sdp(intel_dp, crtc_state, conn_state);
+}
+
+void intel_dp_hdr_metadata_enable(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state)
+{
+	if (!conn_state->hdr_output_metadata)
+		return;
+
+	intel_dp_setup_hdr_metadata_infoframe_sdp(intel_dp,
+						  crtc_state,
+						  conn_state);
 }
 
 static u8 intel_dp_autotest_link_training(struct intel_dp *intel_dp)
