@@ -4474,8 +4474,9 @@ intel_dp_get_sink_irq_esi(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 }
 
 static void
-intel_pixel_encoding_setup_vsc(struct intel_dp *intel_dp,
-			       const struct intel_crtc_state *crtc_state)
+intel_dp_setup_vsc_sdp(struct intel_dp *intel_dp,
+		       const struct intel_crtc_state *crtc_state,
+		       const struct drm_connector_state *conn_state)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct dp_sdp vsc_sdp = {};
@@ -4496,13 +4497,55 @@ intel_pixel_encoding_setup_vsc(struct intel_dp *intel_dp,
 	 */
 	vsc_sdp.sdp_header.HB3 = 0x13;
 
-	/*
-	 * YCbCr 420 = 3h DB16[7:4] ITU-R BT.601 = 0h, ITU-R BT.709 = 1h
-	 * DB16[3:0] DP 1.4a spec, Table 2-120
-	 */
-	vsc_sdp.db[16] = 0x3 << 4; /* 0x3 << 4 , YCbCr 420*/
-	/* RGB->YCBCR color conversion uses the BT.709 color space. */
-	vsc_sdp.db[16] |= 0x1; /* 0x1, ITU-R BT.709 */
+	/* DP 1.4a spec, Table 2-120 */
+	switch (crtc_state->output_format) {
+	case INTEL_OUTPUT_FORMAT_YCBCR444:
+		vsc_sdp.db[16] = 0x1 << 4; /* YCbCr 444 : DB16[7:4] = 1h */
+		break;
+	case INTEL_OUTPUT_FORMAT_YCBCR420:
+		vsc_sdp.db[16] = 0x3 << 4; /* YCbCr 420 : DB16[7:4] = 3h */
+		break;
+	case INTEL_OUTPUT_FORMAT_RGB:
+	default:
+		/* RGB: DB16[7:4] = 0h */
+		break;
+	}
+
+	switch (conn_state->colorspace) {
+	case DRM_MODE_COLORIMETRY_BT709_YCC:
+		vsc_sdp.db[16] |= 0x1;
+		break;
+	case DRM_MODE_COLORIMETRY_XVYCC_601:
+		vsc_sdp.db[16] |= 0x2;
+		break;
+	case DRM_MODE_COLORIMETRY_XVYCC_709:
+		vsc_sdp.db[16] |= 0x3;
+		break;
+	case DRM_MODE_COLORIMETRY_SYCC_601:
+		vsc_sdp.db[16] |= 0x4;
+		break;
+	case DRM_MODE_COLORIMETRY_OPYCC_601:
+		vsc_sdp.db[16] |= 0x5;
+		break;
+	case DRM_MODE_COLORIMETRY_BT2020_CYCC:
+	case DRM_MODE_COLORIMETRY_BT2020_RGB:
+		vsc_sdp.db[16] |= 0x6;
+		break;
+	case DRM_MODE_COLORIMETRY_BT2020_YCC:
+		vsc_sdp.db[16] |= 0x7;
+		break;
+	case DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65:
+	case DRM_MODE_COLORIMETRY_DCI_P3_RGB_THEATER:
+		vsc_sdp.db[16] |= 0x4; /* DCI-P3 (SMPTE RP 431-2) */
+		break;
+	default:
+		/* sRGB (IEC 61966-2-1) / ITU-R BT.601: DB16[0:3] = 0h */
+
+		/* RGB->YCBCR color conversion uses the BT.709 color space. */
+		if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+			vsc_sdp.db[16] |= 0x1; /* 0x1, ITU-R BT.709 */
+		break;
+	}
 
 	/*
 	 * For pixel encoding formats YCbCr444, YCbCr422, YCbCr420, and Y Only,
@@ -4554,13 +4597,14 @@ intel_pixel_encoding_setup_vsc(struct intel_dp *intel_dp,
 			crtc_state, DP_SDP_VSC, &vsc_sdp, sizeof(vsc_sdp));
 }
 
-void intel_dp_ycbcr_420_enable(struct intel_dp *intel_dp,
-			       const struct intel_crtc_state *crtc_state)
+void intel_dp_vsc_enable(struct intel_dp *intel_dp,
+			 const struct intel_crtc_state *crtc_state,
+			 const struct drm_connector_state *conn_state)
 {
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_YCBCR420)
 		return;
 
-	intel_pixel_encoding_setup_vsc(intel_dp, crtc_state);
+	intel_dp_setup_vsc_sdp(intel_dp, crtc_state, conn_state);
 }
 
 static u8 intel_dp_autotest_link_training(struct intel_dp *intel_dp)
