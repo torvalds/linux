@@ -348,7 +348,6 @@ static int tower_open (struct inode *inode, struct file *file)
 		retval = -EBUSY;
 		goto unlock_exit;
 	}
-	dev->open_count = 1;
 
 	/* reset the tower */
 	result = usb_control_msg (dev->udev,
@@ -388,12 +387,13 @@ static int tower_open (struct inode *inode, struct file *file)
 		dev_err(&dev->udev->dev,
 			"Couldn't submit interrupt_in_urb %d\n", retval);
 		dev->interrupt_in_running = 0;
-		dev->open_count = 0;
 		goto unlock_exit;
 	}
 
 	/* save device in the file's private structure */
 	file->private_data = dev;
+
+	dev->open_count = 1;
 
 unlock_exit:
 	mutex_unlock(&dev->lock);
