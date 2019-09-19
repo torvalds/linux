@@ -2439,7 +2439,7 @@ static int clk_core_set_parent_nolock(struct clk_core *core,
 	if (core->parent == parent)
 		return 0;
 
-	/* verify ops for for multi-parent clks */
+	/* verify ops for multi-parent clks */
 	if (core->num_parents > 1 && !core->ops->set_parent)
 		return -EPERM;
 
@@ -3516,9 +3516,9 @@ static int clk_cpy_name(const char **dst_p, const char *src, bool must_exist)
 	return 0;
 }
 
-static int clk_core_populate_parent_map(struct clk_core *core)
+static int clk_core_populate_parent_map(struct clk_core *core,
+					const struct clk_init_data *init)
 {
-	const struct clk_init_data *init = core->hw->init;
 	u8 num_parents = init->num_parents;
 	const char * const *parent_names = init->parent_names;
 	const struct clk_hw **parent_hws = init->parent_hws;
@@ -3598,6 +3598,14 @@ __clk_register(struct device *dev, struct device_node *np, struct clk_hw *hw)
 {
 	int ret;
 	struct clk_core *core;
+	const struct clk_init_data *init = hw->init;
+
+	/*
+	 * The init data is not supposed to be used outside of registration path.
+	 * Set it to NULL so that provider drivers can't use it either and so that
+	 * we catch use of hw->init early on in the core.
+	 */
+	hw->init = NULL;
 
 	core = kzalloc(sizeof(*core), GFP_KERNEL);
 	if (!core) {
@@ -3605,17 +3613,17 @@ __clk_register(struct device *dev, struct device_node *np, struct clk_hw *hw)
 		goto fail_out;
 	}
 
-	core->name = kstrdup_const(hw->init->name, GFP_KERNEL);
+	core->name = kstrdup_const(init->name, GFP_KERNEL);
 	if (!core->name) {
 		ret = -ENOMEM;
 		goto fail_name;
 	}
 
-	if (WARN_ON(!hw->init->ops)) {
+	if (WARN_ON(!init->ops)) {
 		ret = -EINVAL;
 		goto fail_ops;
 	}
-	core->ops = hw->init->ops;
+	core->ops = init->ops;
 
 	if (dev && pm_runtime_enabled(dev))
 		core->rpm_enabled = true;
@@ -3624,13 +3632,13 @@ __clk_register(struct device *dev, struct device_node *np, struct clk_hw *hw)
 	if (dev && dev->driver)
 		core->owner = dev->driver->owner;
 	core->hw = hw;
-	core->flags = hw->init->flags;
-	core->num_parents = hw->init->num_parents;
+	core->flags = init->flags;
+	core->num_parents = init->num_parents;
 	core->min_rate = 0;
 	core->max_rate = ULONG_MAX;
 	hw->core = core;
 
-	ret = clk_core_populate_parent_map(core);
+	ret = clk_core_populate_parent_map(core, init);
 	if (ret)
 		goto fail_parents;
 
@@ -4348,12 +4356,43 @@ void devm_of_clk_del_provider(struct device *dev)
 }
 EXPORT_SYMBOL(devm_of_clk_del_provider);
 
-/*
- * Beware the return values when np is valid, but no clock provider is found.
- * If name == NULL, the function returns -ENOENT.
- * If name != NULL, the function returns -EINVAL. This is because
- * of_parse_phandle_with_args() is called even if of_property_match_string()
- * returns an error.
+/**
+ * of_parse_clkspec() - Parse a DT clock specifier for a given device node
+ * @np: device node to parse clock specifier from
+ * @index: index of phandle to parse clock out of. If index < 0, @name is used
+ * @name: clock name to find and parse. If name is NULL, the index is used
+ * @out_args: Result of parsing the clock specifier
+ *
+ * Parses a device node's "clocks" and "clock-names" properties to find the
+ * phandle and cells for the index or name that is desired. The resulting clock
+ * specifier is placed into @out_args, or an errno is returned when there's a
+ * parsing error. The @index argument is ignored if @name is non-NULL.
+ *
+ * Example:
+ *
+ * phandle1: clock-controller@1 {
+ *	#clock-cells = <2>;
+ * }
+ *
+ * phandle2: clock-controller@2 {
+ *	#clock-cells = <1>;
+ * }
+ *
+ * clock-consumer@3 {
+ *	clocks = <&phandle1 1 2 &phandle2 3>;
+ *	clock-names = "name1", "name2";
+ * }
+ *
+ * To get a device_node for `clock-controller@2' node you may call this
+ * function a few different ways:
+ *
+ *   of_parse_clkspec(clock-consumer@3, -1, "name2", &args);
+ *   of_parse_clkspec(clock-consumer@3, 1, NULL, &args);
+ *   of_parse_clkspec(clock-consumer@3, 1, "name2", &args);
+ *
+ * Return: 0 upon successfully parsing the clock specifier. Otherwise, -ENOENT
+ * if @name is NULL or -EINVAL if @name is non-NULL and it can't be found in
+ * the "clock-names" property of @np.
  */
 static int of_parse_clkspec(const struct device_node *np, int index,
 			    const char *name, struct of_phandle_args *out_args)

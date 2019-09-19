@@ -1105,8 +1105,6 @@ static int clk_rcg2_enable_dfs(const struct clk_rcg_dfs_data *data,
 
 	rcg->freq_tbl = NULL;
 
-	pr_debug("DFS registered for clk %s\n", init->name);
-
 	return 0;
 }
 
@@ -1117,12 +1115,8 @@ int qcom_cc_register_rcg_dfs(struct regmap *regmap,
 
 	for (i = 0; i < len; i++) {
 		ret = clk_rcg2_enable_dfs(&rcgs[i], regmap);
-		if (ret) {
-			const char *name = rcgs[i].init->name;
-
-			pr_err("DFS register failed for clk %s\n", name);
+		if (ret)
 			return ret;
-		}
 	}
 
 	return 0;
