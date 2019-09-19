@@ -999,98 +999,6 @@ void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 	DPRINTK("========================================\n");
 }
 
-/**
- * fb_edid_add_monspecs() - add monitor video modes from E-EDID data
- * @edid:	128 byte array with an E-EDID block
- * @spacs:	monitor specs to be extended
- */
-void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
-{
-	unsigned char *block;
-	struct fb_videomode *m;
-	int num = 0, i;
-	u8 svd[64], edt[(128 - 4) / DETAILED_TIMING_DESCRIPTION_SIZE];
-	u8 pos = 4, svd_n = 0;
-
-	if (!edid)
-		return;
-
-	if (!edid_checksum(edid))
-		return;
-
-	if (edid[0] != 0x2 ||
-	    edid[2] < 4 || edid[2] > 128 - DETAILED_TIMING_DESCRIPTION_SIZE)
-		return;
-
-	DPRINTK("  Short Video Descriptors\n");
-
-	while (pos < edid[2]) {
-		u8 len = edid[pos] & 0x1f, type = (edid[pos] >> 5) & 7;
-		pr_debug("Data block %u of %u bytes\n", type, len);
-		if (type == 2) {
-			for (i = pos; i < pos + len; i++) {
-				u8 idx = edid[pos + i] & 0x7f;
-				svd[svd_n++] = idx;
-				pr_debug("N%sative mode #%d\n",
-					 edid[pos + i] & 0x80 ? "" : "on-n", idx);
-			}
-		} else if (type == 3 && len >= 3) {
-			/* Check Vendor Specific Data Block.  For HDMI,
-			   it is always 00-0C-03 for HDMI Licensing, LLC. */
-			if (edid[pos + 1] == 3 && edid[pos + 2] == 0xc &&
-			    edid[pos + 3] == 0)
-				specs->misc |= FB_MISC_HDMI;
-		}
-		pos += len + 1;
-	}
-
-	block = edid + edid[2];
-
-	DPRINTK("  Extended Detailed Timings\n");
-
-	for (i = 0; i < (128 - edid[2]) / DETAILED_TIMING_DESCRIPTION_SIZE;
-	     i++, block += DETAILED_TIMING_DESCRIPTION_SIZE)
-		if (PIXEL_CLOCK != 0)
-			edt[num++] = block - edid;
-
-	/* Yikes, EDID data is totally useless */
-	if (!(num + svd_n))
-		return;
-
-	m = kcalloc(specs->modedb_len + num + svd_n,
-		    sizeof(struct fb_videomode),
-		    GFP_KERNEL);
-
-	if (!m)
-		return;
-
-	memcpy(m, specs->modedb, specs->modedb_len * sizeof(struct fb_videomode));
-
-	for (i = specs->modedb_len; i < specs->modedb_len + num; i++) {
-		get_detailed_timing(edid + edt[i - specs->modedb_len], &m[i]);
-		if (i == specs->modedb_len)
-			m[i].flag |= FB_MODE_IS_FIRST;
-		pr_debug("Adding %ux%u@%u\n", m[i].xres, m[i].yres, m[i].refresh);
-	}
-
-	for (i = specs->modedb_len + num; i < specs->modedb_len + num + svd_n; i++) {
-		int idx = svd[i - specs->modedb_len - num];
-		if (!idx || idx >= ARRAY_SIZE(cea_modes)) {
-			pr_warn("Reserved SVD code %d\n", idx);
-		} else if (!cea_modes[idx].xres) {
-			pr_warn("Unimplemented SVD code %d\n", idx);
-		} else {
-			memcpy(&m[i], cea_modes + idx, sizeof(m[i]));
-			pr_debug("Adding SVD #%d: %ux%u@%u\n", idx,
-				 m[i].xres, m[i].yres, m[i].refresh);
-		}
-	}
-
-	kfree(specs->modedb);
-	specs->modedb = m;
-	specs->modedb_len = specs->modedb_len + num + svd_n;
-}
-
 /*
  * VESA Generalized Timing Formula (GTF)
  */
@@ -1500,9 +1408,6 @@ int fb_parse_edid(unsigned char *edid, struct fb_var_screeninfo *var)
 void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 {
 }
-void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
-{
-}
 void fb_destroy_modedb(struct fb_videomode *modedb)
 {
 }
@@ -1610,7 +1515,6 @@ EXPORT_SYMBOL(fb_firmware_edid);
 
 EXPORT_SYMBOL(fb_parse_edid);
 EXPORT_SYMBOL(fb_edid_to_monspecs);
-EXPORT_SYMBOL(fb_edid_add_monspecs);
 EXPORT_SYMBOL(fb_get_mode);
 EXPORT_SYMBOL(fb_validate_mode);
 EXPORT_SYMBOL(fb_destroy_modedb);

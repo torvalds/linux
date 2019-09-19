@@ -662,6 +662,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
+	case CHIP_ARCTURUS:
 		pcache_info = vega10_cache_info;
 		num_of_cache_types = ARRAY_SIZE(vega10_cache_info);
 		break;
@@ -788,7 +789,7 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
  * is put in the code to ensure we don't overwrite.
  */
 #define VCRAT_SIZE_FOR_CPU	(2 * PAGE_SIZE)
-#define VCRAT_SIZE_FOR_GPU	(3 * PAGE_SIZE)
+#define VCRAT_SIZE_FOR_GPU	(4 * PAGE_SIZE)
 
 /* kfd_fill_cu_for_cpu - Fill in Compute info for the given CPU NUMA node
  *

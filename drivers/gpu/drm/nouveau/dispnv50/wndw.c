@@ -26,6 +26,8 @@
 #include <nvif/cl0002.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fourcc.h>
+
 #include "nouveau_bo.h"
 
 static void
@@ -118,6 +120,7 @@ nv50_wndw_flush_clr(struct nv50_wndw *wndw, u32 *interlock, bool flush,
 	if (clr.sema ) wndw->func-> sema_clr(wndw);
 	if (clr.ntfy ) wndw->func-> ntfy_clr(wndw);
 	if (clr.xlut ) wndw->func-> xlut_clr(wndw);
+	if (clr.csc  ) wndw->func->  csc_clr(wndw);
 	if (clr.image) wndw->func->image_clr(wndw);
 
 	interlock[wndw->interlock.type] |= wndw->interlock.data;
@@ -145,7 +148,9 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 		wndw->func->xlut_set(wndw, asyw);
 	}
 
+	if (asyw->set.csc  ) wndw->func->csc_set  (wndw, asyw);
 	if (asyw->set.scale) wndw->func->scale_set(wndw, asyw);
+	if (asyw->set.blend) wndw->func->blend_set(wndw, asyw);
 	if (asyw->set.point) {
 		if (asyw->set.point = false, asyw->set.mask)
 			interlock[wndw->interlock.type] |= wndw->interlock.data;
@@ -202,18 +207,20 @@ static int
 nv50_wndw_atomic_check_acquire_rgb(struct nv50_wndw_atom *asyw)
 {
 	switch (asyw->state.fb->format->format) {
-	case DRM_FORMAT_C8         : asyw->image.format = 0x1e; break;
-	case DRM_FORMAT_XRGB8888   :
-	case DRM_FORMAT_ARGB8888   : asyw->image.format = 0xcf; break;
-	case DRM_FORMAT_RGB565     : asyw->image.format = 0xe8; break;
-	case DRM_FORMAT_XRGB1555   :
-	case DRM_FORMAT_ARGB1555   : asyw->image.format = 0xe9; break;
-	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_ABGR2101010: asyw->image.format = 0xd1; break;
-	case DRM_FORMAT_XBGR8888   :
-	case DRM_FORMAT_ABGR8888   : asyw->image.format = 0xd5; break;
-	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_ARGB2101010: asyw->image.format = 0xdf; break;
+	case DRM_FORMAT_C8           : asyw->image.format = 0x1e; break;
+	case DRM_FORMAT_XRGB8888     :
+	case DRM_FORMAT_ARGB8888     : asyw->image.format = 0xcf; break;
+	case DRM_FORMAT_RGB565       : asyw->image.format = 0xe8; break;
+	case DRM_FORMAT_XRGB1555     :
+	case DRM_FORMAT_ARGB1555     : asyw->image.format = 0xe9; break;
+	case DRM_FORMAT_XBGR2101010  :
+	case DRM_FORMAT_ABGR2101010  : asyw->image.format = 0xd1; break;
+	case DRM_FORMAT_XBGR8888     :
+	case DRM_FORMAT_ABGR8888     : asyw->image.format = 0xd5; break;
+	case DRM_FORMAT_XRGB2101010  :
+	case DRM_FORMAT_ARGB2101010  : asyw->image.format = 0xdf; break;
+	case DRM_FORMAT_XBGR16161616F:
+	case DRM_FORMAT_ABGR16161616F: asyw->image.format = 0xca; break;
 	default:
 		return -EINVAL;
 	}
@@ -279,6 +286,28 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 			asyw->set.scale = true;
 	}
 
+	if (wndw->func->blend_set) {
+		asyw->blend.depth = 255 - asyw->state.normalized_zpos;
+		asyw->blend.k1 = asyw->state.alpha >> 8;
+		switch (asyw->state.pixel_blend_mode) {
+		case DRM_MODE_BLEND_PREMULTI:
+			asyw->blend.src_color = 2; /* K1 */
+			asyw->blend.dst_color = 7; /* NEG_K1_TIMES_SRC */
+			break;
+		case DRM_MODE_BLEND_COVERAGE:
+			asyw->blend.src_color = 5; /* K1_TIMES_SRC */
+			asyw->blend.dst_color = 7; /* NEG_K1_TIMES_SRC */
+			break;
+		case DRM_MODE_BLEND_PIXEL_NONE:
+		default:
+			asyw->blend.src_color = 2; /* K1 */
+			asyw->blend.dst_color = 4; /* NEG_K1 */
+			break;
+		}
+		if (memcmp(&armw->blend, &asyw->blend, sizeof(asyw->blend)))
+			asyw->set.blend = true;
+	}
+
 	if (wndw->immd) {
 		asyw->point.x = asyw->state.crtc_x;
 		asyw->point.y = asyw->state.crtc_y;
@@ -320,7 +349,9 @@ nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
 		asyh->wndw.olut &= ~BIT(wndw->id);
 	}
 
-	if (!ilut && wndw->func->ilut_identity) {
+	if (!ilut && wndw->func->ilut_identity &&
+	    asyw->state.fb->format->format != DRM_FORMAT_XBGR16161616F &&
+	    asyw->state.fb->format->format != DRM_FORMAT_ABGR16161616F) {
 		static struct drm_property_blob dummy = {};
 		ilut = &dummy;
 	}
@@ -332,12 +363,24 @@ nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
 		asyw->xlut.handle = wndw->wndw.vram.handle;
 		asyw->xlut.i.buffer = !asyw->xlut.i.buffer;
 		asyw->set.xlut = true;
+	} else {
+		asyw->clr.xlut = armw->xlut.handle != 0;
 	}
 
 	/* Handle setting base SET_OUTPUT_LUT_LO_ENABLE_USE_CORE_LUT. */
 	if (wndw->func->olut_core &&
 	    (!armw->visible || (armw->xlut.handle && !asyw->xlut.handle)))
 		asyw->set.xlut = true;
+
+	if (wndw->func->csc && asyh->state.ctm) {
+		const struct drm_color_ctm *ctm = asyh->state.ctm->data;
+		wndw->func->csc(wndw, asyw, ctm);
+		asyw->csc.valid = true;
+		asyw->set.csc = true;
+	} else {
+		asyw->csc.valid = false;
+		asyw->clr.csc = armw->csc.valid;
+	}
 
 	/* Can't do an immediate flip while changing the LUT. */
 	asyh->state.pageflip_flags &= ~DRM_MODE_PAGE_FLIP_ASYNC;
@@ -408,6 +451,7 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 		asyw->clr.ntfy = armw->ntfy.handle != 0;
 		asyw->clr.sema = armw->sema.handle != 0;
 		asyw->clr.xlut = armw->xlut.handle != 0;
+		asyw->clr.csc  = armw->csc.valid;
 		if (wndw->func->image_clr)
 			asyw->clr.image = armw->image.handle[0] != 0;
 	}
@@ -457,7 +501,7 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 		asyw->image.handle[0] = ctxdma->object.handle;
 	}
 
-	asyw->state.fence = reservation_object_get_excl_rcu(fb->nvbo->bo.resv);
+	asyw->state.fence = dma_resv_get_excl_rcu(fb->nvbo->bo.base.resv);
 	asyw->image.offset[0] = fb->nvbo->bo.offset;
 
 	if (wndw->func->prepare) {
@@ -499,11 +543,19 @@ nv50_wndw_atomic_duplicate_state(struct drm_plane *plane)
 	asyw->ntfy = armw->ntfy;
 	asyw->ilut = NULL;
 	asyw->xlut = armw->xlut;
+	asyw->csc  = armw->csc;
 	asyw->image = armw->image;
 	asyw->point = armw->point;
 	asyw->clr.mask = 0;
 	asyw->set.mask = 0;
 	return &asyw->state;
+}
+
+static int
+nv50_wndw_zpos_default(struct drm_plane *plane)
+{
+	return (plane->type == DRM_PLANE_TYPE_PRIMARY) ? 0 :
+	       (plane->type == DRM_PLANE_TYPE_OVERLAY) ? 1 : 255;
 }
 
 static void
@@ -516,9 +568,10 @@ nv50_wndw_reset(struct drm_plane *plane)
 
 	if (plane->state)
 		plane->funcs->atomic_destroy_state(plane, plane->state);
-	plane->state = &asyw->state;
-	plane->state->plane = plane;
-	plane->state->rotation = DRM_MODE_ROTATE_0;
+
+	__drm_atomic_helper_plane_reset(plane, &asyw->state);
+	plane->state->zpos = nv50_wndw_zpos_default(plane);
+	plane->state->normalized_zpos = nv50_wndw_zpos_default(plane);
 }
 
 static void
@@ -613,6 +666,30 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 	}
 
 	wndw->notify.func = nv50_wndw_notify;
+
+	if (wndw->func->blend_set) {
+		ret = drm_plane_create_zpos_property(&wndw->plane,
+				nv50_wndw_zpos_default(&wndw->plane), 0, 254);
+		if (ret)
+			return ret;
+
+		ret = drm_plane_create_alpha_property(&wndw->plane);
+		if (ret)
+			return ret;
+
+		ret = drm_plane_create_blend_mode_property(&wndw->plane,
+				BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+				BIT(DRM_MODE_BLEND_PREMULTI) |
+				BIT(DRM_MODE_BLEND_COVERAGE));
+		if (ret)
+			return ret;
+	} else {
+		ret = drm_plane_create_zpos_immutable_property(&wndw->plane,
+				nv50_wndw_zpos_default(&wndw->plane));
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 

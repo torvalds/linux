@@ -834,17 +834,11 @@ F:	drivers/iommu/amd_iommu*.[ch]
 F:	include/linux/amd-iommu.h
 
 AMD KFD
-M:	Oded Gabbay <oded.gabbay@gmail.com>
-L:	dri-devel@lists.freedesktop.org
-T:	git git://people.freedesktop.org/~gabbayo/linux.git
+M:	Felix Kuehling <Felix.Kuehling@amd.com>
+L:	amd-gfx@lists.freedesktop.org
+T:	git git://people.freedesktop.org/~agd5f/linux
 S:	Supported
-F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd.c
-F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd.h
-F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v7.c
-F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v8.c
-F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v9.c
-F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_fence.c
-F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gpuvm.c
+F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd*.[ch]
 F:	drivers/gpu/drm/amd/amdkfd/
 F:	drivers/gpu/drm/amd/include/cik_structs.h
 F:	drivers/gpu/drm/amd/include/kgd_kfd_interface.h
@@ -5144,17 +5138,24 @@ S:	Maintained
 F:	drivers/gpu/drm/panel/panel-feiyang-fy07024di26a30d.c
 F:	Documentation/devicetree/bindings/display/panel/feiyang,fy07024di26a30d.txt
 
+DRM DRIVER FOR GRAIN MEDIA GM12U320 PROJECTORS
+M:	Hans de Goede <hdegoede@redhat.com>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+S:	Maintained
+F:	drivers/gpu/drm/tiny/gm12u320.c
+
 DRM DRIVER FOR ILITEK ILI9225 PANELS
 M:	David Lechner <david@lechnology.com>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
-F:	drivers/gpu/drm/tinydrm/ili9225.c
+F:	drivers/gpu/drm/tiny/ili9225.c
 F:	Documentation/devicetree/bindings/display/ilitek,ili9225.txt
 
 DRM DRIVER FOR HX8357D PANELS
 M:	Eric Anholt <eric@anholt.net>
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
-F:	drivers/gpu/drm/tinydrm/hx8357d.c
+F:	drivers/gpu/drm/tiny/hx8357d.c
 F:	Documentation/devicetree/bindings/display/himax,hx8357d.txt
 
 DRM DRIVER FOR INTEL I810 VIDEO CARDS
@@ -5174,8 +5175,9 @@ F:	drivers/gpu/drm/mgag200/
 
 DRM DRIVER FOR MI0283QT
 M:	Noralf Trønnes <noralf@tronnes.org>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
-F:	drivers/gpu/drm/tinydrm/mi0283qt.c
+F:	drivers/gpu/drm/tiny/mi0283qt.c
 F:	Documentation/devicetree/bindings/display/multi-inno,mi0283qt.txt
 
 DRM DRIVER FOR MSM ADRENO GPU
@@ -5207,8 +5209,9 @@ F:	Documentation/devicetree/bindings/display/panel/olimex,lcd-olinuxino.txt
 
 DRM DRIVER FOR PERVASIVE DISPLAYS REPAPER PANELS
 M:	Noralf Trønnes <noralf@tronnes.org>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
-F:	drivers/gpu/drm/tinydrm/repaper.c
+F:	drivers/gpu/drm/tiny/repaper.c
 F:	Documentation/devicetree/bindings/display/repaper.txt
 
 DRM DRIVER FOR QEMU'S CIRRUS DEVICE
@@ -5230,6 +5233,12 @@ S:	Maintained
 F:	drivers/gpu/drm/qxl/
 F:	include/uapi/drm/qxl_drm.h
 
+DRM DRIVER FOR RAYDIUM RM67191 PANELS
+M:	Robert Chiras <robert.chiras@nxp.com>
+S:	Maintained
+F:	drivers/gpu/drm/panel/panel-raydium-rm67191.c
+F:	Documentation/devicetree/bindings/display/panel/raydium,rm67191.txt
+
 DRM DRIVER FOR RAGE 128 VIDEO CARDS
 S:	Orphan / Obsolete
 F:	drivers/gpu/drm/r128/
@@ -5237,6 +5246,7 @@ F:	include/uapi/drm/r128_drm.h
 
 DRM DRIVER FOR ROCKTECH JH057N00900 PANELS
 M:	Guido Günther <agx@sigxcpu.org>
+R:	Purism Kernel Team <kernel@puri.sm>
 S:	Maintained
 F:	drivers/gpu/drm/panel/panel-rocktech-jh057n00900.c
 F:	Documentation/devicetree/bindings/display/panel/rocktech,jh057n00900.txt
@@ -5259,14 +5269,16 @@ F:	Documentation/devicetree/bindings/display/panel/sitronix,st7701.txt
 
 DRM DRIVER FOR SITRONIX ST7586 PANELS
 M:	David Lechner <david@lechnology.com>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
-F:	drivers/gpu/drm/tinydrm/st7586.c
+F:	drivers/gpu/drm/tiny/st7586.c
 F:	Documentation/devicetree/bindings/display/sitronix,st7586.txt
 
 DRM DRIVER FOR SITRONIX ST7735R PANELS
 M:	David Lechner <david@lechnology.com>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
-F:	drivers/gpu/drm/tinydrm/st7735r.c
+F:	drivers/gpu/drm/tiny/st7735r.c
 F:	Documentation/devicetree/bindings/display/sitronix,st7735r.txt
 
 DRM DRIVER FOR ST-ERICSSON MCDE
@@ -5285,7 +5297,7 @@ M:	Linus Walleij <linus.walleij@linaro.org>
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/panel/panel-tpo-tpg110.c
-F:	Documentation/devicetree/bindings/display/panel/tpo,tpg110.txt
+F:	Documentation/devicetree/bindings/display/panel/tpo,tpg110.yaml
 
 DRM DRIVER FOR USB DISPLAYLINK VIDEO ADAPTERS
 M:	Dave Airlie <airlied@redhat.com>
@@ -5367,12 +5379,13 @@ L:	linux-amlogic@lists.infradead.org
 W:	http://linux-meson.com/
 S:	Supported
 F:	drivers/gpu/drm/meson/
-F:	Documentation/devicetree/bindings/display/amlogic,meson-vpu.txt
-F:	Documentation/devicetree/bindings/display/amlogic,meson-dw-hdmi.txt
+F:	Documentation/devicetree/bindings/display/amlogic,meson-vpu.yaml
+F:	Documentation/devicetree/bindings/display/amlogic,meson-dw-hdmi.yaml
 F:	Documentation/gpu/meson.rst
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVERS FOR ATMEL HLCDC
+M:	Sam Ravnborg <sam@ravnborg.org>
 M:	Boris Brezillon <bbrezillon@kernel.org>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
@@ -5382,7 +5395,10 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVERS FOR BRIDGE CHIPS
 M:	Andrzej Hajda <a.hajda@samsung.com>
+M:	Neil Armstrong <narmstrong@baylibre.com>
 R:	Laurent Pinchart <Laurent.pinchart@ideasonboard.com>
+R:	Jonas Karlman <jonas@kwiboo.se>
+R:	Jernej Skrabec <jernej.skrabec@siol.net>
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	drivers/gpu/drm/bridge/
@@ -5569,14 +5585,6 @@ F:	drivers/gpu/drm/drm_panel.c
 F:	drivers/gpu/drm/panel/
 F:	include/drm/drm_panel.h
 F:	Documentation/devicetree/bindings/display/panel/
-
-DRM TINYDRM DRIVERS
-M:	Noralf Trønnes <noralf@tronnes.org>
-W:	https://github.com/notro/tinydrm/wiki/Development
-T:	git git://anongit.freedesktop.org/drm/drm-misc
-S:	Maintained
-F:	drivers/gpu/drm/tinydrm/
-F:	include/drm/tinydrm/
 
 DRM DRIVERS FOR XEN
 M:	Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>

@@ -7,6 +7,8 @@
 #ifndef _I915_GLOBALS_H_
 #define _I915_GLOBALS_H_
 
+#include <linux/types.h>
+
 typedef void (*i915_global_func_t)(void);
 
 struct i915_global {
@@ -25,6 +27,7 @@ void i915_globals_exit(void);
 
 /* constructors */
 int i915_global_active_init(void);
+int i915_global_buddy_init(void);
 int i915_global_context_init(void);
 int i915_global_gem_context_init(void);
 int i915_global_objects_init(void);

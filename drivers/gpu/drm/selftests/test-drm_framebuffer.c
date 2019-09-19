@@ -3,7 +3,12 @@
  * Test cases for the drm_framebuffer functions
  */
 
-#include <drm/drmP.h>
+#include <linux/kernel.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_mode.h>
+#include <drm/drm_fourcc.h>
+
 #include "../drm_crtc_internal.h"
 
 #include "test-drm_modeset_common.h"

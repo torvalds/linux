@@ -58,6 +58,7 @@ static const char * const platform_names[] = {
 	PLATFORM_NAME(CANNONLAKE),
 	PLATFORM_NAME(ICELAKE),
 	PLATFORM_NAME(ELKHARTLAKE),
+	PLATFORM_NAME(TIGERLAKE),
 };
 #undef PLATFORM_NAME
 
@@ -715,7 +716,7 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		}
 
 		return freq;
-	} else if (INTEL_GEN(dev_priv) <= 11) {
+	} else if (INTEL_GEN(dev_priv) <= 12) {
 		u32 ctc_reg = I915_READ(CTC_MODE);
 		u32 freq = 0;
 
@@ -929,35 +930,28 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		}
 	} else if (HAS_DISPLAY(dev_priv) && INTEL_GEN(dev_priv) >= 9) {
 		u32 dfsm = I915_READ(SKL_DFSM);
-		u8 disabled_mask = 0;
-		bool invalid;
-		int num_bits;
+		u8 enabled_mask = BIT(info->num_pipes) - 1;
 
 		if (dfsm & SKL_DFSM_PIPE_A_DISABLE)
-			disabled_mask |= BIT(PIPE_A);
+			enabled_mask &= ~BIT(PIPE_A);
 		if (dfsm & SKL_DFSM_PIPE_B_DISABLE)
-			disabled_mask |= BIT(PIPE_B);
+			enabled_mask &= ~BIT(PIPE_B);
 		if (dfsm & SKL_DFSM_PIPE_C_DISABLE)
-			disabled_mask |= BIT(PIPE_C);
+			enabled_mask &= ~BIT(PIPE_C);
+		if (INTEL_GEN(dev_priv) >= 12 &&
+		    (dfsm & TGL_DFSM_PIPE_D_DISABLE))
+			enabled_mask &= ~BIT(PIPE_D);
 
-		num_bits = hweight8(disabled_mask);
-
-		switch (disabled_mask) {
-		case BIT(PIPE_A):
-		case BIT(PIPE_B):
-		case BIT(PIPE_A) | BIT(PIPE_B):
-		case BIT(PIPE_A) | BIT(PIPE_C):
-			invalid = true;
-			break;
-		default:
-			invalid = false;
-		}
-
-		if (num_bits > info->num_pipes || invalid)
-			DRM_ERROR("invalid pipe fuse configuration: 0x%x\n",
-				  disabled_mask);
+		/*
+		 * At least one pipe should be enabled and if there are
+		 * disabled pipes, they should be the last ones, with no holes
+		 * in the mask.
+		 */
+		if (enabled_mask == 0 || !is_power_of_2(enabled_mask + 1))
+			DRM_ERROR("invalid pipe fuse configuration: enabled_mask=0x%x\n",
+				  enabled_mask);
 		else
-			info->num_pipes -= num_bits;
+			info->num_pipes = hweight8(enabled_mask);
 	}
 
 	/* Initialize slice/subslice/EU info */
@@ -1028,8 +1022,9 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 		/*
 		 * In Gen11, only even numbered logical VDBOXes are
 		 * hooked up to an SFC (Scaler & Format Converter) unit.
+		 * In TGL each VDBOX has access to an SFC.
 		 */
-		if (logical_vdbox++ % 2 == 0)
+		if (IS_TIGERLAKE(dev_priv) || logical_vdbox++ % 2 == 0)
 			RUNTIME_INFO(dev_priv)->vdbox_sfc_access |= BIT(i);
 	}
 	DRM_DEBUG_DRIVER("vdbox enable: %04x, instances: %04lx\n",

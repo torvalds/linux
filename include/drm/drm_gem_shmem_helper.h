@@ -44,6 +44,9 @@ struct drm_gem_shmem_object {
 	 */
 	unsigned int pages_use_count;
 
+	int madv;
+	struct list_head madv_list;
+
 	/**
 	 * @pages_mark_dirty_on_put:
 	 *
@@ -120,6 +123,18 @@ int drm_gem_shmem_pin(struct drm_gem_object *obj);
 void drm_gem_shmem_unpin(struct drm_gem_object *obj);
 void *drm_gem_shmem_vmap(struct drm_gem_object *obj);
 void drm_gem_shmem_vunmap(struct drm_gem_object *obj, void *vaddr);
+
+int drm_gem_shmem_madvise(struct drm_gem_object *obj, int madv);
+
+static inline bool drm_gem_shmem_is_purgeable(struct drm_gem_shmem_object *shmem)
+{
+	return (shmem->madv > 0) &&
+		!shmem->vmap_use_count && shmem->sgt &&
+		!shmem->base.dma_buf && !shmem->base.import_attach;
+}
+
+void drm_gem_shmem_purge_locked(struct drm_gem_object *obj);
+bool drm_gem_shmem_purge(struct drm_gem_object *obj);
 
 struct drm_gem_shmem_object *
 drm_gem_shmem_create_with_handle(struct drm_file *file_priv,

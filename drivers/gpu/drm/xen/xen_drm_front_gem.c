@@ -8,20 +8,19 @@
  * Author: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
  */
 
-#include "xen_drm_front_gem.h"
-
-#include <drm/drmP.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_gem.h>
-#include <drm/drm_probe_helper.h>
-
 #include <linux/dma-buf.h>
 #include <linux/scatterlist.h>
 #include <linux/shmem_fs.h>
 
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_prime.h>
+#include <drm/drm_probe_helper.h>
+
 #include <xen/balloon.h>
 
 #include "xen_drm_front.h"
+#include "xen_drm_front_gem.h"
 
 struct xen_gem_object {
 	struct drm_gem_object base;

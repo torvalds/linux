@@ -263,6 +263,18 @@ the MST topology helpers easier to understand
                drm_dp_mst_topology_put_port
                drm_dp_mst_get_mstb_malloc drm_dp_mst_put_mstb_malloc
 
+MIPI DBI Helper Functions Reference
+===================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_mipi_dbi.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_mipi_dbi.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_mipi_dbi.c
+   :export:
+
 MIPI DSI Helper Functions Reference
 ===================================
 

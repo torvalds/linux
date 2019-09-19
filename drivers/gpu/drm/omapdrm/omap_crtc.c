@@ -4,12 +4,14 @@
  * Author: Rob Clark <rob@ti.com>
  */
 
+#include <linux/math64.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_plane_helper.h>
-#include <linux/math64.h>
+#include <drm/drm_vblank.h>
 
 #include "omap_drv.h"
 

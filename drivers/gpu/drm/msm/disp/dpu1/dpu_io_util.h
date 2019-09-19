@@ -5,7 +5,6 @@
 #ifndef __DPU_IO_UTIL_H__
 #define __DPU_IO_UTIL_H__
 
-#include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
 
@@ -13,12 +12,6 @@
 #define DEV_INFO(fmt, args...)  pr_info(fmt, ##args)
 #define DEV_WARN(fmt, args...)  pr_warn(fmt, ##args)
 #define DEV_ERR(fmt, args...)   pr_err(fmt, ##args)
-
-struct dss_gpio {
-	unsigned int gpio;
-	unsigned int value;
-	char gpio_name[32];
-};
 
 enum dss_clk_type {
 	DSS_CLK_AHB, /* no set rate. rate controlled through rpm */
@@ -34,8 +27,6 @@ struct dss_clk {
 };
 
 struct dss_module_power {
-	unsigned int num_gpio;
-	struct dss_gpio *gpio_config;
 	unsigned int num_clk;
 	struct dss_clk *clk_config;
 };

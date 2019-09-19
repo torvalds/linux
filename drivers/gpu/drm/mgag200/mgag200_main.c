@@ -7,70 +7,15 @@
  *          Matt Turner
  *          Dave Airlie
  */
-#include <drm/drmP.h>
+
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_pci.h>
+
 #include "mgag200_drv.h"
 
-static void mga_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct mga_framebuffer *mga_fb = to_mga_framebuffer(fb);
-
-	drm_gem_object_put_unlocked(mga_fb->obj);
-	drm_framebuffer_cleanup(fb);
-	kfree(fb);
-}
-
-static const struct drm_framebuffer_funcs mga_fb_funcs = {
-	.destroy = mga_user_framebuffer_destroy,
-};
-
-int mgag200_framebuffer_init(struct drm_device *dev,
-			     struct mga_framebuffer *gfb,
-			     const struct drm_mode_fb_cmd2 *mode_cmd,
-			     struct drm_gem_object *obj)
-{
-	int ret;
-
-	drm_helper_mode_fill_fb_struct(dev, &gfb->base, mode_cmd);
-	gfb->obj = obj;
-	ret = drm_framebuffer_init(dev, &gfb->base, &mga_fb_funcs);
-	if (ret) {
-		DRM_ERROR("drm_framebuffer_init failed: %d\n", ret);
-		return ret;
-	}
-	return 0;
-}
-
-static struct drm_framebuffer *
-mgag200_user_framebuffer_create(struct drm_device *dev,
-				struct drm_file *filp,
-				const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	struct drm_gem_object *obj;
-	struct mga_framebuffer *mga_fb;
-	int ret;
-
-	obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
-	if (obj == NULL)
-		return ERR_PTR(-ENOENT);
-
-	mga_fb = kzalloc(sizeof(*mga_fb), GFP_KERNEL);
-	if (!mga_fb) {
-		drm_gem_object_put_unlocked(obj);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	ret = mgag200_framebuffer_init(dev, mga_fb, mode_cmd, obj);
-	if (ret) {
-		drm_gem_object_put_unlocked(obj);
-		kfree(mga_fb);
-		return ERR_PTR(ret);
-	}
-	return &mga_fb->base;
-}
-
 static const struct drm_mode_config_funcs mga_mode_funcs = {
-	.fb_create = mgag200_user_framebuffer_create,
+	.fb_create = drm_gem_fb_create
 };
 
 static int mga_probe_vram(struct mga_device *mdev, void __iomem *mem)
@@ -217,7 +162,7 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 	if (IS_G200_SE(mdev) && mdev->mc.vram_size < (2048*1024))
 		dev->mode_config.preferred_depth = 16;
 	else
-		dev->mode_config.preferred_depth = 24;
+		dev->mode_config.preferred_depth = 32;
 	dev->mode_config.prefer_shadow = 1;
 
 	r = mgag200_modeset_init(mdev);
@@ -241,6 +186,10 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 	mdev->cursor.pixels_current = NULL;
 
+	r = drm_fbdev_generic_setup(mdev->dev, 0);
+	if (r)
+		goto err_modeset;
+
 	return 0;
 
 err_modeset:
@@ -259,32 +208,7 @@ void mgag200_driver_unload(struct drm_device *dev)
 	if (mdev == NULL)
 		return;
 	mgag200_modeset_fini(mdev);
-	mgag200_fbdev_fini(mdev);
 	drm_mode_config_cleanup(dev);
 	mgag200_mm_fini(mdev);
 	dev->dev_private = NULL;
-}
-
-int mgag200_gem_create(struct drm_device *dev,
-		   u32 size, bool iskernel,
-		   struct drm_gem_object **obj)
-{
-	struct drm_gem_vram_object *gbo;
-	int ret;
-
-	*obj = NULL;
-
-	size = roundup(size, PAGE_SIZE);
-	if (size == 0)
-		return -EINVAL;
-
-	gbo = drm_gem_vram_create(dev, &dev->vram_mm->bdev, size, 0, false);
-	if (IS_ERR(gbo)) {
-		ret = PTR_ERR(gbo);
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("failed to allocate GEM object\n");
-		return ret;
-	}
-	*obj = &gbo->gem;
-	return 0;
 }

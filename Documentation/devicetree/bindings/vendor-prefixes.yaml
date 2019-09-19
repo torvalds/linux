@@ -521,6 +521,8 @@ patternProperties:
     description: Lenovo Group Ltd.
   "^lg,.*":
     description: LG Corporation
+  "^lgphilips,.*":
+    description: LG Display
   "^libretech,.*":
     description: Shenzhen Libre Technology Co., Ltd
   "^licheepi,.*":
@@ -951,6 +953,9 @@ patternProperties:
     description: Tecon Microprocessor Technologies, LLC.
   "^topeet,.*":
     description: Topeet
+  "^toppoly,.*":
+    description: TPO (deprecated, use tpo)
+    deprecated: true
   "^toradex,.*":
     description: Toradex AG
   "^toshiba,.*":

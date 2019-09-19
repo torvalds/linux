@@ -473,7 +473,7 @@ komeda_scaler_check_cfg(struct komeda_scaler *scaler,
 
 		err = pipe->funcs->downscaling_clk_check(pipe,
 					&kcrtc_st->base.adjusted_mode,
-					komeda_calc_aclk(kcrtc_st), dflow);
+					komeda_crtc_get_aclk(kcrtc_st), dflow);
 		if (err) {
 			DRM_DEBUG_ATOMIC("aclk can't satisfy the clock requirement of the downscaling\n");
 			return err;

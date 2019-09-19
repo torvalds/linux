@@ -7,9 +7,11 @@
  * Copyright (C) 2009 Jaya Kumar <jayakumar.lkml@gmail.com>
  * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
  */
-#include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
+
+#include <drm/drm.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+
 #include "udl_drv.h"
 
 /* -BULK_SIZE as per usb-skeleton. Can we get full page and avoid overhead? */

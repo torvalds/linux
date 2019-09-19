@@ -270,7 +270,7 @@ static const struct dce_audio_shift audio_shift = {
 		DCE120_AUD_COMMON_MASK_SH_LIST(__SHIFT)
 };
 
-static const struct dce_aduio_mask audio_mask = {
+static const struct dce_audio_mask audio_mask = {
 		DCE120_AUD_COMMON_MASK_SH_LIST(_MASK)
 };
 
@@ -1415,6 +1415,14 @@ static bool construct(
 	}
 
 	pool->base.pp_smu = dcn10_pp_smu_create(ctx);
+
+	/*
+	 * Right now SMU/PPLIB and DAL all have the AZ D3 force PME notification *
+	 * implemented. So AZ D3 should work.For issue 197007.                   *
+	 */
+	if (pool->base.pp_smu != NULL
+			&& pool->base.pp_smu->rv_funcs.set_pme_wa_enable != NULL)
+		dc->debug.az_endpoint_mute_only = false;
 
 	if (!dc->debug.disable_pplib_clock_request)
 		dcn_bw_update_from_pplib(dc);

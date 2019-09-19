@@ -232,6 +232,8 @@ static void panfrost_gpu_init_features(struct panfrost_device *pfdev)
 	pfdev->features.stack_present = gpu_read(pfdev, GPU_STACK_PRESENT_LO);
 	pfdev->features.stack_present |= (u64)gpu_read(pfdev, GPU_STACK_PRESENT_HI) << 32;
 
+	pfdev->features.thread_tls_alloc = gpu_read(pfdev, GPU_THREAD_TLS_ALLOC);
+
 	gpu_id = gpu_read(pfdev, GPU_ID);
 	pfdev->features.revision = gpu_id & 0xffff;
 	pfdev->features.id = gpu_id >> 16;

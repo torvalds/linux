@@ -42,6 +42,7 @@ static int vega12_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 {
 	struct vega12_smumgr *priv =
 			(struct vega12_smumgr *)(hwmgr->smu_backend);
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	PP_ASSERT_WITH_CODE(table_id < TABLE_COUNT,
 			"Invalid SMU Table ID!", return -EINVAL);
@@ -63,6 +64,9 @@ static int vega12_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			table_id) == 0,
 			"[CopyTableFromSMC] Attempt to Transfer Table From SMU Failed!",
 			return -EINVAL);
+
+	/* flush hdp cache */
+	adev->nbio_funcs->hdp_flush(adev, NULL);
 
 	memcpy(table, priv->smu_tables.entry[table_id].table,
 			priv->smu_tables.entry[table_id].size);
