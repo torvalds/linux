@@ -130,11 +130,11 @@ pp_od_clk_voltage
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_pm.c
    :doc: pp_od_clk_voltage
 
-pp_dpm_sclk pp_dpm_mclk pp_dpm_pcie
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+pp_dpm_*
+~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_pm.c
-   :doc: pp_dpm_sclk pp_dpm_mclk pp_dpm_pcie
+   :doc: pp_dpm_sclk pp_dpm_mclk pp_dpm_socclk pp_dpm_fclk pp_dpm_dcefclk pp_dpm_pcie
 
 pp_power_profile_mode
 ~~~~~~~~~~~~~~~~~~~~~
