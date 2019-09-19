@@ -768,17 +768,43 @@ err_unlock:
 static int
 i915_request_await_start(struct i915_request *rq, struct i915_request *signal)
 {
-	if (list_is_first(&signal->link, &signal->timeline->requests))
+	struct intel_timeline *tl;
+	struct dma_fence *fence;
+	int err;
+
+	GEM_BUG_ON(i915_request_timeline(rq) ==
+		   rcu_access_pointer(signal->timeline));
+
+	rcu_read_lock();
+	tl = rcu_dereference(signal->timeline);
+	if (i915_request_started(signal) || !kref_get_unless_zero(&tl->kref))
+		tl = NULL;
+	rcu_read_unlock();
+	if (!tl) /* already started or maybe even completed */
 		return 0;
 
-	signal = list_prev_entry(signal, link);
-	if (intel_timeline_sync_is_later(i915_request_timeline(rq),
-					 &signal->fence))
-		return 0;
+	fence = ERR_PTR(-EBUSY);
+	if (mutex_trylock(&tl->mutex)) {
+		fence = NULL;
+		if (!i915_request_started(signal) &&
+		    !list_is_first(&signal->link, &tl->requests)) {
+			signal = list_prev_entry(signal, link);
+			fence = dma_fence_get(&signal->fence);
+		}
+		mutex_unlock(&tl->mutex);
+	}
+	intel_timeline_put(tl);
+	if (IS_ERR_OR_NULL(fence))
+		return PTR_ERR_OR_ZERO(fence);
 
-	return i915_sw_fence_await_dma_fence(&rq->submit,
-					     &signal->fence, 0,
-					     I915_FENCE_GFP);
+	err = 0;
+	if (intel_timeline_sync_is_later(i915_request_timeline(rq), fence))
+		err = i915_sw_fence_await_dma_fence(&rq->submit,
+						    fence, 0,
+						    I915_FENCE_GFP);
+	dma_fence_put(fence);
+
+	return err;
 }
 
 static intel_engine_mask_t
@@ -808,30 +834,23 @@ emit_semaphore_wait(struct i915_request *to,
 	u32 hwsp_offset;
 	int len;
 	u32 *cs;
-	int err;
 
-	GEM_BUG_ON(!from->timeline->has_initial_breadcrumb);
 	GEM_BUG_ON(INTEL_GEN(to->i915) < 8);
 
 	/* Just emit the first semaphore we see as request space is limited. */
 	if (already_busywaiting(to) & from->engine->mask)
-		return i915_sw_fence_await_dma_fence(&to->submit,
-						     &from->fence, 0,
-						     I915_FENCE_GFP);
+		goto await_fence;
 
-	err = i915_request_await_start(to, from);
-	if (err < 0)
-		return err;
+	if (i915_request_await_start(to, from) < 0)
+		goto await_fence;
 
 	/* Only submit our spinner after the signaler is running! */
-	err = __i915_request_await_execution(to, from, NULL, gfp);
-	if (err)
-		return err;
+	if (__i915_request_await_execution(to, from, NULL, gfp))
+		goto await_fence;
 
 	/* We need to pin the signaler's HWSP until we are finished reading. */
-	err = intel_timeline_read_hwsp(from, to, &hwsp_offset);
-	if (err)
-		return err;
+	if (intel_timeline_read_hwsp(from, to, &hwsp_offset))
+		goto await_fence;
 
 	len = 4;
 	if (has_token)
@@ -866,6 +885,11 @@ emit_semaphore_wait(struct i915_request *to,
 	to->sched.semaphores |= from->engine->mask;
 	to->sched.flags |= I915_SCHED_HAS_SEMAPHORE_CHAIN;
 	return 0;
+
+await_fence:
+	return i915_sw_fence_await_dma_fence(&to->submit,
+					     &from->fence, 0,
+					     I915_FENCE_GFP);
 }
 
 static int
