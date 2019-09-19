@@ -596,7 +596,7 @@ static void qedf_dcbx_handler(void *dev, struct qed_dcbx_get *get, u32 mib_type)
 		tmp_prio = get->operational.app_prio.fcoe;
 		if (qedf_default_prio > -1)
 			qedf->prio = qedf_default_prio;
-		else if (tmp_prio < 0 || tmp_prio > 7) {
+		else if (tmp_prio > 7) {
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
 			    "FIP/FCoE prio %d out of range, setting to %d.\n",
 			    tmp_prio, QEDF_DEFAULT_PRIO);
