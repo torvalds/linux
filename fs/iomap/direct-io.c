@@ -77,13 +77,10 @@ static ssize_t iomap_dio_complete(struct iomap_dio *dio)
 	loff_t offset = iocb->ki_pos;
 	ssize_t ret;
 
-	if (dio->end_io) {
-		ret = dio->end_io(iocb,
-				dio->error ? dio->error : dio->size,
-				dio->flags);
-	} else {
+	if (dio->end_io)
+		ret = dio->end_io(iocb, dio->size, dio->error, dio->flags);
+	else
 		ret = dio->error;
-	}
 
 	if (likely(!ret)) {
 		ret = dio->size;
