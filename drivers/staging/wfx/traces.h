@@ -14,6 +14,8 @@
 #include <linux/tracepoint.h>
 
 #include "bus.h"
+#include "hif_api_cmd.h"
+#include "hif_api_mib.h"
 
 /* The hell below need some explanations. For each symbolic number, we need to
  * define it with TRACE_DEFINE_ENUM() and in a list for __print_symbolic.
@@ -44,6 +46,167 @@
  *
  *          #define list_for_print_symbolic list_names { -1, NULL }
  */
+
+#define _hif_msg_list                       \
+	hif_cnf_name(ADD_KEY)               \
+	hif_cnf_name(BEACON_TRANSMIT)       \
+	hif_cnf_name(EDCA_QUEUE_PARAMS)     \
+	hif_cnf_name(JOIN)                  \
+	hif_cnf_name(MAP_LINK)              \
+	hif_cnf_name(READ_MIB)              \
+	hif_cnf_name(REMOVE_KEY)            \
+	hif_cnf_name(RESET)                 \
+	hif_cnf_name(SET_BSS_PARAMS)        \
+	hif_cnf_name(SET_PM_MODE)           \
+	hif_cnf_name(START)                 \
+	hif_cnf_name(START_SCAN)            \
+	hif_cnf_name(STOP_SCAN)             \
+	hif_cnf_name(TX)                    \
+	hif_cnf_name(MULTI_TRANSMIT)        \
+	hif_cnf_name(UPDATE_IE)             \
+	hif_cnf_name(WRITE_MIB)             \
+	hif_cnf_name(CONFIGURATION)         \
+	hif_cnf_name(CONTROL_GPIO)          \
+	hif_cnf_name(PREVENT_ROLLBACK)      \
+	hif_cnf_name(SET_SL_MAC_KEY)        \
+	hif_cnf_name(SL_CONFIGURE)          \
+	hif_cnf_name(SL_EXCHANGE_PUB_KEYS)  \
+	hif_cnf_name(SHUT_DOWN)             \
+	hif_ind_name(EVENT)                 \
+	hif_ind_name(JOIN_COMPLETE)         \
+	hif_ind_name(RX)                    \
+	hif_ind_name(SCAN_CMPL)             \
+	hif_ind_name(SET_PM_MODE_CMPL)      \
+	hif_ind_name(SUSPEND_RESUME_TX)     \
+	hif_ind_name(SL_EXCHANGE_PUB_KEYS)  \
+	hif_ind_name(ERROR)                 \
+	hif_ind_name(EXCEPTION)             \
+	hif_ind_name(GENERIC)               \
+	hif_ind_name(WAKEUP)                \
+	hif_ind_name(STARTUP)
+
+#define hif_msg_list_enum _hif_msg_list
+
+#undef hif_cnf_name
+#undef hif_ind_name
+#define hif_cnf_name(msg) TRACE_DEFINE_ENUM(HIF_CNF_ID_##msg);
+#define hif_ind_name(msg) TRACE_DEFINE_ENUM(HIF_IND_ID_##msg);
+hif_msg_list_enum
+#undef hif_cnf_name
+#undef hif_ind_name
+#define hif_cnf_name(msg) { HIF_CNF_ID_##msg, #msg },
+#define hif_ind_name(msg) { HIF_IND_ID_##msg, #msg },
+#define hif_msg_list hif_msg_list_enum { -1, NULL }
+
+#define _hif_mib_list                                \
+	hif_mib_name(ARP_IP_ADDRESSES_TABLE)         \
+	hif_mib_name(ARP_KEEP_ALIVE_PERIOD)          \
+	hif_mib_name(BEACON_FILTER_ENABLE)           \
+	hif_mib_name(BEACON_FILTER_TABLE)            \
+	hif_mib_name(BEACON_WAKEUP_PERIOD)           \
+	hif_mib_name(BLOCK_ACK_POLICY)               \
+	hif_mib_name(CONFIG_DATA_FILTER)             \
+	hif_mib_name(COUNTERS_TABLE)                 \
+	hif_mib_name(CURRENT_TX_POWER_LEVEL)         \
+	hif_mib_name(DOT11_MAC_ADDRESS)              \
+	hif_mib_name(DOT11_MAX_RECEIVE_LIFETIME)     \
+	hif_mib_name(DOT11_MAX_TRANSMIT_MSDU_LIFETIME) \
+	hif_mib_name(DOT11_RTS_THRESHOLD)            \
+	hif_mib_name(DOT11_WEP_DEFAULT_KEY_ID)       \
+	hif_mib_name(GL_BLOCK_ACK_INFO)              \
+	hif_mib_name(GL_OPERATIONAL_POWER_MODE)      \
+	hif_mib_name(GL_SET_MULTI_MSG)               \
+	hif_mib_name(INACTIVITY_TIMER)               \
+	hif_mib_name(INTERFACE_PROTECTION)           \
+	hif_mib_name(IPV4_ADDR_DATAFRAME_CONDITION)  \
+	hif_mib_name(IPV6_ADDR_DATAFRAME_CONDITION)  \
+	hif_mib_name(KEEP_ALIVE_PERIOD)              \
+	hif_mib_name(MAC_ADDR_DATAFRAME_CONDITION)   \
+	hif_mib_name(NON_ERP_PROTECTION)             \
+	hif_mib_name(NS_IP_ADDRESSES_TABLE)          \
+	hif_mib_name(OVERRIDE_INTERNAL_TX_RATE)      \
+	hif_mib_name(PROTECTED_MGMT_POLICY)          \
+	hif_mib_name(RX_FILTER)                      \
+	hif_mib_name(RCPI_RSSI_THRESHOLD)            \
+	hif_mib_name(SET_ASSOCIATION_MODE)           \
+	hif_mib_name(SET_DATA_FILTERING)             \
+	hif_mib_name(ETHERTYPE_DATAFRAME_CONDITION)  \
+	hif_mib_name(SET_HT_PROTECTION)              \
+	hif_mib_name(MAGIC_DATAFRAME_CONDITION)      \
+	hif_mib_name(SET_TX_RATE_RETRY_POLICY)       \
+	hif_mib_name(SET_UAPSD_INFORMATION)          \
+	hif_mib_name(PORT_DATAFRAME_CONDITION)       \
+	hif_mib_name(SLOT_TIME)                      \
+	hif_mib_name(STATISTICS_TABLE)               \
+	hif_mib_name(TEMPLATE_FRAME)                 \
+	hif_mib_name(TSF_COUNTER)                    \
+	hif_mib_name(UC_MC_BC_DATAFRAME_CONDITION)
+
+#define hif_mib_list_enum _hif_mib_list
+
+#undef hif_mib_name
+#define hif_mib_name(mib) TRACE_DEFINE_ENUM(HIF_MIB_ID_##mib);
+hif_mib_list_enum
+#undef hif_mib_name
+#define hif_mib_name(mib) { HIF_MIB_ID_##mib, #mib },
+#define hif_mib_list hif_mib_list_enum { -1, NULL }
+
+DECLARE_EVENT_CLASS(hif_data,
+	TP_PROTO(struct hif_msg *hif, int tx_fill_level, bool is_recv),
+	TP_ARGS(hif, tx_fill_level, is_recv),
+	TP_STRUCT__entry(
+		__field(int, tx_fill_level)
+		__field(int, msg_id)
+		__field(const char *, msg_type)
+		__field(int, msg_len)
+		__field(int, buf_len)
+		__field(int, if_id)
+		__field(int, mib)
+		__array(u8, buf, 128)
+	),
+	TP_fast_assign(
+		int header_len;
+
+		__entry->tx_fill_level = tx_fill_level;
+		__entry->msg_len = hif->len;
+		__entry->msg_id = hif->id;
+		__entry->if_id = hif->interface;
+		if (is_recv)
+			__entry->msg_type = __entry->msg_id & 0x80 ? "IND" : "CNF";
+		else
+			__entry->msg_type = "REQ";
+		if (!is_recv &&
+		    (__entry->msg_id == HIF_REQ_ID_READ_MIB || __entry->msg_id == HIF_REQ_ID_WRITE_MIB)) {
+			__entry->mib = le16_to_cpup((u16 *) hif->body);
+			header_len = 4;
+		} else {
+			__entry->mib = -1;
+			header_len = 0;
+		}
+		__entry->buf_len = min_t(int, __entry->msg_len, sizeof(__entry->buf))
+				   - sizeof(struct hif_msg) - header_len;
+		memcpy(__entry->buf, hif->body + header_len, __entry->buf_len);
+	),
+	TP_printk("%d:%d:%s_%s%s%s: %s%s (%d bytes)",
+		__entry->tx_fill_level,
+		__entry->if_id,
+		__print_symbolic(__entry->msg_id, hif_msg_list),
+		__entry->msg_type,
+		__entry->mib != -1 ? "/" : "",
+		__entry->mib != -1 ? __print_symbolic(__entry->mib, hif_mib_list) : "",
+		__print_hex(__entry->buf, __entry->buf_len),
+		__entry->msg_len > sizeof(__entry->buf) ? " ..." : "",
+		__entry->msg_len
+	)
+);
+DEFINE_EVENT(hif_data, hif_send,
+	TP_PROTO(struct hif_msg *hif, int tx_fill_level, bool is_recv),
+	TP_ARGS(hif, tx_fill_level, is_recv));
+#define _trace_hif_send(hif, tx_fill_level) trace_hif_send(hif, tx_fill_level, false)
+DEFINE_EVENT(hif_data, hif_recv,
+	TP_PROTO(struct hif_msg *hif, int tx_fill_level, bool is_recv),
+	TP_ARGS(hif, tx_fill_level, is_recv));
+#define _trace_hif_recv(hif, tx_fill_level) trace_hif_recv(hif, tx_fill_level, true)
 
 #define wfx_reg_list_enum                                 \
 	wfx_reg_name(WFX_REG_CONFIG,       "CONFIG")      \
@@ -137,6 +300,54 @@ DEFINE_EVENT(io_data32, io_read32,
 	TP_ARGS(reg, addr, val));
 #define _trace_io_ind_read32(reg, addr, val) trace_io_read32(reg, addr, val)
 #define _trace_io_read32(reg, val) trace_io_read32(reg, -1, val)
+
+DECLARE_EVENT_CLASS(piggyback,
+	TP_PROTO(u32 val, bool ignored),
+	TP_ARGS(val, ignored),
+	TP_STRUCT__entry(
+		__field(int, val)
+		__field(bool, ignored)
+	),
+	TP_fast_assign(
+		__entry->val = val;
+		__entry->ignored = ignored;
+	),
+	TP_printk("CONTROL: %08x%s",
+		__entry->val,
+		__entry->ignored ? " (ignored)" : ""
+	)
+);
+DEFINE_EVENT(piggyback, piggyback,
+	TP_PROTO(u32 val, bool ignored),
+	TP_ARGS(val, ignored));
+#define _trace_piggyback(val, ignored) trace_piggyback(val, ignored)
+
+TRACE_EVENT(bh_stats,
+	TP_PROTO(int ind, int req, int cnf, int busy, bool release),
+	TP_ARGS(ind, req, cnf, busy, release),
+	TP_STRUCT__entry(
+		__field(int, ind)
+		__field(int, req)
+		__field(int, cnf)
+		__field(int, busy)
+		__field(bool, release)
+	),
+	TP_fast_assign(
+		__entry->ind = ind;
+		__entry->req = req;
+		__entry->cnf = cnf;
+		__entry->busy = busy;
+		__entry->release = release;
+	),
+	TP_printk("IND/REQ/CNF:%3d/%3d/%3d, REQ in progress:%3d, WUP: %s",
+		__entry->ind,
+		__entry->req,
+		__entry->cnf,
+		__entry->busy,
+		__entry->release ? "release" : "keep"
+	)
+);
+#define _trace_bh_stats(ind, req, cnf, busy, release) trace_bh_stats(ind, req, cnf, busy, release)
 
 #endif
 

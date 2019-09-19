@@ -11,6 +11,7 @@
 #include "bh.h"
 #include "wfx.h"
 #include "hwio.h"
+#include "traces.h"
 #include "hif_api_cmd.h"
 
 static void device_wakeup(struct wfx_dev *wdev)
@@ -67,6 +68,7 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 		goto err;
 
 	piggyback = le16_to_cpup((u16 *) (skb->data + alloc_len - 2));
+	_trace_piggyback(piggyback, false);
 
 	hif = (struct hif_msg *) skb->data;
 	WARN(hif->encrypted & 0x1, "unsupported encryption type");
@@ -95,6 +97,7 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 		if (!wdev->hif.tx_buffers_used)
 			wake_up(&wdev->hif.tx_buffers_empty);
 	}
+	_trace_hif_recv(hif, wdev->hif.tx_buffers_used);
 
 	if (hif->id != HIF_IND_ID_EXCEPTION && hif->id != HIF_IND_ID_ERROR) {
 		if (hif->seqnum != wdev->hif.rx_seqnum)
@@ -171,6 +174,7 @@ static void tx_helper(struct wfx_dev *wdev, struct hif_msg *hif)
 		goto end;
 
 	wdev->hif.tx_buffers_used++;
+	_trace_hif_send(hif, wdev->hif.tx_buffers_used);
 end:
 	if (is_encrypted)
 		kfree(data);
@@ -234,6 +238,7 @@ static void bh_work(struct work_struct *work)
 		device_release(wdev);
 		release_chip = true;
 	}
+	_trace_bh_stats(stats_ind, stats_req, stats_cnf, wdev->hif.tx_buffers_used, release_chip);
 }
 
 /*
