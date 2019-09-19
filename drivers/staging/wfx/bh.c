@@ -12,6 +12,7 @@
 #include "wfx.h"
 #include "hwio.h"
 #include "traces.h"
+#include "hif_rx.h"
 #include "hif_api_cmd.h"
 
 static void device_wakeup(struct wfx_dev *wdev)
@@ -107,7 +108,8 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	}
 
 	skb_put(skb, hif->len);
-	dev_kfree_skb(skb); /* FIXME: handle received data */
+	// wfx_handle_rx takes care on SKB livetime
+	wfx_handle_rx(wdev, skb);
 
 	return piggyback;
 

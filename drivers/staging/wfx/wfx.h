@@ -10,6 +10,9 @@
 #ifndef WFX_H
 #define WFX_H
 
+#include <linux/completion.h>
+#include <net/mac80211.h>
+
 #include "bh.h"
 #include "main.h"
 #include "hif_api_general.h"
@@ -19,10 +22,12 @@ struct hwbus_ops;
 struct wfx_dev {
 	struct wfx_platform_data pdata;
 	struct device		*dev;
+	struct mac_address	addresses[2];
 	const struct hwbus_ops	*hwbus_ops;
 	void			*hwbus_priv;
 
 	u8			keyset;
+	struct completion	firmware_ready;
 	struct hif_ind_startup	hw_caps;
 	struct wfx_hif		hif;
 };

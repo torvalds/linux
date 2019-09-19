@@ -7,6 +7,7 @@ wfx-y := \
 	bh.o \
 	hwio.o \
 	fwio.o \
+	hif_rx.o \
 	main.o \
 	debug.o
 wfx-$(CONFIG_SPI) += bus_spi.o

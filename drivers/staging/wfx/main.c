@@ -12,6 +12,7 @@
  */
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_net.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/mmc/sdio_func.h>
@@ -87,6 +88,9 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	wdev->hwbus_ops = hwbus_ops;
 	wdev->hwbus_priv = hwbus_priv;
 	memcpy(&wdev->pdata, pdata, sizeof(*pdata));
+
+	init_completion(&wdev->firmware_ready);
+
 	return wdev;
 }
 
@@ -96,7 +100,9 @@ void wfx_free_common(struct wfx_dev *wdev)
 
 int wfx_probe(struct wfx_dev *wdev)
 {
+	int i;
 	int err;
+	const void *macaddr;
 
 	wfx_bh_register(wdev);
 
@@ -104,6 +110,45 @@ int wfx_probe(struct wfx_dev *wdev)
 	if (err)
 		goto err1;
 
+	err = wait_for_completion_interruptible_timeout(&wdev->firmware_ready, 10 * HZ);
+	if (err <= 0) {
+		if (err == 0) {
+			dev_err(wdev->dev, "timeout while waiting for startup indication. IRQ configuration error?\n");
+			err = -ETIMEDOUT;
+		} else if (err == -ERESTARTSYS) {
+			dev_info(wdev->dev, "probe interrupted by user\n");
+		}
+		goto err1;
+	}
+
+	// FIXME: fill wiphy::hw_version
+	dev_info(wdev->dev, "started firmware %d.%d.%d \"%s\" (API: %d.%d, keyset: %02X, caps: 0x%.8X)\n",
+		 wdev->hw_caps.firmware_major, wdev->hw_caps.firmware_minor,
+		 wdev->hw_caps.firmware_build, wdev->hw_caps.firmware_label,
+		 wdev->hw_caps.api_version_major, wdev->hw_caps.api_version_minor,
+		 wdev->keyset, *((u32 *) &wdev->hw_caps.capabilities));
+
+	if (wfx_api_older_than(wdev, 1, 0)) {
+		dev_err(wdev->dev, "unsupported firmware API version (expect 1 while firmware returns %d)\n",
+			wdev->hw_caps.api_version_major);
+		err = -ENOTSUPP;
+		goto err1;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(wdev->addresses); i++) {
+		eth_zero_addr(wdev->addresses[i].addr);
+		macaddr = of_get_mac_address(wdev->dev->of_node);
+		if (macaddr) {
+			ether_addr_copy(wdev->addresses[i].addr, macaddr);
+			wdev->addresses[i].addr[ETH_ALEN - 1] += i;
+		}
+		ether_addr_copy(wdev->addresses[i].addr, wdev->hw_caps.mac_addr[i]);
+		if (!is_valid_ether_addr(wdev->addresses[i].addr)) {
+			dev_warn(wdev->dev, "using random MAC address\n");
+			eth_random_addr(wdev->addresses[i].addr);
+		}
+		dev_info(wdev->dev, "MAC address %d: %pM\n", i, wdev->addresses[i].addr);
+	}
 
 	return 0;
 
