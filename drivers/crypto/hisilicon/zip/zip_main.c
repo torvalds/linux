@@ -785,7 +785,6 @@ static int hisi_zip_clear_vft_config(struct hisi_zip *hisi_zip)
 
 static int hisi_zip_sriov_enable(struct pci_dev *pdev, int max_vfs)
 {
-#ifdef CONFIG_PCI_IOV
 	struct hisi_zip *hisi_zip = pci_get_drvdata(pdev);
 	int pre_existing_vfs, num_vfs, ret;
 
@@ -815,9 +814,6 @@ static int hisi_zip_sriov_enable(struct pci_dev *pdev, int max_vfs)
 	}
 
 	return num_vfs;
-#else
-	return 0;
-#endif
 }
 
 static int hisi_zip_sriov_disable(struct pci_dev *pdev)
@@ -948,7 +944,8 @@ static struct pci_driver hisi_zip_pci_driver = {
 	.id_table		= hisi_zip_dev_ids,
 	.probe			= hisi_zip_probe,
 	.remove			= hisi_zip_remove,
-	.sriov_configure	= hisi_zip_sriov_configure,
+	.sriov_configure	= IS_ENABLED(CONFIG_PCI_IOV) ?
+					hisi_zip_sriov_configure : 0,
 	.err_handler		= &hisi_zip_err_handler,
 };
 
