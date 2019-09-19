@@ -11,6 +11,7 @@
 
 #include "hif_rx.h"
 #include "wfx.h"
+#include "data_rx.h"
 #include "secure_link.h"
 #include "hif_api_cmd.h"
 
@@ -127,6 +128,21 @@ static int hif_keys_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *
 	return 0;
 }
 
+static int hif_receive_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf, struct sk_buff *skb)
+{
+	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
+	struct hif_ind_rx *body = buf;
+
+	if (!wvif) {
+		dev_warn(wdev->dev, "ignore rx data for non existant vif %d\n", hif->interface);
+		return 0;
+	}
+	skb_pull(skb, sizeof(struct hif_msg) + sizeof(struct hif_ind_rx));
+	wfx_rx_cb(wvif, body, skb);
+
+	return 0;
+}
+
 static int hif_join_complete_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
 {
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
@@ -218,6 +234,8 @@ static const struct {
 	{ HIF_IND_ID_GENERIC,              hif_generic_indication },
 	{ HIF_IND_ID_ERROR,                hif_error_indication },
 	{ HIF_IND_ID_EXCEPTION,            hif_exception_indication },
+	// FIXME: allocate skb_p from hif_receive_indication and make it generic
+	//{ HIF_IND_ID_RX,                 hif_receive_indication },
 };
 
 void wfx_handle_rx(struct wfx_dev *wdev, struct sk_buff *skb)
@@ -226,6 +244,11 @@ void wfx_handle_rx(struct wfx_dev *wdev, struct sk_buff *skb)
 	struct hif_msg *hif = (struct hif_msg *) skb->data;
 	int hif_id = hif->id;
 
+	if (hif_id == HIF_IND_ID_RX) {
+		// hif_receive_indication take care of skb lifetime
+		hif_receive_indication(wdev, hif, hif->body, skb);
+		return;
+	}
 	// Note: mutex_is_lock cause an implicit memory barrier that protect
 	// buf_send
 	if (mutex_is_locked(&wdev->hif_cmd.lock)

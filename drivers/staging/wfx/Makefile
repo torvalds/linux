@@ -11,6 +11,7 @@ wfx-y := \
 	hif_rx.o \
 	queue.o \
 	data_tx.o \
+	data_rx.o \
 	sta.o \
 	main.o \
 	sta.o \
