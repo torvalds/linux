@@ -41,7 +41,6 @@ enum mod_hdcp_trans_input_result {
 struct mod_hdcp_transition_input_hdcp1 {
 	uint8_t bksv_read;
 	uint8_t bksv_validation;
-	uint8_t add_topology;
 	uint8_t create_session;
 	uint8_t an_write;
 	uint8_t aksv_write;
@@ -71,7 +70,6 @@ struct mod_hdcp_transition_input_hdcp1 {
 struct mod_hdcp_transition_input_hdcp2 {
 	uint8_t hdcp2version_read;
 	uint8_t hdcp2_capable_check;
-	uint8_t add_topology;
 	uint8_t create_session;
 	uint8_t ake_init_prepare;
 	uint8_t ake_init_write;
@@ -328,10 +326,10 @@ void mod_hdcp_dump_binary_message(uint8_t *msg, uint32_t msg_size,
 /* TODO: add adjustment log */
 
 /* psp functions */
-enum mod_hdcp_status mod_hdcp_add_display_topology(
-		struct mod_hdcp *hdcp);
-enum mod_hdcp_status mod_hdcp_remove_display_topology(
-		struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_add_display_to_topology(
+		struct mod_hdcp *hdcp, uint8_t index);
+enum mod_hdcp_status mod_hdcp_remove_display_from_topology(
+		struct mod_hdcp *hdcp, uint8_t index);
 enum mod_hdcp_status mod_hdcp_hdcp1_create_session(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_hdcp1_destroy_session(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_hdcp1_validate_rx(struct mod_hdcp *hdcp);

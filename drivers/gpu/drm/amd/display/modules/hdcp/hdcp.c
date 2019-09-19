@@ -104,8 +104,6 @@ static enum mod_hdcp_status execution(struct mod_hdcp *hdcp,
 			event_ctx->unexpected_event = 1;
 			goto out;
 		}
-		/* update topology event if hdcp is not desired */
-		status = mod_hdcp_add_display_topology(hdcp);
 	} else if (is_in_hdcp1_states(hdcp)) {
 		status = mod_hdcp_hdcp1_execution(hdcp, event_ctx, &input->hdcp1);
 	} else if (is_in_hdcp1_dp_states(hdcp)) {
@@ -192,14 +190,7 @@ static enum mod_hdcp_status reset_authentication(struct mod_hdcp *hdcp,
 			mod_hdcp_hdcp1_destroy_session(hdcp);
 
 		}
-		if (hdcp->auth.trans_input.hdcp1.add_topology == PASS) {
-			status = mod_hdcp_remove_display_topology(hdcp);
-			if (status != MOD_HDCP_STATUS_SUCCESS) {
-				output->callback_needed = 0;
-				output->watchdog_timer_needed = 0;
-				goto out;
-			}
-		}
+
 		HDCP_TOP_RESET_AUTH_TRACE(hdcp);
 		memset(&hdcp->auth, 0, sizeof(struct mod_hdcp_authentication));
 		memset(&hdcp->state, 0, sizeof(struct mod_hdcp_state));
@@ -213,25 +204,12 @@ static enum mod_hdcp_status reset_authentication(struct mod_hdcp *hdcp,
 				goto out;
 			}
 		}
-		if (hdcp->auth.trans_input.hdcp2.add_topology == PASS) {
-			status = mod_hdcp_remove_display_topology(hdcp);
-			if (status != MOD_HDCP_STATUS_SUCCESS) {
-				output->callback_needed = 0;
-				output->watchdog_timer_needed = 0;
-				goto out;
-			}
-		}
+
 		HDCP_TOP_RESET_AUTH_TRACE(hdcp);
 		memset(&hdcp->auth, 0, sizeof(struct mod_hdcp_authentication));
 		memset(&hdcp->state, 0, sizeof(struct mod_hdcp_state));
 		set_state_id(hdcp, output, HDCP_INITIALIZED);
 	} else if (is_in_cp_not_desired_state(hdcp)) {
-		status = mod_hdcp_remove_display_topology(hdcp);
-		if (status != MOD_HDCP_STATUS_SUCCESS) {
-			output->callback_needed = 0;
-			output->watchdog_timer_needed = 0;
-			goto out;
-		}
 		HDCP_TOP_RESET_AUTH_TRACE(hdcp);
 		memset(&hdcp->auth, 0, sizeof(struct mod_hdcp_authentication));
 		memset(&hdcp->state, 0, sizeof(struct mod_hdcp_state));
@@ -338,15 +316,18 @@ enum mod_hdcp_status mod_hdcp_add_display(struct mod_hdcp *hdcp,
 	if (status != MOD_HDCP_STATUS_SUCCESS)
 		goto out;
 
-	/* add display to connection */
-	hdcp->connection.link = *link;
-	*display_container = *display;
-
 	/* reset retry counters */
 	reset_retry_counts(hdcp);
 
 	/* reset error trace */
 	memset(&hdcp->connection.trace, 0, sizeof(hdcp->connection.trace));
+
+	/* add display to connection */
+	hdcp->connection.link = *link;
+	*display_container = *display;
+	status = mod_hdcp_add_display_to_topology(hdcp, display->index);
+	if (status != MOD_HDCP_STATUS_SUCCESS)
+		goto out;
 
 	/* request authentication */
 	if (current_state(hdcp) != HDCP_INITIALIZED)
@@ -380,14 +361,17 @@ enum mod_hdcp_status mod_hdcp_remove_display(struct mod_hdcp *hdcp,
 	if (status != MOD_HDCP_STATUS_SUCCESS)
 		goto out;
 
-	/* remove display */
-	display->state = MOD_HDCP_DISPLAY_INACTIVE;
-
 	/* clear retry counters */
 	reset_retry_counts(hdcp);
 
 	/* reset error trace */
 	memset(&hdcp->connection.trace, 0, sizeof(hdcp->connection.trace));
+
+	/* remove display */
+	status = mod_hdcp_remove_display_from_topology(hdcp, index);
+	if (status != MOD_HDCP_STATUS_SUCCESS)
+		goto out;
+	display->state = MOD_HDCP_DISPLAY_INACTIVE;
 
 	/* request authentication for remaining displays*/
 	if (get_active_display_count(hdcp) > 0)

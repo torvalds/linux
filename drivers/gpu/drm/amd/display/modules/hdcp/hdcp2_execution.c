@@ -259,6 +259,7 @@ static enum mod_hdcp_status known_hdcp2_capable_rx(struct mod_hdcp *hdcp,
 		event_ctx->unexpected_event = 1;
 		goto out;
 	}
+
 	if (!mod_hdcp_execute_and_set(mod_hdcp_read_hdcp2version,
 			&input->hdcp2version_read, &status,
 			hdcp, "hdcp2version_read"))
@@ -281,10 +282,7 @@ static enum mod_hdcp_status send_ake_init(struct mod_hdcp *hdcp,
 		event_ctx->unexpected_event = 1;
 		goto out;
 	}
-	if (!mod_hdcp_execute_and_set(mod_hdcp_add_display_topology,
-			&input->add_topology, &status,
-			hdcp, "add_topology"))
-		goto out;
+
 	if (!mod_hdcp_execute_and_set(mod_hdcp_hdcp2_create_session,
 			&input->create_session, &status,
 			hdcp, "create_session"))

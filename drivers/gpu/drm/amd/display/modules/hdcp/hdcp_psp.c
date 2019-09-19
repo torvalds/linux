@@ -44,85 +44,82 @@ static void hdcp2_message_init(struct mod_hdcp *hdcp,
 	in->process.msg3_desc.msg_id = TA_HDCP_HDCP2_MSG_ID__NULL_MESSAGE;
 	in->process.msg3_desc.msg_size = 0;
 }
-enum mod_hdcp_status mod_hdcp_remove_display_topology(struct mod_hdcp *hdcp)
-{
-
-	struct psp_context *psp = hdcp->config.psp.handle;
-	struct ta_dtm_shared_memory *dtm_cmd;
-	struct mod_hdcp_display *display = NULL;
-	uint8_t i;
+enum mod_hdcp_status mod_hdcp_remove_display_from_topology(
+		struct mod_hdcp *hdcp, uint8_t index)
+ {
+ 	struct psp_context *psp = hdcp->config.psp.handle;
+ 	struct ta_dtm_shared_memory *dtm_cmd;
+	struct mod_hdcp_display *display =
+			get_active_display_at_index(hdcp, index);
 
 	dtm_cmd = (struct ta_dtm_shared_memory *)psp->dtm_context.dtm_shared_buf;
 
-	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
-		if (is_display_added(&(hdcp->connection.displays[i]))) {
+	if (!display || !is_display_added(display))
+		return MOD_HDCP_STATUS_DISPLAY_NOT_FOUND;
 
-			memset(dtm_cmd, 0, sizeof(struct ta_dtm_shared_memory));
+	memset(dtm_cmd, 0, sizeof(struct ta_dtm_shared_memory));
 
-			display = &hdcp->connection.displays[i];
+	dtm_cmd->cmd_id = TA_DTM_COMMAND__TOPOLOGY_UPDATE_V2;
+	dtm_cmd->dtm_in_message.topology_update_v2.display_handle = display->index;
+	dtm_cmd->dtm_in_message.topology_update_v2.is_active = 0;
+	dtm_cmd->dtm_status = TA_DTM_STATUS__GENERIC_FAILURE;
 
-			dtm_cmd->cmd_id = TA_DTM_COMMAND__TOPOLOGY_UPDATE_V2;
-			dtm_cmd->dtm_in_message.topology_update_v2.display_handle = display->index;
-			dtm_cmd->dtm_in_message.topology_update_v2.is_active = 0;
-			dtm_cmd->dtm_status = TA_DTM_STATUS__GENERIC_FAILURE;
+	psp_dtm_invoke(psp, dtm_cmd->cmd_id);
 
-			psp_dtm_invoke(psp, dtm_cmd->cmd_id);
+	if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE;
 
-			if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS)
-				return MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE;
+	display->state = MOD_HDCP_DISPLAY_ACTIVE;
+	HDCP_TOP_REMOVE_DISPLAY_TRACE(hdcp, display->index);
+ 
+ 	return MOD_HDCP_STATUS_SUCCESS;
+ }
 
-			display->state = MOD_HDCP_DISPLAY_ACTIVE;
-			HDCP_TOP_REMOVE_DISPLAY_TRACE(hdcp, display->index);
-		}
-	}
-
-	return MOD_HDCP_STATUS_SUCCESS;
-}
-
-enum mod_hdcp_status mod_hdcp_add_display_topology(struct mod_hdcp *hdcp)
+enum mod_hdcp_status mod_hdcp_add_display_to_topology(
+		struct mod_hdcp *hdcp, uint8_t index)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_dtm_shared_memory *dtm_cmd;
-	struct mod_hdcp_display *display = NULL;
+	struct mod_hdcp_display *display =
+			get_active_display_at_index(hdcp, index);
 	struct mod_hdcp_link *link = &hdcp->connection.link;
-	uint8_t i;
 
 	if (!psp->dtm_context.dtm_initialized) {
 		DRM_ERROR("Failed to add display topology, DTM TA is not initialized.");
 		return MOD_HDCP_STATUS_FAILURE;
 	}
 
+	if (!display || is_display_added(display))
+		return MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE;
+
 	dtm_cmd = (struct ta_dtm_shared_memory *)psp->dtm_context.dtm_shared_buf;
 
-	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
-		if (hdcp->connection.displays[i].state == MOD_HDCP_DISPLAY_ACTIVE) {
-			display = &hdcp->connection.displays[i];
+	memset(dtm_cmd, 0, sizeof(struct ta_dtm_shared_memory));
 
-			memset(dtm_cmd, 0, sizeof(struct ta_dtm_shared_memory));
+	dtm_cmd->cmd_id = TA_DTM_COMMAND__TOPOLOGY_UPDATE_V2;
+	dtm_cmd->dtm_in_message.topology_update_v2.display_handle = display->index;
+	dtm_cmd->dtm_in_message.topology_update_v2.is_active = 1;
+	dtm_cmd->dtm_in_message.topology_update_v2.controller = display->controller;
+	dtm_cmd->dtm_in_message.topology_update_v2.ddc_line = link->ddc_line;
+	dtm_cmd->dtm_in_message.topology_update_v2.dig_be = link->dig_be;
+	dtm_cmd->dtm_in_message.topology_update_v2.dig_fe = display->dig_fe;
+	if (is_dp_hdcp(hdcp))
+		dtm_cmd->dtm_in_message.topology_update_v2.is_assr = link->dp.assr_supported;
 
-			dtm_cmd->cmd_id = TA_DTM_COMMAND__TOPOLOGY_UPDATE_V2;
-			dtm_cmd->dtm_in_message.topology_update_v2.display_handle = display->index;
-			dtm_cmd->dtm_in_message.topology_update_v2.is_active = 1;
-			dtm_cmd->dtm_in_message.topology_update_v2.controller = display->controller;
-			dtm_cmd->dtm_in_message.topology_update_v2.ddc_line = link->ddc_line;
-			dtm_cmd->dtm_in_message.topology_update_v2.dig_be = link->dig_be;
-			dtm_cmd->dtm_in_message.topology_update_v2.dig_fe = display->dig_fe;
-			dtm_cmd->dtm_in_message.topology_update_v2.dp_mst_vcid = display->vc_id;
-			dtm_cmd->dtm_in_message.topology_update_v2.max_hdcp_supported_version =
-				TA_DTM_HDCP_VERSION_MAX_SUPPORTED__2_2;
-			dtm_cmd->dtm_status = TA_DTM_STATUS__GENERIC_FAILURE;
+	dtm_cmd->dtm_in_message.topology_update_v2.dp_mst_vcid = display->vc_id;
+	dtm_cmd->dtm_in_message.topology_update_v2.max_hdcp_supported_version =
+			TA_DTM_HDCP_VERSION_MAX_SUPPORTED__2_2;
+	dtm_cmd->dtm_status = TA_DTM_STATUS__GENERIC_FAILURE;
 
-			psp_dtm_invoke(psp, dtm_cmd->cmd_id);
+	psp_dtm_invoke(psp, dtm_cmd->cmd_id);
 
-			if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS)
-				return MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE;
+	if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE;
 
-			display->state = MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED;
-			HDCP_TOP_ADD_DISPLAY_TRACE(hdcp, display->index);
-		}
-	}
-
-	return MOD_HDCP_STATUS_SUCCESS;
+	display->state = MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED;
+	HDCP_TOP_ADD_DISPLAY_TRACE(hdcp, display->index);
+ 
+ 	return MOD_HDCP_STATUS_SUCCESS;
 }
 
 enum mod_hdcp_status mod_hdcp_hdcp1_create_session(struct mod_hdcp *hdcp)
@@ -164,6 +161,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_destroy_session(struct mod_hdcp *hdcp)
 
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_hdcp_shared_memory *hdcp_cmd;
+	uint8_t i = 0;
 
 	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
@@ -177,6 +175,14 @@ enum mod_hdcp_status mod_hdcp_hdcp1_destroy_session(struct mod_hdcp *hdcp)
 		return MOD_HDCP_STATUS_HDCP1_DESTROY_SESSION_FAILURE;
 
 	HDCP_TOP_HDCP1_DESTROY_SESSION_TRACE(hdcp);
+	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++)
+		if (is_display_encryption_enabled(
+				&hdcp->connection.displays[i])) {
+			hdcp->connection.displays[i].state =
+					MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED;
+			HDCP_HDCP1_DISABLED_TRACE(hdcp,
+					hdcp->connection.displays[i].index);
+		}
 
 	return MOD_HDCP_STATUS_SUCCESS;
 }
@@ -399,6 +405,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_destroy_session(struct mod_hdcp *hdcp)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_hdcp_shared_memory *hdcp_cmd;
+	uint8_t i = 0;
 
 	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
@@ -412,6 +419,14 @@ enum mod_hdcp_status mod_hdcp_hdcp2_destroy_session(struct mod_hdcp *hdcp)
 		return MOD_HDCP_STATUS_HDCP2_DESTROY_SESSION_FAILURE;
 
 	HDCP_TOP_HDCP2_DESTROY_SESSION_TRACE(hdcp);
+	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++)
+		if (is_display_encryption_enabled(
+				&hdcp->connection.displays[i])) {
+			hdcp->connection.displays[i].state =
+					MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED;
+			HDCP_HDCP2_DISABLED_TRACE(hdcp,
+					hdcp->connection.displays[i].index);
+		}
 
 	return MOD_HDCP_STATUS_SUCCESS;
 }
