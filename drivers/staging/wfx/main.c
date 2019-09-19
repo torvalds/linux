@@ -20,6 +20,8 @@
 
 #include "main.h"
 #include "wfx.h"
+#include "fwio.h"
+#include "hwio.h"
 #include "bus.h"
 #include "wfx_version.h"
 
@@ -73,6 +75,24 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 }
 
 void wfx_free_common(struct wfx_dev *wdev)
+{
+}
+
+int wfx_probe(struct wfx_dev *wdev)
+{
+	int err;
+
+	err = wfx_init_device(wdev);
+	if (err)
+		goto err1;
+
+	return 0;
+
+err1:
+	return err;
+}
+
+void wfx_release(struct wfx_dev *wdev)
 {
 }
 

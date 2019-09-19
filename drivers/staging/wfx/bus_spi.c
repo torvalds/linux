@@ -27,6 +27,8 @@ MODULE_PARM_DESC(gpio_reset, "gpio number for reset. -1 for none.");
 #define SET_READ 0x8000         /* usage: or operation */
 
 static const struct wfx_platform_data wfx_spi_pdata = {
+	.file_fw = "wfm_wf200",
+	.use_rising_clk = true,
 };
 
 struct wfx_spi_priv {
@@ -205,6 +207,10 @@ static int wfx_spi_probe(struct spi_device *func)
 	if (!bus->core)
 		return -EIO;
 
+	ret = wfx_probe(bus->core);
+	if (ret)
+		wfx_free_common(bus->core);
+
 	return ret;
 }
 
@@ -213,6 +219,7 @@ static int wfx_spi_disconnect(struct spi_device *func)
 {
 	struct wfx_spi_priv *bus = spi_get_drvdata(func);
 
+	wfx_release(bus->core);
 	wfx_free_common(bus->core);
 	// A few IRQ will be sent during device release. Hopefully, no IRQ
 	// should happen after wdev/wvif are released.

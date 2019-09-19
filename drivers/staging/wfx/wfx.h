@@ -19,6 +19,8 @@ struct wfx_dev {
 	struct device		*dev;
 	const struct hwbus_ops	*hwbus_ops;
 	void			*hwbus_priv;
+
+	u8			keyset;
 };
 
 #endif /* WFX_H */

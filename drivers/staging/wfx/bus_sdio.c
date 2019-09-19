@@ -17,6 +17,7 @@
 #include "main.h"
 
 static const struct wfx_platform_data wfx_sdio_pdata = {
+	.file_fw = "wfm_wf200",
 };
 
 struct wfx_sdio_priv {
@@ -204,8 +205,14 @@ static int wfx_sdio_probe(struct sdio_func *func,
 		goto err2;
 	}
 
+	ret = wfx_probe(bus->core);
+	if (ret)
+		goto err3;
+
 	return 0;
 
+err3:
+	wfx_free_common(bus->core);
 err2:
 	wfx_sdio_irq_unsubscribe(bus);
 err1:
@@ -220,6 +227,7 @@ static void wfx_sdio_remove(struct sdio_func *func)
 {
 	struct wfx_sdio_priv *bus = sdio_get_drvdata(func);
 
+	wfx_release(bus->core);
 	wfx_free_common(bus->core);
 	wfx_sdio_irq_unsubscribe(bus);
 	sdio_claim_host(func);

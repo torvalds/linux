@@ -5,6 +5,7 @@ CFLAGS_debug.o = -I$(src)
 
 wfx-y := \
 	hwio.o \
+	fwio.o \
 	main.o \
 	debug.o
 wfx-$(CONFIG_SPI) += bus_spi.o

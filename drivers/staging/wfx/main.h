@@ -18,6 +18,13 @@
 struct wfx_dev;
 
 struct wfx_platform_data {
+	/* Keyset and ".sec" extention will appended to this string */
+	const char *file_fw;
+	/*
+	 * if true HIF D_out is sampled on the rising edge of the clock
+	 * (intended to be used in 50Mhz SDIO)
+	 */
+	bool use_rising_clk;
 };
 
 struct wfx_dev *wfx_init_common(struct device *dev,
@@ -25,6 +32,9 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 				const struct hwbus_ops *hwbus_ops,
 				void *hwbus_priv);
 void wfx_free_common(struct wfx_dev *wdev);
+
+int wfx_probe(struct wfx_dev *wdev);
+void wfx_release(struct wfx_dev *wdev);
 
 struct gpio_desc *wfx_get_gpio(struct device *dev, int override,
 			       const char *label);
