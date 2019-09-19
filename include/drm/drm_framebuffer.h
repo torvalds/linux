@@ -87,6 +87,9 @@ struct drm_framebuffer_funcs {
 	 * for more information as all the semantics and arguments have a one to
 	 * one mapping on this function.
 	 *
+	 * Atomic drivers should use drm_atomic_helper_dirtyfb() to implement
+	 * this hook.
+	 *
 	 * RETURNS:
 	 *
 	 * 0 on success or a negative error code on failure.

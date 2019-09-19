@@ -362,7 +362,14 @@ static int ppc_nest_imc_cpu_offline(unsigned int cpu)
 	 */
 	nid = cpu_to_node(cpu);
 	l_cpumask = cpumask_of_node(nid);
-	target = cpumask_any_but(l_cpumask, cpu);
+	target = cpumask_last(l_cpumask);
+
+	/*
+	 * If this(target) is the last cpu in the cpumask for this chip,
+	 * check for any possible online cpu in the chip.
+	 */
+	if (unlikely(target == cpu))
+		target = cpumask_any_but(l_cpumask, cpu);
 
 	/*
 	 * Update the cpumask with the target cpu and
@@ -667,7 +674,10 @@ static int ppc_core_imc_cpu_offline(unsigned int cpu)
 		return 0;
 
 	/* Find any online cpu in that core except the current "cpu" */
-	ncpu = cpumask_any_but(cpu_sibling_mask(cpu), cpu);
+	ncpu = cpumask_last(cpu_sibling_mask(cpu));
+
+	if (unlikely(ncpu == cpu))
+		ncpu = cpumask_any_but(cpu_sibling_mask(cpu), cpu);
 
 	if (ncpu >= 0 && ncpu < nr_cpu_ids) {
 		cpumask_set_cpu(ncpu, &core_imc_cpumask);

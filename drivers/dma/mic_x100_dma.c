@@ -717,10 +717,8 @@ static int mic_dma_driver_probe(struct mbus_device *mbdev)
 	if (mic_dma_dbg) {
 		mic_dma_dev->dbg_dir = debugfs_create_dir(dev_name(&mbdev->dev),
 							  mic_dma_dbg);
-		if (mic_dma_dev->dbg_dir)
-			debugfs_create_file("mic_dma_reg", 0444,
-					    mic_dma_dev->dbg_dir, mic_dma_dev,
-					    &mic_dma_reg_fops);
+		debugfs_create_file("mic_dma_reg", 0444, mic_dma_dev->dbg_dir,
+				    mic_dma_dev, &mic_dma_reg_fops);
 	}
 	return 0;
 }

@@ -24,3 +24,4 @@ ACPI Support
    acpi-lid
    lpit
    video_extension
+   extcon-intel-int3496

@@ -122,6 +122,14 @@ static int vimc_streamer_pipeline_init(struct vimc_stream *stream,
 	return -EINVAL;
 }
 
+/*
+ * vimc_streamer_thread - process frames through the pipeline
+ *
+ * @data:	vimc_stream struct of the current stream
+ *
+ * From the source to the sink, gets a frame from each subdevice and send to
+ * the next one of the pipeline at a fixed framerate.
+ */
 static int vimc_streamer_thread(void *data)
 {
 	struct vimc_stream *stream = data;
@@ -149,6 +157,20 @@ static int vimc_streamer_thread(void *data)
 	return 0;
 }
 
+/*
+ * vimc_streamer_s_stream - start/stop the streaming on the media pipeline
+ *
+ * @stream:	the pointer to the stream structure of the current stream
+ * @ved:	pointer to the vimc entity of the entity of the stream
+ * @enable:	flag to determine if stream should start/stop
+ *
+ * When starting, check if there is no stream->kthread allocated. This should
+ * indicate that a stream is already running. Then, it initializes
+ * the pipeline, creates and runs a kthread to consume buffers through the
+ * pipeline.
+ * When stopping, analogously check if there is a stream running, stop
+ * the thread and terminates the pipeline.
+ */
 int vimc_streamer_s_stream(struct vimc_stream *stream,
 			   struct vimc_ent_device *ved,
 			   int enable)
@@ -188,7 +210,3 @@ int vimc_streamer_s_stream(struct vimc_stream *stream,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vimc_streamer_s_stream);
-
-MODULE_DESCRIPTION("Virtual Media Controller Driver (VIMC) Streamer");
-MODULE_AUTHOR("Lucas A. M. Magalhães <lucmaga@gmail.com>");
-MODULE_LICENSE("GPL");

@@ -162,8 +162,7 @@ void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb)
 	}
 
 	pay_len = nfp_flower_cmsg_get_data_len(skb);
-	if (pay_len != sizeof(struct nfp_tun_active_tuns) +
-	    sizeof(struct route_ip_info) * count) {
+	if (pay_len != struct_size(payload, tun_info, count)) {
 		nfp_flower_cmsg_warn(app, "Corruption in tunnel keep-alive message.\n");
 		return;
 	}
@@ -329,12 +328,12 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 
 	flow.daddr = *(__be32 *)n->primary_key;
 
-	/* Only concerned with route changes for representors. */
-	if (!nfp_netdev_is_nfp_repr(n->dev))
-		return NOTIFY_DONE;
-
 	app_priv = container_of(nb, struct nfp_flower_priv, tun.neigh_nb);
 	app = app_priv->app;
+
+	if (!nfp_netdev_is_nfp_repr(n->dev) &&
+	    !nfp_flower_internal_port_can_offload(app, n->dev))
+		return NOTIFY_DONE;
 
 	/* Only concerned with changes to routes already added to NFP. */
 	if (!nfp_tun_has_route(app, flow.daddr))

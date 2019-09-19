@@ -101,7 +101,7 @@ static void init_ir_status(struct intel_iommu *iommu)
 		iommu->flags |= VTD_FLAG_IRQ_REMAP_PRE_ENABLED;
 }
 
-static int alloc_irte(struct intel_iommu *iommu, int irq,
+static int alloc_irte(struct intel_iommu *iommu,
 		      struct irq_2_iommu *irq_iommu, u16 count)
 {
 	struct ir_table *table = iommu->ir_table;
@@ -1374,7 +1374,7 @@ static int intel_irq_remapping_alloc(struct irq_domain *domain,
 		goto out_free_parent;
 
 	down_read(&dmar_global_lock);
-	index = alloc_irte(iommu, virq, &data->irq_2_iommu, nr_irqs);
+	index = alloc_irte(iommu, &data->irq_2_iommu, nr_irqs);
 	up_read(&dmar_global_lock);
 	if (index < 0) {
 		pr_warn("Failed to allocate IRTE\n");

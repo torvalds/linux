@@ -1,0 +1,25 @@
+MediaTek MT7621/MT7628 I2C master controller
+
+Required properties:
+
+- compatible: Should be one of the following:
+  - "mediatek,mt7621-i2c": for MT7621/MT7628/MT7688 platforms
+- #address-cells: should be 1.
+- #size-cells: should be 0.
+- reg: Address and length of the register set for the device
+- resets: phandle to the reset controller asserting this device in
+          reset
+  See ../reset/reset.txt for details.
+
+Optional properties :
+
+Example:
+
+i2c: i2c@900 {
+	compatible = "mediatek,mt7621-i2c";
+	reg = <0x900 0x100>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	resets = <&rstctrl 16>;
+	reset-names = "i2c";
+};

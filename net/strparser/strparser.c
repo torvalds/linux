@@ -157,18 +157,14 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 					return 0;
 				}
 
-				skb = alloc_skb(0, GFP_ATOMIC);
+				skb = alloc_skb_for_msg(head);
 				if (!skb) {
 					STRP_STATS_INCR(strp->stats.mem_fail);
 					desc->error = -ENOMEM;
 					return 0;
 				}
-				skb->len = head->len;
-				skb->data_len = head->len;
-				skb->truesize = head->truesize;
-				*_strp_msg(skb) = *_strp_msg(head);
+
 				strp->skb_nextp = &head->next;
-				skb_shinfo(skb)->frag_list = head;
 				strp->skb_head = skb;
 				head = skb;
 			} else {

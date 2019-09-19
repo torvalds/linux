@@ -9,7 +9,7 @@ config PCI_SW_SWITCHTEC
 	 Enables support for the management interface for the MicroSemi
 	 Switchtec series of PCIe switches. Supports userspace access
 	 to submit MRPC commands to the switch via /dev/switchtecX
-	 devices. See <file:Documentation/switchtec.txt> for more
+	 devices. See <file:Documentation/driver-api/switchtec.rst> for more
 	 information.
 
 endmenu

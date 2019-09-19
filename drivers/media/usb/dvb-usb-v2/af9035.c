@@ -107,8 +107,6 @@ static int af9035_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 		memcpy(req->rbuf, &state->buf[ACK_HDR_LEN], req->rlen);
 exit:
 	mutex_unlock(&d->usb_mutex);
-	if (ret < 0)
-		dev_dbg(&intf->dev, "failed=%d\n", ret);
 	return ret;
 }
 

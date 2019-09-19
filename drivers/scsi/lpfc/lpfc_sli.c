@@ -108,7 +108,7 @@ lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
  * endianness. This function can be called with or without
  * lock.
  **/
-void
+static void
 lpfc_sli4_pcimem_bcopy(void *srcp, void *destp, uint32_t cnt)
 {
 	uint64_t *src = srcp;
@@ -5571,6 +5571,7 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 	int qidx;
 	struct lpfc_sli4_hba *sli4_hba = &phba->sli4_hba;
 	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_queue *eq;
 
 	sli4_hba->sli4_write_cq_db(phba, sli4_hba->mbx_cq, 0, LPFC_QUEUE_REARM);
 	sli4_hba->sli4_write_cq_db(phba, sli4_hba->els_cq, 0, LPFC_QUEUE_REARM);
@@ -5578,18 +5579,24 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 		sli4_hba->sli4_write_cq_db(phba, sli4_hba->nvmels_cq, 0,
 					   LPFC_QUEUE_REARM);
 
-	qp = sli4_hba->hdwq;
 	if (sli4_hba->hdwq) {
+		/* Loop thru all Hardware Queues */
 		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
-			sli4_hba->sli4_write_cq_db(phba, qp[qidx].fcp_cq, 0,
+			qp = &sli4_hba->hdwq[qidx];
+			/* ARM the corresponding CQ */
+			sli4_hba->sli4_write_cq_db(phba, qp->fcp_cq, 0,
 						   LPFC_QUEUE_REARM);
-			sli4_hba->sli4_write_cq_db(phba, qp[qidx].nvme_cq, 0,
+			sli4_hba->sli4_write_cq_db(phba, qp->nvme_cq, 0,
 						   LPFC_QUEUE_REARM);
 		}
 
-		for (qidx = 0; qidx < phba->cfg_irq_chann; qidx++)
-			sli4_hba->sli4_write_eq_db(phba, qp[qidx].hba_eq,
-						0, LPFC_QUEUE_REARM);
+		/* Loop thru all IRQ vectors */
+		for (qidx = 0; qidx < phba->cfg_irq_chann; qidx++) {
+			eq = sli4_hba->hba_eq_hdl[qidx].eq;
+			/* ARM the corresponding EQ */
+			sli4_hba->sli4_write_eq_db(phba, eq,
+						   0, LPFC_QUEUE_REARM);
+		}
 	}
 
 	if (phba->nvmet_support) {
@@ -7875,26 +7882,28 @@ lpfc_sli4_mbox_completions_pending(struct lpfc_hba *phba)
  * and will process all the completions associated with the eq for the
  * mailbox completion queue.
  **/
-bool
+static bool
 lpfc_sli4_process_missed_mbox_completions(struct lpfc_hba *phba)
 {
 	struct lpfc_sli4_hba *sli4_hba = &phba->sli4_hba;
 	uint32_t eqidx;
 	struct lpfc_queue *fpeq = NULL;
+	struct lpfc_queue *eq;
 	bool mbox_pending;
 
 	if (unlikely(!phba) || (phba->sli_rev != LPFC_SLI_REV4))
 		return false;
 
-	/* Find the eq associated with the mcq */
-
-	if (sli4_hba->hdwq)
-		for (eqidx = 0; eqidx < phba->cfg_irq_chann; eqidx++)
-			if (sli4_hba->hdwq[eqidx].hba_eq->queue_id ==
-			    sli4_hba->mbx_cq->assoc_qid) {
-				fpeq = sli4_hba->hdwq[eqidx].hba_eq;
+	/* Find the EQ associated with the mbox CQ */
+	if (sli4_hba->hdwq) {
+		for (eqidx = 0; eqidx < phba->cfg_irq_chann; eqidx++) {
+			eq = phba->sli4_hba.hba_eq_hdl[eqidx].eq;
+			if (eq->queue_id == sli4_hba->mbx_cq->assoc_qid) {
+				fpeq = eq;
 				break;
 			}
+		}
+	}
 	if (!fpeq)
 		return false;
 
@@ -9398,6 +9407,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		if (if_type >= LPFC_SLI_INTF_IF_TYPE_2) {
 			if (pcmd && (*pcmd == ELS_CMD_FLOGI ||
 				*pcmd == ELS_CMD_SCR ||
+				*pcmd == ELS_CMD_RSCN_XMT ||
 				*pcmd == ELS_CMD_FDISC ||
 				*pcmd == ELS_CMD_LOGO ||
 				*pcmd == ELS_CMD_PLOGI)) {
@@ -13604,14 +13614,9 @@ __lpfc_sli4_process_cq(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		goto rearm_and_exit;
 
 	/* Process all the entries to the CQ */
+	cq->q_flag = 0;
 	cqe = lpfc_sli4_cq_get(cq);
 	while (cqe) {
-#if defined(CONFIG_SCSI_LPFC_DEBUG_FS) && defined(BUILD_NVME)
-		if (phba->ktime_on)
-			cq->isr_timestamp = ktime_get_ns();
-		else
-			cq->isr_timestamp = 0;
-#endif
 		workposted |= handler(phba, cq, cqe);
 		__lpfc_sli4_consume_cqe(phba, cq, cqe);
 
@@ -13624,6 +13629,9 @@ __lpfc_sli4_process_cq(struct lpfc_hba *phba, struct lpfc_queue *cq,
 						LPFC_QUEUE_NOARM);
 			consumed = 0;
 		}
+
+		if (count == LPFC_NVMET_CQ_NOTIFY)
+			cq->q_flag |= HBA_NVMET_CQ_NOTIFY;
 
 		cqe = lpfc_sli4_cq_get(cq);
 	}
@@ -13940,10 +13948,10 @@ lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 			goto drop;
 
 		if (fc_hdr->fh_type == FC_TYPE_FCP) {
-			dma_buf->bytes_recv = bf_get(lpfc_rcqe_length,  rcqe);
+			dma_buf->bytes_recv = bf_get(lpfc_rcqe_length, rcqe);
 			lpfc_nvmet_unsol_fcp_event(
-				phba, idx, dma_buf,
-				cq->isr_timestamp);
+				phba, idx, dma_buf, cq->isr_timestamp,
+				cq->q_flag & HBA_NVMET_CQ_NOTIFY);
 			return false;
 		}
 drop:
@@ -14109,6 +14117,12 @@ process_cq:
 	}
 
 work_cq:
+#if defined(CONFIG_SCSI_LPFC_DEBUG_FS)
+	if (phba->ktime_on)
+		cq->isr_timestamp = ktime_get_ns();
+	else
+		cq->isr_timestamp = 0;
+#endif
 	if (!queue_work_on(cq->chann, phba->wq, &cq->irqwork))
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0363 Cannot schedule soft IRQ "
@@ -14235,7 +14249,7 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	/* Get to the EQ struct associated with this vector */
-	fpeq = phba->sli4_hba.hdwq[hba_eqidx].hba_eq;
+	fpeq = phba->sli4_hba.hba_eq_hdl[hba_eqidx].eq;
 	if (unlikely(!fpeq))
 		return IRQ_NONE;
 
@@ -14520,7 +14534,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 	/* set values by EQ_DELAY register if supported */
 	if (phba->sli.sli_flag & LPFC_SLI_USE_EQDR) {
 		for (qidx = startq; qidx < phba->cfg_irq_chann; qidx++) {
-			eq = phba->sli4_hba.hdwq[qidx].hba_eq;
+			eq = phba->sli4_hba.hba_eq_hdl[qidx].eq;
 			if (!eq)
 				continue;
 
@@ -14529,7 +14543,6 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 			if (++cnt >= numq)
 				break;
 		}
-
 		return;
 	}
 
@@ -14557,7 +14570,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 		dmult = LPFC_DMULT_MAX;
 
 	for (qidx = startq; qidx < phba->cfg_irq_chann; qidx++) {
-		eq = phba->sli4_hba.hdwq[qidx].hba_eq;
+		eq = phba->sli4_hba.hba_eq_hdl[qidx].eq;
 		if (!eq)
 			continue;
 		eq->q_mode = usdelay;
@@ -14659,8 +14672,10 @@ lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint32_t imax)
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0360 Unsupported EQ count. (%d)\n",
 				eq->entry_count);
-		if (eq->entry_count < 256)
-			return -EINVAL;
+		if (eq->entry_count < 256) {
+			status = -EINVAL;
+			goto out;
+		}
 		/* fall through - otherwise default to smallest count */
 	case 256:
 		bf_set(lpfc_eq_context_count, &eq_create->u.request.context,
@@ -14712,7 +14727,7 @@ lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint32_t imax)
 	eq->host_index = 0;
 	eq->notify_interval = LPFC_EQ_NOTIFY_INTRVL;
 	eq->max_proc_limit = LPFC_EQ_MAX_PROC_LIMIT;
-
+out:
 	mempool_free(mbox, phba->mbox_mem_pool);
 	return status;
 }

@@ -25,10 +25,14 @@
 
 #include "pcie-designware.h"
 
+#define ARMADA8K_PCIE_MAX_LANES PCIE_LNK_X4
+
 struct armada8k_pcie {
 	struct dw_pcie *pci;
 	struct clk *clk;
 	struct clk *clk_reg;
+	struct phy *phy[ARMADA8K_PCIE_MAX_LANES];
+	unsigned int phy_count;
 };
 
 #define PCIE_VENDOR_REGS_OFFSET		0x8000
@@ -55,7 +59,7 @@ struct armada8k_pcie {
 #define PCIE_ARUSER_REG			(PCIE_VENDOR_REGS_OFFSET + 0x5C)
 #define PCIE_AWUSER_REG			(PCIE_VENDOR_REGS_OFFSET + 0x60)
 /*
- * AR/AW Cache defauls: Normal memory, Write-Back, Read / Write
+ * AR/AW Cache defaults: Normal memory, Write-Back, Read / Write
  * allocate
  */
 #define ARCACHE_DEFAULT_VALUE		0x3511
@@ -66,6 +70,76 @@ struct armada8k_pcie {
 #define AX_USER_DOMAIN_SHIFT		4
 
 #define to_armada8k_pcie(x)	dev_get_drvdata((x)->dev)
+
+static void armada8k_pcie_disable_phys(struct armada8k_pcie *pcie)
+{
+	int i;
+
+	for (i = 0; i < ARMADA8K_PCIE_MAX_LANES; i++) {
+		phy_power_off(pcie->phy[i]);
+		phy_exit(pcie->phy[i]);
+	}
+}
+
+static int armada8k_pcie_enable_phys(struct armada8k_pcie *pcie)
+{
+	int ret;
+	int i;
+
+	for (i = 0; i < ARMADA8K_PCIE_MAX_LANES; i++) {
+		ret = phy_init(pcie->phy[i]);
+		if (ret)
+			return ret;
+
+		ret = phy_set_mode_ext(pcie->phy[i], PHY_MODE_PCIE,
+				       pcie->phy_count);
+		if (ret) {
+			phy_exit(pcie->phy[i]);
+			return ret;
+		}
+
+		ret = phy_power_on(pcie->phy[i]);
+		if (ret) {
+			phy_exit(pcie->phy[i]);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int armada8k_pcie_setup_phys(struct armada8k_pcie *pcie)
+{
+	struct dw_pcie *pci = pcie->pci;
+	struct device *dev = pci->dev;
+	struct device_node *node = dev->of_node;
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < ARMADA8K_PCIE_MAX_LANES; i++) {
+		pcie->phy[i] = devm_of_phy_get_by_index(dev, node, i);
+		if (IS_ERR(pcie->phy[i]) &&
+		    (PTR_ERR(pcie->phy[i]) == -EPROBE_DEFER))
+			return PTR_ERR(pcie->phy[i]);
+
+		if (IS_ERR(pcie->phy[i])) {
+			pcie->phy[i] = NULL;
+			continue;
+		}
+
+		pcie->phy_count++;
+	}
+
+	/* Old bindings miss the PHY handle, so just warn if there is no PHY */
+	if (!pcie->phy_count)
+		dev_warn(dev, "No available PHY\n");
+
+	ret = armada8k_pcie_enable_phys(pcie);
+	if (ret)
+		dev_err(dev, "Failed to initialize PHY(s) (%d)\n", ret);
+
+	return ret;
+}
 
 static int armada8k_pcie_link_up(struct dw_pcie *pci)
 {
@@ -249,14 +323,20 @@ static int armada8k_pcie_probe(struct platform_device *pdev)
 		goto fail_clkreg;
 	}
 
+	ret = armada8k_pcie_setup_phys(pcie);
+	if (ret)
+		goto fail_clkreg;
+
 	platform_set_drvdata(pdev, pcie);
 
 	ret = armada8k_add_pcie_port(pcie, pdev);
 	if (ret)
-		goto fail_clkreg;
+		goto disable_phy;
 
 	return 0;
 
+disable_phy:
+	armada8k_pcie_disable_phys(pcie);
 fail_clkreg:
 	clk_disable_unprepare(pcie->clk_reg);
 fail:

@@ -915,7 +915,7 @@ int cap_inode_setxattr(struct dentry *dentry, const char *name,
 
 	/* Ignore non-security xattrs */
 	if (strncmp(name, XATTR_SECURITY_PREFIX,
-			sizeof(XATTR_SECURITY_PREFIX) - 1) != 0)
+			XATTR_SECURITY_PREFIX_LEN) != 0)
 		return 0;
 
 	/*
@@ -947,7 +947,7 @@ int cap_inode_removexattr(struct dentry *dentry, const char *name)
 
 	/* Ignore non-security xattrs */
 	if (strncmp(name, XATTR_SECURITY_PREFIX,
-			sizeof(XATTR_SECURITY_PREFIX) - 1) != 0)
+			XATTR_SECURITY_PREFIX_LEN) != 0)
 		return 0;
 
 	if (strcmp(name, XATTR_NAME_CAPS) == 0) {
@@ -1339,7 +1339,7 @@ int cap_mmap_file(struct file *file, unsigned long reqprot,
 
 #ifdef CONFIG_SECURITY
 
-struct security_hook_list capability_hooks[] __lsm_ro_after_init = {
+static struct security_hook_list capability_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(capable, cap_capable),
 	LSM_HOOK_INIT(settime, cap_settime),
 	LSM_HOOK_INIT(ptrace_access_check, cap_ptrace_access_check),

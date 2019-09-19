@@ -97,7 +97,7 @@
 void *iwl_acpi_get_object(struct device *dev, acpi_string method);
 union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 					 union acpi_object *data,
-					 int data_size);
+					 int data_size, int *tbl_rev);
 
 /**
  * iwl_acpi_get_mcc - read MCC from ACPI, if available
@@ -131,7 +131,8 @@ static inline void *iwl_acpi_get_object(struct device *dev, acpi_string method)
 
 static inline union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 						       union acpi_object *data,
-						       int data_size)
+						       int data_size,
+						       int *tbl_rev)
 {
 	return ERR_PTR(-ENOENT);
 }

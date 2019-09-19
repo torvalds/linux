@@ -576,7 +576,7 @@ static int ov2685_set_ctrl(struct v4l2_ctrl *ctrl)
 			 __func__, ctrl->id, ctrl->val);
 		ret = -EINVAL;
 		break;
-	};
+	}
 
 	pm_runtime_put(&client->dev);
 

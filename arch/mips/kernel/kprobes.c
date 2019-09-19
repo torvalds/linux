@@ -220,7 +220,7 @@ static int evaluate_branch_instruction(struct kprobe *p, struct pt_regs *regs,
 
 unaligned:
 	pr_notice("%s: unaligned epc - sending SIGBUS.\n", current->comm);
-	force_sig(SIGBUS, current);
+	force_sig(SIGBUS);
 	return -EFAULT;
 
 }
@@ -398,7 +398,7 @@ out:
 	return 1;
 }
 
-static inline int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
+int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();

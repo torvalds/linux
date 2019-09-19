@@ -47,7 +47,7 @@ struct mlx5_core_cq {
 	struct completion	free;
 	unsigned		vector;
 	unsigned int		irqn;
-	void (*comp)		(struct mlx5_core_cq *);
+	void (*comp)(struct mlx5_core_cq *cq, struct mlx5_eqe *eqe);
 	void (*event)		(struct mlx5_core_cq *, enum mlx5_event);
 	u32			cons_index;
 	unsigned		arm_sn;
@@ -55,7 +55,7 @@ struct mlx5_core_cq {
 	int			pid;
 	struct {
 		struct list_head list;
-		void (*comp)(struct mlx5_core_cq *);
+		void (*comp)(struct mlx5_core_cq *cq, struct mlx5_eqe *eqe);
 		void		*priv;
 	} tasklet_ctx;
 	int			reset_notify_added;
@@ -185,7 +185,7 @@ static inline void mlx5_cq_put(struct mlx5_core_cq *cq)
 }
 
 int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			u32 *in, int inlen);
+			u32 *in, int inlen, u32 *out, int outlen);
 int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 int mlx5_core_query_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 		       u32 *out, int outlen);

@@ -68,4 +68,6 @@ int rvt_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		      const struct ib_recv_wr **bad_wr);
 int rvt_wss_init(struct rvt_dev_info *rdi);
 void rvt_wss_exit(struct rvt_dev_info *rdi);
+int rvt_alloc_rq(struct rvt_rq *rq, u32 size, int node,
+		 struct ib_udata *udata);
 #endif          /* DEF_RVTQP_H */

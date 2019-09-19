@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "ISDN CAPI drivers"
+	depends on ISDN_CAPI
+
+source "drivers/staging/isdn/avm/Kconfig"
+
+source "drivers/staging/isdn/gigaset/Kconfig"
+
+source "drivers/staging/isdn/hysdn/Kconfig"
+
+endmenu
+

@@ -1406,7 +1406,7 @@ static void __init i8042_register_ports(void)
 		 * behavior on many platforms using suspend-to-RAM (ACPI S3)
 		 * by default.
 		 */
-		if (pm_suspend_via_s2idle() && i == I8042_KBD_PORT_NO)
+		if (pm_suspend_default_s2idle() && i == I8042_KBD_PORT_NO)
 			device_set_wakeup_enable(&serio->dev, true);
 	}
 }

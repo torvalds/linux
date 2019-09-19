@@ -118,7 +118,7 @@ config DCDBAS
 	  Interrupts (SMIs) and Host Control Actions (system power cycle or
 	  power off after OS shutdown) on certain Dell systems.
 
-	  See <file:Documentation/dcdbas.txt> for more details on the driver
+	  See <file:Documentation/driver-api/dcdbas.rst> for more details on the driver
 	  and the Dell systems on which Dell systems management software makes
 	  use of this driver.
 
@@ -259,7 +259,7 @@ config DELL_RBU
 	 DELL system. Note you need a Dell OpenManage or Dell Update package (DUP)
 	 supporting application to communicate with the BIOS regarding the new
 	 image for the image update to take effect.
-	 See <file:Documentation/dell_rbu.txt> for more details on the driver.
+	 See <file:Documentation/driver-api/dell_rbu.rst> for more details on the driver.
 
 
 config FUJITSU_LAPTOP
@@ -341,7 +341,7 @@ config HP_ACCEL
 
 	  Support for a led indicating disk protection will be provided as
 	  hp::hddprotect. For more information on the feature, refer to
-	  Documentation/misc-devices/lis3lv02d.
+	  Documentation/misc-devices/lis3lv02d.rst.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called hp_accel.
@@ -433,9 +433,6 @@ config COMPAL_LAPTOP
 	  It adds support for rfkill, Bluetooth, WLAN, LCD brightness, hwmon
 	  and battery charging level control.
 
-	  For a (possibly incomplete) list of supported laptops, please refer
-	  to: Documentation/platform/x86-laptop-drivers.txt
-
 config SONY_LAPTOP
 	tristate "Sony Laptop Extras"
 	depends on ACPI
@@ -451,7 +448,7 @@ config SONY_LAPTOP
 	  screen brightness control, Fn keys and allows powering on/off some
 	  devices.
 
-	  Read <file:Documentation/laptops/sony-laptop.txt> for more information.
+	  Read <file:Documentation/admin-guide/laptops/sony-laptop.rst> for more information.
 
 config SONYPI_COMPAT
 	bool "Sonypi compatibility"
@@ -503,7 +500,7 @@ config THINKPAD_ACPI
 	  support for Fn-Fx key combinations, Bluetooth control, video
 	  output switching, ThinkLight control, UltraBay eject and more.
 	  For more information about this driver see
-	  <file:Documentation/laptops/thinkpad-acpi.txt> and
+	  <file:Documentation/admin-guide/laptops/thinkpad-acpi.rst> and
 	  <http://ibm-acpi.sf.net/> .
 
 	  This driver was formerly known as ibm-acpi.
@@ -781,6 +778,16 @@ config INTEL_WMI_THUNDERBOLT
 	  To compile this driver as a module, choose M here: the module will
 	  be called intel-wmi-thunderbolt.
 
+config XIAOMI_WMI
+	  tristate "Xiaomi WMI key driver"
+	  depends on ACPI_WMI
+	  depends on INPUT
+	  help
+	  Say Y here if you want to support WMI-based keys on Xiaomi notebooks.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called xiaomi-wmi.
+
 config MSI_WMI
 	tristate "MSI WMI extras"
 	depends on ACPI_WMI
@@ -906,7 +913,6 @@ config TOSHIBA_WMI
 config ACPI_CMPC
 	tristate "CMPC Laptop Extras"
 	depends on ACPI && INPUT
-	depends on BACKLIGHT_LCD_SUPPORT
 	depends on RFKILL || RFKILL=n
 	select BACKLIGHT_CLASS_DEVICE
 	help
@@ -1130,7 +1136,6 @@ config INTEL_OAKTRAIL
 config SAMSUNG_Q10
 	tristate "Samsung Q10 Extras"
 	depends on ACPI
-	depends on BACKLIGHT_LCD_SUPPORT
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This driver provides support for backlight control on Samsung Q10
@@ -1317,7 +1322,7 @@ config HUAWEI_WMI
 
 config PCENGINES_APU2
 	tristate "PC Engines APUv2/3 front button and LEDs driver"
-	depends on INPUT && INPUT_KEYBOARD
+	depends on INPUT && INPUT_KEYBOARD && GPIOLIB
 	depends on LEDS_CLASS
 	select GPIO_AMD_FCH
 	select KEYBOARD_GPIO_POLLED
@@ -1328,6 +1333,8 @@ config PCENGINES_APU2
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pcengines-apuv2.
+
+source "drivers/platform/x86/intel_speed_select_if/Kconfig"
 
 endif # X86_PLATFORM_DEVICES
 

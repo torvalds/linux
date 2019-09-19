@@ -54,6 +54,7 @@ static u32 *count_ports(u32 *sid, int *total_port_count, int *child_port_count)
 		switch (port_type) {
 		case SELFID_PORT_CHILD:
 			(*child_port_count)++;
+			/* fall through */
 		case SELFID_PORT_PARENT:
 		case SELFID_PORT_NCONN:
 			(*total_port_count)++;

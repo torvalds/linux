@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: MIT
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 

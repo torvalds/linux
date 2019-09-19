@@ -5,7 +5,7 @@ Block Cipher Algorithm Definitions
    :doc: Block Cipher Algorithm Definitions
 
 .. kernel-doc:: include/linux/crypto.h
-   :functions: crypto_alg ablkcipher_alg blkcipher_alg cipher_alg
+   :functions: crypto_alg ablkcipher_alg blkcipher_alg cipher_alg compress_alg
 
 Symmetric Key Cipher API
 ------------------------

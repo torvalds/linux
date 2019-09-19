@@ -1286,6 +1286,24 @@ ___
 
 #########################################################################
 {{{	# CTR procedure[s]						#
+
+####################### WARNING: Here be dragons! #######################
+#
+# This code is written as 'ctr32', based on a 32-bit counter used
+# upstream. The kernel does *not* use a 32-bit counter. The kernel uses
+# a 128-bit counter.
+#
+# This leads to subtle changes from the upstream code: the counter
+# is incremented with vaddu_q_m rather than vaddu_w_m. This occurs in
+# both the bulk (8 blocks at a time) path, and in the individual block
+# path. Be aware of this when doing updates.
+#
+# See:
+# 1d4aa0b4c181 ("crypto: vmx - Fixing AES-CTR counter bug")
+# 009b30ac7444 ("crypto: vmx - CTR: always increment IV as quadword")
+# https://github.com/openssl/openssl/pull/8942
+#
+#########################################################################
 my ($inp,$out,$len,$key,$ivp,$x10,$rounds,$idx)=map("r$_",(3..10));
 my ($rndkey0,$rndkey1,$inout,$tmp)=		map("v$_",(0..3));
 my ($ivec,$inptail,$inpperm,$outhead,$outperm,$outmask,$keyperm,$one)=
@@ -1357,7 +1375,7 @@ Loop_ctr32_enc:
 	addi		$idx,$idx,16
 	bdnz		Loop_ctr32_enc
 
-	vadduqm		$ivec,$ivec,$one
+	vadduqm		$ivec,$ivec,$one	# Kernel change for 128-bit
 	 vmr		$dat,$inptail
 	 lvx		$inptail,0,$inp
 	 addi		$inp,$inp,16
@@ -1501,7 +1519,7 @@ Load_ctr32_enc_key:
 	$SHL		$len,$len,4
 
 	vadduqm		$out1,$ivec,$one	# counter values ...
-	vadduqm		$out2,$ivec,$two
+	vadduqm		$out2,$ivec,$two	# (do all ctr adds as 128-bit)
 	vxor		$out0,$ivec,$rndkey0	# ... xored with rndkey[0]
 	 le?li		$idx,8
 	vadduqm		$out3,$out1,$two

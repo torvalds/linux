@@ -271,7 +271,7 @@ typedef struct pm_message {
  * actions to be performed by a device driver's callbacks generally depend on
  * the platform and subsystem the device belongs to.
  *
- * Refer to Documentation/power/runtime_pm.txt for more information about the
+ * Refer to Documentation/power/runtime_pm.rst for more information about the
  * role of the @runtime_suspend(), @runtime_resume() and @runtime_idle()
  * callbacks in device runtime power management.
  */
@@ -760,7 +760,6 @@ extern int pm_generic_poweroff_late(struct device *dev);
 extern int pm_generic_poweroff(struct device *dev);
 extern void pm_generic_complete(struct device *dev);
 
-extern void dev_pm_skip_next_resume_phases(struct device *dev);
 extern bool dev_pm_may_skip_resume(struct device *dev);
 extern bool dev_pm_smart_suspend_and_suspended(struct device *dev);
 

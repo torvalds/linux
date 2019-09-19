@@ -32,7 +32,6 @@ static inline void __tlb_flush_idte(unsigned long asce)
 		: : "a" (opt), "a" (asce) : "cc");
 }
 
-#ifdef CONFIG_SMP
 void smp_ptlb_all(void);
 
 /*
@@ -83,22 +82,6 @@ static inline void __tlb_flush_kernel(void)
 	else
 		__tlb_flush_global();
 }
-#else
-#define __tlb_flush_global()	__tlb_flush_local()
-
-/*
- * Flush TLB entries for a specific ASCE on all CPUs.
- */
-static inline void __tlb_flush_mm(struct mm_struct *mm)
-{
-	__tlb_flush_local();
-}
-
-static inline void __tlb_flush_kernel(void)
-{
-	__tlb_flush_local();
-}
-#endif
 
 static inline void __tlb_flush_mm_lazy(struct mm_struct * mm)
 {

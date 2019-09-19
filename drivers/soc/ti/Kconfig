@@ -9,6 +9,11 @@ config ARCH_K3_AM6_SOC
 	help
 	  Enable support for TI's AM6 SoC Family support
 
+config ARCH_K3_J721E_SOC
+	bool "K3 J721E SoC"
+	help
+	  Enable support for TI's J721E SoC Family support
+
 endif
 
 endif

@@ -222,7 +222,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 
 	trans_pcie->ctxt_info = ctxt_info;
 
-	iwl_enable_interrupts(trans);
+	iwl_enable_fw_load_int_ctx_info(trans);
 
 	/* Configure debug, if exists */
 	if (iwl_pcie_dbg_on(trans))

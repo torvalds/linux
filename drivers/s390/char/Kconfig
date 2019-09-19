@@ -79,27 +79,6 @@ config SCLP_VT220_CONSOLE
 	  Include support for using an IBM SCLP VT220-compatible terminal as a
 	  Linux system console.
 
-config SCLP_ASYNC
-	def_tristate m
-	prompt "Support for Call Home via Asynchronous SCLP Records"
-	depends on S390
-	help
-	  This option enables the call home function, which is able to inform
-	  the service element and connected organisations about a kernel panic.
-	  You should only select this option if you know what you are doing,
-	  want for inform other people about your kernel panics,
-	  need this feature and intend to run your kernel in LPAR.
-
-config SCLP_ASYNC_ID
-       string "Component ID for Call Home"
-       depends on SCLP_ASYNC
-       default "000000000"
-       help
-	 The Component ID for Call Home is used to identify the correct
-	 problem reporting queue the call home records should be sent to.
-
-	 If your are unsure, please use the default value "000000000".
-
 config HMC_DRV
 	def_tristate m
 	prompt "Support for file transfers from HMC drive CD/DVD-ROM"
@@ -205,4 +184,3 @@ config S390_VMUR
 	depends on S390
 	help
 	  Character device driver for z/VM reader, puncher and printer.
-

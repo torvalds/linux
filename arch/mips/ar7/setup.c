@@ -57,6 +57,7 @@ const char *get_system_type(void)
 		case TITAN_CHIP_1060:
 			return "TI AR7 (TNETV1060)";
 		}
+		/* fall through */
 	default:
 		return "TI AR7 (unknown)";
 	}

@@ -505,9 +505,12 @@ static int __tracefs_remove(struct dentry *dentry, struct dentry *parent)
 			switch (dentry->d_inode->i_mode & S_IFMT) {
 			case S_IFDIR:
 				ret = simple_rmdir(parent->d_inode, dentry);
+				if (!ret)
+					fsnotify_rmdir(parent->d_inode, dentry);
 				break;
 			default:
 				simple_unlink(parent->d_inode, dentry);
+				fsnotify_unlink(parent->d_inode, dentry);
 				break;
 			}
 			if (!ret)

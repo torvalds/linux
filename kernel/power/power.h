@@ -75,8 +75,6 @@ static inline void hibernate_reserved_size_init(void) {}
 static inline void hibernate_image_size_init(void) {}
 #endif /* !CONFIG_HIBERNATION */
 
-extern int pfn_is_nosave(unsigned long);
-
 #define power_attr(_name) \
 static struct kobj_attribute _name##_attr = {	\
 	.attr	= {				\

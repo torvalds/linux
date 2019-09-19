@@ -336,10 +336,8 @@ static int grvga_probe(struct platform_device *dev)
 	char *options = NULL, *mode_opt = NULL;
 
 	info = framebuffer_alloc(sizeof(struct grvga_par), &dev->dev);
-	if (!info) {
-		dev_err(&dev->dev, "framebuffer_alloc failed\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	/* Expecting: "grvga: modestring, [addr:<framebuffer physical address>], [size:<framebuffer size>]
 	 *

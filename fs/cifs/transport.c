@@ -979,6 +979,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	};
 	unsigned int instance;
 	char *buf;
+	struct TCP_Server_Info *server;
 
 	optype = flags & CIFS_OP_MASK;
 
@@ -990,7 +991,8 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		return -EIO;
 	}
 
-	if (ses->server->tcpStatus == CifsExiting)
+	server = ses->server;
+	if (server->tcpStatus == CifsExiting)
 		return -ENOENT;
 
 	/*
@@ -1001,7 +1003,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	 * other requests.
 	 * This can be handled by the eventual session reconnect.
 	 */
-	rc = wait_for_compound_request(ses->server, num_rqst, flags,
+	rc = wait_for_compound_request(server, num_rqst, flags,
 				       &instance);
 	if (rc)
 		return rc;
@@ -1017,7 +1019,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	 * of smb data.
 	 */
 
-	mutex_lock(&ses->server->srv_mutex);
+	mutex_lock(&server->srv_mutex);
 
 	/*
 	 * All the parts of the compound chain belong obtained credits from the
@@ -1026,24 +1028,24 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	 * we obtained credits and return -EAGAIN in such cases to let callers
 	 * handle it.
 	 */
-	if (instance != ses->server->reconnect_instance) {
-		mutex_unlock(&ses->server->srv_mutex);
+	if (instance != server->reconnect_instance) {
+		mutex_unlock(&server->srv_mutex);
 		for (j = 0; j < num_rqst; j++)
-			add_credits(ses->server, &credits[j], optype);
+			add_credits(server, &credits[j], optype);
 		return -EAGAIN;
 	}
 
 	for (i = 0; i < num_rqst; i++) {
-		midQ[i] = ses->server->ops->setup_request(ses, &rqst[i]);
+		midQ[i] = server->ops->setup_request(ses, &rqst[i]);
 		if (IS_ERR(midQ[i])) {
-			revert_current_mid(ses->server, i);
+			revert_current_mid(server, i);
 			for (j = 0; j < i; j++)
 				cifs_delete_mid(midQ[j]);
-			mutex_unlock(&ses->server->srv_mutex);
+			mutex_unlock(&server->srv_mutex);
 
 			/* Update # of requests on wire to server */
 			for (j = 0; j < num_rqst; j++)
-				add_credits(ses->server, &credits[j], optype);
+				add_credits(server, &credits[j], optype);
 			return PTR_ERR(midQ[i]);
 		}
 
@@ -1059,19 +1061,19 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		else
 			midQ[i]->callback = cifs_compound_last_callback;
 	}
-	cifs_in_send_inc(ses->server);
-	rc = smb_send_rqst(ses->server, num_rqst, rqst, flags);
-	cifs_in_send_dec(ses->server);
+	cifs_in_send_inc(server);
+	rc = smb_send_rqst(server, num_rqst, rqst, flags);
+	cifs_in_send_dec(server);
 
 	for (i = 0; i < num_rqst; i++)
 		cifs_save_when_sent(midQ[i]);
 
 	if (rc < 0) {
-		revert_current_mid(ses->server, num_rqst);
-		ses->server->sequence_number -= 2;
+		revert_current_mid(server, num_rqst);
+		server->sequence_number -= 2;
 	}
 
-	mutex_unlock(&ses->server->srv_mutex);
+	mutex_unlock(&server->srv_mutex);
 
 	/*
 	 * If sending failed for some reason or it is an oplock break that we
@@ -1079,7 +1081,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	 */
 	if (rc < 0 || (flags & CIFS_NO_SRV_RSP)) {
 		for (i = 0; i < num_rqst; i++)
-			add_credits(ses->server, &credits[i], optype);
+			add_credits(server, &credits[i], optype);
 		goto out;
 	}
 
@@ -1099,7 +1101,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 					   rqst[0].rq_nvec);
 
 	for (i = 0; i < num_rqst; i++) {
-		rc = wait_for_response(ses->server, midQ[i]);
+		rc = wait_for_response(server, midQ[i]);
 		if (rc != 0)
 			break;
 	}
@@ -1107,7 +1109,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		for (; i < num_rqst; i++) {
 			cifs_dbg(VFS, "Cancelling wait for mid %llu cmd: %d\n",
 				 midQ[i]->mid, le16_to_cpu(midQ[i]->command));
-			send_cancel(ses->server, &rqst[i], midQ[i]);
+			send_cancel(server, &rqst[i], midQ[i]);
 			spin_lock(&GlobalMid_Lock);
 			if (midQ[i]->mid_state == MID_REQUEST_SUBMITTED) {
 				midQ[i]->mid_flags |= MID_WAIT_CANCELLED;
@@ -1123,7 +1125,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		if (rc < 0)
 			goto out;
 
-		rc = cifs_sync_mid_result(midQ[i], ses->server);
+		rc = cifs_sync_mid_result(midQ[i], server);
 		if (rc != 0) {
 			/* mark this mid as cancelled to not free it below */
 			cancelled_mid[i] = true;
@@ -1140,14 +1142,14 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		buf = (char *)midQ[i]->resp_buf;
 		resp_iov[i].iov_base = buf;
 		resp_iov[i].iov_len = midQ[i]->resp_buf_size +
-			ses->server->vals->header_preamble_size;
+			server->vals->header_preamble_size;
 
 		if (midQ[i]->large_buf)
 			resp_buf_type[i] = CIFS_LARGE_BUFFER;
 		else
 			resp_buf_type[i] = CIFS_SMALL_BUFFER;
 
-		rc = ses->server->ops->check_receive(midQ[i], ses->server,
+		rc = server->ops->check_receive(midQ[i], server,
 						     flags & CIFS_LOG_ERROR);
 
 		/* mark it so buf will not be freed by cifs_delete_mid */

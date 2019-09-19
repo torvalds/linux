@@ -63,10 +63,12 @@ struct rcar_lvds {
 		struct clk *extal;		/* External clock */
 		struct clk *dotclkin[2];	/* External DU clocks */
 	} clocks;
-	bool enabled;
 
 	struct drm_display_mode display_mode;
 	enum rcar_lvds_mode mode;
+
+	struct drm_bridge *companion;
+	bool dual_link;
 };
 
 #define bridge_to_rcar_lvds(bridge) \
@@ -92,13 +94,15 @@ static int rcar_lvds_connector_get_modes(struct drm_connector *connector)
 }
 
 static int rcar_lvds_connector_atomic_check(struct drm_connector *connector,
-					    struct drm_connector_state *state)
+					    struct drm_atomic_state *state)
 {
 	struct rcar_lvds *lvds = connector_to_rcar_lvds(connector);
 	const struct drm_display_mode *panel_mode;
+	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;
 
-	if (!state->crtc)
+	conn_state = drm_atomic_get_new_connector_state(state, connector);
+	if (!conn_state->crtc)
 		return 0;
 
 	if (list_empty(&connector->modes)) {
@@ -110,7 +114,7 @@ static int rcar_lvds_connector_atomic_check(struct drm_connector *connector,
 				      struct drm_display_mode, head);
 
 	/* We're not allowed to modify the resolution. */
-	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
+	crtc_state = drm_atomic_get_crtc_state(state, conn_state->crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
@@ -368,15 +372,12 @@ int rcar_lvds_clk_enable(struct drm_bridge *bridge, unsigned long freq)
 
 	dev_dbg(lvds->dev, "enabling LVDS PLL, freq=%luHz\n", freq);
 
-	WARN_ON(lvds->enabled);
-
 	ret = clk_prepare_enable(lvds->clocks.mod);
 	if (ret < 0)
 		return ret;
 
 	__rcar_lvds_pll_setup_d3_e3(lvds, freq, true);
 
-	lvds->enabled = true;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rcar_lvds_clk_enable);
@@ -390,13 +391,9 @@ void rcar_lvds_clk_disable(struct drm_bridge *bridge)
 
 	dev_dbg(lvds->dev, "disabling LVDS PLL\n");
 
-	WARN_ON(!lvds->enabled);
-
 	rcar_lvds_write(lvds, LVDPLLCR, 0);
 
 	clk_disable_unprepare(lvds->clocks.mod);
-
-	lvds->enabled = false;
 }
 EXPORT_SYMBOL_GPL(rcar_lvds_clk_disable);
 
@@ -408,20 +405,17 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 	const struct drm_display_mode *mode = &lvds->display_mode;
-	/*
-	 * FIXME: We should really retrieve the CRTC through the state, but how
-	 * do we get a state pointer?
-	 */
-	struct drm_crtc *crtc = lvds->bridge.encoder->crtc;
 	u32 lvdhcr;
 	u32 lvdcr0;
 	int ret;
 
-	WARN_ON(lvds->enabled);
-
 	ret = clk_prepare_enable(lvds->clocks.mod);
 	if (ret < 0)
 		return;
+
+	/* Enable the companion LVDS encoder in dual-link mode. */
+	if (lvds->dual_link && lvds->companion)
+		lvds->companion->funcs->enable(lvds->companion);
 
 	/*
 	 * Hardcode the channels and control signals routing for now.
@@ -445,17 +439,33 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 	rcar_lvds_write(lvds, LVDCHCR, lvdhcr);
 
 	if (lvds->info->quirks & RCAR_LVDS_QUIRK_DUAL_LINK) {
-		/* Disable dual-link mode. */
-		rcar_lvds_write(lvds, LVDSTRIPE, 0);
+		/*
+		 * Configure vertical stripe based on the mode of operation of
+		 * the connected device.
+		 */
+		rcar_lvds_write(lvds, LVDSTRIPE,
+				lvds->dual_link ? LVDSTRIPE_ST_ON : 0);
 	}
 
-	/* PLL clock configuration. */
-	lvds->info->pll_setup(lvds, mode->clock * 1000);
+	/*
+	 * PLL clock configuration on all instances but the companion in
+	 * dual-link mode.
+	 */
+	if (!lvds->dual_link || lvds->companion)
+		lvds->info->pll_setup(lvds, mode->clock * 1000);
 
 	/* Set the LVDS mode and select the input. */
 	lvdcr0 = lvds->mode << LVDCR0_LVMD_SHIFT;
-	if (drm_crtc_index(crtc) == 2)
-		lvdcr0 |= LVDCR0_DUSEL;
+
+	if (lvds->bridge.encoder) {
+		/*
+		 * FIXME: We should really retrieve the CRTC through the state,
+		 * but how do we get a state pointer?
+		 */
+		if (drm_crtc_index(lvds->bridge.encoder->crtc) == 2)
+			lvdcr0 |= LVDCR0_DUSEL;
+	}
+
 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
 
 	/* Turn all the channels on. */
@@ -507,15 +517,11 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 		drm_panel_prepare(lvds->panel);
 		drm_panel_enable(lvds->panel);
 	}
-
-	lvds->enabled = true;
 }
 
 static void rcar_lvds_disable(struct drm_bridge *bridge)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
-
-	WARN_ON(!lvds->enabled);
 
 	if (lvds->panel) {
 		drm_panel_disable(lvds->panel);
@@ -526,9 +532,11 @@ static void rcar_lvds_disable(struct drm_bridge *bridge)
 	rcar_lvds_write(lvds, LVDCR1, 0);
 	rcar_lvds_write(lvds, LVDPLLCR, 0);
 
-	clk_disable_unprepare(lvds->clocks.mod);
+	/* Disable the companion LVDS encoder in dual-link mode. */
+	if (lvds->dual_link && lvds->companion)
+		lvds->companion->funcs->disable(lvds->companion);
 
-	lvds->enabled = false;
+	clk_disable_unprepare(lvds->clocks.mod);
 }
 
 static bool rcar_lvds_mode_fixup(struct drm_bridge *bridge,
@@ -592,8 +600,6 @@ static void rcar_lvds_mode_set(struct drm_bridge *bridge,
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 
-	WARN_ON(lvds->enabled);
-
 	lvds->display_mode = *adjusted_mode;
 
 	rcar_lvds_get_lvds_mode(lvds);
@@ -646,9 +652,54 @@ static const struct drm_bridge_funcs rcar_lvds_bridge_ops = {
 	.mode_set = rcar_lvds_mode_set,
 };
 
+bool rcar_lvds_dual_link(struct drm_bridge *bridge)
+{
+	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
+
+	return lvds->dual_link;
+}
+EXPORT_SYMBOL_GPL(rcar_lvds_dual_link);
+
 /* -----------------------------------------------------------------------------
  * Probe & Remove
  */
+
+static int rcar_lvds_parse_dt_companion(struct rcar_lvds *lvds)
+{
+	const struct of_device_id *match;
+	struct device_node *companion;
+	struct device *dev = lvds->dev;
+	int ret = 0;
+
+	/* Locate the companion LVDS encoder for dual-link operation, if any. */
+	companion = of_parse_phandle(dev->of_node, "renesas,companion", 0);
+	if (!companion)
+		return 0;
+
+	/*
+	 * Sanity check: the companion encoder must have the same compatible
+	 * string.
+	 */
+	match = of_match_device(dev->driver->of_match_table, dev);
+	if (!of_device_is_compatible(companion, match->compatible)) {
+		dev_err(dev, "Companion LVDS encoder is invalid\n");
+		ret = -ENXIO;
+		goto done;
+	}
+
+	lvds->companion = of_drm_find_bridge(companion);
+	if (!lvds->companion) {
+		ret = -EPROBE_DEFER;
+		goto done;
+	}
+
+	dev_dbg(dev, "Found companion encoder %pOF\n", companion);
+
+done:
+	of_node_put(companion);
+
+	return ret;
+}
 
 static int rcar_lvds_parse_dt(struct rcar_lvds *lvds)
 {
@@ -700,13 +751,25 @@ static int rcar_lvds_parse_dt(struct rcar_lvds *lvds)
 
 	if (is_bridge) {
 		lvds->next_bridge = of_drm_find_bridge(remote);
-		if (!lvds->next_bridge)
+		if (!lvds->next_bridge) {
 			ret = -EPROBE_DEFER;
+			goto done;
+		}
+
+		if (lvds->info->quirks & RCAR_LVDS_QUIRK_DUAL_LINK)
+			lvds->dual_link = lvds->next_bridge->timings
+					? lvds->next_bridge->timings->dual_link
+					: false;
 	} else {
 		lvds->panel = of_drm_find_panel(remote);
-		if (IS_ERR(lvds->panel))
+		if (IS_ERR(lvds->panel)) {
 			ret = PTR_ERR(lvds->panel);
+			goto done;
+		}
 	}
+
+	if (lvds->dual_link)
+		ret = rcar_lvds_parse_dt_companion(lvds);
 
 done:
 	of_node_put(local_output);
@@ -793,7 +856,6 @@ static int rcar_lvds_probe(struct platform_device *pdev)
 
 	lvds->dev = &pdev->dev;
 	lvds->info = of_device_get_match_data(&pdev->dev);
-	lvds->enabled = false;
 
 	ret = rcar_lvds_parse_dt(lvds);
 	if (ret < 0)
@@ -866,6 +928,7 @@ static const struct rcar_lvds_device_info rcar_lvds_r8a77995_info = {
 static const struct of_device_id rcar_lvds_of_table[] = {
 	{ .compatible = "renesas,r8a7743-lvds", .data = &rcar_lvds_gen2_info },
 	{ .compatible = "renesas,r8a7744-lvds", .data = &rcar_lvds_gen2_info },
+	{ .compatible = "renesas,r8a774a1-lvds", .data = &rcar_lvds_gen3_info },
 	{ .compatible = "renesas,r8a774c0-lvds", .data = &rcar_lvds_r8a77990_info },
 	{ .compatible = "renesas,r8a7790-lvds", .data = &rcar_lvds_r8a7790_info },
 	{ .compatible = "renesas,r8a7791-lvds", .data = &rcar_lvds_gen2_info },

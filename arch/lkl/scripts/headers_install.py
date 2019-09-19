@@ -140,15 +140,14 @@ new_headers = set()
 
 for h in headers:
     dir = os.path.dirname(h)
-    copyfromdir = os.path.dirname(relpath2abspath(h))
     out_dir = args.path + "/" + re.sub("(arch/lkl/include/uapi/|arch/lkl/include/generated/uapi/|include/uapi/|include/generated/uapi/|include/generated)(.*)", "lkl/\\2", dir)
     try:
         os.makedirs(out_dir)
     except:
         pass
     print("  INSTALL\t%s" % (out_dir + "/" + os.path.basename(h)))
-    os.system(srctree+"/scripts/headers_install.sh %s %s %s" % (out_dir, copyfromdir,
-                                                       os.path.basename(h)))
+    os.system(srctree+"/scripts/headers_install.sh %s %s" % (os.path.abspath(h),
+                                                       out_dir + "/" + os.path.basename(h)))
     new_headers.add(out_dir + "/" + os.path.basename(h))
 
 headers = new_headers

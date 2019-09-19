@@ -409,6 +409,10 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 			}
 		}
 
+		if (buff->is_vlan)
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+					       buff->vlan_rx_tag);
+
 		skb->protocol = eth_type_trans(skb, ndev);
 
 		aq_rx_checksum(self, buff, skb);

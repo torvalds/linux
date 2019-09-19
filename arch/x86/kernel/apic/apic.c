@@ -183,7 +183,7 @@ EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
 /*
  * Debug level, exported for io_apic.c
  */
-unsigned int apic_verbosity;
+int apic_verbosity;
 
 int pic_mode;
 
@@ -195,7 +195,7 @@ static struct resource lapic_resource = {
 	.flags = IORESOURCE_MEM | IORESOURCE_BUSY,
 };
 
-unsigned int lapic_timer_frequency = 0;
+unsigned int lapic_timer_period = 0;
 
 static void apic_pm_activate(void);
 
@@ -501,7 +501,7 @@ lapic_timer_set_periodic_oneshot(struct clock_event_device *evt, bool oneshot)
 	if (evt->features & CLOCK_EVT_FEAT_DUMMY)
 		return 0;
 
-	__setup_APIC_LVTT(lapic_timer_frequency, oneshot, 1);
+	__setup_APIC_LVTT(lapic_timer_period, oneshot, 1);
 	return 0;
 }
 
@@ -722,7 +722,7 @@ static __initdata unsigned long lapic_cal_pm1, lapic_cal_pm2;
 static __initdata unsigned long lapic_cal_j1, lapic_cal_j2;
 
 /*
- * Temporary interrupt handler.
+ * Temporary interrupt handler and polled calibration function.
  */
 static void __init lapic_cal_handler(struct clock_event_device *dev)
 {
@@ -805,11 +805,11 @@ calibrate_by_pmtimer(long deltapm, long *delta, long *deltatsc)
 
 static int __init lapic_init_clockevent(void)
 {
-	if (!lapic_timer_frequency)
+	if (!lapic_timer_period)
 		return -1;
 
 	/* Calculate the scaled math multiplication factor */
-	lapic_clockevent.mult = div_sc(lapic_timer_frequency/APIC_DIVISOR,
+	lapic_clockevent.mult = div_sc(lapic_timer_period/APIC_DIVISOR,
 					TICK_NSEC, lapic_clockevent.shift);
 	lapic_clockevent.max_delta_ns =
 		clockevent_delta2ns(0x7FFFFFFF, &lapic_clockevent);
@@ -821,10 +821,42 @@ static int __init lapic_init_clockevent(void)
 	return 0;
 }
 
+bool __init apic_needs_pit(void)
+{
+	/*
+	 * If the frequencies are not known, PIT is required for both TSC
+	 * and apic timer calibration.
+	 */
+	if (!tsc_khz || !cpu_khz)
+		return true;
+
+	/* Is there an APIC at all? */
+	if (!boot_cpu_has(X86_FEATURE_APIC))
+		return true;
+
+	/* Virt guests may lack ARAT, but still have DEADLINE */
+	if (!boot_cpu_has(X86_FEATURE_ARAT))
+		return true;
+
+	/* Deadline timer is based on TSC so no further PIT action required */
+	if (boot_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER))
+		return false;
+
+	/* APIC timer disabled? */
+	if (disable_apic_timer)
+		return true;
+	/*
+	 * The APIC timer frequency is known already, no PIT calibration
+	 * required. If unknown, let the PIT be initialized.
+	 */
+	return lapic_timer_period == 0;
+}
+
 static int __init calibrate_APIC_clock(void)
 {
 	struct clock_event_device *levt = this_cpu_ptr(&lapic_events);
-	void (*real_handler)(struct clock_event_device *dev);
+	u64 tsc_perj = 0, tsc_start = 0;
+	unsigned long jif_start;
 	unsigned long deltaj;
 	long delta, deltatsc;
 	int pm_referenced = 0;
@@ -839,7 +871,7 @@ static int __init calibrate_APIC_clock(void)
 	 */
 	if (!lapic_init_clockevent()) {
 		apic_printk(APIC_VERBOSE, "lapic timer already calibrated %d\n",
-			    lapic_timer_frequency);
+			    lapic_timer_period);
 		/*
 		 * Direct calibration methods must have an always running
 		 * local APIC timer, no need for broadcast timer.
@@ -851,11 +883,12 @@ static int __init calibrate_APIC_clock(void)
 	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n"
 		    "calibrating APIC timer ...\n");
 
+	/*
+	 * There are platforms w/o global clockevent devices. Instead of
+	 * making the calibration conditional on that, use a polling based
+	 * approach everywhere.
+	 */
 	local_irq_disable();
-
-	/* Replace the global interrupt handler */
-	real_handler = global_clock_event->event_handler;
-	global_clock_event->event_handler = lapic_cal_handler;
 
 	/*
 	 * Setup the APIC counter to maximum. There is no way the lapic
@@ -863,16 +896,51 @@ static int __init calibrate_APIC_clock(void)
 	 */
 	__setup_APIC_LVTT(0xffffffff, 0, 0);
 
-	/* Let the interrupts run */
+	/*
+	 * Methods to terminate the calibration loop:
+	 *  1) Global clockevent if available (jiffies)
+	 *  2) TSC if available and frequency is known
+	 */
+	jif_start = READ_ONCE(jiffies);
+
+	if (tsc_khz) {
+		tsc_start = rdtsc();
+		tsc_perj = div_u64((u64)tsc_khz * 1000, HZ);
+	}
+
+	/*
+	 * Enable interrupts so the tick can fire, if a global
+	 * clockevent device is available
+	 */
 	local_irq_enable();
 
-	while (lapic_cal_loops <= LAPIC_CAL_LOOPS)
-		cpu_relax();
+	while (lapic_cal_loops <= LAPIC_CAL_LOOPS) {
+		/* Wait for a tick to elapse */
+		while (1) {
+			if (tsc_khz) {
+				u64 tsc_now = rdtsc();
+				if ((tsc_now - tsc_start) >= tsc_perj) {
+					tsc_start += tsc_perj;
+					break;
+				}
+			} else {
+				unsigned long jif_now = READ_ONCE(jiffies);
+
+				if (time_after(jif_now, jif_start)) {
+					jif_start = jif_now;
+					break;
+				}
+			}
+			cpu_relax();
+		}
+
+		/* Invoke the calibration routine */
+		local_irq_disable();
+		lapic_cal_handler(NULL);
+		local_irq_enable();
+	}
 
 	local_irq_disable();
-
-	/* Restore the real event handler */
-	global_clock_event->event_handler = real_handler;
 
 	/* Build delta t1-t2 as apic timer counts down */
 	delta = lapic_cal_t1 - lapic_cal_t2;
@@ -884,13 +952,13 @@ static int __init calibrate_APIC_clock(void)
 	pm_referenced = !calibrate_by_pmtimer(lapic_cal_pm2 - lapic_cal_pm1,
 					&delta, &deltatsc);
 
-	lapic_timer_frequency = (delta * APIC_DIVISOR) / LAPIC_CAL_LOOPS;
+	lapic_timer_period = (delta * APIC_DIVISOR) / LAPIC_CAL_LOOPS;
 	lapic_init_clockevent();
 
 	apic_printk(APIC_VERBOSE, "..... delta %ld\n", delta);
 	apic_printk(APIC_VERBOSE, "..... mult: %u\n", lapic_clockevent.mult);
 	apic_printk(APIC_VERBOSE, "..... calibration result: %u\n",
-		    lapic_timer_frequency);
+		    lapic_timer_period);
 
 	if (boot_cpu_has(X86_FEATURE_TSC)) {
 		apic_printk(APIC_VERBOSE, "..... CPU clock speed is "
@@ -901,13 +969,13 @@ static int __init calibrate_APIC_clock(void)
 
 	apic_printk(APIC_VERBOSE, "..... host bus clock speed is "
 		    "%u.%04u MHz.\n",
-		    lapic_timer_frequency / (1000000 / HZ),
-		    lapic_timer_frequency % (1000000 / HZ));
+		    lapic_timer_period / (1000000 / HZ),
+		    lapic_timer_period % (1000000 / HZ));
 
 	/*
 	 * Do a sanity check on the APIC calibration result
 	 */
-	if (lapic_timer_frequency < (1000000 / HZ)) {
+	if (lapic_timer_period < (1000000 / HZ)) {
 		local_irq_enable();
 		pr_warning("APIC frequency too slow, disabling apic timer\n");
 		return -1;
@@ -916,10 +984,11 @@ static int __init calibrate_APIC_clock(void)
 	levt->features &= ~CLOCK_EVT_FEAT_DUMMY;
 
 	/*
-	 * PM timer calibration failed or not turned on
-	 * so lets try APIC timer based calibration
+	 * PM timer calibration failed or not turned on so lets try APIC
+	 * timer based calibration, if a global clockevent device is
+	 * available.
 	 */
-	if (!pm_referenced) {
+	if (!pm_referenced && global_clock_event) {
 		apic_printk(APIC_VERBOSE, "... verify APIC timer\n");
 
 		/*
@@ -1350,6 +1419,8 @@ void __init init_bsp_APIC(void)
 		value |= APIC_LVT_MASKED;
 	apic_write(APIC_LVT1, value);
 }
+
+static void __init apic_bsp_setup(bool upmode);
 
 /* Init the interrupt delivery mode for the BSP */
 void __init apic_intr_mode_init(void)
@@ -2041,21 +2112,32 @@ __visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
 	entering_irq();
 	trace_spurious_apic_entry(vector);
 
-	/*
-	 * Check if this really is a spurious interrupt and ACK it
-	 * if it is a vectored one.  Just in case...
-	 * Spurious interrupts should not be ACKed.
-	 */
-	v = apic_read(APIC_ISR + ((vector & ~0x1f) >> 1));
-	if (v & (1 << (vector & 0x1f)))
-		ack_APIC_irq();
-
 	inc_irq_stat(irq_spurious_count);
 
-	/* see sw-dev-man vol 3, chapter 7.4.13.5 */
-	pr_info("spurious APIC interrupt through vector %02x on CPU#%d, "
-		"should never happen.\n", vector, smp_processor_id());
+	/*
+	 * If this is a spurious interrupt then do not acknowledge
+	 */
+	if (vector == SPURIOUS_APIC_VECTOR) {
+		/* See SDM vol 3 */
+		pr_info("Spurious APIC interrupt (vector 0xFF) on CPU#%d, should never happen.\n",
+			smp_processor_id());
+		goto out;
+	}
 
+	/*
+	 * If it is a vectored one, verify it's set in the ISR. If set,
+	 * acknowledge it.
+	 */
+	v = apic_read(APIC_ISR + ((vector & ~0x1f) >> 1));
+	if (v & (1 << (vector & 0x1f))) {
+		pr_info("Spurious interrupt (vector 0x%02x) on CPU#%d. Acked\n",
+			vector, smp_processor_id());
+		ack_APIC_irq();
+	} else {
+		pr_info("Spurious interrupt (vector 0x%02x) on CPU#%d. Not pending!\n",
+			vector, smp_processor_id());
+	}
+out:
 	trace_spurious_apic_exit(vector);
 	exiting_irq();
 }
@@ -2416,11 +2498,8 @@ static void __init apic_bsp_up_setup(void)
 /**
  * apic_bsp_setup - Setup function for local apic and io-apic
  * @upmode:		Force UP mode (for APIC_init_uniprocessor)
- *
- * Returns:
- * apic_id of BSP APIC
  */
-void __init apic_bsp_setup(bool upmode)
+static void __init apic_bsp_setup(bool upmode)
 {
 	connect_bsp_APIC();
 	if (upmode)

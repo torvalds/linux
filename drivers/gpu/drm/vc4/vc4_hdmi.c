@@ -58,6 +58,9 @@
 struct vc4_hdmi_audio {
 	struct snd_soc_card card;
 	struct snd_soc_dai_link link;
+	struct snd_soc_dai_link_component cpu;
+	struct snd_soc_dai_link_component codec;
+	struct snd_soc_dai_link_component platform;
 	int samplerate;
 	int channels;
 	struct snd_dmaengine_dai_dma_data dma_data;
@@ -244,11 +247,17 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
+static void vc4_hdmi_connector_reset(struct drm_connector *connector)
+{
+	drm_atomic_helper_connector_reset(connector);
+	drm_atomic_helper_connector_tv_reset(connector);
+}
+
 static const struct drm_connector_funcs vc4_hdmi_connector_funcs = {
 	.detect = vc4_hdmi_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = vc4_hdmi_connector_destroy,
-	.reset = drm_atomic_helper_connector_reset,
+	.reset = vc4_hdmi_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
@@ -1085,12 +1094,20 @@ static int vc4_hdmi_audio_init(struct vc4_hdmi *hdmi)
 		return ret;
 	}
 
+	dai_link->cpus		= &hdmi->audio.cpu;
+	dai_link->codecs	= &hdmi->audio.codec;
+	dai_link->platforms	= &hdmi->audio.platform;
+
+	dai_link->num_cpus	= 1;
+	dai_link->num_codecs	= 1;
+	dai_link->num_platforms	= 1;
+
 	dai_link->name = "MAI";
 	dai_link->stream_name = "MAI PCM";
-	dai_link->codec_dai_name = vc4_hdmi_audio_codec_dai_drv.name;
-	dai_link->cpu_dai_name = dev_name(dev);
-	dai_link->codec_name = dev_name(dev);
-	dai_link->platform_name = dev_name(dev);
+	dai_link->codecs->dai_name = vc4_hdmi_audio_codec_dai_drv.name;
+	dai_link->cpus->dai_name = dev_name(dev);
+	dai_link->codecs->name = dev_name(dev);
+	dai_link->platforms->name = dev_name(dev);
 
 	card->dai_link = dai_link;
 	card->num_links = 1;

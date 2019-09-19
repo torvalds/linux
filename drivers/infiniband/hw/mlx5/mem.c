@@ -55,10 +55,12 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 	int i = 0;
 	struct scatterlist *sg;
 	int entry;
-	unsigned long page_shift = umem->page_shift;
 
 	if (umem->is_odp) {
-		*ncont = ib_umem_page_count(umem);
+		struct ib_umem_odp *odp = to_ib_umem_odp(umem);
+		unsigned int page_shift = odp->page_shift;
+
+		*ncont = ib_umem_odp_num_pages(odp);
 		*count = *ncont << (page_shift - PAGE_SHIFT);
 		*shift = page_shift;
 		if (order)
@@ -67,15 +69,15 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 		return;
 	}
 
-	addr = addr >> page_shift;
+	addr = addr >> PAGE_SHIFT;
 	tmp = (unsigned long)addr;
 	m = find_first_bit(&tmp, BITS_PER_LONG);
 	if (max_page_shift)
-		m = min_t(unsigned long, max_page_shift - page_shift, m);
+		m = min_t(unsigned long, max_page_shift - PAGE_SHIFT, m);
 
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = sg_dma_len(sg) >> page_shift;
-		pfn = sg_dma_address(sg) >> page_shift;
+		len = sg_dma_len(sg) >> PAGE_SHIFT;
+		pfn = sg_dma_address(sg) >> PAGE_SHIFT;
 		if (base + p != pfn) {
 			/* If either the offset or the new
 			 * base are unaligned update m
@@ -107,7 +109,7 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 
 		*ncont = 0;
 	}
-	*shift = page_shift + m;
+	*shift = PAGE_SHIFT + m;
 	*count = i;
 }
 
@@ -140,8 +142,7 @@ void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 			    int page_shift, size_t offset, size_t num_pages,
 			    __be64 *pas, int access_flags)
 {
-	unsigned long umem_page_shift = umem->page_shift;
-	int shift = page_shift - umem_page_shift;
+	int shift = page_shift - PAGE_SHIFT;
 	int mask = (1 << shift) - 1;
 	int i, k, idx;
 	u64 cur = 0;
@@ -165,7 +166,7 @@ void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 
 	i = 0;
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = sg_dma_len(sg) >> umem_page_shift;
+		len = sg_dma_len(sg) >> PAGE_SHIFT;
 		base = sg_dma_address(sg);
 
 		/* Skip elements below offset */
@@ -184,7 +185,7 @@ void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 
 		for (; k < len; k++) {
 			if (!(i & mask)) {
-				cur = base + (k << umem_page_shift);
+				cur = base + (k << PAGE_SHIFT);
 				cur |= access_flags;
 				idx = (i >> shift) - offset;
 

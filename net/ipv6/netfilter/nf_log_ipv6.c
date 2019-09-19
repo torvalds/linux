@@ -155,7 +155,7 @@ static void dump_ipv6_packet(struct net *net, struct nf_log_buf *m,
 
 			}
 
-			hdrlen = (hp->hdrlen+2)<<2;
+			hdrlen = ipv6_authlen(hp);
 			break;
 		case IPPROTO_ESP:
 			if (logflags & NF_LOG_IPOPT) {

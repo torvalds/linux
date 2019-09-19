@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/bitfield.h>
 #include <linux/firmware.h>
 #include <drm/drm_print.h>
 
@@ -119,21 +120,20 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		goto fail;
 	}
 
-	/*
-	 * The GuC firmware image has the version number embedded at a
-	 * well-known offset within the firmware blob; note that major / minor
-	 * version are TWO bytes each (i.e. u16), although all pointers and
-	 * offsets are defined in terms of bytes (u8).
-	 */
+	/* Get version numbers from the CSS header */
 	switch (uc_fw->type) {
 	case INTEL_UC_FW_TYPE_GUC:
-		uc_fw->major_ver_found = css->guc.sw_version >> 16;
-		uc_fw->minor_ver_found = css->guc.sw_version & 0xFFFF;
+		uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_GUC_MAJOR,
+						   css->sw_version);
+		uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_GUC_MINOR,
+						   css->sw_version);
 		break;
 
 	case INTEL_UC_FW_TYPE_HUC:
-		uc_fw->major_ver_found = css->huc.sw_version >> 16;
-		uc_fw->minor_ver_found = css->huc.sw_version & 0xFFFF;
+		uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_HUC_MAJOR,
+						   css->sw_version);
+		uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_HUC_MINOR,
+						   css->sw_version);
 		break;
 
 	default:
@@ -159,7 +159,8 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		goto fail;
 	}
 
-	obj = i915_gem_object_create_from_data(dev_priv, fw->data, fw->size);
+	obj = i915_gem_object_create_shmem_from_data(dev_priv,
+						     fw->data, fw->size);
 	if (IS_ERR(obj)) {
 		err = PTR_ERR(obj);
 		DRM_DEBUG_DRIVER("%s fw object_create err=%d\n",
@@ -191,6 +192,35 @@ fail:
 	release_firmware(fw);		/* OK even if fw is NULL */
 }
 
+static void intel_uc_fw_ggtt_bind(struct intel_uc_fw *uc_fw)
+{
+	struct drm_i915_gem_object *obj = uc_fw->obj;
+	struct i915_ggtt *ggtt = &to_i915(obj->base.dev)->ggtt;
+	struct i915_vma dummy = {
+		.node.start = intel_uc_fw_ggtt_offset(uc_fw),
+		.node.size = obj->base.size,
+		.pages = obj->mm.pages,
+		.vm = &ggtt->vm,
+	};
+
+	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+	GEM_BUG_ON(dummy.node.size > ggtt->uc_fw.size);
+
+	/* uc_fw->obj cache domains were not controlled across suspend */
+	drm_clflush_sg(dummy.pages);
+
+	ggtt->vm.insert_entries(&ggtt->vm, &dummy, I915_CACHE_NONE, 0);
+}
+
+static void intel_uc_fw_ggtt_unbind(struct intel_uc_fw *uc_fw)
+{
+	struct drm_i915_gem_object *obj = uc_fw->obj;
+	struct i915_ggtt *ggtt = &to_i915(obj->base.dev)->ggtt;
+	u64 start = intel_uc_fw_ggtt_offset(uc_fw);
+
+	ggtt->vm.clear_range(&ggtt->vm, start, obj->base.size);
+}
+
 /**
  * intel_uc_fw_upload - load uC firmware using custom loader
  * @uc_fw: uC firmware
@@ -201,11 +231,8 @@ fail:
  * Return: 0 on success, non-zero on failure.
  */
 int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
-		       int (*xfer)(struct intel_uc_fw *uc_fw,
-				   struct i915_vma *vma))
+		       int (*xfer)(struct intel_uc_fw *uc_fw))
 {
-	struct i915_vma *vma;
-	u32 ggtt_pin_bias;
 	int err;
 
 	DRM_DEBUG_DRIVER("%s fw load %s\n",
@@ -219,33 +246,10 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 			 intel_uc_fw_type_repr(uc_fw->type),
 			 intel_uc_fw_status_repr(uc_fw->load_status));
 
-	/* Pin object with firmware */
-	err = i915_gem_object_set_to_gtt_domain(uc_fw->obj, false);
-	if (err) {
-		DRM_DEBUG_DRIVER("%s fw set-domain err=%d\n",
-				 intel_uc_fw_type_repr(uc_fw->type), err);
-		goto fail;
-	}
-
-	ggtt_pin_bias = to_i915(uc_fw->obj->base.dev)->ggtt.pin_bias;
-	vma = i915_gem_object_ggtt_pin(uc_fw->obj, NULL, 0, 0,
-				       PIN_OFFSET_BIAS | ggtt_pin_bias);
-	if (IS_ERR(vma)) {
-		err = PTR_ERR(vma);
-		DRM_DEBUG_DRIVER("%s fw ggtt-pin err=%d\n",
-				 intel_uc_fw_type_repr(uc_fw->type), err);
-		goto fail;
-	}
-
 	/* Call custom loader */
-	err = xfer(uc_fw, vma);
-
-	/*
-	 * We keep the object pages for reuse during resume. But we can unpin it
-	 * now that DMA has completed, so it doesn't continue to take up space.
-	 */
-	i915_vma_unpin(vma);
-
+	intel_uc_fw_ggtt_bind(uc_fw);
+	err = xfer(uc_fw);
+	intel_uc_fw_ggtt_unbind(uc_fw);
 	if (err)
 		goto fail;
 
@@ -273,14 +277,50 @@ fail:
 	return err;
 }
 
+int intel_uc_fw_init(struct intel_uc_fw *uc_fw)
+{
+	int err;
+
+	if (uc_fw->fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
+		return -ENOEXEC;
+
+	err = i915_gem_object_pin_pages(uc_fw->obj);
+	if (err)
+		DRM_DEBUG_DRIVER("%s fw pin-pages err=%d\n",
+				 intel_uc_fw_type_repr(uc_fw->type), err);
+
+	return err;
+}
+
+void intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
+{
+	if (uc_fw->fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
+		return;
+
+	i915_gem_object_unpin_pages(uc_fw->obj);
+}
+
+u32 intel_uc_fw_ggtt_offset(struct intel_uc_fw *uc_fw)
+{
+	struct drm_i915_private *i915 = to_i915(uc_fw->obj->base.dev);
+	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct drm_mm_node *node = &ggtt->uc_fw;
+
+	GEM_BUG_ON(!node->allocated);
+	GEM_BUG_ON(upper_32_bits(node->start));
+	GEM_BUG_ON(upper_32_bits(node->start + node->size - 1));
+
+	return lower_32_bits(node->start);
+}
+
 /**
- * intel_uc_fw_fini - cleanup uC firmware
+ * intel_uc_fw_cleanup_fetch - cleanup uC firmware
  *
  * @uc_fw: uC firmware
  *
  * Cleans up uC firmware by releasing the firmware GEM obj.
  */
-void intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
+void intel_uc_fw_cleanup_fetch(struct intel_uc_fw *uc_fw)
 {
 	struct drm_i915_gem_object *obj;
 

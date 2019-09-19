@@ -1074,7 +1074,6 @@ static int snd_emu10k1x_shared_spdif_put(struct snd_kcontrol *kcontrol,
 {
 	struct emu10k1x *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
-	int change = 0;
 
 	val = ucontrol->value.integer.value[0] ;
 
@@ -1089,7 +1088,7 @@ static int snd_emu10k1x_shared_spdif_put(struct snd_kcontrol *kcontrol,
 		snd_emu10k1x_ptr_write(emu, ROUTING, 0, 0x1003F);
 		snd_emu10k1x_gpio_write(emu, 0x1080);
 	}
-	return change;
+	return 0;
 }
 
 static const struct snd_kcontrol_new snd_emu10k1x_shared_spdif =

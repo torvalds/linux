@@ -457,7 +457,7 @@ static struct pci_driver amd_mp2_pci_driver = {
 };
 module_pci_driver(amd_mp2_pci_driver);
 
-static int amd_mp2_device_match(struct device *dev, void *data)
+static int amd_mp2_device_match(struct device *dev, const void *data)
 {
 	return 1;
 }

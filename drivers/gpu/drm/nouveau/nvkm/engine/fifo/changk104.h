@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __GK104_FIFO_CHAN_H__
 #define __GK104_FIFO_CHAN_H__
 #define gk104_fifo_chan(p) container_of((p), struct gk104_fifo_chan, base)

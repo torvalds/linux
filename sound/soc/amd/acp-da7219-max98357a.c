@@ -298,69 +298,71 @@ static const struct snd_soc_ops cz_dmic1_cap_ops = {
 	.hw_params = cz_da7219_params,
 };
 
+SND_SOC_DAILINK_DEF(designware1,
+	DAILINK_COMP_ARRAY(COMP_CPU("designware-i2s.1.auto")));
+SND_SOC_DAILINK_DEF(designware2,
+	DAILINK_COMP_ARRAY(COMP_CPU("designware-i2s.2.auto")));
+SND_SOC_DAILINK_DEF(designware3,
+	DAILINK_COMP_ARRAY(COMP_CPU("designware-i2s.3.auto")));
+
+SND_SOC_DAILINK_DEF(dlgs,
+	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-DLGS7219:00", "da7219-hifi")));
+SND_SOC_DAILINK_DEF(mx,
+	DAILINK_COMP_ARRAY(COMP_CODEC("MX98357A:00", "HiFi")));
+SND_SOC_DAILINK_DEF(adau,
+	DAILINK_COMP_ARRAY(COMP_CODEC("ADAU7002:00", "adau7002-hifi")));
+
+SND_SOC_DAILINK_DEF(platform,
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("acp_audio_dma.0.auto")));
+
 static struct snd_soc_dai_link cz_dai_7219_98357[] = {
 	{
 		.name = "amd-da7219-play",
 		.stream_name = "Playback",
-		.platform_name = "acp_audio_dma.0.auto",
-		.cpu_dai_name = "designware-i2s.1.auto",
-		.codec_dai_name = "da7219-hifi",
-		.codec_name = "i2c-DLGS7219:00",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.init = cz_da7219_init,
 		.dpcm_playback = 1,
 		.ops = &cz_da7219_play_ops,
+		SND_SOC_DAILINK_REG(designware1, dlgs, platform),
 	},
 	{
 		.name = "amd-da7219-cap",
 		.stream_name = "Capture",
-		.platform_name = "acp_audio_dma.0.auto",
-		.cpu_dai_name = "designware-i2s.2.auto",
-		.codec_dai_name = "da7219-hifi",
-		.codec_name = "i2c-DLGS7219:00",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.dpcm_capture = 1,
 		.ops = &cz_da7219_cap_ops,
+		SND_SOC_DAILINK_REG(designware2, dlgs, platform),
 	},
 	{
 		.name = "amd-max98357-play",
 		.stream_name = "HiFi Playback",
-		.platform_name = "acp_audio_dma.0.auto",
-		.cpu_dai_name = "designware-i2s.3.auto",
-		.codec_dai_name = "HiFi",
-		.codec_name = "MX98357A:00",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.dpcm_playback = 1,
 		.ops = &cz_max_play_ops,
+		SND_SOC_DAILINK_REG(designware3, mx, platform),
 	},
 	{
 		/* C panel DMIC */
 		.name = "dmic0",
 		.stream_name = "DMIC0 Capture",
-		.platform_name = "acp_audio_dma.0.auto",
-		.cpu_dai_name = "designware-i2s.3.auto",
-		.codec_dai_name = "adau7002-hifi",
-		.codec_name = "ADAU7002:00",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.dpcm_capture = 1,
 		.ops = &cz_dmic0_cap_ops,
+		SND_SOC_DAILINK_REG(designware3, adau, platform),
 	},
 	{
 		/* A/B panel DMIC */
 		.name = "dmic1",
 		.stream_name = "DMIC1 Capture",
-		.platform_name = "acp_audio_dma.0.auto",
-		.cpu_dai_name = "designware-i2s.2.auto",
-		.codec_dai_name = "adau7002-hifi",
-		.codec_name = "ADAU7002:00",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.dpcm_capture = 1,
 		.ops = &cz_dmic1_cap_ops,
+		SND_SOC_DAILINK_REG(designware2, adau, platform),
 	},
 };
 

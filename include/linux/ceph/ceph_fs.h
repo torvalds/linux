@@ -682,7 +682,7 @@ extern const char *ceph_cap_op_name(int op);
 /* flags field in client cap messages (version >= 10) */
 #define CEPH_CLIENT_CAPS_SYNC			(1<<0)
 #define CEPH_CLIENT_CAPS_NO_CAPSNAP		(1<<1)
-#define CEPH_CLIENT_CAPS_PENDING_CAPSNAP	(1<<2);
+#define CEPH_CLIENT_CAPS_PENDING_CAPSNAP	(1<<2)
 
 /*
  * caps message, used for capability callbacks, acks, requests, etc.

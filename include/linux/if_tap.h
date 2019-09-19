@@ -62,7 +62,6 @@ struct tap_dev {
 struct tap_queue {
 	struct sock sk;
 	struct socket sock;
-	struct socket_wq wq;
 	int vnet_hdr_sz;
 	struct tap_dev __rcu *tap;
 	struct file *file;

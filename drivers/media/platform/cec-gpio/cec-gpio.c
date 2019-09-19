@@ -17,7 +17,6 @@ struct cec_gpio {
 	struct gpio_desc	*cec_gpio;
 	int			cec_irq;
 	bool			cec_is_low;
-	bool			cec_have_irq;
 
 	struct gpio_desc	*hpd_gpio;
 	int			hpd_irq;
@@ -55,9 +54,6 @@ static void cec_gpio_low(struct cec_adapter *adap)
 
 	if (cec->cec_is_low)
 		return;
-	if (WARN_ON_ONCE(cec->cec_have_irq))
-		free_irq(cec->cec_irq, cec);
-	cec->cec_have_irq = false;
 	cec->cec_is_low = true;
 	gpiod_set_value(cec->cec_gpio, 0);
 }
@@ -114,14 +110,7 @@ static bool cec_gpio_enable_irq(struct cec_adapter *adap)
 {
 	struct cec_gpio *cec = cec_get_drvdata(adap);
 
-	if (cec->cec_have_irq)
-		return true;
-
-	if (request_irq(cec->cec_irq, cec_gpio_irq_handler,
-			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			adap->name, cec))
-		return false;
-	cec->cec_have_irq = true;
+	enable_irq(cec->cec_irq);
 	return true;
 }
 
@@ -129,9 +118,7 @@ static void cec_gpio_disable_irq(struct cec_adapter *adap)
 {
 	struct cec_gpio *cec = cec_get_drvdata(adap);
 
-	if (cec->cec_have_irq)
-		free_irq(cec->cec_irq, cec);
-	cec->cec_have_irq = false;
+	disable_irq(cec->cec_irq);
 }
 
 static void cec_gpio_status(struct cec_adapter *adap, struct seq_file *file)
@@ -139,8 +126,7 @@ static void cec_gpio_status(struct cec_adapter *adap, struct seq_file *file)
 	struct cec_gpio *cec = cec_get_drvdata(adap);
 
 	seq_printf(file, "mode: %s\n", cec->cec_is_low ? "low-drive" : "read");
-	if (cec->cec_have_irq)
-		seq_printf(file, "using irq: %d\n", cec->cec_irq);
+	seq_printf(file, "using irq: %d\n", cec->cec_irq);
 	if (cec->hpd_gpio)
 		seq_printf(file, "hpd: %s\n",
 			   cec->hpd_is_high ? "high" : "low");
@@ -214,6 +200,14 @@ static int cec_gpio_probe(struct platform_device *pdev)
 				 CEC_CAP_MONITOR_ALL | CEC_CAP_MONITOR_PIN);
 	if (IS_ERR(cec->adap))
 		return PTR_ERR(cec->adap);
+
+	ret = devm_request_irq(dev, cec->cec_irq, cec_gpio_irq_handler,
+			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+			       cec->adap->name, cec);
+	if (ret)
+		return ret;
+
+	cec_gpio_disable_irq(cec->adap);
 
 	if (cec->hpd_gpio) {
 		cec->hpd_irq = gpiod_to_irq(cec->hpd_gpio);

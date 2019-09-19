@@ -88,6 +88,7 @@ Required properties:
   * "qcom,dsi-phy-28nm-8960"
   * "qcom,dsi-phy-14nm"
   * "qcom,dsi-phy-10nm"
+  * "qcom,dsi-phy-10nm-8998"
 - reg: Physical base address and length of the registers of PLL, PHY. Some
   revisions require the PHY regulator base address, whereas others require the
   PHY lane base address. See below for each PHY revision.

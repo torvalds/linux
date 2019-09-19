@@ -731,10 +731,16 @@ out_sem:
 		    !(flags & EXT4_GET_BLOCKS_ZERO) &&
 		    !ext4_is_quota_file(inode) &&
 		    ext4_should_order_data(inode)) {
+			loff_t start_byte =
+				(loff_t)map->m_lblk << inode->i_blkbits;
+			loff_t length = (loff_t)map->m_len << inode->i_blkbits;
+
 			if (flags & EXT4_GET_BLOCKS_IO_SUBMIT)
-				ret = ext4_jbd2_inode_add_wait(handle, inode);
+				ret = ext4_jbd2_inode_add_wait(handle, inode,
+						start_byte, length);
 			else
-				ret = ext4_jbd2_inode_add_write(handle, inode);
+				ret = ext4_jbd2_inode_add_write(handle, inode,
+						start_byte, length);
 			if (ret)
 				return ret;
 		}
@@ -1164,8 +1170,9 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
 	int err = 0;
 	unsigned blocksize = inode->i_sb->s_blocksize;
 	unsigned bbits;
-	struct buffer_head *bh, *head, *wait[2], **wait_bh = wait;
-	bool decrypt = false;
+	struct buffer_head *bh, *head, *wait[2];
+	int nr_wait = 0;
+	int i;
 
 	BUG_ON(!PageLocked(page));
 	BUG_ON(from > PAGE_SIZE);
@@ -1217,23 +1224,32 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
 		    !buffer_unwritten(bh) &&
 		    (block_start < from || block_end > to)) {
 			ll_rw_block(REQ_OP_READ, 0, 1, &bh);
-			*wait_bh++ = bh;
-			decrypt = IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode);
+			wait[nr_wait++] = bh;
 		}
 	}
 	/*
 	 * If we issued read requests, let them complete.
 	 */
-	while (wait_bh > wait) {
-		wait_on_buffer(*--wait_bh);
-		if (!buffer_uptodate(*wait_bh))
+	for (i = 0; i < nr_wait; i++) {
+		wait_on_buffer(wait[i]);
+		if (!buffer_uptodate(wait[i]))
 			err = -EIO;
 	}
-	if (unlikely(err))
+	if (unlikely(err)) {
 		page_zero_new_buffers(page, from, to);
-	else if (decrypt)
-		err = fscrypt_decrypt_page(page->mapping->host, page,
-				PAGE_SIZE, 0, page->index);
+	} else if (IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode)) {
+		for (i = 0; i < nr_wait; i++) {
+			int err2;
+
+			err2 = fscrypt_decrypt_pagecache_blocks(page, blocksize,
+								bh_offset(wait[i]));
+			if (err2) {
+				clear_buffer_uptodate(wait[i]);
+				err = err2;
+			}
+		}
+	}
+
 	return err;
 }
 #endif
@@ -4065,9 +4081,8 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 		if (S_ISREG(inode->i_mode) && IS_ENCRYPTED(inode)) {
 			/* We expect the key to be set. */
 			BUG_ON(!fscrypt_has_encryption_key(inode));
-			BUG_ON(blocksize != PAGE_SIZE);
-			WARN_ON_ONCE(fscrypt_decrypt_page(page->mapping->host,
-						page, PAGE_SIZE, 0, page->index));
+			WARN_ON_ONCE(fscrypt_decrypt_pagecache_blocks(
+					page, blocksize, bh_offset(bh)));
 		}
 	}
 	if (ext4_should_journal_data(inode)) {
@@ -4085,7 +4100,8 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 		err = 0;
 		mark_buffer_dirty(bh);
 		if (ext4_should_order_data(inode))
-			err = ext4_jbd2_inode_add_write(handle, inode);
+			err = ext4_jbd2_inode_add_write(handle, inode, from,
+					length);
 	}
 
 unlock:
@@ -5520,6 +5536,14 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
 		return -EIO;
 
+	if (unlikely(IS_IMMUTABLE(inode)))
+		return -EPERM;
+
+	if (unlikely(IS_APPEND(inode) &&
+		     (ia_valid & (ATTR_MODE | ATTR_UID |
+				  ATTR_GID | ATTR_TIMES_SET))))
+		return -EPERM;
+
 	error = setattr_prepare(dentry, attr);
 	if (error)
 		return error;
@@ -5571,7 +5595,7 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 	if (attr->ia_valid & ATTR_SIZE) {
 		handle_t *handle;
 		loff_t oldsize = inode->i_size;
-		int shrink = (attr->ia_size <= inode->i_size);
+		int shrink = (attr->ia_size < inode->i_size);
 
 		if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
 			struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
@@ -5585,18 +5609,33 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 		if (IS_I_VERSION(inode) && attr->ia_size != inode->i_size)
 			inode_inc_iversion(inode);
 
-		if (ext4_should_order_data(inode) &&
-		    (attr->ia_size < inode->i_size)) {
-			error = ext4_begin_ordered_truncate(inode,
+		if (shrink) {
+			if (ext4_should_order_data(inode)) {
+				error = ext4_begin_ordered_truncate(inode,
 							    attr->ia_size);
-			if (error)
-				goto err_out;
+				if (error)
+					goto err_out;
+			}
+			/*
+			 * Blocks are going to be removed from the inode. Wait
+			 * for dio in flight.
+			 */
+			inode_dio_wait(inode);
 		}
+
+		down_write(&EXT4_I(inode)->i_mmap_sem);
+
+		rc = ext4_break_layouts(inode);
+		if (rc) {
+			up_write(&EXT4_I(inode)->i_mmap_sem);
+			return rc;
+		}
+
 		if (attr->ia_size != inode->i_size) {
 			handle = ext4_journal_start(inode, EXT4_HT_INODE, 3);
 			if (IS_ERR(handle)) {
 				error = PTR_ERR(handle);
-				goto err_out;
+				goto out_mmap_sem;
 			}
 			if (ext4_handle_valid(handle) && shrink) {
 				error = ext4_orphan_add(handle, inode);
@@ -5624,30 +5663,14 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 				i_size_write(inode, attr->ia_size);
 			up_write(&EXT4_I(inode)->i_data_sem);
 			ext4_journal_stop(handle);
-			if (error) {
-				if (orphan && inode->i_nlink)
-					ext4_orphan_del(NULL, inode);
-				goto err_out;
+			if (error)
+				goto out_mmap_sem;
+			if (!shrink) {
+				pagecache_isize_extended(inode, oldsize,
+							 inode->i_size);
+			} else if (ext4_should_journal_data(inode)) {
+				ext4_wait_for_tail_page_commit(inode);
 			}
-		}
-		if (!shrink) {
-			pagecache_isize_extended(inode, oldsize, inode->i_size);
-		} else {
-			/*
-			 * Blocks are going to be removed from the inode. Wait
-			 * for dio in flight.
-			 */
-			inode_dio_wait(inode);
-		}
-		if (orphan && ext4_should_journal_data(inode))
-			ext4_wait_for_tail_page_commit(inode);
-		down_write(&EXT4_I(inode)->i_mmap_sem);
-
-		rc = ext4_break_layouts(inode);
-		if (rc) {
-			up_write(&EXT4_I(inode)->i_mmap_sem);
-			error = rc;
-			goto err_out;
 		}
 
 		/*
@@ -5655,11 +5678,16 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 		 * in data=journal mode to make pages freeable.
 		 */
 		truncate_pagecache(inode, inode->i_size);
-		if (shrink) {
+		/*
+		 * Call ext4_truncate() even if i_size didn't change to
+		 * truncate possible preallocated blocks.
+		 */
+		if (attr->ia_size <= oldsize) {
 			rc = ext4_truncate(inode);
 			if (rc)
 				error = rc;
 		}
+out_mmap_sem:
 		up_write(&EXT4_I(inode)->i_mmap_sem);
 	}
 
@@ -6189,6 +6217,9 @@ vm_fault_t ext4_page_mkwrite(struct vm_fault *vmf)
 	handle_t *handle;
 	get_block_t *get_block;
 	int retries = 0;
+
+	if (unlikely(IS_IMMUTABLE(inode)))
+		return VM_FAULT_SIGBUS;
 
 	sb_start_pagefault(inode->i_sb);
 	file_update_time(vma->vm_file);

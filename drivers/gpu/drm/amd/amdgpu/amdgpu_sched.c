@@ -23,8 +23,11 @@
  */
 
 #include <linux/fdtable.h>
+#include <linux/file.h>
 #include <linux/pid.h>
+
 #include <drm/amdgpu_drm.h>
+
 #include "amdgpu.h"
 
 #include "amdgpu_vm.h"

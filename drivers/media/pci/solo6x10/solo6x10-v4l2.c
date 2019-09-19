@@ -378,9 +378,6 @@ static int solo_querycap(struct file *file, void  *priv,
 	strscpy(cap->card, "Softlogic 6x10", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
 		 pci_name(solo_dev->pdev));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
-			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -628,6 +625,8 @@ static const struct video_device solo_v4l2_template = {
 	.minor			= -1,
 	.release		= video_device_release,
 	.tvnorms		= V4L2_STD_NTSC_M | V4L2_STD_PAL,
+	.device_caps		= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+				  V4L2_CAP_STREAMING,
 };
 
 static const struct v4l2_ctrl_ops solo_ctrl_ops = {

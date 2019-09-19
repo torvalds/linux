@@ -209,10 +209,10 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		have_clk_lane = true;
 	}
 
-	if (lanes_used & BIT(clock_lane)) {
-		if (have_clk_lane || !use_default_lane_mapping)
-			pr_warn("duplicated lane %u in clock-lanes, using defaults\n",
-				v);
+	if (have_clk_lane && lanes_used & BIT(clock_lane) &&
+	    !use_default_lane_mapping) {
+		pr_warn("duplicated lane %u in clock-lanes, using defaults\n",
+			v);
 		use_default_lane_mapping = true;
 	}
 
@@ -1095,7 +1095,7 @@ v4l2_fwnode_reference_parse_int_props(struct device *dev,
 		}
 	}
 
-	return PTR_ERR(fwnode) == -ENOENT ? 0 : PTR_ERR(fwnode);
+	return !fwnode || PTR_ERR(fwnode) == -ENOENT ? 0 : PTR_ERR(fwnode);
 
 error:
 	fwnode_handle_put(fwnode);

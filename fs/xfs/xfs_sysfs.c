@@ -10,9 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_sysfs.h"
-#include "xfs_log.h"
 #include "xfs_log_priv.h"
-#include "xfs_stats.h"
 #include "xfs_mount.h"
 
 struct xfs_sysfs_attr {
@@ -206,11 +204,51 @@ always_cow_show(
 }
 XFS_SYSFS_ATTR_RW(always_cow);
 
+#ifdef DEBUG
+/*
+ * Override how many threads the parallel work queue is allowed to create.
+ * This has to be a debug-only global (instead of an errortag) because one of
+ * the main users of parallel workqueues is mount time quotacheck.
+ */
+STATIC ssize_t
+pwork_threads_store(
+	struct kobject	*kobject,
+	const char	*buf,
+	size_t		count)
+{
+	int		ret;
+	int		val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val < -1 || val > num_possible_cpus())
+		return -EINVAL;
+
+	xfs_globals.pwork_threads = val;
+
+	return count;
+}
+
+STATIC ssize_t
+pwork_threads_show(
+	struct kobject	*kobject,
+	char		*buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", xfs_globals.pwork_threads);
+}
+XFS_SYSFS_ATTR_RW(pwork_threads);
+#endif /* DEBUG */
+
 static struct attribute *xfs_dbg_attrs[] = {
 	ATTR_LIST(bug_on_assert),
 	ATTR_LIST(log_recovery_delay),
 	ATTR_LIST(mount_delay),
 	ATTR_LIST(always_cow),
+#ifdef DEBUG
+	ATTR_LIST(pwork_threads),
+#endif
 	NULL,
 };
 

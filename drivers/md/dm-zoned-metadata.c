@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Western Digital Corporation or its affiliates.
  *
@@ -8,6 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/crc32.h>
+#include <linux/sched/mm.h>
 
 #define	DM_MSG_PREFIX		"zoned metadata"
 
@@ -33,7 +35,7 @@
  *    (1) Super block (1 block)
  *    (2) Chunk mapping table (nr_map_blocks)
  *    (3) Bitmap blocks (nr_bitmap_blocks)
- * All metadata blocks are stored in conventional zones, starting from the
+ * All metadata blocks are stored in conventional zones, starting from
  * the first conventional zone found on disk.
  */
 struct dmz_super {
@@ -232,7 +234,7 @@ void dmz_unlock_map(struct dmz_metadata *zmd)
  * Lock/unlock metadata access. This is a "read" lock on a semaphore
  * that prevents metadata flush from running while metadata are being
  * modified. The actual metadata write mutual exclusion is achieved with
- * the map lock and zone styate management (active and reclaim state are
+ * the map lock and zone state management (active and reclaim state are
  * mutually exclusive).
  */
 void dmz_lock_metadata(struct dmz_metadata *zmd)
@@ -401,15 +403,18 @@ static struct dmz_mblock *dmz_get_mblock_slow(struct dmz_metadata *zmd,
 	sector_t block = zmd->sb[zmd->mblk_primary].block + mblk_no;
 	struct bio *bio;
 
+	if (dmz_bdev_is_dying(zmd->dev))
+		return ERR_PTR(-EIO);
+
 	/* Get a new block and a BIO to read it */
 	mblk = dmz_alloc_mblock(zmd, mblk_no);
 	if (!mblk)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	bio = bio_alloc(GFP_NOIO, 1);
 	if (!bio) {
 		dmz_free_mblock(zmd, mblk);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	spin_lock(&zmd->mblk_lock);
@@ -540,8 +545,8 @@ static struct dmz_mblock *dmz_get_mblock(struct dmz_metadata *zmd,
 	if (!mblk) {
 		/* Cache miss: read the block from disk */
 		mblk = dmz_get_mblock_slow(zmd, mblk_no);
-		if (!mblk)
-			return ERR_PTR(-ENOMEM);
+		if (IS_ERR(mblk))
+			return mblk;
 	}
 
 	/* Wait for on-going read I/O and check for error */
@@ -569,16 +574,19 @@ static void dmz_dirty_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk)
 /*
  * Issue a metadata block write BIO.
  */
-static void dmz_write_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk,
-			     unsigned int set)
+static int dmz_write_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk,
+			    unsigned int set)
 {
 	sector_t block = zmd->sb[set].block + mblk->no;
 	struct bio *bio;
 
+	if (dmz_bdev_is_dying(zmd->dev))
+		return -EIO;
+
 	bio = bio_alloc(GFP_NOIO, 1);
 	if (!bio) {
 		set_bit(DMZ_META_ERROR, &mblk->state);
-		return;
+		return -ENOMEM;
 	}
 
 	set_bit(DMZ_META_WRITING, &mblk->state);
@@ -590,6 +598,8 @@ static void dmz_write_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk,
 	bio_set_op_attrs(bio, REQ_OP_WRITE, REQ_META | REQ_PRIO);
 	bio_add_page(bio, mblk->page, DMZ_BLOCK_SIZE, 0);
 	submit_bio(bio);
+
+	return 0;
 }
 
 /*
@@ -600,6 +610,9 @@ static int dmz_rdwr_block(struct dmz_metadata *zmd, int op, sector_t block,
 {
 	struct bio *bio;
 	int ret;
+
+	if (dmz_bdev_is_dying(zmd->dev))
+		return -EIO;
 
 	bio = bio_alloc(GFP_NOIO, 1);
 	if (!bio)
@@ -658,22 +671,29 @@ static int dmz_write_dirty_mblocks(struct dmz_metadata *zmd,
 {
 	struct dmz_mblock *mblk;
 	struct blk_plug plug;
-	int ret = 0;
+	int ret = 0, nr_mblks_submitted = 0;
 
 	/* Issue writes */
 	blk_start_plug(&plug);
-	list_for_each_entry(mblk, write_list, link)
-		dmz_write_mblock(zmd, mblk, set);
+	list_for_each_entry(mblk, write_list, link) {
+		ret = dmz_write_mblock(zmd, mblk, set);
+		if (ret)
+			break;
+		nr_mblks_submitted++;
+	}
 	blk_finish_plug(&plug);
 
 	/* Wait for completion */
 	list_for_each_entry(mblk, write_list, link) {
+		if (!nr_mblks_submitted)
+			break;
 		wait_on_bit_io(&mblk->state, DMZ_META_WRITING,
 			       TASK_UNINTERRUPTIBLE);
 		if (test_bit(DMZ_META_ERROR, &mblk->state)) {
 			clear_bit(DMZ_META_ERROR, &mblk->state);
 			ret = -EIO;
 		}
+		nr_mblks_submitted--;
 	}
 
 	/* Flush drive cache (this will also sync data) */
@@ -734,6 +754,11 @@ int dmz_flush_metadata(struct dmz_metadata *zmd)
 	 * Concurrent execution is not allowed.
 	 */
 	dmz_lock_flush(zmd);
+
+	if (dmz_bdev_is_dying(zmd->dev)) {
+		ret = -EIO;
+		goto out;
+	}
 
 	/* Get dirty blocks */
 	spin_lock(&zmd->mblk_lock);
@@ -1162,8 +1187,7 @@ static int dmz_init_zones(struct dmz_metadata *zmd)
 	while (sector < dev->capacity) {
 		/* Get zone information */
 		nr_blkz = DMZ_REPORT_NR_ZONES;
-		ret = blkdev_report_zones(dev->bdev, sector, blkz,
-					  &nr_blkz, GFP_KERNEL);
+		ret = blkdev_report_zones(dev->bdev, sector, blkz, &nr_blkz);
 		if (ret) {
 			dmz_dev_err(dev, "Report zones failed %d", ret);
 			goto out;
@@ -1201,12 +1225,20 @@ out:
 static int dmz_update_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 {
 	unsigned int nr_blkz = 1;
+	unsigned int noio_flag;
 	struct blk_zone blkz;
 	int ret;
 
-	/* Get zone information from disk */
+	/*
+	 * Get zone information from disk. Since blkdev_report_zones() uses
+	 * GFP_KERNEL by default for memory allocations, set the per-task
+	 * PF_MEMALLOC_NOIO flag so that all allocations are done as if
+	 * GFP_NOIO was specified.
+	 */
+	noio_flag = memalloc_noio_save();
 	ret = blkdev_report_zones(zmd->dev->bdev, dmz_start_sect(zmd, zone),
-				  &blkz, &nr_blkz, GFP_NOIO);
+				  &blkz, &nr_blkz);
+	memalloc_noio_restore(noio_flag);
 	if (!nr_blkz)
 		ret = -EIO;
 	if (ret) {
@@ -1534,7 +1566,7 @@ static struct dm_zone *dmz_get_rnd_zone_for_reclaim(struct dmz_metadata *zmd)
 	struct dm_zone *zone;
 
 	if (list_empty(&zmd->map_rnd_list))
-		return NULL;
+		return ERR_PTR(-EBUSY);
 
 	list_for_each_entry(zone, &zmd->map_rnd_list, link) {
 		if (dmz_is_buf(zone))
@@ -1545,7 +1577,7 @@ static struct dm_zone *dmz_get_rnd_zone_for_reclaim(struct dmz_metadata *zmd)
 			return dzone;
 	}
 
-	return NULL;
+	return ERR_PTR(-EBUSY);
 }
 
 /*
@@ -1556,7 +1588,7 @@ static struct dm_zone *dmz_get_seq_zone_for_reclaim(struct dmz_metadata *zmd)
 	struct dm_zone *zone;
 
 	if (list_empty(&zmd->map_seq_list))
-		return NULL;
+		return ERR_PTR(-EBUSY);
 
 	list_for_each_entry(zone, &zmd->map_seq_list, link) {
 		if (!zone->bzone)
@@ -1565,7 +1597,7 @@ static struct dm_zone *dmz_get_seq_zone_for_reclaim(struct dmz_metadata *zmd)
 			return zone;
 	}
 
-	return NULL;
+	return ERR_PTR(-EBUSY);
 }
 
 /*
@@ -1591,30 +1623,6 @@ struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd)
 	dmz_unlock_map(zmd);
 
 	return zone;
-}
-
-/*
- * Activate a zone (increment its reference count).
- */
-void dmz_activate_zone(struct dm_zone *zone)
-{
-	set_bit(DMZ_ACTIVE, &zone->flags);
-	atomic_inc(&zone->refcount);
-}
-
-/*
- * Deactivate a zone. This decrement the zone reference counter
- * and clears the active state of the zone once the count reaches 0,
- * indicating that all BIOs to the zone have completed. Returns
- * true if the zone was deactivated.
- */
-void dmz_deactivate_zone(struct dm_zone *zone)
-{
-	if (atomic_dec_and_test(&zone->refcount)) {
-		WARN_ON(!test_bit(DMZ_ACTIVE, &zone->flags));
-		clear_bit_unlock(DMZ_ACTIVE, &zone->flags);
-		smp_mb__after_atomic();
-	}
 }
 
 /*
@@ -1644,9 +1652,13 @@ again:
 		if (op != REQ_OP_WRITE)
 			goto out;
 
-		/* Alloate a random zone */
+		/* Allocate a random zone */
 		dzone = dmz_alloc_zone(zmd, DMZ_ALLOC_RND);
 		if (!dzone) {
+			if (dmz_bdev_is_dying(zmd->dev)) {
+				dzone = ERR_PTR(-EIO);
+				goto out;
+			}
 			dmz_wait_for_free_zones(zmd);
 			goto again;
 		}
@@ -1741,9 +1753,13 @@ again:
 	if (bzone)
 		goto out;
 
-	/* Alloate a random zone */
+	/* Allocate a random zone */
 	bzone = dmz_alloc_zone(zmd, DMZ_ALLOC_RND);
 	if (!bzone) {
+		if (dmz_bdev_is_dying(zmd->dev)) {
+			bzone = ERR_PTR(-EIO);
+			goto out;
+		}
 		dmz_wait_for_free_zones(zmd);
 		goto again;
 	}

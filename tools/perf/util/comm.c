@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "comm.h"
-#include "util.h"
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <linux/refcount.h>
 #include <linux/rbtree.h>
+#include <linux/zalloc.h>
 #include "rwsem.h"
 
 struct comm_str {

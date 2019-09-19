@@ -12,4 +12,6 @@ obj-y := clone.o mmu.o process.o syscall.o uaccess.o
 CFLAGS_clone.o := $(CFLAGS_NO_HARDENING)
 UNPROFILE_OBJS := clone.o
 
+KCOV_INSTRUMENT := n
+
 include arch/um/scripts/Makefile.rules

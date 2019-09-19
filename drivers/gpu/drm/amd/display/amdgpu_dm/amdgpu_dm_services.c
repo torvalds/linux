@@ -26,7 +26,6 @@
 #include <linux/string.h>
 #include <linux/acpi.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>
 #include "dm_services.h"

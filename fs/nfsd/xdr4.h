@@ -410,6 +410,9 @@ struct nfsd4_exchange_id {
 	int		spa_how;
 	u32             spo_must_enforce[3];
 	u32             spo_must_allow[3];
+	struct xdr_netobj nii_domain;
+	struct xdr_netobj nii_name;
+	struct timespec64 nii_time;
 };
 
 struct nfsd4_sequence {
@@ -472,7 +475,7 @@ struct nfsd4_layoutcommit {
 	u32			lc_reclaim;	/* request */
 	u32			lc_newoffset;	/* request */
 	u64			lc_last_wr;	/* request */
-	struct timespec		lc_mtime;	/* request */
+	struct timespec64	lc_mtime;	/* request */
 	u32			lc_layout_type;	/* request */
 	u32			lc_up_len;	/* layout length */
 	void			*lc_up_layout;	/* decoded by callback */

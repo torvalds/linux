@@ -917,10 +917,11 @@ static u8 qed_iov_alloc_vf_igu_sbs(struct qed_hwfn *p_hwfn,
 		/* Configure igu sb in CAU which were marked valid */
 		qed_init_cau_sb_entry(p_hwfn, &sb_entry,
 				      p_hwfn->rel_pf_id, vf->abs_vf_id, 1);
+
 		qed_dmae_host2grc(p_hwfn, p_ptt,
 				  (u64)(uintptr_t)&sb_entry,
 				  CAU_REG_SB_VAR_MEMORY +
-				  p_block->igu_sb_id * sizeof(u64), 2, 0);
+				  p_block->igu_sb_id * sizeof(u64), 2, NULL);
 	}
 
 	vf->num_sbs = (u8) num_rx_queues;

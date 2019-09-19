@@ -95,7 +95,7 @@ asmlinkage long _sys_rt_sigreturn(struct pt_regs *regs)
 	return regs->gpr[11];
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 

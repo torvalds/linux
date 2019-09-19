@@ -45,7 +45,7 @@ arch/lkl/include/generated/uapi/asm/syscall_defs.h: vmlinux
 	$(Q) export tmpfile=$(shell mktemp); \
 	sed 's/\x0//g' $@ > $$tmpfile; mv $$tmpfile $@ ; rm -f $$tmpfile
 
-install: lkl.o __headers arch/lkl/include/generated/uapi/asm/syscall_defs.h
+install: lkl.o headers arch/lkl/include/generated/uapi/asm/syscall_defs.h
 	@echo "  INSTALL	$(INSTALL_PATH)/lib/lkl.o"
 	@mkdir -p $(INSTALL_PATH)/lib/
 	@cp lkl.o $(INSTALL_PATH)/lib/

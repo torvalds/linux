@@ -645,7 +645,7 @@ bool vivid_vid_can_loop(struct vivid_dev *dev)
 	    dev->field_cap == V4L2_FIELD_SEQ_BT)
 		return false;
 	if (vivid_is_svid_cap(dev) && vivid_is_svid_out(dev)) {
-		if (!(dev->std_cap & V4L2_STD_525_60) !=
+		if (!(dev->std_cap[dev->input] & V4L2_STD_525_60) !=
 		    !(dev->std_out & V4L2_STD_525_60))
 			return false;
 		return true;
@@ -797,26 +797,6 @@ int vivid_enum_fmt_vid(struct file *file, void  *priv,
 	return 0;
 }
 
-int vidioc_enum_fmt_vid_mplane(struct file *file, void  *priv,
-					struct v4l2_fmtdesc *f)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-
-	if (!dev->multiplanar)
-		return -ENOTTY;
-	return vivid_enum_fmt_vid(file, priv, f);
-}
-
-int vidioc_enum_fmt_vid(struct file *file, void  *priv,
-					struct v4l2_fmtdesc *f)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-
-	if (dev->multiplanar)
-		return -ENOTTY;
-	return vivid_enum_fmt_vid(file, priv, f);
-}
-
 int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct vivid_dev *dev = video_drvdata(file);
@@ -825,7 +805,7 @@ int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 	if (vdev->vfl_dir == VFL_DIR_RX) {
 		if (!vivid_is_sdtv_cap(dev))
 			return -ENODATA;
-		*id = dev->std_cap;
+		*id = dev->std_cap[dev->input];
 	} else {
 		if (!vivid_is_svid_out(dev))
 			return -ENODATA;
@@ -843,7 +823,7 @@ int vidioc_g_dv_timings(struct file *file, void *_fh,
 	if (vdev->vfl_dir == VFL_DIR_RX) {
 		if (!vivid_is_hdmi_cap(dev))
 			return -ENODATA;
-		*timings = dev->dv_timings_cap;
+		*timings = dev->dv_timings_cap[dev->input];
 	} else {
 		if (!vivid_is_hdmi_out(dev))
 			return -ENODATA;
@@ -907,6 +887,8 @@ int vidioc_g_edid(struct file *file, void *_fh,
 			return -EINVAL;
 		if (dev->output_type[edid->pad] != HDMI)
 			return -EINVAL;
+		if (!dev->display_present[edid->pad])
+			return -ENODATA;
 		bus_idx = dev->cec_output2bus_map[edid->pad];
 		adap = dev->cec_tx_adap[bus_idx];
 	}

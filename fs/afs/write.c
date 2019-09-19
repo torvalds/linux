@@ -44,8 +44,7 @@ static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
 		return 0;
 	}
 
-	req = kzalloc(sizeof(struct afs_read) + sizeof(struct page *),
-		      GFP_KERNEL);
+	req = kzalloc(struct_size(req, array, 1), GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 

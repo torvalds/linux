@@ -16,8 +16,8 @@ Required properties:
 In this case, the ENETC node should include a "mdio" sub-node
 that in turn should contain the "ethernet-phy" node describing the
 external phy.  Below properties are required, their bindings
-already defined in ethernet.txt or phy.txt, under
-Documentation/devicetree/bindings/net/*.
+already defined in Documentation/devicetree/bindings/net/ethernet.txt or
+Documentation/devicetree/bindings/net/phy.txt.
 
 Required:
 
@@ -51,8 +51,7 @@ Example:
 connection:
 
 In this case, the ENETC port node defines a fixed link connection,
-as specified by "fixed-link.txt", under
-Documentation/devicetree/bindings/net/*.
+as specified by Documentation/devicetree/bindings/net/fixed-link.txt.
 
 Required:
 

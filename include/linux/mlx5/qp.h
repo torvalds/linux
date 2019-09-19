@@ -37,7 +37,8 @@
 #include <linux/mlx5/driver.h>
 
 #define MLX5_INVALID_LKEY	0x100
-#define MLX5_SIG_WQE_SIZE	(MLX5_SEND_WQE_BB * 5)
+/* UMR (3 WQE_BB's) + SIG (3 WQE_BB's) + PSV (mem) + PSV (wire) */
+#define MLX5_SIG_WQE_SIZE	(MLX5_SEND_WQE_BB * 8)
 #define MLX5_DIF_SIZE		8
 #define MLX5_STRIDE_BLOCK_OP	0x400
 #define MLX5_CPY_GRD_MASK	0xc0
@@ -70,6 +71,7 @@ enum mlx5_qp_optpar {
 	MLX5_QP_OPTPAR_CQN_RCV			= 1 << 19,
 	MLX5_QP_OPTPAR_DC_HS			= 1 << 20,
 	MLX5_QP_OPTPAR_DC_KEY			= 1 << 21,
+	MLX5_QP_OPTPAR_COUNTER_SET_ID		= 1 << 25,
 };
 
 enum mlx5_qp_state {
@@ -202,7 +204,12 @@ struct mlx5_wqe_ctrl_seg {
 	u8			signature;
 	u8			rsvd[2];
 	u8			fm_ce_se;
-	__be32			imm;
+	union {
+		__be32		general_id;
+		__be32		imm;
+		__be32		umr_mkey;
+		__be32		tisn;
+	};
 };
 
 #define MLX5_WQE_CTRL_DS_MASK 0x3f
@@ -549,11 +556,6 @@ struct mlx5_qp_context {
 static inline struct mlx5_core_qp *__mlx5_qp_lookup(struct mlx5_core_dev *dev, u32 qpn)
 {
 	return radix_tree_lookup(&dev->priv.qp_table.tree, qpn);
-}
-
-static inline struct mlx5_core_mkey *__mlx5_mr_lookup(struct mlx5_core_dev *dev, u32 key)
-{
-	return radix_tree_lookup(&dev->priv.mkey_table.tree, key);
 }
 
 int mlx5_core_create_dct(struct mlx5_core_dev *dev,

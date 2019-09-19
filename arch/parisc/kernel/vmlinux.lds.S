@@ -18,6 +18,8 @@
 				*(.data..vm0.pgd) \
 				*(.data..vm0.pte)
 
+#define CC_USING_PATCHABLE_FUNCTION_ENTRY
+
 #include <asm-generic/vmlinux.lds.h>
 
 /* needed for the processor specific cache alignment size */	

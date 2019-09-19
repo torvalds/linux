@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* Copyright (C) 2005-2019 Andes Technology Corporation */
 #ifndef	_FP_UDF_IEX_CRTL_H
 #define	_FP_UDF_IEX_CRTL_H

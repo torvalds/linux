@@ -58,12 +58,12 @@ static int mmio_offset_compare(void *priv,
 static inline int mmio_diff_handler(struct intel_gvt *gvt,
 				    u32 offset, void *data)
 {
-	struct drm_i915_private *dev_priv = gvt->dev_priv;
+	struct drm_i915_private *i915 = gvt->dev_priv;
 	struct mmio_diff_param *param = data;
 	struct diff_mmio *node;
 	u32 preg, vreg;
 
-	preg = I915_READ_NOTRACE(_MMIO(offset));
+	preg = intel_uncore_read_notrace(&i915->uncore, _MMIO(offset));
 	vreg = vgpu_vreg(param->vgpu, offset);
 
 	if (preg != vreg) {

@@ -2,8 +2,7 @@
 #ifndef _IP_SET_TIMEOUT_H
 #define _IP_SET_TIMEOUT_H
 
-/* Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
- */
+/* Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@netfilter.org> */
 
 #ifdef __KERNEL__
 

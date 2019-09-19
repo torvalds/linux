@@ -415,7 +415,7 @@ static int pcan_usb_decode_error(struct pcan_usb_msg_context *mc, u8 n,
 			new_state = CAN_STATE_ERROR_WARNING;
 			break;
 		}
-		/* else: fall through */
+		/* fall through */
 
 	case CAN_STATE_ERROR_WARNING:
 		if (n & PCAN_USB_ERROR_BUS_HEAVY) {

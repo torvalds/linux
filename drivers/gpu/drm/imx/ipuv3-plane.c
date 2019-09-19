@@ -115,8 +115,8 @@ drm_plane_state_to_ubo(struct drm_plane_state *state)
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 1);
 	BUG_ON(!cma_obj);
 
-	x /= drm_format_horz_chroma_subsampling(fb->format->format);
-	y /= drm_format_vert_chroma_subsampling(fb->format->format);
+	x /= fb->format->hsub;
+	y /= fb->format->vsub;
 
 	return cma_obj->paddr + fb->offsets[1] + fb->pitches[1] * y +
 	       fb->format->cpp[1] * x - eba;
@@ -134,8 +134,8 @@ drm_plane_state_to_vbo(struct drm_plane_state *state)
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 2);
 	BUG_ON(!cma_obj);
 
-	x /= drm_format_horz_chroma_subsampling(fb->format->format);
-	y /= drm_format_vert_chroma_subsampling(fb->format->format);
+	x /= fb->format->hsub;
+	y /= fb->format->vsub;
 
 	return cma_obj->paddr + fb->offsets[2] + fb->pitches[2] * y +
 	       fb->format->cpp[2] * x - eba;
@@ -352,7 +352,6 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	struct drm_framebuffer *old_fb = old_state->fb;
 	unsigned long eba, ubo, vbo, old_ubo, old_vbo, alpha_eba;
 	bool can_position = (plane->type == DRM_PLANE_TYPE_OVERLAY);
-	int hsub, vsub;
 	int ret;
 
 	/* Ok to disable */
@@ -471,10 +470,8 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		 * The x/y offsets must be even in case of horizontal/vertical
 		 * chroma subsampling.
 		 */
-		hsub = drm_format_horz_chroma_subsampling(fb->format->format);
-		vsub = drm_format_vert_chroma_subsampling(fb->format->format);
-		if (((state->src.x1 >> 16) & (hsub - 1)) ||
-		    ((state->src.y1 >> 16) & (vsub - 1)))
+		if (((state->src.x1 >> 16) & (fb->format->hsub - 1)) ||
+		    ((state->src.y1 >> 16) & (fb->format->vsub - 1)))
 			return -EINVAL;
 		break;
 	case DRM_FORMAT_RGB565_A8:
@@ -638,6 +635,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	ipu_cpmem_set_fmt(ipu_plane->ipu_ch, fb->format->format);
 	ipu_cpmem_set_burstsize(ipu_plane->ipu_ch, burstsize);
 	ipu_cpmem_set_high_priority(ipu_plane->ipu_ch);
+	ipu_idmac_enable_watermark(ipu_plane->ipu_ch, true);
 	ipu_idmac_set_double_buffer(ipu_plane->ipu_ch, 1);
 	ipu_cpmem_set_stride(ipu_plane->ipu_ch, fb->pitches[0]);
 	ipu_cpmem_set_axi_id(ipu_plane->ipu_ch, axi_id);

@@ -233,7 +233,6 @@ source "drivers/media/radio/wl128x/Kconfig"
 menuconfig V4L_RADIO_ISA_DRIVERS
 	bool "ISA radio devices"
 	depends on ISA || COMPILE_TEST
-	default n
 	help
 	  Say Y here to enable support for these ISA drivers.
 

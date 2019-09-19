@@ -1725,7 +1725,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	int ret = 0;
 	struct intel_vgpu_mm *mm = (s->buf_addr_type == GTT_BUFFER) ?
 		s->vgpu->gtt.ggtt_mm : s->workload->shadow_mm;
-	unsigned long gma_start_offset = 0;
+	unsigned long start_offset = 0;
 
 	/* get the start gm address of the batch buffer */
 	gma = get_gma_bb_from_cmd(s, 1);
@@ -1742,7 +1742,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 
 	bb->ppgtt = (s->buf_addr_type == GTT_BUFFER) ? false : true;
 
-	/* the gma_start_offset stores the batch buffer's start gma's
+	/* the start_offset stores the batch buffer's start gma's
 	 * offset relative to page boundary. so for non-privileged batch
 	 * buffer, the shadowed gem object holds exactly the same page
 	 * layout as original gem object. This is for the convience of
@@ -1754,16 +1754,17 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	 * that of shadowed page.
 	 */
 	if (bb->ppgtt)
-		gma_start_offset = gma & ~I915_GTT_PAGE_MASK;
+		start_offset = gma & ~I915_GTT_PAGE_MASK;
 
-	bb->obj = i915_gem_object_create(s->vgpu->gvt->dev_priv,
-			 roundup(bb_size + gma_start_offset, PAGE_SIZE));
+	bb->obj = i915_gem_object_create_shmem(s->vgpu->gvt->dev_priv,
+					       round_up(bb_size + start_offset,
+							PAGE_SIZE));
 	if (IS_ERR(bb->obj)) {
 		ret = PTR_ERR(bb->obj);
 		goto err_free_bb;
 	}
 
-	ret = i915_gem_obj_prepare_shmem_write(bb->obj, &bb->clflush);
+	ret = i915_gem_object_prepare_write(bb->obj, &bb->clflush);
 	if (ret)
 		goto err_free_obj;
 
@@ -1780,7 +1781,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 
 	ret = copy_gma_to_hva(s->vgpu, mm,
 			      gma, gma + bb_size,
-			      bb->va + gma_start_offset);
+			      bb->va + start_offset);
 	if (ret < 0) {
 		gvt_vgpu_err("fail to copy guest ring buffer\n");
 		ret = -EFAULT;
@@ -1806,13 +1807,13 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	 * buffer's gma in pair. After all, we don't want to pin the shadow
 	 * buffer here (too early).
 	 */
-	s->ip_va = bb->va + gma_start_offset;
+	s->ip_va = bb->va + start_offset;
 	s->ip_gma = gma;
 	return 0;
 err_unmap:
 	i915_gem_object_unpin_map(bb->obj);
 err_finish_shmem_access:
-	i915_gem_obj_finish_shmem_access(bb->obj);
+	i915_gem_object_finish_access(bb->obj);
 err_free_obj:
 	i915_gem_object_put(bb->obj);
 err_free_bb:
@@ -2673,11 +2674,6 @@ static int scan_workload(struct intel_vgpu_workload *workload)
 		gma_head == gma_tail)
 		return 0;
 
-	if (!intel_gvt_ggtt_validate_range(s.vgpu, s.ring_start, s.ring_size)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	ret = ip_gma_set(&s, gma_head);
 	if (ret)
 		goto out;
@@ -2722,11 +2718,6 @@ static int scan_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	s.rb_va = wa_ctx->indirect_ctx.shadow_va;
 	s.workload = workload;
 	s.is_ctx_wa = true;
-
-	if (!intel_gvt_ggtt_validate_range(s.vgpu, s.ring_start, s.ring_size)) {
-		ret = -EINVAL;
-		goto out;
-	}
 
 	ret = ip_gma_set(&s, gma_head);
 	if (ret)
@@ -2829,9 +2820,9 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	int ret = 0;
 	void *map;
 
-	obj = i915_gem_object_create(workload->vgpu->gvt->dev_priv,
-				     roundup(ctx_size + CACHELINE_BYTES,
-					     PAGE_SIZE));
+	obj = i915_gem_object_create_shmem(workload->vgpu->gvt->dev_priv,
+					   roundup(ctx_size + CACHELINE_BYTES,
+						   PAGE_SIZE));
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -2843,7 +2834,9 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 		goto put_obj;
 	}
 
+	i915_gem_object_lock(obj);
 	ret = i915_gem_object_set_to_cpu_domain(obj, false);
+	i915_gem_object_unlock(obj);
 	if (ret) {
 		gvt_vgpu_err("failed to set shadow indirect ctx to CPU\n");
 		goto unmap_src;

@@ -1,6 +1,6 @@
-Where:		/sys/fs/pstore/... (or /dev/pstore/...)
+What:		/sys/fs/pstore/... (or /dev/pstore/...)
 Date:		March 2011
-Kernel Version: 2.6.39
+KernelVersion: 2.6.39
 Contact:	tony.luck@intel.com
 Description:	Generic interface to platform dependent persistent storage.
 

@@ -11,6 +11,7 @@
 #include "free-space-cache.h"
 #include "inode-map.h"
 #include "transaction.h"
+#include "delalloc-space.h"
 
 static int caching_kthread(void *data)
 {

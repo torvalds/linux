@@ -599,7 +599,7 @@ Documentation/doc-guide/ 和 scripts/kernel-doc 以获得详细信息。
 	depends on ADFS_FS
 	...
 
-要查看配置文件的完整文档，请看 Documentation/kbuild/kconfig-language.txt。
+要查看配置文件的完整文档，请看 Documentation/kbuild/kconfig-language.rst。
 
 
 11) 数据结构

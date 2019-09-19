@@ -20,6 +20,11 @@
 /* devnode to cec_adapter */
 #define to_cec_adapter(node) container_of(node, struct cec_adapter, devnode)
 
+static inline bool msg_is_raw(const struct cec_msg *msg)
+{
+	return msg->flags & CEC_MSG_FL_RAW;
+}
+
 /* cec-core.c */
 extern int cec_debug;
 int cec_get_device(struct cec_devnode *devnode);

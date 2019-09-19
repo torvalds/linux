@@ -13,7 +13,6 @@ config VIDEO_V4L2
 
 config VIDEO_ADV_DEBUG
 	bool "Enable advanced debug functionality on V4L2 drivers"
-	default n
 	help
 	  Say Y here to enable advanced debugging functionality on some
 	  V4L devices.
@@ -21,7 +20,6 @@ config VIDEO_ADV_DEBUG
 
 config VIDEO_FIXED_MINOR_RANGES
 	bool "Enable old-style fixed minor ranges on drivers/video devices"
-	default n
 	help
 	  Say Y here to enable the old-style fixed-range minor assignments.
 	  Only useful if you rely on the old behavior and use mknod instead of udev.

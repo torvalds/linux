@@ -30,6 +30,7 @@
 *.lzo
 *.mo
 *.moc
+*.mod
 *.mod.c
 *.o
 *.o.*

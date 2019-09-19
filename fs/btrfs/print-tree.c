@@ -153,11 +153,11 @@ static void print_eb_refs_lock(struct extent_buffer *eb)
 #ifdef CONFIG_BTRFS_DEBUG
 	btrfs_info(eb->fs_info,
 "refs %u lock (w:%d r:%d bw:%d br:%d sw:%d sr:%d) lock_owner %u current %u",
-		   atomic_read(&eb->refs), atomic_read(&eb->write_locks),
+		   atomic_read(&eb->refs), eb->write_locks,
 		   atomic_read(&eb->read_locks),
-		   atomic_read(&eb->blocking_writers),
+		   eb->blocking_writers,
 		   atomic_read(&eb->blocking_readers),
-		   atomic_read(&eb->spinning_writers),
+		   eb->spinning_writers,
 		   atomic_read(&eb->spinning_readers),
 		   eb->lock_owner, current->pid);
 #endif

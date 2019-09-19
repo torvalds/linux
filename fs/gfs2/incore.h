@@ -240,7 +240,8 @@ struct gfs2_glock_operations {
 	int (*go_demote_ok) (const struct gfs2_glock *gl);
 	int (*go_lock) (struct gfs2_holder *gh);
 	void (*go_unlock) (struct gfs2_holder *gh);
-	void (*go_dump)(struct seq_file *seq, struct gfs2_glock *gl);
+	void (*go_dump)(struct seq_file *seq, struct gfs2_glock *gl,
+			const char *fs_id_buf);
 	void (*go_callback)(struct gfs2_glock *gl, bool remote);
 	const int go_type;
 	const unsigned long go_flags;
@@ -504,7 +505,6 @@ struct gfs2_trans {
 	unsigned int tr_num_buf_rm;
 	unsigned int tr_num_databuf_rm;
 	unsigned int tr_num_revoke;
-	unsigned int tr_num_revoke_rm;
 
 	struct list_head tr_list;
 	struct list_head tr_databuf;
@@ -609,7 +609,7 @@ struct gfs2_tune {
 enum {
 	SDF_JOURNAL_CHECKED	= 0,
 	SDF_JOURNAL_LIVE	= 1,
-	SDF_SHUTDOWN		= 2,
+	SDF_WITHDRAWN		= 2,
 	SDF_NOBARRIERS		= 3,
 	SDF_NORECOVERY		= 4,
 	SDF_DEMOTE		= 5,

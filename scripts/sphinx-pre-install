@@ -2,11 +2,15 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 use strict;
 
-# Copyright (c) 2017 Mauro Carvalho Chehab <mchehab@kernel.org>
+# Copyright (c) 2017-2019 Mauro Carvalho Chehab <mchehab@kernel.org>
 #
 
-my $conf = "Documentation/conf.py";
-my $requirement_file = "Documentation/sphinx/requirements.txt";
+my $prefix = "./";
+$prefix = "$ENV{'srctree'}/" if ($ENV{'srctree'});
+
+my $conf = $prefix . "Documentation/conf.py";
+my $requirement_file = $prefix . "Documentation/sphinx/requirements.txt";
+my $virtenv_prefix = "sphinx_";
 
 #
 # Static vars
@@ -20,7 +24,8 @@ my $need_symlink = 0;
 my $need_sphinx = 0;
 my $rec_sphinx_upgrade = 0;
 my $install = "";
-my $virtenv_dir = "sphinx_";
+my $virtenv_dir = "";
+my $min_version;
 
 #
 # Command line arguments
@@ -28,6 +33,7 @@ my $virtenv_dir = "sphinx_";
 
 my $pdf = 1;
 my $virtualenv = 1;
+my $version_check = 0;
 
 #
 # List of required texlive packages on Fedora and OpenSuse
@@ -76,6 +82,17 @@ sub check_missing(%)
 
 	foreach my $prog (sort keys %missing) {
 		my $is_optional = $missing{$prog};
+
+		# At least on some LTS distros like CentOS 7, texlive doesn't
+		# provide all packages we need. When such distros are
+		# detected, we have to disable PDF output.
+		#
+		# So, we need to ignore the packages that distros would
+		# need for LaTeX to work
+		if ($is_optional == 2 && !$pdf) {
+			$optional--;
+			next;
+		}
 
 		if ($is_optional) {
 			print "Warning: better to also install \"$prog\".\n";
@@ -221,7 +238,6 @@ sub get_sphinx_fname()
 
 sub check_sphinx()
 {
-	my $min_version;
 	my $rec_version;
 	my $cur_version;
 
@@ -247,7 +263,7 @@ sub check_sphinx()
 
 	die "Can't get recommended sphinx version from $requirement_file" if (!$min_version);
 
-	$virtenv_dir .= $rec_version;
+	$virtenv_dir = $virtenv_prefix . $rec_version;
 
 	my $sphinx = get_sphinx_fname();
 	return if ($sphinx eq "");
@@ -268,20 +284,22 @@ sub check_sphinx()
 
 	die "$sphinx didn't return its version" if (!$cur_version);
 
-	printf "Sphinx version %s (minimal: %s, recommended >= %s)\n",
-		$cur_version, $min_version, $rec_version;
-
 	if ($cur_version lt $min_version) {
-		print "Warning: Sphinx version should be >= $min_version\n\n";
+		printf "ERROR: Sphinx version is %s. It should be >= %s (recommended >= %s)\n",
+		       $cur_version, $min_version, $rec_version;;
 		$need_sphinx = 1;
 		return;
 	}
 
 	if ($cur_version lt $rec_version) {
+		printf "Sphinx version %s\n", $cur_version;
 		print "Warning: It is recommended at least Sphinx version $rec_version.\n";
-		print "         To upgrade, use:\n\n";
 		$rec_sphinx_upgrade = 1;
+		return;
 	}
+
+	# On version check mode, just assume Sphinx has all mandatory deps
+	exit (0) if ($version_check);
 }
 
 #
@@ -326,10 +344,13 @@ sub give_debian_hints()
 
 	if ($pdf) {
 		check_missing_file("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-				   "fonts-dejavu", 1);
+				   "fonts-dejavu", 2);
+
+		check_missing_file("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+				   "fonts-noto-cjk", 2);
 	}
 
-	check_program("dvipng", 1) if ($pdf);
+	check_program("dvipng", 2) if ($pdf);
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
@@ -356,6 +377,7 @@ sub give_redhat_hints()
 	my @fedora_tex_pkgs = (
 		"texlive-collection-fontsrecommended",
 		"texlive-collection-latex",
+		"texlive-xecjk",
 		"dejavu-sans-fonts",
 		"dejavu-serif-fonts",
 		"dejavu-sans-mono-fonts",
@@ -364,22 +386,45 @@ sub give_redhat_hints()
 	#
 	# Checks valid for RHEL/CentOS version 7.x.
 	#
-	if (! $system_release =~ /Fedora/) {
+	my $old = 0;
+	my $rel;
+	$rel = $1 if ($system_release =~ /release\s+(\d+)/);
+
+	if (!($system_release =~ /Fedora/)) {
 		$map{"virtualenv"} = "python-virtualenv";
+
+		if ($rel && $rel < 8) {
+			$old = 1;
+			$pdf = 0;
+
+			printf("Note: texlive packages on RHEL/CENTOS <= 7 are incomplete. Can't support PDF output\n");
+			printf("If you want to build PDF, please read:\n");
+			printf("\thttps://www.systutorials.com/241660/how-to-install-tex-live-on-centos-7-linux/\n");
+		}
+	} else {
+		if ($rel && $rel < 26) {
+			$old = 1;
+		}
+	}
+	if (!$rel) {
+		printf("Couldn't identify release number\n");
+		$old = 1;
+		$pdf = 0;
 	}
 
-	my $release;
+	if ($pdf) {
+		check_missing_file("/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+				   "google-noto-sans-cjk-ttc-fonts", 2);
+	}
 
-	$release = $1 if ($system_release =~ /Fedora\s+release\s+(\d+)/);
-
-	check_rpm_missing(\@fedora26_opt_pkgs, 1) if ($pdf && $release >= 26);
-	check_rpm_missing(\@fedora_tex_pkgs, 1) if ($pdf);
-	check_missing_tex(1) if ($pdf);
+	check_rpm_missing(\@fedora26_opt_pkgs, 2) if ($pdf && !$old);
+	check_rpm_missing(\@fedora_tex_pkgs, 2) if ($pdf);
+	check_missing_tex(2) if ($pdf);
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
 
-	if ($release >= 18) {
+	if (!$old) {
 		# dnf, for Fedora 18+
 		printf("You should run:\n\n\tsudo dnf install -y $install\n");
 	} else {
@@ -418,8 +463,15 @@ sub give_opensuse_hints()
 		"texlive-zapfding",
 	);
 
-	check_rpm_missing(\@suse_tex_pkgs, 1) if ($pdf);
-	check_missing_tex(1) if ($pdf);
+	$map{"latexmk"} = "texlive-latexmk-bin";
+
+	# FIXME: add support for installing CJK fonts
+	#
+	# I tried hard, but was unable to find a way to install
+	# "Noto Sans CJK SC" on openSUSE
+
+	check_rpm_missing(\@suse_tex_pkgs, 2) if ($pdf);
+	check_missing_tex(2) if ($pdf);
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
@@ -443,7 +495,14 @@ sub give_mageia_hints()
 		"texlive-fontsextra",
 	);
 
-	check_rpm_missing(\@tex_pkgs, 1) if ($pdf);
+	$map{"latexmk"} = "texlive-collection-basic";
+
+	if ($pdf) {
+		check_missing_file("/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+				   "google-noto-sans-cjk-ttc-fonts", 2);
+	}
+
+	check_rpm_missing(\@tex_pkgs, 2) if ($pdf);
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
@@ -466,7 +525,13 @@ sub give_arch_linux_hints()
 		"texlive-latexextra",
 		"ttf-dejavu",
 	);
-	check_pacman_missing(\@archlinux_tex_pkgs, 1) if ($pdf);
+	check_pacman_missing(\@archlinux_tex_pkgs, 2) if ($pdf);
+
+	if ($pdf) {
+		check_missing_file("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+				   "noto-fonts-cjk", 2);
+	}
+
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
@@ -485,15 +550,31 @@ sub give_gentoo_hints()
 	);
 
 	check_missing_file("/usr/share/fonts/dejavu/DejaVuSans.ttf",
-			   "media-fonts/dejavu", 1) if ($pdf);
+			   "media-fonts/dejavu", 2) if ($pdf);
+
+	if ($pdf) {
+		check_missing_file("/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf",
+				   "media-fonts/noto-cjk", 2);
+	}
 
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
 
 	printf("You should run:\n\n");
-	printf("\tsudo su -c 'echo \"media-gfx/imagemagick svg png\" > /etc/portage/package.use/imagemagick'\n");
-	printf("\tsudo su -c 'echo \"media-gfx/graphviz cairo pdf\" > /etc/portage/package.use/graphviz'\n");
+
+	my $imagemagick = "media-gfx/imagemagick svg png";
+	my $cairo = "media-gfx/graphviz cairo pdf";
+	my $portage_imagemagick = "/etc/portage/package.use/imagemagick";
+	my $portage_cairo = "/etc/portage/package.use/graphviz";
+
+	if (qx(cat $portage_imagemagick) ne "$imagemagick\n") {
+		printf("\tsudo su -c 'echo \"$imagemagick\" > $portage_imagemagick'\n")
+	}
+	if (qx(cat $portage_cairo) ne  "$cairo\n") {
+		printf("\tsudo su -c 'echo \"$cairo\" > $portage_cairo'\n");
+	}
+
 	printf("\tsudo emerge --ask $install\n");
 
 }
@@ -553,7 +634,7 @@ sub check_distros()
 	my %map = (
 		"sphinx-build" => "sphinx"
 	);
-	check_missing_tex(1) if ($pdf);
+	check_missing_tex(2) if ($pdf);
 	check_missing(\%map);
 	print "I don't know distro $system_release.\n";
 	print "So, I can't provide you a hint with the install procedure.\n";
@@ -566,36 +647,29 @@ sub check_distros()
 
 sub check_needs()
 {
-	if ($system_release) {
-		print "Detected OS: $system_release.\n";
-	} else {
-		print "Unknown OS\n";
-	}
-
-	# RHEL 7.x and clones have Sphinx version 1.1.x and incomplete texlive
-	if (($system_release =~ /Red Hat Enterprise Linux/) ||
-	    ($system_release =~ /CentOS/) ||
-	    ($system_release =~ /Scientific Linux/) ||
-	    ($system_release =~ /Oracle Linux Server/)) {
-		$virtualenv = 1;
-		$pdf = 0;
-
-		printf("NOTE: On this distro, Sphinx and TexLive shipped versions are incompatible\n");
-		printf("with doc build. So, use Sphinx via a Python virtual environment.\n\n");
-		printf("This script can't install a TexLive version that would provide PDF.\n");
-	}
-
 	# Check for needed programs/tools
 	check_sphinx();
+
+	if ($system_release) {
+		print "Detected OS: $system_release.\n\n";
+	} else {
+		print "Unknown OS\n\n";
+	}
+
+	print "To upgrade Sphinx, use:\n\n" if ($rec_sphinx_upgrade);
+
+	# Check for needed programs/tools
 	check_perl_module("Pod::Usage", 0);
 	check_program("make", 0);
 	check_program("gcc", 0);
 	check_python_module("sphinx_rtd_theme", 1) if (!$virtualenv);
-	check_program("xelatex", 1) if ($pdf);
 	check_program("dot", 1);
 	check_program("convert", 1);
-	check_program("rsvg-convert", 1) if ($pdf);
-	check_program("latexmk", 1) if ($pdf);
+
+	# Extra PDF files - should use 2 for is_optional
+	check_program("xelatex", 2) if ($pdf);
+	check_program("rsvg-convert", 2) if ($pdf);
+	check_program("latexmk", 2) if ($pdf);
 
 	check_distros();
 
@@ -604,18 +678,24 @@ sub check_needs()
 		       which("sphinx-build-3");
 	}
 	if ($need_sphinx || $rec_sphinx_upgrade) {
-		my $activate = "$virtenv_dir/bin/activate";
-		if (-e "$ENV{'PWD'}/$activate") {
-			printf "\nNeed to activate virtualenv with:\n";
-			printf "\t. $activate\n";
+		my $min_activate = "$ENV{'PWD'}/${virtenv_prefix}${min_version}/bin/activate";
+		my @activates = glob "$ENV{'PWD'}/${virtenv_prefix}*/bin/activate";
+
+		@activates = sort {$b cmp $a} @activates;
+
+		if ($need_sphinx && scalar @activates > 0 && $activates[0] ge $min_activate) {
+			printf "\nNeed to activate a compatible Sphinx version on virtualenv with:\n";
+			printf "\t. $activates[0]\n";
+			exit (1);
 		} else {
+			my $rec_activate = "$virtenv_dir/bin/activate";
 			my $virtualenv = findprog("virtualenv-3");
 			$virtualenv = findprog("virtualenv-3.5") if (!$virtualenv);
 			$virtualenv = findprog("virtualenv") if (!$virtualenv);
 			$virtualenv = "virtualenv" if (!$virtualenv);
 
 			printf "\t$virtualenv $virtenv_dir\n";
-			printf "\t. $activate\n";
+			printf "\t. $rec_activate\n";
 			printf "\tpip install -r $requirement_file\n";
 
 			$need++ if (!$rec_sphinx_upgrade);
@@ -623,7 +703,7 @@ sub check_needs()
 	}
 	printf "\n";
 
-	print "All optional dependenties are met.\n" if (!$optional);
+	print "All optional dependencies are met.\n" if (!$optional);
 
 	if ($need == 1) {
 		die "Can't build as $need mandatory dependency is missing";
@@ -645,8 +725,14 @@ while (@ARGV) {
 		$virtualenv = 0;
 	} elsif ($arg eq "--no-pdf"){
 		$pdf = 0;
+	} elsif ($arg eq "--version-check"){
+		$version_check = 1;
 	} else {
-		print "Usage:\n\t$0 <--no-virtualenv> <--no-pdf>\n\n";
+		print "Usage:\n\t$0 <--no-virtualenv> <--no-pdf> <--version-check>\n\n";
+		print "Where:\n";
+		print "\t--no-virtualenv\t- Recommend installing Sphinx instead of using a virtualenv\n";
+		print "\t--version-check\t- if version is compatible, don't check for missing dependencies\n";
+		print "\t--no-pdf\t- don't check for dependencies required to build PDF docs\n\n";
 		exit -1;
 	}
 }

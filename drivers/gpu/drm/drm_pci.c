@@ -22,12 +22,17 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
+#include <linux/pci.h>
+#include <linux/slab.h>
+
+#include <drm/drm.h>
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_pci.h>
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
+
 #include "drm_internal.h"
 #include "drm_legacy.h"
 

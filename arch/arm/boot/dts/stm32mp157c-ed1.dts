@@ -6,7 +6,7 @@
 /dts-v1/;
 
 #include "stm32mp157c.dtsi"
-#include "stm32mp157-pinctrl.dtsi"
+#include "stm32mp157xaa-pinctrl.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/mfd/st,stpmic1.h>
 
@@ -21,6 +21,17 @@
 	memory@c0000000 {
 		device_type = "memory";
 		reg = <0xC0000000 0x40000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gpu_reserved: gpu@e8000000 {
+			reg = <0xe8000000 0x8000000>;
+			no-map;
+		};
 	};
 
 	aliases {
@@ -58,6 +69,11 @@
 };
 
 &dts {
+	status = "okay";
+};
+
+&gpu {
+	contiguous-area = <&gpu_reserved>;
 	status = "okay";
 };
 

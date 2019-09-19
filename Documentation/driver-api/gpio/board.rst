@@ -101,7 +101,7 @@ with the help of _DSD (Device Specific Data), introduced in ACPI 5.1::
 	}
 
 For more information about the ACPI GPIO bindings see
-Documentation/acpi/gpio-properties.txt.
+Documentation/firmware-guide/acpi/gpio-properties.rst.
 
 Platform Data
 -------------

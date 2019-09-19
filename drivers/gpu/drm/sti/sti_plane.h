@@ -7,7 +7,6 @@
 #ifndef _STI_PLANE_H_
 #define _STI_PLANE_H_
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 

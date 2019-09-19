@@ -81,11 +81,6 @@ of sparse using git to clone::
 
         git://git.kernel.org/pub/scm/devel/sparse/sparse.git
 
-DaveJ has hourly generated tarballs of the git tree available at::
-
-        http://www.codemonkey.org.uk/projects/git-snapshots/sparse/
-
-
 Once you have it, just do::
 
         make

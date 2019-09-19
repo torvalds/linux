@@ -447,21 +447,16 @@ static int s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 	/* Datasheet says PLL stabalisation time must be at least 300us,
 	 * so but add some fudge. (reference in LOCKCON0 register description)
 	 */
-	ret = cpufreq_generic_init(policy, s3c_freq->freq_table,
+	cpufreq_generic_init(policy, s3c_freq->freq_table,
 			(500 * 1000) + s3c_freq->regulator_latency);
-	if (ret)
-		goto err_freq_table;
-
 	register_reboot_notifier(&s3c2416_cpufreq_reboot_notifier);
 
 	return 0;
 
-err_freq_table:
 #ifdef CONFIG_ARM_S3C2416_CPUFREQ_VCORESCALE
-	regulator_put(s3c_freq->vddarm);
 err_vddarm:
-#endif
 	clk_put(s3c_freq->armclk);
+#endif
 err_armclk:
 	clk_put(s3c_freq->hclk);
 err_hclk:

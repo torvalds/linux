@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
+include ../../../../scripts/Kbuild.include
+include ../../../scripts/Makefile.arch
 
 LIBDIR := ../../../lib
 BPFDIR := $(LIBDIR)/bpf
@@ -15,7 +17,9 @@ LLC		?= llc
 LLVM_OBJCOPY	?= llvm-objcopy
 LLVM_READELF	?= llvm-readelf
 BTF_PAHOLE	?= pahole
-CFLAGS += -Wall -O2 -I$(APIDIR) -I$(LIBDIR) -I$(BPFDIR) -I$(GENDIR) $(GENFLAGS) -I../../../include
+CFLAGS += -g -Wall -O2 -I$(APIDIR) -I$(LIBDIR) -I$(BPFDIR) -I$(GENDIR) $(GENFLAGS) -I../../../include \
+	  -Dbpf_prog_load=bpf_prog_test_load \
+	  -Dbpf_load_program=bpf_test_load_program
 LDLIBS += -lcap -lelf -lrt -lpthread
 
 # Order correspond to 'make run_tests' order
@@ -23,10 +27,15 @@ TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map test
 	test_align test_verifier_log test_dev_cgroup test_tcpbpf_user \
 	test_sock test_btf test_sockmap get_cgroup_id_user test_socket_cookie \
 	test_cgroup_storage test_select_reuseport test_section_names \
-	test_netcnt test_tcpnotify_user test_sock_fields test_sysctl
+	test_netcnt test_tcpnotify_user test_sock_fields test_sysctl test_hashmap \
+	test_btf_dump test_cgroup_attach xdping test_sockopt test_sockopt_sk \
+	test_sockopt_multi test_tcp_rtt
 
 BPF_OBJ_FILES = $(patsubst %.c,%.o, $(notdir $(wildcard progs/*.c)))
 TEST_GEN_FILES = $(BPF_OBJ_FILES)
+
+BTF_C_FILES = $(wildcard progs/btf_dump_test_case_*.c)
+TEST_FILES = $(BTF_C_FILES)
 
 # Also test sub-register code-gen if LLVM has eBPF v3 processor support which
 # contains both ALU32 and JMP32 instructions.
@@ -43,6 +52,7 @@ TEST_PROGS := test_kmod.sh \
 	test_libbpf.sh \
 	test_xdp_redirect.sh \
 	test_xdp_meta.sh \
+	test_xdp_veth.sh \
 	test_offload.py \
 	test_sock_addr.sh \
 	test_tunnel.sh \
@@ -50,16 +60,19 @@ TEST_PROGS := test_kmod.sh \
 	test_lirc_mode2.sh \
 	test_skb_cgroup_id.sh \
 	test_flow_dissector.sh \
-	test_xdp_vlan.sh \
+	test_xdp_vlan_mode_generic.sh \
+	test_xdp_vlan_mode_native.sh \
 	test_lwt_ip_encap.sh \
 	test_tcp_check_syncookie.sh \
 	test_tc_tunnel.sh \
-	test_tc_edt.sh
+	test_tc_edt.sh \
+	test_xdping.sh
 
 TEST_PROGS_EXTENDED := with_addr.sh \
 	with_tunnels.sh \
 	tcp_client.py \
-	tcp_server.py
+	tcp_server.py \
+	test_xdp_vlan.sh
 
 # Compile but not part of 'make run_tests'
 TEST_GEN_PROGS_EXTENDED = test_libbpf_open test_sock_addr test_skb_cgroup_id_user \
@@ -75,13 +88,14 @@ all: $(TEST_CUSTOM_PROGS)
 $(OUTPUT)/urandom_read: $(OUTPUT)/%: %.c
 	$(CC) -o $@ $< -Wl,--build-id
 
-$(OUTPUT)/test_maps: map_tests/*.c
+$(OUTPUT)/test_stub.o: test_stub.c
+	$(CC) $(TEST_PROGS_CFLAGS) $(CFLAGS) -c -o $@ $<
 
 BPFOBJ := $(OUTPUT)/libbpf.a
 
-$(TEST_GEN_PROGS): $(BPFOBJ)
+$(TEST_GEN_PROGS): $(OUTPUT)/test_stub.o $(BPFOBJ)
 
-$(TEST_GEN_PROGS_EXTENDED): $(OUTPUT)/libbpf.a
+$(TEST_GEN_PROGS_EXTENDED): $(OUTPUT)/test_stub.o $(OUTPUT)/libbpf.a
 
 $(OUTPUT)/test_dev_cgroup: cgroup_helpers.c
 $(OUTPUT)/test_skb_cgroup_id_user: cgroup_helpers.c
@@ -97,6 +111,11 @@ $(OUTPUT)/test_cgroup_storage: cgroup_helpers.c
 $(OUTPUT)/test_netcnt: cgroup_helpers.c
 $(OUTPUT)/test_sock_fields: cgroup_helpers.c
 $(OUTPUT)/test_sysctl: cgroup_helpers.c
+$(OUTPUT)/test_cgroup_attach: cgroup_helpers.c
+$(OUTPUT)/test_sockopt: cgroup_helpers.c
+$(OUTPUT)/test_sockopt_sk: cgroup_helpers.c
+$(OUTPUT)/test_sockopt_multi: cgroup_helpers.c
+$(OUTPUT)/test_tcp_rtt: cgroup_helpers.c
 
 .PHONY: force
 
@@ -127,7 +146,8 @@ CLANG_SYS_INCLUDES := $(shell $(CLANG) -v -E - </dev/null 2>&1 \
 
 CLANG_FLAGS = -I. -I./include/uapi -I../../../include/uapi \
 	      $(CLANG_SYS_INCLUDES) \
-	      -Wno-compare-distinct-pointer-types
+	      -Wno-compare-distinct-pointer-types \
+	      -D__TARGET_ARCH_$(SRCARCH)
 
 $(OUTPUT)/test_l4lb_noinline.o: CLANG_FLAGS += -fno-inline
 $(OUTPUT)/test_xdp_noinline.o: CLANG_FLAGS += -fno-inline
@@ -161,6 +181,7 @@ endif
 endif
 
 TEST_PROGS_CFLAGS := -I. -I$(OUTPUT)
+TEST_MAPS_CFLAGS := -I. -I$(OUTPUT)
 TEST_VERIFIER_CFLAGS := -I. -I$(OUTPUT) -Iverifier
 
 ifneq ($(SUBREG_CODEGEN),)
@@ -169,24 +190,24 @@ TEST_CUSTOM_PROGS += $(ALU32_BUILD_DIR)/test_progs_32
 $(ALU32_BUILD_DIR):
 	mkdir -p $@
 
-$(ALU32_BUILD_DIR)/urandom_read: $(OUTPUT)/urandom_read
+$(ALU32_BUILD_DIR)/urandom_read: $(OUTPUT)/urandom_read | $(ALU32_BUILD_DIR)
 	cp $< $@
 
 $(ALU32_BUILD_DIR)/test_progs_32: test_progs.c $(OUTPUT)/libbpf.a\
-						$(ALU32_BUILD_DIR) \
-						$(ALU32_BUILD_DIR)/urandom_read
+						$(ALU32_BUILD_DIR)/urandom_read \
+						| $(ALU32_BUILD_DIR)
 	$(CC) $(TEST_PROGS_CFLAGS) $(CFLAGS) \
 		-o $(ALU32_BUILD_DIR)/test_progs_32 \
-		test_progs.c trace_helpers.c prog_tests/*.c \
+		test_progs.c test_stub.c trace_helpers.c prog_tests/*.c \
 		$(OUTPUT)/libbpf.a $(LDLIBS)
 
 $(ALU32_BUILD_DIR)/test_progs_32: $(PROG_TESTS_H)
 $(ALU32_BUILD_DIR)/test_progs_32: prog_tests/*.c
 
-$(ALU32_BUILD_DIR)/%.o: progs/%.c $(ALU32_BUILD_DIR) \
-					$(ALU32_BUILD_DIR)/test_progs_32
-	$(CLANG) $(CLANG_FLAGS) \
-		 -O2 -target bpf -emit-llvm -c $< -o - |      \
+$(ALU32_BUILD_DIR)/%.o: progs/%.c $(ALU32_BUILD_DIR)/test_progs_32 \
+					| $(ALU32_BUILD_DIR)
+	($(CLANG) $(CLANG_FLAGS) -O2 -target bpf -emit-llvm -c $< -o - || \
+		echo "clang failed") | \
 	$(LLC) -march=bpf -mattr=+alu32 -mcpu=$(CPU) $(LLC_FLAGS) \
 		-filetype=obj -o $@
 ifeq ($(DWARF2BTF),y)
@@ -197,32 +218,30 @@ endif
 # Have one program compiled without "-target bpf" to test whether libbpf loads
 # it successfully
 $(OUTPUT)/test_xdp.o: progs/test_xdp.c
-	$(CLANG) $(CLANG_FLAGS) \
-		-O2 -emit-llvm -c $< -o - | \
+	($(CLANG) $(CLANG_FLAGS) -O2 -emit-llvm -c $< -o - || \
+		echo "clang failed") | \
 	$(LLC) -march=bpf -mcpu=$(CPU) $(LLC_FLAGS) -filetype=obj -o $@
 ifeq ($(DWARF2BTF),y)
 	$(BTF_PAHOLE) -J $@
 endif
 
 $(OUTPUT)/%.o: progs/%.c
-	$(CLANG) $(CLANG_FLAGS) \
-		 -O2 -target bpf -emit-llvm -c $< -o - |      \
+	($(CLANG) $(CLANG_FLAGS) -O2 -target bpf -emit-llvm -c $< -o - || \
+		echo "clang failed") | \
 	$(LLC) -march=bpf -mcpu=$(CPU) $(LLC_FLAGS) -filetype=obj -o $@
 ifeq ($(DWARF2BTF),y)
 	$(BTF_PAHOLE) -J $@
 endif
 
-PROG_TESTS_H := $(OUTPUT)/prog_tests/tests.h
-test_progs.c: $(PROG_TESTS_H)
-$(OUTPUT)/test_progs: CFLAGS += $(TEST_PROGS_CFLAGS)
-$(OUTPUT)/test_progs: prog_tests/*.c
-
 PROG_TESTS_DIR = $(OUTPUT)/prog_tests
 $(PROG_TESTS_DIR):
 	mkdir -p $@
-
+PROG_TESTS_H := $(PROG_TESTS_DIR)/tests.h
 PROG_TESTS_FILES := $(wildcard prog_tests/*.c)
-$(PROG_TESTS_H): $(PROG_TESTS_DIR) $(PROG_TESTS_FILES)
+test_progs.c: $(PROG_TESTS_H)
+$(OUTPUT)/test_progs: CFLAGS += $(TEST_PROGS_CFLAGS)
+$(OUTPUT)/test_progs: test_progs.c $(PROG_TESTS_H) $(PROG_TESTS_FILES)
+$(PROG_TESTS_H): $(PROG_TESTS_FILES) | $(PROG_TESTS_DIR)
 	$(shell ( cd prog_tests/; \
 		  echo '/* Generated header, do not edit */'; \
 		  echo '#ifdef DECLARE'; \
@@ -235,15 +254,15 @@ $(PROG_TESTS_H): $(PROG_TESTS_DIR) $(PROG_TESTS_FILES)
 		  echo '#endif' \
 		 ) > $(PROG_TESTS_H))
 
-TEST_MAPS_CFLAGS := -I. -I$(OUTPUT)
 MAP_TESTS_DIR = $(OUTPUT)/map_tests
 $(MAP_TESTS_DIR):
 	mkdir -p $@
 MAP_TESTS_H := $(MAP_TESTS_DIR)/tests.h
+MAP_TESTS_FILES := $(wildcard map_tests/*.c)
 test_maps.c: $(MAP_TESTS_H)
 $(OUTPUT)/test_maps: CFLAGS += $(TEST_MAPS_CFLAGS)
-MAP_TESTS_FILES := $(wildcard map_tests/*.c)
-$(MAP_TESTS_H): $(MAP_TESTS_DIR) $(MAP_TESTS_FILES)
+$(OUTPUT)/test_maps: test_maps.c $(MAP_TESTS_H) $(MAP_TESTS_FILES)
+$(MAP_TESTS_H): $(MAP_TESTS_FILES) | $(MAP_TESTS_DIR)
 	$(shell ( cd map_tests/; \
 		  echo '/* Generated header, do not edit */'; \
 		  echo '#ifdef DECLARE'; \
@@ -256,16 +275,15 @@ $(MAP_TESTS_H): $(MAP_TESTS_DIR) $(MAP_TESTS_FILES)
 		  echo '#endif' \
 		 ) > $(MAP_TESTS_H))
 
-VERIFIER_TESTS_H := $(OUTPUT)/verifier/tests.h
-test_verifier.c: $(VERIFIER_TESTS_H)
-$(OUTPUT)/test_verifier: CFLAGS += $(TEST_VERIFIER_CFLAGS)
-
 VERIFIER_TESTS_DIR = $(OUTPUT)/verifier
 $(VERIFIER_TESTS_DIR):
 	mkdir -p $@
-
+VERIFIER_TESTS_H := $(VERIFIER_TESTS_DIR)/tests.h
 VERIFIER_TEST_FILES := $(wildcard verifier/*.c)
-$(OUTPUT)/verifier/tests.h: $(VERIFIER_TESTS_DIR) $(VERIFIER_TEST_FILES)
+test_verifier.c: $(VERIFIER_TESTS_H)
+$(OUTPUT)/test_verifier: CFLAGS += $(TEST_VERIFIER_CFLAGS)
+$(OUTPUT)/test_verifier: test_verifier.c $(VERIFIER_TESTS_H)
+$(VERIFIER_TESTS_H): $(VERIFIER_TEST_FILES) | $(VERIFIER_TESTS_DIR)
 	$(shell ( cd verifier/; \
 		  echo '/* Generated header, do not edit */'; \
 		  echo '#ifdef FILL_ARRAY'; \
@@ -275,4 +293,5 @@ $(OUTPUT)/verifier/tests.h: $(VERIFIER_TESTS_DIR) $(VERIFIER_TEST_FILES)
 		 ) > $(VERIFIER_TESTS_H))
 
 EXTRA_CLEAN := $(TEST_CUSTOM_PROGS) $(ALU32_BUILD_DIR) \
-	$(VERIFIER_TESTS_H) $(PROG_TESTS_H) $(MAP_TESTS_H)
+	$(VERIFIER_TESTS_H) $(PROG_TESTS_H) $(MAP_TESTS_H) \
+	feature

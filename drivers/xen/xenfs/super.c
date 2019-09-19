@@ -14,6 +14,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/fs_context.h>
 #include <linux/magic.h>
 
 #include <xen/xen.h>
@@ -43,7 +44,7 @@ static const struct file_operations capabilities_file_ops = {
 	.llseek = default_llseek,
 };
 
-static int xenfs_fill_super(struct super_block *sb, void *data, int silent)
+static int xenfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	static const struct tree_descr xenfs_files[] = {
 		[2] = { "xenbus", &xen_xenbus_fops, S_IRUSR|S_IWUSR },
@@ -68,17 +69,25 @@ static int xenfs_fill_super(struct super_block *sb, void *data, int silent)
 			xen_initial_domain() ? xenfs_init_files : xenfs_files);
 }
 
-static struct dentry *xenfs_mount(struct file_system_type *fs_type,
-				  int flags, const char *dev_name,
-				  void *data)
+static int xenfs_get_tree(struct fs_context *fc)
 {
-	return mount_single(fs_type, flags, data, xenfs_fill_super);
+	return get_tree_single(fc, xenfs_fill_super);
+}
+
+static const struct fs_context_operations xenfs_context_ops = {
+	.get_tree	= xenfs_get_tree,
+};
+
+static int xenfs_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &xenfs_context_ops;
+	return 0;
 }
 
 static struct file_system_type xenfs_type = {
 	.owner =	THIS_MODULE,
 	.name =		"xenfs",
-	.mount =	xenfs_mount,
+	.init_fs_context = xenfs_init_fs_context,
 	.kill_sb =	kill_litter_super,
 };
 MODULE_ALIAS_FS("xenfs");

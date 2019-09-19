@@ -165,7 +165,6 @@ static inline unsigned int isa_virt_to_bus(volatile void *address)
 {
 	return (unsigned int)virt_to_phys(address);
 }
-#define isa_page_to_bus(page)	((unsigned int)page_to_phys(page))
 #define isa_bus_to_virt		phys_to_virt
 
 /*

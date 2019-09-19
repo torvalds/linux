@@ -90,7 +90,8 @@ static int davinci_cpu_init(struct cpufreq_policy *policy)
 	 * Setting the latency to 2000 us to accommodate addition of drivers
 	 * to pre/post change notification list.
 	 */
-	return cpufreq_generic_init(policy, freq_table, 2000 * 1000);
+	cpufreq_generic_init(policy, freq_table, 2000 * 1000);
+	return 0;
 }
 
 static struct cpufreq_driver davinci_driver = {

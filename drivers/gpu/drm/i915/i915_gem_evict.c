@@ -28,6 +28,8 @@
 
 #include <drm/i915_drm.h>
 
+#include "gem/i915_gem_context.h"
+
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "i915_trace.h"
@@ -36,15 +38,8 @@ I915_SELFTEST_DECLARE(static struct igt_evict_ctl {
 	bool fail_if_busy:1;
 } igt_evict_ctl;)
 
-static bool ggtt_is_idle(struct drm_i915_private *i915)
-{
-	return !i915->gt.active_requests;
-}
-
 static int ggtt_flush(struct drm_i915_private *i915)
 {
-	int err;
-
 	/*
 	 * Not everything in the GGTT is tracked via vma (otherwise we
 	 * could evict as required with minimal stalling) so we are forced
@@ -52,19 +47,10 @@ static int ggtt_flush(struct drm_i915_private *i915)
 	 * the hopes that we can then remove contexts and the like only
 	 * bound by their active reference.
 	 */
-	err = i915_gem_switch_to_kernel_context(i915, i915->gt.active_engines);
-	if (err)
-		return err;
-
-	err = i915_gem_wait_for_idle(i915,
-				     I915_WAIT_INTERRUPTIBLE |
-				     I915_WAIT_LOCKED,
-				     MAX_SCHEDULE_TIMEOUT);
-	if (err)
-		return err;
-
-	GEM_BUG_ON(!ggtt_is_idle(i915));
-	return 0;
+	return i915_gem_wait_for_idle(i915,
+				      I915_WAIT_INTERRUPTIBLE |
+				      I915_WAIT_LOCKED,
+				      MAX_SCHEDULE_TIMEOUT);
 }
 
 static bool
@@ -222,24 +208,17 @@ search_again:
 	 * us a termination condition, when the last retired context is
 	 * the kernel's there is no more we can evict.
 	 */
-	if (!ggtt_is_idle(dev_priv)) {
-		if (I915_SELFTEST_ONLY(igt_evict_ctl.fail_if_busy))
-			return -EBUSY;
+	if (I915_SELFTEST_ONLY(igt_evict_ctl.fail_if_busy))
+		return -EBUSY;
 
-		ret = ggtt_flush(dev_priv);
-		if (ret)
-			return ret;
+	ret = ggtt_flush(dev_priv);
+	if (ret)
+		return ret;
 
-		cond_resched();
-		goto search_again;
-	}
+	cond_resched();
 
-	/*
-	 * If we still have pending pageflip completions, drop
-	 * back to userspace to give our workqueues time to
-	 * acquire our locks and unpin the old scanouts.
-	 */
-	return intel_has_pending_fb_unpin(dev_priv) ? -EAGAIN : -ENOSPC;
+	flags |= PIN_NONBLOCK;
+	goto search_again;
 
 found:
 	/* drm_mm doesn't allow any other other operations while

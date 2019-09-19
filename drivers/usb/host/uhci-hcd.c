@@ -581,7 +581,7 @@ static int uhci_start(struct usb_hcd *hcd)
 
 	hcd->uses_new_polling = 1;
 	/* Accept arbitrarily long scatter-gather lists */
-	if (!(hcd->driver->flags & HCD_LOCAL_MEM))
+	if (!hcd->localmem_pool)
 		hcd->self.sg_tablesize = ~0;
 
 	spin_lock_init(&uhci->lock);

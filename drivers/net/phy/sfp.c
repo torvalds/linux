@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/acpi.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
@@ -184,12 +185,14 @@ struct sfp {
 	int (*write)(struct sfp *, bool, u8, void *, size_t);
 
 	struct gpio_desc *gpio[GPIO_MAX];
+	int gpio_irq[GPIO_MAX];
 
 	bool attached;
+	struct mutex st_mutex;			/* Protects state */
 	unsigned int state;
 	struct delayed_work poll;
 	struct delayed_work timeout;
-	struct mutex sm_mutex;
+	struct mutex sm_mutex;			/* Protects state machine */
 	unsigned char sm_mod_state;
 	unsigned char sm_dev_state;
 	unsigned short sm_state;
@@ -514,7 +517,7 @@ static int sfp_hwmon_read_sensor(struct sfp *sfp, int reg, long *value)
 
 static void sfp_hwmon_to_rx_power(long *value)
 {
-	*value = DIV_ROUND_CLOSEST(*value, 100);
+	*value = DIV_ROUND_CLOSEST(*value, 10);
 }
 
 static void sfp_hwmon_calibrate(struct sfp *sfp, unsigned int slope, int offset,
@@ -1719,6 +1722,7 @@ static void sfp_check_state(struct sfp *sfp)
 {
 	unsigned int state, i, changed;
 
+	mutex_lock(&sfp->st_mutex);
 	state = sfp_get_state(sfp);
 	changed = state ^ sfp->state;
 	changed &= SFP_F_PRESENT | SFP_F_LOS | SFP_F_TX_FAULT;
@@ -1744,6 +1748,7 @@ static void sfp_check_state(struct sfp *sfp)
 		sfp_sm_event(sfp, state & SFP_F_LOS ?
 				SFP_E_LOS_HIGH : SFP_E_LOS_LOW);
 	rtnl_unlock();
+	mutex_unlock(&sfp->st_mutex);
 }
 
 static irqreturn_t sfp_irq(int irq, void *data)
@@ -1774,6 +1779,7 @@ static struct sfp *sfp_alloc(struct device *dev)
 	sfp->dev = dev;
 
 	mutex_init(&sfp->sm_mutex);
+	mutex_init(&sfp->st_mutex);
 	INIT_DELAYED_WORK(&sfp->poll, sfp_poll);
 	INIT_DELAYED_WORK(&sfp->timeout, sfp_timeout);
 
@@ -1798,9 +1804,10 @@ static void sfp_cleanup(void *data)
 static int sfp_probe(struct platform_device *pdev)
 {
 	const struct sff_data *sff;
+	struct i2c_adapter *i2c;
 	struct sfp *sfp;
 	bool poll = false;
-	int irq, err, i;
+	int err, i;
 
 	sfp = sfp_alloc(&pdev->dev);
 	if (IS_ERR(sfp))
@@ -1817,7 +1824,6 @@ static int sfp_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node) {
 		struct device_node *node = pdev->dev.of_node;
 		const struct of_device_id *id;
-		struct i2c_adapter *i2c;
 		struct device_node *np;
 
 		id = of_match_node(sfp_of_match, node);
@@ -1834,14 +1840,32 @@ static int sfp_probe(struct platform_device *pdev)
 
 		i2c = of_find_i2c_adapter_by_node(np);
 		of_node_put(np);
-		if (!i2c)
-			return -EPROBE_DEFER;
+	} else if (has_acpi_companion(&pdev->dev)) {
+		struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
+		struct fwnode_handle *fw = acpi_fwnode_handle(adev);
+		struct fwnode_reference_args args;
+		struct acpi_handle *acpi_handle;
+		int ret;
 
-		err = sfp_i2c_configure(sfp, i2c);
-		if (err < 0) {
-			i2c_put_adapter(i2c);
-			return err;
+		ret = acpi_node_get_property_reference(fw, "i2c-bus", 0, &args);
+		if (ret || !is_acpi_device_node(args.fwnode)) {
+			dev_err(&pdev->dev, "missing 'i2c-bus' property\n");
+			return -ENODEV;
 		}
+
+		acpi_handle = ACPI_HANDLE_FWNODE(args.fwnode);
+		i2c = i2c_acpi_find_adapter_by_handle(acpi_handle);
+	} else {
+		return -EINVAL;
+	}
+
+	if (!i2c)
+		return -EPROBE_DEFER;
+
+	err = sfp_i2c_configure(sfp, i2c);
+	if (err < 0) {
+		i2c_put_adapter(i2c);
+		return err;
 	}
 
 	for (i = 0; i < GPIO_MAX; i++)
@@ -1882,19 +1906,22 @@ static int sfp_probe(struct platform_device *pdev)
 		if (gpio_flags[i] != GPIOD_IN || !sfp->gpio[i])
 			continue;
 
-		irq = gpiod_to_irq(sfp->gpio[i]);
-		if (!irq) {
+		sfp->gpio_irq[i] = gpiod_to_irq(sfp->gpio[i]);
+		if (!sfp->gpio_irq[i]) {
 			poll = true;
 			continue;
 		}
 
-		err = devm_request_threaded_irq(sfp->dev, irq, NULL, sfp_irq,
+		err = devm_request_threaded_irq(sfp->dev, sfp->gpio_irq[i],
+						NULL, sfp_irq,
 						IRQF_ONESHOT |
 						IRQF_TRIGGER_RISING |
 						IRQF_TRIGGER_FALLING,
 						dev_name(sfp->dev), sfp);
-		if (err)
+		if (err) {
+			sfp->gpio_irq[i] = 0;
 			poll = true;
+		}
 	}
 
 	if (poll)
@@ -1925,9 +1952,26 @@ static int sfp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void sfp_shutdown(struct platform_device *pdev)
+{
+	struct sfp *sfp = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < GPIO_MAX; i++) {
+		if (!sfp->gpio_irq[i])
+			continue;
+
+		devm_free_irq(sfp->dev, sfp->gpio_irq[i], sfp);
+	}
+
+	cancel_delayed_work_sync(&sfp->poll);
+	cancel_delayed_work_sync(&sfp->timeout);
+}
+
 static struct platform_driver sfp_driver = {
 	.probe = sfp_probe,
 	.remove = sfp_remove,
+	.shutdown = sfp_shutdown,
 	.driver = {
 		.name = "sfp",
 		.of_match_table = sfp_of_match,

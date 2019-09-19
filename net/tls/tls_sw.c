@@ -534,7 +534,7 @@ static int tls_do_encryption(struct sock *sk,
 
 	/* Unhook the record from context if encryption is not failure */
 	ctx->open_rec = NULL;
-	tls_advance_record_sn(sk, &tls_ctx->tx, prot->version);
+	tls_advance_record_sn(sk, prot, &tls_ctx->tx);
 	return rc;
 }
 
@@ -1485,15 +1485,16 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
 	struct tls_prot_info *prot = &tls_ctx->prot_info;
-	int version = prot->version;
 	struct strp_msg *rxm = strp_msg(skb);
 	int pad, err = 0;
 
 	if (!ctx->decrypted) {
 #ifdef CONFIG_TLS_DEVICE
-		err = tls_device_decrypted(sk, skb);
-		if (err < 0)
-			return err;
+		if (tls_ctx->rx_conf == TLS_HW) {
+			err = tls_device_decrypted(sk, skb);
+			if (err < 0)
+				return err;
+		}
 #endif
 		/* Still not decrypted after tls_device */
 		if (!ctx->decrypted) {
@@ -1501,8 +1502,8 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 					       async);
 			if (err < 0) {
 				if (err == -EINPROGRESS)
-					tls_advance_record_sn(sk, &tls_ctx->rx,
-							      version);
+					tls_advance_record_sn(sk, prot,
+							      &tls_ctx->rx);
 
 				return err;
 			}
@@ -1517,7 +1518,7 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 		rxm->full_len -= pad;
 		rxm->offset += prot->prepend_size;
 		rxm->full_len -= prot->overhead_size;
-		tls_advance_record_sn(sk, &tls_ctx->rx, version);
+		tls_advance_record_sn(sk, prot, &tls_ctx->rx);
 		ctx->decrypted = true;
 		ctx->saved_data_ready(sk);
 	} else {
@@ -1958,7 +1959,8 @@ bool tls_sw_stream_read(const struct sock *sk)
 		ingress_empty = list_empty(&psock->ingress_msg);
 	rcu_read_unlock();
 
-	return !ingress_empty || ctx->recv_pkt;
+	return !ingress_empty || ctx->recv_pkt ||
+		!skb_queue_empty(&ctx->rx_list);
 }
 
 static int tls_read_size(struct strparser *strp, struct sk_buff *skb)
@@ -2013,8 +2015,8 @@ static int tls_read_size(struct strparser *strp, struct sk_buff *skb)
 		goto read_failure;
 	}
 #ifdef CONFIG_TLS_DEVICE
-	handle_device_resync(strp->sk, TCP_SKB_CB(skb)->seq + rxm->offset,
-			     *(u64*)tls_ctx->rx.rec_seq);
+	tls_device_rx_resync_new_rec(strp->sk, data_len + TLS_HEADER_SIZE,
+				     TCP_SKB_CB(skb)->seq + rxm->offset);
 #endif
 	return data_len + TLS_HEADER_SIZE;
 
@@ -2052,7 +2054,16 @@ static void tls_data_ready(struct sock *sk)
 	}
 }
 
-void tls_sw_free_resources_tx(struct sock *sk)
+void tls_sw_cancel_work_tx(struct tls_context *tls_ctx)
+{
+	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
+
+	set_bit(BIT_TX_CLOSING, &ctx->tx_bitmask);
+	set_bit(BIT_TX_SCHEDULED, &ctx->tx_bitmask);
+	cancel_delayed_work_sync(&ctx->tx_work.work);
+}
+
+void tls_sw_release_resources_tx(struct sock *sk)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
@@ -2063,11 +2074,6 @@ void tls_sw_free_resources_tx(struct sock *sk)
 	if (atomic_read(&ctx->encrypt_pending))
 		crypto_wait_req(-EINPROGRESS, &ctx->async_wait);
 
-	release_sock(sk);
-	cancel_delayed_work_sync(&ctx->tx_work.work);
-	lock_sock(sk);
-
-	/* Tx whatever records we can transmit and abandon the rest */
 	tls_tx_records(sk, -1);
 
 	/* Free up un-sent records in tx_list. First, free
@@ -2090,6 +2096,11 @@ void tls_sw_free_resources_tx(struct sock *sk)
 
 	crypto_free_aead(ctx->aead_send);
 	tls_free_open_rec(sk);
+}
+
+void tls_sw_free_ctx_tx(struct tls_context *tls_ctx)
+{
+	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
 
 	kfree(ctx);
 }
@@ -2108,23 +2119,38 @@ void tls_sw_release_resources_rx(struct sock *sk)
 		skb_queue_purge(&ctx->rx_list);
 		crypto_free_aead(ctx->aead_recv);
 		strp_stop(&ctx->strp);
-		write_lock_bh(&sk->sk_callback_lock);
-		sk->sk_data_ready = ctx->saved_data_ready;
-		write_unlock_bh(&sk->sk_callback_lock);
-		release_sock(sk);
-		strp_done(&ctx->strp);
-		lock_sock(sk);
+		/* If tls_sw_strparser_arm() was not called (cleanup paths)
+		 * we still want to strp_stop(), but sk->sk_data_ready was
+		 * never swapped.
+		 */
+		if (ctx->saved_data_ready) {
+			write_lock_bh(&sk->sk_callback_lock);
+			sk->sk_data_ready = ctx->saved_data_ready;
+			write_unlock_bh(&sk->sk_callback_lock);
+		}
 	}
+}
+
+void tls_sw_strparser_done(struct tls_context *tls_ctx)
+{
+	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
+
+	strp_done(&ctx->strp);
+}
+
+void tls_sw_free_ctx_rx(struct tls_context *tls_ctx)
+{
+	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
+
+	kfree(ctx);
 }
 
 void tls_sw_free_resources_rx(struct sock *sk)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
-	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
 
 	tls_sw_release_resources_rx(sk);
-
-	kfree(ctx);
+	tls_sw_free_ctx_rx(tls_ctx);
 }
 
 /* The work handler to transmitt the encrypted records in tx_list */
@@ -2135,11 +2161,17 @@ static void tx_work_handler(struct work_struct *work)
 					       struct tx_work, work);
 	struct sock *sk = tx_work->sk;
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
-	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
+	struct tls_sw_context_tx *ctx;
+
+	if (unlikely(!tls_ctx))
+		return;
+
+	ctx = tls_sw_ctx_tx(tls_ctx);
+	if (test_bit(BIT_TX_CLOSING, &ctx->tx_bitmask))
+		return;
 
 	if (!test_and_clear_bit(BIT_TX_SCHEDULED, &ctx->tx_bitmask))
 		return;
-
 	lock_sock(sk);
 	tls_tx_records(sk, -1);
 	release_sock(sk);
@@ -2156,6 +2188,18 @@ void tls_sw_write_space(struct sock *sk, struct tls_context *ctx)
 				      &tx_ctx->tx_bitmask))
 			schedule_delayed_work(&tx_ctx->tx_work.work, 0);
 	}
+}
+
+void tls_sw_strparser_arm(struct sock *sk, struct tls_context *tls_ctx)
+{
+	struct tls_sw_context_rx *rx_ctx = tls_sw_ctx_rx(tls_ctx);
+
+	write_lock_bh(&sk->sk_callback_lock);
+	rx_ctx->saved_data_ready = sk->sk_data_ready;
+	sk->sk_data_ready = tls_data_ready;
+	write_unlock_bh(&sk->sk_callback_lock);
+
+	strp_check_rcv(&rx_ctx->strp);
 }
 
 int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
@@ -2281,8 +2325,9 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		goto free_priv;
 	}
 
-	/* Sanity-check the IV size for stack allocations. */
-	if (iv_size > MAX_IV_SIZE || nonce_size > MAX_IV_SIZE) {
+	/* Sanity-check the sizes for stack allocations. */
+	if (iv_size > MAX_IV_SIZE || nonce_size > MAX_IV_SIZE ||
+	    rec_seq_size > TLS_MAX_REC_SEQ_SIZE) {
 		rc = -EINVAL;
 		goto free_priv;
 	}
@@ -2354,13 +2399,6 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		cb.parse_msg = tls_read_size;
 
 		strp_init(&sw_ctx_rx->strp, sk, &cb);
-
-		write_lock_bh(&sk->sk_callback_lock);
-		sw_ctx_rx->saved_data_ready = sk->sk_data_ready;
-		sk->sk_data_ready = tls_data_ready;
-		write_unlock_bh(&sk->sk_callback_lock);
-
-		strp_check_rcv(&sw_ctx_rx->strp);
 	}
 
 	goto out;

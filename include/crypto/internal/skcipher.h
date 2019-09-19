@@ -200,6 +200,66 @@ static inline unsigned int crypto_skcipher_alg_max_keysize(
 	return alg->max_keysize;
 }
 
+static inline unsigned int crypto_skcipher_alg_chunksize(
+	struct skcipher_alg *alg)
+{
+	if ((alg->base.cra_flags & CRYPTO_ALG_TYPE_MASK) ==
+	    CRYPTO_ALG_TYPE_BLKCIPHER)
+		return alg->base.cra_blocksize;
+
+	if (alg->base.cra_ablkcipher.encrypt)
+		return alg->base.cra_blocksize;
+
+	return alg->chunksize;
+}
+
+static inline unsigned int crypto_skcipher_alg_walksize(
+	struct skcipher_alg *alg)
+{
+	if ((alg->base.cra_flags & CRYPTO_ALG_TYPE_MASK) ==
+	    CRYPTO_ALG_TYPE_BLKCIPHER)
+		return alg->base.cra_blocksize;
+
+	if (alg->base.cra_ablkcipher.encrypt)
+		return alg->base.cra_blocksize;
+
+	return alg->walksize;
+}
+
+/**
+ * crypto_skcipher_chunksize() - obtain chunk size
+ * @tfm: cipher handle
+ *
+ * The block size is set to one for ciphers such as CTR.  However,
+ * you still need to provide incremental updates in multiples of
+ * the underlying block size as the IV does not have sub-block
+ * granularity.  This is known in this API as the chunk size.
+ *
+ * Return: chunk size in bytes
+ */
+static inline unsigned int crypto_skcipher_chunksize(
+	struct crypto_skcipher *tfm)
+{
+	return crypto_skcipher_alg_chunksize(crypto_skcipher_alg(tfm));
+}
+
+/**
+ * crypto_skcipher_walksize() - obtain walk size
+ * @tfm: cipher handle
+ *
+ * In some cases, algorithms can only perform optimally when operating on
+ * multiple blocks in parallel. This is reflected by the walksize, which
+ * must be a multiple of the chunksize (or equal if the concern does not
+ * apply)
+ *
+ * Return: walk size in bytes
+ */
+static inline unsigned int crypto_skcipher_walksize(
+	struct crypto_skcipher *tfm)
+{
+	return crypto_skcipher_alg_walksize(crypto_skcipher_alg(tfm));
+}
+
 /* Helpers for simple block cipher modes of operation */
 struct skcipher_ctx_simple {
 	struct crypto_cipher *cipher;	/* underlying block cipher */

@@ -201,7 +201,7 @@ static const struct icmp_control icmp_pointers[NR_ICMP_TYPES+1];
  */
 static struct sock *icmp_sk(struct net *net)
 {
-	return *this_cpu_ptr(net->ipv4.icmp_sk);
+	return this_cpu_read(*net->ipv4.icmp_sk);
 }
 
 /* Called with BH disabled */
@@ -582,7 +582,13 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 
 	if (!rt)
 		goto out;
-	net = dev_net(rt->dst.dev);
+
+	if (rt->dst.dev)
+		net = dev_net(rt->dst.dev);
+	else if (skb_in->dev)
+		net = dev_net(skb_in->dev);
+	else
+		goto out;
 
 	/*
 	 *	Find the original header. It is expected to be valid, of course.
@@ -902,7 +908,7 @@ static bool icmp_redirect(struct sk_buff *skb)
 		return false;
 	}
 
-	icmp_socket_deliver(skb, icmp_hdr(skb)->un.gateway);
+	icmp_socket_deliver(skb, ntohl(icmp_hdr(skb)->un.gateway));
 	return true;
 }
 

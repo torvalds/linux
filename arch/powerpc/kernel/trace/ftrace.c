@@ -866,10 +866,6 @@ void arch_ftrace_update_code(int command)
 #ifdef CONFIG_PPC64
 #define PACATOC offsetof(struct paca_struct, kernel_toc)
 
-#define PPC_LO(v) ((v) & 0xffff)
-#define PPC_HI(v) (((v) >> 16) & 0xffff)
-#define PPC_HA(v) PPC_HI ((v) + 0x8000)
-
 extern unsigned int ftrace_tramp_text[], ftrace_tramp_init[];
 
 int __init ftrace_dyn_arch_init(void)

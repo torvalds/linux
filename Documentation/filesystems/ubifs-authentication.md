@@ -417,9 +417,9 @@ will then have to be provided beforehand in the normal way.
 
 [DMC-CBC-ATTACK]     http://www.jakoblell.com/blog/2013/12/22/practical-malleability-attack-against-cbc-encrypted-luks-partitions/
 
-[DM-INTEGRITY]       https://www.kernel.org/doc/Documentation/device-mapper/dm-integrity.txt
+[DM-INTEGRITY]       https://www.kernel.org/doc/Documentation/device-mapper/dm-integrity.rst
 
-[DM-VERITY]          https://www.kernel.org/doc/Documentation/device-mapper/verity.txt
+[DM-VERITY]          https://www.kernel.org/doc/Documentation/device-mapper/verity.rst
 
 [FSCRYPT-POLICY2]    https://www.spinics.net/lists/linux-ext4/msg58710.html
 

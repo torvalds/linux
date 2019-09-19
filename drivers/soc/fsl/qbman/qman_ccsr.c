@@ -596,7 +596,7 @@ static int qman_init_ccsr(struct device *dev)
 }
 
 #define LIO_CFG_LIODN_MASK 0x0fff0000
-void qman_liodn_fixup(u16 channel)
+void __qman_liodn_fixup(u16 channel)
 {
 	static int done;
 	static u32 liodn_offset;

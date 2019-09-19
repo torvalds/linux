@@ -1164,7 +1164,7 @@ static inline int of_property_read_string_index(const struct device_node *np,
 }
 
 /**
- * of_property_read_bool - Findfrom a property
+ * of_property_read_bool - Find a property
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
  *

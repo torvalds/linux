@@ -7,6 +7,14 @@
 	model = "Zaius BMC";
 	compatible = "ingrasys,zaius-bmc", "aspeed,ast2500";
 
+	aliases {
+		i2c15 = &i2cpcie0;
+		i2c16 = &i2cpcie1;
+		i2c17 = &i2cpcie2;
+		i2c19 = &i2cpcie3;
+		i2c20 = &i2cpcie4;
+	};
+
 	chosen {
 		stdout-path = &uart5;
 		bootargs = "console=ttyS4,115200 earlyprintk";
@@ -223,6 +231,27 @@
 		reg = <0x71>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		i2cpcie0: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+		};
+		i2cpcie1: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+		};
+		i2cpcie2: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+		};
+		i2ctpm: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+		};
 	};
 
 	/* MUX1 PCA9546A @71h
@@ -253,6 +282,17 @@
 		reg = <0x71>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		i2cpcie3: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+		};
+		i2cpcie4: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+		};
 	};
 
 	/* MUX1 PCA9546A @71h
@@ -296,33 +336,98 @@
 				reg = <0x54>;
 			};
 		};
+
+	};
+
+	vrm@64 {
+		compatible = "isil,isl68137";
+		reg = <0x64>;
+	};
+
+	vrm@40 {
+		compatible = "isil,isl68137";
+		reg = <0x40>;
+	};
+
+	vrm@60 {
+		compatible = "isil,isl68137";
+		reg = <0x60>;
+	};
+
+	vrm@43 {
+		compatible = "infineon,ir38064";
+		reg = <0x43>;
+	};
+
+	vrm@41 {
+		compatible = "isil,isl68137";
+		reg = <0x41>;
 	};
 
 	/* Master selector PCA9541A @70h (other master: CPU0)
 	 *   LM5066I PMBUS @10h
 	 */
 
-	/* 12V Quarter Brick DC/DC Converter Q54SJ12050 @61h */
-	power-brick@61 {
+	/*
+	 * Brick will be one of these types/addresses.  Depending
+	 * on the board SKU only one is actually present and will successfully
+	 * instantiate while the others will fail the probe operation.
+	 * These are the PVT (and presumably beyond) addresses:
+	 *    12V Quarter Brick DC/DC Converter Q54SJ12050 @6Ah
+	 *    12V Quarter Brick DC/DC Converter Q54SH12050 @30h
+	 */
+	power-brick@6a {
 		compatible = "delta,dps800";
-		reg = <0x61>;
+		reg = <0x6a>;
+	};
+	power-brick@30 {
+		compatible = "delta,dps800";
+		reg = <0x30>;
 	};
 
 	/* CPU0 VR ISL68137 0.7V, 0.96V PMBUS @64h */
 	/* CPU0 VR ISL68137 1.2V CH03 PMBUS @40h */
 	/* CPU0 VR ISL68137 0.8V PMBUS @60h */
-	/* CPU0 VR 1.0V IR38064 I2C @11h, PMBUS @41h */
+	/* CPU0 VR 1.0V IR38064 I2C @11h, PMBUS @43h */
 	/* CPU0 VR ISL68137 1.2V CH47 PMBUS @41h */
+	/* Master selector PCA9541A @70h (other master: CPU0)
+	 *   LM5066I PMBUS @10h
+	 */
 };
 
 &i2c8 {
 	status = "okay";
 
-	/* CPU1 VR ISL68137 0.7V, 0.96V PMBUS @65h */
-	/* CPU1 VR ISL68137 1.2V CH03 PMBUS @44h */
-	/* CPU1 VR ISL68137 0.8V PMBUS @61h */
+	vrm@64 {
+		compatible = "isil,isl68137";
+		reg = <0x64>;
+	};
+
+	vrm@40 {
+		compatible = "isil,isl68137";
+		reg = <0x40>;
+	};
+
+	vrm@41 {
+		compatible = "isil,isl68137";
+		reg = <0x41>;
+	};
+
+	vrm@42 {
+		compatible = "infineon,ir38064";
+		reg = <0x42>;
+	};
+
+	vrm@60 {
+		compatible = "isil,isl68137";
+		reg = <0x60>;
+	};
+
+	/* CPU1 VR ISL68137 0.7V, 0.96V PMBUS @64h */
+	/* CPU1 VR ISL68137 1.2V CH03 PMBUS @40h */
+	/* CPU1 VR ISL68137 1.2V CH47 PMBUS @41h */
 	/* CPU1 VR 1.0V IR38064 I2C @12h, PMBUS @42h */
-	/* CPU0 VR ISL68137 1.2V CH47 PMBUS @45h */
+	/* CPU1 VR ISL68137 0.8V PMBUS @60h */
 };
 
 
@@ -435,3 +540,5 @@
 &ibt {
 	status = "okay";
 };
+
+#include "ibm-power9-dual.dtsi"

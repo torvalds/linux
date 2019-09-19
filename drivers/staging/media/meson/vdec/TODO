@@ -1,0 +1,8 @@
+This driver is in staging until the V4L2 documentation about stateful video
+decoders is finalized, as well as the corresponding compliance tests.
+
+It is at the moment not guaranteed to work properly with a userspace
+stack that follows the latest version of the specification, especially
+with compression standards like MPEG1/2 where the driver does not support
+dynamic resolution switching, including the first one used to determine coded
+resolution.

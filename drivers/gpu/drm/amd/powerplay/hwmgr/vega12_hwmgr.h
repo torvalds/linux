@@ -396,6 +396,9 @@ struct vega12_hwmgr {
 
 	/* ---- Gfxoff ---- */
 	bool                           gfxoff_controlled_by_driver;
+
+	unsigned long                  metrics_time;
+	SmuMetrics_t                   metrics_table;
 };
 
 #define VEGA12_DPM2_NEAR_TDP_DEC                      10

@@ -104,7 +104,7 @@ handle_fpe(struct pt_regs *regs)
 	memcpy(regs->fr, frcopy, sizeof regs->fr);
 	if (signalcode != 0) {
 	    force_sig_fault(signalcode >> 24, signalcode & 0xffffff,
-			    (void __user *) regs->iaoq[0], current);
+			    (void __user *) regs->iaoq[0]);
 	    return -1;
 	}
 

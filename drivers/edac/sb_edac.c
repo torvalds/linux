@@ -1511,7 +1511,6 @@ static int knl_get_dimm_capacity(struct sbridge_pvt *pvt, u64 *mc_sizes)
 						sad_actual_size[mc] += tad_size;
 					}
 				}
-				tad_base = tad_limit+1;
 			}
 		}
 

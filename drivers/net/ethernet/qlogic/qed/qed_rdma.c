@@ -442,7 +442,7 @@ static void qed_rdma_init_devinfo(struct qed_hwfn *p_hwfn,
 	/* Vendor specific information */
 	dev->vendor_id = cdev->vendor_id;
 	dev->vendor_part_id = cdev->device_id;
-	dev->hw_ver = 0;
+	dev->hw_ver = cdev->chip_rev;
 	dev->fw_ver = (FW_MAJOR_VERSION << 24) | (FW_MINOR_VERSION << 16) |
 		      (FW_REVISION_VERSION << 8) | (FW_ENGINEERING_VERSION);
 
@@ -530,9 +530,8 @@ static void qed_rdma_init_devinfo(struct qed_hwfn *p_hwfn,
 	SET_FIELD(dev->dev_caps, QED_RDMA_DEV_CAP_LOCAL_INV_FENCE, 1);
 
 	/* Check atomic operations support in PCI configuration space. */
-	pci_read_config_dword(cdev->pdev,
-			      cdev->pdev->pcie_cap + PCI_EXP_DEVCTL2,
-			      &pci_status_control);
+	pcie_capability_read_dword(cdev->pdev, PCI_EXP_DEVCTL2,
+				   &pci_status_control);
 
 	if (pci_status_control & PCI_EXP_DEVCTL2_LTR_EN)
 		SET_FIELD(dev->dev_caps, QED_RDMA_DEV_CAP_ATOMIC_OP, 1);
@@ -700,7 +699,7 @@ static int qed_rdma_setup(struct qed_hwfn *p_hwfn,
 		return rc;
 
 	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
-		rc = qed_iwarp_setup(p_hwfn, p_ptt, params);
+		rc = qed_iwarp_setup(p_hwfn, params);
 		if (rc)
 			return rc;
 	} else {
@@ -742,7 +741,7 @@ static int qed_rdma_stop(void *rdma_cxt)
 	       (ll2_ethertype_en & 0xFFFE));
 
 	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
-		rc = qed_iwarp_stop(p_hwfn, p_ptt);
+		rc = qed_iwarp_stop(p_hwfn);
 		if (rc) {
 			qed_ptt_release(p_hwfn, p_ptt);
 			return rc;
@@ -803,7 +802,7 @@ static int qed_rdma_add_user(void *rdma_cxt,
 				     dpi_start_offset +
 				     ((out_params->dpi) * p_hwfn->dpi_size));
 
-	out_params->dpi_phys_addr = p_hwfn->cdev->db_phys_addr +
+	out_params->dpi_phys_addr = p_hwfn->db_phys_addr +
 				    dpi_start_offset +
 				    ((out_params->dpi) * p_hwfn->dpi_size);
 
@@ -818,14 +817,17 @@ static struct qed_rdma_port *qed_rdma_query_port(void *rdma_cxt)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	struct qed_rdma_port *p_port = p_hwfn->p_rdma_info->port;
+	struct qed_mcp_link_state *p_link_output;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "RDMA Query port\n");
 
-	/* Link may have changed */
-	p_port->port_state = p_hwfn->mcp_info->link_output.link_up ?
-			     QED_RDMA_PORT_UP : QED_RDMA_PORT_DOWN;
+	/* The link state is saved only for the leading hwfn */
+	p_link_output = &QED_LEADING_HWFN(p_hwfn->cdev)->mcp_info->link_output;
 
-	p_port->link_speed = p_hwfn->mcp_info->link_output.speed;
+	p_port->port_state = p_link_output->link_up ? QED_RDMA_PORT_UP
+	    : QED_RDMA_PORT_DOWN;
+
+	p_port->link_speed = p_link_output->speed;
 
 	p_port->max_msg_size = RDMA_MAX_DATA_SIZE_IN_WQE;
 
@@ -870,7 +872,7 @@ static void qed_rdma_cnq_prod_update(void *rdma_cxt, u8 qz_offset, u16 prod)
 static int qed_fill_rdma_dev_info(struct qed_dev *cdev,
 				  struct qed_dev_rdma_info *info)
 {
-	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_hwfn *p_hwfn = QED_AFFIN_HWFN(cdev);
 
 	memset(info, 0, sizeof(*info));
 
@@ -889,9 +891,9 @@ static int qed_rdma_get_sb_start(struct qed_dev *cdev)
 	int feat_num;
 
 	if (cdev->num_hwfns > 1)
-		feat_num = FEAT_NUM(QED_LEADING_HWFN(cdev), QED_PF_L2_QUE);
+		feat_num = FEAT_NUM(QED_AFFIN_HWFN(cdev), QED_PF_L2_QUE);
 	else
-		feat_num = FEAT_NUM(QED_LEADING_HWFN(cdev), QED_PF_L2_QUE) *
+		feat_num = FEAT_NUM(QED_AFFIN_HWFN(cdev), QED_PF_L2_QUE) *
 			   cdev->num_hwfns;
 
 	return feat_num;
@@ -899,7 +901,7 @@ static int qed_rdma_get_sb_start(struct qed_dev *cdev)
 
 static int qed_rdma_get_min_cnq_msix(struct qed_dev *cdev)
 {
-	int n_cnq = FEAT_NUM(QED_LEADING_HWFN(cdev), QED_RDMA_CNQ);
+	int n_cnq = FEAT_NUM(QED_AFFIN_HWFN(cdev), QED_RDMA_CNQ);
 	int n_msix = cdev->int_params.rdma_msix_cnt;
 
 	return min_t(int, n_cnq, n_msix);
@@ -1653,7 +1655,7 @@ static int qed_rdma_deregister_tid(void *rdma_cxt, u32 itid)
 
 static void *qed_rdma_get_rdma_ctx(struct qed_dev *cdev)
 {
-	return QED_LEADING_HWFN(cdev);
+	return QED_AFFIN_HWFN(cdev);
 }
 
 static int qed_rdma_modify_srq(void *rdma_cxt,
@@ -1881,7 +1883,7 @@ err:
 static int qed_rdma_init(struct qed_dev *cdev,
 			 struct qed_rdma_start_in_params *params)
 {
-	return qed_rdma_start(QED_LEADING_HWFN(cdev), params);
+	return qed_rdma_start(QED_AFFIN_HWFN(cdev), params);
 }
 
 static void qed_rdma_remove_user(void *rdma_cxt, u16 dpi)
@@ -1899,29 +1901,48 @@ static int qed_roce_ll2_set_mac_filter(struct qed_dev *cdev,
 				       u8 *old_mac_address,
 				       u8 *new_mac_address)
 {
-	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
-	struct qed_ptt *p_ptt;
 	int rc = 0;
 
-	p_ptt = qed_ptt_acquire(p_hwfn);
-	if (!p_ptt) {
-		DP_ERR(cdev,
-		       "qed roce ll2 mac filter set: failed to acquire PTT\n");
-		return -EINVAL;
-	}
-
 	if (old_mac_address)
-		qed_llh_remove_mac_filter(p_hwfn, p_ptt, old_mac_address);
+		qed_llh_remove_mac_filter(cdev, 0, old_mac_address);
 	if (new_mac_address)
-		rc = qed_llh_add_mac_filter(p_hwfn, p_ptt, new_mac_address);
-
-	qed_ptt_release(p_hwfn, p_ptt);
+		rc = qed_llh_add_mac_filter(cdev, 0, new_mac_address);
 
 	if (rc)
 		DP_ERR(cdev,
 		       "qed roce ll2 mac filter set: failed to add MAC filter\n");
 
 	return rc;
+}
+
+static int qed_iwarp_set_engine_affin(struct qed_dev *cdev, bool b_reset)
+{
+	enum qed_eng eng;
+	u8 ppfid = 0;
+	int rc;
+
+	/* Make sure iwarp cmt mode is enabled before setting affinity */
+	if (!cdev->iwarp_cmt)
+		return -EINVAL;
+
+	if (b_reset)
+		eng = QED_BOTH_ENG;
+	else
+		eng = cdev->l2_affin_hint ? QED_ENG1 : QED_ENG0;
+
+	rc = qed_llh_set_ppfid_affinity(cdev, ppfid, eng);
+	if (rc) {
+		DP_NOTICE(cdev,
+			  "Failed to set the engine affinity of ppfid %d\n",
+			  ppfid);
+		return rc;
+	}
+
+	DP_VERBOSE(cdev, (QED_MSG_RDMA | QED_MSG_SP),
+		   "LLH: Set the engine affinity of non-RoCE packets as %d\n",
+		   eng);
+
+	return 0;
 }
 
 static const struct qed_rdma_ops qed_rdma_ops_pass = {
@@ -1963,6 +1984,7 @@ static const struct qed_rdma_ops qed_rdma_ops_pass = {
 	.ll2_set_fragment_of_tx_packet = &qed_ll2_set_fragment_of_tx_packet,
 	.ll2_set_mac_filter = &qed_roce_ll2_set_mac_filter,
 	.ll2_get_stats = &qed_ll2_get_stats,
+	.iwarp_set_engine_affin = &qed_iwarp_set_engine_affin,
 	.iwarp_connect = &qed_iwarp_connect,
 	.iwarp_create_listen = &qed_iwarp_create_listen,
 	.iwarp_destroy_listen = &qed_iwarp_destroy_listen,

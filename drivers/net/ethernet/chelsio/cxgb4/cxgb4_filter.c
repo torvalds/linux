@@ -248,8 +248,9 @@ static int validate_filter(struct net_device *dev,
 	u32 fconf, iconf;
 
 	/* Check for unconfigured fields being used. */
-	fconf = adapter->params.tp.vlan_pri_map;
 	iconf = adapter->params.tp.ingress_config;
+	fconf = fs->hash ? adapter->params.tp.filter_mask :
+			   adapter->params.tp.vlan_pri_map;
 
 	if (unsupported(fconf, FCOE_F, fs->val.fcoe, fs->mask.fcoe) ||
 	    unsupported(fconf, PORT_F, fs->val.iport, fs->mask.iport) ||
@@ -726,10 +727,8 @@ void clear_filter(struct adapter *adap, struct filter_entry *f)
 		cxgb4_smt_release(f->smt);
 
 	if (f->fs.val.encap_vld && f->fs.val.ovlan_vld)
-		if (atomic_dec_and_test(&adap->mps_encap[f->fs.val.ovlan &
-							 0x1ff].refcnt))
-			t4_free_encap_mac_filt(adap, pi->viid,
-					       f->fs.val.ovlan & 0x1ff, 0);
+		t4_free_encap_mac_filt(adap, pi->viid,
+				       f->fs.val.ovlan & 0x1ff, 0);
 
 	if ((f->fs.hash || is_t6(adap->params.chip)) && f->fs.type)
 		cxgb4_clip_release(f->dev, (const u32 *)&f->fs.val.lip, 1);
@@ -1041,7 +1040,7 @@ static void mk_act_open_req6(struct filter_entry *f, struct sk_buff *skb,
 			    RSS_QUEUE_V(f->fs.iq) |
 			    TX_QUEUE_V(f->fs.nat_mode) |
 			    T5_OPT_2_VALID_F |
-			    RX_CHANNEL_F |
+			    RX_CHANNEL_V(cxgb4_port_e2cchan(f->dev)) |
 			    CONG_CNTRL_V((f->fs.action == FILTER_DROP) |
 					 (f->fs.dirsteer << 1)) |
 			    PACE_V((f->fs.maskhash) |
@@ -1081,7 +1080,7 @@ static void mk_act_open_req(struct filter_entry *f, struct sk_buff *skb,
 			    RSS_QUEUE_V(f->fs.iq) |
 			    TX_QUEUE_V(f->fs.nat_mode) |
 			    T5_OPT_2_VALID_F |
-			    RX_CHANNEL_F |
+			    RX_CHANNEL_V(cxgb4_port_e2cchan(f->dev)) |
 			    CONG_CNTRL_V((f->fs.action == FILTER_DROP) |
 					 (f->fs.dirsteer << 1)) |
 			    PACE_V((f->fs.maskhash) |
@@ -1176,7 +1175,6 @@ static int cxgb4_set_hash_filter(struct net_device *dev,
 			if (ret < 0)
 				goto free_atid;
 
-			atomic_inc(&adapter->mps_encap[ret].refcnt);
 			f->fs.val.ovlan = ret;
 			f->fs.mask.ovlan = 0xffff;
 			f->fs.val.ovlan_vld = 1;
@@ -1419,7 +1417,6 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 			if (ret < 0)
 				goto free_clip;
 
-			atomic_inc(&adapter->mps_encap[ret].refcnt);
 			f->fs.val.ovlan = ret;
 			f->fs.mask.ovlan = 0x1ff;
 			f->fs.val.ovlan_vld = 1;
@@ -1833,24 +1830,38 @@ void filter_rpl(struct adapter *adap, const struct cpl_set_tcb_rpl *rpl)
 	}
 }
 
-int init_hash_filter(struct adapter *adap)
+void init_hash_filter(struct adapter *adap)
 {
+	u32 reg;
+
 	/* On T6, verify the necessary register configs and warn the user in
 	 * case of improper config
 	 */
 	if (is_t6(adap->params.chip)) {
-		if (TCAM_ACTV_HIT_G(t4_read_reg(adap, LE_DB_RSP_CODE_0_A)) != 4)
-			goto err;
+		if (is_offload(adap)) {
+			if (!(t4_read_reg(adap, TP_GLOBAL_CONFIG_A)
+			   & ACTIVEFILTERCOUNTS_F)) {
+				dev_err(adap->pdev_dev, "Invalid hash filter + ofld config\n");
+				return;
+			}
+		} else {
+			reg = t4_read_reg(adap, LE_DB_RSP_CODE_0_A);
+			if (TCAM_ACTV_HIT_G(reg) != 4) {
+				dev_err(adap->pdev_dev, "Invalid hash filter config\n");
+				return;
+			}
 
-		if (HASH_ACTV_HIT_G(t4_read_reg(adap, LE_DB_RSP_CODE_1_A)) != 4)
-			goto err;
+			reg = t4_read_reg(adap, LE_DB_RSP_CODE_1_A);
+			if (HASH_ACTV_HIT_G(reg) != 4) {
+				dev_err(adap->pdev_dev, "Invalid hash filter config\n");
+				return;
+			}
+		}
+
 	} else {
 		dev_err(adap->pdev_dev, "Hash filter supported only on T6\n");
-		return -EINVAL;
+		return;
 	}
+
 	adap->params.hash_filter = 1;
-	return 0;
-err:
-	dev_warn(adap->pdev_dev, "Invalid hash filter config!\n");
-	return -EINVAL;
 }

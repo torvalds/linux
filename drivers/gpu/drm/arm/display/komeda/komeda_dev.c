@@ -5,8 +5,10 @@
  *
  */
 #include <linux/io.h>
+#include <linux/iommu.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #ifdef CONFIG_DEBUG_FS
@@ -52,9 +54,6 @@ static void komeda_debugfs_init(struct komeda_dev *mdev)
 		return;
 
 	mdev->debugfs_root = debugfs_create_dir("komeda", NULL);
-	if (IS_ERR_OR_NULL(mdev->debugfs_root))
-		return;
-
 	debugfs_create_file("register", 0444, mdev->debugfs_root,
 			    mdev, &komeda_register_fops);
 }
@@ -115,13 +114,6 @@ static int komeda_parse_pipe_dt(struct komeda_dev *mdev, struct device_node *np)
 
 	pipe = mdev->pipelines[pipe_id];
 
-	clk = of_clk_get_by_name(np, "aclk");
-	if (IS_ERR(clk)) {
-		DRM_ERROR("get aclk for pipeline %d failed!\n", pipe_id);
-		return PTR_ERR(clk);
-	}
-	pipe->aclk = clk;
-
 	clk = of_clk_get_by_name(np, "pxclk");
 	if (IS_ERR(clk)) {
 		DRM_ERROR("get pxclk for pipeline %d failed!\n", pipe_id);
@@ -135,7 +127,7 @@ static int komeda_parse_pipe_dt(struct komeda_dev *mdev, struct device_node *np)
 	pipe->of_output_port =
 		of_graph_get_port_by_id(np, KOMEDA_OF_PORT_OUTPUT);
 
-	pipe->of_node = np;
+	pipe->of_node = of_node_get(np);
 
 	return 0;
 }
@@ -144,19 +136,19 @@ static int komeda_parse_dt(struct device *dev, struct komeda_dev *mdev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct device_node *child, *np = dev->of_node;
-	struct clk *clk;
 	int ret;
 
-	clk = devm_clk_get(dev, "mclk");
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
-
-	mdev->mclk = clk;
 	mdev->irq  = platform_get_irq(pdev, 0);
 	if (mdev->irq < 0) {
 		DRM_ERROR("could not get IRQ number.\n");
 		return mdev->irq;
 	}
+
+	/* Get the optional framebuffer memory resource */
+	ret = of_reserved_mem_device_init(dev);
+	if (ret && ret != -ENODEV)
+		return ret;
+	ret = 0;
 
 	for_each_available_child_of_node(np, child) {
 		if (of_node_cmp(child->name, "pipeline") == 0) {
@@ -205,16 +197,15 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 		goto err_cleanup;
 	}
 
-	mdev->pclk = devm_clk_get(dev, "pclk");
-	if (IS_ERR(mdev->pclk)) {
-		DRM_ERROR("Get APB clk failed.\n");
-		err = PTR_ERR(mdev->pclk);
-		mdev->pclk = NULL;
+	mdev->aclk = devm_clk_get(dev, "aclk");
+	if (IS_ERR(mdev->aclk)) {
+		DRM_ERROR("Get engine clk failed.\n");
+		err = PTR_ERR(mdev->aclk);
+		mdev->aclk = NULL;
 		goto err_cleanup;
 	}
 
-	/* Enable APB clock to access the registers */
-	clk_prepare_enable(mdev->pclk);
+	clk_prepare_enable(mdev->aclk);
 
 	mdev->funcs = product->identify(mdev->reg_base, &mdev->chip);
 	if (!komeda_product_match(mdev, product->product_id)) {
@@ -253,6 +244,18 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 	dev->dma_parms = &mdev->dma_parms;
 	dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
 
+	mdev->iommu = iommu_get_domain_for_dev(mdev->dev);
+	if (!mdev->iommu)
+		DRM_INFO("continue without IOMMU support!\n");
+
+	if (mdev->iommu && mdev->funcs->connect_iommu) {
+		err = mdev->funcs->connect_iommu(mdev);
+		if (err) {
+			mdev->iommu = NULL;
+			goto err_cleanup;
+		}
+	}
+
 	err = sysfs_create_group(&dev->kobj, &komeda_sysfs_attr_group);
 	if (err) {
 		DRM_ERROR("create sysfs group failed.\n");
@@ -282,12 +285,18 @@ void komeda_dev_destroy(struct komeda_dev *mdev)
 	debugfs_remove_recursive(mdev->debugfs_root);
 #endif
 
+	if (mdev->iommu && mdev->funcs->disconnect_iommu)
+		mdev->funcs->disconnect_iommu(mdev);
+	mdev->iommu = NULL;
+
 	for (i = 0; i < mdev->n_pipelines; i++) {
 		komeda_pipeline_destroy(mdev, mdev->pipelines[i]);
 		mdev->pipelines[i] = NULL;
 	}
 
 	mdev->n_pipelines = 0;
+
+	of_reserved_mem_device_release(dev);
 
 	if (funcs && funcs->cleanup)
 		funcs->cleanup(mdev);
@@ -297,15 +306,10 @@ void komeda_dev_destroy(struct komeda_dev *mdev)
 		mdev->reg_base = NULL;
 	}
 
-	if (mdev->mclk) {
-		devm_clk_put(dev, mdev->mclk);
-		mdev->mclk = NULL;
-	}
-
-	if (mdev->pclk) {
-		clk_disable_unprepare(mdev->pclk);
-		devm_clk_put(dev, mdev->pclk);
-		mdev->pclk = NULL;
+	if (mdev->aclk) {
+		clk_disable_unprepare(mdev->aclk);
+		devm_clk_put(dev, mdev->aclk);
+		mdev->aclk = NULL;
 	}
 
 	devm_kfree(dev, mdev);

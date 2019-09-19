@@ -63,7 +63,7 @@ static void enqueue_external_timestamp(struct timestamp_event_queue *queue,
 	spin_unlock_irqrestore(&queue->lock, flags);
 }
 
-static s32 scaled_ppm_to_ppb(long ppm)
+s32 scaled_ppm_to_ppb(long ppm)
 {
 	/*
 	 * The 'freq' field in the 'struct timex' is in parts per
@@ -82,6 +82,7 @@ static s32 scaled_ppm_to_ppb(long ppm)
 	ppb >>= 13;
 	return (s32) ppb;
 }
+EXPORT_SYMBOL(scaled_ppm_to_ppb);
 
 /* posix clock implementation */
 

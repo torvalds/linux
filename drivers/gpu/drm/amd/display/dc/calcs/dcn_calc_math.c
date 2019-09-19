@@ -73,6 +73,17 @@ float dcn_bw_floor2(const float arg, const float significance)
 		return 0;
 	return ((int) (arg / significance)) * significance;
 }
+float dcn_bw_floor(const float arg)
+{
+	return ((int) (arg));
+}
+
+float dcn_bw_ceil(const float arg)
+{
+	float flr = dcn_bw_floor2(arg, 1);
+
+	return flr + 0.00001 >= arg ? arg : flr + 1;
+}
 
 float dcn_bw_ceil2(const float arg, const float significance)
 {
@@ -108,6 +119,15 @@ float dcn_bw_pow(float a, float exp)
 			return (temp * temp) / a;
 	}
 }
+
+double dcn_bw_fabs(double a)
+{
+	if (a > 0)
+		return (a);
+	else
+		return (-a);
+}
+
 
 float dcn_bw_log(float a, float b)
 {

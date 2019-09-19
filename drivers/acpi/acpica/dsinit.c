@@ -202,7 +202,7 @@ acpi_ds_initialize_objects(u32 table_index,
 
 	if (ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_DSDT)) {
 		ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-				      "\nInitializing Namespace objects:\n"));
+				      "\nACPI table initialization:\n"));
 	}
 
 	/* Summary of objects initialized */

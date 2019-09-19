@@ -329,7 +329,6 @@ static int grgpio_probe(struct platform_device *ofdev)
 	void  __iomem *regs;
 	struct gpio_chip *gc;
 	struct grgpio_priv *priv;
-	struct resource *res;
 	int err;
 	u32 prop;
 	s32 *irqmap;
@@ -340,8 +339,7 @@ static int grgpio_probe(struct platform_device *ofdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(&ofdev->dev, res);
+	regs = devm_platform_ioremap_resource(ofdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 

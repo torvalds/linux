@@ -61,7 +61,10 @@ static const u32 mipid02_supported_fmt_codes[] = {
 	MEDIA_BUS_FMT_SGRBG10_1X10, MEDIA_BUS_FMT_SRGGB10_1X10,
 	MEDIA_BUS_FMT_SBGGR12_1X12, MEDIA_BUS_FMT_SGBRG12_1X12,
 	MEDIA_BUS_FMT_SGRBG12_1X12, MEDIA_BUS_FMT_SRGGB12_1X12,
-	MEDIA_BUS_FMT_UYVY8_1X16, MEDIA_BUS_FMT_BGR888_1X24
+	MEDIA_BUS_FMT_UYVY8_1X16, MEDIA_BUS_FMT_BGR888_1X24,
+	MEDIA_BUS_FMT_RGB565_2X8_LE, MEDIA_BUS_FMT_RGB565_2X8_BE,
+	MEDIA_BUS_FMT_YUYV8_2X8, MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_JPEG_1X8
 };
 
 /* regulator supplies */
@@ -99,6 +102,7 @@ struct mipid02_dev {
 		u8 data_lane1_reg1;
 		u8 mode_reg1;
 		u8 mode_reg2;
+		u8 data_selection_ctrl;
 		u8 data_id_rreg;
 		u8 pix_width_ctrl;
 		u8 pix_width_ctrl_emb;
@@ -128,6 +132,10 @@ static int bpp_from_code(__u32 code)
 	case MEDIA_BUS_FMT_SRGGB12_1X12:
 		return 12;
 	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 		return 16;
 	case MEDIA_BUS_FMT_BGR888_1X24:
 		return 24;
@@ -155,9 +163,14 @@ static u8 data_type_from_code(__u32 code)
 	case MEDIA_BUS_FMT_SRGGB12_1X12:
 		return 0x2c;
 	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		return 0x1e;
 	case MEDIA_BUS_FMT_BGR888_1X24:
 		return 0x24;
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
+		return 0x22;
 	default:
 		return 0;
 	}
@@ -331,6 +344,25 @@ static int mipid02_detect(struct mipid02_dev *bridge)
 	return mipid02_read_reg(bridge, MIPID02_CLK_LANE_WR_REG1, &reg);
 }
 
+static u32 mipid02_get_link_freq_from_cid_link_freq(struct mipid02_dev *bridge,
+						    struct v4l2_subdev *subdev)
+{
+	struct v4l2_querymenu qm = {.id = V4L2_CID_LINK_FREQ, };
+	struct v4l2_ctrl *ctrl;
+	int ret;
+
+	ctrl = v4l2_ctrl_find(subdev->ctrl_handler, V4L2_CID_LINK_FREQ);
+	if (!ctrl)
+		return 0;
+	qm.index = v4l2_ctrl_g_ctrl(ctrl);
+
+	ret = v4l2_querymenu(subdev->ctrl_handler, &qm);
+	if (ret)
+		return 0;
+
+	return qm.value;
+}
+
 static u32 mipid02_get_link_freq_from_cid_pixel_rate(struct mipid02_dev *bridge,
 						     struct v4l2_subdev *subdev)
 {
@@ -358,10 +390,14 @@ static int mipid02_configure_from_rx_speed(struct mipid02_dev *bridge)
 	struct v4l2_subdev *subdev = bridge->s_subdev;
 	u32 link_freq;
 
-	link_freq = mipid02_get_link_freq_from_cid_pixel_rate(bridge, subdev);
+	link_freq = mipid02_get_link_freq_from_cid_link_freq(bridge, subdev);
 	if (!link_freq) {
-		dev_err(&client->dev, "Failed to detect link frequency");
-		return -EINVAL;
+		link_freq = mipid02_get_link_freq_from_cid_pixel_rate(bridge,
+								      subdev);
+		if (!link_freq) {
+			dev_err(&client->dev, "Failed to get link frequency");
+			return -EINVAL;
+		}
 	}
 
 	dev_dbg(&client->dev, "detect link_freq = %d Hz", link_freq);
@@ -452,6 +488,7 @@ static int mipid02_configure_from_tx(struct mipid02_dev *bridge)
 {
 	struct v4l2_fwnode_endpoint *ep = &bridge->tx;
 
+	bridge->r.data_selection_ctrl = SELECTION_MANUAL_WIDTH;
 	bridge->r.pix_width_ctrl = ep->bus.parallel.bus_width;
 	bridge->r.pix_width_ctrl_emb = ep->bus.parallel.bus_width;
 	if (ep->bus.parallel.flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)
@@ -467,10 +504,15 @@ static int mipid02_configure_from_code(struct mipid02_dev *bridge)
 	u8 data_type;
 
 	bridge->r.data_id_rreg = 0;
-	data_type = data_type_from_code(bridge->fmt.code);
-	if (!data_type)
-		return -EINVAL;
-	bridge->r.data_id_rreg = data_type;
+
+	if (bridge->fmt.code != MEDIA_BUS_FMT_JPEG_1X8) {
+		bridge->r.data_selection_ctrl |= SELECTION_MANUAL_DATA;
+
+		data_type = data_type_from_code(bridge->fmt.code);
+		if (!data_type)
+			return -EINVAL;
+		bridge->r.data_id_rreg = data_type;
+	}
 
 	return 0;
 }
@@ -554,7 +596,7 @@ static int mipid02_stream_enable(struct mipid02_dev *bridge)
 	if (ret)
 		goto error;
 	ret = mipid02_write_reg(bridge, MIPID02_DATA_SELECTION_CTRL,
-		SELECTION_MANUAL_DATA | SELECTION_MANUAL_WIDTH);
+		bridge->r.data_selection_ctrl);
 	if (ret)
 		goto error;
 	ret = mipid02_write_reg(bridge, MIPID02_PIX_WIDTH_CTRL,

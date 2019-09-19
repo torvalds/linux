@@ -27,7 +27,7 @@
  *	aff0 = mpidr_masked & 0xff;
  *	aff1 = mpidr_masked & 0xff00;
  *	aff2 = mpidr_masked & 0xff0000;
- *	aff2 = mpidr_masked & 0xff00000000;
+ *	aff3 = mpidr_masked & 0xff00000000;
  *	dst = (aff0 >> rs0 | aff1 >> rs1 | aff2 >> rs2 | aff3 >> rs3);
  *}
  * Input registers: rs0, rs1, rs2, rs3, mpidr, mask

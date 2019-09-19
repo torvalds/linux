@@ -342,6 +342,7 @@ static struct shash_alg alg = {
 	.descsize	=	sizeof(struct rmd160_ctx),
 	.base		=	{
 		.cra_name	 =	"rmd160",
+		.cra_driver_name =	"rmd160-generic",
 		.cra_blocksize	 =	RMD160_BLOCK_SIZE,
 		.cra_module	 =	THIS_MODULE,
 	}

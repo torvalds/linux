@@ -190,27 +190,16 @@ static const struct file_operations batadv_log_fops = {
  */
 int batadv_debug_log_setup(struct batadv_priv *bat_priv)
 {
-	struct dentry *d;
-
-	if (!bat_priv->debug_dir)
-		goto err;
-
 	bat_priv->debug_log = kzalloc(sizeof(*bat_priv->debug_log), GFP_ATOMIC);
 	if (!bat_priv->debug_log)
-		goto err;
+		return -ENOMEM;
 
 	spin_lock_init(&bat_priv->debug_log->lock);
 	init_waitqueue_head(&bat_priv->debug_log->queue_wait);
 
-	d = debugfs_create_file("log", 0400, bat_priv->debug_dir, bat_priv,
-				&batadv_log_fops);
-	if (!d)
-		goto err;
-
+	debugfs_create_file("log", 0400, bat_priv->debug_dir, bat_priv,
+			    &batadv_log_fops);
 	return 0;
-
-err:
-	return -ENOMEM;
 }
 
 /**

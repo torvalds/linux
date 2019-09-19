@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/fs_context.h>
 #include <linux/pagemap.h>
 #include <linux/uts.h>
 #include <linux/wait.h>
@@ -1990,7 +1991,7 @@ static const struct super_operations gadget_fs_operations = {
 };
 
 static int
-gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
+gadgetfs_fill_super (struct super_block *sb, struct fs_context *fc)
 {
 	struct inode	*inode;
 	struct dev_data	*dev;
@@ -2044,11 +2045,19 @@ Enomem:
 }
 
 /* "mount -t gadgetfs path /dev/gadget" ends up here */
-static struct dentry *
-gadgetfs_mount (struct file_system_type *t, int flags,
-		const char *path, void *opts)
+static int gadgetfs_get_tree(struct fs_context *fc)
 {
-	return mount_single (t, flags, opts, gadgetfs_fill_super);
+	return get_tree_single(fc, gadgetfs_fill_super);
+}
+
+static const struct fs_context_operations gadgetfs_context_ops = {
+	.get_tree	= gadgetfs_get_tree,
+};
+
+static int gadgetfs_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &gadgetfs_context_ops;
+	return 0;
 }
 
 static void
@@ -2068,7 +2077,7 @@ gadgetfs_kill_sb (struct super_block *sb)
 static struct file_system_type gadgetfs_type = {
 	.owner		= THIS_MODULE,
 	.name		= shortname,
-	.mount		= gadgetfs_mount,
+	.init_fs_context = gadgetfs_init_fs_context,
 	.kill_sb	= gadgetfs_kill_sb,
 };
 MODULE_ALIAS_FS("gadgetfs");

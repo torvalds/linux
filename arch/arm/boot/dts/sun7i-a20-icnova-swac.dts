@@ -49,7 +49,8 @@
 
 / {
 	model = "ICnova-A20 SWAC";
-	compatible = "swac,icnova-a20-swac", "incircuit,icnova-a20", "allwinner,sun7i-a20";
+	compatible = "incircuit,icnova-a20-swac", "incircuit,icnova-a20",
+		     "allwinner,sun7i-a20";
 
 	aliases {
 		serial0 = &uart0;

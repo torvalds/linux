@@ -842,6 +842,9 @@ void ixgbe_ipsec_vf_clear(struct ixgbe_adapter *adapter, u32 vf)
 	struct ixgbe_ipsec *ipsec = adapter->ipsec;
 	int i;
 
+	if (!ipsec)
+		return;
+
 	/* search rx sa table */
 	for (i = 0; i < IXGBE_IPSEC_MAX_SA_COUNT && ipsec->num_rx_sa; i++) {
 		if (!ipsec->rx_tbl[i].used)

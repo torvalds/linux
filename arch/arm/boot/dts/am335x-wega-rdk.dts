@@ -10,6 +10,10 @@
 #include "am335x-wega.dtsi"
 
 /* SoM */
+&gpmc {
+	status = "okay";
+};
+
 &i2c_eeprom {
 	status = "okay";
 };

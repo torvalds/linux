@@ -17,7 +17,7 @@ menuconfig TIPC
 	  This protocol support is also available as a module ( = code which
 	  can be inserted in and removed from the running kernel whenever you
 	  want). The module will be called tipc. If you want to compile it
-	  as a module, say M here and read <file:Documentation/kbuild/modules.txt>.
+	  as a module, say M here and read <file:Documentation/kbuild/modules.rst>.
 
 	  If in doubt, say N.
 

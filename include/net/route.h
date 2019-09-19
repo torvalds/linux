@@ -231,6 +231,10 @@ void fib_modify_prefix_metric(struct in_ifaddr *ifa, u32 new_metric);
 void rt_add_uncached_list(struct rtable *rt);
 void rt_del_uncached_list(struct rtable *rt);
 
+int fib_dump_info_fnhe(struct sk_buff *skb, struct netlink_callback *cb,
+		       u32 table_id, struct fib_info *fi,
+		       int *fa_index, int fa_start, unsigned int flags);
+
 static inline void ip_rt_put(struct rtable *rt)
 {
 	/* dst_release() accepts a NULL parameter.

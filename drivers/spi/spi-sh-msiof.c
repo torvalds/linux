@@ -229,7 +229,7 @@ static int sh_msiof_modify_ctr_wait(struct sh_msiof_spi_priv *p,
 	sh_msiof_write(p, CTR, data);
 
 	return readl_poll_timeout_atomic(p->mapbase + CTR, data,
-					 (data & mask) == set, 10, 1000);
+					 (data & mask) == set, 1, 100);
 }
 
 static irqreturn_t sh_msiof_spi_irq(int irq, void *data)

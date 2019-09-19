@@ -685,10 +685,19 @@ static pci_power_t acpi_pci_get_power_state(struct pci_dev *dev)
 	if (!adev || !acpi_device_power_manageable(adev))
 		return PCI_UNKNOWN;
 
-	if (acpi_device_get_power(adev, &state) || state == ACPI_STATE_UNKNOWN)
+	state = adev->power.state;
+	if (state == ACPI_STATE_UNKNOWN)
 		return PCI_UNKNOWN;
 
 	return state_conv[state];
+}
+
+static void acpi_pci_refresh_power_state(struct pci_dev *dev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
+
+	if (adev && acpi_device_power_manageable(adev))
+		acpi_device_update_power(adev, NULL);
 }
 
 static int acpi_pci_propagate_wakeup(struct pci_bus *bus, bool enable)
@@ -748,6 +757,7 @@ static const struct pci_platform_pm_ops acpi_pci_platform_pm = {
 	.is_manageable = acpi_pci_power_manageable,
 	.set_state = acpi_pci_set_power_state,
 	.get_state = acpi_pci_get_power_state,
+	.refresh_state = acpi_pci_refresh_power_state,
 	.choose_state = acpi_pci_choose_state,
 	.set_wakeup = acpi_pci_wakeup,
 	.need_resume = acpi_pci_need_resume,
@@ -901,6 +911,7 @@ static void pci_acpi_setup(struct device *dev)
 		device_wakeup_enable(dev);
 
 	acpi_pci_wakeup(pci_dev, false);
+	acpi_device_power_add_dependent(adev, dev);
 }
 
 static void pci_acpi_cleanup(struct device *dev)
@@ -913,6 +924,7 @@ static void pci_acpi_cleanup(struct device *dev)
 
 	pci_acpi_remove_pm_notifier(adev);
 	if (adev->wakeup.flags.valid) {
+		acpi_device_power_remove_dependent(adev, dev);
 		if (pci_dev->bridge_d3)
 			device_wakeup_disable(dev);
 

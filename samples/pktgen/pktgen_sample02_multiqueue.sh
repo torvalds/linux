@@ -29,6 +29,10 @@ if [ -z "$DEST_IP" ]; then
     [ -z "$IP6" ] && DEST_IP="198.18.0.42" || DEST_IP="FD00::1"
 fi
 [ -z "$DST_MAC" ] && DST_MAC="90:e2:ba:ff:ff:ff"
+if [ -n "$DST_PORT" ]; then
+    read -r DST_MIN DST_MAX <<< $(parse_ports $DST_PORT)
+    validate_ports $DST_MIN $DST_MAX
+fi
 
 # General cleanup everything since last run
 pg_ctrl "reset"
@@ -59,6 +63,13 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     # Destination
     pg_set $dev "dst_mac $DST_MAC"
     pg_set $dev "dst$IP6 $DEST_IP"
+
+    if [ -n "$DST_PORT" ]; then
+	# Single destination port or random port range
+	pg_set $dev "flag UDPDST_RND"
+	pg_set $dev "udp_dst_min $DST_MIN"
+	pg_set $dev "udp_dst_max $DST_MAX"
+    fi
 
     # Setup random UDP port src range
     pg_set $dev "flag UDPSRC_RND"

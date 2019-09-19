@@ -410,6 +410,12 @@ static int spi_gpio_probe(struct platform_device *pdev)
 
 	bb = &spi_gpio->bitbang;
 	bb->master = master;
+	/*
+	 * There is some additional business, apart from driving the CS GPIO
+	 * line, that we need to do on selection. This makes the local
+	 * callback for chipselect always get called.
+	 */
+	master->flags |= SPI_MASTER_GPIO_SS;
 	bb->chipselect = spi_gpio_chipselect;
 	bb->set_line_direction = spi_gpio_set_direction;
 

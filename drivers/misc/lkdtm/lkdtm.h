@@ -26,13 +26,19 @@ void lkdtm_CORRUPT_LIST_DEL(void);
 void lkdtm_CORRUPT_USER_DS(void);
 void lkdtm_STACK_GUARD_PAGE_LEADING(void);
 void lkdtm_STACK_GUARD_PAGE_TRAILING(void);
+void lkdtm_UNSET_SMEP(void);
 
 /* lkdtm_heap.c */
+void __init lkdtm_heap_init(void);
+void __exit lkdtm_heap_exit(void);
 void lkdtm_OVERWRITE_ALLOCATION(void);
 void lkdtm_WRITE_AFTER_FREE(void);
 void lkdtm_READ_AFTER_FREE(void);
 void lkdtm_WRITE_BUDDY_AFTER_FREE(void);
 void lkdtm_READ_BUDDY_AFTER_FREE(void);
+void lkdtm_SLAB_FREE_DOUBLE(void);
+void lkdtm_SLAB_FREE_CROSS(void);
+void lkdtm_SLAB_FREE_PAGE(void);
 
 /* lkdtm_perms.c */
 void __init lkdtm_perms_init(void);

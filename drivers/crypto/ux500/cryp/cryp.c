@@ -314,14 +314,17 @@ void cryp_save_device_context(struct cryp_device_data *device_data,
 	case CRYP_KEY_SIZE_256:
 		ctx->key_4_l = readl_relaxed(&src_reg->key_4_l);
 		ctx->key_4_r = readl_relaxed(&src_reg->key_4_r);
+		/* Fall through */
 
 	case CRYP_KEY_SIZE_192:
 		ctx->key_3_l = readl_relaxed(&src_reg->key_3_l);
 		ctx->key_3_r = readl_relaxed(&src_reg->key_3_r);
+		/* Fall through */
 
 	case CRYP_KEY_SIZE_128:
 		ctx->key_2_l = readl_relaxed(&src_reg->key_2_l);
 		ctx->key_2_r = readl_relaxed(&src_reg->key_2_r);
+		/* Fall through */
 
 	default:
 		ctx->key_1_l = readl_relaxed(&src_reg->key_1_l);
@@ -361,14 +364,17 @@ void cryp_restore_device_context(struct cryp_device_data *device_data,
 	case CRYP_KEY_SIZE_256:
 		writel_relaxed(ctx->key_4_l, &reg->key_4_l);
 		writel_relaxed(ctx->key_4_r, &reg->key_4_r);
+		/* Fall through */
 
 	case CRYP_KEY_SIZE_192:
 		writel_relaxed(ctx->key_3_l, &reg->key_3_l);
 		writel_relaxed(ctx->key_3_r, &reg->key_3_r);
+		/* Fall through */
 
 	case CRYP_KEY_SIZE_128:
 		writel_relaxed(ctx->key_2_l, &reg->key_2_l);
 		writel_relaxed(ctx->key_2_r, &reg->key_2_r);
+		/* Fall through */
 
 	default:
 		writel_relaxed(ctx->key_1_l, &reg->key_1_l);

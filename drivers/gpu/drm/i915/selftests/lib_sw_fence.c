@@ -45,6 +45,9 @@ void __onstack_fence_init(struct i915_sw_fence *fence,
 
 void onstack_fence_fini(struct i915_sw_fence *fence)
 {
+	if (!fence->flags)
+		return;
+
 	i915_sw_fence_commit(fence);
 	i915_sw_fence_fini(fence);
 }

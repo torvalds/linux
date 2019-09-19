@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0-only
+# SPDX-License-Identifier: ISC
 config ATH10K
 	tristate "Atheros 802.11ac wireless cards support"
 	depends on MAC80211 && HAS_DMA

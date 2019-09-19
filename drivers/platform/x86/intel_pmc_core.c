@@ -26,6 +26,7 @@
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include <asm/msr.h>
+#include <asm/tsc.h>
 
 #include "intel_pmc_core.h"
 
@@ -740,7 +741,9 @@ static int pmc_core_pkgc_show(struct seq_file *s, void *unused)
 		if (rdmsrl_safe(map[index].bit_mask, &pcstate_count))
 			continue;
 
-		seq_printf(s, "%-8s : 0x%llx\n", map[index].name,
+		pcstate_count *= 1000;
+		do_div(pcstate_count, tsc_khz);
+		seq_printf(s, "%-8s : %llu\n", map[index].name,
 			   pcstate_count);
 	}
 
@@ -753,14 +756,11 @@ static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 	debugfs_remove_recursive(pmcdev->dbgfs_dir);
 }
 
-static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
+static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 {
 	struct dentry *dir;
 
 	dir = debugfs_create_dir("pmc_core", NULL);
-	if (!dir)
-		return -ENOMEM;
-
 	pmcdev->dbgfs_dir = dir;
 
 	debugfs_create_file("slp_s0_residency_usec", 0444, dir, pmcdev,
@@ -794,13 +794,10 @@ static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 		debugfs_create_bool("slp_s0_dbg_latch", 0644,
 				    dir, &slps0_dbg_latch);
 	}
-
-	return 0;
 }
 #else
-static inline int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
+static inline void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 {
-	return 0;
 }
 
 static inline void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
@@ -815,6 +812,7 @@ static const struct x86_cpu_id intel_pmc_core_ids[] = {
 	INTEL_CPU_FAM6(KABYLAKE_DESKTOP, spt_reg_map),
 	INTEL_CPU_FAM6(CANNONLAKE_MOBILE, cnp_reg_map),
 	INTEL_CPU_FAM6(ICELAKE_MOBILE, icl_reg_map),
+	INTEL_CPU_FAM6(ICELAKE_NNPI, icl_reg_map),
 	{}
 };
 
@@ -862,7 +860,6 @@ static int pmc_core_probe(struct platform_device *pdev)
 	struct pmc_dev *pmcdev = &pmc;
 	const struct x86_cpu_id *cpu_id;
 	u64 slp_s0_addr;
-	int err;
 
 	if (device_initialized)
 		return -ENODEV;
@@ -896,12 +893,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit();
 	dmi_check_system(pmc_core_dmi_table);
 
-	err = pmc_core_dbgfs_register(pmcdev);
-	if (err < 0) {
-		dev_warn(&pdev->dev, "debugfs register failed.\n");
-		iounmap(pmcdev->regbase);
-		return err;
-	}
+	pmc_core_dbgfs_register(pmcdev);
 
 	device_initialized = true;
 	dev_info(&pdev->dev, " initialized\n");
@@ -1023,47 +1015,23 @@ static const struct dev_pm_ops pmc_core_pm_ops = {
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(pmc_core_suspend, pmc_core_resume)
 };
 
+static const struct acpi_device_id pmc_core_acpi_ids[] = {
+	{"INT33A1", 0}, /* _HID for Intel Power Engine, _CID PNP0D80*/
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, pmc_core_acpi_ids);
+
 static struct platform_driver pmc_core_driver = {
 	.driver = {
 		.name = "intel_pmc_core",
+		.acpi_match_table = ACPI_PTR(pmc_core_acpi_ids),
 		.pm = &pmc_core_pm_ops,
 	},
 	.probe = pmc_core_probe,
 	.remove = pmc_core_remove,
 };
 
-static struct platform_device pmc_core_device = {
-	.name = "intel_pmc_core",
-};
-
-static int __init pmc_core_init(void)
-{
-	int ret;
-
-	if (!x86_match_cpu(intel_pmc_core_ids))
-		return -ENODEV;
-
-	ret = platform_driver_register(&pmc_core_driver);
-	if (ret)
-		return ret;
-
-	ret = platform_device_register(&pmc_core_device);
-	if (ret) {
-		platform_driver_unregister(&pmc_core_driver);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void __exit pmc_core_exit(void)
-{
-	platform_device_unregister(&pmc_core_device);
-	platform_driver_unregister(&pmc_core_driver);
-}
-
-module_init(pmc_core_init)
-module_exit(pmc_core_exit)
+module_platform_driver(pmc_core_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel PMC Core Driver");

@@ -5,7 +5,7 @@
  *  Copyright (C) 1997-1999 Russell King
  *
  *  Structure passed to kernel to tell it about the
- *  hardware it's running on.  See Documentation/arm/Setup
+ *  hardware it's running on.  See Documentation/arm/setup.rst
  *  for more info.
  */
 #ifndef __ASMARM_SETUP_H

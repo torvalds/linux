@@ -4,7 +4,7 @@
 #include <dt-bindings/mfd/max77620.h>
 
 / {
-	model = "NVIDIA Tegra194 P2888 Processor Module";
+	model = "NVIDIA Jetson AGX Xavier";
 	compatible = "nvidia,p2888", "nvidia,tegra194";
 
 	aliases {
@@ -191,7 +191,7 @@
 						regulator-boot-on;
 					};
 
-					sd3 {
+					vdd_1v8ao: sd3 {
 						regulator-name = "VDD_1V8AO";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;

@@ -564,24 +564,24 @@ unlock:
 static int iwl_mvm_fwrt_dump_start(void *ctx)
 {
 	struct iwl_mvm *mvm = ctx;
-	int ret;
-
-	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_FW_DBG_COLLECT);
-	if (ret)
-		return ret;
+	int ret = 0;
 
 	mutex_lock(&mvm->mutex);
 
-	return 0;
+	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_FW_DBG_COLLECT);
+	if (ret)
+		mutex_unlock(&mvm->mutex);
+
+	return ret;
 }
 
 static void iwl_mvm_fwrt_dump_end(void *ctx)
 {
 	struct iwl_mvm *mvm = ctx;
 
-	mutex_unlock(&mvm->mutex);
-
 	iwl_mvm_unref(mvm, IWL_MVM_REF_FW_DBG_COLLECT);
+
+	mutex_unlock(&mvm->mutex);
 }
 
 static bool iwl_mvm_fwrt_fw_running(void *ctx)
@@ -799,11 +799,11 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	iwl_trans_configure(mvm->trans, &trans_cfg);
 
 	trans->rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
-	trans->dbg_dest_tlv = mvm->fw->dbg.dest_tlv;
-	trans->dbg_n_dest_reg = mvm->fw->dbg.n_dest_reg;
-	memcpy(trans->dbg_conf_tlv, mvm->fw->dbg.conf_tlv,
-	       sizeof(trans->dbg_conf_tlv));
-	trans->dbg_trigger_tlv = mvm->fw->dbg.trigger_tlv;
+	trans->dbg.dest_tlv = mvm->fw->dbg.dest_tlv;
+	trans->dbg.n_dest_reg = mvm->fw->dbg.n_dest_reg;
+	memcpy(trans->dbg.conf_tlv, mvm->fw->dbg.conf_tlv,
+	       sizeof(trans->dbg.conf_tlv));
+	trans->dbg.trigger_tlv = mvm->fw->dbg.trigger_tlv;
 
 	trans->iml = mvm->fw->iml;
 	trans->iml_len = mvm->fw->iml_len;
@@ -880,7 +880,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	return op_mode;
 
  out_free:
-	iwl_fw_flush_dump(&mvm->fwrt);
+	iwl_fw_flush_dumps(&mvm->fwrt);
 	iwl_fw_runtime_free(&mvm->fwrt);
 
 	if (iwlmvm_mod_params.init_dbg)
@@ -1088,7 +1088,7 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 		iwl_mvm_rx_mpdu_mq(mvm, napi, rxb, 0);
 	else if (unlikely(cmd == WIDE_ID(DATA_PATH_GROUP,
 					 RX_QUEUES_NOTIFICATION)))
-		iwl_mvm_rx_queue_notif(mvm, rxb, 0);
+		iwl_mvm_rx_queue_notif(mvm, napi, rxb, 0);
 	else if (cmd == WIDE_ID(LEGACY_GROUP, FRAME_RELEASE))
 		iwl_mvm_rx_frame_release(mvm, napi, rxb, 0);
 	else if (cmd == WIDE_ID(DATA_PATH_GROUP, RX_NO_DATA_NOTIF))
@@ -1812,7 +1812,7 @@ static void iwl_mvm_rx_mq_rss(struct iwl_op_mode *op_mode,
 		iwl_mvm_rx_frame_release(mvm, napi, rxb, queue);
 	else if (unlikely(cmd == WIDE_ID(DATA_PATH_GROUP,
 					 RX_QUEUES_NOTIFICATION)))
-		iwl_mvm_rx_queue_notif(mvm, rxb, queue);
+		iwl_mvm_rx_queue_notif(mvm, napi, rxb, queue);
 	else if (likely(cmd == WIDE_ID(LEGACY_GROUP, REPLY_RX_MPDU_CMD)))
 		iwl_mvm_rx_mpdu_mq(mvm, napi, rxb, queue);
 }

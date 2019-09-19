@@ -478,6 +478,7 @@ static void bcm_sf2_sw_validate(struct dsa_switch *ds, int port,
 				unsigned long *supported,
 				struct phylink_link_state *state)
 {
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
 	if (!phy_interface_mode_is_rgmii(state->interface) &&
@@ -487,8 +488,10 @@ static void bcm_sf2_sw_validate(struct dsa_switch *ds, int port,
 	    state->interface != PHY_INTERFACE_MODE_INTERNAL &&
 	    state->interface != PHY_INTERFACE_MODE_MOCA) {
 		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
-		dev_err(ds->dev,
-			"Unsupported interface: %d\n", state->interface);
+		if (port != core_readl(priv, CORE_IMP0_PRT_ID))
+			dev_err(ds->dev,
+				"Unsupported interface: %d for port %d\n",
+				state->interface, port);
 		return;
 	}
 
@@ -525,6 +528,9 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	u32 id_mode_dis = 0, port_mode;
 	u32 reg, offset;
+
+	if (port == core_readl(priv, CORE_IMP0_PRT_ID))
+		return;
 
 	if (priv->type == BCM7445_DEVICE_ID)
 		offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);

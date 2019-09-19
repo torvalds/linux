@@ -29,16 +29,10 @@
 #define DROP_PKT	0
 #define ALLOW_PKT	1
 #define TCP_ECN_OK	1
+#define CWR		2
 
-#define HBM_DEBUG 0  // Set to 1 to enable debugging
-#if HBM_DEBUG
-#define bpf_printk(fmt, ...)					\
-({								\
-	char ____fmt[] = fmt;					\
-	bpf_trace_printk(____fmt, sizeof(____fmt),		\
-			 ##__VA_ARGS__);			\
-})
-#else
+#ifndef HBM_DEBUG  // Define HBM_DEBUG to enable debugging
+#undef bpf_printk
 #define bpf_printk(fmt, ...)
 #endif
 
@@ -52,8 +46,18 @@
 #define MAX_CREDIT		(100 * MAX_BYTES_PER_PACKET)
 #define INIT_CREDIT		(INITIAL_CREDIT_PACKETS * MAX_BYTES_PER_PACKET)
 
+// Time base accounting for fq's EDT
+#define BURST_SIZE_NS		100000 // 100us
+#define MARK_THRESH_NS		50000 // 50us
+#define DROP_THRESH_NS		500000 // 500us
+// Reserve 20us of queuing for small packets (less than 120 bytes)
+#define LARGE_PKT_DROP_THRESH_NS (DROP_THRESH_NS - 20000)
+#define MARK_REGION_SIZE_NS	(LARGE_PKT_DROP_THRESH_NS - MARK_THRESH_NS)
+
 // rate in bytes per ns << 20
 #define CREDIT_PER_NS(delta, rate) ((((u64)(delta)) * (rate)) >> 20)
+#define BYTES_PER_NS(delta, rate) ((((u64)(delta)) * (rate)) >> 20)
+#define BYTES_TO_NS(bytes, rate) div64_u64(((u64)(bytes)) << 20, (u64)(rate))
 
 struct bpf_map_def SEC("maps") queue_state = {
 	.type = BPF_MAP_TYPE_CGROUP_STORAGE,
@@ -72,17 +76,48 @@ struct bpf_map_def SEC("maps") queue_stats = {
 BPF_ANNOTATE_KV_PAIR(queue_stats, int, struct hbm_queue_stats);
 
 struct hbm_pkt_info {
+	int	cwnd;
+	int	rtt;
+	int	packets_out;
 	bool	is_ip;
 	bool	is_tcp;
 	short	ecn;
 };
 
-static __always_inline void hbm_get_pkt_info(struct __sk_buff *skb,
-					     struct hbm_pkt_info *pkti)
+static int get_tcp_info(struct __sk_buff *skb, struct hbm_pkt_info *pkti)
+{
+	struct bpf_sock *sk;
+	struct bpf_tcp_sock *tp;
+
+	sk = skb->sk;
+	if (sk) {
+		sk = bpf_sk_fullsock(sk);
+		if (sk) {
+			if (sk->protocol == IPPROTO_TCP) {
+				tp = bpf_tcp_sock(sk);
+				if (tp) {
+					pkti->cwnd = tp->snd_cwnd;
+					pkti->rtt = tp->srtt_us >> 3;
+					pkti->packets_out = tp->packets_out;
+					return 0;
+				}
+			}
+		}
+	}
+	pkti->cwnd = 0;
+	pkti->rtt = 0;
+	pkti->packets_out = 0;
+	return 1;
+}
+
+static void hbm_get_pkt_info(struct __sk_buff *skb,
+			     struct hbm_pkt_info *pkti)
 {
 	struct iphdr iph;
 	struct ipv6hdr *ip6h;
 
+	pkti->cwnd = 0;
+	pkti->rtt = 0;
 	bpf_skb_load_bytes(skb, 0, &iph, 12);
 	if (iph.version == 6) {
 		ip6h = (struct ipv6hdr *)&iph;
@@ -98,22 +133,42 @@ static __always_inline void hbm_get_pkt_info(struct __sk_buff *skb,
 		pkti->is_tcp = false;
 		pkti->ecn = 0;
 	}
+	if (pkti->is_tcp)
+		get_tcp_info(skb, pkti);
 }
 
 static __always_inline void hbm_init_vqueue(struct hbm_vqueue *qdp, int rate)
 {
-		bpf_printk("Initializing queue_state, rate:%d\n", rate * 128);
-		qdp->lasttime = bpf_ktime_get_ns();
-		qdp->credit = INIT_CREDIT;
-		qdp->rate = rate * 128;
+	bpf_printk("Initializing queue_state, rate:%d\n", rate * 128);
+	qdp->lasttime = bpf_ktime_get_ns();
+	qdp->credit = INIT_CREDIT;
+	qdp->rate = rate * 128;
+}
+
+static __always_inline void hbm_init_edt_vqueue(struct hbm_vqueue *qdp,
+						int rate)
+{
+	unsigned long long curtime;
+
+	curtime = bpf_ktime_get_ns();
+	bpf_printk("Initializing queue_state, rate:%d\n", rate * 128);
+	qdp->lasttime = curtime - BURST_SIZE_NS;	// support initial burst
+	qdp->credit = 0;				// not used
+	qdp->rate = rate * 128;
 }
 
 static __always_inline void hbm_update_stats(struct hbm_queue_stats *qsp,
 					     int len,
 					     unsigned long long curtime,
 					     bool congestion_flag,
-					     bool drop_flag)
+					     bool drop_flag,
+					     bool cwr_flag,
+					     bool ecn_ce_flag,
+					     struct hbm_pkt_info *pkti,
+					     int credit)
 {
+	int rv = ALLOW_PKT;
+
 	if (qsp != NULL) {
 		// Following is needed for work conserving
 		__sync_add_and_fetch(&(qsp->bytes_total), len);
@@ -123,7 +178,7 @@ static __always_inline void hbm_update_stats(struct hbm_queue_stats *qsp,
 				qsp->firstPacketTime = curtime;
 			qsp->lastPacketTime = curtime;
 			__sync_add_and_fetch(&(qsp->pkts_total), 1);
-			if (congestion_flag || drop_flag) {
+			if (congestion_flag) {
 				__sync_add_and_fetch(&(qsp->pkts_marked), 1);
 				__sync_add_and_fetch(&(qsp->bytes_marked), len);
 			}
@@ -132,6 +187,34 @@ static __always_inline void hbm_update_stats(struct hbm_queue_stats *qsp,
 				__sync_add_and_fetch(&(qsp->bytes_dropped),
 						     len);
 			}
+			if (ecn_ce_flag)
+				__sync_add_and_fetch(&(qsp->pkts_ecn_ce), 1);
+			if (pkti->cwnd) {
+				__sync_add_and_fetch(&(qsp->sum_cwnd),
+						     pkti->cwnd);
+				__sync_add_and_fetch(&(qsp->sum_cwnd_cnt), 1);
+			}
+			if (pkti->rtt)
+				__sync_add_and_fetch(&(qsp->sum_rtt),
+						     pkti->rtt);
+			__sync_add_and_fetch(&(qsp->sum_credit), credit);
+
+			if (drop_flag)
+				rv = DROP_PKT;
+			if (cwr_flag)
+				rv |= 2;
+			if (rv == DROP_PKT)
+				__sync_add_and_fetch(&(qsp->returnValCount[0]),
+						     1);
+			else if (rv == ALLOW_PKT)
+				__sync_add_and_fetch(&(qsp->returnValCount[1]),
+						     1);
+			else if (rv == 2)
+				__sync_add_and_fetch(&(qsp->returnValCount[2]),
+						     1);
+			else if (rv == 3)
+				__sync_add_and_fetch(&(qsp->returnValCount[3]),
+						     1);
 		}
 	}
 }

@@ -39,6 +39,14 @@
 #define GUC_VIDEO_ENGINE2		4
 #define GUC_MAX_ENGINES_NUM		(GUC_VIDEO_ENGINE2 + 1)
 
+/*
+ * XXX: Beware that Gen9 firmware 32.x uses wrong definition for
+ * GUC_MAX_INSTANCES_PER_CLASS (1) but this is harmless for us now
+ * as we are not enabling GuC submission mode where this will be used
+ */
+#define GUC_MAX_ENGINE_CLASSES		5
+#define GUC_MAX_INSTANCES_PER_CLASS	4
+
 #define GUC_DOORBELL_INVALID		256
 
 #define GUC_DB_SIZE			(PAGE_SIZE)
@@ -73,44 +81,28 @@
 #define GUC_STAGE_DESC_ATTR_PCH		BIT(6)
 #define GUC_STAGE_DESC_ATTR_TERMINATED	BIT(7)
 
-/* The guc control data is 10 DWORDs */
+/* New GuC control data */
 #define GUC_CTL_CTXINFO			0
 #define   GUC_CTL_CTXNUM_IN16_SHIFT	0
 #define   GUC_CTL_BASE_ADDR_SHIFT	12
 
-#define GUC_CTL_ARAT_HIGH		1
-#define GUC_CTL_ARAT_LOW		2
-
-#define GUC_CTL_DEVICE_INFO		3
-
-#define GUC_CTL_LOG_PARAMS		4
+#define GUC_CTL_LOG_PARAMS		1
 #define   GUC_LOG_VALID			(1 << 0)
 #define   GUC_LOG_NOTIFY_ON_HALF_FULL	(1 << 1)
 #define   GUC_LOG_ALLOC_IN_MEGABYTE	(1 << 3)
 #define   GUC_LOG_CRASH_SHIFT		4
-#define   GUC_LOG_CRASH_MASK		(0x1 << GUC_LOG_CRASH_SHIFT)
+#define   GUC_LOG_CRASH_MASK		(0x3 << GUC_LOG_CRASH_SHIFT)
 #define   GUC_LOG_DPC_SHIFT		6
 #define   GUC_LOG_DPC_MASK	        (0x7 << GUC_LOG_DPC_SHIFT)
 #define   GUC_LOG_ISR_SHIFT		9
 #define   GUC_LOG_ISR_MASK	        (0x7 << GUC_LOG_ISR_SHIFT)
 #define   GUC_LOG_BUF_ADDR_SHIFT	12
 
-#define GUC_CTL_PAGE_FAULT_CONTROL	5
+#define GUC_CTL_WA			2
+#define GUC_CTL_FEATURE			3
+#define   GUC_CTL_DISABLE_SCHEDULER	(1 << 14)
 
-#define GUC_CTL_WA			6
-#define   GUC_CTL_WA_UK_BY_DRIVER	(1 << 3)
-
-#define GUC_CTL_FEATURE			7
-#define   GUC_CTL_VCS2_ENABLED		(1 << 0)
-#define   GUC_CTL_KERNEL_SUBMISSIONS	(1 << 1)
-#define   GUC_CTL_FEATURE2		(1 << 2)
-#define   GUC_CTL_POWER_GATING		(1 << 3)
-#define   GUC_CTL_DISABLE_SCHEDULER	(1 << 4)
-#define   GUC_CTL_PREEMPTION_LOG	(1 << 5)
-#define   GUC_CTL_ENABLE_SLPC		(1 << 7)
-#define   GUC_CTL_RESET_ON_PREMPT_FAILURE	(1 << 8)
-
-#define GUC_CTL_DEBUG			8
+#define GUC_CTL_DEBUG			4
 #define   GUC_LOG_VERBOSITY_SHIFT	0
 #define   GUC_LOG_VERBOSITY_LOW		(0 << GUC_LOG_VERBOSITY_SHIFT)
 #define   GUC_LOG_VERBOSITY_MED		(1 << GUC_LOG_VERBOSITY_SHIFT)
@@ -123,13 +115,10 @@
 #define	  GUC_LOG_DESTINATION_MASK	(3 << 4)
 #define   GUC_LOG_DISABLED		(1 << 6)
 #define   GUC_PROFILE_ENABLED		(1 << 7)
-#define   GUC_WQ_TRACK_ENABLED		(1 << 8)
-#define   GUC_ADS_ENABLED		(1 << 9)
-#define   GUC_LOG_DEFAULT_DISABLED	(1 << 10)
-#define   GUC_ADS_ADDR_SHIFT		11
-#define   GUC_ADS_ADDR_MASK		0xfffff800
 
-#define GUC_CTL_RSRVD			9
+#define GUC_CTL_ADS			5
+#define   GUC_ADS_ADDR_SHIFT		1
+#define   GUC_ADS_ADDR_MASK		(0xFFFFF << GUC_ADS_ADDR_SHIFT)
 
 #define GUC_CTL_MAX_DWORDS		(SOFT_SCRATCH_COUNT - 2) /* [1..14] */
 
@@ -168,11 +157,7 @@
  *    in fw. So driver will load a truncated firmware in this case.
  *
  * HuC firmware layout is same as GuC firmware.
- *
- * HuC firmware css header is different. However, the only difference is where
- * the version information is saved. The uc_css_header is unified to support
- * both. Driver should get HuC version from uc_css_header.huc_sw_version, while
- * uc_css_header.guc_sw_version for GuC.
+ * Only HuC version information is saved in a different way.
  */
 
 struct uc_css_header {
@@ -183,41 +168,27 @@ struct uc_css_header {
 	u32 header_version;
 	u32 module_id;
 	u32 module_vendor;
-	union {
-		struct {
-			u8 day;
-			u8 month;
-			u16 year;
-		};
-		u32 date;
-	};
+	u32 date;
+#define CSS_DATE_DAY			(0xFF << 0)
+#define CSS_DATE_MONTH			(0xFF << 8)
+#define CSS_DATE_YEAR			(0xFFFF << 16)
 	u32 size_dw; /* uCode plus header_size_dw */
 	u32 key_size_dw;
 	u32 modulus_size_dw;
 	u32 exponent_size_dw;
-	union {
-		struct {
-			u8 hour;
-			u8 min;
-			u16 sec;
-		};
-		u32 time;
-	};
-
+	u32 time;
+#define CSS_TIME_HOUR			(0xFF << 0)
+#define CSS_DATE_MIN			(0xFF << 8)
+#define CSS_DATE_SEC			(0xFFFF << 16)
 	char username[8];
 	char buildnumber[12];
-	union {
-		struct {
-			u32 branch_client_version;
-			u32 sw_version;
-	} guc;
-		struct {
-			u32 sw_version;
-			u32 reserved;
-	} huc;
-	};
-	u32 prod_preprod_fw;
-	u32 reserved[12];
+	u32 sw_version;
+#define CSS_SW_VERSION_GUC_MAJOR	(0xFF << 16)
+#define CSS_SW_VERSION_GUC_MINOR	(0xFF << 8)
+#define CSS_SW_VERSION_GUC_PATCH	(0xFF << 0)
+#define CSS_SW_VERSION_HUC_MAJOR	(0xFFFF << 16)
+#define CSS_SW_VERSION_HUC_MINOR	(0xFFFF << 0)
+	u32 reserved[14];
 	u32 header_info;
 } __packed;
 
@@ -384,14 +355,16 @@ struct guc_ct_buffer_desc {
  *
  * bit[4..0]	message len (in dwords)
  * bit[7..5]	reserved
- * bit[8]	write fence to desc
- * bit[9]	write status to H2G buff
- * bit[10]	send status (via G2H)
+ * bit[8]	response (G2H only)
+ * bit[8]	write fence to desc (H2G only)
+ * bit[9]	write status to H2G buff (H2G only)
+ * bit[10]	send status back via G2H (H2G only)
  * bit[15..11]	reserved
  * bit[31..16]	action code
  */
 #define GUC_CT_MSG_LEN_SHIFT			0
 #define GUC_CT_MSG_LEN_MASK			0x1F
+#define GUC_CT_MSG_IS_RESPONSE			(1 << 8)
 #define GUC_CT_MSG_WRITE_FENCE_TO_DESC		(1 << 8)
 #define GUC_CT_MSG_WRITE_STATUS_TO_BUFF		(1 << 9)
 #define GUC_CT_MSG_SEND_STATUS			(1 << 10)
@@ -423,23 +396,19 @@ struct guc_ct_buffer_desc {
 struct guc_policy {
 	/* Time for one workload to execute. (in micro seconds) */
 	u32 execution_quantum;
-	u32 reserved1;
-
 	/* Time to wait for a preemption request to completed before issuing a
 	 * reset. (in micro seconds). */
 	u32 preemption_time;
-
 	/* How much time to allow to run after the first fault is observed.
 	 * Then preempt afterwards. (in micro seconds) */
 	u32 fault_time;
-
 	u32 policy_flags;
-	u32 reserved[2];
+	u32 reserved[8];
 } __packed;
 
 struct guc_policies {
-	struct guc_policy policy[GUC_CLIENT_PRIORITY_NUM][GUC_MAX_ENGINES_NUM];
-
+	struct guc_policy policy[GUC_CLIENT_PRIORITY_NUM][GUC_MAX_ENGINE_CLASSES];
+	u32 submission_queue_depth[GUC_MAX_ENGINE_CLASSES];
 	/* In micro seconds. How much time to allow before DPC processing is
 	 * called back via interrupt (to prevent DPC queue drain starving).
 	 * Typically 1000s of micro seconds (example only, not granularity). */
@@ -452,57 +421,73 @@ struct guc_policies {
 	 * idle. */
 	u32 max_num_work_items;
 
-	u32 reserved[19];
+	u32 reserved[4];
 } __packed;
 
 /* GuC MMIO reg state struct */
 
-#define GUC_REGSET_FLAGS_NONE		0x0
-#define GUC_REGSET_POWERCYCLE		0x1
-#define GUC_REGSET_MASKED		0x2
-#define GUC_REGSET_ENGINERESET		0x4
-#define GUC_REGSET_SAVE_DEFAULT_VALUE	0x8
-#define GUC_REGSET_SAVE_CURRENT_VALUE	0x10
 
-#define GUC_REGSET_MAX_REGISTERS	25
-#define GUC_MMIO_WHITE_LIST_START	0x24d0
-#define GUC_MMIO_WHITE_LIST_MAX		12
+#define GUC_REGSET_MAX_REGISTERS	64
 #define GUC_S3_SAVE_SPACE_PAGES		10
 
-struct guc_mmio_regset {
-	struct __packed {
-		u32 offset;
-		u32 value;
-		u32 flags;
-	} registers[GUC_REGSET_MAX_REGISTERS];
+struct guc_mmio_reg {
+	u32 offset;
+	u32 value;
+	u32 flags;
+#define GUC_REGSET_MASKED		(1 << 0)
+} __packed;
 
+struct guc_mmio_regset {
+	struct guc_mmio_reg registers[GUC_REGSET_MAX_REGISTERS];
 	u32 values_valid;
 	u32 number_of_registers;
 } __packed;
 
-/* MMIO registers that are set as non privileged */
-struct mmio_white_list {
-	u32 mmio_start;
-	u32 offsets[GUC_MMIO_WHITE_LIST_MAX];
-	u32 count;
+/* GuC register sets */
+struct guc_mmio_reg_state {
+	struct guc_mmio_regset engine_reg[GUC_MAX_ENGINE_CLASSES][GUC_MAX_INSTANCES_PER_CLASS];
+	u32 reserved[98];
 } __packed;
 
-struct guc_mmio_reg_state {
-	struct guc_mmio_regset global_reg;
-	struct guc_mmio_regset engine_reg[GUC_MAX_ENGINES_NUM];
-	struct mmio_white_list white_list[GUC_MAX_ENGINES_NUM];
+/* HW info */
+struct guc_gt_system_info {
+	u32 slice_enabled;
+	u32 rcs_enabled;
+	u32 reserved0;
+	u32 bcs_enabled;
+	u32 vdbox_enable_mask;
+	u32 vdbox_sfc_support_mask;
+	u32 vebox_enable_mask;
+	u32 reserved[9];
+} __packed;
+
+/* Clients info */
+struct guc_ct_pool_entry {
+	struct guc_ct_buffer_desc desc;
+	u32 reserved[7];
+} __packed;
+
+#define GUC_CT_POOL_SIZE	2
+
+struct guc_clients_info {
+	u32 clients_num;
+	u32 reserved0[13];
+	u32 ct_pool_addr;
+	u32 ct_pool_count;
+	u32 reserved[4];
 } __packed;
 
 /* GuC Additional Data Struct */
-
 struct guc_ads {
 	u32 reg_state_addr;
 	u32 reg_state_buffer;
-	u32 golden_context_lrca;
 	u32 scheduler_policies;
-	u32 reserved0[3];
-	u32 eng_state_size[GUC_MAX_ENGINES_NUM];
-	u32 reserved2[4];
+	u32 gt_system_info;
+	u32 clients_info;
+	u32 control_data;
+	u32 golden_context_lrca[GUC_MAX_ENGINE_CLASSES];
+	u32 eng_state_size[GUC_MAX_ENGINE_CLASSES];
+	u32 reserved[16];
 } __packed;
 
 /* GuC logging structures */
@@ -515,6 +500,8 @@ enum guc_log_buffer_type {
 };
 
 /**
+ * struct guc_log_buffer_state - GuC log buffer state
+ *
  * Below state structure is used for coordination of retrieval of GuC firmware
  * logs. Separate state is maintained for each log buffer type.
  * read_ptr points to the location where i915 read last in log buffer and
@@ -646,7 +633,6 @@ enum intel_guc_action {
 	INTEL_GUC_ACTION_DEFAULT = 0x0,
 	INTEL_GUC_ACTION_REQUEST_PREEMPTION = 0x2,
 	INTEL_GUC_ACTION_REQUEST_ENGINE_RESET = 0x3,
-	INTEL_GUC_ACTION_SAMPLE_FORCEWAKE = 0x6,
 	INTEL_GUC_ACTION_ALLOCATE_DOORBELL = 0x10,
 	INTEL_GUC_ACTION_DEALLOCATE_DOORBELL = 0x20,
 	INTEL_GUC_ACTION_LOG_BUFFER_FILE_FLUSH_COMPLETE = 0x30,
@@ -654,6 +640,7 @@ enum intel_guc_action {
 	INTEL_GUC_ACTION_ENTER_S_STATE = 0x501,
 	INTEL_GUC_ACTION_EXIT_S_STATE = 0x502,
 	INTEL_GUC_ACTION_SLPC_REQUEST = 0x3003,
+	INTEL_GUC_ACTION_SAMPLE_FORCEWAKE = 0x3005,
 	INTEL_GUC_ACTION_AUTHENTICATE_HUC = 0x4000,
 	INTEL_GUC_ACTION_REGISTER_COMMAND_TRANSPORT_BUFFER = 0x4505,
 	INTEL_GUC_ACTION_DEREGISTER_COMMAND_TRANSPORT_BUFFER = 0x4506,
@@ -674,9 +661,9 @@ enum intel_guc_report_status {
 };
 
 enum intel_guc_sleep_state_status {
-	INTEL_GUC_SLEEP_STATE_SUCCESS = 0x0,
-	INTEL_GUC_SLEEP_STATE_PREEMPT_TO_IDLE_FAILED = 0x1,
-	INTEL_GUC_SLEEP_STATE_ENGINE_RESET_FAILED = 0x2
+	INTEL_GUC_SLEEP_STATE_SUCCESS = 0x1,
+	INTEL_GUC_SLEEP_STATE_PREEMPT_TO_IDLE_FAILED = 0x2,
+	INTEL_GUC_SLEEP_STATE_ENGINE_RESET_FAILED = 0x3
 #define INTEL_GUC_SLEEP_STATE_INVALID_MASK 0x80000000
 };
 

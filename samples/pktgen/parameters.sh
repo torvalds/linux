@@ -10,6 +10,7 @@ function usage() {
     echo "  -s : (\$PKT_SIZE)  packet size"
     echo "  -d : (\$DEST_IP)   destination IP"
     echo "  -m : (\$DST_MAC)   destination MAC-addr"
+    echo "  -p : (\$DST_PORT)  destination PORT range (e.g. 433-444) is also allowed"
     echo "  -t : (\$THREADS)   threads to start"
     echo "  -f : (\$F_THREAD)  index of first thread (zero indexed CPU number)"
     echo "  -c : (\$SKB_CLONE) SKB clones send before alloc new SKB"
@@ -23,7 +24,7 @@ function usage() {
 
 ##  --- Parse command line arguments / parameters ---
 ## echo "Commandline options:"
-while getopts "s:i:d:m:f:t:c:n:b:vxh6" option; do
+while getopts "s:i:d:m:p:f:t:c:n:b:vxh6" option; do
     case $option in
         i) # interface
           export DEV=$OPTARG
@@ -40,6 +41,10 @@ while getopts "s:i:d:m:f:t:c:n:b:vxh6" option; do
         m) # MAC
           export DST_MAC=$OPTARG
 	  info "Destination MAC set to: DST_MAC=$DST_MAC"
+          ;;
+        p) # PORT
+          export DST_PORT=$OPTARG
+	  info "Destination PORT set to: DST_PORT=$DST_PORT"
           ;;
         f)
 	  export F_THREAD=$OPTARG

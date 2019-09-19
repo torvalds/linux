@@ -15,54 +15,58 @@
 #include <linux/crypto.h>
 #include <asm/cputable.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/skcipher.h>
 
 extern struct shash_alg p8_ghash_alg;
 extern struct crypto_alg p8_aes_alg;
-extern struct crypto_alg p8_aes_cbc_alg;
-extern struct crypto_alg p8_aes_ctr_alg;
-extern struct crypto_alg p8_aes_xts_alg;
-static struct crypto_alg *algs[] = {
-	&p8_aes_alg,
-	&p8_aes_cbc_alg,
-	&p8_aes_ctr_alg,
-	&p8_aes_xts_alg,
-	NULL,
-};
+extern struct skcipher_alg p8_aes_cbc_alg;
+extern struct skcipher_alg p8_aes_ctr_alg;
+extern struct skcipher_alg p8_aes_xts_alg;
 
 static int __init p8_init(void)
 {
-	int ret = 0;
-	struct crypto_alg **alg_it;
-
-	for (alg_it = algs; *alg_it; alg_it++) {
-		ret = crypto_register_alg(*alg_it);
-		printk(KERN_INFO "crypto_register_alg '%s' = %d\n",
-		       (*alg_it)->cra_name, ret);
-		if (ret) {
-			for (alg_it--; alg_it >= algs; alg_it--)
-				crypto_unregister_alg(*alg_it);
-			break;
-		}
-	}
-	if (ret)
-		return ret;
+	int ret;
 
 	ret = crypto_register_shash(&p8_ghash_alg);
-	if (ret) {
-		for (alg_it = algs; *alg_it; alg_it++)
-			crypto_unregister_alg(*alg_it);
-	}
+	if (ret)
+		goto err;
+
+	ret = crypto_register_alg(&p8_aes_alg);
+	if (ret)
+		goto err_unregister_ghash;
+
+	ret = crypto_register_skcipher(&p8_aes_cbc_alg);
+	if (ret)
+		goto err_unregister_aes;
+
+	ret = crypto_register_skcipher(&p8_aes_ctr_alg);
+	if (ret)
+		goto err_unregister_aes_cbc;
+
+	ret = crypto_register_skcipher(&p8_aes_xts_alg);
+	if (ret)
+		goto err_unregister_aes_ctr;
+
+	return 0;
+
+err_unregister_aes_ctr:
+	crypto_unregister_skcipher(&p8_aes_ctr_alg);
+err_unregister_aes_cbc:
+	crypto_unregister_skcipher(&p8_aes_cbc_alg);
+err_unregister_aes:
+	crypto_unregister_alg(&p8_aes_alg);
+err_unregister_ghash:
+	crypto_unregister_shash(&p8_ghash_alg);
+err:
 	return ret;
 }
 
 static void __exit p8_exit(void)
 {
-	struct crypto_alg **alg_it;
-
-	for (alg_it = algs; *alg_it; alg_it++) {
-		printk(KERN_INFO "Removing '%s'\n", (*alg_it)->cra_name);
-		crypto_unregister_alg(*alg_it);
-	}
+	crypto_unregister_skcipher(&p8_aes_xts_alg);
+	crypto_unregister_skcipher(&p8_aes_ctr_alg);
+	crypto_unregister_skcipher(&p8_aes_cbc_alg);
+	crypto_unregister_alg(&p8_aes_alg);
 	crypto_unregister_shash(&p8_ghash_alg);
 }
 

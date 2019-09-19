@@ -8,36 +8,36 @@
 #define PERF_MAX_STACK_DEPTH         127
 #endif
 
-struct bpf_map_def SEC("maps") control_map = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u32),
-	.max_entries = 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, __u32);
+} control_map SEC(".maps");
 
-struct bpf_map_def SEC("maps") stackid_hmap = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u32),
-	.max_entries = 16384,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 16384);
+	__type(key, __u32);
+	__type(value, __u32);
+} stackid_hmap SEC(".maps");
 
-struct bpf_map_def SEC("maps") stackmap = {
-	.type = BPF_MAP_TYPE_STACK_TRACE,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct bpf_stack_build_id)
-		* PERF_MAX_STACK_DEPTH,
-	.max_entries = 128,
-	.map_flags = BPF_F_STACK_BUILD_ID,
-};
+typedef struct bpf_stack_build_id stack_trace_t[PERF_MAX_STACK_DEPTH];
 
-struct bpf_map_def SEC("maps") stack_amap = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct bpf_stack_build_id)
-		* PERF_MAX_STACK_DEPTH,
-	.max_entries = 128,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_STACK_TRACE);
+	__uint(max_entries, 128);
+	__uint(map_flags, BPF_F_STACK_BUILD_ID);
+	__uint(key_size, sizeof(__u32));
+	__uint(value_size, sizeof(stack_trace_t));
+} stackmap SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 128);
+	__type(key, __u32);
+	__type(value, stack_trace_t);
+} stack_amap SEC(".maps");
 
 /* taken from /sys/kernel/debug/tracing/events/random/urandom_read/format */
 struct random_urandom_args {

@@ -62,27 +62,21 @@ void __show_regs(struct pt_regs *regs, enum show_regs_mode mode)
 {
 	unsigned long cr0 = 0L, cr2 = 0L, cr3 = 0L, cr4 = 0L;
 	unsigned long d0, d1, d2, d3, d6, d7;
-	unsigned long sp;
-	unsigned short ss, gs;
+	unsigned short gs;
 
-	if (user_mode(regs)) {
-		sp = regs->sp;
-		ss = regs->ss;
+	if (user_mode(regs))
 		gs = get_user_gs(regs);
-	} else {
-		sp = kernel_stack_pointer(regs);
-		savesegment(ss, ss);
+	else
 		savesegment(gs, gs);
-	}
 
 	show_ip(regs, KERN_DEFAULT);
 
 	printk(KERN_DEFAULT "EAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx\n",
 		regs->ax, regs->bx, regs->cx, regs->dx);
 	printk(KERN_DEFAULT "ESI: %08lx EDI: %08lx EBP: %08lx ESP: %08lx\n",
-		regs->si, regs->di, regs->bp, sp);
+		regs->si, regs->di, regs->bp, regs->sp);
 	printk(KERN_DEFAULT "DS: %04x ES: %04x FS: %04x GS: %04x SS: %04x EFLAGS: %08lx\n",
-	       (u16)regs->ds, (u16)regs->es, (u16)regs->fs, gs, ss, regs->flags);
+	       (u16)regs->ds, (u16)regs->es, (u16)regs->fs, gs, regs->ss, regs->flags);
 
 	if (mode != SHOW_REGS_ALL)
 		return;

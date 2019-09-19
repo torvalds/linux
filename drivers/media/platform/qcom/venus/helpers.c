@@ -458,6 +458,13 @@ static bool is_dynamic_bufmode(struct venus_inst *inst)
 	struct venus_core *core = inst->core;
 	struct venus_caps *caps;
 
+	/*
+	 * v4 doesn't send BUFFER_ALLOC_MODE_SUPPORTED property and supports
+	 * dynamic buffer mode by default for HFI_BUFFER_OUTPUT/OUTPUT2.
+	 */
+	if (IS_V4(core))
+		return true;
+
 	caps = venus_caps_by_codec(core, inst->hfi_codec, inst->session_type);
 	if (!caps)
 		return false;

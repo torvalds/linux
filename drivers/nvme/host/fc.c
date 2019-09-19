@@ -204,6 +204,9 @@ static DEFINE_IDA(nvme_fc_ctrl_cnt);
 
 static struct workqueue_struct *nvme_fc_wq;
 
+static bool nvme_fc_waiting_to_unload;
+static DECLARE_COMPLETION(nvme_fc_unload_proceed);
+
 /*
  * These items are short-term. They will eventually be moved into
  * a generic FC class. See comments in module init.
@@ -229,6 +232,8 @@ nvme_fc_free_lport(struct kref *ref)
 	/* remove from transport list */
 	spin_lock_irqsave(&nvme_fc_lock, flags);
 	list_del(&lport->port_list);
+	if (nvme_fc_waiting_to_unload && list_empty(&nvme_fc_lport_list))
+		complete(&nvme_fc_unload_proceed);
 	spin_unlock_irqrestore(&nvme_fc_lock, flags);
 
 	ida_simple_remove(&nvme_fc_local_port_cnt, lport->localport.port_num);
@@ -2112,7 +2117,8 @@ nvme_fc_map_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
 
 	freq->sg_table.sgl = freq->first_sgl;
 	ret = sg_alloc_table_chained(&freq->sg_table,
-			blk_rq_nr_phys_segments(rq), freq->sg_table.sgl);
+			blk_rq_nr_phys_segments(rq), freq->sg_table.sgl,
+			SG_CHUNK_SIZE);
 	if (ret)
 		return -ENOMEM;
 
@@ -2122,7 +2128,7 @@ nvme_fc_map_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
 	freq->sg_cnt = fc_dma_map_sg(ctrl->lport->dev, freq->sg_table.sgl,
 				op->nents, dir);
 	if (unlikely(freq->sg_cnt <= 0)) {
-		sg_free_table_chained(&freq->sg_table, true);
+		sg_free_table_chained(&freq->sg_table, SG_CHUNK_SIZE);
 		freq->sg_cnt = 0;
 		return -EFAULT;
 	}
@@ -2148,7 +2154,7 @@ nvme_fc_unmap_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
 
 	nvme_cleanup_cmd(rq);
 
-	sg_free_table_chained(&freq->sg_table, true);
+	sg_free_table_chained(&freq->sg_table, SG_CHUNK_SIZE);
 
 	freq->sg_cnt = 0;
 }
@@ -2606,6 +2612,12 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 
 	if (nvme_fc_ctlr_active_on_rport(ctrl))
 		return -ENOTUNIQ;
+
+	dev_info(ctrl->ctrl.device,
+		"NVME-FC{%d}: create association : host wwpn 0x%016llx "
+		" rport wwpn 0x%016llx: NQN \"%s\"\n",
+		ctrl->cnum, ctrl->lport->localport.port_name,
+		ctrl->rport->remoteport.port_name, ctrl->ctrl.opts->subsysnqn);
 
 	/*
 	 * Create the admin queue
@@ -3450,11 +3462,51 @@ out_destroy_wq:
 	return ret;
 }
 
+static void
+nvme_fc_delete_controllers(struct nvme_fc_rport *rport)
+{
+	struct nvme_fc_ctrl *ctrl;
+
+	spin_lock(&rport->lock);
+	list_for_each_entry(ctrl, &rport->ctrl_list, ctrl_list) {
+		dev_warn(ctrl->ctrl.device,
+			"NVME-FC{%d}: transport unloading: deleting ctrl\n",
+			ctrl->cnum);
+		nvme_delete_ctrl(&ctrl->ctrl);
+	}
+	spin_unlock(&rport->lock);
+}
+
+static void
+nvme_fc_cleanup_for_unload(void)
+{
+	struct nvme_fc_lport *lport;
+	struct nvme_fc_rport *rport;
+
+	list_for_each_entry(lport, &nvme_fc_lport_list, port_list) {
+		list_for_each_entry(rport, &lport->endp_list, endp_list) {
+			nvme_fc_delete_controllers(rport);
+		}
+	}
+}
+
 static void __exit nvme_fc_exit_module(void)
 {
-	/* sanity check - all lports should be removed */
-	if (!list_empty(&nvme_fc_lport_list))
-		pr_warn("%s: localport list not empty\n", __func__);
+	unsigned long flags;
+	bool need_cleanup = false;
+
+	spin_lock_irqsave(&nvme_fc_lock, flags);
+	nvme_fc_waiting_to_unload = true;
+	if (!list_empty(&nvme_fc_lport_list)) {
+		need_cleanup = true;
+		nvme_fc_cleanup_for_unload();
+	}
+	spin_unlock_irqrestore(&nvme_fc_lock, flags);
+	if (need_cleanup) {
+		pr_info("%s: waiting for ctlr deletes\n", __func__);
+		wait_for_completion(&nvme_fc_unload_proceed);
+		pr_info("%s: ctrl deletes complete\n", __func__);
+	}
 
 	nvmf_unregister_transport(&nvme_fc_transport);
 

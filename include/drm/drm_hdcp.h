@@ -252,17 +252,44 @@ struct hdcp2_rep_stream_ready {
  * host format and back
  */
 static inline
-u32 drm_hdcp2_seq_num_to_u32(u8 seq_num[HDCP_2_2_SEQ_NUM_LEN])
+u32 drm_hdcp_be24_to_cpu(const u8 seq_num[HDCP_2_2_SEQ_NUM_LEN])
 {
 	return (u32)(seq_num[2] | seq_num[1] << 8 | seq_num[0] << 16);
 }
 
 static inline
-void drm_hdcp2_u32_to_seq_num(u8 seq_num[HDCP_2_2_SEQ_NUM_LEN], u32 val)
+void drm_hdcp_cpu_to_be24(u8 seq_num[HDCP_2_2_SEQ_NUM_LEN], u32 val)
 {
 	seq_num[0] = val >> 16;
 	seq_num[1] = val >> 8;
 	seq_num[2] = val;
 }
 
+#define DRM_HDCP_SRM_GEN1_MAX_BYTES		(5 * 1024)
+#define DRM_HDCP_1_4_SRM_ID			0x8
+#define DRM_HDCP_SRM_ID_MASK			(0xF << 4)
+#define DRM_HDCP_1_4_VRL_LENGTH_SIZE		3
+#define DRM_HDCP_1_4_DCP_SIG_SIZE		40
+#define DRM_HDCP_2_SRM_ID			0x9
+#define DRM_HDCP_2_INDICATOR			0x1
+#define DRM_HDCP_2_INDICATOR_MASK		0xF
+#define DRM_HDCP_2_VRL_LENGTH_SIZE		3
+#define DRM_HDCP_2_DCP_SIG_SIZE			384
+#define DRM_HDCP_2_NO_OF_DEV_PLUS_RESERVED_SZ	4
+#define DRM_HDCP_2_KSV_COUNT_2_LSBITS(byte)	(((byte) & 0xC) >> 6)
+
+struct hdcp_srm_header {
+	u8 srm_id;
+	u8 reserved;
+	__be16 srm_version;
+	u8 srm_gen_no;
+} __packed;
+
+struct drm_device;
+struct drm_connector;
+
+bool drm_hdcp_check_ksvs_revoked(struct drm_device *dev,
+				 u8 *ksvs, u32 ksv_count);
+int drm_connector_attach_content_protection_property(
+		struct drm_connector *connector);
 #endif
