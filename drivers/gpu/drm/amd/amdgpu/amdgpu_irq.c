@@ -383,7 +383,7 @@ int amdgpu_irq_add_id(struct amdgpu_device *adev,
  * amdgpu_irq_dispatch - dispatch IRQ to IP blocks
  *
  * @adev: amdgpu device pointer
- * @entry: interrupt vector pointer
+ * @ih: interrupt ring instance
  *
  * Dispatches IRQ to IP blocks.
  */
