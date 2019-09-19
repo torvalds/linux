@@ -29,6 +29,7 @@ MODULE_PARM_DESC(gpio_reset, "gpio number for reset. -1 for none.");
 
 static const struct wfx_platform_data wfx_spi_pdata = {
 	.file_fw = "wfm_wf200",
+	.file_pds = "wf200.pds",
 	.use_rising_clk = true,
 };
 

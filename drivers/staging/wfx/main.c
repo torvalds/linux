@@ -18,6 +18,7 @@
 #include <linux/mmc/sdio_func.h>
 #include <linux/spi/spi.h>
 #include <linux/etherdevice.h>
+#include <linux/firmware.h>
 
 #include "main.h"
 #include "wfx.h"
@@ -28,8 +29,11 @@
 #include "sta.h"
 #include "debug.h"
 #include "secure_link.h"
+#include "hif_tx_mib.h"
 #include "hif_api_cmd.h"
 #include "wfx_version.h"
+
+#define WFX_PDS_MAX_SIZE 1500
 
 MODULE_DESCRIPTION("Silicon Labs 802.11 Wireless LAN driver for WFx");
 MODULE_AUTHOR("Jérôme Pouiller <jerome.pouiller@silabs.com>");
@@ -112,6 +116,69 @@ static void wfx_fill_sl_key(struct device *dev, struct wfx_platform_data *pdata)
 	dev_err(dev, "secure link is not supported by this driver, ignoring provided key\n");
 }
 
+/* NOTE: wfx_send_pds() destroy buf */
+int wfx_send_pds(struct wfx_dev *wdev, unsigned char *buf, size_t len)
+{
+	int ret;
+	int start, brace_level, i;
+
+	start = 0;
+	brace_level = 0;
+	if (buf[0] != '{') {
+		dev_err(wdev->dev, "valid PDS start with '{'. Did you forget to compress it?\n");
+		return -EINVAL;
+	}
+	for (i = 1; i < len - 1; i++) {
+		if (buf[i] == '{')
+			brace_level++;
+		if (buf[i] == '}')
+			brace_level--;
+		if (buf[i] == '}' && !brace_level) {
+			i++;
+			if (i - start + 1 > WFX_PDS_MAX_SIZE)
+				return -EFBIG;
+			buf[start] = '{';
+			buf[i] = 0;
+			dev_dbg(wdev->dev, "send PDS '%s}'\n", buf + start);
+			buf[i] = '}';
+			ret = hif_configuration(wdev, buf + start, i - start + 1);
+			if (ret == HIF_STATUS_FAILURE) {
+				dev_err(wdev->dev, "PDS bytes %d to %d: invalid data (unsupported options?)\n", start, i);
+				return -EINVAL;
+			}
+			if (ret == -ETIMEDOUT) {
+				dev_err(wdev->dev, "PDS bytes %d to %d: chip didn't reply (corrupted file?)\n", start, i);
+				return ret;
+			}
+			if (ret) {
+				dev_err(wdev->dev, "PDS bytes %d to %d: chip returned an unknown error\n", start, i);
+				return -EIO;
+			}
+			buf[i] = ',';
+			start = i;
+		}
+	}
+	return 0;
+}
+
+static int wfx_send_pdata_pds(struct wfx_dev *wdev)
+{
+	int ret = 0;
+	const struct firmware *pds;
+	unsigned char *tmp_buf;
+
+	ret = request_firmware(&pds, wdev->pdata.file_pds, wdev->dev);
+	if (ret) {
+		dev_err(wdev->dev, "can't load PDS file %s\n", wdev->pdata.file_pds);
+		return ret;
+	}
+	tmp_buf = kmemdup(pds->data, pds->size, GFP_KERNEL);
+	ret = wfx_send_pds(wdev, tmp_buf, pds->size);
+	kfree(tmp_buf);
+	release_firmware(pds);
+	return ret;
+}
+
 struct wfx_dev *wfx_init_common(struct device *dev,
 				const struct wfx_platform_data *pdata,
 				const struct hwbus_ops *hwbus_ops,
@@ -141,6 +208,8 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	wdev->hwbus_ops = hwbus_ops;
 	wdev->hwbus_priv = hwbus_priv;
 	memcpy(&wdev->pdata, pdata, sizeof(*pdata));
+	of_property_read_string(dev->of_node, "config-file", &wdev->pdata.file_pds);
+	wdev->pdata.gpio_wakeup = wfx_get_gpio(dev, gpio_wakeup, "wakeup");
 	wfx_fill_sl_key(dev, &wdev->pdata);
 
 	init_completion(&wdev->firmware_ready);
@@ -159,6 +228,12 @@ int wfx_probe(struct wfx_dev *wdev)
 	int i;
 	int err;
 	const void *macaddr;
+	struct gpio_desc *gpio_saved;
+
+	// During first part of boot, gpio_wakeup cannot yet been used. So
+	// prevent bh() to touch it.
+	gpio_saved = wdev->pdata.gpio_wakeup;
+	wdev->pdata.gpio_wakeup = NULL;
 
 	wfx_bh_register(wdev);
 
@@ -202,6 +277,24 @@ int wfx_probe(struct wfx_dev *wdev)
 		goto err1;
 	}
 
+	dev_dbg(wdev->dev, "sending configuration file %s\n", wdev->pdata.file_pds);
+	err = wfx_send_pdata_pds(wdev);
+	if (err < 0)
+		goto err1;
+
+	wdev->pdata.gpio_wakeup = gpio_saved;
+	if (wdev->pdata.gpio_wakeup) {
+		dev_dbg(wdev->dev, "enable 'quiescent' power mode with gpio %d and PDS file %s\n",
+			desc_to_gpio(wdev->pdata.gpio_wakeup), wdev->pdata.file_pds);
+		gpiod_set_value(wdev->pdata.gpio_wakeup, 1);
+		control_reg_write(wdev, 0);
+		hif_set_operational_mode(wdev, HIF_OP_POWER_MODE_QUIESCENT);
+	} else {
+		hif_set_operational_mode(wdev, HIF_OP_POWER_MODE_DOZE);
+	}
+
+	hif_use_multi_tx_conf(wdev, true);
+
 	for (i = 0; i < ARRAY_SIZE(wdev->addresses); i++) {
 		eth_zero_addr(wdev->addresses[i].addr);
 		macaddr = of_get_mac_address(wdev->dev->of_node);
@@ -232,6 +325,7 @@ err1:
 
 void wfx_release(struct wfx_dev *wdev)
 {
+	hif_shutdown(wdev);
 	wfx_bh_unregister(wdev);
 	wfx_sl_deinit(wdev);
 }

@@ -10,6 +10,7 @@
 
 #include "debug.h"
 #include "wfx.h"
+#include "main.h"
 
 #define CREATE_TRACE_POINTS
 #include "traces.h"
@@ -53,6 +54,33 @@ const char *get_reg_name(unsigned long id)
 {
 	return get_symbol(id, wfx_reg_print_map);
 }
+
+static ssize_t wfx_send_pds_write(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct wfx_dev *wdev = file->private_data;
+	char *buf;
+	int ret;
+
+	if (*ppos != 0) {
+		dev_dbg(wdev->dev, "PDS data must be written in one transaction");
+		return -EBUSY;
+	}
+	buf = memdup_user(user_buf, count);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+	*ppos = *ppos + count;
+	ret = wfx_send_pds(wdev, buf, count);
+	kfree(buf);
+	if (ret < 0)
+		return ret;
+	return count;
+}
+
+static const struct file_operations wfx_send_pds_fops = {
+	.open = simple_open,
+	.write = wfx_send_pds_write,
+};
 
 static ssize_t wfx_burn_slk_key_write(struct file *file,
 				      const char __user *user_buf,
@@ -162,6 +190,7 @@ int wfx_debug_init(struct wfx_dev *wdev)
 	struct dentry *d;
 
 	d = debugfs_create_dir("wfx", wdev->hw->wiphy->debugfsdir);
+	debugfs_create_file("send_pds", 0200, d, wdev, &wfx_send_pds_fops);
 	debugfs_create_file("burn_slk_key", 0200, d, wdev, &wfx_burn_slk_key_fops);
 	debugfs_create_file("send_hif_msg", 0600, d, wdev, &wfx_send_hif_msg_fops);
 

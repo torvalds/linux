@@ -71,6 +71,16 @@ static int hif_startup_indication(struct wfx_dev *wdev, struct hif_msg *hif, voi
 	return 0;
 }
 
+static int hif_wakeup_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
+{
+	if (!wdev->pdata.gpio_wakeup
+	    || !gpiod_get_value(wdev->pdata.gpio_wakeup)) {
+		dev_warn(wdev->dev, "unexpected wake-up indication\n");
+		return -EIO;
+	}
+	return 0;
+}
+
 static int hif_keys_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
 {
 	struct hif_ind_sl_exchange_pub_keys *body = buf;
@@ -89,6 +99,7 @@ static const struct {
 	int (*handler)(struct wfx_dev *wdev, struct hif_msg *hif, void *buf);
 } hif_handlers[] = {
 	{ HIF_IND_ID_STARTUP,              hif_startup_indication },
+	{ HIF_IND_ID_WAKEUP,               hif_wakeup_indication },
 	{ HIF_IND_ID_SL_EXCHANGE_PUB_KEYS, hif_keys_indication },
 };
 

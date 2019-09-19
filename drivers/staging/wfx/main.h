@@ -21,6 +21,7 @@ struct wfx_dev;
 struct wfx_platform_data {
 	/* Keyset and ".sec" extention will appended to this string */
 	const char *file_fw;
+	const char *file_pds;
 	unsigned char slk_key[API_KEY_VALUE_SIZE];
 	struct gpio_desc *gpio_wakeup;
 	/*
@@ -42,5 +43,6 @@ void wfx_release(struct wfx_dev *wdev);
 struct gpio_desc *wfx_get_gpio(struct device *dev, int override,
 			       const char *label);
 bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor);
+int wfx_send_pds(struct wfx_dev *wdev, unsigned char *buf, size_t len);
 
 #endif
