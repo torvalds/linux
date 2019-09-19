@@ -588,6 +588,7 @@ config CEC_GPIO
 	depends on PREEMPT || COMPILE_TEST
 	select CEC_CORE
 	select CEC_PIN
+	select CEC_NOTIFIER
 	select GPIOLIB
 	help
 	  This is a generic GPIO-based CEC driver.
