@@ -16,14 +16,15 @@ config CRYPTO_DEV_HISI_SEC
 
 config CRYPTO_DEV_HISI_QM
 	tristate
-	depends on ARM64 && PCI && PCI_MSI
+	depends on ARM64 || COMPILE_TEST
+	depends on PCI && PCI_MSI
 	help
 	  HiSilicon accelerator engines use a common queue management
 	  interface. Specific engine driver may use this module.
 
 config CRYPTO_HISI_SGL
 	tristate
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	help
 	  HiSilicon accelerator engines use a common hardware scatterlist
 	  interface for data format. Specific engine driver may use this
@@ -31,7 +32,9 @@ config CRYPTO_HISI_SGL
 
 config CRYPTO_DEV_HISI_ZIP
 	tristate "Support for HiSilicon ZIP accelerator"
-	depends on ARM64 && PCI && PCI_MSI
+	depends on PCI && PCI_MSI
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	depends on !CPU_BIG_ENDIAN || COMPILE_TEST
 	select CRYPTO_DEV_HISI_QM
 	select CRYPTO_HISI_SGL
 	select SG_SPLIT
