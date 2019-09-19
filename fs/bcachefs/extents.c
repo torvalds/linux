@@ -1270,6 +1270,8 @@ static void __bch2_insert_fixup_extent(struct bch_fs *c,
 				btree_account_key_drop(l->b, _k);
 				_k->type = KEY_TYPE_discard;
 				reserve_whiteout(l->b, _k);
+				bch2_btree_node_iter_fix(iter, l->b, &l->iter,
+							_k, _k->u64s, _k->u64s);
 			}
 			break;
 		}

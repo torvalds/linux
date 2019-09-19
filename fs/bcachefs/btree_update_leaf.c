@@ -183,9 +183,8 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 	clobber_u64s = 0;
 overwrite:
 	bch2_bset_insert(b, node_iter, k, insert, clobber_u64s);
-	if (k->u64s != clobber_u64s || bkey_whiteout(&insert->k))
-		bch2_btree_node_iter_fix(iter, b, node_iter, k,
-					 clobber_u64s, k->u64s);
+	bch2_btree_node_iter_fix(iter, b, node_iter, k,
+				 clobber_u64s, k->u64s);
 	bch2_btree_iter_verify(iter, b);
 	return true;
 }
