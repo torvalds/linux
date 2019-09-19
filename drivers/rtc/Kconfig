@@ -1274,7 +1274,7 @@ config RTC_DRV_ZYNQMP
 
 config RTC_DRV_CROS_EC
 	tristate "Chrome OS EC RTC driver"
-	depends on MFD_CROS_EC
+	depends on CROS_EC
 	help
 	  If you say yes here you will get support for the
 	  Chrome OS Embedded Controller's RTC.
