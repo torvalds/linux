@@ -380,7 +380,7 @@ static int qce_ablkcipher_register_one(const struct qce_ablkcipher_def *def,
 
 	alg->cra_priority = 300;
 	alg->cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC |
-			 CRYPTO_ALG_NEED_FALLBACK;
+			 CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_KERN_DRIVER_ONLY;
 	alg->cra_ctxsize = sizeof(struct qce_cipher_ctx);
 	alg->cra_alignmask = 0;
 	alg->cra_type = &crypto_ablkcipher_type;
