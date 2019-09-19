@@ -6468,7 +6468,6 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_set_pipe_chicken(intel_crtc);
 
-	intel_ddi_set_pipe_settings(pipe_config);
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_ddi_enable_transcoder_func(pipe_config);
 

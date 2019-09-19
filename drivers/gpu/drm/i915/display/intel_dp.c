@@ -2297,6 +2297,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		pipe_config->has_pch_encoder = true;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
+
 	if (lspcon->active)
 		lspcon_ycbcr420_config(&intel_connector->base, pipe_config);
 	else
@@ -4473,6 +4474,32 @@ intel_dp_get_sink_irq_esi(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 		DP_DPRX_ESI_LEN;
 }
 
+bool
+intel_dp_needs_vsc_sdp(const struct intel_crtc_state *crtc_state,
+		       const struct drm_connector_state *conn_state)
+{
+	/*
+	 * As per DP 1.4a spec section 2.2.4.3 [MSA Field for Indication
+	 * of Color Encoding Format and Content Color Gamut], in order to
+	 * sending YCBCR 420 or HDR BT.2020 signals we should use DP VSC SDP.
+	 */
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+		return true;
+
+	switch (conn_state->colorspace) {
+	case DRM_MODE_COLORIMETRY_SYCC_601:
+	case DRM_MODE_COLORIMETRY_OPYCC_601:
+	case DRM_MODE_COLORIMETRY_BT2020_YCC:
+	case DRM_MODE_COLORIMETRY_BT2020_RGB:
+	case DRM_MODE_COLORIMETRY_BT2020_CYCC:
+		return true;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 static void
 intel_dp_setup_vsc_sdp(struct intel_dp *intel_dp,
 		       const struct intel_crtc_state *crtc_state,
@@ -4601,7 +4628,7 @@ void intel_dp_vsc_enable(struct intel_dp *intel_dp,
 			 const struct intel_crtc_state *crtc_state,
 			 const struct drm_connector_state *conn_state)
 {
-	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_YCBCR420)
+	if (!intel_dp_needs_vsc_sdp(crtc_state, conn_state))
 		return;
 
 	intel_dp_setup_vsc_sdp(intel_dp, crtc_state, conn_state);

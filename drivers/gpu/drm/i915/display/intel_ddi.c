@@ -1741,7 +1741,8 @@ static void intel_ddi_clock_get(struct intel_encoder *encoder,
 		hsw_ddi_clock_get(encoder, pipe_config);
 }
 
-void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
+void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
+			  const struct drm_connector_state *conn_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -1792,11 +1793,12 @@ void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
 	/*
 	 * As per DP 1.4a spec section 2.2.4.3 [MSA Field for Indication
 	 * of Color Encoding Format and Content Color Gamut] while sending
-	 * YCBCR 420 signals we should program MSA MISC1 fields which
-	 * indicate VSC SDP for the Pixel Encoding/Colorimetry Format.
+	 * YCBCR 420, HDR BT.2020 signals we should program MSA MISC1 fields
+	 * which indicate VSC SDP for the Pixel Encoding/Colorimetry Format.
 	 */
-	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+	if (intel_dp_needs_vsc_sdp(crtc_state, conn_state))
 		temp |= TRANS_MSA_USE_VSC_SDP;
+
 	I915_WRITE(TRANS_MSA_MISC(cpu_transcoder), temp);
 }
 
@@ -3594,6 +3596,8 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 		tgl_ddi_pre_enable_dp(encoder, crtc_state, conn_state);
 	else
 		hsw_ddi_pre_enable_dp(encoder, crtc_state, conn_state);
+
+	intel_ddi_set_dp_msa(crtc_state, conn_state);
 }
 
 static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
@@ -4009,7 +4013,7 @@ static void intel_ddi_update_pipe_dp(struct intel_encoder *encoder,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
-	intel_ddi_set_pipe_settings(crtc_state);
+	intel_ddi_set_dp_msa(crtc_state, conn_state);
 
 	intel_psr_update(intel_dp, crtc_state);
 	intel_edp_drrs_enable(intel_dp, crtc_state);
