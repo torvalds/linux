@@ -2466,6 +2466,26 @@ static void set_mount_attributes(struct mount *mnt, unsigned int mnt_flags)
 	unlock_mount_hash();
 }
 
+static void mnt_warn_timestamp_expiry(struct path *mountpoint, struct vfsmount *mnt)
+{
+	struct super_block *sb = mnt->mnt_sb;
+
+	if (!__mnt_is_readonly(mnt) &&
+	   (ktime_get_real_seconds() + TIME_UPTIME_SEC_MAX > sb->s_time_max)) {
+		char *buf = (char *)__get_free_page(GFP_KERNEL);
+		char *mntpath = buf ? d_path(mountpoint, buf, PAGE_SIZE) : ERR_PTR(-ENOMEM);
+		struct tm tm;
+
+		time64_to_tm(sb->s_time_max, 0, &tm);
+
+		pr_warn("Mounted %s file system at %s supports timestamps until %04ld (0x%llx)\n",
+			sb->s_type->name, mntpath,
+			tm.tm_year+1900, (unsigned long long)sb->s_time_max);
+
+		free_page((unsigned long)buf);
+	}
+}
+
 /*
  * Handle reconfiguration of the mountpoint only without alteration of the
  * superblock it refers to.  This is triggered by specifying MS_REMOUNT|MS_BIND
@@ -2491,6 +2511,9 @@ static int do_reconfigure_mnt(struct path *path, unsigned int mnt_flags)
 	if (ret == 0)
 		set_mount_attributes(mnt, mnt_flags);
 	up_write(&sb->s_umount);
+
+	mnt_warn_timestamp_expiry(path, &mnt->mnt);
+
 	return ret;
 }
 
@@ -2531,6 +2554,9 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
 		}
 		up_write(&sb->s_umount);
 	}
+
+	mnt_warn_timestamp_expiry(path, &mnt->mnt);
+
 	put_fs_context(fc);
 	return err;
 }
@@ -2739,8 +2765,13 @@ static int do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
 		return PTR_ERR(mnt);
 
 	error = do_add_mount(real_mount(mnt), mountpoint, mnt_flags);
-	if (error < 0)
+	if (error < 0) {
 		mntput(mnt);
+		return error;
+	}
+
+	mnt_warn_timestamp_expiry(mountpoint, mnt);
+
 	return error;
 }
 
