@@ -21,6 +21,7 @@
 #include "qgroup.h"
 #include "print-tree.h"
 #include "delalloc-space.h"
+#include "block-group.h"
 
 /*
  * backref_node, mapping_node and tree_block start with this
@@ -3311,7 +3312,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 		}
 
 		ret = btrfs_set_extent_delalloc(inode, page_start, page_end, 0,
-						NULL, 0);
+						NULL);
 		if (ret) {
 			unlock_page(page);
 			put_page(page);

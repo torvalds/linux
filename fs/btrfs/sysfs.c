@@ -4,12 +4,11 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
-#include <linux/kobject.h>
 #include <linux/bug.h>
-#include <linux/debugfs.h>
 
 #include "ctree.h"
 #include "disk-io.h"
@@ -17,9 +16,74 @@
 #include "sysfs.h"
 #include "volumes.h"
 #include "space-info.h"
+#include "block-group.h"
+
+struct btrfs_feature_attr {
+	struct kobj_attribute kobj_attr;
+	enum btrfs_feature_set feature_set;
+	u64 feature_bit;
+};
+
+/* For raid type sysfs entries */
+struct raid_kobject {
+	u64 flags;
+	struct kobject kobj;
+};
+
+#define __INIT_KOBJ_ATTR(_name, _mode, _show, _store)			\
+{									\
+	.attr	= { .name = __stringify(_name), .mode = _mode },	\
+	.show	= _show,						\
+	.store	= _store,						\
+}
+
+#define BTRFS_ATTR_RW(_prefix, _name, _show, _store)			\
+	static struct kobj_attribute btrfs_attr_##_prefix##_##_name =	\
+			__INIT_KOBJ_ATTR(_name, 0644, _show, _store)
+
+#define BTRFS_ATTR(_prefix, _name, _show)				\
+	static struct kobj_attribute btrfs_attr_##_prefix##_##_name =	\
+			__INIT_KOBJ_ATTR(_name, 0444, _show, NULL)
+
+#define BTRFS_ATTR_PTR(_prefix, _name)					\
+	(&btrfs_attr_##_prefix##_##_name.attr)
+
+#define BTRFS_FEAT_ATTR(_name, _feature_set, _feature_prefix, _feature_bit)  \
+static struct btrfs_feature_attr btrfs_attr_features_##_name = {	     \
+	.kobj_attr = __INIT_KOBJ_ATTR(_name, S_IRUGO,			     \
+				      btrfs_feature_attr_show,		     \
+				      btrfs_feature_attr_store),	     \
+	.feature_set	= _feature_set,					     \
+	.feature_bit	= _feature_prefix ##_## _feature_bit,		     \
+}
+#define BTRFS_FEAT_ATTR_PTR(_name)					     \
+	(&btrfs_attr_features_##_name.kobj_attr.attr)
+
+#define BTRFS_FEAT_ATTR_COMPAT(name, feature) \
+	BTRFS_FEAT_ATTR(name, FEAT_COMPAT, BTRFS_FEATURE_COMPAT, feature)
+#define BTRFS_FEAT_ATTR_COMPAT_RO(name, feature) \
+	BTRFS_FEAT_ATTR(name, FEAT_COMPAT_RO, BTRFS_FEATURE_COMPAT_RO, feature)
+#define BTRFS_FEAT_ATTR_INCOMPAT(name, feature) \
+	BTRFS_FEAT_ATTR(name, FEAT_INCOMPAT, BTRFS_FEATURE_INCOMPAT, feature)
 
 static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj);
 static inline struct btrfs_fs_devices *to_fs_devs(struct kobject *kobj);
+
+static struct btrfs_feature_attr *to_btrfs_feature_attr(struct kobj_attribute *a)
+{
+	return container_of(a, struct btrfs_feature_attr, kobj_attr);
+}
+
+static struct kobj_attribute *attr_to_btrfs_attr(struct attribute *attr)
+{
+	return container_of(attr, struct kobj_attribute, attr);
+}
+
+static struct btrfs_feature_attr *attr_to_btrfs_feature_attr(
+		struct attribute *attr)
+{
+	return to_btrfs_feature_attr(attr_to_btrfs_attr(attr));
+}
 
 static u64 get_features(struct btrfs_fs_info *fs_info,
 			enum btrfs_feature_set set)
@@ -247,6 +311,25 @@ static const struct attribute_group btrfs_static_feature_attr_group = {
 	.attrs = btrfs_supported_static_feature_attrs,
 };
 
+#ifdef CONFIG_BTRFS_DEBUG
+
+/*
+ * Runtime debugging exported via sysfs
+ *
+ * /sys/fs/btrfs/debug - applies to module or all filesystems
+ * /sys/fs/btrfs/UUID  - applies only to the given filesystem
+ */
+static struct attribute *btrfs_debug_feature_attrs[] = {
+	NULL
+};
+
+static const struct attribute_group btrfs_debug_feature_attr_group = {
+	.name = "debug",
+	.attrs = btrfs_debug_feature_attrs,
+};
+
+#endif
+
 static ssize_t btrfs_show_u64(u64 *value_ptr, spinlock_t *lock, char *buf)
 {
 	u64 val;
@@ -316,7 +399,7 @@ static void release_raid_kobj(struct kobject *kobj)
 	kfree(to_raid_kobj(kobj));
 }
 
-struct kobj_type btrfs_raid_ktype = {
+static struct kobj_type btrfs_raid_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.release = release_raid_kobj,
 	.default_groups = raid_groups,
@@ -375,7 +458,7 @@ static void space_info_release(struct kobject *kobj)
 	kfree(sinfo);
 }
 
-struct kobj_type space_info_ktype = {
+static struct kobj_type space_info_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.release = space_info_release,
 	.default_groups = space_info_groups,
@@ -655,11 +738,16 @@ void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
 	btrfs_sysfs_rm_device_link(fs_info->fs_devices, NULL);
 }
 
-const char * const btrfs_feature_set_names[FEAT_MAX] = {
+static const char * const btrfs_feature_set_names[FEAT_MAX] = {
 	[FEAT_COMPAT]	 = "compat",
 	[FEAT_COMPAT_RO] = "compat_ro",
 	[FEAT_INCOMPAT]	 = "incompat",
 };
+
+const char * const btrfs_feature_set_name(enum btrfs_feature_set set)
+{
+	return btrfs_feature_set_names[set];
+}
 
 char *btrfs_printable_features(enum btrfs_feature_set set, u64 flags)
 {
@@ -728,6 +816,110 @@ static void init_feature_attrs(void)
 			fa->feature_bit = 1ULL << i;
 		}
 	}
+}
+
+/*
+ * Create a sysfs entry for a given block group type at path
+ * /sys/fs/btrfs/UUID/allocation/data/TYPE
+ */
+void btrfs_sysfs_add_block_group_type(struct btrfs_block_group_cache *cache)
+{
+	struct btrfs_fs_info *fs_info = cache->fs_info;
+	struct btrfs_space_info *space_info = cache->space_info;
+	struct raid_kobject *rkobj;
+	const int index = btrfs_bg_flags_to_raid_index(cache->flags);
+	unsigned int nofs_flag;
+	int ret;
+
+	/*
+	 * Setup a NOFS context because kobject_add(), deep in its call chain,
+	 * does GFP_KERNEL allocations, and we are often called in a context
+	 * where if reclaim is triggered we can deadlock (we are either holding
+	 * a transaction handle or some lock required for a transaction
+	 * commit).
+	 */
+	nofs_flag = memalloc_nofs_save();
+
+	rkobj = kzalloc(sizeof(*rkobj), GFP_NOFS);
+	if (!rkobj) {
+		memalloc_nofs_restore(nofs_flag);
+		btrfs_warn(cache->fs_info,
+				"couldn't alloc memory for raid level kobject");
+		return;
+	}
+
+	rkobj->flags = cache->flags;
+	kobject_init(&rkobj->kobj, &btrfs_raid_ktype);
+	ret = kobject_add(&rkobj->kobj, &space_info->kobj, "%s",
+			  btrfs_bg_type_to_raid_name(rkobj->flags));
+	memalloc_nofs_restore(nofs_flag);
+	if (ret) {
+		kobject_put(&rkobj->kobj);
+		btrfs_warn(fs_info,
+			"failed to add kobject for block cache, ignoring");
+		return;
+	}
+
+	space_info->block_group_kobjs[index] = &rkobj->kobj;
+}
+
+/*
+ * Remove sysfs directories for all block group types of a given space info and
+ * the space info as well
+ */
+void btrfs_sysfs_remove_space_info(struct btrfs_space_info *space_info)
+{
+	int i;
+
+	for (i = 0; i < BTRFS_NR_RAID_TYPES; i++) {
+		struct kobject *kobj;
+
+		kobj = space_info->block_group_kobjs[i];
+		space_info->block_group_kobjs[i] = NULL;
+		if (kobj) {
+			kobject_del(kobj);
+			kobject_put(kobj);
+		}
+	}
+	kobject_del(&space_info->kobj);
+	kobject_put(&space_info->kobj);
+}
+
+static const char *alloc_name(u64 flags)
+{
+	switch (flags) {
+	case BTRFS_BLOCK_GROUP_METADATA | BTRFS_BLOCK_GROUP_DATA:
+		return "mixed";
+	case BTRFS_BLOCK_GROUP_METADATA:
+		return "metadata";
+	case BTRFS_BLOCK_GROUP_DATA:
+		return "data";
+	case BTRFS_BLOCK_GROUP_SYSTEM:
+		return "system";
+	default:
+		WARN_ON(1);
+		return "invalid-combination";
+	};
+}
+
+/*
+ * Create a sysfs entry for a space info type at path
+ * /sys/fs/btrfs/UUID/allocation/TYPE
+ */
+int btrfs_sysfs_add_space_info_type(struct btrfs_fs_info *fs_info,
+				    struct btrfs_space_info *space_info)
+{
+	int ret;
+
+	ret = kobject_init_and_add(&space_info->kobj, &space_info_ktype,
+				   fs_info->space_info_kobj, "%s",
+				   alloc_name(space_info->flags));
+	if (ret) {
+		kobject_put(&space_info->kobj);
+		return ret;
+	}
+
+	return 0;
 }
 
 /* when one_device is NULL, it removes all device links */
@@ -806,14 +998,34 @@ int btrfs_sysfs_add_device_link(struct btrfs_fs_devices *fs_devices,
 	return error;
 }
 
+void btrfs_kobject_uevent(struct block_device *bdev, enum kobject_action action)
+{
+	int ret;
+
+	ret = kobject_uevent(&disk_to_dev(bdev->bd_disk)->kobj, action);
+	if (ret)
+		pr_warn("BTRFS: Sending event '%d' to kobject: '%s' (%p): failed\n",
+			action, kobject_name(&disk_to_dev(bdev->bd_disk)->kobj),
+			&disk_to_dev(bdev->bd_disk)->kobj);
+}
+
+void btrfs_sysfs_update_sprout_fsid(struct btrfs_fs_devices *fs_devices,
+				    const u8 *fsid)
+{
+	char fsid_buf[BTRFS_UUID_UNPARSED_SIZE];
+
+	/*
+	 * Sprouting changes fsid of the mounted filesystem, rename the fsid
+	 * directory
+	 */
+	snprintf(fsid_buf, BTRFS_UUID_UNPARSED_SIZE, "%pU", fsid);
+	if (kobject_rename(&fs_devices->fsid_kobj, fsid_buf))
+		btrfs_warn(fs_devices->fs_info,
+				"sysfs: failed to create fsid for sprout");
+}
+
 /* /sys/fs/btrfs/ entry */
 static struct kset *btrfs_kset;
-
-/* /sys/kernel/debug/btrfs */
-static struct dentry *btrfs_debugfs_root_dentry;
-
-/* Debugging tunables and exported data */
-u64 btrfs_debugfs_test;
 
 /*
  * Can be called by the device discovery thread.
@@ -858,6 +1070,13 @@ int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 				   &btrfs_feature_attr_group);
 	if (error)
 		goto failure;
+
+#ifdef CONFIG_BTRFS_DEBUG
+	error = sysfs_create_group(fsid_kobj,
+				   &btrfs_debug_feature_attr_group);
+	if (error)
+		goto failure;
+#endif
 
 	error = addrm_unknown_feature_attrs(fs_info, true);
 	if (error)
@@ -913,25 +1132,6 @@ void btrfs_sysfs_feature_update(struct btrfs_fs_info *fs_info,
 	ret = sysfs_create_group(fsid_kobj, &btrfs_feature_attr_group);
 }
 
-static void btrfs_init_debugfs(void)
-{
-#ifdef CONFIG_DEBUG_FS
-	btrfs_debugfs_root_dentry = debugfs_create_dir("btrfs", NULL);
-
-	/*
-	 * Example code, how to export data through debugfs.
-	 *
-	 * file:        /sys/kernel/debug/btrfs/test
-	 * contents of: btrfs_debugfs_test
-	 */
-#ifdef CONFIG_BTRFS_DEBUG
-	debugfs_create_u64("test", S_IRUGO | S_IWUSR, btrfs_debugfs_root_dentry,
-			&btrfs_debugfs_test);
-#endif
-
-#endif
-}
-
 int __init btrfs_init_sysfs(void)
 {
 	int ret;
@@ -939,8 +1139,6 @@ int __init btrfs_init_sysfs(void)
 	btrfs_kset = kset_create_and_add("btrfs", NULL, fs_kobj);
 	if (!btrfs_kset)
 		return -ENOMEM;
-
-	btrfs_init_debugfs();
 
 	init_feature_attrs();
 	ret = sysfs_create_group(&btrfs_kset->kobj, &btrfs_feature_attr_group);
@@ -951,12 +1149,17 @@ int __init btrfs_init_sysfs(void)
 	if (ret)
 		goto out_remove_group;
 
+#ifdef CONFIG_BTRFS_DEBUG
+	ret = sysfs_create_group(&btrfs_kset->kobj, &btrfs_debug_feature_attr_group);
+	if (ret)
+		goto out2;
+#endif
+
 	return 0;
 
 out_remove_group:
 	sysfs_remove_group(&btrfs_kset->kobj, &btrfs_feature_attr_group);
 out2:
-	debugfs_remove_recursive(btrfs_debugfs_root_dentry);
 	kset_unregister(btrfs_kset);
 
 	return ret;
@@ -968,6 +1171,5 @@ void __cold btrfs_exit_sysfs(void)
 			    &btrfs_static_feature_attr_group);
 	sysfs_remove_group(&btrfs_kset->kobj, &btrfs_feature_attr_group);
 	kset_unregister(btrfs_kset);
-	debugfs_remove_recursive(btrfs_debugfs_root_dentry);
 }
 
