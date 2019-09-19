@@ -189,13 +189,19 @@ hsw_dip_data_reg(struct drm_i915_private *dev_priv,
 	}
 }
 
-static int hsw_dip_data_size(unsigned int type)
+static int hsw_dip_data_size(struct drm_i915_private *dev_priv,
+			     unsigned int type)
 {
 	switch (type) {
 	case DP_SDP_VSC:
 		return VIDEO_DIP_VSC_DATA_SIZE;
 	case DP_SDP_PPS:
 		return VIDEO_DIP_PPS_DATA_SIZE;
+	case HDMI_PACKET_TYPE_GAMUT_METADATA:
+		if (INTEL_GEN(dev_priv) >= 11)
+			return VIDEO_DIP_GMP_DATA_SIZE;
+		else
+			return VIDEO_DIP_DATA_SIZE;
 	default:
 		return VIDEO_DIP_DATA_SIZE;
 	}
@@ -514,7 +520,9 @@ static void hsw_write_infoframe(struct intel_encoder *encoder,
 	int i;
 	u32 val = I915_READ(ctl_reg);
 
-	data_size = hsw_dip_data_size(type);
+	data_size = hsw_dip_data_size(dev_priv, type);
+
+	WARN_ON(len > data_size);
 
 	val &= ~hsw_infoframe_enable(type);
 	I915_WRITE(ctl_reg, val);
