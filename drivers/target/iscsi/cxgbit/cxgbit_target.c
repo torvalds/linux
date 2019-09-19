@@ -899,9 +899,9 @@ cxgbit_handle_immediate_data(struct iscsi_cmd *cmd, struct iscsi_scsi_req *hdr,
 		skb_frag_t *dfrag = &ssi->frags[pdu_cb->dfrag_idx];
 
 		sg_init_table(&ccmd->sg, 1);
-		sg_set_page(&ccmd->sg, dfrag->page.p, skb_frag_size(dfrag),
-			    dfrag->page_offset);
-		get_page(dfrag->page.p);
+		sg_set_page(&ccmd->sg, skb_frag_page(dfrag),
+				skb_frag_size(dfrag), skb_frag_off(dfrag));
+		get_page(skb_frag_page(dfrag));
 
 		cmd->se_cmd.t_data_sg = &ccmd->sg;
 		cmd->se_cmd.t_data_nents = 1;
@@ -1403,7 +1403,8 @@ static void cxgbit_lro_skb_dump(struct sk_buff *skb)
 			pdu_cb->ddigest, pdu_cb->frags);
 	for (i = 0; i < ssi->nr_frags; i++)
 		pr_info("skb 0x%p, frag %d, off %u, sz %u.\n",
-			skb, i, ssi->frags[i].page_offset, ssi->frags[i].size);
+			skb, i, skb_frag_off(&ssi->frags[i]),
+			skb_frag_size(&ssi->frags[i]));
 }
 
 static void cxgbit_lro_hskb_reset(struct cxgbit_sock *csk)
@@ -1447,7 +1448,7 @@ cxgbit_lro_skb_merge(struct cxgbit_sock *csk, struct sk_buff *skb, u8 pdu_idx)
 		hpdu_cb->frags++;
 		hpdu_cb->hfrag_idx = hfrag_idx;
 
-		len = hssi->frags[hfrag_idx].size;
+		len = skb_frag_size(&hssi->frags[hfrag_idx]);
 		hskb->len += len;
 		hskb->data_len += len;
 		hskb->truesize += len;
@@ -1467,7 +1468,7 @@ cxgbit_lro_skb_merge(struct cxgbit_sock *csk, struct sk_buff *skb, u8 pdu_idx)
 
 			get_page(skb_frag_page(&hssi->frags[dfrag_idx]));
 
-			len += hssi->frags[dfrag_idx].size;
+			len += skb_frag_size(&hssi->frags[dfrag_idx]);
 
 			hssi->nr_frags++;
 			hpdu_cb->frags++;

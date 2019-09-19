@@ -544,7 +544,6 @@ static int emac_probe_resources(struct platform_device *pdev,
 				struct emac_adapter *adpt)
 {
 	struct net_device *netdev = adpt->netdev;
-	struct resource *res;
 	char maddr[ETH_ALEN];
 	int ret = 0;
 
@@ -556,22 +555,17 @@ static int emac_probe_resources(struct platform_device *pdev,
 
 	/* Core 0 interrupt */
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(&pdev->dev,
-			"error: missing core0 irq resource (error=%i)\n", ret);
+	if (ret < 0)
 		return ret;
-	}
 	adpt->irq.irq = ret;
 
 	/* base register address */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	adpt->base = devm_ioremap_resource(&pdev->dev, res);
+	adpt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(adpt->base))
 		return PTR_ERR(adpt->base);
 
 	/* CSR register address */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	adpt->csr = devm_ioremap_resource(&pdev->dev, res);
+	adpt->csr = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(adpt->csr))
 		return PTR_ERR(adpt->csr);
 

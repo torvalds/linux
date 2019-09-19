@@ -505,7 +505,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 			goto no_more_data;
 
 		/* Discard any excess data the server gave us */
-		iov_iter_discard(&call->iter, READ, req->actual_len - req->len);
+		afs_extract_discard(call, req->actual_len - req->len);
 		call->unmarshall = 3;
 		/* Fall through */
 
@@ -2007,7 +2007,7 @@ static int yfs_deliver_fs_fetch_opaque_acl(struct afs_call *call)
 			acl->size = call->count2;
 			afs_extract_begin(call, acl->data, size);
 		} else {
-			iov_iter_discard(&call->iter, READ, size);
+			afs_extract_discard(call, size);
 		}
 		call->unmarshall++;
 		/* Fall through */
@@ -2039,7 +2039,7 @@ static int yfs_deliver_fs_fetch_opaque_acl(struct afs_call *call)
 			acl->size = call->count2;
 			afs_extract_begin(call, acl->data, size);
 		} else {
-			iov_iter_discard(&call->iter, READ, size);
+			afs_extract_discard(call, size);
 		}
 		call->unmarshall++;
 		/* Fall through */

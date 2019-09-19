@@ -305,10 +305,8 @@ static int sprd_pmic_eic_probe(struct platform_device *pdev)
 	mutex_init(&pmic_eic->buslock);
 
 	pmic_eic->irq = platform_get_irq(pdev, 0);
-	if (pmic_eic->irq < 0) {
-		dev_err(&pdev->dev, "Failed to get PMIC EIC interrupt.\n");
+	if (pmic_eic->irq < 0)
 		return pmic_eic->irq;
-	}
 
 	pmic_eic->map = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!pmic_eic->map)

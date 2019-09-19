@@ -2311,11 +2311,9 @@ spider_net_alloc_card(void)
 {
 	struct net_device *netdev;
 	struct spider_net_card *card;
-	size_t alloc_size;
 
-	alloc_size = sizeof(struct spider_net_card) +
-	   (tx_descriptors + rx_descriptors) * sizeof(struct spider_net_descr);
-	netdev = alloc_etherdev(alloc_size);
+	netdev = alloc_etherdev(struct_size(card, darray,
+					    tx_descriptors + rx_descriptors));
 	if (!netdev)
 		return NULL;
 

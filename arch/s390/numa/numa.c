@@ -158,6 +158,8 @@ early_param("numa_debug", parse_debug);
 
 static int __init parse_numa(char *parm)
 {
+	if (!parm)
+		return 1;
 	if (strcmp(parm, numa_mode_plain.name) == 0)
 		mode = &numa_mode_plain;
 #ifdef CONFIG_NUMA_EMU

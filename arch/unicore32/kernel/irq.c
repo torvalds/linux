@@ -21,7 +21,6 @@
 #include <linux/kallsyms.h>
 #include <linux/proc_fs.h>
 #include <linux/syscore_ops.h>
-#include <linux/gpio.h>
 
 #include <mach/hardware.h>
 

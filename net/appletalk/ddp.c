@@ -953,8 +953,8 @@ static unsigned long atalk_sum_skb(const struct sk_buff *skb, int offset,
 			if (copy > len)
 				copy = len;
 			vaddr = kmap_atomic(skb_frag_page(frag));
-			sum = atalk_sum_partial(vaddr + frag->page_offset +
-						  offset - start, copy, sum);
+			sum = atalk_sum_partial(vaddr + skb_frag_off(frag) +
+						offset - start, copy, sum);
 			kunmap_atomic(vaddr);
 
 			if (!(len -= copy))

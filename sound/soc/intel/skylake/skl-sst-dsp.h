@@ -15,9 +15,9 @@
 #include "skl-sst-cldma.h"
 
 struct sst_dsp;
-struct skl_sst;
 struct sst_dsp_device;
 struct skl_lib_info;
+struct skl_dev;
 
 /* Intel HD Audio General DSP Registers */
 #define SKL_ADSP_GEN_BASE		0x0
@@ -222,32 +222,31 @@ int skl_dsp_put_core(struct sst_dsp *ctx, unsigned int core_id);
 int skl_dsp_boot(struct sst_dsp *ctx);
 int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 		const char *fw_name, struct skl_dsp_loader_ops dsp_ops,
-		struct skl_sst **dsp);
+		struct skl_dev **dsp);
 int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 		const char *fw_name, struct skl_dsp_loader_ops dsp_ops,
-		struct skl_sst **dsp);
-int skl_sst_init_fw(struct device *dev, struct skl_sst *ctx);
-int bxt_sst_init_fw(struct device *dev, struct skl_sst *ctx);
-void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
-void bxt_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
+		struct skl_dev **dsp);
+int skl_sst_init_fw(struct device *dev, struct skl_dev *skl);
+int bxt_sst_init_fw(struct device *dev, struct skl_dev *skl);
+void skl_sst_dsp_cleanup(struct device *dev, struct skl_dev *skl);
+void bxt_sst_dsp_cleanup(struct device *dev, struct skl_dev *skl);
 
 int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 				unsigned int offset, int index);
-int skl_get_pvt_id(struct skl_sst *ctx, guid_t *uuid_mod, int instance_id);
-int skl_put_pvt_id(struct skl_sst *ctx, guid_t *uuid_mod, int *pvt_id);
-int skl_get_pvt_instance_id_map(struct skl_sst *ctx,
+int skl_get_pvt_id(struct skl_dev *skl, guid_t *uuid_mod, int instance_id);
+int skl_put_pvt_id(struct skl_dev *skl, guid_t *uuid_mod, int *pvt_id);
+int skl_get_pvt_instance_id_map(struct skl_dev *skl,
 				int module_id, int instance_id);
-void skl_freeup_uuid_list(struct skl_sst *ctx);
+void skl_freeup_uuid_list(struct skl_dev *skl);
 
 int skl_dsp_strip_extended_manifest(struct firmware *fw);
-void skl_dsp_enable_notification(struct skl_sst *ctx, bool enable);
 
-void skl_dsp_set_astate_cfg(struct skl_sst *ctx, u32 cnt, void *data);
+void skl_dsp_set_astate_cfg(struct skl_dev *skl, u32 cnt, void *data);
 
 int skl_sst_ctx_init(struct device *dev, int irq, const char *fw_name,
-		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp,
+		struct skl_dsp_loader_ops dsp_ops, struct skl_dev **dsp,
 		struct sst_dsp_device *skl_dev);
-int skl_prepare_lib_load(struct skl_sst *skl, struct skl_lib_info *linfo,
+int skl_prepare_lib_load(struct skl_dev *skl, struct skl_lib_info *linfo,
 			struct firmware *stripped_fw,
 			unsigned int hdr_offset, int index);
 void skl_release_library(struct skl_lib_info *linfo, int lib_count);

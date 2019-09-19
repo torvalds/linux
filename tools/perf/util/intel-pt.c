@@ -9,10 +9,10 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <linux/types.h>
 #include <linux/zalloc.h>
 
-#include "../perf.h"
 #include "session.h"
 #include "machine.h"
 #include "memswap.h"
@@ -56,7 +56,7 @@ struct intel_pt {
 	u32 auxtrace_type;
 	struct perf_session *session;
 	struct machine *machine;
-	struct perf_evsel *switch_evsel;
+	struct evsel *switch_evsel;
 	struct thread *unknown_thread;
 	bool timeless_decoding;
 	bool sampling_mode;
@@ -104,7 +104,7 @@ struct intel_pt {
 	u64 cbr_id;
 
 	bool sample_pebs;
-	struct perf_evsel *pebs_evsel;
+	struct evsel *pebs_evsel;
 
 	u64 tsc_bit;
 	u64 mtc_bit;
@@ -723,11 +723,11 @@ static bool intel_pt_get_config(struct intel_pt *pt,
 
 static bool intel_pt_exclude_kernel(struct intel_pt *pt)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {
-		if (intel_pt_get_config(pt, &evsel->attr, NULL) &&
-		    !evsel->attr.exclude_kernel)
+		if (intel_pt_get_config(pt, &evsel->core.attr, NULL) &&
+		    !evsel->core.attr.exclude_kernel)
 			return false;
 	}
 	return true;
@@ -735,14 +735,14 @@ static bool intel_pt_exclude_kernel(struct intel_pt *pt)
 
 static bool intel_pt_return_compression(struct intel_pt *pt)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	u64 config;
 
 	if (!pt->noretcomp_bit)
 		return true;
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {
-		if (intel_pt_get_config(pt, &evsel->attr, &config) &&
+		if (intel_pt_get_config(pt, &evsel->core.attr, &config) &&
 		    (config & pt->noretcomp_bit))
 			return false;
 	}
@@ -751,11 +751,11 @@ static bool intel_pt_return_compression(struct intel_pt *pt)
 
 static bool intel_pt_branch_enable(struct intel_pt *pt)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	u64 config;
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {
-		if (intel_pt_get_config(pt, &evsel->attr, &config) &&
+		if (intel_pt_get_config(pt, &evsel->core.attr, &config) &&
 		    (config & 1) && !(config & 0x2000))
 			return false;
 	}
@@ -764,7 +764,7 @@ static bool intel_pt_branch_enable(struct intel_pt *pt)
 
 static unsigned int intel_pt_mtc_period(struct intel_pt *pt)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	unsigned int shift;
 	u64 config;
 
@@ -775,7 +775,7 @@ static unsigned int intel_pt_mtc_period(struct intel_pt *pt)
 		config >>= 1;
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {
-		if (intel_pt_get_config(pt, &evsel->attr, &config))
+		if (intel_pt_get_config(pt, &evsel->core.attr, &config))
 			return (config & pt->mtc_freq_bits) >> shift;
 	}
 	return 0;
@@ -783,7 +783,7 @@ static unsigned int intel_pt_mtc_period(struct intel_pt *pt)
 
 static bool intel_pt_timeless_decoding(struct intel_pt *pt)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	bool timeless_decoding = true;
 	u64 config;
 
@@ -791,9 +791,9 @@ static bool intel_pt_timeless_decoding(struct intel_pt *pt)
 		return true;
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {
-		if (!(evsel->attr.sample_type & PERF_SAMPLE_TIME))
+		if (!(evsel->core.attr.sample_type & PERF_SAMPLE_TIME))
 			return true;
-		if (intel_pt_get_config(pt, &evsel->attr, &config)) {
+		if (intel_pt_get_config(pt, &evsel->core.attr, &config)) {
 			if (config & pt->tsc_bit)
 				timeless_decoding = false;
 			else
@@ -805,11 +805,11 @@ static bool intel_pt_timeless_decoding(struct intel_pt *pt)
 
 static bool intel_pt_tracing_kernel(struct intel_pt *pt)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {
-		if (intel_pt_get_config(pt, &evsel->attr, NULL) &&
-		    !evsel->attr.exclude_kernel)
+		if (intel_pt_get_config(pt, &evsel->core.attr, NULL) &&
+		    !evsel->core.attr.exclude_kernel)
 			return true;
 	}
 	return false;
@@ -817,7 +817,7 @@ static bool intel_pt_tracing_kernel(struct intel_pt *pt)
 
 static bool intel_pt_have_tsc(struct intel_pt *pt)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	bool have_tsc = false;
 	u64 config;
 
@@ -825,7 +825,7 @@ static bool intel_pt_have_tsc(struct intel_pt *pt)
 		return false;
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {
-		if (intel_pt_get_config(pt, &evsel->attr, &config)) {
+		if (intel_pt_get_config(pt, &evsel->core.attr, &config)) {
 			if (config & pt->tsc_bit)
 				have_tsc = true;
 			else
@@ -1702,8 +1702,8 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 	struct perf_sample sample = { .ip = 0, };
 	union perf_event *event = ptq->event_buf;
 	struct intel_pt *pt = ptq->pt;
-	struct perf_evsel *evsel = pt->pebs_evsel;
-	u64 sample_type = evsel->attr.sample_type;
+	struct evsel *evsel = pt->pebs_evsel;
+	u64 sample_type = evsel->core.attr.sample_type;
 	u64 id = evsel->id[0];
 	u8 cpumode;
 
@@ -1715,8 +1715,8 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 	sample.id = id;
 	sample.stream_id = id;
 
-	if (!evsel->attr.freq)
-		sample.period = evsel->attr.sample_period;
+	if (!evsel->core.attr.freq)
+		sample.period = evsel->core.attr.sample_period;
 
 	/* No support for non-zero CS base */
 	if (items->has_ip)
@@ -1757,7 +1757,7 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 	if (sample_type & PERF_SAMPLE_REGS_INTR &&
 	    items->mask[INTEL_PT_GP_REGS_POS]) {
 		u64 regs[sizeof(sample.intr_regs.mask)];
-		u64 regs_mask = evsel->attr.sample_regs_intr;
+		u64 regs_mask = evsel->core.attr.sample_regs_intr;
 		u64 *pos;
 
 		sample.intr_regs.abi = items->is_32_bit ?
@@ -2401,7 +2401,7 @@ static int intel_pt_sync_switch(struct intel_pt *pt, int cpu, pid_t tid,
 static int intel_pt_process_switch(struct intel_pt *pt,
 				   struct perf_sample *sample)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	pid_t tid;
 	int cpu, ret;
 
@@ -2713,10 +2713,10 @@ static int intel_pt_synth_event(struct perf_session *session, const char *name,
 	return err;
 }
 
-static void intel_pt_set_event_name(struct perf_evlist *evlist, u64 id,
+static void intel_pt_set_event_name(struct evlist *evlist, u64 id,
 				    const char *name)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->id && evsel->id[0] == id) {
@@ -2728,13 +2728,13 @@ static void intel_pt_set_event_name(struct perf_evlist *evlist, u64 id,
 	}
 }
 
-static struct perf_evsel *intel_pt_evsel(struct intel_pt *pt,
-					 struct perf_evlist *evlist)
+static struct evsel *intel_pt_evsel(struct intel_pt *pt,
+					 struct evlist *evlist)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->attr.type == pt->pmu_type && evsel->ids)
+		if (evsel->core.attr.type == pt->pmu_type && evsel->ids)
 			return evsel;
 	}
 
@@ -2744,8 +2744,8 @@ static struct perf_evsel *intel_pt_evsel(struct intel_pt *pt,
 static int intel_pt_synth_events(struct intel_pt *pt,
 				 struct perf_session *session)
 {
-	struct perf_evlist *evlist = session->evlist;
-	struct perf_evsel *evsel = intel_pt_evsel(pt, evlist);
+	struct evlist *evlist = session->evlist;
+	struct evsel *evsel = intel_pt_evsel(pt, evlist);
 	struct perf_event_attr attr;
 	u64 id;
 	int err;
@@ -2758,7 +2758,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 	memset(&attr, 0, sizeof(struct perf_event_attr));
 	attr.size = sizeof(struct perf_event_attr);
 	attr.type = PERF_TYPE_HARDWARE;
-	attr.sample_type = evsel->attr.sample_type & PERF_SAMPLE_MASK;
+	attr.sample_type = evsel->core.attr.sample_type & PERF_SAMPLE_MASK;
 	attr.sample_type |= PERF_SAMPLE_IP | PERF_SAMPLE_TID |
 			    PERF_SAMPLE_PERIOD;
 	if (pt->timeless_decoding)
@@ -2767,13 +2767,13 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 		attr.sample_type |= PERF_SAMPLE_TIME;
 	if (!pt->per_cpu_mmaps)
 		attr.sample_type &= ~(u64)PERF_SAMPLE_CPU;
-	attr.exclude_user = evsel->attr.exclude_user;
-	attr.exclude_kernel = evsel->attr.exclude_kernel;
-	attr.exclude_hv = evsel->attr.exclude_hv;
-	attr.exclude_host = evsel->attr.exclude_host;
-	attr.exclude_guest = evsel->attr.exclude_guest;
-	attr.sample_id_all = evsel->attr.sample_id_all;
-	attr.read_format = evsel->attr.read_format;
+	attr.exclude_user = evsel->core.attr.exclude_user;
+	attr.exclude_kernel = evsel->core.attr.exclude_kernel;
+	attr.exclude_hv = evsel->core.attr.exclude_hv;
+	attr.exclude_host = evsel->core.attr.exclude_host;
+	attr.exclude_guest = evsel->core.attr.exclude_guest;
+	attr.sample_id_all = evsel->core.attr.sample_id_all;
+	attr.read_format = evsel->core.attr.read_format;
 
 	id = evsel->id[0] + 1000000000;
 	if (!id)
@@ -2857,7 +2857,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 		id += 1;
 	}
 
-	if (pt->synth_opts.pwr_events && (evsel->attr.config & 0x10)) {
+	if (pt->synth_opts.pwr_events && (evsel->core.attr.config & 0x10)) {
 		attr.config = PERF_SYNTH_INTEL_MWAIT;
 		err = intel_pt_synth_event(session, "mwait", &attr, id);
 		if (err)
@@ -2894,9 +2894,25 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 	return 0;
 }
 
-static struct perf_evsel *intel_pt_find_sched_switch(struct perf_evlist *evlist)
+static void intel_pt_setup_pebs_events(struct intel_pt *pt)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
+
+	if (!pt->synth_opts.other_events)
+		return;
+
+	evlist__for_each_entry(pt->session->evlist, evsel) {
+		if (evsel->core.attr.aux_output && evsel->id) {
+			pt->sample_pebs = true;
+			pt->pebs_evsel = evsel;
+			return;
+		}
+	}
+}
+
+static struct evsel *intel_pt_find_sched_switch(struct evlist *evlist)
+{
+	struct evsel *evsel;
 
 	evlist__for_each_entry_reverse(evlist, evsel) {
 		const char *name = perf_evsel__name(evsel);
@@ -2908,12 +2924,12 @@ static struct perf_evsel *intel_pt_find_sched_switch(struct perf_evlist *evlist)
 	return NULL;
 }
 
-static bool intel_pt_find_switch(struct perf_evlist *evlist)
+static bool intel_pt_find_switch(struct evlist *evlist)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->attr.context_switch)
+		if (evsel->core.attr.context_switch)
 			return true;
 	}
 
@@ -3028,7 +3044,7 @@ static const char * const intel_pt_info_fmts[] = {
 	[INTEL_PT_FILTER_STR_LEN]	= "  Filter string len.  %"PRIu64"\n",
 };
 
-static void intel_pt_print_info(u64 *arr, int start, int finish)
+static void intel_pt_print_info(__u64 *arr, int start, int finish)
 {
 	int i;
 
@@ -3047,23 +3063,23 @@ static void intel_pt_print_info_str(const char *name, const char *str)
 	fprintf(stdout, "  %-20s%s\n", name, str ? str : "");
 }
 
-static bool intel_pt_has(struct auxtrace_info_event *auxtrace_info, int pos)
+static bool intel_pt_has(struct perf_record_auxtrace_info *auxtrace_info, int pos)
 {
 	return auxtrace_info->header.size >=
-		sizeof(struct auxtrace_info_event) + (sizeof(u64) * (pos + 1));
+		sizeof(struct perf_record_auxtrace_info) + (sizeof(u64) * (pos + 1));
 }
 
 int intel_pt_process_auxtrace_info(union perf_event *event,
 				   struct perf_session *session)
 {
-	struct auxtrace_info_event *auxtrace_info = &event->auxtrace_info;
+	struct perf_record_auxtrace_info *auxtrace_info = &event->auxtrace_info;
 	size_t min_sz = sizeof(u64) * INTEL_PT_PER_CPU_MMAPS;
 	struct intel_pt *pt;
 	void *info_end;
-	u64 *info;
+	__u64 *info;
 	int err;
 
-	if (auxtrace_info->header.size < sizeof(struct auxtrace_info_event) +
+	if (auxtrace_info->header.size < sizeof(struct perf_record_auxtrace_info) +
 					min_sz)
 		return -EINVAL;
 
@@ -3262,6 +3278,8 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	err = intel_pt_synth_events(pt, session);
 	if (err)
 		goto err_delete_thread;
+
+	intel_pt_setup_pebs_events(pt);
 
 	err = auxtrace_queues__process_index(&pt->queues, session);
 	if (err)

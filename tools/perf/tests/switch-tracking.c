@@ -2,15 +2,20 @@
 #include <sys/time.h>
 #include <sys/prctl.h>
 #include <errno.h>
+#include <limits.h>
 #include <time.h>
 #include <stdlib.h>
 #include <linux/zalloc.h>
+#include <perf/cpumap.h>
+#include <perf/evlist.h>
 
+#include "debug.h"
 #include "parse-events.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"
 #include "cpumap.h"
+#include "record.h"
 #include "tests.h"
 
 static int spin_sleep(void)
@@ -52,8 +57,8 @@ static int spin_sleep(void)
 }
 
 struct switch_tracking {
-	struct perf_evsel *switch_evsel;
-	struct perf_evsel *cycles_evsel;
+	struct evsel *switch_evsel;
+	struct evsel *cycles_evsel;
 	pid_t *tids;
 	int nr_tids;
 	int comm_seen[4];
@@ -113,12 +118,12 @@ static int check_cpu(struct switch_tracking *switch_tracking, int cpu)
 	return 0;
 }
 
-static int process_sample_event(struct perf_evlist *evlist,
+static int process_sample_event(struct evlist *evlist,
 				union perf_event *event,
 				struct switch_tracking *switch_tracking)
 {
 	struct perf_sample sample;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	pid_t next_tid, prev_tid;
 	int cpu, err;
 
@@ -163,7 +168,7 @@ static int process_sample_event(struct perf_evlist *evlist,
 	return 0;
 }
 
-static int process_event(struct perf_evlist *evlist, union perf_event *event,
+static int process_event(struct evlist *evlist, union perf_event *event,
 			 struct switch_tracking *switch_tracking)
 {
 	if (event->header.type == PERF_RECORD_SAMPLE)
@@ -203,7 +208,7 @@ struct event_node {
 	u64 event_time;
 };
 
-static int add_event(struct perf_evlist *evlist, struct list_head *events,
+static int add_event(struct evlist *evlist, struct list_head *events,
 		     union perf_event *event)
 {
 	struct perf_sample sample;
@@ -252,7 +257,7 @@ static int compar(const void *a, const void *b)
 	return cmp;
 }
 
-static int process_events(struct perf_evlist *evlist,
+static int process_events(struct evlist *evlist,
 			  struct switch_tracking *switch_tracking)
 {
 	union perf_event *event;
@@ -327,11 +332,11 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 			.uses_mmap   = true,
 		},
 	};
-	struct thread_map *threads = NULL;
-	struct cpu_map *cpus = NULL;
-	struct perf_evlist *evlist = NULL;
-	struct perf_evsel *evsel, *cpu_clocks_evsel, *cycles_evsel;
-	struct perf_evsel *switch_evsel, *tracking_evsel;
+	struct perf_thread_map *threads = NULL;
+	struct perf_cpu_map *cpus = NULL;
+	struct evlist *evlist = NULL;
+	struct evsel *evsel, *cpu_clocks_evsel, *cycles_evsel;
+	struct evsel *switch_evsel, *tracking_evsel;
 	const char *comm;
 	int err = -1;
 
@@ -341,19 +346,19 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	cpus = cpu_map__new(NULL);
+	cpus = perf_cpu_map__new(NULL);
 	if (!cpus) {
-		pr_debug("cpu_map__new failed!\n");
+		pr_debug("perf_cpu_map__new failed!\n");
 		goto out_err;
 	}
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (!evlist) {
-		pr_debug("perf_evlist__new failed!\n");
+		pr_debug("evlist__new failed!\n");
 		goto out_err;
 	}
 
-	perf_evlist__set_maps(evlist, cpus, threads);
+	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
 	/* First event */
 	err = parse_events(evlist, "cpu-clock:u", NULL);
@@ -420,8 +425,8 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 
 	perf_evlist__set_tracking_event(evlist, tracking_evsel);
 
-	tracking_evsel->attr.freq = 0;
-	tracking_evsel->attr.sample_period = 1;
+	tracking_evsel->core.attr.freq = 0;
+	tracking_evsel->core.attr.sample_period = 1;
 
 	perf_evsel__set_sample_bit(tracking_evsel, TIME);
 
@@ -435,7 +440,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	}
 
 	/* Check tracking event is tracking */
-	if (!tracking_evsel->attr.mmap || !tracking_evsel->attr.comm) {
+	if (!tracking_evsel->core.attr.mmap || !tracking_evsel->core.attr.comm) {
 		pr_debug("Tracking event not tracking\n");
 		goto out_err;
 	}
@@ -443,14 +448,14 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	/* Check non-tracking events are not tracking */
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel != tracking_evsel) {
-			if (evsel->attr.mmap || evsel->attr.comm) {
+			if (evsel->core.attr.mmap || evsel->core.attr.comm) {
 				pr_debug("Non-tracking event is tracking\n");
 				goto out_err;
 			}
 		}
 	}
 
-	if (perf_evlist__open(evlist) < 0) {
+	if (evlist__open(evlist) < 0) {
 		pr_debug("Not supported\n");
 		err = 0;
 		goto out;
@@ -462,9 +467,9 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 
-	err = perf_evsel__disable(cpu_clocks_evsel);
+	err = evsel__disable(cpu_clocks_evsel);
 	if (err) {
 		pr_debug("perf_evlist__disable_event failed!\n");
 		goto out_err;
@@ -483,7 +488,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	err = perf_evsel__disable(cycles_evsel);
+	err = evsel__disable(cycles_evsel);
 	if (err) {
 		pr_debug("perf_evlist__disable_event failed!\n");
 		goto out_err;
@@ -509,7 +514,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	err = perf_evsel__enable(cycles_evsel);
+	err = evsel__enable(cycles_evsel);
 	if (err) {
 		pr_debug("perf_evlist__disable_event failed!\n");
 		goto out_err;
@@ -528,7 +533,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	perf_evlist__disable(evlist);
+	evlist__disable(evlist);
 
 	switch_tracking.switch_evsel = switch_evsel;
 	switch_tracking.cycles_evsel = cycles_evsel;
@@ -566,11 +571,11 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	}
 out:
 	if (evlist) {
-		perf_evlist__disable(evlist);
-		perf_evlist__delete(evlist);
+		evlist__disable(evlist);
+		evlist__delete(evlist);
 	} else {
-		cpu_map__put(cpus);
-		thread_map__put(threads);
+		perf_cpu_map__put(cpus);
+		perf_thread_map__put(threads);
 	}
 
 	return err;

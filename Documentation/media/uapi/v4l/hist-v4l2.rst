@@ -900,7 +900,7 @@ V4L2 in Linux 2.6.19
    :ref:`VIDIOC_ENUM_FRAMEINTERVALS`
    were added.
 
-3. A new pixel format ``V4L2_PIX_FMT_RGB444`` (:ref:`rgb-formats`) was
+3. A new pixel format ``V4L2_PIX_FMT_RGB444`` (:ref:`pixfmt-rgb`) was
    added.
 
 

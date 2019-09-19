@@ -827,13 +827,9 @@ static int ov7740_set_fmt(struct v4l2_subdev *sd,
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		mbus_fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
 		*mbus_fmt = format->format;
-
+#endif
 		mutex_unlock(&ov7740->mutex);
 		return 0;
-#else
-		ret = -ENOTTY;
-		goto error;
-#endif
 	}
 
 	ret = ov7740_try_fmt_internal(sd, &format->format, &ovfmt, &fsize);
@@ -868,7 +864,7 @@ static int ov7740_get_fmt(struct v4l2_subdev *sd,
 		format->format = *mbus_fmt;
 		ret = 0;
 #else
-		ret = -ENOTTY;
+		ret = -EINVAL;
 #endif
 	} else {
 		format->format = ov7740->format;
@@ -1066,8 +1062,7 @@ static const struct regmap_config ov7740_regmap_config = {
 	.max_register	= OV7740_MAX_REGISTER,
 };
 
-static int ov7740_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov7740_probe(struct i2c_client *client)
 {
 	struct ov7740 *ov7740;
 	struct v4l2_subdev *sd;
@@ -1229,7 +1224,7 @@ static struct i2c_driver ov7740_i2c_driver = {
 		.pm = &ov7740_pm_ops,
 		.of_match_table = of_match_ptr(ov7740_of_match),
 	},
-	.probe    = ov7740_probe,
+	.probe_new = ov7740_probe,
 	.remove   = ov7740_remove,
 	.id_table = ov7740_id,
 };

@@ -5,8 +5,6 @@
 #ifndef __ASM_DMA_MAPPING_H
 #define __ASM_DMA_MAPPING_H
 
-#ifdef __KERNEL__
-
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 
@@ -27,5 +25,4 @@ static inline bool is_device_dma_coherent(struct device *dev)
 	return dev->dma_coherent;
 }
 
-#endif	/* __KERNEL__ */
 #endif	/* __ASM_DMA_MAPPING_H */

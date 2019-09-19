@@ -586,7 +586,7 @@ Capability: basic
 Architectures: x86
 Type: vcpu ioctl
 Parameters: struct kvm_msrs (in)
-Returns: 0 on success, -1 on error
+Returns: number of msrs successfully set (see below), -1 on error
 
 Writes model-specific registers to the vcpu.  See KVM_GET_MSRS for the
 data structures.
@@ -594,6 +594,11 @@ data structures.
 Application code should set the 'nmsrs' member (which indicates the
 size of the entries array), and the 'index' and 'data' members of each
 array entry.
+
+It tries to set the MSRs in array entries[] one by one. If setting an MSR
+fails, e.g., due to setting reserved bits, the MSR isn't supported/emulated
+by KVM, etc..., it stops processing the MSR list and returns the number of
+MSRs that have been set successfully.
 
 
 4.20 KVM_SET_CPUID
@@ -753,8 +758,8 @@ in-kernel irqchip (GIC), and for in-kernel irqchip can tell the GIC to
 use PPIs designated for specific cpus.  The irq field is interpreted
 like this:
 
-  bits:  | 31 ... 24 | 23  ... 16 | 15    ...    0 |
-  field: | irq_type  | vcpu_index |     irq_id     |
+  bits:  |  31 ... 28  | 27 ... 24 | 23  ... 16 | 15 ... 0 |
+  field: | vcpu2_index | irq_type  | vcpu_index |  irq_id  |
 
 The irq_type field has the following values:
 - irq_type[0]: out-of-kernel GIC: irq_id 0 is IRQ, irq_id 1 is FIQ
@@ -765,6 +770,14 @@ The irq_type field has the following values:
 (The irq_id field thus corresponds nicely to the IRQ ID in the ARM GIC specs)
 
 In both cases, level is used to assert/deassert the line.
+
+When KVM_CAP_ARM_IRQ_LINE_LAYOUT_2 is supported, the target vcpu is
+identified as (256 * vcpu2_index + vcpu_index). Otherwise, vcpu2_index
+must be zero.
+
+Note that on arm/arm64, the KVM_CAP_IRQCHIP capability only conditions
+injection of interrupts for the in-kernel irqchip. KVM_IRQ_LINE can always
+be used for a userspace interrupt controller.
 
 struct kvm_irq_level {
 	union {
@@ -3079,12 +3092,14 @@ This exception is also raised directly at the corresponding VCPU if the
 flag KVM_S390_MEMOP_F_INJECT_EXCEPTION is set in the "flags" field.
 
 The start address of the memory region has to be specified in the "gaddr"
-field, and the length of the region in the "size" field. "buf" is the buffer
-supplied by the userspace application where the read data should be written
-to for KVM_S390_MEMOP_LOGICAL_READ, or where the data that should be written
-is stored for a KVM_S390_MEMOP_LOGICAL_WRITE. "buf" is unused and can be NULL
-when KVM_S390_MEMOP_F_CHECK_ONLY is specified. "ar" designates the access
-register number to be used.
+field, and the length of the region in the "size" field (which must not
+be 0). The maximum value for "size" can be obtained by checking the
+KVM_CAP_S390_MEM_OP capability. "buf" is the buffer supplied by the
+userspace application where the read data should be written to for
+KVM_S390_MEMOP_LOGICAL_READ, or where the data that should be written is
+stored for a KVM_S390_MEMOP_LOGICAL_WRITE. When KVM_S390_MEMOP_F_CHECK_ONLY
+is specified, "buf" is unused and can be NULL. "ar" designates the access
+register number to be used; the valid range is 0..15.
 
 The "reserved" field is meant for future extensions. It is not used by
 KVM with the currently defined set of flags.

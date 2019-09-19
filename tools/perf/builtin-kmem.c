@@ -2,6 +2,7 @@
 #include "builtin.h"
 #include "perf.h"
 
+#include "util/dso.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/config.h"
@@ -14,6 +15,7 @@
 #include "util/callchain.h"
 #include "util/time-utils.h"
 
+#include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include "util/trace-event.h"
 #include "util/data.h"
@@ -166,7 +168,7 @@ static int insert_caller_stat(unsigned long call_site,
 	return 0;
 }
 
-static int perf_evsel__process_alloc_event(struct perf_evsel *evsel,
+static int perf_evsel__process_alloc_event(struct evsel *evsel,
 					   struct perf_sample *sample)
 {
 	unsigned long ptr = perf_evsel__intval(evsel, sample, "ptr"),
@@ -185,7 +187,7 @@ static int perf_evsel__process_alloc_event(struct perf_evsel *evsel,
 	return 0;
 }
 
-static int perf_evsel__process_alloc_node_event(struct perf_evsel *evsel,
+static int perf_evsel__process_alloc_node_event(struct evsel *evsel,
 						struct perf_sample *sample)
 {
 	int ret = perf_evsel__process_alloc_event(evsel, sample);
@@ -229,7 +231,7 @@ static struct alloc_stat *search_alloc_stat(unsigned long ptr,
 	return NULL;
 }
 
-static int perf_evsel__process_free_event(struct perf_evsel *evsel,
+static int perf_evsel__process_free_event(struct evsel *evsel,
 					  struct perf_sample *sample)
 {
 	unsigned long ptr = perf_evsel__intval(evsel, sample, "ptr");
@@ -381,7 +383,7 @@ static int build_alloc_func_list(void)
  * Find first non-memory allocation function from callchain.
  * The allocation functions are in the 'alloc_func_list'.
  */
-static u64 find_callsite(struct perf_evsel *evsel, struct perf_sample *sample)
+static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 {
 	struct addr_location al;
 	struct machine *machine = &kmem_session->machines.host;
@@ -728,7 +730,7 @@ static char *compact_gfp_string(unsigned long gfp_flags)
 	return NULL;
 }
 
-static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
+static int parse_gfp_flags(struct evsel *evsel, struct perf_sample *sample,
 			   unsigned int gfp_flags)
 {
 	struct tep_record record = {
@@ -749,7 +751,8 @@ static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
 	}
 
 	trace_seq_init(&seq);
-	tep_event_info(&seq, evsel->tp_format, &record);
+	tep_print_event(evsel->tp_format->tep,
+			&seq, &record, "%s", TEP_PRINT_INFO);
 
 	str = strtok_r(seq.buffer, " ", &pos);
 	while (str) {
@@ -779,7 +782,7 @@ static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
 	return 0;
 }
 
-static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
+static int perf_evsel__process_page_alloc_event(struct evsel *evsel,
 						struct perf_sample *sample)
 {
 	u64 page;
@@ -852,7 +855,7 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
 	return 0;
 }
 
-static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
+static int perf_evsel__process_page_free_event(struct evsel *evsel,
 						struct perf_sample *sample)
 {
 	u64 page;
@@ -930,13 +933,13 @@ static bool perf_kmem__skip_sample(struct perf_sample *sample)
 	return false;
 }
 
-typedef int (*tracepoint_handler)(struct perf_evsel *evsel,
+typedef int (*tracepoint_handler)(struct evsel *evsel,
 				  struct perf_sample *sample);
 
 static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine)
 {
 	int err = 0;
@@ -1363,8 +1366,8 @@ static void sort_result(void)
 static int __cmd_kmem(struct perf_session *session)
 {
 	int err = -EINVAL;
-	struct perf_evsel *evsel;
-	const struct perf_evsel_str_handler kmem_tracepoints[] = {
+	struct evsel *evsel;
+	const struct evsel_str_handler kmem_tracepoints[] = {
 		/* slab allocator */
 		{ "kmem:kmalloc",		perf_evsel__process_alloc_event, },
     		{ "kmem:kmem_cache_alloc",	perf_evsel__process_alloc_event, },
@@ -1967,7 +1970,7 @@ int cmd_kmem(int argc, const char **argv)
 	}
 
 	if (kmem_page) {
-		struct perf_evsel *evsel;
+		struct evsel *evsel;
 
 		evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
 							     "kmem:mm_page_alloc");

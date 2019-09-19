@@ -485,7 +485,7 @@
 			reg = <0x0 0x2000000 0x0 0x10000>;
 			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "i2c";
-			clocks = <&clockgen 4 7>;
+			clocks = <&clockgen 4 15>;
 			scl-gpio = <&gpio2 15 GPIO_ACTIVE_HIGH>;
 			status = "disabled";
 		};
@@ -497,7 +497,7 @@
 			reg = <0x0 0x2010000 0x0 0x10000>;
 			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "i2c";
-			clocks = <&clockgen 4 7>;
+			clocks = <&clockgen 4 15>;
 			status = "disabled";
 		};
 
@@ -508,7 +508,7 @@
 			reg = <0x0 0x2020000 0x0 0x10000>;
 			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "i2c";
-			clocks = <&clockgen 4 7>;
+			clocks = <&clockgen 4 15>;
 			status = "disabled";
 		};
 
@@ -519,7 +519,7 @@
 			reg = <0x0 0x2030000 0x0 0x10000>;
 			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "i2c";
-			clocks = <&clockgen 4 7>;
+			clocks = <&clockgen 4 15>;
 			status = "disabled";
 		};
 
@@ -530,7 +530,7 @@
 			reg = <0x0 0x2040000 0x0 0x10000>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "i2c";
-			clocks = <&clockgen 4 7>;
+			clocks = <&clockgen 4 15>;
 			scl-gpio = <&gpio2 16 GPIO_ACTIVE_HIGH>;
 			status = "disabled";
 		};
@@ -542,7 +542,7 @@
 			reg = <0x0 0x2050000 0x0 0x10000>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "i2c";
-			clocks = <&clockgen 4 7>;
+			clocks = <&clockgen 4 15>;
 			status = "disabled";
 		};
 
@@ -553,7 +553,7 @@
 			reg = <0x0 0x2060000 0x0 0x10000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "i2c";
-			clocks = <&clockgen 4 7>;
+			clocks = <&clockgen 4 15>;
 			status = "disabled";
 		};
 
@@ -564,7 +564,7 @@
 			reg = <0x0 0x2070000 0x0 0x10000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "i2c";
-			clocks = <&clockgen 4 7>;
+			clocks = <&clockgen 4 15>;
 			status = "disabled";
 		};
 
@@ -846,6 +846,11 @@
 				     <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>;
 			dma-coherent;
+		};
+
+		console@8340020 {
+			compatible = "fsl,dpaa2-console";
+			reg = <0x00000000 0x08340020 0 0x2>;
 		};
 
 		ptp-timer@8b95000 {

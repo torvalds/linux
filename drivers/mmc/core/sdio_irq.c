@@ -27,36 +27,21 @@
 #include "core.h"
 #include "card.h"
 
-static int process_sdio_pending_irqs(struct mmc_host *host)
+static int sdio_get_pending_irqs(struct mmc_host *host, u8 *pending)
 {
 	struct mmc_card *card = host->card;
-	int i, ret, count;
-	unsigned char pending;
-	struct sdio_func *func;
+	int ret;
 
-	/* Don't process SDIO IRQs if the card is suspended. */
-	if (mmc_card_suspended(card))
-		return 0;
+	WARN_ON(!host->claimed);
 
-	/*
-	 * Optimization, if there is only 1 function interrupt registered
-	 * and we know an IRQ was signaled then call irq handler directly.
-	 * Otherwise do the full probe.
-	 */
-	func = card->sdio_single_irq;
-	if (func && host->sdio_irq_pending) {
-		func->irq_handler(func);
-		return 1;
-	}
-
-	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_INTx, 0, &pending);
+	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_INTx, 0, pending);
 	if (ret) {
 		pr_debug("%s: error %d reading SDIO_CCCR_INTx\n",
 		       mmc_card_id(card), ret);
 		return ret;
 	}
 
-	if (pending && mmc_card_broken_irq_polling(card) &&
+	if (*pending && mmc_card_broken_irq_polling(card) &&
 	    !(host->caps & MMC_CAP_SDIO_IRQ)) {
 		unsigned char dummy;
 
@@ -66,6 +51,39 @@ static int process_sdio_pending_irqs(struct mmc_host *host)
 		 */
 		mmc_io_rw_direct(card, 0, 0, 0xff, 0, &dummy);
 	}
+
+	return 0;
+}
+
+static int process_sdio_pending_irqs(struct mmc_host *host)
+{
+	struct mmc_card *card = host->card;
+	int i, ret, count;
+	bool sdio_irq_pending = host->sdio_irq_pending;
+	unsigned char pending;
+	struct sdio_func *func;
+
+	/* Don't process SDIO IRQs if the card is suspended. */
+	if (mmc_card_suspended(card))
+		return 0;
+
+	/* Clear the flag to indicate that we have processed the IRQ. */
+	host->sdio_irq_pending = false;
+
+	/*
+	 * Optimization, if there is only 1 function interrupt registered
+	 * and we know an IRQ was signaled then call irq handler directly.
+	 * Otherwise do the full probe.
+	 */
+	func = card->sdio_single_irq;
+	if (func && sdio_irq_pending) {
+		func->irq_handler(func);
+		return 1;
+	}
+
+	ret = sdio_get_pending_irqs(host, &pending);
+	if (ret)
+		return ret;
 
 	count = 0;
 	for (i = 1; i <= 7; i++) {
@@ -96,9 +114,8 @@ static void sdio_run_irqs(struct mmc_host *host)
 {
 	mmc_claim_host(host);
 	if (host->sdio_irqs) {
-		host->sdio_irq_pending = true;
 		process_sdio_pending_irqs(host);
-		if (host->ops->ack_sdio_irq)
+		if (!host->sdio_irq_pending)
 			host->ops->ack_sdio_irq(host);
 	}
 	mmc_release_host(host);
@@ -114,6 +131,7 @@ void sdio_irq_work(struct work_struct *work)
 
 void sdio_signal_irq(struct mmc_host *host)
 {
+	host->sdio_irq_pending = true;
 	queue_delayed_work(system_wq, &host->sdio_irq_work, 0);
 }
 EXPORT_SYMBOL_GPL(sdio_signal_irq);
@@ -159,7 +177,6 @@ static int sdio_irq_thread(void *_host)
 		if (ret)
 			break;
 		ret = process_sdio_pending_irqs(host);
-		host->sdio_irq_pending = false;
 		mmc_release_host(host);
 
 		/*

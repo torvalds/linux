@@ -14,12 +14,14 @@
 #include <inttypes.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
+#include <perf/cpumap.h>
 
 #include "../util/stat.h"
 #include <subcmd/parse-options.h>
@@ -219,7 +221,7 @@ static void init_fdmaps(struct worker *w, int pct)
 	}
 }
 
-static int do_threads(struct worker *worker, struct cpu_map *cpu)
+static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 {
 	pthread_attr_t thread_attr, *attrp = NULL;
 	cpu_set_t cpuset;
@@ -301,7 +303,7 @@ int bench_epoll_ctl(int argc, const char **argv)
 	int j, ret = 0;
 	struct sigaction act;
 	struct worker *worker = NULL;
-	struct cpu_map *cpu;
+	struct perf_cpu_map *cpu;
 	struct rlimit rl, prevrl;
 	unsigned int i;
 
@@ -315,7 +317,7 @@ int bench_epoll_ctl(int argc, const char **argv)
 	act.sa_sigaction = toggle_done;
 	sigaction(SIGINT, &act, NULL);
 
-	cpu = cpu_map__new(NULL);
+	cpu = perf_cpu_map__new(NULL);
 	if (!cpu)
 		goto errmem;
 

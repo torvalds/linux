@@ -63,10 +63,35 @@ static int cros_ec_sensors_read(struct iio_dev *indio_dev,
 
 		/* Save values */
 		for (i = CROS_EC_SENSOR_X; i < CROS_EC_SENSOR_MAX_AXIS; i++)
-			st->core.calib[i] =
+			st->core.calib[i].offset =
 				st->core.resp->sensor_offset.offset[i];
 		ret = IIO_VAL_INT;
-		*val = st->core.calib[idx];
+		*val = st->core.calib[idx].offset;
+		break;
+	case IIO_CHAN_INFO_CALIBSCALE:
+		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_SCALE;
+		st->core.param.sensor_offset.flags = 0;
+
+		ret = cros_ec_motion_send_host_cmd(&st->core, 0);
+		if (ret == -EPROTO) {
+			/* Reading calibscale is not supported on older EC. */
+			*val = 1;
+			*val2 = 0;
+			ret = IIO_VAL_INT_PLUS_MICRO;
+			break;
+		} else if (ret) {
+			break;
+		}
+
+		/* Save values */
+		for (i = CROS_EC_SENSOR_X; i < CROS_EC_SENSOR_MAX_AXIS; i++)
+			st->core.calib[i].scale =
+				st->core.resp->sensor_scale.scale[i];
+
+		*val = st->core.calib[idx].scale >> 15;
+		*val2 = ((st->core.calib[idx].scale & 0x7FFF) * 1000000LL) /
+			MOTION_SENSE_DEFAULT_SCALE;
+		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
 	case IIO_CHAN_INFO_SCALE:
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_RANGE;
@@ -134,7 +159,7 @@ static int cros_ec_sensors_write(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
-		st->core.calib[idx] = val;
+		st->core.calib[idx].offset = val;
 
 		/* Send to EC for each axis, even if not complete */
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_OFFSET;
@@ -142,8 +167,23 @@ static int cros_ec_sensors_write(struct iio_dev *indio_dev,
 			MOTION_SENSE_SET_OFFSET;
 		for (i = CROS_EC_SENSOR_X; i < CROS_EC_SENSOR_MAX_AXIS; i++)
 			st->core.param.sensor_offset.offset[i] =
-				st->core.calib[i];
+				st->core.calib[i].offset;
 		st->core.param.sensor_offset.temp =
+			EC_MOTION_SENSE_INVALID_CALIB_TEMP;
+
+		ret = cros_ec_motion_send_host_cmd(&st->core, 0);
+		break;
+	case IIO_CHAN_INFO_CALIBSCALE:
+		st->core.calib[idx].scale = val;
+		/* Send to EC for each axis, even if not complete */
+
+		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_SCALE;
+		st->core.param.sensor_offset.flags =
+			MOTION_SENSE_SET_OFFSET;
+		for (i = CROS_EC_SENSOR_X; i < CROS_EC_SENSOR_MAX_AXIS; i++)
+			st->core.param.sensor_scale.scale[i] =
+				st->core.calib[i].scale;
+		st->core.param.sensor_scale.temp =
 			EC_MOTION_SENSE_INVALID_CALIB_TEMP;
 
 		ret = cros_ec_motion_send_host_cmd(&st->core, 0);
@@ -175,6 +215,7 @@ static int cros_ec_sensors_write(struct iio_dev *indio_dev,
 static const struct iio_info ec_sensors_info = {
 	.read_raw = &cros_ec_sensors_read,
 	.write_raw = &cros_ec_sensors_write,
+	.read_avail = &cros_ec_sensors_core_read_avail,
 };
 
 static int cros_ec_sensors_probe(struct platform_device *pdev)
@@ -206,10 +247,13 @@ static int cros_ec_sensors_probe(struct platform_device *pdev)
 		/* Common part */
 		channel->info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) |
-			BIT(IIO_CHAN_INFO_CALIBBIAS);
+			BIT(IIO_CHAN_INFO_CALIBBIAS) |
+			BIT(IIO_CHAN_INFO_CALIBSCALE);
 		channel->info_mask_shared_by_all =
 			BIT(IIO_CHAN_INFO_SCALE) |
 			BIT(IIO_CHAN_INFO_FREQUENCY) |
+			BIT(IIO_CHAN_INFO_SAMP_FREQ);
+		channel->info_mask_shared_by_all_available =
 			BIT(IIO_CHAN_INFO_SAMP_FREQ);
 		channel->scan_type.realbits = CROS_EC_SENSOR_BITS;
 		channel->scan_type.storagebits = CROS_EC_SENSOR_BITS;

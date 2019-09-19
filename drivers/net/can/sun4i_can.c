@@ -787,7 +787,6 @@ static int sun4ican_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "could not get a valid irq\n");
 		err = -ENODEV;
 		goto exit;
 	}

@@ -183,7 +183,6 @@ static int hidma_mgmt_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "irq resources not found\n");
 		rc = irq;
 		goto out;
 	}
@@ -388,7 +387,6 @@ static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
 			ret = PTR_ERR(new_pdev);
 			goto out;
 		}
-		of_node_get(child);
 		new_pdev->dev.of_node = child;
 		of_dma_configure(&new_pdev->dev, child, true);
 		/*
@@ -396,9 +394,14 @@ static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
 		 * platforms with or without MSI support.
 		 */
 		of_msi_configure(&new_pdev->dev, child);
-		of_node_put(child);
 	}
+
+	kfree(res);
+
+	return ret;
+
 out:
+	of_node_put(child);
 	kfree(res);
 
 	return ret;

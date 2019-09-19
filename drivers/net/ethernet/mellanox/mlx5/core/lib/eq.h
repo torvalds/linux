@@ -87,7 +87,7 @@ void mlx5_eq_synchronize_cmd_irq(struct mlx5_core_dev *dev);
 
 int mlx5_debug_eq_add(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 void mlx5_debug_eq_remove(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
-int mlx5_eq_debugfs_init(struct mlx5_core_dev *dev);
+void mlx5_eq_debugfs_init(struct mlx5_core_dev *dev);
 void mlx5_eq_debugfs_cleanup(struct mlx5_core_dev *dev);
 
 /* This function should only be called after mlx5_cmd_force_teardown_hca */

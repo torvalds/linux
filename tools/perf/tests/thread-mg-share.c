@@ -2,7 +2,6 @@
 #include "tests.h"
 #include "machine.h"
 #include "thread.h"
-#include "map.h"
 #include "debug.h"
 
 int test__thread_mg_share(struct test *test __maybe_unused, int subtest __maybe_unused)

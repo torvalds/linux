@@ -392,6 +392,12 @@ static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry, int index)
 
 		entry->edx &= kvm_cpuid_7_0_edx_x86_features;
 		cpuid_mask(&entry->edx, CPUID_7_EDX);
+		if (boot_cpu_has(X86_FEATURE_IBPB) && boot_cpu_has(X86_FEATURE_IBRS))
+			entry->edx |= F(SPEC_CTRL);
+		if (boot_cpu_has(X86_FEATURE_STIBP))
+			entry->edx |= F(INTEL_STIBP);
+		if (boot_cpu_has(X86_FEATURE_SSBD))
+			entry->edx |= F(SPEC_CTRL_SSBD);
 		/*
 		 * We emulate ARCH_CAPABILITIES in software even
 		 * if the host doesn't support it.
@@ -729,18 +735,23 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 			g_phys_as = phys_as;
 		entry->eax = g_phys_as | (virt_as << 8);
 		entry->edx = 0;
-		/*
-		 * IBRS, IBPB and VIRT_SSBD aren't necessarily present in
-		 * hardware cpuid
-		 */
-		if (boot_cpu_has(X86_FEATURE_AMD_IBPB))
-			entry->ebx |= F(AMD_IBPB);
-		if (boot_cpu_has(X86_FEATURE_AMD_IBRS))
-			entry->ebx |= F(AMD_IBRS);
-		if (boot_cpu_has(X86_FEATURE_VIRT_SSBD))
-			entry->ebx |= F(VIRT_SSBD);
 		entry->ebx &= kvm_cpuid_8000_0008_ebx_x86_features;
 		cpuid_mask(&entry->ebx, CPUID_8000_0008_EBX);
+		/*
+		 * AMD has separate bits for each SPEC_CTRL bit.
+		 * arch/x86/kernel/cpu/bugs.c is kind enough to
+		 * record that in cpufeatures so use them.
+		 */
+		if (boot_cpu_has(X86_FEATURE_IBPB))
+			entry->ebx |= F(AMD_IBPB);
+		if (boot_cpu_has(X86_FEATURE_IBRS))
+			entry->ebx |= F(AMD_IBRS);
+		if (boot_cpu_has(X86_FEATURE_STIBP))
+			entry->ebx |= F(AMD_STIBP);
+		if (boot_cpu_has(X86_FEATURE_SSBD))
+			entry->ebx |= F(AMD_SSBD);
+		if (!boot_cpu_has_bug(X86_BUG_SPEC_STORE_BYPASS))
+			entry->ebx |= F(AMD_SSB_NO);
 		/*
 		 * The preference is to use SPEC CTRL MSR instead of the
 		 * VIRT_SPEC MSR.

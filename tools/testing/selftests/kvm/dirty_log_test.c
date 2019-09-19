@@ -26,8 +26,8 @@
 /* The memory slot index to track dirty pages */
 #define TEST_MEM_SLOT_INDEX		1
 
-/* Default guest test memory offset, 1G */
-#define DEFAULT_GUEST_TEST_MEM		0x40000000
+/* Default guest test virtual memory offset */
+#define DEFAULT_GUEST_TEST_MEM		0xc0000000
 
 /* How many pages to dirty for each guest loop */
 #define TEST_PAGES_PER_LOOP		1024
@@ -37,6 +37,27 @@
 
 /* Interval for each host loop (ms) */
 #define TEST_HOST_LOOP_INTERVAL		10UL
+
+/* Dirty bitmaps are always little endian, so we need to swap on big endian */
+#if defined(__s390x__)
+# define BITOP_LE_SWIZZLE	((BITS_PER_LONG-1) & ~0x7)
+# define test_bit_le(nr, addr) \
+	test_bit((nr) ^ BITOP_LE_SWIZZLE, addr)
+# define set_bit_le(nr, addr) \
+	set_bit((nr) ^ BITOP_LE_SWIZZLE, addr)
+# define clear_bit_le(nr, addr) \
+	clear_bit((nr) ^ BITOP_LE_SWIZZLE, addr)
+# define test_and_set_bit_le(nr, addr) \
+	test_and_set_bit((nr) ^ BITOP_LE_SWIZZLE, addr)
+# define test_and_clear_bit_le(nr, addr) \
+	test_and_clear_bit((nr) ^ BITOP_LE_SWIZZLE, addr)
+#else
+# define test_bit_le		test_bit
+# define set_bit_le		set_bit
+# define clear_bit_le		clear_bit
+# define test_and_set_bit_le	test_and_set_bit
+# define test_and_clear_bit_le	test_and_clear_bit
+#endif
 
 /*
  * Guest/Host shared variables. Ensure addr_gva2hva() and/or
@@ -69,11 +90,23 @@ static uint64_t guest_test_virt_mem = DEFAULT_GUEST_TEST_MEM;
  */
 static void guest_code(void)
 {
+	uint64_t addr;
 	int i;
+
+	/*
+	 * On s390x, all pages of a 1M segment are initially marked as dirty
+	 * when a page of the segment is written to for the very first time.
+	 * To compensate this specialty in this test, we need to touch all
+	 * pages during the first iteration.
+	 */
+	for (i = 0; i < guest_num_pages; i++) {
+		addr = guest_test_virt_mem + i * guest_page_size;
+		*(uint64_t *)addr = READ_ONCE(iteration);
+	}
 
 	while (true) {
 		for (i = 0; i < TEST_PAGES_PER_LOOP; i++) {
-			uint64_t addr = guest_test_virt_mem;
+			addr = guest_test_virt_mem;
 			addr += (READ_ONCE(random_array[i]) % guest_num_pages)
 				* guest_page_size;
 			addr &= ~(host_page_size - 1);
@@ -158,15 +191,15 @@ static void vm_dirty_log_verify(unsigned long *bmap)
 		value_ptr = host_test_mem + page * host_page_size;
 
 		/* If this is a special page that we were tracking... */
-		if (test_and_clear_bit(page, host_bmap_track)) {
+		if (test_and_clear_bit_le(page, host_bmap_track)) {
 			host_track_next_count++;
-			TEST_ASSERT(test_bit(page, bmap),
+			TEST_ASSERT(test_bit_le(page, bmap),
 				    "Page %"PRIu64" should have its dirty bit "
 				    "set in this iteration but it is missing",
 				    page);
 		}
 
-		if (test_bit(page, bmap)) {
+		if (test_bit_le(page, bmap)) {
 			host_dirty_count++;
 			/*
 			 * If the bit is set, the value written onto
@@ -209,7 +242,7 @@ static void vm_dirty_log_verify(unsigned long *bmap)
 				 * should report its dirtyness in the
 				 * next run
 				 */
-				set_bit(page, host_bmap_track);
+				set_bit_le(page, host_bmap_track);
 			}
 		}
 	}
@@ -293,6 +326,10 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	 * case where the size is not aligned to 64 pages.
 	 */
 	guest_num_pages = (1ul << (30 - guest_page_shift)) + 16;
+#ifdef __s390x__
+	/* Round up to multiple of 1M (segment size) */
+	guest_num_pages = (guest_num_pages + 0xff) & ~0xffUL;
+#endif
 	host_page_size = getpagesize();
 	host_num_pages = (guest_num_pages * guest_page_size) / host_page_size +
 			 !!((guest_num_pages * guest_page_size) % host_page_size);
@@ -303,6 +340,11 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	} else {
 		guest_test_phys_mem = phys_offset;
 	}
+
+#ifdef __s390x__
+	/* Align to 1M (segment size) */
+	guest_test_phys_mem &= ~((1 << 20) - 1);
+#endif
 
 	DEBUG("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
 
@@ -337,7 +379,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 #endif
 #ifdef __aarch64__
-	ucall_init(vm, UCALL_MMIO, NULL);
+	ucall_init(vm, NULL);
 #endif
 
 	/* Export the shared variables to the guest */
@@ -453,6 +495,9 @@ int main(int argc, char *argv[])
 		vm_guest_mode_params_init(VM_MODE_P48V48_4K, true, true);
 		vm_guest_mode_params_init(VM_MODE_P48V48_64K, true, true);
 	}
+#endif
+#ifdef __s390x__
+	vm_guest_mode_params_init(VM_MODE_P40V48_4K, true, true);
 #endif
 
 	while ((opt = getopt(argc, argv, "hi:I:p:m:")) != -1) {

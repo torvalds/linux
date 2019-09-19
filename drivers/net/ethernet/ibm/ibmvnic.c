@@ -1485,7 +1485,7 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 			memcpy(dst + cur,
 			       page_address(skb_frag_page(frag)) +
-			       frag->page_offset, skb_frag_size(frag));
+			       skb_frag_off(frag), skb_frag_size(frag));
 			cur += skb_frag_size(frag);
 		}
 	} else {

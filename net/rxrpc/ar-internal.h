@@ -232,6 +232,9 @@ struct rxrpc_security {
 	int (*verify_packet)(struct rxrpc_call *, struct sk_buff *,
 			     unsigned int, unsigned int, rxrpc_seq_t, u16);
 
+	/* Free crypto request on a call */
+	void (*free_call_crypto)(struct rxrpc_call *);
+
 	/* Locate the data in a received packet that has been verified. */
 	void (*locate_data)(struct rxrpc_call *, struct sk_buff *,
 			    unsigned int *, unsigned int *);
@@ -564,6 +567,7 @@ struct rxrpc_call {
 	unsigned long		expect_term_by;	/* When we expect call termination by */
 	u32			next_rx_timo;	/* Timeout for next Rx packet (jif) */
 	u32			next_req_timo;	/* Timeout for next Rx request packet (jif) */
+	struct skcipher_request	*cipher_req;	/* Packet cipher request buffer */
 	struct timer_list	timer;		/* Combined event timer */
 	struct work_struct	processor;	/* Event processor */
 	rxrpc_notify_rx_t	notify_rx;	/* kernel service Rx notification function */

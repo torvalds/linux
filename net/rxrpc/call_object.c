@@ -488,8 +488,10 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 
 	_debug("RELEASE CALL %p (%d CONN %p)", call, call->debug_id, conn);
 
-	if (conn)
+	if (conn) {
 		rxrpc_disconnect_call(call);
+		conn->security->free_call_crypto(call);
+	}
 
 	rxrpc_cleanup_ring(call);
 	_leave("");

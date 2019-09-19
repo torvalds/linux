@@ -107,5 +107,7 @@ int sctp_auth_del_key_id(struct sctp_endpoint *ep,
 			 struct sctp_association *asoc, __u16 key_id);
 int sctp_auth_deact_key_id(struct sctp_endpoint *ep,
 			   struct sctp_association *asoc, __u16 key_id);
+int sctp_auth_init(struct sctp_endpoint *ep, gfp_t gfp);
+void sctp_auth_free(struct sctp_endpoint *ep);
 
 #endif

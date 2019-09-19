@@ -3,6 +3,7 @@
 #include "../../util/debug.h"
 #include "gtk.h"
 
+#include <stdlib.h>
 #include <string.h>
 #include <linux/zalloc.h>
 

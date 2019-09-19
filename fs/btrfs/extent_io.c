@@ -1938,9 +1938,9 @@ out:
 }
 
 void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
-				 u64 delalloc_end, struct page *locked_page,
-				 unsigned clear_bits,
-				 unsigned long page_ops)
+				  struct page *locked_page,
+				  unsigned clear_bits,
+				  unsigned long page_ops)
 {
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, end, clear_bits, 1, 0,
 			 NULL);
@@ -4339,10 +4339,8 @@ int extent_invalidatepage(struct extent_io_tree *tree,
 
 	lock_extent_bits(tree, start, end, &cached_state);
 	wait_on_page_writeback(page);
-	clear_extent_bit(tree, start, end,
-			 EXTENT_LOCKED | EXTENT_DIRTY | EXTENT_DELALLOC |
-			 EXTENT_DO_ACCOUNTING,
-			 1, 1, &cached_state);
+	clear_extent_bit(tree, start, end, EXTENT_LOCKED | EXTENT_DELALLOC |
+			 EXTENT_DO_ACCOUNTING, 1, 1, &cached_state);
 	return 0;
 }
 

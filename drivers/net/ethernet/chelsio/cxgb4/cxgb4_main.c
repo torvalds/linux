@@ -6269,10 +6269,7 @@ static int __init cxgb4_init_module(void)
 {
 	int ret;
 
-	/* Debugfs support is optional, just warn if this fails */
 	cxgb4_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!cxgb4_debugfs_root)
-		pr_warn("could not create debugfs entry, continuing\n");
 
 	ret = pci_register_driver(&cxgb4_driver);
 	if (ret < 0)

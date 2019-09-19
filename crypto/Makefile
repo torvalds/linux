@@ -90,10 +90,26 @@ obj-$(CONFIG_CRYPTO_GCM) += gcm.o
 obj-$(CONFIG_CRYPTO_CCM) += ccm.o
 obj-$(CONFIG_CRYPTO_CHACHA20POLY1305) += chacha20poly1305.o
 obj-$(CONFIG_CRYPTO_AEGIS128) += aegis128.o
-obj-$(CONFIG_CRYPTO_AEGIS128L) += aegis128l.o
-obj-$(CONFIG_CRYPTO_AEGIS256) += aegis256.o
-obj-$(CONFIG_CRYPTO_MORUS640) += morus640.o
-obj-$(CONFIG_CRYPTO_MORUS1280) += morus1280.o
+aegis128-y := aegis128-core.o
+
+ifeq ($(ARCH),arm)
+CFLAGS_aegis128-neon-inner.o += -ffreestanding -march=armv7-a -mfloat-abi=softfp
+CFLAGS_aegis128-neon-inner.o += -mfpu=crypto-neon-fp-armv8
+aegis128-$(CONFIG_CRYPTO_AEGIS128_SIMD) += aegis128-neon.o aegis128-neon-inner.o
+endif
+ifeq ($(ARCH),arm64)
+aegis128-cflags-y := -ffreestanding -mcpu=generic+crypto
+aegis128-cflags-$(CONFIG_CC_IS_GCC) += -ffixed-q16 -ffixed-q17 -ffixed-q18 \
+				       -ffixed-q19 -ffixed-q20 -ffixed-q21 \
+				       -ffixed-q22 -ffixed-q23 -ffixed-q24 \
+				       -ffixed-q25 -ffixed-q26 -ffixed-q27 \
+				       -ffixed-q28 -ffixed-q29 -ffixed-q30 \
+				       -ffixed-q31
+CFLAGS_aegis128-neon-inner.o += $(aegis128-cflags-y)
+CFLAGS_REMOVE_aegis128-neon-inner.o += -mgeneral-regs-only
+aegis128-$(CONFIG_CRYPTO_AEGIS128_SIMD) += aegis128-neon.o aegis128-neon-inner.o
+endif
+
 obj-$(CONFIG_CRYPTO_PCRYPT) += pcrypt.o
 obj-$(CONFIG_CRYPTO_CRYPTD) += cryptd.o
 obj-$(CONFIG_CRYPTO_DES) += des_generic.o
@@ -136,6 +152,8 @@ obj-$(CONFIG_CRYPTO_ANSI_CPRNG) += ansi_cprng.o
 obj-$(CONFIG_CRYPTO_DRBG) += drbg.o
 obj-$(CONFIG_CRYPTO_JITTERENTROPY) += jitterentropy_rng.o
 CFLAGS_jitterentropy.o = -O0
+KASAN_SANITIZE_jitterentropy.o = n
+UBSAN_SANITIZE_jitterentropy.o = n
 jitterentropy_rng-y := jitterentropy.o jitterentropy-kcapi.o
 obj-$(CONFIG_CRYPTO_TEST) += tcrypt.o
 obj-$(CONFIG_CRYPTO_GHASH) += ghash-generic.o

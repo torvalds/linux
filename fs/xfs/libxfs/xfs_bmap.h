@@ -171,6 +171,13 @@ static inline bool xfs_bmap_is_real_extent(struct xfs_bmbt_irec *irec)
 		!isnullstartblock(irec->br_startblock);
 }
 
+/*
+ * Check the mapping for obviously garbage allocations that could trash the
+ * filesystem immediately.
+ */
+#define xfs_valid_startblock(ip, startblock) \
+	((startblock) != 0 || XFS_IS_REALTIME_INODE(ip))
+
 void	xfs_trim_extent(struct xfs_bmbt_irec *irec, xfs_fileoff_t bno,
 		xfs_filblks_t len);
 int	xfs_bmap_add_attrfork(struct xfs_inode *ip, int size, int rsvd);
@@ -254,9 +261,9 @@ int	xfs_bmap_finish_one(struct xfs_trans *tp, struct xfs_inode *ip,
 		enum xfs_bmap_intent_type type, int whichfork,
 		xfs_fileoff_t startoff, xfs_fsblock_t startblock,
 		xfs_filblks_t *blockcount, xfs_exntst_t state);
-int	xfs_bmap_map_extent(struct xfs_trans *tp, struct xfs_inode *ip,
+void	xfs_bmap_map_extent(struct xfs_trans *tp, struct xfs_inode *ip,
 		struct xfs_bmbt_irec *imap);
-int	xfs_bmap_unmap_extent(struct xfs_trans *tp, struct xfs_inode *ip,
+void	xfs_bmap_unmap_extent(struct xfs_trans *tp, struct xfs_inode *ip,
 		struct xfs_bmbt_irec *imap);
 
 static inline int xfs_bmap_fork_to_state(int whichfork)

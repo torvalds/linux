@@ -1104,12 +1104,9 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *fh,
 	if (f->index == 0) {
 		/* standard YUV 422 capture */
 		f->flags = 0;
-		strscpy(f->description, "YUV422", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_YUYV;
 	} else {
 		/* compressed MJPEG capture */
-		f->flags = V4L2_FMT_FLAG_COMPRESSED;
-		strscpy(f->description, "MJPEG", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_MJPEG;
 	}
 

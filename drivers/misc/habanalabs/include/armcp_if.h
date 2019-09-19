@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2016-2018 HabanaLabs, Ltd.
+ * Copyright 2016-2019 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -41,33 +41,34 @@ enum pq_init_status {
 /*
  * ArmCP Primary Queue Packets
  *
- * During normal operation, KMD needs to send various messages to ArmCP,
- * usually either to SET some value into a H/W periphery or to GET the current
- * value of some H/W periphery. For example, SET the frequency of MME/TPC and
- * GET the value of the thermal sensor.
+ * During normal operation, the host's kernel driver needs to send various
+ * messages to ArmCP, usually either to SET some value into a H/W periphery or
+ * to GET the current value of some H/W periphery. For example, SET the
+ * frequency of MME/TPC and GET the value of the thermal sensor.
  *
- * These messages can be initiated either by the User application or by KMD
- * itself, e.g. power management code. In either case, the communication from
- * KMD to ArmCP will *always* be in synchronous mode, meaning that KMD will
- * send a single message and poll until the message was acknowledged and the
- * results are ready (if results are needed).
+ * These messages can be initiated either by the User application or by the
+ * host's driver itself, e.g. power management code. In either case, the
+ * communication from the host's driver to ArmCP will *always* be in
+ * synchronous mode, meaning that the host will send a single message and poll
+ * until the message was acknowledged and the results are ready (if results are
+ * needed).
  *
- * This means that only a single message can be sent at a time and KMD must
- * wait for its result before sending the next message. Having said that,
- * because these are control messages which are sent in a relatively low
+ * This means that only a single message can be sent at a time and the host's
+ * driver must wait for its result before sending the next message. Having said
+ * that, because these are control messages which are sent in a relatively low
  * frequency, this limitation seems acceptable. It's important to note that
  * in case of multiple devices, messages to different devices *can* be sent
  * at the same time.
  *
  * The message, inputs/outputs (if relevant) and fence object will be located
- * on the device DDR at an address that will be determined by KMD. During
- * device initialization phase, KMD will pass to ArmCP that address.  Most of
- * the message types will contain inputs/outputs inside the message itself.
- * The common part of each message will contain the opcode of the message (its
- * type) and a field representing a fence object.
+ * on the device DDR at an address that will be determined by the host's driver.
+ * During device initialization phase, the host will pass to ArmCP that address.
+ * Most of the message types will contain inputs/outputs inside the message
+ * itself. The common part of each message will contain the opcode of the
+ * message (its type) and a field representing a fence object.
  *
- * When KMD wishes to send a message to ArmCP, it will write the message
- * contents to the device DDR, clear the fence object and then write the
+ * When the host's driver wishes to send a message to ArmCP, it will write the
+ * message contents to the device DDR, clear the fence object and then write the
  * value 484 to the mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR register to issue
  * the 484 interrupt-id to the ARM core.
  *
@@ -78,12 +79,13 @@ enum pq_init_status {
  * device DDR and then write to the fence object. If an error occurred, ArmCP
  * will fill the rc field with the right error code.
  *
- * In the meantime, KMD will poll on the fence object. Once KMD sees that the
- * fence object is signaled, it will read the results from the device DDR
- * (if relevant) and resume the code execution in KMD.
+ * In the meantime, the host's driver will poll on the fence object. Once the
+ * host sees that the fence object is signaled, it will read the results from
+ * the device DDR (if relevant) and resume the code execution in the host's
+ * driver.
  *
  * To use QMAN packets, the opcode must be the QMAN opcode, shifted by 8
- * so the value being put by the KMD matches the value read by ArmCP
+ * so the value being put by the host's driver matches the value read by ArmCP
  *
  * Non-QMAN packets should be limited to values 1 through (2^8 - 1)
  *
@@ -148,9 +150,9 @@ enum pq_init_status {
  *
  * ARMCP_PACKET_INFO_GET -
  *       Fetch information from the device as specified in the packet's
- *       structure. KMD passes the max size it allows the ArmCP to write to
- *       the structure, to prevent data corruption in case of mismatched
- *       KMD/FW versions.
+ *       structure. The host's driver passes the max size it allows the ArmCP to
+ *       write to the structure, to prevent data corruption in case of
+ *       mismatched driver/FW versions.
  *
  * ARMCP_PACKET_FLASH_PROGRAM_REMOVED - this packet was removed
  *
@@ -183,9 +185,9 @@ enum pq_init_status {
  * ARMCP_PACKET_EEPROM_DATA_GET -
  *       Get EEPROM data from the ArmCP kernel. The buffer is specified in the
  *       addr field. The CPU will put the returned data size in the result
- *       field. In addition, KMD passes the max size it allows the ArmCP to
- *       write to the structure, to prevent data corruption in case of
- *       mismatched KMD/FW versions.
+ *       field. In addition, the host's driver passes the max size it allows the
+ *       ArmCP to write to the structure, to prevent data corruption in case of
+ *       mismatched driver/FW versions.
  *
  */
 
@@ -231,7 +233,7 @@ struct armcp_packet {
 
 	__le32 ctl;
 
-	__le32 fence;		/* Signal to KMD that message is completed */
+	__le32 fence;		/* Signal to host that message is completed */
 
 	union {
 		struct {/* For temperature/current/voltage/fan/pwm get/set */
@@ -310,6 +312,7 @@ struct eq_generic_event {
  * ArmCP info
  */
 
+#define CARD_NAME_MAX_LEN		16
 #define VERSION_MAX_LEN			128
 #define ARMCP_MAX_SENSORS		128
 
@@ -318,6 +321,19 @@ struct armcp_sensor {
 	__le32 flags;
 };
 
+/**
+ * struct armcp_info - Info from ArmCP that is necessary to the host's driver
+ * @sensors: available sensors description.
+ * @kernel_version: ArmCP linux kernel version.
+ * @reserved: reserved field.
+ * @cpld_version: CPLD programmed F/W version.
+ * @infineon_version: Infineon main DC-DC version.
+ * @fuse_version: silicon production FUSE information.
+ * @thermal_version: thermald S/W version.
+ * @armcp_version: ArmCP S/W version.
+ * @dram_size: available DRAM size.
+ * @card_name: card name that will be displayed in HWMON subsystem on the host
+ */
 struct armcp_info {
 	struct armcp_sensor sensors[ARMCP_MAX_SENSORS];
 	__u8 kernel_version[VERSION_MAX_LEN];
@@ -328,6 +344,7 @@ struct armcp_info {
 	__u8 thermal_version[VERSION_MAX_LEN];
 	__u8 armcp_version[VERSION_MAX_LEN];
 	__le64 dram_size;
+	char card_name[CARD_NAME_MAX_LEN];
 };
 
 #endif /* ARMCP_IF_H */

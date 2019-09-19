@@ -48,6 +48,8 @@
 	 {QEDE_RQSTAT_OFFSET(stat_name), QEDE_RQSTAT_STRING(stat_name)}
 
 #define QEDE_SELFTEST_POLL_COUNT 100
+#define QEDE_DUMP_VERSION	0x1
+#define QEDE_DUMP_NVM_ARG_COUNT	2
 
 static const struct {
 	u64 offset;
@@ -424,12 +426,13 @@ struct qede_link_mode_mapping {
 };
 
 static const struct qede_link_mode_mapping qed_lm_map[] = {
+	{QED_LM_FIBRE_BIT, ETHTOOL_LINK_MODE_FIBRE_BIT},
 	{QED_LM_Autoneg_BIT, ETHTOOL_LINK_MODE_Autoneg_BIT},
 	{QED_LM_Asym_Pause_BIT, ETHTOOL_LINK_MODE_Asym_Pause_BIT},
 	{QED_LM_Pause_BIT, ETHTOOL_LINK_MODE_Pause_BIT},
 	{QED_LM_1000baseT_Full_BIT, ETHTOOL_LINK_MODE_1000baseT_Full_BIT},
 	{QED_LM_10000baseT_Full_BIT, ETHTOOL_LINK_MODE_10000baseT_Full_BIT},
-	{QED_LM_2500baseX_Full_BIT, ETHTOOL_LINK_MODE_2500baseX_Full_BIT},
+	{QED_LM_TP_BIT, ETHTOOL_LINK_MODE_TP_BIT},
 	{QED_LM_Backplane_BIT, ETHTOOL_LINK_MODE_Backplane_BIT},
 	{QED_LM_1000baseKX_Full_BIT, ETHTOOL_LINK_MODE_1000baseKX_Full_BIT},
 	{QED_LM_10000baseKX4_Full_BIT, ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT},
@@ -1972,6 +1975,117 @@ static int qede_get_module_eeprom(struct net_device *dev,
 	return rc;
 }
 
+static int qede_set_dump(struct net_device *dev, struct ethtool_dump *val)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	int rc = 0;
+
+	if (edev->dump_info.cmd == QEDE_DUMP_CMD_NONE) {
+		if (val->flag > QEDE_DUMP_CMD_MAX) {
+			DP_ERR(edev, "Invalid command %d\n", val->flag);
+			return -EINVAL;
+		}
+		edev->dump_info.cmd = val->flag;
+		edev->dump_info.num_args = 0;
+		return 0;
+	}
+
+	if (edev->dump_info.num_args == QEDE_DUMP_MAX_ARGS) {
+		DP_ERR(edev, "Arg count = %d\n", edev->dump_info.num_args);
+		return -EINVAL;
+	}
+
+	switch (edev->dump_info.cmd) {
+	case QEDE_DUMP_CMD_NVM_CFG:
+		edev->dump_info.args[edev->dump_info.num_args] = val->flag;
+		edev->dump_info.num_args++;
+		break;
+	case QEDE_DUMP_CMD_GRCDUMP:
+		rc = edev->ops->common->set_grc_config(edev->cdev,
+						       val->flag, 1);
+		break;
+	default:
+		break;
+	}
+
+	return rc;
+}
+
+static int qede_get_dump_flag(struct net_device *dev,
+			      struct ethtool_dump *dump)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	if (!edev->ops || !edev->ops->common) {
+		DP_ERR(edev, "Edev ops not populated\n");
+		return -EINVAL;
+	}
+
+	dump->version = QEDE_DUMP_VERSION;
+	switch (edev->dump_info.cmd) {
+	case QEDE_DUMP_CMD_NVM_CFG:
+		dump->flag = QEDE_DUMP_CMD_NVM_CFG;
+		dump->len = edev->ops->common->read_nvm_cfg_len(edev->cdev,
+						edev->dump_info.args[0]);
+		break;
+	case QEDE_DUMP_CMD_GRCDUMP:
+		dump->flag = QEDE_DUMP_CMD_GRCDUMP;
+		dump->len = edev->ops->common->dbg_all_data_size(edev->cdev);
+		break;
+	default:
+		DP_ERR(edev, "Invalid cmd = %d\n", edev->dump_info.cmd);
+		return -EINVAL;
+	}
+
+	DP_VERBOSE(edev, QED_MSG_DEBUG,
+		   "dump->version = 0x%x dump->flag = %d dump->len = %d\n",
+		   dump->version, dump->flag, dump->len);
+	return 0;
+}
+
+static int qede_get_dump_data(struct net_device *dev,
+			      struct ethtool_dump *dump, void *buf)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	int rc = 0;
+
+	if (!edev->ops || !edev->ops->common) {
+		DP_ERR(edev, "Edev ops not populated\n");
+		rc = -EINVAL;
+		goto err;
+	}
+
+	switch (edev->dump_info.cmd) {
+	case QEDE_DUMP_CMD_NVM_CFG:
+		if (edev->dump_info.num_args != QEDE_DUMP_NVM_ARG_COUNT) {
+			DP_ERR(edev, "Arg count = %d required = %d\n",
+			       edev->dump_info.num_args,
+			       QEDE_DUMP_NVM_ARG_COUNT);
+			rc = -EINVAL;
+			goto err;
+		}
+		rc =  edev->ops->common->read_nvm_cfg(edev->cdev, (u8 **)&buf,
+						      edev->dump_info.args[0],
+						      edev->dump_info.args[1]);
+		break;
+	case QEDE_DUMP_CMD_GRCDUMP:
+		memset(buf, 0, dump->len);
+		rc = edev->ops->common->dbg_all_data(edev->cdev, buf);
+		break;
+	default:
+		DP_ERR(edev, "Invalid cmd = %d\n", edev->dump_info.cmd);
+		rc = -EINVAL;
+		break;
+	}
+
+err:
+	edev->dump_info.cmd = QEDE_DUMP_CMD_NONE;
+	edev->dump_info.num_args = 0;
+	memset(edev->dump_info.args, 0, sizeof(edev->dump_info.args));
+
+	return rc;
+}
+
 static const struct ethtool_ops qede_ethtool_ops = {
 	.get_link_ksettings = qede_get_link_ksettings,
 	.set_link_ksettings = qede_set_link_ksettings,
@@ -2013,6 +2127,9 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_tunable = qede_get_tunable,
 	.set_tunable = qede_set_tunable,
 	.flash_device = qede_flash_device,
+	.get_dump_flag = qede_get_dump_flag,
+	.get_dump_data = qede_get_dump_data,
+	.set_dump = qede_set_dump,
 };
 
 static const struct ethtool_ops qede_vf_ethtool_ops = {

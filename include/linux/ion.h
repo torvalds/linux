@@ -22,7 +22,6 @@
 
 /**
  * struct ion_buffer - metadata for a particular buffer
- * @node:		node in the ion_device buffers tree
  * @list:		element in list of deferred freeable buffers
  * @heap:		back pointer to the heap the buffer came from
  * @flags:		buffer specific flags

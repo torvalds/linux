@@ -800,6 +800,13 @@ int xive_native_set_queue_state(u32 vp_id, u32 prio, u32 qtoggle, u32 qindex)
 }
 EXPORT_SYMBOL_GPL(xive_native_set_queue_state);
 
+bool xive_native_has_queue_state_support(void)
+{
+	return opal_check_token(OPAL_XIVE_GET_QUEUE_STATE) &&
+		opal_check_token(OPAL_XIVE_SET_QUEUE_STATE);
+}
+EXPORT_SYMBOL_GPL(xive_native_has_queue_state_support);
+
 int xive_native_get_vp_state(u32 vp_id, u64 *out_state)
 {
 	__be64 state;

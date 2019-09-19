@@ -13,7 +13,70 @@ struct xsk_map {
 	struct bpf_map map;
 	struct xdp_sock **xsk_map;
 	struct list_head __percpu *flush_list;
+	spinlock_t lock; /* Synchronize map updates */
 };
+
+int xsk_map_inc(struct xsk_map *map)
+{
+	struct bpf_map *m = &map->map;
+
+	m = bpf_map_inc(m, false);
+	return PTR_ERR_OR_ZERO(m);
+}
+
+void xsk_map_put(struct xsk_map *map)
+{
+	bpf_map_put(&map->map);
+}
+
+static struct xsk_map_node *xsk_map_node_alloc(struct xsk_map *map,
+					       struct xdp_sock **map_entry)
+{
+	struct xsk_map_node *node;
+	int err;
+
+	node = kzalloc(sizeof(*node), GFP_ATOMIC | __GFP_NOWARN);
+	if (!node)
+		return NULL;
+
+	err = xsk_map_inc(map);
+	if (err) {
+		kfree(node);
+		return ERR_PTR(err);
+	}
+
+	node->map = map;
+	node->map_entry = map_entry;
+	return node;
+}
+
+static void xsk_map_node_free(struct xsk_map_node *node)
+{
+	xsk_map_put(node->map);
+	kfree(node);
+}
+
+static void xsk_map_sock_add(struct xdp_sock *xs, struct xsk_map_node *node)
+{
+	spin_lock_bh(&xs->map_list_lock);
+	list_add_tail(&node->node, &xs->map_list);
+	spin_unlock_bh(&xs->map_list_lock);
+}
+
+static void xsk_map_sock_delete(struct xdp_sock *xs,
+				struct xdp_sock **map_entry)
+{
+	struct xsk_map_node *n, *tmp;
+
+	spin_lock_bh(&xs->map_list_lock);
+	list_for_each_entry_safe(n, tmp, &xs->map_list, node) {
+		if (map_entry == n->map_entry) {
+			list_del(&n->node);
+			xsk_map_node_free(n);
+		}
+	}
+	spin_unlock_bh(&xs->map_list_lock);
+}
 
 static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 {
@@ -34,6 +97,7 @@ static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 		return ERR_PTR(-ENOMEM);
 
 	bpf_map_init_from_attr(&m->map, attr);
+	spin_lock_init(&m->lock);
 
 	cost = (u64)m->map.max_entries * sizeof(struct xdp_sock *);
 	cost += sizeof(struct list_head) * num_possible_cpus();
@@ -71,21 +135,9 @@ free_m:
 static void xsk_map_free(struct bpf_map *map)
 {
 	struct xsk_map *m = container_of(map, struct xsk_map, map);
-	int i;
 
 	bpf_clear_redirect_map(map);
 	synchronize_net();
-
-	for (i = 0; i < map->max_entries; i++) {
-		struct xdp_sock *xs;
-
-		xs = m->xsk_map[i];
-		if (!xs)
-			continue;
-
-		sock_put((struct sock *)xs);
-	}
-
 	free_percpu(m->flush_list);
 	bpf_map_area_free(m->xsk_map);
 	kfree(m);
@@ -164,8 +216,9 @@ static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
 			       u64 map_flags)
 {
 	struct xsk_map *m = container_of(map, struct xsk_map, map);
+	struct xdp_sock *xs, *old_xs, **map_entry;
 	u32 i = *(u32 *)key, fd = *(u32 *)value;
-	struct xdp_sock *xs, *old_xs;
+	struct xsk_map_node *node;
 	struct socket *sock;
 	int err;
 
@@ -173,8 +226,6 @@ static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
 		return -EINVAL;
 	if (unlikely(i >= m->map.max_entries))
 		return -E2BIG;
-	if (unlikely(map_flags == BPF_NOEXIST))
-		return -EEXIST;
 
 	sock = sockfd_lookup(fd, &err);
 	if (!sock)
@@ -192,30 +243,68 @@ static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
 		return -EOPNOTSUPP;
 	}
 
-	sock_hold(sock->sk);
+	map_entry = &m->xsk_map[i];
+	node = xsk_map_node_alloc(m, map_entry);
+	if (IS_ERR(node)) {
+		sockfd_put(sock);
+		return PTR_ERR(node);
+	}
 
-	old_xs = xchg(&m->xsk_map[i], xs);
+	spin_lock_bh(&m->lock);
+	old_xs = READ_ONCE(*map_entry);
+	if (old_xs == xs) {
+		err = 0;
+		goto out;
+	} else if (old_xs && map_flags == BPF_NOEXIST) {
+		err = -EEXIST;
+		goto out;
+	} else if (!old_xs && map_flags == BPF_EXIST) {
+		err = -ENOENT;
+		goto out;
+	}
+	xsk_map_sock_add(xs, node);
+	WRITE_ONCE(*map_entry, xs);
 	if (old_xs)
-		sock_put((struct sock *)old_xs);
-
+		xsk_map_sock_delete(old_xs, map_entry);
+	spin_unlock_bh(&m->lock);
 	sockfd_put(sock);
 	return 0;
+
+out:
+	spin_unlock_bh(&m->lock);
+	sockfd_put(sock);
+	xsk_map_node_free(node);
+	return err;
 }
 
 static int xsk_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct xsk_map *m = container_of(map, struct xsk_map, map);
-	struct xdp_sock *old_xs;
+	struct xdp_sock *old_xs, **map_entry;
 	int k = *(u32 *)key;
 
 	if (k >= map->max_entries)
 		return -EINVAL;
 
-	old_xs = xchg(&m->xsk_map[k], NULL);
+	spin_lock_bh(&m->lock);
+	map_entry = &m->xsk_map[k];
+	old_xs = xchg(map_entry, NULL);
 	if (old_xs)
-		sock_put((struct sock *)old_xs);
+		xsk_map_sock_delete(old_xs, map_entry);
+	spin_unlock_bh(&m->lock);
 
 	return 0;
+}
+
+void xsk_map_try_sock_delete(struct xsk_map *map, struct xdp_sock *xs,
+			     struct xdp_sock **map_entry)
+{
+	spin_lock_bh(&map->lock);
+	if (READ_ONCE(*map_entry) == xs) {
+		WRITE_ONCE(*map_entry, NULL);
+		xsk_map_sock_delete(xs, map_entry);
+	}
+	spin_unlock_bh(&map->lock);
 }
 
 const struct bpf_map_ops xsk_map_ops = {

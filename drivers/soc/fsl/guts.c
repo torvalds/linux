@@ -102,6 +102,11 @@ static const struct fsl_soc_die_attr fsl_soc_die[] = {
 	  .svr          = 0x87360000,
 	  .mask         = 0xff3f0000,
 	},
+	/* Die: LS1028A, SoC: LS1028A */
+	{ .die          = "LS1028A",
+	  .svr          = 0x870b0000,
+	  .mask         = 0xff3f0000,
+	},
 	{ },
 };
 
@@ -224,6 +229,7 @@ static const struct of_device_id fsl_guts_of_match[] = {
 	{ .compatible = "fsl,ls1012a-dcfg", },
 	{ .compatible = "fsl,ls1046a-dcfg", },
 	{ .compatible = "fsl,lx2160a-dcfg", },
+	{ .compatible = "fsl,ls1028a-dcfg", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsl_guts_of_match);

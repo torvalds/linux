@@ -191,6 +191,8 @@ struct sis900_private {
 	unsigned int tx_full; /* The Tx queue is full. */
 	u8 host_bridge_rev;
 	u8 chipset_rev;
+	/* EEPROM data */
+	int eeprom_size;
 };
 
 MODULE_AUTHOR("Jim Huang <cmhuang@sis.com.tw>, Ollie Lho <ollie@sis.com.tw>");
@@ -474,6 +476,8 @@ static int sis900_probe(struct pci_dev *pci_dev,
 	sis_priv->ioaddr = ioaddr;
 	sis_priv->pci_dev = pci_dev;
 	spin_lock_init(&sis_priv->lock);
+
+	sis_priv->eeprom_size = 24;
 
 	pci_set_drvdata(pci_dev, net_dev);
 
@@ -2122,6 +2126,68 @@ static void sis900_get_wol(struct net_device *net_dev, struct ethtool_wolinfo *w
 	wol->supported = (WAKE_PHY | WAKE_MAGIC);
 }
 
+static int sis900_get_eeprom_len(struct net_device *dev)
+{
+	struct sis900_private *sis_priv = netdev_priv(dev);
+
+	return sis_priv->eeprom_size;
+}
+
+static int sis900_read_eeprom(struct net_device *net_dev, u8 *buf)
+{
+	struct sis900_private *sis_priv = netdev_priv(net_dev);
+	void __iomem *ioaddr = sis_priv->ioaddr;
+	int wait, ret = -EAGAIN;
+	u16 signature;
+	u16 *ebuf = (u16 *)buf;
+	int i;
+
+	if (sis_priv->chipset_rev == SIS96x_900_REV) {
+		sw32(mear, EEREQ);
+		for (wait = 0; wait < 2000; wait++) {
+			if (sr32(mear) & EEGNT) {
+				/* read 16 bits, and index by 16 bits */
+				for (i = 0; i < sis_priv->eeprom_size / 2; i++)
+					ebuf[i] = (u16)read_eeprom(ioaddr, i);
+				ret = 0;
+				break;
+			}
+			udelay(1);
+		}
+		sw32(mear, EEDONE);
+	} else {
+		signature = (u16)read_eeprom(ioaddr, EEPROMSignature);
+		if (signature != 0xffff && signature != 0x0000) {
+			/* read 16 bits, and index by 16 bits */
+			for (i = 0; i < sis_priv->eeprom_size / 2; i++)
+				ebuf[i] = (u16)read_eeprom(ioaddr, i);
+			ret = 0;
+		}
+	}
+	return ret;
+}
+
+#define SIS900_EEPROM_MAGIC	0xBABE
+static int sis900_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom, u8 *data)
+{
+	struct sis900_private *sis_priv = netdev_priv(dev);
+	u8 *eebuf;
+	int res;
+
+	eebuf = kmalloc(sis_priv->eeprom_size, GFP_KERNEL);
+	if (!eebuf)
+		return -ENOMEM;
+
+	eeprom->magic = SIS900_EEPROM_MAGIC;
+	spin_lock_irq(&sis_priv->lock);
+	res = sis900_read_eeprom(dev, eebuf);
+	spin_unlock_irq(&sis_priv->lock);
+	if (!res)
+		memcpy(data, eebuf + eeprom->offset, eeprom->len);
+	kfree(eebuf);
+	return res;
+}
+
 static const struct ethtool_ops sis900_ethtool_ops = {
 	.get_drvinfo 	= sis900_get_drvinfo,
 	.get_msglevel	= sis900_get_msglevel,
@@ -2132,6 +2198,8 @@ static const struct ethtool_ops sis900_ethtool_ops = {
 	.set_wol	= sis900_set_wol,
 	.get_link_ksettings = sis900_get_link_ksettings,
 	.set_link_ksettings = sis900_set_link_ksettings,
+	.get_eeprom_len = sis900_get_eeprom_len,
+	.get_eeprom = sis900_get_eeprom,
 };
 
 /**

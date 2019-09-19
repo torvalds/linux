@@ -20,12 +20,13 @@
 #include <linux/time64.h>
 #include <dirent.h>
 #include <bpf/libbpf.h>
+#include <perf/cpumap.h>
 
+#include "dso.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "header.h"
 #include "memswap.h"
-#include "../perf.h"
 #include "trace-event.h"
 #include "session.h"
 #include "symbol.h"
@@ -41,6 +42,7 @@
 #include "tool.h"
 #include "time-utils.h"
 #include "units.h"
+#include "util.h"
 #include "cputopo.h"
 #include "bpf-event.h"
 
@@ -74,7 +76,7 @@ struct feat_fd {
 	void			*buf;	/* Either buf != NULL or fd >= 0 */
 	ssize_t			offset;
 	size_t			size;
-	struct perf_evsel	*events;
+	struct evsel	*events;
 };
 
 void perf_header__set_feat(struct perf_header *header, int feat)
@@ -299,16 +301,16 @@ static int do_read_bitmap(struct feat_fd *ff, unsigned long **pset, u64 *psize)
 }
 
 static int write_tracing_data(struct feat_fd *ff,
-			      struct perf_evlist *evlist)
+			      struct evlist *evlist)
 {
 	if (WARN(ff->buf, "Error: calling %s in pipe-mode.\n", __func__))
 		return -1;
 
-	return read_tracing_data(ff->fd, &evlist->entries);
+	return read_tracing_data(ff->fd, &evlist->core.entries);
 }
 
 static int write_build_id(struct feat_fd *ff,
-			  struct perf_evlist *evlist __maybe_unused)
+			  struct evlist *evlist __maybe_unused)
 {
 	struct perf_session *session;
 	int err;
@@ -332,7 +334,7 @@ static int write_build_id(struct feat_fd *ff,
 }
 
 static int write_hostname(struct feat_fd *ff,
-			  struct perf_evlist *evlist __maybe_unused)
+			  struct evlist *evlist __maybe_unused)
 {
 	struct utsname uts;
 	int ret;
@@ -345,7 +347,7 @@ static int write_hostname(struct feat_fd *ff,
 }
 
 static int write_osrelease(struct feat_fd *ff,
-			   struct perf_evlist *evlist __maybe_unused)
+			   struct evlist *evlist __maybe_unused)
 {
 	struct utsname uts;
 	int ret;
@@ -358,7 +360,7 @@ static int write_osrelease(struct feat_fd *ff,
 }
 
 static int write_arch(struct feat_fd *ff,
-		      struct perf_evlist *evlist __maybe_unused)
+		      struct evlist *evlist __maybe_unused)
 {
 	struct utsname uts;
 	int ret;
@@ -371,7 +373,7 @@ static int write_arch(struct feat_fd *ff,
 }
 
 static int write_version(struct feat_fd *ff,
-			 struct perf_evlist *evlist __maybe_unused)
+			 struct evlist *evlist __maybe_unused)
 {
 	return do_write_string(ff, perf_version_string);
 }
@@ -432,9 +434,27 @@ done:
 }
 
 static int write_cpudesc(struct feat_fd *ff,
-		       struct perf_evlist *evlist __maybe_unused)
+		       struct evlist *evlist __maybe_unused)
 {
+#if defined(__powerpc__) || defined(__hppa__) || defined(__sparc__)
+#define CPUINFO_PROC	{ "cpu", }
+#elif defined(__s390__)
+#define CPUINFO_PROC	{ "vendor_id", }
+#elif defined(__sh__)
+#define CPUINFO_PROC	{ "cpu type", }
+#elif defined(__alpha__) || defined(__mips__)
+#define CPUINFO_PROC	{ "cpu model", }
+#elif defined(__arm__)
+#define CPUINFO_PROC	{ "model name", "Processor", }
+#elif defined(__arc__)
+#define CPUINFO_PROC	{ "Processor", }
+#elif defined(__xtensa__)
+#define CPUINFO_PROC	{ "core ID", }
+#else
+#define CPUINFO_PROC	{ "model name", }
+#endif
 	const char *cpuinfo_procs[] = CPUINFO_PROC;
+#undef CPUINFO_PROC
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(cpuinfo_procs); i++) {
@@ -448,7 +468,7 @@ static int write_cpudesc(struct feat_fd *ff,
 
 
 static int write_nrcpus(struct feat_fd *ff,
-			struct perf_evlist *evlist __maybe_unused)
+			struct evlist *evlist __maybe_unused)
 {
 	long nr;
 	u32 nrc, nra;
@@ -470,13 +490,13 @@ static int write_nrcpus(struct feat_fd *ff,
 }
 
 static int write_event_desc(struct feat_fd *ff,
-			    struct perf_evlist *evlist)
+			    struct evlist *evlist)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	u32 nre, nri, sz;
 	int ret;
 
-	nre = evlist->nr_entries;
+	nre = evlist->core.nr_entries;
 
 	/*
 	 * write number of events
@@ -488,13 +508,13 @@ static int write_event_desc(struct feat_fd *ff,
 	/*
 	 * size of perf_event_attr struct
 	 */
-	sz = (u32)sizeof(evsel->attr);
+	sz = (u32)sizeof(evsel->core.attr);
 	ret = do_write(ff, &sz, sizeof(sz));
 	if (ret < 0)
 		return ret;
 
 	evlist__for_each_entry(evlist, evsel) {
-		ret = do_write(ff, &evsel->attr, sz);
+		ret = do_write(ff, &evsel->core.attr, sz);
 		if (ret < 0)
 			return ret;
 		/*
@@ -526,7 +546,7 @@ static int write_event_desc(struct feat_fd *ff,
 }
 
 static int write_cmdline(struct feat_fd *ff,
-			 struct perf_evlist *evlist __maybe_unused)
+			 struct evlist *evlist __maybe_unused)
 {
 	char pbuf[MAXPATHLEN], *buf;
 	int i, ret, n;
@@ -555,7 +575,7 @@ static int write_cmdline(struct feat_fd *ff,
 
 
 static int write_cpu_topology(struct feat_fd *ff,
-			      struct perf_evlist *evlist __maybe_unused)
+			      struct evlist *evlist __maybe_unused)
 {
 	struct cpu_topology *tp;
 	u32 i;
@@ -627,7 +647,7 @@ done:
 
 
 static int write_total_mem(struct feat_fd *ff,
-			   struct perf_evlist *evlist __maybe_unused)
+			   struct evlist *evlist __maybe_unused)
 {
 	char *buf = NULL;
 	FILE *fp;
@@ -656,7 +676,7 @@ static int write_total_mem(struct feat_fd *ff,
 }
 
 static int write_numa_topology(struct feat_fd *ff,
-			       struct perf_evlist *evlist __maybe_unused)
+			       struct evlist *evlist __maybe_unused)
 {
 	struct numa_topology *tp;
 	int ret = -1;
@@ -710,7 +730,7 @@ err:
  */
 
 static int write_pmu_mappings(struct feat_fd *ff,
-			      struct perf_evlist *evlist __maybe_unused)
+			      struct evlist *evlist __maybe_unused)
 {
 	struct perf_pmu *pmu = NULL;
 	u32 pmu_num = 0;
@@ -759,10 +779,10 @@ static int write_pmu_mappings(struct feat_fd *ff,
  * };
  */
 static int write_group_desc(struct feat_fd *ff,
-			    struct perf_evlist *evlist)
+			    struct evlist *evlist)
 {
 	u32 nr_groups = evlist->nr_groups;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	int ret;
 
 	ret = do_write(ff, &nr_groups, sizeof(nr_groups));
@@ -771,10 +791,10 @@ static int write_group_desc(struct feat_fd *ff,
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (perf_evsel__is_group_leader(evsel) &&
-		    evsel->nr_members > 1) {
+		    evsel->core.nr_members > 1) {
 			const char *name = evsel->group_name ?: "{anon_group}";
 			u32 leader_idx = evsel->idx;
-			u32 nr_members = evsel->nr_members;
+			u32 nr_members = evsel->core.nr_members;
 
 			ret = do_write_string(ff, name);
 			if (ret < 0)
@@ -841,7 +861,7 @@ int __weak get_cpuid(char *buffer __maybe_unused, size_t sz __maybe_unused)
 }
 
 static int write_cpuid(struct feat_fd *ff,
-		       struct perf_evlist *evlist __maybe_unused)
+		       struct evlist *evlist __maybe_unused)
 {
 	char buffer[64];
 	int ret;
@@ -854,13 +874,13 @@ static int write_cpuid(struct feat_fd *ff,
 }
 
 static int write_branch_stack(struct feat_fd *ff __maybe_unused,
-			      struct perf_evlist *evlist __maybe_unused)
+			      struct evlist *evlist __maybe_unused)
 {
 	return 0;
 }
 
 static int write_auxtrace(struct feat_fd *ff,
-			  struct perf_evlist *evlist __maybe_unused)
+			  struct evlist *evlist __maybe_unused)
 {
 	struct perf_session *session;
 	int err;
@@ -877,14 +897,14 @@ static int write_auxtrace(struct feat_fd *ff,
 }
 
 static int write_clockid(struct feat_fd *ff,
-			 struct perf_evlist *evlist __maybe_unused)
+			 struct evlist *evlist __maybe_unused)
 {
 	return do_write(ff, &ff->ph->env.clockid_res_ns,
 			sizeof(ff->ph->env.clockid_res_ns));
 }
 
 static int write_dir_format(struct feat_fd *ff,
-			    struct perf_evlist *evlist __maybe_unused)
+			    struct evlist *evlist __maybe_unused)
 {
 	struct perf_session *session;
 	struct perf_data *data;
@@ -900,7 +920,7 @@ static int write_dir_format(struct feat_fd *ff,
 
 #ifdef HAVE_LIBBPF_SUPPORT
 static int write_bpf_prog_info(struct feat_fd *ff,
-			       struct perf_evlist *evlist __maybe_unused)
+			       struct evlist *evlist __maybe_unused)
 {
 	struct perf_env *env = &ff->ph->env;
 	struct rb_root *root;
@@ -942,14 +962,14 @@ out:
 }
 #else // HAVE_LIBBPF_SUPPORT
 static int write_bpf_prog_info(struct feat_fd *ff __maybe_unused,
-			       struct perf_evlist *evlist __maybe_unused)
+			       struct evlist *evlist __maybe_unused)
 {
 	return 0;
 }
 #endif // HAVE_LIBBPF_SUPPORT
 
 static int write_bpf_btf(struct feat_fd *ff,
-			 struct perf_evlist *evlist __maybe_unused)
+			 struct evlist *evlist __maybe_unused)
 {
 	struct perf_env *env = &ff->ph->env;
 	struct rb_root *root;
@@ -1120,16 +1140,17 @@ static int build_caches(struct cpu_cache_level caches[], u32 size, u32 *cntp)
 	return 0;
 }
 
-#define MAX_CACHES (MAX_NR_CPUS * 4)
+#define MAX_CACHE_LVL 4
 
 static int write_cache(struct feat_fd *ff,
-		       struct perf_evlist *evlist __maybe_unused)
+		       struct evlist *evlist __maybe_unused)
 {
-	struct cpu_cache_level caches[MAX_CACHES];
+	u32 max_caches = cpu__max_cpu() * MAX_CACHE_LVL;
+	struct cpu_cache_level caches[max_caches];
 	u32 cnt = 0, i, version = 1;
 	int ret;
 
-	ret = build_caches(caches, MAX_CACHES, &cnt);
+	ret = build_caches(caches, max_caches, &cnt);
 	if (ret)
 		goto out;
 
@@ -1175,13 +1196,13 @@ out:
 }
 
 static int write_stat(struct feat_fd *ff __maybe_unused,
-		      struct perf_evlist *evlist __maybe_unused)
+		      struct evlist *evlist __maybe_unused)
 {
 	return 0;
 }
 
 static int write_sample_time(struct feat_fd *ff,
-			     struct perf_evlist *evlist)
+			     struct evlist *evlist)
 {
 	int ret;
 
@@ -1315,7 +1336,7 @@ static int build_mem_topology(struct memory_node *nodes, u64 size, u64 *cntp)
  * 48 - bitmap           | bitmap of memory indexes that belongs to node
  */
 static int write_mem_topology(struct feat_fd *ff __maybe_unused,
-			      struct perf_evlist *evlist __maybe_unused)
+			      struct evlist *evlist __maybe_unused)
 {
 	static struct memory_node nodes[MAX_MEMORY_NODES];
 	u64 bsize, version = 1, i, nr;
@@ -1365,7 +1386,7 @@ out:
 }
 
 static int write_compressed(struct feat_fd *ff __maybe_unused,
-			    struct perf_evlist *evlist __maybe_unused)
+			    struct evlist *evlist __maybe_unused)
 {
 	int ret;
 
@@ -1568,14 +1589,14 @@ static void print_bpf_btf(struct feat_fd *ff, FILE *fp)
 	up_read(&env->bpf_progs.lock);
 }
 
-static void free_event_desc(struct perf_evsel *events)
+static void free_event_desc(struct evsel *events)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	if (!events)
 		return;
 
-	for (evsel = events; evsel->attr.size; evsel++) {
+	for (evsel = events; evsel->core.attr.size; evsel++) {
 		zfree(&evsel->name);
 		zfree(&evsel->id);
 	}
@@ -1583,9 +1604,9 @@ static void free_event_desc(struct perf_evsel *events)
 	free(events);
 }
 
-static struct perf_evsel *read_event_desc(struct feat_fd *ff)
+static struct evsel *read_event_desc(struct feat_fd *ff)
 {
-	struct perf_evsel *evsel, *events = NULL;
+	struct evsel *evsel, *events = NULL;
 	u64 *id;
 	void *buf = NULL;
 	u32 nre, sz, nr, i, j;
@@ -1603,12 +1624,12 @@ static struct perf_evsel *read_event_desc(struct feat_fd *ff)
 	if (!buf)
 		goto error;
 
-	/* the last event terminates with evsel->attr.size == 0: */
+	/* the last event terminates with evsel->core.attr.size == 0: */
 	events = calloc(nre + 1, sizeof(*events));
 	if (!events)
 		goto error;
 
-	msz = sizeof(evsel->attr);
+	msz = sizeof(evsel->core.attr);
 	if (sz < msz)
 		msz = sz;
 
@@ -1625,7 +1646,7 @@ static struct perf_evsel *read_event_desc(struct feat_fd *ff)
 		if (ff->ph->needs_swap)
 			perf_event__attr_swap(buf);
 
-		memcpy(&evsel->attr, buf, msz);
+		memcpy(&evsel->core.attr, buf, msz);
 
 		if (do_read_u32(ff, &nr))
 			goto error;
@@ -1669,7 +1690,7 @@ static int __desc_attr__fprintf(FILE *fp, const char *name, const char *val,
 
 static void print_event_desc(struct feat_fd *ff, FILE *fp)
 {
-	struct perf_evsel *evsel, *events;
+	struct evsel *evsel, *events;
 	u32 j;
 	u64 *id;
 
@@ -1683,7 +1704,7 @@ static void print_event_desc(struct feat_fd *ff, FILE *fp)
 		return;
 	}
 
-	for (evsel = events; evsel->attr.size; evsel++) {
+	for (evsel = events; evsel->core.attr.size; evsel++) {
 		fprintf(fp, "# event : name = %s, ", evsel->name);
 
 		if (evsel->ids) {
@@ -1696,7 +1717,7 @@ static void print_event_desc(struct feat_fd *ff, FILE *fp)
 			fprintf(fp, " }");
 		}
 
-		perf_event_attr__fprintf(fp, &evsel->attr, __desc_attr__fprintf, NULL);
+		perf_event_attr__fprintf(fp, &evsel->core.attr, __desc_attr__fprintf, NULL);
 
 		fputc('\n', fp);
 	}
@@ -1804,18 +1825,18 @@ error:
 static void print_group_desc(struct feat_fd *ff, FILE *fp)
 {
 	struct perf_session *session;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	u32 nr = 0;
 
 	session = container_of(ff->ph, struct perf_session, header);
 
 	evlist__for_each_entry(session->evlist, evsel) {
 		if (perf_evsel__is_group_leader(evsel) &&
-		    evsel->nr_members > 1) {
+		    evsel->core.nr_members > 1) {
 			fprintf(fp, "# group: %s{%s", evsel->group_name ?: "",
 				perf_evsel__name(evsel));
 
-			nr = evsel->nr_members - 1;
+			nr = evsel->core.nr_members - 1;
 		} else if (nr) {
 			fprintf(fp, ",%s", perf_evsel__name(evsel));
 
@@ -1876,7 +1897,7 @@ static void print_mem_topology(struct feat_fd *ff, FILE *fp)
 	}
 }
 
-static int __event_process_build_id(struct build_id_event *bev,
+static int __event_process_build_id(struct perf_record_header_build_id *bev,
 				    char *filename,
 				    struct perf_session *session)
 {
@@ -1945,7 +1966,7 @@ static int perf_header__read_build_ids_abi_quirk(struct perf_header *header,
 		u8			   build_id[PERF_ALIGN(BUILD_ID_SIZE, sizeof(u64))];
 		char			   filename[0];
 	} old_bev;
-	struct build_id_event bev;
+	struct perf_record_header_build_id bev;
 	char filename[PATH_MAX];
 	u64 limit = offset + size;
 
@@ -1986,7 +2007,7 @@ static int perf_header__read_build_ids(struct perf_header *header,
 				       int input, u64 offset, u64 size)
 {
 	struct perf_session *session = container_of(header, struct perf_session, header);
-	struct build_id_event bev;
+	struct perf_record_header_build_id bev;
 	char filename[PATH_MAX];
 	u64 limit = offset + size, orig_offset = offset;
 	int err = -1;
@@ -2008,7 +2029,7 @@ static int perf_header__read_build_ids(struct perf_header *header,
 		 *
 		 * "perf: 'perf kvm' tool for monitoring guest performance from host"
 		 *
-		 * Added a field to struct build_id_event that broke the file
+		 * Added a field to struct perf_record_header_build_id that broke the file
 		 * format.
 		 *
 		 * Since the kernel build-id is the first entry, process the
@@ -2089,10 +2110,10 @@ static int process_total_mem(struct feat_fd *ff, void *data __maybe_unused)
 	return 0;
 }
 
-static struct perf_evsel *
-perf_evlist__find_by_index(struct perf_evlist *evlist, int idx)
+static struct evsel *
+perf_evlist__find_by_index(struct evlist *evlist, int idx)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->idx == idx)
@@ -2103,10 +2124,10 @@ perf_evlist__find_by_index(struct perf_evlist *evlist, int idx)
 }
 
 static void
-perf_evlist__set_event_name(struct perf_evlist *evlist,
-			    struct perf_evsel *event)
+perf_evlist__set_event_name(struct evlist *evlist,
+			    struct evsel *event)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	if (!event->name)
 		return;
@@ -2125,7 +2146,7 @@ static int
 process_event_desc(struct feat_fd *ff, void *data __maybe_unused)
 {
 	struct perf_session *session;
-	struct perf_evsel *evsel, *events = read_event_desc(ff);
+	struct evsel *evsel, *events = read_event_desc(ff);
 
 	if (!events)
 		return 0;
@@ -2138,7 +2159,7 @@ process_event_desc(struct feat_fd *ff, void *data __maybe_unused)
 		ff->events = events;
 	}
 
-	for (evsel = events; evsel->attr.size; evsel++)
+	for (evsel = events; evsel->core.attr.size; evsel++)
 		perf_evlist__set_event_name(session->evlist, evsel);
 
 	if (!session->data->is_pipe)
@@ -2251,8 +2272,10 @@ static int process_cpu_topology(struct feat_fd *ff, void *data __maybe_unused)
 	/* On s390 the socket_id number is not related to the numbers of cpus.
 	 * The socket_id number might be higher than the numbers of cpus.
 	 * This depends on the configuration.
+	 * AArch64 is the same.
 	 */
-	if (ph->env.arch && !strncmp(ph->env.arch, "s390", 4))
+	if (ph->env.arch && (!strncmp(ph->env.arch, "s390", 4)
+			  || !strncmp(ph->env.arch, "aarch64", 7)))
 		do_core_id_test = false;
 
 	for (i = 0; i < (u32)cpu_nr; i++) {
@@ -2348,7 +2371,7 @@ static int process_numa_topology(struct feat_fd *ff, void *data __maybe_unused)
 		if (!str)
 			goto error;
 
-		n->map = cpu_map__new(str);
+		n->map = perf_cpu_map__new(str);
 		if (!n->map)
 			goto error;
 
@@ -2415,7 +2438,7 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 	size_t ret = -1;
 	u32 i, nr, nr_groups;
 	struct perf_session *session;
-	struct perf_evsel *evsel, *leader = NULL;
+	struct evsel *evsel, *leader = NULL;
 	struct group_desc {
 		char *name;
 		u32 leader_idx;
@@ -2462,7 +2485,7 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 				evsel->group_name = desc[i].name;
 				desc[i].name = NULL;
 			}
-			evsel->nr_members = desc[i].nr_members;
+			evsel->core.nr_members = desc[i].nr_members;
 
 			if (i >= nr_groups || nr > 0) {
 				pr_debug("invalid group desc\n");
@@ -2470,7 +2493,7 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 			}
 
 			leader = evsel;
-			nr = evsel->nr_members - 1;
+			nr = evsel->core.nr_members - 1;
 			i++;
 		} else if (nr) {
 			/* This is a group member */
@@ -2801,7 +2824,7 @@ static int process_compressed(struct feat_fd *ff,
 }
 
 struct feature_ops {
-	int (*write)(struct feat_fd *ff, struct perf_evlist *evlist);
+	int (*write)(struct feat_fd *ff, struct evlist *evlist);
 	void (*print)(struct feat_fd *ff, FILE *fp);
 	int (*process)(struct feat_fd *ff, void *data);
 	const char *name;
@@ -2946,7 +2969,7 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 
 static int do_write_feat(struct feat_fd *ff, int type,
 			 struct perf_file_section **p,
-			 struct perf_evlist *evlist)
+			 struct evlist *evlist)
 {
 	int err;
 	int ret = 0;
@@ -2976,7 +2999,7 @@ static int do_write_feat(struct feat_fd *ff, int type,
 }
 
 static int perf_header__adds_write(struct perf_header *header,
-				   struct perf_evlist *evlist, int fd)
+				   struct evlist *evlist, int fd)
 {
 	int nr_sections;
 	struct feat_fd ff;
@@ -3044,13 +3067,13 @@ int perf_header__write_pipe(int fd)
 }
 
 int perf_session__write_header(struct perf_session *session,
-			       struct perf_evlist *evlist,
+			       struct evlist *evlist,
 			       int fd, bool at_exit)
 {
 	struct perf_file_header f_header;
 	struct perf_file_attr   f_attr;
 	struct perf_header *header = &session->header;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct feat_fd ff;
 	u64 attr_offset;
 	int err;
@@ -3071,7 +3094,7 @@ int perf_session__write_header(struct perf_session *session,
 
 	evlist__for_each_entry(evlist, evsel) {
 		f_attr = (struct perf_file_attr){
-			.attr = evsel->attr,
+			.attr = evsel->core.attr,
 			.ids  = {
 				.offset = evsel->id_offset,
 				.size   = evsel->ids * sizeof(u64),
@@ -3100,7 +3123,7 @@ int perf_session__write_header(struct perf_session *session,
 		.attr_size = sizeof(f_attr),
 		.attrs = {
 			.offset = attr_offset,
-			.size   = evlist->nr_entries * sizeof(f_attr),
+			.size   = evlist->core.nr_entries * sizeof(f_attr),
 		},
 		.data = {
 			.offset = header->data_offset,
@@ -3479,7 +3502,7 @@ static int read_attr(int fd, struct perf_header *ph,
 	return ret <= 0 ? -1 : 0;
 }
 
-static int perf_evsel__prepare_tracepoint_event(struct perf_evsel *evsel,
+static int perf_evsel__prepare_tracepoint_event(struct evsel *evsel,
 						struct tep_handle *pevent)
 {
 	struct tep_event *event;
@@ -3494,9 +3517,9 @@ static int perf_evsel__prepare_tracepoint_event(struct perf_evsel *evsel,
 		return -1;
 	}
 
-	event = tep_find_event(pevent, evsel->attr.config);
+	event = tep_find_event(pevent, evsel->core.attr.config);
 	if (event == NULL) {
-		pr_debug("cannot find event format for %d\n", (int)evsel->attr.config);
+		pr_debug("cannot find event format for %d\n", (int)evsel->core.attr.config);
 		return -1;
 	}
 
@@ -3511,13 +3534,13 @@ static int perf_evsel__prepare_tracepoint_event(struct perf_evsel *evsel,
 	return 0;
 }
 
-static int perf_evlist__prepare_tracepoint_events(struct perf_evlist *evlist,
+static int perf_evlist__prepare_tracepoint_events(struct evlist *evlist,
 						  struct tep_handle *pevent)
 {
-	struct perf_evsel *pos;
+	struct evsel *pos;
 
 	evlist__for_each_entry(evlist, pos) {
-		if (pos->attr.type == PERF_TYPE_TRACEPOINT &&
+		if (pos->core.attr.type == PERF_TYPE_TRACEPOINT &&
 		    perf_evsel__prepare_tracepoint_event(pos, pevent))
 			return -1;
 	}
@@ -3535,7 +3558,7 @@ int perf_session__read_header(struct perf_session *session)
 	int nr_attrs, nr_ids, i, j;
 	int fd = perf_data__fd(data);
 
-	session->evlist = perf_evlist__new();
+	session->evlist = evlist__new();
 	if (session->evlist == NULL)
 		return -ENOMEM;
 
@@ -3570,7 +3593,7 @@ int perf_session__read_header(struct perf_session *session)
 	lseek(fd, f_header.attrs.offset, SEEK_SET);
 
 	for (i = 0; i < nr_attrs; i++) {
-		struct perf_evsel *evsel;
+		struct evsel *evsel;
 		off_t tmp;
 
 		if (read_attr(fd, header, &f_attr) < 0)
@@ -3583,7 +3606,7 @@ int perf_session__read_header(struct perf_session *session)
 		}
 
 		tmp = lseek(fd, 0, SEEK_CUR);
-		evsel = perf_evsel__new(&f_attr.attr);
+		evsel = evsel__new(&f_attr.attr);
 
 		if (evsel == NULL)
 			goto out_delete_evlist;
@@ -3591,9 +3614,9 @@ int perf_session__read_header(struct perf_session *session)
 		evsel->needs_swap = header->needs_swap;
 		/*
 		 * Do it before so that if perf_evsel__alloc_id fails, this
-		 * entry gets purged too at perf_evlist__delete().
+		 * entry gets purged too at evlist__delete().
 		 */
-		perf_evlist__add(session->evlist, evsel);
+		evlist__add(session->evlist, evsel);
 
 		nr_ids = f_attr.ids.size / sizeof(u64);
 		/*
@@ -3628,7 +3651,7 @@ out_errno:
 	return -errno;
 
 out_delete_evlist:
-	perf_evlist__delete(session->evlist);
+	evlist__delete(session->evlist);
 	session->evlist = NULL;
 	return -ENOMEM;
 }
@@ -3669,12 +3692,12 @@ int perf_event__synthesize_attr(struct perf_tool *tool,
 
 int perf_event__synthesize_features(struct perf_tool *tool,
 				    struct perf_session *session,
-				    struct perf_evlist *evlist,
+				    struct evlist *evlist,
 				    perf_event__handler_t process)
 {
 	struct perf_header *header = &session->header;
 	struct feat_fd ff;
-	struct feature_event *fe;
+	struct perf_record_header_feature *fe;
 	size_t sz, sz_hdr;
 	int feat, ret;
 
@@ -3737,7 +3760,7 @@ int perf_event__process_feature(struct perf_session *session,
 {
 	struct perf_tool *tool = session->tool;
 	struct feat_fd ff = { .fd = 0 };
-	struct feature_event *fe = (struct feature_event *)event;
+	struct perf_record_header_feature *fe = (struct perf_record_header_feature *)event;
 	int type = fe->header.type;
 	u64 feat = fe->feat_id;
 
@@ -3774,10 +3797,10 @@ int perf_event__process_feature(struct perf_session *session,
 	return 0;
 }
 
-static struct event_update_event *
+static struct perf_record_event_update *
 event_update_event__new(size_t size, u64 type, u64 id)
 {
-	struct event_update_event *ev;
+	struct perf_record_event_update *ev;
 
 	size += sizeof(*ev);
 	size  = PERF_ALIGN(size, sizeof(u64));
@@ -3794,10 +3817,10 @@ event_update_event__new(size_t size, u64 type, u64 id)
 
 int
 perf_event__synthesize_event_update_unit(struct perf_tool *tool,
-					 struct perf_evsel *evsel,
+					 struct evsel *evsel,
 					 perf_event__handler_t process)
 {
-	struct event_update_event *ev;
+	struct perf_record_event_update *ev;
 	size_t size = strlen(evsel->unit);
 	int err;
 
@@ -3813,18 +3836,18 @@ perf_event__synthesize_event_update_unit(struct perf_tool *tool,
 
 int
 perf_event__synthesize_event_update_scale(struct perf_tool *tool,
-					  struct perf_evsel *evsel,
+					  struct evsel *evsel,
 					  perf_event__handler_t process)
 {
-	struct event_update_event *ev;
-	struct event_update_event_scale *ev_data;
+	struct perf_record_event_update *ev;
+	struct perf_record_event_update_scale *ev_data;
 	int err;
 
 	ev = event_update_event__new(sizeof(*ev_data), PERF_EVENT_UPDATE__SCALE, evsel->id[0]);
 	if (ev == NULL)
 		return -ENOMEM;
 
-	ev_data = (struct event_update_event_scale *) ev->data;
+	ev_data = (struct perf_record_event_update_scale *)ev->data;
 	ev_data->scale = evsel->scale;
 	err = process(tool, (union perf_event*) ev, NULL, NULL);
 	free(ev);
@@ -3833,10 +3856,10 @@ perf_event__synthesize_event_update_scale(struct perf_tool *tool,
 
 int
 perf_event__synthesize_event_update_name(struct perf_tool *tool,
-					 struct perf_evsel *evsel,
+					 struct evsel *evsel,
 					 perf_event__handler_t process)
 {
-	struct event_update_event *ev;
+	struct perf_record_event_update *ev;
 	size_t len = strlen(evsel->name);
 	int err;
 
@@ -3852,18 +3875,18 @@ perf_event__synthesize_event_update_name(struct perf_tool *tool,
 
 int
 perf_event__synthesize_event_update_cpus(struct perf_tool *tool,
-					struct perf_evsel *evsel,
+					struct evsel *evsel,
 					perf_event__handler_t process)
 {
-	size_t size = sizeof(struct event_update_event);
-	struct event_update_event *ev;
+	size_t size = sizeof(struct perf_record_event_update);
+	struct perf_record_event_update *ev;
 	int max, err;
 	u16 type;
 
-	if (!evsel->own_cpus)
+	if (!evsel->core.own_cpus)
 		return 0;
 
-	ev = cpu_map_data__alloc(evsel->own_cpus, &size, &type, &max);
+	ev = cpu_map_data__alloc(evsel->core.own_cpus, &size, &type, &max);
 	if (!ev)
 		return -ENOMEM;
 
@@ -3872,8 +3895,8 @@ perf_event__synthesize_event_update_cpus(struct perf_tool *tool,
 	ev->type = PERF_EVENT_UPDATE__CPUS;
 	ev->id   = evsel->id[0];
 
-	cpu_map_data__synthesize((struct cpu_map_data *) ev->data,
-				 evsel->own_cpus,
+	cpu_map_data__synthesize((struct perf_record_cpu_map_data *)ev->data,
+				 evsel->core.own_cpus,
 				 type, max);
 
 	err = process(tool, (union perf_event*) ev, NULL, NULL);
@@ -3883,17 +3906,17 @@ perf_event__synthesize_event_update_cpus(struct perf_tool *tool,
 
 size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
 {
-	struct event_update_event *ev = &event->event_update;
-	struct event_update_event_scale *ev_scale;
-	struct event_update_event_cpus *ev_cpus;
-	struct cpu_map *map;
+	struct perf_record_event_update *ev = &event->event_update;
+	struct perf_record_event_update_scale *ev_scale;
+	struct perf_record_event_update_cpus *ev_cpus;
+	struct perf_cpu_map *map;
 	size_t ret;
 
-	ret = fprintf(fp, "\n... id:    %" PRIu64 "\n", ev->id);
+	ret = fprintf(fp, "\n... id:    %" PRI_lu64 "\n", ev->id);
 
 	switch (ev->type) {
 	case PERF_EVENT_UPDATE__SCALE:
-		ev_scale = (struct event_update_event_scale *) ev->data;
+		ev_scale = (struct perf_record_event_update_scale *)ev->data;
 		ret += fprintf(fp, "... scale: %f\n", ev_scale->scale);
 		break;
 	case PERF_EVENT_UPDATE__UNIT:
@@ -3903,7 +3926,7 @@ size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
 		ret += fprintf(fp, "... name:  %s\n", ev->data);
 		break;
 	case PERF_EVENT_UPDATE__CPUS:
-		ev_cpus = (struct event_update_event_cpus *) ev->data;
+		ev_cpus = (struct perf_record_event_update_cpus *)ev->data;
 		ret += fprintf(fp, "... ");
 
 		map = cpu_map__new_data(&ev_cpus->cpus);
@@ -3921,14 +3944,14 @@ size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
 }
 
 int perf_event__synthesize_attrs(struct perf_tool *tool,
-				 struct perf_evlist *evlist,
+				 struct evlist *evlist,
 				 perf_event__handler_t process)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	int err = 0;
 
 	evlist__for_each_entry(evlist, evsel) {
-		err = perf_event__synthesize_attr(tool, &evsel->attr, evsel->ids,
+		err = perf_event__synthesize_attr(tool, &evsel->core.attr, evsel->ids,
 						  evsel->id, process);
 		if (err) {
 			pr_debug("failed to create perf header attribute\n");
@@ -3939,22 +3962,22 @@ int perf_event__synthesize_attrs(struct perf_tool *tool,
 	return err;
 }
 
-static bool has_unit(struct perf_evsel *counter)
+static bool has_unit(struct evsel *counter)
 {
 	return counter->unit && *counter->unit;
 }
 
-static bool has_scale(struct perf_evsel *counter)
+static bool has_scale(struct evsel *counter)
 {
 	return counter->scale != 1;
 }
 
 int perf_event__synthesize_extra_attr(struct perf_tool *tool,
-				      struct perf_evlist *evsel_list,
+				      struct evlist *evsel_list,
 				      perf_event__handler_t process,
 				      bool is_pipe)
 {
-	struct perf_evsel *counter;
+	struct evsel *counter;
 	int err;
 
 	/*
@@ -3984,7 +4007,7 @@ int perf_event__synthesize_extra_attr(struct perf_tool *tool,
 			}
 		}
 
-		if (counter->own_cpus) {
+		if (counter->core.own_cpus) {
 			err = perf_event__synthesize_event_update_cpus(tool, counter, process);
 			if (err < 0) {
 				pr_err("Couldn't synthesize evsel cpus.\n");
@@ -4009,23 +4032,23 @@ int perf_event__synthesize_extra_attr(struct perf_tool *tool,
 
 int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
-			     struct perf_evlist **pevlist)
+			     struct evlist **pevlist)
 {
 	u32 i, ids, n_ids;
-	struct perf_evsel *evsel;
-	struct perf_evlist *evlist = *pevlist;
+	struct evsel *evsel;
+	struct evlist *evlist = *pevlist;
 
 	if (evlist == NULL) {
-		*pevlist = evlist = perf_evlist__new();
+		*pevlist = evlist = evlist__new();
 		if (evlist == NULL)
 			return -ENOMEM;
 	}
 
-	evsel = perf_evsel__new(&event->attr.attr);
+	evsel = evsel__new(&event->attr.attr);
 	if (evsel == NULL)
 		return -ENOMEM;
 
-	perf_evlist__add(evlist, evsel);
+	evlist__add(evlist, evsel);
 
 	ids = event->header.size;
 	ids -= (void *)&event->attr.id - (void *)event;
@@ -4047,14 +4070,14 @@ int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 
 int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 				     union perf_event *event,
-				     struct perf_evlist **pevlist)
+				     struct evlist **pevlist)
 {
-	struct event_update_event *ev = &event->event_update;
-	struct event_update_event_scale *ev_scale;
-	struct event_update_event_cpus *ev_cpus;
-	struct perf_evlist *evlist;
-	struct perf_evsel *evsel;
-	struct cpu_map *map;
+	struct perf_record_event_update *ev = &event->event_update;
+	struct perf_record_event_update_scale *ev_scale;
+	struct perf_record_event_update_cpus *ev_cpus;
+	struct evlist *evlist;
+	struct evsel *evsel;
+	struct perf_cpu_map *map;
 
 	if (!pevlist || *pevlist == NULL)
 		return -EINVAL;
@@ -4073,15 +4096,15 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 		evsel->name = strdup(ev->data);
 		break;
 	case PERF_EVENT_UPDATE__SCALE:
-		ev_scale = (struct event_update_event_scale *) ev->data;
+		ev_scale = (struct perf_record_event_update_scale *)ev->data;
 		evsel->scale = ev_scale->scale;
 		break;
 	case PERF_EVENT_UPDATE__CPUS:
-		ev_cpus = (struct event_update_event_cpus *) ev->data;
+		ev_cpus = (struct perf_record_event_update_cpus *)ev->data;
 
 		map = cpu_map__new_data(&ev_cpus->cpus);
 		if (map)
-			evsel->own_cpus = map;
+			evsel->core.own_cpus = map;
 		else
 			pr_err("failed to get event_update cpus\n");
 	default:
@@ -4092,7 +4115,7 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 }
 
 int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd,
-					struct perf_evlist *evlist,
+					struct evlist *evlist,
 					perf_event__handler_t process)
 {
 	union perf_event ev;
@@ -4112,7 +4135,7 @@ int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd,
 	 * - write the tracing data from the temp file
 	 *   to the pipe
 	 */
-	tdata = tracing_data_get(&evlist->entries, fd, true);
+	tdata = tracing_data_get(&evlist->core.entries, fd, true);
 	if (!tdata)
 		return -1;
 
@@ -4149,7 +4172,7 @@ int perf_event__process_tracing_data(struct perf_session *session,
 	char buf[BUFSIZ];
 
 	/* setup for reading amidst mmap */
-	lseek(fd, offset + sizeof(struct tracing_data_event),
+	lseek(fd, offset + sizeof(struct perf_record_header_tracing_data),
 	      SEEK_SET);
 
 	size_read = trace_report(fd, &session->tevent,

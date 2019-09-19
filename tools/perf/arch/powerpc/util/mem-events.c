@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include "map_symbol.h"
 #include "mem-events.h"
 
 /* PowerPC does not support 'ldlat' parameter. */

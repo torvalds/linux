@@ -379,7 +379,7 @@ static int kcm_parse_func_strparser(struct strparser *strp, struct sk_buff *skb)
 	struct kcm_psock *psock = container_of(strp, struct kcm_psock, strp);
 	struct bpf_prog *prog = psock->bpf_prog;
 
-	return (*prog->bpf_func)(skb, prog->insnsi);
+	return BPF_PROG_RUN(prog, skb);
 }
 
 static int kcm_read_sock_done(struct strparser *strp, int err)
@@ -635,15 +635,15 @@ do_frag_list:
 			frag_offset = 0;
 do_frag:
 			frag = &skb_shinfo(skb)->frags[fragidx];
-			if (WARN_ON(!frag->size)) {
+			if (WARN_ON(!skb_frag_size(frag))) {
 				ret = -EINVAL;
 				goto out;
 			}
 
 			ret = kernel_sendpage(psock->sk->sk_socket,
-					      frag->page.p,
-					      frag->page_offset + frag_offset,
-					      frag->size - frag_offset,
+					      skb_frag_page(frag),
+					      skb_frag_off(frag) + frag_offset,
+					      skb_frag_size(frag) - frag_offset,
 					      MSG_DONTWAIT);
 			if (ret <= 0) {
 				if (ret == -EAGAIN) {
@@ -678,7 +678,7 @@ do_frag:
 			sent += ret;
 			frag_offset += ret;
 			KCM_STATS_ADD(psock->stats.tx_bytes, ret);
-			if (frag_offset < frag->size) {
+			if (frag_offset < skb_frag_size(frag)) {
 				/* Not finished with this frag */
 				goto do_frag;
 			}

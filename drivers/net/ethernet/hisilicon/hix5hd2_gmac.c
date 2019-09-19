@@ -719,7 +719,7 @@ static int hix5hd2_fill_sg_desc(struct hix5hd2_priv *priv,
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		int len = frag->size;
+		int len = skb_frag_size(frag);
 
 		addr = skb_frag_dma_map(priv->dev, frag, 0, len, DMA_TO_DEVICE);
 		ret = dma_mapping_error(priv->dev, addr);

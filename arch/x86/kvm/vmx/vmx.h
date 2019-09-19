@@ -253,7 +253,7 @@ struct vcpu_vmx {
 	struct nested_vmx nested;
 
 	/* Dynamic PLE window. */
-	int ple_window;
+	unsigned int ple_window;
 	bool ple_window_dirty;
 
 	bool req_immediate_exit;

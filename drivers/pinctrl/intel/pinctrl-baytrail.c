@@ -1455,6 +1455,20 @@ static void byt_gpio_irq_handler(struct irq_desc *desc)
 	chip->irq_eoi(data);
 }
 
+static void byt_init_irq_valid_mask(struct gpio_chip *chip,
+				    unsigned long *valid_mask,
+				    unsigned int ngpios)
+{
+	/*
+	 * FIXME: currently the valid_mask is filled in as part of
+	 * initializing the irq_chip below in byt_gpio_irq_init_hw().
+	 * when converting this driver to the new way of passing the
+	 * gpio_irq_chip along when adding the gpio_chip, move the
+	 * mask initialization into this callback instead. Right now
+	 * this callback is here to make sure the mask gets allocated.
+	 */
+}
+
 static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
 {
 	struct gpio_chip *gc = &vg->chip;
@@ -1525,7 +1539,7 @@ static int byt_gpio_probe(struct byt_gpio *vg)
 	gc->can_sleep	= false;
 	gc->parent	= &vg->pdev->dev;
 	gc->ngpio	= vg->soc_data->npins;
-	gc->irq.need_valid_mask	= true;
+	gc->irq.init_valid_mask	= byt_init_irq_valid_mask;
 
 #ifdef CONFIG_PM_SLEEP
 	vg->saved_context = devm_kcalloc(&vg->pdev->dev, gc->ngpio,

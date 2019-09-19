@@ -46,7 +46,7 @@ void hnae3_set_client_init_flag(struct hnae3_client *client,
 EXPORT_SYMBOL(hnae3_set_client_init_flag);
 
 static int hnae3_get_client_init_flag(struct hnae3_client *client,
-				       struct hnae3_ae_dev *ae_dev)
+				      struct hnae3_ae_dev *ae_dev)
 {
 	int inited = 0;
 
@@ -104,7 +104,6 @@ int hnae3_register_client(struct hnae3_client *client)
 {
 	struct hnae3_client *client_tmp;
 	struct hnae3_ae_dev *ae_dev;
-	int ret = 0;
 
 	if (!client)
 		return -ENODEV;
@@ -123,7 +122,7 @@ int hnae3_register_client(struct hnae3_client *client)
 		/* if the client could not be initialized on current port, for
 		 * any error reasons, move on to next available port
 		 */
-		ret = hnae3_init_client_instance(client, ae_dev);
+		int ret = hnae3_init_client_instance(client, ae_dev);
 		if (ret)
 			dev_err(&ae_dev->pdev->dev,
 				"match and instantiation failed for port, ret = %d\n",
@@ -139,12 +138,28 @@ EXPORT_SYMBOL(hnae3_register_client);
 
 void hnae3_unregister_client(struct hnae3_client *client)
 {
+	struct hnae3_client *client_tmp;
 	struct hnae3_ae_dev *ae_dev;
+	bool existed = false;
 
 	if (!client)
 		return;
 
 	mutex_lock(&hnae3_common_lock);
+
+	list_for_each_entry(client_tmp, &hnae3_client_list, node) {
+		if (client_tmp->type == client->type) {
+			existed = true;
+			break;
+		}
+	}
+
+	if (!existed) {
+		mutex_unlock(&hnae3_common_lock);
+		pr_err("client %s does not exist!\n", client->name);
+		return;
+	}
+
 	/* un-initialize the client on every matched port */
 	list_for_each_entry(ae_dev, &hnae3_ae_dev_list, node) {
 		hnae3_uninit_client_instance(client, ae_dev);
@@ -164,7 +179,7 @@ void hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo)
 	const struct pci_device_id *id;
 	struct hnae3_ae_dev *ae_dev;
 	struct hnae3_client *client;
-	int ret = 0;
+	int ret;
 
 	if (!ae_algo)
 		return;
@@ -258,7 +273,7 @@ int hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 	const struct pci_device_id *id;
 	struct hnae3_ae_algo *ae_algo;
 	struct hnae3_client *client;
-	int ret = 0;
+	int ret;
 
 	if (!ae_dev)
 		return -ENODEV;

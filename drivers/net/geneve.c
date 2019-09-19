@@ -1345,7 +1345,7 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 		info->key.u.ipv4.dst =
 			nla_get_in_addr(data[IFLA_GENEVE_REMOTE]);
 
-		if (IN_MULTICAST(ntohl(info->key.u.ipv4.dst))) {
+		if (ipv4_is_multicast(info->key.u.ipv4.dst)) {
 			NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_REMOTE],
 					    "Remote IPv4 address cannot be Multicast");
 			return -EINVAL;

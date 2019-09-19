@@ -128,6 +128,9 @@ struct netns_sctp {
 	/* Flag to indicate if stream interleave is enabled */
 	int intl_enable;
 
+	/* Flag to indicate if ecn is enabled */
+	int ecn_enable;
+
 	/*
 	 * Policy to control SCTP IPv4 address scoping
 	 * 0   - Disable IPv4 address scoping

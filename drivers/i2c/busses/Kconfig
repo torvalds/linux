@@ -684,7 +684,7 @@ config I2C_IMX_LPI2C
 
 config I2C_IOP3XX
 	tristate "Intel IOPx3xx and IXP4xx on-chip I2C interface"
-	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX || ARCH_IOP13XX
+	depends on ARCH_IOP32X || ARCH_IXP4XX
 	help
 	  Say Y here if you want to use the IIC bus controller on
 	  the Intel IOPx3xx I/O Processors or IXP4xx Network Processors.
@@ -1206,7 +1206,7 @@ config I2C_PARPORT
 	  and makes it easier to add support for new devices.
 
 	  An adapter type parameter is now mandatory.  Please read the file
-	  Documentation/i2c/busses/i2c-parport for details.
+	  Documentation/i2c/busses/i2c-parport.rst for details.
 
 	  Another driver exists, named i2c-parport-light, which doesn't depend
 	  on the parport driver.  This is meant for embedded systems. Don't say

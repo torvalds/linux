@@ -22,11 +22,6 @@
 #include "pidfd.h"
 #include "../kselftest.h"
 
-static inline int sys_pidfd_open(pid_t pid, unsigned int flags)
-{
-	return syscall(__NR_pidfd_open, pid, flags);
-}
-
 static int safe_int(const char *numstr, int *converted)
 {
 	char *err = NULL;

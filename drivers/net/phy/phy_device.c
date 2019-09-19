@@ -1564,24 +1564,20 @@ EXPORT_SYMBOL(phy_reset_after_clk_enable);
  */
 static int genphy_config_advert(struct phy_device *phydev)
 {
-	u32 advertise;
-	int bmsr, adv;
-	int err, changed = 0;
+	int err, bmsr, changed = 0;
+	u32 adv;
 
 	/* Only allow advertising what this PHY supports */
 	linkmode_and(phydev->advertising, phydev->advertising,
 		     phydev->supported);
-	if (!ethtool_convert_link_mode_to_legacy_u32(&advertise,
-						     phydev->advertising))
-		phydev_warn(phydev, "PHY advertising (%*pb) more modes than genphy supports, some modes not advertised.\n",
-			    __ETHTOOL_LINK_MODE_MASK_NBITS,
-			    phydev->advertising);
+
+	adv = linkmode_adv_to_mii_adv_t(phydev->advertising);
 
 	/* Setup standard advertisement */
 	err = phy_modify_changed(phydev, MII_ADVERTISE,
 				 ADVERTISE_ALL | ADVERTISE_100BASE4 |
 				 ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM,
-				 ethtool_adv_to_mii_adv_t(advertise));
+				 adv);
 	if (err < 0)
 		return err;
 	if (err > 0)
@@ -1598,13 +1594,7 @@ static int genphy_config_advert(struct phy_device *phydev)
 	if (!(bmsr & BMSR_ESTATEN))
 		return changed;
 
-	/* Configure gigabit if it's supported */
-	adv = 0;
-	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-			      phydev->supported) ||
-	    linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-			      phydev->supported))
-		adv = ethtool_adv_to_mii_ctrl1000_t(advertise);
+	adv = linkmode_adv_to_mii_ctrl1000_t(phydev->advertising);
 
 	err = phy_modify_changed(phydev, MII_CTRL1000,
 				 ADVERTISE_1000FULL | ADVERTISE_1000HALF,
@@ -1681,18 +1671,20 @@ int genphy_restart_aneg(struct phy_device *phydev)
 EXPORT_SYMBOL(genphy_restart_aneg);
 
 /**
- * genphy_config_aneg - restart auto-negotiation or write BMCR
+ * __genphy_config_aneg - restart auto-negotiation or write BMCR
  * @phydev: target phy_device struct
+ * @changed: whether autoneg is requested
  *
  * Description: If auto-negotiation is enabled, we configure the
  *   advertising, and then restart auto-negotiation.  If it is not
  *   enabled, then we write the BMCR.
  */
-int genphy_config_aneg(struct phy_device *phydev)
+int __genphy_config_aneg(struct phy_device *phydev, bool changed)
 {
-	int err, changed;
+	int err;
 
-	changed = genphy_config_eee_advert(phydev);
+	if (genphy_config_eee_advert(phydev))
+		changed = true;
 
 	if (AUTONEG_ENABLE != phydev->autoneg)
 		return genphy_setup_forced(phydev);
@@ -1700,10 +1692,10 @@ int genphy_config_aneg(struct phy_device *phydev)
 	err = genphy_config_advert(phydev);
 	if (err < 0) /* error */
 		return err;
+	else if (err)
+		changed = true;
 
-	changed |= err;
-
-	if (changed == 0) {
+	if (!changed) {
 		/* Advertisement hasn't changed, but maybe aneg was never on to
 		 * begin with?  Or maybe phy was isolated?
 		 */
@@ -1713,18 +1705,15 @@ int genphy_config_aneg(struct phy_device *phydev)
 			return ctl;
 
 		if (!(ctl & BMCR_ANENABLE) || (ctl & BMCR_ISOLATE))
-			changed = 1; /* do restart aneg */
+			changed = true; /* do restart aneg */
 	}
 
 	/* Only restart aneg if we are advertising something different
 	 * than we were before.
 	 */
-	if (changed > 0)
-		return genphy_restart_aneg(phydev);
-
-	return 0;
+	return changed ? genphy_restart_aneg(phydev) : 0;
 }
-EXPORT_SYMBOL(genphy_config_aneg);
+EXPORT_SYMBOL(__genphy_config_aneg);
 
 /**
  * genphy_aneg_done - return auto-negotiation status
@@ -1805,7 +1794,7 @@ EXPORT_SYMBOL(genphy_update_link);
  */
 int genphy_read_status(struct phy_device *phydev)
 {
-	int adv, lpa, lpagb, err, old_link = phydev->link;
+	int lpa, lpagb, err, old_link = phydev->link;
 
 	/* Update the link, but return if there was an error */
 	err = genphy_update_link(phydev);
@@ -1821,19 +1810,18 @@ int genphy_read_status(struct phy_device *phydev)
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
-	linkmode_zero(phydev->lp_advertising);
-
 	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete) {
 		if (phydev->is_gigabit_capable) {
 			lpagb = phy_read(phydev, MII_STAT1000);
 			if (lpagb < 0)
 				return lpagb;
 
-			adv = phy_read(phydev, MII_CTRL1000);
-			if (adv < 0)
-				return adv;
-
 			if (lpagb & LPA_1000MSFAIL) {
+				int adv = phy_read(phydev, MII_CTRL1000);
+
+				if (adv < 0)
+					return adv;
+
 				if (adv & CTL1000_ENABLE_MASTER)
 					phydev_err(phydev, "Master/Slave resolution failed, maybe conflicting manual settings?\n");
 				else
@@ -1906,57 +1894,6 @@ int genphy_soft_reset(struct phy_device *phydev)
 	return ret;
 }
 EXPORT_SYMBOL(genphy_soft_reset);
-
-int genphy_config_init(struct phy_device *phydev)
-{
-	int val;
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(features) = { 0, };
-
-	linkmode_set_bit_array(phy_basic_ports_array,
-			       ARRAY_SIZE(phy_basic_ports_array),
-			       features);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, features);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, features);
-
-	/* Do we support autonegotiation? */
-	val = phy_read(phydev, MII_BMSR);
-	if (val < 0)
-		return val;
-
-	if (val & BMSR_ANEGCAPABLE)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, features);
-
-	if (val & BMSR_100FULL)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, features);
-	if (val & BMSR_100HALF)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, features);
-	if (val & BMSR_10FULL)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, features);
-	if (val & BMSR_10HALF)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, features);
-
-	if (val & BMSR_ESTATEN) {
-		val = phy_read(phydev, MII_ESTATUS);
-		if (val < 0)
-			return val;
-
-		if (val & ESTATUS_1000_TFULL)
-			linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-					 features);
-		if (val & ESTATUS_1000_THALF)
-			linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-					 features);
-		if (val & ESTATUS_1000_XFULL)
-			linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
-					 features);
-	}
-
-	linkmode_and(phydev->supported, phydev->supported, features);
-	linkmode_and(phydev->advertising, phydev->advertising, features);
-
-	return 0;
-}
-EXPORT_SYMBOL(genphy_config_init);
 
 /**
  * genphy_read_abilities - read PHY abilities from Clause 22 registers

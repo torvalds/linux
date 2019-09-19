@@ -1108,10 +1108,8 @@ static int twl6040_probe(struct snd_soc_component *component)
 	priv->component = component;
 
 	priv->plug_irq = platform_get_irq(pdev, 0);
-	if (priv->plug_irq < 0) {
-		dev_err(component->dev, "invalid irq: %d\n", priv->plug_irq);
+	if (priv->plug_irq < 0)
 		return priv->plug_irq;
-	}
 
 	INIT_DELAYED_WORK(&priv->hs_jack.work, twl6040_accessory_work);
 

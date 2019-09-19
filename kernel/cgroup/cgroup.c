@@ -488,7 +488,7 @@ static struct cgroup_subsys_state *cgroup_tryget_css(struct cgroup *cgrp,
 
 	rcu_read_lock();
 	css = cgroup_css(cgrp, ss);
-	if (!css || !css_tryget_online(css))
+	if (css && !css_tryget_online(css))
 		css = NULL;
 	rcu_read_unlock();
 
@@ -1891,7 +1891,7 @@ static int cgroup_reconfigure(struct fs_context *fc)
  */
 static bool use_task_css_set_links __read_mostly;
 
-static void cgroup_enable_task_cg_lists(void)
+void cgroup_enable_task_cg_lists(void)
 {
 	struct task_struct *p, *g;
 
@@ -2894,7 +2894,7 @@ static void cgroup_print_ss_mask(struct seq_file *seq, u16 ss_mask)
 	do_each_subsys_mask(ss, ssid, ss_mask) {
 		if (printed)
 			seq_putc(seq, ' ');
-		seq_printf(seq, "%s", ss->name);
+		seq_puts(seq, ss->name);
 		printed = true;
 	} while_each_subsys_mask();
 	if (printed)

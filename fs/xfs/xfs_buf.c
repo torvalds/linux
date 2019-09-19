@@ -353,7 +353,8 @@ xfs_buf_allocate_memory(
 	 */
 	size = BBTOB(bp->b_length);
 	if (size < PAGE_SIZE) {
-		bp->b_addr = kmem_alloc(size, KM_NOFS);
+		int align_mask = xfs_buftarg_dma_alignment(bp->b_target);
+		bp->b_addr = kmem_alloc_io(size, align_mask, KM_NOFS);
 		if (!bp->b_addr) {
 			/* low memory - use alloc_page loop instead */
 			goto use_alloc_page;
@@ -368,7 +369,7 @@ xfs_buf_allocate_memory(
 		}
 		bp->b_offset = offset_in_page(bp->b_addr);
 		bp->b_pages = bp->b_page_array;
-		bp->b_pages[0] = virt_to_page(bp->b_addr);
+		bp->b_pages[0] = kmem_to_page(bp->b_addr);
 		bp->b_page_count = 1;
 		bp->b_flags |= _XBF_KMEM;
 		return 0;
@@ -1741,7 +1742,7 @@ xfs_alloc_buftarg(
 {
 	xfs_buftarg_t		*btp;
 
-	btp = kmem_zalloc(sizeof(*btp), KM_SLEEP | KM_NOFS);
+	btp = kmem_zalloc(sizeof(*btp), KM_NOFS);
 
 	btp->bt_mount = mp;
 	btp->bt_dev =  bdev->bd_dev;

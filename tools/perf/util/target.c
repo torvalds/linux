@@ -10,8 +10,11 @@
 #include "debug.h"
 
 #include <pwd.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
 
 enum target_errno target__validate(struct target *target)
 {

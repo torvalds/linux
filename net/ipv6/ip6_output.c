@@ -1294,6 +1294,7 @@ static int ip6_setup_cork(struct sock *sk, struct inet_cork_full *cork,
 	cork->base.fragsize = mtu;
 	cork->base.gso_size = ipc6->gso_size;
 	cork->base.tx_flags = 0;
+	cork->base.mark = ipc6->sockc.mark;
 	sock_tx_timestamp(sk, ipc6->sockc.tsflags, &cork->base.tx_flags);
 
 	if (dst_allfrag(xfrm_dst_path(&rt->dst)))
@@ -1764,7 +1765,7 @@ struct sk_buff *__ip6_make_skb(struct sock *sk,
 	hdr->daddr = *final_dst;
 
 	skb->priority = sk->sk_priority;
-	skb->mark = sk->sk_mark;
+	skb->mark = cork->base.mark;
 
 	skb->tstamp = cork->base.transmit_time;
 

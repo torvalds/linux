@@ -21,13 +21,10 @@
 #define RATE_COUNT 4
 
 /*  combo scan */
-#define WEXT_CSCAN_AMOUNT 9
-#define WEXT_CSCAN_BUF_LEN		360
 #define WEXT_CSCAN_HEADER		"CSCAN S\x01\x00\x00S\x00"
 #define WEXT_CSCAN_HEADER_SIZE		12
 #define WEXT_CSCAN_SSID_SECTION		'S'
 #define WEXT_CSCAN_CHANNEL_SECTION	'C'
-#define WEXT_CSCAN_NPROBE_SECTION	'N'
 #define WEXT_CSCAN_ACTV_DWELL_SECTION	'A'
 #define WEXT_CSCAN_PASV_DWELL_SECTION	'P'
 #define WEXT_CSCAN_HOME_DWELL_SECTION	'H'
@@ -215,8 +212,6 @@ static char *translate_scan(struct adapter *padapter,
 	} else if (ht_cap) {
 		if (mcs_rate&0x8000) { /* MCS15 */
 			max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
-		} else if (mcs_rate&0x0080) { /* MCS7 */
-			max_rate = (bw_40MHz) ? ((short_GI)?150:135):((short_GI)?72:65);
 		} else { /* default MCS7 */
 			/* DBG_871X("wx_get_scan, mcs_rate_bitmap = 0x%x\n", mcs_rate); */
 			max_rate = (bw_40MHz) ? ((short_GI)?150:135):((short_GI)?72:65);
@@ -4912,7 +4907,6 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 	s32 k;
 	const iw_handler *priv;		/* Private ioctl */
 	const struct iw_priv_args *priv_args;	/* Private ioctl description */
-	u32 num_priv;				/* Number of ioctl */
 	u32 num_priv_args;			/* Number of descriptions */
 	iw_handler handler;
 	int temp;
@@ -4948,7 +4942,6 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 
 	priv = rtw_private_handler;
 	priv_args = rtw_private_args;
-	num_priv = ARRAY_SIZE(rtw_private_handler);
 	num_priv_args = ARRAY_SIZE(rtw_private_args);
 
 	if (num_priv_args == 0) {

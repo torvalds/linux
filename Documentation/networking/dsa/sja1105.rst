@@ -146,6 +146,96 @@ enslaves eth0 and eth1 (the DSA master of the switch ports). This is because in
 this mode, the switch ports beneath br0 are not capable of regular traffic, and
 are only used as a conduit for switchdev operations.
 
+Offloads
+========
+
+Time-aware scheduling
+---------------------
+
+The switch supports a variation of the enhancements for scheduled traffic
+specified in IEEE 802.1Q-2018 (formerly 802.1Qbv). This means it can be used to
+ensure deterministic latency for priority traffic that is sent in-band with its
+gate-open event in the network schedule.
+
+This capability can be managed through the tc-taprio offload ('flags 2'). The
+difference compared to the software implementation of taprio is that the latter
+would only be able to shape traffic originated from the CPU, but not
+autonomously forwarded flows.
+
+The device has 8 traffic classes, and maps incoming frames to one of them based
+on the VLAN PCP bits (if no VLAN is present, the port-based default is used).
+As described in the previous sections, depending on the value of
+``vlan_filtering``, the EtherType recognized by the switch as being VLAN can
+either be the typical 0x8100 or a custom value used internally by the driver
+for tagging. Therefore, the switch ignores the VLAN PCP if used in standalone
+or bridge mode with ``vlan_filtering=0``, as it will not recognize the 0x8100
+EtherType. In these modes, injecting into a particular TX queue can only be
+done by the DSA net devices, which populate the PCP field of the tagging header
+on egress. Using ``vlan_filtering=1``, the behavior is the other way around:
+offloaded flows can be steered to TX queues based on the VLAN PCP, but the DSA
+net devices are no longer able to do that. To inject frames into a hardware TX
+queue with VLAN awareness active, it is necessary to create a VLAN
+sub-interface on the DSA master port, and send normal (0x8100) VLAN-tagged
+towards the switch, with the VLAN PCP bits set appropriately.
+
+Management traffic (having DMAC 01-80-C2-xx-xx-xx or 01-19-1B-xx-xx-xx) is the
+notable exception: the switch always treats it with a fixed priority and
+disregards any VLAN PCP bits even if present. The traffic class for management
+traffic has a value of 7 (highest priority) at the moment, which is not
+configurable in the driver.
+
+Below is an example of configuring a 500 us cyclic schedule on egress port
+``swp5``. The traffic class gate for management traffic (7) is open for 100 us,
+and the gates for all other traffic classes are open for 400 us::
+
+  #!/bin/bash
+
+  set -e -u -o pipefail
+
+  NSEC_PER_SEC="1000000000"
+
+  gatemask() {
+          local tc_list="$1"
+          local mask=0
+
+          for tc in ${tc_list}; do
+                  mask=$((${mask} | (1 << ${tc})))
+          done
+
+          printf "%02x" ${mask}
+  }
+
+  if ! systemctl is-active --quiet ptp4l; then
+          echo "Please start the ptp4l service"
+          exit
+  fi
+
+  now=$(phc_ctl /dev/ptp1 get | gawk '/clock time is/ { print $5; }')
+  # Phase-align the base time to the start of the next second.
+  sec=$(echo "${now}" | gawk -F. '{ print $1; }')
+  base_time="$(((${sec} + 1) * ${NSEC_PER_SEC}))"
+
+  tc qdisc add dev swp5 parent root handle 100 taprio \
+          num_tc 8 \
+          map 0 1 2 3 5 6 7 \
+          queues 1@0 1@1 1@2 1@3 1@4 1@5 1@6 1@7 \
+          base-time ${base_time} \
+          sched-entry S $(gatemask 7) 100000 \
+          sched-entry S $(gatemask "0 1 2 3 4 5 6") 400000 \
+          flags 2
+
+It is possible to apply the tc-taprio offload on multiple egress ports. There
+are hardware restrictions related to the fact that no gate event may trigger
+simultaneously on two ports. The driver checks the consistency of the schedules
+against this restriction and errors out when appropriate. Schedule analysis is
+needed to avoid this, which is outside the scope of the document.
+
+At the moment, the time-aware scheduler can only be triggered based on a
+standalone clock and not based on PTP time. This means the base-time argument
+from tc-taprio is ignored and the schedule starts right away. It also means it
+is more difficult to phase-align the scheduler with the other devices in the
+network.
+
 Device Tree bindings and board design
 =====================================
 

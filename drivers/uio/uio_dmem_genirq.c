@@ -200,10 +200,8 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 
 	if (!uioinfo->irq) {
 		ret = platform_get_irq(pdev, 0);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to get IRQ\n");
+		if (ret < 0)
 			goto bad1;
-		}
 		uioinfo->irq = ret;
 	}
 	uiomem = &uioinfo->mem[0];

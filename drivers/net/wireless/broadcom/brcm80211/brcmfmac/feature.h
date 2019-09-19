@@ -25,6 +25,7 @@
  * MONITOR: firmware can pass monitor packets to host.
  * MONITOR_FMT_RADIOTAP: firmware provides monitor packets with radiotap header
  * MONITOR_FMT_HW_RX_HDR: firmware provides monitor packets with hw/ucode header
+ * DOT11H: firmware supports 802.11h
  */
 #define BRCMF_FEAT_LIST \
 	BRCMF_FEAT_DEF(MBSS) \
@@ -43,7 +44,8 @@
 	BRCMF_FEAT_DEF(FWSUP) \
 	BRCMF_FEAT_DEF(MONITOR) \
 	BRCMF_FEAT_DEF(MONITOR_FMT_RADIOTAP) \
-	BRCMF_FEAT_DEF(MONITOR_FMT_HW_RX_HDR)
+	BRCMF_FEAT_DEF(MONITOR_FMT_HW_RX_HDR) \
+	BRCMF_FEAT_DEF(DOT11H)
 
 /*
  * Quirks:

@@ -27,7 +27,7 @@ struct numa_node {
 	u32		 node;
 	u64		 mem_total;
 	u64		 mem_free;
-	struct cpu_map	*map;
+	struct perf_cpu_map	*map;
 };
 
 struct memory_node {

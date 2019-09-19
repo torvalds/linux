@@ -181,7 +181,7 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		if (addr_len < sizeof(struct sockaddr_in) ||
 		    sin->sin_addr.s_addr == htonl(INADDR_ANY) ||
 		    sin->sin_addr.s_addr == htonl(INADDR_BROADCAST) ||
-		    IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
+		    ipv4_is_multicast(sin->sin_addr.s_addr))
 			return -EINVAL;
 		ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &v6addr);
 		binding_addr = &v6addr;
@@ -206,7 +206,7 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 			addr4 = sin6->sin6_addr.s6_addr32[3];
 			if (addr4 == htonl(INADDR_ANY) ||
 			    addr4 == htonl(INADDR_BROADCAST) ||
-			    IN_MULTICAST(ntohl(addr4)))
+			    ipv4_is_multicast(addr4))
 				return -EINVAL;
 		}
 		/* The scope ID must be specified for link local address. */

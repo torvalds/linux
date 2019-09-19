@@ -73,7 +73,7 @@ static int psample_nl_cmd_get_group_dumpit(struct sk_buff *msg,
 	int idx = 0;
 	int err;
 
-	spin_lock(&psample_groups_lock);
+	spin_lock_bh(&psample_groups_lock);
 	list_for_each_entry(group, &psample_groups_list, list) {
 		if (!net_eq(group->net, sock_net(msg->sk)))
 			continue;
@@ -89,7 +89,7 @@ static int psample_nl_cmd_get_group_dumpit(struct sk_buff *msg,
 		idx++;
 	}
 
-	spin_unlock(&psample_groups_lock);
+	spin_unlock_bh(&psample_groups_lock);
 	cb->args[0] = idx;
 	return msg->len;
 }
@@ -172,7 +172,7 @@ struct psample_group *psample_group_get(struct net *net, u32 group_num)
 {
 	struct psample_group *group;
 
-	spin_lock(&psample_groups_lock);
+	spin_lock_bh(&psample_groups_lock);
 
 	group = psample_group_lookup(net, group_num);
 	if (!group) {
@@ -183,19 +183,27 @@ struct psample_group *psample_group_get(struct net *net, u32 group_num)
 	group->refcount++;
 
 out:
-	spin_unlock(&psample_groups_lock);
+	spin_unlock_bh(&psample_groups_lock);
 	return group;
 }
 EXPORT_SYMBOL_GPL(psample_group_get);
 
+void psample_group_take(struct psample_group *group)
+{
+	spin_lock_bh(&psample_groups_lock);
+	group->refcount++;
+	spin_unlock_bh(&psample_groups_lock);
+}
+EXPORT_SYMBOL_GPL(psample_group_take);
+
 void psample_group_put(struct psample_group *group)
 {
-	spin_lock(&psample_groups_lock);
+	spin_lock_bh(&psample_groups_lock);
 
 	if (--group->refcount == 0)
 		psample_group_destroy(group);
 
-	spin_unlock(&psample_groups_lock);
+	spin_unlock_bh(&psample_groups_lock);
 }
 EXPORT_SYMBOL_GPL(psample_group_put);
 

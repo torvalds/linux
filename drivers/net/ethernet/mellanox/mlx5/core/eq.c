@@ -215,11 +215,7 @@ static int mlx5_eq_async_int(struct notifier_block *nb,
 		 */
 		dma_rmb();
 
-		if (likely(eqe->type < MLX5_EVENT_TYPE_MAX))
-			atomic_notifier_call_chain(&eqt->nh[eqe->type], eqe->type, eqe);
-		else
-			mlx5_core_warn_once(dev, "notifier_call_chain is not setup for eqe: %d\n", eqe->type);
-
+		atomic_notifier_call_chain(&eqt->nh[eqe->type], eqe->type, eqe);
 		atomic_notifier_call_chain(&eqt->nh[MLX5_EVENT_TYPE_NOTIFY_ANY], eqe->type, eqe);
 
 		++eq->cons_index;
@@ -328,10 +324,13 @@ err_buf:
 
 /**
  * mlx5_eq_enable - Enable EQ for receiving EQEs
- * @dev - Device which owns the eq
- * @eq - EQ to enable
- * @nb - notifier call block
- * mlx5_eq_enable - must be called after EQ is created in device.
+ * @dev : Device which owns the eq
+ * @eq  : EQ to enable
+ * @nb  : Notifier call block
+ *
+ * Must be called after EQ is created in device.
+ *
+ * @return: 0 if no error
  */
 int mlx5_eq_enable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 		   struct notifier_block *nb)
@@ -348,11 +347,12 @@ int mlx5_eq_enable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 EXPORT_SYMBOL(mlx5_eq_enable);
 
 /**
- * mlx5_eq_disable - Enable EQ for receiving EQEs
- * @dev - Device which owns the eq
- * @eq - EQ to disable
- * @nb - notifier call block
- * mlx5_eq_disable - must be called before EQ is destroyed.
+ * mlx5_eq_disable - Disable EQ for receiving EQEs
+ * @dev : Device which owns the eq
+ * @eq  : EQ to disable
+ * @nb  : Notifier call block
+ *
+ * Must be called before EQ is destroyed.
  */
 void mlx5_eq_disable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 		     struct notifier_block *nb)
@@ -415,7 +415,7 @@ void mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq)
 int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *eq_table;
-	int i, err;
+	int i;
 
 	eq_table = kvzalloc(sizeof(*eq_table), GFP_KERNEL);
 	if (!eq_table)
@@ -423,9 +423,7 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 
 	dev->priv.eq_table = eq_table;
 
-	err = mlx5_eq_debugfs_init(dev);
-	if (err)
-		goto kvfree_eq_table;
+	mlx5_eq_debugfs_init(dev);
 
 	mutex_init(&eq_table->lock);
 	for (i = 0; i < MLX5_EVENT_TYPE_MAX; i++)
@@ -433,11 +431,6 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 
 	eq_table->irq_table = dev->priv.irq_table;
 	return 0;
-
-kvfree_eq_table:
-	kvfree(eq_table);
-	dev->priv.eq_table = NULL;
-	return err;
 }
 
 void mlx5_eq_table_cleanup(struct mlx5_core_dev *dev)
@@ -945,9 +938,6 @@ int mlx5_eq_notifier_register(struct mlx5_core_dev *dev, struct mlx5_nb *nb)
 {
 	struct mlx5_eq_table *eqt = dev->priv.eq_table;
 
-	if (nb->event_type >= MLX5_EVENT_TYPE_MAX)
-		return -EINVAL;
-
 	return atomic_notifier_chain_register(&eqt->nh[nb->event_type], &nb->nb);
 }
 EXPORT_SYMBOL(mlx5_eq_notifier_register);
@@ -955,9 +945,6 @@ EXPORT_SYMBOL(mlx5_eq_notifier_register);
 int mlx5_eq_notifier_unregister(struct mlx5_core_dev *dev, struct mlx5_nb *nb)
 {
 	struct mlx5_eq_table *eqt = dev->priv.eq_table;
-
-	if (nb->event_type >= MLX5_EVENT_TYPE_MAX)
-		return -EINVAL;
 
 	return atomic_notifier_chain_unregister(&eqt->nh[nb->event_type], &nb->nb);
 }

@@ -86,7 +86,7 @@ EXPORT_SYMBOL_GPL(gb_audio_manager_remove);
 void gb_audio_manager_remove_all(void)
 {
 	struct gb_audio_manager_module *module, *next;
-	int is_empty = 1;
+	int is_empty;
 
 	down_write(&modules_rwsem);
 

@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
 #include <linux/bitmap.h>
+#include <linux/kernel.h>
 #include <linux/zalloc.h>
+#include <perf/cpumap.h>
 #include "cpumap.h"
+#include "debug.h"
+#include "env.h"
 #include "mem2node.h"
 #include "tests.h"
 
@@ -19,7 +23,7 @@ static struct node {
 
 static unsigned long *get_bitmap(const char *str, int nbits)
 {
-	struct cpu_map *map = cpu_map__new(str);
+	struct perf_cpu_map *map = perf_cpu_map__new(str);
 	unsigned long *bm = NULL;
 	int i;
 
@@ -32,7 +36,7 @@ static unsigned long *get_bitmap(const char *str, int nbits)
 	}
 
 	if (map)
-		cpu_map__put(map);
+		perf_cpu_map__put(map);
 	else
 		free(bm);
 

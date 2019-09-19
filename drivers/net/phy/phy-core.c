@@ -207,19 +207,24 @@ size_t phy_speeds(unsigned int *speeds, size_t size,
 	return count;
 }
 
-static int __set_phy_supported(struct phy_device *phydev, u32 max_speed)
+static int __set_linkmode_max_speed(u32 max_speed, unsigned long *addr)
 {
 	const struct phy_setting *p;
 	int i;
 
 	for (i = 0, p = settings; i < ARRAY_SIZE(settings); i++, p++) {
 		if (p->speed > max_speed)
-			linkmode_clear_bit(p->bit, phydev->supported);
+			linkmode_clear_bit(p->bit, addr);
 		else
 			break;
 	}
 
 	return 0;
+}
+
+static int __set_phy_supported(struct phy_device *phydev, u32 max_speed)
+{
+	return __set_linkmode_max_speed(max_speed, phydev->supported);
 }
 
 int phy_set_max_speed(struct phy_device *phydev, u32 max_speed)
@@ -309,6 +314,34 @@ void phy_resolve_aneg_linkmode(struct phy_device *phydev)
 	}
 }
 EXPORT_SYMBOL_GPL(phy_resolve_aneg_linkmode);
+
+static int phy_resolve_min_speed(struct phy_device *phydev, bool fdx_only)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
+	int i = ARRAY_SIZE(settings);
+
+	linkmode_and(common, phydev->lp_advertising, phydev->advertising);
+
+	while (--i >= 0) {
+		if (test_bit(settings[i].bit, common)) {
+			if (fdx_only && settings[i].duplex != DUPLEX_FULL)
+				continue;
+			return settings[i].speed;
+		}
+	}
+
+	return SPEED_UNKNOWN;
+}
+
+int phy_speed_down_core(struct phy_device *phydev)
+{
+	int min_common_speed = phy_resolve_min_speed(phydev, true);
+
+	if (min_common_speed == SPEED_UNKNOWN)
+		return -EINVAL;
+
+	return __set_linkmode_max_speed(min_common_speed, phydev->advertising);
+}
 
 static void mmd_phy_indirect(struct mii_bus *bus, int phy_addr, int devad,
 			     u16 regnum)
@@ -783,6 +816,29 @@ int phy_write_paged(struct phy_device *phydev, int page, u32 regnum, u16 val)
 EXPORT_SYMBOL(phy_write_paged);
 
 /**
+ * phy_modify_paged_changed() - Function for modifying a paged register
+ * @phydev: a pointer to a &struct phy_device
+ * @page: the page for the phy
+ * @regnum: register number
+ * @mask: bit mask of bits to clear
+ * @set: bit mask of bits to set
+ *
+ * Returns negative errno, 0 if there was no change, and 1 in case of change
+ */
+int phy_modify_paged_changed(struct phy_device *phydev, int page, u32 regnum,
+			     u16 mask, u16 set)
+{
+	int ret = 0, oldpage;
+
+	oldpage = phy_select_page(phydev, page);
+	if (oldpage >= 0)
+		ret = __phy_modify_changed(phydev, regnum, mask, set);
+
+	return phy_restore_page(phydev, oldpage, ret);
+}
+EXPORT_SYMBOL(phy_modify_paged_changed);
+
+/**
  * phy_modify_paged() - Convenience function for modifying a paged register
  * @phydev: a pointer to a &struct phy_device
  * @page: the page for the phy
@@ -795,12 +851,8 @@ EXPORT_SYMBOL(phy_write_paged);
 int phy_modify_paged(struct phy_device *phydev, int page, u32 regnum,
 		     u16 mask, u16 set)
 {
-	int ret = 0, oldpage;
+	int ret = phy_modify_paged_changed(phydev, page, regnum, mask, set);
 
-	oldpage = phy_select_page(phydev, page);
-	if (oldpage >= 0)
-		ret = __phy_modify(phydev, regnum, mask, set);
-
-	return phy_restore_page(phydev, oldpage, ret);
+	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL(phy_modify_paged);
