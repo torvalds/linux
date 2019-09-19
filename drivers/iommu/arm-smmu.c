@@ -156,7 +156,7 @@ static int __find_legacy_master_phandle(struct device *dev, void *data)
 	int err;
 
 	of_for_each_phandle(it, err, dev->of_node, "mmu-masters",
-			    "#stream-id-cells", 0)
+			    "#stream-id-cells", -1)
 		if (it->node == np) {
 			*(void **)data = dev;
 			return 1;
