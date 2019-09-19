@@ -79,12 +79,32 @@ AMDGPU XGMI Support
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_xgmi.c
    :internal:
 
-AMDGPU RAS debugfs control interface
-====================================
+AMDGPU RAS Support
+==================
+
+RAS debugfs/sysfs Control and Error Injection Interfaces
+--------------------------------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_ras.c
    :doc: AMDGPU RAS debugfs control interface
 
+RAS Error Count sysfs Interface
+-------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_ras.c
+   :doc: AMDGPU RAS sysfs Error Count Interface
+
+RAS EEPROM debugfs Interface
+----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_ras.c
+   :doc: AMDGPU RAS debugfs EEPROM table reset interface
+
+RAS VRAM Bad Pages sysfs Interface
+----------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_ras.c
+   :doc: AMDGPU RAS sysfs gpu_vram_bad_pages Interface
 
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_ras.c
    :internal:

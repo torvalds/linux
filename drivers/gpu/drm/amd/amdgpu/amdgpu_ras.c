@@ -310,7 +310,18 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 /**
  * DOC: AMDGPU RAS debugfs EEPROM table reset interface
  *
- * Usage: echo 1 > ../ras/ras_eeprom_reset will reset EEPROM table to 0 entries.
+ * Some boards contain an EEPROM which is used to persistently store a list of
+ * bad pages containing ECC errors detected in vram.  This interface provides
+ * a way to reset the EEPROM, e.g., after testing error injection.
+ *
+ * Usage:
+ *
+ * .. code-block:: bash
+ *
+ *	echo 1 > ../ras/ras_eeprom_reset
+ *
+ * will reset EEPROM table to 0 entries.
+ *
  */
 static ssize_t amdgpu_ras_debugfs_eeprom_write(struct file *f, const char __user *buf,
 		size_t size, loff_t *pos)
@@ -337,6 +348,27 @@ static const struct file_operations amdgpu_ras_debugfs_eeprom_ops = {
 	.llseek = default_llseek
 };
 
+/**
+ * DOC: AMDGPU RAS sysfs Error Count Interface
+ *
+ * It allows user to read the error count for each IP block on the gpu through
+ * /sys/class/drm/card[0/1/2...]/device/ras/[gfx/sdma/...]_err_count
+ *
+ * It outputs the multiple lines which report the uncorrected (ue) and corrected
+ * (ce) error counts.
+ *
+ * The format of one line is below,
+ *
+ * [ce|ue]: count
+ *
+ * Example:
+ *
+ * .. code-block:: bash
+ *
+ *	ue: 0
+ *	ce: 1
+ *
+ */
 static ssize_t amdgpu_ras_sysfs_read(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -781,8 +813,8 @@ static char *amdgpu_ras_badpage_flags_str(unsigned int flags)
 	};
 }
 
-/*
- * DOC: ras sysfs gpu_vram_bad_pages interface
+/**
+ * DOC: AMDGPU RAS sysfs gpu_vram_bad_pages Interface
  *
  * It allows user to read the bad pages of vram on the gpu through
  * /sys/class/drm/card[0/1/2...]/device/ras/gpu_vram_bad_pages
@@ -794,14 +826,21 @@ static char *amdgpu_ras_badpage_flags_str(unsigned int flags)
  *
  * gpu pfn and gpu page size are printed in hex format.
  * flags can be one of below character,
+ *
  * R: reserved, this gpu page is reserved and not able to use.
+ *
  * P: pending for reserve, this gpu page is marked as bad, will be reserved
- *    in next window of page_reserve.
+ * in next window of page_reserve.
+ *
  * F: unable to reserve. this gpu page can't be reserved due to some reasons.
  *
- * examples:
- * 0x00000001 : 0x00001000 : R
- * 0x00000002 : 0x00001000 : P
+ * Examples:
+ *
+ * .. code-block:: bash
+ *
+ *	0x00000001 : 0x00001000 : R
+ *	0x00000002 : 0x00001000 : P
+ *
  */
 
 static ssize_t amdgpu_ras_sysfs_badpages_read(struct file *f,
