@@ -25,13 +25,16 @@
 #include <linux/list_sort.h>
 #include <linux/prime_numbers.h>
 
+#include "gem/i915_gem_context.h"
 #include "gem/selftests/mock_context.h"
+#include "gt/intel_context.h"
 
 #include "i915_random.h"
 #include "i915_selftest.h"
 
 #include "mock_drm.h"
 #include "mock_gem_device.h"
+#include "igt_flush_test.h"
 
 static void cleanup_freed_objects(struct drm_i915_private *i915)
 {
@@ -1705,6 +1708,310 @@ out_put:
 	return err;
 }
 
+static int context_sync(struct intel_context *ce)
+{
+	struct i915_request *rq;
+	long timeout;
+
+	rq = intel_context_create_request(ce);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	i915_request_get(rq);
+	i915_request_add(rq);
+
+	timeout = i915_request_wait(rq, 0, HZ / 5);
+	i915_request_put(rq);
+
+	return timeout < 0 ? -EIO : 0;
+}
+
+static struct i915_request *
+submit_batch(struct intel_context *ce, u64 addr)
+{
+	struct i915_request *rq;
+	int err;
+
+	rq = intel_context_create_request(ce);
+	if (IS_ERR(rq))
+		return rq;
+
+	err = 0;
+	if (rq->engine->emit_init_breadcrumb) /* detect a hang */
+		err = rq->engine->emit_init_breadcrumb(rq);
+	if (err == 0)
+		err = rq->engine->emit_bb_start(rq, addr, 0, 0);
+
+	if (err == 0)
+		i915_request_get(rq);
+	i915_request_add(rq);
+
+	return err ? ERR_PTR(err) : rq;
+}
+
+static u32 *spinner(u32 *batch, int i)
+{
+	return batch + i * 64 / sizeof(*batch) + 4;
+}
+
+static void end_spin(u32 *batch, int i)
+{
+	*spinner(batch, i) = MI_BATCH_BUFFER_END;
+	wmb();
+}
+
+static int igt_cs_tlb(void *arg)
+{
+	const unsigned int count = PAGE_SIZE / 64;
+	const unsigned int chunk_size = count * PAGE_SIZE;
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_object *bbe, *act, *out;
+	struct i915_gem_engines_iter it;
+	struct i915_address_space *vm;
+	struct i915_gem_context *ctx;
+	struct intel_context *ce;
+	struct drm_file *file;
+	struct i915_vma *vma;
+	unsigned int i;
+	u32 *result;
+	u32 *batch;
+	int err = 0;
+
+	/*
+	 * Our mission here is to fool the hardware to execute something
+	 * from scratch as it has not seen the batch move (due to missing
+	 * the TLB invalidate).
+	 */
+
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	mutex_lock(&i915->drm.struct_mutex);
+	ctx = live_context(i915, file);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto out_unlock;
+	}
+
+	vm = ctx->vm;
+	if (!vm)
+		goto out_unlock;
+
+	/* Create two pages; dummy we prefill the TLB, and intended */
+	bbe = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(bbe)) {
+		err = PTR_ERR(bbe);
+		goto out_unlock;
+	}
+
+	batch = i915_gem_object_pin_map(bbe, I915_MAP_WC);
+	if (IS_ERR(batch)) {
+		err = PTR_ERR(batch);
+		goto out_put_bbe;
+	}
+	memset32(batch, MI_BATCH_BUFFER_END, PAGE_SIZE / sizeof(u32));
+	i915_gem_object_flush_map(bbe);
+	i915_gem_object_unpin_map(bbe);
+
+	act = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(act)) {
+		err = PTR_ERR(act);
+		goto out_put_bbe;
+	}
+
+	/* Track the execution of each request by writing into different slot */
+	batch = i915_gem_object_pin_map(act, I915_MAP_WC);
+	if (IS_ERR(batch)) {
+		err = PTR_ERR(batch);
+		goto out_put_act;
+	}
+	for (i = 0; i < count; i++) {
+		u32 *cs = batch + i * 64 / sizeof(*cs);
+		u64 addr = (vm->total - PAGE_SIZE) + i * sizeof(u32);
+
+		GEM_BUG_ON(INTEL_GEN(i915) < 6);
+		cs[0] = MI_STORE_DWORD_IMM_GEN4;
+		if (INTEL_GEN(i915) >= 8) {
+			cs[1] = lower_32_bits(addr);
+			cs[2] = upper_32_bits(addr);
+			cs[3] = i;
+			cs[4] = MI_NOOP;
+			cs[5] = MI_BATCH_BUFFER_START_GEN8;
+		} else {
+			cs[1] = 0;
+			cs[2] = lower_32_bits(addr);
+			cs[3] = i;
+			cs[4] = MI_NOOP;
+			cs[5] = MI_BATCH_BUFFER_START;
+		}
+	}
+
+	out = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(out)) {
+		err = PTR_ERR(out);
+		goto out_put_batch;
+	}
+	i915_gem_object_set_cache_coherency(out, I915_CACHING_CACHED);
+
+	vma = i915_vma_instance(out, vm, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto out_put_batch;
+	}
+
+	err = i915_vma_pin(vma, 0, 0,
+			   PIN_USER |
+			   PIN_OFFSET_FIXED |
+			   (vm->total - PAGE_SIZE));
+	if (err)
+		goto out_put_out;
+	GEM_BUG_ON(vma->node.start != vm->total - PAGE_SIZE);
+
+	result = i915_gem_object_pin_map(out, I915_MAP_WB);
+	if (IS_ERR(result)) {
+		err = PTR_ERR(result);
+		goto out_put_out;
+	}
+
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+		IGT_TIMEOUT(end_time);
+		unsigned long pass = 0;
+
+		if (!intel_engine_can_store_dword(ce->engine))
+			continue;
+
+		while (!__igt_timeout(end_time, NULL)) {
+			struct i915_request *rq;
+			u64 offset;
+
+			offset = random_offset(0, vm->total - PAGE_SIZE,
+					       chunk_size, PAGE_SIZE);
+
+			err = vm->allocate_va_range(vm, offset, chunk_size);
+			if (err)
+				goto end;
+
+			memset32(result, STACK_MAGIC, PAGE_SIZE / sizeof(u32));
+
+			vma = i915_vma_instance(bbe, vm, NULL);
+			if (IS_ERR(vma)) {
+				err = PTR_ERR(vma);
+				goto end;
+			}
+
+			err = vma->ops->set_pages(vma);
+			if (err)
+				goto end;
+
+			/* Prime the TLB with the dummy pages */
+			for (i = 0; i < count; i++) {
+				vma->node.start = offset + i * PAGE_SIZE;
+				vm->insert_entries(vm, vma, I915_CACHE_NONE, 0);
+
+				rq = submit_batch(ce, vma->node.start);
+				if (IS_ERR(rq)) {
+					err = PTR_ERR(rq);
+					goto end;
+				}
+				i915_request_put(rq);
+			}
+
+			vma->ops->clear_pages(vma);
+
+			err = context_sync(ce);
+			if (err) {
+				pr_err("%s: dummy setup timed out\n",
+				       ce->engine->name);
+				goto end;
+			}
+
+			vma = i915_vma_instance(act, vm, NULL);
+			if (IS_ERR(vma)) {
+				err = PTR_ERR(vma);
+				goto end;
+			}
+
+			err = vma->ops->set_pages(vma);
+			if (err)
+				goto end;
+
+			/* Replace the TLB with target batches */
+			for (i = 0; i < count; i++) {
+				struct i915_request *rq;
+				u32 *cs = batch + i * 64 / sizeof(*cs);
+				u64 addr;
+
+				vma->node.start = offset + i * PAGE_SIZE;
+				vm->insert_entries(vm, vma, I915_CACHE_NONE, 0);
+
+				addr = vma->node.start + i * 64;
+				cs[4] = MI_NOOP;
+				cs[6] = lower_32_bits(addr);
+				cs[7] = upper_32_bits(addr);
+				wmb();
+
+				rq = submit_batch(ce, addr);
+				if (IS_ERR(rq)) {
+					err = PTR_ERR(rq);
+					goto end;
+				}
+
+				/* Wait until the context chain has started */
+				if (i == 0) {
+					while (READ_ONCE(result[i]) &&
+					       !i915_request_completed(rq))
+						cond_resched();
+				} else {
+					end_spin(batch, i - 1);
+				}
+
+				i915_request_put(rq);
+			}
+			end_spin(batch, count - 1);
+
+			vma->ops->clear_pages(vma);
+
+			err = context_sync(ce);
+			if (err) {
+				pr_err("%s: writes timed out\n",
+				       ce->engine->name);
+				goto end;
+			}
+
+			for (i = 0; i < count; i++) {
+				if (result[i] != i) {
+					pr_err("%s: Write lost on pass %lu, at offset %llx, index %d, found %x, expected %x\n",
+					       ce->engine->name, pass,
+					       offset, i, result[i], i);
+					err = -EINVAL;
+					goto end;
+				}
+			}
+
+			vm->clear_range(vm, offset, chunk_size);
+			pass++;
+		}
+	}
+end:
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		err = -EIO;
+	i915_gem_context_unlock_engines(ctx);
+	i915_gem_object_unpin_map(out);
+out_put_out:
+	i915_gem_object_put(out);
+out_put_batch:
+	i915_gem_object_unpin_map(act);
+out_put_act:
+	i915_gem_object_put(act);
+out_put_bbe:
+	i915_gem_object_put(bbe);
+out_unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
+	mock_file_free(i915, file);
+	return err;
+}
+
 int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
@@ -1722,6 +2029,7 @@ int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_ggtt_pot),
 		SUBTEST(igt_ggtt_fill),
 		SUBTEST(igt_ggtt_page),
+		SUBTEST(igt_cs_tlb),
 	};
 
 	GEM_BUG_ON(offset_in_page(i915->ggtt.vm.total));
