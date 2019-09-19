@@ -645,6 +645,12 @@ sub check_distros()
 # Common dependencies
 #
 
+sub deactivate_help()
+{
+	printf "\tIf you want to exit the virtualenv, you can use:\n";
+	printf "\tdeactivate\n";
+}
+
 sub check_needs()
 {
 	# Check for needed programs/tools
@@ -686,6 +692,7 @@ sub check_needs()
 		if ($need_sphinx && scalar @activates > 0 && $activates[0] ge $min_activate) {
 			printf "\nNeed to activate a compatible Sphinx version on virtualenv with:\n";
 			printf "\t. $activates[0]\n";
+			deactivate_help();
 			exit (1);
 		} else {
 			my $rec_activate = "$virtenv_dir/bin/activate";
@@ -697,6 +704,7 @@ sub check_needs()
 			printf "\t$virtualenv $virtenv_dir\n";
 			printf "\t. $rec_activate\n";
 			printf "\tpip install -r $requirement_file\n";
+			deactivate_help();
 
 			$need++ if (!$rec_sphinx_upgrade);
 		}
