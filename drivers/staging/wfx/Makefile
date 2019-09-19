@@ -14,6 +14,7 @@ wfx-y := \
 	data_rx.o \
 	scan.o \
 	sta.o \
+	key.o \
 	main.o \
 	sta.o \
 	debug.o

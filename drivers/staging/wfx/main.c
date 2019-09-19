@@ -27,6 +27,7 @@
 #include "bus.h"
 #include "bh.h"
 #include "sta.h"
+#include "key.h"
 #include "debug.h"
 #include "data_tx.h"
 #include "secure_link.h"
@@ -56,6 +57,7 @@ static const struct ieee80211_ops wfx_ops = {
 	.remove_interface	= wfx_remove_interface,
 	.tx			= wfx_tx,
 	.hw_scan		= wfx_hw_scan,
+	.set_key		= wfx_set_key,
 };
 
 bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)

@@ -48,6 +48,9 @@ struct wfx_dev {
 	int			tx_burst_idx;
 	atomic_t		tx_lock;
 
+	u32			key_map;
+	struct hif_req_add_key	keys[MAX_KEY_ENTRIES];
+
 	struct hif_rx_stats	rx_stats;
 	struct mutex		rx_stats_lock;
 
@@ -73,6 +76,9 @@ struct wfx_vif {
 	struct work_struct	mcast_start_work;
 	struct work_struct	mcast_stop_work;
 
+	s8			wep_default_key_id;
+	struct sk_buff		*wep_pending_skb;
+	struct work_struct	wep_key_work;
 
 	struct tx_policy_cache	tx_policy_cache;
 	struct work_struct	tx_policy_upload_work;
@@ -118,6 +124,19 @@ static inline struct wfx_vif *wvif_iterate(struct wfx_dev *wdev, struct wfx_vif 
 			mark = 1;
 	}
 	return NULL;
+}
+
+static inline void memreverse(uint8_t *src, uint8_t length)
+{
+	uint8_t *lo = src;
+	uint8_t *hi = src + length - 1;
+	uint8_t swap;
+
+	while (lo < hi) {
+		swap = *lo;
+		*lo++ = *hi;
+		*hi-- = swap;
+	}
 }
 
 static inline int memzcmp(void *src, unsigned int size)

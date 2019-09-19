@@ -9,6 +9,7 @@
 
 #include "sta.h"
 #include "wfx.h"
+#include "key.h"
 #include "scan.h"
 #include "hif_tx_mib.h"
 
@@ -161,6 +162,9 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	INIT_WORK(&wvif->mcast_start_work, wfx_mcast_start_work);
 	INIT_WORK(&wvif->mcast_stop_work, wfx_mcast_stop_work);
 	timer_setup(&wvif->mcast_timeout, wfx_mcast_timeout, 0);
+
+	wvif->wep_default_key_id = -1;
+	INIT_WORK(&wvif->wep_key_work, wfx_wep_key_work);
 
 	sema_init(&wvif->scan.lock, 1);
 	INIT_WORK(&wvif->scan.work, wfx_scan_work);
