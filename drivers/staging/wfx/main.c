@@ -25,6 +25,9 @@
 #include "hwio.h"
 #include "bus.h"
 #include "bh.h"
+#include "sta.h"
+#include "debug.h"
+#include "hif_api_cmd.h"
 #include "wfx_version.h"
 
 MODULE_DESCRIPTION("Silicon Labs 802.11 Wireless LAN driver for WFx");
@@ -35,6 +38,13 @@ MODULE_VERSION(WFX_LABEL);
 static int gpio_wakeup = -2;
 module_param(gpio_wakeup, int, 0644);
 MODULE_PARM_DESC(gpio_wakeup, "gpio number for wakeup. -1 for none.");
+
+static const struct ieee80211_ops wfx_ops = {
+	.start			= wfx_start,
+	.stop			= wfx_stop,
+	.add_interface		= wfx_add_interface,
+	.remove_interface	= wfx_remove_interface,
+};
 
 bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
 {
@@ -79,11 +89,26 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 				const struct hwbus_ops *hwbus_ops,
 				void *hwbus_priv)
 {
+	struct ieee80211_hw *hw;
 	struct wfx_dev *wdev;
 
-	wdev = devm_kmalloc(dev, sizeof(*wdev), GFP_KERNEL);
-	if (!wdev)
+	hw = ieee80211_alloc_hw(sizeof(struct wfx_dev), &wfx_ops);
+	if (!hw)
 		return NULL;
+
+	SET_IEEE80211_DEV(hw, dev);
+
+	hw->vif_data_size = sizeof(struct wfx_vif);
+	hw->sta_data_size = sizeof(struct wfx_sta_priv);
+	hw->queues = 4;
+	hw->max_rates = 8;
+	hw->max_rate_tries = 15;
+	hw->extra_tx_headroom = sizeof(struct hif_sl_msg_hdr) + sizeof(struct hif_msg)
+				+ sizeof(struct hif_req_tx)
+				+ 4 /* alignment */ + 8 /* TKIP IV */;
+
+	wdev = hw->priv;
+	wdev->hw = hw;
 	wdev->dev = dev;
 	wdev->hwbus_ops = hwbus_ops;
 	wdev->hwbus_priv = hwbus_priv;
@@ -96,6 +121,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 
 void wfx_free_common(struct wfx_dev *wdev)
 {
+	ieee80211_free_hw(wdev->hw);
 }
 
 int wfx_probe(struct wfx_dev *wdev)
@@ -127,6 +153,11 @@ int wfx_probe(struct wfx_dev *wdev)
 		 wdev->hw_caps.firmware_build, wdev->hw_caps.firmware_label,
 		 wdev->hw_caps.api_version_major, wdev->hw_caps.api_version_minor,
 		 wdev->keyset, *((u32 *) &wdev->hw_caps.capabilities));
+	snprintf(wdev->hw->wiphy->fw_version, sizeof(wdev->hw->wiphy->fw_version),
+		 "%d.%d.%d",
+		 wdev->hw_caps.firmware_major,
+		 wdev->hw_caps.firmware_minor,
+		 wdev->hw_caps.firmware_build);
 
 	if (wfx_api_older_than(wdev, 1, 0)) {
 		dev_err(wdev->dev, "unsupported firmware API version (expect 1 while firmware returns %d)\n",
@@ -150,8 +181,14 @@ int wfx_probe(struct wfx_dev *wdev)
 		dev_info(wdev->dev, "MAC address %d: %pM\n", i, wdev->addresses[i].addr);
 	}
 
+	err = wfx_debug_init(wdev);
+	if (err)
+		goto err2;
+
 	return 0;
 
+err2:
+	ieee80211_free_hw(wdev->hw);
 err1:
 	wfx_bh_unregister(wdev);
 	return err;

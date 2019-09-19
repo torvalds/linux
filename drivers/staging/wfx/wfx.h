@@ -22,6 +22,8 @@ struct hwbus_ops;
 struct wfx_dev {
 	struct wfx_platform_data pdata;
 	struct device		*dev;
+	struct ieee80211_hw	*hw;
+	struct ieee80211_vif	*vif[2];
 	struct mac_address	addresses[2];
 	const struct hwbus_ops	*hwbus_ops;
 	void			*hwbus_priv;
@@ -30,6 +32,12 @@ struct wfx_dev {
 	struct completion	firmware_ready;
 	struct hif_ind_startup	hw_caps;
 	struct wfx_hif		hif;
+};
+
+struct wfx_vif {
+	struct wfx_dev		*wdev;
+	struct ieee80211_vif	*vif;
+	int			id;
 };
 
 #endif /* WFX_H */

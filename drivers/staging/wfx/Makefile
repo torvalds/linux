@@ -9,6 +9,7 @@ wfx-y := \
 	fwio.o \
 	hif_rx.o \
 	main.o \
+	sta.o \
 	debug.o
 wfx-$(CONFIG_SPI) += bus_spi.o
 wfx-$(subst m,y,$(CONFIG_MMC)) += bus_sdio.o
