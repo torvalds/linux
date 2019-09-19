@@ -38,6 +38,9 @@ struct wfx_dev {
 	int			chip_frozen;
 
 	struct wfx_hif_cmd	hif_cmd;
+
+	struct hif_rx_stats	rx_stats;
+	struct mutex		rx_stats_lock;
 };
 
 struct wfx_vif {
@@ -45,5 +48,18 @@ struct wfx_vif {
 	struct ieee80211_vif	*vif;
 	int			id;
 };
+
+static inline struct wfx_vif *wdev_to_wvif(struct wfx_dev *wdev, int vif_id)
+{
+	if (vif_id >= ARRAY_SIZE(wdev->vif)) {
+		dev_dbg(wdev->dev, "requesting non-existent vif: %d\n", vif_id);
+		return NULL;
+	}
+	if (!wdev->vif[vif_id]) {
+		dev_dbg(wdev->dev, "requesting non-allocated vif: %d\n", vif_id);
+		return NULL;
+	}
+	return (struct wfx_vif *) wdev->vif[vif_id]->drv_priv;
+}
 
 #endif /* WFX_H */

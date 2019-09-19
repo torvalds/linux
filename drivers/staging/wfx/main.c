@@ -212,6 +212,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	wdev->pdata.gpio_wakeup = wfx_get_gpio(dev, gpio_wakeup, "wakeup");
 	wfx_fill_sl_key(dev, &wdev->pdata);
 
+	mutex_init(&wdev->rx_stats_lock);
 	init_completion(&wdev->firmware_ready);
 	wfx_init_hif_cmd(&wdev->hif_cmd);
 
@@ -220,6 +221,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 
 void wfx_free_common(struct wfx_dev *wdev)
 {
+	mutex_destroy(&wdev->rx_stats_lock);
 	ieee80211_free_hw(wdev->hw);
 }
 

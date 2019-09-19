@@ -6,11 +6,13 @@
  * Copyright (c) 2010, ST-Ericsson
  */
 #include <linux/debugfs.h>
+#include <linux/seq_file.h>
 #include <linux/crc32.h>
 
 #include "debug.h"
 #include "wfx.h"
 #include "main.h"
+#include "hif_tx_mib.h"
 
 #define CREATE_TRACE_POINTS
 #include "traces.h"
@@ -54,6 +56,107 @@ const char *get_reg_name(unsigned long id)
 {
 	return get_symbol(id, wfx_reg_print_map);
 }
+
+static int wfx_counters_show(struct seq_file *seq, void *v)
+{
+	int ret;
+	struct wfx_dev *wdev = seq->private;
+	struct hif_mib_extended_count_table counters;
+
+	ret = hif_get_counters_table(wdev, &counters);
+	if (ret < 0)
+		return ret;
+	if (ret > 0)
+		return -EIO;
+
+#define PUT_COUNTER(name) \
+	seq_printf(seq, "%24s %d\n", #name ":", le32_to_cpu(counters.count_##name))
+
+	PUT_COUNTER(tx_packets);
+	PUT_COUNTER(tx_multicast_frames);
+	PUT_COUNTER(tx_frames_success);
+	PUT_COUNTER(tx_frame_failures);
+	PUT_COUNTER(tx_frames_retried);
+	PUT_COUNTER(tx_frames_multi_retried);
+
+	PUT_COUNTER(rts_success);
+	PUT_COUNTER(rts_failures);
+	PUT_COUNTER(ack_failures);
+
+	PUT_COUNTER(rx_packets);
+	PUT_COUNTER(rx_frames_success);
+	PUT_COUNTER(rx_packet_errors);
+	PUT_COUNTER(plcp_errors);
+	PUT_COUNTER(fcs_errors);
+	PUT_COUNTER(rx_decryption_failures);
+	PUT_COUNTER(rx_mic_failures);
+	PUT_COUNTER(rx_no_key_failures);
+	PUT_COUNTER(rx_frame_duplicates);
+	PUT_COUNTER(rx_multicast_frames);
+	PUT_COUNTER(rx_cmacicv_errors);
+	PUT_COUNTER(rx_cmac_replays);
+	PUT_COUNTER(rx_mgmt_ccmp_replays);
+
+	PUT_COUNTER(rx_beacon);
+	PUT_COUNTER(miss_beacon);
+
+#undef PUT_COUNTER
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(wfx_counters);
+
+static const char * const channel_names[] = {
+	[0] = "1M",
+	[1] = "2M",
+	[2] = "5.5M",
+	[3] = "11M",
+	/* Entries 4 and 5 does not exist */
+	[6] = "6M",
+	[7] = "9M",
+	[8] = "12M",
+	[9] = "18M",
+	[10] = "24M",
+	[11] = "36M",
+	[12] = "48M",
+	[13] = "54M",
+	[14] = "MCS0",
+	[15] = "MCS1",
+	[16] = "MCS2",
+	[17] = "MCS3",
+	[18] = "MCS4",
+	[19] = "MCS5",
+	[20] = "MCS6",
+	[21] = "MCS7",
+};
+
+static int wfx_rx_stats_show(struct seq_file *seq, void *v)
+{
+	struct wfx_dev *wdev = seq->private;
+	struct hif_rx_stats *st = &wdev->rx_stats;
+	int i;
+
+	mutex_lock(&wdev->rx_stats_lock);
+	seq_printf(seq, "Timestamp: %dus\n", st->date);
+	seq_printf(seq, "Low power clock: frequency %uHz, external %s\n",
+		st->pwr_clk_freq,
+		st->is_ext_pwr_clk ? "yes" : "no");
+	seq_printf(seq, "Num. of frames: %d, PER (x10e4): %d, Throughput: %dKbps/s\n",
+		st->nb_rx_frame, st->per_total, st->throughput);
+	seq_puts(seq, "       Num. of      PER     RSSI      SNR      CFO\n");
+	seq_puts(seq, "        frames  (x10e4)    (dBm)     (dB)    (kHz)\n");
+	for (i = 0; i < ARRAY_SIZE(channel_names); i++) {
+		if (channel_names[i])
+			seq_printf(seq, "%5s %8d %8d %8d %8d %8d\n",
+				   channel_names[i], st->nb_rx_by_rate[i],
+				   st->per[i], st->rssi[i] / 100,
+				   st->snr[i] / 100, st->cfo[i]);
+	}
+	mutex_unlock(&wdev->rx_stats_lock);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(wfx_rx_stats);
 
 static ssize_t wfx_send_pds_write(struct file *file, const char __user *user_buf,
 			     size_t count, loff_t *ppos)
@@ -190,6 +293,8 @@ int wfx_debug_init(struct wfx_dev *wdev)
 	struct dentry *d;
 
 	d = debugfs_create_dir("wfx", wdev->hw->wiphy->debugfsdir);
+	debugfs_create_file("counters", 0444, d, wdev, &wfx_counters_fops);
+	debugfs_create_file("rx_stats", 0444, d, wdev, &wfx_rx_stats_fops);
 	debugfs_create_file("send_pds", 0200, d, wdev, &wfx_send_pds_fops);
 	debugfs_create_file("burn_slk_key", 0200, d, wdev, &wfx_burn_slk_key_fops);
 	debugfs_create_file("send_hif_msg", 0600, d, wdev, &wfx_send_hif_msg_fops);

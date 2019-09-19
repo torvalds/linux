@@ -94,13 +94,93 @@ static int hif_keys_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *
 	return 0;
 }
 
+static int hif_join_complete_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
+{
+	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
+
+	WARN_ON(!wvif);
+	dev_warn(wdev->dev, "unattended JoinCompleteInd\n");
+
+	return 0;
+}
+
+static int hif_error_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
+{
+	struct hif_ind_error *body = buf;
+	u8 *pRollback = (u8 *) body->data;
+	u32 *pStatus = (u32 *) body->data;
+
+	switch (body->type) {
+	case HIF_ERROR_FIRMWARE_ROLLBACK:
+		dev_err(wdev->dev, "asynchronous error: firmware rollback error %d\n", *pRollback);
+		break;
+	case HIF_ERROR_FIRMWARE_DEBUG_ENABLED:
+		dev_err(wdev->dev, "asynchronous error: firmware debug feature enabled\n");
+		break;
+	case HIF_ERROR_OUTDATED_SESSION_KEY:
+		dev_err(wdev->dev, "asynchronous error: secure link outdated key: %#.8x\n", *pStatus);
+		break;
+	case HIF_ERROR_INVALID_SESSION_KEY:
+		dev_err(wdev->dev, "asynchronous error: invalid session key\n");
+		break;
+	case HIF_ERROR_OOR_VOLTAGE:
+		dev_err(wdev->dev, "asynchronous error: out-of-range overvoltage: %#.8x\n", *pStatus);
+		break;
+	case HIF_ERROR_PDS_VERSION:
+		dev_err(wdev->dev, "asynchronous error: wrong PDS payload or version: %#.8x\n", *pStatus);
+		break;
+	default:
+		dev_err(wdev->dev, "asynchronous error: unknown (%d)\n", body->type);
+		break;
+	}
+	return 0;
+}
+
+static int hif_generic_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
+{
+	struct hif_ind_generic *body = buf;
+
+	switch (body->indication_type) {
+	case HIF_GENERIC_INDICATION_TYPE_RAW:
+		return 0;
+	case HIF_GENERIC_INDICATION_TYPE_STRING:
+		dev_info(wdev->dev, "firmware says: %s\n", (char *) body->indication_data.raw_data);
+		return 0;
+	case HIF_GENERIC_INDICATION_TYPE_RX_STATS:
+		mutex_lock(&wdev->rx_stats_lock);
+		// Older firmware send a generic indication beside RxStats
+		if (!wfx_api_older_than(wdev, 1, 4))
+			dev_info(wdev->dev, "Rx test ongoing. Temperature: %d°C\n", body->indication_data.rx_stats.current_temp);
+		memcpy(&wdev->rx_stats, &body->indication_data.rx_stats, sizeof(wdev->rx_stats));
+		mutex_unlock(&wdev->rx_stats_lock);
+		return 0;
+	default:
+		dev_err(wdev->dev, "generic_indication: unknown indication type: %#.8x\n", body->indication_type);
+		return -EIO;
+	}
+}
+
+static int hif_exception_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
+{
+	size_t len = hif->len - 4; // drop header
+	dev_err(wdev->dev, "firmware exception\n");
+	print_hex_dump_bytes("Dump: ", DUMP_PREFIX_NONE, buf, len);
+	wdev->chip_frozen = 1;
+
+	return -1;
+}
+
 static const struct {
 	int msg_id;
 	int (*handler)(struct wfx_dev *wdev, struct hif_msg *hif, void *buf);
 } hif_handlers[] = {
 	{ HIF_IND_ID_STARTUP,              hif_startup_indication },
 	{ HIF_IND_ID_WAKEUP,               hif_wakeup_indication },
+	{ HIF_IND_ID_JOIN_COMPLETE,        hif_join_complete_indication },
 	{ HIF_IND_ID_SL_EXCHANGE_PUB_KEYS, hif_keys_indication },
+	{ HIF_IND_ID_GENERIC,              hif_generic_indication },
+	{ HIF_IND_ID_ERROR,                hif_error_indication },
+	{ HIF_IND_ID_EXCEPTION,            hif_exception_indication },
 };
 
 void wfx_handle_rx(struct wfx_dev *wdev, struct sk_buff *skb)
