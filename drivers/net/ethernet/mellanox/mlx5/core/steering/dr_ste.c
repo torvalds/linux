@@ -429,12 +429,9 @@ static void dr_ste_remove_middle_ste(struct mlx5dr_ste *ste,
 	struct mlx5dr_ste *prev_ste;
 	u64 miss_addr;
 
-	prev_ste = list_entry(mlx5dr_ste_get_miss_list(ste)->prev, struct mlx5dr_ste,
-			      miss_list_node);
-	if (!prev_ste) {
-		WARN_ON(true);
+	prev_ste = list_prev_entry(ste, miss_list_node);
+	if (WARN_ON(!prev_ste))
 		return;
-	}
 
 	miss_addr = mlx5dr_ste_get_miss_addr(ste->hw_ste);
 	mlx5dr_ste_set_miss_addr(prev_ste->hw_ste, miss_addr);
@@ -461,8 +458,8 @@ void mlx5dr_ste_free(struct mlx5dr_ste *ste,
 	struct mlx5dr_ste_htbl *stats_tbl;
 	LIST_HEAD(send_ste_list);
 
-	first_ste = list_entry(mlx5dr_ste_get_miss_list(ste)->next,
-			       struct mlx5dr_ste, miss_list_node);
+	first_ste = list_first_entry(mlx5dr_ste_get_miss_list(ste),
+				     struct mlx5dr_ste, miss_list_node);
 	stats_tbl = first_ste->htbl;
 
 	/* Two options:
@@ -479,8 +476,7 @@ void mlx5dr_ste_free(struct mlx5dr_ste *ste,
 		if (last_ste == first_ste)
 			next_ste = NULL;
 		else
-			next_ste = list_entry(ste->miss_list_node.next,
-					      struct mlx5dr_ste, miss_list_node);
+			next_ste = list_next_entry(ste, miss_list_node);
 
 		if (!next_ste) {
 			/* One and only entry in the list */

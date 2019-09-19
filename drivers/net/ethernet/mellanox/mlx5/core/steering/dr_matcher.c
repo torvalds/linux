@@ -458,13 +458,11 @@ static int dr_matcher_add_to_tbl(struct mlx5dr_matcher *matcher)
 
 	prev_matcher = NULL;
 	if (next_matcher && !first)
-		prev_matcher = list_entry(next_matcher->matcher_list.prev,
-					  struct mlx5dr_matcher,
-					  matcher_list);
+		prev_matcher = list_prev_entry(next_matcher, matcher_list);
 	else if (!first)
-		prev_matcher = list_entry(tbl->matcher_list.prev,
-					  struct mlx5dr_matcher,
-					  matcher_list);
+		prev_matcher = list_last_entry(&tbl->matcher_list,
+					       struct mlx5dr_matcher,
+					       matcher_list);
 
 	if (dmn->type == MLX5DR_DOMAIN_TYPE_FDB ||
 	    dmn->type == MLX5DR_DOMAIN_TYPE_NIC_RX) {

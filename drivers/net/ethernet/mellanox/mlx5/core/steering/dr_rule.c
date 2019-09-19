@@ -18,7 +18,7 @@ static int dr_rule_append_to_miss_list(struct mlx5dr_ste *new_last_ste,
 	struct mlx5dr_ste *last_ste;
 
 	/* The new entry will be inserted after the last */
-	last_ste = list_entry(miss_list->prev, struct mlx5dr_ste, miss_list_node);
+	last_ste = list_last_entry(miss_list, struct mlx5dr_ste, miss_list_node);
 	WARN_ON(!last_ste);
 
 	ste_info_last = kzalloc(sizeof(*ste_info_last), GFP_KERNEL);
