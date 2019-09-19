@@ -5325,6 +5325,7 @@ F:	include/linux/vga*
 
 DRM DRIVERS FOR ALLWINNER A10
 M:	Maxime Ripard  <maxime.ripard@bootlin.com>
+M:	Chen-Yu Tsai <wens@csie.org>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/sun4i/
