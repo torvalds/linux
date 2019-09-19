@@ -6476,6 +6476,8 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 	else if (INTEL_GEN(dev_priv) >= 5)
 		drm_connector_attach_max_bpc_property(connector, 6, 12);
 
+	intel_attach_colorspace_property(connector);
+
 	if (intel_dp_is_edp(intel_dp)) {
 		u32 allowed_scalers;
 
