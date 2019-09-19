@@ -14802,6 +14802,11 @@ S:	Maintained
 F:	drivers/input/touchscreen/silead.c
 F:	drivers/platform/x86/touchscreen_dmi.c
 
+SILICON LABS WIRELESS DRIVERS (for WFxxx series)
+M:	Jérôme Pouiller <jerome.pouiller@silabs.com>
+S:	Supported
+F:	drivers/staging/wfx/
+
 SILICON MOTION SM712 FRAME BUFFER DRIVER
 M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 M:	Teddy Wang <teddy.wang@siliconmotion.com>
