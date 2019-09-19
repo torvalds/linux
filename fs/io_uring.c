@@ -2438,7 +2438,7 @@ static int io_sq_thread(void *data)
 			 * to sleep.
 			 */
 			if (inflight || !time_after(jiffies, timeout)) {
-				cpu_relax();
+				cond_resched();
 				continue;
 			}
 
