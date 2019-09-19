@@ -19,6 +19,7 @@
 #include "queue.h"
 #include "secure_link.h"
 #include "sta.h"
+#include "scan.h"
 #include "hif_tx.h"
 #include "hif_api_general.h"
 
@@ -39,6 +40,7 @@ struct wfx_dev {
 	struct wfx_hif		hif;
 	struct sl_context	sl;
 	int			chip_frozen;
+	struct mutex		conf_mutex;
 
 	struct wfx_hif_cmd	hif_cmd;
 	struct wfx_queue	tx_queue[4];
@@ -48,6 +50,9 @@ struct wfx_dev {
 
 	struct hif_rx_stats	rx_stats;
 	struct mutex		rx_stats_lock;
+
+	int			output_power;
+	atomic_t		scan_in_progress;
 };
 
 struct wfx_vif {
@@ -71,11 +76,17 @@ struct wfx_vif {
 
 	struct tx_policy_cache	tx_policy_cache;
 	struct work_struct	tx_policy_upload_work;
+
 	u32			sta_asleep_mask;
 	u32			pspoll_mask;
 	spinlock_t		ps_state_lock;
 
+	bool			filter_bssid;
+	bool			fwd_probe_req;
+
 	struct wfx_edca_params	edca;
+
+	struct wfx_scan		scan;
 };
 
 static inline struct wfx_vif *wdev_to_wvif(struct wfx_dev *wdev, int vif_id)

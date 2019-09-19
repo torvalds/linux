@@ -9,8 +9,17 @@
 
 #include "sta.h"
 #include "wfx.h"
+#include "scan.h"
+#include "hif_tx_mib.h"
 
 #define TXOP_UNIT 32
+
+int wfx_fwd_probe_req(struct wfx_vif *wvif, bool enable)
+{
+	wvif->fwd_probe_req = enable;
+	return hif_set_rx_filter(wvif, wvif->filter_bssid,
+				 wvif->fwd_probe_req);
+}
 
 static int wfx_set_tim_impl(struct wfx_vif *wvif, bool aid0_bit_set)
 {
@@ -128,6 +137,8 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		default_edca_params[IEEE80211_AC_BK].queue_id = HIF_QUEUE_ID_BESTEFFORT;
 	}
 
+	mutex_lock(&wdev->conf_mutex);
+
 	for (i = 0; i < ARRAY_SIZE(wdev->vif); i++) {
 		if (!wdev->vif[i]) {
 			wdev->vif[i] = vif;
@@ -135,8 +146,10 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 			break;
 		}
 	}
-	if (i == ARRAY_SIZE(wdev->vif))
+	if (i == ARRAY_SIZE(wdev->vif)) {
+		mutex_unlock(&wdev->conf_mutex);
 		return -EOPNOTSUPP;
+	}
 	wvif->vif = vif;
 	wvif->wdev = wdev;
 
@@ -148,6 +161,12 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	INIT_WORK(&wvif->mcast_start_work, wfx_mcast_start_work);
 	INIT_WORK(&wvif->mcast_stop_work, wfx_mcast_stop_work);
 	timer_setup(&wvif->mcast_timeout, wfx_mcast_timeout, 0);
+
+	sema_init(&wvif->scan.lock, 1);
+	INIT_WORK(&wvif->scan.work, wfx_scan_work);
+	INIT_DELAYED_WORK(&wvif->scan.timeout, wfx_scan_timeout);
+
+	mutex_unlock(&wdev->conf_mutex);
 	BUG_ON(ARRAY_SIZE(default_edca_params) != ARRAY_SIZE(wvif->edca.params));
 	for (i = 0; i < IEEE80211_NUM_ACS; i++)
 		memcpy(&wvif->edca.params[i], &default_edca_params[i], sizeof(default_edca_params[i]));
@@ -175,7 +194,9 @@ void wfx_stop(struct ieee80211_hw *hw)
 	struct wfx_dev *wdev = hw->priv;
 
 	wfx_tx_lock_flush(wdev);
+	mutex_lock(&wdev->conf_mutex);
 	wfx_tx_queues_clear(wdev);
+	mutex_unlock(&wdev->conf_mutex);
 	wfx_tx_unlock(wdev);
 	WARN(atomic_read(&wdev->tx_lock), "tx_lock is locked");
 }

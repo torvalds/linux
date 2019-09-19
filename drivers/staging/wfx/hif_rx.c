@@ -11,6 +11,7 @@
 
 #include "hif_rx.h"
 #include "wfx.h"
+#include "scan.h"
 #include "data_rx.h"
 #include "secure_link.h"
 #include "hif_api_cmd.h"
@@ -143,6 +144,17 @@ static int hif_receive_indication(struct wfx_dev *wdev, struct hif_msg *hif, voi
 	return 0;
 }
 
+static int hif_scan_complete_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
+{
+	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
+	struct hif_ind_scan_cmpl *body = buf;
+
+	WARN_ON(!wvif);
+	wfx_scan_complete_cb(wvif, body);
+
+	return 0;
+}
+
 static int hif_join_complete_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
 {
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
@@ -230,6 +242,7 @@ static const struct {
 	{ HIF_IND_ID_STARTUP,              hif_startup_indication },
 	{ HIF_IND_ID_WAKEUP,               hif_wakeup_indication },
 	{ HIF_IND_ID_JOIN_COMPLETE,        hif_join_complete_indication },
+	{ HIF_IND_ID_SCAN_CMPL,            hif_scan_complete_indication },
 	{ HIF_IND_ID_SL_EXCHANGE_PUB_KEYS, hif_keys_indication },
 	{ HIF_IND_ID_GENERIC,              hif_generic_indication },
 	{ HIF_IND_ID_ERROR,                hif_error_indication },

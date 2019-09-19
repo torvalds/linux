@@ -12,6 +12,7 @@ wfx-y := \
 	queue.o \
 	data_tx.o \
 	data_rx.o \
+	scan.o \
 	sta.o \
 	main.o \
 	sta.o \

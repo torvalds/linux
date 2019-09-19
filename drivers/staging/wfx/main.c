@@ -55,6 +55,7 @@ static const struct ieee80211_ops wfx_ops = {
 	.add_interface		= wfx_add_interface,
 	.remove_interface	= wfx_remove_interface,
 	.tx			= wfx_tx,
+	.hw_scan		= wfx_hw_scan,
 };
 
 bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
@@ -203,6 +204,8 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	hw->extra_tx_headroom = sizeof(struct hif_sl_msg_hdr) + sizeof(struct hif_msg)
 				+ sizeof(struct hif_req_tx)
 				+ 4 /* alignment */ + 8 /* TKIP IV */;
+	hw->wiphy->max_scan_ssids = 2;
+	hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
 
 	wdev = hw->priv;
 	wdev->hw = hw;
@@ -214,6 +217,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	wdev->pdata.gpio_wakeup = wfx_get_gpio(dev, gpio_wakeup, "wakeup");
 	wfx_fill_sl_key(dev, &wdev->pdata);
 
+	mutex_init(&wdev->conf_mutex);
 	mutex_init(&wdev->rx_stats_lock);
 	init_completion(&wdev->firmware_ready);
 	wfx_init_hif_cmd(&wdev->hif_cmd);
@@ -225,6 +229,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 void wfx_free_common(struct wfx_dev *wdev)
 {
 	mutex_destroy(&wdev->rx_stats_lock);
+	mutex_destroy(&wdev->conf_mutex);
 	wfx_tx_queues_deinit(wdev);
 	ieee80211_free_hw(wdev->hw);
 }
