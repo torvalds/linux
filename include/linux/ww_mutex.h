@@ -182,7 +182,7 @@ static inline void ww_acquire_done(struct ww_acquire_ctx *ctx)
 static inline void ww_acquire_fini(struct ww_acquire_ctx *ctx)
 {
 #ifdef CONFIG_DEBUG_MUTEXES
-	mutex_release(&ctx->dep_map, 0, _THIS_IP_);
+	mutex_release(&ctx->dep_map, _THIS_IP_);
 
 	DEBUG_LOCKS_WARN_ON(ctx->acquired);
 	if (!IS_ENABLED(CONFIG_PROVE_LOCKING))

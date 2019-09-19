@@ -79,7 +79,7 @@ static inline void seqcount_lockdep_reader_access(const seqcount_t *s)
 
 	local_irq_save(flags);
 	seqcount_acquire_read(&l->dep_map, 0, 0, _RET_IP_);
-	seqcount_release(&l->dep_map, 1, _RET_IP_);
+	seqcount_release(&l->dep_map, _RET_IP_);
 	local_irq_restore(flags);
 }
 
@@ -384,7 +384,7 @@ static inline void write_seqcount_begin(seqcount_t *s)
 
 static inline void write_seqcount_end(seqcount_t *s)
 {
-	seqcount_release(&s->dep_map, 1, _RET_IP_);
+	seqcount_release(&s->dep_map, _RET_IP_);
 	raw_write_seqcount_end(s);
 }
 
