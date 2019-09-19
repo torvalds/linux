@@ -206,6 +206,9 @@ static int __isp_pipeline_s_isp_clk(struct rkisp1_pipeline *p)
 	data_rate >>= 3;
 	do_div(data_rate, 1000 * 1000);
 
+	/* increase 25% margin */
+	data_rate += data_rate >> 2;
+
 	/* compare with isp clock adjustment table */
 	for (i = 0; i < dev->num_clk_rate_tbl; i++)
 		if (data_rate <= dev->clk_rate_tbl[i])
