@@ -10,7 +10,9 @@
 #ifndef WFX_H
 #define WFX_H
 
+#include "bh.h"
 #include "main.h"
+#include "hif_api_general.h"
 
 struct hwbus_ops;
 
@@ -21,6 +23,8 @@ struct wfx_dev {
 	void			*hwbus_priv;
 
 	u8			keyset;
+	struct hif_ind_startup	hw_caps;
+	struct wfx_hif		hif;
 };
 
 #endif /* WFX_H */

@@ -18,6 +18,7 @@
 #include "wfx.h"
 #include "hwio.h"
 #include "main.h"
+#include "bh.h"
 
 static int gpio_reset = -2;
 module_param(gpio_reset, int, 0644);
@@ -144,6 +145,10 @@ static irqreturn_t wfx_spi_irq_handler(int irq, void *priv)
 
 static void wfx_spi_request_rx(struct work_struct *work)
 {
+	struct wfx_spi_priv *bus =
+		container_of(work, struct wfx_spi_priv, request_rx);
+
+	wfx_bh_request_rx(bus->core);
 }
 
 static size_t wfx_spi_align_size(void *priv, size_t size)

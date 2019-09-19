@@ -4,6 +4,7 @@
 CFLAGS_debug.o = -I$(src)
 
 wfx-y := \
+	bh.o \
 	hwio.o \
 	fwio.o \
 	main.o \

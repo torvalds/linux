@@ -23,12 +23,28 @@
 #include "fwio.h"
 #include "hwio.h"
 #include "bus.h"
+#include "bh.h"
 #include "wfx_version.h"
 
 MODULE_DESCRIPTION("Silicon Labs 802.11 Wireless LAN driver for WFx");
 MODULE_AUTHOR("Jérôme Pouiller <jerome.pouiller@silabs.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(WFX_LABEL);
+
+static int gpio_wakeup = -2;
+module_param(gpio_wakeup, int, 0644);
+MODULE_PARM_DESC(gpio_wakeup, "gpio number for wakeup. -1 for none.");
+
+bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
+{
+	if (wdev->hw_caps.api_version_major < major)
+		return true;
+	if (wdev->hw_caps.api_version_major > major)
+		return false;
+	if (wdev->hw_caps.api_version_minor < minor)
+		return true;
+	return false;
+}
 
 struct gpio_desc *wfx_get_gpio(struct device *dev, int override, const char *label)
 {
@@ -82,18 +98,23 @@ int wfx_probe(struct wfx_dev *wdev)
 {
 	int err;
 
+	wfx_bh_register(wdev);
+
 	err = wfx_init_device(wdev);
 	if (err)
 		goto err1;
 
+
 	return 0;
 
 err1:
+	wfx_bh_unregister(wdev);
 	return err;
 }
 
 void wfx_release(struct wfx_dev *wdev)
 {
+	wfx_bh_unregister(wdev);
 }
 
 static int __init wfx_core_init(void)
