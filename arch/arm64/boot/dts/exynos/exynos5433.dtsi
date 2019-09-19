@@ -1179,9 +1179,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x13a00000 0x1000>;
 			interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_disp CLK_PCLK_SMMU_DECON0X>,
-				<&cmu_disp CLK_ACLK_SMMU_DECON0X>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_disp CLK_ACLK_SMMU_DECON0X>,
+				<&cmu_disp CLK_PCLK_SMMU_DECON0X>;
 			power-domains = <&pd_disp>;
 			#iommu-cells = <0>;
 		};
@@ -1190,9 +1190,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x13a10000 0x1000>;
 			interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_disp CLK_PCLK_SMMU_DECON1X>,
-				<&cmu_disp CLK_ACLK_SMMU_DECON1X>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_disp CLK_ACLK_SMMU_DECON1X>,
+				<&cmu_disp CLK_PCLK_SMMU_DECON1X>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_disp>;
 		};
@@ -1201,9 +1201,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x13a20000 0x1000>;
 			interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_disp CLK_PCLK_SMMU_TV0X>,
-				<&cmu_disp CLK_ACLK_SMMU_TV0X>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_disp CLK_ACLK_SMMU_TV0X>,
+				<&cmu_disp CLK_PCLK_SMMU_TV0X>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_disp>;
 		};
@@ -1212,9 +1212,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x13a30000 0x1000>;
 			interrupts = <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_disp CLK_PCLK_SMMU_TV1X>,
-				<&cmu_disp CLK_ACLK_SMMU_TV1X>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_disp CLK_ACLK_SMMU_TV1X>,
+				<&cmu_disp CLK_PCLK_SMMU_TV1X>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_disp>;
 		};
@@ -1256,9 +1256,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x15040000 0x1000>;
 			interrupts = <GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_mscl CLK_PCLK_SMMU_M2MSCALER0>,
-				 <&cmu_mscl CLK_ACLK_SMMU_M2MSCALER0>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_mscl CLK_ACLK_SMMU_M2MSCALER0>,
+				<&cmu_mscl CLK_PCLK_SMMU_M2MSCALER0>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_mscl>;
 		};
@@ -1267,9 +1267,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x15050000 0x1000>;
 			interrupts = <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_mscl CLK_PCLK_SMMU_M2MSCALER1>,
-				 <&cmu_mscl CLK_ACLK_SMMU_M2MSCALER1>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_mscl CLK_ACLK_SMMU_M2MSCALER1>,
+				<&cmu_mscl CLK_PCLK_SMMU_M2MSCALER1>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_mscl>;
 		};
@@ -1278,9 +1278,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x15060000 0x1000>;
 			interrupts = <GIC_SPI 408 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_mscl CLK_PCLK_SMMU_JPEG>,
-				 <&cmu_mscl CLK_ACLK_SMMU_JPEG>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_mscl CLK_ACLK_SMMU_JPEG>,
+				<&cmu_mscl CLK_PCLK_SMMU_JPEG>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_mscl>;
 		};
@@ -1289,9 +1289,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x15200000 0x1000>;
 			interrupts = <GIC_SPI 352 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_mfc CLK_PCLK_SMMU_MFC_0>,
-				 <&cmu_mfc CLK_ACLK_SMMU_MFC_0>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_mfc CLK_ACLK_SMMU_MFC_0>,
+				<&cmu_mfc CLK_PCLK_SMMU_MFC_0>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_mfc>;
 		};
@@ -1300,9 +1300,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x15210000 0x1000>;
 			interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_mfc CLK_PCLK_SMMU_MFC_1>,
-				 <&cmu_mfc CLK_ACLK_SMMU_MFC_1>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_mfc CLK_ACLK_SMMU_MFC_1>,
+				<&cmu_mfc CLK_PCLK_SMMU_MFC_1>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_mfc>;
 		};
