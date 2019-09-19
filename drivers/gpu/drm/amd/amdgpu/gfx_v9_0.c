@@ -4194,12 +4194,9 @@ static int gfx_v9_0_early_init(void *handle)
 static int gfx_v9_0_ecc_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct ras_ih_if ih_info = {
-		.cb = amdgpu_gfx_process_ras_data_cb,
-	};
 	int r;
 
-	r = amdgpu_gfx_ras_late_init(adev, &ih_info);
+	r = amdgpu_gfx_ras_late_init(adev);
 	if (r)
 		return r;
 

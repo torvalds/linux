@@ -571,18 +571,16 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 	mutex_unlock(&adev->gfx.gfx_off_mutex);
 }
 
-int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev,
-			     void *ras_ih_info)
+int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev)
 {
 	int r;
-	struct ras_ih_if *ih_info = (struct ras_ih_if *)ras_ih_info;
 	struct ras_fs_if fs_info = {
 		.sysfs_name = "gfx_err_count",
 		.debugfs_name = "gfx_err_inject",
 	};
-
-	if (!ih_info)
-		return -EINVAL;
+	struct ras_ih_if ih_info = {
+		.cb = amdgpu_gfx_process_ras_data_cb,
+	};
 
 	if (!adev->gfx.ras_if) {
 		adev->gfx.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
@@ -593,10 +591,10 @@ int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev,
 		adev->gfx.ras_if->sub_block_index = 0;
 		strcpy(adev->gfx.ras_if->name, "gfx");
 	}
-	fs_info.head = ih_info->head = *adev->gfx.ras_if;
+	fs_info.head = ih_info.head = *adev->gfx.ras_if;
 
 	r = amdgpu_ras_late_init(adev, adev->gfx.ras_if,
-				 &fs_info, ih_info);
+				 &fs_info, &ih_info);
 	if (r)
 		goto free;
 
@@ -612,7 +610,7 @@ int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev,
 
 	return 0;
 late_fini:
-	amdgpu_ras_late_fini(adev, adev->gfx.ras_if, ih_info);
+	amdgpu_ras_late_fini(adev, adev->gfx.ras_if, &ih_info);
 free:
 	kfree(adev->gfx.ras_if);
 	adev->gfx.ras_if = NULL;
