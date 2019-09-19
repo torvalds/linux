@@ -14,12 +14,14 @@
 #include <linux/gpio/consumer.h>
 
 #include "bus.h"
+#include "hif_api_general.h"
 
 struct wfx_dev;
 
 struct wfx_platform_data {
 	/* Keyset and ".sec" extention will appended to this string */
 	const char *file_fw;
+	unsigned char slk_key[API_KEY_VALUE_SIZE];
 	struct gpio_desc *gpio_wakeup;
 	/*
 	 * if true HIF D_out is sampled on the rising edge of the clock

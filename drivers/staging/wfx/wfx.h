@@ -15,6 +15,7 @@
 
 #include "bh.h"
 #include "main.h"
+#include "secure_link.h"
 #include "hif_tx.h"
 #include "hif_api_general.h"
 
@@ -33,6 +34,7 @@ struct wfx_dev {
 	struct completion	firmware_ready;
 	struct hif_ind_startup	hw_caps;
 	struct wfx_hif		hif;
+	struct sl_context	sl;
 	int			chip_frozen;
 
 	struct wfx_hif_cmd	hif_cmd;

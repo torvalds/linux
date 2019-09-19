@@ -23,6 +23,7 @@ struct wfx_scan_params {
 
 struct wfx_hif_cmd {
 	struct mutex      lock;
+	struct mutex      key_renew_lock;
 	struct completion ready;
 	struct completion done;
 	bool              async;

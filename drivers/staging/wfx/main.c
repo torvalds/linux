@@ -27,6 +27,7 @@
 #include "bh.h"
 #include "sta.h"
 #include "debug.h"
+#include "secure_link.h"
 #include "hif_api_cmd.h"
 #include "wfx_version.h"
 
@@ -38,6 +39,10 @@ MODULE_VERSION(WFX_LABEL);
 static int gpio_wakeup = -2;
 module_param(gpio_wakeup, int, 0644);
 MODULE_PARM_DESC(gpio_wakeup, "gpio number for wakeup. -1 for none.");
+
+static char *slk_key;
+module_param(slk_key, charp, 0600);
+MODULE_PARM_DESC(slk_key, "secret key for secure link (expect 64 hexdecimal digits).");
 
 static const struct ieee80211_ops wfx_ops = {
 	.start			= wfx_start,
@@ -84,6 +89,29 @@ struct gpio_desc *wfx_get_gpio(struct device *dev, int override, const char *lab
 	return ret;
 }
 
+static void wfx_fill_sl_key(struct device *dev, struct wfx_platform_data *pdata)
+{
+	const char *ascii_key = NULL;
+	int ret = 0;
+
+	if (slk_key)
+		ascii_key = slk_key;
+	if (!ascii_key)
+		ret = of_property_read_string(dev->of_node, "slk_key", &ascii_key);
+	if (ret == -EILSEQ || ret == -ENODATA)
+		dev_err(dev, "ignoring malformatted key from DT\n");
+	if (!ascii_key)
+		return;
+
+	ret = hex2bin(pdata->slk_key, ascii_key, sizeof(pdata->slk_key));
+	if (ret) {
+		dev_err(dev, "ignoring malformatted key: %s\n", ascii_key);
+		memset(pdata->slk_key, 0, sizeof(pdata->slk_key));
+		return;
+	}
+	dev_err(dev, "secure link is not supported by this driver, ignoring provided key\n");
+}
+
 struct wfx_dev *wfx_init_common(struct device *dev,
 				const struct wfx_platform_data *pdata,
 				const struct hwbus_ops *hwbus_ops,
@@ -113,6 +141,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	wdev->hwbus_ops = hwbus_ops;
 	wdev->hwbus_priv = hwbus_priv;
 	memcpy(&wdev->pdata, pdata, sizeof(*pdata));
+	wfx_fill_sl_key(dev, &wdev->pdata);
 
 	init_completion(&wdev->firmware_ready);
 	wfx_init_hif_cmd(&wdev->hif_cmd);
@@ -167,6 +196,12 @@ int wfx_probe(struct wfx_dev *wdev)
 		goto err1;
 	}
 
+	err = wfx_sl_init(wdev);
+	if (err && wdev->hw_caps.capabilities.link_mode == SEC_LINK_ENFORCED) {
+		dev_err(wdev->dev, "chip require secure_link, but can't negociate it\n");
+		goto err1;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(wdev->addresses); i++) {
 		eth_zero_addr(wdev->addresses[i].addr);
 		macaddr = of_get_mac_address(wdev->dev->of_node);
@@ -198,6 +233,7 @@ err1:
 void wfx_release(struct wfx_dev *wdev)
 {
 	wfx_bh_unregister(wdev);
+	wfx_sl_deinit(wdev);
 }
 
 static int __init wfx_core_init(void)

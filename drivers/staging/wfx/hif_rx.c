@@ -11,6 +11,7 @@
 
 #include "hif_rx.h"
 #include "wfx.h"
+#include "secure_link.h"
 #include "hif_api_cmd.h"
 
 static int hif_generic_confirm(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
@@ -46,6 +47,8 @@ static int hif_generic_confirm(struct wfx_dev *wdev, struct hif_msg *hif, void *
 	} else {
 		wdev->hif_cmd.buf_send = NULL;
 		mutex_unlock(&wdev->hif_cmd.lock);
+		if (cmd != HIF_REQ_ID_SL_EXCHANGE_PUB_KEYS)
+			mutex_unlock(&wdev->hif_cmd.key_renew_lock);
 	}
 	return status;
 }
@@ -68,11 +71,25 @@ static int hif_startup_indication(struct wfx_dev *wdev, struct hif_msg *hif, voi
 	return 0;
 }
 
+static int hif_keys_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
+{
+	struct hif_ind_sl_exchange_pub_keys *body = buf;
+
+	// Compatibility with legacy secure link
+	if (body->status == SL_PUB_KEY_EXCHANGE_STATUS_SUCCESS)
+		body->status = 0;
+	if (body->status)
+		dev_warn(wdev->dev, "secure link negociation error\n");
+	wfx_sl_check_pubkey(wdev, body->ncp_pub_key, body->ncp_pub_key_mac);
+	return 0;
+}
+
 static const struct {
 	int msg_id;
 	int (*handler)(struct wfx_dev *wdev, struct hif_msg *hif, void *buf);
 } hif_handlers[] = {
 	{ HIF_IND_ID_STARTUP,              hif_startup_indication },
+	{ HIF_IND_ID_SL_EXCHANGE_PUB_KEYS, hif_keys_indication },
 };
 
 void wfx_handle_rx(struct wfx_dev *wdev, struct sk_buff *skb)
