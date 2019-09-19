@@ -673,7 +673,8 @@ static int sdma_v5_2_gfx_resume(struct amdgpu_device *adev)
 		WREG32(sdma_v5_2_get_reg_offset(adev, i, mmSDMA0_GFX_DOORBELL_OFFSET), doorbell_offset);
 
 		adev->nbio.funcs->sdma_doorbell_range(adev, i, ring->use_doorbell,
-						      ring->doorbell_index, 20);
+						      ring->doorbell_index,
+						      adev->doorbell_index.sdma_doorbell_range);
 
 		if (amdgpu_sriov_vf(adev))
 			sdma_v5_2_ring_set_wptr(ring);
