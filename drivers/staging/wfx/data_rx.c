@@ -21,6 +21,8 @@ static int wfx_handle_pspoll(struct wfx_vif *wvif, struct sk_buff *skb)
 	u32 pspoll_mask = 0;
 	int i;
 
+	if (wvif->state != WFX_STATE_AP)
+		return 1;
 	if (!ether_addr_equal(wvif->vif->addr, pspoll->bssid))
 		return 1;
 
@@ -162,6 +164,30 @@ void wfx_rx_cb(struct wfx_vif *wvif, struct hif_ind_rx *arg, struct sk_buff *skb
 	    && arg->rx_flags.match_uc_addr
 	    && mgmt->u.action.category == WLAN_CATEGORY_BACK)
 		goto drop;
+	if (ieee80211_is_beacon(frame->frame_control)
+	    && !arg->status && wvif->vif
+	    && ether_addr_equal(ieee80211_get_SA(frame), wvif->vif->bss_conf.bssid)) {
+		const u8 *tim_ie;
+		u8 *ies = mgmt->u.beacon.variable;
+		size_t ies_len = skb->len - (ies - skb->data);
+
+		tim_ie = cfg80211_find_ie(WLAN_EID_TIM, ies, ies_len);
+		if (tim_ie) {
+			struct ieee80211_tim_ie *tim = (struct ieee80211_tim_ie *) &tim_ie[2];
+
+			if (wvif->dtim_period != tim->dtim_period) {
+				wvif->dtim_period = tim->dtim_period;
+				schedule_work(&wvif->set_beacon_wakeup_period_work);
+			}
+		}
+
+		/* Disable beacon filter once we're associated... */
+		if (wvif->disable_beacon_filter &&
+		    (wvif->vif->bss_conf.assoc || wvif->vif->bss_conf.ibss_joined)) {
+			wvif->disable_beacon_filter = false;
+			schedule_work(&wvif->update_filtering_work);
+		}
+	}
 
 	if (early_data) {
 		spin_lock_bh(&wvif->ps_state_lock);

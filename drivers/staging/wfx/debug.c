@@ -11,7 +11,9 @@
 
 #include "debug.h"
 #include "wfx.h"
+#include "sta.h"
 #include "main.h"
+#include "hif_tx.h"
 #include "hif_tx_mib.h"
 
 #define CREATE_TRACE_POINTS

@@ -50,14 +50,112 @@ static char *slk_key;
 module_param(slk_key, charp, 0600);
 MODULE_PARM_DESC(slk_key, "secret key for secure link (expect 64 hexdecimal digits).");
 
+#define RATETAB_ENT(_rate, _rateid, _flags) { \
+	.bitrate  = (_rate),   \
+	.hw_value = (_rateid), \
+	.flags    = (_flags),  \
+}
+
+static struct ieee80211_rate wfx_rates[] = {
+	RATETAB_ENT(10,  0,  0),
+	RATETAB_ENT(20,  1,  IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(55,  2,  IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(110, 3,  IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(60,  6,  0),
+	RATETAB_ENT(90,  7,  0),
+	RATETAB_ENT(120, 8,  0),
+	RATETAB_ENT(180, 9,  0),
+	RATETAB_ENT(240, 10, 0),
+	RATETAB_ENT(360, 11, 0),
+	RATETAB_ENT(480, 12, 0),
+	RATETAB_ENT(540, 13, 0),
+};
+
+#define CHAN2G(_channel, _freq, _flags) { \
+	.band = NL80211_BAND_2GHZ, \
+	.center_freq = (_freq),    \
+	.hw_value = (_channel),    \
+	.flags = (_flags),         \
+	.max_antenna_gain = 0,     \
+	.max_power = 30,           \
+}
+
+static struct ieee80211_channel wfx_2ghz_chantable[] = {
+	CHAN2G(1,  2412, 0),
+	CHAN2G(2,  2417, 0),
+	CHAN2G(3,  2422, 0),
+	CHAN2G(4,  2427, 0),
+	CHAN2G(5,  2432, 0),
+	CHAN2G(6,  2437, 0),
+	CHAN2G(7,  2442, 0),
+	CHAN2G(8,  2447, 0),
+	CHAN2G(9,  2452, 0),
+	CHAN2G(10, 2457, 0),
+	CHAN2G(11, 2462, 0),
+	CHAN2G(12, 2467, 0),
+	CHAN2G(13, 2472, 0),
+	CHAN2G(14, 2484, 0),
+};
+
+static const struct ieee80211_supported_band wfx_band_2ghz = {
+	.channels = wfx_2ghz_chantable,
+	.n_channels = ARRAY_SIZE(wfx_2ghz_chantable),
+	.bitrates = wfx_rates,
+	.n_bitrates = ARRAY_SIZE(wfx_rates),
+	.ht_cap = {
+		// Receive caps
+		.cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 |
+		       IEEE80211_HT_CAP_MAX_AMSDU | (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT),
+		.ht_supported = 1,
+		.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
+		.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE,
+		.mcs = {
+			.rx_mask = { 0xFF }, // MCS0 to MCS7
+			.rx_highest = 65,
+			.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
+		},
+	},
+};
+
+static const struct ieee80211_iface_limit wdev_iface_limits[] = {
+	{ .max = 1, .types = BIT(NL80211_IFTYPE_STATION) },
+	{ .max = 1, .types = BIT(NL80211_IFTYPE_AP) },
+};
+
+static const struct ieee80211_iface_combination wfx_iface_combinations[] = {
+	{
+		.num_different_channels = 2,
+		.max_interfaces = 2,
+		.limits = wdev_iface_limits,
+		.n_limits = ARRAY_SIZE(wdev_iface_limits),
+	}
+};
+
 static const struct ieee80211_ops wfx_ops = {
 	.start			= wfx_start,
 	.stop			= wfx_stop,
 	.add_interface		= wfx_add_interface,
 	.remove_interface	= wfx_remove_interface,
+	.config			= wfx_config,
 	.tx			= wfx_tx,
+	.conf_tx		= wfx_conf_tx,
 	.hw_scan		= wfx_hw_scan,
+	.sta_add		= wfx_sta_add,
+	.sta_remove		= wfx_sta_remove,
+	.sta_notify		= wfx_sta_notify,
+	.set_tim		= wfx_set_tim,
 	.set_key		= wfx_set_key,
+	.set_rts_threshold	= wfx_set_rts_threshold,
+	.bss_info_changed	= wfx_bss_info_changed,
+	.prepare_multicast	= wfx_prepare_multicast,
+	.configure_filter	= wfx_configure_filter,
+	.ampdu_action		= wfx_ampdu_action,
+	.flush			= wfx_flush,
+	.add_chanctx		= wfx_add_chanctx,
+	.remove_chanctx		= wfx_remove_chanctx,
+	.change_chanctx		= wfx_change_chanctx,
+	.assign_vif_chanctx	= wfx_assign_vif_chanctx,
+	.unassign_vif_chanctx	= wfx_unassign_vif_chanctx,
 };
 
 bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
@@ -198,6 +296,16 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 
 	SET_IEEE80211_DEV(hw, dev);
 
+	ieee80211_hw_set(hw, NEED_DTIM_BEFORE_ASSOC);
+	ieee80211_hw_set(hw, TX_AMPDU_SETUP_IN_HW);
+	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
+	ieee80211_hw_set(hw, CONNECTION_MONITOR);
+	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
+	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, SUPPORTS_PS);
+	ieee80211_hw_set(hw, MFP_CAPABLE);
+
 	hw->vif_data_size = sizeof(struct wfx_vif);
 	hw->sta_data_size = sizeof(struct wfx_sta_priv);
 	hw->queues = 4;
@@ -206,8 +314,19 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	hw->extra_tx_headroom = sizeof(struct hif_sl_msg_hdr) + sizeof(struct hif_msg)
 				+ sizeof(struct hif_req_tx)
 				+ 4 /* alignment */ + 8 /* TKIP IV */;
+	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+				     BIT(NL80211_IFTYPE_ADHOC) |
+				     BIT(NL80211_IFTYPE_AP);
+	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
+	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
+	hw->wiphy->max_ap_assoc_sta = WFX_MAX_STA_IN_AP_MODE;
 	hw->wiphy->max_scan_ssids = 2;
 	hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
+	hw->wiphy->n_iface_combinations = ARRAY_SIZE(wfx_iface_combinations);
+	hw->wiphy->iface_combinations = wfx_iface_combinations;
+	hw->wiphy->bands[NL80211_BAND_2GHZ] = devm_kmalloc(dev, sizeof(wfx_band_2ghz), GFP_KERNEL);
+	// FIXME: also copy wfx_rates and wfx_2ghz_chantable
+	memcpy(hw->wiphy->bands[NL80211_BAND_2GHZ], &wfx_band_2ghz, sizeof(wfx_band_2ghz));
 
 	wdev = hw->priv;
 	wdev->hw = hw;
@@ -290,6 +409,12 @@ int wfx_probe(struct wfx_dev *wdev)
 		goto err1;
 	}
 
+	if (wdev->hw_caps.regul_sel_mode_info.region_sel_mode) {
+		wdev->hw->wiphy->bands[NL80211_BAND_2GHZ]->channels[11].flags |= IEEE80211_CHAN_NO_IR;
+		wdev->hw->wiphy->bands[NL80211_BAND_2GHZ]->channels[12].flags |= IEEE80211_CHAN_NO_IR;
+		wdev->hw->wiphy->bands[NL80211_BAND_2GHZ]->channels[13].flags |= IEEE80211_CHAN_DISABLED;
+	}
+
 	dev_dbg(wdev->dev, "sending configuration file %s\n", wdev->pdata.file_pds);
 	err = wfx_send_pdata_pds(wdev);
 	if (err < 0)
@@ -322,6 +447,12 @@ int wfx_probe(struct wfx_dev *wdev)
 		}
 		dev_info(wdev->dev, "MAC address %d: %pM\n", i, wdev->addresses[i].addr);
 	}
+	wdev->hw->wiphy->n_addresses = ARRAY_SIZE(wdev->addresses);
+	wdev->hw->wiphy->addresses = wdev->addresses;
+
+	err = ieee80211_register_hw(wdev->hw);
+	if (err)
+		goto err1;
 
 	err = wfx_debug_init(wdev);
 	if (err)
@@ -330,6 +461,7 @@ int wfx_probe(struct wfx_dev *wdev)
 	return 0;
 
 err2:
+	ieee80211_unregister_hw(wdev->hw);
 	ieee80211_free_hw(wdev->hw);
 err1:
 	wfx_bh_unregister(wdev);
@@ -338,6 +470,7 @@ err1:
 
 void wfx_release(struct wfx_dev *wdev)
 {
+	ieee80211_unregister_hw(wdev->hw);
 	hif_shutdown(wdev);
 	wfx_bh_unregister(wdev);
 	wfx_sl_deinit(wdev);

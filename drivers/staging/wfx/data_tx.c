@@ -10,6 +10,7 @@
 #include "data_tx.h"
 #include "wfx.h"
 #include "bh.h"
+#include "sta.h"
 #include "queue.h"
 #include "debug.h"
 #include "traces.h"
@@ -358,6 +359,9 @@ void wfx_link_id_gc_work(struct work_struct *work)
 	long ttl;
 	u32 mask;
 	int i;
+
+	if (wvif->state != WFX_STATE_AP)
+		return;
 
 	wfx_tx_lock_flush(wvif->wdev);
 	spin_lock_bh(&wvif->ps_state_lock);
@@ -729,14 +733,26 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, struct hif_cnf_tx *arg)
 	memset(tx_info->pad, 0, sizeof(tx_info->pad));
 
 	if (!arg->status) {
+		if (wvif->bss_loss_state && arg->packet_id == wvif->bss_loss_confirm_id)
+			wfx_cqm_bssloss_sm(wvif, 0, 1, 0);
 		tx_info->status.tx_time = arg->media_delay - arg->tx_queue_delay;
 		if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK)
 			tx_info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
 		else
 			tx_info->flags |= IEEE80211_TX_STAT_ACK;
 	} else if (arg->status == HIF_REQUEUE) {
+		/* "REQUEUE" means "implicit suspend" */
+		struct hif_ind_suspend_resume_tx suspend = {
+			.suspend_resume_flags.resume = 0,
+			.suspend_resume_flags.bc_mc_only = 1,
+		};
+
 		WARN(!arg->tx_result_flags.requeue, "incoherent status and result_flags");
+		wfx_suspend_resume(wvif, &suspend);
 		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
+	} else {
+		if (wvif->bss_loss_state && arg->packet_id == wvif->bss_loss_confirm_id)
+			wfx_cqm_bssloss_sm(wvif, 0, 0, 1);
 	}
 	wfx_pending_remove(wvif->wdev, skb);
 }

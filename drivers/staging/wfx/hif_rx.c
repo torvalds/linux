@@ -12,6 +12,8 @@
 #include "hif_rx.h"
 #include "wfx.h"
 #include "scan.h"
+#include "bh.h"
+#include "sta.h"
 #include "data_rx.h"
 #include "secure_link.h"
 #include "hif_api_cmd.h"
@@ -144,6 +146,43 @@ static int hif_receive_indication(struct wfx_dev *wdev, struct hif_msg *hif, voi
 	return 0;
 }
 
+static int hif_event_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
+{
+	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
+	struct hif_ind_event *body = buf;
+	struct wfx_hif_event *event;
+	int first;
+
+	WARN_ON(!wvif);
+	if (!wvif)
+		return 0;
+
+	event = kzalloc(sizeof(*event), GFP_KERNEL);
+	if (!event)
+		return -ENOMEM;
+
+	memcpy(&event->evt, body, sizeof(struct hif_ind_event));
+	spin_lock(&wvif->event_queue_lock);
+	first = list_empty(&wvif->event_queue);
+	list_add_tail(&event->link, &wvif->event_queue);
+	spin_unlock(&wvif->event_queue_lock);
+
+	if (first)
+		schedule_work(&wvif->event_handler_work);
+
+	return 0;
+}
+
+static int hif_pm_mode_complete_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
+{
+	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
+
+	WARN_ON(!wvif);
+	complete(&wvif->set_pm_mode_complete);
+
+	return 0;
+}
+
 static int hif_scan_complete_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
 {
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
@@ -161,6 +200,17 @@ static int hif_join_complete_indication(struct wfx_dev *wdev, struct hif_msg *hi
 
 	WARN_ON(!wvif);
 	dev_warn(wdev->dev, "unattended JoinCompleteInd\n");
+
+	return 0;
+}
+
+static int hif_suspend_resume_indication(struct wfx_dev *wdev, struct hif_msg *hif, void *buf)
+{
+	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
+	struct hif_ind_suspend_resume_tx *body = buf;
+
+	WARN_ON(!wvif);
+	wfx_suspend_resume(wvif, body);
 
 	return 0;
 }
@@ -242,8 +292,11 @@ static const struct {
 	{ HIF_IND_ID_STARTUP,              hif_startup_indication },
 	{ HIF_IND_ID_WAKEUP,               hif_wakeup_indication },
 	{ HIF_IND_ID_JOIN_COMPLETE,        hif_join_complete_indication },
+	{ HIF_IND_ID_SET_PM_MODE_CMPL,     hif_pm_mode_complete_indication },
 	{ HIF_IND_ID_SCAN_CMPL,            hif_scan_complete_indication },
+	{ HIF_IND_ID_SUSPEND_RESUME_TX,    hif_suspend_resume_indication },
 	{ HIF_IND_ID_SL_EXCHANGE_PUB_KEYS, hif_keys_indication },
+	{ HIF_IND_ID_EVENT,                hif_event_indication },
 	{ HIF_IND_ID_GENERIC,              hif_generic_indication },
 	{ HIF_IND_ID_ERROR,                hif_error_indication },
 	{ HIF_IND_ID_EXCEPTION,            hif_exception_indication },

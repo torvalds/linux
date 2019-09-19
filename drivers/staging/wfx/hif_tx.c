@@ -14,6 +14,7 @@
 #include "bh.h"
 #include "hwio.h"
 #include "debug.h"
+#include "sta.h"
 
 void wfx_init_hif_cmd(struct wfx_hif_cmd *hif_cmd)
 {
