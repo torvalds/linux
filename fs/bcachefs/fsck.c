@@ -509,7 +509,7 @@ retry:
 		if (fsck_err_on(w.have_inode &&
 			!(w.inode.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
 			k.k->type != KEY_TYPE_reservation &&
-			k.k->p.offset > round_up(w.inode.bi_size, PAGE_SIZE) >> 9, c,
+			k.k->p.offset > round_up(w.inode.bi_size, block_bytes(c)) >> 9, c,
 			"extent type %u offset %llu past end of inode %llu, i_size %llu",
 			k.k->type, k.k->p.offset, k.k->p.inode, w.inode.bi_size)) {
 			bch2_trans_unlock(&trans);
