@@ -1089,7 +1089,7 @@ static int live_suppress_wait_preempt(void *arg)
 				}
 
 				/* Disable NEWCLIENT promotion */
-				__i915_active_request_set(&rq[i]->timeline->last_request,
+				__i915_active_request_set(&i915_request_timeline(rq[i])->last_request,
 							  dummy);
 				i915_request_add(rq[i]);
 			}

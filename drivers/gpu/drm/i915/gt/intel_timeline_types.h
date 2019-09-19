@@ -80,6 +80,7 @@ struct intel_timeline {
 	struct intel_gt *gt;
 
 	struct kref kref;
+	struct rcu_head rcu;
 };
 
 #endif /* __I915_TIMELINE_TYPES_H__ */

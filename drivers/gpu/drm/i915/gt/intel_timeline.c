@@ -493,7 +493,7 @@ int intel_timeline_get_seqno(struct intel_timeline *tl,
 static int cacheline_ref(struct intel_timeline_cacheline *cl,
 			 struct i915_request *rq)
 {
-	return i915_active_ref(&cl->active, rq->timeline, rq);
+	return i915_active_add_request(&cl->active, rq);
 }
 
 int intel_timeline_read_hwsp(struct i915_request *from,
@@ -504,7 +504,7 @@ int intel_timeline_read_hwsp(struct i915_request *from,
 	struct intel_timeline *tl = from->timeline;
 	int err;
 
-	GEM_BUG_ON(to->timeline == tl);
+	GEM_BUG_ON(rcu_access_pointer(to->timeline) == tl);
 
 	mutex_lock_nested(&tl->mutex, SINGLE_DEPTH_NESTING);
 	err = i915_request_completed(from);
@@ -541,7 +541,7 @@ void __intel_timeline_free(struct kref *kref)
 		container_of(kref, typeof(*timeline), kref);
 
 	intel_timeline_fini(timeline);
-	kfree(timeline);
+	kfree_rcu(timeline, rcu);
 }
 
 static void timelines_fini(struct intel_gt *gt)

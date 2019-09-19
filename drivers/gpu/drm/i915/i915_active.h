@@ -373,6 +373,12 @@ int i915_active_ref(struct i915_active *ref,
 		    struct intel_timeline *tl,
 		    struct i915_request *rq);
 
+static inline int
+i915_active_add_request(struct i915_active *ref, struct i915_request *rq)
+{
+	return i915_active_ref(ref, i915_request_timeline(rq), rq);
+}
+
 int i915_active_wait(struct i915_active *ref);
 
 int i915_request_await_active(struct i915_request *rq,

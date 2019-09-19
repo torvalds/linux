@@ -14,22 +14,28 @@
 
 static int request_sync(struct i915_request *rq)
 {
+	struct intel_timeline *tl = i915_request_timeline(rq);
 	long timeout;
 	int err = 0;
 
+	intel_timeline_get(tl);
 	i915_request_get(rq);
 
-	i915_request_add(rq);
+	/* Opencode i915_request_add() so we can keep the timeline locked. */
+	__i915_request_commit(rq);
+	__i915_request_queue(rq, NULL);
+
 	timeout = i915_request_wait(rq, 0, HZ / 10);
-	if (timeout < 0) {
+	if (timeout < 0)
 		err = timeout;
-	} else {
-		mutex_lock(&rq->timeline->mutex);
+	else
 		i915_request_retire_upto(rq);
-		mutex_unlock(&rq->timeline->mutex);
-	}
+
+	lockdep_unpin_lock(&tl->mutex, rq->cookie);
+	mutex_unlock(&tl->mutex);
 
 	i915_request_put(rq);
+	intel_timeline_put(tl);
 
 	return err;
 }

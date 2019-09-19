@@ -695,7 +695,7 @@ void i915_request_add_active_barriers(struct i915_request *rq)
 	struct llist_node *node, *next;
 
 	GEM_BUG_ON(intel_engine_is_virtual(engine));
-	GEM_BUG_ON(rq->timeline != engine->kernel_context->timeline);
+	GEM_BUG_ON(i915_request_timeline(rq) != engine->kernel_context->timeline);
 
 	/*
 	 * Attach the list of proto-fences to the in-flight request such

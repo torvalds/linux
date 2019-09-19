@@ -110,7 +110,7 @@ __live_active_setup(struct drm_i915_private *i915)
 						       submit,
 						       GFP_KERNEL);
 		if (err >= 0)
-			err = i915_active_ref(&active->base, rq->timeline, rq);
+			err = i915_active_add_request(&active->base, rq);
 		i915_request_add(rq);
 		if (err) {
 			pr_err("Failed to track active ref!\n");

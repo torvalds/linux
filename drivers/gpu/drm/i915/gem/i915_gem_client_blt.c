@@ -211,7 +211,7 @@ static void clear_pages_worker(struct work_struct *work)
 	 * keep track of the GPU activity within this vma/request, and
 	 * propagate the signal from the request to w->dma.
 	 */
-	err = i915_active_ref(&vma->active, rq->timeline, rq);
+	err = i915_active_add_request(&vma->active, rq);
 	if (err)
 		goto out_request;
 

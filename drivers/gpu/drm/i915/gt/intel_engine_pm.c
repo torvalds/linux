@@ -103,7 +103,7 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 		/* Context switch failed, hope for the best! Maybe reset? */
 		goto out_unlock;
 
-	intel_timeline_enter(rq->timeline);
+	intel_timeline_enter(i915_request_timeline(rq));
 
 	/* Check again on the next retirement. */
 	engine->wakeref_serial = engine->serial + 1;
