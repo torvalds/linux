@@ -6570,6 +6570,11 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 
 	intel_attach_colorspace_property(connector);
 
+	if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 11)
+		drm_object_attach_property(&connector->base,
+					   connector->dev->mode_config.hdr_output_metadata_property,
+					   0);
+
 	if (intel_dp_is_edp(intel_dp)) {
 		u32 allowed_scalers;
 
