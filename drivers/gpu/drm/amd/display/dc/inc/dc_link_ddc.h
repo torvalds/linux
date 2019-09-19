@@ -105,7 +105,7 @@ int dc_link_aux_transfer_raw(struct ddc_service *ddc,
 bool dc_link_aux_transfer_with_retries(struct ddc_service *ddc,
 		struct aux_payload *payload);
 
-enum dc_status dc_link_aux_configure_timeout(struct ddc_service *ddc,
+uint32_t dc_link_aux_configure_timeout(struct ddc_service *ddc,
 		uint32_t timeout);
 
 void dal_ddc_service_write_scdc_data(

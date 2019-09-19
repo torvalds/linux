@@ -311,7 +311,7 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 		struct aux_payload *cmd);
 
 struct dce_aux_funcs {
-	bool (*configure_timeout)
+	uint32_t (*configure_timeout)
 		(struct ddc_service *ddc,
 		 uint32_t timeout);
 	void (*destroy)

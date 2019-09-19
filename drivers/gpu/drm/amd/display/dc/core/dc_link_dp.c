@@ -2977,6 +2977,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 	union dp_downstream_port_present ds_port = { 0 };
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	uint32_t read_dpcd_retry_cnt = 3;
+	uint32_t prev_timeout_val;
 	int i;
 	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
 
@@ -2987,7 +2988,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 	link->is_lttpr_mode_transparent = true;
 
 	if (ext_timeout_support) {
-		status = dc_link_aux_configure_timeout(link->ddc, LINK_AUX_DEFAULT_EXTENDED_TIMEOUT_PERIOD);
+		prev_timeout_val =
+				dc_link_aux_configure_timeout(link->ddc,
+						LINK_AUX_DEFAULT_EXTENDED_TIMEOUT_PERIOD);
 	}
 
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
@@ -3022,7 +3025,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 		return false;
 	}
 
-	if (ext_timeout_support && link->dpcd_caps.dpcd_rev.raw >= 0x14) {
+	if (ext_timeout_support) {
 		status = core_link_read_dpcd(
 				link,
 				DP_PHY_REPEATER_CNT,
@@ -3063,7 +3066,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 					&link->dpcd_caps.lttpr_caps.max_ext_timeout,
 					sizeof(link->dpcd_caps.lttpr_caps.max_ext_timeout));
 		} else {
-			dc_link_aux_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
+			dc_link_aux_configure_timeout(link->ddc, prev_timeout_val);
 		}
 	}
 
