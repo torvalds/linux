@@ -8461,22 +8461,7 @@ void fix_small_imbalance(struct lb_env *env, struct sd_lb_stats *sds)
 	capa_move /= SCHED_CAPACITY_SCALE;
 
 	/* Move if we gain throughput */
-	if (capa_move > capa_now) {
-		env->imbalance = busiest->load_per_task;
-		return;
-	}
-
-	/* We can't see throughput improvement with the load-based
-	 * method, but it is possible depending upon group size and
-	 * capacity range that there might still be an underutilized
-	 * cpu available in an asymmetric capacity system. Do one last
-	 * check just in case.
-	 */
-	if (env->sd->flags & SD_ASYM_CPUCAPACITY &&
-		busiest->group_type == group_overloaded &&
-		busiest->sum_nr_running > busiest->group_weight &&
-		local->sum_nr_running < local->group_weight &&
-		local->group_capacity < busiest->group_capacity)
+	if (capa_move > capa_now)
 		env->imbalance = busiest->load_per_task;
 }
 
