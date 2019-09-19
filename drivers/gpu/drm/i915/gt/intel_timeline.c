@@ -500,17 +500,32 @@ int intel_timeline_read_hwsp(struct i915_request *from,
 			     struct i915_request *to,
 			     u32 *hwsp)
 {
-	struct intel_timeline_cacheline *cl = from->hwsp_cacheline;
-	struct intel_timeline *tl = from->timeline;
+	struct intel_timeline *tl;
 	int err;
+
+	rcu_read_lock();
+	tl = rcu_dereference(from->timeline);
+	if (i915_request_completed(from) || !kref_get_unless_zero(&tl->kref))
+		tl = NULL;
+	rcu_read_unlock();
+	if (!tl) /* already completed */
+		return 1;
 
 	GEM_BUG_ON(rcu_access_pointer(to->timeline) == tl);
 
-	mutex_lock_nested(&tl->mutex, SINGLE_DEPTH_NESTING);
-	err = i915_request_completed(from);
-	if (!err)
+	err = -EBUSY;
+	if (mutex_trylock(&tl->mutex)) {
+		struct intel_timeline_cacheline *cl = from->hwsp_cacheline;
+
+		if (i915_request_completed(from)) {
+			err = 1;
+			goto unlock;
+		}
+
 		err = cacheline_ref(cl, to);
-	if (!err) {
+		if (err)
+			goto unlock;
+
 		if (likely(cl == tl->hwsp_cacheline)) {
 			*hwsp = tl->hwsp_offset;
 		} else { /* across a seqno wrap, recover the original offset */
@@ -518,8 +533,11 @@ int intel_timeline_read_hwsp(struct i915_request *from,
 				ptr_unmask_bits(cl->vaddr, CACHELINE_BITS) *
 				CACHELINE_BYTES;
 		}
+
+unlock:
+		mutex_unlock(&tl->mutex);
 	}
-	mutex_unlock(&tl->mutex);
+	intel_timeline_put(tl);
 
 	return err;
 }
