@@ -801,6 +801,8 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 	struct address_space *mapping = file->f_mapping;
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch2_page_reservation res;
+	unsigned len;
+	loff_t isize;
 	int ret = VM_FAULT_LOCKED;
 
 	bch2_page_reservation_init(c, inode, &res);
@@ -817,21 +819,27 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 	bch2_pagecache_add_get(&inode->ei_pagecache_lock);
 
 	lock_page(page);
-	if (page->mapping != mapping ||
-	    page_offset(page) > i_size_read(&inode->v)) {
+	isize = i_size_read(&inode->v);
+
+	if (page->mapping != mapping || page_offset(page) >= isize) {
 		unlock_page(page);
 		ret = VM_FAULT_NOPAGE;
 		goto out;
 	}
 
-	if (bch2_page_reservation_get(c, inode, page, &res,
-				      0, PAGE_SIZE, true)) {
+	/* page is wholly or partially inside EOF */
+	if (((page->index + 1) << PAGE_SHIFT) <= isize)
+		len = PAGE_SIZE;
+	else
+		len = offset_in_page(isize);
+
+	if (bch2_page_reservation_get(c, inode, page, &res, 0, len, true)) {
 		unlock_page(page);
 		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}
 
-	bch2_set_page_dirty(c, inode, page, &res, 0, PAGE_SIZE);
+	bch2_set_page_dirty(c, inode, page, &res, 0, len);
 	wait_for_stable_page(page);
 out:
 	bch2_pagecache_add_put(&inode->ei_pagecache_lock);
@@ -1432,6 +1440,10 @@ do_io:
 		BUG_ON(inode != w->io->op.inode);
 		BUG_ON(!bio_add_page(&w->io->op.op.wbio.bio, page,
 				     sectors << 9, offset << 9));
+
+		/* Check for writing past i_size: */
+		BUG_ON((bio_end_sector(&w->io->op.op.wbio.bio) << 9) >
+		       round_up(i_size, block_bytes(c)));
 
 		w->io->op.op.res.sectors += reserved_sectors;
 		w->io->op.new_i_size = i_size;
@@ -2518,6 +2530,16 @@ int bch2_truncate(struct bch_inode_info *inode, struct iattr *iattr)
 	if (unlikely(ret))
 		goto err;
 
+	/*
+	 * When extending, we're going to write the new i_size to disk
+	 * immediately so we need to flush anything above the current on disk
+	 * i_size first:
+	 *
+	 * Also, when extending we need to flush the page that i_size currently
+	 * straddles - if it's mapped to userspace, we need to ensure that
+	 * userspace has to redirty it and call .mkwrite -> set_page_dirty
+	 * again to allocate the part of the page that was extended.
+	 */
 	if (iattr->ia_size > inode->ei_inode.bi_size)
 		ret = filemap_write_and_wait_range(mapping,
 				inode->ei_inode.bi_size,
