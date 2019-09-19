@@ -192,18 +192,12 @@ static void ttm_bo_add_mem_to_lru(struct ttm_buffer_object *bo,
 	}
 }
 
-void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
-{
-	ttm_bo_add_mem_to_lru(bo, &bo->mem);
-}
-EXPORT_SYMBOL(ttm_bo_add_to_lru);
-
 static void ttm_bo_ref_bug(struct kref *list_kref)
 {
 	BUG();
 }
 
-void ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
+static void ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
 	bool notify = false;
@@ -223,16 +217,6 @@ void ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
 		bdev->driver->del_from_lru_notify(bo);
 }
 
-void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo)
-{
-	struct ttm_bo_global *glob = bo->bdev->glob;
-
-	spin_lock(&glob->lru_lock);
-	ttm_bo_del_from_lru(bo);
-	spin_unlock(&glob->lru_lock);
-}
-EXPORT_SYMBOL(ttm_bo_del_sub_from_lru);
-
 static void ttm_bo_bulk_move_set_pos(struct ttm_lru_bulk_move_pos *pos,
 				     struct ttm_buffer_object *bo)
 {
@@ -247,7 +231,7 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
 	dma_resv_assert_held(bo->base.resv);
 
 	ttm_bo_del_from_lru(bo);
-	ttm_bo_add_to_lru(bo);
+	ttm_bo_add_mem_to_lru(bo, &bo->mem);
 
 	if (bulk && !(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
 		switch (bo->mem.mem_type) {
@@ -511,7 +495,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 		 */
 		if (bo->mem.placement & TTM_PL_FLAG_NO_EVICT) {
 			bo->mem.placement &= ~TTM_PL_FLAG_NO_EVICT;
-			ttm_bo_add_to_lru(bo);
+			ttm_bo_move_to_lru_tail(bo, NULL);
 		}
 
 		dma_resv_unlock(bo->base.resv);
@@ -895,17 +879,11 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 		return ret;
 	}
 
-	ttm_bo_del_from_lru(bo);
 	spin_unlock(&glob->lru_lock);
 
 	ret = ttm_bo_evict(bo, ctx);
-	if (locked) {
+	if (locked)
 		ttm_bo_unreserve(bo);
-	} else {
-		spin_lock(&glob->lru_lock);
-		ttm_bo_add_to_lru(bo);
-		spin_unlock(&glob->lru_lock);
-	}
 
 	kref_put(&bo->list_kref, ttm_bo_release_list);
 	return ret;
@@ -1067,12 +1045,10 @@ static int ttm_bo_mem_placement(struct ttm_buffer_object *bo,
 	mem->mem_type = mem_type;
 	mem->placement = cur_flags;
 
-	if (bo->mem.mem_type < mem_type && !list_empty(&bo->lru)) {
-		spin_lock(&bo->bdev->glob->lru_lock);
-		ttm_bo_del_from_lru(bo);
-		ttm_bo_add_mem_to_lru(bo, mem);
-		spin_unlock(&bo->bdev->glob->lru_lock);
-	}
+	spin_lock(&bo->bdev->glob->lru_lock);
+	ttm_bo_del_from_lru(bo);
+	ttm_bo_add_mem_to_lru(bo, mem);
+	spin_unlock(&bo->bdev->glob->lru_lock);
 
 	return 0;
 }
@@ -1377,11 +1353,9 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 		return ret;
 	}
 
-	if (resv && !(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
-		spin_lock(&bdev->glob->lru_lock);
-		ttm_bo_add_to_lru(bo);
-		spin_unlock(&bdev->glob->lru_lock);
-	}
+	spin_lock(&bdev->glob->lru_lock);
+	ttm_bo_move_to_lru_tail(bo, NULL);
+	spin_unlock(&bdev->glob->lru_lock);
 
 	return ret;
 }

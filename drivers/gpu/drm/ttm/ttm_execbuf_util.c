@@ -43,16 +43,6 @@ static void ttm_eu_backoff_reservation_reverse(struct list_head *list,
 	}
 }
 
-static void ttm_eu_del_from_lru_locked(struct list_head *list)
-{
-	struct ttm_validate_buffer *entry;
-
-	list_for_each_entry(entry, list, head) {
-		struct ttm_buffer_object *bo = entry->bo;
-		ttm_bo_del_from_lru(bo);
-	}
-}
-
 void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
 				struct list_head *list)
 {
@@ -69,8 +59,7 @@ void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
 	list_for_each_entry(entry, list, head) {
 		struct ttm_buffer_object *bo = entry->bo;
 
-		if (list_empty(&bo->lru))
-			ttm_bo_add_to_lru(bo);
+		ttm_bo_move_to_lru_tail(bo, NULL);
 		dma_resv_unlock(bo->base.resv);
 	}
 	spin_unlock(&glob->lru_lock);
@@ -94,7 +83,7 @@ EXPORT_SYMBOL(ttm_eu_backoff_reservation);
 
 int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 			   struct list_head *list, bool intr,
-			   struct list_head *dups, bool del_lru)
+			   struct list_head *dups)
 {
 	struct ttm_bo_global *glob;
 	struct ttm_validate_buffer *entry;
@@ -168,11 +157,6 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 		list_add(&entry->head, list);
 	}
 
-	if (del_lru) {
-		spin_lock(&glob->lru_lock);
-		ttm_eu_del_from_lru_locked(list);
-		spin_unlock(&glob->lru_lock);
-	}
 	return 0;
 }
 EXPORT_SYMBOL(ttm_eu_reserve_buffers);
@@ -199,10 +183,7 @@ void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 			dma_resv_add_shared_fence(bo->base.resv, fence);
 		else
 			dma_resv_add_excl_fence(bo->base.resv, fence);
-		if (list_empty(&bo->lru))
-			ttm_bo_add_to_lru(bo);
-		else
-			ttm_bo_move_to_lru_tail(bo, NULL);
+		ttm_bo_move_to_lru_tail(bo, NULL);
 		dma_resv_unlock(bo->base.resv);
 	}
 	spin_unlock(&glob->lru_lock);

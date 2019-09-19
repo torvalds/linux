@@ -361,30 +361,6 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 void ttm_bo_put(struct ttm_buffer_object *bo);
 
 /**
- * ttm_bo_add_to_lru
- *
- * @bo: The buffer object.
- *
- * Add this bo to the relevant mem type lru and, if it's backed by
- * system pages (ttms) to the swap list.
- * This function must be called with struct ttm_bo_global::lru_lock held, and
- * is typically called immediately prior to unreserving a bo.
- */
-void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
-
-/**
- * ttm_bo_del_from_lru
- *
- * @bo: The buffer object.
- *
- * Remove this bo from all lru lists used to lookup and reserve an object.
- * This function must be called with struct ttm_bo_global::lru_lock held,
- * and is usually called just immediately after the bo has been reserved to
- * avoid recursive reservation from lru lists.
- */
-void ttm_bo_del_from_lru(struct ttm_buffer_object *bo);
-
-/**
  * ttm_bo_move_to_lru_tail
  *
  * @bo: The buffer object.

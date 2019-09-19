@@ -631,9 +631,6 @@ void ttm_mem_io_free_vm(struct ttm_buffer_object *bo);
 int ttm_mem_io_lock(struct ttm_mem_type_manager *man, bool interruptible);
 void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
 
-void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo);
-void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
-
 /**
  * __ttm_bo_reserve:
  *
@@ -727,15 +724,9 @@ static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
 				 bool interruptible, bool no_wait,
 				 struct ww_acquire_ctx *ticket)
 {
-	int ret;
-
 	WARN_ON(!kref_read(&bo->kref));
 
-	ret = __ttm_bo_reserve(bo, interruptible, no_wait, ticket);
-	if (likely(ret == 0))
-		ttm_bo_del_sub_from_lru(bo);
-
-	return ret;
+	return __ttm_bo_reserve(bo, interruptible, no_wait, ticket);
 }
 
 /**
@@ -762,9 +753,7 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 	else
 		dma_resv_lock_slow(bo->base.resv, ticket);
 
-	if (likely(ret == 0))
-		ttm_bo_del_sub_from_lru(bo);
-	else if (ret == -EINTR)
+	if (ret == -EINTR)
 		ret = -ERESTARTSYS;
 
 	return ret;
@@ -780,10 +769,7 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 {
 	spin_lock(&bo->bdev->glob->lru_lock);
-	if (list_empty(&bo->lru))
-		ttm_bo_add_to_lru(bo);
-	else
-		ttm_bo_move_to_lru_tail(bo, NULL);
+	ttm_bo_move_to_lru_tail(bo, NULL);
 	spin_unlock(&bo->bdev->glob->lru_lock);
 	dma_resv_unlock(bo->base.resv);
 }

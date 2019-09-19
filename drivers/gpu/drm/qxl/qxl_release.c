@@ -260,7 +260,7 @@ int qxl_release_reserve_list(struct qxl_release *release, bool no_intr)
 		return 0;
 
 	ret = ttm_eu_reserve_buffers(&release->ticket, &release->bos,
-				     !no_intr, NULL, true);
+				     !no_intr, NULL);
 	if (ret)
 		return ret;
 
@@ -459,7 +459,7 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 		bo = entry->bo;
 
 		dma_resv_add_shared_fence(bo->base.resv, &release->base);
-		ttm_bo_add_to_lru(bo);
+		ttm_bo_move_to_lru_tail(bo, NULL);
 		dma_resv_unlock(bo->base.resv);
 	}
 	spin_unlock(&glob->lru_lock);
