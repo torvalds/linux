@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1109.dtsi"
+
+/ {
+	model = "Rockchip RV1109 FPGA Board";
+	compatible = "rockchip,rv1109-fpga", "rockchip,rv1109";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 initrd=0x9000000,0xb05e7 init=/init";
+	};
+};
+
+&fiq_debugger {
+	status = "okay";
+};
+
+&uart2 {
+	clocks = <&xin24m>, <&xin24m>;
+};
