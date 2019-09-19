@@ -190,7 +190,10 @@ static int bh_work_tx(struct wfx_dev *wdev, int max_msg)
 	for (i = 0; i < max_msg; i++) {
 		hif = NULL;
 		if (wdev->hif.tx_buffers_used < wdev->hw_caps.num_inp_ch_bufs) {
-			/* FIXME: get queued data */
+			if (try_wait_for_completion(&wdev->hif_cmd.ready)) {
+				WARN(!mutex_is_locked(&wdev->hif_cmd.lock), "data locking error");
+				hif = wdev->hif_cmd.buf_send;
+			}
 		}
 		if (!hif)
 			return i;

@@ -15,6 +15,7 @@
 
 #include "bh.h"
 #include "main.h"
+#include "hif_tx.h"
 #include "hif_api_general.h"
 
 struct hwbus_ops;
@@ -32,6 +33,9 @@ struct wfx_dev {
 	struct completion	firmware_ready;
 	struct hif_ind_startup	hw_caps;
 	struct wfx_hif		hif;
+	int			chip_frozen;
+
+	struct wfx_hif_cmd	hif_cmd;
 };
 
 struct wfx_vif {

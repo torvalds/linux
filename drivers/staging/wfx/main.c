@@ -115,6 +115,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	memcpy(&wdev->pdata, pdata, sizeof(*pdata));
 
 	init_completion(&wdev->firmware_ready);
+	wfx_init_hif_cmd(&wdev->hif_cmd);
 
 	return wdev;
 }

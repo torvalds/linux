@@ -7,6 +7,7 @@ wfx-y := \
 	bh.o \
 	hwio.o \
 	fwio.o \
+	hif_tx.o \
 	hif_rx.o \
 	main.o \
 	sta.o \
