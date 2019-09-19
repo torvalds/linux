@@ -186,7 +186,7 @@ static int membarrier_register_global_expedited(void)
 	    MEMBARRIER_STATE_GLOBAL_EXPEDITED_READY)
 		return 0;
 	atomic_or(MEMBARRIER_STATE_GLOBAL_EXPEDITED, &mm->membarrier_state);
-	if (atomic_read(&mm->mm_users) == 1 && get_nr_threads(p) == 1) {
+	if (atomic_read(&mm->mm_users) == 1) {
 		/*
 		 * For single mm user, single threaded process, we can
 		 * simply issue a memory barrier after setting
@@ -232,7 +232,7 @@ static int membarrier_register_private_expedited(int flags)
 	if (flags & MEMBARRIER_FLAG_SYNC_CORE)
 		atomic_or(MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE,
 			  &mm->membarrier_state);
-	if (!(atomic_read(&mm->mm_users) == 1 && get_nr_threads(p) == 1)) {
+	if (atomic_read(&mm->mm_users) != 1) {
 		/*
 		 * Ensure all future scheduler executions will observe the
 		 * new thread flag state for this process.
