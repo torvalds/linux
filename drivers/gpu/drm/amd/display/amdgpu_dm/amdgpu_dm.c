@@ -3398,7 +3398,6 @@ static void fill_stream_properties_from_drm_display_mode(
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 	struct hdmi_vendor_infoframe hv_frame;
 	struct hdmi_avi_infoframe avi_frame;
-	memset(timing_out, 0, sizeof(struct dc_crtc_timing));
 
 	timing_out->h_border_left = 0;
 	timing_out->h_border_right = 0;
@@ -3661,6 +3660,9 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	}
 
 	stream->dm_stream_context = aconnector;
+
+	stream->timing.flags.LTE_340MCSC_SCRAMBLE =
+		drm_connector->display_info.hdmi.scdc.scrambling.low_rates;
 
 	list_for_each_entry(preferred_mode, &aconnector->base.modes, head) {
 		/* Search for preferred mode */
