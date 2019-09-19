@@ -126,6 +126,9 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 	case DRM_V3D_PARAM_SUPPORTS_CSD:
 		args->value = v3d_has_csd(v3d);
 		return 0;
+	case DRM_V3D_PARAM_SUPPORTS_CACHE_FLUSH:
+		args->value = 1;
+		return 0;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", args->param);
 		return -EINVAL;
