@@ -11,10 +11,15 @@
  * Copyright (c) 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
  */
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/spi/spi.h>
 #include <linux/etherdevice.h>
 
+#include "main.h"
+#include "wfx.h"
 #include "bus.h"
 #include "wfx_version.h"
 
@@ -22,6 +27,54 @@ MODULE_DESCRIPTION("Silicon Labs 802.11 Wireless LAN driver for WFx");
 MODULE_AUTHOR("Jérôme Pouiller <jerome.pouiller@silabs.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(WFX_LABEL);
+
+struct gpio_desc *wfx_get_gpio(struct device *dev, int override, const char *label)
+{
+	struct gpio_desc *ret;
+	char label_buf[256];
+
+	if (override >= 0) {
+		snprintf(label_buf, sizeof(label_buf), "wfx_%s", label);
+		ret = ERR_PTR(devm_gpio_request_one(dev, override, GPIOF_OUT_INIT_LOW, label_buf));
+		if (!ret)
+			ret = gpio_to_desc(override);
+	} else if (override == -1) {
+		ret = NULL;
+	} else {
+		ret = devm_gpiod_get(dev, label, GPIOD_OUT_LOW);
+	}
+	if (IS_ERR(ret) || !ret) {
+		if (!ret || PTR_ERR(ret) == -ENOENT)
+			dev_warn(dev, "gpio %s is not defined\n", label);
+		else
+			dev_warn(dev, "error while requesting gpio %s\n", label);
+		ret = NULL;
+	} else {
+		dev_dbg(dev, "using gpio %d for %s\n", desc_to_gpio(ret), label);
+	}
+	return ret;
+}
+
+struct wfx_dev *wfx_init_common(struct device *dev,
+				const struct wfx_platform_data *pdata,
+				const struct hwbus_ops *hwbus_ops,
+				void *hwbus_priv)
+{
+	struct wfx_dev *wdev;
+
+	wdev = devm_kmalloc(dev, sizeof(*wdev), GFP_KERNEL);
+	if (!wdev)
+		return NULL;
+	wdev->dev = dev;
+	wdev->hwbus_ops = hwbus_ops;
+	wdev->hwbus_priv = hwbus_priv;
+	memcpy(&wdev->pdata, pdata, sizeof(*pdata));
+	return wdev;
+}
+
+void wfx_free_common(struct wfx_dev *wdev)
+{
+}
 
 static int __init wfx_core_init(void)
 {

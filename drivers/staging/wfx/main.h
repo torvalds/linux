@@ -1,0 +1,32 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Device probe and register.
+ *
+ * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
+ * Copyright (c) 2010, ST-Ericsson
+ * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
+ * Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ */
+#ifndef WFX_MAIN_H
+#define WFX_MAIN_H
+
+#include <linux/device.h>
+#include <linux/gpio/consumer.h>
+
+#include "bus.h"
+
+struct wfx_dev;
+
+struct wfx_platform_data {
+};
+
+struct wfx_dev *wfx_init_common(struct device *dev,
+				const struct wfx_platform_data *pdata,
+				const struct hwbus_ops *hwbus_ops,
+				void *hwbus_priv);
+void wfx_free_common(struct wfx_dev *wdev);
+
+struct gpio_desc *wfx_get_gpio(struct device *dev, int override,
+			       const char *label);
+
+#endif

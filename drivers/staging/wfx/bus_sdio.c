@@ -8,36 +8,223 @@
 #include <linux/module.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/card.h>
+#include <linux/interrupt.h>
 #include <linux/of_irq.h>
 
 #include "bus.h"
+#include "wfx.h"
+#include "hwio.h"
+#include "main.h"
+
+static const struct wfx_platform_data wfx_sdio_pdata = {
+};
+
+struct wfx_sdio_priv {
+	struct sdio_func *func;
+	struct wfx_dev *core;
+	u8 buf_id_tx;
+	u8 buf_id_rx;
+	int of_irq;
+};
+
+static int wfx_sdio_copy_from_io(void *priv, unsigned int reg_id,
+				 void *dst, size_t count)
+{
+	struct wfx_sdio_priv *bus = priv;
+	unsigned int sdio_addr = reg_id << 2;
+	int ret;
+
+	BUG_ON(reg_id > 7);
+	WARN(((uintptr_t) dst) & 3, "unaligned buffer size");
+	WARN(count & 3, "unaligned buffer address");
+
+	/* Use queue mode buffers */
+	if (reg_id == WFX_REG_IN_OUT_QUEUE)
+		sdio_addr |= (bus->buf_id_rx + 1) << 7;
+	ret = sdio_memcpy_fromio(bus->func, dst, sdio_addr, count);
+	if (!ret && reg_id == WFX_REG_IN_OUT_QUEUE)
+		bus->buf_id_rx = (bus->buf_id_rx + 1) % 4;
+
+	return ret;
+}
+
+static int wfx_sdio_copy_to_io(void *priv, unsigned int reg_id,
+			       const void *src, size_t count)
+{
+	struct wfx_sdio_priv *bus = priv;
+	unsigned int sdio_addr = reg_id << 2;
+	int ret;
+
+	BUG_ON(reg_id > 7);
+	WARN(((uintptr_t) src) & 3, "unaligned buffer size");
+	WARN(count & 3, "unaligned buffer address");
+
+	/* Use queue mode buffers */
+	if (reg_id == WFX_REG_IN_OUT_QUEUE)
+		sdio_addr |= bus->buf_id_tx << 7;
+	// FIXME: discards 'const' qualifier for src
+	ret = sdio_memcpy_toio(bus->func, sdio_addr, (void *) src, count);
+	if (!ret && reg_id == WFX_REG_IN_OUT_QUEUE)
+		bus->buf_id_tx = (bus->buf_id_tx + 1) % 32;
+
+	return ret;
+}
+
+static void wfx_sdio_lock(void *priv)
+{
+	struct wfx_sdio_priv *bus = priv;
+
+	sdio_claim_host(bus->func);
+}
+
+static void wfx_sdio_unlock(void *priv)
+{
+	struct wfx_sdio_priv *bus = priv;
+
+	sdio_release_host(bus->func);
+}
+
+static void wfx_sdio_irq_handler(struct sdio_func *func)
+{
+	struct wfx_sdio_priv *bus = sdio_get_drvdata(func);
+
+	if (bus->core)
+		/* empty */;
+	else
+		WARN(!bus->core, "race condition in driver init/deinit");
+}
+
+static irqreturn_t wfx_sdio_irq_handler_ext(int irq, void *priv)
+{
+	struct wfx_sdio_priv *bus = priv;
+
+	if (!bus->core) {
+		WARN(!bus->core, "race condition in driver init/deinit");
+		return IRQ_NONE;
+	}
+	sdio_claim_host(bus->func);
+	sdio_release_host(bus->func);
+	return IRQ_HANDLED;
+}
+
+static int wfx_sdio_irq_subscribe(struct wfx_sdio_priv *bus)
+{
+	int ret;
+
+	if (bus->of_irq) {
+		ret = request_irq(bus->of_irq, wfx_sdio_irq_handler_ext,
+				  IRQF_TRIGGER_RISING, "wfx", bus);
+	} else {
+		sdio_claim_host(bus->func);
+		ret = sdio_claim_irq(bus->func, wfx_sdio_irq_handler);
+		sdio_release_host(bus->func);
+	}
+	return ret;
+}
+
+static int wfx_sdio_irq_unsubscribe(struct wfx_sdio_priv *bus)
+{
+	int ret;
+
+	if (bus->of_irq) {
+		free_irq(bus->of_irq, bus);
+		ret = 0;
+	} else {
+		sdio_claim_host(bus->func);
+		ret = sdio_release_irq(bus->func);
+		sdio_release_host(bus->func);
+	}
+	return ret;
+}
+
+static size_t wfx_sdio_align_size(void *priv, size_t size)
+{
+	struct wfx_sdio_priv *bus = priv;
+
+	return sdio_align_size(bus->func, size);
+}
+
+static const struct hwbus_ops wfx_sdio_hwbus_ops = {
+	.copy_from_io = wfx_sdio_copy_from_io,
+	.copy_to_io = wfx_sdio_copy_to_io,
+	.lock			= wfx_sdio_lock,
+	.unlock			= wfx_sdio_unlock,
+	.align_size		= wfx_sdio_align_size,
+};
 
 static const struct of_device_id wfx_sdio_of_match[];
 static int wfx_sdio_probe(struct sdio_func *func,
 			  const struct sdio_device_id *id)
 {
 	struct device_node *np = func->dev.of_node;
+	struct wfx_sdio_priv *bus;
+	int ret;
 
 	if (func->num != 1) {
 		dev_err(&func->dev, "SDIO function number is %d while it should always be 1 (unsupported chip?)\n", func->num);
 		return -ENODEV;
 	}
 
+	bus = devm_kzalloc(&func->dev, sizeof(*bus), GFP_KERNEL);
+	if (!bus)
+		return -ENOMEM;
+
 	if (np) {
 		if (!of_match_node(wfx_sdio_of_match, np)) {
 			dev_warn(&func->dev, "no compatible device found in DT\n");
 			return -ENODEV;
 		}
+		bus->of_irq = irq_of_parse_and_map(np, 0);
 	} else {
 		dev_warn(&func->dev, "device is not declared in DT, features will be limited\n");
 		// FIXME: ignore VID/PID and only rely on device tree
 		// return -ENODEV;
 	}
-	return -EIO; // FIXME: not yet supported
+
+	bus->func = func;
+	sdio_set_drvdata(func, bus);
+	func->card->quirks |= MMC_QUIRK_LENIENT_FN0 | MMC_QUIRK_BLKSZ_FOR_BYTE_MODE | MMC_QUIRK_BROKEN_BYTE_MODE_512;
+
+	sdio_claim_host(func);
+	ret = sdio_enable_func(func);
+	// Block of 64 bytes is more efficient than 512B for frame sizes < 4k
+	sdio_set_block_size(func, 64);
+	sdio_release_host(func);
+	if (ret)
+		goto err0;
+
+	ret = wfx_sdio_irq_subscribe(bus);
+	if (ret)
+		goto err1;
+
+	bus->core = wfx_init_common(&func->dev, &wfx_sdio_pdata,
+				    &wfx_sdio_hwbus_ops, bus);
+	if (!bus->core) {
+		ret = -EIO;
+		goto err2;
+	}
+
+	return 0;
+
+err2:
+	wfx_sdio_irq_unsubscribe(bus);
+err1:
+	sdio_claim_host(func);
+	sdio_disable_func(func);
+	sdio_release_host(func);
+err0:
+	return ret;
 }
 
 static void wfx_sdio_remove(struct sdio_func *func)
 {
+	struct wfx_sdio_priv *bus = sdio_get_drvdata(func);
+
+	wfx_free_common(bus->core);
+	wfx_sdio_irq_unsubscribe(bus);
+	sdio_claim_host(func);
+	sdio_disable_func(func);
+	sdio_release_host(func);
 }
 
 #define SDIO_VENDOR_ID_SILABS        0x0000
