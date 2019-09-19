@@ -514,6 +514,8 @@ static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 
 static int soc15_mode2_reset(struct amdgpu_device *adev)
 {
+	if (is_support_sw_smu(adev))
+		return smu_mode2_reset(&adev->smu);
 	if (!adev->powerplay.pp_funcs ||
 	    !adev->powerplay.pp_funcs->asic_reset_mode_2)
 		return -ENOENT;
@@ -528,6 +530,7 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
+	case CHIP_RENOIR:
 		return AMD_RESET_METHOD_MODE2;
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
