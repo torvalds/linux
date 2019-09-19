@@ -117,7 +117,6 @@ static int rcar_usb2_clock_sel_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct usb2_clock_sel_priv *priv;
-	struct resource *res;
 	struct clk *clk;
 	struct clk_init_data init;
 
@@ -125,8 +124,7 @@ static int rcar_usb2_clock_sel_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(dev, res);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
