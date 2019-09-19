@@ -510,8 +510,10 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 		data = RREG32(sdma_base_addr + mmSDMA0_RLC0_CONTEXT_STATUS);
 		if (data & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
-		if (time_after(jiffies, end_jiffies))
+		if (time_after(jiffies, end_jiffies)) {
+			pr_err("SDMA RLC not idle in %s\n", __func__);
 			return -ETIME;
+		}
 		usleep_range(500, 1000);
 	}
 	data = RREG32(sdmax_gfx_context_cntl);
@@ -762,8 +764,10 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 		temp = RREG32(sdma_base_addr + mmSDMA0_RLC0_CONTEXT_STATUS);
 		if (temp & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
-		if (time_after(jiffies, end_jiffies))
+		if (time_after(jiffies, end_jiffies)) {
+			pr_err("SDMA RLC not idle in %s\n", __func__);
 			return -ETIME;
+		}
 		usleep_range(500, 1000);
 	}
 
