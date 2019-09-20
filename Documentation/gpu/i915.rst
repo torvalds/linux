@@ -246,6 +246,15 @@ Display PLLs
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_dpll_mgr.h
    :internal:
 
+Display State Buffer
+--------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dsb.c
+   :doc: DSB
+
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dsb.c
+   :internal:
+
 Memory Management and Command Submission
 ========================================
 
