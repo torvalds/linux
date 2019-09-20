@@ -381,3 +381,14 @@ notrace void __init kaslr_early_init(void *dt_ptr, phys_addr_t size)
 
 	reloc_kernel_entry(dt_ptr, kernstart_virt_addr);
 }
+
+void __init kaslr_late_init(void)
+{
+	/* If randomized, clear the original kernel */
+	if (kernstart_virt_addr != KERNELBASE) {
+		unsigned long kernel_sz;
+
+		kernel_sz = (unsigned long)_end - kernstart_virt_addr;
+		memzero_explicit((void *)KERNELBASE, kernel_sz);
+	}
+}
