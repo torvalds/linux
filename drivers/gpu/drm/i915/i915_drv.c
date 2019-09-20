@@ -407,7 +407,7 @@ cleanup_gem:
 	i915_gem_driver_remove(i915);
 	i915_gem_driver_release(i915);
 cleanup_modeset:
-	intel_modeset_driver_remove(&i915->drm);
+	intel_modeset_driver_remove(i915);
 cleanup_irq:
 	intel_irq_uninstall(i915);
 	intel_gmbus_teardown(i915);
@@ -450,7 +450,7 @@ static void i915_driver_modeset_remove(struct drm_i915_private *i915)
 {
 	struct pci_dev *pdev = i915->drm.pdev;
 
-	intel_modeset_driver_remove(&i915->drm);
+	intel_modeset_driver_remove(i915);
 
 	intel_bios_driver_remove(i915);
 

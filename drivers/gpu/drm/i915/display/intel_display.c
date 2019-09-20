@@ -17114,13 +17114,13 @@ void intel_display_resume(struct drm_device *dev)
 		drm_atomic_state_put(state);
 }
 
-static void intel_hpd_poll_fini(struct drm_device *dev)
+static void intel_hpd_poll_fini(struct drm_i915_private *i915)
 {
 	struct intel_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 
 	/* Kill all the work that may have been queued by hpd. */
-	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		if (connector->modeset_retry_work.func)
 			cancel_work_sync(&connector->modeset_retry_work);
@@ -17132,51 +17132,49 @@ static void intel_hpd_poll_fini(struct drm_device *dev)
 	drm_connector_list_iter_end(&conn_iter);
 }
 
-void intel_modeset_driver_remove(struct drm_device *dev)
+void intel_modeset_driver_remove(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	flush_workqueue(i915->flip_wq);
+	flush_workqueue(i915->modeset_wq);
 
-	flush_workqueue(dev_priv->flip_wq);
-	flush_workqueue(dev_priv->modeset_wq);
-
-	flush_work(&dev_priv->atomic_helper.free_work);
-	WARN_ON(!llist_empty(&dev_priv->atomic_helper.free_list));
+	flush_work(&i915->atomic_helper.free_work);
+	WARN_ON(!llist_empty(&i915->atomic_helper.free_list));
 
 	/*
 	 * Interrupts and polling as the first thing to avoid creating havoc.
 	 * Too much stuff here (turning of connectors, ...) would
 	 * experience fancy races otherwise.
 	 */
-	intel_irq_uninstall(dev_priv);
+	intel_irq_uninstall(i915);
 
 	/*
 	 * Due to the hpd irq storm handling the hotplug work can re-arm the
 	 * poll handlers. Hence disable polling after hpd handling is shut down.
 	 */
-	intel_hpd_poll_fini(dev);
+	intel_hpd_poll_fini(i915);
 
 	/* poll work can call into fbdev, hence clean that up afterwards */
-	intel_fbdev_fini(dev_priv);
+	intel_fbdev_fini(i915);
 
 	intel_unregister_dsm_handler();
 
-	intel_fbc_global_disable(dev_priv);
+	intel_fbc_global_disable(i915);
 
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();
 
-	intel_hdcp_component_fini(dev_priv);
+	intel_hdcp_component_fini(i915);
 
-	drm_mode_config_cleanup(dev);
+	drm_mode_config_cleanup(&i915->drm);
 
-	intel_overlay_cleanup(dev_priv);
+	intel_overlay_cleanup(i915);
 
-	intel_gmbus_teardown(dev_priv);
+	intel_gmbus_teardown(i915);
 
-	destroy_workqueue(dev_priv->flip_wq);
-	destroy_workqueue(dev_priv->modeset_wq);
+	destroy_workqueue(i915->flip_wq);
+	destroy_workqueue(i915->modeset_wq);
 
-	intel_fbc_cleanup_cfb(dev_priv);
+	intel_fbc_cleanup_cfb(i915);
 }
 
 /*
