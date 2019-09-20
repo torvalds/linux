@@ -17,6 +17,15 @@
 #define DSB_BYTE_EN_SHIFT		20
 #define DSB_REG_VALUE_MASK		0xfffff
 
+static inline bool is_dsb_busy(struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = container_of(dsb, typeof(*crtc), dsb);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	return DSB_STATUS & I915_READ(DSB_CTRL(pipe, dsb->id));
+}
+
 struct intel_dsb *
 intel_dsb_get(struct intel_crtc *crtc)
 {

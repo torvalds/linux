@@ -11698,4 +11698,11 @@ enum skl_power_gate {
 #define PORT_TX_DFLEXDPCSSS(fia)		_MMIO_FIA((fia), 0x00894)
 #define   DP_PHY_MODE_STATUS_NOT_SAFE(tc_port)		(1 << (tc_port))
 
+/* This register controls the Display State Buffer (DSB) engines. */
+#define _DSBSL_INSTANCE_BASE		0x70B00
+#define DSBSL_INSTANCE(pipe, id)	(_DSBSL_INSTANCE_BASE + \
+					 (pipe) * 0x1000 + (id) * 100)
+#define DSB_CTRL(pipe, id)		_MMIO(DSBSL_INSTANCE(pipe, id) + 0x8)
+#define   DSB_STATUS			(1 << 0)
+
 #endif /* _I915_REG_H_ */
