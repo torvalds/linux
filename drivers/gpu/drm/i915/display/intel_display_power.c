@@ -562,6 +562,8 @@ static void icl_tc_port_assert_ref_held(struct drm_i915_private *dev_priv,
 
 #endif
 
+#define TGL_AUX_PW_TO_TC_PORT(pw_idx)	((pw_idx) - TGL_PW_CTL_IDX_AUX_TC1)
+
 static void
 icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 				 struct i915_power_well *power_well)
@@ -578,6 +580,17 @@ icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(DP_AUX_CH_CTL(aux_ch), val);
 
 	hsw_power_well_enable(dev_priv, power_well);
+
+	if (INTEL_GEN(dev_priv) >= 12 && !power_well->desc->hsw.is_tc_tbt) {
+		enum tc_port tc_port;
+
+		tc_port = TGL_AUX_PW_TO_TC_PORT(power_well->desc->hsw.idx);
+		I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, 0x2));
+
+		if (intel_de_wait_for_set(dev_priv, DKL_CMN_UC_DW_27(tc_port),
+					  DKL_CMN_UC_DW27_UC_HEALTH, 1))
+			DRM_WARN("Timeout waiting TC uC health\n");
+	}
 }
 
 static void
