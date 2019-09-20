@@ -38,6 +38,7 @@
 #include "util/trigger.h"
 #include "util/perf-hooks.h"
 #include "util/cpu-set-sched.h"
+#include "util/synthetic-events.h"
 #include "util/time-utils.h"
 #include "util/units.h"
 #include "util/bpf-event.h"
@@ -1179,15 +1180,6 @@ static void workload_exec_failed_signal(int signo __maybe_unused,
 
 static void snapshot_sig_handler(int sig);
 static void alarm_sig_handler(int sig);
-
-int __weak
-perf_event__synth_time_conv(const struct perf_event_mmap_page *pc __maybe_unused,
-			    struct perf_tool *tool __maybe_unused,
-			    perf_event__handler_t process __maybe_unused,
-			    struct machine *machine __maybe_unused)
-{
-	return 0;
-}
 
 static const struct perf_event_mmap_page *
 perf_evlist__pick_pc(struct evlist *evlist)

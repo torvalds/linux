@@ -86,6 +86,7 @@ perf-y += stat-display.o
 perf-y += record.o
 perf-y += srcline.o
 perf-y += srccode.o
+perf-y += synthetic-events.o
 perf-y += data.o
 perf-y += tsc.o
 perf-y += cloexec.o

@@ -35,7 +35,7 @@
 #include "thread.h"
 #include "thread-stack.h"
 #include <tools/libc_compat.h>
-#include "util.h"
+#include "util/synthetic-events.h"
 
 #define MAX_TIMESTAMP (~0ULL)
 

@@ -6,7 +6,6 @@
 #include "tests.h"
 #include "debug.h"
 #include "pmu.h"
-#include "util.h"
 #include <dirent.h>
 #include <errno.h>
 #include <sys/types.h>

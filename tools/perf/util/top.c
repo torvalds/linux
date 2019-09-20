@@ -5,7 +5,6 @@
  * Refactored from builtin-top.c, see that files for further copyright notes.
  */
 
-#include "cpumap.h"
 #include "event.h"
 #include "evlist.h"
 #include "evsel.h"

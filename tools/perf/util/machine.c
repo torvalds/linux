@@ -2609,21 +2609,6 @@ int machines__for_each_thread(struct machines *machines,
 	return rc;
 }
 
-int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
-				  struct target *target, struct perf_thread_map *threads,
-				  perf_event__handler_t process, bool data_mmap,
-				  unsigned int nr_threads_synthesize)
-{
-	if (target__has_task(target))
-		return perf_event__synthesize_thread_map(tool, threads, process, machine, data_mmap);
-	else if (target__has_cpu(target))
-		return perf_event__synthesize_threads(tool, process,
-						      machine, data_mmap,
-						      nr_threads_synthesize);
-	/* command specified */
-	return 0;
-}
-
 pid_t machine__get_current_tid(struct machine *machine, int cpu)
 {
 	int nr_cpus = min(machine->env->nr_cpus_online, MAX_NR_CPUS);

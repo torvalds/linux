@@ -15,7 +15,6 @@
 #include <linux/stringify.h>
 
 #include "build-id.h"
-#include "util.h"
 #include "event.h"
 #include "debug.h"
 #include "evlist.h"
@@ -27,7 +26,6 @@
 #include "jit.h"
 #include "jitdump.h"
 #include "genelf.h"
-#include "../builtin.h"
 
 #include <linux/ctype.h>
 #include <linux/zalloc.h>

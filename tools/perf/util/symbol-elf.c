@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 
+#include "dso.h"
 #include "map.h"
 #include "map_groups.h"
 #include "symbol.h"
@@ -18,8 +19,10 @@
 #include "debug.h"
 #include "util.h"
 #include <linux/ctype.h>
+#include <linux/kernel.h>
 #include <linux/zalloc.h>
 #include <symbol/kallsyms.h>
+#include <internal/lib.h>
 
 #ifndef EM_AARCH64
 #define EM_AARCH64	183  /* ARM 64 bit */

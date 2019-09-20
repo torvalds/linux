@@ -5,6 +5,7 @@
 #include "stat.h"
 #include "counts.h"
 #include "debug.h"
+#include "util/synthetic-events.h"
 
 static bool has_term(struct perf_record_stat_config *config,
 		     u64 tag, u64 val)

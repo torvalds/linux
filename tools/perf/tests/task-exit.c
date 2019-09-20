@@ -4,12 +4,12 @@
 #include "evsel.h"
 #include "target.h"
 #include "thread_map.h"
-#include "cpumap.h"
 #include "tests.h"
 
 #include <errno.h>
 #include <signal.h>
 #include <linux/string.h>
+#include <perf/cpumap.h>
 #include <perf/evlist.h>
 
 static int exited;

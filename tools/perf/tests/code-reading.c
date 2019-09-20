@@ -19,12 +19,12 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"
-#include "cpumap.h"
 #include "machine.h"
 #include "map.h"
 #include "symbol.h"
 #include "event.h"
 #include "record.h"
+#include "util/synthetic-events.h"
 #include "thread.h"
 
 #include "tests.h"

@@ -22,7 +22,6 @@
 #include "symbol.h"
 #include "session.h"
 #include "tool.h"
-#include "cpumap.h"
 #include "perf_regs.h"
 #include "asm/bug.h"
 #include "auxtrace.h"
@@ -34,6 +33,7 @@
 #include "ui/progress.h"
 #include "../perf.h"
 #include "arch/common.h"
+#include <internal/lib.h>
 
 #ifdef HAVE_ZSTD_SUPPORT
 static int perf_session__process_compressed_event(struct perf_session *session,
@@ -2411,74 +2411,4 @@ int perf_event__process_id_index(struct perf_session *session,
 		sid->tid = e->tid;
 	}
 	return 0;
-}
-
-int perf_event__synthesize_id_index(struct perf_tool *tool,
-				    perf_event__handler_t process,
-				    struct evlist *evlist,
-				    struct machine *machine)
-{
-	union perf_event *ev;
-	struct evsel *evsel;
-	size_t nr = 0, i = 0, sz, max_nr, n;
-	int err;
-
-	pr_debug2("Synthesizing id index\n");
-
-	max_nr = (UINT16_MAX - sizeof(struct perf_record_id_index)) /
-		 sizeof(struct id_index_entry);
-
-	evlist__for_each_entry(evlist, evsel)
-		nr += evsel->ids;
-
-	n = nr > max_nr ? max_nr : nr;
-	sz = sizeof(struct perf_record_id_index) + n * sizeof(struct id_index_entry);
-	ev = zalloc(sz);
-	if (!ev)
-		return -ENOMEM;
-
-	ev->id_index.header.type = PERF_RECORD_ID_INDEX;
-	ev->id_index.header.size = sz;
-	ev->id_index.nr = n;
-
-	evlist__for_each_entry(evlist, evsel) {
-		u32 j;
-
-		for (j = 0; j < evsel->ids; j++) {
-			struct id_index_entry *e;
-			struct perf_sample_id *sid;
-
-			if (i >= n) {
-				err = process(tool, ev, NULL, machine);
-				if (err)
-					goto out_err;
-				nr -= n;
-				i = 0;
-			}
-
-			e = &ev->id_index.entries[i++];
-
-			e->id = evsel->id[j];
-
-			sid = perf_evlist__id2sid(evlist, e->id);
-			if (!sid) {
-				free(ev);
-				return -ENOENT;
-			}
-
-			e->idx = sid->idx;
-			e->cpu = sid->cpu;
-			e->tid = sid->tid;
-		}
-	}
-
-	sz = sizeof(struct perf_record_id_index) + nr * sizeof(struct id_index_entry);
-	ev->id_index.header.size = sz;
-	ev->id_index.nr = nr;
-
-	err = process(tool, ev, NULL, machine);
-out_err:
-	free(ev);
-
-	return err;
 }

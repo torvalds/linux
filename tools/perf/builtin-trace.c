@@ -28,6 +28,7 @@
 #include "util/dso.h"
 #include "util/env.h"
 #include "util/event.h"
+#include "util/synthetic-events.h"
 #include "util/evlist.h"
 #include "util/evswitch.h"
 #include <subcmd/pager.h>

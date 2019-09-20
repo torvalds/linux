@@ -14,7 +14,6 @@
 #include <linux/log2.h>
 #include <linux/zalloc.h>
 
-#include "cpumap.h"
 #include "color.h"
 #include "evsel.h"
 #include "evlist.h"
@@ -29,6 +28,7 @@
 #include "auxtrace.h"
 #include "intel-pt-decoder/intel-pt-insn-decoder.h"
 #include "intel-bts.h"
+#include "util/synthetic-events.h"
 
 #define MAX_TIMESTAMP (~0ULL)
 

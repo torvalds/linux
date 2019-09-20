@@ -20,7 +20,7 @@
 #include "util/bpf-loader.h"
 #include "util/debug.h"
 #include "util/event.h"
-#include "util/util.h"
+#include "util/util.h" // page_size, usage()
 #include "ui/ui.h"
 #include "perf-sys.h"
 #include <api/fs/fs.h>

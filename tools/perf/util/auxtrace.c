@@ -31,8 +31,8 @@
 #include "map.h"
 #include "pmu.h"
 #include "evsel.h"
-#include "cpumap.h"
 #include "symbol.h"
+#include "util/synthetic-events.h"
 #include "thread_map.h"
 #include "asm/bug.h"
 #include "auxtrace.h"
@@ -50,10 +50,12 @@
 #include "intel-bts.h"
 #include "arm-spe.h"
 #include "s390-cpumsf.h"
-#include "util.h"
+#include "util.h" // page_size
 
 #include <linux/ctype.h>
+#include <linux/kernel.h>
 #include "symbol/kallsyms.h"
+#include <internal/lib.h>
 
 static bool auxtrace__dont_decode(struct perf_session *session)
 {

@@ -23,6 +23,7 @@
 
 #include "debug.h"
 #include "dso.h"
+#include "event.h"
 #include "hist.h"
 #include "sort.h"
 #include "machine.h"
