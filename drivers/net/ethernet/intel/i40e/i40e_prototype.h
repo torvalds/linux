@@ -411,14 +411,24 @@ i40e_status i40e_aq_rx_ctl_write_register(struct i40e_hw *hw,
 				u32 reg_addr, u32 reg_val,
 				struct i40e_asq_cmd_details *cmd_details);
 void i40e_write_rx_ctl(struct i40e_hw *hw, u32 reg_addr, u32 reg_val);
-i40e_status i40e_aq_set_phy_register(struct i40e_hw *hw,
-				     u8 phy_select, u8 dev_addr,
-				     u32 reg_addr, u32 reg_val,
-				     struct i40e_asq_cmd_details *cmd_details);
-i40e_status i40e_aq_get_phy_register(struct i40e_hw *hw,
-				     u8 phy_select, u8 dev_addr,
-				     u32 reg_addr, u32 *reg_val,
-				     struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code
+i40e_aq_set_phy_register_ext(struct i40e_hw *hw,
+			     u8 phy_select, u8 dev_addr, bool page_change,
+			     bool set_mdio, u8 mdio_num,
+			     u32 reg_addr, u32 reg_val,
+			     struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code
+i40e_aq_get_phy_register_ext(struct i40e_hw *hw,
+			     u8 phy_select, u8 dev_addr, bool page_change,
+			     bool set_mdio, u8 mdio_num,
+			     u32 reg_addr, u32 *reg_val,
+			     struct i40e_asq_cmd_details *cmd_details);
+
+/* Convenience wrappers for most common use case */
+#define i40e_aq_set_phy_register(hw, ps, da, pc, ra, rv, cd)		\
+	i40e_aq_set_phy_register_ext(hw, ps, da, pc, false, 0, ra, rv, cd)
+#define i40e_aq_get_phy_register(hw, ps, da, pc, ra, rv, cd)		\
+	i40e_aq_get_phy_register_ext(hw, ps, da, pc, false, 0, ra, rv, cd)
 
 i40e_status i40e_read_phy_register_clause22(struct i40e_hw *hw,
 					    u16 reg, u8 phy_addr, u16 *value);

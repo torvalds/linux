@@ -5046,7 +5046,7 @@ static enum i40e_status_code i40e_led_get_reg(struct i40e_hw *hw, u16 led_addr,
 		status =
 		       i40e_aq_get_phy_register(hw,
 						I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
-						I40E_PHY_COM_REG_PAGE,
+						I40E_PHY_COM_REG_PAGE, true,
 						I40E_PHY_LED_PROV_REG_1,
 						reg_val, NULL);
 	} else {
@@ -5079,7 +5079,7 @@ static enum i40e_status_code i40e_led_set_reg(struct i40e_hw *hw, u16 led_addr,
 		status =
 		       i40e_aq_set_phy_register(hw,
 						I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
-						I40E_PHY_COM_REG_PAGE,
+						I40E_PHY_COM_REG_PAGE, true,
 						I40E_PHY_LED_PROV_REG_1,
 						reg_val, NULL);
 	} else {
@@ -5118,7 +5118,7 @@ i40e_status i40e_led_get_phy(struct i40e_hw *hw, u16 *led_addr,
 		status =
 		      i40e_aq_get_phy_register(hw,
 					       I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
-					       I40E_PHY_COM_REG_PAGE,
+					       I40E_PHY_COM_REG_PAGE, true,
 					       I40E_PHY_LED_PROV_REG_1,
 					       &reg_val_aq, NULL);
 		if (status == I40E_SUCCESS)
@@ -5323,20 +5323,49 @@ do_retry:
 }
 
 /**
- * i40e_aq_set_phy_register
+ * i40e_mdio_if_number_selection - MDIO I/F number selection
+ * @hw: pointer to the hw struct
+ * @set_mdio: use MDIO I/F number specified by mdio_num
+ * @mdio_num: MDIO I/F number
+ * @cmd: pointer to PHY Register command structure
+ **/
+static void i40e_mdio_if_number_selection(struct i40e_hw *hw, bool set_mdio,
+					  u8 mdio_num,
+					  struct i40e_aqc_phy_register_access *cmd)
+{
+	if (set_mdio && cmd->phy_interface == I40E_AQ_PHY_REG_ACCESS_EXTERNAL) {
+		if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_EXTENDED)
+			cmd->cmd_flags |=
+				I40E_AQ_PHY_REG_ACCESS_SET_MDIO_IF_NUMBER |
+				((mdio_num <<
+				I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_SHIFT) &
+				I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_MASK);
+		else
+			i40e_debug(hw, I40E_DEBUG_PHY,
+				   "MDIO I/F number selection not supported by current FW version.\n");
+	}
+}
+
+/**
+ * i40e_aq_set_phy_register_ext
  * @hw: pointer to the hw struct
  * @phy_select: select which phy should be accessed
  * @dev_addr: PHY device address
+ * @set_mdio: use MDIO I/F number specified by mdio_num
+ * @mdio_num: MDIO I/F number
  * @reg_addr: PHY register address
  * @reg_val: new register value
  * @cmd_details: pointer to command details structure or NULL
  *
  * Write the external PHY register.
+ * NOTE: In common cases MDIO I/F number should not be changed, thats why you
+ * may use simple wrapper i40e_aq_set_phy_register.
  **/
-i40e_status i40e_aq_set_phy_register(struct i40e_hw *hw,
-				     u8 phy_select, u8 dev_addr,
-				     u32 reg_addr, u32 reg_val,
-				     struct i40e_asq_cmd_details *cmd_details)
+enum i40e_status_code i40e_aq_set_phy_register_ext(struct i40e_hw *hw,
+			     u8 phy_select, u8 dev_addr, bool page_change,
+			     bool set_mdio, u8 mdio_num,
+			     u32 reg_addr, u32 reg_val,
+			     struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
 	struct i40e_aqc_phy_register_access *cmd =
@@ -5351,26 +5380,36 @@ i40e_status i40e_aq_set_phy_register(struct i40e_hw *hw,
 	cmd->reg_address = cpu_to_le32(reg_addr);
 	cmd->reg_value = cpu_to_le32(reg_val);
 
+	i40e_mdio_if_number_selection(hw, set_mdio, mdio_num, cmd);
+
+	if (!page_change)
+		cmd->cmd_flags = I40E_AQ_PHY_REG_ACCESS_DONT_CHANGE_QSFP_PAGE;
+
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
 	return status;
 }
 
 /**
- * i40e_aq_get_phy_register
+ * i40e_aq_get_phy_register_ext
  * @hw: pointer to the hw struct
  * @phy_select: select which phy should be accessed
  * @dev_addr: PHY device address
+ * @set_mdio: use MDIO I/F number specified by mdio_num
+ * @mdio_num: MDIO I/F number
  * @reg_addr: PHY register address
  * @reg_val: read register value
  * @cmd_details: pointer to command details structure or NULL
  *
  * Read the external PHY register.
+ * NOTE: In common cases MDIO I/F number should not be changed, thats why you
+ * may use simple wrapper i40e_aq_get_phy_register.
  **/
-i40e_status i40e_aq_get_phy_register(struct i40e_hw *hw,
-				     u8 phy_select, u8 dev_addr,
-				     u32 reg_addr, u32 *reg_val,
-				     struct i40e_asq_cmd_details *cmd_details)
+enum i40e_status_code i40e_aq_get_phy_register_ext(struct i40e_hw *hw,
+			     u8 phy_select, u8 dev_addr, bool page_change,
+			     bool set_mdio, u8 mdio_num,
+			     u32 reg_addr, u32 *reg_val,
+			     struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
 	struct i40e_aqc_phy_register_access *cmd =
@@ -5383,6 +5422,11 @@ i40e_status i40e_aq_get_phy_register(struct i40e_hw *hw,
 	cmd->phy_interface = phy_select;
 	cmd->dev_address = dev_addr;
 	cmd->reg_address = cpu_to_le32(reg_addr);
+
+	i40e_mdio_if_number_selection(hw, set_mdio, mdio_num, cmd);
+
+	if (!page_change)
+		cmd->cmd_flags = I40E_AQ_PHY_REG_ACCESS_DONT_CHANGE_QSFP_PAGE;
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 	if (!status)
