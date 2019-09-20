@@ -1260,13 +1260,6 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	if (IS_GEN(i915, 12)) {
-		/* Wa_1406941453:tgl */
-		wa_masked_en(wal,
-			     SAMPLER_MODE,
-			     SAMPLER_ENABLE_SMALL_PL);
-	}
-
 	if (IS_GEN(i915, 11)) {
 		/* This is not an Wa. Enable for better image quality */
 		wa_masked_en(wal,
