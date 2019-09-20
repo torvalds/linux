@@ -3479,6 +3479,7 @@ static const struct intel_dpll_mgr tgl_pll_mgr = {
 	.dpll_info = tgl_plls,
 	.get_dplls = icl_get_dplls,
 	.put_dplls = icl_put_dplls,
+	.update_active_dpll = icl_update_active_dpll,
 	.dump_hw_state = icl_dump_hw_state,
 };
 
