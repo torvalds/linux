@@ -283,7 +283,6 @@ MODULE_DEVICE_TABLE(acpi, acpi_tis_spi_match);
 
 static struct spi_driver tpm_tis_spi_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "tpm_tis_spi",
 		.pm = &tpm_tis_pm,
 		.of_match_table = of_match_ptr(of_tis_spi_match),
