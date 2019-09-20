@@ -197,7 +197,9 @@ void dce11_pplib_apply_display_requirements(
 	 */
 	if (ASICREV_IS_VEGA20_P(dc->ctx->asic_id.hw_internal_rev) && (context->stream_count >= 2)) {
 		pp_display_cfg->min_memory_clock_khz = max(pp_display_cfg->min_memory_clock_khz,
-			(uint32_t) (dc->bw_vbios->high_yclk.value / memory_type_multiplier / 10000));
+							   (uint32_t) div64_s64(
+								   div64_s64(dc->bw_vbios->high_yclk.value,
+									     memory_type_multiplier), 10000));
 	} else {
 		pp_display_cfg->min_memory_clock_khz = context->bw_ctx.bw.dce.yclk_khz
 			/ memory_type_multiplier;
