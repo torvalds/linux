@@ -281,6 +281,11 @@ static unsigned long __init kaslr_legal_offset(void *dt_ptr, unsigned long index
 	return koffset;
 }
 
+static inline __init bool kaslr_disabled(void)
+{
+	return strstr(boot_command_line, "nokaslr") != NULL;
+}
+
 static unsigned long __init kaslr_choose_location(void *dt_ptr, phys_addr_t size,
 						  unsigned long kernel_sz)
 {
@@ -290,6 +295,8 @@ static unsigned long __init kaslr_choose_location(void *dt_ptr, phys_addr_t size
 	unsigned long index;
 
 	kaslr_get_cmdline(dt_ptr);
+	if (kaslr_disabled())
+		return 0;
 
 	random = get_boot_seed(dt_ptr);
 
