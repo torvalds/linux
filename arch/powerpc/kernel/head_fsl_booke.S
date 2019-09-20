@@ -1115,6 +1115,41 @@ __secondary_hold_acknowledge:
 #endif
 
 /*
+ * Create a 64M tlb by address and entry
+ * r3 - entry
+ * r4 - virtual address
+ * r5/r6 - physical address
+ */
+_GLOBAL(create_kaslr_tlb_entry)
+	lis     r7,0x1000               /* Set MAS0(TLBSEL) = 1 */
+	rlwimi  r7,r3,16,4,15           /* Setup MAS0 = TLBSEL | ESEL(r6) */
+	mtspr   SPRN_MAS0,r7            /* Write MAS0 */
+
+	lis     r3,(MAS1_VALID|MAS1_IPROT)@h
+	ori     r3,r3,(MAS1_TSIZE(BOOK3E_PAGESZ_64M))@l
+	mtspr   SPRN_MAS1,r3            /* Write MAS1 */
+
+	lis     r3,MAS2_EPN_MASK(BOOK3E_PAGESZ_64M)@h
+	ori     r3,r3,MAS2_EPN_MASK(BOOK3E_PAGESZ_64M)@l
+	and     r3,r3,r4
+	ori	r3,r3,MAS2_M_IF_NEEDED@l
+	mtspr   SPRN_MAS2,r3            /* Write MAS2(EPN) */
+
+#ifdef CONFIG_PHYS_64BIT
+	ori     r8,r6,(MAS3_SW|MAS3_SR|MAS3_SX)
+	mtspr   SPRN_MAS3,r8            /* Write MAS3(RPN) */
+	mtspr	SPRN_MAS7,r5
+#else
+	ori     r8,r5,(MAS3_SW|MAS3_SR|MAS3_SX)
+	mtspr   SPRN_MAS3,r8            /* Write MAS3(RPN) */
+#endif
+
+	tlbwe                           /* Write TLB */
+	isync
+	sync
+	blr
+
+/*
  * Create a tlb entry with the same effective and physical address as
  * the tlb entry used by the current running code. But set the TS to 1.
  * Then switch to the address space 1. It will return with the r3 set to
