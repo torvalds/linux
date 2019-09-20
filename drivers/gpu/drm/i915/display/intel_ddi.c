@@ -3230,10 +3230,13 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	intel_edp_panel_on(intel_dp);
 
 	/*
-	 * 1.b, 3. and 4. is done before tgl_ddi_pre_enable_dp() by:
+	 * 1.b, 3. and 4.a is done before tgl_ddi_pre_enable_dp() by:
 	 * haswell_crtc_enable()->intel_encoders_pre_pll_enable() and
 	 * haswell_crtc_enable()->intel_enable_shared_dpll()
 	 */
+
+	/* 4.b */
+	intel_ddi_clk_select(encoder, crtc_state);
 
 	/* 5. */
 	if (!intel_phy_is_tc(dev_priv, phy) ||
