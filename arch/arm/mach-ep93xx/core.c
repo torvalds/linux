@@ -47,6 +47,7 @@
 #include <asm/mach/map.h>
 
 #include "soc.h"
+#include "irqs.h"
 
 /*************************************************************************
  * Static I/O mappings that are needed for all EP93xx platforms

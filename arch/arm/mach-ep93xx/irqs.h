@@ -1,8 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*
- * arch/arm/mach-ep93xx/include/mach/irqs.h
- */
-
 #ifndef __ASM_ARCH_IRQS_H
 #define __ASM_ARCH_IRQS_H
 
@@ -76,8 +72,5 @@
 
 #define EP93XX_BOARD_IRQ(x)		(NR_EP93XX_IRQS + (x))
 #define EP93XX_BOARD_IRQS		32
-
-#define NR_IRQS				(NR_EP93XX_IRQS + EP93XX_BOARD_IRQS)
-
 
 #endif

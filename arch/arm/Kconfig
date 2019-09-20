@@ -358,6 +358,8 @@ config ARCH_EP93XX
 	select CPU_ARM920T
 	select GPIOLIB
 	select COMMON_CLK
+	select IRQ_DOMAIN
+	select SPARSE_IRQ
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
