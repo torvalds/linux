@@ -2166,13 +2166,13 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define _MMIO_FIA(fia, off)		_MMIO(_FIA(fia) + (off))
 
 /* ICL PHY DFLEX registers */
-#define PORT_TX_DFLEXDPMLE1(fia)	_MMIO_FIA((fia),  0x008C0)
-#define   DFLEXDPMLE1_DPMLETC_MASK(tc_port)	(0xf << (4 * (tc_port)))
-#define   DFLEXDPMLE1_DPMLETC_ML0(tc_port)	(1 << (4 * (tc_port)))
-#define   DFLEXDPMLE1_DPMLETC_ML1_0(tc_port)	(3 << (4 * (tc_port)))
-#define   DFLEXDPMLE1_DPMLETC_ML3(tc_port)	(8 << (4 * (tc_port)))
-#define   DFLEXDPMLE1_DPMLETC_ML3_2(tc_port)	(12 << (4 * (tc_port)))
-#define   DFLEXDPMLE1_DPMLETC_ML3_0(tc_port)	(15 << (4 * (tc_port)))
+#define PORT_TX_DFLEXDPMLE1(fia)		_MMIO_FIA((fia),  0x008C0)
+#define   DFLEXDPMLE1_DPMLETC_MASK(idx)		(0xf << (4 * (idx)))
+#define   DFLEXDPMLE1_DPMLETC_ML0(idx)		(1 << (4 * (idx)))
+#define   DFLEXDPMLE1_DPMLETC_ML1_0(idx)	(3 << (4 * (idx)))
+#define   DFLEXDPMLE1_DPMLETC_ML3(idx)		(8 << (4 * (idx)))
+#define   DFLEXDPMLE1_DPMLETC_ML3_2(idx)	(12 << (4 * (idx)))
+#define   DFLEXDPMLE1_DPMLETC_ML3_0(idx)	(15 << (4 * (idx)))
 
 /* BXT PHY Ref registers */
 #define _PORT_REF_DW3_A			0x16218C
@@ -11688,17 +11688,17 @@ enum skl_power_gate {
 
 #define PORT_TX_DFLEXDPSP(fia)			_MMIO_FIA((fia), 0x008A0)
 #define   MODULAR_FIA_MASK			(1 << 4)
-#define   TC_LIVE_STATE_TBT(tc_port)		(1 << ((tc_port) * 8 + 6))
-#define   TC_LIVE_STATE_TC(tc_port)		(1 << ((tc_port) * 8 + 5))
-#define   DP_LANE_ASSIGNMENT_SHIFT(tc_port)	((tc_port) * 8)
-#define   DP_LANE_ASSIGNMENT_MASK(tc_port)	(0xf << ((tc_port) * 8))
-#define   DP_LANE_ASSIGNMENT(tc_port, x)	((x) << ((tc_port) * 8))
+#define   TC_LIVE_STATE_TBT(idx)		(1 << ((idx) * 8 + 6))
+#define   TC_LIVE_STATE_TC(idx)			(1 << ((idx) * 8 + 5))
+#define   DP_LANE_ASSIGNMENT_SHIFT(idx)		((idx) * 8)
+#define   DP_LANE_ASSIGNMENT_MASK(idx)		(0xf << ((idx) * 8))
+#define   DP_LANE_ASSIGNMENT(idx, x)		((x) << ((idx) * 8))
 
 #define PORT_TX_DFLEXDPPMS(fia)			_MMIO_FIA((fia), 0x00890)
-#define   DP_PHY_MODE_STATUS_COMPLETED(tc_port)		(1 << (tc_port))
+#define   DP_PHY_MODE_STATUS_COMPLETED(idx)	(1 << (idx))
 
 #define PORT_TX_DFLEXDPCSSS(fia)		_MMIO_FIA((fia), 0x00894)
-#define   DP_PHY_MODE_STATUS_NOT_SAFE(tc_port)		(1 << (tc_port))
+#define   DP_PHY_MODE_STATUS_NOT_SAFE(idx)	(1 << (idx))
 
 /* This register controls the Display State Buffer (DSB) engines. */
 #define _DSBSL_INSTANCE_BASE		0x70B00

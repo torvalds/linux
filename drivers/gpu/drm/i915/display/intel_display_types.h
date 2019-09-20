@@ -1288,6 +1288,7 @@ struct intel_digital_port {
 	char tc_port_name[8];
 	enum tc_port_mode tc_mode;
 	enum phy_fia tc_phy_fia;
+	u8 tc_phy_fia_idx;
 
 	void (*write_infoframe)(struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state,
