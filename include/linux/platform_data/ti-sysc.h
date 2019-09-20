@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+
 #ifndef __TI_SYSC_DATA_H__
 #define __TI_SYSC_DATA_H__
 
@@ -47,6 +49,7 @@ struct sysc_regbits {
 	s8 emufree_shift;
 };
 
+#define SYSC_MODULE_QUIRK_SGX		BIT(18)
 #define SYSC_MODULE_QUIRK_HDQ1W		BIT(17)
 #define SYSC_MODULE_QUIRK_I2C		BIT(16)
 #define SYSC_MODULE_QUIRK_WDT		BIT(15)
@@ -70,7 +73,7 @@ struct sysc_regbits {
 
 /**
  * struct sysc_capabilities - capabilities for an interconnect target module
- *
+ * @type: sysc type identifier for the module
  * @sysc_mask: bitmask of supported SYSCONFIG register bits
  * @regbits: bitmask of SYSCONFIG register bits
  * @mod_quirks: bitmask of module specific quirks
@@ -85,8 +88,9 @@ struct sysc_capabilities {
 /**
  * struct sysc_config - configuration for an interconnect target module
  * @sysc_val: configured value for sysc register
+ * @syss_mask: configured mask value for SYSSTATUS register
  * @midlemodes: bitmask of supported master idle modes
- * @sidlemodes: bitmask of supported master idle modes
+ * @sidlemodes: bitmask of supported slave idle modes
  * @srst_udelay: optional delay needed after OCP soft reset
  * @quirks: bitmask of enabled quirks
  */
