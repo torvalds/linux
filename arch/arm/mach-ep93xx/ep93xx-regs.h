@@ -1,8 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*
- * arch/arm/mach-ep93xx/include/mach/ep93xx-regs.h
- */
-
 #ifndef __ASM_ARCH_EP93XX_REGS_H
 #define __ASM_ARCH_EP93XX_REGS_H
 
