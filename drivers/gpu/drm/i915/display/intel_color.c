@@ -627,12 +627,13 @@ static void bdw_load_lut_10(struct intel_crtc *crtc,
 static void ivb_load_lut_ext_max(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_dsb *dsb = intel_dsb_get(crtc);
 	enum pipe pipe = crtc->pipe;
 
 	/* Program the max register to clamp values > 1.0. */
-	I915_WRITE(PREC_PAL_EXT_GC_MAX(pipe, 0), 1 << 16);
-	I915_WRITE(PREC_PAL_EXT_GC_MAX(pipe, 1), 1 << 16);
-	I915_WRITE(PREC_PAL_EXT_GC_MAX(pipe, 2), 1 << 16);
+	intel_dsb_reg_write(dsb, PREC_PAL_EXT_GC_MAX(pipe, 0), 1 << 16);
+	intel_dsb_reg_write(dsb, PREC_PAL_EXT_GC_MAX(pipe, 1), 1 << 16);
+	intel_dsb_reg_write(dsb, PREC_PAL_EXT_GC_MAX(pipe, 2), 1 << 16);
 
 	/*
 	 * Program the gc max 2 register to clamp values > 1.0.
@@ -640,10 +641,15 @@ static void ivb_load_lut_ext_max(struct intel_crtc *crtc)
 	 * from 3.0 to 7.0
 	 */
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
-		I915_WRITE(PREC_PAL_EXT2_GC_MAX(pipe, 0), 1 << 16);
-		I915_WRITE(PREC_PAL_EXT2_GC_MAX(pipe, 1), 1 << 16);
-		I915_WRITE(PREC_PAL_EXT2_GC_MAX(pipe, 2), 1 << 16);
+		intel_dsb_reg_write(dsb, PREC_PAL_EXT2_GC_MAX(pipe, 0),
+				    1 << 16);
+		intel_dsb_reg_write(dsb, PREC_PAL_EXT2_GC_MAX(pipe, 1),
+				    1 << 16);
+		intel_dsb_reg_write(dsb, PREC_PAL_EXT2_GC_MAX(pipe, 2),
+				    1 << 16);
 	}
+
+	intel_dsb_put(dsb);
 }
 
 static void ivb_load_luts(const struct intel_crtc_state *crtc_state)
@@ -803,22 +809,23 @@ icl_load_gcmax(const struct intel_crtc_state *crtc_state,
 	       const struct drm_color_lut *color)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_dsb *dsb = intel_dsb_get(crtc);
 	enum pipe pipe = crtc->pipe;
 
 	/* Fixme: LUT entries are 16 bit only, so we can prog 0xFFFF max */
-	I915_WRITE(PREC_PAL_GC_MAX(pipe, 0), color->red);
-	I915_WRITE(PREC_PAL_GC_MAX(pipe, 1), color->green);
-	I915_WRITE(PREC_PAL_GC_MAX(pipe, 2), color->blue);
+	intel_dsb_reg_write(dsb, PREC_PAL_GC_MAX(pipe, 0), color->red);
+	intel_dsb_reg_write(dsb, PREC_PAL_GC_MAX(pipe, 1), color->green);
+	intel_dsb_reg_write(dsb, PREC_PAL_GC_MAX(pipe, 2), color->blue);
+	intel_dsb_put(dsb);
 }
 
 static void
 icl_program_gamma_superfine_segment(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct drm_property_blob *blob = crtc_state->base.gamma_lut;
 	const struct drm_color_lut *lut = blob->data;
+	struct intel_dsb *dsb = intel_dsb_get(crtc);
 	enum pipe pipe = crtc->pipe;
 	u32 i;
 
@@ -829,26 +836,29 @@ icl_program_gamma_superfine_segment(const struct intel_crtc_state *crtc_state)
 	 * 9 entries, corresponding to values 0, 1/(8 * 128 * 256),
 	 * 2/(8 * 128 * 256) ... 8/(8 * 128 * 256).
 	 */
-	I915_WRITE(PREC_PAL_MULTI_SEG_INDEX(pipe), PAL_PREC_AUTO_INCREMENT);
+	intel_dsb_reg_write(dsb, PREC_PAL_MULTI_SEG_INDEX(pipe),
+			    PAL_PREC_AUTO_INCREMENT);
 
 	for (i = 0; i < 9; i++) {
 		const struct drm_color_lut *entry = &lut[i];
 
-		I915_WRITE(PREC_PAL_MULTI_SEG_DATA(pipe),
-			   ilk_lut_12p4_ldw(entry));
-		I915_WRITE(PREC_PAL_MULTI_SEG_DATA(pipe),
-			   ilk_lut_12p4_udw(entry));
+		intel_dsb_indexed_reg_write(dsb, PREC_PAL_MULTI_SEG_DATA(pipe),
+					    ilk_lut_12p4_ldw(entry));
+		intel_dsb_indexed_reg_write(dsb, PREC_PAL_MULTI_SEG_DATA(pipe),
+					    ilk_lut_12p4_udw(entry));
 	}
+
+	intel_dsb_put(dsb);
 }
 
 static void
 icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct drm_property_blob *blob = crtc_state->base.gamma_lut;
 	const struct drm_color_lut *lut = blob->data;
 	const struct drm_color_lut *entry;
+	struct intel_dsb *dsb = intel_dsb_get(crtc);
 	enum pipe pipe = crtc->pipe;
 	u32 i;
 
@@ -862,12 +872,13 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 	 * PAL_PREC_INDEX[0] and PAL_PREC_INDEX[1] map to seg2[1],
 	 * seg2[0] being unused by the hardware.
 	 */
-	I915_WRITE(PREC_PAL_INDEX(pipe), PAL_PREC_AUTO_INCREMENT);
-
+	intel_dsb_reg_write(dsb, PREC_PAL_INDEX(pipe), PAL_PREC_AUTO_INCREMENT);
 	for (i = 1; i < 257; i++) {
 		entry = &lut[i * 8];
-		I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_12p4_ldw(entry));
-		I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_12p4_udw(entry));
+		intel_dsb_indexed_reg_write(dsb, PREC_PAL_DATA(pipe),
+					    ilk_lut_12p4_ldw(entry));
+		intel_dsb_indexed_reg_write(dsb, PREC_PAL_DATA(pipe),
+					    ilk_lut_12p4_udw(entry));
 	}
 
 	/*
@@ -884,20 +895,24 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 	 */
 	for (i = 0; i < 256; i++) {
 		entry = &lut[i * 8 * 128];
-		I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_12p4_ldw(entry));
-		I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_12p4_udw(entry));
+		intel_dsb_indexed_reg_write(dsb, PREC_PAL_DATA(pipe),
+					    ilk_lut_12p4_ldw(entry));
+		intel_dsb_indexed_reg_write(dsb, PREC_PAL_DATA(pipe),
+					    ilk_lut_12p4_udw(entry));
 	}
 
 	/* The last entry in the LUT is to be programmed in GCMAX */
 	entry = &lut[256 * 8 * 128];
 	icl_load_gcmax(crtc_state, entry);
 	ivb_load_lut_ext_max(crtc);
+	intel_dsb_put(dsb);
 }
 
 static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 {
 	const struct drm_property_blob *gamma_lut = crtc_state->base.gamma_lut;
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_dsb *dsb = intel_dsb_get(crtc);
 
 	if (crtc_state->base.degamma_lut)
 		glk_load_degamma_lut(crtc_state);
@@ -914,6 +929,9 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 		bdw_load_lut_10(crtc, gamma_lut, PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_ext_max(crtc);
 	}
+
+	intel_dsb_commit(dsb);
+	intel_dsb_put(dsb);
 }
 
 static u32 chv_cgm_degamma_ldw(const struct drm_color_lut *color)
