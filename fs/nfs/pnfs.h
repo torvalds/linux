@@ -282,6 +282,10 @@ bool pnfs_roc(struct inode *ino,
 		struct nfs4_layoutreturn_args *args,
 		struct nfs4_layoutreturn_res *res,
 		const struct cred *cred);
+int pnfs_roc_done(struct rpc_task *task, struct inode *inode,
+		struct nfs4_layoutreturn_args **argpp,
+		struct nfs4_layoutreturn_res **respp,
+		int *ret);
 void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 		struct nfs4_layoutreturn_res *res,
 		int ret);
@@ -699,6 +703,15 @@ pnfs_roc(struct inode *ino,
 		const struct cred *cred)
 {
 	return false;
+}
+
+static inline int
+pnfs_roc_done(struct rpc_task *task, struct inode *inode,
+		struct nfs4_layoutreturn_args **argpp,
+		struct nfs4_layoutreturn_res **respp,
+		int *ret)
+{
+	return 0;
 }
 
 static inline void

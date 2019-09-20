@@ -3363,32 +3363,11 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 	trace_nfs4_close(state, &calldata->arg, &calldata->res, task->tk_status);
 
 	/* Handle Layoutreturn errors */
-	if (calldata->arg.lr_args && task->tk_status != 0) {
-		switch (calldata->res.lr_ret) {
-		default:
-			calldata->res.lr_ret = -NFS4ERR_NOMATCHING_LAYOUT;
-			break;
-		case 0:
-			calldata->arg.lr_args = NULL;
-			calldata->res.lr_res = NULL;
-			break;
-		case -NFS4ERR_OLD_STATEID:
-			if (nfs4_layoutreturn_refresh_stateid(&calldata->arg.lr_args->stateid,
-						&calldata->arg.lr_args->range,
-						calldata->inode))
-				goto lr_restart;
-			/* Fallthrough */
-		case -NFS4ERR_ADMIN_REVOKED:
-		case -NFS4ERR_DELEG_REVOKED:
-		case -NFS4ERR_EXPIRED:
-		case -NFS4ERR_BAD_STATEID:
-		case -NFS4ERR_UNKNOWN_LAYOUTTYPE:
-		case -NFS4ERR_WRONG_CRED:
-			calldata->arg.lr_args = NULL;
-			calldata->res.lr_res = NULL;
-			goto lr_restart;
-		}
-	}
+	if (pnfs_roc_done(task, calldata->inode,
+				&calldata->arg.lr_args,
+				&calldata->res.lr_res,
+				&calldata->res.lr_ret) == -EAGAIN)
+		goto out_restart;
 
 	/* hmm. we are done with the inode, and in the process of freeing
 	 * the state_owner. we keep this around to process errors
@@ -3435,8 +3414,6 @@ out_release:
 	nfs_refresh_inode(calldata->inode, &calldata->fattr);
 	dprintk("%s: done, ret = %d!\n", __func__, task->tk_status);
 	return;
-lr_restart:
-	calldata->res.lr_ret = 0;
 out_restart:
 	task->tk_status = 0;
 	rpc_restart_call_prepare(task);
@@ -6128,32 +6105,11 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 	trace_nfs4_delegreturn_exit(&data->args, &data->res, task->tk_status);
 
 	/* Handle Layoutreturn errors */
-	if (data->args.lr_args && task->tk_status != 0) {
-		switch(data->res.lr_ret) {
-		default:
-			data->res.lr_ret = -NFS4ERR_NOMATCHING_LAYOUT;
-			break;
-		case 0:
-			data->args.lr_args = NULL;
-			data->res.lr_res = NULL;
-			break;
-		case -NFS4ERR_OLD_STATEID:
-			if (nfs4_layoutreturn_refresh_stateid(&data->args.lr_args->stateid,
-						&data->args.lr_args->range,
-						data->inode))
-				goto lr_restart;
-			/* Fallthrough */
-		case -NFS4ERR_ADMIN_REVOKED:
-		case -NFS4ERR_DELEG_REVOKED:
-		case -NFS4ERR_EXPIRED:
-		case -NFS4ERR_BAD_STATEID:
-		case -NFS4ERR_UNKNOWN_LAYOUTTYPE:
-		case -NFS4ERR_WRONG_CRED:
-			data->args.lr_args = NULL;
-			data->res.lr_res = NULL;
-			goto lr_restart;
-		}
-	}
+	if (pnfs_roc_done(task, data->inode,
+				&data->args.lr_args,
+				&data->res.lr_res,
+				&data->res.lr_ret) == -EAGAIN)
+		goto out_restart;
 
 	switch (task->tk_status) {
 	case 0:
@@ -6191,8 +6147,6 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 	}
 	data->rpc_status = task->tk_status;
 	return;
-lr_restart:
-	data->res.lr_ret = 0;
 out_restart:
 	task->tk_status = 0;
 	rpc_restart_call_prepare(task);
