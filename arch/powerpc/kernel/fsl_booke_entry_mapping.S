@@ -155,23 +155,22 @@ skpinv:	addi	r6,r6,1				/* Increment */
 
 #if defined(ENTRY_MAPPING_BOOT_SETUP)
 
-/* 6. Setup KERNELBASE mapping in TLB1[0] */
+/* 6. Setup kernstart_virt_addr mapping in TLB1[0] */
 	lis	r6,0x1000		/* Set MAS0(TLBSEL) = TLB1(1), ESEL = 0 */
 	mtspr	SPRN_MAS0,r6
 	lis	r6,(MAS1_VALID|MAS1_IPROT)@h
 	ori	r6,r6,(MAS1_TSIZE(BOOK3E_PAGESZ_64M))@l
 	mtspr	SPRN_MAS1,r6
-	lis	r6,MAS2_VAL(PAGE_OFFSET, BOOK3E_PAGESZ_64M, MAS2_M_IF_NEEDED)@h
-	ori	r6,r6,MAS2_VAL(PAGE_OFFSET, BOOK3E_PAGESZ_64M, MAS2_M_IF_NEEDED)@l
+	lis	r6,MAS2_EPN_MASK(BOOK3E_PAGESZ_64M)@h
+	ori	r6,r6,MAS2_EPN_MASK(BOOK3E_PAGESZ_64M)@l
+	and	r6,r6,r20
+	ori	r6,r6,MAS2_M_IF_NEEDED@l
 	mtspr	SPRN_MAS2,r6
 	mtspr	SPRN_MAS3,r8
 	tlbwe
 
-/* 7. Jump to KERNELBASE mapping */
-	lis	r6,(KERNELBASE & ~0xfff)@h
-	ori	r6,r6,(KERNELBASE & ~0xfff)@l
-	rlwinm	r7,r25,0,0x03ffffff
-	add	r6,r7,r6
+/* 7. Jump to kernstart_virt_addr mapping */
+	mr	r6,r20
 
 #elif defined(ENTRY_MAPPING_KEXEC_SETUP)
 /*

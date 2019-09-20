@@ -75,7 +75,6 @@
 #define MAS2_E			0x00000001
 #define MAS2_WIMGE_MASK		0x0000001f
 #define MAS2_EPN_MASK(size)		(~0 << (size + 10))
-#define MAS2_VAL(addr, size, flags)	((addr) & MAS2_EPN_MASK(size) | (flags))
 
 #define MAS3_RPN		0xFFFFF000
 #define MAS3_U0			0x00000200
