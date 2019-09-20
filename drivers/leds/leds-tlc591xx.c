@@ -186,6 +186,9 @@ tlc591xx_probe(struct i2c_client *client,
 
 	for_each_child_of_node(np, child) {
 		struct tlc591xx_led *led;
+		struct led_init_data init_data = {};
+
+		init_data.fwnode = of_fwnode_handle(child);
 
 		err = of_property_read_u32(child, "reg", &reg);
 		if (err) {
@@ -200,8 +203,6 @@ tlc591xx_probe(struct i2c_client *client,
 		led = &priv->leds[reg];
 
 		led->active = true;
-		led->ldev.name =
-			of_get_property(child, "label", NULL) ? : child->name;
 		led->ldev.default_trigger =
 			of_get_property(child, "linux,default-trigger", NULL);
 
@@ -209,7 +210,8 @@ tlc591xx_probe(struct i2c_client *client,
 		led->led_no = reg;
 		led->ldev.brightness_set_blocking = tlc591xx_brightness_set;
 		led->ldev.max_brightness = LED_FULL;
-		err = devm_led_classdev_register(dev, &led->ldev);
+		err = devm_led_classdev_register_ext(dev, &led->ldev,
+						     &init_data);
 		if (err < 0) {
 			dev_err(dev, "couldn't register LED %s\n",
 				led->ldev.name);
