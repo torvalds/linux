@@ -2535,9 +2535,11 @@ bool perf_evsel__fallback(struct evsel *evsel, int err,
 		if (evsel->name)
 			free(evsel->name);
 		evsel->name = new_name;
-		scnprintf(msg, msgsize,
-"kernel.perf_event_paranoid=%d, trying to fall back to excluding kernel samples", paranoid);
+		scnprintf(msg, msgsize, "kernel.perf_event_paranoid=%d, trying "
+			  "to fall back to excluding kernel and hypervisor "
+			  " samples", paranoid);
 		evsel->core.attr.exclude_kernel = 1;
+		evsel->core.attr.exclude_hv     = 1;
 
 		return true;
 	}
