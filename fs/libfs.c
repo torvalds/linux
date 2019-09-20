@@ -92,14 +92,13 @@ EXPORT_SYMBOL(dcache_dir_close);
 /*
  * Returns an element of siblings' list.
  * We are looking for <count>th positive after <p>; if
- * found, dentry is grabbed and passed to caller via *<res>.
- * If no such element exists, the anchor of list is returned
- * and *<res> is set to NULL.
+ * found, dentry is grabbed and returned to caller.
+ * If no such element exists, NULL is returned.
  */
-static struct list_head *scan_positives(struct dentry *cursor,
+static struct dentry *scan_positives(struct dentry *cursor,
 					struct list_head *p,
 					loff_t count,
-					struct dentry **res)
+					struct dentry *last)
 {
 	struct dentry *dentry = cursor->d_parent, *found = NULL;
 
@@ -127,9 +126,8 @@ static struct list_head *scan_positives(struct dentry *cursor,
 		}
 	}
 	spin_unlock(&dentry->d_lock);
-	dput(*res);
-	*res = found;
-	return p;
+	dput(last);
+	return found;
 }
 
 loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
@@ -149,24 +147,21 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 	if (offset != file->f_pos) {
 		struct dentry *cursor = file->private_data;
 		struct dentry *to = NULL;
-		struct list_head *p;
 
-		file->f_pos = offset;
 		inode_lock_shared(dentry->d_inode);
 
-		if (file->f_pos > 2) {
-			p = scan_positives(cursor, &dentry->d_subdirs,
-					   file->f_pos - 2, &to);
-			spin_lock(&dentry->d_lock);
-			list_move(&cursor->d_child, p);
-			spin_unlock(&dentry->d_lock);
-		} else {
-			spin_lock(&dentry->d_lock);
+		if (offset > 2)
+			to = scan_positives(cursor, &dentry->d_subdirs,
+					    offset - 2, NULL);
+		spin_lock(&dentry->d_lock);
+		if (to)
+			list_move(&cursor->d_child, &to->d_child);
+		else
 			list_del_init(&cursor->d_child);
-			spin_unlock(&dentry->d_lock);
-		}
-
+		spin_unlock(&dentry->d_lock);
 		dput(to);
+
+		file->f_pos = offset;
 
 		inode_unlock_shared(dentry->d_inode);
 	}
@@ -199,17 +194,23 @@ int dcache_readdir(struct file *file, struct dir_context *ctx)
 
 	if (ctx->pos == 2)
 		p = anchor;
-	else
+	else if (!list_empty(&cursor->d_child))
 		p = &cursor->d_child;
+	else
+		return 0;
 
-	while ((p = scan_positives(cursor, p, 1, &next)) != anchor) {
+	while ((next = scan_positives(cursor, p, 1, next)) != NULL) {
 		if (!dir_emit(ctx, next->d_name.name, next->d_name.len,
 			      d_inode(next)->i_ino, dt_type(d_inode(next))))
 			break;
 		ctx->pos++;
+		p = &next->d_child;
 	}
 	spin_lock(&dentry->d_lock);
-	list_move_tail(&cursor->d_child, p);
+	if (next)
+		list_move_tail(&cursor->d_child, &next->d_child);
+	else
+		list_del_init(&cursor->d_child);
 	spin_unlock(&dentry->d_lock);
 	dput(next);
 
