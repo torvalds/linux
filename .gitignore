@@ -34,7 +34,6 @@
 *.mod.c
 *.o
 *.o.*
-*.order
 *.patch
 *.s
 *.so
@@ -46,6 +45,7 @@
 *.xz
 Module.symvers
 modules.builtin
+modules.order
 
 #
 # Top-level generic files

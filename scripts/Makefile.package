@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 # Makefile for the different targets used to generate full packages of a kernel
-# It uses the generic clean infrastructure of kbuild
+
+include $(srctree)/scripts/Kbuild.include
 
 # RPM target
 # ---------------------------------------------------------------------------
@@ -50,7 +51,8 @@ rm -f $(objtree)/.scmversion
 
 # rpm-pkg
 # ---------------------------------------------------------------------------
-rpm-pkg: FORCE
+PHONY += rpm-pkg
+rpm-pkg:
 	$(MAKE) clean
 	$(CONFIG_SHELL) $(MKSPEC) >$(objtree)/kernel.spec
 	$(call cmd,src_tar,$(KERNELPATH),kernel.spec)
@@ -59,15 +61,15 @@ rpm-pkg: FORCE
 
 # binrpm-pkg
 # ---------------------------------------------------------------------------
-binrpm-pkg: FORCE
+PHONY += binrpm-pkg
+binrpm-pkg:
 	$(MAKE) -f $(srctree)/Makefile
 	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $(objtree)/binkernel.spec
 	+rpmbuild $(RPMOPTS) --define "_builddir $(objtree)" --target \
 		$(UTS_MACHINE) -bb $(objtree)/binkernel.spec
 
-clean-files += $(objtree)/*.spec
-
-deb-pkg: FORCE
+PHONY += deb-pkg
+deb-pkg:
 	$(MAKE) clean
 	$(CONFIG_SHELL) $(srctree)/scripts/package/mkdebian
 	$(call cmd,src_tar,$(KDEB_SOURCENAME))
@@ -75,18 +77,19 @@ deb-pkg: FORCE
 		mv $(KDEB_SOURCENAME).tar.gz ../$(KDEB_SOURCENAME)_$${origversion}.orig.tar.gz
 	+dpkg-buildpackage -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch) $(DPKG_FLAGS) -i.git -us -uc
 
-bindeb-pkg: FORCE
+PHONY += bindeb-pkg
+bindeb-pkg:
 	$(CONFIG_SHELL) $(srctree)/scripts/package/mkdebian
 	+dpkg-buildpackage -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch) $(DPKG_FLAGS) -b -nc -uc
 
-intdeb-pkg: FORCE
+PHONY += intdeb-pkg
+intdeb-pkg:
 	+$(CONFIG_SHELL) $(srctree)/scripts/package/builddeb
-
-clean-dirs += $(objtree)/debian/
 
 # snap-pkg
 # ---------------------------------------------------------------------------
-snap-pkg: FORCE
+PHONY += snap-pkg
+snap-pkg:
 	rm -rf $(objtree)/snap
 	mkdir $(objtree)/snap
 	$(MAKE) clean
@@ -98,16 +101,13 @@ snap-pkg: FORCE
 	cd $(objtree)/snap && \
 	snapcraft --target-arch=$(UTS_MACHINE)
 
-clean-dirs += $(objtree)/snap/
-
 # tarball targets
 # ---------------------------------------------------------------------------
-tar%pkg: FORCE
+tar-pkgs := tar-pkg targz-pkg tarbz2-pkg tarxz-pkg
+PHONY += $(tar-pkgs)
+$(tar-pkgs):
 	$(MAKE) -f $(srctree)/Makefile
 	+$(CONFIG_SHELL) $(srctree)/scripts/package/buildtar $@
-
-clean-dirs += $(objtree)/tar-install/
-
 
 # perf-pkg - generate a source tarball with perf source
 # ---------------------------------------------------------------------------
@@ -133,12 +133,15 @@ $(if $(findstring xz,$@),xz,                                        \
 $(error unknown target $@))))                                       \
 	-f -9 $(perf-tar).tar)
 
-perf-%pkg: FORCE
+perf-tar-pkgs := perf-tar-src-pkg perf-targz-src-pkg perf-tarbz2-src-pkg perf-tarxz-src-pkg
+PHONY += $(perf-tar-pkgs)
+$(perf-tar-pkgs):
 	$(call cmd,perf_tar)
 
 # Help text displayed when executing 'make help'
 # ---------------------------------------------------------------------------
-help: FORCE
+PHONY += help
+help:
 	@echo '  rpm-pkg             - Build both source and binary RPM kernel packages'
 	@echo '  binrpm-pkg          - Build only the binary kernel RPM package'
 	@echo '  deb-pkg             - Build both source and binary deb kernel packages'
@@ -152,3 +155,5 @@ help: FORCE
 	@echo '  perf-targz-src-pkg  - Build $(perf-tar).tar.gz source tarball'
 	@echo '  perf-tarbz2-src-pkg - Build $(perf-tar).tar.bz2 source tarball'
 	@echo '  perf-tarxz-src-pkg  - Build $(perf-tar).tar.xz source tarball'
+
+.PHONY: $(PHONY)

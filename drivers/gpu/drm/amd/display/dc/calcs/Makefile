@@ -36,9 +36,9 @@ ifdef CONFIG_CC_IS_CLANG
 calcs_ccflags += -msse2
 endif
 
-CFLAGS_dcn_calcs.o := $(calcs_ccflags)
-CFLAGS_dcn_calc_auto.o := $(calcs_ccflags)
-CFLAGS_dcn_calc_math.o := $(calcs_ccflags) -Wno-tautological-compare
+CFLAGS_$(AMDDALPATH)/dc/calcs/dcn_calcs.o := $(calcs_ccflags)
+CFLAGS_$(AMDDALPATH)/dc/calcs/dcn_calc_auto.o := $(calcs_ccflags)
+CFLAGS_$(AMDDALPATH)/dc/calcs/dcn_calc_math.o := $(calcs_ccflags) -Wno-tautological-compare
 
 BW_CALCS = dce_calcs.o bw_fixed.o custom_float.o
 

@@ -292,6 +292,13 @@ config ARCH_32BIT_OFF_T
 	  still support 32-bit off_t. This option is enabled for all such
 	  architectures explicitly.
 
+config HAVE_ASM_MODVERSIONS
+	bool
+	help
+	  This symbol should be selected by an architecure if it provides
+	  <asm/asm-prototypes.h> to support the module versioning for symbols
+	  exported from assembly code.
+
 config HAVE_REGS_AND_STACK_ACCESS_API
 	bool
 	help

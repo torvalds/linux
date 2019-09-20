@@ -16,10 +16,10 @@ else ifneq ($(call cc-option, -mstack-alignment=16),)
 	cc_stack_align := -mstack-alignment=16
 endif
 
-CFLAGS_dcn20_resource.o := -mhard-float -msse $(cc_stack_align)
+CFLAGS_$(AMDDALPATH)/dc/dcn20/dcn20_resource.o := -mhard-float -msse $(cc_stack_align)
 
 ifdef CONFIG_CC_IS_CLANG
-CFLAGS_dcn20_resource.o += -msse2
+CFLAGS_$(AMDDALPATH)/dc/dcn20/dcn20_resource.o += -msse2
 endif
 
 AMD_DAL_DCN20 = $(addprefix $(AMDDALPATH)/dc/dcn20/,$(DCN20))
