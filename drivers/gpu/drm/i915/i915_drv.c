@@ -447,6 +447,20 @@ static int i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
+static void i915_driver_modeset_remove(struct drm_i915_private *i915)
+{
+	struct pci_dev *pdev = i915->drm.pdev;
+
+	intel_modeset_driver_remove(&i915->drm);
+
+	intel_bios_driver_remove(i915);
+
+	vga_switcheroo_unregister_client(pdev);
+	vga_client_register(pdev, NULL, NULL, NULL);
+
+	intel_csr_ucode_fini(i915);
+}
+
 static void intel_init_dpio(struct drm_i915_private *dev_priv)
 {
 	/*
@@ -1623,8 +1637,6 @@ out_fini:
 
 void i915_driver_remove(struct drm_i915_private *i915)
 {
-	struct pci_dev *pdev = i915->drm.pdev;
-
 	disable_rpm_wakeref_asserts(&i915->runtime_pm);
 
 	i915_driver_unregister(i915);
@@ -1645,14 +1657,7 @@ void i915_driver_remove(struct drm_i915_private *i915)
 
 	intel_gvt_driver_remove(i915);
 
-	intel_modeset_driver_remove(&i915->drm);
-
-	intel_bios_driver_remove(i915);
-
-	vga_switcheroo_unregister_client(pdev);
-	vga_client_register(pdev, NULL, NULL, NULL);
-
-	intel_csr_ucode_fini(i915);
+	i915_driver_modeset_remove(i915);
 
 	/* Free error state after interrupts are fully disabled. */
 	cancel_delayed_work_sync(&i915->gt.hangcheck.work);
