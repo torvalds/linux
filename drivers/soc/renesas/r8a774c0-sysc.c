@@ -7,7 +7,6 @@
  */
 
 #include <linux/bits.h>
-#include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/sys_soc.h>
 

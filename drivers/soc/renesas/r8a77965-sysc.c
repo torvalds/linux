@@ -8,7 +8,6 @@
  */
 
 #include <linux/bits.h>
-#include <linux/bug.h>
 #include <linux/kernel.h>
 
 #include <dt-bindings/power/r8a77965-sysc.h>
