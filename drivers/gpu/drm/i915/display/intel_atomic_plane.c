@@ -321,9 +321,9 @@ void skl_update_planes_on_crtc(struct intel_atomic_state *state,
 
 		if (new_plane_state->base.visible) {
 			intel_update_plane(plane, new_crtc_state, new_plane_state);
-		} else if (new_plane_state->slave) {
+		} else if (new_plane_state->planar_slave) {
 			struct intel_plane *master =
-				new_plane_state->linked_plane;
+				new_plane_state->planar_linked_plane;
 
 			/*
 			 * We update the slave plane from this function because

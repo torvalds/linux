@@ -559,24 +559,24 @@ struct intel_plane_state {
 	int scaler_id;
 
 	/*
-	 * linked_plane:
+	 * planar_linked_plane:
 	 *
 	 * ICL planar formats require 2 planes that are updated as pairs.
 	 * This member is used to make sure the other plane is also updated
 	 * when required, and for update_slave() to find the correct
 	 * plane_state to pass as argument.
 	 */
-	struct intel_plane *linked_plane;
+	struct intel_plane *planar_linked_plane;
 
 	/*
-	 * slave:
+	 * planar_slave:
 	 * If set don't update use the linked plane's state for updating
 	 * this plane during atomic commit with the update_slave() callback.
 	 *
 	 * It's also used by the watermark code to ignore wm calculations on
 	 * this plane. They're calculated by the linked plane's wm code.
 	 */
-	u32 slave;
+	u32 planar_slave;
 
 	struct drm_intel_sprite_colorkey ckey;
 };

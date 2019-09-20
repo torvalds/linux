@@ -263,10 +263,13 @@ static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_sta
 			 */
 			mode = PS_SCALER_MODE_NORMAL;
 		} else {
+			struct intel_plane *linked =
+				plane_state->planar_linked_plane;
+
 			mode = PS_SCALER_MODE_PLANAR;
 
-			if (plane_state->linked_plane)
-				mode |= PS_PLANE_Y_SEL(plane_state->linked_plane->id);
+			if (linked)
+				mode |= PS_PLANE_Y_SEL(linked->id);
 		}
 	} else if (INTEL_GEN(dev_priv) > 9 || IS_GEMINILAKE(dev_priv)) {
 		mode = PS_SCALER_MODE_NORMAL;

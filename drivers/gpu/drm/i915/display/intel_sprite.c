@@ -542,7 +542,7 @@ skl_program_plane(struct intel_plane *plane,
 	u32 y = plane_state->color_plane[color_plane].y;
 	u32 src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	u32 src_h = drm_rect_height(&plane_state->base.src) >> 16;
-	struct intel_plane *linked = plane_state->linked_plane;
+	struct intel_plane *linked = plane_state->planar_linked_plane;
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	u8 alpha = plane_state->base.alpha >> 8;
 	u32 plane_color_ctl = 0;
@@ -641,7 +641,7 @@ skl_update_plane(struct intel_plane *plane,
 {
 	int color_plane = 0;
 
-	if (plane_state->linked_plane) {
+	if (plane_state->planar_linked_plane) {
 		/* Program the UV plane */
 		color_plane = 1;
 	}

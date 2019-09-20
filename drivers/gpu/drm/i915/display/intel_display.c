@@ -11729,7 +11729,7 @@ static int icl_add_linked_planes(struct intel_atomic_state *state)
 	int i;
 
 	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		linked = plane_state->linked_plane;
+		linked = plane_state->planar_linked_plane;
 
 		if (!linked)
 			continue;
@@ -11738,8 +11738,8 @@ static int icl_add_linked_planes(struct intel_atomic_state *state)
 		if (IS_ERR(linked_plane_state))
 			return PTR_ERR(linked_plane_state);
 
-		WARN_ON(linked_plane_state->linked_plane != plane);
-		WARN_ON(linked_plane_state->slave == plane_state->slave);
+		WARN_ON(linked_plane_state->planar_linked_plane != plane);
+		WARN_ON(linked_plane_state->planar_slave == plane_state->planar_slave);
 	}
 
 	return 0;
@@ -11762,16 +11762,16 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 	 * in the crtc_state->active_planes mask.
 	 */
 	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		if (plane->pipe != crtc->pipe || !plane_state->linked_plane)
+		if (plane->pipe != crtc->pipe || !plane_state->planar_linked_plane)
 			continue;
 
-		plane_state->linked_plane = NULL;
-		if (plane_state->slave && !plane_state->base.visible) {
+		plane_state->planar_linked_plane = NULL;
+		if (plane_state->planar_slave && !plane_state->base.visible) {
 			crtc_state->active_planes &= ~BIT(plane->id);
 			crtc_state->update_planes |= BIT(plane->id);
 		}
 
-		plane_state->slave = false;
+		plane_state->planar_slave = false;
 	}
 
 	if (!crtc_state->nv12_planes)
@@ -11805,10 +11805,10 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 			return -EINVAL;
 		}
 
-		plane_state->linked_plane = linked;
+		plane_state->planar_linked_plane = linked;
 
-		linked_state->slave = true;
-		linked_state->linked_plane = plane;
+		linked_state->planar_slave = true;
+		linked_state->planar_linked_plane = plane;
 		crtc_state->active_planes |= BIT(linked->id);
 		crtc_state->update_planes |= BIT(linked->id);
 		DRM_DEBUG_KMS("Using %s as Y plane for %s\n", linked->base.name, plane->base.name);
@@ -13257,7 +13257,7 @@ intel_verify_planes(struct intel_atomic_state *state)
 
 	for_each_new_intel_plane_in_state(state, plane,
 					  plane_state, i)
-		assert_plane(plane, plane_state->slave ||
+		assert_plane(plane, plane_state->planar_slave ||
 			     plane_state->base.visible);
 }
 
