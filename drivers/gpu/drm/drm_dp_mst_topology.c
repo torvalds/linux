@@ -5148,6 +5148,7 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 {
 	struct drm_dp_mst_port *immediate_upstream_port;
 	struct drm_dp_mst_port *fec_port;
+	struct drm_dp_desc desc = { 0 };
 	u8 endpoint_fec;
 	u8 endpoint_dsc;
 
@@ -5199,6 +5200,32 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 	/* Virtual DPCD decompression with DP-to-HDMI or Virtual DP Sink */
 	if (drm_dp_mst_is_virtual_dpcd(port))
 		return &port->aux;
+
+	/*
+	 * Synaptics quirk
+	 * Applies to ports for which:
+	 * - Physical aux has Synaptics OUI
+	 * - DPv1.4 or higher
+	 * - Port is on primary branch device
+	 * - Not a VGA adapter (DP_DWN_STRM_PORT_TYPE_ANALOG)
+	 */
+	if (drm_dp_read_desc(port->mgr->aux, &desc, true))
+		return NULL;
+
+	if (drm_dp_has_quirk(&desc, DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD) &&
+	    port->mgr->dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14 &&
+	    port->parent == port->mgr->mst_primary) {
+		u8 downstreamport;
+
+		if (drm_dp_dpcd_read(&port->aux, DP_DOWNSTREAMPORT_PRESENT,
+				     &downstreamport, 1) < 0)
+			return NULL;
+
+		if ((downstreamport & DP_DWN_STRM_PORT_PRESENT) &&
+		   ((downstreamport & DP_DWN_STRM_PORT_TYPE_MASK)
+		     != DP_DWN_STRM_PORT_TYPE_ANALOG))
+			return port->mgr->aux;
+	}
 
 	/*
 	 * The check below verifies if the MST sink

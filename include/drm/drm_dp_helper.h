@@ -1522,6 +1522,13 @@ enum drm_dp_quirk {
 	 * The driver should ignore SINK_COUNT during detection.
 	 */
 	DP_DPCD_QUIRK_NO_SINK_COUNT,
+	/**
+	 * @DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD:
+	 *
+	 * The device supports MST DSC despite not supporting Virtual DPCD.
+	 * The DSC caps can be read from the physical aux instead.
+	 */
+	DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD,
 };
 
 /**
