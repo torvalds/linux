@@ -9097,6 +9097,8 @@ enum {
 #define AUD_PIN_BUF_CTL		_MMIO(0x48414)
 #define   AUD_PIN_BUF_ENABLE		REG_BIT(31)
 
+#define AUD_FREQ_CNTRL			_MMIO(0x65900)
+
 /*
  * HSW - ICL power wells
  *
