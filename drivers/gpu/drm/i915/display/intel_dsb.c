@@ -224,3 +224,46 @@ void intel_dsb_reg_write(struct intel_dsb *dsb, i915_reg_t reg, u32 val)
 			       (DSB_BYTE_EN << DSB_BYTE_EN_SHIFT) |
 			       i915_mmio_reg_offset(reg);
 }
+
+void intel_dsb_commit(struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = container_of(dsb, typeof(*crtc), dsb);
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	enum pipe pipe = crtc->pipe;
+	u32 tail;
+
+	if (!dsb->free_pos)
+		return;
+
+	if (!intel_dsb_enable_engine(dsb))
+		goto reset;
+
+	if (is_dsb_busy(dsb)) {
+		DRM_ERROR("HEAD_PTR write failed - dsb engine is busy.\n");
+		goto reset;
+	}
+	I915_WRITE(DSB_HEAD(pipe, dsb->id), i915_ggtt_offset(dsb->vma));
+
+	tail = ALIGN(dsb->free_pos * 4, CACHELINE_BYTES);
+	if (tail > dsb->free_pos * 4)
+		memset(&dsb->cmd_buf[dsb->free_pos], 0,
+		       (tail - dsb->free_pos * 4));
+
+	if (is_dsb_busy(dsb)) {
+		DRM_ERROR("TAIL_PTR write failed - dsb engine is busy.\n");
+		goto reset;
+	}
+	DRM_DEBUG_KMS("DSB execution started - head 0x%x, tail 0x%x\n",
+		      i915_ggtt_offset(dsb->vma), tail);
+	I915_WRITE(DSB_TAIL(pipe, dsb->id), i915_ggtt_offset(dsb->vma) + tail);
+	if (wait_for(!is_dsb_busy(dsb), 1)) {
+		DRM_ERROR("Timed out waiting for DSB workload completion.\n");
+		goto reset;
+	}
+
+reset:
+	dsb->free_pos = 0;
+	dsb->ins_start_offset = 0;
+	intel_dsb_disable_engine(dsb);
+}
