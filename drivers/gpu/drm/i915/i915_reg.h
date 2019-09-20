@@ -11703,6 +11703,7 @@ enum skl_power_gate {
 #define DSBSL_INSTANCE(pipe, id)	(_DSBSL_INSTANCE_BASE + \
 					 (pipe) * 0x1000 + (id) * 100)
 #define DSB_CTRL(pipe, id)		_MMIO(DSBSL_INSTANCE(pipe, id) + 0x8)
+#define   DSB_ENABLE			(1 << 31)
 #define   DSB_STATUS			(1 << 0)
 
 #endif /* _I915_REG_H_ */

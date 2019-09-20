@@ -26,6 +26,46 @@ static inline bool is_dsb_busy(struct intel_dsb *dsb)
 	return DSB_STATUS & I915_READ(DSB_CTRL(pipe, dsb->id));
 }
 
+static inline bool intel_dsb_enable_engine(struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = container_of(dsb, typeof(*crtc), dsb);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	u32 dsb_ctrl;
+
+	dsb_ctrl = I915_READ(DSB_CTRL(pipe, dsb->id));
+	if (DSB_STATUS & dsb_ctrl) {
+		DRM_DEBUG_KMS("DSB engine is busy.\n");
+		return false;
+	}
+
+	dsb_ctrl |= DSB_ENABLE;
+	I915_WRITE(DSB_CTRL(pipe, dsb->id), dsb_ctrl);
+
+	POSTING_READ(DSB_CTRL(pipe, dsb->id));
+	return true;
+}
+
+static inline bool intel_dsb_disable_engine(struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = container_of(dsb, typeof(*crtc), dsb);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	u32 dsb_ctrl;
+
+	dsb_ctrl = I915_READ(DSB_CTRL(pipe, dsb->id));
+	if (DSB_STATUS & dsb_ctrl) {
+		DRM_DEBUG_KMS("DSB engine is busy.\n");
+		return false;
+	}
+
+	dsb_ctrl &= ~DSB_ENABLE;
+	I915_WRITE(DSB_CTRL(pipe, dsb->id), dsb_ctrl);
+
+	POSTING_READ(DSB_CTRL(pipe, dsb->id));
+	return true;
+}
+
 struct intel_dsb *
 intel_dsb_get(struct intel_crtc *crtc)
 {
