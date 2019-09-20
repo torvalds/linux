@@ -4180,6 +4180,7 @@ void destroy_workqueue(struct workqueue_struct *wq)
 
 		/* rescuer will empty maydays list before exiting */
 		kthread_stop(rescuer->task);
+		kfree(rescuer);
 	}
 
 	/* sanity checks */
