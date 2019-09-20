@@ -1173,12 +1173,8 @@ void bch2_ec_stop_dev(struct bch_fs *c, struct bch_dev *ca)
 		struct ec_stripe_new *s = NULL;
 
 		mutex_lock(&h->lock);
-		bch2_open_buckets_stop_dev(c, ca,
-					   &h->blocks,
-					   BCH_DATA_USER);
-		bch2_open_buckets_stop_dev(c, ca,
-					   &h->parity,
-					   BCH_DATA_USER);
+		bch2_open_buckets_stop_dev(c, ca, &h->blocks);
+		bch2_open_buckets_stop_dev(c, ca, &h->parity);
 
 		if (!h->s)
 			goto unlock;

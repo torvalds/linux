@@ -693,8 +693,7 @@ retry_blocking:
 }
 
 void bch2_open_buckets_stop_dev(struct bch_fs *c, struct bch_dev *ca,
-				struct open_buckets *obs,
-				enum bch_data_type data_type)
+				struct open_buckets *obs)
 {
 	struct open_buckets ptrs = { .nr = 0 };
 	struct open_bucket *ob, *ob2;
@@ -725,7 +724,7 @@ void bch2_writepoint_stop(struct bch_fs *c, struct bch_dev *ca,
 			  struct write_point *wp)
 {
 	mutex_lock(&wp->lock);
-	bch2_open_buckets_stop_dev(c, ca, &wp->ptrs, wp->type);
+	bch2_open_buckets_stop_dev(c, ca, &wp->ptrs);
 	mutex_unlock(&wp->lock);
 }
 
