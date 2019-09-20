@@ -406,9 +406,6 @@ GEM TTM Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_gem_ttm_helper.c
    :doc: overview
 
-.. kernel-doc:: include/drm/drm_gem_ttm_helper.h
-   :internal:
-
 .. kernel-doc:: drivers/gpu/drm/drm_gem_ttm_helper.c
    :export:
 
