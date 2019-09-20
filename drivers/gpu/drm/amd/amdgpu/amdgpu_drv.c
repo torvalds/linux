@@ -128,11 +128,6 @@ char *amdgpu_disable_cu = NULL;
 char *amdgpu_virtual_display = NULL;
 /* OverDrive(bit 14) disabled by default*/
 uint amdgpu_pp_feature_mask = 0xffffbfff;
-int amdgpu_ngg = 0;
-int amdgpu_prim_buf_per_se = 0;
-int amdgpu_pos_buf_per_se = 0;
-int amdgpu_cntl_sb_buf_per_se = 0;
-int amdgpu_param_buf_per_se = 0;
 int amdgpu_job_hang_limit = 0;
 int amdgpu_lbpw = -1;
 int amdgpu_compute_multipipe = -1;
@@ -451,42 +446,6 @@ module_param_named(disable_cu, amdgpu_disable_cu, charp, 0444);
 MODULE_PARM_DESC(virtual_display,
 		 "Enable virtual display feature (the virtual_display will be set like xxxx:xx:xx.x,x;xxxx:xx:xx.x,x)");
 module_param_named(virtual_display, amdgpu_virtual_display, charp, 0444);
-
-/**
- * DOC: ngg (int)
- * Set to enable Next Generation Graphics (1 = enable). The default is 0 (disabled).
- */
-MODULE_PARM_DESC(ngg, "Next Generation Graphics (1 = enable, 0 = disable(default depending on gfx))");
-module_param_named(ngg, amdgpu_ngg, int, 0444);
-
-/**
- * DOC: prim_buf_per_se (int)
- * Override the size of Primitive Buffer per Shader Engine in Byte. The default is 0 (depending on gfx).
- */
-MODULE_PARM_DESC(prim_buf_per_se, "the size of Primitive Buffer per Shader Engine (default depending on gfx)");
-module_param_named(prim_buf_per_se, amdgpu_prim_buf_per_se, int, 0444);
-
-/**
- * DOC: pos_buf_per_se (int)
- * Override the size of Position Buffer per Shader Engine in Byte. The default is 0 (depending on gfx).
- */
-MODULE_PARM_DESC(pos_buf_per_se, "the size of Position Buffer per Shader Engine (default depending on gfx)");
-module_param_named(pos_buf_per_se, amdgpu_pos_buf_per_se, int, 0444);
-
-/**
- * DOC: cntl_sb_buf_per_se (int)
- * Override the size of Control Sideband per Shader Engine in Byte. The default is 0 (depending on gfx).
- */
-MODULE_PARM_DESC(cntl_sb_buf_per_se, "the size of Control Sideband per Shader Engine (default depending on gfx)");
-module_param_named(cntl_sb_buf_per_se, amdgpu_cntl_sb_buf_per_se, int, 0444);
-
-/**
- * DOC: param_buf_per_se (int)
- * Override the size of Off-Chip Parameter Cache per Shader Engine in Byte.
- * The default is 0 (depending on gfx).
- */
-MODULE_PARM_DESC(param_buf_per_se, "the size of Off-Chip Parameter Cache per Shader Engine (default depending on gfx)");
-module_param_named(param_buf_per_se, amdgpu_param_buf_per_se, int, 0444);
 
 /**
  * DOC: job_hang_limit (int)
