@@ -1413,7 +1413,10 @@ static int pseries_lpar_resize_hpt_commit(void *data)
 	return 0;
 }
 
-/* Must be called in user context */
+/*
+ * Must be called in process context. The caller must hold the
+ * cpus_lock.
+ */
 static int pseries_lpar_resize_hpt(unsigned long shift)
 {
 	struct hpt_resize_state state = {
@@ -1467,7 +1470,8 @@ static int pseries_lpar_resize_hpt(unsigned long shift)
 
 	t1 = ktime_get();
 
-	rc = stop_machine(pseries_lpar_resize_hpt_commit, &state, NULL);
+	rc = stop_machine_cpuslocked(pseries_lpar_resize_hpt_commit,
+				     &state, NULL);
 
 	t2 = ktime_get();
 
@@ -1527,16 +1531,24 @@ void __init hpte_init_pseries(void)
 	mmu_hash_ops.flush_hash_range	 = pSeries_lpar_flush_hash_range;
 	mmu_hash_ops.hpte_clear_all      = pseries_hpte_clear_all;
 	mmu_hash_ops.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
-	register_process_table		 = pseries_lpar_register_process_table;
 
 	if (firmware_has_feature(FW_FEATURE_HPT_RESIZE))
 		mmu_hash_ops.resize_hpt = pseries_lpar_resize_hpt;
+
+	/*
+	 * On POWER9, we need to do a H_REGISTER_PROC_TBL hcall
+	 * to inform the hypervisor that we wish to use the HPT.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		pseries_lpar_register_process_table(0, 0, 0);
 }
 
 void radix_init_pseries(void)
 {
 	pr_info("Using radix MMU under hypervisor\n");
-	register_process_table = pseries_lpar_register_process_table;
+
+	pseries_lpar_register_process_table(__pa(process_tb),
+						0, PRTB_SIZE_SHIFT - 12);
 }
 
 #ifdef CONFIG_PPC_SMLPAR

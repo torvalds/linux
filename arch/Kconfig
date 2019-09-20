@@ -946,6 +946,9 @@ config RELR
 	  well as compatible NM and OBJCOPY utilities (llvm-nm and llvm-objcopy
 	  are compatible).
 
+config ARCH_HAS_MEM_ENCRYPT
+	bool
+
 source "kernel/gcov/Kconfig"
 
 source "scripts/gcc-plugins/Kconfig"

@@ -1193,7 +1193,7 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 	else
 		tbl->it_ops = &iommu_table_pseries_ops;
 
-	return iommu_init_table(tbl, -1);
+	return iommu_init_table(tbl, -1, 0, 0);
 }
 
 /**

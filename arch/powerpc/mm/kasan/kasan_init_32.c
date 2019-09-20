@@ -5,6 +5,7 @@
 #include <linux/kasan.h>
 #include <linux/printk.h>
 #include <linux/memblock.h>
+#include <linux/moduleloader.h>
 #include <linux/sched/task.h>
 #include <linux/vmalloc.h>
 #include <asm/pgalloc.h>
@@ -46,7 +47,19 @@ static int __ref kasan_init_shadow_page_tables(unsigned long k_start, unsigned l
 			kasan_populate_pte(new, PAGE_READONLY);
 		else
 			kasan_populate_pte(new, PAGE_KERNEL_RO);
-		pmd_populate_kernel(&init_mm, pmd, new);
+
+		smp_wmb(); /* See comment in __pte_alloc */
+
+		spin_lock(&init_mm.page_table_lock);
+			/* Has another populated it ? */
+		if (likely((void *)pmd_page_vaddr(*pmd) == kasan_early_shadow_pte)) {
+			pmd_populate_kernel(&init_mm, pmd, new);
+			new = NULL;
+		}
+		spin_unlock(&init_mm.page_table_lock);
+
+		if (new && slab_is_available())
+			pte_free_kernel(&init_mm, new);
 	}
 	return 0;
 }
@@ -74,7 +87,7 @@ static int __ref kasan_init_region(void *start, size_t size)
 	if (!slab_is_available())
 		block = memblock_alloc(k_end - k_start, PAGE_SIZE);
 
-	for (k_cur = k_start; k_cur < k_end; k_cur += PAGE_SIZE) {
+	for (k_cur = k_start & PAGE_MASK; k_cur < k_end; k_cur += PAGE_SIZE) {
 		pmd_t *pmd = pmd_offset(pud_offset(pgd_offset_k(k_cur), k_cur), k_cur);
 		void *va = block ? block + k_cur - k_start : kasan_get_one_page();
 		pte_t pte = pfn_pte(PHYS_PFN(__pa(va)), PAGE_KERNEL);
@@ -137,7 +150,11 @@ void __init kasan_init(void)
 #ifdef CONFIG_MODULES
 void *module_alloc(unsigned long size)
 {
-	void *base = vmalloc_exec(size);
+	void *base;
+
+	base = __vmalloc_node_range(size, MODULE_ALIGN, VMALLOC_START, VMALLOC_END,
+				    GFP_KERNEL, PAGE_KERNEL_EXEC, VM_FLUSH_RESET_PERMS,
+				    NUMA_NO_NODE, __builtin_return_address(0));
 
 	if (!base)
 		return NULL;

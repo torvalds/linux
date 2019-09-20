@@ -29,6 +29,7 @@
 #include <asm/asm-compat.h>
 #include <asm/feature-fixups.h>
 #include <asm/cpuidle.h>
+#include <asm/ultravisor-api.h>
 
 /* Sign-extend HDEC if not on POWER9 */
 #define EXTEND_HDEC(reg)			\
@@ -1085,16 +1086,10 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 
 	ld	r5, VCPU_LR(r4)
-	ld	r6, VCPU_CR(r4)
 	mtlr	r5
-	mtcr	r6
 
 	ld	r1, VCPU_GPR(R1)(r4)
-	ld	r2, VCPU_GPR(R2)(r4)
-	ld	r3, VCPU_GPR(R3)(r4)
 	ld	r5, VCPU_GPR(R5)(r4)
-	ld	r6, VCPU_GPR(R6)(r4)
-	ld	r7, VCPU_GPR(R7)(r4)
 	ld	r8, VCPU_GPR(R8)(r4)
 	ld	r9, VCPU_GPR(R9)(r4)
 	ld	r10, VCPU_GPR(R10)(r4)
@@ -1112,10 +1107,42 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_HDSISR, r0
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 
+	ld	r6, VCPU_KVM(r4)
+	lbz	r7, KVM_SECURE_GUEST(r6)
+	cmpdi	r7, 0
+	ld	r6, VCPU_GPR(R6)(r4)
+	ld	r7, VCPU_GPR(R7)(r4)
+	bne	ret_to_ultra
+
+	lwz	r0, VCPU_CR(r4)
+	mtcr	r0
+
 	ld	r0, VCPU_GPR(R0)(r4)
+	ld	r2, VCPU_GPR(R2)(r4)
+	ld	r3, VCPU_GPR(R3)(r4)
 	ld	r4, VCPU_GPR(R4)(r4)
 	HRFI_TO_GUEST
 	b	.
+/*
+ * Use UV_RETURN ultracall to return control back to the Ultravisor after
+ * processing an hypercall or interrupt that was forwarded (a.k.a. reflected)
+ * to the Hypervisor.
+ *
+ * All registers have already been loaded, except:
+ *   R0 = hcall result
+ *   R2 = SRR1, so UV can detect a synthesized interrupt (if any)
+ *   R3 = UV_RETURN
+ */
+ret_to_ultra:
+	lwz	r0, VCPU_CR(r4)
+	mtcr	r0
+
+	ld	r0, VCPU_GPR(R3)(r4)
+	mfspr	r2, SPRN_SRR1
+	li	r3, 0
+	ori	r3, r3, UV_RETURN
+	ld	r4, VCPU_GPR(R4)(r4)
+	sc	2
 
 /*
  * Enter the guest on a P9 or later system where we have exactly
