@@ -3539,12 +3539,26 @@ static void update_stream_scaling_settings(const struct drm_display_mode *mode,
 
 static enum dc_color_depth
 convert_color_depth_from_display_info(const struct drm_connector *connector,
-				      const struct drm_connector_state *state)
+				      const struct drm_connector_state *state,
+				      bool is_y420)
 {
-	uint8_t bpc = (uint8_t)connector->display_info.bpc;
+	uint8_t bpc;
 
-	/* Assume 8 bpc by default if no bpc is specified. */
-	bpc = bpc ? bpc : 8;
+	if (is_y420) {
+		bpc = 8;
+
+		/* Cap display bpc based on HDMI 2.0 HF-VSDB */
+		if (connector->display_info.hdmi.y420_dc_modes & DRM_EDID_YCBCR420_DC_48)
+			bpc = 16;
+		else if (connector->display_info.hdmi.y420_dc_modes & DRM_EDID_YCBCR420_DC_36)
+			bpc = 12;
+		else if (connector->display_info.hdmi.y420_dc_modes & DRM_EDID_YCBCR420_DC_30)
+			bpc = 10;
+	} else {
+		bpc = (uint8_t)connector->display_info.bpc;
+		/* Assume 8 bpc by default if no bpc is specified. */
+		bpc = bpc ? bpc : 8;
+	}
 
 	if (!state)
 		state = connector->state;
@@ -3715,7 +3729,8 @@ static void fill_stream_properties_from_drm_display_mode(
 
 	timing_out->timing_3d_format = TIMING_3D_FORMAT_NONE;
 	timing_out->display_color_depth = convert_color_depth_from_display_info(
-		connector, connector_state);
+		connector, connector_state,
+		(timing_out->pixel_encoding == PIXEL_ENCODING_YCBCR420));
 	timing_out->scan_type = SCANNING_TYPE_NODATA;
 	timing_out->hdmi_vic = 0;
 
@@ -4847,6 +4862,7 @@ static int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 	struct drm_dp_mst_port *mst_port;
 	enum dc_color_depth color_depth;
 	int clock, bpp = 0;
+	bool is_y420 = false;
 
 	if (!aconnector->port || !aconnector->dc_sink)
 		return 0;
@@ -4858,7 +4874,10 @@ static int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 		return 0;
 
 	if (!state->duplicated) {
-		color_depth = convert_color_depth_from_display_info(connector, conn_state);
+		is_y420 = drm_mode_is_420_also(&connector->display_info, adjusted_mode) &&
+				aconnector->force_yuv420_output;
+		color_depth = convert_color_depth_from_display_info(connector, conn_state,
+								    is_y420);
 		bpp = convert_dc_color_depth_into_bpc(color_depth) * 3;
 		clock = adjusted_mode->clock;
 		dm_new_connector_state->pbn = drm_dp_calc_pbn_mode(clock, bpp);
