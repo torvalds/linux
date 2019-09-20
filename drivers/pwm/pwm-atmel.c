@@ -347,7 +347,9 @@ static int atmel_pwm_probe(struct platform_device *pdev)
 	if (!atmel_pwm)
 		return -ENOMEM;
 
+	mutex_init(&atmel_pwm->isr_lock);
 	atmel_pwm->data = of_device_get_match_data(&pdev->dev);
+	atmel_pwm->updated_pwms = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	atmel_pwm->base = devm_ioremap_resource(&pdev->dev, res);
@@ -366,14 +368,10 @@ static int atmel_pwm_probe(struct platform_device *pdev)
 
 	atmel_pwm->chip.dev = &pdev->dev;
 	atmel_pwm->chip.ops = &atmel_pwm_ops;
-
 	atmel_pwm->chip.of_xlate = of_pwm_xlate_with_flags;
 	atmel_pwm->chip.of_pwm_n_cells = 3;
-
 	atmel_pwm->chip.base = -1;
 	atmel_pwm->chip.npwm = 4;
-	atmel_pwm->updated_pwms = 0;
-	mutex_init(&atmel_pwm->isr_lock);
 
 	ret = pwmchip_add(&atmel_pwm->chip);
 	if (ret < 0) {
