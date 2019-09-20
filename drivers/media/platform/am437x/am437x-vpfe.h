@@ -216,27 +216,15 @@ struct vpfe_ccdc {
 };
 
 /*
- * struct bus_format - VPFE bus format information
- * width: Bits per pixel (when transferred over a bus)
- * bpp: Bytes per pixel (when stored in memory)
- */
-struct bus_format {
-	unsigned int width;
-	unsigned int bpp;
-};
-
-/*
  * struct vpfe_fmt - VPFE media bus format information
  * fourcc: V4L2 pixel format code
  * code: V4L2 media bus format code
- * l: 10 bit bus format info
- * s: 8 bit bus format info
+ * bitsperpixel: Bits per pixel over the bus
  */
 struct vpfe_fmt {
 	u32 fourcc;
 	u32 code;
-	struct bus_format l;
-	struct bus_format s;
+	u32 bitsperpixel;
 };
 
 /*
