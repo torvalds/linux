@@ -373,6 +373,15 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 			 */
 			if (!plane) {
 				struct drm_plane_state *state;
+
+				/*
+				 * GLK+ scalers don't have a HQ mode so it
+				 * isn't necessary to change between HQ and dyn mode
+				 * on those platforms.
+				 */
+				if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+					continue;
+
 				plane = drm_plane_from_index(&dev_priv->drm, i);
 				state = drm_atomic_get_plane_state(drm_state, plane);
 				if (IS_ERR(state)) {
