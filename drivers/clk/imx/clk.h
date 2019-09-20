@@ -10,7 +10,6 @@ extern spinlock_t imx_ccm_lock;
 void imx_check_clocks(struct clk *clks[], unsigned int count);
 void imx_check_clk_hws(struct clk_hw *clks[], unsigned int count);
 void imx_register_uart_clocks(struct clk ** const clks[]);
-void imx_register_uart_clocks_hws(struct clk_hw ** const hws[]);
 void imx_mmdc_mask_handshake(void __iomem *ccm_base, unsigned int chn);
 void imx_unregister_clocks(struct clk *clks[], unsigned int count);
 
@@ -51,12 +50,6 @@ struct imx_pll14xx_clk {
 	int flags;
 };
 
-#define imx_clk_busy_divider(name, parent_name, reg, shift, width, busy_reg, busy_shift) \
-	imx_clk_hw_busy_divider(name, parent_name, reg, shift, width, busy_reg, busy_shift)->clk
-
-#define imx_clk_busy_mux(name, reg, shift, width, busy_reg, busy_shift, parent_names, num_parents) \
-	imx_clk_hw_busy_mux(name, reg, shift, width, busy_reg, busy_shift, parent_names, num_parents)->clk
-
 #define imx_clk_cpu(name, parent_name, div, mux, pll, step) \
 	imx_clk_hw_cpu(name, parent_name, div, mux, pll, step)->clk
 
@@ -74,15 +67,6 @@ struct imx_pll14xx_clk {
 #define imx_clk_gate_exclusive(name, parent, reg, shift, exclusive_mask) \
 	imx_clk_hw_gate_exclusive(name, parent, reg, shift, exclusive_mask)->clk
 
-#define imx_clk_fixup_divider(name, parent, reg, shift, width, fixup) \
-	imx_clk_hw_fixup_divider(name, parent, reg, shift, width, fixup)->clk
-
-#define imx_clk_fixup_mux(name, reg, shift, width, parents, num_parents, fixup) \
-	imx_clk_hw_fixup_mux(name, reg, shift, width, parents, num_parents, fixup)->clk
-
-#define imx_clk_mux_ldb(name, reg, shift, width, parents, num_parents) \
-	imx_clk_hw_mux_ldb(name, reg, shift, width, parents, num_parents)->clk
-
 #define imx_clk_fixed_factor(name, parent, mult, div) \
 	imx_clk_hw_fixed_factor(name, parent, mult, div)->clk
 
@@ -92,20 +76,11 @@ struct imx_pll14xx_clk {
 #define imx_clk_gate_dis(name, parent, reg, shift) \
 	imx_clk_hw_gate_dis(name, parent, reg, shift)->clk
 
-#define imx_clk_gate_dis_flags(name, parent, reg, shift, flags) \
-	imx_clk_hw_gate_dis_flags(name, parent, reg, shift, flags)->clk
-
-#define imx_clk_gate_flags(name, parent, reg, shift, flags) \
-	imx_clk_hw_gate_flags(name, parent, reg, shift, flags)->clk
-
 #define imx_clk_gate2(name, parent, reg, shift) \
 	imx_clk_hw_gate2(name, parent, reg, shift)->clk
 
 #define imx_clk_gate2_flags(name, parent, reg, shift, flags) \
 	imx_clk_hw_gate2_flags(name, parent, reg, shift, flags)->clk
-
-#define imx_clk_gate2_shared(name, parent, reg, shift, share_count) \
-	imx_clk_hw_gate2_shared(name, parent, reg, shift, share_count)->clk
 
 #define imx_clk_gate2_shared2(name, parent, reg, shift, share_count) \
 	imx_clk_hw_gate2_shared2(name, parent, reg, shift, share_count)->clk

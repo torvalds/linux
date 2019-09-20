@@ -279,7 +279,7 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 
 	of_property_read_string_index(node, "clock-output-names", 1,
 				      &clkout_name);
-	rtc->ext_losc = clk_register_gate(NULL, clkout_name, rtc->hw.init->name,
+	rtc->ext_losc = clk_register_gate(NULL, clkout_name, init.name,
 					  0, rtc->base + SUN6I_LOSC_OUT_GATING,
 					  SUN6I_LOSC_OUT_GATING_EN_OFFSET, 0,
 					  &rtc->lock);
