@@ -3033,67 +3033,40 @@ static void intel_ddi_clk_disable(struct intel_encoder *encoder)
 	}
 }
 
-static void icl_enable_phy_clock_gating(struct intel_digital_port *dig_port)
+static void
+icl_phy_set_clock_gating(struct intel_digital_port *dig_port, bool enable)
 {
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum port port = dig_port->base.port;
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
-	u32 val;
+	u32 val, bits;
 	int ln;
 
 	if (tc_port == PORT_TC_NONE)
 		return;
 
-	for (ln = 0; ln < 2; ln++) {
-		val = I915_READ(MG_DP_MODE(ln, port));
-		val |= MG_DP_MODE_CFG_TR2PWR_GATING |
-		       MG_DP_MODE_CFG_TRPWR_GATING |
-		       MG_DP_MODE_CFG_CLNPWR_GATING |
-		       MG_DP_MODE_CFG_DIGPWR_GATING |
-		       MG_DP_MODE_CFG_GAONPWR_GATING;
-		I915_WRITE(MG_DP_MODE(ln, port), val);
-	}
-
-	val = I915_READ(MG_MISC_SUS0(tc_port));
-	val |= MG_MISC_SUS0_SUSCLK_DYNCLKGATE_MODE(3) |
-	       MG_MISC_SUS0_CFG_TR2PWR_GATING |
-	       MG_MISC_SUS0_CFG_CL2PWR_GATING |
-	       MG_MISC_SUS0_CFG_GAONPWR_GATING |
-	       MG_MISC_SUS0_CFG_TRPWR_GATING |
-	       MG_MISC_SUS0_CFG_CL1PWR_GATING |
-	       MG_MISC_SUS0_CFG_DGPWR_GATING;
-	I915_WRITE(MG_MISC_SUS0(tc_port), val);
-}
-
-static void icl_disable_phy_clock_gating(struct intel_digital_port *dig_port)
-{
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum port port = dig_port->base.port;
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
-	u32 val;
-	int ln;
-
-	if (tc_port == PORT_TC_NONE)
-		return;
+	bits = MG_DP_MODE_CFG_TR2PWR_GATING | MG_DP_MODE_CFG_TRPWR_GATING |
+	       MG_DP_MODE_CFG_CLNPWR_GATING | MG_DP_MODE_CFG_DIGPWR_GATING |
+	       MG_DP_MODE_CFG_GAONPWR_GATING;
 
 	for (ln = 0; ln < 2; ln++) {
 		val = I915_READ(MG_DP_MODE(ln, port));
-		val &= ~(MG_DP_MODE_CFG_TR2PWR_GATING |
-			 MG_DP_MODE_CFG_TRPWR_GATING |
-			 MG_DP_MODE_CFG_CLNPWR_GATING |
-			 MG_DP_MODE_CFG_DIGPWR_GATING |
-			 MG_DP_MODE_CFG_GAONPWR_GATING);
+		if (enable)
+			val |= bits;
+		else
+			val &= ~bits;
 		I915_WRITE(MG_DP_MODE(ln, port), val);
 	}
 
+	bits = MG_MISC_SUS0_CFG_TR2PWR_GATING | MG_MISC_SUS0_CFG_CL2PWR_GATING |
+	       MG_MISC_SUS0_CFG_GAONPWR_GATING | MG_MISC_SUS0_CFG_TRPWR_GATING |
+	       MG_MISC_SUS0_CFG_CL1PWR_GATING | MG_MISC_SUS0_CFG_DGPWR_GATING;
+
 	val = I915_READ(MG_MISC_SUS0(tc_port));
-	val &= ~(MG_MISC_SUS0_SUSCLK_DYNCLKGATE_MODE_MASK |
-		 MG_MISC_SUS0_CFG_TR2PWR_GATING |
-		 MG_MISC_SUS0_CFG_CL2PWR_GATING |
-		 MG_MISC_SUS0_CFG_GAONPWR_GATING |
-		 MG_MISC_SUS0_CFG_TRPWR_GATING |
-		 MG_MISC_SUS0_CFG_CL1PWR_GATING |
-		 MG_MISC_SUS0_CFG_DGPWR_GATING);
+	if (enable)
+		val |= (bits | MG_MISC_SUS0_SUSCLK_DYNCLKGATE_MODE(3));
+	else
+		val &= ~(bits | MG_MISC_SUS0_SUSCLK_DYNCLKGATE_MODE_MASK);
 	I915_WRITE(MG_MISC_SUS0(tc_port), val);
 }
 
@@ -3258,7 +3231,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	intel_ddi_config_transcoder_func(crtc_state);
 
 	/* 7.d */
-	icl_disable_phy_clock_gating(dig_port);
+	icl_phy_set_clock_gating(dig_port, false);
 
 	/* 7.e */
 	icl_ddi_vswing_sequence(encoder, crtc_state->port_clock, level,
@@ -3328,7 +3301,7 @@ static void hsw_ddi_pre_enable_dp(struct intel_encoder *encoder,
 					dig_port->ddi_io_power_domain);
 
 	icl_program_mg_dp_mode(dig_port);
-	icl_disable_phy_clock_gating(dig_port);
+	icl_phy_set_clock_gating(dig_port, false);
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_ddi_vswing_sequence(encoder, crtc_state->port_clock,
@@ -3361,7 +3334,7 @@ static void hsw_ddi_pre_enable_dp(struct intel_encoder *encoder,
 
 	intel_ddi_enable_fec(encoder, crtc_state);
 
-	icl_enable_phy_clock_gating(dig_port);
+	icl_phy_set_clock_gating(dig_port, true);
 
 	if (!is_mst)
 		intel_ddi_enable_pipe_clock(crtc_state);
@@ -3398,7 +3371,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
 	icl_program_mg_dp_mode(dig_port);
-	icl_disable_phy_clock_gating(dig_port);
+	icl_phy_set_clock_gating(dig_port, false);
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_ddi_vswing_sequence(encoder, crtc_state->port_clock,
@@ -3410,7 +3383,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 	else
 		intel_prepare_hdmi_ddi_buffers(encoder, level);
 
-	icl_enable_phy_clock_gating(dig_port);
+	icl_phy_set_clock_gating(dig_port, true);
 
 	if (IS_GEN9_BC(dev_priv))
 		skl_ddi_set_iboost(encoder, level, INTEL_OUTPUT_HDMI);
