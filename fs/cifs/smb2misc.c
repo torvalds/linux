@@ -29,6 +29,7 @@
 #include "cifs_unicode.h"
 #include "smb2status.h"
 #include "smb2glob.h"
+#include "nterr.h"
 
 static int
 check_smb2_hdr(struct smb2_sync_hdr *shdr, __u64 mid)
@@ -834,23 +835,37 @@ smb311_update_preauth_hash(struct cifs_ses *ses, struct kvec *iov, int nvec)
 	int i, rc;
 	struct sdesc *d;
 	struct smb2_sync_hdr *hdr;
+	struct TCP_Server_Info *server = cifs_ses_server(ses);
 
-	if (ses->server->tcpStatus == CifsGood) {
-		/* skip non smb311 connections */
-		if (ses->server->dialect != SMB311_PROT_ID)
-			return 0;
+	hdr = (struct smb2_sync_hdr *)iov[0].iov_base;
+	/* neg prot are always taken */
+	if (hdr->Command == SMB2_NEGOTIATE)
+		goto ok;
 
-		/* skip last sess setup response */
-		hdr = (struct smb2_sync_hdr *)iov[0].iov_base;
-		if (hdr->Flags & SMB2_FLAGS_SIGNED)
-			return 0;
-	}
+	/*
+	 * If we process a command which wasn't a negprot it means the
+	 * neg prot was already done, so the server dialect was set
+	 * and we can test it. Preauth requires 3.1.1 for now.
+	 */
+	if (server->dialect != SMB311_PROT_ID)
+		return 0;
 
-	rc = smb311_crypto_shash_allocate(ses->server);
+	if (hdr->Command != SMB2_SESSION_SETUP)
+		return 0;
+
+	/* skip last sess setup response */
+	if ((hdr->Flags & SMB2_FLAGS_SERVER_TO_REDIR)
+	    && (hdr->Status == NT_STATUS_OK
+		|| (hdr->Status !=
+		    cpu_to_le32(NT_STATUS_MORE_PROCESSING_REQUIRED))))
+		return 0;
+
+ok:
+	rc = smb311_crypto_shash_allocate(server);
 	if (rc)
 		return rc;
 
-	d = ses->server->secmech.sdescsha512;
+	d = server->secmech.sdescsha512;
 	rc = crypto_shash_init(&d->shash);
 	if (rc) {
 		cifs_dbg(VFS, "%s: could not init sha512 shash\n", __func__);

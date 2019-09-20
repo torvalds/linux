@@ -243,6 +243,7 @@ extern void cifs_add_pending_open_locked(struct cifs_fid *fid,
 					 struct tcon_link *tlink,
 					 struct cifs_pending_open *open);
 extern void cifs_del_pending_open(struct cifs_pending_open *open);
+extern struct TCP_Server_Info *cifs_get_tcp_session(struct smb_vol *vol);
 extern void cifs_put_tcp_session(struct TCP_Server_Info *server,
 				 int from_reconnect);
 extern void cifs_put_tcon(struct cifs_tcon *tcon);
@@ -585,6 +586,12 @@ void cifs_free_hash(struct crypto_shash **shash, struct sdesc **sdesc);
 
 extern void rqst_page_get_length(struct smb_rqst *rqst, unsigned int page,
 				unsigned int *len, unsigned int *offset);
+int cifs_try_adding_channels(struct cifs_ses *ses);
+int cifs_ses_add_channel(struct cifs_ses *ses,
+				struct cifs_server_iface *iface);
+bool is_server_using_iface(struct TCP_Server_Info *server,
+			   struct cifs_server_iface *iface);
+bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface);
 
 void extract_unc_hostname(const char *unc, const char **h, size_t *len);
 int copy_path_name(char *dst, const char *src);

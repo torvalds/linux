@@ -31,6 +31,219 @@
 #include <linux/utsname.h>
 #include <linux/slab.h>
 #include "cifs_spnego.h"
+#include "smb2proto.h"
+
+bool
+is_server_using_iface(struct TCP_Server_Info *server,
+		      struct cifs_server_iface *iface)
+{
+	struct sockaddr_in *i4 = (struct sockaddr_in *)&iface->sockaddr;
+	struct sockaddr_in6 *i6 = (struct sockaddr_in6 *)&iface->sockaddr;
+	struct sockaddr_in *s4 = (struct sockaddr_in *)&server->dstaddr;
+	struct sockaddr_in6 *s6 = (struct sockaddr_in6 *)&server->dstaddr;
+
+	if (server->dstaddr.ss_family != iface->sockaddr.ss_family)
+		return false;
+	if (server->dstaddr.ss_family == AF_INET) {
+		if (s4->sin_addr.s_addr != i4->sin_addr.s_addr)
+			return false;
+	} else if (server->dstaddr.ss_family == AF_INET6) {
+		if (memcmp(&s6->sin6_addr, &i6->sin6_addr,
+			   sizeof(i6->sin6_addr)) != 0)
+			return false;
+	} else {
+		/* unknown family.. */
+		return false;
+	}
+	return true;
+}
+
+bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface)
+{
+	int i;
+
+	for (i = 0; i < ses->chan_count; i++) {
+		if (is_server_using_iface(ses->chans[i].server, iface))
+			return true;
+	}
+	return false;
+}
+
+/* returns number of channels added */
+int cifs_try_adding_channels(struct cifs_ses *ses)
+{
+	int old_chan_count = ses->chan_count;
+	int left = ses->chan_max - ses->chan_count;
+	int i = 0;
+	int rc = 0;
+
+	if (left <= 0) {
+		cifs_dbg(FYI,
+			 "ses already at max_channels (%zu), nothing to open\n",
+			 ses->chan_max);
+		return 0;
+	}
+
+	if (ses->server->dialect < SMB30_PROT_ID) {
+		cifs_dbg(VFS, "multichannel is not supported on this protocol version, use 3.0 or above\n");
+		return 0;
+	}
+
+	/* ifaces are sorted by speed, try them in order */
+	for (i = 0; left > 0 && i < ses->iface_count; i++) {
+		struct cifs_server_iface *iface;
+
+		iface = &ses->iface_list[i];
+		if (is_ses_using_iface(ses, iface) && !iface->rss_capable)
+			continue;
+
+		rc = cifs_ses_add_channel(ses, iface);
+		if (rc) {
+			cifs_dbg(FYI, "failed to open extra channel\n");
+			continue;
+		}
+
+		cifs_dbg(FYI, "successfully opened new channel\n");
+		left--;
+	}
+
+	/*
+	 * TODO: if we still have channels left to open try to connect
+	 * to same RSS-capable iface multiple times
+	 */
+
+	return ses->chan_count - old_chan_count;
+}
+
+int
+cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
+{
+	struct cifs_chan *chan;
+	struct smb_vol vol = {NULL};
+	static const char unc_fmt[] = "\\%s\\foo";
+	char unc[sizeof(unc_fmt)+SERVER_NAME_LEN_WITH_NULL] = {0};
+	struct sockaddr_in *ipv4 = (struct sockaddr_in *)&iface->sockaddr;
+	struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)&iface->sockaddr;
+	int rc;
+	unsigned int xid = get_xid();
+
+	cifs_dbg(FYI, "adding channel to ses %p (speed:%zu bps rdma:%s ",
+		 ses, iface->speed, iface->rdma_capable ? "yes" : "no");
+	if (iface->sockaddr.ss_family == AF_INET)
+		cifs_dbg(FYI, "ip:%pI4)\n", &ipv4->sin_addr);
+	else
+		cifs_dbg(FYI, "ip:%pI6)\n", &ipv6->sin6_addr);
+
+	/*
+	 * Setup a smb_vol with mostly the same info as the existing
+	 * session and overwrite it with the requested iface data.
+	 *
+	 * We need to setup at least the fields used for negprot and
+	 * sesssetup.
+	 *
+	 * We only need the volume here, so we can reuse memory from
+	 * the session and server without caring about memory
+	 * management.
+	 */
+
+	/* Always make new connection for now (TODO?) */
+	vol.nosharesock = true;
+
+	/* Auth */
+	vol.domainauto = ses->domainAuto;
+	vol.domainname = ses->domainName;
+	vol.username = ses->user_name;
+	vol.password = ses->password;
+	vol.sectype = ses->sectype;
+	vol.sign = ses->sign;
+
+	/* UNC and paths */
+	/* XXX: Use ses->server->hostname? */
+	sprintf(unc, unc_fmt, ses->serverName);
+	vol.UNC = unc;
+	vol.prepath = "";
+
+	/* Re-use same version as master connection */
+	vol.vals = ses->server->vals;
+	vol.ops = ses->server->ops;
+
+	vol.noblocksnd = ses->server->noblocksnd;
+	vol.noautotune = ses->server->noautotune;
+	vol.sockopt_tcp_nodelay = ses->server->tcp_nodelay;
+	vol.echo_interval = ses->server->echo_interval / HZ;
+
+	/*
+	 * This will be used for encoding/decoding user/domain/pw
+	 * during sess setup auth.
+	 *
+	 * XXX: We use the default for simplicity but the proper way
+	 * would be to use the one that ses used, which is not
+	 * stored. This might break when dealing with non-ascii
+	 * strings.
+	 */
+	vol.local_nls = load_nls_default();
+
+	/* Use RDMA if possible */
+	vol.rdma = iface->rdma_capable;
+	memcpy(&vol.dstaddr, &iface->sockaddr, sizeof(struct sockaddr_storage));
+
+	/* reuse master con client guid */
+	memcpy(&vol.client_guid, ses->server->client_guid,
+	       SMB2_CLIENT_GUID_SIZE);
+	vol.use_client_guid = true;
+
+	mutex_lock(&ses->session_mutex);
+
+	chan = &ses->chans[ses->chan_count];
+	chan->server = cifs_get_tcp_session(&vol);
+	if (IS_ERR(chan->server)) {
+		rc = PTR_ERR(chan->server);
+		chan->server = NULL;
+		goto out;
+	}
+
+	/*
+	 * We need to allocate the server crypto now as we will need
+	 * to sign packets before we generate the channel signing key
+	 * (we sign with the session key)
+	 */
+	rc = smb311_crypto_shash_allocate(chan->server);
+	if (rc) {
+		cifs_dbg(VFS, "%s: crypto alloc failed\n", __func__);
+		goto out;
+	}
+
+	ses->binding = true;
+	rc = cifs_negotiate_protocol(xid, ses);
+	if (rc)
+		goto out;
+
+	rc = cifs_setup_session(xid, ses, vol.local_nls);
+	if (rc)
+		goto out;
+
+	/* success, put it on the list
+	 * XXX: sharing ses between 2 tcp server is not possible, the
+	 * way "internal" linked lists works in linux makes element
+	 * only able to belong to one list
+	 *
+	 * the binding session is already established so the rest of
+	 * the code should be able to look it up, no need to add the
+	 * ses to the new server.
+	 */
+
+	ses->chan_count++;
+	atomic_set(&ses->chan_seq, 0);
+out:
+	ses->binding = false;
+	mutex_unlock(&ses->session_mutex);
+
+	if (rc && chan->server)
+		cifs_put_tcp_session(chan->server, 0);
+	unload_nls(vol.local_nls);
+
+	return rc;
+}
 
 static __u32 cifs_ssetup_hdr(struct cifs_ses *ses, SESSION_SETUP_ANDX *pSMB)
 {

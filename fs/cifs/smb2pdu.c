@@ -1179,13 +1179,21 @@ SMB2_sess_alloc_buffer(struct SMB2_sess_data *sess_data)
 	if (rc)
 		return rc;
 
-	/* First session, not a reauthenticate */
-	req->sync_hdr.SessionId = 0;
-
-	/* if reconnect, we need to send previous sess id, otherwise it is 0 */
-	req->PreviousSessionId = sess_data->previous_session;
-
-	req->Flags = 0; /* MBZ */
+	if (sess_data->ses->binding) {
+		req->sync_hdr.SessionId = sess_data->ses->Suid;
+		req->sync_hdr.Flags |= SMB2_FLAGS_SIGNED;
+		req->PreviousSessionId = 0;
+		req->Flags = SMB2_SESSION_REQ_FLAG_BINDING;
+	} else {
+		/* First session, not a reauthenticate */
+		req->sync_hdr.SessionId = 0;
+		/*
+		 * if reconnect, we need to send previous sess id
+		 * otherwise it is 0
+		 */
+		req->PreviousSessionId = sess_data->previous_session;
+		req->Flags = 0; /* MBZ */
+	}
 
 	/* enough to enable echos and oplocks and one max size write */
 	req->sync_hdr.CreditRequest = cpu_to_le16(130);
@@ -1277,10 +1285,14 @@ SMB2_sess_establish_session(struct SMB2_sess_data *sess_data)
 	mutex_unlock(&server->srv_mutex);
 
 	cifs_dbg(FYI, "SMB2/3 session established successfully\n");
-	spin_lock(&GlobalMid_Lock);
-	ses->status = CifsGood;
-	ses->need_reconnect = false;
-	spin_unlock(&GlobalMid_Lock);
+	/* keep existing ses state if binding */
+	if (!ses->binding) {
+		spin_lock(&GlobalMid_Lock);
+		ses->status = CifsGood;
+		ses->need_reconnect = false;
+		spin_unlock(&GlobalMid_Lock);
+	}
+
 	return rc;
 }
 
@@ -1318,16 +1330,19 @@ SMB2_auth_kerberos(struct SMB2_sess_data *sess_data)
 		goto out_put_spnego_key;
 	}
 
-	ses->auth_key.response = kmemdup(msg->data, msg->sesskey_len,
-					 GFP_KERNEL);
-	if (!ses->auth_key.response) {
-		cifs_dbg(VFS,
-			"Kerberos can't allocate (%u bytes) memory",
-			msg->sesskey_len);
-		rc = -ENOMEM;
-		goto out_put_spnego_key;
+	/* keep session key if binding */
+	if (!ses->binding) {
+		ses->auth_key.response = kmemdup(msg->data, msg->sesskey_len,
+						 GFP_KERNEL);
+		if (!ses->auth_key.response) {
+			cifs_dbg(VFS,
+				 "Kerberos can't allocate (%u bytes) memory",
+				 msg->sesskey_len);
+			rc = -ENOMEM;
+			goto out_put_spnego_key;
+		}
+		ses->auth_key.len = msg->sesskey_len;
 	}
-	ses->auth_key.len = msg->sesskey_len;
 
 	sess_data->iov[1].iov_base = msg->data + msg->sesskey_len;
 	sess_data->iov[1].iov_len = msg->secblob_len;
@@ -1337,9 +1352,11 @@ SMB2_auth_kerberos(struct SMB2_sess_data *sess_data)
 		goto out_put_spnego_key;
 
 	rsp = (struct smb2_sess_setup_rsp *)sess_data->iov[0].iov_base;
-	ses->Suid = rsp->sync_hdr.SessionId;
-
-	ses->session_flags = le16_to_cpu(rsp->SessionFlags);
+	/* keep session id and flags if binding */
+	if (!ses->binding) {
+		ses->Suid = rsp->sync_hdr.SessionId;
+		ses->session_flags = le16_to_cpu(rsp->SessionFlags);
+	}
 
 	rc = SMB2_sess_establish_session(sess_data);
 out_put_spnego_key:
@@ -1433,9 +1450,11 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 
 	cifs_dbg(FYI, "rawntlmssp session setup challenge phase\n");
 
-
-	ses->Suid = rsp->sync_hdr.SessionId;
-	ses->session_flags = le16_to_cpu(rsp->SessionFlags);
+	/* keep existing ses id and flags if binding */
+	if (!ses->binding) {
+		ses->Suid = rsp->sync_hdr.SessionId;
+		ses->session_flags = le16_to_cpu(rsp->SessionFlags);
+	}
 
 out:
 	kfree(ntlmssp_blob);
@@ -1492,8 +1511,11 @@ SMB2_sess_auth_rawntlmssp_authenticate(struct SMB2_sess_data *sess_data)
 
 	rsp = (struct smb2_sess_setup_rsp *)sess_data->iov[0].iov_base;
 
-	ses->Suid = rsp->sync_hdr.SessionId;
-	ses->session_flags = le16_to_cpu(rsp->SessionFlags);
+	/* keep existing ses id and flags if binding */
+	if (!ses->binding) {
+		ses->Suid = rsp->sync_hdr.SessionId;
+		ses->session_flags = le16_to_cpu(rsp->SessionFlags);
+	}
 
 	rc = SMB2_sess_establish_session(sess_data);
 out:

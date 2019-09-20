@@ -1009,7 +1009,18 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		return -EIO;
 	}
 
-	server = ses->server;
+	if (!ses->binding) {
+		uint index = 0;
+
+		if (ses->chan_count > 1) {
+			index = (uint)atomic_inc_return(&ses->chan_seq);
+			index %= ses->chan_count;
+		}
+		server = ses->chans[index].server;
+	} else {
+		server = cifs_ses_server(ses);
+	}
+
 	if (server->tcpStatus == CifsExiting)
 		return -ENOENT;
 

@@ -1001,6 +1001,8 @@ struct cifs_ses {
 	__u8 smb3decryptionkey[SMB3_SIGN_KEY_SIZE];
 	__u8 preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
 
+	__u8 binding_preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
+
 	/*
 	 * Network interfaces available on the server this session is
 	 * connected to.
@@ -1021,6 +1023,20 @@ struct cifs_ses {
 	size_t chan_max;
 	atomic_t chan_seq; /* round robin state */
 };
+
+/*
+ * When binding a new channel, we need to access the channel which isn't fully
+ * established yet (one past the established count)
+ */
+
+static inline
+struct cifs_chan *cifs_ses_binding_channel(struct cifs_ses *ses)
+{
+	if (ses->binding)
+		return &ses->chans[ses->chan_count];
+	else
+		return NULL;
+}
 
 static inline
 struct TCP_Server_Info *cifs_ses_server(struct cifs_ses *ses)
