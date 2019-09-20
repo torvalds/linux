@@ -2653,22 +2653,21 @@ static int vpfe_suspend(struct device *dev)
 	struct vpfe_device *vpfe = dev_get_drvdata(dev);
 	struct vpfe_ccdc *ccdc = &vpfe->ccdc;
 
-	/* if streaming has not started we don't care */
-	if (!vb2_start_streaming_called(&vpfe->buffer_queue))
-		return 0;
+	/* only do full suspend if streaming has started */
+	if (vb2_start_streaming_called(&vpfe->buffer_queue)) {
+		pm_runtime_get_sync(dev);
+		vpfe_config_enable(ccdc, 1);
 
-	pm_runtime_get_sync(dev);
-	vpfe_config_enable(ccdc, 1);
+		/* Save VPFE context */
+		vpfe_save_context(ccdc);
 
-	/* Save VPFE context */
-	vpfe_save_context(ccdc);
+		/* Disable CCDC */
+		vpfe_pcr_enable(ccdc, 0);
+		vpfe_config_enable(ccdc, 0);
 
-	/* Disable CCDC */
-	vpfe_pcr_enable(ccdc, 0);
-	vpfe_config_enable(ccdc, 0);
-
-	/* Disable both master and slave clock */
-	pm_runtime_put_sync(dev);
+		/* Disable both master and slave clock */
+		pm_runtime_put_sync(dev);
+	}
 
 	/* Select sleep pin state */
 	pinctrl_pm_select_sleep_state(dev);
@@ -2710,19 +2709,18 @@ static int vpfe_resume(struct device *dev)
 	struct vpfe_device *vpfe = dev_get_drvdata(dev);
 	struct vpfe_ccdc *ccdc = &vpfe->ccdc;
 
-	/* if streaming has not started we don't care */
-	if (!vb2_start_streaming_called(&vpfe->buffer_queue))
-		return 0;
+	/* only do full resume if streaming has started */
+	if (vb2_start_streaming_called(&vpfe->buffer_queue)) {
+		/* Enable both master and slave clock */
+		pm_runtime_get_sync(dev);
+		vpfe_config_enable(ccdc, 1);
 
-	/* Enable both master and slave clock */
-	pm_runtime_get_sync(dev);
-	vpfe_config_enable(ccdc, 1);
+		/* Restore VPFE context */
+		vpfe_restore_context(ccdc);
 
-	/* Restore VPFE context */
-	vpfe_restore_context(ccdc);
-
-	vpfe_config_enable(ccdc, 0);
-	pm_runtime_put_sync(dev);
+		vpfe_config_enable(ccdc, 0);
+		pm_runtime_put_sync(dev);
+	}
 
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(dev);
