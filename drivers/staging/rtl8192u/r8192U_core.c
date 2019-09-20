@@ -1211,6 +1211,8 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 		return 0;
 
 	DMESGE("Error TX CMD URB, error %d", status);
+	dev_kfree_skb(skb);
+	usb_free_urb(tx_urb);
 	return -1;
 }
 
