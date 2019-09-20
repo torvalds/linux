@@ -327,6 +327,11 @@ struct vm_area_struct;
 
 extern unsigned long kernstart_virt_addr;
 
+static inline unsigned long kaslr_offset(void)
+{
+	return kernstart_virt_addr - KERNELBASE;
+}
+
 #include <asm-generic/memory_model.h>
 #endif /* __ASSEMBLY__ */
 #include <asm/slice.h>
