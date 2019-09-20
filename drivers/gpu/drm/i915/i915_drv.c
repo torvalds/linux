@@ -378,7 +378,7 @@ static int i915_driver_modeset_probe(struct drm_i915_private *i915)
 
 	/* Important: The output setup functions called by modeset_init need
 	 * working irqs for e.g. gmbus and dp aux transfers. */
-	ret = intel_modeset_init(&i915->drm);
+	ret = intel_modeset_init(i915);
 	if (ret)
 		goto cleanup_irq;
 
@@ -1946,7 +1946,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	i915_gem_resume(dev_priv);
 
-	intel_modeset_init_hw(dev);
+	intel_modeset_init_hw(dev_priv);
 	intel_init_clock_gating(dev_priv);
 
 	spin_lock_irq(&dev_priv->irq_lock);

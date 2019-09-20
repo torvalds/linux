@@ -576,8 +576,8 @@ void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 				     struct intel_display_error_state *error);
 
 /* modesetting */
-void intel_modeset_init_hw(struct drm_device *dev);
-int intel_modeset_init(struct drm_device *dev);
+void intel_modeset_init_hw(struct drm_i915_private *i915);
+int intel_modeset_init(struct drm_i915_private *i915);
 void intel_modeset_driver_remove(struct drm_i915_private *i915);
 int intel_modeset_vga_set_state(struct drm_i915_private *dev_priv, bool state);
 void intel_display_resume(struct drm_device *dev);

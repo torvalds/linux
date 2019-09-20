@@ -4360,7 +4360,7 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 		 * so need a full re-initialization.
 		 */
 		intel_pps_unlock_regs_wa(dev_priv);
-		intel_modeset_init_hw(dev);
+		intel_modeset_init_hw(dev_priv);
 		intel_init_clock_gating(dev_priv);
 
 		spin_lock_irq(&dev_priv->irq_lock);
@@ -16021,13 +16021,11 @@ static void i915_disable_vga(struct drm_i915_private *dev_priv)
 	POSTING_READ(vga_reg);
 }
 
-void intel_modeset_init_hw(struct drm_device *dev)
+void intel_modeset_init_hw(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	intel_update_cdclk(dev_priv);
-	intel_dump_cdclk_state(&dev_priv->cdclk.hw, "Current CDCLK");
-	dev_priv->cdclk.logical = dev_priv->cdclk.actual = dev_priv->cdclk.hw;
+	intel_update_cdclk(i915);
+	intel_dump_cdclk_state(&i915->cdclk.hw, "Current CDCLK");
+	i915->cdclk.logical = i915->cdclk.actual = i915->cdclk.hw;
 }
 
 /*
@@ -16233,42 +16231,42 @@ static void intel_mode_config_init(struct drm_i915_private *i915)
 	}
 }
 
-int intel_modeset_init(struct drm_device *dev)
+int intel_modeset_init(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_device *dev = &i915->drm;
 	enum pipe pipe;
 	struct intel_crtc *crtc;
 	int ret;
 
-	dev_priv->modeset_wq = alloc_ordered_workqueue("i915_modeset", 0);
-	dev_priv->flip_wq = alloc_workqueue("i915_flip", WQ_HIGHPRI |
-					    WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
+	i915->modeset_wq = alloc_ordered_workqueue("i915_modeset", 0);
+	i915->flip_wq = alloc_workqueue("i915_flip", WQ_HIGHPRI |
+					WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
 
-	intel_mode_config_init(dev_priv);
+	intel_mode_config_init(i915);
 
-	ret = intel_bw_init(dev_priv);
+	ret = intel_bw_init(i915);
 	if (ret)
 		return ret;
 
-	init_llist_head(&dev_priv->atomic_helper.free_list);
-	INIT_WORK(&dev_priv->atomic_helper.free_work,
+	init_llist_head(&i915->atomic_helper.free_list);
+	INIT_WORK(&i915->atomic_helper.free_work,
 		  intel_atomic_helper_free_state_worker);
 
-	intel_init_quirks(dev_priv);
+	intel_init_quirks(i915);
 
-	intel_fbc_init(dev_priv);
+	intel_fbc_init(i915);
 
-	intel_init_pm(dev_priv);
+	intel_init_pm(i915);
 
-	intel_panel_sanitize_ssc(dev_priv);
+	intel_panel_sanitize_ssc(i915);
 
 	DRM_DEBUG_KMS("%d display pipe%s available.\n",
-		      INTEL_NUM_PIPES(dev_priv),
-		      INTEL_NUM_PIPES(dev_priv) > 1 ? "s" : "");
+		      INTEL_NUM_PIPES(i915),
+		      INTEL_NUM_PIPES(i915) > 1 ? "s" : "");
 
-	if (HAS_DISPLAY(dev_priv) && INTEL_DISPLAY_ENABLED(dev_priv)) {
-		for_each_pipe(dev_priv, pipe) {
-			ret = intel_crtc_init(dev_priv, pipe);
+	if (HAS_DISPLAY(i915) && INTEL_DISPLAY_ENABLED(i915)) {
+		for_each_pipe(i915, pipe) {
+			ret = intel_crtc_init(i915, pipe);
 			if (ret) {
 				drm_mode_config_cleanup(dev);
 				return ret;
@@ -16277,19 +16275,19 @@ int intel_modeset_init(struct drm_device *dev)
 	}
 
 	intel_shared_dpll_init(dev);
-	intel_update_fdi_pll_freq(dev_priv);
+	intel_update_fdi_pll_freq(i915);
 
-	intel_update_czclk(dev_priv);
-	intel_modeset_init_hw(dev);
+	intel_update_czclk(i915);
+	intel_modeset_init_hw(i915);
 
-	intel_hdcp_component_init(dev_priv);
+	intel_hdcp_component_init(i915);
 
-	if (dev_priv->max_cdclk_freq == 0)
-		intel_update_max_cdclk(dev_priv);
+	if (i915->max_cdclk_freq == 0)
+		intel_update_max_cdclk(i915);
 
 	/* Just disable it once at startup */
-	i915_disable_vga(dev_priv);
-	intel_setup_outputs(dev_priv);
+	i915_disable_vga(i915);
+	intel_setup_outputs(i915);
 
 	drm_modeset_lock_all(dev);
 	intel_modeset_setup_hw_state(dev, dev->mode_config.acquire_ctx);
@@ -16308,8 +16306,7 @@ int intel_modeset_init(struct drm_device *dev)
 		 * can even allow for smooth boot transitions if the BIOS
 		 * fb is large enough for the active pipe configuration.
 		 */
-		dev_priv->display.get_initial_plane_config(crtc,
-							   &plane_config);
+		i915->display.get_initial_plane_config(crtc, &plane_config);
 
 		/*
 		 * If the fb is shared between multiple heads, we'll
@@ -16323,7 +16320,7 @@ int intel_modeset_init(struct drm_device *dev)
 	 * Note that we need to do this after reconstructing the BIOS fb's
 	 * since the watermark calculation done here will use pstate->fb.
 	 */
-	if (!HAS_GMCH(dev_priv))
+	if (!HAS_GMCH(i915))
 		sanitize_watermarks(dev);
 
 	/*
