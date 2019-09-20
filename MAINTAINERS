@@ -13451,9 +13451,8 @@ S:	Supported
 F:	drivers/i2c/busses/i2c-qcom-geni.c
 
 QUALCOMM HEXAGON ARCHITECTURE
-M:	Richard Kuo <rkuo@codeaurora.org>
+M:	Brian Cain <bcain@codeaurora.org>
 L:	linux-hexagon@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rkuo/linux-hexagon-kernel.git
 S:	Supported
 F:	arch/hexagon/
 
