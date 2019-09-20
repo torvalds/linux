@@ -610,18 +610,18 @@ smb2_mid_entry_alloc(const struct smb2_sync_hdr *shdr,
 }
 
 static int
-smb2_get_mid_entry(struct cifs_ses *ses, struct smb2_sync_hdr *shdr,
-		   struct mid_q_entry **mid)
+smb2_get_mid_entry(struct cifs_ses *ses, struct TCP_Server_Info *server,
+		   struct smb2_sync_hdr *shdr, struct mid_q_entry **mid)
 {
-	if (ses->server->tcpStatus == CifsExiting)
+	if (server->tcpStatus == CifsExiting)
 		return -ENOENT;
 
-	if (ses->server->tcpStatus == CifsNeedReconnect) {
+	if (server->tcpStatus == CifsNeedReconnect) {
 		cifs_dbg(FYI, "tcp session dead - return to caller to retry\n");
 		return -EAGAIN;
 	}
 
-	if (ses->server->tcpStatus == CifsNeedNegotiate &&
+	if (server->tcpStatus == CifsNeedNegotiate &&
 	   shdr->Command != SMB2_NEGOTIATE)
 		return -EAGAIN;
 
@@ -638,11 +638,11 @@ smb2_get_mid_entry(struct cifs_ses *ses, struct smb2_sync_hdr *shdr,
 		/* else ok - we are shutting down the session */
 	}
 
-	*mid = smb2_mid_entry_alloc(shdr, ses->server);
+	*mid = smb2_mid_entry_alloc(shdr, server);
 	if (*mid == NULL)
 		return -ENOMEM;
 	spin_lock(&GlobalMid_Lock);
-	list_add_tail(&(*mid)->qhead, &ses->server->pending_mid_q);
+	list_add_tail(&(*mid)->qhead, &server->pending_mid_q);
 	spin_unlock(&GlobalMid_Lock);
 
 	return 0;
@@ -675,24 +675,25 @@ smb2_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 }
 
 struct mid_q_entry *
-smb2_setup_request(struct cifs_ses *ses, struct smb_rqst *rqst)
+smb2_setup_request(struct cifs_ses *ses, struct TCP_Server_Info *server,
+		   struct smb_rqst *rqst)
 {
 	int rc;
 	struct smb2_sync_hdr *shdr =
 			(struct smb2_sync_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
 
-	smb2_seq_num_into_buf(ses->server, shdr);
+	smb2_seq_num_into_buf(server, shdr);
 
-	rc = smb2_get_mid_entry(ses, shdr, &mid);
+	rc = smb2_get_mid_entry(ses, server, shdr, &mid);
 	if (rc) {
-		revert_current_mid_from_hdr(ses->server, shdr);
+		revert_current_mid_from_hdr(server, shdr);
 		return ERR_PTR(rc);
 	}
 
-	rc = smb2_sign_rqst(rqst, ses->server);
+	rc = smb2_sign_rqst(rqst, server);
 	if (rc) {
-		revert_current_mid_from_hdr(ses->server, shdr);
+		revert_current_mid_from_hdr(server, shdr);
 		cifs_delete_mid(mid);
 		return ERR_PTR(rc);
 	}
