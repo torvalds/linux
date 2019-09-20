@@ -195,7 +195,7 @@ d71_irq_handler(struct komeda_dev *mdev, struct komeda_events *evts)
 	if (gcu_status & GLB_IRQ_STATUS_PIPE1)
 		evts->pipes[1] |= get_pipeline_event(d71->pipes[1], gcu_status);
 
-	return gcu_status ? IRQ_HANDLED : IRQ_NONE;
+	return IRQ_RETVAL(gcu_status);
 }
 
 #define ENABLED_GCU_IRQS	(GCU_IRQ_CVAL0 | GCU_IRQ_CVAL1 | \
