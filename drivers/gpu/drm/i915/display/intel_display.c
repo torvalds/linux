@@ -7552,6 +7552,27 @@ intel_link_compute_m_n(u16 bits_per_pixel, int nlanes,
 		    constant_n);
 }
 
+static void intel_panel_sanitize_ssc(struct drm_i915_private *dev_priv)
+{
+	/*
+	 * There may be no VBT; and if the BIOS enabled SSC we can
+	 * just keep using it to avoid unnecessary flicker.  Whereas if the
+	 * BIOS isn't using it, don't assume it will work even if the VBT
+	 * indicates as much.
+	 */
+	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)) {
+		bool bios_lvds_use_ssc = I915_READ(PCH_DREF_CONTROL) &
+			DREF_SSC1_ENABLE;
+
+		if (dev_priv->vbt.lvds_use_ssc != bios_lvds_use_ssc) {
+			DRM_DEBUG_KMS("SSC %s by BIOS, overriding VBT which says %s\n",
+				      enableddisabled(bios_lvds_use_ssc),
+				      enableddisabled(dev_priv->vbt.lvds_use_ssc));
+			dev_priv->vbt.lvds_use_ssc = bios_lvds_use_ssc;
+		}
+	}
+}
+
 static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 {
 	if (i915_modparams.panel_use_ssc >= 0)
@@ -16203,23 +16224,7 @@ int intel_modeset_init(struct drm_device *dev)
 
 	intel_init_pm(dev_priv);
 
-	/*
-	 * There may be no VBT; and if the BIOS enabled SSC we can
-	 * just keep using it to avoid unnecessary flicker.  Whereas if the
-	 * BIOS isn't using it, don't assume it will work even if the VBT
-	 * indicates as much.
-	 */
-	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)) {
-		bool bios_lvds_use_ssc = !!(I915_READ(PCH_DREF_CONTROL) &
-					    DREF_SSC1_ENABLE);
-
-		if (dev_priv->vbt.lvds_use_ssc != bios_lvds_use_ssc) {
-			DRM_DEBUG_KMS("SSC %sabled by BIOS, overriding VBT which says %sabled\n",
-				     bios_lvds_use_ssc ? "en" : "dis",
-				     dev_priv->vbt.lvds_use_ssc ? "en" : "dis");
-			dev_priv->vbt.lvds_use_ssc = bios_lvds_use_ssc;
-		}
-	}
+	intel_panel_sanitize_ssc(dev_priv);
 
 	/*
 	 * Maximum framebuffer dimensions, chosen to match
