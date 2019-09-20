@@ -1004,7 +1004,7 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 				struct dc_crtc_timing *crtc_timing)
 {
 	struct timing_generator *tg;
-	struct stream_encoder *se;
+	struct stream_encoder *se = NULL;
 
 	struct dc_crtc_timing hw_crtc_timing = {0};
 
