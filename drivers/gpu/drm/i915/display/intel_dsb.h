@@ -32,11 +32,20 @@ struct intel_dsb {
 	 * and help in calculating tail of command buffer.
 	 */
 	int free_pos;
+
+	/*
+	 * ins_start_offset will help to store start address of the dsb
+	 * instuction and help in identifying the batch of auto-increment
+	 * register.
+	 */
+	u32 ins_start_offset;
 };
 
 struct intel_dsb *
 intel_dsb_get(struct intel_crtc *crtc);
 void intel_dsb_put(struct intel_dsb *dsb);
 void intel_dsb_reg_write(struct intel_dsb *dsb, i915_reg_t reg, u32 val);
+void intel_dsb_indexed_reg_write(struct intel_dsb *dsb, i915_reg_t reg,
+				 u32 val);
 
 #endif
