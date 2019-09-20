@@ -101,7 +101,6 @@ struct i40e_vf {
 	bool link_up;		/* only valid if VF link is forced */
 	bool queues_enabled;	/* true if the VF queues are enabled */
 	bool spoofchk;
-	u16 num_mac;
 	u16 num_vlan;
 
 	/* ADq related variables */
