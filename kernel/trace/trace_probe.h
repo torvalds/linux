@@ -89,6 +89,7 @@ enum fetch_op {
 	FETCH_OP_COMM,		/* Current comm */
 	FETCH_OP_ARG,		/* Function argument : .param */
 	FETCH_OP_FOFFS,		/* File offset: .immediate */
+	FETCH_OP_DATA,		/* Allocated data: .data */
 	// Stage 2 (dereference) op
 	FETCH_OP_DEREF,		/* Dereference: .offset */
 	FETCH_OP_UDEREF,	/* User-space Dereference: .offset */
@@ -222,11 +223,18 @@ struct probe_arg {
 	const struct fetch_type	*type;	/* Type of this argument */
 };
 
-struct trace_probe {
+/* Event call and class holder */
+struct trace_probe_event {
 	unsigned int			flags;	/* For TP_FLAG_* */
 	struct trace_event_class	class;
 	struct trace_event_call		call;
 	struct list_head 		files;
+	struct list_head		probes;
+};
+
+struct trace_probe {
+	struct list_head		list;
+	struct trace_probe_event	*event;
 	ssize_t				size;	/* trace entry size */
 	unsigned int			nr_args;
 	struct probe_arg		args[];
@@ -240,19 +248,19 @@ struct event_file_link {
 static inline bool trace_probe_test_flag(struct trace_probe *tp,
 					 unsigned int flag)
 {
-	return !!(tp->flags & flag);
+	return !!(tp->event->flags & flag);
 }
 
 static inline void trace_probe_set_flag(struct trace_probe *tp,
 					unsigned int flag)
 {
-	tp->flags |= flag;
+	tp->event->flags |= flag;
 }
 
 static inline void trace_probe_clear_flag(struct trace_probe *tp,
 					  unsigned int flag)
 {
-	tp->flags &= ~flag;
+	tp->event->flags &= ~flag;
 }
 
 static inline bool trace_probe_is_enabled(struct trace_probe *tp)
@@ -262,45 +270,76 @@ static inline bool trace_probe_is_enabled(struct trace_probe *tp)
 
 static inline const char *trace_probe_name(struct trace_probe *tp)
 {
-	return trace_event_name(&tp->call);
+	return trace_event_name(&tp->event->call);
 }
 
 static inline const char *trace_probe_group_name(struct trace_probe *tp)
 {
-	return tp->call.class->system;
+	return tp->event->call.class->system;
 }
 
 static inline struct trace_event_call *
 	trace_probe_event_call(struct trace_probe *tp)
 {
-	return &tp->call;
+	return &tp->event->call;
+}
+
+static inline struct trace_probe_event *
+trace_probe_event_from_call(struct trace_event_call *event_call)
+{
+	return container_of(event_call, struct trace_probe_event, call);
+}
+
+static inline struct trace_probe *
+trace_probe_primary_from_call(struct trace_event_call *call)
+{
+	struct trace_probe_event *tpe = trace_probe_event_from_call(call);
+
+	return list_first_entry(&tpe->probes, struct trace_probe, list);
+}
+
+static inline struct list_head *trace_probe_probe_list(struct trace_probe *tp)
+{
+	return &tp->event->probes;
+}
+
+static inline bool trace_probe_has_sibling(struct trace_probe *tp)
+{
+	struct list_head *list = trace_probe_probe_list(tp);
+
+	return !list_empty(list) && !list_is_singular(list);
 }
 
 static inline int trace_probe_unregister_event_call(struct trace_probe *tp)
 {
 	/* tp->event is unregistered in trace_remove_event_call() */
-	return trace_remove_event_call(&tp->call);
+	return trace_remove_event_call(&tp->event->call);
 }
 
 static inline bool trace_probe_has_single_file(struct trace_probe *tp)
 {
-	return !!list_is_singular(&tp->files);
+	return !!list_is_singular(&tp->event->files);
 }
 
 int trace_probe_init(struct trace_probe *tp, const char *event,
 		     const char *group);
 void trace_probe_cleanup(struct trace_probe *tp);
+int trace_probe_append(struct trace_probe *tp, struct trace_probe *to);
+void trace_probe_unlink(struct trace_probe *tp);
 int trace_probe_register_event_call(struct trace_probe *tp);
 int trace_probe_add_file(struct trace_probe *tp, struct trace_event_file *file);
 int trace_probe_remove_file(struct trace_probe *tp,
 			    struct trace_event_file *file);
 struct event_file_link *trace_probe_get_file_link(struct trace_probe *tp,
 						struct trace_event_file *file);
+int trace_probe_compare_arg_type(struct trace_probe *a, struct trace_probe *b);
+bool trace_probe_match_command_args(struct trace_probe *tp,
+				    int argc, const char **argv);
 
 #define trace_probe_for_each_link(pos, tp)	\
-	list_for_each_entry(pos, &(tp)->files, list)
+	list_for_each_entry(pos, &(tp)->event->files, list)
 #define trace_probe_for_each_link_rcu(pos, tp)	\
-	list_for_each_entry_rcu(pos, &(tp)->files, list)
+	list_for_each_entry_rcu(pos, &(tp)->event->files, list)
 
 /* Check the name is good for event/group/fields */
 static inline bool is_good_name(const char *name)
@@ -370,6 +409,8 @@ extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 	C(BAD_VAR,		"Invalid $-valiable specified"),	\
 	C(BAD_REG_NAME,		"Invalid register name"),		\
 	C(BAD_MEM_ADDR,		"Invalid memory address"),		\
+	C(BAD_IMM,		"Invalid immediate value"),		\
+	C(IMMSTR_NO_CLOSE,	"String is not closed with '\"'"),	\
 	C(FILE_ON_KPROBE,	"File offset is not available with kprobe"), \
 	C(BAD_FILE_OFFS,	"Invalid file offset value"),		\
 	C(SYM_ON_UPROBE,	"Symbol is not available with uprobe"),	\
@@ -393,7 +434,10 @@ extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 	C(ARG_TOO_LONG,		"Argument expression is too long"),	\
 	C(NO_ARG_BODY,		"No argument expression"),		\
 	C(BAD_INSN_BNDRY,	"Probe point is not an instruction boundary"),\
-	C(FAIL_REG_PROBE,	"Failed to register probe event"),
+	C(FAIL_REG_PROBE,	"Failed to register probe event"),\
+	C(DIFF_PROBE_TYPE,	"Probe type is different from existing probe"),\
+	C(DIFF_ARG_TYPE,	"Argument type or name is different from existing probe"),\
+	C(SAME_PROBE,		"There is already the exact same probe event"),
 
 #undef C
 #define C(a, b)		TP_ERR_##a
