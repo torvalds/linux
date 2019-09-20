@@ -1863,6 +1863,8 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 	(BUILD_BUG_ON_ZERO(!__builtin_constant_p(n)) + \
 	 INTEL_INFO(dev_priv)->gen == (n))
 
+#define HAS_DSB(dev_priv)	(INTEL_INFO(dev_priv)->display.has_dsb)
+
 /*
  * Return true if revision is in range [since,until] inclusive.
  *
