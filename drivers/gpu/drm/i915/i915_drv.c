@@ -329,23 +329,22 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 	.can_switch = i915_switcheroo_can_switch,
 };
 
-static int i915_driver_modeset_probe(struct drm_device *dev)
+static int i915_driver_modeset_probe(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = i915->drm.pdev;
 	int ret;
 
-	if (i915_inject_probe_failure(dev_priv))
+	if (i915_inject_probe_failure(i915))
 		return -ENODEV;
 
-	if (HAS_DISPLAY(dev_priv) && INTEL_DISPLAY_ENABLED(dev_priv)) {
-		ret = drm_vblank_init(&dev_priv->drm,
-				      INTEL_NUM_PIPES(dev_priv));
+	if (HAS_DISPLAY(i915) && INTEL_DISPLAY_ENABLED(i915)) {
+		ret = drm_vblank_init(&i915->drm,
+				      INTEL_NUM_PIPES(i915));
 		if (ret)
 			goto out;
 	}
 
-	intel_bios_init(dev_priv);
+	intel_bios_init(i915);
 
 	/* If we have > 1 VGA cards, then we need to arbitrate access
 	 * to the common VGA resources.
@@ -354,7 +353,7 @@ static int i915_driver_modeset_probe(struct drm_device *dev)
 	 * then we do not take part in VGA arbitration and the
 	 * vga_client_register() fails with -ENODEV.
 	 */
-	ret = vga_client_register(pdev, dev_priv, NULL, i915_vga_set_decode);
+	ret = vga_client_register(pdev, i915, NULL, i915_vga_set_decode);
 	if (ret && ret != -ENODEV)
 		goto out;
 
@@ -365,56 +364,56 @@ static int i915_driver_modeset_probe(struct drm_device *dev)
 		goto cleanup_vga_client;
 
 	/* must happen before intel_power_domains_init_hw() on VLV/CHV */
-	intel_update_rawclk(dev_priv);
+	intel_update_rawclk(i915);
 
-	intel_power_domains_init_hw(dev_priv, false);
+	intel_power_domains_init_hw(i915, false);
 
-	intel_csr_ucode_init(dev_priv);
+	intel_csr_ucode_init(i915);
 
-	ret = intel_irq_install(dev_priv);
+	ret = intel_irq_install(i915);
 	if (ret)
 		goto cleanup_csr;
 
-	intel_gmbus_setup(dev_priv);
+	intel_gmbus_setup(i915);
 
 	/* Important: The output setup functions called by modeset_init need
 	 * working irqs for e.g. gmbus and dp aux transfers. */
-	ret = intel_modeset_init(dev);
+	ret = intel_modeset_init(&i915->drm);
 	if (ret)
 		goto cleanup_irq;
 
-	ret = i915_gem_init(dev_priv);
+	ret = i915_gem_init(i915);
 	if (ret)
 		goto cleanup_modeset;
 
-	intel_overlay_setup(dev_priv);
+	intel_overlay_setup(i915);
 
-	if (!HAS_DISPLAY(dev_priv) || !INTEL_DISPLAY_ENABLED(dev_priv))
+	if (!HAS_DISPLAY(i915) || !INTEL_DISPLAY_ENABLED(i915))
 		return 0;
 
-	ret = intel_fbdev_init(dev);
+	ret = intel_fbdev_init(&i915->drm);
 	if (ret)
 		goto cleanup_gem;
 
 	/* Only enable hotplug handling once the fbdev is fully set up. */
-	intel_hpd_init(dev_priv);
+	intel_hpd_init(i915);
 
-	intel_init_ipc(dev_priv);
+	intel_init_ipc(i915);
 
 	return 0;
 
 cleanup_gem:
-	i915_gem_suspend(dev_priv);
-	i915_gem_driver_remove(dev_priv);
-	i915_gem_driver_release(dev_priv);
+	i915_gem_suspend(i915);
+	i915_gem_driver_remove(i915);
+	i915_gem_driver_release(i915);
 cleanup_modeset:
-	intel_modeset_driver_remove(dev);
+	intel_modeset_driver_remove(&i915->drm);
 cleanup_irq:
-	intel_irq_uninstall(dev_priv);
-	intel_gmbus_teardown(dev_priv);
+	intel_irq_uninstall(i915);
+	intel_gmbus_teardown(i915);
 cleanup_csr:
-	intel_csr_ucode_fini(dev_priv);
-	intel_power_domains_driver_remove(dev_priv);
+	intel_csr_ucode_fini(i915);
+	intel_power_domains_driver_remove(i915);
 	vga_switcheroo_unregister_client(pdev);
 cleanup_vga_client:
 	vga_client_register(pdev, NULL, NULL, NULL);
@@ -1607,7 +1606,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret < 0)
 		goto out_cleanup_mmio;
 
-	ret = i915_driver_modeset_probe(&dev_priv->drm);
+	ret = i915_driver_modeset_probe(dev_priv);
 	if (ret < 0)
 		goto out_cleanup_hw;
 
