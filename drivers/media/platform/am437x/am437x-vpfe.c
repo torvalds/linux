@@ -441,40 +441,25 @@ static void vpfe_ccdc_restore_defaults(struct vpfe_ccdc *ccdc)
 
 static int vpfe_ccdc_close(struct vpfe_ccdc *ccdc, struct device *dev)
 {
-	int dma_cntl, i, pcr;
+	struct vpfe_device *vpfe = container_of(ccdc, struct vpfe_device, ccdc);
+	u32 dma_cntl, pcr;
 
-	/* If the CCDC module is still busy wait for it to be done */
-	for (i = 0; i < 10; i++) {
-		usleep_range(5000, 6000);
-		pcr = vpfe_reg_read(ccdc, VPFE_PCR);
-		if (!pcr)
-			break;
+	pcr = vpfe_reg_read(ccdc, VPFE_PCR);
+	if (pcr)
+		vpfe_dbg(1, vpfe, "VPFE_PCR is still set (%x)", pcr);
 
-		/* make sure it it is disabled */
-		vpfe_pcr_enable(ccdc, 0);
-	}
+	dma_cntl = vpfe_reg_read(ccdc, VPFE_DMA_CNTL);
+	if ((dma_cntl & VPFE_DMA_CNTL_OVERFLOW))
+		vpfe_dbg(1, vpfe, "VPFE_DMA_CNTL_OVERFLOW is still set (%x)",
+			 dma_cntl);
 
 	/* Disable CCDC by resetting all register to default POR values */
 	vpfe_ccdc_restore_defaults(ccdc);
-
-	/* if DMA_CNTL overflow bit is set. Clear it
-	 *  It appears to take a while for this to become quiescent ~20ms
-	 */
-	for (i = 0; i < 10; i++) {
-		dma_cntl = vpfe_reg_read(ccdc, VPFE_DMA_CNTL);
-		if (!(dma_cntl & VPFE_DMA_CNTL_OVERFLOW))
-			break;
-
-		/* Clear the overflow bit */
-		vpfe_reg_write(ccdc, dma_cntl, VPFE_DMA_CNTL);
-		usleep_range(5000, 6000);
-	}
 
 	/* Disabled the module at the CONFIG level */
 	vpfe_config_enable(ccdc, 0);
 
 	pm_runtime_put_sync(dev);
-
 	return 0;
 }
 
@@ -1303,6 +1288,9 @@ static void vpfe_handle_interlaced_irq(struct vpfe_device *vpfe,
 			if (vpfe->cur_frm != vpfe->next_frm)
 				vpfe_process_buffer_complete(vpfe);
 
+			if (vpfe->stopping)
+				return;
+
 			/*
 			 * based on whether the two fields are stored
 			 * interleave or separately in memory,
@@ -1341,7 +1329,7 @@ static irqreturn_t vpfe_isr(int irq, void *dev)
 {
 	struct vpfe_device *vpfe = (struct vpfe_device *)dev;
 	enum v4l2_field field = vpfe->fmt.fmt.pix.field;
-	int intr_status;
+	int intr_status, stopping = vpfe->stopping;
 
 	intr_status = vpfe_reg_read(&vpfe->ccdc, VPFE_IRQ_STS);
 
@@ -1352,9 +1340,13 @@ static irqreturn_t vpfe_isr(int irq, void *dev)
 		} else {
 			vpfe_handle_interlaced_irq(vpfe, field);
 		}
+		if (stopping) {
+			vpfe->stopping = false;
+			complete(&vpfe->capture_stop);
+		}
 	}
 
-	if (intr_status & VPFE_VDINT1) {
+	if (intr_status & VPFE_VDINT1 && !stopping) {
 		if (field == V4L2_FIELD_NONE &&
 		    vpfe->cur_frm == vpfe->next_frm)
 			vpfe_schedule_next_buffer(vpfe);
@@ -1980,6 +1972,9 @@ static int vpfe_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	vpfe_attach_irq(vpfe);
 
+	vpfe->stopping = false;
+	init_completion(&vpfe->capture_stop);
+
 	if (vpfe->ccdc.ccdc_cfg.if_type == VPFE_RAW_BAYER)
 		vpfe_ccdc_config_raw(&vpfe->ccdc);
 	else
@@ -2031,6 +2026,11 @@ static void vpfe_stop_streaming(struct vb2_queue *vq)
 	int ret;
 
 	vpfe_pcr_enable(&vpfe->ccdc, 0);
+
+	/* Wait for the last frame to be captured */
+	vpfe->stopping = true;
+	wait_for_completion_timeout(&vpfe->capture_stop,
+				    msecs_to_jiffies(250));
 
 	vpfe_detach_irq(vpfe);
 

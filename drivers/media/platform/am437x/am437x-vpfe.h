@@ -23,6 +23,7 @@
 
 #include <linux/am437x-vpfe.h>
 #include <linux/clk.h>
+#include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
@@ -270,6 +271,8 @@ struct vpfe_device {
 	 */
 	u32 field_off;
 	struct vpfe_ccdc ccdc;
+	int stopping;
+	struct completion capture_stop;
 };
 
 #endif	/* AM437X_VPFE_H */
