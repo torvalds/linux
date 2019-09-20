@@ -1568,11 +1568,12 @@ static inline u32 slot_bytes(struct nfsd4_channel_attrs *ca)
  * re-negotiate active sessions and reduce their slot usage to make
  * room for new connections. For now we just fail the create session.
  */
-static u32 nfsd4_get_drc_mem(struct nfsd4_channel_attrs *ca)
+static u32 nfsd4_get_drc_mem(struct nfsd4_channel_attrs *ca, struct nfsd_net *nn)
 {
 	u32 slotsize = slot_bytes(ca);
 	u32 num = ca->maxreqs;
 	unsigned long avail, total_avail;
+	unsigned int scale_factor;
 
 	spin_lock(&nfsd_drc_lock);
 	if (nfsd_drc_max_mem > nfsd_drc_mem_used)
@@ -1586,12 +1587,18 @@ static u32 nfsd4_get_drc_mem(struct nfsd4_channel_attrs *ca)
 		total_avail = 0;
 	avail = min((unsigned long)NFSD_MAX_MEM_PER_SESSION, total_avail);
 	/*
-	 * Never use more than a third of the remaining memory,
+	 * Never use more than a fraction of the remaining memory,
 	 * unless it's the only way to give this client a slot.
+	 * The chosen fraction is either 1/8 or 1/number of threads,
+	 * whichever is smaller.  This ensures there are adequate
+	 * slots to support multiple clients per thread.
 	 * Give the client one slot even if that would require
 	 * over-allocation--it is better than failure.
 	 */
-	avail = clamp_t(unsigned long, avail, slotsize, total_avail/3);
+	scale_factor = max_t(unsigned int, 8, nn->nfsd_serv->sv_nrthreads);
+
+	avail = clamp_t(unsigned long, avail, slotsize,
+			total_avail/scale_factor);
 	num = min_t(int, num, avail / slotsize);
 	num = max_t(int, num, 1);
 	nfsd_drc_mem_used += num * slotsize;
@@ -3188,7 +3195,7 @@ static __be32 check_forechannel_attrs(struct nfsd4_channel_attrs *ca, struct nfs
 	 * Note that we always allow at least one slot, because our
 	 * accounting is soft and provides no guarantees either way.
 	 */
-	ca->maxreqs = nfsd4_get_drc_mem(ca);
+	ca->maxreqs = nfsd4_get_drc_mem(ca, nn);
 
 	return nfs_ok;
 }
