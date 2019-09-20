@@ -339,18 +339,15 @@ MODULE_DEVICE_TABLE(of, atmel_pwm_dt_ids);
 
 static int atmel_pwm_probe(struct platform_device *pdev)
 {
-	const struct atmel_pwm_data *data;
 	struct atmel_pwm_chip *atmel_pwm;
 	struct resource *res;
 	int ret;
 
-	data = of_device_get_match_data(&pdev->dev);
-	if (!data)
-		return -ENODEV;
-
 	atmel_pwm = devm_kzalloc(&pdev->dev, sizeof(*atmel_pwm), GFP_KERNEL);
 	if (!atmel_pwm)
 		return -ENOMEM;
+
+	atmel_pwm->data = of_device_get_match_data(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	atmel_pwm->base = devm_ioremap_resource(&pdev->dev, res);
@@ -375,7 +372,6 @@ static int atmel_pwm_probe(struct platform_device *pdev)
 
 	atmel_pwm->chip.base = -1;
 	atmel_pwm->chip.npwm = 4;
-	atmel_pwm->data = data;
 	atmel_pwm->updated_pwms = 0;
 	mutex_init(&atmel_pwm->isr_lock);
 
