@@ -766,7 +766,6 @@ struct intel_crtc_state {
 	bool update_pipe; /* can a fast modeset be performed? */
 	bool disable_cxsr;
 	bool update_wm_pre, update_wm_post; /* watermarks are updated */
-	bool fb_changed; /* fb on any of the planes is changed */
 	bool fifo_changed; /* FIFO split is changed */
 
 	/* Pipe source size (ie. panel fitter input size)

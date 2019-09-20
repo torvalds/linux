@@ -11582,7 +11582,6 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 	bool was_crtc_enabled = old_crtc_state->base.active;
 	bool is_crtc_enabled = crtc_state->base.active;
 	bool turn_off, turn_on, visible, was_visible;
-	struct drm_framebuffer *fb = plane_state->base.fb;
 	int ret;
 
 	if (INTEL_GEN(dev_priv) >= 9 && plane->id != PLANE_CURSOR) {
@@ -11616,18 +11615,11 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 	if (!was_visible && !visible)
 		return 0;
 
-	if (fb != old_plane_state->base.fb)
-		crtc_state->fb_changed = true;
-
 	turn_off = was_visible && (!visible || mode_changed);
 	turn_on = visible && (!was_visible || mode_changed);
 
-	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] has [PLANE:%d:%s] with fb %i\n",
+	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] with [PLANE:%d:%s] visible %i -> %i, off %i, on %i, ms %i\n",
 			 crtc->base.base.id, crtc->base.name,
-			 plane->base.base.id, plane->base.name,
-			 fb ? fb->base.id : -1);
-
-	DRM_DEBUG_ATOMIC("[PLANE:%d:%s] visible %i -> %i, off %i, on %i, ms %i\n",
 			 plane->base.base.id, plane->base.name,
 			 was_visible, visible,
 			 turn_off, turn_on, mode_changed);
