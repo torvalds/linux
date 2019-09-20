@@ -14287,8 +14287,8 @@ M:	Kamil Konieczny <k.konieczny@partner.samsung.com>
 L:	linux-crypto@vger.kernel.org
 L:	linux-samsung-soc@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/crypto/samsung-slimsss.txt
-F:	Documentation/devicetree/bindings/crypto/samsung-sss.txt
+F:	Documentation/devicetree/bindings/crypto/samsung-slimsss.yaml
+F:	Documentation/devicetree/bindings/crypto/samsung-sss.yaml
 F:	drivers/crypto/s5p-sss.c
 
 SAMSUNG S5P/EXYNOS4 SOC SERIES CAMERA SUBSYSTEM DRIVERS
