@@ -1015,22 +1015,6 @@ out:
 	return ret;
 }
 
-bool nfs4_refresh_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
-{
-	bool ret;
-	int seq;
-
-	do {
-		ret = false;
-		seq = read_seqbegin(&state->seqlock);
-		if (nfs4_state_match_open_stateid_other(state, dst)) {
-			dst->seqid = state->open_stateid.seqid;
-			ret = true;
-		}
-	} while (read_seqretry(&state->seqlock, seq));
-	return ret;
-}
-
 bool nfs4_copy_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
 {
 	bool ret;
