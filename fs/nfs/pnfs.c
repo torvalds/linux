@@ -1455,6 +1455,10 @@ int pnfs_roc_done(struct rpc_task *task, struct inode *inode,
 	case 0:
 		retval = 0;
 		break;
+	case -NFS4ERR_DELAY:
+		/* Let the caller handle the retry */
+		*ret = -NFS4ERR_NOMATCHING_LAYOUT;
+		return 0;
 	case -NFS4ERR_OLD_STATEID:
 		if (!nfs4_layoutreturn_refresh_stateid(&arg->stateid,
 					&arg->range, inode))
