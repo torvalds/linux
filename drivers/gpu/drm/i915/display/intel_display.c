@@ -16187,6 +16187,52 @@ out:
 	return ret;
 }
 
+static void intel_mode_config_init(struct drm_i915_private *i915)
+{
+	struct drm_mode_config *mode_config = &i915->drm.mode_config;
+
+	drm_mode_config_init(&i915->drm);
+
+	mode_config->min_width = 0;
+	mode_config->min_height = 0;
+
+	mode_config->preferred_depth = 24;
+	mode_config->prefer_shadow = 1;
+
+	mode_config->allow_fb_modifiers = true;
+
+	mode_config->funcs = &intel_mode_funcs;
+
+	/*
+	 * Maximum framebuffer dimensions, chosen to match
+	 * the maximum render engine surface size on gen4+.
+	 */
+	if (INTEL_GEN(i915) >= 7) {
+		mode_config->max_width = 16384;
+		mode_config->max_height = 16384;
+	} else if (INTEL_GEN(i915) >= 4) {
+		mode_config->max_width = 8192;
+		mode_config->max_height = 8192;
+	} else if (IS_GEN(i915, 3)) {
+		mode_config->max_width = 4096;
+		mode_config->max_height = 4096;
+	} else {
+		mode_config->max_width = 2048;
+		mode_config->max_height = 2048;
+	}
+
+	if (IS_I845G(i915) || IS_I865G(i915)) {
+		mode_config->cursor_width = IS_I845G(i915) ? 64 : 512;
+		mode_config->cursor_height = 1023;
+	} else if (IS_GEN(i915, 2)) {
+		mode_config->cursor_width = 64;
+		mode_config->cursor_height = 64;
+	} else {
+		mode_config->cursor_width = 256;
+		mode_config->cursor_height = 256;
+	}
+}
+
 int intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -16198,21 +16244,11 @@ int intel_modeset_init(struct drm_device *dev)
 	dev_priv->flip_wq = alloc_workqueue("i915_flip", WQ_HIGHPRI |
 					    WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
 
-	drm_mode_config_init(dev);
+	intel_mode_config_init(dev_priv);
 
 	ret = intel_bw_init(dev_priv);
 	if (ret)
 		return ret;
-
-	dev->mode_config.min_width = 0;
-	dev->mode_config.min_height = 0;
-
-	dev->mode_config.preferred_depth = 24;
-	dev->mode_config.prefer_shadow = 1;
-
-	dev->mode_config.allow_fb_modifiers = true;
-
-	dev->mode_config.funcs = &intel_mode_funcs;
 
 	init_llist_head(&dev_priv->atomic_helper.free_list);
 	INIT_WORK(&dev_priv->atomic_helper.free_work,
@@ -16225,35 +16261,6 @@ int intel_modeset_init(struct drm_device *dev)
 	intel_init_pm(dev_priv);
 
 	intel_panel_sanitize_ssc(dev_priv);
-
-	/*
-	 * Maximum framebuffer dimensions, chosen to match
-	 * the maximum render engine surface size on gen4+.
-	 */
-	if (INTEL_GEN(dev_priv) >= 7) {
-		dev->mode_config.max_width = 16384;
-		dev->mode_config.max_height = 16384;
-	} else if (INTEL_GEN(dev_priv) >= 4) {
-		dev->mode_config.max_width = 8192;
-		dev->mode_config.max_height = 8192;
-	} else if (IS_GEN(dev_priv, 3)) {
-		dev->mode_config.max_width = 4096;
-		dev->mode_config.max_height = 4096;
-	} else {
-		dev->mode_config.max_width = 2048;
-		dev->mode_config.max_height = 2048;
-	}
-
-	if (IS_I845G(dev_priv) || IS_I865G(dev_priv)) {
-		dev->mode_config.cursor_width = IS_I845G(dev_priv) ? 64 : 512;
-		dev->mode_config.cursor_height = 1023;
-	} else if (IS_GEN(dev_priv, 2)) {
-		dev->mode_config.cursor_width = 64;
-		dev->mode_config.cursor_height = 64;
-	} else {
-		dev->mode_config.cursor_width = 256;
-		dev->mode_config.cursor_height = 256;
-	}
 
 	DRM_DEBUG_KMS("%d display pipe%s available.\n",
 		      INTEL_NUM_PIPES(dev_priv),
