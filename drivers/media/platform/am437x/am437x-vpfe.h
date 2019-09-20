@@ -281,8 +281,8 @@ struct vpfe_device {
 	struct vpfe_cap_buffer *next_frm;
 	/* Used to store pixel format */
 	struct v4l2_format fmt;
-	/* Used to store current bytes per pixel based on current format */
-	unsigned int bpp;
+	/* Used to keep a reference to the current vpfe_fmt */
+	struct vpfe_fmt *current_vpfe_fmt;
 	struct vpfe_fmt	*active_fmt[VPFE_NUM_FORMATS];
 	unsigned int num_active_fmt;
 
