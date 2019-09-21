@@ -498,7 +498,8 @@ build.
 	will be written containing all exported symbols that were not
 	defined in the kernel.
 
---- 6.3 Symbols From Another External Module
+6.3 Symbols From Another External Module
+----------------------------------------
 
 	Sometimes, an external module uses exported symbols from
 	another external module. kbuild needs to have full knowledge of
