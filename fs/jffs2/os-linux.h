@@ -183,9 +183,6 @@ unsigned char *jffs2_gc_fetch_page(struct jffs2_sb_info *c,
 				   struct jffs2_inode_info *f,
 				   unsigned long offset,
 				   unsigned long *priv);
-void jffs2_gc_release_page(struct jffs2_sb_info *c,
-			   unsigned char *pg,
-			   unsigned long *priv);
 void jffs2_flash_cleanup(struct jffs2_sb_info *c);
 
 

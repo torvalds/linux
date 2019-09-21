@@ -682,33 +682,6 @@ struct jffs2_inode_info *jffs2_gc_fetch_inode(struct jffs2_sb_info *c,
 	return JFFS2_INODE_INFO(inode);
 }
 
-unsigned char *jffs2_gc_fetch_page(struct jffs2_sb_info *c,
-				   struct jffs2_inode_info *f,
-				   unsigned long offset,
-				   unsigned long *priv)
-{
-	struct inode *inode = OFNI_EDONI_2SFFJ(f);
-	struct page *pg;
-
-	pg = read_cache_page(inode->i_mapping, offset >> PAGE_SHIFT,
-			     jffs2_do_readpage_unlock, inode);
-	if (IS_ERR(pg))
-		return (void *)pg;
-
-	*priv = (unsigned long)pg;
-	return kmap(pg);
-}
-
-void jffs2_gc_release_page(struct jffs2_sb_info *c,
-			   unsigned char *ptr,
-			   unsigned long *priv)
-{
-	struct page *pg = (void *)*priv;
-
-	kunmap(pg);
-	put_page(pg);
-}
-
 static int jffs2_flash_setup(struct jffs2_sb_info *c) {
 	int ret = 0;
 
