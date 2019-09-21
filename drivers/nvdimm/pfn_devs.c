@@ -460,6 +460,11 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 	if (__le16_to_cpu(pfn_sb->version_minor) < 2)
 		pfn_sb->align = 0;
 
+	if (__le16_to_cpu(pfn_sb->version_minor) < 4) {
+		pfn_sb->page_struct_size = cpu_to_le16(64);
+		pfn_sb->page_size = cpu_to_le32(PAGE_SIZE);
+	}
+
 	switch (le32_to_cpu(pfn_sb->mode)) {
 	case PFN_MODE_RAM:
 	case PFN_MODE_PMEM:
@@ -474,6 +479,22 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 	if (align == 0)
 		align = 1UL << ilog2(offset);
 	mode = le32_to_cpu(pfn_sb->mode);
+
+	if ((le32_to_cpu(pfn_sb->page_size) > PAGE_SIZE) &&
+			(mode == PFN_MODE_PMEM)) {
+		dev_err(&nd_pfn->dev,
+				"init failed, page size mismatch %d\n",
+				le32_to_cpu(pfn_sb->page_size));
+		return -EOPNOTSUPP;
+	}
+
+	if ((le16_to_cpu(pfn_sb->page_struct_size) < sizeof(struct page)) &&
+			(mode == PFN_MODE_PMEM)) {
+		dev_err(&nd_pfn->dev,
+				"init failed, struct page size mismatch %d\n",
+				le16_to_cpu(pfn_sb->page_struct_size));
+		return -EOPNOTSUPP;
+	}
 
 	if (!nd_pfn->uuid) {
 		/*
@@ -703,8 +724,16 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 		 * The altmap should be padded out to the block size used
 		 * when populating the vmemmap. This *should* be equal to
 		 * PMD_SIZE for most architectures.
+		 *
+		 * Also make sure size of struct page is less than 64. We
+		 * want to make sure we use large enough size here so that
+		 * we don't have a dynamic reserve space depending on
+		 * struct page size. But we also want to make sure we notice
+		 * when we end up adding new elements to struct page.
 		 */
-		offset = ALIGN(start + SZ_8K + 64 * npfns, align) - start;
+		BUILD_BUG_ON(sizeof(struct page) > MAX_STRUCT_PAGE_SIZE);
+		offset = ALIGN(start + SZ_8K + MAX_STRUCT_PAGE_SIZE * npfns, align)
+			- start;
 	} else if (nd_pfn->mode == PFN_MODE_RAM)
 		offset = ALIGN(start + SZ_8K, align) - start;
 	else
@@ -724,9 +753,11 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	memcpy(pfn_sb->uuid, nd_pfn->uuid, 16);
 	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
 	pfn_sb->version_major = cpu_to_le16(1);
-	pfn_sb->version_minor = cpu_to_le16(3);
+	pfn_sb->version_minor = cpu_to_le16(4);
 	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
 	pfn_sb->align = cpu_to_le32(nd_pfn->align);
+	pfn_sb->page_struct_size = cpu_to_le16(MAX_STRUCT_PAGE_SIZE);
+	pfn_sb->page_size = cpu_to_le32(PAGE_SIZE);
 	checksum = nd_sb_checksum((struct nd_gen_sb *) pfn_sb);
 	pfn_sb->checksum = cpu_to_le64(checksum);
 

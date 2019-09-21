@@ -1006,10 +1006,10 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 		return -ENXIO;
 	}
 
-	div_u64_rem(val, SZ_4K * nd_region->ndr_mappings, &remainder);
+	div_u64_rem(val, PAGE_SIZE * nd_region->ndr_mappings, &remainder);
 	if (remainder) {
-		dev_dbg(dev, "%llu is not %dK aligned\n", val,
-				(SZ_4K * nd_region->ndr_mappings) / SZ_1K);
+		dev_dbg(dev, "%llu is not %ldK aligned\n", val,
+				(PAGE_SIZE * nd_region->ndr_mappings) / SZ_1K);
 		return -EINVAL;
 	}
 
@@ -2462,6 +2462,27 @@ static struct device **create_namespaces(struct nd_region *nd_region)
 	return devs;
 }
 
+static void deactivate_labels(void *region)
+{
+	struct nd_region *nd_region = region;
+	int i;
+
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+		struct nvdimm_drvdata *ndd = nd_mapping->ndd;
+		struct nvdimm *nvdimm = nd_mapping->nvdimm;
+
+		mutex_lock(&nd_mapping->lock);
+		nd_mapping_free_labels(nd_mapping);
+		mutex_unlock(&nd_mapping->lock);
+
+		put_ndd(ndd);
+		nd_mapping->ndd = NULL;
+		if (ndd)
+			atomic_dec(&nvdimm->busy);
+	}
+}
+
 static int init_active_labels(struct nd_region *nd_region)
 {
 	int i;
@@ -2519,16 +2540,17 @@ static int init_active_labels(struct nd_region *nd_region)
 			mutex_unlock(&nd_mapping->lock);
 		}
 
-		if (j >= count)
-			continue;
+		if (j < count)
+			break;
+	}
 
-		mutex_lock(&nd_mapping->lock);
-		nd_mapping_free_labels(nd_mapping);
-		mutex_unlock(&nd_mapping->lock);
+	if (i < nd_region->ndr_mappings) {
+		deactivate_labels(nd_region);
 		return -ENOMEM;
 	}
 
-	return 0;
+	return devm_add_action_or_reset(&nd_region->dev, deactivate_labels,
+			nd_region);
 }
 
 int nd_region_register_namespaces(struct nd_region *nd_region, int *err)
