@@ -248,7 +248,6 @@ static const struct rtc_class_ops ftm_rtc_ops = {
 static int ftm_rtc_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct resource *r;
 	int irq;
 	int ret;
 	struct ftm_rtc *rtc;
@@ -265,13 +264,7 @@ static int ftm_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc->rtc_dev))
 		return PTR_ERR(rtc->rtc_dev);
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(&pdev->dev, "cannot get resource for rtc\n");
-		return -ENODEV;
-	}
-
-	rtc->base = devm_ioremap_resource(&pdev->dev, r);
+	rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->base)) {
 		dev_err(&pdev->dev, "cannot ioremap resource for rtc\n");
 		return PTR_ERR(rtc->base);
