@@ -3479,7 +3479,8 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 
 err_copy:
 	ib_destroy_srq_user(srq, uverbs_get_cleared_udata(attrs));
-
+	/* It was released in ib_destroy_srq_user */
+	srq = NULL;
 err_free:
 	kfree(srq);
 err_put:

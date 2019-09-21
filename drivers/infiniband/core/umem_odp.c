@@ -218,7 +218,7 @@ static inline int ib_init_umem_odp(struct ib_umem_odp *umem_odp)
 		umem_odp->interval_tree.start =
 			ALIGN_DOWN(umem_odp->umem.address, page_size);
 		if (check_add_overflow(umem_odp->umem.address,
-				       umem_odp->umem.length,
+				       (unsigned long)umem_odp->umem.length,
 				       &umem_odp->interval_tree.last))
 			return -EOVERFLOW;
 		umem_odp->interval_tree.last =
