@@ -22,15 +22,9 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "kfd2kgd: " fmt
 
-#include <linux/module.h>
-#include <linux/fdtable.h>
-#include <linux/uaccess.h>
-#include <linux/firmware.h>
 #include <linux/mmu_context.h>
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
-#include "amdgpu_ucode.h"
-#include "soc15_hw_ip.h"
 #include "gc/gc_10_1_0_offset.h"
 #include "gc/gc_10_1_0_sh_mask.h"
 #include "navi10_enum.h"

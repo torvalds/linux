@@ -22,14 +22,10 @@
 
 #define pr_fmt(fmt) "kfd2kgd: " fmt
 
-#include <linux/module.h>
-#include <linux/fdtable.h>
-#include <linux/uaccess.h>
 #include <linux/mmu_context.h>
 
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
-#include "soc15_hw_ip.h"
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
 #include "vega10_enum.h"
