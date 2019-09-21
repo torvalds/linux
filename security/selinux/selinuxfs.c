@@ -548,10 +548,6 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 	if (*ppos != 0)
 		goto out;
 
-	length = -EFBIG;
-	if (count > 64 * 1024 * 1024)
-		goto out;
-
 	length = -ENOMEM;
 	data = vmalloc(count);
 	if (!data)
