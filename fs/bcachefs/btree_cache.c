@@ -675,10 +675,7 @@ struct btree *bch2_btree_node_get(struct bch_fs *c, struct btree_iter *iter,
 	EBUG_ON(!btree_node_locked(iter, level + 1));
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
 retry:
-	rcu_read_lock();
 	b = btree_cache_find(bc, k);
-	rcu_read_unlock();
-
 	if (unlikely(!b)) {
 		/*
 		 * We must have the parent locked to call bch2_btree_node_fill(),
@@ -879,10 +876,7 @@ void bch2_btree_node_prefetch(struct bch_fs *c, struct btree_iter *iter,
 	BUG_ON(!btree_node_locked(iter, level + 1));
 	BUG_ON(level >= BTREE_MAX_DEPTH);
 
-	rcu_read_lock();
 	b = btree_cache_find(bc, k);
-	rcu_read_unlock();
-
 	if (b)
 		return;
 
