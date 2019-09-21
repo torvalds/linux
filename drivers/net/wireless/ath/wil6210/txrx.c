@@ -1012,11 +1012,11 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 	skb_orphan(skb);
 
 	if (security && (wil->txrx_ops.rx_crypto_check(wil, skb) != 0)) {
+		wil_dbg_txrx(wil, "Rx drop %d bytes\n", skb->len);
 		dev_kfree_skb(skb);
 		ndev->stats.rx_dropped++;
 		stats->rx_replay++;
 		stats->rx_dropped++;
-		wil_dbg_txrx(wil, "Rx drop %d bytes\n", skb->len);
 		return;
 	}
 
