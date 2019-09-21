@@ -1704,6 +1704,7 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 					      GFP_KERNEL);
 
 	if (!lif->rss_ind_tbl) {
+		err = -ENOMEM;
 		dev_err(dev, "Failed to allocate rss indirection table, aborting\n");
 		goto err_out_free_qcqs;
 	}
