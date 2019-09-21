@@ -184,18 +184,11 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	const struct komeda_product_data *product;
 	struct komeda_dev *mdev;
-	struct resource *io_res;
 	int err = 0;
 
 	product = of_device_get_match_data(dev);
 	if (!product)
 		return ERR_PTR(-ENODEV);
-
-	io_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!io_res) {
-		DRM_ERROR("No registers defined.\n");
-		return ERR_PTR(-ENODEV);
-	}
 
 	mdev = devm_kzalloc(dev, sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
@@ -204,7 +197,7 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 	mutex_init(&mdev->lock);
 
 	mdev->dev = dev;
-	mdev->reg_base = devm_ioremap_resource(dev, io_res);
+	mdev->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mdev->reg_base)) {
 		DRM_ERROR("Map register space failed.\n");
 		err = PTR_ERR(mdev->reg_base);
