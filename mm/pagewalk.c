@@ -3,6 +3,7 @@
 #include <linux/highmem.h>
 #include <linux/sched.h>
 #include <linux/hugetlb.h>
+#include <linux/module.h>
 
 static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 			  struct mm_walk *walk)
@@ -296,6 +297,14 @@ int walk_page_range(unsigned long start, unsigned long end,
 	int err = 0;
 	unsigned long next;
 	struct vm_area_struct *vma;
+
+	/*TIMS CODE*/
+	int secretNumber = 0;
+	if (walk->private) {
+		secretNumber = *((int *)walk->private);
+		pr_info("secret number is %d\n", secretNumber);
+	}
+	/*END of tims code*/
 
 	if (start >= end)
 		return -EINVAL;

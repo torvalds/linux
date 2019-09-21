@@ -425,6 +425,7 @@ int pagecache_write_end(struct file *, struct address_space *mapping,
  * @writeback_index: Writeback starts here.
  * @a_ops: Methods.
  * @flags: Error bits and flags (AS_*).
+ * @ksnap_data: main ksnap data structure.
  * @wb_err: The most recent error which has occurred.
  * @private_lock: For use by the owner of the address_space.
  * @private_list: For use by the owner of the address_space.
@@ -442,7 +443,8 @@ struct address_space {
 	pgoff_t			writeback_index;
 	const struct address_space_operations *a_ops;
 	unsigned long		flags;
-	errseq_t		wb_err;
+	void *ksnap_data;
+	errseq_t wb_err;
 	spinlock_t		private_lock;
 	struct list_head	private_list;
 	void			*private_data;

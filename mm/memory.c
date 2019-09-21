@@ -434,6 +434,8 @@ int __pte_alloc(struct mm_struct *mm, pmd_t *pmd)
 	return 0;
 }
 
+EXPORT_SYMBOL(__pte_alloc);
+
 int __pte_alloc_kernel(pmd_t *pmd)
 {
 	pte_t *new = pte_alloc_one_kernel(&init_mm);
@@ -488,6 +490,7 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
 	static unsigned long resume;
 	static unsigned long nr_shown;
 	static unsigned long nr_unshown;
+	int i;
 
 	/*
 	 * Allow a burst of 60 reports, then keep quiet for that minute;
@@ -507,6 +510,12 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
 	}
 	if (nr_shown++ == 0)
 		resume = jiffies + 60 * HZ;
+
+	if (page) {
+		for (i = 0; i < 20; ++i) {
+			pr_alert("DEBUG %d: %lu\n", i, page->snap_page_debug[i]);
+		}
+	}
 
 	mapping = vma->vm_file ? vma->vm_file->f_mapping : NULL;
 	index = linear_page_index(vma, addr);
@@ -1088,8 +1097,10 @@ again:
 			}
 			rss[mm_counter(page)]--;
 			page_remove_rmap(page, false);
-			if (unlikely(page_mapcount(page) < 0))
+			if (unlikely(page_mapcount(page) < 0)) {
+				pr_alert("page_mapcount < 0, page PTE at %p\n", addr)
 				print_bad_pte(vma, addr, ptent, page);
+			}
 			if (unlikely(__tlb_remove_page(tlb, page))) {
 				force_flush = 1;
 				addr += PAGE_SIZE;
@@ -1133,8 +1144,10 @@ again:
 			page = migration_entry_to_page(entry);
 			rss[mm_counter(page)]--;
 		}
-		if (unlikely(!free_swap_and_cache(entry)))
+		if (unlikely(!free_swap_and_cache(entry))) {
+			pr_alert("free_swap_and_cache FAILURE\n");
 			print_bad_pte(vma, addr, ptent, NULL);
+		}
 		pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 
@@ -1279,6 +1292,13 @@ static void unmap_single_vma(struct mmu_gather *tlb,
 	end = min(vma->vm_end, end_addr);
 	if (end <= vma->vm_start)
 		return;
+
+	if (mmap_snapshot_instance.is_snapshot && 
+		mmap_snapshot_instance.is_snapshot(vma, NULL, NULL) &&
+		mmap_snapshot_instance.ksnap_close){
+			//perform conversion cleanup
+			mmap_snapshot_instance.ksnap_close(vma);
+		}
 
 	if (vma->vm_file)
 		uprobe_munmap(vma, start, end);
@@ -2181,6 +2201,12 @@ static void fault_dirty_shared_page(struct vm_area_struct *vma,
 	 * release semantics to prevent the compiler from undoing this copying.
 	 */
 	mapping = page_rmapping(page);
+	if (mmap_snapshot_instance.is_snapshot &&
+	    mmap_snapshot_instance.is_snapshot(vma, NULL, NULL) &&
+	    mmap_snapshot_instance.do_snapshot_add_pte) {
+		mmap_snapshot_instance.do_snapshot_add_pte(vma, page,
+							   page_table, address);
+	}
 	unlock_page(page);
 
 	if ((dirtied || page_mkwrite) && mapping) {
@@ -2335,6 +2361,13 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 			 * old page will be flushed before it can be reused.
 			 */
 			page_remove_rmap(old_page, false);
+		}
+
+		//we need to hold on to this page if it belongs to a snapshot (for the reference)
+		if (mmap_snapshot_instance.is_snapshot &&
+		    mmap_snapshot_instance.is_snapshot(vma, NULL, NULL)) {
+			lock_page(old_page);
+			get_page(old_page);
 		}
 
 		/* Free the old page.. */
@@ -3291,6 +3324,14 @@ vm_fault_t finish_fault(struct vm_fault *vmf)
 		ret = alloc_set_pte(vmf, vmf->memcg, page);
 	if (vmf->pte)
 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+
+	if (vmf->flags & FAULT_FLAG_WRITE &&
+	    mmap_snapshot_instance.is_snapshot &&
+	    mmap_snapshot_instance.is_snapshot(vmf->vma, NULL, NULL) &&
+	    mmap_snapshot_instance.do_snapshot_add_pte) {
+		mmap_snapshot_instance.do_snapshot_add_pte(
+			vmf->vma, NULL, vmf->pte, vmf->address);
+	}
 	return ret;
 }
 
@@ -3927,6 +3968,10 @@ vm_fault_t handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 {
 	vm_fault_t ret;
 
+	if (tim_debug_instance.tim_unmap_debug) {
+		tim_debug_instance.tim_unmap_debug(vma, vma->vm_mm);
+	}
+
 	__set_current_state(TASK_RUNNING);
 
 	count_vm_event(PGFAULT);
@@ -4021,6 +4066,7 @@ int __pud_alloc(struct mm_struct *mm, p4d_t *p4d, unsigned long address)
 	spin_unlock(&mm->page_table_lock);
 	return 0;
 }
+EXPORT_SYMBOL(__pud_alloc);
 #endif /* __PAGETABLE_PUD_FOLDED */
 
 #ifndef __PAGETABLE_PMD_FOLDED
@@ -4054,6 +4100,7 @@ int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 	spin_unlock(ptl);
 	return 0;
 }
+EXPORT_SYMBOL(__pmd_alloc);
 #endif /* __PAGETABLE_PMD_FOLDED */
 
 static int __follow_pte_pmd(struct mm_struct *mm, unsigned long address,

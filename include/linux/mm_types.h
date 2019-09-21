@@ -14,9 +14,11 @@
 #include <linux/uprobes.h>
 #include <linux/page-flags-layout.h>
 #include <linux/workqueue.h>
-
+#include <linux/time.h>
 #include <asm/mmu.h>
-
+/*SNAP*/
+#include <linux/radix-tree.h>
+/*END SNAP*/
 #ifndef AT_VECTOR_SIZE_ARCH
 #define AT_VECTOR_SIZE_ARCH 0
 #endif
@@ -121,6 +123,7 @@ struct page {
 					unsigned frozen:1;
 				};
 			};
+			unsigned long snap_page_debug[20];
 		};
 		struct {	/* Tail pages of compound page */
 			unsigned long compound_head;	/* Bit zero is set */
@@ -330,6 +333,27 @@ struct vm_area_struct {
 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
 #endif
 	struct vm_userfaultfd_ctx vm_userfaultfd_ctx;
+	
+	/*SNAP*/
+	void *ksnap_user_data;
+
+	void *snapshot_pte_list; /*TODO: change to list_head if that's what we want this to be....*/
+	struct radix_tree_root
+		snapshot_page_tree; /*used for keeping track of the current page index -> pte, gets used when we get snapshot*/
+	wait_queue_head_t
+		snapshot_wq; /*wait queue for blocking get_snapshot requests*/
+	atomic_t revision_number; /*the current revision number*/
+	atomic_t always_ref_count; /*How many processes want ALWAYS COMMIT*/
+	atomic_t adapt_ref_count; /*How many processes want ADAPT COMMIT*/
+	struct list_head prio_list; /*an ordered list of dynamic priorities*/
+	struct timeval last_commit_time; /*the last time that we committed*/
+	struct timeval
+		last_snapshot_time; /*the last time that a subscriber tried to take a snapshot*/
+	unsigned long
+		ewma_adapt; /*keeping track of the ewma (in microseconds) of the rate of get_snapshots from subscribers*/
+	unsigned long
+		sub_interval; /*the amount of time requested by this subscriber*/
+	/*END SNAP*/
 } __randomize_layout;
 
 struct core_thread {

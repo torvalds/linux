@@ -2822,6 +2822,9 @@ int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
 	}
 
 	/* Detach vmas from rbtree */
+	if (tim_debug_instance.tim_unmap_debug) {
+		tim_debug_instance.tim_unmap_debug(vma, mm);
+	}
 	detach_vmas_to_be_unmapped(mm, vma, prev, end);
 
 	if (downgrade)

@@ -815,6 +815,13 @@ static int __add_to_page_cache_locked(struct page *page,
 			return error;
 	}
 
+	if (tim_debug_instance.ptr_of_interest3 == mapping) {
+		if (mapping -> mrpages > 130) {
+			pr_emerg(" greater than 130\n");
+			dump_stack();
+		}
+	}
+
 	get_page(page);
 	page->mapping = mapping;
 	page->index = offset;

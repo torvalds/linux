@@ -399,6 +399,11 @@ static void __lru_cache_add(struct page *page)
 {
 	struct pagevec *pvec = &get_cpu_var(lru_add_pvec);
 
+	/*debugging, trying to figure out when the lru add is happening*/
+	if (tim_debug_instance.ptr_of_interest2 == NULL) {
+		tim_debug_instance.ptr_of_interest2 = 555;
+	}
+
 	get_page(page);
 	if (!pagevec_add(pvec, page) || PageCompound(page))
 		__pagevec_lru_add(pvec);
@@ -647,6 +652,7 @@ void lru_add_drain(void)
 	lru_add_drain_cpu(get_cpu());
 	put_cpu();
 }
+EXPORT_SYMBOL(lru_add_drain);
 
 #ifdef CONFIG_SMP
 

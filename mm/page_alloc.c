@@ -73,6 +73,7 @@
 #include <asm/div64.h>
 #include "internal.h"
 
+extern struct tim_debug tim_debug_instance; /*debugging structure*/
 /* prevent >1 _updater_ of zone percpu pageset ->high and ->batch fields */
 static DEFINE_MUTEX(pcp_batch_high_lock);
 #define MIN_PERCPU_PAGELIST_FRACTION	(8)
@@ -586,6 +587,11 @@ static void bad_page(struct page *page, const char *reason,
 	}
 	if (nr_shown++ == 0)
 		resume = jiffies + 60 * HZ;
+
+	int i = 0;
+	for(;i<20;i++) {
+		pr_alert("DEBUG %d: %lu\n", i, page->snap_page_debug[i])
+	}
 
 	pr_alert("BUG: Bad page state in process %s  pfn:%05lx\n",
 		current->comm, page_to_pfn(page));
@@ -2890,6 +2896,12 @@ void free_unref_page(struct page *page)
 	unsigned long flags;
 	unsigned long pfn = page_to_pfn(page);
 
+	if (page->snap_page_debug[1] ==
+		    mmap_snapshot_instance.snap_sequence_number &&
+	    mmap_snapshot_instance.stats_dec_pages_allocated) {
+		mmap_snapshot_instance.stats_dec_pages_allocated();
+	}
+	
 	if (!free_unref_page_prepare(page, pfn))
 		return;
 

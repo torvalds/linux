@@ -102,6 +102,19 @@ static long madvise_behavior(struct vm_area_struct *vma,
 		}
 		new_flags &= ~VM_DONTDUMP;
 		break;
+	case MADV_KSNAP_ALWAYS:
+	case MADV_KSNAP_ADAPT:
+	case MADV_KSNAP_PERIODIC:
+		if (mmap_snapshot_instance.ksnap_open) {
+			error = mmap_snapshot_instance.ksnap_open(vma,
+								  behavior);
+		}
+		break;
+	case MADV_KSNAP_TRACK:
+		if (mmap_snapshot_instance.ksnap_tracking_on) {
+			error = mmap_snapshot_instance.ksnap_tracking_on(vma);
+		}
+		break;
 	case MADV_MERGEABLE:
 	case MADV_UNMERGEABLE:
 		error = ksm_madvise(vma, start, end, behavior, &new_flags);
@@ -731,6 +744,10 @@ madvise_behavior_valid(int behavior)
 	case MADV_SOFT_OFFLINE:
 	case MADV_HWPOISON:
 #endif
+	case MADV_KSNAP_ALWAYS:
+	case MADV_KSNAP_ADAPT:
+	case MADV_KSNAP_PERIODIC:
+	case MADV_KSNAP_TRACK:
 		return true;
 
 	default:

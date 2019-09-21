@@ -38,7 +38,10 @@
 #define MS_ASYNC	1		/* sync memory asynchronously */
 #define MS_INVALIDATE	2		/* invalidate the caches */
 #define MS_SYNC		4		/* synchronous memory sync */
-
+#define MS_KSNAP_GET 21
+#define MS_KSNAP_MAKE 22
+#define MS_KSNAP_GET_MERGE 32
+#define MS_KSNAP_DETERM_LAZY 64
 #define MADV_NORMAL	0		/* no further special treatment */
 #define MADV_RANDOM	1		/* expect random page references */
 #define MADV_SEQUENTIAL	2		/* expect sequential page references */
@@ -65,6 +68,10 @@
 
 #define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
 #define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
+#define MADV_KSNAP_ALWAYS 200
+#define MADV_KSNAP_ADAPT 201
+#define MADV_KSNAP_PERIODIC 202
+#define MADV_KSNAP_TRACK 210
 
 /* compatibility flags */
 #define MAP_FILE	0
