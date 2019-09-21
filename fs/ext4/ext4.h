@@ -186,6 +186,14 @@ struct ext4_map_blocks {
 };
 
 /*
+ * Block validity checking, system zone rbtree.
+ */
+struct ext4_system_blocks {
+	struct rb_root root;
+	struct rcu_head rcu;
+};
+
+/*
  * Flags for ext4_io_end->flags
  */
 #define	EXT4_IO_END_UNWRITTEN	0x0001
@@ -285,6 +293,9 @@ struct ext4_io_submit {
 				  ~((ext4_fsblk_t) (s)->s_cluster_ratio - 1))
 #define EXT4_LBLK_CMASK(s, lblk) ((lblk) &				\
 				  ~((ext4_lblk_t) (s)->s_cluster_ratio - 1))
+/* Fill in the low bits to get the last block of the cluster */
+#define EXT4_LBLK_CFILL(sbi, lblk) ((lblk) |				\
+				    ((ext4_lblk_t) (sbi)->s_cluster_ratio - 1))
 /* Get the cluster offset */
 #define EXT4_PBLK_COFF(s, pblk) ((pblk) &				\
 				 ((ext4_fsblk_t) (s)->s_cluster_ratio - 1))
@@ -653,6 +664,10 @@ enum {
 #define EXT4_IOC_SET_ENCRYPTION_POLICY	FS_IOC_SET_ENCRYPTION_POLICY
 #define EXT4_IOC_GET_ENCRYPTION_PWSALT	FS_IOC_GET_ENCRYPTION_PWSALT
 #define EXT4_IOC_GET_ENCRYPTION_POLICY	FS_IOC_GET_ENCRYPTION_POLICY
+/* ioctl codes 19--39 are reserved for fscrypt */
+#define EXT4_IOC_CLEAR_ES_CACHE		_IO('f', 40)
+#define EXT4_IOC_GETSTATE		_IOW('f', 41, __u32)
+#define EXT4_IOC_GET_ES_CACHE		_IOWR('f', 42, struct fiemap)
 
 #define EXT4_IOC_FSGETXATTR		FS_IOC_FSGETXATTR
 #define EXT4_IOC_FSSETXATTR		FS_IOC_FSSETXATTR
@@ -666,6 +681,16 @@ enum {
 #define EXT4_GOING_FLAGS_LOGFLUSH		0x1	/* flush log but not data */
 #define EXT4_GOING_FLAGS_NOLOGFLUSH		0x2	/* don't flush log nor data */
 
+/*
+ * Flags returned by EXT4_IOC_GETSTATE
+ *
+ * We only expose to userspace a subset of the state flags in
+ * i_state_flags
+ */
+#define EXT4_STATE_FLAG_EXT_PRECACHED	0x00000001
+#define EXT4_STATE_FLAG_NEW		0x00000002
+#define EXT4_STATE_FLAG_NEWENTRY	0x00000004
+#define EXT4_STATE_FLAG_DA_ALLOC_CLOSE	0x00000008
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /*
@@ -682,6 +707,12 @@ enum {
 #define EXT4_IOC32_GETVERSION_OLD	FS_IOC32_GETVERSION
 #define EXT4_IOC32_SETVERSION_OLD	FS_IOC32_SETVERSION
 #endif
+
+/*
+ * Returned by EXT4_IOC_GET_ES_CACHE as an additional possible flag.
+ * It indicates that the entry in extent status cache is for a hole.
+ */
+#define EXT4_FIEMAP_EXTENT_HOLE		0x08000000
 
 /* Max physical block we can address w/o extents */
 #define EXT4_MAX_BLOCK_FILE_PHYS	0xFFFFFFFF
@@ -812,21 +843,8 @@ static inline __le32 ext4_encode_extra_time(struct timespec64 *time)
 static inline void ext4_decode_extra_time(struct timespec64 *time,
 					  __le32 extra)
 {
-	if (unlikely(extra & cpu_to_le32(EXT4_EPOCH_MASK))) {
-
-#if 1
-		/* Handle legacy encoding of pre-1970 dates with epoch
-		 * bits 1,1. (This backwards compatibility may be removed
-		 * at the discretion of the ext4 developers.)
-		 */
-		u64 extra_bits = le32_to_cpu(extra) & EXT4_EPOCH_MASK;
-		if (extra_bits == 3 && ((time->tv_sec) & 0x80000000) != 0)
-			extra_bits = 0;
-		time->tv_sec += extra_bits << 32;
-#else
+	if (unlikely(extra & cpu_to_le32(EXT4_EPOCH_MASK)))
 		time->tv_sec += (u64)(le32_to_cpu(extra) & EXT4_EPOCH_MASK) << 32;
-#endif
-	}
 	time->tv_nsec = (le32_to_cpu(extra) & EXT4_NSEC_MASK) >> EXT4_EPOCH_BITS;
 }
 
@@ -1427,7 +1445,7 @@ struct ext4_sb_info {
 	int s_jquota_fmt;			/* Format of quota to use */
 #endif
 	unsigned int s_want_extra_isize; /* New inodes should reserve # bytes */
-	struct rb_root system_blks;
+	struct ext4_system_blocks __rcu *system_blks;
 
 #ifdef EXTENTS_STATS
 	/* ext4 extents stats */
@@ -3267,6 +3285,9 @@ extern int ext4_ext_check_inode(struct inode *inode);
 extern ext4_lblk_t ext4_ext_next_allocated_block(struct ext4_ext_path *path);
 extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			__u64 start, __u64 len);
+extern int ext4_get_es_cache(struct inode *inode,
+			     struct fiemap_extent_info *fieinfo,
+			     __u64 start, __u64 len);
 extern int ext4_ext_precache(struct inode *inode);
 extern int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len);
 extern int ext4_insert_range(struct inode *inode, loff_t offset, loff_t len);
@@ -3358,6 +3379,19 @@ static inline void ext4_clear_io_unwritten_flag(ext4_io_end_t *io_end)
 }
 
 extern const struct iomap_ops ext4_iomap_ops;
+
+static inline int ext4_buffer_uptodate(struct buffer_head *bh)
+{
+	/*
+	 * If the buffer has the write error flag, we have failed
+	 * to write out data in the block.  In this  case, we don't
+	 * have to read the block because we may read the old data
+	 * successfully.
+	 */
+	if (!buffer_uptodate(bh) && buffer_write_io_error(bh))
+		set_buffer_uptodate(bh);
+	return buffer_uptodate(bh);
+}
 
 #endif	/* __KERNEL__ */
 

@@ -527,7 +527,7 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 		return -EFSCORRUPTED;
 
 	/* Lookup extent status tree firstly */
-	if (ext4_es_lookup_extent(inode, map->m_lblk, &es)) {
+	if (ext4_es_lookup_extent(inode, map->m_lblk, NULL, &es)) {
 		if (ext4_es_is_written(&es) || ext4_es_is_unwritten(&es)) {
 			map->m_pblk = ext4_es_pblock(&es) +
 					map->m_lblk - es.es_lblk;
@@ -695,7 +695,7 @@ found:
 		 * extent status tree.
 		 */
 		if ((flags & EXT4_GET_BLOCKS_PRE_IO) &&
-		    ext4_es_lookup_extent(inode, map->m_lblk, &es)) {
+		    ext4_es_lookup_extent(inode, map->m_lblk, NULL, &es)) {
 			if (ext4_es_is_written(&es))
 				goto out_sem;
 		}
@@ -1024,7 +1024,7 @@ struct buffer_head *ext4_bread(handle_t *handle, struct inode *inode,
 	bh = ext4_getblk(handle, inode, block, map_flags);
 	if (IS_ERR(bh))
 		return bh;
-	if (!bh || buffer_uptodate(bh))
+	if (!bh || ext4_buffer_uptodate(bh))
 		return bh;
 	ll_rw_block(REQ_OP_READ, REQ_META | REQ_PRIO, 1, &bh);
 	wait_on_buffer(bh);
@@ -1051,7 +1051,7 @@ int ext4_bread_batch(struct inode *inode, ext4_lblk_t block, int bh_count,
 
 	for (i = 0; i < bh_count; i++)
 		/* Note that NULL bhs[i] is valid because of holes. */
-		if (bhs[i] && !buffer_uptodate(bhs[i]))
+		if (bhs[i] && !ext4_buffer_uptodate(bhs[i]))
 			ll_rw_block(REQ_OP_READ, REQ_META | REQ_PRIO, 1,
 				    &bhs[i]);
 
@@ -1656,49 +1656,6 @@ void ext4_da_release_space(struct inode *inode, int to_free)
 	dquot_release_reservation_block(inode, EXT4_C2B(sbi, to_free));
 }
 
-static void ext4_da_page_release_reservation(struct page *page,
-					     unsigned int offset,
-					     unsigned int length)
-{
-	int contiguous_blks = 0;
-	struct buffer_head *head, *bh;
-	unsigned int curr_off = 0;
-	struct inode *inode = page->mapping->host;
-	unsigned int stop = offset + length;
-	ext4_fsblk_t lblk;
-
-	BUG_ON(stop > PAGE_SIZE || stop < length);
-
-	head = page_buffers(page);
-	bh = head;
-	do {
-		unsigned int next_off = curr_off + bh->b_size;
-
-		if (next_off > stop)
-			break;
-
-		if ((offset <= curr_off) && (buffer_delay(bh))) {
-			contiguous_blks++;
-			clear_buffer_delay(bh);
-		} else if (contiguous_blks) {
-			lblk = page->index <<
-			       (PAGE_SHIFT - inode->i_blkbits);
-			lblk += (curr_off >> inode->i_blkbits) -
-				contiguous_blks;
-			ext4_es_remove_blks(inode, lblk, contiguous_blks);
-			contiguous_blks = 0;
-		}
-		curr_off = next_off;
-	} while ((bh = bh->b_this_page) != head);
-
-	if (contiguous_blks) {
-		lblk = page->index << (PAGE_SHIFT - inode->i_blkbits);
-		lblk += (curr_off >> inode->i_blkbits) - contiguous_blks;
-		ext4_es_remove_blks(inode, lblk, contiguous_blks);
-	}
-
-}
-
 /*
  * Delayed allocation stuff
  */
@@ -1878,7 +1835,7 @@ static int ext4_da_map_blocks(struct inode *inode, sector_t iblock,
 		  (unsigned long) map->m_lblk);
 
 	/* Lookup extent status tree firstly */
-	if (ext4_es_lookup_extent(inode, iblock, &es)) {
+	if (ext4_es_lookup_extent(inode, iblock, NULL, &es)) {
 		if (ext4_es_is_hole(&es)) {
 			retval = 0;
 			down_read(&EXT4_I(inode)->i_data_sem);
@@ -2800,15 +2757,6 @@ static int ext4_writepages(struct address_space *mapping,
 		goto out_writepages;
 	}
 
-	if (ext4_should_dioread_nolock(inode)) {
-		/*
-		 * We may need to convert up to one extent per block in
-		 * the page and we may dirty the inode.
-		 */
-		rsv_blocks = 1 + ext4_chunk_trans_blocks(inode,
-						PAGE_SIZE >> inode->i_blkbits);
-	}
-
 	/*
 	 * If we have inline data and arrive here, it means that
 	 * we will soon create the block for the 1st page, so
@@ -2825,6 +2773,15 @@ static int ext4_writepages(struct address_space *mapping,
 				EXT4_STATE_MAY_INLINE_DATA));
 		ext4_destroy_inline_data(handle, inode);
 		ext4_journal_stop(handle);
+	}
+
+	if (ext4_should_dioread_nolock(inode)) {
+		/*
+		 * We may need to convert up to one extent per block in
+		 * the page and we may dirty the inode.
+		 */
+		rsv_blocks = 1 + ext4_chunk_trans_blocks(inode,
+						PAGE_SIZE >> inode->i_blkbits);
 	}
 
 	if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
@@ -3240,24 +3197,6 @@ static int ext4_da_write_end(struct file *file,
 		ret = ret2;
 
 	return ret ? ret : copied;
-}
-
-static void ext4_da_invalidatepage(struct page *page, unsigned int offset,
-				   unsigned int length)
-{
-	/*
-	 * Drop reserved blocks
-	 */
-	BUG_ON(!PageLocked(page));
-	if (!page_has_buffers(page))
-		goto out;
-
-	ext4_da_page_release_reservation(page, offset, length);
-
-out:
-	ext4_invalidatepage(page, offset, length);
-
-	return;
 }
 
 /*
@@ -4002,7 +3941,7 @@ static const struct address_space_operations ext4_da_aops = {
 	.write_end		= ext4_da_write_end,
 	.set_page_dirty		= ext4_set_page_dirty,
 	.bmap			= ext4_bmap,
-	.invalidatepage		= ext4_da_invalidatepage,
+	.invalidatepage		= ext4_invalidatepage,
 	.releasepage		= ext4_releasepage,
 	.direct_IO		= ext4_direct_IO,
 	.migratepage		= buffer_migrate_page,
@@ -4313,6 +4252,15 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 		return -EOPNOTSUPP;
 
 	trace_ext4_punch_hole(inode, offset, length, 0);
+
+	ext4_clear_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
+	if (ext4_has_inline_data(inode)) {
+		down_write(&EXT4_I(inode)->i_mmap_sem);
+		ret = ext4_convert_inline_data(inode);
+		up_write(&EXT4_I(inode)->i_mmap_sem);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * Write out all dirty pages to avoid race conditions
@@ -5137,6 +5085,9 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 				 "iget: bogus i_mode (%o)", inode->i_mode);
 		goto bad_inode;
 	}
+	if (IS_CASEFOLDED(inode) && !ext4_has_feature_casefold(inode->i_sb))
+		ext4_error_inode(inode, function, line, 0,
+				 "casefold flag without casefold feature");
 	brelse(iloc.bh);
 
 	unlock_new_inode(inode);

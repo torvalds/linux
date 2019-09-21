@@ -71,11 +71,11 @@ if the flex\_bg size is 4, then group 0 will contain (in order) the
 superblock, group descriptors, data block bitmaps for groups 0-3, inode
 bitmaps for groups 0-3, inode tables for groups 0-3, and the remaining
 space in group 0 is for file data. The effect of this is to group the
-block metadata close together for faster loading, and to enable large
-files to be continuous on disk. Backup copies of the superblock and
-group descriptors are always at the beginning of block groups, even if
-flex\_bg is enabled. The number of block groups that make up a flex\_bg
-is given by 2 ^ ``sb.s_log_groups_per_flex``.
+block group metadata close together for faster loading, and to enable
+large files to be continuous on disk. Backup copies of the superblock
+and group descriptors are always at the beginning of block groups, even
+if flex\_bg is enabled. The number of block groups that make up a
+flex\_bg is given by 2 ^ ``sb.s_log_groups_per_flex``.
 
 Meta Block Groups
 -----------------

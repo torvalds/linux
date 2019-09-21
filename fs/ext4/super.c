@@ -1878,6 +1878,13 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 	} else if (token == Opt_commit) {
 		if (arg == 0)
 			arg = JBD2_DEFAULT_MAX_COMMIT_AGE;
+		else if (arg > INT_MAX / HZ) {
+			ext4_msg(sb, KERN_ERR,
+				 "Invalid commit interval %d, "
+				 "must be smaller than %d",
+				 arg, INT_MAX / HZ);
+			return -1;
+		}
 		sbi->s_commit_interval = HZ * arg;
 	} else if (token == Opt_debug_want_extra_isize) {
 		sbi->s_want_extra_isize = arg;
