@@ -198,7 +198,7 @@ out:
 static int lm3692x_init(struct lm3692x_led *led)
 {
 	int enable_state;
-	int ret;
+	int ret, reg_ret;
 
 	if (led->regulator) {
 		ret = regulator_enable(led->regulator);
@@ -313,14 +313,15 @@ out:
 		gpiod_direction_output(led->enable_gpio, 0);
 
 	if (led->regulator) {
-		ret = regulator_disable(led->regulator);
-		if (ret)
+		reg_ret = regulator_disable(led->regulator);
+		if (reg_ret)
 			dev_err(&led->client->dev,
-				"Failed to disable regulator\n");
+				"Failed to disable regulator: %d\n", reg_ret);
 	}
 
 	return ret;
 }
+
 static int lm3692x_probe_dt(struct lm3692x_led *led)
 {
 	struct fwnode_handle *child = NULL;
