@@ -303,14 +303,15 @@ static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id)
 	return 0;
 }
 
-static inline uint32_t get_sdma_base_addr(struct cik_sdma_rlc_registers *m)
+static inline uint32_t get_sdma_rlc_reg_offset(struct cik_sdma_rlc_registers *m)
 {
 	uint32_t retval;
 
 	retval = m->sdma_engine_id * SDMA1_REGISTER_OFFSET +
 			m->sdma_queue_id * KFD_CIK_SDMA_QUEUE_OFFSET;
 
-	pr_debug("sdma base address: 0x%x\n", retval);
+	pr_debug("RLC register offset for SDMA%d RLC%d: 0x%x\n",
+			m->sdma_engine_id, m->sdma_queue_id, retval);
 
 	return retval;
 }
@@ -413,18 +414,18 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct cik_sdma_rlc_registers *m;
 	unsigned long end_jiffies;
-	uint32_t sdma_base_addr;
+	uint32_t sdma_rlc_reg_offset;
 	uint32_t data;
 
 	m = get_sdma_mqd(mqd);
-	sdma_base_addr = get_sdma_base_addr(m);
+	sdma_rlc_reg_offset = get_sdma_rlc_reg_offset(m);
 
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_CNTL,
 		m->sdma_rlc_rb_cntl & (~SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK));
 
 	end_jiffies = msecs_to_jiffies(2000) + jiffies;
 	while (true) {
-		data = RREG32(sdma_base_addr + mmSDMA0_RLC0_CONTEXT_STATUS);
+		data = RREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_CONTEXT_STATUS);
 		if (data & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
@@ -436,28 +437,29 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 
 	data = REG_SET_FIELD(m->sdma_rlc_doorbell, SDMA0_RLC0_DOORBELL,
 			     ENABLE, 1);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL, data);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR, m->sdma_rlc_rb_rptr);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_DOORBELL, data);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_RPTR,
+				m->sdma_rlc_rb_rptr);
 
 	if (read_user_wptr(mm, wptr, data))
-		WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR, data);
+		WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_WPTR, data);
 	else
-		WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR,
+		WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_WPTR,
 		       m->sdma_rlc_rb_rptr);
 
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_VIRTUAL_ADDR,
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_VIRTUAL_ADDR,
 				m->sdma_rlc_virtual_addr);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE, m->sdma_rlc_rb_base);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE_HI,
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_BASE, m->sdma_rlc_rb_base);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_BASE_HI,
 			m->sdma_rlc_rb_base_hi);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_ADDR_LO,
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_RPTR_ADDR_LO,
 			m->sdma_rlc_rb_rptr_addr_lo);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_ADDR_HI,
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_RPTR_ADDR_HI,
 			m->sdma_rlc_rb_rptr_addr_hi);
 
 	data = REG_SET_FIELD(m->sdma_rlc_rb_cntl, SDMA0_RLC0_RB_CNTL,
 			     RB_ENABLE, 1);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL, data);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_CNTL, data);
 
 	return 0;
 }
@@ -515,13 +517,13 @@ static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct cik_sdma_rlc_registers *m;
-	uint32_t sdma_base_addr;
+	uint32_t sdma_rlc_reg_offset;
 	uint32_t sdma_rlc_rb_cntl;
 
 	m = get_sdma_mqd(mqd);
-	sdma_base_addr = get_sdma_base_addr(m);
+	sdma_rlc_reg_offset = get_sdma_rlc_reg_offset(m);
 
-	sdma_rlc_rb_cntl = RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL);
+	sdma_rlc_rb_cntl = RREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_CNTL);
 
 	if (sdma_rlc_rb_cntl & SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK)
 		return true;
@@ -636,19 +638,19 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct cik_sdma_rlc_registers *m;
-	uint32_t sdma_base_addr;
+	uint32_t sdma_rlc_reg_offset;
 	uint32_t temp;
 	unsigned long end_jiffies = (utimeout * HZ / 1000) + jiffies;
 
 	m = get_sdma_mqd(mqd);
-	sdma_base_addr = get_sdma_base_addr(m);
+	sdma_rlc_reg_offset = get_sdma_rlc_reg_offset(m);
 
-	temp = RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL);
+	temp = RREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_CNTL);
 	temp = temp & ~SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK;
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL, temp);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_CNTL, temp);
 
 	while (true) {
-		temp = RREG32(sdma_base_addr + mmSDMA0_RLC0_CONTEXT_STATUS);
+		temp = RREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_CONTEXT_STATUS);
 		if (temp & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
@@ -658,12 +660,12 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 		usleep_range(500, 1000);
 	}
 
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL, 0);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
-		RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL) |
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_DOORBELL, 0);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_CNTL,
+		RREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_CNTL) |
 		SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK);
 
-	m->sdma_rlc_rb_rptr = RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR);
+	m->sdma_rlc_rb_rptr = RREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_RPTR);
 
 	return 0;
 }
