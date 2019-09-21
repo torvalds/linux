@@ -91,7 +91,9 @@
 #define PRID_IMP_LOONGSON_32	0x4200  /* Loongson-1 */
 #define PRID_IMP_R5432		0x5400
 #define PRID_IMP_R5500		0x5500
-#define PRID_IMP_LOONGSON_64	0x6300  /* Loongson-2/3 */
+#define PRID_IMP_LOONGSON_64R	0x6100  /* Reduced Loongson-2 */
+#define PRID_IMP_LOONGSON_64C	0x6300  /* Classic Loongson-2 and Loongson-3 */
+#define PRID_IMP_LOONGSON_64G	0xc000  /* Generic Loongson-2 and Loongson-3 */
 
 #define PRID_IMP_UNKNOWN	0xff00
 
