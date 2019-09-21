@@ -836,6 +836,7 @@ static struct clk_regmap gxbb_sar_adc_clk_div = {
 		.ops = &clk_regmap_divider_ops,
 		.parent_names = (const char *[]){ "sar_adc_clk_sel" },
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
