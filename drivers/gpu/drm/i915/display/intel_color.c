@@ -823,11 +823,11 @@ icl_program_gamma_superfine_segment(const struct intel_crtc_state *crtc_state)
 	u32 i;
 
 	/*
-	 * Every entry in the multi-segment LUT is corresponding to a superfine
-	 * segment step which is 1/(8 * 128 * 256).
+	 * Program Super Fine segment (let's call it seg1)...
 	 *
-	 * Superfine segment has 9 entries, corresponding to values
-	 * 0, 1/(8 * 128 * 256), 2/(8 * 128 * 256) .... 8/(8 * 128 * 256).
+	 * Super Fine segment's step is 1/(8 * 128 * 256) and it has
+	 * 9 entries, corresponding to values 0, 1/(8 * 128 * 256),
+	 * 2/(8 * 128 * 256) ... 8/(8 * 128 * 256).
 	 */
 	I915_WRITE(PREC_PAL_MULTI_SEG_INDEX(pipe), PAL_PREC_AUTO_INCREMENT);
 
@@ -853,17 +853,17 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 	u32 i;
 
 	/*
-	 *
 	 * Program Fine segment (let's call it seg2)...
 	 *
-	 * Fine segment's step is 1/(128 * 256) ie 1/(128 * 256),  2/(128*256)
-	 * ... 256/(128*256). So in order to program fine segment of LUT we
-	 * need to pick every 8'th entry in LUT, and program 256 indexes.
+	 * Fine segment's step is 1/(128 * 256) i.e. 1/(128 * 256), 2/(128 * 256)
+	 * ... 256/(128 * 256). So in order to program fine segment of LUT we
+	 * need to pick every 8th entry in the LUT, and program 256 indexes.
 	 *
 	 * PAL_PREC_INDEX[0] and PAL_PREC_INDEX[1] map to seg2[1],
-	 * with seg2[0] being unused by the hardware.
+	 * seg2[0] being unused by the hardware.
 	 */
 	I915_WRITE(PREC_PAL_INDEX(pipe), PAL_PREC_AUTO_INCREMENT);
+
 	for (i = 1; i < 257; i++) {
 		entry = &lut[i * 8];
 		I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_12p4_ldw(entry));
@@ -873,8 +873,8 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 	/*
 	 * Program Coarse segment (let's call it seg3)...
 	 *
-	 * Coarse segment's starts from index 0 and it's step is 1/256 ie 0,
-	 * 1/256, 2/256 ...256/256. As per the description of each entry in LUT
+	 * Coarse segment starts from index 0 and it's step is 1/256 ie 0,
+	 * 1/256, 2/256 ... 256/256. As per the description of each entry in LUT
 	 * above, we need to pick every (8 * 128)th entry in LUT, and
 	 * program 256 of those.
 	 *
@@ -906,12 +906,10 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 	case GAMMA_MODE_MODE_8BIT:
 		i9xx_load_luts(crtc_state);
 		break;
-
 	case GAMMA_MODE_MODE_12BIT_MULTI_SEGMENTED:
 		icl_program_gamma_superfine_segment(crtc_state);
 		icl_program_gamma_multi_segment(crtc_state);
 		break;
-
 	default:
 		bdw_load_lut_10(crtc, gamma_lut, PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_ext_max(crtc);
@@ -1743,9 +1741,6 @@ glk_read_lut_10(const struct intel_crtc_state *crtc_state, u32 prec_index)
 	struct drm_color_lut *blob_data;
 	u32 i, val;
 
-	I915_WRITE(PREC_PAL_INDEX(pipe), prec_index |
-		   PAL_PREC_AUTO_INCREMENT);
-
 	blob = drm_property_create_blob(&dev_priv->drm,
 					sizeof(struct drm_color_lut) * hw_lut_size,
 					NULL);
@@ -1753,6 +1748,9 @@ glk_read_lut_10(const struct intel_crtc_state *crtc_state, u32 prec_index)
 		return NULL;
 
 	blob_data = blob->data;
+
+	I915_WRITE(PREC_PAL_INDEX(pipe), prec_index |
+		   PAL_PREC_AUTO_INCREMENT);
 
 	for (i = 0; i < hw_lut_size; i++) {
 		val = I915_READ(PREC_PAL_DATA(pipe));
@@ -1819,16 +1817,16 @@ void intel_color_init(struct intel_crtc *crtc)
 		else
 			dev_priv->display.color_commit = ilk_color_commit;
 
-		if (INTEL_GEN(dev_priv) >= 11)
+		if (INTEL_GEN(dev_priv) >= 11) {
 			dev_priv->display.load_luts = icl_load_luts;
-		else if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv)) {
+		} else if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv)) {
 			dev_priv->display.load_luts = glk_load_luts;
 			dev_priv->display.read_luts = glk_read_luts;
-		} else if (INTEL_GEN(dev_priv) >= 8)
+		} else if (INTEL_GEN(dev_priv) >= 8) {
 			dev_priv->display.load_luts = bdw_load_luts;
-		else if (INTEL_GEN(dev_priv) >= 7)
+		} else if (INTEL_GEN(dev_priv) >= 7) {
 			dev_priv->display.load_luts = ivb_load_luts;
-		else {
+		} else {
 			dev_priv->display.load_luts = ilk_load_luts;
 			dev_priv->display.read_luts = ilk_read_luts;
 		}
