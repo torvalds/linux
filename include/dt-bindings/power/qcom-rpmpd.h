@@ -68,6 +68,7 @@
 #define RPM_SMD_LEVEL_NOM_PLUS        320
 #define RPM_SMD_LEVEL_TURBO           384
 #define RPM_SMD_LEVEL_TURBO_NO_CPR    416
+#define RPM_SMD_LEVEL_TURBO_HIGH      448
 #define RPM_SMD_LEVEL_BINNING         512
 
 #endif
