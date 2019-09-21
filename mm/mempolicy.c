@@ -68,7 +68,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/mempolicy.h>
-#include <linux/mm.h>
+#include <linux/pagewalk.h>
 #include <linux/highmem.h>
 #include <linux/hugetlb.h>
 #include <linux/kernel.h>
@@ -655,6 +655,12 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
 	return 1;
 }
 
+static const struct mm_walk_ops queue_pages_walk_ops = {
+	.hugetlb_entry		= queue_pages_hugetlb,
+	.pmd_entry		= queue_pages_pte_range,
+	.test_walk		= queue_pages_test_walk,
+};
+
 /*
  * Walk through page tables and collect pages to be migrated.
  *
@@ -679,15 +685,8 @@ queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 		.nmask = nodes,
 		.prev = NULL,
 	};
-	struct mm_walk queue_pages_walk = {
-		.hugetlb_entry = queue_pages_hugetlb,
-		.pmd_entry = queue_pages_pte_range,
-		.test_walk = queue_pages_test_walk,
-		.mm = mm,
-		.private = &qp,
-	};
 
-	return walk_page_range(start, end, &queue_pages_walk);
+	return walk_page_range(mm, start, end, &queue_pages_walk_ops, &qp);
 }
 
 /*

@@ -10,7 +10,7 @@
  */
 #include <linux/pagemap.h>
 #include <linux/gfp.h>
-#include <linux/mm.h>
+#include <linux/pagewalk.h>
 #include <linux/mman.h>
 #include <linux/syscalls.h>
 #include <linux/swap.h>
@@ -193,6 +193,12 @@ static inline bool can_do_mincore(struct vm_area_struct *vma)
 		inode_permission(file_inode(vma->vm_file), MAY_WRITE) == 0;
 }
 
+static const struct mm_walk_ops mincore_walk_ops = {
+	.pmd_entry		= mincore_pte_range,
+	.pte_hole		= mincore_unmapped_range,
+	.hugetlb_entry		= mincore_hugetlb,
+};
+
 /*
  * Do a chunk of "sys_mincore()". We've already checked
  * all the arguments, we hold the mmap semaphore: we should
@@ -203,12 +209,6 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
 	struct vm_area_struct *vma;
 	unsigned long end;
 	int err;
-	struct mm_walk mincore_walk = {
-		.pmd_entry = mincore_pte_range,
-		.pte_hole = mincore_unmapped_range,
-		.hugetlb_entry = mincore_hugetlb,
-		.private = vec,
-	};
 
 	vma = find_vma(current->mm, addr);
 	if (!vma || addr < vma->vm_start)
@@ -219,8 +219,7 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
 		memset(vec, 1, pages);
 		return pages;
 	}
-	mincore_walk.mm = vma->vm_mm;
-	err = walk_page_range(addr, end, &mincore_walk);
+	err = walk_page_range(vma->vm_mm, addr, end, &mincore_walk_ops, vec);
 	if (err < 0)
 		return err;
 	return (end - addr) >> PAGE_SHIFT;
