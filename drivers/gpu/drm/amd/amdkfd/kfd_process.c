@@ -693,6 +693,8 @@ static int init_doorbell_bitmap(struct qcm_process_device *qpd,
 			struct kfd_dev *dev)
 {
 	unsigned int i;
+	int range_start = dev->shared_resources.non_cp_doorbells_start;
+	int range_end = dev->shared_resources.non_cp_doorbells_end;
 
 	if (!KFD_IS_SOC15(dev->device_info->asic_family))
 		return 0;
@@ -704,14 +706,16 @@ static int init_doorbell_bitmap(struct qcm_process_device *qpd,
 		return -ENOMEM;
 
 	/* Mask out doorbells reserved for SDMA, IH, and VCN on SOC15. */
+	pr_debug("reserved doorbell 0x%03x - 0x%03x\n", range_start, range_end);
+	pr_debug("reserved doorbell 0x%03x - 0x%03x\n",
+			range_start + KFD_QUEUE_DOORBELL_MIRROR_OFFSET,
+			range_end + KFD_QUEUE_DOORBELL_MIRROR_OFFSET);
+
 	for (i = 0; i < KFD_MAX_NUM_OF_QUEUES_PER_PROCESS / 2; i++) {
-		if (i >= dev->shared_resources.non_cp_doorbells_start
-			&& i <= dev->shared_resources.non_cp_doorbells_end) {
+		if (i >= range_start && i <= range_end) {
 			set_bit(i, qpd->doorbell_bitmap);
 			set_bit(i + KFD_QUEUE_DOORBELL_MIRROR_OFFSET,
 				qpd->doorbell_bitmap);
-			pr_debug("reserved doorbell 0x%03x and 0x%03x\n", i,
-				i + KFD_QUEUE_DOORBELL_MIRROR_OFFSET);
 		}
 	}
 
