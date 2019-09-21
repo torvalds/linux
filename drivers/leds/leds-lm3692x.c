@@ -174,19 +174,20 @@ static int lm3692x_brightness_set(struct led_classdev *led_cdev,
 
 	ret = lm3692x_fault_check(led);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot read/clear faults\n");
+		dev_err(&led->client->dev, "Cannot read/clear faults: %d\n",
+			ret);
 		goto out;
 	}
 
 	ret = regmap_write(led->regmap, LM3692X_BRT_MSB, brt_val);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot write MSB\n");
+		dev_err(&led->client->dev, "Cannot write MSB: %d\n", ret);
 		goto out;
 	}
 
 	ret = regmap_write(led->regmap, LM3692X_BRT_LSB, led_brightness_lsb);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot write LSB\n");
+		dev_err(&led->client->dev, "Cannot write LSB: %d\n", ret);
 		goto out;
 	}
 out:
@@ -203,7 +204,7 @@ static int lm3692x_init(struct lm3692x_led *led)
 		ret = regulator_enable(led->regulator);
 		if (ret) {
 			dev_err(&led->client->dev,
-				"Failed to enable regulator\n");
+				"Failed to enable regulator: %d\n", ret);
 			return ret;
 		}
 	}
@@ -213,7 +214,8 @@ static int lm3692x_init(struct lm3692x_led *led)
 
 	ret = lm3692x_fault_check(led);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot read/clear faults\n");
+		dev_err(&led->client->dev, "Cannot read/clear faults: %d\n",
+			ret);
 		goto out;
 	}
 
@@ -409,7 +411,8 @@ static int lm3692x_remove(struct i2c_client *client)
 
 	ret = regmap_update_bits(led->regmap, LM3692X_EN, LM3692X_DEVICE_EN, 0);
 	if (ret) {
-		dev_err(&led->client->dev, "Failed to disable regulator\n");
+		dev_err(&led->client->dev, "Failed to disable regulator: %d\n",
+			ret);
 		return ret;
 	}
 
@@ -420,7 +423,7 @@ static int lm3692x_remove(struct i2c_client *client)
 		ret = regulator_disable(led->regulator);
 		if (ret)
 			dev_err(&led->client->dev,
-				"Failed to disable regulator\n");
+				"Failed to disable regulator: %d\n", ret);
 	}
 
 	mutex_destroy(&led->lock);
