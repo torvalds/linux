@@ -44,7 +44,7 @@ inline void bch2_btree_node_lock_for_insert(struct bch_fs *c, struct btree *b,
 {
 	bch2_btree_node_lock_write(b, iter);
 
-	if (btree_node_just_written(b) &&
+	if (unlikely(btree_node_just_written(b)) &&
 	    bch2_btree_post_write_cleanup(c, b))
 		bch2_btree_iter_reinit_node(iter, b);
 
@@ -605,8 +605,9 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 				goto out_clear_replicas;
 		}
 
-	trans_for_each_update(trans, i)
-		btree_insert_entry_checks(trans, i);
+	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG))
+		trans_for_each_update(trans, i)
+			btree_insert_entry_checks(trans, i);
 	bch2_btree_trans_verify_locks(trans);
 
 	/*
