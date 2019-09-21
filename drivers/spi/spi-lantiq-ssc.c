@@ -797,7 +797,6 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct spi_master *master;
-	struct resource *res;
 	struct lantiq_ssc_spi *spi;
 	const struct lantiq_ssc_hwcfg *hwcfg;
 	const struct of_device_id *match;
@@ -811,12 +810,6 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	hwcfg = match->data;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "failed to get resources\n");
-		return -ENXIO;
-	}
 
 	rx_irq = platform_get_irq_byname(pdev, LTQ_SPI_RX_IRQ_NAME);
 	if (rx_irq < 0)
@@ -839,8 +832,7 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 	spi->dev = dev;
 	spi->hwcfg = hwcfg;
 	platform_set_drvdata(pdev, spi);
-
-	spi->regbase = devm_ioremap_resource(dev, res);
+	spi->regbase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(spi->regbase)) {
 		err = PTR_ERR(spi->regbase);
 		goto err_master_put;
