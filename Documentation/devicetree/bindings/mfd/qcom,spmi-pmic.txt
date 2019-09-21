@@ -29,6 +29,8 @@ Required properties:
                    "qcom,pm8916",
                    "qcom,pm8004",
                    "qcom,pm8909",
+                   "qcom,pm8950",
+                   "qcom,pmi8950",
                    "qcom,pm8998",
                    "qcom,pmi8998",
                    "qcom,pm8005",
