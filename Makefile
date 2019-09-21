@@ -206,24 +206,8 @@ ifndef KBUILD_CHECKSRC
   KBUILD_CHECKSRC = 0
 endif
 
-# Use make M=dir to specify directory of external module to build
-# Old syntax make ... SUBDIRS=$PWD is still supported
-# Setting the environment variable KBUILD_EXTMOD take precedence
-ifdef SUBDIRS
-  $(warning ================= WARNING ================)
-  $(warning 'SUBDIRS' will be removed after Linux 5.3)
-  $(warning )
-  $(warning If you are building an individual subdirectory)
-  $(warning in the kernel tree, you can do like this:)
-  $(warning $$ make path/to/dir/you/want/to/build/)
-  $(warning (Do not forget the trailing slash))
-  $(warning )
-  $(warning If you are building an external module,)
-  $(warning Please use 'M=' or 'KBUILD_EXTMOD' instead)
-  $(warning ==========================================)
-  KBUILD_EXTMOD ?= $(SUBDIRS)
-endif
-
+# Use make M=dir or set the environment variable KBUILD_EXTMOD to specify the
+# directory of external module to build. Setting M= takes precedence.
 ifeq ("$(origin M)", "command line")
   KBUILD_EXTMOD := $(M)
 endif
