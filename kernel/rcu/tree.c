@@ -2708,7 +2708,7 @@ struct kfree_rcu_cpu {
 	struct rcu_head *head_free;
 	spinlock_t lock;
 	struct delayed_work monitor_work;
-	int monitor_todo;
+	bool monitor_todo;
 	bool initialized;
 };
 
@@ -2765,6 +2765,7 @@ static inline void kfree_rcu_drain_unlock(struct kfree_rcu_cpu *krcp,
 					  unsigned long flags)
 {
 	// Attempt to start a new batch.
+	krcp->monitor_todo = false;
 	if (queue_kfree_rcu_work(krcp)) {
 		// Success! Our job is done here.
 		spin_unlock_irqrestore(&krcp->lock, flags);
@@ -2772,8 +2773,8 @@ static inline void kfree_rcu_drain_unlock(struct kfree_rcu_cpu *krcp,
 	}
 
 	// Previous RCU batch still in progress, try again later.
-	if (!xchg(&krcp->monitor_todo, true))
-		schedule_delayed_work(&krcp->monitor_work, KFREE_DRAIN_JIFFIES);
+	krcp->monitor_todo = true;
+	schedule_delayed_work(&krcp->monitor_work, KFREE_DRAIN_JIFFIES);
 	spin_unlock_irqrestore(&krcp->lock, flags);
 }
 
@@ -2788,7 +2789,7 @@ static void kfree_rcu_monitor(struct work_struct *work)
 						 monitor_work.work);
 
 	spin_lock_irqsave(&krcp->lock, flags);
-	if (xchg(&krcp->monitor_todo, false))
+	if (krcp->monitor_todo)
 		kfree_rcu_drain_unlock(krcp, flags);
 	else
 		spin_unlock_irqrestore(&krcp->lock, flags);
@@ -2837,8 +2838,10 @@ void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
 
 	// Set timer to drain after KFREE_DRAIN_JIFFIES.
 	if (rcu_scheduler_active == RCU_SCHEDULER_RUNNING &&
-	    !xchg(&krcp->monitor_todo, true))
+	    !krcp->monitor_todo) {
+		krcp->monitor_todo = true;
 		schedule_delayed_work(&krcp->monitor_work, KFREE_DRAIN_JIFFIES);
+	}
 
 	if (krcp->initialized)
 		spin_unlock(&krcp->lock);
@@ -2855,10 +2858,11 @@ void __init kfree_rcu_scheduler_running(void)
 		struct kfree_rcu_cpu *krcp = per_cpu_ptr(&krc, cpu);
 
 		spin_lock_irqsave(&krcp->lock, flags);
-		if (!krcp->head || xchg(&krcp->monitor_todo, true)) {
+		if (!krcp->head || krcp->monitor_todo) {
 			spin_unlock_irqrestore(&krcp->lock, flags);
 			continue;
 		}
+		krcp->monitor_todo = true;
 		schedule_delayed_work(&krcp->monitor_work, KFREE_DRAIN_JIFFIES);
 		spin_unlock_irqrestore(&krcp->lock, flags);
 	}
