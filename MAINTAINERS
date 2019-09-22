@@ -13748,7 +13748,7 @@ REMOTE PROCESSOR (REMOTEPROC) SUBSYSTEM
 M:	Ohad Ben-Cohen <ohad@wizery.com>
 M:	Bjorn Andersson <bjorn.andersson@linaro.org>
 L:	linux-remoteproc@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ohad/remoteproc.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/andersson/remoteproc.git rproc-next
 S:	Maintained
 F:	Documentation/devicetree/bindings/remoteproc/
 F:	Documentation/ABI/testing/sysfs-class-remoteproc
