@@ -1957,21 +1957,16 @@ static int atmel_xdmac_resume(struct device *dev)
 
 static int at_xdmac_probe(struct platform_device *pdev)
 {
-	struct resource	*res;
 	struct at_xdmac	*atxdmac;
 	int		irq, size, nr_channels, i, ret;
 	void __iomem	*base;
 	u32		reg;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
 
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
