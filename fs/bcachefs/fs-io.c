@@ -2025,12 +2025,14 @@ static void bch2_dio_write_loop_async(struct closure *);
 static long bch2_dio_write_loop(struct dio_write *dio)
 {
 	bool kthread = (current->flags & PF_KTHREAD) != 0;
+	struct bch_fs *c = dio->iop.op.c;
 	struct kiocb *req = dio->req;
 	struct address_space *mapping = req->ki_filp->f_mapping;
 	struct bch_inode_info *inode = dio->iop.inode;
 	struct bio *bio = &dio->iop.op.wbio.bio;
 	struct bvec_iter_all iter;
 	struct bio_vec *bv;
+	unsigned unaligned;
 	loff_t offset;
 	bool sync;
 	long ret;
@@ -2065,6 +2067,21 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 
 		if (unlikely(ret < 0))
 			goto err;
+
+		unaligned = bio->bi_iter.bi_size & (block_bytes(c) - 1);
+		bio->bi_iter.bi_size -= unaligned;
+		iov_iter_revert(&dio->iter, unaligned);
+
+		if (!bio->bi_iter.bi_size) {
+			/*
+			 * bio_iov_iter_get_pages was only able to get <
+			 * blocksize worth of pages:
+			 */
+			bio_for_each_segment_all(bv, bio, iter)
+				put_page(bv->bv_page);
+			ret = -EFAULT;
+			goto err;
+		}
 
 		/* gup might have faulted pages back in: */
 		ret = write_invalidate_inode_pages_range(mapping,
@@ -2105,8 +2122,8 @@ loop:
 	ret = dio->iop.op.error ?: ((long) dio->iop.op.written << 9);
 err:
 	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
-	bch2_disk_reservation_put(dio->iop.op.c, &dio->iop.op.res);
-	bch2_quota_reservation_put(dio->iop.op.c, inode, &dio->quota_res);
+	bch2_disk_reservation_put(c, &dio->iop.op.res);
+	bch2_quota_reservation_put(c, inode, &dio->quota_res);
 
 	if (dio->free_iov)
 		kfree(dio->iter.__iov);
