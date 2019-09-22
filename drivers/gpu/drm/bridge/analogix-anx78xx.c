@@ -39,12 +39,20 @@
 #define AUX_CH_BUFFER_SIZE	16
 #define AUX_WAIT_TIMEOUT_MS	15
 
-static const u8 anx78xx_i2c_addresses[] = {
-	[I2C_IDX_TX_P0] = TX_P0,
-	[I2C_IDX_TX_P1] = TX_P1,
-	[I2C_IDX_TX_P2] = TX_P2,
-	[I2C_IDX_RX_P0] = RX_P0,
-	[I2C_IDX_RX_P1] = RX_P1,
+static const u8 anx7808_i2c_addresses[] = {
+	[I2C_IDX_TX_P0] = 0x78,
+	[I2C_IDX_TX_P1] = 0x7a,
+	[I2C_IDX_TX_P2] = 0x72,
+	[I2C_IDX_RX_P0] = 0x7e,
+	[I2C_IDX_RX_P1] = 0x80,
+};
+
+static const u8 anx781x_i2c_addresses[] = {
+	[I2C_IDX_TX_P0] = 0x70,
+	[I2C_IDX_TX_P1] = 0x7a,
+	[I2C_IDX_TX_P2] = 0x72,
+	[I2C_IDX_RX_P0] = 0x7e,
+	[I2C_IDX_RX_P1] = 0x80,
 };
 
 struct anx78xx_platform_data {
@@ -1316,6 +1324,7 @@ static int anx78xx_i2c_probe(struct i2c_client *client,
 	struct anx78xx *anx78xx;
 	struct anx78xx_platform_data *pdata;
 	unsigned int i, idl, idh, version;
+	const u8 *i2c_addresses;
 	bool found = false;
 	int err;
 
@@ -1355,15 +1364,16 @@ static int anx78xx_i2c_probe(struct i2c_client *client,
 	}
 
 	/* Map slave addresses of ANX7814 */
+	i2c_addresses = device_get_match_data(&client->dev);
 	for (i = 0; i < I2C_NUM_ADDRESSES; i++) {
 		struct i2c_client *i2c_dummy;
 
 		i2c_dummy = i2c_new_dummy_device(client->adapter,
-						 anx78xx_i2c_addresses[i] >> 1);
+						 i2c_addresses[i] >> 1);
 		if (IS_ERR(i2c_dummy)) {
 			err = PTR_ERR(i2c_dummy);
 			DRM_ERROR("Failed to reserve I2C bus %02x: %d\n",
-				  anx78xx_i2c_addresses[i], err);
+				  i2c_addresses[i], err);
 			goto err_unregister_i2c;
 		}
 
@@ -1373,7 +1383,7 @@ static int anx78xx_i2c_probe(struct i2c_client *client,
 		if (IS_ERR(anx78xx->map[i])) {
 			err = PTR_ERR(anx78xx->map[i]);
 			DRM_ERROR("Failed regmap initialization %02x\n",
-				  anx78xx_i2c_addresses[i]);
+				  i2c_addresses[i]);
 			goto err_unregister_i2c;
 		}
 	}
@@ -1472,10 +1482,10 @@ MODULE_DEVICE_TABLE(i2c, anx78xx_id);
 
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id anx78xx_match_table[] = {
-	{ .compatible = "analogix,anx7808", },
-	{ .compatible = "analogix,anx7812", },
-	{ .compatible = "analogix,anx7814", },
-	{ .compatible = "analogix,anx7818", },
+	{ .compatible = "analogix,anx7808", .data = anx7808_i2c_addresses },
+	{ .compatible = "analogix,anx7812", .data = anx781x_i2c_addresses },
+	{ .compatible = "analogix,anx7814", .data = anx781x_i2c_addresses },
+	{ .compatible = "analogix,anx7818", .data = anx781x_i2c_addresses },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, anx78xx_match_table);
