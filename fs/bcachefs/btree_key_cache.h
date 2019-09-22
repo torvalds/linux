@@ -1,6 +1,9 @@
 #ifndef _BCACHEFS_BTREE_KEY_CACHE_H
 #define _BCACHEFS_BTREE_KEY_CACHE_H
 
+struct bkey_cached *
+bch2_btree_key_cache_find(struct bch_fs *, enum btree_id, struct bpos);
+
 int bch2_btree_iter_traverse_cached(struct btree_iter *);
 
 bool bch2_btree_insert_key_cached(struct btree_trans *,

@@ -28,8 +28,8 @@ static const struct rhashtable_params bch2_btree_key_cache_params = {
 };
 
 __flatten
-static inline struct bkey_cached *
-btree_key_cache_find(struct bch_fs *c, enum btree_id btree_id, struct bpos pos)
+inline struct bkey_cached *
+bch2_btree_key_cache_find(struct bch_fs *c, enum btree_id btree_id, struct bpos pos)
 {
 	struct bkey_cached_key key = {
 		.btree_id	= btree_id,
@@ -218,7 +218,7 @@ int bch2_btree_iter_traverse_cached(struct btree_iter *iter)
 		goto fill;
 	}
 retry:
-	ck = btree_key_cache_find(c, iter->btree_id, iter->pos);
+	ck = bch2_btree_key_cache_find(c, iter->btree_id, iter->pos);
 	if (!ck) {
 		if (iter->flags & BTREE_ITER_CACHED_NOCREATE) {
 			iter->l[0].b = NULL;
@@ -415,7 +415,7 @@ int bch2_btree_key_cache_flush(struct btree_trans *trans,
 	struct bkey_cached_key key = { id, pos };
 
 	/* Fastpath - assume it won't be found: */
-	if (!btree_key_cache_find(c, id, pos))
+	if (!bch2_btree_key_cache_find(c, id, pos))
 		return 0;
 
 	return btree_key_cache_flush_pos(trans, key, 0, true);
@@ -462,7 +462,7 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 void bch2_btree_key_cache_verify_clean(struct btree_trans *trans,
 			       enum btree_id id, struct bpos pos)
 {
-	BUG_ON(btree_key_cache_find(trans->c, id, pos));
+	BUG_ON(bch2_btree_key_cache_find(trans->c, id, pos));
 }
 #endif
 
