@@ -935,12 +935,13 @@ static unsigned bch2_bkey_nr_alloc_ptrs(struct bkey_s_c k)
 	return ret;
 }
 
-static int __bch2_extent_atomic_end(struct btree_trans *trans,
-				    struct bkey_s_c k,
-				    unsigned offset,
-				    struct bpos *end,
-				    unsigned *nr_iters,
-				    unsigned max_iters)
+static int count_iters_for_insert(struct btree_trans *trans,
+				  struct bkey_s_c k,
+				  unsigned offset,
+				  struct bpos *end,
+				  unsigned *nr_iters,
+				  unsigned max_iters,
+				  bool overwrite)
 {
 	int ret = 0;
 
@@ -970,6 +971,20 @@ static int __bch2_extent_atomic_end(struct btree_trans *trans,
 				break;
 
 			*nr_iters += 1;
+
+			if (overwrite &&
+			    k.k->type == KEY_TYPE_reflink_v) {
+				struct bkey_s_c_reflink_v r = bkey_s_c_to_reflink_v(k);
+
+				if (le64_to_cpu(r.v->refcount) == 1)
+					*nr_iters += bch2_bkey_nr_alloc_ptrs(k);
+			}
+
+			/*
+			 * if we're going to be deleting an entry from
+			 * the reflink btree, need more iters...
+			 */
+
 			if (*nr_iters >= max_iters) {
 				struct bpos pos = bkey_start_pos(k.k);
 				pos.offset += r_k.k->p.offset - idx;
@@ -1004,8 +1019,8 @@ int bch2_extent_atomic_end(struct btree_iter *iter,
 
 	*end = bpos_min(insert->k.p, b->key.k.p);
 
-	ret = __bch2_extent_atomic_end(trans, bkey_i_to_s_c(insert),
-				       0, end, &nr_iters, 10);
+	ret = count_iters_for_insert(trans, bkey_i_to_s_c(insert),
+				     0, end, &nr_iters, 10, false);
 	if (ret)
 		return ret;
 
@@ -1024,8 +1039,8 @@ int bch2_extent_atomic_end(struct btree_iter *iter,
 			offset = bkey_start_offset(&insert->k) -
 				bkey_start_offset(k.k);
 
-		ret = __bch2_extent_atomic_end(trans, k, offset,
-					       end, &nr_iters, 20);
+		ret = count_iters_for_insert(trans, k, offset,
+					     end, &nr_iters, 20, true);
 		if (ret)
 			return ret;
 
