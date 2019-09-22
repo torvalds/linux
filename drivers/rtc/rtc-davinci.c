@@ -477,10 +477,8 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	davinci_rtc->irq = platform_get_irq(pdev, 0);
-	if (davinci_rtc->irq < 0) {
-		dev_err(dev, "no RTC irq\n");
+	if (davinci_rtc->irq < 0)
 		return davinci_rtc->irq;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	davinci_rtc->base = devm_ioremap_resource(dev, res);

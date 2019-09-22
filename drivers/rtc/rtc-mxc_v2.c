@@ -279,7 +279,6 @@ static int mxc_rtc_wait_for_flag(void __iomem *ioaddr, int flag)
 static int mxc_rtc_probe(struct platform_device *pdev)
 {
 	struct mxc_rtc_data *pdata;
-	struct resource *res;
 	void __iomem *ioaddr;
 	int ret = 0;
 
@@ -287,8 +286,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pdata->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	pdata->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->ioaddr))
 		return PTR_ERR(pdata->ioaddr);
 

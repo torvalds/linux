@@ -15,8 +15,25 @@ static inline int sdw_acpi_find_slaves(struct sdw_bus *bus)
 }
 #endif
 
+int sdw_of_find_slaves(struct sdw_bus *bus);
 void sdw_extract_slave_id(struct sdw_bus *bus,
 			  u64 addr, struct sdw_slave_id *id);
+
+#ifdef CONFIG_DEBUG_FS
+void sdw_bus_debugfs_init(struct sdw_bus *bus);
+void sdw_bus_debugfs_exit(struct sdw_bus *bus);
+void sdw_slave_debugfs_init(struct sdw_slave *slave);
+void sdw_slave_debugfs_exit(struct sdw_slave *slave);
+void sdw_debugfs_init(void);
+void sdw_debugfs_exit(void);
+#else
+static inline void sdw_bus_debugfs_init(struct sdw_bus *bus) {}
+static inline void sdw_bus_debugfs_exit(struct sdw_bus *bus) {}
+static inline void sdw_slave_debugfs_init(struct sdw_slave *slave) {}
+static inline void sdw_slave_debugfs_exit(struct sdw_slave *slave) {}
+static inline void sdw_debugfs_init(void) {}
+static inline void sdw_debugfs_exit(void) {}
+#endif
 
 enum {
 	SDW_MSG_FLAG_READ = 0,
@@ -49,8 +66,11 @@ struct sdw_msg {
 
 #define SDW_DOUBLE_RATE_FACTOR		2
 
-extern int rows[SDW_FRAME_ROWS];
-extern int cols[SDW_FRAME_COLS];
+extern int sdw_rows[SDW_FRAME_ROWS];
+extern int sdw_cols[SDW_FRAME_COLS];
+
+int sdw_find_row_index(int row);
+int sdw_find_col_index(int col);
 
 /**
  * sdw_port_runtime: Runtime port parameters for Master or Slave

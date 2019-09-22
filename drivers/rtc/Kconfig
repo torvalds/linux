@@ -373,6 +373,17 @@ config RTC_DRV_MAX77686
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-max77686.
 
+config RTC_DRV_MESON_VRTC
+	tristate "Amlogic Meson Virtual RTC"
+	depends on ARCH_MESON || COMPILE_TEST
+	default m if ARCH_MESON
+	help
+	  If you say yes here you will get support for the
+	  Virtual RTC of Amlogic SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-meson-vrtc.
+
 config RTC_DRV_RK808
 	tristate "Rockchip RK805/RK808/RK809/RK817/RK818 RTC"
 	depends on MFD_RK808
@@ -500,6 +511,7 @@ config RTC_DRV_M41T80_WDT
 	  watchdog timer in the ST M41T60 and M41T80 RTC chips series.
 config RTC_DRV_BD70528
 	tristate "ROHM BD70528 PMIC RTC"
+	depends on MFD_ROHM_BD70528 && (BD70528_WATCHDOG || !BD70528_WATCHDOG)
 	help
 	  If you say Y here you will get support for the RTC
 	  on ROHM BD70528 Power Management IC.
@@ -874,9 +886,15 @@ config RTC_DRV_DS3232_HWMON
 config RTC_DRV_PCF2127
 	tristate "NXP PCF2127"
 	depends on RTC_I2C_AND_SPI
+	select WATCHDOG_CORE if WATCHDOG
 	help
 	  If you say yes here you get support for the NXP PCF2127/29 RTC
-	  chips.
+	  chips with integrated quartz crystal for industrial applications.
+	  Both chips also have watchdog timer and tamper switch detection
+	  features.
+
+	  PCF2127 has an additional feature of 512 bytes battery backed
+	  memory that's accessible using nvmem interface.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf2127.
@@ -1247,13 +1265,6 @@ config RTC_DRV_AB8500
 	  Select this to enable the ST-Ericsson AB8500 power management IC RTC
 	  support. This chip contains a battery- and capacitor-backed RTC.
 
-config RTC_DRV_NUC900
-	tristate "NUC910/NUC920 RTC driver"
-	depends on ARCH_W90X900 || COMPILE_TEST
-	help
-	  If you say yes here you get support for the RTC subsystem of the
-	  NUC910/NUC920 used in embedded systems.
-
 config RTC_DRV_OPAL
 	tristate "IBM OPAL RTC driver"
 	depends on PPC_POWERNV
@@ -1322,6 +1333,21 @@ config RTC_DRV_IMXDI
 
 	   This driver can also be built as a module, if so, the module
 	   will be called "rtc-imxdi".
+
+config RTC_DRV_FSL_FTM_ALARM
+	tristate "Freescale FlexTimer alarm timer"
+	depends on ARCH_LAYERSCAPE || SOC_LS1021A
+	select FSL_RCPM
+	default y
+	help
+	   For the FlexTimer in LS1012A, LS1021A, LS1028A, LS1043A, LS1046A,
+	   LS1088A, LS208xA, we can use FTM as the wakeup source.
+
+	   Say y here to enable FTM alarm support. The FTM alarm provides
+	   alarm functions for wakeup system from deep sleep.
+
+	   This driver can also be built as a module, if so, the module
+	   will be called "rtc-fsl-ftm-alarm".
 
 config RTC_DRV_MESON
 	tristate "Amlogic Meson RTC"

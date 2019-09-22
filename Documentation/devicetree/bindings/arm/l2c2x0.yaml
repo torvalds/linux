@@ -176,6 +176,10 @@ properties:
     description: disable parity checking on the L2 cache (L220 or PL310).
     type: boolean
 
+  marvell,ecc-enable:
+    description: enable ECC protection on the L2 cache
+    type: boolean
+
   arm,outer-sync-disable:
     description: disable the outer sync operation on the L2 cache.
       Some core tiles, especially ARM PB11MPCore have a faulty L220 cache that
