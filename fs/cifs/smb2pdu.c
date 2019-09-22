@@ -2352,6 +2352,7 @@ int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = n_iov;
 
+	/* no need to inc num_remote_opens because we close it just below */
 	trace_smb3_posix_mkdir_enter(xid, tcon->tid, ses->Suid, CREATE_NOT_FILE,
 				    FILE_WRITE_ATTRIBUTES);
 	/* resource #4: response buffer */
