@@ -1475,8 +1475,9 @@ lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *phba)
 	int i;
 
 	msleep(100);
-	lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
-		   &portstat_reg.word0);
+	if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+		       &portstat_reg.word0))
+		return -EIO;
 
 	/* verify if privileged for the request operation */
 	if (!bf_get(lpfc_sliport_status_rn, &portstat_reg) &&
@@ -1486,8 +1487,9 @@ lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *phba)
 	/* wait for the SLI port firmware ready after firmware reset */
 	for (i = 0; i < LPFC_FW_RESET_MAXIMUM_WAIT_10MS_CNT; i++) {
 		msleep(10);
-		lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
-			   &portstat_reg.word0);
+		if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+			       &portstat_reg.word0))
+			continue;
 		if (!bf_get(lpfc_sliport_status_err, &portstat_reg))
 			continue;
 		if (!bf_get(lpfc_sliport_status_rn, &portstat_reg))
