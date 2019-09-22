@@ -13260,7 +13260,6 @@ lpfc_sli4_sp_handle_els_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	struct lpfc_sli_ring *pring = cq->pring;
 	int txq_cnt = 0;
 	int txcmplq_cnt = 0;
-	int fcp_txcmplq_cnt = 0;
 
 	/* Check for response status */
 	if (unlikely(bf_get(lpfc_wcqe_c_status, wcqe))) {
@@ -13282,9 +13281,8 @@ lpfc_sli4_sp_handle_els_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 			txcmplq_cnt++;
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 			"0387 NO IOCBQ data: txq_cnt=%d iocb_cnt=%d "
-			"fcp_txcmplq_cnt=%d, els_txcmplq_cnt=%d\n",
+			"els_txcmplq_cnt=%d\n",
 			txq_cnt, phba->iocb_cnt,
-			fcp_txcmplq_cnt,
 			txcmplq_cnt);
 		return false;
 	}
