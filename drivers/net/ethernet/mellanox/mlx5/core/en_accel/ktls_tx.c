@@ -24,14 +24,12 @@ enum {
 static void
 fill_static_params_ctx(void *ctx, struct mlx5e_ktls_offload_context_tx *priv_tx)
 {
-	struct tls_crypto_info *crypto_info = priv_tx->crypto_info;
-	struct tls12_crypto_info_aes_gcm_128 *info;
+	struct tls12_crypto_info_aes_gcm_128 *info = &priv_tx->crypto_info;
 	char *initial_rn, *gcm_iv;
 	u16 salt_sz, rec_seq_sz;
 	char *salt, *rec_seq;
 	u8 tls_version;
 
-	info = (struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
 	EXTRACT_INFO_FIELDS;
 
 	gcm_iv      = MLX5_ADDR_OF(tls_static_params, ctx, gcm_iv);
@@ -233,14 +231,12 @@ tx_post_resync_params(struct mlx5e_txqsq *sq,
 		      struct mlx5e_ktls_offload_context_tx *priv_tx,
 		      u64 rcd_sn)
 {
-	struct tls_crypto_info *crypto_info = priv_tx->crypto_info;
-	struct tls12_crypto_info_aes_gcm_128 *info;
+	struct tls12_crypto_info_aes_gcm_128 *info = &priv_tx->crypto_info;
 	__be64 rn_be = cpu_to_be64(rcd_sn);
 	bool skip_static_post;
 	u16 rec_seq_sz;
 	char *rec_seq;
 
-	info = (struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
 	rec_seq = info->rec_seq;
 	rec_seq_sz = sizeof(info->rec_seq);
 

@@ -38,7 +38,7 @@ static int mlx5e_ktls_add(struct net_device *netdev, struct sock *sk,
 		return -ENOMEM;
 
 	tx_priv->expected_seq = start_offload_tcp_sn;
-	tx_priv->crypto_info  = crypto_info;
+	tx_priv->crypto_info  = *(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
 	mlx5e_set_ktls_tx_priv_ctx(tls_ctx, tx_priv);
 
 	/* tc and underlay_qpn values are not in use for tls tis */

@@ -44,7 +44,7 @@ enum {
 
 struct mlx5e_ktls_offload_context_tx {
 	struct tls_offload_context_tx *tx_ctx;
-	struct tls_crypto_info *crypto_info;
+	struct tls12_crypto_info_aes_gcm_128 crypto_info;
 	u32 expected_seq;
 	u32 tisn;
 	u32 key_id;
