@@ -5289,10 +5289,10 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 	evt_type = bf_get(lpfc_trailer_type, acqe_sli);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-			"2901 Async SLI event - Event Data1:x%08x Event Data2:"
-			"x%08x SLI Event Type:%d\n",
+			"2901 Async SLI event - Type:%d, Event Data: x%08x "
+			"x%08x x%08x x%08x\n", evt_type,
 			acqe_sli->event_data1, acqe_sli->event_data2,
-			evt_type);
+			acqe_sli->reserved, acqe_sli->trailer);
 
 	port_name = phba->Port[0];
 	if (port_name == 0x00)
@@ -5439,11 +5439,16 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 				"Event Data1:x%08x Event Data2: x%08x\n",
 				acqe_sli->event_data1, acqe_sli->event_data2);
 		break;
+	case LPFC_SLI_EVENT_TYPE_EEPROM_FAILURE:
+		/* EEPROM failure. No driver action is required */
+		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+			     "2518 EEPROM failure - "
+			     "Event Data1: x%08x Event Data2: x%08x\n",
+			     acqe_sli->event_data1, acqe_sli->event_data2);
+		break;
 	default:
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-				"3193 Async SLI event - Event Data1:x%08x Event Data2:"
-				"x%08x SLI Event Type:%d\n",
-				acqe_sli->event_data1, acqe_sli->event_data2,
+				"3193 Unrecognized SLI event, type: 0x%x",
 				evt_type);
 		break;
 	}
