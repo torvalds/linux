@@ -473,7 +473,7 @@ static void __bch2_btree_iter_verify(struct btree_iter *iter,
 	}
 
 	BUG_ON(iter->uptodate == BTREE_ITER_UPTODATE &&
-	       (iter->flags & BTREE_ITER_TYPE) == BTREE_ITER_KEYS &&
+	       btree_iter_type(iter) == BTREE_ITER_KEYS &&
 	       !bkey_whiteout(&iter->k) &&
 	       bch2_btree_node_iter_end(&l->iter));
 }
@@ -1152,6 +1152,7 @@ static inline void bch2_btree_iter_checks(struct btree_iter *iter,
 	EBUG_ON(!!(iter->flags & BTREE_ITER_IS_EXTENTS) !=
 		(btree_node_type_is_extents(iter->btree_id) &&
 		 type != BTREE_ITER_NODES));
+	EBUG_ON(btree_iter_type(iter) != type);
 
 	bch2_btree_trans_verify_locks(iter->trans);
 }
@@ -1661,7 +1662,7 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 {
 	int ret;
 
-	bch2_btree_iter_checks(iter, BTREE_ITER_SLOTS);
+	bch2_btree_iter_checks(iter, BTREE_ITER_KEYS);
 
 	if (iter->uptodate == BTREE_ITER_UPTODATE)
 		return btree_iter_peek_uptodate(iter);
@@ -1675,7 +1676,7 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 
 struct bkey_s_c bch2_btree_iter_next_slot(struct btree_iter *iter)
 {
-	bch2_btree_iter_checks(iter, BTREE_ITER_SLOTS);
+	bch2_btree_iter_checks(iter, BTREE_ITER_KEYS);
 
 	iter->pos = btree_type_successor(iter->btree_id, iter->k.p);
 
@@ -1830,7 +1831,7 @@ success:
 	return 0;
 }
 
-static int btree_trans_iter_alloc(struct btree_trans *trans)
+static struct btree_iter *btree_trans_iter_alloc(struct btree_trans *trans)
 {
 	unsigned idx = __ffs64(~trans->iters_linked);
 
@@ -1840,7 +1841,7 @@ static int btree_trans_iter_alloc(struct btree_trans *trans)
 	if (trans->nr_iters == trans->size) {
 		int ret = bch2_trans_realloc_iters(trans, trans->size * 2);
 		if (ret)
-			return ret;
+			return ERR_PTR(ret);
 	}
 
 	idx = trans->nr_iters++;
@@ -1850,7 +1851,7 @@ static int btree_trans_iter_alloc(struct btree_trans *trans)
 got_slot:
 	BUG_ON(trans->iters_linked & (1ULL << idx));
 	trans->iters_linked |= 1ULL << idx;
-	return idx;
+	return &trans->iters[idx];
 }
 
 static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
@@ -1858,37 +1859,29 @@ static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
 						 unsigned flags, u64 iter_id)
 {
 	struct btree_iter *iter;
-	int idx;
 
 	BUG_ON(trans->nr_iters > BTREE_ITER_MAX);
 
-	for (idx = 0; idx < trans->nr_iters; idx++) {
-		if (!(trans->iters_linked & (1ULL << idx)))
-			continue;
-
-		iter = &trans->iters[idx];
+	trans_for_each_iter(trans, iter)
 		if (iter_id
 		    ? iter->id == iter_id
 		    : (iter->btree_id == btree_id &&
 		       !bkey_cmp(iter->pos, pos)))
 			goto found;
-	}
-	idx = -1;
-found:
-	if (idx < 0) {
-		idx = btree_trans_iter_alloc(trans);
-		if (idx < 0)
-			return ERR_PTR(idx);
 
-		iter = &trans->iters[idx];
+	iter = NULL;
+found:
+	if (!iter) {
+		iter = btree_trans_iter_alloc(trans);
+		if (IS_ERR(iter))
+			return iter;
+
 		iter->id = iter_id;
 
 		bch2_btree_iter_init(trans, iter, btree_id, pos, flags);
 	} else {
-		iter = &trans->iters[idx];
-
-		iter->flags &= ~(BTREE_ITER_INTENT|BTREE_ITER_PREFETCH);
-		iter->flags |= flags & (BTREE_ITER_INTENT|BTREE_ITER_PREFETCH);
+		iter->flags &= ~(BTREE_ITER_SLOTS|BTREE_ITER_INTENT|BTREE_ITER_PREFETCH);
+		iter->flags |= flags & (BTREE_ITER_SLOTS|BTREE_ITER_INTENT|BTREE_ITER_PREFETCH);
 
 		if ((iter->flags & BTREE_ITER_INTENT) &&
 		    !bch2_btree_iter_upgrade(iter, 1)) {
@@ -1898,9 +1891,9 @@ found:
 	}
 
 	BUG_ON(iter->btree_id != btree_id);
-	BUG_ON(trans->iters_live & (1ULL << idx));
-	trans->iters_live	|= 1ULL << idx;
-	trans->iters_touched	|= 1ULL << idx;
+	BUG_ON(trans->iters_live & (1ULL << iter->idx));
+	trans->iters_live	|= 1ULL << iter->idx;
+	trans->iters_touched	|= 1ULL << iter->idx;
 
 	BUG_ON(iter->btree_id != btree_id);
 	BUG_ON((iter->flags ^ flags) & BTREE_ITER_TYPE);
@@ -1950,29 +1943,26 @@ struct btree_iter *bch2_trans_copy_iter(struct btree_trans *trans,
 					struct btree_iter *src)
 {
 	struct btree_iter *iter;
-	unsigned offset = offsetof(struct btree_iter, trans);
-	int i, idx;
+	int idx, i;
 
-	idx = btree_trans_iter_alloc(trans);
-	if (idx < 0)
-		return ERR_PTR(idx);
+	iter = btree_trans_iter_alloc(trans);
+	if (IS_ERR(iter))
+		return iter;
+
+	idx = iter->idx;
+	*iter = *src;
+	iter->idx = idx;
 
 	trans->iters_live		|= 1ULL << idx;
 	trans->iters_touched		|= 1ULL << idx;
 	trans->iters_unlink_on_restart	|= 1ULL << idx;
-
-	iter = &trans->iters[idx];
-
-	memcpy((void *) iter + offset,
-	       (void *)  src + offset,
-	       sizeof(*iter) - offset);
 
 	for (i = 0; i < BTREE_MAX_DEPTH; i++)
 		if (btree_node_locked(iter, i))
 			six_lock_increment(&iter->l[i].b->c.lock,
 					   __btree_lock_want(iter, i));
 
-	return &trans->iters[idx];
+	return iter;
 }
 
 static int bch2_trans_preload_mem(struct btree_trans *trans, size_t size)

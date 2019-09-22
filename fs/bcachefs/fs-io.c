@@ -447,10 +447,9 @@ static int bchfs_write_index_update(struct bch_write_op *wop)
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
 
-	iter = bch2_trans_get_iter(&trans,
-				BTREE_ID_EXTENTS,
-				bkey_start_pos(&k->k),
-				BTREE_ITER_INTENT);
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+				   bkey_start_pos(&k->k),
+				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 	do {
 		BKEY_PADDED(k) tmp;

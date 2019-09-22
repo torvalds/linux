@@ -183,20 +183,20 @@ struct btree_node_iter {
 
 enum btree_iter_type {
 	BTREE_ITER_KEYS,
-	BTREE_ITER_SLOTS,
 	BTREE_ITER_NODES,
 };
 
 #define BTREE_ITER_TYPE			((1 << 2) - 1)
 
-#define BTREE_ITER_INTENT		(1 << 2)
-#define BTREE_ITER_PREFETCH		(1 << 3)
+#define BTREE_ITER_SLOTS		(1 << 2)
+#define BTREE_ITER_INTENT		(1 << 3)
+#define BTREE_ITER_PREFETCH		(1 << 4)
 /*
  * Used in bch2_btree_iter_traverse(), to indicate whether we're searching for
  * @pos or the first key strictly greater than @pos
  */
-#define BTREE_ITER_IS_EXTENTS		(1 << 4)
-#define BTREE_ITER_ERROR		(1 << 5)
+#define BTREE_ITER_IS_EXTENTS		(1 << 5)
+#define BTREE_ITER_ERROR		(1 << 6)
 
 enum btree_iter_uptodate {
 	BTREE_ITER_UPTODATE		= 0,
@@ -240,6 +240,11 @@ struct btree_iter {
 
 	u64			id;
 };
+
+static inline enum btree_iter_type btree_iter_type(struct btree_iter *iter)
+{
+	return iter->flags & BTREE_ITER_TYPE;
+}
 
 struct deferred_update {
 	struct journal_preres	res;

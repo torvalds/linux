@@ -1417,8 +1417,8 @@ retry:
 	bch2_trans_begin(&trans);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, rbio->pos,
-				   BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek(iter);
+				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	k = bch2_btree_iter_peek_slot(iter);
 	if (IS_ERR_OR_NULL(k.k))
 		goto out;
 
