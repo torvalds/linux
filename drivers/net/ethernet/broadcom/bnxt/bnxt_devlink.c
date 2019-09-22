@@ -98,10 +98,13 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 	if (idx)
 		req->dimensions = cpu_to_le16(1);
 
-	if (req->req_type == cpu_to_le16(HWRM_NVM_SET_VARIABLE))
+	if (req->req_type == cpu_to_le16(HWRM_NVM_SET_VARIABLE)) {
 		memcpy(data_addr, buf, bytesize);
-
-	rc = hwrm_send_message(bp, msg, msg_len, HWRM_CMD_TIMEOUT);
+		rc = hwrm_send_message(bp, msg, msg_len, HWRM_CMD_TIMEOUT);
+	} else {
+		rc = hwrm_send_message_silent(bp, msg, msg_len,
+					      HWRM_CMD_TIMEOUT);
+	}
 	if (!rc && req->req_type == cpu_to_le16(HWRM_NVM_GET_VARIABLE))
 		memcpy(buf, data_addr, bytesize);
 

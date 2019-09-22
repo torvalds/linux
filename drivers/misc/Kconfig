@@ -465,6 +465,7 @@ config PCI_ENDPOINT_TEST
 
 config XILINX_SDFEC
 	tristate "Xilinx SDFEC 16"
+	depends on HAS_IOMEM
 	help
 	  This option enables support for the Xilinx SDFEC (Soft Decision
 	  Forward Error Correction) driver. This enables a char driver

@@ -1969,6 +1969,7 @@ void wilc_deinit_host_int(struct net_device *net)
 
 	priv->p2p_listen_state = false;
 
+	flush_workqueue(vif->wilc->hif_workqueue);
 	mutex_destroy(&priv->scan_req_lock);
 	ret = wilc_deinit(vif);
 

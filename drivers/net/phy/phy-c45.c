@@ -219,6 +219,20 @@ int genphy_c45_read_link(struct phy_device *phydev)
 	int val, devad;
 	bool link = true;
 
+	if (phydev->c45_ids.devices_in_package & MDIO_DEVS_AN) {
+		val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_CTRL1);
+		if (val < 0)
+			return val;
+
+		/* Autoneg is being started, therefore disregard current
+		 * link status and report link as down.
+		 */
+		if (val & MDIO_AN_CTRL1_RESTART) {
+			phydev->link = 0;
+			return 0;
+		}
+	}
+
 	while (mmd_mask && link) {
 		devad = __ffs(mmd_mask);
 		mmd_mask &= ~BIT(devad);

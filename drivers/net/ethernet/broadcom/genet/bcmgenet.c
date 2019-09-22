@@ -1895,7 +1895,7 @@ static int bcmgenet_rx_poll(struct napi_struct *napi, int budget)
 {
 	struct bcmgenet_rx_ring *ring = container_of(napi,
 			struct bcmgenet_rx_ring, napi);
-	struct dim_sample dim_sample;
+	struct dim_sample dim_sample = {};
 	unsigned int work_done;
 
 	work_done = bcmgenet_desc_rx(ring, budget);

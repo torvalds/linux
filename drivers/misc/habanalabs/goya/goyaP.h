@@ -177,7 +177,7 @@ int goya_late_init(struct hl_device *hdev);
 void goya_late_fini(struct hl_device *hdev);
 
 void goya_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi);
-void goya_flush_pq_write(struct hl_device *hdev, u64 *pq, u64 exp_val);
+void goya_pqe_write(struct hl_device *hdev, __le64 *pqe, struct hl_bd *bd);
 void goya_update_eq_ci(struct hl_device *hdev, u32 val);
 void goya_restore_phase_topology(struct hl_device *hdev);
 int goya_context_switch(struct hl_device *hdev, u32 asid);

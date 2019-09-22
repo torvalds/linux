@@ -76,26 +76,21 @@ static int mlx5e_tx_reporter_err_cqe_recover(struct mlx5e_txqsq *sq)
 	u8 state;
 	int err;
 
-	if (!test_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state))
-		return 0;
-
 	err = mlx5_core_query_sq_state(mdev, sq->sqn, &state);
 	if (err) {
 		netdev_err(dev, "Failed to query SQ 0x%x state. err = %d\n",
 			   sq->sqn, err);
-		return err;
+		goto out;
 	}
 
-	if (state != MLX5_SQC_STATE_ERR) {
-		netdev_err(dev, "SQ 0x%x not in ERROR state\n", sq->sqn);
-		return -EINVAL;
-	}
+	if (state != MLX5_SQC_STATE_ERR)
+		goto out;
 
 	mlx5e_tx_disable_queue(sq->txq);
 
 	err = mlx5e_wait_for_sq_flush(sq);
 	if (err)
-		return err;
+		goto out;
 
 	/* At this point, no new packets will arrive from the stack as TXQ is
 	 * marked with QUEUE_STATE_DRV_XOFF. In addition, NAPI cleared all
@@ -104,13 +99,17 @@ static int mlx5e_tx_reporter_err_cqe_recover(struct mlx5e_txqsq *sq)
 
 	err = mlx5e_sq_to_ready(sq, state);
 	if (err)
-		return err;
+		goto out;
 
 	mlx5e_reset_txqsq_cc_pc(sq);
 	sq->stats->recover++;
+	clear_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state);
 	mlx5e_activate_txqsq(sq);
 
 	return 0;
+out:
+	clear_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state);
+	return err;
 }
 
 static int mlx5_tx_health_report(struct devlink_health_reporter *tx_reporter,

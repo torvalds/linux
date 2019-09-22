@@ -2026,7 +2026,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_SUBSCRIBE_EVENT)(
 			event_sub->eventfd =
 				eventfd_ctx_fdget(redirect_fd);
 
-			if (IS_ERR(event_sub)) {
+			if (IS_ERR(event_sub->eventfd)) {
 				err = PTR_ERR(event_sub->eventfd);
 				event_sub->eventfd = NULL;
 				goto err;
@@ -2644,12 +2644,13 @@ static int devx_async_event_close(struct inode *inode, struct file *filp)
 	struct devx_async_event_file *ev_file = filp->private_data;
 	struct devx_event_subscription *event_sub, *event_sub_tmp;
 	struct devx_async_event_data *entry, *tmp;
+	struct mlx5_ib_dev *dev = ev_file->dev;
 
-	mutex_lock(&ev_file->dev->devx_event_table.event_xa_lock);
+	mutex_lock(&dev->devx_event_table.event_xa_lock);
 	/* delete the subscriptions which are related to this FD */
 	list_for_each_entry_safe(event_sub, event_sub_tmp,
 				 &ev_file->subscribed_events_list, file_list) {
-		devx_cleanup_subscription(ev_file->dev, event_sub);
+		devx_cleanup_subscription(dev, event_sub);
 		if (event_sub->eventfd)
 			eventfd_ctx_put(event_sub->eventfd);
 
@@ -2658,7 +2659,7 @@ static int devx_async_event_close(struct inode *inode, struct file *filp)
 		kfree_rcu(event_sub, rcu);
 	}
 
-	mutex_unlock(&ev_file->dev->devx_event_table.event_xa_lock);
+	mutex_unlock(&dev->devx_event_table.event_xa_lock);
 
 	/* free the pending events allocation */
 	if (!ev_file->omit_data) {
@@ -2670,7 +2671,7 @@ static int devx_async_event_close(struct inode *inode, struct file *filp)
 	}
 
 	uverbs_close_fd(filp);
-	put_device(&ev_file->dev->ib_dev.dev);
+	put_device(&dev->ib_dev.dev);
 	return 0;
 }
 

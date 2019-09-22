@@ -646,7 +646,7 @@ tc_cls_common_offload_init(struct flow_cls_common_offload *cls_common,
 {
 	cls_common->chain_index = tp->chain->index;
 	cls_common->protocol = tp->protocol;
-	cls_common->prio = tp->prio;
+	cls_common->prio = tp->prio >> 16;
 	if (tc_skip_sw(flags) || flags & TCA_CLS_FLAGS_VERBOSE)
 		cls_common->extack = extack;
 }

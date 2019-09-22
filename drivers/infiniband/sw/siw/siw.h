@@ -214,7 +214,7 @@ struct siw_wqe {
 struct siw_cq {
 	struct ib_cq base_cq;
 	spinlock_t lock;
-	u64 *notify;
+	struct siw_cq_ctrl *notify;
 	struct siw_cqe *queue;
 	u32 cq_put;
 	u32 cq_get;

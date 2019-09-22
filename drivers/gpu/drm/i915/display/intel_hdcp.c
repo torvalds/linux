@@ -536,7 +536,8 @@ int intel_hdcp_auth_downstream(struct intel_connector *connector)
 
 	if (drm_hdcp_check_ksvs_revoked(dev, ksv_fifo, num_downstream)) {
 		DRM_ERROR("Revoked Ksv(s) in ksv_fifo\n");
-		return -EPERM;
+		ret = -EPERM;
+		goto err;
 	}
 
 	/*

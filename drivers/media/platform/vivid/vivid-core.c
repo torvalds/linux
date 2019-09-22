@@ -1099,6 +1099,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 
 	/* start creating the vb2 queues */
 	if (dev->has_vid_cap) {
+		snprintf(dev->vid_cap_dev.name, sizeof(dev->vid_cap_dev.name),
+			 "vivid-%03d-vid-cap", inst);
 		/* initialize vid_cap queue */
 		q = &dev->vb_vid_cap_q;
 		q->type = dev->multiplanar ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE :
@@ -1122,6 +1124,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	}
 
 	if (dev->has_vid_out) {
+		snprintf(dev->vid_out_dev.name, sizeof(dev->vid_out_dev.name),
+			 "vivid-%03d-vid-out", inst);
 		/* initialize vid_out queue */
 		q = &dev->vb_vid_out_q;
 		q->type = dev->multiplanar ? V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE :
@@ -1265,8 +1269,6 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	/* finally start creating the device nodes */
 	if (dev->has_vid_cap) {
 		vfd = &dev->vid_cap_dev;
-		snprintf(vfd->name, sizeof(vfd->name),
-			 "vivid-%03d-vid-cap", inst);
 		vfd->fops = &vivid_fops;
 		vfd->ioctl_ops = &vivid_ioctl_ops;
 		vfd->device_caps = dev->vid_cap_caps;
@@ -1312,8 +1314,6 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 
 	if (dev->has_vid_out) {
 		vfd = &dev->vid_out_dev;
-		snprintf(vfd->name, sizeof(vfd->name),
-			 "vivid-%03d-vid-out", inst);
 		vfd->vfl_dir = VFL_DIR_TX;
 		vfd->fops = &vivid_fops;
 		vfd->ioctl_ops = &vivid_ioctl_ops;

@@ -1049,7 +1049,7 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 
 	spin_lock_init(&cq->lock);
 
-	cq->notify = &((struct siw_cq_ctrl *)&cq->queue[size])->notify;
+	cq->notify = (struct siw_cq_ctrl *)&cq->queue[size];
 
 	if (udata) {
 		struct siw_uresp_create_cq uresp = {};
@@ -1141,11 +1141,17 @@ int siw_req_notify_cq(struct ib_cq *base_cq, enum ib_cq_notify_flags flags)
 	siw_dbg_cq(cq, "flags: 0x%02x\n", flags);
 
 	if ((flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED)
-		/* CQ event for next solicited completion */
-		smp_store_mb(*cq->notify, SIW_NOTIFY_SOLICITED);
+		/*
+		 * Enable CQ event for next solicited completion.
+		 * and make it visible to all associated producers.
+		 */
+		smp_store_mb(cq->notify->flags, SIW_NOTIFY_SOLICITED);
 	else
-		/* CQ event for any signalled completion */
-		smp_store_mb(*cq->notify, SIW_NOTIFY_ALL);
+		/*
+		 * Enable CQ event for any signalled completion.
+		 * and make it visible to all associated producers.
+		 */
+		smp_store_mb(cq->notify->flags, SIW_NOTIFY_ALL);
 
 	if (flags & IB_CQ_REPORT_MISSED_EVENTS)
 		return cq->cq_put - cq->cq_get;

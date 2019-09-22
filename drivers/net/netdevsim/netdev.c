@@ -357,12 +357,18 @@ static int __init nsim_module_init(void)
 	if (err)
 		goto err_dev_exit;
 
-	err = rtnl_link_register(&nsim_link_ops);
+	err = nsim_fib_init();
 	if (err)
 		goto err_bus_exit;
 
+	err = rtnl_link_register(&nsim_link_ops);
+	if (err)
+		goto err_fib_exit;
+
 	return 0;
 
+err_fib_exit:
+	nsim_fib_exit();
 err_bus_exit:
 	nsim_bus_exit();
 err_dev_exit:
@@ -373,6 +379,7 @@ err_dev_exit:
 static void __exit nsim_module_exit(void)
 {
 	rtnl_link_unregister(&nsim_link_ops);
+	nsim_fib_exit();
 	nsim_bus_exit();
 	nsim_dev_exit();
 }

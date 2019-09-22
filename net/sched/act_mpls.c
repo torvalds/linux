@@ -138,6 +138,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 	struct tcf_mpls *m;
 	int ret = 0, err;
 	u8 mpls_ttl = 0;
+	u32 index;
 
 	if (!nla) {
 		NL_SET_ERR_MSG_MOD(extack, "Missing netlink attributes");
@@ -153,6 +154,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 	}
 	parm = nla_data(tb[TCA_MPLS_PARMS]);
+	index = parm->index;
 
 	/* Verify parameters against action type. */
 	switch (parm->m_action) {
@@ -209,7 +211,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 	}
 
-	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (err < 0)
 		return err;
 	exists = err;
@@ -217,10 +219,10 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 		return 0;
 
 	if (!exists) {
-		ret = tcf_idr_create(tn, parm->index, est, a,
+		ret = tcf_idr_create(tn, index, est, a,
 				     &act_mpls_ops, bind, true);
 		if (ret) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			return ret;
 		}
 

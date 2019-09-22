@@ -87,7 +87,7 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
 	*_top = top;
 
 	pkt->ack.bufferSpace	= htons(8);
-	pkt->ack.maxSkew	= htons(call->ackr_skew);
+	pkt->ack.maxSkew	= htons(0);
 	pkt->ack.firstPacket	= htonl(hard_ack + 1);
 	pkt->ack.previousPacket	= htonl(call->ackr_prev_seq);
 	pkt->ack.serial		= htonl(serial);
@@ -228,7 +228,6 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 			if (ping)
 				clear_bit(RXRPC_CALL_PINGING, &call->flags);
 			rxrpc_propose_ACK(call, pkt->ack.reason,
-					  ntohs(pkt->ack.maxSkew),
 					  ntohl(pkt->ack.serial),
 					  false, true,
 					  rxrpc_propose_ack_retry_tx);

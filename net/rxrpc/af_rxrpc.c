@@ -193,7 +193,7 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 
 service_in_use:
 	write_unlock(&local->services_lock);
-	rxrpc_put_local(local);
+	rxrpc_unuse_local(local);
 	ret = -EADDRINUSE;
 error_unlock:
 	release_sock(&rx->sk);
@@ -402,7 +402,7 @@ EXPORT_SYMBOL(rxrpc_kernel_check_life);
  */
 void rxrpc_kernel_probe_life(struct socket *sock, struct rxrpc_call *call)
 {
-	rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, false,
+	rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, true, false,
 			  rxrpc_propose_ack_ping_for_check_life);
 	rxrpc_send_ack_packet(call, true, NULL);
 }
@@ -901,7 +901,7 @@ static int rxrpc_release_sock(struct sock *sk)
 	rxrpc_queue_work(&rxnet->service_conn_reaper);
 	rxrpc_queue_work(&rxnet->client_conn_reaper);
 
-	rxrpc_put_local(rx->local);
+	rxrpc_unuse_local(rx->local);
 	rx->local = NULL;
 	key_put(rx->key);
 	rx->key = NULL;

@@ -1958,13 +1958,9 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	rq = blk_mq_get_request(q, bio, &data);
 	if (unlikely(!rq)) {
 		rq_qos_cleanup(q, bio);
-
-		cookie = BLK_QC_T_NONE;
-		if (bio->bi_opf & REQ_NOWAIT_INLINE)
-			cookie = BLK_QC_T_EAGAIN;
-		else if (bio->bi_opf & REQ_NOWAIT)
+		if (bio->bi_opf & REQ_NOWAIT)
 			bio_wouldblock_error(bio);
-		return cookie;
+		return BLK_QC_T_NONE;
 	}
 
 	trace_block_getrq(q, bio, bio->bi_opf);
@@ -2665,8 +2661,6 @@ void blk_mq_release(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx, *next;
 	int i;
-
-	cancel_delayed_work_sync(&q->requeue_work);
 
 	queue_for_each_hw_ctx(q, hctx, i)
 		WARN_ON_ONCE(hctx && list_empty(&hctx->hctx_list));

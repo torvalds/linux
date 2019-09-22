@@ -331,7 +331,7 @@ struct inet_frag_queue *inet_frag_find(struct fqdir *fqdir, void *key)
 	prev = rhashtable_lookup(&fqdir->rhashtable, key, fqdir->f->rhash_params);
 	if (!prev)
 		fq = inet_frag_create(fqdir, key, &prev);
-	if (prev && !IS_ERR(prev)) {
+	if (!IS_ERR_OR_NULL(prev)) {
 		fq = prev;
 		if (!refcount_inc_not_zero(&fq->refcnt))
 			fq = NULL;
@@ -475,11 +475,12 @@ void *inet_frag_reasm_prepare(struct inet_frag_queue *q, struct sk_buff *skb,
 EXPORT_SYMBOL(inet_frag_reasm_prepare);
 
 void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
-			    void *reasm_data)
+			    void *reasm_data, bool try_coalesce)
 {
 	struct sk_buff **nextp = (struct sk_buff **)reasm_data;
 	struct rb_node *rbn;
 	struct sk_buff *fp;
+	int sum_truesize;
 
 	skb_push(head, head->data - skb_network_header(head));
 
@@ -487,25 +488,41 @@ void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
 	fp = FRAG_CB(head)->next_frag;
 	rbn = rb_next(&head->rbnode);
 	rb_erase(&head->rbnode, &q->rb_fragments);
+
+	sum_truesize = head->truesize;
 	while (rbn || fp) {
 		/* fp points to the next sk_buff in the current run;
 		 * rbn points to the next run.
 		 */
 		/* Go through the current run. */
 		while (fp) {
-			*nextp = fp;
-			nextp = &fp->next;
-			fp->prev = NULL;
-			memset(&fp->rbnode, 0, sizeof(fp->rbnode));
-			fp->sk = NULL;
-			head->data_len += fp->len;
-			head->len += fp->len;
+			struct sk_buff *next_frag = FRAG_CB(fp)->next_frag;
+			bool stolen;
+			int delta;
+
+			sum_truesize += fp->truesize;
 			if (head->ip_summed != fp->ip_summed)
 				head->ip_summed = CHECKSUM_NONE;
 			else if (head->ip_summed == CHECKSUM_COMPLETE)
 				head->csum = csum_add(head->csum, fp->csum);
-			head->truesize += fp->truesize;
-			fp = FRAG_CB(fp)->next_frag;
+
+			if (try_coalesce && skb_try_coalesce(head, fp, &stolen,
+							     &delta)) {
+				kfree_skb_partial(fp, stolen);
+			} else {
+				fp->prev = NULL;
+				memset(&fp->rbnode, 0, sizeof(fp->rbnode));
+				fp->sk = NULL;
+
+				head->data_len += fp->len;
+				head->len += fp->len;
+				head->truesize += fp->truesize;
+
+				*nextp = fp;
+				nextp = &fp->next;
+			}
+
+			fp = next_frag;
 		}
 		/* Move to the next run. */
 		if (rbn) {
@@ -516,7 +533,7 @@ void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
 			rbn = rbnext;
 		}
 	}
-	sub_frag_mem_limit(q->fqdir, head->truesize);
+	sub_frag_mem_limit(q->fqdir, sum_truesize);
 
 	*nextp = NULL;
 	skb_mark_not_on_list(head);

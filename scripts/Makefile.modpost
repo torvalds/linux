@@ -85,10 +85,8 @@ endif
 
 include scripts/Makefile.lib
 
-modorder := $(if $(KBUILD_EXTMOD),$(KBUILD_EXTMOD)/)modules.order
-
 # find all modules listed in modules.order
-modules := $(sort $(shell cat $(modorder)))
+modules := $(sort $(shell cat $(MODORDER)))
 
 # Stop after building .o files if NOFINAL is set. Makes compile tests quicker
 __modpost: $(if $(KBUILD_MODPOST_NOFINAL), $(modules:.ko:.o),$(modules))
@@ -98,7 +96,7 @@ MODPOST += $(subst -i,-n,$(filter -i,$(MAKEFLAGS))) -s -T - $(wildcard vmlinux)
 
 # We can go over command line length here, so be careful.
 quiet_cmd_modpost = MODPOST $(words $(modules)) modules
-      cmd_modpost = sed 's/ko$$/o/' $(modorder) | $(MODPOST)
+      cmd_modpost = sed 's/ko$$/o/' $(MODORDER) | $(MODPOST)
 
 PHONY += modules-modpost
 modules-modpost:

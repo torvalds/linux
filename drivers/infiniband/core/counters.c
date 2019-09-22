@@ -38,6 +38,9 @@ int rdma_counter_set_auto_mode(struct ib_device *dev, u8 port,
 	int ret;
 
 	port_counter = &dev->port_data[port].port_counter;
+	if (!port_counter->hstats)
+		return -EOPNOTSUPP;
+
 	mutex_lock(&port_counter->lock);
 	if (on) {
 		ret = __counter_set_mode(&port_counter->mode,
@@ -508,6 +511,9 @@ int rdma_counter_bind_qpn_alloc(struct ib_device *dev, u8 port,
 
 	if (!rdma_is_port_valid(dev, port))
 		return -EINVAL;
+
+	if (!dev->port_data[port].port_counter.hstats)
+		return -EOPNOTSUPP;
 
 	qp = rdma_counter_get_qp(dev, qp_num);
 	if (!qp)

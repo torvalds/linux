@@ -984,6 +984,9 @@ new_segment:
 			if (!skb)
 				goto wait_for_memory;
 
+#ifdef CONFIG_TLS_DEVICE
+			skb->decrypted = !!(flags & MSG_SENDPAGE_DECRYPTED);
+#endif
 			skb_entail(sk, skb);
 			copy = size_goal;
 		}

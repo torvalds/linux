@@ -1924,12 +1924,13 @@ static void bfq_add_request(struct request *rq)
 		 * confirmed no later than during the next
 		 * I/O-plugging interval for bfqq.
 		 */
-		if (!bfq_bfqq_has_short_ttime(bfqq) &&
+		if (bfqd->last_completed_rq_bfqq &&
+		    !bfq_bfqq_has_short_ttime(bfqq) &&
 		    ktime_get_ns() - bfqd->last_completion <
 		    200 * NSEC_PER_USEC) {
 			if (bfqd->last_completed_rq_bfqq != bfqq &&
-				   bfqd->last_completed_rq_bfqq !=
-				   bfqq->waker_bfqq) {
+			    bfqd->last_completed_rq_bfqq !=
+			    bfqq->waker_bfqq) {
 				/*
 				 * First synchronization detected with
 				 * a candidate waker queue, or with a
@@ -2250,8 +2251,13 @@ static void bfq_request_merged(struct request_queue *q, struct request *req,
 	    blk_rq_pos(container_of(rb_prev(&req->rb_node),
 				    struct request, rb_node))) {
 		struct bfq_queue *bfqq = bfq_init_rq(req);
-		struct bfq_data *bfqd = bfqq->bfqd;
+		struct bfq_data *bfqd;
 		struct request *prev, *next_rq;
+
+		if (!bfqq)
+			return;
+
+		bfqd = bfqq->bfqd;
 
 		/* Reposition request in its sort_list */
 		elv_rb_del(&bfqq->sort_list, req);
@@ -2298,6 +2304,9 @@ static void bfq_requests_merged(struct request_queue *q, struct request *rq,
 {
 	struct bfq_queue *bfqq = bfq_init_rq(rq),
 		*next_bfqq = bfq_init_rq(next);
+
+	if (!bfqq)
+		return;
 
 	/*
 	 * If next and rq belong to the same bfq_queue and next is older
@@ -4764,6 +4773,8 @@ static struct request *bfq_dispatch_request(struct blk_mq_hw_ctx *hctx)
  */
 void bfq_put_queue(struct bfq_queue *bfqq)
 {
+	struct bfq_queue *item;
+	struct hlist_node *n;
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 	struct bfq_group *bfqg = bfqq_group(bfqq);
 #endif
@@ -4808,6 +4819,36 @@ void bfq_put_queue(struct bfq_queue *bfqq)
 			bfqq->bfqd->burst_size--;
 	}
 
+	/*
+	 * bfqq does not exist any longer, so it cannot be woken by
+	 * any other queue, and cannot wake any other queue. Then bfqq
+	 * must be removed from the woken list of its possible waker
+	 * queue, and all queues in the woken list of bfqq must stop
+	 * having a waker queue. Strictly speaking, these updates
+	 * should be performed when bfqq remains with no I/O source
+	 * attached to it, which happens before bfqq gets freed. In
+	 * particular, this happens when the last process associated
+	 * with bfqq exits or gets associated with a different
+	 * queue. However, both events lead to bfqq being freed soon,
+	 * and dangling references would come out only after bfqq gets
+	 * freed. So these updates are done here, as a simple and safe
+	 * way to handle all cases.
+	 */
+	/* remove bfqq from woken list */
+	if (!hlist_unhashed(&bfqq->woken_list_node))
+		hlist_del_init(&bfqq->woken_list_node);
+
+	/* reset waker for all queues in woken list */
+	hlist_for_each_entry_safe(item, n, &bfqq->woken_list,
+				  woken_list_node) {
+		item->waker_bfqq = NULL;
+		bfq_clear_bfqq_has_waker(item);
+		hlist_del_init(&item->woken_list_node);
+	}
+
+	if (bfqq->bfqd && bfqq->bfqd->last_completed_rq_bfqq == bfqq)
+		bfqq->bfqd->last_completed_rq_bfqq = NULL;
+
 	kmem_cache_free(bfq_pool, bfqq);
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 	bfqg_and_blkg_put(bfqg);
@@ -4835,9 +4876,6 @@ static void bfq_put_cooperator(struct bfq_queue *bfqq)
 
 static void bfq_exit_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 {
-	struct bfq_queue *item;
-	struct hlist_node *n;
-
 	if (bfqq == bfqd->in_service_queue) {
 		__bfq_bfqq_expire(bfqd, bfqq, BFQQE_BUDGET_TIMEOUT);
 		bfq_schedule_dispatch(bfqd);
@@ -4846,18 +4884,6 @@ static void bfq_exit_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 	bfq_log_bfqq(bfqd, bfqq, "exit_bfqq: %p, %d", bfqq, bfqq->ref);
 
 	bfq_put_cooperator(bfqq);
-
-	/* remove bfqq from woken list */
-	if (!hlist_unhashed(&bfqq->woken_list_node))
-		hlist_del_init(&bfqq->woken_list_node);
-
-	/* reset waker for all queues in woken list */
-	hlist_for_each_entry_safe(item, n, &bfqq->woken_list,
-				  woken_list_node) {
-		item->waker_bfqq = NULL;
-		bfq_clear_bfqq_has_waker(item);
-		hlist_del_init(&item->woken_list_node);
-	}
 
 	bfq_put_queue(bfqq); /* release process reference */
 }
@@ -5436,12 +5462,12 @@ static void bfq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 
 	spin_lock_irq(&bfqd->lock);
 	bfqq = bfq_init_rq(rq);
-	if (at_head || blk_rq_is_passthrough(rq)) {
+	if (!bfqq || at_head || blk_rq_is_passthrough(rq)) {
 		if (at_head)
 			list_add(&rq->queuelist, &bfqd->dispatch);
 		else
 			list_add_tail(&rq->queuelist, &bfqd->dispatch);
-	} else { /* bfqq is assumed to be non null here */
+	} else {
 		idle_timer_disabled = __bfq_insert_request(bfqd, rq);
 		/*
 		 * Update bfqq, because, if a queue merge has occurred

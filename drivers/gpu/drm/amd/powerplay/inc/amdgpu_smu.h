@@ -451,6 +451,7 @@ struct smu_dpm_context {
 struct smu_power_gate {
 	bool uvd_gated;
 	bool vce_gated;
+	bool vcn_gated;
 };
 
 struct smu_power_context {

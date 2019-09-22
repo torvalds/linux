@@ -315,6 +315,8 @@ int smu_get_power_num_states(struct smu_context *smu,
 int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size)
 {
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_power_gate *power_gate = &smu_power->power_gate;
 	int ret = 0;
 
 	switch (sensor) {
@@ -339,7 +341,7 @@ int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_VCN_POWER_STATE:
-		*(uint32_t *)data = smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT) ? 1 : 0;
+		*(uint32_t *)data = power_gate->vcn_gated ? 0 : 1;
 		*size = 4;
 		break;
 	default:
