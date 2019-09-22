@@ -7126,7 +7126,7 @@ lpfc_init_iocb_list(struct lpfc_hba *phba, int iocb_count)
 		if (iocbq_entry == NULL) {
 			printk(KERN_ERR "%s: only allocated %d iocbs of "
 				"expected %d count. Unloading driver.\n",
-				__func__, i, LPFC_IOCB_LIST_CNT);
+				__func__, i, iocb_count);
 			goto out_free_iocbq;
 		}
 
@@ -11591,13 +11591,10 @@ fcponly:
 	}
 
 	/* If the NVME FC4 type is enabled, scale the sg_seg_cnt to
-	 * accommodate 512K and 1M IOs in a single nvme buf and supply
-	 * enough NVME LS iocb buffers for larger connectivity counts.
+	 * accommodate 512K and 1M IOs in a single nvme buf.
 	 */
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
 		phba->cfg_sg_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
-		phba->cfg_iocb_cnt = 5;
-	}
 
 	/* Only embed PBDE for if_type 6, PBDE support requires xib be set */
 	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
