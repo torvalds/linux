@@ -466,6 +466,13 @@ config EDAC_SIFIVE
 	help
 	  Support for error detection and correction on the SiFive SoCs.
 
+config EDAC_ARMADA_XP
+	bool "Marvell Armada XP DDR and L2 Cache ECC"
+	depends on MACH_MVEBU_V7
+	help
+	  Support for error correction and detection on the Marvell Aramada XP
+	  DDR RAM and L2 cache controllers.
+
 config EDAC_SYNOPSYS
 	tristate "Synopsys DDR Memory Controller"
 	depends on ARCH_ZYNQ || ARCH_ZYNQMP
