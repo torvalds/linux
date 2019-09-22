@@ -955,6 +955,7 @@ static void tegra20_cpu_clock_suspend(void)
 static void tegra20_cpu_clock_resume(void)
 {
 	unsigned int reg, policy;
+	u32 misc, base;
 
 	/* Is CPU complex already running on PLLX? */
 	reg = readl(clk_base + CCLK_BURST_POLICY);
@@ -968,15 +969,21 @@ static void tegra20_cpu_clock_resume(void)
 		BUG();
 
 	if (reg != CCLK_BURST_POLICY_PLLX) {
-		/* restore PLLX settings if CPU is on different PLL */
-		writel(tegra20_cpu_clk_sctx.pllx_misc,
-					clk_base + PLLX_MISC);
-		writel(tegra20_cpu_clk_sctx.pllx_base,
-					clk_base + PLLX_BASE);
+		misc = readl_relaxed(clk_base + PLLX_MISC);
+		base = readl_relaxed(clk_base + PLLX_BASE);
 
-		/* wait for PLL stabilization if PLLX was enabled */
-		if (tegra20_cpu_clk_sctx.pllx_base & (1 << 30))
-			udelay(300);
+		if (misc != tegra20_cpu_clk_sctx.pllx_misc ||
+		    base != tegra20_cpu_clk_sctx.pllx_base) {
+			/* restore PLLX settings if CPU is on different PLL */
+			writel(tegra20_cpu_clk_sctx.pllx_misc,
+						clk_base + PLLX_MISC);
+			writel(tegra20_cpu_clk_sctx.pllx_base,
+						clk_base + PLLX_BASE);
+
+			/* wait for PLL stabilization if PLLX was enabled */
+			if (tegra20_cpu_clk_sctx.pllx_base & (1 << 30))
+				udelay(300);
+		}
 	}
 
 	/*
