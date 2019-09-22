@@ -289,12 +289,8 @@ static int cdns_rtc_probe(struct platform_device *pdev)
 	}
 
 	crtc->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
-	if (IS_ERR(crtc->rtc_dev)) {
-		ret = PTR_ERR(crtc->rtc_dev);
-		dev_err(&pdev->dev,
-			"Failed to allocate the RTC device, %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(crtc->rtc_dev))
+		return PTR_ERR(crtc->rtc_dev);
 
 	platform_set_drvdata(pdev, crtc);
 
@@ -343,11 +339,8 @@ static int cdns_rtc_probe(struct platform_device *pdev)
 	writel(CDNS_RTC_KRTCR_KRTC, crtc->regs + CDNS_RTC_KRTCR);
 
 	ret = rtc_register_device(crtc->rtc_dev);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Failed to register the RTC device, %d\n", ret);
+	if (ret)
 		goto err_disable_wakeup;
-	}
 
 	return 0;
 
