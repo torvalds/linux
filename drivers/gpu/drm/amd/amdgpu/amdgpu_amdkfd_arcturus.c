@@ -101,38 +101,12 @@ static uint32_t get_sdma_base_addr(struct amdgpu_device *adev,
 	return retval;
 }
 
-static u32 sdma_v4_0_get_reg_offset(struct amdgpu_device *adev,
-		u32 instance, u32 offset)
-{
-	switch (instance) {
-	case 0:
-		return (adev->reg_offset[SDMA0_HWIP][0][0] + offset);
-	case 1:
-		return (adev->reg_offset[SDMA1_HWIP][0][1] + offset);
-	case 2:
-		return (adev->reg_offset[SDMA2_HWIP][0][1] + offset);
-	case 3:
-		return (adev->reg_offset[SDMA3_HWIP][0][1] + offset);
-	case 4:
-		return (adev->reg_offset[SDMA4_HWIP][0][1] + offset);
-	case 5:
-		return (adev->reg_offset[SDMA5_HWIP][0][1] + offset);
-	case 6:
-		return (adev->reg_offset[SDMA6_HWIP][0][1] + offset);
-	case 7:
-		return (adev->reg_offset[SDMA7_HWIP][0][1] + offset);
-	default:
-		break;
-	}
-	return 0;
-}
-
 static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 			     uint32_t __user *wptr, struct mm_struct *mm)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct v9_sdma_mqd *m;
-	uint32_t sdma_base_addr, sdmax_gfx_context_cntl;
+	uint32_t sdma_base_addr;
 	unsigned long end_jiffies;
 	uint32_t data;
 	uint64_t data64;
@@ -141,8 +115,6 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 	m = get_sdma_mqd(mqd);
 	sdma_base_addr = get_sdma_base_addr(adev, m->sdma_engine_id,
 					    m->sdma_queue_id);
-	sdmax_gfx_context_cntl = sdma_v4_0_get_reg_offset(adev,
-			m->sdma_engine_id, mmSDMA0_GFX_CONTEXT_CNTL);
 
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
 		m->sdmax_rlcx_rb_cntl & (~SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK));
@@ -158,10 +130,6 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 		}
 		usleep_range(500, 1000);
 	}
-	data = RREG32(sdmax_gfx_context_cntl);
-	data = REG_SET_FIELD(data, SDMA0_GFX_CONTEXT_CNTL,
-			     RESUME_CTX, 0);
-	WREG32(sdmax_gfx_context_cntl, data);
 
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL_OFFSET,
 	       m->sdmax_rlcx_doorbell_offset);

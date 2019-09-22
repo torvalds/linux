@@ -433,17 +433,6 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 		}
 		usleep_range(500, 1000);
 	}
-	if (m->sdma_engine_id) {
-		data = RREG32(mmSDMA1_GFX_CONTEXT_CNTL);
-		data = REG_SET_FIELD(data, SDMA1_GFX_CONTEXT_CNTL,
-				RESUME_CTX, 0);
-		WREG32(mmSDMA1_GFX_CONTEXT_CNTL, data);
-	} else {
-		data = RREG32(mmSDMA0_GFX_CONTEXT_CNTL);
-		data = REG_SET_FIELD(data, SDMA0_GFX_CONTEXT_CNTL,
-				RESUME_CTX, 0);
-		WREG32(mmSDMA0_GFX_CONTEXT_CNTL, data);
-	}
 
 	data = REG_SET_FIELD(m->sdma_rlc_doorbell, SDMA0_RLC0_DOORBELL,
 			     ENABLE, 1);

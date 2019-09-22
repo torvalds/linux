@@ -489,7 +489,7 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct v10_sdma_mqd *m;
-	uint32_t sdma_base_addr, sdmax_gfx_context_cntl;
+	uint32_t sdma_base_addr;
 	unsigned long end_jiffies;
 	uint32_t data;
 	uint64_t data64;
@@ -499,9 +499,6 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 	sdma_base_addr = get_sdma_base_addr(adev, m->sdma_engine_id,
 					    m->sdma_queue_id);
 	pr_debug("sdma load base addr %x for engine %d, queue %d\n", sdma_base_addr, m->sdma_engine_id, m->sdma_queue_id);
-	sdmax_gfx_context_cntl = m->sdma_engine_id ?
-		SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_GFX_CONTEXT_CNTL) :
-		SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_GFX_CONTEXT_CNTL);
 
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
 		m->sdmax_rlcx_rb_cntl & (~SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK));
@@ -517,10 +514,6 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 		}
 		usleep_range(500, 1000);
 	}
-	data = RREG32(sdmax_gfx_context_cntl);
-	data = REG_SET_FIELD(data, SDMA0_GFX_CONTEXT_CNTL,
-			     RESUME_CTX, 0);
-	WREG32(sdmax_gfx_context_cntl, data);
 
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL_OFFSET,
 	       m->sdmax_rlcx_doorbell_offset);
