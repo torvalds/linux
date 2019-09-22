@@ -4291,6 +4291,11 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	irsp = &rspiocb->iocb;
 
+	if (!vport) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "3177 ELS response failed\n");
+		goto out;
+	}
 	if (cmdiocb->context_un.mbox)
 		mbox = cmdiocb->context_un.mbox;
 

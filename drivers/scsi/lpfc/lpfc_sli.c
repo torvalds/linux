@@ -2674,7 +2674,8 @@ lpfc_sli_handle_mb_event(struct lpfc_hba *phba)
 			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
 					"(%d):0323 Unknown Mailbox command "
 					"x%x (x%x/x%x) Cmpl\n",
-					pmb->vport ? pmb->vport->vpi : 0,
+					pmb->vport ? pmb->vport->vpi :
+					LPFC_VPORT_UNKNOWN,
 					pmbox->mbxCommand,
 					lpfc_sli_config_mbox_subsys_get(phba,
 									pmb),
@@ -2695,7 +2696,8 @@ lpfc_sli_handle_mb_event(struct lpfc_hba *phba)
 					"(%d):0305 Mbox cmd cmpl "
 					"error - RETRYing Data: x%x "
 					"(x%x/x%x) x%x x%x x%x\n",
-					pmb->vport ? pmb->vport->vpi : 0,
+					pmb->vport ? pmb->vport->vpi :
+					LPFC_VPORT_UNKNOWN,
 					pmbox->mbxCommand,
 					lpfc_sli_config_mbox_subsys_get(phba,
 									pmb),
@@ -2703,7 +2705,8 @@ lpfc_sli_handle_mb_event(struct lpfc_hba *phba)
 									pmb),
 					pmbox->mbxStatus,
 					pmbox->un.varWords[0],
-					pmb->vport->port_state);
+					pmb->vport ? pmb->vport->port_state :
+					LPFC_VPORT_UNKNOWN);
 				pmbox->mbxStatus = 0;
 				pmbox->mbxOwner = OWN_HOST;
 				rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);

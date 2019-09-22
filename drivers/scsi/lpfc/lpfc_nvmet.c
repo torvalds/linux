@@ -1958,18 +1958,19 @@ lpfc_nvmet_unsol_ls_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	uint32_t *payload;
 	uint32_t size, oxid, sid, rc;
 
-	fc_hdr = (struct fc_frame_header *)(nvmebuf->hbuf.virt);
-	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
 
-	if (!phba->targetport) {
+	if (!nvmebuf || !phba->targetport) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-				"6154 LS Drop IO x%x\n", oxid);
+				"6154 LS Drop IO\n");
 		oxid = 0;
 		size = 0;
 		sid = 0;
 		ctxp = NULL;
 		goto dropit;
 	}
+
+	fc_hdr = (struct fc_frame_header *)(nvmebuf->hbuf.virt);
+	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 	payload = (uint32_t *)(nvmebuf->dbuf.virt);
@@ -2401,6 +2402,11 @@ lpfc_nvmet_unsol_ls_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	d_buf = piocb->context2;
 	nvmebuf = container_of(d_buf, struct hbq_dmabuf, dbuf);
 
+	if (!nvmebuf) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
+				"3015 LS Drop IO\n");
+		return;
+	}
 	if (phba->nvmet_support == 0) {
 		lpfc_in_buf_free(phba, &nvmebuf->dbuf);
 		return;
@@ -2429,6 +2435,11 @@ lpfc_nvmet_unsol_fcp_event(struct lpfc_hba *phba,
 			   uint64_t isr_timestamp,
 			   uint8_t cqflag)
 {
+	if (!nvmebuf) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
+				"3167 NVMET FCP Drop IO\n");
+		return;
+	}
 	if (phba->nvmet_support == 0) {
 		lpfc_rq_buf_free(phba, &nvmebuf->hbuf);
 		return;
