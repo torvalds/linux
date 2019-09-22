@@ -55,13 +55,14 @@ static blk_status_t t10_pi_verify(struct blk_integrity_iter *iter,
 {
 	unsigned int i;
 
+	BUG_ON(type == T10_PI_TYPE0_PROTECTION);
+
 	for (i = 0 ; i < iter->data_size ; i += iter->interval) {
 		struct t10_pi_tuple *pi = iter->prot_buf;
 		__be16 csum;
 
-		switch (type) {
-		case T10_PI_TYPE1_PROTECTION:
-		case T10_PI_TYPE2_PROTECTION:
+		if (type == T10_PI_TYPE1_PROTECTION ||
+		    type == T10_PI_TYPE2_PROTECTION) {
 			if (pi->app_tag == T10_PI_APP_ESCAPE)
 				goto next;
 
@@ -73,12 +74,10 @@ static blk_status_t t10_pi_verify(struct blk_integrity_iter *iter,
 				       iter->seed, be32_to_cpu(pi->ref_tag));
 				return BLK_STS_PROTECTION;
 			}
-			break;
-		case T10_PI_TYPE3_PROTECTION:
+		} else if (type == T10_PI_TYPE3_PROTECTION) {
 			if (pi->app_tag == T10_PI_APP_ESCAPE &&
 			    pi->ref_tag == T10_PI_REF_ESCAPE)
 				goto next;
-			break;
 		}
 
 		csum = fn(iter->data_buf, iter->interval);
