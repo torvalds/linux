@@ -28,8 +28,7 @@ static inline bool same_leaf_as_prev(struct btree_trans *trans,
 		? trans->updates + trans->updates_sorted[sorted_idx - 1]
 		: NULL;
 
-	return !i->deferred &&
-		prev &&
+	return prev &&
 		i->iter->l[0].b == prev->iter->l[0].b;
 }
 
@@ -73,13 +72,6 @@ static void btree_trans_lock_write(struct btree_trans *trans, bool lock)
 	}
 }
 
-static inline int btree_trans_cmp(struct btree_insert_entry l,
-				  struct btree_insert_entry r)
-{
-	return cmp_int(l.deferred, r.deferred) ?:
-		btree_iter_cmp(l.iter, r.iter);
-}
-
 static inline void btree_trans_sort_updates(struct btree_trans *trans)
 {
 	struct btree_insert_entry *l, *r;
@@ -89,7 +81,7 @@ static inline void btree_trans_sort_updates(struct btree_trans *trans)
 		for (pos = 0; pos < nr; pos++) {
 			r = trans->updates + trans->updates_sorted[pos];
 
-			if (btree_trans_cmp(*l, *r) <= 0)
+			if (btree_iter_cmp(l->iter, r->iter) <= 0)
 				break;
 		}
 
@@ -312,143 +304,23 @@ static void btree_insert_key_leaf(struct btree_trans *trans,
 	trace_btree_insert_key(c, b, insert->k);
 }
 
-/* Deferred btree updates: */
-
-static void deferred_update_flush(struct journal *j,
-				  struct journal_entry_pin *pin,
-				  u64 seq)
-{
-	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct deferred_update *d =
-		container_of(pin, struct deferred_update, journal);
-	struct journal_preres res = { 0 };
-	u64 tmp[32];
-	struct bkey_i *k = (void *) tmp;
-	int ret;
-
-	if (d->allocated_u64s > ARRAY_SIZE(tmp)) {
-		k = kmalloc(d->allocated_u64s * sizeof(u64), GFP_NOFS);
-
-		BUG_ON(!k); /* XXX */
-	}
-
-	spin_lock(&d->lock);
-	if (d->dirty) {
-		BUG_ON(jset_u64s(d->k.k.u64s) > d->res.u64s);
-
-		swap(res, d->res);
-
-		BUG_ON(d->k.k.u64s > d->allocated_u64s);
-
-		bkey_copy(k, &d->k);
-		d->dirty = false;
-		spin_unlock(&d->lock);
-
-		ret = bch2_btree_insert(c, d->btree_id, k, NULL, NULL,
-					BTREE_INSERT_NOFAIL|
-					BTREE_INSERT_USE_RESERVE|
-					BTREE_INSERT_JOURNAL_RESERVED);
-		bch2_fs_fatal_err_on(ret && !bch2_journal_error(j),
-				     c, "error flushing deferred btree update: %i", ret);
-
-		spin_lock(&d->lock);
-	}
-
-	if (!d->dirty)
-		bch2_journal_pin_drop(j, &d->journal);
-	spin_unlock(&d->lock);
-
-	bch2_journal_preres_put(j, &res);
-	if (k != (void *) tmp)
-		kfree(k);
-}
-
-static void btree_insert_key_deferred(struct btree_trans *trans,
-				      struct btree_insert_entry *insert)
-{
-	struct bch_fs *c = trans->c;
-	struct journal *j = &c->journal;
-	struct deferred_update *d = insert->d;
-	int difference;
-
-	BUG_ON(trans->flags & BTREE_INSERT_JOURNAL_REPLAY);
-	BUG_ON(insert->k->u64s > d->allocated_u64s);
-
-	__btree_journal_key(trans, d->btree_id, insert->k);
-
-	spin_lock(&d->lock);
-	BUG_ON(jset_u64s(insert->k->u64s) >
-	       trans->journal_preres.u64s);
-
-	difference = jset_u64s(insert->k->u64s) - d->res.u64s;
-	if (difference > 0) {
-		trans->journal_preres.u64s	-= difference;
-		d->res.u64s			+= difference;
-	}
-
-	bkey_copy(&d->k, insert->k);
-	d->dirty = true;
-
-	bch2_journal_pin_update(j, trans->journal_res.seq, &d->journal,
-				deferred_update_flush);
-	spin_unlock(&d->lock);
-}
-
-void bch2_deferred_update_free(struct bch_fs *c,
-			       struct deferred_update *d)
-{
-	deferred_update_flush(&c->journal, &d->journal, 0);
-
-	BUG_ON(journal_pin_active(&d->journal));
-
-	bch2_journal_pin_flush(&c->journal, &d->journal);
-	kfree(d);
-}
-
-struct deferred_update *
-bch2_deferred_update_alloc(struct bch_fs *c,
-			   enum btree_id btree_id,
-			   unsigned u64s)
-{
-	struct deferred_update *d;
-
-	BUG_ON(u64s > U8_MAX);
-
-	d = kmalloc(offsetof(struct deferred_update, k) +
-		    u64s * sizeof(u64), GFP_NOFS);
-	BUG_ON(!d);
-
-	memset(d, 0, offsetof(struct deferred_update, k));
-
-	spin_lock_init(&d->lock);
-	d->allocated_u64s	= u64s;
-	d->btree_id		= btree_id;
-
-	return d;
-}
-
 /* Normal update interface: */
 
 static inline void btree_insert_entry_checks(struct btree_trans *trans,
 					     struct btree_insert_entry *i)
 {
 	struct bch_fs *c = trans->c;
-	enum btree_id btree_id = !i->deferred
-		? i->iter->btree_id
-		: i->d->btree_id;
 
-	if (!i->deferred) {
-		BUG_ON(i->iter->level);
-		BUG_ON(bkey_cmp(bkey_start_pos(&i->k->k), i->iter->pos));
-		EBUG_ON((i->iter->flags & BTREE_ITER_IS_EXTENTS) &&
-			bkey_cmp(i->k->k.p, i->iter->l[0].b->key.k.p) > 0);
-		EBUG_ON((i->iter->flags & BTREE_ITER_IS_EXTENTS) &&
-			!(trans->flags & BTREE_INSERT_ATOMIC));
-	}
+	BUG_ON(i->iter->level);
+	BUG_ON(bkey_cmp(bkey_start_pos(&i->k->k), i->iter->pos));
+	EBUG_ON((i->iter->flags & BTREE_ITER_IS_EXTENTS) &&
+		bkey_cmp(i->k->k.p, i->iter->l[0].b->key.k.p) > 0);
+	EBUG_ON((i->iter->flags & BTREE_ITER_IS_EXTENTS) &&
+		!(trans->flags & BTREE_INSERT_ATOMIC));
 
 	BUG_ON(debug_check_bkeys(c) &&
 	       !bkey_deleted(&i->k->k) &&
-	       bch2_bkey_invalid(c, bkey_i_to_s_c(i->k), btree_id));
+	       bch2_bkey_invalid(c, bkey_i_to_s_c(i->k), i->iter->btree_id));
 }
 
 static int bch2_trans_journal_preres_get(struct btree_trans *trans)
@@ -459,7 +331,7 @@ static int bch2_trans_journal_preres_get(struct btree_trans *trans)
 	int ret;
 
 	trans_for_each_update(trans, i)
-		if (i->deferred)
+		if (0)
 			u64s += jset_u64s(i->k->k.u64s);
 
 	if (!u64s)
@@ -551,10 +423,7 @@ static int btree_trans_check_can_insert(struct btree_trans *trans,
 static inline void do_btree_insert_one(struct btree_trans *trans,
 				       struct btree_insert_entry *insert)
 {
-	if (likely(!insert->deferred))
-		btree_insert_key_leaf(trans, insert);
-	else
-		btree_insert_key_deferred(trans, insert);
+	btree_insert_key_leaf(trans, insert);
 }
 
 static inline bool update_triggers_transactional(struct btree_trans *trans,
@@ -570,7 +439,6 @@ static inline bool update_has_triggers(struct btree_trans *trans,
 				       struct btree_insert_entry *i)
 {
 	return likely(!(trans->flags & BTREE_INSERT_NOMARK)) &&
-		!i->deferred &&
 		btree_node_type_needs_gc(i->iter->btree_id);
 }
 
@@ -588,14 +456,14 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 		: 0;
 	int ret;
 
-	trans_for_each_update_iter(trans, i)
+	trans_for_each_update(trans, i)
 		BUG_ON(i->iter->uptodate >= BTREE_ITER_NEED_RELOCK);
 
 	/*
 	 * note: running triggers will append more updates to the list of
 	 * updates as we're walking it:
 	 */
-	trans_for_each_update_iter(trans, i)
+	trans_for_each_update(trans, i)
 		if (update_has_triggers(trans, i) &&
 		    update_triggers_transactional(trans, i)) {
 			ret = bch2_trans_mark_update(trans, i->iter, i->k);
@@ -633,7 +501,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	if (ret)
 		goto out;
 
-	trans_for_each_update_iter(trans, i) {
+	trans_for_each_update(trans, i) {
 		if (!btree_node_type_needs_gc(i->iter->btree_id))
 			continue;
 
@@ -673,7 +541,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 				i->k->k.version = MAX_VERSION;
 	}
 
-	trans_for_each_update_iter(trans, i)
+	trans_for_each_update(trans, i)
 		if (update_has_triggers(trans, i) &&
 		    !update_triggers_transactional(trans, i))
 			bch2_mark_update(trans, i, &fs_usage->u, mark_flags);
@@ -687,7 +555,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 
 	if (likely(!(trans->flags & BTREE_INSERT_NOMARK)) &&
 	    unlikely(c->gc_pos.phase))
-		trans_for_each_update_iter(trans, i)
+		trans_for_each_update(trans, i)
 			if (gc_visited(c, gc_pos_btree_node(i->iter->l[0].b)))
 				bch2_mark_update(trans, i, NULL,
 						 mark_flags|
@@ -772,7 +640,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 	case BTREE_INSERT_NEED_MARK_REPLICAS:
 		bch2_trans_unlock(trans);
 
-		trans_for_each_update_iter(trans, i) {
+		trans_for_each_update(trans, i) {
 			ret = bch2_mark_bkey_replicas(c, bkey_i_to_s_c(i->k));
 			if (ret)
 				return ret;
@@ -842,7 +710,7 @@ static int __bch2_trans_commit(struct btree_trans *trans,
 	unsigned iter;
 	int ret;
 
-	trans_for_each_update_iter(trans, i) {
+	trans_for_each_update(trans, i) {
 		if (!bch2_btree_iter_upgrade(i->iter, 1)) {
 			trace_trans_restart_upgrade(trans->ip);
 			ret = -EINTR;
@@ -868,7 +736,7 @@ static int __bch2_trans_commit(struct btree_trans *trans,
 
 	trans->nounlock = false;
 
-	trans_for_each_update_iter(trans, i)
+	trans_for_each_update(trans, i)
 		bch2_btree_iter_downgrade(i->iter);
 err:
 	/* make sure we didn't drop or screw up locks: */
@@ -995,7 +863,7 @@ retry:
 	iter = bch2_trans_get_iter(&trans, id, bkey_start_pos(&k->k),
 				   BTREE_ITER_INTENT);
 
-	bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, k));
+	bch2_trans_update(&trans, iter, k);
 
 	ret = bch2_trans_commit(&trans, disk_res, journal_seq, flags);
 	if (ret == -EINTR)
@@ -1045,7 +913,7 @@ retry:
 				break;
 		}
 
-		bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &delete));
+		bch2_trans_update(trans, iter, &delete);
 		ret = bch2_trans_commit(trans, NULL, journal_seq,
 					BTREE_INSERT_ATOMIC|
 					BTREE_INSERT_NOFAIL);
@@ -1072,7 +940,7 @@ int bch2_btree_delete_at(struct btree_trans *trans,
 	bkey_init(&k.k);
 	k.k.p = iter->pos;
 
-	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &k));
+	bch2_trans_update(trans, iter, &k);
 	return bch2_trans_commit(trans, NULL, NULL,
 				 BTREE_INSERT_NOFAIL|
 				 BTREE_INSERT_USE_RESERVE|flags);

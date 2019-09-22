@@ -393,7 +393,7 @@ static int check_dirent_hash(struct btree_trans *trans, struct hash_check *h,
 
 	if (fsck_err(c, "dirent with junk at end, was %s (%zu) now %s (%u)",
 		     buf, strlen(buf), d->v.d_name, len)) {
-		bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &d->k_i));
+		bch2_trans_update(trans, iter, &d->k_i);
 
 		ret = bch2_trans_commit(trans, NULL, NULL,
 					BTREE_INSERT_NOFAIL|
@@ -663,8 +663,7 @@ retry:
 			bkey_reassemble(&n->k_i, d.s_c);
 			n->v.d_type = mode_to_type(target.bi_mode);
 
-			bch2_trans_update(&trans,
-				BTREE_INSERT_ENTRY(iter, &n->k_i));
+			bch2_trans_update(&trans, iter, &n->k_i);
 
 			ret = bch2_trans_commit(&trans, NULL, NULL,
 						BTREE_INSERT_NOFAIL|
@@ -1293,7 +1292,7 @@ static int check_inode(struct btree_trans *trans,
 		struct bkey_inode_buf p;
 
 		bch2_inode_pack(&p, &u);
-		bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &p.inode.k_i));
+		bch2_trans_update(trans, iter, &p.inode.k_i);
 
 		ret = bch2_trans_commit(trans, NULL, NULL,
 					BTREE_INSERT_NOFAIL|

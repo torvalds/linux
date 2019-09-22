@@ -72,10 +72,9 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 		 */
 		bch2_extent_normalize(c, bkey_i_to_s(&tmp.key));
 
-		/* XXX not sketchy at all */
-		iter->pos = bkey_start_pos(&tmp.key.k);
+		bch2_btree_iter_set_pos(iter, bkey_start_pos(&tmp.key.k));
 
-		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &tmp.key));
+		bch2_trans_update(&trans, iter, &tmp.key);
 
 		ret = bch2_trans_commit(&trans, NULL, NULL,
 					BTREE_INSERT_ATOMIC|

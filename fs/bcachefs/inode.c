@@ -345,8 +345,7 @@ again:
 			inode_u->bi_generation	= bkey_generation(k);
 
 			bch2_inode_pack(inode_p, inode_u);
-			bch2_trans_update(trans,
-				BTREE_INSERT_ENTRY(iter, &inode_p->inode.k_i));
+			bch2_trans_update(trans, iter, &inode_p->inode.k_i);
 			return 0;
 		}
 	}
@@ -435,8 +434,7 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr)
 			delete.v.bi_generation = cpu_to_le32(bi_generation);
 		}
 
-		bch2_trans_update(&trans,
-				  BTREE_INSERT_ENTRY(iter, &delete.k_i));
+		bch2_trans_update(&trans, iter, &delete.k_i);
 
 		ret = bch2_trans_commit(&trans, NULL, NULL,
 					BTREE_INSERT_ATOMIC|

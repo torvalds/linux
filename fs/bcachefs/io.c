@@ -290,8 +290,7 @@ retry:
 		if (ret)
 			break;
 
-		bch2_trans_update(&trans,
-				  BTREE_INSERT_ENTRY(iter, &split.k));
+		bch2_trans_update(&trans, iter, &split.k);
 
 		ret = bch2_trans_commit(&trans, &op->res, op_journal_seq(op),
 					BTREE_INSERT_NOFAIL|
@@ -1445,7 +1444,7 @@ retry:
 	if (!bch2_bkey_narrow_crcs(&new.k, new_crc))
 		goto out;
 
-	bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &new.k));
+	bch2_trans_update(&trans, iter, &new.k);
 	ret = bch2_trans_commit(&trans, NULL, NULL,
 				BTREE_INSERT_ATOMIC|
 				BTREE_INSERT_NOFAIL|

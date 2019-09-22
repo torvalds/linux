@@ -301,7 +301,7 @@ retry:
 		bch2_cut_front(split_iter->pos, split);
 		bch2_cut_back(atomic_end, &split->k);
 
-		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(split_iter, split));
+		bch2_trans_update(&trans, split_iter, split);
 		bch2_btree_iter_set_pos(iter, split->k.p);
 	} while (bkey_cmp(iter->pos, k->k.p) < 0);
 

@@ -15,24 +15,6 @@ bool bch2_btree_bset_insert_key(struct btree_iter *, struct btree *,
 void bch2_btree_journal_key(struct btree_trans *, struct btree_iter *,
 			    struct bkey_i *);
 
-void bch2_deferred_update_free(struct bch_fs *,
-			       struct deferred_update *);
-struct deferred_update *
-bch2_deferred_update_alloc(struct bch_fs *, enum btree_id, unsigned);
-
-#define BTREE_INSERT_ENTRY(_iter, _k)					\
-	((struct btree_insert_entry) {					\
-		.iter		= (_iter),				\
-		.k		= (_k),					\
-	})
-
-#define BTREE_INSERT_DEFERRED(_d, _k)					\
-	((struct btree_insert_entry) {					\
-		.k		= (_k),					\
-		.d		= (_d),					\
-		.deferred	= true,					\
-	})
-
 enum {
 	__BTREE_INSERT_ATOMIC,
 	__BTREE_INSERT_NOUNLOCK,
@@ -120,11 +102,14 @@ int bch2_trans_commit(struct btree_trans *,
 		      u64 *, unsigned);
 
 static inline void bch2_trans_update(struct btree_trans *trans,
-				     struct btree_insert_entry entry)
+				     struct btree_iter *iter,
+				     struct bkey_i *k)
 {
 	EBUG_ON(trans->nr_updates >= trans->nr_iters + 4);
 
-	trans->updates[trans->nr_updates++] = entry;
+	trans->updates[trans->nr_updates++] = (struct btree_insert_entry) {
+		.iter = iter, .k = k
+	};
 }
 
 #define bch2_trans_do(_c, _journal_seq, _flags, _do)			\
@@ -145,23 +130,9 @@ static inline void bch2_trans_update(struct btree_trans *trans,
 	_ret;								\
 })
 
-#define __trans_next_update(_trans, _i, _filter)			\
-({									\
-	while ((_i) < (_trans)->updates + (_trans->nr_updates) && !(_filter))\
-		(_i)++;							\
-									\
-	(_i) < (_trans)->updates + (_trans->nr_updates);		\
-})
-
-#define __trans_for_each_update(_trans, _i, _filter)			\
+#define trans_for_each_update(_trans, _i)				\
 	for ((_i) = (_trans)->updates;					\
-	     __trans_next_update(_trans, _i, _filter);			\
+	     (_i) < (_trans)->updates + (_trans)->nr_updates;		\
 	     (_i)++)
-
-#define trans_for_each_update(trans, i)					\
-	__trans_for_each_update(trans, i, true)
-
-#define trans_for_each_update_iter(trans, i)				\
-	__trans_for_each_update(trans, i, !(i)->deferred)
 
 #endif /* _BCACHEFS_BTREE_UPDATE_H */

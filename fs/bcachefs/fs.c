@@ -154,30 +154,22 @@ int __must_check bch2_write_inode_trans(struct btree_trans *trans,
 				inode_set_fn set,
 				void *p)
 {
-	struct bch_fs *c = trans->c;
 	struct btree_iter *iter = NULL;
 	struct bkey_inode_buf *inode_p;
 	int ret;
 
 	lockdep_assert_held(&inode->ei_update_lock);
 
-	if (c->opts.new_inode_updates) {
-	/* XXX: Don't do this with btree locks held */
-	if (!inode->ei_inode_update)
-		inode->ei_inode_update =
-			bch2_deferred_update_alloc(c, BTREE_ID_INODES, 64);
-	} else {
-		iter = bch2_trans_get_iter(trans, BTREE_ID_INODES,
-					   POS(inode->v.i_ino, 0),
-					   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-		if (IS_ERR(iter))
-			return PTR_ERR(iter);
+	iter = bch2_trans_get_iter(trans, BTREE_ID_INODES,
+				   POS(inode->v.i_ino, 0),
+				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	if (IS_ERR(iter))
+		return PTR_ERR(iter);
 
-		/* The btree node lock is our lock on the inode: */
-		ret = bch2_btree_iter_traverse(iter);
-		if (ret)
-			return ret;
-	}
+	/* The btree node lock is our lock on the inode: */
+	ret = bch2_btree_iter_traverse(iter);
+	if (ret)
+		return ret;
 
 	*inode_u = inode->ei_inode;
 
@@ -192,14 +184,7 @@ int __must_check bch2_write_inode_trans(struct btree_trans *trans,
 		return PTR_ERR(inode_p);
 
 	bch2_inode_pack(inode_p, inode_u);
-
-	if (!inode->ei_inode_update)
-		bch2_trans_update(trans,
-			BTREE_INSERT_ENTRY(iter, &inode_p->inode.k_i));
-	else
-		bch2_trans_update(trans,
-			BTREE_INSERT_DEFERRED(inode->ei_inode_update,
-					      &inode_p->inode.k_i));
+	bch2_trans_update(trans, iter, &inode_p->inode.k_i);
 
 	return 0;
 }
@@ -1482,7 +1467,6 @@ static struct inode *bch2_alloc_inode(struct super_block *sb)
 	mutex_init(&inode->ei_update_lock);
 	pagecache_lock_init(&inode->ei_pagecache_lock);
 	mutex_init(&inode->ei_quota_lock);
-	inode->ei_inode_update = NULL;
 	inode->ei_journal_seq = 0;
 
 	return &inode->v;
@@ -1539,10 +1523,6 @@ static void bch2_evict_inode(struct inode *vinode)
 	clear_inode(&inode->v);
 
 	BUG_ON(!is_bad_inode(&inode->v) && inode->ei_quota_reserved);
-
-	if (inode->ei_inode_update)
-		bch2_deferred_update_free(c, inode->ei_inode_update);
-	inode->ei_inode_update = NULL;
 
 	if (!inode->v.i_nlink && !is_bad_inode(&inode->v)) {
 		bch2_quota_acct(c, inode->ei_qid, Q_SPC, -((s64) inode->v.i_blocks),

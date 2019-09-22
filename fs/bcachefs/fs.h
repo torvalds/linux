@@ -34,7 +34,6 @@ struct bch_inode_info {
 	struct inode		v;
 
 	struct mutex		ei_update_lock;
-	struct deferred_update	*ei_inode_update;
 	u64			ei_journal_seq;
 	u64			ei_quota_reserved;
 	unsigned long		ei_last_dirtied;

@@ -246,29 +246,9 @@ static inline enum btree_iter_type btree_iter_type(struct btree_iter *iter)
 	return iter->flags & BTREE_ITER_TYPE;
 }
 
-struct deferred_update {
-	struct journal_preres	res;
-	struct journal_entry_pin journal;
-
-	spinlock_t		lock;
-	unsigned		dirty:1;
-
-	u8			allocated_u64s;
-	enum btree_id		btree_id;
-
-	/* must be last: */
-	struct bkey_i		k;
-};
-
 struct btree_insert_entry {
 	struct bkey_i		*k;
-
-	union {
 	struct btree_iter	*iter;
-	struct deferred_update	*d;
-	};
-
-	bool			deferred;
 };
 
 #define BTREE_ITER_MAX		64

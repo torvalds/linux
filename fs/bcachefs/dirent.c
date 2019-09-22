@@ -255,9 +255,8 @@ int bch2_dirent_rename(struct btree_trans *trans,
 				 * new_dst at the src position:
 				 */
 				new_dst->k.p = src_iter->pos;
-				bch2_trans_update(trans,
-					BTREE_INSERT_ENTRY(src_iter,
-							   &new_dst->k_i));
+				bch2_trans_update(trans, src_iter,
+						  &new_dst->k_i);
 				return 0;
 			} else {
 				/* If we're overwriting, we can't insert new_dst
@@ -280,8 +279,8 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		}
 	}
 
-	bch2_trans_update(trans, BTREE_INSERT_ENTRY(src_iter, &new_src->k_i));
-	bch2_trans_update(trans, BTREE_INSERT_ENTRY(dst_iter, &new_dst->k_i));
+	bch2_trans_update(trans, src_iter, &new_src->k_i);
+	bch2_trans_update(trans, dst_iter, &new_dst->k_i);
 	return 0;
 }
 

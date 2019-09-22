@@ -43,7 +43,7 @@ static void test_delete(struct bch_fs *c, u64 nr)
 	ret = bch2_btree_iter_traverse(iter);
 	BUG_ON(ret);
 
-	bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &k.k_i));
+	bch2_trans_update(&trans, iter, &k.k_i);
 	ret = bch2_trans_commit(&trans, NULL, NULL, 0);
 	BUG_ON(ret);
 
@@ -75,7 +75,7 @@ static void test_delete_written(struct bch_fs *c, u64 nr)
 	ret = bch2_btree_iter_traverse(iter);
 	BUG_ON(ret);
 
-	bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &k.k_i));
+	bch2_trans_update(&trans, iter, &k.k_i);
 	ret = bch2_trans_commit(&trans, NULL, NULL, 0);
 	BUG_ON(ret);
 
@@ -465,7 +465,7 @@ static void rand_mixed(struct bch_fs *c, u64 nr)
 			bkey_cookie_init(&k.k_i);
 			k.k.p = iter->pos;
 
-			bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &k.k_i));
+			bch2_trans_update(&trans, iter, &k.k_i);
 			ret = bch2_trans_commit(&trans, NULL, NULL, 0);
 			BUG_ON(ret);
 		}
@@ -509,7 +509,7 @@ static void seq_insert(struct bch_fs *c, u64 nr)
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
 		insert.k.p = iter->pos;
 
-		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &insert.k_i));
+		bch2_trans_update(&trans, iter, &insert.k_i);
 		ret = bch2_trans_commit(&trans, NULL, NULL, 0);
 		BUG_ON(ret);
 
@@ -548,7 +548,7 @@ static void seq_overwrite(struct bch_fs *c, u64 nr)
 
 		bkey_reassemble(&u.k_i, k);
 
-		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &u.k_i));
+		bch2_trans_update(&trans, iter, &u.k_i);
 		ret = bch2_trans_commit(&trans, NULL, NULL, 0);
 		BUG_ON(ret);
 	}

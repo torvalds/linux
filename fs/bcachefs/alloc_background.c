@@ -311,7 +311,7 @@ retry:
 	a->k.p = iter->pos;
 	bch2_alloc_pack(a, new_u);
 
-	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &a->k_i));
+	bch2_trans_update(trans, iter, &a->k_i);
 	ret = bch2_trans_commit(trans, NULL, NULL,
 				BTREE_INSERT_ATOMIC|
 				BTREE_INSERT_NOFAIL|
@@ -899,7 +899,7 @@ retry:
 	a->k.p = iter->pos;
 	bch2_alloc_pack(a, u);
 
-	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &a->k_i));
+	bch2_trans_update(trans, iter, &a->k_i);
 
 	/*
 	 * XXX:

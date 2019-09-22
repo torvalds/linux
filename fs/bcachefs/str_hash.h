@@ -267,7 +267,7 @@ not_found:
 		}
 
 		insert->k.p = iter->pos;
-		bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, insert));
+		bch2_trans_update(trans, iter, insert);
 		bch2_trans_iter_free_on_commit(trans, iter);
 	}
 
@@ -295,7 +295,7 @@ int bch2_hash_delete_at(struct btree_trans *trans,
 	delete->k.p = iter->pos;
 	delete->k.type = ret ? KEY_TYPE_whiteout : KEY_TYPE_deleted;
 
-	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, delete));
+	bch2_trans_update(trans, iter, delete);
 	return 0;
 }
 

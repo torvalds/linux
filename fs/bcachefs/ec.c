@@ -738,7 +738,7 @@ found_slot:
 
 	stripe->k.p = iter->pos;
 
-	bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &stripe->k_i));
+	bch2_trans_update(&trans, iter, &stripe->k_i);
 
 	ret = bch2_trans_commit(&trans, NULL, NULL,
 				BTREE_INSERT_ATOMIC|
@@ -819,7 +819,7 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 
 		extent_stripe_ptr_add(e, s, ptr, idx);
 
-		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &tmp.k));
+		bch2_trans_update(&trans, iter, &tmp.k);
 
 		ret = bch2_trans_commit(&trans, NULL, NULL,
 					BTREE_INSERT_ATOMIC|
@@ -1231,7 +1231,7 @@ static int __bch2_stripe_write_key(struct btree_trans *trans,
 
 	spin_unlock(&c->ec_stripes_heap_lock);
 
-	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &new_key->k_i));
+	bch2_trans_update(trans, iter, &new_key->k_i);
 
 	return bch2_trans_commit(trans, NULL, NULL,
 				 BTREE_INSERT_NOFAIL|flags);

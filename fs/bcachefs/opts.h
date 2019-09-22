@@ -295,13 +295,7 @@ enum opt_type {
 	  OPT_UINT(0, BCH_REPLICAS_MAX),				\
 	  NO_SB_OPT,			1,				\
 	  "n",		"Data written to this device will be considered\n"\
-			"to have already been replicated n times")	\
-	x(new_inode_updates,		u8,				\
-	  OPT_MOUNT,							\
-	  OPT_BOOL(),							\
-	  NO_SB_OPT,			false,				\
-	  NULL,		"Enable new btree write-cache for inode updates")
-
+			"to have already been replicated n times")
 
 struct bch_opts {
 #define x(_name, _bits, ...)	unsigned _name##_defined:1;
