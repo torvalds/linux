@@ -858,13 +858,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	jzdma->soc_data = soc_data;
 	platform_set_drvdata(pdev, jzdma);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "failed to get I/O memory\n");
-		return -EINVAL;
-	}
-
-	jzdma->chn_base = devm_ioremap_resource(dev, res);
+	jzdma->chn_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(jzdma->chn_base))
 		return PTR_ERR(jzdma->chn_base);
 
