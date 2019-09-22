@@ -134,21 +134,21 @@ lpfc_sli4_set_rsp_sgl_last(struct lpfc_hba *phba,
 
 /**
  * lpfc_update_stats - Update statistical data for the command completion
- * @phba: Pointer to HBA object.
+ * @vport: The virtual port on which this call is executing.
  * @lpfc_cmd: lpfc scsi command object pointer.
  *
  * This function is called when there is a command completion and this
  * function updates the statistical data for the command completion.
  **/
 static void
-lpfc_update_stats(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
+lpfc_update_stats(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd)
 {
+	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_rport_data *rdata;
 	struct lpfc_nodelist *pnode;
 	struct scsi_cmnd *cmd = lpfc_cmd->pCmd;
 	unsigned long flags;
-	struct Scsi_Host  *shost = cmd->device->host;
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	unsigned long latency;
 	int i;
 
@@ -4004,7 +4004,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 				 scsi_get_resid(cmd));
 	}
 
-	lpfc_update_stats(phba, lpfc_cmd);
+	lpfc_update_stats(vport, lpfc_cmd);
 	if (vport->cfg_max_scsicmpl_time &&
 	   time_after(jiffies, lpfc_cmd->start_time +
 		msecs_to_jiffies(vport->cfg_max_scsicmpl_time))) {
