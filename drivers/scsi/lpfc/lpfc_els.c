@@ -8019,6 +8019,9 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 		if (piocb->vport != vport)
 			continue;
 
+		if (piocb->iocb_flag & LPFC_DRIVER_ABORTED)
+			continue;
+
 		/* On the ELS ring we can have ELS_REQUESTs or
 		 * GEN_REQUESTs waiting for a response.
 		 */
