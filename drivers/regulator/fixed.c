@@ -144,8 +144,7 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct fixed_voltage_config *config;
 	struct fixed_voltage_data *drvdata;
-	const struct fixed_dev_type *drvtype =
-		of_match_device(dev->driver->of_match_table, dev)->data;
+	const struct fixed_dev_type *drvtype = of_device_get_match_data(dev);
 	struct regulator_config cfg = { };
 	enum gpiod_flags gflags;
 	int ret;
@@ -177,7 +176,7 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	drvdata->desc.type = REGULATOR_VOLTAGE;
 	drvdata->desc.owner = THIS_MODULE;
 
-	if (drvtype->has_enable_clock) {
+	if (drvtype && drvtype->has_enable_clock) {
 		drvdata->desc.ops = &fixed_voltage_clkenabled_ops;
 
 		drvdata->enable_clock = devm_clk_get(dev, NULL);
