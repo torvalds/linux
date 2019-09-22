@@ -3053,11 +3053,12 @@ lpfc_sli4_node_prep(struct lpfc_hba *phba)
 				continue;
 			}
 			ndlp->nlp_rpi = rpi;
-			lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-					 "0009 rpi:%x DID:%x "
-					 "flg:%x map:%x x%px\n", ndlp->nlp_rpi,
-					 ndlp->nlp_DID, ndlp->nlp_flag,
-					 ndlp->nlp_usg_map, ndlp);
+			lpfc_printf_vlog(ndlp->vport, KERN_INFO,
+					 LOG_NODE | LOG_DISCOVERY,
+					 "0009 Assign RPI x%x to ndlp x%px "
+					 "DID:x%06x flg:x%x map:x%x\n",
+					 ndlp->nlp_rpi, ndlp, ndlp->nlp_DID,
+					 ndlp->nlp_flag, ndlp->nlp_usg_map);
 		}
 	}
 	lpfc_destroy_vport_work_array(phba, vports);
@@ -3453,10 +3454,15 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						 &vports[i]->fc_nodes,
 						 nlp_listp) {
-				if (!NLP_CHK_NODE_ACT(ndlp))
+				if ((!NLP_CHK_NODE_ACT(ndlp)) ||
+				    ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
+					/* Driver must assume RPI is invalid for
+					 * any unused or inactive node.
+					 */
+					ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
 					continue;
-				if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
-					continue;
+				}
+
 				if (ndlp->nlp_type & NLP_FABRIC) {
 					lpfc_disc_state_machine(vports[i], ndlp,
 						NULL, NLP_EVT_DEVICE_RECOVERY);
@@ -3472,16 +3478,16 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 				 * comes back online.
 				 */
 				if (phba->sli_rev == LPFC_SLI_REV4) {
-					lpfc_printf_vlog(ndlp->vport,
-							 KERN_INFO, LOG_NODE,
-							 "0011 lpfc_offline: "
-							 "ndlp:x%px did %x "
-							 "usgmap:x%x rpi:%x\n",
-							 ndlp, ndlp->nlp_DID,
-							 ndlp->nlp_usg_map,
-							 ndlp->nlp_rpi);
-
+					lpfc_printf_vlog(ndlp->vport, KERN_INFO,
+						 LOG_NODE | LOG_DISCOVERY,
+						 "0011 Free RPI x%x on "
+						 "ndlp:x%px did x%x "
+						 "usgmap:x%x\n",
+						 ndlp->nlp_rpi, ndlp,
+						 ndlp->nlp_DID,
+						 ndlp->nlp_usg_map);
 					lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
+					ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
 				}
 				lpfc_unreg_rpi(vports[i], ndlp);
 			}
