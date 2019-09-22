@@ -77,6 +77,7 @@
 #include <linux/stringify.h>
 #include <linux/time64.h>
 #include <linux/types.h>
+#include <linux/err.h>
 
 #include <linux/ctype.h>
 
@@ -1672,8 +1673,8 @@ int cmd_top(int argc, const char **argv)
 	}
 
 	top.session = perf_session__new(NULL, false, NULL);
-	if (top.session == NULL) {
-		status = -1;
+	if (IS_ERR(top.session)) {
+		status = PTR_ERR(top.session);
 		goto out_delete_evlist;
 	}
 

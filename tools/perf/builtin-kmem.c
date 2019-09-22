@@ -14,6 +14,7 @@
 #include "util/tool.h"
 #include "util/callchain.h"
 #include "util/time-utils.h"
+#include <linux/err.h>
 
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
@@ -1956,8 +1957,8 @@ int cmd_kmem(int argc, const char **argv)
 	data.path = input_name;
 
 	kmem_session = session = perf_session__new(&data, false, &perf_kmem);
-	if (session == NULL)
-		return -1;
+	if (IS_ERR(session))
+		return PTR_ERR(session);
 
 	ret = -1;
 

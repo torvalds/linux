@@ -40,6 +40,7 @@
 #include <api/fs/fs.h>
 #include <perf/cpumap.h>
 #include <linux/time64.h>
+#include <linux/err.h>
 
 #include <linux/ctype.h>
 
@@ -1797,9 +1798,9 @@ static int perf_sched__read_events(struct perf_sched *sched)
 	int rc = -1;
 
 	session = perf_session__new(&data, false, &sched->tool);
-	if (session == NULL) {
-		pr_debug("No Memory for session\n");
-		return -1;
+	if (IS_ERR(session)) {
+		pr_debug("Error creating perf session");
+		return PTR_ERR(session);
 	}
 
 	symbol__init(&session->header.env);
@@ -2989,8 +2990,8 @@ static int perf_sched__timehist(struct perf_sched *sched)
 	symbol_conf.use_callchain = sched->show_callchain;
 
 	session = perf_session__new(&data, false, &sched->tool);
-	if (session == NULL)
-		return -ENOMEM;
+	if (IS_ERR(session))
+		return PTR_ERR(session);
 
 	evlist = session->evlist;
 

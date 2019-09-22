@@ -3585,8 +3585,8 @@ static int trace__replay(struct trace *trace)
 	trace->multiple_threads = true;
 
 	session = perf_session__new(&data, false, &trace->tool);
-	if (session == NULL)
-		return -1;
+	if (IS_ERR(session))
+		return PTR_ERR(session);
 
 	if (trace->opts.target.pid)
 		symbol_conf.pid_list_str = strdup(trace->opts.target.pid);
