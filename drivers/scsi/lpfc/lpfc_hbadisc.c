@@ -4841,6 +4841,44 @@ lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 }
 
 /*
+ * Sets the mailbox completion handler to be used for the
+ * unreg_rpi command. The handler varies based on the state of
+ * the port and what will be happening to the rpi next.
+ */
+static void
+lpfc_set_unreg_login_mbx_cmpl(struct lpfc_hba *phba, struct lpfc_vport *vport,
+	struct lpfc_nodelist *ndlp, LPFC_MBOXQ_t *mbox)
+{
+	unsigned long iflags;
+
+	if (ndlp->nlp_flag & NLP_ISSUE_LOGO) {
+		mbox->ctx_ndlp = ndlp;
+		mbox->mbox_cmpl = lpfc_nlp_logo_unreg;
+
+	} else if (phba->sli_rev == LPFC_SLI_REV4 &&
+		   (!(vport->load_flag & FC_UNLOADING)) &&
+		    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
+				      LPFC_SLI_INTF_IF_TYPE_2) &&
+		    (kref_read(&ndlp->kref) > 0)) {
+		mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
+		mbox->mbox_cmpl = lpfc_sli4_unreg_rpi_cmpl_clr;
+	} else {
+		if (vport->load_flag & FC_UNLOADING) {
+			if (phba->sli_rev == LPFC_SLI_REV4) {
+				spin_lock_irqsave(&vport->phba->ndlp_lock,
+						  iflags);
+				ndlp->nlp_flag |= NLP_RELEASE_RPI;
+				spin_unlock_irqrestore(&vport->phba->ndlp_lock,
+						       iflags);
+			}
+			lpfc_nlp_get(ndlp);
+		}
+		mbox->ctx_ndlp = ndlp;
+		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	}
+}
+
+/*
  * Free rpi associated with LPFC_NODELIST entry.
  * This routine is called from lpfc_freenode(), when we are removing
  * a LPFC_NODELIST entry. It is also called if the driver initiates a
@@ -4890,33 +4928,12 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 			lpfc_unreg_login(phba, vport->vpi, rpi, mbox);
 			mbox->vport = vport;
-			if (ndlp->nlp_flag & NLP_ISSUE_LOGO) {
-				mbox->ctx_ndlp = ndlp;
-				mbox->mbox_cmpl = lpfc_nlp_logo_unreg;
-			} else {
-				if (phba->sli_rev == LPFC_SLI_REV4 &&
-				    (!(vport->load_flag & FC_UNLOADING)) &&
-				    (bf_get(lpfc_sli_intf_if_type,
-				     &phba->sli4_hba.sli_intf) >=
-				      LPFC_SLI_INTF_IF_TYPE_2) &&
-				    (kref_read(&ndlp->kref) > 0)) {
-					mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
-					mbox->mbox_cmpl =
-						lpfc_sli4_unreg_rpi_cmpl_clr;
-					/*
-					 * accept PLOGIs after unreg_rpi_cmpl
-					 */
-					acc_plogi = 0;
-				} else if (vport->load_flag & FC_UNLOADING) {
-					mbox->ctx_ndlp = NULL;
-					mbox->mbox_cmpl =
-						lpfc_sli_def_mbox_cmpl;
-				} else {
-					mbox->ctx_ndlp = ndlp;
-					mbox->mbox_cmpl =
-						lpfc_sli_def_mbox_cmpl;
-				}
-			}
+			lpfc_set_unreg_login_mbx_cmpl(phba, vport, ndlp, mbox);
+			if (mbox->mbox_cmpl == lpfc_sli4_unreg_rpi_cmpl_clr)
+				/*
+				 * accept PLOGIs after unreg_rpi_cmpl
+				 */
+				acc_plogi = 0;
 			if (((ndlp->nlp_DID & Fabric_DID_MASK) !=
 			    Fabric_DID_MASK) &&
 			    (!(vport->fc_flag & FC_OFFLINE_MODE)))
@@ -5057,6 +5074,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct lpfc_hba  *phba = vport->phba;
 	LPFC_MBOXQ_t *mb, *nextmb;
 	struct lpfc_dmabuf *mp;
+	unsigned long iflags;
 
 	/* Cleanup node for NPort <nlp_DID> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
@@ -5138,8 +5156,20 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	lpfc_cleanup_vports_rrqs(vport, ndlp);
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		ndlp->nlp_flag |= NLP_RELEASE_RPI;
-	lpfc_unreg_rpi(vport, ndlp);
-
+	if (!lpfc_unreg_rpi(vport, ndlp)) {
+		/* Clean up unregistered and non freed rpis */
+		if ((ndlp->nlp_flag & NLP_RELEASE_RPI) &&
+		    !(ndlp->nlp_rpi == LPFC_RPI_ALLOC_ERROR)) {
+			lpfc_sli4_free_rpi(vport->phba,
+					   ndlp->nlp_rpi);
+			spin_lock_irqsave(&vport->phba->ndlp_lock,
+					  iflags);
+			ndlp->nlp_flag &= ~NLP_RELEASE_RPI;
+			ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
+			spin_unlock_irqrestore(&vport->phba->ndlp_lock,
+					       iflags);
+		}
+	}
 	return 0;
 }
 
