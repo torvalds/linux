@@ -986,8 +986,7 @@ static int smiapp_read_nvm(struct smiapp_sensor *sensor,
 
 		rval = smiapp_write(sensor,
 				    SMIAPP_REG_U8_DATA_TRANSFER_IF_1_CTRL,
-				    SMIAPP_DATA_TRANSFER_IF_1_CTRL_EN |
-				    SMIAPP_DATA_TRANSFER_IF_1_CTRL_RD_EN);
+				    SMIAPP_DATA_TRANSFER_IF_1_CTRL_EN);
 		if (rval)
 			goto out;
 
