@@ -302,11 +302,7 @@ ENTRY(csky_irq)
 	ldw	r12, (r9, TINFO_FLAGS)
 	btsti	r12, TIF_NEED_RESCHED
 	bf	2f
-1:
 	jbsr	preempt_schedule_irq	/* irq en/disable is done inside */
-	ldw	r7, (r9, TINFO_FLAGS)	/* get new tasks TI_FLAGS */
-	btsti	r7, TIF_NEED_RESCHED
-	bt	1b			/* go again */
 #endif
 2:
 	jmpi	ret_from_exception
