@@ -2981,11 +2981,7 @@ static int __init dquot_init(void)
 
 	/* Find power-of-two hlist_heads which can fit into allocation */
 	nr_hash = (1UL << order) * PAGE_SIZE / sizeof(struct hlist_head);
-	dq_hash_bits = 0;
-	do {
-		dq_hash_bits++;
-	} while (nr_hash >> dq_hash_bits);
-	dq_hash_bits--;
+	dq_hash_bits = ilog2(nr_hash);
 
 	nr_hash = 1UL << dq_hash_bits;
 	dq_hash_mask = nr_hash - 1;
