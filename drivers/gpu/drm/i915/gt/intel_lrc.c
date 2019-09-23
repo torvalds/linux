@@ -796,6 +796,17 @@ static bool can_merge_rq(const struct i915_request *prev,
 	GEM_BUG_ON(prev == next);
 	GEM_BUG_ON(!assert_priority_queue(prev, next));
 
+	/*
+	 * We do not submit known completed requests. Therefore if the next
+	 * request is already completed, we can pretend to merge it in
+	 * with the previous context (and we will skip updating the ELSP
+	 * and tracking). Thus hopefully keeping the ELSP full with active
+	 * contexts, despite the best efforts of preempt-to-busy to confuse
+	 * us.
+	 */
+	if (i915_request_completed(next))
+		return true;
+
 	if (!can_merge_ctx(prev->hw_context, next->hw_context))
 		return false;
 
@@ -1171,21 +1182,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				continue;
 			}
 
-			if (i915_request_completed(rq)) {
-				ve->request = NULL;
-				ve->base.execlists.queue_priority_hint = INT_MIN;
-				rb_erase_cached(rb, &execlists->virtual);
-				RB_CLEAR_NODE(rb);
-
-				rq->engine = engine;
-				__i915_request_submit(rq);
-
-				spin_unlock(&ve->base.active.lock);
-
-				rb = rb_first_cached(&execlists->virtual);
-				continue;
-			}
-
 			if (last && !can_merge_rq(last, rq)) {
 				spin_unlock(&ve->base.active.lock);
 				return; /* leave this for another */
@@ -1236,10 +1232,22 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				GEM_BUG_ON(ve->siblings[0] != engine);
 			}
 
-			__i915_request_submit(rq);
-			if (!i915_request_completed(rq)) {
+			if (__i915_request_submit(rq)) {
 				submit = true;
 				last = rq;
+			}
+
+			/*
+			 * Hmm, we have a bunch of virtual engine requests,
+			 * but the first one was already completed (thanks
+			 * preempt-to-busy!). Keep looking at the veng queue
+			 * until we have no more relevant requests (i.e.
+			 * the normal submit queue has higher priority).
+			 */
+			if (!submit) {
+				spin_unlock(&ve->base.active.lock);
+				rb = rb_first_cached(&execlists->virtual);
+				continue;
 			}
 		}
 
@@ -1253,8 +1261,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		int i;
 
 		priolist_for_each_request_consume(rq, rn, p, i) {
-			if (i915_request_completed(rq))
-				goto skip;
+			bool merge = true;
 
 			/*
 			 * Can we combine this request with the current port?
@@ -1295,14 +1302,23 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				    ctx_single_port_submission(rq->hw_context))
 					goto done;
 
-				*port = execlists_schedule_in(last, port - execlists->pending);
-				port++;
+				merge = false;
 			}
 
-			last = rq;
-			submit = true;
-skip:
-			__i915_request_submit(rq);
+			if (__i915_request_submit(rq)) {
+				if (!merge) {
+					*port = execlists_schedule_in(last, port - execlists->pending);
+					port++;
+					last = NULL;
+				}
+
+				GEM_BUG_ON(last &&
+					   !can_merge_ctx(last->hw_context,
+							  rq->hw_context));
+
+				submit = true;
+				last = rq;
+			}
 		}
 
 		rb_erase_cached(&p->node, &execlists->queue);
