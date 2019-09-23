@@ -11,7 +11,6 @@
 #include <stddef.h>
 #include <linux/compiler.h>
 #include <sys/types.h>
-#include <internal/lib.h>
 
 /* General helper functions */
 void usage(const char *err) __noreturn;
