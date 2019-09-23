@@ -159,10 +159,11 @@ static const struct kfd2kgd_calls kfd2kgd = {
 			get_atc_vmid_pasid_mapping_pasid,
 	.get_atc_vmid_pasid_mapping_valid =
 			get_atc_vmid_pasid_mapping_valid,
+	.get_tile_config = amdgpu_amdkfd_get_tile_config,
+	.set_vm_context_page_table_base = set_vm_context_page_table_base,
 	.invalidate_tlbs = invalidate_tlbs,
 	.invalidate_tlbs_vmid = invalidate_tlbs_vmid,
-	.set_vm_context_page_table_base = set_vm_context_page_table_base,
-	.get_tile_config = amdgpu_amdkfd_get_tile_config,
+	.get_hive_id = amdgpu_amdkfd_get_hive_id,
 };
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_10_0_get_functions()
