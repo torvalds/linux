@@ -1793,7 +1793,7 @@ void __remove_memory(int nid, u64 start, u64 size)
 {
 
 	/*
-	 * trigger BUG() is some memory is not offlined prior to calling this
+	 * trigger BUG() if some memory is not offlined prior to calling this
 	 * function
 	 */
 	if (try_remove_memory(nid, start, size))
