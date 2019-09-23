@@ -501,7 +501,7 @@ void * __meminit sparse_buffer_alloc(unsigned long size)
 	void *ptr = NULL;
 
 	if (sparsemap_buf) {
-		ptr = PTR_ALIGN(sparsemap_buf, size);
+		ptr = (void *) roundup((unsigned long)sparsemap_buf, size);
 		if (ptr + size > sparsemap_buf_end)
 			ptr = NULL;
 		else {
