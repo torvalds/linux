@@ -170,8 +170,9 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		if (ucode)
 			DRM_WARN("failed to load ucode id (%d) ",
 				  ucode->ucode_id);
-		DRM_WARN("psp command failed and response status is (0x%X)\n",
-			  psp->cmd_buf_mem->resp.status & GFX_CMD_STATUS_MASK);
+		DRM_WARN("psp command (0x%X) failed and response status is (0x%X)\n",
+			 psp->cmd_buf_mem->cmd_id,
+			 psp->cmd_buf_mem->resp.status & GFX_CMD_STATUS_MASK);
 		if (!timeout) {
 			mutex_unlock(&psp->mutex);
 			return -EINVAL;
