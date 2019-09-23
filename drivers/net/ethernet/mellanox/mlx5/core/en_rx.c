@@ -725,6 +725,14 @@ static u32 mlx5e_get_fcs(const struct sk_buff *skb)
 	return __get_unaligned_cpu32(fcs_bytes);
 }
 
+static u8 get_ip_proto(struct sk_buff *skb, __be16 proto)
+{
+	void *ip_p = skb->data + sizeof(struct ethhdr);
+
+	return (proto == htons(ETH_P_IP)) ? ((struct iphdr *)ip_p)->protocol :
+					    ((struct ipv6hdr *)ip_p)->nexthdr;
+}
+
 #define short_frame(size) ((size) <= ETH_ZLEN + ETH_FCS_LEN)
 
 static inline void mlx5e_handle_csum(struct net_device *netdev,
@@ -758,6 +766,9 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		goto csum_unnecessary;
 
 	if (likely(is_last_ethertype_ip(skb, &network_depth, &proto))) {
+		if (unlikely(get_ip_proto(skb, proto) == IPPROTO_SCTP))
+			goto csum_unnecessary;
+
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
 		if (network_depth > ETH_HLEN)
