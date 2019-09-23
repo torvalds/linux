@@ -885,6 +885,12 @@ int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev)
 	mutex_init(&padctl->lock);
 	padctl->dev = &pdev->dev;
 
+	/*
+	 * Note that we can't replace this by of_device_get_match_data()
+	 * because we need the separate matching table for this legacy code on
+	 * Tegra124. of_device_get_match_data() would attempt to use the table
+	 * from the updated driver and fail.
+	 */
 	match = of_match_node(tegra_xusb_padctl_of_match, pdev->dev.of_node);
 	padctl->soc = match->data;
 
