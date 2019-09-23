@@ -5,7 +5,6 @@
  *
  */
 #include <linux/clk.h>
-#include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
 
 #include <drm/drm_atomic.h>

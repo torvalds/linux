@@ -224,4 +224,7 @@ void komeda_print_events(struct komeda_events *evts);
 static inline void komeda_print_events(struct komeda_events *evts) {}
 #endif
 
+int komeda_dev_resume(struct komeda_dev *mdev);
+int komeda_dev_suspend(struct komeda_dev *mdev);
+
 #endif /*_KOMEDA_DEV_H_*/
