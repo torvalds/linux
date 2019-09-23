@@ -1201,6 +1201,7 @@ static int ath10k_wmi_tlv_op_pull_svc_rdy_ev(struct ath10k *ar,
 	arg->max_tx_power = ev->hw_max_tx_power;
 	arg->ht_cap = ev->ht_cap_info;
 	arg->vht_cap = ev->vht_cap_info;
+	arg->vht_supp_mcs = ev->vht_supp_mcs;
 	arg->sw_ver0 = ev->abi.abi_ver0;
 	arg->sw_ver1 = ev->abi.abi_ver1;
 	arg->fw_build = ev->fw_build_vers;
