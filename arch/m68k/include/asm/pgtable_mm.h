@@ -181,6 +181,4 @@ pgprot_t pgprot_dmacoherent(pgprot_t prot);
  */
 #define pgtable_cache_init()	do { } while (0)
 
-#define check_pgt_cache()	do { } while (0)
-
 #endif /* _M68K_PGTABLE_H */

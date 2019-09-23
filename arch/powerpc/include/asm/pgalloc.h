@@ -64,8 +64,6 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t ptepage)
 extern struct kmem_cache *pgtable_cache[];
 #define PGT_CACHE(shift) pgtable_cache[shift]
 
-static inline void check_pgt_cache(void) { }
-
 #ifdef CONFIG_PPC_BOOK3S
 #include <asm/book3s/pgalloc.h>
 #else

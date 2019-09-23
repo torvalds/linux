@@ -2,10 +2,7 @@
 #ifndef __ASM_SH_PGALLOC_H
 #define __ASM_SH_PGALLOC_H
 
-#include <linux/quicklist.h>
 #include <asm/page.h>
-
-#define QUICK_PT 0	/* Other page table pages that are zero on free */
 
 extern pgd_t *pgd_alloc(struct mm_struct *);
 extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
@@ -34,20 +31,18 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
  */
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 {
-	return quicklist_alloc(QUICK_PT, GFP_KERNEL, NULL);
+	return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 }
 
 static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
 {
 	struct page *page;
-	void *pg;
 
-	pg = quicklist_alloc(QUICK_PT, GFP_KERNEL, NULL);
-	if (!pg)
+	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (!page)
 		return NULL;
-	page = virt_to_page(pg);
 	if (!pgtable_page_ctor(page)) {
-		quicklist_free(QUICK_PT, NULL, pg);
+		__free_page(page);
 		return NULL;
 	}
 	return page;
@@ -55,13 +50,13 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
 
 static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
-	quicklist_free(QUICK_PT, NULL, pte);
+	free_page((unsigned long)pte);
 }
 
 static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 {
 	pgtable_page_dtor(pte);
-	quicklist_free_page(QUICK_PT, NULL, pte);
+	__free_page(pte);
 }
 
 #define __pte_free_tlb(tlb,pte,addr)			\
@@ -78,10 +73,5 @@ do {							\
 	tlb_remove_page((tlb), page);			\
 } while (0);
 #endif
-
-static inline void check_pgt_cache(void)
-{
-	quicklist_trim(QUICK_PT, NULL, 25, 16);
-}
 
 #endif /* __ASM_SH_PGALLOC_H */

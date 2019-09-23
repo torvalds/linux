@@ -82,8 +82,4 @@ do {                                    \
 	tlb_remove_page((tlb), pte);    \
 } while (0)
 
-static inline void check_pgt_cache(void)
-{
-}
-
 #endif /* _ASM_RISCV_PGALLOC_H */

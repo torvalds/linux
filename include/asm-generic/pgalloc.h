@@ -102,11 +102,6 @@ static inline void pte_free(struct mm_struct *mm, struct page *pte_page)
 	__free_page(pte_page);
 }
 
-#else /* CONFIG_MMU */
-
-/* This is enough for a nommu architecture */
-#define check_pgt_cache()          do { } while (0)
-
 #endif /* CONFIG_MMU */
 
 #endif /* __ASM_GENERIC_PGALLOC_H */

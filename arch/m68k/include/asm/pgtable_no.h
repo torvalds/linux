@@ -60,6 +60,4 @@ extern void paging_init(void);
 
 #include <asm-generic/pgtable.h>
 
-#define check_pgt_cache()	do { } while (0)
-
 #endif /* _M68KNOMMU_PGTABLE_H */

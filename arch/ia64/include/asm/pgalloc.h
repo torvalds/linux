@@ -19,18 +19,17 @@
 #include <linux/mm.h>
 #include <linux/page-flags.h>
 #include <linux/threads.h>
-#include <linux/quicklist.h>
 
 #include <asm/mmu_context.h>
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	return quicklist_alloc(0, GFP_KERNEL, NULL);
+	return (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 }
 
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
-	quicklist_free(0, NULL, pgd);
+	free_page((unsigned long)pgd);
 }
 
 #if CONFIG_PGTABLE_LEVELS == 4
@@ -42,12 +41,12 @@ pgd_populate(struct mm_struct *mm, pgd_t * pgd_entry, pud_t * pud)
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
-	return quicklist_alloc(0, GFP_KERNEL, NULL);
+	return (pud_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 }
 
 static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 {
-	quicklist_free(0, NULL, pud);
+	free_page((unsigned long)pud);
 }
 #define __pud_free_tlb(tlb, pud, address)	pud_free((tlb)->mm, pud)
 #endif /* CONFIG_PGTABLE_LEVELS == 4 */
@@ -60,12 +59,12 @@ pud_populate(struct mm_struct *mm, pud_t * pud_entry, pmd_t * pmd)
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
-	return quicklist_alloc(0, GFP_KERNEL, NULL);
+	return (pmd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 }
 
 static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 {
-	quicklist_free(0, NULL, pmd);
+	free_page((unsigned long)pmd);
 }
 
 #define __pmd_free_tlb(tlb, pmd, address)	pmd_free((tlb)->mm, pmd)
@@ -86,14 +85,12 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t * pmd_entry, pte_t * pte)
 static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
 {
 	struct page *page;
-	void *pg;
 
-	pg = quicklist_alloc(0, GFP_KERNEL, NULL);
-	if (!pg)
+	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (!page)
 		return NULL;
-	page = virt_to_page(pg);
 	if (!pgtable_page_ctor(page)) {
-		quicklist_free(0, NULL, pg);
+		__free_page(page);
 		return NULL;
 	}
 	return page;
@@ -101,23 +98,18 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 {
-	return quicklist_alloc(0, GFP_KERNEL, NULL);
+	return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 }
 
 static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 {
 	pgtable_page_dtor(pte);
-	quicklist_free_page(0, NULL, pte);
+	__free_page(pte);
 }
 
 static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
-	quicklist_free(0, NULL, pte);
-}
-
-static inline void check_pgt_cache(void)
-{
-	quicklist_trim(0, NULL, 25, 16);
+	free_page((unsigned long)pte);
 }
 
 #define __pte_free_tlb(tlb, pte, address)	pte_free((tlb)->mm, pte)

@@ -273,11 +273,6 @@ config BOUNCE
 	  by default when ZONE_DMA or HIGHMEM is selected, but you
 	  may say n to override this.
 
-config NR_QUICK
-	int
-	depends on QUICKLIST
-	default "1"
-
 config VIRT_TO_BUS
 	bool
 	help

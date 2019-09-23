@@ -8,7 +8,6 @@
 #include <linux/mmzone.h>
 #include <linux/proc_fs.h>
 #include <linux/percpu.h>
-#include <linux/quicklist.h>
 #include <linux/seq_file.h>
 #include <linux/swap.h>
 #include <linux/vmstat.h>
@@ -106,9 +105,6 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		   global_zone_page_state(NR_KERNEL_STACK_KB));
 	show_val_kb(m, "PageTables:     ",
 		    global_zone_page_state(NR_PAGETABLE));
-#ifdef CONFIG_QUICKLIST
-	show_val_kb(m, "Quicklists:     ", quicklist_total_size());
-#endif
 
 	show_val_kb(m, "NFS_Unstable:   ",
 		    global_node_page_state(NR_UNSTABLE_NFS));
