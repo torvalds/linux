@@ -100,21 +100,6 @@ unsigned long __weak memory_block_size_bytes(void)
 }
 EXPORT_SYMBOL_GPL(memory_block_size_bytes);
 
-static unsigned long get_memory_block_size(void)
-{
-	unsigned long block_sz;
-
-	block_sz = memory_block_size_bytes();
-
-	/* Validate blk_sz is a power of 2 and not less than section size */
-	if ((block_sz & (block_sz - 1)) || (block_sz < MIN_MEMORY_BLOCK_SIZE)) {
-		WARN_ON(1);
-		block_sz = MIN_MEMORY_BLOCK_SIZE;
-	}
-
-	return block_sz;
-}
-
 /*
  * Show the first physical section index (number) of this memory block.
  */
@@ -461,7 +446,7 @@ static DEVICE_ATTR_RO(removable);
 static ssize_t block_size_bytes_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lx\n", get_memory_block_size());
+	return sprintf(buf, "%lx\n", memory_block_size_bytes());
 }
 
 static DEVICE_ATTR_RO(block_size_bytes);
@@ -812,18 +797,21 @@ static const struct attribute_group *memory_root_attr_groups[] = {
 /*
  * Initialize the sysfs support for memory devices...
  */
-int __init memory_dev_init(void)
+void __init memory_dev_init(void)
 {
 	int ret;
 	int err;
 	unsigned long block_sz, nr;
 
+	/* Validate the configured memory block size */
+	block_sz = memory_block_size_bytes();
+	if (!is_power_of_2(block_sz) || block_sz < MIN_MEMORY_BLOCK_SIZE)
+		panic("Memory block size not suitable: 0x%lx\n", block_sz);
+	sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
+
 	ret = subsys_system_register(&memory_subsys, memory_root_attr_groups);
 	if (ret)
 		goto out;
-
-	block_sz = get_memory_block_size();
-	sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
 
 	/*
 	 * Create entries for memory sections that were found
@@ -840,8 +828,7 @@ int __init memory_dev_init(void)
 
 out:
 	if (ret)
-		printk(KERN_ERR "%s() failed: %d\n", __func__, ret);
-	return ret;
+		panic("%s() failed: %d\n", __func__, ret);
 }
 
 /**
