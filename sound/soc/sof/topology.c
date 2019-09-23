@@ -573,6 +573,20 @@ static const struct sof_topology_token src_tokens[] = {
 		offsetof(struct sof_ipc_comp_src, sink_rate), 0},
 };
 
+/* ASRC */
+static const struct sof_topology_token asrc_tokens[] = {
+	{SOF_TKN_ASRC_RATE_IN, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_comp_asrc, source_rate), 0},
+	{SOF_TKN_ASRC_RATE_OUT, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_comp_asrc, sink_rate), 0},
+	{SOF_TKN_ASRC_ASYNCHRONOUS_MODE, SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		get_token_u32,
+		offsetof(struct sof_ipc_comp_asrc, asynchronous_mode), 0},
+	{SOF_TKN_ASRC_OPERATION_MODE, SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		get_token_u32,
+		offsetof(struct sof_ipc_comp_asrc, operation_mode), 0},
+};
+
 /* Tone */
 static const struct sof_topology_token tone_tokens[] = {
 };
@@ -1783,6 +1797,67 @@ err:
 }
 
 /*
+ * ASRC Topology
+ */
+
+static int sof_widget_load_asrc(struct snd_soc_component *scomp, int index,
+				struct snd_sof_widget *swidget,
+				struct snd_soc_tplg_dapm_widget *tw,
+				struct sof_ipc_comp_reply *r)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_private *private = &tw->priv;
+	struct sof_ipc_comp_asrc *asrc;
+	int ret;
+
+	asrc = kzalloc(sizeof(*asrc), GFP_KERNEL);
+	if (!asrc)
+		return -ENOMEM;
+
+	/* configure ASRC IPC message */
+	asrc->comp.hdr.size = sizeof(*asrc);
+	asrc->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
+	asrc->comp.id = swidget->comp_id;
+	asrc->comp.type = SOF_COMP_ASRC;
+	asrc->comp.pipeline_id = index;
+	asrc->config.hdr.size = sizeof(asrc->config);
+
+	ret = sof_parse_tokens(scomp, asrc, asrc_tokens,
+			       ARRAY_SIZE(asrc_tokens), private->array,
+			       le32_to_cpu(private->size));
+	if (ret != 0) {
+		dev_err(scomp->dev, "error: parse asrc tokens failed %d\n",
+			private->size);
+		goto err;
+	}
+
+	ret = sof_parse_tokens(scomp, &asrc->config, comp_tokens,
+			       ARRAY_SIZE(comp_tokens), private->array,
+			       le32_to_cpu(private->size));
+	if (ret != 0) {
+		dev_err(scomp->dev, "error: parse asrc.cfg tokens failed %d\n",
+			le32_to_cpu(private->size));
+		goto err;
+	}
+
+	dev_dbg(scomp->dev, "asrc %s: source rate %d sink rate %d "
+		"asynch %d operation %d\n",
+		swidget->widget->name, asrc->source_rate, asrc->sink_rate,
+		asrc->asynchronous_mode, asrc->operation_mode);
+	sof_dbg_comp_config(scomp, &asrc->config);
+
+	swidget->private = asrc;
+
+	ret = sof_ipc_tx_message(sdev->ipc, asrc->comp.hdr.cmd, asrc,
+				 sizeof(*asrc), r, sizeof(*r));
+	if (ret >= 0)
+		return ret;
+err:
+	kfree(asrc);
+	return ret;
+}
+
+/*
  * Signal Generator Topology
  */
 
@@ -2194,6 +2269,9 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		break;
 	case snd_soc_dapm_src:
 		ret = sof_widget_load_src(scomp, index, swidget, tw, &reply);
+		break;
+	case snd_soc_dapm_asrc:
+		ret = sof_widget_load_asrc(scomp, index, swidget, tw, &reply);
 		break;
 	case snd_soc_dapm_siggen:
 		ret = sof_widget_load_siggen(scomp, index, swidget, tw, &reply);
