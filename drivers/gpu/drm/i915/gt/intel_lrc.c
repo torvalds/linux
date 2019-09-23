@@ -234,6 +234,13 @@ static void execlists_init_reg_state(u32 *reg_state,
 				     struct intel_engine_cs *engine,
 				     struct intel_ring *ring);
 
+static void mark_eio(struct i915_request *rq)
+{
+	if (!i915_request_signaled(rq))
+		dma_fence_set_error(&rq->fence, -EIO);
+	i915_request_mark_complete(rq);
+}
+
 static inline u32 intel_hws_preempt_address(struct intel_engine_cs *engine)
 {
 	return (i915_ggtt_offset(engine->status_page.vma) +
@@ -2574,12 +2581,8 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	__execlists_reset(engine, true);
 
 	/* Mark all executing requests as skipped. */
-	list_for_each_entry(rq, &engine->active.requests, sched.link) {
-		if (!i915_request_signaled(rq))
-			dma_fence_set_error(&rq->fence, -EIO);
-
-		i915_request_mark_complete(rq);
-	}
+	list_for_each_entry(rq, &engine->active.requests, sched.link)
+		mark_eio(rq);
 
 	/* Flush the queued requests to the timeline list (for retiring). */
 	while ((rb = rb_first_cached(&execlists->queue))) {
@@ -2587,9 +2590,8 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 		int i;
 
 		priolist_for_each_request_consume(rq, rn, p, i) {
+			mark_eio(rq);
 			__i915_request_submit(rq);
-			dma_fence_set_error(&rq->fence, -EIO);
-			i915_request_mark_complete(rq);
 		}
 
 		rb_erase_cached(&p->node, &execlists->queue);
@@ -2605,13 +2607,14 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 		RB_CLEAR_NODE(rb);
 
 		spin_lock(&ve->base.active.lock);
-		if (ve->request) {
-			ve->request->engine = engine;
-			__i915_request_submit(ve->request);
-			dma_fence_set_error(&ve->request->fence, -EIO);
-			i915_request_mark_complete(ve->request);
+		rq = fetch_and_zero(&ve->request);
+		if (rq) {
+			mark_eio(rq);
+
+			rq->engine = engine;
+			__i915_request_submit(rq);
+
 			ve->base.execlists.queue_priority_hint = INT_MIN;
-			ve->request = NULL;
 		}
 		spin_unlock(&ve->base.active.lock);
 	}
