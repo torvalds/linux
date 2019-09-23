@@ -556,4 +556,6 @@ bool find_lock_delalloc_range(struct inode *inode,
 struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
 					       u64 start);
 
+int __init extent_state_cache_init(void);
+void __cold extent_state_cache_exit(void);
 #endif
