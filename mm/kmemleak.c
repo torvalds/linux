@@ -180,11 +180,17 @@ struct kmemleak_object {
 #define HEX_ASCII		1
 /* max number of lines to be printed */
 #define HEX_MAX_LINES		2
+/* memory pool size */
+#define MEM_POOL_SIZE		16000
 
 /* the list of all allocated objects */
 static LIST_HEAD(object_list);
 /* the list of gray-colored objects (see color_gray comment below) */
 static LIST_HEAD(gray_list);
+/* memory pool allocation */
+static struct kmemleak_object mem_pool[MEM_POOL_SIZE];
+static int mem_pool_free_count = ARRAY_SIZE(mem_pool);
+static LIST_HEAD(mem_pool_free_list);
 /* search tree for object boundaries */
 static struct rb_root object_tree_root = RB_ROOT;
 /* rw_lock protecting the access to object_list and object_tree_root */
@@ -452,6 +458,50 @@ static int get_object(struct kmemleak_object *object)
 }
 
 /*
+ * Memory pool allocation and freeing. kmemleak_lock must not be held.
+ */
+static struct kmemleak_object *mem_pool_alloc(gfp_t gfp)
+{
+	unsigned long flags;
+	struct kmemleak_object *object;
+
+	/* try the slab allocator first */
+	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
+	if (object)
+		return object;
+
+	/* slab allocation failed, try the memory pool */
+	write_lock_irqsave(&kmemleak_lock, flags);
+	object = list_first_entry_or_null(&mem_pool_free_list,
+					  typeof(*object), object_list);
+	if (object)
+		list_del(&object->object_list);
+	else if (mem_pool_free_count)
+		object = &mem_pool[--mem_pool_free_count];
+	write_unlock_irqrestore(&kmemleak_lock, flags);
+
+	return object;
+}
+
+/*
+ * Return the object to either the slab allocator or the memory pool.
+ */
+static void mem_pool_free(struct kmemleak_object *object)
+{
+	unsigned long flags;
+
+	if (object < mem_pool || object >= mem_pool + ARRAY_SIZE(mem_pool)) {
+		kmem_cache_free(object_cache, object);
+		return;
+	}
+
+	/* add the object to the memory pool free list */
+	write_lock_irqsave(&kmemleak_lock, flags);
+	list_add(&object->object_list, &mem_pool_free_list);
+	write_unlock_irqrestore(&kmemleak_lock, flags);
+}
+
+/*
  * RCU callback to free a kmemleak_object.
  */
 static void free_object_rcu(struct rcu_head *rcu)
@@ -469,7 +519,7 @@ static void free_object_rcu(struct rcu_head *rcu)
 		hlist_del(&area->node);
 		kmem_cache_free(scan_area_cache, area);
 	}
-	kmem_cache_free(object_cache, object);
+	mem_pool_free(object);
 }
 
 /*
@@ -552,7 +602,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
 	struct rb_node **link, *rb_parent;
 	unsigned long untagged_ptr;
 
-	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
+	object = mem_pool_alloc(gfp);
 	if (!object) {
 		pr_warn("Cannot allocate a kmemleak_object structure\n");
 		kmemleak_disable();
