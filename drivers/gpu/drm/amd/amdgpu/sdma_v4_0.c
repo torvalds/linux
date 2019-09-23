@@ -1930,6 +1930,10 @@ static int sdma_v4_0_process_ras_data_cb(struct amdgpu_device *adev,
 {
 	int instance;
 
+	/* When “Full RAS” is enabled, the per-IP interrupt sources should
+	 * be disabled and the driver should only look for the aggregated
+	 * interrupt via sync flood
+	 */
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
 		goto out;
 
