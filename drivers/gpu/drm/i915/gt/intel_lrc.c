@@ -2414,10 +2414,14 @@ static void reset_csb_pointers(struct intel_engine_cs *engine)
 
 static struct i915_request *active_request(struct i915_request *rq)
 {
-	const struct list_head * const list = &rq->timeline->requests;
 	const struct intel_context * const ce = rq->hw_context;
 	struct i915_request *active = NULL;
+	struct list_head *list;
 
+	if (!i915_request_is_active(rq)) /* unwound, but incomplete! */
+		return rq;
+
+	list = &rq->timeline->requests;
 	list_for_each_entry_from_reverse(rq, list, link) {
 		if (i915_request_completed(rq))
 			break;
