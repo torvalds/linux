@@ -144,7 +144,6 @@ static inline void ocfs2_ci_set_new(struct ocfs2_super *osb,
 void ocfs2_orphan_scan_init(struct ocfs2_super *osb);
 void ocfs2_orphan_scan_start(struct ocfs2_super *osb);
 void ocfs2_orphan_scan_stop(struct ocfs2_super *osb);
-void ocfs2_orphan_scan_exit(struct ocfs2_super *osb);
 
 void ocfs2_complete_recovery(struct work_struct *work);
 void ocfs2_wait_for_recovery(struct ocfs2_super *osb);
@@ -441,7 +440,7 @@ static inline int ocfs2_mknod_credits(struct super_block *sb, int is_dir,
  * previous dirblock update in the free list */
 static inline int ocfs2_link_credits(struct super_block *sb)
 {
-	return 2*OCFS2_INODE_UPDATE_CREDITS + 4 +
+	return 2 * OCFS2_INODE_UPDATE_CREDITS + 4 +
 	       ocfs2_quota_trans_credits(sb);
 }
 
