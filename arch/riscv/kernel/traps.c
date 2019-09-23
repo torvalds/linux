@@ -134,7 +134,7 @@ asmlinkage void do_trap_break(struct pt_regs *regs)
 			break;
 		case BUG_TRAP_TYPE_WARN:
 			regs->sepc += get_break_insn_length(regs->sepc);
-			break;
+			return;
 		case BUG_TRAP_TYPE_BUG:
 #endif /* CONFIG_GENERIC_BUG */
 		default:
