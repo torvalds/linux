@@ -1647,7 +1647,7 @@ repeat:
 		}
 
 		/* Has the page been truncated? */
-		if (unlikely(page->mapping != mapping)) {
+		if (unlikely(compound_head(page)->mapping != mapping)) {
 			unlock_page(page);
 			put_page(page);
 			goto repeat;
