@@ -878,11 +878,11 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 
 	if (!bo) {
 		if (busy_bo)
-			ttm_bo_get(busy_bo);
+			kref_get(&busy_bo->list_kref);
 		spin_unlock(&glob->lru_lock);
 		ret = ttm_mem_evict_wait_busy(busy_bo, ctx, ticket);
 		if (busy_bo)
-			ttm_bo_put(busy_bo);
+			kref_put(&busy_bo->list_kref, ttm_bo_release_list);
 		return ret;
 	}
 
