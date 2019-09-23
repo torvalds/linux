@@ -268,7 +268,7 @@ static void *i915_gem_object_map(const struct drm_i915_gem_object *obj,
 	switch (type) {
 	default:
 		MISSING_CASE(type);
-		/* fallthrough to use PAGE_KERNEL anyway */
+		/* fallthrough - to use PAGE_KERNEL anyway */
 	case I915_MAP_WB:
 		pgprot = PAGE_KERNEL;
 		break;

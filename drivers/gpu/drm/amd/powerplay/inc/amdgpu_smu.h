@@ -429,7 +429,6 @@ struct smu_table_context
 	struct smu_table		*tables;
 	uint32_t			table_count;
 	struct smu_table		memory_pool;
-	uint16_t                        software_shutdown_temp;
 	uint8_t                         thermal_controller_type;
 	uint16_t			TDPODLimit;
 
@@ -452,6 +451,7 @@ struct smu_dpm_context {
 struct smu_power_gate {
 	bool uvd_gated;
 	bool vce_gated;
+	bool vcn_gated;
 };
 
 struct smu_power_context {
@@ -613,6 +613,7 @@ struct pptable_funcs {
 	int (*tables_init)(struct smu_context *smu, struct smu_table *tables);
 	int (*set_thermal_fan_table)(struct smu_context *smu);
 	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
+	int (*get_fan_speed_rpm)(struct smu_context *smu, uint32_t *speed);
 	int (*set_watermarks_table)(struct smu_context *smu, void *watermarks,
 				    struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
 	int (*get_current_clk_freq_by_table)(struct smu_context *smu,
@@ -621,6 +622,7 @@ struct pptable_funcs {
 	int (*get_thermal_temperature_range)(struct smu_context *smu, struct smu_temperature_range *range);
 	int (*get_uclk_dpm_states)(struct smu_context *smu, uint32_t *clocks_in_khz, uint32_t *num_states);
 	int (*set_default_od_settings)(struct smu_context *smu, bool initialize);
+	int (*set_performance_level)(struct smu_context *smu, enum amd_dpm_forced_level level);
 };
 
 struct smu_funcs
@@ -685,7 +687,6 @@ struct smu_funcs
 	int (*set_watermarks_for_clock_ranges)(struct smu_context *smu,
 					       struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
 	int (*conv_power_profile_to_pplib_workload)(int power_profile);
-	int (*get_current_rpm)(struct smu_context *smu, uint32_t *speed);
 	uint32_t (*get_fan_control_mode)(struct smu_context *smu);
 	int (*set_fan_control_mode)(struct smu_context *smu, uint32_t mode);
 	int (*set_fan_speed_percent)(struct smu_context *smu, uint32_t speed);
@@ -751,8 +752,6 @@ struct smu_funcs
 	((smu)->funcs->init_max_sustainable_clocks ? (smu)->funcs->init_max_sustainable_clocks((smu)) : 0)
 #define smu_set_default_od_settings(smu, initialize) \
 	((smu)->ppt_funcs->set_default_od_settings ? (smu)->ppt_funcs->set_default_od_settings((smu), (initialize)) : 0)
-#define smu_get_current_rpm(smu, speed) \
-	((smu)->funcs->get_current_rpm ? (smu)->funcs->get_current_rpm((smu), (speed)) : 0)
 #define smu_set_fan_speed_rpm(smu, speed) \
 	((smu)->funcs->set_fan_speed_rpm ? (smu)->funcs->set_fan_speed_rpm((smu), (speed)) : 0)
 #define smu_send_smc_msg(smu, msg) \
@@ -841,6 +840,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->get_fan_speed_percent ? (smu)->ppt_funcs->get_fan_speed_percent((smu), (speed)) : 0)
 #define smu_set_fan_speed_percent(smu, speed) \
 	((smu)->funcs->set_fan_speed_percent ? (smu)->funcs->set_fan_speed_percent((smu), (speed)) : 0)
+#define smu_get_fan_speed_rpm(smu, speed) \
+	((smu)->ppt_funcs->get_fan_speed_rpm ? (smu)->ppt_funcs->get_fan_speed_rpm((smu), (speed)) : 0)
 
 #define smu_msg_get_index(smu, msg) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_msg_index? (smu)->ppt_funcs->get_smu_msg_index((smu), (msg)) : -EINVAL) : -EINVAL)
@@ -906,8 +907,6 @@ struct smu_funcs
 	((smu)->funcs->register_irq_handler ? (smu)->funcs->register_irq_handler(smu) : 0)
 #define smu_set_azalia_d3_pme(smu) \
 	((smu)->funcs->set_azalia_d3_pme ? (smu)->funcs->set_azalia_d3_pme((smu)) : 0)
-#define smu_get_uclk_dpm_states(smu, clocks_in_khz, num_states) \
-	((smu)->ppt_funcs->get_uclk_dpm_states ? (smu)->ppt_funcs->get_uclk_dpm_states((smu), (clocks_in_khz), (num_states)) : 0)
 #define smu_get_max_sustainable_clocks_by_dc(smu, max_clocks) \
 	((smu)->funcs->get_max_sustainable_clocks_by_dc ? (smu)->funcs->get_max_sustainable_clocks_by_dc((smu), (max_clocks)) : 0)
 #define smu_get_uclk_dpm_states(smu, clocks_in_khz, num_states) \
@@ -918,6 +917,9 @@ struct smu_funcs
 	((smu)->funcs->baco_get_state? (smu)->funcs->baco_get_state((smu), (state)) : 0)
 #define smu_baco_reset(smu) \
 	((smu)->funcs->baco_reset? (smu)->funcs->baco_reset((smu)) : 0)
+#define smu_asic_set_performance_level(smu, level) \
+	((smu)->ppt_funcs->set_performance_level? (smu)->ppt_funcs->set_performance_level((smu), (level)) : -EINVAL);
+
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,

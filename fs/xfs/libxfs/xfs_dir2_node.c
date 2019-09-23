@@ -741,7 +741,8 @@ xfs_dir2_leafn_lookup_for_entry(
 	ents = dp->d_ops->leaf_ents_p(leaf);
 
 	xfs_dir3_leaf_check(dp, bp);
-	ASSERT(leafhdr.count > 0);
+	if (leafhdr.count <= 0)
+		return -EFSCORRUPTED;
 
 	/*
 	 * Look up the hash value in the leaf entries.

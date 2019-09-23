@@ -26,7 +26,7 @@
 static unsigned int hci_muxed;
 static unsigned int flow_control;
 static unsigned int break_control;
-static unsigned int reset_n_io;
+static int reset_n_io = -EINVAL;
 
 /*
 ** NFCMRVL NCI OPS
@@ -231,5 +231,5 @@ MODULE_PARM_DESC(break_control, "Tell if UART driver must drive break signal.");
 module_param(hci_muxed, uint, 0);
 MODULE_PARM_DESC(hci_muxed, "Tell if transport is muxed in HCI one.");
 
-module_param(reset_n_io, uint, 0);
+module_param(reset_n_io, int, 0);
 MODULE_PARM_DESC(reset_n_io, "GPIO that is wired to RESET_N signal.");

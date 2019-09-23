@@ -4985,7 +4985,7 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 						      BTRFS_I(inode),
 						      LOG_OTHER_INODE_ALL,
 						      0, LLONG_MAX, ctx);
-					iput(inode);
+					btrfs_add_delayed_iput(inode);
 				}
 			}
 			continue;
@@ -5000,7 +5000,7 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 		ret = btrfs_log_inode(trans, root, BTRFS_I(inode),
 				      LOG_OTHER_INODE, 0, LLONG_MAX, ctx);
 		if (ret) {
-			iput(inode);
+			btrfs_add_delayed_iput(inode);
 			continue;
 		}
 
@@ -5009,7 +5009,7 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 		key.offset = 0;
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0) {
-			iput(inode);
+			btrfs_add_delayed_iput(inode);
 			continue;
 		}
 
@@ -5056,7 +5056,7 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 			}
 			path->slots[0]++;
 		}
-		iput(inode);
+		btrfs_add_delayed_iput(inode);
 	}
 
 	return ret;
@@ -5689,7 +5689,7 @@ process_leaf:
 			}
 
 			if (btrfs_inode_in_log(BTRFS_I(di_inode), trans->transid)) {
-				iput(di_inode);
+				btrfs_add_delayed_iput(di_inode);
 				break;
 			}
 
@@ -5701,7 +5701,7 @@ process_leaf:
 			if (!ret &&
 			    btrfs_must_commit_transaction(trans, BTRFS_I(di_inode)))
 				ret = 1;
-			iput(di_inode);
+			btrfs_add_delayed_iput(di_inode);
 			if (ret)
 				goto next_dir_inode;
 			if (ctx->log_new_dentries) {
@@ -5848,7 +5848,7 @@ static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
 			if (!ret && ctx && ctx->log_new_dentries)
 				ret = log_new_dir_dentries(trans, root,
 						   BTRFS_I(dir_inode), ctx);
-			iput(dir_inode);
+			btrfs_add_delayed_iput(dir_inode);
 			if (ret)
 				goto out;
 		}
@@ -5891,7 +5891,7 @@ static int log_new_ancestors(struct btrfs_trans_handle *trans,
 			ret = btrfs_log_inode(trans, root, BTRFS_I(inode),
 					      LOG_INODE_EXISTS,
 					      0, LLONG_MAX, ctx);
-		iput(inode);
+		btrfs_add_delayed_iput(inode);
 		if (ret)
 			return ret;
 

@@ -775,3 +775,13 @@ static inline bool nfs_error_is_fatal(int err)
 	}
 }
 
+static inline bool nfs_error_is_fatal_on_server(int err)
+{
+	switch (err) {
+	case 0:
+	case -ERESTARTSYS:
+	case -EINTR:
+		return false;
+	}
+	return nfs_error_is_fatal(err);
+}

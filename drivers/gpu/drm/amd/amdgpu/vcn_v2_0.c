@@ -372,11 +372,8 @@ static void vcn_v2_0_mc_resume(struct amdgpu_device *adev)
 		WREG32_SOC15(UVD, 0, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH,
 			upper_32_bits(adev->vcn.gpu_addr));
 		offset = size;
-		/* No signed header for now from firmware
 		WREG32_SOC15(UVD, 0, mmUVD_VCPU_CACHE_OFFSET0,
 			AMDGPU_UVD_FIRMWARE_OFFSET >> 3);
-		*/
-		WREG32_SOC15(UVD, 0, mmUVD_VCPU_CACHE_OFFSET0, 0);
 	}
 
 	WREG32_SOC15(UVD, 0, mmUVD_VCPU_CACHE_SIZE0, size);
@@ -1488,7 +1485,7 @@ static void vcn_v2_0_dec_ring_insert_start(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA0_INTERNAL_OFFSET, 0));
 	amdgpu_ring_write(ring, 0);
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD_INTERNAL_OFFSET, 0));
-	amdgpu_ring_write(ring, VCN_DEC_CMD_PACKET_START << 1);
+	amdgpu_ring_write(ring, VCN_DEC_KMD_CMD | (VCN_DEC_CMD_PACKET_START << 1));
 }
 
 /**
@@ -1501,7 +1498,7 @@ static void vcn_v2_0_dec_ring_insert_start(struct amdgpu_ring *ring)
 static void vcn_v2_0_dec_ring_insert_end(struct amdgpu_ring *ring)
 {
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD_INTERNAL_OFFSET, 0));
-	amdgpu_ring_write(ring, VCN_DEC_CMD_PACKET_END << 1);
+	amdgpu_ring_write(ring, VCN_DEC_KMD_CMD | (VCN_DEC_CMD_PACKET_END << 1));
 }
 
 /**
@@ -1546,7 +1543,7 @@ static void vcn_v2_0_dec_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64
 	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xff);
 
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD_INTERNAL_OFFSET, 0));
-	amdgpu_ring_write(ring, VCN_DEC_CMD_FENCE << 1);
+	amdgpu_ring_write(ring, VCN_DEC_KMD_CMD | (VCN_DEC_CMD_FENCE << 1));
 
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA0_INTERNAL_OFFSET, 0));
 	amdgpu_ring_write(ring, 0);
@@ -1556,7 +1553,7 @@ static void vcn_v2_0_dec_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64
 
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD_INTERNAL_OFFSET, 0));
 
-	amdgpu_ring_write(ring, VCN_DEC_CMD_TRAP << 1);
+	amdgpu_ring_write(ring, VCN_DEC_KMD_CMD | (VCN_DEC_CMD_TRAP << 1));
 }
 
 /**
@@ -1600,7 +1597,7 @@ static void vcn_v2_0_dec_ring_emit_reg_wait(struct amdgpu_ring *ring,
 
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD_INTERNAL_OFFSET, 0));
 
-	amdgpu_ring_write(ring, VCN_DEC_CMD_REG_READ_COND_WAIT << 1);
+	amdgpu_ring_write(ring, VCN_DEC_KMD_CMD | (VCN_DEC_CMD_REG_READ_COND_WAIT << 1));
 }
 
 static void vcn_v2_0_dec_ring_emit_vm_flush(struct amdgpu_ring *ring,
@@ -1629,7 +1626,7 @@ static void vcn_v2_0_dec_ring_emit_wreg(struct amdgpu_ring *ring,
 
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD_INTERNAL_OFFSET, 0));
 
-	amdgpu_ring_write(ring, VCN_DEC_CMD_WRITE_REG << 1);
+	amdgpu_ring_write(ring, VCN_DEC_KMD_CMD | (VCN_DEC_CMD_WRITE_REG << 1));
 }
 
 /**
@@ -2082,6 +2079,36 @@ static int vcn_v2_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int vcn_v2_0_dec_ring_test_ring(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	uint32_t tmp = 0;
+	unsigned i;
+	int r;
+
+	WREG32(adev->vcn.external.scratch9, 0xCAFEDEAD);
+	r = amdgpu_ring_alloc(ring, 4);
+	if (r)
+		return r;
+	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD_INTERNAL_OFFSET, 0));
+	amdgpu_ring_write(ring, VCN_DEC_KMD_CMD | (VCN_DEC_CMD_PACKET_START << 1));
+	amdgpu_ring_write(ring, PACKET0(adev->vcn.internal.scratch9, 0));
+	amdgpu_ring_write(ring, 0xDEADBEEF);
+	amdgpu_ring_commit(ring);
+	for (i = 0; i < adev->usec_timeout; i++) {
+		tmp = RREG32(adev->vcn.external.scratch9);
+		if (tmp == 0xDEADBEEF)
+			break;
+		DRM_UDELAY(1);
+	}
+
+	if (i >= adev->usec_timeout)
+		r = -ETIMEDOUT;
+
+	return r;
+}
+
+
 static int vcn_v2_0_set_powergating_state(void *handle,
 					  enum amd_powergating_state state)
 {
@@ -2145,7 +2172,7 @@ static const struct amdgpu_ring_funcs vcn_v2_0_dec_ring_vm_funcs = {
 	.emit_ib = vcn_v2_0_dec_ring_emit_ib,
 	.emit_fence = vcn_v2_0_dec_ring_emit_fence,
 	.emit_vm_flush = vcn_v2_0_dec_ring_emit_vm_flush,
-	.test_ring = amdgpu_vcn_dec_ring_test_ring,
+	.test_ring = vcn_v2_0_dec_ring_test_ring,
 	.test_ib = amdgpu_vcn_dec_ring_test_ib,
 	.insert_nop = vcn_v2_0_dec_ring_insert_nop,
 	.insert_start = vcn_v2_0_dec_ring_insert_start,

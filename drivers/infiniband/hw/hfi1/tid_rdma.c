@@ -1620,6 +1620,7 @@ static int hfi1_kern_exp_rcv_alloc_flows(struct tid_rdma_request *req,
 		flows[i].req = req;
 		flows[i].npagesets = 0;
 		flows[i].pagesets[0].mapped =  0;
+		flows[i].resync_npkts = 0;
 	}
 	req->flows = flows;
 	return 0;
@@ -1671,34 +1672,6 @@ static struct tid_rdma_flow *find_flow_ib(struct tid_rdma_request *req,
 		}
 	}
 	return NULL;
-}
-
-static struct tid_rdma_flow *
-__find_flow_ranged(struct tid_rdma_request *req, u16 head, u16 tail,
-		   u32 psn, u16 *fidx)
-{
-	for ( ; CIRC_CNT(head, tail, MAX_FLOWS);
-	      tail = CIRC_NEXT(tail, MAX_FLOWS)) {
-		struct tid_rdma_flow *flow = &req->flows[tail];
-		u32 spsn, lpsn;
-
-		spsn = full_flow_psn(flow, flow->flow_state.spsn);
-		lpsn = full_flow_psn(flow, flow->flow_state.lpsn);
-
-		if (cmp_psn(psn, spsn) >= 0 && cmp_psn(psn, lpsn) <= 0) {
-			if (fidx)
-				*fidx = tail;
-			return flow;
-		}
-	}
-	return NULL;
-}
-
-static struct tid_rdma_flow *find_flow(struct tid_rdma_request *req,
-				       u32 psn, u16 *fidx)
-{
-	return __find_flow_ranged(req, req->setup_head, req->clear_tail, psn,
-				  fidx);
 }
 
 /* TID RDMA READ functions */
@@ -2601,18 +2574,9 @@ void hfi1_kern_read_tid_flow_free(struct rvt_qp *qp)
 	hfi1_kern_clear_hw_flow(priv->rcd, qp);
 }
 
-static bool tid_rdma_tid_err(struct hfi1_ctxtdata *rcd,
-			     struct hfi1_packet *packet, u8 rcv_type,
-			     u8 opcode)
+static bool tid_rdma_tid_err(struct hfi1_packet *packet, u8 rcv_type)
 {
 	struct rvt_qp *qp = packet->qp;
-	struct hfi1_qp_priv *qpriv = qp->priv;
-	u32 ipsn;
-	struct ib_other_headers *ohdr = packet->ohdr;
-	struct rvt_ack_entry *e;
-	struct tid_rdma_request *req;
-	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
-	u32 i;
 
 	if (rcv_type >= RHF_RCV_TYPE_IB)
 		goto done;
@@ -2629,41 +2593,9 @@ static bool tid_rdma_tid_err(struct hfi1_ctxtdata *rcd,
 	if (rcv_type == RHF_RCV_TYPE_EAGER) {
 		hfi1_restart_rc(qp, qp->s_last_psn + 1, 1);
 		hfi1_schedule_send(qp);
-		goto done_unlock;
 	}
 
-	/*
-	 * For TID READ response, error out QP after freeing the tid
-	 * resources.
-	 */
-	if (opcode == TID_OP(READ_RESP)) {
-		ipsn = mask_psn(be32_to_cpu(ohdr->u.tid_rdma.r_rsp.verbs_psn));
-		if (cmp_psn(ipsn, qp->s_last_psn) > 0 &&
-		    cmp_psn(ipsn, qp->s_psn) < 0) {
-			hfi1_kern_read_tid_flow_free(qp);
-			spin_unlock(&qp->s_lock);
-			rvt_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
-			goto done;
-		}
-		goto done_unlock;
-	}
-
-	/*
-	 * Error out the qp for TID RDMA WRITE
-	 */
-	hfi1_kern_clear_hw_flow(qpriv->rcd, qp);
-	for (i = 0; i < rvt_max_atomic(rdi); i++) {
-		e = &qp->s_ack_queue[i];
-		if (e->opcode == TID_OP(WRITE_REQ)) {
-			req = ack_to_tid_req(e);
-			hfi1_kern_exp_rcv_clear_all(req);
-		}
-	}
-	spin_unlock(&qp->s_lock);
-	rvt_rc_error(qp, IB_WC_LOC_LEN_ERR);
-	goto done;
-
-done_unlock:
+	/* Since no payload is delivered, just drop the packet */
 	spin_unlock(&qp->s_lock);
 done:
 	return true;
@@ -2714,12 +2646,12 @@ static bool handle_read_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 	u32 fpsn;
 
 	lockdep_assert_held(&qp->r_lock);
+	spin_lock(&qp->s_lock);
 	/* If the psn is out of valid range, drop the packet */
 	if (cmp_psn(ibpsn, qp->s_last_psn) < 0 ||
 	    cmp_psn(ibpsn, qp->s_psn) > 0)
-		return ret;
+		goto s_unlock;
 
-	spin_lock(&qp->s_lock);
 	/*
 	 * Note that NAKs implicitly ACK outstanding SEND and RDMA write
 	 * requests and implicitly NAK RDMA read and atomic requests issued
@@ -2767,8 +2699,11 @@ static bool handle_read_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 
 		wqe = do_rc_completion(qp, wqe, ibp);
 		if (qp->s_acked == qp->s_tail)
-			break;
+			goto s_unlock;
 	}
+
+	if (qp->s_acked == qp->s_tail)
+		goto s_unlock;
 
 	/* Handle the eflags for the request */
 	if (wqe->wr.opcode != IB_WR_TID_RDMA_READ)
@@ -2788,19 +2723,7 @@ static bool handle_read_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 			 * to prevent continuous Flow Sequence errors for any
 			 * packets that could be still in the fabric.
 			 */
-			flow = find_flow(req, psn, NULL);
-			if (!flow) {
-				/*
-				 * We can't find the IB PSN matching the
-				 * received KDETH PSN. The only thing we can
-				 * do at this point is report the error to
-				 * the QP.
-				 */
-				hfi1_kern_read_tid_flow_free(qp);
-				spin_unlock(&qp->s_lock);
-				rvt_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
-				return ret;
-			}
+			flow = &req->flows[req->clear_tail];
 			if (priv->s_flags & HFI1_R_TID_SW_PSN) {
 				diff = cmp_psn(psn,
 					       flow->flow_state.r_next_psn);
@@ -2961,7 +2884,7 @@ bool hfi1_handle_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 		if (lnh == HFI1_LRH_GRH)
 			goto r_unlock;
 
-		if (tid_rdma_tid_err(rcd, packet, rcv_type, opcode))
+		if (tid_rdma_tid_err(packet, rcv_type))
 			goto r_unlock;
 	}
 
@@ -2981,8 +2904,15 @@ bool hfi1_handle_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 	 */
 	spin_lock(&qp->s_lock);
 	qpriv = qp->priv;
+	if (qpriv->r_tid_tail == HFI1_QP_WQE_INVALID ||
+	    qpriv->r_tid_tail == qpriv->r_tid_head)
+		goto unlock;
 	e = &qp->s_ack_queue[qpriv->r_tid_tail];
+	if (e->opcode != TID_OP(WRITE_REQ))
+		goto unlock;
 	req = ack_to_tid_req(e);
+	if (req->comp_seg == req->cur_seg)
+		goto unlock;
 	flow = &req->flows[req->clear_tail];
 	trace_hfi1_eflags_err_write(qp, rcv_type, rte, psn);
 	trace_hfi1_rsp_handle_kdeth_eflags(qp, psn);
@@ -4548,7 +4478,7 @@ void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet)
 	struct rvt_swqe *wqe;
 	struct tid_rdma_request *req;
 	struct tid_rdma_flow *flow;
-	u32 aeth, psn, req_psn, ack_psn, resync_psn, ack_kpsn;
+	u32 aeth, psn, req_psn, ack_psn, flpsn, resync_psn, ack_kpsn;
 	unsigned long flags;
 	u16 fidx;
 
@@ -4577,6 +4507,9 @@ void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet)
 		ack_kpsn--;
 	}
 
+	if (unlikely(qp->s_acked == qp->s_tail))
+		goto ack_op_err;
+
 	wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 
 	if (wqe->wr.opcode != IB_WR_TID_RDMA_WRITE)
@@ -4589,7 +4522,8 @@ void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet)
 	trace_hfi1_tid_flow_rcv_tid_ack(qp, req->acked_tail, flow);
 
 	/* Drop stale ACK/NAK */
-	if (cmp_psn(psn, full_flow_psn(flow, flow->flow_state.spsn)) < 0)
+	if (cmp_psn(psn, full_flow_psn(flow, flow->flow_state.spsn)) < 0 ||
+	    cmp_psn(req_psn, flow->flow_state.resp_ib_psn) < 0)
 		goto ack_op_err;
 
 	while (cmp_psn(ack_kpsn,
@@ -4751,7 +4685,12 @@ done:
 		switch ((aeth >> IB_AETH_CREDIT_SHIFT) &
 			IB_AETH_CREDIT_MASK) {
 		case 0: /* PSN sequence error */
+			if (!req->flows)
+				break;
 			flow = &req->flows[req->acked_tail];
+			flpsn = full_flow_psn(flow, flow->flow_state.lpsn);
+			if (cmp_psn(psn, flpsn) > 0)
+				break;
 			trace_hfi1_tid_flow_rcv_tid_ack(qp, req->acked_tail,
 							flow);
 			req->r_ack_psn = mask_psn(be32_to_cpu(ohdr->bth[2]));

@@ -663,6 +663,7 @@ config ARM_LPAE
 	depends on MMU && CPU_32v7 && !CPU_32v6 && !CPU_32v5 && \
 		!CPU_32v4 && !CPU_32v3
 	select PHYS_ADDR_T_64BIT
+	select SWIOTLB
 	help
 	  Say Y if you have an ARMv7 processor supporting the LPAE page
 	  table format and you would like to access memory beyond the

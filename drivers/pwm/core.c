@@ -882,8 +882,11 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 		return of_pwm_get(dev, dev->of_node, con_id);
 
 	/* then lookup via ACPI */
-	if (dev && is_acpi_node(dev->fwnode))
-		return acpi_pwm_get(dev->fwnode);
+	if (dev && is_acpi_node(dev->fwnode)) {
+		pwm = acpi_pwm_get(dev->fwnode);
+		if (!IS_ERR(pwm) || PTR_ERR(pwm) != -ENOENT)
+			return pwm;
+	}
 
 	/*
 	 * We look up the provider in the static table typically provided by

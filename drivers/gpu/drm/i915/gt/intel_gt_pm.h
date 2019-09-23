@@ -22,6 +22,6 @@ void intel_gt_pm_put(struct drm_i915_private *i915);
 void intel_gt_pm_init(struct drm_i915_private *i915);
 
 void intel_gt_sanitize(struct drm_i915_private *i915, bool force);
-void intel_gt_resume(struct drm_i915_private *i915);
+int intel_gt_resume(struct drm_i915_private *i915);
 
 #endif /* INTEL_GT_PM_H */

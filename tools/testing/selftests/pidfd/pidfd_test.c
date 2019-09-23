@@ -339,13 +339,9 @@ static int test_pidfd_send_signal_syscall_support(void)
 
 	ret = sys_pidfd_send_signal(pidfd, 0, NULL, 0);
 	if (ret < 0) {
-		/*
-		 * pidfd_send_signal() will currently return ENOSYS when
-		 * CONFIG_PROC_FS is not set.
-		 */
 		if (errno == ENOSYS)
 			ksft_exit_skip(
-				"%s test: pidfd_send_signal() syscall not supported (Ensure that CONFIG_PROC_FS=y is set)\n",
+				"%s test: pidfd_send_signal() syscall not supported\n",
 				test_name);
 
 		ksft_exit_fail_msg("%s test: Failed to send signal\n",

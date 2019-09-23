@@ -970,7 +970,8 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	rc = hl_ctx_init(hdev, hdev->kernel_ctx, true);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize kernel context\n");
-		goto free_ctx;
+		kfree(hdev->kernel_ctx);
+		goto mmu_fini;
 	}
 
 	rc = hl_cb_pool_init(hdev);
@@ -1053,8 +1054,6 @@ release_ctx:
 	if (hl_ctx_put(hdev->kernel_ctx) != 1)
 		dev_err(hdev->dev,
 			"kernel ctx is still alive on initialization failure\n");
-free_ctx:
-	kfree(hdev->kernel_ctx);
 mmu_fini:
 	hl_mmu_fini(hdev);
 eq_fini:

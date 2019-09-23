@@ -382,8 +382,7 @@ static int fill_res_info(struct sk_buff *msg, struct ib_device *device)
 	for (i = 0; i < RDMA_RESTRACK_MAX; i++) {
 		if (!names[i])
 			continue;
-		curr = rdma_restrack_count(device, i,
-					   task_active_pid_ns(current));
+		curr = rdma_restrack_count(device, i);
 		ret = fill_res_info_entry(msg, names[i], curr);
 		if (ret)
 			goto err;
@@ -1952,12 +1951,16 @@ static int stat_get_doit_qp(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	if (fill_nldev_handle(msg, device) ||
 	    nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, port) ||
-	    nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_MODE, mode))
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_MODE, mode)) {
+		ret = -EMSGSIZE;
 		goto err_msg;
+	}
 
 	if ((mode == RDMA_COUNTER_MODE_AUTO) &&
-	    nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK, mask))
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK, mask)) {
+		ret = -EMSGSIZE;
 		goto err_msg;
+	}
 
 	nlmsg_end(msg, nlh);
 	ib_device_put(device);

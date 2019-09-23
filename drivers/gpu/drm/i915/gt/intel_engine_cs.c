@@ -969,9 +969,14 @@ const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
 u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv)
 {
 	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
+	unsigned int slice = fls(sseu->slice_mask) - 1;
+	unsigned int subslice;
 	u32 mcr_s_ss_select;
-	u32 slice = fls(sseu->slice_mask);
-	u32 subslice = fls(sseu->subslice_mask[slice]);
+
+	GEM_BUG_ON(slice >= ARRAY_SIZE(sseu->subslice_mask));
+	subslice = fls(sseu->subslice_mask[slice]);
+	GEM_BUG_ON(!subslice);
+	subslice--;
 
 	if (IS_GEN(dev_priv, 10))
 		mcr_s_ss_select = GEN8_MCR_SLICE(slice) |
@@ -1471,6 +1476,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	struct i915_gpu_error * const error = &engine->i915->gpu_error;
 	struct i915_request *rq;
 	intel_wakeref_t wakeref;
+	unsigned long flags;
 
 	if (header) {
 		va_list ap;
@@ -1490,10 +1496,9 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		   i915_reset_engine_count(error, engine),
 		   i915_reset_count(error));
 
-	rcu_read_lock();
-
 	drm_printf(m, "\tRequests:\n");
 
+	spin_lock_irqsave(&engine->active.lock, flags);
 	rq = intel_engine_find_active_request(engine);
 	if (rq) {
 		print_request(m, rq, "\t\tactive ");
@@ -1513,8 +1518,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 
 		print_request_ring(m, rq);
 	}
-
-	rcu_read_unlock();
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 
 	wakeref = intel_runtime_pm_get_if_in_use(&engine->i915->runtime_pm);
 	if (wakeref) {
@@ -1672,7 +1676,6 @@ struct i915_request *
 intel_engine_find_active_request(struct intel_engine_cs *engine)
 {
 	struct i915_request *request, *active = NULL;
-	unsigned long flags;
 
 	/*
 	 * We are called by the error capture, reset and to dump engine
@@ -1685,7 +1688,7 @@ intel_engine_find_active_request(struct intel_engine_cs *engine)
 	 * At all other times, we must assume the GPU is still running, but
 	 * we only care about the snapshot of this moment.
 	 */
-	spin_lock_irqsave(&engine->active.lock, flags);
+	lockdep_assert_held(&engine->active.lock);
 	list_for_each_entry(request, &engine->active.requests, sched.link) {
 		if (i915_request_completed(request))
 			continue;
@@ -1700,7 +1703,6 @@ intel_engine_find_active_request(struct intel_engine_cs *engine)
 		active = request;
 		break;
 	}
-	spin_unlock_irqrestore(&engine->active.lock, flags);
 
 	return active;
 }

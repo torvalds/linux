@@ -478,13 +478,10 @@ EXPORT_SYMBOL(generic_shutdown_super);
 
 bool mount_capable(struct fs_context *fc)
 {
-	struct user_namespace *user_ns = fc->global ? &init_user_ns
-						    : fc->user_ns;
-
 	if (!(fc->fs_type->fs_flags & FS_USERNS_MOUNT))
 		return capable(CAP_SYS_ADMIN);
 	else
-		return ns_capable(user_ns, CAP_SYS_ADMIN);
+		return ns_capable(fc->user_ns, CAP_SYS_ADMIN);
 }
 
 /**

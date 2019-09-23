@@ -416,8 +416,10 @@ device_node *regulator_of_get_init_node(struct device *dev,
 		if (!name)
 			name = child->name;
 
-		if (!strcmp(desc->of_match, name))
+		if (!strcmp(desc->of_match, name)) {
+			of_node_put(search);
 			return of_node_get(child);
+		}
 	}
 
 	of_node_put(search);

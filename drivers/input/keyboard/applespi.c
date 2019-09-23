@@ -134,10 +134,10 @@ struct keyboard_protocol {
  * struct tp_finger - single trackpad finger structure, le16-aligned
  *
  * @origin:		zero when switching track finger
- * @abs_x:		absolute x coodinate
- * @abs_y:		absolute y coodinate
- * @rel_x:		relative x coodinate
- * @rel_y:		relative y coodinate
+ * @abs_x:		absolute x coordinate
+ * @abs_y:		absolute y coordinate
+ * @rel_x:		relative x coordinate
+ * @rel_y:		relative y coordinate
  * @tool_major:		tool area, major axis
  * @tool_minor:		tool area, minor axis
  * @orientation:	16384 when point, else 15 bit angle
@@ -944,10 +944,14 @@ static inline int le16_to_int(__le16 x)
 static void applespi_debug_update_dimensions(struct applespi_data *applespi,
 					     const struct tp_finger *f)
 {
-	applespi->tp_dim_min_x = min_t(int, applespi->tp_dim_min_x, f->abs_x);
-	applespi->tp_dim_max_x = max_t(int, applespi->tp_dim_max_x, f->abs_x);
-	applespi->tp_dim_min_y = min_t(int, applespi->tp_dim_min_y, f->abs_y);
-	applespi->tp_dim_max_y = max_t(int, applespi->tp_dim_max_y, f->abs_y);
+	applespi->tp_dim_min_x = min(applespi->tp_dim_min_x,
+				     le16_to_int(f->abs_x));
+	applespi->tp_dim_max_x = max(applespi->tp_dim_max_x,
+				     le16_to_int(f->abs_x));
+	applespi->tp_dim_min_y = min(applespi->tp_dim_min_y,
+				     le16_to_int(f->abs_y));
+	applespi->tp_dim_max_y = max(applespi->tp_dim_max_y,
+				     le16_to_int(f->abs_y));
 }
 
 static int applespi_tp_dim_open(struct inode *inode, struct file *file)
@@ -1490,8 +1494,7 @@ static void applespi_got_data(struct applespi_data *applespi)
 		size_t tp_len;
 
 		tp = &message->touchpad;
-		tp_len = sizeof(*tp) +
-			 tp->number_of_fingers * sizeof(tp->fingers[0]);
+		tp_len = struct_size(tp, fingers, tp->number_of_fingers);
 
 		if (le16_to_cpu(message->length) + 2 != tp_len) {
 			dev_warn_ratelimited(&applespi->spi->dev,
@@ -1611,8 +1614,8 @@ static void applespi_save_bl_level(struct applespi_data *applespi,
 	efi_attr = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS |
 		   EFI_VARIABLE_RUNTIME_ACCESS;
 
-	sts = efivar_entry_set_safe(EFI_BL_LEVEL_NAME, efi_guid, efi_attr, true,
-				    efi_data_len, &efi_data);
+	sts = efivar_entry_set_safe((efi_char16_t *)EFI_BL_LEVEL_NAME, efi_guid,
+				    efi_attr, true, efi_data_len, &efi_data);
 	if (sts)
 		dev_warn(&applespi->spi->dev,
 			 "Error saving backlight level to EFI vars: %d\n", sts);
@@ -1953,7 +1956,7 @@ static const struct acpi_device_id applespi_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, applespi_acpi_match);
 
-const struct dev_pm_ops applespi_pm_ops = {
+static const struct dev_pm_ops applespi_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(applespi_suspend, applespi_resume)
 	.poweroff_late	= applespi_poweroff_late,
 };

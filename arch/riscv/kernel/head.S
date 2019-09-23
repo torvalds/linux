@@ -39,9 +39,9 @@ ENTRY(_start)
 	.word RISCV_HEADER_VERSION
 	.word 0
 	.dword 0
-	.asciz RISCV_IMAGE_MAGIC
-	.word 0
+	.ascii RISCV_IMAGE_MAGIC
 	.balign 4
+	.ascii RISCV_IMAGE_MAGIC2
 	.word 0
 
 .global _start_kernel

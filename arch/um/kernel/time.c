@@ -50,7 +50,7 @@ void timer_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 static int itimer_shutdown(struct clock_event_device *evt)
 {
 	if (time_travel_mode != TT_MODE_OFF)
-		time_travel_set_timer(TT_TMR_DISABLED, 0);
+		time_travel_set_timer_mode(TT_TMR_DISABLED);
 
 	if (time_travel_mode != TT_MODE_INFCPU)
 		os_timer_disable();
@@ -62,9 +62,10 @@ static int itimer_set_periodic(struct clock_event_device *evt)
 {
 	unsigned long long interval = NSEC_PER_SEC / HZ;
 
-	if (time_travel_mode != TT_MODE_OFF)
-		time_travel_set_timer(TT_TMR_PERIODIC,
-				      time_travel_time + interval);
+	if (time_travel_mode != TT_MODE_OFF) {
+		time_travel_set_timer_mode(TT_TMR_PERIODIC);
+		time_travel_set_timer_expiry(time_travel_time + interval);
+	}
 
 	if (time_travel_mode != TT_MODE_INFCPU)
 		os_timer_set_interval(interval);
@@ -77,9 +78,10 @@ static int itimer_next_event(unsigned long delta,
 {
 	delta += 1;
 
-	if (time_travel_mode != TT_MODE_OFF)
-		time_travel_set_timer(TT_TMR_ONESHOT,
-				      time_travel_time + delta);
+	if (time_travel_mode != TT_MODE_OFF) {
+		time_travel_set_timer_mode(TT_TMR_ONESHOT);
+		time_travel_set_timer_expiry(time_travel_time + delta);
+	}
 
 	if (time_travel_mode != TT_MODE_INFCPU)
 		return os_timer_one_shot(delta);

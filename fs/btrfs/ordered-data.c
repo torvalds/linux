@@ -985,13 +985,14 @@ void btrfs_lock_and_flush_ordered_range(struct extent_io_tree *tree,
 					struct extent_state **cached_state)
 {
 	struct btrfs_ordered_extent *ordered;
-	struct extent_state *cachedp = NULL;
+	struct extent_state *cache = NULL;
+	struct extent_state **cachedp = &cache;
 
 	if (cached_state)
-		cachedp = *cached_state;
+		cachedp = cached_state;
 
 	while (1) {
-		lock_extent_bits(tree, start, end, &cachedp);
+		lock_extent_bits(tree, start, end, cachedp);
 		ordered = btrfs_lookup_ordered_range(inode, start,
 						     end - start + 1);
 		if (!ordered) {
@@ -1001,10 +1002,10 @@ void btrfs_lock_and_flush_ordered_range(struct extent_io_tree *tree,
 			 * aren't exposing it outside of this function
 			 */
 			if (!cached_state)
-				refcount_dec(&cachedp->refs);
+				refcount_dec(&cache->refs);
 			break;
 		}
-		unlock_extent_cached(tree, start, end, &cachedp);
+		unlock_extent_cached(tree, start, end, cachedp);
 		btrfs_start_ordered_extent(&inode->vfs_inode, ordered, 1);
 		btrfs_put_ordered_extent(ordered);
 	}

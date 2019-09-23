@@ -774,8 +774,6 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	/* All SDHI have SDIO status bits which must be 1 */
 	mmc_data->flags |= TMIO_MMC_SDIO_STATUS_SETBITS;
 
-	pm_runtime_enable(&pdev->dev);
-
 	ret = renesas_sdhi_clk_enable(host);
 	if (ret)
 		goto efree;
@@ -856,8 +854,6 @@ edisclk:
 efree:
 	tmio_mmc_host_free(host);
 
-	pm_runtime_disable(&pdev->dev);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(renesas_sdhi_probe);
@@ -868,8 +864,6 @@ int renesas_sdhi_remove(struct platform_device *pdev)
 
 	tmio_mmc_host_remove(host);
 	renesas_sdhi_clk_disable(host);
-
-	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }

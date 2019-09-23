@@ -1441,6 +1441,15 @@ static void gfx_v10_0_init_compute_vmid(struct amdgpu_device *adev)
 	}
 	nv_grbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
+
+	/* Initialize all compute VMIDs to have no GDS, GWS, or OA
+	   acccess. These should be enabled by FW for target VMIDs. */
+	for (i = FIRST_COMPUTE_VMID; i < LAST_COMPUTE_VMID; i++) {
+		WREG32_SOC15_OFFSET(GC, 0, mmGDS_VMID0_BASE, 2 * i, 0);
+		WREG32_SOC15_OFFSET(GC, 0, mmGDS_VMID0_SIZE, 2 * i, 0);
+		WREG32_SOC15_OFFSET(GC, 0, mmGDS_GWS_VMID0, i, 0);
+		WREG32_SOC15_OFFSET(GC, 0, mmGDS_OA_VMID0, i, 0);
+	}
 }
 
 static void gfx_v10_0_tcp_harvest(struct amdgpu_device *adev)
@@ -4197,15 +4206,6 @@ static void gfx_v10_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 	u32 header, control = 0;
 
-	/* Prevent a hw deadlock due to a wave ID mismatch between ME and GDS.
-	 * This resets the wave ID counters. (needed by transform feedback)
-	 * TODO: This might only be needed on a VMID switch when we change
-	 *       the GDS OA mapping, not sure.
-	 */
-	amdgpu_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
-	amdgpu_ring_write(ring, mmVGT_GS_MAX_WAVE_ID);
-	amdgpu_ring_write(ring, ring->adev->gds.vgt_gs_max_wave_id);
-
 	if (ib->flags & AMDGPU_IB_FLAG_CE)
 		header = PACKET3(PACKET3_INDIRECT_BUFFER_CNST, 2);
 	else
@@ -4611,6 +4611,7 @@ gfx_v10_0_set_gfx_eop_interrupt_state(struct amdgpu_device *adev,
 		cp_int_cntl = REG_SET_FIELD(cp_int_cntl, CP_INT_CNTL_RING0,
 					    TIME_STAMP_INT_ENABLE, 0);
 		WREG32(cp_int_cntl_reg, cp_int_cntl);
+		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
 		cp_int_cntl = RREG32(cp_int_cntl_reg);
 		cp_int_cntl = REG_SET_FIELD(cp_int_cntl, CP_INT_CNTL_RING0,
@@ -4951,7 +4952,7 @@ static const struct amdgpu_ring_funcs gfx_v10_0_ring_funcs_gfx = {
 		5 + /* HDP_INVL */
 		8 + 8 + /* FENCE x2 */
 		2, /* SWITCH_BUFFER */
-	.emit_ib_size =	7, /* gfx_v10_0_ring_emit_ib_gfx */
+	.emit_ib_size =	4, /* gfx_v10_0_ring_emit_ib_gfx */
 	.emit_ib = gfx_v10_0_ring_emit_ib_gfx,
 	.emit_fence = gfx_v10_0_ring_emit_fence,
 	.emit_pipeline_sync = gfx_v10_0_ring_emit_pipeline_sync,
@@ -5102,7 +5103,6 @@ static void gfx_v10_0_set_gds_init(struct amdgpu_device *adev)
 	default:
 		adev->gds.gds_size = 0x10000;
 		adev->gds.gds_compute_max_wave_id = 0x4ff;
-		adev->gds.vgt_gs_max_wave_id = 0x3ff;
 		break;
 	}
 

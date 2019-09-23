@@ -379,14 +379,9 @@ EXPORT_SYMBOL(ib_umem_release);
 
 int ib_umem_page_count(struct ib_umem *umem)
 {
-	int i;
-	int n;
+	int i, n = 0;
 	struct scatterlist *sg;
 
-	if (umem->is_odp)
-		return ib_umem_num_pages(umem);
-
-	n = 0;
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, i)
 		n += sg_dma_len(sg) >> PAGE_SHIFT;
 

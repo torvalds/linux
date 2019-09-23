@@ -220,6 +220,8 @@ static void free_nested(struct kvm_vcpu *vcpu)
 	if (!vmx->nested.vmxon && !vmx->nested.smm.vmxon)
 		return;
 
+	kvm_clear_request(KVM_REQ_GET_VMCS12_PAGES, vcpu);
+
 	vmx->nested.vmxon = false;
 	vmx->nested.smm.vmxon = false;
 	free_vpid(vmx->nested.vpid02);
@@ -232,7 +234,9 @@ static void free_nested(struct kvm_vcpu *vcpu)
 		vmx->vmcs01.shadow_vmcs = NULL;
 	}
 	kfree(vmx->nested.cached_vmcs12);
+	vmx->nested.cached_vmcs12 = NULL;
 	kfree(vmx->nested.cached_shadow_vmcs12);
+	vmx->nested.cached_shadow_vmcs12 = NULL;
 	/* Unpin physical memory we referred to in the vmcs02 */
 	if (vmx->nested.apic_access_page) {
 		kvm_release_page_dirty(vmx->nested.apic_access_page);
@@ -4536,6 +4540,7 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 	int len;
 	gva_t gva = 0;
 	struct vmcs12 *vmcs12;
+	struct x86_exception e;
 	short offset;
 
 	if (!nested_vmx_check_permission(vcpu))
@@ -4584,7 +4589,8 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 				vmx_instruction_info, true, len, &gva))
 			return 1;
 		/* _system ok, nested_vmx_check_permission has verified cpl=0 */
-		kvm_write_guest_virt_system(vcpu, gva, &field_value, len, NULL);
+		if (kvm_write_guest_virt_system(vcpu, gva, &field_value, len, &e))
+			kvm_inject_page_fault(vcpu, &e);
 	}
 
 	return nested_vmx_succeed(vcpu);

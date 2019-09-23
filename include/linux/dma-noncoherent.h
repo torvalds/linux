@@ -42,13 +42,18 @@ void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 		dma_addr_t dma_addr, unsigned long attrs);
 long arch_dma_coherent_to_pfn(struct device *dev, void *cpu_addr,
 		dma_addr_t dma_addr);
-
-#ifdef CONFIG_ARCH_HAS_DMA_MMAP_PGPROT
 pgprot_t arch_dma_mmap_pgprot(struct device *dev, pgprot_t prot,
 		unsigned long attrs);
+
+#ifdef CONFIG_MMU
+pgprot_t dma_pgprot(struct device *dev, pgprot_t prot, unsigned long attrs);
 #else
-# define arch_dma_mmap_pgprot(dev, prot, attrs)	pgprot_noncached(prot)
-#endif
+static inline pgprot_t dma_pgprot(struct device *dev, pgprot_t prot,
+		unsigned long attrs)
+{
+	return prot;	/* no protection bits supported without page tables */
+}
+#endif /* CONFIG_MMU */
 
 #ifdef CONFIG_DMA_NONCOHERENT_CACHE_SYNC
 void arch_dma_cache_sync(struct device *dev, void *vaddr, size_t size,

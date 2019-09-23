@@ -13,12 +13,6 @@ struct ocelot_port_block {
 	struct ocelot_port *port;
 };
 
-static u16 get_prio(u32 prio)
-{
-	/* prio starts from 0x1000 while the ids starts from 0 */
-	return prio >> 16;
-}
-
 static int ocelot_flower_parse_action(struct flow_cls_offload *f,
 				      struct ocelot_ace_rule *rule)
 {
@@ -168,7 +162,7 @@ static int ocelot_flower_parse(struct flow_cls_offload *f,
 	}
 
 finished_key_parsing:
-	ocelot_rule->prio = get_prio(f->common.prio);
+	ocelot_rule->prio = f->common.prio;
 	ocelot_rule->id = f->cookie;
 	return ocelot_flower_parse_action(f, ocelot_rule);
 }
@@ -218,7 +212,7 @@ static int ocelot_flower_destroy(struct flow_cls_offload *f,
 	struct ocelot_ace_rule rule;
 	int ret;
 
-	rule.prio = get_prio(f->common.prio);
+	rule.prio = f->common.prio;
 	rule.port = port_block->port;
 	rule.id = f->cookie;
 
@@ -236,7 +230,7 @@ static int ocelot_flower_stats_update(struct flow_cls_offload *f,
 	struct ocelot_ace_rule rule;
 	int ret;
 
-	rule.prio = get_prio(f->common.prio);
+	rule.prio = f->common.prio;
 	rule.port = port_block->port;
 	rule.id = f->cookie;
 	ret = ocelot_ace_rule_stats_update(&rule);
@@ -316,15 +310,14 @@ int ocelot_setup_tc_block_flower_bind(struct ocelot_port *port,
 	if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
 		return -EOPNOTSUPP;
 
-	block_cb = flow_block_cb_lookup(f, ocelot_setup_tc_block_cb_flower,
-					port);
+	block_cb = flow_block_cb_lookup(f->block,
+					ocelot_setup_tc_block_cb_flower, port);
 	if (!block_cb) {
 		port_block = ocelot_port_block_create(port);
 		if (!port_block)
 			return -ENOMEM;
 
-		block_cb = flow_block_cb_alloc(f->net,
-					       ocelot_setup_tc_block_cb_flower,
+		block_cb = flow_block_cb_alloc(ocelot_setup_tc_block_cb_flower,
 					       port, port_block,
 					       ocelot_tc_block_unbind);
 		if (IS_ERR(block_cb)) {
@@ -351,8 +344,8 @@ void ocelot_setup_tc_block_flower_unbind(struct ocelot_port *port,
 {
 	struct flow_block_cb *block_cb;
 
-	block_cb = flow_block_cb_lookup(f, ocelot_setup_tc_block_cb_flower,
-					port);
+	block_cb = flow_block_cb_lookup(f->block,
+					ocelot_setup_tc_block_cb_flower, port);
 	if (!block_cb)
 		return;
 

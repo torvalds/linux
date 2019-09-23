@@ -882,23 +882,23 @@ EXPORT_SYMBOL_GPL(dm_table_set_type);
 
 /* validate the dax capability of the target device span */
 int device_supports_dax(struct dm_target *ti, struct dm_dev *dev,
-				       sector_t start, sector_t len, void *data)
+			sector_t start, sector_t len, void *data)
 {
 	int blocksize = *(int *) data;
 
 	return generic_fsdax_supported(dev->dax_dev, dev->bdev, blocksize,
-			start, len);
+				       start, len);
 }
 
 /* Check devices support synchronous DAX */
-static int device_synchronous(struct dm_target *ti, struct dm_dev *dev,
-				       sector_t start, sector_t len, void *data)
+static int device_dax_synchronous(struct dm_target *ti, struct dm_dev *dev,
+				  sector_t start, sector_t len, void *data)
 {
-	return dax_synchronous(dev->dax_dev);
+	return dev->dax_dev && dax_synchronous(dev->dax_dev);
 }
 
 bool dm_table_supports_dax(struct dm_table *t,
-			  iterate_devices_callout_fn iterate_fn, int *blocksize)
+			   iterate_devices_callout_fn iterate_fn, int *blocksize)
 {
 	struct dm_target *ti;
 	unsigned i;
@@ -911,7 +911,7 @@ bool dm_table_supports_dax(struct dm_table *t,
 			return false;
 
 		if (!ti->type->iterate_devices ||
-			!ti->type->iterate_devices(ti, iterate_fn, blocksize))
+		    !ti->type->iterate_devices(ti, iterate_fn, blocksize))
 			return false;
 	}
 
@@ -1342,7 +1342,7 @@ void dm_table_event(struct dm_table *t)
 }
 EXPORT_SYMBOL(dm_table_event);
 
-sector_t dm_table_get_size(struct dm_table *t)
+inline sector_t dm_table_get_size(struct dm_table *t)
 {
 	return t->num_targets ? (t->highs[t->num_targets - 1] + 1) : 0;
 }
@@ -1366,6 +1366,9 @@ struct dm_target *dm_table_find_target(struct dm_table *t, sector_t sector)
 {
 	unsigned int l, n = 0, k = 0;
 	sector_t *node;
+
+	if (unlikely(sector >= dm_table_get_size(t)))
+		return &t->targets[t->num_targets];
 
 	for (l = 0; l < t->depth; l++) {
 		n = get_child(n, k);
@@ -1921,7 +1924,7 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 
 	if (dm_table_supports_dax(t, device_supports_dax, &page_size)) {
 		blk_queue_flag_set(QUEUE_FLAG_DAX, q);
-		if (dm_table_supports_dax(t, device_synchronous, NULL))
+		if (dm_table_supports_dax(t, device_dax_synchronous, NULL))
 			set_dax_synchronous(t->md->dax_dev);
 	}
 	else

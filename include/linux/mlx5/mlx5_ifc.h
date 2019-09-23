@@ -5975,10 +5975,12 @@ struct mlx5_ifc_modify_cq_in_bits {
 
 	struct mlx5_ifc_cqc_bits cq_context;
 
-	u8         reserved_at_280[0x40];
+	u8         reserved_at_280[0x60];
 
 	u8         cq_umem_valid[0x1];
-	u8         reserved_at_2c1[0x5bf];
+	u8         reserved_at_2e1[0x1f];
+
+	u8         reserved_at_300[0x580];
 
 	u8         pas[0][0x40];
 };
@@ -10052,9 +10054,8 @@ struct mlx5_ifc_tls_static_params_bits {
 };
 
 struct mlx5_ifc_tls_progress_params_bits {
-	u8         valid[0x1];
-	u8         reserved_at_1[0x7];
-	u8         pd[0x18];
+	u8         reserved_at_0[0x8];
+	u8         tisn[0x18];
 
 	u8         next_record_tcp_sn[0x20];
 

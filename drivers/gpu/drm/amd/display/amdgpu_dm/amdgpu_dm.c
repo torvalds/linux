@@ -3131,13 +3131,25 @@ static enum dc_color_depth
 convert_color_depth_from_display_info(const struct drm_connector *connector,
 				      const struct drm_connector_state *state)
 {
-	uint32_t bpc = connector->display_info.bpc;
+	uint8_t bpc = (uint8_t)connector->display_info.bpc;
+
+	/* Assume 8 bpc by default if no bpc is specified. */
+	bpc = bpc ? bpc : 8;
 
 	if (!state)
 		state = connector->state;
 
 	if (state) {
-		bpc = state->max_bpc;
+		/*
+		 * Cap display bpc based on the user requested value.
+		 *
+		 * The value for state->max_bpc may not correctly updated
+		 * depending on when the connector gets added to the state
+		 * or if this was called outside of atomic check, so it
+		 * can't be used directly.
+		 */
+		bpc = min(bpc, state->max_requested_bpc);
+
 		/* Round down to the nearest even number. */
 		bpc = bpc - (bpc & 1);
 	}

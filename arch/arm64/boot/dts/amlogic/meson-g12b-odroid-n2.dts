@@ -53,6 +53,7 @@
 
 		gpio = <&gpio_ao GPIOAO_8 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+		regulator-always-on;
 	};
 
 	tf_io: gpio-regulator-tf_io {

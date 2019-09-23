@@ -683,7 +683,7 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 
 		rc = hl_poll_timeout_memory(hdev,
 			&ctx->thread_ctx_switch_wait_token, tmp, (tmp == 1),
-			100, jiffies_to_usecs(hdev->timeout_jiffies));
+			100, jiffies_to_usecs(hdev->timeout_jiffies), false);
 
 		if (rc == -ETIMEDOUT) {
 			dev_err(hdev->dev,

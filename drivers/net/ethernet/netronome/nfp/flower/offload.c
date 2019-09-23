@@ -1318,8 +1318,7 @@ static int nfp_flower_setup_tc_block(struct net_device *netdev,
 					  &nfp_block_cb_list))
 			return -EBUSY;
 
-		block_cb = flow_block_cb_alloc(f->net,
-					       nfp_flower_setup_tc_block_cb,
+		block_cb = flow_block_cb_alloc(nfp_flower_setup_tc_block_cb,
 					       repr, repr, NULL);
 		if (IS_ERR(block_cb))
 			return PTR_ERR(block_cb);
@@ -1328,7 +1327,8 @@ static int nfp_flower_setup_tc_block(struct net_device *netdev,
 		list_add_tail(&block_cb->driver_list, &nfp_block_cb_list);
 		return 0;
 	case FLOW_BLOCK_UNBIND:
-		block_cb = flow_block_cb_lookup(f, nfp_flower_setup_tc_block_cb,
+		block_cb = flow_block_cb_lookup(f->block,
+						nfp_flower_setup_tc_block_cb,
 						repr);
 		if (!block_cb)
 			return -ENOENT;
@@ -1409,13 +1409,21 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 	struct nfp_flower_priv *priv = app->priv;
 	struct flow_block_cb *block_cb;
 
-	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS &&
-	    !(f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS &&
-	      nfp_flower_internal_port_can_offload(app, netdev)))
+	if ((f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS &&
+	     !nfp_flower_internal_port_can_offload(app, netdev)) ||
+	    (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS &&
+	     nfp_flower_internal_port_can_offload(app, netdev)))
 		return -EOPNOTSUPP;
 
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
+		cb_priv = nfp_flower_indr_block_cb_priv_lookup(app, netdev);
+		if (cb_priv &&
+		    flow_block_cb_is_busy(nfp_flower_setup_indr_block_cb,
+					  cb_priv,
+					  &nfp_block_cb_list))
+			return -EBUSY;
+
 		cb_priv = kmalloc(sizeof(*cb_priv), GFP_KERNEL);
 		if (!cb_priv)
 			return -ENOMEM;
@@ -1424,8 +1432,7 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 		cb_priv->app = app;
 		list_add(&cb_priv->list, &priv->indr_block_cb_priv);
 
-		block_cb = flow_block_cb_alloc(f->net,
-					       nfp_flower_setup_indr_block_cb,
+		block_cb = flow_block_cb_alloc(nfp_flower_setup_indr_block_cb,
 					       cb_priv, cb_priv,
 					       nfp_flower_setup_indr_tc_release);
 		if (IS_ERR(block_cb)) {
@@ -1442,7 +1449,7 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 		if (!cb_priv)
 			return -ENOENT;
 
-		block_cb = flow_block_cb_lookup(f,
+		block_cb = flow_block_cb_lookup(f->block,
 						nfp_flower_setup_indr_block_cb,
 						cb_priv);
 		if (!block_cb)

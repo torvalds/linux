@@ -11,6 +11,21 @@
  * While adding a new CPUID for a new microarchitecture, add a new
  * group to keep logically sorted out in chronological order. Within
  * that group keep the CPUID for the variants sorted by model number.
+ *
+ * The defined symbol names have the following form:
+ *	INTEL_FAM6{OPTFAMILY}_{MICROARCH}{OPTDIFF}
+ * where:
+ * OPTFAMILY	Describes the family of CPUs that this belongs to. Default
+ *		is assumed to be "_CORE" (and should be omitted). Other values
+ *		currently in use are _ATOM and _XEON_PHI
+ * MICROARCH	Is the code name for the micro-architecture for this core.
+ *		N.B. Not the platform name.
+ * OPTDIFF	If needed, a short string to differentiate by market segment.
+ *		Exact strings here will vary over time. _DESKTOP, _MOBILE, and
+ *		_X (short for Xeon server) should be used when they are
+ *		appropriate.
+ *
+ * The #define line may optionally include a comment including platform names.
  */
 
 #define INTEL_FAM6_CORE_YONAH		0x0E

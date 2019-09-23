@@ -673,10 +673,8 @@ static int rcar_lvds_parse_dt_companion(struct rcar_lvds *lvds)
 
 	/* Locate the companion LVDS encoder for dual-link operation, if any. */
 	companion = of_parse_phandle(dev->of_node, "renesas,companion", 0);
-	if (!companion) {
-		dev_err(dev, "Companion LVDS encoder not found\n");
-		return -ENXIO;
-	}
+	if (!companion)
+		return 0;
 
 	/*
 	 * Sanity check: the companion encoder must have the same compatible

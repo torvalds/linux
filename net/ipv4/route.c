@@ -2728,7 +2728,8 @@ EXPORT_SYMBOL_GPL(ip_route_output_flow);
 /* called with rcu_read_lock held */
 static int rt_fill_info(struct net *net, __be32 dst, __be32 src,
 			struct rtable *rt, u32 table_id, struct flowi4 *fl4,
-			struct sk_buff *skb, u32 portid, u32 seq)
+			struct sk_buff *skb, u32 portid, u32 seq,
+			unsigned int flags)
 {
 	struct rtmsg *r;
 	struct nlmsghdr *nlh;
@@ -2736,7 +2737,7 @@ static int rt_fill_info(struct net *net, __be32 dst, __be32 src,
 	u32 error;
 	u32 metrics[RTAX_MAX];
 
-	nlh = nlmsg_put(skb, portid, seq, RTM_NEWROUTE, sizeof(*r), 0);
+	nlh = nlmsg_put(skb, portid, seq, RTM_NEWROUTE, sizeof(*r), flags);
 	if (!nlh)
 		return -EMSGSIZE;
 
@@ -2860,7 +2861,7 @@ nla_put_failure:
 static int fnhe_dump_bucket(struct net *net, struct sk_buff *skb,
 			    struct netlink_callback *cb, u32 table_id,
 			    struct fnhe_hash_bucket *bucket, int genid,
-			    int *fa_index, int fa_start)
+			    int *fa_index, int fa_start, unsigned int flags)
 {
 	int i;
 
@@ -2891,7 +2892,7 @@ static int fnhe_dump_bucket(struct net *net, struct sk_buff *skb,
 			err = rt_fill_info(net, fnhe->fnhe_daddr, 0, rt,
 					   table_id, NULL, skb,
 					   NETLINK_CB(cb->skb).portid,
-					   cb->nlh->nlmsg_seq);
+					   cb->nlh->nlmsg_seq, flags);
 			if (err)
 				return err;
 next:
@@ -2904,7 +2905,7 @@ next:
 
 int fib_dump_info_fnhe(struct sk_buff *skb, struct netlink_callback *cb,
 		       u32 table_id, struct fib_info *fi,
-		       int *fa_index, int fa_start)
+		       int *fa_index, int fa_start, unsigned int flags)
 {
 	struct net *net = sock_net(cb->skb->sk);
 	int nhsel, genid = fnhe_genid(net);
@@ -2922,7 +2923,8 @@ int fib_dump_info_fnhe(struct sk_buff *skb, struct netlink_callback *cb,
 		err = 0;
 		if (bucket)
 			err = fnhe_dump_bucket(net, skb, cb, table_id, bucket,
-					       genid, fa_index, fa_start);
+					       genid, fa_index, fa_start,
+					       flags);
 		rcu_read_unlock();
 		if (err)
 			return err;
@@ -3183,7 +3185,8 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 				    fl4.flowi4_tos, res.fi, 0);
 	} else {
 		err = rt_fill_info(net, dst, src, rt, table_id, &fl4, skb,
-				   NETLINK_CB(in_skb).portid, nlh->nlmsg_seq);
+				   NETLINK_CB(in_skb).portid,
+				   nlh->nlmsg_seq, 0);
 	}
 	if (err < 0)
 		goto errout_rcu;

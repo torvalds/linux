@@ -148,7 +148,7 @@ static int komeda_wb_connector_add(struct komeda_kms_dev *kms,
 	if (!kcrtc->master->wb_layer)
 		return 0;
 
-	kwb_conn = kzalloc(sizeof(*wb_conn), GFP_KERNEL);
+	kwb_conn = kzalloc(sizeof(*kwb_conn), GFP_KERNEL);
 	if (!kwb_conn)
 		return -ENOMEM;
 

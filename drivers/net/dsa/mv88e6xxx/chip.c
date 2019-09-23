@@ -27,7 +27,6 @@
 #include <linux/platform_data/mv88e6xxx.h>
 #include <linux/netdevice.h>
 #include <linux/gpio/consumer.h>
-#include <linux/phy.h>
 #include <linux/phylink.h>
 #include <net/dsa.h>
 
@@ -430,7 +429,7 @@ int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
 		return 0;
 
 	/* Port's MAC control must not be changed unless the link is down */
-	err = chip->info->ops->port_set_link(chip, port, 0);
+	err = chip->info->ops->port_set_link(chip, port, LINK_FORCED_DOWN);
 	if (err)
 		return err;
 
@@ -480,30 +479,6 @@ static int mv88e6xxx_phy_is_internal(struct dsa_switch *ds, int port)
 	struct mv88e6xxx_chip *chip = ds->priv;
 
 	return port < chip->info->num_internal_phys;
-}
-
-/* We expect the switch to perform auto negotiation if there is a real
- * phy. However, in the case of a fixed link phy, we force the port
- * settings from the fixed link settings.
- */
-static void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
-				  struct phy_device *phydev)
-{
-	struct mv88e6xxx_chip *chip = ds->priv;
-	int err;
-
-	if (!phy_is_pseudo_fixed_link(phydev) &&
-	    mv88e6xxx_phy_is_internal(ds, port))
-		return;
-
-	mv88e6xxx_reg_lock(chip);
-	err = mv88e6xxx_port_setup_mac(chip, port, phydev->link, phydev->speed,
-				       phydev->duplex, phydev->pause,
-				       phydev->interface);
-	mv88e6xxx_reg_unlock(chip);
-
-	if (err && err != -EOPNOTSUPP)
-		dev_err(ds->dev, "p%d: failed to configure MAC\n", port);
 }
 
 static void mv88e6065_phylink_validate(struct mv88e6xxx_chip *chip, int port,
@@ -2721,6 +2696,7 @@ static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip,
 			err = mv88e6xxx_mdio_register(chip, child, true);
 			if (err) {
 				mv88e6xxx_mdios_unregister(chip);
+				of_node_put(child);
 				return err;
 			}
 		}
@@ -4638,7 +4614,6 @@ static int mv88e6xxx_port_egress_floods(struct dsa_switch *ds, int port,
 static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.get_tag_protocol	= mv88e6xxx_get_tag_protocol,
 	.setup			= mv88e6xxx_setup,
-	.adjust_link		= mv88e6xxx_adjust_link,
 	.phylink_validate	= mv88e6xxx_validate,
 	.phylink_mac_link_state	= mv88e6xxx_link_state,
 	.phylink_mac_config	= mv88e6xxx_mac_config,

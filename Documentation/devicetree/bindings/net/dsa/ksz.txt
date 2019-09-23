@@ -12,6 +12,7 @@ Required properties:
   - "microchip,ksz8565"
   - "microchip,ksz9893"
   - "microchip,ksz9563"
+  - "microchip,ksz8563"
 
 Optional properties:
 

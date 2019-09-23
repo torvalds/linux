@@ -186,7 +186,7 @@
 			reg = <0x40330200 0x200>;
 		};
 
-		usbphy1: usb-phy@0x40350000 {
+		usbphy1: usb-phy@40350000 {
 			compatible = "fsl,imx7ulp-usbphy", "fsl,imx6ul-usbphy";
 			reg = <0x40350000 0x1000>;
 			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;

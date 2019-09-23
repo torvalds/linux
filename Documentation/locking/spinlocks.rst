@@ -82,7 +82,7 @@ itself.  The read lock allows many concurrent readers.  Anything that
 **changes** the list will have to get the write lock.
 
    NOTE! RCU is better for list traversal, but requires careful
-   attention to design detail (see Documentation/RCU/listRCU.txt).
+   attention to design detail (see Documentation/RCU/listRCU.rst).
 
 Also, you cannot "upgrade" a read-lock to a write-lock, so if you at _any_
 time need to do any changes (even if you don't do it every time), you have
@@ -90,7 +90,7 @@ to get the write-lock at the very beginning.
 
    NOTE! We are working hard to remove reader-writer spinlocks in most
    cases, so please don't add a new one without consensus.  (Instead, see
-   Documentation/RCU/rcu.txt for complete information.)
+   Documentation/RCU/rcu.rst for complete information.)
 
 ----
 

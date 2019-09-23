@@ -666,6 +666,7 @@ static int tcf_ct_init(struct net *net, struct nlattr *nla,
 	struct tc_ct *parm;
 	struct tcf_ct *c;
 	int err, res = 0;
+	u32 index;
 
 	if (!nla) {
 		NL_SET_ERR_MSG_MOD(extack, "Ct requires attributes to be passed");
@@ -681,16 +682,16 @@ static int tcf_ct_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 	}
 	parm = nla_data(tb[TCA_CT_PARMS]);
-
-	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	index = parm->index;
+	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (err < 0)
 		return err;
 
 	if (!err) {
-		err = tcf_idr_create(tn, parm->index, est, a,
+		err = tcf_idr_create(tn, index, est, a,
 				     &act_ct_ops, bind, true);
 		if (err) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			return err;
 		}
 		res = ACT_P_CREATED;
@@ -938,7 +939,7 @@ static __net_init int ct_init_net(struct net *net)
 		tn->labels = true;
 	}
 
-	return tc_action_net_init(&tn->tn, &act_ct_ops);
+	return tc_action_net_init(net, &tn->tn, &act_ct_ops);
 }
 
 static void __net_exit ct_exit_net(struct list_head *net_list)

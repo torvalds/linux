@@ -18,6 +18,12 @@
 static u32 umwait_control_cached = UMWAIT_CTRL_VAL(100000, UMWAIT_C02_ENABLE);
 
 /*
+ * Cache the original IA32_UMWAIT_CONTROL MSR value which is configured by
+ * hardware or BIOS before kernel boot.
+ */
+static u32 orig_umwait_control_cached __ro_after_init;
+
+/*
  * Serialize access to umwait_control_cached and IA32_UMWAIT_CONTROL MSR in
  * the sysfs write functions.
  */
@@ -49,6 +55,23 @@ static int umwait_cpu_online(unsigned int cpu)
 	local_irq_disable();
 	umwait_update_control_msr(NULL);
 	local_irq_enable();
+	return 0;
+}
+
+/*
+ * The CPU hotplug callback sets the control MSR to the original control
+ * value.
+ */
+static int umwait_cpu_offline(unsigned int cpu)
+{
+	/*
+	 * This code is protected by the CPU hotplug already and
+	 * orig_umwait_control_cached is never changed after it caches
+	 * the original control MSR value in umwait_init(). So there
+	 * is no race condition here.
+	 */
+	wrmsr(MSR_IA32_UMWAIT_CONTROL, orig_umwait_control_cached, 0);
+
 	return 0;
 }
 
@@ -185,8 +208,22 @@ static int __init umwait_init(void)
 	if (!boot_cpu_has(X86_FEATURE_WAITPKG))
 		return -ENODEV;
 
+	/*
+	 * Cache the original control MSR value before the control MSR is
+	 * changed. This is the only place where orig_umwait_control_cached
+	 * is modified.
+	 */
+	rdmsrl(MSR_IA32_UMWAIT_CONTROL, orig_umwait_control_cached);
+
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "umwait:online",
-				umwait_cpu_online, NULL);
+				umwait_cpu_online, umwait_cpu_offline);
+	if (ret < 0) {
+		/*
+		 * On failure, the control MSR on all CPUs has the
+		 * original control value.
+		 */
+		return ret;
+	}
 
 	register_syscore_ops(&umwait_syscore_ops);
 

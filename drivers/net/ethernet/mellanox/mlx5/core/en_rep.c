@@ -735,8 +735,7 @@ mlx5e_rep_indr_setup_tc_block(struct net_device *netdev,
 		list_add(&indr_priv->list,
 			 &rpriv->uplink_priv.tc_indr_block_priv_list);
 
-		block_cb = flow_block_cb_alloc(f->net,
-					       mlx5e_rep_indr_setup_block_cb,
+		block_cb = flow_block_cb_alloc(mlx5e_rep_indr_setup_block_cb,
 					       indr_priv, indr_priv,
 					       mlx5e_rep_indr_tc_block_unbind);
 		if (IS_ERR(block_cb)) {
@@ -753,7 +752,7 @@ mlx5e_rep_indr_setup_tc_block(struct net_device *netdev,
 		if (!indr_priv)
 			return -ENOENT;
 
-		block_cb = flow_block_cb_lookup(f,
+		block_cb = flow_block_cb_lookup(f->block,
 						mlx5e_rep_indr_setup_block_cb,
 						indr_priv);
 		if (!block_cb)
@@ -1702,6 +1701,7 @@ static const struct mlx5e_profile mlx5e_rep_profile = {
 	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe_rep,
 	.rx_handlers.handle_rx_cqe_mpwqe = mlx5e_handle_rx_cqe_mpwrq,
 	.max_tc			= 1,
+	.rq_groups		= MLX5E_NUM_RQ_GROUPS(REGULAR),
 };
 
 static const struct mlx5e_profile mlx5e_uplink_rep_profile = {
@@ -1719,6 +1719,7 @@ static const struct mlx5e_profile mlx5e_uplink_rep_profile = {
 	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe_rep,
 	.rx_handlers.handle_rx_cqe_mpwqe = mlx5e_handle_rx_cqe_mpwrq,
 	.max_tc			= MLX5E_MAX_NUM_TC,
+	.rq_groups		= MLX5E_NUM_RQ_GROUPS(REGULAR),
 };
 
 static bool

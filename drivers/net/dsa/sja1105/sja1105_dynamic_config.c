@@ -277,6 +277,18 @@ sja1105et_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 			SJA1105ET_SIZE_L2_LOOKUP_ENTRY, op);
 }
 
+static size_t sja1105et_dyn_l2_lookup_entry_packing(void *buf, void *entry_ptr,
+						    enum packing_op op)
+{
+	struct sja1105_l2_lookup_entry *entry = entry_ptr;
+	u8 *cmd = buf + SJA1105ET_SIZE_L2_LOOKUP_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(cmd, &entry->lockeds, 28, 28, size, op);
+
+	return sja1105et_l2_lookup_entry_packing(buf, entry_ptr, op);
+}
+
 static void
 sja1105et_mgmt_route_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 				 enum packing_op op)
@@ -477,7 +489,7 @@ sja1105et_general_params_entry_packing(void *buf, void *entry_ptr,
 /* SJA1105E/T: First generation */
 struct sja1105_dynamic_table_ops sja1105et_dyn_ops[BLK_IDX_MAX_DYN] = {
 	[BLK_IDX_L2_LOOKUP] = {
-		.entry_packing = sja1105et_l2_lookup_entry_packing,
+		.entry_packing = sja1105et_dyn_l2_lookup_entry_packing,
 		.cmd_packing = sja1105et_l2_lookup_cmd_packing,
 		.access = (OP_READ | OP_WRITE | OP_DEL),
 		.max_entry_count = SJA1105_MAX_L2_LOOKUP_COUNT,

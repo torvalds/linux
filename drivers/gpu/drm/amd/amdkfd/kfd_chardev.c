@@ -1567,32 +1567,6 @@ copy_from_user_failed:
 	return err;
 }
 
-static int kfd_ioctl_alloc_queue_gws(struct file *filep,
-		struct kfd_process *p, void *data)
-{
-	int retval;
-	struct kfd_ioctl_alloc_queue_gws_args *args = data;
-	struct kfd_dev *dev;
-
-	if (!hws_gws_support)
-		return -ENODEV;
-
-	dev = kfd_device_by_id(args->gpu_id);
-	if (!dev) {
-		pr_debug("Could not find gpu id 0x%x\n", args->gpu_id);
-		return -ENODEV;
-	}
-	if (dev->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS)
-		return -ENODEV;
-
-	mutex_lock(&p->mutex);
-	retval = pqm_set_gws(&p->pqm, args->queue_id, args->num_gws ? dev->gws : NULL);
-	mutex_unlock(&p->mutex);
-
-	args->first_gws = 0;
-	return retval;
-}
-
 static int kfd_ioctl_get_dmabuf_info(struct file *filep,
 		struct kfd_process *p, void *data)
 {
@@ -1795,8 +1769,6 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_IMPORT_DMABUF,
 				kfd_ioctl_import_dmabuf, 0),
 
-	AMDKFD_IOCTL_DEF(AMDKFD_IOC_ALLOC_QUEUE_GWS,
-			kfd_ioctl_alloc_queue_gws, 0),
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)

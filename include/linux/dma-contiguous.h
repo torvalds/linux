@@ -160,10 +160,7 @@ bool dma_release_from_contiguous(struct device *dev, struct page *pages,
 static inline struct page *dma_alloc_contiguous(struct device *dev, size_t size,
 		gfp_t gfp)
 {
-	int node = dev ? dev_to_node(dev) : NUMA_NO_NODE;
-	size_t align = get_order(PAGE_ALIGN(size));
-
-	return alloc_pages_node(node, gfp, align);
+	return NULL;
 }
 
 static inline void dma_free_contiguous(struct device *dev, struct page *page,
