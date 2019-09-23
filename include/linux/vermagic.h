@@ -9,6 +9,8 @@
 #endif
 #ifdef CONFIG_PREEMPT
 #define MODULE_VERMAGIC_PREEMPT "preempt "
+#elif defined(CONFIG_PREEMPT_RT)
+#define MODULE_VERMAGIC_PREEMPT "preempt_rt "
 #else
 #define MODULE_VERMAGIC_PREEMPT ""
 #endif

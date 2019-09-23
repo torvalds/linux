@@ -201,7 +201,7 @@ Example (5)
 		#msi-cells = <1>;
 	};
 
-	pci: pci@c {
+	pci: pci@f {
 		reg = <0xf 0x1>;
 		compatible = "vendor,pcie-root-complex";
 		device_type = "pci";

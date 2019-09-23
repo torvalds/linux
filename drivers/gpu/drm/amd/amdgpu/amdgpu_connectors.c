@@ -1505,6 +1505,7 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 	struct amdgpu_connector_atom_dig *amdgpu_dig_connector;
 	struct drm_encoder *encoder;
 	struct amdgpu_encoder *amdgpu_encoder;
+	struct i2c_adapter *ddc = NULL;
 	uint32_t subpixel_order = SubPixelNone;
 	bool shared_ddc = false;
 	bool is_dp_bridge = false;
@@ -1574,17 +1575,21 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 		amdgpu_connector->con_priv = amdgpu_dig_connector;
 		if (i2c_bus->valid) {
 			amdgpu_connector->ddc_bus = amdgpu_i2c_lookup(adev, i2c_bus);
-			if (amdgpu_connector->ddc_bus)
+			if (amdgpu_connector->ddc_bus) {
 				has_aux = true;
-			else
+				ddc = &amdgpu_connector->ddc_bus->adapter;
+			} else {
 				DRM_ERROR("DP: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
+			}
 		}
 		switch (connector_type) {
 		case DRM_MODE_CONNECTOR_VGA:
 		case DRM_MODE_CONNECTOR_DVIA:
 		default:
-			drm_connector_init(dev, &amdgpu_connector->base,
-					   &amdgpu_connector_dp_funcs, connector_type);
+			drm_connector_init_with_ddc(dev, &amdgpu_connector->base,
+						    &amdgpu_connector_dp_funcs,
+						    connector_type,
+						    ddc);
 			drm_connector_helper_add(&amdgpu_connector->base,
 						 &amdgpu_connector_dp_helper_funcs);
 			connector->interlace_allowed = true;
@@ -1602,8 +1607,10 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 		case DRM_MODE_CONNECTOR_HDMIA:
 		case DRM_MODE_CONNECTOR_HDMIB:
 		case DRM_MODE_CONNECTOR_DisplayPort:
-			drm_connector_init(dev, &amdgpu_connector->base,
-					   &amdgpu_connector_dp_funcs, connector_type);
+			drm_connector_init_with_ddc(dev, &amdgpu_connector->base,
+						    &amdgpu_connector_dp_funcs,
+						    connector_type,
+						    ddc);
 			drm_connector_helper_add(&amdgpu_connector->base,
 						 &amdgpu_connector_dp_helper_funcs);
 			drm_object_attach_property(&amdgpu_connector->base.base,
@@ -1644,8 +1651,10 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			break;
 		case DRM_MODE_CONNECTOR_LVDS:
 		case DRM_MODE_CONNECTOR_eDP:
-			drm_connector_init(dev, &amdgpu_connector->base,
-					   &amdgpu_connector_edp_funcs, connector_type);
+			drm_connector_init_with_ddc(dev, &amdgpu_connector->base,
+						    &amdgpu_connector_edp_funcs,
+						    connector_type,
+						    ddc);
 			drm_connector_helper_add(&amdgpu_connector->base,
 						 &amdgpu_connector_dp_helper_funcs);
 			drm_object_attach_property(&amdgpu_connector->base.base,
@@ -1659,13 +1668,18 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 	} else {
 		switch (connector_type) {
 		case DRM_MODE_CONNECTOR_VGA:
-			drm_connector_init(dev, &amdgpu_connector->base, &amdgpu_connector_vga_funcs, connector_type);
-			drm_connector_helper_add(&amdgpu_connector->base, &amdgpu_connector_vga_helper_funcs);
 			if (i2c_bus->valid) {
 				amdgpu_connector->ddc_bus = amdgpu_i2c_lookup(adev, i2c_bus);
 				if (!amdgpu_connector->ddc_bus)
 					DRM_ERROR("VGA: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
+				else
+					ddc = &amdgpu_connector->ddc_bus->adapter;
 			}
+			drm_connector_init_with_ddc(dev, &amdgpu_connector->base,
+						    &amdgpu_connector_vga_funcs,
+						    connector_type,
+						    ddc);
+			drm_connector_helper_add(&amdgpu_connector->base, &amdgpu_connector_vga_helper_funcs);
 			amdgpu_connector->dac_load_detect = true;
 			drm_object_attach_property(&amdgpu_connector->base.base,
 						      adev->mode_info.load_detect_property,
@@ -1679,13 +1693,18 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			connector->doublescan_allowed = true;
 			break;
 		case DRM_MODE_CONNECTOR_DVIA:
-			drm_connector_init(dev, &amdgpu_connector->base, &amdgpu_connector_vga_funcs, connector_type);
-			drm_connector_helper_add(&amdgpu_connector->base, &amdgpu_connector_vga_helper_funcs);
 			if (i2c_bus->valid) {
 				amdgpu_connector->ddc_bus = amdgpu_i2c_lookup(adev, i2c_bus);
 				if (!amdgpu_connector->ddc_bus)
 					DRM_ERROR("DVIA: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
+				else
+					ddc = &amdgpu_connector->ddc_bus->adapter;
 			}
+			drm_connector_init_with_ddc(dev, &amdgpu_connector->base,
+						    &amdgpu_connector_vga_funcs,
+						    connector_type,
+						    ddc);
+			drm_connector_helper_add(&amdgpu_connector->base, &amdgpu_connector_vga_helper_funcs);
 			amdgpu_connector->dac_load_detect = true;
 			drm_object_attach_property(&amdgpu_connector->base.base,
 						      adev->mode_info.load_detect_property,
@@ -1704,13 +1723,18 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			if (!amdgpu_dig_connector)
 				goto failed;
 			amdgpu_connector->con_priv = amdgpu_dig_connector;
-			drm_connector_init(dev, &amdgpu_connector->base, &amdgpu_connector_dvi_funcs, connector_type);
-			drm_connector_helper_add(&amdgpu_connector->base, &amdgpu_connector_dvi_helper_funcs);
 			if (i2c_bus->valid) {
 				amdgpu_connector->ddc_bus = amdgpu_i2c_lookup(adev, i2c_bus);
 				if (!amdgpu_connector->ddc_bus)
 					DRM_ERROR("DVI: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
+				else
+					ddc = &amdgpu_connector->ddc_bus->adapter;
 			}
+			drm_connector_init_with_ddc(dev, &amdgpu_connector->base,
+						    &amdgpu_connector_dvi_funcs,
+						    connector_type,
+						    ddc);
+			drm_connector_helper_add(&amdgpu_connector->base, &amdgpu_connector_dvi_helper_funcs);
 			subpixel_order = SubPixelHorizontalRGB;
 			drm_object_attach_property(&amdgpu_connector->base.base,
 						      adev->mode_info.coherent_mode_property,
@@ -1754,13 +1778,18 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			if (!amdgpu_dig_connector)
 				goto failed;
 			amdgpu_connector->con_priv = amdgpu_dig_connector;
-			drm_connector_init(dev, &amdgpu_connector->base, &amdgpu_connector_dvi_funcs, connector_type);
-			drm_connector_helper_add(&amdgpu_connector->base, &amdgpu_connector_dvi_helper_funcs);
 			if (i2c_bus->valid) {
 				amdgpu_connector->ddc_bus = amdgpu_i2c_lookup(adev, i2c_bus);
 				if (!amdgpu_connector->ddc_bus)
 					DRM_ERROR("HDMI: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
+				else
+					ddc = &amdgpu_connector->ddc_bus->adapter;
 			}
+			drm_connector_init_with_ddc(dev, &amdgpu_connector->base,
+						    &amdgpu_connector_dvi_funcs,
+						    connector_type,
+						    ddc);
+			drm_connector_helper_add(&amdgpu_connector->base, &amdgpu_connector_dvi_helper_funcs);
 			drm_object_attach_property(&amdgpu_connector->base.base,
 						      adev->mode_info.coherent_mode_property,
 						      1);
@@ -1796,15 +1825,20 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			if (!amdgpu_dig_connector)
 				goto failed;
 			amdgpu_connector->con_priv = amdgpu_dig_connector;
-			drm_connector_init(dev, &amdgpu_connector->base, &amdgpu_connector_dp_funcs, connector_type);
-			drm_connector_helper_add(&amdgpu_connector->base, &amdgpu_connector_dp_helper_funcs);
 			if (i2c_bus->valid) {
 				amdgpu_connector->ddc_bus = amdgpu_i2c_lookup(adev, i2c_bus);
-				if (amdgpu_connector->ddc_bus)
+				if (amdgpu_connector->ddc_bus) {
 					has_aux = true;
-				else
+					ddc = &amdgpu_connector->ddc_bus->adapter;
+				} else {
 					DRM_ERROR("DP: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
+				}
 			}
+			drm_connector_init_with_ddc(dev, &amdgpu_connector->base,
+						    &amdgpu_connector_dp_funcs,
+						    connector_type,
+						    ddc);
+			drm_connector_helper_add(&amdgpu_connector->base, &amdgpu_connector_dp_helper_funcs);
 			subpixel_order = SubPixelHorizontalRGB;
 			drm_object_attach_property(&amdgpu_connector->base.base,
 						      adev->mode_info.coherent_mode_property,
@@ -1838,15 +1872,20 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			if (!amdgpu_dig_connector)
 				goto failed;
 			amdgpu_connector->con_priv = amdgpu_dig_connector;
-			drm_connector_init(dev, &amdgpu_connector->base, &amdgpu_connector_edp_funcs, connector_type);
-			drm_connector_helper_add(&amdgpu_connector->base, &amdgpu_connector_dp_helper_funcs);
 			if (i2c_bus->valid) {
 				amdgpu_connector->ddc_bus = amdgpu_i2c_lookup(adev, i2c_bus);
-				if (amdgpu_connector->ddc_bus)
+				if (amdgpu_connector->ddc_bus) {
 					has_aux = true;
-				else
+					ddc = &amdgpu_connector->ddc_bus->adapter;
+				} else {
 					DRM_ERROR("DP: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
+				}
 			}
+			drm_connector_init_with_ddc(dev, &amdgpu_connector->base,
+						    &amdgpu_connector_edp_funcs,
+						    connector_type,
+						    ddc);
+			drm_connector_helper_add(&amdgpu_connector->base, &amdgpu_connector_dp_helper_funcs);
 			drm_object_attach_property(&amdgpu_connector->base.base,
 						      dev->mode_config.scaling_mode_property,
 						      DRM_MODE_SCALE_FULLSCREEN);
@@ -1859,13 +1898,18 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			if (!amdgpu_dig_connector)
 				goto failed;
 			amdgpu_connector->con_priv = amdgpu_dig_connector;
-			drm_connector_init(dev, &amdgpu_connector->base, &amdgpu_connector_lvds_funcs, connector_type);
-			drm_connector_helper_add(&amdgpu_connector->base, &amdgpu_connector_lvds_helper_funcs);
 			if (i2c_bus->valid) {
 				amdgpu_connector->ddc_bus = amdgpu_i2c_lookup(adev, i2c_bus);
 				if (!amdgpu_connector->ddc_bus)
 					DRM_ERROR("LVDS: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
+				else
+					ddc = &amdgpu_connector->ddc_bus->adapter;
 			}
+			drm_connector_init_with_ddc(dev, &amdgpu_connector->base,
+						    &amdgpu_connector_lvds_funcs,
+						    connector_type,
+						    ddc);
+			drm_connector_helper_add(&amdgpu_connector->base, &amdgpu_connector_lvds_helper_funcs);
 			drm_object_attach_property(&amdgpu_connector->base.base,
 						      dev->mode_config.scaling_mode_property,
 						      DRM_MODE_SCALE_FULLSCREEN);

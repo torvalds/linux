@@ -398,7 +398,7 @@ static void kvmhv_flush_lpid(unsigned int lpid)
 	long rc;
 
 	if (!kvmhv_on_pseries()) {
-		radix__flush_tlb_lpid(lpid);
+		radix__flush_all_lpid(lpid);
 		return;
 	}
 
@@ -411,7 +411,7 @@ static void kvmhv_flush_lpid(unsigned int lpid)
 void kvmhv_set_ptbl_entry(unsigned int lpid, u64 dw0, u64 dw1)
 {
 	if (!kvmhv_on_pseries()) {
-		mmu_partition_table_set_entry(lpid, dw0, dw1);
+		mmu_partition_table_set_entry(lpid, dw0, dw1, true);
 		return;
 	}
 

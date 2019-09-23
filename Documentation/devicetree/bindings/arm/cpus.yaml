@@ -124,6 +124,7 @@ properties:
       - arm,cortex-a15
       - arm,cortex-a17
       - arm,cortex-a53
+      - arm,cortex-a55
       - arm,cortex-a57
       - arm,cortex-a72
       - arm,cortex-a73
@@ -155,6 +156,7 @@ properties:
       - qcom,krait
       - qcom,kryo
       - qcom,kryo385
+      - qcom,kryo485
       - qcom,scorpion
 
   enable-method:

@@ -979,6 +979,8 @@ static int ceph_set_super(struct super_block *s, void *data)
 	s->s_export_op = &ceph_export_ops;
 
 	s->s_time_gran = 1;
+	s->s_time_min = 0;
+	s->s_time_max = U32_MAX;
 
 	ret = set_anon_super(s, NULL);  /* what is that second arg for? */
 	if (ret != 0)

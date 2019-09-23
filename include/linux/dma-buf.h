@@ -377,7 +377,7 @@ struct dma_buf {
 	struct module *owner;
 	struct list_head list_node;
 	void *priv;
-	struct reservation_object *resv;
+	struct dma_resv *resv;
 
 	/* poll support */
 	wait_queue_head_t poll;
@@ -439,7 +439,7 @@ struct dma_buf_export_info {
 	const struct dma_buf_ops *ops;
 	size_t size;
 	int flags;
-	struct reservation_object *resv;
+	struct dma_resv *resv;
 	void *priv;
 };
 

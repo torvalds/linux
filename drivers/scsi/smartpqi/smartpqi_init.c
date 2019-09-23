@@ -33,11 +33,11 @@
 #define BUILD_TIMESTAMP
 #endif
 
-#define DRIVER_VERSION		"1.2.6-015"
+#define DRIVER_VERSION		"1.2.8-026"
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		2
-#define DRIVER_RELEASE		6
-#define DRIVER_REVISION		15
+#define DRIVER_RELEASE		8
+#define DRIVER_REVISION		26
 
 #define DRIVER_NAME		"Microsemi PQI Driver (v" \
 				DRIVER_VERSION BUILD_TIMESTAMP ")"
@@ -144,6 +144,18 @@ module_param_named(lockup_action,
 MODULE_PARM_DESC(lockup_action, "Action to take when controller locked up.\n"
 	"\t\tSupported: none, reboot, panic\n"
 	"\t\tDefault: none");
+
+static int pqi_expose_ld_first;
+module_param_named(expose_ld_first,
+	pqi_expose_ld_first, int, 0644);
+MODULE_PARM_DESC(expose_ld_first,
+	"Expose logical drives before physical drives.");
+
+static int pqi_hide_vsep;
+module_param_named(hide_vsep,
+	pqi_hide_vsep, int, 0644);
+MODULE_PARM_DESC(hide_vsep,
+	"Hide the virtual SEP for direct attached drives.");
 
 static char *raid_levels[] = {
 	"RAID-0",
@@ -472,6 +484,7 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 		/* fall through */
 	case BMIC_IDENTIFY_CONTROLLER:
 	case BMIC_IDENTIFY_PHYSICAL_DEVICE:
+	case BMIC_SENSE_SUBSYSTEM_INFORMATION:
 		request->data_direction = SOP_READ_FLAG;
 		cdb[0] = BMIC_READ;
 		cdb[6] = cmd;
@@ -598,6 +611,14 @@ static inline int pqi_identify_controller(struct pqi_ctrl_info *ctrl_info,
 {
 	return pqi_send_ctrl_raid_request(ctrl_info, BMIC_IDENTIFY_CONTROLLER,
 			buffer, sizeof(*buffer));
+}
+
+static inline int pqi_sense_subsystem_info(struct  pqi_ctrl_info *ctrl_info,
+		struct bmic_sense_subsystem_info *sense_info)
+{
+	return pqi_send_ctrl_raid_request(ctrl_info,
+			BMIC_SENSE_SUBSYSTEM_INFORMATION,
+			sense_info, sizeof(*sense_info));
 }
 
 static inline int pqi_scsi_inquiry(struct pqi_ctrl_info *ctrl_info,
@@ -1392,7 +1413,9 @@ static void pqi_get_physical_disk_info(struct pqi_ctrl_info *ctrl_info,
 		device->queue_depth = PQI_PHYSICAL_DISK_DEFAULT_MAX_QUEUE_DEPTH;
 		return;
 	}
-
+	device->box_index = id_phys->box_index;
+	device->phys_box_on_bus = id_phys->phys_box_on_bus;
+	device->phy_connected_dev_type = id_phys->phy_connected_dev_type[0];
 	device->queue_depth =
 		get_unaligned_le16(&id_phys->current_queue_depth_limit);
 	device->device_type = id_phys->device_type;
@@ -1719,6 +1742,10 @@ static void pqi_scsi_update_device(struct pqi_scsi_dev *existing_device,
 	existing_device->active_path_index = new_device->active_path_index;
 	existing_device->path_map = new_device->path_map;
 	existing_device->bay = new_device->bay;
+	existing_device->box_index = new_device->box_index;
+	existing_device->phys_box_on_bus = new_device->phys_box_on_bus;
+	existing_device->phy_connected_dev_type =
+		new_device->phy_connected_dev_type;
 	memcpy(existing_device->box, new_device->box,
 		sizeof(existing_device->box));
 	memcpy(existing_device->phys_connector, new_device->phys_connector,
@@ -1945,6 +1972,11 @@ static inline bool pqi_skip_device(u8 *scsi3addr)
 	return false;
 }
 
+static inline void pqi_mask_device(u8 *scsi3addr)
+{
+	scsi3addr[3] |= 0xc0;
+}
+
 static inline bool pqi_is_device_with_sas_address(struct pqi_scsi_dev *device)
 {
 	if (!device->is_physical_device)
@@ -1988,6 +2020,8 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 	unsigned int num_valid_devices;
 	bool is_physical_device;
 	u8 *scsi3addr;
+	unsigned int physical_index;
+	unsigned int logical_index;
 	static char *out_of_memory_msg =
 		"failed to allocate memory, device discovery stopped";
 
@@ -2023,6 +2057,21 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 			rc = -ENOMEM;
 			goto out;
 		}
+		if (pqi_hide_vsep) {
+			int i;
+
+			for (i = num_physicals - 1; i >= 0; i--) {
+				phys_lun_ext_entry =
+						&physdev_list->lun_entries[i];
+				if (CISS_GET_DRIVE_NUMBER(
+					phys_lun_ext_entry->lunid) ==
+						PQI_VSEP_CISS_BTL) {
+					pqi_mask_device(
+						phys_lun_ext_entry->lunid);
+					break;
+				}
+			}
+		}
 	}
 
 	num_new_devices = num_physicals + num_logicals;
@@ -2050,19 +2099,23 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 
 	device = NULL;
 	num_valid_devices = 0;
+	physical_index = 0;
+	logical_index = 0;
 
 	for (i = 0; i < num_new_devices; i++) {
 
-		if (i < num_physicals) {
+		if ((!pqi_expose_ld_first && i < num_physicals) ||
+			(pqi_expose_ld_first && i >= num_logicals)) {
 			is_physical_device = true;
-			phys_lun_ext_entry = &physdev_list->lun_entries[i];
+			phys_lun_ext_entry =
+				&physdev_list->lun_entries[physical_index++];
 			log_lun_ext_entry = NULL;
 			scsi3addr = phys_lun_ext_entry->lunid;
 		} else {
 			is_physical_device = false;
 			phys_lun_ext_entry = NULL;
 			log_lun_ext_entry =
-				&logdev_list->lun_entries[i - num_physicals];
+				&logdev_list->lun_entries[logical_index++];
 			scsi3addr = log_lun_ext_entry->lunid;
 		}
 
@@ -2122,11 +2175,10 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 					device->aio_handle =
 						phys_lun_ext_entry->aio_handle;
 			}
-			if (device->devtype == TYPE_DISK ||
-				device->devtype == TYPE_ZBC) {
+
 				pqi_get_physical_disk_info(ctrl_info,
 					device, id_phys);
-			}
+
 		} else {
 			memcpy(device->volume_id, log_lun_ext_entry->volume_id,
 				sizeof(device->volume_id));
@@ -2184,18 +2236,20 @@ static void pqi_remove_all_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 
 static int pqi_scan_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 {
-	int rc;
+	int rc = 0;
 
 	if (pqi_ctrl_offline(ctrl_info))
 		return -ENXIO;
 
-	mutex_lock(&ctrl_info->scan_mutex);
-
-	rc = pqi_update_scsi_devices(ctrl_info);
-	if (rc)
+	if (!mutex_trylock(&ctrl_info->scan_mutex)) {
 		pqi_schedule_rescan_worker_delayed(ctrl_info);
-
-	mutex_unlock(&ctrl_info->scan_mutex);
+		rc = -EINPROGRESS;
+	} else {
+		rc = pqi_update_scsi_devices(ctrl_info);
+		if (rc)
+			pqi_schedule_rescan_worker_delayed(ctrl_info);
+		mutex_unlock(&ctrl_info->scan_mutex);
+	}
 
 	return rc;
 }
@@ -6091,23 +6145,65 @@ static int pqi_ioctl(struct scsi_device *sdev, unsigned int cmd,
 	return rc;
 }
 
-static ssize_t pqi_version_show(struct device *dev,
+static ssize_t pqi_firmware_version_show(struct device *dev,
 	struct device_attribute *attr, char *buffer)
 {
-	ssize_t count = 0;
 	struct Scsi_Host *shost;
 	struct pqi_ctrl_info *ctrl_info;
 
 	shost = class_to_shost(dev);
 	ctrl_info = shost_to_hba(shost);
 
-	count += snprintf(buffer + count, PAGE_SIZE - count,
-		"  driver: %s\n", DRIVER_VERSION BUILD_TIMESTAMP);
+	return snprintf(buffer, PAGE_SIZE, "%s\n", ctrl_info->firmware_version);
+}
 
-	count += snprintf(buffer + count, PAGE_SIZE - count,
-		"firmware: %s\n", ctrl_info->firmware_version);
+static ssize_t pqi_driver_version_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct Scsi_Host *shost;
+	struct pqi_ctrl_info *ctrl_info;
 
-	return count;
+	shost = class_to_shost(dev);
+	ctrl_info = shost_to_hba(shost);
+
+	return snprintf(buffer, PAGE_SIZE,
+		"%s\n", DRIVER_VERSION BUILD_TIMESTAMP);
+}
+
+static ssize_t pqi_serial_number_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct Scsi_Host *shost;
+	struct pqi_ctrl_info *ctrl_info;
+
+	shost = class_to_shost(dev);
+	ctrl_info = shost_to_hba(shost);
+
+	return snprintf(buffer, PAGE_SIZE, "%s\n", ctrl_info->serial_number);
+}
+
+static ssize_t pqi_model_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct Scsi_Host *shost;
+	struct pqi_ctrl_info *ctrl_info;
+
+	shost = class_to_shost(dev);
+	ctrl_info = shost_to_hba(shost);
+
+	return snprintf(buffer, PAGE_SIZE, "%s\n", ctrl_info->model);
+}
+
+static ssize_t pqi_vendor_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct Scsi_Host *shost;
+	struct pqi_ctrl_info *ctrl_info;
+
+	shost = class_to_shost(dev);
+	ctrl_info = shost_to_hba(shost);
+
+	return snprintf(buffer, PAGE_SIZE, "%s\n", ctrl_info->vendor);
 }
 
 static ssize_t pqi_host_rescan_store(struct device *dev,
@@ -6160,13 +6256,21 @@ static ssize_t pqi_lockup_action_store(struct device *dev,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR(version, 0444, pqi_version_show, NULL);
+static DEVICE_ATTR(driver_version, 0444, pqi_driver_version_show, NULL);
+static DEVICE_ATTR(firmware_version, 0444, pqi_firmware_version_show, NULL);
+static DEVICE_ATTR(model, 0444, pqi_model_show, NULL);
+static DEVICE_ATTR(serial_number, 0444, pqi_serial_number_show, NULL);
+static DEVICE_ATTR(vendor, 0444, pqi_vendor_show, NULL);
 static DEVICE_ATTR(rescan, 0200, NULL, pqi_host_rescan_store);
 static DEVICE_ATTR(lockup_action, 0644,
 	pqi_lockup_action_show, pqi_lockup_action_store);
 
 static struct device_attribute *pqi_shost_attrs[] = {
-	&dev_attr_version,
+	&dev_attr_driver_version,
+	&dev_attr_firmware_version,
+	&dev_attr_model,
+	&dev_attr_serial_number,
+	&dev_attr_vendor,
 	&dev_attr_rescan,
 	&dev_attr_lockup_action,
 	NULL
@@ -6558,7 +6662,30 @@ static int pqi_reset(struct pqi_ctrl_info *ctrl_info)
 	return rc;
 }
 
-static int pqi_get_ctrl_firmware_version(struct pqi_ctrl_info *ctrl_info)
+static int pqi_get_ctrl_serial_number(struct pqi_ctrl_info *ctrl_info)
+{
+	int rc;
+	struct bmic_sense_subsystem_info *sense_info;
+
+	sense_info = kzalloc(sizeof(*sense_info), GFP_KERNEL);
+	if (!sense_info)
+		return -ENOMEM;
+
+	rc = pqi_sense_subsystem_info(ctrl_info, sense_info);
+	if (rc)
+		goto out;
+
+	memcpy(ctrl_info->serial_number, sense_info->ctrl_serial_number,
+		sizeof(sense_info->ctrl_serial_number));
+	ctrl_info->serial_number[sizeof(sense_info->ctrl_serial_number)] = '\0';
+
+out:
+	kfree(sense_info);
+
+	return rc;
+}
+
+static int pqi_get_ctrl_product_details(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
 	struct bmic_identify_controller *identify;
@@ -6578,6 +6705,14 @@ static int pqi_get_ctrl_firmware_version(struct pqi_ctrl_info *ctrl_info)
 		strlen(ctrl_info->firmware_version),
 		sizeof(ctrl_info->firmware_version),
 		"-%u", get_unaligned_le16(&identify->firmware_build_number));
+
+	memcpy(ctrl_info->model, identify->product_id,
+		sizeof(identify->product_id));
+	ctrl_info->model[sizeof(identify->product_id)] = '\0';
+
+	memcpy(ctrl_info->vendor, identify->vendor_id,
+		sizeof(identify->vendor_id));
+	ctrl_info->vendor[sizeof(identify->vendor_id)] = '\0';
 
 out:
 	kfree(identify);
@@ -7098,10 +7233,17 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 	if (rc)
 		return rc;
 
-	rc = pqi_get_ctrl_firmware_version(ctrl_info);
+	rc = pqi_get_ctrl_product_details(ctrl_info);
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
-			"error obtaining firmware version\n");
+			"error obtaining product details\n");
+		return rc;
+	}
+
+	rc = pqi_get_ctrl_serial_number(ctrl_info);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"error obtaining ctrl serial number\n");
 		return rc;
 	}
 
@@ -7241,10 +7383,10 @@ static int pqi_ctrl_init_resume(struct pqi_ctrl_info *ctrl_info)
 		return rc;
 	}
 
-	rc = pqi_get_ctrl_firmware_version(ctrl_info);
+	rc = pqi_get_ctrl_product_details(ctrl_info);
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
-			"error obtaining firmware version\n");
+			"error obtaining product detail\n");
 		return rc;
 	}
 
@@ -8024,6 +8166,10 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x1bd4, 0x004f)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       0x19e5, 0xd227)
 	},
 	{
@@ -8085,6 +8231,14 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       PCI_VENDOR_ID_ADAPTEC2, 0x0807)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0808)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0809)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
@@ -8241,6 +8395,26 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       PCI_VENDOR_ID_HP, 0x1101)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x1d8d, 0x0800)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x1d8d, 0x0908)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x1d8d, 0x0806)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x1d8d, 0x0916)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_GIGABYTE, 0x1000)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,

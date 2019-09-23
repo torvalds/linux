@@ -56,6 +56,15 @@
 #include "dfs_cache.h"
 #endif
 
+/*
+ * DOS dates from 1980/1/1 through 2107/12/31
+ * Protocol specifications indicate the range should be to 119, which
+ * limits maximum year to 2099. But this range has not been checked.
+ */
+#define SMB_DATE_MAX (127<<9 | 12<<5 | 31)
+#define SMB_DATE_MIN (0<<9 | 1<<5 | 1)
+#define SMB_TIME_MAX (23<<11 | 59<<5 | 29)
+
 int cifsFYI = 0;
 bool traceSMB;
 bool enable_oplocks = true;
@@ -109,6 +118,7 @@ extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
 struct workqueue_struct	*cifsiod_wq;
+struct workqueue_struct	*decrypt_wq;
 struct workqueue_struct	*cifsoplockd_wq;
 __u32 cifs_lock_secret;
 
@@ -142,6 +152,7 @@ cifs_read_super(struct super_block *sb)
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_tcon *tcon;
+	struct timespec64 ts;
 	int rc = 0;
 
 	cifs_sb = CIFS_SB(sb);
@@ -160,6 +171,18 @@ cifs_read_super(struct super_block *sb)
 
 	/* BB FIXME fix time_gran to be larger for LANMAN sessions */
 	sb->s_time_gran = 100;
+
+	if (tcon->unix_ext) {
+		ts = cifs_NTtimeToUnix(0);
+		sb->s_time_min = ts.tv_sec;
+		ts = cifs_NTtimeToUnix(cpu_to_le64(S64_MAX));
+		sb->s_time_max = ts.tv_sec;
+	} else {
+		ts = cnvrtDosUnixTm(cpu_to_le16(SMB_DATE_MIN), 0, 0);
+		sb->s_time_min = ts.tv_sec;
+		ts = cnvrtDosUnixTm(cpu_to_le16(SMB_DATE_MAX), cpu_to_le16(SMB_TIME_MAX), 0);
+		sb->s_time_max = ts.tv_sec;
+	}
 
 	sb->s_magic = CIFS_MAGIC_NUMBER;
 	sb->s_op = &cifs_super_ops;
@@ -400,6 +423,10 @@ cifs_show_cache_flavor(struct seq_file *s, struct cifs_sb_info *cifs_sb)
 		seq_puts(s, "strict");
 	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
 		seq_puts(s, "none");
+	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RW_CACHE)
+		seq_puts(s, "singleclient"); /* assume only one client access */
+	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RO_CACHE)
+		seq_puts(s, "ro"); /* read only caching assumed */
 	else
 		seq_puts(s, "loose");
 }
@@ -433,6 +460,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 	cifs_show_security(s, tcon->ses);
 	cifs_show_cache_flavor(s, cifs_sb);
 
+	if (tcon->no_lease)
+		seq_puts(s, ",nolease");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER)
 		seq_puts(s, ",multiuser");
 	else if (tcon->ses->user_name)
@@ -554,6 +583,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 	seq_printf(s, ",rsize=%u", cifs_sb->rsize);
 	seq_printf(s, ",wsize=%u", cifs_sb->wsize);
 	seq_printf(s, ",bsize=%u", cifs_sb->bsize);
+	if (tcon->ses->server->min_offload)
+		seq_printf(s, ",esize=%u", tcon->ses->server->min_offload);
 	seq_printf(s, ",echo_interval=%lu",
 			tcon->ses->server->echo_interval / HZ);
 
@@ -1495,11 +1526,25 @@ init_cifs(void)
 		goto out_clean_proc;
 	}
 
+	/*
+	 * Consider in future setting limit!=0 maybe to min(num_of_cores - 1, 3)
+	 * so that we don't launch too many worker threads but
+	 * Documentation/workqueue.txt recommends setting it to 0
+	 */
+
+	/* WQ_UNBOUND allows decrypt tasks to run on any CPU */
+	decrypt_wq = alloc_workqueue("smb3decryptd",
+				     WQ_UNBOUND|WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+	if (!decrypt_wq) {
+		rc = -ENOMEM;
+		goto out_destroy_cifsiod_wq;
+	}
+
 	cifsoplockd_wq = alloc_workqueue("cifsoplockd",
 					 WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
 	if (!cifsoplockd_wq) {
 		rc = -ENOMEM;
-		goto out_destroy_cifsiod_wq;
+		goto out_destroy_decrypt_wq;
 	}
 
 	rc = cifs_fscache_register();
@@ -1565,6 +1610,8 @@ out_unreg_fscache:
 	cifs_fscache_unregister();
 out_destroy_cifsoplockd_wq:
 	destroy_workqueue(cifsoplockd_wq);
+out_destroy_decrypt_wq:
+	destroy_workqueue(decrypt_wq);
 out_destroy_cifsiod_wq:
 	destroy_workqueue(cifsiod_wq);
 out_clean_proc:
@@ -1591,6 +1638,7 @@ exit_cifs(void)
 	cifs_destroy_inodecache();
 	cifs_fscache_unregister();
 	destroy_workqueue(cifsoplockd_wq);
+	destroy_workqueue(decrypt_wq);
 	destroy_workqueue(cifsiod_wq);
 	cifs_proc_clean();
 }

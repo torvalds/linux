@@ -2285,7 +2285,7 @@ void gfs2_rgrp_dump(struct seq_file *seq, struct gfs2_glock *gl,
 static void gfs2_rgrp_error(struct gfs2_rgrpd *rgd)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
-	char fs_id_buf[GFS2_FSNAME_LEN + 3 * sizeof(int) + 2];
+	char fs_id_buf[sizeof(sdp->sd_fsname) + 7];
 
 	fs_warn(sdp, "rgrp %llu has an error, marking it readonly until umount\n",
 		(unsigned long long)rgd->rd_addr);

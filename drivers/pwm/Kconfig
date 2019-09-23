@@ -145,7 +145,7 @@ config PWM_CRC
 
 config PWM_CROS_EC
 	tristate "ChromeOS EC PWM driver"
-	depends on MFD_CROS_EC
+	depends on CROS_EC
 	help
 	  PWM driver for exposing a PWM attached to the ChromeOS Embedded
 	  Controller.

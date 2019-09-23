@@ -8,9 +8,9 @@
  * Author: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
  */
 
-#include <drm/drmP.h>
-
 #include <linux/device.h>
+
+#include <drm/drm_print.h>
 
 #include <xen/interface/io/displif.h>
 #include <xen/xenbus.h>

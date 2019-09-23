@@ -8,6 +8,13 @@
 #define _INTEL_GPU_COMMANDS_H_
 
 /*
+ * Target address alignments required for GPU access e.g.
+ * MI_STORE_DWORD_IMM.
+ */
+#define alignof_dword 4
+#define alignof_qword 8
+
+/*
  * Instruction field definitions used by the command parser
  */
 #define INSTR_CLIENT_SHIFT      29
@@ -179,11 +186,12 @@
 #define GFX_OP_DRAWRECT_INFO     ((0x3<<29)|(0x1d<<24)|(0x80<<16)|(0x3))
 #define GFX_OP_DRAWRECT_INFO_I965  ((0x7900<<16)|0x2)
 
-#define COLOR_BLT_CMD			(2<<29 | 0x40<<22 | (5-2))
+#define COLOR_BLT_CMD			(2 << 29 | 0x40 << 22 | (5 - 2))
 #define XY_COLOR_BLT_CMD		(2 << 29 | 0x50 << 22)
-#define SRC_COPY_BLT_CMD		((2<<29)|(0x43<<22)|4)
-#define XY_SRC_COPY_BLT_CMD		((2<<29)|(0x53<<22)|6)
-#define XY_MONO_SRC_COPY_IMM_BLT	((2<<29)|(0x71<<22)|5)
+#define SRC_COPY_BLT_CMD		(2 << 29 | 0x43 << 22)
+#define GEN9_XY_FAST_COPY_BLT_CMD	(2 << 29 | 0x42 << 22)
+#define XY_SRC_COPY_BLT_CMD		(2 << 29 | 0x53 << 22)
+#define XY_MONO_SRC_COPY_IMM_BLT	(2 << 29 | 0x71 << 22 | 5)
 #define   BLT_WRITE_A			(2<<20)
 #define   BLT_WRITE_RGB			(1<<20)
 #define   BLT_WRITE_RGBA		(BLT_WRITE_RGB | BLT_WRITE_A)
@@ -200,6 +208,8 @@
 #define   DISPLAY_PLANE_A           (0<<20)
 #define   DISPLAY_PLANE_B           (1<<20)
 #define GFX_OP_PIPE_CONTROL(len)	((0x3<<29)|(0x3<<27)|(0x2<<24)|((len)-2))
+#define   PIPE_CONTROL_COMMAND_CACHE_INVALIDATE		(1<<29) /* gen11+ */
+#define   PIPE_CONTROL_TILE_CACHE_FLUSH			(1<<28) /* gen11+ */
 #define   PIPE_CONTROL_FLUSH_L3				(1<<27)
 #define   PIPE_CONTROL_GLOBAL_GTT_IVB			(1<<24) /* gen7+ */
 #define   PIPE_CONTROL_MMIO_WRITE			(1<<23)

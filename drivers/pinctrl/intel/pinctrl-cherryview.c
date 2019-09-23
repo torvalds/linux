@@ -1677,7 +1677,6 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 {
 	struct chv_pinctrl *pctrl;
 	struct acpi_device *adev;
-	struct resource *res;
 	acpi_status status;
 	int ret, irq, i;
 
@@ -1707,16 +1706,13 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 #endif
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pctrl->regs = devm_ioremap_resource(&pdev->dev, res);
+	pctrl->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctrl->regs))
 		return PTR_ERR(pctrl->regs);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get interrupt number\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	pctrl->pctldesc = chv_pinctrl_desc;
 	pctrl->pctldesc.name = dev_name(&pdev->dev);

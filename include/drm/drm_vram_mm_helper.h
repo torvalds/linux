@@ -3,6 +3,8 @@
 #ifndef DRM_VRAM_MM_HELPER_H
 #define DRM_VRAM_MM_HELPER_H
 
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
 #include <drm/ttm/ttm_bo_driver.h>
 
 struct drm_device;

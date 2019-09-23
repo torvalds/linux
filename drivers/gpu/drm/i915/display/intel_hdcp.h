@@ -21,7 +21,7 @@ void intel_hdcp_atomic_check(struct drm_connector *connector,
 			     struct drm_connector_state *new_state);
 int intel_hdcp_init(struct intel_connector *connector,
 		    const struct intel_hdcp_shim *hdcp_shim);
-int intel_hdcp_enable(struct intel_connector *connector);
+int intel_hdcp_enable(struct intel_connector *connector, u8 content_type);
 int intel_hdcp_disable(struct intel_connector *connector);
 bool is_hdcp_supported(struct drm_i915_private *dev_priv, enum port port);
 bool intel_hdcp_capable(struct intel_connector *connector);

@@ -62,12 +62,6 @@ enum drm_driver_feature {
 	 */
 	DRIVER_MODESET			= BIT(1),
 	/**
-	 * @DRIVER_PRIME:
-	 *
-	 * Driver implements DRM PRIME buffer sharing.
-	 */
-	DRIVER_PRIME			= BIT(2),
-	/**
 	 * @DRIVER_RENDER:
 	 *
 	 * Driver supports dedicated render nodes. See also the :ref:`section on
@@ -502,20 +496,24 @@ struct drm_driver {
 	 * @gem_free_object: deconstructor for drm_gem_objects
 	 *
 	 * This is deprecated and should not be used by new drivers. Use
-	 * @gem_free_object_unlocked instead.
+	 * &drm_gem_object_funcs.free instead.
 	 */
 	void (*gem_free_object) (struct drm_gem_object *obj);
 
 	/**
 	 * @gem_free_object_unlocked: deconstructor for drm_gem_objects
 	 *
-	 * This is for drivers which are not encumbered with &drm_device.struct_mutex
-	 * legacy locking schemes. Use this hook instead of @gem_free_object.
+	 * This is deprecated and should not be used by new drivers. Use
+	 * &drm_gem_object_funcs.free instead.
+	 * Compared to @gem_free_object this is not encumbered with
+	 * &drm_device.struct_mutex legacy locking schemes.
 	 */
 	void (*gem_free_object_unlocked) (struct drm_gem_object *obj);
 
 	/**
 	 * @gem_open_object:
+	 *
+	 * This callback is deprecated in favour of &drm_gem_object_funcs.open.
 	 *
 	 * Driver hook called upon gem handle creation
 	 */
@@ -524,12 +522,17 @@ struct drm_driver {
 	/**
 	 * @gem_close_object:
 	 *
+	 * This callback is deprecated in favour of &drm_gem_object_funcs.close.
+	 *
 	 * Driver hook called upon gem handle release
 	 */
 	void (*gem_close_object) (struct drm_gem_object *, struct drm_file *);
 
 	/**
 	 * @gem_print_info:
+	 *
+	 * This callback is deprecated in favour of
+	 * &drm_gem_object_funcs.print_info.
 	 *
 	 * If driver subclasses struct &drm_gem_object, it can implement this
 	 * optional hook for printing additional driver specific info.
@@ -545,56 +548,108 @@ struct drm_driver {
 	/**
 	 * @gem_create_object: constructor for gem objects
 	 *
-	 * Hook for allocating the GEM object struct, for use by core
-	 * helpers.
+	 * Hook for allocating the GEM object struct, for use by the CMA and
+	 * SHMEM GEM helpers.
 	 */
 	struct drm_gem_object *(*gem_create_object)(struct drm_device *dev,
 						    size_t size);
-
-	/* prime: */
 	/**
 	 * @prime_handle_to_fd:
 	 *
-	 * export handle -> fd (see drm_gem_prime_handle_to_fd() helper)
+	 * Main PRIME export function. Should be implemented with
+	 * drm_gem_prime_handle_to_fd() for GEM based drivers.
+	 *
+	 * For an in-depth discussion see :ref:`PRIME buffer sharing
+	 * documentation <prime_buffer_sharing>`.
 	 */
 	int (*prime_handle_to_fd)(struct drm_device *dev, struct drm_file *file_priv,
 				uint32_t handle, uint32_t flags, int *prime_fd);
 	/**
 	 * @prime_fd_to_handle:
 	 *
-	 * import fd -> handle (see drm_gem_prime_fd_to_handle() helper)
+	 * Main PRIME import function. Should be implemented with
+	 * drm_gem_prime_fd_to_handle() for GEM based drivers.
+	 *
+	 * For an in-depth discussion see :ref:`PRIME buffer sharing
+	 * documentation <prime_buffer_sharing>`.
 	 */
 	int (*prime_fd_to_handle)(struct drm_device *dev, struct drm_file *file_priv,
 				int prime_fd, uint32_t *handle);
 	/**
 	 * @gem_prime_export:
 	 *
-	 * export GEM -> dmabuf
-	 *
-	 * This defaults to drm_gem_prime_export() if not set.
+	 * Export hook for GEM drivers. Deprecated in favour of
+	 * &drm_gem_object_funcs.export.
 	 */
-	struct dma_buf * (*gem_prime_export)(struct drm_device *dev,
-				struct drm_gem_object *obj, int flags);
+	struct dma_buf * (*gem_prime_export)(struct drm_gem_object *obj,
+					     int flags);
 	/**
 	 * @gem_prime_import:
 	 *
-	 * import dmabuf -> GEM
+	 * Import hook for GEM drivers.
 	 *
 	 * This defaults to drm_gem_prime_import() if not set.
 	 */
 	struct drm_gem_object * (*gem_prime_import)(struct drm_device *dev,
 				struct dma_buf *dma_buf);
+
+	/**
+	 * @gem_prime_pin:
+	 *
+	 * Deprecated hook in favour of &drm_gem_object_funcs.pin.
+	 */
 	int (*gem_prime_pin)(struct drm_gem_object *obj);
+
+	/**
+	 * @gem_prime_unpin:
+	 *
+	 * Deprecated hook in favour of &drm_gem_object_funcs.unpin.
+	 */
 	void (*gem_prime_unpin)(struct drm_gem_object *obj);
-	struct reservation_object * (*gem_prime_res_obj)(
-				struct drm_gem_object *obj);
+
+
+	/**
+	 * @gem_prime_get_sg_table:
+	 *
+	 * Deprecated hook in favour of &drm_gem_object_funcs.get_sg_table.
+	 */
 	struct sg_table *(*gem_prime_get_sg_table)(struct drm_gem_object *obj);
+
+	/**
+	 * @gem_prime_import_sg_table:
+	 *
+	 * Optional hook used by the PRIME helper functions
+	 * drm_gem_prime_import() respectively drm_gem_prime_import_dev().
+	 */
 	struct drm_gem_object *(*gem_prime_import_sg_table)(
 				struct drm_device *dev,
 				struct dma_buf_attachment *attach,
 				struct sg_table *sgt);
+	/**
+	 * @gem_prime_vmap:
+	 *
+	 * Deprecated vmap hook for GEM drivers. Please use
+	 * &drm_gem_object_funcs.vmap instead.
+	 */
 	void *(*gem_prime_vmap)(struct drm_gem_object *obj);
+
+	/**
+	 * @gem_prime_vunmap:
+	 *
+	 * Deprecated vunmap hook for GEM drivers. Please use
+	 * &drm_gem_object_funcs.vunmap instead.
+	 */
 	void (*gem_prime_vunmap)(struct drm_gem_object *obj, void *vaddr);
+
+	/**
+	 * @gem_prime_mmap:
+	 *
+	 * mmap hook for GEM drivers, used to implement dma-buf mmap in the
+	 * PRIME helpers.
+	 *
+	 * FIXME: There's way too much duplication going on here, and also moved
+	 * to &drm_gem_object_funcs.
+	 */
 	int (*gem_prime_mmap)(struct drm_gem_object *obj,
 				struct vm_area_struct *vma);
 
@@ -662,6 +717,9 @@ struct drm_driver {
 
 	/**
 	 * @gem_vm_ops: Driver private ops for this object
+	 *
+	 * For GEM drivers this is deprecated in favour of
+	 * &drm_gem_object_funcs.vm_ops.
 	 */
 	const struct vm_operations_struct *gem_vm_ops;
 

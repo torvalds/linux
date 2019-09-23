@@ -95,10 +95,9 @@ static int nvdimm_bus_probe(struct device *dev)
 	rc = nd_drv->probe(dev);
 	debug_nvdimm_unlock(dev);
 
-	if (rc == 0)
-		nd_region_probe_success(nvdimm_bus, dev);
-	else
-		nd_region_disable(nvdimm_bus, dev);
+	if ((rc == 0 || rc == -EOPNOTSUPP) &&
+			dev->parent && is_nd_region(dev->parent))
+		nd_region_advance_seeds(to_nd_region(dev->parent), dev);
 	nvdimm_bus_probe_end(nvdimm_bus);
 
 	dev_dbg(&nvdimm_bus->dev, "END: %s.probe(%s) = %d\n", dev->driver->name,
@@ -121,7 +120,6 @@ static int nvdimm_bus_remove(struct device *dev)
 		rc = nd_drv->remove(dev);
 		debug_nvdimm_unlock(dev);
 	}
-	nd_region_disable(nvdimm_bus, dev);
 
 	dev_dbg(&nvdimm_bus->dev, "%s.remove(%s) = %d\n", dev->driver->name,
 			dev_name(dev), rc);
@@ -400,7 +398,7 @@ static int child_unregister(struct device *dev, void *data)
 
 		/* We are shutting down. Make state frozen artificially. */
 		nvdimm_bus_lock(dev);
-		nvdimm->sec.state = NVDIMM_SECURITY_FROZEN;
+		set_bit(NVDIMM_SECURITY_FROZEN, &nvdimm->sec.flags);
 		if (test_and_clear_bit(NDD_WORK_PENDING, &nvdimm->flags))
 			dev_put = true;
 		nvdimm_bus_unlock(dev);

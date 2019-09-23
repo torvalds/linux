@@ -68,6 +68,7 @@ config X86
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_KCOV			if X86_64
+	select ARCH_HAS_MEM_ENCRYPT
 	select ARCH_HAS_MEMBARRIER_SYNC_CORE
 	select ARCH_HAS_PMEM_API		if X86_64
 	select ARCH_HAS_PTE_DEVMAP		if X86_64
@@ -147,6 +148,7 @@ config X86
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD if X86_64
 	select HAVE_ARCH_VMAP_STACK		if X86_64
 	select HAVE_ARCH_WITHIN_STACK_FRAMES
+	select HAVE_ASM_MODVERSIONS
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_CONTEXT_TRACKING		if X86_64
@@ -1524,9 +1526,6 @@ config X86_CPA_STATISTICS
 	  Expose statistics about the Change Page Attribute mechanims, which
 	  helps to determine the effectiveness of preserving large and huge
 	  page mappings when mapping protections are changed.
-
-config ARCH_HAS_MEM_ENCRYPT
-	def_bool y
 
 config AMD_MEM_ENCRYPT
 	bool "AMD Secure Memory Encryption (SME) support"

@@ -22,11 +22,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include <linux/pm_runtime.h>
-
-#include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_reg.h"
@@ -1031,53 +1030,6 @@ nv04_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	return 0;
 }
 
-static int
-nouveau_crtc_set_config(struct drm_mode_set *set,
-			struct drm_modeset_acquire_ctx *ctx)
-{
-	struct drm_device *dev;
-	struct nouveau_drm *drm;
-	int ret;
-	struct drm_crtc *crtc;
-	bool active = false;
-	if (!set || !set->crtc)
-		return -EINVAL;
-
-	dev = set->crtc->dev;
-
-	/* get a pm reference here */
-	ret = pm_runtime_get_sync(dev->dev);
-	if (ret < 0 && ret != -EACCES)
-		return ret;
-
-	ret = drm_crtc_helper_set_config(set, ctx);
-
-	drm = nouveau_drm(dev);
-
-	/* if we get here with no crtcs active then we can drop a reference */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (crtc->enabled)
-			active = true;
-	}
-
-	pm_runtime_mark_last_busy(dev->dev);
-	/* if we have active crtcs and we don't have a power ref,
-	   take the current one */
-	if (active && !drm->have_disp_power_ref) {
-		drm->have_disp_power_ref = true;
-		return ret;
-	}
-	/* if we have no active crtcs, then drop the power ref
-	   we got before */
-	if (!active && drm->have_disp_power_ref) {
-		pm_runtime_put_autosuspend(dev->dev);
-		drm->have_disp_power_ref = false;
-	}
-	/* drop the power reference we got coming in here */
-	pm_runtime_put_autosuspend(dev->dev);
-	return ret;
-}
-
 struct nv04_page_flip_state {
 	struct list_head head;
 	struct drm_pending_vblank_event *event;
@@ -1293,7 +1245,7 @@ static const struct drm_crtc_funcs nv04_crtc_funcs = {
 	.cursor_set = nv04_crtc_cursor_set,
 	.cursor_move = nv04_crtc_cursor_move,
 	.gamma_set = nv_crtc_gamma_set,
-	.set_config = nouveau_crtc_set_config,
+	.set_config = drm_crtc_helper_set_config,
 	.page_flip = nv04_crtc_page_flip,
 	.destroy = nv_crtc_destroy,
 };

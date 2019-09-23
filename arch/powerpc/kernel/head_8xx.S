@@ -15,6 +15,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/magic.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
@@ -574,8 +575,6 @@ InstructionBreakpoint:
  * by decoding the registers used by the dcbx instruction and adding them.
  * DAR is set to the calculated address.
  */
- /* define if you don't want to use self modifying code */
-#define NO_SELF_MODIFYING_CODE
 FixupDAR:/* Entry point for dcbx workaround. */
 	mtspr	SPRN_M_TW, r10
 	/* fetch instruction from memory. */
@@ -639,27 +638,6 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	rlwinm	r10, r10,0,7,5	/* Clear store bit for buggy dcbst insn */
 	mtspr	SPRN_DSISR, r10
 142:	/* continue, it was a dcbx, dcbi instruction. */
-#ifndef NO_SELF_MODIFYING_CODE
-	andis.	r10,r11,0x1f	/* test if reg RA is r0 */
-	li	r10,modified_instr@l
-	dcbtst	r0,r10		/* touch for store */
-	rlwinm	r11,r11,0,0,20	/* Zero lower 10 bits */
-	oris	r11,r11,640	/* Transform instr. to a "add r10,RA,RB" */
-	ori	r11,r11,532
-	stw	r11,0(r10)	/* store add/and instruction */
-	dcbf	0,r10		/* flush new instr. to memory. */
-	icbi	0,r10		/* invalidate instr. cache line */
-	mfspr	r11, SPRN_SPRG_SCRATCH1	/* restore r11 */
-	mfspr	r10, SPRN_SPRG_SCRATCH0	/* restore r10 */
-	isync			/* Wait until new instr is loaded from memory */
-modified_instr:
-	.space	4		/* this is where the add instr. is stored */
-	bne+	143f
-	subf	r10,r0,r10	/* r10=r10-r0, only if reg RA is r0 */
-143:	mtdar	r10		/* store faulting EA in DAR */
-	mfspr	r10,SPRN_M_TW
-	b	DARFixed	/* Go back to normal TLB handling */
-#else
 	mfctr	r10
 	mtdar	r10			/* save ctr reg in DAR */
 	rlwinm	r10, r11, 24, 24, 28	/* offset into jump table for reg RB */
@@ -723,7 +701,6 @@ modified_instr:
 	add	r10, r10, r11	/* add it */
 	mfctr	r11		/* restore r11 */
 	b	151b
-#endif
 
 /*
  * This is where the main kernel code starts.
@@ -741,6 +718,9 @@ start_here:
 	/* stack */
 	lis	r1,init_thread_union@ha
 	addi	r1,r1,init_thread_union@l
+	lis	r0, STACK_END_MAGIC@h
+	ori	r0, r0, STACK_END_MAGIC@l
+	stw	r0, 0(r1)
 	li	r0,0
 	stwu	r0,THREAD_SIZE-STACK_FRAME_OVERHEAD(r1)
 

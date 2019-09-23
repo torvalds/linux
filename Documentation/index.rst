@@ -144,16 +144,15 @@ implementation.
 .. toctree::
    :maxdepth: 2
 
-   sh/index
    arm/index
    arm64/index
    ia64/index
    m68k/index
-   powerpc/index
    mips/index
    nios2/nios2
    openrisc/index
    parisc/index
+   powerpc/index
    riscv/index
    s390/index
    sh/index

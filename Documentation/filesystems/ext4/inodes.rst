@@ -472,8 +472,8 @@ inode, which allows struct ext4\_inode to grow for a new kernel without
 having to upgrade all of the on-disk inodes. Access to fields beyond
 EXT2\_GOOD\_OLD\_INODE\_SIZE should be verified to be within
 ``i_extra_isize``. By default, ext4 inode records are 256 bytes, and (as
-of October 2013) the inode structure is 156 bytes
-(``i_extra_isize = 28``). The extra space between the end of the inode
+of August 2019) the inode structure is 160 bytes
+(``i_extra_isize = 32``). The extra space between the end of the inode
 structure and the end of the inode record can be used to store extended
 attributes. Each inode record can be as large as the filesystem block
 size, though this is not terribly efficient.

@@ -124,10 +124,8 @@ static int tps6521x_pb_probe(struct platform_device *pdev)
 	device_init_wakeup(dev, true);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "No IRQ resource!\n");
+	if (irq < 0)
 		return -EINVAL;
-	}
 
 	error = devm_request_threaded_irq(dev, irq, NULL, tps6521x_pb_irq,
 					  IRQF_TRIGGER_RISING |

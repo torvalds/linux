@@ -1026,7 +1026,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 		 * WQE release CQE
 		 */
 		ctxp->flag |= LPFC_NVMET_DEFER_WQFULL;
-		wq = ctxp->hdwq->nvme_wq;
+		wq = ctxp->hdwq->io_wq;
 		pring = wq->pring;
 		spin_lock_irqsave(&pring->ring_lock, iflags);
 		list_add_tail(&nvmewqeq->list, &wq->wqfull_list);
@@ -1104,7 +1104,7 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 		spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, ctxp->sid,
 						 ctxp->oxid);
-		wq = ctxp->hdwq->nvme_wq;
+		wq = ctxp->hdwq->io_wq;
 		lpfc_nvmet_wqfull_flush(phba, wq, ctxp);
 		return;
 	}
@@ -1437,7 +1437,7 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 			infop = lpfc_get_ctx_list(phba, i, j);
 			lpfc_printf_log(phba, KERN_INFO, LOG_NVME | LOG_INIT,
 					"6408 TOTAL NVMET ctx for CPU %d "
-					"MRQ %d: cnt %d nextcpu %p\n",
+					"MRQ %d: cnt %d nextcpu x%px\n",
 					i, j, infop->nvmet_ctx_list_cnt,
 					infop->nvmet_ctx_next_cpu);
 		}
@@ -1500,7 +1500,7 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
 				"6026 Registered NVME "
-				"targetport: %p, private %p "
+				"targetport: x%px, private x%px "
 				"portnm %llx nodenm %llx segs %d qs %d\n",
 				phba->targetport, tgtp,
 				pinfo.port_name, pinfo.node_name,
@@ -1555,7 +1555,7 @@ lpfc_nvmet_update_targetport(struct lpfc_hba *phba)
 		return 0;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
-			 "6007 Update NVMET port %p did x%x\n",
+			 "6007 Update NVMET port x%px did x%x\n",
 			 phba->targetport, vport->fc_myDID);
 
 	phba->targetport->port_id = vport->fc_myDID;
@@ -1790,12 +1790,8 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 			lpfc_nvmet_defer_release(phba, ctxp);
 			spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
 		}
-		if (ctxp->state == LPFC_NVMET_STE_RCV)
-			lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, ctxp->sid,
-							 ctxp->oxid);
-		else
-			lpfc_nvmet_sol_fcp_issue_abort(phba, ctxp, ctxp->sid,
-						       ctxp->oxid);
+		lpfc_nvmet_sol_fcp_issue_abort(phba, ctxp, ctxp->sid,
+					       ctxp->oxid);
 
 		lpfc_sli4_seq_abort_rsp(vport, fc_hdr, 1);
 		return 0;
@@ -1922,7 +1918,7 @@ lpfc_nvmet_destroy_targetport(struct lpfc_hba *phba)
 	if (phba->targetport) {
 		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
-			wq = phba->sli4_hba.hdwq[qidx].nvme_wq;
+			wq = phba->sli4_hba.hdwq[qidx].io_wq;
 			lpfc_nvmet_wqfull_flush(phba, wq, NULL);
 		}
 		tgtp->tport_unreg_cmp = &tport_unreg_cmp;
@@ -1930,7 +1926,7 @@ lpfc_nvmet_destroy_targetport(struct lpfc_hba *phba)
 		if (!wait_for_completion_timeout(tgtp->tport_unreg_cmp,
 					msecs_to_jiffies(LPFC_NVMET_WAIT_TMO)))
 			lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
-					"6179 Unreg targetport %p timeout "
+					"6179 Unreg targetport x%px timeout "
 					"reached.\n", phba->targetport);
 		lpfc_nvmet_cleanup_io_context(phba);
 	}
@@ -3113,7 +3109,7 @@ lpfc_nvmet_xmt_ls_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	atomic_inc(&tgtp->xmt_ls_abort_cmpl);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-			"6083 Abort cmpl: ctx %p WCQE:%08x %08x %08x %08x\n",
+			"6083 Abort cmpl: ctx x%px WCQE:%08x %08x %08x %08x\n",
 			ctxp, wcqe->word0, wcqe->total_data_placed,
 			result, wcqe->word3);
 
@@ -3299,7 +3295,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	 */
 	spin_lock_irqsave(&phba->hbalock, flags);
 	/* driver queued commands are in process of being flushed */
-	if (phba->hba_flag & HBA_NVME_IOQ_FLUSH) {
+	if (phba->hba_flag & HBA_IOQ_FLUSH) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		atomic_inc(&tgtp->xmt_abort_rsp_error);
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
@@ -3334,7 +3330,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	/* WQEs are reused.  Clear stale data and set key fields to
 	 * zero like ia, iaab, iaar, xri_tag, and ctxt_tag.
 	 */
-	memset(abts_wqe, 0, sizeof(union lpfc_wqe));
+	memset(abts_wqe, 0, sizeof(*abts_wqe));
 
 	/* word 3 */
 	bf_set(abort_cmd_criteria, &abts_wqe->abort_cmd, T_XRI_TAG);

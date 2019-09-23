@@ -860,6 +860,10 @@
 	disable_radix	[PPC]
 			Disable RADIX MMU mode on POWER9
 
+	disable_tlbie	[PPC]
+			Disable TLBIE instruction. Currently does not work
+			with KVM, with HASH MMU, or with coherent accelerators.
+
 	disable_cpu_apicid= [X86,APIC,SMP]
 			Format: <int>
 			The number of initial APIC ID for the
@@ -4641,6 +4645,11 @@
 			/sys/power/pm_test). Only available when CONFIG_PM_DEBUG
 			is set. Default value is 5.
 
+	svm=		[PPC]
+			Format: { on | off | y | n | 1 | 0 }
+			This parameter controls use of the Protected
+			Execution Facility on pSeries.
+
 	swapaccount=[0|1]
 			[KNL] Enable accounting of swap in memory resource
 			controller if no parameter or 1 is given or disable
@@ -5326,3 +5335,22 @@
 			A hex value specifying bitmask with supplemental xhci
 			host controller quirks. Meaning of each bit can be
 			consulted in header drivers/usb/host/xhci.h.
+
+	xmon		[PPC]
+			Format: { early | on | rw | ro | off }
+			Controls if xmon debugger is enabled. Default is off.
+			Passing only "xmon" is equivalent to "xmon=early".
+			early	Call xmon as early as possible on boot; xmon
+				debugger is called from setup_arch().
+			on	xmon debugger hooks will be installed so xmon
+				is only called on a kernel crash. Default mode,
+				i.e. either "ro" or "rw" mode, is controlled
+				with CONFIG_XMON_DEFAULT_RO_MODE.
+			rw	xmon debugger hooks will be installed so xmon
+				is called only on a kernel crash, mode is write,
+				meaning SPR registers, memory and, other data
+				can be written using xmon commands.
+			ro 	same as "rw" option above but SPR registers,
+				memory, and other data can't be written using
+				xmon commands.
+			off	xmon is disabled.

@@ -49,6 +49,7 @@
 #define QEDF_ABORT_TIMEOUT	(10 * 1000)
 #define QEDF_CLEANUP_TIMEOUT	1
 #define QEDF_MAX_CDB_LEN	16
+#define QEDF_LL2_BUF_SIZE	2500	/* Buffer size required for LL2 Rx */
 
 #define UPSTREAM_REMOVE		1
 #define UPSTREAM_KEEP		1

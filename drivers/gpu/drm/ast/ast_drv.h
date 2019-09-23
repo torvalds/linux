@@ -28,16 +28,17 @@
 #ifndef __AST_DRV_H__
 #define __AST_DRV_H__
 
-#include <drm/drm_encoder.h>
-#include <drm/drm_fb_helper.h>
-
-#include <drm/drm_gem.h>
-#include <drm/drm_gem_vram_helper.h>
-
-#include <drm/drm_vram_mm_helper.h>
-
+#include <linux/types.h>
+#include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_mode.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_fb_helper.h>
 
 #define DRIVER_AUTHOR		"Dave Airlie"
 
@@ -81,8 +82,6 @@ enum ast_tx_chip {
 #define AST_DRAM_4Gx16   7
 #define AST_DRAM_8Gx16   8
 
-struct ast_fbdev;
-
 struct ast_private {
 	struct drm_device *dev;
 
@@ -95,8 +94,6 @@ struct ast_private {
 	uint32_t dram_type;
 	uint32_t mclk;
 	uint32_t vram_size;
-
-	struct ast_fbdev *fbdev;
 
 	int fb_mtrr;
 
@@ -239,24 +236,9 @@ struct ast_encoder {
 	struct drm_encoder base;
 };
 
-struct ast_framebuffer {
-	struct drm_framebuffer base;
-	struct drm_gem_object *obj;
-};
-
-struct ast_fbdev {
-	struct drm_fb_helper helper; /* must be first */
-	struct ast_framebuffer afb;
-	void *sysram;
-	int size;
-	int x1, y1, x2, y2; /* dirty rect */
-	spinlock_t dirty_lock;
-};
-
 #define to_ast_crtc(x) container_of(x, struct ast_crtc, base)
 #define to_ast_connector(x) container_of(x, struct ast_connector, base)
 #define to_ast_encoder(x) container_of(x, struct ast_encoder, base)
-#define to_ast_framebuffer(x) container_of(x, struct ast_framebuffer, base)
 
 struct ast_vbios_stdtable {
 	u8 misc;
@@ -295,16 +277,6 @@ struct ast_vbios_mode_info {
 
 extern int ast_mode_init(struct drm_device *dev);
 extern void ast_mode_fini(struct drm_device *dev);
-
-int ast_framebuffer_init(struct drm_device *dev,
-			 struct ast_framebuffer *ast_fb,
-			 const struct drm_mode_fb_cmd2 *mode_cmd,
-			 struct drm_gem_object *obj);
-
-int ast_fbdev_init(struct drm_device *dev);
-void ast_fbdev_fini(struct drm_device *dev);
-void ast_fbdev_set_suspend(struct drm_device *dev, int state);
-void ast_fbdev_set_base(struct ast_private *ast, unsigned long gpu_addr);
 
 #define AST_MM_ALIGN_SHIFT 4
 #define AST_MM_ALIGN_MASK ((1 << AST_MM_ALIGN_SHIFT) - 1)

@@ -2382,6 +2382,15 @@ void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 		sb->s_flags |= SB_POSIXACL;
 		sb->s_time_gran = 1;
 		sb->s_export_op = &nfs_export_ops;
+	} else
+		sb->s_time_gran = 1000;
+
+	if (server->nfs_client->rpc_ops->version != 4) {
+		sb->s_time_min = 0;
+		sb->s_time_max = U32_MAX;
+	} else {
+		sb->s_time_min = S64_MIN;
+		sb->s_time_max = S64_MAX;
 	}
 
  	nfs_initialise_sb(sb);
@@ -2402,7 +2411,6 @@ static void nfs_clone_super(struct super_block *sb,
 	sb->s_maxbytes = old_sb->s_maxbytes;
 	sb->s_xattr = old_sb->s_xattr;
 	sb->s_op = old_sb->s_op;
-	sb->s_time_gran = 1;
 	sb->s_export_op = old_sb->s_export_op;
 
 	if (server->nfs_client->rpc_ops->version != 2) {
@@ -2410,6 +2418,16 @@ static void nfs_clone_super(struct super_block *sb,
 		 * so ourselves when necessary.
 		 */
 		sb->s_flags |= SB_POSIXACL;
+		sb->s_time_gran = 1;
+	} else
+		sb->s_time_gran = 1000;
+
+	if (server->nfs_client->rpc_ops->version != 4) {
+		sb->s_time_min = 0;
+		sb->s_time_max = U32_MAX;
+	} else {
+		sb->s_time_min = S64_MIN;
+		sb->s_time_max = S64_MAX;
 	}
 
  	nfs_initialise_sb(sb);

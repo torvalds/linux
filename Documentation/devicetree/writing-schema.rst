@@ -141,6 +141,7 @@ It is also possible to run checks with a single schema file by setting the
 
 ::
 
+    make dt_binding_check DT_SCHEMA_FILES=Documentation/devicetree/bindings/trivial-devices.yaml
     make dtbs_check DT_SCHEMA_FILES=Documentation/devicetree/bindings/trivial-devices.yaml
 
 

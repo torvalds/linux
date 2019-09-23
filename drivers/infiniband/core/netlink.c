@@ -36,20 +36,22 @@
 #include <linux/export.h>
 #include <net/netlink.h>
 #include <net/net_namespace.h>
+#include <net/netns/generic.h>
 #include <net/sock.h>
 #include <rdma/rdma_netlink.h>
 #include <linux/module.h>
 #include "core_priv.h"
 
 static DEFINE_MUTEX(rdma_nl_mutex);
-static struct sock *nls;
 static struct {
 	const struct rdma_nl_cbs   *cb_table;
 } rdma_nl_types[RDMA_NL_NUM_CLIENTS];
 
 bool rdma_nl_chk_listeners(unsigned int group)
 {
-	return netlink_has_listeners(nls, group);
+	struct rdma_dev_net *rnet = rdma_net_to_dev_net(&init_net);
+
+	return netlink_has_listeners(rnet->nl_sock, group);
 }
 EXPORT_SYMBOL(rdma_nl_chk_listeners);
 
@@ -73,11 +75,19 @@ static bool is_nl_msg_valid(unsigned int type, unsigned int op)
 	return (op < max_num_ops[type]) ? true : false;
 }
 
-static bool is_nl_valid(unsigned int type, unsigned int op)
+static bool
+is_nl_valid(const struct sk_buff *skb, unsigned int type, unsigned int op)
 {
 	const struct rdma_nl_cbs *cb_table;
 
 	if (!is_nl_msg_valid(type, op))
+		return false;
+
+	/*
+	 * Currently only NLDEV client is supporting netlink commands in
+	 * non init_net net namespace.
+	 */
+	if (sock_net(skb->sk) != &init_net && type != RDMA_NL_NLDEV)
 		return false;
 
 	if (!rdma_nl_types[type].cb_table) {
@@ -161,7 +171,7 @@ static int rdma_nl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	unsigned int op = RDMA_NL_GET_OP(type);
 	const struct rdma_nl_cbs *cb_table;
 
-	if (!is_nl_valid(index, op))
+	if (!is_nl_valid(skb, index, op))
 		return -EINVAL;
 
 	cb_table = rdma_nl_types[index].cb_table;
@@ -185,7 +195,7 @@ static int rdma_nl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 			.dump = cb_table[op].dump,
 		};
 		if (c.dump)
-			return netlink_dump_start(nls, skb, nlh, &c);
+			return netlink_dump_start(skb->sk, skb, nlh, &c);
 		return -EINVAL;
 	}
 
@@ -258,52 +268,65 @@ static void rdma_nl_rcv(struct sk_buff *skb)
 	mutex_unlock(&rdma_nl_mutex);
 }
 
-int rdma_nl_unicast(struct sk_buff *skb, u32 pid)
+int rdma_nl_unicast(struct net *net, struct sk_buff *skb, u32 pid)
 {
+	struct rdma_dev_net *rnet = rdma_net_to_dev_net(net);
 	int err;
 
-	err = netlink_unicast(nls, skb, pid, MSG_DONTWAIT);
+	err = netlink_unicast(rnet->nl_sock, skb, pid, MSG_DONTWAIT);
 	return (err < 0) ? err : 0;
 }
 EXPORT_SYMBOL(rdma_nl_unicast);
 
-int rdma_nl_unicast_wait(struct sk_buff *skb, __u32 pid)
+int rdma_nl_unicast_wait(struct net *net, struct sk_buff *skb, __u32 pid)
 {
+	struct rdma_dev_net *rnet = rdma_net_to_dev_net(net);
 	int err;
 
-	err = netlink_unicast(nls, skb, pid, 0);
+	err = netlink_unicast(rnet->nl_sock, skb, pid, 0);
 	return (err < 0) ? err : 0;
 }
 EXPORT_SYMBOL(rdma_nl_unicast_wait);
 
-int rdma_nl_multicast(struct sk_buff *skb, unsigned int group, gfp_t flags)
+int rdma_nl_multicast(struct net *net, struct sk_buff *skb,
+		      unsigned int group, gfp_t flags)
 {
-	return nlmsg_multicast(nls, skb, 0, group, flags);
+	struct rdma_dev_net *rnet = rdma_net_to_dev_net(net);
+
+	return nlmsg_multicast(rnet->nl_sock, skb, 0, group, flags);
 }
 EXPORT_SYMBOL(rdma_nl_multicast);
-
-int __init rdma_nl_init(void)
-{
-	struct netlink_kernel_cfg cfg = {
-		.input	= rdma_nl_rcv,
-	};
-
-	nls = netlink_kernel_create(&init_net, NETLINK_RDMA, &cfg);
-	if (!nls)
-		return -ENOMEM;
-
-	nls->sk_sndtimeo = 10 * HZ;
-	return 0;
-}
 
 void rdma_nl_exit(void)
 {
 	int idx;
 
 	for (idx = 0; idx < RDMA_NL_NUM_CLIENTS; idx++)
-		rdma_nl_unregister(idx);
+		WARN(rdma_nl_types[idx].cb_table,
+		     "Netlink client %d wasn't released prior to unloading %s\n",
+		     idx, KBUILD_MODNAME);
+}
 
-	netlink_kernel_release(nls);
+int rdma_nl_net_init(struct rdma_dev_net *rnet)
+{
+	struct net *net = read_pnet(&rnet->net);
+	struct netlink_kernel_cfg cfg = {
+		.input	= rdma_nl_rcv,
+	};
+	struct sock *nls;
+
+	nls = netlink_kernel_create(net, NETLINK_RDMA, &cfg);
+	if (!nls)
+		return -ENOMEM;
+
+	nls->sk_sndtimeo = 10 * HZ;
+	rnet->nl_sock = nls;
+	return 0;
+}
+
+void rdma_nl_net_exit(struct rdma_dev_net *rnet)
+{
+	netlink_kernel_release(rnet->nl_sock);
 }
 
 MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_RDMA);

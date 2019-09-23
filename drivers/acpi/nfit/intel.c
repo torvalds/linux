@@ -7,10 +7,11 @@
 #include "intel.h"
 #include "nfit.h"
 
-static enum nvdimm_security_state intel_security_state(struct nvdimm *nvdimm,
+static unsigned long intel_security_flags(struct nvdimm *nvdimm,
 		enum nvdimm_passphrase_type ptype)
 {
 	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+	unsigned long security_flags = 0;
 	struct {
 		struct nd_cmd_pkg pkg;
 		struct nd_intel_get_security_state cmd;
@@ -27,7 +28,7 @@ static enum nvdimm_security_state intel_security_state(struct nvdimm *nvdimm,
 	int rc;
 
 	if (!test_bit(NVDIMM_INTEL_GET_SECURITY_STATE, &nfit_mem->dsm_mask))
-		return -ENXIO;
+		return 0;
 
 	/*
 	 * Short circuit the state retrieval while we are doing overwrite.
@@ -35,38 +36,42 @@ static enum nvdimm_security_state intel_security_state(struct nvdimm *nvdimm,
 	 * until the overwrite DSM completes.
 	 */
 	if (nvdimm_in_overwrite(nvdimm) && ptype == NVDIMM_USER)
-		return NVDIMM_SECURITY_OVERWRITE;
+		return BIT(NVDIMM_SECURITY_OVERWRITE);
 
 	rc = nvdimm_ctl(nvdimm, ND_CMD_CALL, &nd_cmd, sizeof(nd_cmd), NULL);
-	if (rc < 0)
-		return rc;
-	if (nd_cmd.cmd.status)
-		return -EIO;
+	if (rc < 0 || nd_cmd.cmd.status) {
+		pr_err("%s: security state retrieval failed (%d:%#x)\n",
+				nvdimm_name(nvdimm), rc, nd_cmd.cmd.status);
+		return 0;
+	}
 
 	/* check and see if security is enabled and locked */
 	if (ptype == NVDIMM_MASTER) {
 		if (nd_cmd.cmd.extended_state & ND_INTEL_SEC_ESTATE_ENABLED)
-			return NVDIMM_SECURITY_UNLOCKED;
-		else if (nd_cmd.cmd.extended_state &
-				ND_INTEL_SEC_ESTATE_PLIMIT)
-			return NVDIMM_SECURITY_FROZEN;
-	} else {
-		if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_UNSUPPORTED)
-			return -ENXIO;
-		else if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_ENABLED) {
-			if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_LOCKED)
-				return NVDIMM_SECURITY_LOCKED;
-			else if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_FROZEN
-					|| nd_cmd.cmd.state &
-					ND_INTEL_SEC_STATE_PLIMIT)
-				return NVDIMM_SECURITY_FROZEN;
-			else
-				return NVDIMM_SECURITY_UNLOCKED;
-		}
+			set_bit(NVDIMM_SECURITY_UNLOCKED, &security_flags);
+		else
+			set_bit(NVDIMM_SECURITY_DISABLED, &security_flags);
+		if (nd_cmd.cmd.extended_state & ND_INTEL_SEC_ESTATE_PLIMIT)
+			set_bit(NVDIMM_SECURITY_FROZEN, &security_flags);
+		return security_flags;
 	}
 
-	/* this should cover master security disabled as well */
-	return NVDIMM_SECURITY_DISABLED;
+	if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_UNSUPPORTED)
+		return 0;
+
+	if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_ENABLED) {
+		if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_FROZEN ||
+		    nd_cmd.cmd.state & ND_INTEL_SEC_STATE_PLIMIT)
+			set_bit(NVDIMM_SECURITY_FROZEN, &security_flags);
+
+		if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_LOCKED)
+			set_bit(NVDIMM_SECURITY_LOCKED, &security_flags);
+		else
+			set_bit(NVDIMM_SECURITY_UNLOCKED, &security_flags);
+	} else
+		set_bit(NVDIMM_SECURITY_DISABLED, &security_flags);
+
+	return security_flags;
 }
 
 static int intel_security_freeze(struct nvdimm *nvdimm)
@@ -371,7 +376,7 @@ static void nvdimm_invalidate_cache(void)
 #endif
 
 static const struct nvdimm_security_ops __intel_security_ops = {
-	.state = intel_security_state,
+	.get_flags = intel_security_flags,
 	.freeze = intel_security_freeze,
 	.change_key = intel_security_change_key,
 	.disable = intel_security_disable,

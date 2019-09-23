@@ -128,6 +128,10 @@ extern "C" {
  * for the second page onward should be set to NC.
  */
 #define AMDGPU_GEM_CREATE_MQD_GFX9		(1 << 8)
+/* Flag that BO may contain sensitive data that must be wiped before
+ * releasing the memory
+ */
+#define AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE	(1 << 9)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
