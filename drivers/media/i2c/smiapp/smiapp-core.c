@@ -970,56 +970,65 @@ static int smiapp_update_mode(struct smiapp_sensor *sensor)
  * SMIA++ NVM handling
  *
  */
+
+static int smiapp_read_nvm_page(struct smiapp_sensor *sensor, u32 p, u8 *nvm)
+{
+	unsigned int i;
+	int rval;
+
+	rval = smiapp_write(sensor,
+			    SMIAPP_REG_U8_DATA_TRANSFER_IF_1_PAGE_SELECT, p);
+	if (rval)
+		return rval;
+
+	rval = smiapp_write(sensor, SMIAPP_REG_U8_DATA_TRANSFER_IF_1_CTRL,
+			    SMIAPP_DATA_TRANSFER_IF_1_CTRL_EN);
+	if (rval)
+		return rval;
+
+	for (i = 1000; i > 0; i--) {
+		u32 s;
+
+		rval = smiapp_read(
+			sensor,
+			SMIAPP_REG_U8_DATA_TRANSFER_IF_1_STATUS, &s);
+
+		if (rval)
+			return rval;
+
+		if (s & SMIAPP_DATA_TRANSFER_IF_1_STATUS_RD_READY)
+			break;
+	}
+	if (!i)
+		return -ETIMEDOUT;
+
+	for (i = 0; i < SMIAPP_NVM_PAGE_SIZE; i++) {
+		u32 v;
+
+		rval = smiapp_read(sensor,
+				   SMIAPP_REG_U8_DATA_TRANSFER_IF_1_DATA_0 + i,
+				   &v);
+		if (rval)
+			return rval;
+
+		*nvm++ = v;
+	}
+
+	return 0;
+}
+
 static int smiapp_read_nvm(struct smiapp_sensor *sensor,
 			   unsigned char *nvm)
 {
-	u32 i, s, p, np, v;
+	u32 p, np;
 	int rval = 0, rval2;
 
 	np = sensor->nvm_size / SMIAPP_NVM_PAGE_SIZE;
-	for (p = 0; p < np; p++) {
-		rval = smiapp_write(
-			sensor,
-			SMIAPP_REG_U8_DATA_TRANSFER_IF_1_PAGE_SELECT, p);
-		if (rval)
-			goto out;
-
-		rval = smiapp_write(sensor,
-				    SMIAPP_REG_U8_DATA_TRANSFER_IF_1_CTRL,
-				    SMIAPP_DATA_TRANSFER_IF_1_CTRL_EN);
-		if (rval)
-			goto out;
-
-		for (i = 1000; i > 0; i--) {
-			rval = smiapp_read(
-				sensor,
-				SMIAPP_REG_U8_DATA_TRANSFER_IF_1_STATUS, &s);
-
-			if (rval)
-				goto out;
-
-			if (s & SMIAPP_DATA_TRANSFER_IF_1_STATUS_RD_READY)
-				break;
-
-		}
-		if (!i) {
-			rval = -ETIMEDOUT;
-			goto out;
-		}
-
-		for (i = 0; i < SMIAPP_NVM_PAGE_SIZE; i++) {
-			rval = smiapp_read(
-				sensor,
-				SMIAPP_REG_U8_DATA_TRANSFER_IF_1_DATA_0 + i,
-				&v);
-			if (rval)
-				goto out;
-
-			*nvm++ = v;
-		}
+	for (p = 0; p < np && !rval; p++) {
+		rval = smiapp_read_nvm_page(sensor, p, nvm);
+		nvm += SMIAPP_NVM_PAGE_SIZE;
 	}
 
-out:
 	rval2 = smiapp_write(sensor, SMIAPP_REG_U8_DATA_TRANSFER_IF_1_CTRL, 0);
 	if (rval < 0)
 		return rval;
