@@ -464,7 +464,7 @@ static void fuse_force_creds(struct fuse_conn *fc, struct fuse_req *req)
 	req->in.h.pid = pid_nr_ns(task_pid(current), fc->pid_ns);
 }
 
-void fuse_args_to_req(struct fuse_req *req, struct fuse_args *args)
+static void fuse_args_to_req(struct fuse_req *req, struct fuse_args *args)
 {
 	req->in.h.opcode = args->opcode;
 	req->in.h.nodeid = args->nodeid;
