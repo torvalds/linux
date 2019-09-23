@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 
+#include "i915_reg.h"
+
 struct intel_crtc;
 struct i915_vma;
 
@@ -24,10 +26,17 @@ struct intel_dsb {
 	enum dsb_id id;
 	u32 *cmd_buf;
 	struct i915_vma *vma;
+
+	/*
+	 * free_pos will point the first free entry position
+	 * and help in calculating tail of command buffer.
+	 */
+	int free_pos;
 };
 
 struct intel_dsb *
 intel_dsb_get(struct intel_crtc *crtc);
 void intel_dsb_put(struct intel_dsb *dsb);
+void intel_dsb_reg_write(struct intel_dsb *dsb, i915_reg_t reg, u32 val);
 
 #endif

@@ -9,6 +9,12 @@
 
 #define DSB_BUF_SIZE    (2 * PAGE_SIZE)
 
+/* DSB opcodes. */
+#define DSB_OPCODE_SHIFT		24
+#define DSB_OPCODE_MMIO_WRITE		0x1
+#define DSB_BYTE_EN			0xF
+#define DSB_BYTE_EN_SHIFT		20
+
 struct intel_dsb *
 intel_dsb_get(struct intel_crtc *crtc)
 {
@@ -76,5 +82,28 @@ void intel_dsb_put(struct intel_dsb *dsb)
 		i915_vma_unpin_and_release(&dsb->vma, 0);
 		mutex_unlock(&i915->drm.struct_mutex);
 		dsb->cmd_buf = NULL;
+		dsb->free_pos = 0;
 	}
+}
+
+void intel_dsb_reg_write(struct intel_dsb *dsb, i915_reg_t reg, u32 val)
+{
+	struct intel_crtc *crtc = container_of(dsb, typeof(*crtc), dsb);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 *buf = dsb->cmd_buf;
+
+	if (!buf) {
+		I915_WRITE(reg, val);
+		return;
+	}
+
+	if (WARN_ON(dsb->free_pos >= DSB_BUF_SIZE)) {
+		DRM_DEBUG_KMS("DSB buffer overflow\n");
+		return;
+	}
+
+	buf[dsb->free_pos++] = val;
+	buf[dsb->free_pos++] = (DSB_OPCODE_MMIO_WRITE  << DSB_OPCODE_SHIFT) |
+			       (DSB_BYTE_EN << DSB_BYTE_EN_SHIFT) |
+			       i915_mmio_reg_offset(reg);
 }
