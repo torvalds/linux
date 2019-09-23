@@ -8,6 +8,7 @@
 
 struct perf_cpu_map;
 struct perf_thread_map;
+struct xyarray;
 
 struct perf_evsel {
 	struct list_head	 node;
