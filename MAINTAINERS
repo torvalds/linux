@@ -13075,6 +13075,7 @@ F:	drivers/media/rc/pwm-ir-tx.c
 
 PWM SUBSYSTEM
 M:	Thierry Reding <thierry.reding@gmail.com>
+R:	Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 L:	linux-pwm@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/thierry.reding/linux-pwm.git
