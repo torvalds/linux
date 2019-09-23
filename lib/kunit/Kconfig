@@ -1,0 +1,13 @@
+#
+# KUnit base configuration
+#
+
+menuconfig KUNIT
+	bool "KUnit - Enable support for unit tests"
+	help
+	  Enables support for kernel unit tests (KUnit), a lightweight unit
+	  testing and mocking framework for the Linux kernel. These tests are
+	  able to be run locally on a developer's workstation without a VM or
+	  special hardware when using UML. Can also be used on most other
+	  architectures. For more information, please see
+	  Documentation/dev-tools/kunit/.
