@@ -646,6 +646,9 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
 	 */
 	for (pfn = start_pfn; pfn < end_pfn; pfn += 1ul << order) {
 		order = min(MAX_ORDER - 1, get_order(PFN_PHYS(end_pfn - pfn)));
+		/* __free_pages_core() wants pfns to be aligned to the order */
+		if (WARN_ON_ONCE(!IS_ALIGNED(pfn, 1ul << order)))
+			order = 0;
 		(*online_page_callback)(pfn_to_page(pfn), order);
 	}
 
