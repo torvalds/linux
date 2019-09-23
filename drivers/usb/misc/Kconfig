@@ -46,16 +46,6 @@ config USB_SEVSEG
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbsevseg.
 
-config USB_RIO500
-	tristate "USB Diamond Rio500 support"
-	help
-	  Say Y here if you want to connect a USB Rio500 mp3 player to your
-	  computer's USB port. Please read <file:Documentation/usb/rio.txt>
-	  for more information.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called rio500.
-
 config USB_LEGOTOWER
 	tristate "USB Lego Infrared Tower support"
 	help
