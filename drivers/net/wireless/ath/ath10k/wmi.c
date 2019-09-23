@@ -5563,7 +5563,7 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 
 skip_mem_alloc:
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
-		   "wmi event service ready min_tx_power 0x%08x max_tx_power 0x%08x ht_cap 0x%08x vht_cap 0x%08x sw_ver0 0x%08x sw_ver1 0x%08x fw_build 0x%08x phy_capab 0x%08x num_rf_chains 0x%08x eeprom_rd 0x%08x num_mem_reqs 0x%08x\n",
+		   "wmi event service ready min_tx_power 0x%08x max_tx_power 0x%08x ht_cap 0x%08x vht_cap 0x%08x sw_ver0 0x%08x sw_ver1 0x%08x fw_build 0x%08x phy_capab 0x%08x num_rf_chains 0x%08x eeprom_rd 0x%08x low_2ghz_chan %d high_2ghz_chan %d low_5ghz_chan %d high_5ghz_chan %d num_mem_reqs 0x%08x\n",
 		   __le32_to_cpu(arg.min_tx_power),
 		   __le32_to_cpu(arg.max_tx_power),
 		   __le32_to_cpu(arg.ht_cap),
@@ -5574,6 +5574,10 @@ skip_mem_alloc:
 		   __le32_to_cpu(arg.phy_capab),
 		   __le32_to_cpu(arg.num_rf_chains),
 		   __le32_to_cpu(arg.eeprom_rd),
+		   __le32_to_cpu(arg.low_2ghz_chan),
+		   __le32_to_cpu(arg.high_2ghz_chan),
+		   __le32_to_cpu(arg.low_5ghz_chan),
+		   __le32_to_cpu(arg.high_5ghz_chan),
 		   __le32_to_cpu(arg.num_mem_reqs));
 
 	dev_kfree_skb(skb);
