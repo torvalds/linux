@@ -1243,6 +1243,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				submit = true;
 				last = rq;
 			}
+			i915_request_put(rq);
 
 			/*
 			 * Hmm, we have a bunch of virtual engine requests,
@@ -2613,6 +2614,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 			rq->engine = engine;
 			__i915_request_submit(rq);
+			i915_request_put(rq);
 
 			ve->base.execlists.queue_priority_hint = INT_MIN;
 		}
@@ -3618,6 +3620,8 @@ submit_engine:
 static void virtual_submit_request(struct i915_request *rq)
 {
 	struct virtual_engine *ve = to_virtual_engine(rq->engine);
+	struct i915_request *old;
+	unsigned long flags;
 
 	GEM_TRACE("%s: rq=%llx:%lld\n",
 		  ve->base.name,
@@ -3626,15 +3630,31 @@ static void virtual_submit_request(struct i915_request *rq)
 
 	GEM_BUG_ON(ve->base.submit_request != virtual_submit_request);
 
-	GEM_BUG_ON(ve->request);
-	GEM_BUG_ON(!list_empty(virtual_queue(ve)));
+	spin_lock_irqsave(&ve->base.active.lock, flags);
 
-	ve->base.execlists.queue_priority_hint = rq_prio(rq);
-	WRITE_ONCE(ve->request, rq);
+	old = ve->request;
+	if (old) { /* background completion event from preempt-to-busy */
+		GEM_BUG_ON(!i915_request_completed(old));
+		__i915_request_submit(old);
+		i915_request_put(old);
+	}
 
-	list_move_tail(&rq->sched.link, virtual_queue(ve));
+	if (i915_request_completed(rq)) {
+		__i915_request_submit(rq);
 
-	tasklet_schedule(&ve->base.execlists.tasklet);
+		ve->base.execlists.queue_priority_hint = INT_MIN;
+		ve->request = NULL;
+	} else {
+		ve->base.execlists.queue_priority_hint = rq_prio(rq);
+		ve->request = i915_request_get(rq);
+
+		GEM_BUG_ON(!list_empty(virtual_queue(ve)));
+		list_move_tail(&rq->sched.link, virtual_queue(ve));
+
+		tasklet_schedule(&ve->base.execlists.tasklet);
+	}
+
+	spin_unlock_irqrestore(&ve->base.active.lock, flags);
 }
 
 static struct ve_bond *
