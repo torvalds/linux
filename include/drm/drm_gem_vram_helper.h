@@ -19,6 +19,7 @@ struct vm_area_struct;
 
 #define DRM_GEM_VRAM_PL_FLAG_VRAM	TTM_PL_FLAG_VRAM
 #define DRM_GEM_VRAM_PL_FLAG_SYSTEM	TTM_PL_FLAG_SYSTEM
+#define DRM_GEM_VRAM_PL_FLAG_TOPDOWN	TTM_PL_FLAG_TOPDOWN
 
 /*
  * Buffer-object helpers

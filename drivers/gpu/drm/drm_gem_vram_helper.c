@@ -58,6 +58,7 @@ static void drm_gem_vram_placement(struct drm_gem_vram_object *gbo,
 {
 	unsigned int i;
 	unsigned int c = 0;
+	u32 invariant_flags = pl_flag & TTM_PL_FLAG_TOPDOWN;
 
 	gbo->placement.placement = gbo->placements;
 	gbo->placement.busy_placement = gbo->placements;
@@ -65,15 +66,18 @@ static void drm_gem_vram_placement(struct drm_gem_vram_object *gbo,
 	if (pl_flag & TTM_PL_FLAG_VRAM)
 		gbo->placements[c++].flags = TTM_PL_FLAG_WC |
 					     TTM_PL_FLAG_UNCACHED |
-					     TTM_PL_FLAG_VRAM;
+					     TTM_PL_FLAG_VRAM |
+					     invariant_flags;
 
 	if (pl_flag & TTM_PL_FLAG_SYSTEM)
 		gbo->placements[c++].flags = TTM_PL_MASK_CACHING |
-					     TTM_PL_FLAG_SYSTEM;
+					     TTM_PL_FLAG_SYSTEM |
+					     invariant_flags;
 
 	if (!c)
 		gbo->placements[c++].flags = TTM_PL_MASK_CACHING |
-					     TTM_PL_FLAG_SYSTEM;
+					     TTM_PL_FLAG_SYSTEM |
+					     invariant_flags;
 
 	gbo->placement.num_placement = c;
 	gbo->placement.num_busy_placement = c;
@@ -237,6 +241,14 @@ out:
  * it can be pinned to another region. If the pl_flag argument is 0,
  * the buffer is pinned at its current location (video RAM or system
  * memory).
+ *
+ * Small buffer objects, such as cursor images, can lead to memory
+ * fragmentation if they are pinned in the middle of video RAM. This
+ * is especially a problem on devices with only a small amount of
+ * video RAM. Fragmentation can prevent the primary framebuffer from
+ * fitting in, even though there's enough memory overall. The modifier
+ * DRM_GEM_VRAM_PL_FLAG_TOPDOWN marks the buffer object to be pinned
+ * at the high end of the memory region to avoid fragmentation.
  *
  * Returns:
  * 0 on success, or
