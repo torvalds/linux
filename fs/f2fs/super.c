@@ -2604,6 +2604,21 @@ static int sanity_check_raw_super(struct f2fs_sb_info *sbi,
 		return -EFSCORRUPTED;
 	}
 
+	if (RDEV(0).path[0]) {
+		block_t dev_seg_count = le32_to_cpu(RDEV(0).total_segments);
+		int i = 1;
+
+		while (i < MAX_DEVICES && RDEV(i).path[0]) {
+			dev_seg_count += le32_to_cpu(RDEV(i).total_segments);
+			i++;
+		}
+		if (segment_count != dev_seg_count) {
+			f2fs_info(sbi, "Segment count (%u) mismatch with total segments from devices (%u)",
+					segment_count, dev_seg_count);
+			return -EFSCORRUPTED;
+		}
+	}
+
 	if (secs_per_zone > total_sections || !secs_per_zone) {
 		f2fs_info(sbi, "Wrong secs_per_zone / total_sections (%u, %u)",
 			  secs_per_zone, total_sections);
