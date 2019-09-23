@@ -754,6 +754,9 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		return;
 	}
 
+	if (unlikely(test_bit(MLX5E_RQ_STATE_NO_CSUM_COMPLETE, &rq->state)))
+		goto csum_unnecessary;
+
 	/* CQE csum doesn't cover padding octets in short ethernet
 	 * frames. And the pad field is appended prior to calculating
 	 * and appending the FCS field.
