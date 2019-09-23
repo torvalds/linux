@@ -116,10 +116,8 @@ static unsigned long get_memory_block_size(void)
 }
 
 /*
- * use this as the physical section index that this memsection
- * uses.
+ * Show the first physical section index (number) of this memory block.
  */
-
 static ssize_t phys_index_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -131,7 +129,10 @@ static ssize_t phys_index_show(struct device *dev,
 }
 
 /*
- * Show whether the section of memory is likely to be hot-removable
+ * Show whether the memory block is likely to be offlineable (or is already
+ * offline). Once offline, the memory block could be removed. The return
+ * value does, however, not indicate that there is a way to remove the
+ * memory block.
  */
 static ssize_t removable_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
@@ -455,7 +456,7 @@ static DEVICE_ATTR_RO(phys_device);
 static DEVICE_ATTR_RO(removable);
 
 /*
- * Block size attribute stuff
+ * Show the memory block size (shared by all memory blocks).
  */
 static ssize_t block_size_bytes_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
