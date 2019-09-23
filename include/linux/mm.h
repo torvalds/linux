@@ -811,6 +811,12 @@ static inline unsigned long page_size(struct page *page)
 	return PAGE_SIZE << compound_order(page);
 }
 
+/* Returns the number of bits needed for the number of bytes in a page */
+static inline unsigned int page_shift(struct page *page)
+{
+	return PAGE_SHIFT + compound_order(page);
+}
+
 void free_compound_page(struct page *page);
 
 #ifdef CONFIG_MMU
