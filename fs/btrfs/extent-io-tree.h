@@ -4,6 +4,7 @@
 #define BTRFS_EXTENT_IO_TREE_H
 
 struct extent_changeset;
+struct io_failure_record;
 
 /* Bits for the extent state */
 #define EXTENT_DIRTY		(1U << 0)
@@ -226,5 +227,22 @@ int extent_invalidatepage(struct extent_io_tree *tree,
 bool btrfs_find_delalloc_range(struct extent_io_tree *tree, u64 *start,
 			       u64 *end, u64 max_bytes,
 			       struct extent_state **cached_state);
+
+/* This should be reworked in the future and put elsewhere. */
+int get_state_failrec(struct extent_io_tree *tree, u64 start,
+		      struct io_failure_record **failrec);
+int set_state_failrec(struct extent_io_tree *tree, u64 start,
+		      struct io_failure_record *failrec);
+void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start,
+		u64 end);
+int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
+				struct io_failure_record **failrec_ret);
+int free_io_failure(struct extent_io_tree *failure_tree,
+		    struct extent_io_tree *io_tree,
+		    struct io_failure_record *rec);
+int clean_io_failure(struct btrfs_fs_info *fs_info,
+		     struct extent_io_tree *failure_tree,
+		     struct extent_io_tree *io_tree, u64 start,
+		     struct page *page, u64 ino, unsigned int pg_offset);
 
 #endif /* BTRFS_EXTENT_IO_TREE_H */
