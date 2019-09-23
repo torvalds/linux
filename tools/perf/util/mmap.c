@@ -12,6 +12,7 @@
 #include <linux/zalloc.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h> // sysconf()
 #ifdef HAVE_LIBNUMA_SUPPORT
 #include <numaif.h>
 #endif

@@ -2,7 +2,7 @@
 #ifndef __LIBPERF_INTERNAL_LIB_H
 #define __LIBPERF_INTERNAL_LIB_H
 
-#include <unistd.h>
+#include <sys/types.h>
 
 extern unsigned int page_size;
 
