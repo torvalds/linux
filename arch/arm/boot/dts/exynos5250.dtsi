@@ -242,8 +242,8 @@
 					      <&combiner 23 4>,
 					      <&combiner 25 2>,
 					      <&combiner 25 3>,
-					      <&gic 0 120 IRQ_TYPE_LEVEL_HIGH>,
-					      <&gic 0 121 IRQ_TYPE_LEVEL_HIGH>;
+					      <&gic GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+					      <&gic GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_0: pinctrl@11400000 {

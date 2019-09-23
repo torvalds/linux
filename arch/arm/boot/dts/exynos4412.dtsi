@@ -248,11 +248,11 @@
 			reg = <0x10050000 0x800>;
 			clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MCT>;
 			clock-names = "fin_pll", "mct";
-			interrupts-extended = <&gic 0 57 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&gic GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
 					      <&combiner 12 5>,
 					      <&combiner 12 6>,
 					      <&combiner 12 7>,
-					      <&gic 1 12 IRQ_TYPE_LEVEL_HIGH>;
+					      <&gic GIC_PPI 12 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		watchdog: watchdog@10060000 {

@@ -80,14 +80,14 @@
 					      <&combiner 23 4>,
 					      <&combiner 25 2>,
 					      <&combiner 25 3>,
-					      <&gic 0 120 IRQ_TYPE_LEVEL_HIGH>,
-					      <&gic 0 121 IRQ_TYPE_LEVEL_HIGH>,
-					      <&gic 0 122 IRQ_TYPE_LEVEL_HIGH>,
-					      <&gic 0 123 IRQ_TYPE_LEVEL_HIGH>,
-					      <&gic 0 128 IRQ_TYPE_LEVEL_HIGH>,
-					      <&gic 0 129 IRQ_TYPE_LEVEL_HIGH>,
-					      <&gic 0 130 IRQ_TYPE_LEVEL_HIGH>,
-					      <&gic 0 131 IRQ_TYPE_LEVEL_HIGH>;
+					      <&gic GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+					      <&gic GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+					      <&gic GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
+					      <&gic GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
+					      <&gic GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
+					      <&gic GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>,
+					      <&gic GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>,
+					      <&gic GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		watchdog: watchdog@101d0000 {
