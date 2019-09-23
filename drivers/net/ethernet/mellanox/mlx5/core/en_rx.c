@@ -694,7 +694,14 @@ static inline bool is_last_ethertype_ip(struct sk_buff *skb, int *network_depth,
 {
 	*proto = ((struct ethhdr *)skb->data)->h_proto;
 	*proto = __vlan_get_protocol(skb, *proto, network_depth);
-	return (*proto == htons(ETH_P_IP) || *proto == htons(ETH_P_IPV6));
+
+	if (*proto == htons(ETH_P_IP))
+		return pskb_may_pull(skb, *network_depth + sizeof(struct iphdr));
+
+	if (*proto == htons(ETH_P_IPV6))
+		return pskb_may_pull(skb, *network_depth + sizeof(struct ipv6hdr));
+
+	return false;
 }
 
 static inline void mlx5e_enable_ecn(struct mlx5e_rq *rq, struct sk_buff *skb)
