@@ -877,7 +877,7 @@ int __meminit sparse_add_section(int nid, unsigned long start_pfn,
 	 */
 	page_init_poison(pfn_to_page(start_pfn), sizeof(struct page) * nr_pages);
 
-	ms = __pfn_to_section(start_pfn);
+	ms = __nr_to_section(section_nr);
 	set_section_nid(section_nr, nid);
 	section_mark_present(ms);
 
