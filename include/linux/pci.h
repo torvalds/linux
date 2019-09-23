@@ -6,12 +6,18 @@
  *	Copyright 1994, Drew Eckhardt
  *	Copyright 1997--1999 Martin Mares <mj@ucw.cz>
  *
+ *	PCI Express ASPM defines and function prototypes
+ *	Copyright (c) 2007 Intel Corp.
+ *		Zhang Yanmin (yanmin.zhang@intel.com)
+ *		Shaohua Li (shaohua.li@intel.com)
+ *
  *	For more information, please consult the following manuals (look at
  *	http://www.pcisig.com/ for how to get them):
  *
  *	PCI BIOS Specification
  *	PCI Local Bus Specification
  *	PCI to PCI Bridge Specification
+ *	PCI Express Specification
  *	PCI System Design Guide
  */
 #ifndef LINUX_PCI_H
@@ -1565,9 +1571,21 @@ extern bool pcie_ports_native;
 #define pcie_ports_native	false
 #endif
 
+#define PCIE_LINK_STATE_L0S	1
+#define PCIE_LINK_STATE_L1	2
+#define PCIE_LINK_STATE_CLKPM	4
+
 #ifdef CONFIG_PCIEASPM
+int pci_disable_link_state(struct pci_dev *pdev, int state);
+int pci_disable_link_state_locked(struct pci_dev *pdev, int state);
+void pcie_no_aspm(void);
 bool pcie_aspm_support_enabled(void);
 #else
+static inline int pci_disable_link_state(struct pci_dev *pdev, int state)
+{ return 0; }
+static inline int pci_disable_link_state_locked(struct pci_dev *pdev, int state)
+{ return 0; }
+static inline void pcie_no_aspm(void) { }
 static inline bool pcie_aspm_support_enabled(void) { return false; }
 #endif
 

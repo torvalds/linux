@@ -18,7 +18,6 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/delay.h>
-#include <linux/pci-aspm.h>
 #include "../pci.h"
 
 #ifdef MODULE_PARAM_PREFIX

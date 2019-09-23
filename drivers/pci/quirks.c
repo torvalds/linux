@@ -20,7 +20,6 @@
 #include <linux/delay.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
-#include <linux/pci-aspm.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/ktime.h>

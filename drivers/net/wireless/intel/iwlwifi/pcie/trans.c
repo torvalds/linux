@@ -62,7 +62,6 @@
  *
  *****************************************************************************/
 #include <linux/pci.h>
-#include <linux/pci-aspm.h>
 #include <linux/interrupt.h>
 #include <linux/debugfs.h>
 #include <linux/sched.h>
