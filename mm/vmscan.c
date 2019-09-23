@@ -2664,10 +2664,6 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
 
 	do {
 		struct mem_cgroup *root = sc->target_mem_cgroup;
-		struct mem_cgroup_reclaim_cookie reclaim = {
-			.pgdat = pgdat,
-			.priority = sc->priority,
-		};
 		unsigned long node_lru_pages = 0;
 		struct mem_cgroup *memcg;
 
@@ -2676,7 +2672,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
 		nr_reclaimed = sc->nr_reclaimed;
 		nr_scanned = sc->nr_scanned;
 
-		memcg = mem_cgroup_iter(root, NULL, &reclaim);
+		memcg = mem_cgroup_iter(root, NULL, NULL);
 		do {
 			unsigned long lru_pages;
 			unsigned long reclaimed;
@@ -2719,21 +2715,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
 				   sc->nr_scanned - scanned,
 				   sc->nr_reclaimed - reclaimed);
 
-			/*
-			 * Kswapd have to scan all memory cgroups to fulfill
-			 * the overall scan target for the node.
-			 *
-			 * Limit reclaim, on the other hand, only cares about
-			 * nr_to_reclaim pages to be reclaimed and it will
-			 * retry with decreasing priority if one round over the
-			 * whole hierarchy is not sufficient.
-			 */
-			if (!current_is_kswapd() &&
-					sc->nr_reclaimed >= sc->nr_to_reclaim) {
-				mem_cgroup_iter_break(root, memcg);
-				break;
-			}
-		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
+		} while ((memcg = mem_cgroup_iter(root, memcg, NULL)));
 
 		if (reclaim_state) {
 			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
