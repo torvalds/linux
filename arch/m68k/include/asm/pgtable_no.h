@@ -45,11 +45,6 @@ extern void paging_init(void);
 #define ZERO_PAGE(vaddr)	(virt_to_page(0))
 
 /*
- * No page table caches to initialise.
- */
-#define pgtable_cache_init()	do { } while (0)
-
-/*
  * All 32bit addresses are effectively valid for vmalloc...
  * Sort of meaningless for non-VM targets.
  */
