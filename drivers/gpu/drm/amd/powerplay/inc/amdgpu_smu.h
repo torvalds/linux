@@ -760,8 +760,6 @@ struct smu_funcs
 	((smu)->ppt_funcs->get_uclk_dpm_states ? (smu)->ppt_funcs->get_uclk_dpm_states((smu), (clocks_in_khz), (num_states)) : 0)
 #define smu_get_max_sustainable_clocks_by_dc(smu, max_clocks) \
 	((smu)->funcs->get_max_sustainable_clocks_by_dc ? (smu)->funcs->get_max_sustainable_clocks_by_dc((smu), (max_clocks)) : 0)
-#define smu_get_uclk_dpm_states(smu, clocks_in_khz, num_states) \
-	((smu)->ppt_funcs->get_uclk_dpm_states ? (smu)->ppt_funcs->get_uclk_dpm_states((smu), (clocks_in_khz), (num_states)) : 0)
 #define smu_baco_is_support(smu) \
 	((smu)->funcs->baco_is_support? (smu)->funcs->baco_is_support((smu)) : false)
 #define smu_baco_get_state(smu, state) \
