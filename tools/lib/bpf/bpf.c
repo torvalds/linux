@@ -659,9 +659,10 @@ int bpf_raw_tracepoint_open(const char *name, int prog_fd)
 int bpf_load_btf(void *btf, __u32 btf_size, char *log_buf, __u32 log_buf_size,
 		 bool do_log)
 {
-	union bpf_attr attr = {};
+	union bpf_attr attr;
 	int fd;
 
+	memset(&attr, 0, sizeof(attr));
 	attr.btf = ptr_to_u64(btf);
 	attr.btf_size = btf_size;
 
@@ -685,9 +686,10 @@ int bpf_task_fd_query(int pid, int fd, __u32 flags, char *buf, __u32 *buf_len,
 		      __u32 *prog_id, __u32 *fd_type, __u64 *probe_offset,
 		      __u64 *probe_addr)
 {
-	union bpf_attr attr = {};
+	union bpf_attr attr;
 	int err;
 
+	memset(&attr, 0, sizeof(attr));
 	attr.task_fd_query.pid = pid;
 	attr.task_fd_query.fd = fd;
 	attr.task_fd_query.flags = flags;
