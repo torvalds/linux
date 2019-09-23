@@ -1612,7 +1612,7 @@ static void swizzle_to_dml_params(
 	}
 }
 
-static bool dcn20_split_stream_for_odm(
+bool dcn20_split_stream_for_odm(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct pipe_ctx *prev_odm_pipe,
@@ -1690,7 +1690,7 @@ static bool dcn20_split_stream_for_odm(
 	return true;
 }
 
-static void dcn20_split_stream_for_mpc(
+void dcn20_split_stream_for_mpc(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct pipe_ctx *primary_pipe,
@@ -2148,7 +2148,7 @@ void dcn20_set_mcif_arb_params(
 }
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-static bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx)
+bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx)
 {
 	int i;
 
@@ -2183,7 +2183,7 @@ static bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx)
 }
 #endif
 
-static struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
+struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		const struct pipe_ctx *primary_pipe)
@@ -2260,24 +2260,11 @@ static struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 	return secondary_pipe;
 }
 
-bool dcn20_fast_validate_bw(
+void dcn20_merge_pipes_for_validate(
 		struct dc *dc,
-		struct dc_state *context,
-		display_e2e_pipe_params_st *pipes,
-		int *pipe_cnt_out,
-		int *pipe_split_from,
-		int *vlevel_out)
+		struct dc_state *context)
 {
-	bool out = false;
-
-	int pipe_cnt, i, pipe_idx, vlevel, vlevel_unsplit;
-	bool force_split = false;
-	int split_threshold = dc->res_pool->pipe_count / 2;
-	bool avoid_split = dc->debug.pipe_split_policy != MPC_SPLIT_DYNAMIC;
-
-	ASSERT(pipes);
-	if (!pipes)
-		return false;
+	int i;
 
 	/* merge previously split odm pipes since mode support needs to make the decision */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2332,31 +2319,18 @@ bool dcn20_fast_validate_bw(
 		if (pipe->plane_state)
 			resource_build_scaling_params(pipe);
 	}
+}
 
-	if (dc->res_pool->funcs->populate_dml_pipes)
-		pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc,
-			&context->res_ctx, pipes);
-	else
-		pipe_cnt = dcn20_populate_dml_pipes_from_context(dc,
-			&context->res_ctx, pipes);
+int dcn20_validate_apply_pipe_split_flags(
+		struct dc *dc,
+		struct dc_state *context,
+		int vlevel,
+		bool *split)
+{
+	int i, pipe_idx, vlevel_unsplit;
+	bool force_split = false;
+	bool avoid_split = dc->debug.pipe_split_policy != MPC_SPLIT_DYNAMIC;
 
-	*pipe_cnt_out = pipe_cnt;
-
-	if (!pipe_cnt) {
-		out = true;
-		goto validate_out;
-	}
-
-	vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
-
-	if (vlevel > context->bw_ctx.dml.soc.num_states)
-		goto validate_fail;
-
-	/*initialize pipe_just_split_from to invalid idx*/
-	for (i = 0; i < MAX_PIPES; i++)
-		pipe_split_from[i] = -1;
-
-	/* Single display only conditionals get set here */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		bool exit_loop = false;
@@ -2383,38 +2357,105 @@ bool dcn20_fast_validate_bw(
 		if (exit_loop)
 			break;
 	}
-
-	if (context->stream_count > split_threshold)
+	/* TODO: fix dc bugs and remove this split threshold thing */
+	if (context->stream_count > dc->res_pool->pipe_count / 2)
 		avoid_split = true;
 
-	vlevel_unsplit = vlevel;
+	if (avoid_split) {
+		for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
+			if (!context->res_ctx.pipe_ctx[i].stream)
+				continue;
+
+			for (vlevel_unsplit = vlevel; vlevel <= context->bw_ctx.dml.soc.num_states; vlevel++)
+				if (context->bw_ctx.dml.vba.NoOfDPP[vlevel][0][pipe_idx] == 1)
+					break;
+			/* Impossible to not split this pipe */
+			if (vlevel == context->bw_ctx.dml.soc.num_states)
+				vlevel = vlevel_unsplit;
+			pipe_idx++;
+		}
+		context->bw_ctx.dml.vba.maxMpcComb = 0;
+	}
+
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
-		for (; vlevel_unsplit <= context->bw_ctx.dml.soc.num_states; vlevel_unsplit++)
-			if (context->bw_ctx.dml.vba.NoOfDPP[vlevel_unsplit][0][pipe_idx] == 1)
-				break;
+
+		if (force_split || context->bw_ctx.dml.vba.NoOfDPP[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] > 1)
+			split[i] = true;
+		if ((pipe->stream->view_format ==
+				VIEW_3D_FORMAT_SIDE_BY_SIDE ||
+				pipe->stream->view_format ==
+				VIEW_3D_FORMAT_TOP_AND_BOTTOM) &&
+				(pipe->stream->timing.timing_3d_format ==
+				TIMING_3D_FORMAT_TOP_AND_BOTTOM ||
+				 pipe->stream->timing.timing_3d_format ==
+				TIMING_3D_FORMAT_SIDE_BY_SIDE))
+			split[i] = true;
+		if (dc->debug.force_odm_combine & (1 << pipe->stream_res.tg->inst)) {
+			split[i] = true;
+			context->bw_ctx.dml.vba.ODMCombineEnablePerState[vlevel][pipe_idx] = true;
+		}
+		context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx]
+			= context->bw_ctx.dml.vba.ODMCombineEnablePerState[vlevel][pipe_idx];
+		/* Adjust dppclk when split is forced, do not bother with dispclk */
+		if (split[i] && context->bw_ctx.dml.vba.NoOfDPP[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] == 1)
+			context->bw_ctx.dml.vba.RequiredDPPCLK[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] /= 2;
 		pipe_idx++;
 	}
+
+	return vlevel;
+}
+
+bool dcn20_fast_validate_bw(
+		struct dc *dc,
+		struct dc_state *context,
+		display_e2e_pipe_params_st *pipes,
+		int *pipe_cnt_out,
+		int *pipe_split_from,
+		int *vlevel_out)
+{
+	bool out = false;
+	bool split[MAX_PIPES] = { false };
+	int pipe_cnt, i, pipe_idx, vlevel;
+
+	ASSERT(pipes);
+	if (!pipes)
+		return false;
+
+	dcn20_merge_pipes_for_validate(dc, context);
+
+	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, &context->res_ctx, pipes);
+
+	*pipe_cnt_out = pipe_cnt;
+
+	if (!pipe_cnt) {
+		out = true;
+		goto validate_out;
+	}
+
+	vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
+
+	if (vlevel > context->bw_ctx.dml.soc.num_states)
+		goto validate_fail;
+
+	vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split);
+
+	/*initialize pipe_just_split_from to invalid idx*/
+	for (i = 0; i < MAX_PIPES; i++)
+		pipe_split_from[i] = -1;
 
 	for (i = 0, pipe_idx = -1; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *hsplit_pipe = pipe->bottom_pipe;
-		bool need_split = true;
-		bool need_split3d;
 
 		if (!pipe->stream || pipe_split_from[i] >= 0)
 			continue;
 
 		pipe_idx++;
 
-		if (dc->debug.force_odm_combine & (1 << pipe->stream_res.tg->inst)) {
-			force_split = true;
-			context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx] = true;
-			context->bw_ctx.dml.vba.ODMCombineEnablePerState[vlevel][pipe_idx] = true;
-		}
-		if (force_split && context->bw_ctx.dml.vba.NoOfDPP[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] == 1)
-			context->bw_ctx.dml.vba.RequiredDPPCLK[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] /= 2;
 		if (!pipe->top_pipe && !pipe->plane_state && context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx]) {
 			hsplit_pipe = dcn20_find_secondary_pipe(dc, &context->res_ctx, dc->res_pool, pipe);
 			ASSERT(hsplit_pipe);
@@ -2432,32 +2473,16 @@ bool dcn20_fast_validate_bw(
 		if (pipe->top_pipe && pipe->plane_state == pipe->top_pipe->plane_state)
 			continue;
 
-		need_split3d = ((pipe->stream->view_format ==
-				VIEW_3D_FORMAT_SIDE_BY_SIDE ||
-				pipe->stream->view_format ==
-				VIEW_3D_FORMAT_TOP_AND_BOTTOM) &&
-				(pipe->stream->timing.timing_3d_format ==
-				TIMING_3D_FORMAT_TOP_AND_BOTTOM ||
-				 pipe->stream->timing.timing_3d_format ==
-				TIMING_3D_FORMAT_SIDE_BY_SIDE));
-
-		if (avoid_split && vlevel_unsplit <= context->bw_ctx.dml.soc.num_states && !force_split && !need_split3d) {
-			need_split = false;
-			vlevel = vlevel_unsplit;
-			context->bw_ctx.dml.vba.maxMpcComb = 0;
-		} else
-			need_split = context->bw_ctx.dml.vba.NoOfDPP[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] == 2;
-
 		/* We do not support mpo + odm at the moment */
 		if (hsplit_pipe && hsplit_pipe->plane_state != pipe->plane_state
 				&& context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx])
 			goto validate_fail;
 
-		if (need_split3d || need_split || force_split) {
+		if (split[i]) {
 			if (!hsplit_pipe || hsplit_pipe->plane_state != pipe->plane_state) {
 				/* pipe not split previously needs split */
 				hsplit_pipe = dcn20_find_secondary_pipe(dc, &context->res_ctx, dc->res_pool, pipe);
-				ASSERT(hsplit_pipe || force_split);
+				ASSERT(hsplit_pipe);
 				if (!hsplit_pipe)
 					continue;
 
@@ -2520,7 +2545,7 @@ void dcn20_calculate_wm(
 					context->bw_ctx.dml.vba.RequiredDPPCLK[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx];
 			if (context->bw_ctx.dml.vba.BlendingAndTiming[pipe_idx] == pipe_idx)
 				pipes[pipe_cnt].pipe.dest.odm_combine =
-						context->bw_ctx.dml.vba.ODMCombineEnablePerState[vlevel][pipe_idx];
+						context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx];
 			else
 				pipes[pipe_cnt].pipe.dest.odm_combine = 0;
 			pipe_idx++;
@@ -2529,7 +2554,7 @@ void dcn20_calculate_wm(
 					context->bw_ctx.dml.vba.RequiredDPPCLK[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_split_from[i]];
 			if (context->bw_ctx.dml.vba.BlendingAndTiming[pipe_split_from[i]] == pipe_split_from[i])
 				pipes[pipe_cnt].pipe.dest.odm_combine =
-						context->bw_ctx.dml.vba.ODMCombineEnablePerState[vlevel][pipe_split_from[i]];
+						context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_split_from[i]];
 			else
 				pipes[pipe_cnt].pipe.dest.odm_combine = 0;
 		}
@@ -2900,6 +2925,7 @@ static struct resource_funcs dcn20_res_pool_funcs = {
 	.populate_dml_writeback_from_context = dcn20_populate_dml_writeback_from_context,
 	.get_default_swizzle_mode = dcn20_get_default_swizzle_mode,
 	.set_mcif_arb_params = dcn20_set_mcif_arb_params,
+	.populate_dml_pipes = dcn20_populate_dml_pipes_from_context,
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link
 };
 

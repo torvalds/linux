@@ -113,6 +113,31 @@ void dcn20_set_mcif_arb_params(
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt);
 bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context, bool fast_validate);
+void dcn20_merge_pipes_for_validate(
+		struct dc *dc,
+		struct dc_state *context);
+int dcn20_validate_apply_pipe_split_flags(
+		struct dc *dc,
+		struct dc_state *context,
+		int vlevel,
+		bool *split);
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx);
+#endif
+void dcn20_split_stream_for_mpc(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct pipe_ctx *primary_pipe,
+		struct pipe_ctx *secondary_pipe);
+bool dcn20_split_stream_for_odm(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct pipe_ctx *prev_odm_pipe,
+		struct pipe_ctx *next_odm_pipe);
+struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		const struct pipe_ctx *primary_pipe);
 bool dcn20_fast_validate_bw(
 		struct dc *dc,
 		struct dc_state *context,
@@ -124,6 +149,12 @@ void dcn20_calculate_dlg_params(
 		struct dc *dc, struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt,
+		int vlevel);
+void dcn20_calculate_wm(
+		struct dc *dc, struct dc_state *context,
+		display_e2e_pipe_params_st *pipes,
+		int *out_pipe_cnt,
+		int *pipe_split_from,
 		int vlevel);
 
 enum dc_status dcn20_build_mapped_resource(const struct dc *dc, struct dc_state *context, struct dc_stream_state *stream);
