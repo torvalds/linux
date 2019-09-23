@@ -986,21 +986,27 @@ static int smiapp_read_nvm_page(struct smiapp_sensor *sensor, u32 p, u8 *nvm)
 	if (rval)
 		return rval;
 
-	for (i = 1000; i > 0; i--) {
-		u32 s;
+	if (sensor->limits[SMIAPP_LIMIT_DATA_TRANSFER_IF_CAPABILITY] &
+	    SMIAPP_DATA_TRANSFER_IF_CAPABILITY_POLL) {
+		for (i = 1000; i > 0; i--) {
+			u32 s;
 
-		rval = smiapp_read(
-			sensor,
-			SMIAPP_REG_U8_DATA_TRANSFER_IF_1_STATUS, &s);
+			rval = smiapp_read(
+				sensor,
+				SMIAPP_REG_U8_DATA_TRANSFER_IF_1_STATUS,
+				&s);
 
-		if (rval)
-			return rval;
+			if (rval)
+				return rval;
 
-		if (s & SMIAPP_DATA_TRANSFER_IF_1_STATUS_RD_READY)
-			break;
+			if (s & SMIAPP_DATA_TRANSFER_IF_1_STATUS_RD_READY)
+				break;
+
+		}
+
+		if (!i)
+			return -ETIMEDOUT;
 	}
-	if (!i)
-		return -ETIMEDOUT;
 
 	for (i = 0; i < SMIAPP_NVM_PAGE_SIZE; i++) {
 		u32 v;
