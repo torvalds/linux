@@ -123,7 +123,7 @@ config USB_GR_UDC
        tristate "Aeroflex Gaisler GRUSBDC USB Peripheral Controller Driver"
        depends on HAS_DMA
        help
-          Select this to support Aeroflex Gaisler GRUSBDC cores from the GRLIB
+	  Select this to support Aeroflex Gaisler GRUSBDC cores from the GRLIB
 	  VHDL IP core library.
 
 config USB_OMAP
