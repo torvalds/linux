@@ -247,8 +247,16 @@ enum mipi_dsi_dcs_tear_mode {
 #define MIPI_DSI_DCS_POWER_MODE_PARTIAL (1 << 5)
 #define MIPI_DSI_DCS_POWER_MODE_IDLE    (1 << 6)
 
+#ifdef CONFIG_DRM_MIPI_DSI
 ssize_t mipi_dsi_device_transfer(struct mipi_dsi_device *dsi,
 				 struct mipi_dsi_msg *msg);
+#else
+static inline ssize_t mipi_dsi_device_transfer(struct mipi_dsi_device *dsi,
+					       struct mipi_dsi_msg *msg)
+{
+	return -EINVAL;
+}
+#endif
 ssize_t mipi_dsi_dcs_write_buffer(struct mipi_dsi_device *dsi,
 				  const void *data, size_t len);
 ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, u8 cmd,
