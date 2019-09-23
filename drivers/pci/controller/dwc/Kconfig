@@ -236,6 +236,16 @@ config PCI_MESON
 	  and therefore the driver re-uses the DesignWare core functions to
 	  implement the driver.
 
+config PCIE_TEGRA194
+	tristate "NVIDIA Tegra194 (and later) PCIe controller"
+	depends on ARCH_TEGRA_194_SOC || COMPILE_TEST
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	select PHY_TEGRA194_P2U
+	help
+	  Say Y here if you want support for DesignWare core based PCIe host
+	  controller found in NVIDIA Tegra194 SoC.
+
 config PCIE_UNIPHIER
 	bool "Socionext UniPhier PCIe controllers"
 	depends on ARCH_UNIPHIER || COMPILE_TEST
