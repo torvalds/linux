@@ -481,6 +481,36 @@ static int renoir_force_clk_levels(struct smu_context *smu,
 	return ret;
 }
 
+static int renoir_set_power_profile_mode(struct smu_context *smu, long *input, uint32_t size)
+{
+	int workload_type, ret;
+	uint32_t profile_mode = input[size];
+
+	if (profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+		pr_err("Invalid power profile mode %d\n", smu->power_profile_mode);
+		return -EINVAL;
+	}
+
+	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+	workload_type = smu_workload_get_type(smu, smu->power_profile_mode);
+	if (workload_type < 0) {
+		pr_err("Unsupported power profile mode %d on RENOIR\n",smu->power_profile_mode);
+		return -EINVAL;
+	}
+
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
+				    1 << workload_type);
+	if (ret) {
+		pr_err("Fail to set workload type %d\n", workload_type);
+		return ret;
+	}
+
+	smu->power_profile_mode = profile_mode;
+
+	return 0;
+}
+
+
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_msg_index = renoir_get_smu_msg_index,
 	.get_smu_table_index = renoir_get_smu_table_index,
@@ -495,6 +525,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_workload_type = renoir_get_workload_type,
 	.get_profiling_clk_mask = renoir_get_profiling_clk_mask,
 	.force_clk_levels = renoir_force_clk_levels,
+	.set_power_profile_mode = renoir_set_power_profile_mode,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)
