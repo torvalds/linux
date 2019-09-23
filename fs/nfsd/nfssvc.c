@@ -361,7 +361,7 @@ void nfsd_copy_boot_verifier(__be32 verf[2], struct nfsd_net *nn)
 	done_seqretry(&nn->boot_lock, seq);
 }
 
-void nfsd_reset_boot_verifier_locked(struct nfsd_net *nn)
+static void nfsd_reset_boot_verifier_locked(struct nfsd_net *nn)
 {
 	ktime_get_real_ts64(&nn->nfssvc_boot);
 }
