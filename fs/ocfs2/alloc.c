@@ -5993,6 +5993,7 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 	struct buffer_head *data_alloc_bh = NULL;
 	struct ocfs2_dinode *di;
 	struct ocfs2_truncate_log *tl;
+	struct ocfs2_journal *journal = osb->journal;
 
 	BUG_ON(inode_trylock(tl_inode));
 
@@ -6010,6 +6011,20 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 		num_to_flush);
 	if (!num_to_flush) {
 		status = 0;
+		goto out;
+	}
+
+	/* Appending truncate log(TA) and and flushing truncate log(TF) are
+	 * two separated transactions. They can be both committed but not
+	 * checkpointed. If crash occurs then, both two transaction will be
+	 * replayed with several already released to global bitmap clusters.
+	 * Then truncate log will be replayed resulting in cluster double free.
+	 */
+	jbd2_journal_lock_updates(journal->j_journal);
+	status = jbd2_journal_flush(journal->j_journal);
+	jbd2_journal_unlock_updates(journal->j_journal);
+	if (status < 0) {
+		mlog_errno(status);
 		goto out;
 	}
 
