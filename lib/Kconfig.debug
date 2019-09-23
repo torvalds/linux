@@ -579,7 +579,7 @@ config DEBUG_KMEMLEAK
 config DEBUG_KMEMLEAK_MEM_POOL_SIZE
 	int "Kmemleak memory pool size"
 	depends on DEBUG_KMEMLEAK
-	range 200 40000
+	range 200 1000000
 	default 16000
 	help
 	  Kmemleak must track all the memory allocations to avoid
