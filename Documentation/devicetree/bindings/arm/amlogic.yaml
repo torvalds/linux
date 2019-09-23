@@ -147,6 +147,7 @@ properties:
           - enum:
               - hardkernel,odroid-n2
               - khadas,vim3
+              - ugoos,am6
           - const: amlogic,s922x
           - const: amlogic,g12b
 
