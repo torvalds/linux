@@ -168,6 +168,8 @@ struct kmemleak_object {
 #define OBJECT_REPORTED		(1 << 1)
 /* flag set to not scan the object */
 #define OBJECT_NO_SCAN		(1 << 2)
+/* flag set to fully scan the object when scan_area allocation failed */
+#define OBJECT_FULL_SCAN	(1 << 3)
 
 #define HEX_PREFIX		"    "
 /* number of bytes to print per line; must be 16 or 32 */
@@ -773,12 +775,14 @@ static void add_scan_area(unsigned long ptr, size_t size, gfp_t gfp)
 	}
 
 	area = kmem_cache_alloc(scan_area_cache, gfp_kmemleak_mask(gfp));
-	if (!area) {
-		pr_warn("Cannot allocate a scan area\n");
-		goto out;
-	}
 
 	spin_lock_irqsave(&object->lock, flags);
+	if (!area) {
+		pr_warn_once("Cannot allocate a scan area, scanning the full object\n");
+		/* mark the object for full scan to avoid false positives */
+		object->flags |= OBJECT_FULL_SCAN;
+		goto out_unlock;
+	}
 	if (size == SIZE_MAX) {
 		size = object->pointer + object->size - ptr;
 	} else if (ptr + size > object->pointer + object->size) {
@@ -795,7 +799,6 @@ static void add_scan_area(unsigned long ptr, size_t size, gfp_t gfp)
 	hlist_add_head(&area->node, &object->area_list);
 out_unlock:
 	spin_unlock_irqrestore(&object->lock, flags);
-out:
 	put_object(object);
 }
 
@@ -1408,7 +1411,8 @@ static void scan_object(struct kmemleak_object *object)
 	if (!(object->flags & OBJECT_ALLOCATED))
 		/* already freed object */
 		goto out;
-	if (hlist_empty(&object->area_list)) {
+	if (hlist_empty(&object->area_list) ||
+	    object->flags & OBJECT_FULL_SCAN) {
 		void *start = (void *)object->pointer;
 		void *end = (void *)(object->pointer + object->size);
 		void *next;
