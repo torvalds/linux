@@ -338,8 +338,7 @@ void kasan_poison_slab(struct page *page)
 
 	for (i = 0; i < (1 << compound_order(page)); i++)
 		page_kasan_tag_reset(page + i);
-	kasan_poison_shadow(page_address(page),
-			PAGE_SIZE << compound_order(page),
+	kasan_poison_shadow(page_address(page), page_size(page),
 			KASAN_KMALLOC_REDZONE);
 }
 
@@ -542,7 +541,7 @@ void * __must_check kasan_kmalloc_large(const void *ptr, size_t size,
 	page = virt_to_page(ptr);
 	redzone_start = round_up((unsigned long)(ptr + size),
 				KASAN_SHADOW_SCALE_SIZE);
-	redzone_end = (unsigned long)ptr + (PAGE_SIZE << compound_order(page));
+	redzone_end = (unsigned long)ptr + page_size(page);
 
 	kasan_unpoison_shadow(ptr, size);
 	kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
@@ -578,8 +577,7 @@ void kasan_poison_kfree(void *ptr, unsigned long ip)
 			kasan_report_invalid_free(ptr, ip);
 			return;
 		}
-		kasan_poison_shadow(ptr, PAGE_SIZE << compound_order(page),
-				KASAN_FREE_PAGE);
+		kasan_poison_shadow(ptr, page_size(page), KASAN_FREE_PAGE);
 	} else {
 		__kasan_slab_free(page->slab_cache, ptr, ip, false);
 	}

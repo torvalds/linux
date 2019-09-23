@@ -977,7 +977,7 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 	/* Matches the smp_wmb() in xsk_init_queue */
 	smp_rmb();
 	qpg = virt_to_head_page(q->ring);
-	if (size > (PAGE_SIZE << compound_order(qpg)))
+	if (size > page_size(qpg))
 		return -EINVAL;
 
 	pfn = virt_to_phys(q->ring) >> PAGE_SHIFT;
