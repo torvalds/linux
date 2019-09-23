@@ -653,9 +653,7 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
 {
 	unsigned long onlined_pages = *(unsigned long *)arg;
 
-	if (PageReserved(pfn_to_page(start_pfn)))
-		onlined_pages += online_pages_blocks(start_pfn, nr_pages);
-
+	onlined_pages += online_pages_blocks(start_pfn, nr_pages);
 	online_mem_sections(start_pfn, start_pfn + nr_pages);
 
 	*(unsigned long *)arg = onlined_pages;
