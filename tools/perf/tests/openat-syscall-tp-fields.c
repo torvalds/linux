@@ -11,6 +11,7 @@
 #include "record.h"
 #include "tests.h"
 #include "debug.h"
+#include "util/mmap.h"
 #include <errno.h>
 
 #ifndef O_DIRECTORY

@@ -15,6 +15,7 @@
 #include "../../util/event.h"
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"
+#include "../../util/mmap.h"
 #include "../../util/session.h"
 #include "../../util/pmu.h"
 #include "../../util/debug.h"

@@ -10,6 +10,7 @@
 #include <inttypes.h>
 #include <poll.h>
 #include "cpumap.h"
+#include "util/mmap.h"
 #include "thread_map.h"
 #include "target.h"
 #include "evlist.h"

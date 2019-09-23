@@ -51,6 +51,7 @@
 #include "arm-spe.h"
 #include "s390-cpumsf.h"
 #include "util.h" // page_size
+#include "util/mmap.h"
 
 #include <linux/ctype.h>
 #include <linux/kernel.h>

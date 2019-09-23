@@ -5,6 +5,7 @@
 #include "target.h"
 #include "thread_map.h"
 #include "tests.h"
+#include "util/mmap.h"
 
 #include <errno.h>
 #include <signal.h>

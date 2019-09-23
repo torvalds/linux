@@ -30,6 +30,7 @@
 #include "util/event.h"
 #include "util/machine.h"
 #include "util/map.h"
+#include "util/mmap.h"
 #include "util/session.h"
 #include "util/symbol.h"
 #include "util/synthetic-events.h"

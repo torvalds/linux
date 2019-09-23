@@ -11,6 +11,7 @@
 #include "evsel.h"
 #include "thread_map.h"
 #include "tests.h"
+#include "util/mmap.h"
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

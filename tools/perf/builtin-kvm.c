@@ -5,6 +5,7 @@
 #include "util/build-id.h"
 #include "util/evsel.h"
 #include "util/evlist.h"
+#include "util/mmap.h"
 #include "util/term.h"
 #include "util/symbol.h"
 #include "util/thread.h"

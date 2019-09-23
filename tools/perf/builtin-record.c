@@ -20,6 +20,7 @@
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/debug.h"
+#include "util/mmap.h"
 #include "util/target.h"
 #include "util/session.h"
 #include "util/tool.h"

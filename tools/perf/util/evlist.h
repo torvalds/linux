@@ -11,7 +11,7 @@
 #include <internal/evlist.h>
 #include "events_stats.h"
 #include "evsel.h"
-#include "mmap.h"
+#include <pthread.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -19,6 +19,34 @@ struct pollfd;
 struct thread_map;
 struct perf_cpu_map;
 struct record_opts;
+
+/*
+ * State machine of bkw_mmap_state:
+ *
+ *                     .________________(forbid)_____________.
+ *                     |                                     V
+ * NOTREADY --(0)--> RUNNING --(1)--> DATA_PENDING --(2)--> EMPTY
+ *                     ^  ^              |   ^               |
+ *                     |  |__(forbid)____/   |___(forbid)___/|
+ *                     |                                     |
+ *                      \_________________(3)_______________/
+ *
+ * NOTREADY     : Backward ring buffers are not ready
+ * RUNNING      : Backward ring buffers are recording
+ * DATA_PENDING : We are required to collect data from backward ring buffers
+ * EMPTY        : We have collected data from backward ring buffers.
+ *
+ * (0): Setup backward ring buffer
+ * (1): Pause ring buffers for reading
+ * (2): Read from ring buffers
+ * (3): Resume ring buffers for recording
+ */
+enum bkw_mmap_state {
+	BKW_MMAP_NOTREADY,
+	BKW_MMAP_RUNNING,
+	BKW_MMAP_DATA_PENDING,
+	BKW_MMAP_EMPTY,
+};
 
 #define PERF_EVLIST__HLIST_BITS 8
 #define PERF_EVLIST__HLIST_SIZE (1 << PERF_EVLIST__HLIST_BITS)

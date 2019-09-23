@@ -24,6 +24,7 @@
 #include "symbol.h"
 #include "event.h"
 #include "record.h"
+#include "util/mmap.h"
 #include "util/synthetic-events.h"
 #include "thread.h"
 

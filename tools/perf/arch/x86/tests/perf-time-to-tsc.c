@@ -17,6 +17,7 @@
 #include "thread_map.h"
 #include "record.h"
 #include "tsc.h"
+#include "util/mmap.h"
 #include "tests/tests.h"
 
 #include "arch-tests.h"

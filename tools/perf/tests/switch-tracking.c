@@ -16,6 +16,7 @@
 #include "thread_map.h"
 #include "record.h"
 #include "tests.h"
+#include "util/mmap.h"
 
 static int spin_sleep(void)
 {

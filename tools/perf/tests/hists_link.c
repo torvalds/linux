@@ -8,6 +8,7 @@
 #include "machine.h"
 #include "parse-events.h"
 #include "hists_common.h"
+#include "util/mmap.h"
 #include <errno.h>
 #include <linux/kernel.h>
 

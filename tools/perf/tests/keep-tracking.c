@@ -13,6 +13,7 @@
 #include "record.h"
 #include "thread_map.h"
 #include "tests.h"
+#include "util/mmap.h"
 
 #define CHECK__(x) {				\
 	while ((x) < 0) {			\

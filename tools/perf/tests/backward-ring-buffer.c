@@ -10,6 +10,7 @@
 #include "tests.h"
 #include "debug.h"
 #include "parse-events.h"
+#include "util/mmap.h"
 #include <errno.h>
 #include <linux/string.h>
 
