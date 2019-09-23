@@ -154,18 +154,23 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
 	return handle;
 }
 
-static inline void __set_page_owner_handle(struct page_ext *page_ext,
-	depot_stack_handle_t handle, unsigned int order, gfp_t gfp_mask)
+static inline void __set_page_owner_handle(struct page *page,
+	struct page_ext *page_ext, depot_stack_handle_t handle,
+	unsigned int order, gfp_t gfp_mask)
 {
 	struct page_owner *page_owner;
+	int i;
 
-	page_owner = get_page_owner(page_ext);
-	page_owner->handle = handle;
-	page_owner->order = order;
-	page_owner->gfp_mask = gfp_mask;
-	page_owner->last_migrate_reason = -1;
+	for (i = 0; i < (1 << order); i++) {
+		page_owner = get_page_owner(page_ext);
+		page_owner->handle = handle;
+		page_owner->order = order;
+		page_owner->gfp_mask = gfp_mask;
+		page_owner->last_migrate_reason = -1;
+		__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
 
-	__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
+		page_ext = lookup_page_ext(page + i);
+	}
 }
 
 noinline void __set_page_owner(struct page *page, unsigned int order,
@@ -178,7 +183,7 @@ noinline void __set_page_owner(struct page *page, unsigned int order,
 		return;
 
 	handle = save_stack(gfp_mask);
-	__set_page_owner_handle(page_ext, handle, order, gfp_mask);
+	__set_page_owner_handle(page, page_ext, handle, order, gfp_mask);
 }
 
 void __set_page_owner_migrate_reason(struct page *page, int reason)
@@ -204,8 +209,11 @@ void __split_page_owner(struct page *page, unsigned int order)
 
 	page_owner = get_page_owner(page_ext);
 	page_owner->order = 0;
-	for (i = 1; i < (1 << order); i++)
-		__copy_page_owner(page, page + i);
+	for (i = 1; i < (1 << order); i++) {
+		page_ext = lookup_page_ext(page + i);
+		page_owner = get_page_owner(page_ext);
+		page_owner->order = 0;
+	}
 }
 
 void __copy_page_owner(struct page *oldpage, struct page *newpage)
@@ -484,6 +492,13 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		page_owner = get_page_owner(page_ext);
 
 		/*
+		 * Don't print "tail" pages of high-order allocations as that
+		 * would inflate the stats.
+		 */
+		if (!IS_ALIGNED(pfn, 1 << page_owner->order))
+			continue;
+
+		/*
 		 * Access to page_ext->handle isn't synchronous so we should
 		 * be careful to access it.
 		 */
@@ -562,7 +577,8 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
 				continue;
 
 			/* Found early allocated page */
-			__set_page_owner_handle(page_ext, early_handle, 0, 0);
+			__set_page_owner_handle(page, page_ext, early_handle,
+						0, 0);
 			count++;
 		}
 		cond_resched();
