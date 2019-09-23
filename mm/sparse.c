@@ -896,9 +896,6 @@ static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
 {
 	int i;
 
-	if (!memmap)
-		return;
-
 	/*
 	 * A further optimization is to have per section refcounted
 	 * num_poisoned_pages.  But that would need more space per memmap, so
