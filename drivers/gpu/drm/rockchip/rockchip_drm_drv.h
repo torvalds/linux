@@ -185,9 +185,18 @@ int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 				 const struct rockchip_crtc_funcs *crtc_funcs);
 void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc);
 int rockchip_drm_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout);
+#if IS_ENABLED(CONFIG_DRM_ROCKCHIP)
 int rockchip_drm_crtc_send_mcu_cmd(struct drm_device *drm_dev,
 				   struct device_node *np_crtc,
 				   u32 type, u32 value);
+#else
+static inline int rockchip_drm_crtc_send_mcu_cmd(struct drm_device *drm_dev,
+						 struct device_node *np_crtc,
+						 u32 type, u32 value)
+{
+	return 0;
+}
+#endif
 
 extern struct platform_driver cdn_dp_driver;
 extern struct platform_driver dw_hdmi_rockchip_pltfm_driver;
