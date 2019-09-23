@@ -23,7 +23,7 @@
 void drm_gem_ttm_print_info(struct drm_printer *p, unsigned int indent,
 			    const struct drm_gem_object *gem)
 {
-	static const char const *plname[] = {
+	static const char * const plname[] = {
 		[ TTM_PL_SYSTEM ] = "system",
 		[ TTM_PL_TT     ] = "tt",
 		[ TTM_PL_VRAM   ] = "vram",
@@ -40,7 +40,7 @@ void drm_gem_ttm_print_info(struct drm_printer *p, unsigned int indent,
 	const struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
 
 	drm_printf_indent(p, indent, "placement=");
-	drm_print_bits(p, bo->mem.placement, plname, 0, ARRAY_SIZE(plname));
+	drm_print_bits(p, bo->mem.placement, plname, ARRAY_SIZE(plname));
 	drm_printf(p, "\n");
 
 	if (bo->mem.bus.is_iomem) {
