@@ -2586,7 +2586,6 @@ static bool in_reclaim_compaction(struct scan_control *sc)
  */
 static inline bool should_continue_reclaim(struct pglist_data *pgdat,
 					unsigned long nr_reclaimed,
-					unsigned long nr_scanned,
 					struct scan_control *sc)
 {
 	unsigned long pages_for_compaction;
@@ -2597,28 +2596,18 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
 	if (!in_reclaim_compaction(sc))
 		return false;
 
-	/* Consider stopping depending on scan and reclaim activity */
-	if (sc->gfp_mask & __GFP_RETRY_MAYFAIL) {
-		/*
-		 * For __GFP_RETRY_MAYFAIL allocations, stop reclaiming if the
-		 * full LRU list has been scanned and we are still failing
-		 * to reclaim pages. This full LRU scan is potentially
-		 * expensive but a __GFP_RETRY_MAYFAIL caller really wants to succeed
-		 */
-		if (!nr_reclaimed && !nr_scanned)
-			return false;
-	} else {
-		/*
-		 * For non-__GFP_RETRY_MAYFAIL allocations which can presumably
-		 * fail without consequence, stop if we failed to reclaim
-		 * any pages from the last SWAP_CLUSTER_MAX number of
-		 * pages that were scanned. This will return to the
-		 * caller faster at the risk reclaim/compaction and
-		 * the resulting allocation attempt fails
-		 */
-		if (!nr_reclaimed)
-			return false;
-	}
+	/*
+	 * Stop if we failed to reclaim any pages from the last SWAP_CLUSTER_MAX
+	 * number of pages that were scanned. This will return to the caller
+	 * with the risk reclaim/compaction and the resulting allocation attempt
+	 * fails. In the past we have tried harder for __GFP_RETRY_MAYFAIL
+	 * allocations through requiring that the full LRU list has been scanned
+	 * first, by assuming that zero delta of sc->nr_scanned means full LRU
+	 * scan, but that approximation was wrong, and there were corner cases
+	 * where always a non-zero amount of pages were scanned.
+	 */
+	if (!nr_reclaimed)
+		return false;
 
 	/* If compaction would go ahead or the allocation would succeed, stop */
 	for (z = 0; z <= sc->reclaim_idx; z++) {
@@ -2645,11 +2634,7 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
 	if (get_nr_swap_pages() > 0)
 		inactive_lru_pages += node_page_state(pgdat, NR_INACTIVE_ANON);
 
-	return inactive_lru_pages > pages_for_compaction &&
-		/*
-		 * avoid dryrun with plenty of inactive pages
-		 */
-		nr_scanned && nr_reclaimed;
+	return inactive_lru_pages > pages_for_compaction;
 }
 
 static bool pgdat_memcg_congested(pg_data_t *pgdat, struct mem_cgroup *memcg)
@@ -2794,7 +2779,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
 			wait_iff_congested(BLK_RW_ASYNC, HZ/10);
 
 	} while (should_continue_reclaim(pgdat, sc->nr_reclaimed - nr_reclaimed,
-					 sc->nr_scanned - nr_scanned, sc));
+					 sc));
 
 	/*
 	 * Kswapd gives up on balancing particular nodes after too
