@@ -364,6 +364,34 @@ static int renoir_unforce_dpm_levels(struct smu_context *smu) {
 	return ret;
 }
 
+static int renoir_get_workload_type(struct smu_context *smu, uint32_t profile)
+{
+
+	uint32_t  pplib_workload = 0;
+
+	switch (profile) {
+	case PP_SMC_POWER_PROFILE_FULLSCREEN3D:
+		pplib_workload = WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_CUSTOM:
+		pplib_workload = WORKLOAD_PPLIB_COUNT;
+		break;
+	case PP_SMC_POWER_PROFILE_VIDEO:
+		pplib_workload = WORKLOAD_PPLIB_VIDEO_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_VR:
+		pplib_workload = WORKLOAD_PPLIB_VR_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_COMPUTE:
+		pplib_workload = WORKLOAD_PPLIB_COMPUTE_BIT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return pplib_workload;
+}
+
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_msg_index = renoir_get_smu_msg_index,
 	.get_smu_table_index = renoir_get_smu_table_index,
@@ -375,6 +403,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.dpm_set_uvd_enable = renoir_dpm_set_uvd_enable,
 	.force_dpm_limit_value = renoir_force_dpm_limit_value,
 	.unforce_dpm_levels = renoir_unforce_dpm_levels,
+	.get_workload_type = renoir_get_workload_type,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)
