@@ -3181,7 +3181,7 @@ SMB2_get_srv_num(const unsigned int xid, struct cifs_tcon *tcon,
  * See MS-SMB2 2.2.35 and 2.2.36
  */
 
-int
+static int
 SMB2_notify_init(const unsigned int xid, struct smb_rqst *rqst,
 		struct cifs_tcon *tcon, u64 persistent_fid, u64 volatile_fid,
 		u32 completion_filter, bool watch_tree)
