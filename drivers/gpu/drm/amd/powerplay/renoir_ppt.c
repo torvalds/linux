@@ -304,6 +304,66 @@ static int renoir_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 	return ret;
 }
 
+static int renoir_force_dpm_limit_value(struct smu_context *smu, bool highest)
+{
+	int ret = 0, i = 0;
+	uint32_t min_freq, max_freq, force_freq;
+	enum smu_clk_type clk_type;
+
+	enum smu_clk_type clks[] = {
+		SMU_GFXCLK,
+		SMU_MCLK,
+		SMU_SOCCLK,
+	};
+
+	for (i = 0; i < ARRAY_SIZE(clks); i++) {
+		clk_type = clks[i];
+		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq);
+		if (ret)
+			return ret;
+
+		force_freq = highest ? max_freq : min_freq;
+		ret = smu_set_soft_freq_range(smu, clk_type, force_freq, force_freq);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static int renoir_unforce_dpm_levels(struct smu_context *smu) {
+
+	int ret = 0, i = 0;
+	uint32_t min_freq, max_freq;
+	enum smu_clk_type clk_type;
+
+	struct clk_feature_map {
+		enum smu_clk_type clk_type;
+		uint32_t	feature;
+	} clk_feature_map[] = {
+		{SMU_GFXCLK, SMU_FEATURE_DPM_GFXCLK_BIT},
+		{SMU_MCLK,   SMU_FEATURE_DPM_UCLK_BIT},
+		{SMU_SOCCLK, SMU_FEATURE_DPM_SOCCLK_BIT},
+	};
+
+	for (i = 0; i < ARRAY_SIZE(clk_feature_map); i++) {
+		if (!smu_feature_is_enabled(smu, clk_feature_map[i].feature))
+		    continue;
+
+		clk_type = clk_feature_map[i].clk_type;
+
+		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq);
+		if (ret)
+			return ret;
+
+		ret = smu_set_soft_freq_range(smu, clk_type, min_freq, max_freq);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_msg_index = renoir_get_smu_msg_index,
 	.get_smu_table_index = renoir_get_smu_table_index,
@@ -313,6 +373,8 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.print_clk_levels = renoir_print_clk_levels,
 	.get_current_power_state = renoir_get_current_power_state,
 	.dpm_set_uvd_enable = renoir_dpm_set_uvd_enable,
+	.force_dpm_limit_value = renoir_force_dpm_limit_value,
+	.unforce_dpm_levels = renoir_unforce_dpm_levels,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)
