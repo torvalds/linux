@@ -232,8 +232,8 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
  *                          ocfs2_journal_access_*() unless you intend to
  *                          manage the checksum by hand.
  *  ocfs2_journal_dirty    - Mark a journalled buffer as having dirty data.
- *  ocfs2_jbd2_file_inode  - Mark an inode so that its data goes out before
- *                           the current handle commits.
+ *  ocfs2_jbd2_inode_add_write  - Mark an inode with range so that its data goes
+ *                                out before the current handle commits.
  */
 
 /* You must always start_trans with a number of buffs > 0, but it's
@@ -603,9 +603,12 @@ static inline int ocfs2_calc_tree_trunc_credits(struct super_block *sb,
 	return credits;
 }
 
-static inline int ocfs2_jbd2_file_inode(handle_t *handle, struct inode *inode)
+static inline int ocfs2_jbd2_inode_add_write(handle_t *handle, struct inode *inode,
+					     loff_t start_byte, loff_t length)
 {
-	return jbd2_journal_inode_add_write(handle, &OCFS2_I(inode)->ip_jinode);
+	return jbd2_journal_inode_ranged_write(handle,
+					       &OCFS2_I(inode)->ip_jinode,
+					       start_byte, length);
 }
 
 static inline int ocfs2_begin_ordered_truncate(struct inode *inode,
