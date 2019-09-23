@@ -380,6 +380,9 @@ failed:
 	return ret;
 }
 
+static int smu_v12_0_mode2_reset(struct smu_context *smu){
+	return smu_v12_0_send_msg_with_param(smu, SMU_MSG_GfxDeviceDriverReset, SMU_RESET_MODE_2);
+}
 static const struct smu_funcs smu_v12_0_funcs = {
 	.check_fw_status = smu_v12_0_check_fw_status,
 	.check_fw_version = smu_v12_0_check_fw_version,
@@ -394,6 +397,7 @@ static const struct smu_funcs smu_v12_0_funcs = {
 	.fini_smc_tables = smu_v12_0_fini_smc_tables,
 	.populate_smc_tables = smu_v12_0_populate_smc_tables,
 	.get_dpm_ultimate_freq = smu_v12_0_get_dpm_ultimate_freq,
+	.mode2_reset = smu_v12_0_mode2_reset,
 };
 
 void smu_v12_0_set_smu_funcs(struct smu_context *smu)

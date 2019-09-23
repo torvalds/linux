@@ -321,6 +321,13 @@ struct mclock_latency_table {
 	struct mclk_latency_entries  entries[MAX_REGULAR_DPM_NUM];
 };
 
+enum smu_reset_mode
+{
+    SMU_RESET_MODE_0,
+    SMU_RESET_MODE_1,
+    SMU_RESET_MODE_2,
+};
+
 enum smu_baco_state
 {
 	SMU_BACO_STATE_ENTER = 0,
@@ -537,6 +544,7 @@ struct smu_funcs
 	enum smu_baco_state (*baco_get_state)(struct smu_context *smu);
 	int (*baco_set_state)(struct smu_context *smu, enum smu_baco_state state);
 	int (*baco_reset)(struct smu_context *smu);
+	int (*mode2_reset)(struct smu_context *smu);
 	int (*get_dpm_ultimate_freq)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t *min, uint32_t *max);
 };
 
@@ -760,6 +768,8 @@ struct smu_funcs
 	((smu)->funcs->baco_get_state? (smu)->funcs->baco_get_state((smu), (state)) : 0)
 #define smu_baco_reset(smu) \
 	((smu)->funcs->baco_reset? (smu)->funcs->baco_reset((smu)) : 0)
+#define smu_mode2_reset(smu) \
+	((smu)->funcs->mode2_reset? (smu)->funcs->mode2_reset((smu)) : 0)
 #define smu_asic_set_performance_level(smu, level) \
 	((smu)->ppt_funcs->set_performance_level? (smu)->ppt_funcs->set_performance_level((smu), (level)) : -EINVAL);
 #define smu_dump_pptable(smu) \
