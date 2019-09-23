@@ -1298,6 +1298,51 @@ static void io_async_list_note(int rw, struct io_kiocb *req, size_t len)
 	}
 }
 
+/*
+ * For files that don't have ->read_iter() and ->write_iter(), handle them
+ * by looping over ->read() or ->write() manually.
+ */
+static ssize_t loop_rw_iter(int rw, struct file *file, struct kiocb *kiocb,
+			   struct iov_iter *iter)
+{
+	ssize_t ret = 0;
+
+	/*
+	 * Don't support polled IO through this interface, and we can't
+	 * support non-blocking either. For the latter, this just causes
+	 * the kiocb to be handled from an async context.
+	 */
+	if (kiocb->ki_flags & IOCB_HIPRI)
+		return -EOPNOTSUPP;
+	if (kiocb->ki_flags & IOCB_NOWAIT)
+		return -EAGAIN;
+
+	while (iov_iter_count(iter)) {
+		struct iovec iovec = iov_iter_iovec(iter);
+		ssize_t nr;
+
+		if (rw == READ) {
+			nr = file->f_op->read(file, iovec.iov_base,
+					      iovec.iov_len, &kiocb->ki_pos);
+		} else {
+			nr = file->f_op->write(file, iovec.iov_base,
+					       iovec.iov_len, &kiocb->ki_pos);
+		}
+
+		if (nr < 0) {
+			if (!ret)
+				ret = nr;
+			break;
+		}
+		ret += nr;
+		if (nr != iovec.iov_len)
+			break;
+		iov_iter_advance(iter, nr);
+	}
+
+	return ret;
+}
+
 static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
 		   bool force_nonblock)
 {
@@ -1315,8 +1360,6 @@ static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
 
 	if (unlikely(!(file->f_mode & FMODE_READ)))
 		return -EBADF;
-	if (unlikely(!file->f_op->read_iter))
-		return -EINVAL;
 
 	ret = io_import_iovec(req->ctx, READ, s, &iovec, &iter);
 	if (ret < 0)
@@ -1331,7 +1374,11 @@ static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
 	if (!ret) {
 		ssize_t ret2;
 
-		ret2 = call_read_iter(file, kiocb, &iter);
+		if (file->f_op->read_iter)
+			ret2 = call_read_iter(file, kiocb, &iter);
+		else
+			ret2 = loop_rw_iter(READ, file, kiocb, &iter);
+
 		/*
 		 * In case of a short read, punt to async. This can happen
 		 * if we have data partially cached. Alternatively we can
@@ -1376,8 +1423,6 @@ static int io_write(struct io_kiocb *req, const struct sqe_submit *s,
 	file = kiocb->ki_filp;
 	if (unlikely(!(file->f_mode & FMODE_WRITE)))
 		return -EBADF;
-	if (unlikely(!file->f_op->write_iter))
-		return -EINVAL;
 
 	ret = io_import_iovec(req->ctx, WRITE, s, &iovec, &iter);
 	if (ret < 0)
@@ -1415,7 +1460,10 @@ static int io_write(struct io_kiocb *req, const struct sqe_submit *s,
 		}
 		kiocb->ki_flags |= IOCB_WRITE;
 
-		ret2 = call_write_iter(file, kiocb, &iter);
+		if (file->f_op->write_iter)
+			ret2 = call_write_iter(file, kiocb, &iter);
+		else
+			ret2 = loop_rw_iter(WRITE, file, kiocb, &iter);
 		if (!force_nonblock || ret2 != -EAGAIN) {
 			io_rw_done(kiocb, ret2);
 		} else {
