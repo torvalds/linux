@@ -2130,7 +2130,6 @@ static int ocfs2_prepare_inode_for_write(struct file *file,
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = d_inode(dentry);
 	struct buffer_head *di_bh = NULL;
-	loff_t end;
 
 	/*
 	 * We start with a read level meta lock and only jump to an ex
@@ -2193,8 +2192,6 @@ static int ocfs2_prepare_inode_for_write(struct file *file,
 				goto out_unlock;
 			}
 		}
-
-		end = pos + count;
 
 		ret = ocfs2_check_range_for_refcount(inode, pos, count);
 		if (ret == 1) {
