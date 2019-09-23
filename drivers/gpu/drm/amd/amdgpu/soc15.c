@@ -763,7 +763,8 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &vcn_v2_5_ip_block);
+		if (unlikely(adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT))
+			amdgpu_device_ip_block_add(adev, &vcn_v2_5_ip_block);
 		break;
 	case CHIP_RENOIR:
 		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
