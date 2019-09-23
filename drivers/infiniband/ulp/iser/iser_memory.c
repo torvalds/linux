@@ -170,7 +170,7 @@ int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 	dev = iser_task->iser_conn->ib_conn.device->ib_device;
 
 	data->dma_nents = ib_dma_map_sg(dev, data->sg, data->size, dma_dir);
-	if (data->dma_nents == 0) {
+	if (unlikely(data->dma_nents == 0)) {
 		iser_err("dma_map_sg failed!!!\n");
 		return -EINVAL;
 	}

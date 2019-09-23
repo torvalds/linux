@@ -1019,7 +1019,7 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
 
 	ib_conn->post_recv_buf_count += count;
 	ib_ret = ib_post_recv(ib_conn->qp, ib_conn->rx_wr, NULL);
-	if (ib_ret) {
+	if (unlikely(ib_ret)) {
 		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
 		ib_conn->post_recv_buf_count -= count;
 	} else
@@ -1060,7 +1060,7 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 		first_wr = wr;
 
 	ib_ret = ib_post_send(ib_conn->qp, first_wr, NULL);
-	if (ib_ret)
+	if (unlikely(ib_ret))
 		iser_err("ib_post_send failed, ret:%d opcode:%d\n",
 			 ib_ret, wr->opcode);
 
