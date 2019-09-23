@@ -539,17 +539,6 @@ static void gmc_v10_0_vram_gtt_location(struct amdgpu_device *adev,
  */
 static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
 {
-	int chansize, numchan;
-
-	if (!amdgpu_emu_mode)
-		adev->gmc.vram_width = amdgpu_atomfirmware_get_vram_width(adev);
-	else {
-		/* hard code vram_width for emulation */
-		chansize = 128;
-		numchan = 1;
-		adev->gmc.vram_width = numchan * chansize;
-	}
-
 	/* Could aper size report 0 ? */
 	adev->gmc.aper_base = pci_resource_start(adev->pdev, 0);
 	adev->gmc.aper_size = pci_resource_len(adev->pdev, 0);
@@ -635,7 +624,7 @@ static unsigned gmc_v10_0_get_vbios_fb_size(struct amdgpu_device *adev)
 
 static int gmc_v10_0_sw_init(void *handle)
 {
-	int r;
+	int r, vram_width = 0, vram_type = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gfxhub_v2_0_init(adev);
@@ -643,7 +632,13 @@ static int gmc_v10_0_sw_init(void *handle)
 
 	spin_lock_init(&adev->gmc.invalidate_lock);
 
-	adev->gmc.vram_type = amdgpu_atomfirmware_get_vram_type(adev);
+	r = amdgpu_atomfirmware_get_vram_info(adev, &vram_width, &vram_type);
+	if (!amdgpu_emu_mode)
+		adev->gmc.vram_width = vram_width;
+	else
+		adev->gmc.vram_width = 1 * 128; /* numchan * chansize */
+
+	adev->gmc.vram_type = vram_type;
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:

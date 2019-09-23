@@ -169,9 +169,8 @@ static int convert_atom_mem_type_to_vram_type(struct amdgpu_device *adev,
 	return vram_type;
 }
 
-static int
-amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
-				  int *vram_width, int *vram_type)
+int amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
+				      int *vram_width, int *vram_type)
 {
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
 	int index, i = 0;
@@ -184,7 +183,6 @@ amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 	u32 mem_channel_number;
 	u32 mem_channel_width;
 	u32 module_id;
-
 
 	if (adev->flags & AMD_IS_APU)
 		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
@@ -259,34 +257,6 @@ amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 	}
 
 	return 0;
-}
-
-/*
- * Return vram width from integrated system info table, if available,
- * or 0 if not.
- */
-int amdgpu_atomfirmware_get_vram_width(struct amdgpu_device *adev)
-{
-	int vram_width = 0, vram_type = 0;
-	int r = amdgpu_atomfirmware_get_vram_info(adev, &vram_width, &vram_type);
-	if (r)
-		return 0;
-
-	return vram_width;
-}
-
-/*
- * Return vram type from either integrated system info table
- * or umc info table, if available, or 0 (TYPE_UNKNOWN) if not
- */
-int amdgpu_atomfirmware_get_vram_type(struct amdgpu_device *adev)
-{
-	int vram_width = 0, vram_type = 0;
-	int r = amdgpu_atomfirmware_get_vram_info(adev, &vram_width, &vram_type);
-	if (r)
-		return 0;
-
-	return vram_type;
 }
 
 /*
