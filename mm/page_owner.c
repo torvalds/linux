@@ -24,6 +24,9 @@ struct page_owner {
 	short last_migrate_reason;
 	gfp_t gfp_mask;
 	depot_stack_handle_t handle;
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	depot_stack_handle_t free_handle;
+#endif
 };
 
 static bool page_owner_disabled = true;
@@ -102,19 +105,6 @@ static inline struct page_owner *get_page_owner(struct page_ext *page_ext)
 	return (void *)page_ext + page_owner_ops.offset;
 }
 
-void __reset_page_owner(struct page *page, unsigned int order)
-{
-	int i;
-	struct page_ext *page_ext;
-
-	for (i = 0; i < (1 << order); i++) {
-		page_ext = lookup_page_ext(page + i);
-		if (unlikely(!page_ext))
-			continue;
-		__clear_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags);
-	}
-}
-
 static inline bool check_recursive_alloc(unsigned long *entries,
 					 unsigned int nr_entries,
 					 unsigned long ip)
@@ -152,6 +142,32 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
 		handle = failure_handle;
 
 	return handle;
+}
+
+void __reset_page_owner(struct page *page, unsigned int order)
+{
+	int i;
+	struct page_ext *page_ext;
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	depot_stack_handle_t handle = 0;
+	struct page_owner *page_owner;
+
+	if (debug_pagealloc_enabled())
+		handle = save_stack(GFP_NOWAIT | __GFP_NOWARN);
+#endif
+
+	for (i = 0; i < (1 << order); i++) {
+		page_ext = lookup_page_ext(page + i);
+		if (unlikely(!page_ext))
+			continue;
+		__clear_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags);
+#ifdef CONFIG_DEBUG_PAGEALLOC
+		if (debug_pagealloc_enabled()) {
+			page_owner = get_page_owner(page_ext);
+			page_owner->free_handle = handle;
+		}
+#endif
+	}
 }
 
 static inline void __set_page_owner_handle(struct page *page,
@@ -434,6 +450,17 @@ void __dump_page_owner(struct page *page)
 		nr_entries = stack_depot_fetch(handle, &entries);
 		stack_trace_print(entries, nr_entries, 0);
 	}
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	handle = READ_ONCE(page_owner->free_handle);
+	if (!handle) {
+		pr_alert("page_owner free stack trace missing\n");
+	} else {
+		nr_entries = stack_depot_fetch(handle, &entries);
+		pr_alert("page last free stack trace:\n");
+		stack_trace_print(entries, nr_entries, 0);
+	}
+#endif
 
 	if (page_owner->last_migrate_reason != -1)
 		pr_alert("page has been migrated, last migrate reason: %s\n",
