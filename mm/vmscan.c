@@ -1149,7 +1149,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 
 		VM_BUG_ON_PAGE(PageActive(page), page);
 
-		nr_pages = 1 << compound_order(page);
+		nr_pages = compound_nr(page);
 
 		/* Account the number of base pages even though THP */
 		sc->nr_scanned += nr_pages;
@@ -1705,7 +1705,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 
 		VM_BUG_ON_PAGE(!PageLRU(page), page);
 
-		nr_pages = 1 << compound_order(page);
+		nr_pages = compound_nr(page);
 		total_scan += nr_pages;
 
 		if (page_zonenum(page) > sc->reclaim_idx) {

@@ -1460,7 +1460,7 @@ check_again:
 		 * gup may start from a tail page. Advance step by the left
 		 * part.
 		 */
-		step = (1 << compound_order(head)) - (pages[i] - head);
+		step = compound_nr(head) - (pages[i] - head);
 		/*
 		 * If we get a page from the CMA zone, since we are going to
 		 * be pinning these entries, we might as well move them out

@@ -336,7 +336,7 @@ void kasan_poison_slab(struct page *page)
 {
 	unsigned long i;
 
-	for (i = 0; i < (1 << compound_order(page)); i++)
+	for (i = 0; i < compound_nr(page); i++)
 		page_kasan_tag_reset(page + i);
 	kasan_poison_shadow(page_address(page), page_size(page),
 			KASAN_KMALLOC_REDZONE);
