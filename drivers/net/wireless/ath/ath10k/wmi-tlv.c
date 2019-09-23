@@ -1207,6 +1207,8 @@ static int ath10k_wmi_tlv_op_pull_svc_rdy_ev(struct ath10k *ar,
 	arg->phy_capab = ev->phy_capability;
 	arg->num_rf_chains = ev->num_rf_chains;
 	arg->eeprom_rd = reg->eeprom_rd;
+	arg->low_2ghz_chan = reg->low_2ghz_chan;
+	arg->high_2ghz_chan = reg->high_2ghz_chan;
 	arg->low_5ghz_chan = reg->low_5ghz_chan;
 	arg->high_5ghz_chan = reg->high_5ghz_chan;
 	arg->num_mem_reqs = ev->num_mem_reqs;

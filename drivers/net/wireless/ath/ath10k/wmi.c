@@ -5362,6 +5362,8 @@ ath10k_wmi_main_op_pull_svc_rdy_ev(struct ath10k *ar, struct sk_buff *skb,
 	arg->phy_capab = ev->phy_capability;
 	arg->num_rf_chains = ev->num_rf_chains;
 	arg->eeprom_rd = ev->hal_reg_capabilities.eeprom_rd;
+	arg->low_2ghz_chan = ev->hal_reg_capabilities.low_2ghz_chan;
+	arg->high_2ghz_chan = ev->hal_reg_capabilities.high_2ghz_chan;
 	arg->low_5ghz_chan = ev->hal_reg_capabilities.low_5ghz_chan;
 	arg->high_5ghz_chan = ev->hal_reg_capabilities.high_5ghz_chan;
 	arg->num_mem_reqs = ev->num_mem_reqs;
@@ -5400,6 +5402,8 @@ ath10k_wmi_10x_op_pull_svc_rdy_ev(struct ath10k *ar, struct sk_buff *skb,
 	arg->phy_capab = ev->phy_capability;
 	arg->num_rf_chains = ev->num_rf_chains;
 	arg->eeprom_rd = ev->hal_reg_capabilities.eeprom_rd;
+	arg->low_2ghz_chan = ev->hal_reg_capabilities.low_2ghz_chan;
+	arg->high_2ghz_chan = ev->hal_reg_capabilities.high_2ghz_chan;
 	arg->low_5ghz_chan = ev->hal_reg_capabilities.low_5ghz_chan;
 	arg->high_5ghz_chan = ev->hal_reg_capabilities.high_5ghz_chan;
 	arg->num_mem_reqs = ev->num_mem_reqs;
@@ -5454,6 +5458,8 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 	ar->phy_capability = __le32_to_cpu(arg.phy_capab);
 	ar->num_rf_chains = __le32_to_cpu(arg.num_rf_chains);
 	ar->hw_eeprom_rd = __le32_to_cpu(arg.eeprom_rd);
+	ar->low_2ghz_chan = __le32_to_cpu(arg.low_2ghz_chan);
+	ar->high_2ghz_chan = __le32_to_cpu(arg.high_2ghz_chan);
 	ar->low_5ghz_chan = __le32_to_cpu(arg.low_5ghz_chan);
 	ar->high_5ghz_chan = __le32_to_cpu(arg.high_5ghz_chan);
 

@@ -967,6 +967,8 @@ struct ath10k {
 	u32 num_rf_chains;
 	u32 max_spatial_stream;
 	/* protected by conf_mutex */
+	u32 low_2ghz_chan;
+	u32 high_2ghz_chan;
 	u32 low_5ghz_chan;
 	u32 high_5ghz_chan;
 	bool ani_enabled;
