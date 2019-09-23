@@ -5650,7 +5650,7 @@ int ath10k_wmi_event_ready(struct ath10k *ar, struct sk_buff *skb)
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
-		   "wmi event ready sw_version %u abi_version %u mac_addr %pM status %d\n",
+		   "wmi event ready sw_version 0x%08x abi_version %u mac_addr %pM status %d\n",
 		   __le32_to_cpu(arg.sw_version),
 		   __le32_to_cpu(arg.abi_version),
 		   arg.mac_addr,
