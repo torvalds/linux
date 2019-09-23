@@ -2383,7 +2383,6 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	GEM_BUG_ON(!i915_vma_is_pinned(ce->state));
 
 	/* Proclaim we have exclusive access to the context image! */
-	GEM_BUG_ON(!intel_context_is_pinned(ce));
 	mutex_acquire(&ce->pin_mutex.dep_map, 2, 0, _THIS_IP_);
 
 	rq = active_request(rq);
@@ -2432,6 +2431,7 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 * future request will be after userspace has had the opportunity
 	 * to recreate its own state.
 	 */
+	GEM_BUG_ON(!intel_context_is_pinned(ce));
 	regs = ce->lrc_reg_state;
 	if (engine->pinned_default_state) {
 		memcpy(regs, /* skip restoring the vanilla PPHWSP */
