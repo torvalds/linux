@@ -123,7 +123,7 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 		 * FW we don't want position updates. Newer versions use
 		 * no_stream_position for this purpose.
 		 */
-		if (v->abi_version < SOF_ABI_VER(3, 11, 0))
+		if (v->abi_version < SOF_ABI_VER(3, 10, 0))
 			ipc_params->host_period_bytes = 0;
 		else
 			ipc_params->no_stream_position = 1;
