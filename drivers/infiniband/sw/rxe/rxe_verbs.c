@@ -106,6 +106,10 @@ static int rxe_modify_device(struct ib_device *dev,
 {
 	struct rxe_dev *rxe = to_rdev(dev);
 
+	if (mask & ~(IB_DEVICE_MODIFY_SYS_IMAGE_GUID |
+		     IB_DEVICE_MODIFY_NODE_DESC))
+		return -EOPNOTSUPP;
+
 	if (mask & IB_DEVICE_MODIFY_SYS_IMAGE_GUID)
 		rxe->attr.sys_image_guid = cpu_to_be64(attr->sys_image_guid);
 
