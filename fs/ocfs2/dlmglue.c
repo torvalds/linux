@@ -2508,9 +2508,7 @@ bail:
 			ocfs2_inode_unlock(inode, ex);
 	}
 
-	if (local_bh)
-		brelse(local_bh);
-
+	brelse(local_bh);
 	return status;
 }
 
@@ -2593,8 +2591,7 @@ int ocfs2_inode_lock_atime(struct inode *inode,
 		*level = 1;
 		if (ocfs2_should_update_atime(inode, vfsmnt))
 			ocfs2_update_inode_atime(inode, bh);
-		if (bh)
-			brelse(bh);
+		brelse(bh);
 	} else
 		*level = 0;
 
