@@ -971,7 +971,7 @@ resource_size_t pcibios_align_resource(void *, const struct resource *,
 				resource_size_t,
 				resource_size_t);
 
-/* Weak but can be overriden by arch */
+/* Weak but can be overridden by arch */
 void pci_fixup_cardbus(struct pci_bus *);
 
 /* Generic PCI functions used internally */
@@ -1791,7 +1791,7 @@ static inline int pci_ats_page_aligned(struct pci_dev *dev) { return 0; }
 
 #include <asm/pci.h>
 
-/* These two functions provide almost identical functionality. Depennding
+/* These two functions provide almost identical functionality. Depending
  * on the architecture, one will be implemented as a wrapper around the
  * other (in drivers/pci/mmap.c).
  *
