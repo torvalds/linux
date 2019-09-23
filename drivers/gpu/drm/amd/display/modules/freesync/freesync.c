@@ -234,6 +234,10 @@ static void update_v_total_for_static_ramp(
 			current_duration_in_us) * (stream->timing.pix_clk_100hz / 10)),
 				stream->timing.h_total), 1000);
 
+	/* v_total cannot be less than nominal */
+	if (v_total < stream->timing.v_total)
+		v_total = stream->timing.v_total;
+
 	in_out_vrr->adjust.v_total_min = v_total;
 	in_out_vrr->adjust.v_total_max = v_total;
 }
