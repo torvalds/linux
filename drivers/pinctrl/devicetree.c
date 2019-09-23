@@ -181,21 +181,6 @@ static int dt_remember_dummy_state(struct pinctrl *p, const char *statename)
 	return dt_remember_or_free_map(p, statename, NULL, map, 1);
 }
 
-bool pinctrl_dt_has_hogs(struct pinctrl_dev *pctldev)
-{
-	struct device_node *np;
-	struct property *prop;
-	int size;
-
-	np = pctldev->dev->of_node;
-	if (!np)
-		return false;
-
-	prop = of_find_property(np, "pinctrl-0", &size);
-
-	return prop ? true : false;
-}
-
 int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev)
 {
 	struct device_node *np = p->dev->of_node;
