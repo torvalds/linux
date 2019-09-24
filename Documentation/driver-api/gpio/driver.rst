@@ -493,7 +493,7 @@ available but we try to move away from this:
   gpiochip. It will pass the struct gpio_chip* for the chip to all IRQ
   callbacks, so the callbacks need to embed the gpio_chip in its state
   container and obtain a pointer to the container using container_of().
-  (See Documentation/driver-model/design-patterns.txt)
+  (See Documentation/driver-api/driver-model/design-patterns.rst)
 
 - gpiochip_irqchip_add_nested(): adds a nested cascaded irqchip to a gpiochip,
   as discussed above regarding different types of cascaded irqchips. The

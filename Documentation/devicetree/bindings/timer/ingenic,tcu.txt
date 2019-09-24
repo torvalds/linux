@@ -2,7 +2,7 @@ Ingenic JZ47xx SoCs Timer/Counter Unit devicetree bindings
 ==========================================================
 
 For a description of the TCU hardware and drivers, have a look at
-Documentation/mips/ingenic-tcu.txt.
+Documentation/mips/ingenic-tcu.rst.
 
 Required properties:
 
