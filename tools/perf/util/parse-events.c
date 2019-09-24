@@ -34,6 +34,7 @@
 #include "asm/bug.h"
 #include "util/parse-branch-options.h"
 #include "metricgroup.h"
+#include "util/evsel_config.h"
 #include "util/mmap.h"
 
 #define MAX_NAME_LEN 100

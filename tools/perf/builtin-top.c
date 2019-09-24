@@ -27,6 +27,7 @@
 #include "util/dso.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/evsel_config.h"
 #include "util/event.h"
 #include "util/machine.h"
 #include "util/map.h"

@@ -30,6 +30,7 @@
 #include "counts.h"
 #include "event.h"
 #include "evsel.h"
+#include "util/evsel_config.h"
 #include "util/evsel_fprintf.h"
 #include "evlist.h"
 #include <perf/cpumap.h>
