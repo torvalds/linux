@@ -1673,10 +1673,8 @@ static u32 oa_config_flex_reg(const struct i915_oa_config *oa_config,
  * in the case that the OA unit has been disabled.
  */
 static void
-gen8_update_reg_state_unlocked(struct i915_perf_stream *stream,
-			       struct intel_context *ce,
-			       u32 *reg_state,
-			       const struct i915_oa_config *oa_config)
+gen8_update_reg_state_unlocked(const struct intel_context *ce,
+			       const struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *i915 = ce->engine->i915;
 	u32 ctx_oactxctrl = i915->perf.ctx_oactxctrl_offset;
@@ -1691,21 +1689,19 @@ gen8_update_reg_state_unlocked(struct i915_perf_stream *stream,
 		EU_PERF_CNTL5,
 		EU_PERF_CNTL6,
 	};
+	u32 *reg_state = ce->lrc_reg_state;
 	int i;
 
-	CTX_REG(reg_state, ctx_oactxctrl, GEN8_OACTXCONTROL,
+	reg_state[ctx_oactxctrl + 1] =
 		(stream->period_exponent << GEN8_OA_TIMER_PERIOD_SHIFT) |
 		(stream->periodic ? GEN8_OA_TIMER_ENABLE : 0) |
-		GEN8_OA_COUNTER_RESUME);
+		GEN8_OA_COUNTER_RESUME;
 
-	for (i = 0; i < ARRAY_SIZE(flex_regs); i++) {
-		CTX_REG(reg_state, ctx_flexeu0 + i * 2, flex_regs[i],
-			oa_config_flex_reg(oa_config, flex_regs[i]));
-	}
+	for (i = 0; i < ARRAY_SIZE(flex_regs); i++)
+		reg_state[ctx_flexeu0 + i * 2 + 1] =
+			oa_config_flex_reg(stream->oa_config, flex_regs[i]);
 
-	CTX_REG(reg_state,
-		CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE,
-		intel_sseu_make_rpcs(i915, &ce->sseu));
+	reg_state[CTX_R_PWR_CLK_STATE] = intel_sseu_make_rpcs(i915, &ce->sseu);
 }
 
 struct flex {
@@ -1729,7 +1725,7 @@ gen8_store_flex(struct i915_request *rq,
 	offset = i915_ggtt_offset(ce->state) + LRC_STATE_PN * PAGE_SIZE;
 	do {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
-		*cs++ = offset + (flex->offset + 1) * sizeof(u32);
+		*cs++ = offset + flex->offset * sizeof(u32);
 		*cs++ = 0;
 		*cs++ = flex->value;
 	} while (flex++, --count);
@@ -1863,7 +1859,7 @@ static int gen8_configure_all_contexts(struct i915_perf_stream *stream,
 	struct drm_i915_private *i915 = stream->dev_priv;
 	/* The MMIO offsets for Flex EU registers aren't contiguous */
 	const u32 ctx_flexeu0 = i915->perf.ctx_flexeu0_offset;
-#define ctx_flexeuN(N) (ctx_flexeu0 + 2 * (N))
+#define ctx_flexeuN(N) (ctx_flexeu0 + 2 * (N) + 1)
 	struct flex regs[] = {
 		{
 			GEN8_R_PWR_CLK_STATE,
@@ -1871,7 +1867,7 @@ static int gen8_configure_all_contexts(struct i915_perf_stream *stream,
 		},
 		{
 			GEN8_OACTXCONTROL,
-			i915->perf.ctx_oactxctrl_offset,
+			i915->perf.ctx_oactxctrl_offset + 1,
 			((stream->period_exponent << GEN8_OA_TIMER_PERIOD_SHIFT) |
 			 (stream->periodic ? GEN8_OA_TIMER_ENABLE : 0) |
 			 GEN8_OA_COUNTER_RESUME)
@@ -2299,9 +2295,8 @@ err_config:
 	return ret;
 }
 
-void i915_oa_init_reg_state(struct intel_engine_cs *engine,
-			    struct intel_context *ce,
-			    u32 *regs)
+void i915_oa_init_reg_state(const struct intel_context *ce,
+			    const struct intel_engine_cs *engine)
 {
 	struct i915_perf_stream *stream;
 
@@ -2313,7 +2308,7 @@ void i915_oa_init_reg_state(struct intel_engine_cs *engine,
 
 	stream = engine->i915->perf.exclusive_stream;
 	if (stream)
-		gen8_update_reg_state_unlocked(stream, ce, regs, stream->oa_config);
+		gen8_update_reg_state_unlocked(ce, stream);
 }
 
 /**

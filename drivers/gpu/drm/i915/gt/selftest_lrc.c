@@ -2201,3 +2201,145 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 
 	return i915_live_subtests(tests, i915);
 }
+
+static void hexdump(const void *buf, size_t len)
+{
+	const size_t rowsize = 8 * sizeof(u32);
+	const void *prev = NULL;
+	bool skip = false;
+	size_t pos;
+
+	for (pos = 0; pos < len; pos += rowsize) {
+		char line[128];
+
+		if (prev && !memcmp(prev, buf + pos, rowsize)) {
+			if (!skip) {
+				pr_info("*\n");
+				skip = true;
+			}
+			continue;
+		}
+
+		WARN_ON_ONCE(hex_dump_to_buffer(buf + pos, len - pos,
+						rowsize, sizeof(u32),
+						line, sizeof(line),
+						false) >= sizeof(line));
+		pr_info("[%04zx] %s\n", pos, line);
+
+		prev = buf + pos;
+		skip = false;
+	}
+}
+
+static int live_lrc_layout(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	u32 *mem;
+	int err;
+
+	/*
+	 * Check the registers offsets we use to create the initial reg state
+	 * match the layout saved by HW.
+	 */
+
+	mem = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!mem)
+		return -ENOMEM;
+
+	err = 0;
+	for_each_engine(engine, gt->i915, id) {
+		u32 *hw, *lrc;
+		int dw;
+
+		if (!engine->default_state)
+			continue;
+
+		hw = i915_gem_object_pin_map(engine->default_state,
+					     I915_MAP_WB);
+		if (IS_ERR(hw)) {
+			err = PTR_ERR(hw);
+			break;
+		}
+		hw += LRC_STATE_PN * PAGE_SIZE / sizeof(*hw);
+
+		lrc = memset(mem, 0, PAGE_SIZE);
+		execlists_init_reg_state(lrc,
+					 engine->kernel_context,
+					 engine,
+					 engine->kernel_context->ring,
+					 true);
+
+		dw = 0;
+		do {
+			u32 lri = hw[dw];
+
+			if (lri == 0) {
+				dw++;
+				continue;
+			}
+
+			if ((lri & GENMASK(31, 23)) != MI_INSTR(0x22, 0)) {
+				pr_err("%s: Expected LRI command at dword %d, found %08x\n",
+				       engine->name, dw, lri);
+				err = -EINVAL;
+				break;
+			}
+
+			if (lrc[dw] != lri) {
+				pr_err("%s: LRI command mismatch at dword %d, expected %08x found %08x\n",
+				       engine->name, dw, lri, lrc[dw]);
+				err = -EINVAL;
+				break;
+			}
+
+			lri &= 0x7f;
+			lri++;
+			dw++;
+
+			while (lri) {
+				if (hw[dw] != lrc[dw]) {
+					pr_err("%s: Different registers found at dword %d, expected %x, found %x\n",
+					       engine->name, dw, hw[dw], lrc[dw]);
+					err = -EINVAL;
+					break;
+				}
+
+				/*
+				 * Skip over the actual register value as we
+				 * expect that to differ.
+				 */
+				dw += 2;
+				lri -= 2;
+			}
+		} while ((lrc[dw] & ~BIT(0)) != MI_BATCH_BUFFER_END);
+
+		if (err) {
+			pr_info("%s: HW register image:\n", engine->name);
+			hexdump(hw, PAGE_SIZE);
+
+			pr_info("%s: SW register image:\n", engine->name);
+			hexdump(lrc, PAGE_SIZE);
+		}
+
+		i915_gem_object_unpin_map(engine->default_state);
+		if (err)
+			break;
+	}
+
+	kfree(mem);
+	return err;
+}
+
+int intel_lrc_live_selftests(struct drm_i915_private *i915)
+{
+	static const struct i915_subtest tests[] = {
+		SUBTEST(live_lrc_layout),
+	};
+
+	if (!HAS_LOGICAL_RING_CONTEXTS(i915))
+		return 0;
+
+	return intel_gt_live_subtests(tests, &i915->gt);
+}

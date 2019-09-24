@@ -230,9 +230,10 @@ static int __execlists_context_alloc(struct intel_context *ce,
 				     struct intel_engine_cs *engine);
 
 static void execlists_init_reg_state(u32 *reg_state,
-				     struct intel_context *ce,
-				     struct intel_engine_cs *engine,
-				     struct intel_ring *ring);
+				     const struct intel_context *ce,
+				     const struct intel_engine_cs *engine,
+				     const struct intel_ring *ring,
+				     bool close);
 
 static void mark_eio(struct i915_request *rq)
 {
@@ -471,6 +472,411 @@ lrc_descriptor(struct intel_context *ce, struct intel_engine_cs *engine)
 	return desc;
 }
 
+static u32 *set_offsets(u32 *regs,
+			const u8 *data,
+			const struct intel_engine_cs *engine)
+#define NOP(x) (BIT(7) | (x))
+#define LRI(count, flags) ((flags) << 6 | (count))
+#define POSTED BIT(0)
+#define REG(x) (((x) >> 2) | BUILD_BUG_ON_ZERO(x >= 0x200))
+#define REG16(x) \
+	(((x) >> 9) | BIT(7) | BUILD_BUG_ON_ZERO(x >= 0x10000)), \
+	(((x) >> 2) & 0x7f)
+#define END() 0
+{
+	const u32 base = engine->mmio_base;
+
+	while (*data) {
+		u8 count, flags;
+
+		if (*data & BIT(7)) { /* skip */
+			regs += *data++ & ~BIT(7);
+			continue;
+		}
+
+		count = *data & 0x3f;
+		flags = *data >> 6;
+		data++;
+
+		*regs = MI_LOAD_REGISTER_IMM(count);
+		if (flags & POSTED)
+			*regs |= MI_LRI_FORCE_POSTED;
+		if (INTEL_GEN(engine->i915) >= 11)
+			*regs |= MI_LRI_CS_MMIO;
+		regs++;
+
+		GEM_BUG_ON(!count);
+		do {
+			u32 offset = 0;
+			u8 v;
+
+			do {
+				v = *data++;
+				offset <<= 7;
+				offset |= v & ~BIT(7);
+			} while (v & BIT(7));
+
+			*regs = base + (offset << 2);
+			regs += 2;
+		} while (--count);
+	}
+
+	return regs;
+}
+
+static const u8 gen8_xcs_offsets[] = {
+	NOP(1),
+	LRI(11, 0),
+	REG16(0x244),
+	REG(0x034),
+	REG(0x030),
+	REG(0x038),
+	REG(0x03c),
+	REG(0x168),
+	REG(0x140),
+	REG(0x110),
+	REG(0x11c),
+	REG(0x114),
+	REG(0x118),
+
+	NOP(9),
+	LRI(9, 0),
+	REG16(0x3a8),
+	REG16(0x28c),
+	REG16(0x288),
+	REG16(0x284),
+	REG16(0x280),
+	REG16(0x27c),
+	REG16(0x278),
+	REG16(0x274),
+	REG16(0x270),
+
+	NOP(13),
+	LRI(2, 0),
+	REG16(0x200),
+	REG(0x028),
+
+	END(),
+};
+
+static const u8 gen9_xcs_offsets[] = {
+	NOP(1),
+	LRI(14, POSTED),
+	REG16(0x244),
+	REG(0x034),
+	REG(0x030),
+	REG(0x038),
+	REG(0x03c),
+	REG(0x168),
+	REG(0x140),
+	REG(0x110),
+	REG(0x11c),
+	REG(0x114),
+	REG(0x118),
+	REG(0x1c0),
+	REG(0x1c4),
+	REG(0x1c8),
+
+	NOP(3),
+	LRI(9, POSTED),
+	REG16(0x3a8),
+	REG16(0x28c),
+	REG16(0x288),
+	REG16(0x284),
+	REG16(0x280),
+	REG16(0x27c),
+	REG16(0x278),
+	REG16(0x274),
+	REG16(0x270),
+
+	NOP(13),
+	LRI(1, POSTED),
+	REG16(0x200),
+
+	NOP(13),
+	LRI(44, POSTED),
+	REG(0x028),
+	REG(0x09c),
+	REG(0x0c0),
+	REG(0x178),
+	REG(0x17c),
+	REG16(0x358),
+	REG(0x170),
+	REG(0x150),
+	REG(0x154),
+	REG(0x158),
+	REG16(0x41c),
+	REG16(0x600),
+	REG16(0x604),
+	REG16(0x608),
+	REG16(0x60c),
+	REG16(0x610),
+	REG16(0x614),
+	REG16(0x618),
+	REG16(0x61c),
+	REG16(0x620),
+	REG16(0x624),
+	REG16(0x628),
+	REG16(0x62c),
+	REG16(0x630),
+	REG16(0x634),
+	REG16(0x638),
+	REG16(0x63c),
+	REG16(0x640),
+	REG16(0x644),
+	REG16(0x648),
+	REG16(0x64c),
+	REG16(0x650),
+	REG16(0x654),
+	REG16(0x658),
+	REG16(0x65c),
+	REG16(0x660),
+	REG16(0x664),
+	REG16(0x668),
+	REG16(0x66c),
+	REG16(0x670),
+	REG16(0x674),
+	REG16(0x678),
+	REG16(0x67c),
+	REG(0x068),
+
+	END(),
+};
+
+static const u8 gen12_xcs_offsets[] = {
+	NOP(1),
+	LRI(13, POSTED),
+	REG16(0x244),
+	REG(0x034),
+	REG(0x030),
+	REG(0x038),
+	REG(0x03c),
+	REG(0x168),
+	REG(0x140),
+	REG(0x110),
+	REG(0x1c0),
+	REG(0x1c4),
+	REG(0x1c8),
+	REG(0x180),
+	REG16(0x2b4),
+
+	NOP(5),
+	LRI(9, POSTED),
+	REG16(0x3a8),
+	REG16(0x28c),
+	REG16(0x288),
+	REG16(0x284),
+	REG16(0x280),
+	REG16(0x27c),
+	REG16(0x278),
+	REG16(0x274),
+	REG16(0x270),
+
+	NOP(13),
+	LRI(2, POSTED),
+	REG16(0x200),
+	REG16(0x204),
+
+	NOP(11),
+	LRI(50, POSTED),
+	REG16(0x588),
+	REG16(0x588),
+	REG16(0x588),
+	REG16(0x588),
+	REG16(0x588),
+	REG16(0x588),
+	REG(0x028),
+	REG(0x09c),
+	REG(0x0c0),
+	REG(0x178),
+	REG(0x17c),
+	REG16(0x358),
+	REG(0x170),
+	REG(0x150),
+	REG(0x154),
+	REG(0x158),
+	REG16(0x41c),
+	REG16(0x600),
+	REG16(0x604),
+	REG16(0x608),
+	REG16(0x60c),
+	REG16(0x610),
+	REG16(0x614),
+	REG16(0x618),
+	REG16(0x61c),
+	REG16(0x620),
+	REG16(0x624),
+	REG16(0x628),
+	REG16(0x62c),
+	REG16(0x630),
+	REG16(0x634),
+	REG16(0x638),
+	REG16(0x63c),
+	REG16(0x640),
+	REG16(0x644),
+	REG16(0x648),
+	REG16(0x64c),
+	REG16(0x650),
+	REG16(0x654),
+	REG16(0x658),
+	REG16(0x65c),
+	REG16(0x660),
+	REG16(0x664),
+	REG16(0x668),
+	REG16(0x66c),
+	REG16(0x670),
+	REG16(0x674),
+	REG16(0x678),
+	REG16(0x67c),
+	REG(0x068),
+
+	END(),
+};
+
+static const u8 gen8_rcs_offsets[] = {
+	NOP(1),
+	LRI(14, POSTED),
+	REG16(0x244),
+	REG(0x034),
+	REG(0x030),
+	REG(0x038),
+	REG(0x03c),
+	REG(0x168),
+	REG(0x140),
+	REG(0x110),
+	REG(0x11c),
+	REG(0x114),
+	REG(0x118),
+	REG(0x1c0),
+	REG(0x1c4),
+	REG(0x1c8),
+
+	NOP(3),
+	LRI(9, POSTED),
+	REG16(0x3a8),
+	REG16(0x28c),
+	REG16(0x288),
+	REG16(0x284),
+	REG16(0x280),
+	REG16(0x27c),
+	REG16(0x278),
+	REG16(0x274),
+	REG16(0x270),
+
+	NOP(13),
+	LRI(1, 0),
+	REG(0x0c8),
+
+	END(),
+};
+
+static const u8 gen11_rcs_offsets[] = {
+	NOP(1),
+	LRI(15, POSTED),
+	REG16(0x244),
+	REG(0x034),
+	REG(0x030),
+	REG(0x038),
+	REG(0x03c),
+	REG(0x168),
+	REG(0x140),
+	REG(0x110),
+	REG(0x11c),
+	REG(0x114),
+	REG(0x118),
+	REG(0x1c0),
+	REG(0x1c4),
+	REG(0x1c8),
+	REG(0x180),
+
+	NOP(1),
+	LRI(9, POSTED),
+	REG16(0x3a8),
+	REG16(0x28c),
+	REG16(0x288),
+	REG16(0x284),
+	REG16(0x280),
+	REG16(0x27c),
+	REG16(0x278),
+	REG16(0x274),
+	REG16(0x270),
+
+	LRI(1, POSTED),
+	REG(0x1b0),
+
+	NOP(10),
+	LRI(1, 0),
+	REG(0x0c8),
+
+	END(),
+};
+
+static const u8 gen12_rcs_offsets[] = {
+	NOP(1),
+	LRI(13, POSTED),
+	REG16(0x244),
+	REG(0x034),
+	REG(0x030),
+	REG(0x038),
+	REG(0x03c),
+	REG(0x168),
+	REG(0x140),
+	REG(0x110),
+	REG(0x1c0),
+	REG(0x1c4),
+	REG(0x1c8),
+	REG(0x180),
+	REG16(0x2b4),
+
+	NOP(5),
+	LRI(9, POSTED),
+	REG16(0x3a8),
+	REG16(0x28c),
+	REG16(0x288),
+	REG16(0x284),
+	REG16(0x280),
+	REG16(0x27c),
+	REG16(0x278),
+	REG16(0x274),
+	REG16(0x270),
+
+	LRI(3, POSTED),
+	REG(0x1b0),
+	REG16(0x5a8),
+	REG16(0x5ac),
+
+	NOP(6),
+	LRI(1, 0),
+	REG(0x0c8),
+
+	END(),
+};
+
+#undef END
+#undef REG16
+#undef REG
+#undef LRI
+#undef NOP
+
+static const u8 *reg_offsets(const struct intel_engine_cs *engine)
+{
+	if (engine->class == RENDER_CLASS) {
+		if (INTEL_GEN(engine->i915) >= 12)
+			return gen12_rcs_offsets;
+		else if (INTEL_GEN(engine->i915) >= 11)
+			return gen11_rcs_offsets;
+		else
+			return gen8_rcs_offsets;
+	} else {
+		if (INTEL_GEN(engine->i915) >= 12)
+			return gen12_xcs_offsets;
+		else if (INTEL_GEN(engine->i915) >= 9)
+			return gen9_xcs_offsets;
+		else
+			return gen8_xcs_offsets;
+	}
+}
+
 static void unwind_wa_tail(struct i915_request *rq)
 {
 	rq->tail = intel_ring_wrap(rq->ring, rq->wa_tail - WA_TAIL_BYTES);
@@ -654,7 +1060,7 @@ static u64 execlists_update_context(const struct i915_request *rq)
 	struct intel_context *ce = rq->hw_context;
 	u64 desc;
 
-	ce->lrc_reg_state[CTX_RING_TAIL + 1] =
+	ce->lrc_reg_state[CTX_RING_TAIL] =
 		intel_ring_set_tail(rq->ring, rq->tail);
 
 	/*
@@ -826,54 +1232,7 @@ static bool can_merge_rq(const struct i915_request *prev,
 static void virtual_update_register_offsets(u32 *regs,
 					    struct intel_engine_cs *engine)
 {
-	u32 base = engine->mmio_base;
-
-	/* Refactor so that we only have one place that knows all the offsets! */
-	GEM_WARN_ON(INTEL_GEN(engine->i915) >= 12);
-
-	/* Must match execlists_init_reg_state()! */
-
-	/* Common part */
-	regs[CTX_CONTEXT_CONTROL] =
-		i915_mmio_reg_offset(RING_CONTEXT_CONTROL(base));
-	regs[CTX_RING_HEAD] = i915_mmio_reg_offset(RING_HEAD(base));
-	regs[CTX_RING_TAIL] = i915_mmio_reg_offset(RING_TAIL(base));
-	regs[CTX_RING_BUFFER_START] = i915_mmio_reg_offset(RING_START(base));
-	regs[CTX_RING_BUFFER_CONTROL] = i915_mmio_reg_offset(RING_CTL(base));
-
-	regs[CTX_BB_HEAD_U] = i915_mmio_reg_offset(RING_BBADDR_UDW(base));
-	regs[CTX_BB_HEAD_L] = i915_mmio_reg_offset(RING_BBADDR(base));
-	regs[CTX_BB_STATE] = i915_mmio_reg_offset(RING_BBSTATE(base));
-
-	regs[CTX_SECOND_BB_HEAD_U] =
-		i915_mmio_reg_offset(RING_SBBADDR_UDW(base));
-	regs[CTX_SECOND_BB_HEAD_L] = i915_mmio_reg_offset(RING_SBBADDR(base));
-	regs[CTX_SECOND_BB_STATE] = i915_mmio_reg_offset(RING_SBBSTATE(base));
-
-	/* PPGTT part */
-	regs[CTX_CTX_TIMESTAMP] =
-		i915_mmio_reg_offset(RING_CTX_TIMESTAMP(base));
-
-	regs[CTX_PDP3_UDW] = i915_mmio_reg_offset(GEN8_RING_PDP_UDW(base, 3));
-	regs[CTX_PDP3_LDW] = i915_mmio_reg_offset(GEN8_RING_PDP_LDW(base, 3));
-	regs[CTX_PDP2_UDW] = i915_mmio_reg_offset(GEN8_RING_PDP_UDW(base, 2));
-	regs[CTX_PDP2_LDW] = i915_mmio_reg_offset(GEN8_RING_PDP_LDW(base, 2));
-	regs[CTX_PDP1_UDW] = i915_mmio_reg_offset(GEN8_RING_PDP_UDW(base, 1));
-	regs[CTX_PDP1_LDW] = i915_mmio_reg_offset(GEN8_RING_PDP_LDW(base, 1));
-	regs[CTX_PDP0_UDW] = i915_mmio_reg_offset(GEN8_RING_PDP_UDW(base, 0));
-	regs[CTX_PDP0_LDW] = i915_mmio_reg_offset(GEN8_RING_PDP_LDW(base, 0));
-
-	if (engine->class == RENDER_CLASS) {
-		regs[CTX_RCS_INDIRECT_CTX] =
-			i915_mmio_reg_offset(RING_INDIRECT_CTX(base));
-		regs[CTX_RCS_INDIRECT_CTX_OFFSET] =
-			i915_mmio_reg_offset(RING_INDIRECT_CTX_OFFSET(base));
-		regs[CTX_BB_PER_CTX_PTR] =
-			i915_mmio_reg_offset(RING_BB_PER_CTX_PTR(base));
-
-		regs[CTX_R_PWR_CLK_STATE] =
-			i915_mmio_reg_offset(GEN8_R_PWR_CLK_STATE);
-	}
+	set_offsets(regs, reg_offsets(engine), engine);
 }
 
 static bool virtual_matches(const struct virtual_engine *ve,
@@ -1738,8 +2097,8 @@ static void execlists_context_unpin(struct intel_context *ce)
 }
 
 static void
-__execlists_update_reg_state(struct intel_context *ce,
-			     struct intel_engine_cs *engine)
+__execlists_update_reg_state(const struct intel_context *ce,
+			     const struct intel_engine_cs *engine)
 {
 	struct intel_ring *ring = ce->ring;
 	u32 *regs = ce->lrc_reg_state;
@@ -1747,16 +2106,16 @@ __execlists_update_reg_state(struct intel_context *ce,
 	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->head));
 	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->tail));
 
-	regs[CTX_RING_BUFFER_START + 1] = i915_ggtt_offset(ring->vma);
-	regs[CTX_RING_HEAD + 1] = ring->head;
-	regs[CTX_RING_TAIL + 1] = ring->tail;
+	regs[CTX_RING_BUFFER_START] = i915_ggtt_offset(ring->vma);
+	regs[CTX_RING_HEAD] = ring->head;
+	regs[CTX_RING_TAIL] = ring->tail;
 
 	/* RPCS */
 	if (engine->class == RENDER_CLASS) {
-		regs[CTX_R_PWR_CLK_STATE + 1] =
+		regs[CTX_R_PWR_CLK_STATE] =
 			intel_sseu_make_rpcs(engine->i915, &ce->sseu);
 
-		i915_oa_init_reg_state(engine, ce, regs);
+		i915_oa_init_reg_state(ce, engine);
 	}
 }
 
@@ -2465,7 +2824,7 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 		       engine->pinned_default_state + LRC_STATE_PN * PAGE_SIZE,
 		       engine->context_size - PAGE_SIZE);
 	}
-	execlists_init_reg_state(regs, ce, engine, ce->ring);
+	execlists_init_reg_state(regs, ce, engine, ce->ring, false);
 
 out_replay:
 	GEM_TRACE("%s replay {head:%04x, tail:%04x\n",
@@ -3243,7 +3602,7 @@ int intel_execlists_submission_init(struct intel_engine_cs *engine)
 	return 0;
 }
 
-static u32 intel_lr_indirect_ctx_offset(struct intel_engine_cs *engine)
+static u32 intel_lr_indirect_ctx_offset(const struct intel_engine_cs *engine)
 {
 	u32 indirect_ctx_offset;
 
@@ -3278,75 +3637,48 @@ static u32 intel_lr_indirect_ctx_offset(struct intel_engine_cs *engine)
 
 
 static void init_common_reg_state(u32 * const regs,
-				  struct i915_ppgtt * const ppgtt,
-				  struct intel_engine_cs *engine,
-				  struct intel_ring *ring)
+				  const struct intel_engine_cs *engine,
+				  const struct intel_ring *ring)
 {
-	const u32 base = engine->mmio_base;
-
-	CTX_REG(regs, CTX_CONTEXT_CONTROL, RING_CONTEXT_CONTROL(base),
+	regs[CTX_CONTEXT_CONTROL] =
 		_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT) |
-		_MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH));
-	if (INTEL_GEN(engine->i915) < 11) {
-		regs[CTX_CONTEXT_CONTROL + 1] |=
+		_MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH);
+	if (INTEL_GEN(engine->i915) < 11)
+		regs[CTX_CONTEXT_CONTROL] |=
 			_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT |
 					    CTX_CTRL_RS_CTX_ENABLE);
-	}
-	CTX_REG(regs, CTX_RING_HEAD, RING_HEAD(base), 0);
-	CTX_REG(regs, CTX_RING_TAIL, RING_TAIL(base), 0);
-	CTX_REG(regs, CTX_RING_BUFFER_START, RING_START(base), 0);
-	CTX_REG(regs, CTX_RING_BUFFER_CONTROL, RING_CTL(base),
-		RING_CTL_SIZE(ring->size) | RING_VALID);
-	CTX_REG(regs, CTX_BB_HEAD_U, RING_BBADDR_UDW(base), 0);
-	CTX_REG(regs, CTX_BB_HEAD_L, RING_BBADDR(base), 0);
-	CTX_REG(regs, CTX_BB_STATE, RING_BBSTATE(base), RING_BB_PPGTT);
+
+	regs[CTX_RING_BUFFER_CONTROL] = RING_CTL_SIZE(ring->size) | RING_VALID;
+	regs[CTX_BB_STATE] = RING_BB_PPGTT;
 }
 
 static void init_wa_bb_reg_state(u32 * const regs,
-				 struct intel_engine_cs *engine,
+				 const struct intel_engine_cs *engine,
 				 u32 pos_bb_per_ctx)
 {
-	struct i915_ctx_workarounds * const wa_ctx = &engine->wa_ctx;
-	const u32 base = engine->mmio_base;
-	const u32 pos_indirect_ctx = pos_bb_per_ctx + 2;
-	const u32 pos_indirect_ctx_offset = pos_indirect_ctx + 2;
+	const struct i915_ctx_workarounds * const wa_ctx = &engine->wa_ctx;
 
-	CTX_REG(regs, pos_indirect_ctx, RING_INDIRECT_CTX(base), 0);
-	CTX_REG(regs, pos_indirect_ctx_offset,
-		RING_INDIRECT_CTX_OFFSET(base), 0);
-	if (wa_ctx->indirect_ctx.size) {
-		const u32 ggtt_offset = i915_ggtt_offset(wa_ctx->vma);
-
-		regs[pos_indirect_ctx + 1] =
-			(ggtt_offset + wa_ctx->indirect_ctx.offset) |
-			(wa_ctx->indirect_ctx.size / CACHELINE_BYTES);
-
-		regs[pos_indirect_ctx_offset + 1] =
-			intel_lr_indirect_ctx_offset(engine) << 6;
-	}
-
-	CTX_REG(regs, pos_bb_per_ctx, RING_BB_PER_CTX_PTR(base), 0);
 	if (wa_ctx->per_ctx.size) {
 		const u32 ggtt_offset = i915_ggtt_offset(wa_ctx->vma);
 
-		regs[pos_bb_per_ctx + 1] =
+		regs[pos_bb_per_ctx] =
 			(ggtt_offset + wa_ctx->per_ctx.offset) | 0x01;
+	}
+
+	if (wa_ctx->indirect_ctx.size) {
+		const u32 ggtt_offset = i915_ggtt_offset(wa_ctx->vma);
+
+		regs[pos_bb_per_ctx + 2] =
+			(ggtt_offset + wa_ctx->indirect_ctx.offset) |
+			(wa_ctx->indirect_ctx.size / CACHELINE_BYTES);
+
+		regs[pos_bb_per_ctx + 4] =
+			intel_lr_indirect_ctx_offset(engine) << 6;
 	}
 }
 
-static void init_ppgtt_reg_state(u32 *regs, u32 base,
-				 struct i915_ppgtt *ppgtt)
+static void init_ppgtt_reg_state(u32 *regs, const struct i915_ppgtt *ppgtt)
 {
-	/* PDP values well be assigned later if needed */
-	CTX_REG(regs, CTX_PDP3_UDW, GEN8_RING_PDP_UDW(base, 3), 0);
-	CTX_REG(regs, CTX_PDP3_LDW, GEN8_RING_PDP_LDW(base, 3), 0);
-	CTX_REG(regs, CTX_PDP2_UDW, GEN8_RING_PDP_UDW(base, 2), 0);
-	CTX_REG(regs, CTX_PDP2_LDW, GEN8_RING_PDP_LDW(base, 2), 0);
-	CTX_REG(regs, CTX_PDP1_UDW, GEN8_RING_PDP_UDW(base, 1), 0);
-	CTX_REG(regs, CTX_PDP1_LDW, GEN8_RING_PDP_LDW(base, 1), 0);
-	CTX_REG(regs, CTX_PDP0_UDW, GEN8_RING_PDP_UDW(base, 0), 0);
-	CTX_REG(regs, CTX_PDP0_LDW, GEN8_RING_PDP_LDW(base, 0), 0);
-
 	if (i915_vm_is_4lvl(&ppgtt->vm)) {
 		/* 64b PPGTT (48bit canonical)
 		 * PDP0_DESCRIPTOR contains the base address to PML4 and
@@ -3369,91 +3701,11 @@ static struct i915_ppgtt *vm_alias(struct i915_address_space *vm)
 		return i915_vm_to_ppgtt(vm);
 }
 
-static void gen8_init_reg_state(u32 * const regs,
-				struct intel_context *ce,
-				struct intel_engine_cs *engine,
-				struct intel_ring *ring)
-{
-	struct i915_ppgtt * const ppgtt = vm_alias(ce->vm);
-	const bool rcs = engine->class == RENDER_CLASS;
-	const u32 base = engine->mmio_base;
-	const u32 lri_base =
-		intel_engine_has_relative_mmio(engine) ? MI_LRI_CS_MMIO : 0;
-
-	regs[CTX_LRI_HEADER_0] =
-		MI_LOAD_REGISTER_IMM(rcs ? 14 : 11) |
-		MI_LRI_FORCE_POSTED |
-		lri_base;
-
-	init_common_reg_state(regs, ppgtt, engine, ring);
-	CTX_REG(regs, CTX_SECOND_BB_HEAD_U, RING_SBBADDR_UDW(base), 0);
-	CTX_REG(regs, CTX_SECOND_BB_HEAD_L, RING_SBBADDR(base), 0);
-	CTX_REG(regs, CTX_SECOND_BB_STATE, RING_SBBSTATE(base), 0);
-	if (rcs)
-		init_wa_bb_reg_state(regs, engine, CTX_BB_PER_CTX_PTR);
-
-	regs[CTX_LRI_HEADER_1] =
-		MI_LOAD_REGISTER_IMM(9) |
-		MI_LRI_FORCE_POSTED |
-		lri_base;
-
-	CTX_REG(regs, CTX_CTX_TIMESTAMP, RING_CTX_TIMESTAMP(base), 0);
-
-	init_ppgtt_reg_state(regs, base, ppgtt);
-
-	if (rcs) {
-		regs[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1) | lri_base;
-		CTX_REG(regs, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE, 0);
-	}
-
-	regs[CTX_END] = MI_BATCH_BUFFER_END;
-	if (INTEL_GEN(engine->i915) >= 10)
-		regs[CTX_END] |= BIT(0);
-}
-
-static void gen12_init_reg_state(u32 * const regs,
-				 struct intel_context *ce,
-				 struct intel_engine_cs *engine,
-				 struct intel_ring *ring)
-{
-	struct i915_ppgtt * const ppgtt = i915_vm_to_ppgtt(ce->vm);
-	const bool rcs = engine->class == RENDER_CLASS;
-	const u32 base = engine->mmio_base;
-	const u32 lri_base =
-		intel_engine_has_relative_mmio(engine) ? MI_LRI_CS_MMIO : 0;
-
-	regs[CTX_LRI_HEADER_0] =
-		MI_LOAD_REGISTER_IMM(rcs ? 11 : 9) |
-		MI_LRI_FORCE_POSTED |
-		lri_base;
-
-	init_common_reg_state(regs, ppgtt, engine, ring);
-
-	/* We want ctx_ptr for all engines to be set */
-	init_wa_bb_reg_state(regs, engine, GEN12_CTX_BB_PER_CTX_PTR);
-
-	regs[CTX_LRI_HEADER_1] =
-		MI_LOAD_REGISTER_IMM(9) |
-		MI_LRI_FORCE_POSTED |
-		lri_base;
-
-	CTX_REG(regs, CTX_CTX_TIMESTAMP, RING_CTX_TIMESTAMP(base), 0);
-
-	init_ppgtt_reg_state(regs, base, ppgtt);
-
-	if (rcs) {
-		regs[GEN12_CTX_LRI_HEADER_3] =
-			MI_LOAD_REGISTER_IMM(1) | lri_base;
-		CTX_REG(regs, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE, 0);
-
-		/* TODO: oa_init_reg_state ? */
-	}
-}
-
 static void execlists_init_reg_state(u32 *regs,
-				     struct intel_context *ce,
-				     struct intel_engine_cs *engine,
-				     struct intel_ring *ring)
+				     const struct intel_context *ce,
+				     const struct intel_engine_cs *engine,
+				     const struct intel_ring *ring,
+				     bool close)
 {
 	/*
 	 * A context is actually a big batch buffer with several
@@ -3465,10 +3717,21 @@ static void execlists_init_reg_state(u32 *regs,
 	 *
 	 * Must keep consistent with virtual_update_register_offsets().
 	 */
-	if (INTEL_GEN(engine->i915) >= 12)
-		gen12_init_reg_state(regs, ce, engine, ring);
-	else
-		gen8_init_reg_state(regs, ce, engine, ring);
+	u32 *bbe = set_offsets(regs, reg_offsets(engine), engine);
+
+	if (close) { /* Close the batch; used mainly by live_lrc_layout() */
+		*bbe = MI_BATCH_BUFFER_END;
+		if (INTEL_GEN(engine->i915) >= 10)
+			*bbe |= BIT(0);
+	}
+
+	init_common_reg_state(regs, engine, ring);
+	init_ppgtt_reg_state(regs, vm_alias(ce->vm));
+
+	init_wa_bb_reg_state(regs, engine,
+			     INTEL_GEN(engine->i915) >= 12 ?
+			     GEN12_CTX_BB_PER_CTX_PTR :
+			     CTX_BB_PER_CTX_PTR);
 }
 
 static int
@@ -3477,6 +3740,7 @@ populate_lr_context(struct intel_context *ce,
 		    struct intel_engine_cs *engine,
 		    struct intel_ring *ring)
 {
+	bool inhibit = true;
 	void *vaddr;
 	u32 *regs;
 	int ret;
@@ -3508,14 +3772,15 @@ populate_lr_context(struct intel_context *ce,
 
 		memcpy(vaddr + start, defaults + start, engine->context_size);
 		i915_gem_object_unpin_map(engine->default_state);
+		inhibit = false;
 	}
 
 	/* The second page of the context object contains some fields which must
 	 * be set up prior to the first execution. */
 	regs = vaddr + LRC_STATE_PN * PAGE_SIZE;
-	execlists_init_reg_state(regs, ce, engine, ring);
-	if (!engine->default_state)
-		regs[CTX_CONTEXT_CONTROL + 1] |=
+	execlists_init_reg_state(regs, ce, engine, ring, inhibit);
+	if (inhibit)
+		regs[CTX_CONTEXT_CONTROL] |=
 			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 
 	ret = 0;
@@ -4212,7 +4477,7 @@ void intel_lr_context_reset(struct intel_engine_cs *engine,
 			       engine->pinned_default_state + LRC_STATE_PN * PAGE_SIZE,
 			       engine->context_size - PAGE_SIZE);
 		}
-		execlists_init_reg_state(regs, ce, engine, ce->ring);
+		execlists_init_reg_state(regs, ce, engine, ce->ring, false);
 	}
 
 	/* Rerun the request; its payload has been neutered (if guilty). */
