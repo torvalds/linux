@@ -358,9 +358,8 @@ static void imx2_wdt_shutdown(struct platform_device *pdev)
 	}
 }
 
-#ifdef CONFIG_PM_SLEEP
 /* Disable watchdog if it is active or non-active but still running */
-static int imx2_wdt_suspend(struct device *dev)
+static int __maybe_unused imx2_wdt_suspend(struct device *dev)
 {
 	struct watchdog_device *wdog = dev_get_drvdata(dev);
 	struct imx2_wdt_device *wdev = watchdog_get_drvdata(wdog);
@@ -381,7 +380,7 @@ static int imx2_wdt_suspend(struct device *dev)
 }
 
 /* Enable watchdog and configure it if necessary */
-static int imx2_wdt_resume(struct device *dev)
+static int __maybe_unused imx2_wdt_resume(struct device *dev)
 {
 	struct watchdog_device *wdog = dev_get_drvdata(dev);
 	struct imx2_wdt_device *wdev = watchdog_get_drvdata(wdog);
@@ -406,7 +405,6 @@ static int imx2_wdt_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(imx2_wdt_pm_ops, imx2_wdt_suspend,
 			 imx2_wdt_resume);
