@@ -25,6 +25,7 @@
 #include "dso.h"
 #include "evlist.h"
 #include "evsel.h"
+#include "util/evsel_fprintf.h"
 #include "header.h"
 #include "memswap.h"
 #include "trace-event.h"

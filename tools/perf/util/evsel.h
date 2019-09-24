@@ -4,7 +4,6 @@
 
 #include <linux/list.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <sys/types.h>
 #include <linux/perf_event.h>
 #include <linux/types.h>
@@ -12,12 +11,6 @@
 #include <perf/evsel.h>
 #include "symbol_conf.h"
 #include <internal/cpumap.h>
-
-struct addr_location;
-struct evsel;
-union perf_event;
-
-struct cgroup;
 
 /*
  * The 'struct perf_evsel_config_term' is used to pass event
@@ -62,7 +55,11 @@ struct perf_evsel_config_term {
 	bool weak;
 };
 
+struct bpf_object;
+struct cgroup;
+struct perf_counts;
 struct perf_stat_evsel;
+union perf_event;
 
 typedef int (perf_evsel__sb_cb_t)(union perf_event *event, void *data);
 
@@ -70,9 +67,6 @@ enum perf_tool_event {
 	PERF_TOOL_NONE		= 0,
 	PERF_TOOL_DURATION_TIME = 1,
 };
-
-struct bpf_object;
-struct perf_counts;
 
 /** struct evsel - event selector
  *
@@ -404,38 +398,6 @@ static inline bool perf_evsel__is_clock(struct evsel *evsel)
 	       perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK);
 }
 
-struct perf_attr_details {
-	bool freq;
-	bool verbose;
-	bool event_group;
-	bool force;
-	bool trace_fields;
-};
-
-int perf_evsel__fprintf(struct evsel *evsel,
-			struct perf_attr_details *details, FILE *fp);
-
-#define EVSEL__PRINT_IP			(1<<0)
-#define EVSEL__PRINT_SYM		(1<<1)
-#define EVSEL__PRINT_DSO		(1<<2)
-#define EVSEL__PRINT_SYMOFFSET		(1<<3)
-#define EVSEL__PRINT_ONELINE		(1<<4)
-#define EVSEL__PRINT_SRCLINE		(1<<5)
-#define EVSEL__PRINT_UNKNOWN_AS_ADDR	(1<<6)
-#define EVSEL__PRINT_CALLCHAIN_ARROW	(1<<7)
-#define EVSEL__PRINT_SKIP_IGNORED	(1<<8)
-
-struct callchain_cursor;
-
-int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
-			      unsigned int print_opts, struct callchain_cursor *cursor,
-			      struct strlist *bt_stop_list, FILE *fp);
-
-int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
-			int left_alignment, unsigned int print_opts,
-			struct callchain_cursor *cursor,
-			struct strlist *bt_stop_list, FILE *fp);
-
 bool perf_evsel__fallback(struct evsel *evsel, int err,
 			  char *msg, size_t msgsize);
 int perf_evsel__open_strerror(struct evsel *evsel, struct target *target,
@@ -467,11 +429,6 @@ static inline bool evsel__has_callchain(const struct evsel *evsel)
 {
 	return (evsel->core.attr.sample_type & PERF_SAMPLE_CALLCHAIN) != 0;
 }
-
-typedef int (*attr__fprintf_f)(FILE *, const char *, const char *, void *);
-
-int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
-			     attr__fprintf_f attr__fprintf, void *priv);
 
 struct perf_env *perf_evsel__env(struct evsel *evsel);
 

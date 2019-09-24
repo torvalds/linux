@@ -17,6 +17,7 @@
 #include "util/trace-event.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/evsel_fprintf.h"
 #include "util/evswitch.h"
 #include "util/sort.h"
 #include "util/data.h"
