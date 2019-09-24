@@ -2786,60 +2786,73 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 	}
 	ssc_steplog = 4;
 
-	pll_state->mg_pll_div0 = (m2div_rem > 0 ? MG_PLL_DIV0_FRACNEN_H : 0) |
-				  MG_PLL_DIV0_FBDIV_FRAC(m2div_frac) |
-				  MG_PLL_DIV0_FBDIV_INT(m2div_int);
+	/* write pll_state calculations */
+	{
+		pll_state->mg_pll_div0 =
+			(m2div_rem > 0 ? MG_PLL_DIV0_FRACNEN_H : 0) |
+			MG_PLL_DIV0_FBDIV_FRAC(m2div_frac) |
+			MG_PLL_DIV0_FBDIV_INT(m2div_int);
 
-	pll_state->mg_pll_div1 = MG_PLL_DIV1_IREF_NDIVRATIO(iref_ndiv) |
-				 MG_PLL_DIV1_DITHER_DIV_2 |
-				 MG_PLL_DIV1_NDIVRATIO(1) |
-				 MG_PLL_DIV1_FBPREDIV(m1div);
+		pll_state->mg_pll_div1 =
+			MG_PLL_DIV1_IREF_NDIVRATIO(iref_ndiv) |
+			MG_PLL_DIV1_DITHER_DIV_2 |
+			MG_PLL_DIV1_NDIVRATIO(1) |
+			MG_PLL_DIV1_FBPREDIV(m1div);
 
-	pll_state->mg_pll_lf = MG_PLL_LF_TDCTARGETCNT(tdc_targetcnt) |
-			       MG_PLL_LF_AFCCNTSEL_512 |
-			       MG_PLL_LF_GAINCTRL(1) |
-			       MG_PLL_LF_INT_COEFF(int_coeff) |
-			       MG_PLL_LF_PROP_COEFF(prop_coeff);
+		pll_state->mg_pll_lf =
+			MG_PLL_LF_TDCTARGETCNT(tdc_targetcnt) |
+			MG_PLL_LF_AFCCNTSEL_512 |
+			MG_PLL_LF_GAINCTRL(1) |
+			MG_PLL_LF_INT_COEFF(int_coeff) |
+			MG_PLL_LF_PROP_COEFF(prop_coeff);
 
-	pll_state->mg_pll_frac_lock = MG_PLL_FRAC_LOCK_TRUELOCK_CRIT_32 |
-				      MG_PLL_FRAC_LOCK_EARLYLOCK_CRIT_32 |
-				      MG_PLL_FRAC_LOCK_LOCKTHRESH(10) |
-				      MG_PLL_FRAC_LOCK_DCODITHEREN |
-				      MG_PLL_FRAC_LOCK_FEEDFWRDGAIN(feedfwgain);
-	if (use_ssc || m2div_rem > 0)
-		pll_state->mg_pll_frac_lock |= MG_PLL_FRAC_LOCK_FEEDFWRDCAL_EN;
+		pll_state->mg_pll_frac_lock =
+			MG_PLL_FRAC_LOCK_TRUELOCK_CRIT_32 |
+			MG_PLL_FRAC_LOCK_EARLYLOCK_CRIT_32 |
+			MG_PLL_FRAC_LOCK_LOCKTHRESH(10) |
+			MG_PLL_FRAC_LOCK_DCODITHEREN |
+			MG_PLL_FRAC_LOCK_FEEDFWRDGAIN(feedfwgain);
+		if (use_ssc || m2div_rem > 0)
+			pll_state->mg_pll_frac_lock |=
+				MG_PLL_FRAC_LOCK_FEEDFWRDCAL_EN;
 
-	pll_state->mg_pll_ssc = (use_ssc ? MG_PLL_SSC_EN : 0) |
-				MG_PLL_SSC_TYPE(2) |
-				MG_PLL_SSC_STEPLENGTH(ssc_steplen) |
-				MG_PLL_SSC_STEPNUM(ssc_steplog) |
-				MG_PLL_SSC_FLLEN |
-				MG_PLL_SSC_STEPSIZE(ssc_stepsize);
+		pll_state->mg_pll_ssc =
+			(use_ssc ? MG_PLL_SSC_EN : 0) |
+			MG_PLL_SSC_TYPE(2) |
+			MG_PLL_SSC_STEPLENGTH(ssc_steplen) |
+			MG_PLL_SSC_STEPNUM(ssc_steplog) |
+			MG_PLL_SSC_FLLEN |
+			MG_PLL_SSC_STEPSIZE(ssc_stepsize);
 
-	pll_state->mg_pll_tdc_coldst_bias = MG_PLL_TDC_COLDST_COLDSTART |
-					    MG_PLL_TDC_COLDST_IREFINT_EN |
-					    MG_PLL_TDC_COLDST_REFBIAS_START_PULSE_W(iref_pulse_w) |
-					    MG_PLL_TDC_TDCOVCCORR_EN |
-					    MG_PLL_TDC_TDCSEL(3);
+		pll_state->mg_pll_tdc_coldst_bias =
+			MG_PLL_TDC_COLDST_COLDSTART |
+			MG_PLL_TDC_COLDST_IREFINT_EN |
+			MG_PLL_TDC_COLDST_REFBIAS_START_PULSE_W(iref_pulse_w) |
+			MG_PLL_TDC_TDCOVCCORR_EN |
+			MG_PLL_TDC_TDCSEL(3);
 
-	pll_state->mg_pll_bias = MG_PLL_BIAS_BIAS_GB_SEL(3) |
-				 MG_PLL_BIAS_INIT_DCOAMP(0x3F) |
-				 MG_PLL_BIAS_BIAS_BONUS(10) |
-				 MG_PLL_BIAS_BIASCAL_EN |
-				 MG_PLL_BIAS_CTRIM(12) |
-				 MG_PLL_BIAS_VREF_RDAC(4) |
-				 MG_PLL_BIAS_IREFTRIM(iref_trim);
+		pll_state->mg_pll_bias =
+			MG_PLL_BIAS_BIAS_GB_SEL(3) |
+			MG_PLL_BIAS_INIT_DCOAMP(0x3F) |
+			MG_PLL_BIAS_BIAS_BONUS(10) |
+			MG_PLL_BIAS_BIASCAL_EN |
+			MG_PLL_BIAS_CTRIM(12) |
+			MG_PLL_BIAS_VREF_RDAC(4) |
+			MG_PLL_BIAS_IREFTRIM(iref_trim);
 
-	if (refclk_khz == 38400) {
-		pll_state->mg_pll_tdc_coldst_bias_mask = MG_PLL_TDC_COLDST_COLDSTART;
-		pll_state->mg_pll_bias_mask = 0;
-	} else {
-		pll_state->mg_pll_tdc_coldst_bias_mask = -1U;
-		pll_state->mg_pll_bias_mask = -1U;
+		if (refclk_khz == 38400) {
+			pll_state->mg_pll_tdc_coldst_bias_mask =
+				MG_PLL_TDC_COLDST_COLDSTART;
+			pll_state->mg_pll_bias_mask = 0;
+		} else {
+			pll_state->mg_pll_tdc_coldst_bias_mask = -1U;
+			pll_state->mg_pll_bias_mask = -1U;
+		}
+
+		pll_state->mg_pll_tdc_coldst_bias &=
+			pll_state->mg_pll_tdc_coldst_bias_mask;
+		pll_state->mg_pll_bias &= pll_state->mg_pll_bias_mask;
 	}
-
-	pll_state->mg_pll_tdc_coldst_bias &= pll_state->mg_pll_tdc_coldst_bias_mask;
-	pll_state->mg_pll_bias &= pll_state->mg_pll_bias_mask;
 
 	return true;
 }
