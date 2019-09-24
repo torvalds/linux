@@ -356,18 +356,19 @@ static int cqspi_exec_flash_cmd(struct cqspi_st *cqspi, unsigned int reg)
 
 static int cqspi_command_read(struct spi_nor *nor,
 			      const u8 *txbuf, const unsigned n_tx,
-			      u8 *rxbuf, const unsigned n_rx)
+			      u8 *rxbuf, size_t n_rx)
 {
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
 	struct cqspi_st *cqspi = f_pdata->cqspi;
 	void __iomem *reg_base = cqspi->iobase;
 	unsigned int rdreg;
 	unsigned int reg;
-	unsigned int read_len;
+	size_t read_len;
 	int status;
 
 	if (!n_rx || n_rx > CQSPI_STIG_DATA_LEN_MAX || !rxbuf) {
-		dev_err(nor->dev, "Invalid input argument, len %d rxbuf 0x%p\n",
+		dev_err(nor->dev,
+			"Invalid input argument, len %zu rxbuf 0x%p\n",
 			n_rx, rxbuf);
 		return -EINVAL;
 	}
@@ -404,19 +405,19 @@ static int cqspi_command_read(struct spi_nor *nor,
 }
 
 static int cqspi_command_write(struct spi_nor *nor, const u8 opcode,
-			       const u8 *txbuf, const unsigned n_tx)
+			       const u8 *txbuf, size_t n_tx)
 {
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
 	struct cqspi_st *cqspi = f_pdata->cqspi;
 	void __iomem *reg_base = cqspi->iobase;
 	unsigned int reg;
 	unsigned int data;
-	u32 write_len;
+	size_t write_len;
 	int ret;
 
 	if (n_tx > CQSPI_STIG_DATA_LEN_MAX || (n_tx && !txbuf)) {
 		dev_err(nor->dev,
-			"Invalid input argument, cmdlen %d txbuf 0x%p\n",
+			"Invalid input argument, cmdlen %zu txbuf 0x%p\n",
 			n_tx, txbuf);
 		return -EINVAL;
 	}
@@ -1050,7 +1051,7 @@ static int cqspi_erase(struct spi_nor *nor, loff_t offs)
 		return ret;
 
 	/* Send write enable, then erase commands. */
-	ret = nor->write_reg(nor, SPINOR_OP_WREN, NULL, 0);
+	ret = nor->controller_ops->write_reg(nor, SPINOR_OP_WREN, NULL, 0);
 	if (ret)
 		return ret;
 
@@ -1080,7 +1081,7 @@ static void cqspi_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
 	mutex_unlock(&cqspi->bus_mutex);
 }
 
-static int cqspi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
+static int cqspi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, size_t len)
 {
 	int ret;
 
@@ -1091,7 +1092,8 @@ static int cqspi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	return ret;
 }
 
-static int cqspi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
+static int cqspi_write_reg(struct spi_nor *nor, u8 opcode, const u8 *buf,
+			   size_t len)
 {
 	int ret;
 
@@ -1216,6 +1218,16 @@ static void cqspi_request_mmap_dma(struct cqspi_st *cqspi)
 	init_completion(&cqspi->rx_dma_complete);
 }
 
+static const struct spi_nor_controller_ops cqspi_controller_ops = {
+	.prepare = cqspi_prep,
+	.unprepare = cqspi_unprep,
+	.read_reg = cqspi_read_reg,
+	.write_reg = cqspi_write_reg,
+	.read = cqspi_read,
+	.write = cqspi_write,
+	.erase = cqspi_erase,
+};
+
 static int cqspi_setup_flash(struct cqspi_st *cqspi, struct device_node *np)
 {
 	struct platform_device *pdev = cqspi->pdev;
@@ -1265,14 +1277,7 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi, struct device_node *np)
 		nor->dev = dev;
 		spi_nor_set_flash_node(nor, np);
 		nor->priv = f_pdata;
-
-		nor->read_reg = cqspi_read_reg;
-		nor->write_reg = cqspi_write_reg;
-		nor->read = cqspi_read;
-		nor->write = cqspi_write;
-		nor->erase = cqspi_erase;
-		nor->prepare = cqspi_prep;
-		nor->unprepare = cqspi_unprep;
+		nor->controller_ops = &cqspi_controller_ops;
 
 		mtd->name = devm_kasprintf(dev, GFP_KERNEL, "%s.%d",
 					   dev_name(dev), cs);

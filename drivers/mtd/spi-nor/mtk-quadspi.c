@@ -151,9 +151,9 @@ static int mtk_nor_execute_cmd(struct mtk_nor *mtk_nor, u8 cmdval)
 }
 
 static int mtk_nor_do_tx_rx(struct mtk_nor *mtk_nor, u8 op,
-			    u8 *tx, int txlen, u8 *rx, int rxlen)
+			    const u8 *tx, size_t txlen, u8 *rx, size_t rxlen)
 {
-	int len = 1 + txlen + rxlen;
+	size_t len = 1 + txlen + rxlen;
 	int i, ret, idx;
 
 	if (len > MTK_NOR_MAX_SHIFT)
@@ -193,7 +193,7 @@ static int mtk_nor_do_tx_rx(struct mtk_nor *mtk_nor, u8 op,
 }
 
 /* Do a WRSR (Write Status Register) command */
-static int mtk_nor_wr_sr(struct mtk_nor *mtk_nor, u8 sr)
+static int mtk_nor_wr_sr(struct mtk_nor *mtk_nor, const u8 sr)
 {
 	writeb(sr, mtk_nor->base + MTK_NOR_PRGDATA5_REG);
 	writeb(8, mtk_nor->base + MTK_NOR_CNT_REG);
@@ -354,7 +354,7 @@ static ssize_t mtk_nor_write(struct spi_nor *nor, loff_t to, size_t len,
 	return len;
 }
 
-static int mtk_nor_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
+static int mtk_nor_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, size_t len)
 {
 	int ret;
 	struct mtk_nor *mtk_nor = nor->priv;
@@ -376,8 +376,8 @@ static int mtk_nor_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	return ret;
 }
 
-static int mtk_nor_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
-			     int len)
+static int mtk_nor_write_reg(struct spi_nor *nor, u8 opcode, const u8 *buf,
+			     size_t len)
 {
 	int ret;
 	struct mtk_nor *mtk_nor = nor->priv;
@@ -419,6 +419,13 @@ static int mtk_nor_enable_clk(struct mtk_nor *mtk_nor)
 	return 0;
 }
 
+static const struct spi_nor_controller_ops mtk_controller_ops = {
+	.read_reg = mtk_nor_read_reg,
+	.write_reg = mtk_nor_write_reg,
+	.read = mtk_nor_read,
+	.write = mtk_nor_write,
+};
+
 static int mtk_nor_init(struct mtk_nor *mtk_nor,
 			struct device_node *flash_node)
 {
@@ -438,12 +445,8 @@ static int mtk_nor_init(struct mtk_nor *mtk_nor,
 	nor->dev = mtk_nor->dev;
 	nor->priv = mtk_nor;
 	spi_nor_set_flash_node(nor, flash_node);
+	nor->controller_ops = &mtk_controller_ops;
 
-	/* fill the hooks to spi nor */
-	nor->read = mtk_nor_read;
-	nor->read_reg = mtk_nor_read_reg;
-	nor->write = mtk_nor_write;
-	nor->write_reg = mtk_nor_write_reg;
 	nor->mtd.name = "mtk_nor";
 	/* initialized with NULL */
 	ret = spi_nor_scan(nor, NULL, &hwcaps);

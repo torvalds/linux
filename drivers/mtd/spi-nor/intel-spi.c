@@ -446,7 +446,7 @@ static int intel_spi_opcode_index(struct intel_spi *ispi, u8 opcode, int optype)
 	return 0;
 }
 
-static int intel_spi_hw_cycle(struct intel_spi *ispi, u8 opcode, int len)
+static int intel_spi_hw_cycle(struct intel_spi *ispi, u8 opcode, size_t len)
 {
 	u32 val, status;
 	int ret;
@@ -489,7 +489,7 @@ static int intel_spi_hw_cycle(struct intel_spi *ispi, u8 opcode, int len)
 	return 0;
 }
 
-static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, int len,
+static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, size_t len,
 			      int optype)
 {
 	u32 val = 0, status;
@@ -555,7 +555,8 @@ static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, int len,
 	return 0;
 }
 
-static int intel_spi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
+static int intel_spi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
+			      size_t len)
 {
 	struct intel_spi *ispi = nor->priv;
 	int ret;
@@ -575,7 +576,8 @@ static int intel_spi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	return intel_spi_read_block(ispi, buf, len);
 }
 
-static int intel_spi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
+static int intel_spi_write_reg(struct spi_nor *nor, u8 opcode, const u8 *buf,
+			       size_t len)
 {
 	struct intel_spi *ispi = nor->priv;
 	int ret;
@@ -884,6 +886,14 @@ static void intel_spi_fill_partition(struct intel_spi *ispi,
 	}
 }
 
+static const struct spi_nor_controller_ops intel_spi_controller_ops = {
+	.read_reg = intel_spi_read_reg,
+	.write_reg = intel_spi_write_reg,
+	.read = intel_spi_read,
+	.write = intel_spi_write,
+	.erase = intel_spi_erase,
+};
+
 struct intel_spi *intel_spi_probe(struct device *dev,
 	struct resource *mem, const struct intel_spi_boardinfo *info)
 {
@@ -917,11 +927,7 @@ struct intel_spi *intel_spi_probe(struct device *dev,
 
 	ispi->nor.dev = ispi->dev;
 	ispi->nor.priv = ispi;
-	ispi->nor.read_reg = intel_spi_read_reg;
-	ispi->nor.write_reg = intel_spi_write_reg;
-	ispi->nor.read = intel_spi_read;
-	ispi->nor.write = intel_spi_write;
-	ispi->nor.erase = intel_spi_erase;
+	ispi->nor.controller_ops = &intel_spi_controller_ops;
 
 	ret = spi_nor_scan(&ispi->nor, NULL, &hwcaps);
 	if (ret) {
