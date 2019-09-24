@@ -12,6 +12,7 @@
 #include "transaction.h"
 #include "ctree.h"
 #include "qgroup.h"
+#include "locking.h"
 
 #define BTRFS_DELAYED_WRITEBACK		512
 #define BTRFS_DELAYED_BACKGROUND	128

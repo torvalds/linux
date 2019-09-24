@@ -342,3 +342,29 @@ void btrfs_set_path_blocking(struct btrfs_path *p)
 		}
 	}
 }
+
+/*
+ * This releases any locks held in the path starting at level and going all the
+ * way up to the root.
+ *
+ * btrfs_search_slot will keep the lock held on higher nodes in a few corner
+ * cases, such as COW of the block at slot zero in the node.  This ignores
+ * those rules, and it should only be called when there are no more updates to
+ * be done higher up in the tree.
+ */
+void btrfs_unlock_up_safe(struct btrfs_path *path, int level)
+{
+	int i;
+
+	if (path->keep_locks)
+		return;
+
+	for (i = level; i < BTRFS_MAX_LEVEL; i++) {
+		if (!path->nodes[i])
+			continue;
+		if (!path->locks[i])
+			continue;
+		btrfs_tree_unlock_rw(path->nodes[i], path->locks[i]);
+		path->locks[i] = 0;
+	}
+}

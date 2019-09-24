@@ -2354,32 +2354,6 @@ static noinline void unlock_up(struct btrfs_path *path, int level,
 }
 
 /*
- * This releases any locks held in the path starting at level and
- * going all the way up to the root.
- *
- * btrfs_search_slot will keep the lock held on higher nodes in a few
- * corner cases, such as COW of the block at slot zero in the node.  This
- * ignores those rules, and it should only be called when there are no
- * more updates to be done higher up in the tree.
- */
-noinline void btrfs_unlock_up_safe(struct btrfs_path *path, int level)
-{
-	int i;
-
-	if (path->keep_locks)
-		return;
-
-	for (i = level; i < BTRFS_MAX_LEVEL; i++) {
-		if (!path->nodes[i])
-			continue;
-		if (!path->locks[i])
-			continue;
-		btrfs_tree_unlock_rw(path->nodes[i], path->locks[i]);
-		path->locks[i] = 0;
-	}
-}
-
-/*
  * helper function for btrfs_search_slot.  The goal is to find a block
  * in cache without setting the path to blocking.  If we find the block
  * we return zero and the path is unchanged.
