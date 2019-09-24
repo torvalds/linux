@@ -202,7 +202,7 @@
 /* get dividend from the depth */
 #define THROT_DEPTH_DIVIDEND(depth)	((256 * (100 - (depth)) / 100) - 1)
 
-/* gk20a nv_therm interface N:3 Mapping. Levels defined in tegra124-sochterm.h
+/* gk20a nv_therm interface N:3 Mapping. Levels defined in tegra124-soctherm.h
  * level	vector
  * NONE		3'b000
  * LOW		3'b001
