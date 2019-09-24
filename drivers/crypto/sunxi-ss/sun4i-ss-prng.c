@@ -17,7 +17,7 @@ int sun4i_ss_prng_generate(struct crypto_rng *tfm, const u8 *src,
 {
 	struct sun4i_ss_alg_template *algt;
 	struct rng_alg *alg = crypto_rng_alg(tfm);
-	int i;
+	int i, err;
 	u32 v;
 	u32 *data = (u32 *)dst;
 	const u32 mode = SS_OP_PRNG | SS_PRNG_CONTINUE | SS_ENABLED;
@@ -27,6 +27,10 @@ int sun4i_ss_prng_generate(struct crypto_rng *tfm, const u8 *src,
 
 	algt = container_of(alg, struct sun4i_ss_alg_template, alg.rng);
 	ss = algt->ss;
+
+	err = pm_runtime_get_sync(ss->dev);
+	if (err < 0)
+		return err;
 
 	spin_lock_bh(&ss->slock);
 
@@ -52,5 +56,8 @@ int sun4i_ss_prng_generate(struct crypto_rng *tfm, const u8 *src,
 
 	writel(0, ss->base + SS_CTL);
 	spin_unlock_bh(&ss->slock);
+
+	pm_runtime_put(ss->dev);
+
 	return 0;
 }

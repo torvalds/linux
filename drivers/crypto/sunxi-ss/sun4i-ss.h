@@ -22,6 +22,7 @@
 #include <linux/scatterlist.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
 #include <crypto/md5.h>
 #include <crypto/skcipher.h>
 #include <crypto/sha.h>
@@ -177,6 +178,7 @@ struct sun4i_req_ctx {
 };
 
 int sun4i_hash_crainit(struct crypto_tfm *tfm);
+void sun4i_hash_craexit(struct crypto_tfm *tfm);
 int sun4i_hash_init(struct ahash_request *areq);
 int sun4i_hash_update(struct ahash_request *areq);
 int sun4i_hash_final(struct ahash_request *areq);

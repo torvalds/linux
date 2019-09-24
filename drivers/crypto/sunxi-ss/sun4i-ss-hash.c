@@ -19,15 +19,27 @@ int sun4i_hash_crainit(struct crypto_tfm *tfm)
 	struct sun4i_tfm_ctx *op = crypto_tfm_ctx(tfm);
 	struct ahash_alg *alg = __crypto_ahash_alg(tfm->__crt_alg);
 	struct sun4i_ss_alg_template *algt;
+	int err;
 
 	memset(op, 0, sizeof(struct sun4i_tfm_ctx));
 
 	algt = container_of(alg, struct sun4i_ss_alg_template, alg.hash);
 	op->ss = algt->ss;
 
+	err = pm_runtime_get_sync(op->ss->dev);
+	if (err < 0)
+		return err;
+
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				 sizeof(struct sun4i_req_ctx));
 	return 0;
+}
+
+void sun4i_hash_craexit(struct crypto_tfm *tfm)
+{
+	struct sun4i_tfm_ctx *op = crypto_tfm_ctx(tfm);
+
+	pm_runtime_put(op->ss->dev);
 }
 
 /* sun4i_hash_init: initialize request context */
