@@ -431,10 +431,11 @@ static bool trace_uprobe_has_same_uprobe(struct trace_uprobe *orig,
 		for (i = 0; i < orig->tp.nr_args; i++) {
 			if (strcmp(orig->tp.args[i].comm,
 				   comp->tp.args[i].comm))
-				continue;
+				break;
 		}
 
-		return true;
+		if (i == orig->tp.nr_args)
+			return true;
 	}
 
 	return false;
