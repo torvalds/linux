@@ -3,6 +3,7 @@ perf-y += block-range.o
 perf-y += build-id.o
 perf-y += cacheline.o
 perf-y += config.o
+perf-y += copyfile.o
 perf-y += ctype.o
 perf-y += db-export.o
 perf-y += env.o
