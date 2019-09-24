@@ -118,6 +118,14 @@
 		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
 	}
 
+#define TGL_CURSOR_OFFSETS \
+	.cursor_offsets = { \
+		[PIPE_A] = CURSOR_A_OFFSET, \
+		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
+		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
+		[PIPE_D] = TGL_CURSOR_D_OFFSET, \
+	}
+
 #define I9XX_COLORS \
 	.color = { .gamma_lut_size = 256 }
 #define I965_COLORS \
@@ -787,6 +795,7 @@ static const struct intel_device_info intel_elkhartlake_info = {
 		[TRANSCODER_DSI_0] = TRANSCODER_DSI0_OFFSET, \
 		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET, \
 	}, \
+	TGL_CURSOR_OFFSETS, \
 	.has_global_mocs = 1, \
 	.display.has_dsb = 1
 

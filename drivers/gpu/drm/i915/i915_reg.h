@@ -6240,6 +6240,7 @@ enum {
 #define CHV_CURSOR_C_OFFSET 0x700e0
 #define IVB_CURSOR_B_OFFSET 0x71080
 #define IVB_CURSOR_C_OFFSET 0x72080
+#define TGL_CURSOR_D_OFFSET 0x73080
 
 /* Display A control */
 #define _DSPACNTR				0x70180
