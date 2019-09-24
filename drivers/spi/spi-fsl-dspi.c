@@ -1006,6 +1006,25 @@ static void dspi_init(struct fsl_dspi *dspi)
 			     SPI_CTARE_FMSZE(0) | SPI_CTARE_DTCP(1));
 }
 
+static int dspi_slave_abort(struct spi_master *master)
+{
+	struct fsl_dspi *dspi = spi_master_get_devdata(master);
+
+	/*
+	 * Terminate all pending DMA transactions for the SPI working
+	 * in SLAVE mode.
+	 */
+	dmaengine_terminate_sync(dspi->dma->chan_rx);
+	dmaengine_terminate_sync(dspi->dma->chan_tx);
+
+	/* Clear the internal DSPI RX and TX FIFO buffers */
+	regmap_update_bits(dspi->regmap, SPI_MCR,
+			   SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF,
+			   SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF);
+
+	return 0;
+}
+
 static int dspi_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1030,6 +1049,7 @@ static int dspi_probe(struct platform_device *pdev)
 	ctlr->dev.of_node = pdev->dev.of_node;
 
 	ctlr->cleanup = dspi_cleanup;
+	ctlr->slave_abort = dspi_slave_abort;
 	ctlr->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
 
 	pdata = dev_get_platdata(&pdev->dev);
