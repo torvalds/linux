@@ -285,6 +285,7 @@ komeda_layer_check_cfg(struct komeda_layer *layer,
 		       struct komeda_data_flow_cfg *dflow)
 {
 	u32 src_x, src_y, src_w, src_h;
+	u32 line_sz, max_line_sz;
 
 	if (!komeda_fb_is_layer_supported(kfb, layer->layer_type, dflow->rot))
 		return -EINVAL;
@@ -311,6 +312,22 @@ komeda_layer_check_cfg(struct komeda_layer *layer,
 
 	if (!in_range(&layer->vsize_in, src_h)) {
 		DRM_DEBUG_ATOMIC("invalidate src_h %d.\n", src_h);
+		return -EINVAL;
+	}
+
+	if (drm_rotation_90_or_270(dflow->rot))
+		line_sz = dflow->in_h;
+	else
+		line_sz = dflow->in_w;
+
+	if (kfb->base.format->hsub > 1)
+		max_line_sz = layer->yuv_line_sz;
+	else
+		max_line_sz = layer->line_sz;
+
+	if (line_sz > max_line_sz) {
+		DRM_DEBUG_ATOMIC("Required line_sz: %d exceeds the max size %d\n",
+				 line_sz, max_line_sz);
 		return -EINVAL;
 	}
 

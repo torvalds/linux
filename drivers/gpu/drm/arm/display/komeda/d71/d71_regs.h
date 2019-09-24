@@ -10,6 +10,7 @@
 /* Common block registers offset */
 #define BLK_BLOCK_INFO		0x000
 #define BLK_PIPELINE_INFO	0x004
+#define BLK_MAX_LINE_SIZE	0x008
 #define BLK_VALID_INPUT_ID0	0x020
 #define BLK_OUTPUT_ID0		0x060
 #define BLK_INPUT_ID0		0x080
@@ -321,6 +322,7 @@
 #define L_INFO_RF		BIT(0)
 #define L_INFO_CM		BIT(1)
 #define L_INFO_ABUF_SIZE(x)	(((x) >> 4) & 0x7)
+#define L_INFO_YUV_MAX_LINESZ(x)	(((x) >> 16) & 0xFFFF)
 
 /* Scaler registers */
 #define SC_COEFFTAB		0x0DC
@@ -493,13 +495,6 @@ enum d71_blk_type {
 
 #define D71_DEFAULT_PREPRETCH_LINE	5
 #define D71_BUS_WIDTH_16_BYTES		16
-
-#define D71_MIN_LINE_SIZE		64
-#define D71_MIN_VERTICAL_SIZE		64
-#define D71_SC_MIN_LIN_SIZE		4
-#define D71_SC_MIN_VERTICAL_SIZE	4
-#define D71_SC_MAX_LIN_SIZE		2048
-#define D71_SC_MAX_VERTICAL_SIZE	4096
 
 #define D71_SC_MAX_UPSCALING		64
 #define D71_SC_MAX_DOWNSCALING		6

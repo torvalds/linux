@@ -106,6 +106,23 @@ static void dump_block_header(struct seq_file *sf, void __iomem *reg)
 			   i, hdr.output_ids[i]);
 }
 
+/* On D71, we are using the global line size. From D32, every component have
+ * a line size register to indicate the fifo size.
+ */
+static u32 __get_blk_line_size(struct d71_dev *d71, u32 __iomem *reg,
+			       u32 max_default)
+{
+	if (!d71->periph_addr)
+		max_default = malidp_read32(reg, BLK_MAX_LINE_SIZE);
+
+	return max_default;
+}
+
+static u32 get_blk_line_size(struct d71_dev *d71, u32 __iomem *reg)
+{
+	return __get_blk_line_size(d71, reg, d71->max_line_size);
+}
+
 static u32 to_rot_ctrl(u32 rot)
 {
 	u32 lr_ctrl = 0;
@@ -365,7 +382,28 @@ static int d71_layer_init(struct d71_dev *d71,
 	else
 		layer->layer_type = KOMEDA_FMT_SIMPLE_LAYER;
 
-	set_range(&layer->hsize_in, 4, d71->max_line_size);
+	if (!d71->periph_addr) {
+		/* D32 or newer product */
+		layer->line_sz = malidp_read32(reg, BLK_MAX_LINE_SIZE);
+		layer->yuv_line_sz = L_INFO_YUV_MAX_LINESZ(layer_info);
+	} else if (d71->max_line_size > 2048) {
+		/* D71 4K */
+		layer->line_sz = d71->max_line_size;
+		layer->yuv_line_sz = layer->line_sz / 2;
+	} else	{
+		/* D71 2K */
+		if (layer->layer_type == KOMEDA_FMT_RICH_LAYER) {
+			/* rich layer is 4K configuration */
+			layer->line_sz = d71->max_line_size * 2;
+			layer->yuv_line_sz = layer->line_sz / 2;
+		} else {
+			layer->line_sz = d71->max_line_size;
+			layer->yuv_line_sz = 0;
+		}
+	}
+
+	set_range(&layer->hsize_in, 4, layer->line_sz);
+
 	set_range(&layer->vsize_in, 4, d71->max_vsize);
 
 	malidp_write32(reg, LAYER_PALPHA, D71_PALPHA_DEF_MAP);
@@ -456,9 +494,11 @@ static int d71_wb_layer_init(struct d71_dev *d71,
 
 	wb_layer = to_layer(c);
 	wb_layer->layer_type = KOMEDA_FMT_WB_LAYER;
+	wb_layer->line_sz = get_blk_line_size(d71, reg);
+	wb_layer->yuv_line_sz = wb_layer->line_sz;
 
-	set_range(&wb_layer->hsize_in, D71_MIN_LINE_SIZE, d71->max_line_size);
-	set_range(&wb_layer->vsize_in, D71_MIN_VERTICAL_SIZE, d71->max_vsize);
+	set_range(&wb_layer->hsize_in, 64, wb_layer->line_sz);
+	set_range(&wb_layer->vsize_in, 64, d71->max_vsize);
 
 	return 0;
 }
@@ -595,8 +635,8 @@ static int d71_compiz_init(struct d71_dev *d71,
 
 	compiz = to_compiz(c);
 
-	set_range(&compiz->hsize, D71_MIN_LINE_SIZE, d71->max_line_size);
-	set_range(&compiz->vsize, D71_MIN_VERTICAL_SIZE, d71->max_vsize);
+	set_range(&compiz->hsize, 64, get_blk_line_size(d71, reg));
+	set_range(&compiz->vsize, 64, d71->max_vsize);
 
 	return 0;
 }
@@ -753,7 +793,7 @@ static int d71_scaler_init(struct d71_dev *d71,
 	}
 
 	scaler = to_scaler(c);
-	set_range(&scaler->hsize, 4, 2048);
+	set_range(&scaler->hsize, 4, __get_blk_line_size(d71, reg, 2048));
 	set_range(&scaler->vsize, 4, 4096);
 	scaler->max_downscaling = 6;
 	scaler->max_upscaling = 64;
@@ -862,7 +902,7 @@ static int d71_splitter_init(struct d71_dev *d71,
 
 	splitter = to_splitter(c);
 
-	set_range(&splitter->hsize, 4, d71->max_line_size);
+	set_range(&splitter->hsize, 4, get_blk_line_size(d71, reg));
 	set_range(&splitter->vsize, 4, d71->max_vsize);
 
 	return 0;
@@ -933,7 +973,8 @@ static int d71_merger_init(struct d71_dev *d71,
 
 	merger = to_merger(c);
 
-	set_range(&merger->hsize_merged, 4, 4032);
+	set_range(&merger->hsize_merged, 4,
+		  __get_blk_line_size(d71, reg, 4032));
 	set_range(&merger->vsize_merged, 4, 4096);
 
 	return 0;
