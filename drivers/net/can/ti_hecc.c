@@ -73,6 +73,7 @@ MODULE_VERSION(HECC_MODULE_VERSION);
  */
 #define HECC_MAX_RX_MBOX	(HECC_MAX_MAILBOXES - HECC_MAX_TX_MBOX)
 #define HECC_RX_FIRST_MBOX	(HECC_MAX_MAILBOXES - 1)
+#define HECC_RX_LAST_MBOX	(HECC_MAX_TX_MBOX)
 
 /* TI HECC module registers */
 #define HECC_CANME		0x0	/* Mailbox enable */
@@ -82,7 +83,7 @@ MODULE_VERSION(HECC_MODULE_VERSION);
 #define HECC_CANTA		0x10	/* Transmission acknowledge */
 #define HECC_CANAA		0x14	/* Abort acknowledge */
 #define HECC_CANRMP		0x18	/* Receive message pending */
-#define HECC_CANRML		0x1C	/* Remote message lost */
+#define HECC_CANRML		0x1C	/* Receive message lost */
 #define HECC_CANRFP		0x20	/* Remote frame pending */
 #define HECC_CANGAM		0x24	/* SECC only:Global acceptance mask */
 #define HECC_CANMC		0x28	/* Master control */
@@ -385,8 +386,15 @@ static void ti_hecc_start(struct net_device *ndev)
 	/* Enable tx interrupts */
 	hecc_set_bit(priv, HECC_CANMIM, BIT(HECC_MAX_TX_MBOX) - 1);
 
-	/* Prevent message over-write & Enable interrupts */
-	hecc_write(priv, HECC_CANOPC, HECC_SET_REG);
+	/* Prevent message over-write to create a rx fifo, but not for
+	 * the lowest priority mailbox, since that allows detecting
+	 * overflows instead of the hardware silently dropping the
+	 * messages.
+	 */
+	mbx_mask = ~BIT(HECC_RX_LAST_MBOX);
+	hecc_write(priv, HECC_CANOPC, mbx_mask);
+
+	/* Enable interrupts */
 	if (priv->use_hecc1int) {
 		hecc_write(priv, HECC_CANMIL, HECC_SET_REG);
 		hecc_write(priv, HECC_CANGIM, HECC_CANGIM_DEF_MASK |
@@ -531,6 +539,7 @@ static unsigned int ti_hecc_mailbox_read(struct can_rx_offload *offload,
 {
 	struct ti_hecc_priv *priv = rx_offload_to_priv(offload);
 	u32 data, mbx_mask;
+	int ret = 1;
 
 	mbx_mask = BIT(mbxno);
 	data = hecc_read_mbx(priv, mbxno, HECC_CANMID);
@@ -552,9 +561,26 @@ static unsigned int ti_hecc_mailbox_read(struct can_rx_offload *offload,
 	}
 
 	*timestamp = hecc_read_stamp(priv, mbxno);
+
+	/* Check for FIFO overrun.
+	 *
+	 * All but the last RX mailbox have activated overwrite
+	 * protection. So skip check for overrun, if we're not
+	 * handling the last RX mailbox.
+	 *
+	 * As the overwrite protection for the last RX mailbox is
+	 * disabled, the CAN core might update while we're reading
+	 * it. This means the skb might be inconsistent.
+	 *
+	 * Return an error to let rx-offload discard this CAN frame.
+	 */
+	if (unlikely(mbxno == HECC_RX_LAST_MBOX &&
+		     hecc_read(priv, HECC_CANRML) & mbx_mask))
+		ret = -ENOBUFS;
+
 	hecc_write(priv, HECC_CANRMP, mbx_mask);
 
-	return 1;
+	return ret;
 }
 
 static int ti_hecc_error(struct net_device *ndev, int int_status,
@@ -884,7 +910,7 @@ static int ti_hecc_probe(struct platform_device *pdev)
 
 	priv->offload.mailbox_read = ti_hecc_mailbox_read;
 	priv->offload.mb_first = HECC_RX_FIRST_MBOX;
-	priv->offload.mb_last = HECC_MAX_TX_MBOX;
+	priv->offload.mb_last = HECC_RX_LAST_MBOX;
 	err = can_rx_offload_add_timestamp(ndev, &priv->offload);
 	if (err) {
 		dev_err(&pdev->dev, "can_rx_offload_add_timestamp() failed\n");
