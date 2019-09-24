@@ -296,11 +296,6 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr)	(1)
 
-/*
- * No page table caches to initialise
- */
-#define pgtable_cache_init()	do {} while (0)
-
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot) \
 	remap_pfn_range(vma, vaddr, pfn, size, prot)
 

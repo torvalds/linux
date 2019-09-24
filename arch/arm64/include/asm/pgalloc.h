@@ -15,8 +15,6 @@
 
 #include <asm-generic/pgalloc.h>	/* for pte_{alloc,free}_one */
 
-#define check_pgt_cache()		do { } while (0)
-
 #define PGD_SIZE	(PTRS_PER_PGD * sizeof(pgd_t))
 
 #if CONFIG_PGTABLE_LEVELS > 2

@@ -3319,7 +3319,7 @@ static int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	page = virt_to_head_page(ptr);
-	if (sz > (PAGE_SIZE << compound_order(page)))
+	if (sz > page_size(page))
 		return -EINVAL;
 
 	pfn = virt_to_phys(ptr) >> PAGE_SHIFT;

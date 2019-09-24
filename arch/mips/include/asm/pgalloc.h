@@ -105,8 +105,6 @@ static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
 
 #endif /* __PAGETABLE_PUD_FOLDED */
 
-#define check_pgt_cache()	do { } while (0)
-
 extern void pagetable_init(void);
 
 #endif /* _ASM_PGALLOC_H */

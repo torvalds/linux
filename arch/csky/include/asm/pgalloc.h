@@ -75,8 +75,6 @@ do {							\
 	tlb_remove_page(tlb, pte);			\
 } while (0)
 
-#define check_pgt_cache()	do {} while (0)
-
 extern void pagetable_init(void);
 extern void pre_mmu_init(void);
 extern void pre_trap_init(void);

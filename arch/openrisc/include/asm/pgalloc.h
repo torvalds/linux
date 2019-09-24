@@ -101,6 +101,4 @@ do {					\
 
 #define pmd_pgtable(pmd) pmd_page(pmd)
 
-#define check_pgt_cache()          do { } while (0)
-
 #endif
