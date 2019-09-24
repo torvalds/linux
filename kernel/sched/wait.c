@@ -191,6 +191,29 @@ void __wake_up_sync_key(struct wait_queue_head *wq_head, unsigned int mode,
 }
 EXPORT_SYMBOL_GPL(__wake_up_sync_key);
 
+/**
+ * __wake_up_locked_sync_key - wake up a thread blocked on a locked waitqueue.
+ * @wq_head: the waitqueue
+ * @mode: which threads
+ * @key: opaque value to be passed to wakeup targets
+ *
+ * The sync wakeup differs in that the waker knows that it will schedule
+ * away soon, so while the target thread will be woken up, it will not
+ * be migrated to another CPU - ie. the two threads are 'synchronized'
+ * with each other. This can prevent needless bouncing between CPUs.
+ *
+ * On UP it can prevent extra preemption.
+ *
+ * If this function wakes up a task, it executes a full memory barrier before
+ * accessing the task state.
+ */
+void __wake_up_locked_sync_key(struct wait_queue_head *wq_head,
+			       unsigned int mode, void *key)
+{
+        __wake_up_common(wq_head, mode, 1, WF_SYNC, key, NULL);
+}
+EXPORT_SYMBOL_GPL(__wake_up_locked_sync_key);
+
 /*
  * __wake_up_sync - see __wake_up_sync_key()
  */
