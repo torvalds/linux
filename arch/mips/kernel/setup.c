@@ -108,6 +108,9 @@ void __init add_memory_region(phys_addr_t start, phys_addr_t size, long type)
 		return;
 	}
 
+	if (start < PHYS_OFFSET)
+		return;
+
 	memblock_add(start, size);
 	/* Reserve any memory except the ordinary RAM ranges. */
 	switch (type) {
