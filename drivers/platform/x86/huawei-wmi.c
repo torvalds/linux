@@ -6,6 +6,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/leds.h>
@@ -21,6 +22,14 @@
 /* Legacy GUIDs */
 #define WMI0_EXPENSIVE_GUID "39142400-C6A3-40fa-BADB-8A2652834100"
 #define WMI0_EVENT_GUID "59142400-C6A3-40fa-BADB-8A2652834100"
+
+struct quirk_entry {
+	bool battery_reset;
+	bool ec_micmute;
+	bool report_brightness;
+};
+
+static struct quirk_entry *quirks;
 
 struct huawei_wmi {
 	struct input_dev *idev[2];
@@ -47,6 +56,58 @@ static const struct key_entry huawei_wmi_keymap[] = {
 	{ KE_IGNORE, 0x294, { KEY_KBDILLUMUP } },
 	{ KE_IGNORE, 0x295, { KEY_KBDILLUMUP } },
 	{ KE_END,	 0 }
+};
+
+static int battery_reset = -1;
+static int report_brightness = -1;
+
+module_param(battery_reset, bint, 0444);
+MODULE_PARM_DESC(battery_reset,
+		"Reset battery charge values to (0-0) before disabling it using (0-100)");
+module_param(report_brightness, bint, 0444);
+MODULE_PARM_DESC(report_brightness,
+		"Report brightness keys.");
+
+/* Quirks */
+
+static int __init dmi_matched(const struct dmi_system_id *dmi)
+{
+	quirks = dmi->driver_data;
+	return 1;
+}
+
+static struct quirk_entry quirk_unknown = {
+};
+
+static struct quirk_entry quirk_battery_reset = {
+	.battery_reset = true,
+};
+
+static struct quirk_entry quirk_matebook_x = {
+	.ec_micmute = true,
+	.report_brightness = true,
+};
+
+static const struct dmi_system_id huawei_quirks[] = {
+	{
+		.callback = dmi_matched,
+		.ident = "Huawei MACH-WX9",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HUAWEI"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MACH-WX9"),
+		},
+		.driver_data = &quirk_battery_reset
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Huawei MateBook X",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HUAWEI"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HUAWEI MateBook X")
+		},
+		.driver_data = &quirk_matebook_x
+	},
+	{  }
 };
 
 static int huawei_wmi_micmute_led_set(struct led_classdev *led_cdev,
@@ -138,6 +199,11 @@ static void huawei_wmi_process_key(struct input_dev *idev, int code)
 		dev_info(&idev->dev, "Unknown key pressed, code: 0x%04x\n", code);
 		return;
 	}
+
+	if (quirks && !quirks->report_brightness &&
+			(key->sw.code == KEY_BRIGHTNESSDOWN ||
+			key->sw.code == KEY_BRIGHTNESSUP))
+		return;
 
 	sparse_keymap_report_entry(idev, key, 1, true);
 }
@@ -252,6 +318,13 @@ static __init int huawei_wmi_init(void)
 	huawei_wmi = kzalloc(sizeof(struct huawei_wmi), GFP_KERNEL);
 	if (!huawei_wmi)
 		return -ENOMEM;
+
+	quirks = &quirk_unknown;
+	dmi_check_system(huawei_quirks);
+	if (battery_reset != -1)
+		quirks->battery_reset = battery_reset;
+	if (report_brightness != -1)
+		quirks->report_brightness = report_brightness;
 
 	err = platform_driver_register(&huawei_wmi_driver);
 	if (err)
