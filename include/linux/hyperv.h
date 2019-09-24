@@ -245,7 +245,10 @@ struct vmbus_channel_offer {
 		} pipe;
 	} u;
 	/*
-	 * The sub_channel_index is defined in win8.
+	 * The sub_channel_index is defined in Win8: a value of zero means a
+	 * primary channel and a value of non-zero means a sub-channel.
+	 *
+	 * Before Win8, the field is reserved, meaning it's always zero.
 	 */
 	u16 sub_channel_index;
 	u16 reserved3;
@@ -422,6 +425,9 @@ enum vmbus_channel_message_type {
 	CHANNELMSG_TL_CONNECT_REQUEST		= 21,
 	CHANNELMSG_COUNT
 };
+
+/* Hyper-V supports about 2048 channels, and the RELIDs start with 1. */
+#define INVALID_RELID	U32_MAX
 
 struct vmbus_channel_message_header {
 	enum vmbus_channel_message_type msgtype;
@@ -934,6 +940,11 @@ static inline bool is_hvsock_channel(const struct vmbus_channel *c)
 		  VMBUS_CHANNEL_TLNPI_PROVIDER_OFFER);
 }
 
+static inline bool is_sub_channel(const struct vmbus_channel *c)
+{
+	return c->offermsg.offer.sub_channel_index != 0;
+}
+
 static inline void set_channel_affinity_state(struct vmbus_channel *c,
 					      enum hv_numa_policy policy)
 {
@@ -1148,6 +1159,9 @@ struct hv_driver {
 	int (*probe)(struct hv_device *, const struct hv_vmbus_device_id *);
 	int (*remove)(struct hv_device *);
 	void (*shutdown)(struct hv_device *);
+
+	int (*suspend)(struct hv_device *);
+	int (*resume)(struct hv_device *);
 
 };
 
