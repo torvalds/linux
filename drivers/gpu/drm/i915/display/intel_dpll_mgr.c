@@ -3086,6 +3086,78 @@ out:
 	return ret;
 }
 
+static bool dkl_pll_get_hw_state(struct drm_i915_private *dev_priv,
+				 struct intel_shared_dpll *pll,
+				 struct intel_dpll_hw_state *hw_state)
+{
+	const enum intel_dpll_id id = pll->info->id;
+	enum tc_port tc_port = icl_pll_id_to_tc_port(id);
+	intel_wakeref_t wakeref;
+	bool ret = false;
+	u32 val;
+
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     POWER_DOMAIN_DISPLAY_CORE);
+	if (!wakeref)
+		return false;
+
+	val = I915_READ(MG_PLL_ENABLE(tc_port));
+	if (!(val & PLL_ENABLE))
+		goto out;
+
+	/*
+	 * All registers read here have the same HIP_INDEX_REG even though
+	 * they are on different building blocks
+	 */
+	I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, 0x2));
+
+	hw_state->mg_refclkin_ctl = I915_READ(DKL_REFCLKIN_CTL(tc_port));
+	hw_state->mg_refclkin_ctl &= MG_REFCLKIN_CTL_OD_2_MUX_MASK;
+
+	hw_state->mg_clktop2_hsclkctl =
+		I915_READ(DKL_CLKTOP2_HSCLKCTL(tc_port));
+	hw_state->mg_clktop2_hsclkctl &=
+		MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL_MASK |
+		MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL_MASK |
+		MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK |
+		MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK;
+
+	hw_state->mg_clktop2_coreclkctl1 =
+		I915_READ(DKL_CLKTOP2_CORECLKCTL1(tc_port));
+	hw_state->mg_clktop2_coreclkctl1 &=
+		MG_CLKTOP2_CORECLKCTL1_A_DIVRATIO_MASK;
+
+	hw_state->mg_pll_div0 = I915_READ(DKL_PLL_DIV0(tc_port));
+	hw_state->mg_pll_div0 &= (DKL_PLL_DIV0_INTEG_COEFF_MASK |
+				  DKL_PLL_DIV0_PROP_COEFF_MASK |
+				  DKL_PLL_DIV0_FBPREDIV_MASK |
+				  DKL_PLL_DIV0_FBDIV_INT_MASK);
+
+	hw_state->mg_pll_div1 = I915_READ(DKL_PLL_DIV1(tc_port));
+	hw_state->mg_pll_div1 &= (DKL_PLL_DIV1_IREF_TRIM_MASK |
+				  DKL_PLL_DIV1_TDC_TARGET_CNT_MASK);
+
+	hw_state->mg_pll_ssc = I915_READ(DKL_PLL_SSC(tc_port));
+	hw_state->mg_pll_ssc &= (DKL_PLL_SSC_IREF_NDIV_RATIO_MASK |
+				 DKL_PLL_SSC_STEP_LEN_MASK |
+				 DKL_PLL_SSC_STEP_NUM_MASK |
+				 DKL_PLL_SSC_EN);
+
+	hw_state->mg_pll_bias = I915_READ(DKL_PLL_BIAS(tc_port));
+	hw_state->mg_pll_bias &= (DKL_PLL_BIAS_FRAC_EN_H |
+				  DKL_PLL_BIAS_FBDIV_FRAC_MASK);
+
+	hw_state->mg_pll_tdc_coldst_bias =
+		I915_READ(DKL_PLL_TDC_COLDST_BIAS(tc_port));
+	hw_state->mg_pll_tdc_coldst_bias &= (DKL_PLL_TDC_SSC_STEP_SIZE_MASK |
+					     DKL_PLL_TDC_FEED_FWD_GAIN_MASK);
+
+	ret = true;
+out:
+	intel_display_power_put(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref);
+	return ret;
+}
+
 static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 				 struct intel_shared_dpll *pll,
 				 struct intel_dpll_hw_state *hw_state,
@@ -3220,6 +3292,12 @@ static void icl_mg_pll_write(struct drm_i915_private *dev_priv,
 	POSTING_READ(MG_PLL_TDC_COLDST_BIAS(tc_port));
 }
 
+static void dkl_pll_write(struct drm_i915_private *dev_priv,
+			  struct intel_shared_dpll *pll)
+{
+	/* TODO */
+}
+
 static void icl_pll_power_enable(struct drm_i915_private *dev_priv,
 				 struct intel_shared_dpll *pll,
 				 i915_reg_t enable_reg)
@@ -3312,7 +3390,10 @@ static void mg_pll_enable(struct drm_i915_private *dev_priv,
 
 	icl_pll_power_enable(dev_priv, pll, enable_reg);
 
-	icl_mg_pll_write(dev_priv, pll);
+	if (INTEL_GEN(dev_priv) >= 12)
+		dkl_pll_write(dev_priv, pll);
+	else
+		icl_mg_pll_write(dev_priv, pll);
 
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
@@ -3467,11 +3548,22 @@ static const struct intel_dpll_mgr ehl_pll_mgr = {
 	.dump_hw_state = icl_dump_hw_state,
 };
 
+static const struct intel_shared_dpll_funcs dkl_pll_funcs = {
+	.enable = mg_pll_enable,
+	.disable = mg_pll_disable,
+	.get_hw_state = dkl_pll_get_hw_state,
+};
+
 static const struct dpll_info tgl_plls[] = {
 	{ "DPLL 0", &combo_pll_funcs, DPLL_ID_ICL_DPLL0,  0 },
 	{ "DPLL 1", &combo_pll_funcs, DPLL_ID_ICL_DPLL1,  0 },
 	{ "TBT PLL",  &tbt_pll_funcs, DPLL_ID_ICL_TBTPLL, 0 },
-	/* TODO: Add typeC plls */
+	{ "TC PLL 1", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL1, 0 },
+	{ "TC PLL 2", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL2, 0 },
+	{ "TC PLL 3", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL3, 0 },
+	{ "TC PLL 4", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL4, 0 },
+	{ "TC PLL 5", &dkl_pll_funcs, DPLL_ID_TGL_MGPLL5, 0 },
+	{ "TC PLL 6", &dkl_pll_funcs, DPLL_ID_TGL_MGPLL6, 0 },
 	{ },
 };
 
