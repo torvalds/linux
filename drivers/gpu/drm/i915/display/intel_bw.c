@@ -35,22 +35,45 @@ static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv,
 	if (ret)
 		return ret;
 
-	switch (val & 0xf) {
-	case 0:
-		qi->dram_type = INTEL_DRAM_DDR4;
-		break;
-	case 1:
-		qi->dram_type = INTEL_DRAM_DDR3;
-		break;
-	case 2:
-		qi->dram_type = INTEL_DRAM_LPDDR3;
-		break;
-	case 3:
-		qi->dram_type = INTEL_DRAM_LPDDR3;
-		break;
-	default:
-		MISSING_CASE(val & 0xf);
-		break;
+	if (IS_GEN(dev_priv, 12)) {
+		switch (val & 0xf) {
+		case 0:
+			qi->dram_type = INTEL_DRAM_DDR4;
+			break;
+		case 3:
+			qi->dram_type = INTEL_DRAM_LPDDR4;
+			break;
+		case 4:
+			qi->dram_type = INTEL_DRAM_DDR3;
+			break;
+		case 5:
+			qi->dram_type = INTEL_DRAM_LPDDR3;
+			break;
+		default:
+			MISSING_CASE(val & 0xf);
+			break;
+		}
+	} else if (IS_GEN(dev_priv, 11)) {
+		switch (val & 0xf) {
+		case 0:
+			qi->dram_type = INTEL_DRAM_DDR4;
+			break;
+		case 1:
+			qi->dram_type = INTEL_DRAM_DDR3;
+			break;
+		case 2:
+			qi->dram_type = INTEL_DRAM_LPDDR3;
+			break;
+		case 3:
+			qi->dram_type = INTEL_DRAM_LPDDR4;
+			break;
+		default:
+			MISSING_CASE(val & 0xf);
+			break;
+		}
+	} else {
+		MISSING_CASE(INTEL_GEN(dev_priv));
+		qi->dram_type = INTEL_DRAM_LPDDR3; /* Conservative default */
 	}
 
 	qi->num_channels = (val & 0xf0) >> 4;
