@@ -161,7 +161,31 @@ static int clk_composite_set_rate_and_parent(struct clk_hw *hw,
 	const struct clk_ops *mux_ops = composite->mux_ops;
 	struct clk_hw *rate_hw = composite->rate_hw;
 	struct clk_hw *mux_hw = composite->mux_hw;
+	struct clk_hw *brother_hw = composite->brother_hw;
 	unsigned long temp_rate;
+
+	if (brother_hw) {
+		struct clk_composite *bcomposite = to_clk_composite(brother_hw);
+		const struct clk_ops *brate_ops = bcomposite->rate_ops;
+		struct clk_hw *brate_hw = bcomposite->rate_hw;
+		struct clk_hw *parent_hw = clk_hw_get_parent(brother_hw);
+		struct clk_hw *new_parent_hw = clk_hw_get_parent(hw);
+
+		__clk_hw_set_clk(brate_hw, brother_hw);
+
+		temp_rate = brate_ops->recalc_rate(brate_hw, parent_rate);
+		if (temp_rate > rate)
+			brate_ops->set_rate(brate_hw, rate, parent_rate);
+		if (clk_hw_is_prepared(brother_hw)) {
+			clk_prepare_enable(new_parent_hw->clk);
+			clk_enable(brother_hw->clk);
+		}
+		clk_hw_reparent(brother_hw, new_parent_hw);
+		if (clk_hw_is_prepared(brother_hw)) {
+			clk_disable(brother_hw->clk);
+			clk_disable_unprepare(parent_hw->clk);
+		}
+	}
 
 	__clk_hw_set_clk(rate_hw, hw);
 	__clk_hw_set_clk(mux_hw, hw);
