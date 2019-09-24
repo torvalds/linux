@@ -14,55 +14,55 @@
 #include "locking.h"
 
 #ifdef CONFIG_BTRFS_DEBUG
-static void btrfs_assert_spinning_writers_get(struct extent_buffer *eb)
+static inline void btrfs_assert_spinning_writers_get(struct extent_buffer *eb)
 {
 	WARN_ON(eb->spinning_writers);
 	eb->spinning_writers++;
 }
 
-static void btrfs_assert_spinning_writers_put(struct extent_buffer *eb)
+static inline void btrfs_assert_spinning_writers_put(struct extent_buffer *eb)
 {
 	WARN_ON(eb->spinning_writers != 1);
 	eb->spinning_writers--;
 }
 
-static void btrfs_assert_no_spinning_writers(struct extent_buffer *eb)
+static inline void btrfs_assert_no_spinning_writers(struct extent_buffer *eb)
 {
 	WARN_ON(eb->spinning_writers);
 }
 
-static void btrfs_assert_spinning_readers_get(struct extent_buffer *eb)
+static inline void btrfs_assert_spinning_readers_get(struct extent_buffer *eb)
 {
 	atomic_inc(&eb->spinning_readers);
 }
 
-static void btrfs_assert_spinning_readers_put(struct extent_buffer *eb)
+static inline void btrfs_assert_spinning_readers_put(struct extent_buffer *eb)
 {
 	WARN_ON(atomic_read(&eb->spinning_readers) == 0);
 	atomic_dec(&eb->spinning_readers);
 }
 
-static void btrfs_assert_tree_read_locks_get(struct extent_buffer *eb)
+static inline void btrfs_assert_tree_read_locks_get(struct extent_buffer *eb)
 {
 	atomic_inc(&eb->read_locks);
 }
 
-static void btrfs_assert_tree_read_locks_put(struct extent_buffer *eb)
+static inline void btrfs_assert_tree_read_locks_put(struct extent_buffer *eb)
 {
 	atomic_dec(&eb->read_locks);
 }
 
-static void btrfs_assert_tree_read_locked(struct extent_buffer *eb)
+static inline void btrfs_assert_tree_read_locked(struct extent_buffer *eb)
 {
 	BUG_ON(!atomic_read(&eb->read_locks));
 }
 
-static void btrfs_assert_tree_write_locks_get(struct extent_buffer *eb)
+static inline void btrfs_assert_tree_write_locks_get(struct extent_buffer *eb)
 {
 	eb->write_locks++;
 }
 
-static void btrfs_assert_tree_write_locks_put(struct extent_buffer *eb)
+static inline void btrfs_assert_tree_write_locks_put(struct extent_buffer *eb)
 {
 	eb->write_locks--;
 }
