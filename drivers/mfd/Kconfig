@@ -589,6 +589,17 @@ config INTEL_SOC_PMIC_CHTDC_TI
 	  Select this option for supporting Dollar Cove (TI version) PMIC
 	  device that is found on some Intel Cherry Trail systems.
 
+config INTEL_SOC_PMIC_MRFLD
+	tristate "Support for Intel Merrifield Basin Cove PMIC"
+	depends on GPIOLIB
+	depends on ACPI
+	depends on INTEL_SCU_IPC
+	select MFD_CORE
+	select REGMAP_IRQ
+	help
+	  Select this option for supporting Basin Cove PMIC device
+	  that is found on Intel Merrifield systems.
+
 config MFD_INTEL_LPSS
 	tristate
 	select COMMON_CLK
@@ -640,15 +651,6 @@ config MFD_JANZ_CMODIO
 	  carrier board. This device is a PCI to MODULbus bridge which may
 	  host many different types of MODULbus daughterboards, including
 	  CAN and GPIO controllers.
-
-config MFD_JZ4740_ADC
-	bool "Janz JZ4740 ADC core"
-	select MFD_CORE
-	select GENERIC_IRQ_CHIP
-	depends on MACH_JZ4740
-	help
-	  Say yes here if you want support for the ADC unit in the JZ4740 SoC.
-	  This driver is necessary for jz4740-battery and jz4740-hwmon driver.
 
 config MFD_KEMPLD
 	tristate "Kontron module PLD device"
