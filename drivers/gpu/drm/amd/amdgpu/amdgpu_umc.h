@@ -63,6 +63,7 @@ struct amdgpu_umc_funcs {
 	void (*enable_umc_index_mode)(struct amdgpu_device *adev,
 					uint32_t umc_instance);
 	void (*disable_umc_index_mode)(struct amdgpu_device *adev);
+	void (*init_registers)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_umc {

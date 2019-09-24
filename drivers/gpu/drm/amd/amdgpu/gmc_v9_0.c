@@ -51,6 +51,7 @@
 #include "gfxhub_v1_1.h"
 #include "mmhub_v9_4.h"
 #include "umc_v6_1.h"
+#include "umc_v6_0.h"
 
 #include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
 
@@ -696,6 +697,9 @@ static void gmc_v9_0_set_gmc_funcs(struct amdgpu_device *adev)
 static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+		adev->umc.funcs = &umc_v6_0_funcs;
+		break;
 	case CHIP_VEGA20:
 		adev->umc.max_ras_err_cnt_per_query = UMC_V6_1_TOTAL_CHANNEL_NUM;
 		adev->umc.channel_inst_num = UMC_V6_1_CHANNEL_INSTANCE_NUM;
@@ -1302,6 +1306,9 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->num_vmhubs; ++i)
 		gmc_v9_0_flush_gpu_tlb(adev, 0, i, 0);
+
+	if (adev->umc.funcs && adev->umc.funcs->init_registers)
+		adev->umc.funcs->init_registers(adev);
 
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
