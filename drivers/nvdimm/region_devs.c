@@ -1168,6 +1168,9 @@ EXPORT_SYMBOL_GPL(nvdimm_has_cache);
 
 bool is_nvdimm_sync(struct nd_region *nd_region)
 {
+	if (is_nd_volatile(&nd_region->dev))
+		return true;
+
 	return is_nd_pmem(&nd_region->dev) &&
 		!test_bit(ND_REGION_ASYNC, &nd_region->flags);
 }
