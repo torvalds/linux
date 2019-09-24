@@ -34,7 +34,7 @@
 #include "bpf-event.h"
 #include "block-range.h"
 #include "string2.h"
-#include "util/mmap.h"
+#include "util/event.h"
 #include "arch/common.h"
 #include <regex.h>
 #include <pthread.h>
