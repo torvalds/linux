@@ -822,6 +822,7 @@ static const char *const rk3288_critical_clocks[] __initconst = {
 	"aclk_rga_niu",
 	"hclk_peri",
 	"hclk_vio_niu",
+	"pclk_peri",
 	"pclk_alive_niu",
 	"pclk_pd_pmu",
 	"pclk_pmu_niu",
