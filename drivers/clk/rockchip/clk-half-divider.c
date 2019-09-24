@@ -50,7 +50,7 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 		if (bestdiv < 3)
 			bestdiv = 0;
 		else
-			bestdiv = (bestdiv - 3) / 2;
+			bestdiv = DIV_ROUND_UP(bestdiv - 3, 2);
 		bestdiv = bestdiv > maxdiv ? maxdiv : bestdiv;
 		return bestdiv;
 	}
@@ -105,7 +105,7 @@ static int clk_half_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 	u32 val;
 
 	value = DIV_ROUND_UP_ULL(((u64)parent_rate * 2), rate);
-	value = (value - 3) / 2;
+	value = DIV_ROUND_UP(value - 3, 2);
 	value =  min_t(unsigned int, value, div_mask(divider->width));
 
 	if (divider->lock)
