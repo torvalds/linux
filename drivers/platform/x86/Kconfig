@@ -1306,6 +1306,7 @@ config INTEL_ATOMISP2_PM
 
 config HUAWEI_WMI
 	tristate "Huawei WMI laptop extras driver"
+	depends on ACPI_BATTERY
 	depends on ACPI_WMI
 	depends on INPUT
 	select INPUT_SPARSEKMAP
