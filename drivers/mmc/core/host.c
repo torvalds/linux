@@ -364,7 +364,6 @@ EXPORT_SYMBOL(mmc_of_parse);
  *
  *	Initialise the per-host structure.
  */
-static struct mmc_host *primary_sdio_host;
 struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 {
 	int err;
@@ -424,6 +423,9 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 }
 
 EXPORT_SYMBOL(mmc_alloc_host);
+
+struct mmc_host *primary_sdio_host;
+EXPORT_SYMBOL(primary_sdio_host);
 
 /**
  *	mmc_add_host - initialise host hardware
