@@ -1470,11 +1470,6 @@ static int medusa_l1_inode_removexattr(struct dentry *dentry, const char *name)
 	return cap_inode_removexattr(dentry, name);
 } 
 
-static int medusa_l1_inode_killpriv(struct dentry *dentry)
-{
-	return cap_inode_killpriv(dentry);
-}
-
 static struct security_hook_list medusa_l1_hooks[] = {
 	//LSM_HOOK_INIT(ptrace_access_check, medusa_l1_ptrace_access_check),
 	//LSM_HOOK_INIT(ptrace_traceme, medusa_l1_ptrace_traceme),
