@@ -757,6 +757,9 @@ static void bch2_set_page_dirty(struct bch_fs *c,
 	struct bch_page_state *s = bch2_page_state(page);
 	unsigned i, dirty_sectors = 0;
 
+	WARN_ON(page_offset(page) + offset + len >
+		round_up(i_size_read(&inode->v), block_bytes(c)));
+
 	for (i = round_down(offset, block_bytes(c)) >> 9;
 	     i < round_up(offset + len, block_bytes(c)) >> 9;
 	     i++) {
@@ -1442,8 +1445,8 @@ do_io:
 				     sectors << 9, offset << 9));
 
 		/* Check for writing past i_size: */
-		BUG_ON((bio_end_sector(&w->io->op.op.wbio.bio) << 9) >
-		       round_up(i_size, block_bytes(c)));
+		WARN_ON((bio_end_sector(&w->io->op.op.wbio.bio) << 9) >
+			round_up(i_size, block_bytes(c)));
 
 		w->io->op.op.res.sectors += reserved_sectors;
 		w->io->op.new_i_size = i_size;
