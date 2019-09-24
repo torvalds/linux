@@ -369,7 +369,7 @@ int amdgpu_bo_create_kernel_at(struct amdgpu_device *adev,
 	size = ALIGN(size, PAGE_SIZE);
 
 	r = amdgpu_bo_create_reserved(adev, size, PAGE_SIZE, domain, bo_ptr,
-				      NULL, NULL);
+				      NULL, cpu_addr);
 	if (r)
 		return r;
 
@@ -377,12 +377,15 @@ int amdgpu_bo_create_kernel_at(struct amdgpu_device *adev,
 	 * Remove the original mem node and create a new one at the request
 	 * position.
 	 */
+	if (cpu_addr)
+		amdgpu_bo_kunmap(*bo_ptr);
+
+	ttm_bo_mem_put(&(*bo_ptr)->tbo, &(*bo_ptr)->tbo.mem);
+
 	for (i = 0; i < (*bo_ptr)->placement.num_placement; ++i) {
 		(*bo_ptr)->placements[i].fpfn = offset >> PAGE_SHIFT;
 		(*bo_ptr)->placements[i].lpfn = (offset + size) >> PAGE_SHIFT;
 	}
-
-	ttm_bo_mem_put(&(*bo_ptr)->tbo, &(*bo_ptr)->tbo.mem);
 	r = ttm_bo_mem_space(&(*bo_ptr)->tbo, &(*bo_ptr)->placement,
 			     &(*bo_ptr)->tbo.mem, &ctx);
 	if (r)
