@@ -971,10 +971,14 @@ static int smiapp_update_mode(struct smiapp_sensor *sensor)
  *
  */
 
-static int smiapp_read_nvm_page(struct smiapp_sensor *sensor, u32 p, u8 *nvm)
+static int smiapp_read_nvm_page(struct smiapp_sensor *sensor, u32 p, u8 *nvm,
+				u8 *status)
 {
 	unsigned int i;
 	int rval;
+	u32 s;
+
+	*status = 0;
 
 	rval = smiapp_write(sensor,
 			    SMIAPP_REG_U8_DATA_TRANSFER_IF_1_PAGE_SELECT, p);
@@ -986,10 +990,21 @@ static int smiapp_read_nvm_page(struct smiapp_sensor *sensor, u32 p, u8 *nvm)
 	if (rval)
 		return rval;
 
+	rval = smiapp_read(sensor, SMIAPP_REG_U8_DATA_TRANSFER_IF_1_STATUS,
+			   &s);
+	if (rval)
+		return rval;
+
+	if (s & SMIAPP_DATA_TRANSFER_IF_1_STATUS_EUSAGE) {
+		*status = s;
+		return -ENODATA;
+	}
+
 	if (sensor->limits[SMIAPP_LIMIT_DATA_TRANSFER_IF_CAPABILITY] &
 	    SMIAPP_DATA_TRANSFER_IF_CAPABILITY_POLL) {
 		for (i = 1000; i > 0; i--) {
-			u32 s;
+			if (s & SMIAPP_DATA_TRANSFER_IF_1_STATUS_RD_READY)
+				break;
 
 			rval = smiapp_read(
 				sensor,
@@ -998,10 +1013,6 @@ static int smiapp_read_nvm_page(struct smiapp_sensor *sensor, u32 p, u8 *nvm)
 
 			if (rval)
 				return rval;
-
-			if (s & SMIAPP_DATA_TRANSFER_IF_1_STATUS_RD_READY)
-				break;
-
 		}
 
 		if (!i)
@@ -1023,23 +1034,27 @@ static int smiapp_read_nvm_page(struct smiapp_sensor *sensor, u32 p, u8 *nvm)
 	return 0;
 }
 
-static int smiapp_read_nvm(struct smiapp_sensor *sensor,
-			   unsigned char *nvm)
+static int smiapp_read_nvm(struct smiapp_sensor *sensor, unsigned char *nvm,
+			   size_t nvm_size)
 {
-	u32 p, np;
+	u8 status = 0;
+	u32 p;
 	int rval = 0, rval2;
 
-	np = sensor->nvm_size / SMIAPP_NVM_PAGE_SIZE;
-	for (p = 0; p < np && !rval; p++) {
-		rval = smiapp_read_nvm_page(sensor, p, nvm);
+	for (p = 0; p < nvm_size / SMIAPP_NVM_PAGE_SIZE && !rval; p++) {
+		rval = smiapp_read_nvm_page(sensor, p, nvm, &status);
 		nvm += SMIAPP_NVM_PAGE_SIZE;
 	}
+
+	if (rval == -ENODATA &&
+	    status & SMIAPP_DATA_TRANSFER_IF_1_STATUS_EUSAGE)
+		rval = 0;
 
 	rval2 = smiapp_write(sensor, SMIAPP_REG_U8_DATA_TRANSFER_IF_1_CTRL, 0);
 	if (rval < 0)
 		return rval;
 	else
-		return rval2;
+		return rval2 ?: p * SMIAPP_NVM_PAGE_SIZE;
 }
 
 /*
@@ -2326,42 +2341,34 @@ smiapp_sysfs_nvm_read(struct device *dev, struct device_attribute *attr,
 	struct v4l2_subdev *subdev = i2c_get_clientdata(to_i2c_client(dev));
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 	struct smiapp_sensor *sensor = to_smiapp_sensor(subdev);
-	unsigned int nbytes;
+	int rval;
 
 	if (!sensor->dev_init_done)
 		return -EBUSY;
 
-	if (!sensor->nvm_size) {
-		int rval;
-
-		/* NVM not read yet - read it now */
-		sensor->nvm_size = sensor->hwcfg->nvm_size;
-
-		rval = pm_runtime_get_sync(&client->dev);
-		if (rval < 0) {
-			if (rval != -EBUSY && rval != -EAGAIN)
-				pm_runtime_set_active(&client->dev);
-			pm_runtime_put_noidle(&client->dev);
-			return -ENODEV;
-		}
-
-		if (smiapp_read_nvm(sensor, sensor->nvm)) {
-			pm_runtime_put(&client->dev);
-			dev_err(&client->dev, "nvm read failed\n");
-			return -ENODEV;
-		}
-
-		pm_runtime_mark_last_busy(&client->dev);
-		pm_runtime_put_autosuspend(&client->dev);
+	rval = pm_runtime_get_sync(&client->dev);
+	if (rval < 0) {
+		if (rval != -EBUSY && rval != -EAGAIN)
+			pm_runtime_set_active(&client->dev);
+		pm_runtime_put_noidle(&client->dev);
+		return -ENODEV;
 	}
+
+	rval = smiapp_read_nvm(sensor, buf, PAGE_SIZE);
+	if (rval < 0) {
+		pm_runtime_put(&client->dev);
+		dev_err(&client->dev, "nvm read failed\n");
+		return -ENODEV;
+	}
+
+	pm_runtime_mark_last_busy(&client->dev);
+	pm_runtime_put_autosuspend(&client->dev);
+
 	/*
 	 * NVM is still way below a PAGE_SIZE, so we can safely
 	 * assume this for now.
 	 */
-	nbytes = min_t(unsigned int, sensor->nvm_size, PAGE_SIZE);
-	memcpy(buf, sensor->nvm, nbytes);
-
-	return nbytes;
+	return rval;
 }
 static DEVICE_ATTR(nvm, S_IRUGO, smiapp_sysfs_nvm_read, NULL);
 
@@ -2825,16 +2832,13 @@ static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 		}
 	}
 
-	/* NVM size is not mandatory */
-	fwnode_property_read_u32(fwnode, "nokia,nvm-size", &hwcfg->nvm_size);
-
 	rval = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
 					&hwcfg->ext_clk);
 	if (rval)
 		dev_info(dev, "can't get clock-frequency\n");
 
-	dev_dbg(dev, "nvm %d, clk %d, mode %d\n",
-		hwcfg->nvm_size, hwcfg->ext_clk, hwcfg->csi_signalling_mode);
+	dev_dbg(dev, "clk %d, mode %d\n", hwcfg->ext_clk,
+		hwcfg->csi_signalling_mode);
 
 	if (!bus_cfg.nr_of_link_frequencies) {
 		dev_warn(dev, "no link frequencies defined\n");
@@ -3018,17 +3022,10 @@ static int smiapp_probe(struct i2c_client *client)
 		rval = -ENOENT;
 		goto out_power_off;
 	}
-	/* SMIA++ NVM initialization - it will be read from the sensor
-	 * when it is first requested by userspace.
-	 */
-	if (sensor->minfo.smiapp_version && sensor->hwcfg->nvm_size) {
-		sensor->nvm = devm_kzalloc(&client->dev,
-				sensor->hwcfg->nvm_size, GFP_KERNEL);
-		if (sensor->nvm == NULL) {
-			rval = -ENOMEM;
-			goto out_cleanup;
-		}
 
+	if (sensor->minfo.smiapp_version &&
+	    sensor->limits[SMIAPP_LIMIT_DATA_TRANSFER_IF_CAPABILITY] &
+	    SMIAPP_DATA_TRANSFER_IF_CAPABILITY_SUPPORTED) {
 		if (device_create_file(&client->dev, &dev_attr_nvm) != 0) {
 			dev_err(&client->dev, "sysfs nvm entry failed\n");
 			rval = -EBUSY;
