@@ -277,7 +277,7 @@ static int meson_clk_pll_wait_lock(struct clk_hw *hw)
 	return -ETIMEDOUT;
 }
 
-static void meson_clk_pll_init(struct clk_hw *hw)
+static int meson_clk_pll_init(struct clk_hw *hw)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
@@ -288,6 +288,8 @@ static void meson_clk_pll_init(struct clk_hw *hw)
 				       pll->init_count);
 		meson_parm_write(clk->map, &pll->rst, 0);
 	}
+
+	return 0;
 }
 
 static int meson_clk_pll_is_enabled(struct clk_hw *hw)

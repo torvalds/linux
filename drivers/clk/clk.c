@@ -3316,16 +3316,21 @@ static int __clk_core_init(struct clk_core *core)
 	 * optional platform-specific magic
 	 *
 	 * The .init callback is not used by any of the basic clock types, but
-	 * exists for weird hardware that must perform initialization magic.
-	 * Please consider other ways of solving initialization problems before
-	 * using this callback, as its use is discouraged.
+	 * exists for weird hardware that must perform initialization magic for
+	 * CCF to get an accurate view of clock for any other callbacks. It may
+	 * also be used needs to perform dynamic allocations. Such allocation
+	 * must be freed in the terminate() callback.
+	 * This callback shall not be used to initialize the parameters state,
+	 * such as rate, parent, etc ...
 	 *
 	 * If it exist, this callback should called before any other callback of
 	 * the clock
 	 */
-	if (core->ops->init)
-		core->ops->init(core->hw);
-
+	if (core->ops->init) {
+		ret = core->ops->init(core->hw);
+		if (ret)
+			goto out;
+	}
 
 	core->parent = __clk_init_parent(core);
 
