@@ -264,6 +264,9 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_REG_ML_LOUTPAY		0x20
 #define AZX_REG_ML_LINPAY		0x30
 
+/* bit0 is reserved, with BIT(1) mapping to stream1 */
+#define ML_LOSIDV_STREAM_MASK		0xFFFE
+
 #define ML_LCTL_SCF_MASK			0xF
 #define AZX_MLCTL_SPA				(0x1 << 16)
 #define AZX_MLCTL_CPA				(0x1 << 23)
