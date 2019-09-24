@@ -2652,15 +2652,20 @@ int main(int argc, char **argv)
 		fatal("modpost: Section mismatches detected.\n"
 		      "Set CONFIG_SECTION_MISMATCH_WARN_ONLY=y to allow them.\n");
 	for (n = 0; n < SYMBOL_HASH_SIZE; n++) {
-		struct symbol *s = symbolhash[n];
+		struct symbol *s;
 
-		while (s) {
+		for (s = symbolhash[n]; s; s = s->next) {
+			/*
+			 * Do not check "vmlinux". This avoids the same warnings
+			 * shown twice, and false-positives for ARCH=um.
+			 */
+			if (is_vmlinux(s->module->name) && !s->module->is_dot_o)
+				continue;
+
 			if (s->is_static)
 				warn("\"%s\" [%s] is a static %s\n",
 				     s->name, s->module->name,
 				     export_str(s->export));
-
-			s = s->next;
 		}
 	}
 
