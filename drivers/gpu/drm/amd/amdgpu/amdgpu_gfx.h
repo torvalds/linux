@@ -165,6 +165,7 @@ struct amdgpu_gfx_config {
 	uint32_t num_sc_per_sh;
 	uint32_t num_packer_per_sc;
 	uint32_t pa_sc_tile_steering_override;
+	uint64_t tcc_disabled_mask;
 };
 
 struct amdgpu_cu_info {

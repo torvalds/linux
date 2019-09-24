@@ -1005,6 +1005,8 @@ struct drm_amdgpu_info_device {
 	__u64 high_va_max;
 	/* gfx10 pa_sc_tile_steering_override */
 	__u32 pa_sc_tile_steering_override;
+	/* disabled TCCs */
+	__u64 tcc_disabled_mask;
 };
 
 struct drm_amdgpu_info_hw_ip {
