@@ -2607,7 +2607,8 @@ enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port)
 
 static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 				     u32 *target_dco_khz,
-				     struct intel_dpll_hw_state *state)
+				     struct intel_dpll_hw_state *state,
+				     bool is_dkl)
 {
 	u32 dco_min_freq, dco_max_freq;
 	int div1_vals[] = {7, 5, 3, 2};
@@ -2629,8 +2630,13 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 				continue;
 
 			if (div2 >= 2) {
-				a_divratio = is_dp ? 10 : 5;
-				tlinedrv = 2;
+				if (is_dkl) {
+					a_divratio = 5;
+					tlinedrv = 1;
+				} else {
+					a_divratio = is_dp ? 10 : 5;
+					tlinedrv = 2;
+				}
 			} else {
 				a_divratio = 5;
 				tlinedrv = 0;
@@ -2693,11 +2699,12 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 	u64 tmp;
 	bool use_ssc = false;
 	bool is_dp = !intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI);
+	bool is_dkl = INTEL_GEN(dev_priv) >= 12;
 
 	memset(pll_state, 0, sizeof(*pll_state));
 
 	if (!icl_mg_pll_find_divisors(clock, is_dp, use_ssc, &dco_khz,
-				      pll_state)) {
+				      pll_state, is_dkl)) {
 		DRM_DEBUG_KMS("Failed to find divisors for clock %d\n", clock);
 		return false;
 	}
@@ -2705,8 +2712,11 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 	m1div = 2;
 	m2div_int = dco_khz / (refclk_khz * m1div);
 	if (m2div_int > 255) {
-		m1div = 4;
-		m2div_int = dco_khz / (refclk_khz * m1div);
+		if (!is_dkl) {
+			m1div = 4;
+			m2div_int = dco_khz / (refclk_khz * m1div);
+		}
+
 		if (m2div_int > 255) {
 			DRM_DEBUG_KMS("Failed to find mdiv for clock %d\n",
 				      clock);
@@ -2787,7 +2797,28 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 	ssc_steplog = 4;
 
 	/* write pll_state calculations */
-	{
+	if (is_dkl) {
+		pll_state->mg_pll_div0 = DKL_PLL_DIV0_INTEG_COEFF(int_coeff) |
+					 DKL_PLL_DIV0_PROP_COEFF(prop_coeff) |
+					 DKL_PLL_DIV0_FBPREDIV(m1div) |
+					 DKL_PLL_DIV0_FBDIV_INT(m2div_int);
+
+		pll_state->mg_pll_div1 = DKL_PLL_DIV1_IREF_TRIM(iref_trim) |
+					 DKL_PLL_DIV1_TDC_TARGET_CNT(tdc_targetcnt);
+
+		pll_state->mg_pll_ssc = DKL_PLL_SSC_IREF_NDIV_RATIO(iref_ndiv) |
+					DKL_PLL_SSC_STEP_LEN(ssc_steplen) |
+					DKL_PLL_SSC_STEP_NUM(ssc_steplog) |
+					(use_ssc ? DKL_PLL_SSC_EN : 0);
+
+		pll_state->mg_pll_bias = (m2div_frac ? DKL_PLL_BIAS_FRAC_EN_H : 0) |
+					  DKL_PLL_BIAS_FBDIV_FRAC(m2div_frac);
+
+		pll_state->mg_pll_tdc_coldst_bias =
+				DKL_PLL_TDC_SSC_STEP_SIZE(ssc_stepsize) |
+				DKL_PLL_TDC_FEED_FWD_GAIN(feedfwgain);
+
+	} else {
 		pll_state->mg_pll_div0 =
 			(m2div_rem > 0 ? MG_PLL_DIV0_FRACNEN_H : 0) |
 			MG_PLL_DIV0_FBDIV_FRAC(m2div_frac) |

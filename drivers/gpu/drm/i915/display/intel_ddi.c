@@ -1413,11 +1413,30 @@ static int icl_calc_mg_pll_link(struct drm_i915_private *dev_priv,
 
 	ref_clock = dev_priv->cdclk.hw.ref;
 
-	m1 = pll_state->mg_pll_div1 & MG_PLL_DIV1_FBPREDIV_MASK;
-	m2_int = pll_state->mg_pll_div0 & MG_PLL_DIV0_FBDIV_INT_MASK;
-	m2_frac = (pll_state->mg_pll_div0 & MG_PLL_DIV0_FRACNEN_H) ?
-		(pll_state->mg_pll_div0 & MG_PLL_DIV0_FBDIV_FRAC_MASK) >>
-		MG_PLL_DIV0_FBDIV_FRAC_SHIFT : 0;
+	if (INTEL_GEN(dev_priv) >= 12) {
+		m1 = pll_state->mg_pll_div0 & DKL_PLL_DIV0_FBPREDIV_MASK;
+		m1 = m1 >> DKL_PLL_DIV0_FBPREDIV_SHIFT;
+		m2_int = pll_state->mg_pll_div0 & DKL_PLL_DIV0_FBDIV_INT_MASK;
+
+		if (pll_state->mg_pll_bias & DKL_PLL_BIAS_FRAC_EN_H) {
+			m2_frac = pll_state->mg_pll_bias &
+				  DKL_PLL_BIAS_FBDIV_FRAC_MASK;
+			m2_frac = m2_frac >> DKL_PLL_BIAS_FBDIV_SHIFT;
+		} else {
+			m2_frac = 0;
+		}
+	} else {
+		m1 = pll_state->mg_pll_div1 & MG_PLL_DIV1_FBPREDIV_MASK;
+		m2_int = pll_state->mg_pll_div0 & MG_PLL_DIV0_FBDIV_INT_MASK;
+
+		if (pll_state->mg_pll_div0 & MG_PLL_DIV0_FRACNEN_H) {
+			m2_frac = pll_state->mg_pll_div0 &
+				  MG_PLL_DIV0_FBDIV_FRAC_MASK;
+			m2_frac = m2_frac >> MG_PLL_DIV0_FBDIV_FRAC_SHIFT;
+		} else {
+			m2_frac = 0;
+		}
+	}
 
 	switch (pll_state->mg_clktop2_hsclkctl &
 		MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK) {
