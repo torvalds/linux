@@ -24,15 +24,17 @@ description: |
 
 properties:
   compatible:
-    items:
-      - enum:
-          - sifive,rocket0
-          - sifive,e5
-          - sifive,e51
-          - sifive,u54-mc
-          - sifive,u54
-          - sifive,u5
-      - const: riscv
+    oneOf:
+      - items:
+          - enum:
+              - sifive,rocket0
+              - sifive,e5
+              - sifive,e51
+              - sifive,u54-mc
+              - sifive,u54
+              - sifive,u5
+          - const: riscv
+      - const: riscv    # Simulator only
     description:
       Identifies that the hart uses the RISC-V instruction set
       and identifies the type of the hart.
@@ -66,12 +68,8 @@ properties:
       insensitive, letters in the riscv,isa string must be all
       lowercase to simplify parsing.
 
-  timebase-frequency:
-    type: integer
-    minimum: 1
-    description:
-      Specifies the clock frequency of the system timer in Hz.
-      This value is common to all harts on a single system image.
+  # RISC-V requires 'timebase-frequency' in /cpus, so disallow it here
+  timebase-frequency: false
 
   interrupt-controller:
     type: object
@@ -93,7 +91,6 @@ properties:
 
 required:
   - riscv,isa
-  - timebase-frequency
   - interrupt-controller
 
 examples:
