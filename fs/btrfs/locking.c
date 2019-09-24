@@ -67,11 +67,6 @@ static inline void btrfs_assert_tree_write_locks_put(struct extent_buffer *eb)
 	eb->write_locks--;
 }
 
-void btrfs_assert_tree_locked(struct extent_buffer *eb)
-{
-	BUG_ON(!eb->write_locks);
-}
-
 #else
 static void btrfs_assert_spinning_writers_get(struct extent_buffer *eb) { }
 static void btrfs_assert_spinning_writers_put(struct extent_buffer *eb) { }
@@ -81,7 +76,6 @@ static void btrfs_assert_spinning_readers_get(struct extent_buffer *eb) { }
 static void btrfs_assert_tree_read_locked(struct extent_buffer *eb) { }
 static void btrfs_assert_tree_read_locks_get(struct extent_buffer *eb) { }
 static void btrfs_assert_tree_read_locks_put(struct extent_buffer *eb) { }
-void btrfs_assert_tree_locked(struct extent_buffer *eb) { }
 static void btrfs_assert_tree_write_locks_get(struct extent_buffer *eb) { }
 static void btrfs_assert_tree_write_locks_put(struct extent_buffer *eb) { }
 #endif
