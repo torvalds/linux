@@ -9,6 +9,7 @@
 #define YYDEBUG 1
 
 #include <fnmatch.h>
+#include <stdio.h>
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/types.h>

@@ -1421,19 +1421,6 @@ int perf_evlist__parse_sample_timestamp(struct evlist *evlist,
 	return perf_evsel__parse_sample_timestamp(evsel, event, timestamp);
 }
 
-size_t perf_evlist__fprintf(struct evlist *evlist, FILE *fp)
-{
-	struct evsel *evsel;
-	size_t printed = 0;
-
-	evlist__for_each_entry(evlist, evsel) {
-		printed += fprintf(fp, "%s%s", evsel->idx ? ", " : "",
-				   perf_evsel__name(evsel));
-	}
-
-	return printed + fprintf(fp, "\n");
-}
-
 int perf_evlist__strerror_open(struct evlist *evlist,
 			       int err, char *buf, size_t size)
 {

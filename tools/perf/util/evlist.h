@@ -7,7 +7,6 @@
 #include <linux/refcount.h>
 #include <linux/list.h>
 #include <api/fd/array.h>
-#include <stdio.h>
 #include <internal/evlist.h>
 #include <internal/evsel.h>
 #include "events_stats.h"
@@ -248,8 +247,6 @@ static inline struct evsel *evlist__last(struct evlist *evlist)
 
 	return container_of(evsel, struct evsel, core);
 }
-
-size_t perf_evlist__fprintf(struct evlist *evlist, FILE *fp);
 
 int perf_evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size);
 int perf_evlist__strerror_mmap(struct evlist *evlist, int err, char *buf, size_t size);
