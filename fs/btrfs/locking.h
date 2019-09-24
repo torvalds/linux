@@ -33,6 +33,8 @@ static inline void btrfs_assert_tree_locked(struct extent_buffer *eb) {
 static inline void btrfs_assert_tree_locked(struct extent_buffer *eb) { }
 #endif
 
+void btrfs_set_path_blocking(struct btrfs_path *p);
+
 static inline void btrfs_tree_unlock_rw(struct extent_buffer *eb, int rw)
 {
 	if (rw == BTRFS_WRITE_LOCK || rw == BTRFS_WRITE_LOCK_BLOCKING)

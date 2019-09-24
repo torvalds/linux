@@ -316,3 +316,29 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
 		write_unlock(&eb->lock);
 	}
 }
+
+/*
+ * Set all locked nodes in the path to blocking locks.  This should be done
+ * before scheduling
+ */
+void btrfs_set_path_blocking(struct btrfs_path *p)
+{
+	int i;
+
+	for (i = 0; i < BTRFS_MAX_LEVEL; i++) {
+		if (!p->nodes[i] || !p->locks[i])
+			continue;
+		/*
+		 * If we currently have a spinning reader or writer lock this
+		 * will bump the count of blocking holders and drop the
+		 * spinlock.
+		 */
+		if (p->locks[i] == BTRFS_READ_LOCK) {
+			btrfs_set_lock_blocking_read(p->nodes[i]);
+			p->locks[i] = BTRFS_READ_LOCK_BLOCKING;
+		} else if (p->locks[i] == BTRFS_WRITE_LOCK) {
+			btrfs_set_lock_blocking_write(p->nodes[i]);
+			p->locks[i] = BTRFS_WRITE_LOCK_BLOCKING;
+		}
+	}
+}
