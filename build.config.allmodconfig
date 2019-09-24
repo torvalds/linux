@@ -6,7 +6,8 @@ POST_DEFCONFIG_CMDS="update_config"
 function update_config() {
     ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
          -d TEST_KMOD  \
-         -d XFS_FS
+         -d XFS_FS \
+         -d CPU_BIG_ENDIAN
     (cd ${OUT_DIR} && \
      make O=${OUT_DIR} $archsubarch CC=${CC} CROSS_COMPILE=${CROSS_COMPILE} olddefconfig)
 }
