@@ -1763,6 +1763,35 @@ failed:
 	return ret;
 }
 
+static int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_type clk_type,
+			    uint32_t min, uint32_t max)
+{
+	int ret = 0, clk_id = 0;
+	uint32_t param;
+
+	clk_id = smu_clk_get_index(smu, clk_type);
+	if (clk_id < 0)
+		return clk_id;
+
+	if (max > 0) {
+		param = (uint32_t)((clk_id << 16) | (max & 0xffff));
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxByFreq,
+						  param);
+		if (ret)
+			return ret;
+	}
+
+	if (min > 0) {
+		param = (uint32_t)((clk_id << 16) | (min & 0xffff));
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMinByFreq,
+						  param);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1814,6 +1843,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.baco_set_state = smu_v11_0_baco_set_state,
 	.baco_reset = smu_v11_0_baco_reset,
 	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
+	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

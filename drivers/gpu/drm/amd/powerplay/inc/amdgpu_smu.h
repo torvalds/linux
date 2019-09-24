@@ -548,6 +548,7 @@ struct smu_funcs
 	int (*baco_reset)(struct smu_context *smu);
 	int (*mode2_reset)(struct smu_context *smu);
 	int (*get_dpm_ultimate_freq)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t *min, uint32_t *max);
+	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
 };
 
 #define smu_init_microcode(smu) \
@@ -777,6 +778,8 @@ struct smu_funcs
 #define smu_get_dpm_uclk_limited(smu, clock, max) \
 		((smu)->ppt_funcs->get_dpm_uclk_limited ? (smu)->ppt_funcs->get_dpm_uclk_limited((smu), (clock), (max)) : -EINVAL)
 
+#define smu_set_soft_freq_limited_range(smu, clk_type, min, max) \
+		((smu)->funcs->set_soft_freq_limited_range ? (smu)->funcs->set_soft_freq_limited_range((smu), (clk_type), (min), (max)) : -EINVAL)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,

@@ -205,8 +205,7 @@ int smu_get_smc_version(struct smu_context *smu, uint32_t *if_version, uint32_t 
 int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			    uint32_t min, uint32_t max)
 {
-	int ret = 0, clk_id = 0;
-	uint32_t param;
+	int ret = 0;
 
 	if (min <= 0 && max <= 0)
 		return -EINVAL;
@@ -214,27 +213,7 @@ int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 	if (!smu_clk_dpm_is_enabled(smu, clk_type))
 		return 0;
 
-	clk_id = smu_clk_get_index(smu, clk_type);
-	if (clk_id < 0)
-		return clk_id;
-
-	if (max > 0) {
-		param = (uint32_t)((clk_id << 16) | (max & 0xffff));
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxByFreq,
-						  param);
-		if (ret)
-			return ret;
-	}
-
-	if (min > 0) {
-		param = (uint32_t)((clk_id << 16) | (min & 0xffff));
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMinByFreq,
-						  param);
-		if (ret)
-			return ret;
-	}
-
-
+	ret = smu_set_soft_freq_limited_range(smu, clk_type, min, max);
 	return ret;
 }
 

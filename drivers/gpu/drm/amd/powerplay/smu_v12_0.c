@@ -383,6 +383,61 @@ failed:
 static int smu_v12_0_mode2_reset(struct smu_context *smu){
 	return smu_v12_0_send_msg_with_param(smu, SMU_MSG_GfxDeviceDriverReset, SMU_RESET_MODE_2);
 }
+
+static int smu_v12_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_type clk_type,
+			    uint32_t min, uint32_t max)
+{
+	int ret = 0;
+
+	if (max < min)
+		return -EINVAL;
+
+	switch (clk_type) {
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinGfxClk, min);
+		if (ret)
+			return ret;
+
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxGfxClk, max);
+		if (ret)
+			return ret;
+	break;
+	case SMU_FCLK:
+	case SMU_MCLK:
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinFclkByFreq, min);
+		if (ret)
+			return ret;
+
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxFclkByFreq, max);
+		if (ret)
+			return ret;
+	break;
+	case SMU_SOCCLK:
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinSocclkByFreq, min);
+		if (ret)
+			return ret;
+
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxSocclkByFreq, max);
+		if (ret)
+			return ret;
+	break;
+	case SMU_VCLK:
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinVcn, min);
+		if (ret)
+			return ret;
+
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxVcn, max);
+		if (ret)
+			return ret;
+	break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v12_0_funcs = {
 	.check_fw_status = smu_v12_0_check_fw_status,
 	.check_fw_version = smu_v12_0_check_fw_version,
@@ -398,6 +453,7 @@ static const struct smu_funcs smu_v12_0_funcs = {
 	.populate_smc_tables = smu_v12_0_populate_smc_tables,
 	.get_dpm_ultimate_freq = smu_v12_0_get_dpm_ultimate_freq,
 	.mode2_reset = smu_v12_0_mode2_reset,
+	.set_soft_freq_limited_range = smu_v12_0_set_soft_freq_limited_range,
 };
 
 void smu_v12_0_set_smu_funcs(struct smu_context *smu)
