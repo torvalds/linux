@@ -349,7 +349,56 @@ static void d71_layer_dump(struct komeda_component *c, struct seq_file *sf)
 	seq_printf(sf, "%sAD_V_CROP:\t\t0x%X\n", prefix, v[2]);
 }
 
+static int d71_layer_validate(struct komeda_component *c,
+			      struct komeda_component_state *state)
+{
+	struct komeda_layer_state *st = to_layer_st(state);
+	struct komeda_layer *layer = to_layer(c);
+	struct drm_plane_state *plane_st;
+	struct drm_framebuffer *fb;
+	u32 fourcc, line_sz, max_line_sz;
+
+	plane_st = drm_atomic_get_new_plane_state(state->obj.state,
+						  state->plane);
+	fb = plane_st->fb;
+	fourcc = fb->format->format;
+
+	if (drm_rotation_90_or_270(st->rot))
+		line_sz = st->vsize - st->afbc_crop_t - st->afbc_crop_b;
+	else
+		line_sz = st->hsize - st->afbc_crop_l - st->afbc_crop_r;
+
+	if (fb->modifier) {
+		if ((fb->modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK) ==
+			AFBC_FORMAT_MOD_BLOCK_SIZE_32x8)
+			max_line_sz = layer->line_sz;
+		else
+			max_line_sz = layer->line_sz / 2;
+
+		if (line_sz > max_line_sz) {
+			DRM_DEBUG_ATOMIC("afbc request line_sz: %d exceed the max afbc line_sz: %d.\n",
+					 line_sz, max_line_sz);
+			return -EINVAL;
+		}
+	}
+
+	if (fourcc == DRM_FORMAT_YUV420_10BIT && line_sz > 2046 && (st->afbc_crop_l % 4)) {
+		DRM_DEBUG_ATOMIC("YUV420_10BIT input_hsize: %d exceed the max size 2046.\n",
+				 line_sz);
+		return -EINVAL;
+	}
+
+	if (fourcc == DRM_FORMAT_X0L2 && line_sz > 2046 && (st->addr[0] % 16)) {
+		DRM_DEBUG_ATOMIC("X0L2 input_hsize: %d exceed the max size 2046.\n",
+				 line_sz);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct komeda_component_funcs d71_layer_funcs = {
+	.validate	= d71_layer_validate,
 	.update		= d71_layer_update,
 	.disable	= d71_layer_disable,
 	.dump_register	= d71_layer_dump,
