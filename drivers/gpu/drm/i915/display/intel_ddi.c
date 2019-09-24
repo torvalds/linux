@@ -1049,6 +1049,8 @@ static u32 icl_pll_to_ddi_clk_sel(struct intel_encoder *encoder,
 	case DPLL_ID_ICL_MGPLL2:
 	case DPLL_ID_ICL_MGPLL3:
 	case DPLL_ID_ICL_MGPLL4:
+	case DPLL_ID_TGL_MGPLL5:
+	case DPLL_ID_TGL_MGPLL6:
 		return DDI_CLK_SEL_MG;
 	}
 }
