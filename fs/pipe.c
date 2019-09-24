@@ -325,9 +325,14 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 
 			if (!buf->len) {
 				pipe_buf_release(pipe, buf);
+				spin_lock_irq(&pipe->wait.lock);
 				tail++;
 				pipe->tail = tail;
-				do_wakeup = 1;
+				do_wakeup = 0;
+				wake_up_interruptible_sync_poll_locked(
+					&pipe->wait, EPOLLOUT | EPOLLWRNORM);
+				spin_unlock_irq(&pipe->wait.lock);
+				kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 			}
 			total_len -= chars;
 			if (!total_len)
@@ -359,6 +364,7 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 		if (do_wakeup) {
 			wake_up_interruptible_sync_poll(&pipe->wait, EPOLLOUT | EPOLLWRNORM);
  			kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
+			do_wakeup = 0;
 		}
 		pipe_wait(pipe);
 	}
