@@ -1694,7 +1694,6 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 
 	inet_sk(sk)->tos = arg->tos;
 
-	sk->sk_priority = skb->priority;
 	sk->sk_protocol = ip_hdr(skb)->protocol;
 	sk->sk_bound_dev_if = arg->bound_dev_if;
 	sk->sk_sndbuf = sysctl_wmem_default;
