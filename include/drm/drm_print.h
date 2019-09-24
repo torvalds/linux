@@ -34,6 +34,8 @@
 
 #include <drm/drm.h>
 
+extern unsigned int drm_debug;
+
 /**
  * DOC: print
  *
