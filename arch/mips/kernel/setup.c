@@ -321,7 +321,7 @@ static void __init bootmem_init(void)
 	 * Reserve any memory between the start of RAM and PHYS_OFFSET
 	 */
 	if (ramstart > PHYS_OFFSET)
-		memblock_reserve(PHYS_OFFSET, PFN_UP(ramstart) - PHYS_OFFSET);
+		memblock_reserve(PHYS_OFFSET, ramstart - PHYS_OFFSET);
 
 	if (PFN_UP(ramstart) > ARCH_PFN_OFFSET) {
 		pr_info("Wasting %lu bytes for tracking %lu unused pages\n",
