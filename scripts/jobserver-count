@@ -1,0 +1,58 @@
+#!/usr/bin/env python
+# SPDX-License-Identifier: GPL-2.0+
+#
+# This determines how many parallel tasks "make" is expecting, as it is
+# not exposed via an special variables.
+# https://www.gnu.org/software/make/manual/html_node/POSIX-Jobserver.html#POSIX-Jobserver
+from __future__ import print_function
+import os, sys, fcntl, errno
+
+# Default parallelism is "1" unless overridden on the command-line.
+default="1"
+if len(sys.argv) > 1:
+	default=sys.argv[1]
+
+# Set non-blocking for a given file descriptor.
+def nonblock(fd):
+	flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+	fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+	return fd
+
+# Extract and prepare jobserver file descriptors from envirnoment.
+try:
+	# Fetch the make environment options.
+	flags = os.environ['MAKEFLAGS']
+
+	# Look for "--jobserver=R,W"
+	opts = [x for x in flags.split(" ") if x.startswith("--jobserver")]
+
+	# Parse out R,W file descriptor numbers and set them nonblocking.
+	fds = opts[0].split("=", 1)[1]
+	reader, writer = [int(x) for x in fds.split(",", 1)]
+	reader = nonblock(reader)
+except (KeyError, IndexError, ValueError, IOError):
+	# Any missing environment strings or bad fds should result in just
+	# using the default specified parallelism.
+	print(default)
+	sys.exit(0)
+
+# Read out as many jobserver slots as possible.
+jobs = b""
+while True:
+	try:
+		slot = os.read(reader, 1)
+		jobs += slot
+	except (OSError, IOError) as e:
+		if e.errno == errno.EWOULDBLOCK:
+			# Stop when reach the end of the jobserver queue.
+			break
+		raise e
+# Return all the reserved slots.
+os.write(writer, jobs)
+
+# If the jobserver was (impossibly) full or communication failed, use default.
+if len(jobs) < 1:
+	print(default)
+
+# Report available slots (with a bump for our caller's reserveration).
+print(len(jobs) + 1)
