@@ -183,6 +183,7 @@ struct clk_mgr_funcs {
 
 	bool (*are_clock_states_equal) (struct dc_clocks *a,
 			struct dc_clocks *b);
+	void (*notify_wm_ranges)(struct clk_mgr *clk_mgr);
 };
 
 struct clk_mgr {
