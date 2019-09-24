@@ -133,7 +133,7 @@ int inet6_csk_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl_unused
 	fl6.daddr = sk->sk_v6_daddr;
 
 	res = ip6_xmit(sk, skb, &fl6, sk->sk_mark, rcu_dereference(np->opt),
-		       np->tclass);
+		       np->tclass,  sk->sk_priority);
 	rcu_read_unlock();
 	return res;
 }
