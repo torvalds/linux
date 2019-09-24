@@ -180,7 +180,7 @@ int iser_alloc_fmr_pool(struct ib_conn *ib_conn,
 
 	page_vec->pages = (u64 *)(page_vec + 1);
 
-	params.page_shift        = SHIFT_4K;
+	params.page_shift        = ilog2(SZ_4K);
 	params.max_pages_per_fmr = size;
 	/* make the pool size twice the max number of SCSI commands *
 	 * the ML is expected to queue, watermark for unmap at 50%  */
@@ -670,7 +670,7 @@ iser_calc_scsi_params(struct iser_conn *iser_conn,
 	else
 		max_num_sg = attr->max_fast_reg_page_list_len;
 
-	sg_tablesize = DIV_ROUND_UP(max_sectors * 512, SIZE_4K);
+	sg_tablesize = DIV_ROUND_UP(max_sectors * SECTOR_SIZE, SZ_4K);
 	if (attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS)
 		sup_sg_tablesize =
 			min_t(

@@ -96,16 +96,12 @@
 #define iser_err(fmt, arg...) \
 	pr_err(PFX "%s: " fmt, __func__ , ## arg)
 
-#define SHIFT_4K	12
-#define SIZE_4K	(1ULL << SHIFT_4K)
-#define MASK_4K	(~(SIZE_4K-1))
-
 /* Default support is 512KB I/O size */
 #define ISER_DEF_MAX_SECTORS		1024
 #define ISCSI_ISER_DEF_SG_TABLESIZE                                            \
-	((ISER_DEF_MAX_SECTORS * SECTOR_SIZE) >> SHIFT_4K)
+	((ISER_DEF_MAX_SECTORS * SECTOR_SIZE) >> ilog2(SZ_4K))
 /* Maximum support is 16MB I/O size */
-#define ISCSI_ISER_MAX_SG_TABLESIZE	((32768 * SECTOR_SIZE) >> SHIFT_4K)
+#define ISCSI_ISER_MAX_SG_TABLESIZE ((32768 * SECTOR_SIZE) >> ilog2(SZ_4K))
 
 #define ISER_DEF_XMIT_CMDS_DEFAULT		512
 #if ISCSI_DEF_XMIT_CMDS_MAX > ISER_DEF_XMIT_CMDS_DEFAULT
