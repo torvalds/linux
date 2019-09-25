@@ -664,8 +664,15 @@ static u32 chip_set_segment(struct aspeed_smc_chip *chip, u32 cs, u32 start,
 	 * size, but take into account the possible overlap with the
 	 * previous segment
 	 */
-	if (!size)
-		size = info->segment_end(controller, seg_oldval) - start;
+	if (!size) {
+		end = info->segment_end(controller, seg_oldval);
+
+		/*
+		 * Check for disabled segment (AST2600).
+		 */
+		if (end != ahb_base_phy)
+			size = end - start;
+	}
 
 	/*
 	 * The segment cannot exceed the maximum window size of the
@@ -694,8 +701,8 @@ static u32 chip_set_segment(struct aspeed_smc_chip *chip, u32 cs, u32 start,
 		size = end - start;
 	}
 
-	dev_info(chip->nor.dev, "CE%d window [ 0x%.8x - 0x%.8x ] %dMB",
-		 cs, start, end, size >> 20);
+	dev_info(chip->nor.dev, "CE%d window [ 0x%.8x - 0x%.8x ] %dMB%s",
+		 cs, start, end, size >> 20, size ? "" : " (disabled)");
 
 	return size;
 }
