@@ -85,7 +85,7 @@ int process_kern2kobj(struct process_kobject * tk, struct task_struct * ts)
 
 	//unsigned __capi;
 	//CAP_FOR_EACH_U32(__capi)
-	//	printk("MEDUSA: ECAP[%d]=%08x\n", __capi, (tk->ecap).cap[CAP_LAST_U32 - __capi]);
+	//	med_pr_debug("MEDUSA: ECAP[%d]=%08x\n", __capi, (tk->ecap).cap[CAP_LAST_U32 - __capi]);
 	
 	tk->luid = task_security(ts).luid;
 	COPY_MEDUSA_SUBJECT_VARS(tk,&task_security(ts));

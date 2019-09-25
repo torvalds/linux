@@ -36,19 +36,19 @@ static medusa_answer_t force_update(struct medusa_kobject_s * kobj)
 	if (!buf)
 		return retval;
 
-	printk("force: 1\n");
+	med_pr_debug("force: 1\n");
 	retval = MED_ERR;
 	rcu_read_lock();
 	//p = find_task_by_pid(((struct force_kobject *)kobj)->pid);
 	p = pid_task(find_vpid(((struct force_kobject *)kobj)->pid), PIDTYPE_PID);
 	if (!p)
 		goto out_kfree;
-	printk("force: 2\n");
+	med_pr_debug("force: 2\n");
 	if (task_security(p).force_code)
 		goto out_kfree;
-	printk("force: 3\n");
+	med_pr_debug("force: 3\n");
 	memcpy(buf, ((struct force_kobject *)kobj)->code, MAX_FORCE_SIZE);
-	printk("force: 4 0x%.2x 0x%.2x 0x%.2x 0x%.2x\n",
+	med_pr_debug("force: 4 0x%.2x 0x%.2x 0x%.2x 0x%.2x\n",
 		((struct force_kobject *)kobj)->code[0],
 		((struct force_kobject *)kobj)->code[1],
 		((struct force_kobject *)kobj)->code[2],

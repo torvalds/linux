@@ -30,9 +30,25 @@
 
 /* debug output */
 #ifdef CONFIG_MEDUSA_QUIET
-#define MED_PRINTF(fmt...) do { } while (0)
+#define med_pr_emerg(fmt...) do { } while (0)
+#define med_pr_alert(fmt...) do { } while (0)
+#define med_pr_crit(fmt...) do { } while (0)
+#define med_pr_err(fmt...) do { } while (0)
+#define med_pr_warn(fmt...) do { } while (0)
+#define med_pr_notice(fmt...) do { } while (0)
+#define med_pr_info(fmt...) do { } while (0)
+#define med_pr_debug(fmt...) do { } while (0)
+#define med_pr_devel(fmt...) do { } while (0)
 #else
-#define MED_PRINTF(fmt...) printk("medusa: " fmt)
+#define med_pr_emerg(fmt...) pr_emerg(KBUILD_MODNAME " | medusa: " fmt) 
+#define med_pr_alert(fmt...) pr_alert(KBUILD_MODNAME " | medusa: " fmt)
+#define med_pr_crit(fmt...) pr_crit(KBUILD_MODNAME " | medusa: " fmt)
+#define med_pr_err(fmt...) pr_err(KBUILD_MODNAME " | medusa: " fmt)
+#define med_pr_warn(fmt...) pr_warn(KBUILD_MODNAME " | medusa: " fmt)
+#define med_pr_notice(fmt...) pr_notice(KBUILD_MODNAME " | medusa: " fmt)
+#define med_pr_info(fmt...) pr_info(KBUILD_MODNAME " | medusa: " fmt)
+#define med_pr_debug(fmt...) pr_debug(KBUILD_MODNAME " | medusa: " fmt)
+#define med_pr_devel(fmt...) pr_devel(KBUILD_MODNAME " | medusa: " fmt)
 #endif
 
 /* u_intX_t */
