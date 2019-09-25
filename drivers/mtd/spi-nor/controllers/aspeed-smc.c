@@ -1080,7 +1080,7 @@ static int aspeed_smc_optimize_read(struct aspeed_smc_chip *chip,
 
 		/* Compare timing to max */
 		freq = ahb_freq / i;
-		if (freq >= max_freq)
+		if (freq > max_freq)
 			continue;
 
 		/* Set the timing */
