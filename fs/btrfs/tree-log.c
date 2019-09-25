@@ -952,7 +952,9 @@ static noinline int backref_in_log(struct btrfs_root *log,
 		return -ENOMEM;
 
 	ret = btrfs_search_slot(NULL, log, key, path, 0, 0);
-	if (ret != 0) {
+	if (ret < 0) {
+		goto out;
+	} else if (ret == 1) {
 		ret = 0;
 		goto out;
 	}
@@ -1026,10 +1028,13 @@ again:
 					   (unsigned long)(victim_ref + 1),
 					   victim_name_len);
 
-			if (!backref_in_log(log_root, &search_key,
-					    parent_objectid,
-					    victim_name,
-					    victim_name_len)) {
+			ret = backref_in_log(log_root, &search_key,
+					     parent_objectid, victim_name,
+					     victim_name_len);
+			if (ret < 0) {
+				kfree(victim_name);
+				return ret;
+			} else if (!ret) {
 				inc_nlink(&inode->vfs_inode);
 				btrfs_release_path(path);
 
@@ -1091,10 +1096,12 @@ again:
 			search_key.offset = btrfs_extref_hash(parent_objectid,
 							      victim_name,
 							      victim_name_len);
-			ret = 0;
-			if (!backref_in_log(log_root, &search_key,
-					    parent_objectid, victim_name,
-					    victim_name_len)) {
+			ret = backref_in_log(log_root, &search_key,
+					     parent_objectid, victim_name,
+					     victim_name_len);
+			if (ret < 0) {
+				return ret;
+			} else if (!ret) {
 				ret = -ENOENT;
 				victim_parent = read_one_inode(root,
 						parent_objectid);
@@ -1869,16 +1876,19 @@ static bool name_in_log_ref(struct btrfs_root *log_root,
 			    const u64 dirid, const u64 ino)
 {
 	struct btrfs_key search_key;
+	int ret;
 
 	search_key.objectid = ino;
 	search_key.type = BTRFS_INODE_REF_KEY;
 	search_key.offset = dirid;
-	if (backref_in_log(log_root, &search_key, dirid, name, name_len))
+	ret = backref_in_log(log_root, &search_key, dirid, name, name_len);
+	if (ret == 1)
 		return true;
 
 	search_key.type = BTRFS_INODE_EXTREF_KEY;
 	search_key.offset = btrfs_extref_hash(dirid, name, name_len);
-	if (backref_in_log(log_root, &search_key, dirid, name, name_len))
+	ret = backref_in_log(log_root, &search_key, dirid, name, name_len);
+	if (ret == 1)
 		return true;
 
 	return false;
