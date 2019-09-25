@@ -101,6 +101,27 @@ kdb_bt1(struct task_struct *p, unsigned long mask, bool btaprompt)
 	return 0;
 }
 
+static void
+kdb_bt_cpu(unsigned long cpu)
+{
+	struct task_struct *kdb_tsk;
+
+	if (cpu >= num_possible_cpus() || !cpu_online(cpu)) {
+		kdb_printf("WARNING: no process for cpu %ld\n", cpu);
+		return;
+	}
+
+	/* If a CPU failed to round up we could be here */
+	kdb_tsk = KDB_TSK(cpu);
+	if (!kdb_tsk) {
+		kdb_printf("WARNING: no task for cpu %ld\n", cpu);
+		return;
+	}
+
+	kdb_set_current_task(kdb_tsk);
+	kdb_bt1(kdb_tsk, ~0UL, false);
+}
+
 int
 kdb_bt(int argc, const char **argv)
 {
@@ -161,7 +182,6 @@ kdb_bt(int argc, const char **argv)
 	} else if (strcmp(argv[0], "btc") == 0) {
 		unsigned long cpu = ~0;
 		struct task_struct *save_current_task = kdb_current_task;
-		char buf[80];
 		if (argc > 1)
 			return KDB_ARGCOUNT;
 		if (argc == 1) {
@@ -169,35 +189,22 @@ kdb_bt(int argc, const char **argv)
 			if (diag)
 				return diag;
 		}
-		/* Recursive use of kdb_parse, do not use argv after
-		 * this point */
-		argv = NULL;
 		if (cpu != ~0) {
-			if (cpu >= num_possible_cpus() || !cpu_online(cpu)) {
-				kdb_printf("no process for cpu %ld\n", cpu);
-				return 0;
+			kdb_bt_cpu(cpu);
+		} else {
+			/*
+			 * Recursive use of kdb_parse, do not use argv after
+			 * this point.
+			 */
+			argv = NULL;
+			kdb_printf("btc: cpu status: ");
+			kdb_parse("cpu\n");
+			for_each_online_cpu(cpu) {
+				kdb_bt_cpu(cpu);
+				touch_nmi_watchdog();
 			}
-			sprintf(buf, "btt 0x%px\n", KDB_TSK(cpu));
-			kdb_parse(buf);
-			return 0;
+			kdb_set_current_task(save_current_task);
 		}
-		kdb_printf("btc: cpu status: ");
-		kdb_parse("cpu\n");
-		for_each_online_cpu(cpu) {
-			void *kdb_tsk = KDB_TSK(cpu);
-
-			/* If a CPU failed to round up we could be here */
-			if (!kdb_tsk) {
-				kdb_printf("WARNING: no task for cpu %ld\n",
-					   cpu);
-				continue;
-			}
-
-			sprintf(buf, "btt 0x%px\n", kdb_tsk);
-			kdb_parse(buf);
-			touch_nmi_watchdog();
-		}
-		kdb_set_current_task(save_current_task);
 		return 0;
 	} else {
 		if (argc) {
