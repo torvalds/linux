@@ -219,8 +219,8 @@ static ssize_t stm32_count_enable_write(struct counter_device *counter,
 
 	if (enable) {
 		regmap_read(priv->regmap, TIM_CR1, &cr1);
-			if (!(cr1 & TIM_CR1_CEN))
-				clk_enable(priv->clk);
+		if (!(cr1 & TIM_CR1_CEN))
+			clk_enable(priv->clk);
 
 		regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN,
 				   TIM_CR1_CEN);
