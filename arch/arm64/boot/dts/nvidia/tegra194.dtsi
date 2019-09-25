@@ -39,7 +39,8 @@
 		};
 
 		ethernet@2490000 {
-			compatible = "nvidia,tegra186-eqos",
+			compatible = "nvidia,tegra194-eqos",
+				     "nvidia,tegra186-eqos",
 				     "snps,dwc-qos-ethernet-4.10";
 			reg = <0x02490000 0x10000>;
 			interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
