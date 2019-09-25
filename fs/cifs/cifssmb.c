@@ -1078,7 +1078,8 @@ RmDirRetry:
 }
 
 int
-CIFSSMBMkDir(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
+CIFSSMBMkDir(const unsigned int xid, struct inode *inode, umode_t mode,
+	     struct cifs_tcon *tcon, const char *name,
 	     struct cifs_sb_info *cifs_sb)
 {
 	int rc = 0;

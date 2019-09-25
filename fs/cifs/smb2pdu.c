@@ -751,6 +751,8 @@ add_posix_context(struct kvec *iov, unsigned int *num_iovec, umode_t mode)
 	unsigned int num = *num_iovec;
 
 	iov[num].iov_base = create_posix_buf(mode);
+	if (mode == -1)
+		cifs_dbg(VFS, "illegal mode\n"); /* BB REMOVEME */
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = sizeof(struct create_posix);
@@ -2417,6 +2419,7 @@ SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst, __u8 *oplock,
 	/* File attributes ignored on open (used in create though) */
 	req->FileAttributes = cpu_to_le32(file_attributes);
 	req->ShareAccess = FILE_SHARE_ALL_LE;
+
 	req->CreateDisposition = cpu_to_le32(oparms->disposition);
 	req->CreateOptions = cpu_to_le32(oparms->create_options & CREATE_OPTIONS_MASK);
 	req->NameOffset = cpu_to_le16(sizeof(struct smb2_create_req));
@@ -2514,6 +2517,23 @@ SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst, __u8 *oplock,
 		}
 
 		rc = add_twarp_context(iov, &n_iov, tcon->snapshot_time);
+		if (rc)
+			return rc;
+	}
+
+	/* TODO: add handling for the mode on create */
+	if (oparms->disposition == FILE_CREATE)
+		cifs_dbg(VFS, "mode is 0x%x\n", oparms->mode); /* BB REMOVEME */
+
+	if ((oparms->disposition == FILE_CREATE) && (oparms->mode != -1)) {
+		if (n_iov > 2) {
+			struct create_context *ccontext =
+			    (struct create_context *)iov[n_iov-1].iov_base;
+			ccontext->Next =
+				cpu_to_le32(iov[n_iov-1].iov_len);
+		}
+
+		/* rc = add_sd_context(iov, &n_iov, oparms->mode); */
 		if (rc)
 			return rc;
 	}
