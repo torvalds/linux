@@ -164,7 +164,6 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 	const struct pbias_reg_info *info;
 	int ret = 0;
 	int count, idx, data_idx = 0;
-	const struct of_device_id *match;
 	const struct pbias_of_data *data;
 	unsigned int offset;
 
@@ -183,9 +182,8 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 	if (IS_ERR(syscon))
 		return PTR_ERR(syscon);
 
-	match = of_match_device(of_match_ptr(pbias_of_match), &pdev->dev);
-	if (match && match->data) {
-		data = match->data;
+	data = of_device_get_match_data(&pdev->dev);
+	if (data) {
 		offset = data->offset;
 	} else {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
