@@ -510,6 +510,45 @@ static int renoir_set_power_profile_mode(struct smu_context *smu, long *input, u
 	return 0;
 }
 
+static int renoir_set_peak_clock_by_device(struct smu_context *smu)
+{
+	int ret = 0;
+	uint32_t sclk_freq = 0, uclk_freq = 0;
+
+	ret = smu_get_dpm_freq_range(smu, SMU_SCLK, NULL, &sclk_freq);
+	if (ret)
+		return ret;
+
+	ret = smu_set_soft_freq_range(smu, SMU_SCLK, sclk_freq, sclk_freq);
+	if (ret)
+		return ret;
+
+	ret = smu_get_dpm_freq_range(smu, SMU_UCLK, NULL, &uclk_freq);
+	if (ret)
+		return ret;
+
+	ret = smu_set_soft_freq_range(smu, SMU_UCLK, uclk_freq, uclk_freq);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
+static int renoir_set_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
+{
+	int ret = 0;
+
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		ret = renoir_set_peak_clock_by_device(smu);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
 
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_msg_index = renoir_get_smu_msg_index,
@@ -526,6 +565,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_profiling_clk_mask = renoir_get_profiling_clk_mask,
 	.force_clk_levels = renoir_force_clk_levels,
 	.set_power_profile_mode = renoir_set_power_profile_mode,
+	.set_performance_level = renoir_set_performance_level,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)
