@@ -4021,6 +4021,23 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		pipe_config->lane_count =
 			((temp & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
 		intel_dp_get_m_n(intel_crtc, pipe_config);
+
+		if (INTEL_GEN(dev_priv) >= 11) {
+			i915_reg_t dp_tp_ctl;
+
+			if (IS_GEN(dev_priv, 11))
+				dp_tp_ctl = DP_TP_CTL(encoder->port);
+			else
+				dp_tp_ctl = TGL_DP_TP_CTL(pipe_config->cpu_transcoder);
+
+			pipe_config->fec_enable =
+				I915_READ(dp_tp_ctl) & DP_TP_CTL_FEC_ENABLE;
+
+			DRM_DEBUG_KMS("[ENCODER:%d:%s] Fec status: %u\n",
+				      encoder->base.base.id, encoder->base.name,
+				      pipe_config->fec_enable);
+		}
+
 		break;
 	case TRANS_DDI_MODE_SELECT_DP_MST:
 		pipe_config->output_types |= BIT(INTEL_OUTPUT_DP_MST);
