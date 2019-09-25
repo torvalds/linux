@@ -291,6 +291,7 @@ static int aspeed_lpc_ctrl_remove(struct platform_device *pdev)
 static const struct of_device_id aspeed_lpc_ctrl_match[] = {
 	{ .compatible = "aspeed,ast2400-lpc-ctrl" },
 	{ .compatible = "aspeed,ast2500-lpc-ctrl" },
+	{ .compatible = "aspeed,ast2600-lpc-ctrl" },
 	{ },
 };
 
