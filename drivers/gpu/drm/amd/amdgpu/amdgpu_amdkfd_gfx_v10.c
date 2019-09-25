@@ -42,6 +42,7 @@
 #include "v10_structs.h"
 #include "nv.h"
 #include "nvd.h"
+#include "gfxhub_v2_0.h"
 
 enum hqd_dequeue_request_type {
 	NO_ACTION = 0,
@@ -247,11 +248,6 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 			ATC_VMID0_PASID_MAPPING__VALID_MASK;
 
 	pr_debug("pasid 0x%x vmid %d, reg value %x\n", pasid, vmid, pasid_mapping);
-	/*
-	 * need to do this twice, once for gfx and once for mmhub
-	 * for ATC add 16 to VMID for mmhub, for IH different registers.
-	 * ATC_VMID0..15 registers are separate from ATC_VMID16..31.
-	 */
 
 	pr_debug("ATHUB, reg %x\n", SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING) + vmid);
 	WREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING) + vmid,
@@ -899,7 +895,6 @@ static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 		uint64_t page_table_base)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-	uint64_t base = page_table_base | AMDGPU_PTE_VALID;
 
 	if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid)) {
 		pr_err("trying to set page table base for wrong VMID %u\n",
@@ -907,18 +902,6 @@ static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 		return;
 	}
 
-	/* TODO: take advantage of per-process address space size. For
-	 * now, all processes share the same address space size, like
-	 * on GFX8 and older.
-	 */
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGCVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32) + (vmid*2), 0);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGCVM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32) + (vmid*2), 0);
-
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGCVM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32) + (vmid*2),
-			lower_32_bits(adev->vm_manager.max_pfn - 1));
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGCVM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32) + (vmid*2),
-			upper_32_bits(adev->vm_manager.max_pfn - 1));
-
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGCVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32) + (vmid*2), lower_32_bits(base));
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGCVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32) + (vmid*2), upper_32_bits(base));
+	/* SDMA is on gfxhub as well for Navi1* series */
+	gfxhub_v2_0_setup_vm_pt_regs(adev, vmid, page_table_base);
 }
