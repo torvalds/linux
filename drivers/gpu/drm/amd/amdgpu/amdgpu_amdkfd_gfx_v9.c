@@ -50,9 +50,6 @@
 #include "gmc_v9_0.h"
 
 
-#define V9_PIPE_PER_MEC		(4)
-#define V9_QUEUES_PER_PIPE_MEC	(8)
-
 enum hqd_dequeue_request_type {
 	NO_ACTION = 0,
 	DRAIN_PIPE,
