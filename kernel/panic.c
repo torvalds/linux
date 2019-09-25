@@ -12,6 +12,7 @@
 #include <linux/debug_locks.h>
 #include <linux/sched/debug.h>
 #include <linux/interrupt.h>
+#include <linux/kgdb.h>
 #include <linux/kmsg_dump.h>
 #include <linux/kallsyms.h>
 #include <linux/notifier.h>
@@ -218,6 +219,13 @@ void panic(const char *fmt, ...)
 	if (!test_taint(TAINT_DIE) && oops_in_progress <= 1)
 		dump_stack();
 #endif
+
+	/*
+	 * If kgdb is enabled, give it a chance to run before we stop all
+	 * the other CPUs or else we won't be able to debug processes left
+	 * running on them.
+	 */
+	kgdb_panic(buf);
 
 	/*
 	 * If we have crashed and we have a crash kernel loaded let it handle
