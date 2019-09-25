@@ -196,20 +196,20 @@ static struct resource rk805_key_resources[] = {
 
 static struct resource rk816_pwrkey_resources[] = {
 	{
-		.start  = RK816_IRQ_PWRON_RISE,
-		.end    = RK816_IRQ_PWRON_RISE,
+		.start  = RK816_IRQ_PWRON_FALL,
+		.end    = RK816_IRQ_PWRON_FALL,
 		.flags  = IORESOURCE_IRQ,
 	},
 	{
-		.start  = RK816_IRQ_PWRON_FALL,
-		.end    = RK816_IRQ_PWRON_FALL,
+		.start  = RK816_IRQ_PWRON_RISE,
+		.end    = RK816_IRQ_PWRON_RISE,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
 
 static struct resource rk817_pwrkey_resources[] = {
-	DEFINE_RES_IRQ(RK817_IRQ_PWRON_RISE),
 	DEFINE_RES_IRQ(RK817_IRQ_PWRON_FALL),
+	DEFINE_RES_IRQ(RK817_IRQ_PWRON_RISE),
 };
 
 static const struct mfd_cell rk805s[] = {
@@ -243,7 +243,7 @@ static const struct mfd_cell rk816s[] = {
 	{ .name = "rk8xx-gpio", },
 	{ .name = "rk816-battery", .of_compatible = "rk816-battery", },
 	{
-		.name = "rk8xx-pwrkey",
+		.name = "rk805-pwrkey",
 		.num_resources = ARRAY_SIZE(rk816_pwrkey_resources),
 		.resources = &rk816_pwrkey_resources[0],
 	},
@@ -258,7 +258,7 @@ static const struct mfd_cell rk817s[] = {
 	{ .name = "rk808-clkout",},
 	{ .name = "rk808-regulator",},
 	{
-		.name = "rk8xx-pwrkey",
+		.name = "rk805-pwrkey",
 		.num_resources = ARRAY_SIZE(rk817_pwrkey_resources),
 		.resources = &rk817_pwrkey_resources[0],
 	},
@@ -347,7 +347,7 @@ static const struct rk808_reg_data rk816_pre_init_reg[] = {
 
 static const struct rk808_reg_data rk817_pre_init_reg[] = {
 	{RK817_RTC_CTRL_REG, RTC_STOP, RTC_STOP},
-	{RK817_GPIO_INT_CFG, RK817_INT_POL_MSK, RK817_INT_POL_H},
+	{RK817_GPIO_INT_CFG, RK817_INT_POL_MSK, RK817_INT_POL_L},
 	{RK817_SYS_CFG(1), RK817_HOTDIE_TEMP_MSK | RK817_TSD_TEMP_MSK,
 					   RK817_HOTDIE_105 | RK817_TSD_140},
 };
