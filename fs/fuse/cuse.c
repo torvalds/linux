@@ -142,11 +142,10 @@ static int cuse_open(struct inode *inode, struct file *file)
 
 static int cuse_release(struct inode *inode, struct file *file)
 {
-	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = ff->fc;
 
-	fuse_sync_release(fi, ff, file->f_flags);
+	fuse_sync_release(NULL, ff, file->f_flags);
 	fuse_conn_put(fc);
 
 	return 0;
@@ -299,6 +298,14 @@ static void cuse_gendev_release(struct device *dev)
 	kfree(dev);
 }
 
+struct cuse_init_args {
+	struct fuse_args_pages ap;
+	struct cuse_init_in in;
+	struct cuse_init_out out;
+	struct page *page;
+	struct fuse_page_desc desc;
+};
+
 /**
  * cuse_process_init_reply - finish initializing CUSE channel
  *
@@ -306,21 +313,22 @@ static void cuse_gendev_release(struct device *dev)
  * required data structures for it.  Please read the comment at the
  * top of this file for high level overview.
  */
-static void cuse_process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
+static void cuse_process_init_reply(struct fuse_conn *fc,
+				    struct fuse_args *args, int error)
 {
+	struct cuse_init_args *ia = container_of(args, typeof(*ia), ap.args);
+	struct fuse_args_pages *ap = &ia->ap;
 	struct cuse_conn *cc = fc_to_cc(fc), *pos;
-	struct cuse_init_out *arg = req->out.args[0].value;
-	struct page *page = req->pages[0];
+	struct cuse_init_out *arg = &ia->out;
+	struct page *page = ap->pages[0];
 	struct cuse_devinfo devinfo = { };
 	struct device *dev;
 	struct cdev *cdev;
 	dev_t devt;
 	int rc, i;
 
-	if (req->out.h.error ||
-	    arg->major != FUSE_KERNEL_VERSION || arg->minor < 11) {
+	if (error || arg->major != FUSE_KERNEL_VERSION || arg->minor < 11)
 		goto err;
-	}
 
 	fc->minor = arg->minor;
 	fc->max_read = max_t(unsigned, arg->max_read, 4096);
@@ -329,7 +337,7 @@ static void cuse_process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 	/* parse init reply */
 	cc->unrestricted_ioctl = arg->flags & CUSE_UNRESTRICTED_IOCTL;
 
-	rc = cuse_parse_devinfo(page_address(page), req->out.args[1].size,
+	rc = cuse_parse_devinfo(page_address(page), ap->args.out_args[1].size,
 				&devinfo);
 	if (rc)
 		goto err;
@@ -396,7 +404,7 @@ static void cuse_process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 	dev_set_uevent_suppress(dev, 0);
 	kobject_uevent(&dev->kobj, KOBJ_ADD);
 out:
-	kfree(arg);
+	kfree(ia);
 	__free_page(page);
 	return;
 
@@ -415,55 +423,49 @@ err:
 static int cuse_send_init(struct cuse_conn *cc)
 {
 	int rc;
-	struct fuse_req *req;
 	struct page *page;
 	struct fuse_conn *fc = &cc->fc;
-	struct cuse_init_in *arg;
-	void *outarg;
+	struct cuse_init_args *ia;
+	struct fuse_args_pages *ap;
 
 	BUILD_BUG_ON(CUSE_INIT_INFO_MAX > PAGE_SIZE);
-
-	req = fuse_get_req_for_background(fc, 1);
-	if (IS_ERR(req)) {
-		rc = PTR_ERR(req);
-		goto err;
-	}
 
 	rc = -ENOMEM;
 	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!page)
-		goto err_put_req;
+		goto err;
 
-	outarg = kzalloc(sizeof(struct cuse_init_out), GFP_KERNEL);
-	if (!outarg)
+	ia = kzalloc(sizeof(*ia), GFP_KERNEL);
+	if (!ia)
 		goto err_free_page;
 
-	arg = &req->misc.cuse_init_in;
-	arg->major = FUSE_KERNEL_VERSION;
-	arg->minor = FUSE_KERNEL_MINOR_VERSION;
-	arg->flags |= CUSE_UNRESTRICTED_IOCTL;
-	req->in.h.opcode = CUSE_INIT;
-	req->in.numargs = 1;
-	req->in.args[0].size = sizeof(struct cuse_init_in);
-	req->in.args[0].value = arg;
-	req->out.numargs = 2;
-	req->out.args[0].size = sizeof(struct cuse_init_out);
-	req->out.args[0].value = outarg;
-	req->out.args[1].size = CUSE_INIT_INFO_MAX;
-	req->out.argvar = 1;
-	req->out.argpages = 1;
-	req->pages[0] = page;
-	req->page_descs[0].length = req->out.args[1].size;
-	req->num_pages = 1;
-	req->end = cuse_process_init_reply;
-	fuse_request_send_background(fc, req);
+	ap = &ia->ap;
+	ia->in.major = FUSE_KERNEL_VERSION;
+	ia->in.minor = FUSE_KERNEL_MINOR_VERSION;
+	ia->in.flags |= CUSE_UNRESTRICTED_IOCTL;
+	ap->args.opcode = CUSE_INIT;
+	ap->args.in_numargs = 1;
+	ap->args.in_args[0].size = sizeof(ia->in);
+	ap->args.in_args[0].value = &ia->in;
+	ap->args.out_numargs = 2;
+	ap->args.out_args[0].size = sizeof(ia->out);
+	ap->args.out_args[0].value = &ia->out;
+	ap->args.out_args[1].size = CUSE_INIT_INFO_MAX;
+	ap->args.out_argvar = 1;
+	ap->args.out_pages = 1;
+	ap->num_pages = 1;
+	ap->pages = &ia->page;
+	ap->descs = &ia->desc;
+	ia->page = page;
+	ia->desc.length = ap->args.out_args[1].size;
+	ap->args.end = cuse_process_init_reply;
 
-	return 0;
-
+	rc = fuse_simple_background(fc, &ap->args, GFP_KERNEL);
+	if (rc) {
+		kfree(ia);
 err_free_page:
-	__free_page(page);
-err_put_req:
-	fuse_put_request(fc, req);
+		__free_page(page);
+	}
 err:
 	return rc;
 }
@@ -504,9 +506,9 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 	 * Limit the cuse channel to requests that can
 	 * be represented in file->f_cred->user_ns.
 	 */
-	fuse_conn_init(&cc->fc, file->f_cred->user_ns);
+	fuse_conn_init(&cc->fc, file->f_cred->user_ns, &fuse_dev_fiq_ops, NULL);
 
-	fud = fuse_dev_alloc(&cc->fc);
+	fud = fuse_dev_alloc_install(&cc->fc);
 	if (!fud) {
 		kfree(cc);
 		return -ENOMEM;
@@ -519,6 +521,7 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 	rc = cuse_send_init(cc);
 	if (rc) {
 		fuse_dev_free(fud);
+		fuse_conn_put(&cc->fc);
 		return rc;
 	}
 	file->private_data = fud;
