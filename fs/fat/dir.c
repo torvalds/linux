@@ -88,9 +88,7 @@ static int fat__get_entry(struct inode *dir, loff_t *pos,
 	int err, offset;
 
 next:
-	if (*bh)
-		brelse(*bh);
-
+	brelse(*bh);
 	*bh = NULL;
 	iblock = *pos >> sb->s_blocksize_bits;
 	err = fat_bmap(dir, iblock, &phys, &mapped_blocks, 0, false);
