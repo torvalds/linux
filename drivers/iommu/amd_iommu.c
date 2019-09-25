@@ -2072,23 +2072,6 @@ static void do_detach(struct iommu_dev_data *dev_data)
 	domain->dev_cnt                 -= 1;
 }
 
-/*
- * If a device is not yet associated with a domain, this function makes the
- * device visible in the domain
- */
-static int __attach_device(struct iommu_dev_data *dev_data,
-			   struct protection_domain *domain)
-{
-	if (dev_data->domain != NULL)
-		return -EBUSY;
-
-	/* Attach alias group root */
-	do_attach(dev_data, domain);
-
-	return 0;
-}
-
-
 static void pdev_iommuv2_disable(struct pci_dev *pdev)
 {
 	pci_disable_ats(pdev);
@@ -2174,6 +2157,10 @@ static int attach_device(struct device *dev,
 
 	dev_data = get_dev_data(dev);
 
+	ret = -EBUSY;
+	if (dev_data->domain != NULL)
+		goto out;
+
 	if (!dev_is_pci(dev))
 		goto skip_ats_check;
 
@@ -2198,7 +2185,9 @@ static int attach_device(struct device *dev,
 	}
 
 skip_ats_check:
-	ret = __attach_device(dev_data, domain);
+	ret = 0;
+
+	do_attach(dev_data, domain);
 
 	/*
 	 * We might boot into a crash-kernel here. The crashed kernel
