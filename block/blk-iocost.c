@@ -529,8 +529,8 @@ struct iocg_wake_ctx {
 static const struct ioc_params autop[] = {
 	[AUTOP_HDD] = {
 		.qos				= {
-			[QOS_RLAT]		=         50000, /* 50ms */
-			[QOS_WLAT]		=         50000,
+			[QOS_RLAT]		=        250000, /* 250ms */
+			[QOS_WLAT]		=        250000,
 			[QOS_MIN]		= VRATE_MIN_PPM,
 			[QOS_MAX]		= VRATE_MAX_PPM,
 		},
