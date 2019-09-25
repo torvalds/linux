@@ -556,7 +556,7 @@ static int sbs_get_battery_capacity(struct i2c_client *client,
 		mode = CAPACITY_MODE_AMPS;
 
 	mode = sbs_set_capacity_mode(client, mode);
-	if (mode < 0)
+	if ((int)mode < 0)
 		return mode;
 
 	ret = sbs_read_word_data(client, sbs_data[reg_offset].addr);
