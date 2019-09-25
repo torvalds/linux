@@ -251,6 +251,93 @@
 				status = "disabled";
 			};
 
+			lpc: lpc@1e789000 {
+				compatible = "aspeed,ast2600-lpc", "simple-mfd";
+				reg = <0x1e789000 0x1000>;
+
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1e789000 0x1000>;
+
+				lpc_bmc: lpc-bmc@0 {
+					compatible = "aspeed,ast2600-lpc-bmc", "simple-mfd", "syscon";
+					reg = <0x0 0x80>;
+					reg-io-width = <4>;
+
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0x0 0x0 0x80>;
+
+					kcs1: kcs1@0 {
+						compatible = "aspeed,ast2600-kcs-bmc";
+						interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
+						kcs_chan = <1>;
+						status = "disabled";
+					};
+					kcs2: kcs2@0 {
+						compatible = "aspeed,ast2600-kcs-bmc";
+						interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
+						kcs_chan = <2>;
+						status = "disabled";
+					};
+					kcs3: kcs3@0 {
+						compatible = "aspeed,ast2600-kcs-bmc";
+						interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
+						kcs_chan = <3>;
+						status = "disabled";
+					};
+				};
+
+				lpc_host: lpc-host@80 {
+					compatible = "aspeed,ast2600-lpc-host", "simple-mfd", "syscon";
+					reg = <0x80 0x1e0>;
+					reg-io-width = <4>;
+
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0x0 0x80 0x1e0>;
+
+					kcs4: kcs4@0 {
+						compatible = "aspeed,ast2600-kcs-bmc";
+						interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
+						kcs_chan = <4>;
+						status = "disabled";
+					};
+
+					lpc_ctrl: lpc-ctrl@0 {
+						compatible = "aspeed,ast2600-lpc-ctrl";
+						reg = <0x0 0x80>;
+						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+						status = "disabled";
+					};
+
+					lpc_snoop: lpc-snoop@0 {
+						compatible = "aspeed,ast2600-lpc-snoop";
+						reg = <0x0 0x80>;
+						interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
+						status = "disabled";
+					};
+
+					lhc: lhc@20 {
+						compatible = "aspeed,ast2600-lhc";
+						reg = <0x20 0x24 0x48 0x8>;
+					};
+
+					lpc_reset: reset-controller@18 {
+						compatible = "aspeed,ast2600-lpc-reset";
+						reg = <0x18 0x4>;
+						#reset-cells = <1>;
+					};
+
+					ibt: ibt@c0 {
+						compatible = "aspeed,ast2600-ibt-bmc";
+						reg = <0xc0 0x18>;
+						interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
+						status = "disabled";
+					};
+				};
+			};
+
 			sdc: sdc@1e740000 {
 				compatible = "aspeed,ast2600-sd-controller";
 				reg = <0x1e740000 0x100>;
