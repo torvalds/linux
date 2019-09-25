@@ -3444,9 +3444,8 @@ static int remove_from_transaction(struct super_block *sb,
 	if (cn == journal->j_last) {
 		journal->j_last = cn->prev;
 	}
-	if (bh)
-		remove_journal_hash(sb, journal->j_hash_table, NULL,
-				    bh->b_blocknr, 0);
+	remove_journal_hash(sb, journal->j_hash_table, NULL,
+			    bh->b_blocknr, 0);
 	clear_buffer_journaled(bh);	/* don't log this one */
 
 	if (!already_cleaned) {
