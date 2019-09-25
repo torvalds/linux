@@ -1407,7 +1407,8 @@ static void ioc_timer_fn(struct timer_list *timer)
 		 * comparing vdone against period start.  If lagging behind
 		 * IOs from past periods, don't increase vrate.
 		 */
-		if (!atomic_read(&iocg_to_blkg(iocg)->use_delay) &&
+		if ((ppm_rthr != MILLION || ppm_wthr != MILLION) &&
+		    !atomic_read(&iocg_to_blkg(iocg)->use_delay) &&
 		    time_after64(vtime, vdone) &&
 		    time_after64(vtime, now.vnow -
 				 MAX_LAGGING_PERIODS * period_vtime) &&
@@ -1537,21 +1538,23 @@ skip_surplus_transfers:
 	    missed_ppm[WRITE] > ppm_wthr) {
 		ioc->busy_level = max(ioc->busy_level, 0);
 		ioc->busy_level++;
-	} else if (nr_lagging) {
-		ioc->busy_level = max(ioc->busy_level, 0);
-	} else if (nr_shortages && !nr_surpluses &&
-		   rq_wait_pct <= RQ_WAIT_BUSY_PCT * UNBUSY_THR_PCT / 100 &&
+	} else if (rq_wait_pct <= RQ_WAIT_BUSY_PCT * UNBUSY_THR_PCT / 100 &&
 		   missed_ppm[READ] <= ppm_rthr * UNBUSY_THR_PCT / 100 &&
 		   missed_ppm[WRITE] <= ppm_wthr * UNBUSY_THR_PCT / 100) {
-		ioc->busy_level = min(ioc->busy_level, 0);
-		ioc->busy_level--;
+		/* take action iff there is contention */
+		if (nr_shortages && !nr_lagging) {
+			ioc->busy_level = min(ioc->busy_level, 0);
+			/* redistribute surpluses first */
+			if (!nr_surpluses)
+				ioc->busy_level--;
+		}
 	} else {
 		ioc->busy_level = 0;
 	}
 
 	ioc->busy_level = clamp(ioc->busy_level, -1000, 1000);
 
-	if (ioc->busy_level) {
+	if (ioc->busy_level > 0 || (ioc->busy_level < 0 && !nr_lagging)) {
 		u64 vrate = atomic64_read(&ioc->vtime_rate);
 		u64 vrate_min = ioc->vrate_min, vrate_max = ioc->vrate_max;
 
