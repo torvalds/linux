@@ -1385,7 +1385,6 @@ static int fixup_sysctl_value(const char *buf, size_t buf_len,
 		uint8_t raw[sizeof(uint64_t)];
 		uint64_t num;
 	} value = {};
-	uint8_t c, i;
 
 	if (buf_len > sizeof(value)) {
 		log_err("Value is too big (%zd) to use in fixup", buf_len);
