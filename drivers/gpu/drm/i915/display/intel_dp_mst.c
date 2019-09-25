@@ -215,7 +215,7 @@ static void intel_mst_disable_dp(struct intel_encoder *encoder,
 
 	ret = drm_dp_update_payload_part1(&intel_dp->mst_mgr);
 	if (ret) {
-		DRM_ERROR("failed to update payload %d\n", ret);
+		DRM_DEBUG_KMS("failed to update payload %d\n", ret);
 	}
 	if (old_crtc_state->has_audio)
 		intel_audio_codec_disable(encoder,
