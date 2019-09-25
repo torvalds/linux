@@ -419,7 +419,7 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 	mmci_write_clkreg(host, clk);
 }
 
-void mmci_dma_release(struct mmci_host *host)
+static void mmci_dma_release(struct mmci_host *host)
 {
 	if (host->ops && host->ops->dma_release)
 		host->ops->dma_release(host);
@@ -427,7 +427,7 @@ void mmci_dma_release(struct mmci_host *host)
 	host->use_dma = false;
 }
 
-void mmci_dma_setup(struct mmci_host *host)
+static void mmci_dma_setup(struct mmci_host *host)
 {
 	if (!host->ops || !host->ops->dma_setup)
 		return;
@@ -462,7 +462,7 @@ static int mmci_validate_data(struct mmci_host *host,
 	return 0;
 }
 
-int mmci_prep_data(struct mmci_host *host, struct mmc_data *data, bool next)
+static int mmci_prep_data(struct mmci_host *host, struct mmc_data *data, bool next)
 {
 	int err;
 
@@ -478,7 +478,7 @@ int mmci_prep_data(struct mmci_host *host, struct mmc_data *data, bool next)
 	return err;
 }
 
-void mmci_unprep_data(struct mmci_host *host, struct mmc_data *data,
+static void mmci_unprep_data(struct mmci_host *host, struct mmc_data *data,
 		      int err)
 {
 	if (host->ops && host->ops->unprep_data)
@@ -487,7 +487,7 @@ void mmci_unprep_data(struct mmci_host *host, struct mmc_data *data,
 	data->host_cookie = 0;
 }
 
-void mmci_get_next_data(struct mmci_host *host, struct mmc_data *data)
+static void mmci_get_next_data(struct mmci_host *host, struct mmc_data *data)
 {
 	WARN_ON(data->host_cookie && data->host_cookie != host->next_cookie);
 
@@ -495,7 +495,7 @@ void mmci_get_next_data(struct mmci_host *host, struct mmc_data *data)
 		host->ops->get_next_data(host, data);
 }
 
-int mmci_dma_start(struct mmci_host *host, unsigned int datactrl)
+static int mmci_dma_start(struct mmci_host *host, unsigned int datactrl)
 {
 	struct mmc_data *data = host->data;
 	int ret;
@@ -530,7 +530,7 @@ int mmci_dma_start(struct mmci_host *host, unsigned int datactrl)
 	return 0;
 }
 
-void mmci_dma_finalize(struct mmci_host *host, struct mmc_data *data)
+static void mmci_dma_finalize(struct mmci_host *host, struct mmc_data *data)
 {
 	if (!host->use_dma)
 		return;
@@ -539,7 +539,7 @@ void mmci_dma_finalize(struct mmci_host *host, struct mmc_data *data)
 		host->ops->dma_finalize(host, data);
 }
 
-void mmci_dma_error(struct mmci_host *host)
+static void mmci_dma_error(struct mmci_host *host)
 {
 	if (!host->use_dma)
 		return;
@@ -948,12 +948,12 @@ static struct mmci_host_ops mmci_variant_ops = {
 };
 #endif
 
-void mmci_variant_init(struct mmci_host *host)
+static void mmci_variant_init(struct mmci_host *host)
 {
 	host->ops = &mmci_variant_ops;
 }
 
-void ux500v2_variant_init(struct mmci_host *host)
+static void ux500v2_variant_init(struct mmci_host *host)
 {
 	host->ops = &mmci_variant_ops;
 	host->ops->get_datactrl_cfg = ux500v2_get_dctrl_cfg;
