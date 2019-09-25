@@ -131,9 +131,7 @@ void bch2_inode_update_after_write(struct bch_fs *c,
 				   struct bch_inode_unpacked *bi,
 				   unsigned fields)
 {
-	set_nlink(&inode->v, bi->bi_flags & BCH_INODE_UNLINKED
-		  ? 0
-		  : bi->bi_nlink + nlink_bias(inode->v.i_mode));
+	set_nlink(&inode->v, bch2_inode_nlink_get(bi));
 	i_uid_write(&inode->v, bi->bi_uid);
 	i_gid_write(&inode->v, bi->bi_gid);
 	inode->v.i_mode	= bi->bi_mode;
@@ -552,12 +550,7 @@ static int inode_update_for_link_fn(struct bch_inode_info *inode,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 
 	bi->bi_ctime = bch2_current_time(c);
-
-	if (bi->bi_flags & BCH_INODE_UNLINKED)
-		bi->bi_flags &= ~BCH_INODE_UNLINKED;
-	else
-		bi->bi_nlink++;
-
+	bch2_inode_nlink_inc(bi);
 	return 0;
 }
 
@@ -640,11 +633,7 @@ static int inode_update_for_unlink_fn(struct bch_inode_info *inode,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 
 	bi->bi_ctime = bch2_current_time(c);
-	if (bi->bi_nlink)
-		bi->bi_nlink--;
-	else
-		bi->bi_flags |= BCH_INODE_UNLINKED;
-
+	bch2_inode_nlink_dec(bi);
 	return 0;
 }
 
@@ -815,10 +804,7 @@ static int inode_update_for_rename_fn(struct bch_inode_info *inode,
 		BUG_ON(bi->bi_nlink &&
 		       S_ISDIR(info->dst_inode->v.i_mode));
 
-		if (bi->bi_nlink)
-			bi->bi_nlink--;
-		else
-			bi->bi_flags |= BCH_INODE_UNLINKED;
+		bch2_inode_nlink_dec(bi);
 	}
 
 	if (inode == info->src_dir ||

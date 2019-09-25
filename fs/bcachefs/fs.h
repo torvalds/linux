@@ -109,11 +109,6 @@ static inline u8 mode_to_type(umode_t mode)
 	return (mode >> 12) & 15;
 }
 
-static inline unsigned nlink_bias(umode_t mode)
-{
-	return S_ISDIR(mode) ? 2 : 1;
-}
-
 static inline bool inode_attr_changing(struct bch_inode_info *dir,
 				struct bch_inode_info *inode,
 				enum inode_opt_id id)

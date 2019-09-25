@@ -1116,9 +1116,7 @@ static int check_inode_nlink(struct bch_fs *c,
 			     struct nlink *link,
 			     bool *do_update)
 {
-	u32 i_nlink = u->bi_flags & BCH_INODE_UNLINKED
-		? 0
-		: u->bi_nlink + nlink_bias(u->bi_mode);
+	u32 i_nlink = bch2_inode_nlink_get(u);
 	u32 real_i_nlink =
 		link->count * nlink_bias(u->bi_mode) +
 		link->dir_count;
@@ -1197,14 +1195,7 @@ static int check_inode_nlink(struct bch_fs *c,
 			    u->bi_inum, i_nlink, real_i_nlink);
 set_i_nlink:
 	if (i_nlink != real_i_nlink) {
-		if (real_i_nlink) {
-			u->bi_nlink = real_i_nlink - nlink_bias(u->bi_mode);
-			u->bi_flags &= ~BCH_INODE_UNLINKED;
-		} else {
-			u->bi_nlink = 0;
-			u->bi_flags |= BCH_INODE_UNLINKED;
-		}
-
+		bch2_inode_nlink_set(u, real_i_nlink);
 		*do_update = true;
 	}
 fsck_err:
