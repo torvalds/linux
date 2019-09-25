@@ -2524,7 +2524,7 @@ validate_out:
 	return out;
 }
 
-void dcn20_calculate_wm(
+static void dcn20_calculate_wm(
 		struct dc *dc, struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
 		int *out_pipe_cnt,

@@ -432,6 +432,8 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 				dst->recout_width; // TODO: or should this be full_recout_width???...maybe only when in hsplit mode?
 		mode_lib->vba.ODMCombineEnabled[mode_lib->vba.NumberOfActivePlanes] =
 				dst->odm_combine;
+		mode_lib->vba.ODMCombineTypeEnabled[mode_lib->vba.NumberOfActivePlanes] =
+				dst->odm_combine;
 		mode_lib->vba.OutputFormat[mode_lib->vba.NumberOfActivePlanes] =
 				(enum output_format_class) (dout->output_format);
 		mode_lib->vba.OutputBpp[mode_lib->vba.NumberOfActivePlanes] =
