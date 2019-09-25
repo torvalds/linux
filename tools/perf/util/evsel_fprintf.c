@@ -102,7 +102,7 @@ out:
 
 int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 			      unsigned int print_opts, struct callchain_cursor *cursor,
-			      FILE *fp)
+			      struct strlist *bt_stop_list, FILE *fp)
 {
 	int printed = 0;
 	struct callchain_cursor_node *node;
@@ -175,10 +175,8 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 				printed += fprintf(fp, "\n");
 
 			/* Add srccode here too? */
-			if (symbol_conf.bt_stop_list &&
-			    node->sym &&
-			    strlist__has_entry(symbol_conf.bt_stop_list,
-					       node->sym->name)) {
+			if (bt_stop_list && node->sym &&
+			    strlist__has_entry(bt_stop_list, node->sym->name)) {
 				break;
 			}
 
@@ -193,7 +191,7 @@ next:
 
 int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
 			int left_alignment, unsigned int print_opts,
-			struct callchain_cursor *cursor, FILE *fp)
+			struct callchain_cursor *cursor, struct strlist *bt_stop_list, FILE *fp)
 {
 	int printed = 0;
 	int print_ip = print_opts & EVSEL__PRINT_IP;
@@ -204,8 +202,8 @@ int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
 	int print_unknown_as_addr = print_opts & EVSEL__PRINT_UNKNOWN_AS_ADDR;
 
 	if (cursor != NULL) {
-		printed += sample__fprintf_callchain(sample, left_alignment,
-						     print_opts, cursor, fp);
+		printed += sample__fprintf_callchain(sample, left_alignment, print_opts,
+						     cursor, bt_stop_list, fp);
 	} else {
 		printed += fprintf(fp, "%-*.*s", left_alignment, left_alignment, " ");
 

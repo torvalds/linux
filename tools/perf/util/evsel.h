@@ -428,12 +428,13 @@ int perf_evsel__fprintf(struct evsel *evsel,
 struct callchain_cursor;
 
 int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
-			      unsigned int print_opts,
-			      struct callchain_cursor *cursor, FILE *fp);
+			      unsigned int print_opts, struct callchain_cursor *cursor,
+			      struct strlist *bt_stop_list, FILE *fp);
 
 int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
 			int left_alignment, unsigned int print_opts,
-			struct callchain_cursor *cursor, FILE *fp);
+			struct callchain_cursor *cursor,
+			struct strlist *bt_stop_list, FILE *fp);
 
 bool perf_evsel__fallback(struct evsel *evsel, int err,
 			  char *msg, size_t msgsize);
