@@ -966,7 +966,6 @@ config NET_IFE_SKBTCINDEX
 config NET_TC_SKB_EXT
 	bool "TC recirculation support"
 	depends on NET_CLS_ACT
-	default y if NET_CLS_ACT
 	select SKB_EXTENSIONS
 
 	help
