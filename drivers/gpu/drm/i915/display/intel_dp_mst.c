@@ -81,7 +81,7 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 			       adjusted_mode->crtc_clock,
 			       crtc_state->port_clock,
 			       &crtc_state->dp_m_n,
-			       constant_n);
+			       constant_n, crtc_state->fec_enable);
 	crtc_state->dp_m_n.tu = slots;
 
 	return 0;
