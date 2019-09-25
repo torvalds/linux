@@ -1788,7 +1788,6 @@ static int flush_used_journal_lists(struct super_block *s,
 {
 	unsigned long len = 0;
 	unsigned long cur_len;
-	int ret;
 	int i;
 	int limit = 256;
 	struct reiserfs_journal_list *tjl;
@@ -1825,9 +1824,9 @@ static int flush_used_journal_lists(struct super_block *s,
 	 * transactions, but only bother if we've actually spanned
 	 * across multiple lists
 	 */
-	if (flush_jl != jl) {
-		ret = kupdate_transactions(s, jl, &tjl, &trans_id, len, i);
-	}
+	if (flush_jl != jl)
+		kupdate_transactions(s, jl, &tjl, &trans_id, len, i);
+
 	flush_journal_list(s, flush_jl, 1);
 	put_journal_list(s, flush_jl);
 	put_journal_list(s, jl);
