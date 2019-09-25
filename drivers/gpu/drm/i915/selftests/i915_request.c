@@ -1062,6 +1062,130 @@ out_unlock:
 	return err;
 }
 
+static int __live_parallel_engine1(void *arg)
+{
+	struct intel_engine_cs *engine = arg;
+	IGT_TIMEOUT(end_time);
+	unsigned long count;
+
+	count = 0;
+	do {
+		struct i915_request *rq;
+		int err;
+
+		mutex_lock(&engine->i915->drm.struct_mutex);
+		rq = i915_request_create(engine->kernel_context);
+		if (IS_ERR(rq)) {
+			mutex_unlock(&engine->i915->drm.struct_mutex);
+			return PTR_ERR(rq);
+		}
+
+		i915_request_get(rq);
+		i915_request_add(rq);
+		mutex_unlock(&engine->i915->drm.struct_mutex);
+
+		err = 0;
+		if (i915_request_wait(rq, 0, HZ / 5) < 0)
+			err = -ETIME;
+		i915_request_put(rq);
+		if (err)
+			return err;
+
+		count++;
+	} while (!__igt_timeout(end_time, NULL));
+
+	pr_info("%s: %lu request + sync\n", engine->name, count);
+	return 0;
+}
+
+static int __live_parallel_engineN(void *arg)
+{
+	struct intel_engine_cs *engine = arg;
+	IGT_TIMEOUT(end_time);
+	unsigned long count;
+
+	count = 0;
+	do {
+		struct i915_request *rq;
+
+		mutex_lock(&engine->i915->drm.struct_mutex);
+		rq = i915_request_create(engine->kernel_context);
+		if (IS_ERR(rq)) {
+			mutex_unlock(&engine->i915->drm.struct_mutex);
+			return PTR_ERR(rq);
+		}
+
+		i915_request_add(rq);
+		mutex_unlock(&engine->i915->drm.struct_mutex);
+
+		count++;
+	} while (!__igt_timeout(end_time, NULL));
+
+	pr_info("%s: %lu requests\n", engine->name, count);
+	return 0;
+}
+
+static int live_parallel_engines(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	static int (* const func[])(void *arg) = {
+		__live_parallel_engine1,
+		__live_parallel_engineN,
+		NULL,
+	};
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int (* const *fn)(void *arg);
+	int err = 0;
+
+	/*
+	 * Check we can submit requests to all engines concurrently. This
+	 * tests that we load up the system maximally.
+	 */
+
+	for (fn = func; !err && *fn; fn++) {
+		struct task_struct *tsk[I915_NUM_ENGINES] = {};
+		struct igt_live_test t;
+
+		mutex_lock(&i915->drm.struct_mutex);
+		err = igt_live_test_begin(&t, i915, __func__, "");
+		mutex_unlock(&i915->drm.struct_mutex);
+		if (err)
+			break;
+
+		for_each_engine(engine, i915, id) {
+			tsk[id] = kthread_run(*fn, engine,
+					      "igt/parallel:%s",
+					      engine->name);
+			if (IS_ERR(tsk[id])) {
+				err = PTR_ERR(tsk[id]);
+				break;
+			}
+			get_task_struct(tsk[id]);
+		}
+
+		for_each_engine(engine, i915, id) {
+			int status;
+
+			if (IS_ERR_OR_NULL(tsk[id]))
+				continue;
+
+			status = kthread_stop(tsk[id]);
+			if (status && !err)
+				err = status;
+
+			put_task_struct(tsk[id]);
+		}
+
+		mutex_lock(&i915->drm.struct_mutex);
+		if (igt_live_test_end(&t))
+			err = -EIO;
+		mutex_unlock(&i915->drm.struct_mutex);
+	}
+
+	return err;
+}
+
 static int
 max_batches(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 {
@@ -1240,6 +1364,7 @@ int i915_request_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_nop_request),
 		SUBTEST(live_all_engines),
 		SUBTEST(live_sequential_engines),
+		SUBTEST(live_parallel_engines),
 		SUBTEST(live_empty_request),
 		SUBTEST(live_breadcrumbs_smoketest),
 	};
