@@ -91,6 +91,7 @@ struct igc_mac_info {
 	u16 mta_reg_count;
 	u16 uta_reg_count;
 
+	u32 mta_shadow[MAX_MTA_REG];
 	u16 rar_entry_count;
 
 	u8 forced_speed_duplex;

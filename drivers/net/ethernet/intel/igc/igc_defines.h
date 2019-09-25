@@ -402,4 +402,7 @@
 #define IGC_ADVTXD_TUCMD_L4T_TCP	0x00000800  /* L4 Packet Type of TCP */
 #define IGC_ADVTXD_TUCMD_L4T_SCTP	0x00001000 /* L4 packet TYPE of SCTP */
 
+/* Maximum size of the MTA register table in all supported adapters */
+#define MAX_MTA_REG			128
+
 #endif /* _IGC_DEFINES_H_ */
