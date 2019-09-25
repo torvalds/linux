@@ -891,7 +891,6 @@ static int flush_older_commits(struct super_block *s,
 	struct list_head *entry;
 	unsigned int trans_id = jl->j_trans_id;
 	unsigned int other_trans_id;
-	unsigned int first_trans_id;
 
 find_first:
 	/*
@@ -913,8 +912,6 @@ find_first:
 	if (first_jl == jl) {
 		return 0;
 	}
-
-	first_trans_id = first_jl->j_trans_id;
 
 	entry = &first_jl->j_list;
 	while (1) {
@@ -1351,7 +1348,7 @@ static int flush_journal_list(struct super_block *s,
 			      struct reiserfs_journal_list *jl, int flushall)
 {
 	struct reiserfs_journal_list *pjl;
-	struct reiserfs_journal_cnode *cn, *last;
+	struct reiserfs_journal_cnode *cn;
 	int count;
 	int was_jwait = 0;
 	int was_dirty = 0;
@@ -1509,7 +1506,6 @@ static int flush_journal_list(struct super_block *s,
 					 b_blocknr, __func__);
 		}
 free_cnode:
-		last = cn;
 		cn = cn->next;
 		if (saved_bh) {
 			/*
@@ -1911,7 +1907,6 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 			      struct super_block *sb, int error)
 {
 	struct reiserfs_transaction_handle myth;
-	int flushed = 0;
 	struct reiserfs_journal *journal = SB_JOURNAL(sb);
 
 	/*
@@ -1933,7 +1928,6 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 						     1);
 			journal_mark_dirty(&myth, SB_BUFFER_WITH_SB(sb));
 			do_journal_end(&myth, FLUSH_ALL);
-			flushed = 1;
 		}
 	}
 
@@ -3987,7 +3981,6 @@ static int do_journal_end(struct reiserfs_transaction_handle *th, int flags)
 	struct buffer_head *c_bh;	/* commit bh */
 	struct buffer_head *d_bh;	/* desc bh */
 	int cur_write_start = 0;	/* start index of current log write */
-	int old_start;
 	int i;
 	int flush;
 	int wait_on_commit;
@@ -4244,7 +4237,6 @@ static int do_journal_end(struct reiserfs_transaction_handle *th, int flags)
 	journal->j_num_work_lists++;
 
 	/* reset journal values for the next transaction */
-	old_start = journal->j_start;
 	journal->j_start =
 	    (journal->j_start + journal->j_len +
 	     2) % SB_ONDISK_JOURNAL_SIZE(sb);
