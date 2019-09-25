@@ -69,11 +69,9 @@ struct uc_css_header {
 	char username[8];
 	char buildnumber[12];
 	u32 sw_version;
-#define CSS_SW_VERSION_GUC_MAJOR	(0xFF << 16)
-#define CSS_SW_VERSION_GUC_MINOR	(0xFF << 8)
-#define CSS_SW_VERSION_GUC_PATCH	(0xFF << 0)
-#define CSS_SW_VERSION_HUC_MAJOR	(0xFFFF << 16)
-#define CSS_SW_VERSION_HUC_MINOR	(0xFFFF << 0)
+#define CSS_SW_VERSION_UC_MAJOR		(0xFF << 16)
+#define CSS_SW_VERSION_UC_MINOR		(0xFF << 8)
+#define CSS_SW_VERSION_UC_PATCH		(0xFF << 0)
 	u32 reserved[14];
 	u32 header_info;
 } __packed;

@@ -339,25 +339,10 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 	}
 
 	/* Get version numbers from the CSS header */
-	switch (uc_fw->type) {
-	case INTEL_UC_FW_TYPE_GUC:
-		uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_GUC_MAJOR,
-						   css->sw_version);
-		uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_GUC_MINOR,
-						   css->sw_version);
-		break;
-
-	case INTEL_UC_FW_TYPE_HUC:
-		uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_HUC_MAJOR,
-						   css->sw_version);
-		uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_HUC_MINOR,
-						   css->sw_version);
-		break;
-
-	default:
-		MISSING_CASE(uc_fw->type);
-		break;
-	}
+	uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
+					   css->sw_version);
+	uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
+					   css->sw_version);
 
 	if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
 	    uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
