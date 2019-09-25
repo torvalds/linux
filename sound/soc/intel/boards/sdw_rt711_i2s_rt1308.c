@@ -3,45 +3,50 @@
 // Copyright(c) 2019 Intel Corporation. All rights reserved.
 
 /*
- * tgl_rt1308.c - ASoc Machine driver for Intel platforms
- * with RT1308 codec.
+ * tgl_rt711_rt1308.c - ASoc Machine driver for Intel platforms
+ * with RT711 codec over SoundWire and RT1308 amplifier over I2S
  */
 
 #include <linux/acpi.h>
+#include <linux/async.h>
 #include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/gpio.h>
+#include <linux/init.h>
+#include <linux/input.h>
+#include <linux/io.h>
+#include <linux/dmi.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
-
-#include <sound/core.h>
+#include <linux/slab.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
-
 #include "../../codecs/rt1308.h"
 #include "../../codecs/hdac_hdmi.h"
 #include "hda_dsp_common.h"
 
-struct tgl_card_private {
+struct mc_private {
 	struct list_head hdmi_pcm_list;
 	bool common_hdmi_codec_drv;
+	struct snd_soc_jack sdw_headset;
 };
 
 #if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI)
-static struct snd_soc_jack tgl_hdmi[4];
+static struct snd_soc_jack hdmi[4];
 
-struct tgl_hdmi_pcm {
+struct hdmi_pcm {
 	struct list_head head;
 	struct snd_soc_dai *codec_dai;
 	int device;
 };
 
-static int tgl_hdmi_init(struct snd_soc_pcm_runtime *rtd)
+static int hdmi_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct tgl_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
+	struct mc_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai = rtd->codec_dai;
-	struct tgl_hdmi_pcm *pcm;
+	struct hdmi_pcm *pcm;
 
 	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
@@ -57,15 +62,15 @@ static int tgl_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 #define NAME_SIZE	32
-static int tgl_card_late_probe(struct snd_soc_card *card)
+static int card_late_probe(struct snd_soc_card *card)
 {
-	struct tgl_card_private *ctx = snd_soc_card_get_drvdata(card);
-	struct tgl_hdmi_pcm *pcm;
+	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
+	struct hdmi_pcm *pcm;
 	struct snd_soc_component *component = NULL;
 	int err, i = 0;
 	char jack_name[NAME_SIZE];
 
-	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct tgl_hdmi_pcm,
+	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct hdmi_pcm,
 			       head);
 	component = pcm->codec_dai->component;
 
@@ -77,14 +82,14 @@ static int tgl_card_late_probe(struct snd_soc_card *card)
 		snprintf(jack_name, sizeof(jack_name),
 			 "HDMI/DP, pcm=%d Jack", pcm->device);
 		err = snd_soc_card_jack_new(card, jack_name,
-					    SND_JACK_AVOUT, &tgl_hdmi[i],
+					    SND_JACK_AVOUT, &hdmi[i],
 					    NULL, 0);
 
 		if (err)
 			return err;
 
 		err = hdac_hdmi_jack_init(pcm->codec_dai, pcm->device,
-					  &tgl_hdmi[i]);
+					  &hdmi[i]);
 		if (err < 0)
 			return err;
 
@@ -97,14 +102,61 @@ static int tgl_card_late_probe(struct snd_soc_card *card)
 	return hdac_hdmi_jack_port_init(component, &card->dapm);
 }
 #else
-static int tgl_card_late_probe(struct snd_soc_card *card)
+static int card_late_probe(struct snd_soc_card *card)
 {
 	return 0;
 }
 #endif
 
-static int tgl_rt1308_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+static struct snd_soc_jack_pin sdw_jack_pins[] = {
+	{
+		.pin    = "Headphone",
+		.mask   = SND_JACK_HEADPHONE,
+	},
+	{
+		.pin    = "Headset Mic",
+		.mask   = SND_JACK_MICROPHONE,
+	},
+};
+
+static int headset_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct mc_private *ctx = snd_soc_card_get_drvdata(rtd->card);
+	struct snd_soc_component *component = rtd->codec_dai->component;
+	struct snd_soc_jack *jack;
+	int ret;
+
+	ret = snd_soc_card_jack_new(rtd->card, "Headset Jack",
+				    SND_JACK_HEADSET | SND_JACK_BTN_0 |
+				    SND_JACK_BTN_1 | SND_JACK_BTN_2 |
+				    SND_JACK_BTN_3,
+				    &ctx->sdw_headset,
+				    sdw_jack_pins,
+				    ARRAY_SIZE(sdw_jack_pins));
+	if (ret) {
+		dev_err(rtd->card->dev, "Headset Jack creation failed: %d\n",
+			ret);
+		return ret;
+	}
+
+	jack = &ctx->sdw_headset;
+
+	snd_jack_set_key(jack->jack, SND_JACK_BTN_0, KEY_VOLUMEUP);
+	snd_jack_set_key(jack->jack, SND_JACK_BTN_1, KEY_PLAYPAUSE);
+	snd_jack_set_key(jack->jack, SND_JACK_BTN_2, KEY_VOLUMEDOWN);
+	snd_jack_set_key(jack->jack, SND_JACK_BTN_3, KEY_VOICECOMMAND);
+
+	ret = snd_soc_component_set_jack(component, jack, NULL);
+
+	if (ret)
+		dev_err(rtd->card->dev, "Headset Jack call-back failed: %d\n",
+			ret);
+
+	return ret;
+}
+
+static int rt1308_hw_params(struct snd_pcm_substream *substream,
+			    struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_card *card = rtd->card;
@@ -136,26 +188,38 @@ static int tgl_rt1308_hw_params(struct snd_pcm_substream *substream,
 }
 
 /* machine stream operations */
-static struct snd_soc_ops tgl_rt1308_ops = {
-	.hw_params = tgl_rt1308_hw_params,
+static struct snd_soc_ops rt1308_ops = {
+	.hw_params = rt1308_hw_params,
 };
 
-static const struct snd_soc_dapm_widget tgl_rt1308_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget widgets[] = {
+	SND_SOC_DAPM_HP("Headphone", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_SPK("Speakers", NULL),
 	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
 };
 
-static const struct snd_kcontrol_new tgl_rt1308_controls[] = {
+static const struct snd_soc_dapm_route map[] = {
+	{ "Headphone", NULL, "HP" },
+	{ "MIC2", NULL, "Headset Mic" },
+
+	{ "Speakers", NULL, "SPOL" },
+	{ "Speakers", NULL, "SPOR" },
+	{ "DMic", NULL, "SoC DMIC"},
+};
+
+static const struct snd_kcontrol_new controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headphone"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 	SOC_DAPM_PIN_SWITCH("Speakers"),
 };
 
-static const struct snd_soc_dapm_route tgl_rt1308_dapm_routes[] = {
-	{ "Speakers", NULL, "SPOL" },
-	{ "Speakers", NULL, "SPOR" },
-
-	/* digital mics */
-	{"DMic", NULL, "SoC DMIC"},
-};
+SND_SOC_DAILINK_DEF(sdw0_pin2,
+	DAILINK_COMP_ARRAY(COMP_CPU("SDW0 Pin2")));
+SND_SOC_DAILINK_DEF(sdw0_pin3,
+	DAILINK_COMP_ARRAY(COMP_CPU("SDW0 Pin3")));
+SND_SOC_DAILINK_DEF(sdw0_codec,
+	DAILINK_COMP_ARRAY(COMP_CODEC("sdw:0:25d:711:0", "rt711-aif1")));
 
 SND_SOC_DAILINK_DEF(ssp2_pin,
 	DAILINK_COMP_ARRAY(COMP_CPU("SSP2 Pin")));
@@ -195,19 +259,36 @@ SND_SOC_DAILINK_DEF(idisp4_codec,
 	DAILINK_COMP_ARRAY(COMP_CODEC("ehdaudio0D2", "intel-hdmi-hifi4")));
 #endif
 
-static struct snd_soc_dai_link tgl_rt1308_dailink[] = {
+struct snd_soc_dai_link dailink[] = {
+	{
+		.name = "SDW0-Playback",
+		.id = 0,
+		.init = headset_init,
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.nonatomic = true,
+		SND_SOC_DAILINK_REG(sdw0_pin2, sdw0_codec, platform),
+	},
+	{
+		.name = "SDW0-Capture",
+		.id = 1,
+		.no_pcm = 1,
+		.dpcm_capture = 1,
+		.nonatomic = true,
+		SND_SOC_DAILINK_REG(sdw0_pin3, sdw0_codec, platform),
+	},
 	{
 		.name		= "SSP2-Codec",
-		.id		= 0,
+		.id		= 2,
 		.no_pcm		= 1,
-		.ops		= &tgl_rt1308_ops,
+		.ops		= &rt1308_ops,
 		.dpcm_playback = 1,
 		.nonatomic = true,
 		SND_SOC_DAILINK_REG(ssp2_pin, ssp2_codec, platform),
 	},
 	{
 		.name = "dmic01",
-		.id = 1,
+		.id = 3,
 		.ignore_suspend = 1,
 		.dpcm_capture = 1,
 		.no_pcm = 1,
@@ -215,7 +296,7 @@ static struct snd_soc_dai_link tgl_rt1308_dailink[] = {
 	},
 	{
 		.name = "dmic16k",
-		.id = 2,
+		.id = 4,
 		.ignore_suspend = 1,
 		.dpcm_capture = 1,
 		.no_pcm = 1,
@@ -224,32 +305,32 @@ static struct snd_soc_dai_link tgl_rt1308_dailink[] = {
 #if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI)
 	{
 		.name = "iDisp1",
-		.id = 3,
-		.init = tgl_hdmi_init,
+		.id = 5,
+		.init = hdmi_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp1_pin, idisp1_codec, platform),
 	},
 	{
 		.name = "iDisp2",
-		.id = 4,
-		.init = tgl_hdmi_init,
+		.id = 6,
+		.init = hdmi_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp2_pin, idisp2_codec, platform),
 	},
 	{
 		.name = "iDisp3",
-		.id = 5,
-		.init = tgl_hdmi_init,
+		.id = 7,
+		.init = hdmi_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp3_pin, idisp3_codec, platform),
 	},
 	{
 		.name = "iDisp4",
-		.id = 6,
-		.init = tgl_hdmi_init,
+		.id = 8,
+		.init = hdmi_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp4_pin, idisp4_codec, platform),
@@ -257,41 +338,45 @@ static struct snd_soc_dai_link tgl_rt1308_dailink[] = {
 #endif
 };
 
-/* audio machine driver */
-static struct snd_soc_card tgl_rt1308_card = {
-	.name         = "tgl_rt1308",
-	.owner        = THIS_MODULE,
-	.dai_link     = tgl_rt1308_dailink,
-	.num_links = ARRAY_SIZE(tgl_rt1308_dailink),
-	.controls = tgl_rt1308_controls,
-	.num_controls = ARRAY_SIZE(tgl_rt1308_controls),
-	.dapm_widgets = tgl_rt1308_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(tgl_rt1308_dapm_widgets),
-	.dapm_routes = tgl_rt1308_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(tgl_rt1308_dapm_routes),
-	.late_probe = tgl_card_late_probe,
+/* SoC card */
+static struct snd_soc_card card_rt711_rt1308 = {
+	.name = "rt711-rt1308",
+	.dai_link = dailink,
+	.num_links = ARRAY_SIZE(dailink),
+	.controls = controls,
+	.num_controls = ARRAY_SIZE(controls),
+	.dapm_widgets = widgets,
+	.num_dapm_widgets = ARRAY_SIZE(widgets),
+	.dapm_routes = map,
+	.num_dapm_routes = ARRAY_SIZE(map),
+	.late_probe = card_late_probe,
 };
 
-static int tgl_rt1308_probe(struct platform_device *pdev)
+static int mc_probe(struct platform_device *pdev)
 {
+	struct mc_private *ctx;
 	struct snd_soc_acpi_mach *mach;
-	struct tgl_card_private *ctx;
-	struct snd_soc_card *card = &tgl_rt1308_card;
+	const char *platform_name;
+	struct snd_soc_card *card = &card_rt711_rt1308;
 	int ret;
 
-	card->dev = &pdev->dev;
+	dev_dbg(&pdev->dev, "Entry %s\n", __func__);
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
-	if (IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI))
-		INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
+#if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI)
+	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
+#endif
 
+	card->dev = &pdev->dev;
+
+	/* override platform name, if required */
 	mach = (&pdev->dev)->platform_data;
+	platform_name = mach->mach_params.platform;
 
-	ret = snd_soc_fixup_dai_links_platform_name(card,
-						    mach->mach_params.platform);
+	ret = snd_soc_fixup_dai_links_platform_name(card, platform_name);
 	if (ret)
 		return ret;
 
@@ -302,17 +387,17 @@ static int tgl_rt1308_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(&pdev->dev, card);
 }
 
-static struct platform_driver tgl_rt1308_driver = {
+static struct platform_driver rt711_rt1308_driver = {
 	.driver = {
-		.name   = "tgl_rt1308",
+		.name   = "rt711_rt1308",
 		.pm = &snd_soc_pm_ops,
 	},
-	.probe          = tgl_rt1308_probe,
+	.probe          = mc_probe,
 };
 
-module_platform_driver(tgl_rt1308_driver);
+module_platform_driver(rt711_rt1308_driver);
 
 MODULE_AUTHOR("Xiuli Pan");
-MODULE_DESCRIPTION("ASoC Intel(R) Tiger Lake + RT1308 Machine driver");
+MODULE_DESCRIPTION("ASoC SoundWire RT711 + RT1308 Machine driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:tgl_rt1308");
+MODULE_ALIAS("platform:rt711_rt1308");

@@ -515,23 +515,24 @@ config SND_SOC_INTEL_SOF_CML_RT1011_RT5682_MACH
 
 endif ## SND_SOC_SOF_COMETLAKE_LP && SND_SOC_SOF_HDA_LINK
 
-if SND_SOC_SOF_TIGERLAKE
+if SND_SOC_SOF_TIGERLAKE && SND_SOC_SOF_INTEL_SOUNDWIRE
 
-config SND_SOC_INTEL_TGL_RT1308_MACH
-	tristate "TGL with RT1308 in I2S Mode"
+config SND_SOC_INTEL_TGL_RT711_RT1308_MACH
+	tristate "TGL with RT711 in SDW mode and RT1308 in I2S Mode"
 	depends on I2C && ACPI
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_RT711_SDW
 	select SND_SOC_RT1308
 	select SND_SOC_DMIC
 	select SND_HDA_CODEC_HDMI if SND_SOC_SOF_HDA_AUDIO_CODEC
 	select SND_SOC_HDAC_HDMI if SND_SOC_SOF_HDA_LINK
 	help
 	   This adds support for ASoC machine driver for Tigerlake platforms
-	   with RT1308 I2S audio codec.
+	   with SoundWire RT711 and RT1308 I2S audio codec.
 	   Say Y if you have such a device.
 	   If unsure select "N".
 
-endif ## SND_SOC_SOF_TIGERLAKE
+endif ## SND_SOC_SOF_TIGERLAKE && SND_SOC_SOF_INTEL_SOUNDWIRE
 
 if SND_SOC_SOF_JASPERLAKE
 
