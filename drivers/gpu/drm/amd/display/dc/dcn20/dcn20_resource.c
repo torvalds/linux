@@ -3002,7 +3002,7 @@ static void dcn20_pp_smu_destroy(struct pp_smu_funcs **pp_smu)
 	}
 }
 
-static void cap_soc_clocks(
+void dcn20_cap_soc_clocks(
 		struct _vcs_dpi_soc_bounding_box_st *bb,
 		struct pp_smu_nv_clock_table max_clocks)
 {
@@ -3069,7 +3069,7 @@ static void cap_soc_clocks(
 	}
 }
 
-static void update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb,
+void dcn20_update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb,
 		struct pp_smu_nv_clock_table *max_clocks, unsigned int *uclk_states, unsigned int num_states)
 {
 	struct _vcs_dpi_voltage_scaling_st calculated_states[MAX_CLOCK_LIMIT_STATES];
@@ -3127,7 +3127,7 @@ static void update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_
 	bb->clock_limits[num_calculated_states].state = bb->num_states;
 }
 
-static void patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb)
+void dcn20_patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb)
 {
 	kernel_fpu_begin();
 	if ((int)(bb->sr_exit_time_us * 1000) != dc->bb_overrides.sr_exit_time_ns
@@ -3326,14 +3326,14 @@ static bool init_soc_bounding_box(struct dc *dc,
 		}
 
 		if (clock_limits_available && uclk_states_available && num_states)
-			update_bounding_box(dc, loaded_bb, &max_clocks, uclk_states, num_states);
+			dcn20_update_bounding_box(dc, loaded_bb, &max_clocks, uclk_states, num_states);
 		else if (clock_limits_available)
-			cap_soc_clocks(loaded_bb, max_clocks);
+			dcn20_cap_soc_clocks(loaded_bb, max_clocks);
 	}
 
 	loaded_ip->max_num_otg = pool->base.res_cap->num_timing_generator;
 	loaded_ip->max_num_dpp = pool->base.pipe_count;
-	patch_bounding_box(dc, loaded_bb);
+	dcn20_patch_bounding_box(dc, loaded_bb);
 
 	return true;
 }

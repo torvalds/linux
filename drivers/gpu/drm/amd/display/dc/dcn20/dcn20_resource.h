@@ -95,6 +95,12 @@ struct display_stream_compressor *dcn20_dsc_create(
 	struct dc_context *ctx, uint32_t inst);
 void dcn20_dsc_destroy(struct display_stream_compressor **dsc);
 
+void dcn20_patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb);
+void dcn20_cap_soc_clocks(
+		struct _vcs_dpi_soc_bounding_box_st *bb,
+		struct pp_smu_nv_clock_table max_clocks);
+void dcn20_update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb,
+		struct pp_smu_nv_clock_table *max_clocks, unsigned int *uclk_states, unsigned int num_states);
 struct hubp *dcn20_hubp_create(
 	struct dc_context *ctx,
 	uint32_t inst);

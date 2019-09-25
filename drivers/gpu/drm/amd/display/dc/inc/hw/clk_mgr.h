@@ -149,7 +149,6 @@ struct wm_table {
 struct clk_bw_params {
 	unsigned int vram_type;
 	unsigned int num_channels;
-	unsigned int dispclk_vco_khz;
 	struct clk_limit_table clk_table;
 	struct wm_table wm_table;
 };
@@ -192,6 +191,7 @@ struct clk_mgr {
 	struct dc_clocks clks;
 	bool psr_allow_active_cache;
 	int dprefclk_khz; // Used by program pixel clock in clock source funcs, need to figureout where this goes
+	int dentist_vco_freq_khz;
 #ifdef CONFIG_DRM_AMD_DC_DCN2_1
 	struct clk_bw_params *bw_params;
 #endif

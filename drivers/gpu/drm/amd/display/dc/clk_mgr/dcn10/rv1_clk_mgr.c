@@ -269,11 +269,11 @@ void rv1_clk_mgr_construct(struct dc_context *ctx, struct clk_mgr_internal *clk_
 	clk_mgr->base.dprefclk_khz = 600000;
 
 	if (bp->integrated_info)
-		clk_mgr->dentist_vco_freq_khz = bp->integrated_info->dentist_vco_freq;
-	if (bp->fw_info_valid && clk_mgr->dentist_vco_freq_khz == 0) {
-		clk_mgr->dentist_vco_freq_khz = bp->fw_info.smu_gpu_pll_output_freq;
-		if (clk_mgr->dentist_vco_freq_khz == 0)
-			clk_mgr->dentist_vco_freq_khz = 3600000;
+		clk_mgr->base.dentist_vco_freq_khz = bp->integrated_info->dentist_vco_freq;
+	if (bp->fw_info_valid && clk_mgr->base.dentist_vco_freq_khz == 0) {
+		clk_mgr->base.dentist_vco_freq_khz = bp->fw_info.smu_gpu_pll_output_freq;
+		if (clk_mgr->base.dentist_vco_freq_khz == 0)
+			clk_mgr->base.dentist_vco_freq_khz = 3600000;
 	}
 
 	if (!debug->disable_dfs_bypass && bp->integrated_info)

@@ -225,8 +225,6 @@ struct clk_mgr_internal {
 	struct state_dependent_clocks max_clks_by_state[DM_PP_CLOCKS_MAX_STATES];
 
 	/*TODO: figure out which of the below fields should be here vs in asic specific portion */
-	int dentist_vco_freq_khz;
-
 	/* Cache the status of DFS-bypass feature*/
 	bool dfs_bypass_enabled;
 	/* True if the DFS-bypass feature is enabled and active. */

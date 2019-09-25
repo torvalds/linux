@@ -121,9 +121,9 @@ void dcn20_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 void dcn20_update_clocks_update_dentist(struct clk_mgr_internal *clk_mgr)
 {
 	int dpp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->dentist_vco_freq_khz / clk_mgr->base.clks.dppclk_khz;
+			* clk_mgr->base.dentist_vco_freq_khz / clk_mgr->base.clks.dppclk_khz;
 	int disp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->dentist_vco_freq_khz / clk_mgr->base.clks.dispclk_khz;
+			* clk_mgr->base.dentist_vco_freq_khz / clk_mgr->base.clks.dispclk_khz;
 
 	uint32_t dppclk_wdivider = dentist_get_did_from_divider(dpp_divider);
 	uint32_t dispclk_wdivider = dentist_get_did_from_divider(disp_divider);
@@ -412,7 +412,7 @@ void dcn20_clk_mgr_construct(
 
 	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
 		dcn2_funcs.update_clocks = dcn2_update_clocks_fpga;
-		clk_mgr->dentist_vco_freq_khz = 3850000;
+		clk_mgr->base.dentist_vco_freq_khz = 3850000;
 
 	} else {
 		/* DFS Slice 2 should be used for DPREFCLK */
@@ -436,15 +436,15 @@ void dcn20_clk_mgr_construct(
 		pll_req = dc_fixpt_mul_int(pll_req, 100000);
 
 		/* integer part is now VCO frequency in kHz */
-		clk_mgr->dentist_vco_freq_khz = dc_fixpt_floor(pll_req);
+		clk_mgr->base.dentist_vco_freq_khz = dc_fixpt_floor(pll_req);
 
 		/* in case we don't get a value from the register, use default */
-		if (clk_mgr->dentist_vco_freq_khz == 0)
-			clk_mgr->dentist_vco_freq_khz = 3850000;
+		if (clk_mgr->base.dentist_vco_freq_khz == 0)
+			clk_mgr->base.dentist_vco_freq_khz = 3850000;
 
 		/* Calculate the DPREFCLK in kHz.*/
 		clk_mgr->base.dprefclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->dentist_vco_freq_khz) / target_div;
+			* clk_mgr->base.dentist_vco_freq_khz) / target_div;
 	}
 	//Integrated_info table does not exist on dGPU projects so should not be referenced
 	//anywhere in code for dGPUs.

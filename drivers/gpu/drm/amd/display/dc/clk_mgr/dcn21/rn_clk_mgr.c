@@ -472,7 +472,7 @@ struct clk_bw_params rn_bw_params = {
 	}
 };
 
-void rn_build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_range_sets *ranges)
+static void rn_build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_range_sets *ranges)
 {
 	int i, num_valid_sets;
 
@@ -542,7 +542,7 @@ static unsigned int find_dcfclk_for_voltage(struct dpm_clocks *clock_table, unsi
 	return 0;
 }
 
-void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struct dpm_clocks *clock_table, struct hw_asic_id *asic_id)
+static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struct dpm_clocks *clock_table, struct hw_asic_id *asic_id)
 {
 	int i, j = 0;
 
@@ -628,17 +628,17 @@ void rn_clk_mgr_construct(
 
 	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
 		dcn21_funcs.update_clocks = dcn2_update_clocks_fpga;
-		clk_mgr->dentist_vco_freq_khz = 3600000;
+		clk_mgr->base.dentist_vco_freq_khz = 3600000;
 		clk_mgr->base.dprefclk_khz = 600000;
 	} else {
 		struct clk_log_info log_info = {0};
 
 		/* TODO: Check we get what we expect during bringup */
-		clk_mgr->dentist_vco_freq_khz = get_vco_frequency_from_reg(clk_mgr);
+		clk_mgr->base.dentist_vco_freq_khz = get_vco_frequency_from_reg(clk_mgr);
 
 		/* in case we don't get a value from the register, use default */
-		if (clk_mgr->dentist_vco_freq_khz == 0)
-			clk_mgr->dentist_vco_freq_khz = 3600000;
+		if (clk_mgr->base.dentist_vco_freq_khz == 0)
+			clk_mgr->base.dentist_vco_freq_khz = 3600000;
 
 		rn_dump_clk_registers(&s, &clk_mgr->base, &log_info);
 		/* Convert dprefclk units from MHz to KHz */

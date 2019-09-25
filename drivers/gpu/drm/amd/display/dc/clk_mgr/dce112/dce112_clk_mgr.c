@@ -81,7 +81,7 @@ int dce112_set_clock(struct clk_mgr *clk_mgr_base, int requested_clk_khz)
 	/* Make sure requested clock isn't lower than minimum threshold*/
 	if (requested_clk_khz > 0)
 		requested_clk_khz = max(requested_clk_khz,
-				clk_mgr_dce->dentist_vco_freq_khz / 62);
+				clk_mgr_dce->base.dentist_vco_freq_khz / 62);
 
 	dce_clk_params.target_clock_frequency = requested_clk_khz;
 	dce_clk_params.pll_id = CLOCK_SOURCE_ID_DFS;
@@ -135,7 +135,7 @@ int dce112_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_clk_khz)
 	/* Make sure requested clock isn't lower than minimum threshold*/
 	if (requested_clk_khz > 0)
 		requested_clk_khz = max(requested_clk_khz,
-				clk_mgr->dentist_vco_freq_khz / 62);
+				clk_mgr->base.dentist_vco_freq_khz / 62);
 
 	dce_clk_params.target_clock_frequency = requested_clk_khz;
 	dce_clk_params.pll_id = CLOCK_SOURCE_ID_DFS;
