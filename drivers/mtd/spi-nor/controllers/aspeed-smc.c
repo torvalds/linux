@@ -115,6 +115,39 @@ static const struct aspeed_smc_info spi_2500_info = {
 	.segment_reg = aspeed_smc_segment_reg,
 };
 
+static u32 aspeed_smc_segment_start_ast2600(
+	struct aspeed_smc_controller *controller, u32 reg);
+static u32 aspeed_smc_segment_end_ast2600(
+	struct aspeed_smc_controller *controller, u32 reg);
+static u32 aspeed_smc_segment_reg_ast2600(
+	struct aspeed_smc_controller *controller, u32 start, u32 end);
+
+static const struct aspeed_smc_info fmc_2600_info = {
+	.maxsize = 256 * 1024 * 1024,
+	.nce = 3,
+	.hastype = false, /* SPI Only */
+	.we0 = 16,
+	.ctl0 = 0x10,
+	.timing = 0x94,
+	.set_4b = aspeed_smc_chip_set_4b,
+	.segment_start = aspeed_smc_segment_start_ast2600,
+	.segment_end = aspeed_smc_segment_end_ast2600,
+	.segment_reg = aspeed_smc_segment_reg_ast2600,
+};
+
+static const struct aspeed_smc_info spi_2600_info = {
+	.maxsize = 256 * 1024 * 1024,
+	.nce = 2,
+	.hastype = false,
+	.we0 = 16,
+	.ctl0 = 0x10,
+	.timing = 0x94,
+	.set_4b = aspeed_smc_chip_set_4b,
+	.segment_start = aspeed_smc_segment_start_ast2600,
+	.segment_end = aspeed_smc_segment_end_ast2600,
+	.segment_reg = aspeed_smc_segment_reg_ast2600,
+};
+
 enum aspeed_smc_ctl_reg_value {
 	smc_base,		/* base value without mode for other commands */
 	smc_read,		/* command reg for (maybe fast) reads */
@@ -249,6 +282,48 @@ static u32 aspeed_smc_segment_reg(
 {
 	return (((start >> 23) & 0xFF) << 16) | (((end >> 23) & 0xFF) << 24);
 }
+
+/*
+ * The Segment Registers of the AST2600 have a 1MB unit. The address
+ * range of a flash SPI slave is encoded with offsets in the overall
+ * controller window. The previous SoC AST2400 and AST2500 used
+ * absolute addresses. Only bits [27:20] are relevant and the end
+ * address is an upper bound limit.
+ */
+
+#define AST2600_SEG_ADDR_MASK 0x0ff00000
+
+static u32 aspeed_smc_segment_start_ast2600(
+	struct aspeed_smc_controller *controller, u32 reg)
+{
+	uint32_t start_offset = (reg << 16) & AST2600_SEG_ADDR_MASK;
+
+	return controller->ahb_base_phy + start_offset;
+}
+
+static u32 aspeed_smc_segment_end_ast2600(
+	struct aspeed_smc_controller *controller, u32 reg)
+{
+	uint32_t end_offset = reg & AST2600_SEG_ADDR_MASK;
+
+	/* segment is disabled */
+	if (!end_offset)
+		return controller->ahb_base_phy;
+
+	return controller->ahb_base_phy + end_offset + 0x100000;
+}
+
+static u32 aspeed_smc_segment_reg_ast2600(
+	struct aspeed_smc_controller *controller, u32 start, u32 end)
+{
+	/* disable zero size segments */
+	if (start == end)
+		return 0;
+
+	return ((start & AST2600_SEG_ADDR_MASK) >> 16) |
+		((end - 1) & AST2600_SEG_ADDR_MASK);
+}
+
 /*
  * Switch to turn off read optimisation if needed
  */
@@ -537,6 +612,8 @@ static const struct of_device_id aspeed_smc_matches[] = {
 	{ .compatible = "aspeed,ast2400-spi", .data = &spi_2400_info },
 	{ .compatible = "aspeed,ast2500-fmc", .data = &fmc_2500_info },
 	{ .compatible = "aspeed,ast2500-spi", .data = &spi_2500_info },
+	{ .compatible = "aspeed,ast2600-fmc", .data = &fmc_2600_info },
+	{ .compatible = "aspeed,ast2600-spi", .data = &spi_2600_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, aspeed_smc_matches);
