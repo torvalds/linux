@@ -62,39 +62,51 @@ rb_insert_augmented_cached(struct rb_node *node,
 	rb_insert_augmented(node, &root->rb_root, augment);
 }
 
-#define RB_DECLARE_CALLBACKS(rbstatic, rbname, rbstruct, rbfield,	\
-			     rbtype, rbaugmented, rbcompute)		\
+/*
+ * Template for declaring augmented rbtree callbacks
+ *
+ * RBSTATIC:    'static' or empty
+ * RBNAME:      name of the rb_augment_callbacks structure
+ * RBSTRUCT:    struct type of the tree nodes
+ * RBFIELD:     name of struct rb_node field within RBSTRUCT
+ * RBTYPE:      type of the RBAUGMENTED field
+ * RBAUGMENTED: name of RBTYPE field within RBSTRUCT holding data for subtree
+ * RBCOMPUTE:   name of function that recomputes the RBAUGMENTED data
+ */
+
+#define RB_DECLARE_CALLBACKS(RBSTATIC, RBNAME, RBSTRUCT, RBFIELD,	\
+			     RBTYPE, RBAUGMENTED, RBCOMPUTE)		\
 static inline void							\
-rbname ## _propagate(struct rb_node *rb, struct rb_node *stop)		\
+RBNAME ## _propagate(struct rb_node *rb, struct rb_node *stop)		\
 {									\
 	while (rb != stop) {						\
-		rbstruct *node = rb_entry(rb, rbstruct, rbfield);	\
-		rbtype augmented = rbcompute(node);			\
-		if (node->rbaugmented == augmented)			\
+		RBSTRUCT *node = rb_entry(rb, RBSTRUCT, RBFIELD);	\
+		RBTYPE augmented = RBCOMPUTE(node);			\
+		if (node->RBAUGMENTED == augmented)			\
 			break;						\
-		node->rbaugmented = augmented;				\
-		rb = rb_parent(&node->rbfield);				\
+		node->RBAUGMENTED = augmented;				\
+		rb = rb_parent(&node->RBFIELD);				\
 	}								\
 }									\
 static inline void							\
-rbname ## _copy(struct rb_node *rb_old, struct rb_node *rb_new)		\
+RBNAME ## _copy(struct rb_node *rb_old, struct rb_node *rb_new)		\
 {									\
-	rbstruct *old = rb_entry(rb_old, rbstruct, rbfield);		\
-	rbstruct *new = rb_entry(rb_new, rbstruct, rbfield);		\
-	new->rbaugmented = old->rbaugmented;				\
+	RBSTRUCT *old = rb_entry(rb_old, RBSTRUCT, RBFIELD);		\
+	RBSTRUCT *new = rb_entry(rb_new, RBSTRUCT, RBFIELD);		\
+	new->RBAUGMENTED = old->RBAUGMENTED;				\
 }									\
 static void								\
-rbname ## _rotate(struct rb_node *rb_old, struct rb_node *rb_new)	\
+RBNAME ## _rotate(struct rb_node *rb_old, struct rb_node *rb_new)	\
 {									\
-	rbstruct *old = rb_entry(rb_old, rbstruct, rbfield);		\
-	rbstruct *new = rb_entry(rb_new, rbstruct, rbfield);		\
-	new->rbaugmented = old->rbaugmented;				\
-	old->rbaugmented = rbcompute(old);				\
+	RBSTRUCT *old = rb_entry(rb_old, RBSTRUCT, RBFIELD);		\
+	RBSTRUCT *new = rb_entry(rb_new, RBSTRUCT, RBFIELD);		\
+	new->RBAUGMENTED = old->RBAUGMENTED;				\
+	old->RBAUGMENTED = RBCOMPUTE(old);				\
 }									\
-rbstatic const struct rb_augment_callbacks rbname = {			\
-	.propagate = rbname ## _propagate,				\
-	.copy = rbname ## _copy,					\
-	.rotate = rbname ## _rotate					\
+RBSTATIC const struct rb_augment_callbacks RBNAME = {			\
+	.propagate = RBNAME ## _propagate,				\
+	.copy = RBNAME ## _copy,					\
+	.rotate = RBNAME ## _rotate					\
 };
 
 
