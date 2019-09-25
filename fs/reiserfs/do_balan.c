@@ -626,7 +626,6 @@ static void balance_leaf_insert_right(struct tree_balance *tb,
 	struct buffer_head *tbS0 = PATH_PLAST_BUFFER(tb->tb_path);
 	int n = B_NR_ITEMS(tbS0);
 	struct buffer_info bi;
-	int ret;
 
 	/* new item or part of it doesn't fall into R[0] */
 	if (n - tb->rnum[0] >= tb->item_pos) {
@@ -690,7 +689,7 @@ static void balance_leaf_insert_right(struct tree_balance *tb,
 		/* whole new item falls into R[0] */
 
 		/* Shift rnum[0]-1 items to R[0] */
-		ret = leaf_shift_right(tb, tb->rnum[0] - 1, tb->rbytes);
+		leaf_shift_right(tb, tb->rnum[0] - 1, tb->rbytes);
 
 		/* Insert new item into R[0] */
 		buffer_info_init_right(tb, &bi);
