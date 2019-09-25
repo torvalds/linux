@@ -388,7 +388,7 @@ static const struct kfd_device_info navi10_device_info = {
 };
 
 static const struct kfd_device_info navi12_device_info = {
-	.asic_family = CHIP_NAVI10,
+	.asic_family = CHIP_NAVI12,
 	.asic_name = "navi12",
 	.max_pasid_bits = 16,
 	.max_no_of_hqd  = 24,

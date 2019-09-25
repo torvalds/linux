@@ -676,6 +676,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		num_of_cache_types = ARRAY_SIZE(renoir_cache_info);
 		break;
 	case CHIP_NAVI10:
+	case CHIP_NAVI12:
 	case CHIP_NAVI14:
 		pcache_info = navi10_cache_info;
 		num_of_cache_types = ARRAY_SIZE(navi10_cache_info);

@@ -1798,6 +1798,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		device_queue_manager_init_v9(&dqm->asic_ops);
 		break;
 	case CHIP_NAVI10:
+	case CHIP_NAVI12:
 	case CHIP_NAVI14:
 		device_queue_manager_init_v10_navi10(&dqm->asic_ops);
 		break;

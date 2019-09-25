@@ -335,6 +335,7 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 		kernel_queue_init_v9(&kq->ops_asic_specific);
 		break;
 	case CHIP_NAVI10:
+	case CHIP_NAVI12:
 	case CHIP_NAVI14:
 		kernel_queue_init_v10(&kq->ops_asic_specific);
 		break;
