@@ -2977,30 +2977,13 @@ static int drm_dp_send_up_ack_reply(struct drm_dp_mst_topology_mgr *mgr,
 	return 0;
 }
 
-static bool drm_dp_get_vc_payload_bw(int dp_link_bw,
-				     int dp_link_count,
-				     int *out)
+static int drm_dp_get_vc_payload_bw(u8 dp_link_bw, u8  dp_link_count)
 {
-	switch (dp_link_bw) {
-	default:
+	if (dp_link_bw == 0 || dp_link_count == 0)
 		DRM_DEBUG_KMS("invalid link bandwidth in DPCD: %x (link count: %d)\n",
 			      dp_link_bw, dp_link_count);
-		return false;
 
-	case DP_LINK_BW_1_62:
-		*out = 3 * dp_link_count;
-		break;
-	case DP_LINK_BW_2_7:
-		*out = 5 * dp_link_count;
-		break;
-	case DP_LINK_BW_5_4:
-		*out = 10 * dp_link_count;
-		break;
-	case DP_LINK_BW_8_1:
-		*out = 15 * dp_link_count;
-		break;
-	}
-	return true;
+	return dp_link_bw * dp_link_count / 2;
 }
 
 /**
@@ -3032,9 +3015,9 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 			goto out_unlock;
 		}
 
-		if (!drm_dp_get_vc_payload_bw(mgr->dpcd[1],
-					      mgr->dpcd[2] & DP_MAX_LANE_COUNT_MASK,
-					      &mgr->pbn_div)) {
+		mgr->pbn_div = drm_dp_get_vc_payload_bw(mgr->dpcd[1],
+							mgr->dpcd[2] & DP_MAX_LANE_COUNT_MASK);
+		if (mgr->pbn_div == 0) {
 			ret = -EINVAL;
 			goto out_unlock;
 		}
