@@ -1343,7 +1343,7 @@ static void ioc_timer_fn(struct timer_list *timer)
 	u32 ppm_wthr = MILLION - ioc->params.qos[QOS_WPPM];
 	u32 missed_ppm[2], rq_wait_pct;
 	u64 period_vtime;
-	int i;
+	int prev_busy_level, i;
 
 	/* how were the latencies during the period? */
 	ioc_lat_stat(ioc, missed_ppm, &rq_wait_pct);
@@ -1531,6 +1531,7 @@ skip_surplus_transfers:
 	 * and experiencing shortages but not surpluses, we're too stingy
 	 * and should increase vtime rate.
 	 */
+	prev_busy_level = ioc->busy_level;
 	if (rq_wait_pct > RQ_WAIT_BUSY_PCT ||
 	    missed_ppm[READ] > ppm_rthr ||
 	    missed_ppm[WRITE] > ppm_wthr) {
@@ -1592,6 +1593,10 @@ skip_surplus_transfers:
 		atomic64_set(&ioc->vtime_rate, vrate);
 		ioc->inuse_margin_vtime = DIV64_U64_ROUND_UP(
 			ioc->period_us * vrate * INUSE_MARGIN_PCT, 100);
+	} else if (ioc->busy_level != prev_busy_level || nr_lagging) {
+		trace_iocost_ioc_vrate_adj(ioc, atomic64_read(&ioc->vtime_rate),
+					   &missed_ppm, rq_wait_pct, nr_lagging,
+					   nr_shortages, nr_surpluses);
 	}
 
 	ioc_refresh_params(ioc, false);
