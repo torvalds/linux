@@ -32,7 +32,6 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fixed.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -3843,13 +3842,6 @@ EXPORT_SYMBOL(drm_dp_check_act_status);
  */
 int drm_dp_calc_pbn_mode(int clock, int bpp)
 {
-	u64 kbps;
-	s64 peak_kbps;
-	u32 numerator;
-	u32 denominator;
-
-	kbps = clock * bpp;
-
 	/*
 	 * margin 5300ppm + 300ppm ~ 0.6% as per spec, factor is 1.006
 	 * The unit of 54/64Mbytes/sec is an arbitrary unit chosen based on
@@ -3860,14 +3852,8 @@ int drm_dp_calc_pbn_mode(int clock, int bpp)
 	 * peak_kbps *= (64/54)
 	 * peak_kbps *= 8    convert to bytes
 	 */
-
-	numerator = 64 * 1006;
-	denominator = 54 * 8 * 1000 * 1000;
-
-	kbps *= numerator;
-	peak_kbps = drm_fixp_from_fraction(kbps, denominator);
-
-	return drm_fixp2int_ceil(peak_kbps);
+	return DIV_ROUND_UP_ULL(mul_u32_u32(clock * bpp, 64 * 1006),
+				8 * 54 * 1000 * 1000);
 }
 EXPORT_SYMBOL(drm_dp_calc_pbn_mode);
 
