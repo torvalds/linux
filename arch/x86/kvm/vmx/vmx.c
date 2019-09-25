@@ -537,23 +537,19 @@ static int hv_enable_direct_tlbflush(struct kvm_vcpu *vcpu)
 	 * Synthetic VM-Exit is not enabled in current code and so All
 	 * evmcs in singe VM shares same assist page.
 	 */
-	if (!*p_hv_pa_pg) {
+	if (!*p_hv_pa_pg)
 		*p_hv_pa_pg = kzalloc(PAGE_SIZE, GFP_KERNEL);
-		if (!*p_hv_pa_pg)
-			return -ENOMEM;
-		pr_debug("KVM: Hyper-V: allocated PA_PG for %llx\n",
-		       (u64)&vcpu->kvm);
-	}
+
+	if (!*p_hv_pa_pg)
+		return -ENOMEM;
 
 	evmcs = (struct hv_enlightened_vmcs *)to_vmx(vcpu)->loaded_vmcs->vmcs;
 
 	evmcs->partition_assist_page =
 		__pa(*p_hv_pa_pg);
-	evmcs->hv_vm_id = (u64)vcpu->kvm;
+	evmcs->hv_vm_id = (unsigned long)vcpu->kvm;
 	evmcs->hv_enlightenments_control.nested_flush_hypercall = 1;
 
-	pr_debug("KVM: Hyper-V: enabled DIRECT flush for %llx\n",
-		 (u64)vcpu->kvm);
 	return 0;
 }
 
