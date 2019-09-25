@@ -68,9 +68,6 @@
 
 #define DP_DPRX_ESI_LEN 14
 
-/* DP DSC small joiner has 2 FIFOs each of 640 x 6 bytes */
-#define DP_DSC_MAX_SMALL_JOINER_RAM_BUFFER	61440
-
 /* DP DSC throughput values used for slice count calculations KPixels/s */
 #define DP_DSC_PEAK_PIXEL_RATE			2720000
 #define DP_DSC_MAX_ENC_THROUGHPUT_0		340000
@@ -498,7 +495,17 @@ u32 intel_dp_mode_to_fec_clock(u32 mode_clock)
 		       DP_DSC_FEC_OVERHEAD_FACTOR);
 }
 
-static u16 intel_dp_dsc_get_output_bpp(u32 link_clock, u32 lane_count,
+static int
+small_joiner_ram_size_bits(struct drm_i915_private *i915)
+{
+	if (INTEL_GEN(i915) >= 11)
+		return 7680 * 8;
+	else
+		return 6144 * 8;
+}
+
+static u16 intel_dp_dsc_get_output_bpp(struct drm_i915_private *i915,
+				       u32 link_clock, u32 lane_count,
 				       u32 mode_clock, u32 mode_hdisplay)
 {
 	u32 bits_per_pixel, max_bpp_small_joiner_ram;
@@ -515,7 +522,8 @@ static u16 intel_dp_dsc_get_output_bpp(u32 link_clock, u32 lane_count,
 	DRM_DEBUG_KMS("Max link bpp: %u\n", bits_per_pixel);
 
 	/* Small Joiner Check: output bpp <= joiner RAM (bits) / Horiz. width */
-	max_bpp_small_joiner_ram = DP_DSC_MAX_SMALL_JOINER_RAM_BUFFER / mode_hdisplay;
+	max_bpp_small_joiner_ram = small_joiner_ram_size_bits(i915) /
+		mode_hdisplay;
 	DRM_DEBUG_KMS("Max small joiner bpp: %u\n", max_bpp_small_joiner_ram);
 
 	/*
@@ -632,7 +640,8 @@ intel_dp_mode_valid(struct drm_connector *connector,
 								true);
 		} else if (drm_dp_sink_supports_fec(intel_dp->fec_capable)) {
 			dsc_max_output_bpp =
-				intel_dp_dsc_get_output_bpp(max_link_clock,
+				intel_dp_dsc_get_output_bpp(dev_priv,
+							    max_link_clock,
 							    max_lanes,
 							    target_clock,
 							    mode->hdisplay) >> 4;
@@ -2059,7 +2068,8 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		u8 dsc_dp_slice_count;
 
 		dsc_max_output_bpp =
-			intel_dp_dsc_get_output_bpp(pipe_config->port_clock,
+			intel_dp_dsc_get_output_bpp(dev_priv,
+						    pipe_config->port_clock,
 						    pipe_config->lane_count,
 						    adjusted_mode->crtc_clock,
 						    adjusted_mode->crtc_hdisplay);
