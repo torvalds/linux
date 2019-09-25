@@ -14,11 +14,23 @@
 	compatible = "nuvoton,npcm750";
 
 	aliases {
+		ethernet0 = &emc0;
 		ethernet1 = &gmac0;
 		serial0 = &serial0;
 		serial1 = &serial1;
 		serial2 = &serial2;
 		serial3 = &serial3;
+		udc0 = &udc0;
+		udc1 = &udc1;
+		udc2 = &udc2;
+		udc3 = &udc3;
+		udc4 = &udc4;
+		udc5 = &udc5;
+		udc6 = &udc6;
+		udc7 = &udc7;
+		udc8 = &udc8;
+		udc9 = &udc9;
+		emmc0 = &sdhci0;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -202,6 +214,12 @@
 &gmac0 {
 	phy-mode = "rgmii-id";
 	snps,eee-force-disable;
+	status = "okay";
+};
+
+&emc0 {
+	phy-mode = "rmii";
+	use-ncsi;
 	status = "okay";
 };
 
@@ -885,7 +903,92 @@
 	};
 };
 
+&peci0 {
+	cmd-timeout-ms = <1000>;
+	pull-down = <0>;
+	host-neg-bit-rate = <15>;
+	status = "okay";
+
+	intel-peci-dimmtemp@30 {
+		compatible = "intel,peci-client";
+		reg = <0x30>;
+	};
+	intel-peci-dimmtemp@31 {
+		compatible = "intel,peci-client";
+		reg = <0x31>;
+	};
+};
+
 &ehci1 {
+	status = "okay";
+};
+
+&ohci1 {
+	status = "okay";
+};
+
+&udc0 {
+	status = "okay";
+};
+
+&udc1 {
+	status = "okay";
+};
+
+&udc2 {
+	status = "okay";
+};
+
+&udc3 {
+	status = "okay";
+};
+
+&udc4 {
+	status = "okay";
+};
+
+&udc5 {
+	status = "okay";
+};
+
+&udc6 {
+	status = "okay";
+};
+
+&udc7 {
+	status = "okay";
+};
+
+&udc8 {
+	status = "okay";
+};
+
+&udc9 {
+	status = "okay";
+};
+
+&aes {
+	status = "okay";
+};
+
+&sha {
+	status = "okay";
+};
+
+
+&sdhci0 {
+	status = "okay";
+};
+
+&pcimbox {
+	status = "okay";
+};
+
+&vcd {
+	status = "okay";
+};
+
+&ece {
 	status = "okay";
 };
 
@@ -918,6 +1021,10 @@
 	status = "okay";
 };
 
+&otp {
+	status = "okay";
+};
+
 &kcs1 {
 	status = "okay";
 };
@@ -927,6 +1034,11 @@
 };
 
 &kcs3 {
+	status = "okay";
+};
+
+&lpc_bpc {
+	monitor-ports = <0x80>;
 	status = "okay";
 };
 
