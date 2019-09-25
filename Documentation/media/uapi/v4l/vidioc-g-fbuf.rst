@@ -63,7 +63,7 @@ EINVAL error code when overlays are not supported.
 
 To set the parameters for a *Video Output Overlay*, applications must
 initialize the ``flags`` field of a struct
-struct :c:type:`v4l2_framebuffer`. Since the framebuffer is
+:c:type:`v4l2_framebuffer`. Since the framebuffer is
 implemented on the TV card all other parameters are determined by the
 driver. When an application calls :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` with a pointer to
 this structure, the driver prepares for the overlay and returns the
