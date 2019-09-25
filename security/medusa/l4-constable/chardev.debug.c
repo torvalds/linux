@@ -56,7 +56,7 @@
 
 
 static teleport_t teleport = {
-	cycle: tpc_HALT,
+cycle: tpc_HALT,
 };
 static teleport_insn_t tele_mem[6];
 
@@ -69,36 +69,36 @@ static MED_LOCK_DATA(constable_openclose);
 
 /* fetch or update answer */
 static atomic_t send_fetch_or_update_answer = ATOMIC_INIT(0);
- static struct medusa_kclass_s * answ_kclass;
- static struct medusa_kobject_s * answ_kobj;
- static MCPptr_t answ_kclassid;
- static MCPptr_t answ_seq;
- static medusa_answer_t answ_result;
+static struct medusa_kclass_s * answ_kclass;
+static struct medusa_kobject_s * answ_kobj;
+static MCPptr_t answ_kclassid;
+static MCPptr_t answ_seq;
+static medusa_answer_t answ_result;
 
 /* to-register queue for constable */
 static MED_LOCK_DATA(registration_lock);
- static struct medusa_kclass_s * kclasses_to_register = NULL;
- static struct medusa_evtype_s * evtypes_to_register = NULL;
- /* the following two are circular lists */
- static struct medusa_kclass_s * kclasses_registered = NULL;
- static struct medusa_evtype_s * evtypes_registered = NULL;
- static atomic_t announce_ready = ATOMIC_INIT(0);
+static struct medusa_kclass_s * kclasses_to_register = NULL;
+static struct medusa_evtype_s * evtypes_to_register = NULL;
+/* the following two are circular lists */
+static struct medusa_kclass_s * kclasses_registered = NULL;
+static struct medusa_evtype_s * evtypes_registered = NULL;
+static atomic_t announce_ready = ATOMIC_INIT(0);
 
 /* a question from kernel to constable */
 static DEFINE_SEMAPHORE(constable_mutex);
- static atomic_t question_ready = ATOMIC_INIT(0);
- static struct medusa_event_s * decision_event;
- static struct medusa_kobject_s * decision_o1, * decision_o2;
- /* and the answer */
- static medusa_answer_t user_answer;
- static DECLARE_WAIT_QUEUE_HEAD(userspace);
- static DECLARE_COMPLETION(userspace_answer);
+static atomic_t question_ready = ATOMIC_INIT(0);
+static struct medusa_event_s * decision_event;
+static struct medusa_kobject_s * decision_o1, * decision_o2;
+/* and the answer */
+static medusa_answer_t user_answer;
+static DECLARE_WAIT_QUEUE_HEAD(userspace);
+static DECLARE_COMPLETION(userspace_answer);
 
 /* is the user-space currently sending us something? */
 static atomic_t currently_receiving = ATOMIC_INIT(0);
- static char recv_buf[32768]; /* hopefully enough */
- static MCPptr_t recv_type;
- static int recv_phase;
+static char recv_buf[32768]; /* hopefully enough */
+static MCPptr_t recv_type;
+static int recv_phase;
 
 static DECLARE_WAIT_QUEUE_HEAD(close_wait);
 
@@ -174,7 +174,7 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 	int retval;
 	if (in_interrupt()) {
 		/* houston, we have a problem! */
-		MED_PRINTF("decide called from interrupt context :(\n");
+		med_pr_err("decide called from interrupt context :(\n");
 		return MED_ERR;
 	}
 	if (current == constable || current == gdb)
@@ -207,19 +207,19 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 	/* wmb() */
 	barrier(); /* gcc optimalization causes segfault on multiprocessor machines */
 	atomic_set(&question_ready, 1); /* doesn't matter whether this is atomic or not */
-printk("medusa: question ready = 1\n");
+	med_pr_debug("medusa: question ready = 1\n");
 	barrier();
 	wakeup(&userspace);
 	barrier();
-printk("medusa: goin sleep\n");
+	med_pr_debug("medusa: goin sleep\n");
 	wait_for_completion(&userspace_answer);
-printk("medusa: wakeup woe\n");
+	med_pr_debug("medusa: wakeup woe\n");
 	barrier();
 	if (atomic_read(&question_ready)) {
 		atomic_set(&question_ready, 0);
-		printk("medusa: race conditions %d...\n", userspace_answer.done);
+		med_pr_info("medusa: race conditions %d...\n", userspace_answer.done);
 	} else {
-		printk("medusa: no race conditions %d...\n", userspace_answer.done);
+		med_pr_info("medusa: no race conditions %d...\n", userspace_answer.done);
 	}
 
 	if (atomic_read(&constable_present))
@@ -245,20 +245,20 @@ static int user_open(struct inode *inode, struct file *file);
 static int user_release(struct inode *inode, struct file *file);
 
 static struct file_operations fops = {
-	read:		user_read,
-	write:		user_write,
-	llseek:		no_llseek, /* -ESPIPE */
-	poll:		user_poll,
-	open:		user_open,
-	release:	user_release
-/* we don't support async IO. I have no idea, when to call kill_fasync
- * to be correct. Only on decisions? Or also on answers to user-space
- * questions? Not a big problem, though... noone seems to be supporting
- * it anyway :). If you need it, let me know. <www@terminus.sk>
- */
- /* also, we don't like the ioctl() - we hope the character device can
-  * be used over the network.
-  */
+read:		user_read,
+		write:		user_write,
+		llseek:		no_llseek, /* -ESPIPE */
+		poll:		user_poll,
+		open:		user_open,
+		release:	user_release
+			/* we don't support async IO. I have no idea, when to call kill_fasync
+			 * to be correct. Only on decisions? Or also on answers to user-space
+			 * questions? Not a big problem, though... noone seems to be supporting
+			 * it anyway :). If you need it, let me know. <www@terminus.sk>
+			 */
+			/* also, we don't like the ioctl() - we hope the character device can
+			 * be used over the network.
+			 */
 };
 static char * userspace_buf;
 
@@ -335,7 +335,7 @@ feed_lions:
 	}
 #undef decision_evtype
 	teleport_reset(&teleport, &(tele_mem[0]), to_user);
-printk("medusa: question ready = 0");
+	med_pr_debug("medusa: question ready = 0");
 	atomic_set(&question_ready, 0);
 	goto feed_lions;
 
@@ -422,9 +422,9 @@ do_announce:
  */
 # define GET_UPTO(to_read) do {							\
 	if (howmuch > (signed int)count)					\
-		howmuch = count;						\
+	howmuch = count;						\
 	if (howmuch <= 0)							\
-		break;								\
+	break;								\
 	if (__copy_from_user(recv_buf+recv_phase-sizeof(MCPptr_t), buf, howmuch));	\
 	buf += howmuch; count -= howmuch; recv_phase += howmuch;		\
 } while (0)
@@ -451,7 +451,7 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
 			if (to_read > XFER_COUNT)
 				to_read = XFER_COUNT;
 			if (__copy_from_user(((char *)&recv_type)+recv_phase, buf,
-					to_read));
+						to_read));
 			buf += to_read; count -= to_read;
 			recv_phase += to_read;
 			if (recv_phase < sizeof(MCPptr_t))
@@ -464,9 +464,9 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
 				continue;
 			user_answer = *(int16_t *)(recv_buf+sizeof(MCPptr_t));
 			barrier();
-printk("medusa: goin complete\n");
+			med_pr_debug("medusa: goin complete\n");
 			complete(&userspace_answer);
-printk("medusa: is complete\n");
+			med_pr_debug("medusa: is complete\n");
 			atomic_set(&currently_receiving, 0);
 		} else if (recv_type.data == MEDUSA_COMM_FETCH_REQUEST ||
 				recv_type.data == MEDUSA_COMM_UPDATE_REQUEST) {
@@ -475,10 +475,10 @@ printk("medusa: is complete\n");
 				continue;
 
 			cl = med_get_kclass_by_pointer(
-				*(struct medusa_kclass_s **)(recv_buf) // posibility to decrypt JK march 2015
-			);
+					*(struct medusa_kclass_s **)(recv_buf) // posibility to decrypt JK march 2015
+					);
 			if (!cl) {
-				MED_PRINTF(MODULENAME ": protocol error at write(): unknown kclass 0x%16llx!\n", (*(MCPptr_t*)(recv_buf)).data);
+				med_pr_err("Protocol error at write(): unknown kclass 0x%16llx!\n", (*(MCPptr_t*)(recv_buf)).data);
 				atomic_set(&currently_receiving, 0);
 #ifdef ERRORS_CAUSE_SEGFAULT
 				return -EFAULT;
@@ -499,13 +499,13 @@ printk("medusa: is complete\n");
 			if (recv_type.data == MEDUSA_COMM_FETCH_REQUEST) {
 				if (cl->fetch)
 					answ_kobj = cl->fetch((struct medusa_kobject_s *)
-								(recv_buf+sizeof(MCPptr_t)*2));
+							(recv_buf+sizeof(MCPptr_t)*2));
 				else
 					answ_kobj = NULL;
 			} else {
 				if (cl->update)
 					answ_result = cl->update(
-						(struct medusa_kobject_s *)(recv_buf+sizeof(MCPptr_t)*2));
+							(struct medusa_kobject_s *)(recv_buf+sizeof(MCPptr_t)*2));
 				else
 					answ_result = MED_ERR;
 			}
@@ -515,10 +515,10 @@ printk("medusa: is complete\n");
 
 			atomic_set(&currently_receiving, 0);
 		} else {
-			MED_PRINTF(MODULENAME ": protocol error at write(): unknown command %16llx!\n", recv_type.data);
+			med_pr_err("Protocol error at write(): unknown command %16llx!\n", recv_type.data);
 			atomic_set(&currently_receiving, 0);
 #ifdef ERRORS_CAUSE_SEGFAULT
-				return -EFAULT;
+			return -EFAULT;
 #endif
 		}
 	}
@@ -572,9 +572,9 @@ static int user_open(struct inode *inode, struct file *file)
 	evtypes_to_register = NULL;
 	kclasses_to_register = NULL;
 
-printk("medusa: open: init completiton\n");
+	med_pr_debug("medusa: open: init completiton\n");
 	init_completion(&userspace_answer);
-printk("medusa: open: init completiton complete\n");
+	med_pr_debug("medusa: open: init completiton complete\n");
 
 	MED_REGISTER_AUTHSERVER(chardev_medusa);
 	return 0; /* success */
@@ -619,13 +619,13 @@ static int user_release(struct inode *inode, struct file *file)
 		atomic_set(&send_fetch_or_update_answer, 0);
 	}
 
-	MED_PRINTF("Security daemon unregistered.\n");
+	med_pr_debug("Security daemon unregistered.\n");
 #if defined(CONFIG_MEDUSA_HALT)
-	MED_PRINTF("No security daemon, system halted.\n");
+	med_pr_warn("No security daemon, system halted.\n");
 	notifier_call_chain(&reboot_notifier_list, SYS_HALT, NULL);
 	machine_halt();
 #elif defined(CONFIG_MEDUSA_REBOOT)
-	MED_PRINTF("No security daemon, rebooting system.\n");
+	med_pr_warn("No security daemon, rebooting system.\n");
 	ctrl_alt_del();
 #endif
 	add_wait_queue(&close_wait, &wait);
@@ -636,12 +636,12 @@ static int user_release(struct inode *inode, struct file *file)
 	constable = NULL;
 
 	user_answer = MED_ERR; // XXXXX change to MED_ERR !!
-printk("medusa: close: goin complete \n");
+	med_pr_debug("medusa: close: goin complete \n");
 	complete(&userspace_answer);	/* the one which already might be in */
-printk("meduse: close: is complete\n");
+	med_pr_debug("meduse: close: is complete\n");
 
 	atomic_set(&question_ready, 0);
-printk("medusa: close question ready = 0");
+	med_pr_debug("medusa: close question ready = 0");
 	atomic_set(&announce_ready, 0);
 	MED_UNLOCK_W(constable_openclose);
 	schedule();
@@ -655,9 +655,9 @@ static struct device* medusa_device;
 
 static int chardev_constable_init(void)
 {
-	MED_PRINTF(MODULENAME ": registering L4 character device with major %d\n", MEDUSA_MAJOR);
+	med_pr_debug("Registering L4 character device with major %d\n", MEDUSA_MAJOR);
 	if (register_chrdev(MEDUSA_MAJOR, MODULENAME, &fops)) {
-		MED_PRINTF(MODULENAME ": cannot register character device with major %d\n", MEDUSA_MAJOR);
+		med_pr_err("Cannot register character device with major %d\n", MEDUSA_MAJOR);
 		return -1;
 	}
 	//devfs_register(NULL, "medusa", DEVFS_FL_DEFAULT, JK???
@@ -668,14 +668,14 @@ static int chardev_constable_init(void)
 
 	medusa_class = class_create(THIS_MODULE, "medusa");
 	if (IS_ERR(medusa_class)) {
-		MED_PRINTF(MODULENAME ": failed to register device class '%s'\n", "medusa");
+		med_pr_err("Failed to register device class '%s'\n", "medusa");
 		return -1;
 	}
-	
+
 	/* With a class, the easiest way to instantiate a device is to call device_create() */
 	medusa_device = device_create(medusa_class, NULL, MKDEV(MEDUSA_MAJOR, 0), NULL, "medusa");
 	if (IS_ERR(medusa_device)) {
-		MED_PRINTF(MODULENAME ": failed to create device '%s'\n", "medusa");
+		med_pr_err("Failed to create device '%s'\n", "medusa");
 		return -1;
 	}
 	return 0;
@@ -683,11 +683,11 @@ static int chardev_constable_init(void)
 
 static void chardev_constable_exit(void)
 {
-//	devfs_unregister(devfs_find_handle // ??? JK
-//			(NULL, "medusa", MEDUSA_MAJOR, 0,
-//			DEVFS_SPECIAL_CHR, 0));
+	//	devfs_unregister(devfs_find_handle // ??? JK
+	//			(NULL, "medusa", MEDUSA_MAJOR, 0,
+	//			DEVFS_SPECIAL_CHR, 0));
 
-	
+
 	device_destroy(medusa_class, MKDEV(MEDUSA_MAJOR, 0));
 	class_unregister(medusa_class);
 	class_destroy(medusa_class);

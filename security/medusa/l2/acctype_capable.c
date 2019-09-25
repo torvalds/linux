@@ -39,7 +39,7 @@ medusa_answer_t medusa_capable(int cap)
         /* process_kobject process is zeroed by process_kern2kobj function */
 
 	if (in_interrupt()) {
-		printk("CAPABLE IN INTERRUPT\n");
+		med_pr_warn("CAPABLE IN INTERRUPT\n");
 #warning "finish me"
 		return MED_OK;
 	}

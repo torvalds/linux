@@ -23,7 +23,7 @@ static struct medusa_kobject_s * printk_fetch(struct medusa_kobject_s * key_obj)
 static medusa_answer_t printk_update(struct medusa_kobject_s * kobj)
 {
 	((struct printk_kobject *) kobj)->message[sizeof(((struct printk_kobject *) kobj)->message)-1] = '\0';
-	MED_PRINTF("%s",((struct printk_kobject *) kobj)->message);
+	med_pr_debug("%s",((struct printk_kobject *) kobj)->message);
 	return MED_OK;
 }
 
