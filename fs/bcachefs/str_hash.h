@@ -187,6 +187,7 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 {
 	struct btree_iter *iter;
 	struct bkey_s_c k;
+	int ret;
 
 	iter = bch2_trans_copy_iter(trans, start);
 	if (IS_ERR(iter))
@@ -194,7 +195,7 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 
 	bch2_btree_iter_next_slot(iter);
 
-	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, k) {
+	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, k, ret) {
 		if (k.k->type != desc.key_type &&
 		    k.k->type != KEY_TYPE_whiteout)
 			break;
@@ -206,7 +207,8 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 		}
 	}
 
-	return bch2_trans_iter_free(trans, iter);
+	bch2_trans_iter_free(trans, iter);
+	return ret;
 }
 
 static __always_inline

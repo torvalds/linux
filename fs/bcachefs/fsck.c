@@ -248,7 +248,7 @@ static int hash_check_duplicates(struct btree_trans *trans,
 	iter = bch2_trans_copy_iter(trans, h->chain);
 	BUG_ON(IS_ERR(iter));
 
-	for_each_btree_key_continue(iter, 0, k2) {
+	for_each_btree_key_continue(iter, 0, k2, ret) {
 		if (bkey_cmp(k2.k->p, k.k->p) >= 0)
 			break;
 
@@ -458,7 +458,7 @@ static int check_extents(struct bch_fs *c)
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
 				   POS(BCACHEFS_ROOT_INO, 0), 0);
 retry:
-	for_each_btree_key_continue(iter, 0, k) {
+	for_each_btree_key_continue(iter, 0, k, ret) {
 		ret = walk_inode(&trans, &w, k.k->p.inode);
 		if (ret)
 			break;
@@ -553,7 +553,7 @@ static int check_dirents(struct bch_fs *c)
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_DIRENTS,
 				   POS(BCACHEFS_ROOT_INO, 0), 0);
 retry:
-	for_each_btree_key_continue(iter, 0, k) {
+	for_each_btree_key_continue(iter, 0, k, ret) {
 		struct bkey_s_c_dirent d;
 		struct bch_inode_unpacked target;
 		bool have_target;
@@ -707,7 +707,7 @@ static int check_xattrs(struct bch_fs *c)
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_XATTRS,
 				   POS(BCACHEFS_ROOT_INO, 0), 0);
 retry:
-	for_each_btree_key_continue(iter, 0, k) {
+	for_each_btree_key_continue(iter, 0, k, ret) {
 		ret = walk_inode(&trans, &w, k.k->p.inode);
 		if (ret)
 			break;
@@ -995,7 +995,7 @@ up:
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES, POS_MIN, 0);
 retry:
-	for_each_btree_key_continue(iter, 0, k) {
+	for_each_btree_key_continue(iter, 0, k, ret) {
 		if (k.k->type != KEY_TYPE_inode)
 			continue;
 
@@ -1021,7 +1021,7 @@ retry:
 			had_unreachable = true;
 		}
 	}
-	ret = bch2_trans_iter_free(&trans, iter);
+	bch2_trans_iter_free(&trans, iter);
 	if (ret)
 		goto err;
 

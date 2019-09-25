@@ -246,6 +246,11 @@ static inline struct bkey_s_c __bch2_btree_iter_next(struct btree_iter *iter,
 		: bch2_btree_iter_next(iter);
 }
 
+static inline int bkey_err(struct bkey_s_c k)
+{
+	return PTR_ERR_OR_ZERO(k.k);
+}
+
 #define for_each_btree_key(_trans, _iter, _btree_id,			\
 			   _start, _flags, _k, _ret)			\
 	for ((_ret) = PTR_ERR_OR_ZERO((_iter) =				\
@@ -257,15 +262,10 @@ static inline struct bkey_s_c __bch2_btree_iter_next(struct btree_iter *iter,
 	     (_ret) = PTR_ERR_OR_ZERO(((_k) =				\
 			__bch2_btree_iter_next(_iter, _flags)).k))
 
-#define for_each_btree_key_continue(_iter, _flags, _k)			\
+#define for_each_btree_key_continue(_iter, _flags, _k, _ret)		\
 	for ((_k) = __bch2_btree_iter_peek(_iter, _flags);		\
-	     !IS_ERR_OR_NULL((_k).k);					\
+	     !((_ret) = bkey_err(_k)) && (_k).k;			\
 	     (_k) = __bch2_btree_iter_next(_iter, _flags))
-
-static inline int bkey_err(struct bkey_s_c k)
-{
-	return PTR_ERR_OR_ZERO(k.k);
-}
 
 /* new multiple iterator interface: */
 
