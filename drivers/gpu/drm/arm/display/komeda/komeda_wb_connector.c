@@ -165,8 +165,10 @@ static int komeda_wb_connector_add(struct komeda_kms_dev *kms,
 					   &komeda_wb_encoder_helper_funcs,
 					   formats, n_formats);
 	komeda_put_fourcc_list(formats);
-	if (err)
+	if (err) {
+		kfree(kwb_conn);
 		return err;
+	}
 
 	drm_connector_helper_add(&wb_conn->base, &komeda_wb_conn_helper_funcs);
 
