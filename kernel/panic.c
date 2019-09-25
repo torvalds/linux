@@ -605,19 +605,19 @@ void warn_slowpath_fmt(const char *file, int line, unsigned taint,
 {
 	struct warn_args args;
 
+	if (!fmt) {
+		pr_warn(CUT_HERE);
+		__warn(file, line, __builtin_return_address(0), taint,
+		       NULL, NULL);
+		return;
+	}
+
 	args.fmt = fmt;
 	va_start(args.args, fmt);
 	__warn(file, line, __builtin_return_address(0), taint, NULL, &args);
 	va_end(args.args);
 }
 EXPORT_SYMBOL(warn_slowpath_fmt);
-
-void warn_slowpath_null(const char *file, int line)
-{
-	pr_warn(CUT_HERE);
-	__warn(file, line, __builtin_return_address(0), TAINT_WARN, NULL, NULL);
-}
-EXPORT_SYMBOL(warn_slowpath_null);
 #else
 void __warn_printk(const char *fmt, ...)
 {
