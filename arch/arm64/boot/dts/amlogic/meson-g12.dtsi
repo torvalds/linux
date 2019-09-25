@@ -103,7 +103,9 @@
 			sound-name-prefix = "TODDR_A";
 			interrupts = <GIC_SPI 148 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clkc_audio AUD_CLKID_TODDR_A>;
-			resets = <&arb AXG_ARB_TODDR_A>;
+			resets = <&arb AXG_ARB_TODDR_A>,
+				 <&clkc_audio AUD_RESET_TODDR_A>;
+			reset-names = "arb", "rst";
 			status = "disabled";
 		};
 
@@ -115,7 +117,9 @@
 			sound-name-prefix = "TODDR_B";
 			interrupts = <GIC_SPI 149 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clkc_audio AUD_CLKID_TODDR_B>;
-			resets = <&arb AXG_ARB_TODDR_B>;
+			resets = <&arb AXG_ARB_TODDR_B>,
+				 <&clkc_audio AUD_RESET_TODDR_B>;
+			reset-names = "arb", "rst";
 			status = "disabled";
 		};
 
@@ -127,7 +131,9 @@
 			sound-name-prefix = "TODDR_C";
 			interrupts = <GIC_SPI 150 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clkc_audio AUD_CLKID_TODDR_C>;
-			resets = <&arb AXG_ARB_TODDR_C>;
+			resets = <&arb AXG_ARB_TODDR_C>,
+				 <&clkc_audio AUD_RESET_TODDR_C>;
+			reset-names = "arb", "rst";
 			status = "disabled";
 		};
 
@@ -139,7 +145,9 @@
 			sound-name-prefix = "FRDDR_A";
 			interrupts = <GIC_SPI 152 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clkc_audio AUD_CLKID_FRDDR_A>;
-			resets = <&arb AXG_ARB_FRDDR_A>;
+			resets = <&arb AXG_ARB_FRDDR_A>,
+				 <&clkc_audio AUD_RESET_FRDDR_A>;
+			reset-names = "arb", "rst";
 			status = "disabled";
 		};
 
@@ -151,7 +159,9 @@
 			sound-name-prefix = "FRDDR_B";
 			interrupts = <GIC_SPI 153 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clkc_audio AUD_CLKID_FRDDR_B>;
-			resets = <&arb AXG_ARB_FRDDR_B>;
+			resets = <&arb AXG_ARB_FRDDR_B>,
+				 <&clkc_audio AUD_RESET_FRDDR_B>;
+			reset-names = "arb", "rst";
 			status = "disabled";
 		};
 
@@ -163,7 +173,9 @@
 			sound-name-prefix = "FRDDR_C";
 			interrupts = <GIC_SPI 154 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clkc_audio AUD_CLKID_FRDDR_C>;
-			resets = <&arb AXG_ARB_FRDDR_C>;
+			resets = <&arb AXG_ARB_FRDDR_C>,
+				 <&clkc_audio AUD_RESET_FRDDR_C>;
+			reset-names = "arb", "rst";
 			status = "disabled";
 		};
 
@@ -249,6 +261,7 @@
 			clocks = <&clkc_audio AUD_CLKID_SPDIFIN>,
 				 <&clkc_audio AUD_CLKID_SPDIFIN_CLK>;
 			clock-names = "pclk", "refclk";
+			resets = <&clkc_audio AUD_RESET_SPDIFIN>;
 			status = "disabled";
 		};
 
@@ -261,6 +274,7 @@
 			clocks = <&clkc_audio AUD_CLKID_SPDIFOUT>,
 				 <&clkc_audio AUD_CLKID_SPDIFOUT_CLK>;
 			clock-names = "pclk", "mclk";
+			resets = <&clkc_audio AUD_RESET_SPDIFOUT>;
 			status = "disabled";
 		};
 
@@ -318,6 +332,7 @@
 			clocks = <&clkc_audio AUD_CLKID_SPDIFOUT_B>,
 				 <&clkc_audio AUD_CLKID_SPDIFOUT_B_CLK>;
 			clock-names = "pclk", "mclk";
+			resets = <&clkc_audio AUD_RESET_SPDIFOUT_B>;
 			status = "disabled";
 		};
 
@@ -326,6 +341,7 @@
 			reg = <0x0 0x744 0x0 0x4>;
 			#sound-dai-cells = <1>;
 			sound-name-prefix = "TOHDMITX";
+			resets = <&clkc_audio AUD_RESET_TOHDMITX>;
 			status = "disabled";
 		};
 	};
