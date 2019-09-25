@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include <asm/bug.h>
 #include "symbol_conf.h"
+#include "spark.h"
 
 struct hist_browser_timer;
 struct hist_entry;
@@ -235,6 +236,7 @@ struct cyc_hist {
 	u64	cycles_aggr;
 	u64	cycles_max;
 	u64	cycles_min;
+	s64	cycles_spark[NUM_SPARKS];
 	u32	num;
 	u32	num_aggr;
 	u8	have_start;
