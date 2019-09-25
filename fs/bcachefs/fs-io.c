@@ -830,11 +830,7 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 		goto out;
 	}
 
-	/* page is wholly or partially inside EOF */
-	if (((page->index + 1) << PAGE_SHIFT) <= isize)
-		len = PAGE_SIZE;
-	else
-		len = offset_in_page(isize);
+	len = min_t(loff_t, PAGE_SIZE, isize - page_offset(page));
 
 	if (bch2_page_reservation_get(c, inode, page, &res, 0, len, true)) {
 		unlock_page(page);
