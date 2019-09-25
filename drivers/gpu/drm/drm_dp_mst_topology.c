@@ -4301,7 +4301,7 @@ void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr)
 	drm_atomic_private_obj_fini(&mgr->base);
 	mgr->funcs = NULL;
 
-	mutex_destroy(&mgr->delayed_destroy_lock);
+	mutex_destroy(&mgr->destroy_connector_lock);
 	mutex_destroy(&mgr->payload_lock);
 	mutex_destroy(&mgr->qlock);
 	mutex_destroy(&mgr->lock);
