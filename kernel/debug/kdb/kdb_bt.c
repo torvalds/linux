@@ -78,8 +78,7 @@ static void kdb_show_stack(struct task_struct *p, void *addr)
  */
 
 static int
-kdb_bt1(struct task_struct *p, unsigned long mask,
-	int argcount, int btaprompt)
+kdb_bt1(struct task_struct *p, unsigned long mask, bool btaprompt)
 {
 	char buffer[2];
 	if (kdb_getarea(buffer[0], (unsigned long)p) ||
@@ -106,7 +105,6 @@ int
 kdb_bt(int argc, const char **argv)
 {
 	int diag;
-	int argcount = 5;
 	int btaprompt = 1;
 	int nextarg;
 	unsigned long addr;
@@ -125,7 +123,7 @@ kdb_bt(int argc, const char **argv)
 		/* Run the active tasks first */
 		for_each_online_cpu(cpu) {
 			p = kdb_curr_task(cpu);
-			if (kdb_bt1(p, mask, argcount, btaprompt))
+			if (kdb_bt1(p, mask, btaprompt))
 				return 0;
 		}
 		/* Now the inactive tasks */
@@ -134,7 +132,7 @@ kdb_bt(int argc, const char **argv)
 				return 0;
 			if (task_curr(p))
 				continue;
-			if (kdb_bt1(p, mask, argcount, btaprompt))
+			if (kdb_bt1(p, mask, btaprompt))
 				return 0;
 		} kdb_while_each_thread(g, p);
 	} else if (strcmp(argv[0], "btp") == 0) {
@@ -148,7 +146,7 @@ kdb_bt(int argc, const char **argv)
 		p = find_task_by_pid_ns(pid, &init_pid_ns);
 		if (p) {
 			kdb_set_current_task(p);
-			return kdb_bt1(p, ~0UL, argcount, 0);
+			return kdb_bt1(p, ~0UL, false);
 		}
 		kdb_printf("No process with pid == %ld found\n", pid);
 		return 0;
@@ -159,7 +157,7 @@ kdb_bt(int argc, const char **argv)
 		if (diag)
 			return diag;
 		kdb_set_current_task((struct task_struct *)addr);
-		return kdb_bt1((struct task_struct *)addr, ~0UL, argcount, 0);
+		return kdb_bt1((struct task_struct *)addr, ~0UL, false);
 	} else if (strcmp(argv[0], "btc") == 0) {
 		unsigned long cpu = ~0;
 		struct task_struct *save_current_task = kdb_current_task;
@@ -211,7 +209,7 @@ kdb_bt(int argc, const char **argv)
 			kdb_show_stack(kdb_current_task, (void *)addr);
 			return 0;
 		} else {
-			return kdb_bt1(kdb_current_task, ~0UL, argcount, 0);
+			return kdb_bt1(kdb_current_task, ~0UL, false);
 		}
 	}
 
