@@ -161,7 +161,7 @@ static int lcd_olinuxino_get_modes(struct drm_panel *panel)
 				lcd_mode->hactive,
 				lcd_mode->vactive,
 				lcd_mode->refresh);
-				continue;
+			continue;
 		}
 
 		mode->clock = lcd_mode->pixelclock;
