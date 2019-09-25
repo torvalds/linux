@@ -580,7 +580,7 @@ static int evict_process_queues_nocpsch(struct device_queue_manager *dqm,
 		goto out;
 
 	pdd = qpd_to_pdd(qpd);
-	pr_info_ratelimited("Evicting PASID %u queues\n",
+	pr_info_ratelimited("Evicting PASID 0x%x queues\n",
 			    pdd->process->pasid);
 
 	/* Mark all queues as evicted. Deactivate all active queues on
@@ -622,7 +622,7 @@ static int evict_process_queues_cpsch(struct device_queue_manager *dqm,
 		goto out;
 
 	pdd = qpd_to_pdd(qpd);
-	pr_info_ratelimited("Evicting PASID %u queues\n",
+	pr_info_ratelimited("Evicting PASID 0x%x queues\n",
 			    pdd->process->pasid);
 
 	/* Mark all queues as evicted. Deactivate all active queues on
@@ -668,7 +668,7 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 		goto out;
 	}
 
-	pr_info_ratelimited("Restoring PASID %u queues\n",
+	pr_info_ratelimited("Restoring PASID 0x%x queues\n",
 			    pdd->process->pasid);
 
 	/* Update PD Base in QPD */
@@ -740,7 +740,7 @@ static int restore_process_queues_cpsch(struct device_queue_manager *dqm,
 		goto out;
 	}
 
-	pr_info_ratelimited("Restoring PASID %u queues\n",
+	pr_info_ratelimited("Restoring PASID 0x%x queues\n",
 			    pdd->process->pasid);
 
 	/* Update PD Base in QPD */

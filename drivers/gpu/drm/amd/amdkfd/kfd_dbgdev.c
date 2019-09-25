@@ -786,7 +786,7 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 				(dev->kgd, vmid)) {
 			if (dev->kfd2kgd->get_atc_vmid_pasid_mapping_pasid
 					(dev->kgd, vmid) == p->pasid) {
-				pr_debug("Killing wave fronts of vmid %d and pasid %d\n",
+				pr_debug("Killing wave fronts of vmid %d and pasid 0x%x\n",
 						vmid, p->pasid);
 				break;
 			}
@@ -794,7 +794,7 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 	}
 
 	if (vmid > last_vmid_to_scan) {
-		pr_err("Didn't find vmid for pasid %d\n", p->pasid);
+		pr_err("Didn't find vmid for pasid 0x%x\n", p->pasid);
 		return -EFAULT;
 	}
 
