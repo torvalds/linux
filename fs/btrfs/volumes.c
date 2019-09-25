@@ -4036,7 +4036,7 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 	int ret;
 	u64 num_devices;
 	unsigned seq;
-	bool reducing_integrity;
+	bool reducing_redundancy;
 	int i;
 
 	if (btrfs_fs_closing(fs_info) ||
@@ -4119,9 +4119,9 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 		    ((bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
 		     (fs_info->avail_metadata_alloc_bits & allowed) &&
 		     !(bctl->meta.target & allowed)))
-			reducing_integrity = true;
+			reducing_redundancy = true;
 		else
-			reducing_integrity = false;
+			reducing_redundancy = false;
 
 		/* if we're not converting, the target field is uninitialized */
 		meta_target = (bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) ?
@@ -4130,13 +4130,13 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 			bctl->data.target : fs_info->avail_data_alloc_bits;
 	} while (read_seqretry(&fs_info->profiles_lock, seq));
 
-	if (reducing_integrity) {
+	if (reducing_redundancy) {
 		if (bctl->flags & BTRFS_BALANCE_FORCE) {
 			btrfs_info(fs_info,
-				   "balance: force reducing metadata integrity");
+			   "balance: force reducing metadata redundancy");
 		} else {
 			btrfs_err(fs_info,
-	  "balance: reduces metadata integrity, use --force if you want this");
+	"balance: reduces metadata redundancy, use --force if you want this");
 			ret = -EINVAL;
 			goto out;
 		}
