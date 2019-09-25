@@ -201,6 +201,7 @@ static struct iommu_dev_data *alloc_dev_data(u16 devid)
 	if (!dev_data)
 		return NULL;
 
+	spin_lock_init(&dev_data->lock);
 	dev_data->devid = devid;
 	ratelimit_default_init(&dev_data->rs);
 
@@ -2157,6 +2158,8 @@ static int attach_device(struct device *dev,
 
 	dev_data = get_dev_data(dev);
 
+	spin_lock(&dev_data->lock);
+
 	ret = -EBUSY;
 	if (dev_data->domain != NULL)
 		goto out;
@@ -2199,6 +2202,8 @@ skip_ats_check:
 	domain_flush_complete(domain);
 
 out:
+	spin_unlock(&dev_data->lock);
+
 	spin_unlock_irqrestore(&domain->lock, flags);
 
 	return ret;
@@ -2217,6 +2222,8 @@ static void detach_device(struct device *dev)
 	domain   = dev_data->domain;
 
 	spin_lock_irqsave(&domain->lock, flags);
+
+	spin_lock(&dev_data->lock);
 
 	/*
 	 * First check if the device is still attached. It might already
@@ -2240,6 +2247,8 @@ static void detach_device(struct device *dev)
 	dev_data->ats.enabled = false;
 
 out:
+	spin_unlock(&dev_data->lock);
+
 	spin_unlock_irqrestore(&domain->lock, flags);
 }
 
