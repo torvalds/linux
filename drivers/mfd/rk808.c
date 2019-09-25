@@ -116,13 +116,13 @@ static struct resource rk817_rtc_resources[] = {
 };
 
 static struct resource rk805_key_resources[] = {
-	DEFINE_RES_IRQ(RK805_IRQ_PWRON_RISE),
 	DEFINE_RES_IRQ(RK805_IRQ_PWRON_FALL),
+	DEFINE_RES_IRQ(RK805_IRQ_PWRON_RISE),
 };
 
 static struct resource rk817_pwrkey_resources[] = {
-	DEFINE_RES_IRQ(RK817_IRQ_PWRON_RISE),
 	DEFINE_RES_IRQ(RK817_IRQ_PWRON_FALL),
+	DEFINE_RES_IRQ(RK817_IRQ_PWRON_RISE),
 };
 
 static const struct mfd_cell rk805s[] = {
