@@ -2079,27 +2079,13 @@ static void do_detach(struct iommu_dev_data *dev_data)
 static int __attach_device(struct iommu_dev_data *dev_data,
 			   struct protection_domain *domain)
 {
-	unsigned long flags;
-	int ret;
-
-	/* lock domain */
-	spin_lock_irqsave(&domain->lock, flags);
-
-	ret = -EBUSY;
 	if (dev_data->domain != NULL)
-		goto out_unlock;
+		return -EBUSY;
 
 	/* Attach alias group root */
 	do_attach(dev_data, domain);
 
-	ret = 0;
-
-out_unlock:
-
-	/* ready */
-	spin_unlock_irqrestore(&domain->lock, flags);
-
-	return ret;
+	return 0;
 }
 
 
@@ -2181,7 +2167,10 @@ static int attach_device(struct device *dev,
 {
 	struct pci_dev *pdev;
 	struct iommu_dev_data *dev_data;
+	unsigned long flags;
 	int ret;
+
+	spin_lock_irqsave(&domain->lock, flags);
 
 	dev_data = get_dev_data(dev);
 
@@ -2190,12 +2179,13 @@ static int attach_device(struct device *dev,
 
 	pdev = to_pci_dev(dev);
 	if (domain->flags & PD_IOMMUV2_MASK) {
+		ret = -EINVAL;
 		if (!dev_data->passthrough)
-			return -EINVAL;
+			goto out;
 
 		if (dev_data->iommu_v2) {
 			if (pdev_iommuv2_enable(pdev) != 0)
-				return -EINVAL;
+				goto out;
 
 			dev_data->ats.enabled = true;
 			dev_data->ats.qdep    = pci_ats_queue_depth(pdev);
@@ -2219,24 +2209,10 @@ skip_ats_check:
 
 	domain_flush_complete(domain);
 
-	return ret;
-}
-
-/*
- * Removes a device from a protection domain (unlocked)
- */
-static void __detach_device(struct iommu_dev_data *dev_data)
-{
-	struct protection_domain *domain;
-	unsigned long flags;
-
-	domain = dev_data->domain;
-
-	spin_lock_irqsave(&domain->lock, flags);
-
-	do_detach(dev_data);
-
+out:
 	spin_unlock_irqrestore(&domain->lock, flags);
+
+	return ret;
 }
 
 /*
@@ -2246,9 +2222,12 @@ static void detach_device(struct device *dev)
 {
 	struct protection_domain *domain;
 	struct iommu_dev_data *dev_data;
+	unsigned long flags;
 
 	dev_data = get_dev_data(dev);
 	domain   = dev_data->domain;
+
+	spin_lock_irqsave(&domain->lock, flags);
 
 	/*
 	 * First check if the device is still attached. It might already
@@ -2257,12 +2236,12 @@ static void detach_device(struct device *dev)
 	 * our alias handling.
 	 */
 	if (WARN_ON(!dev_data->domain))
-		return;
+		goto out;
 
-	__detach_device(dev_data);
+	do_detach(dev_data);
 
 	if (!dev_is_pci(dev))
-		return;
+		goto out;
 
 	if (domain->flags & PD_IOMMUV2_MASK && dev_data->iommu_v2)
 		pdev_iommuv2_disable(to_pci_dev(dev));
@@ -2270,6 +2249,9 @@ static void detach_device(struct device *dev)
 		pci_disable_ats(to_pci_dev(dev));
 
 	dev_data->ats.enabled = false;
+
+out:
+	spin_unlock_irqrestore(&domain->lock, flags);
 }
 
 static int amd_iommu_add_device(struct device *dev)
@@ -2904,13 +2886,18 @@ int __init amd_iommu_init_dma_ops(void)
 static void cleanup_domain(struct protection_domain *domain)
 {
 	struct iommu_dev_data *entry;
+	unsigned long flags;
+
+	spin_lock_irqsave(&domain->lock, flags);
 
 	while (!list_empty(&domain->dev_list)) {
 		entry = list_first_entry(&domain->dev_list,
 					 struct iommu_dev_data, list);
 		BUG_ON(!entry->domain);
-		__detach_device(entry);
+		do_detach(entry);
 	}
+
+	spin_unlock_irqrestore(&domain->lock, flags);
 }
 
 static void protection_domain_free(struct protection_domain *domain)
