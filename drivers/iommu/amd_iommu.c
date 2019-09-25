@@ -70,7 +70,6 @@
  */
 #define AMD_IOMMU_PGSIZES	((~0xFFFUL) & ~(2ULL << 38))
 
-static DEFINE_SPINLOCK(amd_iommu_devtable_lock);
 static DEFINE_SPINLOCK(pd_bitmap_lock);
 
 /* List of all available dev_data structures */
@@ -2080,10 +2079,11 @@ static void do_detach(struct iommu_dev_data *dev_data)
 static int __attach_device(struct iommu_dev_data *dev_data,
 			   struct protection_domain *domain)
 {
+	unsigned long flags;
 	int ret;
 
 	/* lock domain */
-	spin_lock(&domain->lock);
+	spin_lock_irqsave(&domain->lock, flags);
 
 	ret = -EBUSY;
 	if (dev_data->domain != NULL)
@@ -2097,7 +2097,7 @@ static int __attach_device(struct iommu_dev_data *dev_data,
 out_unlock:
 
 	/* ready */
-	spin_unlock(&domain->lock);
+	spin_unlock_irqrestore(&domain->lock, flags);
 
 	return ret;
 }
@@ -2181,7 +2181,6 @@ static int attach_device(struct device *dev,
 {
 	struct pci_dev *pdev;
 	struct iommu_dev_data *dev_data;
-	unsigned long flags;
 	int ret;
 
 	dev_data = get_dev_data(dev);
@@ -2209,9 +2208,7 @@ static int attach_device(struct device *dev,
 	}
 
 skip_ats_check:
-	spin_lock_irqsave(&amd_iommu_devtable_lock, flags);
 	ret = __attach_device(dev_data, domain);
-	spin_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
 
 	/*
 	 * We might boot into a crash-kernel here. The crashed kernel
@@ -2231,14 +2228,15 @@ skip_ats_check:
 static void __detach_device(struct iommu_dev_data *dev_data)
 {
 	struct protection_domain *domain;
+	unsigned long flags;
 
 	domain = dev_data->domain;
 
-	spin_lock(&domain->lock);
+	spin_lock_irqsave(&domain->lock, flags);
 
 	do_detach(dev_data);
 
-	spin_unlock(&domain->lock);
+	spin_unlock_irqrestore(&domain->lock, flags);
 }
 
 /*
@@ -2248,7 +2246,6 @@ static void detach_device(struct device *dev)
 {
 	struct protection_domain *domain;
 	struct iommu_dev_data *dev_data;
-	unsigned long flags;
 
 	dev_data = get_dev_data(dev);
 	domain   = dev_data->domain;
@@ -2262,10 +2259,7 @@ static void detach_device(struct device *dev)
 	if (WARN_ON(!dev_data->domain))
 		return;
 
-	/* lock device table */
-	spin_lock_irqsave(&amd_iommu_devtable_lock, flags);
 	__detach_device(dev_data);
-	spin_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
 
 	if (!dev_is_pci(dev))
 		return;
@@ -2910,9 +2904,6 @@ int __init amd_iommu_init_dma_ops(void)
 static void cleanup_domain(struct protection_domain *domain)
 {
 	struct iommu_dev_data *entry;
-	unsigned long flags;
-
-	spin_lock_irqsave(&amd_iommu_devtable_lock, flags);
 
 	while (!list_empty(&domain->dev_list)) {
 		entry = list_first_entry(&domain->dev_list,
@@ -2920,8 +2911,6 @@ static void cleanup_domain(struct protection_domain *domain)
 		BUG_ON(!entry->domain);
 		__detach_device(entry);
 	}
-
-	spin_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
 }
 
 static void protection_domain_free(struct protection_domain *domain)
