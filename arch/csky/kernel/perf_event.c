@@ -1306,7 +1306,7 @@ int csky_pmu_device_probe(struct platform_device *pdev,
 				 &csky_pmu.count_width)) {
 		csky_pmu.count_width = DEFAULT_COUNT_WIDTH;
 	}
-	csky_pmu.max_period = BIT(csky_pmu.count_width) - 1;
+	csky_pmu.max_period = BIT_ULL(csky_pmu.count_width) - 1;
 
 	csky_pmu.plat_device = pdev;
 
