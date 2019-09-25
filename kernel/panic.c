@@ -559,9 +559,6 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 {
 	disable_trace_on_warning();
 
-	if (args)
-		pr_warn(CUT_HERE);
-
 	if (file)
 		pr_warn("WARNING: CPU: %d PID: %d at %s:%d %pS\n",
 			raw_smp_processor_id(), current->pid, file, line,
@@ -605,8 +602,9 @@ void warn_slowpath_fmt(const char *file, int line, unsigned taint,
 {
 	struct warn_args args;
 
+	pr_warn(CUT_HERE);
+
 	if (!fmt) {
-		pr_warn(CUT_HERE);
 		__warn(file, line, __builtin_return_address(0), taint,
 		       NULL, NULL);
 		return;
