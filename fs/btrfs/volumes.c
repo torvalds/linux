@@ -4063,7 +4063,13 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 	}
 
 	num_devices = btrfs_num_devices(fs_info);
-	allowed = 0;
+
+	/*
+	 * SINGLE profile on-disk has no profile bit, but in-memory we have a
+	 * special bit for it, to make it easier to distinguish.  Thus we need
+	 * to set it manually, or balance would refuse the profile.
+	 */
+	allowed = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
 	for (i = 0; i < ARRAY_SIZE(btrfs_raid_array); i++)
 		if (num_devices >= btrfs_raid_array[i].devs_min)
 			allowed |= btrfs_raid_array[i].bg_flag;
