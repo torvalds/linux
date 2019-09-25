@@ -423,7 +423,6 @@ extern struct ttm_bo_global {
 	 */
 
 	struct kobject kobj;
-	struct ttm_mem_global *mem_glob;
 	struct page *dummy_read_page;
 	spinlock_t lru_lock;
 
@@ -467,7 +466,6 @@ struct ttm_bo_device {
 	 * Constant after bo device init / atomic.
 	 */
 	struct list_head device_list;
-	struct ttm_bo_global *glob;
 	struct ttm_bo_driver *driver;
 	struct ttm_mem_type_manager man[TTM_NUM_MEM_TYPES];
 
@@ -768,9 +766,9 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
  */
 static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 {
-	spin_lock(&bo->bdev->glob->lru_lock);
+	spin_lock(&ttm_bo_glob.lru_lock);
 	ttm_bo_move_to_lru_tail(bo, NULL);
-	spin_unlock(&bo->bdev->glob->lru_lock);
+	spin_unlock(&ttm_bo_glob.lru_lock);
 	dma_resv_unlock(bo->base.resv);
 }
 

@@ -503,7 +503,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	 * TODO: Explicit member copy would probably be better here.
 	 */
 
-	atomic_inc(&bo->bdev->glob->bo_count);
+	atomic_inc(&ttm_bo_glob.bo_count);
 	INIT_LIST_HEAD(&fbo->base.ddestroy);
 	INIT_LIST_HEAD(&fbo->base.lru);
 	INIT_LIST_HEAD(&fbo->base.swap);

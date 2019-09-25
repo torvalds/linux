@@ -47,22 +47,18 @@ void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
 				struct list_head *list)
 {
 	struct ttm_validate_buffer *entry;
-	struct ttm_bo_global *glob;
 
 	if (list_empty(list))
 		return;
 
-	entry = list_first_entry(list, struct ttm_validate_buffer, head);
-	glob = entry->bo->bdev->glob;
-
-	spin_lock(&glob->lru_lock);
+	spin_lock(&ttm_bo_glob.lru_lock);
 	list_for_each_entry(entry, list, head) {
 		struct ttm_buffer_object *bo = entry->bo;
 
 		ttm_bo_move_to_lru_tail(bo, NULL);
 		dma_resv_unlock(bo->base.resv);
 	}
-	spin_unlock(&glob->lru_lock);
+	spin_unlock(&ttm_bo_glob.lru_lock);
 
 	if (ticket)
 		ww_acquire_fini(ticket);
@@ -85,15 +81,11 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 			   struct list_head *list, bool intr,
 			   struct list_head *dups)
 {
-	struct ttm_bo_global *glob;
 	struct ttm_validate_buffer *entry;
 	int ret;
 
 	if (list_empty(list))
 		return 0;
-
-	entry = list_first_entry(list, struct ttm_validate_buffer, head);
-	glob = entry->bo->bdev->glob;
 
 	if (ticket)
 		ww_acquire_init(ticket, &reservation_ww_class);
@@ -166,19 +158,14 @@ void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 				 struct dma_fence *fence)
 {
 	struct ttm_validate_buffer *entry;
-	struct ttm_buffer_object *bo;
-	struct ttm_bo_global *glob;
 
 	if (list_empty(list))
 		return;
 
-	bo = list_first_entry(list, struct ttm_validate_buffer, head)->bo;
-	glob = bo->bdev->glob;
-
-	spin_lock(&glob->lru_lock);
-
+	spin_lock(&ttm_bo_glob.lru_lock);
 	list_for_each_entry(entry, list, head) {
-		bo = entry->bo;
+		struct ttm_buffer_object *bo = entry->bo;
+
 		if (entry->num_shared)
 			dma_resv_add_shared_fence(bo->base.resv, fence);
 		else
@@ -186,7 +173,7 @@ void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 		ttm_bo_move_to_lru_tail(bo, NULL);
 		dma_resv_unlock(bo->base.resv);
 	}
-	spin_unlock(&glob->lru_lock);
+	spin_unlock(&ttm_bo_glob.lru_lock);
 	if (ticket)
 		ww_acquire_fini(ticket);
 }

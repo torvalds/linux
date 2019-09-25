@@ -51,7 +51,7 @@ struct ttm_agp_backend {
 static int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 {
 	struct ttm_agp_backend *agp_be = container_of(ttm, struct ttm_agp_backend, ttm);
-	struct page *dummy_read_page = ttm->bdev->glob->dummy_read_page;
+	struct page *dummy_read_page = ttm_bo_glob.dummy_read_page;
 	struct drm_mm_node *node = bo_mem->mm_node;
 	struct agp_memory *mem;
 	int ret, cached = (bo_mem->placement & TTM_PL_FLAG_CACHED);

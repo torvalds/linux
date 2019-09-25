@@ -1013,12 +1013,11 @@ static int drm_vram_mm_debugfs(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_vram_mm *vmm = node->minor->dev->vram_mm;
 	struct drm_mm *mm = vmm->bdev.man[TTM_PL_VRAM].priv;
-	struct ttm_bo_global *glob = vmm->bdev.glob;
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	spin_lock(&glob->lru_lock);
+	spin_lock(&ttm_bo_glob.lru_lock);
 	drm_mm_print(mm, &p);
-	spin_unlock(&glob->lru_lock);
+	spin_unlock(&ttm_bo_glob.lru_lock);
 	return 0;
 }
 
