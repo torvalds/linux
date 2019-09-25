@@ -44,10 +44,10 @@ static inline void native_set_pte(pte_t *ptep, pte_t pte)
  * pmd_populate rightfully does a set_64bit, but if we're reading the
  * pmd_t with a "*pmdp" on the mincore side, a SMP race can happen
  * because gcc will not read the 64bit of the pmd atomically. To fix
- * this all places running pmd_offset_map_lock() while holding the
+ * this all places running pte_offset_map_lock() while holding the
  * mmap_sem in read mode, shall read the pmdp pointer using this
  * function to know if the pmd is null nor not, and in turn to know if
- * they can run pmd_offset_map_lock or pmd_trans_huge or other pmd
+ * they can run pte_offset_map_lock() or pmd_trans_huge() or other pmd
  * operations.
  *
  * Without THP if the mmap_sem is hold for reading, the pmd can only
