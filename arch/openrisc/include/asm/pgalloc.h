@@ -75,7 +75,7 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm)
 	if (!pte)
 		return NULL;
 	clear_page(page_address(pte));
-	if (!pgtable_page_ctor(pte)) {
+	if (!pgtable_pte_page_ctor(pte)) {
 		__free_page(pte);
 		return NULL;
 	}
@@ -89,13 +89,13 @@ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 
 static inline void pte_free(struct mm_struct *mm, struct page *pte)
 {
-	pgtable_page_dtor(pte);
+	pgtable_pte_page_dtor(pte);
 	__free_page(pte);
 }
 
 #define __pte_free_tlb(tlb, pte, addr)	\
 do {					\
-	pgtable_page_dtor(pte);		\
+	pgtable_pte_page_dtor(pte);	\
 	tlb_remove_page((tlb), (pte));	\
 } while (0)
 
