@@ -160,21 +160,17 @@ static int renoir_tables_init(struct smu_context *smu, struct smu_table *tables)
  * This interface just for getting uclk ultimate freq and should't introduce
  * other likewise function result in overmuch callback.
  */
-static int renoir_get_dpm_uclk_limited(struct smu_context *smu, uint32_t *clock, bool max)
+static int renoir_get_dpm_clk_limited(struct smu_context *smu, enum smu_clk_type clk_type,
+						uint32_t dpm_level, uint32_t *freq)
 {
+	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
 
-	DpmClocks_t *table = smu->smu_table.clocks_table;
-
-	if (!clock || !table)
+	if (!clk_table || clk_type >= SMU_CLK_COUNT)
 		return -EINVAL;
 
-	if (max)
-		*clock = table->FClocks[NUM_FCLK_DPM_LEVELS-1].Freq;
-	else
-		*clock = table->FClocks[0].Freq;
+	GET_DPM_CUR_FREQ(clk_table, clk_type, dpm_level, *freq);
 
 	return 0;
-
 }
 
 static int renoir_print_clk_levels(struct smu_context *smu,
@@ -555,7 +551,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_table_index = renoir_get_smu_table_index,
 	.tables_init = renoir_tables_init,
 	.set_power_state = NULL,
-	.get_dpm_uclk_limited = renoir_get_dpm_uclk_limited,
+	.get_dpm_clk_limited = renoir_get_dpm_clk_limited,
 	.print_clk_levels = renoir_print_clk_levels,
 	.get_current_power_state = renoir_get_current_power_state,
 	.dpm_set_uvd_enable = renoir_dpm_set_uvd_enable,

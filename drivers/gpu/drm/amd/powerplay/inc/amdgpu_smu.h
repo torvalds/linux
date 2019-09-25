@@ -466,7 +466,8 @@ struct pptable_funcs {
 	int (*display_disable_memory_clock_switch)(struct smu_context *smu, bool disable_memory_clock_switch);
 	void (*dump_pptable)(struct smu_context *smu);
 	int (*get_power_limit)(struct smu_context *smu, uint32_t *limit, bool asic_default);
-	int (*get_dpm_uclk_limited)(struct smu_context *smu, uint32_t *clock, bool max);
+	int (*get_dpm_clk_limited)(struct smu_context *smu, enum smu_clk_type clk_type,
+				   uint32_t dpm_level, uint32_t *freq);
 };
 
 struct smu_funcs
@@ -775,8 +776,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->set_performance_level? (smu)->ppt_funcs->set_performance_level((smu), (level)) : -EINVAL);
 #define smu_dump_pptable(smu) \
 	((smu)->ppt_funcs->dump_pptable ? (smu)->ppt_funcs->dump_pptable((smu)) : 0)
-#define smu_get_dpm_uclk_limited(smu, clock, max) \
-		((smu)->ppt_funcs->get_dpm_uclk_limited ? (smu)->ppt_funcs->get_dpm_uclk_limited((smu), (clock), (max)) : -EINVAL)
+#define smu_get_dpm_clk_limited(smu, clk_type, dpm_level, freq) \
+		((smu)->ppt_funcs->get_dpm_clk_limited ? (smu)->ppt_funcs->get_dpm_clk_limited((smu), (clk_type), (dpm_level), (freq)) : -EINVAL)
 
 #define smu_set_soft_freq_limited_range(smu, clk_type, min, max) \
 		((smu)->funcs->set_soft_freq_limited_range ? (smu)->funcs->set_soft_freq_limited_range((smu), (clk_type), (min), (max)) : -EINVAL)

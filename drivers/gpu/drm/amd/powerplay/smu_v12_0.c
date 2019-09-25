@@ -323,10 +323,18 @@ static int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk
 						 uint32_t *min, uint32_t *max)
 {
 	int ret = 0;
+	uint32_t mclk_mask, soc_mask;
 
 	mutex_lock(&smu->mutex);
 
 	if (max) {
+		ret = smu_get_profiling_clk_mask(smu, AMD_DPM_FORCED_LEVEL_PROFILE_PEAK,
+						 NULL,
+						 &mclk_mask,
+						 &soc_mask);
+		if (ret)
+			goto failed;
+
 		switch (clk_type) {
 		case SMU_GFXCLK:
 		case SMU_SCLK:
@@ -340,14 +348,20 @@ static int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk
 				goto failed;
 			break;
 		case SMU_UCLK:
-			ret = smu_get_dpm_uclk_limited(smu, max, true);
+		case SMU_FCLK:
+		case SMU_MCLK:
+			ret = smu_get_dpm_clk_limited(smu, clk_type, mclk_mask, max);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_SOCCLK:
+			ret = smu_get_dpm_clk_limited(smu, clk_type, soc_mask, max);
 			if (ret)
 				goto failed;
 			break;
 		default:
 			ret = -EINVAL;
 			goto failed;
-
 		}
 	}
 
@@ -365,7 +379,14 @@ static int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk
 				goto failed;
 			break;
 		case SMU_UCLK:
-			ret = smu_get_dpm_uclk_limited(smu, min, false);
+		case SMU_FCLK:
+		case SMU_MCLK:
+			ret = smu_get_dpm_clk_limited(smu, clk_type, 0, min);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_SOCCLK:
+			ret = smu_get_dpm_clk_limited(smu, clk_type, 0, min);
 			if (ret)
 				goto failed;
 			break;
@@ -373,7 +394,6 @@ static int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk
 			ret = -EINVAL;
 			goto failed;
 		}
-
 	}
 failed:
 	mutex_unlock(&smu->mutex);
