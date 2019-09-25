@@ -508,6 +508,7 @@ static int bt_bmc_remove(struct platform_device *pdev)
 static const struct of_device_id bt_bmc_match[] = {
 	{ .compatible = "aspeed,ast2400-ibt-bmc" },
 	{ .compatible = "aspeed,ast2500-ibt-bmc" },
+	{ .compatible = "aspeed,ast2600-ibt-bmc" },
 	{ },
 };
 
