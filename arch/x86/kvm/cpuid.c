@@ -618,16 +618,20 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 	 */
 	case 0x1f:
 	case 0xb: {
-		int i, level_type;
+		int i;
 
-		/* read more entries until level_type is zero */
-		for (i = 1; ; ++i) {
+		/*
+		 * We filled in entry[0] for CPUID(EAX=<function>,
+		 * ECX=00H) above.  If its level type (ECX[15:8]) is
+		 * zero, then the leaf is unimplemented, and we're
+		 * done.  Otherwise, continue to populate entries
+		 * until the level type (ECX[15:8]) of the previously
+		 * added entry is zero.
+		 */
+		for (i = 1; entry[i - 1].ecx & 0xff00; ++i) {
 			if (*nent >= maxnent)
 				goto out;
 
-			level_type = entry[i - 1].ecx & 0xff00;
-			if (!level_type)
-				break;
 			do_host_cpuid(&entry[i], function, i);
 			++*nent;
 		}
