@@ -161,8 +161,7 @@ static void _rtl_ps_inactive_ps(struct ieee80211_hw *hw)
 	if (ppsc->inactive_pwrstate == ERFON &&
 	    rtlhal->interface == INTF_PCI) {
 		if ((ppsc->reg_rfps_level & RT_RF_OFF_LEVL_ASPM) &&
-		    RT_IN_PS_LEVEL(ppsc, RT_PS_LEVEL_ASPM) &&
-		    rtlhal->interface == INTF_PCI) {
+		    RT_IN_PS_LEVEL(ppsc, RT_PS_LEVEL_ASPM)) {
 			rtlpriv->intf_ops->disable_aspm(hw);
 			RT_CLEAR_PS_LEVEL(ppsc, RT_PS_LEVEL_ASPM);
 		}
