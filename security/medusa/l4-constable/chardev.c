@@ -479,7 +479,7 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 
 	if (in_interrupt()) {
 		/* houston, we have a problem! */
-		med_pr_err("decide called from interrupt context :(\n");
+		MED_PRINTF("decide called from interrupt context :(\n");
 		return MED_ERR;
 	}
 	if (am_i_constable() || current == gdb) {
@@ -642,7 +642,7 @@ static void decrement_counters(teleport_insn_t* tele) {
 
 #define DOWN(m) do {  \
 	if (down_trylock(m)) { \
-		med_pr_info("Strasny vypis: %d\n", __LINE__); \
+		printk("Strasny vypis: %d\n", __LINE__); \
 	} \
 } while(0)
 
@@ -873,7 +873,7 @@ static ssize_t user_write(struct file *filp, const char __user *buf, size_t coun
 				*(struct medusa_kclass_s **)(recv_buf) // posibility to decrypt JK march 2015
 				);
 		if (!cl) {
-			med_pr_err("Protocol error at write(): unknown kclass 0x%p!\n", (void*)(*(MCPptr_t*)(recv_buf)));
+			MED_PRINTF(MODULENAME ": protocol error at write(): unknown kclass 0x%p!\n", (void*)(*(MCPptr_t*)(recv_buf)));
 			atomic_set(&currently_receiving, 0);
 #ifdef ERRORS_CAUSE_SEGFAULT
 			ls_unlock(&lightswitch, &ls_switch);
@@ -972,7 +972,7 @@ static ssize_t user_write(struct file *filp, const char __user *buf, size_t coun
 		wake_up(&userspace_chardev);
 	} else {
 		up(&take_answer);
-		med_pr_err("Protocol error at write(): unknown command %llx!\n", (MCPptr_t)recv_type);
+		MED_PRINTF(MODULENAME ": protocol error at write(): unknown command %llx!\n", (MCPptr_t)recv_type);
 		atomic_set(&currently_receiving, 0);
 #ifdef ERRORS_CAUSE_SEGFAULT
 		ls_unlock(&lightswitch, &ls_switch);
@@ -1150,13 +1150,13 @@ static int user_release(struct inode *inode, struct file *file)
 	atomic_set(&fetch_requests, 0);
 	atomic_set(&update_requests, 0);
 
-	med_pr_info("Security daemon unregistered.\n");
+	MED_PRINTF("Security daemon unregistered.\n");
 #if defined(CONFIG_MEDUSA_HALT)
-	med_pr_warn("No security daemon, system halted.\n");
+	MED_PRINTF("No security daemon, system halted.\n");
 	notifier_call_chain(&reboot_notifier_list, SYS_HALT, NULL);
 	machine_halt();
 #elif defined(CONFIG_MEDUSA_REBOOT)
-	med_pr_warn("No security daemon, rebooting system.\n");
+	MED_PRINTF("No security daemon, rebooting system.\n");
 	ctrl_alt_del();
 #endif
 	add_wait_queue(&close_wait, &wait);
@@ -1205,7 +1205,7 @@ static int user_release(struct inode *inode, struct file *file)
 	if (am_i_constable())
 		schedule();
 	else
-		med_pr_warn("Authorization server is not responding.\n");
+		MED_PRINTF("Authorization server is not responding.\n");
 	remove_wait_queue(&close_wait, &wait);
 	//MOD_DEC_USE_COUNT; Not needed anymore? JK
 
@@ -1220,22 +1220,22 @@ static struct device* medusa_device;
 
 static int chardev_constable_init(void)
 {
-	med_pr_info("Registering L4 character device with major %d\n", MEDUSA_MAJOR);
+	MED_PRINTF(MODULENAME ": registering L4 character device with major %d\n", MEDUSA_MAJOR);
 	if (register_chrdev(MEDUSA_MAJOR, MODULENAME, &fops)) {
-		med_pr_err("Cannot register character device with major %d\n", MEDUSA_MAJOR);
+		MED_PRINTF(MODULENAME ": cannot register character device with major %d\n", MEDUSA_MAJOR);
 		return -1;
 	}
 
 	medusa_class = class_create(THIS_MODULE, "medusa");
 	if (IS_ERR(medusa_class)) {
-		med_pr_err("Failed to register device class '%s'\n", "medusa");
+		MED_PRINTF(MODULENAME ": failed to register device class '%s'\n", "medusa");
 		return -1;
 	}
 
 	/* With a class, the easiest way to instantiate a device is to call device_create() */
 	medusa_device = device_create(medusa_class, NULL, MKDEV(MEDUSA_MAJOR, 0), NULL, "medusa");
 	if (IS_ERR(medusa_device)) {
-		med_pr_err("Failed to create device '%s'\n", "medusa");
+		MED_PRINTF(MODULENAME ": failed to create device '%s'\n", "medusa");
 		return -1;
 	}
 	return 0;

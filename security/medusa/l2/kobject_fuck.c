@@ -74,7 +74,7 @@ int validate_fuck(const struct path* fuck_path) {
 	char *buf = NULL;
 
 	if (unlikely(!fuck_inode)) {
-		med_pr_info("medusa: empty inode\n");
+		printk("medusa: empty inode\n");
 		goto out;
 	}
 		
@@ -94,12 +94,12 @@ int validate_fuck(const struct path* fuck_path) {
 
 	hash = hash_function(accessed_path);
 	if (likely(get_from_hash(accessed_path, hash, &inode_security(fuck_inode)) != NULL)) {
-		med_pr_info("VALIDATE_FUCK: allowed path\n");
+		printk("VALIDATE_FUCK: allowed path\n");
 	} else {
-		med_pr_err("VALIDATE_FUCK: denied path (not defined in allowed path list)\n");
+		printk("VALIDATE_FUCK: denied path (not defined in allowed path list)\n");
 		ret = -EPERM;
 	}
-	med_pr_debug("VALIDATE_FUCK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
+	printk("VALIDATE_FUCK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
 out:
 	kfree(buf);
 	return ret;
@@ -193,7 +193,7 @@ static medusa_answer_t fuck_update(struct medusa_kobject_s * kobj)
 		kfree(fuck_path);
 	}
 
-	med_pr_debug("Fuck: '%s' (dev = %u, ino = %lu, act = %s)", \
+	MED_PRINTF("Fuck: '%s' (dev = %u, ino = %lu, act = %s)", \
 				fkobj->path, fkobj->dev, fkobj->ino, fkobj->action);
 
 out:
