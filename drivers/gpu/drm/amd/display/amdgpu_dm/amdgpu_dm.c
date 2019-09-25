@@ -5770,8 +5770,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		 * change FB pitch, DCC state, rotation or mirroing.
 		 */
 		bundle->flip_addrs[planes_count].flip_immediate =
-			(crtc->state->pageflip_flags &
-			 DRM_MODE_PAGE_FLIP_ASYNC) != 0 &&
+			crtc->state->async_flip &&
 			acrtc_state->update_type == UPDATE_TYPE_FAST;
 
 		timestamp_ns = ktime_get_ns();
@@ -6348,7 +6347,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	amdgpu_dm_enable_crtc_interrupts(dev, state, true);
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, j)
-		if (new_crtc_state->pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
+		if (new_crtc_state->async_flip)
 			wait_for_vblank = false;
 
 	/* update planes when needed per crtc*/
