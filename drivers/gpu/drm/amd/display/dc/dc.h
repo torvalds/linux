@@ -257,8 +257,9 @@ enum dtm_pstate{
 };
 
 enum dcn_pwr_state {
-	DCN_PWR_STATE_OPTIMIZED = 0,
-	DCN_PWR_STATE_NORMAL = 1
+	DCN_PWR_STATE_UNKNOWN = -1,
+	DCN_PWR_STATE_MISSION_MODE = 0,
+	DCN_PWR_STATE_LOW_POWER = 3,
 };
 
 /*

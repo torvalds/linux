@@ -114,22 +114,22 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 	 */
 	if (safe_to_lower) {
 		/* check that we're not already in lower */
-		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_OPTIMIZED) {
+		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_LOW_POWER) {
 
 			display_count = rn_get_active_display_cnt_wa(dc, context);
 			/* if we can go lower, go lower */
 			if (display_count == 0) {
-				rn_vbios_smu_set_dcn_low_power_state(clk_mgr, DCN_PWR_STATE_OPTIMIZED);
+				rn_vbios_smu_set_dcn_low_power_state(clk_mgr, DCN_PWR_STATE_LOW_POWER);
 				/* update power state */
-				clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_OPTIMIZED;
+				clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_LOW_POWER;
 			}
 		}
 	} else {
-		/* check that we're not already in the normal state */
-		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_NORMAL) {
-			rn_vbios_smu_set_dcn_low_power_state(clk_mgr, DCN_PWR_STATE_NORMAL);
+		/* check that we're not already in D0 */
+		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_MISSION_MODE) {
+			rn_vbios_smu_set_dcn_low_power_state(clk_mgr, DCN_PWR_STATE_MISSION_MODE);
 			/* update power state */
-			clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_NORMAL;
+			clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_MISSION_MODE;
 		}
 	}
 
@@ -393,7 +393,7 @@ void rn_init_clocks(struct clk_mgr *clk_mgr)
 	// Assumption is that boot state always supports pstate
 	clk_mgr->clks.p_state_change_support = true;
 	clk_mgr->clks.prev_p_state_change_support = true;
-	clk_mgr->clks.pwr_state = DCN_PWR_STATE_NORMAL;
+	clk_mgr->clks.pwr_state = DCN_PWR_STATE_UNKNOWN;
 }
 
 static struct clk_mgr_funcs dcn21_funcs = {
