@@ -319,7 +319,6 @@ static const struct at91_rtc_config at91sam9x5_config = {
 	.use_shadow_imr	= true,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id at91_rtc_dt_ids[] = {
 	{
 		.compatible = "atmel,at91rm9200-rtc",
@@ -332,22 +331,6 @@ static const struct of_device_id at91_rtc_dt_ids[] = {
 	}
 };
 MODULE_DEVICE_TABLE(of, at91_rtc_dt_ids);
-#endif
-
-static const struct at91_rtc_config *
-at91_rtc_get_config(struct platform_device *pdev)
-{
-	const struct of_device_id *match;
-
-	if (pdev->dev.of_node) {
-		match = of_match_node(at91_rtc_dt_ids, pdev->dev.of_node);
-		if (!match)
-			return NULL;
-		return (const struct at91_rtc_config *)match->data;
-	}
-
-	return &at91rm9200_config;
-}
 
 static const struct rtc_class_ops at91_rtc_ops = {
 	.read_time	= at91_rtc_readtime,
@@ -367,7 +350,7 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 	struct resource *regs;
 	int ret = 0;
 
-	at91_rtc_config = at91_rtc_get_config(pdev);
+	at91_rtc_config = of_device_get_match_data(&pdev->dev);
 	if (!at91_rtc_config)
 		return -ENODEV;
 
