@@ -293,8 +293,11 @@
 #define MT_MIB_RTS_RETRIES_COUNT_MASK	GENMASK(31, 16)
 #define MT_MIB_RTS_COUNT_MASK		GENMASK(15, 0)
 
-#define MT_MIB_SDR16(n)			MT_WF_MIB(0x48 + ((n) << 9))
-#define MT_MIB_BUSY_MASK		GENMASK(23, 0)
+#define MT_MIB_SDR9(n)			MT_WF_MIB(0x02c + ((n) << 9))
+#define MT_MIB_SDR9_BUSY_MASK		GENMASK(23, 0)
+
+#define MT_MIB_SDR16(n)			MT_WF_MIB(0x048 + ((n) << 9))
+#define MT_MIB_SDR16_BUSY_MASK		GENMASK(23, 0)
 
 #define MT_MIB_SDR36(n)			MT_WF_MIB(0x098 + ((n) << 9))
 #define MT_MIB_SDR36_TXTIME_MASK	GENMASK(23, 0)

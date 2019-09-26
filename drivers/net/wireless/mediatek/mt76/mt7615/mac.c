@@ -53,7 +53,7 @@ void mt7615_mac_reset_counters(struct mt7615_dev *dev)
 	/* TODO: add DBDC support */
 
 	/* reset airtime counters */
-	mt76_rr(dev, MT_MIB_SDR16(0));
+	mt76_rr(dev, MT_MIB_SDR9(0));
 	mt76_rr(dev, MT_MIB_SDR36(0));
 	mt76_rr(dev, MT_MIB_SDR37(0));
 	mt76_set(dev, MT_WF_RMAC_MIB_TIME0, MT_WF_RMAC_MIB_RXTIME_CLR);
@@ -1274,7 +1274,8 @@ void mt7615_update_channel(struct mt76_dev *mdev)
 	u64 busy_time, tx_time, rx_time, obss_time;
 
 	/* TODO: add DBDC support */
-	busy_time = mt76_get_field(dev, MT_MIB_SDR16(0), MT_MIB_BUSY_MASK);
+	busy_time = mt76_get_field(dev, MT_MIB_SDR9(0),
+				   MT_MIB_SDR9_BUSY_MASK);
 	tx_time = mt76_get_field(dev, MT_MIB_SDR36(0),
 				 MT_MIB_SDR36_TXTIME_MASK);
 	rx_time = mt76_get_field(dev, MT_MIB_SDR37(0),
