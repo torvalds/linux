@@ -55,6 +55,9 @@
 
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii2_default>;
 };
 
 &mac2 {
@@ -62,6 +65,9 @@
 
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy2>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii3_default>;
 };
 
 &mac3 {
@@ -69,6 +75,9 @@
 
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy3>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii4_default>;
 };
 
 &emmc_controller {
