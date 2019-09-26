@@ -167,6 +167,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_mdio1_default>;
 		};
 
 		mdio1: mdio@1e650008 {
@@ -175,6 +177,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_mdio2_default>;
 		};
 
 		mdio2: mdio@1e650010 {
@@ -183,6 +187,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_mdio3_default>;
 		};
 
 		mdio3: mdio@1e650018 {
@@ -191,6 +197,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_mdio4_default>;
 		};
 
 		mac0: ftgmac@1e660000 {
