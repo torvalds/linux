@@ -67,6 +67,21 @@ u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 	return lane_mask >> DP_LANE_ASSIGNMENT_SHIFT(dig_port->tc_phy_fia_idx);
 }
 
+u32 intel_tc_port_get_pin_assignment_mask(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_uncore *uncore = &i915->uncore;
+	u32 pin_mask;
+
+	pin_mask = intel_uncore_read(uncore,
+				     PORT_TX_DFLEXPA1(dig_port->tc_phy_fia));
+
+	WARN_ON(pin_mask == 0xffffffff);
+
+	return (pin_mask & DP_PIN_ASSIGNMENT_MASK(dig_port->tc_phy_fia_idx)) >>
+	       DP_PIN_ASSIGNMENT_SHIFT(dig_port->tc_phy_fia_idx);
+}
+
 int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);

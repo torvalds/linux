@@ -3091,11 +3091,14 @@ icl_phy_set_clock_gating(struct intel_digital_port *dig_port, bool enable)
 	I915_WRITE(MG_MISC_SUS0(tc_port), val);
 }
 
-static void icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port)
+static void
+icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port,
+		       const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
 	enum port port = intel_dig_port->base.port;
-	u32 ln0, ln1, lane_mask;
+	u32 ln0, ln1, pin_assignment;
+	u8 width;
 
 	if (intel_dig_port->tc_mode == TC_PORT_TBT_ALT)
 		return;
@@ -3103,50 +3106,57 @@ static void icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port)
 	ln0 = I915_READ(MG_DP_MODE(0, port));
 	ln1 = I915_READ(MG_DP_MODE(1, port));
 
-	switch (intel_dig_port->tc_mode) {
-	case TC_PORT_DP_ALT:
-		ln0 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE);
-		ln1 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE);
+	ln0 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X1_MODE);
+	ln1 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE);
 
-		lane_mask = intel_tc_port_get_lane_mask(intel_dig_port);
+	/* DPPATC */
+	pin_assignment = intel_tc_port_get_pin_assignment_mask(intel_dig_port);
+	width = crtc_state->lane_count;
 
-		switch (lane_mask) {
-		case 0x1:
-		case 0x4:
-			break;
-		case 0x2:
-			ln0 |= MG_DP_MODE_CFG_DP_X1_MODE;
-			break;
-		case 0x3:
-			ln0 |= MG_DP_MODE_CFG_DP_X1_MODE |
-			       MG_DP_MODE_CFG_DP_X2_MODE;
-			break;
-		case 0x8:
+	switch (pin_assignment) {
+	case 0x0:
+		WARN_ON(intel_dig_port->tc_mode != TC_PORT_LEGACY);
+		if (width == 1) {
 			ln1 |= MG_DP_MODE_CFG_DP_X1_MODE;
-			break;
-		case 0xC:
-			ln1 |= MG_DP_MODE_CFG_DP_X1_MODE |
-			       MG_DP_MODE_CFG_DP_X2_MODE;
-			break;
-		case 0xF:
-			ln0 |= MG_DP_MODE_CFG_DP_X1_MODE |
-			       MG_DP_MODE_CFG_DP_X2_MODE;
-			ln1 |= MG_DP_MODE_CFG_DP_X1_MODE |
-			       MG_DP_MODE_CFG_DP_X2_MODE;
-			break;
-		default:
-			MISSING_CASE(lane_mask);
+		} else {
+			ln0 |= MG_DP_MODE_CFG_DP_X2_MODE;
+			ln1 |= MG_DP_MODE_CFG_DP_X2_MODE;
 		}
 		break;
-
-	case TC_PORT_LEGACY:
-		ln0 |= MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE;
-		ln1 |= MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE;
+	case 0x1:
+		if (width == 4) {
+			ln0 |= MG_DP_MODE_CFG_DP_X2_MODE;
+			ln1 |= MG_DP_MODE_CFG_DP_X2_MODE;
+		}
 		break;
-
+	case 0x2:
+		if (width == 2) {
+			ln0 |= MG_DP_MODE_CFG_DP_X2_MODE;
+			ln1 |= MG_DP_MODE_CFG_DP_X2_MODE;
+		}
+		break;
+	case 0x3:
+	case 0x5:
+		if (width == 1) {
+			ln0 |= MG_DP_MODE_CFG_DP_X1_MODE;
+			ln1 |= MG_DP_MODE_CFG_DP_X1_MODE;
+		} else {
+			ln0 |= MG_DP_MODE_CFG_DP_X2_MODE;
+			ln1 |= MG_DP_MODE_CFG_DP_X2_MODE;
+		}
+		break;
+	case 0x4:
+	case 0x6:
+		if (width == 1) {
+			ln0 |= MG_DP_MODE_CFG_DP_X1_MODE;
+			ln1 |= MG_DP_MODE_CFG_DP_X1_MODE;
+		} else {
+			ln0 |= MG_DP_MODE_CFG_DP_X2_MODE;
+			ln1 |= MG_DP_MODE_CFG_DP_X2_MODE;
+		}
+		break;
 	default:
-		MISSING_CASE(intel_dig_port->tc_mode);
-		return;
+		MISSING_CASE(pin_assignment);
 	}
 
 	I915_WRITE(MG_DP_MODE(0, port), ln0);
@@ -3239,7 +3249,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 					dig_port->ddi_io_power_domain);
 
 	/* 6. */
-	icl_program_mg_dp_mode(dig_port);
+	icl_program_mg_dp_mode(dig_port, crtc_state);
 
 	/*
 	 * 7.a - Steps in this function should only be executed over MST
@@ -3321,7 +3331,7 @@ static void hsw_ddi_pre_enable_dp(struct intel_encoder *encoder,
 		intel_display_power_get(dev_priv,
 					dig_port->ddi_io_power_domain);
 
-	icl_program_mg_dp_mode(dig_port);
+	icl_program_mg_dp_mode(dig_port, crtc_state);
 	icl_phy_set_clock_gating(dig_port, false);
 
 	if (INTEL_GEN(dev_priv) >= 11)
@@ -3391,7 +3401,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
-	icl_program_mg_dp_mode(dig_port);
+	icl_program_mg_dp_mode(dig_port, crtc_state);
 	icl_phy_set_clock_gating(dig_port, false);
 
 	if (INTEL_GEN(dev_priv) >= 11)
