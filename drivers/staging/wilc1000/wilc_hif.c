@@ -183,11 +183,17 @@ int wilc_get_vif_idx(struct wilc_vif *vif)
 static struct wilc_vif *wilc_get_vif_from_idx(struct wilc *wilc, int idx)
 {
 	int index = idx - 1;
+	struct wilc_vif *vif;
 
 	if (index < 0 || index >= WILC_NUM_CONCURRENT_IFC)
 		return NULL;
 
-	return wilc->vif[index];
+	list_for_each_entry_rcu(vif, &wilc->vif_list, list) {
+		if (vif->idx == index)
+			return vif;
+	}
+
+	return NULL;
 }
 
 static int handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
