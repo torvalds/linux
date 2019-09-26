@@ -2630,13 +2630,13 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 				continue;
 
 			if (div2 >= 2) {
-				if (is_dkl) {
-					a_divratio = 5;
-					tlinedrv = 1;
-				} else {
-					a_divratio = is_dp ? 10 : 5;
-					tlinedrv = 2;
-				}
+				/*
+				 * Note: a_divratio not matching TGL BSpec
+				 * algorithm but matching hardcoded values and
+				 * working on HW for DP alt-mode at least
+				 */
+				a_divratio = is_dp ? 10 : 5;
+				tlinedrv = is_dkl ? 1 : 2;
 			} else {
 				a_divratio = 5;
 				tlinedrv = 0;
