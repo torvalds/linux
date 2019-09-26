@@ -2186,7 +2186,9 @@ static int axidma_clk_init(struct platform_device *pdev, struct clk **axi_clk,
 	*axi_clk = devm_clk_get(&pdev->dev, "s_axi_lite_aclk");
 	if (IS_ERR(*axi_clk)) {
 		err = PTR_ERR(*axi_clk);
-		dev_err(&pdev->dev, "failed to get axi_aclk (%d)\n", err);
+		if (err != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get axi_aclk (%d)\n",
+				err);
 		return err;
 	}
 
@@ -2251,14 +2253,18 @@ static int axicdma_clk_init(struct platform_device *pdev, struct clk **axi_clk,
 	*axi_clk = devm_clk_get(&pdev->dev, "s_axi_lite_aclk");
 	if (IS_ERR(*axi_clk)) {
 		err = PTR_ERR(*axi_clk);
-		dev_err(&pdev->dev, "failed to get axi_clk (%d)\n", err);
+		if (err != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get axi_clk (%d)\n",
+				err);
 		return err;
 	}
 
 	*dev_clk = devm_clk_get(&pdev->dev, "m_axi_aclk");
 	if (IS_ERR(*dev_clk)) {
 		err = PTR_ERR(*dev_clk);
-		dev_err(&pdev->dev, "failed to get dev_clk (%d)\n", err);
+		if (err != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get dev_clk (%d)\n",
+				err);
 		return err;
 	}
 
@@ -2291,7 +2297,9 @@ static int axivdma_clk_init(struct platform_device *pdev, struct clk **axi_clk,
 	*axi_clk = devm_clk_get(&pdev->dev, "s_axi_lite_aclk");
 	if (IS_ERR(*axi_clk)) {
 		err = PTR_ERR(*axi_clk);
-		dev_err(&pdev->dev, "failed to get axi_aclk (%d)\n", err);
+		if (err != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get axi_aclk (%d)\n",
+				err);
 		return err;
 	}
 
@@ -2313,7 +2321,8 @@ static int axivdma_clk_init(struct platform_device *pdev, struct clk **axi_clk,
 
 	err = clk_prepare_enable(*axi_clk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable axi_clk (%d)\n", err);
+		dev_err(&pdev->dev, "failed to enable axi_clk (%d)\n",
+			err);
 		return err;
 	}
 
