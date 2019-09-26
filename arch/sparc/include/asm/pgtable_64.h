@@ -1099,7 +1099,7 @@ static inline unsigned long __untagged_addr(unsigned long start)
 	return start;
 }
 #define untagged_addr(addr) \
-	((__typeof__(addr))(__untagged_addr((unsigned long)(addr)))
+	((__typeof__(addr))(__untagged_addr((unsigned long)(addr))))
 
 static inline bool pte_access_permitted(pte_t pte, bool write)
 {
