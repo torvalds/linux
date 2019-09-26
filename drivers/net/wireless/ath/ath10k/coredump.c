@@ -703,7 +703,7 @@ static const struct ath10k_mem_region qca99x0_hw20_mem_regions[] = {
 	},
 	{
 		.type = ATH10K_MEM_REGION_TYPE_REG,
-		.start = 0x98000,
+		.start = 0x980000,
 		.len = 0x50000,
 		.name = "IRAM",
 		.section_table = {
@@ -786,7 +786,7 @@ static const struct ath10k_mem_region qca9984_hw10_mem_regions[] = {
 	},
 	{
 		.type = ATH10K_MEM_REGION_TYPE_REG,
-		.start = 0x98000,
+		.start = 0x980000,
 		.len = 0x50000,
 		.name = "IRAM",
 		.section_table = {
@@ -891,7 +891,7 @@ static const struct ath10k_mem_region qca4019_hw10_mem_regions[] = {
 	},
 	{
 		.type = ATH10K_MEM_REGION_TYPE_REG,
-		.start = 0x98000,
+		.start = 0x980000,
 		.len = 0x50000,
 		.name = "IRAM",
 		.section_table = {
