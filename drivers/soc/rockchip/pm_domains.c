@@ -825,6 +825,9 @@ static int __init rockchip_pd_keepon_release(void)
 	struct rockchip_pm_domain *pd;
 	int i;
 
+	if (!g_pmu)
+		return 0;
+
 	for (i = 0; i < g_pmu->genpd_data.num_domains; i++) {
 		genpd = g_pmu->genpd_data.domains[i];
 		if (genpd) {
