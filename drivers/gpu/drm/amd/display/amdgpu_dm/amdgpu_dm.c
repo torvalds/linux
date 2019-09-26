@@ -7238,26 +7238,35 @@ static bool is_content_protection_different(struct drm_connector_state *state,
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 	struct dm_connector_state *dm_con_state = to_dm_connector_state(connector->state);
 
+	/* Handle: Type0/1 change */
 	if (old_state->hdcp_content_type != state->hdcp_content_type &&
 	    state->content_protection != DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
 		state->content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
 		return true;
 	}
 
-	/* CP is being re enabled, ignore this */
+	/* CP is being re enabled, ignore this
+	 *
+	 * Handles:	ENABLED -> DESIRED
+	 */
 	if (old_state->content_protection == DRM_MODE_CONTENT_PROTECTION_ENABLED &&
 	    state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED) {
 		state->content_protection = DRM_MODE_CONTENT_PROTECTION_ENABLED;
 		return false;
 	}
 
-	/* S3 resume case, since old state will always be 0 (UNDESIRED) and the restored state will be ENABLED */
+	/* S3 resume case, since old state will always be 0 (UNDESIRED) and the restored state will be ENABLED
+	 *
+	 * Handles:	UNDESIRED -> ENABLED
+	 */
 	if (old_state->content_protection == DRM_MODE_CONTENT_PROTECTION_UNDESIRED &&
 	    state->content_protection == DRM_MODE_CONTENT_PROTECTION_ENABLED)
 		state->content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
 
 	/* Check if something is connected/enabled, otherwise we start hdcp but nothing is connected/enabled
 	 * hot-plug, headless s3, dpms
+	 *
+	 * Handles:	DESIRED -> DESIRED (Special case)
 	 */
 	if (dm_con_state->update_hdcp && state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED &&
 	    connector->dpms == DRM_MODE_DPMS_ON && aconnector->dc_sink != NULL) {
@@ -7265,12 +7274,25 @@ static bool is_content_protection_different(struct drm_connector_state *state,
 		return true;
 	}
 
+	/*
+	 * Handles:	UNDESIRED -> UNDESIRED
+	 *		DESIRED -> DESIRED
+	 *		ENABLED -> ENABLED
+	 */
 	if (old_state->content_protection == state->content_protection)
 		return false;
 
+	/*
+	 * Handles:	UNDESIRED -> DESIRED
+	 *		DESIRED -> UNDESIRED
+	 *		ENABLED -> UNDESIRED
+	 */
 	if (state->content_protection != DRM_MODE_CONTENT_PROTECTION_ENABLED)
 		return true;
 
+	/*
+	 * Handles:	DESIRED -> ENABLED
+	 */
 	return false;
 }
 
