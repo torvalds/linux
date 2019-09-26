@@ -5666,7 +5666,7 @@ EXPORT_SYMBOL(gro_find_complete_by_type);
 static void napi_skb_free_stolen_head(struct sk_buff *skb)
 {
 	skb_dst_drop(skb);
-	secpath_reset(skb);
+	skb_ext_put(skb);
 	kmem_cache_free(skbuff_head_cache, skb);
 }
 
@@ -5733,7 +5733,7 @@ static void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 	skb->encapsulation = 0;
 	skb_shinfo(skb)->gso_type = 0;
 	skb->truesize = SKB_TRUESIZE(skb_end_offset(skb));
-	secpath_reset(skb);
+	skb_ext_reset(skb);
 
 	napi->skb = skb;
 }
