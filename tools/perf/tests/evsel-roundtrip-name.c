@@ -34,7 +34,7 @@ static int perf_evsel__roundtrip_cache_name_test(void)
 	}
 
 	idx = 0;
-	evsel = perf_evlist__first(evlist);
+	evsel = evlist__first(evlist);
 
 	for (type = 0; type < PERF_COUNT_HW_CACHE_MAX; type++) {
 		for (op = 0; op < PERF_COUNT_HW_CACHE_OP_MAX; op++) {

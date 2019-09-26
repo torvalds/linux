@@ -5,7 +5,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "arch-tests.h"
-#include "util.h"
+#include <internal/lib.h> // page_size
 
 #include <signal.h>
 #include <sys/mman.h>
@@ -63,9 +63,9 @@ int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subt
 		goto out;
 	}
 
-	evsel = perf_evlist__first(evlist);
+	evsel = evlist__first(evlist);
 	if (!evsel) {
-		pr_debug("perf_evlist__first failed\n");
+		pr_debug("evlist__first failed\n");
 		goto out;
 	}
 

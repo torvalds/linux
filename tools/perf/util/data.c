@@ -13,9 +13,10 @@
 #include <dirent.h>
 
 #include "data.h"
-#include "util.h"
+#include "util.h" // rm_rf_perf_data()
 #include "debug.h"
 #include "header.h"
+#include <internal/lib.h>
 
 static void close_dir(struct perf_data_file *files, int nr)
 {

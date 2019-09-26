@@ -11,6 +11,7 @@
 #include "record.h"
 #include "tests.h"
 #include "debug.h"
+#include "util/mmap.h"
 #include <errno.h>
 
 #ifndef O_DIRECTORY
@@ -69,9 +70,9 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 		goto out_delete_evlist;
 	}
 
-	err = perf_evlist__mmap(evlist, UINT_MAX);
+	err = evlist__mmap(evlist, UINT_MAX);
 	if (err < 0) {
-		pr_debug("perf_evlist__mmap: %s\n",
+		pr_debug("evlist__mmap: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
@@ -86,9 +87,9 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 	while (1) {
 		int before = nr_events;
 
-		for (i = 0; i < evlist->nr_mmaps; i++) {
+		for (i = 0; i < evlist->core.nr_mmaps; i++) {
 			union perf_event *event;
-			struct perf_mmap *md;
+			struct mmap *md;
 
 			md = &evlist->mmap[i];
 			if (perf_mmap__read_init(md) < 0)
@@ -126,7 +127,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 		}
 
 		if (nr_events == before)
-			perf_evlist__poll(evlist, 10);
+			evlist__poll(evlist, 10);
 
 		if (++nr_polls > 5) {
 			pr_debug("%s: no events!\n", __func__);

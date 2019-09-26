@@ -2,10 +2,12 @@
 #include <linux/compiler.h>
 #include <perf/cpumap.h>
 #include <string.h>
+#include "cpumap.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "header.h"
 #include "machine.h"
+#include "util/synthetic-events.h"
 #include "tool.h"
 #include "tests.h"
 #include "debug.h"
@@ -90,12 +92,12 @@ int test__event_update(struct test *test __maybe_unused, int subtest __maybe_unu
 	evlist = perf_evlist__new_default();
 	TEST_ASSERT_VAL("failed to get evlist", evlist);
 
-	evsel = perf_evlist__first(evlist);
+	evsel = evlist__first(evlist);
 
-	TEST_ASSERT_VAL("failed to allos ids",
-			!perf_evsel__alloc_id(evsel, 1, 1));
+	TEST_ASSERT_VAL("failed to allocate ids",
+			!perf_evsel__alloc_id(&evsel->core, 1, 1));
 
-	perf_evlist__id_add(evlist, evsel, 0, 0, 123);
+	perf_evlist__id_add(&evlist->core, &evsel->core, 0, 0, 123);
 
 	evsel->unit = strdup("KRAVA");
 

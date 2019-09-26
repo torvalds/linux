@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <linux/compiler.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>
 #include <linux/zalloc.h>
@@ -20,6 +21,7 @@
 #include <sys/param.h>
 #include "debug.h"
 #include "builtin.h"
+#include <perf/cpumap.h>
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include "map_symbol.h"
@@ -2780,8 +2782,9 @@ static int perf_c2c__report(int argc, const char **argv)
 	}
 
 	session = perf_session__new(&data, 0, &c2c.tool);
-	if (session == NULL) {
-		pr_debug("No memory for session\n");
+	if (IS_ERR(session)) {
+		err = PTR_ERR(session);
+		pr_debug("Error creating perf session\n");
 		goto out;
 	}
 

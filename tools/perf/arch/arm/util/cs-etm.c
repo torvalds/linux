@@ -23,9 +23,10 @@
 #include "../../util/event.h"
 #include "../../util/evlist.h"
 #include "../../util/evsel.h"
+#include "../../util/evsel_config.h"
 #include "../../util/pmu.h"
 #include "../../util/cs-etm.h"
-#include "../../util/util.h"
+#include <internal/lib.h> // page_size
 #include "../../util/session.h"
 
 #include <errno.h>
@@ -416,7 +417,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		if (err)
 			goto out;
 
-		tracking_evsel = perf_evlist__last(evlist);
+		tracking_evsel = evlist__last(evlist);
 		perf_evlist__set_tracking_event(evlist, tracking_evsel);
 
 		tracking_evsel->core.attr.freq = 0;
@@ -648,7 +649,7 @@ static int cs_etm_info_fill(struct auxtrace_record *itr,
 	if (priv_size != cs_etm_info_priv_size(itr, session->evlist))
 		return -EINVAL;
 
-	if (!session->evlist->nr_mmaps)
+	if (!session->evlist->core.nr_mmaps)
 		return -EINVAL;
 
 	/* If the cpu_map is empty all online CPUs are involved */

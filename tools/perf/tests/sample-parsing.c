@@ -9,10 +9,10 @@
 
 #include "map_symbol.h"
 #include "branch.h"
-#include "util.h"
 #include "event.h"
 #include "evsel.h"
 #include "debug.h"
+#include "util/synthetic-events.h"
 
 #include "tests.h"
 

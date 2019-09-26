@@ -61,6 +61,7 @@
 #include "util/tool.h"
 #include "util/string2.h"
 #include "util/metricgroup.h"
+#include "util/synthetic-events.h"
 #include "util/target.h"
 #include "util/time-utils.h"
 #include "util/top.h"
@@ -82,6 +83,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <linux/err.h>
 
 #include <linux/ctype.h>
 #include <perf/evlist.h>
@@ -233,7 +235,7 @@ static int write_stat_round_event(u64 tm, u64 type)
 #define WRITE_STAT_ROUND_EVENT(time, interval) \
 	write_stat_round_event(time, PERF_STAT_ROUND_TYPE__ ## interval)
 
-#define SID(e, x, y) xyarray__entry(e->sample_id, x, y)
+#define SID(e, x, y) xyarray__entry(e->core.sample_id, x, y)
 
 static int
 perf_evsel__write_stat_event(struct evsel *counter, u32 cpu, u32 thread,
@@ -276,7 +278,7 @@ static int read_counter(struct evsel *counter, struct timespec *rs)
 	if (!counter->supported)
 		return -ENOENT;
 
-	if (counter->system_wide)
+	if (counter->core.system_wide)
 		nthreads = 1;
 
 	for (thread = 0; thread < nthreads; thread++) {
@@ -540,8 +542,8 @@ try_again:
 		if (err < 0)
 			return err;
 
-		err = perf_stat_synthesize_config(&stat_config, NULL, evsel_list,
-						  process_synthesized_event, is_pipe);
+		err = perf_event__synthesize_stat_events(&stat_config, NULL, evsel_list,
+							 process_synthesized_event, is_pipe);
 		if (err < 0)
 			return err;
 	}
@@ -822,18 +824,6 @@ static int perf_stat__get_core(struct perf_stat_config *config __maybe_unused,
 	return cpu_map__get_core(map, cpu, NULL);
 }
 
-static int cpu_map__get_max(struct perf_cpu_map *map)
-{
-	int i, max = -1;
-
-	for (i = 0; i < map->nr; i++) {
-		if (map->map[i] > max)
-			max = map->map[i];
-	}
-
-	return max;
-}
-
 static int perf_stat__get_aggr(struct perf_stat_config *config,
 			       aggr_get_id_t get_id, struct perf_cpu_map *map, int idx)
 {
@@ -928,7 +918,7 @@ static int perf_stat_init_aggr_mode(void)
 	 * taking the highest cpu number to be the size of
 	 * the aggregation translate cpumap.
 	 */
-	nr = cpu_map__get_max(evsel_list->core.cpus);
+	nr = perf_cpu_map__max(evsel_list->core.cpus);
 	stat_config.cpus_aggr_map = perf_cpu_map__empty_new(nr + 1);
 	return stat_config.cpus_aggr_map ? 0 : -ENOMEM;
 }
@@ -1447,9 +1437,9 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	session = perf_session__new(data, false, NULL);
-	if (session == NULL) {
-		pr_err("Perf session creation failed.\n");
-		return -1;
+	if (IS_ERR(session)) {
+		pr_err("Perf session creation failed\n");
+		return PTR_ERR(session);
 	}
 
 	init_features(session);
@@ -1646,8 +1636,8 @@ static int __cmd_report(int argc, const char **argv)
 	perf_stat.data.mode = PERF_DATA_MODE_READ;
 
 	session = perf_session__new(&perf_stat.data, false, &perf_stat.tool);
-	if (session == NULL)
-		return -1;
+	if (IS_ERR(session))
+		return PTR_ERR(session);
 
 	perf_stat.session  = session;
 	stat_config.output = stderr;
@@ -1681,7 +1671,7 @@ static void setup_system_wide(int forks)
 		struct evsel *counter;
 
 		evlist__for_each_entry(evsel_list, counter) {
-			if (!counter->system_wide)
+			if (!counter->core.system_wide)
 				return;
 		}
 
@@ -1963,8 +1953,11 @@ int cmd_stat(int argc, const char **argv)
 			fprintf(output, "[ perf stat: executing run #%d ... ]\n",
 				run_idx + 1);
 
+		if (run_idx != 0)
+			perf_evlist__reset_prev_raw_counts(evsel_list);
+
 		status = run_perf_stat(argc, argv, run_idx);
-		if (forever && status != -1) {
+		if (forever && status != -1 && !interval) {
 			print_counters(NULL, argc, argv);
 			perf_stat__reset_stats();
 		}

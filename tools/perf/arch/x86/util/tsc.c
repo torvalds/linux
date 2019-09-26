@@ -8,6 +8,8 @@
 #include <linux/types.h>
 #include <asm/barrier.h>
 #include "../../../util/debug.h"
+#include "../../../util/event.h"
+#include "../../../util/synthetic-events.h"
 #include "../../../util/tsc.h"
 
 int perf_read_tsc_conversion(const struct perf_event_mmap_page *pc,

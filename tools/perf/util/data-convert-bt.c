@@ -30,6 +30,7 @@
 #include "machine.h"
 #include "config.h"
 #include <linux/ctype.h>
+#include <linux/err.h>
 
 #define pr_N(n, fmt, ...) \
 	eprintf(n, debug_data_convert, fmt, ##__VA_ARGS__)
@@ -1619,8 +1620,10 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 	err = -1;
 	/* perf.data session */
 	session = perf_session__new(&data, 0, &c.tool);
-	if (!session)
+	if (IS_ERR(session)) {
+		err = PTR_ERR(session);
 		goto free_writer;
+	}
 
 	if (c.queue_size) {
 		ordered_events__set_alloc_size(&session->ordered_events,

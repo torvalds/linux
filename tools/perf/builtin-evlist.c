@@ -5,18 +5,18 @@
  */
 #include "builtin.h"
 
-#include "util/util.h"
-
 #include <linux/list.h>
 
 #include "perf.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/evsel_fprintf.h"
 #include "util/parse-events.h"
 #include <subcmd/parse-options.h>
 #include "util/session.h"
 #include "util/data.h"
 #include "util/debug.h"
+#include <linux/err.h>
 
 static int __cmd_evlist(const char *file_name, struct perf_attr_details *details)
 {
@@ -30,8 +30,8 @@ static int __cmd_evlist(const char *file_name, struct perf_attr_details *details
 	bool has_tracepoint = false;
 
 	session = perf_session__new(&data, 0, NULL);
-	if (session == NULL)
-		return -1;
+	if (IS_ERR(session))
+		return PTR_ERR(session);
 
 	evlist__for_each_entry(session->evlist, pos) {
 		perf_evsel__fprintf(pos, details, stdout);
