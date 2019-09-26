@@ -555,16 +555,19 @@ static int compare_temps(const void *a, const void *b)
 	return ((s16)le16_to_cpu(*(__le16 *)a) -
 		(s16)le16_to_cpu(*(__le16 *)b));
 }
+#endif
 
 int iwl_mvm_send_temp_report_ths_cmd(struct iwl_mvm *mvm)
 {
 	struct temp_report_ths_cmd cmd = {0};
-	int ret, i, j, idx = 0;
+	int ret;
+#ifdef CONFIG_THERMAL
+	int i, j, idx = 0;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	if (!mvm->tz_device.tzone)
-		return -EINVAL;
+		goto send;
 
 	/* The driver holds array of temperature trips that are unsorted
 	 * and uncompressed, the FW should get it compressed and sorted
@@ -597,6 +600,7 @@ int iwl_mvm_send_temp_report_ths_cmd(struct iwl_mvm *mvm)
 	}
 
 send:
+#endif
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(PHY_OPS_GROUP,
 						TEMP_REPORTING_THRESHOLDS_CMD),
 				   0, sizeof(cmd), &cmd);
@@ -607,6 +611,7 @@ send:
 	return ret;
 }
 
+#ifdef CONFIG_THERMAL
 static int iwl_mvm_tzone_get_temp(struct thermal_zone_device *device,
 				  int *temperature)
 {
