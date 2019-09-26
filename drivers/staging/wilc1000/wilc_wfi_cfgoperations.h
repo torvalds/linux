@@ -24,4 +24,5 @@ struct net_device *wilc_wfi_init_mon_interface(struct wilc *wl,
 void wilc_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
 			      u16 frame_type, bool reg);
 struct wilc_vif *wilc_get_interface(struct wilc *wl);
+void wlan_deinit_locks(struct wilc *wilc);
 #endif

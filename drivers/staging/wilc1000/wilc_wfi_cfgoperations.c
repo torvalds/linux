@@ -1802,6 +1802,15 @@ static void wlan_init_locks(struct wilc *wl)
 	init_completion(&wl->txq_thread_started);
 }
 
+void wlan_deinit_locks(struct wilc *wilc)
+{
+	mutex_destroy(&wilc->hif_cs);
+	mutex_destroy(&wilc->rxq_cs);
+	mutex_destroy(&wilc->cfg_cmd_lock);
+	mutex_destroy(&wilc->txq_add_to_head_cs);
+	mutex_destroy(&wilc->vif_mutex);
+}
+
 int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 		       const struct wilc_hif_func *ops)
 {
@@ -1812,6 +1821,8 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 	wl = wilc_create_wiphy(dev);
 	if (!wl)
 		return -EINVAL;
+
+	wlan_init_locks(wl);
 
 	ret = wilc_wlan_cfg_init(wl);
 	if (ret)
@@ -1836,8 +1847,6 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 		goto free_hq;
 	}
 
-	wlan_init_locks(wl);
-
 	return 0;
 
 free_hq:
@@ -1847,6 +1856,7 @@ free_cfg:
 	wilc_wlan_cfg_deinit(wl);
 
 free_wl:
+	wlan_deinit_locks(wl);
 	wiphy_unregister(wl->wiphy);
 	wiphy_free(wl->wiphy);
 	return ret;
