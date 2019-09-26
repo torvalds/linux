@@ -84,7 +84,7 @@ static int lcd_open(struct inode *inode, struct file *file)
 
 	interface = usb_find_interface(&lcd_driver, subminor);
 	if (!interface) {
-		printk(KERN_ERR "USBLCD: %s - error, can't find device for minor %d\n",
+		pr_err("USBLCD: %s - error, can't find device for minor %d\n",
 		       __func__, subminor);
 		return -ENODEV;
 	}
