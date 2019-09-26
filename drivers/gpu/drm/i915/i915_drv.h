@@ -1134,7 +1134,7 @@ struct i915_perf_stream {
 	struct i915_oa_config *oa_config;
 
 	/**
-	 * The OA context specific information.
+	 * @pinned_ctx: The OA context specific information.
 	 */
 	struct intel_context *pinned_ctx;
 	u32 specific_ctx_id;
@@ -1148,7 +1148,7 @@ struct i915_perf_stream {
 	int period_exponent;
 
 	/**
-	 * State of the OA buffer.
+	 * @oa_buffer: State of the OA buffer.
 	 */
 	struct {
 		struct i915_vma *vma;
@@ -1159,7 +1159,7 @@ struct i915_perf_stream {
 		int size_exponent;
 
 		/**
-		 * Locks reads and writes to all head/tail state
+		 * @ptr_lock: Locks reads and writes to all head/tail state
 		 *
 		 * Consider: the head and tail pointer state needs to be read
 		 * consistently from a hrtimer callback (atomic context) and
@@ -1181,7 +1181,7 @@ struct i915_perf_stream {
 		spinlock_t ptr_lock;
 
 		/**
-		 * One 'aging' tail pointer and one 'aged' tail pointer ready to
+		 * @tails: One 'aging' tail pointer and one 'aged' tail pointer ready to
 		 * used for reading.
 		 *
 		 * Initial values of 0xffffffff are invalid and imply that an
@@ -1193,18 +1193,18 @@ struct i915_perf_stream {
 		} tails[2];
 
 		/**
-		 * Index for the aged tail ready to read() data up to.
+		 * @aged_tail_idx: Index for the aged tail ready to read() data up to.
 		 */
 		unsigned int aged_tail_idx;
 
 		/**
-		 * A monotonic timestamp for when the current aging tail pointer
+		 * @aging_timestamp: A monotonic timestamp for when the current aging tail pointer
 		 * was read; used to determine when it is old enough to trust.
 		 */
 		u64 aging_timestamp;
 
 		/**
-		 * Although we can always read back the head pointer register,
+		 * @head: Although we can always read back the head pointer register,
 		 * we prefer to avoid trusting the HW state, just to avoid any
 		 * risk that some hardware condition could * somehow bump the
 		 * head pointer unpredictably and cause us to forward the wrong
