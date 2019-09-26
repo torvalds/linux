@@ -711,7 +711,7 @@ static void reset_finish_engine(struct intel_engine_cs *engine)
 	engine->reset.finish(engine);
 	intel_uncore_forcewake_put(engine->uncore, FORCEWAKE_ALL);
 
-	intel_engine_signal_breadcrumbs(engine);
+	intel_engine_breadcrumbs_irq(engine);
 }
 
 static void reset_finish(struct intel_gt *gt, intel_engine_mask_t awake)

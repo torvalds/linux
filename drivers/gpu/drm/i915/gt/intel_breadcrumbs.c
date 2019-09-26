@@ -133,9 +133,10 @@ void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine)
 	const ktime_t timestamp = ktime_get();
 	struct intel_context *ce, *cn;
 	struct list_head *pos, *next;
+	unsigned long flags;
 	LIST_HEAD(signal);
 
-	spin_lock(&b->irq_lock);
+	spin_lock_irqsave(&b->irq_lock, flags);
 
 	if (b->irq_armed && list_empty(&b->signalers))
 		__intel_breadcrumbs_disarm_irq(b);
@@ -181,28 +182,21 @@ void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine)
 		}
 	}
 
-	spin_unlock(&b->irq_lock);
+	spin_unlock_irqrestore(&b->irq_lock, flags);
 
 	list_for_each_safe(pos, next, &signal) {
 		struct i915_request *rq =
 			list_entry(pos, typeof(*rq), signal_link);
 		struct list_head cb_list;
 
-		spin_lock(&rq->lock);
+		spin_lock_irqsave(&rq->lock, flags);
 		list_replace(&rq->fence.cb_list, &cb_list);
 		__dma_fence_signal__timestamp(&rq->fence, timestamp);
 		__dma_fence_signal__notify(&rq->fence, &cb_list);
-		spin_unlock(&rq->lock);
+		spin_unlock_irqrestore(&rq->lock, flags);
 
 		i915_request_put(rq);
 	}
-}
-
-void intel_engine_signal_breadcrumbs(struct intel_engine_cs *engine)
-{
-	local_irq_disable();
-	intel_engine_breadcrumbs_irq(engine);
-	local_irq_enable();
 }
 
 static void signal_irq_work(struct irq_work *work)
