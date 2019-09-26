@@ -90,9 +90,6 @@ enum intel_gt_scratch_field {
 	INTEL_GT_SCRATCH_FIELD_DEFAULT = 0,
 
 	/* 8 bytes */
-	INTEL_GT_SCRATCH_FIELD_CLEAR_SLM_WA = 128,
-
-	/* 8 bytes */
 	INTEL_GT_SCRATCH_FIELD_RENDER_FLUSH = 128,
 
 	/* 8 bytes */
