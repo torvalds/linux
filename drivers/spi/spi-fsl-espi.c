@@ -427,8 +427,7 @@ static int fsl_espi_trans(struct spi_message *m, struct spi_transfer *trans)
 
 	ret = fsl_espi_bufs(spi, trans);
 
-	if (trans->delay_usecs)
-		udelay(trans->delay_usecs);
+	spi_transfer_delay_exec(trans);
 
 	return ret;
 }

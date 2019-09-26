@@ -248,8 +248,7 @@ static void txx9spi_work_one(struct txx9spi *c, struct spi_message *m)
 			len -= count * wsize;
 		}
 		m->actual_length += t->len;
-		if (t->delay_usecs)
-			udelay(t->delay_usecs);
+		spi_transfer_delay_exec(t);
 
 		if (!cs_change)
 			continue;

@@ -1366,8 +1366,7 @@ static int atmel_spi_one_transfer(struct spi_master *master,
 		&& as->use_pdc)
 		atmel_spi_dma_unmap_xfer(master, xfer);
 
-	if (xfer->delay_usecs)
-		udelay(xfer->delay_usecs);
+	spi_transfer_delay_exec(xfer);
 
 	if (xfer->cs_change) {
 		if (list_is_last(&xfer->transfer_list,

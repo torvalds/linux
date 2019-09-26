@@ -485,12 +485,11 @@ static void giveback(struct pl022 *pl022)
 					struct spi_transfer, transfer_list);
 
 	/* Delay if requested before any change in chip select */
-	if (last_transfer->delay_usecs)
-		/*
-		 * FIXME: This runs in interrupt context.
-		 * Is this really smart?
-		 */
-		udelay(last_transfer->delay_usecs);
+	/*
+	 * FIXME: This runs in interrupt context.
+	 * Is this really smart?
+	 */
+	spi_transfer_delay_exec(last_transfer);
 
 	if (!last_transfer->cs_change) {
 		struct spi_message *next_msg;
@@ -1401,12 +1400,11 @@ static void pump_transfers(unsigned long data)
 		previous = list_entry(transfer->transfer_list.prev,
 					struct spi_transfer,
 					transfer_list);
-		if (previous->delay_usecs)
-			/*
-			 * FIXME: This runs in interrupt context.
-			 * Is this really smart?
-			 */
-			udelay(previous->delay_usecs);
+		/*
+		 * FIXME: This runs in interrupt context.
+		 * Is this really smart?
+		 */
+		spi_transfer_delay_exec(previous);
 
 		/* Reselect chip select only if cs_change was requested */
 		if (previous->cs_change)
@@ -1520,8 +1518,7 @@ static void do_polling_transfer(struct pl022 *pl022)
 			previous =
 			    list_entry(transfer->transfer_list.prev,
 				       struct spi_transfer, transfer_list);
-			if (previous->delay_usecs)
-				udelay(previous->delay_usecs);
+			spi_transfer_delay_exec(previous);
 			if (previous->cs_change)
 				pl022_cs_control(pl022, SSP_CHIP_SELECT);
 		} else {
