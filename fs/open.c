@@ -776,7 +776,7 @@ static int do_dentry_open(struct file *f,
 		f->f_mode |= FMODE_ATOMIC_POS;
 
 	f->f_op = fops_get(inode->i_fop);
-	if (unlikely(WARN_ON(!f->f_op))) {
+	if (WARN_ON(!f->f_op)) {
 		error = -ENODEV;
 		goto cleanup_all;
 	}

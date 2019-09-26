@@ -94,7 +94,7 @@ static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd,
 
 #define __pte_free_tlb(tlb, pte, addr)		\
 do {						\
-	pgtable_page_dtor((pte));		\
+	pgtable_pte_page_dtor((pte));		\
 	tlb_remove_page((tlb), (pte));		\
 } while (0)
 

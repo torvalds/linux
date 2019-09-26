@@ -378,7 +378,7 @@ pgtable_t pte_alloc_one(struct mm_struct *mm)
 	if ((pte = (unsigned long)pte_alloc_one_kernel(mm)) == 0)
 		return NULL;
 	page = pfn_to_page(__nocache_pa(pte) >> PAGE_SHIFT);
-	if (!pgtable_page_ctor(page)) {
+	if (!pgtable_pte_page_ctor(page)) {
 		__free_page(page);
 		return NULL;
 	}
@@ -389,7 +389,7 @@ void pte_free(struct mm_struct *mm, pgtable_t pte)
 {
 	unsigned long p;
 
-	pgtable_page_dtor(pte);
+	pgtable_pte_page_dtor(pte);
 	p = (unsigned long)page_address(pte);	/* Cached address (for test) */
 	if (p == 0)
 		BUG();
