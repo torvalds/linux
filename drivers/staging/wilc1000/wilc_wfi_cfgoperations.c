@@ -620,29 +620,26 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 		   bool pairwise,
 		   const u8 *mac_addr)
 {
-	struct wilc *wl = wiphy_priv(wiphy);
 	struct wilc_vif *vif = netdev_priv(netdev);
 	struct wilc_priv *priv = &vif->priv;
 
-	if (netdev == wl->vif[0]->ndev) {
-		if (priv->wilc_gtk[key_index]) {
-			kfree(priv->wilc_gtk[key_index]->key);
-			priv->wilc_gtk[key_index]->key = NULL;
-			kfree(priv->wilc_gtk[key_index]->seq);
-			priv->wilc_gtk[key_index]->seq = NULL;
+	if (priv->wilc_gtk[key_index]) {
+		kfree(priv->wilc_gtk[key_index]->key);
+		priv->wilc_gtk[key_index]->key = NULL;
+		kfree(priv->wilc_gtk[key_index]->seq);
+		priv->wilc_gtk[key_index]->seq = NULL;
 
-			kfree(priv->wilc_gtk[key_index]);
-			priv->wilc_gtk[key_index] = NULL;
-		}
+		kfree(priv->wilc_gtk[key_index]);
+		priv->wilc_gtk[key_index] = NULL;
+	}
 
-		if (priv->wilc_ptk[key_index]) {
-			kfree(priv->wilc_ptk[key_index]->key);
-			priv->wilc_ptk[key_index]->key = NULL;
-			kfree(priv->wilc_ptk[key_index]->seq);
-			priv->wilc_ptk[key_index]->seq = NULL;
-			kfree(priv->wilc_ptk[key_index]);
-			priv->wilc_ptk[key_index] = NULL;
-		}
+	if (priv->wilc_ptk[key_index]) {
+		kfree(priv->wilc_ptk[key_index]->key);
+		priv->wilc_ptk[key_index]->key = NULL;
+		kfree(priv->wilc_ptk[key_index]->seq);
+		priv->wilc_ptk[key_index]->seq = NULL;
+		kfree(priv->wilc_ptk[key_index]);
+		priv->wilc_ptk[key_index] = NULL;
 	}
 
 	if (key_index <= 3 && priv->wep_key_len[key_index]) {
