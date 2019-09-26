@@ -1234,7 +1234,7 @@ destroy_erase_cmd_list:
 
 /*
  * Erase an address range on the nor chip.  The address range may extend
- * one or more erase sectors.  Return an error is there is a problem erasing.
+ * one or more erase sectors.  Return an error if there is a problem erasing.
  */
 static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
