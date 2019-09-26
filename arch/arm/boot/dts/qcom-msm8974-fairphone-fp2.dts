@@ -272,14 +272,6 @@
 			};
 		};
 
-		sdhc2_cd_pin_a: sdhc2-cd-pin-active {
-			pins = "gpio62";
-			function = "gpio";
-
-			drive-strength = <2>;
-			bias-disable;
-		};
-
 		sdhc2_pin_a: sdhc2-pin-active {
 			clk {
 				pins = "sdc2_clk";
@@ -317,7 +309,7 @@
 		bus-width = <4>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&sdhc2_pin_a>, <&sdhc2_cd_pin_a>;
+		pinctrl-0 = <&sdhc2_pin_a>;
 	};
 
 	usb@f9a55000 {
