@@ -761,6 +761,7 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 {
 	int status = 0;
 	unsigned int vmid;
+	uint16_t queried_pasid;
 	union SQ_CMD_BITS reg_sq_cmd;
 	union GRBM_GFX_INDEX_BITS reg_gfx_index;
 	struct kfd_process_device *pdd;
@@ -782,14 +783,13 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 	 */
 
 	for (vmid = first_vmid_to_scan; vmid <= last_vmid_to_scan; vmid++) {
-		if (dev->kfd2kgd->get_atc_vmid_pasid_mapping_valid
-				(dev->kgd, vmid)) {
-			if (dev->kfd2kgd->get_atc_vmid_pasid_mapping_pasid
-					(dev->kgd, vmid) == p->pasid) {
-				pr_debug("Killing wave fronts of vmid %d and pasid 0x%x\n",
-						vmid, p->pasid);
-				break;
-			}
+		status = dev->kfd2kgd->get_atc_vmid_pasid_mapping_info
+				(dev->kgd, vmid, &queried_pasid);
+
+		if (status && queried_pasid == p->pasid) {
+			pr_debug("Killing wave fronts of vmid %d and pasid 0x%x\n",
+					vmid, p->pasid);
+			break;
 		}
 	}
 

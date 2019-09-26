@@ -89,10 +89,8 @@ static uint32_t kgd_address_watch_get_offset(struct kgd_dev *kgd,
 					unsigned int watch_point_id,
 					unsigned int reg_offset);
 
-static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd,
-		uint8_t vmid);
-static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
-		uint8_t vmid);
+static bool get_atc_vmid_pasid_mapping_info(struct kgd_dev *kgd,
+					uint8_t vmid, uint16_t *p_pasid);
 static void set_scratch_backing_va(struct kgd_dev *kgd,
 					uint64_t va, uint32_t vmid);
 static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
@@ -141,10 +139,8 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.address_watch_execute = kgd_address_watch_execute,
 	.wave_control_execute = kgd_wave_control_execute,
 	.address_watch_get_offset = kgd_address_watch_get_offset,
-	.get_atc_vmid_pasid_mapping_pasid =
-			get_atc_vmid_pasid_mapping_pasid,
-	.get_atc_vmid_pasid_mapping_valid =
-			get_atc_vmid_pasid_mapping_valid,
+	.get_atc_vmid_pasid_mapping_info =
+			get_atc_vmid_pasid_mapping_info,
 	.set_scratch_backing_va = set_scratch_backing_va,
 	.get_tile_config = get_tile_config,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base,
@@ -667,24 +663,16 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 	return 0;
 }
 
-static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd,
-							uint8_t vmid)
+static bool get_atc_vmid_pasid_mapping_info(struct kgd_dev *kgd,
+					uint8_t vmid, uint16_t *p_pasid)
 {
-	uint32_t reg;
+	uint32_t value;
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 
-	reg = RREG32(mmATC_VMID0_PASID_MAPPING + vmid);
-	return reg & ATC_VMID0_PASID_MAPPING__VALID_MASK;
-}
+	value = RREG32(mmATC_VMID0_PASID_MAPPING + vmid);
+	*p_pasid = value & ATC_VMID0_PASID_MAPPING__PASID_MASK;
 
-static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
-								uint8_t vmid)
-{
-	uint32_t reg;
-	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
-
-	reg = RREG32(mmATC_VMID0_PASID_MAPPING + vmid);
-	return reg & ATC_VMID0_PASID_MAPPING__PASID_MASK;
+	return !!(value & ATC_VMID0_PASID_MAPPING__VALID_MASK);
 }
 
 static int kgd_address_watch_disable(struct kgd_dev *kgd)

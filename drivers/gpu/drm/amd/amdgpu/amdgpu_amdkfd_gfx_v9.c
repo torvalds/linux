@@ -612,26 +612,17 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 	return 0;
 }
 
-bool kgd_gfx_v9_get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd,
-							uint8_t vmid)
+bool kgd_gfx_v9_get_atc_vmid_pasid_mapping_info(struct kgd_dev *kgd,
+					uint8_t vmid, uint16_t *p_pasid)
 {
-	uint32_t reg;
+	uint32_t value;
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 
-	reg = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING)
+	value = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING)
 		     + vmid);
-	return reg & ATC_VMID0_PASID_MAPPING__VALID_MASK;
-}
+	*p_pasid = value & ATC_VMID0_PASID_MAPPING__PASID_MASK;
 
-uint16_t kgd_gfx_v9_get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
-								uint8_t vmid)
-{
-	uint32_t reg;
-	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
-
-	reg = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING)
-		     + vmid);
-	return reg & ATC_VMID0_PASID_MAPPING__PASID_MASK;
+	return !!(value & ATC_VMID0_PASID_MAPPING__VALID_MASK);
 }
 
 static int invalidate_tlbs_with_kiq(struct amdgpu_device *adev, uint16_t pasid,
@@ -666,6 +657,8 @@ int kgd_gfx_v9_invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 	int vmid, i;
+	uint16_t queried_pasid;
+	bool ret;
 	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
 	uint32_t flush_type = 0;
 
@@ -681,14 +674,14 @@ int kgd_gfx_v9_invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 	for (vmid = 0; vmid < 16; vmid++) {
 		if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid))
 			continue;
-		if (kgd_gfx_v9_get_atc_vmid_pasid_mapping_valid(kgd, vmid)) {
-			if (kgd_gfx_v9_get_atc_vmid_pasid_mapping_pasid(kgd, vmid)
-				== pasid) {
-				for (i = 0; i < adev->num_vmhubs; i++)
-					amdgpu_gmc_flush_gpu_tlb(adev, vmid,
-								i, flush_type);
-				break;
-			}
+
+		ret = kgd_gfx_v9_get_atc_vmid_pasid_mapping_info(kgd, vmid,
+				&queried_pasid);
+		if (ret && queried_pasid == pasid) {
+			for (i = 0; i < adev->num_vmhubs; i++)
+				amdgpu_gmc_flush_gpu_tlb(adev, vmid,
+							i, flush_type);
+			break;
 		}
 	}
 
@@ -813,10 +806,8 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.address_watch_execute = kgd_gfx_v9_address_watch_execute,
 	.wave_control_execute = kgd_gfx_v9_wave_control_execute,
 	.address_watch_get_offset = kgd_gfx_v9_address_watch_get_offset,
-	.get_atc_vmid_pasid_mapping_pasid =
-			kgd_gfx_v9_get_atc_vmid_pasid_mapping_pasid,
-	.get_atc_vmid_pasid_mapping_valid =
-			kgd_gfx_v9_get_atc_vmid_pasid_mapping_valid,
+	.get_atc_vmid_pasid_mapping_info =
+			kgd_gfx_v9_get_atc_vmid_pasid_mapping_info,
 	.get_tile_config = kgd_gfx_v9_get_tile_config,
 	.set_vm_context_page_table_base = kgd_gfx_v9_set_vm_context_page_table_base,
 	.invalidate_tlbs = kgd_gfx_v9_invalidate_tlbs,

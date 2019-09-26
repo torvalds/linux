@@ -278,10 +278,8 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.address_watch_execute = kgd_gfx_v9_address_watch_execute,
 	.wave_control_execute = kgd_gfx_v9_wave_control_execute,
 	.address_watch_get_offset = kgd_gfx_v9_address_watch_get_offset,
-	.get_atc_vmid_pasid_mapping_pasid =
-			kgd_gfx_v9_get_atc_vmid_pasid_mapping_pasid,
-	.get_atc_vmid_pasid_mapping_valid =
-			kgd_gfx_v9_get_atc_vmid_pasid_mapping_valid,
+	.get_atc_vmid_pasid_mapping_info =
+			kgd_gfx_v9_get_atc_vmid_pasid_mapping_info,
 	.get_tile_config = kgd_gfx_v9_get_tile_config,
 	.set_vm_context_page_table_base = kgd_gfx_v9_set_vm_context_page_table_base,
 	.invalidate_tlbs = kgd_gfx_v9_invalidate_tlbs,

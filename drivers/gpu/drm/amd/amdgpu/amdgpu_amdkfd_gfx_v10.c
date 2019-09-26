@@ -98,10 +98,8 @@ static uint32_t kgd_address_watch_get_offset(struct kgd_dev *kgd,
 					unsigned int watch_point_id,
 					unsigned int reg_offset);
 
-static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd,
-		uint8_t vmid);
-static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
-		uint8_t vmid);
+static bool get_atc_vmid_pasid_mapping_info(struct kgd_dev *kgd,
+					uint8_t vmid, uint16_t *p_pasid);
 static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 		uint64_t page_table_base);
 static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid);
@@ -155,10 +153,8 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.address_watch_execute = kgd_address_watch_execute,
 	.wave_control_execute = kgd_wave_control_execute,
 	.address_watch_get_offset = kgd_address_watch_get_offset,
-	.get_atc_vmid_pasid_mapping_pasid =
-			get_atc_vmid_pasid_mapping_pasid,
-	.get_atc_vmid_pasid_mapping_valid =
-			get_atc_vmid_pasid_mapping_valid,
+	.get_atc_vmid_pasid_mapping_info =
+			get_atc_vmid_pasid_mapping_info,
 	.get_tile_config = amdgpu_amdkfd_get_tile_config,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base,
 	.invalidate_tlbs = invalidate_tlbs,
@@ -775,26 +771,17 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 	return 0;
 }
 
-static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd,
-							uint8_t vmid)
+static bool get_atc_vmid_pasid_mapping_info(struct kgd_dev *kgd,
+					uint8_t vmid, uint16_t *p_pasid)
 {
-	uint32_t reg;
+	uint32_t value;
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 
-	reg = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING)
+	value = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING)
 		     + vmid);
-	return reg & ATC_VMID0_PASID_MAPPING__VALID_MASK;
-}
+	*p_pasid = value & ATC_VMID0_PASID_MAPPING__PASID_MASK;
 
-static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
-								uint8_t vmid)
-{
-	uint32_t reg;
-	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
-
-	reg = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING)
-		     + vmid);
-	return reg & ATC_VMID0_PASID_MAPPING__PASID_MASK;
+	return !!(value & ATC_VMID0_PASID_MAPPING__VALID_MASK);
 }
 
 static int invalidate_tlbs_with_kiq(struct amdgpu_device *adev, uint16_t pasid)
@@ -826,6 +813,8 @@ static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 	int vmid;
+	uint16_t queried_pasid;
+	bool ret;
 	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
 
 	if (amdgpu_emu_mode == 0 && ring->sched.ready)
@@ -834,13 +823,13 @@ static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 	for (vmid = 0; vmid < 16; vmid++) {
 		if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid))
 			continue;
-		if (get_atc_vmid_pasid_mapping_valid(kgd, vmid)) {
-			if (get_atc_vmid_pasid_mapping_pasid(kgd, vmid)
-				== pasid) {
-				amdgpu_gmc_flush_gpu_tlb(adev, vmid,
-						AMDGPU_GFXHUB_0, 0);
-				break;
-			}
+
+		ret = get_atc_vmid_pasid_mapping_info(kgd, vmid,
+				&queried_pasid);
+		if (ret	&& queried_pasid == pasid) {
+			amdgpu_gmc_flush_gpu_tlb(adev, vmid,
+					AMDGPU_GFXHUB_0, 0);
+			break;
 		}
 	}
 
