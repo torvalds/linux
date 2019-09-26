@@ -15340,9 +15340,14 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		return;
 
 	if (INTEL_GEN(dev_priv) >= 12) {
-		/* TODO: initialize TC ports as well */
 		intel_ddi_init(dev_priv, PORT_A);
 		intel_ddi_init(dev_priv, PORT_B);
+		intel_ddi_init(dev_priv, PORT_D);
+		intel_ddi_init(dev_priv, PORT_E);
+		intel_ddi_init(dev_priv, PORT_F);
+		intel_ddi_init(dev_priv, PORT_G);
+		intel_ddi_init(dev_priv, PORT_H);
+		intel_ddi_init(dev_priv, PORT_I);
 		icl_dsi_init(dev_priv);
 	} else if (IS_ELKHARTLAKE(dev_priv)) {
 		intel_ddi_init(dev_priv, PORT_A);
