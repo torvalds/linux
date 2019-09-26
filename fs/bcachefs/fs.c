@@ -156,9 +156,8 @@ int __must_check bch2_write_inode_trans(struct btree_trans *trans,
 {
 	struct btree_iter *iter = NULL;
 	struct bkey_inode_buf *inode_p;
-	int ret;
-
-	lockdep_assert_held(&inode->ei_update_lock);
+	struct bkey_s_c k;
+	int ret = 0;
 
 	iter = bch2_trans_get_iter(trans, BTREE_ID_INODES,
 				   POS(inode->v.i_ino, 0),
@@ -166,12 +165,17 @@ int __must_check bch2_write_inode_trans(struct btree_trans *trans,
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
-	/* The btree node lock is our lock on the inode: */
-	ret = bch2_btree_iter_traverse(iter);
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
 	if (ret)
 		return ret;
 
-	*inode_u = inode->ei_inode;
+	if (k.k->type != KEY_TYPE_inode)
+		return -EIO;
+
+	ret = bch2_inode_unpack(bkey_s_c_to_inode(k), inode_u);
+	if (ret)
+		return ret;
 
 	if (set) {
 		ret = set(inode, inode_u, p);
@@ -185,7 +189,6 @@ int __must_check bch2_write_inode_trans(struct btree_trans *trans,
 
 	bch2_inode_pack(inode_p, inode_u);
 	bch2_trans_update(trans, iter, &inode_p->inode.k_i);
-
 	return 0;
 }
 
