@@ -32,6 +32,7 @@
 #include "linux/hash.h"
 #include "asm/bug.h"
 #include "bpf-event.h"
+#include <internal/lib.h> // page_size
 
 #include <linux/ctype.h>
 #include <symbol/kallsyms.h>

@@ -13,6 +13,7 @@
 #include "record.h"
 #include "thread_map.h"
 #include "tests.h"
+#include "util/mmap.h"
 
 #define CHECK__(x) {				\
 	while ((x) < 0) {			\
@@ -31,11 +32,11 @@
 static int find_comm(struct evlist *evlist, const char *comm)
 {
 	union perf_event *event;
-	struct perf_mmap *md;
+	struct mmap *md;
 	int i, found;
 
 	found = 0;
-	for (i = 0; i < evlist->nr_mmaps; i++) {
+	for (i = 0; i < evlist->core.nr_mmaps; i++) {
 		md = &evlist->mmap[i];
 		if (perf_mmap__read_init(md) < 0)
 			continue;
@@ -92,7 +93,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 
 	perf_evlist__config(evlist, &opts, NULL);
 
-	evsel = perf_evlist__first(evlist);
+	evsel = evlist__first(evlist);
 
 	evsel->core.attr.comm = 1;
 	evsel->core.attr.disabled = 1;
@@ -104,7 +105,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 		goto out_err;
 	}
 
-	CHECK__(perf_evlist__mmap(evlist, UINT_MAX));
+	CHECK__(evlist__mmap(evlist, UINT_MAX));
 
 	/*
 	 * First, test that a 'comm' event can be found when the event is
@@ -131,7 +132,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 
 	evlist__enable(evlist);
 
-	evsel = perf_evlist__last(evlist);
+	evsel = evlist__last(evlist);
 
 	CHECK__(evsel__disable(evsel));
 

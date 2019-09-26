@@ -777,7 +777,7 @@ jit_process(struct perf_session *session,
 	 * track sample_type to compute id_all layout
 	 * perf sets the same sample type to all events as of now
 	 */
-	first = perf_evlist__first(session->evlist);
+	first = evlist__first(session->evlist);
 	jd.sample_type = first->core.attr.sample_type;
 
 	*nbytes = 0;

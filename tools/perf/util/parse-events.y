@@ -9,13 +9,11 @@
 #define YYDEBUG 1
 
 #include <fnmatch.h>
+#include <stdio.h>
 #include <linux/compiler.h>
-#include <linux/list.h>
 #include <linux/types.h>
-#include "util.h"
 #include "pmu.h"
 #include "evsel.h"
-#include "debug.h"
 #include "parse-events.h"
 #include "parse-events-bison.h"
 

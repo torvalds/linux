@@ -92,12 +92,12 @@ int test__event_update(struct test *test __maybe_unused, int subtest __maybe_unu
 	evlist = perf_evlist__new_default();
 	TEST_ASSERT_VAL("failed to get evlist", evlist);
 
-	evsel = perf_evlist__first(evlist);
+	evsel = evlist__first(evlist);
 
 	TEST_ASSERT_VAL("failed to allocate ids",
-			!perf_evsel__alloc_id(evsel, 1, 1));
+			!perf_evsel__alloc_id(&evsel->core, 1, 1));
 
-	perf_evlist__id_add(evlist, evsel, 0, 0, 123);
+	perf_evlist__id_add(&evlist->core, &evsel->core, 0, 0, 123);
 
 	evsel->unit = strdup("KRAVA");
 

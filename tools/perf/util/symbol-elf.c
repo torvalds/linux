@@ -17,7 +17,7 @@
 #include "machine.h"
 #include "vdso.h"
 #include "debug.h"
-#include "util.h"
+#include "util/copyfile.h"
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/zalloc.h>

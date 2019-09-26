@@ -16,7 +16,7 @@
 #include "symbol.h"
 #include "util/synthetic-events.h"
 #include "thread.h"
-#include "util.h" // page_size
+#include <internal/lib.h> // page_size
 
 #define THREADS 4
 

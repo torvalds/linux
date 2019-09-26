@@ -29,7 +29,6 @@
 #include "thread-stack.h"
 #include "sample-raw.h"
 #include "stat.h"
-#include "util.h"
 #include "ui/progress.h"
 #include "../perf.h"
 #include "arch/common.h"
@@ -1324,6 +1323,7 @@ static int deliver_sample_value(struct evlist *evlist,
 				struct machine *machine)
 {
 	struct perf_sample_id *sid = perf_evlist__id2sid(evlist, v->id);
+	struct evsel *evsel;
 
 	if (sid) {
 		sample->id     = v->id;
@@ -1343,7 +1343,8 @@ static int deliver_sample_value(struct evlist *evlist,
 	if (!sample->period)
 		return 0;
 
-	return tool->sample(tool, event, sample, sid->evsel, machine);
+	evsel = container_of(sid->evsel, struct evsel, core);
+	return tool->sample(tool, event, sample, evsel, machine);
 }
 
 static int deliver_sample_group(struct evlist *evlist,

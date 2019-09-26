@@ -1568,7 +1568,7 @@ struct evsel *bpf__setup_output_event(struct evlist *evlist, const char *name)
 			return ERR_PTR(-err);
 		}
 
-		evsel = perf_evlist__last(evlist);
+		evsel = evlist__last(evlist);
 	}
 
 	bpf__for_each_map_named(map, obj, tmp, name) {
