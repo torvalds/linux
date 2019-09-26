@@ -152,6 +152,7 @@
 #define   MI_FLUSH_DW_USE_PPGTT		(0<<2)
 #define MI_LOAD_REGISTER_MEM	   MI_INSTR(0x29, 1)
 #define MI_LOAD_REGISTER_MEM_GEN8  MI_INSTR(0x29, 2)
+#define MI_LOAD_REGISTER_REG    MI_INSTR(0x2A, 1)
 #define MI_BATCH_BUFFER		MI_INSTR(0x30, 1)
 #define   MI_BATCH_NON_SECURE		(1)
 /* for snb/ivb/vlv this also means "batch in ppgtt" when ppgtt is enabled. */
@@ -256,7 +257,6 @@
 #define MI_CLFLUSH              MI_INSTR(0x27, 0)
 #define MI_REPORT_PERF_COUNT    MI_INSTR(0x28, 0)
 #define   MI_REPORT_PERF_COUNT_GGTT (1<<0)
-#define MI_LOAD_REGISTER_REG    MI_INSTR(0x2A, 0)
 #define MI_RS_STORE_DATA_IMM    MI_INSTR(0x2B, 0)
 #define MI_LOAD_URB_MEM         MI_INSTR(0x2C, 0)
 #define MI_STORE_URB_MEM        MI_INSTR(0x2D, 0)
