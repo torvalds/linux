@@ -144,10 +144,8 @@ dm_dp_mst_connector_destroy(struct drm_connector *connector)
 	struct amdgpu_dm_connector *amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
 	struct amdgpu_encoder *amdgpu_encoder = amdgpu_dm_connector->mst_encoder;
 
-	if (amdgpu_dm_connector->edid) {
-		kfree(amdgpu_dm_connector->edid);
-		amdgpu_dm_connector->edid = NULL;
-	}
+	kfree(amdgpu_dm_connector->edid);
+	amdgpu_dm_connector->edid = NULL;
 
 	drm_encoder_cleanup(&amdgpu_encoder->base);
 	kfree(amdgpu_encoder);
