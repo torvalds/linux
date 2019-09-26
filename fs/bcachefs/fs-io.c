@@ -756,8 +756,8 @@ static void bch2_set_page_dirty(struct bch_fs *c,
 	struct bch_page_state *s = bch2_page_state(page);
 	unsigned i, dirty_sectors = 0;
 
-	WARN_ON(page_offset(page) + offset + len >
-		round_up(i_size_read(&inode->v), block_bytes(c)));
+	WARN_ON((u64) page_offset(page) + offset + len >
+		round_up((u64) i_size_read(&inode->v), block_bytes(c)));
 
 	for (i = round_down(offset, block_bytes(c)) >> 9;
 	     i < round_up(offset + len, block_bytes(c)) >> 9;
@@ -1704,14 +1704,6 @@ retry_reservation:
 	if (!copied)
 		goto out;
 
-	nr_pages_copied = DIV_ROUND_UP(offset + copied, PAGE_SIZE);
-	inode->ei_last_dirtied = (unsigned long) current;
-
-	spin_lock(&inode->v.i_lock);
-	if (pos + copied > inode->v.i_size)
-		i_size_write(&inode->v, pos + copied);
-	spin_unlock(&inode->v.i_lock);
-
 	if (copied < len &&
 	    ((offset + copied) & (PAGE_SIZE - 1))) {
 		struct page *page = pages[(offset + copied) >> PAGE_SHIFT];
@@ -1721,6 +1713,11 @@ retry_reservation:
 			copied -= (offset + copied) & (PAGE_SIZE - 1);
 		}
 	}
+
+	spin_lock(&inode->v.i_lock);
+	if (pos + copied > inode->v.i_size)
+		i_size_write(&inode->v, pos + copied);
+	spin_unlock(&inode->v.i_lock);
 
 	while (set_dirty < copied) {
 		struct page *page = pages[(offset + set_dirty) >> PAGE_SHIFT];
@@ -1737,6 +1734,9 @@ retry_reservation:
 
 		set_dirty += pg_len;
 	}
+
+	nr_pages_copied = DIV_ROUND_UP(offset + copied, PAGE_SIZE);
+	inode->ei_last_dirtied = (unsigned long) current;
 out:
 	for (i = nr_pages_copied; i < nr_pages; i++) {
 		unlock_page(pages[i]);
