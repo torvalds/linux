@@ -586,6 +586,26 @@ static const struct icl_mg_phy_ddi_buf_trans icl_mg_phy_ddi_translations[] = {
 	{ 0x0, 0x00, 0x00 },	/* 3              0   */
 };
 
+struct tgl_dkl_phy_ddi_buf_trans {
+	u32 dkl_vswing_control;
+	u32 dkl_preshoot_control;
+	u32 dkl_de_emphasis_control;
+};
+
+static const struct tgl_dkl_phy_ddi_buf_trans tgl_dkl_phy_ddi_translations[] = {
+				/* VS	pre-emp	Non-trans mV	Pre-emph dB */
+	{ 0x7, 0x0, 0x00 },	/* 0	0	400mV		0 dB */
+	{ 0x5, 0x0, 0x03 },	/* 0	1	400mV		3.5 dB */
+	{ 0x2, 0x0, 0x0b },	/* 0	2	400mV		6 dB */
+	{ 0x0, 0x0, 0x19 },	/* 0	3	400mV		9.5 dB */
+	{ 0x5, 0x0, 0x00 },	/* 1	0	600mV		0 dB */
+	{ 0x2, 0x0, 0x03 },	/* 1	1	600mV		3.5 dB */
+	{ 0x0, 0x0, 0x14 },	/* 1	2	600mV		6 dB */
+	{ 0x2, 0x0, 0x00 },	/* 2	0	800mV		0 dB */
+	{ 0x0, 0x0, 0x0B },	/* 2	1	800mV		3.5 dB */
+	{ 0x0, 0x0, 0x00 },	/* 3	0	1200mV		0 dB HDMI default */
+};
+
 static const struct ddi_buf_trans *
 bdw_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 {
@@ -872,7 +892,14 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 
 	level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
 
-	if (INTEL_GEN(dev_priv) >= 11) {
+	if (INTEL_GEN(dev_priv) >= 12) {
+		if (intel_phy_is_combo(dev_priv, phy))
+			icl_get_combo_buf_trans(dev_priv, INTEL_OUTPUT_HDMI,
+						0, &n_entries);
+		else
+			n_entries = ARRAY_SIZE(tgl_dkl_phy_ddi_translations);
+		default_entry = n_entries - 1;
+	} else if (INTEL_GEN(dev_priv) == 11) {
 		if (intel_phy_is_combo(dev_priv, phy))
 			icl_get_combo_buf_trans(dev_priv, INTEL_OUTPUT_HDMI,
 						0, &n_entries);
@@ -2334,7 +2361,13 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 	enum phy phy = intel_port_to_phy(dev_priv, port);
 	int n_entries;
 
-	if (INTEL_GEN(dev_priv) >= 11) {
+	if (INTEL_GEN(dev_priv) >= 12) {
+		if (intel_phy_is_combo(dev_priv, phy))
+			icl_get_combo_buf_trans(dev_priv, encoder->type,
+						intel_dp->link_rate, &n_entries);
+		else
+			n_entries = ARRAY_SIZE(tgl_dkl_phy_ddi_translations);
+	} else if (INTEL_GEN(dev_priv) == 11) {
 		if (intel_phy_is_combo(dev_priv, phy))
 			icl_get_combo_buf_trans(dev_priv, encoder->type,
 						intel_dp->link_rate, &n_entries);
@@ -2776,6 +2809,62 @@ static void icl_ddi_vswing_sequence(struct intel_encoder *encoder,
 		icl_mg_phy_ddi_vswing_sequence(encoder, link_clock, level);
 }
 
+static void
+tgl_dkl_phy_ddi_vswing_sequence(struct intel_encoder *encoder, int link_clock,
+				u32 level)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, encoder->port);
+	const struct tgl_dkl_phy_ddi_buf_trans *ddi_translations;
+	u32 n_entries, val, ln, dpcnt_mask, dpcnt_val;
+
+	n_entries = ARRAY_SIZE(tgl_dkl_phy_ddi_translations);
+	ddi_translations = tgl_dkl_phy_ddi_translations;
+
+	if (level >= n_entries)
+		level = n_entries - 1;
+
+	dpcnt_mask = (DKL_TX_PRESHOOT_COEFF_MASK |
+		      DKL_TX_DE_EMPAHSIS_COEFF_MASK |
+		      DKL_TX_VSWING_CONTROL_MASK);
+	dpcnt_val = DKL_TX_VSWING_CONTROL(ddi_translations[level].dkl_vswing_control);
+	dpcnt_val |= DKL_TX_DE_EMPHASIS_COEFF(ddi_translations[level].dkl_de_emphasis_control);
+	dpcnt_val |= DKL_TX_PRESHOOT_COEFF(ddi_translations[level].dkl_preshoot_control);
+
+	for (ln = 0; ln < 2; ln++) {
+		I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, ln));
+
+		/* All the registers are RMW */
+		val = I915_READ(DKL_TX_DPCNTL0(tc_port));
+		val &= ~dpcnt_mask;
+		val |= dpcnt_val;
+		I915_WRITE(DKL_TX_DPCNTL0(tc_port), val);
+
+		val = I915_READ(DKL_TX_DPCNTL1(tc_port));
+		val &= ~dpcnt_mask;
+		val |= dpcnt_val;
+		I915_WRITE(DKL_TX_DPCNTL1(tc_port), val);
+
+		val = I915_READ(DKL_TX_DPCNTL2(tc_port));
+		val &= ~DKL_TX_DP20BITMODE;
+		I915_WRITE(DKL_TX_DPCNTL2(tc_port), val);
+	}
+}
+
+static void tgl_ddi_vswing_sequence(struct intel_encoder *encoder,
+				    int link_clock,
+				    u32 level,
+				    enum intel_output_type type)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
+
+	if (intel_phy_is_combo(dev_priv, phy))
+		icl_combo_phy_ddi_vswing_sequence(encoder, level, type);
+	else
+		tgl_dkl_phy_ddi_vswing_sequence(encoder, link_clock, level);
+}
+
 static u32 translate_signal_level(int signal_levels)
 {
 	int i;
@@ -2807,7 +2896,10 @@ u32 bxt_signal_levels(struct intel_dp *intel_dp)
 	struct intel_encoder *encoder = &dport->base;
 	int level = intel_ddi_dp_level(intel_dp);
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (INTEL_GEN(dev_priv) >= 12)
+		tgl_ddi_vswing_sequence(encoder, intel_dp->link_rate,
+					level, encoder->type);
+	else if (INTEL_GEN(dev_priv) >= 11)
 		icl_ddi_vswing_sequence(encoder, intel_dp->link_rate,
 					level, encoder->type);
 	else if (IS_CANNONLAKE(dev_priv))
@@ -3071,24 +3163,39 @@ icl_phy_set_clock_gating(struct intel_digital_port *dig_port, bool enable)
 	       MG_DP_MODE_CFG_GAONPWR_GATING;
 
 	for (ln = 0; ln < 2; ln++) {
-		val = I915_READ(MG_DP_MODE(ln, port));
+		if (INTEL_GEN(dev_priv) >= 12) {
+			I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, ln));
+			val = I915_READ(DKL_DP_MODE(tc_port));
+		} else {
+			val = I915_READ(MG_DP_MODE(ln, port));
+		}
+
 		if (enable)
 			val |= bits;
 		else
 			val &= ~bits;
-		I915_WRITE(MG_DP_MODE(ln, port), val);
+
+		if (INTEL_GEN(dev_priv) >= 12)
+			I915_WRITE(DKL_DP_MODE(tc_port), val);
+		else
+			I915_WRITE(MG_DP_MODE(ln, port), val);
 	}
 
-	bits = MG_MISC_SUS0_CFG_TR2PWR_GATING | MG_MISC_SUS0_CFG_CL2PWR_GATING |
-	       MG_MISC_SUS0_CFG_GAONPWR_GATING | MG_MISC_SUS0_CFG_TRPWR_GATING |
-	       MG_MISC_SUS0_CFG_CL1PWR_GATING | MG_MISC_SUS0_CFG_DGPWR_GATING;
+	if (INTEL_GEN(dev_priv) == 11) {
+		bits = MG_MISC_SUS0_CFG_TR2PWR_GATING |
+		       MG_MISC_SUS0_CFG_CL2PWR_GATING |
+		       MG_MISC_SUS0_CFG_GAONPWR_GATING |
+		       MG_MISC_SUS0_CFG_TRPWR_GATING |
+		       MG_MISC_SUS0_CFG_CL1PWR_GATING |
+		       MG_MISC_SUS0_CFG_DGPWR_GATING;
 
-	val = I915_READ(MG_MISC_SUS0(tc_port));
-	if (enable)
-		val |= (bits | MG_MISC_SUS0_SUSCLK_DYNCLKGATE_MODE(3));
-	else
-		val &= ~(bits | MG_MISC_SUS0_SUSCLK_DYNCLKGATE_MODE_MASK);
-	I915_WRITE(MG_MISC_SUS0(tc_port), val);
+		val = I915_READ(MG_MISC_SUS0(tc_port));
+		if (enable)
+			val |= (bits | MG_MISC_SUS0_SUSCLK_DYNCLKGATE_MODE(3));
+		else
+			val &= ~(bits | MG_MISC_SUS0_SUSCLK_DYNCLKGATE_MODE_MASK);
+		I915_WRITE(MG_MISC_SUS0(tc_port), val);
+	}
 }
 
 static void
@@ -3097,14 +3204,22 @@ icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port,
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
 	enum port port = intel_dig_port->base.port;
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
 	u32 ln0, ln1, pin_assignment;
 	u8 width;
 
 	if (intel_dig_port->tc_mode == TC_PORT_TBT_ALT)
 		return;
 
-	ln0 = I915_READ(MG_DP_MODE(0, port));
-	ln1 = I915_READ(MG_DP_MODE(1, port));
+	if (INTEL_GEN(dev_priv) >= 12) {
+		I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, 0x0));
+		ln0 = I915_READ(DKL_DP_MODE(tc_port));
+		I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, 0x1));
+		ln1 = I915_READ(DKL_DP_MODE(tc_port));
+	} else {
+		ln0 = I915_READ(MG_DP_MODE(0, port));
+		ln1 = I915_READ(MG_DP_MODE(1, port));
+	}
 
 	ln0 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X1_MODE);
 	ln1 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE);
@@ -3159,8 +3274,15 @@ icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port,
 		MISSING_CASE(pin_assignment);
 	}
 
-	I915_WRITE(MG_DP_MODE(0, port), ln0);
-	I915_WRITE(MG_DP_MODE(1, port), ln1);
+	if (INTEL_GEN(dev_priv) >= 12) {
+		I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, 0x0));
+		I915_WRITE(DKL_DP_MODE(tc_port), ln0);
+		I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, 0x1));
+		I915_WRITE(DKL_DP_MODE(tc_port), ln1);
+	} else {
+		I915_WRITE(MG_DP_MODE(0, port), ln0);
+		I915_WRITE(MG_DP_MODE(1, port), ln1);
+	}
 }
 
 static void intel_dp_sink_set_fec_ready(struct intel_dp *intel_dp,
@@ -3265,7 +3387,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	icl_phy_set_clock_gating(dig_port, false);
 
 	/* 7.e */
-	icl_ddi_vswing_sequence(encoder, crtc_state->port_clock, level,
+	tgl_ddi_vswing_sequence(encoder, crtc_state->port_clock, level,
 				encoder->type);
 
 	/* 7.f */
@@ -3296,6 +3418,15 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 
 	/* 7.k */
 	intel_dp_stop_link_train(intel_dp);
+
+	/*
+	 * TODO: enable clock gating
+	 *
+	 * It is not written in DP enabling sequence but "PHY Clockgating
+	 * programming" states that clock gating should be enabled after the
+	 * link training but doing so causes all the following trainings to fail
+	 * so not enabling it for now.
+	 */
 
 	/* 7.l */
 	intel_ddi_enable_fec(encoder, crtc_state);
@@ -3404,7 +3535,10 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 	icl_program_mg_dp_mode(dig_port, crtc_state);
 	icl_phy_set_clock_gating(dig_port, false);
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (INTEL_GEN(dev_priv) >= 12)
+		tgl_ddi_vswing_sequence(encoder, crtc_state->port_clock,
+					level, INTEL_OUTPUT_HDMI);
+	else if (INTEL_GEN(dev_priv) == 11)
 		icl_ddi_vswing_sequence(encoder, crtc_state->port_clock,
 					level, INTEL_OUTPUT_HDMI);
 	else if (IS_CANNONLAKE(dev_priv))

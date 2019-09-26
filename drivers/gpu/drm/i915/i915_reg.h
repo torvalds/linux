@@ -10249,14 +10249,6 @@ enum skl_power_gate {
 						     _DKL_TX_DW18)
 
 #define _DKL_DP_MODE					0xA0
-#define  DKL_DP_MODE_CFG_GAONPWR_GATING		(1 << 1)
-#define  DKL_DP_MODE_CFG_DIGPWR_GATING		(1 << 2)
-#define  DKL_DP_MODE_CFG_CLNPWR_GATING		(1 << 3)
-#define  DKL_DP_MODE_CFG_TRPWR_GATING		(1 << 4)
-#define  DKL_DP_MODE_CFG_TR2PWR_GATING		(1 << 5)
-#define  DKL_DP_MODE_CFG_GATING_CTRL_MASK	(0x1f << 1)
-#define  DKL_DP_MODE_CFG_DP_X1_MODE			(1 << 6)
-#define  DKL_DP_MODE_CFG_DP_X2_MODE			(1 << 7)
 #define DKL_DP_MODE(tc_port) _MMIO(_PORT(tc_port, \
 						     _DKL_PHY1_BASE, \
 						     _DKL_PHY2_BASE) + \
