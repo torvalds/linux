@@ -45,6 +45,12 @@ void intel_gt_set_wedged(struct intel_gt *gt);
 bool intel_gt_unset_wedged(struct intel_gt *gt);
 int intel_gt_terminally_wedged(struct intel_gt *gt);
 
+/*
+ * There's no unset_wedged_on_init paired with this one.
+ * Once we're wedged on init, there's no going back.
+ */
+void intel_gt_set_wedged_on_init(struct intel_gt *gt);
+
 int __intel_gt_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask);
 
 int intel_reset_guc(struct intel_gt *gt);
@@ -68,6 +74,9 @@ void __intel_fini_wedge(struct intel_wedge_me *w);
 
 static inline bool __intel_reset_failed(const struct intel_reset *reset)
 {
+	GEM_BUG_ON(test_bit(I915_WEDGED_ON_INIT, &reset->flags) ?
+		   !test_bit(I915_WEDGED, &reset->flags) : false);
+
 	return unlikely(test_bit(I915_WEDGED, &reset->flags));
 }
 

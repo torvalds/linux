@@ -1411,7 +1411,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 err_gt:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
-	intel_gt_set_wedged(&dev_priv->gt);
+	intel_gt_set_wedged_on_init(&dev_priv->gt);
 	i915_gem_suspend(dev_priv);
 	i915_gem_suspend_late(dev_priv);
 

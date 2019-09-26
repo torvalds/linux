@@ -811,7 +811,8 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	if (!test_bit(I915_WEDGED, &gt->reset.flags))
 		return true;
 
-	if (!gt->scratch) /* Never full initialised, recovery impossible */
+	/* Never fully initialised, recovery impossible */
+	if (test_bit(I915_WEDGED_ON_INIT, &gt->reset.flags))
 		return false;
 
 	GEM_TRACE("start\n");
@@ -1277,6 +1278,14 @@ int intel_gt_terminally_wedged(struct intel_gt *gt)
 		return -EINTR;
 
 	return intel_gt_is_wedged(gt) ? -EIO : 0;
+}
+
+void intel_gt_set_wedged_on_init(struct intel_gt *gt)
+{
+	BUILD_BUG_ON(I915_RESET_ENGINE + I915_NUM_ENGINES >
+		     I915_WEDGED_ON_INIT);
+	intel_gt_set_wedged(gt);
+	set_bit(I915_WEDGED_ON_INIT, &gt->reset.flags);
 }
 
 void intel_gt_init_reset(struct intel_gt *gt)
