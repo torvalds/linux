@@ -1410,12 +1410,9 @@ struct qlge_bq_desc {
 		struct sk_buff *skb;
 	} p;
 	dma_addr_t dma_addr;
-	/* address in ring where the buffer address (dma_addr) is written for
-	 * the device
-	 */
+	/* address in ring where the buffer address is written for the device */
 	__le64 *buf_ptr;
 	u32 index;
-	DEFINE_DMA_UNMAP_ADDR(mapaddr);
 };
 
 /* buffer queue */
