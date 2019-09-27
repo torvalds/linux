@@ -118,19 +118,12 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 		return -EPERM;
 	if (vcpu->arch.irq_type != KVMPPC_IRQ_DEFAULT)
 		return -EBUSY;
-	if (server_num >= (KVM_MAX_VCPUS * vcpu->kvm->arch.emul_smt_mode)) {
-		pr_devel("Out of bounds !\n");
-		return -EINVAL;
-	}
 
 	mutex_lock(&xive->lock);
 
-	vp_id = kvmppc_xive_vp(xive, server_num);
-	if (kvmppc_xive_vp_in_use(xive->kvm, vp_id)) {
-		pr_devel("Duplicate !\n");
-		rc = -EEXIST;
+	rc = kvmppc_xive_compute_vp_id(xive, server_num, &vp_id);
+	if (rc)
 		goto bail;
-	}
 
 	xc = kzalloc(sizeof(*xc), GFP_KERNEL);
 	if (!xc) {

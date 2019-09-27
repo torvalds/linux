@@ -1211,6 +1211,37 @@ void kvmppc_xive_cleanup_vcpu(struct kvm_vcpu *vcpu)
 	vcpu->arch.xive_vcpu = NULL;
 }
 
+static bool kvmppc_xive_vcpu_id_valid(struct kvmppc_xive *xive, u32 cpu)
+{
+	/* We have a block of KVM_MAX_VCPUS VPs. We just need to check
+	 * raw vCPU ids are below the expected limit for this guest's
+	 * core stride ; kvmppc_pack_vcpu_id() will pack them down to an
+	 * index that can be safely used to compute a VP id that belongs
+	 * to the VP block.
+	 */
+	return cpu < KVM_MAX_VCPUS * xive->kvm->arch.emul_smt_mode;
+}
+
+int kvmppc_xive_compute_vp_id(struct kvmppc_xive *xive, u32 cpu, u32 *vp)
+{
+	u32 vp_id;
+
+	if (!kvmppc_xive_vcpu_id_valid(xive, cpu)) {
+		pr_devel("Out of bounds !\n");
+		return -EINVAL;
+	}
+
+	vp_id = kvmppc_xive_vp(xive, cpu);
+	if (kvmppc_xive_vp_in_use(xive->kvm, vp_id)) {
+		pr_devel("Duplicate !\n");
+		return -EEXIST;
+	}
+
+	*vp = vp_id;
+
+	return 0;
+}
+
 int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 			     struct kvm_vcpu *vcpu, u32 cpu)
 {
@@ -1229,20 +1260,13 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 		return -EPERM;
 	if (vcpu->arch.irq_type != KVMPPC_IRQ_DEFAULT)
 		return -EBUSY;
-	if (cpu >= (KVM_MAX_VCPUS * vcpu->kvm->arch.emul_smt_mode)) {
-		pr_devel("Out of bounds !\n");
-		return -EINVAL;
-	}
 
 	/* We need to synchronize with queue provisioning */
 	mutex_lock(&xive->lock);
 
-	vp_id = kvmppc_xive_vp(xive, cpu);
-	if (kvmppc_xive_vp_in_use(xive->kvm, vp_id)) {
-		pr_devel("Duplicate !\n");
-		r = -EEXIST;
+	r = kvmppc_xive_compute_vp_id(xive, cpu, &vp_id);
+	if (r)
 		goto bail;
-	}
 
 	xc = kzalloc(sizeof(*xc), GFP_KERNEL);
 	if (!xc) {
