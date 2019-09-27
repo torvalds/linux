@@ -128,6 +128,10 @@ void drm_debugfs_connector_remove(struct drm_connector *connector);
 int drm_debugfs_crtc_add(struct drm_crtc *crtc);
 void drm_debugfs_crtc_remove(struct drm_crtc *crtc);
 int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc);
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+int drm_debugfs_vop_add(struct drm_crtc *crtc, struct dentry *root);
+int vop_plane_dump(struct vop_dump_info *dump_info, int frame_count);
+#endif
 #else
 static inline int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 				   struct dentry *root)
@@ -160,6 +164,18 @@ static inline int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
 {
 	return 0;
 }
+
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+static inline int drm_debugfs_vop_add(struct drm_crtc *crtc, struct dentry *root)
+{
+	return 0;
+}
+
+static inline int vop_plane_dump(struct vop_dump_info *dump_info, int frame_count)
+{
+	return 0;
+}
+#endif
 
 #endif
 

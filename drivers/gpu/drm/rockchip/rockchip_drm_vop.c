@@ -47,6 +47,8 @@
 #include <soc/rockchip/rockchip-system-status.h>
 #include <uapi/linux/videodev2.h>
 
+#include "../drm_internal.h"
+
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
 #include "rockchip_drm_fb.h"
@@ -1699,7 +1701,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		num_pages = rk_obj->num_pages;
 		pages = rk_obj->pages;
 	}
-	if (fb->modifie == DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16))
+	if (fb->modifier == DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16))
 		AFBC_flag = true;
 	else
 		AFBC_flag = false;
@@ -2477,9 +2479,27 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 	struct drm_plane *plane;
 	u64 bandwidth;
 	int cnt = 0, plane_num = 0;
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+	struct vop_dump_list *pos, *n;
+#endif
 
 	if (!htotal || !vdisplay)
 		return 0;
+
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+	if (!crtc->vop_dump_list_init_flag) {
+		INIT_LIST_HEAD(&crtc->vop_dump_list_head);
+		crtc->vop_dump_list_init_flag = true;
+	}
+	list_for_each_entry_safe(pos, n, &crtc->vop_dump_list_head, entry) {
+		list_del(&pos->entry);
+		kfree(pos);
+	}
+	if (crtc->vop_dump_status == DUMP_KEEP ||
+	    crtc->vop_dump_times > 0) {
+		crtc->frame_count++;
+	}
+#endif
 
 	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
 		pstate = plane->state;
@@ -3076,23 +3096,6 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 	struct vop_zpos *pzpos;
 	int dsp_layer_sel = 0;
 	int i, j, cnt = 0, ret = 0;
-
-#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	struct vop_dump_list *pos, *n;
-
-	if (!crtc->vop_dump_list_init_flag) {
-		INIT_LIST_HEAD(&crtc->vop_dump_list_head);
-		crtc->vop_dump_list_init_flag = true;
-	}
-	list_for_each_entry_safe(pos, n, &crtc->vop_dump_list_head, entry) {
-		list_del(&pos->entry);
-		kfree(pos);
-	}
-	if (crtc->vop_dump_status == DUMP_KEEP ||
-	    crtc->vop_dump_times > 0) {
-		crtc->frame_count++;
-	}
-#endif
 
 	ret = vop_afbdc_atomic_check(crtc, crtc_state);
 	if (ret)

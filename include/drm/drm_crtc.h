@@ -844,6 +844,54 @@ struct drm_crtc_funcs {
 	void (*disable_vblank)(struct drm_crtc *crtc);
 };
 
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+
+/**
+ * struct vop_dump_info - vop dump plane info structure
+ *
+ * Store plane info used to write display data to /data/vop_buf/
+ *
+ */
+struct vop_dump_info {
+	/* @win_id: vop hard win index */
+	u8 win_id;
+	/* @area_id: vop hard area index inside win */
+	u8 area_id;
+	/* @AFBC_flag: indicate the buffer compress by gpu or not */
+	bool AFBC_flag;
+	/* @yuv_format: indicate yuv format or not */
+	bool yuv_format;
+	/* @pitches: the buffer pitch size */
+	u32 pitches;
+	/* @height: the buffer pitch height */
+	u32 height;
+	/* @pixel_format: the buffer format */
+	u32 pixel_format;
+	/* @offset: the buffer offset */
+	unsigned long offset;
+	/* @num_pages: the pages number */
+	unsigned long num_pages;
+	/* @pages: store the buffer all pages */
+	struct page **pages;
+};
+
+/**
+ * struct vop_dump_list - store all buffer info per frame
+ *
+ * one frame maybe multiple buffer, all will be stored here.
+ *
+ */
+struct vop_dump_list {
+	struct list_head entry;
+	struct vop_dump_info dump_info;
+};
+
+enum vop_dump_status {
+	DUMP_DISABLE = 0,
+	DUMP_KEEP
+};
+#endif
+
 /**
  * struct drm_crtc - central CRTC control structure
  *
@@ -1078,6 +1126,21 @@ struct drm_crtc {
 	 * The name of the CRTC's fence timeline.
 	 */
 	char timeline_name[32];
+
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+	/**
+	 * @vop_dump_status the status of vop dump control
+	 * @vop_dump_list_head the list head of vop dump list
+	 * @vop_dump_list_init_flag init once
+	 * @vop_dump_times control the dump times
+	 * @frme_count the frame of dump buf
+	 */
+	enum vop_dump_status vop_dump_status;
+	struct list_head vop_dump_list_head;
+	bool vop_dump_list_init_flag;
+	int vop_dump_times;
+	int frame_count;
+#endif
 };
 
 /**

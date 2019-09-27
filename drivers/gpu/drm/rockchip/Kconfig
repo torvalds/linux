@@ -18,6 +18,15 @@ config DRM_ROCKCHIP
 
 if DRM_ROCKCHIP
 
+config ROCKCHIP_DRM_DEBUG
+	tristate "Rockchip DRM debug"
+	depends on DRM_ROCKCHIP
+	help
+	  This option add a debug node to dump buf from application.
+	  dump buffer store at: /data/vop_buf
+	  debug node: /d/dri/0/ff900000.vop/vop_dump/dump
+	  cat /d/dri/0/ff900000.vop/vop_dump/dump get more help.
+
 config ROCKCHIP_ANALOGIX_DP
 	bool "Rockchip specific extensions for Analogix DP driver"
 	help
