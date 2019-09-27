@@ -1,6 +1,11 @@
 #include <stdlib.h>
 #define _HAVE_STRING_ARCH_strtok_r
 #include <string.h>
+#ifndef __MINGW32__
+#include <arpa/inet.h>
+#else
+#define inet_pton lkl_inet_pton
+#endif
 #include <lkl_host.h>
 #include <lkl_config.h>
 
