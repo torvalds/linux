@@ -1433,7 +1433,6 @@ struct rx_ring {
 	/* Large buffer queue elements. */
 	u32 lbq_len;		/* entry count */
 	u32 lbq_size;		/* size in bytes of queue */
-	u32 lbq_buf_size;
 	void *lbq_base;
 	dma_addr_t lbq_base_dma;
 	void *lbq_base_indirect;
@@ -2108,6 +2107,7 @@ struct ql_adapter {
 	struct rx_ring rx_ring[MAX_RX_RINGS];
 	struct tx_ring tx_ring[MAX_TX_RINGS];
 	unsigned int lbq_buf_order;
+	u32 lbq_buf_size;
 
 	int rx_csum;
 	u32 default_rx_queue;

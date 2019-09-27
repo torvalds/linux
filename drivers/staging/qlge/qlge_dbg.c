@@ -1629,6 +1629,7 @@ void ql_dump_qdev(struct ql_adapter *qdev)
 	DUMP_QDEV_FIELD(qdev, "0x%08x", xg_sem_mask);
 	DUMP_QDEV_FIELD(qdev, "0x%08x", port_link_up);
 	DUMP_QDEV_FIELD(qdev, "0x%08x", port_init);
+	DUMP_QDEV_FIELD(qdev, "%u", lbq_buf_size);
 }
 #endif
 
@@ -1773,7 +1774,6 @@ void ql_dump_rx_ring(struct rx_ring *rx_ring)
 	pr_err("rx_ring->lbq_curr_idx = %d\n", rx_ring->lbq_curr_idx);
 	pr_err("rx_ring->lbq_clean_idx = %d\n", rx_ring->lbq_clean_idx);
 	pr_err("rx_ring->lbq_free_cnt = %d\n", rx_ring->lbq_free_cnt);
-	pr_err("rx_ring->lbq_buf_size = %d\n", rx_ring->lbq_buf_size);
 
 	pr_err("rx_ring->sbq_base = %p\n", rx_ring->sbq_base);
 	pr_err("rx_ring->sbq_base_dma = %llx\n",
