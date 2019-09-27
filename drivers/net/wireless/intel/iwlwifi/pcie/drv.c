@@ -995,12 +995,15 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	const struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	const struct iwl_cfg *cfg_7265d __maybe_unused = NULL;
 	struct iwl_trans *iwl_trans;
+	struct iwl_trans_pcie *trans_pcie;
 	unsigned long flags;
 	int ret;
 
 	iwl_trans = iwl_trans_pcie_alloc(pdev, ent, &cfg->trans);
 	if (IS_ERR(iwl_trans))
 		return PTR_ERR(iwl_trans);
+
+	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
 
 	/* the trans_cfg should never change, so set it now */
 	iwl_trans->trans_cfg = &cfg->trans;
@@ -1128,6 +1131,16 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 	/* now set the real cfg we decided to use */
 	iwl_trans->cfg = cfg;
+
+	if (cfg->trans.mq_rx_supported) {
+		if (WARN_ON(!cfg->num_rbds)) {
+			ret = -EINVAL;
+			goto out_free_trans;
+		}
+		trans_pcie->num_rx_bufs = cfg->num_rbds;
+	} else {
+		trans_pcie->num_rx_bufs = RX_QUEUE_SIZE;
+	}
 
 	if (iwl_trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_8000 &&
 	    iwl_trans_grab_nic_access(iwl_trans, &flags)) {

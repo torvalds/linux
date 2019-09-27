@@ -431,6 +431,8 @@ struct iwl_fw_mon_regs {
  * @uhb_supported: ultra high band channels supported
  * @min_256_ba_txq_size: minimum number of slots required in a TX queue which
  *	supports 256 BA aggregation
+ * @num_rbds: number of receive buffer descriptors to use
+ *	(only used for multi-queue capable devices)
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -485,6 +487,7 @@ struct iwl_cfg {
 	u8 max_vht_ampdu_exponent;
 	u8 ucode_api_max;
 	u8 ucode_api_min;
+	u16 num_rbds;
 	u32 min_umac_error_event_table;
 	u32 extra_phy_cfg_flags;
 	u32 d3_debug_data_base_addr;

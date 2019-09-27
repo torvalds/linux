@@ -513,8 +513,8 @@ struct cont_rec {
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
-	struct iwl_rx_mem_buffer rx_pool[RX_POOL_SIZE];
-	struct iwl_rx_mem_buffer *global_table[RX_POOL_SIZE];
+	struct iwl_rx_mem_buffer *rx_pool;
+	struct iwl_rx_mem_buffer **global_table;
 	struct iwl_rb_allocator rba;
 	union {
 		struct iwl_context_info *ctxt_info;
@@ -573,6 +573,7 @@ struct iwl_trans_pcie {
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 	u8 max_tbs;
 	u16 tfd_size;
+	u16 num_rx_bufs;
 
 	enum iwl_amsdu_size rx_buf_size;
 	bool bc_table_dword;

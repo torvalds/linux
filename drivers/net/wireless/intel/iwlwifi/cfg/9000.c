@@ -138,6 +138,7 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 	.thermal_params = &iwl9000_tt_params,				\
 	.apmg_not_supported = true,					\
 	.trans.mq_rx_supported = true,					\
+	.num_rbds = 512,						\
 	.vht_mu_mimo_supported = true,					\
 	.mac_addr_from_csr = true,					\
 	.trans.rf_id = true,						\

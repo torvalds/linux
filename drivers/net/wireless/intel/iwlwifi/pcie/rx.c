@@ -510,7 +510,7 @@ void iwl_pcie_free_rbs_pool(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int i;
 
-	for (i = 0; i < RX_POOL_SIZE; i++) {
+	for (i = 0; i < RX_POOL_SIZE(trans_pcie->num_rx_bufs); i++) {
 		if (!trans_pcie->rx_pool[i].page)
 			continue;
 		dma_unmap_page(trans->dev, trans_pcie->rx_pool[i].page_dma,
@@ -738,7 +738,7 @@ static int iwl_pcie_alloc_rxq_dma(struct iwl_trans *trans,
 
 	spin_lock_init(&rxq->lock);
 	if (trans->trans_cfg->mq_rx_supported)
-		rxq->queue_size = MQ_RX_TABLE_SIZE;
+		rxq->queue_size = trans->cfg->num_rbds;
 	else
 		rxq->queue_size = RX_QUEUE_SIZE;
 
@@ -807,8 +807,18 @@ static int iwl_pcie_rx_alloc(struct iwl_trans *trans)
 
 	trans_pcie->rxq = kcalloc(trans->num_rx_queues, sizeof(struct iwl_rxq),
 				  GFP_KERNEL);
-	if (!trans_pcie->rxq)
-		return -ENOMEM;
+	trans_pcie->rx_pool = kcalloc(RX_POOL_SIZE(trans_pcie->num_rx_bufs),
+				      sizeof(trans_pcie->rx_pool[0]),
+				      GFP_KERNEL);
+	trans_pcie->global_table =
+		kcalloc(RX_POOL_SIZE(trans_pcie->num_rx_bufs),
+			sizeof(trans_pcie->global_table[0]),
+			GFP_KERNEL);
+	if (!trans_pcie->rxq || !trans_pcie->rx_pool ||
+	    !trans_pcie->global_table) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	spin_lock_init(&rba->lock);
 
@@ -845,6 +855,8 @@ err:
 		trans_pcie->base_rb_stts = NULL;
 		trans_pcie->base_rb_stts_dma = 0;
 	}
+	kfree(trans_pcie->rx_pool);
+	kfree(trans_pcie->global_table);
 	kfree(trans_pcie->rxq);
 
 	return ret;
@@ -1081,12 +1093,11 @@ static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 
 	/* move the pool to the default queue and allocator ownerships */
 	queue_size = trans->trans_cfg->mq_rx_supported ?
-		     MQ_RX_NUM_RBDS : RX_QUEUE_SIZE;
+			trans_pcie->num_rx_bufs - 1 : RX_QUEUE_SIZE;
 	allocator_pool_size = trans->num_rx_queues *
 		(RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC);
 	num_alloc = queue_size + allocator_pool_size;
-	BUILD_BUG_ON(ARRAY_SIZE(trans_pcie->global_table) !=
-		     ARRAY_SIZE(trans_pcie->rx_pool));
+
 	for (i = 0; i < num_alloc; i++) {
 		struct iwl_rx_mem_buffer *rxb = &trans_pcie->rx_pool[i];
 
@@ -1177,6 +1188,8 @@ void iwl_pcie_rx_free(struct iwl_trans *trans)
 		if (rxq->napi.poll)
 			netif_napi_del(&rxq->napi);
 	}
+	kfree(trans_pcie->rx_pool);
+	kfree(trans_pcie->global_table);
 	kfree(trans_pcie->rxq);
 }
 
@@ -1390,13 +1403,12 @@ static struct iwl_rx_mem_buffer *iwl_pcie_get_rxb(struct iwl_trans *trans,
 		return rxb;
 	}
 
-	/* used_bd is a 32/16 bit but only 12 are used to retrieve the vid */
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
-		vid = le16_to_cpu(rxq->cd[i].rbid) & 0x0FFF;
+		vid = le16_to_cpu(rxq->cd[i].rbid);
 	else
-		vid = le32_to_cpu(rxq->bd_32[i]) & 0x0FFF;
+		vid = le32_to_cpu(rxq->bd_32[i]) & 0x0FFF; /* 12-bit VID */
 
-	if (!vid || vid > ARRAY_SIZE(trans_pcie->global_table))
+	if (!vid || vid > RX_POOL_SIZE(trans_pcie->num_rx_bufs))
 		goto out_err;
 
 	rxb = trans_pcie->global_table[vid - 1];
