@@ -1447,7 +1447,6 @@ struct rx_ring {
 	/* Small buffer queue elements. */
 	u32 sbq_len;		/* entry count */
 	u32 sbq_size;		/* size in bytes of queue */
-	u32 sbq_buf_size;
 	void *sbq_base;
 	dma_addr_t sbq_base_dma;
 	void *sbq_base_indirect;
