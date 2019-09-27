@@ -33,6 +33,7 @@
 #define SOF_DBG_MBOX		BIT(2)
 #define SOF_DBG_TEXT		BIT(3)
 #define SOF_DBG_PCI		BIT(4)
+#define SOF_DBG_RETAIN_CTX	BIT(5)	/* prevent DSP D3 on FW exception */
 
 /* global debug state set by SOF_DBG_ flags */
 extern int sof_core_debug;
@@ -580,6 +581,7 @@ void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 			struct sof_ipc_panic_info *panic_info,
 			void *stack, size_t stack_words);
 int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev);
+void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev);
 
 /*
  * Platform specific ops.
