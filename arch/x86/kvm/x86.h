@@ -238,8 +238,7 @@ static inline bool vcpu_match_mmio_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
 	return false;
 }
 
-static inline unsigned long kvm_register_readl(struct kvm_vcpu *vcpu,
-					       enum kvm_reg reg)
+static inline unsigned long kvm_register_readl(struct kvm_vcpu *vcpu, int reg)
 {
 	unsigned long val = kvm_register_read(vcpu, reg);
 
@@ -247,8 +246,7 @@ static inline unsigned long kvm_register_readl(struct kvm_vcpu *vcpu,
 }
 
 static inline void kvm_register_writel(struct kvm_vcpu *vcpu,
-				       enum kvm_reg reg,
-				       unsigned long val)
+				       int reg, unsigned long val)
 {
 	if (!is_64_bit_mode(vcpu))
 		val = (u32)val;

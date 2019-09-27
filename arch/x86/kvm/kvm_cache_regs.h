@@ -37,19 +37,23 @@ BUILD_KVM_GPR_ACCESSORS(r14, R14)
 BUILD_KVM_GPR_ACCESSORS(r15, R15)
 #endif
 
-static inline unsigned long kvm_register_read(struct kvm_vcpu *vcpu,
-					      enum kvm_reg reg)
+static inline unsigned long kvm_register_read(struct kvm_vcpu *vcpu, int reg)
 {
+	if (WARN_ON_ONCE((unsigned int)reg >= NR_VCPU_REGS))
+		return 0;
+
 	if (!test_bit(reg, (unsigned long *)&vcpu->arch.regs_avail))
 		kvm_x86_ops->cache_reg(vcpu, reg);
 
 	return vcpu->arch.regs[reg];
 }
 
-static inline void kvm_register_write(struct kvm_vcpu *vcpu,
-				      enum kvm_reg reg,
+static inline void kvm_register_write(struct kvm_vcpu *vcpu, int reg,
 				      unsigned long val)
 {
+	if (WARN_ON_ONCE((unsigned int)reg >= NR_VCPU_REGS))
+		return;
+
 	vcpu->arch.regs[reg] = val;
 	__set_bit(reg, (unsigned long *)&vcpu->arch.regs_dirty);
 	__set_bit(reg, (unsigned long *)&vcpu->arch.regs_avail);
