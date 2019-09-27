@@ -2192,7 +2192,12 @@ static void vmx_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 		if (enable_ept)
 			ept_save_pdptrs(vcpu);
 		break;
+	case VCPU_EXREG_CR3:
+		if (enable_unrestricted_guest || (enable_ept && is_paging(vcpu)))
+			vcpu->arch.cr3 = vmcs_readl(GUEST_CR3);
+		break;
 	default:
+		WARN_ON_ONCE(1);
 		break;
 	}
 }
@@ -2863,13 +2868,6 @@ static void vmx_decache_cr0_guest_bits(struct kvm_vcpu *vcpu)
 	vcpu->arch.cr0 |= vmcs_readl(GUEST_CR0) & cr0_guest_owned_bits;
 }
 
-static void vmx_decache_cr3(struct kvm_vcpu *vcpu)
-{
-	if (enable_unrestricted_guest || (enable_ept && is_paging(vcpu)))
-		vcpu->arch.cr3 = vmcs_readl(GUEST_CR3);
-	kvm_register_mark_available(vcpu, VCPU_EXREG_CR3);
-}
-
 static void vmx_decache_cr4_guest_bits(struct kvm_vcpu *vcpu)
 {
 	ulong cr4_guest_owned_bits = vcpu->arch.cr4_guest_owned_bits;
@@ -2914,7 +2912,7 @@ static void ept_update_paging_mode_cr0(unsigned long *hw_cr0,
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	if (!kvm_register_is_available(vcpu, VCPU_EXREG_CR3))
-		vmx_decache_cr3(vcpu);
+		vmx_cache_reg(vcpu, VCPU_EXREG_CR3);
 	if (!(cr0 & X86_CR0_PG)) {
 		/* From paging/starting to nonpaging */
 		exec_controls_setbit(vmx, CPU_BASED_CR3_LOAD_EXITING |
@@ -7784,7 +7782,6 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.get_cpl = vmx_get_cpl,
 	.get_cs_db_l_bits = vmx_get_cs_db_l_bits,
 	.decache_cr0_guest_bits = vmx_decache_cr0_guest_bits,
-	.decache_cr3 = vmx_decache_cr3,
 	.decache_cr4_guest_bits = vmx_decache_cr4_guest_bits,
 	.set_cr0 = vmx_set_cr0,
 	.set_cr3 = vmx_set_cr3,

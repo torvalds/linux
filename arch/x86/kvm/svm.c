@@ -2376,7 +2376,7 @@ static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 		load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu));
 		break;
 	default:
-		BUG();
+		WARN_ON_ONCE(1);
 	}
 }
 
@@ -2526,10 +2526,6 @@ static void svm_set_gdt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 }
 
 static void svm_decache_cr0_guest_bits(struct kvm_vcpu *vcpu)
-{
-}
-
-static void svm_decache_cr3(struct kvm_vcpu *vcpu)
 {
 }
 
@@ -7269,7 +7265,6 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.get_cpl = svm_get_cpl,
 	.get_cs_db_l_bits = kvm_get_cs_db_l_bits,
 	.decache_cr0_guest_bits = svm_decache_cr0_guest_bits,
-	.decache_cr3 = svm_decache_cr3,
 	.decache_cr4_guest_bits = svm_decache_cr4_guest_bits,
 	.set_cr0 = svm_set_cr0,
 	.set_cr3 = svm_set_cr3,
