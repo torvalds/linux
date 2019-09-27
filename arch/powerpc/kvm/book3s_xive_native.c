@@ -921,6 +921,8 @@ static int kvmppc_xive_native_set_attr(struct kvm_device *dev,
 			return kvmppc_xive_reset(xive);
 		case KVM_DEV_XIVE_EQ_SYNC:
 			return kvmppc_xive_native_eq_sync(xive);
+		case KVM_DEV_XIVE_NR_SERVERS:
+			return kvmppc_xive_set_nr_servers(xive, attr->addr);
 		}
 		break;
 	case KVM_DEV_XIVE_GRP_SOURCE:
@@ -960,6 +962,7 @@ static int kvmppc_xive_native_has_attr(struct kvm_device *dev,
 		switch (attr->attr) {
 		case KVM_DEV_XIVE_RESET:
 		case KVM_DEV_XIVE_EQ_SYNC:
+		case KVM_DEV_XIVE_NR_SERVERS:
 			return 0;
 		}
 		break;
