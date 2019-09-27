@@ -206,3 +206,4 @@ void smp_send_reschedule(int cpu)
 {
 	send_ipi_single(cpu, IPI_RESCHEDULE);
 }
+EXPORT_SYMBOL_GPL(smp_send_reschedule);
