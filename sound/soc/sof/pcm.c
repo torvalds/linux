@@ -323,6 +323,7 @@ static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct sof_ipc_stream stream;
 	struct sof_ipc_reply reply;
 	bool reset_hw_params = false;
+	bool ipc_first = false;
 	int ret;
 
 	/* nothing to do for BE */
@@ -343,6 +344,7 @@ static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_PAUSE;
+		ipc_first = true;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_RELEASE;
@@ -363,6 +365,7 @@ static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_STOP;
+		ipc_first = true;
 		reset_hw_params = true;
 		break;
 	default:
@@ -370,12 +373,22 @@ static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		return -EINVAL;
 	}
 
-	snd_sof_pcm_platform_trigger(sdev, substream, cmd);
+	/*
+	 * DMA and IPC sequence is different for start and stop. Need to send
+	 * STOP IPC before stop DMA
+	 */
+	if (!ipc_first)
+		snd_sof_pcm_platform_trigger(sdev, substream, cmd);
 
 	/* send IPC to the DSP */
 	ret = sof_ipc_tx_message(sdev->ipc, stream.hdr.cmd, &stream,
 				 sizeof(stream), &reply, sizeof(reply));
 
+	/* need to STOP DMA even if STOP IPC failed */
+	if (ipc_first)
+		snd_sof_pcm_platform_trigger(sdev, substream, cmd);
+
+	/* free PCM if reset_hw_params is set and the STOP IPC is successful */
 	if (!ret && reset_hw_params)
 		ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
 
