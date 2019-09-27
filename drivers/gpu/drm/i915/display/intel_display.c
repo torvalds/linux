@@ -16757,24 +16757,28 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		if (connector->get_hw_state(connector)) {
+			struct intel_crtc_state *crtc_state;
+			struct intel_crtc *crtc;
+
 			connector->base.dpms = DRM_MODE_DPMS_ON;
 
 			encoder = connector->encoder;
 			connector->base.encoder = &encoder->base;
 
-			if (encoder->base.crtc &&
-			    encoder->base.crtc->state->active) {
+			crtc = to_intel_crtc(encoder->base.crtc);
+			crtc_state = crtc ? to_intel_crtc_state(crtc->base.state) : NULL;
+
+			if (crtc_state && crtc_state->base.active) {
 				/*
 				 * This has to be done during hardware readout
 				 * because anything calling .crtc_disable may
 				 * rely on the connector_mask being accurate.
 				 */
-				encoder->base.crtc->state->connector_mask |=
+				crtc_state->base.connector_mask |=
 					drm_connector_mask(&connector->base);
-				encoder->base.crtc->state->encoder_mask |=
+				crtc_state->base.encoder_mask |=
 					drm_encoder_mask(&encoder->base);
 			}
-
 		} else {
 			connector->base.dpms = DRM_MODE_DPMS_OFF;
 			connector->base.encoder = NULL;
