@@ -1064,23 +1064,6 @@ static void ast_i2c_destroy(struct ast_i2c_chan *i2c)
 	kfree(i2c);
 }
 
-static void ast_show_cursor(struct drm_crtc *crtc)
-{
-	struct ast_private *ast = crtc->dev->dev_private;
-	u8 jreg;
-
-	jreg = 0x2;
-	/* enable ARGB cursor */
-	jreg |= 1;
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, jreg);
-}
-
-static void ast_hide_cursor(struct drm_crtc *crtc)
-{
-	struct ast_private *ast = crtc->dev->dev_private;
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, 0x00);
-}
-
 static u32 copy_cursor_image(u8 *src, u8 *dst, int width, int height)
 {
 	union {
@@ -1135,6 +1118,23 @@ static u32 copy_cursor_image(u8 *src, u8 *dst, int width, int height)
 		dstxor += last_alpha_dst_delta;
 	}
 	return csum;
+}
+
+static void ast_show_cursor(struct drm_crtc *crtc)
+{
+	struct ast_private *ast = crtc->dev->dev_private;
+	u8 jreg;
+
+	jreg = 0x2;
+	/* enable ARGB cursor */
+	jreg |= 1;
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, jreg);
+}
+
+static void ast_hide_cursor(struct drm_crtc *crtc)
+{
+	struct ast_private *ast = crtc->dev->dev_private;
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, 0x00);
 }
 
 static int ast_cursor_set(struct drm_crtc *crtc,
