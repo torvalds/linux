@@ -977,7 +977,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_ioremap;
 
 	if (adapter->need_ioport) {
-		for (i = BAR_1; i <= BAR_5; i++) {
+		for (i = BAR_1; i < PCI_STD_NUM_BARS; i++) {
 			if (pci_resource_len(pdev, i) == 0)
 				continue;
 			if (pci_resource_flags(pdev, i) & IORESOURCE_IO) {

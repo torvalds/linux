@@ -117,7 +117,7 @@ struct pci_epc_features {
 	unsigned int	msix_capable : 1;
 	u8	reserved_bar;
 	u8	bar_fixed_64bit;
-	u64	bar_fixed_size[BAR_5 + 1];
+	u64	bar_fixed_size[PCI_STD_NUM_BARS];
 	size_t	align;
 };
 

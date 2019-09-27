@@ -307,7 +307,7 @@ struct pci_bus_relations {
 struct pci_q_res_req_response {
 	struct vmpacket_descriptor hdr;
 	s32 status;			/* negative values are failures */
-	u32 probed_bar[6];
+	u32 probed_bar[PCI_STD_NUM_BARS];
 } __packed;
 
 struct pci_set_power {
@@ -539,7 +539,7 @@ struct hv_pci_dev {
 	 * What would be observed if one wrote 0xFFFFFFFF to a BAR and then
 	 * read it back, for each of the BAR offsets within config space.
 	 */
-	u32 probed_bar[6];
+	u32 probed_bar[PCI_STD_NUM_BARS];
 };
 
 struct hv_pci_compl {
@@ -1610,7 +1610,7 @@ static void survey_child_resources(struct hv_pcibus_device *hbus)
 	 * so it's sufficient to just add them up without tracking alignment.
 	 */
 	list_for_each_entry(hpdev, &hbus->children, list_entry) {
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 			if (hpdev->probed_bar[i] & PCI_BASE_ADDRESS_SPACE_IO)
 				dev_err(&hbus->hdev->device,
 					"There's an I/O BAR in this list!\n");
@@ -1684,7 +1684,7 @@ static void prepopulate_bars(struct hv_pcibus_device *hbus)
 	/* Pick addresses for the BARs. */
 	do {
 		list_for_each_entry(hpdev, &hbus->children, list_entry) {
-			for (i = 0; i < 6; i++) {
+			for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 				bar_val = hpdev->probed_bar[i];
 				if (bar_val == 0)
 					continue;
@@ -1841,7 +1841,7 @@ static void q_resource_requirements(void *context, struct pci_response *resp,
 			"query resource requirements failed: %x\n",
 			resp->status);
 	} else {
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 			completion->hpdev->probed_bar[i] =
 				q_res_req->probed_bar[i];
 		}

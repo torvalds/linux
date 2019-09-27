@@ -262,7 +262,7 @@ EXPORT_SYMBOL(devm_ioport_unmap);
 /*
  * PCI iomap devres
  */
-#define PCIM_IOMAP_MAX	PCI_ROM_RESOURCE
+#define PCIM_IOMAP_MAX	PCI_STD_NUM_BARS
 
 struct pcim_iomap_devres {
 	void __iomem *table[PCIM_IOMAP_MAX];

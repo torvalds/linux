@@ -401,7 +401,7 @@ static int pm8001_ioremap(struct pm8001_hba_info *pm8001_ha)
 
 	pdev = pm8001_ha->pdev;
 	/* map pci mem (PMC pci base 0-3)*/
-	for (bar = 0; bar < 6; bar++) {
+	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
 		/*
 		** logical BARs for SPC:
 		** bar 0 and 1 - logical BAR0

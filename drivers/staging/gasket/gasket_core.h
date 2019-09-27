@@ -268,7 +268,7 @@ struct gasket_dev {
 	char kobj_name[GASKET_NAME_MAX];
 
 	/* Virtual address of mapped BAR memory range. */
-	struct gasket_bar_data bar_data[GASKET_NUM_BARS];
+	struct gasket_bar_data bar_data[PCI_STD_NUM_BARS];
 
 	/* Coherent buffer. */
 	struct gasket_coherent_buffer coherent_buffer;
@@ -369,7 +369,7 @@ struct gasket_driver_desc {
 	/* Set of 6 bar descriptions that describe all PCIe bars.
 	 * Note that BUS/AXI devices (i.e. non PCI devices) use those.
 	 */
-	struct gasket_bar_desc bar_descriptions[GASKET_NUM_BARS];
+	struct gasket_bar_desc bar_descriptions[PCI_STD_NUM_BARS];
 
 	/*
 	 * Coherent buffer description.

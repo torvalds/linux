@@ -234,7 +234,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		/* UHCI */
 		int	region;
 
-		for (region = 0; region < PCI_ROM_RESOURCE; region++) {
+		for (region = 0; region < PCI_STD_NUM_BARS; region++) {
 			if (!(pci_resource_flags(dev, region) &
 					IORESOURCE_IO))
 				continue;
