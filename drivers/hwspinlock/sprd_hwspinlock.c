@@ -83,7 +83,6 @@ static int sprd_hwspinlock_probe(struct platform_device *pdev)
 {
 	struct sprd_hwspinlock_dev *sprd_hwlock;
 	struct hwspinlock *lock;
-	struct resource *res;
 	int i, ret;
 
 	if (!pdev->dev.of_node)
@@ -96,8 +95,7 @@ static int sprd_hwspinlock_probe(struct platform_device *pdev)
 	if (!sprd_hwlock)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sprd_hwlock->base = devm_ioremap_resource(&pdev->dev, res);
+	sprd_hwlock->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sprd_hwlock->base))
 		return PTR_ERR(sprd_hwlock->base);
 
