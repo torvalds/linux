@@ -1057,7 +1057,6 @@ static int sprd_dma_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct sprd_dma_dev *sdev;
 	struct sprd_dma_chn *dma_chn;
-	struct resource *res;
 	u32 chn_count;
 	int ret, i;
 
@@ -1103,8 +1102,7 @@ static int sprd_dma_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "no interrupts for the dma controller\n");
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sdev->glb_base = devm_ioremap_resource(&pdev->dev, res);
+	sdev->glb_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sdev->glb_base))
 		return PTR_ERR(sdev->glb_base);
 
