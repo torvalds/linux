@@ -358,8 +358,7 @@ static int __init ingenic_tcu_probe(struct device_node *np)
 		}
 	}
 
-	tcu->clocks = kzalloc(sizeof(*tcu->clocks) +
-			      sizeof(*tcu->clocks->hws) * TCU_CLK_COUNT,
+	tcu->clocks = kzalloc(struct_size(tcu->clocks, hws, TCU_CLK_COUNT),
 			      GFP_KERNEL);
 	if (!tcu->clocks) {
 		ret = -ENOMEM;
