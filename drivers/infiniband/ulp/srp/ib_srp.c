@@ -1365,7 +1365,8 @@ static void srp_terminate_io(struct srp_rport *rport)
 }
 
 /* Calculate maximum initiator to target information unit length. */
-static uint32_t srp_max_it_iu_len(int cmd_sg_cnt, bool use_imm_data)
+static uint32_t srp_max_it_iu_len(int cmd_sg_cnt, bool use_imm_data,
+				  uint32_t max_it_iu_size)
 {
 	uint32_t max_iu_len = sizeof(struct srp_cmd) + SRP_MAX_ADD_CDB_LEN +
 		sizeof(struct srp_indirect_buf) +
@@ -1374,6 +1375,11 @@ static uint32_t srp_max_it_iu_len(int cmd_sg_cnt, bool use_imm_data)
 	if (use_imm_data)
 		max_iu_len = max(max_iu_len, SRP_IMM_DATA_OFFSET +
 				 srp_max_imm_data);
+
+	if (max_it_iu_size)
+		max_iu_len = min(max_iu_len, max_it_iu_size);
+
+	pr_debug("max_iu_len = %d\n", max_iu_len);
 
 	return max_iu_len;
 }
@@ -1392,7 +1398,8 @@ static int srp_rport_reconnect(struct srp_rport *rport)
 	struct srp_target_port *target = rport->lld_data;
 	struct srp_rdma_ch *ch;
 	uint32_t max_iu_len = srp_max_it_iu_len(target->cmd_sg_cnt,
-						srp_use_imm_data);
+						srp_use_imm_data,
+						target->max_it_iu_size);
 	int i, j, ret = 0;
 	bool multich = false;
 
@@ -2541,7 +2548,8 @@ static void srp_cm_rep_handler(struct ib_cm_id *cm_id,
 		ch->req_lim       = be32_to_cpu(lrsp->req_lim_delta);
 		ch->use_imm_data  = lrsp->rsp_flags & SRP_LOGIN_RSP_IMMED_SUPP;
 		ch->max_it_iu_len = srp_max_it_iu_len(target->cmd_sg_cnt,
-						      ch->use_imm_data);
+						      ch->use_imm_data,
+						      target->max_it_iu_size);
 		WARN_ON_ONCE(ch->max_it_iu_len >
 			     be32_to_cpu(lrsp->max_it_iu_len));
 
@@ -3900,7 +3908,9 @@ static ssize_t srp_create_target(struct device *dev,
 	target->mr_per_cmd = mr_per_cmd;
 	target->indirect_size = target->sg_tablesize *
 				sizeof (struct srp_direct_buf);
-	max_iu_len = srp_max_it_iu_len(target->cmd_sg_cnt, srp_use_imm_data);
+	max_iu_len = srp_max_it_iu_len(target->cmd_sg_cnt,
+				       srp_use_imm_data,
+				       target->max_it_iu_size);
 
 	INIT_WORK(&target->tl_err_work, srp_tl_err_work);
 	INIT_WORK(&target->remove_work, srp_remove_work);
