@@ -182,6 +182,7 @@ struct drm_i915_private *mock_gem_device(void)
 	i915_gem_init__mm(i915);
 	intel_gt_init_early(&i915->gt, i915);
 	atomic_inc(&i915->gt.wakeref.count); /* disable; no hw support */
+	i915->gt.awake = -ENODEV;
 
 	i915->wq = alloc_ordered_workqueue("mock", 0);
 	if (!i915->wq)
@@ -191,8 +192,6 @@ struct drm_i915_private *mock_gem_device(void)
 
 	INIT_DELAYED_WORK(&i915->gem.retire_work, mock_retire_work_handler);
 	INIT_WORK(&i915->gem.idle_work, mock_idle_work_handler);
-
-	i915->gt.awake = -1;
 
 	intel_timelines_init(i915);
 

@@ -57,7 +57,7 @@ int intel_gt_runtime_resume(struct intel_gt *gt);
 
 static inline bool is_mock_gt(const struct intel_gt *gt)
 {
-	return I915_SELFTEST_ONLY(gt->awake == -1);
+	return I915_SELFTEST_ONLY(gt->awake == -ENODEV);
 }
 
 #endif /* INTEL_GT_PM_H */
