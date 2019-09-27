@@ -77,6 +77,11 @@
 #define LSD(x)  ((u32)((u64)(x)))
 #define MSD(x)  ((u32)((((u64)(x)) >> 32)))
 
+/* In some cases, the device interprets a value of 0x0000 as 65536. These
+ * cases are marked using the following macro.
+ */
+#define QLGE_FIT16(value) ((u16)(value))
+
 /* MPI test register definitions. This register
  * is used for determining alternate NIC function's
  * PCI->func number.

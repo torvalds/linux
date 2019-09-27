@@ -2974,7 +2974,6 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	void __iomem *doorbell_area =
 	    qdev->doorbell_area + (DB_PAGE_SIZE * (128 + rx_ring->cq_id));
 	int err = 0;
-	u16 bq_len;
 	u64 tmp;
 	__le64 *base_indirect_ptr;
 	int page_entries;
@@ -3009,8 +3008,8 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	memset((void *)cqicb, 0, sizeof(struct cqicb));
 	cqicb->msix_vect = rx_ring->irq;
 
-	bq_len = (rx_ring->cq_len == 65536) ? 0 : (u16) rx_ring->cq_len;
-	cqicb->len = cpu_to_le16(bq_len | LEN_V | LEN_CPP_CONT);
+	cqicb->len = cpu_to_le16(QLGE_FIT16(rx_ring->cq_len) | LEN_V |
+				 LEN_CPP_CONT);
 
 	cqicb->addr = cpu_to_le64(rx_ring->cq_base_dma);
 
@@ -3034,12 +3033,9 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 			page_entries++;
 		} while (page_entries < MAX_DB_PAGES_PER_BQ(rx_ring->lbq.len));
 		cqicb->lbq_addr = cpu_to_le64(rx_ring->lbq.base_indirect_dma);
-		bq_len = qdev->lbq_buf_size == 65536 ? 0 :
-			(u16)qdev->lbq_buf_size;
-		cqicb->lbq_buf_size = cpu_to_le16(bq_len);
-		bq_len = (rx_ring->lbq.len == 65536) ? 0 :
-			(u16)rx_ring->lbq.len;
-		cqicb->lbq_len = cpu_to_le16(bq_len);
+		cqicb->lbq_buf_size =
+			cpu_to_le16(QLGE_FIT16(qdev->lbq_buf_size));
+		cqicb->lbq_len = cpu_to_le16(QLGE_FIT16(rx_ring->lbq.len));
 		rx_ring->lbq.prod_idx = 0;
 		rx_ring->lbq.curr_idx = 0;
 		rx_ring->lbq.clean_idx = 0;
@@ -3059,9 +3055,7 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 		cqicb->sbq_addr =
 		    cpu_to_le64(rx_ring->sbq.base_indirect_dma);
 		cqicb->sbq_buf_size = cpu_to_le16(SMALL_BUFFER_SIZE);
-		bq_len = (rx_ring->sbq.len == 65536) ? 0 :
-			(u16)rx_ring->sbq.len;
-		cqicb->sbq_len = cpu_to_le16(bq_len);
+		cqicb->sbq_len = cpu_to_le16(QLGE_FIT16(rx_ring->sbq.len));
 		rx_ring->sbq.prod_idx = 0;
 		rx_ring->sbq.curr_idx = 0;
 		rx_ring->sbq.clean_idx = 0;
