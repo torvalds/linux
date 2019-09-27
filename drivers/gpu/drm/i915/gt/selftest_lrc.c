@@ -1310,7 +1310,7 @@ static int live_preempt_hang(void *arg)
 	if (!HAS_LOGICAL_RING_PREEMPTION(i915))
 		return 0;
 
-	if (!intel_has_reset_engine(i915))
+	if (!intel_has_reset_engine(&i915->gt))
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);

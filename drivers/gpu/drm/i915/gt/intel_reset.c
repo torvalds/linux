@@ -546,8 +546,10 @@ typedef int (*reset_func)(struct intel_gt *,
 			  intel_engine_mask_t engine_mask,
 			  unsigned int retry);
 
-static reset_func intel_get_gpu_reset(struct drm_i915_private *i915)
+static reset_func intel_get_gpu_reset(const struct intel_gt *gt)
 {
+	struct drm_i915_private *i915 = gt->i915;
+
 	if (INTEL_GEN(i915) >= 8)
 		return gen8_reset_engines;
 	else if (INTEL_GEN(i915) >= 6)
@@ -571,7 +573,7 @@ int __intel_gt_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask)
 	int ret = -ETIMEDOUT;
 	int retry;
 
-	reset = intel_get_gpu_reset(gt->i915);
+	reset = intel_get_gpu_reset(gt);
 	if (!reset)
 		return -ENODEV;
 
@@ -591,17 +593,20 @@ int __intel_gt_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask)
 	return ret;
 }
 
-bool intel_has_gpu_reset(struct drm_i915_private *i915)
+bool intel_has_gpu_reset(const struct intel_gt *gt)
 {
 	if (!i915_modparams.reset)
 		return NULL;
 
-	return intel_get_gpu_reset(i915);
+	return intel_get_gpu_reset(gt);
 }
 
-bool intel_has_reset_engine(struct drm_i915_private *i915)
+bool intel_has_reset_engine(const struct intel_gt *gt)
 {
-	return INTEL_INFO(i915)->has_reset_engine && i915_modparams.reset >= 2;
+	if (i915_modparams.reset < 2)
+		return false;
+
+	return INTEL_INFO(gt->i915)->has_reset_engine;
 }
 
 int intel_reset_guc(struct intel_gt *gt)
@@ -958,7 +963,7 @@ void intel_gt_reset(struct intel_gt *gt,
 
 	awake = reset_prepare(gt);
 
-	if (!intel_has_gpu_reset(gt->i915)) {
+	if (!intel_has_gpu_reset(gt)) {
 		if (i915_modparams.reset)
 			dev_err(gt->i915->drm.dev, "GPU reset not supported\n");
 		else
@@ -1179,7 +1184,7 @@ void intel_gt_handle_error(struct intel_gt *gt,
 	 * Try engine reset when available. We fall back to full reset if
 	 * single reset fails.
 	 */
-	if (intel_has_reset_engine(gt->i915) && !intel_gt_is_wedged(gt)) {
+	if (intel_has_reset_engine(gt) && !intel_gt_is_wedged(gt)) {
 		for_each_engine_masked(engine, gt->i915, engine_mask, tmp) {
 			BUILD_BUG_ON(I915_RESET_MODESET >= I915_RESET_ENGINE);
 			if (test_and_set_bit(I915_RESET_ENGINE + engine->id,

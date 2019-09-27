@@ -458,7 +458,7 @@ static int igt_reset_nop_engine(void *arg)
 
 	/* Check that we can engine-reset during non-user portions */
 
-	if (!intel_has_reset_engine(gt->i915))
+	if (!intel_has_reset_engine(gt))
 		return 0;
 
 	file = mock_file(gt->i915);
@@ -559,7 +559,7 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 
 	/* Check that we can issue an engine reset on an idle engine (no-op) */
 
-	if (!intel_has_reset_engine(gt->i915))
+	if (!intel_has_reset_engine(gt))
 		return 0;
 
 	if (active) {
@@ -791,7 +791,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 	 * with any other engine.
 	 */
 
-	if (!intel_has_reset_engine(gt->i915))
+	if (!intel_has_reset_engine(gt))
 		return 0;
 
 	if (flags & TEST_ACTIVE) {
@@ -1547,7 +1547,7 @@ static int igt_handle_error(void *arg)
 
 	/* Check that we can issue a global GPU and engine reset */
 
-	if (!intel_has_reset_engine(gt->i915))
+	if (!intel_has_reset_engine(gt))
 		return 0;
 
 	if (!engine || !intel_engine_can_store_dword(engine))
@@ -1689,7 +1689,7 @@ static int igt_reset_engines_atomic(void *arg)
 
 	/* Check that the engines resets are usable from atomic context */
 
-	if (!intel_has_reset_engine(gt->i915))
+	if (!intel_has_reset_engine(gt))
 		return 0;
 
 	if (USES_GUC_SUBMISSION(gt->i915))
@@ -1746,7 +1746,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	bool saved_hangcheck;
 	int err;
 
-	if (!intel_has_gpu_reset(gt->i915))
+	if (!intel_has_gpu_reset(gt))
 		return 0;
 
 	if (intel_gt_is_wedged(gt))
