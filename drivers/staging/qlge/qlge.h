@@ -1982,11 +1982,6 @@ struct intr_context {
 	u32 intr_dis_mask;	/* value/mask used to disable this intr */
 	u32 intr_read_mask;	/* value/mask used to read this intr */
 	char name[IFNAMSIZ * 2];
-	atomic_t irq_cnt;	/* irq_cnt is used in single vector
-				 * environment.  It's incremented for each
-				 * irq handler that is scheduled.  When each
-				 * handler finishes it decrements irq_cnt and
-				 * enables interrupts if it's zero. */
 	irq_handler_t handler;
 };
 
@@ -2074,7 +2069,6 @@ struct ql_adapter {
 	u32 port;		/* Port number this adapter */
 
 	spinlock_t adapter_lock;
-	spinlock_t hw_lock;
 	spinlock_t stats_lock;
 
 	/* PCI Bus Relative Register Addresses */
@@ -2235,7 +2229,6 @@ void ql_mpi_reset_work(struct work_struct *work);
 void ql_mpi_core_to_log(struct work_struct *work);
 int ql_wait_reg_rdy(struct ql_adapter *qdev, u32 reg, u32 bit, u32 ebit);
 void ql_queue_asic_error(struct ql_adapter *qdev);
-u32 ql_enable_completion_interrupt(struct ql_adapter *qdev, u32 intr);
 void ql_set_ethtool_ops(struct net_device *ndev);
 int ql_read_xgmac_reg64(struct ql_adapter *qdev, u32 reg, u64 *data);
 void ql_mpi_idc_work(struct work_struct *work);
