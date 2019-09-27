@@ -2913,8 +2913,6 @@ bool dcn20_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
 	int i;
 	uint32_t pipe_count = pool->res_cap->num_dwb;
 
-	ASSERT(pipe_count > 0);
-
 	for (i = 0; i < pipe_count; i++) {
 		struct dcn20_dwbc *dwbc20 = kzalloc(sizeof(struct dcn20_dwbc),
 						    GFP_KERNEL);
