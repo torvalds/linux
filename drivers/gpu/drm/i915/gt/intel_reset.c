@@ -821,6 +821,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	struct intel_gt_timelines *timelines = &gt->timelines;
 	struct intel_timeline *tl;
 	unsigned long flags;
+	bool ok;
 
 	if (!test_bit(I915_WEDGED, &gt->reset.flags))
 		return true;
@@ -867,7 +868,12 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	}
 	spin_unlock_irqrestore(&timelines->lock, flags);
 
-	intel_gt_sanitize(gt, false);
+	/* We must reset pending GPU events before restoring our submission */
+	ok = !HAS_EXECLISTS(gt->i915); /* XXX better agnosticism desired */
+	if (!INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
+		ok = __intel_gt_reset(gt, ALL_ENGINES) == 0;
+	if (!ok)
+		return false;
 
 	/*
 	 * Undo nop_submit_request. We prevent all new i915 requests from
