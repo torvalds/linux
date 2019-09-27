@@ -3422,10 +3422,8 @@ static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int whence)
 	int ret;
 
 	switch (whence) {
-	case SEEK_END:
-	case SEEK_CUR:
-		offset = generic_file_llseek(file, offset, whence);
-		goto out;
+	default:
+		return generic_file_llseek(file, offset, whence);
 	case SEEK_DATA:
 	case SEEK_HOLE:
 		inode_lock_shared(inode);
@@ -3436,9 +3434,7 @@ static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int whence)
 			return ret;
 	}
 
-	offset = vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
-out:
-	return offset;
+	return vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
 }
 
 static int btrfs_file_open(struct inode *inode, struct file *filp)
