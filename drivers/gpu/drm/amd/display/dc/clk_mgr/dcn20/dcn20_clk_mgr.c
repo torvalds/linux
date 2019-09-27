@@ -260,6 +260,8 @@ void dcn2_update_clocks_fpga(struct clk_mgr *clk_mgr,
 		struct dc_state *context,
 		bool safe_to_lower)
 {
+	struct clk_mgr_internal *clk_mgr_int = TO_CLK_MGR_INTERNAL(clk_mgr);
+
 	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
 	/* Min fclk = 1.2GHz since all the extra scemi logic seems to run off of it */
 	int fclk_adj = new_clocks->fclk_khz > 1200000 ? new_clocks->fclk_khz : 1200000;
@@ -297,13 +299,17 @@ void dcn2_update_clocks_fpga(struct clk_mgr *clk_mgr,
 		clk_mgr->clks.dispclk_khz = new_clocks->dispclk_khz;
 	}
 
-	/* Both fclk and dppclk ref are run on the same scemi clock so we
-	 * need to keep the same value for both
+	/* Both fclk and ref_dppclk run on the same scemi clock.
+	 * So take the higher value since the DPP DTO is typically programmed
+	 * such that max dppclk is 1:1 with ref_dppclk.
 	 */
 	if (clk_mgr->clks.fclk_khz > clk_mgr->clks.dppclk_khz)
 		clk_mgr->clks.dppclk_khz = clk_mgr->clks.fclk_khz;
 	if (clk_mgr->clks.dppclk_khz > clk_mgr->clks.fclk_khz)
 		clk_mgr->clks.fclk_khz = clk_mgr->clks.dppclk_khz;
+
+	// Both fclk and ref_dppclk run on the same scemi clock.
+	clk_mgr_int->dccg->ref_dppclk = clk_mgr->clks.fclk_khz;
 
 	dm_set_dcn_clocks(clk_mgr->ctx, &clk_mgr->clks);
 }
