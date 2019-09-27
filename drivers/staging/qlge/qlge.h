@@ -34,8 +34,13 @@
 #define NUM_TX_RING_ENTRIES	256
 #define NUM_RX_RING_ENTRIES	256
 
-#define NUM_SMALL_BUFFERS   512
-#define NUM_LARGE_BUFFERS   512
+/* Use the same len for sbq and lbq. Note that it seems like the device might
+ * support different sizes.
+ */
+#define QLGE_BQ_SHIFT 9
+#define QLGE_BQ_LEN BIT(QLGE_BQ_SHIFT)
+#define QLGE_BQ_SIZE (QLGE_BQ_LEN * sizeof(__le64))
+
 #define DB_PAGE_SIZE 4096
 
 /* Calculate the number of (4k) pages required to
@@ -46,8 +51,8 @@
 		(((x * sizeof(u64)) % DB_PAGE_SIZE) ? 1 : 0))
 
 #define RX_RING_SHADOW_SPACE	(sizeof(u64) + \
-		MAX_DB_PAGES_PER_BQ(NUM_SMALL_BUFFERS) * sizeof(u64) + \
-		MAX_DB_PAGES_PER_BQ(NUM_LARGE_BUFFERS) * sizeof(u64))
+		MAX_DB_PAGES_PER_BQ(QLGE_BQ_LEN) * sizeof(u64) + \
+		MAX_DB_PAGES_PER_BQ(QLGE_BQ_LEN) * sizeof(u64))
 #define LARGE_BUFFER_MAX_SIZE 8192
 #define LARGE_BUFFER_MIN_SIZE 2048
 
@@ -1419,8 +1424,6 @@ struct qlge_bq {
 	dma_addr_t base_indirect_dma;
 	struct qlge_bq_desc *queue;
 	void __iomem *prod_idx_db_reg;
-	u32 len;			/* entry count */
-	u32 size;			/* size in bytes of hw ring */
 	u32 prod_idx;			/* current sw prod idx */
 	u32 curr_idx;			/* next entry we expect */
 	u32 clean_idx;			/* beginning of new descs */
@@ -1438,6 +1441,8 @@ struct qlge_bq {
 					  offsetof(struct rx_ring, sbq) : \
 					  offsetof(struct rx_ring, lbq))); \
 })
+
+#define QLGE_BQ_WRAP(index) ((index) & (QLGE_BQ_LEN - 1))
 
 struct rx_ring {
 	struct cqicb cqicb;	/* The chip's completion queue init control block. */
