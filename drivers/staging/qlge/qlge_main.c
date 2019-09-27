@@ -982,9 +982,8 @@ static struct qlge_bq_desc *qlge_get_curr_buf(struct qlge_bq *bq)
 {
 	struct qlge_bq_desc *bq_desc;
 
-	bq_desc = &bq->queue[bq->curr_idx];
-	bq->curr_idx = QLGE_BQ_WRAP(bq->curr_idx + 1);
-	bq->free_cnt++;
+	bq_desc = &bq->queue[bq->next_to_clean];
+	bq->next_to_clean = QLGE_BQ_WRAP(bq->next_to_clean + 1);
 
 	return bq_desc;
 }
@@ -1114,9 +1113,9 @@ static void qlge_refill_bq(struct qlge_bq *bq)
 {
 	struct rx_ring *rx_ring = QLGE_BQ_CONTAINER(bq);
 	struct ql_adapter *qdev = rx_ring->qdev;
-	u32 clean_idx = bq->clean_idx;
+	struct qlge_bq_desc *bq_desc;
+	int free_count, refill_count;
 	unsigned int reserved_count;
-	u32 start_idx = clean_idx;
 	int i;
 
 	if (bq->type == QLGE_SB)
@@ -1124,44 +1123,52 @@ static void qlge_refill_bq(struct qlge_bq *bq)
 	else
 		reserved_count = 32;
 
-	while (bq->free_cnt > reserved_count) {
-		for (i = (bq->clean_idx % 16); i < 16; i++) {
-			struct qlge_bq_desc *bq_desc = &bq->queue[clean_idx];
-			int retval;
+	free_count = bq->next_to_clean - bq->next_to_use;
+	if (free_count <= 0)
+		free_count += QLGE_BQ_LEN;
 
-			netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
-				     "ring %u %s: try cleaning clean_idx = %d.\n",
-				     rx_ring->cq_id, bq_type_name[bq->type],
-				     clean_idx);
+	refill_count = free_count - reserved_count;
+	/* refill batch size */
+	if (refill_count < 16)
+		return;
 
-			if (bq->type == QLGE_SB)
-				retval = qlge_refill_sb(rx_ring, bq_desc);
-			else
-				retval = qlge_refill_lb(rx_ring, bq_desc);
-			if (retval < 0) {
-				bq->clean_idx = clean_idx;
-				netif_err(qdev, ifup, qdev->ndev,
-					  "ring %u %s: Could not get a page chunk, i=%d, clean_idx =%d .\n",
-					  rx_ring->cq_id,
-					  bq_type_name[bq->type], i,
-					  clean_idx);
-				return;
-			}
+	i = bq->next_to_use;
+	bq_desc = &bq->queue[i];
+	i -= QLGE_BQ_LEN;
+	do {
+		int retval;
 
-			clean_idx = QLGE_BQ_WRAP(clean_idx + 1);
+		netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
+			     "ring %u %s: try cleaning idx %d\n",
+			     rx_ring->cq_id, bq_type_name[bq->type], i);
+
+		if (bq->type == QLGE_SB)
+			retval = qlge_refill_sb(rx_ring, bq_desc);
+		else
+			retval = qlge_refill_lb(rx_ring, bq_desc);
+		if (retval < 0) {
+			netif_err(qdev, ifup, qdev->ndev,
+				  "ring %u %s: Could not get a page chunk, idx %d\n",
+				  rx_ring->cq_id, bq_type_name[bq->type], i);
+			break;
 		}
 
-		bq->clean_idx = clean_idx;
-		bq->prod_idx = QLGE_BQ_WRAP(bq->prod_idx + 16);
-		bq->free_cnt -= 16;
-	}
+		bq_desc++;
+		i++;
+		if (unlikely(!i)) {
+			bq_desc = &bq->queue[0];
+			i -= QLGE_BQ_LEN;
+		}
+		refill_count--;
+	} while (refill_count);
+	i += QLGE_BQ_LEN;
 
-	if (start_idx != clean_idx) {
+	if (bq->next_to_use != i) {
 		netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
 			     "ring %u %s: updating prod idx = %d.\n",
-			     rx_ring->cq_id, bq_type_name[bq->type],
-			     bq->prod_idx);
-		ql_write_db_reg(bq->prod_idx, bq->prod_idx_db_reg);
+			     rx_ring->cq_id, bq_type_name[bq->type], i);
+		bq->next_to_use = i;
+		ql_write_db_reg(bq->next_to_use, bq->prod_idx_db_reg);
 	}
 }
 
@@ -2709,25 +2716,21 @@ pci_alloc_err:
 
 static void ql_free_lbq_buffers(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 {
+	struct qlge_bq *lbq = &rx_ring->lbq;
 	unsigned int last_offset;
 
-	uint32_t  curr_idx, clean_idx;
-
 	last_offset = ql_lbq_block_size(qdev) - qdev->lbq_buf_size;
-	curr_idx = rx_ring->lbq.curr_idx;
-	clean_idx = rx_ring->lbq.clean_idx;
-	while (curr_idx != clean_idx) {
-		struct qlge_bq_desc *lbq_desc = &rx_ring->lbq.queue[curr_idx];
+	while (lbq->next_to_clean != lbq->next_to_use) {
+		struct qlge_bq_desc *lbq_desc =
+			&lbq->queue[lbq->next_to_clean];
 
 		if (lbq_desc->p.pg_chunk.offset == last_offset)
 			pci_unmap_page(qdev->pdev, lbq_desc->dma_addr,
 				       ql_lbq_block_size(qdev),
 				       PCI_DMA_FROMDEVICE);
-
 		put_page(lbq_desc->p.pg_chunk.page);
-		lbq_desc->p.pg_chunk.page = NULL;
 
-		curr_idx = QLGE_BQ_WRAP(curr_idx + 1);
+		lbq->next_to_clean = QLGE_BQ_WRAP(lbq->next_to_clean + 1);
 	}
 
 	if (rx_ring->master_chunk.page) {
@@ -3024,10 +3027,8 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 		cqicb->lbq_buf_size =
 			cpu_to_le16(QLGE_FIT16(qdev->lbq_buf_size));
 		cqicb->lbq_len = cpu_to_le16(QLGE_FIT16(QLGE_BQ_LEN));
-		rx_ring->lbq.prod_idx = 0;
-		rx_ring->lbq.curr_idx = 0;
-		rx_ring->lbq.clean_idx = 0;
-		rx_ring->lbq.free_cnt = QLGE_BQ_LEN;
+		rx_ring->lbq.next_to_use = 0;
+		rx_ring->lbq.next_to_clean = 0;
 
 		cqicb->flags |= FLAGS_LS;	/* Load sbq values */
 		tmp = (u64)rx_ring->sbq.base_dma;
@@ -3043,10 +3044,8 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 		    cpu_to_le64(rx_ring->sbq.base_indirect_dma);
 		cqicb->sbq_buf_size = cpu_to_le16(SMALL_BUFFER_SIZE);
 		cqicb->sbq_len = cpu_to_le16(QLGE_FIT16(QLGE_BQ_LEN));
-		rx_ring->sbq.prod_idx = 0;
-		rx_ring->sbq.curr_idx = 0;
-		rx_ring->sbq.clean_idx = 0;
-		rx_ring->sbq.free_cnt = QLGE_BQ_LEN;
+		rx_ring->sbq.next_to_use = 0;
+		rx_ring->sbq.next_to_clean = 0;
 	}
 	if (rx_ring->cq_id < qdev->rss_ring_count) {
 		/* Inbound completion handling rx_rings run in

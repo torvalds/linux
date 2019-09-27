@@ -1776,8 +1776,8 @@ void ql_dump_rx_ring(struct rx_ring *rx_ring)
 	pr_err("rx_ring->lbq = %p\n", rx_ring->lbq.queue);
 	pr_err("rx_ring->lbq.prod_idx_db_reg = %p\n",
 	       rx_ring->lbq.prod_idx_db_reg);
-	pr_err("rx_ring->lbq.prod_idx = %d\n", rx_ring->lbq.prod_idx);
-	pr_err("rx_ring->lbq.curr_idx = %d\n", rx_ring->lbq.curr_idx);
+	pr_err("rx_ring->lbq.next_to_use = %d\n", rx_ring->lbq.next_to_use);
+	pr_err("rx_ring->lbq.next_to_clean = %d\n", rx_ring->lbq.next_to_clean);
 	pr_err("rx_ring->lbq_clean_idx = %d\n", rx_ring->lbq_clean_idx);
 	pr_err("rx_ring->lbq_free_cnt = %d\n", rx_ring->lbq_free_cnt);
 
@@ -1791,10 +1791,8 @@ void ql_dump_rx_ring(struct rx_ring *rx_ring)
 	pr_err("rx_ring->sbq = %p\n", rx_ring->sbq.queue);
 	pr_err("rx_ring->sbq.prod_idx_db_reg addr = %p\n",
 	       rx_ring->sbq.prod_idx_db_reg);
-	pr_err("rx_ring->sbq.prod_idx = %d\n", rx_ring->sbq.prod_idx);
-	pr_err("rx_ring->sbq.curr_idx = %d\n", rx_ring->sbq.curr_idx);
-	pr_err("rx_ring->sbq.clean_idx = %d\n", rx_ring->sbq.clean_idx);
-	pr_err("rx_ring->sbq.free_cnt = %d\n", rx_ring->sbq.free_cnt);
+	pr_err("rx_ring->sbq.next_to_use = %d\n", rx_ring->sbq.next_to_use);
+	pr_err("rx_ring->sbq.next_to_clean = %d\n", rx_ring->sbq.next_to_clean);
 	pr_err("rx_ring->cq_id = %d\n", rx_ring->cq_id);
 	pr_err("rx_ring->irq = %d\n", rx_ring->irq);
 	pr_err("rx_ring->cpu = %d\n", rx_ring->cpu);

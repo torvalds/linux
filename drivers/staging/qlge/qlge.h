@@ -1424,10 +1424,10 @@ struct qlge_bq {
 	dma_addr_t base_indirect_dma;
 	struct qlge_bq_desc *queue;
 	void __iomem *prod_idx_db_reg;
-	u32 prod_idx;			/* current sw prod idx */
-	u32 curr_idx;			/* next entry we expect */
-	u32 clean_idx;			/* beginning of new descs */
-	u32 free_cnt;			/* free buffer desc cnt */
+	/* next index where sw should refill a buffer for hw */
+	u16 next_to_use;
+	/* next index where sw expects to find a buffer filled by hw */
+	u16 next_to_clean;
 	enum {
 		QLGE_SB,		/* small buffer */
 		QLGE_LB,		/* large buffer */
