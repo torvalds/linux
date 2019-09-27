@@ -688,6 +688,7 @@ static void __init balloon_add_region(unsigned long start_pfn,
 		/* totalram_pages and totalhigh_pages do not
 		   include the boot-time balloon extension, so
 		   don't subtract from it. */
+		__SetPageOffline(page);
 		__balloon_append(page);
 	}
 
