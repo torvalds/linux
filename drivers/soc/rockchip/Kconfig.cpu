@@ -31,6 +31,10 @@ config CPU_RV110X
 	bool "RV1107/8"
 	depends on ARM
 
+config CPU_RV1126
+	bool "RV1109/26"
+	depends on ARM
+
 config CPU_PX30
 	bool "PX30"
 
