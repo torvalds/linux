@@ -19,6 +19,7 @@ struct blk_flush_queue {
 	unsigned int		flush_queue_delayed:1;
 	unsigned int		flush_pending_idx:1;
 	unsigned int		flush_running_idx:1;
+	blk_status_t 		rq_status;
 	unsigned long		flush_pending_since;
 	struct list_head	flush_queue[2];
 	struct list_head	flush_data_in_flight;
@@ -45,6 +46,12 @@ blk_get_flush_queue(struct request_queue *q, struct blk_mq_ctx *ctx)
 static inline void __blk_get_queue(struct request_queue *q)
 {
 	kobject_get(&q->kobj);
+}
+
+static inline bool
+is_flush_rq(struct request *req, struct blk_mq_hw_ctx *hctx)
+{
+	return hctx->fq->flush_rq == req;
 }
 
 struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
