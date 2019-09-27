@@ -1060,7 +1060,6 @@ static int kvmppc_xive_native_create(struct kvm_device *dev, u32 type)
 {
 	struct kvmppc_xive *xive;
 	struct kvm *kvm = dev->kvm;
-	int ret = 0;
 
 	pr_devel("Creating xive native device\n");
 
@@ -1077,22 +1076,15 @@ static int kvmppc_xive_native_create(struct kvm_device *dev, u32 type)
 	mutex_init(&xive->mapping_lock);
 	mutex_init(&xive->lock);
 
-	/*
-	 * Allocate a bunch of VPs. KVM_MAX_VCPUS is a large value for
-	 * a default. Getting the max number of CPUs the VM was
-	 * configured with would improve our usage of the XIVE VP space.
+	/* VP allocation is delayed to the first call to connect_vcpu */
+	xive->vp_base = XIVE_INVALID_VP;
+	/* KVM_MAX_VCPUS limits the number of VMs to roughly 64 per sockets
+	 * on a POWER9 system.
 	 */
-	xive->vp_base = xive_native_alloc_vp_block(KVM_MAX_VCPUS);
-	pr_devel("VP_Base=%x\n", xive->vp_base);
-
-	if (xive->vp_base == XIVE_INVALID_VP)
-		ret = -ENXIO;
+	xive->nr_servers = KVM_MAX_VCPUS;
 
 	xive->single_escalation = xive_native_has_single_escalation();
 	xive->ops = &kvmppc_xive_native_ops;
-
-	if (ret)
-		return ret;
 
 	kvm->arch.xive = xive;
 	return 0;
