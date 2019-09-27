@@ -542,6 +542,13 @@ skip_reset:
 	return ret;
 }
 
+static int mock_reset(struct intel_gt *gt,
+		      intel_engine_mask_t mask,
+		      unsigned int retry)
+{
+	return 0;
+}
+
 typedef int (*reset_func)(struct intel_gt *,
 			  intel_engine_mask_t engine_mask,
 			  unsigned int retry);
@@ -550,7 +557,9 @@ static reset_func intel_get_gpu_reset(const struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
 
-	if (INTEL_GEN(i915) >= 8)
+	if (is_mock_gt(gt))
+		return mock_reset;
+	else if (INTEL_GEN(i915) >= 8)
 		return gen8_reset_engines;
 	else if (INTEL_GEN(i915) >= 6)
 		return gen6_reset_engines;
