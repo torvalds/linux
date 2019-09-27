@@ -1363,7 +1363,6 @@ struct page_chunk {
 	char *va;		/* virt addr for this chunk */
 	u64 map;		/* mapping for master */
 	unsigned int offset;	/* offset for this chunk */
-	unsigned int last_flag; /* flag set for last chunk in page */
 };
 
 struct bq_desc {

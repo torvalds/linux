@@ -1077,11 +1077,9 @@ static int ql_get_next_chunk(struct ql_adapter *qdev, struct rx_ring *rx_ring,
 	rx_ring->pg_chunk.offset += rx_ring->lbq_buf_size;
 	if (rx_ring->pg_chunk.offset == ql_lbq_block_size(qdev)) {
 		rx_ring->pg_chunk.page = NULL;
-		lbq_desc->p.pg_chunk.last_flag = 1;
 	} else {
 		rx_ring->pg_chunk.va += rx_ring->lbq_buf_size;
 		get_page(rx_ring->pg_chunk.page);
-		lbq_desc->p.pg_chunk.last_flag = 0;
 	}
 	return 0;
 }
@@ -2778,6 +2776,8 @@ pci_alloc_err:
 
 static void ql_free_lbq_buffers(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 {
+	unsigned int last_offset = ql_lbq_block_size(qdev) -
+		rx_ring->lbq_buf_size;
 	struct bq_desc *lbq_desc;
 
 	uint32_t  curr_idx, clean_idx;
@@ -2787,13 +2787,10 @@ static void ql_free_lbq_buffers(struct ql_adapter *qdev, struct rx_ring *rx_ring
 	while (curr_idx != clean_idx) {
 		lbq_desc = &rx_ring->lbq[curr_idx];
 
-		if (lbq_desc->p.pg_chunk.last_flag) {
-			pci_unmap_page(qdev->pdev,
-				lbq_desc->p.pg_chunk.map,
-				ql_lbq_block_size(qdev),
+		if (lbq_desc->p.pg_chunk.offset == last_offset)
+			pci_unmap_page(qdev->pdev, lbq_desc->p.pg_chunk.map,
+				       ql_lbq_block_size(qdev),
 				       PCI_DMA_FROMDEVICE);
-			lbq_desc->p.pg_chunk.last_flag = 0;
-		}
 
 		put_page(lbq_desc->p.pg_chunk.page);
 		lbq_desc->p.pg_chunk.page = NULL;
