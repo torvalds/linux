@@ -1358,23 +1358,6 @@ struct tx_ring_desc {
 	struct tx_ring_desc *next;
 };
 
-struct page_chunk {
-	struct page *page;	/* master page */
-	char *va;		/* virt addr for this chunk */
-	u64 map;		/* mapping for master */
-	unsigned int offset;	/* offset for this chunk */
-};
-
-struct bq_desc {
-	union {
-		struct page_chunk pg_chunk;
-		struct sk_buff *skb;
-	} p;
-	__le64 *addr;
-	u32 index;
-	DEFINE_DMA_UNMAP_ADDR(mapaddr);
-};
-
 #define QL_TXQ_IDX(qdev, skb) (smp_processor_id()%(qdev->tx_ring_count))
 
 struct tx_ring {
@@ -1413,6 +1396,56 @@ enum {
 	RX_Q = 4,		/* Handles inbound completions. */
 };
 
+struct qlge_page_chunk {
+	struct page *page;
+	void *va; /* virt addr including offset */
+	unsigned int offset;
+};
+
+struct qlge_bq_desc {
+	union {
+		/* for large buffers */
+		struct qlge_page_chunk pg_chunk;
+		/* for small buffers */
+		struct sk_buff *skb;
+	} p;
+	dma_addr_t dma_addr;
+	/* address in ring where the buffer address (dma_addr) is written for
+	 * the device
+	 */
+	__le64 *buf_ptr;
+	u32 index;
+	DEFINE_DMA_UNMAP_ADDR(mapaddr);
+};
+
+/* buffer queue */
+struct qlge_bq {
+	__le64 *base;
+	dma_addr_t base_dma;
+	__le64 *base_indirect;
+	dma_addr_t base_indirect_dma;
+	struct qlge_bq_desc *queue;
+	void __iomem *prod_idx_db_reg;
+	u32 len;			/* entry count */
+	u32 size;			/* size in bytes of hw ring */
+	u32 prod_idx;			/* current sw prod idx */
+	u32 curr_idx;			/* next entry we expect */
+	u32 clean_idx;			/* beginning of new descs */
+	u32 free_cnt;			/* free buffer desc cnt */
+	enum {
+		QLGE_SB,		/* small buffer */
+		QLGE_LB,		/* large buffer */
+	} type;
+};
+
+#define QLGE_BQ_CONTAINER(bq) \
+({ \
+	typeof(bq) _bq = bq; \
+	(struct rx_ring *)((char *)_bq - (_bq->type == QLGE_SB ? \
+					  offsetof(struct rx_ring, sbq) : \
+					  offsetof(struct rx_ring, lbq))); \
+})
+
 struct rx_ring {
 	struct cqicb cqicb;	/* The chip's completion queue init control block. */
 
@@ -1430,33 +1463,12 @@ struct rx_ring {
 	void __iomem *valid_db_reg;	/* PCI doorbell mem area + 0x04 */
 
 	/* Large buffer queue elements. */
-	u32 lbq_len;		/* entry count */
-	u32 lbq_size;		/* size in bytes of queue */
-	void *lbq_base;
-	dma_addr_t lbq_base_dma;
-	void *lbq_base_indirect;
-	dma_addr_t lbq_base_indirect_dma;
-	struct page_chunk pg_chunk; /* current page for chunks */
-	struct bq_desc *lbq;	/* array of control blocks */
-	void __iomem *lbq_prod_idx_db_reg;	/* PCI doorbell mem area + 0x18 */
-	u32 lbq_prod_idx;	/* current sw prod idx */
-	u32 lbq_curr_idx;	/* next entry we expect */
-	u32 lbq_clean_idx;	/* beginning of new descs */
-	u32 lbq_free_cnt;	/* free buffer desc cnt */
+	struct qlge_bq lbq;
+	struct qlge_page_chunk master_chunk;
+	dma_addr_t chunk_dma_addr;
 
 	/* Small buffer queue elements. */
-	u32 sbq_len;		/* entry count */
-	u32 sbq_size;		/* size in bytes of queue */
-	void *sbq_base;
-	dma_addr_t sbq_base_dma;
-	void *sbq_base_indirect;
-	dma_addr_t sbq_base_indirect_dma;
-	struct bq_desc *sbq;	/* array of control blocks */
-	void __iomem *sbq_prod_idx_db_reg; /* PCI doorbell mem area + 0x1c */
-	u32 sbq_prod_idx;	/* current sw prod idx */
-	u32 sbq_curr_idx;	/* next entry we expect */
-	u32 sbq_clean_idx;	/* beginning of new descs */
-	u32 sbq_free_cnt;	/* free buffer desc cnt */
+	struct qlge_bq sbq;
 
 	/* Misc. handler elements. */
 	u32 type;		/* Type of queue, tx, rx. */

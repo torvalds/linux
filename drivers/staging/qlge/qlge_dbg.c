@@ -1758,39 +1758,39 @@ void ql_dump_rx_ring(struct rx_ring *rx_ring)
 	pr_err("rx_ring->curr_entry = %p\n", rx_ring->curr_entry);
 	pr_err("rx_ring->valid_db_reg = %p\n", rx_ring->valid_db_reg);
 
-	pr_err("rx_ring->lbq_base = %p\n", rx_ring->lbq_base);
-	pr_err("rx_ring->lbq_base_dma = %llx\n",
-	       (unsigned long long) rx_ring->lbq_base_dma);
-	pr_err("rx_ring->lbq_base_indirect = %p\n",
-	       rx_ring->lbq_base_indirect);
-	pr_err("rx_ring->lbq_base_indirect_dma = %llx\n",
-	       (unsigned long long) rx_ring->lbq_base_indirect_dma);
-	pr_err("rx_ring->lbq = %p\n", rx_ring->lbq);
-	pr_err("rx_ring->lbq_len = %d\n", rx_ring->lbq_len);
-	pr_err("rx_ring->lbq_size = %d\n", rx_ring->lbq_size);
-	pr_err("rx_ring->lbq_prod_idx_db_reg = %p\n",
-	       rx_ring->lbq_prod_idx_db_reg);
-	pr_err("rx_ring->lbq_prod_idx = %d\n", rx_ring->lbq_prod_idx);
-	pr_err("rx_ring->lbq_curr_idx = %d\n", rx_ring->lbq_curr_idx);
+	pr_err("rx_ring->lbq.base = %p\n", rx_ring->lbq.base);
+	pr_err("rx_ring->lbq.base_dma = %llx\n",
+	       (unsigned long long)rx_ring->lbq.base_dma);
+	pr_err("rx_ring->lbq.base_indirect = %p\n",
+	       rx_ring->lbq.base_indirect);
+	pr_err("rx_ring->lbq.base_indirect_dma = %llx\n",
+	       (unsigned long long)rx_ring->lbq.base_indirect_dma);
+	pr_err("rx_ring->lbq = %p\n", rx_ring->lbq.queue);
+	pr_err("rx_ring->lbq.len = %d\n", rx_ring->lbq.len);
+	pr_err("rx_ring->lbq.size = %d\n", rx_ring->lbq.size);
+	pr_err("rx_ring->lbq.prod_idx_db_reg = %p\n",
+	       rx_ring->lbq.prod_idx_db_reg);
+	pr_err("rx_ring->lbq.prod_idx = %d\n", rx_ring->lbq.prod_idx);
+	pr_err("rx_ring->lbq.curr_idx = %d\n", rx_ring->lbq.curr_idx);
 	pr_err("rx_ring->lbq_clean_idx = %d\n", rx_ring->lbq_clean_idx);
 	pr_err("rx_ring->lbq_free_cnt = %d\n", rx_ring->lbq_free_cnt);
 
-	pr_err("rx_ring->sbq_base = %p\n", rx_ring->sbq_base);
-	pr_err("rx_ring->sbq_base_dma = %llx\n",
-	       (unsigned long long) rx_ring->sbq_base_dma);
-	pr_err("rx_ring->sbq_base_indirect = %p\n",
-	       rx_ring->sbq_base_indirect);
-	pr_err("rx_ring->sbq_base_indirect_dma = %llx\n",
-	       (unsigned long long) rx_ring->sbq_base_indirect_dma);
-	pr_err("rx_ring->sbq = %p\n", rx_ring->sbq);
-	pr_err("rx_ring->sbq_len = %d\n", rx_ring->sbq_len);
-	pr_err("rx_ring->sbq_size = %d\n", rx_ring->sbq_size);
-	pr_err("rx_ring->sbq_prod_idx_db_reg addr = %p\n",
-	       rx_ring->sbq_prod_idx_db_reg);
-	pr_err("rx_ring->sbq_prod_idx = %d\n", rx_ring->sbq_prod_idx);
-	pr_err("rx_ring->sbq_curr_idx = %d\n", rx_ring->sbq_curr_idx);
-	pr_err("rx_ring->sbq_clean_idx = %d\n", rx_ring->sbq_clean_idx);
-	pr_err("rx_ring->sbq_free_cnt = %d\n", rx_ring->sbq_free_cnt);
+	pr_err("rx_ring->sbq.base = %p\n", rx_ring->sbq.base);
+	pr_err("rx_ring->sbq.base_dma = %llx\n",
+	       (unsigned long long)rx_ring->sbq.base_dma);
+	pr_err("rx_ring->sbq.base_indirect = %p\n",
+	       rx_ring->sbq.base_indirect);
+	pr_err("rx_ring->sbq.base_indirect_dma = %llx\n",
+	       (unsigned long long)rx_ring->sbq.base_indirect_dma);
+	pr_err("rx_ring->sbq = %p\n", rx_ring->sbq.queue);
+	pr_err("rx_ring->sbq.len = %d\n", rx_ring->sbq.len);
+	pr_err("rx_ring->sbq.size = %d\n", rx_ring->sbq.size);
+	pr_err("rx_ring->sbq.prod_idx_db_reg addr = %p\n",
+	       rx_ring->sbq.prod_idx_db_reg);
+	pr_err("rx_ring->sbq.prod_idx = %d\n", rx_ring->sbq.prod_idx);
+	pr_err("rx_ring->sbq.curr_idx = %d\n", rx_ring->sbq.curr_idx);
+	pr_err("rx_ring->sbq.clean_idx = %d\n", rx_ring->sbq.clean_idx);
+	pr_err("rx_ring->sbq.free_cnt = %d\n", rx_ring->sbq.free_cnt);
 	pr_err("rx_ring->cq_id = %d\n", rx_ring->cq_id);
 	pr_err("rx_ring->irq = %d\n", rx_ring->irq);
 	pr_err("rx_ring->cpu = %d\n", rx_ring->cpu);
