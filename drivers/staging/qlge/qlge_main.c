@@ -1110,9 +1110,6 @@ static void ql_update_lbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 			dma_unmap_addr_set(lbq_desc, mapaddr, map);
 			*lbq_desc->addr = cpu_to_le64(map);
 
-			pci_dma_sync_single_for_device(qdev->pdev, map,
-						       qdev->lbq_buf_size,
-						       PCI_DMA_FROMDEVICE);
 			clean_idx++;
 			if (clean_idx == rx_ring->lbq_len)
 				clean_idx = 0;
@@ -1598,10 +1595,6 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 
 	skb_put_data(new_skb, skb->data, length);
 
-	pci_dma_sync_single_for_device(qdev->pdev,
-				       dma_unmap_addr(sbq_desc, mapaddr),
-				       SMALL_BUF_MAP_SIZE,
-				       PCI_DMA_FROMDEVICE);
 	skb = new_skb;
 
 	/* Frame error, so drop the packet. */
@@ -1757,11 +1750,6 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 						    SMALL_BUF_MAP_SIZE,
 						    PCI_DMA_FROMDEVICE);
 			skb_put_data(skb, sbq_desc->p.skb->data, length);
-			pci_dma_sync_single_for_device(qdev->pdev,
-						       dma_unmap_addr(sbq_desc,
-								      mapaddr),
-						       SMALL_BUF_MAP_SIZE,
-						       PCI_DMA_FROMDEVICE);
 		} else {
 			netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
 				     "%d bytes in a single small buffer.\n",
