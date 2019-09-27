@@ -110,8 +110,8 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 	*placement = qbo->placement;
 }
 
-static int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
-				  struct ttm_mem_reg *mem)
+int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
+			   struct ttm_mem_reg *mem)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 	struct qxl_device *qdev = qxl_get_qdev(bdev);
