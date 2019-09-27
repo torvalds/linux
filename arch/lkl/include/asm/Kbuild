@@ -40,7 +40,6 @@ generic-y += mmu.h
 generic-y += mmu_context.h
 generic-y += module.h
 generic-y += msgbuf.h
-generic-y += page.h
 generic-y += param.h
 generic-y += parport.h
 generic-y += pci.h
