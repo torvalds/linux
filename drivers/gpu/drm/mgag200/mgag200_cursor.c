@@ -12,6 +12,127 @@
 static bool warn_transparent = true;
 static bool warn_palette = true;
 
+static int mgag200_cursor_update(struct mga_device *mdev, void *dst, void *src,
+				 unsigned int width, unsigned int height)
+{
+	struct drm_device *dev = mdev->dev;
+	unsigned int i, row, col;
+	uint32_t colour_set[16];
+	uint32_t *next_space = &colour_set[0];
+	uint32_t *palette_iter;
+	uint32_t this_colour;
+	bool found = false;
+	int colour_count = 0;
+	u8 reg_index;
+	u8 this_row[48];
+
+	memset(&colour_set[0], 0, sizeof(uint32_t)*16);
+	/* width*height*4 = 16384 */
+	for (i = 0; i < 16384; i += 4) {
+		this_colour = ioread32(src + i);
+		/* No transparency */
+		if (this_colour>>24 != 0xff &&
+			this_colour>>24 != 0x0) {
+			if (warn_transparent) {
+				dev_info(&dev->pdev->dev, "Video card doesn't support cursors with partial transparency.\n");
+				dev_info(&dev->pdev->dev, "Not enabling hardware cursor.\n");
+				warn_transparent = false; /* Only tell the user once. */
+			}
+			return -EINVAL;
+		}
+		/* Don't need to store transparent pixels as colours */
+		if (this_colour>>24 == 0x0)
+			continue;
+		found = false;
+		for (palette_iter = &colour_set[0]; palette_iter != next_space; palette_iter++) {
+			if (*palette_iter == this_colour) {
+				found = true;
+				break;
+			}
+		}
+		if (found)
+			continue;
+		/* We only support 4bit paletted cursors */
+		if (colour_count >= 16) {
+			if (warn_palette) {
+				dev_info(&dev->pdev->dev, "Video card only supports cursors with up to 16 colours.\n");
+				dev_info(&dev->pdev->dev, "Not enabling hardware cursor.\n");
+				warn_palette = false; /* Only tell the user once. */
+			}
+			return -EINVAL;
+		}
+		*next_space = this_colour;
+		next_space++;
+		colour_count++;
+	}
+
+	/* Program colours from cursor icon into palette */
+	for (i = 0; i < colour_count; i++) {
+		if (i <= 2)
+			reg_index = 0x8 + i*0x4;
+		else
+			reg_index = 0x60 + i*0x3;
+		WREG_DAC(reg_index, colour_set[i] & 0xff);
+		WREG_DAC(reg_index+1, colour_set[i]>>8 & 0xff);
+		WREG_DAC(reg_index+2, colour_set[i]>>16 & 0xff);
+		BUG_ON((colour_set[i]>>24 & 0xff) != 0xff);
+	}
+
+	/* now write colour indices into hardware cursor buffer */
+	for (row = 0; row < 64; row++) {
+		memset(&this_row[0], 0, 48);
+		for (col = 0; col < 64; col++) {
+			this_colour = ioread32(src + 4*(col + 64*row));
+			/* write transparent pixels */
+			if (this_colour>>24 == 0x0) {
+				this_row[47 - col/8] |= 0x80>>(col%8);
+				continue;
+			}
+
+			/* write colour index here */
+			for (i = 0; i < colour_count; i++) {
+				if (colour_set[i] == this_colour) {
+					if (col % 2)
+						this_row[col/2] |= i<<4;
+					else
+						this_row[col/2] |= i;
+					break;
+				}
+			}
+		}
+		memcpy_toio(dst + row*48, &this_row[0], 48);
+	}
+
+	return 0;
+}
+
+static void mgag200_cursor_set_base(struct mga_device *mdev, u64 address)
+{
+	u8 addrl = (address >> 10) & 0xff;
+	u8 addrh = (address >> 18) & 0x3f;
+
+	/* Program gpu address of cursor buffer */
+	WREG_DAC(MGA1064_CURSOR_BASE_ADR_LOW, addrl);
+	WREG_DAC(MGA1064_CURSOR_BASE_ADR_HI, addrh);
+}
+
+static int mgag200_show_cursor(struct mga_device *mdev, void *dst, void *src,
+			       unsigned int width, unsigned int height,
+			       u64 dst_gpu)
+{
+	int ret;
+
+	ret = mgag200_cursor_update(mdev, dst, src, width, height);
+	if (ret)
+		return ret;
+	mgag200_cursor_set_base(mdev, dst_gpu);
+
+	/* Adjust cursor control register to turn on the cursor */
+	WREG_DAC(MGA1064_CURSOR_CTL, 4); /* 16-colour palletized cursor mode */
+
+	return 0;
+}
+
 /*
  * Hide the cursor off screen. We can't disable the cursor hardware because
  * it takes too long to re-activate and causes momentary corruption.
@@ -82,19 +203,10 @@ int mgag200_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	struct drm_gem_vram_object *pixels_next;
 	struct drm_gem_object *obj;
 	struct drm_gem_vram_object *gbo = NULL;
-	int ret = 0;
+	int ret;
 	u8 *src, *dst;
-	unsigned int i, row, col;
-	uint32_t colour_set[16];
-	uint32_t *next_space = &colour_set[0];
-	uint32_t *palette_iter;
-	uint32_t this_colour;
-	bool found = false;
-	int colour_count = 0;
 	s64 gpu_addr;
 	u64 dst_gpu;
-	u8 reg_index;
-	u8 this_row[48];
 
 	if (!pixels_1 || !pixels_2) {
 		WREG8(MGA_CURPOSXL, 0);
@@ -159,91 +271,9 @@ int mgag200_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	}
 	dst_gpu = (u64)gpu_addr;
 
-	memset(&colour_set[0], 0, sizeof(uint32_t)*16);
-	/* width*height*4 = 16384 */
-	for (i = 0; i < 16384; i += 4) {
-		this_colour = ioread32(src + i);
-		/* No transparency */
-		if (this_colour>>24 != 0xff &&
-			this_colour>>24 != 0x0) {
-			if (warn_transparent) {
-				dev_info(&dev->pdev->dev, "Video card doesn't support cursors with partial transparency.\n");
-				dev_info(&dev->pdev->dev, "Not enabling hardware cursor.\n");
-				warn_transparent = false; /* Only tell the user once. */
-			}
-			ret = -EINVAL;
-			goto err_drm_gem_vram_kunmap_dst;
-		}
-		/* Don't need to store transparent pixels as colours */
-		if (this_colour>>24 == 0x0)
-			continue;
-		found = false;
-		for (palette_iter = &colour_set[0]; palette_iter != next_space; palette_iter++) {
-			if (*palette_iter == this_colour) {
-				found = true;
-				break;
-			}
-		}
-		if (found)
-			continue;
-		/* We only support 4bit paletted cursors */
-		if (colour_count >= 16) {
-			if (warn_palette) {
-				dev_info(&dev->pdev->dev, "Video card only supports cursors with up to 16 colours.\n");
-				dev_info(&dev->pdev->dev, "Not enabling hardware cursor.\n");
-				warn_palette = false; /* Only tell the user once. */
-			}
-			ret = -EINVAL;
-			goto err_drm_gem_vram_kunmap_dst;
-		}
-		*next_space = this_colour;
-		next_space++;
-		colour_count++;
-	}
-
-	/* Program colours from cursor icon into palette */
-	for (i = 0; i < colour_count; i++) {
-		if (i <= 2)
-			reg_index = 0x8 + i*0x4;
-		else
-			reg_index = 0x60 + i*0x3;
-		WREG_DAC(reg_index, colour_set[i] & 0xff);
-		WREG_DAC(reg_index+1, colour_set[i]>>8 & 0xff);
-		WREG_DAC(reg_index+2, colour_set[i]>>16 & 0xff);
-		BUG_ON((colour_set[i]>>24 & 0xff) != 0xff);
-	}
-
-	/* now write colour indices into hardware cursor buffer */
-	for (row = 0; row < 64; row++) {
-		memset(&this_row[0], 0, 48);
-		for (col = 0; col < 64; col++) {
-			this_colour = ioread32(src + 4*(col + 64*row));
-			/* write transparent pixels */
-			if (this_colour>>24 == 0x0) {
-				this_row[47 - col/8] |= 0x80>>(col%8);
-				continue;
-			}
-
-			/* write colour index here */
-			for (i = 0; i < colour_count; i++) {
-				if (colour_set[i] == this_colour) {
-					if (col % 2)
-						this_row[col/2] |= i<<4;
-					else
-						this_row[col/2] |= i;
-					break;
-				}
-			}
-		}
-		memcpy_toio(dst + row*48, &this_row[0], 48);
-	}
-
-	/* Program gpu address of cursor buffer */
-	WREG_DAC(MGA1064_CURSOR_BASE_ADR_LOW, (u8)((dst_gpu>>10) & 0xff));
-	WREG_DAC(MGA1064_CURSOR_BASE_ADR_HI, (u8)((dst_gpu>>18) & 0x3f));
-
-	/* Adjust cursor control register to turn on the cursor */
-	WREG_DAC(MGA1064_CURSOR_CTL, 4); /* 16-colour palletized cursor mode */
+	ret = mgag200_show_cursor(mdev, dst, src, width, height, dst_gpu);
+	if (ret)
+		goto err_drm_gem_vram_kunmap_dst;
 
 	/* Now update internal buffer pointers */
 	if (pixels_current)
