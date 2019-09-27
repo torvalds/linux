@@ -1629,7 +1629,7 @@ static enum drm_mode_status mga_vga_mode_valid(struct drm_connector *connector,
 			bpp = connector->cmdline_mode.bpp;
 	}
 
-	if ((mode->hdisplay * mode->vdisplay * (bpp/8)) > mdev->mc.vram_size) {
+	if ((mode->hdisplay * mode->vdisplay * (bpp/8)) > mdev->vram_fb_available) {
 		if (connector->cmdline_mode.specified)
 			connector->cmdline_mode.specified = false;
 		return MODE_BAD;

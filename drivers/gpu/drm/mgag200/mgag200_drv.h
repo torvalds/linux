@@ -173,6 +173,8 @@ struct mga_device {
 
 	struct mga_cursor cursor;
 
+	size_t vram_fb_available;
+
 	bool				suspended;
 	int				num_crtc;
 	enum mga_type			type;

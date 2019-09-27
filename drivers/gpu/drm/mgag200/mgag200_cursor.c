@@ -215,17 +215,20 @@ static void mgag200_move_cursor(struct mga_device *mdev, int x, int y)
 int mgag200_cursor_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = mdev->dev;
+	size_t size;
+
+	size = roundup(64 * 48, PAGE_SIZE);
+	if (size * 2 > mdev->vram_fb_available)
+		return -ENOMEM;
 
 	/*
 	 * Make small buffers to store a hardware cursor (double
 	 * buffered icon updates)
 	 */
 	mdev->cursor.pixels_1 = drm_gem_vram_create(dev, &dev->vram_mm->bdev,
-						    roundup(48*64, PAGE_SIZE),
-						    0, 0);
+						    size, 0, 0);
 	mdev->cursor.pixels_2 = drm_gem_vram_create(dev, &dev->vram_mm->bdev,
-						    roundup(48*64, PAGE_SIZE),
-						    0, 0);
+						    size, 0, 0);
 	if (IS_ERR(mdev->cursor.pixels_2) || IS_ERR(mdev->cursor.pixels_1)) {
 		mdev->cursor.pixels_1 = NULL;
 		mdev->cursor.pixels_2 = NULL;
@@ -233,6 +236,14 @@ int mgag200_cursor_init(struct mga_device *mdev)
 			"Could not allocate space for cursors. Not doing hardware cursors.\n");
 	}
 	mdev->cursor.pixels_current = NULL;
+
+	/*
+	 * At the high end of video memory, we reserve space for
+	 * buffer objects. The cursor plane uses this memory to store
+	 * a double-buffered image of the current cursor. Hence, it's
+	 * not available for framebuffers.
+	 */
+	mdev->vram_fb_available -= 2 * size;
 
 	return 0;
 }

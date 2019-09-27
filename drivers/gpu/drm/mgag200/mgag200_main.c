@@ -159,7 +159,7 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 
 	drm_mode_config_init(dev);
 	dev->mode_config.funcs = (void *)&mga_mode_funcs;
-	if (IS_G200_SE(mdev) && mdev->mc.vram_size < (2048*1024))
+	if (IS_G200_SE(mdev) && mdev->vram_fb_available < (2048*1024))
 		dev->mode_config.preferred_depth = 16;
 	else
 		dev->mode_config.preferred_depth = 32;
