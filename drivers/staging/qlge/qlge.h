@@ -1423,6 +1423,9 @@ struct qlge_bq {
 	__le64 *base_indirect;
 	dma_addr_t base_indirect_dma;
 	struct qlge_bq_desc *queue;
+	/* prod_idx is the index of the first buffer that may NOT be used by
+	 * hw, ie. one after the last. Advanced by sw.
+	 */
 	void __iomem *prod_idx_db_reg;
 	/* next index where sw should refill a buffer for hw */
 	u16 next_to_use;
@@ -1441,6 +1444,11 @@ struct qlge_bq {
 					  offsetof(struct rx_ring, sbq) : \
 					  offsetof(struct rx_ring, lbq))); \
 })
+
+/* Experience shows that the device ignores the low 4 bits of the tail index.
+ * Refill up to a x16 multiple.
+ */
+#define QLGE_BQ_ALIGN(index) ALIGN_DOWN(index, 16)
 
 #define QLGE_BQ_WRAP(index) ((index) & (QLGE_BQ_LEN - 1))
 

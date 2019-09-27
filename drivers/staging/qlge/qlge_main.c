@@ -1114,22 +1114,12 @@ static void qlge_refill_bq(struct qlge_bq *bq)
 	struct rx_ring *rx_ring = QLGE_BQ_CONTAINER(bq);
 	struct ql_adapter *qdev = rx_ring->qdev;
 	struct qlge_bq_desc *bq_desc;
-	int free_count, refill_count;
-	unsigned int reserved_count;
+	int refill_count;
 	int i;
 
-	if (bq->type == QLGE_SB)
-		reserved_count = 16;
-	else
-		reserved_count = 32;
-
-	free_count = bq->next_to_clean - bq->next_to_use;
-	if (free_count <= 0)
-		free_count += QLGE_BQ_LEN;
-
-	refill_count = free_count - reserved_count;
-	/* refill batch size */
-	if (refill_count < 16)
+	refill_count = QLGE_BQ_WRAP(QLGE_BQ_ALIGN(bq->next_to_clean - 1) -
+				    bq->next_to_use);
+	if (!refill_count)
 		return;
 
 	i = bq->next_to_use;
@@ -1164,11 +1154,14 @@ static void qlge_refill_bq(struct qlge_bq *bq)
 	i += QLGE_BQ_LEN;
 
 	if (bq->next_to_use != i) {
-		netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
-			     "ring %u %s: updating prod idx = %d.\n",
-			     rx_ring->cq_id, bq_type_name[bq->type], i);
+		if (QLGE_BQ_ALIGN(bq->next_to_use) != QLGE_BQ_ALIGN(i)) {
+			netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
+				     "ring %u %s: updating prod idx = %d.\n",
+				     rx_ring->cq_id, bq_type_name[bq->type],
+				     i);
+			ql_write_db_reg(i, bq->prod_idx_db_reg);
+		}
 		bq->next_to_use = i;
-		ql_write_db_reg(bq->next_to_use, bq->prod_idx_db_reg);
 	}
 }
 
