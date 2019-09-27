@@ -137,7 +137,8 @@ void intel_gt_sanitize(struct intel_gt *gt, bool force)
 
 void intel_gt_pm_disable(struct intel_gt *gt)
 {
-	intel_sanitize_gt_powersave(gt->i915);
+	if (!is_mock_gt(gt))
+		intel_sanitize_gt_powersave(gt->i915);
 }
 
 void intel_gt_pm_fini(struct intel_gt *gt)
