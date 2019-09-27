@@ -1120,20 +1120,69 @@ static u32 copy_cursor_image(u8 *src, u8 *dst, int width, int height)
 	return csum;
 }
 
-static void ast_show_cursor(struct drm_crtc *crtc)
+static int ast_cursor_update(void *dst, void *src, unsigned int width,
+			     unsigned int height)
+{
+	u32 csum;
+
+	/* do data transfer to cursor cache */
+	csum = copy_cursor_image(src, dst, width, height);
+
+	/* write checksum + signature */
+	dst += AST_HWC_SIZE;
+	writel(csum, dst);
+	writel(width, dst + AST_HWC_SIGNATURE_SizeX);
+	writel(height, dst + AST_HWC_SIGNATURE_SizeY);
+	writel(0, dst + AST_HWC_SIGNATURE_HOTSPOTX);
+	writel(0, dst + AST_HWC_SIGNATURE_HOTSPOTY);
+
+	return 0;
+}
+
+static void ast_cursor_set_base(struct ast_private *ast, u64 address)
+{
+	u8 addr0 = (address >> 3) & 0xff;
+	u8 addr1 = (address >> 11) & 0xff;
+	u8 addr2 = (address >> 19) & 0xff;
+
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc8, addr0);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc9, addr1);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xca, addr2);
+}
+
+static int ast_show_cursor(struct drm_crtc *crtc, void *dst, void *src,
+			   unsigned int width, unsigned int height,
+			   u64 dst_gpu)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
+	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
+	int ret;
 	u8 jreg;
+
+	dst += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor;
+
+	ret = ast_cursor_update(dst, src, width, height);
+	if (ret)
+		return ret;
+	ast_cursor_set_base(ast, dst_gpu);
+
+	ast->next_cursor = (ast->next_cursor + 1) % AST_DEFAULT_HWC_NUM;
+
+	ast_crtc->offset_x = AST_MAX_HWC_WIDTH - width;
+	ast_crtc->offset_y = AST_MAX_HWC_WIDTH - height;
 
 	jreg = 0x2;
 	/* enable ARGB cursor */
 	jreg |= 1;
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, jreg);
+
+	return 0;
 }
 
 static void ast_hide_cursor(struct drm_crtc *crtc)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
+
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, 0x00);
 }
 
@@ -1144,12 +1193,9 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 			  uint32_t height)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
-	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
 	struct drm_gem_object *obj;
 	struct drm_gem_vram_object *gbo;
 	s64 dst_gpu;
-	u64 gpu_addr;
-	u32 csum;
 	int ret;
 	u8 *src, *dst;
 
@@ -1185,37 +1231,9 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 		goto err_drm_gem_vram_vunmap;
 	}
 
-	dst += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor;
-
-	/* do data transfer to cursor cache */
-	csum = copy_cursor_image(src, dst, width, height);
-
-	/* write checksum + signature */
-	{
-		struct drm_gem_vram_object *dst_gbo =
-			drm_gem_vram_of_gem(ast->cursor_cache);
-		u8 *dst = drm_gem_vram_kmap(dst_gbo, false, NULL);
-		dst += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor + AST_HWC_SIZE;
-		writel(csum, dst);
-		writel(width, dst + AST_HWC_SIGNATURE_SizeX);
-		writel(height, dst + AST_HWC_SIGNATURE_SizeY);
-		writel(0, dst + AST_HWC_SIGNATURE_HOTSPOTX);
-		writel(0, dst + AST_HWC_SIGNATURE_HOTSPOTY);
-
-		/* set pattern offset */
-		gpu_addr = (u64)dst_gpu;
-		gpu_addr += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor;
-		gpu_addr >>= 3;
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc8, gpu_addr & 0xff);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc9, (gpu_addr >> 8) & 0xff);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xca, (gpu_addr >> 16) & 0xff);
-	}
-	ast_crtc->offset_x = AST_MAX_HWC_WIDTH - width;
-	ast_crtc->offset_y = AST_MAX_HWC_WIDTH - height;
-
-	ast->next_cursor = (ast->next_cursor + 1) % AST_DEFAULT_HWC_NUM;
-
-	ast_show_cursor(crtc);
+	ret = ast_show_cursor(crtc, dst, src, width, height, dst_gpu);
+	if (ret)
+		goto err_drm_gem_vram_kunmap;
 
 	drm_gem_vram_vunmap(gbo, src);
 	drm_gem_object_put_unlocked(obj);
