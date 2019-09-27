@@ -2172,8 +2172,8 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 				REPORT_PHYS_LUN_DEV_FLAG_AIO_ENABLED) &&
 				phys_lun_ext_entry->aio_handle) {
 				device->aio_enabled = true;
-					device->aio_handle =
-						phys_lun_ext_entry->aio_handle;
+				device->aio_handle =
+					phys_lun_ext_entry->aio_handle;
 			}
 			pqi_get_physical_disk_info(ctrl_info, device, id_phys);
 		} else {
