@@ -25,6 +25,24 @@ static void mgag200_hide_cursor(struct mga_device *mdev)
 	mdev->cursor.pixels_current = NULL;
 }
 
+static void mgag200_move_cursor(struct mga_device *mdev, int x, int y)
+{
+	if (WARN_ON(x <= 0))
+		return;
+	if (WARN_ON(y <= 0))
+		return;
+	if (WARN_ON(x & ~0xffff))
+		return;
+	if (WARN_ON(y & ~0xffff))
+		return;
+
+	WREG8(MGA_CURPOSXL, x & 0xff);
+	WREG8(MGA_CURPOSXH, (x>>8) & 0xff);
+
+	WREG8(MGA_CURPOSYL, y & 0xff);
+	WREG8(MGA_CURPOSYH, (y>>8) & 0xff);
+}
+
 int mgag200_cursor_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = mdev->dev;
@@ -252,19 +270,12 @@ err_drm_gem_object_put_unlocked:
 int mgag200_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct mga_device *mdev = (struct mga_device *)crtc->dev->dev_private;
+
 	/* Our origin is at (64,64) */
 	x += 64;
 	y += 64;
 
-	BUG_ON(x <= 0);
-	BUG_ON(y <= 0);
-	BUG_ON(x & ~0xffff);
-	BUG_ON(y & ~0xffff);
+	mgag200_move_cursor(mdev, x, y);
 
-	WREG8(MGA_CURPOSXL, x & 0xff);
-	WREG8(MGA_CURPOSXH, (x>>8) & 0xff);
-
-	WREG8(MGA_CURPOSYL, y & 0xff);
-	WREG8(MGA_CURPOSYH, (y>>8) & 0xff);
 	return 0;
 }
