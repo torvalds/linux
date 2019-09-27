@@ -13,10 +13,10 @@ static bool warn_transparent = true;
 static bool warn_palette = true;
 
 /*
-  Hide the cursor off screen. We can't disable the cursor hardware because it
-  takes too long to re-activate and causes momentary corruption
-*/
-static void mga_hide_cursor(struct mga_device *mdev)
+ * Hide the cursor off screen. We can't disable the cursor hardware because
+ * it takes too long to re-activate and causes momentary corruption.
+ */
+static void mgag200_hide_cursor(struct mga_device *mdev)
 {
 	WREG8(MGA_CURPOSXL, 0);
 	WREG8(MGA_CURPOSXH, 0);
@@ -25,11 +25,8 @@ static void mga_hide_cursor(struct mga_device *mdev)
 	mdev->cursor.pixels_current = NULL;
 }
 
-int mga_crtc_cursor_set(struct drm_crtc *crtc,
-			struct drm_file *file_priv,
-			uint32_t handle,
-			uint32_t width,
-			uint32_t height)
+int mgag200_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
+			    uint32_t handle, uint32_t width, uint32_t height)
 {
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = (struct mga_device *)dev->dev_private;
@@ -66,7 +63,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	if (!handle || !file_priv) {
-		mga_hide_cursor(mdev);
+		mgag200_hide_cursor(mdev);
 		return 0;
 	}
 
@@ -224,7 +221,7 @@ err_drm_gem_object_put_unlocked:
 	return ret;
 }
 
-int mga_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
+int mgag200_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct mga_device *mdev = (struct mga_device *)crtc->dev->dev_private;
 	/* Our origin is at (64,64) */
