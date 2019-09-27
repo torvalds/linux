@@ -2785,14 +2785,10 @@ static void ql_free_rx_buffers(struct ql_adapter *qdev)
 
 static void ql_alloc_rx_buffers(struct ql_adapter *qdev)
 {
-	struct rx_ring *rx_ring;
 	int i;
 
-	for (i = 0; i < qdev->rx_ring_count; i++) {
-		rx_ring = &qdev->rx_ring[i];
-		if (rx_ring->type != TX_Q)
-			ql_update_buffer_queues(rx_ring);
-	}
+	for (i = 0; i < qdev->rss_ring_count; i++)
+		ql_update_buffer_queues(&qdev->rx_ring[i]);
 }
 
 static int qlge_init_bq(struct qlge_bq *bq)
@@ -3071,12 +3067,7 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 		rx_ring->sbq.clean_idx = 0;
 		rx_ring->sbq.free_cnt = rx_ring->sbq.len;
 	}
-	switch (rx_ring->type) {
-	case TX_Q:
-		cqicb->irq_delay = cpu_to_le16(qdev->tx_coalesce_usecs);
-		cqicb->pkt_delay = cpu_to_le16(qdev->tx_max_coalesced_frames);
-		break;
-	case RX_Q:
+	if (rx_ring->cq_id < qdev->rss_ring_count) {
 		/* Inbound completion handling rx_rings run in
 		 * separate NAPI contexts.
 		 */
@@ -3084,10 +3075,9 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 			       64);
 		cqicb->irq_delay = cpu_to_le16(qdev->rx_coalesce_usecs);
 		cqicb->pkt_delay = cpu_to_le16(qdev->rx_max_coalesced_frames);
-		break;
-	default:
-		netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev,
-			     "Invalid rx_ring->type = %d.\n", rx_ring->type);
+	} else {
+		cqicb->irq_delay = cpu_to_le16(qdev->tx_coalesce_usecs);
+		cqicb->pkt_delay = cpu_to_le16(qdev->tx_max_coalesced_frames);
 	}
 	err = ql_write_cfg(qdev, cqicb, sizeof(struct cqicb),
 			   CFG_LCQ, rx_ring->cq_id);
@@ -3444,12 +3434,7 @@ static int ql_request_irq(struct ql_adapter *qdev)
 				goto err_irq;
 
 			netif_err(qdev, ifup, qdev->ndev,
-				  "Hooked intr %d, queue type %s, with name %s.\n",
-				  i,
-				  qdev->rx_ring[0].type == DEFAULT_Q ?
-				  "DEFAULT_Q" :
-				  qdev->rx_ring[0].type == TX_Q ? "TX_Q" :
-				  qdev->rx_ring[0].type == RX_Q ? "RX_Q" : "",
+				  "Hooked intr 0, queue type RX_Q, with name %s.\n",
 				  intr_context->name);
 		}
 		intr_context->hooked = 1;
@@ -4012,7 +3997,6 @@ static int ql_configure_rings(struct ql_adapter *qdev)
 			rx_ring->sbq.type = QLGE_SB;
 			rx_ring->sbq.len = NUM_SMALL_BUFFERS;
 			rx_ring->sbq.size = rx_ring->sbq.len * sizeof(__le64);
-			rx_ring->type = RX_Q;
 		} else {
 			/*
 			 * Outbound queue handles outbound completions only.
@@ -4025,7 +4009,6 @@ static int ql_configure_rings(struct ql_adapter *qdev)
 			rx_ring->lbq.size = 0;
 			rx_ring->sbq.len = 0;
 			rx_ring->sbq.size = 0;
-			rx_ring->type = TX_Q;
 		}
 	}
 	return 0;

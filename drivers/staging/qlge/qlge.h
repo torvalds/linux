@@ -1387,15 +1387,6 @@ struct tx_ring {
 	u64 tx_errors;
 };
 
-/*
- * Type of inbound queue.
- */
-enum {
-	DEFAULT_Q = 2,		/* Handles slow queue and chip/MPI events. */
-	TX_Q = 3,		/* Handles outbound completions. */
-	RX_Q = 4,		/* Handles inbound completions. */
-};
-
 struct qlge_page_chunk {
 	struct page *page;
 	void *va; /* virt addr including offset */
@@ -1468,7 +1459,6 @@ struct rx_ring {
 	struct qlge_bq sbq;
 
 	/* Misc. handler elements. */
-	u32 type;		/* Type of queue, tx, rx. */
 	u32 irq;		/* Which vector this ring is assigned. */
 	u32 cpu;		/* Which CPU this should run on. */
 	char name[IFNAMSIZ + 5];
