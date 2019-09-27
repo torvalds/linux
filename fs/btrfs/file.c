@@ -3351,7 +3351,8 @@ out:
 	return ret;
 }
 
-static int find_desired_extent(struct inode *inode, loff_t *offset, int whence)
+static loff_t find_desired_extent(struct inode *inode, loff_t offset,
+				  int whence)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct extent_map *em = NULL;
@@ -3363,14 +3364,14 @@ static int find_desired_extent(struct inode *inode, loff_t *offset, int whence)
 	u64 len;
 	int ret = 0;
 
-	if (i_size == 0 || *offset >= i_size)
+	if (i_size == 0 || offset >= i_size)
 		return -ENXIO;
 
 	/*
-	 * *offset can be negative, in this case we start finding DATA/HOLE from
+	 * offset can be negative, in this case we start finding DATA/HOLE from
 	 * the very start of the file.
 	 */
-	start = max_t(loff_t, 0, *offset);
+	start = max_t(loff_t, 0, offset);
 
 	lockstart = round_down(start, fs_info->sectorsize);
 	lockend = round_up(i_size, fs_info->sectorsize);
@@ -3405,21 +3406,23 @@ static int find_desired_extent(struct inode *inode, loff_t *offset, int whence)
 		cond_resched();
 	}
 	free_extent_map(em);
-	if (!ret) {
-		if (whence == SEEK_DATA && start >= i_size)
-			ret = -ENXIO;
-		else
-			*offset = min_t(loff_t, start, i_size);
-	}
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, lockstart, lockend,
 			     &cached_state);
-	return ret;
+	if (ret) {
+		offset = ret;
+	} else {
+		if (whence == SEEK_DATA && start >= i_size)
+			offset = -ENXIO;
+		else
+			offset = min_t(loff_t, start, i_size);
+	}
+
+	return offset;
 }
 
 static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
-	int ret;
 
 	switch (whence) {
 	default:
@@ -3427,12 +3430,13 @@ static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int whence)
 	case SEEK_DATA:
 	case SEEK_HOLE:
 		inode_lock_shared(inode);
-		ret = find_desired_extent(inode, &offset, whence);
+		offset = find_desired_extent(inode, offset, whence);
 		inode_unlock_shared(inode);
-
-		if (ret)
-			return ret;
+		break;
 	}
+
+	if (offset < 0)
+		return offset;
 
 	return vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
 }
