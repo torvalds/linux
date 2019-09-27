@@ -3366,6 +3366,7 @@ msi:
 		}
 	}
 	qlge_irq_type = LEG_IRQ;
+	set_bit(QL_LEGACY_ENABLED, &qdev->flags);
 	netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev,
 		     "Running with legacy interrupts.\n");
 }
@@ -3509,6 +3510,16 @@ static void ql_resolve_queues_to_irqs(struct ql_adapter *qdev)
 		intr_context->intr_dis_mask =
 		    INTR_EN_TYPE_MASK | INTR_EN_INTR_MASK |
 		    INTR_EN_TYPE_DISABLE;
+		if (test_bit(QL_LEGACY_ENABLED, &qdev->flags)) {
+			/* Experience shows that when using INTx interrupts,
+			 * the device does not always auto-mask INTR_EN_EN.
+			 * Moreover, masking INTR_EN_EN manually does not
+			 * immediately prevent interrupt generation.
+			 */
+			intr_context->intr_en_mask |= INTR_EN_EI << 16 |
+				INTR_EN_EI;
+			intr_context->intr_dis_mask |= INTR_EN_EI << 16;
+		}
 		intr_context->intr_read_mask =
 		    INTR_EN_TYPE_MASK | INTR_EN_INTR_MASK | INTR_EN_TYPE_READ;
 		/*
