@@ -71,6 +71,17 @@ struct protaeskeytoken {
 	u8  protkey[MAXPROTKEYSIZE]; /* the protected key blob */
 } __packed;
 
+/* inside view of a clear key token (type 0x00 version 0x02) */
+struct clearaeskeytoken {
+	u8  type;	 /* 0x00 for PAES specific key tokens */
+	u8  res0[3];
+	u8  version;	 /* 0x02 for clear AES key token */
+	u8  res1[3];
+	u32 keytype;	 /* key type, one of the PKEY_KEYTYPE values */
+	u32 len;	 /* bytes actually stored in clearkey[] */
+	u8  clearkey[0]; /* clear key value */
+} __packed;
+
 /*
  * Create a protected key from a clear key value.
  */
@@ -305,26 +316,63 @@ static int pkey_verifyprotkey(const struct pkey_protkey *protkey)
 static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 			       struct pkey_protkey *protkey)
 {
+	int rc = -EINVAL;
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
-	struct protaeskeytoken *t;
 
 	switch (hdr->version) {
-	case TOKVER_PROTECTED_KEY:
-		if (keylen != sizeof(struct protaeskeytoken))
-			return -EINVAL;
+	case TOKVER_PROTECTED_KEY: {
+		struct protaeskeytoken *t;
 
+		if (keylen != sizeof(struct protaeskeytoken))
+			goto out;
 		t = (struct protaeskeytoken *)key;
 		protkey->len = t->len;
 		protkey->type = t->keytype;
 		memcpy(protkey->protkey, t->protkey,
 		       sizeof(protkey->protkey));
+		rc = pkey_verifyprotkey(protkey);
+		break;
+	}
+	case TOKVER_CLEAR_KEY: {
+		struct clearaeskeytoken *t;
+		struct pkey_clrkey ckey;
+		struct pkey_seckey skey;
 
-		return pkey_verifyprotkey(protkey);
+		if (keylen < sizeof(struct clearaeskeytoken))
+			goto out;
+		t = (struct clearaeskeytoken *)key;
+		if (keylen != sizeof(*t) + t->len)
+			goto out;
+		if ((t->keytype == PKEY_KEYTYPE_AES_128 && t->len == 16)
+		    || (t->keytype == PKEY_KEYTYPE_AES_192 && t->len == 24)
+		    || (t->keytype == PKEY_KEYTYPE_AES_256 && t->len == 32))
+			memcpy(ckey.clrkey, t->clearkey, t->len);
+		else
+			goto out;
+		/* try direct way with the PCKMO instruction */
+		rc = pkey_clr2protkey(t->keytype, &ckey, protkey);
+		if (rc == 0)
+			break;
+		/* PCKMO failed, so try the CCA secure key way */
+		rc = cca_clr2seckey(0xFFFF, 0xFFFF, t->keytype,
+				    ckey.clrkey, skey.seckey);
+		if (rc == 0)
+			rc = pkey_skey2pkey(skey.seckey, protkey);
+		/* now we should really have an protected key */
+		if (rc == 0)
+			break;
+		DEBUG_ERR("%s unable to build protected key from clear",
+			  __func__);
+		break;
+	}
 	default:
 		DEBUG_ERR("%s unknown/unsupported non-CCA token version %d\n",
 			  __func__, hdr->version);
-		return -EINVAL;
+		rc = -EINVAL;
 	}
+
+out:
+	return rc;
 }
 
 /*
