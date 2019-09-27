@@ -1202,14 +1202,8 @@ static void dcn20_update_dchubp_dpp(
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 
-	if (pipe_ctx->update_flags.bits.dppclk) {
+	if (pipe_ctx->update_flags.bits.dppclk)
 		dpp->funcs->dpp_dppclk_control(dpp, false, true);
-
-		dc->res_pool->dccg->funcs->update_dpp_dto(
-				dc->res_pool->dccg,
-				dpp->inst,
-				pipe_ctx->plane_res.bw.dppclk_khz);
-	}
 
 	/* TODO: Need input parameter to tell current DCHUB pipe tie to which OTG
 	 * VTG is within DCHUBBUB which is commond block share by each pipe HUBP.

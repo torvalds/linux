@@ -108,11 +108,12 @@ void dcn20_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 	for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
 		int dpp_inst, dppclk_khz;
 
-		if (!context->res_ctx.pipe_ctx[i].plane_state)
-			continue;
-
-		dpp_inst = context->res_ctx.pipe_ctx[i].plane_res.dpp->inst;
+		/* Loop index will match dpp->inst if resource exists,
+		 * and we want to avoid dependency on dpp object
+		 */
+		dpp_inst = i;
 		dppclk_khz = context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
+
 		clk_mgr->dccg->funcs->update_dpp_dto(
 				clk_mgr->dccg, dpp_inst, dppclk_khz);
 	}
@@ -235,6 +236,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 
 		update_dispclk = true;
 	}
+
 	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {
 		if (dpp_clock_lowered) {
 			// if clock is being lowered, increase DTO before lowering refclk
@@ -244,10 +246,12 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 			// if clock is being raised, increase refclk before lowering DTO
 			if (update_dppclk || update_dispclk)
 				dcn20_update_clocks_update_dentist(clk_mgr);
-			if (update_dppclk)
+			// always update dtos unless clock is lowered and not safe to lower
+			if (new_clocks->dppclk_khz >= dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz)
 				dcn20_update_clocks_update_dpp_dto(clk_mgr, context);
 		}
 	}
+
 	if (update_dispclk &&
 			dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
 		/*update dmcu for wait_loop count*/
