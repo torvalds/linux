@@ -135,8 +135,9 @@ static int sprd_hwspinlock_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, sprd_hwlock);
 	pm_runtime_enable(&pdev->dev);
 
-	ret = hwspin_lock_register(&sprd_hwlock->bank, &pdev->dev,
-				   &sprd_hwspinlock_ops, 0, SPRD_HWLOCKS_NUM);
+	ret = devm_hwspin_lock_register(&pdev->dev, &sprd_hwlock->bank,
+					&sprd_hwspinlock_ops, 0,
+					SPRD_HWLOCKS_NUM);
 	if (ret) {
 		pm_runtime_disable(&pdev->dev);
 		return ret;
@@ -147,9 +148,6 @@ static int sprd_hwspinlock_probe(struct platform_device *pdev)
 
 static int sprd_hwspinlock_remove(struct platform_device *pdev)
 {
-	struct sprd_hwspinlock_dev *sprd_hwlock = platform_get_drvdata(pdev);
-
-	hwspin_lock_unregister(&sprd_hwlock->bank);
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
