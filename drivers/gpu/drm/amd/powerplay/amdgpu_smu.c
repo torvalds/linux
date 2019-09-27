@@ -712,6 +712,7 @@ static int smu_early_init(void *handle)
 
 	smu->adev = adev;
 	smu->pm_enabled = !!amdgpu_dpm;
+	smu->is_apu = false;
 	mutex_init(&smu->mutex);
 
 	return smu_set_funcs(adev);
