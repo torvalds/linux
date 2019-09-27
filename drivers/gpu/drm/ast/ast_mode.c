@@ -1236,6 +1236,7 @@ static int ast_cursor_move(struct drm_crtc *crtc,
 	struct ast_private *ast = crtc->dev->dev_private;
 	int x_offset, y_offset;
 	u8 *sig;
+	u8 jreg;
 
 	sig = drm_gem_vram_kmap(drm_gem_vram_of_gem(ast->cursor_cache),
 				false, NULL);
@@ -1262,7 +1263,9 @@ static int ast_cursor_move(struct drm_crtc *crtc,
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc7, ((y >> 8) & 0x07));
 
 	/* dummy write to fire HWC */
-	ast_show_cursor(crtc);
+	jreg = 0x02 |
+	       0x01; /* enable ARGB4444 cursor */
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, jreg);
 
 	return 0;
 }
