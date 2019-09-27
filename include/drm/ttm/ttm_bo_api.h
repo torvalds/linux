@@ -734,7 +734,13 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 				    pgprot_t prot,
 				    pgoff_t num_prefault);
 
+vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf);
+
 void ttm_bo_vm_open(struct vm_area_struct *vma);
 
 void ttm_bo_vm_close(struct vm_area_struct *vma);
+
+int ttm_bo_vm_access(struct vm_area_struct *vma, unsigned long addr,
+		     void *buf, int len, int write);
+
 #endif
