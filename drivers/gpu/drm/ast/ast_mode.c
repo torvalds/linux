@@ -883,50 +883,53 @@ static int ast_connector_init(struct drm_device *dev)
 static int ast_cursor_init(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
-	int size;
-	int ret;
-	struct drm_gem_object *obj;
+	size_t size, i;
 	struct drm_gem_vram_object *gbo;
-	s64 gpu_addr;
-	void *base;
+	int ret;
 
-	size = (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE) * AST_DEFAULT_HWC_NUM;
+	size = roundup(AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE, PAGE_SIZE);
 
-	ret = ast_gem_create(dev, size, true, &obj);
-	if (ret)
-		return ret;
-	gbo = drm_gem_vram_of_gem(obj);
-	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
-	if (ret)
-		goto fail;
-	gpu_addr = drm_gem_vram_offset(gbo);
-	if (gpu_addr < 0) {
-		drm_gem_vram_unpin(gbo);
-		ret = (int)gpu_addr;
-		goto fail;
+	for (i = 0; i < ARRAY_SIZE(ast->cursor.gbo); ++i) {
+		gbo = drm_gem_vram_create(dev, &dev->vram_mm->bdev,
+					  size, 0, false);
+		if (IS_ERR(gbo)) {
+			ret = PTR_ERR(gbo);
+			goto err_drm_gem_vram_put;
+		}
+		ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM |
+					    DRM_GEM_VRAM_PL_FLAG_TOPDOWN);
+		if (ret) {
+			drm_gem_vram_put(gbo);
+			goto err_drm_gem_vram_put;
+		}
+
+		ast->cursor.gbo[i] = gbo;
 	}
 
-	/* kmap the object */
-	base = drm_gem_vram_kmap(gbo, true, NULL);
-	if (IS_ERR(base)) {
-		ret = PTR_ERR(base);
-		goto fail;
-	}
-
-	ast->cursor_cache = obj;
 	return 0;
-fail:
+
+err_drm_gem_vram_put:
+	while (i) {
+		--i;
+		gbo = ast->cursor.gbo[i];
+		drm_gem_vram_unpin(gbo);
+		drm_gem_vram_put(gbo);
+		ast->cursor.gbo[i] = NULL;
+	}
 	return ret;
 }
 
 static void ast_cursor_fini(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
-	struct drm_gem_vram_object *gbo =
-		drm_gem_vram_of_gem(ast->cursor_cache);
-	drm_gem_vram_kunmap(gbo);
-	drm_gem_vram_unpin(gbo);
-	drm_gem_object_put_unlocked(ast->cursor_cache);
+	size_t i;
+	struct drm_gem_vram_object *gbo;
+
+	for (i = 0; i < ARRAY_SIZE(ast->cursor.gbo); ++i) {
+		gbo = ast->cursor.gbo[i];
+		drm_gem_vram_unpin(gbo);
+		drm_gem_vram_put(gbo);
+	}
 }
 
 int ast_mode_init(struct drm_device *dev)
@@ -1156,12 +1159,12 @@ static int ast_show_cursor(struct drm_crtc *crtc, void *src,
 	struct ast_private *ast = crtc->dev->dev_private;
 	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
 	struct drm_gem_vram_object *gbo;
-	u8 *dst, *dst_next;
+	void *dst;
 	s64 off;
 	int ret;
 	u8 jreg;
 
-	gbo = drm_gem_vram_of_gem(ast->cursor_cache);
+	gbo = ast->cursor.gbo[ast->cursor.next_index];
 	dst = drm_gem_vram_vmap(gbo);
 	if (IS_ERR(dst))
 		return PTR_ERR(dst);
@@ -1171,10 +1174,7 @@ static int ast_show_cursor(struct drm_crtc *crtc, void *src,
 		goto err_drm_gem_vram_vunmap;
 	}
 
-	dst_next = dst + (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE) *
-		   ast->next_cursor;
-
-	ret = ast_cursor_update(dst_next, src, width, height);
+	ret = ast_cursor_update(dst, src, width, height);
 	if (ret)
 		goto err_drm_gem_vram_vunmap;
 	ast_cursor_set_base(ast, off);
@@ -1187,7 +1187,8 @@ static int ast_show_cursor(struct drm_crtc *crtc, void *src,
 	jreg |= 1;
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, jreg);
 
-	ast->next_cursor = (ast->next_cursor + 1) % AST_DEFAULT_HWC_NUM;
+	++ast->cursor.next_index;
+	ast->cursor.next_index %= ARRAY_SIZE(ast->cursor.gbo);
 
 	drm_gem_vram_vunmap(gbo, dst);
 
@@ -1257,13 +1258,17 @@ static int ast_cursor_move(struct drm_crtc *crtc,
 {
 	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
 	struct ast_private *ast = crtc->dev->dev_private;
+	struct drm_gem_vram_object *gbo;
 	int x_offset, y_offset;
-	u8 *sig;
+	u8 *dst, *sig;
 	u8 jreg;
 
-	sig = drm_gem_vram_kmap(drm_gem_vram_of_gem(ast->cursor_cache),
-				false, NULL);
-	sig += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor + AST_HWC_SIZE;
+	gbo = ast->cursor.gbo[ast->cursor.next_index];
+	dst = drm_gem_vram_vmap(gbo);
+	if (IS_ERR(dst))
+		return PTR_ERR(dst);
+
+	sig = dst + AST_HWC_SIZE;
 	writel(x, sig + AST_HWC_SIGNATURE_X);
 	writel(y, sig + AST_HWC_SIGNATURE_Y);
 
@@ -1289,6 +1294,8 @@ static int ast_cursor_move(struct drm_crtc *crtc,
 	jreg = 0x02 |
 	       0x01; /* enable ARGB4444 cursor */
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, jreg);
+
+	drm_gem_vram_vunmap(gbo, dst);
 
 	return 0;
 }
