@@ -1373,7 +1373,6 @@ struct bq_desc {
 	__le64 *addr;
 	u32 index;
 	DEFINE_DMA_UNMAP_ADDR(mapaddr);
-	DEFINE_DMA_UNMAP_LEN(maplen);
 };
 
 #define QL_TXQ_IDX(qdev, skb) (smp_processor_id()%(qdev->tx_ring_count))

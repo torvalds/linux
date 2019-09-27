@@ -1108,8 +1108,6 @@ static void ql_update_lbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 			map = lbq_desc->p.pg_chunk.map +
 				lbq_desc->p.pg_chunk.offset;
 			dma_unmap_addr_set(lbq_desc, mapaddr, map);
-			dma_unmap_len_set(lbq_desc, maplen,
-					  qdev->lbq_buf_size);
 			*lbq_desc->addr = cpu_to_le64(map);
 
 			pci_dma_sync_single_for_device(qdev->pdev, map,
@@ -1177,8 +1175,6 @@ static void ql_update_sbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 					return;
 				}
 				dma_unmap_addr_set(sbq_desc, mapaddr, map);
-				dma_unmap_len_set(sbq_desc, maplen,
-						  rx_ring->sbq_buf_size);
 				*sbq_desc->addr = cpu_to_le64(map);
 			}
 
@@ -1598,14 +1594,14 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 
 	pci_dma_sync_single_for_cpu(qdev->pdev,
 				    dma_unmap_addr(sbq_desc, mapaddr),
-				    dma_unmap_len(sbq_desc, maplen),
+				    rx_ring->sbq_buf_size,
 				    PCI_DMA_FROMDEVICE);
 
 	skb_put_data(new_skb, skb->data, length);
 
 	pci_dma_sync_single_for_device(qdev->pdev,
 				       dma_unmap_addr(sbq_desc, mapaddr),
-				       dma_unmap_len(sbq_desc, maplen),
+				       rx_ring->sbq_buf_size,
 				       PCI_DMA_FROMDEVICE);
 	skb = new_skb;
 
@@ -1727,8 +1723,7 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 		sbq_desc = ql_get_curr_sbuf(rx_ring);
 		pci_unmap_single(qdev->pdev,
 				dma_unmap_addr(sbq_desc, mapaddr),
-				dma_unmap_len(sbq_desc, maplen),
-				PCI_DMA_FROMDEVICE);
+				rx_ring->sbq_buf_size, PCI_DMA_FROMDEVICE);
 		skb = sbq_desc->p.skb;
 		ql_realign_skb(skb, hdr_len);
 		skb_put(skb, hdr_len);
@@ -1758,19 +1753,15 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 			 */
 			sbq_desc = ql_get_curr_sbuf(rx_ring);
 			pci_dma_sync_single_for_cpu(qdev->pdev,
-						    dma_unmap_addr
-						    (sbq_desc, mapaddr),
-						    dma_unmap_len
-						    (sbq_desc, maplen),
+						    dma_unmap_addr(sbq_desc,
+								   mapaddr),
+						    rx_ring->sbq_buf_size,
 						    PCI_DMA_FROMDEVICE);
 			skb_put_data(skb, sbq_desc->p.skb->data, length);
 			pci_dma_sync_single_for_device(qdev->pdev,
-						       dma_unmap_addr
-						       (sbq_desc,
-							mapaddr),
-						       dma_unmap_len
-						       (sbq_desc,
-							maplen),
+						       dma_unmap_addr(sbq_desc,
+								      mapaddr),
+						       rx_ring->sbq_buf_size,
 						       PCI_DMA_FROMDEVICE);
 		} else {
 			netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
@@ -1781,10 +1772,8 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 			ql_realign_skb(skb, length);
 			skb_put(skb, length);
 			pci_unmap_single(qdev->pdev,
-					 dma_unmap_addr(sbq_desc,
-							mapaddr),
-					 dma_unmap_len(sbq_desc,
-						       maplen),
+					 dma_unmap_addr(sbq_desc, mapaddr),
+					 rx_ring->sbq_buf_size,
 					 PCI_DMA_FROMDEVICE);
 			sbq_desc->p.skb = NULL;
 		}
@@ -1822,9 +1811,8 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 				return NULL;
 			}
 			pci_unmap_page(qdev->pdev,
-				       dma_unmap_addr(lbq_desc,
-						      mapaddr),
-				       dma_unmap_len(lbq_desc, maplen),
+				       dma_unmap_addr(lbq_desc, mapaddr),
+				       qdev->lbq_buf_size,
 				       PCI_DMA_FROMDEVICE);
 			skb_reserve(skb, NET_IP_ALIGN);
 			netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
@@ -1858,8 +1846,7 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 		sbq_desc = ql_get_curr_sbuf(rx_ring);
 		pci_unmap_single(qdev->pdev,
 				 dma_unmap_addr(sbq_desc, mapaddr),
-				 dma_unmap_len(sbq_desc, maplen),
-				 PCI_DMA_FROMDEVICE);
+				 rx_ring->sbq_buf_size, PCI_DMA_FROMDEVICE);
 		if (!(ib_mac_rsp->flags4 & IB_MAC_IOCB_RSP_HS)) {
 			/*
 			 * This is an non TCP/UDP IP frame, so
@@ -2820,7 +2807,7 @@ static void ql_free_sbq_buffers(struct ql_adapter *qdev, struct rx_ring *rx_ring
 		if (sbq_desc->p.skb) {
 			pci_unmap_single(qdev->pdev,
 					 dma_unmap_addr(sbq_desc, mapaddr),
-					 dma_unmap_len(sbq_desc, maplen),
+					 rx_ring->sbq_buf_size,
 					 PCI_DMA_FROMDEVICE);
 			dev_kfree_skb(sbq_desc->p.skb);
 			sbq_desc->p.skb = NULL;
