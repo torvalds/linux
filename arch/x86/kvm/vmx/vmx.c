@@ -1412,35 +1412,37 @@ static void vmx_decache_cr0_guest_bits(struct kvm_vcpu *vcpu);
 
 unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long rflags, save_rflags;
 
 	if (!test_bit(VCPU_EXREG_RFLAGS, (ulong *)&vcpu->arch.regs_avail)) {
 		__set_bit(VCPU_EXREG_RFLAGS, (ulong *)&vcpu->arch.regs_avail);
 		rflags = vmcs_readl(GUEST_RFLAGS);
-		if (to_vmx(vcpu)->rmode.vm86_active) {
+		if (vmx->rmode.vm86_active) {
 			rflags &= RMODE_GUEST_OWNED_EFLAGS_BITS;
-			save_rflags = to_vmx(vcpu)->rmode.save_rflags;
+			save_rflags = vmx->rmode.save_rflags;
 			rflags |= save_rflags & ~RMODE_GUEST_OWNED_EFLAGS_BITS;
 		}
-		to_vmx(vcpu)->rflags = rflags;
+		vmx->rflags = rflags;
 	}
-	return to_vmx(vcpu)->rflags;
+	return vmx->rflags;
 }
 
 void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long old_rflags = vmx_get_rflags(vcpu);
 
 	__set_bit(VCPU_EXREG_RFLAGS, (ulong *)&vcpu->arch.regs_avail);
-	to_vmx(vcpu)->rflags = rflags;
-	if (to_vmx(vcpu)->rmode.vm86_active) {
-		to_vmx(vcpu)->rmode.save_rflags = rflags;
+	vmx->rflags = rflags;
+	if (vmx->rmode.vm86_active) {
+		vmx->rmode.save_rflags = rflags;
 		rflags |= X86_EFLAGS_IOPL | X86_EFLAGS_VM;
 	}
 	vmcs_writel(GUEST_RFLAGS, rflags);
 
-	if ((old_rflags ^ to_vmx(vcpu)->rflags) & X86_EFLAGS_VM)
-		to_vmx(vcpu)->emulation_required = emulation_required(vcpu);
+	if ((old_rflags ^ vmx->rflags) & X86_EFLAGS_VM)
+		vmx->emulation_required = emulation_required(vcpu);
 }
 
 u32 vmx_get_interrupt_shadow(struct kvm_vcpu *vcpu)
