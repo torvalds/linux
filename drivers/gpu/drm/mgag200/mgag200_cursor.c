@@ -120,39 +120,25 @@ static int mgag200_show_cursor(struct mga_device *mdev, void *src,
 			       unsigned int width, unsigned int height)
 {
 	struct drm_device *dev = mdev->dev;
-	struct drm_gem_vram_object *pixels_1 = mdev->cursor.pixels_1;
-	struct drm_gem_vram_object *pixels_2 = mdev->cursor.pixels_2;
-	struct drm_gem_vram_object *pixels_current = mdev->cursor.pixels_current;
-	struct drm_gem_vram_object *pixels_next;
+	struct drm_gem_vram_object *gbo;
 	void *dst;
 	s64 off;
 	int ret;
 
-	if (!pixels_1 || !pixels_2) {
+	gbo = mdev->cursor.gbo[mdev->cursor.next_index];
+	if (!gbo) {
 		WREG8(MGA_CURPOSXL, 0);
 		WREG8(MGA_CURPOSXH, 0);
 		return -ENOTSUPP; /* Didn't allocate space for cursors */
 	}
-
-	if (WARN_ON(pixels_current &&
-		    pixels_1 != pixels_current &&
-		    pixels_2 != pixels_current)) {
-		return -ENOTSUPP; /* inconsistent state */
-	}
-
-	if (pixels_current == pixels_1)
-		pixels_next = pixels_2;
-	else
-		pixels_next = pixels_1;
-
-	dst = drm_gem_vram_vmap(pixels_next);
+	dst = drm_gem_vram_vmap(gbo);
 	if (IS_ERR(dst)) {
 		ret = PTR_ERR(dst);
 		dev_err(&dev->pdev->dev,
 			"failed to map cursor updates: %d\n", ret);
 		return ret;
 	}
-	off = drm_gem_vram_offset(pixels_next);
+	off = drm_gem_vram_offset(gbo);
 	if (off < 0) {
 		ret = (int)off;
 		dev_err(&dev->pdev->dev,
@@ -168,16 +154,15 @@ static int mgag200_show_cursor(struct mga_device *mdev, void *src,
 	/* Adjust cursor control register to turn on the cursor */
 	WREG_DAC(MGA1064_CURSOR_CTL, 4); /* 16-colour palletized cursor mode */
 
-	if (pixels_current)
-		drm_gem_vram_unpin(pixels_current);
-	mdev->cursor.pixels_current = pixels_next;
+	drm_gem_vram_vunmap(gbo, dst);
 
-	drm_gem_vram_vunmap(pixels_next, dst);
+	++mdev->cursor.next_index;
+	mdev->cursor.next_index %= ARRAY_SIZE(mdev->cursor.gbo);
 
 	return 0;
 
 err_drm_gem_vram_vunmap:
-	drm_gem_vram_vunmap(pixels_next, dst);
+	drm_gem_vram_vunmap(gbo, dst);
 	return ret;
 }
 
@@ -189,9 +174,6 @@ static void mgag200_hide_cursor(struct mga_device *mdev)
 {
 	WREG8(MGA_CURPOSXL, 0);
 	WREG8(MGA_CURPOSXH, 0);
-	if (mdev->cursor.pixels_current)
-		drm_gem_vram_unpin(mdev->cursor.pixels_current);
-	mdev->cursor.pixels_current = NULL;
 }
 
 static void mgag200_move_cursor(struct mga_device *mdev, int x, int y)
@@ -215,27 +197,32 @@ static void mgag200_move_cursor(struct mga_device *mdev, int x, int y)
 int mgag200_cursor_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = mdev->dev;
+	size_t ncursors = ARRAY_SIZE(mdev->cursor.gbo);
 	size_t size;
+	int ret;
+	size_t i;
+	struct drm_gem_vram_object *gbo;
 
 	size = roundup(64 * 48, PAGE_SIZE);
-	if (size * 2 > mdev->vram_fb_available)
+	if (size * ncursors > mdev->vram_fb_available)
 		return -ENOMEM;
 
-	/*
-	 * Make small buffers to store a hardware cursor (double
-	 * buffered icon updates)
-	 */
-	mdev->cursor.pixels_1 = drm_gem_vram_create(dev, &dev->vram_mm->bdev,
-						    size, 0, 0);
-	mdev->cursor.pixels_2 = drm_gem_vram_create(dev, &dev->vram_mm->bdev,
-						    size, 0, 0);
-	if (IS_ERR(mdev->cursor.pixels_2) || IS_ERR(mdev->cursor.pixels_1)) {
-		mdev->cursor.pixels_1 = NULL;
-		mdev->cursor.pixels_2 = NULL;
-		dev_warn(&dev->pdev->dev,
-			"Could not allocate space for cursors. Not doing hardware cursors.\n");
+	for (i = 0; i < ncursors; ++i) {
+		gbo = drm_gem_vram_create(dev, &dev->vram_mm->bdev,
+					  size, 0, false);
+		if (IS_ERR(gbo)) {
+			ret = PTR_ERR(gbo);
+			goto err_drm_gem_vram_put;
+		}
+		ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM |
+					    DRM_GEM_VRAM_PL_FLAG_TOPDOWN);
+		if (ret) {
+			drm_gem_vram_put(gbo);
+			goto err_drm_gem_vram_put;
+		}
+
+		mdev->cursor.gbo[i] = gbo;
 	}
-	mdev->cursor.pixels_current = NULL;
 
 	/*
 	 * At the high end of video memory, we reserve space for
@@ -243,13 +230,32 @@ int mgag200_cursor_init(struct mga_device *mdev)
 	 * a double-buffered image of the current cursor. Hence, it's
 	 * not available for framebuffers.
 	 */
-	mdev->vram_fb_available -= 2 * size;
+	mdev->vram_fb_available -= ncursors * size;
 
 	return 0;
+
+err_drm_gem_vram_put:
+	while (i) {
+		--i;
+		gbo = mdev->cursor.gbo[i];
+		drm_gem_vram_unpin(gbo);
+		drm_gem_vram_put(gbo);
+		mdev->cursor.gbo[i] = NULL;
+	}
+	return ret;
 }
 
 void mgag200_cursor_fini(struct mga_device *mdev)
-{ }
+{
+	size_t i;
+	struct drm_gem_vram_object *gbo;
+
+	for (i = 0; i < ARRAY_SIZE(mdev->cursor.gbo); ++i) {
+		gbo = mdev->cursor.gbo[i];
+		drm_gem_vram_unpin(gbo);
+		drm_gem_vram_put(gbo);
+	}
+}
 
 int mgag200_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 			    uint32_t handle, uint32_t width, uint32_t height)

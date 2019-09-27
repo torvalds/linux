@@ -129,16 +129,8 @@ struct mga_connector {
 };
 
 struct mga_cursor {
-	/*
-	   We have to have 2 buffers for the cursor to avoid occasional
-	   corruption while switching cursor icons.
-	   If either of these is NULL, then don't do hardware cursors, and
-	   fall back to software.
-	*/
-	struct drm_gem_vram_object *pixels_1;
-	struct drm_gem_vram_object *pixels_2;
-	/* The currently displayed icon, this points to one of pixels_1, or pixels_2 */
-	struct drm_gem_vram_object *pixels_current;
+	struct drm_gem_vram_object *gbo[2];
+	unsigned int next_index;
 };
 
 struct mga_mc {
