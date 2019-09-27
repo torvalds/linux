@@ -1533,7 +1533,7 @@ static void i915_gem_init__mm(struct drm_i915_private *i915)
 	i915_gem_init__objects(i915);
 }
 
-int i915_gem_init_early(struct drm_i915_private *dev_priv)
+void i915_gem_init_early(struct drm_i915_private *dev_priv)
 {
 	int err;
 
@@ -1545,8 +1545,6 @@ int i915_gem_init_early(struct drm_i915_private *dev_priv)
 	err = i915_gemfs_init(dev_priv);
 	if (err)
 		DRM_NOTE("Unable to create a private tmpfs mount, hugepage support will be disabled(%d).\n", err);
-
-	return 0;
 }
 
 void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)

@@ -2243,7 +2243,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 int i915_gem_init_userptr(struct drm_i915_private *dev_priv);
 void i915_gem_cleanup_userptr(struct drm_i915_private *dev_priv);
 void i915_gem_sanitize(struct drm_i915_private *i915);
-int i915_gem_init_early(struct drm_i915_private *dev_priv);
+void i915_gem_init_early(struct drm_i915_private *dev_priv);
 void i915_gem_cleanup_early(struct drm_i915_private *dev_priv);
 int i915_gem_freeze(struct drm_i915_private *dev_priv);
 int i915_gem_freeze_late(struct drm_i915_private *dev_priv);
