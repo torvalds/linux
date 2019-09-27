@@ -1150,23 +1150,34 @@ static void ast_cursor_set_base(struct ast_private *ast, u64 address)
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xca, addr2);
 }
 
-static int ast_show_cursor(struct drm_crtc *crtc, void *dst, void *src,
-			   unsigned int width, unsigned int height,
-			   u64 dst_gpu)
+static int ast_show_cursor(struct drm_crtc *crtc, void *src,
+			   unsigned int width, unsigned int height)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
 	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
+	struct drm_gem_vram_object *gbo;
+	u8 *dst, *dst_next;
+	s64 off;
 	int ret;
 	u8 jreg;
 
-	dst += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor;
+	gbo = drm_gem_vram_of_gem(ast->cursor_cache);
+	dst = drm_gem_vram_vmap(gbo);
+	if (IS_ERR(dst))
+		return PTR_ERR(dst);
+	off = drm_gem_vram_offset(gbo);
+	if (off < 0) {
+		ret = (int)off;
+		goto err_drm_gem_vram_vunmap;
+	}
 
-	ret = ast_cursor_update(dst, src, width, height);
+	dst_next = dst + (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE) *
+		   ast->next_cursor;
+
+	ret = ast_cursor_update(dst_next, src, width, height);
 	if (ret)
-		return ret;
-	ast_cursor_set_base(ast, dst_gpu);
-
-	ast->next_cursor = (ast->next_cursor + 1) % AST_DEFAULT_HWC_NUM;
+		goto err_drm_gem_vram_vunmap;
+	ast_cursor_set_base(ast, off);
 
 	ast_crtc->offset_x = AST_MAX_HWC_WIDTH - width;
 	ast_crtc->offset_y = AST_MAX_HWC_WIDTH - height;
@@ -1176,7 +1187,15 @@ static int ast_show_cursor(struct drm_crtc *crtc, void *dst, void *src,
 	jreg |= 1;
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, jreg);
 
+	ast->next_cursor = (ast->next_cursor + 1) % AST_DEFAULT_HWC_NUM;
+
+	drm_gem_vram_vunmap(gbo, dst);
+
 	return 0;
+
+err_drm_gem_vram_vunmap:
+	drm_gem_vram_vunmap(gbo, dst);
+	return ret;
 }
 
 static void ast_hide_cursor(struct drm_crtc *crtc)
@@ -1192,12 +1211,10 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 			  uint32_t width,
 			  uint32_t height)
 {
-	struct ast_private *ast = crtc->dev->dev_private;
 	struct drm_gem_object *obj;
 	struct drm_gem_vram_object *gbo;
-	s64 dst_gpu;
+	u8 *src;
 	int ret;
-	u8 *src, *dst;
 
 	if (!handle) {
 		ast_hide_cursor(crtc);
@@ -1219,21 +1236,9 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 		goto err_drm_gem_object_put_unlocked;
 	}
 
-	dst = drm_gem_vram_kmap(drm_gem_vram_of_gem(ast->cursor_cache),
-				false, NULL);
-	if (IS_ERR(dst)) {
-		ret = PTR_ERR(dst);
-		goto err_drm_gem_vram_vunmap;
-	}
-	dst_gpu = drm_gem_vram_offset(drm_gem_vram_of_gem(ast->cursor_cache));
-	if (dst_gpu < 0) {
-		ret = (int)dst_gpu;
-		goto err_drm_gem_vram_vunmap;
-	}
-
-	ret = ast_show_cursor(crtc, dst, src, width, height, dst_gpu);
+	ret = ast_show_cursor(crtc, src, width, height);
 	if (ret)
-		goto err_drm_gem_vram_kunmap;
+		goto err_drm_gem_vram_vunmap;
 
 	drm_gem_vram_vunmap(gbo, src);
 	drm_gem_object_put_unlocked(obj);
