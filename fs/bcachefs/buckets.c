@@ -1369,12 +1369,10 @@ static int trans_get_key(struct btree_trans *trans,
 			return 1;
 		}
 
-	*iter = __bch2_trans_get_iter(trans, btree_id, pos,
-				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, 0);
+	*iter = bch2_trans_get_iter(trans, btree_id, pos,
+				    BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 	if (IS_ERR(*iter))
 		return PTR_ERR(*iter);
-
-	bch2_trans_iter_free_on_commit(trans, *iter);
 
 	*k = bch2_btree_iter_peek_slot(*iter);
 	ret = bkey_err(*k);

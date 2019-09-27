@@ -355,6 +355,7 @@ static void __bch2_write_index(struct bch_write_op *op)
 		u64 sectors_start = keylist_sectors(keys);
 		int ret = op->index_update_fn(op);
 
+		BUG_ON(ret == -EINTR);
 		BUG_ON(keylist_sectors(keys) && !ret);
 
 		op->written += sectors_start - keylist_sectors(keys);
@@ -1337,6 +1338,8 @@ retry:
 		bio_advance_iter(&rbio->bio, &bvec_iter, bytes);
 	}
 
+	if (ret == -EINTR)
+		goto retry;
 	/*
 	 * If we get here, it better have been because there was an error
 	 * reading a btree node
@@ -1610,9 +1613,9 @@ int __bch2_read_indirect_extent(struct btree_trans *trans,
 	reflink_offset = le64_to_cpu(bkey_i_to_reflink_p(orig_k)->v.idx) +
 		*offset_into_extent;
 
-	iter = __bch2_trans_get_iter(trans, BTREE_ID_REFLINK,
-				     POS(0, reflink_offset),
-				     BTREE_ITER_SLOTS, 1);
+	iter = bch2_trans_get_iter(trans, BTREE_ID_REFLINK,
+				   POS(0, reflink_offset),
+				   BTREE_ITER_SLOTS);
 	ret = PTR_ERR_OR_ZERO(iter);
 	if (ret)
 		return ret;
@@ -1888,8 +1891,6 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 		BCH_READ_USER_MAPPED;
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 0);
-
 	BUG_ON(rbio->_state);
 	BUG_ON(flags & BCH_READ_NODECODE);
 	BUG_ON(flags & BCH_READ_IN_RETRY);
@@ -1897,10 +1898,13 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 	rbio->c = c;
 	rbio->start_time = local_clock();
 
+	bch2_trans_init(&trans, c, 0, 0);
+retry:
+	bch2_trans_begin(&trans);
+
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
 				   POS(inode, rbio->bio.bi_iter.bi_sector),
 				   BTREE_ITER_SLOTS);
-
 	while (1) {
 		BKEY_PADDED(k) tmp;
 		unsigned bytes, sectors, offset_into_extent;
@@ -1955,6 +1959,9 @@ out:
 	bch2_trans_exit(&trans);
 	return;
 err:
+	if (ret == -EINTR)
+		goto retry;
+
 	bcache_io_error(c, &rbio->bio, "btree IO error: %i", ret);
 	bch2_rbio_done(rbio);
 	goto out;

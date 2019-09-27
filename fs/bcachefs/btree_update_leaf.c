@@ -752,6 +752,7 @@ int bch2_trans_commit(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i = NULL;
+	struct btree_iter *iter;
 	unsigned orig_nr_updates	= trans->nr_updates;
 	unsigned orig_mem_top		= trans->mem_top;
 	int ret = 0;
@@ -814,9 +815,11 @@ out_noupdates:
 
 	BUG_ON(!(trans->flags & BTREE_INSERT_ATOMIC) && ret == -EINTR);
 
+	trans_for_each_iter(trans, iter)
+		iter->flags &= ~BTREE_ITER_KEEP_UNTIL_COMMIT;
+
 	if (!ret) {
-		bch2_trans_unlink_iters(trans, ~trans->iters_touched|
-					trans->iters_unlink_on_commit);
+		bch2_trans_unlink_iters(trans);
 		trans->iters_touched = 0;
 	}
 	trans->nr_updates	= 0;

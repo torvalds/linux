@@ -191,12 +191,13 @@ enum btree_iter_type {
 #define BTREE_ITER_SLOTS		(1 << 2)
 #define BTREE_ITER_INTENT		(1 << 3)
 #define BTREE_ITER_PREFETCH		(1 << 4)
+#define BTREE_ITER_KEEP_UNTIL_COMMIT	(1 << 5)
 /*
  * Used in bch2_btree_iter_traverse(), to indicate whether we're searching for
  * @pos or the first key strictly greater than @pos
  */
-#define BTREE_ITER_IS_EXTENTS		(1 << 5)
-#define BTREE_ITER_ERROR		(1 << 6)
+#define BTREE_ITER_IS_EXTENTS		(1 << 6)
+#define BTREE_ITER_ERROR		(1 << 7)
 
 enum btree_iter_uptodate {
 	BTREE_ITER_UPTODATE		= 0,
@@ -237,8 +238,6 @@ struct btree_iter {
 	 * bch2_btree_iter_next_slot() can correctly advance pos.
 	 */
 	struct bkey		k;
-
-	u64			id;
 };
 
 static inline enum btree_iter_type btree_iter_type(struct btree_iter *iter)
@@ -261,8 +260,6 @@ struct btree_trans {
 	u64			iters_linked;
 	u64			iters_live;
 	u64			iters_touched;
-	u64			iters_unlink_on_restart;
-	u64			iters_unlink_on_commit;
 
 	u8			nr_iters;
 	u8			nr_updates;

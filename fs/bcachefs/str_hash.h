@@ -202,12 +202,13 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 
 		if (k.k->type == desc.key_type &&
 		    desc.hash_bkey(info, k) <= start->pos.offset) {
-			bch2_trans_iter_free_on_commit(trans, iter);
-			return 1;
+			iter->flags |= BTREE_ITER_KEEP_UNTIL_COMMIT;
+			ret = 1;
+			break;
 		}
 	}
 
-	bch2_trans_iter_free(trans, iter);
+	bch2_trans_iter_put(trans, iter);
 	return ret;
 }
 
@@ -247,11 +248,14 @@ int bch2_hash_set(struct btree_trans *trans,
 			goto not_found;
 	}
 
+	if (!ret)
+		ret = -ENOSPC;
+out:
 	if (slot)
-		bch2_trans_iter_free(trans, slot);
-	bch2_trans_iter_free(trans, iter);
+		bch2_trans_iter_put(trans, slot);
+	bch2_trans_iter_put(trans, iter);
 
-	return ret ?: -ENOSPC;
+	return ret;
 found:
 	found = true;
 not_found:
@@ -261,17 +265,14 @@ not_found:
 	} else if (found && (flags & BCH_HASH_SET_MUST_CREATE)) {
 		ret = -EEXIST;
 	} else {
-		if (!found && slot) {
-			bch2_trans_iter_free(trans, iter);
-			iter = slot;
-		}
+		if (!found && slot)
+			swap(iter, slot);
 
 		insert->k.p = iter->pos;
 		bch2_trans_update(trans, iter, insert);
-		bch2_trans_iter_free_on_commit(trans, iter);
 	}
 
-	return ret;
+	goto out;
 }
 
 static __always_inline

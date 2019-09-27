@@ -190,10 +190,10 @@ s64 bch2_remap_range(struct bch_fs *c,
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 4096);
 
-	src_iter = __bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, src_start,
-					 BTREE_ITER_INTENT, 1);
-	dst_iter = __bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, dst_start,
-					 BTREE_ITER_INTENT, 2);
+	src_iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, src_start,
+				       BTREE_ITER_INTENT);
+	dst_iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, dst_start,
+				       BTREE_ITER_INTENT);
 
 	while (1) {
 		bch2_trans_begin_updates(&trans);

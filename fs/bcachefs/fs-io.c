@@ -282,7 +282,7 @@ static int sum_sector_overwrites(struct btree_trans *trans,
 		old = bch2_btree_iter_next_slot(iter);
 	}
 
-	bch2_trans_iter_free(trans, iter);
+	bch2_trans_iter_put(trans, iter);
 	return 0;
 }
 
@@ -2786,7 +2786,7 @@ reassemble:
 		bch2_disk_reservation_put(c, &disk_res);
 bkey_err:
 		if (del)
-			bch2_trans_iter_free(&trans, del);
+			bch2_trans_iter_put(&trans, del);
 		del = NULL;
 
 		if (!ret)
