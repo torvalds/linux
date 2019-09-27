@@ -210,6 +210,7 @@ struct srp_target_port {
 	u32			ch_count;
 	u32			lkey;
 	enum srp_target_state	state;
+	uint32_t		max_it_iu_size;
 	unsigned int		cmd_sg_cnt;
 	unsigned int		indirect_size;
 	bool			allow_ext_sg;

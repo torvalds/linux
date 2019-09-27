@@ -3414,6 +3414,7 @@ enum {
 	SRP_OPT_IP_SRC		= 1 << 15,
 	SRP_OPT_IP_DEST		= 1 << 16,
 	SRP_OPT_TARGET_CAN_QUEUE= 1 << 17,
+	SRP_OPT_MAX_IT_IU_SIZE  = 1 << 18,
 };
 
 static unsigned int srp_opt_mandatory[] = {
@@ -3446,6 +3447,7 @@ static const match_table_t srp_opt_tokens = {
 	{ SRP_OPT_QUEUE_SIZE,		"queue_size=%d"		},
 	{ SRP_OPT_IP_SRC,		"src=%s"		},
 	{ SRP_OPT_IP_DEST,		"dest=%s"		},
+	{ SRP_OPT_MAX_IT_IU_SIZE,	"max_it_iu_size=%d"	},
 	{ SRP_OPT_ERR,			NULL 			}
 };
 
@@ -3737,6 +3739,14 @@ static int srp_parse_options(struct net *net, const char *buf,
 				goto out;
 			}
 			target->tl_retry_count = token;
+			break;
+
+		case SRP_OPT_MAX_IT_IU_SIZE:
+			if (match_int(args, &token) || token < 0) {
+				pr_warn("bad maximum initiator to target IU size '%s'\n", p);
+				goto out;
+			}
+			target->max_it_iu_size = token;
 			break;
 
 		default:
