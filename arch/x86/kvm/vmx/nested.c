@@ -198,6 +198,16 @@ static void nested_vmx_abort(struct kvm_vcpu *vcpu, u32 indicator)
 	pr_debug_ratelimited("kvm: nested vmx abort, indicator %d\n", indicator);
 }
 
+static inline bool vmx_control_verify(u32 control, u32 low, u32 high)
+{
+	return fixed_bits_valid(control, low, high);
+}
+
+static inline u64 vmx_control_msr(u32 low, u32 high)
+{
+	return low | ((u64)high << 32);
+}
+
 static void vmx_disable_shadow_vmcs(struct vcpu_vmx *vmx)
 {
 	secondary_exec_controls_clearbit(vmx, SECONDARY_EXEC_SHADOW_VMCS);
@@ -866,16 +876,34 @@ static int nested_vmx_store_msr_check(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static u32 nested_vmx_max_atomic_switch_msrs(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u64 vmx_misc = vmx_control_msr(vmx->nested.msrs.misc_low,
+				       vmx->nested.msrs.misc_high);
+
+	return (vmx_misc_max_msr(vmx_misc) + 1) * VMX_MISC_MSR_LIST_MULTIPLIER;
+}
+
 /*
  * Load guest's/host's msr at nested entry/exit.
  * return 0 for success, entry index for failure.
+ *
+ * One of the failure modes for MSR load/store is when a list exceeds the
+ * virtual hardware's capacity. To maintain compatibility with hardware inasmuch
+ * as possible, process all valid entries before failing rather than precheck
+ * for a capacity violation.
  */
 static u32 nested_vmx_load_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 {
 	u32 i;
 	struct vmx_msr_entry e;
+	u32 max_msr_list_size = nested_vmx_max_atomic_switch_msrs(vcpu);
 
 	for (i = 0; i < count; i++) {
+		if (unlikely(i >= max_msr_list_size))
+			goto fail;
+
 		if (kvm_vcpu_read_guest(vcpu, gpa + i * sizeof(e),
 					&e, sizeof(e))) {
 			pr_debug_ratelimited(
@@ -906,8 +934,12 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 	u64 data;
 	u32 i;
 	struct vmx_msr_entry e;
+	u32 max_msr_list_size = nested_vmx_max_atomic_switch_msrs(vcpu);
 
 	for (i = 0; i < count; i++) {
+		if (unlikely(i >= max_msr_list_size))
+			return -EINVAL;
+
 		if (kvm_vcpu_read_guest(vcpu,
 					gpa + i * sizeof(e),
 					&e, 2 * sizeof(u32))) {
@@ -1011,17 +1043,6 @@ static u16 nested_get_vpid02(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	return vmx->nested.vpid02 ? vmx->nested.vpid02 : vmx->vpid;
-}
-
-
-static inline bool vmx_control_verify(u32 control, u32 low, u32 high)
-{
-	return fixed_bits_valid(control, low, high);
-}
-
-static inline u64 vmx_control_msr(u32 low, u32 high)
-{
-	return low | ((u64)high << 32);
 }
 
 static bool is_bitwise_subset(u64 superset, u64 subset, u64 mask)
@@ -2089,6 +2110,7 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 				  SECONDARY_EXEC_ENABLE_INVPCID |
 				  SECONDARY_EXEC_RDTSCP |
 				  SECONDARY_EXEC_XSAVES |
+				  SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE |
 				  SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
 				  SECONDARY_EXEC_APIC_REGISTER_VIRT |
 				  SECONDARY_EXEC_ENABLE_VMFUNC);
@@ -2642,8 +2664,23 @@ static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
 	    CC(!kvm_pat_valid(vmcs12->host_ia32_pat)))
 		return -EINVAL;
 
-	ia32e = (vmcs12->vm_exit_controls &
-		 VM_EXIT_HOST_ADDR_SPACE_SIZE) != 0;
+#ifdef CONFIG_X86_64
+	ia32e = !!(vcpu->arch.efer & EFER_LMA);
+#else
+	ia32e = false;
+#endif
+
+	if (ia32e) {
+		if (CC(!(vmcs12->vm_exit_controls & VM_EXIT_HOST_ADDR_SPACE_SIZE)) ||
+		    CC(!(vmcs12->host_cr4 & X86_CR4_PAE)))
+			return -EINVAL;
+	} else {
+		if (CC(vmcs12->vm_exit_controls & VM_EXIT_HOST_ADDR_SPACE_SIZE) ||
+		    CC(vmcs12->vm_entry_controls & VM_ENTRY_IA32E_MODE) ||
+		    CC(vmcs12->host_cr4 & X86_CR4_PCIDE) ||
+		    CC((vmcs12->host_rip) >> 32))
+			return -EINVAL;
+	}
 
 	if (CC(vmcs12->host_cs_selector & (SEGMENT_RPL_MASK | SEGMENT_TI_MASK)) ||
 	    CC(vmcs12->host_ss_selector & (SEGMENT_RPL_MASK | SEGMENT_TI_MASK)) ||
@@ -2662,7 +2699,8 @@ static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
 	    CC(is_noncanonical_address(vmcs12->host_gs_base, vcpu)) ||
 	    CC(is_noncanonical_address(vmcs12->host_gdtr_base, vcpu)) ||
 	    CC(is_noncanonical_address(vmcs12->host_idtr_base, vcpu)) ||
-	    CC(is_noncanonical_address(vmcs12->host_tr_base, vcpu)))
+	    CC(is_noncanonical_address(vmcs12->host_tr_base, vcpu)) ||
+	    CC(is_noncanonical_address(vmcs12->host_rip, vcpu)))
 		return -EINVAL;
 #endif
 
@@ -5441,6 +5479,10 @@ bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 	case EXIT_REASON_ENCLS:
 		/* SGX is never exposed to L1 */
 		return false;
+	case EXIT_REASON_UMWAIT:
+	case EXIT_REASON_TPAUSE:
+		return nested_cpu_has2(vmcs12,
+			SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE);
 	default:
 		return true;
 	}
