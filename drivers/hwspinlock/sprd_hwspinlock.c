@@ -79,6 +79,13 @@ static const struct hwspinlock_ops sprd_hwspinlock_ops = {
 	.relax = sprd_hwspinlock_relax,
 };
 
+static void sprd_hwspinlock_disable(void *data)
+{
+	struct sprd_hwspinlock_dev *sprd_hwlock = data;
+
+	clk_disable_unprepare(sprd_hwlock->clk);
+}
+
 static int sprd_hwspinlock_probe(struct platform_device *pdev)
 {
 	struct sprd_hwspinlock_dev *sprd_hwlock;
@@ -109,6 +116,14 @@ static int sprd_hwspinlock_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = devm_add_action_or_reset(&pdev->dev, sprd_hwspinlock_disable,
+				       sprd_hwlock);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"Failed to add hwspinlock disable action\n");
+		return ret;
+	}
+
 	/* set the hwspinlock to record user id to identify subsystems */
 	writel(HWSPINLOCK_USER_BITS, sprd_hwlock->base + HWSPINLOCK_RECCTRL);
 
@@ -124,7 +139,6 @@ static int sprd_hwspinlock_probe(struct platform_device *pdev)
 				   &sprd_hwspinlock_ops, 0, SPRD_HWLOCKS_NUM);
 	if (ret) {
 		pm_runtime_disable(&pdev->dev);
-		clk_disable_unprepare(sprd_hwlock->clk);
 		return ret;
 	}
 
@@ -137,7 +151,6 @@ static int sprd_hwspinlock_remove(struct platform_device *pdev)
 
 	hwspin_lock_unregister(&sprd_hwlock->bank);
 	pm_runtime_disable(&pdev->dev);
-	clk_disable_unprepare(sprd_hwlock->clk);
 	return 0;
 }
 
