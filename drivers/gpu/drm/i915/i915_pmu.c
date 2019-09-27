@@ -11,6 +11,7 @@
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt_pm.h"
+#include "gt/intel_rc6.h"
 
 #include "i915_drv.h"
 #include "i915_pmu.h"
@@ -116,21 +117,21 @@ static bool pmu_needs_timer(struct i915_pmu *pmu, bool gpu_active)
 	return enable;
 }
 
-static u64 __get_rc6(const struct intel_gt *gt)
+static u64 __get_rc6(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
 	u64 val;
 
-	val = intel_rc6_residency_ns(i915,
+	val = intel_rc6_residency_ns(&gt->rc6,
 				     IS_VALLEYVIEW(i915) ?
 				     VLV_GT_RENDER_RC6 :
 				     GEN6_GT_GFX_RC6);
 
 	if (HAS_RC6p(i915))
-		val += intel_rc6_residency_ns(i915, GEN6_GT_GFX_RC6p);
+		val += intel_rc6_residency_ns(&gt->rc6, GEN6_GT_GFX_RC6p);
 
 	if (HAS_RC6pp(i915))
-		val += intel_rc6_residency_ns(i915, GEN6_GT_GFX_RC6pp);
+		val += intel_rc6_residency_ns(&gt->rc6, GEN6_GT_GFX_RC6pp);
 
 	return val;
 }

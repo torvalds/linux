@@ -599,19 +599,12 @@ struct intel_rps {
 	struct intel_rps_ei ei;
 };
 
-struct intel_rc6 {
-	bool enabled;
-	u64 prev_hw_residency[4];
-	u64 cur_residency[4];
-};
-
 struct intel_llc_pstate {
 	bool enabled;
 };
 
 struct intel_gen6_power_mgmt {
 	struct intel_rps rps;
-	struct intel_rc6 rc6;
 	struct intel_llc_pstate llc_pstate;
 };
 

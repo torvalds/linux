@@ -85,6 +85,7 @@ gt-y += \
 	gt/intel_gt_pm_irq.o \
 	gt/intel_hangcheck.o \
 	gt/intel_lrc.o \
+	gt/intel_rc6.o \
 	gt/intel_renderstate.o \
 	gt/intel_reset.o \
 	gt/intel_ringbuffer.o \

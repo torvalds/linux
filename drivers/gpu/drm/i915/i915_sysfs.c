@@ -30,6 +30,8 @@
 #include <linux/stat.h>
 #include <linux/sysfs.h>
 
+#include "gt/intel_rc6.h"
+
 #include "i915_drv.h"
 #include "i915_sysfs.h"
 #include "intel_pm.h"
@@ -49,7 +51,7 @@ static u32 calc_residency(struct drm_i915_private *dev_priv,
 	u64 res = 0;
 
 	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
-		res = intel_rc6_residency_us(dev_priv, reg);
+		res = intel_rc6_residency_us(&dev_priv->gt.rc6, reg);
 
 	return DIV_ROUND_CLOSEST_ULL(res, 1000);
 }

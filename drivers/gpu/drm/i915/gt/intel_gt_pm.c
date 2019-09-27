@@ -11,6 +11,7 @@
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
 #include "intel_pm.h"
+#include "intel_rc6.h"
 #include "intel_wakeref.h"
 
 static void pm_notify(struct intel_gt *gt, int state)
@@ -90,6 +91,16 @@ void intel_gt_pm_init_early(struct intel_gt *gt)
 	BLOCKING_INIT_NOTIFIER_HEAD(&gt->pm_notifications);
 }
 
+void intel_gt_pm_init(struct intel_gt *gt)
+{
+	/*
+	 * Enabling power-management should be "self-healing". If we cannot
+	 * enable a feature, simply leave it disabled with a notice to the
+	 * user.
+	 */
+	intel_rc6_init(&gt->rc6);
+}
+
 static bool reset_engines(struct intel_gt *gt)
 {
 	if (INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
@@ -124,40 +135,14 @@ void intel_gt_sanitize(struct intel_gt *gt, bool force)
 		__intel_engine_reset(engine, false);
 }
 
-static bool is_mock_device(const struct intel_gt *gt)
-{
-	return I915_SELFTEST_ONLY(gt->awake == -1);
-}
-
-void intel_gt_pm_enable(struct intel_gt *gt)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	/* Powersaving is controlled by the host when inside a VM */
-	if (intel_vgpu_active(gt->i915))
-		return;
-
-	if (is_mock_device(gt))
-		return;
-
-	intel_gt_pm_get(gt);
-
-	for_each_engine(engine, gt->i915, id) {
-		intel_engine_pm_get(engine);
-		engine->serial++; /* force kernel context reload */
-		intel_engine_pm_put(engine);
-	}
-
-	intel_gt_pm_put(gt);
-}
-
 void intel_gt_pm_disable(struct intel_gt *gt)
 {
-	if (is_mock_device(gt))
-		return;
-
 	intel_sanitize_gt_powersave(gt->i915);
+}
+
+void intel_gt_pm_fini(struct intel_gt *gt)
+{
+	intel_rc6_fini(&gt->rc6);
 }
 
 int intel_gt_resume(struct intel_gt *gt)
@@ -173,6 +158,9 @@ int intel_gt_resume(struct intel_gt *gt)
 	 * allowing us to fixup the user contexts on their first pin.
 	 */
 	intel_gt_pm_get(gt);
+	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
+	intel_rc6_sanitize(&gt->rc6);
+
 	for_each_engine(engine, gt->i915, id) {
 		struct intel_context *ce;
 
@@ -197,9 +185,49 @@ int intel_gt_resume(struct intel_gt *gt)
 			break;
 		}
 	}
+
+	intel_rc6_enable(&gt->rc6);
+	intel_uncore_forcewake_put(gt->uncore, FORCEWAKE_ALL);
 	intel_gt_pm_put(gt);
 
 	return err;
+}
+
+static void wait_for_idle(struct intel_gt *gt)
+{
+	mutex_lock(&gt->i915->drm.struct_mutex); /* XXX */
+	do {
+		if (i915_gem_wait_for_idle(gt->i915,
+					   I915_WAIT_LOCKED,
+					   I915_GEM_IDLE_TIMEOUT) == -ETIME) {
+			/* XXX hide warning from gem_eio */
+			if (i915_modparams.reset) {
+				dev_err(gt->i915->drm.dev,
+					"Failed to idle engines, declaring wedged!\n");
+				GEM_TRACE_DUMP();
+			}
+
+			/*
+			 * Forcibly cancel outstanding work and leave
+			 * the gpu quiet.
+			 */
+			intel_gt_set_wedged(gt);
+		}
+	} while (i915_retire_requests(gt->i915));
+	mutex_unlock(&gt->i915->drm.struct_mutex);
+
+	intel_gt_pm_wait_for_idle(gt);
+}
+
+void intel_gt_suspend(struct intel_gt *gt)
+{
+	intel_wakeref_t wakeref;
+
+	/* We expect to be idle already; but also want to be independent */
+	wait_for_idle(gt);
+
+	with_intel_runtime_pm(&gt->i915->runtime_pm, wakeref)
+		intel_rc6_disable(&gt->rc6);
 }
 
 void intel_gt_runtime_suspend(struct intel_gt *gt)
@@ -213,3 +241,7 @@ int intel_gt_runtime_resume(struct intel_gt *gt)
 
 	return intel_uc_runtime_resume(&gt->uc);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftest_gt_pm.c"
+#endif

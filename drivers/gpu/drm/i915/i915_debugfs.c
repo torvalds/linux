@@ -42,6 +42,7 @@
 #include "gem/i915_gem_context.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_reset.h"
+#include "gt/intel_rc6.h"
 #include "gt/uc/intel_guc_submission.h"
 
 #include "i915_debugfs.h"
@@ -1168,11 +1169,13 @@ static void print_rc6_res(struct seq_file *m,
 			  const char *title,
 			  const i915_reg_t reg)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct drm_i915_private *i915 = node_to_i915(m->private);
+	intel_wakeref_t wakeref;
 
-	seq_printf(m, "%s %u (%llu us)\n",
-		   title, I915_READ(reg),
-		   intel_rc6_residency_us(dev_priv, reg));
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+		seq_printf(m, "%s %u (%llu us)\n", title,
+			   intel_uncore_read(&i915->uncore, reg),
+			   intel_rc6_residency_us(&i915->gt.rc6, reg));
 }
 
 static int vlv_drpc_info(struct seq_file *m)
