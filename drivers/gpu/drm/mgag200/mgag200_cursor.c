@@ -25,6 +25,34 @@ static void mgag200_hide_cursor(struct mga_device *mdev)
 	mdev->cursor.pixels_current = NULL;
 }
 
+int mgag200_cursor_init(struct mga_device *mdev)
+{
+	struct drm_device *dev = mdev->dev;
+
+	/*
+	 * Make small buffers to store a hardware cursor (double
+	 * buffered icon updates)
+	 */
+	mdev->cursor.pixels_1 = drm_gem_vram_create(dev, &dev->vram_mm->bdev,
+						    roundup(48*64, PAGE_SIZE),
+						    0, 0);
+	mdev->cursor.pixels_2 = drm_gem_vram_create(dev, &dev->vram_mm->bdev,
+						    roundup(48*64, PAGE_SIZE),
+						    0, 0);
+	if (IS_ERR(mdev->cursor.pixels_2) || IS_ERR(mdev->cursor.pixels_1)) {
+		mdev->cursor.pixels_1 = NULL;
+		mdev->cursor.pixels_2 = NULL;
+		dev_warn(&dev->pdev->dev,
+			"Could not allocate space for cursors. Not doing hardware cursors.\n");
+	}
+	mdev->cursor.pixels_current = NULL;
+
+	return 0;
+}
+
+void mgag200_cursor_fini(struct mga_device *mdev)
+{ }
+
 int mgag200_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 			    uint32_t handle, uint32_t width, uint32_t height)
 {
