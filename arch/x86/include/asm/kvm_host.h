@@ -156,10 +156,8 @@ enum kvm_reg {
 	VCPU_REGS_R15 = __VCPU_REGS_R15,
 #endif
 	VCPU_REGS_RIP,
-	NR_VCPU_REGS
-};
+	NR_VCPU_REGS,
 
-enum kvm_reg_ex {
 	VCPU_EXREG_PDPTR = NR_VCPU_REGS,
 	VCPU_EXREG_CR3,
 	VCPU_EXREG_RFLAGS,
