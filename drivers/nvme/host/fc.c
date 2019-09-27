@@ -1462,9 +1462,6 @@ nvme_fc_xmt_disconnect_assoc(struct nvme_fc_ctrl *ctrl)
 				nvme_fc_disconnect_assoc_done);
 	if (ret)
 		kfree(lsop);
-
-	/* only meaningful part to terminating the association */
-	ctrl->association_id = 0;
 }
 
 
@@ -2743,6 +2740,7 @@ out_term_aen_ops:
 out_disconnect_admin_queue:
 	/* send a Disconnect(association) LS to fc-nvme target */
 	nvme_fc_xmt_disconnect_assoc(ctrl);
+	ctrl->association_id = 0;
 out_delete_hw_queue:
 	__nvme_fc_delete_hw_queue(ctrl, &ctrl->queues[0], 0);
 out_free_queue:
@@ -2833,6 +2831,8 @@ nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 	 */
 	if (ctrl->association_id)
 		nvme_fc_xmt_disconnect_assoc(ctrl);
+
+	ctrl->association_id = 0;
 
 	if (ctrl->ctrl.tagset) {
 		nvme_fc_delete_hw_io_queues(ctrl);
