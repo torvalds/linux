@@ -1431,9 +1431,16 @@ unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	unsigned long old_rflags = vmx_get_rflags(vcpu);
+	unsigned long old_rflags;
 
-	__set_bit(VCPU_EXREG_RFLAGS, (ulong *)&vcpu->arch.regs_avail);
+	if (enable_unrestricted_guest) {
+		__set_bit(VCPU_EXREG_RFLAGS, (ulong *)&vcpu->arch.regs_avail);
+		vmx->rflags = rflags;
+		vmcs_writel(GUEST_RFLAGS, rflags);
+		return;
+	}
+
+	old_rflags = vmx_get_rflags(vcpu);
 	vmx->rflags = rflags;
 	if (vmx->rmode.vm86_active) {
 		vmx->rmode.save_rflags = rflags;
