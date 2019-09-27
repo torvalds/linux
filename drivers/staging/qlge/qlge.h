@@ -1452,6 +1452,13 @@ struct qlge_bq {
 
 #define QLGE_BQ_WRAP(index) ((index) & (QLGE_BQ_LEN - 1))
 
+#define QLGE_BQ_HW_OWNED(bq) \
+({ \
+	typeof(bq) _bq = bq; \
+	QLGE_BQ_WRAP(QLGE_BQ_ALIGN((_bq)->next_to_use) - \
+		     (_bq)->next_to_clean); \
+})
+
 struct rx_ring {
 	struct cqicb cqicb;	/* The chip's completion queue init control block. */
 
@@ -1479,6 +1486,7 @@ struct rx_ring {
 	/* Misc. handler elements. */
 	u32 irq;		/* Which vector this ring is assigned. */
 	u32 cpu;		/* Which CPU this should run on. */
+	struct delayed_work refill_work;
 	char name[IFNAMSIZ + 5];
 	struct napi_struct napi;
 	u8 reserved;
