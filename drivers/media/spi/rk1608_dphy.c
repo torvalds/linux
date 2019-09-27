@@ -478,9 +478,9 @@ static int rk1608_dphy_probe(struct platform_device *pdev)
 	sd->internal_ops = &dphy_subdev_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	dphy->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
-	ret = media_entity_init(&sd->entity, 1, &dphy->pad, 0);
+	ret = media_entity_pads_init(&sd->entity, 1, &dphy->pad);
 	if (ret < 0)
 		goto handler_err;
 	ret = v4l2_async_register_subdev(sd);
