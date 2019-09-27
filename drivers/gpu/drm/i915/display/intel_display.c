@@ -16803,7 +16803,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			crtc->base.mode.hdisplay = crtc_state->pipe_src_w;
 			crtc->base.mode.vdisplay = crtc_state->pipe_src_h;
 			intel_mode_from_pipe_config(&crtc_state->base.adjusted_mode, crtc_state);
-			WARN_ON(drm_atomic_set_mode_for_crtc(crtc->base.state, &crtc->base.mode));
+			WARN_ON(drm_atomic_set_mode_for_crtc(&crtc_state->base, &crtc->base.mode));
 
 			/*
 			 * The initial mode needs to be set in order to keep
