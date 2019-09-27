@@ -3084,10 +3084,14 @@ void dcn20_update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_s
 
 	if (dc->bb_overrides.min_dcfclk_mhz > 0)
 		min_dcfclk = dc->bb_overrides.min_dcfclk_mhz;
-	else
-		// Accounting for SOC/DCF relationship, we can go as high as
-		// 506Mhz in Vmin.  We need to code 507 since SMU will round down to 506.
-		min_dcfclk = 507;
+	else {
+		if (ASICREV_IS_NAVI12_P(dc->ctx->asic_id.hw_internal_rev))
+			min_dcfclk = 310;
+		else
+			// Accounting for SOC/DCF relationship, we can go as high as
+			// 506Mhz in Vmin.
+			min_dcfclk = 506;
+	}
 
 	for (i = 0; i < num_states; i++) {
 		int min_fclk_required_by_uclk;
