@@ -529,8 +529,8 @@ struct iocg_wake_ctx {
 static const struct ioc_params autop[] = {
 	[AUTOP_HDD] = {
 		.qos				= {
-			[QOS_RLAT]		=         50000, /* 50ms */
-			[QOS_WLAT]		=         50000,
+			[QOS_RLAT]		=        250000, /* 250ms */
+			[QOS_WLAT]		=        250000,
 			[QOS_MIN]		= VRATE_MIN_PPM,
 			[QOS_MAX]		= VRATE_MAX_PPM,
 		},
@@ -1343,7 +1343,7 @@ static void ioc_timer_fn(struct timer_list *timer)
 	u32 ppm_wthr = MILLION - ioc->params.qos[QOS_WPPM];
 	u32 missed_ppm[2], rq_wait_pct;
 	u64 period_vtime;
-	int i;
+	int prev_busy_level, i;
 
 	/* how were the latencies during the period? */
 	ioc_lat_stat(ioc, missed_ppm, &rq_wait_pct);
@@ -1407,7 +1407,8 @@ static void ioc_timer_fn(struct timer_list *timer)
 		 * comparing vdone against period start.  If lagging behind
 		 * IOs from past periods, don't increase vrate.
 		 */
-		if (!atomic_read(&iocg_to_blkg(iocg)->use_delay) &&
+		if ((ppm_rthr != MILLION || ppm_wthr != MILLION) &&
+		    !atomic_read(&iocg_to_blkg(iocg)->use_delay) &&
 		    time_after64(vtime, vdone) &&
 		    time_after64(vtime, now.vnow -
 				 MAX_LAGGING_PERIODS * period_vtime) &&
@@ -1531,26 +1532,29 @@ skip_surplus_transfers:
 	 * and experiencing shortages but not surpluses, we're too stingy
 	 * and should increase vtime rate.
 	 */
+	prev_busy_level = ioc->busy_level;
 	if (rq_wait_pct > RQ_WAIT_BUSY_PCT ||
 	    missed_ppm[READ] > ppm_rthr ||
 	    missed_ppm[WRITE] > ppm_wthr) {
 		ioc->busy_level = max(ioc->busy_level, 0);
 		ioc->busy_level++;
-	} else if (nr_lagging) {
-		ioc->busy_level = max(ioc->busy_level, 0);
-	} else if (nr_shortages && !nr_surpluses &&
-		   rq_wait_pct <= RQ_WAIT_BUSY_PCT * UNBUSY_THR_PCT / 100 &&
+	} else if (rq_wait_pct <= RQ_WAIT_BUSY_PCT * UNBUSY_THR_PCT / 100 &&
 		   missed_ppm[READ] <= ppm_rthr * UNBUSY_THR_PCT / 100 &&
 		   missed_ppm[WRITE] <= ppm_wthr * UNBUSY_THR_PCT / 100) {
-		ioc->busy_level = min(ioc->busy_level, 0);
-		ioc->busy_level--;
+		/* take action iff there is contention */
+		if (nr_shortages && !nr_lagging) {
+			ioc->busy_level = min(ioc->busy_level, 0);
+			/* redistribute surpluses first */
+			if (!nr_surpluses)
+				ioc->busy_level--;
+		}
 	} else {
 		ioc->busy_level = 0;
 	}
 
 	ioc->busy_level = clamp(ioc->busy_level, -1000, 1000);
 
-	if (ioc->busy_level) {
+	if (ioc->busy_level > 0 || (ioc->busy_level < 0 && !nr_lagging)) {
 		u64 vrate = atomic64_read(&ioc->vtime_rate);
 		u64 vrate_min = ioc->vrate_min, vrate_max = ioc->vrate_max;
 
@@ -1592,6 +1596,10 @@ skip_surplus_transfers:
 		atomic64_set(&ioc->vtime_rate, vrate);
 		ioc->inuse_margin_vtime = DIV64_U64_ROUND_UP(
 			ioc->period_us * vrate * INUSE_MARGIN_PCT, 100);
+	} else if (ioc->busy_level != prev_busy_level || nr_lagging) {
+		trace_iocost_ioc_vrate_adj(ioc, atomic64_read(&ioc->vtime_rate),
+					   &missed_ppm, rq_wait_pct, nr_lagging,
+					   nr_shortages, nr_surpluses);
 	}
 
 	ioc_refresh_params(ioc, false);
