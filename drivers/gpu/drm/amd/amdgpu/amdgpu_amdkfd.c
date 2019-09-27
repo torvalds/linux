@@ -744,6 +744,7 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev,
 }
 
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
+			 struct drm_device *ddev,
 			 const struct kgd2kfd_shared_resources *gpu_resources)
 {
 	return false;
