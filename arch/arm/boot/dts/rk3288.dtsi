@@ -9,6 +9,7 @@
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/power/rk3288-power.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
+#include <dt-bindings/suspend/rockchip-rk3288.h>
 
 / {
 	#address-cells = <2>;
@@ -1959,5 +1960,28 @@
 				rockchip,pins = <RK_GPIO6 11 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
+	};
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rk3288";
+		status = "disabled";
+		rockchip,sleep-mode-config = <
+			(0
+			|RKPM_CTR_PWR_DMNS
+			|RKPM_CTR_GTCLKS
+			|RKPM_CTR_PLLS
+			|RKPM_CTR_ARMOFF_LPMD
+			|RKPM_CTR_SYSCLK_OSC_DIS
+			)
+		>;
+		rockchip,wakeup-config = <
+			(0
+			| RKPM_GPIO_WKUP_EN
+			)
+		>;
+		rockchip,pwm-regulator-config = <
+			(0
+			| PWM2_REGULATOR_EN
+			)
+		>;
 	};
 };
