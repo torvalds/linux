@@ -1407,10 +1407,28 @@ static int rk8xx_suspend(struct device *dev)
 	}
 
 	if (rk808->pins && rk808->pins->p && rk808->pins->sleep) {
+		ret = regmap_update_bits(rk808->regmap,
+					 RK817_SYS_CFG(3),
+					 RK817_SLPPIN_FUNC_MSK,
+					 SLPPIN_NULL_FUN);
+		if (ret) {
+			dev_err(dev, "suspend: config SLPPIN_NULL_FUN error!\n");
+			return ret;
+		}
+
+		ret = regmap_update_bits(rk808->regmap,
+					 RK817_SYS_CFG(3),
+					 RK817_SLPPOL_MSK,
+					 RK817_SLPPOL_H);
+		if (ret) {
+			dev_err(dev, "suspend: config RK817_SLPPOL_H error!\n");
+			return ret;
+		}
+
 		ret = pinctrl_select_state(rk808->pins->p, rk808->pins->sleep);
 		if (ret) {
 			dev_err(dev, "failed to act slp pinctrl state\n");
-			return -1;
+			return ret;
 		}
 	}
 	return ret;
@@ -1433,6 +1451,23 @@ static int rk8xx_resume(struct device *dev)
 		}
 	}
 	if (rk808->pins && rk808->pins->p && rk808->pins->reset) {
+		ret = regmap_update_bits(rk808->regmap,
+					 RK817_SYS_CFG(3),
+					 RK817_SLPPIN_FUNC_MSK,
+					 SLPPIN_NULL_FUN);
+		if (ret) {
+			dev_err(dev, "resume: config SLPPIN_NULL_FUN error!\n");
+			return ret;
+		}
+
+		ret = regmap_update_bits(rk808->regmap,
+					 RK817_SYS_CFG(3),
+					 RK817_SLPPOL_MSK,
+					 RK817_SLPPOL_L);
+		if (ret) {
+			dev_err(dev, "resume: config RK817_SLPPOL_L error!\n");
+			return ret;
+		}
 		ret = pinctrl_select_state(rk808->pins->p, rk808->pins->reset);
 		if (ret)
 			dev_dbg(dev, "failed to act reset pinctrl state\n");
