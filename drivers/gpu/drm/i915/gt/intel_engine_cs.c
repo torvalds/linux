@@ -820,8 +820,10 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	if (engine->default_state)
 		i915_gem_object_put(engine->default_state);
 
-	intel_context_unpin(engine->kernel_context);
-	intel_context_put(engine->kernel_context);
+	if (engine->kernel_context) {
+		intel_context_unpin(engine->kernel_context);
+		intel_context_put(engine->kernel_context);
+	}
 	GEM_BUG_ON(!llist_empty(&engine->barrier_tasks));
 
 	intel_wa_list_free(&engine->ctx_wa_list);
