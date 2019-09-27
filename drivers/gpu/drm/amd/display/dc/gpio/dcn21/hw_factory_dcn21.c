@@ -35,11 +35,9 @@
 
 #include "hw_factory_dcn21.h"
 
-
 #include "dcn/dcn_2_1_0_offset.h"
 #include "dcn/dcn_2_1_0_sh_mask.h"
 #include "renoir_ip_offset.h"
-
 
 #include "reg_helper.h"
 #include "../hpd_regs.h"
@@ -136,6 +134,39 @@ static const struct ddc_sh_mask ddc_mask[] = {
 	DDC_MASK_SH_LIST_DCN2(_MASK, 6)
 };
 
+#include "../generic_regs.h"
+
+/* set field name */
+#define SF_GENERIC(reg_name, field_name, post_fix)\
+	.field_name = reg_name ## __ ## field_name ## post_fix
+
+#define generic_regs(id) \
+{\
+	GENERIC_REG_LIST(id)\
+}
+
+static const struct generic_registers generic_regs[] = {
+	generic_regs(A),
+};
+
+static const struct generic_sh_mask generic_shift[] = {
+	GENERIC_MASK_SH_LIST(__SHIFT, A),
+};
+
+static const struct generic_sh_mask generic_mask[] = {
+	GENERIC_MASK_SH_LIST(_MASK, A),
+};
+
+static void define_generic_registers(struct hw_gpio_pin *pin, uint32_t en)
+{
+	struct hw_generic *generic = HW_GENERIC_FROM_BASE(pin);
+
+	generic->regs = &generic_regs[en];
+	generic->shifts = &generic_shift[en];
+	generic->masks = &generic_mask[en];
+	generic->base.regs = &generic_regs[en].gpio;
+}
+
 static void define_ddc_registers(
 		struct hw_gpio_pin *pin,
 		uint32_t en)
@@ -181,7 +212,8 @@ static const struct hw_factory_funcs funcs = {
 	.get_hpd_pin = dal_hw_hpd_get_pin,
 	.get_generic_pin = dal_hw_generic_get_pin,
 	.define_hpd_registers = define_hpd_registers,
-	.define_ddc_registers = define_ddc_registers
+	.define_ddc_registers = define_ddc_registers,
+	.define_generic_registers = define_generic_registers
 };
 /*
  * dal_hw_factory_dcn10_init
