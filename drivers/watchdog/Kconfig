@@ -477,13 +477,6 @@ config IXP4XX_WATCHDOG
 
 	  Say N if you are unsure.
 
-config KS8695_WATCHDOG
-	tristate "KS8695 watchdog"
-	depends on ARCH_KS8695
-	help
-	  Watchdog timer embedded into KS8695 processor. This will reboot your
-	  system when the timeout is reached.
-
 config HAVE_S3C2410_WATCHDOG
 	bool
 	help
@@ -662,15 +655,6 @@ config STMP3XXX_RTC_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called stmp3xxx_rtc_wdt.
 
-config NUC900_WATCHDOG
-	tristate "Nuvoton NUC900 watchdog"
-	depends on ARCH_W90X900 || COMPILE_TEST
-	help
-	  Say Y here if to include support for the watchdog timer
-	  for the Nuvoton NUC900 series SoCs.
-	  To compile this driver as a module, choose M here: the
-	  module will be called nuc900_wdt.
-
 config TS4800_WATCHDOG
 	tristate "TS-4800 Watchdog"
 	depends on HAS_IOMEM && OF
@@ -739,6 +723,19 @@ config IMX_SC_WDT
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx_sc_wdt.
+
+config IMX7ULP_WDT
+	tristate "IMX7ULP Watchdog"
+	depends on ARCH_MXC || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  This is the driver for the hardware watchdog on the Freescale
+	  IMX7ULP and later processors. If you have one of these
+	  processors and wish to have watchdog support enabled,
+	  say Y, otherwise say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx7ulp_wdt.
 
 config UX500_WATCHDOG
 	tristate "ST-Ericsson Ux500 watchdog"
@@ -1046,8 +1043,8 @@ config F71808E_WDT
 	depends on X86
 	help
 	  This is the driver for the hardware watchdog on the Fintek F71808E,
-	  F71862FG, F71868, F71869, F71882FG, F71889FG, F81865 and F81866
-	  Super I/O controllers.
+	  F71862FG, F71868, F71869, F71882FG, F71889FG, F81803, F81865, and
+	  F81866 Super I/O controllers.
 
 	  You can compile this driver directly into the kernel, or use
 	  it as a module.  The module will be called f71808e_wdt.
