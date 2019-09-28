@@ -12,6 +12,14 @@
 #include <asm/code-patching.h>
 #include <mm/mmu_decl.h>
 
+static pgprot_t kasan_prot_ro(void)
+{
+	if (early_mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		return PAGE_READONLY;
+
+	return PAGE_KERNEL_RO;
+}
+
 static void kasan_populate_pte(pte_t *ptep, pgprot_t prot)
 {
 	unsigned long va = (unsigned long)kasan_early_shadow_page;
@@ -26,6 +34,7 @@ static int __ref kasan_init_shadow_page_tables(unsigned long k_start, unsigned l
 {
 	pmd_t *pmd;
 	unsigned long k_cur, k_next;
+	pgprot_t prot = slab_is_available() ? kasan_prot_ro() : PAGE_KERNEL;
 
 	pmd = pmd_offset(pud_offset(pgd_offset_k(k_start), k_start), k_start);
 
@@ -43,10 +52,7 @@ static int __ref kasan_init_shadow_page_tables(unsigned long k_start, unsigned l
 
 		if (!new)
 			return -ENOMEM;
-		if (early_mmu_has_feature(MMU_FTR_HPTE_TABLE))
-			kasan_populate_pte(new, PAGE_READONLY);
-		else
-			kasan_populate_pte(new, PAGE_KERNEL_RO);
+		kasan_populate_pte(new, prot);
 
 		smp_wmb(); /* See comment in __pte_alloc */
 
@@ -103,11 +109,23 @@ static int __ref kasan_init_region(void *start, size_t size)
 
 static void __init kasan_remap_early_shadow_ro(void)
 {
-	if (early_mmu_has_feature(MMU_FTR_HPTE_TABLE))
-		kasan_populate_pte(kasan_early_shadow_pte, PAGE_READONLY);
-	else
-		kasan_populate_pte(kasan_early_shadow_pte, PAGE_KERNEL_RO);
+	pgprot_t prot = kasan_prot_ro();
+	unsigned long k_start = KASAN_SHADOW_START;
+	unsigned long k_end = KASAN_SHADOW_END;
+	unsigned long k_cur;
+	phys_addr_t pa = __pa(kasan_early_shadow_page);
 
+	kasan_populate_pte(kasan_early_shadow_pte, prot);
+
+	for (k_cur = k_start & PAGE_MASK; k_cur < k_end; k_cur += PAGE_SIZE) {
+		pmd_t *pmd = pmd_offset(pud_offset(pgd_offset_k(k_cur), k_cur), k_cur);
+		pte_t *ptep = pte_offset_kernel(pmd, k_cur);
+
+		if ((pte_val(*ptep) & PTE_RPN_MASK) != pa)
+			continue;
+
+		__set_pte_at(&init_mm, k_cur, ptep, pfn_pte(PHYS_PFN(pa), prot), 0);
+	}
 	flush_tlb_kernel_range(KASAN_SHADOW_START, KASAN_SHADOW_END);
 }
 

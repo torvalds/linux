@@ -644,8 +644,10 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 
 	/* Load guest PCR value to select appropriate compat mode */
 37:	ld	r7, VCORE_PCR(r5)
-	cmpdi	r7, 0
+	LOAD_REG_IMMEDIATE(r6, PCR_MASK)
+	cmpld	r7, r6
 	beq	38f
+	or	r7, r7, r6
 	mtspr	SPRN_PCR, r7
 38:
 
@@ -1913,10 +1915,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
 	/* Reset PCR */
 	ld	r0, VCORE_PCR(r5)
-	cmpdi	r0, 0
+	LOAD_REG_IMMEDIATE(r6, PCR_MASK)
+	cmpld	r0, r6
 	beq	18f
-	li	r0, 0
-	mtspr	SPRN_PCR, r0
+	mtspr	SPRN_PCR, r6
 18:
 	/* Signal secondary CPUs to continue */
 	stb	r0,VCORE_IN_GUEST(r5)
