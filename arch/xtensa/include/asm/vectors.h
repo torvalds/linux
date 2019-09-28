@@ -21,49 +21,13 @@
 #include <asm/core.h>
 #include <asm/kmem_layout.h>
 
-#if XCHAL_HAVE_PTP_MMU
-#define XCHAL_KIO_CACHED_VADDR		0xe0000000
-#define XCHAL_KIO_BYPASS_VADDR		0xf0000000
-#define XCHAL_KIO_DEFAULT_PADDR		0xf0000000
-#else
-#define XCHAL_KIO_BYPASS_VADDR		XCHAL_KIO_PADDR
-#define XCHAL_KIO_DEFAULT_PADDR		0x90000000
-#endif
-#define XCHAL_KIO_SIZE			0x10000000
-
-#if (!XCHAL_HAVE_PTP_MMU || XCHAL_HAVE_SPANNING_WAY) && defined(CONFIG_OF)
-#define XCHAL_KIO_PADDR			xtensa_get_kio_paddr()
-#ifndef __ASSEMBLY__
-extern unsigned long xtensa_kio_paddr;
-
-static inline unsigned long xtensa_get_kio_paddr(void)
-{
-	return xtensa_kio_paddr;
-}
-#endif
-#else
-#define XCHAL_KIO_PADDR			XCHAL_KIO_DEFAULT_PADDR
-#endif
-
-#if defined(CONFIG_MMU)
-
-#if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
-/* Image Virtual Start Address */
-#define KERNELOFFSET			(XCHAL_KSEG_CACHED_VADDR + \
-					 CONFIG_KERNEL_LOAD_ADDRESS - \
+#if defined(CONFIG_MMU) && XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
+#define KERNELOFFSET			(CONFIG_KERNEL_LOAD_ADDRESS + \
+					 XCHAL_KSEG_CACHED_VADDR - \
 					 XCHAL_KSEG_PADDR)
 #else
 #define KERNELOFFSET			CONFIG_KERNEL_LOAD_ADDRESS
 #endif
-
-#else /* !defined(CONFIG_MMU) */
-  /* MMU Not being used - Virtual == Physical */
-
-/* Location of the start of the kernel text, _start */
-#define KERNELOFFSET			CONFIG_KERNEL_LOAD_ADDRESS
-
-
-#endif /* CONFIG_MMU */
 
 #define RESET_VECTOR1_VADDR		(XCHAL_RESET_VECTOR1_VADDR)
 #ifdef CONFIG_VECTORS_OFFSET
