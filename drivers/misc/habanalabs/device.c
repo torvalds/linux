@@ -42,12 +42,10 @@ static void hpriv_release(struct kref *ref)
 {
 	struct hl_fpriv *hpriv;
 	struct hl_device *hdev;
-	struct hl_ctx *ctx;
 
 	hpriv = container_of(ref, struct hl_fpriv, refcount);
 
 	hdev = hpriv->hdev;
-	ctx = hpriv->ctx;
 
 	put_pid(hpriv->taskpid);
 
