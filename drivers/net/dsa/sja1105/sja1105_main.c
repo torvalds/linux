@@ -2005,11 +2005,11 @@ static void sja1105_rxtstamp_work(struct work_struct *work)
 
 	mutex_lock(&priv->ptp_lock);
 
-	now = priv->tstamp_cc.read(&priv->tstamp_cc);
-
 	while ((skb = skb_dequeue(&data->skb_rxtstamp_queue)) != NULL) {
 		struct skb_shared_hwtstamps *shwt = skb_hwtstamps(skb);
 		u64 ts;
+
+		now = priv->tstamp_cc.read(&priv->tstamp_cc);
 
 		*shwt = (struct skb_shared_hwtstamps) {0};
 
