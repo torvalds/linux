@@ -556,7 +556,7 @@ config ARCH_HAS_KEXEC_PURGATORY
 
 config KEXEC_VERIFY_SIG
 	bool "Verify kernel signature during kexec_file_load() syscall"
-	depends on KEXEC_FILE && SYSTEM_DATA_VERIFICATION
+	depends on KEXEC_FILE && MODULE_SIG_FORMAT
 	help
 	  This option makes kernel signature verification mandatory for
 	  the kexec_file_load() syscall.
