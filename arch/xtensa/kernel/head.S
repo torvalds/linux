@@ -355,10 +355,10 @@ ENDPROC(cpu_restart)
  * DATA section
  */
 
-        .section ".data.init.refok"
-        .align  4
+	__REFDATA
+	.align  4
 ENTRY(start_info)
-        .long   init_thread_union + KERNEL_STACK_SIZE
+	.long	init_thread_union + KERNEL_STACK_SIZE
 
 /*
  * BSS section
