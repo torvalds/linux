@@ -1048,8 +1048,7 @@ static void taprio_set_picos_per_byte(struct net_device *dev,
 		speed = ecmd.base.speed;
 
 skip:
-	picos_per_byte = div64_s64(NSEC_PER_SEC * 1000LL * 8,
-				   speed * 1000 * 1000);
+	picos_per_byte = (USEC_PER_SEC * 8) / speed;
 
 	atomic64_set(&q->picos_per_byte, picos_per_byte);
 	netdev_dbg(dev, "taprio: set %s's picos_per_byte to: %lld, linkspeed: %d\n",
