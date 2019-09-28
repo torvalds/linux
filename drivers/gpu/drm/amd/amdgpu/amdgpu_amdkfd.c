@@ -63,47 +63,10 @@ void amdgpu_amdkfd_fini(void)
 
 void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 {
-	const struct kfd2kgd_calls *kfd2kgd;
 	bool vf = amdgpu_sriov_vf(adev);
 
-	switch (adev->asic_type) {
-#ifdef CONFIG_DRM_AMDGPU_CIK
-	case CHIP_KAVERI:
-	case CHIP_HAWAII:
-		kfd2kgd = amdgpu_amdkfd_gfx_7_get_functions();
-		break;
-#endif
-	case CHIP_CARRIZO:
-	case CHIP_TONGA:
-	case CHIP_FIJI:
-	case CHIP_POLARIS10:
-	case CHIP_POLARIS11:
-	case CHIP_POLARIS12:
-	case CHIP_VEGAM:
-		kfd2kgd = amdgpu_amdkfd_gfx_8_0_get_functions();
-		break;
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-	case CHIP_VEGA20:
-	case CHIP_RAVEN:
-	case CHIP_RENOIR:
-		kfd2kgd = amdgpu_amdkfd_gfx_9_0_get_functions();
-		break;
-	case CHIP_ARCTURUS:
-		kfd2kgd = amdgpu_amdkfd_arcturus_get_functions();
-		break;
-	case CHIP_NAVI10:
-	case CHIP_NAVI14:
-	case CHIP_NAVI12:
-		kfd2kgd = amdgpu_amdkfd_gfx_10_0_get_functions();
-		break;
-	default:
-		dev_info(adev->dev, "kfd not supported on this ASIC\n");
-		return;
-	}
-
 	adev->kfd.dev = kgd2kfd_probe((struct kgd_dev *)adev,
-				      adev->pdev, kfd2kgd, adev->asic_type, vf);
+				      adev->pdev, adev->asic_type, vf);
 
 	if (adev->kfd.dev)
 		amdgpu_amdkfd_total_mem_size += adev->gmc.real_vram_size;
@@ -711,33 +674,7 @@ int amdgpu_amdkfd_evict_userptr(struct kgd_mem *mem, struct mm_struct *mm)
 	return 0;
 }
 
-struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void)
-{
-	return NULL;
-}
-
-struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void)
-{
-	return NULL;
-}
-
-struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void)
-{
-	return NULL;
-}
-
-struct kfd2kgd_calls *amdgpu_amdkfd_arcturus_get_functions(void)
-{
-	return NULL;
-}
-
-struct kfd2kgd_calls *amdgpu_amdkfd_gfx_10_0_get_functions(void)
-{
-	return NULL;
-}
-
 struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev,
-			      const struct kfd2kgd_calls *f2g,
 			      unsigned int asic_type, bool vf)
 {
 	return NULL;

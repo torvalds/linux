@@ -815,7 +815,7 @@ static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 	gfxhub_v2_0_setup_vm_pt_regs(adev, vmid, page_table_base);
 }
 
-static const struct kfd2kgd_calls kfd2kgd = {
+const struct kfd2kgd_calls gfx_v10_kfd2kgd = {
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
 	.init_interrupts = kgd_init_interrupts,
@@ -839,8 +839,3 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.invalidate_tlbs_vmid = invalidate_tlbs_vmid,
 	.get_hive_id = amdgpu_amdkfd_get_hive_id,
 };
-
-struct kfd2kgd_calls *amdgpu_amdkfd_gfx_10_0_get_functions()
-{
-	return (struct kfd2kgd_calls *)&kfd2kgd;
-}

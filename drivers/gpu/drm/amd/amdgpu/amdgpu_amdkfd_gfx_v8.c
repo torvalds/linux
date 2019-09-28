@@ -696,7 +696,7 @@ static int invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid)
 	return 0;
 }
 
-static const struct kfd2kgd_calls kfd2kgd = {
+const struct kfd2kgd_calls gfx_v8_kfd2kgd = {
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
 	.init_interrupts = kgd_init_interrupts,
@@ -720,8 +720,3 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.invalidate_tlbs = invalidate_tlbs,
 	.invalidate_tlbs_vmid = invalidate_tlbs_vmid,
 };
-
-struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void)
-{
-	return (struct kfd2kgd_calls *)&kfd2kgd;
-}

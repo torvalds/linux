@@ -262,7 +262,7 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 	return 0;
 }
 
-static const struct kfd2kgd_calls kfd2kgd = {
+const struct kfd2kgd_calls arcturus_kfd2kgd = {
 	.program_sh_mem_settings = kgd_gfx_v9_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_gfx_v9_set_pasid_vmid_mapping,
 	.init_interrupts = kgd_gfx_v9_init_interrupts,
@@ -286,9 +286,3 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.invalidate_tlbs_vmid = kgd_gfx_v9_invalidate_tlbs_vmid,
 	.get_hive_id = amdgpu_amdkfd_get_hive_id,
 };
-
-struct kfd2kgd_calls *amdgpu_amdkfd_arcturus_get_functions(void)
-{
-	return (struct kfd2kgd_calls *)&kfd2kgd;
-}
-

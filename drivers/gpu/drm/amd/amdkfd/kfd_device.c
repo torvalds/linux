@@ -39,6 +39,35 @@
  */
 static atomic_t kfd_locked = ATOMIC_INIT(0);
 
+extern const struct kfd2kgd_calls gfx_v7_kfd2kgd;
+extern const struct kfd2kgd_calls gfx_v8_kfd2kgd;
+extern const struct kfd2kgd_calls gfx_v9_kfd2kgd;
+extern const struct kfd2kgd_calls arcturus_kfd2kgd;
+extern const struct kfd2kgd_calls gfx_v10_kfd2kgd;
+
+static const struct kfd2kgd_calls *kfd2kgd_funcs[] = {
+#ifdef KFD_SUPPORT_IOMMU_V2
+	[CHIP_KAVERI] = &gfx_v7_kfd2kgd,
+	[CHIP_CARRIZO] = &gfx_v8_kfd2kgd,
+	[CHIP_RAVEN] = &gfx_v9_kfd2kgd,
+#endif
+	[CHIP_HAWAII] = &gfx_v7_kfd2kgd,
+	[CHIP_TONGA] = &gfx_v8_kfd2kgd,
+	[CHIP_FIJI] = &gfx_v8_kfd2kgd,
+	[CHIP_POLARIS10] = &gfx_v8_kfd2kgd,
+	[CHIP_POLARIS11] = &gfx_v8_kfd2kgd,
+	[CHIP_POLARIS12] = &gfx_v8_kfd2kgd,
+	[CHIP_VEGAM] = &gfx_v8_kfd2kgd,
+	[CHIP_VEGA10] = &gfx_v9_kfd2kgd,
+	[CHIP_VEGA12] = &gfx_v9_kfd2kgd,
+	[CHIP_VEGA20] = &gfx_v9_kfd2kgd,
+	[CHIP_RENOIR] = &gfx_v9_kfd2kgd,
+	[CHIP_ARCTURUS] = &arcturus_kfd2kgd,
+	[CHIP_NAVI10] = &gfx_v10_kfd2kgd,
+	[CHIP_NAVI12] = &gfx_v10_kfd2kgd,
+	[CHIP_NAVI14] = &gfx_v10_kfd2kgd,
+};
+
 #ifdef KFD_SUPPORT_IOMMU_V2
 static const struct kfd_device_info kaveri_device_info = {
 	.asic_family = CHIP_KAVERI,
@@ -454,20 +483,22 @@ static void kfd_gtt_sa_fini(struct kfd_dev *kfd);
 static int kfd_resume(struct kfd_dev *kfd);
 
 struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
-	struct pci_dev *pdev, const struct kfd2kgd_calls *f2g,
-	unsigned int asic_type, bool vf)
+	struct pci_dev *pdev, unsigned int asic_type, bool vf)
 {
 	struct kfd_dev *kfd;
 	const struct kfd_device_info *device_info;
+	const struct kfd2kgd_calls *f2g;
 
-	if (asic_type >= sizeof(kfd_supported_devices) / (sizeof(void *) * 2)) {
+	if (asic_type >= sizeof(kfd_supported_devices) / (sizeof(void *) * 2)
+		|| asic_type >= sizeof(kfd2kgd_funcs) / sizeof(void *)) {
 		dev_err(kfd_device, "asic_type %d out of range\n", asic_type);
 		return NULL; /* asic_type out of range */
 	}
 
 	device_info = kfd_supported_devices[asic_type][vf];
+	f2g = kfd2kgd_funcs[asic_type];
 
-	if (!device_info) {
+	if (!device_info && !f2g) {
 		dev_err(kfd_device, "%s %s not supported in kfd\n",
 			amdgpu_asic_name[asic_type], vf ? "VF" : "");
 		return NULL;

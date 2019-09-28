@@ -751,7 +751,7 @@ static uint32_t read_vmid_from_vmfault_reg(struct kgd_dev *kgd)
 	return REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS, VMID);
 }
 
-static const struct kfd2kgd_calls kfd2kgd = {
+const struct kfd2kgd_calls gfx_v7_kfd2kgd = {
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
 	.init_interrupts = kgd_init_interrupts,
@@ -775,8 +775,3 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.invalidate_tlbs_vmid = invalidate_tlbs_vmid,
 	.read_vmid_from_vmfault_reg = read_vmid_from_vmfault_reg,
 };
-
-struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void)
-{
-	return (struct kfd2kgd_calls *)&kfd2kgd;
-}
