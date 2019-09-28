@@ -343,6 +343,7 @@ err:
 		/* fallthrough */
 	case -EIO: /* shmemfs failure from swap device */
 	case -EFAULT: /* purged object */
+	case -ENODEV: /* bad object, how did you get here! */
 		return VM_FAULT_SIGBUS;
 
 	case -ENOSPC: /* shmemfs allocation failure */
@@ -466,10 +467,16 @@ i915_gem_mmap_gtt(struct drm_file *file,
 	if (!obj)
 		return -ENOENT;
 
+	if (i915_gem_object_never_bind_ggtt(obj)) {
+		ret = -ENODEV;
+		goto out;
+	}
+
 	ret = create_mmap_offset(obj);
 	if (ret == 0)
 		*offset = drm_vma_node_offset_addr(&obj->base.vma_node);
 
+out:
 	i915_gem_object_put(obj);
 	return ret;
 }
