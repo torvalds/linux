@@ -282,7 +282,6 @@ enum {
 	MLX5_CMD_OP_ALLOC_MODIFY_HEADER_CONTEXT   = 0x940,
 	MLX5_CMD_OP_DEALLOC_MODIFY_HEADER_CONTEXT = 0x941,
 	MLX5_CMD_OP_QUERY_MODIFY_HEADER_CONTEXT   = 0x942,
-	MLX5_CMD_OP_SYNC_STEERING                 = 0xb00,
 	MLX5_CMD_OP_FPGA_CREATE_QP                = 0x960,
 	MLX5_CMD_OP_FPGA_MODIFY_QP                = 0x961,
 	MLX5_CMD_OP_FPGA_QUERY_QP                 = 0x962,
@@ -296,6 +295,7 @@ enum {
 	MLX5_CMD_OP_DESTROY_UCTX                  = 0xa06,
 	MLX5_CMD_OP_CREATE_UMEM                   = 0xa08,
 	MLX5_CMD_OP_DESTROY_UMEM                  = 0xa0a,
+	MLX5_CMD_OP_SYNC_STEERING                 = 0xb00,
 	MLX5_CMD_OP_MAX
 };
 
@@ -487,7 +487,7 @@ union mlx5_ifc_gre_key_bits {
 
 struct mlx5_ifc_fte_match_set_misc_bits {
 	u8         gre_c_present[0x1];
-	u8         reserved_auto1[0x1];
+	u8         reserved_at_1[0x1];
 	u8         gre_k_present[0x1];
 	u8         gre_s_present[0x1];
 	u8         source_vhca_port[0x4];
@@ -5054,50 +5054,50 @@ struct mlx5_ifc_query_hca_cap_in_bits {
 
 struct mlx5_ifc_other_hca_cap_bits {
 	u8         roce[0x1];
-	u8         reserved_0[0x27f];
+	u8         reserved_at_1[0x27f];
 };
 
 struct mlx5_ifc_query_other_hca_cap_out_bits {
 	u8         status[0x8];
-	u8         reserved_0[0x18];
+	u8         reserved_at_8[0x18];
 
 	u8         syndrome[0x20];
 
-	u8         reserved_1[0x40];
+	u8         reserved_at_40[0x40];
 
 	struct     mlx5_ifc_other_hca_cap_bits other_capability;
 };
 
 struct mlx5_ifc_query_other_hca_cap_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         reserved_at_10[0x10];
 
-	u8         reserved_1[0x10];
+	u8         reserved_at_20[0x10];
 	u8         op_mod[0x10];
 
-	u8         reserved_2[0x10];
+	u8         reserved_at_40[0x10];
 	u8         function_id[0x10];
 
-	u8         reserved_3[0x20];
+	u8         reserved_at_60[0x20];
 };
 
 struct mlx5_ifc_modify_other_hca_cap_out_bits {
 	u8         status[0x8];
-	u8         reserved_0[0x18];
+	u8         reserved_at_8[0x18];
 
 	u8         syndrome[0x20];
 
-	u8         reserved_1[0x40];
+	u8         reserved_at_40[0x40];
 };
 
 struct mlx5_ifc_modify_other_hca_cap_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         reserved_at_10[0x10];
 
-	u8         reserved_1[0x10];
+	u8         reserved_at_20[0x10];
 	u8         op_mod[0x10];
 
-	u8         reserved_2[0x10];
+	u8         reserved_at_40[0x10];
 	u8         function_id[0x10];
 	u8         field_select[0x20];
 

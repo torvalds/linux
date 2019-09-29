@@ -5,5 +5,5 @@ config AR5523
        select ATH_COMMON
        select FW_LOADER
        ---help---
-         This module add support for AR5523 based USB dongles such as D-Link
-         DWL-G132, Netgear WPN111 and many more.
+	 This module add support for AR5523 based USB dongles such as D-Link
+	 DWL-G132, Netgear WPN111 and many more.

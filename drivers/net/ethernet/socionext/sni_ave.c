@@ -1566,7 +1566,7 @@ static int ave_probe(struct platform_device *pdev)
 
 	np = dev->of_node;
 	phy_mode = of_get_phy_mode(np);
-	if (phy_mode < 0) {
+	if ((int)phy_mode < 0) {
 		dev_err(dev, "phy-mode not found\n");
 		return -EINVAL;
 	}
@@ -1662,19 +1662,19 @@ static int ave_probe(struct platform_device *pdev)
 					       "socionext,syscon-phy-mode",
 					       1, 0, &args);
 	if (ret) {
-		netdev_err(ndev, "can't get syscon-phy-mode property\n");
+		dev_err(dev, "can't get syscon-phy-mode property\n");
 		goto out_free_netdev;
 	}
 	priv->regmap = syscon_node_to_regmap(args.np);
 	of_node_put(args.np);
 	if (IS_ERR(priv->regmap)) {
-		netdev_err(ndev, "can't map syscon-phy-mode\n");
+		dev_err(dev, "can't map syscon-phy-mode\n");
 		ret = PTR_ERR(priv->regmap);
 		goto out_free_netdev;
 	}
 	ret = priv->data->get_pinmode(priv, phy_mode, args.args[0]);
 	if (ret) {
-		netdev_err(ndev, "invalid phy-mode setting\n");
+		dev_err(dev, "invalid phy-mode setting\n");
 		goto out_free_netdev;
 	}
 

@@ -26,7 +26,7 @@ config IONIC
 	  found in
 	  <file:Documentation/networking/device_drivers/pensando/ionic.rst>.
 
-          To compile this driver as a module, choose M here. The module
-          will be called ionic.
+	  To compile this driver as a module, choose M here. The module
+	  will be called ionic.
 
 endif # NET_VENDOR_PENSANDO
