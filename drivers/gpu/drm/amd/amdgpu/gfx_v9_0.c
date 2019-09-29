@@ -5938,6 +5938,171 @@ static int gfx_v9_0_ras_error_inject(struct amdgpu_device *adev,
 	return ret;
 }
 
+static const char *vml2_mems[] = {
+	"UTC_VML2_BANK_CACHE_0_BIGK_MEM0",
+	"UTC_VML2_BANK_CACHE_0_BIGK_MEM1",
+	"UTC_VML2_BANK_CACHE_0_4K_MEM0",
+	"UTC_VML2_BANK_CACHE_0_4K_MEM1",
+	"UTC_VML2_BANK_CACHE_1_BIGK_MEM0",
+	"UTC_VML2_BANK_CACHE_1_BIGK_MEM1",
+	"UTC_VML2_BANK_CACHE_1_4K_MEM0",
+	"UTC_VML2_BANK_CACHE_1_4K_MEM1",
+	"UTC_VML2_BANK_CACHE_2_BIGK_MEM0",
+	"UTC_VML2_BANK_CACHE_2_BIGK_MEM1",
+	"UTC_VML2_BANK_CACHE_2_4K_MEM0",
+	"UTC_VML2_BANK_CACHE_2_4K_MEM1",
+	"UTC_VML2_BANK_CACHE_3_BIGK_MEM0",
+	"UTC_VML2_BANK_CACHE_3_BIGK_MEM1",
+	"UTC_VML2_BANK_CACHE_3_4K_MEM0",
+	"UTC_VML2_BANK_CACHE_3_4K_MEM1",
+};
+
+static const char *vml2_walker_mems[] = {
+	"UTC_VML2_CACHE_PDE0_MEM0",
+	"UTC_VML2_CACHE_PDE0_MEM1",
+	"UTC_VML2_CACHE_PDE1_MEM0",
+	"UTC_VML2_CACHE_PDE1_MEM1",
+	"UTC_VML2_CACHE_PDE2_MEM0",
+	"UTC_VML2_CACHE_PDE2_MEM1",
+	"UTC_VML2_RDIF_LOG_FIFO",
+};
+
+static const char *atc_l2_cache_2m_mems[] = {
+	"UTC_ATCL2_CACHE_2M_BANK0_WAY0_MEM",
+	"UTC_ATCL2_CACHE_2M_BANK0_WAY1_MEM",
+	"UTC_ATCL2_CACHE_2M_BANK1_WAY0_MEM",
+	"UTC_ATCL2_CACHE_2M_BANK1_WAY1_MEM",
+};
+
+static const char *atc_l2_cache_4k_mems[] = {
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM0",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM1",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM2",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM3",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM4",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM5",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM6",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM7",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM0",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM1",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM2",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM3",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM4",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM5",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM6",
+	"UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM7",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM0",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM1",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM2",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM3",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM4",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM5",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM6",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM7",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM0",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM1",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM2",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM3",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM4",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM5",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM6",
+	"UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM7",
+};
+
+static int gfx_v9_0_query_utc_edc_status(struct amdgpu_device *adev,
+					 struct ras_err_data *err_data)
+{
+	uint32_t i, data;
+	uint32_t sec_count, ded_count;
+
+	WREG32_SOC15(GC, 0, mmVM_L2_MEM_ECC_INDEX, 255);
+	WREG32_SOC15(GC, 0, mmVM_L2_MEM_ECC_CNT, 0);
+	WREG32_SOC15(GC, 0, mmVM_L2_WALKER_MEM_ECC_INDEX, 255);
+	WREG32_SOC15(GC, 0, mmVM_L2_WALKER_MEM_ECC_CNT, 0);
+	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_2M_EDC_INDEX, 255);
+	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_2M_EDC_CNT, 0);
+	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_INDEX, 255);
+	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_CNT, 0);
+
+	for (i = 0; i < 16; i++) {
+		WREG32_SOC15(GC, 0, mmVM_L2_MEM_ECC_INDEX, i);
+		data = RREG32_SOC15(GC, 0, mmVM_L2_MEM_ECC_CNT);
+
+		sec_count = REG_GET_FIELD(data, VM_L2_MEM_ECC_CNT, SEC_COUNT);
+		if (sec_count) {
+			DRM_INFO("Instance[%d]: SubBlock %s, SEC %d\n", i,
+				 vml2_mems[i], sec_count);
+			err_data->ce_count += sec_count;
+		}
+
+		ded_count = REG_GET_FIELD(data, VM_L2_MEM_ECC_CNT, DED_COUNT);
+		if (ded_count) {
+			DRM_INFO("Instance[%d]: SubBlock %s, DED %d\n", i,
+				 vml2_mems[i], ded_count);
+			err_data->ue_count += ded_count;
+		}
+	}
+
+	for (i = 0; i < 7; i++) {
+		WREG32_SOC15(GC, 0, mmVM_L2_WALKER_MEM_ECC_INDEX, i);
+		data = RREG32_SOC15(GC, 0, mmVM_L2_WALKER_MEM_ECC_CNT);
+
+		sec_count = REG_GET_FIELD(data, VM_L2_WALKER_MEM_ECC_CNT,
+						SEC_COUNT);
+		if (sec_count) {
+			DRM_INFO("Instance[%d]: SubBlock %s, SEC %d\n", i,
+				 vml2_walker_mems[i], sec_count);
+			err_data->ce_count += sec_count;
+		}
+
+		ded_count = REG_GET_FIELD(data, VM_L2_WALKER_MEM_ECC_CNT,
+						DED_COUNT);
+		if (ded_count) {
+			DRM_INFO("Instance[%d]: SubBlock %s, DED %d\n", i,
+				 vml2_walker_mems[i], ded_count);
+			err_data->ue_count += ded_count;
+		}
+	}
+
+	for (i = 0; i < 4; i++) {
+		WREG32_SOC15(GC, 0, mmATC_L2_CACHE_2M_EDC_INDEX, i);
+		data = RREG32_SOC15(GC, 0, mmATC_L2_CACHE_2M_EDC_CNT);
+
+		sec_count = (data & 0x00006000L) >> 0xd;
+		if (sec_count) {
+			DRM_INFO("Instance[%d]: SubBlock %s, SEC %d\n", i,
+				 atc_l2_cache_2m_mems[i], sec_count);
+			err_data->ce_count += sec_count;
+		}
+	}
+
+	for (i = 0; i < 32; i++) {
+		WREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_INDEX, i);
+		data = RREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_CNT);
+
+		sec_count = (data & 0x00006000L) >> 0xd;
+		if (sec_count) {
+			DRM_INFO("Instance[%d]: SubBlock %s, SEC %d\n", i,
+				 atc_l2_cache_4k_mems[i], sec_count);
+			err_data->ce_count += sec_count;
+		}
+
+		ded_count = (data & 0x00018000L) >> 0xf;
+		if (ded_count) {
+			DRM_INFO("Instance[%d]: SubBlock %s, DED %d\n", i,
+				 atc_l2_cache_4k_mems[i], ded_count);
+			err_data->ue_count += ded_count;
+		}
+	}
+
+	WREG32_SOC15(GC, 0, mmVM_L2_MEM_ECC_INDEX, 255);
+	WREG32_SOC15(GC, 0, mmVM_L2_WALKER_MEM_ECC_INDEX, 255);
+	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_2M_EDC_INDEX, 255);
+	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_INDEX, 255);
+
+	return 0;
+}
+
 static int __get_ras_error_count(const struct soc15_reg_entry *reg,
 	uint32_t se_id, uint32_t inst_id, uint32_t value,
 	uint32_t *sec_count, uint32_t *ded_count)
@@ -6012,6 +6177,8 @@ static int gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
 
 	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 	mutex_unlock(&adev->grbm_idx_mutex);
+
+	gfx_v9_0_query_utc_edc_status(adev, err_data);
 
 	return 0;
 }
