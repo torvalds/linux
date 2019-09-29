@@ -2360,20 +2360,23 @@ out:
 	kvm_arch_vcpu_unblocking(vcpu);
 	block_ns = ktime_to_ns(cur) - ktime_to_ns(start);
 
-	if (!vcpu_valid_wakeup(vcpu))
-		shrink_halt_poll_ns(vcpu);
-	else if (halt_poll_ns) {
-		if (block_ns <= vcpu->halt_poll_ns)
-			;
-		/* we had a long block, shrink polling */
-		else if (vcpu->halt_poll_ns && block_ns > halt_poll_ns)
+	if (!kvm_arch_no_poll(vcpu)) {
+		if (!vcpu_valid_wakeup(vcpu)) {
 			shrink_halt_poll_ns(vcpu);
-		/* we had a short halt and our poll time is too small */
-		else if (vcpu->halt_poll_ns < halt_poll_ns &&
-			block_ns < halt_poll_ns)
-			grow_halt_poll_ns(vcpu);
-	} else
-		vcpu->halt_poll_ns = 0;
+		} else if (halt_poll_ns) {
+			if (block_ns <= vcpu->halt_poll_ns)
+				;
+			/* we had a long block, shrink polling */
+			else if (vcpu->halt_poll_ns && block_ns > halt_poll_ns)
+				shrink_halt_poll_ns(vcpu);
+			/* we had a short halt and our poll time is too small */
+			else if (vcpu->halt_poll_ns < halt_poll_ns &&
+				block_ns < halt_poll_ns)
+				grow_halt_poll_ns(vcpu);
+		} else {
+			vcpu->halt_poll_ns = 0;
+		}
+	}
 
 	trace_kvm_vcpu_wakeup(block_ns, waited, vcpu_valid_wakeup(vcpu));
 	kvm_arch_vcpu_block_finish(vcpu);
