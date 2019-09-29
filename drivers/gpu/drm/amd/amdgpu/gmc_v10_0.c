@@ -48,6 +48,7 @@
 #include "gfxhub_v2_1.h"
 #include "mmhub_v2_0.h"
 #include "athub_v2_0.h"
+#include "athub_v2_1.h"
 /* XXX Move this macro to navi10 header file, which is like vid.h for VI.*/
 #define AMDGPU_NUM_OF_VMIDS			8
 
@@ -1078,7 +1079,10 @@ static int gmc_v10_0_set_clockgating_state(void *handle,
 	if (r)
 		return r;
 
-	return athub_v2_0_set_clockgating(adev, state);
+	if (adev->asic_type == CHIP_SIENNA_CICHLID)
+		return athub_v2_1_set_clockgating(adev, state);
+	else
+		return athub_v2_0_set_clockgating(adev, state);
 }
 
 static void gmc_v10_0_get_clockgating_state(void *handle, u32 *flags)
@@ -1087,7 +1091,10 @@ static void gmc_v10_0_get_clockgating_state(void *handle, u32 *flags)
 
 	mmhub_v2_0_get_clockgating(adev, flags);
 
-	athub_v2_0_get_clockgating(adev, flags);
+	if (adev->asic_type == CHIP_SIENNA_CICHLID)
+		athub_v2_1_get_clockgating(adev, flags);
+	else
+		athub_v2_0_get_clockgating(adev, flags);
 }
 
 static int gmc_v10_0_set_powergating_state(void *handle,
