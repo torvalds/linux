@@ -702,13 +702,16 @@ struct  iwl_scan_channel_cfg_umac {
 			u8 channel_num;
 			u8 iter_count;
 			__le16 iter_interval;
-		} v1;  /* SCAN_CHANNEL_CFG_S_VER1 */
+		} v1;  /* SCAN_CHANNEL_CONFIG_API_S_VER_1 */
 		struct {
 			u8 channel_num;
 			u8 band;
 			u8 iter_count;
 			u8 iter_interval;
-		 } v2; /* SCAN_CHANNEL_CFG_S_VER2 */
+		 } v2; /* SCAN_CHANNEL_CONFIG_API_S_VER_2
+			* SCAN_CHANNEL_CONFIG_API_S_VER_3
+			* SCAN_CHANNEL_CONFIG_API_S_VER_4
+			*/
 	};
 } __packed;
 
@@ -943,6 +946,25 @@ struct iwl_scan_channel_params_v4 {
 	u8 adwell_ch_override_bitmap[16];
 } __packed; /* SCAN_CHANNEL_PARAMS_API_S_VER_4 also
 	       SCAN_CHANNEL_PARAMS_API_S_VER_5 */
+
+/**
+ * struct iwl_scan_channel_params_v6
+ * @flags: channel flags &enum iwl_scan_channel_flags
+ * @count: num of channels in scan request
+ * @n_aps_override: override the number of APs the FW uses to calculate dwell
+ *	time when adaptive dwell is used.
+ *	Channel k will use n_aps_override[i] when BIT(20 + i) is set in
+ *	channel_config[k].flags
+ * @channel_config: array of explicit channel configurations
+ *                  for 2.4Ghz and 5.2Ghz bands
+ */
+struct iwl_scan_channel_params_v6 {
+	u8 flags;
+	u8 count;
+	u8 n_aps_override[2];
+	struct iwl_scan_channel_cfg_umac channel_config[SCAN_MAX_NUM_CHANS_V3];
+} __packed; /* SCAN_CHANNEL_PARAMS_API_S_VER_6 */
+
 /**
  * struct iwl_scan_general_params_v10
  * @flags: &enum iwl_umac_scan_flags
@@ -1024,6 +1046,20 @@ struct iwl_scan_req_params_v13 {
 } __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_13 */
 
 /**
+ * struct iwl_scan_req_params_v14
+ * @general_params: &struct iwl_scan_general_params_v10
+ * @channel_params: &struct iwl_scan_channel_params_v6
+ * @periodic_params: &struct iwl_scan_periodic_parms_v1
+ * @probe_params: &struct iwl_scan_probe_params_v4
+ */
+struct iwl_scan_req_params_v14 {
+	struct iwl_scan_general_params_v10 general_params;
+	struct iwl_scan_channel_params_v6 channel_params;
+	struct iwl_scan_periodic_parms_v1 periodic_params;
+	struct iwl_scan_probe_params_v4 probe_params;
+} __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_14 */
+
+/**
  * struct iwl_scan_req_umac_v12
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @ooc_priority: out of channel priority - &enum iwl_scan_priority
@@ -1046,6 +1082,18 @@ struct iwl_scan_req_umac_v13 {
 	__le32 ooc_priority;
 	struct iwl_scan_req_params_v13 scan_params;
 } __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_13 */
+
+/**
+ * struct iwl_scan_req_umac_v14
+ * @uid: scan id, &enum iwl_umac_scan_uid_offsets
+ * @ooc_priority: out of channel priority - &enum iwl_scan_priority
+ * @scan_params: scan parameters
+ */
+struct iwl_scan_req_umac_v14 {
+	__le32 uid;
+	__le32 ooc_priority;
+	struct iwl_scan_req_params_v14 scan_params;
+} __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_14 */
 
 /**
  * struct iwl_umac_scan_abort
