@@ -166,6 +166,12 @@ static const unsigned int sdm845_qmp_pciephy_regs_layout[] = {
 	[QPHY_PCS_STATUS]		= 0x174,
 };
 
+static const unsigned int sdm845_qhp_pciephy_regs_layout[] = {
+	[QPHY_SW_RESET]			= 0x00,
+	[QPHY_START_CTRL]		= 0x08,
+	[QPHY_PCS_STATUS]		= 0x2ac,
+};
+
 static const unsigned int sdm845_ufsphy_regs_layout[] = {
 	[QPHY_START_CTRL]		= 0x00,
 	[QPHY_PCS_READY_STATUS]		= 0x160,
@@ -587,6 +593,126 @@ static const struct qmp_phy_init_tbl sdm845_qmp_pcie_pcs_misc_tbl[] = {
 	QMP_PHY_INIT_CFG(QPHY_V3_PCS_MISC_OSC_DTCT_MODE2_CONFIG4, 0x1a),
 	QMP_PHY_INIT_CFG(QPHY_V3_PCS_MISC_OSC_DTCT_MODE2_CONFIG5, 0x06),
 	QMP_PHY_INIT_CFG(QPHY_V3_PCS_MISC_PCIE_INT_AUX_CLK_CONFIG1, 0x00),
+};
+
+static const struct qmp_phy_init_tbl sdm845_qhp_pcie_serdes_tbl[] = {
+	{ 0x0dc, 0x27 },
+	{ 0x014, 0x01 },
+	{ 0x020, 0x31 },
+	{ 0x024, 0x01 },
+	{ 0x028, 0xde },
+	{ 0x02c, 0x07 },
+	{ 0x034, 0x4c },
+	{ 0x038, 0x06 },
+	{ 0x054, 0x18 },
+	{ 0x058, 0xb0 },
+	{ 0x06c, 0x8c },
+	{ 0x070, 0x20 },
+	{ 0x078, 0x14 },
+	{ 0x07c, 0x34 },
+	{ 0x0b4, 0x06 },
+	{ 0x0b8, 0x06 },
+	{ 0x0c0, 0x16 },
+	{ 0x0c4, 0x16 },
+	{ 0x0cc, 0x36 },
+	{ 0x0d0, 0x36 },
+	{ 0x0f0, 0x05 },
+	{ 0x0f8, 0x42 },
+	{ 0x100, 0x82 },
+	{ 0x108, 0x68 },
+	{ 0x11c, 0x55 },
+	{ 0x120, 0x55 },
+	{ 0x124, 0x03 },
+	{ 0x128, 0xab },
+	{ 0x12c, 0xaa },
+	{ 0x130, 0x02 },
+	{ 0x150, 0x3f },
+	{ 0x158, 0x3f },
+	{ 0x178, 0x10 },
+	{ 0x1cc, 0x04 },
+	{ 0x1d0, 0x30 },
+	{ 0x1e0, 0x04 },
+	{ 0x1e8, 0x73 },
+	{ 0x1f0, 0x0c },
+	{ 0x1fc, 0x15 },
+	{ 0x21c, 0x04 },
+	{ 0x224, 0x01 },
+	{ 0x228, 0x22 },
+	{ 0x22c, 0x00 },
+	{ 0x098, 0x20 },
+	{ 0x1c8, 0x07 },
+};
+
+static const struct qmp_phy_init_tbl sdm845_qhp_pcie_tx_tbl[] = {
+	{ 0x00c, 0x00 },
+	{ 0x018, 0x0d },
+	{ 0x060, 0x01 },
+	{ 0x064, 0x1a },
+	{ 0x07c, 0x2f },
+	{ 0x0c0, 0x09 },
+	{ 0x0c4, 0x09 },
+	{ 0x0c8, 0x1b },
+	{ 0x0d0, 0x01 },
+	{ 0x0d4, 0x07 },
+	{ 0x0d8, 0x31 },
+	{ 0x0dc, 0x31 },
+	{ 0x0e0, 0x03 },
+	{ 0x0fc, 0x02 },
+	{ 0x100, 0x00 },
+	{ 0x108, 0x12 },
+	{ 0x114, 0x25 },
+	{ 0x118, 0x00 },
+	{ 0x11c, 0x05 },
+	{ 0x120, 0x01 },
+	{ 0x124, 0x26 },
+	{ 0x128, 0x12 },
+	{ 0x130, 0x04 },
+	{ 0x134, 0x04 },
+	{ 0x138, 0x09 },
+	{ 0x154, 0x15 },
+	{ 0x160, 0x28 },
+	{ 0x168, 0x7f },
+	{ 0x16c, 0x07 },
+	{ 0x178, 0x04 },
+	{ 0x180, 0x70 },
+	{ 0x184, 0x8b },
+	{ 0x188, 0x08 },
+	{ 0x18c, 0x0a },
+	{ 0x190, 0x03 },
+	{ 0x194, 0x04 },
+	{ 0x198, 0x04 },
+	{ 0x19c, 0x0c },
+	{ 0x1a4, 0x02 },
+	{ 0x1c0, 0x5c },
+	{ 0x1c4, 0x3e },
+	{ 0x1c8, 0x3f },
+	{ 0x230, 0x01 },
+	{ 0x234, 0xa0 },
+	{ 0x238, 0x08 },
+	{ 0x2a4, 0x01 },
+	{ 0x2ac, 0xc3 },
+	{ 0x2b0, 0x00 },
+	{ 0x2b8, 0xbc },
+	{ 0x2c0, 0x7f },
+	{ 0x2c4, 0x15 },
+	{ 0x010, 0x0c },
+	{ 0x014, 0x0f },
+	{ 0x2cc, 0x04 },
+	{ 0x13c, 0x20 },
+	{ 0x2a8, 0x01 },
+};
+
+static const struct qmp_phy_init_tbl sdm845_qhp_pcie_rx_tbl[] = {
+};
+
+static const struct qmp_phy_init_tbl sdm845_qhp_pcie_pcs_tbl[] = {
+	{ 0x15c, 0x3f },
+	{ 0x174, 0x50 },
+	{ 0x02c, 0x19 },
+	{ 0x040, 0x07 },
+	{ 0x054, 0x17 },
+	{ 0x068, 0x09 },
+	{ 0x16c, 0x9f },
 };
 
 static const struct qmp_phy_init_tbl qmp_v3_usb3_serdes_tbl[] = {
@@ -1374,6 +1500,34 @@ static const struct qmp_phy_cfg sdm845_qmp_pciephy_cfg = {
 	.vreg_list		= qmp_phy_vreg_l,
 	.num_vregs		= ARRAY_SIZE(qmp_phy_vreg_l),
 	.regs			= sdm845_qmp_pciephy_regs_layout,
+
+	.start_ctrl		= PCS_START | SERDES_START,
+	.pwrdn_ctrl		= SW_PWRDN | REFCLK_DRV_DSBL,
+
+	.has_pwrdn_delay	= true,
+	.pwrdn_delay_min	= 995,		/* us */
+	.pwrdn_delay_max	= 1005,		/* us */
+};
+
+static const struct qmp_phy_cfg sdm845_qhp_pciephy_cfg = {
+	.type = PHY_TYPE_PCIE,
+	.nlanes = 1,
+
+	.serdes_tbl		= sdm845_qhp_pcie_serdes_tbl,
+	.serdes_tbl_num		= ARRAY_SIZE(sdm845_qhp_pcie_serdes_tbl),
+	.tx_tbl			= sdm845_qhp_pcie_tx_tbl,
+	.tx_tbl_num		= ARRAY_SIZE(sdm845_qhp_pcie_tx_tbl),
+	.rx_tbl			= sdm845_qhp_pcie_rx_tbl,
+	.rx_tbl_num		= ARRAY_SIZE(sdm845_qhp_pcie_rx_tbl),
+	.pcs_tbl		= sdm845_qhp_pcie_pcs_tbl,
+	.pcs_tbl_num		= ARRAY_SIZE(sdm845_qhp_pcie_pcs_tbl),
+	.clk_list		= sdm845_pciephy_clk_l,
+	.num_clks		= ARRAY_SIZE(sdm845_pciephy_clk_l),
+	.reset_list		= sdm845_pciephy_reset_l,
+	.num_resets		= ARRAY_SIZE(sdm845_pciephy_reset_l),
+	.vreg_list		= qmp_phy_vreg_l,
+	.num_vregs		= ARRAY_SIZE(qmp_phy_vreg_l),
+	.regs			= sdm845_qhp_pciephy_regs_layout,
 
 	.start_ctrl		= PCS_START | SERDES_START,
 	.pwrdn_ctrl		= SW_PWRDN | REFCLK_DRV_DSBL,
@@ -2256,6 +2410,9 @@ static const struct of_device_id qcom_qmp_phy_of_match_table[] = {
 	}, {
 		.compatible = "qcom,ipq8074-qmp-pcie-phy",
 		.data = &ipq8074_pciephy_cfg,
+	}, {
+		.compatible = "qcom,sdm845-qhp-pcie-phy",
+		.data = &sdm845_qhp_pciephy_cfg,
 	}, {
 		.compatible = "qcom,sdm845-qmp-pcie-phy",
 		.data = &sdm845_qmp_pciephy_cfg,
