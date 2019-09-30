@@ -245,7 +245,13 @@ static struct netdev_name_node *netdev_name_node_alloc(struct net_device *dev,
 static struct netdev_name_node *
 netdev_name_node_head_alloc(struct net_device *dev)
 {
-	return netdev_name_node_alloc(dev, dev->name);
+	struct netdev_name_node *name_node;
+
+	name_node = netdev_name_node_alloc(dev, dev->name);
+	if (!name_node)
+		return NULL;
+	INIT_LIST_HEAD(&name_node->list);
+	return name_node;
 }
 
 static void netdev_name_node_free(struct netdev_name_node *name_node)
@@ -287,6 +293,55 @@ static struct netdev_name_node *netdev_name_node_lookup_rcu(struct net *net,
 		if (!strcmp(name_node->name, name))
 			return name_node;
 	return NULL;
+}
+
+int netdev_name_node_alt_create(struct net_device *dev, const char *name)
+{
+	struct netdev_name_node *name_node;
+	struct net *net = dev_net(dev);
+
+	name_node = netdev_name_node_lookup(net, name);
+	if (name_node)
+		return -EEXIST;
+	name_node = netdev_name_node_alloc(dev, name);
+	if (!name_node)
+		return -ENOMEM;
+	netdev_name_node_add(net, name_node);
+	/* The node that holds dev->name acts as a head of per-device list. */
+	list_add_tail(&name_node->list, &dev->name_node->list);
+
+	return 0;
+}
+EXPORT_SYMBOL(netdev_name_node_alt_create);
+
+static void __netdev_name_node_alt_destroy(struct netdev_name_node *name_node)
+{
+	list_del(&name_node->list);
+	netdev_name_node_del(name_node);
+	kfree(name_node->name);
+	netdev_name_node_free(name_node);
+}
+
+int netdev_name_node_alt_destroy(struct net_device *dev, const char *name)
+{
+	struct netdev_name_node *name_node;
+	struct net *net = dev_net(dev);
+
+	name_node = netdev_name_node_lookup(net, name);
+	if (!name_node)
+		return -ENOENT;
+	__netdev_name_node_alt_destroy(name_node);
+
+	return 0;
+}
+EXPORT_SYMBOL(netdev_name_node_alt_destroy);
+
+static void netdev_name_node_alt_flush(struct net_device *dev)
+{
+	struct netdev_name_node *name_node, *tmp;
+
+	list_for_each_entry_safe(name_node, tmp, &dev->name_node->list, list)
+		__netdev_name_node_alt_destroy(name_node);
 }
 
 /* Device list insertion */
@@ -8317,6 +8372,7 @@ static void rollback_registered_many(struct list_head *head)
 		dev_uc_flush(dev);
 		dev_mc_flush(dev);
 
+		netdev_name_node_alt_flush(dev);
 		netdev_name_node_free(dev->name_node);
 
 		if (dev->netdev_ops->ndo_uninit)
