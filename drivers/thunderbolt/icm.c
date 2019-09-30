@@ -1893,14 +1893,12 @@ static int icm_suspend(struct tb *tb)
  */
 static void icm_unplug_children(struct tb_switch *sw)
 {
-	unsigned int i;
+	struct tb_port *port;
 
 	if (tb_route(sw))
 		sw->is_unplugged = true;
 
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		struct tb_port *port = &sw->ports[i];
-
+	tb_switch_for_each_port(sw, port) {
 		if (port->xdomain)
 			port->xdomain->is_unplugged = true;
 		else if (tb_port_has_remote(port))
@@ -1936,11 +1934,9 @@ static void remove_unplugged_switch(struct tb_switch *sw)
 
 static void icm_free_unplugged_children(struct tb_switch *sw)
 {
-	unsigned int i;
+	struct tb_port *port;
 
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		struct tb_port *port = &sw->ports[i];
-
+	tb_switch_for_each_port(sw, port) {
 		if (port->xdomain && port->xdomain->is_unplugged) {
 			tb_xdomain_remove(port->xdomain);
 			port->xdomain = NULL;

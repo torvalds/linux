@@ -530,6 +530,17 @@ struct tb_switch *tb_switch_find_by_link_depth(struct tb *tb, u8 link,
 struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_t *uuid);
 struct tb_switch *tb_switch_find_by_route(struct tb *tb, u64 route);
 
+/**
+ * tb_switch_for_each_port() - Iterate over each switch port
+ * @sw: Switch whose ports to iterate
+ * @p: Port used as iterator
+ *
+ * Iterates over each switch port skipping the control port (port %0).
+ */
+#define tb_switch_for_each_port(sw, p)					\
+	for ((p) = &(sw)->ports[1];					\
+	     (p) <= &(sw)->ports[(sw)->config.max_port_number]; (p)++)
+
 static inline struct tb_switch *tb_switch_get(struct tb_switch *sw)
 {
 	if (sw)

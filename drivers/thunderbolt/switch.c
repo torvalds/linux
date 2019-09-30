@@ -1400,14 +1400,14 @@ static const struct attribute_group *switch_groups[] = {
 static void tb_switch_release(struct device *dev)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
-	int i;
+	struct tb_port *port;
 
 	dma_port_free(sw->dma_port);
 
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		if (!sw->ports[i].disabled) {
-			ida_destroy(&sw->ports[i].in_hopids);
-			ida_destroy(&sw->ports[i].out_hopids);
+	tb_switch_for_each_port(sw, port) {
+		if (!port->disabled) {
+			ida_destroy(&port->in_hopids);
+			ida_destroy(&port->out_hopids);
 		}
 	}
 
@@ -1869,7 +1869,7 @@ int tb_switch_add(struct tb_switch *sw)
  */
 void tb_switch_remove(struct tb_switch *sw)
 {
-	int i;
+	struct tb_port *port;
 
 	if (sw->rpm) {
 		pm_runtime_get_sync(&sw->dev);
@@ -1877,13 +1877,13 @@ void tb_switch_remove(struct tb_switch *sw)
 	}
 
 	/* port 0 is the switch itself and never has a remote */
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		if (tb_port_has_remote(&sw->ports[i])) {
-			tb_switch_remove(sw->ports[i].remote->sw);
-			sw->ports[i].remote = NULL;
-		} else if (sw->ports[i].xdomain) {
-			tb_xdomain_remove(sw->ports[i].xdomain);
-			sw->ports[i].xdomain = NULL;
+	tb_switch_for_each_port(sw, port) {
+		if (tb_port_has_remote(port)) {
+			tb_switch_remove(port->remote->sw);
+			port->remote = NULL;
+		} else if (port->xdomain) {
+			tb_xdomain_remove(port->xdomain);
+			port->xdomain = NULL;
 		}
 	}
 
@@ -1903,7 +1903,8 @@ void tb_switch_remove(struct tb_switch *sw)
  */
 void tb_sw_set_unplugged(struct tb_switch *sw)
 {
-	int i;
+	struct tb_port *port;
+
 	if (sw == sw->tb->root_switch) {
 		tb_sw_WARN(sw, "cannot unplug root switch\n");
 		return;
@@ -1913,17 +1914,19 @@ void tb_sw_set_unplugged(struct tb_switch *sw)
 		return;
 	}
 	sw->is_unplugged = true;
-	for (i = 0; i <= sw->config.max_port_number; i++) {
-		if (tb_port_has_remote(&sw->ports[i]))
-			tb_sw_set_unplugged(sw->ports[i].remote->sw);
-		else if (sw->ports[i].xdomain)
-			sw->ports[i].xdomain->is_unplugged = true;
+	tb_switch_for_each_port(sw, port) {
+		if (tb_port_has_remote(port))
+			tb_sw_set_unplugged(port->remote->sw);
+		else if (port->xdomain)
+			port->xdomain->is_unplugged = true;
 	}
 }
 
 int tb_switch_resume(struct tb_switch *sw)
 {
-	int i, err;
+	struct tb_port *port;
+	int err;
+
 	tb_sw_dbg(sw, "resuming switch\n");
 
 	/*
@@ -1971,9 +1974,7 @@ int tb_switch_resume(struct tb_switch *sw)
 		return err;
 
 	/* check for surviving downstream switches */
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		struct tb_port *port = &sw->ports[i];
-
+	tb_switch_for_each_port(sw, port) {
 		if (!tb_port_has_remote(port) && !port->xdomain)
 			continue;
 
@@ -1997,14 +1998,16 @@ int tb_switch_resume(struct tb_switch *sw)
 
 void tb_switch_suspend(struct tb_switch *sw)
 {
-	int i, err;
+	struct tb_port *port;
+	int err;
+
 	err = tb_plug_events_active(sw, false);
 	if (err)
 		return;
 
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		if (tb_port_has_remote(&sw->ports[i]))
-			tb_switch_suspend(sw->ports[i].remote->sw);
+	tb_switch_for_each_port(sw, port) {
+		if (tb_port_has_remote(port))
+			tb_switch_suspend(port->remote->sw);
 	}
 
 	tb_lc_set_sleep(sw);

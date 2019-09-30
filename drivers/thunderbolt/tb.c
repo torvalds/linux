@@ -61,12 +61,10 @@ static void tb_discover_tunnels(struct tb_switch *sw)
 	struct tb *tb = sw->tb;
 	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_port *port;
-	int i;
 
-	for (i = 1; i <= sw->config.max_port_number; i++) {
+	tb_switch_for_each_port(sw, port) {
 		struct tb_tunnel *tunnel = NULL;
 
-		port = &sw->ports[i];
 		switch (port->config.type) {
 		case TB_TYPE_DP_HDMI_IN:
 			tunnel = tb_tunnel_discover_dp(tb, port);
@@ -95,9 +93,9 @@ static void tb_discover_tunnels(struct tb_switch *sw)
 		list_add_tail(&tunnel->list, &tcm->tunnel_list);
 	}
 
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		if (tb_port_has_remote(&sw->ports[i]))
-			tb_discover_tunnels(sw->ports[i].remote->sw);
+	tb_switch_for_each_port(sw, port) {
+		if (tb_port_has_remote(port))
+			tb_discover_tunnels(port->remote->sw);
 	}
 }
 
@@ -130,9 +128,10 @@ static void tb_scan_port(struct tb_port *port);
  */
 static void tb_scan_switch(struct tb_switch *sw)
 {
-	int i;
-	for (i = 1; i <= sw->config.max_port_number; i++)
-		tb_scan_port(&sw->ports[i]);
+	struct tb_port *port;
+
+	tb_switch_for_each_port(sw, port)
+		tb_scan_port(port);
 }
 
 /**
@@ -263,10 +262,9 @@ static void tb_free_invalid_tunnels(struct tb *tb)
  */
 static void tb_free_unplugged_children(struct tb_switch *sw)
 {
-	int i;
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		struct tb_port *port = &sw->ports[i];
+	struct tb_port *port;
 
+	tb_switch_for_each_port(sw, port) {
 		if (!tb_port_has_remote(port))
 			continue;
 
@@ -289,10 +287,13 @@ static void tb_free_unplugged_children(struct tb_switch *sw)
 static struct tb_port *tb_find_port(struct tb_switch *sw,
 				    enum tb_port_type type)
 {
-	int i;
-	for (i = 1; i <= sw->config.max_port_number; i++)
-		if (sw->ports[i].config.type == type)
-			return &sw->ports[i];
+	struct tb_port *port;
+
+	tb_switch_for_each_port(sw, port) {
+		if (port->config.type == type)
+			return port;
+	}
+
 	return NULL;
 }
 
@@ -304,18 +305,18 @@ static struct tb_port *tb_find_port(struct tb_switch *sw,
 static struct tb_port *tb_find_unused_port(struct tb_switch *sw,
 					   enum tb_port_type type)
 {
-	int i;
+	struct tb_port *port;
 
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		if (tb_is_upstream_port(&sw->ports[i]))
+	tb_switch_for_each_port(sw, port) {
+		if (tb_is_upstream_port(port))
 			continue;
-		if (sw->ports[i].config.type != type)
+		if (port->config.type != type)
 			continue;
-		if (!sw->ports[i].cap_adap)
+		if (port->cap_adap)
 			continue;
-		if (tb_port_is_enabled(&sw->ports[i]))
+		if (tb_port_is_enabled(port))
 			continue;
-		return &sw->ports[i];
+		return port;
 	}
 	return NULL;
 }
@@ -734,11 +735,10 @@ static int tb_resume_noirq(struct tb *tb)
 
 static int tb_free_unplugged_xdomains(struct tb_switch *sw)
 {
-	int i, ret = 0;
+	struct tb_port *port;
+	int ret = 0;
 
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		struct tb_port *port = &sw->ports[i];
-
+	tb_switch_for_each_port(sw, port) {
 		if (tb_is_upstream_port(port))
 			continue;
 		if (port->xdomain && port->xdomain->is_unplugged) {
