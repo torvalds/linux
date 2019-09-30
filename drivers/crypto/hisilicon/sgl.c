@@ -144,8 +144,8 @@ void hisi_acc_free_sgl_pool(struct device *dev, struct hisi_acc_sgl_pool *pool)
 }
 EXPORT_SYMBOL_GPL(hisi_acc_free_sgl_pool);
 
-struct hisi_acc_hw_sgl *acc_get_sgl(struct hisi_acc_sgl_pool *pool, u32 index,
-				    dma_addr_t *hw_sgl_dma)
+static struct hisi_acc_hw_sgl *acc_get_sgl(struct hisi_acc_sgl_pool *pool,
+					   u32 index, dma_addr_t *hw_sgl_dma)
 {
 	struct mem_block *block;
 	u32 block_index, offset;
@@ -161,23 +161,24 @@ struct hisi_acc_hw_sgl *acc_get_sgl(struct hisi_acc_sgl_pool *pool, u32 index,
 	return (void *)block[block_index].sgl + pool->sgl_size * offset;
 }
 
-void acc_put_sgl(struct hisi_acc_sgl_pool *pool, u32 index) {}
-
 static void sg_map_to_hw_sg(struct scatterlist *sgl,
 			    struct acc_hw_sge *hw_sge)
 {
 	hw_sge->buf = sgl->dma_address;
-	hw_sge->len = sgl->dma_length;
+	hw_sge->len = cpu_to_le32(sgl->dma_length);
 }
 
 static void inc_hw_sgl_sge(struct hisi_acc_hw_sgl *hw_sgl)
 {
-	hw_sgl->entry_sum_in_sgl++;
+	u16 var = le16_to_cpu(hw_sgl->entry_sum_in_sgl);
+
+	var++;
+	hw_sgl->entry_sum_in_sgl = cpu_to_le16(var);
 }
 
 static void update_hw_sgl_sum_sge(struct hisi_acc_hw_sgl *hw_sgl, u16 sum)
 {
-	hw_sgl->entry_sum_in_chain = sum;
+	hw_sgl->entry_sum_in_chain = cpu_to_le16(sum);
 }
 
 /**
@@ -201,10 +202,13 @@ hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
 	dma_addr_t curr_sgl_dma = 0;
 	struct acc_hw_sge *curr_hw_sge;
 	struct scatterlist *sg;
-	int sg_n = sg_nents(sgl);
-	int i, ret;
+	int i, ret, sg_n;
 
-	if (!dev || !sgl || !pool || !hw_sgl_dma || sg_n > pool->sge_nr)
+	if (!dev || !sgl || !pool || !hw_sgl_dma)
+		return ERR_PTR(-EINVAL);
+
+	sg_n = sg_nents(sgl);
+	if (sg_n > pool->sge_nr)
 		return ERR_PTR(-EINVAL);
 
 	ret = dma_map_sg(dev, sgl, sg_n, DMA_BIDIRECTIONAL);
@@ -212,11 +216,12 @@ hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
 		return ERR_PTR(-EINVAL);
 
 	curr_hw_sgl = acc_get_sgl(pool, index, &curr_sgl_dma);
-	if (!curr_hw_sgl) {
-		ret = -ENOMEM;
-		goto err_unmap_sg;
+	if (IS_ERR(curr_hw_sgl)) {
+		dma_unmap_sg(dev, sgl, sg_n, DMA_BIDIRECTIONAL);
+		return ERR_PTR(-ENOMEM);
+
 	}
-	curr_hw_sgl->entry_length_in_sgl = pool->sge_nr;
+	curr_hw_sgl->entry_length_in_sgl = cpu_to_le16(pool->sge_nr);
 	curr_hw_sge = curr_hw_sgl->sge_entries;
 
 	for_each_sg(sgl, sg, sg_n, i) {
@@ -229,10 +234,6 @@ hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
 	*hw_sgl_dma = curr_sgl_dma;
 
 	return curr_hw_sgl;
-
-err_unmap_sg:
-	dma_unmap_sg(dev, sgl, sg_n, DMA_BIDIRECTIONAL);
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(hisi_acc_sg_buf_map_to_hw_sgl);
 
@@ -249,6 +250,9 @@ EXPORT_SYMBOL_GPL(hisi_acc_sg_buf_map_to_hw_sgl);
 void hisi_acc_sg_buf_unmap(struct device *dev, struct scatterlist *sgl,
 			   struct hisi_acc_hw_sgl *hw_sgl)
 {
+	if (!dev || !sgl || !hw_sgl)
+		return;
+
 	dma_unmap_sg(dev, sgl, sg_nents(sgl), DMA_BIDIRECTIONAL);
 
 	hw_sgl->entry_sum_in_chain = 0;
