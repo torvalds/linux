@@ -79,6 +79,30 @@ struct hisi_zip_ctx {
 	struct hisi_zip_qp_ctx qp_ctx[HZIP_CTX_Q_NUM];
 };
 
+static int sgl_sge_nr_set(const char *val, const struct kernel_param *kp)
+{
+	int ret;
+	u16 n;
+
+	if (!val)
+		return -EINVAL;
+
+	ret = kstrtou16(val, 10, &n);
+	if (ret || n == 0 || n > HISI_ACC_SGL_SGE_NR_MAX)
+		return -EINVAL;
+
+	return param_set_int(val, kp);
+}
+
+static const struct kernel_param_ops sgl_sge_nr_ops = {
+	.set = sgl_sge_nr_set,
+	.get = param_get_int,
+};
+
+static u16 sgl_sge_nr = HZIP_SGL_SGE_NR;
+module_param_cb(sgl_sge_nr, &sgl_sge_nr_ops, &sgl_sge_nr, 0444);
+MODULE_PARM_DESC(sgl_sge_nr, "Number of sge in sgl(1-255)");
+
 static void hisi_zip_config_buf_type(struct hisi_zip_sqe *sqe, u8 buf_type)
 {
 	u32 val;
@@ -273,7 +297,7 @@ static int hisi_zip_create_sgl_pool(struct hisi_zip_ctx *ctx)
 		tmp = &ctx->qp_ctx[i];
 		dev = &tmp->qp->qm->pdev->dev;
 		tmp->sgl_pool = hisi_acc_create_sgl_pool(dev, QM_Q_DEPTH << 1,
-							 HZIP_SGL_SGE_NR);
+							 sgl_sge_nr);
 		if (IS_ERR(tmp->sgl_pool)) {
 			if (i == 1)
 				goto err_free_sgl_pool0;

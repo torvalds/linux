@@ -75,6 +75,8 @@
 
 #define QM_Q_DEPTH			1024
 
+#define HISI_ACC_SGL_SGE_NR_MAX		255
+
 enum qp_state {
 	QP_STOP,
 };
