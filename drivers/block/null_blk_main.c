@@ -274,10 +274,11 @@ static ssize_t									\
 nullb_device_##NAME##_store(struct config_item *item, const char *page,		\
 			    size_t count)					\
 {										\
-	if (test_bit(NULLB_DEV_FL_CONFIGURED, &to_nullb_device(item)->flags))	\
+	struct nullb_device *dev = to_nullb_device(item);			\
+										\
+	if (test_bit(NULLB_DEV_FL_CONFIGURED, &dev->flags))			\
 		return -EBUSY;							\
-	return nullb_device_##TYPE##_attr_store(				\
-			&to_nullb_device(item)->NAME, page, count);		\
+	return nullb_device_##TYPE##_attr_store(&dev->NAME, page, count);	\
 }										\
 CONFIGFS_ATTR(nullb_device_, NAME);
 
