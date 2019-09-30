@@ -2293,7 +2293,8 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 			be64_to_cpu(*(__be64 *)nexus->i_port_id),
 			be64_to_cpu(*(__be64 *)(nexus->i_port_id + 8)));
 
-	pr_debug("registering session %s\n", ch->sess_name);
+	pr_debug("registering src addr %s or i_port_id %s\n", ch->sess_name,
+		 i_port_id);
 
 	tag_num = ch->rq_size;
 	tag_size = 1; /* ib_srpt does not use se_sess->sess_cmd_map */
