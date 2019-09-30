@@ -146,7 +146,7 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
 			/* skip if polling is enabled or already in work */
 			if (test_and_set_bit(QDIO_QUEUE_IRQS_DISABLED,
 					     &q->u.in.queue_irq_state)) {
-				qperf_inc(q, int_discarded);
+				QDIO_PERF_STAT_INC(irq, int_discarded);
 				continue;
 			}
 
@@ -196,7 +196,7 @@ static void tiqdio_thinint_handler(struct airq_struct *airq, bool floating)
 
 		tiqdio_call_inq_handlers(irq);
 
-		qperf_inc(q, adapter_int);
+		QDIO_PERF_STAT_INC(irq, adapter_int);
 	}
 	rcu_read_unlock();
 }

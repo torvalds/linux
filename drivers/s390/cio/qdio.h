@@ -317,12 +317,14 @@ struct qdio_irq {
 
 #define qperf(__qdev, __attr)	((__qdev)->perf_stat.(__attr))
 
-#define qperf_inc(__q, __attr)						\
+#define QDIO_PERF_STAT_INC(__irq, __attr)				\
 ({									\
-	struct qdio_irq *qdev = (__q)->irq_ptr;				\
+	struct qdio_irq *qdev = __irq;					\
 	if (qdev->perf_stat_enabled)					\
 		(qdev->perf_stat.__attr)++;				\
 })
+
+#define qperf_inc(__q, __attr)	QDIO_PERF_STAT_INC((__q)->irq_ptr, __attr)
 
 static inline void account_sbals_error(struct qdio_q *q, int count)
 {

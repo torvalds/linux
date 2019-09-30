@@ -963,7 +963,7 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 			/* skip if polling is enabled or already in work */
 			if (test_and_set_bit(QDIO_QUEUE_IRQS_DISABLED,
 				     &q->u.in.queue_irq_state)) {
-				qperf_inc(q, int_discarded);
+				QDIO_PERF_STAT_INC(irq_ptr, int_discarded);
 				continue;
 			}
 			q->u.in.queue_start_poll(q->irq_ptr->cdev, q->nr,
