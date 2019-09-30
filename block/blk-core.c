@@ -339,13 +339,11 @@ void blk_cleanup_queue(struct request_queue *q)
 	WARN_ON_ONCE(blk_queue_registered(q));
 
 	/* mark @q DYING, no new request or merges will be allowed afterwards */
-	mutex_lock(&q->sysfs_lock);
 	blk_set_queue_dying(q);
 
 	blk_queue_flag_set(QUEUE_FLAG_NOMERGES, q);
 	blk_queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
 	blk_queue_flag_set(QUEUE_FLAG_DYING, q);
-	mutex_unlock(&q->sysfs_lock);
 
 	/*
 	 * Drain all requests queued before DYING marking. Set DEAD flag to
