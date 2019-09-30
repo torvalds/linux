@@ -386,6 +386,7 @@ config USB_CONFIGFS_F_FS
 config USB_CONFIGFS_F_ACC
 	bool "Accessory gadget"
 	depends on USB_CONFIGFS
+	depends on HID=y
 	select USB_F_ACC
 	help
 	  USB gadget Accessory support
