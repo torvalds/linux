@@ -44,6 +44,7 @@
 #include <asm/cpacf.h>
 #include <asm/timex.h>
 #include <asm/ap.h>
+#include <asm/uv.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 
@@ -234,8 +235,10 @@ int kvm_arch_check_processor_compat(void)
 	return 0;
 }
 
+/* forward declarations */
 static void kvm_gmap_notifier(struct gmap *gmap, unsigned long start,
 			      unsigned long end);
+static int sca_switch_to_extended(struct kvm *kvm);
 
 static void kvm_clock_sync_scb(struct kvm_s390_sie_block *scb, u64 delta)
 {
@@ -2165,6 +2168,160 @@ out:
 	return r;
 }
 
+static int kvm_s390_cpus_from_pv(struct kvm *kvm, u16 *rcp, u16 *rrcp)
+{
+	struct kvm_vcpu *vcpu;
+	u16 rc, rrc;
+	int ret = 0;
+	int i;
+
+	/*
+	 * We ignore failures and try to destroy as many CPUs as possible.
+	 * At the same time we must not free the assigned resources when
+	 * this fails, as the ultravisor has still access to that memory.
+	 * So kvm_s390_pv_destroy_cpu can leave a "wanted" memory leak
+	 * behind.
+	 * We want to return the first failure rc and rrc, though.
+	 */
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		mutex_lock(&vcpu->mutex);
+		if (kvm_s390_pv_destroy_cpu(vcpu, &rc, &rrc) && !ret) {
+			*rcp = rc;
+			*rrcp = rrc;
+			ret = -EIO;
+		}
+		mutex_unlock(&vcpu->mutex);
+	}
+	return ret;
+}
+
+static int kvm_s390_cpus_to_pv(struct kvm *kvm, u16 *rc, u16 *rrc)
+{
+	int i, r = 0;
+	u16 dummy;
+
+	struct kvm_vcpu *vcpu;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		mutex_lock(&vcpu->mutex);
+		r = kvm_s390_pv_create_cpu(vcpu, rc, rrc);
+		mutex_unlock(&vcpu->mutex);
+		if (r)
+			break;
+	}
+	if (r)
+		kvm_s390_cpus_from_pv(kvm, &dummy, &dummy);
+	return r;
+}
+
+static int kvm_s390_handle_pv(struct kvm *kvm, struct kvm_pv_cmd *cmd)
+{
+	int r = 0;
+	u16 dummy;
+	void __user *argp = (void __user *)cmd->data;
+
+	switch (cmd->cmd) {
+	case KVM_PV_ENABLE: {
+		r = -EINVAL;
+		if (kvm_s390_pv_is_protected(kvm))
+			break;
+
+		/*
+		 *  FMT 4 SIE needs esca. As we never switch back to bsca from
+		 *  esca, we need no cleanup in the error cases below
+		 */
+		r = sca_switch_to_extended(kvm);
+		if (r)
+			break;
+
+		r = kvm_s390_pv_init_vm(kvm, &cmd->rc, &cmd->rrc);
+		if (r)
+			break;
+
+		r = kvm_s390_cpus_to_pv(kvm, &cmd->rc, &cmd->rrc);
+		if (r)
+			kvm_s390_pv_deinit_vm(kvm, &dummy, &dummy);
+		break;
+	}
+	case KVM_PV_DISABLE: {
+		r = -EINVAL;
+		if (!kvm_s390_pv_is_protected(kvm))
+			break;
+
+		r = kvm_s390_cpus_from_pv(kvm, &cmd->rc, &cmd->rrc);
+		/*
+		 * If a CPU could not be destroyed, destroy VM will also fail.
+		 * There is no point in trying to destroy it. Instead return
+		 * the rc and rrc from the first CPU that failed destroying.
+		 */
+		if (r)
+			break;
+		r = kvm_s390_pv_deinit_vm(kvm, &cmd->rc, &cmd->rrc);
+		break;
+	}
+	case KVM_PV_SET_SEC_PARMS: {
+		struct kvm_s390_pv_sec_parm parms = {};
+		void *hdr;
+
+		r = -EINVAL;
+		if (!kvm_s390_pv_is_protected(kvm))
+			break;
+
+		r = -EFAULT;
+		if (copy_from_user(&parms, argp, sizeof(parms)))
+			break;
+
+		/* Currently restricted to 8KB */
+		r = -EINVAL;
+		if (parms.length > PAGE_SIZE * 2)
+			break;
+
+		r = -ENOMEM;
+		hdr = vmalloc(parms.length);
+		if (!hdr)
+			break;
+
+		r = -EFAULT;
+		if (!copy_from_user(hdr, (void __user *)parms.origin,
+				    parms.length))
+			r = kvm_s390_pv_set_sec_parms(kvm, hdr, parms.length,
+						      &cmd->rc, &cmd->rrc);
+
+		vfree(hdr);
+		break;
+	}
+	case KVM_PV_UNPACK: {
+		struct kvm_s390_pv_unp unp = {};
+
+		r = -EINVAL;
+		if (!kvm_s390_pv_is_protected(kvm))
+			break;
+
+		r = -EFAULT;
+		if (copy_from_user(&unp, argp, sizeof(unp)))
+			break;
+
+		r = kvm_s390_pv_unpack(kvm, unp.addr, unp.size, unp.tweak,
+				       &cmd->rc, &cmd->rrc);
+		break;
+	}
+	case KVM_PV_VERIFY: {
+		r = -EINVAL;
+		if (!kvm_s390_pv_is_protected(kvm))
+			break;
+
+		r = uv_cmd_nodata(kvm_s390_pv_get_handle(kvm),
+				  UVC_CMD_VERIFY_IMG, &cmd->rc, &cmd->rrc);
+		KVM_UV_EVENT(kvm, 3, "PROTVIRT VERIFY: rc %x rrc %x", cmd->rc,
+			     cmd->rrc);
+		break;
+	}
+	default:
+		r = -ENOTTY;
+	}
+	return r;
+}
+
 long kvm_arch_vm_ioctl(struct file *filp,
 		       unsigned int ioctl, unsigned long arg)
 {
@@ -2260,6 +2417,31 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		mutex_lock(&kvm->slots_lock);
 		r = kvm_s390_set_cmma_bits(kvm, &args);
 		mutex_unlock(&kvm->slots_lock);
+		break;
+	}
+	case KVM_S390_PV_COMMAND: {
+		struct kvm_pv_cmd args;
+
+		r = 0;
+		if (!is_prot_virt_host()) {
+			r = -EINVAL;
+			break;
+		}
+		if (copy_from_user(&args, argp, sizeof(args))) {
+			r = -EFAULT;
+			break;
+		}
+		if (args.flags) {
+			r = -EINVAL;
+			break;
+		}
+		mutex_lock(&kvm->lock);
+		r = kvm_s390_handle_pv(kvm, &args);
+		mutex_unlock(&kvm->lock);
+		if (copy_to_user(argp, &args, sizeof(args))) {
+			r = -EFAULT;
+			break;
+		}
 		break;
 	}
 	default:
@@ -2525,6 +2707,8 @@ out_err:
 
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
+	u16 rc, rrc;
+
 	VCPU_EVENT(vcpu, 3, "%s", "free cpu");
 	trace_kvm_s390_destroy_vcpu(vcpu->vcpu_id);
 	kvm_s390_clear_local_irqs(vcpu);
@@ -2537,6 +2721,9 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 
 	if (vcpu->kvm->arch.use_cmma)
 		kvm_s390_vcpu_unsetup_cmma(vcpu);
+	/* We can not hold the vcpu mutex here, we are already dying */
+	if (kvm_s390_pv_cpu_get_handle(vcpu))
+		kvm_s390_pv_destroy_cpu(vcpu, &rc, &rrc);
 	free_page((unsigned long)(vcpu->arch.sie_block));
 }
 
@@ -2558,10 +2745,20 @@ static void kvm_free_vcpus(struct kvm *kvm)
 
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
+	u16 rc, rrc;
+
 	kvm_free_vcpus(kvm);
 	sca_dispose(kvm);
-	debug_unregister(kvm->arch.dbf);
 	kvm_s390_gisa_destroy(kvm);
+	/*
+	 * We are already at the end of life and kvm->lock is not taken.
+	 * This is ok as the file descriptor is closed by now and nobody
+	 * can mess with the pv state. To avoid lockdep_assert_held from
+	 * complaining we do not use kvm_s390_pv_is_protected.
+	 */
+	if (kvm_s390_pv_get_handle(kvm))
+		kvm_s390_pv_deinit_vm(kvm, &rc, &rrc);
+	debug_unregister(kvm->arch.dbf);
 	free_page((unsigned long)kvm->arch.sie_page2);
 	if (!kvm_is_ucontrol(kvm))
 		gmap_remove(kvm->arch.gmap);
@@ -2656,6 +2853,9 @@ static int sca_switch_to_extended(struct kvm *kvm)
 	struct kvm_vcpu *vcpu;
 	unsigned int vcpu_idx;
 	u32 scaol, scaoh;
+
+	if (kvm->arch.use_esca)
+		return 0;
 
 	new_sca = alloc_pages_exact(sizeof(*new_sca), GFP_KERNEL|__GFP_ZERO);
 	if (!new_sca)
@@ -2908,6 +3108,7 @@ static void kvm_s390_vcpu_setup_model(struct kvm_vcpu *vcpu)
 static int kvm_s390_vcpu_setup(struct kvm_vcpu *vcpu)
 {
 	int rc = 0;
+	u16 uvrc, uvrrc;
 
 	atomic_set(&vcpu->arch.sie_block->cpuflags, CPUSTAT_ZARCH |
 						    CPUSTAT_SM |
@@ -2974,6 +3175,14 @@ static int kvm_s390_vcpu_setup(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->hpid = HPID_KVM;
 
 	kvm_s390_vcpu_crypto_setup(vcpu);
+
+	mutex_lock(&vcpu->kvm->lock);
+	if (kvm_s390_pv_is_protected(vcpu->kvm)) {
+		rc = kvm_s390_pv_create_cpu(vcpu, &uvrc, &uvrrc);
+		if (rc)
+			kvm_s390_vcpu_unsetup_cmma(vcpu);
+	}
+	mutex_unlock(&vcpu->kvm->lock);
 
 	return rc;
 }
@@ -4540,6 +4749,9 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 	if (mem->guest_phys_addr + mem->memory_size > kvm->arch.mem_limit)
 		return -EINVAL;
 
+	/* When we are protected, we should not change the memory slots */
+	if (kvm_s390_pv_get_handle(kvm))
+		return -EINVAL;
 	return 0;
 }
 

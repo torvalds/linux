@@ -15,6 +15,7 @@
 #include <linux/hrtimer.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <linux/lockdep.h>
 #include <asm/facility.h>
 #include <asm/processor.h>
 #include <asm/sclp.h>
@@ -205,6 +206,38 @@ static inline int test_kvm_cpu_feat(struct kvm *kvm, unsigned long nr)
 static inline int kvm_s390_user_cpu_state_ctrl(struct kvm *kvm)
 {
 	return kvm->arch.user_cpu_state_ctrl != 0;
+}
+
+/* implemented in pv.c */
+int kvm_s390_pv_destroy_cpu(struct kvm_vcpu *vcpu, u16 *rc, u16 *rrc);
+int kvm_s390_pv_create_cpu(struct kvm_vcpu *vcpu, u16 *rc, u16 *rrc);
+int kvm_s390_pv_deinit_vm(struct kvm *kvm, u16 *rc, u16 *rrc);
+int kvm_s390_pv_init_vm(struct kvm *kvm, u16 *rc, u16 *rrc);
+int kvm_s390_pv_set_sec_parms(struct kvm *kvm, void *hdr, u64 length, u16 *rc,
+			      u16 *rrc);
+int kvm_s390_pv_unpack(struct kvm *kvm, unsigned long addr, unsigned long size,
+		       unsigned long tweak, u16 *rc, u16 *rrc);
+
+static inline u64 kvm_s390_pv_get_handle(struct kvm *kvm)
+{
+	return kvm->arch.pv.handle;
+}
+
+static inline u64 kvm_s390_pv_cpu_get_handle(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.pv.handle;
+}
+
+static inline bool kvm_s390_pv_is_protected(struct kvm *kvm)
+{
+	lockdep_assert_held(&kvm->lock);
+	return !!kvm_s390_pv_get_handle(kvm);
+}
+
+static inline bool kvm_s390_pv_cpu_is_protected(struct kvm_vcpu *vcpu)
+{
+	lockdep_assert_held(&vcpu->mutex);
+	return !!kvm_s390_pv_cpu_get_handle(vcpu);
 }
 
 /* implemented in interrupt.c */

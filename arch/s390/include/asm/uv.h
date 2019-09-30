@@ -23,11 +23,19 @@
 #define UVC_RC_INV_STATE	0x0003
 #define UVC_RC_INV_LEN		0x0005
 #define UVC_RC_NO_RESUME	0x0007
+#define UVC_RC_NEED_DESTROY	0x8000
 
 #define UVC_CMD_QUI			0x0001
 #define UVC_CMD_INIT_UV			0x000f
+#define UVC_CMD_CREATE_SEC_CONF		0x0100
+#define UVC_CMD_DESTROY_SEC_CONF	0x0101
+#define UVC_CMD_CREATE_SEC_CPU		0x0120
+#define UVC_CMD_DESTROY_SEC_CPU		0x0121
 #define UVC_CMD_CONV_TO_SEC_STOR	0x0200
 #define UVC_CMD_CONV_FROM_SEC_STOR	0x0201
+#define UVC_CMD_SET_SEC_CONF_PARAMS	0x0300
+#define UVC_CMD_UNPACK_IMG		0x0301
+#define UVC_CMD_VERIFY_IMG		0x0302
 #define UVC_CMD_PIN_PAGE_SHARED		0x0341
 #define UVC_CMD_UNPIN_PAGE_SHARED	0x0342
 #define UVC_CMD_SET_SHARED_ACCESS	0x1000
@@ -37,10 +45,17 @@
 enum uv_cmds_inst {
 	BIT_UVC_CMD_QUI = 0,
 	BIT_UVC_CMD_INIT_UV = 1,
+	BIT_UVC_CMD_CREATE_SEC_CONF = 2,
+	BIT_UVC_CMD_DESTROY_SEC_CONF = 3,
+	BIT_UVC_CMD_CREATE_SEC_CPU = 4,
+	BIT_UVC_CMD_DESTROY_SEC_CPU = 5,
 	BIT_UVC_CMD_CONV_TO_SEC_STOR = 6,
 	BIT_UVC_CMD_CONV_FROM_SEC_STOR = 7,
 	BIT_UVC_CMD_SET_SHARED_ACCESS = 8,
 	BIT_UVC_CMD_REMOVE_SHARED_ACCESS = 9,
+	BIT_UVC_CMD_SET_SEC_PARMS = 11,
+	BIT_UVC_CMD_UNPACK_IMG = 13,
+	BIT_UVC_CMD_VERIFY_IMG = 14,
 	BIT_UVC_CMD_PIN_PAGE_SHARED = 21,
 	BIT_UVC_CMD_UNPIN_PAGE_SHARED = 22,
 };
@@ -52,6 +67,7 @@ struct uv_cb_header {
 	u16 rrc;	/* Return Reason Code */
 } __packed __aligned(8);
 
+/* Query Ultravisor Information */
 struct uv_cb_qui {
 	struct uv_cb_header header;
 	u64 reserved08;
@@ -71,6 +87,7 @@ struct uv_cb_qui {
 	u8  reserveda0[200 - 160];
 } __packed __aligned(8);
 
+/* Initialize Ultravisor */
 struct uv_cb_init {
 	struct uv_cb_header header;
 	u64 reserved08[2];
@@ -79,6 +96,35 @@ struct uv_cb_init {
 	u64 reserved28[4];
 } __packed __aligned(8);
 
+/* Create Guest Configuration */
+struct uv_cb_cgc {
+	struct uv_cb_header header;
+	u64 reserved08[2];
+	u64 guest_handle;
+	u64 conf_base_stor_origin;
+	u64 conf_virt_stor_origin;
+	u64 reserved30;
+	u64 guest_stor_origin;
+	u64 guest_stor_len;
+	u64 guest_sca;
+	u64 guest_asce;
+	u64 reserved58[5];
+} __packed __aligned(8);
+
+/* Create Secure CPU */
+struct uv_cb_csc {
+	struct uv_cb_header header;
+	u64 reserved08[2];
+	u64 cpu_handle;
+	u64 guest_handle;
+	u64 stor_origin;
+	u8  reserved30[6];
+	u16 num;
+	u64 state_origin;
+	u64 reserved40[4];
+} __packed __aligned(8);
+
+/* Convert to Secure */
 struct uv_cb_cts {
 	struct uv_cb_header header;
 	u64 reserved08[2];
@@ -86,10 +132,32 @@ struct uv_cb_cts {
 	u64 gaddr;
 } __packed __aligned(8);
 
+/* Convert from Secure / Pin Page Shared */
 struct uv_cb_cfs {
 	struct uv_cb_header header;
 	u64 reserved08[2];
 	u64 paddr;
+} __packed __aligned(8);
+
+/* Set Secure Config Parameter */
+struct uv_cb_ssc {
+	struct uv_cb_header header;
+	u64 reserved08[2];
+	u64 guest_handle;
+	u64 sec_header_origin;
+	u32 sec_header_len;
+	u32 reserved2c;
+	u64 reserved30[4];
+} __packed __aligned(8);
+
+/* Unpack */
+struct uv_cb_unp {
+	struct uv_cb_header header;
+	u64 reserved08[2];
+	u64 guest_handle;
+	u64 gaddr;
+	u64 tweak[2];
+	u64 reserved38[3];
 } __packed __aligned(8);
 
 /*
@@ -105,6 +173,7 @@ struct uv_cb_nodata {
 	u64 reserved20[4];
 } __packed __aligned(8);
 
+/* Set Shared Access */
 struct uv_cb_share {
 	struct uv_cb_header header;
 	u64 reserved08[3];
