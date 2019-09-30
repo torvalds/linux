@@ -14,6 +14,7 @@
 struct hpre {
 	struct hisi_qm qm;
 	struct list_head list;
+	u32 num_vfs;
 	unsigned long status;
 };
 

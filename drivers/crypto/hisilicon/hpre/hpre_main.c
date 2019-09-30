@@ -71,6 +71,7 @@
 #define HPRE_REG_RD_TMOUT_US		1000
 #define HPRE_DBGFS_VAL_MAX_LEN		20
 #define HPRE_PCI_DEVICE_ID		0xa258
+#define HPRE_PCI_VF_DEVICE_ID		0xa259
 #define HPRE_ADDR(qm, offset)		(qm->io_base + (offset))
 #define HPRE_QM_USR_CFG_MASK		0xfffffffe
 #define HPRE_QM_AXI_CFG_MASK		0xffff
@@ -85,6 +86,7 @@ static DEFINE_MUTEX(hpre_list_lock);
 static const char hpre_name[] = "hisi_hpre";
 static const struct pci_device_id hpre_dev_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, HPRE_PCI_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, HPRE_PCI_VF_DEVICE_ID) },
 	{ 0, }
 };
 
@@ -318,8 +320,12 @@ static int hpre_qm_pre_init(struct hisi_qm *qm, struct pci_dev *pdev)
 	qm->ver = rev_id;
 	qm->sqe_size = HPRE_SQE_SIZE;
 	qm->dev_name = hpre_name;
-	qm->qp_base = HPRE_PF_DEF_Q_BASE;
-	qm->qp_num = hpre_pf_q_num;
+	qm->fun_type = (pdev->device == HPRE_PCI_DEVICE_ID) ?
+		       QM_HW_PF : QM_HW_VF;
+	if (pdev->is_physfn) {
+		qm->qp_base = HPRE_PF_DEF_Q_BASE;
+		qm->qp_num = hpre_pf_q_num;
+	}
 	qm->use_dma_api = true;
 
 	return 0;
@@ -369,9 +375,16 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
-	ret = hpre_pf_probe_init(hpre);
-	if (ret)
-		goto err_with_qm_init;
+	if (pdev->is_physfn) {
+		ret = hpre_pf_probe_init(hpre);
+		if (ret)
+			goto err_with_qm_init;
+	} else if (qm->fun_type == QM_HW_VF && qm->ver == QM_HW_V2) {
+		/* v2 starts to support get vft by mailbox */
+		ret = hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
+		if (ret)
+			goto err_with_qm_init;
+	}
 
 	ret = hisi_qm_start(qm);
 	if (ret)
@@ -391,7 +404,8 @@ err_with_qm_start:
 	hisi_qm_stop(qm);
 
 err_with_err_init:
-	hpre_hw_error_disable(hpre);
+	if (pdev->is_physfn)
+		hpre_hw_error_disable(hpre);
 
 err_with_qm_init:
 	hisi_qm_uninit(qm);
@@ -399,15 +413,125 @@ err_with_qm_init:
 	return ret;
 }
 
+static int hpre_vf_q_assign(struct hpre *hpre, int num_vfs)
+{
+	struct hisi_qm *qm = &hpre->qm;
+	u32 qp_num = qm->qp_num;
+	int q_num, remain_q_num, i;
+	u32 q_base = qp_num;
+	int ret;
+
+	if (!num_vfs)
+		return -EINVAL;
+
+	remain_q_num = qm->ctrl_qp_num - qp_num;
+
+	/* If remaining queues are not enough, return error. */
+	if (remain_q_num < num_vfs)
+		return -EINVAL;
+
+	q_num = remain_q_num / num_vfs;
+	for (i = 1; i <= num_vfs; i++) {
+		if (i == num_vfs)
+			q_num += remain_q_num % num_vfs;
+		ret = hisi_qm_set_vft(qm, i, q_base, (u32)q_num);
+		if (ret)
+			return ret;
+		q_base += q_num;
+	}
+
+	return 0;
+}
+
+static int hpre_clear_vft_config(struct hpre *hpre)
+{
+	struct hisi_qm *qm = &hpre->qm;
+	u32 num_vfs = hpre->num_vfs;
+	int ret;
+	u32 i;
+
+	for (i = 1; i <= num_vfs; i++) {
+		ret = hisi_qm_set_vft(qm, i, 0, 0);
+		if (ret)
+			return ret;
+	}
+	hpre->num_vfs = 0;
+
+	return 0;
+}
+
+static int hpre_sriov_enable(struct pci_dev *pdev, int max_vfs)
+{
+	struct hpre *hpre = pci_get_drvdata(pdev);
+	int pre_existing_vfs, num_vfs, ret;
+
+	pre_existing_vfs = pci_num_vf(pdev);
+	if (pre_existing_vfs) {
+		pci_err(pdev,
+			"Can't enable VF. Please disable pre-enabled VFs!\n");
+		return 0;
+	}
+
+	num_vfs = min_t(int, max_vfs, HPRE_VF_NUM);
+	ret = hpre_vf_q_assign(hpre, num_vfs);
+	if (ret) {
+		pci_err(pdev, "Can't assign queues for VF!\n");
+		return ret;
+	}
+
+	hpre->num_vfs = num_vfs;
+
+	ret = pci_enable_sriov(pdev, num_vfs);
+	if (ret) {
+		pci_err(pdev, "Can't enable VF!\n");
+		hpre_clear_vft_config(hpre);
+		return ret;
+	}
+
+	return num_vfs;
+}
+
+static int hpre_sriov_disable(struct pci_dev *pdev)
+{
+	struct hpre *hpre = pci_get_drvdata(pdev);
+
+	if (pci_vfs_assigned(pdev)) {
+		pci_err(pdev, "Failed to disable VFs while VFs are assigned!\n");
+		return -EPERM;
+	}
+
+	/* remove in hpre_pci_driver will be called to free VF resources */
+	pci_disable_sriov(pdev);
+
+	return hpre_clear_vft_config(hpre);
+}
+
+static int hpre_sriov_configure(struct pci_dev *pdev, int num_vfs)
+{
+	if (num_vfs)
+		return hpre_sriov_enable(pdev, num_vfs);
+	else
+		return hpre_sriov_disable(pdev);
+}
+
 static void hpre_remove(struct pci_dev *pdev)
 {
 	struct hpre *hpre = pci_get_drvdata(pdev);
 	struct hisi_qm *qm = &hpre->qm;
+	int ret;
 
 	hpre_algs_unregister();
 	hpre_remove_from_list(hpre);
+	if (qm->fun_type == QM_HW_PF && hpre->num_vfs != 0) {
+		ret = hpre_sriov_disable(pdev);
+		if (ret) {
+			pci_err(pdev, "Disable SRIOV fail!\n");
+			return;
+		}
+	}
 	hisi_qm_stop(qm);
-	hpre_hw_error_disable(hpre);
+	if (qm->fun_type == QM_HW_PF)
+		hpre_hw_error_disable(hpre);
 	hisi_qm_uninit(qm);
 }
 
@@ -476,6 +600,7 @@ static struct pci_driver hpre_pci_driver = {
 	.id_table		= hpre_dev_ids,
 	.probe			= hpre_probe,
 	.remove			= hpre_remove,
+	.sriov_configure	= hpre_sriov_configure,
 	.err_handler		= &hpre_err_handler,
 };
 
