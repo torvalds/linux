@@ -133,3 +133,4 @@ module_platform_driver(bd71837_clk);
 MODULE_AUTHOR("Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>");
 MODULE_DESCRIPTION("BD71837/BD71847/BD70528 chip clk driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:bd718xx-clk");
