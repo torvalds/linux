@@ -1,4 +1,5 @@
 DEFCONFIG=allmodconfig
+KCONFIG_ALLCONFIG=${ROOT_DIR}/common/arch/${ARCH%_*}/configs/gki_defconfig
 
 # XFS_FS is currently broken on this branch with clang-9
 POST_DEFCONFIG_CMDS="update_config"
