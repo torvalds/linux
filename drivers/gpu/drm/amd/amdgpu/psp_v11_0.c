@@ -58,6 +58,8 @@ MODULE_FIRMWARE("amdgpu/arcturus_ta.bin");
 #define mmRLC_GPM_UCODE_DATA_NV10	0x5b62
 #define mmSDMA0_UCODE_ADDR_NV10		0x5880
 #define mmSDMA0_UCODE_DATA_NV10		0x5881
+/* memory training timeout define */
+#define MEM_TRAIN_SEND_MSG_TIMEOUT_US	3000000
 
 static int psp_v11_0_init_microcode(struct psp_context *psp)
 {
@@ -902,6 +904,162 @@ static int psp_v11_0_rlc_autoload_start(struct psp_context *psp)
 	return psp_rlc_autoload_start(psp);
 }
 
+static int psp_v11_0_memory_training_send_msg(struct psp_context *psp, int msg)
+{
+	int ret;
+	int i;
+	uint32_t data_32;
+	int max_wait;
+	struct amdgpu_device *adev = psp->adev;
+
+	data_32 = (psp->mem_train_ctx.c2p_train_data_offset >> 20);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36, data_32);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35, msg);
+
+	max_wait = MEM_TRAIN_SEND_MSG_TIMEOUT_US / adev->usec_timeout;
+	for (i = 0; i < max_wait; i++) {
+		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
+				   0x80000000, 0x80000000, false);
+		if (ret == 0)
+			break;
+	}
+	if (i < max_wait)
+		ret = 0;
+	else
+		ret = -ETIME;
+
+	DRM_DEBUG("training %s %s, cost %d @ %d ms\n",
+		  (msg == PSP_BL__DRAM_SHORT_TRAIN) ? "short" : "long",
+		  (ret == 0) ? "succeed" : "failed",
+		  i, adev->usec_timeout/1000);
+	return ret;
+}
+
+static void psp_v11_0_memory_training_fini(struct psp_context *psp)
+{
+	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
+
+	ctx->init = PSP_MEM_TRAIN_NOT_SUPPORT;
+	kfree(ctx->sys_cache);
+	ctx->sys_cache = NULL;
+}
+
+static int psp_v11_0_memory_training_init(struct psp_context *psp)
+{
+	int ret;
+	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
+
+	if (ctx->init != PSP_MEM_TRAIN_RESERVE_SUCCESS) {
+		DRM_DEBUG("memory training is not supported!\n");
+		return 0;
+	}
+
+	ctx->sys_cache = kzalloc(ctx->train_data_size, GFP_KERNEL);
+	if (ctx->sys_cache == NULL) {
+		DRM_ERROR("alloc mem_train_ctx.sys_cache failed!\n");
+		ret = -ENOMEM;
+		goto Err_out;
+	}
+
+	DRM_DEBUG("train_data_size:%llx,p2c_train_data_offset:%llx,c2p_train_data_offset:%llx.\n",
+		  ctx->train_data_size,
+		  ctx->p2c_train_data_offset,
+		  ctx->c2p_train_data_offset);
+	ctx->init = PSP_MEM_TRAIN_INIT_SUCCESS;
+	return 0;
+
+Err_out:
+	psp_v11_0_memory_training_fini(psp);
+	return ret;
+}
+
+/*
+ * save and restore proces
+ */
+static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
+{
+	int ret;
+	uint32_t p2c_header[4];
+	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
+	uint32_t *pcache = (uint32_t*)ctx->sys_cache;
+
+	if (ctx->init == PSP_MEM_TRAIN_NOT_SUPPORT) {
+		DRM_DEBUG("Memory training is not supported.\n");
+		return 0;
+	} else if (ctx->init != PSP_MEM_TRAIN_INIT_SUCCESS) {
+		DRM_ERROR("Memory training initialization failure.\n");
+		return -EINVAL;
+	}
+
+	if (psp_v11_0_is_sos_alive(psp)) {
+		DRM_DEBUG("SOS is alive, skip memory training.\n");
+		return 0;
+	}
+
+	amdgpu_device_vram_access(psp->adev, ctx->p2c_train_data_offset, p2c_header, sizeof(p2c_header), false);
+	DRM_DEBUG("sys_cache[%08x,%08x,%08x,%08x] p2c_header[%08x,%08x,%08x,%08x]\n",
+		  pcache[0], pcache[1], pcache[2], pcache[3],
+		  p2c_header[0], p2c_header[1], p2c_header[2], p2c_header[3]);
+
+	if (ops & PSP_MEM_TRAIN_SEND_SHORT_MSG) {
+		DRM_DEBUG("Short training depends on restore.\n");
+		ops |= PSP_MEM_TRAIN_RESTORE;
+	}
+
+	if ((ops & PSP_MEM_TRAIN_RESTORE) &&
+	    pcache[0] != MEM_TRAIN_SYSTEM_SIGNATURE) {
+		DRM_DEBUG("sys_cache[0] is invalid, restore depends on save.\n");
+		ops |= PSP_MEM_TRAIN_SAVE;
+	}
+
+	if (p2c_header[0] == MEM_TRAIN_SYSTEM_SIGNATURE &&
+	    !(pcache[0] == MEM_TRAIN_SYSTEM_SIGNATURE &&
+	      pcache[3] == p2c_header[3])) {
+		DRM_DEBUG("sys_cache is invalid or out-of-date, need save training data to sys_cache.\n");
+		ops |= PSP_MEM_TRAIN_SAVE;
+	}
+
+	if ((ops & PSP_MEM_TRAIN_SAVE) &&
+	    p2c_header[0] != MEM_TRAIN_SYSTEM_SIGNATURE) {
+		DRM_DEBUG("p2c_header[0] is invalid, save depends on long training.\n");
+		ops |= PSP_MEM_TRAIN_SEND_LONG_MSG;
+	}
+
+	if (ops & PSP_MEM_TRAIN_SEND_LONG_MSG) {
+		ops &= ~PSP_MEM_TRAIN_SEND_SHORT_MSG;
+		ops |= PSP_MEM_TRAIN_SAVE;
+	}
+
+	DRM_DEBUG("Memory training ops:%x.\n", ops);
+
+	if (ops & PSP_MEM_TRAIN_SEND_LONG_MSG) {
+		ret = psp_v11_0_memory_training_send_msg(psp, PSP_BL__DRAM_LONG_TRAIN);
+		if (ret) {
+			DRM_ERROR("Send long training msg failed.\n");
+			return ret;
+		}
+	}
+
+	if (ops & PSP_MEM_TRAIN_SAVE) {
+		amdgpu_device_vram_access(psp->adev, ctx->p2c_train_data_offset, ctx->sys_cache, ctx->train_data_size, false);
+	}
+
+	if (ops & PSP_MEM_TRAIN_RESTORE) {
+		amdgpu_device_vram_access(psp->adev, ctx->c2p_train_data_offset, ctx->sys_cache, ctx->train_data_size, true);
+	}
+
+	if (ops & PSP_MEM_TRAIN_SEND_SHORT_MSG) {
+		ret = psp_v11_0_memory_training_send_msg(psp, (amdgpu_force_long_training > 0) ?
+							 PSP_BL__DRAM_LONG_TRAIN : PSP_BL__DRAM_SHORT_TRAIN);
+		if (ret) {
+			DRM_ERROR("send training msg failed.\n");
+			return ret;
+		}
+	}
+	ctx->training_cnt++;
+	return 0;
+}
+
 static const struct psp_funcs psp_v11_0_funcs = {
 	.init_microcode = psp_v11_0_init_microcode,
 	.bootloader_load_kdb = psp_v11_0_bootloader_load_kdb,
@@ -922,6 +1080,9 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.ras_trigger_error = psp_v11_0_ras_trigger_error,
 	.ras_cure_posion = psp_v11_0_ras_cure_posion,
 	.rlc_autoload_start = psp_v11_0_rlc_autoload_start,
+	.mem_training_init = psp_v11_0_memory_training_init,
+	.mem_training_fini = psp_v11_0_memory_training_fini,
+	.mem_training = psp_v11_0_memory_training,
 };
 
 void psp_v11_0_set_psp_funcs(struct psp_context *psp)
