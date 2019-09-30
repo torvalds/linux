@@ -274,6 +274,7 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
 		  const struct mt76_driver_ops *drv_ops)
 {
 	struct ieee80211_hw *hw;
+	struct mt76_phy *phy;
 	struct mt76_dev *dev;
 	int i;
 
@@ -285,6 +286,10 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
 	dev->hw = hw;
 	dev->dev = pdev;
 	dev->drv = drv_ops;
+
+	phy = &dev->phy;
+	phy->dev = dev;
+	phy->hw = hw;
 
 	spin_lock_init(&dev->rx_lock);
 	spin_lock_init(&dev->lock);

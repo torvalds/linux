@@ -70,7 +70,10 @@ struct mt76x02_beacon_ops {
 	(dev)->beacon_ops->pre_tbtt_enable(dev, enable)
 
 struct mt76x02_dev {
-	struct mt76_dev mt76; /* must be first */
+	union { /* must be first */
+		struct mt76_dev mt76;
+		struct mt76_phy mphy;
+	};
 
 	struct mac_address macaddr_list[8];
 

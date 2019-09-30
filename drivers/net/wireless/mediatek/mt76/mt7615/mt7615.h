@@ -80,7 +80,11 @@ struct mt7615_vif {
 };
 
 struct mt7615_dev {
-	struct mt76_dev mt76; /* must be first */
+	union { /* must be first */
+		struct mt76_dev mt76;
+		struct mt76_phy mphy;
+	};
+
 	u32 vif_mask;
 	u32 omac_mask;
 

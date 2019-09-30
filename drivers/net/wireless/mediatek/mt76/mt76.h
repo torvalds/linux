@@ -449,7 +449,14 @@ struct mt76_rx_status {
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
 };
 
+struct mt76_phy {
+	struct ieee80211_hw *hw;
+	struct mt76_dev *dev;
+};
+
 struct mt76_dev {
+	struct mt76_phy phy; /* must be first */
+
 	struct ieee80211_hw *hw;
 	struct cfg80211_chan_def chandef;
 	struct ieee80211_channel *main_chan;
@@ -581,7 +588,7 @@ enum mt76_phy_type {
 #define __mt76_rmw_field(_dev, _reg, _field, _val)	\
 	__mt76_rmw(_dev, _reg, _field, FIELD_PREP(_field, _val))
 
-#define mt76_hw(dev) (dev)->mt76.hw
+#define mt76_hw(dev) (dev)->mphy.hw
 
 bool __mt76_poll(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
 		 int timeout);
