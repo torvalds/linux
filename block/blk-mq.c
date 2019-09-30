@@ -93,7 +93,7 @@ static void blk_mq_hctx_clear_pending(struct blk_mq_hw_ctx *hctx,
 
 struct mq_inflight {
 	struct hd_struct *part;
-	unsigned int *inflight;
+	unsigned int inflight[2];
 };
 
 static bool blk_mq_check_inflight(struct blk_mq_hw_ctx *hctx,
@@ -110,22 +110,21 @@ static bool blk_mq_check_inflight(struct blk_mq_hw_ctx *hctx,
 
 unsigned int blk_mq_in_flight(struct request_queue *q, struct hd_struct *part)
 {
-	unsigned inflight[2];
-	struct mq_inflight mi = { .part = part, .inflight = inflight, };
+	struct mq_inflight mi = { .part = part };
 
-	inflight[0] = inflight[1] = 0;
 	blk_mq_queue_tag_busy_iter(q, blk_mq_check_inflight, &mi);
 
-	return inflight[0] + inflight[1];
+	return mi.inflight[0] + mi.inflight[1];
 }
 
 void blk_mq_in_flight_rw(struct request_queue *q, struct hd_struct *part,
 			 unsigned int inflight[2])
 {
-	struct mq_inflight mi = { .part = part, .inflight = inflight, };
+	struct mq_inflight mi = { .part = part };
 
-	inflight[0] = inflight[1] = 0;
 	blk_mq_queue_tag_busy_iter(q, blk_mq_check_inflight, &mi);
+	inflight[0] = mi.inflight[0];
+	inflight[1] = mi.inflight[1];
 }
 
 void blk_freeze_queue_start(struct request_queue *q)
