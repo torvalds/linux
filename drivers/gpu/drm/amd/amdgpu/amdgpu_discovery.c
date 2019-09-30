@@ -333,7 +333,7 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 }
 
 int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id,
-				    int *major, int *minor)
+				    int *major, int *minor, int *revision)
 {
 	struct binary_header *bhdr;
 	struct ip_discovery_header *ihdr;
@@ -369,6 +369,8 @@ int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id,
 					*major = ip->major;
 				if (minor)
 					*minor = ip->minor;
+				if (revision)
+					*revision = ip->revision;
 				return 0;
 			}
 			ip_offset += sizeof(*ip) + 4 * (ip->num_base_address - 1);
