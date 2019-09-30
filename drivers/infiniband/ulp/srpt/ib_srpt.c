@@ -2023,10 +2023,17 @@ static void srpt_set_enabled(struct srpt_port *sport, bool enabled)
 		__srpt_close_all_ch(sport);
 }
 
+static void srpt_drop_sport_ref(struct srpt_port *sport)
+{
+	if (atomic_dec_return(&sport->refcount) == 0 && sport->freed_channels)
+		complete(sport->freed_channels);
+}
+
 static void srpt_free_ch(struct kref *kref)
 {
 	struct srpt_rdma_ch *ch = container_of(kref, struct srpt_rdma_ch, kref);
 
+	srpt_drop_sport_ref(ch->sport);
 	kfree_rcu(ch, rcu);
 }
 
@@ -2086,8 +2093,6 @@ static void srpt_release_channel_work(struct work_struct *w)
 			     ch->req_buf_cache, DMA_FROM_DEVICE);
 
 	kmem_cache_destroy(ch->req_buf_cache);
-
-	wake_up(&sport->ch_releaseQ);
 
 	kref_put(&ch->kref, srpt_free_ch);
 }
@@ -2306,6 +2311,12 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 				SRP_LOGIN_REJ_CHANNEL_LIMIT_REACHED);
 		goto destroy_ib;
 	}
+
+	/*
+	 * Once a session has been created destruction of srpt_rdma_ch objects
+	 * will decrement sport->refcount. Hence increment sport->refcount now.
+	 */
+	atomic_inc(&sport->refcount);
 
 	mutex_lock(&sport->mutex);
 
@@ -2889,39 +2900,29 @@ static void srpt_refresh_port_work(struct work_struct *work)
 	srpt_refresh_port(sport);
 }
 
-static bool srpt_ch_list_empty(struct srpt_port *sport)
-{
-	struct srpt_nexus *nexus;
-	bool res = true;
-
-	rcu_read_lock();
-	list_for_each_entry(nexus, &sport->nexus_list, entry)
-		if (!list_empty(&nexus->ch_list))
-			res = false;
-	rcu_read_unlock();
-
-	return res;
-}
-
 /**
  * srpt_release_sport - disable login and wait for associated channels
  * @sport: SRPT HCA port.
  */
 static int srpt_release_sport(struct srpt_port *sport)
 {
+	DECLARE_COMPLETION_ONSTACK(c);
 	struct srpt_nexus *nexus, *next_n;
 	struct srpt_rdma_ch *ch;
 
 	WARN_ON_ONCE(irqs_disabled());
 
+	sport->freed_channels = &c;
+
 	mutex_lock(&sport->mutex);
 	srpt_set_enabled(sport, false);
 	mutex_unlock(&sport->mutex);
 
-	while (wait_event_timeout(sport->ch_releaseQ,
-				  srpt_ch_list_empty(sport), 5 * HZ) <= 0) {
-		pr_info("%s_%d: waiting for session unregistration ...\n",
-			dev_name(&sport->sdev->device->dev), sport->port);
+	while (atomic_read(&sport->refcount) > 0 &&
+	       wait_for_completion_timeout(&c, 5 * HZ) <= 0) {
+		pr_info("%s_%d: waiting for unregistration of %d sessions ...\n",
+			dev_name(&sport->sdev->device->dev), sport->port,
+			atomic_read(&sport->refcount));
 		rcu_read_lock();
 		list_for_each_entry(nexus, &sport->nexus_list, entry) {
 			list_for_each_entry(ch, &nexus->ch_list, list) {
@@ -3130,7 +3131,6 @@ static void srpt_add_one(struct ib_device *device)
 	for (i = 1; i <= sdev->device->phys_port_cnt; i++) {
 		sport = &sdev->port[i - 1];
 		INIT_LIST_HEAD(&sport->nexus_list);
-		init_waitqueue_head(&sport->ch_releaseQ);
 		mutex_init(&sport->mutex);
 		sport->sdev = sdev;
 		sport->port = i;

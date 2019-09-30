@@ -381,7 +381,8 @@ struct srpt_port_attrib {
  * @port_gid_tpg:  TPG associated with target port GID.
  * @port_gid_wwn:  WWN associated with target port GID.
  * @port_attrib:   Port attributes that can be accessed through configfs.
- * @ch_releaseQ:   Enables waiting for removal from nexus_list.
+ * @refcount:	   Number of objects associated with this port.
+ * @freed_channels: Completion that will be signaled once @refcount becomes 0.
  * @mutex:	   Protects nexus_list.
  * @nexus_list:	   Nexus list. See also srpt_nexus.entry.
  */
@@ -401,7 +402,8 @@ struct srpt_port {
 	struct se_portal_group	port_gid_tpg;
 	struct se_wwn		port_gid_wwn;
 	struct srpt_port_attrib port_attrib;
-	wait_queue_head_t	ch_releaseQ;
+	atomic_t		refcount;
+	struct completion	*freed_channels;
 	struct mutex		mutex;
 	struct list_head	nexus_list;
 };
