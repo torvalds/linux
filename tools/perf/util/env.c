@@ -2,6 +2,7 @@
 #include "cpumap.h"
 #include "debug.h"
 #include "env.h"
+#include "util/header.h"
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
 #include "bpf-event.h"
@@ -253,6 +254,21 @@ int perf_env__read_cpu_topology_map(struct perf_env *env)
 	}
 
 	env->nr_cpus_avail = nr_cpus;
+	return 0;
+}
+
+int perf_env__read_cpuid(struct perf_env *env)
+{
+	char cpuid[128];
+	int err = get_cpuid(cpuid, sizeof(cpuid));
+
+	if (err)
+		return err;
+
+	free(env->cpuid);
+	env->cpuid = strdup(cpuid);
+	if (env->cpuid == NULL)
+		return ENOMEM;
 	return 0;
 }
 
