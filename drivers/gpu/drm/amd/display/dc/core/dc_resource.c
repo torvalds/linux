@@ -951,7 +951,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
 	data->inits.v_c_bot = dc_fixpt_add(data->inits.v_c, data->ratios.vert_c);
 
 }
-static bool are_rect_integer_multiples(struct rect src, struct rect dest)
+static bool are_rects_integer_multiples(struct rect src, struct rect dest)
 {
 	if (dest.width  >= src.width  && dest.width  % src.width  == 0 &&
 		dest.height >= src.height && dest.height % src.height == 0)
@@ -959,6 +959,38 @@ static bool are_rect_integer_multiples(struct rect src, struct rect dest)
 
 	return false;
 }
+
+void calculate_integer_scaling(struct pipe_ctx *pipe_ctx)
+{
+	if (!pipe_ctx->plane_state->scaling_quality.integer_scaling)
+		return;
+
+	//for Centered Mode
+	if (pipe_ctx->stream->dst.width  == pipe_ctx->stream->src.width &&
+		pipe_ctx->stream->dst.height == pipe_ctx->stream->src.height) {
+		// calculate maximum # of replication of src onto addressable
+		unsigned int integer_multiple = min(
+				pipe_ctx->stream->timing.h_addressable / pipe_ctx->stream->src.width,
+				pipe_ctx->stream->timing.v_addressable  / pipe_ctx->stream->src.height);
+
+		//scale dst
+		pipe_ctx->stream->dst.width  = integer_multiple * pipe_ctx->stream->src.width;
+		pipe_ctx->stream->dst.height = integer_multiple * pipe_ctx->stream->src.height;
+
+		//center dst onto addressable
+		pipe_ctx->stream->dst.x = (pipe_ctx->stream->timing.h_addressable - pipe_ctx->stream->dst.width)/2;
+		pipe_ctx->stream->dst.y = (pipe_ctx->stream->timing.v_addressable - pipe_ctx->stream->dst.height)/2;
+	}
+
+	//disable taps if src & dst are integer ratio
+	if (are_rects_integer_multiples(pipe_ctx->stream->src, pipe_ctx->stream->dst)) {
+		pipe_ctx->plane_state->scaling_quality.v_taps = 1;
+		pipe_ctx->plane_state->scaling_quality.h_taps = 1;
+		pipe_ctx->plane_state->scaling_quality.v_taps_c = 1;
+		pipe_ctx->plane_state->scaling_quality.h_taps_c = 1;
+	}
+}
+
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
@@ -971,6 +1003,8 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	 */
 	pipe_ctx->plane_res.scl_data.format = convert_pixel_format_to_dalsurface(
 			pipe_ctx->plane_state->format);
+
+	calculate_integer_scaling(pipe_ctx);
 
 	calculate_scaling_ratios(pipe_ctx);
 
@@ -1002,13 +1036,6 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 		res = pipe_ctx->plane_res.dpp->funcs->dpp_get_optimal_number_of_taps(
 				pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
 
-	if (res &&
-	    plane_state->scaling_quality.integer_scaling &&
-	    are_rect_integer_multiples(pipe_ctx->plane_res.scl_data.viewport,
-				       pipe_ctx->plane_res.scl_data.recout)) {
-		pipe_ctx->plane_res.scl_data.taps.v_taps = 1;
-		pipe_ctx->plane_res.scl_data.taps.h_taps = 1;
-	}
 
 	if (!res) {
 		/* Try 24 bpp linebuffer */
