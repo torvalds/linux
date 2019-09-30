@@ -542,8 +542,9 @@ static void hdmi_core_audio_config(struct hdmi_core_data *core,
 	}
 
 	/* Set ACR clock divisor */
-	REG_FLD_MOD(av_base,
-			HDMI_CORE_AV_FREQ_SVAL, cfg->mclk_mode, 2, 0);
+	if (cfg->use_mclk)
+		REG_FLD_MOD(av_base, HDMI_CORE_AV_FREQ_SVAL,
+			    cfg->mclk_mode, 2, 0);
 
 	r = hdmi_read_reg(av_base, HDMI_CORE_AV_ACR_CTRL);
 	/*
