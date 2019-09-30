@@ -31,3 +31,14 @@ config CRYPTO_DEV_HISI_ZIP
 	select SG_SPLIT
 	help
 	  Support for HiSilicon ZIP Driver
+
+config CRYPTO_DEV_HISI_HPRE
+	tristate "Support for HISI HPRE accelerator"
+	depends on PCI && PCI_MSI
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	select CRYPTO_DEV_HISI_QM
+	select CRYPTO_DH
+	select CRYPTO_RSA
+	help
+	  Support for HiSilicon HPRE(High Performance RSA Engine)
+	  accelerator, which can accelerate RSA and DH algorithms.
