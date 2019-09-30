@@ -8,6 +8,7 @@
 #define HISI_ACC_SGL_SGE_NR_MIN		1
 #define HISI_ACC_SGL_NR_MAX		256
 #define HISI_ACC_SGL_ALIGN_SIZE		64
+#define HISI_ACC_MEM_BLOCK_NR		5
 
 struct acc_hw_sge {
 	dma_addr_t buf;
@@ -31,9 +32,13 @@ struct hisi_acc_hw_sgl {
 } __aligned(1);
 
 struct hisi_acc_sgl_pool {
-	struct hisi_acc_hw_sgl *sgl;
-	dma_addr_t sgl_dma;
-	size_t size;
+	struct mem_block {
+		struct hisi_acc_hw_sgl *sgl;
+		dma_addr_t sgl_dma;
+		size_t size;
+	} mem_block[HISI_ACC_MEM_BLOCK_NR];
+	u32 sgl_num_per_block;
+	u32 block_num;
 	u32 count;
 	u32 sge_nr;
 	size_t sgl_size;
@@ -51,33 +56,66 @@ struct hisi_acc_sgl_pool {
 struct hisi_acc_sgl_pool *hisi_acc_create_sgl_pool(struct device *dev,
 						   u32 count, u32 sge_nr)
 {
+	u32 sgl_size, block_size, sgl_num_per_block, block_num, remain_sgl = 0;
 	struct hisi_acc_sgl_pool *pool;
-	u32 sgl_size;
-	u32 size;
+	struct mem_block *block;
+	u32 i, j;
 
 	if (!dev || !count || !sge_nr || sge_nr > HISI_ACC_SGL_SGE_NR_MAX)
 		return ERR_PTR(-EINVAL);
 
 	sgl_size = sizeof(struct acc_hw_sge) * sge_nr +
 		   sizeof(struct hisi_acc_hw_sgl);
-	size = sgl_size * count;
+	block_size = PAGE_SIZE * (1 << (MAX_ORDER - 1));
+	sgl_num_per_block = block_size / sgl_size;
+	block_num = count / sgl_num_per_block;
+	remain_sgl = count % sgl_num_per_block;
+
+	if ((!remain_sgl && block_num > HISI_ACC_MEM_BLOCK_NR) ||
+	    (remain_sgl > 0 && block_num > HISI_ACC_MEM_BLOCK_NR - 1))
+		return ERR_PTR(-EINVAL);
 
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
+	block = pool->mem_block;
 
-	pool->sgl = dma_alloc_coherent(dev, size, &pool->sgl_dma, GFP_KERNEL);
-	if (!pool->sgl) {
-		kfree(pool);
-		return ERR_PTR(-ENOMEM);
+	for (i = 0; i < block_num; i++) {
+		block[i].sgl = dma_alloc_coherent(dev, block_size,
+						  &block[i].sgl_dma,
+						  GFP_KERNEL);
+		if (!block[i].sgl)
+			goto err_free_mem;
+
+		block[i].size = block_size;
 	}
 
-	pool->size = size;
+	if (remain_sgl > 0) {
+		block[i].sgl = dma_alloc_coherent(dev, remain_sgl * sgl_size,
+						  &block[i].sgl_dma,
+						  GFP_KERNEL);
+		if (!block[i].sgl)
+			goto err_free_mem;
+
+		block[i].size = remain_sgl * sgl_size;
+	}
+
+	pool->sgl_num_per_block = sgl_num_per_block;
+	pool->block_num = remain_sgl ? block_num + 1 : block_num;
 	pool->count = count;
 	pool->sgl_size = sgl_size;
 	pool->sge_nr = sge_nr;
 
 	return pool;
+
+err_free_mem:
+	for (j = 0; j < i; j++) {
+		dma_free_coherent(dev, block_size, block[j].sgl,
+				  block[j].sgl_dma);
+		memset(block + j, 0, sizeof(*block));
+	}
+	kfree(pool);
+	return ERR_PTR(-ENOMEM);
 }
 EXPORT_SYMBOL_GPL(hisi_acc_create_sgl_pool);
 
@@ -90,10 +128,18 @@ EXPORT_SYMBOL_GPL(hisi_acc_create_sgl_pool);
  */
 void hisi_acc_free_sgl_pool(struct device *dev, struct hisi_acc_sgl_pool *pool)
 {
+	struct mem_block *block;
+	int i;
+
 	if (!dev || !pool)
 		return;
 
-	dma_free_coherent(dev, pool->size, pool->sgl, pool->sgl_dma);
+	block = pool->mem_block;
+
+	for (i = 0; i < pool->block_num; i++)
+		dma_free_coherent(dev, block[i].size, block[i].sgl,
+				  block[i].sgl_dma);
+
 	kfree(pool);
 }
 EXPORT_SYMBOL_GPL(hisi_acc_free_sgl_pool);
@@ -101,11 +147,18 @@ EXPORT_SYMBOL_GPL(hisi_acc_free_sgl_pool);
 struct hisi_acc_hw_sgl *acc_get_sgl(struct hisi_acc_sgl_pool *pool, u32 index,
 				    dma_addr_t *hw_sgl_dma)
 {
-	if (!pool || !hw_sgl_dma || index >= pool->count || !pool->sgl)
+	struct mem_block *block;
+	u32 block_index, offset;
+
+	if (!pool || !hw_sgl_dma || index >= pool->count)
 		return ERR_PTR(-EINVAL);
 
-	*hw_sgl_dma = pool->sgl_dma + pool->sgl_size * index;
-	return (void *)pool->sgl + pool->sgl_size * index;
+	block = pool->mem_block;
+	block_index = index / pool->sgl_num_per_block;
+	offset = index % pool->sgl_num_per_block;
+
+	*hw_sgl_dma = block[block_index].sgl_dma + pool->sgl_size * offset;
+	return (void *)block[block_index].sgl + pool->sgl_size * offset;
 }
 
 void acc_put_sgl(struct hisi_acc_sgl_pool *pool, u32 index) {}
