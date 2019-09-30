@@ -263,11 +263,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 	struct ttm_resource_manager *new_man = ttm_manager_type(bdev, mem->mem_type);
 	int ret;
 
-	ret = ttm_mem_io_lock(old_man, true);
-	if (unlikely(ret != 0))
-		goto out_err;
-	ttm_bo_unmap_virtual_locked(bo);
-	ttm_mem_io_unlock(old_man);
+	ttm_bo_unmap_virtual(bo);
 
 	/*
 	 * Create and bind a ttm if required.
@@ -538,7 +534,6 @@ static void ttm_bo_release(struct kref *kref)
 	struct ttm_buffer_object *bo =
 	    container_of(kref, struct ttm_buffer_object, kref);
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_resource_manager *man = ttm_manager_type(bdev, bo->mem.mem_type);
 	size_t acc_size = bo->acc_size;
 	int ret;
 
@@ -556,9 +551,7 @@ static void ttm_bo_release(struct kref *kref)
 			bo->bdev->driver->release_notify(bo);
 
 		drm_vma_offset_remove(bdev->vma_manager, &bo->base.vma_node);
-		ttm_mem_io_lock(man, false);
-		ttm_mem_io_free_vm(bo);
-		ttm_mem_io_unlock(man);
+		ttm_mem_io_free(bdev, &bo->mem);
 	}
 
 	if (!dma_resv_test_signaled_rcu(bo->base.resv, true) ||
@@ -648,8 +641,6 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 
 	evict_mem = bo->mem;
 	evict_mem.mm_node = NULL;
-	evict_mem.bus.io_reserved_vm = false;
-	evict_mem.bus.io_reserved_count = 0;
 	evict_mem.bus.base = 0;
 	evict_mem.bus.offset = 0;
 	evict_mem.bus.addr = NULL;
@@ -1085,8 +1076,6 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	mem.num_pages = bo->num_pages;
 	mem.size = mem.num_pages << PAGE_SHIFT;
 	mem.page_alignment = bo->mem.page_alignment;
-	mem.bus.io_reserved_vm = false;
-	mem.bus.io_reserved_count = 0;
 	mem.bus.base = 0;
 	mem.bus.offset = 0;
 	mem.bus.addr = NULL;
@@ -1238,7 +1227,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	INIT_LIST_HEAD(&bo->lru);
 	INIT_LIST_HEAD(&bo->ddestroy);
 	INIT_LIST_HEAD(&bo->swap);
-	INIT_LIST_HEAD(&bo->io_reserve_lru);
 	bo->bdev = bdev;
 	bo->type = type;
 	bo->num_pages = num_pages;
@@ -1247,8 +1235,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	bo->mem.num_pages = bo->num_pages;
 	bo->mem.mm_node = NULL;
 	bo->mem.page_alignment = page_alignment;
-	bo->mem.bus.io_reserved_vm = false;
-	bo->mem.bus.io_reserved_count = 0;
 	bo->mem.bus.base = 0;
 	bo->mem.bus.offset = 0;
 	bo->mem.bus.addr = NULL;
@@ -1554,25 +1540,13 @@ EXPORT_SYMBOL(ttm_bo_device_init);
  * buffer object vm functions.
  */
 
-void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo)
+void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
 
 	drm_vma_node_unmap(&bo->base.vma_node, bdev->dev_mapping);
-	ttm_mem_io_free_vm(bo);
+	ttm_mem_io_free(bdev, &bo->mem);
 }
-
-void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
-{
-	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_resource_manager *man = ttm_manager_type(bdev, bo->mem.mem_type);
-
-	ttm_mem_io_lock(man, false);
-	ttm_bo_unmap_virtual_locked(bo);
-	ttm_mem_io_unlock(man);
-}
-
-
 EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 
 int ttm_bo_wait(struct ttm_buffer_object *bo,

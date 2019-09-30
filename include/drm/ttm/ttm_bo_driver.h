@@ -441,11 +441,6 @@ void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
  */
 void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo);
 
-int ttm_mem_io_reserve_vm(struct ttm_buffer_object *bo);
-void ttm_mem_io_free_vm(struct ttm_buffer_object *bo);
-int ttm_mem_io_lock(struct ttm_resource_manager *man, bool interruptible);
-void ttm_mem_io_unlock(struct ttm_resource_manager *man);
-
 /**
  * ttm_bo_reserve:
  *
