@@ -9,11 +9,45 @@
 #define HPRE_SQE_SIZE			sizeof(struct hpre_sqe)
 #define HPRE_PF_DEF_Q_NUM		64
 #define HPRE_PF_DEF_Q_BASE		0
-#define HPRE_CLUSTERS_NUM		4
+
+enum {
+	HPRE_CLUSTER0,
+	HPRE_CLUSTER1,
+	HPRE_CLUSTER2,
+	HPRE_CLUSTER3,
+	HPRE_CLUSTERS_NUM,
+};
+
+enum hpre_ctrl_dbgfs_file {
+	HPRE_CURRENT_QM,
+	HPRE_CLEAR_ENABLE,
+	HPRE_CLUSTER_CTRL,
+	HPRE_DEBUG_FILE_NUM,
+};
+
+#define HPRE_DEBUGFS_FILE_NUM    (HPRE_DEBUG_FILE_NUM + HPRE_CLUSTERS_NUM - 1)
+
+struct hpre_debugfs_file {
+	int index;
+	enum hpre_ctrl_dbgfs_file type;
+	spinlock_t lock;
+	struct hpre_debug *debug;
+};
+
+/*
+ * One HPRE controller has one PF and multiple VFs, some global configurations
+ * which PF has need this structure.
+ * Just relevant for PF.
+ */
+struct hpre_debug {
+	struct dentry *debug_root;
+	struct hpre_debugfs_file files[HPRE_DEBUGFS_FILE_NUM];
+};
 
 struct hpre {
 	struct hisi_qm qm;
 	struct list_head list;
+	struct hpre_debug debug;
 	u32 num_vfs;
 	unsigned long status;
 };
