@@ -39,8 +39,8 @@ static void hdmi_core_ddc_init(struct hdmi_core_data *core)
 {
 	void __iomem *base = core->base;
 	const unsigned long long iclk = 266000000;	/* DSS L3 ICLK */
-	const unsigned int ss_scl_high = 4600;		/* ns */
-	const unsigned int ss_scl_low = 5400;		/* ns */
+	const unsigned int ss_scl_high = 4700;		/* ns */
+	const unsigned int ss_scl_low = 5500;		/* ns */
 	const unsigned int fs_scl_high = 600;		/* ns */
 	const unsigned int fs_scl_low = 1300;		/* ns */
 	const unsigned int sda_hold = 1000;		/* ns */
