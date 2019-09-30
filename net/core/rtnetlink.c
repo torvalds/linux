@@ -980,6 +980,19 @@ static size_t rtnl_xdp_size(void)
 	return xdp_size;
 }
 
+static size_t rtnl_prop_list_size(const struct net_device *dev)
+{
+	struct netdev_name_node *name_node;
+	size_t size;
+
+	if (list_empty(&dev->name_node->list))
+		return 0;
+	size = nla_total_size(0);
+	list_for_each_entry(name_node, &dev->name_node->list, list)
+		size += nla_total_size(ALTIFNAMSIZ);
+	return size;
+}
+
 static noinline size_t if_nlmsg_size(const struct net_device *dev,
 				     u32 ext_filter_mask)
 {
@@ -1027,6 +1040,7 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + nla_total_size(4)  /* IFLA_CARRIER_DOWN_COUNT */
 	       + nla_total_size(4)  /* IFLA_MIN_MTU */
 	       + nla_total_size(4)  /* IFLA_MAX_MTU */
+	       + rtnl_prop_list_size(dev)
 	       + 0;
 }
 
@@ -1584,6 +1598,42 @@ static int rtnl_fill_link_af(struct sk_buff *skb,
 	return 0;
 }
 
+static int rtnl_fill_alt_ifnames(struct sk_buff *skb,
+				 const struct net_device *dev)
+{
+	struct netdev_name_node *name_node;
+	int count = 0;
+
+	list_for_each_entry(name_node, &dev->name_node->list, list) {
+		if (nla_put_string(skb, IFLA_ALT_IFNAME, name_node->name))
+			return -EMSGSIZE;
+		count++;
+	}
+	return count;
+}
+
+static int rtnl_fill_prop_list(struct sk_buff *skb,
+			       const struct net_device *dev)
+{
+	struct nlattr *prop_list;
+	int ret;
+
+	prop_list = nla_nest_start(skb, IFLA_PROP_LIST);
+	if (!prop_list)
+		return -EMSGSIZE;
+
+	ret = rtnl_fill_alt_ifnames(skb, dev);
+	if (ret <= 0)
+		goto nest_cancel;
+
+	nla_nest_end(skb, prop_list);
+	return 0;
+
+nest_cancel:
+	nla_nest_cancel(skb, prop_list);
+	return ret;
+}
+
 static int rtnl_fill_ifinfo(struct sk_buff *skb,
 			    struct net_device *dev, struct net *src_net,
 			    int type, u32 pid, u32 seq, u32 change,
@@ -1696,6 +1746,9 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 	if (rtnl_fill_link_af(skb, dev, ext_filter_mask))
 		goto nla_put_failure_rcu;
 	rcu_read_unlock();
+
+	if (rtnl_fill_prop_list(skb, dev))
+		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);
 	return 0;
