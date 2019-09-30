@@ -161,6 +161,7 @@ struct srp_rdma_ch {
 	};
 	uint32_t		max_it_iu_len;
 	uint32_t		max_ti_iu_len;
+	u8			max_imm_sge;
 	bool			use_imm_data;
 
 	/* Everything above this point is used in the hot path of
