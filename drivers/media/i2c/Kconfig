@@ -629,7 +629,7 @@ config VIDEO_OV2640
 
 config VIDEO_OV2659
 	tristate "OmniVision OV2659 sensor support"
-	depends on VIDEO_V4L2 && I2C
+	depends on VIDEO_V4L2 && I2C && GPIOLIB
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision

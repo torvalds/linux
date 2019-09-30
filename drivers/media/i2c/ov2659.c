@@ -22,9 +22,11 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
+#include <linux/pm_runtime.h>
 
 #include <media/i2c/ov2659.h>
 #include <media/v4l2-ctrls.h>
@@ -218,6 +220,10 @@ struct ov2659 {
 	struct sensor_register *format_ctrl_regs;
 	struct ov2659_pll_ctrl pll;
 	int streaming;
+	/* used to control the sensor PWDN pin */
+	struct gpio_desc *pwdn_gpio;
+	/* used to control the sensor RESETB pin */
+	struct gpio_desc *resetb_gpio;
 };
 
 static const struct sensor_register ov2659_init_regs[] = {
@@ -1184,10 +1190,19 @@ static int ov2659_s_stream(struct v4l2_subdev *sd, int on)
 		/* Stop Streaming Sequence */
 		ov2659_set_streaming(ov2659, 0);
 		ov2659->streaming = on;
+		pm_runtime_put(&client->dev);
 		goto unlock;
 	}
 
-	ret = ov2659_set_pixel_clock(ov2659);
+	ret = pm_runtime_get_sync(&client->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(&client->dev);
+		goto unlock;
+	}
+
+	ret = ov2659_init(sd, 0);
+	if (!ret)
+		ret = ov2659_set_pixel_clock(ov2659);
 	if (!ret)
 		ret = ov2659_set_frame_size(ov2659);
 	if (!ret)
@@ -1229,12 +1244,18 @@ static int ov2659_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov2659 *ov2659 =
 			container_of(ctrl->handler, struct ov2659, ctrls);
+	struct i2c_client *client = ov2659->client;
+
+	/* V4L2 controls values will be applied only when power is already up */
+	if (!pm_runtime_get_if_in_use(&client->dev))
+		return 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_TEST_PATTERN:
 		return ov2659_set_test_pattern(ov2659, ctrl->val);
 	}
 
+	pm_runtime_put(&client->dev);
 	return 0;
 }
 
@@ -1246,6 +1267,39 @@ static const char * const ov2659_test_pattern_menu[] = {
 	"Disabled",
 	"Vertical Color Bars",
 };
+
+static int ov2659_power_off(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov2659 *ov2659 = to_ov2659(sd);
+
+	dev_dbg(&client->dev, "%s:\n", __func__);
+
+	gpiod_set_value(ov2659->pwdn_gpio, 1);
+
+	return 0;
+}
+
+static int ov2659_power_on(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov2659 *ov2659 = to_ov2659(sd);
+
+	dev_dbg(&client->dev, "%s:\n", __func__);
+
+	gpiod_set_value(ov2659->pwdn_gpio, 0);
+
+	if (ov2659->resetb_gpio) {
+		gpiod_set_value(ov2659->resetb_gpio, 1);
+		usleep_range(500, 1000);
+		gpiod_set_value(ov2659->resetb_gpio, 0);
+		usleep_range(3000, 5000);
+	}
+
+	return 0;
+}
 
 /* -----------------------------------------------------------------------------
  * V4L2 subdev internal operations
@@ -1327,7 +1381,6 @@ static int ov2659_detect(struct v4l2_subdev *sd)
 			ret = -ENODEV;
 		} else {
 			dev_info(&client->dev, "Found OV%04X sensor\n", id);
-			ret = ov2659_init(sd, 0);
 		}
 	}
 
@@ -1404,6 +1457,18 @@ static int ov2659_probe(struct i2c_client *client)
 	    ov2659->xvclk_frequency > 27000000)
 		return -EINVAL;
 
+	/* Optional gpio don't fail if not present */
+	ov2659->pwdn_gpio = devm_gpiod_get_optional(&client->dev, "powerdown",
+						    GPIOD_OUT_LOW);
+	if (IS_ERR(ov2659->pwdn_gpio))
+		return PTR_ERR(ov2659->pwdn_gpio);
+
+	/* Optional gpio don't fail if not present */
+	ov2659->resetb_gpio = devm_gpiod_get_optional(&client->dev, "reset",
+						      GPIOD_OUT_HIGH);
+	if (IS_ERR(ov2659->resetb_gpio))
+		return PTR_ERR(ov2659->resetb_gpio);
+
 	v4l2_ctrl_handler_init(&ov2659->ctrls, 2);
 	ov2659->link_frequency =
 			v4l2_ctrl_new_std(&ov2659->ctrls, &ov2659_ctrl_ops,
@@ -1449,6 +1514,8 @@ static int ov2659_probe(struct i2c_client *client)
 	ov2659->frame_size = &ov2659_framesizes[2];
 	ov2659->format_ctrl_regs = ov2659_formats[0].format_ctrl_regs;
 
+	ov2659_power_on(&client->dev);
+
 	ret = ov2659_detect(sd);
 	if (ret < 0)
 		goto error;
@@ -1462,10 +1529,15 @@ static int ov2659_probe(struct i2c_client *client)
 
 	dev_info(&client->dev, "%s sensor driver registered !!\n", sd->name);
 
+	pm_runtime_set_active(&client->dev);
+	pm_runtime_enable(&client->dev);
+	pm_runtime_idle(&client->dev);
+
 	return 0;
 
 error:
 	v4l2_ctrl_handler_free(&ov2659->ctrls);
+	ov2659_power_off(&client->dev);
 	media_entity_cleanup(&sd->entity);
 	mutex_destroy(&ov2659->lock);
 	return ret;
@@ -1481,8 +1553,17 @@ static int ov2659_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	mutex_destroy(&ov2659->lock);
 
+	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev))
+		ov2659_power_off(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
+
 	return 0;
 }
+
+static const struct dev_pm_ops ov2659_pm_ops = {
+	SET_RUNTIME_PM_OPS(ov2659_power_off, ov2659_power_on, NULL)
+};
 
 static const struct i2c_device_id ov2659_id[] = {
 	{ "ov2659", 0 },
@@ -1501,6 +1582,7 @@ MODULE_DEVICE_TABLE(of, ov2659_of_match);
 static struct i2c_driver ov2659_i2c_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
+		.pm	= &ov2659_pm_ops,
 		.of_match_table = of_match_ptr(ov2659_of_match),
 	},
 	.probe_new	= ov2659_probe,
