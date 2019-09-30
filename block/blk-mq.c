@@ -102,11 +102,8 @@ static bool blk_mq_check_inflight(struct blk_mq_hw_ctx *hctx,
 {
 	struct mq_inflight *mi = priv;
 
-	/*
-	 * index[0] counts the specific partition that was asked for.
-	 */
 	if (rq->part == mi->part)
-		mi->inflight[0]++;
+		mi->inflight[rq_data_dir(rq)]++;
 
 	return true;
 }
@@ -119,19 +116,7 @@ unsigned int blk_mq_in_flight(struct request_queue *q, struct hd_struct *part)
 	inflight[0] = inflight[1] = 0;
 	blk_mq_queue_tag_busy_iter(q, blk_mq_check_inflight, &mi);
 
-	return inflight[0];
-}
-
-static bool blk_mq_check_inflight_rw(struct blk_mq_hw_ctx *hctx,
-				     struct request *rq, void *priv,
-				     bool reserved)
-{
-	struct mq_inflight *mi = priv;
-
-	if (rq->part == mi->part)
-		mi->inflight[rq_data_dir(rq)]++;
-
-	return true;
+	return inflight[0] + inflight[1];
 }
 
 void blk_mq_in_flight_rw(struct request_queue *q, struct hd_struct *part,
@@ -140,7 +125,7 @@ void blk_mq_in_flight_rw(struct request_queue *q, struct hd_struct *part,
 	struct mq_inflight mi = { .part = part, .inflight = inflight, };
 
 	inflight[0] = inflight[1] = 0;
-	blk_mq_queue_tag_busy_iter(q, blk_mq_check_inflight_rw, &mi);
+	blk_mq_queue_tag_busy_iter(q, blk_mq_check_inflight, &mi);
 }
 
 void blk_freeze_queue_start(struct request_queue *q)
