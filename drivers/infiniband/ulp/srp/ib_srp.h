@@ -245,11 +245,13 @@ struct srp_target_port {
 			union {
 				struct sockaddr_in	ip4;
 				struct sockaddr_in6	ip6;
+				struct sockaddr		sa;
 				struct sockaddr_storage ss;
 			} src;
 			union {
 				struct sockaddr_in	ip4;
 				struct sockaddr_in6	ip6;
+				struct sockaddr		sa;
 				struct sockaddr_storage ss;
 			} dst;
 			bool src_specified;
