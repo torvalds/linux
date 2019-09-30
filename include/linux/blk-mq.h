@@ -76,6 +76,16 @@ struct blk_mq_hw_ctx {
 	struct srcu_struct	srcu[0];
 };
 
+/**
+ * struct blk_mq_queue_map - ctx -> hctx mapping
+ * @mq_map:       CPU ID to hardware queue index map. This is an array
+ *	with nr_cpu_ids elements. Each element has a value in the range
+ *	[@queue_offset, @queue_offset + @nr_queues).
+ * @nr_queues:    Number of hardware queues to map CPU IDs onto.
+ * @queue_offset: First hardware queue to map onto. Used by the PCIe NVMe
+ *	driver to map each hardware queue type (enum hctx_type) onto a distinct
+ *	set of hardware queues.
+ */
 struct blk_mq_queue_map {
 	unsigned int *mq_map;
 	unsigned int nr_queues;
@@ -90,23 +100,45 @@ enum hctx_type {
 	HCTX_MAX_TYPES,
 };
 
+/**
+ * struct blk_mq_tag_set - tag set that can be shared between request queues
+ * @map:	   One or more ctx -> hctx mappings. One map exists for each
+ *		   hardware queue type (enum hctx_type) that the driver wishes
+ *		   to support. There are no restrictions on maps being of the
+ *		   same size, and it's perfectly legal to share maps between
+ *		   types.
+ * @nr_maps:	   Number of elements in the @map array. A number in the range
+ *		   [1, HCTX_MAX_TYPES].
+ * @ops:	   Pointers to functions that implement block driver behavior.
+ * @nr_hw_queues:  Number of hardware queues supported by the block driver that
+ *		   owns this data structure.
+ * @queue_depth:   Number of tags per hardware queue, reserved tags included.
+ * @reserved_tags: Number of tags to set aside for BLK_MQ_REQ_RESERVED tag
+ *		   allocations.
+ * @cmd_size:	   Number of additional bytes to allocate per request. The block
+ *		   driver owns these additional bytes.
+ * @numa_node:	   NUMA node the storage adapter has been connected to.
+ * @timeout:	   Request processing timeout in jiffies.
+ * @flags:	   Zero or more BLK_MQ_F_* flags.
+ * @driver_data:   Pointer to data owned by the block driver that created this
+ *		   tag set.
+ * @tags:	   Tag sets. One tag set per hardware queue. Has @nr_hw_queues
+ *		   elements.
+ * @tag_list_lock: Serializes tag_list accesses.
+ * @tag_list:	   List of the request queues that use this tag set. See also
+ *		   request_queue.tag_set_list.
+ */
 struct blk_mq_tag_set {
-	/*
-	 * map[] holds ctx -> hctx mappings, one map exists for each type
-	 * that the driver wishes to support. There are no restrictions
-	 * on maps being of the same size, and it's perfectly legal to
-	 * share maps between types.
-	 */
 	struct blk_mq_queue_map	map[HCTX_MAX_TYPES];
-	unsigned int		nr_maps;	/* nr entries in map[] */
+	unsigned int		nr_maps;
 	const struct blk_mq_ops	*ops;
-	unsigned int		nr_hw_queues;	/* nr hw queues across maps */
-	unsigned int		queue_depth;	/* max hw supported */
+	unsigned int		nr_hw_queues;
+	unsigned int		queue_depth;
 	unsigned int		reserved_tags;
-	unsigned int		cmd_size;	/* per-request extra data */
+	unsigned int		cmd_size;
 	int			numa_node;
 	unsigned int		timeout;
-	unsigned int		flags;		/* BLK_MQ_F_* */
+	unsigned int		flags;
 	void			*driver_data;
 
 	struct blk_mq_tags	**tags;
