@@ -567,11 +567,12 @@ static int srpt_refresh_port(struct srpt_port *sport)
 	if (ret)
 		return ret;
 
-	sport->port_guid_wwn.priv = sport;
-	srpt_format_guid(sport->port_guid, sizeof(sport->port_guid),
+	sport->port_guid_id.wwn.priv = sport;
+	srpt_format_guid(sport->port_guid_id.name,
+			 sizeof(sport->port_guid_id.name),
 			 &sport->gid.global.interface_id);
-	sport->port_gid_wwn.priv = sport;
-	snprintf(sport->port_gid, sizeof(sport->port_gid),
+	sport->port_gid_id.wwn.priv = sport;
+	snprintf(sport->port_gid_id.name, sizeof(sport->port_gid_id.name),
 		 "0x%016llx%016llx",
 		 be64_to_cpu(sport->gid.global.subnet_prefix),
 		 be64_to_cpu(sport->gid.global.interface_id));
@@ -2287,17 +2288,17 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 
 	tag_num = ch->rq_size;
 	tag_size = 1; /* ib_srpt does not use se_sess->sess_cmd_map */
-	if (sport->port_guid_tpg.se_tpg_wwn)
-		ch->sess = target_setup_session(&sport->port_guid_tpg, tag_num,
+	if (sport->port_guid_id.tpg.se_tpg_wwn)
+		ch->sess = target_setup_session(&sport->port_guid_id.tpg, tag_num,
 						tag_size, TARGET_PROT_NORMAL,
 						ch->sess_name, ch, NULL);
-	if (sport->port_gid_tpg.se_tpg_wwn && IS_ERR_OR_NULL(ch->sess))
-		ch->sess = target_setup_session(&sport->port_gid_tpg, tag_num,
+	if (sport->port_gid_id.tpg.se_tpg_wwn && IS_ERR_OR_NULL(ch->sess))
+		ch->sess = target_setup_session(&sport->port_gid_id.tpg, tag_num,
 					tag_size, TARGET_PROT_NORMAL, i_port_id,
 					ch, NULL);
 	/* Retry without leading "0x" */
-	if (sport->port_gid_tpg.se_tpg_wwn && IS_ERR_OR_NULL(ch->sess))
-		ch->sess = target_setup_session(&sport->port_gid_tpg, tag_num,
+	if (sport->port_gid_id.tpg.se_tpg_wwn && IS_ERR_OR_NULL(ch->sess))
+		ch->sess = target_setup_session(&sport->port_gid_id.tpg, tag_num,
 						tag_size, TARGET_PROT_NORMAL,
 						i_port_id + 2, ch, NULL);
 	if (IS_ERR_OR_NULL(ch->sess)) {
@@ -2959,10 +2960,10 @@ static struct se_wwn *__srpt_lookup_wwn(const char *name)
 		for (i = 0; i < dev->phys_port_cnt; i++) {
 			sport = &sdev->port[i];
 
-			if (strcmp(sport->port_guid, name) == 0)
-				return &sport->port_guid_wwn;
-			if (strcmp(sport->port_gid, name) == 0)
-				return &sport->port_gid_wwn;
+			if (strcmp(sport->port_guid_id.name, name) == 0)
+				return &sport->port_guid_id.wwn;
+			if (strcmp(sport->port_gid_id.name, name) == 0)
+				return &sport->port_gid_id.wwn;
 		}
 	}
 
@@ -3241,14 +3242,33 @@ static struct srpt_port *srpt_tpg_to_sport(struct se_portal_group *tpg)
 	return tpg->se_tpg_wwn->priv;
 }
 
-static char *srpt_get_fabric_wwn(struct se_portal_group *tpg)
+static struct srpt_port_id *srpt_tpg_to_sport_id(struct se_portal_group *tpg)
 {
 	struct srpt_port *sport = srpt_tpg_to_sport(tpg);
 
-	WARN_ON_ONCE(tpg != &sport->port_guid_tpg &&
-		     tpg != &sport->port_gid_tpg);
-	return tpg == &sport->port_guid_tpg ? sport->port_guid :
-		sport->port_gid;
+	if (tpg == &sport->port_guid_id.tpg)
+		return &sport->port_guid_id;
+	if (tpg == &sport->port_gid_id.tpg)
+		return &sport->port_gid_id;
+	WARN_ON_ONCE(true);
+	return NULL;
+}
+
+static struct srpt_port_id *srpt_wwn_to_sport_id(struct se_wwn *wwn)
+{
+	struct srpt_port *sport = wwn->priv;
+
+	if (wwn == &sport->port_guid_id.wwn)
+		return &sport->port_guid_id;
+	if (wwn == &sport->port_gid_id.wwn)
+		return &sport->port_gid_id;
+	WARN_ON_ONCE(true);
+	return NULL;
+}
+
+static char *srpt_get_fabric_wwn(struct se_portal_group *tpg)
+{
+	return srpt_tpg_to_sport_id(tpg)->name;
 }
 
 static u16 srpt_get_tag(struct se_portal_group *tpg)
@@ -3705,13 +3725,9 @@ static struct se_portal_group *srpt_make_tpg(struct se_wwn *wwn,
 					     const char *name)
 {
 	struct srpt_port *sport = wwn->priv;
-	struct se_portal_group *tpg;
+	struct se_portal_group *tpg = &srpt_wwn_to_sport_id(wwn)->tpg;
 	int res;
 
-	WARN_ON_ONCE(wwn != &sport->port_guid_wwn &&
-		     wwn != &sport->port_gid_wwn);
-	tpg = wwn == &sport->port_guid_wwn ? &sport->port_guid_tpg :
-		&sport->port_gid_tpg;
 	res = core_tpg_register(wwn, tpg, SCSI_PROTOCOL_SRP);
 	if (res)
 		return ERR_PTR(res);

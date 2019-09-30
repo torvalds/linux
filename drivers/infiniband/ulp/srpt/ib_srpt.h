@@ -364,12 +364,25 @@ struct srpt_port_attrib {
 };
 
 /**
+ * struct srpt_port_id - information about an RDMA port name
+ * @tpg: TPG associated with the RDMA port.
+ * @wwn: WWN associated with the RDMA port.
+ * @name: ASCII representation of the port name.
+ *
+ * Multiple sysfs directories can be associated with a single RDMA port. This
+ * data structure represents a single (port, name) pair.
+ */
+struct srpt_port_id {
+	struct se_portal_group	tpg;
+	struct se_wwn		wwn;
+	char			name[64];
+};
+
+/**
  * struct srpt_port - information associated by SRPT with a single IB port
  * @sdev:      backpointer to the HCA information.
  * @mad_agent: per-port management datagram processing information.
  * @enabled:   Whether or not this target port is enabled.
- * @port_guid: ASCII representation of Port GUID
- * @port_gid:  ASCII representation of Port GID
  * @port:      one-based port number.
  * @sm_lid:    cached value of the port's sm_lid.
  * @lid:       cached value of the port's lid.
@@ -390,17 +403,13 @@ struct srpt_port {
 	struct srpt_device	*sdev;
 	struct ib_mad_agent	*mad_agent;
 	bool			enabled;
-	u8			port_guid[24];
-	u8			port_gid[64];
 	u8			port;
 	u32			sm_lid;
 	u32			lid;
 	union ib_gid		gid;
 	struct work_struct	work;
-	struct se_portal_group	port_guid_tpg;
-	struct se_wwn		port_guid_wwn;
-	struct se_portal_group	port_gid_tpg;
-	struct se_wwn		port_gid_wwn;
+	struct srpt_port_id	port_guid_id;
+	struct srpt_port_id	port_gid_id;
 	struct srpt_port_attrib port_attrib;
 	atomic_t		refcount;
 	struct completion	*freed_channels;
