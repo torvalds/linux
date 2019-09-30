@@ -2733,10 +2733,7 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 				size++;
 
 			/* rotate the x/y offsets to match the GTT view */
-			r.x1 = x;
-			r.y1 = y;
-			r.x2 = x + width;
-			r.y2 = y + height;
+			drm_rect_init(&r, x, y, width, height);
 			drm_rect_rotate(&r,
 					rot_info->plane[i].width * tile_width,
 					rot_info->plane[i].height * tile_height,
@@ -2858,10 +2855,7 @@ intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 			struct drm_rect r;
 
 			/* rotate the x/y offsets to match the GTT view */
-			r.x1 = x;
-			r.y1 = y;
-			r.x2 = x + width;
-			r.y2 = y + height;
+			drm_rect_init(&r, x, y, width, height);
 			drm_rect_rotate(&r,
 					info->plane[i].width * tile_width,
 					info->plane[i].height * tile_height,
