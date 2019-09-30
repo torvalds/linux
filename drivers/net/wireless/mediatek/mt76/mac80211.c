@@ -275,6 +275,7 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
 {
 	struct ieee80211_hw *hw;
 	struct mt76_dev *dev;
+	int i;
 
 	hw = ieee80211_alloc_hw(size, ops);
 	if (!hw)
@@ -292,6 +293,11 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
 	init_waitqueue_head(&dev->tx_wait);
 	skb_queue_head_init(&dev->status_list);
 
+	INIT_LIST_HEAD(&dev->txwi_cache);
+
+	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++)
+		skb_queue_head_init(&dev->rx_skb[i]);
+
 	tasklet_init(&dev->tx_tasklet, mt76_tx_tasklet, (unsigned long)dev);
 
 	return dev;
@@ -306,8 +312,6 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 	int ret;
 
 	dev_set_drvdata(dev->dev, dev);
-
-	INIT_LIST_HEAD(&dev->txwi_cache);
 
 	SET_IEEE80211_DEV(hw, dev->dev);
 	SET_IEEE80211_PERM_ADDR(hw, dev->macaddr);

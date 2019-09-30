@@ -956,7 +956,6 @@ int mt76u_init(struct mt76_dev *dev,
 	tasklet_init(&usb->rx_tasklet, mt76u_rx_tasklet, (unsigned long)dev);
 	tasklet_init(&dev->tx_tasklet, mt76u_tx_tasklet, (unsigned long)dev);
 	INIT_WORK(&usb->stat_work, mt76u_tx_status_data);
-	skb_queue_head_init(&dev->rx_skb[MT_RXQ_MAIN]);
 
 	usb->stat_wq = alloc_workqueue("mt76u", WQ_UNBOUND, 0);
 	if (!usb->stat_wq)
