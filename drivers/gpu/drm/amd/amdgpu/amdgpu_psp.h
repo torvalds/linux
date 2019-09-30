@@ -49,6 +49,8 @@ enum psp_bootloader_cmd {
 	PSP_BL__LOAD_SYSDRV		= 0x10000,
 	PSP_BL__LOAD_SOSDRV		= 0x20000,
 	PSP_BL__LOAD_KEY_DATABASE	= 0x80000,
+	PSP_BL__DRAM_LONG_TRAIN		= 0x100000,
+	PSP_BL__DRAM_SHORT_TRAIN	= 0x200000,
 };
 
 enum psp_ring_type
@@ -111,6 +113,9 @@ struct psp_funcs
 			struct ta_ras_trigger_error_input *info);
 	int (*ras_cure_posion)(struct psp_context *psp, uint64_t *mode_ptr);
 	int (*rlc_autoload_start)(struct psp_context *psp);
+	int (*mem_training_init)(struct psp_context *psp);
+	void (*mem_training_fini)(struct psp_context *psp);
+	int (*mem_training)(struct psp_context *psp, uint32_t ops);
 };
 
 #define AMDGPU_XGMI_MAX_CONNECTED_NODES		64
@@ -159,6 +164,49 @@ struct psp_dtm_context {
 	struct amdgpu_bo	*dtm_shared_bo;
 	uint64_t		dtm_shared_mc_addr;
 	void			*dtm_shared_buf;
+};
+
+#define MEM_TRAIN_SYSTEM_SIGNATURE		0x54534942
+#define GDDR6_MEM_TRAINING_DATA_SIZE_IN_BYTES	0x1000
+#define GDDR6_MEM_TRAINING_OFFSET		0x8000
+
+enum psp_memory_training_init_flag {
+	PSP_MEM_TRAIN_NOT_SUPPORT	= 0x0,
+	PSP_MEM_TRAIN_SUPPORT		= 0x1,
+	PSP_MEM_TRAIN_INIT_FAILED	= 0x2,
+	PSP_MEM_TRAIN_RESERVE_SUCCESS	= 0x4,
+	PSP_MEM_TRAIN_INIT_SUCCESS	= 0x8,
+};
+
+enum psp_memory_training_ops {
+	PSP_MEM_TRAIN_SEND_LONG_MSG	= 0x1,
+	PSP_MEM_TRAIN_SAVE		= 0x2,
+	PSP_MEM_TRAIN_RESTORE		= 0x4,
+	PSP_MEM_TRAIN_SEND_SHORT_MSG	= 0x8,
+	PSP_MEM_TRAIN_COLD_BOOT		= PSP_MEM_TRAIN_SEND_LONG_MSG,
+	PSP_MEM_TRAIN_RESUME		= PSP_MEM_TRAIN_SEND_SHORT_MSG,
+};
+
+struct psp_memory_training_context {
+	/*training data size*/
+	u64 train_data_size;
+	/*
+	 * sys_cache
+	 * cpu virtual address
+	 * system memory buffer that used to store the training data.
+	 */
+	void *sys_cache;
+
+	/*vram offset of the p2c training data*/
+	u64 p2c_train_data_offset;
+	struct amdgpu_bo *p2c_bo;
+
+	/*vram offset of the c2p training data*/
+	u64 c2p_train_data_offset;
+	struct amdgpu_bo *c2p_bo;
+
+	enum psp_memory_training_init_flag init;
+	u32 training_cnt;
 };
 
 struct psp_context
@@ -239,6 +287,7 @@ struct psp_context
 	struct psp_hdcp_context 	hdcp_context;
 	struct psp_dtm_context		dtm_context;
 	struct mutex			mutex;
+	struct psp_memory_training_context mem_train_ctx;
 };
 
 struct amdgpu_psp_funcs {
@@ -281,6 +330,12 @@ struct amdgpu_psp_funcs {
 		(psp)->funcs->xgmi_set_topology_info((psp), (num_device), (topology)) : -EINVAL)
 #define psp_rlc_autoload(psp) \
 		((psp)->funcs->rlc_autoload_start ? (psp)->funcs->rlc_autoload_start((psp)) : 0)
+#define psp_mem_training_init(psp) \
+	((psp)->funcs->mem_training_init ? (psp)->funcs->mem_training_init((psp)) : 0)
+#define psp_mem_training_fini(psp) \
+	((psp)->funcs->mem_training_fini ? (psp)->funcs->mem_training_fini((psp)) : 0)
+#define psp_mem_training(psp, ops) \
+	((psp)->funcs->mem_training ? (psp)->funcs->mem_training((psp), (ops)) : 0)
 
 #define amdgpu_psp_check_fw_loading_status(adev, i) (adev)->firmware.funcs->check_fw_loading_status((adev), (i))
 
