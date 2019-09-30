@@ -365,17 +365,17 @@ static inline u32 dispc_read_reg(struct dispc_device *dispc, u16 idx)
 static u32 mgr_fld_read(struct dispc_device *dispc, enum omap_channel channel,
 			enum mgr_reg_fields regfld)
 {
-	const struct dispc_reg_field rfld = mgr_desc[channel].reg_desc[regfld];
+	const struct dispc_reg_field *rfld = &mgr_desc[channel].reg_desc[regfld];
 
-	return REG_GET(dispc, rfld.reg, rfld.high, rfld.low);
+	return REG_GET(dispc, rfld->reg, rfld->high, rfld->low);
 }
 
 static void mgr_fld_write(struct dispc_device *dispc, enum omap_channel channel,
 			  enum mgr_reg_fields regfld, int val)
 {
-	const struct dispc_reg_field rfld = mgr_desc[channel].reg_desc[regfld];
+	const struct dispc_reg_field *rfld = &mgr_desc[channel].reg_desc[regfld];
 
-	REG_FLD_MOD(dispc, rfld.reg, val, rfld.high, rfld.low);
+	REG_FLD_MOD(dispc, rfld->reg, val, rfld->high, rfld->low);
 }
 
 static int dispc_get_num_ovls(struct dispc_device *dispc)
