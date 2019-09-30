@@ -70,6 +70,23 @@ struct drm_rect {
 		(r)->y1 >> 16, (((r)->y1 & 0xffff) * 15625) >> 10
 
 /**
+ * drm_rect_init - initialize the rectangle from x/y/w/h
+ * @r: rectangle
+ * @x: x coordinate
+ * @y: y coordinate
+ * @width: width
+ * @height: height
+ */
+static inline void drm_rect_init(struct drm_rect *r, int x, int y,
+				 int width, int height)
+{
+	r->x1 = x;
+	r->y1 = y;
+	r->x2 = x + width;
+	r->y2 = y + height;
+}
+
+/**
  * drm_rect_adjust_size - adjust the size of the rectangle
  * @r: rectangle to be adjusted
  * @dw: horizontal adjustment
