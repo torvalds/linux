@@ -1928,41 +1928,22 @@ static int srpt_disconnect_ch(struct srpt_rdma_ch *ch)
 	return ret;
 }
 
-static bool srpt_ch_closed(struct srpt_port *sport, struct srpt_rdma_ch *ch)
-{
-	struct srpt_nexus *nexus;
-	struct srpt_rdma_ch *ch2;
-	bool res = true;
-
-	rcu_read_lock();
-	list_for_each_entry(nexus, &sport->nexus_list, entry) {
-		list_for_each_entry(ch2, &nexus->ch_list, list) {
-			if (ch2 == ch) {
-				res = false;
-				goto done;
-			}
-		}
-	}
-done:
-	rcu_read_unlock();
-
-	return res;
-}
-
 /* Send DREQ and wait for DREP. */
 static void srpt_disconnect_ch_sync(struct srpt_rdma_ch *ch)
 {
+	DECLARE_COMPLETION_ONSTACK(closed);
 	struct srpt_port *sport = ch->sport;
 
 	pr_debug("ch %s-%d state %d\n", ch->sess_name, ch->qp->qp_num,
 		 ch->state);
 
+	ch->closed = &closed;
+
 	mutex_lock(&sport->mutex);
 	srpt_disconnect_ch(ch);
 	mutex_unlock(&sport->mutex);
 
-	while (wait_event_timeout(sport->ch_releaseQ, srpt_ch_closed(sport, ch),
-				  5 * HZ) == 0)
+	while (wait_for_completion_timeout(&closed, 5 * HZ) == 0)
 		pr_info("%s(%s-%d state %d): still waiting ...\n", __func__,
 			ch->sess_name, ch->qp->qp_num, ch->state);
 
@@ -2088,6 +2069,9 @@ static void srpt_release_channel_work(struct work_struct *w)
 	mutex_lock(&sport->mutex);
 	list_del_rcu(&ch->list);
 	mutex_unlock(&sport->mutex);
+
+	if (ch->closed)
+		complete(ch->closed);
 
 	srpt_destroy_ch_ib(ch);
 

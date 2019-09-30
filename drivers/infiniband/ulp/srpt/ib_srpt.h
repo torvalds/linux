@@ -264,6 +264,8 @@ enum rdma_ch_state {
  * @zw_cqe:	   Zero-length write CQE.
  * @rcu:           RCU head.
  * @kref:	   kref for this channel.
+ * @closed:	   Completion object that will be signaled as soon as a new
+ *		   channel object with the same identity can be created.
  * @rq_size:       IB receive queue size.
  * @max_rsp_size:  Maximum size of an RSP response message in bytes.
  * @sq_wr_avail:   number of work requests available in the send queue.
@@ -306,6 +308,7 @@ struct srpt_rdma_ch {
 	struct ib_cqe		zw_cqe;
 	struct rcu_head		rcu;
 	struct kref		kref;
+	struct completion	*closed;
 	int			rq_size;
 	u32			max_rsp_size;
 	atomic_t		sq_wr_avail;
