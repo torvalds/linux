@@ -143,6 +143,20 @@ via their employer, they cannot enter individual non-disclosure agreements
 in their role as Linux kernel developers. They will, however, agree to
 adhere to this documented process and the Memorandum of Understanding.
 
+The disclosing party should provide a list of contacts for all other
+entities who have already been, or should be, informed about the issue.
+This serves several purposes:
+
+ - The list of disclosed entities allows communication accross the
+   industry, e.g. other OS vendors, HW vendors, etc.
+
+ - The disclosed entities can be contacted to name experts who should
+   participate in the mitigation development.
+
+ - If an expert which is required to handle an issue is employed by an
+   listed entity or member of an listed entity, then the response teams can
+   request the disclosure of that expert from that entity. This ensures
+   that the expert is also part of the entity's response team.
 
 Disclosure
 """"""""""
@@ -158,10 +172,7 @@ Mitigation development
 """"""""""""""""""""""
 
 The initial response team sets up an encrypted mailing-list or repurposes
-an existing one if appropriate. The disclosing party should provide a list
-of contacts for all other parties who have already been, or should be,
-informed about the issue. The response team contacts these parties so they
-can name experts who should be subscribed to the mailing-list.
+an existing one if appropriate.
 
 Using a mailing-list is close to the normal Linux development process and
 has been successfully used in developing mitigations for various hardware
@@ -175,9 +186,24 @@ development branch against the mainline kernel and backport branches for
 stable kernel versions as necessary.
 
 The initial response team will identify further experts from the Linux
-kernel developer community as needed and inform the disclosing party about
-their participation. Bringing in experts can happen at any time of the
-development process and often needs to be handled in a timely manner.
+kernel developer community as needed. Bringing in experts can happen at any
+time of the development process and needs to be handled in a timely manner.
+
+If an expert is employed by or member of an entity on the disclosure list
+provided by the disclosing party, then participation will be requested from
+the relevant entity.
+
+If not, then the disclosing party will be informed about the experts
+participation. The experts are covered by the Memorandum of Understanding
+and the disclosing party is requested to acknowledge the participation. In
+case that the disclosing party has a compelling reason to object, then this
+objection has to be raised within five work days and resolved with the
+incident team immediately. If the disclosing party does not react within
+five work days this is taken as silent acknowledgement.
+
+After acknowledgement or resolution of an objection the expert is disclosed
+by the incident team and brought into the development process.
+
 
 Coordinated release
 """""""""""""""""""
@@ -216,7 +242,7 @@ an involved disclosed party. The current ambassadors list:
   ARM
   AMD
   IBM
-  Intel
+  Intel		Tony Luck <tony.luck@intel.com>
   Qualcomm	Trilok Soni <tsoni@codeaurora.org>
 
   Microsoft	Sasha Levin <sashal@kernel.org>
