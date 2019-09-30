@@ -156,6 +156,230 @@ out_unlock:
 	return err;
 }
 
+struct parallel_switch {
+	struct task_struct *tsk;
+	struct intel_context *ce[2];
+};
+
+static int __live_parallel_switch1(void *data)
+{
+	struct parallel_switch *arg = data;
+	struct drm_i915_private *i915 = arg->ce[0]->engine->i915;
+	IGT_TIMEOUT(end_time);
+	unsigned long count;
+
+	count = 0;
+	do {
+		struct i915_request *rq = NULL;
+		int err, n;
+
+		for (n = 0; n < ARRAY_SIZE(arg->ce); n++) {
+			i915_request_put(rq);
+
+			mutex_lock(&i915->drm.struct_mutex);
+			rq = i915_request_create(arg->ce[n]);
+			if (IS_ERR(rq)) {
+				mutex_unlock(&i915->drm.struct_mutex);
+				return PTR_ERR(rq);
+			}
+
+			i915_request_get(rq);
+			i915_request_add(rq);
+			mutex_unlock(&i915->drm.struct_mutex);
+		}
+
+		err = 0;
+		if (i915_request_wait(rq, 0, HZ / 5) < 0)
+			err = -ETIME;
+		i915_request_put(rq);
+		if (err)
+			return err;
+
+		count++;
+	} while (!__igt_timeout(end_time, NULL));
+
+	pr_info("%s: %lu switches (sync)\n", arg->ce[0]->engine->name, count);
+	return 0;
+}
+
+static int __live_parallel_switchN(void *data)
+{
+	struct parallel_switch *arg = data;
+	struct drm_i915_private *i915 = arg->ce[0]->engine->i915;
+	IGT_TIMEOUT(end_time);
+	unsigned long count;
+	int n;
+
+	count = 0;
+	do {
+		for (n = 0; n < ARRAY_SIZE(arg->ce); n++) {
+			struct i915_request *rq;
+
+			mutex_lock(&i915->drm.struct_mutex);
+			rq = i915_request_create(arg->ce[n]);
+			if (IS_ERR(rq)) {
+				mutex_unlock(&i915->drm.struct_mutex);
+				return PTR_ERR(rq);
+			}
+
+			i915_request_add(rq);
+			mutex_unlock(&i915->drm.struct_mutex);
+		}
+
+		count++;
+	} while (!__igt_timeout(end_time, NULL));
+
+	pr_info("%s: %lu switches (many)\n", arg->ce[0]->engine->name, count);
+	return 0;
+}
+
+static int live_parallel_switch(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	static int (* const func[])(void *arg) = {
+		__live_parallel_switch1,
+		__live_parallel_switchN,
+		NULL,
+	};
+	struct parallel_switch *data = NULL;
+	struct i915_gem_engines *engines;
+	struct i915_gem_engines_iter it;
+	int (* const *fn)(void *arg);
+	struct i915_gem_context *ctx;
+	struct intel_context *ce;
+	struct drm_file *file;
+	int n, m, count;
+	int err = 0;
+
+	/*
+	 * Check we can process switches on all engines simultaneously.
+	 */
+
+	if (!DRIVER_CAPS(i915)->has_logical_contexts)
+		return 0;
+
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	mutex_lock(&i915->drm.struct_mutex);
+
+	ctx = live_context(i915, file);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto out_locked;
+	}
+
+	engines = i915_gem_context_lock_engines(ctx);
+	count = engines->num_engines;
+
+	data = kcalloc(count, sizeof(*data), GFP_KERNEL);
+	if (!data) {
+		i915_gem_context_unlock_engines(ctx);
+		err = -ENOMEM;
+		goto out_locked;
+	}
+
+	m = 0; /* Use the first context as our template for the engines */
+	for_each_gem_engine(ce, engines, it) {
+		err = intel_context_pin(ce);
+		if (err) {
+			i915_gem_context_unlock_engines(ctx);
+			goto out_locked;
+		}
+		data[m++].ce[0] = intel_context_get(ce);
+	}
+	i915_gem_context_unlock_engines(ctx);
+
+	/* Clone the same set of engines into the other contexts */
+	for (n = 1; n < ARRAY_SIZE(data->ce); n++) {
+		ctx = live_context(i915, file);
+		if (IS_ERR(ctx)) {
+			err = PTR_ERR(ctx);
+			goto out_locked;
+		}
+
+		for (m = 0; m < count; m++) {
+			if (!data[m].ce[0])
+				continue;
+
+			ce = intel_context_create(ctx, data[m].ce[0]->engine);
+			if (IS_ERR(ce))
+				goto out_locked;
+
+			err = intel_context_pin(ce);
+			if (err) {
+				intel_context_put(ce);
+				goto out_locked;
+			}
+
+			data[m].ce[n] = ce;
+		}
+	}
+
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	for (fn = func; !err && *fn; fn++) {
+		struct igt_live_test t;
+		int n;
+
+		mutex_lock(&i915->drm.struct_mutex);
+		err = igt_live_test_begin(&t, i915, __func__, "");
+		mutex_unlock(&i915->drm.struct_mutex);
+		if (err)
+			break;
+
+		for (n = 0; n < count; n++) {
+			if (!data[n].ce[0])
+				continue;
+
+			data[n].tsk = kthread_run(*fn, &data[n],
+						  "igt/parallel:%s",
+						  data[n].ce[0]->engine->name);
+			if (IS_ERR(data[n].tsk)) {
+				err = PTR_ERR(data[n].tsk);
+				break;
+			}
+			get_task_struct(data[n].tsk);
+		}
+
+		for (n = 0; n < count; n++) {
+			int status;
+
+			if (IS_ERR_OR_NULL(data[n].tsk))
+				continue;
+
+			status = kthread_stop(data[n].tsk);
+			if (status && !err)
+				err = status;
+
+			put_task_struct(data[n].tsk);
+			data[n].tsk = NULL;
+		}
+
+		mutex_lock(&i915->drm.struct_mutex);
+		if (igt_live_test_end(&t))
+			err = -EIO;
+		mutex_unlock(&i915->drm.struct_mutex);
+	}
+
+	mutex_lock(&i915->drm.struct_mutex);
+out_locked:
+	for (n = 0; n < count; n++) {
+		for (m = 0; m < ARRAY_SIZE(data->ce); m++) {
+			if (!data[n].ce[m])
+				continue;
+
+			intel_context_unpin(data[n].ce[m]);
+			intel_context_put(data[n].ce[m]);
+		}
+	}
+	mutex_unlock(&i915->drm.struct_mutex);
+	kfree(data);
+	mock_file_free(i915, file);
+	return err;
+}
+
 static unsigned long real_page_count(struct drm_i915_gem_object *obj)
 {
 	return huge_gem_object_phys_size(obj) >> PAGE_SHIFT;
@@ -1681,6 +1905,7 @@ int i915_gem_context_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_nop_switch),
+		SUBTEST(live_parallel_switch),
 		SUBTEST(igt_ctx_exec),
 		SUBTEST(igt_ctx_readonly),
 		SUBTEST(igt_ctx_sseu),
