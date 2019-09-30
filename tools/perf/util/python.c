@@ -14,6 +14,7 @@
 #include "thread_map.h"
 #include "trace-event.h"
 #include "mmap.h"
+#include "util/env.h"
 #include <internal/lib.h>
 #include "../perf-sys.h"
 
@@ -52,6 +53,11 @@ int parse_callchain_record(const char *arg __maybe_unused,
 {
 	return 0;
 }
+
+/*
+ * Add this one here not to drag util/env.c
+ */
+struct perf_env perf_env;
 
 /*
  * Support debug printing even though util/debug.c is not linked.  That means
