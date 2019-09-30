@@ -1671,7 +1671,6 @@ static void safexcel_hw_reset_rings(struct safexcel_crypto_priv *priv)
 	}
 }
 
-#if IS_ENABLED(CONFIG_OF)
 /* for Device Tree platform driver */
 
 static int safexcel_probe(struct platform_device *pdev)
@@ -1790,9 +1789,7 @@ static struct platform_driver  crypto_safexcel = {
 		.of_match_table = safexcel_of_match_table,
 	},
 };
-#endif
 
-#if IS_ENABLED(CONFIG_PCI)
 /* PCIE devices - i.e. Inside Secure development boards */
 
 static int safexcel_pci_probe(struct pci_dev *pdev,
@@ -1913,54 +1910,32 @@ static struct pci_driver safexcel_pci_driver = {
 	.probe         = safexcel_pci_probe,
 	.remove        = safexcel_pci_remove,
 };
-#endif
-
-/* Unfortunately, we have to resort to global variables here */
-#if IS_ENABLED(CONFIG_PCI)
-int pcireg_rc = -EINVAL; /* Default safe value */
-#endif
-#if IS_ENABLED(CONFIG_OF)
-int ofreg_rc = -EINVAL; /* Default safe value */
-#endif
 
 static int __init safexcel_init(void)
 {
-#if IS_ENABLED(CONFIG_PCI)
-	/* Register PCI driver */
-	pcireg_rc = pci_register_driver(&safexcel_pci_driver);
-#endif
+	int ret;
 
-#if IS_ENABLED(CONFIG_OF)
+	/* Register PCI driver */
+	ret = pci_register_driver(&safexcel_pci_driver);
+
 	/* Register platform driver */
-	ofreg_rc = platform_driver_register(&crypto_safexcel);
- #if IS_ENABLED(CONFIG_PCI)
-	/* Return success if either PCI or OF registered OK */
-	return pcireg_rc ? ofreg_rc : 0;
- #else
-	return ofreg_rc;
- #endif
-#else
- #if IS_ENABLED(CONFIG_PCI)
-	return pcireg_rc;
- #else
-	return -EINVAL;
- #endif
-#endif
+	if (IS_ENABLED(CONFIG_OF) && !ret) {
+		ret = platform_driver_register(&crypto_safexcel);
+		if (ret)
+			pci_unregister_driver(&safexcel_pci_driver);
+	}
+
+	return ret;
 }
 
 static void __exit safexcel_exit(void)
 {
-#if IS_ENABLED(CONFIG_OF)
 	/* Unregister platform driver */
-	if (!ofreg_rc)
+	if (IS_ENABLED(CONFIG_OF))
 		platform_driver_unregister(&crypto_safexcel);
-#endif
 
-#if IS_ENABLED(CONFIG_PCI)
 	/* Unregister PCI driver if successfully registered before */
-	if (!pcireg_rc)
-		pci_unregister_driver(&safexcel_pci_driver);
-#endif
+	pci_unregister_driver(&safexcel_pci_driver);
 }
 
 module_init(safexcel_init);
