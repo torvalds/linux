@@ -2876,9 +2876,9 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	/* init q->mq_kobj and sw queues' kobjects */
 	blk_mq_sysfs_init(q);
 
-	q->nr_queues = nr_hw_queues(set);
-	q->queue_hw_ctx = kcalloc_node(q->nr_queues, sizeof(*(q->queue_hw_ctx)),
-						GFP_KERNEL, set->numa_node);
+	q->queue_hw_ctx = kcalloc_node(nr_hw_queues(set),
+				       sizeof(*(q->queue_hw_ctx)), GFP_KERNEL,
+				       set->numa_node);
 	if (!q->queue_hw_ctx)
 		goto err_sys_init;
 
