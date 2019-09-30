@@ -184,9 +184,6 @@ struct dispc_device {
 
 	struct regmap *syscon_pol;
 	u32 syscon_pol_offset;
-
-	/* DISPC_CONTROL & DISPC_CONFIG lock*/
-	spinlock_t control_lock;
 };
 
 enum omap_color_component {
@@ -377,16 +374,8 @@ static void mgr_fld_write(struct dispc_device *dispc, enum omap_channel channel,
 			  enum mgr_reg_fields regfld, int val)
 {
 	const struct dispc_reg_field rfld = mgr_desc[channel].reg_desc[regfld];
-	const bool need_lock = rfld.reg == DISPC_CONTROL || rfld.reg == DISPC_CONFIG;
-	unsigned long flags;
 
-	if (need_lock) {
-		spin_lock_irqsave(&dispc->control_lock, flags);
-		REG_FLD_MOD(dispc, rfld.reg, val, rfld.high, rfld.low);
-		spin_unlock_irqrestore(&dispc->control_lock, flags);
-	} else {
-		REG_FLD_MOD(dispc, rfld.reg, val, rfld.high, rfld.low);
-	}
+	REG_FLD_MOD(dispc, rfld.reg, val, rfld.high, rfld.low);
 }
 
 static int dispc_get_num_ovls(struct dispc_device *dispc)
@@ -4767,8 +4756,6 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 	dispc->pdev = pdev;
 	platform_set_drvdata(pdev, dispc);
 	dispc->dss = dss;
-
-	spin_lock_init(&dispc->control_lock);
 
 	/*
 	 * The OMAP3-based models can't be told apart using the compatible
