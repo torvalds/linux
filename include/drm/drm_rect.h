@@ -107,6 +107,20 @@ static inline void drm_rect_translate(struct drm_rect *r, int dx, int dy)
 }
 
 /**
+ * drm_rect_translate_to - translate the rectangle to an absolute position
+ * @r: rectangle to be tranlated
+ * @x: horizontal position
+ * @y: vertical position
+ *
+ * Move rectangle @r to @x in the horizontal direction,
+ * and to @y in the vertical direction.
+ */
+static inline void drm_rect_translate_to(struct drm_rect *r, int x, int y)
+{
+	drm_rect_translate(r, x - r->x1, y - r->y1);
+}
+
+/**
  * drm_rect_downscale - downscale a rectangle
  * @r: rectangle to be downscaled
  * @horz: horizontal downscale factor
