@@ -2921,7 +2921,7 @@ static int srpt_release_sport(struct srpt_port *sport)
 
 	while (atomic_read(&sport->refcount) > 0 &&
 	       wait_for_completion_timeout(&c, 5 * HZ) <= 0) {
-		pr_info("%s_%d: waiting for unregistration of %d sessions ...\n",
+		pr_info("%s_%d: waiting for unregistration of %d sessions and configfs directories ...\n",
 			dev_name(&sport->sdev->device->dev), sport->port,
 			atomic_read(&sport->refcount));
 		rcu_read_lock();
@@ -3732,6 +3732,8 @@ static struct se_portal_group *srpt_make_tpg(struct se_wwn *wwn,
 	if (res)
 		return ERR_PTR(res);
 
+	atomic_inc(&sport->refcount);
+
 	return tpg;
 }
 
@@ -3745,6 +3747,7 @@ static void srpt_drop_tpg(struct se_portal_group *tpg)
 
 	sport->enabled = false;
 	core_tpg_deregister(tpg);
+	srpt_drop_sport_ref(sport);
 }
 
 /**
