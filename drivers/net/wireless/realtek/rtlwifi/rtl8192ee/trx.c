@@ -651,7 +651,6 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtlwifi_tx_info *tx_info = rtl_tx_skb_cb_info(skb);
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
-	unsigned int buf_len;
 	u8 fw_qsel = _rtl92ee_map_hwqueue_to_fwqueue(skb, hw_queue);
 	bool firstseg = ((hdr->seq_ctrl &
 			    cpu_to_le16(IEEE80211_SCTL_FRAG)) == 0);
@@ -659,7 +658,6 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 			   cpu_to_le16(IEEE80211_FCTL_MOREFRAGS)) == 0);
 	dma_addr_t mapping;
 	u8 bw_40 = 0;
-	u8 short_gi;
 	__le32 *pdesc = (__le32 *)pdesc8;
 
 	if (mac->opmode == NL80211_IFTYPE_STATION) {
@@ -677,7 +675,6 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 		skb_push(skb, EM_HDR_LEN);
 		memset(skb->data, 0, EM_HDR_LEN);
 	}
-	buf_len = skb->len;
 	mapping = pci_map_single(rtlpci->pdev, skb->data, skb->len,
 				 PCI_DMA_TODEVICE);
 	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
@@ -723,11 +720,6 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 				ptcb_desc->use_driver_rate = false;
 			}
 		}
-
-		if (ptcb_desc->hw_rate > DESC_RATEMCS0)
-			short_gi = (ptcb_desc->use_shortgi) ? 1 : 0;
-		else
-			short_gi = (ptcb_desc->use_shortpreamble) ? 1 : 0;
 
 		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
 			set_tx_desc_agg_enable(pdesc, 1);
