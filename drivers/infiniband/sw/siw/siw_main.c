@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 
+#include <net/addrconf.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/rdma_netlink.h>
@@ -350,15 +351,19 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 	sdev->netdev = netdev;
 
 	if (netdev->type != ARPHRD_LOOPBACK) {
-		memcpy(&base_dev->node_guid, netdev->dev_addr, 6);
+		addrconf_addr_eui48((unsigned char *)&base_dev->node_guid,
+				    netdev->dev_addr);
 	} else {
 		/*
 		 * The loopback device does not have a HW address,
 		 * but connection mangagement lib expects gid != 0
 		 */
-		size_t gidlen = min_t(size_t, strlen(base_dev->name), 6);
+		size_t len = min_t(size_t, strlen(base_dev->name), 6);
+		char addr[6] = { };
 
-		memcpy(&base_dev->node_guid, base_dev->name, gidlen);
+		memcpy(addr, base_dev->name, len);
+		addrconf_addr_eui48((unsigned char *)&base_dev->node_guid,
+				    addr);
 	}
 	base_dev->uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE) |
