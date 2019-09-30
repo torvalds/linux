@@ -7365,6 +7365,15 @@ F:	include/uapi/linux/if_hippi.h
 F:	net/802/hippi.c
 F:	drivers/net/hippi/
 
+HISILICON HIGH PERFORMANCE RSA ENGINE DRIVER (HPRE)
+M:	Zaibo Xu <xuzaibo@huawei.com>
+L:	linux-crypto@vger.kernel.org
+S:	Maintained
+F:	drivers/crypto/hisilicon/hpre/hpre_crypto.c
+F:	drivers/crypto/hisilicon/hpre/hpre_main.c
+F:	drivers/crypto/hisilicon/hpre/hpre.h
+F:	Documentation/ABI/testing/debugfs-hisi-hpre
+
 HISILICON NETWORK SUBSYSTEM 3 DRIVER (HNS3)
 M:	Yisen Zhuang <yisen.zhuang@huawei.com>
 M:	Salil Mehta <salil.mehta@huawei.com>
