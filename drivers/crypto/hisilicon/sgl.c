@@ -2,37 +2,12 @@
 /* Copyright (c) 2019 HiSilicon Limited. */
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
-#include "./sgl.h"
+#include <linux/slab.h>
 
 #define HISI_ACC_SGL_SGE_NR_MIN		1
 #define HISI_ACC_SGL_SGE_NR_MAX		255
-#define HISI_ACC_SGL_SGE_NR_DEF		10
 #define HISI_ACC_SGL_NR_MAX		256
 #define HISI_ACC_SGL_ALIGN_SIZE		64
-
-static int acc_sgl_sge_set(const char *val, const struct kernel_param *kp)
-{
-	int ret;
-	u32 n;
-
-	if (!val)
-		return -EINVAL;
-
-	ret = kstrtou32(val, 10, &n);
-	if (ret != 0 || n > HISI_ACC_SGL_SGE_NR_MAX || n == 0)
-		return -EINVAL;
-
-	return param_set_int(val, kp);
-}
-
-static const struct kernel_param_ops acc_sgl_sge_ops = {
-	.set = acc_sgl_sge_set,
-	.get = param_get_int,
-};
-
-static u32 acc_sgl_sge_nr = HISI_ACC_SGL_SGE_NR_DEF;
-module_param_cb(acc_sgl_sge_nr, &acc_sgl_sge_ops, &acc_sgl_sge_nr, 0444);
-MODULE_PARM_DESC(acc_sgl_sge_nr, "Number of sge in sgl(1-255)");
 
 struct acc_hw_sge {
 	dma_addr_t buf;
@@ -55,37 +30,54 @@ struct hisi_acc_hw_sgl {
 	struct acc_hw_sge sge_entries[];
 } __aligned(1);
 
+struct hisi_acc_sgl_pool {
+	struct hisi_acc_hw_sgl *sgl;
+	dma_addr_t sgl_dma;
+	size_t size;
+	u32 count;
+	u32 sge_nr;
+	size_t sgl_size;
+};
+
 /**
  * hisi_acc_create_sgl_pool() - Create a hw sgl pool.
  * @dev: The device which hw sgl pool belongs to.
- * @pool: Pointer of pool.
  * @count: Count of hisi_acc_hw_sgl in pool.
+ * @sge_nr: The count of sge in hw_sgl
  *
  * This function creates a hw sgl pool, after this user can get hw sgl memory
  * from it.
  */
-int hisi_acc_create_sgl_pool(struct device *dev,
-			     struct hisi_acc_sgl_pool *pool, u32 count)
+struct hisi_acc_sgl_pool *hisi_acc_create_sgl_pool(struct device *dev,
+						   u32 count, u32 sge_nr)
 {
+	struct hisi_acc_sgl_pool *pool;
 	u32 sgl_size;
 	u32 size;
 
-	if (!dev || !pool || !count)
-		return -EINVAL;
+	if (!dev || !count || !sge_nr || sge_nr > HISI_ACC_SGL_SGE_NR_MAX)
+		return ERR_PTR(-EINVAL);
 
-	sgl_size = sizeof(struct acc_hw_sge) * acc_sgl_sge_nr +
+	sgl_size = sizeof(struct acc_hw_sge) * sge_nr +
 		   sizeof(struct hisi_acc_hw_sgl);
 	size = sgl_size * count;
 
+	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	if (!pool)
+		return ERR_PTR(-ENOMEM);
+
 	pool->sgl = dma_alloc_coherent(dev, size, &pool->sgl_dma, GFP_KERNEL);
-	if (!pool->sgl)
-		return -ENOMEM;
+	if (!pool->sgl) {
+		kfree(pool);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	pool->size = size;
 	pool->count = count;
 	pool->sgl_size = sgl_size;
+	pool->sge_nr = sge_nr;
 
-	return 0;
+	return pool;
 }
 EXPORT_SYMBOL_GPL(hisi_acc_create_sgl_pool);
 
@@ -98,8 +90,11 @@ EXPORT_SYMBOL_GPL(hisi_acc_create_sgl_pool);
  */
 void hisi_acc_free_sgl_pool(struct device *dev, struct hisi_acc_sgl_pool *pool)
 {
+	if (!dev || !pool)
+		return;
+
 	dma_free_coherent(dev, pool->size, pool->sgl, pool->sgl_dma);
-	memset(pool, 0, sizeof(struct hisi_acc_sgl_pool));
+	kfree(pool);
 }
 EXPORT_SYMBOL_GPL(hisi_acc_free_sgl_pool);
 
@@ -156,7 +151,7 @@ hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
 	int sg_n = sg_nents(sgl);
 	int i, ret;
 
-	if (!dev || !sgl || !pool || !hw_sgl_dma || sg_n > acc_sgl_sge_nr)
+	if (!dev || !sgl || !pool || !hw_sgl_dma || sg_n > pool->sge_nr)
 		return ERR_PTR(-EINVAL);
 
 	ret = dma_map_sg(dev, sgl, sg_n, DMA_BIDIRECTIONAL);
@@ -168,7 +163,7 @@ hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
 		ret = -ENOMEM;
 		goto err_unmap_sg;
 	}
-	curr_hw_sgl->entry_length_in_sgl = acc_sgl_sge_nr;
+	curr_hw_sgl->entry_length_in_sgl = pool->sge_nr;
 	curr_hw_sge = curr_hw_sgl->sge_entries;
 
 	for_each_sg(sgl, sg, sg_n, i) {
@@ -177,7 +172,7 @@ hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
 		curr_hw_sge++;
 	}
 
-	update_hw_sgl_sum_sge(curr_hw_sgl, acc_sgl_sge_nr);
+	update_hw_sgl_sum_sge(curr_hw_sgl, pool->sge_nr);
 	*hw_sgl_dma = curr_sgl_dma;
 
 	return curr_hw_sgl;
