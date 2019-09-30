@@ -84,7 +84,8 @@ extern int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
 			       umode_t mode, struct cifs_tcon *tcon,
 			       const char *full_path,
 			       struct cifs_sb_info *cifs_sb);
-extern int smb2_mkdir(const unsigned int xid, struct cifs_tcon *tcon,
+extern int smb2_mkdir(const unsigned int xid, struct inode *inode,
+		      umode_t mode, struct cifs_tcon *tcon,
 		      const char *name, struct cifs_sb_info *cifs_sb);
 extern void smb2_mkdir_setinfo(struct inode *inode, const char *full_path,
 			       struct cifs_sb_info *cifs_sb,
