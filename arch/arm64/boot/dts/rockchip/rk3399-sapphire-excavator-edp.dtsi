@@ -134,10 +134,6 @@
 	status = "disabled";
 };
 
-&hdmi {
-	status = "disabled";
-};
-
 &hdmi_in_vopb {
 	status = "disabled";
 };
