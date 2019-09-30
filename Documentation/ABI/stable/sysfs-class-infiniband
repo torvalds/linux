@@ -314,25 +314,6 @@ Description:
 		board_id:	(RO) Manufacturing board ID
 
 
-sysfs interface for Chelsio T3 RDMA Driver (cxgb3)
---------------------------------------------------
-
-What:		/sys/class/infiniband/cxgb3_X/hw_rev
-What:		/sys/class/infiniband/cxgb3_X/hca_type
-What:		/sys/class/infiniband/cxgb3_X/board_id
-Date:		Feb, 2007
-KernelVersion:	v2.6.21
-Contact:	linux-rdma@vger.kernel.org
-Description:
-		hw_rev:		(RO) Hardware revision number
-
-		hca_type:	(RO) HCA type. Here it is a driver short name.
-				It should normally match the name in its bus
-				driver structure (e.g.  pci_driver::name).
-
-		board_id:	(RO) Manufacturing board id
-
-
 sysfs interface for Mellanox ConnectX HCA IB driver (mlx4)
 ----------------------------------------------------------
 
