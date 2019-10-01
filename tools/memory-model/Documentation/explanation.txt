@@ -27,7 +27,7 @@ Explanation of the Linux-Kernel Memory Consistency Model
   19. AND THEN THERE WAS ALPHA
   20. THE HAPPENS-BEFORE RELATION: hb
   21. THE PROPAGATES-BEFORE RELATION: pb
-  22. RCU RELATIONS: rcu-link, rcu-gp, rcu-rscsi, rcu-fence, and rb
+  22. RCU RELATIONS: rcu-link, rcu-gp, rcu-rscsi, rcu-order, rcu-fence, and rb
   23. LOCKING
   24. ODDS AND ENDS
 
@@ -1425,8 +1425,8 @@ they execute means that it cannot have cycles.  This requirement is
 the content of the LKMM's "propagation" axiom.
 
 
-RCU RELATIONS: rcu-link, rcu-gp, rcu-rscsi, rcu-fence, and rb
--------------------------------------------------------------
+RCU RELATIONS: rcu-link, rcu-gp, rcu-rscsi, rcu-order, rcu-fence, and rb
+------------------------------------------------------------------------
 
 RCU (Read-Copy-Update) is a powerful synchronization mechanism.  It
 rests on two concepts: grace periods and read-side critical sections.
@@ -1536,29 +1536,29 @@ Z's CPU before Z begins but doesn't propagate to some other CPU until
 after X ends.)  Similarly, X ->rcu-rscsi Y ->rcu-link Z says that X is
 the end of a critical section which starts before Z begins.
 
-The LKMM goes on to define the rcu-fence relation as a sequence of
+The LKMM goes on to define the rcu-order relation as a sequence of
 rcu-gp and rcu-rscsi links separated by rcu-link links, in which the
 number of rcu-gp links is >= the number of rcu-rscsi links.  For
 example:
 
 	X ->rcu-gp Y ->rcu-link Z ->rcu-rscsi T ->rcu-link U ->rcu-gp V
 
-would imply that X ->rcu-fence V, because this sequence contains two
+would imply that X ->rcu-order V, because this sequence contains two
 rcu-gp links and one rcu-rscsi link.  (It also implies that
-X ->rcu-fence T and Z ->rcu-fence V.)  On the other hand:
+X ->rcu-order T and Z ->rcu-order V.)  On the other hand:
 
 	X ->rcu-rscsi Y ->rcu-link Z ->rcu-rscsi T ->rcu-link U ->rcu-gp V
 
-does not imply X ->rcu-fence V, because the sequence contains only
+does not imply X ->rcu-order V, because the sequence contains only
 one rcu-gp link but two rcu-rscsi links.
 
-The rcu-fence relation is important because the Grace Period Guarantee
-means that rcu-fence acts kind of like a strong fence.  In particular,
-E ->rcu-fence F implies not only that E begins before F ends, but also
-that any write po-before E will propagate to every CPU before any
-instruction po-after F can execute.  (However, it does not imply that
-E must execute before F; in fact, each synchronize_rcu() fence event
-is linked to itself by rcu-fence as a degenerate case.)
+The rcu-order relation is important because the Grace Period Guarantee
+means that rcu-order links act kind of like strong fences.  In
+particular, E ->rcu-order F implies not only that E begins before F
+ends, but also that any write po-before E will propagate to every CPU
+before any instruction po-after F can execute.  (However, it does not
+imply that E must execute before F; in fact, each synchronize_rcu()
+fence event is linked to itself by rcu-order as a degenerate case.)
 
 To prove this in full generality requires some intellectual effort.
 We'll consider just a very simple case:
@@ -1585,7 +1585,26 @@ G's CPU before G starts must propagate to every CPU before C starts.
 In particular, the write propagates to every CPU before F finishes
 executing and hence before any instruction po-after F can execute.
 This sort of reasoning can be extended to handle all the situations
-covered by rcu-fence.
+covered by rcu-order.
+
+The rcu-fence relation is a simple extension of rcu-order.  While
+rcu-order only links certain fence events (calls to synchronize_rcu(),
+rcu_read_lock(), or rcu_read_unlock()), rcu-fence links any events
+that are separated by an rcu-order link.  This is analogous to the way
+the strong-fence relation links events that are separated by an
+smp_mb() fence event (as mentioned above, rcu-order links act kind of
+like strong fences).  Written symbolically, X ->rcu-fence Y means
+there are fence events E and F such that:
+
+	X ->po E ->rcu-order F ->po Y.
+
+From the discussion above, we see this implies not only that X
+executes before Y, but also (if X is a store) that X propagates to
+every CPU before Y executes.  Thus rcu-fence is sort of a
+"super-strong" fence: Unlike the original strong fences (smp_mb() and
+synchronize_rcu()), rcu-fence is able to link events on different
+CPUs.  (Perhaps this fact should lead us to say that rcu-fence isn't
+really a fence at all!)
 
 Finally, the LKMM defines the RCU-before (rb) relation in terms of
 rcu-fence.  This is done in essentially the same way as the pb
@@ -1596,7 +1615,7 @@ before F, just as E ->pb F does (and for much the same reasons).
 Putting this all together, the LKMM expresses the Grace Period
 Guarantee by requiring that the rb relation does not contain a cycle.
 Equivalently, this "rcu" axiom requires that there are no events E
-and F with E ->rcu-link F ->rcu-fence E.  Or to put it a third way,
+and F with E ->rcu-link F ->rcu-order E.  Or to put it a third way,
 the axiom requires that there are no cycles consisting of rcu-gp and
 rcu-rscsi alternating with rcu-link, where the number of rcu-gp links
 is >= the number of rcu-rscsi links.
@@ -1750,7 +1769,7 @@ addition to normal RCU.  The ideas involved are much the same as
 above, with new relations srcu-gp and srcu-rscsi added to represent
 SRCU grace periods and read-side critical sections.  There is a
 restriction on the srcu-gp and srcu-rscsi links that can appear in an
-rcu-fence sequence (the srcu-rscsi links must be paired with srcu-gp
+rcu-order sequence (the srcu-rscsi links must be paired with srcu-gp
 links having the same SRCU domain with proper nesting); the details
 are relatively unimportant.
 
