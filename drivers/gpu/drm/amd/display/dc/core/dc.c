@@ -194,7 +194,7 @@ static bool create_links(
 				}
 			}
 
-			if (!should_destory_link) {
+			if (dc->config.force_enum_edp || !should_destory_link) {
 				dc->links[dc->link_count] = link;
 				link->dc = dc;
 				++dc->link_count;
