@@ -1751,7 +1751,7 @@ config X86_RESERVE_LOW
 config MATH_EMULATION
 	bool
 	depends on MODIFY_LDT_SYSCALL
-	prompt "Math emulation" if X86_32
+	prompt "Math emulation" if X86_32 && (M486SX || MELAN)
 	---help---
 	  Linux can emulate a math coprocessor (used for floating point
 	  operations) if you don't have one. 486DX and Pentium processors have
