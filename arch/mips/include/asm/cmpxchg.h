@@ -94,7 +94,13 @@ static inline unsigned long __xchg(volatile void *ptr, unsigned long x,
 ({									\
 	__typeof__(*(ptr)) __res;					\
 									\
-	smp_mb__before_llsc();						\
+	/*								\
+	 * In the Loongson3 workaround case __xchg_asm() already	\
+	 * contains a completion barrier prior to the LL, so we don't	\
+	 * need to emit an extra one here.				\
+	 */								\
+	if (!__SYNC_loongson3_war)					\
+		smp_mb__before_llsc();					\
 									\
 	__res = (__typeof__(*(ptr)))					\
 		__xchg((ptr), (unsigned long)(x), sizeof(*(ptr)));	\
@@ -179,9 +185,23 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 ({									\
 	__typeof__(*(ptr)) __res;					\
 									\
-	smp_mb__before_llsc();						\
+	/*								\
+	 * In the Loongson3 workaround case __cmpxchg_asm() already	\
+	 * contains a completion barrier prior to the LL, so we don't	\
+	 * need to emit an extra one here.				\
+	 */								\
+	if (!__SYNC_loongson3_war)					\
+		smp_mb__before_llsc();					\
+									\
 	__res = cmpxchg_local((ptr), (old), (new));			\
-	smp_llsc_mb();							\
+									\
+	/*								\
+	 * In the Loongson3 workaround case __cmpxchg_asm() already	\
+	 * contains a completion barrier after the SC, so we don't	\
+	 * need to emit an extra one here.				\
+	 */								\
+	if (!__SYNC_loongson3_war)					\
+		smp_llsc_mb();						\
 									\
 	__res;								\
 })
