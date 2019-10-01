@@ -1609,6 +1609,7 @@ static bool construct(
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data init_data;
 	uint32_t pipe_fuses = read_pipe_fuses(ctx);
+	uint32_t num_pipes;
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -1721,6 +1722,14 @@ static bool construct(
 #endif
 
 	pool->base.pp_smu = dcn21_pp_smu_create(ctx);
+
+	num_pipes = dcn2_1_ip.max_num_dpp;
+
+	for (i = 0; i < dcn2_1_ip.max_num_dpp; i++)
+		if (pipe_fuses & 1 << i)
+			num_pipes--;
+	dcn2_1_ip.max_num_dpp = num_pipes;
+	dcn2_1_ip.max_num_otg = num_pipes;
 
 	dml_init_instance(&dc->dml, &dcn2_1_soc, &dcn2_1_ip, DML_PROJECT_DCN21);
 
