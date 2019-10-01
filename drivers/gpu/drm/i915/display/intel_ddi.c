@@ -2681,7 +2681,7 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 					   u32 level)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum port port = encoder->port;
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, encoder->port);
 	const struct icl_mg_phy_ddi_buf_trans *ddi_translations;
 	u32 n_entries, val;
 	int ln;
@@ -2697,33 +2697,33 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 
 	/* Set MG_TX_LINK_PARAMS cri_use_fs32 to 0. */
 	for (ln = 0; ln < 2; ln++) {
-		val = I915_READ(MG_TX1_LINK_PARAMS(ln, port));
+		val = I915_READ(MG_TX1_LINK_PARAMS(ln, tc_port));
 		val &= ~CRI_USE_FS32;
-		I915_WRITE(MG_TX1_LINK_PARAMS(ln, port), val);
+		I915_WRITE(MG_TX1_LINK_PARAMS(ln, tc_port), val);
 
-		val = I915_READ(MG_TX2_LINK_PARAMS(ln, port));
+		val = I915_READ(MG_TX2_LINK_PARAMS(ln, tc_port));
 		val &= ~CRI_USE_FS32;
-		I915_WRITE(MG_TX2_LINK_PARAMS(ln, port), val);
+		I915_WRITE(MG_TX2_LINK_PARAMS(ln, tc_port), val);
 	}
 
 	/* Program MG_TX_SWINGCTRL with values from vswing table */
 	for (ln = 0; ln < 2; ln++) {
-		val = I915_READ(MG_TX1_SWINGCTRL(ln, port));
+		val = I915_READ(MG_TX1_SWINGCTRL(ln, tc_port));
 		val &= ~CRI_TXDEEMPH_OVERRIDE_17_12_MASK;
 		val |= CRI_TXDEEMPH_OVERRIDE_17_12(
 			ddi_translations[level].cri_txdeemph_override_17_12);
-		I915_WRITE(MG_TX1_SWINGCTRL(ln, port), val);
+		I915_WRITE(MG_TX1_SWINGCTRL(ln, tc_port), val);
 
-		val = I915_READ(MG_TX2_SWINGCTRL(ln, port));
+		val = I915_READ(MG_TX2_SWINGCTRL(ln, tc_port));
 		val &= ~CRI_TXDEEMPH_OVERRIDE_17_12_MASK;
 		val |= CRI_TXDEEMPH_OVERRIDE_17_12(
 			ddi_translations[level].cri_txdeemph_override_17_12);
-		I915_WRITE(MG_TX2_SWINGCTRL(ln, port), val);
+		I915_WRITE(MG_TX2_SWINGCTRL(ln, tc_port), val);
 	}
 
 	/* Program MG_TX_DRVCTRL with values from vswing table */
 	for (ln = 0; ln < 2; ln++) {
-		val = I915_READ(MG_TX1_DRVCTRL(ln, port));
+		val = I915_READ(MG_TX1_DRVCTRL(ln, tc_port));
 		val &= ~(CRI_TXDEEMPH_OVERRIDE_11_6_MASK |
 			 CRI_TXDEEMPH_OVERRIDE_5_0_MASK);
 		val |= CRI_TXDEEMPH_OVERRIDE_5_0(
@@ -2731,9 +2731,9 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 			CRI_TXDEEMPH_OVERRIDE_11_6(
 				ddi_translations[level].cri_txdeemph_override_11_6) |
 			CRI_TXDEEMPH_OVERRIDE_EN;
-		I915_WRITE(MG_TX1_DRVCTRL(ln, port), val);
+		I915_WRITE(MG_TX1_DRVCTRL(ln, tc_port), val);
 
-		val = I915_READ(MG_TX2_DRVCTRL(ln, port));
+		val = I915_READ(MG_TX2_DRVCTRL(ln, tc_port));
 		val &= ~(CRI_TXDEEMPH_OVERRIDE_11_6_MASK |
 			 CRI_TXDEEMPH_OVERRIDE_5_0_MASK);
 		val |= CRI_TXDEEMPH_OVERRIDE_5_0(
@@ -2741,7 +2741,7 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 			CRI_TXDEEMPH_OVERRIDE_11_6(
 				ddi_translations[level].cri_txdeemph_override_11_6) |
 			CRI_TXDEEMPH_OVERRIDE_EN;
-		I915_WRITE(MG_TX2_DRVCTRL(ln, port), val);
+		I915_WRITE(MG_TX2_DRVCTRL(ln, tc_port), val);
 
 		/* FIXME: Program CRI_LOADGEN_SEL after the spec is updated */
 	}
@@ -2752,17 +2752,17 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 	 * values from table for which TX1 and TX2 enabled.
 	 */
 	for (ln = 0; ln < 2; ln++) {
-		val = I915_READ(MG_CLKHUB(ln, port));
+		val = I915_READ(MG_CLKHUB(ln, tc_port));
 		if (link_clock < 300000)
 			val |= CFG_LOW_RATE_LKREN_EN;
 		else
 			val &= ~CFG_LOW_RATE_LKREN_EN;
-		I915_WRITE(MG_CLKHUB(ln, port), val);
+		I915_WRITE(MG_CLKHUB(ln, tc_port), val);
 	}
 
 	/* Program the MG_TX_DCC<LN, port being used> based on the link frequency */
 	for (ln = 0; ln < 2; ln++) {
-		val = I915_READ(MG_TX1_DCC(ln, port));
+		val = I915_READ(MG_TX1_DCC(ln, tc_port));
 		val &= ~CFG_AMI_CK_DIV_OVERRIDE_VAL_MASK;
 		if (link_clock <= 500000) {
 			val &= ~CFG_AMI_CK_DIV_OVERRIDE_EN;
@@ -2770,9 +2770,9 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 			val |= CFG_AMI_CK_DIV_OVERRIDE_EN |
 				CFG_AMI_CK_DIV_OVERRIDE_VAL(1);
 		}
-		I915_WRITE(MG_TX1_DCC(ln, port), val);
+		I915_WRITE(MG_TX1_DCC(ln, tc_port), val);
 
-		val = I915_READ(MG_TX2_DCC(ln, port));
+		val = I915_READ(MG_TX2_DCC(ln, tc_port));
 		val &= ~CFG_AMI_CK_DIV_OVERRIDE_VAL_MASK;
 		if (link_clock <= 500000) {
 			val &= ~CFG_AMI_CK_DIV_OVERRIDE_EN;
@@ -2780,18 +2780,18 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 			val |= CFG_AMI_CK_DIV_OVERRIDE_EN |
 				CFG_AMI_CK_DIV_OVERRIDE_VAL(1);
 		}
-		I915_WRITE(MG_TX2_DCC(ln, port), val);
+		I915_WRITE(MG_TX2_DCC(ln, tc_port), val);
 	}
 
 	/* Program MG_TX_PISO_READLOAD with values from vswing table */
 	for (ln = 0; ln < 2; ln++) {
-		val = I915_READ(MG_TX1_PISO_READLOAD(ln, port));
+		val = I915_READ(MG_TX1_PISO_READLOAD(ln, tc_port));
 		val |= CRI_CALCINIT;
-		I915_WRITE(MG_TX1_PISO_READLOAD(ln, port), val);
+		I915_WRITE(MG_TX1_PISO_READLOAD(ln, tc_port), val);
 
-		val = I915_READ(MG_TX2_PISO_READLOAD(ln, port));
+		val = I915_READ(MG_TX2_PISO_READLOAD(ln, tc_port));
 		val |= CRI_CALCINIT;
-		I915_WRITE(MG_TX2_PISO_READLOAD(ln, port), val);
+		I915_WRITE(MG_TX2_PISO_READLOAD(ln, tc_port), val);
 	}
 }
 
@@ -3150,8 +3150,7 @@ static void
 icl_phy_set_clock_gating(struct intel_digital_port *dig_port, bool enable)
 {
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum port port = dig_port->base.port;
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
 	u32 val, bits;
 	int ln;
 
@@ -3167,7 +3166,7 @@ icl_phy_set_clock_gating(struct intel_digital_port *dig_port, bool enable)
 			I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, ln));
 			val = I915_READ(DKL_DP_MODE(tc_port));
 		} else {
-			val = I915_READ(MG_DP_MODE(ln, port));
+			val = I915_READ(MG_DP_MODE(ln, tc_port));
 		}
 
 		if (enable)
@@ -3178,7 +3177,7 @@ icl_phy_set_clock_gating(struct intel_digital_port *dig_port, bool enable)
 		if (INTEL_GEN(dev_priv) >= 12)
 			I915_WRITE(DKL_DP_MODE(tc_port), val);
 		else
-			I915_WRITE(MG_DP_MODE(ln, port), val);
+			I915_WRITE(MG_DP_MODE(ln, tc_port), val);
 	}
 
 	if (INTEL_GEN(dev_priv) == 11) {
@@ -3203,8 +3202,7 @@ icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port,
 		       const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
-	enum port port = intel_dig_port->base.port;
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, intel_dig_port->base.port);
 	u32 ln0, ln1, pin_assignment;
 	u8 width;
 
@@ -3217,8 +3215,8 @@ icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port,
 		I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, 0x1));
 		ln1 = I915_READ(DKL_DP_MODE(tc_port));
 	} else {
-		ln0 = I915_READ(MG_DP_MODE(0, port));
-		ln1 = I915_READ(MG_DP_MODE(1, port));
+		ln0 = I915_READ(MG_DP_MODE(0, tc_port));
+		ln1 = I915_READ(MG_DP_MODE(1, tc_port));
 	}
 
 	ln0 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X1_MODE);
@@ -3280,8 +3278,8 @@ icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port,
 		I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, 0x1));
 		I915_WRITE(DKL_DP_MODE(tc_port), ln1);
 	} else {
-		I915_WRITE(MG_DP_MODE(0, port), ln0);
-		I915_WRITE(MG_DP_MODE(1, port), ln1);
+		I915_WRITE(MG_DP_MODE(0, tc_port), ln0);
+		I915_WRITE(MG_DP_MODE(1, tc_port), ln1);
 	}
 }
 
