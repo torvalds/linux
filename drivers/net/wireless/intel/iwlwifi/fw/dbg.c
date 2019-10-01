@@ -1230,13 +1230,15 @@ static bool iwl_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 			iter->lmac = 0;
 	}
 
-	if (!iter->internal_txf)
+	if (!iter->internal_txf) {
 		for (iter->fifo++; iter->fifo < txf_num; iter->fifo++) {
 			iter->fifo_size =
 				cfg->lmac[iter->lmac].txfifo_size[iter->fifo];
 			if (iter->fifo_size && (lmac_bitmap & BIT(iter->fifo)))
 				return true;
 		}
+		iter->fifo--;
+	}
 
 	iter->internal_txf = 1;
 
