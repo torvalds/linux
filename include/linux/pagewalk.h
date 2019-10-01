@@ -24,6 +24,9 @@ struct mm_walk;
  *			"do page table walk over the current vma", returning
  *			a negative value means "abort current page table walk
  *			right now" and returning 1 means "skip the current vma"
+ * @pre_vma:            if set, called before starting walk on a non-null vma.
+ * @post_vma:           if set, called after a walk on a non-null vma, provided
+ *                      that @pre_vma and the vma walk succeeded.
  */
 struct mm_walk_ops {
 	int (*pud_entry)(pud_t *pud, unsigned long addr,
@@ -39,6 +42,9 @@ struct mm_walk_ops {
 			     struct mm_walk *walk);
 	int (*test_walk)(unsigned long addr, unsigned long next,
 			struct mm_walk *walk);
+	int (*pre_vma)(unsigned long start, unsigned long end,
+		       struct mm_walk *walk);
+	void (*post_vma)(struct mm_walk *walk);
 };
 
 /**
@@ -62,5 +68,8 @@ int walk_page_range(struct mm_struct *mm, unsigned long start,
 		void *private);
 int walk_page_vma(struct vm_area_struct *vma, const struct mm_walk_ops *ops,
 		void *private);
+int walk_page_mapping(struct address_space *mapping, pgoff_t first_index,
+		      pgoff_t nr, const struct mm_walk_ops *ops,
+		      void *private);
 
 #endif /* _LINUX_PAGEWALK_H */
