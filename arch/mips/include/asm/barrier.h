@@ -119,7 +119,17 @@ static inline void wmb(void)
 #define nudge_writes() mb()
 #endif
 
-#define __smp_mb__before_atomic()	__smp_mb__before_llsc()
+/*
+ * In the Loongson3 LL/SC workaround case, all of our LL/SC loops already have
+ * a completion barrier immediately preceding the LL instruction. Therefore we
+ * can skip emitting a barrier from __smp_mb__before_atomic().
+ */
+#ifdef CONFIG_CPU_LOONGSON3_WORKAROUNDS
+# define __smp_mb__before_atomic()
+#else
+# define __smp_mb__before_atomic()	__smp_mb__before_llsc()
+#endif
+
 #define __smp_mb__after_atomic()	smp_llsc_mb()
 
 static inline void sync_ginv(void)
