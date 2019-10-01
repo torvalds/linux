@@ -21,6 +21,7 @@
 #include <asm/cpu-features.h>
 #include <asm/cmpxchg.h>
 #include <asm/llsc.h>
+#include <asm/sync.h>
 #include <asm/war.h>
 
 #define ATOMIC_INIT(i)	  { (i) }
@@ -56,10 +57,10 @@ static __inline__ void pfx##_##op(type i, pfx##_t * v)			\
 		return;							\
 	}								\
 									\
-	loongson_llsc_mb();						\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	" MIPS_ISA_LEVEL "			\n"	\
+	"	" __SYNC(full, loongson3_war) "			\n"	\
 	"1:	" #ll "	%0, %1		# " #pfx "_" #op "	\n"	\
 	"	" #asm_op " %0, %2				\n"	\
 	"	" #sc "	%0, %1					\n"	\
@@ -85,10 +86,10 @@ static __inline__ type pfx##_##op##_return_relaxed(type i, pfx##_t * v)	\
 		return result;						\
 	}								\
 									\
-	loongson_llsc_mb();						\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	" MIPS_ISA_LEVEL "			\n"	\
+	"	" __SYNC(full, loongson3_war) "			\n"	\
 	"1:	" #ll "	%1, %2		# " #pfx "_" #op "_return\n"	\
 	"	" #asm_op " %0, %1, %3				\n"	\
 	"	" #sc "	%0, %2					\n"	\
@@ -117,10 +118,10 @@ static __inline__ type pfx##_fetch_##op##_relaxed(type i, pfx##_t * v)	\
 		return result;						\
 	}								\
 									\
-	loongson_llsc_mb();						\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	" MIPS_ISA_LEVEL "			\n"	\
+	"	" __SYNC(full, loongson3_war) "			\n"	\
 	"1:	" #ll "	%1, %2		# " #pfx "_fetch_" #op "\n"	\
 	"	" #asm_op " %0, %1, %3				\n"	\
 	"	" #sc "	%0, %2					\n"	\
@@ -200,10 +201,10 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 	if (kernel_uses_llsc) {
 		int temp;
 
-		loongson_llsc_mb();
 		__asm__ __volatile__(
 		"	.set	push					\n"
 		"	.set	"MIPS_ISA_LEVEL"			\n"
+		"	" __SYNC(full, loongson3_war) "			\n"
 		"1:	ll	%1, %2		# atomic_sub_if_positive\n"
 		"	.set	pop					\n"
 		"	subu	%0, %1, %3				\n"
@@ -213,7 +214,7 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 		"	.set	"MIPS_ISA_LEVEL"			\n"
 		"	sc	%1, %2					\n"
 		"\t" __SC_BEQZ "%1, 1b					\n"
-		"2:							\n"
+		"2:	" __SYNC(full, loongson3_war) "			\n"
 		"	.set	pop					\n"
 		: "=&r" (result), "=&r" (temp),
 		  "+" GCC_OFF_SMALL_ASM() (v->counter)
@@ -229,7 +230,14 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 		raw_local_irq_restore(flags);
 	}
 
-	smp_llsc_mb();
+	/*
+	 * In the Loongson3 workaround case we already have a completion
+	 * barrier at 2: above, which is needed due to the bltz that can branch
+	 * to code outside of the LL/SC loop. As such, we don't need to emit
+	 * another barrier here.
+	 */
+	if (!__SYNC_loongson3_war)
+		smp_llsc_mb();
 
 	return result;
 }
