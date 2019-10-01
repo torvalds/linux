@@ -206,7 +206,7 @@ goes like this:
 	P0 stores 1 to buf before storing 1 to flag, since it executes
 	its instructions in order.
 
-	Since an instruction (in this case, P1's store to flag) cannot
+	Since an instruction (in this case, P0's store to flag) cannot
 	execute before itself, the specified outcome is impossible.
 
 However, real computer hardware almost never follows the Sequential
@@ -419,7 +419,7 @@ example:
 
 The object code might call f(5) either before or after g(6); the
 memory model cannot assume there is a fixed program order relation
-between them.  (In fact, if the functions are inlined then the
+between them.  (In fact, if the function calls are inlined then the
 compiler might even interleave their object code.)
 
 
@@ -499,7 +499,7 @@ different CPUs (external reads-from, or rfe).
 
 For our purposes, a memory location's initial value is treated as
 though it had been written there by an imaginary initial store that
-executes on a separate CPU before the program runs.
+executes on a separate CPU before the main program runs.
 
 Usage of the rf relation implicitly assumes that loads will always
 read from a single store.  It doesn't apply properly in the presence
@@ -955,7 +955,7 @@ atomic update.  This is what the LKMM's "atomic" axiom says.
 THE PRESERVED PROGRAM ORDER RELATION: ppo
 -----------------------------------------
 
-There are many situations where a CPU is obligated to execute two
+There are many situations where a CPU is obliged to execute two
 instructions in program order.  We amalgamate them into the ppo (for
 "preserved program order") relation, which links the po-earlier
 instruction to the po-later instruction and is thus a sub-relation of
@@ -1572,7 +1572,7 @@ and there are events X, Y and a read-side critical section C such that:
 
 	2. X comes "before" Y in some sense (including rfe, co and fr);
 
-	2. Y is po-before Z;
+	3. Y is po-before Z;
 
 	4. Z is the rcu_read_unlock() event marking the end of C;
 
