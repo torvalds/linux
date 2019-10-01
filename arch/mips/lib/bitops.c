@@ -78,32 +78,6 @@ EXPORT_SYMBOL(__mips_change_bit);
 
 
 /**
- * __mips_test_and_set_bit - Set a bit and return its old value.  This is
- * called by test_and_set_bit() if it cannot find a faster solution.
- * @nr: Bit to set
- * @addr: Address to count from
- */
-int __mips_test_and_set_bit(unsigned long nr,
-			    volatile unsigned long *addr)
-{
-	unsigned long *a = (unsigned long *)addr;
-	unsigned bit = nr & SZLONG_MASK;
-	unsigned long mask;
-	unsigned long flags;
-	int res;
-
-	a += nr >> SZLONG_LOG;
-	mask = 1UL << bit;
-	raw_local_irq_save(flags);
-	res = (mask & *a) != 0;
-	*a |= mask;
-	raw_local_irq_restore(flags);
-	return res;
-}
-EXPORT_SYMBOL(__mips_test_and_set_bit);
-
-
-/**
  * __mips_test_and_set_bit_lock - Set a bit and return its old value.  This is
  * called by test_and_set_bit_lock() if it cannot find a faster solution.
  * @nr: Bit to set

@@ -31,8 +31,6 @@
 void __mips_set_bit(unsigned long nr, volatile unsigned long *addr);
 void __mips_clear_bit(unsigned long nr, volatile unsigned long *addr);
 void __mips_change_bit(unsigned long nr, volatile unsigned long *addr);
-int __mips_test_and_set_bit(unsigned long nr,
-			    volatile unsigned long *addr);
 int __mips_test_and_set_bit_lock(unsigned long nr,
 				 volatile unsigned long *addr);
 int __mips_test_and_clear_bit(unsigned long nr,
@@ -236,61 +234,6 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 }
 
 /*
- * test_and_set_bit - Set a bit and return its old value
- * @nr: Bit to set
- * @addr: Address to count from
- *
- * This operation is atomic and cannot be reordered.
- * It also implies a memory barrier.
- */
-static inline int test_and_set_bit(unsigned long nr,
-	volatile unsigned long *addr)
-{
-	unsigned long *m = ((unsigned long *)addr) + (nr >> SZLONG_LOG);
-	int bit = nr & SZLONG_MASK;
-	unsigned long res, temp;
-
-	smp_mb__before_llsc();
-
-	if (!kernel_uses_llsc) {
-		res = __mips_test_and_set_bit(nr, addr);
-	} else if (R10000_LLSC_WAR) {
-		__asm__ __volatile__(
-		"	.set	push					\n"
-		"	.set	arch=r4000				\n"
-		"1:	" __LL "%0, %1		# test_and_set_bit	\n"
-		"	or	%2, %0, %3				\n"
-		"	" __SC	"%2, %1					\n"
-		"	beqzl	%2, 1b					\n"
-		"	and	%2, %0, %3				\n"
-		"	.set	pop					\n"
-		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
-		: "r" (1UL << bit)
-		: __LLSC_CLOBBER);
-	} else {
-		loongson_llsc_mb();
-		do {
-			__asm__ __volatile__(
-			"	.set	push				\n"
-			"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
-			"	" __LL "%0, %1	# test_and_set_bit	\n"
-			"	or	%2, %0, %3			\n"
-			"	" __SC	"%2, %1				\n"
-			"	.set	pop				\n"
-			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
-			: "r" (1UL << bit)
-			: __LLSC_CLOBBER);
-		} while (unlikely(!res));
-
-		res = temp & (1UL << bit);
-	}
-
-	smp_llsc_mb();
-
-	return res != 0;
-}
-
-/*
  * test_and_set_bit_lock - Set a bit and return its old value
  * @nr: Bit to set
  * @addr: Address to count from
@@ -321,6 +264,7 @@ static inline int test_and_set_bit_lock(unsigned long nr,
 		: "r" (1UL << bit)
 		: __LLSC_CLOBBER);
 	} else {
+		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
 			"	.set	push				\n"
@@ -341,6 +285,22 @@ static inline int test_and_set_bit_lock(unsigned long nr,
 
 	return res != 0;
 }
+
+/*
+ * test_and_set_bit - Set a bit and return its old value
+ * @nr: Bit to set
+ * @addr: Address to count from
+ *
+ * This operation is atomic and cannot be reordered.
+ * It also implies a memory barrier.
+ */
+static inline int test_and_set_bit(unsigned long nr,
+	volatile unsigned long *addr)
+{
+	smp_mb__before_llsc();
+	return test_and_set_bit_lock(nr, addr);
+}
+
 /*
  * test_and_clear_bit - Clear a bit and return its old value
  * @nr: Bit to clear
