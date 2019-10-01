@@ -105,7 +105,8 @@ static int lima_clk_init(struct lima_device *dev)
 	if (err)
 		goto error_out0;
 
-	dev->reset = devm_reset_control_get_optional(dev->dev, NULL);
+	dev->reset = devm_reset_control_array_get_optional_shared(dev->dev);
+
 	if (IS_ERR(dev->reset)) {
 		err = PTR_ERR(dev->reset);
 		if (err != -EPROBE_DEFER)
