@@ -297,7 +297,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 
 DEFINE_MUTEX(uuid_mutex);
 static LIST_HEAD(fs_uuids);
-struct list_head *btrfs_get_fs_uuids(void)
+struct list_head * __attribute_const__ btrfs_get_fs_uuids(void)
 {
 	return &fs_uuids;
 }
