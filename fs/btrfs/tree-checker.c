@@ -23,6 +23,7 @@
 #include "disk-io.h"
 #include "compression.h"
 #include "volumes.h"
+#include "misc.h"
 
 /*
  * Error message should follow the following format:
@@ -632,7 +633,7 @@ int btrfs_check_chunk_valid(struct extent_buffer *leaf,
 		return -EUCLEAN;
 	}
 
-	if (!is_power_of_2(type & BTRFS_BLOCK_GROUP_PROFILE_MASK) &&
+	if (!has_single_bit_set(type & BTRFS_BLOCK_GROUP_PROFILE_MASK) &&
 	    (type & BTRFS_BLOCK_GROUP_PROFILE_MASK) != 0) {
 		chunk_err(leaf, chunk, logical,
 		"invalid chunk profile flag: 0x%llx, expect 0 or 1 bit set",
@@ -808,11 +809,11 @@ static int check_inode_item(struct extent_buffer *leaf,
 	}
 
 	/*
-	 * S_IFMT is not bit mapped so we can't completely rely on is_power_of_2,
-	 * but is_power_of_2() can save us from checking FIFO/CHR/DIR/REG.
-	 * Only needs to check BLK, LNK and SOCKS
+	 * S_IFMT is not bit mapped so we can't completely rely on
+	 * is_power_of_2/has_single_bit_set, but it can save us from checking
+	 * FIFO/CHR/DIR/REG.  Only needs to check BLK, LNK and SOCKS
 	 */
-	if (!is_power_of_2(mode & S_IFMT)) {
+	if (!has_single_bit_set(mode & S_IFMT)) {
 		if (!S_ISLNK(mode) && !S_ISBLK(mode) && !S_ISSOCK(mode)) {
 			inode_item_err(fs_info, leaf, slot,
 			"invalid mode: has 0%o expect valid S_IF* bit(s)",
@@ -1033,8 +1034,8 @@ static int check_extent_item(struct extent_buffer *leaf,
 			   btrfs_super_generation(fs_info->super_copy) + 1);
 		return -EUCLEAN;
 	}
-	if (!is_power_of_2(flags & (BTRFS_EXTENT_FLAG_DATA |
-				    BTRFS_EXTENT_FLAG_TREE_BLOCK))) {
+	if (!has_single_bit_set(flags & (BTRFS_EXTENT_FLAG_DATA |
+					 BTRFS_EXTENT_FLAG_TREE_BLOCK))) {
 		extent_err(leaf, slot,
 		"invalid extent flag, have 0x%llx expect 1 bit set in 0x%llx",
 			flags, BTRFS_EXTENT_FLAG_DATA |
