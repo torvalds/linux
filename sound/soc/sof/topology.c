@@ -808,6 +808,13 @@ static const struct sof_topology_token dmic_tokens[] = {
 
 };
 
+/* ESAI */
+static const struct sof_topology_token esai_tokens[] = {
+	{SOF_TKN_IMX_ESAI_MCLK_ID,
+		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
+		offsetof(struct sof_ipc_dai_esai_params, mclk_id), 0},
+};
+
 /*
  * DMIC PDM Tokens
  * SOF_TKN_INTEL_DMIC_PDM_CTRL_ID should be the first token
@@ -2561,8 +2568,66 @@ static int sof_link_esai_load(struct snd_soc_component *scomp, int index,
 			      struct snd_soc_tplg_hw_config *hw_config,
 			      struct sof_ipc_dai_config *config)
 {
-	/*TODO: Add implementation */
-	return 0;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_private *private = &cfg->priv;
+	struct sof_ipc_reply reply;
+	u32 size = sizeof(*config);
+	int ret;
+
+	/* handle master/slave and inverted clocks */
+	sof_dai_set_format(hw_config, config);
+
+	/* init IPC */
+	memset(&config->esai, 0, sizeof(struct sof_ipc_dai_esai_params));
+	config->hdr.size = size;
+
+	ret = sof_parse_tokens(scomp, &config->esai, esai_tokens,
+			       ARRAY_SIZE(esai_tokens), private->array,
+			       le32_to_cpu(private->size));
+	if (ret != 0) {
+		dev_err(sdev->dev, "error: parse esai tokens failed %d\n",
+			le32_to_cpu(private->size));
+		return ret;
+	}
+
+	config->esai.mclk_rate = le32_to_cpu(hw_config->mclk_rate);
+	config->esai.bclk_rate = le32_to_cpu(hw_config->bclk_rate);
+	config->esai.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
+	config->esai.mclk_direction = hw_config->mclk_direction;
+	config->esai.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
+	config->esai.tdm_slot_width = le32_to_cpu(hw_config->tdm_slot_width);
+	config->esai.rx_slots = le32_to_cpu(hw_config->rx_slots);
+	config->esai.tx_slots = le32_to_cpu(hw_config->tx_slots);
+
+	dev_info(sdev->dev,
+		 "tplg: config ESAI%d fmt 0x%x mclk %d width %d slots %d mclk id %d\n",
+		config->dai_index, config->format,
+		config->esai.mclk_rate, config->esai.tdm_slot_width,
+		config->esai.tdm_slots, config->esai.mclk_id);
+
+	if (config->esai.tdm_slots < 1 || config->esai.tdm_slots > 8) {
+		dev_err(sdev->dev, "error: invalid channel count for ESAI%d\n",
+			config->dai_index);
+		return -EINVAL;
+	}
+
+	/* send message to DSP */
+	ret = sof_ipc_tx_message(sdev->ipc,
+				 config->hdr.cmd, config, size, &reply,
+				 sizeof(reply));
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: failed to set DAI config for ESAI%d\n",
+			config->dai_index);
+		return ret;
+	}
+
+	/* set config for all DAI's with name matching the link name */
+	ret = sof_set_dai_config(sdev, size, link, config);
+	if (ret < 0)
+		dev_err(sdev->dev, "error: failed to save DAI config for ESAI%d\n",
+			config->dai_index);
+
+	return ret;
 }
 
 static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,

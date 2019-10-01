@@ -691,6 +691,14 @@ static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 	case SOF_DAI_INTEL_ALH:
 		/* do nothing for ALH dai_link */
 		break;
+	case SOF_DAI_IMX_ESAI:
+		channels->min = dai->dai_config->esai.tdm_slots;
+		channels->max = dai->dai_config->esai.tdm_slots;
+
+		dev_dbg(sdev->dev,
+			"channels_min: %d channels_max: %d\n",
+			channels->min, channels->max);
+		break;
 	default:
 		dev_err(sdev->dev, "error: invalid DAI type %d\n",
 			dai->dai_config->type);
