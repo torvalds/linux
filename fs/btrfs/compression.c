@@ -53,6 +53,7 @@ int zstd_decompress(struct list_head *ws, unsigned char *data_in,
 		struct page *dest_page, unsigned long start_byte, size_t srclen,
 		size_t destlen);
 void zstd_init_workspace_manager(void);
+void zstd_cleanup_workspace_manager(void);
 
 static const char* const btrfs_compress_types[] = { "", "zlib", "lzo", "zstd" };
 
@@ -861,11 +862,6 @@ struct heuristic_ws {
 
 static struct workspace_manager heuristic_wsm;
 
-static void heuristic_cleanup_workspace_manager(void)
-{
-	btrfs_cleanup_workspace_manager(BTRFS_COMPRESS_NONE);
-}
-
 static struct list_head *heuristic_get_workspace(unsigned int level)
 {
 	return btrfs_get_workspace(&heuristic_wsm, level);
@@ -917,7 +913,6 @@ fail:
 
 const struct btrfs_compress_op btrfs_heuristic_compress = {
 	.workspace_manager = &heuristic_wsm,
-	.cleanup_workspace_manager = heuristic_cleanup_workspace_manager,
 	.get_workspace = heuristic_get_workspace,
 	.put_workspace = heuristic_put_workspace,
 	.alloc_workspace = alloc_heuristic_ws,
@@ -960,7 +955,7 @@ static void btrfs_init_workspace_manager(int type)
 	}
 }
 
-void btrfs_cleanup_workspace_manager(int type)
+static void btrfs_cleanup_workspace_manager(int type)
 {
 	struct workspace_manager *wsman;
 	struct list_head *ws;
@@ -1199,10 +1194,10 @@ void __init btrfs_init_compress(void)
 
 void __cold btrfs_exit_compress(void)
 {
-	int i;
-
-	for (i = 0; i < BTRFS_NR_WORKSPACE_MANAGERS; i++)
-		btrfs_compress_op[i]->cleanup_workspace_manager();
+	btrfs_cleanup_workspace_manager(BTRFS_COMPRESS_NONE);
+	btrfs_cleanup_workspace_manager(BTRFS_COMPRESS_ZLIB);
+	btrfs_cleanup_workspace_manager(BTRFS_COMPRESS_LZO);
+	zstd_cleanup_workspace_manager();
 }
 
 /*

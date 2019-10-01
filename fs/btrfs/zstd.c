@@ -194,7 +194,7 @@ void zstd_init_workspace_manager(void)
 	}
 }
 
-static void zstd_cleanup_workspace_manager(void)
+void zstd_cleanup_workspace_manager(void)
 {
 	struct workspace *workspace;
 	int i;
@@ -709,7 +709,6 @@ finish:
 const struct btrfs_compress_op btrfs_zstd_compress = {
 	/* ZSTD uses own workspace manager */
 	.workspace_manager = NULL,
-	.cleanup_workspace_manager = zstd_cleanup_workspace_manager,
 	.get_workspace = zstd_get_workspace,
 	.put_workspace = zstd_put_workspace,
 	.alloc_workspace = zstd_alloc_workspace,
