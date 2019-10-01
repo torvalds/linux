@@ -1670,7 +1670,7 @@ bad:
 }
 
 /* Setup recovery on @rs */
-static void __rs_setup_recovery(struct raid_set *rs, sector_t dev_sectors)
+static void rs_setup_recovery(struct raid_set *rs, sector_t dev_sectors)
 {
 	/* raid0 does not recover */
 	if (rs_is_raid0(rs))
@@ -1689,22 +1689,6 @@ static void __rs_setup_recovery(struct raid_set *rs, sector_t dev_sectors)
 	else
 		rs->md.recovery_cp = test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags)
 				     ? MaxSector : dev_sectors;
-}
-
-/* Setup recovery on @rs based on raid type, device size and 'nosync' flag */
-static void rs_setup_recovery(struct raid_set *rs, sector_t dev_sectors)
-{
-	if (!dev_sectors)
-		/* New raid set or 'sync' flag provided */
-		__rs_setup_recovery(rs, 0);
-	else if (dev_sectors == MaxSector)
-		/* Prevent recovery */
-		__rs_setup_recovery(rs, MaxSector);
-	else if (__rdev_sectors(rs) < dev_sectors)
-		/* Grown raid set */
-		__rs_setup_recovery(rs, __rdev_sectors(rs));
-	else
-		__rs_setup_recovery(rs, MaxSector);
 }
 
 static void do_table_event(struct work_struct *ws)
@@ -2474,7 +2458,7 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 		return -EINVAL;
 	}
 
-	/* Enable bitmap creation for RAID levels != 0 */
+	/* Enable bitmap creation on @rs unless no metadevs or raid0 or journaled raid4/5/6 set. */
 	mddev->bitmap_info.offset = (rt_is_raid0(rs->raid_type) || rs->journal_dev.dev) ? 0 : to_sector(4096);
 	mddev->bitmap_info.default_offset = mddev->bitmap_info.offset;
 
@@ -3173,7 +3157,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		rs_setup_recovery(rs, MaxSector);
 		rs_set_new(rs);
 	} else if (rs_reshape_requested(rs)) {
-		/* Only on size extensions, not on reshapes. */
+		/* Only request grow on raid set size extensions, not on reshapes. */
 		clear_bit(RT_FLAG_RS_GROW, &rs->runtime_flags);
 
 		/*
@@ -3211,10 +3195,11 @@ size_check:
 		if (test_bit(__CTR_FLAG_REBUILD, &rs->ctr_flags)) {
 			clear_bit(RT_FLAG_RS_GROW, &rs->runtime_flags);
 			set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
+			rs_setup_recovery(rs, MaxSector);
 		} else if (test_bit(RT_FLAG_RS_GROW, &rs->runtime_flags)) {
 			/*
-			 * Set raid set to current size, i.e. non-grown size
-			 * as of superblocks to grow to new size in preresume.
+			 * Set raid set to current size, i.e. size as of
+			 * superblocks to grow to larger size in preresume.
 			 */
 			r = rs_set_dev_and_array_sectors(rs, sb_array_sectors, false);
 			if (r)
