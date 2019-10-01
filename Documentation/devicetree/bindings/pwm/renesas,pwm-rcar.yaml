@@ -18,6 +18,7 @@ properties:
           - renesas,pwm-r8a7745   # RZ/G1E
           - renesas,pwm-r8a77470  # RZ/G1C
           - renesas,pwm-r8a774a1  # RZ/G2M
+          - renesas,pwm-r8a774b1  # RZ/G2N
           - renesas,pwm-r8a774c0  # RZ/G2E
           - renesas,pwm-r8a7778   # R-Car M1A
           - renesas,pwm-r8a7779   # R-Car H1
