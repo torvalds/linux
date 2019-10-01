@@ -85,7 +85,7 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 			"	" __INS "%0, %3, %2, 1			\n"
 			"	" __SC "%0, %1				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-			: "ir" (bit), "r" (~0)
+			: "i" (bit), "r" (~0)
 			: __LLSC_CLOBBER);
 		} while (unlikely(!temp));
 		return;
@@ -150,7 +150,7 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 			"	" __INS "%0, $0, %2, 1			\n"
 			"	" __SC "%0, %1				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-			: "ir" (bit)
+			: "i" (bit)
 			: __LLSC_CLOBBER);
 		} while (unlikely(!temp));
 		return;
@@ -383,7 +383,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 			"	" __INS "%0, $0, %3, 1			\n"
 			"	" __SC	"%0, %1				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
-			: "ir" (bit)
+			: "i" (bit)
 			: __LLSC_CLOBBER);
 		} while (unlikely(!temp));
 	} else {
