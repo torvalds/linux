@@ -1619,8 +1619,9 @@ int ionic_reset_queues(struct ionic_lif *lif)
 	/* Put off the next watchdog timeout */
 	netif_trans_update(lif->netdev);
 
-	if (!ionic_wait_for_bit(lif, IONIC_LIF_QUEUE_RESET))
-		return -EBUSY;
+	err = ionic_wait_for_bit(lif, IONIC_LIF_QUEUE_RESET);
+	if (err)
+		return err;
 
 	running = netif_running(lif->netdev);
 	if (running)

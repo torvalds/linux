@@ -185,15 +185,10 @@ struct ionic_lif {
 #define lif_to_txq(lif, i)	(&lif_to_txqcq((lif), i)->q)
 #define lif_to_rxq(lif, i)	(&lif_to_txqcq((lif), i)->q)
 
+/* return 0 if successfully set the bit, else non-zero */
 static inline int ionic_wait_for_bit(struct ionic_lif *lif, int bitname)
 {
-	unsigned long tlimit = jiffies + HZ;
-
-	while (test_and_set_bit(bitname, lif->state) &&
-	       time_before(jiffies, tlimit))
-		usleep_range(100, 200);
-
-	return test_bit(bitname, lif->state);
+	return wait_on_bit_lock(lif->state, bitname, TASK_INTERRUPTIBLE);
 }
 
 static inline u32 ionic_coal_usec_to_hw(struct ionic *ionic, u32 usecs)
