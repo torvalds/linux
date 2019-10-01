@@ -89,17 +89,13 @@ static inline void wmb(void)
 #endif /* !CONFIG_CPU_HAS_WB */
 
 #if defined(CONFIG_WEAK_ORDERING)
-# ifdef CONFIG_CPU_CAVIUM_OCTEON
-#  define __smp_mb()	__sync()
-# else
-#  define __smp_mb()	__asm__ __volatile__("sync" : : :"memory")
-# endif
+# define __smp_mb()	__sync()
 # define __smp_rmb()	rmb()
 # define __smp_wmb()	wmb()
 #else
-#define __smp_mb()	barrier()
-#define __smp_rmb()	barrier()
-#define __smp_wmb()	barrier()
+# define __smp_mb()	barrier()
+# define __smp_rmb()	barrier()
+# define __smp_wmb()	barrier()
 #endif
 
 /*
