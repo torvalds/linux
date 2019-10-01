@@ -36,7 +36,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/pnp.h>
 #include <linux/slab.h>
-#include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 #include <linux/vt.h>
 #include <acpi/video.h>
@@ -59,6 +58,7 @@
 #include "display/intel_overlay.h"
 #include "display/intel_pipe_crc.h"
 #include "display/intel_sprite.h"
+#include "display/intel_vga.h"
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
@@ -269,19 +269,6 @@ intel_teardown_mchbar(struct drm_i915_private *dev_priv)
 		release_resource(&dev_priv->mch_res);
 }
 
-/* true = enable decode, false = disable decoder */
-static unsigned int i915_vga_set_decode(void *cookie, bool state)
-{
-	struct drm_i915_private *dev_priv = cookie;
-
-	intel_modeset_vga_set_state(dev_priv, state);
-	if (state)
-		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
-		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
-	else
-		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
-}
-
 static int i915_resume_switcheroo(struct drm_i915_private *i915);
 static int i915_suspend_switcheroo(struct drm_i915_private *i915,
 				   pm_message_t state);
@@ -346,15 +333,8 @@ static int i915_driver_modeset_probe(struct drm_i915_private *i915)
 
 	intel_bios_init(i915);
 
-	/* If we have > 1 VGA cards, then we need to arbitrate access
-	 * to the common VGA resources.
-	 *
-	 * If we are a secondary display controller (!PCI_DISPLAY_CLASS_VGA),
-	 * then we do not take part in VGA arbitration and the
-	 * vga_client_register() fails with -ENODEV.
-	 */
-	ret = vga_client_register(pdev, i915, NULL, i915_vga_set_decode);
-	if (ret && ret != -ENODEV)
+	ret = intel_vga_register(i915);
+	if (ret)
 		goto out;
 
 	intel_register_dsm_handler();
@@ -416,7 +396,7 @@ cleanup_csr:
 	intel_power_domains_driver_remove(i915);
 	vga_switcheroo_unregister_client(pdev);
 cleanup_vga_client:
-	vga_client_register(pdev, NULL, NULL, NULL);
+	intel_vga_unregister(i915);
 out:
 	return ret;
 }
@@ -455,7 +435,7 @@ static void i915_driver_modeset_remove(struct drm_i915_private *i915)
 	intel_bios_driver_remove(i915);
 
 	vga_switcheroo_unregister_client(pdev);
-	vga_client_register(pdev, NULL, NULL, NULL);
+	intel_vga_unregister(i915);
 
 	intel_csr_ucode_fini(i915);
 }

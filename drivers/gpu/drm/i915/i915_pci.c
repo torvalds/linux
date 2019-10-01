@@ -23,7 +23,6 @@
  */
 
 #include <linux/console.h>
-#include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 
 #include <drm/drm_drv.h>

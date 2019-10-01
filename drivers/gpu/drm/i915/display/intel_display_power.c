@@ -3,8 +3,6 @@
  * Copyright © 2019 Intel Corporation
  */
 
-#include <linux/vgaarb.h>
-
 #include "display/intel_crt.h"
 #include "display/intel_dp.h"
 
@@ -19,6 +17,7 @@
 #include "intel_hotplug.h"
 #include "intel_sideband.h"
 #include "intel_tc.h"
+#include "intel_vga.h"
 
 bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 					 enum i915_power_well_id power_well_id);
@@ -267,23 +266,8 @@ bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv,
 				       u8 irq_pipe_mask, bool has_vga)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
-
-	/*
-	 * After we re-enable the power well, if we touch VGA register 0x3d5
-	 * we'll get unclaimed register interrupts. This stops after we write
-	 * anything to the VGA MSR register. The vgacon module uses this
-	 * register all the time, so if we unbind our driver and, as a
-	 * consequence, bind vgacon, we'll get stuck in an infinite loop at
-	 * console_unlock(). So make here we touch the VGA MSR register, making
-	 * sure vgacon can keep working normally without triggering interrupts
-	 * and error messages.
-	 */
-	if (has_vga) {
-		vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
-		outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
-		vga_put(pdev, VGA_RSRC_LEGACY_IO);
-	}
+	if (has_vga)
+		intel_vga_msr_write(dev_priv);
 
 	if (irq_pipe_mask)
 		gen8_irq_power_well_post_enable(dev_priv, irq_pipe_mask);
@@ -1205,7 +1189,7 @@ static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 			intel_crt_reset(&encoder->base);
 	}
 
-	i915_redisable_vga_power_on(dev_priv);
+	intel_vga_redisable_power_on(dev_priv);
 
 	intel_pps_unlock_regs_wa(dev_priv);
 }

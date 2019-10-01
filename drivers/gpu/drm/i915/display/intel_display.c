@@ -31,7 +31,6 @@
 #include <linux/module.h>
 #include <linux/dma-resv.h>
 #include <linux/slab.h>
-#include <linux/vgaarb.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -79,6 +78,7 @@
 #include "intel_sideband.h"
 #include "intel_sprite.h"
 #include "intel_tc.h"
+#include "intel_vga.h"
 
 /* Primary plane formats for gen <= 3 */
 static const u32 i8xx_primary_formats[] = {
@@ -4241,7 +4241,7 @@ __intel_display_resume(struct drm_device *dev,
 	int i, ret;
 
 	intel_modeset_setup_hw_state(dev, ctx);
-	i915_redisable_vga(to_i915(dev));
+	intel_vga_redisable(to_i915(dev));
 
 	if (!state)
 		return 0;
@@ -15994,35 +15994,6 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 
 }
 
-static i915_reg_t i915_vgacntrl_reg(struct drm_i915_private *dev_priv)
-{
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		return VLV_VGACNTRL;
-	else if (INTEL_GEN(dev_priv) >= 5)
-		return CPU_VGACNTRL;
-	else
-		return VGACNTRL;
-}
-
-/* Disable the VGA plane that we never use */
-static void i915_disable_vga(struct drm_i915_private *dev_priv)
-{
-	struct pci_dev *pdev = dev_priv->drm.pdev;
-	u8 sr1;
-	i915_reg_t vga_reg = i915_vgacntrl_reg(dev_priv);
-
-	/* WaEnableVGAAccessThroughIOPort:ctg,elk,ilk,snb,ivb,vlv,hsw */
-	vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
-	outb(SR01, VGA_SR_INDEX);
-	sr1 = inb(VGA_SR_DATA);
-	outb(sr1 | 1<<5, VGA_SR_DATA);
-	vga_put(pdev, VGA_RSRC_LEGACY_IO);
-	udelay(300);
-
-	I915_WRITE(vga_reg, VGA_DISP_DISABLE);
-	POSTING_READ(vga_reg);
-}
-
 void intel_modeset_init_hw(struct drm_i915_private *i915)
 {
 	intel_update_cdclk(i915);
@@ -16288,7 +16259,7 @@ int intel_modeset_init(struct drm_i915_private *i915)
 		intel_update_max_cdclk(i915);
 
 	/* Just disable it once at startup */
-	i915_disable_vga(i915);
+	intel_vga_disable(i915);
 	intel_setup_outputs(i915);
 
 	drm_modeset_lock_all(dev);
@@ -16645,39 +16616,6 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_sanitize_encoder_pll_mapping(encoder);
-}
-
-void i915_redisable_vga_power_on(struct drm_i915_private *dev_priv)
-{
-	i915_reg_t vga_reg = i915_vgacntrl_reg(dev_priv);
-
-	if (!(I915_READ(vga_reg) & VGA_DISP_DISABLE)) {
-		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
-		i915_disable_vga(dev_priv);
-	}
-}
-
-void i915_redisable_vga(struct drm_i915_private *dev_priv)
-{
-	intel_wakeref_t wakeref;
-
-	/*
-	 * This function can be called both from intel_modeset_setup_hw_state or
-	 * at a very early point in our resume sequence, where the power well
-	 * structures are not yet restored. Since this function is at a very
-	 * paranoid "someone might have enabled VGA while we were not looking"
-	 * level, just check if the power well is enabled instead of trying to
-	 * follow the "don't touch the power well if we don't need it" policy
-	 * the rest of the driver uses.
-	 */
-	wakeref = intel_display_power_get_if_enabled(dev_priv,
-						     POWER_DOMAIN_VGA);
-	if (!wakeref)
-		return;
-
-	i915_redisable_vga_power_on(dev_priv);
-
-	intel_display_power_put(dev_priv, POWER_DOMAIN_VGA, wakeref);
 }
 
 /* FIXME read out full plane state for all planes */
@@ -17186,35 +17124,6 @@ void intel_modeset_driver_remove(struct drm_i915_private *i915)
 	destroy_workqueue(i915->modeset_wq);
 
 	intel_fbc_cleanup_cfb(i915);
-}
-
-/*
- * set vga decode state - true == enable VGA decode
- */
-int intel_modeset_vga_set_state(struct drm_i915_private *dev_priv, bool state)
-{
-	unsigned reg = INTEL_GEN(dev_priv) >= 6 ? SNB_GMCH_CTRL : INTEL_GMCH_CTRL;
-	u16 gmch_ctrl;
-
-	if (pci_read_config_word(dev_priv->bridge_dev, reg, &gmch_ctrl)) {
-		DRM_ERROR("failed to read control word\n");
-		return -EIO;
-	}
-
-	if (!!(gmch_ctrl & INTEL_GMCH_VGA_DISABLE) == !state)
-		return 0;
-
-	if (state)
-		gmch_ctrl &= ~INTEL_GMCH_VGA_DISABLE;
-	else
-		gmch_ctrl |= INTEL_GMCH_VGA_DISABLE;
-
-	if (pci_write_config_word(dev_priv->bridge_dev, reg, gmch_ctrl)) {
-		DRM_ERROR("failed to write control word\n");
-		return -EIO;
-	}
-
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
