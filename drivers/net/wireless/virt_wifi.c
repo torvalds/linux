@@ -13,6 +13,7 @@
 #include <net/rtnetlink.h>
 #include <linux/etherdevice.h>
 #include <linux/module.h>
+#include <net/virt_wifi.h>
 
 static struct wiphy *common_wiphy;
 
@@ -20,6 +21,7 @@ struct virt_wifi_wiphy_priv {
 	struct delayed_work scan_result;
 	struct cfg80211_scan_request *scan_request;
 	bool being_deleted;
+	struct virt_wifi_network_simulation *network_simulation;
 };
 
 static struct ieee80211_channel channel_2ghz = {
@@ -148,6 +150,9 @@ static int virt_wifi_scan(struct wiphy *wiphy,
 
 	priv->scan_request = request;
 	schedule_delayed_work(&priv->scan_result, HZ * 2);
+	if (priv->network_simulation &&
+	    priv->network_simulation->notify_scan_trigger)
+		priv->network_simulation->notify_scan_trigger(wiphy, request);
 
 	return 0;
 }
@@ -177,6 +182,12 @@ static void virt_wifi_scan_result(struct work_struct *work)
 					   (void *)&ssid, sizeof(ssid),
 					   DBM_TO_MBM(-50), GFP_KERNEL);
 	cfg80211_put_bss(wiphy, informed_bss);
+
+	if(priv->network_simulation &&
+	   priv->network_simulation->generate_virt_scan_result) {
+		if(priv->network_simulation->generate_virt_scan_result(wiphy))
+			wiphy_err(wiphy, "Fail to generater the simulated scan result.\n");
+	}
 
 	/* Schedules work which acquires and releases the rtnl lock. */
 	cfg80211_scan_done(priv->scan_request, &scan_info);
@@ -365,6 +376,8 @@ static struct wiphy *virt_wifi_make_wiphy(void)
 	priv = wiphy_priv(wiphy);
 	priv->being_deleted = false;
 	priv->scan_request = NULL;
+	priv->network_simulation = NULL;
+
 	INIT_DELAYED_WORK(&priv->scan_result, virt_wifi_scan_result);
 
 	err = wiphy_register(wiphy);
@@ -380,7 +393,6 @@ static struct wiphy *virt_wifi_make_wiphy(void)
 static void virt_wifi_destroy_wiphy(struct wiphy *wiphy)
 {
 	struct virt_wifi_wiphy_priv *priv;
-
 	WARN(!wiphy, "%s called with null wiphy", __func__);
 	if (!wiphy)
 		return;
@@ -414,8 +426,13 @@ static netdev_tx_t virt_wifi_start_xmit(struct sk_buff *skb,
 static int virt_wifi_net_device_open(struct net_device *dev)
 {
 	struct virt_wifi_netdev_priv *priv = netdev_priv(dev);
-
+	struct virt_wifi_wiphy_priv *w_priv;
 	priv->is_up = true;
+	w_priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
+	if(w_priv->network_simulation &&
+	   w_priv->network_simulation->notify_device_open)
+		w_priv->network_simulation->notify_device_open(dev);
+
 	return 0;
 }
 
@@ -423,15 +440,21 @@ static int virt_wifi_net_device_open(struct net_device *dev)
 static int virt_wifi_net_device_stop(struct net_device *dev)
 {
 	struct virt_wifi_netdev_priv *n_priv = netdev_priv(dev);
+	struct virt_wifi_wiphy_priv *w_priv;
 
 	n_priv->is_up = false;
 
 	if (!dev->ieee80211_ptr)
 		return 0;
+	w_priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
 
 	virt_wifi_cancel_scan(dev->ieee80211_ptr->wiphy);
 	virt_wifi_cancel_connect(dev);
 	netif_carrier_off(dev);
+
+	if (w_priv->network_simulation &&
+	    w_priv->network_simulation->notify_device_stop)
+		w_priv->network_simulation->notify_device_stop(dev);
 
 	return 0;
 }
@@ -616,6 +639,27 @@ static void __exit virt_wifi_cleanup_module(void)
 	rtnl_link_unregister(&virt_wifi_link_ops);
 	virt_wifi_destroy_wiphy(common_wiphy);
 }
+
+int virt_wifi_register_network_simulation
+	(struct virt_wifi_network_simulation *ops)
+{
+	struct virt_wifi_wiphy_priv *priv = wiphy_priv(common_wiphy);
+	if (priv->network_simulation)
+		return -EEXIST;
+	priv->network_simulation = ops;
+	return 0;
+}
+EXPORT_SYMBOL(virt_wifi_register_network_simulation);
+
+int virt_wifi_unregister_network_simulation(void)
+{
+	struct virt_wifi_wiphy_priv *priv = wiphy_priv(common_wiphy);
+	if(!priv->network_simulation)
+		return -ENODATA;
+	priv->network_simulation = NULL;
+	return 0;
+}
+EXPORT_SYMBOL(virt_wifi_unregister_network_simulation);
 
 module_init(virt_wifi_init_module);
 module_exit(virt_wifi_cleanup_module);
