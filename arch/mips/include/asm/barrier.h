@@ -11,20 +11,10 @@
 #include <asm/addrspace.h>
 #include <asm/sync.h>
 
-#ifdef CONFIG_CPU_HAS_SYNC
-#define __sync()				\
-	__asm__ __volatile__(			\
-		".set	push\n\t"		\
-		".set	noreorder\n\t"		\
-		".set	mips2\n\t"		\
-		"sync\n\t"			\
-		".set	pop"			\
-		: /* no output */		\
-		: /* no input */		\
-		: "memory")
-#else
-#define __sync()	do { } while(0)
-#endif
+static inline void __sync(void)
+{
+	asm volatile(__SYNC(full, always) ::: "memory");
+}
 
 static inline void rmb(void)
 {
