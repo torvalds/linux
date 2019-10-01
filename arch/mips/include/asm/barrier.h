@@ -163,7 +163,7 @@ static inline void wmb(void)
 
 static inline void sync_ginv(void)
 {
-	asm volatile("sync\t%0" :: "i"(__SYNC_ginv));
+	asm volatile(__SYNC(ginv, always));
 }
 
 #include <asm-generic/barrier.h>
