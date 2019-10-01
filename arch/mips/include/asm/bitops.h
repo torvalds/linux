@@ -31,6 +31,7 @@
 	asm volatile(						\
 	"	.set		push			\n"	\
 	"	.set		" MIPS_ISA_LEVEL "	\n"	\
+	"	" __SYNC(full, loongson3_war) "		\n"	\
 	"1:	" __LL		"%0, %1			\n"	\
 	"	" insn		"			\n"	\
 	"	" __SC		"%0, %1			\n"	\
@@ -47,6 +48,7 @@
 	asm volatile(						\
 	"	.set		push			\n"	\
 	"	.set		" MIPS_ISA_LEVEL "	\n"	\
+	"	" __SYNC(full, loongson3_war) "		\n"	\
 	"1:	" __LL		ll_dst ", %2		\n"	\
 	"	" insn		"			\n"	\
 	"	" __SC		"%1, %2			\n"	\
@@ -96,12 +98,10 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 	}
 
 	if ((MIPS_ISA_REV >= 2) && __builtin_constant_p(bit) && (bit >= 16)) {
-		loongson_llsc_mb();
 		__bit_op(*m, __INS "%0, %3, %2, 1", "i"(bit), "r"(~0));
 		return;
 	}
 
-	loongson_llsc_mb();
 	__bit_op(*m, "or\t%0, %2", "ir"(BIT(bit)));
 }
 
@@ -126,12 +126,10 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 	}
 
 	if ((MIPS_ISA_REV >= 2) && __builtin_constant_p(bit)) {
-		loongson_llsc_mb();
 		__bit_op(*m, __INS "%0, $0, %2, 1", "i"(bit));
 		return;
 	}
 
-	loongson_llsc_mb();
 	__bit_op(*m, "and\t%0, %2", "ir"(~BIT(bit)));
 }
 
@@ -168,7 +166,6 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 		return;
 	}
 
-	loongson_llsc_mb();
 	__bit_op(*m, "xor\t%0, %2", "ir"(BIT(bit)));
 }
 
@@ -190,7 +187,6 @@ static inline int test_and_set_bit_lock(unsigned long nr,
 	if (!kernel_uses_llsc) {
 		res = __mips_test_and_set_bit_lock(nr, addr);
 	} else {
-		loongson_llsc_mb();
 		orig = __test_bit_op(*m, "%0",
 				     "or\t%1, %0, %3",
 				     "ir"(BIT(bit)));
@@ -237,13 +233,11 @@ static inline int test_and_clear_bit(unsigned long nr,
 	if (!kernel_uses_llsc) {
 		res = __mips_test_and_clear_bit(nr, addr);
 	} else if ((MIPS_ISA_REV >= 2) && __builtin_constant_p(nr)) {
-		loongson_llsc_mb();
 		res = __test_bit_op(*m, "%1",
 				    __EXT "%0, %1, %3, 1;"
 				    __INS "%1, $0, %3, 1",
 				    "i"(bit));
 	} else {
-		loongson_llsc_mb();
 		orig = __test_bit_op(*m, "%0",
 				     "or\t%1, %0, %3;"
 				     "xor\t%1, %1, %3",
@@ -276,7 +270,6 @@ static inline int test_and_change_bit(unsigned long nr,
 	if (!kernel_uses_llsc) {
 		res = __mips_test_and_change_bit(nr, addr);
 	} else {
-		loongson_llsc_mb();
 		orig = __test_bit_op(*m, "%0",
 				     "xor\t%1, %0, %3",
 				     "ir"(BIT(bit)));
