@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <net/sock.h>
 #include <linux/workqueue.h>
+#include <linux/rcupdate.h>
 #include <linux/soc/qcom/qmi.h>
 
 static struct socket *qmi_sock_create(struct qmi_handle *qmi,
@@ -560,16 +561,17 @@ static void qmi_data_ready_work(struct work_struct *work)
 
 static void qmi_data_ready(struct sock *sk)
 {
-	struct qmi_handle *qmi = sk->sk_user_data;
+	struct qmi_handle *qmi = NULL;
 
 	/*
 	 * This will be NULL if we receive data while being in
 	 * qmi_handle_release()
 	 */
-	if (!qmi)
-		return;
-
-	queue_work(qmi->wq, &qmi->work);
+	rcu_read_lock();
+	qmi = rcu_dereference_sk_user_data(sk);
+	if (qmi)
+		queue_work(qmi->wq, &qmi->work);
+	rcu_read_unlock();
 }
 
 static struct socket *qmi_sock_create(struct qmi_handle *qmi,
@@ -589,7 +591,7 @@ static struct socket *qmi_sock_create(struct qmi_handle *qmi,
 		return ERR_PTR(ret);
 	}
 
-	sock->sk->sk_user_data = qmi;
+	rcu_assign_sk_user_data(sock->sk, qmi);
 	sock->sk->sk_data_ready = qmi_data_ready;
 	sock->sk->sk_error_report = qmi_data_ready;
 
@@ -676,20 +678,22 @@ EXPORT_SYMBOL(qmi_handle_init);
  */
 void qmi_handle_release(struct qmi_handle *qmi)
 {
-	struct socket *sock = qmi->sock;
+	struct socket *sock;
 	struct qmi_service *svc, *tmp;
 	struct qmi_txn *txn;
 	int txn_id;
 
-	sock->sk->sk_user_data = NULL;
-	cancel_work_sync(&qmi->work);
-
-	qmi_recv_del_server(qmi, -1, -1);
-
 	mutex_lock(&qmi->sock_lock);
+	sock = qmi->sock;
+	rcu_assign_sk_user_data(sock->sk, NULL);
+	synchronize_rcu();
 	sock_release(sock);
 	qmi->sock = NULL;
 	mutex_unlock(&qmi->sock_lock);
+
+	cancel_work_sync(&qmi->work);
+
+	qmi_recv_del_server(qmi, -1, -1);
 
 	destroy_workqueue(qmi->wq);
 
