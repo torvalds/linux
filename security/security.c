@@ -607,7 +607,7 @@ int security_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 		return 0;
 	return call_int_hook(path_chown, 0, path, uid, gid);
 }
-EXPORT_SYMBOL(security_path_chown);
+EXPORT_SYMBOL_GPL(security_path_chown);
 
 int security_path_chroot(const struct path *path)
 {
