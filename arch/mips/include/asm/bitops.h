@@ -264,6 +264,8 @@ static inline int test_and_set_bit_lock(unsigned long nr,
 		: "=&r" (temp), "+m" (*m), "=&r" (res)
 		: "ir" (BIT(bit))
 		: __LLSC_CLOBBER);
+
+		res = res != 0;
 	} else {
 		loongson_llsc_mb();
 		do {
@@ -279,12 +281,12 @@ static inline int test_and_set_bit_lock(unsigned long nr,
 			: __LLSC_CLOBBER);
 		} while (unlikely(!res));
 
-		res = temp & BIT(bit);
+		res = (temp & BIT(bit)) != 0;
 	}
 
 	smp_llsc_mb();
 
-	return res != 0;
+	return res;
 }
 
 /*
@@ -335,6 +337,8 @@ static inline int test_and_clear_bit(unsigned long nr,
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
 		: "ir" (BIT(bit))
 		: __LLSC_CLOBBER);
+
+		res = res != 0;
 	} else if ((MIPS_ISA_REV >= 2) && __builtin_constant_p(nr)) {
 		loongson_llsc_mb();
 		do {
@@ -363,12 +367,12 @@ static inline int test_and_clear_bit(unsigned long nr,
 			: __LLSC_CLOBBER);
 		} while (unlikely(!res));
 
-		res = temp & BIT(bit);
+		res = (temp & BIT(bit)) != 0;
 	}
 
 	smp_llsc_mb();
 
-	return res != 0;
+	return res;
 }
 
 /*
@@ -403,6 +407,8 @@ static inline int test_and_change_bit(unsigned long nr,
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
 		: "ir" (BIT(bit))
 		: __LLSC_CLOBBER);
+
+		res = res != 0;
 	} else {
 		loongson_llsc_mb();
 		do {
@@ -418,12 +424,12 @@ static inline int test_and_change_bit(unsigned long nr,
 			: __LLSC_CLOBBER);
 		} while (unlikely(!res));
 
-		res = temp & BIT(bit);
+		res = (temp & BIT(bit)) != 0;
 	}
 
 	smp_llsc_mb();
 
-	return res != 0;
+	return res;
 }
 
 #include <asm-generic/bitops/non-atomic.h>
