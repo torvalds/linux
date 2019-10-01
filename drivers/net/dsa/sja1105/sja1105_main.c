@@ -2201,6 +2201,7 @@ static int sja1105_probe(struct spi_device *spi)
 	tagger_data = &priv->tagger_data;
 	skb_queue_head_init(&tagger_data->skb_rxtstamp_queue);
 	INIT_WORK(&tagger_data->rxtstamp_work, sja1105_rxtstamp_work);
+	spin_lock_init(&tagger_data->meta_lock);
 
 	/* Connections between dsa_port and sja1105_port */
 	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
