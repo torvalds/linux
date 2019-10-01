@@ -26,6 +26,18 @@
 #define __sync()	do { } while(0)
 #endif
 
+static inline void rmb(void)
+{
+	asm volatile(__SYNC(rmb, always) ::: "memory");
+}
+#define rmb rmb
+
+static inline void wmb(void)
+{
+	asm volatile(__SYNC(wmb, always) ::: "memory");
+}
+#define wmb wmb
+
 #define __fast_iob()				\
 	__asm__ __volatile__(			\
 		".set	push\n\t"		\
@@ -37,16 +49,9 @@
 		: "m" (*(int *)CKSEG1)		\
 		: "memory")
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
-# define OCTEON_SYNCW_STR	".set push\n.set arch=octeon\nsyncw\nsyncw\n.set pop\n"
-# define __syncw()	__asm__ __volatile__(OCTEON_SYNCW_STR : : : "memory")
-
-# define fast_wmb()	__syncw()
-# define fast_rmb()	barrier()
 # define fast_mb()	__sync()
 # define fast_iob()	do { } while (0)
 #else /* ! CONFIG_CPU_CAVIUM_OCTEON */
-# define fast_wmb()	__sync()
-# define fast_rmb()	__sync()
 # define fast_mb()	__sync()
 # ifdef CONFIG_SGI_IP28
 #  define fast_iob()				\
@@ -83,19 +88,14 @@
 
 #endif /* !CONFIG_CPU_HAS_WB */
 
-#define wmb()		fast_wmb()
-#define rmb()		fast_rmb()
-
 #if defined(CONFIG_WEAK_ORDERING)
 # ifdef CONFIG_CPU_CAVIUM_OCTEON
 #  define __smp_mb()	__sync()
-#  define __smp_rmb()	barrier()
-#  define __smp_wmb()	__syncw()
 # else
 #  define __smp_mb()	__asm__ __volatile__("sync" : : :"memory")
-#  define __smp_rmb()	__asm__ __volatile__("sync" : : :"memory")
-#  define __smp_wmb()	__asm__ __volatile__("sync" : : :"memory")
 # endif
+# define __smp_rmb()	rmb()
+# define __smp_wmb()	wmb()
 #else
 #define __smp_mb()	barrier()
 #define __smp_rmb()	barrier()
