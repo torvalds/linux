@@ -186,6 +186,30 @@ void perf_evlist__splice_list_tail(struct evlist *evlist,
 	}
 }
 
+int __evlist__set_tracepoints_handlers(struct evlist *evlist,
+				       const struct evsel_str_handler *assocs, size_t nr_assocs)
+{
+	struct evsel *evsel;
+	size_t i;
+	int err;
+
+	for (i = 0; i < nr_assocs; i++) {
+		// Adding a handler for an event not in this evlist, just ignore it.
+		evsel = perf_evlist__find_tracepoint_by_name(evlist, assocs[i].name);
+		if (evsel == NULL)
+			continue;
+
+		err = -EEXIST;
+		if (evsel->handler != NULL)
+			goto out;
+		evsel->handler = assocs[i].handler;
+	}
+
+	err = 0;
+out:
+	return err;
+}
+
 void __perf_evlist__set_leader(struct list_head *list)
 {
 	struct evsel *evsel, *leader;
