@@ -1510,6 +1510,28 @@ static int set_pflag_rx_striding_rq(struct net_device *netdev, bool enable)
 	return 0;
 }
 
+static int set_pflag_rx_no_csum_complete(struct net_device *netdev, bool enable)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_channels *channels = &priv->channels;
+	struct mlx5e_channel *c;
+	int i;
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state) ||
+	    priv->channels.params.xdp_prog)
+		return 0;
+
+	for (i = 0; i < channels->num; i++) {
+		c = channels->c[i];
+		if (enable)
+			__set_bit(MLX5E_RQ_STATE_NO_CSUM_COMPLETE, &c->rq.state);
+		else
+			__clear_bit(MLX5E_RQ_STATE_NO_CSUM_COMPLETE, &c->rq.state);
+	}
+
+	return 0;
+}
+
 static int mlx5e_handle_pflag(struct net_device *netdev,
 			      u32 wanted_flags,
 			      enum mlx5e_priv_flag flag,
@@ -1561,6 +1583,12 @@ static int mlx5e_set_priv_flags(struct net_device *netdev, u32 pflags)
 	err = mlx5e_handle_pflag(netdev, pflags,
 				 MLX5E_PFLAG_RX_STRIDING_RQ,
 				 set_pflag_rx_striding_rq);
+	if (err)
+		goto out;
+
+	err = mlx5e_handle_pflag(netdev, pflags,
+				 MLX5E_PFLAG_RX_NO_CSUM_COMPLETE,
+				 set_pflag_rx_no_csum_complete);
 
 out:
 	mutex_unlock(&priv->state_lock);

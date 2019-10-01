@@ -54,7 +54,7 @@ qla2x00_sp_timeout(struct timer_list *t)
 	unsigned long flags;
 	struct qla_hw_data *ha = sp->vha->hw;
 
-	WARN_ON(irqs_disabled());
+	WARN_ON_ONCE(irqs_disabled());
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	req = sp->qpair->req;
 	req->outstanding_cmds[sp->handle] = NULL;
@@ -796,6 +796,9 @@ qla24xx_async_gnl_sp_done(void *s, int res)
 	    sp->name, res, sp->u.iocb_cmd.u.mbx.in_mb[1],
 	    sp->u.iocb_cmd.u.mbx.in_mb[2]);
 
+	if (res == QLA_FUNCTION_TIMEOUT)
+		return;
+
 	memset(&ea, 0, sizeof(ea));
 	ea.sp = sp;
 	ea.rc = res;
@@ -979,17 +982,13 @@ void qla24xx_async_gpdb_sp_done(void *s, int res)
 	    "Async done-%s res %x, WWPN %8phC mb[1]=%x mb[2]=%x \n",
 	    sp->name, res, fcport->port_name, mb[1], mb[2]);
 
-	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
-
-	if (res == QLA_FUNCTION_TIMEOUT)
-		return;
-
 	if (res == QLA_FUNCTION_TIMEOUT) {
 		dma_pool_free(sp->vha->hw->s_dma_pool, sp->u.iocb_cmd.u.mbx.in,
 			sp->u.iocb_cmd.u.mbx.in_dma);
 		return;
 	}
 
+	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
 	memset(&ea, 0, sizeof(ea));
 	ea.event = FCME_GPDB_DONE;
 	ea.fcport = fcport;

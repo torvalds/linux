@@ -4045,6 +4045,41 @@ out:
 	}
 }
 
+static int qla2x00_post_gnnft_gpnft_done_work(struct scsi_qla_host *vha,
+    srb_t *sp, int cmd)
+{
+	struct qla_work_evt *e;
+
+	if (cmd != QLA_EVT_GPNFT_DONE && cmd != QLA_EVT_GNNFT_DONE)
+		return QLA_PARAMETER_ERROR;
+
+	e = qla2x00_alloc_work(vha, cmd);
+	if (!e)
+		return QLA_FUNCTION_FAILED;
+
+	e->u.iosb.sp = sp;
+
+	return qla2x00_post_work(vha, e);
+}
+
+static int qla2x00_post_nvme_gpnft_done_work(struct scsi_qla_host *vha,
+    srb_t *sp, int cmd)
+{
+	struct qla_work_evt *e;
+
+	if (cmd != QLA_EVT_GPNFT)
+		return QLA_PARAMETER_ERROR;
+
+	e = qla2x00_alloc_work(vha, cmd);
+	if (!e)
+		return QLA_FUNCTION_FAILED;
+
+	e->u.gpnft.fc4_type = FC4_TYPE_NVME;
+	e->u.gpnft.sp = sp;
+
+	return qla2x00_post_work(vha, e);
+}
+
 static void qla2x00_find_free_fcp_nvme_slot(struct scsi_qla_host *vha,
 	struct srb *sp)
 {
@@ -4145,22 +4180,36 @@ static void qla2x00_async_gpnft_gnnft_sp_done(void *s, int res)
 {
 	struct srb *sp = s;
 	struct scsi_qla_host *vha = sp->vha;
-	struct qla_work_evt *e;
 	struct ct_sns_req *ct_req =
 		(struct ct_sns_req *)sp->u.iocb_cmd.u.ctarg.req;
 	u16 cmd = be16_to_cpu(ct_req->command);
 	u8 fc4_type = sp->gen2;
 	unsigned long flags;
+	int rc;
 
 	/* gen2 field is holding the fc4type */
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "Async done-%s res %x FC4Type %x\n",
 	    sp->name, res, sp->gen2);
 
+	sp->rc = res;
 	if (res) {
 		unsigned long flags;
+		const char *name = sp->name;
 
-		sp->free(sp);
+		/*
+		 * We are in an Interrupt context, queue up this
+		 * sp for GNNFT_DONE work. This will allow all
+		 * the resource to get freed up.
+		 */
+		rc = qla2x00_post_gnnft_gpnft_done_work(vha, sp,
+		    QLA_EVT_GNNFT_DONE);
+		if (rc) {
+			/* Cleanup here to prevent memory leak */
+			qla24xx_sp_unmap(vha, sp);
+			sp->free(sp);
+		}
+
 		spin_lock_irqsave(&vha->work_lock, flags);
 		vha->scan.scan_flags &= ~SF_SCANNING;
 		vha->scan.scan_retry++;
@@ -4171,9 +4220,9 @@ static void qla2x00_async_gpnft_gnnft_sp_done(void *s, int res)
 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);
 		} else {
-			ql_dbg(ql_dbg_disc, sp->vha, 0xffff,
-			    "Async done-%s rescan failed on all retries\n",
-			    sp->name);
+			ql_dbg(ql_dbg_disc, vha, 0xffff,
+			    "Async done-%s rescan failed on all retries.\n",
+			    name);
 		}
 		return;
 	}
@@ -4188,77 +4237,31 @@ static void qla2x00_async_gpnft_gnnft_sp_done(void *s, int res)
 		vha->scan.scan_flags &= ~SF_SCANNING;
 		spin_unlock_irqrestore(&vha->work_lock, flags);
 
-		e = qla2x00_alloc_work(vha, QLA_EVT_GPNFT);
-		if (!e) {
-			/*
-			 * please ignore kernel warning. Otherwise,
-			 * we have mem leak.
-			 */
-			if (sp->u.iocb_cmd.u.ctarg.req) {
-				dma_free_coherent(&vha->hw->pdev->dev,
-				    sp->u.iocb_cmd.u.ctarg.req_allocated_size,
-				    sp->u.iocb_cmd.u.ctarg.req,
-				    sp->u.iocb_cmd.u.ctarg.req_dma);
-				sp->u.iocb_cmd.u.ctarg.req = NULL;
-			}
-			if (sp->u.iocb_cmd.u.ctarg.rsp) {
-				dma_free_coherent(&vha->hw->pdev->dev,
-				    sp->u.iocb_cmd.u.ctarg.rsp_allocated_size,
-				    sp->u.iocb_cmd.u.ctarg.rsp,
-				    sp->u.iocb_cmd.u.ctarg.rsp_dma);
-				sp->u.iocb_cmd.u.ctarg.rsp = NULL;
-			}
-
-			ql_dbg(ql_dbg_disc, vha, 0xffff,
-			    "Async done-%s unable to alloc work element\n",
-			    sp->name);
-			sp->free(sp);
+		sp->rc = res;
+		rc = qla2x00_post_nvme_gpnft_done_work(vha, sp, QLA_EVT_GPNFT);
+		if (!rc) {
+			qla24xx_sp_unmap(vha, sp);
 			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 			return;
 		}
-		e->u.gpnft.fc4_type = FC4_TYPE_NVME;
-		sp->rc = res;
-		e->u.gpnft.sp = sp;
-
-		qla2x00_post_work(vha, e);
-		return;
 	}
 
-	if (cmd == GPN_FT_CMD)
-		e = qla2x00_alloc_work(vha, QLA_EVT_GPNFT_DONE);
-	else
-		e = qla2x00_alloc_work(vha, QLA_EVT_GNNFT_DONE);
-	if (!e) {
-		/* please ignore kernel warning. Otherwise, we have mem leak. */
-		if (sp->u.iocb_cmd.u.ctarg.req) {
-			dma_free_coherent(&vha->hw->pdev->dev,
-			    sp->u.iocb_cmd.u.ctarg.req_allocated_size,
-			    sp->u.iocb_cmd.u.ctarg.req,
-			    sp->u.iocb_cmd.u.ctarg.req_dma);
-			sp->u.iocb_cmd.u.ctarg.req = NULL;
-		}
-		if (sp->u.iocb_cmd.u.ctarg.rsp) {
-			dma_free_coherent(&vha->hw->pdev->dev,
-			    sp->u.iocb_cmd.u.ctarg.rsp_allocated_size,
-			    sp->u.iocb_cmd.u.ctarg.rsp,
-			    sp->u.iocb_cmd.u.ctarg.rsp_dma);
-			sp->u.iocb_cmd.u.ctarg.rsp = NULL;
-		}
+	if (cmd == GPN_FT_CMD) {
+		del_timer(&sp->u.iocb_cmd.timer);
+		rc = qla2x00_post_gnnft_gpnft_done_work(vha, sp,
+		    QLA_EVT_GPNFT_DONE);
+	} else {
+		rc = qla2x00_post_gnnft_gpnft_done_work(vha, sp,
+		    QLA_EVT_GNNFT_DONE);
+	}
 
-		ql_dbg(ql_dbg_disc, vha, 0xffff,
-		    "Async done-%s unable to alloc work element\n",
-		    sp->name);
-		sp->free(sp);
+	if (rc) {
+		qla24xx_sp_unmap(vha, sp);
 		set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		return;
 	}
-
-	sp->rc = res;
-	e->u.iosb.sp = sp;
-
-	qla2x00_post_work(vha, e);
 }
 
 /*
@@ -4357,7 +4360,6 @@ void qla24xx_async_gpnft_done(scsi_qla_host_t *vha, srb_t *sp)
 {
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "%s enter\n", __func__);
-	del_timer(&sp->u.iocb_cmd.timer);
 	qla24xx_async_gnnft(vha, sp, sp->gen2);
 }
 

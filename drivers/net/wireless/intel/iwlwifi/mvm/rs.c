@@ -4113,7 +4113,7 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  enum nl80211_band band, bool update)
 {
 	if (iwl_mvm_has_tlc_offload(mvm))
-		rs_fw_rate_init(mvm, sta, band);
+		rs_fw_rate_init(mvm, sta, band, update);
 	else
 		rs_drv_rate_init(mvm, sta, band, update);
 }

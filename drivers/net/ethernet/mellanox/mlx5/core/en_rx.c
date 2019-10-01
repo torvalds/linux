@@ -37,6 +37,7 @@
 #include <net/busy_poll.h>
 #include <net/ip6_checksum.h>
 #include <net/page_pool.h>
+#include <net/inet_ecn.h>
 #include "en.h"
 #include "en_tc.h"
 #include "eswitch.h"
@@ -688,26 +689,109 @@ static inline void mlx5e_skb_set_hash(struct mlx5_cqe64 *cqe,
 	skb_set_hash(skb, be32_to_cpu(cqe->rss_hash_result), ht);
 }
 
-static inline bool is_last_ethertype_ip(struct sk_buff *skb, int *network_depth)
+static inline bool is_last_ethertype_ip(struct sk_buff *skb, int *network_depth,
+					__be16 *proto)
 {
-	__be16 ethertype = ((struct ethhdr *)skb->data)->h_proto;
+	*proto = ((struct ethhdr *)skb->data)->h_proto;
+	*proto = __vlan_get_protocol(skb, *proto, network_depth);
 
-	ethertype = __vlan_get_protocol(skb, ethertype, network_depth);
-	return (ethertype == htons(ETH_P_IP) || ethertype == htons(ETH_P_IPV6));
+	if (*proto == htons(ETH_P_IP))
+		return pskb_may_pull(skb, *network_depth + sizeof(struct iphdr));
+
+	if (*proto == htons(ETH_P_IPV6))
+		return pskb_may_pull(skb, *network_depth + sizeof(struct ipv6hdr));
+
+	return false;
 }
 
-static u32 mlx5e_get_fcs(const struct sk_buff *skb)
+static inline void mlx5e_enable_ecn(struct mlx5e_rq *rq, struct sk_buff *skb)
 {
-	const void *fcs_bytes;
-	u32 _fcs_bytes;
+	int network_depth = 0;
+	__be16 proto;
+	void *ip;
+	int rc;
 
-	fcs_bytes = skb_header_pointer(skb, skb->len - ETH_FCS_LEN,
-				       ETH_FCS_LEN, &_fcs_bytes);
+	if (unlikely(!is_last_ethertype_ip(skb, &network_depth, &proto)))
+		return;
 
-	return __get_unaligned_cpu32(fcs_bytes);
+	ip = skb->data + network_depth;
+	rc = ((proto == htons(ETH_P_IP)) ? IP_ECN_set_ce((struct iphdr *)ip) :
+					 IP6_ECN_set_ce(skb, (struct ipv6hdr *)ip));
+
+	rq->stats->ecn_mark += !!rc;
+}
+
+static u8 get_ip_proto(struct sk_buff *skb, int network_depth, __be16 proto)
+{
+	void *ip_p = skb->data + network_depth;
+
+	return (proto == htons(ETH_P_IP)) ? ((struct iphdr *)ip_p)->protocol :
+					    ((struct ipv6hdr *)ip_p)->nexthdr;
 }
 
 #define short_frame(size) ((size) <= ETH_ZLEN + ETH_FCS_LEN)
+
+#define MAX_PADDING 8
+
+static void
+tail_padding_csum_slow(struct sk_buff *skb, int offset, int len,
+		       struct mlx5e_rq_stats *stats)
+{
+	stats->csum_complete_tail_slow++;
+	skb->csum = csum_block_add(skb->csum,
+				   skb_checksum(skb, offset, len, 0),
+				   offset);
+}
+
+static void
+tail_padding_csum(struct sk_buff *skb, int offset,
+		  struct mlx5e_rq_stats *stats)
+{
+	u8 tail_padding[MAX_PADDING];
+	int len = skb->len - offset;
+	void *tail;
+
+	if (unlikely(len > MAX_PADDING)) {
+		tail_padding_csum_slow(skb, offset, len, stats);
+		return;
+	}
+
+	tail = skb_header_pointer(skb, offset, len, tail_padding);
+	if (unlikely(!tail)) {
+		tail_padding_csum_slow(skb, offset, len, stats);
+		return;
+	}
+
+	stats->csum_complete_tail++;
+	skb->csum = csum_block_add(skb->csum, csum_partial(tail, len, 0), offset);
+}
+
+static void
+mlx5e_skb_padding_csum(struct sk_buff *skb, int network_depth, __be16 proto,
+		       struct mlx5e_rq_stats *stats)
+{
+	struct ipv6hdr *ip6;
+	struct iphdr   *ip4;
+	int pkt_len;
+
+	switch (proto) {
+	case htons(ETH_P_IP):
+		ip4 = (struct iphdr *)(skb->data + network_depth);
+		pkt_len = network_depth + ntohs(ip4->tot_len);
+		break;
+	case htons(ETH_P_IPV6):
+		ip6 = (struct ipv6hdr *)(skb->data + network_depth);
+		pkt_len = network_depth + sizeof(*ip6) + ntohs(ip6->payload_len);
+		break;
+	default:
+		return;
+	}
+
+	if (likely(pkt_len >= skb->len))
+		return;
+
+	tail_padding_csum(skb, pkt_len, stats);
+}
 
 static inline void mlx5e_handle_csum(struct net_device *netdev,
 				     struct mlx5_cqe64 *cqe,
@@ -717,6 +801,7 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 {
 	struct mlx5e_rq_stats *stats = rq->stats;
 	int network_depth = 0;
+	__be16 proto;
 
 	if (unlikely(!(netdev->features & NETIF_F_RXCSUM)))
 		goto csum_none;
@@ -726,6 +811,10 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		stats->csum_unnecessary++;
 		return;
 	}
+
+	/* True when explicitly set via priv flag, or XDP prog is loaded */
+	if (test_bit(MLX5E_RQ_STATE_NO_CSUM_COMPLETE, &rq->state))
+		goto csum_unnecessary;
 
 	/* CQE csum doesn't cover padding octets in short ethernet
 	 * frames. And the pad field is appended prior to calculating
@@ -738,7 +827,10 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 	if (short_frame(skb->len))
 		goto csum_unnecessary;
 
-	if (likely(is_last_ethertype_ip(skb, &network_depth))) {
+	if (likely(is_last_ethertype_ip(skb, &network_depth, &proto))) {
+		if (unlikely(get_ip_proto(skb, network_depth, proto) == IPPROTO_SCTP))
+			goto csum_unnecessary;
+
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
 		if (network_depth > ETH_HLEN)
@@ -749,10 +841,8 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 			skb->csum = csum_partial(skb->data + ETH_HLEN,
 						 network_depth - ETH_HLEN,
 						 skb->csum);
-		if (unlikely(netdev->features & NETIF_F_RXFCS))
-			skb->csum = csum_block_add(skb->csum,
-						   (__force __wsum)mlx5e_get_fcs(skb),
-						   skb->len - ETH_FCS_LEN);
+
+		mlx5e_skb_padding_csum(skb, network_depth, proto, stats);
 		stats->csum_complete++;
 		return;
 	}
@@ -774,6 +864,8 @@ csum_none:
 	skb->ip_summed = CHECKSUM_NONE;
 	stats->csum_none++;
 }
+
+#define MLX5E_CE_BIT_MASK 0x80
 
 static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 				      u32 cqe_bcnt,
@@ -819,6 +911,10 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	skb->mark = be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK;
 
 	mlx5e_handle_csum(netdev, cqe, rq, skb, !!lro_num_seg);
+	/* checking CE bit in cqe - MSB in ml_path field */
+	if (unlikely(cqe->ml_path & MLX5E_CE_BIT_MASK))
+		mlx5e_enable_ecn(rq, skb);
+
 	skb->protocol = eth_type_trans(skb, netdev);
 }
 
