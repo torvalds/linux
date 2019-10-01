@@ -831,23 +831,36 @@ static void smiapp_update_blanking(struct smiapp_sensor *sensor)
 {
 	struct v4l2_ctrl *vblank = sensor->vblank;
 	struct v4l2_ctrl *hblank = sensor->hblank;
+	uint16_t min_fll, max_fll, min_llp, max_llp, min_lbp;
 	int min, max;
+
+	if (sensor->binning_vertical > 1 || sensor->binning_horizontal > 1) {
+		min_fll = sensor->limits[SMIAPP_LIMIT_MIN_FRAME_LENGTH_LINES_BIN];
+		max_fll = sensor->limits[SMIAPP_LIMIT_MAX_FRAME_LENGTH_LINES_BIN];
+		min_llp = sensor->limits[SMIAPP_LIMIT_MIN_LINE_LENGTH_PCK_BIN];
+		max_llp = sensor->limits[SMIAPP_LIMIT_MAX_LINE_LENGTH_PCK_BIN];
+		min_lbp = sensor->limits[SMIAPP_LIMIT_MIN_LINE_BLANKING_PCK_BIN];
+	} else {
+		min_fll = sensor->limits[SMIAPP_LIMIT_MIN_FRAME_LENGTH_LINES];
+		max_fll = sensor->limits[SMIAPP_LIMIT_MAX_FRAME_LENGTH_LINES];
+		min_llp = sensor->limits[SMIAPP_LIMIT_MIN_LINE_LENGTH_PCK];
+		max_llp = sensor->limits[SMIAPP_LIMIT_MAX_LINE_LENGTH_PCK];
+		min_lbp = sensor->limits[SMIAPP_LIMIT_MIN_LINE_BLANKING_PCK];
+	}
 
 	min = max_t(int,
 		    sensor->limits[SMIAPP_LIMIT_MIN_FRAME_BLANKING_LINES],
-		    sensor->limits[SMIAPP_LIMIT_MIN_FRAME_LENGTH_LINES_BIN] -
+		    min_fll -
 		    sensor->pixel_array->crop[SMIAPP_PA_PAD_SRC].height);
-	max = sensor->limits[SMIAPP_LIMIT_MAX_FRAME_LENGTH_LINES_BIN] -
-		sensor->pixel_array->crop[SMIAPP_PA_PAD_SRC].height;
+	max = max_fll -	sensor->pixel_array->crop[SMIAPP_PA_PAD_SRC].height;
 
 	__v4l2_ctrl_modify_range(vblank, min, max, vblank->step, min);
 
 	min = max_t(int,
-		    sensor->limits[SMIAPP_LIMIT_MIN_LINE_LENGTH_PCK_BIN] -
+		    min_llp -
 		    sensor->pixel_array->crop[SMIAPP_PA_PAD_SRC].width,
-		    sensor->limits[SMIAPP_LIMIT_MIN_LINE_BLANKING_PCK_BIN]);
-	max = sensor->limits[SMIAPP_LIMIT_MAX_LINE_LENGTH_PCK_BIN] -
-		sensor->pixel_array->crop[SMIAPP_PA_PAD_SRC].width;
+		    min_lbp);
+	max = max_llp - sensor->pixel_array->crop[SMIAPP_PA_PAD_SRC].width;
 
 	__v4l2_ctrl_modify_range(hblank, min, max, hblank->step, min);
 
