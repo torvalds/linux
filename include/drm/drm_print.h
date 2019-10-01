@@ -293,6 +293,11 @@ static inline struct drm_printer drm_err_printer(const char *prefix)
 #define DRM_UT_LEASE		0x80
 #define DRM_UT_DP		0x100
 
+static inline bool drm_debug_enabled(unsigned int category)
+{
+	return unlikely(drm_debug & category);
+}
+
 __printf(3, 4)
 void drm_dev_printk(const struct device *dev, const char *level,
 		    const char *format, ...);

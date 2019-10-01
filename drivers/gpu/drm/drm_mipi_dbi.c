@@ -783,7 +783,7 @@ static int mipi_dbi_spi1e_transfer(struct mipi_dbi *dbi, int dc,
 	int i, ret;
 	u8 *dst;
 
-	if (drm_debug & DRM_UT_DRIVER)
+	if (drm_debug_enabled(DRM_UT_DRIVER))
 		pr_debug("[drm:%s] dc=%d, max_chunk=%zu, transfers:\n",
 			 __func__, dc, max_chunk);
 
@@ -907,7 +907,7 @@ static int mipi_dbi_spi1_transfer(struct mipi_dbi *dbi, int dc,
 	max_chunk = dbi->tx_buf9_len;
 	dst16 = dbi->tx_buf9;
 
-	if (drm_debug & DRM_UT_DRIVER)
+	if (drm_debug_enabled(DRM_UT_DRIVER))
 		pr_debug("[drm:%s] dc=%d, max_chunk=%zu, transfers:\n",
 			 __func__, dc, max_chunk);
 

@@ -1179,7 +1179,7 @@ static int drm_dp_mst_wait_tx_reply(struct drm_dp_mst_branch *mstb,
 		}
 	}
 out:
-	if (unlikely(ret == -EIO && drm_debug & DRM_UT_DP)) {
+	if (unlikely(ret == -EIO) && drm_debug_enabled(DRM_UT_DP)) {
 		struct drm_printer p = drm_debug_printer(DBG_PREFIX);
 
 		drm_dp_mst_dump_sideband_msg_tx(&p, txmsg);
@@ -2322,7 +2322,7 @@ static int process_single_tx_qlock(struct drm_dp_mst_topology_mgr *mgr,
 	idx += tosend + 1;
 
 	ret = drm_dp_send_sideband_msg(mgr, up, chunk, idx);
-	if (unlikely(ret && drm_debug & DRM_UT_DP)) {
+	if (unlikely(ret) && drm_debug_enabled(DRM_UT_DP)) {
 		struct drm_printer p = drm_debug_printer(DBG_PREFIX);
 
 		drm_printf(&p, "sideband msg failed to send\n");
@@ -2389,7 +2389,7 @@ static void drm_dp_queue_down_tx(struct drm_dp_mst_topology_mgr *mgr,
 	mutex_lock(&mgr->qlock);
 	list_add_tail(&txmsg->next, &mgr->tx_msg_downq);
 
-	if (unlikely(drm_debug & DRM_UT_DP)) {
+	if (drm_debug_enabled(DRM_UT_DP)) {
 		struct drm_printer p = drm_debug_printer(DBG_PREFIX);
 
 		drm_dp_mst_dump_sideband_msg_tx(&p, txmsg);

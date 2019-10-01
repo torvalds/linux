@@ -332,7 +332,7 @@ u64 drm_crtc_accurate_vblank_count(struct drm_crtc *crtc)
 	u64 vblank;
 	unsigned long flags;
 
-	WARN_ONCE(drm_debug & DRM_UT_VBL && !dev->driver->get_vblank_timestamp,
+	WARN_ONCE(drm_debug_enabled(DRM_UT_VBL) && !dev->driver->get_vblank_timestamp,
 		  "This function requires support for accurate vblank timestamps.");
 
 	spin_lock_irqsave(&dev->vblank_time_lock, flags);
@@ -706,7 +706,7 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	 */
 	*vblank_time = ktime_sub_ns(etime, delta_ns);
 
-	if ((drm_debug & DRM_UT_VBL) == 0)
+	if (!drm_debug_enabled(DRM_UT_VBL))
 		return true;
 
 	ts_etime = ktime_to_timespec64(etime);
@@ -1352,7 +1352,7 @@ void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
 	assert_spin_locked(&dev->vblank_time_lock);
 
 	vblank = &dev->vblank[pipe];
-	WARN_ONCE((drm_debug & DRM_UT_VBL) && !vblank->framedur_ns,
+	WARN_ONCE(drm_debug_enabled(DRM_UT_VBL) && !vblank->framedur_ns,
 		  "Cannot compute missed vblanks without frame duration\n");
 	framedur_ns = vblank->framedur_ns;
 
