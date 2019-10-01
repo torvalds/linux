@@ -31,6 +31,8 @@
 #define SJA1105_META_SMAC			0x222222222222ull
 #define SJA1105_META_DMAC			0x0180C200000Eull
 
+#define SJA1105_HWTS_RX_EN			0
+
 /* Global tagger data: each struct sja1105_port has a reference to
  * the structure defined in struct sja1105_private.
  */
@@ -42,7 +44,7 @@ struct sja1105_tagger_data {
 	 * from taggers running on multiple ports on SMP systems
 	 */
 	spinlock_t meta_lock;
-	bool hwts_rx_en;
+	unsigned long state;
 };
 
 struct sja1105_skb_cb {
