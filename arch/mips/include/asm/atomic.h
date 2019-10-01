@@ -42,10 +42,10 @@
  */
 #define atomic_set(v, i)	WRITE_ONCE((v)->counter, (i))
 
-#define ATOMIC_OP(op, c_op, asm_op)					\
-static __inline__ void atomic_##op(int i, atomic_t * v)			\
+#define ATOMIC_OP(pfx, op, type, c_op, asm_op, ll, sc)			\
+static __inline__ void pfx##_##op(type i, pfx##_t * v)			\
 {									\
-	int temp;							\
+	type temp;							\
 									\
 	if (!kernel_uses_llsc) {					\
 		unsigned long flags;					\
@@ -60,19 +60,19 @@ static __inline__ void atomic_##op(int i, atomic_t * v)			\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	" MIPS_ISA_LEVEL "			\n"	\
-	"1:	ll	%0, %1		# atomic_" #op "	\n"	\
+	"1:	" #ll "	%0, %1		# " #pfx "_" #op "	\n"	\
 	"	" #asm_op " %0, %2				\n"	\
-	"	sc	%0, %1					\n"	\
+	"	" #sc "	%0, %1					\n"	\
 	"\t" __SC_BEQZ "%0, 1b					\n"	\
 	"	.set	pop					\n"	\
 	: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (v->counter)		\
 	: "Ir" (i) : __LLSC_CLOBBER);					\
 }
 
-#define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
-static __inline__ int atomic_##op##_return_relaxed(int i, atomic_t * v)	\
+#define ATOMIC_OP_RETURN(pfx, op, type, c_op, asm_op, ll, sc)		\
+static __inline__ type pfx##_##op##_return_relaxed(type i, pfx##_t * v)	\
 {									\
-	int temp, result;						\
+	type temp, result;						\
 									\
 	if (!kernel_uses_llsc) {					\
 		unsigned long flags;					\
@@ -89,9 +89,9 @@ static __inline__ int atomic_##op##_return_relaxed(int i, atomic_t * v)	\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	" MIPS_ISA_LEVEL "			\n"	\
-	"1:	ll	%1, %2		# atomic_" #op "_return	\n"	\
+	"1:	" #ll "	%1, %2		# " #pfx "_" #op "_return\n"	\
 	"	" #asm_op " %0, %1, %3				\n"	\
-	"	sc	%0, %2					\n"	\
+	"	" #sc "	%0, %2					\n"	\
 	"\t" __SC_BEQZ "%0, 1b					\n"	\
 	"	" #asm_op " %0, %1, %3				\n"	\
 	"	.set	pop					\n"	\
@@ -102,8 +102,8 @@ static __inline__ int atomic_##op##_return_relaxed(int i, atomic_t * v)	\
 	return result;							\
 }
 
-#define ATOMIC_FETCH_OP(op, c_op, asm_op)				\
-static __inline__ int atomic_fetch_##op##_relaxed(int i, atomic_t * v)	\
+#define ATOMIC_FETCH_OP(pfx, op, type, c_op, asm_op, ll, sc)		\
+static __inline__ type pfx##_fetch_##op##_relaxed(type i, pfx##_t * v)	\
 {									\
 	int temp, result;						\
 									\
@@ -120,10 +120,10 @@ static __inline__ int atomic_fetch_##op##_relaxed(int i, atomic_t * v)	\
 	loongson_llsc_mb();						\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
-	"	.set	"MIPS_ISA_LEVEL"			\n"	\
-	"1:	ll	%1, %2		# atomic_fetch_" #op "	\n"	\
+	"	.set	" MIPS_ISA_LEVEL "			\n"	\
+	"1:	" #ll "	%1, %2		# " #pfx "_fetch_" #op "\n"	\
 	"	" #asm_op " %0, %1, %3				\n"	\
-	"	sc	%0, %2					\n"	\
+	"	" #sc "	%0, %2					\n"	\
 	"\t" __SC_BEQZ "%0, 1b					\n"	\
 	"	.set	pop					\n"	\
 	"	move	%0, %1					\n"	\
@@ -134,31 +134,49 @@ static __inline__ int atomic_fetch_##op##_relaxed(int i, atomic_t * v)	\
 	return result;							\
 }
 
-#define ATOMIC_OPS(op, c_op, asm_op)					\
-	ATOMIC_OP(op, c_op, asm_op)					\
-	ATOMIC_OP_RETURN(op, c_op, asm_op)				\
-	ATOMIC_FETCH_OP(op, c_op, asm_op)
+#define ATOMIC_OPS(pfx, op, type, c_op, asm_op, ll, sc)			\
+	ATOMIC_OP(pfx, op, type, c_op, asm_op, ll, sc)			\
+	ATOMIC_OP_RETURN(pfx, op, type, c_op, asm_op, ll, sc)		\
+	ATOMIC_FETCH_OP(pfx, op, type, c_op, asm_op, ll, sc)
 
-ATOMIC_OPS(add, +=, addu)
-ATOMIC_OPS(sub, -=, subu)
+ATOMIC_OPS(atomic, add, int, +=, addu, ll, sc)
+ATOMIC_OPS(atomic, sub, int, -=, subu, ll, sc)
 
 #define atomic_add_return_relaxed	atomic_add_return_relaxed
 #define atomic_sub_return_relaxed	atomic_sub_return_relaxed
 #define atomic_fetch_add_relaxed	atomic_fetch_add_relaxed
 #define atomic_fetch_sub_relaxed	atomic_fetch_sub_relaxed
 
-#undef ATOMIC_OPS
-#define ATOMIC_OPS(op, c_op, asm_op)					\
-	ATOMIC_OP(op, c_op, asm_op)					\
-	ATOMIC_FETCH_OP(op, c_op, asm_op)
+#ifdef CONFIG_64BIT
+ATOMIC_OPS(atomic64, add, s64, +=, daddu, lld, scd)
+ATOMIC_OPS(atomic64, sub, s64, -=, dsubu, lld, scd)
+# define atomic64_add_return_relaxed	atomic64_add_return_relaxed
+# define atomic64_sub_return_relaxed	atomic64_sub_return_relaxed
+# define atomic64_fetch_add_relaxed	atomic64_fetch_add_relaxed
+# define atomic64_fetch_sub_relaxed	atomic64_fetch_sub_relaxed
+#endif /* CONFIG_64BIT */
 
-ATOMIC_OPS(and, &=, and)
-ATOMIC_OPS(or, |=, or)
-ATOMIC_OPS(xor, ^=, xor)
+#undef ATOMIC_OPS
+#define ATOMIC_OPS(pfx, op, type, c_op, asm_op, ll, sc)			\
+	ATOMIC_OP(pfx, op, type, c_op, asm_op, ll, sc)			\
+	ATOMIC_FETCH_OP(pfx, op, type, c_op, asm_op, ll, sc)
+
+ATOMIC_OPS(atomic, and, int, &=, and, ll, sc)
+ATOMIC_OPS(atomic, or, int, |=, or, ll, sc)
+ATOMIC_OPS(atomic, xor, int, ^=, xor, ll, sc)
 
 #define atomic_fetch_and_relaxed	atomic_fetch_and_relaxed
 #define atomic_fetch_or_relaxed		atomic_fetch_or_relaxed
 #define atomic_fetch_xor_relaxed	atomic_fetch_xor_relaxed
+
+#ifdef CONFIG_64BIT
+ATOMIC_OPS(atomic64, and, s64, &=, and, lld, scd)
+ATOMIC_OPS(atomic64, or, s64, |=, or, lld, scd)
+ATOMIC_OPS(atomic64, xor, s64, ^=, xor, lld, scd)
+# define atomic64_fetch_and_relaxed	atomic64_fetch_and_relaxed
+# define atomic64_fetch_or_relaxed	atomic64_fetch_or_relaxed
+# define atomic64_fetch_xor_relaxed	atomic64_fetch_xor_relaxed
+#endif
 
 #undef ATOMIC_OPS
 #undef ATOMIC_FETCH_OP
@@ -242,130 +260,6 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
  * @i: required value
  */
 #define atomic64_set(v, i)	WRITE_ONCE((v)->counter, (i))
-
-#define ATOMIC64_OP(op, c_op, asm_op)					      \
-static __inline__ void atomic64_##op(s64 i, atomic64_t * v)		      \
-{									      \
-	if (kernel_uses_llsc) {						      \
-		s64 temp;						      \
-									      \
-		loongson_llsc_mb();					      \
-		__asm__ __volatile__(					      \
-		"	.set	push					\n"   \
-		"	.set	"MIPS_ISA_LEVEL"			\n"   \
-		"1:	lld	%0, %1		# atomic64_" #op "	\n"   \
-		"	" #asm_op " %0, %2				\n"   \
-		"	scd	%0, %1					\n"   \
-		"\t" __SC_BEQZ "%0, 1b					\n"   \
-		"	.set	pop					\n"   \
-		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (v->counter)	      \
-		: "Ir" (i) : __LLSC_CLOBBER);				      \
-	} else {							      \
-		unsigned long flags;					      \
-									      \
-		raw_local_irq_save(flags);				      \
-		v->counter c_op i;					      \
-		raw_local_irq_restore(flags);				      \
-	}								      \
-}
-
-#define ATOMIC64_OP_RETURN(op, c_op, asm_op)				      \
-static __inline__ s64 atomic64_##op##_return_relaxed(s64 i, atomic64_t * v)   \
-{									      \
-	s64 result;							      \
-									      \
-	if (kernel_uses_llsc) {						      \
-		s64 temp;						      \
-									      \
-		loongson_llsc_mb();					      \
-		__asm__ __volatile__(					      \
-		"	.set	push					\n"   \
-		"	.set	"MIPS_ISA_LEVEL"			\n"   \
-		"1:	lld	%1, %2		# atomic64_" #op "_return\n"  \
-		"	" #asm_op " %0, %1, %3				\n"   \
-		"	scd	%0, %2					\n"   \
-		"\t" __SC_BEQZ "%0, 1b					\n"   \
-		"	" #asm_op " %0, %1, %3				\n"   \
-		"	.set	pop					\n"   \
-		: "=&r" (result), "=&r" (temp),				      \
-		  "+" GCC_OFF_SMALL_ASM() (v->counter)			      \
-		: "Ir" (i) : __LLSC_CLOBBER);				      \
-	} else {							      \
-		unsigned long flags;					      \
-									      \
-		raw_local_irq_save(flags);				      \
-		result = v->counter;					      \
-		result c_op i;						      \
-		v->counter = result;					      \
-		raw_local_irq_restore(flags);				      \
-	}								      \
-									      \
-	return result;							      \
-}
-
-#define ATOMIC64_FETCH_OP(op, c_op, asm_op)				      \
-static __inline__ s64 atomic64_fetch_##op##_relaxed(s64 i, atomic64_t * v)    \
-{									      \
-	s64 result;							      \
-									      \
-	if (kernel_uses_llsc) {						      \
-		s64 temp;						      \
-									      \
-		loongson_llsc_mb();					      \
-		__asm__ __volatile__(					      \
-		"	.set	push					\n"   \
-		"	.set	"MIPS_ISA_LEVEL"			\n"   \
-		"1:	lld	%1, %2		# atomic64_fetch_" #op "\n"   \
-		"	" #asm_op " %0, %1, %3				\n"   \
-		"	scd	%0, %2					\n"   \
-		"\t" __SC_BEQZ "%0, 1b					\n"   \
-		"	move	%0, %1					\n"   \
-		"	.set	pop					\n"   \
-		: "=&r" (result), "=&r" (temp),				      \
-		  "+" GCC_OFF_SMALL_ASM() (v->counter)			      \
-		: "Ir" (i) : __LLSC_CLOBBER);				      \
-	} else {							      \
-		unsigned long flags;					      \
-									      \
-		raw_local_irq_save(flags);				      \
-		result = v->counter;					      \
-		v->counter c_op i;					      \
-		raw_local_irq_restore(flags);				      \
-	}								      \
-									      \
-	return result;							      \
-}
-
-#define ATOMIC64_OPS(op, c_op, asm_op)					      \
-	ATOMIC64_OP(op, c_op, asm_op)					      \
-	ATOMIC64_OP_RETURN(op, c_op, asm_op)				      \
-	ATOMIC64_FETCH_OP(op, c_op, asm_op)
-
-ATOMIC64_OPS(add, +=, daddu)
-ATOMIC64_OPS(sub, -=, dsubu)
-
-#define atomic64_add_return_relaxed	atomic64_add_return_relaxed
-#define atomic64_sub_return_relaxed	atomic64_sub_return_relaxed
-#define atomic64_fetch_add_relaxed	atomic64_fetch_add_relaxed
-#define atomic64_fetch_sub_relaxed	atomic64_fetch_sub_relaxed
-
-#undef ATOMIC64_OPS
-#define ATOMIC64_OPS(op, c_op, asm_op)					      \
-	ATOMIC64_OP(op, c_op, asm_op)					      \
-	ATOMIC64_FETCH_OP(op, c_op, asm_op)
-
-ATOMIC64_OPS(and, &=, and)
-ATOMIC64_OPS(or, |=, or)
-ATOMIC64_OPS(xor, ^=, xor)
-
-#define atomic64_fetch_and_relaxed	atomic64_fetch_and_relaxed
-#define atomic64_fetch_or_relaxed	atomic64_fetch_or_relaxed
-#define atomic64_fetch_xor_relaxed	atomic64_fetch_xor_relaxed
-
-#undef ATOMIC64_OPS
-#undef ATOMIC64_FETCH_OP
-#undef ATOMIC64_OP_RETURN
-#undef ATOMIC64_OP
 
 /*
  * atomic64_sub_if_positive - conditionally subtract integer from atomic
