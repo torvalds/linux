@@ -31,6 +31,13 @@
 		gpio = <&gpb 25 GPIO_ACTIVE_LOW>;
 		enable-active-high;
 	};
+
+	wlan0_power: fixedregulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "wlan0_power";
+		gpio = <&gpb 19 GPIO_ACTIVE_LOW>;
+		enable-active-high;
+	};
 };
 
 &ext {
@@ -54,9 +61,18 @@
 
 	bus-width = <4>;
 	max-frequency = <50000000>;
+	non-removable;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_mmc1>;
+
+	brcmf: wifi@1 {
+/*		reg = <4>;*/
+		compatible = "brcm,bcm4330-fmac";
+		vcc-supply = <&wlan0_power>;
+		device-wakeup-gpios = <&gpd 9 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpf 7 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &uart0 {
@@ -71,6 +87,23 @@
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_uart1>;
+};
+
+&uart2 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart2>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm4330-bt";
+		reset-gpios = <&gpf 8 GPIO_ACTIVE_HIGH>;
+		vcc-supply = <&wlan0_power>;
+		device-wakeup-gpios = <&gpf 5 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpf 6 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpf 4 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &uart3 {
@@ -311,6 +344,12 @@
 	pins_uart1: uart1 {
 		function = "uart1";
 		groups = "uart1-data";
+		bias-disable;
+	};
+
+	pins_uart2: uart2 {
+		function = "uart2";
+		groups = "uart2-data", "uart2-hwflow";
 		bias-disable;
 	};
 
