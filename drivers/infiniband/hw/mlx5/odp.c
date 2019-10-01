@@ -231,7 +231,7 @@ static void mr_leaf_free_action(struct work_struct *work)
 	mr->parent = NULL;
 	synchronize_srcu(&mr->dev->mr_srcu);
 
-	if (imr->live) {
+	if (smp_load_acquire(&imr->live)) {
 		srcu_key = srcu_read_lock(&mr->dev->mr_srcu);
 		mutex_lock(&odp_imr->umem_mutex);
 		mlx5_ib_update_xlt(imr, idx, 1, 0,
@@ -318,6 +318,7 @@ void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
 
 	if (unlikely(!umem_odp->npages && mr->parent &&
 		     !umem_odp->dying)) {
+		WRITE_ONCE(mr->live, 0);
 		umem_odp->dying = 1;
 		atomic_inc(&mr->parent->num_leaf_free);
 		schedule_work(&umem_odp->work);
@@ -459,8 +460,6 @@ static struct mlx5_ib_mr *implicit_mr_alloc(struct ib_pd *pd,
 	mr->ibmr.lkey = mr->mmkey.key;
 	mr->ibmr.rkey = mr->mmkey.key;
 
-	mr->live = 1;
-
 	mlx5_ib_dbg(dev, "key %x dev %p mr %p\n",
 		    mr->mmkey.key, dev->mdev, mr);
 
@@ -514,6 +513,8 @@ next_mr:
 		mtt->parent = mr;
 		INIT_WORK(&odp->work, mr_leaf_free_action);
 
+		smp_store_release(&mtt->live, 1);
+
 		if (!nentries)
 			start_idx = addr >> MLX5_IMR_MTT_SHIFT;
 		nentries++;
@@ -566,6 +567,7 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	init_waitqueue_head(&imr->q_leaf_free);
 	atomic_set(&imr->num_leaf_free, 0);
 	atomic_set(&imr->num_pending_prefetch, 0);
+	smp_store_release(&imr->live, 1);
 
 	return imr;
 }
@@ -807,7 +809,7 @@ next_mr:
 	switch (mmkey->type) {
 	case MLX5_MKEY_MR:
 		mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
-		if (!mr->live || !mr->ibmr.pd) {
+		if (!smp_load_acquire(&mr->live) || !mr->ibmr.pd) {
 			mlx5_ib_dbg(dev, "got dead MR\n");
 			ret = -EFAULT;
 			goto srcu_unlock;
@@ -1675,12 +1677,12 @@ static bool num_pending_prefetch_inc(struct ib_pd *pd,
 
 		mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
 
-		if (mr->ibmr.pd != pd) {
+		if (!smp_load_acquire(&mr->live)) {
 			ret = false;
 			break;
 		}
 
-		if (!mr->live) {
+		if (mr->ibmr.pd != pd) {
 			ret = false;
 			break;
 		}
