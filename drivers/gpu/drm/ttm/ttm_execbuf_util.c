@@ -113,12 +113,7 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 		struct ttm_buffer_object *bo = entry->bo;
 
 		ret = __ttm_bo_reserve(bo, intr, (ticket == NULL), ticket);
-		if (!ret && unlikely(atomic_read(&bo->cpu_writers) > 0)) {
-			dma_resv_unlock(bo->base.resv);
-
-			ret = -EBUSY;
-
-		} else if (ret == -EALREADY && dups) {
+		if (ret == -EALREADY && dups) {
 			struct ttm_validate_buffer *safe = entry;
 			entry = list_prev_entry(entry, head);
 			list_del(&safe->head);

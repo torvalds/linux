@@ -147,7 +147,6 @@ struct ttm_tt;
  * holds a pointer to a persistent shmem object.
  * @ttm: TTM structure holding system pages.
  * @evicted: Whether the object was evicted without user-space knowing.
- * @cpu_writes: For synchronization. Number of cpu writers.
  * @lru: List head for the lru list.
  * @ddestroy: List head for the delayed destroy list.
  * @swap: List head for swap LRU list.
@@ -197,12 +196,6 @@ struct ttm_buffer_object {
 	struct file *persistent_swap_storage;
 	struct ttm_tt *ttm;
 	bool evicted;
-
-	/**
-	 * Members protected by the bo::reserved lock only when written to.
-	 */
-
-	atomic_t cpu_writers;
 
 	/**
 	 * Members protected by the bdev::lru_lock.
@@ -440,31 +433,6 @@ void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev, int resched);
  */
 bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			      const struct ttm_place *place);
-
-/**
- * ttm_bo_synccpu_write_grab
- *
- * @bo: The buffer object:
- * @no_wait: Return immediately if buffer is busy.
- *
- * Synchronizes a buffer object for CPU RW access. This means
- * command submission that affects the buffer will return -EBUSY
- * until ttm_bo_synccpu_write_release is called.
- *
- * Returns
- * -EBUSY if the buffer is busy and no_wait is true.
- * -ERESTARTSYS if interrupted by a signal.
- */
-int ttm_bo_synccpu_write_grab(struct ttm_buffer_object *bo, bool no_wait);
-
-/**
- * ttm_bo_synccpu_write_release:
- *
- * @bo : The buffer object.
- *
- * Releases a synccpu lock.
- */
-void ttm_bo_synccpu_write_release(struct ttm_buffer_object *bo);
 
 /**
  * ttm_bo_acc_size

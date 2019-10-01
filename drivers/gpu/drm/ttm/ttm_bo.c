@@ -153,7 +153,6 @@ static void ttm_bo_release_list(struct kref *list_kref)
 
 	BUG_ON(kref_read(&bo->list_kref));
 	BUG_ON(kref_read(&bo->kref));
-	BUG_ON(atomic_read(&bo->cpu_writers));
 	BUG_ON(bo->mem.mm_node != NULL);
 	BUG_ON(!list_empty(&bo->lru));
 	BUG_ON(!list_empty(&bo->ddestroy));
@@ -1315,7 +1314,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 
 	kref_init(&bo->kref);
 	kref_init(&bo->list_kref);
-	atomic_set(&bo->cpu_writers, 0);
 	INIT_LIST_HEAD(&bo->lru);
 	INIT_LIST_HEAD(&bo->ddestroy);
 	INIT_LIST_HEAD(&bo->swap);
@@ -1826,31 +1824,6 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_wait);
-
-int ttm_bo_synccpu_write_grab(struct ttm_buffer_object *bo, bool no_wait)
-{
-	int ret = 0;
-
-	/*
-	 * Using ttm_bo_reserve makes sure the lru lists are updated.
-	 */
-
-	ret = ttm_bo_reserve(bo, true, no_wait, NULL);
-	if (unlikely(ret != 0))
-		return ret;
-	ret = ttm_bo_wait(bo, true, no_wait);
-	if (likely(ret == 0))
-		atomic_inc(&bo->cpu_writers);
-	ttm_bo_unreserve(bo);
-	return ret;
-}
-EXPORT_SYMBOL(ttm_bo_synccpu_write_grab);
-
-void ttm_bo_synccpu_write_release(struct ttm_buffer_object *bo)
-{
-	atomic_dec(&bo->cpu_writers);
-}
-EXPORT_SYMBOL(ttm_bo_synccpu_write_release);
 
 /**
  * A buffer object shrink method that tries to swap out the first
