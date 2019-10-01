@@ -682,66 +682,6 @@ static int smiapp_get_all_limits(struct smiapp_sensor *sensor)
 	return 0;
 }
 
-static int smiapp_get_limits_binning(struct smiapp_sensor *sensor)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	static u32 const limits[] = {
-		SMIAPP_LIMIT_MIN_FRAME_LENGTH_LINES_BIN,
-		SMIAPP_LIMIT_MAX_FRAME_LENGTH_LINES_BIN,
-		SMIAPP_LIMIT_MIN_LINE_LENGTH_PCK_BIN,
-		SMIAPP_LIMIT_MAX_LINE_LENGTH_PCK_BIN,
-		SMIAPP_LIMIT_MIN_LINE_BLANKING_PCK_BIN,
-		SMIAPP_LIMIT_FINE_INTEGRATION_TIME_MIN_BIN,
-		SMIAPP_LIMIT_FINE_INTEGRATION_TIME_MAX_MARGIN_BIN,
-	};
-	static u32 const limits_replace[] = {
-		SMIAPP_LIMIT_MIN_FRAME_LENGTH_LINES,
-		SMIAPP_LIMIT_MAX_FRAME_LENGTH_LINES,
-		SMIAPP_LIMIT_MIN_LINE_LENGTH_PCK,
-		SMIAPP_LIMIT_MAX_LINE_LENGTH_PCK,
-		SMIAPP_LIMIT_MIN_LINE_BLANKING_PCK,
-		SMIAPP_LIMIT_FINE_INTEGRATION_TIME_MIN,
-		SMIAPP_LIMIT_FINE_INTEGRATION_TIME_MAX_MARGIN,
-	};
-	unsigned int i;
-	int rval;
-
-	if (sensor->limits[SMIAPP_LIMIT_BINNING_CAPABILITY] ==
-	    SMIAPP_BINNING_CAPABILITY_NO) {
-		for (i = 0; i < ARRAY_SIZE(limits); i++)
-			sensor->limits[limits[i]] =
-				sensor->limits[limits_replace[i]];
-
-		return 0;
-	}
-
-	rval = smiapp_get_limits(sensor, limits, ARRAY_SIZE(limits));
-	if (rval < 0)
-		return rval;
-
-	/*
-	 * Sanity check whether the binning limits are valid. If not,
-	 * use the non-binning ones.
-	 */
-	if (sensor->limits[SMIAPP_LIMIT_MIN_FRAME_LENGTH_LINES_BIN]
-	    && sensor->limits[SMIAPP_LIMIT_MIN_LINE_LENGTH_PCK_BIN]
-	    && sensor->limits[SMIAPP_LIMIT_MIN_LINE_BLANKING_PCK_BIN])
-		return 0;
-
-	for (i = 0; i < ARRAY_SIZE(limits); i++) {
-		dev_dbg(&client->dev,
-			"replace limit 0x%8.8x \"%s\" = %d, 0x%x\n",
-			smiapp_reg_limits[limits[i]].addr,
-			smiapp_reg_limits[limits[i]].what,
-			sensor->limits[limits_replace[i]],
-			sensor->limits[limits_replace[i]]);
-		sensor->limits[limits[i]] =
-			sensor->limits[limits_replace[i]];
-	}
-
-	return 0;
-}
-
 static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
@@ -937,11 +877,6 @@ static int smiapp_update_mode(struct smiapp_sensor *sensor)
 		binning_mode = 1;
 	}
 	rval = smiapp_write(sensor, SMIAPP_REG_U8_BINNING_MODE, binning_mode);
-	if (rval < 0)
-		return rval;
-
-	/* Get updated limits due to binning */
-	rval = smiapp_get_limits_binning(sensor);
 	if (rval < 0)
 		return rval;
 
