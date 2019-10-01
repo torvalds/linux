@@ -398,6 +398,8 @@ struct snd_sof_dev {
 
 	/* power states related */
 	enum sof_d0_substate d0_substate;
+	/* flag to track if the intended power target of suspend is S0ix */
+	bool s0_suspend;
 
 	/* DSP firmware boot */
 	wait_queue_head_t boot_wait;
