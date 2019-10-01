@@ -852,7 +852,7 @@ static unsigned long i915_audio_component_get_power(struct device *kdev)
 
 	/* Force CDCLK to 2*BCLK as long as we need audio to be powered. */
 	if (dev_priv->audio_power_refcount++ == 0) {
-		if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
+		if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 			glk_force_audio_cdclk(dev_priv, true);
 
 		if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
@@ -871,7 +871,7 @@ static void i915_audio_component_put_power(struct device *kdev,
 
 	/* Stop forcing CDCLK to 2*BCLK if no need for audio to be powered. */
 	if (--dev_priv->audio_power_refcount == 0)
-		if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
+		if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 			glk_force_audio_cdclk(dev_priv, false);
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO, cookie);
