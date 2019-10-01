@@ -18,6 +18,7 @@
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
 #include <asm/stackframe.h>
+#include <asm/sync.h>
 #include <asm/war.h>
 #include <asm/thread_info.h>
 
@@ -353,6 +354,7 @@ NESTED(ejtag_debug_handler, PT_SIZE, sp)
 
 #ifdef CONFIG_SMP
 1:	PTR_LA	k0, ejtag_debug_buffer_spinlock
+	__SYNC(full, loongson3_war)
 	ll	k0, 0(k0)
 	bnez	k0, 1b
 	PTR_LA	k0, ejtag_debug_buffer_spinlock
