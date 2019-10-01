@@ -13,6 +13,7 @@
 #error only <linux/bitops.h> can be included directly
 #endif
 
+#include <linux/bits.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <asm/barrier.h>
@@ -70,7 +71,7 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 		"	beqzl	%0, 1b					\n"
 		"	.set	pop					\n"
 		: "=&r" (temp), "=" GCC_OFF_SMALL_ASM() (*m)
-		: "ir" (1UL << bit), GCC_OFF_SMALL_ASM() (*m)
+		: "ir" (BIT(bit)), GCC_OFF_SMALL_ASM() (*m)
 		: __LLSC_CLOBBER);
 		return;
 	}
@@ -99,7 +100,7 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 		"	" __SC	"%0, %1				\n"
 		"	.set	pop				\n"
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-		: "ir" (1UL << bit)
+		: "ir" (BIT(bit))
 		: __LLSC_CLOBBER);
 	} while (unlikely(!temp));
 }
@@ -135,7 +136,7 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 		"	beqzl	%0, 1b					\n"
 		"	.set	pop					\n"
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-		: "ir" (~(1UL << bit))
+		: "ir" (~(BIT(bit)))
 		: __LLSC_CLOBBER);
 		return;
 	}
@@ -164,7 +165,7 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 		"	" __SC "%0, %1				\n"
 		"	.set	pop				\n"
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-		: "ir" (~(1UL << bit))
+		: "ir" (~(BIT(bit)))
 		: __LLSC_CLOBBER);
 	} while (unlikely(!temp));
 }
@@ -213,7 +214,7 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 		"	beqzl	%0, 1b				\n"
 		"	.set	pop				\n"
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-		: "ir" (1UL << bit)
+		: "ir" (BIT(bit))
 		: __LLSC_CLOBBER);
 		return;
 	}
@@ -228,7 +229,7 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 		"	" __SC	"%0, %1				\n"
 		"	.set	pop				\n"
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-		: "ir" (1UL << bit)
+		: "ir" (BIT(bit))
 		: __LLSC_CLOBBER);
 	} while (unlikely(!temp));
 }
@@ -261,7 +262,7 @@ static inline int test_and_set_bit_lock(unsigned long nr,
 		"	and	%2, %0, %3				\n"
 		"	.set	pop					\n"
 		: "=&r" (temp), "+m" (*m), "=&r" (res)
-		: "ir" (1UL << bit)
+		: "ir" (BIT(bit))
 		: __LLSC_CLOBBER);
 	} else {
 		loongson_llsc_mb();
@@ -274,11 +275,11 @@ static inline int test_and_set_bit_lock(unsigned long nr,
 			"	" __SC	"%2, %1				\n"
 			"	.set	pop				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
-			: "ir" (1UL << bit)
+			: "ir" (BIT(bit))
 			: __LLSC_CLOBBER);
 		} while (unlikely(!res));
 
-		res = temp & (1UL << bit);
+		res = temp & BIT(bit);
 	}
 
 	smp_llsc_mb();
@@ -332,7 +333,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 		"	and	%2, %0, %3				\n"
 		"	.set	pop					\n"
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
-		: "ir" (1UL << bit)
+		: "ir" (BIT(bit))
 		: __LLSC_CLOBBER);
 	} else if ((MIPS_ISA_REV >= 2) && __builtin_constant_p(nr)) {
 		loongson_llsc_mb();
@@ -358,11 +359,11 @@ static inline int test_and_clear_bit(unsigned long nr,
 			"	" __SC	"%2, %1				\n"
 			"	.set	pop				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
-			: "ir" (1UL << bit)
+			: "ir" (BIT(bit))
 			: __LLSC_CLOBBER);
 		} while (unlikely(!res));
 
-		res = temp & (1UL << bit);
+		res = temp & BIT(bit);
 	}
 
 	smp_llsc_mb();
@@ -400,7 +401,7 @@ static inline int test_and_change_bit(unsigned long nr,
 		"	and	%2, %0, %3				\n"
 		"	.set	pop					\n"
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
-		: "ir" (1UL << bit)
+		: "ir" (BIT(bit))
 		: __LLSC_CLOBBER);
 	} else {
 		loongson_llsc_mb();
@@ -413,11 +414,11 @@ static inline int test_and_change_bit(unsigned long nr,
 			"	" __SC	"\t%2, %1			\n"
 			"	.set	pop				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
-			: "ir" (1UL << bit)
+			: "ir" (BIT(bit))
 			: __LLSC_CLOBBER);
 		} while (unlikely(!res));
 
-		res = temp & (1UL << bit);
+		res = temp & BIT(bit);
 	}
 
 	smp_llsc_mb();
