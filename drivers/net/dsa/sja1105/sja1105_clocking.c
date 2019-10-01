@@ -405,7 +405,7 @@ sja1105_cfg_pad_mii_id_packing(void *buf, struct sja1105_cfg_pad_mii_id *cmd,
 }
 
 /* Valid range in degrees is an integer between 73.8 and 101.7 */
-static inline u64 sja1105_rgmii_delay(u64 phase)
+static u64 sja1105_rgmii_delay(u64 phase)
 {
 	/* UM11040.pdf: The delay in degree phase is 73.8 + delay_tune * 0.9.
 	 * To avoid floating point operations we'll multiply by 10

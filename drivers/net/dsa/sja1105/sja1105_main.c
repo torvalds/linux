@@ -458,9 +458,8 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 
 #define SJA1105_RATE_MBPS(speed) (((speed) * 64000) / 1000)
 
-static inline void
-sja1105_setup_policer(struct sja1105_l2_policing_entry *policing,
-		      int index)
+static void sja1105_setup_policer(struct sja1105_l2_policing_entry *policing,
+				  int index)
 {
 	policing[index].sharindx = index;
 	policing[index].smax = 65535; /* Burst size in bytes */
@@ -951,7 +950,7 @@ sja1105_static_fdb_change(struct sja1105_private *priv, int port,
  * For the placement of a newly learnt FDB entry, the switch selects the bin
  * based on a hash function, and the way within that bin incrementally.
  */
-static inline int sja1105et_fdb_index(int bin, int way)
+static int sja1105et_fdb_index(int bin, int way)
 {
 	return bin * SJA1105ET_FDB_BIN_SIZE + way;
 }
