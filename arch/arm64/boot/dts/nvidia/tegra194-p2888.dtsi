@@ -8,6 +8,7 @@
 	compatible = "nvidia,p2888", "nvidia,tegra194";
 
 	aliases {
+		ethernet0 = "/cbb@0/ethernet@2490000";
 		sdhci0 = "/cbb@0/sdhci@3460000";
 		sdhci1 = "/cbb@0/sdhci@3400000";
 		serial0 = &tcu;
