@@ -355,8 +355,8 @@ NESTED(ejtag_debug_handler, PT_SIZE, sp)
 #ifdef CONFIG_SMP
 1:	PTR_LA	k0, ejtag_debug_buffer_spinlock
 	__SYNC(full, loongson3_war)
-	ll	k0, 0(k0)
-	bnez	k0, 1b
+2:	ll	k0, 0(k0)
+	bnez	k0, 2b
 	PTR_LA	k0, ejtag_debug_buffer_spinlock
 	sc	k0, 0(k0)
 	beqz	k0, 1b
