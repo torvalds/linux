@@ -52,11 +52,16 @@ int __mips_test_and_change_bit(unsigned long nr,
  */
 static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 {
-	unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
+	unsigned long *m = ((unsigned long *)addr) + (nr >> SZLONG_LOG);
 	int bit = nr & SZLONG_MASK;
 	unsigned long temp;
 
-	if (kernel_uses_llsc && R10000_LLSC_WAR) {
+	if (!kernel_uses_llsc) {
+		__mips_set_bit(nr, addr);
+		return;
+	}
+
+	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
 		"	.set	push					\n"
 		"	.set	arch=r4000				\n"
@@ -68,8 +73,11 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 		: "=&r" (temp), "=" GCC_OFF_SMALL_ASM() (*m)
 		: "ir" (1UL << bit), GCC_OFF_SMALL_ASM() (*m)
 		: __LLSC_CLOBBER);
+		return;
+	}
+
 #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
-	} else if (kernel_uses_llsc && __builtin_constant_p(bit)) {
+	if (__builtin_constant_p(bit)) {
 		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
@@ -80,23 +88,23 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 			: "ir" (bit), "r" (~0)
 			: __LLSC_CLOBBER);
 		} while (unlikely(!temp));
+		return;
+	}
 #endif /* CONFIG_CPU_MIPSR2 || CONFIG_CPU_MIPSR6 */
-	} else if (kernel_uses_llsc) {
-		loongson_llsc_mb();
-		do {
-			__asm__ __volatile__(
-			"	.set	push				\n"
-			"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
-			"	" __LL "%0, %1		# set_bit	\n"
-			"	or	%0, %2				\n"
-			"	" __SC	"%0, %1				\n"
-			"	.set	pop				\n"
-			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-			: "ir" (1UL << bit)
-			: __LLSC_CLOBBER);
-		} while (unlikely(!temp));
-	} else
-		__mips_set_bit(nr, addr);
+
+	loongson_llsc_mb();
+	do {
+		__asm__ __volatile__(
+		"	.set	push				\n"
+		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
+		"	" __LL "%0, %1		# set_bit	\n"
+		"	or	%0, %2				\n"
+		"	" __SC	"%0, %1				\n"
+		"	.set	pop				\n"
+		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
+		: "ir" (1UL << bit)
+		: __LLSC_CLOBBER);
+	} while (unlikely(!temp));
 }
 
 /*
@@ -111,11 +119,16 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
  */
 static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 {
-	unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
+	unsigned long *m = ((unsigned long *)addr) + (nr >> SZLONG_LOG);
 	int bit = nr & SZLONG_MASK;
 	unsigned long temp;
 
-	if (kernel_uses_llsc && R10000_LLSC_WAR) {
+	if (!kernel_uses_llsc) {
+		__mips_clear_bit(nr, addr);
+		return;
+	}
+
+	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
 		"	.set	push					\n"
 		"	.set	arch=r4000				\n"
@@ -127,8 +140,11 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
 		: "ir" (~(1UL << bit))
 		: __LLSC_CLOBBER);
+		return;
+	}
+
 #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
-	} else if (kernel_uses_llsc && __builtin_constant_p(bit)) {
+	if (__builtin_constant_p(bit)) {
 		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
@@ -139,23 +155,23 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 			: "ir" (bit)
 			: __LLSC_CLOBBER);
 		} while (unlikely(!temp));
+		return;
+	}
 #endif /* CONFIG_CPU_MIPSR2 || CONFIG_CPU_MIPSR6 */
-	} else if (kernel_uses_llsc) {
-		loongson_llsc_mb();
-		do {
-			__asm__ __volatile__(
-			"	.set	push				\n"
-			"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
-			"	" __LL "%0, %1		# clear_bit	\n"
-			"	and	%0, %2				\n"
-			"	" __SC "%0, %1				\n"
-			"	.set	pop				\n"
-			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-			: "ir" (~(1UL << bit))
-			: __LLSC_CLOBBER);
-		} while (unlikely(!temp));
-	} else
-		__mips_clear_bit(nr, addr);
+
+	loongson_llsc_mb();
+	do {
+		__asm__ __volatile__(
+		"	.set	push				\n"
+		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
+		"	" __LL "%0, %1		# clear_bit	\n"
+		"	and	%0, %2				\n"
+		"	" __SC "%0, %1				\n"
+		"	.set	pop				\n"
+		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
+		: "ir" (~(1UL << bit))
+		: __LLSC_CLOBBER);
+	} while (unlikely(!temp));
 }
 
 /*
@@ -183,12 +199,16 @@ static inline void clear_bit_unlock(unsigned long nr, volatile unsigned long *ad
  */
 static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 {
+	unsigned long *m = ((unsigned long *)addr) + (nr >> SZLONG_LOG);
 	int bit = nr & SZLONG_MASK;
+	unsigned long temp;
 
-	if (kernel_uses_llsc && R10000_LLSC_WAR) {
-		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp;
+	if (!kernel_uses_llsc) {
+		__mips_change_bit(nr, addr);
+		return;
+	}
 
+	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
 		"	.set	push				\n"
 		"	.set	arch=r4000			\n"
@@ -200,25 +220,22 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
 		: "ir" (1UL << bit)
 		: __LLSC_CLOBBER);
-	} else if (kernel_uses_llsc) {
-		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp;
+		return;
+	}
 
-		loongson_llsc_mb();
-		do {
-			__asm__ __volatile__(
-			"	.set	push				\n"
-			"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
-			"	" __LL "%0, %1		# change_bit	\n"
-			"	xor	%0, %2				\n"
-			"	" __SC	"%0, %1				\n"
-			"	.set	pop				\n"
-			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-			: "ir" (1UL << bit)
-			: __LLSC_CLOBBER);
-		} while (unlikely(!temp));
-	} else
-		__mips_change_bit(nr, addr);
+	loongson_llsc_mb();
+	do {
+		__asm__ __volatile__(
+		"	.set	push				\n"
+		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
+		"	" __LL "%0, %1		# change_bit	\n"
+		"	xor	%0, %2				\n"
+		"	" __SC	"%0, %1				\n"
+		"	.set	pop				\n"
+		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
+		: "ir" (1UL << bit)
+		: __LLSC_CLOBBER);
+	} while (unlikely(!temp));
 }
 
 /*
@@ -232,15 +249,15 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 static inline int test_and_set_bit(unsigned long nr,
 	volatile unsigned long *addr)
 {
+	unsigned long *m = ((unsigned long *)addr) + (nr >> SZLONG_LOG);
 	int bit = nr & SZLONG_MASK;
-	unsigned long res;
+	unsigned long res, temp;
 
 	smp_mb__before_llsc();
 
-	if (kernel_uses_llsc && R10000_LLSC_WAR) {
-		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp;
-
+	if (!kernel_uses_llsc) {
+		res = __mips_test_and_set_bit(nr, addr);
+	} else if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
 		"	.set	push					\n"
 		"	.set	arch=r4000				\n"
@@ -253,10 +270,7 @@ static inline int test_and_set_bit(unsigned long nr,
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
 		: "r" (1UL << bit)
 		: __LLSC_CLOBBER);
-	} else if (kernel_uses_llsc) {
-		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp;
-
+	} else {
 		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
@@ -272,8 +286,7 @@ static inline int test_and_set_bit(unsigned long nr,
 		} while (unlikely(!res));
 
 		res = temp & (1UL << bit);
-	} else
-		res = __mips_test_and_set_bit(nr, addr);
+	}
 
 	smp_llsc_mb();
 
@@ -291,13 +304,13 @@ static inline int test_and_set_bit(unsigned long nr,
 static inline int test_and_set_bit_lock(unsigned long nr,
 	volatile unsigned long *addr)
 {
+	unsigned long *m = ((unsigned long *)addr) + (nr >> SZLONG_LOG);
 	int bit = nr & SZLONG_MASK;
-	unsigned long res;
+	unsigned long res, temp;
 
-	if (kernel_uses_llsc && R10000_LLSC_WAR) {
-		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp;
-
+	if (!kernel_uses_llsc) {
+		res = __mips_test_and_set_bit_lock(nr, addr);
+	} else if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
 		"	.set	push					\n"
 		"	.set	arch=r4000				\n"
@@ -310,11 +323,7 @@ static inline int test_and_set_bit_lock(unsigned long nr,
 		: "=&r" (temp), "+m" (*m), "=&r" (res)
 		: "r" (1UL << bit)
 		: __LLSC_CLOBBER);
-	} else if (kernel_uses_llsc) {
-		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp;
-
-		loongson_llsc_mb();
+	} else {
 		do {
 			__asm__ __volatile__(
 			"	.set	push				\n"
@@ -329,8 +338,7 @@ static inline int test_and_set_bit_lock(unsigned long nr,
 		} while (unlikely(!res));
 
 		res = temp & (1UL << bit);
-	} else
-		res = __mips_test_and_set_bit_lock(nr, addr);
+	}
 
 	smp_llsc_mb();
 
@@ -347,15 +355,15 @@ static inline int test_and_set_bit_lock(unsigned long nr,
 static inline int test_and_clear_bit(unsigned long nr,
 	volatile unsigned long *addr)
 {
+	unsigned long *m = ((unsigned long *)addr) + (nr >> SZLONG_LOG);
 	int bit = nr & SZLONG_MASK;
-	unsigned long res;
+	unsigned long res, temp;
 
 	smp_mb__before_llsc();
 
-	if (kernel_uses_llsc && R10000_LLSC_WAR) {
-		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp;
-
+	if (!kernel_uses_llsc) {
+		res = __mips_test_and_clear_bit(nr, addr);
+	} else if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
 		"	.set	push					\n"
 		"	.set	arch=r4000				\n"
@@ -370,10 +378,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 		: "r" (1UL << bit)
 		: __LLSC_CLOBBER);
 #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
-	} else if (kernel_uses_llsc && __builtin_constant_p(nr)) {
-		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp;
-
+	} else if (__builtin_constant_p(nr)) {
 		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
@@ -386,10 +391,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 			: __LLSC_CLOBBER);
 		} while (unlikely(!temp));
 #endif
-	} else if (kernel_uses_llsc) {
-		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp;
-
+	} else {
 		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
@@ -406,8 +408,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 		} while (unlikely(!res));
 
 		res = temp & (1UL << bit);
-	} else
-		res = __mips_test_and_clear_bit(nr, addr);
+	}
 
 	smp_llsc_mb();
 
@@ -425,15 +426,15 @@ static inline int test_and_clear_bit(unsigned long nr,
 static inline int test_and_change_bit(unsigned long nr,
 	volatile unsigned long *addr)
 {
+	unsigned long *m = ((unsigned long *)addr) + (nr >> SZLONG_LOG);
 	int bit = nr & SZLONG_MASK;
-	unsigned long res;
+	unsigned long res, temp;
 
 	smp_mb__before_llsc();
 
-	if (kernel_uses_llsc && R10000_LLSC_WAR) {
-		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp;
-
+	if (!kernel_uses_llsc) {
+		res = __mips_test_and_change_bit(nr, addr);
+	} else if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
 		"	.set	push					\n"
 		"	.set	arch=r4000				\n"
@@ -446,10 +447,7 @@ static inline int test_and_change_bit(unsigned long nr,
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
 		: "r" (1UL << bit)
 		: __LLSC_CLOBBER);
-	} else if (kernel_uses_llsc) {
-		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp;
-
+	} else {
 		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
@@ -465,8 +463,7 @@ static inline int test_and_change_bit(unsigned long nr,
 		} while (unlikely(!res));
 
 		res = temp & (1UL << bit);
-	} else
-		res = __mips_test_and_change_bit(nr, addr);
+	}
 
 	smp_llsc_mb();
 
