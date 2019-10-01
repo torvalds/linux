@@ -178,6 +178,29 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 		return;
 	}
 
+	/*
+	 * The locking here is pretty subtle. Ideally the implicit children
+	 * list would be protected by the umem_mutex, however that is not
+	 * possible. Instead this uses a weaker update-then-lock pattern:
+	 *
+	 *  srcu_read_lock()
+	 *    <change children list>
+	 *    mutex_lock(umem_mutex)
+	 *     mlx5_ib_update_xlt()
+	 *    mutex_unlock(umem_mutex)
+	 *    destroy lkey
+	 *
+	 * ie any change the children list must be followed by the locked
+	 * update_xlt before destroying.
+	 *
+	 * The umem_mutex provides the acquire/release semantic needed to make
+	 * the children list visible to a racing thread. While SRCU is not
+	 * technically required, using it gives consistent use of the SRCU
+	 * locking around the children list.
+	 */
+	lockdep_assert_held(&to_ib_umem_odp(mr->umem)->umem_mutex);
+	lockdep_assert_held(&mr->dev->mr_srcu);
+
 	odp = odp_lookup(offset * MLX5_IMR_MTT_SIZE,
 			 nentries * MLX5_IMR_MTT_SIZE, mr);
 
@@ -202,15 +225,22 @@ static void mr_leaf_free_action(struct work_struct *work)
 	struct ib_umem_odp *odp = container_of(work, struct ib_umem_odp, work);
 	int idx = ib_umem_start(odp) >> MLX5_IMR_MTT_SHIFT;
 	struct mlx5_ib_mr *mr = odp->private, *imr = mr->parent;
+	struct ib_umem_odp *odp_imr = to_ib_umem_odp(imr->umem);
+	int srcu_key;
 
 	mr->parent = NULL;
 	synchronize_srcu(&mr->dev->mr_srcu);
 
-	ib_umem_odp_release(odp);
-	if (imr->live)
+	if (imr->live) {
+		srcu_key = srcu_read_lock(&mr->dev->mr_srcu);
+		mutex_lock(&odp_imr->umem_mutex);
 		mlx5_ib_update_xlt(imr, idx, 1, 0,
 				   MLX5_IB_UPD_XLT_INDIRECT |
 				   MLX5_IB_UPD_XLT_ATOMIC);
+		mutex_unlock(&odp_imr->umem_mutex);
+		srcu_read_unlock(&mr->dev->mr_srcu, srcu_key);
+	}
+	ib_umem_odp_release(odp);
 	mlx5_mr_cache_free(mr->dev, mr);
 
 	if (atomic_dec_and_test(&imr->num_leaf_free))
