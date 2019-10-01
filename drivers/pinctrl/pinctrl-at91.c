@@ -1723,9 +1723,11 @@ static int at91_gpio_of_irq_setup(struct platform_device *pdev,
 	struct at91_gpio_chip   *prev = NULL;
 	struct irq_data		*d = irq_get_irq_data(at91_gpio->pioc_virq);
 	struct irq_chip		*gpio_irqchip;
-	int ret, i;
+	struct gpio_irq_chip	*girq;
+	int i;
 
-	gpio_irqchip = devm_kzalloc(&pdev->dev, sizeof(*gpio_irqchip), GFP_KERNEL);
+	gpio_irqchip = devm_kzalloc(&pdev->dev, sizeof(*gpio_irqchip),
+				    GFP_KERNEL);
 	if (!gpio_irqchip)
 		return -ENOMEM;
 
@@ -1747,33 +1749,30 @@ static int at91_gpio_of_irq_setup(struct platform_device *pdev,
 	 * handler will perform the actual work of handling the parent
 	 * interrupt.
 	 */
-	ret = gpiochip_irqchip_add(&at91_gpio->chip,
-				   gpio_irqchip,
-				   0,
-				   handle_edge_irq,
-				   IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(&pdev->dev, "at91_gpio.%d: Couldn't add irqchip to gpiochip.\n",
-			at91_gpio->pioc_idx);
-		return ret;
-	}
+	girq = &at91_gpio->chip.irq;
+	girq->chip = gpio_irqchip;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_edge_irq;
 
-	/* The top level handler handles one bank of GPIOs, except
+	/*
+	 * The top level handler handles one bank of GPIOs, except
 	 * on some SoC it can handle up to three...
 	 * We only set up the handler for the first of the list.
 	 */
 	gpiochip_prev = irq_get_handler_data(at91_gpio->pioc_virq);
 	if (!gpiochip_prev) {
-		/* Then register the chain on the parent IRQ */
-		gpiochip_set_chained_irqchip(&at91_gpio->chip,
-					     gpio_irqchip,
-					     at91_gpio->pioc_virq,
-					     gpio_irq_handler);
+		girq->parent_handler = gpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(&pdev->dev, 1,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents)
+			return -ENOMEM;
+		girq->parents[0] = at91_gpio->pioc_virq;
 		return 0;
 	}
 
 	prev = gpiochip_get_data(gpiochip_prev);
-
 	/* we can only have 2 banks before */
 	for (i = 0; i < 2; i++) {
 		if (prev->next) {
@@ -1903,6 +1902,10 @@ static int at91_gpio_probe(struct platform_device *pdev)
 	range->npins = chip->ngpio;
 	range->gc = chip;
 
+	ret = at91_gpio_of_irq_setup(pdev, at91_chip);
+	if (ret)
+		goto gpiochip_add_err;
+
 	ret = gpiochip_add_data(chip, at91_chip);
 	if (ret)
 		goto gpiochip_add_err;
@@ -1910,16 +1913,10 @@ static int at91_gpio_probe(struct platform_device *pdev)
 	gpio_chips[alias_idx] = at91_chip;
 	gpio_banks = max(gpio_banks, alias_idx + 1);
 
-	ret = at91_gpio_of_irq_setup(pdev, at91_chip);
-	if (ret)
-		goto irq_setup_err;
-
 	dev_info(&pdev->dev, "at address %p\n", at91_chip->regbase);
 
 	return 0;
 
-irq_setup_err:
-	gpiochip_remove(chip);
 gpiochip_add_err:
 clk_enable_err:
 	clk_disable_unprepare(at91_chip->clock);
