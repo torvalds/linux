@@ -53,14 +53,12 @@ struct btrfs_workqueue {
 	struct __btrfs_workqueue *high;
 };
 
-struct btrfs_fs_info *
-btrfs_workqueue_owner(const struct __btrfs_workqueue *wq)
+struct btrfs_fs_info * __pure btrfs_workqueue_owner(const struct __btrfs_workqueue *wq)
 {
 	return wq->fs_info;
 }
 
-struct btrfs_fs_info *
-btrfs_work_owner(const struct btrfs_work *work)
+struct btrfs_fs_info * __pure btrfs_work_owner(const struct btrfs_work *work)
 {
 	return work->wq->fs_info;
 }

@@ -1538,7 +1538,7 @@ static int comp_keys(const struct btrfs_disk_key *disk,
 /*
  * same as comp_keys only with two btrfs_key's
  */
-int btrfs_comp_cpu_keys(const struct btrfs_key *k1, const struct btrfs_key *k2)
+int __pure btrfs_comp_cpu_keys(const struct btrfs_key *k1, const struct btrfs_key *k2)
 {
 	if (k1->objectid > k2->objectid)
 		return 1;
