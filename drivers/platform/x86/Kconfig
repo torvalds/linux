@@ -94,7 +94,6 @@ config ASUS_LAPTOP
 	depends on RFKILL || RFKILL = n
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_SPARSEKMAP
-	select INPUT_POLLDEV
 	---help---
 	  This is a driver for Asus laptops, Lenovo SL and the Pegatron
 	  Lucid tablet. It may also support some MEDION, JVC or VICTOR
