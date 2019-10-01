@@ -20,18 +20,8 @@
 #include <asm/compiler.h>
 #include <asm/cpu-features.h>
 #include <asm/cmpxchg.h>
+#include <asm/llsc.h>
 #include <asm/war.h>
-
-/*
- * Using a branch-likely instruction to check the result of an sc instruction
- * works around a bug present in R10000 CPUs prior to revision 3.0 that could
- * cause ll-sc sequences to execute non-atomically.
- */
-#if R10000_LLSC_WAR
-# define __scbeqz "beqzl"
-#else
-# define __scbeqz "beqz"
-#endif
 
 #define ATOMIC_INIT(i)	  { (i) }
 
@@ -65,7 +55,7 @@ static __inline__ void atomic_##op(int i, atomic_t * v)			      \
 		"1:	ll	%0, %1		# atomic_" #op "	\n"   \
 		"	" #asm_op " %0, %2				\n"   \
 		"	sc	%0, %1					\n"   \
-		"\t" __scbeqz "	%0, 1b					\n"   \
+		"\t" __SC_BEQZ "%0, 1b					\n"   \
 		"	.set	pop					\n"   \
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (v->counter)	      \
 		: "Ir" (i) : __LLSC_CLOBBER);				      \
@@ -93,7 +83,7 @@ static __inline__ int atomic_##op##_return_relaxed(int i, atomic_t * v)	      \
 		"1:	ll	%1, %2		# atomic_" #op "_return	\n"   \
 		"	" #asm_op " %0, %1, %3				\n"   \
 		"	sc	%0, %2					\n"   \
-		"\t" __scbeqz "	%0, 1b					\n"   \
+		"\t" __SC_BEQZ "%0, 1b					\n"   \
 		"	" #asm_op " %0, %1, %3				\n"   \
 		"	.set	pop					\n"   \
 		: "=&r" (result), "=&r" (temp),				      \
@@ -127,7 +117,7 @@ static __inline__ int atomic_fetch_##op##_relaxed(int i, atomic_t * v)	      \
 		"1:	ll	%1, %2		# atomic_fetch_" #op "	\n"   \
 		"	" #asm_op " %0, %1, %3				\n"   \
 		"	sc	%0, %2					\n"   \
-		"\t" __scbeqz "	%0, 1b					\n"   \
+		"\t" __SC_BEQZ "%0, 1b					\n"   \
 		"	.set	pop					\n"   \
 		"	move	%0, %1					\n"   \
 		: "=&r" (result), "=&r" (temp),				      \
@@ -205,7 +195,7 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 		"	.set	push					\n"
 		"	.set	"MIPS_ISA_LEVEL"			\n"
 		"	sc	%1, %2					\n"
-		"\t" __scbeqz "	%1, 1b					\n"
+		"\t" __SC_BEQZ "%1, 1b					\n"
 		"2:							\n"
 		"	.set	pop					\n"
 		: "=&r" (result), "=&r" (temp),
@@ -267,7 +257,7 @@ static __inline__ void atomic64_##op(s64 i, atomic64_t * v)		      \
 		"1:	lld	%0, %1		# atomic64_" #op "	\n"   \
 		"	" #asm_op " %0, %2				\n"   \
 		"	scd	%0, %1					\n"   \
-		"\t" __scbeqz "	%0, 1b					\n"   \
+		"\t" __SC_BEQZ "%0, 1b					\n"   \
 		"	.set	pop					\n"   \
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (v->counter)	      \
 		: "Ir" (i) : __LLSC_CLOBBER);				      \
@@ -295,7 +285,7 @@ static __inline__ s64 atomic64_##op##_return_relaxed(s64 i, atomic64_t * v)   \
 		"1:	lld	%1, %2		# atomic64_" #op "_return\n"  \
 		"	" #asm_op " %0, %1, %3				\n"   \
 		"	scd	%0, %2					\n"   \
-		"\t" __scbeqz "	%0, 1b					\n"   \
+		"\t" __SC_BEQZ "%0, 1b					\n"   \
 		"	" #asm_op " %0, %1, %3				\n"   \
 		"	.set	pop					\n"   \
 		: "=&r" (result), "=&r" (temp),				      \
@@ -329,7 +319,7 @@ static __inline__ s64 atomic64_fetch_##op##_relaxed(s64 i, atomic64_t * v)    \
 		"1:	lld	%1, %2		# atomic64_fetch_" #op "\n"   \
 		"	" #asm_op " %0, %1, %3				\n"   \
 		"	scd	%0, %2					\n"   \
-		"\t" __scbeqz "	%0, 1b					\n"   \
+		"\t" __SC_BEQZ "%0, 1b					\n"   \
 		"	move	%0, %1					\n"   \
 		"	.set	pop					\n"   \
 		: "=&r" (result), "=&r" (temp),				      \
@@ -404,7 +394,7 @@ static __inline__ s64 atomic64_sub_if_positive(s64 i, atomic64_t * v)
 		"	move	%1, %0					\n"
 		"	bltz	%0, 1f					\n"
 		"	scd	%1, %2					\n"
-		"\t" __scbeqz "	%1, 1b					\n"
+		"\t" __SC_BEQZ "%1, 1b					\n"
 		"1:							\n"
 		"	.set	pop					\n"
 		: "=&r" (result), "=&r" (temp),

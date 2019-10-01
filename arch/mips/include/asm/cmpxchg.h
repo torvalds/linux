@@ -11,18 +11,8 @@
 #include <linux/bug.h>
 #include <linux/irqflags.h>
 #include <asm/compiler.h>
+#include <asm/llsc.h>
 #include <asm/war.h>
-
-/*
- * Using a branch-likely instruction to check the result of an sc instruction
- * works around a bug present in R10000 CPUs prior to revision 3.0 that could
- * cause ll-sc sequences to execute non-atomically.
- */
-#if R10000_LLSC_WAR
-# define __scbeqz "beqzl"
-#else
-# define __scbeqz "beqz"
-#endif
 
 /*
  * These functions doesn't exist, so if they are called you'll either:
@@ -57,7 +47,7 @@ extern unsigned long __xchg_called_with_bad_pointer(void)
 		"	move	$1, %z3				\n"	\
 		"	.set	" MIPS_ISA_ARCH_LEVEL "		\n"	\
 		"	" st "	$1, %1				\n"	\
-		"\t" __scbeqz "	$1, 1b				\n"	\
+		"\t" __SC_BEQZ	"$1, 1b				\n"	\
 		"	.set	pop				\n"	\
 		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m)		\
 		: GCC_OFF_SMALL_ASM() (*m), "Jr" (val)			\
@@ -130,7 +120,7 @@ static inline unsigned long __xchg(volatile void *ptr, unsigned long x,
 		"	move	$1, %z4				\n"	\
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
 		"	" st "	$1, %1				\n"	\
-		"\t" __scbeqz "	$1, 1b				\n"	\
+		"\t" __SC_BEQZ	"$1, 1b				\n"	\
 		"	.set	pop				\n"	\
 		"2:						\n"	\
 		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m)		\
@@ -268,7 +258,7 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 	/* Attempt to store new at ptr */
 	"	scd	%L1, %2				\n"
 	/* If we failed, loop! */
-	"\t" __scbeqz "	%L1, 1b				\n"
+	"\t" __SC_BEQZ "%L1, 1b				\n"
 	"	.set	pop				\n"
 	"2:						\n"
 	: "=&r"(ret),
@@ -310,7 +300,5 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 #  define cmpxchg64(ptr, o, n) cmpxchg64_local((ptr), (o), (n))
 # endif /* !CONFIG_SMP */
 #endif /* !CONFIG_64BIT */
-
-#undef __scbeqz
 
 #endif /* __ASM_CMPXCHG_H */
