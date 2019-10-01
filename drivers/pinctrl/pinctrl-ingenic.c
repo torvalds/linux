@@ -1940,6 +1940,7 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 {
 	struct ingenic_gpio_chip *jzgc;
 	struct device *dev = jzpc->dev;
+	struct gpio_irq_chip *girq;
 	unsigned int bank;
 	int err;
 
@@ -1982,10 +1983,6 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 		jzgc->gc.free = gpiochip_generic_free;
 	}
 
-	err = devm_gpiochip_add_data(dev, &jzgc->gc, jzgc);
-	if (err)
-		return err;
-
 	jzgc->irq = irq_of_parse_and_map(node, 0);
 	if (!jzgc->irq)
 		return -EINVAL;
@@ -2000,13 +1997,22 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	jzgc->irq_chip.irq_set_wake = ingenic_gpio_irq_set_wake;
 	jzgc->irq_chip.flags = IRQCHIP_MASK_ON_SUSPEND;
 
-	err = gpiochip_irqchip_add(&jzgc->gc, &jzgc->irq_chip, 0,
-			handle_level_irq, IRQ_TYPE_NONE);
+	girq = &jzgc->gc.irq;
+	girq->chip = &jzgc->irq_chip;
+	girq->parent_handler = ingenic_gpio_irq_handler;
+	girq->num_parents = 1;
+	girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
+	girq->parents[0] = jzgc->irq;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
+
+	err = devm_gpiochip_add_data(dev, &jzgc->gc, jzgc);
 	if (err)
 		return err;
 
-	gpiochip_set_chained_irqchip(&jzgc->gc, &jzgc->irq_chip,
-			jzgc->irq, ingenic_gpio_irq_handler);
 	return 0;
 }
 
