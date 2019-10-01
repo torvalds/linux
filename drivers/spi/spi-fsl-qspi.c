@@ -63,6 +63,11 @@
 #define QUADSPI_IPCR			0x08
 #define QUADSPI_IPCR_SEQID(x)		((x) << 24)
 
+#define QUADSPI_BUF0CR                  0x10
+#define QUADSPI_BUF1CR                  0x14
+#define QUADSPI_BUF2CR                  0x18
+#define QUADSPI_BUFXCR_INVALID_MSTRID   0xe
+
 #define QUADSPI_BUF3CR			0x1c
 #define QUADSPI_BUF3CR_ALLMST_MASK	BIT(31)
 #define QUADSPI_BUF3CR_ADATSZ(x)	((x) << 8)
@@ -184,6 +189,7 @@
 struct fsl_qspi_devtype_data {
 	unsigned int rxfifo;
 	unsigned int txfifo;
+	int invalid_mstrid;
 	unsigned int ahb_buf_size;
 	unsigned int quirks;
 	bool little_endian;
@@ -192,6 +198,7 @@ struct fsl_qspi_devtype_data {
 static const struct fsl_qspi_devtype_data vybrid_data = {
 	.rxfifo = SZ_128,
 	.txfifo = SZ_64,
+	.invalid_mstrid = QUADSPI_BUFXCR_INVALID_MSTRID,
 	.ahb_buf_size = SZ_1K,
 	.quirks = QUADSPI_QUIRK_SWAP_ENDIAN,
 	.little_endian = true,
@@ -200,6 +207,7 @@ static const struct fsl_qspi_devtype_data vybrid_data = {
 static const struct fsl_qspi_devtype_data imx6sx_data = {
 	.rxfifo = SZ_128,
 	.txfifo = SZ_512,
+	.invalid_mstrid = QUADSPI_BUFXCR_INVALID_MSTRID,
 	.ahb_buf_size = SZ_1K,
 	.quirks = QUADSPI_QUIRK_4X_INT_CLK | QUADSPI_QUIRK_TKT245618,
 	.little_endian = true,
@@ -208,6 +216,7 @@ static const struct fsl_qspi_devtype_data imx6sx_data = {
 static const struct fsl_qspi_devtype_data imx7d_data = {
 	.rxfifo = SZ_128,
 	.txfifo = SZ_512,
+	.invalid_mstrid = QUADSPI_BUFXCR_INVALID_MSTRID,
 	.ahb_buf_size = SZ_1K,
 	.quirks = QUADSPI_QUIRK_TKT253890 | QUADSPI_QUIRK_4X_INT_CLK,
 	.little_endian = true,
@@ -216,6 +225,7 @@ static const struct fsl_qspi_devtype_data imx7d_data = {
 static const struct fsl_qspi_devtype_data imx6ul_data = {
 	.rxfifo = SZ_128,
 	.txfifo = SZ_512,
+	.invalid_mstrid = QUADSPI_BUFXCR_INVALID_MSTRID,
 	.ahb_buf_size = SZ_1K,
 	.quirks = QUADSPI_QUIRK_TKT253890 | QUADSPI_QUIRK_4X_INT_CLK,
 	.little_endian = true,
@@ -224,6 +234,7 @@ static const struct fsl_qspi_devtype_data imx6ul_data = {
 static const struct fsl_qspi_devtype_data ls1021a_data = {
 	.rxfifo = SZ_128,
 	.txfifo = SZ_64,
+	.invalid_mstrid = QUADSPI_BUFXCR_INVALID_MSTRID,
 	.ahb_buf_size = SZ_1K,
 	.quirks = 0,
 	.little_endian = false,
@@ -233,6 +244,7 @@ static const struct fsl_qspi_devtype_data ls2080a_data = {
 	.rxfifo = SZ_128,
 	.txfifo = SZ_64,
 	.ahb_buf_size = SZ_1K,
+	.invalid_mstrid = 0x0,
 	.quirks = QUADSPI_QUIRK_TKT253890 | QUADSPI_QUIRK_BASE_INTERNAL,
 	.little_endian = true,
 };
@@ -615,6 +627,7 @@ static int fsl_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	void __iomem *base = q->iobase;
 	u32 addr_offset = 0;
 	int err = 0;
+	int invalid_mstrid = q->devtype_data->invalid_mstrid;
 
 	mutex_lock(&q->lock);
 
@@ -637,6 +650,10 @@ static int fsl_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 	qspi_writel(q, QUADSPI_SPTRCLR_BFPTRC | QUADSPI_SPTRCLR_IPPTRC,
 		    base + QUADSPI_SPTRCLR);
+
+	qspi_writel(q, invalid_mstrid, base + QUADSPI_BUF0CR);
+	qspi_writel(q, invalid_mstrid, base + QUADSPI_BUF1CR);
+	qspi_writel(q, invalid_mstrid, base + QUADSPI_BUF2CR);
 
 	fsl_qspi_prepare_lut(q, op);
 
