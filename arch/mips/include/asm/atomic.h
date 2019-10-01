@@ -45,51 +45,36 @@
 #define ATOMIC_OP(op, c_op, asm_op)					\
 static __inline__ void atomic_##op(int i, atomic_t * v)			\
 {									\
-	if (kernel_uses_llsc) {						\
-		int temp;						\
+	int temp;							\
 									\
-		loongson_llsc_mb();					\
-		__asm__ __volatile__(					\
-		"	.set	push				\n"	\
-		"	.set	"MIPS_ISA_LEVEL"		\n"	\
-		"1:	ll	%0, %1	# atomic_" #op "	\n"	\
-		"	" #asm_op " %0, %2			\n"	\
-		"	sc	%0, %1				\n"	\
-		"\t" __SC_BEQZ "%0, 1b				\n"	\
-		"	.set	pop				\n"	\
-		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (v->counter)	\
-		: "Ir" (i) : __LLSC_CLOBBER);				\
-	} else {							\
+	if (!kernel_uses_llsc) {					\
 		unsigned long flags;					\
 									\
 		raw_local_irq_save(flags);				\
 		v->counter c_op i;					\
 		raw_local_irq_restore(flags);				\
+		return;							\
 	}								\
+									\
+	loongson_llsc_mb();						\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	" MIPS_ISA_LEVEL "			\n"	\
+	"1:	ll	%0, %1		# atomic_" #op "	\n"	\
+	"	" #asm_op " %0, %2				\n"	\
+	"	sc	%0, %1					\n"	\
+	"\t" __SC_BEQZ "%0, 1b					\n"	\
+	"	.set	pop					\n"	\
+	: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (v->counter)		\
+	: "Ir" (i) : __LLSC_CLOBBER);					\
 }
 
 #define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
 static __inline__ int atomic_##op##_return_relaxed(int i, atomic_t * v)	\
 {									\
-	int result;							\
+	int temp, result;						\
 									\
-	if (kernel_uses_llsc) {						\
-		int temp;						\
-									\
-		loongson_llsc_mb();					\
-		__asm__ __volatile__(					\
-		"	.set	push				\n"	\
-		"	.set	"MIPS_ISA_LEVEL"		\n"	\
-		"1:	ll	%1, %2	# atomic_" #op "_return	\n"	\
-		"	" #asm_op " %0, %1, %3			\n"	\
-		"	sc	%0, %2				\n"	\
-		"\t" __SC_BEQZ "%0, 1b				\n"	\
-		"	" #asm_op " %0, %1, %3			\n"	\
-		"	.set	pop				\n"	\
-		: "=&r" (result), "=&r" (temp),				\
-		  "+" GCC_OFF_SMALL_ASM() (v->counter)			\
-		: "Ir" (i) : __LLSC_CLOBBER);				\
-	} else {							\
+	if (!kernel_uses_llsc) {					\
 		unsigned long flags;					\
 									\
 		raw_local_irq_save(flags);				\
@@ -97,7 +82,22 @@ static __inline__ int atomic_##op##_return_relaxed(int i, atomic_t * v)	\
 		result c_op i;						\
 		v->counter = result;					\
 		raw_local_irq_restore(flags);				\
+		return result;						\
 	}								\
+									\
+	loongson_llsc_mb();						\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	" MIPS_ISA_LEVEL "			\n"	\
+	"1:	ll	%1, %2		# atomic_" #op "_return	\n"	\
+	"	" #asm_op " %0, %1, %3				\n"	\
+	"	sc	%0, %2					\n"	\
+	"\t" __SC_BEQZ "%0, 1b					\n"	\
+	"	" #asm_op " %0, %1, %3				\n"	\
+	"	.set	pop					\n"	\
+	: "=&r" (result), "=&r" (temp),					\
+	  "+" GCC_OFF_SMALL_ASM() (v->counter)				\
+	: "Ir" (i) : __LLSC_CLOBBER);					\
 									\
 	return result;							\
 }
@@ -105,32 +105,31 @@ static __inline__ int atomic_##op##_return_relaxed(int i, atomic_t * v)	\
 #define ATOMIC_FETCH_OP(op, c_op, asm_op)				\
 static __inline__ int atomic_fetch_##op##_relaxed(int i, atomic_t * v)	\
 {									\
-	int result;							\
+	int temp, result;						\
 									\
-	if (kernel_uses_llsc) {						\
-		int temp;						\
-									\
-		loongson_llsc_mb();					\
-		__asm__ __volatile__(					\
-		"	.set	push				\n"	\
-		"	.set	"MIPS_ISA_LEVEL"		\n"	\
-		"1:	ll	%1, %2	# atomic_fetch_" #op "	\n"	\
-		"	" #asm_op " %0, %1, %3			\n"	\
-		"	sc	%0, %2				\n"	\
-		"\t" __SC_BEQZ "%0, 1b				\n"	\
-		"	.set	pop				\n"	\
-		"	move	%0, %1				\n"	\
-		: "=&r" (result), "=&r" (temp),				\
-		  "+" GCC_OFF_SMALL_ASM() (v->counter)			\
-		: "Ir" (i) : __LLSC_CLOBBER);				\
-	} else {							\
+	if (!kernel_uses_llsc) {					\
 		unsigned long flags;					\
 									\
 		raw_local_irq_save(flags);				\
 		result = v->counter;					\
 		v->counter c_op i;					\
 		raw_local_irq_restore(flags);				\
+		return result;						\
 	}								\
+									\
+	loongson_llsc_mb();						\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	"MIPS_ISA_LEVEL"			\n"	\
+	"1:	ll	%1, %2		# atomic_fetch_" #op "	\n"	\
+	"	" #asm_op " %0, %1, %3				\n"	\
+	"	sc	%0, %2					\n"	\
+	"\t" __SC_BEQZ "%0, 1b					\n"	\
+	"	.set	pop					\n"	\
+	"	move	%0, %1					\n"	\
+	: "=&r" (result), "=&r" (temp),					\
+	  "+" GCC_OFF_SMALL_ASM() (v->counter)				\
+	: "Ir" (i) : __LLSC_CLOBBER);					\
 									\
 	return result;							\
 }
