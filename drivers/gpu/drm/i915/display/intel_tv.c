@@ -961,11 +961,10 @@ intel_tv_mode_valid(struct drm_connector *connector,
 		return MODE_CLOCK_HIGH;
 
 	/* Ensure TV refresh is close to desired refresh */
-	if (tv_mode && abs(tv_mode->refresh - drm_mode_vrefresh(mode) * 1000)
-				< 1000)
-		return MODE_OK;
+	if (abs(tv_mode->refresh - drm_mode_vrefresh(mode) * 1000) >= 1000)
+		return MODE_CLOCK_RANGE;
 
-	return MODE_CLOCK_RANGE;
+	return MODE_OK;
 }
 
 static int
