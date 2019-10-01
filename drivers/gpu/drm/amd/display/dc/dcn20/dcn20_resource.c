@@ -2850,6 +2850,7 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 	bool full_pstate_supported = false;
 	bool dummy_pstate_supported = false;
 	double p_state_latency_us = context->bw_ctx.dml.soc.dram_clock_change_latency_us;
+	context->bw_ctx.dml.soc.disable_dram_clock_change_vactive_support = dc->debug.disable_dram_clock_change_vactive_support;
 
 	if (fast_validate)
 		return dcn20_validate_bandwidth_internal(dc, context, true);

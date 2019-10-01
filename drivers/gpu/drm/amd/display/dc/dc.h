@@ -423,6 +423,7 @@ struct dc_debug_options {
 	int force_clock_mode;/*every mode change.*/
 
 	bool nv12_iflip_vm_wa;
+	bool disable_dram_clock_change_vactive_support;
 };
 
 struct dc_debug_data {

@@ -112,6 +112,7 @@ struct _vcs_dpi_soc_bounding_box_st {
 	bool do_urgent_latency_adjustment;
 	double urgent_latency_adjustment_fabric_clock_component_us;
 	double urgent_latency_adjustment_fabric_clock_reference_mhz;
+	bool disable_dram_clock_change_vactive_support;
 };
 
 struct _vcs_dpi_ip_params_st {

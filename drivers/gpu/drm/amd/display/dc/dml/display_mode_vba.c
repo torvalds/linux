@@ -223,6 +223,8 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.SREnterPlusExitTime = soc->sr_enter_plus_exit_time_us;
 	mode_lib->vba.DRAMClockChangeLatency = soc->dram_clock_change_latency_us;
 	mode_lib->vba.DummyPStateCheck = soc->dram_clock_change_latency_us == soc->dummy_pstate_latency_us;
+	mode_lib->vba.DRAMClockChangeSupportsVActive = !soc->disable_dram_clock_change_vactive_support ||
+			mode_lib->vba.DummyPStateCheck;
 
 	mode_lib->vba.Downspreading = soc->downspread_percent;
 	mode_lib->vba.DRAMChannelWidth = soc->dram_channel_width_bytes;   // new!

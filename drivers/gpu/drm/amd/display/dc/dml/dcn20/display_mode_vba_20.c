@@ -2577,7 +2577,8 @@ static void dml20_DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPer
 			mode_lib->vba.MinActiveDRAMClockChangeMargin
 					+ mode_lib->vba.DRAMClockChangeLatency;
 
-	if (mode_lib->vba.MinActiveDRAMClockChangeMargin > 50) {
+	if (mode_lib->vba.DRAMClockChangeSupportsVActive &&
+			mode_lib->vba.MinActiveDRAMClockChangeMargin > 50) {
 		mode_lib->vba.DRAMClockChangeWatermark += 25;
 		mode_lib->vba.DRAMClockChangeSupport[0][0] = dm_dram_clock_change_vactive;
 	} else {
