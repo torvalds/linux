@@ -2109,17 +2109,16 @@ static int sja1105_check_device_id(struct sja1105_private *priv)
 	const struct sja1105_regs *regs = priv->info->regs;
 	u8 prod_id[SJA1105_SIZE_DEVICE_ID] = {0};
 	struct device *dev = &priv->spidev->dev;
-	u64 device_id;
+	u32 device_id;
 	u64 part_no;
 	int rc;
 
-	rc = sja1105_spi_send_int(priv, SPI_READ, regs->device_id,
-				  &device_id, SJA1105_SIZE_DEVICE_ID);
+	rc = sja1105_xfer_u32(priv, SPI_READ, regs->device_id, &device_id);
 	if (rc < 0)
 		return rc;
 
 	if (device_id != priv->info->device_id) {
-		dev_err(dev, "Expected device ID 0x%llx but read 0x%llx\n",
+		dev_err(dev, "Expected device ID 0x%llx but read 0x%x\n",
 			priv->info->device_id, device_id);
 		return -ENODEV;
 	}

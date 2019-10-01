@@ -130,9 +130,10 @@ int sja1105_static_config_reload(struct sja1105_private *priv);
 int sja1105_spi_send_packed_buf(const struct sja1105_private *priv,
 				sja1105_spi_rw_mode_t rw, u64 reg_addr,
 				void *packed_buf, size_t size_bytes);
-int sja1105_spi_send_int(const struct sja1105_private *priv,
-			 sja1105_spi_rw_mode_t rw, u64 reg_addr,
-			 u64 *value, u64 size_bytes);
+int sja1105_xfer_u32(const struct sja1105_private *priv,
+		     sja1105_spi_rw_mode_t rw, u64 reg_addr, u32 *value);
+int sja1105_xfer_u64(const struct sja1105_private *priv,
+		     sja1105_spi_rw_mode_t rw, u64 reg_addr, u64 *value);
 int sja1105_spi_send_long_packed_buf(const struct sja1105_private *priv,
 				     sja1105_spi_rw_mode_t rw, u64 base_addr,
 				     void *packed_buf, u64 buf_len);

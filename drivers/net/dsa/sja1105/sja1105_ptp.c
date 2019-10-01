@@ -327,8 +327,7 @@ static u64 sja1105_ptptsclk_read(const struct cyclecounter *cc)
 	u64 ptptsclk = 0;
 	int rc;
 
-	rc = sja1105_spi_send_int(priv, SPI_READ, regs->ptptsclk,
-				  &ptptsclk, 8);
+	rc = sja1105_xfer_u64(priv, SPI_READ, regs->ptptsclk, &ptptsclk);
 	if (rc < 0)
 		dev_err_ratelimited(priv->ds->dev,
 				    "failed to read ptp cycle counter: %d\n",
