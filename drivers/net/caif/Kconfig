@@ -3,7 +3,13 @@
 # CAIF physical drivers
 #
 
-comment "CAIF transport drivers"
+menuconfig CAIF_DRIVERS
+	bool "CAIF transport drivers"
+	depends on CAIF
+	help
+	  Enable this to see CAIF physical drivers.
+
+if CAIF_DRIVERS
 
 config CAIF_TTY
 	tristate "CAIF TTY transport driver"
@@ -55,3 +61,5 @@ config CAIF_VIRTIO
 if CAIF_VIRTIO
 source "drivers/vhost/Kconfig.vringh"
 endif
+
+endif # CAIF_DRIVERS
