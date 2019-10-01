@@ -1606,8 +1606,13 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 		pages[i] = grab_cache_page_write_begin(mapping, index + i);
 		if (!pages[i]) {
 			nr_pages = i;
-			ret = -ENOMEM;
-			goto out;
+			if (!i) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			len = min_t(unsigned, len,
+				    nr_pages * PAGE_SIZE - offset);
+			break;
 		}
 	}
 
