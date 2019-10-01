@@ -196,7 +196,7 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 {
 	int result;
 
-	smp_mb__before_llsc();
+	smp_mb__before_atomic();
 
 	if (kernel_uses_llsc) {
 		int temp;
@@ -237,7 +237,7 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 	 * another barrier here.
 	 */
 	if (!__SYNC_loongson3_war)
-		smp_llsc_mb();
+		smp_mb__after_atomic();
 
 	return result;
 }
