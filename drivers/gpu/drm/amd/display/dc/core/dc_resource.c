@@ -1629,7 +1629,8 @@ static int acquire_first_free_pipe(
 static struct audio *find_first_free_audio(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
-		enum engine_id id)
+		enum engine_id id,
+		enum dce_version dc_version)
 {
 	int i, available_audio_count;
 
@@ -1965,7 +1966,7 @@ enum dc_status resource_map_pool_resources(
 	    dc_is_audio_capable_signal(pipe_ctx->stream->signal) &&
 	    stream->audio_info.mode_count && stream->audio_info.flags.all) {
 		pipe_ctx->stream_res.audio = find_first_free_audio(
-		&context->res_ctx, pool, pipe_ctx->stream_res.stream_enc->id);
+		&context->res_ctx, pool, pipe_ctx->stream_res.stream_enc->id, dc_ctx->dce_version);
 
 		/*
 		 * Audio assigned in order first come first get.
