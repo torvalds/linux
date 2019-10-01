@@ -857,28 +857,7 @@ static void smiapp_update_blanking(struct smiapp_sensor *sensor)
 static int smiapp_update_mode(struct smiapp_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	unsigned int binning_mode;
 	int rval;
-
-	/* Binning has to be set up here; it affects limits */
-	if (sensor->binning_horizontal == 1 &&
-	    sensor->binning_vertical == 1) {
-		binning_mode = 0;
-	} else {
-		u8 binning_type =
-			(sensor->binning_horizontal << 4)
-			| sensor->binning_vertical;
-
-		rval = smiapp_write(
-			sensor, SMIAPP_REG_U8_BINNING_TYPE, binning_type);
-		if (rval < 0)
-			return rval;
-
-		binning_mode = 1;
-	}
-	rval = smiapp_write(sensor, SMIAPP_REG_U8_BINNING_MODE, binning_mode);
-	if (rval < 0)
-		return rval;
 
 	rval = smiapp_pll_update(sensor);
 	if (rval < 0)
@@ -1351,6 +1330,7 @@ static int smiapp_power_off(struct device *dev)
 static int smiapp_start_streaming(struct smiapp_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	unsigned int binning_mode;
 	int rval;
 
 	mutex_lock(&sensor->mutex);
@@ -1361,6 +1341,27 @@ static int smiapp_start_streaming(struct smiapp_sensor *sensor)
 	if (rval)
 		goto out;
 
+	/* Binning configuration */
+	if (sensor->binning_horizontal == 1 &&
+	    sensor->binning_vertical == 1) {
+		binning_mode = 0;
+	} else {
+		u8 binning_type =
+			(sensor->binning_horizontal << 4)
+			| sensor->binning_vertical;
+
+		rval = smiapp_write(
+			sensor, SMIAPP_REG_U8_BINNING_TYPE, binning_type);
+		if (rval < 0)
+			return rval;
+
+		binning_mode = 1;
+	}
+	rval = smiapp_write(sensor, SMIAPP_REG_U8_BINNING_MODE, binning_mode);
+	if (rval < 0)
+		return rval;
+
+	/* Set up PLL */
 	rval = smiapp_pll_configure(sensor);
 	if (rval)
 		goto out;
