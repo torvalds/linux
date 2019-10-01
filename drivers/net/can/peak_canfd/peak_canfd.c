@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright (C) 2007, 2011 Wolfgang Grandegger <wg@grandegger.com>
+/* Copyright (C) 2007, 2011 Wolfgang Grandegger <wg@grandegger.com>
  * Copyright (C) 2012 Stephane Grosjean <s.grosjean@peak-system.com>
  *
  * Copyright (C) 2016  PEAK System-Technik GmbH
@@ -122,7 +121,8 @@ static int pucan_set_timing_slow(struct peak_canfd_priv *priv,
 	cmd = pucan_add_cmd(pucan_init_cmd(priv), PUCAN_CMD_TIMING_SLOW);
 
 	cmd->sjw_t = PUCAN_TSLOW_SJW_T(pbt->sjw - 1,
-				priv->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES);
+				       priv->can.ctrlmode &
+				       CAN_CTRLMODE_3_SAMPLES);
 	cmd->tseg1 = PUCAN_TSLOW_TSEG1(pbt->prop_seg + pbt->phase_seg1 - 1);
 	cmd->tseg2 = PUCAN_TSLOW_TSEG2(pbt->phase_seg2 - 1);
 	cmd->brp = cpu_to_le16(PUCAN_TSLOW_BRP(pbt->brp - 1));
@@ -325,7 +325,6 @@ static int pucan_handle_status(struct peak_canfd_priv *priv,
 
 	/* this STATUS is the CNF of the RX_BARRIER: Tx path can be setup */
 	if (pucan_status_is_rx_barrier(msg)) {
-
 		if (priv->enable_tx_path) {
 			int err = priv->enable_tx_path(priv);
 
