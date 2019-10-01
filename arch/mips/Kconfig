@@ -2554,6 +2554,10 @@ config CPU_R4000_WORKAROUNDS
 config CPU_R4400_WORKAROUNDS
 	bool
 
+config CPU_R4X00_BUGS64
+	bool
+	default y if SYS_HAS_CPU_R4X00 && 64BIT && (TARGET_ISA_REV < 1)
+
 config MIPS_ASID_SHIFT
 	int
 	default 6 if CPU_R3000 || CPU_TX39XX

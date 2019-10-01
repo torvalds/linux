@@ -657,7 +657,7 @@ isrdhwr:
 	.set	pop
 	END(handle_ri_rdhwr)
 
-#ifdef CONFIG_64BIT
+#ifdef CONFIG_CPU_R4X00_BUGS64
 /* A temporary overflow handler used by check_daddi(). */
 
 	__INIT
