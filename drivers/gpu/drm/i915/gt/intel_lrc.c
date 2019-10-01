@@ -4175,6 +4175,7 @@ intel_execlists_create_virtual(struct i915_gem_context *ctx,
 	snprintf(ve->base.name, sizeof(ve->base.name), "virtual");
 
 	intel_engine_init_active(&ve->base, ENGINE_VIRTUAL);
+	intel_engine_init_breadcrumbs(&ve->base);
 
 	intel_engine_init_execlists(&ve->base);
 
