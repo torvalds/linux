@@ -375,6 +375,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 
 		mode_lib->vba.pipe_plane[j] = mode_lib->vba.NumberOfActivePlanes;
 
+		mode_lib->vba.EmbeddedPanel[mode_lib->vba.NumberOfActivePlanes] = dst->embedded;
 		mode_lib->vba.DPPPerPlane[mode_lib->vba.NumberOfActivePlanes] = 1;
 		mode_lib->vba.SourceScan[mode_lib->vba.NumberOfActivePlanes] =
 				(enum scan_direction_class) (src->source_scan);
