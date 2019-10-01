@@ -503,6 +503,7 @@ out:
 }
 
 const struct btrfs_compress_op btrfs_lzo_compress = {
+	.workspace_manager	= &wsm,
 	.init_workspace_manager	= lzo_init_workspace_manager,
 	.cleanup_workspace_manager = lzo_cleanup_workspace_manager,
 	.get_workspace		= lzo_get_workspace,

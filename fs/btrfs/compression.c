@@ -920,6 +920,7 @@ fail:
 }
 
 const struct btrfs_compress_op btrfs_heuristic_compress = {
+	.workspace_manager = &heuristic_wsm,
 	.init_workspace_manager = heuristic_init_workspace_manager,
 	.cleanup_workspace_manager = heuristic_cleanup_workspace_manager,
 	.get_workspace = heuristic_get_workspace,

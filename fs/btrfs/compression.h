@@ -140,6 +140,7 @@ struct btrfs_compress_op {
 
 	void (*free_workspace)(struct list_head *workspace);
 
+	struct workspace_manager *workspace_manager;
 	/* Maximum level supported by the compression algorithm */
 	unsigned int max_level;
 	unsigned int default_level;

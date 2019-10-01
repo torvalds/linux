@@ -414,6 +414,7 @@ next:
 }
 
 const struct btrfs_compress_op btrfs_zlib_compress = {
+	.workspace_manager	= &wsm,
 	.init_workspace_manager	= zlib_init_workspace_manager,
 	.cleanup_workspace_manager = zlib_cleanup_workspace_manager,
 	.get_workspace		= zlib_get_workspace,

@@ -707,6 +707,8 @@ finish:
 }
 
 const struct btrfs_compress_op btrfs_zstd_compress = {
+	/* ZSTD uses own workspace manager */
+	.workspace_manager = NULL,
 	.init_workspace_manager = zstd_init_workspace_manager,
 	.cleanup_workspace_manager = zstd_cleanup_workspace_manager,
 	.get_workspace = zstd_get_workspace,
