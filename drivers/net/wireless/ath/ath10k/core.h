@@ -973,6 +973,11 @@ struct ath10k {
 	u32 low_5ghz_chan;
 	u32 high_5ghz_chan;
 	bool ani_enabled;
+	u32 sys_cap_info;
+
+	/* protected by data_lock */
+	bool hw_rfkill_on;
+
 	/* protected by conf_mutex */
 	u8 ps_state_enable;
 

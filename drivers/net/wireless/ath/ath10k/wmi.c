@@ -5412,6 +5412,12 @@ ath10k_wmi_10x_op_pull_svc_rdy_ev(struct ath10k *ar, struct sk_buff *skb,
 	arg->service_map = ev->wmi_service_bitmap;
 	arg->service_map_len = sizeof(ev->wmi_service_bitmap);
 
+	/* Deliberately skipping ev->sys_cap_info as WMI and WMI-TLV have
+	 * different values. We would need a translation to handle that,
+	 * but as we don't currently need anything from sys_cap_info from
+	 * WMI interface (only from WMI-TLV) safest it to skip it.
+	 */
+
 	n = min_t(size_t, __le32_to_cpu(arg->num_mem_reqs),
 		  ARRAY_SIZE(arg->mem_reqs));
 	for (i = 0; i < n; i++)
@@ -5465,9 +5471,12 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 	ar->high_2ghz_chan = __le32_to_cpu(arg.high_2ghz_chan);
 	ar->low_5ghz_chan = __le32_to_cpu(arg.low_5ghz_chan);
 	ar->high_5ghz_chan = __le32_to_cpu(arg.high_5ghz_chan);
+	ar->sys_cap_info = __le32_to_cpu(arg.sys_cap_info);
 
 	ath10k_dbg_dump(ar, ATH10K_DBG_WMI, NULL, "wmi svc: ",
 			arg.service_map, arg.service_map_len);
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi sys_cap_info 0x%x\n",
+		   ar->sys_cap_info);
 
 	if (ar->num_rf_chains > ar->max_spatial_stream) {
 		ath10k_warn(ar, "hardware advertises support for more spatial streams than it should (%d > %d)\n",

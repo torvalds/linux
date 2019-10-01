@@ -409,6 +409,49 @@ static int ath10k_wmi_tlv_event_tx_pause(struct ath10k *ar,
 	return 0;
 }
 
+static void ath10k_wmi_tlv_event_rfkill_state_change(struct ath10k *ar,
+						     struct sk_buff *skb)
+{
+	const struct wmi_tlv_rfkill_state_change_ev *ev;
+	const void **tb;
+	bool radio;
+	int ret;
+
+	tb = ath10k_wmi_tlv_parse_alloc(ar, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath10k_warn(ar,
+			    "failed to parse rfkill state change event: %d\n",
+			    ret);
+		return;
+	}
+
+	ev = tb[WMI_TLV_TAG_STRUCT_RFKILL_EVENT];
+	if (!ev) {
+		kfree(tb);
+		return;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_MAC,
+		   "wmi tlv rfkill state change gpio %d type %d radio_state %d\n",
+		   __le32_to_cpu(ev->gpio_pin_num),
+		   __le32_to_cpu(ev->int_type),
+		   __le32_to_cpu(ev->radio_state));
+
+	radio = (__le32_to_cpu(ev->radio_state) == WMI_TLV_RFKILL_RADIO_STATE_ON);
+
+	spin_lock_bh(&ar->data_lock);
+
+	if (!radio)
+		ar->hw_rfkill_on = true;
+
+	spin_unlock_bh(&ar->data_lock);
+
+	/* notify cfg80211 radio state change */
+	ath10k_mac_rfkill_enable_radio(ar, radio);
+	wiphy_rfkill_set_hw_state(ar->hw->wiphy, !radio);
+}
+
 static int ath10k_wmi_tlv_event_temperature(struct ath10k *ar,
 					    struct sk_buff *skb)
 {
@@ -628,6 +671,9 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_TLV_TX_PAUSE_EVENTID:
 		ath10k_wmi_tlv_event_tx_pause(ar, skb);
+		break;
+	case WMI_TLV_RFKILL_STATE_CHANGE_EVENTID:
+		ath10k_wmi_tlv_event_rfkill_state_change(ar, skb);
 		break;
 	case WMI_TLV_PDEV_TEMPERATURE_EVENTID:
 		ath10k_wmi_tlv_event_temperature(ar, skb);
@@ -1215,6 +1261,7 @@ static int ath10k_wmi_tlv_op_pull_svc_rdy_ev(struct ath10k *ar,
 	arg->num_mem_reqs = ev->num_mem_reqs;
 	arg->service_map = svc_bmap;
 	arg->service_map_len = ath10k_wmi_tlv_len(svc_bmap);
+	arg->sys_cap_info = ev->sys_cap_info;
 
 	ret = ath10k_wmi_tlv_iter(ar, mem_reqs, ath10k_wmi_tlv_len(mem_reqs),
 				  ath10k_wmi_tlv_parse_mem_reqs, arg);
@@ -4214,6 +4261,8 @@ static struct wmi_pdev_param_map wmi_tlv_pdev_param_map = {
 	.wapi_mbssid_offset = WMI_PDEV_PARAM_UNSUPPORTED,
 	.arp_srcaddr = WMI_PDEV_PARAM_UNSUPPORTED,
 	.arp_dstaddr = WMI_PDEV_PARAM_UNSUPPORTED,
+	.rfkill_config = WMI_TLV_PDEV_PARAM_HW_RFKILL_CONFIG,
+	.rfkill_enable = WMI_TLV_PDEV_PARAM_RFKILL_ENABLE,
 };
 
 static struct wmi_peer_param_map wmi_tlv_peer_param_map = {

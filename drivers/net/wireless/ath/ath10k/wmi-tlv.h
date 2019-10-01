@@ -7,6 +7,8 @@
 #ifndef _WMI_TLV_H
 #define _WMI_TLV_H
 
+#include <linux/bitops.h>
+
 #define WMI_TLV_CMD(grp_id) (((grp_id) << 12) | 0x1)
 #define WMI_TLV_EV(grp_id) (((grp_id) << 12) | 0x1)
 #define WMI_TLV_CMD_UNSUPPORTED 0
@@ -2275,6 +2277,31 @@ struct wmi_tlv_tdls_peer_event {
 	__le32 peer_reason;
 	__le32 vdev_id;
 } __packed;
+
+enum wmi_tlv_sys_cap_info_flags {
+	WMI_TLV_SYS_CAP_INFO_RXTX_LED	= BIT(0),
+	WMI_TLV_SYS_CAP_INFO_RFKILL	= BIT(1),
+};
+
+#define WMI_TLV_RFKILL_CFG_GPIO_PIN_NUM		GENMASK(5, 0)
+#define WMI_TLV_RFKILL_CFG_RADIO_LEVEL		BIT(6)
+#define WMI_TLV_RFKILL_CFG_PIN_AS_GPIO		GENMASK(10, 7)
+
+enum wmi_tlv_rfkill_enable_radio {
+	WMI_TLV_RFKILL_ENABLE_RADIO_ON	= 0,
+	WMI_TLV_RFKILL_ENABLE_RADIO_OFF	= 1,
+};
+
+enum wmi_tlv_rfkill_radio_state {
+	WMI_TLV_RFKILL_RADIO_STATE_OFF	= 1,
+	WMI_TLV_RFKILL_RADIO_STATE_ON	= 2,
+};
+
+struct wmi_tlv_rfkill_state_change_ev {
+	__le32 gpio_pin_num;
+	__le32 int_type;
+	__le32 radio_state;
+};
 
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
