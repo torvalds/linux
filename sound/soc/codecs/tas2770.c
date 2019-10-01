@@ -793,7 +793,6 @@ MODULE_DEVICE_TABLE(of, tas2770_of_match);
 static struct i2c_driver tas2770_i2c_driver = {
 	.driver = {
 		.name   = "tas2770",
-		.owner  = THIS_MODULE,
 		.of_match_table = of_match_ptr(tas2770_of_match),
 	},
 	.probe      = tas2770_i2c_probe,
