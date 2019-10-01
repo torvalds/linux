@@ -162,6 +162,7 @@ struct trace {
 	bool			force;
 	bool			vfs_getname;
 	int			trace_pgfaults;
+	char			*perfconfig_events;
 	struct {
 		struct ordered_events	data;
 		u64			last;
@@ -4044,15 +4045,11 @@ static int trace__config(const char *var, const char *value, void *arg)
 	int err = 0;
 
 	if (!strcmp(var, "trace.add_events")) {
-		struct option o = OPT_CALLBACK('e', "event", &trace->evlist, "event",
-					       "event selector. use 'perf list' to list available events",
-					       parse_events_option);
-		/*
-		 * We can't propagate parse_event_option() return, as it is 1
-		 * for failure while perf_config() expects -1.
-		 */
-		if (parse_events_option(&o, value, 0))
-			err = -1;
+		trace->perfconfig_events = strdup(value);
+		if (trace->perfconfig_events == NULL) {
+			pr_err("Not enough memory for %s\n", "trace.add_events");
+			return -1;
+		}
 	} else if (!strcmp(var, "trace.show_timestamp")) {
 		trace->show_tstamp = perf_config_bool(var, value);
 	} else if (!strcmp(var, "trace.show_duration")) {
@@ -4224,6 +4221,21 @@ int cmd_trace(int argc, const char **argv)
 
 	argc = parse_options_subcommand(argc, argv, trace_options, trace_subcommands,
 				 trace_usage, PARSE_OPT_STOP_AT_NON_OPTION);
+	/*
+	 * Now that we have --verbose figured out, lets see if we need to parse
+	 * events from .perfconfig, so that if those events fail parsing, say some
+	 * BPF program fails, then we'll be able to use --verbose to see what went
+	 * wrong in more detail.
+	 */
+	if (trace.perfconfig_events != NULL) {
+		struct parse_events_error parse_err = { .idx = 0, };
+
+		err = parse_events(trace.evlist, trace.perfconfig_events, &parse_err);
+		if (err) {
+			parse_events_print_error(&parse_err, trace.perfconfig_events);
+			goto out;
+		}
+	}
 
 	if ((nr_cgroups || trace.cgroup) && !trace.opts.target.system_wide) {
 		usage_with_options_msg(trace_usage, trace_options,
@@ -4441,5 +4453,6 @@ out_close:
 	if (output_name != NULL)
 		fclose(trace.output);
 out:
+	zfree(&trace.perfconfig_events);
 	return err;
 }
