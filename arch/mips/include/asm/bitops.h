@@ -77,7 +77,7 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 	}
 
 #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
-	if (__builtin_constant_p(bit)) {
+	if (__builtin_constant_p(bit) && (bit >= 16)) {
 		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
