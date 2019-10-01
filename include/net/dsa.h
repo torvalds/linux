@@ -94,8 +94,6 @@ struct __dsa_skb_cb {
 	u8 priv[48 - sizeof(struct dsa_skb_cb)];
 };
 
-#define __DSA_SKB_CB(skb) ((struct __dsa_skb_cb *)((skb)->cb))
-
 #define DSA_SKB_CB(skb) ((struct dsa_skb_cb *)((skb)->cb))
 
 #define DSA_SKB_CB_PRIV(skb)			\
