@@ -209,7 +209,7 @@ static inline int test_and_set_bit_lock(unsigned long nr,
 static inline int test_and_set_bit(unsigned long nr,
 	volatile unsigned long *addr)
 {
-	smp_mb__before_llsc();
+	smp_mb__before_atomic();
 	return test_and_set_bit_lock(nr, addr);
 }
 
@@ -228,7 +228,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 	int bit = nr % BITS_PER_LONG;
 	unsigned long res, orig;
 
-	smp_mb__before_llsc();
+	smp_mb__before_atomic();
 
 	if (!kernel_uses_llsc) {
 		res = __mips_test_and_clear_bit(nr, addr);
@@ -265,7 +265,7 @@ static inline int test_and_change_bit(unsigned long nr,
 	int bit = nr % BITS_PER_LONG;
 	unsigned long res, orig;
 
-	smp_mb__before_llsc();
+	smp_mb__before_atomic();
 
 	if (!kernel_uses_llsc) {
 		res = __mips_test_and_change_bit(nr, addr);
