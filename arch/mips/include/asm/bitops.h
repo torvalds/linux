@@ -19,6 +19,7 @@
 #include <asm/byteorder.h>		/* sigh ... */
 #include <asm/compiler.h>
 #include <asm/cpu-features.h>
+#include <asm/isa-rev.h>
 #include <asm/llsc.h>
 #include <asm/sgidefs.h>
 #include <asm/war.h>
@@ -76,8 +77,7 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 		return;
 	}
 
-#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
-	if (__builtin_constant_p(bit) && (bit >= 16)) {
+	if ((MIPS_ISA_REV >= 2) && __builtin_constant_p(bit) && (bit >= 16)) {
 		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
@@ -90,7 +90,6 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 		} while (unlikely(!temp));
 		return;
 	}
-#endif /* CONFIG_CPU_MIPSR2 || CONFIG_CPU_MIPSR6 */
 
 	loongson_llsc_mb();
 	do {
@@ -143,8 +142,7 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 		return;
 	}
 
-#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
-	if (__builtin_constant_p(bit)) {
+	if ((MIPS_ISA_REV >= 2) && __builtin_constant_p(bit)) {
 		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
@@ -157,7 +155,6 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 		} while (unlikely(!temp));
 		return;
 	}
-#endif /* CONFIG_CPU_MIPSR2 || CONFIG_CPU_MIPSR6 */
 
 	loongson_llsc_mb();
 	do {
@@ -377,8 +374,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
 		: "r" (1UL << bit)
 		: __LLSC_CLOBBER);
-#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
-	} else if (__builtin_constant_p(nr)) {
+	} else if ((MIPS_ISA_REV >= 2) && __builtin_constant_p(nr)) {
 		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
@@ -390,7 +386,6 @@ static inline int test_and_clear_bit(unsigned long nr,
 			: "ir" (bit)
 			: __LLSC_CLOBBER);
 		} while (unlikely(!temp));
-#endif
 	} else {
 		loongson_llsc_mb();
 		do {
