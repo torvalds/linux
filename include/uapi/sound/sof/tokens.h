@@ -111,8 +111,7 @@
 /* TODO: Add SAI tokens */
 
 /* ESAI */
-#define SOF_TKN_IMX_ESAI_FIRST_TOKEN		1100
-/* TODO: Add ESAI tokens */
+#define SOF_TKN_IMX_ESAI_MCLK_ID		1100
 
 /* Stream */
 #define SOF_TKN_STREAM_PLAYBACK_COMPATIBLE_D0I3	1200
