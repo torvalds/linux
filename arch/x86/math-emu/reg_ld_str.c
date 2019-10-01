@@ -85,7 +85,7 @@ int FPU_load_extended(long double __user *s, int stnr)
 
 	RE_ENTRANT_CHECK_OFF;
 	FPU_access_ok(s, 10);
-	__copy_from_user(sti_ptr, s, 10);
+	FPU_copy_from_user(sti_ptr, s, 10);
 	RE_ENTRANT_CHECK_ON;
 
 	return FPU_tagof(sti_ptr);
@@ -1126,9 +1126,9 @@ void frstor(fpu_addr_modes addr_modes, u_char __user *data_address)
 	/* Copy all registers in stack order. */
 	RE_ENTRANT_CHECK_OFF;
 	FPU_access_ok(s, 80);
-	__copy_from_user(register_base + offset, s, other);
+	FPU_copy_from_user(register_base + offset, s, other);
 	if (offset)
-		__copy_from_user(register_base, s + other, offset);
+		FPU_copy_from_user(register_base, s + other, offset);
 	RE_ENTRANT_CHECK_ON;
 
 	for (i = 0; i < 8; i++) {
