@@ -192,64 +192,70 @@ ATOMIC_OPS(atomic64, xor, s64, ^=, xor, lld, scd)
  * Atomically test @v and subtract @i if @v is greater or equal than @i.
  * The function returns the old value of @v minus @i.
  */
-static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
-{
-	int result;
-
-	smp_mb__before_atomic();
-
-	if (kernel_uses_llsc) {
-		int temp;
-
-		__asm__ __volatile__(
-		"	.set	push					\n"
-		"	.set	"MIPS_ISA_LEVEL"			\n"
-		"	" __SYNC(full, loongson3_war) "			\n"
-		"1:	ll	%1, %2		# atomic_sub_if_positive\n"
-		"	.set	pop					\n"
-		"	subu	%0, %1, %3				\n"
-		"	move	%1, %0					\n"
-		"	bltz	%0, 2f					\n"
-		"	.set	push					\n"
-		"	.set	"MIPS_ISA_LEVEL"			\n"
-		"	sc	%1, %2					\n"
-		"\t" __SC_BEQZ "%1, 1b					\n"
-		"2:	" __SYNC(full, loongson3_war) "			\n"
-		"	.set	pop					\n"
-		: "=&r" (result), "=&r" (temp),
-		  "+" GCC_OFF_SMALL_ASM() (v->counter)
-		: "Ir" (i) : __LLSC_CLOBBER);
-	} else {
-		unsigned long flags;
-
-		raw_local_irq_save(flags);
-		result = v->counter;
-		result -= i;
-		if (result >= 0)
-			v->counter = result;
-		raw_local_irq_restore(flags);
-	}
-
-	/*
-	 * In the Loongson3 workaround case we already have a completion
-	 * barrier at 2: above, which is needed due to the bltz that can branch
-	 * to code outside of the LL/SC loop. As such, we don't need to emit
-	 * another barrier here.
-	 */
-	if (!__SYNC_loongson3_war)
-		smp_mb__after_atomic();
-
-	return result;
+#define ATOMIC_SIP_OP(pfx, type, op, ll, sc)				\
+static __inline__ int pfx##_sub_if_positive(type i, pfx##_t * v)	\
+{									\
+	type temp, result;						\
+									\
+	smp_mb__before_atomic();					\
+									\
+	if (!kernel_uses_llsc) {					\
+		unsigned long flags;					\
+									\
+		raw_local_irq_save(flags);				\
+		result = v->counter;					\
+		result -= i;						\
+		if (result >= 0)					\
+			v->counter = result;				\
+		raw_local_irq_restore(flags);				\
+		smp_mb__after_atomic();					\
+		return result;						\
+	}								\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	" MIPS_ISA_LEVEL "			\n"	\
+	"	" __SYNC(full, loongson3_war) "			\n"	\
+	"1:	" #ll "	%1, %2		# atomic_sub_if_positive\n"	\
+	"	.set	pop					\n"	\
+	"	" #op "	%0, %1, %3				\n"	\
+	"	move	%1, %0					\n"	\
+	"	bltz	%0, 2f					\n"	\
+	"	.set	push					\n"	\
+	"	.set	" MIPS_ISA_LEVEL "			\n"	\
+	"	" #sc "	%1, %2					\n"	\
+	"	" __SC_BEQZ "%1, 1b				\n"	\
+	"2:	" __SYNC(full, loongson3_war) "			\n"	\
+	"	.set	pop					\n"	\
+	: "=&r" (result), "=&r" (temp),					\
+	  "+" GCC_OFF_SMALL_ASM() (v->counter)				\
+	: "Ir" (i)							\
+	: __LLSC_CLOBBER);						\
+									\
+	/*								\
+	 * In the Loongson3 workaround case we already have a		\
+	 * completion barrier at 2: above, which is needed due to the	\
+	 * bltz that can branch	to code outside of the LL/SC loop. As	\
+	 * such, we don't need to emit another barrier here.		\
+	 */								\
+	if (!__SYNC_loongson3_war)					\
+		smp_mb__after_atomic();					\
+									\
+	return result;							\
 }
+
+ATOMIC_SIP_OP(atomic, int, subu, ll, sc)
+#define atomic_dec_if_positive(v)	atomic_sub_if_positive(1, v)
+
+#ifdef CONFIG_64BIT
+ATOMIC_SIP_OP(atomic64, s64, dsubu, lld, scd)
+#define atomic64_dec_if_positive(v)	atomic64_sub_if_positive(1, v)
+#endif
+
+#undef ATOMIC_SIP_OP
 
 #define atomic_cmpxchg(v, o, n) (cmpxchg(&((v)->counter), (o), (n)))
 #define atomic_xchg(v, new) (xchg(&((v)->counter), (new)))
-
-/*
- * atomic_dec_if_positive - decrement by 1 if old value positive
- * @v: pointer of type atomic_t
- */
-#define atomic_dec_if_positive(v)	atomic_sub_if_positive(1, v)
 
 #ifdef CONFIG_64BIT
 
@@ -269,63 +275,9 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
  */
 #define atomic64_set(v, i)	WRITE_ONCE((v)->counter, (i))
 
-/*
- * atomic64_sub_if_positive - conditionally subtract integer from atomic
- *                            variable
- * @i: integer value to subtract
- * @v: pointer of type atomic64_t
- *
- * Atomically test @v and subtract @i if @v is greater or equal than @i.
- * The function returns the old value of @v minus @i.
- */
-static __inline__ s64 atomic64_sub_if_positive(s64 i, atomic64_t * v)
-{
-	s64 result;
-
-	smp_mb__before_llsc();
-
-	if (kernel_uses_llsc) {
-		s64 temp;
-
-		__asm__ __volatile__(
-		"	.set	push					\n"
-		"	.set	"MIPS_ISA_LEVEL"			\n"
-		"1:	lld	%1, %2		# atomic64_sub_if_positive\n"
-		"	dsubu	%0, %1, %3				\n"
-		"	move	%1, %0					\n"
-		"	bltz	%0, 1f					\n"
-		"	scd	%1, %2					\n"
-		"\t" __SC_BEQZ "%1, 1b					\n"
-		"1:							\n"
-		"	.set	pop					\n"
-		: "=&r" (result), "=&r" (temp),
-		  "+" GCC_OFF_SMALL_ASM() (v->counter)
-		: "Ir" (i));
-	} else {
-		unsigned long flags;
-
-		raw_local_irq_save(flags);
-		result = v->counter;
-		result -= i;
-		if (result >= 0)
-			v->counter = result;
-		raw_local_irq_restore(flags);
-	}
-
-	smp_llsc_mb();
-
-	return result;
-}
-
 #define atomic64_cmpxchg(v, o, n) \
 	((__typeof__((v)->counter))cmpxchg(&((v)->counter), (o), (n)))
 #define atomic64_xchg(v, new) (xchg(&((v)->counter), (new)))
-
-/*
- * atomic64_dec_if_positive - decrement by 1 if old value positive
- * @v: pointer of type atomic64_t
- */
-#define atomic64_dec_if_positive(v)	atomic64_sub_if_positive(1, v)
 
 #endif /* CONFIG_64BIT */
 
