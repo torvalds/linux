@@ -1267,10 +1267,6 @@ static int smiapp_power_on(struct device *dev)
 		rval = __v4l2_ctrl_handler_setup(&sensor->src->ctrl_handler);
 		if (rval)
 			goto out_cci_addr_fail;
-
-		rval = smiapp_update_mode(sensor);
-		if (rval < 0)
-			goto out_cci_addr_fail;
 	}
 
 	mutex_unlock(&sensor->mutex);
