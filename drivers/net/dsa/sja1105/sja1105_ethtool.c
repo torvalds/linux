@@ -167,8 +167,8 @@ static int sja1105_port_status_get_mac(struct sja1105_private *priv,
 	int rc;
 
 	/* MAC area */
-	rc = sja1105_spi_send_packed_buf(priv, SPI_READ, regs->mac[port],
-					 packed_buf, SJA1105_SIZE_MAC_AREA);
+	rc = sja1105_xfer_buf(priv, SPI_READ, regs->mac[port], packed_buf,
+			      SJA1105_SIZE_MAC_AREA);
 	if (rc < 0)
 		return rc;
 
@@ -185,8 +185,8 @@ static int sja1105_port_status_get_hl1(struct sja1105_private *priv,
 	u8 packed_buf[SJA1105_SIZE_HL1_AREA] = {0};
 	int rc;
 
-	rc = sja1105_spi_send_packed_buf(priv, SPI_READ, regs->mac_hl1[port],
-					 packed_buf, SJA1105_SIZE_HL1_AREA);
+	rc = sja1105_xfer_buf(priv, SPI_READ, regs->mac_hl1[port], packed_buf,
+			      SJA1105_SIZE_HL1_AREA);
 	if (rc < 0)
 		return rc;
 
@@ -203,8 +203,8 @@ static int sja1105_port_status_get_hl2(struct sja1105_private *priv,
 	u8 packed_buf[SJA1105_SIZE_QLEVEL_AREA] = {0};
 	int rc;
 
-	rc = sja1105_spi_send_packed_buf(priv, SPI_READ, regs->mac_hl2[port],
-					 packed_buf, SJA1105_SIZE_HL2_AREA);
+	rc = sja1105_xfer_buf(priv, SPI_READ, regs->mac_hl2[port], packed_buf,
+			      SJA1105_SIZE_HL2_AREA);
 	if (rc < 0)
 		return rc;
 
@@ -215,8 +215,8 @@ static int sja1105_port_status_get_hl2(struct sja1105_private *priv,
 	    priv->info->device_id == SJA1105T_DEVICE_ID)
 		return 0;
 
-	rc = sja1105_spi_send_packed_buf(priv, SPI_READ, regs->qlevel[port],
-					 packed_buf, SJA1105_SIZE_QLEVEL_AREA);
+	rc = sja1105_xfer_buf(priv, SPI_READ, regs->qlevel[port], packed_buf,
+			      SJA1105_SIZE_QLEVEL_AREA);
 	if (rc < 0)
 		return rc;
 

@@ -91,8 +91,8 @@ int sja1105et_ptp_cmd(const void *ctx, const void *data)
 	sja1105_pack(buf, &valid,           31, 31, size);
 	sja1105_pack(buf, &cmd->resptp,      2,  2, size);
 
-	return sja1105_spi_send_packed_buf(priv, SPI_WRITE, regs->ptp_control,
-					   buf, SJA1105_SIZE_PTP_CMD);
+	return sja1105_xfer_buf(priv, SPI_WRITE, regs->ptp_control, buf,
+				SJA1105_SIZE_PTP_CMD);
 }
 
 int sja1105pqrs_ptp_cmd(const void *ctx, const void *data)
@@ -108,8 +108,8 @@ int sja1105pqrs_ptp_cmd(const void *ctx, const void *data)
 	sja1105_pack(buf, &valid,           31, 31, size);
 	sja1105_pack(buf, &cmd->resptp,      3,  3, size);
 
-	return sja1105_spi_send_packed_buf(priv, SPI_WRITE, regs->ptp_control,
-					   buf, SJA1105_SIZE_PTP_CMD);
+	return sja1105_xfer_buf(priv, SPI_WRITE, regs->ptp_control, buf,
+				SJA1105_SIZE_PTP_CMD);
 }
 
 /* The switch returns partial timestamps (24 bits for SJA1105 E/T, which wrap
@@ -180,10 +180,8 @@ int sja1105_ptpegr_ts_poll(struct sja1105_private *priv, int port, u64 *ts)
 	int rc;
 
 	do {
-		rc = sja1105_spi_send_packed_buf(priv, SPI_READ,
-						 regs->ptpegr_ts[port],
-						 packed_buf,
-						 priv->info->ptpegr_ts_bytes);
+		rc = sja1105_xfer_buf(priv, SPI_READ, regs->ptpegr_ts[port],
+				      packed_buf, priv->info->ptpegr_ts_bytes);
 		if (rc < 0)
 			return rc;
 
