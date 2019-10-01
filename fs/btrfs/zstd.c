@@ -367,13 +367,9 @@ fail:
 	return ERR_PTR(-ENOMEM);
 }
 
-static int zstd_compress_pages(struct list_head *ws,
-		struct address_space *mapping,
-		u64 start,
-		struct page **pages,
-		unsigned long *out_pages,
-		unsigned long *total_in,
-		unsigned long *total_out)
+int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
+		u64 start, struct page **pages, unsigned long *out_pages,
+		unsigned long *total_in, unsigned long *total_out)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	ZSTD_CStream *stream;
@@ -548,7 +544,7 @@ out:
 	return ret;
 }
 
-static int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
+int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	struct page **pages_in = cb->compressed_pages;
@@ -626,10 +622,9 @@ done:
 	return ret;
 }
 
-static int zstd_decompress(struct list_head *ws, unsigned char *data_in,
-		struct page *dest_page,
-		unsigned long start_byte,
-		size_t srclen, size_t destlen)
+int zstd_decompress(struct list_head *ws, unsigned char *data_in,
+		struct page *dest_page, unsigned long start_byte, size_t srclen,
+		size_t destlen)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	ZSTD_DStream *stream;

@@ -88,13 +88,9 @@ fail:
 	return ERR_PTR(-ENOMEM);
 }
 
-static int zlib_compress_pages(struct list_head *ws,
-			       struct address_space *mapping,
-			       u64 start,
-			       struct page **pages,
-			       unsigned long *out_pages,
-			       unsigned long *total_in,
-			       unsigned long *total_out)
+int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
+		u64 start, struct page **pages, unsigned long *out_pages,
+		unsigned long *total_in, unsigned long *total_out)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret;
@@ -228,7 +224,7 @@ out:
 	return ret;
 }
 
-static int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
+int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret = 0, ret2;
@@ -319,10 +315,9 @@ done:
 	return ret;
 }
 
-static int zlib_decompress(struct list_head *ws, unsigned char *data_in,
-			   struct page *dest_page,
-			   unsigned long start_byte,
-			   size_t srclen, size_t destlen)
+int zlib_decompress(struct list_head *ws, unsigned char *data_in,
+		struct page *dest_page, unsigned long start_byte, size_t srclen,
+		size_t destlen)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret = 0;
