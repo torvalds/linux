@@ -281,51 +281,54 @@ int bch2_set_acl_trans(struct btree_trans *trans,
 	return ret == -ENOENT ? 0 : ret;
 }
 
-static int inode_update_for_set_acl_fn(struct bch_inode_info *inode,
-				       struct bch_inode_unpacked *bi,
-				       void *p)
-{
-	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	umode_t mode = (unsigned long) p;
-
-	bi->bi_ctime	= bch2_current_time(c);
-	bi->bi_mode	= mode;
-	return 0;
-}
-
 int bch2_set_acl(struct mnt_idmap *idmap,
 		 struct dentry *dentry,
-		 struct posix_acl *acl, int type)
+		 struct posix_acl *_acl, int type)
 {
 	struct bch_inode_info *inode = to_bch_ei(dentry->d_inode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct btree_trans trans;
+	struct btree_iter *inode_iter;
 	struct bch_inode_unpacked inode_u;
-	umode_t mode = inode->v.i_mode;
+	struct posix_acl *acl;
+	umode_t mode;
 	int ret;
 
 	mutex_lock(&inode->ei_update_lock);
 	bch2_trans_init(&trans, c, 0, 0);
+retry:
+	bch2_trans_begin(&trans);
+	acl = _acl;
 
-	if (type == ACL_TYPE_ACCESS && acl) {
+	inode_iter = bch2_inode_peek(&trans, &inode_u, inode->v.i_ino,
+				     BTREE_ITER_INTENT);
+	ret = PTR_ERR_OR_ZERO(inode_iter);
+	if (ret)
+		goto btree_err;
+
+	mode = inode_u.bi_mode;
+
+	if (type == ACL_TYPE_ACCESS) {
 		ret = posix_acl_update_mode(idmap, &inode->v, &mode, &acl);
 		if (ret)
 			goto err;
 	}
-retry:
-	bch2_trans_begin(&trans);
 
-	ret   = bch2_set_acl_trans(&trans,
-				   &inode->ei_inode,
-				   &inode->ei_str_hash,
-				   acl, type) ?:
-		bch2_write_inode_trans(&trans, inode, &inode_u,
-				       inode_update_for_set_acl_fn,
-				       (void *)(unsigned long) mode) ?:
+	ret = bch2_set_acl_trans(&trans, &inode_u,
+				 &inode->ei_str_hash,
+				 acl, type);
+	if (ret)
+		goto btree_err;
+
+	inode_u.bi_ctime	= bch2_current_time(c);
+	inode_u.bi_mode		= mode;
+
+	ret =   bch2_inode_write(&trans, inode_iter, &inode_u) ?:
 		bch2_trans_commit(&trans, NULL,
 				  &inode->ei_journal_seq,
 				  BTREE_INSERT_ATOMIC|
 				  BTREE_INSERT_NOUNLOCK);
+btree_err:
 	if (ret == -EINTR)
 		goto retry;
 	if (unlikely(ret))

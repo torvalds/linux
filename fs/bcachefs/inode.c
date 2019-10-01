@@ -181,6 +181,53 @@ int bch2_inode_unpack(struct bkey_s_c_inode inode,
 	return 0;
 }
 
+struct btree_iter *bch2_inode_peek(struct btree_trans *trans,
+				   struct bch_inode_unpacked *inode,
+				   u64 inum, unsigned flags)
+{
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	int ret;
+
+	iter = bch2_trans_get_iter(trans, BTREE_ID_INODES, POS(inum, 0),
+				   BTREE_ITER_SLOTS|flags);
+	if (IS_ERR(iter))
+		return iter;
+
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	ret = k.k->type == KEY_TYPE_inode ? 0 : -EIO;
+	if (ret)
+		goto err;
+
+	ret = bch2_inode_unpack(bkey_s_c_to_inode(k), inode);
+	if (ret)
+		goto err;
+
+	return iter;
+err:
+	bch2_trans_iter_put(trans, iter);
+	return ERR_PTR(ret);
+}
+
+int bch2_inode_write(struct btree_trans *trans,
+		     struct btree_iter *iter,
+		     struct bch_inode_unpacked *inode)
+{
+	struct bkey_inode_buf *inode_p;
+
+	inode_p = bch2_trans_kmalloc(trans, sizeof(*inode_p));
+	if (IS_ERR(inode_p))
+		return PTR_ERR(inode_p);
+
+	bch2_inode_pack(inode_p, inode);
+	bch2_trans_update(trans, iter, &inode_p->inode.k_i);
+	return 0;
+}
+
 const char *bch2_inode_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
 		struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);

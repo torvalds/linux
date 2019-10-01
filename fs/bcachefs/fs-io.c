@@ -241,11 +241,13 @@ static void i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
 
 static int sum_sector_overwrites(struct btree_trans *trans,
 				 struct btree_iter *extent_iter,
-				 struct bkey_i *new, bool *allocating,
+				 struct bkey_i *new,
+				 bool may_allocate,
 				 s64 *delta)
 {
 	struct btree_iter *iter;
 	struct bkey_s_c old;
+	int ret = 0;
 
 	*delta = 0;
 
@@ -253,21 +255,13 @@ static int sum_sector_overwrites(struct btree_trans *trans,
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
-	old = bch2_btree_iter_peek_slot(iter);
-
-	while (1) {
-		/*
-		 * should not be possible to get an error here, since we're
-		 * carefully not advancing past @new and thus whatever leaf node
-		 * @_iter currently points to:
-		 */
-		BUG_ON(bkey_err(old));
-
-		if (allocating &&
-		    !*allocating &&
+	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, old, ret) {
+		if (!may_allocate &&
 		    bch2_bkey_nr_ptrs_allocated(old) <
-		    bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(new)))
-			*allocating = true;
+		    bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(new))) {
+			ret = -ENOSPC;
+			break;
+		}
 
 		*delta += (min(new->k.p.offset,
 			      old.k->p.offset) -
@@ -278,12 +272,10 @@ static int sum_sector_overwrites(struct btree_trans *trans,
 
 		if (bkey_cmp(old.k->p, new->k.p) >= 0)
 			break;
-
-		old = bch2_btree_iter_next_slot(iter);
 	}
 
 	bch2_trans_iter_put(trans, iter);
-	return 0;
+	return ret;
 }
 
 int bch2_extent_update(struct btree_trans *trans,
@@ -301,9 +293,7 @@ int bch2_extent_update(struct btree_trans *trans,
 	struct btree_iter *inode_iter = NULL;
 	struct bch_inode_unpacked inode_u;
 	struct bkey_inode_buf inode_p;
-	bool allocating = false;
 	bool extended = false;
-	bool inode_locked = false;
 	s64 i_sectors_delta;
 	int ret;
 
@@ -315,14 +305,10 @@ int bch2_extent_update(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	ret = sum_sector_overwrites(trans, extent_iter,
-				    k, &allocating,
-				    &i_sectors_delta);
+	ret = sum_sector_overwrites(trans, extent_iter, k,
+				    may_allocate, &i_sectors_delta);
 	if (ret)
 		return ret;
-
-	if (!may_allocate && allocating)
-		return -ENOSPC;
 
 	bch2_trans_update(trans, extent_iter, k);
 
@@ -331,29 +317,28 @@ int bch2_extent_update(struct btree_trans *trans,
 	/* XXX: inode->i_size locking */
 	if (i_sectors_delta ||
 	    new_i_size > inode->ei_inode.bi_size) {
-		inode_iter = bch2_trans_get_iter(trans,
-			BTREE_ID_INODES,
-			POS(k->k.p.inode, 0),
-			BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+		inode_iter = bch2_inode_peek(trans, &inode_u,
+				k->k.p.inode, BTREE_ITER_INTENT);
 		if (IS_ERR(inode_iter))
 			return PTR_ERR(inode_iter);
 
-		ret = bch2_btree_iter_traverse(inode_iter);
-		if (ret)
-			goto err;
-
-		inode_u = inode->ei_inode;
 		inode_u.bi_sectors += i_sectors_delta;
 
-		/* XXX: this is slightly suspect */
+		/*
+		 * XXX: can BCH_INODE_I_SIZE_DIRTY be true here? i.e. can we
+		 * race with truncate?
+		 */
 		if (!(inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
 		    new_i_size > inode_u.bi_size) {
 			inode_u.bi_size = new_i_size;
 			extended = true;
 		}
 
-		bch2_inode_pack(&inode_p, &inode_u);
-		bch2_trans_update(trans, inode_iter, &inode_p.inode.k_i);
+		if (i_sectors_delta || extended) {
+			bch2_inode_pack(&inode_p, &inode_u);
+			bch2_trans_update(trans, inode_iter,
+					  &inode_p.inode.k_i);
+		}
 	}
 
 	ret = bch2_trans_commit(trans, disk_res,
@@ -365,33 +350,25 @@ int bch2_extent_update(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	inode->ei_inode.bi_sectors += i_sectors_delta;
-
-	EBUG_ON(i_sectors_delta &&
-		inode->ei_inode.bi_sectors != inode_u.bi_sectors);
-
-	if (extended) {
-		inode->ei_inode.bi_size = new_i_size;
-
-		if (direct) {
-			spin_lock(&inode->v.i_lock);
-			if (new_i_size > inode->v.i_size)
-				i_size_write(&inode->v, new_i_size);
-			spin_unlock(&inode->v.i_lock);
-		}
+	if (i_sectors_delta || extended) {
+		inode->ei_inode.bi_sectors	= inode_u.bi_sectors;
+		inode->ei_inode.bi_size		= inode_u.bi_size;
 	}
 
 	if (direct)
 		i_sectors_acct(c, inode, quota_res, i_sectors_delta);
+	if (direct && extended) {
+		spin_lock(&inode->v.i_lock);
+		if (new_i_size > inode->v.i_size)
+			i_size_write(&inode->v, new_i_size);
+		spin_unlock(&inode->v.i_lock);
+	}
 
 	if (total_delta)
 		*total_delta += i_sectors_delta;
 err:
 	if (!IS_ERR_OR_NULL(inode_iter))
 		bch2_trans_iter_put(trans, inode_iter);
-	if (inode_locked)
-		mutex_unlock(&inode->ei_update_lock);
-
 	return ret;
 }
 
