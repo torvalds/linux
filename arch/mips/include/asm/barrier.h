@@ -122,46 +122,6 @@ static inline void wmb(void)
 #define __smp_mb__before_atomic()	__smp_mb__before_llsc()
 #define __smp_mb__after_atomic()	smp_llsc_mb()
 
-/*
- * Some Loongson 3 CPUs have a bug wherein execution of a memory access (load,
- * store or prefetch) in between an LL & SC can cause the SC instruction to
- * erroneously succeed, breaking atomicity. Whilst it's unusual to write code
- * containing such sequences, this bug bites harder than we might otherwise
- * expect due to reordering & speculation:
- *
- * 1) A memory access appearing prior to the LL in program order may actually
- *    be executed after the LL - this is the reordering case.
- *
- *    In order to avoid this we need to place a memory barrier (ie. a SYNC
- *    instruction) prior to every LL instruction, in between it and any earlier
- *    memory access instructions.
- *
- *    This reordering case is fixed by 3A R2 CPUs, ie. 3A2000 models and later.
- *
- * 2) If a conditional branch exists between an LL & SC with a target outside
- *    of the LL-SC loop, for example an exit upon value mismatch in cmpxchg()
- *    or similar, then misprediction of the branch may allow speculative
- *    execution of memory accesses from outside of the LL-SC loop.
- *
- *    In order to avoid this we need a memory barrier (ie. a SYNC instruction)
- *    at each affected branch target, for which we also use loongson_llsc_mb()
- *    defined below.
- *
- *    This case affects all current Loongson 3 CPUs.
- *
- * The above described cases cause an error in the cache coherence protocol;
- * such that the Invalidate of a competing LL-SC goes 'missing' and SC
- * erroneously observes its core still has Exclusive state and lets the SC
- * proceed.
- *
- * Therefore the error only occurs on SMP systems.
- */
-#ifdef CONFIG_CPU_LOONGSON3_WORKAROUNDS /* Loongson-3's LLSC workaround */
-#define loongson_llsc_mb()	__asm__ __volatile__("sync" : : :"memory")
-#else
-#define loongson_llsc_mb()	do { } while (0)
-#endif
-
 static inline void sync_ginv(void)
 {
 	asm volatile(__SYNC(ginv, always));

@@ -27,7 +27,7 @@ cflags-$(CONFIG_CPU_LOONGSON3)	+= -Wa,--trap
 #
 # Some versions of binutils, not currently mainline as of 2019/02/04, support
 # an -mfix-loongson3-llsc flag which emits a sync prior to each ll instruction
-# to work around a CPU bug (see loongson_llsc_mb() in asm/barrier.h for a
+# to work around a CPU bug (see __SYNC_loongson3_war in asm/sync.h for a
 # description).
 #
 # We disable this in order to prevent the assembler meddling with the
