@@ -12,6 +12,7 @@
 #include <linux/irqflags.h>
 #include <asm/compiler.h>
 #include <asm/llsc.h>
+#include <asm/sync.h>
 #include <asm/war.h>
 
 /*
@@ -36,12 +37,12 @@ extern unsigned long __xchg_called_with_bad_pointer(void)
 	__typeof(*(m)) __ret;						\
 									\
 	if (kernel_uses_llsc) {						\
-		loongson_llsc_mb();					\
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\
 		"	.set	push				\n"	\
 		"	.set	" MIPS_ISA_ARCH_LEVEL "		\n"	\
+		"	" __SYNC(full, loongson3_war) "		\n"	\
 		"1:	" ld "	%0, %2		# __xchg_asm	\n"	\
 		"	.set	pop				\n"	\
 		"	move	$1, %z3				\n"	\
@@ -108,12 +109,12 @@ static inline unsigned long __xchg(volatile void *ptr, unsigned long x,
 	__typeof(*(m)) __ret;						\
 									\
 	if (kernel_uses_llsc) {						\
-		loongson_llsc_mb();					\
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\
 		"	.set	push				\n"	\
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
+		"	" __SYNC(full, loongson3_war) "		\n"	\
 		"1:	" ld "	%0, %2		# __cmpxchg_asm \n"	\
 		"	bne	%0, %z3, 2f			\n"	\
 		"	.set	pop				\n"	\
@@ -122,11 +123,10 @@ static inline unsigned long __xchg(volatile void *ptr, unsigned long x,
 		"	" st "	$1, %1				\n"	\
 		"\t" __SC_BEQZ	"$1, 1b				\n"	\
 		"	.set	pop				\n"	\
-		"2:						\n"	\
+		"2:	" __SYNC(full, loongson3_war) "		\n"	\
 		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m)		\
 		: GCC_OFF_SMALL_ASM() (*m), "Jr" (old), "Jr" (new)	\
 		: __LLSC_CLOBBER);					\
-		loongson_llsc_mb();					\
 	} else {							\
 		unsigned long __flags;					\
 									\
@@ -222,11 +222,11 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 	 */
 	local_irq_save(flags);
 
-	loongson_llsc_mb();
 	asm volatile(
 	"	.set	push				\n"
 	"	.set	" MIPS_ISA_ARCH_LEVEL "		\n"
 	/* Load 64 bits from ptr */
+	"	" __SYNC(full, loongson3_war) "		\n"
 	"1:	lld	%L0, %3		# __cmpxchg64	\n"
 	/*
 	 * Split the 64 bit value we loaded into the 2 registers that hold the
@@ -260,7 +260,7 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 	/* If we failed, loop! */
 	"\t" __SC_BEQZ "%L1, 1b				\n"
 	"	.set	pop				\n"
-	"2:						\n"
+	"2:	" __SYNC(full, loongson3_war) "		\n"
 	: "=&r"(ret),
 	  "=&r"(tmp),
 	  "=" GCC_OFF_SMALL_ASM() (*(unsigned long long *)ptr)
@@ -268,7 +268,6 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 	  "r" (old),
 	  "r" (new)
 	: "memory");
-	loongson_llsc_mb();
 
 	local_irq_restore(flags);
 	return ret;
