@@ -24,24 +24,34 @@
 #include <asm/sync.h>
 #include <asm/war.h>
 
-#define ATOMIC_INIT(i)	  { (i) }
+#define ATOMIC_OPS(pfx, type)						\
+static __always_inline type pfx##_read(const pfx##_t *v)		\
+{									\
+	return READ_ONCE(v->counter);					\
+}									\
+									\
+static __always_inline void pfx##_set(pfx##_t *v, type i)		\
+{									\
+	WRITE_ONCE(v->counter, i);					\
+}									\
+									\
+static __always_inline type pfx##_cmpxchg(pfx##_t *v, type o, type n)	\
+{									\
+	return cmpxchg(&v->counter, o, n);				\
+}									\
+									\
+static __always_inline type pfx##_xchg(pfx##_t *v, type n)		\
+{									\
+	return xchg(&v->counter, n);					\
+}
 
-/*
- * atomic_read - read atomic variable
- * @v: pointer of type atomic_t
- *
- * Atomically reads the value of @v.
- */
-#define atomic_read(v)		READ_ONCE((v)->counter)
+#define ATOMIC_INIT(i)		{ (i) }
+ATOMIC_OPS(atomic, int)
 
-/*
- * atomic_set - set atomic variable
- * @v: pointer of type atomic_t
- * @i: required value
- *
- * Atomically sets the value of @v to @i.
- */
-#define atomic_set(v, i)	WRITE_ONCE((v)->counter, (i))
+#ifdef CONFIG_64BIT
+# define ATOMIC64_INIT(i)	{ (i) }
+ATOMIC_OPS(atomic64, s64)
+#endif
 
 #define ATOMIC_OP(pfx, op, type, c_op, asm_op, ll, sc)			\
 static __inline__ void pfx##_##op(type i, pfx##_t * v)			\
@@ -135,6 +145,7 @@ static __inline__ type pfx##_fetch_##op##_relaxed(type i, pfx##_t * v)	\
 	return result;							\
 }
 
+#undef ATOMIC_OPS
 #define ATOMIC_OPS(pfx, op, type, c_op, asm_op, ll, sc)			\
 	ATOMIC_OP(pfx, op, type, c_op, asm_op, ll, sc)			\
 	ATOMIC_OP_RETURN(pfx, op, type, c_op, asm_op, ll, sc)		\
@@ -253,32 +264,5 @@ ATOMIC_SIP_OP(atomic64, s64, dsubu, lld, scd)
 #endif
 
 #undef ATOMIC_SIP_OP
-
-#define atomic_cmpxchg(v, o, n) (cmpxchg(&((v)->counter), (o), (n)))
-#define atomic_xchg(v, new) (xchg(&((v)->counter), (new)))
-
-#ifdef CONFIG_64BIT
-
-#define ATOMIC64_INIT(i)    { (i) }
-
-/*
- * atomic64_read - read atomic variable
- * @v: pointer of type atomic64_t
- *
- */
-#define atomic64_read(v)	READ_ONCE((v)->counter)
-
-/*
- * atomic64_set - set atomic variable
- * @v: pointer of type atomic64_t
- * @i: required value
- */
-#define atomic64_set(v, i)	WRITE_ONCE((v)->counter, (i))
-
-#define atomic64_cmpxchg(v, o, n) \
-	((__typeof__((v)->counter))cmpxchg(&((v)->counter), (o), (n)))
-#define atomic64_xchg(v, new) (xchg(&((v)->counter), (new)))
-
-#endif /* CONFIG_64BIT */
 
 #endif /* _ASM_ATOMIC_H */
