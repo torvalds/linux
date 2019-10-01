@@ -696,6 +696,11 @@ static inline bool ipv6_addr_v4mapped(const struct in6_addr *a)
 					cpu_to_be32(0x0000ffff))) == 0UL;
 }
 
+static inline bool ipv6_addr_v4mapped_loopback(const struct in6_addr *a)
+{
+	return ipv6_addr_v4mapped(a) && ipv4_is_loopback(a->s6_addr32[3]);
+}
+
 static inline u32 ipv6_portaddr_hash(const struct net *net,
 				     const struct in6_addr *addr6,
 				     unsigned int port)
