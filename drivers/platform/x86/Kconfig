@@ -622,7 +622,6 @@ config THINKPAD_ACPI_HOTKEY_POLL
 config SENSORS_HDAPS
 	tristate "Thinkpad Hard Drive Active Protection System (hdaps)"
 	depends on INPUT
-	select INPUT_POLLDEV
 	help
 	  This driver provides support for the IBM Hard Drive Active Protection
 	  System (hdaps), which provides an accelerometer and other misc. data.
