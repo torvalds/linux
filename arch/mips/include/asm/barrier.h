@@ -95,13 +95,14 @@ static inline void wmb(void)
  * ordering will be done by smp_llsc_mb() and friends.
  */
 #if defined(CONFIG_WEAK_REORDERING_BEYOND_LLSC) && defined(CONFIG_SMP)
-#define __WEAK_LLSC_MB		"	sync	\n"
-#define smp_llsc_mb()		__asm__ __volatile__(__WEAK_LLSC_MB : : :"memory")
-#define __LLSC_CLOBBER
+# define __WEAK_LLSC_MB		sync
+# define smp_llsc_mb() \
+	__asm__ __volatile__(__stringify(__WEAK_LLSC_MB) : : :"memory")
+# define __LLSC_CLOBBER
 #else
-#define __WEAK_LLSC_MB		"		\n"
-#define smp_llsc_mb()		do { } while (0)
-#define __LLSC_CLOBBER		"memory"
+# define __WEAK_LLSC_MB
+# define smp_llsc_mb()		do { } while (0)
+# define __LLSC_CLOBBER		"memory"
 #endif
 
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
