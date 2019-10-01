@@ -9,6 +9,8 @@
 #ifndef __ASM_LLSC_H
 #define __ASM_LLSC_H
 
+#include <asm/isa-rev.h>
+
 #if _MIPS_SZLONG == 32
 #define SZLONG_LOG 5
 #define SZLONG_MASK 31UL
@@ -32,6 +34,8 @@
  */
 #if R10000_LLSC_WAR
 # define __SC_BEQZ "beqzl	"
+#elif MIPS_ISA_REV >= 6
+# define __SC_BEQZ "beqzc	"
 #else
 # define __SC_BEQZ "beqz	"
 #endif
