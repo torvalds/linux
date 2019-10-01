@@ -2424,7 +2424,8 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		} else if (dc_link_detect(link, DETECT_REASON_BOOT)) {
 			amdgpu_dm_update_connector_after_detect(aconnector);
 			register_backlight_device(dm, link);
-			amdgpu_dm_set_psr_caps(link);
+			if (amdgpu_dc_feature_mask & DC_PSR_MASK)
+				amdgpu_dm_set_psr_caps(link);
 		}
 
 
