@@ -245,8 +245,9 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	adev->irq.msi_enabled = false;
 
 	if (amdgpu_msi_ok(adev)) {
-		int ret = pci_enable_msi(adev->pdev);
-		if (!ret) {
+		int nvec = pci_alloc_irq_vectors(adev->pdev, 1, pci_msix_vec_count(adev->pdev),
+					PCI_IRQ_MSI | PCI_IRQ_MSIX);
+		if (nvec > 0) {
 			adev->irq.msi_enabled = true;
 			dev_dbg(adev->dev, "amdgpu: using MSI.\n");
 		}
