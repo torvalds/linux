@@ -713,9 +713,6 @@ const struct btrfs_compress_op btrfs_zstd_compress = {
 	.put_workspace = zstd_put_workspace,
 	.alloc_workspace = zstd_alloc_workspace,
 	.free_workspace = zstd_free_workspace,
-	.compress_pages = zstd_compress_pages,
-	.decompress_bio = zstd_decompress_bio,
-	.decompress = zstd_decompress,
 	.max_level	= ZSTD_BTRFS_MAX_LEVEL,
 	.default_level	= ZSTD_BTRFS_DEFAULT_LEVEL,
 };

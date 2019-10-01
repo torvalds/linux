@@ -509,9 +509,6 @@ const struct btrfs_compress_op btrfs_lzo_compress = {
 	.put_workspace		= lzo_put_workspace,
 	.alloc_workspace	= lzo_alloc_workspace,
 	.free_workspace		= lzo_free_workspace,
-	.compress_pages		= lzo_compress_pages,
-	.decompress_bio		= lzo_decompress_bio,
-	.decompress		= lzo_decompress,
 	.max_level		= 1,
 	.default_level		= 1,
 };

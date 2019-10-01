@@ -140,23 +140,6 @@ struct btrfs_compress_op {
 
 	void (*free_workspace)(struct list_head *workspace);
 
-	int (*compress_pages)(struct list_head *workspace,
-			      struct address_space *mapping,
-			      u64 start,
-			      struct page **pages,
-			      unsigned long *out_pages,
-			      unsigned long *total_in,
-			      unsigned long *total_out);
-
-	int (*decompress_bio)(struct list_head *workspace,
-				struct compressed_bio *cb);
-
-	int (*decompress)(struct list_head *workspace,
-			  unsigned char *data_in,
-			  struct page *dest_page,
-			  unsigned long start_byte,
-			  size_t srclen, size_t destlen);
-
 	/* Maximum level supported by the compression algorithm */
 	unsigned int max_level;
 	unsigned int default_level;

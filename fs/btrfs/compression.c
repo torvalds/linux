@@ -86,6 +86,70 @@ bool btrfs_compress_is_valid_type(const char *str, size_t len)
 	return false;
 }
 
+static int compression_compress_pages(int type, struct list_head *ws,
+               struct address_space *mapping, u64 start, struct page **pages,
+               unsigned long *out_pages, unsigned long *total_in,
+               unsigned long *total_out)
+{
+	switch (type) {
+	case BTRFS_COMPRESS_ZLIB:
+		return zlib_compress_pages(ws, mapping, start, pages,
+				out_pages, total_in, total_out);
+	case BTRFS_COMPRESS_LZO:
+		return lzo_compress_pages(ws, mapping, start, pages,
+				out_pages, total_in, total_out);
+	case BTRFS_COMPRESS_ZSTD:
+		return zstd_compress_pages(ws, mapping, start, pages,
+				out_pages, total_in, total_out);
+	case BTRFS_COMPRESS_NONE:
+	default:
+		/*
+		 * This can't happen, the type is validated several times
+		 * before we get here. As a sane fallback, return what the
+		 * callers will understand as 'no compression happened'.
+		 */
+		return -E2BIG;
+	}
+}
+
+static int compression_decompress_bio(int type, struct list_head *ws,
+		struct compressed_bio *cb)
+{
+	switch (type) {
+	case BTRFS_COMPRESS_ZLIB: return zlib_decompress_bio(ws, cb);
+	case BTRFS_COMPRESS_LZO:  return lzo_decompress_bio(ws, cb);
+	case BTRFS_COMPRESS_ZSTD: return zstd_decompress_bio(ws, cb);
+	case BTRFS_COMPRESS_NONE:
+	default:
+		/*
+		 * This can't happen, the type is validated several times
+		 * before we get here.
+		 */
+		BUG();
+	}
+}
+
+static int compression_decompress(int type, struct list_head *ws,
+               unsigned char *data_in, struct page *dest_page,
+               unsigned long start_byte, size_t srclen, size_t destlen)
+{
+	switch (type) {
+	case BTRFS_COMPRESS_ZLIB: return zlib_decompress(ws, data_in, dest_page,
+						start_byte, srclen, destlen);
+	case BTRFS_COMPRESS_LZO:  return lzo_decompress(ws, data_in, dest_page,
+						start_byte, srclen, destlen);
+	case BTRFS_COMPRESS_ZSTD: return zstd_decompress(ws, data_in, dest_page,
+						start_byte, srclen, destlen);
+	case BTRFS_COMPRESS_NONE:
+	default:
+		/*
+		 * This can't happen, the type is validated several times
+		 * before we get here.
+		 */
+		BUG();
+	}
+}
+
 static int btrfs_decompress_bio(struct compressed_bio *cb);
 
 static inline int compressed_bio_size(struct btrfs_fs_info *fs_info,
@@ -1074,10 +1138,8 @@ int btrfs_compress_pages(unsigned int type_level, struct address_space *mapping,
 
 	level = btrfs_compress_set_level(type, level);
 	workspace = get_workspace(type, level);
-	ret = btrfs_compress_op[type]->compress_pages(workspace, mapping,
-						      start, pages,
-						      out_pages,
-						      total_in, total_out);
+	ret = compression_compress_pages(type, workspace, mapping, start, pages,
+					 out_pages, total_in, total_out);
 	put_workspace(type, workspace);
 	return ret;
 }
@@ -1103,7 +1165,7 @@ static int btrfs_decompress_bio(struct compressed_bio *cb)
 	int type = cb->compress_type;
 
 	workspace = get_workspace(type, 0);
-	ret = btrfs_compress_op[type]->decompress_bio(workspace, cb);
+	ret = compression_decompress_bio(type, workspace, cb);
 	put_workspace(type, workspace);
 
 	return ret;
@@ -1121,9 +1183,8 @@ int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
 	int ret;
 
 	workspace = get_workspace(type, 0);
-	ret = btrfs_compress_op[type]->decompress(workspace, data_in,
-						  dest_page, start_byte,
-						  srclen, destlen);
+	ret = compression_decompress(type, workspace, data_in, dest_page,
+				     start_byte, srclen, destlen);
 	put_workspace(type, workspace);
 
 	return ret;
