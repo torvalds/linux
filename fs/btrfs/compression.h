@@ -120,15 +120,12 @@ struct workspace_manager {
 	wait_queue_head_t ws_wait;
 };
 
-void btrfs_init_workspace_manager(int type);
 struct list_head *btrfs_get_workspace(struct workspace_manager *wsm,
 				      unsigned int level);
 void btrfs_put_workspace(struct workspace_manager *wsm, struct list_head *ws);
 void btrfs_cleanup_workspace_manager(struct workspace_manager *wsm);
 
 struct btrfs_compress_op {
-	void (*init_workspace_manager)(void);
-
 	void (*cleanup_workspace_manager)(void);
 
 	struct list_head *(*get_workspace)(unsigned int level);

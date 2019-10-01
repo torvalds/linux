@@ -168,7 +168,7 @@ static void zstd_calc_ws_mem_sizes(void)
 	}
 }
 
-static void zstd_init_workspace_manager(void)
+void zstd_init_workspace_manager(void)
 {
 	struct list_head *ws;
 	int i;
@@ -709,7 +709,6 @@ finish:
 const struct btrfs_compress_op btrfs_zstd_compress = {
 	/* ZSTD uses own workspace manager */
 	.workspace_manager = NULL,
-	.init_workspace_manager = zstd_init_workspace_manager,
 	.cleanup_workspace_manager = zstd_cleanup_workspace_manager,
 	.get_workspace = zstd_get_workspace,
 	.put_workspace = zstd_put_workspace,
