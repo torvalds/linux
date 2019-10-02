@@ -191,6 +191,9 @@ void rtw_enter_lps(struct rtw_dev *rtwdev, u8 port_id)
 {
 	lockdep_assert_held(&rtwdev->mutex);
 
+	if (rtwdev->coex.stat.wl_force_lps_ctrl)
+		return;
+
 	__rtw_enter_lps(rtwdev, port_id);
 	__rtw_enter_lps_deep(rtwdev);
 }
