@@ -403,7 +403,7 @@ EXPORT_SYMBOL_GPL(devm_led_classdev_register_ext);
 
 static int devm_led_classdev_match(struct device *dev, void *res, void *data)
 {
-	struct led_cdev **p = res;
+	struct led_classdev **p = res;
 
 	if (WARN_ON(!p || !*p))
 		return 0;
