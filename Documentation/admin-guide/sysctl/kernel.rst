@@ -831,8 +831,8 @@ printk_ratelimit:
 =================
 
 Some warning messages are rate limited. printk_ratelimit specifies
-the minimum length of time between these messages (in jiffies), by
-default we allow one every 5 seconds.
+the minimum length of time between these messages (in seconds).
+The default value is 5 seconds.
 
 A value of 0 will disable rate limiting.
 
@@ -844,6 +844,8 @@ While long term we enforce one message per printk_ratelimit
 seconds, we do allow a burst of messages to pass through.
 printk_ratelimit_burst specifies the number of messages we can
 send before ratelimiting kicks in.
+
+The default value is 10 messages.
 
 
 printk_devkmsg:
