@@ -135,33 +135,40 @@ i915_gem_object_is_readonly(const struct drm_i915_gem_object *obj)
 }
 
 static inline bool
+i915_gem_object_type_has(const struct drm_i915_gem_object *obj,
+			 unsigned long flags)
+{
+	return obj->ops->flags & flags;
+}
+
+static inline bool
 i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
 {
-	return obj->ops->flags & I915_GEM_OBJECT_HAS_STRUCT_PAGE;
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_STRUCT_PAGE);
 }
 
 static inline bool
 i915_gem_object_is_shrinkable(const struct drm_i915_gem_object *obj)
 {
-	return obj->ops->flags & I915_GEM_OBJECT_IS_SHRINKABLE;
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_IS_SHRINKABLE);
 }
 
 static inline bool
 i915_gem_object_is_proxy(const struct drm_i915_gem_object *obj)
 {
-	return obj->ops->flags & I915_GEM_OBJECT_IS_PROXY;
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_IS_PROXY);
 }
 
 static inline bool
 i915_gem_object_never_bind_ggtt(const struct drm_i915_gem_object *obj)
 {
-	return obj->ops->flags & I915_GEM_OBJECT_NO_GGTT;
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_NO_GGTT);
 }
 
 static inline bool
 i915_gem_object_needs_async_cancel(const struct drm_i915_gem_object *obj)
 {
-	return obj->ops->flags & I915_GEM_OBJECT_ASYNC_CANCEL;
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_ASYNC_CANCEL);
 }
 
 static inline bool
