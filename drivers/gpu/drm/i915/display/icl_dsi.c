@@ -1552,6 +1552,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	struct drm_connector *connector;
 	struct drm_display_mode *fixed_mode;
 	enum port port;
+	enum pipe pipe;
 
 	if (!intel_bios_is_dsi_present(dev_priv, &port))
 		return;
@@ -1584,7 +1585,8 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	encoder->get_hw_state = gen11_dsi_get_hw_state;
 	encoder->type = INTEL_OUTPUT_DSI;
 	encoder->cloneable = 0;
-	encoder->pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
+	for_each_pipe(dev_priv, pipe)
+		encoder->pipe_mask |= BIT(pipe);
 	encoder->power_domain = POWER_DOMAIN_PORT_DSI;
 	encoder->get_power_domains = gen11_dsi_get_power_domains;
 
