@@ -780,6 +780,7 @@ enum rtw_dma_mapping {
 	RTW_DMA_MAPPING_NORMAL	= 2,
 	RTW_DMA_MAPPING_HIGH	= 3,
 
+	RTW_DMA_MAPPING_MAX,
 	RTW_DMA_MAPPING_UNDEF,
 };
 
@@ -1286,7 +1287,7 @@ struct rtw_fifo_conf {
 	u16 rsvd_cpu_instr_addr;
 	u16 rsvd_fw_txbuf_addr;
 	u16 rsvd_csibuf_addr;
-	enum rtw_dma_mapping pq_map[RTW_PQ_MAP_NUM];
+	struct rtw_rqpn *rqpn;
 };
 
 struct rtw_fw_state {

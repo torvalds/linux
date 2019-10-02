@@ -589,6 +589,19 @@ static void rtw_ops_sta_statistics(struct ieee80211_hw *hw,
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 }
 
+static void rtw_ops_flush(struct ieee80211_hw *hw,
+			  struct ieee80211_vif *vif,
+			  u32 queues, bool drop)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+
+	mutex_lock(&rtwdev->mutex);
+	rtw_leave_lps_deep(rtwdev);
+
+	rtw_mac_flush_queues(rtwdev, queues, drop);
+	mutex_unlock(&rtwdev->mutex);
+}
+
 const struct ieee80211_ops rtw_ops = {
 	.tx			= rtw_ops_tx,
 	.wake_tx_queue		= rtw_ops_wake_tx_queue,
@@ -608,5 +621,6 @@ const struct ieee80211_ops rtw_ops = {
 	.mgd_prepare_tx		= rtw_ops_mgd_prepare_tx,
 	.set_rts_threshold	= rtw_ops_set_rts_threshold,
 	.sta_statistics		= rtw_ops_sta_statistics,
+	.flush			= rtw_ops_flush,
 };
 EXPORT_SYMBOL(rtw_ops);
