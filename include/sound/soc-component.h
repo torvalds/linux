@@ -46,9 +46,15 @@ struct snd_soc_component_driver {
 	int (*write)(struct snd_soc_component *component,
 		     unsigned int reg, unsigned int val);
 
+	/* remove me */
 	/* pcm creation and destruction */
 	int (*pcm_new)(struct snd_soc_pcm_runtime *rtd);
 	void (*pcm_free)(struct snd_pcm *pcm);
+
+	int (*pcm_construct)(struct snd_soc_component *component,
+			     struct snd_soc_pcm_runtime *rtd);
+	void (*pcm_destruct)(struct snd_soc_component *component,
+			     struct snd_pcm *pcm);
 
 	/* component wide operations */
 	int (*set_sysclk)(struct snd_soc_component *component,
