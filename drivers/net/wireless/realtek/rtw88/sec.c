@@ -96,6 +96,27 @@ void rtw_sec_clear_cam(struct rtw_dev *rtwdev,
 	rtw_write32(rtwdev, RTW_SEC_CMD_REG, command);
 }
 
+u8 rtw_sec_cam_pg_backup(struct rtw_dev *rtwdev, u8 *used_cam)
+{
+	struct rtw_sec_desc *sec = &rtwdev->sec;
+	u8 offset = 0;
+	u8 count, n;
+
+	if (!used_cam)
+		return 0;
+
+	for (count = 0; count < MAX_PG_CAM_BACKUP_NUM; count++) {
+		n = find_next_bit(sec->cam_map, RTW_MAX_SEC_CAM_NUM, offset);
+		if (n == RTW_MAX_SEC_CAM_NUM)
+			break;
+
+		used_cam[count] = n;
+		offset = n + 1;
+	}
+
+	return count;
+}
+
 void rtw_sec_enable_sec_engine(struct rtw_dev *rtwdev)
 {
 	struct rtw_sec_desc *sec = &rtwdev->sec;

@@ -272,6 +272,8 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 			rtw_add_rsvd_page(rtwdev, RSVD_PS_POLL, true);
 			rtw_add_rsvd_page(rtwdev, RSVD_QOS_NULL, true);
 			rtw_add_rsvd_page(rtwdev, RSVD_NULL, true);
+			rtw_add_rsvd_page(rtwdev, RSVD_LPS_PG_DPK, true);
+			rtw_add_rsvd_page(rtwdev, RSVD_LPS_PG_INFO, true);
 			rtw_fw_download_rsvd_page(rtwdev, vif);
 			rtw_send_rsvd_page_h2c(rtwdev);
 			rtw_coex_media_status_notify(rtwdev, conf->assoc);
@@ -434,6 +436,10 @@ static int rtw_ops_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		rtw_sec_clear_cam(rtwdev, sec, key->hw_key_idx);
 		break;
 	}
+
+	/* download new cam settings for PG to backup */
+	if (rtw_fw_lps_deep_mode == LPS_DEEP_MODE_PG)
+		rtw_fw_download_rsvd_page(rtwdev, vif);
 
 out:
 	mutex_unlock(&rtwdev->mutex);

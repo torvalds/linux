@@ -34,6 +34,7 @@ void rtw_sec_write_cam(struct rtw_dev *rtwdev,
 void rtw_sec_clear_cam(struct rtw_dev *rtwdev,
 		       struct rtw_sec_desc *sec,
 		       u8 hw_key_idx);
+u8 rtw_sec_cam_pg_backup(struct rtw_dev *rtwdev, u8 *used_cam);
 void rtw_sec_enable_sec_engine(struct rtw_dev *rtwdev);
 
 #endif

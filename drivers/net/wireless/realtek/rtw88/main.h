@@ -16,6 +16,7 @@
 
 #define RTW_MAX_MAC_ID_NUM		32
 #define RTW_MAX_SEC_CAM_NUM		32
+#define MAX_PG_CAM_BACKUP_NUM		8
 
 #define RTW_WATCH_DOG_DELAY_TIME	round_jiffies_relative(HZ * 2)
 
@@ -532,6 +533,7 @@ enum rtw_lps_mode {
 enum rtw_lps_deep_mode {
 	LPS_DEEP_MODE_NONE	= 0,
 	LPS_DEEP_MODE_LCLK	= 1,
+	LPS_DEEP_MODE_PG	= 2,
 };
 
 enum rtw_pwr_state {
@@ -548,6 +550,7 @@ struct rtw_lps_conf {
 	u8 rlbm;
 	u8 smart_ps;
 	u8 port_id;
+	bool sec_cam_backup;
 };
 
 enum rtw_hw_key_type {

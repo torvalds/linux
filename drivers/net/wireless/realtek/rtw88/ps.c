@@ -74,10 +74,13 @@ retry:
 
 	/* toggle to request power mode, others remain 0 */
 	request ^= request | BIT_RPWM_TOGGLE;
-	if (!enter)
+	if (!enter) {
 		request |= POWER_MODE_ACK;
-	else
+	} else {
 		request |= POWER_MODE_LCLK;
+		if (rtw_fw_lps_deep_mode == LPS_DEEP_MODE_PG)
+			request |= POWER_MODE_PG;
+	}
 
 	rtw_write8(rtwdev, rtwdev->hci.rpwm_addr, request);
 
@@ -140,6 +143,9 @@ static void __rtw_enter_lps_deep(struct rtw_dev *rtwdev)
 			"Should enter LPS before entering deep PS\n");
 		return;
 	}
+
+	if (rtw_fw_lps_deep_mode == LPS_DEEP_MODE_PG)
+		rtw_fw_set_pg_info(rtwdev);
 
 	rtw_hci_deep_ps(rtwdev, true);
 }

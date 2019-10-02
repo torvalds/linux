@@ -8,6 +8,7 @@
 #define RTW_LPS_THRESHOLD	2
 
 #define POWER_MODE_ACK		BIT(6)
+#define POWER_MODE_PG		BIT(4)
 #define POWER_MODE_LCLK		BIT(0)
 
 int rtw_enter_ips(struct rtw_dev *rtwdev);

@@ -7,6 +7,7 @@
 #include "fw.h"
 #include "tx.h"
 #include "reg.h"
+#include "sec.h"
 #include "debug.h"
 
 static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
@@ -397,6 +398,24 @@ static u8 rtw_get_rsvd_page_location(struct rtw_dev *rtwdev,
 	return location;
 }
 
+void rtw_fw_set_pg_info(struct rtw_dev *rtwdev)
+{
+	struct rtw_lps_conf *conf = &rtwdev->lps_conf;
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+	u8 loc_pg, loc_dpk;
+
+	loc_pg = rtw_get_rsvd_page_location(rtwdev, RSVD_LPS_PG_INFO);
+	loc_dpk = rtw_get_rsvd_page_location(rtwdev, RSVD_LPS_PG_DPK);
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_LPS_PG_INFO);
+
+	LPS_PG_INFO_LOC(h2c_pkt, loc_pg);
+	LPS_PG_DPK_LOC(h2c_pkt, loc_dpk);
+	LPS_PG_SEC_CAM_EN(h2c_pkt, conf->sec_cam_backup);
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
 void rtw_send_rsvd_page_h2c(struct rtw_dev *rtwdev)
 {
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
@@ -442,6 +461,58 @@ rtw_beacon_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	return skb_new;
 }
 
+static struct sk_buff *rtw_lps_pg_dpk_get(struct ieee80211_hw *hw)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_dpk_info *dpk_info = &rtwdev->dm_info.dpk_info;
+	struct rtw_lps_pg_dpk_hdr *dpk_hdr;
+	struct sk_buff *skb;
+	u32 size;
+
+	size = chip->tx_pkt_desc_sz + sizeof(*dpk_hdr);
+	skb = alloc_skb(size, GFP_KERNEL);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, chip->tx_pkt_desc_sz);
+	dpk_hdr = skb_put_zero(skb, sizeof(*dpk_hdr));
+	dpk_hdr->dpk_ch = dpk_info->dpk_ch;
+	dpk_hdr->dpk_path_ok = dpk_info->dpk_path_ok[0];
+	memcpy(dpk_hdr->dpk_txagc, dpk_info->dpk_txagc, 2);
+	memcpy(dpk_hdr->dpk_gs, dpk_info->dpk_gs, 4);
+	memcpy(dpk_hdr->coef, dpk_info->coef, 160);
+
+	return skb;
+}
+
+static struct sk_buff *rtw_lps_pg_info_get(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_lps_conf *conf = &rtwdev->lps_conf;
+	struct rtw_lps_pg_info_hdr *pg_info_hdr;
+	struct sk_buff *skb;
+	u32 size;
+
+	size = chip->tx_pkt_desc_sz + sizeof(*pg_info_hdr);
+	skb = alloc_skb(size, GFP_KERNEL);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, chip->tx_pkt_desc_sz);
+	pg_info_hdr = skb_put_zero(skb, sizeof(*pg_info_hdr));
+	pg_info_hdr->tx_bu_page_count = rtwdev->fifo.rsvd_drv_pg_num;
+	pg_info_hdr->macid = find_first_bit(rtwdev->mac_id_map, RTW_MAX_MAC_ID_NUM);
+	pg_info_hdr->sec_cam_count =
+		rtw_sec_cam_pg_backup(rtwdev, pg_info_hdr->sec_cam);
+
+	conf->sec_cam_backup = pg_info_hdr->sec_cam_count != 0;
+
+	return skb;
+}
+
 static struct sk_buff *rtw_get_rsvd_page_skb(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif,
 					     enum rtw_rsvd_packet_type type)
@@ -463,6 +534,12 @@ static struct sk_buff *rtw_get_rsvd_page_skb(struct ieee80211_hw *hw,
 		break;
 	case RSVD_QOS_NULL:
 		skb_new = ieee80211_nullfunc_get(hw, vif, true);
+		break;
+	case RSVD_LPS_PG_DPK:
+		skb_new = rtw_lps_pg_dpk_get(hw);
+		break;
+	case RSVD_LPS_PG_INFO:
+		skb_new = rtw_lps_pg_info_get(hw, vif);
 		break;
 	default:
 		return NULL;
