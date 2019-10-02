@@ -792,6 +792,21 @@ static void inject_interrupt(struct kvm_vcpu *vcpu, int vec, u64 srr1_flags)
 	else
 		new_msr |= msr & MSR_TS_MASK;
 
+	/*
+	 * Perform MSR and PC adjustment for LPCR[AIL]=3 if it is set and
+	 * applicable. AIL=2 is not supported.
+	 *
+	 * AIL does not apply to SRESET, MCE, or HMI (which is never
+	 * delivered to the guest), and does not apply if IR=0 or DR=0.
+	 */
+	if (vec != BOOK3S_INTERRUPT_SYSTEM_RESET &&
+	    vec != BOOK3S_INTERRUPT_MACHINE_CHECK &&
+	    (vcpu->arch.vcore->lpcr & LPCR_AIL) == LPCR_AIL_3 &&
+	    (msr & (MSR_IR|MSR_DR)) == (MSR_IR|MSR_DR) ) {
+		new_msr |= MSR_IR | MSR_DR;
+		new_pc += 0xC000000000004000ULL;
+	}
+
 	kvmppc_set_srr0(vcpu, pc);
 	kvmppc_set_srr1(vcpu, (msr & SRR1_MSR_BITS) | srr1_flags);
 	kvmppc_set_pc(vcpu, new_pc);
