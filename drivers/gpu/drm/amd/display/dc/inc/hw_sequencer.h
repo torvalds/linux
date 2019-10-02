@@ -349,6 +349,9 @@ struct hw_sequencer_funcs {
 			enum dc_clock_type clock_type,
 			struct dc_clock_config *clock_cfg);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+	bool (*s0i3_golden_init_wa)(struct dc *dc);
+#endif
 };
 
 void color_space_to_black_color(

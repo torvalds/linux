@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/slab.h>
-
 #include "dm_services.h"
 #include "dc.h"
 
@@ -42,7 +40,7 @@
 #include "irq/dcn21/irq_service_dcn21.h"
 #include "dcn20/dcn20_dpp.h"
 #include "dcn20/dcn20_optc.h"
-#include "dcn20/dcn20_hwseq.h"
+#include "dcn21/dcn21_hwseq.h"
 #include "dce110/dce110_hw_sequencer.h"
 #include "dcn20/dcn20_opp.h"
 #include "dcn20/dcn20_dsc.h"
@@ -348,6 +346,30 @@ static const struct dce110_clk_src_mask cs_mask = {
 static const struct bios_registers bios_regs = {
 		NBIO_SR(BIOS_SCRATCH_3),
 		NBIO_SR(BIOS_SCRATCH_6)
+};
+
+static const struct dce_dmcu_registers dmcu_regs = {
+		DMCU_DCN10_REG_LIST()
+};
+
+static const struct dce_dmcu_shift dmcu_shift = {
+		DMCU_MASK_SH_LIST_DCN10(__SHIFT)
+};
+
+static const struct dce_dmcu_mask dmcu_mask = {
+		DMCU_MASK_SH_LIST_DCN10(_MASK)
+};
+
+static const struct dce_abm_registers abm_regs = {
+		ABM_DCN20_REG_LIST()
+};
+
+static const struct dce_abm_shift abm_shift = {
+		ABM_MASK_SH_LIST_DCN20(__SHIFT)
+};
+
+static const struct dce_abm_mask abm_mask = {
+		ABM_MASK_SH_LIST_DCN20(_MASK)
 };
 
 #ifdef CONFIG_DRM_AMD_DC_DMUB
@@ -1441,6 +1463,19 @@ static const struct resource_create_funcs res_create_maximus_funcs = {
 	.create_hwseq = dcn21_hwseq_create,
 };
 
+#define CTX ctx
+
+#define REG(reg_name) \
+	(DCN_BASE.instance[0].segment[mm ## reg_name ## _BASE_IDX] + mm ## reg_name)
+
+static uint32_t read_pipe_fuses(struct dc_context *ctx)
+{
+	uint32_t value = REG_READ(CC_DC_PIPE_DIS);
+	/* RV1 support max 4 pipes */
+	value = value & 0xf;
+	return value;
+}
+
 static struct resource_funcs dcn21_res_pool_funcs = {
 	.destroy = dcn21_destroy_resource_pool,
 	.link_enc_create = dcn20_link_encoder_create,
@@ -1460,9 +1495,10 @@ static bool construct(
 	struct dc *dc,
 	struct dcn21_resource_pool *pool)
 {
-	int i;
+	int i, j;
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data init_data;
+	uint32_t pipe_fuses = read_pipe_fuses(ctx);
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -1480,7 +1516,9 @@ static bool construct(
 	 *************************************************/
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 
-	pool->base.pipe_count = 4;
+	/* max pipe num for ASIC before check pipe fuses */
+	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
+
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 256;
@@ -1540,6 +1578,26 @@ static bool construct(
 		goto create_fail;
 	}
 
+	pool->base.dmcu = dcn20_dmcu_create(ctx,
+			&dmcu_regs,
+			&dmcu_shift,
+			&dmcu_mask);
+	if (pool->base.dmcu == NULL) {
+		dm_error("DC: failed to create dmcu!\n");
+		BREAK_TO_DEBUGGER();
+		goto create_fail;
+	}
+
+	pool->base.abm = dce_abm_create(ctx,
+			&abm_regs,
+			&abm_shift,
+			&abm_mask);
+	if (pool->base.abm == NULL) {
+		dm_error("DC: failed to create abm!\n");
+		BREAK_TO_DEBUGGER();
+		goto create_fail;
+	}
+
 #ifdef CONFIG_DRM_AMD_DC_DMUB
 	pool->base.dmcub = dcn21_dmcub_create(ctx,
 			&dmcub_regs,
@@ -1561,8 +1619,15 @@ static bool construct(
 	if (!pool->base.irqs)
 		goto create_fail;
 
+	j = 0;
 	/* mem input -> ipp -> dpp -> opp -> TG */
 	for (i = 0; i < pool->base.pipe_count; i++) {
+		/* if pipe is disabled, skip instance of HW pipe,
+		 * i.e, skip ASIC register instance
+		 */
+		if ((pipe_fuses & (1 << i)) != 0)
+			continue;
+
 		pool->base.hubps[i] = dcn21_hubp_create(ctx, i);
 		if (pool->base.hubps[i] == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -1586,6 +1651,23 @@ static bool construct(
 				"DC: failed to create dpps!\n");
 			goto create_fail;
 		}
+
+		pool->base.opps[i] = dcn21_opp_create(ctx, i);
+		if (pool->base.opps[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC: failed to create output pixel processor!\n");
+			goto create_fail;
+		}
+
+		pool->base.timing_generators[i] = dcn21_timing_generator_create(
+				ctx, i);
+		if (pool->base.timing_generators[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error("DC: failed to create tg!\n");
+			goto create_fail;
+		}
+		j++;
 	}
 
 	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
@@ -1606,27 +1688,9 @@ static bool construct(
 		pool->base.sw_i2cs[i] = NULL;
 	}
 
-	for (i = 0; i < pool->base.res_cap->num_opp; i++) {
-		pool->base.opps[i] = dcn21_opp_create(ctx, i);
-		if (pool->base.opps[i] == NULL) {
-			BREAK_TO_DEBUGGER();
-			dm_error(
-				"DC: failed to create output pixel processor!\n");
-			goto create_fail;
-		}
-	}
-
-	for (i = 0; i < pool->base.res_cap->num_timing_generator; i++) {
-		pool->base.timing_generators[i] = dcn21_timing_generator_create(
-				ctx, i);
-		if (pool->base.timing_generators[i] == NULL) {
-			BREAK_TO_DEBUGGER();
-			dm_error("DC: failed to create tg!\n");
-			goto create_fail;
-		}
-	}
-
-	pool->base.timing_generator_count = i;
+	pool->base.timing_generator_count = j;
+	pool->base.pipe_count = j;
+	pool->base.mpcc_count = j;
 
 	pool->base.mpc = dcn21_mpc_create(ctx);
 	if (pool->base.mpc == NULL) {
@@ -1669,7 +1733,7 @@ static bool construct(
 			&res_create_funcs : &res_create_maximus_funcs)))
 			goto create_fail;
 
-	dcn20_hw_sequencer_construct(dc);
+	dcn21_hw_sequencer_construct(dc);
 
 	dc->caps.max_planes =  pool->base.pipe_count;
 

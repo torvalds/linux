@@ -1,7 +1,7 @@
 #
 # Makefile for DCN21.
 
-DCN21 = dcn21_hubp.o dcn21_hubbub.o dcn21_resource.o
+DCN21 = dcn21_hubp.o dcn21_hubbub.o dcn21_resource.o dcn21_hwseq.o
 
 CFLAGS_dcn21_resource.o := -mhard-float -msse -mpreferred-stack-boundary=4
 
