@@ -1512,6 +1512,16 @@ static void snapshot_dtr(struct dm_target *ti)
 	kfree(s);
 }
 
+static void account_start_copy(struct dm_snapshot *s)
+{
+	down(&s->cow_count);
+}
+
+static void account_end_copy(struct dm_snapshot *s)
+{
+	up(&s->cow_count);
+}
+
 /*
  * Flush a list of buffers.
  */
@@ -1732,7 +1742,7 @@ static void copy_callback(int read_err, unsigned long write_err, void *context)
 		rb_link_node(&pe->out_of_order_node, parent, p);
 		rb_insert_color(&pe->out_of_order_node, &s->out_of_order_tree);
 	}
-	up(&s->cow_count);
+	account_end_copy(s);
 }
 
 /*
@@ -1756,7 +1766,7 @@ static void start_copy(struct dm_snap_pending_exception *pe)
 	dest.count = src.count;
 
 	/* Hand over to kcopyd */
-	down(&s->cow_count);
+	account_start_copy(s);
 	dm_kcopyd_copy(s->kcopyd_client, &src, 1, &dest, 0, copy_callback, pe);
 }
 
@@ -1776,7 +1786,7 @@ static void start_full_bio(struct dm_snap_pending_exception *pe,
 	pe->full_bio = bio;
 	pe->full_bio_end_io = bio->bi_end_io;
 
-	down(&s->cow_count);
+	account_start_copy(s);
 	callback_data = dm_kcopyd_prepare_callback(s->kcopyd_client,
 						   copy_callback, pe);
 
@@ -1866,7 +1876,7 @@ static void zero_callback(int read_err, unsigned long write_err, void *context)
 	struct bio *bio = context;
 	struct dm_snapshot *s = bio->bi_private;
 
-	up(&s->cow_count);
+	account_end_copy(s);
 	bio->bi_status = write_err ? BLK_STS_IOERR : 0;
 	bio_endio(bio);
 }
@@ -1880,7 +1890,7 @@ static void zero_exception(struct dm_snapshot *s, struct dm_exception *e,
 	dest.sector = bio->bi_iter.bi_sector;
 	dest.count = s->store->chunk_size;
 
-	down(&s->cow_count);
+	account_start_copy(s);
 	WARN_ON_ONCE(bio->bi_private);
 	bio->bi_private = s;
 	dm_kcopyd_zero(s->kcopyd_client, 1, &dest, 0, zero_callback, bio);
