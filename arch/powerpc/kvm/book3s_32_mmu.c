@@ -90,11 +90,6 @@ static u64 kvmppc_mmu_book3s_32_ea_to_vp(struct kvm_vcpu *vcpu, gva_t eaddr,
 	return (((u64)eaddr >> 12) & 0xffff) | (vsid << 16);
 }
 
-static void kvmppc_mmu_book3s_32_reset_msr(struct kvm_vcpu *vcpu)
-{
-	kvmppc_set_msr(vcpu, 0);
-}
-
 static hva_t kvmppc_mmu_book3s_32_get_pteg(struct kvm_vcpu *vcpu,
 				      u32 sre, gva_t eaddr,
 				      bool primary)
@@ -406,7 +401,6 @@ void kvmppc_mmu_book3s_32_init(struct kvm_vcpu *vcpu)
 	mmu->mtsrin = kvmppc_mmu_book3s_32_mtsrin;
 	mmu->mfsrin = kvmppc_mmu_book3s_32_mfsrin;
 	mmu->xlate = kvmppc_mmu_book3s_32_xlate;
-	mmu->reset_msr = kvmppc_mmu_book3s_32_reset_msr;
 	mmu->tlbie = kvmppc_mmu_book3s_32_tlbie;
 	mmu->esid_to_vsid = kvmppc_mmu_book3s_32_esid_to_vsid;
 	mmu->ea_to_vp = kvmppc_mmu_book3s_32_ea_to_vp;
