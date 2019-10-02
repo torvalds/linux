@@ -3095,7 +3095,9 @@ enum ieee80211_filter_flags {
  *
  * @IEEE80211_AMPDU_RX_START: start RX aggregation
  * @IEEE80211_AMPDU_RX_STOP: stop RX aggregation
- * @IEEE80211_AMPDU_TX_START: start TX aggregation
+ * @IEEE80211_AMPDU_TX_START: start TX aggregation, the driver must either
+ *	call ieee80211_start_tx_ba_cb_irqsafe() or return the special
+ *	status %IEEE80211_AMPDU_TX_START_IMMEDIATE.
  * @IEEE80211_AMPDU_TX_OPERATIONAL: TX aggregation has become operational
  * @IEEE80211_AMPDU_TX_STOP_CONT: stop TX aggregation but continue transmitting
  *	queued packets, now unaggregated. After all packets are transmitted the
@@ -3118,6 +3120,8 @@ enum ieee80211_ampdu_mlme_action {
 	IEEE80211_AMPDU_TX_STOP_FLUSH_CONT,
 	IEEE80211_AMPDU_TX_OPERATIONAL,
 };
+
+#define IEEE80211_AMPDU_TX_START_IMMEDIATE 1
 
 /**
  * struct ieee80211_ampdu_params - AMPDU action parameters
@@ -3896,7 +3900,10 @@ struct ieee80211_ops {
 	 *
 	 * Even ``189`` would be wrong since 1 could be lost again.
 	 *
-	 * Returns a negative error code on failure.
+	 * Returns a negative error code on failure. The driver may return
+	 * %IEEE80211_AMPDU_TX_START_IMMEDIATE for %IEEE80211_AMPDU_TX_START
+	 * if the session can start immediately.
+	 *
 	 * The callback can sleep.
 	 */
 	int (*ampdu_action)(struct ieee80211_hw *hw,
