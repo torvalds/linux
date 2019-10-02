@@ -19,12 +19,13 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"
-#include "cpumap.h"
 #include "machine.h"
 #include "map.h"
 #include "symbol.h"
 #include "event.h"
 #include "record.h"
+#include "util/mmap.h"
+#include "util/synthetic-events.h"
 #include "thread.h"
 
 #include "tests.h"
@@ -419,10 +420,10 @@ static int process_events(struct machine *machine, struct evlist *evlist,
 			  struct state *state)
 {
 	union perf_event *event;
-	struct perf_mmap *md;
+	struct mmap *md;
 	int i, ret;
 
-	for (i = 0; i < evlist->nr_mmaps; i++) {
+	for (i = 0; i < evlist->core.nr_mmaps; i++) {
 		md = &evlist->mmap[i];
 		if (perf_mmap__read_init(md) < 0)
 			continue;
@@ -651,7 +652,7 @@ static int do_test_code_reading(bool try_kcore)
 
 		perf_evlist__config(evlist, &opts, NULL);
 
-		evsel = perf_evlist__first(evlist);
+		evsel = evlist__first(evlist);
 
 		evsel->core.attr.comm = 1;
 		evsel->core.attr.disabled = 1;
@@ -685,9 +686,9 @@ static int do_test_code_reading(bool try_kcore)
 		break;
 	}
 
-	ret = perf_evlist__mmap(evlist, UINT_MAX);
+	ret = evlist__mmap(evlist, UINT_MAX);
 	if (ret < 0) {
-		pr_debug("perf_evlist__mmap failed\n");
+		pr_debug("evlist__mmap failed\n");
 		goto out_put;
 	}
 

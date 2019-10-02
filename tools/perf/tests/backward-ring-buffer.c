@@ -10,6 +10,7 @@
 #include "tests.h"
 #include "debug.h"
 #include "parse-events.h"
+#include "util/mmap.h"
 #include <errno.h>
 #include <linux/string.h>
 
@@ -32,8 +33,8 @@ static int count_samples(struct evlist *evlist, int *sample_count,
 {
 	int i;
 
-	for (i = 0; i < evlist->nr_mmaps; i++) {
-		struct perf_mmap *map = &evlist->overwrite_mmap[i];
+	for (i = 0; i < evlist->core.nr_mmaps; i++) {
+		struct mmap *map = &evlist->overwrite_mmap[i];
 		union perf_event *event;
 
 		perf_mmap__read_init(map);
@@ -63,9 +64,9 @@ static int do_test(struct evlist *evlist, int mmap_pages,
 	int err;
 	char sbuf[STRERR_BUFSIZE];
 
-	err = perf_evlist__mmap(evlist, mmap_pages);
+	err = evlist__mmap(evlist, mmap_pages);
 	if (err < 0) {
-		pr_debug("perf_evlist__mmap: %s\n",
+		pr_debug("evlist__mmap: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		return TEST_FAIL;
 	}
@@ -75,7 +76,7 @@ static int do_test(struct evlist *evlist, int mmap_pages,
 	evlist__disable(evlist);
 
 	err = count_samples(evlist, sample_count, comm_count);
-	perf_evlist__munmap(evlist);
+	evlist__munmap(evlist);
 	return err;
 }
 

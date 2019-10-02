@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include "util/debug.h"
 #include "util/dso.h"
+#include "util/event.h" // struct perf_sample
 #include "util/map.h"
 #include "util/symbol.h"
 #include "util/sort.h"
@@ -10,6 +11,7 @@
 #include "util/thread.h"
 #include "tests/hists_common.h"
 #include <linux/kernel.h>
+#include <linux/perf_event.h>
 
 static struct {
 	u32 pid;

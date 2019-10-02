@@ -353,6 +353,10 @@ struct fuse_req {
 	/** Used to wake up the task waiting for completion of request*/
 	wait_queue_head_t waitq;
 
+#if IS_ENABLED(CONFIG_VIRTIO_FS)
+	/** virtio-fs's physically contiguous buffer for in and out args */
+	void *argbuf;
+#endif
 };
 
 struct fuse_iqueue;
@@ -383,6 +387,11 @@ struct fuse_iqueue_ops {
 	 */
 	void (*wake_pending_and_unlock)(struct fuse_iqueue *fiq)
 		__releases(fiq->lock);
+
+	/**
+	 * Clean up when fuse_iqueue is destroyed
+	 */
+	void (*release)(struct fuse_iqueue *fiq);
 };
 
 /** /dev/fuse input queue operations */

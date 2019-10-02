@@ -22,7 +22,6 @@
 #include "symbol.h"
 #include "session.h"
 #include "tool.h"
-#include "cpumap.h"
 #include "perf_regs.h"
 #include "asm/bug.h"
 #include "auxtrace.h"
@@ -30,10 +29,11 @@
 #include "thread-stack.h"
 #include "sample-raw.h"
 #include "stat.h"
-#include "util.h"
 #include "ui/progress.h"
 #include "../perf.h"
 #include "arch/common.h"
+#include <internal/lib.h>
+#include <linux/err.h>
 
 #ifdef HAVE_ZSTD_SUPPORT
 static int perf_session__process_compressed_event(struct perf_session *session,
@@ -187,6 +187,7 @@ static int ordered_events__deliver_event(struct ordered_events *oe,
 struct perf_session *perf_session__new(struct perf_data *data,
 				       bool repipe, struct perf_tool *tool)
 {
+	int ret = -ENOMEM;
 	struct perf_session *session = zalloc(sizeof(*session));
 
 	if (!session)
@@ -201,13 +202,15 @@ struct perf_session *perf_session__new(struct perf_data *data,
 
 	perf_env__init(&session->header.env);
 	if (data) {
-		if (perf_data__open(data))
+		ret = perf_data__open(data);
+		if (ret < 0)
 			goto out_delete;
 
 		session->data = data;
 
 		if (perf_data__is_read(data)) {
-			if (perf_session__open(session) < 0)
+			ret = perf_session__open(session);
+			if (ret < 0)
 				goto out_delete;
 
 			/*
@@ -222,8 +225,11 @@ struct perf_session *perf_session__new(struct perf_data *data,
 			perf_evlist__init_trace_event_sample_raw(session->evlist);
 
 			/* Open the directory data. */
-			if (data->is_dir && perf_data__open_dir(data))
+			if (data->is_dir) {
+				ret = perf_data__open_dir(data);
+			if (ret)
 				goto out_delete;
+			}
 		}
 	} else  {
 		session->machines.host.env = &perf_env;
@@ -256,7 +262,7 @@ struct perf_session *perf_session__new(struct perf_data *data,
  out_delete:
 	perf_session__delete(session);
  out:
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 static void perf_session__delete_threads(struct perf_session *session)
@@ -1317,6 +1323,7 @@ static int deliver_sample_value(struct evlist *evlist,
 				struct machine *machine)
 {
 	struct perf_sample_id *sid = perf_evlist__id2sid(evlist, v->id);
+	struct evsel *evsel;
 
 	if (sid) {
 		sample->id     = v->id;
@@ -1336,7 +1343,8 @@ static int deliver_sample_value(struct evlist *evlist,
 	if (!sample->period)
 		return 0;
 
-	return tool->sample(tool, event, sample, sid->evsel, machine);
+	evsel = container_of(sid->evsel, struct evsel, core);
+	return tool->sample(tool, event, sample, evsel, machine);
 }
 
 static int deliver_sample_group(struct evlist *evlist,
@@ -2411,74 +2419,4 @@ int perf_event__process_id_index(struct perf_session *session,
 		sid->tid = e->tid;
 	}
 	return 0;
-}
-
-int perf_event__synthesize_id_index(struct perf_tool *tool,
-				    perf_event__handler_t process,
-				    struct evlist *evlist,
-				    struct machine *machine)
-{
-	union perf_event *ev;
-	struct evsel *evsel;
-	size_t nr = 0, i = 0, sz, max_nr, n;
-	int err;
-
-	pr_debug2("Synthesizing id index\n");
-
-	max_nr = (UINT16_MAX - sizeof(struct perf_record_id_index)) /
-		 sizeof(struct id_index_entry);
-
-	evlist__for_each_entry(evlist, evsel)
-		nr += evsel->ids;
-
-	n = nr > max_nr ? max_nr : nr;
-	sz = sizeof(struct perf_record_id_index) + n * sizeof(struct id_index_entry);
-	ev = zalloc(sz);
-	if (!ev)
-		return -ENOMEM;
-
-	ev->id_index.header.type = PERF_RECORD_ID_INDEX;
-	ev->id_index.header.size = sz;
-	ev->id_index.nr = n;
-
-	evlist__for_each_entry(evlist, evsel) {
-		u32 j;
-
-		for (j = 0; j < evsel->ids; j++) {
-			struct id_index_entry *e;
-			struct perf_sample_id *sid;
-
-			if (i >= n) {
-				err = process(tool, ev, NULL, machine);
-				if (err)
-					goto out_err;
-				nr -= n;
-				i = 0;
-			}
-
-			e = &ev->id_index.entries[i++];
-
-			e->id = evsel->id[j];
-
-			sid = perf_evlist__id2sid(evlist, e->id);
-			if (!sid) {
-				free(ev);
-				return -ENOENT;
-			}
-
-			e->idx = sid->idx;
-			e->cpu = sid->cpu;
-			e->tid = sid->tid;
-		}
-	}
-
-	sz = sizeof(struct perf_record_id_index) + nr * sizeof(struct id_index_entry);
-	ev->id_index.header.size = sz;
-	ev->id_index.nr = nr;
-
-	err = process(tool, ev, NULL, machine);
-out_err:
-	free(ev);
-
-	return err;
 }

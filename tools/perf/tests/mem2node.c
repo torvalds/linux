@@ -4,7 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
 #include <perf/cpumap.h>
-#include "cpumap.h"
+#include <internal/cpumap.h>
 #include "debug.h"
 #include "env.h"
 #include "mem2node.h"

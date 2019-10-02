@@ -2113,6 +2113,7 @@ static int amdgpu_dm_backlight_get_brightness(struct backlight_device *bd)
 }
 
 static const struct backlight_ops amdgpu_dm_backlight_ops = {
+	.options = BL_CORE_SUSPENDRESUME,
 	.get_brightness = amdgpu_dm_backlight_get_brightness,
 	.update_status	= amdgpu_dm_backlight_update_status,
 };
@@ -2384,6 +2385,8 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 	if (adev->asic_type != CHIP_CARRIZO && adev->asic_type != CHIP_STONEY)
 		dm->dc->debug.disable_stutter = amdgpu_pp_feature_mask & PP_STUTTER_MODE ? false : true;
+	if (adev->asic_type == CHIP_RENOIR)
+		dm->dc->debug.disable_stutter = true;
 
 	return 0;
 fail:
@@ -5770,8 +5773,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		 * change FB pitch, DCC state, rotation or mirroing.
 		 */
 		bundle->flip_addrs[planes_count].flip_immediate =
-			(crtc->state->pageflip_flags &
-			 DRM_MODE_PAGE_FLIP_ASYNC) != 0 &&
+			crtc->state->async_flip &&
 			acrtc_state->update_type == UPDATE_TYPE_FAST;
 
 		timestamp_ns = ktime_get_ns();
@@ -6348,7 +6350,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	amdgpu_dm_enable_crtc_interrupts(dev, state, true);
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, j)
-		if (new_crtc_state->pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
+		if (new_crtc_state->async_flip)
 			wait_for_vblank = false;
 
 	/* update planes when needed per crtc*/

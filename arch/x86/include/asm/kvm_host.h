@@ -320,6 +320,7 @@ struct kvm_mmu_page {
 	struct list_head link;
 	struct hlist_node hash_link;
 	bool unsync;
+	u8 mmu_valid_gen;
 	bool mmio_cached;
 
 	/*
@@ -335,7 +336,6 @@ struct kvm_mmu_page {
 	int root_count;          /* Currently serving as active root */
 	unsigned int unsync_children;
 	struct kvm_rmap_head parent_ptes; /* rmap pointers to parent sptes */
-	unsigned long mmu_valid_gen;
 	DECLARE_BITMAP(unsync_child_bitmap, 512);
 
 #ifdef CONFIG_X86_32
@@ -844,6 +844,8 @@ struct kvm_hv {
 
 	/* How many vCPUs have VP index != vCPU index */
 	atomic_t num_mismatched_vp_indexes;
+
+	struct hv_partition_assist_pg *hv_pa_pg;
 };
 
 enum kvm_irqchip_mode {
@@ -857,12 +859,13 @@ struct kvm_arch {
 	unsigned long n_requested_mmu_pages;
 	unsigned long n_max_mmu_pages;
 	unsigned int indirect_shadow_pages;
-	unsigned long mmu_valid_gen;
+	u8 mmu_valid_gen;
 	struct hlist_head mmu_page_hash[KVM_NUM_MMU_PAGES];
 	/*
 	 * Hash table of struct kvm_mmu_page.
 	 */
 	struct list_head active_mmu_pages;
+	struct list_head zapped_obsolete_pages;
 	struct kvm_page_track_notifier_node mmu_sp_tracker;
 	struct kvm_page_track_notifier_head track_notifier_head;
 
@@ -1213,6 +1216,7 @@ struct kvm_x86_ops {
 	bool (*need_emulation_on_page_fault)(struct kvm_vcpu *vcpu);
 
 	bool (*apic_init_signal_blocked)(struct kvm_vcpu *vcpu);
+	int (*enable_direct_tlbflush)(struct kvm_vcpu *vcpu);
 };
 
 struct kvm_arch_async_pf {
@@ -1312,18 +1316,42 @@ extern u64  kvm_default_tsc_scaling_ratio;
 
 extern u64 kvm_mce_cap_supported;
 
-enum emulation_result {
-	EMULATE_DONE,         /* no further processing */
-	EMULATE_USER_EXIT,    /* kvm_run ready for userspace exit */
-	EMULATE_FAIL,         /* can't emulate this instruction */
-};
-
+/*
+ * EMULTYPE_NO_DECODE - Set when re-emulating an instruction (after completing
+ *			userspace I/O) to indicate that the emulation context
+ *			should be resued as is, i.e. skip initialization of
+ *			emulation context, instruction fetch and decode.
+ *
+ * EMULTYPE_TRAP_UD - Set when emulating an intercepted #UD from hardware.
+ *		      Indicates that only select instructions (tagged with
+ *		      EmulateOnUD) should be emulated (to minimize the emulator
+ *		      attack surface).  See also EMULTYPE_TRAP_UD_FORCED.
+ *
+ * EMULTYPE_SKIP - Set when emulating solely to skip an instruction, i.e. to
+ *		   decode the instruction length.  For use *only* by
+ *		   kvm_x86_ops->skip_emulated_instruction() implementations.
+ *
+ * EMULTYPE_ALLOW_RETRY - Set when the emulator should resume the guest to
+ *			  retry native execution under certain conditions.
+ *
+ * EMULTYPE_TRAP_UD_FORCED - Set when emulating an intercepted #UD that was
+ *			     triggered by KVM's magic "force emulation" prefix,
+ *			     which is opt in via module param (off by default).
+ *			     Bypasses EmulateOnUD restriction despite emulating
+ *			     due to an intercepted #UD (see EMULTYPE_TRAP_UD).
+ *			     Used to test the full emulator from userspace.
+ *
+ * EMULTYPE_VMWARE_GP - Set when emulating an intercepted #GP for VMware
+ *			backdoor emulation, which is opt in via module param.
+ *			VMware backoor emulation handles select instructions
+ *			and reinjects the #GP for all other cases.
+ */
 #define EMULTYPE_NO_DECODE	    (1 << 0)
 #define EMULTYPE_TRAP_UD	    (1 << 1)
 #define EMULTYPE_SKIP		    (1 << 2)
 #define EMULTYPE_ALLOW_RETRY	    (1 << 3)
-#define EMULTYPE_NO_UD_ON_FAIL	    (1 << 4)
-#define EMULTYPE_VMWARE		    (1 << 5)
+#define EMULTYPE_TRAP_UD_FORCED	    (1 << 4)
+#define EMULTYPE_VMWARE_GP	    (1 << 5)
 int kvm_emulate_instruction(struct kvm_vcpu *vcpu, int emulation_type);
 int kvm_emulate_instruction_from_buffer(struct kvm_vcpu *vcpu,
 					void *insn, int insn_len);
@@ -1506,7 +1534,7 @@ enum {
 #define kvm_arch_vcpu_memslots_id(vcpu) ((vcpu)->arch.hflags & HF_SMM_MASK ? 1 : 0)
 #define kvm_memslots_for_spte_role(kvm, role) __kvm_memslots(kvm, (role).smm)
 
-asmlinkage void __noreturn kvm_spurious_fault(void);
+asmlinkage void kvm_spurious_fault(void);
 
 /*
  * Hardware virtualization extension instructions may fault if a
@@ -1514,24 +1542,14 @@ asmlinkage void __noreturn kvm_spurious_fault(void);
  * Usually after catching the fault we just panic; during reboot
  * instead the instruction is ignored.
  */
-#define ____kvm_handle_fault_on_reboot(insn, cleanup_insn)		\
+#define __kvm_handle_fault_on_reboot(insn)				\
 	"666: \n\t"							\
 	insn "\n\t"							\
 	"jmp	668f \n\t"						\
 	"667: \n\t"							\
 	"call	kvm_spurious_fault \n\t"				\
 	"668: \n\t"							\
-	".pushsection .fixup, \"ax\" \n\t"				\
-	"700: \n\t"							\
-	cleanup_insn "\n\t"						\
-	"cmpb	$0, kvm_rebooting\n\t"					\
-	"je	667b \n\t"						\
-	"jmp	668b \n\t"						\
-	".popsection \n\t"						\
-	_ASM_EXTABLE(666b, 700b)
-
-#define __kvm_handle_fault_on_reboot(insn)		\
-	____kvm_handle_fault_on_reboot(insn, "")
+	_ASM_EXTABLE(666b, 667b)
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
 int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end);

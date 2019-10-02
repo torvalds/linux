@@ -3,10 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../util/debug.h"
 #include "helpline.h"
 #include "ui.h"
-#include "../util/util.h"
 
 char ui_helpline__current[512];
 

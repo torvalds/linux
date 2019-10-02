@@ -16,7 +16,7 @@
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"
 #include "../../util/session.h"
-#include "../../util/util.h"
+#include <internal/lib.h> // page_size
 #include "../../util/pmu.h"
 #include "../../util/debug.h"
 #include "../../util/auxtrace.h"
@@ -51,7 +51,7 @@ static int arm_spe_info_fill(struct auxtrace_record *itr,
 	if (priv_size != ARM_SPE_AUXTRACE_PRIV_SIZE)
 		return -EINVAL;
 
-	if (!session->evlist->nr_mmaps)
+	if (!session->evlist->core.nr_mmaps)
 		return -EINVAL;
 
 	auxtrace_info->type = PERF_AUXTRACE_ARM_SPE;
@@ -129,7 +129,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 	if (err)
 		return err;
 
-	tracking_evsel = perf_evlist__last(evlist);
+	tracking_evsel = evlist__last(evlist);
 	perf_evlist__set_tracking_event(evlist, tracking_evsel);
 
 	tracking_evsel->core.attr.freq = 0;

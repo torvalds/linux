@@ -7,12 +7,13 @@
  * Copyright (C) 2009, 2010 Red Hat Inc.
  * Copyright (C) 2009, 2010 Arnaldo Carvalho de Melo <acme@redhat.com>
  */
-#include "util.h"
+#include "util.h" // lsdir(), mkdir_p(), rm_rf()
 #include <dirent.h>
 #include <errno.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include "util/copyfile.h"
 #include "dso.h"
 #include "build-id.h"
 #include "event.h"

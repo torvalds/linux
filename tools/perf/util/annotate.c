@@ -14,7 +14,7 @@
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
 #include <linux/btf.h>
-#include "util.h"
+#include "util.h" // hex_width()
 #include "ui/ui.h"
 #include "sort.h"
 #include "build-id.h"
@@ -34,6 +34,7 @@
 #include "bpf-event.h"
 #include "block-range.h"
 #include "string2.h"
+#include "util/event.h"
 #include "arch/common.h"
 #include <regex.h>
 #include <pthread.h>

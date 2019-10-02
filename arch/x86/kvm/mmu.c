@@ -403,8 +403,6 @@ static void mark_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, u64 gfn,
 	mask |= (gpa & shadow_nonpresent_or_rsvd_mask)
 		<< shadow_nonpresent_or_rsvd_mask_len;
 
-	page_header(__pa(sptep))->mmio_cached = true;
-
 	trace_mark_mmio_spte(sptep, gfn, access, gen);
 	mmu_spte_set(sptep, mask);
 }
@@ -2103,6 +2101,7 @@ static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu, int direct
 	 * depends on valid pages being added to the head of the list.  See
 	 * comments in kvm_zap_obsolete_pages().
 	 */
+	sp->mmu_valid_gen = vcpu->kvm->arch.mmu_valid_gen;
 	list_add(&sp->link, &vcpu->kvm->arch.active_mmu_pages);
 	kvm_mod_used_mmu_pages(vcpu->kvm, +1);
 	return sp;
@@ -2252,7 +2251,7 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 #define for_each_valid_sp(_kvm, _sp, _gfn)				\
 	hlist_for_each_entry(_sp,					\
 	  &(_kvm)->arch.mmu_page_hash[kvm_page_table_hashfn(_gfn)], hash_link) \
-		if (is_obsolete_sp((_kvm), (_sp)) || (_sp)->role.invalid) {    \
+		if (is_obsolete_sp((_kvm), (_sp))) {			\
 		} else
 
 #define for_each_gfn_indirect_valid_sp(_kvm, _sp, _gfn)			\
@@ -2311,7 +2310,8 @@ static void mmu_audit_disable(void) { }
 
 static bool is_obsolete_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
-	return unlikely(sp->mmu_valid_gen != kvm->arch.mmu_valid_gen);
+	return sp->role.invalid ||
+	       unlikely(sp->mmu_valid_gen != kvm->arch.mmu_valid_gen);
 }
 
 static bool kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
@@ -2538,7 +2538,6 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 		if (level > PT_PAGE_TABLE_LEVEL && need_sync)
 			flush |= kvm_sync_pages(vcpu, gfn, &invalid_list);
 	}
-	sp->mmu_valid_gen = vcpu->kvm->arch.mmu_valid_gen;
 	clear_page(sp->spt);
 	trace_kvm_mmu_get_page(sp, true);
 
@@ -2753,7 +2752,12 @@ static bool __kvm_mmu_prepare_zap_page(struct kvm *kvm,
 	} else {
 		list_move(&sp->link, &kvm->arch.active_mmu_pages);
 
-		if (!sp->role.invalid)
+		/*
+		 * Obsolete pages cannot be used on any vCPUs, see the comment
+		 * in kvm_mmu_zap_all_fast().  Note, is_obsolete_sp() also
+		 * treats invalid shadow pages as being obsolete.
+		 */
+		if (!is_obsolete_sp(kvm, sp))
 			kvm_reload_remote_mmus(kvm);
 	}
 
@@ -5383,7 +5387,6 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
 		       void *insn, int insn_len)
 {
 	int r, emulation_type = 0;
-	enum emulation_result er;
 	bool direct = vcpu->arch.mmu->direct_map;
 
 	/* With shadow page tables, fault_address contains a GVA or nGPA.  */
@@ -5450,19 +5453,8 @@ emulate:
 			return 1;
 	}
 
-	er = x86_emulate_instruction(vcpu, cr2, emulation_type, insn, insn_len);
-
-	switch (er) {
-	case EMULATE_DONE:
-		return 1;
-	case EMULATE_USER_EXIT:
-		++vcpu->stat.mmio_exits;
-		/* fall through */
-	case EMULATE_FAIL:
-		return 0;
-	default:
-		BUG();
-	}
+	return x86_emulate_instruction(vcpu, cr2, emulation_type, insn,
+				       insn_len);
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
 
@@ -5684,12 +5676,11 @@ int kvm_mmu_create(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
-
+#define BATCH_ZAP_PAGES	10
 static void kvm_zap_obsolete_pages(struct kvm *kvm)
 {
 	struct kvm_mmu_page *sp, *node;
-	LIST_HEAD(invalid_list);
-	int ign;
+	int nr_zapped, batch = 0;
 
 restart:
 	list_for_each_entry_safe_reverse(sp, node,
@@ -5702,46 +5693,39 @@ restart:
 			break;
 
 		/*
-		 * Do not repeatedly zap a root page to avoid unnecessary
-		 * KVM_REQ_MMU_RELOAD, otherwise we may not be able to
-		 * progress:
-		 *    vcpu 0                        vcpu 1
-		 *                         call vcpu_enter_guest():
-		 *                            1): handle KVM_REQ_MMU_RELOAD
-		 *                                and require mmu-lock to
-		 *                                load mmu
-		 * repeat:
-		 *    1): zap root page and
-		 *        send KVM_REQ_MMU_RELOAD
-		 *
-		 *    2): if (cond_resched_lock(mmu-lock))
-		 *
-		 *                            2): hold mmu-lock and load mmu
-		 *
-		 *                            3): see KVM_REQ_MMU_RELOAD bit
-		 *                                on vcpu->requests is set
-		 *                                then return 1 to call
-		 *                                vcpu_enter_guest() again.
-		 *            goto repeat;
-		 *
-		 * Since we are reversely walking the list and the invalid
-		 * list will be moved to the head, skip the invalid page
-		 * can help us to avoid the infinity list walking.
+		 * Skip invalid pages with a non-zero root count, zapping pages
+		 * with a non-zero root count will never succeed, i.e. the page
+		 * will get thrown back on active_mmu_pages and we'll get stuck
+		 * in an infinite loop.
 		 */
-		if (sp->role.invalid)
+		if (sp->role.invalid && sp->root_count)
 			continue;
 
-		if (need_resched() || spin_needbreak(&kvm->mmu_lock)) {
-			kvm_mmu_commit_zap_page(kvm, &invalid_list);
-			cond_resched_lock(&kvm->mmu_lock);
+		/*
+		 * No need to flush the TLB since we're only zapping shadow
+		 * pages with an obsolete generation number and all vCPUS have
+		 * loaded a new root, i.e. the shadow pages being zapped cannot
+		 * be in active use by the guest.
+		 */
+		if (batch >= BATCH_ZAP_PAGES &&
+		    cond_resched_lock(&kvm->mmu_lock)) {
+			batch = 0;
 			goto restart;
 		}
 
-		if (__kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list, &ign))
+		if (__kvm_mmu_prepare_zap_page(kvm, sp,
+				&kvm->arch.zapped_obsolete_pages, &nr_zapped)) {
+			batch += nr_zapped;
 			goto restart;
+		}
 	}
 
-	kvm_mmu_commit_zap_page(kvm, &invalid_list);
+	/*
+	 * Trigger a remote TLB flush before freeing the page tables to ensure
+	 * KVM is not in the middle of a lockless shadow page table walk, which
+	 * may reference the pages.
+	 */
+	kvm_mmu_commit_zap_page(kvm, &kvm->arch.zapped_obsolete_pages);
 }
 
 /*
@@ -5755,11 +5739,37 @@ restart:
  */
 static void kvm_mmu_zap_all_fast(struct kvm *kvm)
 {
+	lockdep_assert_held(&kvm->slots_lock);
+
 	spin_lock(&kvm->mmu_lock);
-	kvm->arch.mmu_valid_gen++;
+	trace_kvm_mmu_zap_all_fast(kvm);
+
+	/*
+	 * Toggle mmu_valid_gen between '0' and '1'.  Because slots_lock is
+	 * held for the entire duration of zapping obsolete pages, it's
+	 * impossible for there to be multiple invalid generations associated
+	 * with *valid* shadow pages at any given time, i.e. there is exactly
+	 * one valid generation and (at most) one invalid generation.
+	 */
+	kvm->arch.mmu_valid_gen = kvm->arch.mmu_valid_gen ? 0 : 1;
+
+	/*
+	 * Notify all vcpus to reload its shadow page table and flush TLB.
+	 * Then all vcpus will switch to new shadow page table with the new
+	 * mmu_valid_gen.
+	 *
+	 * Note: we need to do this under the protection of mmu_lock,
+	 * otherwise, vcpu would purge shadow page but miss tlb flush.
+	 */
+	kvm_reload_remote_mmus(kvm);
 
 	kvm_zap_obsolete_pages(kvm);
 	spin_unlock(&kvm->mmu_lock);
+}
+
+static bool kvm_has_zapped_obsolete_pages(struct kvm *kvm)
+{
+	return unlikely(!list_empty_careful(&kvm->arch.zapped_obsolete_pages));
 }
 
 static void kvm_mmu_invalidate_zap_pages_in_memslot(struct kvm *kvm,
@@ -5959,7 +5969,7 @@ void kvm_mmu_slot_set_dirty(struct kvm *kvm,
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_slot_set_dirty);
 
-static void __kvm_mmu_zap_all(struct kvm *kvm, bool mmio_only)
+void kvm_mmu_zap_all(struct kvm *kvm)
 {
 	struct kvm_mmu_page *sp, *node;
 	LIST_HEAD(invalid_list);
@@ -5968,25 +5978,16 @@ static void __kvm_mmu_zap_all(struct kvm *kvm, bool mmio_only)
 	spin_lock(&kvm->mmu_lock);
 restart:
 	list_for_each_entry_safe(sp, node, &kvm->arch.active_mmu_pages, link) {
-		if (mmio_only && !sp->mmio_cached)
-			continue;
 		if (sp->role.invalid && sp->root_count)
 			continue;
-		if (__kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list, &ign)) {
-			WARN_ON_ONCE(mmio_only);
+		if (__kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list, &ign))
 			goto restart;
-		}
 		if (cond_resched_lock(&kvm->mmu_lock))
 			goto restart;
 	}
 
 	kvm_mmu_commit_zap_page(kvm, &invalid_list);
 	spin_unlock(&kvm->mmu_lock);
-}
-
-void kvm_mmu_zap_all(struct kvm *kvm)
-{
-	return __kvm_mmu_zap_all(kvm, false);
 }
 
 void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen)
@@ -6010,7 +6011,7 @@ void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen)
 	 */
 	if (unlikely(gen == 0)) {
 		kvm_debug_ratelimited("kvm: zapping shadow pages for mmio generation wraparound\n");
-		__kvm_mmu_zap_all(kvm, true);
+		kvm_mmu_zap_all_fast(kvm);
 	}
 }
 
@@ -6041,16 +6042,24 @@ mmu_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 		 * want to shrink a VM that only started to populate its MMU
 		 * anyway.
 		 */
-		if (!kvm->arch.n_used_mmu_pages)
+		if (!kvm->arch.n_used_mmu_pages &&
+		    !kvm_has_zapped_obsolete_pages(kvm))
 			continue;
 
 		idx = srcu_read_lock(&kvm->srcu);
 		spin_lock(&kvm->mmu_lock);
 
+		if (kvm_has_zapped_obsolete_pages(kvm)) {
+			kvm_mmu_commit_zap_page(kvm,
+			      &kvm->arch.zapped_obsolete_pages);
+			goto unlock;
+		}
+
 		if (prepare_zap_oldest_mmu_page(kvm, &invalid_list))
 			freed++;
 		kvm_mmu_commit_zap_page(kvm, &invalid_list);
 
+unlock:
 		spin_unlock(&kvm->mmu_lock);
 		srcu_read_unlock(&kvm->srcu, idx);
 

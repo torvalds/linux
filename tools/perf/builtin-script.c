@@ -17,6 +17,7 @@
 #include "util/trace-event.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/evsel_fprintf.h"
 #include "util/evswitch.h"
 #include "util/sort.h"
 #include "util/data.h"
@@ -52,6 +53,7 @@
 #include <unistd.h>
 #include <subcmd/pager.h>
 #include <perf/evlist.h>
+#include <linux/err.h>
 #include "util/record.h"
 #include "util/util.h"
 #include "perf.h"
@@ -1324,7 +1326,8 @@ static int perf_sample__fprintf_bts(struct perf_sample *sample,
 		} else
 			printed += fprintf(fp, "\n");
 
-		printed += sample__fprintf_sym(sample, al, 0, print_opts, cursor, fp);
+		printed += sample__fprintf_sym(sample, al, 0, print_opts, cursor,
+					       symbol_conf.bt_stop_list, fp);
 	}
 
 	/* print branch_to information */
@@ -1866,7 +1869,8 @@ static void process_event(struct perf_script *script,
 			cursor = &callchain_cursor;
 
 		fputc(cursor ? '\n' : ' ', fp);
-		sample__fprintf_sym(sample, al, 0, output[type].print_ip_opts, cursor, fp);
+		sample__fprintf_sym(sample, al, 0, output[type].print_ip_opts, cursor,
+				    symbol_conf.bt_stop_list, fp);
 	}
 
 	if (PRINT_FIELD(IREGS))
@@ -1915,7 +1919,7 @@ static void __process_stat(struct evsel *counter, u64 tstamp)
 	int cpu, thread;
 	static int header_printed;
 
-	if (counter->system_wide)
+	if (counter->core.system_wide)
 		nthreads = 1;
 
 	if (!header_printed) {
@@ -2042,7 +2046,7 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 		return err;
 
 	evlist = *pevlist;
-	evsel = perf_evlist__last(*pevlist);
+	evsel = evlist__last(*pevlist);
 
 	if (!evsel->priv) {
 		if (scr->per_event_dump) {
@@ -3083,8 +3087,8 @@ int find_scripts(char **scripts_array, char **scripts_path_array, int num,
 	int i = 0;
 
 	session = perf_session__new(&data, false, NULL);
-	if (!session)
-		return -1;
+	if (IS_ERR(session))
+		return PTR_ERR(session);
 
 	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", get_argv_exec_path());
 
@@ -3754,8 +3758,8 @@ int cmd_script(int argc, const char **argv)
 	}
 
 	session = perf_session__new(&data, false, &script.tool);
-	if (session == NULL)
-		return -1;
+	if (IS_ERR(session))
+		return PTR_ERR(session);
 
 	if (header || header_only) {
 		script.tool.show_feat_hdr = SHOW_FEAT_HEADER;

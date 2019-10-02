@@ -1,8 +1,15 @@
 #ifndef _PERF_BRANCH_H
 #define _PERF_BRANCH_H 1
-
+/*
+ * The linux/stddef.h isn't need here, but is needed for __always_inline used
+ * in files included from uapi/linux/perf_event.h such as
+ * /usr/include/linux/swab.h and /usr/include/linux/byteorder/little_endian.h,
+ * detected in at least musl libc, used in Alpine Linux. -acme
+ */
 #include <stdio.h>
 #include <stdint.h>
+#include <linux/compiler.h>
+#include <linux/stddef.h>
 #include <linux/perf_event.h>
 #include <linux/types.h>
 

@@ -493,7 +493,15 @@ static void smu_v11_0_i2c_fini(struct i2c_adapter *control)
 	}
 
 	/* Restore clock gating */
-	smu_v11_0_i2c_set_clock_gating(control, true);
+
+	/*
+	 * TODO Reenabling clock gating seems to break subsequent SMU operation
+	 *      on the I2C bus. My guess is that SMU doesn't disable clock gating like
+	 *      we do here before working with the bus. So for now just don't restore
+	 *      it but later work with SMU to see if they have this issue and can
+	 *      update their code appropriately
+	 */
+	/* smu_v11_0_i2c_set_clock_gating(control, true); */
 
 }
 

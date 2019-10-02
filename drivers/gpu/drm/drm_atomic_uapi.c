@@ -1305,8 +1305,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	if (arg->reserved)
 		return -EINVAL;
 
-	if ((arg->flags & DRM_MODE_PAGE_FLIP_ASYNC) &&
-			!dev->mode_config.async_page_flip)
+	if (arg->flags & DRM_MODE_PAGE_FLIP_ASYNC)
 		return -EINVAL;
 
 	/* can't test and expect an event at the same time. */

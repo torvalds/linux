@@ -25,6 +25,7 @@
 #include "dso.h"
 #include "evlist.h"
 #include "evsel.h"
+#include "util/evsel_fprintf.h"
 #include "header.h"
 #include "memswap.h"
 #include "trace-event.h"
@@ -42,11 +43,12 @@
 #include "tool.h"
 #include "time-utils.h"
 #include "units.h"
-#include "util.h"
+#include "util/util.h" // perf_exe()
 #include "cputopo.h"
 #include "bpf-event.h"
 
 #include <linux/ctype.h>
+#include <internal/lib.h>
 
 /*
  * magic2 = "PERFILE2"
@@ -68,15 +70,6 @@ const char perf_version_string[] = PERF_VERSION;
 struct perf_file_attr {
 	struct perf_event_attr	attr;
 	struct perf_file_section	ids;
-};
-
-struct feat_fd {
-	struct perf_header	*ph;
-	int			fd;
-	void			*buf;	/* Either buf != NULL or fd >= 0 */
-	ssize_t			offset;
-	size_t			size;
-	struct evsel	*events;
 };
 
 void perf_header__set_feat(struct perf_header *header, int feat)
@@ -524,7 +517,7 @@ static int write_event_desc(struct feat_fd *ff,
 		 * copy into an nri to be independent of the
 		 * type of ids,
 		 */
-		nri = evsel->ids;
+		nri = evsel->core.ids;
 		ret = do_write(ff, &nri, sizeof(nri));
 		if (ret < 0)
 			return ret;
@@ -538,7 +531,7 @@ static int write_event_desc(struct feat_fd *ff,
 		/*
 		 * write unique ids for this event
 		 */
-		ret = do_write(ff, evsel->id, evsel->ids * sizeof(u64));
+		ret = do_write(ff, evsel->core.id, evsel->core.ids * sizeof(u64));
 		if (ret < 0)
 			return ret;
 	}
@@ -1081,7 +1074,7 @@ static int cpu_cache_level__read(struct cpu_cache_level *cache, u32 cpu, u16 lev
 
 	scnprintf(file, PATH_MAX, "%s/shared_cpu_list", path);
 	if (sysfs__read_str(file, &cache->map, &len)) {
-		zfree(&cache->map);
+		zfree(&cache->size);
 		zfree(&cache->type);
 		return -1;
 	}
@@ -1598,7 +1591,7 @@ static void free_event_desc(struct evsel *events)
 
 	for (evsel = events; evsel->core.attr.size; evsel++) {
 		zfree(&evsel->name);
-		zfree(&evsel->id);
+		zfree(&evsel->core.id);
 	}
 
 	free(events);
@@ -1664,8 +1657,8 @@ static struct evsel *read_event_desc(struct feat_fd *ff)
 		id = calloc(nr, sizeof(*id));
 		if (!id)
 			goto error;
-		evsel->ids = nr;
-		evsel->id = id;
+		evsel->core.ids = nr;
+		evsel->core.id = id;
 
 		for (j = 0 ; j < nr; j++) {
 			if (do_read_u64(ff, id))
@@ -1707,9 +1700,9 @@ static void print_event_desc(struct feat_fd *ff, FILE *fp)
 	for (evsel = events; evsel->core.attr.size; evsel++) {
 		fprintf(fp, "# event : name = %s, ", evsel->name);
 
-		if (evsel->ids) {
+		if (evsel->core.ids) {
 			fprintf(fp, ", id = {");
-			for (j = 0, id = evsel->id; j < evsel->ids; j++, id++) {
+			for (j = 0, id = evsel->core.id; j < evsel->core.ids; j++, id++) {
 				if (j)
 					fputc(',', fp);
 				fprintf(fp, " %"PRIu64, *id);
@@ -2823,15 +2816,6 @@ static int process_compressed(struct feat_fd *ff,
 	return 0;
 }
 
-struct feature_ops {
-	int (*write)(struct feat_fd *ff, struct evlist *evlist);
-	void (*print)(struct feat_fd *ff, FILE *fp);
-	int (*process)(struct feat_fd *ff, void *data);
-	const char *name;
-	bool full_only;
-	bool synthesize;
-};
-
 #define FEAT_OPR(n, func, __full_only) \
 	[HEADER_##n] = {					\
 		.name	    = __stringify(n),			\
@@ -2858,8 +2842,10 @@ struct feature_ops {
 #define process_branch_stack	NULL
 #define process_stat		NULL
 
+// Only used in util/synthetic-events.c
+const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE];
 
-static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
+const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPN(TRACING_DATA,	tracing_data,	false),
 	FEAT_OPN(BUILD_ID,	build_id,	false),
 	FEAT_OPR(HOSTNAME,	hostname,	false),
@@ -3083,7 +3069,7 @@ int perf_session__write_header(struct perf_session *session,
 
 	evlist__for_each_entry(session->evlist, evsel) {
 		evsel->id_offset = lseek(fd, 0, SEEK_CUR);
-		err = do_write(&ff, evsel->id, evsel->ids * sizeof(u64));
+		err = do_write(&ff, evsel->core.id, evsel->core.ids * sizeof(u64));
 		if (err < 0) {
 			pr_debug("failed to write perf header\n");
 			return err;
@@ -3097,7 +3083,7 @@ int perf_session__write_header(struct perf_session *session,
 			.attr = evsel->core.attr,
 			.ids  = {
 				.offset = evsel->id_offset,
-				.size   = evsel->ids * sizeof(u64),
+				.size   = evsel->core.ids * sizeof(u64),
 			}
 		};
 		err = do_write(&ff, &f_attr, sizeof(f_attr));
@@ -3624,7 +3610,7 @@ int perf_session__read_header(struct perf_session *session)
 		 * for allocating the perf_sample_id table we fake 1 cpu and
 		 * hattr->ids threads.
 		 */
-		if (perf_evsel__alloc_id(evsel, 1, nr_ids))
+		if (perf_evsel__alloc_id(&evsel->core, 1, nr_ids))
 			goto out_delete_evlist;
 
 		lseek(fd, f_attr.ids.offset, SEEK_SET);
@@ -3633,7 +3619,7 @@ int perf_session__read_header(struct perf_session *session)
 			if (perf_header__getbuffer64(header, fd, &f_id, sizeof(f_id)))
 				goto out_errno;
 
-			perf_evlist__id_add(session->evlist, evsel, 0, j, f_id);
+			perf_evlist__id_add(&session->evlist->core, &evsel->core, 0, j, f_id);
 		}
 
 		lseek(fd, tmp, SEEK_SET);
@@ -3654,105 +3640,6 @@ out_delete_evlist:
 	evlist__delete(session->evlist);
 	session->evlist = NULL;
 	return -ENOMEM;
-}
-
-int perf_event__synthesize_attr(struct perf_tool *tool,
-				struct perf_event_attr *attr, u32 ids, u64 *id,
-				perf_event__handler_t process)
-{
-	union perf_event *ev;
-	size_t size;
-	int err;
-
-	size = sizeof(struct perf_event_attr);
-	size = PERF_ALIGN(size, sizeof(u64));
-	size += sizeof(struct perf_event_header);
-	size += ids * sizeof(u64);
-
-	ev = zalloc(size);
-
-	if (ev == NULL)
-		return -ENOMEM;
-
-	ev->attr.attr = *attr;
-	memcpy(ev->attr.id, id, ids * sizeof(u64));
-
-	ev->attr.header.type = PERF_RECORD_HEADER_ATTR;
-	ev->attr.header.size = (u16)size;
-
-	if (ev->attr.header.size == size)
-		err = process(tool, ev, NULL, NULL);
-	else
-		err = -E2BIG;
-
-	free(ev);
-
-	return err;
-}
-
-int perf_event__synthesize_features(struct perf_tool *tool,
-				    struct perf_session *session,
-				    struct evlist *evlist,
-				    perf_event__handler_t process)
-{
-	struct perf_header *header = &session->header;
-	struct feat_fd ff;
-	struct perf_record_header_feature *fe;
-	size_t sz, sz_hdr;
-	int feat, ret;
-
-	sz_hdr = sizeof(fe->header);
-	sz = sizeof(union perf_event);
-	/* get a nice alignment */
-	sz = PERF_ALIGN(sz, page_size);
-
-	memset(&ff, 0, sizeof(ff));
-
-	ff.buf = malloc(sz);
-	if (!ff.buf)
-		return -ENOMEM;
-
-	ff.size = sz - sz_hdr;
-	ff.ph = &session->header;
-
-	for_each_set_bit(feat, header->adds_features, HEADER_FEAT_BITS) {
-		if (!feat_ops[feat].synthesize) {
-			pr_debug("No record header feature for header :%d\n", feat);
-			continue;
-		}
-
-		ff.offset = sizeof(*fe);
-
-		ret = feat_ops[feat].write(&ff, evlist);
-		if (ret || ff.offset <= (ssize_t)sizeof(*fe)) {
-			pr_debug("Error writing feature\n");
-			continue;
-		}
-		/* ff.buf may have changed due to realloc in do_write() */
-		fe = ff.buf;
-		memset(fe, 0, sizeof(*fe));
-
-		fe->feat_id = feat;
-		fe->header.type = PERF_RECORD_HEADER_FEATURE;
-		fe->header.size = ff.offset;
-
-		ret = process(tool, ff.buf, NULL, NULL);
-		if (ret) {
-			free(ff.buf);
-			return ret;
-		}
-	}
-
-	/* Send HEADER_LAST_FEATURE mark. */
-	fe = ff.buf;
-	fe->feat_id     = HEADER_LAST_FEATURE;
-	fe->header.type = PERF_RECORD_HEADER_FEATURE;
-	fe->header.size = sizeof(*fe);
-
-	ret = process(tool, ff.buf, NULL, NULL);
-
-	free(ff.buf);
-	return ret;
 }
 
 int perf_event__process_feature(struct perf_session *session,
@@ -3797,113 +3684,6 @@ int perf_event__process_feature(struct perf_session *session,
 	return 0;
 }
 
-static struct perf_record_event_update *
-event_update_event__new(size_t size, u64 type, u64 id)
-{
-	struct perf_record_event_update *ev;
-
-	size += sizeof(*ev);
-	size  = PERF_ALIGN(size, sizeof(u64));
-
-	ev = zalloc(size);
-	if (ev) {
-		ev->header.type = PERF_RECORD_EVENT_UPDATE;
-		ev->header.size = (u16)size;
-		ev->type = type;
-		ev->id = id;
-	}
-	return ev;
-}
-
-int
-perf_event__synthesize_event_update_unit(struct perf_tool *tool,
-					 struct evsel *evsel,
-					 perf_event__handler_t process)
-{
-	struct perf_record_event_update *ev;
-	size_t size = strlen(evsel->unit);
-	int err;
-
-	ev = event_update_event__new(size + 1, PERF_EVENT_UPDATE__UNIT, evsel->id[0]);
-	if (ev == NULL)
-		return -ENOMEM;
-
-	strlcpy(ev->data, evsel->unit, size + 1);
-	err = process(tool, (union perf_event *)ev, NULL, NULL);
-	free(ev);
-	return err;
-}
-
-int
-perf_event__synthesize_event_update_scale(struct perf_tool *tool,
-					  struct evsel *evsel,
-					  perf_event__handler_t process)
-{
-	struct perf_record_event_update *ev;
-	struct perf_record_event_update_scale *ev_data;
-	int err;
-
-	ev = event_update_event__new(sizeof(*ev_data), PERF_EVENT_UPDATE__SCALE, evsel->id[0]);
-	if (ev == NULL)
-		return -ENOMEM;
-
-	ev_data = (struct perf_record_event_update_scale *)ev->data;
-	ev_data->scale = evsel->scale;
-	err = process(tool, (union perf_event*) ev, NULL, NULL);
-	free(ev);
-	return err;
-}
-
-int
-perf_event__synthesize_event_update_name(struct perf_tool *tool,
-					 struct evsel *evsel,
-					 perf_event__handler_t process)
-{
-	struct perf_record_event_update *ev;
-	size_t len = strlen(evsel->name);
-	int err;
-
-	ev = event_update_event__new(len + 1, PERF_EVENT_UPDATE__NAME, evsel->id[0]);
-	if (ev == NULL)
-		return -ENOMEM;
-
-	strlcpy(ev->data, evsel->name, len + 1);
-	err = process(tool, (union perf_event*) ev, NULL, NULL);
-	free(ev);
-	return err;
-}
-
-int
-perf_event__synthesize_event_update_cpus(struct perf_tool *tool,
-					struct evsel *evsel,
-					perf_event__handler_t process)
-{
-	size_t size = sizeof(struct perf_record_event_update);
-	struct perf_record_event_update *ev;
-	int max, err;
-	u16 type;
-
-	if (!evsel->core.own_cpus)
-		return 0;
-
-	ev = cpu_map_data__alloc(evsel->core.own_cpus, &size, &type, &max);
-	if (!ev)
-		return -ENOMEM;
-
-	ev->header.type = PERF_RECORD_EVENT_UPDATE;
-	ev->header.size = (u16)size;
-	ev->type = PERF_EVENT_UPDATE__CPUS;
-	ev->id   = evsel->id[0];
-
-	cpu_map_data__synthesize((struct perf_record_cpu_map_data *)ev->data,
-				 evsel->core.own_cpus,
-				 type, max);
-
-	err = process(tool, (union perf_event*) ev, NULL, NULL);
-	free(ev);
-	return err;
-}
-
 size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
 {
 	struct perf_record_event_update *ev = &event->event_update;
@@ -3943,93 +3723,6 @@ size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
 	return ret;
 }
 
-int perf_event__synthesize_attrs(struct perf_tool *tool,
-				 struct evlist *evlist,
-				 perf_event__handler_t process)
-{
-	struct evsel *evsel;
-	int err = 0;
-
-	evlist__for_each_entry(evlist, evsel) {
-		err = perf_event__synthesize_attr(tool, &evsel->core.attr, evsel->ids,
-						  evsel->id, process);
-		if (err) {
-			pr_debug("failed to create perf header attribute\n");
-			return err;
-		}
-	}
-
-	return err;
-}
-
-static bool has_unit(struct evsel *counter)
-{
-	return counter->unit && *counter->unit;
-}
-
-static bool has_scale(struct evsel *counter)
-{
-	return counter->scale != 1;
-}
-
-int perf_event__synthesize_extra_attr(struct perf_tool *tool,
-				      struct evlist *evsel_list,
-				      perf_event__handler_t process,
-				      bool is_pipe)
-{
-	struct evsel *counter;
-	int err;
-
-	/*
-	 * Synthesize other events stuff not carried within
-	 * attr event - unit, scale, name
-	 */
-	evlist__for_each_entry(evsel_list, counter) {
-		if (!counter->supported)
-			continue;
-
-		/*
-		 * Synthesize unit and scale only if it's defined.
-		 */
-		if (has_unit(counter)) {
-			err = perf_event__synthesize_event_update_unit(tool, counter, process);
-			if (err < 0) {
-				pr_err("Couldn't synthesize evsel unit.\n");
-				return err;
-			}
-		}
-
-		if (has_scale(counter)) {
-			err = perf_event__synthesize_event_update_scale(tool, counter, process);
-			if (err < 0) {
-				pr_err("Couldn't synthesize evsel counter.\n");
-				return err;
-			}
-		}
-
-		if (counter->core.own_cpus) {
-			err = perf_event__synthesize_event_update_cpus(tool, counter, process);
-			if (err < 0) {
-				pr_err("Couldn't synthesize evsel cpus.\n");
-				return err;
-			}
-		}
-
-		/*
-		 * Name is needed only for pipe output,
-		 * perf.data carries event names.
-		 */
-		if (is_pipe) {
-			err = perf_event__synthesize_event_update_name(tool, counter, process);
-			if (err < 0) {
-				pr_err("Couldn't synthesize evsel name.\n");
-				return err;
-			}
-		}
-	}
-	return 0;
-}
-
 int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
 			     struct evlist **pevlist)
@@ -4058,11 +3751,11 @@ int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 	 * for allocating the perf_sample_id table we fake 1 cpu and
 	 * hattr->ids threads.
 	 */
-	if (perf_evsel__alloc_id(evsel, 1, n_ids))
+	if (perf_evsel__alloc_id(&evsel->core, 1, n_ids))
 		return -ENOMEM;
 
 	for (i = 0; i < n_ids; i++) {
-		perf_evlist__id_add(evlist, evsel, 0, i, event->attr.id[i]);
+		perf_evlist__id_add(&evlist->core, &evsel->core, 0, i, event->attr.id[i]);
 	}
 
 	return 0;
@@ -4114,55 +3807,6 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd,
-					struct evlist *evlist,
-					perf_event__handler_t process)
-{
-	union perf_event ev;
-	struct tracing_data *tdata;
-	ssize_t size = 0, aligned_size = 0, padding;
-	struct feat_fd ff;
-	int err __maybe_unused = 0;
-
-	/*
-	 * We are going to store the size of the data followed
-	 * by the data contents. Since the fd descriptor is a pipe,
-	 * we cannot seek back to store the size of the data once
-	 * we know it. Instead we:
-	 *
-	 * - write the tracing data to the temp file
-	 * - get/write the data size to pipe
-	 * - write the tracing data from the temp file
-	 *   to the pipe
-	 */
-	tdata = tracing_data_get(&evlist->core.entries, fd, true);
-	if (!tdata)
-		return -1;
-
-	memset(&ev, 0, sizeof(ev));
-
-	ev.tracing_data.header.type = PERF_RECORD_HEADER_TRACING_DATA;
-	size = tdata->size;
-	aligned_size = PERF_ALIGN(size, sizeof(u64));
-	padding = aligned_size - size;
-	ev.tracing_data.header.size = sizeof(ev.tracing_data);
-	ev.tracing_data.size = aligned_size;
-
-	process(tool, &ev, NULL, NULL);
-
-	/*
-	 * The put function will copy all the tracing data
-	 * stored in temp file to the pipe.
-	 */
-	tracing_data_put(tdata);
-
-	ff = (struct feat_fd){ .fd = fd };
-	if (write_padded(&ff, NULL, 0, padding))
-		return -1;
-
-	return aligned_size;
-}
-
 int perf_event__process_tracing_data(struct perf_session *session,
 				     union perf_event *event)
 {
@@ -4200,34 +3844,6 @@ int perf_event__process_tracing_data(struct perf_session *session,
 					       session->tevent.pevent);
 
 	return size_read + padding;
-}
-
-int perf_event__synthesize_build_id(struct perf_tool *tool,
-				    struct dso *pos, u16 misc,
-				    perf_event__handler_t process,
-				    struct machine *machine)
-{
-	union perf_event ev;
-	size_t len;
-	int err = 0;
-
-	if (!pos->hit)
-		return err;
-
-	memset(&ev, 0, sizeof(ev));
-
-	len = pos->long_name_len + 1;
-	len = PERF_ALIGN(len, NAME_ALIGN);
-	memcpy(&ev.build_id.build_id, pos->build_id, sizeof(pos->build_id));
-	ev.build_id.header.type = PERF_RECORD_HEADER_BUILD_ID;
-	ev.build_id.header.misc = misc;
-	ev.build_id.pid = machine->pid;
-	ev.build_id.header.size = sizeof(ev.build_id) + len;
-	memcpy(&ev.build_id.filename, pos->long_name, pos->long_name_len);
-
-	err = process(tool, &ev, NULL, machine);
-
-	return err;
 }
 
 int perf_event__process_build_id(struct perf_session *session,
