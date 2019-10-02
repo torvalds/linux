@@ -15261,21 +15261,18 @@ int intel_get_pipe_from_crtc_id_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static int intel_encoder_clones(struct intel_encoder *encoder)
+static u32 intel_encoder_possible_clones(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct intel_encoder *source_encoder;
-	int index_mask = 0;
-	int entry = 0;
+	u32 possible_clones = 0;
 
 	for_each_intel_encoder(dev, source_encoder) {
 		if (encoders_cloneable(encoder, source_encoder))
-			index_mask |= (1 << entry);
-
-		entry++;
+			possible_clones |= drm_encoder_mask(&source_encoder->base);
 	}
 
-	return index_mask;
+	return possible_clones;
 }
 
 static u32 intel_encoder_possible_crtcs(struct intel_encoder *encoder)
@@ -15595,7 +15592,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		encoder->base.possible_crtcs =
 			intel_encoder_possible_crtcs(encoder);
 		encoder->base.possible_clones =
-			intel_encoder_clones(encoder);
+			intel_encoder_possible_clones(encoder);
 	}
 
 	intel_init_pch_refclk(dev_priv);
