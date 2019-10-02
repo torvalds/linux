@@ -271,6 +271,7 @@
 #define BIT_TSFT_SEL_TIMER0	(BIT(4) | BIT(5) | BIT(6))
 
 #define REG_TCR			0x0604
+#define BIT_PWRMGT_HWDATA_EN	BIT(7)
 #define REG_RCR			0x0608
 #define BIT_APP_FCS		BIT(31)
 #define BIT_APP_MIC		BIT(30)

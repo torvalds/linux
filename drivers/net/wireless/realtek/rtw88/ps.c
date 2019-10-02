@@ -9,6 +9,7 @@
 #include "mac.h"
 #include "coex.h"
 #include "debug.h"
+#include "reg.h"
 
 static int rtw_ips_pwr_up(struct rtw_dev *rtwdev)
 {
@@ -118,6 +119,32 @@ static void __rtw_leave_lps_deep(struct rtw_dev *rtwdev)
 	rtw_hci_deep_ps(rtwdev, false);
 }
 
+static void rtw_fw_leave_lps_state_check(struct rtw_dev *rtwdev)
+{
+	int i;
+
+	/* Driver needs to wait for firmware to leave LPS state
+	 * successfully. Firmware will send null packet to inform AP,
+	 * and see if AP sends an ACK back, then firmware will restore
+	 * the REG_TCR register.
+	 *
+	 * If driver does not wait for firmware, null packet with
+	 * PS bit could be sent due to incorrect REG_TCR setting.
+	 *
+	 * In our test, 100ms should be enough for firmware to finish
+	 * the flow. If REG_TCR Register is still incorrect after 100ms,
+	 * just modify it directly, and throw a warn message.
+	 */
+	for (i = 0 ; i < LEAVE_LPS_TRY_CNT; i++) {
+		if (rtw_read32_mask(rtwdev, REG_TCR, BIT_PWRMGT_HWDATA_EN) == 0)
+			return;
+		msleep(20);
+	}
+
+	rtw_write32_mask(rtwdev, REG_TCR, BIT_PWRMGT_HWDATA_EN, 0);
+	rtw_warn(rtwdev, "firmware failed to restore hardware setting\n");
+}
+
 static void rtw_leave_lps_core(struct rtw_dev *rtwdev)
 {
 	struct rtw_lps_conf *conf = &rtwdev->lps_conf;
@@ -128,6 +155,8 @@ static void rtw_leave_lps_core(struct rtw_dev *rtwdev)
 	conf->smart_ps = 0;
 
 	rtw_fw_set_pwr_mode(rtwdev);
+	rtw_fw_leave_lps_state_check(rtwdev);
+
 	clear_bit(RTW_FLAG_LEISURE_PS, rtwdev->flags);
 
 	rtw_coex_lps_notify(rtwdev, COEX_LPS_DISABLE);
