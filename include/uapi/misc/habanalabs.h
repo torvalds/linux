@@ -589,7 +589,7 @@ struct hl_debug_args {
  *
  * The user can call this IOCTL with a handle it received from the CS IOCTL
  * to wait until the handle's CS has finished executing. The user will wait
- * inside the kernel until the CS has finished or until the user-requeusted
+ * inside the kernel until the CS has finished or until the user-requested
  * timeout has expired.
  *
  * The return value of the IOCTL is a standard Linux error code. The possible

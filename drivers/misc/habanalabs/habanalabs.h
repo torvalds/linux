@@ -774,7 +774,7 @@ struct hl_cs_job {
 };
 
 /**
- * struct hl_cs_parser - command submission paerser properties.
+ * struct hl_cs_parser - command submission parser properties.
  * @user_cb: the CB we got from the user.
  * @patched_cb: in case of patching, this is internal CB which is submitted on
  *		the queue instead of the CB we got from the IOCTL.

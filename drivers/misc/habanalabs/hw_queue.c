@@ -220,7 +220,7 @@ out:
 }
 
 /*
- * ext_hw_queue_schedule_job - submit an JOB to an external queue
+ * ext_hw_queue_schedule_job - submit a JOB to an external queue
  *
  * @job: pointer to the job that needs to be submitted to the queue
  *
@@ -278,7 +278,7 @@ static void ext_hw_queue_schedule_job(struct hl_cs_job *job)
 }
 
 /*
- * int_hw_queue_schedule_job - submit an JOB to an internal queue
+ * int_hw_queue_schedule_job - submit a JOB to an internal queue
  *
  * @job: pointer to the job that needs to be submitted to the queue
  *
