@@ -17,19 +17,30 @@ static void rtw_ops_tx(struct ieee80211_hw *hw,
 		       struct sk_buff *skb)
 {
 	struct rtw_dev *rtwdev = hw->priv;
-	struct rtw_tx_pkt_info pkt_info = {0};
+
+	if (!test_bit(RTW_FLAG_RUNNING, rtwdev->flags)) {
+		ieee80211_free_txskb(hw, skb);
+		return;
+	}
+
+	rtw_tx(rtwdev, control, skb);
+}
+
+static void rtw_ops_wake_tx_queue(struct ieee80211_hw *hw,
+				  struct ieee80211_txq *txq)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_txq *rtwtxq = (struct rtw_txq *)txq->drv_priv;
 
 	if (!test_bit(RTW_FLAG_RUNNING, rtwdev->flags))
-		goto out;
+		return;
 
-	rtw_tx_pkt_info_update(rtwdev, &pkt_info, control, skb);
-	if (rtw_hci_tx(rtwdev, &pkt_info, skb))
-		goto out;
+	spin_lock_bh(&rtwdev->txq_lock);
+	if (list_empty(&rtwtxq->list))
+		list_add_tail(&rtwtxq->list, &rtwdev->txqs);
+	spin_unlock_bh(&rtwdev->txq_lock);
 
-	return;
-
-out:
-	ieee80211_free_txskb(hw, skb);
+	tasklet_schedule(&rtwdev->tx_tasklet);
 }
 
 static int rtw_ops_start(struct ieee80211_hw *hw)
@@ -147,6 +158,7 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 	rtwvif->stats.rx_cnt = 0;
 	rtwvif->in_lps = false;
 	rtwvif->conf = &rtw_vif_port[port];
+	rtw_txq_init(rtwdev, vif->txq);
 
 	mutex_lock(&rtwdev->mutex);
 
@@ -195,6 +207,8 @@ static void rtw_ops_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&rtwdev->mutex);
 
 	rtw_leave_lps_deep(rtwdev);
+
+	rtw_txq_cleanup(rtwdev, vif->txq);
 
 	eth_zero_addr(rtwvif->mac_addr);
 	config |= PORT_SET_MAC_ADDR;
@@ -333,6 +347,7 @@ static int rtw_ops_sta_add(struct ieee80211_hw *hw,
 {
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
+	int i;
 	int ret = 0;
 
 	mutex_lock(&rtwdev->mutex);
@@ -347,6 +362,8 @@ static int rtw_ops_sta_add(struct ieee80211_hw *hw,
 	si->vif = vif;
 	si->init_ra_lv = 1;
 	ewma_rssi_init(&si->avg_rssi);
+	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
+		rtw_txq_init(rtwdev, sta->txq[i]);
 
 	rtw_update_sta_info(rtwdev, si);
 	rtw_fw_media_status_report(rtwdev, si->mac_id, true);
@@ -367,11 +384,15 @@ static int rtw_ops_sta_remove(struct ieee80211_hw *hw,
 {
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
+	int i;
 
 	mutex_lock(&rtwdev->mutex);
 
 	rtw_release_macid(rtwdev, si->mac_id);
 	rtw_fw_media_status_report(rtwdev, si->mac_id, false);
+
+	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
+		rtw_txq_cleanup(rtwdev, sta->txq[i]);
 
 	rtwdev->sta_cnt--;
 
@@ -554,6 +575,7 @@ static int rtw_ops_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 
 const struct ieee80211_ops rtw_ops = {
 	.tx			= rtw_ops_tx,
+	.wake_tx_queue		= rtw_ops_wake_tx_queue,
 	.start			= rtw_ops_start,
 	.stop			= rtw_ops_stop,
 	.config			= rtw_ops_config,

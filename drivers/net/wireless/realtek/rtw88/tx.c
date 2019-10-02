@@ -367,3 +367,98 @@ void rtw_rsvd_page_pkt_info_update(struct rtw_dev *rtwdev,
 	pkt_info->qsel = TX_DESC_QSEL_MGMT;
 	pkt_info->ls = true;
 }
+
+void rtw_tx(struct rtw_dev *rtwdev,
+	    struct ieee80211_tx_control *control,
+	    struct sk_buff *skb)
+{
+	struct rtw_tx_pkt_info pkt_info = {0};
+
+	rtw_tx_pkt_info_update(rtwdev, &pkt_info, control, skb);
+	if (rtw_hci_tx(rtwdev, &pkt_info, skb))
+		goto out;
+
+	return;
+
+out:
+	ieee80211_free_txskb(rtwdev->hw, skb);
+}
+
+static bool rtw_txq_dequeue(struct rtw_dev *rtwdev,
+			    struct rtw_txq *rtwtxq)
+{
+	struct ieee80211_txq *txq = rtwtxq_to_txq(rtwtxq);
+	struct ieee80211_tx_control control;
+	struct sk_buff *skb;
+
+	skb = ieee80211_tx_dequeue(rtwdev->hw, txq);
+	if (!skb)
+		return false;
+
+	control.sta = txq->sta;
+	rtw_tx(rtwdev, &control, skb);
+	rtwtxq->last_push = jiffies;
+
+	return true;
+}
+
+static void rtw_txq_push(struct rtw_dev *rtwdev,
+			 struct rtw_txq *rtwtxq,
+			 unsigned long frames)
+{
+	int i;
+
+	rcu_read_lock();
+
+	for (i = 0; i < frames; i++)
+		if (!rtw_txq_dequeue(rtwdev, rtwtxq))
+			break;
+
+	rcu_read_unlock();
+}
+
+void rtw_tx_tasklet(unsigned long data)
+{
+	struct rtw_dev *rtwdev = (void *)data;
+	struct rtw_txq *rtwtxq, *tmp;
+
+	spin_lock_bh(&rtwdev->txq_lock);
+
+	list_for_each_entry_safe(rtwtxq, tmp, &rtwdev->txqs, list) {
+		struct ieee80211_txq *txq = rtwtxq_to_txq(rtwtxq);
+		unsigned long frame_cnt;
+		unsigned long byte_cnt;
+
+		ieee80211_txq_get_depth(txq, &frame_cnt, &byte_cnt);
+		rtw_txq_push(rtwdev, rtwtxq, frame_cnt);
+
+		list_del_init(&rtwtxq->list);
+	}
+
+	spin_unlock_bh(&rtwdev->txq_lock);
+}
+
+void rtw_txq_init(struct rtw_dev *rtwdev, struct ieee80211_txq *txq)
+{
+	struct rtw_txq *rtwtxq;
+
+	if (!txq)
+		return;
+
+	rtwtxq = (struct rtw_txq *)txq->drv_priv;
+	INIT_LIST_HEAD(&rtwtxq->list);
+}
+
+void rtw_txq_cleanup(struct rtw_dev *rtwdev, struct ieee80211_txq *txq)
+{
+	struct rtw_txq *rtwtxq;
+
+	if (!txq)
+		return;
+
+	rtwtxq = (struct rtw_txq *)txq->drv_priv;
+	spin_lock_bh(&rtwdev->txq_lock);
+	if (!list_empty(&rtwtxq->list))
+		list_del_init(&rtwtxq->list);
+	spin_unlock_bh(&rtwdev->txq_lock);
+}

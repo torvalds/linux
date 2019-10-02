@@ -77,6 +77,12 @@ enum rtw_tx_desc_queue_select {
 	TX_DESC_QSEL_H2C	= 19,
 };
 
+void rtw_tx(struct rtw_dev *rtwdev,
+	    struct ieee80211_tx_control *control,
+	    struct sk_buff *skb);
+void rtw_txq_init(struct rtw_dev *rtwdev, struct ieee80211_txq *txq);
+void rtw_txq_cleanup(struct rtw_dev *rtwdev, struct ieee80211_txq *txq);
+void rtw_tx_tasklet(unsigned long data);
 void rtw_tx_pkt_info_update(struct rtw_dev *rtwdev,
 			    struct rtw_tx_pkt_info *pkt_info,
 			    struct ieee80211_tx_control *control,

@@ -12,6 +12,7 @@
 #include "phy.h"
 #include "reg.h"
 #include "efuse.h"
+#include "tx.h"
 #include "debug.h"
 
 unsigned int rtw_fw_lps_deep_mode;
@@ -1158,9 +1159,12 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	int ret;
 
 	INIT_LIST_HEAD(&rtwdev->rsvd_page_list);
+	INIT_LIST_HEAD(&rtwdev->txqs);
 
 	timer_setup(&rtwdev->tx_report.purge_timer,
 		    rtw_tx_report_purge_timer, 0);
+	tasklet_init(&rtwdev->tx_tasklet, rtw_tx_tasklet,
+		     (unsigned long)rtwdev);
 
 	INIT_DELAYED_WORK(&rtwdev->watch_dog_work, rtw_watch_dog_work);
 	INIT_DELAYED_WORK(&coex->bt_relink_work, rtw_coex_bt_relink_work);
@@ -1174,6 +1178,7 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	spin_lock_init(&rtwdev->dm_lock);
 	spin_lock_init(&rtwdev->rf_lock);
 	spin_lock_init(&rtwdev->h2c.lock);
+	spin_lock_init(&rtwdev->txq_lock);
 	spin_lock_init(&rtwdev->tx_report.q_lock);
 
 	mutex_init(&rtwdev->mutex);
@@ -1218,6 +1223,7 @@ void rtw_core_deinit(struct rtw_dev *rtwdev)
 	if (fw->firmware)
 		release_firmware(fw->firmware);
 
+	tasklet_kill(&rtwdev->tx_tasklet);
 	spin_lock_irqsave(&rtwdev->tx_report.q_lock, flags);
 	skb_queue_purge(&rtwdev->tx_report.queue);
 	spin_unlock_irqrestore(&rtwdev->tx_report.q_lock, flags);
@@ -1243,6 +1249,7 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 
 	hw->extra_tx_headroom = max_tx_headroom;
 	hw->queues = IEEE80211_NUM_ACS;
+	hw->txq_data_size = sizeof(struct rtw_txq);
 	hw->sta_data_size = sizeof(struct rtw_sta_info);
 	hw->vif_data_size = sizeof(struct rtw_vif);
 
