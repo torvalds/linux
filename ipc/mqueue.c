@@ -1240,15 +1240,14 @@ static int do_mq_notify(mqd_t mqdes, const struct sigevent *notification)
 
 			/* create the notify skb */
 			nc = alloc_skb(NOTIFY_COOKIE_LEN, GFP_KERNEL);
-			if (!nc) {
-				ret = -ENOMEM;
-				goto out;
-			}
+			if (!nc)
+				return -ENOMEM;
+
 			if (copy_from_user(nc->data,
 					notification->sigev_value.sival_ptr,
 					NOTIFY_COOKIE_LEN)) {
 				ret = -EFAULT;
-				goto out;
+				goto free_skb;
 			}
 
 			/* TODO: add a header? */
@@ -1264,8 +1263,7 @@ retry:
 			fdput(f);
 			if (IS_ERR(sock)) {
 				ret = PTR_ERR(sock);
-				sock = NULL;
-				goto out;
+				goto free_skb;
 			}
 
 			timeo = MAX_SCHEDULE_TIMEOUT;
@@ -1274,11 +1272,8 @@ retry:
 				sock = NULL;
 				goto retry;
 			}
-			if (ret) {
-				sock = NULL;
-				nc = NULL;
-				goto out;
-			}
+			if (ret)
+				return ret;
 		}
 	}
 
@@ -1333,7 +1328,8 @@ out_fput:
 out:
 	if (sock)
 		netlink_detachskb(sock, nc);
-	else if (nc)
+	else
+free_skb:
 		dev_kfree_skb(nc);
 
 	return ret;

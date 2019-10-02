@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
+#include <linux/suspend.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #define CREATE_TRACE_POINTS
@@ -98,6 +99,11 @@ static const struct pci_device_id ish_invalid_pci_ids[] = {
 	{}
 };
 
+static inline bool ish_should_enter_d0i3(struct pci_dev *pdev)
+{
+	return !pm_suspend_via_firmware() || pdev->device == CHV_DEVICE_ID;
+}
+
 /**
  * ish_probe() - PCI driver probe callback
  * @pdev:	pci device
@@ -148,7 +154,6 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* mapping IO device memory */
 	hw->mem_addr = pcim_iomap_table(pdev)[0];
 	ishtp->pdev = pdev;
-	pdev->dev_flags |= PCI_DEV_FLAGS_NO_D3;
 
 	/* request and enable interrupt */
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
@@ -185,7 +190,6 @@ static void ish_remove(struct pci_dev *pdev)
 	struct ishtp_device *ishtp_dev = pci_get_drvdata(pdev);
 
 	ishtp_bus_remove_all_clients(ishtp_dev, false);
-	pdev->dev_flags &= ~PCI_DEV_FLAGS_NO_D3;
 	ish_device_disable(ishtp_dev);
 }
 
@@ -207,17 +211,13 @@ static void __maybe_unused ish_resume_handler(struct work_struct *work)
 {
 	struct pci_dev *pdev = to_pci_dev(ish_resume_device);
 	struct ishtp_device *dev = pci_get_drvdata(pdev);
-	uint32_t fwsts;
 	int ret;
 
-	/* Get ISH FW status */
-	fwsts = IPC_GET_ISH_FWSTS(dev->ops->get_fw_status(dev));
+	/* Check the NO_D3 flag to distinguish the resume paths */
+	if (pdev->dev_flags & PCI_DEV_FLAGS_NO_D3) {
+		pdev->dev_flags &= ~PCI_DEV_FLAGS_NO_D3;
+		disable_irq_wake(pdev->irq);
 
-	/*
-	 * If currently, in ISH FW, sensor app is loaded or beyond that,
-	 * it means ISH isn't powered off, in this case, send a resume message.
-	 */
-	if (fwsts >= FWSTS_SENSOR_APP_LOADED) {
 		ishtp_send_resume(dev);
 
 		/* Waiting to get resume response */
@@ -225,16 +225,20 @@ static void __maybe_unused ish_resume_handler(struct work_struct *work)
 			ret = wait_event_interruptible_timeout(dev->resume_wait,
 				!dev->resume_flag,
 				msecs_to_jiffies(WAIT_FOR_RESUME_ACK_MS));
-	}
 
-	/*
-	 * If in ISH FW, sensor app isn't loaded yet, or no resume response.
-	 * That means this platform is not S0ix compatible, or something is
-	 * wrong with ISH FW. So on resume, full reboot of ISH processor will
-	 * happen, so need to go through init sequence again.
-	 */
-	if (dev->resume_flag)
+		/*
+		 * If the flag is not cleared, something is wrong with ISH FW.
+		 * So on resume, need to go through init sequence again.
+		 */
+		if (dev->resume_flag)
+			ish_init(dev);
+	} else {
+		/*
+		 * Resume from the D3, full reboot of ISH processor will happen,
+		 * so need to go through init sequence again.
+		 */
 		ish_init(dev);
+	}
 }
 
 /**
@@ -250,23 +254,43 @@ static int __maybe_unused ish_suspend(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct ishtp_device *dev = pci_get_drvdata(pdev);
 
-	enable_irq_wake(pdev->irq);
-	/*
-	 * If previous suspend hasn't been asnwered then ISH is likely dead,
-	 * don't attempt nested notification
-	 */
-	if (dev->suspend_flag)
-		return	0;
+	if (ish_should_enter_d0i3(pdev)) {
+		/*
+		 * If previous suspend hasn't been asnwered then ISH is likely
+		 * dead, don't attempt nested notification
+		 */
+		if (dev->suspend_flag)
+			return	0;
 
-	dev->resume_flag = 0;
-	dev->suspend_flag = 1;
-	ishtp_send_suspend(dev);
+		dev->resume_flag = 0;
+		dev->suspend_flag = 1;
+		ishtp_send_suspend(dev);
 
-	/* 25 ms should be enough for live ISH to flush all IPC buf */
-	if (dev->suspend_flag)
-		wait_event_interruptible_timeout(dev->suspend_wait,
-						 !dev->suspend_flag,
-						  msecs_to_jiffies(25));
+		/* 25 ms should be enough for live ISH to flush all IPC buf */
+		if (dev->suspend_flag)
+			wait_event_interruptible_timeout(dev->suspend_wait,
+					!dev->suspend_flag,
+					msecs_to_jiffies(25));
+
+		if (dev->suspend_flag) {
+			/*
+			 * It looks like FW halt, clear the DMA bit, and put
+			 * ISH into D3, and FW would reset on resume.
+			 */
+			ish_disable_dma(dev);
+		} else {
+			/* Set the NO_D3 flag, the ISH would enter D0i3 */
+			pdev->dev_flags |= PCI_DEV_FLAGS_NO_D3;
+
+			enable_irq_wake(pdev->irq);
+		}
+	} else {
+		/*
+		 * Clear the DMA bit before putting ISH into D3,
+		 * or ISH FW would reset automatically.
+		 */
+		ish_disable_dma(dev);
+	}
 
 	return 0;
 }
@@ -288,7 +312,6 @@ static int __maybe_unused ish_resume(struct device *device)
 	ish_resume_device = device;
 	dev->resume_flag = 1;
 
-	disable_irq_wake(pdev->irq);
 	schedule_work(&resume_work);
 
 	return 0;

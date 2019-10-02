@@ -2832,8 +2832,6 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 				put_filesystem(type);
 				return -EINVAL;
 			}
-		} else {
-			subtype = "";
 		}
 	}
 
@@ -3058,7 +3056,7 @@ void *copy_mount_options(const void __user * data)
 	 * the remainder of the page.
 	 */
 	/* copy_from_user cannot cross TASK_SIZE ! */
-	size = TASK_SIZE - (unsigned long)data;
+	size = TASK_SIZE - (unsigned long)untagged_addr(data);
 	if (size > PAGE_SIZE)
 		size = PAGE_SIZE;
 

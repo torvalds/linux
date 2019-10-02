@@ -86,114 +86,14 @@ void pci_hp_deregister(struct hotplug_slot *slot);
 #define pci_hp_initialize(slot, bus, nr, name) \
 	__pci_hp_initialize(slot, bus, nr, name, THIS_MODULE, KBUILD_MODNAME)
 
-/* PCI Setting Record (Type 0) */
-struct hpp_type0 {
-	u32 revision;
-	u8  cache_line_size;
-	u8  latency_timer;
-	u8  enable_serr;
-	u8  enable_perr;
-};
-
-/* PCI-X Setting Record (Type 1) */
-struct hpp_type1 {
-	u32 revision;
-	u8  max_mem_read;
-	u8  avg_max_split;
-	u16 tot_max_split;
-};
-
-/* PCI Express Setting Record (Type 2) */
-struct hpp_type2 {
-	u32 revision;
-	u32 unc_err_mask_and;
-	u32 unc_err_mask_or;
-	u32 unc_err_sever_and;
-	u32 unc_err_sever_or;
-	u32 cor_err_mask_and;
-	u32 cor_err_mask_or;
-	u32 adv_err_cap_and;
-	u32 adv_err_cap_or;
-	u16 pci_exp_devctl_and;
-	u16 pci_exp_devctl_or;
-	u16 pci_exp_lnkctl_and;
-	u16 pci_exp_lnkctl_or;
-	u32 sec_unc_err_sever_and;
-	u32 sec_unc_err_sever_or;
-	u32 sec_unc_err_mask_and;
-	u32 sec_unc_err_mask_or;
-};
-
-/*
- * _HPX PCI Express Setting Record (Type 3)
- */
-struct hpx_type3 {
-	u16 device_type;
-	u16 function_type;
-	u16 config_space_location;
-	u16 pci_exp_cap_id;
-	u16 pci_exp_cap_ver;
-	u16 pci_exp_vendor_id;
-	u16 dvsec_id;
-	u16 dvsec_rev;
-	u16 match_offset;
-	u32 match_mask_and;
-	u32 match_value;
-	u16 reg_offset;
-	u32 reg_mask_and;
-	u32 reg_mask_or;
-};
-
-struct hotplug_program_ops {
-	void (*program_type0)(struct pci_dev *dev, struct hpp_type0 *hpp);
-	void (*program_type1)(struct pci_dev *dev, struct hpp_type1 *hpp);
-	void (*program_type2)(struct pci_dev *dev, struct hpp_type2 *hpp);
-	void (*program_type3)(struct pci_dev *dev, struct hpx_type3 *hpp);
-};
-
-enum hpx_type3_dev_type {
-	HPX_TYPE_ENDPOINT	= BIT(0),
-	HPX_TYPE_LEG_END	= BIT(1),
-	HPX_TYPE_RC_END		= BIT(2),
-	HPX_TYPE_RC_EC		= BIT(3),
-	HPX_TYPE_ROOT_PORT	= BIT(4),
-	HPX_TYPE_UPSTREAM	= BIT(5),
-	HPX_TYPE_DOWNSTREAM	= BIT(6),
-	HPX_TYPE_PCI_BRIDGE	= BIT(7),
-	HPX_TYPE_PCIE_BRIDGE	= BIT(8),
-};
-
-enum hpx_type3_fn_type {
-	HPX_FN_NORMAL		= BIT(0),
-	HPX_FN_SRIOV_PHYS	= BIT(1),
-	HPX_FN_SRIOV_VIRT	= BIT(2),
-};
-
-enum hpx_type3_cfg_loc {
-	HPX_CFG_PCICFG		= 0,
-	HPX_CFG_PCIE_CAP	= 1,
-	HPX_CFG_PCIE_CAP_EXT	= 2,
-	HPX_CFG_VEND_CAP	= 3,
-	HPX_CFG_DVSEC		= 4,
-	HPX_CFG_MAX,
-};
-
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
-int pci_acpi_program_hp_params(struct pci_dev *dev,
-			       const struct hotplug_program_ops *hp_ops);
 bool pciehp_is_native(struct pci_dev *bridge);
 int acpi_get_hp_hw_control_from_firmware(struct pci_dev *bridge);
 bool shpchp_is_native(struct pci_dev *bridge);
 int acpi_pci_check_ejectable(struct pci_bus *pbus, acpi_handle handle);
 int acpi_pci_detect_ejectable(acpi_handle handle);
 #else
-static inline int pci_acpi_program_hp_params(struct pci_dev *dev,
-				    const struct hotplug_program_ops *hp_ops)
-{
-	return -ENODEV;
-}
-
 static inline int acpi_get_hp_hw_control_from_firmware(struct pci_dev *bridge)
 {
 	return 0;

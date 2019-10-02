@@ -661,9 +661,4 @@ pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 
-/*
- * No page table caches to initialise
- */
-#define pgtable_cache_init()	do { } while (0)
-
 #endif /* _ASM_PGTABLE_H */

@@ -108,7 +108,6 @@ setup_per_cpu_areas(void)
 	struct pcpu_group_info *gi;
 	unsigned int cpu;
 	ssize_t static_size, reserved_size, dyn_size;
-	int rc;
 
 	ai = pcpu_alloc_alloc_info(1, num_possible_cpus());
 	if (!ai)

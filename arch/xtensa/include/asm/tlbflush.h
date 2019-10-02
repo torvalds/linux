@@ -160,9 +160,6 @@ static inline void invalidate_dtlb_mapping (unsigned address)
 		invalidate_dtlb_entry(tlb_entry);
 }
 
-#define check_pgt_cache()	do { } while (0)
-
-
 /*
  * DO NOT USE THESE FUNCTIONS.  These instructions aren't part of the Xtensa
  * ISA and exist only for test purposes..

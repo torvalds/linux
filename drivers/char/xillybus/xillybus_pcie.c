@@ -9,7 +9,6 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/pci-aspm.h>
 #include <linux/slab.h>
 #include "xillybus.h"
 

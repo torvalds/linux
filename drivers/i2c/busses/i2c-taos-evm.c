@@ -39,7 +39,7 @@ struct taos_data {
 };
 
 /* TAOS TSL2550 EVM */
-static struct i2c_board_info tsl2550_info = {
+static const struct i2c_board_info tsl2550_info = {
 	I2C_BOARD_INFO("tsl2550", 0x39),
 };
 

@@ -71,11 +71,6 @@ typedef pte_t *pte_addr_t;
 extern unsigned int kobjsize(const void *objp);
 
 /*
- * No page table caches to initialise.
- */
-#define pgtable_cache_init()	do { } while (0)
-
-/*
  * All 32bit addresses are effectively valid for vmalloc...
  * Sort of meaningless for non-VM targets.
  */
