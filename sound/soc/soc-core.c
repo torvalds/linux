@@ -1275,23 +1275,6 @@ static int soc_probe_link_components(struct snd_soc_card *card)
 	return 0;
 }
 
-static void soc_remove_dai_links(struct snd_soc_card *card)
-{
-	struct snd_soc_dai_link *link, *_link;
-
-	soc_remove_link_dais(card);
-
-	soc_remove_link_components(card);
-
-	for_each_card_links_safe(card, link, _link) {
-		if (link->dobj.type == SND_SOC_DOBJ_DAI_LINK)
-			dev_warn(card->dev, "Topology forgot to remove link %s?\n",
-				link->name);
-
-		list_del(&link->list);
-	}
-}
-
 static int soc_init_dai_link(struct snd_soc_card *card,
 			     struct snd_soc_dai_link *link)
 {
@@ -1924,6 +1907,8 @@ match:
 
 static void soc_cleanup_card_resources(struct snd_soc_card *card)
 {
+	struct snd_soc_dai_link *link, *_link;
+
 	/* free the ALSA card at first; this syncs with pending operations */
 	if (card->snd_card) {
 		snd_card_free(card->snd_card);
@@ -1931,7 +1916,12 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 	}
 
 	/* remove and free each DAI */
-	soc_remove_dai_links(card);
+	soc_remove_link_dais(card);
+	soc_remove_link_components(card);
+
+	for_each_card_links_safe(card, link, _link)
+		snd_soc_remove_dai_link(card, link);
+
 	soc_remove_pcm_runtimes(card);
 
 	/* remove auxiliary devices */
