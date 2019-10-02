@@ -1555,19 +1555,48 @@ static const struct dcn10_link_enc_mask le_mask = {
 	LINK_ENCODER_MASK_SH_LIST_DCN20(_MASK)
 };
 
+static int map_transmitter_id_to_phy_instance(
+	enum transmitter transmitter)
+{
+	switch (transmitter) {
+	case TRANSMITTER_UNIPHY_A:
+		return 0;
+	break;
+	case TRANSMITTER_UNIPHY_B:
+		return 1;
+	break;
+	case TRANSMITTER_UNIPHY_C:
+		return 2;
+	break;
+	case TRANSMITTER_UNIPHY_D:
+		return 3;
+	break;
+	case TRANSMITTER_UNIPHY_E:
+		return 4;
+	break;
+	default:
+		ASSERT(0);
+		return 0;
+	}
+}
+
 static struct link_encoder *dcn21_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn21_link_encoder *enc21 =
 		kzalloc(sizeof(struct dcn21_link_encoder), GFP_KERNEL);
+	int link_regs_id;
 
 	if (!enc21)
 		return NULL;
 
+	link_regs_id =
+		map_transmitter_id_to_phy_instance(enc_init_data->transmitter);
+
 	dcn21_link_encoder_construct(enc21,
 				      enc_init_data,
 				      &link_enc_feature,
-				      &link_enc_regs[enc_init_data->transmitter],
+				      &link_enc_regs[link_regs_id],
 				      &link_enc_aux_regs[enc_init_data->channel - 1],
 				      &link_enc_hpd_regs[enc_init_data->hpd_source],
 				      &le_shift,
