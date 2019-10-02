@@ -4,7 +4,7 @@
 #include "btree_update.h"
 #include "dirent.h"
 #include "error.h"
-#include "fs.h"
+#include "fs-common.h"
 #include "fsck.h"
 #include "inode.h"
 #include "keylist.h"
@@ -80,9 +80,7 @@ static int reattach_inode(struct bch_fs *c,
 			  struct bch_inode_unpacked *lostfound_inode,
 			  u64 inum)
 {
-	struct bch_hash_info lostfound_hash_info =
-		bch2_hash_info_init(c, lostfound_inode);
-	struct bkey_inode_buf packed;
+	struct bch_inode_unpacked inode_u;
 	char name_buf[20];
 	struct qstr name;
 	int ret;
@@ -90,30 +88,14 @@ static int reattach_inode(struct bch_fs *c,
 	snprintf(name_buf, sizeof(name_buf), "%llu", inum);
 	name = (struct qstr) QSTR(name_buf);
 
-	lostfound_inode->bi_nlink++;
+	ret = bch2_trans_do(c, NULL,
+			    BTREE_INSERT_ATOMIC|
+			    BTREE_INSERT_LAZY_RW,
+		bch2_link_trans(&trans, lostfound_inode->bi_inum,
+				inum, &inode_u, &name));
+	if (ret)
+		bch_err(c, "error %i reattaching inode %llu", ret, inum);
 
-	bch2_inode_pack(&packed, lostfound_inode);
-
-	ret = bch2_btree_insert(c, BTREE_ID_INODES, &packed.inode.k_i,
-				NULL, NULL,
-				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_LAZY_RW);
-	if (ret) {
-		bch_err(c, "error %i reattaching inode %llu while updating lost+found",
-			ret, inum);
-		return ret;
-	}
-
-	ret = bch2_dirent_create(c, lostfound_inode->bi_inum,
-				 &lostfound_hash_info,
-				 DT_DIR, &name, inum, NULL,
-				 BTREE_INSERT_NOFAIL|
-				 BTREE_INSERT_LAZY_RW);
-	if (ret) {
-		bch_err(c, "error %i reattaching inode %llu while creating new dirent",
-			ret, inum);
-		return ret;
-	}
 	return ret;
 }
 
@@ -758,7 +740,7 @@ static int check_root(struct bch_fs *c, struct bch_inode_unpacked *root_inode)
 fsck_err:
 	return ret;
 create_root:
-	bch2_inode_init(c, root_inode, 0, 0, S_IFDIR|S_IRWXU|S_IRUGO|S_IXUGO,
+	bch2_inode_init(c, root_inode, 0, 0, S_IFDIR|0755,
 			0, NULL);
 	root_inode->bi_inum = BCACHEFS_ROOT_INO;
 
@@ -778,7 +760,6 @@ static int check_lostfound(struct bch_fs *c,
 	struct qstr lostfound = QSTR("lost+found");
 	struct bch_hash_info root_hash_info =
 		bch2_hash_info_init(c, root_inode);
-	struct bkey_inode_buf packed;
 	u64 inum;
 	int ret;
 
@@ -806,33 +787,20 @@ static int check_lostfound(struct bch_fs *c,
 fsck_err:
 	return ret;
 create_lostfound:
-	root_inode->bi_nlink++;
+	bch2_inode_init_early(c, lostfound_inode);
 
-	bch2_inode_pack(&packed, root_inode);
-
-	ret = bch2_btree_insert(c, BTREE_ID_INODES, &packed.inode.k_i,
-				NULL, NULL,
-				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_LAZY_RW);
+	ret = bch2_trans_do(c, NULL,
+			    BTREE_INSERT_ATOMIC|
+			    BTREE_INSERT_NOFAIL|
+			    BTREE_INSERT_LAZY_RW,
+		bch2_create_trans(&trans,
+				  BCACHEFS_ROOT_INO, root_inode,
+				  lostfound_inode, &lostfound,
+				  0, 0, S_IFDIR|0755, 0, NULL, NULL));
 	if (ret)
-		return ret;
+		bch_err(c, "error creating lost+found: %i", ret);
 
-	bch2_inode_init(c, lostfound_inode, 0, 0, S_IFDIR|S_IRWXU|S_IRUGO|S_IXUGO,
-			0, root_inode);
-
-	ret = bch2_inode_create(c, lostfound_inode, BLOCKDEV_INODE_MAX, 0,
-			       &c->unused_inode_hint);
-	if (ret)
-		return ret;
-
-	ret = bch2_dirent_create(c, BCACHEFS_ROOT_INO, &root_hash_info, DT_DIR,
-				 &lostfound, lostfound_inode->bi_inum, NULL,
-				 BTREE_INSERT_NOFAIL|
-				 BTREE_INSERT_LAZY_RW);
-	if (ret)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
 struct inode_bitmap {

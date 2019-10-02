@@ -10,6 +10,7 @@
 #include "dirent.h"
 #include "ec.h"
 #include "error.h"
+#include "fs-common.h"
 #include "fsck.h"
 #include "journal_io.h"
 #include "journal_reclaim.h"
@@ -952,7 +953,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 {
 	struct bch_inode_unpacked root_inode, lostfound_inode;
 	struct bkey_inode_buf packed_inode;
-	struct bch_hash_info root_hash_info;
 	struct qstr lostfound = QSTR("lost+found");
 	const char *err = "cannot allocate memory";
 	struct bch_dev *ca;
@@ -997,7 +997,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_inode_init(c, &root_inode, 0, 0,
 			S_IFDIR|S_IRWXU|S_IRUGO|S_IXUGO, 0, NULL);
 	root_inode.bi_inum = BCACHEFS_ROOT_INO;
-	root_inode.bi_nlink++; /* lost+found */
 	bch2_inode_pack(&packed_inode, &root_inode);
 
 	err = "error creating root directory";
@@ -1007,24 +1006,15 @@ int bch2_fs_initialize(struct bch_fs *c)
 	if (ret)
 		goto err;
 
-	bch2_inode_init(c, &lostfound_inode, 0, 0,
-			S_IFDIR|S_IRWXU|S_IRUGO|S_IXUGO, 0,
-			&root_inode);
-	lostfound_inode.bi_inum = BCACHEFS_ROOT_INO + 1;
-	bch2_inode_pack(&packed_inode, &lostfound_inode);
+	bch2_inode_init_early(c, &lostfound_inode);
 
 	err = "error creating lost+found";
-	ret = bch2_btree_insert(c, BTREE_ID_INODES,
-				&packed_inode.inode.k_i,
-				NULL, NULL, 0);
-	if (ret)
-		goto err;
-
-	root_hash_info = bch2_hash_info_init(c, &root_inode);
-
-	ret = bch2_dirent_create(c, BCACHEFS_ROOT_INO, &root_hash_info, DT_DIR,
-				 &lostfound, lostfound_inode.bi_inum, NULL,
-				 BTREE_INSERT_NOFAIL);
+	ret = bch2_trans_do(c, NULL, BTREE_INSERT_ATOMIC,
+		bch2_create_trans(&trans, BCACHEFS_ROOT_INO,
+				  &root_inode, &lostfound_inode,
+				  &lostfound,
+				  0, 0, 0755, 0,
+				  NULL, NULL));
 	if (ret)
 		goto err;
 

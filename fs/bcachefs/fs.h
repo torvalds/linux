@@ -103,11 +103,6 @@ static inline struct bch_inode_info *file_bch_inode(struct file *file)
 	return to_bch_ei(file_inode(file));
 }
 
-static inline u8 mode_to_type(umode_t mode)
-{
-	return (mode >> 12) & 15;
-}
-
 static inline bool inode_attr_changing(struct bch_inode_info *dir,
 				struct bch_inode_info *inode,
 				enum inode_opt_id id)
@@ -162,16 +157,8 @@ void bch2_inode_update_after_write(struct bch_fs *,
 				   struct bch_inode_info *,
 				   struct bch_inode_unpacked *,
 				   unsigned);
-int __must_check bch2_write_inode_trans(struct btree_trans *,
-				struct bch_inode_info *,
-				struct bch_inode_unpacked *,
-				inode_set_fn, void *);
 int __must_check bch2_write_inode(struct bch_fs *, struct bch_inode_info *,
 				  inode_set_fn, void *, unsigned);
-
-int bch2_reinherit_attrs_fn(struct bch_inode_info *,
-			    struct bch_inode_unpacked *,
-			    void *);
 
 void bch2_vfs_exit(void);
 int bch2_vfs_init(void);

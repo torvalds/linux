@@ -297,11 +297,9 @@ void bch2_inode_generation_to_text(struct printbuf *out, struct bch_fs *c,
 	pr_buf(out, "generation: %u", le32_to_cpu(gen.v->bi_generation));
 }
 
-void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
-		     uid_t uid, gid_t gid, umode_t mode, dev_t rdev,
-		     struct bch_inode_unpacked *parent)
+void bch2_inode_init_early(struct bch_fs *c,
+			   struct bch_inode_unpacked *inode_u)
 {
-	s64 now = bch2_current_time(c);
 	enum bch_str_hash_type str_hash =
 		bch2_str_hash_opt_to_type(c, c->opts.str_hash);
 
@@ -311,7 +309,12 @@ void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
 	inode_u->bi_flags |= str_hash << INODE_STR_HASH_OFFSET;
 	get_random_bytes(&inode_u->bi_hash_seed,
 			 sizeof(inode_u->bi_hash_seed));
+}
 
+void bch2_inode_init_late(struct bch_inode_unpacked *inode_u, u64 now,
+			  uid_t uid, gid_t gid, umode_t mode, dev_t rdev,
+			  struct bch_inode_unpacked *parent)
+{
 	inode_u->bi_mode	= mode;
 	inode_u->bi_uid		= uid;
 	inode_u->bi_gid		= gid;
@@ -321,11 +324,26 @@ void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
 	inode_u->bi_ctime	= now;
 	inode_u->bi_otime	= now;
 
+	if (parent && parent->bi_mode & S_ISGID) {
+		inode_u->bi_gid = parent->bi_gid;
+		if (S_ISDIR(mode))
+			inode_u->bi_mode |= S_ISGID;
+	}
+
 	if (parent) {
 #define x(_name, ...)	inode_u->bi_##_name = parent->bi_##_name;
 		BCH_INODE_OPTS()
 #undef x
 	}
+}
+
+void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
+		     uid_t uid, gid_t gid, umode_t mode, dev_t rdev,
+		     struct bch_inode_unpacked *parent)
+{
+	bch2_inode_init_early(c, inode_u);
+	bch2_inode_init_late(inode_u, bch2_current_time(c),
+			     uid, gid, mode, rdev, parent);
 }
 
 static inline u32 bkey_generation(struct bkey_s_c k)
@@ -340,9 +358,9 @@ static inline u32 bkey_generation(struct bkey_s_c k)
 	}
 }
 
-int __bch2_inode_create(struct btree_trans *trans,
-			struct bch_inode_unpacked *inode_u,
-			u64 min, u64 max, u64 *hint)
+int bch2_inode_create(struct btree_trans *trans,
+		      struct bch_inode_unpacked *inode_u,
+		      u64 min, u64 max, u64 *hint)
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_inode_buf *inode_p;
@@ -406,13 +424,6 @@ out:
 	}
 
 	return -ENOSPC;
-}
-
-int bch2_inode_create(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
-		      u64 min, u64 max, u64 *hint)
-{
-	return bch2_trans_do(c, NULL, BTREE_INSERT_ATOMIC,
-			__bch2_inode_create(&trans, inode_u, min, max, hint));
 }
 
 int bch2_inode_rm(struct bch_fs *c, u64 inode_nr)
