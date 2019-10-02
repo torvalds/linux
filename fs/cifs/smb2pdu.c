@@ -3217,7 +3217,8 @@ SMB2_notify_init(const unsigned int xid, struct smb_rqst *rqst,
 
 	req->PersistentFileId = persistent_fid;
 	req->VolatileFileId = volatile_fid;
-	req->OutputBufferLength = SMB2_MAX_BUFFER_SIZE - MAX_SMB2_HDR_SIZE;
+	req->OutputBufferLength =
+		cpu_to_le32(SMB2_MAX_BUFFER_SIZE - MAX_SMB2_HDR_SIZE);
 	req->CompletionFilter = cpu_to_le32(completion_filter);
 	if (watch_tree)
 		req->Flags = cpu_to_le16(SMB2_WATCH_TREE);
