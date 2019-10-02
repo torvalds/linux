@@ -1003,7 +1003,7 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	if (IS_I830(dev_priv))
 		crt->base.pipe_mask = BIT(PIPE_A);
 	else
-		crt->base.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
+		crt->base.pipe_mask = ~0;
 
 	if (IS_GEN(dev_priv, 2))
 		connector->interlace_allowed = 0;

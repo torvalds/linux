@@ -902,7 +902,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) < 4)
 		intel_encoder->pipe_mask = BIT(PIPE_B);
 	else
-		intel_encoder->pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
+		intel_encoder->pipe_mask = ~0;
 
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;

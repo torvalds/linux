@@ -7575,7 +7575,7 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 		else
 			intel_encoder->pipe_mask = BIT(PIPE_A) | BIT(PIPE_B);
 	} else {
-		intel_encoder->pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
+		intel_encoder->pipe_mask = ~0;
 	}
 	intel_encoder->cloneable = 0;
 	intel_encoder->port = port;

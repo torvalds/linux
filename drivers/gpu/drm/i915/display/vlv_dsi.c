@@ -1870,7 +1870,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	 * port C. BXT isn't limited like this.
 	 */
 	if (IS_GEN9_LP(dev_priv))
-		intel_encoder->pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
+		intel_encoder->pipe_mask = ~0;
 	else if (port == PORT_A)
 		intel_encoder->pipe_mask = BIT(PIPE_A);
 	else

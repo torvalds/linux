@@ -2921,7 +2921,7 @@ intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo, u16 flags)
 			      bytes[0], bytes[1]);
 		return false;
 	}
-	intel_sdvo->base.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
+	intel_sdvo->base.pipe_mask = ~0;
 
 	return true;
 }
