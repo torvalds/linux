@@ -29,6 +29,28 @@ static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
 	}
 }
 
+static u16 get_max_amsdu_len(u32 bit_rate)
+{
+	/* lower than ofdm, do not aggregate */
+	if (bit_rate < 550)
+		return 1;
+
+	/* lower than 20M 2ss mcs8, make it small */
+	if (bit_rate < 1800)
+		return 1200;
+
+	/* lower than 40M 2ss mcs9, make it medium */
+	if (bit_rate < 4000)
+		return 2600;
+
+	/* not yet 80M 2ss mcs8/9, make it twice regular packet size */
+	if (bit_rate < 7000)
+		return 3500;
+
+	/* unlimited */
+	return 0;
+}
+
 struct rtw_fw_iter_ra_data {
 	struct rtw_dev *rtwdev;
 	u8 *payload;
@@ -83,6 +105,8 @@ legacy:
 
 	si->ra_report.desc_rate = rate;
 	si->ra_report.bit_rate = bit_rate;
+
+	sta->max_rc_amsdu_len = get_max_amsdu_len(bit_rate);
 }
 
 static void rtw_fw_ra_report_handle(struct rtw_dev *rtwdev, u8 *payload,
