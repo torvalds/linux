@@ -12,6 +12,5 @@ int rtw_leave_ips(struct rtw_dev *rtwdev);
 
 void rtw_enter_lps(struct rtw_dev *rtwdev, u8 port_id);
 void rtw_leave_lps(struct rtw_dev *rtwdev);
-bool rtw_in_lps(struct rtw_dev *rtwdev);
 
 #endif
