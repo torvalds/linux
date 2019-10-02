@@ -462,8 +462,6 @@ static void soc_remove_pcm_runtimes(struct snd_soc_card *card)
 
 	for_each_card_rtds_safe(card, rtd, _rtd)
 		soc_free_pcm_runtime(rtd);
-
-	card->num_rtd = 0;
 }
 
 struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
@@ -2008,6 +2006,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		goto probe_end;
 
 	/* add predefined DAI links to the list */
+	card->num_rtd = 0;
 	for_each_card_prelinks(card, i, dai_link) {
 		ret = snd_soc_add_dai_link(card, dai_link);
 		if (ret < 0)
@@ -2418,7 +2417,6 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	INIT_LIST_HEAD(&card->dapm_dirty);
 	INIT_LIST_HEAD(&card->dobj_list);
 
-	card->num_rtd = 0;
 	card->instantiated = 0;
 	mutex_init(&card->mutex);
 	mutex_init(&card->dapm_mutex);
