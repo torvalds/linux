@@ -169,6 +169,11 @@ static const struct IP_BASE NBIF0_BASE ={ { { { 0x00000000, 0x00000014, 0x00000D
                                         { { 0, 0, 0, 0, 0 } },
                                         { { 0, 0, 0, 0, 0 } },
                                         { { 0, 0, 0, 0, 0 } } } };
+static const struct IP_BASE DCN_BASE   ={ { { { 0x00000012, 0x000000C0, 0x000034C0, 0, 0 } },
+                                        { { 0, 0, 0, 0, 0 } },
+                                        { { 0, 0, 0, 0, 0 } },
+                                        { { 0, 0, 0, 0, 0 } },
+                                        { { 0, 0, 0, 0, 0 } } } };
 static const struct IP_BASE OSSSYS_BASE ={ { { { 0x000010A0, 0x0240A000, 0, 0, 0 } },
                                         { { 0, 0, 0, 0, 0 } },
                                         { { 0, 0, 0, 0, 0 } },
@@ -1361,4 +1366,33 @@ static const struct IP_BASE UVD0_BASE ={ { { { 0x00007800, 0x00007E00, 0x0240300
 #define UVD0_BASE__INST6_SEG3                      0
 #define UVD0_BASE__INST6_SEG4                      0
 
+#define DCN_BASE__INST0_SEG0                      0x00000012
+#define DCN_BASE__INST0_SEG1                      0x000000C0
+#define DCN_BASE__INST0_SEG2                      0x000034C0
+#define DCN_BASE__INST0_SEG3                      0
+#define DCN_BASE__INST0_SEG4                      0
+
+#define DCN_BASE__INST1_SEG0                      0
+#define DCN_BASE__INST1_SEG1                      0
+#define DCN_BASE__INST1_SEG2                      0
+#define DCN_BASE__INST1_SEG3                      0
+#define DCN_BASE__INST1_SEG4                      0
+
+#define DCN_BASE__INST2_SEG0                      0
+#define DCN_BASE__INST2_SEG1                      0
+#define DCN_BASE__INST2_SEG2                      0
+#define DCN_BASE__INST2_SEG3                      0
+#define DCN_BASE__INST2_SEG4                      0
+
+#define DCN_BASE__INST3_SEG0                      0
+#define DCN_BASE__INST3_SEG1                      0
+#define DCN_BASE__INST3_SEG2                      0
+#define DCN_BASE__INST3_SEG3                      0
+#define DCN_BASE__INST3_SEG4                      0
+
+#define DCN_BASE__INST4_SEG0                      0
+#define DCN_BASE__INST4_SEG1                      0
+#define DCN_BASE__INST4_SEG2                      0
+#define DCN_BASE__INST4_SEG3                      0
+#define DCN_BASE__INST4_SEG4                      0
 #endif
