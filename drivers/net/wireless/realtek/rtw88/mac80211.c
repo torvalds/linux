@@ -269,6 +269,54 @@ static void rtw_ops_configure_filter(struct ieee80211_hw *hw,
 	mutex_unlock(&rtwdev->mutex);
 }
 
+/* Only have one group of EDCA parameters now */
+static const u32 ac_to_edca_param[IEEE80211_NUM_ACS] = {
+	[IEEE80211_AC_VO] = REG_EDCA_VO_PARAM,
+	[IEEE80211_AC_VI] = REG_EDCA_VI_PARAM,
+	[IEEE80211_AC_BE] = REG_EDCA_BE_PARAM,
+	[IEEE80211_AC_BK] = REG_EDCA_BK_PARAM,
+};
+
+static u8 rtw_aifsn_to_aifs(struct rtw_dev *rtwdev,
+			    struct rtw_vif *rtwvif, u8 aifsn)
+{
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	u8 slot_time;
+	u8 sifs;
+
+	slot_time = vif->bss_conf.use_short_slot ? 9 : 20;
+	sifs = rtwdev->hal.current_band_type == RTW_BAND_5G ? 16 : 10;
+
+	return aifsn * slot_time + sifs;
+}
+
+static void __rtw_conf_tx(struct rtw_dev *rtwdev,
+			  struct rtw_vif *rtwvif, u16 ac)
+{
+	struct ieee80211_tx_queue_params *params = &rtwvif->tx_params[ac];
+	u32 edca_param = ac_to_edca_param[ac];
+	u8 ecw_max, ecw_min;
+	u8 aifs;
+
+	/* 2^ecw - 1 = cw; ecw = log2(cw + 1) */
+	ecw_max = ilog2(params->cw_max + 1);
+	ecw_min = ilog2(params->cw_min + 1);
+	aifs = rtw_aifsn_to_aifs(rtwdev, rtwvif, params->aifs);
+	rtw_write32_mask(rtwdev, edca_param, BIT_MASK_TXOP_LMT, params->txop);
+	rtw_write32_mask(rtwdev, edca_param, BIT_MASK_CWMAX, ecw_max);
+	rtw_write32_mask(rtwdev, edca_param, BIT_MASK_CWMIN, ecw_min);
+	rtw_write32_mask(rtwdev, edca_param, BIT_MASK_AIFS, aifs);
+}
+
+static void rtw_conf_tx(struct rtw_dev *rtwdev,
+			struct rtw_vif *rtwvif)
+{
+	u16 ac;
+
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+		__rtw_conf_tx(rtwdev, rtwvif, ac);
+}
+
 static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *conf,
@@ -320,9 +368,31 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BEACON)
 		rtw_fw_download_rsvd_page(rtwdev, vif);
 
+	if (changed & BSS_CHANGED_ERP_SLOT)
+		rtw_conf_tx(rtwdev, rtwvif);
+
 	rtw_vif_port_config(rtwdev, rtwvif, config);
 
 	mutex_unlock(&rtwdev->mutex);
+}
+
+static int rtw_ops_conf_tx(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif, u16 ac,
+			   const struct ieee80211_tx_queue_params *params)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
+
+	mutex_lock(&rtwdev->mutex);
+
+	rtw_leave_lps_deep(rtwdev);
+
+	rtwvif->tx_params[ac] = *params;
+	__rtw_conf_tx(rtwdev, rtwvif, ac);
+
+	mutex_unlock(&rtwdev->mutex);
+
+	return 0;
 }
 
 static u8 rtw_acquire_macid(struct rtw_dev *rtwdev)
@@ -612,6 +682,7 @@ const struct ieee80211_ops rtw_ops = {
 	.remove_interface	= rtw_ops_remove_interface,
 	.configure_filter	= rtw_ops_configure_filter,
 	.bss_info_changed	= rtw_ops_bss_info_changed,
+	.conf_tx		= rtw_ops_conf_tx,
 	.sta_add		= rtw_ops_sta_add,
 	.sta_remove		= rtw_ops_sta_remove,
 	.set_key		= rtw_ops_set_key,

@@ -641,6 +641,7 @@ struct rtw_vif {
 	u8 bssid[ETH_ALEN];
 	u8 port;
 	u8 bcn_ctrl;
+	struct ieee80211_tx_queue_params tx_params[IEEE80211_NUM_ACS];
 	const struct rtw_vif_port *conf;
 
 	struct rtw_traffic_stats stats;
@@ -1430,6 +1431,13 @@ static inline struct ieee80211_txq *rtwtxq_to_txq(struct rtw_txq *rtwtxq)
 	void *p = rtwtxq;
 
 	return container_of(p, struct ieee80211_txq, drv_priv);
+}
+
+static inline struct ieee80211_vif *rtwvif_to_vif(struct rtw_vif *rtwvif)
+{
+	void *p = rtwvif;
+
+	return container_of(p, struct ieee80211_vif, drv_priv);
 }
 
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
