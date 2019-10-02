@@ -930,7 +930,7 @@ static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 
 static int gmc_v9_0_sw_init(void *handle)
 {
-	int r, vram_width = 0, vram_type = 0;
+	int r, vram_width = 0, vram_type = 0, vram_vendor = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gfxhub_v1_0_init(adev);
@@ -941,7 +941,8 @@ static int gmc_v9_0_sw_init(void *handle)
 
 	spin_lock_init(&adev->gmc.invalidate_lock);
 
-	r = amdgpu_atomfirmware_get_vram_info(adev, &vram_width, &vram_type);
+	r = amdgpu_atomfirmware_get_vram_info(adev,
+		&vram_width, &vram_type, &vram_vendor);
 	if (amdgpu_sriov_vf(adev))
 		/* For Vega10 SR-IOV, vram_width can't be read from ATOM as RAVEN,
 		 * and DF related registers is not readable, seems hardcord is the
@@ -965,6 +966,7 @@ static int gmc_v9_0_sw_init(void *handle)
 	}
 
 	adev->gmc.vram_type = vram_type;
+	adev->gmc.vram_vendor = vram_vendor;
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
 		adev->num_vmhubs = 2;

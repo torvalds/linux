@@ -169,8 +169,11 @@ static int convert_atom_mem_type_to_vram_type(struct amdgpu_device *adev,
 	return vram_type;
 }
 
-int amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
-				      int *vram_width, int *vram_type)
+
+int
+amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
+				  int *vram_width, int *vram_type,
+				  int *vram_vendor)
 {
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
 	int index, i = 0;
@@ -180,6 +183,7 @@ int amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 	union vram_module *vram_module;
 	u8 frev, crev;
 	u8 mem_type;
+	u8 mem_vendor;
 	u32 mem_channel_number;
 	u32 mem_channel_width;
 	u32 module_id;
@@ -231,6 +235,9 @@ int amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 				mem_channel_width = vram_module->v9.channel_width;
 				if (vram_width)
 					*vram_width = mem_channel_number * (1 << mem_channel_width);
+				mem_vendor = (vram_module->v9.vender_rev_id) & 0xF;
+				if (vram_vendor)
+					*vram_vendor = mem_vendor;
 				break;
 			case 4:
 				if (module_id > vram_info->v24.vram_module_num)
@@ -248,6 +255,9 @@ int amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 				mem_channel_width = vram_module->v10.channel_width;
 				if (vram_width)
 					*vram_width = mem_channel_number * (1 << mem_channel_width);
+				mem_vendor = (vram_module->v10.vender_rev_id) & 0xF;
+				if (vram_vendor)
+					*vram_vendor = mem_vendor;
 				break;
 			default:
 				return -EINVAL;

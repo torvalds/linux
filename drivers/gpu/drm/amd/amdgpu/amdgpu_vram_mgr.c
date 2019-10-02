@@ -24,6 +24,8 @@
 
 #include "amdgpu.h"
 #include "amdgpu_vm.h"
+#include "amdgpu_atomfirmware.h"
+#include "atom.h"
 
 struct amdgpu_vram_mgr {
 	struct drm_mm mm;
@@ -102,6 +104,39 @@ static ssize_t amdgpu_mem_info_vis_vram_used_show(struct device *dev,
 		amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]));
 }
 
+static ssize_t amdgpu_mem_info_vram_vendor(struct device *dev,
+						 struct device_attribute *attr,
+						 char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+
+	switch (adev->gmc.vram_vendor) {
+	case SAMSUNG:
+		return snprintf(buf, PAGE_SIZE, "samsung\n");
+	case INFINEON:
+		return snprintf(buf, PAGE_SIZE, "infineon\n");
+	case ELPIDA:
+		return snprintf(buf, PAGE_SIZE, "elpida\n");
+	case ETRON:
+		return snprintf(buf, PAGE_SIZE, "etron\n");
+	case NANYA:
+		return snprintf(buf, PAGE_SIZE, "nanya\n");
+	case HYNIX:
+		return snprintf(buf, PAGE_SIZE, "hynix\n");
+	case MOSEL:
+		return snprintf(buf, PAGE_SIZE, "mosel\n");
+	case WINBOND:
+		return snprintf(buf, PAGE_SIZE, "winbond\n");
+	case ESMT:
+		return snprintf(buf, PAGE_SIZE, "esmt\n");
+	case MICRON:
+		return snprintf(buf, PAGE_SIZE, "micron\n");
+	default:
+		return snprintf(buf, PAGE_SIZE, "unknown\n");
+	}
+}
+
 static DEVICE_ATTR(mem_info_vram_total, S_IRUGO,
 		   amdgpu_mem_info_vram_total_show, NULL);
 static DEVICE_ATTR(mem_info_vis_vram_total, S_IRUGO,
@@ -110,6 +145,8 @@ static DEVICE_ATTR(mem_info_vram_used, S_IRUGO,
 		   amdgpu_mem_info_vram_used_show, NULL);
 static DEVICE_ATTR(mem_info_vis_vram_used, S_IRUGO,
 		   amdgpu_mem_info_vis_vram_used_show, NULL);
+static DEVICE_ATTR(mem_info_vram_vendor, S_IRUGO,
+		   amdgpu_mem_info_vram_vendor, NULL);
 
 /**
  * amdgpu_vram_mgr_init - init VRAM manager and DRM MM
@@ -155,6 +192,11 @@ static int amdgpu_vram_mgr_init(struct ttm_mem_type_manager *man,
 		DRM_ERROR("Failed to create device file mem_info_vis_vram_used\n");
 		return ret;
 	}
+	ret = device_create_file(adev->dev, &dev_attr_mem_info_vram_vendor);
+	if (ret) {
+		DRM_ERROR("Failed to create device file mem_info_vram_vendor\n");
+		return ret;
+	}
 
 	return 0;
 }
@@ -181,6 +223,7 @@ static int amdgpu_vram_mgr_fini(struct ttm_mem_type_manager *man)
 	device_remove_file(adev->dev, &dev_attr_mem_info_vis_vram_total);
 	device_remove_file(adev->dev, &dev_attr_mem_info_vram_used);
 	device_remove_file(adev->dev, &dev_attr_mem_info_vis_vram_used);
+	device_remove_file(adev->dev, &dev_attr_mem_info_vram_vendor);
 	return 0;
 }
 
