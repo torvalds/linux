@@ -14,13 +14,17 @@
 #include "efuse.h"
 #include "debug.h"
 
+unsigned int rtw_fw_lps_deep_mode;
+EXPORT_SYMBOL(rtw_fw_lps_deep_mode);
 static bool rtw_fw_support_lps;
 unsigned int rtw_debug_mask;
 EXPORT_SYMBOL(rtw_debug_mask);
 
+module_param_named(lps_deep_mode, rtw_fw_lps_deep_mode, uint, 0644);
 module_param_named(support_lps, rtw_fw_support_lps, bool, 0644);
 module_param_named(debug_mask, rtw_debug_mask, uint, 0644);
 
+MODULE_PARM_DESC(lps_deep_mode, "Deeper PS mode. If 0, deep PS is disabled");
 MODULE_PARM_DESC(support_lps, "Set Y to enable Leisure Power Save support, to turn radio off between beacons");
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
@@ -1152,6 +1156,7 @@ EXPORT_SYMBOL(rtw_chip_info_setup);
 
 int rtw_core_init(struct rtw_dev *rtwdev)
 {
+	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_coex *coex = &rtwdev->coex;
 	int ret;
 
@@ -1183,6 +1188,10 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	rtwdev->sec.total_cam_num = 32;
 	rtwdev->hal.current_channel = 1;
 	set_bit(RTW_BC_MC_MACID, rtwdev->mac_id_map);
+	if (!(BIT(rtw_fw_lps_deep_mode) & chip->lps_deep_mode_supported))
+		rtwdev->lps_conf.deep_mode = LPS_DEEP_MODE_NONE;
+	else
+		rtwdev->lps_conf.deep_mode = rtw_fw_lps_deep_mode;
 
 	mutex_lock(&rtwdev->mutex);
 	rtw_add_rsvd_page(rtwdev, RSVD_BEACON, false);

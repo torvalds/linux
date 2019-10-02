@@ -27,6 +27,7 @@
 #define RTW_RF_PATH_MAX			4
 #define HW_FEATURE_LEN			13
 
+extern unsigned int rtw_fw_lps_deep_mode;
 extern unsigned int rtw_debug_mask;
 extern const struct ieee80211_ops rtw_ops;
 extern struct rtw_chip_info rtw8822b_hw_spec;
@@ -528,6 +529,11 @@ enum rtw_lps_mode {
 	RTW_MODE_WMM_PS	= 2,
 };
 
+enum rtw_lps_deep_mode {
+	LPS_DEEP_MODE_NONE	= 0,
+	LPS_DEEP_MODE_LCLK	= 1,
+};
+
 enum rtw_pwr_state {
 	RTW_RF_OFF	= 0x0,
 	RTW_RF_ON	= 0x4,
@@ -536,6 +542,7 @@ enum rtw_pwr_state {
 
 struct rtw_lps_conf {
 	enum rtw_lps_mode mode;
+	enum rtw_lps_deep_mode deep_mode;
 	enum rtw_pwr_state state;
 	u8 awake_interval;
 	u8 rlbm;
@@ -844,6 +851,7 @@ struct rtw_chip_info {
 
 	bool ht_supported;
 	bool vht_supported;
+	u8 lps_deep_mode_supported;
 
 	/* init values */
 	u8 sys_func_en;

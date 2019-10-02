@@ -132,6 +132,9 @@ static void rtw_leave_lps_core(struct rtw_dev *rtwdev)
 
 static void __rtw_enter_lps_deep(struct rtw_dev *rtwdev)
 {
+	if (rtwdev->lps_conf.deep_mode == LPS_DEEP_MODE_NONE)
+		return;
+
 	if (!test_bit(RTW_FLAG_LEISURE_PS, rtwdev->flags)) {
 		rtw_dbg(rtwdev, RTW_DBG_PS,
 			"Should enter LPS before entering deep PS\n");
