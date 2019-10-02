@@ -48,6 +48,7 @@ properties:
     maxItems: 2
 
 allOf:
+  - $ref: rtc.yaml#
   - if:
       properties:
         compatible:
