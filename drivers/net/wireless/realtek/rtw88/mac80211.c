@@ -464,9 +464,9 @@ static void rtw_ops_sw_scan_start(struct ieee80211_hw *hw,
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 	u32 config = 0;
 
-	rtw_leave_lps(rtwdev);
-
 	mutex_lock(&rtwdev->mutex);
+
+	rtw_leave_lps(rtwdev);
 
 	ether_addr_copy(rtwvif->mac_addr, mac_addr);
 	config |= PORT_SET_MAC_ADDR;

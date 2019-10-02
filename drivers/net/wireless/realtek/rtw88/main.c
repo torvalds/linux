@@ -152,8 +152,10 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	struct rtw_watch_dog_iter_data data = {};
 	bool busy_traffic = test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
 
+	mutex_lock(&rtwdev->mutex);
+
 	if (!test_bit(RTW_FLAG_RUNNING, rtwdev->flags))
-		return;
+		goto unlock;
 
 	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->watch_dog_work,
 				     RTW_WATCH_DOG_DELAY_TIME);
@@ -186,11 +188,14 @@ static void rtw_watch_dog_work(struct work_struct *work)
 		rtw_leave_lps(rtwdev);
 
 	if (test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
-		return;
+		goto unlock;
 
 	rtw_phy_dynamic_mechanism(rtwdev);
 
 	rtwdev->watch_dog_cnt++;
+
+unlock:
+	mutex_unlock(&rtwdev->mutex);
 }
 
 static void rtw_c2h_work(struct work_struct *work)
