@@ -457,9 +457,9 @@ static void rtw_pci_reset_buf_desc(struct rtw_dev *rtwdev)
 	/* reset read/write point */
 	rtw_write32(rtwdev, RTK_PCI_TXBD_RWPTR_CLR, 0xffffffff);
 
-	/* rest H2C Queue index */
-	rtw_write32_set(rtwdev, RTK_PCI_TXBD_H2CQ_CSR, BIT_CLR_H2CQ_HOST_IDX);
-	rtw_write32_set(rtwdev, RTK_PCI_TXBD_H2CQ_CSR, BIT_CLR_H2CQ_HW_IDX);
+	/* reset H2C Queue index in a single write */
+	rtw_write32_set(rtwdev, RTK_PCI_TXBD_H2CQ_CSR,
+			BIT_CLR_H2CQ_HOST_IDX | BIT_CLR_H2CQ_HW_IDX);
 }
 
 static void rtw_pci_reset_trx_ring(struct rtw_dev *rtwdev)
