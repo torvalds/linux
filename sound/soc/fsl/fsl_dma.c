@@ -201,8 +201,7 @@ static irqreturn_t fsl_dma_isr(int irq, void *dev_id)
 	struct fsl_dma_private *dma_private = dev_id;
 	struct snd_pcm_substream *substream = dma_private->substream;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct device *dev = component->dev;
+	struct device *dev = rtd->dev;
 	struct ccsr_dma_channel __iomem *dma_channel = dma_private->dma_channel;
 	irqreturn_t ret = IRQ_NONE;
 	u32 sr, sr2 = 0;
