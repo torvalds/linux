@@ -312,15 +312,16 @@ void rtw_mac_power_off(struct rtw_dev *rtwdev)
 
 static bool check_firmware_size(const u8 *data, u32 size)
 {
+	const struct rtw_fw_hdr *fw_hdr = (const struct rtw_fw_hdr *)data;
 	u32 dmem_size;
 	u32 imem_size;
 	u32 emem_size;
 	u32 real_size;
 
-	dmem_size = le32_to_cpu(*((__le32 *)(data + FW_HDR_DMEM_SIZE)));
-	imem_size = le32_to_cpu(*((__le32 *)(data + FW_HDR_IMEM_SIZE)));
-	emem_size = ((*(data + FW_HDR_MEM_USAGE)) & BIT(4)) ?
-		    le32_to_cpu(*((__le32 *)(data + FW_HDR_EMEM_SIZE))) : 0;
+	dmem_size = le32_to_cpu(fw_hdr->dmem_size);
+	imem_size = le32_to_cpu(fw_hdr->imem_size);
+	emem_size = (fw_hdr->mem_usage & BIT(4)) ?
+		    le32_to_cpu(fw_hdr->emem_size) : 0;
 
 	dmem_size += FW_HDR_CHKSUM_SIZE;
 	imem_size += FW_HDR_CHKSUM_SIZE;
@@ -569,14 +570,13 @@ download_firmware_to_mem(struct rtw_dev *rtwdev, const u8 *data,
 static void update_firmware_info(struct rtw_dev *rtwdev,
 				 struct rtw_fw_state *fw)
 {
-	const u8 *data = fw->firmware->data;
+	const struct rtw_fw_hdr *fw_hdr =
+				(const struct rtw_fw_hdr *)fw->firmware->data;
 
-	fw->h2c_version =
-		le16_to_cpu(*((__le16 *)(data + FW_HDR_H2C_FMT_VER)));
-	fw->version =
-		le16_to_cpu(*((__le16 *)(data + FW_HDR_VERSION)));
-	fw->sub_version = *(data + FW_HDR_SUBVERSION);
-	fw->sub_index = *(data + FW_HDR_SUBINDEX);
+	fw->h2c_version = le16_to_cpu(fw_hdr->h2c_fmt_ver);
+	fw->version = le16_to_cpu(fw_hdr->version);
+	fw->sub_version = fw_hdr->subversion;
+	fw->sub_index = fw_hdr->subindex;
 
 	rtw_info(rtwdev, "Firmware version %u.%u.%u, H2C version %u\n",
 		 fw->version, fw->sub_version, fw->sub_index, fw->h2c_version);
@@ -585,6 +585,7 @@ static void update_firmware_info(struct rtw_dev *rtwdev,
 static int
 start_download_firmware(struct rtw_dev *rtwdev, const u8 *data, u32 size)
 {
+	const struct rtw_fw_hdr *fw_hdr = (const struct rtw_fw_hdr *)data;
 	const u8 *cur_fw;
 	u16 val;
 	u32 imem_size;
@@ -593,10 +594,10 @@ start_download_firmware(struct rtw_dev *rtwdev, const u8 *data, u32 size)
 	u32 addr;
 	int ret;
 
-	dmem_size = le32_to_cpu(*((__le32 *)(data + FW_HDR_DMEM_SIZE)));
-	imem_size = le32_to_cpu(*((__le32 *)(data + FW_HDR_IMEM_SIZE)));
-	emem_size = ((*(data + FW_HDR_MEM_USAGE)) & BIT(4)) ?
-		    le32_to_cpu(*((__le32 *)(data + FW_HDR_EMEM_SIZE))) : 0;
+	dmem_size = le32_to_cpu(fw_hdr->dmem_size);
+	imem_size = le32_to_cpu(fw_hdr->imem_size);
+	emem_size = (fw_hdr->mem_usage & BIT(4)) ?
+		    le32_to_cpu(fw_hdr->emem_size) : 0;
 	dmem_size += FW_HDR_CHKSUM_SIZE;
 	imem_size += FW_HDR_CHKSUM_SIZE;
 	emem_size += emem_size ? FW_HDR_CHKSUM_SIZE : 0;
@@ -606,14 +607,14 @@ start_download_firmware(struct rtw_dev *rtwdev, const u8 *data, u32 size)
 	rtw_write16(rtwdev, REG_MCUFW_CTRL, val);
 
 	cur_fw = data + FW_HDR_SIZE;
-	addr = le32_to_cpu(*((__le32 *)(data + FW_HDR_DMEM_ADDR)));
+	addr = le32_to_cpu(fw_hdr->dmem_addr);
 	addr &= ~BIT(31);
 	ret = download_firmware_to_mem(rtwdev, cur_fw, 0, addr, dmem_size);
 	if (ret)
 		return ret;
 
 	cur_fw = data + FW_HDR_SIZE + dmem_size;
-	addr = le32_to_cpu(*((__le32 *)(data + FW_HDR_IMEM_ADDR)));
+	addr = le32_to_cpu(fw_hdr->imem_addr);
 	addr &= ~BIT(31);
 	ret = download_firmware_to_mem(rtwdev, cur_fw, 0, addr, imem_size);
 	if (ret)
@@ -621,7 +622,7 @@ start_download_firmware(struct rtw_dev *rtwdev, const u8 *data, u32 size)
 
 	if (emem_size) {
 		cur_fw = data + FW_HDR_SIZE + dmem_size + imem_size;
-		addr = le32_to_cpu(*((__le32 *)(data + FW_HDR_EMEM_ADDR)));
+		addr = le32_to_cpu(fw_hdr->emem_addr);
 		addr &= ~BIT(31);
 		ret = download_firmware_to_mem(rtwdev, cur_fw, 0, addr,
 					       emem_size);
