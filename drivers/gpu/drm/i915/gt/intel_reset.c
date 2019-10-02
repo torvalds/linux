@@ -872,8 +872,14 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	ok = !HAS_EXECLISTS(gt->i915); /* XXX better agnosticism desired */
 	if (!INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
 		ok = __intel_gt_reset(gt, ALL_ENGINES) == 0;
-	if (!ok)
+	if (!ok) {
+		/*
+		 * Warn CI about the unrecoverable wedged condition.
+		 * Time for a reboot.
+		 */
+		add_taint_for_CI(TAINT_WARN);
 		return false;
+	}
 
 	/*
 	 * Undo nop_submit_request. We prevent all new i915 requests from
