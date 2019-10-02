@@ -123,6 +123,15 @@ void input_set_max_poll_interval(struct input_dev *dev, unsigned int interval)
 }
 EXPORT_SYMBOL(input_set_max_poll_interval);
 
+int input_get_poll_interval(struct input_dev *dev)
+{
+	if (!dev->poller)
+		return -EINVAL;
+
+	return dev->poller->poll_interval;
+}
+EXPORT_SYMBOL(input_get_poll_interval);
+
 /* SYSFS interface */
 
 static ssize_t input_dev_get_poll_interval(struct device *dev,
