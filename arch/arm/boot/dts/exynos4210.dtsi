@@ -72,7 +72,7 @@
 	};
 
 	soc: soc {
-		sysram: sysram@2020000 {
+		sysram: sram@2020000 {
 			compatible = "mmio-sram";
 			reg = <0x02020000 0x20000>;
 			#address-cells = <1>;
