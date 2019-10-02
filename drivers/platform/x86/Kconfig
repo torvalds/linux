@@ -831,7 +831,6 @@ config ACPI_TOSHIBA
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL || RFKILL = n
 	depends on IIO
-	select INPUT_POLLDEV
 	select INPUT_SPARSEKMAP
 	---help---
 	  This driver adds support for access to certain system settings
