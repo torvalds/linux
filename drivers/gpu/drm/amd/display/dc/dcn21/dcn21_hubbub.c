@@ -52,7 +52,7 @@
 #ifdef NUM_VMID
 #undef NUM_VMID
 #endif
-#define NUM_VMID 1
+#define NUM_VMID 16
 
 static uint32_t convert_and_clamp(
 	uint32_t wm_ns,
