@@ -56,6 +56,7 @@ void rtw_tx_fill_tx_desc(struct rtw_tx_pkt_info *pkt_info, struct sk_buff *skb)
 	SET_TX_DESC_DATA_SHORT(txdesc, pkt_info->short_gi);
 	SET_TX_DESC_SPE_RPT(txdesc, pkt_info->report);
 	SET_TX_DESC_SW_DEFINE(txdesc, pkt_info->sn);
+	SET_TX_DESC_USE_RTS(txdesc, pkt_info->rts);
 }
 EXPORT_SYMBOL(rtw_tx_fill_tx_desc);
 
@@ -257,6 +258,9 @@ static void rtw_tx_data_pkt_info_update(struct rtw_dev *rtwdev,
 		ampdu_factor = get_tx_ampdu_factor(sta);
 		ampdu_density = get_tx_ampdu_density(sta);
 	}
+
+	if (info->control.use_rts)
+		pkt_info->rts = true;
 
 	if (sta->vht_cap.vht_supported)
 		rate = get_highest_vht_tx_rate(rtwdev, sta);

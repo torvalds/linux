@@ -484,6 +484,7 @@ struct rtw_tx_pkt_info {
 	bool fs;
 	bool short_gi;
 	bool report;
+	bool rts;
 };
 
 struct rtw_rx_pkt_stat {
@@ -1377,6 +1378,7 @@ struct rtw_dev {
 	struct dentry *debugfs;
 
 	u8 sta_cnt;
+	u32 rts_threshold;
 
 	DECLARE_BITMAP(mac_id_map, RTW_MAX_MAC_ID_NUM);
 	DECLARE_BITMAP(flags, NUM_OF_RTW_FLAGS);

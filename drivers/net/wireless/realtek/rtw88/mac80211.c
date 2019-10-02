@@ -541,6 +541,17 @@ static void rtw_ops_mgd_prepare_tx(struct ieee80211_hw *hw,
 	mutex_unlock(&rtwdev->mutex);
 }
 
+static int rtw_ops_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+
+	mutex_lock(&rtwdev->mutex);
+	rtwdev->rts_threshold = value;
+	mutex_unlock(&rtwdev->mutex);
+
+	return 0;
+}
+
 const struct ieee80211_ops rtw_ops = {
 	.tx			= rtw_ops_tx,
 	.start			= rtw_ops_start,
@@ -557,5 +568,6 @@ const struct ieee80211_ops rtw_ops = {
 	.sw_scan_start		= rtw_ops_sw_scan_start,
 	.sw_scan_complete	= rtw_ops_sw_scan_complete,
 	.mgd_prepare_tx		= rtw_ops_mgd_prepare_tx,
+	.set_rts_threshold	= rtw_ops_set_rts_threshold,
 };
 EXPORT_SYMBOL(rtw_ops);
