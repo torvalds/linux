@@ -304,7 +304,7 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_regmap_add_irq_chip(&pdev->dev, chip->rmap, gpio_irq,
-				       IRQF_ONESHOT, -1,
+				       IRQF_ONESHOT, 0,
 				       &max77620_gpio_irq_chip,
 				       &chip->gpio_irq_data);
 	if (ret < 0) {
