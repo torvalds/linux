@@ -106,6 +106,8 @@ struct iwl_host_cmd;
  * @page: driver's pointer to the rxb page
  * @invalid: rxb is in driver ownership - not owned by HW
  * @vid: index of this rxb in the global table
+ * @offset: indicates which offset of the page (in bytes)
+ *	this buffer uses (if multiple RBs fit into one page)
  */
 struct iwl_rx_mem_buffer {
 	dma_addr_t page_dma;
@@ -113,6 +115,7 @@ struct iwl_rx_mem_buffer {
 	u16 vid;
 	bool invalid;
 	struct list_head list;
+	u32 offset;
 };
 
 /**
@@ -511,6 +514,11 @@ struct cont_rec {
  * @in_rescan: true if we have triggered a device rescan
  * @base_rb_stts: base virtual address of receive buffer status for all queues
  * @base_rb_stts_dma: base physical address of receive buffer status
+ * @supported_dma_mask: DMA mask to validate the actual address against,
+ *	will be DMA_BIT_MASK(11) or DMA_BIT_MASK(12) depending on the device
+ * @alloc_page_lock: spinlock for the page allocator
+ * @alloc_page: allocated page to still use parts of
+ * @alloc_page_used: how much of the allocated page was already used (bytes)
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
@@ -583,6 +591,12 @@ struct iwl_trans_pcie {
 	bool pcie_dbg_dumped_once;
 	u32 rx_page_order;
 	u32 rx_buf_bytes;
+	u32 supported_dma_mask;
+
+	/* allocator lock for the two values below */
+	spinlock_t alloc_page_lock;
+	struct page *alloc_page;
+	u32 alloc_page_used;
 
 	/*protect hw register */
 	spinlock_t reg_lock;
