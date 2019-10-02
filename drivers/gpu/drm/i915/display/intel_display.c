@@ -12556,10 +12556,10 @@ pipe_config_infoframe_mismatch(struct drm_i915_private *dev_priv,
 		if ((drm_debug & DRM_UT_KMS) == 0)
 			return;
 
-		drm_dbg(DRM_UT_KMS, "fastset mismatch in %s infoframe", name);
-		drm_dbg(DRM_UT_KMS, "expected:");
+		DRM_DEBUG_KMS("fastset mismatch in %s infoframe\n", name);
+		DRM_DEBUG_KMS("expected:\n");
 		hdmi_infoframe_log(KERN_DEBUG, dev_priv->drm.dev, a);
-		drm_dbg(DRM_UT_KMS, "found");
+		DRM_DEBUG_KMS("found:\n");
 		hdmi_infoframe_log(KERN_DEBUG, dev_priv->drm.dev, b);
 	} else {
 		DRM_ERROR("mismatch in %s infoframe\n", name);
@@ -12581,7 +12581,7 @@ pipe_config_mismatch(bool fastset, const char *name, const char *format, ...)
 	vaf.va = &args;
 
 	if (fastset)
-		drm_dbg(DRM_UT_KMS, "fastset mismatch in %s %pV", name, &vaf);
+		DRM_DEBUG_KMS("fastset mismatch in %s %pV\n", name, &vaf);
 	else
 		DRM_ERROR("mismatch in %s %pV\n", name, &vaf);
 
