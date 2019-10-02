@@ -628,7 +628,7 @@ void hubbub21_apply_DEDCN21_147_wa(struct hubbub *hubbub)
 static const struct hubbub_funcs hubbub21_funcs = {
 	.update_dchub = hubbub2_update_dchub,
 	.init_dchub_sys_ctx = hubbub21_init_dchub,
-	.init_vm_ctx = NULL,
+	.init_vm_ctx = hubbub2_init_vm_ctx,
 	.dcc_support_swizzle = hubbub2_dcc_support_swizzle,
 	.dcc_support_pixel_format = hubbub2_dcc_support_pixel_format,
 	.get_dcc_compression_cap = hubbub2_get_dcc_compression_cap,
