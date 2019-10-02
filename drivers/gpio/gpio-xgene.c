@@ -160,23 +160,17 @@ static int xgene_gpio_probe(struct platform_device *pdev)
 	int err = 0;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
-	if (!gpio) {
-		err = -ENOMEM;
-		goto err;
-	}
+	if (!gpio)
+		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		err = -EINVAL;
-		goto err;
-	}
+	if (!res)
+		return -EINVAL;
 
 	gpio->base = devm_ioremap_nocache(&pdev->dev, res->start,
 							resource_size(res));
-	if (!gpio->base) {
-		err = -ENOMEM;
-		goto err;
-	}
+	if (!gpio->base)
+		return -ENOMEM;
 
 	gpio->chip.ngpio = XGENE_MAX_GPIOS;
 
@@ -196,14 +190,11 @@ static int xgene_gpio_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev,
 			"failed to register gpiochip.\n");
-		goto err;
+		return err;
 	}
 
 	dev_info(&pdev->dev, "X-Gene GPIO driver registered.\n");
 	return 0;
-err:
-	dev_err(&pdev->dev, "X-Gene GPIO driver registration failed.\n");
-	return err;
 }
 
 static const struct of_device_id xgene_gpio_of_match[] = {
