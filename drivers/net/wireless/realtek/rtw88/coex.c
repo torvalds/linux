@@ -810,8 +810,6 @@ static void rtw_coex_ignore_wlan_act(struct rtw_dev *rtwdev, bool enable)
 static void rtw_coex_power_save_state(struct rtw_dev *rtwdev, u8 ps_type,
 				      u8 lps_val, u8 rpwm_val)
 {
-	struct rtw_lps_conf *lps_conf = &rtwdev->lps_conf;
-	struct rtw_vif *rtwvif;
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
 	u8 lps_mode = 0x0;
@@ -823,18 +821,14 @@ static void rtw_coex_power_save_state(struct rtw_dev *rtwdev, u8 ps_type,
 		/* recover to original 32k low power setting */
 		coex_stat->wl_force_lps_ctrl = false;
 
-		rtwvif = lps_conf->rtwvif;
-		if (rtwvif && rtw_in_lps(rtwdev))
-			rtw_leave_lps(rtwdev, rtwvif);
+		rtw_leave_lps(rtwdev);
 		break;
 	case COEX_PS_LPS_OFF:
 		coex_stat->wl_force_lps_ctrl = true;
 		if (lps_mode)
 			rtw_fw_coex_tdma_type(rtwdev, 0x8, 0, 0, 0, 0);
 
-		rtwvif = lps_conf->rtwvif;
-		if (rtwvif && rtw_in_lps(rtwdev))
-			rtw_leave_lps(rtwdev, rtwvif);
+		rtw_leave_lps(rtwdev);
 		break;
 	default:
 		break;

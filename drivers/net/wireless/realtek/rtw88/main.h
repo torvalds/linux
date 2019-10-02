@@ -533,8 +533,6 @@ enum rtw_pwr_state {
 };
 
 struct rtw_lps_conf {
-	/* the interface to enter lps */
-	struct rtw_vif *rtwvif;
 	enum rtw_lps_mode mode;
 	enum rtw_pwr_state state;
 	u8 awake_interval;

@@ -181,9 +181,9 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	 */
 	if (rtw_fw_support_lps &&
 	    data.rtwvif && !data.active && data.assoc_cnt == 1)
-		rtw_enter_lps(rtwdev, data.rtwvif);
+		rtw_enter_lps(rtwdev, data.rtwvif->port);
 	else
-		rtw_leave_lps(rtwdev, rtwdev->lps_conf.rtwvif);
+		rtw_leave_lps(rtwdev);
 
 	if (test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
 		return;
