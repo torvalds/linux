@@ -37,5 +37,14 @@ ENTRY(__efi_rt_asm_wrapper)
 	ldp	x29, x30, [sp], #32
 	b.ne	0f
 	ret
-0:	b	efi_handle_corrupted_x18	// tail call
+0:
+#ifdef CONFIG_SHADOW_CALL_STACK
+	/*
+	 * Restore x18 before returning to instrumented code. This is
+	 * safe because the wrapper is called with preemption disabled and
+	 * a separate shadow stack is used for interrupts.
+	 */
+	mov	x18, x2
+#endif
+	b	efi_handle_corrupted_x18	// tail call
 ENDPROC(__efi_rt_asm_wrapper)
