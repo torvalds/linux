@@ -110,40 +110,40 @@ allOf:
 examples:
   - |
     adc: adc@12d10000 {
-      compatible = "samsung,exynos-adc-v1";
-      reg = <0x12d10000 0x100>;
-      interrupts = <0 106 0>;
-      #io-channel-cells = <1>;
-      io-channel-ranges;
+        compatible = "samsung,exynos-adc-v1";
+        reg = <0x12d10000 0x100>;
+        interrupts = <0 106 0>;
+        #io-channel-cells = <1>;
+        io-channel-ranges;
 
-      clocks = <&clock 303>;
-      clock-names = "adc";
+        clocks = <&clock 303>;
+        clock-names = "adc";
 
-      vdd-supply = <&buck5_reg>;
-      samsung,syscon-phandle = <&pmu_system_controller>;
+        vdd-supply = <&buck5_reg>;
+        samsung,syscon-phandle = <&pmu_system_controller>;
 
-      /* NTC thermistor is a hwmon device */
-      ncp15wb473@0 {
-        compatible = "murata,ncp15wb473";
-        pullup-uv = <1800000>;
-        pullup-ohm = <47000>;
-        pulldown-ohm = <0>;
-        io-channels = <&adc 4>;
-      };
+        /* NTC thermistor is a hwmon device */
+        ncp15wb473@0 {
+            compatible = "murata,ncp15wb473";
+            pullup-uv = <1800000>;
+            pullup-ohm = <47000>;
+            pulldown-ohm = <0>;
+            io-channels = <&adc 4>;
+          };
     };
 
   - |
     adc@126c0000 {
-      compatible = "samsung,exynos3250-adc";
-      reg = <0x126C0000 0x100>;
-      interrupts = <0 137 0>;
-      #io-channel-cells = <1>;
-      io-channel-ranges;
+        compatible = "samsung,exynos3250-adc";
+        reg = <0x126C0000 0x100>;
+        interrupts = <0 137 0>;
+        #io-channel-cells = <1>;
+        io-channel-ranges;
 
-      clocks = <&cmu 0>, // CLK_TSADC
-               <&cmu 1>; // CLK_SCLK_TSADC
-      clock-names = "adc", "sclk";
+        clocks = <&cmu 0>, // CLK_TSADC
+                 <&cmu 1>; // CLK_SCLK_TSADC
+        clock-names = "adc", "sclk";
 
-      vdd-supply = <&buck5_reg>;
-      samsung,syscon-phandle = <&pmu_system_controller>;
+        vdd-supply = <&buck5_reg>;
+        samsung,syscon-phandle = <&pmu_system_controller>;
     };

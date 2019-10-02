@@ -53,8 +53,8 @@ allOf:
 examples:
   - |
     poweroff {
-      compatible = "syscon-poweroff";
-      regmap = <&regmapnode>;
-      offset = <0x0>;
-      mask = <0x7a>;
+        compatible = "syscon-poweroff";
+        regmap = <&regmapnode>;
+        offset = <0x0>;
+        mask = <0x7a>;
     };

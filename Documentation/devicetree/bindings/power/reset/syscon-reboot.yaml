@@ -53,8 +53,8 @@ allOf:
 examples:
   - |
     reboot {
-      compatible = "syscon-reboot";
-      regmap = <&regmapnode>;
-      offset = <0x0>;
-      mask = <0x1>;
+        compatible = "syscon-reboot";
+        regmap = <&regmapnode>;
+        offset = <0x0>;
+        mask = <0x1>;
     };
