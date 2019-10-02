@@ -55,7 +55,7 @@ Example:
 
 	dmc: memory-controller@10c20000 {
 		compatible = "samsung,exynos5422-dmc";
-		reg = <0x10c20000 0x100>, <0x10c30000 0x100>,
+		reg = <0x10c20000 0x10000>, <0x10c30000 0x10000>;
 		clocks = <&clock CLK_FOUT_SPLL>,
 			 <&clock CLK_MOUT_SCLK_SPLL>,
 			 <&clock CLK_FF_DOUT_SPLL2>,
@@ -63,7 +63,7 @@ Example:
 			 <&clock CLK_MOUT_BPLL>,
 			 <&clock CLK_SCLK_BPLL>,
 			 <&clock CLK_MOUT_MX_MSPLL_CCORE>,
-			 <&clock CLK_MOUT_MCLK_CDREX>,
+			 <&clock CLK_MOUT_MCLK_CDREX>;
 		clock-names = "fout_spll",
 			      "mout_sclk_spll",
 			      "ff_dout_spll2",
@@ -71,10 +71,10 @@ Example:
 			      "mout_bpll",
 			      "sclk_bpll",
 			      "mout_mx_mspll_ccore",
-			      "mout_mclk_cdrex",
+			      "mout_mclk_cdrex";
 		operating-points-v2 = <&dmc_opp_table>;
 		devfreq-events = <&ppmu_event3_dmc0_0>,	<&ppmu_event3_dmc0_1>,
-				<&ppmu_event3_dmc1_0>, <&ppmu_event3_dmc1_1>;
+				 <&ppmu_event3_dmc1_0>, <&ppmu_event3_dmc1_1>;
 		device-handle = <&samsung_K3QF2F20DB>;
 		vdd-supply = <&buck1_reg>;
 		samsung,syscon-clk = <&clock>;
