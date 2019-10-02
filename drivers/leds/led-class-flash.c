@@ -327,6 +327,56 @@ void led_classdev_flash_unregister(struct led_classdev_flash *fled_cdev)
 }
 EXPORT_SYMBOL_GPL(led_classdev_flash_unregister);
 
+static void devm_led_classdev_flash_release(struct device *dev, void *res)
+{
+	led_classdev_flash_unregister(*(struct led_classdev_flash **)res);
+}
+
+int devm_led_classdev_flash_register_ext(struct device *parent,
+				     struct led_classdev_flash *fled_cdev,
+				     struct led_init_data *init_data)
+{
+	struct led_classdev_flash **dr;
+	int ret;
+
+	dr = devres_alloc(devm_led_classdev_flash_release, sizeof(*dr),
+			  GFP_KERNEL);
+	if (!dr)
+		return -ENOMEM;
+
+	ret = led_classdev_flash_register_ext(parent, fled_cdev, init_data);
+	if (ret) {
+		devres_free(dr);
+		return ret;
+	}
+
+	*dr = fled_cdev;
+	devres_add(parent, dr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_led_classdev_flash_register_ext);
+
+static int devm_led_classdev_flash_match(struct device *dev,
+					      void *res, void *data)
+{
+	struct led_classdev_flash **p = res;
+
+	if (WARN_ON(!p || !*p))
+		return 0;
+
+	return *p == data;
+}
+
+void devm_led_classdev_flash_unregister(struct device *dev,
+					struct led_classdev_flash *fled_cdev)
+{
+	WARN_ON(devres_release(dev,
+			       devm_led_classdev_flash_release,
+			       devm_led_classdev_flash_match, fled_cdev));
+}
+EXPORT_SYMBOL_GPL(devm_led_classdev_flash_unregister);
+
 static void led_clamp_align(struct led_flash_setting *s)
 {
 	u32 v, offset;
