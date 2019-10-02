@@ -27,8 +27,6 @@ void rtw_tx_stats(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 			rtwvif = (struct rtw_vif *)vif->drv_priv;
 			rtwvif->stats.tx_unicast += skb->len;
 			rtwvif->stats.tx_cnt++;
-			if (rtwvif->stats.tx_cnt > RTW_LPS_THRESHOLD)
-				rtw_leave_lps_irqsafe(rtwdev, rtwvif);
 		}
 	}
 }

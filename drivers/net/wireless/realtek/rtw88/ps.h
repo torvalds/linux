@@ -10,9 +10,6 @@
 int rtw_enter_ips(struct rtw_dev *rtwdev);
 int rtw_leave_ips(struct rtw_dev *rtwdev);
 
-void rtw_lps_work(struct work_struct *work);
-void rtw_enter_lps_irqsafe(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif);
-void rtw_leave_lps_irqsafe(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif);
 void rtw_enter_lps(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif);
 void rtw_leave_lps(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif);
 bool rtw_in_lps(struct rtw_dev *rtwdev);

@@ -182,6 +182,8 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	if (rtw_fw_support_lps &&
 	    data.rtwvif && !data.active && data.assoc_cnt == 1)
 		rtw_enter_lps(rtwdev, data.rtwvif);
+	else
+		rtw_leave_lps(rtwdev, rtwdev->lps_conf.rtwvif);
 
 	if (test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
 		return;
@@ -1152,7 +1154,6 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 		    rtw_tx_report_purge_timer, 0);
 
 	INIT_DELAYED_WORK(&rtwdev->watch_dog_work, rtw_watch_dog_work);
-	INIT_DELAYED_WORK(&rtwdev->lps_work, rtw_lps_work);
 	INIT_DELAYED_WORK(&coex->bt_relink_work, rtw_coex_bt_relink_work);
 	INIT_DELAYED_WORK(&coex->bt_reenable_work, rtw_coex_bt_reenable_work);
 	INIT_DELAYED_WORK(&coex->defreeze_work, rtw_coex_defreeze_work);

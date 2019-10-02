@@ -1361,7 +1361,6 @@ struct rtw_dev {
 
 	/* lps power state & handler work */
 	struct rtw_lps_conf lps_conf;
-	struct delayed_work lps_work;
 
 	struct dentry *debugfs;
 
