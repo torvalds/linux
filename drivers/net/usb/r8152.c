@@ -736,16 +736,16 @@ struct r8152 {
 	struct tasklet_struct tx_tl;
 
 	struct rtl_ops {
-		void (*init)(struct r8152 *);
-		int (*enable)(struct r8152 *);
-		void (*disable)(struct r8152 *);
-		void (*up)(struct r8152 *);
-		void (*down)(struct r8152 *);
-		void (*unload)(struct r8152 *);
-		int (*eee_get)(struct r8152 *, struct ethtool_eee *);
-		int (*eee_set)(struct r8152 *, struct ethtool_eee *);
-		bool (*in_nway)(struct r8152 *);
-		void (*hw_phy_cfg)(struct r8152 *);
+		void (*init)(struct r8152 *tp);
+		int (*enable)(struct r8152 *tp);
+		void (*disable)(struct r8152 *tp);
+		void (*up)(struct r8152 *tp);
+		void (*down)(struct r8152 *tp);
+		void (*unload)(struct r8152 *tp);
+		int (*eee_get)(struct r8152 *tp, struct ethtool_eee *eee);
+		int (*eee_set)(struct r8152 *tp, struct ethtool_eee *eee);
+		bool (*in_nway)(struct r8152 *tp);
+		void (*hw_phy_cfg)(struct r8152 *tp);
 		void (*autosuspend_en)(struct r8152 *tp, bool enable);
 	} rtl_ops;
 
@@ -5603,7 +5603,8 @@ static int rtl8152_probe(struct usb_interface *intf,
 	}
 
 	if (le16_to_cpu(udev->descriptor.bcdDevice) == 0x3011 && udev->serial &&
-	    (!strcmp(udev->serial, "000001000000") || !strcmp(udev->serial, "000002000000"))) {
+	    (!strcmp(udev->serial, "000001000000") ||
+	     !strcmp(udev->serial, "000002000000"))) {
 		dev_info(&udev->dev, "Dell TB16 Dock, disable RX aggregation");
 		set_bit(DELL_TB_RX_AGG_BUG, &tp->flags);
 	}
