@@ -578,6 +578,17 @@ static int rtw_ops_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	return 0;
 }
 
+static void rtw_ops_sta_statistics(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_sta *sta,
+				   struct station_info *sinfo)
+{
+	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
+
+	sinfo->txrate = si->ra_report.txrate;
+	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
+}
+
 const struct ieee80211_ops rtw_ops = {
 	.tx			= rtw_ops_tx,
 	.wake_tx_queue		= rtw_ops_wake_tx_queue,
@@ -596,5 +607,6 @@ const struct ieee80211_ops rtw_ops = {
 	.sw_scan_complete	= rtw_ops_sw_scan_complete,
 	.mgd_prepare_tx		= rtw_ops_mgd_prepare_tx,
 	.set_rts_threshold	= rtw_ops_set_rts_threshold,
+	.sta_statistics		= rtw_ops_sta_statistics,
 };
 EXPORT_SYMBOL(rtw_ops);

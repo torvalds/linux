@@ -592,6 +592,12 @@ struct rtw_tx_report {
 	struct timer_list purge_timer;
 };
 
+struct rtw_ra_report {
+	struct rate_info txrate;
+	u32 bit_rate;
+	u8 desc_rate;
+};
+
 struct rtw_txq {
 	struct list_head list;
 
@@ -623,6 +629,8 @@ struct rtw_sta_info {
 	u64 ra_mask;
 
 	DECLARE_BITMAP(tid_ba, IEEE80211_NUM_TIDS);
+
+	struct rtw_ra_report ra_report;
 };
 
 struct rtw_vif {
@@ -1430,6 +1438,7 @@ bool ltecoex_read_reg(struct rtw_dev *rtwdev, u16 offset, u32 *val);
 bool ltecoex_reg_write(struct rtw_dev *rtwdev, u16 offset, u32 value);
 void rtw_restore_reg(struct rtw_dev *rtwdev,
 		     struct rtw_backup_info *bckp, u32 num);
+void rtw_desc_to_mcsrate(u16 rate, u8 *mcs, u8 *nss);
 void rtw_set_channel(struct rtw_dev *rtwdev);
 void rtw_vif_port_config(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif,
 			 u32 config);
@@ -1442,5 +1451,6 @@ int rtw_core_init(struct rtw_dev *rtwdev);
 void rtw_core_deinit(struct rtw_dev *rtwdev);
 int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw);
 void rtw_unregister_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw);
+u16 rtw_desc_to_bitrate(u8 desc_rate);
 
 #endif

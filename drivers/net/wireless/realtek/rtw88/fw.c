@@ -9,6 +9,7 @@
 #include "reg.h"
 #include "sec.h"
 #include "debug.h"
+#include "util.h"
 
 static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
 				      struct sk_buff *skb)
@@ -26,6 +27,75 @@ static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
 	default:
 		break;
 	}
+}
+
+struct rtw_fw_iter_ra_data {
+	struct rtw_dev *rtwdev;
+	u8 *payload;
+};
+
+static void rtw_fw_ra_report_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtw_fw_iter_ra_data *ra_data = data;
+	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
+	u8 mac_id, rate, sgi, bw;
+	u8 mcs, nss;
+	u32 bit_rate;
+
+	mac_id = GET_RA_REPORT_MACID(ra_data->payload);
+	if (si->mac_id != mac_id)
+		return;
+
+	si->ra_report.txrate.flags = 0;
+
+	rate = GET_RA_REPORT_RATE(ra_data->payload);
+	sgi = GET_RA_REPORT_SGI(ra_data->payload);
+	bw = GET_RA_REPORT_BW(ra_data->payload);
+
+	if (rate < DESC_RATEMCS0) {
+		si->ra_report.txrate.legacy = rtw_desc_to_bitrate(rate);
+		goto legacy;
+	}
+
+	rtw_desc_to_mcsrate(rate, &mcs, &nss);
+	if (rate >= DESC_RATEVHT1SS_MCS0)
+		si->ra_report.txrate.flags |= RATE_INFO_FLAGS_VHT_MCS;
+	else if (rate >= DESC_RATEMCS0)
+		si->ra_report.txrate.flags |= RATE_INFO_FLAGS_MCS;
+
+	if (rate >= DESC_RATEMCS0) {
+		si->ra_report.txrate.mcs = mcs;
+		si->ra_report.txrate.nss = nss;
+	}
+
+	if (sgi)
+		si->ra_report.txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
+
+	if (bw == RTW_CHANNEL_WIDTH_80)
+		si->ra_report.txrate.bw = RATE_INFO_BW_80;
+	else if (bw == RTW_CHANNEL_WIDTH_40)
+		si->ra_report.txrate.bw = RATE_INFO_BW_40;
+	else
+		si->ra_report.txrate.bw = RATE_INFO_BW_20;
+
+legacy:
+	bit_rate = cfg80211_calculate_bitrate(&si->ra_report.txrate);
+
+	si->ra_report.desc_rate = rate;
+	si->ra_report.bit_rate = bit_rate;
+}
+
+static void rtw_fw_ra_report_handle(struct rtw_dev *rtwdev, u8 *payload,
+				    u8 length)
+{
+	struct rtw_fw_iter_ra_data ra_data;
+
+	if (WARN(length < 7, "invalid ra report c2h length\n"))
+		return;
+
+	ra_data.rtwdev = rtwdev;
+	ra_data.payload = payload;
+	rtw_iterate_stas_atomic(rtwdev, rtw_fw_ra_report_iter, &ra_data);
 }
 
 void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
@@ -49,6 +119,9 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 		break;
 	case C2H_HALMAC:
 		rtw_fw_c2h_cmd_handle_ext(rtwdev, skb);
+		break;
+	case C2H_RA_RPT:
+		rtw_fw_ra_report_handle(rtwdev, c2h->payload, len);
 		break;
 	default:
 		break;

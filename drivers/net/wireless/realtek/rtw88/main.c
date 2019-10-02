@@ -86,6 +86,18 @@ static struct ieee80211_rate rtw_ratetable[] = {
 	{.bitrate = 540, .hw_value = 0x0b,},
 };
 
+u16 rtw_desc_to_bitrate(u8 desc_rate)
+{
+	struct ieee80211_rate rate;
+
+	if (WARN(desc_rate >= ARRAY_SIZE(rtw_ratetable), "invalid desc rate\n"))
+		return 0;
+
+	rate = rtw_ratetable[desc_rate];
+
+	return rate.bitrate;
+}
+
 static struct ieee80211_supported_band rtw_band_2ghz = {
 	.band = NL80211_BAND_2GHZ,
 

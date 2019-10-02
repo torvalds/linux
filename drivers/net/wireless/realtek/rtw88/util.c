@@ -70,3 +70,30 @@ void rtw_restore_reg(struct rtw_dev *rtwdev,
 		}
 	}
 }
+
+void rtw_desc_to_mcsrate(u16 rate, u8 *mcs, u8 *nss)
+{
+	if (rate <= DESC_RATE54M)
+		return;
+
+	if (rate >= DESC_RATEVHT1SS_MCS0 &&
+	    rate <= DESC_RATEVHT1SS_MCS9) {
+		*nss = 1;
+		*mcs = rate - DESC_RATEVHT1SS_MCS0;
+	} else if (rate >= DESC_RATEVHT2SS_MCS0 &&
+		   rate <= DESC_RATEVHT2SS_MCS9) {
+		*nss = 2;
+		*mcs = rate - DESC_RATEVHT2SS_MCS0;
+	} else if (rate >= DESC_RATEVHT3SS_MCS0 &&
+		   rate <= DESC_RATEVHT3SS_MCS9) {
+		*nss = 3;
+		*mcs = rate - DESC_RATEVHT3SS_MCS0;
+	} else if (rate >= DESC_RATEVHT4SS_MCS0 &&
+		   rate <= DESC_RATEVHT4SS_MCS9) {
+		*nss = 4;
+		*mcs = rate - DESC_RATEVHT4SS_MCS0;
+	} else if (rate >= DESC_RATEMCS0 &&
+		   rate <= DESC_RATEMCS15) {
+		*mcs = rate - DESC_RATEMCS0;
+	}
+}

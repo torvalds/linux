@@ -36,6 +36,7 @@
 enum rtw_c2h_cmd_id {
 	C2H_BT_INFO = 0x09,
 	C2H_BT_MP_INFO = 0x0b,
+	C2H_RA_RPT = 0x0c,
 	C2H_HW_FEATURE_REPORT = 0x19,
 	C2H_WLAN_INFO = 0x27,
 	C2H_HW_FEATURE_DUMP = 0xfd,
@@ -118,6 +119,11 @@ struct rtw_rsvd_page {
 /* C2H */
 #define GET_CCX_REPORT_SEQNUM(c2h_payload)	(c2h_payload[8] & 0xfc)
 #define GET_CCX_REPORT_STATUS(c2h_payload)	(c2h_payload[9] & 0xc0)
+
+#define GET_RA_REPORT_RATE(c2h_payload)		(c2h_payload[0] & 0x7f)
+#define GET_RA_REPORT_SGI(c2h_payload)		((c2h_payload[0] & 0x80) >> 7)
+#define GET_RA_REPORT_BW(c2h_payload)		(c2h_payload[6])
+#define GET_RA_REPORT_MACID(c2h_payload)	(c2h_payload[1])
 
 /* PKT H2C */
 #define H2C_PKT_CMD_ID 0xFF

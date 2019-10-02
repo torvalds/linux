@@ -103,25 +103,9 @@ void rtw_rx_fill_rx_status(struct rtw_dev *rtwdev,
 	else if (pkt_stat->rate >= DESC_RATEMCS0)
 		rx_status->encoding = RX_ENC_HT;
 
-	if (pkt_stat->rate >= DESC_RATEVHT1SS_MCS0 &&
-	    pkt_stat->rate <= DESC_RATEVHT1SS_MCS9) {
-		rx_status->nss = 1;
-		rx_status->rate_idx = pkt_stat->rate - DESC_RATEVHT1SS_MCS0;
-	} else if (pkt_stat->rate >= DESC_RATEVHT2SS_MCS0 &&
-		   pkt_stat->rate <= DESC_RATEVHT2SS_MCS9) {
-		rx_status->nss = 2;
-		rx_status->rate_idx = pkt_stat->rate - DESC_RATEVHT2SS_MCS0;
-	} else if (pkt_stat->rate >= DESC_RATEVHT3SS_MCS0 &&
-		   pkt_stat->rate <= DESC_RATEVHT3SS_MCS9) {
-		rx_status->nss = 3;
-		rx_status->rate_idx = pkt_stat->rate - DESC_RATEVHT3SS_MCS0;
-	} else if (pkt_stat->rate >= DESC_RATEVHT4SS_MCS0 &&
-		   pkt_stat->rate <= DESC_RATEVHT4SS_MCS9) {
-		rx_status->nss = 4;
-		rx_status->rate_idx = pkt_stat->rate - DESC_RATEVHT4SS_MCS0;
-	} else if (pkt_stat->rate >= DESC_RATEMCS0 &&
-		   pkt_stat->rate <= DESC_RATEMCS15) {
-		rx_status->rate_idx = pkt_stat->rate - DESC_RATEMCS0;
+	if (pkt_stat->rate >= DESC_RATEMCS0) {
+		rtw_desc_to_mcsrate(pkt_stat->rate, &rx_status->rate_idx,
+				    &rx_status->nss);
 	} else if (rx_status->band == NL80211_BAND_5GHZ &&
 		   pkt_stat->rate >= DESC_RATE6M &&
 		   pkt_stat->rate <= DESC_RATE54M) {
