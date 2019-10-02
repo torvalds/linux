@@ -899,12 +899,10 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
 	intel_encoder->port = PORT_NONE;
 	intel_encoder->cloneable = 0;
-	if (HAS_PCH_SPLIT(dev_priv))
-		intel_encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
-	else if (IS_GEN(dev_priv, 4))
-		intel_encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B);
-	else
+	if (INTEL_GEN(dev_priv) < 4)
 		intel_encoder->crtc_mask = BIT(PIPE_B);
+	else
+		intel_encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
 
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
