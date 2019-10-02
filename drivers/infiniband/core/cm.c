@@ -246,7 +246,7 @@ struct cm_work {
 };
 
 struct cm_timewait_info {
-	struct cm_work work;			/* Must be first. */
+	struct cm_work work;
 	struct list_head list;
 	struct rb_node remote_qp_node;
 	struct rb_node remote_id_node;
@@ -3434,7 +3434,7 @@ static int cm_timewait_handler(struct cm_work *work)
 	struct cm_id_private *cm_id_priv;
 	int ret;
 
-	timewait_info = (struct cm_timewait_info *)work;
+	timewait_info = container_of(work, struct cm_timewait_info, work);
 	spin_lock_irq(&cm.lock);
 	list_del(&timewait_info->list);
 	spin_unlock_irq(&cm.lock);
