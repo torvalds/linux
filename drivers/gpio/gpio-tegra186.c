@@ -53,6 +53,7 @@ struct tegra_gpio_soc {
 	const struct tegra_gpio_port *ports;
 	unsigned int num_ports;
 	const char *name;
+	unsigned int instance;
 };
 
 struct tegra_gpio {
@@ -327,7 +328,7 @@ static int tegra186_irq_set_type(struct irq_data *data, unsigned int type)
 	else
 		irq_set_handler_locked(data, handle_edge_irq);
 
-	return 0;
+	return irq_chip_set_type_parent(data, type);
 }
 
 static void tegra186_gpio_irq(struct irq_desc *desc)
@@ -367,39 +368,80 @@ skip:
 	chained_irq_exit(chip, desc);
 }
 
-static int tegra186_gpio_irq_domain_xlate(struct irq_domain *domain,
-					  struct device_node *np,
-					  const u32 *spec, unsigned int size,
-					  unsigned long *hwirq,
-					  unsigned int *type)
+static int tegra186_gpio_irq_domain_translate(struct irq_domain *domain,
+					      struct irq_fwspec *fwspec,
+					      unsigned long *hwirq,
+					      unsigned int *type)
 {
 	struct tegra_gpio *gpio = gpiochip_get_data(domain->host_data);
 	unsigned int port, pin, i, offset = 0;
 
-	if (size < 2)
+	if (WARN_ON(gpio->gpio.of_gpio_n_cells < 2))
 		return -EINVAL;
 
-	port = spec[0] / 8;
-	pin = spec[0] % 8;
-
-	if (port >= gpio->soc->num_ports) {
-		dev_err(gpio->gpio.parent, "invalid port number: %u\n", port);
+	if (WARN_ON(fwspec->param_count < gpio->gpio.of_gpio_n_cells))
 		return -EINVAL;
-	}
+
+	port = fwspec->param[0] / 8;
+	pin = fwspec->param[0] % 8;
+
+	if (port >= gpio->soc->num_ports)
+		return -EINVAL;
 
 	for (i = 0; i < port; i++)
 		offset += gpio->soc->ports[i].pins;
 
-	*type = spec[1] & IRQ_TYPE_SENSE_MASK;
+	*type = fwspec->param[1] & IRQ_TYPE_SENSE_MASK;
 	*hwirq = offset + pin;
 
 	return 0;
 }
 
-static const struct irq_domain_ops tegra186_gpio_irq_domain_ops = {
-	.map = gpiochip_irq_map,
-	.unmap = gpiochip_irq_unmap,
-	.xlate = tegra186_gpio_irq_domain_xlate,
+static void tegra186_gpio_populate_parent_fwspec(struct gpio_chip *chip,
+						 struct irq_fwspec *fwspec,
+						 unsigned int parent_hwirq,
+						 unsigned int parent_type)
+{
+	struct tegra_gpio *gpio = gpiochip_get_data(chip);
+
+	fwspec->param_count = 3;
+	fwspec->param[0] = gpio->soc->instance;
+	fwspec->param[1] = parent_hwirq;
+	fwspec->param[2] = parent_type;
+}
+
+static int tegra186_gpio_child_to_parent_hwirq(struct gpio_chip *chip,
+					       unsigned int hwirq,
+					       unsigned int type,
+					       unsigned int *parent_hwirq,
+					       unsigned int *parent_type)
+{
+	*parent_hwirq = chip->irq.child_offset_to_irq(chip, hwirq);
+	*parent_type = type;
+
+	return 0;
+}
+
+static unsigned int tegra186_gpio_child_offset_to_irq(struct gpio_chip *chip,
+						      unsigned int offset)
+{
+	struct tegra_gpio *gpio = gpiochip_get_data(chip);
+	unsigned int i;
+
+	for (i = 0; i < gpio->soc->num_ports; i++) {
+		if (offset < gpio->soc->ports[i].pins)
+			break;
+
+		offset -= gpio->soc->ports[i].pins;
+	}
+
+	return offset + i * 8;
+}
+
+static const struct of_device_id tegra186_pmc_of_match[] = {
+	{ .compatible = "nvidia,tegra186-pmc" },
+	{ .compatible = "nvidia,tegra194-pmc" },
+	{ /* sentinel */ }
 };
 
 static int tegra186_gpio_probe(struct platform_device *pdev)
@@ -407,6 +449,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	unsigned int i, j, offset;
 	struct gpio_irq_chip *irq;
 	struct tegra_gpio *gpio;
+	struct device_node *np;
 	struct resource *res;
 	char **names;
 	int err;
@@ -487,16 +530,30 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	gpio->intc.irq_mask = tegra186_irq_mask;
 	gpio->intc.irq_unmask = tegra186_irq_unmask;
 	gpio->intc.irq_set_type = tegra186_irq_set_type;
+	gpio->intc.irq_set_wake = irq_chip_set_wake_parent;
 
 	irq = &gpio->gpio.irq;
 	irq->chip = &gpio->intc;
-	irq->domain_ops = &tegra186_gpio_irq_domain_ops;
+	irq->fwnode = of_node_to_fwnode(pdev->dev.of_node);
+	irq->child_to_parent_hwirq = tegra186_gpio_child_to_parent_hwirq;
+	irq->populate_parent_fwspec = tegra186_gpio_populate_parent_fwspec;
+	irq->child_offset_to_irq = tegra186_gpio_child_offset_to_irq;
+	irq->child_irq_domain_ops.translate = tegra186_gpio_irq_domain_translate;
 	irq->handler = handle_simple_irq;
 	irq->default_type = IRQ_TYPE_NONE;
 	irq->parent_handler = tegra186_gpio_irq;
 	irq->parent_handler_data = gpio;
 	irq->num_parents = gpio->num_irq;
 	irq->parents = gpio->irq;
+
+	np = of_find_matching_node(NULL, tegra186_pmc_of_match);
+	if (np) {
+		irq->parent_domain = irq_find_host(np);
+		of_node_put(np);
+
+		if (!irq->parent_domain)
+			return -EPROBE_DEFER;
+	}
 
 	irq->map = devm_kcalloc(&pdev->dev, gpio->gpio.ngpio,
 				sizeof(*irq->map), GFP_KERNEL);
@@ -564,6 +621,7 @@ static const struct tegra_gpio_soc tegra186_main_soc = {
 	.num_ports = ARRAY_SIZE(tegra186_main_ports),
 	.ports = tegra186_main_ports,
 	.name = "tegra186-gpio",
+	.instance = 0,
 };
 
 #define TEGRA186_AON_GPIO_PORT(port, base, count, controller)	\
@@ -589,6 +647,7 @@ static const struct tegra_gpio_soc tegra186_aon_soc = {
 	.num_ports = ARRAY_SIZE(tegra186_aon_ports),
 	.ports = tegra186_aon_ports,
 	.name = "tegra186-gpio-aon",
+	.instance = 1,
 };
 
 #define TEGRA194_MAIN_GPIO_PORT(port, base, count, controller)	\
@@ -634,6 +693,7 @@ static const struct tegra_gpio_soc tegra194_main_soc = {
 	.num_ports = ARRAY_SIZE(tegra194_main_ports),
 	.ports = tegra194_main_ports,
 	.name = "tegra194-gpio",
+	.instance = 0,
 };
 
 #define TEGRA194_AON_GPIO_PORT(port, base, count, controller)	\
@@ -656,6 +716,7 @@ static const struct tegra_gpio_soc tegra194_aon_soc = {
 	.num_ports = ARRAY_SIZE(tegra194_aon_ports),
 	.ports = tegra194_aon_ports,
 	.name = "tegra194-gpio-aon",
+	.instance = 1,
 };
 
 static const struct of_device_id tegra186_gpio_of_match[] = {

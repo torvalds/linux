@@ -539,6 +539,7 @@ config GPIO_TEGRA186
 	depends on ARCH_TEGRA_186_SOC || COMPILE_TEST
 	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
+	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Say yes here to support GPIO pins on NVIDIA Tegra186 SoCs.
 
