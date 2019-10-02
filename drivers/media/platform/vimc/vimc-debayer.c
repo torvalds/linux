@@ -9,16 +9,11 @@
 #include <linux/platform_device.h>
 #include <linux/vmalloc.h>
 #include <linux/v4l2-mediabus.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-subdev.h>
 
 #include "vimc-common.h"
-
-static unsigned int deb_mean_win_size = 3;
-module_param(deb_mean_win_size, uint, 0000);
-MODULE_PARM_DESC(deb_mean_win_size, " the window size to calculate the mean.\n"
-	"NOTE: the window size needs to be an odd number, as the main pixel "
-	"stays in the center of the window, otherwise the next odd number "
-	"is considered");
 
 enum vimc_deb_rgb_colors {
 	VIMC_DEB_RED = 0,
@@ -43,6 +38,8 @@ struct vimc_deb_device {
 	u8 *src_frame;
 	const struct vimc_deb_pix_map *sink_pix_map;
 	unsigned int sink_bpp;
+	unsigned int mean_win_size;
+	struct v4l2_ctrl_handler hdl;
 	struct media_pad pads[2];
 };
 
@@ -344,11 +341,18 @@ static int vimc_deb_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
+static const struct v4l2_subdev_core_ops vimc_deb_core_ops = {
+	.log_status = v4l2_ctrl_subdev_log_status,
+	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+};
+
 static const struct v4l2_subdev_video_ops vimc_deb_video_ops = {
 	.s_stream = vimc_deb_s_stream,
 };
 
 static const struct v4l2_subdev_ops vimc_deb_ops = {
+	.core = &vimc_deb_core_ops,
 	.pad = &vimc_deb_pad_ops,
 	.video = &vimc_deb_video_ops,
 };
@@ -382,7 +386,7 @@ static void vimc_deb_calc_rgb_sink(struct vimc_deb_device *vdeb,
 	 * the top left corner of the mean window (considering the current
 	 * pixel as the center)
 	 */
-	seek = deb_mean_win_size / 2;
+	seek = vdeb->mean_win_size / 2;
 
 	/* Sum the values of the colors in the mean window */
 
@@ -469,14 +473,33 @@ static void *vimc_deb_process_frame(struct vimc_ent_device *ved,
 		}
 
 	return vdeb->src_frame;
-
 }
+
+static int vimc_deb_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct vimc_deb_device *vdeb =
+		container_of(ctrl->handler, struct vimc_deb_device, hdl);
+
+	switch (ctrl->id) {
+	case VIMC_CID_MEAN_WIN_SIZE:
+		vdeb->mean_win_size = ctrl->val;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops vimc_deb_ctrl_ops = {
+	.s_ctrl = vimc_deb_s_ctrl,
+};
 
 static void vimc_deb_release(struct v4l2_subdev *sd)
 {
 	struct vimc_deb_device *vdeb =
 				container_of(sd, struct vimc_deb_device, sd);
 
+	v4l2_ctrl_handler_free(&vdeb->hdl);
 	media_entity_cleanup(vdeb->ved.ent);
 	kfree(vdeb);
 }
@@ -493,6 +516,24 @@ void vimc_deb_rm(struct vimc_device *vimc, struct vimc_ent_device *ved)
 	v4l2_device_unregister_subdev(&vdeb->sd);
 }
 
+static const struct v4l2_ctrl_config vimc_deb_ctrl_class = {
+	.flags = V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY,
+	.id = VIMC_CID_VIMC_CLASS,
+	.name = "VIMC Controls",
+	.type = V4L2_CTRL_TYPE_CTRL_CLASS,
+};
+
+static const struct v4l2_ctrl_config vimc_deb_ctrl_mean_win_size = {
+	.ops = &vimc_deb_ctrl_ops,
+	.id = VIMC_CID_MEAN_WIN_SIZE,
+	.name = "Debayer Mean Window Size",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 1,
+	.max = 25,
+	.step = 2,
+	.def = 3,
+};
+
 struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
 				     const char *vcfg_name)
 {
@@ -505,6 +546,16 @@ struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
 	if (!vdeb)
 		return NULL;
 
+	/* Create controls: */
+	v4l2_ctrl_handler_init(&vdeb->hdl, 2);
+	v4l2_ctrl_new_custom(&vdeb->hdl, &vimc_deb_ctrl_class, NULL);
+	v4l2_ctrl_new_custom(&vdeb->hdl, &vimc_deb_ctrl_mean_win_size, NULL);
+	vdeb->sd.ctrl_handler = &vdeb->hdl;
+	if (vdeb->hdl.error) {
+		ret = vdeb->hdl.error;
+		goto err_free_vdeb;
+	}
+
 	/* Initialize ved and sd */
 	vdeb->pads[0].flags = MEDIA_PAD_FL_SINK;
 	vdeb->pads[1].flags = MEDIA_PAD_FL_SOURCE;
@@ -514,13 +565,12 @@ struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
 				   MEDIA_ENT_F_PROC_VIDEO_PIXEL_ENC_CONV, 2,
 				   vdeb->pads,
 				   &vimc_deb_int_ops, &vimc_deb_ops);
-	if (ret) {
-		kfree(vdeb);
-		return NULL;
-	}
+	if (ret)
+		goto err_free_hdl;
 
 	vdeb->ved.process_frame = vimc_deb_process_frame;
 	vdeb->ved.dev = &vimc->pdev.dev;
+	vdeb->mean_win_size = vimc_deb_ctrl_mean_win_size.def;
 
 	/* Initialize the frame format */
 	vdeb->sink_fmt = sink_fmt_default;
@@ -534,4 +584,11 @@ struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
 	vdeb->set_rgb_src = vimc_deb_set_rgb_mbus_fmt_rgb888_1x24;
 
 	return &vdeb->ved;
+
+err_free_hdl:
+	v4l2_ctrl_handler_free(&vdeb->hdl);
+err_free_vdeb:
+	kfree(vdeb);
+
+	return NULL;
 }

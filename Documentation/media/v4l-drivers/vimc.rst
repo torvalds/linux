@@ -80,9 +80,7 @@ vimc-capture:
 Module options
 --------------
 
-Vimc has a few module parameters to configure the driver.
-
-        param=value
+Vimc has a module parameter to configure the driver.
 
 * ``sca_mult=<unsigned int>``
 
@@ -90,12 +88,6 @@ Vimc has a few module parameters to configure the driver.
         height, so the image size will be ``sca_mult^2`` bigger than the
         original one. Currently, only supports scaling up (the default value
         is 3).
-
-* ``deb_mean_win_size=<unsigned int>``
-
-        Window size to calculate the mean. Note: the window size needs to be an
-        odd number, as the main pixel stays in the center of the window,
-        otherwise the next odd number is considered (the default value is 3).
 
 Source code documentation
 -------------------------
