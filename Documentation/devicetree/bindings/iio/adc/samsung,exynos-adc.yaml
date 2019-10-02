@@ -133,6 +133,8 @@ examples:
     };
 
   - |
+    #include <dt-bindings/clock/exynos3250.h>
+
     adc@126c0000 {
         compatible = "samsung,exynos3250-adc";
         reg = <0x126C0000 0x100>;
@@ -140,8 +142,8 @@ examples:
         #io-channel-cells = <1>;
         io-channel-ranges;
 
-        clocks = <&cmu 0>, // CLK_TSADC
-                 <&cmu 1>; // CLK_SCLK_TSADC
+        clocks = <&cmu CLK_TSADC>,
+                 <&cmu CLK_SCLK_TSADC>;
         clock-names = "adc", "sclk";
 
         vdd-supply = <&buck5_reg>;
