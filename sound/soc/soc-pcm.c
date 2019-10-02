@@ -2987,16 +2987,17 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	}
 
 	for_each_rtdcom(rtd, rtdcom) {
-		const struct snd_pcm_ops *ops = rtdcom->component->driver->ops;
+		const struct snd_soc_component_driver *drv = rtdcom->component->driver;
+		const struct snd_pcm_ops *ops = drv->ops;
 
 		if (!ops)
 			continue;
 
-		if (ops->copy_user)
+		if (ops->copy_user || drv->copy_user)
 			rtd->ops.copy_user	= snd_soc_pcm_component_copy_user;
-		if (ops->page)
+		if (ops->page || drv->page)
 			rtd->ops.page		= snd_soc_pcm_component_page;
-		if (ops->mmap)
+		if (ops->mmap || drv->mmap)
 			rtd->ops.mmap		= snd_soc_pcm_component_mmap;
 	}
 

@@ -70,6 +70,40 @@ struct snd_soc_component_driver {
 	int (*set_bias_level)(struct snd_soc_component *component,
 			      enum snd_soc_bias_level level);
 
+	int (*open)(struct snd_soc_component *component,
+		    struct snd_pcm_substream *substream);
+	int (*close)(struct snd_soc_component *component,
+		     struct snd_pcm_substream *substream);
+	int (*ioctl)(struct snd_soc_component *component,
+		     struct snd_pcm_substream *substream,
+		     unsigned int cmd, void *arg);
+	int (*hw_params)(struct snd_soc_component *component,
+			 struct snd_pcm_substream *substream,
+			 struct snd_pcm_hw_params *params);
+	int (*hw_free)(struct snd_soc_component *component,
+		       struct snd_pcm_substream *substream);
+	int (*prepare)(struct snd_soc_component *component,
+		       struct snd_pcm_substream *substream);
+	int (*trigger)(struct snd_soc_component *component,
+		       struct snd_pcm_substream *substream, int cmd);
+	snd_pcm_uframes_t (*pointer)(struct snd_soc_component *component,
+				     struct snd_pcm_substream *substream);
+	int (*get_time_info)(struct snd_soc_component *component,
+		struct snd_pcm_substream *substream, struct timespec *system_ts,
+		struct timespec *audio_ts,
+		struct snd_pcm_audio_tstamp_config *audio_tstamp_config,
+		struct snd_pcm_audio_tstamp_report *audio_tstamp_report);
+	int (*copy_user)(struct snd_soc_component *component,
+			 struct snd_pcm_substream *substream, int channel,
+			 unsigned long pos, void __user *buf,
+			 unsigned long bytes);
+	struct page *(*page)(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream,
+			     unsigned long offset);
+	int (*mmap)(struct snd_soc_component *component,
+		    struct snd_pcm_substream *substream,
+		    struct vm_area_struct *vma);
+
 	const struct snd_pcm_ops *ops;
 	const struct snd_compr_ops *compr_ops;
 
