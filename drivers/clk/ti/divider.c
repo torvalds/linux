@@ -338,8 +338,7 @@ static struct clk *_register_divider(struct device_node *node,
 }
 
 int ti_clk_parse_divider_data(int *div_table, int num_dividers, int max_div,
-			      u8 flags, u8 *width,
-			      const struct clk_div_table **table)
+			      u8 flags, struct clk_omap_divider *divider)
 {
 	int valid_div = 0;
 	u32 val;
@@ -363,8 +362,7 @@ int ti_clk_parse_divider_data(int *div_table, int num_dividers, int max_div,
 			val++;
 		}
 
-		*width = fls(val);
-		*table = NULL;
+		divider->width = fls(val);
 
 		return 0;
 	}
@@ -382,24 +380,22 @@ int ti_clk_parse_divider_data(int *div_table, int num_dividers, int max_div,
 	num_dividers = i;
 
 	tmp = kcalloc(valid_div + 1, sizeof(*tmp), GFP_KERNEL);
-	if (!tmp) {
-		*table = ERR_PTR(-ENOMEM);
+	if (!tmp)
 		return -ENOMEM;
-	}
 
 	valid_div = 0;
-	*width = 0;
+	divider->width = 0;
 
 	for (i = 0; i < num_dividers; i++)
 		if (div_table[i] > 0) {
 			tmp[valid_div].div = div_table[i];
 			tmp[valid_div].val = i;
 			valid_div++;
-			*width = i;
+			divider->width = i;
 		}
 
-	*width = fls(*width);
-	*table = tmp;
+	divider->width = fls(divider->width);
+	divider->table = tmp;
 
 	return 0;
 }

@@ -220,8 +220,7 @@ void ti_clk_latch(struct clk_omap_reg *reg, s8 shift);
 struct clk_hw *ti_clk_build_component_mux(struct ti_clk_mux *setup);
 
 int ti_clk_parse_divider_data(int *div_table, int num_dividers, int max_div,
-			      u8 flags, u8 *width,
-			      const struct clk_div_table **table);
+			      u8 flags, struct clk_omap_divider *div);
 
 int ti_clk_get_reg_addr(struct device_node *node, int index,
 			struct clk_omap_reg *reg);
