@@ -60,6 +60,8 @@ static int rtw_ops_config(struct ieee80211_hw *hw, u32 changed)
 
 	mutex_lock(&rtwdev->mutex);
 
+	rtw_leave_lps_deep(rtwdev);
+
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
 		if (hw->conf.flags & IEEE80211_CONF_IDLE) {
 			rtw_enter_ips(rtwdev);
@@ -139,6 +141,8 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&rtwdev->mutex);
 
+	rtw_leave_lps_deep(rtwdev);
+
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
@@ -181,6 +185,8 @@ static void rtw_ops_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&rtwdev->mutex);
 
+	rtw_leave_lps_deep(rtwdev);
+
 	eth_zero_addr(rtwvif->mac_addr);
 	config |= PORT_SET_MAC_ADDR;
 	rtwvif->net_type = RTW_NET_NO_LINK;
@@ -203,6 +209,8 @@ static void rtw_ops_configure_filter(struct ieee80211_hw *hw,
 		      FIF_BCN_PRBRESP_PROMISC;
 
 	mutex_lock(&rtwdev->mutex);
+
+	rtw_leave_lps_deep(rtwdev);
 
 	if (changed_flags & FIF_ALLMULTI) {
 		if (*new_flags & FIF_ALLMULTI)
@@ -249,6 +257,8 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&rtwdev->mutex);
 
+	rtw_leave_lps_deep(rtwdev);
+
 	if (changed & BSS_CHANGED_ASSOC) {
 		struct rtw_chip_info *chip = rtwdev->chip;
 		enum rtw_net_type net_type;
@@ -266,6 +276,7 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 			rtw_send_rsvd_page_h2c(rtwdev);
 			rtw_coex_media_status_notify(rtwdev, conf->assoc);
 		} else {
+			rtw_leave_lps(rtwdev);
 			net_type = RTW_NET_NO_LINK;
 			rtwvif->aid = 0;
 			rtw_reset_rsvd_page(rtwdev);
@@ -397,6 +408,8 @@ static int rtw_ops_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	mutex_lock(&rtwdev->mutex);
 
+	rtw_leave_lps_deep(rtwdev);
+
 	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
 		hw_key_idx = rtw_sec_get_free_cam(sec);
 	} else {
@@ -508,6 +521,7 @@ static void rtw_ops_mgd_prepare_tx(struct ieee80211_hw *hw,
 	struct rtw_dev *rtwdev = hw->priv;
 
 	mutex_lock(&rtwdev->mutex);
+	rtw_leave_lps_deep(rtwdev);
 	rtw_coex_connect_notify(rtwdev, COEX_ASSOCIATE_START);
 	mutex_unlock(&rtwdev->mutex);
 }

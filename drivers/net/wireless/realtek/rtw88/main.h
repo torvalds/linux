@@ -50,6 +50,7 @@ struct rtw_hci {
 	enum rtw_hci_type type;
 
 	u32 rpwm_addr;
+	u32 cpwm_addr;
 
 	u8 bulkout_num;
 };
@@ -309,6 +310,7 @@ enum rtw_flags {
 	RTW_FLAG_SCANNING,
 	RTW_FLAG_INACTIVE_PS,
 	RTW_FLAG_LEISURE_PS,
+	RTW_FLAG_LEISURE_PS_DEEP,
 	RTW_FLAG_DIG_DISABLE,
 	RTW_FLAG_BUSY_TRAFFIC,
 
