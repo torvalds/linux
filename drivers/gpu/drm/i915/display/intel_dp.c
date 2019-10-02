@@ -1347,13 +1347,12 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	trace_i915_reg_rw(false, ch_ctl, status, sizeof(status), true);
 
 	if (try == 3) {
-		static u32 last_status = -1;
 		const u32 status = intel_uncore_read(uncore, ch_ctl);
 
-		if (status != last_status) {
+		if (status != intel_dp->aux_busy_last_status) {
 			WARN(1, "dp_aux_ch not started status 0x%08x\n",
 			     status);
-			last_status = status;
+			intel_dp->aux_busy_last_status = status;
 		}
 
 		ret = -EBUSY;

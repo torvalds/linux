@@ -1185,6 +1185,7 @@ struct intel_dp {
 	/* sink or branch descriptor */
 	struct drm_dp_desc desc;
 	struct drm_dp_aux aux;
+	u32 aux_busy_last_status;
 	u8 train_set[4];
 	int panel_power_up_delay;
 	int panel_power_down_delay;
