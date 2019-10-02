@@ -1947,7 +1947,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	intel_encoder->type = INTEL_OUTPUT_TVOUT;
 	intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
 	intel_encoder->port = PORT_NONE;
-	intel_encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B);
+	intel_encoder->pipe_mask = BIT(PIPE_A) | BIT(PIPE_B);
 	intel_encoder->cloneable = 0;
 	intel_tv->type = DRM_MODE_CONNECTOR_Unknown;
 

@@ -128,7 +128,8 @@ struct intel_encoder {
 
 	enum intel_output_type type;
 	enum port port;
-	unsigned int cloneable;
+	u16 cloneable;
+	u8 pipe_mask;
 	enum intel_hotplug_state (*hotplug)(struct intel_encoder *encoder,
 					    struct intel_connector *connector,
 					    bool irq_received);
@@ -187,7 +188,6 @@ struct intel_encoder {
 	 * device interrupts are disabled.
 	 */
 	void (*suspend)(struct intel_encoder *);
-	int crtc_mask;
 	enum hpd_pin hpd_pin;
 	enum intel_display_power_domain power_domain;
 	/* for communication with audio component; protected by av_mutex */

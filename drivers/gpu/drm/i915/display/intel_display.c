@@ -15842,7 +15842,7 @@ static u32 intel_encoder_possible_crtcs(struct intel_encoder *encoder)
 	u32 possible_crtcs = 0;
 
 	for_each_intel_crtc(dev, crtc) {
-		if (encoder->crtc_mask & BIT(crtc->pipe))
+		if (encoder->pipe_mask & BIT(crtc->pipe))
 			possible_crtcs |= drm_crtc_mask(&crtc->base);
 	}
 

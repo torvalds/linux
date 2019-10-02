@@ -4741,7 +4741,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	intel_encoder->port = port;
 	intel_encoder->cloneable = 0;
 	for_each_pipe(dev_priv, pipe)
-		intel_encoder->crtc_mask |= BIT(pipe);
+		intel_encoder->pipe_mask |= BIT(pipe);
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		intel_dig_port->saved_port_bits = I915_READ(DDI_BUF_CTL(port)) &
