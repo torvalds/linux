@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2009-2010, Lars-Peter Clausen <lars@metafoo.de>
- *  JZ4740 platform IRQ support
+ *  Ingenic XBurst platform IRQ support
  */
 
 #include <linux/errno.h>
@@ -37,18 +37,23 @@ static irqreturn_t intc_cascade(int irq, void *data)
 	struct ingenic_intc_data *intc = irq_get_handler_data(irq);
 	struct irq_domain *domain = intc->domain;
 	struct irq_chip_generic *gc;
-	uint32_t irq_reg;
+	uint32_t pending;
 	unsigned i;
 
 	for (i = 0; i < intc->num_chips; i++) {
 		gc = irq_get_domain_generic_chip(domain, i * 32);
 
-		irq_reg = irq_reg_readl(gc, JZ_REG_INTC_PENDING);
-		if (!irq_reg)
+		pending = irq_reg_readl(gc, JZ_REG_INTC_PENDING);
+		if (!pending)
 			continue;
 
-		irq = irq_find_mapping(domain, __fls(irq_reg) + (i * 32));
-		generic_handle_irq(irq);
+		while (pending) {
+			int bit = __fls(pending);
+
+			irq = irq_find_mapping(domain, bit + (i * 32));
+			generic_handle_irq(irq);
+			pending &= ~BIT(bit);
+		}
 	}
 
 	return IRQ_HANDLED;
