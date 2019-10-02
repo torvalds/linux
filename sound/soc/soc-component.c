@@ -316,12 +316,6 @@ int snd_soc_component_open(struct snd_soc_component *component,
 {
 	if (component->driver->open)
 		return component->driver->open(component, substream);
-
-	/* remove me */
-	if (component->driver->ops &&
-	    component->driver->ops->open)
-		return component->driver->ops->open(substream);
-
 	return 0;
 }
 
@@ -330,12 +324,6 @@ int snd_soc_component_close(struct snd_soc_component *component,
 {
 	if (component->driver->close)
 		return component->driver->close(component, substream);
-
-	/* remove me */
-	if (component->driver->ops &&
-	    component->driver->ops->close)
-		return component->driver->ops->close(substream);
-
 	return 0;
 }
 
@@ -344,12 +332,6 @@ int snd_soc_component_prepare(struct snd_soc_component *component,
 {
 	if (component->driver->prepare)
 		return component->driver->prepare(component, substream);
-
-	/* remove me */
-	if (component->driver->ops &&
-	    component->driver->ops->prepare)
-		return component->driver->ops->prepare(substream);
-
 	return 0;
 }
 
@@ -360,12 +342,6 @@ int snd_soc_component_hw_params(struct snd_soc_component *component,
 	if (component->driver->hw_params)
 		return component->driver->hw_params(component,
 						    substream, params);
-
-	/* remove me */
-	if (component->driver->ops &&
-	    component->driver->ops->hw_params)
-		return component->driver->ops->hw_params(substream, params);
-
 	return 0;
 }
 
@@ -374,12 +350,6 @@ int snd_soc_component_hw_free(struct snd_soc_component *component,
 {
 	if (component->driver->hw_free)
 		return component->driver->hw_free(component, substream);
-
-	/* remove me */
-	if (component->driver->ops &&
-	    component->driver->ops->hw_free)
-		return component->driver->ops->hw_free(substream);
-
 	return 0;
 }
 
@@ -389,12 +359,6 @@ int snd_soc_component_trigger(struct snd_soc_component *component,
 {
 	if (component->driver->trigger)
 		return component->driver->trigger(component, substream, cmd);
-
-	/* remove me */
-	if (component->driver->ops &&
-	    component->driver->ops->trigger)
-		return component->driver->ops->trigger(substream, cmd);
-
 	return 0;
 }
 
@@ -462,11 +426,6 @@ int snd_soc_pcm_component_pointer(struct snd_pcm_substream *substream)
 		/* FIXME: use 1st pointer */
 		if (component->driver->pointer)
 			return component->driver->pointer(component, substream);
-
-		/* remove me */
-		if (component->driver->ops &&
-		    component->driver->ops->pointer)
-			return component->driver->ops->pointer(substream);
 	}
 
 	return 0;
@@ -486,12 +445,6 @@ int snd_soc_pcm_component_ioctl(struct snd_pcm_substream *substream,
 		if (component->driver->ioctl)
 			return component->driver->ioctl(component, substream,
 							cmd, arg);
-
-		/* remove me */
-		if (component->driver->ops &&
-		    component->driver->ops->ioctl)
-			return component->driver->ops->ioctl(substream,
-							     cmd, arg);
 	}
 
 	return snd_pcm_lib_ioctl(substream, cmd, arg);
@@ -512,12 +465,6 @@ int snd_soc_pcm_component_copy_user(struct snd_pcm_substream *substream,
 		if (component->driver->copy_user)
 			return component->driver->copy_user(
 				component, substream, channel, pos, buf, bytes);
-
-		/* remove me */
-		if (component->driver->ops &&
-		    component->driver->ops->copy_user)
-			return component->driver->ops->copy_user(
-				substream, channel, pos, buf, bytes);
 	}
 
 	return -EINVAL;
@@ -541,14 +488,6 @@ struct page *snd_soc_pcm_component_page(struct snd_pcm_substream *substream,
 			if (page)
 				return page;
 		}
-
-		/* remove me */
-		if (component->driver->ops &&
-		    component->driver->ops->page) {
-			page = component->driver->ops->page(substream, offset);
-			if (page)
-				return page;
-		}
 	}
 
 	return NULL;
@@ -568,11 +507,6 @@ int snd_soc_pcm_component_mmap(struct snd_pcm_substream *substream,
 		if (component->driver->mmap)
 			return component->driver->mmap(component,
 						       substream, vma);
-
-		/* remove me */
-		if (component->driver->ops &&
-		    component->driver->ops->mmap)
-			return component->driver->ops->mmap(substream, vma);
 	}
 
 	return -EINVAL;
@@ -593,13 +527,6 @@ int snd_soc_pcm_component_new(struct snd_pcm *pcm)
 			if (ret < 0)
 				return ret;
 		}
-
-		/* remove me */
-		if (component->driver->pcm_new) {
-			ret = component->driver->pcm_new(rtd);
-			if (ret < 0)
-				return ret;
-		}
 	}
 
 	return 0;
@@ -616,9 +543,5 @@ void snd_soc_pcm_component_free(struct snd_pcm *pcm)
 
 		if (component->driver->pcm_destruct)
 			component->driver->pcm_destruct(component, pcm);
-
-		/* remove me */
-		if (component->driver->pcm_free)
-			component->driver->pcm_free(pcm);
 	}
 }
