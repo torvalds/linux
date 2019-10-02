@@ -3,6 +3,15 @@ same for ffsWriteFile.
 
 exfat_core.c - fs_sync(sb,0) all over the place looks fishy as hell.
 There's only one place that calls it with a non-zero argument.
+Randomly removing fs_sync() calls is *not* the right answer, especially
+if the removal then leaves a call to fs_set_vol_flags(VOL_CLEAN), as that
+says the file system is clean and synced when we *know* it isn't.
+The proper fix here is to go through and actually analyze how DELAYED_SYNC
+should work, and any time we're setting VOL_CLEAN, ensure the file system
+has in fact been synced to disk.  In other words, changing the 'false' to
+'true' is probably more correct. Also, it's likely that the one current
+place where it actually does an bdev_sync isn't sufficient in the DELAYED_SYNC
+case.
 
 ffsTruncateFile -  if (old_size <= new_size) {
 That doesn't look right. How did it ever work? Are they relying on lazy
