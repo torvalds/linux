@@ -538,8 +538,10 @@ int dce_aux_transfer_raw(struct ddc_service *ddc,
 	memset(&aux_rep, 0, sizeof(aux_rep));
 
 	aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
-	if (!acquire(aux_engine, ddc_pin))
+	if (!acquire(aux_engine, ddc_pin)) {
+		*operation_result = AUX_CHANNEL_OPERATION_FAILED_ENGINE_ACQUIRE;
 		return -1;
+	}
 
 	if (payload->i2c_over_aux)
 		aux_req.type = AUX_TRANSACTION_TYPE_I2C;
@@ -663,6 +665,7 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 			break;
 
 		case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:
+		case AUX_CHANNEL_OPERATION_FAILED_ENGINE_ACQUIRE:
 		case AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN:
 		default:
 			goto fail;
