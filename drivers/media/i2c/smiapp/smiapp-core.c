@@ -867,7 +867,7 @@ static void smiapp_update_blanking(struct smiapp_sensor *sensor)
 	__smiapp_update_exposure_limits(sensor);
 }
 
-static int smiapp_update_mode(struct smiapp_sensor *sensor)
+static int smiapp_pll_blanking_update(struct smiapp_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	int rval;
@@ -2047,7 +2047,7 @@ static int smiapp_set_compose(struct v4l2_subdev *subdev,
 	smiapp_propagate(subdev, cfg, sel->which, V4L2_SEL_TGT_COMPOSE);
 
 	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		return smiapp_update_mode(sensor);
+		return smiapp_pll_blanking_update(sensor);
 
 	return 0;
 }
@@ -3044,7 +3044,7 @@ static int smiapp_probe(struct i2c_client *client)
 	}
 
 	mutex_lock(&sensor->mutex);
-	rval = smiapp_update_mode(sensor);
+	rval = smiapp_pll_blanking_update(sensor);
 	mutex_unlock(&sensor->mutex);
 	if (rval) {
 		dev_err(&client->dev, "update mode failed\n");
