@@ -578,10 +578,8 @@ static void update_firmware_info(struct rtw_dev *rtwdev,
 	fw->sub_version = *(data + FW_HDR_SUBVERSION);
 	fw->sub_index = *(data + FW_HDR_SUBINDEX);
 
-	rtw_dbg(rtwdev, RTW_DBG_FW, "fw h2c version: %x\n", fw->h2c_version);
-	rtw_dbg(rtwdev, RTW_DBG_FW, "fw version:     %x\n", fw->version);
-	rtw_dbg(rtwdev, RTW_DBG_FW, "fw sub version: %x\n", fw->sub_version);
-	rtw_dbg(rtwdev, RTW_DBG_FW, "fw sub index:   %x\n", fw->sub_index);
+	rtw_info(rtwdev, "Firmware version %u.%u.%u, H2C version %u\n",
+		 fw->version, fw->sub_version, fw->sub_index, fw->h2c_version);
 }
 
 static int
