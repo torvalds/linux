@@ -1062,9 +1062,10 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 
 #define REG_FIELD_SHIFT(reg, field) reg##_##field##_SHIFT
 #define REG_FIELD_MASK(reg, field) reg##_##field##_MASK
-#define WREG32_FIELD(reg, field, val)	\
-	WREG32(mm##reg, (RREG32(mm##reg) & ~REG_FIELD_MASK(reg, field)) | \
-			(val) << REG_FIELD_SHIFT(reg, field))
+#define WREG32_FIELD(reg, offset, field, val)	\
+	WREG32(mm##reg + offset, (RREG32(mm##reg + offset) & \
+				~REG_FIELD_MASK(reg, field)) | \
+				(val) << REG_FIELD_SHIFT(reg, field))
 
 /* Timeout should be longer when working with simulator but cap the
  * increased timeout to some maximum

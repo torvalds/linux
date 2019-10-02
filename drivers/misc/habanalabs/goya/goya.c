@@ -1457,6 +1457,9 @@ static void goya_init_golden_registers(struct hl_device *hdev)
 				1 << TPC0_NRTR_SCRAMB_EN_VAL_SHIFT);
 		WREG32(mmTPC0_NRTR_NON_LIN_SCRAMB + offset,
 				1 << TPC0_NRTR_NON_LIN_SCRAMB_EN_SHIFT);
+
+		WREG32_FIELD(TPC0_CFG_MSS_CONFIG, offset,
+				ICACHE_FETCH_LINE_NUM, 2);
 	}
 
 	WREG32(mmDMA_NRTR_SCRAMB_EN, 1 << DMA_NRTR_SCRAMB_EN_VAL_SHIFT);
