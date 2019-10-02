@@ -27,6 +27,8 @@
 
 #include "ion_private.h"
 
+#define ION_CURRENT_ABI_VERSION  2
+
 static struct ion_device *internal_dev;
 
 /* Entry into ION allocator for rest of the kernel */
@@ -108,6 +110,7 @@ out:
 union ion_ioctl_arg {
 	struct ion_allocation_data allocation;
 	struct ion_heap_query query;
+	u32 ion_abi_version;
 };
 
 static int validate_ioctl_arg(unsigned int cmd, union ion_ioctl_arg *arg)
@@ -168,6 +171,9 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 	case ION_IOC_HEAP_QUERY:
 		ret = ion_query_heaps(&data.query);
+		break;
+	case ION_IOC_ABI_VERSION:
+		data.ion_abi_version = ION_CURRENT_ABI_VERSION;
 		break;
 	default:
 		return -ENOTTY;
