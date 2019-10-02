@@ -114,7 +114,24 @@
 	HUBBUB_SF(DCN_VM_AGP_BASE, AGP_BASE, mask_sh)
 
 void dcn21_dchvm_init(struct hubbub *hubbub);
+int hubbub21_init_dchub(struct hubbub *hubbub,
+		struct dcn_hubbub_phys_addr_config *pa_config);
 void hubbub21_program_watermarks(
+		struct hubbub *hubbub,
+		struct dcn_watermark_set *watermarks,
+		unsigned int refclk_mhz,
+		bool safe_to_lower);
+void hubbub21_program_urgent_watermarks(
+		struct hubbub *hubbub,
+		struct dcn_watermark_set *watermarks,
+		unsigned int refclk_mhz,
+		bool safe_to_lower);
+void hubbub21_program_stutter_watermarks(
+		struct hubbub *hubbub,
+		struct dcn_watermark_set *watermarks,
+		unsigned int refclk_mhz,
+		bool safe_to_lower);
+void hubbub21_program_pstate_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,

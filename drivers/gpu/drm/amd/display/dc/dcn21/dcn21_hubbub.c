@@ -97,7 +97,7 @@ void dcn21_dchvm_init(struct hubbub *hubbub)
 	REG_WAIT(DCHVM_RIOMMU_STAT0, HOSTVM_PREFETCH_DONE, 1, 5, 100);
 }
 
-static int hubbub21_init_dchub(struct hubbub *hubbub,
+int hubbub21_init_dchub(struct hubbub *hubbub,
 		struct dcn_hubbub_phys_addr_config *pa_config)
 {
 	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
@@ -120,7 +120,7 @@ static int hubbub21_init_dchub(struct hubbub *hubbub,
 	return NUM_VMID;
 }
 
-static void hubbub21_program_urgent_watermarks(
+void hubbub21_program_urgent_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
@@ -160,6 +160,13 @@ static void hubbub21_program_urgent_watermarks(
 		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_A, 0,
 				DCHUBBUB_ARB_FRAC_URG_BW_NOM_A, watermarks->a.frac_urg_bw_nom);
 	}
+	if (safe_to_lower || watermarks->a.urgent_latency_ns > hubbub1->watermarks.a.urgent_latency_ns) {
+		hubbub1->watermarks.a.urgent_latency_ns = watermarks->a.urgent_latency_ns;
+		prog_wm_value = convert_and_clamp(watermarks->a.urgent_latency_ns,
+				refclk_mhz, 0x1fffff);
+		REG_SET(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_A, 0,
+				DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_A, prog_wm_value);
+	}
 
 	/* clock state B */
 	if (safe_to_lower || watermarks->b.urgent_ns > hubbub1->watermarks.b.urgent_ns) {
@@ -190,6 +197,14 @@ static void hubbub21_program_urgent_watermarks(
 
 		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_B, 0,
 				DCHUBBUB_ARB_FRAC_URG_BW_NOM_B, watermarks->a.frac_urg_bw_nom);
+	}
+
+	if (safe_to_lower || watermarks->b.urgent_latency_ns > hubbub1->watermarks.b.urgent_latency_ns) {
+		hubbub1->watermarks.b.urgent_latency_ns = watermarks->b.urgent_latency_ns;
+		prog_wm_value = convert_and_clamp(watermarks->b.urgent_latency_ns,
+				refclk_mhz, 0x1fffff);
+		REG_SET(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_B, 0,
+				DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_B, prog_wm_value);
 	}
 
 	/* clock state C */
@@ -223,6 +238,14 @@ static void hubbub21_program_urgent_watermarks(
 				DCHUBBUB_ARB_FRAC_URG_BW_NOM_C, watermarks->a.frac_urg_bw_nom);
 	}
 
+	if (safe_to_lower || watermarks->c.urgent_latency_ns > hubbub1->watermarks.c.urgent_latency_ns) {
+		hubbub1->watermarks.c.urgent_latency_ns = watermarks->c.urgent_latency_ns;
+		prog_wm_value = convert_and_clamp(watermarks->c.urgent_latency_ns,
+				refclk_mhz, 0x1fffff);
+		REG_SET(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_C, 0,
+				DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_C, prog_wm_value);
+	}
+
 	/* clock state D */
 	if (safe_to_lower || watermarks->d.urgent_ns > hubbub1->watermarks.d.urgent_ns) {
 		hubbub1->watermarks.d.urgent_ns = watermarks->d.urgent_ns;
@@ -253,9 +276,17 @@ static void hubbub21_program_urgent_watermarks(
 		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_D, 0,
 				DCHUBBUB_ARB_FRAC_URG_BW_NOM_D, watermarks->a.frac_urg_bw_nom);
 	}
+
+	if (safe_to_lower || watermarks->d.urgent_latency_ns > hubbub1->watermarks.d.urgent_latency_ns) {
+		hubbub1->watermarks.d.urgent_latency_ns = watermarks->d.urgent_latency_ns;
+		prog_wm_value = convert_and_clamp(watermarks->d.urgent_latency_ns,
+				refclk_mhz, 0x1fffff);
+		REG_SET(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_D, 0,
+				DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_D, prog_wm_value);
+	}
 }
 
-static void hubbub21_program_stutter_watermarks(
+void hubbub21_program_stutter_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
@@ -389,7 +420,7 @@ static void hubbub21_program_stutter_watermarks(
 	}
 }
 
-static void hubbub21_program_pstate_watermarks(
+void hubbub21_program_pstate_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
