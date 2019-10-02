@@ -1299,6 +1299,7 @@ static int igt_gtt_reserve(void *arg)
 {
 	struct i915_ggtt *ggtt = arg;
 	struct drm_i915_gem_object *obj, *on;
+	I915_RND_STATE(prng);
 	LIST_HEAD(objects);
 	u64 total;
 	int err = -ENODEV;
@@ -1425,9 +1426,10 @@ static int igt_gtt_reserve(void *arg)
 			goto out;
 		}
 
-		offset = random_offset(0, ggtt->vm.total,
-				       2*I915_GTT_PAGE_SIZE,
-				       I915_GTT_MIN_ALIGNMENT);
+		offset = igt_random_offset(&prng,
+					   0, ggtt->vm.total,
+					   2 * I915_GTT_PAGE_SIZE,
+					   I915_GTT_MIN_ALIGNMENT);
 
 		err = i915_gem_gtt_reserve(&ggtt->vm, &vma->node,
 					   obj->base.size,
@@ -1772,6 +1774,7 @@ static int igt_cs_tlb(void *arg)
 	struct intel_context *ce;
 	struct drm_file *file;
 	struct i915_vma *vma;
+	I915_RND_STATE(prng);
 	unsigned int i;
 	u32 *result;
 	u32 *batch;
@@ -1885,8 +1888,9 @@ static int igt_cs_tlb(void *arg)
 			struct i915_request *rq;
 			u64 offset;
 
-			offset = random_offset(0, vm->total - PAGE_SIZE,
-					       chunk_size, PAGE_SIZE);
+			offset = igt_random_offset(&prng,
+						   0, vm->total - PAGE_SIZE,
+						   chunk_size, PAGE_SIZE);
 
 			err = vm->allocate_va_range(vm, offset, chunk_size);
 			if (err)
