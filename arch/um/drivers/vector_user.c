@@ -46,7 +46,8 @@
 #define TUN_GET_F_FAIL "tapraw: TUNGETFEATURES failed: %s"
 #define L2TPV3_BIND_FAIL "l2tpv3_open : could not bind socket err=%i"
 #define UNIX_BIND_FAIL "unix_open : could not bind socket err=%i"
-#define BPF_ATTACH_FAIL "Failed to attach filter size %d to %d, err %d\n"
+#define BPF_ATTACH_FAIL "Failed to attach filter size %d prog %px to %d, err %d\n"
+#define BPF_DETACH_FAIL "Failed to detach filter size %d prog %px to %d, err %d\n"
 
 #define MAX_UN_LEN 107
 
@@ -660,31 +661,44 @@ int uml_vector_recvmmsg(
 	else
 		return -errno;
 }
-int uml_vector_attach_bpf(int fd, void *bpf, int bpf_len)
+int uml_vector_attach_bpf(int fd, void *bpf)
 {
-	int err = setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, bpf, bpf_len);
+	struct sock_fprog *prog = bpf;
+
+	int err = setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, bpf, sizeof(struct sock_fprog));
 
 	if (err < 0)
-		printk(KERN_ERR BPF_ATTACH_FAIL, bpf_len, fd, -errno);
+		printk(KERN_ERR BPF_ATTACH_FAIL, prog->len, prog->filter, fd, -errno);
 	return err;
 }
 
-#define DEFAULT_BPF_LEN 6
+int uml_vector_detach_bpf(int fd, void *bpf)
+{
+	struct sock_fprog *prog = bpf;
 
-void *uml_vector_default_bpf(int fd, void *mac)
+	int err = setsockopt(fd, SOL_SOCKET, SO_DETACH_FILTER, bpf, sizeof(struct sock_fprog));
+	if (err < 0)
+		printk(KERN_ERR BPF_DETACH_FAIL, prog->len, prog->filter, fd, -errno);
+	return err;
+}
+void *uml_vector_default_bpf(void *mac)
 {
 	struct sock_filter *bpf;
 	uint32_t *mac1 = (uint32_t *)(mac + 2);
 	uint16_t *mac2 = (uint16_t *) mac;
-	struct sock_fprog bpf_prog = {
-		.len = 6,
-		.filter = NULL,
-	};
+	struct sock_fprog *bpf_prog;
 
+	bpf_prog = uml_kmalloc(sizeof(struct sock_fprog), UM_GFP_KERNEL);
+	if (bpf_prog) {
+		bpf_prog->len = DEFAULT_BPF_LEN;
+		bpf_prog->filter = NULL;
+	} else {
+		return NULL;
+	}
 	bpf = uml_kmalloc(
 		sizeof(struct sock_filter) * DEFAULT_BPF_LEN, UM_GFP_KERNEL);
-	if (bpf != NULL) {
-		bpf_prog.filter = bpf;
+	if (bpf) {
+		bpf_prog->filter = bpf;
 		/* ld	[8] */
 		bpf[0] = (struct sock_filter){ 0x20, 0, 0, 0x00000008 };
 		/* jeq	#0xMAC[2-6] jt 2 jf 5*/
@@ -697,12 +711,56 @@ void *uml_vector_default_bpf(int fd, void *mac)
 		bpf[4] = (struct sock_filter){ 0x6, 0, 0, 0x00000000 };
 		/* ret	#0x40000 */
 		bpf[5] = (struct sock_filter){ 0x6, 0, 0, 0x00040000 };
-		if (uml_vector_attach_bpf(
-			fd, &bpf_prog, sizeof(struct sock_fprog)) < 0) {
-			kfree(bpf);
-			bpf = NULL;
-		}
+	} else {
+		kfree(bpf_prog);
+		bpf_prog = NULL;
 	}
-	return bpf;
+	return bpf_prog;
 }
 
+/* Note - this function requires a valid mac being passed as an arg */
+
+void *uml_vector_user_bpf(char *filename)
+{
+	struct sock_filter *bpf;
+	struct sock_fprog *bpf_prog;
+	struct stat statbuf;
+	int res, ffd = -1;
+
+	if (filename == NULL)
+		return NULL;
+
+	if (stat(filename, &statbuf) < 0) {
+		printk(KERN_ERR "Error %d reading bpf file", -errno);
+		return false;
+	}
+	bpf_prog = uml_kmalloc(sizeof(struct sock_fprog), UM_GFP_KERNEL);
+	if (bpf_prog != NULL) {
+		bpf_prog->len = statbuf.st_size / sizeof(struct sock_filter);
+		bpf_prog->filter = NULL;
+	}
+	ffd = os_open_file(filename, of_read(OPENFLAGS()), 0);
+	if (ffd < 0) {
+		printk(KERN_ERR "Error %d opening bpf file", -errno);
+		goto bpf_failed;
+	}
+	bpf = uml_kmalloc(statbuf.st_size, UM_GFP_KERNEL);
+	if (bpf == NULL) {
+		printk(KERN_ERR "Failed to allocate bpf buffer");
+		goto bpf_failed;
+	}
+	bpf_prog->filter = bpf;
+	res = os_read_file(ffd, bpf, statbuf.st_size);
+	if (res < statbuf.st_size) {
+		printk(KERN_ERR "Failed to read bpf program %s, error %d", filename, res);
+		kfree(bpf);
+		goto bpf_failed;
+	}
+	os_close_file(ffd);
+	return bpf_prog;
+bpf_failed:
+	if (ffd > 0)
+		os_close_file(ffd);
+	kfree(bpf_prog);
+	return NULL;
+}
