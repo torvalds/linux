@@ -18,14 +18,14 @@ static int rtw_ips_pwr_up(struct rtw_dev *rtwdev)
 		rtw_err(rtwdev, "leave idle state failed\n");
 
 	rtw_set_channel(rtwdev);
-	rtw_flag_clear(rtwdev, RTW_FLAG_INACTIVE_PS);
+	clear_bit(RTW_FLAG_INACTIVE_PS, rtwdev->flags);
 
 	return ret;
 }
 
 int rtw_enter_ips(struct rtw_dev *rtwdev)
 {
-	rtw_flag_set(rtwdev, RTW_FLAG_INACTIVE_PS);
+	set_bit(RTW_FLAG_INACTIVE_PS, rtwdev->flags);
 
 	rtw_coex_ips_notify(rtwdev, COEX_IPS_ENTER);
 
@@ -71,7 +71,7 @@ static void rtw_leave_lps_core(struct rtw_dev *rtwdev)
 	conf->smart_ps = 0;
 
 	rtw_fw_set_pwr_mode(rtwdev);
-	rtw_flag_clear(rtwdev, RTW_FLAG_LEISURE_PS);
+	clear_bit(RTW_FLAG_LEISURE_PS, rtwdev->flags);
 
 	rtw_coex_lps_notify(rtwdev, COEX_LPS_DISABLE);
 }
@@ -88,7 +88,7 @@ static void rtw_enter_lps_core(struct rtw_dev *rtwdev)
 	rtw_coex_lps_notify(rtwdev, COEX_LPS_ENABLE);
 
 	rtw_fw_set_pwr_mode(rtwdev);
-	rtw_flag_set(rtwdev, RTW_FLAG_LEISURE_PS);
+	set_bit(RTW_FLAG_LEISURE_PS, rtwdev->flags);
 }
 
 void rtw_lps_work(struct work_struct *work)
@@ -137,7 +137,7 @@ void rtw_leave_lps_irqsafe(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif)
 
 bool rtw_in_lps(struct rtw_dev *rtwdev)
 {
-	return rtw_flag_check(rtwdev, RTW_FLAG_LEISURE_PS);
+	return test_bit(RTW_FLAG_LEISURE_PS, rtwdev->flags);
 }
 
 void rtw_enter_lps(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif)

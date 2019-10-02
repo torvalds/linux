@@ -150,20 +150,20 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev,
 					      watch_dog_work.work);
 	struct rtw_watch_dog_iter_data data = {};
-	bool busy_traffic = rtw_flag_check(rtwdev, RTW_FLAG_BUSY_TRAFFIC);
+	bool busy_traffic = test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
 
-	if (!rtw_flag_check(rtwdev, RTW_FLAG_RUNNING))
+	if (!test_bit(RTW_FLAG_RUNNING, rtwdev->flags))
 		return;
 
 	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->watch_dog_work,
 				     RTW_WATCH_DOG_DELAY_TIME);
 
 	if (rtwdev->stats.tx_cnt > 100 || rtwdev->stats.rx_cnt > 100)
-		rtw_flag_set(rtwdev, RTW_FLAG_BUSY_TRAFFIC);
+		set_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
 	else
-		rtw_flag_clear(rtwdev, RTW_FLAG_BUSY_TRAFFIC);
+		clear_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
 
-	if (busy_traffic != rtw_flag_check(rtwdev, RTW_FLAG_BUSY_TRAFFIC))
+	if (busy_traffic != test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags))
 		rtw_coex_wl_status_change_notify(rtwdev);
 
 	/* reset tx/rx statictics */
@@ -183,7 +183,7 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	    data.rtwvif && !data.active && data.assoc_cnt == 1)
 		rtw_enter_lps(rtwdev, data.rtwvif);
 
-	if (rtw_flag_check(rtwdev, RTW_FLAG_SCANNING))
+	if (test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
 		return;
 
 	rtw_phy_dynamic_mechanism(rtwdev);
@@ -311,7 +311,7 @@ void rtw_set_channel(struct rtw_dev *rtwdev)
 	if (hal->current_band_type == RTW_BAND_5G) {
 		rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_5G);
 	} else {
-		if (rtw_flag_check(rtwdev, RTW_FLAG_SCANNING))
+		if (test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
 			rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_24G);
 		else
 			rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_24G_NOFORSCAN);
@@ -737,7 +737,7 @@ int rtw_core_start(struct rtw_dev *rtwdev)
 	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->watch_dog_work,
 				     RTW_WATCH_DOG_DELAY_TIME);
 
-	rtw_flag_set(rtwdev, RTW_FLAG_RUNNING);
+	set_bit(RTW_FLAG_RUNNING, rtwdev->flags);
 
 	return 0;
 }
@@ -752,8 +752,8 @@ void rtw_core_stop(struct rtw_dev *rtwdev)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 
-	rtw_flag_clear(rtwdev, RTW_FLAG_RUNNING);
-	rtw_flag_clear(rtwdev, RTW_FLAG_FW_RUNNING);
+	clear_bit(RTW_FLAG_RUNNING, rtwdev->flags);
+	clear_bit(RTW_FLAG_FW_RUNNING, rtwdev->flags);
 
 	cancel_delayed_work_sync(&rtwdev->watch_dog_work);
 	cancel_delayed_work_sync(&coex->bt_relink_work);

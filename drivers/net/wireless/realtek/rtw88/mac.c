@@ -707,7 +707,7 @@ int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
 	rtwdev->h2c.last_box_num = 0;
 	rtwdev->h2c.seq = 0;
 
-	rtw_flag_set(rtwdev, RTW_FLAG_FW_RUNNING);
+	set_bit(RTW_FLAG_FW_RUNNING, rtwdev->flags);
 
 	return 0;
 

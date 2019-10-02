@@ -394,7 +394,7 @@ static void rtw_phy_dig(struct rtw_dev *rtwdev)
 	u8 step[3];
 	bool linked;
 
-	if (rtw_flag_check(rtwdev, RTW_FLAG_DIG_DISABLE))
+	if (test_bit(RTW_FLAG_DIG_DISABLE, rtwdev->flags))
 		return;
 
 	if (rtw_phy_dig_check_damping(dm_info))

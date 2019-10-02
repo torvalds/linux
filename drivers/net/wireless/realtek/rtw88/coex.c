@@ -383,9 +383,9 @@ static void rtw_coex_update_wl_link_info(struct rtw_dev *rtwdev, u8 reason)
 	u8 rssi_step;
 	u8 rssi;
 
-	scan = rtw_flag_check(rtwdev, RTW_FLAG_SCANNING);
+	scan = test_bit(RTW_FLAG_SCANNING, rtwdev->flags);
 	coex_stat->wl_connected = !!rtwdev->sta_cnt;
-	coex_stat->wl_gl_busy = rtw_flag_check(rtwdev, RTW_FLAG_BUSY_TRAFFIC);
+	coex_stat->wl_gl_busy = test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
 
 	if (stats->tx_throughput > stats->rx_throughput)
 		coex_stat->wl_tput_dir = COEX_WL_TPUT_TX;

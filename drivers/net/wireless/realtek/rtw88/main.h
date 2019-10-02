@@ -1378,21 +1378,6 @@ struct rtw_dev {
 
 #include "hci.h"
 
-static inline bool rtw_flag_check(struct rtw_dev *rtwdev, enum rtw_flags flag)
-{
-	return test_bit(flag, rtwdev->flags);
-}
-
-static inline void rtw_flag_clear(struct rtw_dev *rtwdev, enum rtw_flags flag)
-{
-	clear_bit(flag, rtwdev->flags);
-}
-
-static inline void rtw_flag_set(struct rtw_dev *rtwdev, enum rtw_flags flag)
-{
-	set_bit(flag, rtwdev->flags);
-}
-
 static inline bool rtw_is_assoc(struct rtw_dev *rtwdev)
 {
 	return !!rtwdev->sta_cnt;

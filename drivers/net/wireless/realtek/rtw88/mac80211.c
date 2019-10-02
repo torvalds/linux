@@ -19,7 +19,7 @@ static void rtw_ops_tx(struct ieee80211_hw *hw,
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_tx_pkt_info pkt_info = {0};
 
-	if (!rtw_flag_check(rtwdev, RTW_FLAG_RUNNING))
+	if (!test_bit(RTW_FLAG_RUNNING, rtwdev->flags))
 		goto out;
 
 	rtw_tx_pkt_info_update(rtwdev, &pkt_info, control, skb);
@@ -474,8 +474,8 @@ static void rtw_ops_sw_scan_start(struct ieee80211_hw *hw,
 
 	rtw_coex_scan_notify(rtwdev, COEX_SCAN_START);
 
-	rtw_flag_set(rtwdev, RTW_FLAG_DIG_DISABLE);
-	rtw_flag_set(rtwdev, RTW_FLAG_SCANNING);
+	set_bit(RTW_FLAG_DIG_DISABLE, rtwdev->flags);
+	set_bit(RTW_FLAG_SCANNING, rtwdev->flags);
 
 	mutex_unlock(&rtwdev->mutex);
 }
@@ -489,8 +489,8 @@ static void rtw_ops_sw_scan_complete(struct ieee80211_hw *hw,
 
 	mutex_lock(&rtwdev->mutex);
 
-	rtw_flag_clear(rtwdev, RTW_FLAG_SCANNING);
-	rtw_flag_clear(rtwdev, RTW_FLAG_DIG_DISABLE);
+	clear_bit(RTW_FLAG_SCANNING, rtwdev->flags);
+	clear_bit(RTW_FLAG_DIG_DISABLE, rtwdev->flags);
 
 	ether_addr_copy(rtwvif->mac_addr, vif->addr);
 	config |= PORT_SET_MAC_ADDR;
