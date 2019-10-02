@@ -844,8 +844,8 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	resp_len = sizeof(resp.comp_mask) + sizeof(resp.response_length);
 	if (uhw->outlen && uhw->outlen < resp_len)
 		return -EINVAL;
-	else
-		resp.response_length = resp_len;
+
+	resp.response_length = resp_len;
 
 	if (uhw->inlen && !ib_is_udata_cleared(uhw, 0, uhw->inlen))
 		return -EINVAL;
