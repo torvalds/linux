@@ -74,6 +74,15 @@ static int rtw_ops_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
+	if (changed & IEEE80211_CONF_CHANGE_PS) {
+		if (hw->conf.flags & IEEE80211_CONF_PS) {
+			rtwdev->ps_enabled = true;
+		} else {
+			rtwdev->ps_enabled = false;
+			rtw_leave_lps(rtwdev);
+		}
+	}
+
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL)
 		rtw_set_channel(rtwdev);
 

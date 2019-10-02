@@ -16,16 +16,13 @@
 
 unsigned int rtw_fw_lps_deep_mode;
 EXPORT_SYMBOL(rtw_fw_lps_deep_mode);
-static bool rtw_fw_support_lps;
 unsigned int rtw_debug_mask;
 EXPORT_SYMBOL(rtw_debug_mask);
 
 module_param_named(lps_deep_mode, rtw_fw_lps_deep_mode, uint, 0644);
-module_param_named(support_lps, rtw_fw_support_lps, bool, 0644);
 module_param_named(debug_mask, rtw_debug_mask, uint, 0644);
 
 MODULE_PARM_DESC(lps_deep_mode, "Deeper PS mode. If 0, deep PS is disabled");
-MODULE_PARM_DESC(support_lps, "Set Y to enable Leisure Power Save support, to turn radio off between beacons");
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
 static struct ieee80211_channel rtw_channeltable_2g[] = {
@@ -117,8 +114,6 @@ static struct ieee80211_supported_band rtw_band_5ghz = {
 
 struct rtw_watch_dog_iter_data {
 	struct rtw_vif *rtwvif;
-	bool active;
-	u8 assoc_cnt;
 };
 
 static void rtw_vif_watch_dog_iter(void *data, u8 *mac,
@@ -127,18 +122,9 @@ static void rtw_vif_watch_dog_iter(void *data, u8 *mac,
 	struct rtw_watch_dog_iter_data *iter_data = data;
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 
-	if (vif->type == NL80211_IFTYPE_STATION) {
-		if (vif->bss_conf.assoc) {
-			iter_data->assoc_cnt++;
+	if (vif->type == NL80211_IFTYPE_STATION)
+		if (vif->bss_conf.assoc)
 			iter_data->rtwvif = rtwvif;
-		}
-		if (rtwvif->stats.tx_cnt > RTW_LPS_THRESHOLD ||
-		    rtwvif->stats.rx_cnt > RTW_LPS_THRESHOLD)
-			iter_data->active = true;
-	} else {
-		/* only STATION mode can enter lps */
-		iter_data->active = true;
-	}
 
 	rtwvif->stats.tx_unicast = 0;
 	rtwvif->stats.rx_unicast = 0;
@@ -155,6 +141,7 @@ static void rtw_watch_dog_work(struct work_struct *work)
 					      watch_dog_work.work);
 	struct rtw_watch_dog_iter_data data = {};
 	bool busy_traffic = test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
+	bool ps_active;
 
 	mutex_lock(&rtwdev->mutex);
 
@@ -171,6 +158,12 @@ static void rtw_watch_dog_work(struct work_struct *work)
 
 	if (busy_traffic != test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags))
 		rtw_coex_wl_status_change_notify(rtwdev);
+
+	if (rtwdev->stats.tx_cnt > RTW_LPS_THRESHOLD ||
+	    rtwdev->stats.rx_cnt > RTW_LPS_THRESHOLD)
+		ps_active = true;
+	else
+		ps_active = false;
 
 	/* reset tx/rx statictics */
 	rtwdev->stats.tx_unicast = 0;
@@ -192,9 +185,13 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	/* fw supports only one station associated to enter lps, if there are
 	 * more than two stations associated to the AP, then we can not enter
 	 * lps, because fw does not handle the overlapped beacon interval
+	 *
+	 * mac80211 should iterate vifs and determine if driver can enter
+	 * ps by passing IEEE80211_CONF_PS to us, all we need to do is to
+	 * get that vif and check if device is having traffic more than the
+	 * threshold.
 	 */
-	if (rtw_fw_support_lps &&
-	    data.rtwvif && !data.active && data.assoc_cnt == 1)
+	if (rtwdev->ps_enabled && data.rtwvif && !ps_active)
 		rtw_enter_lps(rtwdev, data.rtwvif->port);
 
 	rtwdev->watch_dog_cnt++;
