@@ -3,7 +3,13 @@
 # CAIF physical drivers
 #
 
-comment "CAIF transport drivers"
+menuconfig CAIF_DRIVERS
+	bool "CAIF transport drivers"
+	depends on CAIF
+	help
+	  Enable this to see CAIF physical drivers.
+
+if CAIF_DRIVERS
 
 config CAIF_TTY
 	tristate "CAIF TTY transport driver"
@@ -22,7 +28,7 @@ config CAIF_SPI_SLAVE
 	The CAIF Link layer SPI Protocol driver for Slave SPI interface.
 	This driver implements a platform driver to accommodate for a
 	platform specific SPI device. A sample CAIF SPI Platform device is
-	provided in Documentation/networking/caif/spi_porting.txt
+	provided in <file:Documentation/networking/caif/spi_porting.txt>.
 
 config CAIF_SPI_SYNC
 	bool "Next command and length in start of frame"
@@ -38,7 +44,7 @@ config CAIF_HSI
        depends on CAIF
        default n
        ---help---
-       The caif low level driver for CAIF over HSI.
+       The CAIF low level driver for CAIF over HSI.
        Be aware that if you enable this then you also need to
        enable a low-level HSI driver.
 
@@ -50,8 +56,10 @@ config CAIF_VIRTIO
 	select GENERIC_ALLOCATOR
 	default n
 	---help---
-	The caif driver for CAIF over Virtio.
+	The CAIF driver for CAIF over Virtio.
 
 if CAIF_VIRTIO
 source "drivers/vhost/Kconfig.vringh"
 endif
+
+endif # CAIF_DRIVERS
