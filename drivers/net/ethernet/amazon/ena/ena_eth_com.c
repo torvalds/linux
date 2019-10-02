@@ -211,8 +211,8 @@ static int ena_com_sq_update_llq_tail(struct ena_com_io_sq *io_sq)
 
 		pkt_ctrl->curr_bounce_buf =
 			ena_com_get_next_bounce_buffer(&io_sq->bounce_buf_ctrl);
-			memset(io_sq->llq_buf_ctrl.curr_bounce_buf,
-			       0x0, llq_info->desc_list_entry_size);
+		memset(io_sq->llq_buf_ctrl.curr_bounce_buf,
+		       0x0, llq_info->desc_list_entry_size);
 
 		pkt_ctrl->idx = 0;
 		if (unlikely(llq_info->desc_stride_ctrl == ENA_ADMIN_SINGLE_DESC_PER_ENTRY))

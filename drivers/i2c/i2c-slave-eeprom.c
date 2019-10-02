@@ -33,11 +33,13 @@ struct eeprom_data {
 	u16 address_mask;
 	u8 num_address_bytes;
 	u8 idx_write_cnt;
+	bool read_only;
 	u8 buffer[];
 };
 
 #define I2C_SLAVE_BYTELEN GENMASK(15, 0)
 #define I2C_SLAVE_FLAG_ADDR16 BIT(16)
+#define I2C_SLAVE_FLAG_RO BIT(17)
 #define I2C_SLAVE_DEVICE_MAGIC(_len, _flags) ((_flags) | (_len))
 
 static int i2c_slave_eeprom_slave_cb(struct i2c_client *client,
@@ -53,9 +55,11 @@ static int i2c_slave_eeprom_slave_cb(struct i2c_client *client,
 			eeprom->buffer_idx = *val | (eeprom->buffer_idx << 8);
 			eeprom->idx_write_cnt++;
 		} else {
-			spin_lock(&eeprom->buffer_lock);
-			eeprom->buffer[eeprom->buffer_idx++ & eeprom->address_mask] = *val;
-			spin_unlock(&eeprom->buffer_lock);
+			if (!eeprom->read_only) {
+				spin_lock(&eeprom->buffer_lock);
+				eeprom->buffer[eeprom->buffer_idx++ & eeprom->address_mask] = *val;
+				spin_unlock(&eeprom->buffer_lock);
+			}
 		}
 		break;
 
@@ -130,6 +134,7 @@ static int i2c_slave_eeprom_probe(struct i2c_client *client, const struct i2c_de
 	eeprom->idx_write_cnt = 0;
 	eeprom->num_address_bytes = flag_addr16 ? 2 : 1;
 	eeprom->address_mask = size - 1;
+	eeprom->read_only = FIELD_GET(I2C_SLAVE_FLAG_RO, id->driver_data);
 	spin_lock_init(&eeprom->buffer_lock);
 	i2c_set_clientdata(client, eeprom);
 
@@ -165,8 +170,11 @@ static int i2c_slave_eeprom_remove(struct i2c_client *client)
 
 static const struct i2c_device_id i2c_slave_eeprom_id[] = {
 	{ "slave-24c02", I2C_SLAVE_DEVICE_MAGIC(2048 / 8,  0) },
+	{ "slave-24c02ro", I2C_SLAVE_DEVICE_MAGIC(2048 / 8,  I2C_SLAVE_FLAG_RO) },
 	{ "slave-24c32", I2C_SLAVE_DEVICE_MAGIC(32768 / 8, I2C_SLAVE_FLAG_ADDR16) },
+	{ "slave-24c32ro", I2C_SLAVE_DEVICE_MAGIC(32768 / 8, I2C_SLAVE_FLAG_ADDR16 | I2C_SLAVE_FLAG_RO) },
 	{ "slave-24c64", I2C_SLAVE_DEVICE_MAGIC(65536 / 8, I2C_SLAVE_FLAG_ADDR16) },
+	{ "slave-24c64ro", I2C_SLAVE_DEVICE_MAGIC(65536 / 8, I2C_SLAVE_FLAG_ADDR16 | I2C_SLAVE_FLAG_RO) },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, i2c_slave_eeprom_id);

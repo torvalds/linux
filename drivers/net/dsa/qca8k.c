@@ -936,6 +936,9 @@ qca8k_port_enable(struct dsa_switch *ds, int port,
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
 	qca8k_port_set_status(priv, port, 1);
 	priv->port_sts[port].enabled = 1;
 

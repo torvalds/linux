@@ -475,7 +475,6 @@ struct protection_domain {
 	int glx;		/* Number of levels for GCR3 table */
 	u64 *gcr3_tbl;		/* Guest CR3 table */
 	unsigned long flags;	/* flags to find out type of domain */
-	bool updated;		/* complete domain flush required */
 	unsigned dev_cnt;	/* devices assigned to this domain */
 	unsigned dev_iommu[MAX_IOMMUS]; /* per-IOMMU reference count */
 };
@@ -634,6 +633,9 @@ struct devid_map {
  * This struct contains device specific data for the IOMMU
  */
 struct iommu_dev_data {
+	/*Protect against attach/detach races */
+	spinlock_t lock;
+
 	struct list_head list;		  /* For domain->dev_list */
 	struct llist_node dev_data_list;  /* For global dev_data_list */
 	struct protection_domain *domain; /* Domain the device is bound to */

@@ -12,6 +12,7 @@
 #include <linux/err.h>
 #include <linux/asn1.h>
 #include <crypto/hash.h>
+#include <crypto/hash_info.h>
 #include <crypto/public_key.h>
 #include "pkcs7_parser.h"
 
@@ -28,6 +29,10 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 	int ret;
 
 	kenter(",%u,%s", sinfo->index, sinfo->sig->hash_algo);
+
+	/* The digest was calculated already. */
+	if (sig->digest)
+		return 0;
 
 	if (!sinfo->sig->hash_algo)
 		return -ENOPKG;
@@ -115,6 +120,34 @@ error_no_desc:
 	crypto_free_shash(tfm);
 	kleave(" = %d", ret);
 	return ret;
+}
+
+int pkcs7_get_digest(struct pkcs7_message *pkcs7, const u8 **buf, u32 *len,
+		     enum hash_algo *hash_algo)
+{
+	struct pkcs7_signed_info *sinfo = pkcs7->signed_infos;
+	int i, ret;
+
+	/*
+	 * This function doesn't support messages with more than one signature.
+	 */
+	if (sinfo == NULL || sinfo->next != NULL)
+		return -EBADMSG;
+
+	ret = pkcs7_digest(pkcs7, sinfo);
+	if (ret)
+		return ret;
+
+	*buf = sinfo->sig->digest;
+	*len = sinfo->sig->digest_size;
+
+	for (i = 0; i < HASH_ALGO__LAST; i++)
+		if (!strcmp(hash_algo_name[i], sinfo->sig->hash_algo)) {
+			*hash_algo = i;
+			break;
+		}
+
+	return 0;
 }
 
 /*

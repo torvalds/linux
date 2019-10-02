@@ -785,7 +785,7 @@ static int enetc_of_get_phy(struct enetc_ndev_priv *priv)
 	}
 
 	priv->if_mode = of_get_phy_mode(np);
-	if (priv->if_mode < 0) {
+	if ((int)priv->if_mode < 0) {
 		dev_err(priv->dev, "missing phy type\n");
 		of_node_put(priv->phy_node);
 		if (of_phy_is_fixed_link(np))

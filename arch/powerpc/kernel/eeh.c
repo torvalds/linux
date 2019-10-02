@@ -1960,7 +1960,7 @@ static int eeh_debugfs_break_device(struct pci_dev *pdev)
 	pci_err(pdev, "Going to break: %pR\n", bar);
 
 	if (pdev->is_virtfn) {
-#ifndef CONFIG_IOV
+#ifndef CONFIG_PCI_IOV
 		return -ENXIO;
 #else
 		/*
@@ -1980,7 +1980,7 @@ static int eeh_debugfs_break_device(struct pci_dev *pdev)
 		pos  = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
 		pos += PCI_SRIOV_CTRL;
 		bit  = PCI_SRIOV_CTRL_MSE;
-#endif /* !CONFIG_IOV */
+#endif /* !CONFIG_PCI_IOV */
 	} else {
 		bit = PCI_COMMAND_MEMORY;
 		pos = PCI_COMMAND;

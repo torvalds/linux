@@ -1664,46 +1664,63 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 		return err;
 	}
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
-		struct flow_match_ipv4_addrs match;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
+		struct flow_match_control match;
+		u16 addr_type;
 
-		flow_rule_match_enc_ipv4_addrs(rule, &match);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-			 src_ipv4_src_ipv6.ipv4_layout.ipv4,
-			 ntohl(match.mask->src));
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-			 src_ipv4_src_ipv6.ipv4_layout.ipv4,
-			 ntohl(match.key->src));
+		flow_rule_match_enc_control(rule, &match);
+		addr_type = match.key->addr_type;
 
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-			 dst_ipv4_dst_ipv6.ipv4_layout.ipv4,
-			 ntohl(match.mask->dst));
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-			 dst_ipv4_dst_ipv6.ipv4_layout.ipv4,
-			 ntohl(match.key->dst));
+		/* For tunnel addr_type used same key id`s as for non-tunnel */
+		if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
+			struct flow_match_ipv4_addrs match;
 
-		MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ethertype);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype, ETH_P_IP);
-	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS)) {
-		struct flow_match_ipv6_addrs match;
+			flow_rule_match_enc_ipv4_addrs(rule, &match);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
+				 src_ipv4_src_ipv6.ipv4_layout.ipv4,
+				 ntohl(match.mask->src));
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
+				 src_ipv4_src_ipv6.ipv4_layout.ipv4,
+				 ntohl(match.key->src));
 
-		flow_rule_match_enc_ipv6_addrs(rule, &match);
-		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
-				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
-		       &match.mask->src, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
-		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
-				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
-		       &match.key->src, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
+				 dst_ipv4_dst_ipv6.ipv4_layout.ipv4,
+				 ntohl(match.mask->dst));
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
+				 dst_ipv4_dst_ipv6.ipv4_layout.ipv4,
+				 ntohl(match.key->dst));
 
-		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
-				    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
-		       &match.mask->dst, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
-		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
-				    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
-		       &match.key->dst, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
+			MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c,
+					 ethertype);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype,
+				 ETH_P_IP);
+		} else if (addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
+			struct flow_match_ipv6_addrs match;
 
-		MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ethertype);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype, ETH_P_IPV6);
+			flow_rule_match_enc_ipv6_addrs(rule, &match);
+			memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
+					    src_ipv4_src_ipv6.ipv6_layout.ipv6),
+			       &match.mask->src, MLX5_FLD_SZ_BYTES(ipv6_layout,
+								   ipv6));
+			memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
+					    src_ipv4_src_ipv6.ipv6_layout.ipv6),
+			       &match.key->src, MLX5_FLD_SZ_BYTES(ipv6_layout,
+								  ipv6));
+
+			memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
+					    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
+			       &match.mask->dst, MLX5_FLD_SZ_BYTES(ipv6_layout,
+								   ipv6));
+			memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
+					    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
+			       &match.key->dst, MLX5_FLD_SZ_BYTES(ipv6_layout,
+								  ipv6));
+
+			MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c,
+					 ethertype);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype,
+				 ETH_P_IPV6);
+		}
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IP)) {

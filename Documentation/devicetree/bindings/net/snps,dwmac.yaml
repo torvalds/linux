@@ -113,7 +113,7 @@ properties:
     const: stmmaceth
 
   mac-mode:
-    maxItems: 1
+    $ref: ethernet-controller.yaml#/properties/phy-connection-type
     description:
       The property is identical to 'phy-mode', and assumes that there is mode
       converter in-between the MAC & PHY (e.g. GMII-to-RGMII). This converter

@@ -212,6 +212,7 @@ struct file_lock_list_struct {
 static DEFINE_PER_CPU(struct file_lock_list_struct, file_lock_list);
 DEFINE_STATIC_PERCPU_RWSEM(file_rwsem);
 
+
 /*
  * The blocked_hash is used to find POSIX lock loops for deadlock detection.
  * It is protected by blocked_lock_lock.
@@ -1991,6 +1992,64 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp,
 }
 EXPORT_SYMBOL(generic_setlease);
 
+#if IS_ENABLED(CONFIG_SRCU)
+/*
+ * Kernel subsystems can register to be notified on any attempt to set
+ * a new lease with the lease_notifier_chain. This is used by (e.g.) nfsd
+ * to close files that it may have cached when there is an attempt to set a
+ * conflicting lease.
+ */
+static struct srcu_notifier_head lease_notifier_chain;
+
+static inline void
+lease_notifier_chain_init(void)
+{
+	srcu_init_notifier_head(&lease_notifier_chain);
+}
+
+static inline void
+setlease_notifier(long arg, struct file_lock *lease)
+{
+	if (arg != F_UNLCK)
+		srcu_notifier_call_chain(&lease_notifier_chain, arg, lease);
+}
+
+int lease_register_notifier(struct notifier_block *nb)
+{
+	return srcu_notifier_chain_register(&lease_notifier_chain, nb);
+}
+EXPORT_SYMBOL_GPL(lease_register_notifier);
+
+void lease_unregister_notifier(struct notifier_block *nb)
+{
+	srcu_notifier_chain_unregister(&lease_notifier_chain, nb);
+}
+EXPORT_SYMBOL_GPL(lease_unregister_notifier);
+
+#else /* !IS_ENABLED(CONFIG_SRCU) */
+static inline void
+lease_notifier_chain_init(void)
+{
+}
+
+static inline void
+setlease_notifier(long arg, struct file_lock *lease)
+{
+}
+
+int lease_register_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(lease_register_notifier);
+
+void lease_unregister_notifier(struct notifier_block *nb)
+{
+}
+EXPORT_SYMBOL_GPL(lease_unregister_notifier);
+
+#endif /* IS_ENABLED(CONFIG_SRCU) */
+
 /**
  * vfs_setlease        -       sets a lease on an open file
  * @filp:	file pointer
@@ -2011,6 +2070,8 @@ EXPORT_SYMBOL(generic_setlease);
 int
 vfs_setlease(struct file *filp, long arg, struct file_lock **lease, void **priv)
 {
+	if (lease)
+		setlease_notifier(arg, *lease);
 	if (filp->f_op->setlease)
 		return filp->f_op->setlease(filp, arg, lease, priv);
 	else
@@ -2924,6 +2985,7 @@ static int __init filelock_init(void)
 		INIT_HLIST_HEAD(&fll->hlist);
 	}
 
+	lease_notifier_chain_init();
 	return 0;
 }
 core_initcall(filelock_init);

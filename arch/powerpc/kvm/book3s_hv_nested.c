@@ -29,7 +29,7 @@ void kvmhv_save_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 
-	hr->pcr = vc->pcr;
+	hr->pcr = vc->pcr | PCR_MASK;
 	hr->dpdes = vc->dpdes;
 	hr->hfscr = vcpu->arch.hfscr;
 	hr->tb_offset = vc->tb_offset;
@@ -65,7 +65,7 @@ static void byteswap_hv_regs(struct hv_guest_state *hr)
 	hr->lpid = swab32(hr->lpid);
 	hr->vcpu_token = swab32(hr->vcpu_token);
 	hr->lpcr = swab64(hr->lpcr);
-	hr->pcr = swab64(hr->pcr);
+	hr->pcr = swab64(hr->pcr) | PCR_MASK;
 	hr->amor = swab64(hr->amor);
 	hr->dpdes = swab64(hr->dpdes);
 	hr->hfscr = swab64(hr->hfscr);
@@ -148,7 +148,7 @@ static void restore_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 
-	vc->pcr = hr->pcr;
+	vc->pcr = hr->pcr | PCR_MASK;
 	vc->dpdes = hr->dpdes;
 	vcpu->arch.hfscr = hr->hfscr;
 	vcpu->arch.dawr = hr->dawr0;

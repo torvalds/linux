@@ -303,7 +303,7 @@ static inline void ksz_pwrite32(struct ksz_device *dev, int port, int offset,
 	{								\
 		.name = #width,						\
 		.val_bits = (width),					\
-		.reg_stride = (width) / 8,				\
+		.reg_stride = 1,					\
 		.reg_bits = (regbits) + (regalign),			\
 		.pad_bits = (regpad),					\
 		.max_register = BIT(regbits) - 1,			\
