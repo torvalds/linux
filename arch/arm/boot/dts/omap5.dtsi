@@ -162,7 +162,7 @@
 		l4_abe: interconnect@40100000 {
 		};
 
-		ocmcram: ocmcram@40300000 {
+		ocmcram: sram@40300000 {
 			compatible = "mmio-sram";
 			reg = <0x40300000 0x20000>; /* 128k */
 		};
