@@ -105,3 +105,7 @@
 			 <&mcbsp4_ick>, <&uart4_fck>;
 	};
 };
+
+&dpll4_m4_ck {
+	ti,max-div = <31>;
+};
