@@ -75,11 +75,14 @@ allOf:
 
 examples:
   - |
+    #include <dt-bindings/clock/exynos5420.h>
+    #include <dt-bindings/clock/samsung,s2mps11.h>
+
     rtc@10070000 {
         compatible = "samsung,s3c6410-rtc";
         reg = <0x10070000 0x100>;
         interrupts = <0 44 4>, <0 45 4>;
-        clocks = <&clock 0>, // CLK_RTC
-                 <&s2mps11_osc 0>; // S2MPS11_CLK_AP
+        clocks = <&clock CLK_RTC>,
+                 <&s2mps11_osc S2MPS11_CLK_AP>;
         clock-names = "rtc", "rtc_src";
     };
