@@ -108,6 +108,9 @@ properties:
           - const: renesas,r1ex24016
           - const: atmel,24c16
       - items:
+          - const: giantec,gt24c32a
+          - const: atmel,24c32
+      - items:
           - const: renesas,r1ex24128
           - const: atmel,24c128
 
