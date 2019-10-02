@@ -483,6 +483,8 @@ static int rtw_ops_ampdu_action(struct ieee80211_hw *hw,
 {
 	struct ieee80211_sta *sta = params->sta;
 	u16 tid = params->tid;
+	struct ieee80211_txq *txq = sta->txq[tid];
+	struct rtw_txq *rtwtxq = (struct rtw_txq *)txq->drv_priv;
 
 	switch (params->action) {
 	case IEEE80211_AMPDU_TX_START:
@@ -491,9 +493,12 @@ static int rtw_ops_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
+		clear_bit(RTW_TXQ_AMPDU, &rtwtxq->flags);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
+		set_bit(RTW_TXQ_AMPDU, &rtwtxq->flags);
+		break;
 	case IEEE80211_AMPDU_RX_START:
 	case IEEE80211_AMPDU_RX_STOP:
 		break;

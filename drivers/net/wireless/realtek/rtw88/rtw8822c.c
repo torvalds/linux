@@ -1088,8 +1088,8 @@ static void rtw8822c_phy_set_param(struct rtw_dev *rtwdev)
 #define WLAN_AMPDU_MAX_TIME		0x70
 #define WLAN_RTS_LEN_TH			0xFF
 #define WLAN_RTS_TX_TIME_TH		0x08
-#define WLAN_MAX_AGG_PKT_LIMIT		0x20
-#define WLAN_RTS_MAX_AGG_PKT_LIMIT	0x20
+#define WLAN_MAX_AGG_PKT_LIMIT		0x3f
+#define WLAN_RTS_MAX_AGG_PKT_LIMIT	0x3f
 #define WLAN_PRE_TXCNT_TIME_TH		0x1E0
 #define FAST_EDCA_VO_TH		0x06
 #define FAST_EDCA_VI_TH		0x06

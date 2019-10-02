@@ -213,6 +213,40 @@ static void rtw_c2h_work(struct work_struct *work)
 	}
 }
 
+struct rtw_txq_ba_iter_data {
+};
+
+static void rtw_txq_ba_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
+	int ret;
+	u8 tid;
+
+	tid = find_first_bit(si->tid_ba, IEEE80211_NUM_TIDS);
+	while (tid != IEEE80211_NUM_TIDS) {
+		clear_bit(tid, si->tid_ba);
+		ret = ieee80211_start_tx_ba_session(sta, tid, 0);
+		if (ret == -EINVAL) {
+			struct ieee80211_txq *txq;
+			struct rtw_txq *rtwtxq;
+
+			txq = sta->txq[tid];
+			rtwtxq = (struct rtw_txq *)txq->drv_priv;
+			set_bit(RTW_TXQ_BLOCK_BA, &rtwtxq->flags);
+		}
+
+		tid = find_first_bit(si->tid_ba, IEEE80211_NUM_TIDS);
+	}
+}
+
+static void rtw_txq_ba_work(struct work_struct *work)
+{
+	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev, ba_work);
+	struct rtw_txq_ba_iter_data data;
+
+	rtw_iterate_stas_atomic(rtwdev, rtw_txq_ba_iter, &data);
+}
+
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 			    struct rtw_channel_params *chan_params)
 {
@@ -1171,6 +1205,7 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	INIT_DELAYED_WORK(&coex->bt_reenable_work, rtw_coex_bt_reenable_work);
 	INIT_DELAYED_WORK(&coex->defreeze_work, rtw_coex_defreeze_work);
 	INIT_WORK(&rtwdev->c2h_work, rtw_c2h_work);
+	INIT_WORK(&rtwdev->ba_work, rtw_txq_ba_work);
 	skb_queue_head_init(&rtwdev->c2h_queue);
 	skb_queue_head_init(&rtwdev->coex.queue);
 	skb_queue_head_init(&rtwdev->tx_report.queue);
@@ -1262,6 +1297,7 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
 	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
 	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
+	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
 
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				     BIT(NL80211_IFTYPE_AP) |

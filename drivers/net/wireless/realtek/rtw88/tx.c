@@ -384,6 +384,38 @@ out:
 	ieee80211_free_txskb(rtwdev->hw, skb);
 }
 
+static void rtw_txq_check_agg(struct rtw_dev *rtwdev,
+			      struct rtw_txq *rtwtxq,
+			      struct sk_buff *skb)
+{
+	struct ieee80211_txq *txq = rtwtxq_to_txq(rtwtxq);
+	struct ieee80211_tx_info *info;
+	struct rtw_sta_info *si;
+
+	if (test_bit(RTW_TXQ_AMPDU, &rtwtxq->flags)) {
+		info = IEEE80211_SKB_CB(skb);
+		info->flags |= IEEE80211_TX_CTL_AMPDU;
+		return;
+	}
+
+	if (skb_get_queue_mapping(skb) == IEEE80211_AC_VO)
+		return;
+
+	if (test_bit(RTW_TXQ_BLOCK_BA, &rtwtxq->flags))
+		return;
+
+	if (unlikely(skb->protocol == cpu_to_be16(ETH_P_PAE)))
+		return;
+
+	if (!txq->sta)
+		return;
+
+	si = (struct rtw_sta_info *)txq->sta->drv_priv;
+	set_bit(txq->tid, si->tid_ba);
+
+	ieee80211_queue_work(rtwdev->hw, &rtwdev->ba_work);
+}
+
 static bool rtw_txq_dequeue(struct rtw_dev *rtwdev,
 			    struct rtw_txq *rtwtxq)
 {
@@ -394,6 +426,8 @@ static bool rtw_txq_dequeue(struct rtw_dev *rtwdev,
 	skb = ieee80211_tx_dequeue(rtwdev->hw, txq);
 	if (!skb)
 		return false;
+
+	rtw_txq_check_agg(rtwdev, rtwtxq, skb);
 
 	control.sta = txq->sta;
 	rtw_tx(rtwdev, &control, skb);
