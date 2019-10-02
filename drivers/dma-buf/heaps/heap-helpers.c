@@ -24,6 +24,7 @@ void init_heap_helper_buffer(struct heap_helper_buffer *buffer,
 	INIT_LIST_HEAD(&buffer->attachments);
 	buffer->free = free;
 }
+EXPORT_SYMBOL_GPL(init_heap_helper_buffer);
 
 struct dma_buf *heap_helper_export_dmabuf(struct heap_helper_buffer *buffer,
 					  int fd_flags)
@@ -37,6 +38,7 @@ struct dma_buf *heap_helper_export_dmabuf(struct heap_helper_buffer *buffer,
 
 	return dma_buf_export(&exp_info);
 }
+EXPORT_SYMBOL_GPL(heap_helper_export_dmabuf);
 
 static void *dma_heap_map_kernel(struct heap_helper_buffer *buffer)
 {
