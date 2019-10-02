@@ -29,6 +29,8 @@
 		i2c14 = &i2c14;
 		i2c15 = &i2c15;
 		serial4 = &uart5;
+		serial5 = &vuart1;
+		serial6 = &vuart2;
 	};
 
 
@@ -295,6 +297,26 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_emmc_default>;
 				};
+			};
+
+			vuart1: serial@1e787000 {
+				compatible = "aspeed,ast2500-vuart";
+				reg = <0x1e787000 0x40>;
+				reg-shift = <2>;
+				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_APB1>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			vuart2: serial@1e788000 {
+				compatible = "aspeed,ast2500-vuart";
+				reg = <0x1e788000 0x40>;
+				reg-shift = <2>;
+				interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_APB1>;
+				no-loopback-test;
+				status = "disabled";
 			};
 
 			i2c: bus@1e78a000 {
