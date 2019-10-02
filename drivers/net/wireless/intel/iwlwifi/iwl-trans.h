@@ -358,6 +358,24 @@ iwl_trans_get_rb_size_order(enum iwl_amsdu_size rb_size)
 	}
 }
 
+static inline int
+iwl_trans_get_rb_size(enum iwl_amsdu_size rb_size)
+{
+	switch (rb_size) {
+	case IWL_AMSDU_2K:
+		return 2 * 1024;
+	case IWL_AMSDU_4K:
+		return 4 * 1024;
+	case IWL_AMSDU_8K:
+		return 8 * 1024;
+	case IWL_AMSDU_12K:
+		return 12 * 1024;
+	default:
+		WARN_ON(1);
+		return 0;
+	}
+}
+
 struct iwl_hcmd_names {
 	u8 cmd_id;
 	const char *const cmd_name;

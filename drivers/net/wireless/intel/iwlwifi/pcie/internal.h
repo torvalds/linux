@@ -491,6 +491,7 @@ struct cont_rec {
  * @sw_csum_tx: if true, then the transport will compute the csum of the TXed
  *	frame.
  * @rx_page_order: page order for receive buffer size
+ * @rx_buf_bytes: RX buffer (RB) size in bytes
  * @reg_lock: protect hw register access
  * @mutex: to protect stop_device / start_fw / start_hw
  * @cmd_in_flight: true when we have a host command in flight
@@ -581,6 +582,7 @@ struct iwl_trans_pcie {
 	bool sw_csum_tx;
 	bool pcie_dbg_dumped_once;
 	u32 rx_page_order;
+	u32 rx_buf_bytes;
 
 	/*protect hw register */
 	spinlock_t reg_lock;
