@@ -501,6 +501,30 @@ static void btree_node_iter_set_set_pos(struct btree_node_iter *iter,
 	bch2_btree_node_iter_push(iter, b, k, btree_bkey_last(b, t));
 }
 
+static void __bch2_btree_iter_fix_key_modified(struct btree_iter *iter,
+						    struct btree *b,
+						    struct bkey_packed *where)
+{
+	struct btree_node_iter *node_iter = &iter->l[0].iter;
+
+	if (where == bch2_btree_node_iter_peek_all(node_iter, b)) {
+		bkey_disassemble(b, where, &iter->k);
+		btree_iter_set_dirty(iter, BTREE_ITER_NEED_PEEK);
+	}
+}
+
+void bch2_btree_iter_fix_key_modified(struct btree_iter *iter,
+				      struct btree *b,
+				      struct bkey_packed *where)
+{
+	struct btree_iter *linked;
+
+	trans_for_each_iter_with_node(iter->trans, b, linked) {
+		__bch2_btree_iter_fix_key_modified(linked, b, where);
+		__bch2_btree_iter_verify(linked, b);
+	}
+}
+
 static void __bch2_btree_node_iter_fix(struct btree_iter *iter,
 				      struct btree *b,
 				      struct btree_node_iter *node_iter,

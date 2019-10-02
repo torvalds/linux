@@ -104,6 +104,8 @@ static inline void bch2_btree_iter_verify(struct btree_iter *iter,
 static inline void bch2_btree_trans_verify_locks(struct btree_trans *iter) {}
 #endif
 
+void bch2_btree_iter_fix_key_modified(struct btree_iter *, struct btree *,
+					   struct bkey_packed *);
 void bch2_btree_node_iter_fix(struct btree_iter *, struct btree *,
 			      struct btree_node_iter *, struct bkey_packed *,
 			      unsigned, unsigned);
