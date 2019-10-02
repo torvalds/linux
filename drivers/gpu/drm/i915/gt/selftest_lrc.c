@@ -79,6 +79,184 @@ err_unlock:
 	return err;
 }
 
+static int live_unlite_restore(struct drm_i915_private *i915, int prio)
+{
+	struct intel_engine_cs *engine;
+	struct i915_gem_context *ctx;
+	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
+	struct igt_spinner spin;
+	int err = -ENOMEM;
+
+	/*
+	 * Check that we can correctly context switch between 2 instances
+	 * on the same engine from the same parent context.
+	 */
+
+	mutex_lock(&i915->drm.struct_mutex);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+
+	if (igt_spinner_init(&spin, &i915->gt))
+		goto err_unlock;
+
+	ctx = kernel_context(i915);
+	if (!ctx)
+		goto err_spin;
+
+	err = 0;
+	for_each_engine(engine, i915, id) {
+		struct intel_context *ce[2] = {};
+		struct i915_request *rq[2];
+		struct igt_live_test t;
+		int n;
+
+		if (prio && !intel_engine_has_preemption(engine))
+			continue;
+
+		if (!intel_engine_can_store_dword(engine))
+			continue;
+
+		if (igt_live_test_begin(&t, i915, __func__, engine->name)) {
+			err = -EIO;
+			break;
+		}
+
+		for (n = 0; n < ARRAY_SIZE(ce); n++) {
+			struct intel_context *tmp;
+
+			tmp = intel_context_create(ctx, engine);
+			if (IS_ERR(tmp)) {
+				err = PTR_ERR(tmp);
+				goto err_ce;
+			}
+
+			err = intel_context_pin(tmp);
+			if (err) {
+				intel_context_put(tmp);
+				goto err_ce;
+			}
+
+			/*
+			 * Setup the pair of contexts such that if we
+			 * lite-restore using the RING_TAIL from ce[1] it
+			 * will execute garbage from ce[0]->ring.
+			 */
+			memset(tmp->ring->vaddr,
+			       POISON_INUSE, /* IPEHR: 0x5a5a5a5a [hung!] */
+			       tmp->ring->vma->size);
+
+			ce[n] = tmp;
+		}
+		GEM_BUG_ON(!ce[1]->ring->size);
+		intel_ring_reset(ce[1]->ring, ce[1]->ring->size / 2);
+
+		local_bh_disable(); /* appease lockdep */
+		__context_pin_acquire(ce[1]);
+		__execlists_update_reg_state(ce[1], engine);
+		__context_pin_release(ce[1]);
+		local_bh_enable();
+
+		rq[0] = igt_spinner_create_request(&spin, ce[0], MI_ARB_CHECK);
+		if (IS_ERR(rq[0])) {
+			err = PTR_ERR(rq[0]);
+			goto err_ce;
+		}
+
+		i915_request_get(rq[0]);
+		i915_request_add(rq[0]);
+		GEM_BUG_ON(rq[0]->postfix > ce[1]->ring->emit);
+
+		if (!igt_wait_for_spinner(&spin, rq[0])) {
+			i915_request_put(rq[0]);
+			goto err_ce;
+		}
+
+		rq[1] = i915_request_create(ce[1]);
+		if (IS_ERR(rq[1])) {
+			err = PTR_ERR(rq[1]);
+			i915_request_put(rq[0]);
+			goto err_ce;
+		}
+
+		if (!prio) {
+			/*
+			 * Ensure we do the switch to ce[1] on completion.
+			 *
+			 * rq[0] is already submitted, so this should reduce
+			 * to a no-op (a wait on a request on the same engine
+			 * uses the submit fence, not the completion fence),
+			 * but it will install a dependency on rq[1] for rq[0]
+			 * that will prevent the pair being reordered by
+			 * timeslicing.
+			 */
+			i915_request_await_dma_fence(rq[1], &rq[0]->fence);
+		}
+
+		i915_request_get(rq[1]);
+		i915_request_add(rq[1]);
+		GEM_BUG_ON(rq[1]->postfix <= rq[0]->postfix);
+		i915_request_put(rq[0]);
+
+		if (prio) {
+			struct i915_sched_attr attr = {
+				.priority = prio,
+			};
+
+			/* Alternatively preempt the spinner with ce[1] */
+			engine->schedule(rq[1], &attr);
+		}
+
+		/* And switch back to ce[0] for good measure */
+		rq[0] = i915_request_create(ce[0]);
+		if (IS_ERR(rq[0])) {
+			err = PTR_ERR(rq[0]);
+			i915_request_put(rq[1]);
+			goto err_ce;
+		}
+
+		i915_request_await_dma_fence(rq[0], &rq[1]->fence);
+		i915_request_get(rq[0]);
+		i915_request_add(rq[0]);
+		GEM_BUG_ON(rq[0]->postfix > rq[1]->postfix);
+		i915_request_put(rq[1]);
+		i915_request_put(rq[0]);
+
+err_ce:
+		tasklet_kill(&engine->execlists.tasklet); /* flush submission */
+		igt_spinner_end(&spin);
+		for (n = 0; n < ARRAY_SIZE(ce); n++) {
+			if (IS_ERR_OR_NULL(ce[n]))
+				break;
+
+			intel_context_unpin(ce[n]);
+			intel_context_put(ce[n]);
+		}
+
+		if (igt_live_test_end(&t))
+			err = -EIO;
+		if (err)
+			break;
+	}
+
+	kernel_context_close(ctx);
+err_spin:
+	igt_spinner_fini(&spin);
+err_unlock:
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+}
+
+static int live_unlite_switch(void *arg)
+{
+	return live_unlite_restore(arg, 0);
+}
+
+static int live_unlite_preempt(void *arg)
+{
+	return live_unlite_restore(arg, I915_USER_PRIORITY(I915_PRIORITY_MAX));
+}
+
 static int
 emit_semaphore_chain(struct i915_request *rq, struct i915_vma *vma, int idx)
 {
@@ -2178,6 +2356,8 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_sanitycheck),
+		SUBTEST(live_unlite_switch),
+		SUBTEST(live_unlite_preempt),
 		SUBTEST(live_timeslice_preempt),
 		SUBTEST(live_busywait_preempt),
 		SUBTEST(live_preempt),
