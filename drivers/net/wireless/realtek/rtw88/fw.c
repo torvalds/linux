@@ -672,9 +672,6 @@ static void rtw_rsvd_page_list_to_buf(struct rtw_dev *rtwdev, u8 page_size,
 {
 	struct sk_buff *skb = rsvd_pkt->skb;
 
-	if (rsvd_pkt->add_txdesc)
-		rtw_fill_rsvd_page_desc(rtwdev, skb);
-
 	if (page >= 1)
 		memcpy(buf + page_margin + page_size * (page - 1),
 		       skb->data, skb->len);
@@ -799,16 +796,37 @@ static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev,
 	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
 		iter = rtw_get_rsvd_page_skb(hw, vif, rsvd_pkt->type);
 		if (!iter) {
-			rtw_err(rtwdev, "fail to build rsvd packet\n");
+			rtw_err(rtwdev, "failed to build rsvd packet\n");
 			goto release_skb;
 		}
+
+		/* Fill the tx_desc for the rsvd pkt that requires one.
+		 * And iter->len will be added with size of tx_desc_sz.
+		 */
+		if (rsvd_pkt->add_txdesc)
+			rtw_fill_rsvd_page_desc(rtwdev, iter);
+
 		rsvd_pkt->skb = iter;
 		rsvd_pkt->page = total_page;
-		if (rsvd_pkt->add_txdesc)
+
+		/* Reserved page is downloaded via TX path, and TX path will
+		 * generate a tx_desc at the header to describe length of
+		 * the buffer. If we are not counting page numbers with the
+		 * size of tx_desc added at the first rsvd_pkt (usually a
+		 * beacon, firmware default refer to the first page as the
+		 * content of beacon), we could generate a buffer which size
+		 * is smaller than the actual size of the whole rsvd_page
+		 */
+		if (total_page == 0) {
+			if (rsvd_pkt->type != RSVD_BEACON) {
+				rtw_err(rtwdev, "first page should be a beacon\n");
+				goto release_skb;
+			}
 			total_page += rtw_len_to_page(iter->len + tx_desc_sz,
 						      page_size);
-		else
+		} else {
 			total_page += rtw_len_to_page(iter->len, page_size);
+		}
 	}
 
 	if (total_page > rtwdev->fifo.rsvd_drv_pg_num) {
@@ -821,13 +839,24 @@ static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev,
 	if (!buf)
 		goto release_skb;
 
+	/* Copy the content of each rsvd_pkt to the buf, and they should
+	 * be aligned to the pages.
+	 *
+	 * Note that the first rsvd_pkt is a beacon no matter what vif->type.
+	 * And that rsvd_pkt does not require tx_desc because when it goes
+	 * through TX path, the TX path will generate one for it.
+	 */
 	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
 		rtw_rsvd_page_list_to_buf(rtwdev, page_size, page_margin,
 					  page, buf, rsvd_pkt);
-		page += rtw_len_to_page(rsvd_pkt->skb->len, page_size);
-	}
-	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list)
+		if (page == 0)
+			page += rtw_len_to_page(rsvd_pkt->skb->len +
+						tx_desc_sz, page_size);
+		else
+			page += rtw_len_to_page(rsvd_pkt->skb->len, page_size);
+
 		kfree_skb(rsvd_pkt->skb);
+	}
 
 	return buf;
 
@@ -880,6 +909,11 @@ int rtw_fw_download_rsvd_page(struct rtw_dev *rtwdev, struct ieee80211_vif *vif)
 		goto free;
 	}
 
+	/* The last thing is to download the *ONLY* beacon again, because
+	 * the previous tx_desc is to describe the total rsvd page. Download
+	 * the beacon again to replace the TX desc header, and we will get
+	 * a correct tx_desc for the beacon in the rsvd page.
+	 */
 	ret = rtw_download_beacon(rtwdev, vif);
 	if (ret) {
 		rtw_err(rtwdev, "failed to download beacon\n");
