@@ -44,7 +44,7 @@
 #include "dce110/dce110_hw_sequencer.h"
 #include "dcn20/dcn20_opp.h"
 #include "dcn20/dcn20_dsc.h"
-#include "dcn20/dcn20_link_encoder.h"
+#include "dcn21/dcn21_link_encoder.h"
 #include "dcn20/dcn20_stream_encoder.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
@@ -1463,6 +1463,87 @@ static const struct resource_create_funcs res_create_maximus_funcs = {
 	.create_hwseq = dcn21_hwseq_create,
 };
 
+static const struct encoder_feature_support link_enc_feature = {
+		.max_hdmi_deep_color = COLOR_DEPTH_121212,
+		.max_hdmi_pixel_clock = 600000,
+		.hdmi_ycbcr420_supported = true,
+		.dp_ycbcr420_supported = true,
+		.flags.bits.IS_HBR2_CAPABLE = true,
+		.flags.bits.IS_HBR3_CAPABLE = true,
+		.flags.bits.IS_TPS3_CAPABLE = true,
+		.flags.bits.IS_TPS4_CAPABLE = true
+};
+
+
+#define link_regs(id, phyid)\
+[id] = {\
+	LE_DCN10_REG_LIST(id), \
+	UNIPHY_DCN2_REG_LIST(phyid), \
+	SRI(DP_DPHY_INTERNAL_CTRL, DP, id) \
+}
+
+static const struct dcn10_link_enc_registers link_enc_regs[] = {
+	link_regs(0, A),
+	link_regs(1, B),
+	link_regs(2, C),
+	link_regs(3, D),
+	link_regs(4, E),
+};
+
+#define aux_regs(id)\
+[id] = {\
+	DCN2_AUX_REG_LIST(id)\
+}
+
+static const struct dcn10_link_enc_aux_registers link_enc_aux_regs[] = {
+		aux_regs(0),
+		aux_regs(1),
+		aux_regs(2),
+		aux_regs(3),
+		aux_regs(4)
+};
+
+#define hpd_regs(id)\
+[id] = {\
+	HPD_REG_LIST(id)\
+}
+
+static const struct dcn10_link_enc_hpd_registers link_enc_hpd_regs[] = {
+		hpd_regs(0),
+		hpd_regs(1),
+		hpd_regs(2),
+		hpd_regs(3),
+		hpd_regs(4)
+};
+
+static const struct dcn10_link_enc_shift le_shift = {
+	LINK_ENCODER_MASK_SH_LIST_DCN20(__SHIFT)
+};
+
+static const struct dcn10_link_enc_mask le_mask = {
+	LINK_ENCODER_MASK_SH_LIST_DCN20(_MASK)
+};
+
+static struct link_encoder *dcn21_link_encoder_create(
+	const struct encoder_init_data *enc_init_data)
+{
+	struct dcn21_link_encoder *enc21 =
+		kzalloc(sizeof(struct dcn21_link_encoder), GFP_KERNEL);
+
+	if (!enc21)
+		return NULL;
+
+	dcn21_link_encoder_construct(enc21,
+				      enc_init_data,
+				      &link_enc_feature,
+				      &link_enc_regs[enc_init_data->transmitter],
+				      &link_enc_aux_regs[enc_init_data->channel - 1],
+				      &link_enc_hpd_regs[enc_init_data->hpd_source],
+				      &le_shift,
+				      &le_mask);
+
+	return &enc21->enc10.base;
+}
 #define CTX ctx
 
 #define REG(reg_name) \
@@ -1478,7 +1559,7 @@ static uint32_t read_pipe_fuses(struct dc_context *ctx)
 
 static struct resource_funcs dcn21_res_pool_funcs = {
 	.destroy = dcn21_destroy_resource_pool,
-	.link_enc_create = dcn20_link_encoder_create,
+	.link_enc_create = dcn21_link_encoder_create,
 	.validate_bandwidth = dcn21_validate_bandwidth,
 	.add_stream_to_ctx = dcn20_add_stream_to_ctx,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
