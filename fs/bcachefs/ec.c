@@ -1351,6 +1351,9 @@ int bch2_ec_mem_alloc(struct bch_fs *c, bool gc)
 	if (ret)
 		return ret;
 
+	if (!idx)
+		return 0;
+
 	if (!gc &&
 	    !init_heap(&c->ec_stripes_heap, roundup_pow_of_two(idx),
 		       GFP_KERNEL))
