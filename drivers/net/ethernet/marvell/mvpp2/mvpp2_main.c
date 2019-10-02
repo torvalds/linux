@@ -2863,7 +2863,7 @@ static void mvpp2_rx_csum(struct mvpp2_port *port, u32 status,
 	skb->ip_summed = CHECKSUM_NONE;
 }
 
-/* Reuse skb if possible, or allocate a new skb and add it to BM pool */
+/* Allocate a new skb and add it to BM pool */
 static int mvpp2_rx_refill(struct mvpp2_port *port,
 			   struct mvpp2_bm_pool *bm_pool, int pool)
 {
@@ -2871,7 +2871,6 @@ static int mvpp2_rx_refill(struct mvpp2_port *port,
 	phys_addr_t phys_addr;
 	void *buf;
 
-	/* No recycle or too many buffers are in use, so allocate a new skb */
 	buf = mvpp2_buf_alloc(port, bm_pool, &dma_addr, &phys_addr,
 			      GFP_ATOMIC);
 	if (!buf)
