@@ -909,6 +909,16 @@ xadd:			if (is_imm8(insn->off))
 		case BPF_JMP32 | BPF_JSLT | BPF_K:
 		case BPF_JMP32 | BPF_JSGE | BPF_K:
 		case BPF_JMP32 | BPF_JSLE | BPF_K:
+			/* test dst_reg, dst_reg to save one extra byte */
+			if (imm32 == 0) {
+				if (BPF_CLASS(insn->code) == BPF_JMP)
+					EMIT1(add_2mod(0x48, dst_reg, dst_reg));
+				else if (is_ereg(dst_reg))
+					EMIT1(add_2mod(0x40, dst_reg, dst_reg));
+				EMIT2(0x85, add_2reg(0xC0, dst_reg, dst_reg));
+				goto emit_cond_jmp;
+			}
+
 			/* cmp dst_reg, imm8/32 */
 			if (BPF_CLASS(insn->code) == BPF_JMP)
 				EMIT1(add_1mod(0x48, dst_reg));
