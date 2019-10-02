@@ -2520,6 +2520,18 @@ static const struct skl_wrpll_params icl_tbt_pll_19_2MHz_values = {
 	.pdiv = 0x4 /* 5 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0,
 };
 
+static const struct skl_wrpll_params tgl_tbt_pll_19_2MHz_values = {
+	.dco_integer = 0x54, .dco_fraction = 0x3000,
+	/* the following params are unused */
+	.pdiv = 0, .kdiv = 0, .qdiv_mode = 0, .qdiv_ratio = 0,
+};
+
+static const struct skl_wrpll_params tgl_tbt_pll_24MHz_values = {
+	.dco_integer = 0x43, .dco_fraction = 0x4000,
+	/* the following params are unused */
+	.pdiv = 0, .kdiv = 0, .qdiv_mode = 0, .qdiv_ratio = 0,
+};
+
 static bool icl_calc_dp_combo_pll(struct intel_crtc_state *crtc_state,
 				  struct skl_wrpll_params *pll_params)
 {
@@ -2547,8 +2559,34 @@ static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 
-	*pll_params = dev_priv->cdclk.hw.ref == 24000 ?
-			icl_tbt_pll_24MHz_values : icl_tbt_pll_19_2MHz_values;
+	if (INTEL_GEN(dev_priv) >= 12) {
+		switch (dev_priv->cdclk.hw.ref) {
+		default:
+			MISSING_CASE(dev_priv->cdclk.hw.ref);
+			/* fall-through */
+		case 19200:
+		case 38400:
+			*pll_params = tgl_tbt_pll_19_2MHz_values;
+			break;
+		case 24000:
+			*pll_params = tgl_tbt_pll_24MHz_values;
+			break;
+		}
+	} else {
+		switch (dev_priv->cdclk.hw.ref) {
+		default:
+			MISSING_CASE(dev_priv->cdclk.hw.ref);
+			/* fall-through */
+		case 19200:
+		case 38400:
+			*pll_params = icl_tbt_pll_19_2MHz_values;
+			break;
+		case 24000:
+			*pll_params = icl_tbt_pll_24MHz_values;
+			break;
+		}
+	}
+
 	return true;
 }
 
