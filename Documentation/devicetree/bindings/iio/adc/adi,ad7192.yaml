@@ -95,6 +95,9 @@ required:
 examples:
   - |
     spi0 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
       adc@0 {
         compatible = "adi,ad7192";
         reg = <0>;
