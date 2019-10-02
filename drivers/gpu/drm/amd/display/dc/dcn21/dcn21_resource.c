@@ -83,8 +83,8 @@
 
 struct _vcs_dpi_ip_params_st dcn2_1_ip = {
 	.odm_capable = 1,
-	.gpuvm_enable = 0,
-	.hostvm_enable = 0,
+	.gpuvm_enable = 1,
+	.hostvm_enable = 1,
 	.gpuvm_max_page_table_levels = 1,
 	.hostvm_max_page_table_levels = 4,
 	.hostvm_cached_page_table_levels = 2,
@@ -669,6 +669,9 @@ static const struct dcn10_stream_encoder_mask se_mask = {
 
 static void dcn21_pp_smu_destroy(struct pp_smu_funcs **pp_smu);
 
+static int dcn21_populate_dml_pipes_from_context(
+		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes);
+
 static struct input_pixel_processor *dcn21_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
@@ -1083,7 +1086,7 @@ void dcn21_calculate_wm(
 			pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc,
 				&context->res_ctx, pipes);
 		else
-			pipe_cnt = dcn20_populate_dml_pipes_from_context(dc,
+			pipe_cnt = dcn21_populate_dml_pipes_from_context(dc,
 				&context->res_ctx, pipes);
 	}
 
@@ -1585,11 +1588,29 @@ static uint32_t read_pipe_fuses(struct dc_context *ctx)
 	return value;
 }
 
+static int dcn21_populate_dml_pipes_from_context(
+		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes)
+{
+	uint32_t pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, res_ctx, pipes);
+	int i;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+
+		if (!res_ctx->pipe_ctx[i].stream)
+			continue;
+
+		pipes[i].pipe.src.hostvm = 1;
+		pipes[i].pipe.src.gpuvm = 1;
+	}
+
+	return pipe_cnt;
+}
+
 static struct resource_funcs dcn21_res_pool_funcs = {
 	.destroy = dcn21_destroy_resource_pool,
 	.link_enc_create = dcn21_link_encoder_create,
 	.validate_bandwidth = dcn21_validate_bandwidth,
-	.populate_dml_pipes = dcn20_populate_dml_pipes_from_context,
+	.populate_dml_pipes = dcn21_populate_dml_pipes_from_context,
 	.add_stream_to_ctx = dcn20_add_stream_to_ctx,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
 	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
