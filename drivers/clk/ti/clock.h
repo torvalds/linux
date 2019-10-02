@@ -20,9 +20,11 @@ struct clk_omap_divider {
 	struct clk_hw		hw;
 	struct clk_omap_reg	reg;
 	u8			shift;
-	u8			width;
 	u8			flags;
 	s8			latch;
+	u16			min;
+	u16			max;
+	u16			mask;
 	const struct clk_div_table	*table;
 	u32		context;
 };
