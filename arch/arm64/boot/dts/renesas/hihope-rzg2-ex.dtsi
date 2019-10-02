@@ -51,6 +51,35 @@
 	status = "okay";
 };
 
+&gpio1 {
+	/*
+	 * When GP1_20 is LOW LVDS0 is connected to the LVDS connector
+	 * When GP1_20 is HIGH LVDS0 is connected to the LT8918L
+	 */
+	lvds-connector-en-gpio {
+		gpio-hog;
+		gpios = <20 GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "lvds-connector-en-gpio";
+	};
+};
+
+&lvds0 {
+	/*
+	 * Please include the LVDS panel .dtsi file and uncomment the below line
+	 * to enable LVDS panel connected to RZ/G2[MN] boards.
+	 */
+
+	/* status = "okay"; */
+
+	ports {
+		port@1 {
+			lvds_connector: endpoint {
+			};
+		};
+	};
+};
+
 &pciec0 {
 	status = "okay";
 };
