@@ -137,6 +137,10 @@ struct mipi_dsi_host *of_find_mipi_dsi_host_by_node(struct device_node *node);
 #define MIPI_DSI_CLOCK_NON_CONTINUOUS	BIT(10)
 /* transmit data in low power */
 #define MIPI_DSI_MODE_LPM		BIT(11)
+/* disable BLLP area */
+#define MIPI_DSI_MODE_VIDEO_BLLP	BIT(12)
+/* disable EOF BLLP area */
+#define MIPI_DSI_MODE_VIDEO_EOF_BLLP	BIT(13)
 
 enum mipi_dsi_pixel_format {
 	MIPI_DSI_FMT_RGB888,
