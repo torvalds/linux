@@ -1905,6 +1905,42 @@ match:
 	}
 }
 
+#define soc_setup_card_name(name, name1, name2, norm)		\
+	__soc_setup_card_name(name, sizeof(name), name1, name2, norm)
+static void __soc_setup_card_name(char *name, int len,
+				  const char *name1, const char *name2,
+				  int normalization)
+{
+	int i;
+
+	snprintf(name, len, "%s", name1 ? name1 : name2);
+
+	if (!normalization)
+		return;
+
+	/*
+	 * Name normalization
+	 *
+	 * The driver name is somewhat special, as it's used as a key for
+	 * searches in the user-space.
+	 *
+	 * ex)
+	 *	"abcd??efg" -> "abcd__efg"
+	 */
+	for (i = 0; i < len; i++) {
+		switch (name[i]) {
+		case '_':
+		case '-':
+		case '\0':
+			break;
+		default:
+			if (!isalnum(name[i]))
+				name[i] = '_';
+			break;
+		}
+	}
+}
+
 static void soc_cleanup_card_resources(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *link, *_link;
@@ -2070,24 +2106,12 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	/* try to set some sane longname if DMI is available */
 	snd_soc_set_dmi_name(card, NULL);
 
-	snprintf(card->snd_card->shortname, sizeof(card->snd_card->shortname),
-		 "%s", card->name);
-	snprintf(card->snd_card->longname, sizeof(card->snd_card->longname),
-		 "%s", card->long_name ? card->long_name : card->name);
-	snprintf(card->snd_card->driver, sizeof(card->snd_card->driver),
-		 "%s", card->driver_name ? card->driver_name : card->name);
-	for (i = 0; i < ARRAY_SIZE(card->snd_card->driver); i++) {
-		switch (card->snd_card->driver[i]) {
-		case '_':
-		case '-':
-		case '\0':
-			break;
-		default:
-			if (!isalnum(card->snd_card->driver[i]))
-				card->snd_card->driver[i] = '_';
-			break;
-		}
-	}
+	soc_setup_card_name(card->snd_card->shortname,
+			    card->name, NULL, 0);
+	soc_setup_card_name(card->snd_card->longname,
+			    card->long_name, card->name, 0);
+	soc_setup_card_name(card->snd_card->driver,
+			    card->driver_name, card->name, 1);
 
 	if (card->late_probe) {
 		ret = card->late_probe(card);
