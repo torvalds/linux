@@ -2506,7 +2506,7 @@ static char *fmt_single_name(struct device *dev, int *id)
 			*id = 0;
 	}
 
-	return kstrdup(name, GFP_KERNEL);
+	return devm_kstrdup(dev, name, GFP_KERNEL);
 }
 
 /*
@@ -2523,7 +2523,7 @@ static inline char *fmt_multiple_name(struct device *dev,
 		return NULL;
 	}
 
-	return kstrdup(dai_drv->name, GFP_KERNEL);
+	return devm_kstrdup(dev, dai_drv->name, GFP_KERNEL);
 }
 
 /**
@@ -2539,8 +2539,6 @@ static void snd_soc_unregister_dais(struct snd_soc_component *component)
 		dev_dbg(component->dev, "ASoC: Unregistered DAI '%s'\n",
 			dai->name);
 		list_del(&dai->list);
-		kfree(dai->name);
-		kfree(dai);
 	}
 }
 
@@ -2554,7 +2552,7 @@ static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
 
 	dev_dbg(dev, "ASoC: dynamically register DAI %s\n", dev_name(dev));
 
-	dai = kzalloc(sizeof(struct snd_soc_dai), GFP_KERNEL);
+	dai = devm_kzalloc(dev, sizeof(*dai), GFP_KERNEL);
 	if (dai == NULL)
 		return NULL;
 
@@ -2576,10 +2574,8 @@ static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
 		else
 			dai->id = component->num_dai;
 	}
-	if (dai->name == NULL) {
-		kfree(dai);
+	if (!dai->name)
 		return NULL;
-	}
 
 	dai->component = component;
 	dai->dev = dev;
@@ -2765,7 +2761,6 @@ static void snd_soc_component_add(struct snd_soc_component *component)
 static void snd_soc_component_cleanup(struct snd_soc_component *component)
 {
 	snd_soc_unregister_dais(component);
-	kfree(component->name);
 }
 
 static void snd_soc_component_del_unlocked(struct snd_soc_component *component)
