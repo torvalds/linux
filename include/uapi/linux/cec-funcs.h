@@ -1304,17 +1304,17 @@ static inline void cec_msg_user_control_pressed(struct cec_msg *msg,
 	if (!ui_cmd->has_opt_arg)
 		return;
 	switch (ui_cmd->ui_cmd) {
-	case 0x56:
-	case 0x57:
-	case 0x60:
-	case 0x68:
-	case 0x69:
-	case 0x6a:
+	case CEC_OP_UI_CMD_SELECT_BROADCAST_TYPE:
+	case CEC_OP_UI_CMD_SELECT_SOUND_PRESENTATION:
+	case CEC_OP_UI_CMD_PLAY_FUNCTION:
+	case CEC_OP_UI_CMD_SELECT_MEDIA_FUNCTION:
+	case CEC_OP_UI_CMD_SELECT_AV_INPUT_FUNCTION:
+	case CEC_OP_UI_CMD_SELECT_AUDIO_INPUT_FUNCTION:
 		/* The optional operand is one byte for all these ui commands */
 		msg->len++;
 		msg->msg[3] = ui_cmd->play_mode;
 		break;
-	case 0x67:
+	case CEC_OP_UI_CMD_TUNE_FUNCTION:
 		msg->len += 4;
 		msg->msg[3] = (ui_cmd->channel_identifier.channel_number_fmt << 2) |
 			      (ui_cmd->channel_identifier.major >> 8);
@@ -1333,17 +1333,17 @@ static inline void cec_ops_user_control_pressed(const struct cec_msg *msg,
 	if (msg->len == 3)
 		return;
 	switch (ui_cmd->ui_cmd) {
-	case 0x56:
-	case 0x57:
-	case 0x60:
-	case 0x68:
-	case 0x69:
-	case 0x6a:
+	case CEC_OP_UI_CMD_SELECT_BROADCAST_TYPE:
+	case CEC_OP_UI_CMD_SELECT_SOUND_PRESENTATION:
+	case CEC_OP_UI_CMD_PLAY_FUNCTION:
+	case CEC_OP_UI_CMD_SELECT_MEDIA_FUNCTION:
+	case CEC_OP_UI_CMD_SELECT_AV_INPUT_FUNCTION:
+	case CEC_OP_UI_CMD_SELECT_AUDIO_INPUT_FUNCTION:
 		/* The optional operand is one byte for all these ui commands */
 		ui_cmd->play_mode = msg->msg[3];
 		ui_cmd->has_opt_arg = 1;
 		break;
-	case 0x67:
+	case CEC_OP_UI_CMD_TUNE_FUNCTION:
 		if (msg->len < 7)
 			break;
 		ui_cmd->has_opt_arg = 1;
