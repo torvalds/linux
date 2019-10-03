@@ -15,6 +15,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/regmap.h>
 #include <asm/unaligned.h>
 #include <linux/iio/common/st_sensors.h>
 
@@ -28,19 +29,10 @@ static inline u32 st_sensors_get_unaligned_le24(const u8 *p)
 int st_sensors_write_data_with_mask(struct iio_dev *indio_dev,
 				    u8 reg_addr, u8 mask, u8 data)
 {
-	int err;
-	u8 new_data;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	err = sdata->tf->read_byte(&sdata->tb, sdata->dev, reg_addr, &new_data);
-	if (err < 0)
-		goto st_sensors_write_data_with_mask_error;
-
-	new_data = ((new_data & (~mask)) | ((data << __ffs(mask)) & mask));
-	err = sdata->tf->write_byte(&sdata->tb, sdata->dev, reg_addr, new_data);
-
-st_sensors_write_data_with_mask_error:
-	return err;
+	return regmap_update_bits(sdata->regmap,
+				  reg_addr, mask, data << __ffs(mask));
 }
 
 int st_sensors_debugfs_reg_access(struct iio_dev *indio_dev,
@@ -48,18 +40,14 @@ int st_sensors_debugfs_reg_access(struct iio_dev *indio_dev,
 				  unsigned *readval)
 {
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
-	u8 readdata;
 	int err;
 
 	if (!readval)
-		return sdata->tf->write_byte(&sdata->tb, sdata->dev,
-					     (u8)reg, (u8)writeval);
+		return regmap_write(sdata->regmap, reg, writeval);
 
-	err = sdata->tf->read_byte(&sdata->tb, sdata->dev, (u8)reg, &readdata);
+	err = regmap_read(sdata->regmap, reg, readval);
 	if (err < 0)
 		return err;
-
-	*readval = (unsigned)readdata;
 
 	return 0;
 }
@@ -545,7 +533,7 @@ st_sensors_match_scale_error:
 EXPORT_SYMBOL(st_sensors_set_fullscale_by_gain);
 
 static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
-				struct iio_chan_spec const *ch, int *data)
+				     struct iio_chan_spec const *ch, int *data)
 {
 	int err;
 	u8 *outdata;
@@ -554,13 +542,12 @@ static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
 
 	byte_for_channel = DIV_ROUND_UP(ch->scan_type.realbits +
 					ch->scan_type.shift, 8);
-	outdata = kmalloc(byte_for_channel, GFP_KERNEL);
+	outdata = kmalloc(byte_for_channel, GFP_DMA | GFP_KERNEL);
 	if (!outdata)
 		return -ENOMEM;
 
-	err = sdata->tf->read_multiple_byte(&sdata->tb, sdata->dev,
-				ch->address, byte_for_channel,
-				outdata, sdata->multiread_bit);
+	err = regmap_bulk_read(sdata->regmap, ch->address,
+			       outdata, byte_for_channel);
 	if (err < 0)
 		goto st_sensors_free_memory;
 
@@ -608,69 +595,55 @@ out:
 }
 EXPORT_SYMBOL(st_sensors_read_info_raw);
 
-static int st_sensors_init_interface_mode(struct iio_dev *indio_dev,
-			const struct st_sensor_settings *sensor_settings)
+/*
+ * st_sensors_get_settings_index() - get index of the sensor settings for a
+ *				     specific device from list of settings
+ * @name: device name buffer reference.
+ * @list: sensor settings list.
+ * @list_length: length of sensor settings list.
+ *
+ * Return: non negative number on success (valid index),
+ *	   negative error code otherwise.
+ */
+int st_sensors_get_settings_index(const char *name,
+				  const struct st_sensor_settings *list,
+				  const int list_length)
 {
-	struct st_sensor_data *sdata = iio_priv(indio_dev);
-	struct device_node *np = sdata->dev->of_node;
-	struct st_sensors_platform_data *pdata;
+	int i, n;
 
-	pdata = (struct st_sensors_platform_data *)sdata->dev->platform_data;
-	if (((np && of_property_read_bool(np, "spi-3wire")) ||
-	     (pdata && pdata->spi_3wire)) && sensor_settings->sim.addr) {
-		int err;
-
-		err = sdata->tf->write_byte(&sdata->tb, sdata->dev,
-					    sensor_settings->sim.addr,
-					    sensor_settings->sim.value);
-		if (err < 0) {
-			dev_err(&indio_dev->dev,
-				"failed to init interface mode\n");
-			return err;
-		}
-	}
-
-	return 0;
-}
-
-int st_sensors_check_device_support(struct iio_dev *indio_dev,
-			int num_sensors_list,
-			const struct st_sensor_settings *sensor_settings)
-{
-	int i, n, err = 0;
-	u8 wai;
-	struct st_sensor_data *sdata = iio_priv(indio_dev);
-
-	for (i = 0; i < num_sensors_list; i++) {
+	for (i = 0; i < list_length; i++) {
 		for (n = 0; n < ST_SENSORS_MAX_4WAI; n++) {
-			if (strcmp(indio_dev->name,
-				sensor_settings[i].sensors_supported[n]) == 0) {
-				break;
-			}
+			if (strcmp(name, list[i].sensors_supported[n]) == 0)
+				return i;
 		}
-		if (n < ST_SENSORS_MAX_4WAI)
-			break;
-	}
-	if (i == num_sensors_list) {
-		dev_err(&indio_dev->dev, "device name %s not recognized.\n",
-							indio_dev->name);
-		return -ENODEV;
 	}
 
-	err = st_sensors_init_interface_mode(indio_dev, &sensor_settings[i]);
-	if (err < 0)
-		return err;
+	return -ENODEV;
+}
+EXPORT_SYMBOL(st_sensors_get_settings_index);
 
-	if (sensor_settings[i].wai_addr) {
-		err = sdata->tf->read_byte(&sdata->tb, sdata->dev,
-					   sensor_settings[i].wai_addr, &wai);
+/*
+ * st_sensors_verify_id() - verify sensor ID (WhoAmI) is matching with the
+ *			    expected value
+ * @indio_dev: IIO device reference.
+ *
+ * Return: 0 on success (valid sensor ID), else a negative error code.
+ */
+int st_sensors_verify_id(struct iio_dev *indio_dev)
+{
+	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	int wai, err;
+
+	if (sdata->sensor_settings->wai_addr) {
+		err = regmap_read(sdata->regmap,
+				  sdata->sensor_settings->wai_addr, &wai);
 		if (err < 0) {
 			dev_err(&indio_dev->dev,
 				"failed to read Who-Am-I register.\n");
 			return err;
 		}
 
-		if (sensor_settings[i].wai != wai) {
+		if (sdata->sensor_settings->wai != wai) {
 			dev_err(&indio_dev->dev,
 				"%s: WhoAmI mismatch (0x%x).\n",
 				indio_dev->name, wai);
@@ -678,12 +651,9 @@ int st_sensors_check_device_support(struct iio_dev *indio_dev,
 		}
 	}
 
-	sdata->sensor_settings =
-			(struct st_sensor_settings *)&sensor_settings[i];
-
-	return i;
+	return 0;
 }
-EXPORT_SYMBOL(st_sensors_check_device_support);
+EXPORT_SYMBOL(st_sensors_verify_id);
 
 ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)

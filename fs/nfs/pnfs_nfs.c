@@ -627,11 +627,16 @@ static int _nfs4_pnfs_v3_ds_connect(struct nfs_server *mds_srv,
 			/* Add this address as an alias */
 			rpc_clnt_add_xprt(clp->cl_rpcclient, &xprt_args,
 					rpc_clnt_test_and_add_xprt, NULL);
-		} else
-			clp = get_v3_ds_connect(mds_srv,
-					(struct sockaddr *)&da->da_addr,
-					da->da_addrlen, IPPROTO_TCP,
-					timeo, retrans);
+			continue;
+		}
+		clp = get_v3_ds_connect(mds_srv,
+				(struct sockaddr *)&da->da_addr,
+				da->da_addrlen, IPPROTO_TCP,
+				timeo, retrans);
+		if (IS_ERR(clp))
+			continue;
+		clp->cl_rpcclient->cl_softerr = 0;
+		clp->cl_rpcclient->cl_softrtry = 0;
 	}
 
 	if (IS_ERR(clp)) {

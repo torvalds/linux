@@ -1141,12 +1141,12 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		if (i == 0) {
 			twl->client = client;
 		} else {
-			twl->client = i2c_new_dummy(client->adapter,
+			twl->client = i2c_new_dummy_device(client->adapter,
 						    client->addr + i);
-			if (!twl->client) {
+			if (IS_ERR(twl->client)) {
 				dev_err(&client->dev,
 					"can't attach client %d\n", i);
-				status = -ENOMEM;
+				status = PTR_ERR(twl->client);
 				goto fail;
 			}
 		}

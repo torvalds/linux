@@ -3,6 +3,8 @@
  * Copyright (c) 2016, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/delay.h>
+
 #include "dsi_phy.h"
 #include "dsi.xml.h"
 

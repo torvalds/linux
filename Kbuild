@@ -18,8 +18,6 @@ $(bounds-file): kernel/bounds.s FORCE
 
 timeconst-file := include/generated/timeconst.h
 
-targets += $(timeconst-file)
-
 filechk_gentimeconst = echo $(CONFIG_HZ) | bc -q $<
 
 $(timeconst-file): kernel/time/timeconst.bc FORCE
@@ -42,7 +40,6 @@ $(offsets-file): arch/$(SRCARCH)/kernel/asm-offsets.s FORCE
 # Check for missing system calls
 
 always += missing-syscalls
-targets += missing-syscalls
 
 quiet_cmd_syscalls = CALL    $<
       cmd_syscalls = $(CONFIG_SHELL) $< $(CC) $(c_flags) $(missing_syscalls_flags)
@@ -54,13 +51,9 @@ missing-syscalls: scripts/checksyscalls.sh $(offsets-file) FORCE
 # Check atomic headers are up-to-date
 
 always += old-atomics
-targets += old-atomics
 
 quiet_cmd_atomics = CALL    $<
       cmd_atomics = $(CONFIG_SHELL) $<
 
 old-atomics: scripts/atomic/check-atomics.sh FORCE
 	$(call cmd,atomics)
-
-# Keep these three files during make clean
-no-clean-files := $(bounds-file) $(offsets-file) $(timeconst-file)

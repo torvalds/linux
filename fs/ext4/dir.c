@@ -668,14 +668,15 @@ static int ext4_d_compare(const struct dentry *dentry, unsigned int len,
 			  const char *str, const struct qstr *name)
 {
 	struct qstr qstr = {.name = str, .len = len };
+	struct inode *inode = dentry->d_parent->d_inode;
 
-	if (!IS_CASEFOLDED(dentry->d_parent->d_inode)) {
+	if (!IS_CASEFOLDED(inode) || !EXT4_SB(inode->i_sb)->s_encoding) {
 		if (len != name->len)
 			return -1;
 		return memcmp(str, name->name, len);
 	}
 
-	return ext4_ci_compare(dentry->d_parent->d_inode, name, &qstr, false);
+	return ext4_ci_compare(inode, name, &qstr, false);
 }
 
 static int ext4_d_hash(const struct dentry *dentry, struct qstr *str)
@@ -685,7 +686,7 @@ static int ext4_d_hash(const struct dentry *dentry, struct qstr *str)
 	unsigned char *norm;
 	int len, ret = 0;
 
-	if (!IS_CASEFOLDED(dentry->d_inode))
+	if (!IS_CASEFOLDED(dentry->d_inode) || !um)
 		return 0;
 
 	norm = kmalloc(PATH_MAX, GFP_ATOMIC);

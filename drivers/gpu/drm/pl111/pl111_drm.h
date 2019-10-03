@@ -13,14 +13,15 @@
 #ifndef _PL111_DRM_H_
 #define _PL111_DRM_H_
 
-#include <drm/drm_gem.h>
-#include <drm/drm_simple_kms_helper.h>
-#include <drm/drm_connector.h>
-#include <drm/drm_encoder.h>
-#include <drm/drm_panel.h>
-#include <drm/drm_bridge.h>
 #include <linux/clk-provider.h>
 #include <linux/interrupt.h>
+
+#include <drm/drm_bridge.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #define CLCD_IRQ_NEXTBASE_UPDATE BIT(2)
 

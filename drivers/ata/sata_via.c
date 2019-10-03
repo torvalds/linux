@@ -505,14 +505,7 @@ static int vt6421_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 	for (i = 0; i < host->n_ports; i++)
 		vt6421_init_addrs(host->ports[i]);
 
-	rc = dma_set_mask(&pdev->dev, ATA_DMA_MASK);
-	if (rc)
-		return rc;
-	rc = dma_set_coherent_mask(&pdev->dev, ATA_DMA_MASK);
-	if (rc)
-		return rc;
-
-	return 0;
+	return dma_set_mask_and_coherent(&pdev->dev, ATA_DMA_MASK);
 }
 
 static int vt8251_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)

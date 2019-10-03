@@ -13,6 +13,7 @@
 #include <linux/nsproxy.h>
 #include <linux/parser.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/statfs.h>
@@ -185,17 +186,33 @@ int ceph_compare_options(struct ceph_options *new_opt,
 }
 EXPORT_SYMBOL(ceph_compare_options);
 
+/*
+ * kvmalloc() doesn't fall back to the vmalloc allocator unless flags are
+ * compatible with (a superset of) GFP_KERNEL.  This is because while the
+ * actual pages are allocated with the specified flags, the page table pages
+ * are always allocated with GFP_KERNEL.  map_vm_area() doesn't even take
+ * flags because GFP_KERNEL is hard-coded in {p4d,pud,pmd,pte}_alloc().
+ *
+ * ceph_kvmalloc() may be called with GFP_KERNEL, GFP_NOFS or GFP_NOIO.
+ */
 void *ceph_kvmalloc(size_t size, gfp_t flags)
 {
-	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
-		void *ptr = kmalloc(size, flags | __GFP_NOWARN);
-		if (ptr)
-			return ptr;
+	void *p;
+
+	if ((flags & (__GFP_IO | __GFP_FS)) == (__GFP_IO | __GFP_FS)) {
+		p = kvmalloc(size, flags);
+	} else if ((flags & (__GFP_IO | __GFP_FS)) == __GFP_IO) {
+		unsigned int nofs_flag = memalloc_nofs_save();
+		p = kvmalloc(size, GFP_KERNEL);
+		memalloc_nofs_restore(nofs_flag);
+	} else {
+		unsigned int noio_flag = memalloc_noio_save();
+		p = kvmalloc(size, GFP_KERNEL);
+		memalloc_noio_restore(noio_flag);
 	}
 
-	return __vmalloc(size, flags, PAGE_KERNEL);
+	return p;
 }
-
 
 static int parse_fsid(const char *str, struct ceph_fsid *fsid)
 {
@@ -693,6 +710,14 @@ void ceph_destroy_client(struct ceph_client *client)
 	dout("destroy_client %p done\n", client);
 }
 EXPORT_SYMBOL(ceph_destroy_client);
+
+void ceph_reset_client_addr(struct ceph_client *client)
+{
+	ceph_messenger_reset_nonce(&client->msgr);
+	ceph_monc_reopen_session(&client->monc);
+	ceph_osdc_reopen_osds(&client->osdc);
+}
+EXPORT_SYMBOL(ceph_reset_client_addr);
 
 /*
  * true if we have the mon map (and have thus joined the cluster)

@@ -153,13 +153,11 @@ EXPORT_SYMBOL_GPL(mmp_get_path);
 struct mmp_path *mmp_register_path(struct mmp_path_info *info)
 {
 	int i;
-	size_t size;
 	struct mmp_path *path = NULL;
 	struct mmp_panel *panel;
 
-	size = sizeof(struct mmp_path)
-		+ sizeof(struct mmp_overlay) * info->overlay_num;
-	path = kzalloc(size, GFP_KERNEL);
+	path = kzalloc(struct_size(path, overlays, info->overlay_num),
+		       GFP_KERNEL);
 	if (!path)
 		return NULL;
 

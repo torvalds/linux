@@ -344,7 +344,7 @@ static void iommu_table_dart_setup(void)
 	iommu_table_dart.it_index = 0;
 	iommu_table_dart.it_blocksize = 1;
 	iommu_table_dart.it_ops = &iommu_dart_ops;
-	iommu_init_table(&iommu_table_dart, -1);
+	iommu_init_table(&iommu_table_dart, -1, 0, 0);
 
 	/* Reserve the last page of the DART to avoid possible prefetch
 	 * past the DART mapped area

@@ -26,13 +26,13 @@
  *
  **************************************************************************/
 
-#include <linux/export.h>
+#include <linux/pci.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_fourcc.h>
+#include <drm/ttm/ttm_placement.h>
+
 #include "vmwgfx_drv.h"
 #include "vmwgfx_kms.h"
-
-#include <drm/ttm/ttm_placement.h>
 
 #define VMW_DIRTY_DELAY (HZ / 30)
 

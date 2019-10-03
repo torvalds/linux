@@ -629,15 +629,6 @@ static void wbt_requeue(struct rq_qos *rqos, struct request *rq)
 	}
 }
 
-void wbt_set_queue_depth(struct request_queue *q, unsigned int depth)
-{
-	struct rq_qos *rqos = wbt_rq_qos(q);
-	if (rqos) {
-		RQWB(rqos)->rq_depth.queue_depth = depth;
-		__wbt_update_limits(RQWB(rqos));
-	}
-}
-
 void wbt_set_write_cache(struct request_queue *q, bool write_cache_on)
 {
 	struct rq_qos *rqos = wbt_rq_qos(q);
@@ -656,7 +647,7 @@ void wbt_enable_default(struct request_queue *q)
 		return;
 
 	/* Queue not registered? Maybe shutting down... */
-	if (!test_bit(QUEUE_FLAG_REGISTERED, &q->queue_flags))
+	if (!blk_queue_registered(q))
 		return;
 
 	if (queue_is_mq(q) && IS_ENABLED(CONFIG_BLK_WBT_MQ))
@@ -687,6 +678,12 @@ static int wbt_data_dir(const struct request *rq)
 
 	/* don't account */
 	return -1;
+}
+
+static void wbt_queue_depth_changed(struct rq_qos *rqos)
+{
+	RQWB(rqos)->rq_depth.queue_depth = blk_queue_depth(rqos->q);
+	__wbt_update_limits(RQWB(rqos));
 }
 
 static void wbt_exit(struct rq_qos *rqos)
@@ -811,6 +808,7 @@ static struct rq_qos_ops wbt_rqos_ops = {
 	.requeue = wbt_requeue,
 	.done = wbt_done,
 	.cleanup = wbt_cleanup,
+	.queue_depth_changed = wbt_queue_depth_changed,
 	.exit = wbt_exit,
 #ifdef CONFIG_BLK_DEBUG_FS
 	.debugfs_attrs = wbt_debugfs_attrs,
@@ -853,7 +851,7 @@ int wbt_init(struct request_queue *q)
 
 	rwb->min_lat_nsec = wbt_default_latency_nsec(q);
 
-	wbt_set_queue_depth(q, blk_queue_depth(q));
+	wbt_queue_depth_changed(&rwb->rqos);
 	wbt_set_write_cache(q, test_bit(QUEUE_FLAG_WC, &q->queue_flags));
 
 	return 0;

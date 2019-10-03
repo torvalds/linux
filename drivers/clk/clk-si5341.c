@@ -547,7 +547,6 @@ static int si5341_synth_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	bool is_integer;
 
 	n_num = synth->data->freq_vco;
-	n_den = rate;
 
 	/* see if there's an integer solution */
 	r = do_div(n_num, rate);

@@ -372,13 +372,6 @@ static struct omap_hwmod_ocp_if am33xx_l4_wkup__adc_tsc = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_ocp_if am33xx_l4_hs__cpgmac0 = {
-	.master		= &am33xx_l4_hs_hwmod,
-	.slave		= &am33xx_cpgmac0_hwmod,
-	.clk		= "cpsw_125mhz_gclk",
-	.user		= OCP_USER_MPU,
-};
-
 static struct omap_hwmod_ocp_if am33xx_l3_main__lcdc = {
 	.master		= &am33xx_l3_main_hwmod,
 	.slave		= &am33xx_lcdc_hwmod,
@@ -462,8 +455,6 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l3_main__tptc2,
 	&am33xx_l3_main__ocmc,
 	&am33xx_l3_s__usbss,
-	&am33xx_l4_hs__cpgmac0,
-	&am33xx_cpgmac0__mdio,
 	&am33xx_l3_main__sha0,
 	&am33xx_l3_main__aes0,
 	&am33xx_l4_per__rng,

@@ -49,6 +49,7 @@ config FB_OMAP2_PANEL_DSI_CM
 config FB_OMAP2_PANEL_SONY_ACX565AKM
 	tristate "ACX565AKM Panel"
 	depends on SPI && BACKLIGHT_CLASS_DEVICE
+	depends on DRM_PANEL_SONY_ACX565AKM = n
 	help
 	  This is the LCD panel used on Nokia N900
 
@@ -61,18 +62,21 @@ config FB_OMAP2_PANEL_LGPHILIPS_LB035Q02
 config FB_OMAP2_PANEL_SHARP_LS037V7DW01
 	tristate "Sharp LS037V7DW01 LCD Panel"
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on DRM_PANEL_SHARP_LS037V7DW01 = n
 	help
 	  LCD Panel used in TI's SDP3430 and EVM boards
 
 config FB_OMAP2_PANEL_TPO_TD028TTEC1
 	tristate "TPO TD028TTEC1 LCD Panel"
 	depends on SPI
+	depends on DRM_PANEL_TPO_TD028TTEC1 = n
 	help
 	  LCD panel used in Openmoko.
 
 config FB_OMAP2_PANEL_TPO_TD043MTEA1
 	tristate "TPO TD043MTEA1 LCD Panel"
 	depends on SPI
+	depends on DRM_PANEL_TPO_TD043MTEA1 = n
 	help
 	  LCD Panel used in OMAP3 Pandora
 
@@ -80,6 +84,7 @@ config FB_OMAP2_PANEL_NEC_NL8048HL11
 	tristate "NEC NL8048HL11 Panel"
 	depends on SPI
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on DRM_PANEL_NEC_NL8048HL11 = n
 	help
 	  This NEC NL8048HL11 panel is TFT LCD used in the
 	  Zoom2/3/3630 sdp boards.

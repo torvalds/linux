@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "../perf.h"
 #include <subcmd/parse-options.h>
 #include "evsel.h"
 #include "cgroup.h"
@@ -9,6 +8,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
 
 int nr_cgroups;
 
@@ -90,9 +91,9 @@ static int open_cgroup(const char *name)
 	return fd;
 }
 
-static struct cgroup *evlist__find_cgroup(struct perf_evlist *evlist, const char *str)
+static struct cgroup *evlist__find_cgroup(struct evlist *evlist, const char *str)
 {
-	struct perf_evsel *counter;
+	struct evsel *counter;
 	/*
 	 * check if cgrp is already defined, if so we reuse it
 	 */
@@ -130,16 +131,16 @@ out_err:
 	return NULL;
 }
 
-struct cgroup *evlist__findnew_cgroup(struct perf_evlist *evlist, const char *name)
+struct cgroup *evlist__findnew_cgroup(struct evlist *evlist, const char *name)
 {
 	struct cgroup *cgroup = evlist__find_cgroup(evlist, name);
 
 	return cgroup ?: cgroup__new(name);
 }
 
-static int add_cgroup(struct perf_evlist *evlist, const char *str)
+static int add_cgroup(struct evlist *evlist, const char *str)
 {
-	struct perf_evsel *counter;
+	struct evsel *counter;
 	struct cgroup *cgrp = evlist__findnew_cgroup(evlist, str);
 	int n;
 
@@ -184,15 +185,15 @@ struct cgroup *cgroup__get(struct cgroup *cgroup)
        return cgroup;
 }
 
-static void evsel__set_default_cgroup(struct perf_evsel *evsel, struct cgroup *cgroup)
+static void evsel__set_default_cgroup(struct evsel *evsel, struct cgroup *cgroup)
 {
 	if (evsel->cgrp == NULL)
 		evsel->cgrp = cgroup__get(cgroup);
 }
 
-void evlist__set_default_cgroup(struct perf_evlist *evlist, struct cgroup *cgroup)
+void evlist__set_default_cgroup(struct evlist *evlist, struct cgroup *cgroup)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel)
 		evsel__set_default_cgroup(evsel, cgroup);
@@ -201,14 +202,14 @@ void evlist__set_default_cgroup(struct perf_evlist *evlist, struct cgroup *cgrou
 int parse_cgroups(const struct option *opt, const char *str,
 		  int unset __maybe_unused)
 {
-	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
-	struct perf_evsel *counter;
+	struct evlist *evlist = *(struct evlist **)opt->value;
+	struct evsel *counter;
 	struct cgroup *cgrp = NULL;
 	const char *p, *e, *eos = str + strlen(str);
 	char *s;
 	int ret, i;
 
-	if (list_empty(&evlist->entries)) {
+	if (list_empty(&evlist->core.entries)) {
 		fprintf(stderr, "must define events before cgroups\n");
 		return -1;
 	}

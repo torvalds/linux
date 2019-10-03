@@ -658,6 +658,7 @@ enum rt2x00_state_flags {
 	DEVICE_STATE_ENABLED_RADIO,
 	DEVICE_STATE_SCANNING,
 	DEVICE_STATE_FLUSHING,
+	DEVICE_STATE_RESET,
 
 	/*
 	 * Driver configuration

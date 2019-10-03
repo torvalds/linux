@@ -146,7 +146,7 @@ config FUNCTION_TRACER
 	select GENERIC_TRACER
 	select CONTEXT_SWITCH_TRACER
 	select GLOB
-	select TASKS_RCU if PREEMPT
+	select TASKS_RCU if PREEMPTION
 	help
 	  Enable the kernel to trace every kernel function. This is done
 	  by using a compiler feature to insert a small, 5-byte No-Operation
@@ -179,7 +179,7 @@ config TRACE_PREEMPT_TOGGLE
 config PREEMPTIRQ_EVENTS
 	bool "Enable trace events for preempt and irq disable/enable"
 	select TRACE_IRQFLAGS
-	select TRACE_PREEMPT_TOGGLE if PREEMPT
+	select TRACE_PREEMPT_TOGGLE if PREEMPTION
 	select GENERIC_TRACER
 	default n
 	help
@@ -214,7 +214,7 @@ config PREEMPT_TRACER
 	bool "Preemption-off Latency Tracer"
 	default n
 	depends on !ARCH_USES_GETTIMEOFFSET
-	depends on PREEMPT
+	depends on PREEMPTION
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
 	select RING_BUFFER_ALLOW_SWAP
@@ -520,7 +520,8 @@ config BPF_EVENTS
 	bool
 	default y
 	help
-	  This allows the user to attach BPF programs to kprobe events.
+	  This allows the user to attach BPF programs to kprobe, uprobe, and
+	  tracepoint events.
 
 config DYNAMIC_EVENTS
 	def_bool n

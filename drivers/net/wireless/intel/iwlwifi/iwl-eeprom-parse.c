@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,7 +29,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -728,12 +728,13 @@ int iwl_init_sband_channels(struct iwl_nvm_data *data,
 #define MAX_BIT_RATE_40_MHZ	150 /* Mbps */
 #define MAX_BIT_RATE_20_MHZ	72 /* Mbps */
 
-void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
+void iwl_init_ht_hw_capab(struct iwl_trans *trans,
 			  struct iwl_nvm_data *data,
 			  struct ieee80211_sta_ht_cap *ht_info,
 			  enum nl80211_band band,
 			  u8 tx_chains, u8 rx_chains)
 {
+	const struct iwl_cfg *cfg = trans->cfg;
 	int max_bit_rate = 0;
 
 	tx_chains = hweight8(tx_chains);
@@ -765,7 +766,7 @@ void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
 	if (cfg->ht_params->ldpc)
 		ht_info->cap |= IEEE80211_HT_CAP_LDPC_CODING;
 
-	if ((cfg->mq_rx_supported &&
+	if ((trans->trans_cfg->mq_rx_supported &&
 	     iwlwifi_mod_params.amsdu_size == IWL_AMSDU_DEF) ||
 	     iwlwifi_mod_params.amsdu_size >= IWL_AMSDU_8K)
 		ht_info->cap |= IEEE80211_HT_CAP_MAX_AMSDU;
@@ -805,10 +806,11 @@ void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
 	}
 }
 
-static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
+static void iwl_init_sbands(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 			    struct iwl_nvm_data *data,
 			    const u8 *eeprom, size_t eeprom_size)
 {
+	struct device *dev = trans->dev;
 	int n_channels = iwl_init_channel_map(dev, cfg, data,
 					      eeprom, eeprom_size);
 	int n_used = 0;
@@ -820,7 +822,7 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 	sband->n_bitrates = N_RATES_24;
 	n_used += iwl_init_sband_channels(data, sband, n_channels,
 					  NL80211_BAND_2GHZ);
-	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, NL80211_BAND_2GHZ,
+	iwl_init_ht_hw_capab(trans, data, &sband->ht_cap, NL80211_BAND_2GHZ,
 			     data->valid_tx_ant, data->valid_rx_ant);
 
 	sband = &data->bands[NL80211_BAND_5GHZ];
@@ -829,7 +831,7 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 	sband->n_bitrates = N_RATES_52;
 	n_used += iwl_init_sband_channels(data, sband, n_channels,
 					  NL80211_BAND_5GHZ);
-	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, NL80211_BAND_5GHZ,
+	iwl_init_ht_hw_capab(trans, data, &sband->ht_cap, NL80211_BAND_5GHZ,
 			     data->valid_tx_ant, data->valid_rx_ant);
 
 	if (n_channels != n_used)
@@ -840,10 +842,11 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 /* EEPROM data functions */
 
 struct iwl_nvm_data *
-iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
+iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		      const u8 *eeprom, size_t eeprom_size)
 {
 	struct iwl_nvm_data *data;
+	struct device *dev = trans->dev;
 	const void *tmp;
 	u16 radio_cfg, sku;
 
@@ -918,7 +921,7 @@ iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
 		goto err_free;
 	}
 
-	iwl_init_sbands(dev, cfg, data, eeprom, eeprom_size);
+	iwl_init_sbands(trans, cfg, data, eeprom, eeprom_size);
 
 	return data;
  err_free:

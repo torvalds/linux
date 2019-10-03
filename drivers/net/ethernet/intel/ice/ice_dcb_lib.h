@@ -22,6 +22,7 @@ ice_tx_prepare_vlan_flags_dcb(struct ice_ring *tx_ring,
 void
 ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 				    struct ice_rq_event_info *event);
+void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc);
 static inline void
 ice_set_cgd_num(struct ice_tlan_ctx *tlan_ctx, struct ice_ring *ring)
 {
@@ -58,5 +59,6 @@ ice_tx_prepare_vlan_flags_dcb(struct ice_ring __always_unused *tx_ring,
 #define ice_vsi_cfg_dcb_rings(vsi) do {} while (0)
 #define ice_dcb_process_lldp_set_mib_change(pf, event) do {} while (0)
 #define ice_set_cgd_num(tlan_ctx, ring) do {} while (0)
+#define ice_vsi_cfg_netdev_tc(vsi, ena_tc) do {} while (0)
 #endif /* CONFIG_DCB */
 #endif /* _ICE_DCB_LIB_H_ */

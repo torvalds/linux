@@ -16,6 +16,7 @@ NAMES = {
           'DEV0': 'v0p0',
           'DEV1': 'v0p1',
           'DEV2': '',
+          'DUMMY': 'dummy1',
           'BATCH_FILE': './batch.txt',
           'BATCH_DIR': 'tmp',
           # Length of time in seconds to wait before terminating a command

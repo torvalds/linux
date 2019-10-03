@@ -15,6 +15,7 @@ Required properties:
 		"maxim,max31725",
 		"maxim,max31726",
 		"maxim,mcp980x",
+		"nxp,pct2075",
 		"st,stds75",
 		"st,stlm75",
 		"microchip,tcn75",

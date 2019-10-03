@@ -60,8 +60,10 @@ __HEAD
 	.long	0x02000690,0x60000050
 	.long	0x020006e0,0x20000050
 
-	.org	0x1a0
+	.org	__LC_RST_NEW_PSW		# 0x1a0
 	.quad	0,iplstart
+	.org	__LC_PGM_NEW_PSW		# 0x1d0
+	.quad	0x0000000180000000,startup_pgm_check_handler
 
 	.org	0x200
 
@@ -350,6 +352,34 @@ ENTRY(startup_kdump)
 	.previous
 
 #include "head_kdump.S"
+
+#
+# This program check is active immediately after kernel start
+# and until early_pgm_check_handler is set in kernel/early.c
+# It simply saves general/control registers and psw in
+# the save area and does disabled wait with a faulty address.
+#
+ENTRY(startup_pgm_check_handler)
+	stmg	%r0,%r15,__LC_SAVE_AREA_SYNC
+	la	%r1,4095
+	stctg	%c0,%c15,__LC_CREGS_SAVE_AREA-4095(%r1)
+	mvc	__LC_GPREGS_SAVE_AREA-4095(128,%r1),__LC_SAVE_AREA_SYNC
+	mvc	__LC_PSW_SAVE_AREA-4095(16,%r1),__LC_PGM_OLD_PSW
+	mvc	__LC_RETURN_PSW(16),__LC_PGM_OLD_PSW
+	ni	__LC_RETURN_PSW,0xfc	# remove IO and EX bits
+	ni	__LC_RETURN_PSW+1,0xfb	# remove MCHK bit
+	oi	__LC_RETURN_PSW+1,0x2	# set wait state bit
+	larl	%r2,.Lold_psw_disabled_wait
+	stg	%r2,__LC_PGM_NEW_PSW+8
+	l	%r15,.Ldump_info_stack-.Lold_psw_disabled_wait(%r2)
+	brasl	%r14,print_pgm_check_info
+.Lold_psw_disabled_wait:
+	la	%r1,4095
+	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)
+	lpswe	__LC_RETURN_PSW		# disabled wait
+.Ldump_info_stack:
+	.long	0x5000 + PAGE_SIZE - STACK_FRAME_OVERHEAD
+ENDPROC(startup_pgm_check_handler)
 
 #
 # params at 10400 (setup.h)

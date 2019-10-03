@@ -57,10 +57,9 @@ qla2x00_dfs_tgt_port_database_show(struct seq_file *s, void *unused)
 {
 	scsi_qla_host_t *vha = s->private;
 	struct qla_hw_data *ha = vha->hw;
-	struct gid_list_info *gid_list;
+	struct gid_list_info *gid_list, *gid;
 	dma_addr_t gid_list_dma;
 	fc_port_t fc_port;
-	char *id_iter;
 	int rc, i;
 	uint16_t entries, loop_id;
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
@@ -82,13 +81,11 @@ qla2x00_dfs_tgt_port_database_show(struct seq_file *s, void *unused)
 		if (rc != QLA_SUCCESS)
 			goto out_free_id_list;
 
-		id_iter = (char *)gid_list;
+		gid = gid_list;
 
 		seq_puts(s, "Port Name	Port ID 	Loop ID\n");
 
 		for (i = 0; i < entries; i++) {
-			struct gid_list_info *gid =
-			    (struct gid_list_info *)id_iter;
 			loop_id = le16_to_cpu(gid->loop_id);
 			memset(&fc_port, 0, sizeof(fc_port_t));
 
@@ -99,7 +96,7 @@ qla2x00_dfs_tgt_port_database_show(struct seq_file *s, void *unused)
 				fc_port.port_name, fc_port.d_id.b.domain,
 				fc_port.d_id.b.area, fc_port.d_id.b.al_pa,
 				fc_port.loop_id);
-			id_iter += ha->gid_list_info_size;
+			gid = (void *)gid + ha->gid_list_info_size;
 		}
 out_free_id_list:
 		dma_free_coherent(&ha->pdev->dev, qla2x00_gid_list_size(ha),

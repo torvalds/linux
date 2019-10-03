@@ -54,7 +54,8 @@ int pnv_pci_get_slot_id(struct device_node *np, uint64_t *id)
 			break;
 		}
 
-		if (!of_device_is_compatible(parent, "ibm,ioda2-phb")) {
+		if (!of_device_is_compatible(parent, "ibm,ioda2-phb") &&
+		    !of_device_is_compatible(parent, "ibm,ioda3-phb")) {
 			of_node_put(parent);
 			continue;
 		}

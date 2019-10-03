@@ -30,6 +30,26 @@ enum nhi_mailbox_cmd {
 int nhi_mailbox_cmd(struct tb_nhi *nhi, enum nhi_mailbox_cmd cmd, u32 data);
 enum nhi_fw_mode nhi_mailbox_mode(struct tb_nhi *nhi);
 
+/**
+ * struct tb_nhi_ops - NHI specific optional operations
+ * @init: NHI specific initialization
+ * @suspend_noirq: NHI specific suspend_noirq hook
+ * @resume_noirq: NHI specific resume_noirq hook
+ * @runtime_suspend: NHI specific runtime_suspend hook
+ * @runtime_resume: NHI specific runtime_resume hook
+ * @shutdown: NHI specific shutdown
+ */
+struct tb_nhi_ops {
+	int (*init)(struct tb_nhi *nhi);
+	int (*suspend_noirq)(struct tb_nhi *nhi, bool wakeup);
+	int (*resume_noirq)(struct tb_nhi *nhi);
+	int (*runtime_suspend)(struct tb_nhi *nhi);
+	int (*runtime_resume)(struct tb_nhi *nhi);
+	void (*shutdown)(struct tb_nhi *nhi);
+};
+
+extern const struct tb_nhi_ops icl_nhi_ops;
+
 /*
  * PCI IDs used in this driver from Win Ridge forward. There is no
  * need for the PCI quirk anymore as we will use ICM also on Apple
@@ -51,5 +71,7 @@ enum nhi_fw_mode nhi_mailbox_mode(struct tb_nhi *nhi);
 #define PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_BRIDGE	0x15ea
 #define PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_NHI		0x15eb
 #define PCI_DEVICE_ID_INTEL_TITAN_RIDGE_DD_BRIDGE	0x15ef
+#define PCI_DEVICE_ID_INTEL_ICL_NHI1			0x8a0d
+#define PCI_DEVICE_ID_INTEL_ICL_NHI0			0x8a17
 
 #endif

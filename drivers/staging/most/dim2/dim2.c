@@ -129,25 +129,6 @@ bool dim2_sysfs_get_state_cb(void)
 }
 
 /**
- * dimcb_io_read - callback from HAL to read an I/O register
- * @ptr32: register address
- */
-u32 dimcb_io_read(u32 __iomem *ptr32)
-{
-	return readl(ptr32);
-}
-
-/**
- * dimcb_io_write - callback from HAL to write value to an I/O register
- * @ptr32: register address
- * @value: value to write
- */
-void dimcb_io_write(u32 __iomem *ptr32, u32 value)
-{
-	writel(value, ptr32);
-}
-
-/**
  * dimcb_on_error - callback from HAL to report miscommunication between
  * HDM and HAL
  * @error_id: Error ID
@@ -797,7 +778,6 @@ static int dim2_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, AHB0_INT_IDX);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get ahb0_int irq: %d\n", irq);
 		ret = irq;
 		goto err_shutdown_dim;
 	}
@@ -811,7 +791,6 @@ static int dim2_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, MLB_INT_IDX);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get mlb_int irq: %d\n", irq);
 		ret = irq;
 		goto err_shutdown_dim;
 	}

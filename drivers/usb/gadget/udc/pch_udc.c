@@ -3046,8 +3046,7 @@ static void pch_udc_remove(struct pci_dev *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int pch_udc_suspend(struct device *d)
 {
-	struct pci_dev *pdev = to_pci_dev(d);
-	struct pch_udc_dev *dev = pci_get_drvdata(pdev);
+	struct pch_udc_dev *dev = dev_get_drvdata(d);
 
 	pch_udc_disable_interrupts(dev, UDC_DEVINT_MSK);
 	pch_udc_disable_ep_interrupts(dev, UDC_EPINT_MSK_DISABLE_ALL);

@@ -24,12 +24,12 @@
 #include <uapi/linux/tc_act/tc_ct.h>
 #include <net/tc_act/tc_ct.h>
 
-#include <linux/netfilter/nf_nat.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
+#include <uapi/linux/netfilter/nf_nat.h>
 
 static struct tc_action_ops act_ct_ops;
 static unsigned int ct_net_id;
@@ -939,7 +939,7 @@ static __net_init int ct_init_net(struct net *net)
 		tn->labels = true;
 	}
 
-	return tc_action_net_init(&tn->tn, &act_ct_ops);
+	return tc_action_net_init(net, &tn->tn, &act_ct_ops);
 }
 
 static void __net_exit ct_exit_net(struct list_head *net_list)

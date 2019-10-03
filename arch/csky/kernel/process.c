@@ -55,7 +55,7 @@ int copy_thread(unsigned long clone_flags,
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childstack->r15 = (unsigned long) ret_from_kernel_thread;
-		childstack->r8 = kthread_arg;
+		childstack->r10 = kthread_arg;
 		childstack->r9 = usp;
 		childregs->sr = mfcr("psr");
 	} else {

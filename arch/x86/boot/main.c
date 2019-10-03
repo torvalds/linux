@@ -10,6 +10,7 @@
 /*
  * Main module for the real-mode kernel code
  */
+#include <linux/build_bug.h>
 
 #include "boot.h"
 #include "string.h"

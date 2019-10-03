@@ -497,6 +497,7 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 
 			if (of_property_read_u32(child, "reg", &port)) {
 				rc = -EINVAL;
+				of_node_put(child);
 				goto err_out;
 			}
 
@@ -514,14 +515,18 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 			if (port_dev) {
 				rc = ahci_platform_get_regulator(hpriv, port,
 								&port_dev->dev);
-				if (rc == -EPROBE_DEFER)
+				if (rc == -EPROBE_DEFER) {
+					of_node_put(child);
 					goto err_out;
+				}
 			}
 #endif
 
 			rc = ahci_platform_get_phy(hpriv, port, dev, child);
-			if (rc)
+			if (rc) {
+				of_node_put(child);
 				goto err_out;
+			}
 
 			enabled_ports++;
 		}

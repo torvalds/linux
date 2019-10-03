@@ -686,22 +686,26 @@ void acpi_ut_delete_address_lists(void);
 /*
  * utxferror - various error/warning output functions
  */
+ACPI_PRINTF_LIKE(5)
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_predefined_warning(const char *module_name,
 			   u32 line_number,
 			   char *pathname,
-			   u8 node_flags, const char *format, ...);
+			   u16 node_flags, const char *format, ...);
 
+ACPI_PRINTF_LIKE(5)
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_predefined_info(const char *module_name,
 			u32 line_number,
-			char *pathname, u8 node_flags, const char *format, ...);
+			char *pathname,
+			u16 node_flags, const char *format, ...);
 
+ACPI_PRINTF_LIKE(5)
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_predefined_bios_error(const char *module_name,
 			      u32 line_number,
 			      char *pathname,
-			      u8 node_flags, const char *format, ...);
+			      u16 node_flags, const char *format, ...);
 
 void
 acpi_ut_prefixed_namespace_error(const char *module_name,

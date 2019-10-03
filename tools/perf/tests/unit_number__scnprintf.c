@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <string.h>
 #include "tests.h"
 #include "units.h"
 #include "debug.h"

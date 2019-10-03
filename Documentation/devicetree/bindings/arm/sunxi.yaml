@@ -353,6 +353,12 @@ properties:
           - const: licheepi,licheepi-zero
           - const: allwinner,sun8i-v3s
 
+      - description: Lichee Zero Plus (with S3, without eMMC/SPI Flash)
+        items:
+          - const: sipeed,lichee-zero-plus
+          - const: sochip,s3
+          - const: allwinner,sun8i-v3
+
       - description: Linksprite PCDuino
         items:
           - const: linksprite,a10-pcduino
@@ -568,6 +574,11 @@ properties:
           - const: olimex,a64-olinuxino
           - const: allwinner,sun50i-a64
 
+      - description: Olimex A64-OlinuXino (with eMMC)
+        items:
+          - const: olimex,a64-olinuxino-emmc
+          - const: allwinner,sun50i-a64
+
       - description: Olimex A64 Teres-I
         items:
           - const: olimex,a64-teres-i
@@ -670,6 +681,11 @@ properties:
         items:
           - const: sinlinx,sina33
           - const: allwinner,sun8i-a33
+
+      - description: Tanix TX6
+        items:
+          - const: oranth,tanix-tx6
+          - const: allwinner,sun50i-h6
 
       - description: TBS A711 Tablet
         items:

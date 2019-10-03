@@ -1127,15 +1127,13 @@ static int rhine_init_one_platform(struct platform_device *pdev)
 	const struct of_device_id *match;
 	const u32 *quirks;
 	int irq;
-	struct resource *res;
 	void __iomem *ioaddr;
 
 	match = of_match_device(rhine_of_tbl, &pdev->dev);
 	if (!match)
 		return -EINVAL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ioaddr))
 		return PTR_ERR(ioaddr);
 

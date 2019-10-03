@@ -6,6 +6,7 @@
  * Copyright 2007-2008	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
+ * Copyright 2018-2019  Intel Corporation
  */
 
 #include <linux/if_ether.h>
@@ -270,7 +271,7 @@ int ieee80211_set_tx_key(struct ieee80211_key *key)
 
 	sta->ptk_idx = key->conf.keyidx;
 
-	if (ieee80211_hw_check(&local->hw, NO_AMPDU_KEYBORDER_SUPPORT))
+	if (!ieee80211_hw_check(&local->hw, AMPDU_KEYBORDER_SUPPORT))
 		clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 	ieee80211_check_fast_xmit(sta);
 
@@ -290,15 +291,15 @@ static void ieee80211_pairwise_rekey(struct ieee80211_key *old,
 		/* Extended Key ID key install, initial one or rekey */
 
 		if (sta->ptk_idx != INVALID_PTK_KEYIDX &&
-		    ieee80211_hw_check(&local->hw,
-				       NO_AMPDU_KEYBORDER_SUPPORT)) {
+		    !ieee80211_hw_check(&local->hw, AMPDU_KEYBORDER_SUPPORT)) {
 			/* Aggregation Sessions with Extended Key ID must not
 			 * mix MPDUs with different keyIDs within one A-MPDU.
-			 * Tear down any running Tx aggregation and all new
-			 * Rx/Tx aggregation request during rekey if the driver
-			 * asks us to do so. (Blocking Tx only would be
-			 * sufficient but WLAN_STA_BLOCK_BA gets the job done
-			 * for the few ms we need it.)
+			 * Tear down running Tx aggregation sessions and block
+			 * new Rx/Tx aggregation requests during rekey to
+			 * ensure there are no A-MPDUs when the driver is not
+			 * supporting A-MPDU key borders. (Blocking Tx only
+			 * would be sufficient but WLAN_STA_BLOCK_BA gets the
+			 * job done for the few ms we need it.)
 			 */
 			set_sta_flag(sta, WLAN_STA_BLOCK_BA);
 			mutex_lock(&sta->ampdu_mlme.mtx);
@@ -781,9 +782,8 @@ int ieee80211_key_link(struct ieee80211_key *key,
 		/* The rekey code assumes that the old and new key are using
 		 * the same cipher. Enforce the assumption for pairwise keys.
 		 */
-		if (key &&
-		    ((alt_key && alt_key->conf.cipher != key->conf.cipher) ||
-		     (old_key && old_key->conf.cipher != key->conf.cipher)))
+		if ((alt_key && alt_key->conf.cipher != key->conf.cipher) ||
+		    (old_key && old_key->conf.cipher != key->conf.cipher))
 			goto out;
 	} else if (sta) {
 		old_key = key_mtx_dereference(sdata->local, sta->gtk[idx]);
@@ -793,7 +793,7 @@ int ieee80211_key_link(struct ieee80211_key *key,
 
 	/* Non-pairwise keys must also not switch the cipher on rekey */
 	if (!pairwise) {
-		if (key && old_key && old_key->conf.cipher != key->conf.cipher)
+		if (old_key && old_key->conf.cipher != key->conf.cipher)
 			goto out;
 	}
 
@@ -843,46 +843,30 @@ void ieee80211_key_free(struct ieee80211_key *key, bool delay_tailroom)
 	ieee80211_key_destroy(key, delay_tailroom);
 }
 
-void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata)
+void ieee80211_reenable_keys(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_key *key;
 	struct ieee80211_sub_if_data *vlan;
 
 	ASSERT_RTNL();
 
-	if (WARN_ON(!ieee80211_sdata_running(sdata)))
-		return;
-
-	mutex_lock(&sdata->local->key_mtx);
-
-	WARN_ON_ONCE(sdata->crypto_tx_tailroom_needed_cnt ||
-		     sdata->crypto_tx_tailroom_pending_dec);
-
-	if (sdata->vif.type == NL80211_IFTYPE_AP) {
-		list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
-			WARN_ON_ONCE(vlan->crypto_tx_tailroom_needed_cnt ||
-				     vlan->crypto_tx_tailroom_pending_dec);
-	}
-
-	list_for_each_entry(key, &sdata->key_list, list) {
-		increment_tailroom_need_count(sdata);
-		ieee80211_key_enable_hw_accel(key);
-	}
-
-	mutex_unlock(&sdata->local->key_mtx);
-}
-
-void ieee80211_reset_crypto_tx_tailroom(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_sub_if_data *vlan;
-
 	mutex_lock(&sdata->local->key_mtx);
 
 	sdata->crypto_tx_tailroom_needed_cnt = 0;
+	sdata->crypto_tx_tailroom_pending_dec = 0;
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
-		list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
+		list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list) {
 			vlan->crypto_tx_tailroom_needed_cnt = 0;
+			vlan->crypto_tx_tailroom_pending_dec = 0;
+		}
+	}
+
+	if (ieee80211_sdata_running(sdata)) {
+		list_for_each_entry(key, &sdata->key_list, list) {
+			increment_tailroom_need_count(sdata);
+			ieee80211_key_enable_hw_accel(key);
+		}
 	}
 
 	mutex_unlock(&sdata->local->key_mtx);

@@ -66,6 +66,7 @@ static int __init dm814x_adpll_early_init(void)
 	}
 
 	of_platform_populate(np, NULL, NULL, NULL);
+	of_node_put(np);
 
 	return 0;
 }

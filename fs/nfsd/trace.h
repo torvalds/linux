@@ -126,6 +126,8 @@ DEFINE_NFSD_ERR_EVENT(read_err);
 DEFINE_NFSD_ERR_EVENT(write_err);
 
 #include "state.h"
+#include "filecache.h"
+#include "vfs.h"
 
 DECLARE_EVENT_CLASS(nfsd_stateid_class,
 	TP_PROTO(stateid_t *stp),
@@ -163,6 +165,144 @@ DEFINE_STATEID_EVENT(layout_recall);
 DEFINE_STATEID_EVENT(layout_recall_done);
 DEFINE_STATEID_EVENT(layout_recall_fail);
 DEFINE_STATEID_EVENT(layout_recall_release);
+
+#define show_nf_flags(val)						\
+	__print_flags(val, "|",						\
+		{ 1 << NFSD_FILE_HASHED,	"HASHED" },		\
+		{ 1 << NFSD_FILE_PENDING,	"PENDING" },		\
+		{ 1 << NFSD_FILE_BREAK_READ,	"BREAK_READ" },		\
+		{ 1 << NFSD_FILE_BREAK_WRITE,	"BREAK_WRITE" },	\
+		{ 1 << NFSD_FILE_REFERENCED,	"REFERENCED"})
+
+/* FIXME: This should probably be fleshed out in the future. */
+#define show_nf_may(val)						\
+	__print_flags(val, "|",						\
+		{ NFSD_MAY_READ,		"READ" },		\
+		{ NFSD_MAY_WRITE,		"WRITE" },		\
+		{ NFSD_MAY_NOT_BREAK_LEASE,	"NOT_BREAK_LEASE" })
+
+DECLARE_EVENT_CLASS(nfsd_file_class,
+	TP_PROTO(struct nfsd_file *nf),
+	TP_ARGS(nf),
+	TP_STRUCT__entry(
+		__field(unsigned int, nf_hashval)
+		__field(void *, nf_inode)
+		__field(int, nf_ref)
+		__field(unsigned long, nf_flags)
+		__field(unsigned char, nf_may)
+		__field(struct file *, nf_file)
+	),
+	TP_fast_assign(
+		__entry->nf_hashval = nf->nf_hashval;
+		__entry->nf_inode = nf->nf_inode;
+		__entry->nf_ref = atomic_read(&nf->nf_ref);
+		__entry->nf_flags = nf->nf_flags;
+		__entry->nf_may = nf->nf_may;
+		__entry->nf_file = nf->nf_file;
+	),
+	TP_printk("hash=0x%x inode=0x%p ref=%d flags=%s may=%s file=%p",
+		__entry->nf_hashval,
+		__entry->nf_inode,
+		__entry->nf_ref,
+		show_nf_flags(__entry->nf_flags),
+		show_nf_may(__entry->nf_may),
+		__entry->nf_file)
+)
+
+#define DEFINE_NFSD_FILE_EVENT(name) \
+DEFINE_EVENT(nfsd_file_class, name, \
+	TP_PROTO(struct nfsd_file *nf), \
+	TP_ARGS(nf))
+
+DEFINE_NFSD_FILE_EVENT(nfsd_file_alloc);
+DEFINE_NFSD_FILE_EVENT(nfsd_file_put_final);
+DEFINE_NFSD_FILE_EVENT(nfsd_file_unhash);
+DEFINE_NFSD_FILE_EVENT(nfsd_file_put);
+DEFINE_NFSD_FILE_EVENT(nfsd_file_unhash_and_release_locked);
+
+TRACE_EVENT(nfsd_file_acquire,
+	TP_PROTO(struct svc_rqst *rqstp, unsigned int hash,
+		 struct inode *inode, unsigned int may_flags,
+		 struct nfsd_file *nf, __be32 status),
+
+	TP_ARGS(rqstp, hash, inode, may_flags, nf, status),
+
+	TP_STRUCT__entry(
+		__field(__be32, xid)
+		__field(unsigned int, hash)
+		__field(void *, inode)
+		__field(unsigned int, may_flags)
+		__field(int, nf_ref)
+		__field(unsigned long, nf_flags)
+		__field(unsigned char, nf_may)
+		__field(struct file *, nf_file)
+		__field(__be32, status)
+	),
+
+	TP_fast_assign(
+		__entry->xid = rqstp->rq_xid;
+		__entry->hash = hash;
+		__entry->inode = inode;
+		__entry->may_flags = may_flags;
+		__entry->nf_ref = nf ? atomic_read(&nf->nf_ref) : 0;
+		__entry->nf_flags = nf ? nf->nf_flags : 0;
+		__entry->nf_may = nf ? nf->nf_may : 0;
+		__entry->nf_file = nf ? nf->nf_file : NULL;
+		__entry->status = status;
+	),
+
+	TP_printk("xid=0x%x hash=0x%x inode=0x%p may_flags=%s ref=%d nf_flags=%s nf_may=%s nf_file=0x%p status=%u",
+			be32_to_cpu(__entry->xid), __entry->hash, __entry->inode,
+			show_nf_may(__entry->may_flags), __entry->nf_ref,
+			show_nf_flags(__entry->nf_flags),
+			show_nf_may(__entry->nf_may), __entry->nf_file,
+			be32_to_cpu(__entry->status))
+);
+
+DECLARE_EVENT_CLASS(nfsd_file_search_class,
+	TP_PROTO(struct inode *inode, unsigned int hash, int found),
+	TP_ARGS(inode, hash, found),
+	TP_STRUCT__entry(
+		__field(struct inode *, inode)
+		__field(unsigned int, hash)
+		__field(int, found)
+	),
+	TP_fast_assign(
+		__entry->inode = inode;
+		__entry->hash = hash;
+		__entry->found = found;
+	),
+	TP_printk("hash=0x%x inode=0x%p found=%d", __entry->hash,
+			__entry->inode, __entry->found)
+);
+
+#define DEFINE_NFSD_FILE_SEARCH_EVENT(name)				\
+DEFINE_EVENT(nfsd_file_search_class, name,				\
+	TP_PROTO(struct inode *inode, unsigned int hash, int found),	\
+	TP_ARGS(inode, hash, found))
+
+DEFINE_NFSD_FILE_SEARCH_EVENT(nfsd_file_close_inode_sync);
+DEFINE_NFSD_FILE_SEARCH_EVENT(nfsd_file_close_inode);
+DEFINE_NFSD_FILE_SEARCH_EVENT(nfsd_file_is_cached);
+
+TRACE_EVENT(nfsd_file_fsnotify_handle_event,
+	TP_PROTO(struct inode *inode, u32 mask),
+	TP_ARGS(inode, mask),
+	TP_STRUCT__entry(
+		__field(struct inode *, inode)
+		__field(unsigned int, nlink)
+		__field(umode_t, mode)
+		__field(u32, mask)
+	),
+	TP_fast_assign(
+		__entry->inode = inode;
+		__entry->nlink = inode->i_nlink;
+		__entry->mode = inode->i_mode;
+		__entry->mask = mask;
+	),
+	TP_printk("inode=0x%p nlink=%u mode=0%ho mask=0x%x", __entry->inode,
+			__entry->nlink, __entry->mode, __entry->mask)
+);
 
 #endif /* _NFSD_TRACE_H */
 

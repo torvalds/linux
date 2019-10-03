@@ -6,6 +6,8 @@
 #ifndef _SUN8I_CSC_H_
 #define _SUN8I_CSC_H_
 
+#include <drm/drm_color_mgmt.h>
+
 struct sun8i_mixer;
 
 /* VI channel CSC units offsets */
@@ -26,7 +28,9 @@ enum sun8i_csc_mode {
 };
 
 void sun8i_csc_set_ccsc_coefficients(struct sun8i_mixer *mixer, int layer,
-				     enum sun8i_csc_mode mode);
+				     enum sun8i_csc_mode mode,
+				     enum drm_color_encoding encoding,
+				     enum drm_color_range range);
 void sun8i_csc_enable_ccsc(struct sun8i_mixer *mixer, int layer, bool enable);
 
 #endif

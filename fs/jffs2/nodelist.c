@@ -226,7 +226,7 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *r
 		lastend = this->ofs + this->size;
 	} else {
 		dbg_fragtree2("lookup gave no frag\n");
-		lastend = 0;
+		return -EINVAL;
 	}
 
 	/* See if we ran off the end of the fragtree */

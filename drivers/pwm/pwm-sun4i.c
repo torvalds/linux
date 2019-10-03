@@ -145,7 +145,7 @@ static void sun4i_pwm_get_state(struct pwm_chip *chip,
 }
 
 static int sun4i_pwm_calculate(struct sun4i_pwm_chip *sun4i_pwm,
-			       struct pwm_state *state,
+			       const struct pwm_state *state,
 			       u32 *dty, u32 *prd, unsigned int *prsclr)
 {
 	u64 clk_rate, div = 0;
@@ -192,17 +192,11 @@ static int sun4i_pwm_calculate(struct sun4i_pwm_chip *sun4i_pwm,
 	*dty = div;
 	*prsclr = prescaler;
 
-	div = (u64)pval * NSEC_PER_SEC * *prd;
-	state->period = DIV_ROUND_CLOSEST_ULL(div, clk_rate);
-
-	div = (u64)pval * NSEC_PER_SEC * *dty;
-	state->duty_cycle = DIV_ROUND_CLOSEST_ULL(div, clk_rate);
-
 	return 0;
 }
 
 static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			   struct pwm_state *state)
+			   const struct pwm_state *state)
 {
 	struct sun4i_pwm_chip *sun4i_pwm = to_sun4i_pwm_chip(chip);
 	struct pwm_state cstate;

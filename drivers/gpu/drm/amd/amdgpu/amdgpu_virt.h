@@ -48,12 +48,6 @@ struct amdgpu_vf_error_buffer {
 	uint64_t data[AMDGPU_VF_ERROR_ENTRY_SIZE];
 };
 
-/* According to the fw feature, some new reg access modes are supported */
-#define AMDGPU_VIRT_REG_ACCESS_LEGACY          (1 << 0) /* directly mmio */
-#define AMDGPU_VIRT_REG_ACCESS_PSP_PRG_IH      (1 << 1) /* by PSP */
-#define AMDGPU_VIRT_REG_ACCESS_RLC             (1 << 2) /* by RLC */
-#define AMDGPU_VIRT_REG_SKIP_SEETING           (1 << 3) /* Skip setting reg */
-
 /**
  * struct amdgpu_virt_ops - amdgpu device virt operations
  */
@@ -65,7 +59,6 @@ struct amdgpu_virt_ops {
 	void (*trans_msg)(struct amdgpu_device *adev, u32 req, u32 data1, u32 data2, u32 data3);
 	int (*get_pp_clk)(struct amdgpu_device *adev, u32 type, char *buf);
 	int (*force_dpm_level)(struct amdgpu_device *adev, u32 level);
-	void (*init_reg_access_mode)(struct amdgpu_device *adev);
 };
 
 /*
@@ -315,10 +308,4 @@ int amdgpu_virt_fw_reserve_get_checksum(void *obj, unsigned long obj_size,
 void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev);
 uint32_t amdgpu_virt_get_sclk(struct amdgpu_device *adev, bool lowest);
 uint32_t amdgpu_virt_get_mclk(struct amdgpu_device *adev, bool lowest);
-
-void amdgpu_virt_init_reg_access_mode(struct amdgpu_device *adev);
-bool amdgpu_virt_support_psp_prg_ih_reg(struct amdgpu_device *adev);
-bool amdgpu_virt_support_rlc_prg_reg(struct amdgpu_device *adev);
-bool amdgpu_virt_support_skip_setting(struct amdgpu_device *adev);
-
 #endif

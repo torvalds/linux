@@ -492,8 +492,8 @@ config TCP_CONG_WESTWOOD
 	wired networks and throughput over wireless links.
 
 config TCP_CONG_HTCP
-        tristate "H-TCP"
-        default m
+	tristate "H-TCP"
+	default m
 	---help---
 	H-TCP is a send-side only modifications of the TCP Reno
 	protocol stack that optimizes the performance of TCP

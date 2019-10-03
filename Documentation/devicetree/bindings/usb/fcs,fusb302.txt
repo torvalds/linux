@@ -11,13 +11,6 @@ Required sub-node:
 
 	Documentation/devicetree/bindings/connector/usb-connector.txt
 
-Deprecated properties :
-- fcs,max-sink-microvolt : Maximum sink voltage accepted by port controller
-- fcs,max-sink-microamp : Maximum sink current accepted by port controller
-- fcs,max-sink-microwatt : Maximum sink power accepted by port controller
-- fcs,operating-sink-microwatt : Minimum amount of power accepted from a sink
-  when negotiating
-
 
 Example:
 

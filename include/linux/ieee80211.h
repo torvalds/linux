@@ -881,6 +881,14 @@ struct ieee80211_tpc_report_ie {
 	u8 link_margin;
 } __packed;
 
+#define IEEE80211_ADDBA_EXT_FRAG_LEVEL_MASK	GENMASK(2, 1)
+#define IEEE80211_ADDBA_EXT_FRAG_LEVEL_SHIFT	1
+#define IEEE80211_ADDBA_EXT_NO_FRAG		BIT(0)
+
+struct ieee80211_addba_ext_ie {
+	u8 data;
+} __packed;
+
 struct ieee80211_mgmt {
 	__le16 frame_control;
 	__le16 duration;
@@ -973,6 +981,8 @@ struct ieee80211_mgmt {
 					__le16 capab;
 					__le16 timeout;
 					__le16 start_seq_num;
+					/* followed by BA Extension */
+					u8 variable[0];
 				} __packed addba_req;
 				struct{
 					u8 action_code;
@@ -1626,6 +1636,18 @@ struct ieee80211_he_operation {
 } __packed;
 
 /**
+ * struct ieee80211_he_spr - HE spatial reuse element
+ *
+ * This structure is the "HE spatial reuse element" element as
+ * described in P802.11ax_D4.0 section 9.4.2.241
+ */
+struct ieee80211_he_spr {
+	u8 he_sr_control;
+	/* Optional 0 to 19 bytes: depends on @he_sr_control */
+	u8 optional[0];
+} __packed;
+
+/**
  * struct ieee80211_he_mu_edca_param_ac_rec - MU AC Parameter Record field
  *
  * This structure is the "MU AC Parameter Record" fields as
@@ -2033,8 +2055,8 @@ ieee80211_he_ppe_size(u8 ppe_thres_hdr, const u8 *phy_cap_info)
  * ieee80211_he_oper_size - calculate 802.11ax HE Operations IE size
  * @he_oper_ie: byte data of the He Operations IE, stating from the the byte
  *	after the ext ID byte. It is assumed that he_oper_ie has at least
- *	sizeof(struct ieee80211_he_operation) bytes, checked already in
- *	ieee802_11_parse_elems_crc()
+ *	sizeof(struct ieee80211_he_operation) bytes, the caller must have
+ *	validated this.
  * @return the actual size of the IE data (not including header), or 0 on error
  */
 static inline u8
@@ -2061,6 +2083,42 @@ ieee80211_he_oper_size(const u8 *he_oper_ie)
 	oper_len++;
 
 	return oper_len;
+}
+
+/* HE Spatial Reuse defines */
+#define IEEE80211_HE_SPR_NON_SRG_OFFSET_PRESENT			0x4
+#define IEEE80211_HE_SPR_SRG_INFORMATION_PRESENT		0x8
+
+/*
+ * ieee80211_he_spr_size - calculate 802.11ax HE Spatial Reuse IE size
+ * @he_spr_ie: byte data of the He Spatial Reuse IE, stating from the the byte
+ *	after the ext ID byte. It is assumed that he_spr_ie has at least
+ *	sizeof(struct ieee80211_he_spr) bytes, the caller must have validated
+ *	this
+ * @return the actual size of the IE data (not including header), or 0 on error
+ */
+static inline u8
+ieee80211_he_spr_size(const u8 *he_spr_ie)
+{
+	struct ieee80211_he_spr *he_spr = (void *)he_spr_ie;
+	u8 spr_len = sizeof(struct ieee80211_he_spr);
+	u32 he_spr_params;
+
+	/* Make sure the input is not NULL */
+	if (!he_spr_ie)
+		return 0;
+
+	/* Calc required length */
+	he_spr_params = le32_to_cpu(he_spr->he_sr_control);
+	if (he_spr_params & IEEE80211_HE_SPR_NON_SRG_OFFSET_PRESENT)
+		spr_len++;
+	if (he_spr_params & IEEE80211_HE_SPR_SRG_INFORMATION_PRESENT)
+		spr_len += 18;
+
+	/* Add the first byte (extension ID) to the total length */
+	spr_len++;
+
+	return spr_len;
 }
 
 /* Authentication algorithms */
@@ -2485,6 +2543,7 @@ enum ieee80211_eid_ext {
 	WLAN_EID_EXT_HE_OPERATION = 36,
 	WLAN_EID_EXT_UORA = 37,
 	WLAN_EID_EXT_HE_MU_EDCA = 38,
+	WLAN_EID_EXT_HE_SPR = 39,
 	WLAN_EID_EXT_MAX_CHANNEL_SWITCH_TIME = 52,
 	WLAN_EID_EXT_MULTIPLE_BSSID_CONFIGURATION = 55,
 	WLAN_EID_EXT_NON_INHERITANCE = 56,

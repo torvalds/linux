@@ -6,6 +6,9 @@ config PPC64
 	  This option selects whether a 32-bit or a 64-bit kernel
 	  will be built.
 
+config PPC_BOOK3S_32
+	bool
+
 menu "Processor support"
 choice
 	prompt "Processor Type"
@@ -21,11 +24,18 @@ choice
 
 	  If unsure, select 52xx/6xx/7xx/74xx/82xx/83xx/86xx.
 
-config PPC_BOOK3S_32
-	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx"
+config PPC_BOOK3S_6xx
+	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx except 601"
+	select PPC_BOOK3S_32
 	select PPC_FPU
 	select PPC_HAVE_PMU_SUPPORT
 	select PPC_HAVE_KUEP
+	select PPC_HAVE_KUAP
+
+config PPC_BOOK3S_601
+	bool "PowerPC 601"
+	select PPC_BOOK3S_32
+	select PPC_FPU
 	select PPC_HAVE_KUAP
 
 config PPC_85xx
@@ -450,8 +460,10 @@ config NOT_COHERENT_CACHE
 	depends on 4xx || PPC_8xx || E200 || PPC_MPC512x || \
 		GAMECUBE_COMMON || AMIGAONE
 	select ARCH_HAS_DMA_COHERENT_TO_PFN
+	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select DMA_DIRECT_REMAP
 	default n if PPC_47x
 	default y
 

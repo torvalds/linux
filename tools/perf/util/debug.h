@@ -3,13 +3,9 @@
 #ifndef __PERF_DEBUG_H
 #define __PERF_DEBUG_H
 
+#include <stdarg.h>
 #include <stdbool.h>
-#include <string.h>
 #include <linux/compiler.h>
-#include "event.h"
-#include "../ui/helpline.h"
-#include "../ui/progress.h"
-#include "../ui/util.h"
 
 extern int verbose;
 extern bool quiet, dump_trace;
@@ -41,6 +37,8 @@ extern int debug_data_convert;
 #define pr_oe_time2(t, fmt, ...) pr_time_N(2, debug_ordered_events, t, pr_fmt(fmt), ##__VA_ARGS__)
 
 #define STRERR_BUFSIZE	128	/* For the buffer size of str_error_r */
+
+union perf_event;
 
 int dump_printf(const char *fmt, ...) __printf(1, 2);
 void trace_event(union perf_event *event);

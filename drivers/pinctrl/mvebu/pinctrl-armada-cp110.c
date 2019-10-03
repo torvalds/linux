@@ -32,6 +32,7 @@ enum {
 	V_ARMADA_7K = BIT(0),
 	V_ARMADA_8K_CPM = BIT(1),
 	V_ARMADA_8K_CPS = BIT(2),
+	V_CP115_STANDALONE = BIT(3),
 	V_ARMADA_7K_8K_CPM = (V_ARMADA_7K | V_ARMADA_8K_CPM),
 	V_ARMADA_7K_8K_CPS = (V_ARMADA_7K | V_ARMADA_8K_CPS),
 };
@@ -597,7 +598,8 @@ static struct mvebu_mpp_mode armada_cp110_mpp_modes[] = {
 		 MPP_FUNCTION(7,	"uart0",	"rxd"),
 		 MPP_FUNCTION(8,	"uart2",	"rxd"),
 		 MPP_FUNCTION(9,	"sata0",	"present_act"),
-		 MPP_FUNCTION(10,	"ge",		"mdc")),
+		 MPP_FUNCTION(10,	"ge",		"mdc"),
+		 MPP_FUNCTION(14,	"sdio",		"ds")),
 };
 
 static const struct of_device_id armada_cp110_pinctrl_of_match[] = {
@@ -612,6 +614,10 @@ static const struct of_device_id armada_cp110_pinctrl_of_match[] = {
 	{
 		.compatible	= "marvell,armada-8k-cps-pinctrl",
 		.data		= (void *) V_ARMADA_8K_CPS,
+	},
+	{
+		.compatible	= "marvell,cp115-standalone-pinctrl",
+		.data		= (void *) V_CP115_STANDALONE,
 	},
 	{ },
 };
@@ -654,16 +660,20 @@ static int armada_cp110_pinctrl_probe(struct platform_device *pdev)
 
 		switch (i) {
 		case 0 ... 31:
-			mvebu_pinctrl_assign_variant(m, V_ARMADA_7K_8K_CPS);
+			mvebu_pinctrl_assign_variant(m, (V_ARMADA_7K_8K_CPS |
+							 V_CP115_STANDALONE));
 			break;
 		case 32 ... 38:
-			mvebu_pinctrl_assign_variant(m, V_ARMADA_7K_8K_CPM);
+			mvebu_pinctrl_assign_variant(m, (V_ARMADA_7K_8K_CPM |
+							 V_CP115_STANDALONE));
 			break;
 		case 39 ... 43:
-			mvebu_pinctrl_assign_variant(m, V_ARMADA_8K_CPM);
+			mvebu_pinctrl_assign_variant(m, (V_ARMADA_8K_CPM |
+							 V_CP115_STANDALONE));
 			break;
 		case 44 ... 62:
-			mvebu_pinctrl_assign_variant(m, V_ARMADA_7K_8K_CPM);
+			mvebu_pinctrl_assign_variant(m, (V_ARMADA_7K_8K_CPM |
+							 V_CP115_STANDALONE));
 			break;
 		}
 	}
