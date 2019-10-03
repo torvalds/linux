@@ -16,6 +16,7 @@
 #include <linux/if_macvlan.h>
 #include <linux/refcount.h>
 #include <linux/jhash.h>
+#include <linux/net_namespace.h>
 #include <net/netevent.h>
 #include <net/neighbour.h>
 #include <net/arp.h>
@@ -2551,14 +2552,14 @@ static int mlxsw_sp_router_schedule_work(struct net *net,
 	struct mlxsw_sp_netevent_work *net_work;
 	struct mlxsw_sp_router *router;
 
-	if (!net_eq(net, &init_net))
+	router = container_of(nb, struct mlxsw_sp_router, netevent_nb);
+	if (!net_eq(net, mlxsw_sp_net(router->mlxsw_sp)))
 		return NOTIFY_DONE;
 
 	net_work = kzalloc(sizeof(*net_work), GFP_ATOMIC);
 	if (!net_work)
 		return NOTIFY_BAD;
 
-	router = container_of(nb, struct mlxsw_sp_router, netevent_nb);
 	INIT_WORK(&net_work->work, cb);
 	net_work->mlxsw_sp = router->mlxsw_sp;
 	mlxsw_core_schedule_work(&net_work->work);
@@ -6195,7 +6196,7 @@ static int mlxsw_sp_router_fib_rule_event(unsigned long event,
 	rule = fr_info->rule;
 
 	/* Rule only affects locally generated traffic */
-	if (rule->iifindex == init_net.loopback_dev->ifindex)
+	if (rule->iifindex == mlxsw_sp_net(mlxsw_sp)->loopback_dev->ifindex)
 		return 0;
 
 	switch (info->family) {
@@ -7953,9 +7954,10 @@ static void mlxsw_sp_mp_hash_field_set(char *recr2_pl, int field)
 	mlxsw_reg_recr2_outer_header_fields_enable_set(recr2_pl, field, true);
 }
 
-static void mlxsw_sp_mp4_hash_init(char *recr2_pl)
+static void mlxsw_sp_mp4_hash_init(struct mlxsw_sp *mlxsw_sp, char *recr2_pl)
 {
-	bool only_l3 = !init_net.ipv4.sysctl_fib_multipath_hash_policy;
+	struct net *net = mlxsw_sp_net(mlxsw_sp);
+	bool only_l3 = !net->ipv4.sysctl_fib_multipath_hash_policy;
 
 	mlxsw_sp_mp_hash_header_set(recr2_pl,
 				    MLXSW_REG_RECR2_IPV4_EN_NOT_TCP_NOT_UDP);
@@ -7970,9 +7972,9 @@ static void mlxsw_sp_mp4_hash_init(char *recr2_pl)
 	mlxsw_sp_mp_hash_field_set(recr2_pl, MLXSW_REG_RECR2_TCP_UDP_DPORT);
 }
 
-static void mlxsw_sp_mp6_hash_init(char *recr2_pl)
+static void mlxsw_sp_mp6_hash_init(struct mlxsw_sp *mlxsw_sp, char *recr2_pl)
 {
-	bool only_l3 = !ip6_multipath_hash_policy(&init_net);
+	bool only_l3 = !ip6_multipath_hash_policy(mlxsw_sp_net(mlxsw_sp));
 
 	mlxsw_sp_mp_hash_header_set(recr2_pl,
 				    MLXSW_REG_RECR2_IPV6_EN_NOT_TCP_NOT_UDP);
@@ -8000,8 +8002,8 @@ static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp)
 
 	seed = jhash(mlxsw_sp->base_mac, sizeof(mlxsw_sp->base_mac), 0);
 	mlxsw_reg_recr2_pack(recr2_pl, seed);
-	mlxsw_sp_mp4_hash_init(recr2_pl);
-	mlxsw_sp_mp6_hash_init(recr2_pl);
+	mlxsw_sp_mp4_hash_init(mlxsw_sp, recr2_pl);
+	mlxsw_sp_mp6_hash_init(mlxsw_sp, recr2_pl);
 
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(recr2), recr2_pl);
 }
@@ -8032,7 +8034,8 @@ static int mlxsw_sp_dscp_init(struct mlxsw_sp *mlxsw_sp)
 
 static int __mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 {
-	bool usp = init_net.ipv4.sysctl_ip_fwd_update_priority;
+	struct net *net = mlxsw_sp_net(mlxsw_sp);
+	bool usp = net->ipv4.sysctl_ip_fwd_update_priority;
 	char rgcr_pl[MLXSW_REG_RGCR_LEN];
 	u64 max_rifs;
 	int err;
@@ -8134,7 +8137,8 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 		goto err_dscp_init;
 
 	mlxsw_sp->router->fib_nb.notifier_call = mlxsw_sp_router_fib_event;
-	err = register_fib_notifier(&init_net, &mlxsw_sp->router->fib_nb,
+	err = register_fib_notifier(mlxsw_sp_net(mlxsw_sp),
+				    &mlxsw_sp->router->fib_nb,
 				    mlxsw_sp_router_fib_dump_flush, NULL);
 	if (err)
 		goto err_register_fib_notifier;
@@ -8174,7 +8178,8 @@ err_register_inetaddr_notifier:
 
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	unregister_fib_notifier(&init_net, &mlxsw_sp->router->fib_nb);
+	unregister_fib_notifier(mlxsw_sp_net(mlxsw_sp),
+				&mlxsw_sp->router->fib_nb);
 	unregister_netevent_notifier(&mlxsw_sp->router->netevent_nb);
 	mlxsw_sp_neigh_fini(mlxsw_sp);
 	mlxsw_sp_vrs_fini(mlxsw_sp);

@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
+#include <linux/net_namespace.h>
 #include <net/devlink.h>
 
 #include "trap.h"
@@ -349,6 +350,11 @@ u64 mlxsw_core_res_get(struct mlxsw_core *mlxsw_core,
 
 #define MLXSW_CORE_RES_GET(mlxsw_core, short_res_id)			\
 	mlxsw_core_res_get(mlxsw_core, MLXSW_RES_ID_##short_res_id)
+
+static inline struct net *mlxsw_core_net(struct mlxsw_core *mlxsw_core)
+{
+	return devlink_net(priv_to_devlink(mlxsw_core));
+}
 
 #define MLXSW_BUS_F_TXRX	BIT(0)
 #define MLXSW_BUS_F_RESET	BIT(1)
