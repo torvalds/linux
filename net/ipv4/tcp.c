@@ -1798,13 +1798,11 @@ static int tcp_zerocopy_receive(struct sock *sk,
 		}
 		if (skb_frag_size(frags) != PAGE_SIZE || skb_frag_off(frags)) {
 			int remaining = zc->recv_skip_hint;
-			int size = skb_frag_size(frags);
 
-			while (remaining && (size != PAGE_SIZE ||
+			while (remaining && (skb_frag_size(frags) != PAGE_SIZE ||
 					     skb_frag_off(frags))) {
-				remaining -= size;
+				remaining -= skb_frag_size(frags);
 				frags++;
-				size = skb_frag_size(frags);
 			}
 			zc->recv_skip_hint -= remaining;
 			break;
