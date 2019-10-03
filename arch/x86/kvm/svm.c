@@ -418,6 +418,7 @@ enum {
 
 #define VMCB_AVIC_APIC_BAR_MASK		0xFFFFFFFFFF000ULL
 
+static DEFINE_MUTEX(sev_deactivate_lock);
 static DEFINE_MUTEX(sev_bitmap_lock);
 static unsigned int max_sev_asid;
 static unsigned int min_sev_asid;
@@ -1756,10 +1757,20 @@ static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
 
 	/* deactivate handle */
 	data->handle = handle;
+
+	/*
+	 * Guard against a parallel DEACTIVATE command before the DF_FLUSH
+	 * command has completed.
+	 */
+	mutex_lock(&sev_deactivate_lock);
+
 	sev_guest_deactivate(data, NULL);
 
 	wbinvd_on_all_cpus();
 	sev_guest_df_flush(NULL);
+
+	mutex_unlock(&sev_deactivate_lock);
+
 	kfree(data);
 
 	decommission = kzalloc(sizeof(*decommission), GFP_KERNEL);
@@ -6318,9 +6329,18 @@ static int sev_bind_asid(struct kvm *kvm, unsigned int handle, int *error)
 	int asid = sev_get_asid(kvm);
 	int ret;
 
+	/*
+	 * Guard against a DEACTIVATE command before the DF_FLUSH command
+	 * has completed.
+	 */
+	mutex_lock(&sev_deactivate_lock);
+
 	wbinvd_on_all_cpus();
 
 	ret = sev_guest_df_flush(error);
+
+	mutex_unlock(&sev_deactivate_lock);
+
 	if (ret)
 		return ret;
 
