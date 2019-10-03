@@ -140,7 +140,7 @@ static void gfxhub_v2_0_init_cache_regs(struct amdgpu_device *adev)
 	/* XXX for emulation, Refer to closed source code.*/
 	tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL,
 			    L2_PDE0_CACHE_TAG_GENERATION_MODE, 0);
-	tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL, PDE_FAULT_CLASSIFICATION, 1);
+	tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL, PDE_FAULT_CLASSIFICATION, 0);
 	tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL, CONTEXT1_IDENTITY_ACCESS_MODE, 1);
 	tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL, IDENTITY_MODE_FRAGMENT_SIZE, 0);
 	WREG32_SOC15(GC, 0, mmGCVM_L2_CNTL, tmp);
@@ -333,7 +333,7 @@ void gfxhub_v2_0_set_fault_enable_default(struct amdgpu_device *adev,
 
 void gfxhub_v2_0_init(struct amdgpu_device *adev)
 {
-	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB];
+	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB_0];
 
 	hub->ctx0_ptb_addr_lo32 =
 		SOC15_REG_OFFSET(GC, 0,

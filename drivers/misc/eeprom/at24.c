@@ -14,7 +14,6 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/mod_devicetable.h>
-#include <linux/log2.h>
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
 #include <linux/property.h>
@@ -685,7 +684,7 @@ static int at24_probe(struct i2c_client *client)
 	nvmem_config.name = dev_name(dev);
 	nvmem_config.dev = dev;
 	nvmem_config.read_only = !writable;
-	nvmem_config.root_only = true;
+	nvmem_config.root_only = !(flags & AT24_FLAG_IRUGO);
 	nvmem_config.owner = THIS_MODULE;
 	nvmem_config.compat = true;
 	nvmem_config.base_dev = dev;

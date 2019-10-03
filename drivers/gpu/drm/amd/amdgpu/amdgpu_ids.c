@@ -368,7 +368,8 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 		 * are broken on Navi10 and Navi14.
 		 */
 		if (needs_flush && (adev->asic_type < CHIP_VEGA10 ||
-				    adev->asic_type == CHIP_NAVI10))
+				    adev->asic_type == CHIP_NAVI10 ||
+				    adev->asic_type == CHIP_NAVI14))
 			continue;
 
 		/* Good, we can use this VMID. Remember this submission as

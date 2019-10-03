@@ -12,11 +12,11 @@
 #define __CCP_DEV_H__
 
 #include <linux/device.h>
-#include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/wait.h>
+#include <linux/dma-direction.h>
 #include <linux/dmapool.h>
 #include <linux/hw_random.h>
 #include <linux/bitops.h>
@@ -379,6 +379,7 @@ struct ccp_device {
 	 */
 	struct ccp_cmd_queue cmd_q[MAX_HW_QUEUES];
 	unsigned int cmd_q_count;
+	unsigned int max_q_count;
 
 	/* Support for the CCP True RNG
 	 */

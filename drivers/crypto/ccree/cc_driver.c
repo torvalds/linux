@@ -22,7 +22,6 @@
 #include "cc_cipher.h"
 #include "cc_aead.h"
 #include "cc_hash.h"
-#include "cc_ivgen.h"
 #include "cc_sram_mgr.h"
 #include "cc_pm.h"
 #include "cc_fips.h"
@@ -339,10 +338,8 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	/* Then IRQ */
 	new_drvdata->irq = platform_get_irq(plat_dev, 0);
-	if (new_drvdata->irq < 0) {
-		dev_err(dev, "Failed getting IRQ resource\n");
+	if (new_drvdata->irq < 0)
 		return new_drvdata->irq;
-	}
 
 	init_completion(&new_drvdata->hw_queue_avail);
 
@@ -421,7 +418,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 			}
 			break;
 		default:
-			dev_err(dev, "Unsupported engines configration.\n");
+			dev_err(dev, "Unsupported engines configuration.\n");
 			rc = -EINVAL;
 			goto post_clk_err;
 		}
@@ -503,17 +500,11 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_buf_mgr_err;
 	}
 
-	rc = cc_ivgen_init(new_drvdata);
-	if (rc) {
-		dev_err(dev, "cc_ivgen_init failed\n");
-		goto post_buf_mgr_err;
-	}
-
 	/* Allocate crypto algs */
 	rc = cc_cipher_alloc(new_drvdata);
 	if (rc) {
 		dev_err(dev, "cc_cipher_alloc failed\n");
-		goto post_ivgen_err;
+		goto post_buf_mgr_err;
 	}
 
 	/* hash must be allocated before aead since hash exports APIs */
@@ -544,8 +535,6 @@ post_hash_err:
 	cc_hash_free(new_drvdata);
 post_cipher_err:
 	cc_cipher_free(new_drvdata);
-post_ivgen_err:
-	cc_ivgen_fini(new_drvdata);
 post_buf_mgr_err:
 	 cc_buffer_mgr_fini(new_drvdata);
 post_req_mgr_err:
@@ -577,7 +566,6 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	cc_aead_free(drvdata);
 	cc_hash_free(drvdata);
 	cc_cipher_free(drvdata);
-	cc_ivgen_fini(drvdata);
 	cc_pm_fini(drvdata);
 	cc_buffer_mgr_fini(drvdata);
 	cc_req_mgr_fini(drvdata);

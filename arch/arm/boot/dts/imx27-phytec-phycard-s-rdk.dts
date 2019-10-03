@@ -15,10 +15,10 @@
 
 	display: display {
 		model = "Primeview-PD050VL1";
-		native-mode = <&timing0>;
 		bits-per-pixel = <16>;  /* non-standard but required */
 		fsl,pcr = <0xf0c88080>;	/* non-standard but required */
 		display-timings {
+			native-mode = <&timing0>;
 			timing0: 640x480 {
 				hactive = <640>;
 				vactive = <480>;

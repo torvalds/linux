@@ -251,3 +251,10 @@ Description:
 		If checkpoint=disable, it displays the number of blocks that are unusable.
                 If checkpoint=enable it displays the enumber of blocks that would be unusable
                 if checkpoint=disable were to be set.
+
+What:		/sys/fs/f2fs/<disk>/encoding
+Date		July 2019
+Contact:	"Daniel Rosenberg" <drosen@google.com>
+Description:
+		Displays name and version of the encoding set for the filesystem.
+                If no encoding is set, displays (none)

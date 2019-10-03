@@ -264,9 +264,7 @@ enum {
 	ncsi_dev_state_config_ev,
 	ncsi_dev_state_config_sma,
 	ncsi_dev_state_config_ebf,
-#if IS_ENABLED(CONFIG_IPV6)
-	ncsi_dev_state_config_egmf,
-#endif
+	ncsi_dev_state_config_dgmf,
 	ncsi_dev_state_config_ecnt,
 	ncsi_dev_state_config_ec,
 	ncsi_dev_state_config_ae,
@@ -295,9 +293,6 @@ struct ncsi_dev_priv {
 #define NCSI_DEV_RESET		8            /* Reset state of NC          */
 	unsigned int        gma_flag;        /* OEM GMA flag               */
 	spinlock_t          lock;            /* Protect the NCSI device    */
-#if IS_ENABLED(CONFIG_IPV6)
-	unsigned int        inet6_addr_num;  /* Number of IPv6 addresses   */
-#endif
 	unsigned int        package_probe_id;/* Current ID during probe    */
 	unsigned int        package_num;     /* Number of packages         */
 	struct list_head    packages;        /* List of packages           */

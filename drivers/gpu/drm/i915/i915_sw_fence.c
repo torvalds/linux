@@ -157,8 +157,11 @@ static void __i915_sw_fence_wake_up_all(struct i915_sw_fence *fence,
 		LIST_HEAD(extra);
 
 		do {
-			list_for_each_entry_safe(pos, next, &x->head, entry)
-				pos->func(pos, TASK_NORMAL, 0, &extra);
+			list_for_each_entry_safe(pos, next, &x->head, entry) {
+				pos->func(pos,
+					  TASK_NORMAL, fence->error,
+					  &extra);
+			}
 
 			if (list_empty(&extra))
 				break;
@@ -219,6 +222,8 @@ void __i915_sw_fence_init(struct i915_sw_fence *fence,
 
 	__init_waitqueue_head(&fence->wait, name, key);
 	atomic_set(&fence->pending, 1);
+	fence->error = 0;
+
 	fence->flags = (unsigned long)fn;
 }
 
@@ -230,6 +235,8 @@ void i915_sw_fence_commit(struct i915_sw_fence *fence)
 
 static int i915_sw_fence_wake(wait_queue_entry_t *wq, unsigned mode, int flags, void *key)
 {
+	i915_sw_fence_set_error_once(wq->private, flags);
+
 	list_del(&wq->entry);
 	__i915_sw_fence_complete(wq->private, key);
 
@@ -302,8 +309,10 @@ static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 	debug_fence_assert(fence);
 	might_sleep_if(gfpflags_allow_blocking(gfp));
 
-	if (i915_sw_fence_done(signaler))
+	if (i915_sw_fence_done(signaler)) {
+		i915_sw_fence_set_error_once(fence, signaler->error);
 		return 0;
+	}
 
 	debug_fence_assert(signaler);
 
@@ -319,6 +328,7 @@ static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 				return -ENOMEM;
 
 			i915_sw_fence_wait(signaler);
+			i915_sw_fence_set_error_once(fence, signaler->error);
 			return 0;
 		}
 
@@ -337,7 +347,7 @@ static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 		__add_wait_queue_entry_tail(&signaler->wait, wq);
 		pending = 1;
 	} else {
-		i915_sw_fence_wake(wq, 0, 0, NULL);
+		i915_sw_fence_wake(wq, 0, signaler->error, NULL);
 		pending = 0;
 	}
 	spin_unlock_irqrestore(&signaler->wait.lock, flags);
@@ -372,6 +382,7 @@ static void dma_i915_sw_fence_wake(struct dma_fence *dma,
 {
 	struct i915_sw_dma_fence_cb *cb = container_of(data, typeof(*cb), base);
 
+	i915_sw_fence_set_error_once(cb->fence, dma->error);
 	i915_sw_fence_complete(cb->fence);
 	kfree(cb);
 }
@@ -391,6 +402,7 @@ static void timer_i915_sw_fence_wake(struct timer_list *t)
 		  cb->dma->seqno,
 		  i915_sw_fence_debug_hint(fence));
 
+	i915_sw_fence_set_error_once(fence, -ETIMEDOUT);
 	i915_sw_fence_complete(fence);
 }
 
@@ -480,6 +492,7 @@ static void __dma_i915_sw_fence_wake(struct dma_fence *dma,
 {
 	struct i915_sw_dma_fence_cb *cb = container_of(data, typeof(*cb), base);
 
+	i915_sw_fence_set_error_once(cb->fence, dma->error);
 	i915_sw_fence_complete(cb->fence);
 }
 
@@ -501,7 +514,7 @@ int __i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 	if (ret == 0) {
 		ret = 1;
 	} else {
-		i915_sw_fence_complete(fence);
+		__dma_i915_sw_fence_wake(dma, &cb->base);
 		if (ret == -ENOENT) /* fence already signaled */
 			ret = 0;
 	}

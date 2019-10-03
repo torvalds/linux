@@ -3194,7 +3194,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 			  */
 			r = rs_prepare_reshape(rs);
 			if (r)
-				return r;
+				goto bad;
 
 			/* Reshaping ain't recovery, so disable recovery */
 			rs_setup_recovery(rs, MaxSector);
@@ -3738,18 +3738,18 @@ static int raid_iterate_devices(struct dm_target *ti,
 static void raid_io_hints(struct dm_target *ti, struct queue_limits *limits)
 {
 	struct raid_set *rs = ti->private;
-	unsigned int chunk_size = to_bytes(rs->md.chunk_sectors);
+	unsigned int chunk_size_bytes = to_bytes(rs->md.chunk_sectors);
 
-	blk_limits_io_min(limits, chunk_size);
-	blk_limits_io_opt(limits, chunk_size * mddev_data_stripes(rs));
+	blk_limits_io_min(limits, chunk_size_bytes);
+	blk_limits_io_opt(limits, chunk_size_bytes * mddev_data_stripes(rs));
 
 	/*
 	 * RAID1 and RAID10 personalities require bio splitting,
 	 * RAID0/4/5/6 don't and process large discard bios properly.
 	 */
 	if (rs_is_raid1(rs) || rs_is_raid10(rs)) {
-		limits->discard_granularity = chunk_size;
-		limits->max_discard_sectors = chunk_size;
+		limits->discard_granularity = chunk_size_bytes;
+		limits->max_discard_sectors = rs->md.chunk_sectors;
 	}
 }
 

@@ -51,10 +51,6 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 	if (gem->import_attach)
 		drm_prime_gem_destroy(gem, nvbo->bo.sg);
 
-	drm_gem_object_release(gem);
-
-	/* reset filp so nouveau_bo_del_ttm() can test for it */
-	gem->filp = NULL;
 	ttm_bo_put(&nvbo->bo);
 
 	pm_runtime_mark_last_busy(dev);
@@ -188,7 +184,8 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 	if (domain & NOUVEAU_GEM_DOMAIN_COHERENT)
 		flags |= TTM_PL_FLAG_UNCACHED;
 
-	nvbo = nouveau_bo_alloc(cli, size, flags, tile_mode, tile_flags);
+	nvbo = nouveau_bo_alloc(cli, &size, &align, flags, tile_mode,
+				tile_flags);
 	if (IS_ERR(nvbo))
 		return PTR_ERR(nvbo);
 

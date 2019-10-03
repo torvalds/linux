@@ -221,11 +221,11 @@ static int nat_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 		int ret;
 
 		rtp_exp->tuple.dst.u.udp.port = htons(nated_port);
-		ret = nf_ct_expect_related(rtp_exp);
+		ret = nf_ct_expect_related(rtp_exp, 0);
 		if (ret == 0) {
 			rtcp_exp->tuple.dst.u.udp.port =
 			    htons(nated_port + 1);
-			ret = nf_ct_expect_related(rtcp_exp);
+			ret = nf_ct_expect_related(rtcp_exp, 0);
 			if (ret == 0)
 				break;
 			else if (ret == -EBUSY) {
@@ -296,7 +296,7 @@ static int nat_t120(struct sk_buff *skb, struct nf_conn *ct,
 		int ret;
 
 		exp->tuple.dst.u.tcp.port = htons(nated_port);
-		ret = nf_ct_expect_related(exp);
+		ret = nf_ct_expect_related(exp, 0);
 		if (ret == 0)
 			break;
 		else if (ret != -EBUSY) {
@@ -352,7 +352,7 @@ static int nat_h245(struct sk_buff *skb, struct nf_conn *ct,
 		int ret;
 
 		exp->tuple.dst.u.tcp.port = htons(nated_port);
-		ret = nf_ct_expect_related(exp);
+		ret = nf_ct_expect_related(exp, 0);
 		if (ret == 0)
 			break;
 		else if (ret != -EBUSY) {
@@ -444,7 +444,7 @@ static int nat_q931(struct sk_buff *skb, struct nf_conn *ct,
 		int ret;
 
 		exp->tuple.dst.u.tcp.port = htons(nated_port);
-		ret = nf_ct_expect_related(exp);
+		ret = nf_ct_expect_related(exp, 0);
 		if (ret == 0)
 			break;
 		else if (ret != -EBUSY) {
@@ -537,7 +537,7 @@ static int nat_callforwarding(struct sk_buff *skb, struct nf_conn *ct,
 		int ret;
 
 		exp->tuple.dst.u.tcp.port = htons(nated_port);
-		ret = nf_ct_expect_related(exp);
+		ret = nf_ct_expect_related(exp, 0);
 		if (ret == 0)
 			break;
 		else if (ret != -EBUSY) {

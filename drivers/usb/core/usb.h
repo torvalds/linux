@@ -95,6 +95,9 @@ extern int usb_runtime_idle(struct device *dev);
 extern int usb_enable_usb2_hardware_lpm(struct usb_device *udev);
 extern int usb_disable_usb2_hardware_lpm(struct usb_device *udev);
 
+extern void usbfs_notify_suspend(struct usb_device *udev);
+extern void usbfs_notify_resume(struct usb_device *udev);
+
 #else
 
 static inline int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
@@ -151,6 +154,11 @@ static inline int is_usb_endpoint(const struct device *dev)
 static inline int is_usb_port(const struct device *dev)
 {
 	return dev->type == &usb_port_device_type;
+}
+
+static inline int is_root_hub(struct usb_device *udev)
+{
+	return (udev->parent == NULL);
 }
 
 /* Do the same for device drivers and interface drivers. */

@@ -380,9 +380,9 @@ static const char consumer_descriptor[] = {
 	0x75, 0x10,		/* REPORT_SIZE (16)                    */
 	0x95, 0x02,		/* REPORT_COUNT (2)                    */
 	0x15, 0x01,		/* LOGICAL_MIN (1)                     */
-	0x26, 0x8C, 0x02,	/* LOGICAL_MAX (652)                   */
+	0x26, 0xFF, 0x02,	/* LOGICAL_MAX (767)                   */
 	0x19, 0x01,		/* USAGE_MIN (1)                       */
-	0x2A, 0x8C, 0x02,	/* USAGE_MAX (652)                     */
+	0x2A, 0xFF, 0x02,	/* USAGE_MAX (767)                     */
 	0x81, 0x00,		/* INPUT (Data Ary Abs)                */
 	0xC0,			/* END_COLLECTION                      */
 };				/*                                     */
@@ -959,6 +959,7 @@ static void logi_hidpp_recv_queue_notif(struct hid_device *hdev,
 		break;
 	case 0x07:
 		device_type = "eQUAD step 4 Gaming";
+		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
 		break;
 	case 0x08:
 		device_type = "eQUAD step 4 for gamepads";
@@ -968,7 +969,12 @@ static void logi_hidpp_recv_queue_notif(struct hid_device *hdev,
 		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
 		break;
 	case 0x0c:
-		device_type = "eQUAD Lightspeed";
+		device_type = "eQUAD Lightspeed 1";
+		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
+		workitem.reports_supported |= STD_KEYBOARD;
+		break;
+	case 0x0d:
+		device_type = "eQUAD Lightspeed 1_1";
 		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
 		workitem.reports_supported |= STD_KEYBOARD;
 		break;
@@ -1125,7 +1131,7 @@ static int logi_dj_recv_query_hidpp_devices(struct dj_receiver_dev *djrcv_dev)
 				    HID_REQ_SET_REPORT);
 
 	kfree(hidpp_report);
-	return retval;
+	return (retval < 0) ? retval : 0;
 }
 
 static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
@@ -1734,14 +1740,14 @@ static int logi_dj_probe(struct hid_device *hdev,
 		if (retval < 0) {
 			hid_err(hdev, "%s: logi_dj_recv_query_paired_devices error:%d\n",
 				__func__, retval);
-			goto logi_dj_recv_query_paired_devices_failed;
+			/*
+			 * This can happen with a KVM, let the probe succeed,
+			 * logi_dj_recv_queue_unknown_work will retry later.
+			 */
 		}
 	}
 
-	return retval;
-
-logi_dj_recv_query_paired_devices_failed:
-	hid_hw_close(hdev);
+	return 0;
 
 llopen_failed:
 switch_to_dj_mode_fail:
@@ -1832,13 +1838,25 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 			 USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_2),
 	 .driver_data = recvr_type_hidpp},
-	{ /* Logitech gaming receiver (0xc539) */
+	{ /* Logitech G700(s) receiver (0xc531) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_GAMING),
+		0xc531),
+	 .driver_data = recvr_type_gaming_hidpp},
+	{ /* Logitech lightspeed receiver (0xc539) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1),
+	 .driver_data = recvr_type_gaming_hidpp},
+	{ /* Logitech lightspeed receiver (0xc53f) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1_1),
 	 .driver_data = recvr_type_gaming_hidpp},
 	{ /* Logitech 27 MHz HID++ 1.0 receiver (0xc513) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER),
 	 .driver_data = recvr_type_27mhz},
+	{ /* Logitech powerplay receiver (0xc53a) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_POWERPLAY),
+	 .driver_data = recvr_type_gaming_hidpp},
 	{ /* Logitech 27 MHz HID++ 1.0 receiver (0xc517) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_S510_RECEIVER_2),

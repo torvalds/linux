@@ -25,6 +25,9 @@
  *
  **************************************************************************/
 
+#include <linux/dmapool.h>
+#include <linux/pci.h>
+
 #include <drm/ttm/ttm_bo_api.h>
 
 #include "vmwgfx_drv.h"

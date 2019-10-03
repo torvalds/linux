@@ -614,7 +614,7 @@ lpfc_rcv_padisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		}
 out:
 		/* If we are authenticated, move to the proper state */
-		if (ndlp->nlp_type & NLP_FCP_TARGET)
+		if (ndlp->nlp_type & (NLP_FCP_TARGET | NLP_NVME_TARGET))
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_MAPPED_NODE);
 		else
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
@@ -799,8 +799,14 @@ lpfc_rcv_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			if (npr->writeXferRdyDis)
 				ndlp->nlp_flag |= NLP_FIRSTBURST;
 		}
-		if (npr->Retry)
+		if (npr->Retry && ndlp->nlp_type &
+					(NLP_FCP_INITIATOR | NLP_FCP_TARGET))
 			ndlp->nlp_fcp_info |= NLP_FCP_2_DEVICE;
+
+		if (npr->Retry && phba->nsler &&
+		    ndlp->nlp_type & (NLP_NVME_INITIATOR | NLP_NVME_TARGET))
+			ndlp->nlp_nvme_info |= NLP_NVME_NSLER;
+
 
 		/* If this driver is in nvme target mode, set the ndlp's fc4
 		 * type to NVME provided the PRLI response claims NVME FC4
@@ -885,7 +891,7 @@ lpfc_release_rpi(struct lpfc_hba *phba, struct lpfc_vport *vport,
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "1435 release_rpi SKIP UNREG x%x on "
 				 "NPort x%x deferred x%x  flg x%x "
-				 "Data: %p\n",
+				 "Data: x%px\n",
 				 ndlp->nlp_rpi, ndlp->nlp_DID,
 				 ndlp->nlp_defer_did,
 				 ndlp->nlp_flag, ndlp);
@@ -1661,6 +1667,7 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 	LPFC_MBOXQ_t	  *mb;
 	LPFC_MBOXQ_t	  *nextmb;
 	struct lpfc_dmabuf *mp;
+	struct lpfc_nodelist *ns_ndlp;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
 
@@ -1692,6 +1699,13 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 		}
 	}
 	spin_unlock_irq(&phba->hbalock);
+
+	/* software abort if any GID_FT is outstanding */
+	if (vport->cfg_enable_fc4_type != LPFC_ENABLE_FCP) {
+		ns_ndlp = lpfc_findnode_did(vport, NameServer_DID);
+		if (ns_ndlp && NLP_CHK_NODE_ACT(ns_ndlp))
+			lpfc_els_abort(phba, ns_ndlp);
+	}
 
 	lpfc_rcv_logo(vport, ndlp, cmdiocb, ELS_CMD_LOGO);
 	return ndlp->nlp_state;
@@ -1814,7 +1828,11 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 
 		ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_PRLI_ISSUE);
-		lpfc_issue_els_prli(vport, ndlp, 0);
+		if (lpfc_issue_els_prli(vport, ndlp, 0)) {
+			lpfc_issue_els_logo(vport, ndlp, 0);
+			ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
+			lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+		}
 	} else {
 		if ((vport->fc_flag & FC_PT2PT) && phba->nvmet_support)
 			phba->targetport->port_id = vport->fc_myDID;
@@ -2011,6 +2029,11 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		/* Complete setting up the remote ndlp personality. */
 		if (bf_get_be32(prli_init, nvpr))
 			ndlp->nlp_type |= NLP_NVME_INITIATOR;
+
+		if (phba->nsler && bf_get_be32(prli_nsler, nvpr))
+			ndlp->nlp_nvme_info |= NLP_NVME_NSLER;
+		else
+			ndlp->nlp_nvme_info &= ~NLP_NVME_NSLER;
 
 		/* Target driver cannot solicit NVME FB. */
 		if (bf_get_be32(prli_tgt, nvpr)) {
@@ -2891,18 +2914,21 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	uint32_t(*func) (struct lpfc_vport *, struct lpfc_nodelist *, void *,
 			 uint32_t);
 	uint32_t got_ndlp = 0;
+	uint32_t data1;
 
 	if (lpfc_nlp_get(ndlp))
 		got_ndlp = 1;
 
 	cur_state = ndlp->nlp_state;
 
+	data1 = (((uint32_t)ndlp->nlp_fc4_type << 16) |
+		((uint32_t)ndlp->nlp_type));
 	/* DSM in event <evt> on NPort <nlp_DID> in state <cur_state> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 			 "0211 DSM in event x%x on NPort x%x in "
 			 "state %d rpi x%x Data: x%x x%x\n",
 			 evt, ndlp->nlp_DID, cur_state, ndlp->nlp_rpi,
-			 ndlp->nlp_flag, ndlp->nlp_fc4_type);
+			 ndlp->nlp_flag, data1);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
 		 "DSM in:          evt:%d ste:%d did:x%x",
@@ -2913,10 +2939,13 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	/* DSM out state <rc> on NPort <nlp_DID> */
 	if (got_ndlp) {
+		data1 = (((uint32_t)ndlp->nlp_fc4_type << 16) |
+			((uint32_t)ndlp->nlp_type));
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 			 "0212 DSM out state %d on NPort x%x "
-			 "rpi x%x Data: x%x\n",
-			 rc, ndlp->nlp_DID, ndlp->nlp_rpi, ndlp->nlp_flag);
+			 "rpi x%x Data: x%x x%x\n",
+			 rc, ndlp->nlp_DID, ndlp->nlp_rpi, ndlp->nlp_flag,
+			 data1);
 
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
 			"DSM out:         ste:%d did:x%x flg:x%x",

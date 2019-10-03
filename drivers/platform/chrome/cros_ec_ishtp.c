@@ -8,11 +8,10 @@
 // (ISH-TP).
 
 #include <linux/delay.h>
-#include <linux/mfd/core.h>
-#include <linux/mfd/cros_ec.h>
-#include <linux/mfd/cros_ec_commands.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/platform_data/cros_ec_commands.h>
+#include <linux/platform_data/cros_ec_proto.h>
 #include <linux/intel-ish-client-if.h>
 
 /*
@@ -707,7 +706,7 @@ static int cros_ec_ishtp_reset(struct ishtp_cl_device *cl_device)
  */
 static int __maybe_unused cros_ec_ishtp_suspend(struct device *device)
 {
-	struct ishtp_cl_device *cl_device = dev_get_drvdata(device);
+	struct ishtp_cl_device *cl_device = ishtp_dev_to_cl_device(device);
 	struct ishtp_cl	*cros_ish_cl = ishtp_get_drvdata(cl_device);
 	struct ishtp_cl_data *client_data = ishtp_get_client_data(cros_ish_cl);
 
@@ -722,7 +721,7 @@ static int __maybe_unused cros_ec_ishtp_suspend(struct device *device)
  */
 static int __maybe_unused cros_ec_ishtp_resume(struct device *device)
 {
-	struct ishtp_cl_device *cl_device = dev_get_drvdata(device);
+	struct ishtp_cl_device *cl_device = ishtp_dev_to_cl_device(device);
 	struct ishtp_cl	*cros_ish_cl = ishtp_get_drvdata(cl_device);
 	struct ishtp_cl_data *client_data = ishtp_get_client_data(cros_ish_cl);
 

@@ -70,9 +70,6 @@ void test_task_fd_query_rawtp(void)
 	if (CHECK(!err, "check_results", "fd_type %d len %u\n", fd_type, len))
 		goto close_prog;
 
-	goto close_prog_noerr;
 close_prog:
-	error_cnt++;
-close_prog_noerr:
 	bpf_object__close(obj);
 }

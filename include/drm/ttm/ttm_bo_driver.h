@@ -390,6 +390,16 @@ struct ttm_bo_driver {
 	 * notify driver that a BO was deleted from LRU.
 	 */
 	void (*del_from_lru_notify)(struct ttm_buffer_object *bo);
+
+	/**
+	 * Notify the driver that we're about to release a BO
+	 *
+	 * @bo: BO that is about to be released
+	 *
+	 * Gives the driver a chance to do any cleanup, including
+	 * adding fences that may force a delayed delete
+	 */
+	void (*release_notify)(struct ttm_buffer_object *bo);
 };
 
 /**

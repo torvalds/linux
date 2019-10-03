@@ -43,7 +43,7 @@ komeda_fb_afbc_size_check(struct komeda_fb *kfb, struct drm_file *file,
 	struct drm_framebuffer *fb = &kfb->base;
 	const struct drm_format_info *info = fb->format;
 	struct drm_gem_object *obj;
-	u32 alignment_w = 0, alignment_h = 0, alignment_header, n_blocks;
+	u32 alignment_w = 0, alignment_h = 0, alignment_header, n_blocks, bpp;
 	u64 min_size;
 
 	obj = drm_gem_object_lookup(file, mode_cmd->handles[0]);
@@ -88,8 +88,9 @@ komeda_fb_afbc_size_check(struct komeda_fb *kfb, struct drm_file *file,
 	kfb->offset_payload = ALIGN(n_blocks * AFBC_HEADER_SIZE,
 				    alignment_header);
 
+	bpp = komeda_get_afbc_format_bpp(info, fb->modifier);
 	kfb->afbc_size = kfb->offset_payload + n_blocks *
-			 ALIGN(info->cpp[0] * AFBC_SUPERBLK_PIXELS,
+			 ALIGN(bpp * AFBC_SUPERBLK_PIXELS / 8,
 			       AFBC_SUPERBLK_ALIGNMENT);
 	min_size = kfb->afbc_size + fb->offsets[0];
 	if (min_size > obj->size) {

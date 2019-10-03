@@ -29,10 +29,10 @@ Sleeping and interrupt context
   The corresponding functions exported to upper level protocol
   consumers:
 
-    - ib_create_ah
-    - ib_modify_ah
-    - ib_query_ah
-    - ib_destroy_ah
+    - rdma_create_ah
+    - rdma_modify_ah
+    - rdma_query_ah
+    - rdma_destroy_ah
     - ib_post_send
     - ib_post_recv
     - ib_req_notify_cq

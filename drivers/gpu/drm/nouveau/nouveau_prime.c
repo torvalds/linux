@@ -22,7 +22,6 @@
  * Authors: Dave Airlie
  */
 
-#include <drm/drmP.h>
 #include <linux/dma-buf.h>
 
 #include "nouveau_drv.h"
@@ -61,19 +60,22 @@ struct drm_gem_object *nouveau_gem_prime_import_sg_table(struct drm_device *dev,
 							 struct sg_table *sg)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct drm_gem_object *obj;
 	struct nouveau_bo *nvbo;
 	struct dma_resv *robj = attach->dmabuf->resv;
-	size_t size = attach->dmabuf->size;
+	u64 size = attach->dmabuf->size;
 	u32 flags = 0;
+	int align = 0;
 	int ret;
 
 	flags = TTM_PL_FLAG_TT;
 
 	dma_resv_lock(robj, NULL);
-	nvbo = nouveau_bo_alloc(&drm->client, size, flags, 0, 0);
-	dma_resv_unlock(robj);
-	if (IS_ERR(nvbo))
-		return ERR_CAST(nvbo);
+	nvbo = nouveau_bo_alloc(&drm->client, &size, &align, flags, 0, 0);
+	if (IS_ERR(nvbo)) {
+		obj = ERR_CAST(nvbo);
+		goto unlock;
+	}
 
 	nvbo->valid_domains = NOUVEAU_GEM_DOMAIN_GART;
 
@@ -82,16 +84,22 @@ struct drm_gem_object *nouveau_gem_prime_import_sg_table(struct drm_device *dev,
 	ret = drm_gem_object_init(dev, &nvbo->bo.base, size);
 	if (ret) {
 		nouveau_bo_ref(NULL, &nvbo);
-		return ERR_PTR(-ENOMEM);
+		obj = ERR_PTR(-ENOMEM);
+		goto unlock;
 	}
 
-	ret = nouveau_bo_init(nvbo, size, 0, flags, sg, robj);
+	ret = nouveau_bo_init(nvbo, size, align, flags, sg, robj);
 	if (ret) {
 		nouveau_bo_ref(NULL, &nvbo);
-		return ERR_PTR(ret);
+		obj = ERR_PTR(ret);
+		goto unlock;
 	}
 
-	return &nvbo->bo.base;
+	obj = &nvbo->bo.base;
+
+unlock:
+	dma_resv_unlock(robj);
+	return obj;
 }
 
 int nouveau_gem_prime_pin(struct drm_gem_object *obj)

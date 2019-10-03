@@ -12,8 +12,8 @@
 #include <linux/gpio.h>
 #include <linux/io.h>
 #include <plat/mpp.h>
-#include <mach/dove.h>
 #include <plat/orion-gpio.h>
+#include "dove.h"
 #include "mpp.h"
 
 struct dove_mpp_grp {

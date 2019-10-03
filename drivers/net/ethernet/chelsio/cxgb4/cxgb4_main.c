@@ -5561,7 +5561,6 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 		char name[IFNAMSIZ];
 		u32 devcap2;
 		u16 flags;
-		int pos;
 
 		/* If we want to instantiate Virtual Functions, then our
 		 * parent bridge's PCI-E needs to support Alternative Routing
@@ -5569,9 +5568,8 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 		 * and above.
 		 */
 		pbridge = pdev->bus->self;
-		pos = pci_find_capability(pbridge, PCI_CAP_ID_EXP);
-		pci_read_config_word(pbridge, pos + PCI_EXP_FLAGS, &flags);
-		pci_read_config_dword(pbridge, pos + PCI_EXP_DEVCAP2, &devcap2);
+		pcie_capability_read_word(pbridge, PCI_EXP_FLAGS, &flags);
+		pcie_capability_read_dword(pbridge, PCI_EXP_DEVCAP2, &devcap2);
 
 		if ((flags & PCI_EXP_FLAGS_VERS) < 2 ||
 		    !(devcap2 & PCI_EXP_DEVCAP2_ARI)) {
@@ -5703,7 +5701,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	whoami = t4_read_reg(adapter, PL_WHOAMI_A);
 	pci_read_config_word(pdev, PCI_DEVICE_ID, &device_id);
 	chip = t4_get_chip_type(adapter, CHELSIO_PCI_ID_VER(device_id));
-	if (chip < 0) {
+	if ((int)chip < 0) {
 		dev_err(&pdev->dev, "Device %d is not supported\n", device_id);
 		err = chip;
 		goto out_free_adapter;
@@ -6271,10 +6269,7 @@ static int __init cxgb4_init_module(void)
 {
 	int ret;
 
-	/* Debugfs support is optional, just warn if this fails */
 	cxgb4_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!cxgb4_debugfs_root)
-		pr_warn("could not create debugfs entry, continuing\n");
 
 	ret = pci_register_driver(&cxgb4_driver);
 	if (ret < 0)

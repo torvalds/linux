@@ -10,8 +10,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pwm.h>
+#include <linux/greybus.h>
 
-#include "greybus.h"
 #include "gbphy.h"
 
 struct gb_pwm_chip {

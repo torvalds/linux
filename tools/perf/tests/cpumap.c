@@ -3,8 +3,10 @@
 #include <stdio.h>
 #include "cpumap.h"
 #include "event.h"
+#include "util/synthetic-events.h"
 #include <string.h>
 #include <linux/bitops.h>
+#include <perf/cpumap.h>
 #include "debug.h"
 
 struct machine;
@@ -14,17 +16,17 @@ static int process_event_mask(struct perf_tool *tool __maybe_unused,
 			 struct perf_sample *sample __maybe_unused,
 			 struct machine *machine __maybe_unused)
 {
-	struct cpu_map_event *map_event = &event->cpu_map;
-	struct cpu_map_mask *mask;
-	struct cpu_map_data *data;
-	struct cpu_map *map;
+	struct perf_record_cpu_map *map_event = &event->cpu_map;
+	struct perf_record_record_cpu_map *mask;
+	struct perf_record_cpu_map_data *data;
+	struct perf_cpu_map *map;
 	int i;
 
 	data = &map_event->data;
 
 	TEST_ASSERT_VAL("wrong type", data->type == PERF_CPU_MAP__MASK);
 
-	mask = (struct cpu_map_mask *)data->data;
+	mask = (struct perf_record_record_cpu_map *)data->data;
 
 	TEST_ASSERT_VAL("wrong nr",   mask->nr == 1);
 
@@ -39,7 +41,7 @@ static int process_event_mask(struct perf_tool *tool __maybe_unused,
 		TEST_ASSERT_VAL("wrong cpu", map->map[i] == i);
 	}
 
-	cpu_map__put(map);
+	perf_cpu_map__put(map);
 	return 0;
 }
 
@@ -48,10 +50,10 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 			 struct perf_sample *sample __maybe_unused,
 			 struct machine *machine __maybe_unused)
 {
-	struct cpu_map_event *map_event = &event->cpu_map;
+	struct perf_record_cpu_map *map_event = &event->cpu_map;
 	struct cpu_map_entries *cpus;
-	struct cpu_map_data *data;
-	struct cpu_map *map;
+	struct perf_record_cpu_map_data *data;
+	struct perf_cpu_map *map;
 
 	data = &map_event->data;
 
@@ -68,36 +70,36 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 	TEST_ASSERT_VAL("wrong cpu", map->map[0] == 1);
 	TEST_ASSERT_VAL("wrong cpu", map->map[1] == 256);
 	TEST_ASSERT_VAL("wrong refcnt", refcount_read(&map->refcnt) == 1);
-	cpu_map__put(map);
+	perf_cpu_map__put(map);
 	return 0;
 }
 
 
 int test__cpu_map_synthesize(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
-	struct cpu_map *cpus;
+	struct perf_cpu_map *cpus;
 
 	/* This one is better stores in mask. */
-	cpus = cpu_map__new("0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19");
+	cpus = perf_cpu_map__new("0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19");
 
 	TEST_ASSERT_VAL("failed to synthesize map",
 		!perf_event__synthesize_cpu_map(NULL, cpus, process_event_mask, NULL));
 
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 
 	/* This one is better stores in cpu values. */
-	cpus = cpu_map__new("1,256");
+	cpus = perf_cpu_map__new("1,256");
 
 	TEST_ASSERT_VAL("failed to synthesize map",
 		!perf_event__synthesize_cpu_map(NULL, cpus, process_event_cpus, NULL));
 
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 	return 0;
 }
 
 static int cpu_map_print(const char *str)
 {
-	struct cpu_map *map = cpu_map__new(str);
+	struct perf_cpu_map *map = perf_cpu_map__new(str);
 	char buf[100];
 
 	if (!map)

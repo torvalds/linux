@@ -21,10 +21,6 @@ KCOV_INSTRUMENT_dynamic_debug.o := n
 ifdef CONFIG_AMD_MEM_ENCRYPT
 KASAN_SANITIZE_string.o := n
 
-ifdef CONFIG_FUNCTION_TRACER
-CFLAGS_REMOVE_string.o = -pg
-endif
-
 CFLAGS_string.o := $(call cc-option, -fno-stack-protector)
 endif
 
@@ -279,7 +275,8 @@ obj-$(CONFIG_UCS2_STRING) += ucs2_string.o
 obj-$(CONFIG_UBSAN) += ubsan.o
 
 UBSAN_SANITIZE_ubsan.o := n
-CFLAGS_ubsan.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
+KASAN_SANITIZE_ubsan.o := n
+CFLAGS_ubsan.o := $(call cc-option, -fno-stack-protector) $(DISABLE_STACKLEAK_PLUGIN)
 
 obj-$(CONFIG_SBITMAP) += sbitmap.o
 

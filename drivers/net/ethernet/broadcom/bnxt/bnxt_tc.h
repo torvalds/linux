@@ -23,6 +23,9 @@ struct bnxt_tc_l2_key {
 	__be16		inner_vlan_tci;
 	__be16		ether_type;
 	u8		num_vlans;
+	u8		dir;
+#define BNXT_DIR_RX	1
+#define BNXT_DIR_TX	0
 };
 
 struct bnxt_tc_l3_key {
@@ -98,9 +101,6 @@ struct bnxt_tc_flow {
 
 	/* flow applicable to pkts ingressing on this fid */
 	u16				src_fid;
-	u8				dir;
-#define BNXT_DIR_RX	1
-#define BNXT_DIR_TX	0
 	struct bnxt_tc_l2_key		l2_key;
 	struct bnxt_tc_l2_key		l2_mask;
 	struct bnxt_tc_l3_key		l3_key;

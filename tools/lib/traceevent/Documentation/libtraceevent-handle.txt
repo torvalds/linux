@@ -3,7 +3,7 @@ libtraceevent(3)
 
 NAME
 ----
-tep_alloc, tep_free,tep_ref, tep_unref,tep_ref_get - Create, destroy, manage
+tep_alloc, tep_free,tep_ref, tep_unref,tep_get_ref - Create, destroy, manage
 references of trace event parser context.
 
 SYNOPSIS
@@ -16,7 +16,7 @@ struct tep_handle pass:[*]*tep_alloc*(void);
 void *tep_free*(struct tep_handle pass:[*]_tep_);
 void *tep_ref*(struct tep_handle pass:[*]_tep_);
 void *tep_unref*(struct tep_handle pass:[*]_tep_);
-int *tep_ref_get*(struct tep_handle pass:[*]_tep_);
+int *tep_get_ref*(struct tep_handle pass:[*]_tep_);
 --
 
 DESCRIPTION
@@ -57,9 +57,9 @@ EXAMPLE
 ...
 struct tep_handle *tep = tep_alloc();
 ...
-int ref = tep_ref_get(tep);
+int ref = tep_get_ref(tep);
 tep_ref(tep);
-if ( (ref+1) != tep_ref_get(tep)) {
+if ( (ref+1) != tep_get_ref(tep)) {
 	/* Something wrong happened, the counter is not incremented by 1 */
 }
 tep_unref(tep);

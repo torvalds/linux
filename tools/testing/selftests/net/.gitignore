@@ -17,7 +17,7 @@ tcp_inq
 tls
 txring_overwrite
 ip_defrag
+ipv6_flowlabel
+ipv6_flowlabel_mgr
 so_txtime
-flowlabel
-flowlabel_mgr
 tcp_fastopen_backup_key

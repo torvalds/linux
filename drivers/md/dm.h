@@ -86,11 +86,6 @@ struct target_type *dm_get_immutable_target_type(struct mapped_device *md);
 int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t);
 
 /*
- * To check the return value from dm_table_find_target().
- */
-#define dm_target_is_valid(t) ((t)->table)
-
-/*
  * To check whether the target type is bio-based or not (request-based).
  */
 #define dm_target_bio_based(t) ((t)->type->map != NULL)

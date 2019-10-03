@@ -4,8 +4,17 @@
  */
 
 #include <linux/component.h>
+#include <linux/dma-mapping.h>
+#include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_of.h>
+#include <drm/drm_prime.h>
 
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
@@ -41,11 +50,18 @@ static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct etnaviv_drm_private *priv = dev->dev_private;
 	struct etnaviv_file_private *ctx;
-	int i;
+	int ret, i;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
+
+	ctx->mmu = etnaviv_iommu_context_init(priv->mmu_global,
+					      priv->cmdbuf_suballoc);
+	if (!ctx->mmu) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
 
 	for (i = 0; i < ETNA_MAX_PIPES; i++) {
 		struct etnaviv_gpu *gpu = priv->gpu[i];
@@ -61,6 +77,10 @@ static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 	file->driver_priv = ctx;
 
 	return 0;
+
+out_free:
+	kfree(ctx);
+	return ret;
 }
 
 static void etnaviv_postclose(struct drm_device *dev, struct drm_file *file)
@@ -75,6 +95,8 @@ static void etnaviv_postclose(struct drm_device *dev, struct drm_file *file)
 		if (gpu)
 			drm_sched_entity_destroy(&ctx->sched_entity[i]);
 	}
+
+	etnaviv_iommu_context_put(ctx->mmu);
 
 	kfree(ctx);
 }
@@ -107,12 +129,29 @@ static int etnaviv_mm_show(struct drm_device *dev, struct seq_file *m)
 static int etnaviv_mmu_show(struct etnaviv_gpu *gpu, struct seq_file *m)
 {
 	struct drm_printer p = drm_seq_file_printer(m);
+	struct etnaviv_iommu_context *mmu_context;
 
 	seq_printf(m, "Active Objects (%s):\n", dev_name(gpu->dev));
 
-	mutex_lock(&gpu->mmu->lock);
-	drm_mm_print(&gpu->mmu->mm, &p);
-	mutex_unlock(&gpu->mmu->lock);
+	/*
+	 * Lock the GPU to avoid a MMU context switch just now and elevate
+	 * the refcount of the current context to avoid it disappearing from
+	 * under our feet.
+	 */
+	mutex_lock(&gpu->lock);
+	mmu_context = gpu->mmu_context;
+	if (mmu_context)
+		etnaviv_iommu_context_get(mmu_context);
+	mutex_unlock(&gpu->lock);
+
+	if (!mmu_context)
+		return 0;
+
+	mutex_lock(&mmu_context->lock);
+	drm_mm_print(&mmu_context->mm, &p);
+	mutex_unlock(&mmu_context->lock);
+
+	etnaviv_iommu_context_put(mmu_context);
 
 	return 0;
 }
@@ -486,7 +525,7 @@ static struct drm_driver etnaviv_drm_driver = {
 	.desc               = "etnaviv DRM",
 	.date               = "20151214",
 	.major              = 1,
-	.minor              = 2,
+	.minor              = 3,
 };
 
 /*
@@ -517,23 +556,32 @@ static int etnaviv_bind(struct device *dev)
 	INIT_LIST_HEAD(&priv->gem_list);
 	priv->num_gpus = 0;
 
+	priv->cmdbuf_suballoc = etnaviv_cmdbuf_suballoc_new(drm->dev);
+	if (IS_ERR(priv->cmdbuf_suballoc)) {
+		dev_err(drm->dev, "Failed to create cmdbuf suballocator\n");
+		ret = PTR_ERR(priv->cmdbuf_suballoc);
+		goto out_free_priv;
+	}
+
 	dev_set_drvdata(dev, drm);
 
 	ret = component_bind_all(dev, drm);
 	if (ret < 0)
-		goto out_bind;
+		goto out_destroy_suballoc;
 
 	load_gpu(drm);
 
 	ret = drm_dev_register(drm, 0);
 	if (ret)
-		goto out_register;
+		goto out_unbind;
 
 	return 0;
 
-out_register:
+out_unbind:
 	component_unbind_all(dev, drm);
-out_bind:
+out_destroy_suballoc:
+	etnaviv_cmdbuf_suballoc_destroy(priv->cmdbuf_suballoc);
+out_free_priv:
 	kfree(priv);
 out_put:
 	drm_dev_put(drm);
@@ -551,6 +599,8 @@ static void etnaviv_unbind(struct device *dev)
 	component_unbind_all(dev, drm);
 
 	dev->dma_parms = NULL;
+
+	etnaviv_cmdbuf_suballoc_destroy(priv->cmdbuf_suballoc);
 
 	drm->dev_private = NULL;
 	kfree(priv);

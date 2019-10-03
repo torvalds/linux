@@ -230,16 +230,14 @@ static int fence_update(struct i915_fence_reg *fence,
 			 i915_gem_object_get_tiling(vma->obj)))
 			return -EINVAL;
 
-		ret = i915_active_request_retire(&vma->last_fence,
-					     &vma->obj->base.dev->struct_mutex);
+		ret = i915_active_wait(&vma->active);
 		if (ret)
 			return ret;
 	}
 
 	old = xchg(&fence->vma, NULL);
 	if (old) {
-		ret = i915_active_request_retire(&old->last_fence,
-					     &old->obj->base.dev->struct_mutex);
+		ret = i915_active_wait(&old->active);
 		if (ret) {
 			fence->vma = old;
 			return ret;
@@ -289,7 +287,7 @@ static int fence_update(struct i915_fence_reg *fence,
 }
 
 /**
- * i915_vma_put_fence - force-remove fence for a VMA
+ * i915_vma_revoke_fence - force-remove fence for a VMA
  * @vma: vma to map linearly (not through a fence reg)
  *
  * This function force-removes any fence from the given object, which is useful
@@ -299,14 +297,15 @@ static int fence_update(struct i915_fence_reg *fence,
  *
  * 0 on success, negative error code on failure.
  */
-int i915_vma_put_fence(struct i915_vma *vma)
+int i915_vma_revoke_fence(struct i915_vma *vma)
 {
 	struct i915_fence_reg *fence = vma->fence;
 
+	lockdep_assert_held(&vma->vm->mutex);
 	if (!fence)
 		return 0;
 
-	if (fence->pin_count)
+	if (atomic_read(&fence->pin_count))
 		return -EBUSY;
 
 	return fence_update(fence, NULL);
@@ -319,7 +318,7 @@ static struct i915_fence_reg *fence_find(struct drm_i915_private *i915)
 	list_for_each_entry(fence, &i915->ggtt.fence_list, link) {
 		GEM_BUG_ON(fence->vma && fence->vma->fence != fence);
 
-		if (fence->pin_count)
+		if (atomic_read(&fence->pin_count))
 			continue;
 
 		return fence;
@@ -330,6 +329,48 @@ static struct i915_fence_reg *fence_find(struct drm_i915_private *i915)
 		return ERR_PTR(-EAGAIN);
 
 	return ERR_PTR(-EDEADLK);
+}
+
+static int __i915_vma_pin_fence(struct i915_vma *vma)
+{
+	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vma->vm);
+	struct i915_fence_reg *fence;
+	struct i915_vma *set = i915_gem_object_is_tiled(vma->obj) ? vma : NULL;
+	int err;
+
+	/* Just update our place in the LRU if our fence is getting reused. */
+	if (vma->fence) {
+		fence = vma->fence;
+		GEM_BUG_ON(fence->vma != vma);
+		atomic_inc(&fence->pin_count);
+		if (!fence->dirty) {
+			list_move_tail(&fence->link, &ggtt->fence_list);
+			return 0;
+		}
+	} else if (set) {
+		fence = fence_find(vma->vm->i915);
+		if (IS_ERR(fence))
+			return PTR_ERR(fence);
+
+		GEM_BUG_ON(atomic_read(&fence->pin_count));
+		atomic_inc(&fence->pin_count);
+	} else {
+		return 0;
+	}
+
+	err = fence_update(fence, set);
+	if (err)
+		goto out_unpin;
+
+	GEM_BUG_ON(fence->vma != set);
+	GEM_BUG_ON(vma->fence != (set ? fence : NULL));
+
+	if (set)
+		return 0;
+
+out_unpin:
+	atomic_dec(&fence->pin_count);
+	return err;
 }
 
 /**
@@ -352,8 +393,6 @@ static struct i915_fence_reg *fence_find(struct drm_i915_private *i915)
  */
 int i915_vma_pin_fence(struct i915_vma *vma)
 {
-	struct i915_fence_reg *fence;
-	struct i915_vma *set = i915_gem_object_is_tiled(vma->obj) ? vma : NULL;
 	int err;
 
 	/*
@@ -361,39 +400,16 @@ int i915_vma_pin_fence(struct i915_vma *vma)
 	 * must keep the device awake whilst using the fence.
 	 */
 	assert_rpm_wakelock_held(&vma->vm->i915->runtime_pm);
+	GEM_BUG_ON(!i915_vma_is_pinned(vma));
+	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
 
-	/* Just update our place in the LRU if our fence is getting reused. */
-	if (vma->fence) {
-		fence = vma->fence;
-		GEM_BUG_ON(fence->vma != vma);
-		fence->pin_count++;
-		if (!fence->dirty) {
-			list_move_tail(&fence->link,
-				       &fence->i915->ggtt.fence_list);
-			return 0;
-		}
-	} else if (set) {
-		fence = fence_find(vma->vm->i915);
-		if (IS_ERR(fence))
-			return PTR_ERR(fence);
-
-		GEM_BUG_ON(fence->pin_count);
-		fence->pin_count++;
-	} else
-		return 0;
-
-	err = fence_update(fence, set);
+	err = mutex_lock_interruptible(&vma->vm->mutex);
 	if (err)
-		goto out_unpin;
+		return err;
 
-	GEM_BUG_ON(fence->vma != set);
-	GEM_BUG_ON(vma->fence != (set ? fence : NULL));
+	err = __i915_vma_pin_fence(vma);
+	mutex_unlock(&vma->vm->mutex);
 
-	if (set)
-		return 0;
-
-out_unpin:
-	fence->pin_count--;
 	return err;
 }
 
@@ -406,16 +422,17 @@ out_unpin:
  */
 struct i915_fence_reg *i915_reserve_fence(struct drm_i915_private *i915)
 {
+	struct i915_ggtt *ggtt = &i915->ggtt;
 	struct i915_fence_reg *fence;
 	int count;
 	int ret;
 
-	lockdep_assert_held(&i915->drm.struct_mutex);
+	lockdep_assert_held(&ggtt->vm.mutex);
 
 	/* Keep at least one fence available for the display engine. */
 	count = 0;
-	list_for_each_entry(fence, &i915->ggtt.fence_list, link)
-		count += !fence->pin_count;
+	list_for_each_entry(fence, &ggtt->fence_list, link)
+		count += !atomic_read(&fence->pin_count);
 	if (count <= 1)
 		return ERR_PTR(-ENOSPC);
 
@@ -431,6 +448,7 @@ struct i915_fence_reg *i915_reserve_fence(struct drm_i915_private *i915)
 	}
 
 	list_del(&fence->link);
+
 	return fence;
 }
 
@@ -442,9 +460,11 @@ struct i915_fence_reg *i915_reserve_fence(struct drm_i915_private *i915)
  */
 void i915_unreserve_fence(struct i915_fence_reg *fence)
 {
-	lockdep_assert_held(&fence->i915->drm.struct_mutex);
+	struct i915_ggtt *ggtt = &fence->i915->ggtt;
 
-	list_add(&fence->link, &fence->i915->ggtt.fence_list);
+	lockdep_assert_held(&ggtt->vm.mutex);
+
+	list_add(&fence->link, &ggtt->fence_list);
 }
 
 /**
@@ -833,4 +853,36 @@ void i915_ggtt_init_fences(struct i915_ggtt *ggtt)
 	ggtt->num_fences = num_fences;
 
 	i915_gem_restore_fences(i915);
+}
+
+void intel_gt_init_swizzling(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_uncore *uncore = gt->uncore;
+
+	if (INTEL_GEN(i915) < 5 ||
+	    i915->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_NONE)
+		return;
+
+	intel_uncore_rmw(uncore, DISP_ARB_CTL, 0, DISP_TILE_SURFACE_SWIZZLING);
+
+	if (IS_GEN(i915, 5))
+		return;
+
+	intel_uncore_rmw(uncore, TILECTL, 0, TILECTL_SWZCTL);
+
+	if (IS_GEN(i915, 6))
+		intel_uncore_write(uncore,
+				   ARB_MODE,
+				   _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_SNB));
+	else if (IS_GEN(i915, 7))
+		intel_uncore_write(uncore,
+				   ARB_MODE,
+				   _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_IVB));
+	else if (IS_GEN(i915, 8))
+		intel_uncore_write(uncore,
+				   GAMTARBMODE,
+				   _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_BDW));
+	else
+		MISSING_CASE(INTEL_GEN(i915));
 }

@@ -735,10 +735,8 @@ static int rda_uart_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "could not get irq\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	if (rda_uart_ports[pdev->id]) {
 		dev_err(&pdev->dev, "port %d already allocated\n", pdev->id);

@@ -34,6 +34,11 @@
 #include "rv1_clk_mgr_vbios_smu.h"
 #include "rv1_clk_mgr_clk.h"
 
+void rv1_init_clocks(struct clk_mgr *clk_mgr)
+{
+	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
+}
+
 static int rv1_determine_dppclk_threshold(struct clk_mgr_internal *clk_mgr, struct dc_clocks *new_clocks)
 {
 	bool request_dpp_div = new_clocks->dispclk_khz > new_clocks->dppclk_khz;
@@ -232,6 +237,7 @@ static void rv1_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 }
 
 static struct clk_mgr_funcs rv1_clk_funcs = {
+	.init_clocks = rv1_init_clocks,
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = rv1_update_clocks,
 	.enable_pme_wa = rv1_enable_pme_wa,
@@ -246,7 +252,6 @@ void rv1_clk_mgr_construct(struct dc_context *ctx, struct clk_mgr_internal *clk_
 {
 	struct dc_debug_options *debug = &ctx->dc->debug;
 	struct dc_bios *bp = ctx->dc_bios;
-	struct dc_firmware_info fw_info = { { 0 } };
 
 	clk_mgr->base.ctx = ctx;
 	clk_mgr->pp_smu = pp_smu;
@@ -262,9 +267,8 @@ void rv1_clk_mgr_construct(struct dc_context *ctx, struct clk_mgr_internal *clk_
 
 	if (bp->integrated_info)
 		clk_mgr->dentist_vco_freq_khz = bp->integrated_info->dentist_vco_freq;
-	if (clk_mgr->dentist_vco_freq_khz == 0) {
-		bp->funcs->get_firmware_info(bp, &fw_info);
-		clk_mgr->dentist_vco_freq_khz = fw_info.smu_gpu_pll_output_freq;
+	if (bp->fw_info_valid && clk_mgr->dentist_vco_freq_khz == 0) {
+		clk_mgr->dentist_vco_freq_khz = bp->fw_info.smu_gpu_pll_output_freq;
 		if (clk_mgr->dentist_vco_freq_khz == 0)
 			clk_mgr->dentist_vco_freq_khz = 3600000;
 	}

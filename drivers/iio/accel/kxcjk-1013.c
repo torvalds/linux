@@ -1486,8 +1486,8 @@ static const struct acpi_device_id kx_acpi_match[] = {
 	{"KIOX0008", KXCJ91008},
 	{"KIOX0009", KXTJ21009},
 	{"KIOX000A", KXCJ91008},
-	{"KIOX010A", KXCJ91008}, /* KXCJ91008 inside the display of a 2-in-1 */
-	{"KIOX020A", KXCJ91008},
+	{"KIOX010A", KXCJ91008}, /* KXCJ91008 in the display of a yoga 2-in-1 */
+	{"KIOX020A", KXCJ91008}, /* KXCJ91008 in the base of a yoga 2-in-1 */
 	{"KXTJ1009", KXTJ21009},
 	{"KXJ2109",  KXTJ21009},
 	{"SMO8500",  KXCJ91008},

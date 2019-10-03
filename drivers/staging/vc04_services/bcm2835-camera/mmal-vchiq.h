@@ -56,7 +56,7 @@ struct vchiq_mmal_port {
 	/* component port belongs to, allows simple deref */
 	struct vchiq_mmal_component *component;
 
-	struct vchiq_mmal_port *connected; /* port conencted to */
+	struct vchiq_mmal_port *connected; /* port connected to */
 
 	/* buffer info */
 	struct vchiq_mmal_port_buffer minimum_buffer;

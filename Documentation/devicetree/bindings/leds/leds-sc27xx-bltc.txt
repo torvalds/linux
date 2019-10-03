@@ -14,7 +14,9 @@ Required child properties:
 - reg: Port this LED is connected to.
 
 Optional child properties:
-- label: See Documentation/devicetree/bindings/leds/common.txt.
+- function: See Documentation/devicetree/bindings/leds/common.txt.
+- color: See Documentation/devicetree/bindings/leds/common.txt.
+- label: See Documentation/devicetree/bindings/leds/common.txt (deprecated).
 
 Examples:
 
@@ -25,17 +27,17 @@ led-controller@200 {
 	reg = <0x200>;
 
 	led@0 {
-		label = "red";
+		color = <LED_COLOR_ID_RED>;
 		reg = <0x0>;
 	};
 
 	led@1 {
-		label = "green";
+		color = <LED_COLOR_ID_GREEN>;
 		reg = <0x1>;
 	};
 
 	led@2 {
-		label = "blue";
+		color = <LED_COLOR_ID_BLUE>;
 		reg = <0x2>;
 	};
 };

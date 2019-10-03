@@ -124,7 +124,7 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
 	unsigned int freq, diff, best_freq = 0, diff_min = ~0;
-	int i, ret;
+	int i;
 
 	/* tested only on R-Car Gen2+ currently; may work for others */
 	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2))
@@ -153,9 +153,9 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 		}
 	}
 
-	ret = clk_set_rate(priv->clk, best_freq);
+	clk_set_rate(priv->clk, best_freq);
 
-	return ret == 0 ? best_freq : clk_get_rate(priv->clk);
+	return clk_get_rate(priv->clk);
 }
 
 static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
@@ -166,10 +166,13 @@ static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
 
-	if (new_clock == 0)
+	if (new_clock == 0) {
+		host->mmc->actual_clock = 0;
 		goto out;
+	}
 
-	clock = renesas_sdhi_clk_update(host, new_clock) / 512;
+	host->mmc->actual_clock = renesas_sdhi_clk_update(host, new_clock);
+	clock = host->mmc->actual_clock / 512;
 
 	for (clk = 0x80000080; new_clock >= (clock << 1); clk >>= 1)
 		clock <<= 1;
@@ -774,8 +777,6 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	/* All SDHI have SDIO status bits which must be 1 */
 	mmc_data->flags |= TMIO_MMC_SDIO_STATUS_SETBITS;
 
-	pm_runtime_enable(&pdev->dev);
-
 	ret = renesas_sdhi_clk_enable(host);
 	if (ret)
 		goto efree;
@@ -856,8 +857,6 @@ edisclk:
 efree:
 	tmio_mmc_host_free(host);
 
-	pm_runtime_disable(&pdev->dev);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(renesas_sdhi_probe);
@@ -868,8 +867,6 @@ int renesas_sdhi_remove(struct platform_device *pdev)
 
 	tmio_mmc_host_remove(host);
 	renesas_sdhi_clk_disable(host);
-
-	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }

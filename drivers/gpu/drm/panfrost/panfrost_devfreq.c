@@ -39,7 +39,7 @@ static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 	 * If frequency scaling from low to high, adjust voltage first.
 	 * If frequency scaling from high to low, adjust frequency first.
 	 */
-	if (old_clk_rate < target_rate && pfdev->regulator) {
+	if (old_clk_rate < target_rate) {
 		err = regulator_set_voltage(pfdev->regulator, target_volt,
 					    target_volt);
 		if (err) {
@@ -60,7 +60,7 @@ static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 		return err;
 	}
 
-	if (old_clk_rate > target_rate && pfdev->regulator) {
+	if (old_clk_rate > target_rate) {
 		err = regulator_set_voltage(pfdev->regulator, target_volt,
 					    target_volt);
 		if (err)

@@ -182,6 +182,7 @@ static const char * const smbus_pnp_ids[] = {
 	"LEN2055", /* E580 */
 	"SYN3052", /* HP EliteBook 840 G4 */
 	"SYN3221", /* HP 15-ay000 */
+	"SYN323d", /* HP Spectre X360 13-w013dx */
 	NULL
 };
 
@@ -192,7 +193,7 @@ static const char * const forcepad_pnp_ids[] = {
 };
 
 /*
- * Send a command to the synpatics touchpad by special commands
+ * Send a command to the synaptics touchpad by special commands
  */
 static int synaptics_send_cmd(struct psmouse *psmouse, u8 cmd, u8 *param)
 {

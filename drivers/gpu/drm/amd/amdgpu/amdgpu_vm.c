@@ -1574,7 +1574,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 	flags &= ~AMDGPU_PTE_EXECUTABLE;
 	flags |= mapping->flags & AMDGPU_PTE_EXECUTABLE;
 
-	if (adev->asic_type == CHIP_NAVI10) {
+	if (adev->asic_type >= CHIP_NAVI10) {
 		flags &= ~AMDGPU_PTE_MTYPE_NV10_MASK;
 		flags |= (mapping->flags & AMDGPU_PTE_MTYPE_NV10_MASK);
 	} else {
@@ -2863,6 +2863,13 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm, uns
 	WARN_ONCE((vm->use_cpu_for_update && !amdgpu_gmc_vram_full_visible(&adev->gmc)),
 		  "CPU update of VM recommended only for large BAR system\n");
 
+	if (vm->use_cpu_for_update)
+		vm->update_funcs = &amdgpu_vm_cpu_funcs;
+	else
+		vm->update_funcs = &amdgpu_vm_sdma_funcs;
+	dma_fence_put(vm->last_update);
+	vm->last_update = NULL;
+
 	if (vm->pasid) {
 		unsigned long flags;
 
@@ -3061,12 +3068,12 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	switch (args->in.op) {
 	case AMDGPU_VM_OP_RESERVE_VMID:
 		/* current, we only have requirement to reserve vmid from gfxhub */
-		r = amdgpu_vmid_alloc_reserved(adev, &fpriv->vm, AMDGPU_GFXHUB);
+		r = amdgpu_vmid_alloc_reserved(adev, &fpriv->vm, AMDGPU_GFXHUB_0);
 		if (r)
 			return r;
 		break;
 	case AMDGPU_VM_OP_UNRESERVE_VMID:
-		amdgpu_vmid_free_reserved(adev, &fpriv->vm, AMDGPU_GFXHUB);
+		amdgpu_vmid_free_reserved(adev, &fpriv->vm, AMDGPU_GFXHUB_0);
 		break;
 	default:
 		return -EINVAL;

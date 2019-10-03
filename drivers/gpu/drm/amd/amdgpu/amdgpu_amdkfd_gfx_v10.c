@@ -27,7 +27,6 @@
 #include <linux/uaccess.h>
 #include <linux/firmware.h>
 #include <linux/mmu_context.h>
-#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_ucode.h"
@@ -802,42 +801,6 @@ static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
 	return reg & ATC_VMID0_PASID_MAPPING__PASID_MASK;
 }
 
-static void write_vmid_invalidate_request(struct kgd_dev *kgd, uint8_t vmid)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
-	uint32_t req = (1 << vmid) |
-		(0 << GCVM_INVALIDATE_ENG0_REQ__FLUSH_TYPE__SHIFT) |/* legacy */
-		GCVM_INVALIDATE_ENG0_REQ__INVALIDATE_L2_PTES_MASK |
-		GCVM_INVALIDATE_ENG0_REQ__INVALIDATE_L2_PDE0_MASK |
-		GCVM_INVALIDATE_ENG0_REQ__INVALIDATE_L2_PDE1_MASK |
-		GCVM_INVALIDATE_ENG0_REQ__INVALIDATE_L2_PDE2_MASK |
-		GCVM_INVALIDATE_ENG0_REQ__INVALIDATE_L1_PTES_MASK;
-
-	mutex_lock(&adev->srbm_mutex);
-
-	/* Use light weight invalidation.
-	 *
-	 * TODO 1: agree on the right set of invalidation registers for
-	 * KFD use. Use the last one for now. Invalidate only GCHUB as
-	 * SDMA is now moved to GCHUB
-	 *
-	 * TODO 2: support range-based invalidation, requires kfg2kgd
-	 * interface change
-	 */
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGCVM_INVALIDATE_ENG0_ADDR_RANGE_LO32),
-				0xffffffff);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGCVM_INVALIDATE_ENG0_ADDR_RANGE_HI32),
-				0x0000001f);
-
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGCVM_INVALIDATE_ENG0_REQ), req);
-
-	while (!(RREG32(SOC15_REG_OFFSET(GC, 0, mmGCVM_INVALIDATE_ENG0_ACK)) &
-					(1 << vmid)))
-		cpu_relax();
-
-	mutex_unlock(&adev->srbm_mutex);
-}
-
 static int invalidate_tlbs_with_kiq(struct amdgpu_device *adev, uint16_t pasid)
 {
 	signed long r;
@@ -878,7 +841,8 @@ static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 		if (get_atc_vmid_pasid_mapping_valid(kgd, vmid)) {
 			if (get_atc_vmid_pasid_mapping_pasid(kgd, vmid)
 				== pasid) {
-				write_vmid_invalidate_request(kgd, vmid);
+				amdgpu_gmc_flush_gpu_tlb(adev, vmid,
+						AMDGPU_GFXHUB_0, 0);
 				break;
 			}
 		}
@@ -896,7 +860,7 @@ static int invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid)
 		return 0;
 	}
 
-	write_vmid_invalidate_request(kgd, vmid);
+	amdgpu_gmc_flush_gpu_tlb(adev, vmid, AMDGPU_GFXHUB_0, 0);
 	return 0;
 }
 

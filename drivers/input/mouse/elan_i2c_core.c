@@ -1138,13 +1138,6 @@ static void elan_disable_regulator(void *_data)
 	regulator_disable(data->vcc);
 }
 
-static void elan_remove_sysfs_groups(void *_data)
-{
-	struct elan_tp_data *data = _data;
-
-	sysfs_remove_groups(&data->client->dev.kobj, elan_sysfs_groups);
-}
-
 static int elan_probe(struct i2c_client *client,
 		      const struct i2c_device_id *dev_id)
 {
@@ -1194,9 +1187,8 @@ static int elan_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = devm_add_action(dev, elan_disable_regulator, data);
+	error = devm_add_action_or_reset(dev, elan_disable_regulator, data);
 	if (error) {
-		regulator_disable(data->vcc);
 		dev_err(dev, "Failed to add disable regulator action: %d\n",
 			error);
 		return error;
@@ -1269,17 +1261,9 @@ static int elan_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = sysfs_create_groups(&dev->kobj, elan_sysfs_groups);
+	error = devm_device_add_groups(dev, elan_sysfs_groups);
 	if (error) {
 		dev_err(dev, "failed to create sysfs attributes: %d\n", error);
-		return error;
-	}
-
-	error = devm_add_action(dev, elan_remove_sysfs_groups, data);
-	if (error) {
-		elan_remove_sysfs_groups(data);
-		dev_err(dev, "Failed to add sysfs cleanup action: %d\n",
-			error);
 		return error;
 	}
 

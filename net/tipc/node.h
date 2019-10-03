@@ -53,7 +53,8 @@ enum {
 	TIPC_NODE_ID128       = (1 << 5),
 	TIPC_LINK_PROTO_SEQNO = (1 << 6),
 	TIPC_MCAST_RBCTL      = (1 << 7),
-	TIPC_GAP_ACK_BLOCK    = (1 << 8)
+	TIPC_GAP_ACK_BLOCK    = (1 << 8),
+	TIPC_TUNNEL_ENHANCED  = (1 << 9)
 };
 
 #define TIPC_NODE_CAPABILITIES (TIPC_SYN_BIT           |  \
@@ -64,7 +65,8 @@ enum {
 				TIPC_NODE_ID128        |   \
 				TIPC_LINK_PROTO_SEQNO  |   \
 				TIPC_MCAST_RBCTL       |   \
-				TIPC_GAP_ACK_BLOCK)
+				TIPC_GAP_ACK_BLOCK     |   \
+				TIPC_TUNNEL_ENHANCED)
 #define INVALID_BEARER_ID -1
 
 void tipc_node_stop(struct net *net);

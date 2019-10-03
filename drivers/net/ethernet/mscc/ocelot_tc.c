@@ -134,7 +134,7 @@ static int ocelot_setup_tc_block(struct ocelot_port *port,
 				 struct flow_block_offload *f)
 {
 	struct flow_block_cb *block_cb;
-	tc_setup_cb_t *cb;
+	flow_setup_cb_t *cb;
 	int err;
 
 	netdev_dbg(port->dev, "tc_block command %d, binder_type %d\n",
@@ -156,7 +156,7 @@ static int ocelot_setup_tc_block(struct ocelot_port *port,
 		if (flow_block_cb_is_busy(cb, port, &ocelot_block_cb_list))
 			return -EBUSY;
 
-		block_cb = flow_block_cb_alloc(f->net, cb, port, port, NULL);
+		block_cb = flow_block_cb_alloc(cb, port, port, NULL);
 		if (IS_ERR(block_cb))
 			return PTR_ERR(block_cb);
 
@@ -169,7 +169,7 @@ static int ocelot_setup_tc_block(struct ocelot_port *port,
 		list_add_tail(&block_cb->driver_list, f->driver_block_list);
 		return 0;
 	case FLOW_BLOCK_UNBIND:
-		block_cb = flow_block_cb_lookup(f, cb, port);
+		block_cb = flow_block_cb_lookup(f->block, cb, port);
 		if (!block_cb)
 			return -ENOENT;
 

@@ -41,10 +41,11 @@ Related CVEs
 
 The following CVE entries describe Spectre variants:
 
-   =============   =======================  =================
+   =============   =======================  ==========================
    CVE-2017-5753   Bounds check bypass      Spectre variant 1
    CVE-2017-5715   Branch target injection  Spectre variant 2
-   =============   =======================  =================
+   CVE-2019-1125   Spectre v1 swapgs        Spectre variant 1 (swapgs)
+   =============   =======================  ==========================
 
 Problem
 -------
@@ -77,6 +78,13 @@ leak information to the attacker.
 There are some extensions of Spectre variant 1 attacks for reading data
 over the network, see :ref:`[12] <spec_ref12>`. However such attacks
 are difficult, low bandwidth, fragile, and are considered low risk.
+
+Note that, despite "Bounds Check Bypass" name, Spectre variant 1 is not
+only about user-controlled array bounds checks.  It can affect any
+conditional checks.  The kernel entry code interrupt, exception, and NMI
+handlers all have conditional swapgs checks.  Those may be problematic
+in the context of Spectre v1, as kernel code can speculatively run with
+a user GS.
 
 Spectre variant 2 (Branch Target Injection)
 -------------------------------------------
@@ -132,6 +140,9 @@ not cover all possible attack vectors.
 1. A user process attacking the kernel
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Spectre variant 1
+~~~~~~~~~~~~~~~~~
+
    The attacker passes a parameter to the kernel via a register or
    via a known address in memory during a syscall. Such parameter may
    be used later by the kernel as an index to an array or to derive
@@ -144,7 +155,40 @@ not cover all possible attack vectors.
    potentially be influenced for Spectre attacks, new "nospec" accessor
    macros are used to prevent speculative loading of data.
 
-   Spectre variant 2 attacker can :ref:`poison <poison_btb>` the branch
+Spectre variant 1 (swapgs)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   An attacker can train the branch predictor to speculatively skip the
+   swapgs path for an interrupt or exception.  If they initialize
+   the GS register to a user-space value, if the swapgs is speculatively
+   skipped, subsequent GS-related percpu accesses in the speculation
+   window will be done with the attacker-controlled GS value.  This
+   could cause privileged memory to be accessed and leaked.
+
+   For example:
+
+   ::
+
+     if (coming from user space)
+         swapgs
+     mov %gs:<percpu_offset>, %reg
+     mov (%reg), %reg1
+
+   When coming from user space, the CPU can speculatively skip the
+   swapgs, and then do a speculative percpu load using the user GS
+   value.  So the user can speculatively force a read of any kernel
+   value.  If a gadget exists which uses the percpu value as an address
+   in another load/store, then the contents of the kernel value may
+   become visible via an L1 side channel attack.
+
+   A similar attack exists when coming from kernel space.  The CPU can
+   speculatively do the swapgs, causing the user GS to get used for the
+   rest of the speculative window.
+
+Spectre variant 2
+~~~~~~~~~~~~~~~~~
+
+   A spectre variant 2 attacker can :ref:`poison <poison_btb>` the branch
    target buffer (BTB) before issuing syscall to launch an attack.
    After entering the kernel, the kernel could use the poisoned branch
    target buffer on indirect jump and jump to gadget code in speculative
@@ -280,11 +324,18 @@ The sysfs file showing Spectre variant 1 mitigation status is:
 
 The possible values in this file are:
 
-  =======================================  =================================
-  'Mitigation: __user pointer sanitation'  Protection in kernel on a case by
-                                           case base with explicit pointer
-                                           sanitation.
-  =======================================  =================================
+  .. list-table::
+
+     * - 'Not affected'
+       - The processor is not vulnerable.
+     * - 'Vulnerable: __user pointer sanitization and usercopy barriers only; no swapgs barriers'
+       - The swapgs protections are disabled; otherwise it has
+         protection in the kernel on a case by case base with explicit
+         pointer sanitation and usercopy LFENCE barriers.
+     * - 'Mitigation: usercopy/swapgs barriers and __user pointer sanitization'
+       - Protection in the kernel on a case by case base with explicit
+         pointer sanitation, usercopy LFENCE barriers, and swapgs LFENCE
+         barriers.
 
 However, the protections are put in place on a case by case basis,
 and there is no guarantee that all possible attack vectors for Spectre
@@ -366,11 +417,26 @@ Turning on mitigation for Spectre variant 1 and Spectre variant 2
 1. Kernel mitigation
 ^^^^^^^^^^^^^^^^^^^^
 
+Spectre variant 1
+~~~~~~~~~~~~~~~~~
+
    For the Spectre variant 1, vulnerable kernel code (as determined
    by code audit or scanning tools) is annotated on a case by case
    basis to use nospec accessor macros for bounds clipping :ref:`[2]
    <spec_ref2>` to avoid any usable disclosure gadgets. However, it may
    not cover all attack vectors for Spectre variant 1.
+
+   Copy-from-user code has an LFENCE barrier to prevent the access_ok()
+   check from being mis-speculated.  The barrier is done by the
+   barrier_nospec() macro.
+
+   For the swapgs variant of Spectre variant 1, LFENCE barriers are
+   added to interrupt, exception and NMI entry where needed.  These
+   barriers are done by the FENCE_SWAPGS_KERNEL_ENTRY and
+   FENCE_SWAPGS_USER_ENTRY macros.
+
+Spectre variant 2
+~~~~~~~~~~~~~~~~~
 
    For Spectre variant 2 mitigation, the compiler turns indirect calls or
    jumps in the kernel into equivalent return trampolines (retpolines)
@@ -472,6 +538,12 @@ Mitigation control on the kernel command line
 
 Spectre variant 2 mitigation can be disabled or force enabled at the
 kernel command line.
+
+	nospectre_v1
+
+		[X86,PPC] Disable mitigations for Spectre Variant 1
+		(bounds check bypass). With this option data leaks are
+		possible in the system.
 
 	nospectre_v2
 

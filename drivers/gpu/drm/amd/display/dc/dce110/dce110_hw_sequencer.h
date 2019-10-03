@@ -42,7 +42,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 
 void dce110_enable_stream(struct pipe_ctx *pipe_ctx);
 
-void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option);
+void dce110_disable_stream(struct pipe_ctx *pipe_ctx);
 
 void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings);
@@ -50,7 +50,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 void dce110_blank_stream(struct pipe_ctx *pipe_ctx);
 
 void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx);
-void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option);
+void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx);
 
 void dce110_update_info_frame(struct pipe_ctx *pipe_ctx);
 
@@ -73,15 +73,15 @@ void dce110_optimize_bandwidth(
 
 void dp_receiver_power_ctrl(struct dc_link *link, bool on);
 
-void hwss_edp_power_control(
+void dce110_edp_power_control(
 		struct dc_link *link,
 		bool power_up);
 
-void hwss_edp_backlight_control(
+void dce110_edp_backlight_control(
 	struct dc_link *link,
 	bool enable);
 
-void hwss_edp_wait_for_hpd_ready(
+void dce110_edp_wait_for_hpd_ready(
 		struct dc_link *link,
 		bool power_up);
 

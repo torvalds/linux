@@ -32,7 +32,6 @@ struct amdgpu_gds {
 	uint32_t gws_size;
 	uint32_t oa_size;
 	uint32_t gds_compute_max_wave_id;
-	uint32_t vgt_gs_max_wave_id;
 };
 
 struct amdgpu_gds_reg_offset {

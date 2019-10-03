@@ -4924,6 +4924,20 @@ static const struct dmi_system_id msi_blacklist[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "P5W DH Deluxe"),
 		},
 	},
+	{
+		.ident = "ASUS P6T",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "P6T"),
+		},
+	},
+	{
+		.ident = "ASUS P6X",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "P6X"),
+		},
+	},
 	{}
 };
 
@@ -5160,8 +5174,7 @@ static void sky2_remove(struct pci_dev *pdev)
 
 static int sky2_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct sky2_hw *hw = pci_get_drvdata(pdev);
+	struct sky2_hw *hw = dev_get_drvdata(dev);
 	int i;
 
 	if (!hw)

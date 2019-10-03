@@ -196,10 +196,10 @@ struct v9_mqd {
 	uint32_t compute_wave_restore_addr_lo;
 	uint32_t compute_wave_restore_addr_hi;
 	uint32_t compute_wave_restore_control;
-	uint32_t reserved_39;
-	uint32_t reserved_40;
-	uint32_t reserved_41;
-	uint32_t reserved_42;
+	uint32_t compute_static_thread_mgmt_se4;
+	uint32_t compute_static_thread_mgmt_se5;
+	uint32_t compute_static_thread_mgmt_se6;
+	uint32_t compute_static_thread_mgmt_se7;
 	uint32_t reserved_43;
 	uint32_t reserved_44;
 	uint32_t reserved_45;

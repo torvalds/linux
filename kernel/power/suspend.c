@@ -121,43 +121,25 @@ static void s2idle_loop(void)
 {
 	pm_pr_dbg("suspend-to-idle\n");
 
+	/*
+	 * Suspend-to-idle equals:
+	 * frozen processes + suspended devices + idle processors.
+	 * Thus s2idle_enter() should be called right after all devices have
+	 * been suspended.
+	 *
+	 * Wakeups during the noirq suspend of devices may be spurious, so try
+	 * to avoid them upfront.
+	 */
 	for (;;) {
-		int error;
-
-		dpm_noirq_begin();
-
-		/*
-		 * Suspend-to-idle equals
-		 * frozen processes + suspended devices + idle processors.
-		 * Thus s2idle_enter() should be called right after
-		 * all devices have been suspended.
-		 *
-		 * Wakeups during the noirq suspend of devices may be spurious,
-		 * so prevent them from terminating the loop right away.
-		 */
-		error = dpm_noirq_suspend_devices(PMSG_SUSPEND);
-		if (!error)
-			s2idle_enter();
-		else if (error == -EBUSY && pm_wakeup_pending())
-			error = 0;
-
-		if (!error && s2idle_ops && s2idle_ops->wake)
+		if (s2idle_ops && s2idle_ops->wake)
 			s2idle_ops->wake();
-
-		dpm_noirq_resume_devices(PMSG_RESUME);
-
-		dpm_noirq_end();
-
-		if (error)
-			break;
-
-		if (s2idle_ops && s2idle_ops->sync)
-			s2idle_ops->sync();
 
 		if (pm_wakeup_pending())
 			break;
 
 		pm_wakeup_clear(false);
+
+		s2idle_enter();
 	}
 
 	pm_pr_dbg("resume from suspend-to-idle\n");
@@ -271,14 +253,21 @@ static int platform_suspend_prepare_late(suspend_state_t state)
 
 static int platform_suspend_prepare_noirq(suspend_state_t state)
 {
-	return state != PM_SUSPEND_TO_IDLE && suspend_ops->prepare_late ?
-		suspend_ops->prepare_late() : 0;
+	if (state == PM_SUSPEND_TO_IDLE)
+		return s2idle_ops && s2idle_ops->prepare_late ?
+			s2idle_ops->prepare_late() : 0;
+
+	return suspend_ops->prepare_late ? suspend_ops->prepare_late() : 0;
 }
 
 static void platform_resume_noirq(suspend_state_t state)
 {
-	if (state != PM_SUSPEND_TO_IDLE && suspend_ops->wake)
+	if (state == PM_SUSPEND_TO_IDLE) {
+		if (s2idle_ops && s2idle_ops->restore_early)
+			s2idle_ops->restore_early();
+	} else if (suspend_ops->wake) {
 		suspend_ops->wake();
+	}
 }
 
 static void platform_resume_early(suspend_state_t state)
@@ -415,11 +404,6 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	if (error)
 		goto Devices_early_resume;
 
-	if (state == PM_SUSPEND_TO_IDLE && pm_test_level != TEST_PLATFORM) {
-		s2idle_loop();
-		goto Platform_early_resume;
-	}
-
 	error = dpm_suspend_noirq(PMSG_SUSPEND);
 	if (error) {
 		pr_err("noirq suspend of devices failed\n");
@@ -431,6 +415,11 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 
 	if (suspend_test(TEST_PLATFORM))
 		goto Platform_wake;
+
+	if (state == PM_SUSPEND_TO_IDLE) {
+		s2idle_loop();
+		goto Platform_wake;
+	}
 
 	error = suspend_disable_secondary_cpus();
 	if (error || suspend_test(TEST_CPUS))

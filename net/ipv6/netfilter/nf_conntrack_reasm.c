@@ -348,7 +348,7 @@ static int nf_ct_frag6_reasm(struct frag_queue *fq, struct sk_buff *skb,
 
 	skb_reset_transport_header(skb);
 
-	inet_frag_reasm_finish(&fq->q, skb, reasm_data);
+	inet_frag_reasm_finish(&fq->q, skb, reasm_data, false);
 
 	skb->ignore_df = 1;
 	skb->dev = dev;

@@ -270,25 +270,4 @@ void print_hex_dump(const char *level, const char *prefix_str, int prefix_type,
 }
 EXPORT_SYMBOL(print_hex_dump);
 
-#if !defined(CONFIG_DYNAMIC_DEBUG)
-/**
- * print_hex_dump_bytes - shorthand form of print_hex_dump() with default params
- * @prefix_str: string to prefix each line with;
- *  caller supplies trailing spaces for alignment if desired
- * @prefix_type: controls whether prefix of an offset, address, or none
- *  is printed (%DUMP_PREFIX_OFFSET, %DUMP_PREFIX_ADDRESS, %DUMP_PREFIX_NONE)
- * @buf: data blob to dump
- * @len: number of bytes in the @buf
- *
- * Calls print_hex_dump(), with log level of KERN_DEBUG,
- * rowsize of 16, groupsize of 1, and ASCII output included.
- */
-void print_hex_dump_bytes(const char *prefix_str, int prefix_type,
-			  const void *buf, size_t len)
-{
-	print_hex_dump(KERN_DEBUG, prefix_str, prefix_type, 16, 1,
-		       buf, len, true);
-}
-EXPORT_SYMBOL(print_hex_dump_bytes);
-#endif /* !defined(CONFIG_DYNAMIC_DEBUG) */
 #endif /* defined(CONFIG_PRINTK) */

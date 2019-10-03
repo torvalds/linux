@@ -5,7 +5,14 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <net/net_namespace.h>
+#include <net/netns/generic.h>
 #include <net/fib_notifier.h>
+
+static unsigned int fib_notifier_net_id;
+
+struct fib_notifier_net {
+	struct list_head fib_notifier_ops;
+};
 
 static ATOMIC_NOTIFIER_HEAD(fib_chain);
 
@@ -34,6 +41,7 @@ EXPORT_SYMBOL(call_fib_notifiers);
 
 static unsigned int fib_seq_sum(void)
 {
+	struct fib_notifier_net *fn_net;
 	struct fib_notifier_ops *ops;
 	unsigned int fib_seq = 0;
 	struct net *net;
@@ -41,8 +49,9 @@ static unsigned int fib_seq_sum(void)
 	rtnl_lock();
 	down_read(&net_rwsem);
 	for_each_net(net) {
+		fn_net = net_generic(net, fib_notifier_net_id);
 		rcu_read_lock();
-		list_for_each_entry_rcu(ops, &net->fib_notifier_ops, list) {
+		list_for_each_entry_rcu(ops, &fn_net->fib_notifier_ops, list) {
 			if (!try_module_get(ops->owner))
 				continue;
 			fib_seq += ops->fib_seq_read(net);
@@ -58,9 +67,10 @@ static unsigned int fib_seq_sum(void)
 
 static int fib_net_dump(struct net *net, struct notifier_block *nb)
 {
+	struct fib_notifier_net *fn_net = net_generic(net, fib_notifier_net_id);
 	struct fib_notifier_ops *ops;
 
-	list_for_each_entry_rcu(ops, &net->fib_notifier_ops, list) {
+	list_for_each_entry_rcu(ops, &fn_net->fib_notifier_ops, list) {
 		int err;
 
 		if (!try_module_get(ops->owner))
@@ -127,12 +137,13 @@ EXPORT_SYMBOL(unregister_fib_notifier);
 static int __fib_notifier_ops_register(struct fib_notifier_ops *ops,
 				       struct net *net)
 {
+	struct fib_notifier_net *fn_net = net_generic(net, fib_notifier_net_id);
 	struct fib_notifier_ops *o;
 
-	list_for_each_entry(o, &net->fib_notifier_ops, list)
+	list_for_each_entry(o, &fn_net->fib_notifier_ops, list)
 		if (ops->family == o->family)
 			return -EEXIST;
-	list_add_tail_rcu(&ops->list, &net->fib_notifier_ops);
+	list_add_tail_rcu(&ops->list, &fn_net->fib_notifier_ops);
 	return 0;
 }
 
@@ -167,18 +178,24 @@ EXPORT_SYMBOL(fib_notifier_ops_unregister);
 
 static int __net_init fib_notifier_net_init(struct net *net)
 {
-	INIT_LIST_HEAD(&net->fib_notifier_ops);
+	struct fib_notifier_net *fn_net = net_generic(net, fib_notifier_net_id);
+
+	INIT_LIST_HEAD(&fn_net->fib_notifier_ops);
 	return 0;
 }
 
 static void __net_exit fib_notifier_net_exit(struct net *net)
 {
-	WARN_ON_ONCE(!list_empty(&net->fib_notifier_ops));
+	struct fib_notifier_net *fn_net = net_generic(net, fib_notifier_net_id);
+
+	WARN_ON_ONCE(!list_empty(&fn_net->fib_notifier_ops));
 }
 
 static struct pernet_operations fib_notifier_net_ops = {
 	.init = fib_notifier_net_init,
 	.exit = fib_notifier_net_exit,
+	.id = &fib_notifier_net_id,
+	.size = sizeof(struct fib_notifier_net),
 };
 
 static int __init fib_notifier_init(void)

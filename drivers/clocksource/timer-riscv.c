@@ -2,6 +2,10 @@
 /*
  * Copyright (C) 2012 Regents of the University of California
  * Copyright (C) 2017 SiFive
+ *
+ * All RISC-V systems have a timer attached to every hart.  These timers can be
+ * read from the "time" and "timeh" CSRs, and can use the SBI to setup
+ * events.
  */
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
@@ -11,19 +15,6 @@
 #include <linux/sched_clock.h>
 #include <asm/smp.h>
 #include <asm/sbi.h>
-
-/*
- * All RISC-V systems have a timer attached to every hart.  These timers can be
- * read by the 'rdcycle' pseudo instruction, and can use the SBI to setup
- * events.  In order to abstract the architecture-specific timer reading and
- * setting functions away from the clock event insertion code, we provide
- * function pointers to the clockevent subsystem that perform two basic
- * operations: rdtime() reads the timer on the current CPU, and
- * next_event(delta) sets the next timer event to 'delta' cycles in the future.
- * As the timers are inherently a per-cpu resource, these callbacks perform
- * operations on the current hart.  There is guaranteed to be exactly one timer
- * per hart on all RISC-V systems.
- */
 
 static int riscv_clock_next_event(unsigned long delta,
 		struct clock_event_device *ce)
@@ -55,7 +46,7 @@ static u64 riscv_sched_clock(void)
 	return get_cycles64();
 }
 
-static DEFINE_PER_CPU(struct clocksource, riscv_clocksource) = {
+static struct clocksource riscv_clocksource = {
 	.name		= "riscv_clocksource",
 	.rating		= 300,
 	.mask		= CLOCKSOURCE_MASK(64),
@@ -92,7 +83,6 @@ void riscv_timer_interrupt(void)
 static int __init riscv_timer_init_dt(struct device_node *n)
 {
 	int cpuid, hartid, error;
-	struct clocksource *cs;
 
 	hartid = riscv_of_processor_hartid(n);
 	if (hartid < 0) {
@@ -112,8 +102,7 @@ static int __init riscv_timer_init_dt(struct device_node *n)
 
 	pr_info("%s: Registering clocksource cpuid [%d] hartid [%d]\n",
 	       __func__, cpuid, hartid);
-	cs = per_cpu_ptr(&riscv_clocksource, cpuid);
-	error = clocksource_register_hz(cs, riscv_timebase);
+	error = clocksource_register_hz(&riscv_clocksource, riscv_timebase);
 	if (error) {
 		pr_err("RISCV timer register failed [%d] for cpu = [%d]\n",
 		       error, cpuid);

@@ -1353,7 +1353,7 @@ try:
     bpftool_prog_list_wait(expected=1)
 
     ifnameB = bpftool("prog show %s" % (progB))[1]["dev"]["ifname"]
-    fail(ifnameB != simB1['ifname'], "program not bound to originial device")
+    fail(ifnameB != simB1['ifname'], "program not bound to original device")
     simB1.remove()
     bpftool_prog_list_wait(expected=1)
 

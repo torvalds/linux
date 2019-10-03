@@ -169,47 +169,6 @@ name:
 
 #define ABS_ADDR(label) (label - fs_label + fs_start)
 
-#define EXC_REAL_BEGIN(name, start, size)			\
-	FIXED_SECTION_ENTRY_BEGIN_LOCATION(real_vectors, exc_real_##start##_##name, start, size)
-
-#define EXC_REAL_END(name, start, size)				\
-	FIXED_SECTION_ENTRY_END_LOCATION(real_vectors, exc_real_##start##_##name, start, size)
-
-#define EXC_VIRT_BEGIN(name, start, size)			\
-	FIXED_SECTION_ENTRY_BEGIN_LOCATION(virt_vectors, exc_virt_##start##_##name, start, size)
-
-#define EXC_VIRT_END(name, start, size)				\
-	FIXED_SECTION_ENTRY_END_LOCATION(virt_vectors, exc_virt_##start##_##name, start, size)
-
-#define EXC_COMMON_BEGIN(name)					\
-	USE_TEXT_SECTION();					\
-	.balign IFETCH_ALIGN_BYTES;				\
-	.global name;						\
-	_ASM_NOKPROBE_SYMBOL(name);				\
-	DEFINE_FIXED_SYMBOL(name);				\
-name:
-
-#define TRAMP_REAL_BEGIN(name)					\
-	FIXED_SECTION_ENTRY_BEGIN(real_trampolines, name)
-
-#define TRAMP_VIRT_BEGIN(name)					\
-	FIXED_SECTION_ENTRY_BEGIN(virt_trampolines, name)
-
-#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
-#define TRAMP_KVM_BEGIN(name)					\
-	TRAMP_VIRT_BEGIN(name)
-#else
-#define TRAMP_KVM_BEGIN(name)
-#endif
-
-#define EXC_REAL_NONE(start, size)				\
-	FIXED_SECTION_ENTRY_BEGIN_LOCATION(real_vectors, exc_real_##start##_##unused, start, size); \
-	FIXED_SECTION_ENTRY_END_LOCATION(real_vectors, exc_real_##start##_##unused, start, size)
-
-#define EXC_VIRT_NONE(start, size)				\
-	FIXED_SECTION_ENTRY_BEGIN_LOCATION(virt_vectors, exc_virt_##start##_##unused, start, size); \
-	FIXED_SECTION_ENTRY_END_LOCATION(virt_vectors, exc_virt_##start##_##unused, start, size)
-
 #endif /* __ASSEMBLY__ */
 
 #endif	/* _ASM_POWERPC_HEAD_64_H */

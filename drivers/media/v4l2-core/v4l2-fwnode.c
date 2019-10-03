@@ -163,7 +163,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 			pr_debug("no lane mapping given, using defaults\n");
 	}
 
-	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
+	rval = fwnode_property_count_u32(fwnode, "data-lanes");
 	if (rval > 0) {
 		num_data_lanes =
 			min_t(int, V4L2_FWNODE_CSI2_MAX_DATA_LANES, rval);
@@ -191,8 +191,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 			pr_debug("lane %u position %u\n", i, array[i]);
 	}
 
-	rval = fwnode_property_read_u32_array(fwnode, "lane-polarities", NULL,
-					      0);
+	rval = fwnode_property_count_u32(fwnode, "lane-polarities");
 	if (rval > 0) {
 		if (rval != 1 + num_data_lanes /* clock+data */) {
 			pr_warn("invalid number of lane-polarities entries (need %u, got %u)\n",
@@ -525,8 +524,7 @@ int v4l2_fwnode_endpoint_alloc_parse(struct fwnode_handle *fwnode,
 	if (rval < 0)
 		return rval;
 
-	rval = fwnode_property_read_u64_array(fwnode, "link-frequencies",
-					      NULL, 0);
+	rval = fwnode_property_count_u64(fwnode, "link-frequencies");
 	if (rval > 0) {
 		unsigned int i;
 
@@ -777,23 +775,17 @@ static int v4l2_fwnode_reference_parse(struct device *dev,
 		asd = v4l2_async_notifier_add_fwnode_subdev(notifier,
 							    args.fwnode,
 							    sizeof(*asd));
+		fwnode_handle_put(args.fwnode);
 		if (IS_ERR(asd)) {
-			ret = PTR_ERR(asd);
 			/* not an error if asd already exists */
-			if (ret == -EEXIST) {
-				fwnode_handle_put(args.fwnode);
+			if (PTR_ERR(asd) == -EEXIST)
 				continue;
-			}
 
-			goto error;
+			return PTR_ERR(asd);
 		}
 	}
 
 	return 0;
-
-error:
-	fwnode_handle_put(args.fwnode);
-	return ret;
 }
 
 /*
@@ -1083,23 +1075,18 @@ v4l2_fwnode_reference_parse_int_props(struct device *dev,
 
 		asd = v4l2_async_notifier_add_fwnode_subdev(notifier, fwnode,
 							    sizeof(*asd));
+		fwnode_handle_put(fwnode);
 		if (IS_ERR(asd)) {
 			ret = PTR_ERR(asd);
 			/* not an error if asd already exists */
-			if (ret == -EEXIST) {
-				fwnode_handle_put(fwnode);
+			if (ret == -EEXIST)
 				continue;
-			}
 
-			goto error;
+			return PTR_ERR(asd);
 		}
 	}
 
 	return !fwnode || PTR_ERR(fwnode) == -ENOENT ? 0 : PTR_ERR(fwnode);
-
-error:
-	fwnode_handle_put(fwnode);
-	return ret;
 }
 
 int v4l2_async_notifier_parse_fwnode_sensor_common(struct device *dev,

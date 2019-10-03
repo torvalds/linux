@@ -17,8 +17,6 @@
 
 #ifdef CONFIG_PGSTE
 
-static int page_table_allocate_pgste_min = 0;
-static int page_table_allocate_pgste_max = 1;
 int page_table_allocate_pgste = 0;
 EXPORT_SYMBOL(page_table_allocate_pgste);
 
@@ -29,8 +27,8 @@ static struct ctl_table page_table_sysctl[] = {
 		.maxlen		= sizeof(int),
 		.mode		= S_IRUGO | S_IWUSR,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &page_table_allocate_pgste_min,
-		.extra2		= &page_table_allocate_pgste_max,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	},
 	{ }
 };
@@ -212,7 +210,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
 		return NULL;
-	if (!pgtable_page_ctor(page)) {
+	if (!pgtable_pte_page_ctor(page)) {
 		__free_page(page);
 		return NULL;
 	}
@@ -258,7 +256,7 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 		atomic_xor_bits(&page->_refcount, 3U << 24);
 	}
 
-	pgtable_page_dtor(page);
+	pgtable_pte_page_dtor(page);
 	__free_page(page);
 }
 
@@ -310,7 +308,7 @@ void __tlb_remove_table(void *_table)
 	case 3:		/* 4K page table with pgstes */
 		if (mask & 3)
 			atomic_xor_bits(&page->_refcount, 3 << 24);
-		pgtable_page_dtor(page);
+		pgtable_pte_page_dtor(page);
 		__free_page(page);
 		break;
 	}

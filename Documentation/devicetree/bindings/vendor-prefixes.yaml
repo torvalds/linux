@@ -27,6 +27,8 @@ patternProperties:
     description: Abilis Systems
   "^abracon,.*":
     description: Abracon Corporation
+  "^acme,.*":
+    description: Acme Systems srl
   "^actions,.*":
     description: Actions Semiconductor Co., Ltd.
   "^active-semi,.*":
@@ -81,6 +83,8 @@ patternProperties:
     description: Analogix Semiconductor, Inc.
   "^andestech,.*":
     description: Andes Technology Corporation
+  "^anvo,.*":
+    description: Anvo-Systems Dresden GmbH
   "^apm,.*":
     description: Applied Micro Circuits Corporation (APM)
   "^aptina,.*":
@@ -269,6 +273,8 @@ patternProperties:
     description: Emerging Display Technologies
   "^eeti,.*":
     description: eGalax_eMPIA Technology Inc
+  "^einfochips,.*":
+    description: Einfochips
   "^elan,.*":
     description: Elan Microelectronic Corp.
   "^elgin,.*":
@@ -437,6 +443,8 @@ patternProperties:
     description: Innolux Corporation
   "^inside-secure,.*":
     description: INSIDE Secure
+  "^inspur,.*":
+    description: Inspur Corporation
   "^intel,.*":
     description: Intel Corporation
   "^intercontrol,.*":
@@ -503,6 +511,8 @@ patternProperties:
     description: Lantiq Semiconductor
   "^lattice,.*":
     description: Lattice Semiconductor
+  "^leez,.*":
+    description: Leez
   "^lego,.*":
     description: LEGO Systems A/S
   "^lemaker,.*":
@@ -531,6 +541,8 @@ patternProperties:
     description: Linear Technology Corporation
   "^logicpd,.*":
     description: Logic PD, Inc.
+  "^longcheer,.*":
+    description: Longcheer Technology (Shanghai) Co., Ltd.
   "^lsi,.*":
     description: LSI Corp. (LSI Logic)
   "^lwn,.*":
@@ -551,6 +563,8 @@ patternProperties:
     description: mCube
   "^meas,.*":
     description: Measurement Specialties
+  "^mecer,.*":
+    description: Mustek Limited
   "^mediatek,.*":
     description: MediaTek Inc.
   "^megachips,.*":
@@ -577,6 +591,8 @@ patternProperties:
     description: Micro Crystal AG
   "^micron,.*":
     description: Micron Technology Inc.
+  "^microsoft,.*":
+    description: Microsoft Corporation
   "^mikroe,.*":
     description: MikroElektronika d.o.o.
   "^miniand,.*":
@@ -815,6 +831,8 @@ patternProperties:
     description: Semtech Corporation
   "^sensirion,.*":
     description: Sensirion AG
+  "^sensortek,.*":
+    description: Sensortek Technology Corporation
   "^sff,.*":
     description: Small Form Factor Committee
   "^sgd,.*":

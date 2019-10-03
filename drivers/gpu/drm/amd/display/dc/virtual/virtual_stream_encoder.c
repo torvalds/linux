@@ -77,6 +77,10 @@ static void virtual_audio_mute_control(
 	struct stream_encoder *enc,
 	bool mute) {}
 
+static void virtual_stream_encoder_reset_hdmi_stream_attribute(
+		struct stream_encoder *enc)
+{}
+
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 static void virtual_enc_dp_set_odm_combine(
@@ -116,6 +120,7 @@ static const struct stream_encoder_funcs virtual_str_enc_funcs = {
 
 	.audio_mute_control = virtual_audio_mute_control,
 	.set_avmute = virtual_stream_encoder_set_avmute,
+	.hdmi_reset_stream_attribute = virtual_stream_encoder_reset_hdmi_stream_attribute,
 };
 
 bool virtual_stream_encoder_construct(

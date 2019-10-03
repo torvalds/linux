@@ -179,8 +179,8 @@ PHY Mappings
 
 In order to get reference to a PHY without help from DeviceTree, the framework
 offers lookups which can be compared to clkdev that allow clk structures to be
-bound to devices. A lookup can be made be made during runtime when a handle to
-the struct phy already exists.
+bound to devices. A lookup can be made during runtime when a handle to the
+struct phy already exists.
 
 The framework offers the following API for registering and unregistering the
 lookups::

@@ -173,4 +173,6 @@ bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
 		uint32_t min_refresh_request_in_uhz,
 		uint32_t max_refresh_request_in_uhz);
 
+
+
 #endif

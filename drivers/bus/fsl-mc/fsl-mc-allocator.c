@@ -330,7 +330,6 @@ void fsl_mc_object_free(struct fsl_mc_device *mc_adev)
 
 	fsl_mc_resource_free(resource);
 
-	device_link_del(mc_adev->consumer_link);
 	mc_adev->consumer_link = NULL;
 }
 EXPORT_SYMBOL_GPL(fsl_mc_object_free);

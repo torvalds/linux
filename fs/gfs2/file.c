@@ -1049,7 +1049,7 @@ static long __gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t 
 			rblocks += data_blocks ? data_blocks : 1;
 
 		error = gfs2_trans_begin(sdp, rblocks,
-					 PAGE_SIZE/sdp->sd_sb.sb_bsize);
+					 PAGE_SIZE >> inode->i_blkbits);
 		if (error)
 			goto out_trans_fail;
 
@@ -1065,11 +1065,10 @@ static long __gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t 
 		gfs2_quota_unlock(ip);
 	}
 
-	if (!(mode & FALLOC_FL_KEEP_SIZE) && (pos + count) > inode->i_size) {
+	if (!(mode & FALLOC_FL_KEEP_SIZE) && (pos + count) > inode->i_size)
 		i_size_write(inode, pos + count);
-		file_update_time(file);
-		mark_inode_dirty(inode);
-	}
+	file_update_time(file);
+	mark_inode_dirty(inode);
 
 	if ((file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host))
 		return vfs_fsync_range(file, pos, pos + count - 1,

@@ -304,10 +304,10 @@ IWL_EXPORT_SYMBOL(iwl_clear_bits_prph);
 
 void iwl_force_nmi(struct iwl_trans *trans)
 {
-	if (trans->cfg->device_family < IWL_DEVICE_FAMILY_9000)
+	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_9000)
 		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
 			       DEVICE_SET_NMI_VAL_DRV);
-	else if (trans->cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+	else if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_NIC_SET_NMI_DRIVER,
 				UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER_MSK);
 	else
@@ -458,7 +458,7 @@ int iwl_dump_fh(struct iwl_trans *trans, char **buf)
 		FH_TSSR_TX_ERROR_REG
 	};
 
-	if (trans->cfg->mq_rx_supported)
+	if (trans->trans_cfg->mq_rx_supported)
 		return iwl_dump_rfh(trans, buf);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -492,11 +492,12 @@ int iwl_dump_fh(struct iwl_trans *trans, char **buf)
 	return 0;
 }
 
-int iwl_finish_nic_init(struct iwl_trans *trans)
+int iwl_finish_nic_init(struct iwl_trans *trans,
+			const struct iwl_cfg_trans_params *cfg_trans)
 {
 	int err;
 
-	if (trans->cfg->bisr_workaround) {
+	if (cfg_trans->bisr_workaround) {
 		/* ensure the TOP FSM isn't still in previous reset */
 		mdelay(2);
 	}
@@ -506,9 +507,9 @@ int iwl_finish_nic_init(struct iwl_trans *trans)
 	 * D0U* --> D0A* (powered-up active) state.
 	 */
 	iwl_set_bit(trans, CSR_GP_CNTRL,
-		    BIT(trans->cfg->csr->flag_init_done));
+		    BIT(cfg_trans->csr->flag_init_done));
 
-	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+	if (cfg_trans->device_family == IWL_DEVICE_FAMILY_8000)
 		udelay(2);
 
 	/*
@@ -517,13 +518,13 @@ int iwl_finish_nic_init(struct iwl_trans *trans)
 	 * and accesses to uCode SRAM.
 	 */
 	err = iwl_poll_bit(trans, CSR_GP_CNTRL,
-			   BIT(trans->cfg->csr->flag_mac_clock_ready),
-			   BIT(trans->cfg->csr->flag_mac_clock_ready),
+			   BIT(cfg_trans->csr->flag_mac_clock_ready),
+			   BIT(cfg_trans->csr->flag_mac_clock_ready),
 			   25000);
 	if (err < 0)
 		IWL_DEBUG_INFO(trans, "Failed to wake NIC\n");
 
-	if (trans->cfg->bisr_workaround) {
+	if (cfg_trans->bisr_workaround) {
 		/* ensure BISR shift has finished */
 		udelay(200);
 	}

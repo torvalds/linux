@@ -244,43 +244,45 @@ static int hlwd_gpio_probe(struct platform_device *pdev)
 		ngpios = 32;
 	hlwd->gpioc.ngpio = ngpios;
 
-	res = devm_gpiochip_add_data(&pdev->dev, &hlwd->gpioc, hlwd);
-	if (res)
-		return res;
-
 	/* Mask and ack all interrupts */
 	iowrite32be(0, hlwd->regs + HW_GPIOB_INTMASK);
 	iowrite32be(0xffffffff, hlwd->regs + HW_GPIOB_INTFLAG);
 
 	/*
 	 * If this GPIO controller is not marked as an interrupt controller in
-	 * the DT, return.
+	 * the DT, skip interrupt support.
 	 */
-	if (!of_property_read_bool(pdev->dev.of_node, "interrupt-controller"))
-		return 0;
+	if (of_property_read_bool(pdev->dev.of_node, "interrupt-controller")) {
+		struct gpio_irq_chip *girq;
 
-	hlwd->irq = platform_get_irq(pdev, 0);
-	if (hlwd->irq < 0) {
-		dev_info(&pdev->dev, "platform_get_irq returned %d\n",
-			 hlwd->irq);
-		return hlwd->irq;
+		hlwd->irq = platform_get_irq(pdev, 0);
+		if (hlwd->irq < 0) {
+			dev_info(&pdev->dev, "platform_get_irq returned %d\n",
+				 hlwd->irq);
+			return hlwd->irq;
+		}
+
+		hlwd->irqc.name = dev_name(&pdev->dev);
+		hlwd->irqc.irq_mask = hlwd_gpio_irq_mask;
+		hlwd->irqc.irq_unmask = hlwd_gpio_irq_unmask;
+		hlwd->irqc.irq_enable = hlwd_gpio_irq_enable;
+		hlwd->irqc.irq_set_type = hlwd_gpio_irq_set_type;
+
+		girq = &hlwd->gpioc.irq;
+		girq->chip = &hlwd->irqc;
+		girq->parent_handler = hlwd_gpio_irqhandler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(&pdev->dev, 1,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents)
+			return -ENOMEM;
+		girq->parents[0] = hlwd->irq;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_level_irq;
 	}
 
-	hlwd->irqc.name = dev_name(&pdev->dev);
-	hlwd->irqc.irq_mask = hlwd_gpio_irq_mask;
-	hlwd->irqc.irq_unmask = hlwd_gpio_irq_unmask;
-	hlwd->irqc.irq_enable = hlwd_gpio_irq_enable;
-	hlwd->irqc.irq_set_type = hlwd_gpio_irq_set_type;
-
-	res = gpiochip_irqchip_add(&hlwd->gpioc, &hlwd->irqc, 0,
-				   handle_level_irq, IRQ_TYPE_NONE);
-	if (res)
-		return res;
-
-	gpiochip_set_chained_irqchip(&hlwd->gpioc, &hlwd->irqc,
-				     hlwd->irq, hlwd_gpio_irqhandler);
-
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, &hlwd->gpioc, hlwd);
 }
 
 static const struct of_device_id hlwd_gpio_match[] = {

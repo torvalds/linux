@@ -242,10 +242,15 @@ static inline bool efi_is_64bit(void)
 		__efi_early()->runtime_services), __VA_ARGS__)
 
 extern bool efi_reboot_required(void);
+extern bool efi_is_table_address(unsigned long phys_addr);
 
 #else
 static inline void parse_efi_setup(u64 phys_addr, u32 data_len) {}
 static inline bool efi_reboot_required(void)
+{
+	return false;
+}
+static inline  bool efi_is_table_address(unsigned long phys_addr)
 {
 	return false;
 }

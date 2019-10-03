@@ -171,22 +171,20 @@ It seems others find it useful as (System Attention Key) which is
 useful when you want to exit a program that will not let you switch consoles.
 (For example, X or a svgalib program.)
 
-``reboot(b)`` is good when you're unable to shut down. But you should also
-``sync(s)`` and ``umount(u)`` first.
+``reboot(b)`` is good when you're unable to shut down, it is an equivalent
+of pressing the "reset" button.
 
 ``crash(c)`` can be used to manually trigger a crashdump when the system is hung.
 Note that this just triggers a crash if there is no dump mechanism available.
 
-``sync(s)`` is great when your system is locked up, it allows you to sync your
-disks and will certainly lessen the chance of data loss and fscking. Note
-that the sync hasn't taken place until you see the "OK" and "Done" appear
-on the screen. (If the kernel is really in strife, you may not ever get the
-OK or Done message...)
+``sync(s)`` is handy before yanking removable medium or after using a rescue
+shell that provides no graceful shutdown -- it will ensure your data is
+safely written to the disk. Note that the sync hasn't taken place until you see
+the "OK" and "Done" appear on the screen.
 
-``umount(u)`` is basically useful in the same ways as ``sync(s)``. I generally
-``sync(s)``, ``umount(u)``, then ``reboot(b)`` when my system locks. It's saved
-me many a fsck. Again, the unmount (remount read-only) hasn't taken place until
-you see the "OK" and "Done" message appear on the screen.
+``umount(u)`` can be used to mark filesystems as properly unmounted. From the
+running system's point of view, they will be remounted read-only. The remount
+isn't complete until you see the "OK" and "Done" message appear on the screen.
 
 The loglevels ``0``-``9`` are useful when your console is being flooded with
 kernel messages you do not want to see. Selecting ``0`` will prevent all but

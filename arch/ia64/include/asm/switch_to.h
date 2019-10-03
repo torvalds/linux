@@ -69,7 +69,6 @@ extern void ia64_load_extra (struct task_struct *task);
 	if (unlikely((current->thread.flags & IA64_THREAD_MIGRATION) &&	       \
 		     (task_cpu(current) !=				       \
 		      		      task_thread_info(current)->last_cpu))) { \
-		platform_migrate(current);				       \
 		task_thread_info(current)->last_cpu = task_cpu(current);       \
 	}								       \
 } while (0)

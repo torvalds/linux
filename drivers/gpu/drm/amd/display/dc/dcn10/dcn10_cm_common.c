@@ -343,8 +343,8 @@ bool cm_helper_translate_curve_to_hw_format(
 		region_start = -MAX_LOW_POINT;
 		region_end   = NUMBER_REGIONS - MAX_LOW_POINT;
 	} else {
-		/* 10 segments
-		 * segment is from 2^-10 to 2^0
+		/* 11 segments
+		 * segment is from 2^-10 to 2^1
 		 * There are less than 256 points, for optimization
 		 */
 		seg_distr[0] = 3;
@@ -357,9 +357,10 @@ bool cm_helper_translate_curve_to_hw_format(
 		seg_distr[7] = 4;
 		seg_distr[8] = 4;
 		seg_distr[9] = 4;
+		seg_distr[10] = 1;
 
 		region_start = -10;
-		region_end = 0;
+		region_end = 1;
 	}
 
 	for (i = region_end - region_start; i < MAX_REGIONS_NUMBER ; i++)

@@ -2,7 +2,7 @@
 /*
  * Virtio driver for the paravirtualized IOMMU
  *
- * Copyright (C) 2018 Arm Limited
+ * Copyright (C) 2019 Arm Limited
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -47,7 +47,10 @@ struct viommu_dev {
 	/* Device configuration */
 	struct iommu_domain_geometry	geometry;
 	u64				pgsize_bitmap;
-	u8				domain_bits;
+	u32				first_domain;
+	u32				last_domain;
+	/* Supported MAP flags */
+	u32				map_flags;
 	u32				probe_size;
 };
 
@@ -62,6 +65,7 @@ struct viommu_domain {
 	struct viommu_dev		*viommu;
 	struct mutex			mutex; /* protects viommu pointer */
 	unsigned int			id;
+	u32				map_flags;
 
 	spinlock_t			mappings_lock;
 	struct rb_root_cached		mappings;
@@ -113,6 +117,8 @@ static int viommu_get_req_errno(void *buf, size_t len)
 		return -ENOENT;
 	case VIRTIO_IOMMU_S_FAULT:
 		return -EFAULT;
+	case VIRTIO_IOMMU_S_NOMEM:
+		return -ENOMEM;
 	case VIRTIO_IOMMU_S_IOERR:
 	case VIRTIO_IOMMU_S_DEVERR:
 	default:
@@ -607,15 +613,15 @@ static int viommu_domain_finalise(struct viommu_dev *viommu,
 {
 	int ret;
 	struct viommu_domain *vdomain = to_viommu_domain(domain);
-	unsigned int max_domain = viommu->domain_bits > 31 ? ~0 :
-				  (1U << viommu->domain_bits) - 1;
 
 	vdomain->viommu		= viommu;
+	vdomain->map_flags	= viommu->map_flags;
 
 	domain->pgsize_bitmap	= viommu->pgsize_bitmap;
 	domain->geometry	= viommu->geometry;
 
-	ret = ida_alloc_max(&viommu->domain_ids, max_domain, GFP_KERNEL);
+	ret = ida_alloc_range(&viommu->domain_ids, viommu->first_domain,
+			      viommu->last_domain, GFP_KERNEL);
 	if (ret >= 0)
 		vdomain->id = (unsigned int)ret;
 
@@ -710,13 +716,16 @@ static int viommu_map(struct iommu_domain *domain, unsigned long iova,
 		      phys_addr_t paddr, size_t size, int prot)
 {
 	int ret;
-	int flags;
+	u32 flags;
 	struct virtio_iommu_req_map map;
 	struct viommu_domain *vdomain = to_viommu_domain(domain);
 
 	flags = (prot & IOMMU_READ ? VIRTIO_IOMMU_MAP_F_READ : 0) |
 		(prot & IOMMU_WRITE ? VIRTIO_IOMMU_MAP_F_WRITE : 0) |
 		(prot & IOMMU_MMIO ? VIRTIO_IOMMU_MAP_F_MMIO : 0);
+
+	if (flags & ~vdomain->map_flags)
+		return -EINVAL;
 
 	ret = viommu_add_mapping(vdomain, iova, paddr, size, flags);
 	if (ret)
@@ -742,7 +751,7 @@ static int viommu_map(struct iommu_domain *domain, unsigned long iova,
 }
 
 static size_t viommu_unmap(struct iommu_domain *domain, unsigned long iova,
-			   size_t size)
+			   size_t size, struct iommu_iotlb_gather *gather)
 {
 	int ret = 0;
 	size_t unmapped;
@@ -788,7 +797,8 @@ static phys_addr_t viommu_iova_to_phys(struct iommu_domain *domain,
 	return paddr;
 }
 
-static void viommu_iotlb_sync(struct iommu_domain *domain)
+static void viommu_iotlb_sync(struct iommu_domain *domain,
+			      struct iommu_iotlb_gather *gather)
 {
 	struct viommu_domain *vdomain = to_viommu_domain(domain);
 
@@ -1027,7 +1037,8 @@ static int viommu_probe(struct virtio_device *vdev)
 		goto err_free_vqs;
 	}
 
-	viommu->domain_bits = 32;
+	viommu->map_flags = VIRTIO_IOMMU_MAP_F_READ | VIRTIO_IOMMU_MAP_F_WRITE;
+	viommu->last_domain = ~0U;
 
 	/* Optional features */
 	virtio_cread_feature(vdev, VIRTIO_IOMMU_F_INPUT_RANGE,
@@ -1038,9 +1049,13 @@ static int viommu_probe(struct virtio_device *vdev)
 			     struct virtio_iommu_config, input_range.end,
 			     &input_end);
 
-	virtio_cread_feature(vdev, VIRTIO_IOMMU_F_DOMAIN_BITS,
-			     struct virtio_iommu_config, domain_bits,
-			     &viommu->domain_bits);
+	virtio_cread_feature(vdev, VIRTIO_IOMMU_F_DOMAIN_RANGE,
+			     struct virtio_iommu_config, domain_range.start,
+			     &viommu->first_domain);
+
+	virtio_cread_feature(vdev, VIRTIO_IOMMU_F_DOMAIN_RANGE,
+			     struct virtio_iommu_config, domain_range.end,
+			     &viommu->last_domain);
 
 	virtio_cread_feature(vdev, VIRTIO_IOMMU_F_PROBE,
 			     struct virtio_iommu_config, probe_size,
@@ -1051,6 +1066,9 @@ static int viommu_probe(struct virtio_device *vdev)
 		.aperture_end	= input_end,
 		.force_aperture	= true,
 	};
+
+	if (virtio_has_feature(vdev, VIRTIO_IOMMU_F_MMIO))
+		viommu->map_flags |= VIRTIO_IOMMU_MAP_F_MMIO;
 
 	viommu_ops.pgsize_bitmap = viommu->pgsize_bitmap;
 
@@ -1130,9 +1148,10 @@ static void viommu_config_changed(struct virtio_device *vdev)
 
 static unsigned int features[] = {
 	VIRTIO_IOMMU_F_MAP_UNMAP,
-	VIRTIO_IOMMU_F_DOMAIN_BITS,
 	VIRTIO_IOMMU_F_INPUT_RANGE,
+	VIRTIO_IOMMU_F_DOMAIN_RANGE,
 	VIRTIO_IOMMU_F_PROBE,
+	VIRTIO_IOMMU_F_MMIO,
 };
 
 static struct virtio_device_id id_table[] = {

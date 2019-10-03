@@ -2260,6 +2260,7 @@ nfs_compare_remount_data(struct nfs_server *nfss,
 	    data->acdirmin != nfss->acdirmin / HZ ||
 	    data->acdirmax != nfss->acdirmax / HZ ||
 	    data->timeo != (10U * nfss->client->cl_timeout->to_initval / HZ) ||
+	    (data->options & NFS_OPTION_FSCACHE) != (nfss->options & NFS_OPTION_FSCACHE) ||
 	    data->nfs_server.port != nfss->port ||
 	    data->nfs_server.addrlen != nfss->nfs_client->cl_addrlen ||
 	    !rpc_cmp_addr((struct sockaddr *)&data->nfs_server.address,
@@ -2381,6 +2382,15 @@ void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 		sb->s_flags |= SB_POSIXACL;
 		sb->s_time_gran = 1;
 		sb->s_export_op = &nfs_export_ops;
+	} else
+		sb->s_time_gran = 1000;
+
+	if (server->nfs_client->rpc_ops->version != 4) {
+		sb->s_time_min = 0;
+		sb->s_time_max = U32_MAX;
+	} else {
+		sb->s_time_min = S64_MIN;
+		sb->s_time_max = S64_MAX;
 	}
 
  	nfs_initialise_sb(sb);
@@ -2401,7 +2411,6 @@ static void nfs_clone_super(struct super_block *sb,
 	sb->s_maxbytes = old_sb->s_maxbytes;
 	sb->s_xattr = old_sb->s_xattr;
 	sb->s_op = old_sb->s_op;
-	sb->s_time_gran = 1;
 	sb->s_export_op = old_sb->s_export_op;
 
 	if (server->nfs_client->rpc_ops->version != 2) {
@@ -2409,6 +2418,16 @@ static void nfs_clone_super(struct super_block *sb,
 		 * so ourselves when necessary.
 		 */
 		sb->s_flags |= SB_POSIXACL;
+		sb->s_time_gran = 1;
+	} else
+		sb->s_time_gran = 1000;
+
+	if (server->nfs_client->rpc_ops->version != 4) {
+		sb->s_time_min = 0;
+		sb->s_time_max = U32_MAX;
+	} else {
+		sb->s_time_min = S64_MIN;
+		sb->s_time_max = S64_MAX;
 	}
 
  	nfs_initialise_sb(sb);
@@ -2626,6 +2645,13 @@ int nfs_clone_sb_security(struct super_block *s, struct dentry *mntroot,
 }
 EXPORT_SYMBOL_GPL(nfs_clone_sb_security);
 
+static void nfs_set_readahead(struct backing_dev_info *bdi,
+			      unsigned long iomax_pages)
+{
+	bdi->ra_pages = VM_READAHEAD_PAGES;
+	bdi->io_pages = iomax_pages;
+}
+
 struct dentry *nfs_fs_mount_common(struct nfs_server *server,
 				   int flags, const char *dev_name,
 				   struct nfs_mount_info *mount_info,
@@ -2668,7 +2694,7 @@ struct dentry *nfs_fs_mount_common(struct nfs_server *server,
 			mntroot = ERR_PTR(error);
 			goto error_splat_super;
 		}
-		s->s_bdi->ra_pages = server->rpages * NFS_MAX_READAHEAD;
+		nfs_set_readahead(s->s_bdi, server->rpages);
 		server->super = s;
 	}
 

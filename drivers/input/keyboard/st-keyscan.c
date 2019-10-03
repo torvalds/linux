@@ -187,10 +187,8 @@ static int keyscan_probe(struct platform_device *pdev)
 	keyscan_stop(keypad_data);
 
 	keypad_data->irq = platform_get_irq(pdev, 0);
-	if (keypad_data->irq < 0) {
-		dev_err(&pdev->dev, "no IRQ specified\n");
+	if (keypad_data->irq < 0)
 		return -EINVAL;
-	}
 
 	error = devm_request_irq(&pdev->dev, keypad_data->irq, keyscan_isr, 0,
 				 pdev->name, keypad_data);

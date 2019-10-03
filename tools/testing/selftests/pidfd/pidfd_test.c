@@ -21,19 +21,11 @@
 #include "pidfd.h"
 #include "../kselftest.h"
 
-#ifndef __NR_pidfd_send_signal
-#define __NR_pidfd_send_signal -1
-#endif
-
 #define str(s) _str(s)
 #define _str(s) #s
 #define CHILD_THREAD_MIN_WAIT 3 /* seconds */
 
 #define MAX_EVENTS 5
-
-#ifndef CLONE_PIDFD
-#define CLONE_PIDFD 0x00001000
-#endif
 
 static pid_t pidfd_clone(int flags, int *pidfd, int (*fn)(void *))
 {
@@ -45,12 +37,6 @@ static pid_t pidfd_clone(int flags, int *pidfd, int (*fn)(void *))
 #else
 	return clone(fn, stack + stack_size, flags | SIGCHLD, NULL, pidfd);
 #endif
-}
-
-static inline int sys_pidfd_send_signal(int pidfd, int sig, siginfo_t *info,
-					unsigned int flags)
-{
-	return syscall(__NR_pidfd_send_signal, pidfd, sig, info, flags);
 }
 
 static int signal_received;
@@ -339,13 +325,9 @@ static int test_pidfd_send_signal_syscall_support(void)
 
 	ret = sys_pidfd_send_signal(pidfd, 0, NULL, 0);
 	if (ret < 0) {
-		/*
-		 * pidfd_send_signal() will currently return ENOSYS when
-		 * CONFIG_PROC_FS is not set.
-		 */
 		if (errno == ENOSYS)
 			ksft_exit_skip(
-				"%s test: pidfd_send_signal() syscall not supported (Ensure that CONFIG_PROC_FS=y is set)\n",
+				"%s test: pidfd_send_signal() syscall not supported\n",
 				test_name);
 
 		ksft_exit_fail_msg("%s test: Failed to send signal\n",

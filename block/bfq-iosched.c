@@ -1924,12 +1924,13 @@ static void bfq_add_request(struct request *rq)
 		 * confirmed no later than during the next
 		 * I/O-plugging interval for bfqq.
 		 */
-		if (!bfq_bfqq_has_short_ttime(bfqq) &&
+		if (bfqd->last_completed_rq_bfqq &&
+		    !bfq_bfqq_has_short_ttime(bfqq) &&
 		    ktime_get_ns() - bfqd->last_completion <
 		    200 * NSEC_PER_USEC) {
 			if (bfqd->last_completed_rq_bfqq != bfqq &&
-				   bfqd->last_completed_rq_bfqq !=
-				   bfqq->waker_bfqq) {
+			    bfqd->last_completed_rq_bfqq !=
+			    bfqq->waker_bfqq) {
 				/*
 				 * First synchronization detected with
 				 * a candidate waker queue, or with a
@@ -2015,7 +2016,7 @@ static void bfq_add_request(struct request *rq)
 		     (bfqq->last_serv_time_ns > 0 &&
 		      bfqd->rqs_injected && bfqd->rq_in_driver > 0)) &&
 		    time_is_before_eq_jiffies(bfqq->decrease_time_jif +
-					      msecs_to_jiffies(100))) {
+					      msecs_to_jiffies(10))) {
 			bfqd->last_empty_occupied_ns = ktime_get_ns();
 			/*
 			 * Start the state machine for measuring the
@@ -2024,7 +2025,21 @@ static void bfq_add_request(struct request *rq)
 			 * be set when rq will be dispatched.
 			 */
 			bfqd->wait_dispatch = true;
-			bfqd->rqs_injected = false;
+			/*
+			 * If there is no I/O in service in the drive,
+			 * then possible injection occurred before the
+			 * arrival of rq will not affect the total
+			 * service time of rq. So the injection limit
+			 * must not be updated as a function of such
+			 * total service time, unless new injection
+			 * occurs before rq is completed. To have the
+			 * injection limit updated only in the latter
+			 * case, reset rqs_injected here (rqs_injected
+			 * will be set in case injection is performed
+			 * on bfqq before rq is completed).
+			 */
+			if (bfqd->rq_in_driver == 0)
+				bfqd->rqs_injected = false;
 		}
 	}
 
@@ -2250,8 +2265,13 @@ static void bfq_request_merged(struct request_queue *q, struct request *req,
 	    blk_rq_pos(container_of(rb_prev(&req->rb_node),
 				    struct request, rb_node))) {
 		struct bfq_queue *bfqq = bfq_init_rq(req);
-		struct bfq_data *bfqd = bfqq->bfqd;
+		struct bfq_data *bfqd;
 		struct request *prev, *next_rq;
+
+		if (!bfqq)
+			return;
+
+		bfqd = bfqq->bfqd;
 
 		/* Reposition request in its sort_list */
 		elv_rb_del(&bfqq->sort_list, req);
@@ -2298,6 +2318,9 @@ static void bfq_requests_merged(struct request_queue *q, struct request *rq,
 {
 	struct bfq_queue *bfqq = bfq_init_rq(rq),
 		*next_bfqq = bfq_init_rq(next);
+
+	if (!bfqq)
+		return;
 
 	/*
 	 * If next and rq belong to the same bfq_queue and next is older
@@ -3354,38 +3377,57 @@ static void bfq_dispatch_remove(struct request_queue *q, struct request *rq)
  * there is no active group, then the primary expectation for
  * this device is probably a high throughput.
  *
- * We are now left only with explaining the additional
- * compound condition that is checked below for deciding
- * whether the scenario is asymmetric. To explain this
- * compound condition, we need to add that the function
+ * We are now left only with explaining the two sub-conditions in the
+ * additional compound condition that is checked below for deciding
+ * whether the scenario is asymmetric. To explain the first
+ * sub-condition, we need to add that the function
  * bfq_asymmetric_scenario checks the weights of only
- * non-weight-raised queues, for efficiency reasons (see
- * comments on bfq_weights_tree_add()). Then the fact that
- * bfqq is weight-raised is checked explicitly here. More
- * precisely, the compound condition below takes into account
- * also the fact that, even if bfqq is being weight-raised,
- * the scenario is still symmetric if all queues with requests
- * waiting for completion happen to be
- * weight-raised. Actually, we should be even more precise
- * here, and differentiate between interactive weight raising
- * and soft real-time weight raising.
+ * non-weight-raised queues, for efficiency reasons (see comments on
+ * bfq_weights_tree_add()). Then the fact that bfqq is weight-raised
+ * is checked explicitly here. More precisely, the compound condition
+ * below takes into account also the fact that, even if bfqq is being
+ * weight-raised, the scenario is still symmetric if all queues with
+ * requests waiting for completion happen to be
+ * weight-raised. Actually, we should be even more precise here, and
+ * differentiate between interactive weight raising and soft real-time
+ * weight raising.
+ *
+ * The second sub-condition checked in the compound condition is
+ * whether there is a fair amount of already in-flight I/O not
+ * belonging to bfqq. If so, I/O dispatching is to be plugged, for the
+ * following reason. The drive may decide to serve in-flight
+ * non-bfqq's I/O requests before bfqq's ones, thereby delaying the
+ * arrival of new I/O requests for bfqq (recall that bfqq is sync). If
+ * I/O-dispatching is not plugged, then, while bfqq remains empty, a
+ * basically uncontrolled amount of I/O from other queues may be
+ * dispatched too, possibly causing the service of bfqq's I/O to be
+ * delayed even longer in the drive. This problem gets more and more
+ * serious as the speed and the queue depth of the drive grow,
+ * because, as these two quantities grow, the probability to find no
+ * queue busy but many requests in flight grows too. By contrast,
+ * plugging I/O dispatching minimizes the delay induced by already
+ * in-flight I/O, and enables bfqq to recover the bandwidth it may
+ * lose because of this delay.
  *
  * As a side note, it is worth considering that the above
- * device-idling countermeasures may however fail in the
- * following unlucky scenario: if idling is (correctly)
- * disabled in a time period during which all symmetry
- * sub-conditions hold, and hence the device is allowed to
- * enqueue many requests, but at some later point in time some
- * sub-condition stops to hold, then it may become impossible
- * to let requests be served in the desired order until all
- * the requests already queued in the device have been served.
+ * device-idling countermeasures may however fail in the following
+ * unlucky scenario: if I/O-dispatch plugging is (correctly) disabled
+ * in a time period during which all symmetry sub-conditions hold, and
+ * therefore the device is allowed to enqueue many requests, but at
+ * some later point in time some sub-condition stops to hold, then it
+ * may become impossible to make requests be served in the desired
+ * order until all the requests already queued in the device have been
+ * served. The last sub-condition commented above somewhat mitigates
+ * this problem for weight-raised queues.
  */
 static bool idling_needed_for_service_guarantees(struct bfq_data *bfqd,
 						 struct bfq_queue *bfqq)
 {
 	return (bfqq->wr_coeff > 1 &&
-		bfqd->wr_busy_queues <
-		bfq_tot_busy_queues(bfqd)) ||
+		(bfqd->wr_busy_queues <
+		 bfq_tot_busy_queues(bfqd) ||
+		 bfqd->rq_in_driver >=
+		 bfqq->dispatched + 4)) ||
 		bfq_asymmetric_scenario(bfqd, bfqq);
 }
 
@@ -4745,6 +4787,8 @@ static struct request *bfq_dispatch_request(struct blk_mq_hw_ctx *hctx)
  */
 void bfq_put_queue(struct bfq_queue *bfqq)
 {
+	struct bfq_queue *item;
+	struct hlist_node *n;
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 	struct bfq_group *bfqg = bfqq_group(bfqq);
 #endif
@@ -4789,6 +4833,36 @@ void bfq_put_queue(struct bfq_queue *bfqq)
 			bfqq->bfqd->burst_size--;
 	}
 
+	/*
+	 * bfqq does not exist any longer, so it cannot be woken by
+	 * any other queue, and cannot wake any other queue. Then bfqq
+	 * must be removed from the woken list of its possible waker
+	 * queue, and all queues in the woken list of bfqq must stop
+	 * having a waker queue. Strictly speaking, these updates
+	 * should be performed when bfqq remains with no I/O source
+	 * attached to it, which happens before bfqq gets freed. In
+	 * particular, this happens when the last process associated
+	 * with bfqq exits or gets associated with a different
+	 * queue. However, both events lead to bfqq being freed soon,
+	 * and dangling references would come out only after bfqq gets
+	 * freed. So these updates are done here, as a simple and safe
+	 * way to handle all cases.
+	 */
+	/* remove bfqq from woken list */
+	if (!hlist_unhashed(&bfqq->woken_list_node))
+		hlist_del_init(&bfqq->woken_list_node);
+
+	/* reset waker for all queues in woken list */
+	hlist_for_each_entry_safe(item, n, &bfqq->woken_list,
+				  woken_list_node) {
+		item->waker_bfqq = NULL;
+		bfq_clear_bfqq_has_waker(item);
+		hlist_del_init(&item->woken_list_node);
+	}
+
+	if (bfqq->bfqd && bfqq->bfqd->last_completed_rq_bfqq == bfqq)
+		bfqq->bfqd->last_completed_rq_bfqq = NULL;
+
 	kmem_cache_free(bfq_pool, bfqq);
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 	bfqg_and_blkg_put(bfqg);
@@ -4816,9 +4890,6 @@ static void bfq_put_cooperator(struct bfq_queue *bfqq)
 
 static void bfq_exit_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 {
-	struct bfq_queue *item;
-	struct hlist_node *n;
-
 	if (bfqq == bfqd->in_service_queue) {
 		__bfq_bfqq_expire(bfqd, bfqq, BFQQE_BUDGET_TIMEOUT);
 		bfq_schedule_dispatch(bfqd);
@@ -4827,18 +4898,6 @@ static void bfq_exit_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 	bfq_log_bfqq(bfqd, bfqq, "exit_bfqq: %p, %d", bfqq, bfqq->ref);
 
 	bfq_put_cooperator(bfqq);
-
-	/* remove bfqq from woken list */
-	if (!hlist_unhashed(&bfqq->woken_list_node))
-		hlist_del_init(&bfqq->woken_list_node);
-
-	/* reset waker for all queues in woken list */
-	hlist_for_each_entry_safe(item, n, &bfqq->woken_list,
-				  woken_list_node) {
-		item->waker_bfqq = NULL;
-		bfq_clear_bfqq_has_waker(item);
-		hlist_del_init(&item->woken_list_node);
-	}
 
 	bfq_put_queue(bfqq); /* release process reference */
 }
@@ -5417,12 +5476,12 @@ static void bfq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 
 	spin_lock_irq(&bfqd->lock);
 	bfqq = bfq_init_rq(rq);
-	if (at_head || blk_rq_is_passthrough(rq)) {
+	if (!bfqq || at_head || blk_rq_is_passthrough(rq)) {
 		if (at_head)
 			list_add(&rq->queuelist, &bfqd->dispatch);
 		else
 			list_add_tail(&rq->queuelist, &bfqd->dispatch);
-	} else { /* bfqq is assumed to be non null here */
+	} else {
 		idle_timer_disabled = __bfq_insert_request(bfqd, rq);
 		/*
 		 * Update bfqq, because, if a queue merge has occurred
@@ -5739,14 +5798,14 @@ static void bfq_update_inject_limit(struct bfq_data *bfqd,
 	u64 tot_time_ns = ktime_get_ns() - bfqd->last_empty_occupied_ns;
 	unsigned int old_limit = bfqq->inject_limit;
 
-	if (bfqq->last_serv_time_ns > 0) {
+	if (bfqq->last_serv_time_ns > 0 && bfqd->rqs_injected) {
 		u64 threshold = (bfqq->last_serv_time_ns * 3)>>1;
 
 		if (tot_time_ns >= threshold && old_limit > 0) {
 			bfqq->inject_limit--;
 			bfqq->decrease_time_jif = jiffies;
 		} else if (tot_time_ns < threshold &&
-			   old_limit < bfqd->max_rq_in_driver<<1)
+			   old_limit <= bfqd->max_rq_in_driver)
 			bfqq->inject_limit++;
 	}
 
@@ -5764,12 +5823,14 @@ static void bfq_update_inject_limit(struct bfq_data *bfqd,
 	 */
 	if ((bfqq->last_serv_time_ns == 0 && bfqd->rq_in_driver == 1) ||
 	    tot_time_ns < bfqq->last_serv_time_ns) {
+		if (bfqq->last_serv_time_ns == 0) {
+			/*
+			 * Now we certainly have a base value: make sure we
+			 * start trying injection.
+			 */
+			bfqq->inject_limit = max_t(unsigned int, 1, old_limit);
+		}
 		bfqq->last_serv_time_ns = tot_time_ns;
-		/*
-		 * Now we certainly have a base value: make sure we
-		 * start trying injection.
-		 */
-		bfqq->inject_limit = max_t(unsigned int, 1, old_limit);
 	} else if (!bfqd->rqs_injected && bfqd->rq_in_driver == 1)
 		/*
 		 * No I/O injected and no request still in service in
@@ -5785,6 +5846,7 @@ static void bfq_update_inject_limit(struct bfq_data *bfqd,
 
 	/* update complete, not waiting for any request completion any longer */
 	bfqd->waited_rq = NULL;
+	bfqd->rqs_injected = false;
 }
 
 /*

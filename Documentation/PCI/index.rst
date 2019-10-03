@@ -9,7 +9,7 @@ Linux PCI Bus Subsystem
    :numbered:
 
    pci
-   picebus-howto
+   pciebus-howto
    pci-iov-howto
    msi-howto
    acpi-info

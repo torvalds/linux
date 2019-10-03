@@ -221,6 +221,8 @@ restart:
 	 * state and so involves less work.
 	 */
 	if (atomic_read(&obj->bind_count)) {
+		struct drm_i915_private *i915 = to_i915(obj->base.dev);
+
 		/* Before we change the PTE, the GPU must not be accessing it.
 		 * If we wait upon the object, we know that all the bound
 		 * VMA are no longer active.
@@ -232,18 +234,30 @@ restart:
 		if (ret)
 			return ret;
 
-		if (!HAS_LLC(to_i915(obj->base.dev)) &&
-		    cache_level != I915_CACHE_NONE) {
-			/* Access to snoopable pages through the GTT is
+		if (!HAS_LLC(i915) && cache_level != I915_CACHE_NONE) {
+			intel_wakeref_t wakeref =
+				intel_runtime_pm_get(&i915->runtime_pm);
+
+			/*
+			 * Access to snoopable pages through the GTT is
 			 * incoherent and on some machines causes a hard
 			 * lockup. Relinquish the CPU mmaping to force
 			 * userspace to refault in the pages and we can
 			 * then double check if the GTT mapping is still
 			 * valid for that pointer access.
 			 */
-			i915_gem_object_release_mmap(obj);
+			ret = mutex_lock_interruptible(&i915->ggtt.vm.mutex);
+			if (ret) {
+				intel_runtime_pm_put(&i915->runtime_pm,
+						     wakeref);
+				return ret;
+			}
 
-			/* As we no longer need a fence for GTT access,
+			if (obj->userfault_count)
+				__i915_gem_object_release_mmap(obj);
+
+			/*
+			 * As we no longer need a fence for GTT access,
 			 * we can relinquish it now (and so prevent having
 			 * to steal a fence from someone else on the next
 			 * fence request). Note GPU activity would have
@@ -251,12 +265,17 @@ restart:
 			 * supposed to be linear.
 			 */
 			for_each_ggtt_vma(vma, obj) {
-				ret = i915_vma_put_fence(vma);
+				ret = i915_vma_revoke_fence(vma);
 				if (ret)
-					return ret;
+					break;
 			}
+			mutex_unlock(&i915->ggtt.vm.mutex);
+			intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+			if (ret)
+				return ret;
 		} else {
-			/* We either have incoherent backing store and
+			/*
+			 * We either have incoherent backing store and
 			 * so no GTT access or the architecture is fully
 			 * coherent. In such cases, existing GTT mmaps
 			 * ignore the cache bit in the PTE and we can
@@ -551,13 +570,6 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	return 0;
 }
 
-static inline enum fb_op_origin
-fb_write_origin(struct drm_i915_gem_object *obj, unsigned int domain)
-{
-	return (domain == I915_GEM_DOMAIN_GTT ?
-		obj->frontbuffer_ggtt_origin : ORIGIN_CPU);
-}
-
 /**
  * Called when user space prepares to use an object with the CPU, either
  * through the mmap ioctl's mapping or a GTT mapping.
@@ -661,9 +673,8 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 
 	i915_gem_object_unlock(obj);
 
-	if (write_domain != 0)
-		intel_fb_obj_invalidate(obj,
-					fb_write_origin(obj, write_domain));
+	if (write_domain)
+		intel_frontbuffer_invalidate(obj->frontbuffer, ORIGIN_CPU);
 
 out_unpin:
 	i915_gem_object_unpin_pages(obj);
@@ -783,7 +794,7 @@ int i915_gem_object_prepare_write(struct drm_i915_gem_object *obj,
 	}
 
 out:
-	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
+	intel_frontbuffer_invalidate(obj->frontbuffer, ORIGIN_CPU);
 	obj->mm.dirty = true;
 	/* return with the pages pinned */
 	return 0;

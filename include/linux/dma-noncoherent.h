@@ -3,6 +3,7 @@
 #define _LINUX_DMA_NONCOHERENT_H 1
 
 #include <linux/dma-mapping.h>
+#include <asm/pgtable.h>
 
 #ifdef CONFIG_ARCH_HAS_DMA_COHERENCE_H
 #include <asm/dma-coherence.h>
@@ -43,12 +44,25 @@ void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 long arch_dma_coherent_to_pfn(struct device *dev, void *cpu_addr,
 		dma_addr_t dma_addr);
 
-#ifdef CONFIG_ARCH_HAS_DMA_MMAP_PGPROT
-pgprot_t arch_dma_mmap_pgprot(struct device *dev, pgprot_t prot,
-		unsigned long attrs);
-#else
-# define arch_dma_mmap_pgprot(dev, prot, attrs)	pgprot_noncached(prot)
+#ifdef CONFIG_MMU
+/*
+ * Page protection so that devices that can't snoop CPU caches can use the
+ * memory coherently.  We default to pgprot_noncached which is usually used
+ * for ioremap as a safe bet, but architectures can override this with less
+ * strict semantics if possible.
+ */
+#ifndef pgprot_dmacoherent
+#define pgprot_dmacoherent(prot)	pgprot_noncached(prot)
 #endif
+
+pgprot_t dma_pgprot(struct device *dev, pgprot_t prot, unsigned long attrs);
+#else
+static inline pgprot_t dma_pgprot(struct device *dev, pgprot_t prot,
+		unsigned long attrs)
+{
+	return prot;	/* no protection bits supported without page tables */
+}
+#endif /* CONFIG_MMU */
 
 #ifdef CONFIG_DMA_NONCOHERENT_CACHE_SYNC
 void arch_dma_cache_sync(struct device *dev, void *vaddr, size_t size,

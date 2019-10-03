@@ -74,7 +74,7 @@ static int find_free_bat(void)
 {
 	int b;
 
-	if (cpu_has_feature(CPU_FTR_601)) {
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601)) {
 		for (b = 0; b < 4; b++) {
 			struct ppc_bat *bat = BATS[b];
 
@@ -106,7 +106,7 @@ static int find_free_bat(void)
  */
 static unsigned int block_size(unsigned long base, unsigned long top)
 {
-	unsigned int max_size = (cpu_has_feature(CPU_FTR_601) ? 8 : 256) << 20;
+	unsigned int max_size = IS_ENABLED(CONFIG_PPC_BOOK3S_601) ? SZ_8M : SZ_256M;
 	unsigned int base_shift = (ffs(base) - 1) & 31;
 	unsigned int block_shift = (fls(top - base) - 1) & 31;
 
@@ -189,7 +189,7 @@ void mmu_mark_initmem_nx(void)
 	unsigned long top = (unsigned long)_etext - PAGE_OFFSET;
 	unsigned long size;
 
-	if (cpu_has_feature(CPU_FTR_601))
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601))
 		return;
 
 	for (i = 0; i < nb - 1 && base < top && top - base > (128 << 10);) {
@@ -227,7 +227,7 @@ void mmu_mark_rodata_ro(void)
 	int nb = mmu_has_feature(MMU_FTR_USE_HIGH_BATS) ? 8 : 4;
 	int i;
 
-	if (cpu_has_feature(CPU_FTR_601))
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601))
 		return;
 
 	for (i = 0; i < nb; i++) {
@@ -259,7 +259,7 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 		flags &= ~_PAGE_COHERENT;
 
 	bl = (size >> 17) - 1;
-	if (PVR_VER(mfspr(SPRN_PVR)) != 1) {
+	if (!IS_ENABLED(CONFIG_PPC_BOOK3S_601)) {
 		/* 603, 604, etc. */
 		/* Do DBAT first */
 		wimgxpp = flags & (_PAGE_WRITETHRU | _PAGE_NO_CACHE
@@ -297,8 +297,7 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 /*
  * Preload a translation in the hash table
  */
-void hash_preload(struct mm_struct *mm, unsigned long ea,
-		  bool is_exec, unsigned long trap)
+void hash_preload(struct mm_struct *mm, unsigned long ea)
 {
 	pmd_t *pmd;
 
@@ -307,6 +306,39 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	pmd = pmd_offset(pud_offset(pgd_offset(mm, ea), ea), ea);
 	if (!pmd_none(*pmd))
 		add_hash_page(mm->context.id, ea, pmd_val(*pmd));
+}
+
+/*
+ * This is called at the end of handling a user page fault, when the
+ * fault has been handled by updating a PTE in the linux page tables.
+ * We use it to preload an HPTE into the hash table corresponding to
+ * the updated linux PTE.
+ *
+ * This must always be called with the pte lock held.
+ */
+void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
+		      pte_t *ptep)
+{
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		return;
+	/*
+	 * We don't need to worry about _PAGE_PRESENT here because we are
+	 * called with either mm->page_table_lock held or ptl lock held
+	 */
+
+	/* We only want HPTEs for linux PTEs that have _PAGE_ACCESSED set */
+	if (!pte_young(*ptep) || address >= TASK_SIZE)
+		return;
+
+	/* We have to test for regs NULL since init will get here first thing at boot */
+	if (!current->thread.regs)
+		return;
+
+	/* We also avoid filling the hash if not coming from a fault */
+	if (TRAP(current->thread.regs) != 0x300 && TRAP(current->thread.regs) != 0x400)
+		return;
+
+	hash_preload(vma->vm_mm, address);
 }
 
 /*
@@ -358,6 +390,15 @@ void __init MMU_init_hw(void)
 	hash_mb2 = hash_mb = 32 - LG_HPTEG_SIZE - lg_n_hpteg;
 	if (lg_n_hpteg > 16)
 		hash_mb2 = 16 - LG_HPTEG_SIZE;
+
+	/*
+	 * When KASAN is selected, there is already an early temporary hash
+	 * table and the switch to the final hash table is done later.
+	 */
+	if (IS_ENABLED(CONFIG_KASAN))
+		return;
+
+	MMU_init_hw_patch();
 }
 
 void __init MMU_init_hw_patch(void)
@@ -400,7 +441,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	BUG_ON(first_memblock_base != 0);
 
 	/* 601 can only access 16MB at the moment */
-	if (PVR_VER(mfspr(SPRN_PVR)) == 1)
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601))
 		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x01000000));
 	else /* Anything else has 256M mapped */
 		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x10000000));
@@ -417,9 +458,6 @@ void __init print_system_hash_info(void)
 void __init setup_kuep(bool disabled)
 {
 	pr_info("Activating Kernel Userspace Execution Prevention\n");
-
-	if (cpu_has_feature(CPU_FTR_601))
-		pr_warn("KUEP is not working on powerpc 601 (No NX bit in Seg Regs)\n");
 
 	if (disabled)
 		pr_warn("KUEP cannot be disabled yet on 6xx when compiled in\n");

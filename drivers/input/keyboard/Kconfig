@@ -76,6 +76,8 @@ config KEYBOARD_APPLESPI
 	depends on ACPI && EFI
 	depends on SPI
 	depends on X86 || COMPILE_TEST
+	depends on LEDS_CLASS
+	select CRC16
 	help
 	  Say Y here if you are running Linux on any Apple MacBook8,1 or later,
 	  or any MacBookPro13,* or MacBookPro14,*.
@@ -731,21 +733,10 @@ config KEYBOARD_XTKBD
 	  To compile this driver as a module, choose M here: the
 	  module will be called xtkbd.
 
-config KEYBOARD_W90P910
-	tristate "W90P910 Matrix Keypad support"
-	depends on ARCH_W90X900
-	select INPUT_MATRIXKMAP
-	help
-	  Say Y here to enable the matrix keypad on evaluation board
-	  based on W90P910.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called w90p910_keypad.
-
 config KEYBOARD_CROS_EC
 	tristate "ChromeOS EC keyboard"
 	select INPUT_MATRIXKMAP
-	depends on MFD_CROS_EC
+	depends on CROS_EC
 	help
 	  Say Y here to enable the matrix keyboard used by ChromeOS devices
 	  and implemented on the ChromeOS EC. You must enable one bus option

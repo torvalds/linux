@@ -595,11 +595,8 @@ check_s_state:
 		case IB_WR_SEND_WITH_IMM:
 		case IB_WR_SEND_WITH_INV:
 			/* If no credit, return. */
-			if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT) &&
-			    rvt_cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
-				qp->s_flags |= RVT_S_WAIT_SSN_CREDIT;
+			if (!rvt_rc_credit_avail(qp, wqe))
 				goto bail;
-			}
 			if (len > pmtu) {
 				qp->s_state = OP(SEND_FIRST);
 				len = pmtu;
@@ -632,11 +629,8 @@ check_s_state:
 			goto no_flow_control;
 		case IB_WR_RDMA_WRITE_WITH_IMM:
 			/* If no credit, return. */
-			if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT) &&
-			    rvt_cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
-				qp->s_flags |= RVT_S_WAIT_SSN_CREDIT;
+			if (!rvt_rc_credit_avail(qp, wqe))
 				goto bail;
-			}
 no_flow_control:
 			put_ib_reth_vaddr(
 				wqe->rdma_wr.remote_addr,
@@ -1483,6 +1477,11 @@ static void update_num_rd_atomic(struct rvt_qp *qp, u32 psn,
 			req->ack_pending = cur_seg - req->comp_seg;
 			priv->pending_tid_r_segs += req->ack_pending;
 			qp->s_num_rd_atomic += req->ack_pending;
+			trace_hfi1_tid_req_update_num_rd_atomic(qp, 0,
+								wqe->wr.opcode,
+								wqe->psn,
+								wqe->lpsn,
+								req);
 		} else {
 			priv->pending_tid_r_segs += req->total_segs;
 			qp->s_num_rd_atomic += req->total_segs;
@@ -1835,7 +1834,6 @@ void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_opa_header *opah)
 		    cmp_psn(qp->s_sending_psn, qp->s_sending_hpsn) <= 0)
 			break;
 		trdma_clean_swqe(qp, wqe);
-		rvt_qp_wqe_unreserve(qp, wqe);
 		trace_hfi1_qp_send_completion(qp, wqe, qp->s_last);
 		rvt_qp_complete_swqe(qp,
 				     wqe,
@@ -1882,7 +1880,6 @@ struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 	if (cmp_psn(wqe->lpsn, qp->s_sending_psn) < 0 ||
 	    cmp_psn(qp->s_sending_psn, qp->s_sending_hpsn) > 0) {
 		trdma_clean_swqe(qp, wqe);
-		rvt_qp_wqe_unreserve(qp, wqe);
 		trace_hfi1_qp_send_completion(qp, wqe, qp->s_last);
 		rvt_qp_complete_swqe(qp,
 				     wqe,

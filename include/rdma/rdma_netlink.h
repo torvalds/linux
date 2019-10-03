@@ -76,28 +76,32 @@ int ibnl_put_attr(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 /**
  * Send the supplied skb to a specific userspace PID.
+ * @net: Net namespace in which to send the skb
  * @skb: The netlink skb
  * @pid: Userspace netlink process ID
  * Returns 0 on success or a negative error code.
  */
-int rdma_nl_unicast(struct sk_buff *skb, u32 pid);
+int rdma_nl_unicast(struct net *net, struct sk_buff *skb, u32 pid);
 
 /**
  * Send, with wait/1 retry, the supplied skb to a specific userspace PID.
+ * @net: Net namespace in which to send the skb
  * @skb: The netlink skb
  * @pid: Userspace netlink process ID
  * Returns 0 on success or a negative error code.
  */
-int rdma_nl_unicast_wait(struct sk_buff *skb, __u32 pid);
+int rdma_nl_unicast_wait(struct net *net, struct sk_buff *skb, __u32 pid);
 
 /**
  * Send the supplied skb to a netlink group.
+ * @net: Net namespace in which to send the skb
  * @skb: The netlink skb
  * @group: Netlink group ID
  * @flags: allocation flags
  * Returns 0 on success or a negative error code.
  */
-int rdma_nl_multicast(struct sk_buff *skb, unsigned int group, gfp_t flags);
+int rdma_nl_multicast(struct net *net, struct sk_buff *skb,
+		      unsigned int group, gfp_t flags);
 
 /**
  * Check if there are any listeners to the netlink group

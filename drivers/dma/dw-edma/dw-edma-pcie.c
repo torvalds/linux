@@ -130,19 +130,19 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 	chip->id = pdev->devfn;
 	chip->irq = pdev->irq;
 
-	dw->rg_region.vaddr = (dma_addr_t)pcim_iomap_table(pdev)[pdata->rg_bar];
+	dw->rg_region.vaddr = pcim_iomap_table(pdev)[pdata->rg_bar];
 	dw->rg_region.vaddr += pdata->rg_off;
 	dw->rg_region.paddr = pdev->resource[pdata->rg_bar].start;
 	dw->rg_region.paddr += pdata->rg_off;
 	dw->rg_region.sz = pdata->rg_sz;
 
-	dw->ll_region.vaddr = (dma_addr_t)pcim_iomap_table(pdev)[pdata->ll_bar];
+	dw->ll_region.vaddr = pcim_iomap_table(pdev)[pdata->ll_bar];
 	dw->ll_region.vaddr += pdata->ll_off;
 	dw->ll_region.paddr = pdev->resource[pdata->ll_bar].start;
 	dw->ll_region.paddr += pdata->ll_off;
 	dw->ll_region.sz = pdata->ll_sz;
 
-	dw->dt_region.vaddr = (dma_addr_t)pcim_iomap_table(pdev)[pdata->dt_bar];
+	dw->dt_region.vaddr = pcim_iomap_table(pdev)[pdata->dt_bar];
 	dw->dt_region.vaddr += pdata->dt_off;
 	dw->dt_region.paddr = pdev->resource[pdata->dt_bar].start;
 	dw->dt_region.paddr += pdata->dt_off;
@@ -158,17 +158,17 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 	pci_dbg(pdev, "Mode:\t%s\n",
 		dw->mode == EDMA_MODE_LEGACY ? "Legacy" : "Unroll");
 
-	pci_dbg(pdev, "Registers:\tBAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%pa, p=%pa)\n",
+	pci_dbg(pdev, "Registers:\tBAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%p, p=%pa)\n",
 		pdata->rg_bar, pdata->rg_off, pdata->rg_sz,
-		&dw->rg_region.vaddr, &dw->rg_region.paddr);
+		dw->rg_region.vaddr, &dw->rg_region.paddr);
 
-	pci_dbg(pdev, "L. List:\tBAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%pa, p=%pa)\n",
+	pci_dbg(pdev, "L. List:\tBAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%p, p=%pa)\n",
 		pdata->ll_bar, pdata->ll_off, pdata->ll_sz,
-		&dw->ll_region.vaddr, &dw->ll_region.paddr);
+		dw->ll_region.vaddr, &dw->ll_region.paddr);
 
-	pci_dbg(pdev, "Data:\tBAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%pa, p=%pa)\n",
+	pci_dbg(pdev, "Data:\tBAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%p, p=%pa)\n",
 		pdata->dt_bar, pdata->dt_off, pdata->dt_sz,
-		&dw->dt_region.vaddr, &dw->dt_region.paddr);
+		dw->dt_region.vaddr, &dw->dt_region.paddr);
 
 	pci_dbg(pdev, "Nr. IRQs:\t%u\n", dw->nr_irqs);
 

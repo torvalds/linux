@@ -138,8 +138,8 @@ gve_get_ethtool_stats(struct net_device *netdev,
 		for (ring = 0; ring < priv->rx_cfg.num_queues; ring++) {
 			struct gve_rx_ring *rx = &priv->rx[ring];
 
-			data[i++] = rx->desc.cnt;
-			data[i++] = rx->desc.fill_cnt;
+			data[i++] = rx->cnt;
+			data[i++] = rx->fill_cnt;
 		}
 	} else {
 		i += priv->rx_cfg.num_queues * NUM_GVE_RX_CNTS;

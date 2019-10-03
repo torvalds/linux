@@ -14,6 +14,7 @@
 #include <crypto/b128ops.h>
 #include <crypto/gf128mul.h>
 #include <crypto/internal/skcipher.h>
+#include <crypto/scatterwalk.h>
 #include <crypto/xts.h>
 #include <asm/crypto/glue_helper.h>
 
@@ -259,17 +260,36 @@ done:
 int glue_xts_req_128bit(const struct common_glue_ctx *gctx,
 			struct skcipher_request *req,
 			common_glue_func_t tweak_fn, void *tweak_ctx,
-			void *crypt_ctx)
+			void *crypt_ctx, bool decrypt)
 {
+	const bool cts = (req->cryptlen % XTS_BLOCK_SIZE);
 	const unsigned int bsize = 128 / 8;
+	struct skcipher_request subreq;
 	struct skcipher_walk walk;
 	bool fpu_enabled = false;
-	unsigned int nbytes;
+	unsigned int nbytes, tail;
 	int err;
+
+	if (req->cryptlen < XTS_BLOCK_SIZE)
+		return -EINVAL;
+
+	if (unlikely(cts)) {
+		struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+
+		tail = req->cryptlen % XTS_BLOCK_SIZE + XTS_BLOCK_SIZE;
+
+		skcipher_request_set_tfm(&subreq, tfm);
+		skcipher_request_set_callback(&subreq,
+					      crypto_skcipher_get_flags(tfm),
+					      NULL, NULL);
+		skcipher_request_set_crypt(&subreq, req->src, req->dst,
+					   req->cryptlen - tail, req->iv);
+		req = &subreq;
+	}
 
 	err = skcipher_walk_virt(&walk, req, false);
 	nbytes = walk.nbytes;
-	if (!nbytes)
+	if (err)
 		return err;
 
 	/* set minimum length to bsize, for tweak_fn */
@@ -287,6 +307,47 @@ int glue_xts_req_128bit(const struct common_glue_ctx *gctx,
 		nbytes = walk.nbytes;
 	}
 
+	if (unlikely(cts)) {
+		u8 *next_tweak, *final_tweak = req->iv;
+		struct scatterlist *src, *dst;
+		struct scatterlist s[2], d[2];
+		le128 b[2];
+
+		dst = src = scatterwalk_ffwd(s, req->src, req->cryptlen);
+		if (req->dst != req->src)
+			dst = scatterwalk_ffwd(d, req->dst, req->cryptlen);
+
+		if (decrypt) {
+			next_tweak = memcpy(b, req->iv, XTS_BLOCK_SIZE);
+			gf128mul_x_ble(b, b);
+		} else {
+			next_tweak = req->iv;
+		}
+
+		skcipher_request_set_crypt(&subreq, src, dst, XTS_BLOCK_SIZE,
+					   next_tweak);
+
+		err = skcipher_walk_virt(&walk, req, false) ?:
+		      skcipher_walk_done(&walk,
+				__glue_xts_req_128bit(gctx, crypt_ctx, &walk));
+		if (err)
+			goto out;
+
+		scatterwalk_map_and_copy(b, dst, 0, XTS_BLOCK_SIZE, 0);
+		memcpy(b + 1, b, tail - XTS_BLOCK_SIZE);
+		scatterwalk_map_and_copy(b, src, XTS_BLOCK_SIZE,
+					 tail - XTS_BLOCK_SIZE, 0);
+		scatterwalk_map_and_copy(b, dst, 0, tail, 1);
+
+		skcipher_request_set_crypt(&subreq, dst, dst, XTS_BLOCK_SIZE,
+					   final_tweak);
+
+		err = skcipher_walk_virt(&walk, req, false) ?:
+		      skcipher_walk_done(&walk,
+				__glue_xts_req_128bit(gctx, crypt_ctx, &walk));
+	}
+
+out:
 	glue_fpu_end(fpu_enabled);
 
 	return err;

@@ -17,8 +17,6 @@ void srmmu_free_nocache(void *addr, int size);
 
 extern struct resource sparc_iomap;
 
-#define check_pgt_cache()	do { } while (0)
-
 pgd_t *get_pgd_fast(void);
 static inline void free_pgd_fast(pgd_t *pgd)
 {

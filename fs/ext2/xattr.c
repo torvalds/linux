@@ -794,7 +794,7 @@ ext2_xattr_delete_inode(struct inode *inode)
 	if (!EXT2_I(inode)->i_file_acl)
 		goto cleanup;
 
-	if (!ext2_data_block_valid(sbi, EXT2_I(inode)->i_file_acl, 0)) {
+	if (!ext2_data_block_valid(sbi, EXT2_I(inode)->i_file_acl, 1)) {
 		ext2_error(inode->i_sb, "ext2_xattr_delete_inode",
 			"inode %ld: xattr block %d is out of data blocks range",
 			inode->i_ino, EXT2_I(inode)->i_file_acl);

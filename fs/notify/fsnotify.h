@@ -54,8 +54,6 @@ static inline void fsnotify_clear_marks_by_sb(struct super_block *sb)
 {
 	fsnotify_destroy_marks(&sb->s_fsnotify_marks);
 }
-/* Wait until all marks queued for destruction are destroyed */
-extern void fsnotify_wait_marks_destroyed(void);
 
 /*
  * update the dentry->d_flags of all of inode's children to indicate if inode cares

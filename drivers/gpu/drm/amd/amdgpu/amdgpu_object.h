@@ -264,6 +264,7 @@ int amdgpu_bo_get_metadata(struct amdgpu_bo *bo, void *buffer,
 void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 			   bool evict,
 			   struct ttm_mem_reg *new_mem);
+void amdgpu_bo_release_notify(struct ttm_buffer_object *bo);
 int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
 void amdgpu_bo_fence(struct amdgpu_bo *bo, struct dma_fence *fence,
 		     bool shared);
@@ -306,6 +307,8 @@ void amdgpu_sa_bo_free(struct amdgpu_device *adev,
 void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 					 struct seq_file *m);
 #endif
+
+bool amdgpu_bo_support_uswc(u64 bo_flags);
 
 
 #endif

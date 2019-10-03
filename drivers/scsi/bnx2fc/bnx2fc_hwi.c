@@ -633,7 +633,6 @@ static void bnx2fc_process_unsol_compl(struct bnx2fc_rport *tgt, u16 wqe)
 	u16 xid;
 	u32 frame_len, len;
 	struct bnx2fc_cmd *io_req = NULL;
-	struct fcoe_task_ctx_entry *task, *task_page;
 	struct bnx2fc_interface *interface = tgt->port->priv;
 	struct bnx2fc_hba *hba = interface->hba;
 	int task_idx, index;
@@ -711,9 +710,6 @@ static void bnx2fc_process_unsol_compl(struct bnx2fc_rport *tgt, u16 wqe)
 
 		task_idx = xid / BNX2FC_TASKS_PER_PAGE;
 		index = xid % BNX2FC_TASKS_PER_PAGE;
-		task_page = (struct fcoe_task_ctx_entry *)
-					hba->task_ctx[task_idx];
-		task = &(task_page[index]);
 
 		io_req = (struct bnx2fc_cmd *)hba->cmd_mgr->cmds[xid];
 		if (!io_req)
@@ -839,9 +835,6 @@ ret_err_rqe:
 
 		task_idx = xid / BNX2FC_TASKS_PER_PAGE;
 		index = xid % BNX2FC_TASKS_PER_PAGE;
-		task_page = (struct fcoe_task_ctx_entry *)
-			     interface->hba->task_ctx[task_idx];
-		task = &(task_page[index]);
 		io_req = (struct bnx2fc_cmd *)hba->cmd_mgr->cmds[xid];
 		if (!io_req)
 			goto ret_warn_rqe;
@@ -1122,7 +1115,6 @@ static void bnx2fc_process_ofld_cmpl(struct bnx2fc_hba *hba,
 					struct fcoe_kcqe *ofld_kcqe)
 {
 	struct bnx2fc_rport		*tgt;
-	struct fcoe_port		*port;
 	struct bnx2fc_interface		*interface;
 	u32				conn_id;
 	u32				context_id;
@@ -1136,7 +1128,6 @@ static void bnx2fc_process_ofld_cmpl(struct bnx2fc_hba *hba,
 	}
 	BNX2FC_TGT_DBG(tgt, "Entered ofld compl - context_id = 0x%x\n",
 		ofld_kcqe->fcoe_conn_context_id);
-	port = tgt->port;
 	interface = tgt->port->priv;
 	if (hba != interface->hba) {
 		printk(KERN_ERR PFX "ERROR:ofld_cmpl: HBA mis-match\n");
@@ -1463,10 +1454,7 @@ void bnx2fc_init_seq_cleanup_task(struct bnx2fc_cmd *seq_clnp_req,
 {
 	struct scsi_cmnd *sc_cmd = orig_io_req->sc_cmd;
 	struct bnx2fc_rport *tgt = seq_clnp_req->tgt;
-	struct bnx2fc_interface *interface = tgt->port->priv;
 	struct fcoe_bd_ctx *bd = orig_io_req->bd_tbl->bd_tbl;
-	struct fcoe_task_ctx_entry *orig_task;
-	struct fcoe_task_ctx_entry *task_page;
 	struct fcoe_ext_mul_sges_ctx *sgl;
 	u8 task_type = FCOE_TASK_TYPE_SEQUENCE_CLEANUP;
 	u8 orig_task_type;
@@ -1527,10 +1515,6 @@ void bnx2fc_init_seq_cleanup_task(struct bnx2fc_cmd *seq_clnp_req,
 	} else {
 		orig_task_idx = orig_xid / BNX2FC_TASKS_PER_PAGE;
 		index = orig_xid % BNX2FC_TASKS_PER_PAGE;
-
-		task_page = (struct fcoe_task_ctx_entry *)
-			     interface->hba->task_ctx[orig_task_idx];
-		orig_task = &(task_page[index]);
 
 		/* Multiple SGEs were used for this IO */
 		sgl = &task->rxwr_only.union_ctx.read_info.sgl_ctx.sgl;

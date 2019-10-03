@@ -246,7 +246,7 @@ struct orangefs_read_options {
 extern struct orangefs_stats orangefs_stats;
 
 /*
- * NOTE: See Documentation/filesystems/porting for information
+ * NOTE: See Documentation/filesystems/porting.rst for information
  * on implementing FOO_I and properly accessing fs private data
  */
 static inline struct orangefs_inode_s *ORANGEFS_I(struct inode *inode)

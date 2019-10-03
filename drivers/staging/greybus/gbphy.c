@@ -13,8 +13,8 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/greybus.h>
 
-#include "greybus.h"
 #include "gbphy.h"
 
 #define GB_GBPHY_AUTOSUSPEND_MS	3000

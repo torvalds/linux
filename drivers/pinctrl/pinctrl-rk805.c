@@ -197,7 +197,7 @@ static int rk805_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 	return !(val & pci->pin_cfg[offset].dir_msk);
 }
 
-static struct gpio_chip rk805_gpio_chip = {
+static const struct gpio_chip rk805_gpio_chip = {
 	.label			= "rk805-gpio",
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,
@@ -404,7 +404,7 @@ static const struct pinconf_ops rk805_pinconf_ops = {
 	.pin_config_set = rk805_pinconf_set,
 };
 
-static struct pinctrl_desc rk805_pinctrl_desc = {
+static const struct pinctrl_desc rk805_pinctrl_desc = {
 	.name = "rk805-pinctrl",
 	.pctlops = &rk805_pinctrl_ops,
 	.pmxops = &rk805_pinmux_ops,

@@ -381,9 +381,7 @@ int __init nvmet_init_discovery(void)
 {
 	nvmet_disc_subsys =
 		nvmet_subsys_alloc(NVME_DISC_SUBSYS_NAME, NVME_NQN_DISC);
-	if (IS_ERR(nvmet_disc_subsys))
-		return PTR_ERR(nvmet_disc_subsys);
-	return 0;
+	return PTR_ERR_OR_ZERO(nvmet_disc_subsys);
 }
 
 void nvmet_exit_discovery(void)

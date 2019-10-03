@@ -139,7 +139,7 @@ int detect_common_prefix(const char *arg, ...)
 	strncat(msg, "'", sizeof(msg) - strlen(msg) - 1);
 
 	if (count >= 2) {
-		p_err(msg);
+		p_err("%s", msg);
 		return -1;
 	}
 

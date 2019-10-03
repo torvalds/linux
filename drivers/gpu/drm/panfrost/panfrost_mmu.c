@@ -80,19 +80,11 @@ static void lock_region(struct panfrost_device *pfdev, u32 as_nr,
 }
 
 
-static int mmu_hw_do_operation(struct panfrost_device *pfdev,
-			       struct panfrost_mmu *mmu,
-			       u64 iova, size_t size, u32 op)
+static int mmu_hw_do_operation_locked(struct panfrost_device *pfdev, int as_nr,
+				      u64 iova, size_t size, u32 op)
 {
-	int ret, as_nr;
-
-	spin_lock(&pfdev->as_lock);
-	as_nr = mmu->as;
-
-	if (as_nr < 0) {
-		spin_unlock(&pfdev->as_lock);
+	if (as_nr < 0)
 		return 0;
-	}
 
 	if (op != AS_COMMAND_UNLOCK)
 		lock_region(pfdev, as_nr, iova, size);
@@ -101,10 +93,18 @@ static int mmu_hw_do_operation(struct panfrost_device *pfdev,
 	write_cmd(pfdev, as_nr, op);
 
 	/* Wait for the flush to complete */
-	ret = wait_ready(pfdev, as_nr);
+	return wait_ready(pfdev, as_nr);
+}
 
+static int mmu_hw_do_operation(struct panfrost_device *pfdev,
+			       struct panfrost_mmu *mmu,
+			       u64 iova, size_t size, u32 op)
+{
+	int ret;
+
+	spin_lock(&pfdev->as_lock);
+	ret = mmu_hw_do_operation_locked(pfdev, mmu->as, iova, size, op);
 	spin_unlock(&pfdev->as_lock);
-
 	return ret;
 }
 
@@ -114,6 +114,8 @@ static void panfrost_mmu_enable(struct panfrost_device *pfdev, struct panfrost_m
 	struct io_pgtable_cfg *cfg = &mmu->pgtbl_cfg;
 	u64 transtab = cfg->arm_mali_lpae_cfg.transtab;
 	u64 memattr = cfg->arm_mali_lpae_cfg.memattr;
+
+	mmu_hw_do_operation_locked(pfdev, as_nr, 0, ~0UL, AS_COMMAND_FLUSH_MEM);
 
 	mmu_write(pfdev, AS_TRANSTAB_LO(as_nr), transtab & 0xffffffffUL);
 	mmu_write(pfdev, AS_TRANSTAB_HI(as_nr), transtab >> 32);
@@ -127,8 +129,10 @@ static void panfrost_mmu_enable(struct panfrost_device *pfdev, struct panfrost_m
 	write_cmd(pfdev, as_nr, AS_COMMAND_UPDATE);
 }
 
-static void mmu_disable(struct panfrost_device *pfdev, u32 as_nr)
+static void panfrost_mmu_disable(struct panfrost_device *pfdev, u32 as_nr)
 {
+	mmu_hw_do_operation_locked(pfdev, as_nr, 0, ~0UL, AS_COMMAND_FLUSH_MEM);
+
 	mmu_write(pfdev, AS_TRANSTAB_LO(as_nr), 0);
 	mmu_write(pfdev, AS_TRANSTAB_HI(as_nr), 0);
 
@@ -220,6 +224,22 @@ static size_t get_pgsize(u64 addr, size_t size)
 	return SZ_2M;
 }
 
+void panfrost_mmu_flush_range(struct panfrost_device *pfdev,
+			      struct panfrost_mmu *mmu,
+			      u64 iova, size_t size)
+{
+	if (mmu->as < 0)
+		return;
+
+	pm_runtime_get_noresume(pfdev->dev);
+
+	/* Flush the PTs only if we're already awake */
+	if (pm_runtime_active(pfdev->dev))
+		mmu_hw_do_operation(pfdev, mmu, iova, size, AS_COMMAND_FLUSH_PT);
+
+	pm_runtime_put_sync_autosuspend(pfdev->dev);
+}
+
 static int mmu_map_sg(struct panfrost_device *pfdev, struct panfrost_mmu *mmu,
 		      u64 iova, int prot, struct sg_table *sgt)
 {
@@ -227,8 +247,6 @@ static int mmu_map_sg(struct panfrost_device *pfdev, struct panfrost_mmu *mmu,
 	struct scatterlist *sgl;
 	struct io_pgtable_ops *ops = mmu->pgtbl_ops;
 	u64 start_iova = iova;
-
-	mutex_lock(&mmu->lock);
 
 	for_each_sg(sgt->sgl, sgl, sgt->nents, count) {
 		unsigned long paddr = sg_dma_address(sgl);
@@ -246,10 +264,7 @@ static int mmu_map_sg(struct panfrost_device *pfdev, struct panfrost_mmu *mmu,
 		}
 	}
 
-	mmu_hw_do_operation(pfdev, mmu, start_iova, iova - start_iova,
-			    AS_COMMAND_FLUSH_PT);
-
-	mutex_unlock(&mmu->lock);
+	panfrost_mmu_flush_range(pfdev, mmu, start_iova, iova - start_iova);
 
 	return 0;
 }
@@ -259,7 +274,6 @@ int panfrost_mmu_map(struct panfrost_gem_object *bo)
 	struct drm_gem_object *obj = &bo->base.base;
 	struct panfrost_device *pfdev = to_panfrost_device(obj->dev);
 	struct sg_table *sgt;
-	int ret;
 	int prot = IOMMU_READ | IOMMU_WRITE;
 
 	if (WARN_ON(bo->is_mapped))
@@ -272,14 +286,7 @@ int panfrost_mmu_map(struct panfrost_gem_object *bo)
 	if (WARN_ON(IS_ERR(sgt)))
 		return PTR_ERR(sgt);
 
-	ret = pm_runtime_get_sync(pfdev->dev);
-	if (ret < 0)
-		return ret;
-
 	mmu_map_sg(pfdev, bo->mmu, bo->node.start << PAGE_SHIFT, prot, sgt);
-
-	pm_runtime_mark_last_busy(pfdev->dev);
-	pm_runtime_put_autosuspend(pfdev->dev);
 	bo->is_mapped = true;
 
 	return 0;
@@ -293,50 +300,29 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 	u64 iova = bo->node.start << PAGE_SHIFT;
 	size_t len = bo->node.size << PAGE_SHIFT;
 	size_t unmapped_len = 0;
-	int ret;
 
 	if (WARN_ON(!bo->is_mapped))
 		return;
 
 	dev_dbg(pfdev->dev, "unmap: as=%d, iova=%llx, len=%zx", bo->mmu->as, iova, len);
 
-	ret = pm_runtime_get_sync(pfdev->dev);
-	if (ret < 0)
-		return;
-
-	mutex_lock(&bo->mmu->lock);
-
 	while (unmapped_len < len) {
 		size_t unmapped_page;
 		size_t pgsize = get_pgsize(iova, len - unmapped_len);
 
 		if (ops->iova_to_phys(ops, iova)) {
-			unmapped_page = ops->unmap(ops, iova, pgsize);
+			unmapped_page = ops->unmap(ops, iova, pgsize, NULL);
 			WARN_ON(unmapped_page != pgsize);
 		}
 		iova += pgsize;
 		unmapped_len += pgsize;
 	}
 
-	mmu_hw_do_operation(pfdev, bo->mmu, bo->node.start << PAGE_SHIFT,
-			    bo->node.size << PAGE_SHIFT, AS_COMMAND_FLUSH_PT);
-
-	mutex_unlock(&bo->mmu->lock);
-
-	pm_runtime_mark_last_busy(pfdev->dev);
-	pm_runtime_put_autosuspend(pfdev->dev);
+	panfrost_mmu_flush_range(pfdev, bo->mmu, bo->node.start << PAGE_SHIFT, len);
 	bo->is_mapped = false;
 }
 
 static void mmu_tlb_inv_context_s1(void *cookie)
-{
-	struct panfrost_file_priv *priv = cookie;
-
-	mmu_hw_do_operation(priv->pfdev, &priv->mmu, 0, ~0UL, AS_COMMAND_FLUSH_MEM);
-}
-
-static void mmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
-				     size_t granule, bool leaf, void *cookie)
 {}
 
 static void mmu_tlb_sync_context(void *cookie)
@@ -345,10 +331,22 @@ static void mmu_tlb_sync_context(void *cookie)
 	// TODO: Wait 1000 GPU cycles for HW_ISSUE_6367/T60X
 }
 
-static const struct iommu_gather_ops mmu_tlb_ops = {
+static void mmu_tlb_flush_walk(unsigned long iova, size_t size, size_t granule,
+			       void *cookie)
+{
+	mmu_tlb_sync_context(cookie);
+}
+
+static void mmu_tlb_flush_leaf(unsigned long iova, size_t size, size_t granule,
+			       void *cookie)
+{
+	mmu_tlb_sync_context(cookie);
+}
+
+static const struct iommu_flush_ops mmu_tlb_ops = {
 	.tlb_flush_all	= mmu_tlb_inv_context_s1,
-	.tlb_add_flush	= mmu_tlb_inv_range_nosync,
-	.tlb_sync	= mmu_tlb_sync_context,
+	.tlb_flush_walk = mmu_tlb_flush_walk,
+	.tlb_flush_leaf = mmu_tlb_flush_leaf,
 };
 
 int panfrost_mmu_pgtable_alloc(struct panfrost_file_priv *priv)
@@ -356,7 +354,6 @@ int panfrost_mmu_pgtable_alloc(struct panfrost_file_priv *priv)
 	struct panfrost_mmu *mmu = &priv->mmu;
 	struct panfrost_device *pfdev = priv->pfdev;
 
-	mutex_init(&mmu->lock);
 	INIT_LIST_HEAD(&mmu->list);
 	mmu->as = -1;
 
@@ -383,6 +380,11 @@ void panfrost_mmu_pgtable_free(struct panfrost_file_priv *priv)
 
 	spin_lock(&pfdev->as_lock);
 	if (mmu->as >= 0) {
+		pm_runtime_get_noresume(pfdev->dev);
+		if (pm_runtime_active(pfdev->dev))
+			panfrost_mmu_disable(pfdev, mmu->as);
+		pm_runtime_put_autosuspend(pfdev->dev);
+
 		clear_bit(mmu->as, &pfdev->as_alloc_mask);
 		clear_bit(mmu->as, &pfdev->as_in_use_mask);
 		list_del(&mmu->list);
@@ -392,28 +394,40 @@ void panfrost_mmu_pgtable_free(struct panfrost_file_priv *priv)
 	free_io_pgtable_ops(mmu->pgtbl_ops);
 }
 
-static struct drm_mm_node *addr_to_drm_mm_node(struct panfrost_device *pfdev, int as, u64 addr)
+static struct panfrost_gem_object *
+addr_to_drm_mm_node(struct panfrost_device *pfdev, int as, u64 addr)
 {
-	struct drm_mm_node *node = NULL;
+	struct panfrost_gem_object *bo = NULL;
+	struct panfrost_file_priv *priv;
+	struct drm_mm_node *node;
 	u64 offset = addr >> PAGE_SHIFT;
 	struct panfrost_mmu *mmu;
 
 	spin_lock(&pfdev->as_lock);
 	list_for_each_entry(mmu, &pfdev->as_lru_list, list) {
-		struct panfrost_file_priv *priv;
-		if (as != mmu->as)
-			continue;
+		if (as == mmu->as)
+			break;
+	}
+	if (as != mmu->as)
+		goto out;
 
-		priv = container_of(mmu, struct panfrost_file_priv, mmu);
-		drm_mm_for_each_node(node, &priv->mm) {
-			if (offset >= node->start && offset < (node->start + node->size))
-				goto out;
+	priv = container_of(mmu, struct panfrost_file_priv, mmu);
+
+	spin_lock(&priv->mm_lock);
+
+	drm_mm_for_each_node(node, &priv->mm) {
+		if (offset >= node->start &&
+		    offset < (node->start + node->size)) {
+			bo = drm_mm_node_to_panfrost_bo(node);
+			drm_gem_object_get(&bo->base.base);
+			break;
 		}
 	}
 
+	spin_unlock(&priv->mm_lock);
 out:
 	spin_unlock(&pfdev->as_lock);
-	return node;
+	return bo;
 }
 
 #define NUM_FAULT_PAGES (SZ_2M / PAGE_SIZE)
@@ -421,29 +435,28 @@ out:
 int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as, u64 addr)
 {
 	int ret, i;
-	struct drm_mm_node *node;
 	struct panfrost_gem_object *bo;
 	struct address_space *mapping;
 	pgoff_t page_offset;
 	struct sg_table *sgt;
 	struct page **pages;
 
-	node = addr_to_drm_mm_node(pfdev, as, addr);
-	if (!node)
+	bo = addr_to_drm_mm_node(pfdev, as, addr);
+	if (!bo)
 		return -ENOENT;
 
-	bo = drm_mm_node_to_panfrost_bo(node);
 	if (!bo->is_heap) {
 		dev_WARN(pfdev->dev, "matching BO is not heap type (GPU VA = %llx)",
-			 node->start << PAGE_SHIFT);
-		return -EINVAL;
+			 bo->node.start << PAGE_SHIFT);
+		ret = -EINVAL;
+		goto err_bo;
 	}
 	WARN_ON(bo->mmu->as != as);
 
 	/* Assume 2MB alignment and size multiple */
 	addr &= ~((u64)SZ_2M - 1);
 	page_offset = addr >> PAGE_SHIFT;
-	page_offset -= node->start;
+	page_offset -= bo->node.start;
 
 	mutex_lock(&bo->base.pages_lock);
 
@@ -452,7 +465,8 @@ int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as, u64 addr)
 				     sizeof(struct sg_table), GFP_KERNEL | __GFP_ZERO);
 		if (!bo->sgts) {
 			mutex_unlock(&bo->base.pages_lock);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_bo;
 		}
 
 		pages = kvmalloc_array(bo->base.base.size >> PAGE_SHIFT,
@@ -461,7 +475,8 @@ int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as, u64 addr)
 			kfree(bo->sgts);
 			bo->sgts = NULL;
 			mutex_unlock(&bo->base.pages_lock);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_bo;
 		}
 		bo->base.pages = pages;
 		bo->base.pages_use_count = 1;
@@ -499,12 +514,16 @@ int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as, u64 addr)
 
 	dev_dbg(pfdev->dev, "mapped page fault @ AS%d %llx", as, addr);
 
+	drm_gem_object_put_unlocked(&bo->base.base);
+
 	return 0;
 
 err_map:
 	sg_free_table(sgt);
 err_pages:
 	drm_gem_shmem_put_pages(&bo->base);
+err_bo:
+	drm_gem_object_put_unlocked(&bo->base.base);
 	return ret;
 }
 
@@ -627,5 +646,4 @@ int panfrost_mmu_init(struct panfrost_device *pfdev)
 void panfrost_mmu_fini(struct panfrost_device *pfdev)
 {
 	mmu_write(pfdev, MMU_INT_MASK, 0);
-	mmu_disable(pfdev, 0);
 }

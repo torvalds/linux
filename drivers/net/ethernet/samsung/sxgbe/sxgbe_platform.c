@@ -78,7 +78,6 @@ static int sxgbe_platform_probe(struct platform_device *pdev)
 {
 	int ret;
 	int i, chan;
-	struct resource *res;
 	struct device *dev = &pdev->dev;
 	void __iomem *addr;
 	struct sxgbe_priv_data *priv = NULL;
@@ -88,8 +87,7 @@ static int sxgbe_platform_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 
 	/* Get memory resource */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	addr = devm_ioremap_resource(dev, res);
+	addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
 

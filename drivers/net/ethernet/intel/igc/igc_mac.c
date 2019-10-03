@@ -7,9 +7,6 @@
 #include "igc_mac.h"
 #include "igc_hw.h"
 
-/* forward declaration */
-static s32 igc_set_fc_watermarks(struct igc_hw *hw);
-
 /**
  * igc_disable_pcie_master - Disables PCI-express master access
  * @hw: pointer to the HW structure
@@ -72,6 +69,41 @@ void igc_init_rx_addrs(struct igc_hw *hw, u16 rar_count)
 	hw_dbg("Clearing RAR[1-%u]\n", rar_count - 1);
 	for (i = 1; i < rar_count; i++)
 		hw->mac.ops.rar_set(hw, mac_addr, i);
+}
+
+/**
+ * igc_set_fc_watermarks - Set flow control high/low watermarks
+ * @hw: pointer to the HW structure
+ *
+ * Sets the flow control high/low threshold (watermark) registers.  If
+ * flow control XON frame transmission is enabled, then set XON frame
+ * transmission as well.
+ */
+static s32 igc_set_fc_watermarks(struct igc_hw *hw)
+{
+	u32 fcrtl = 0, fcrth = 0;
+
+	/* Set the flow control receive threshold registers.  Normally,
+	 * these registers will be set to a default threshold that may be
+	 * adjusted later by the driver's runtime code.  However, if the
+	 * ability to transmit pause frames is not enabled, then these
+	 * registers will be set to 0.
+	 */
+	if (hw->fc.current_mode & igc_fc_tx_pause) {
+		/* We need to set up the Receive Threshold high and low water
+		 * marks as well as (optionally) enabling the transmission of
+		 * XON frames.
+		 */
+		fcrtl = hw->fc.low_water;
+		if (hw->fc.send_xon)
+			fcrtl |= IGC_FCRTL_XONE;
+
+		fcrth = hw->fc.high_water;
+	}
+	wr32(IGC_FCRTL, fcrtl);
+	wr32(IGC_FCRTH, fcrth);
+
+	return 0;
 }
 
 /**
@@ -192,41 +224,6 @@ s32 igc_force_mac_fc(struct igc_hw *hw)
 
 out:
 	return ret_val;
-}
-
-/**
- * igc_set_fc_watermarks - Set flow control high/low watermarks
- * @hw: pointer to the HW structure
- *
- * Sets the flow control high/low threshold (watermark) registers.  If
- * flow control XON frame transmission is enabled, then set XON frame
- * transmission as well.
- */
-static s32 igc_set_fc_watermarks(struct igc_hw *hw)
-{
-	u32 fcrtl = 0, fcrth = 0;
-
-	/* Set the flow control receive threshold registers.  Normally,
-	 * these registers will be set to a default threshold that may be
-	 * adjusted later by the driver's runtime code.  However, if the
-	 * ability to transmit pause frames is not enabled, then these
-	 * registers will be set to 0.
-	 */
-	if (hw->fc.current_mode & igc_fc_tx_pause) {
-		/* We need to set up the Receive Threshold high and low water
-		 * marks as well as (optionally) enabling the transmission of
-		 * XON frames.
-		 */
-		fcrtl = hw->fc.low_water;
-		if (hw->fc.send_xon)
-			fcrtl |= IGC_FCRTL_XONE;
-
-		fcrth = hw->fc.high_water;
-	}
-	wr32(IGC_FCRTL, fcrtl);
-	wr32(IGC_FCRTH, fcrth);
-
-	return 0;
 }
 
 /**
