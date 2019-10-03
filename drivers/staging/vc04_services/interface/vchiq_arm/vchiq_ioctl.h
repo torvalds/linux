@@ -32,7 +32,7 @@ struct vchiq_queue_bulk_transfer {
 };
 
 struct vchiq_completion_data {
-	VCHIQ_REASON_T reason;
+	enum vchiq_reason reason;
 	struct vchiq_header *header;
 	void *service_userdata;
 	void *bulk_userdata;

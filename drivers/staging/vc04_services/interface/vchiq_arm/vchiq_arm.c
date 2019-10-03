@@ -516,7 +516,7 @@ vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 ***************************************************************************/
 
 static VCHIQ_STATUS_T
-add_completion(VCHIQ_INSTANCE_T instance, VCHIQ_REASON_T reason,
+add_completion(VCHIQ_INSTANCE_T instance, enum vchiq_reason reason,
 	       struct vchiq_header *header, struct user_service *user_service,
 	       void *bulk_userdata)
 {
@@ -583,7 +583,7 @@ add_completion(VCHIQ_INSTANCE_T instance, VCHIQ_REASON_T reason,
 ***************************************************************************/
 
 static VCHIQ_STATUS_T
-service_callback(VCHIQ_REASON_T reason, struct vchiq_header *header,
+service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 		 VCHIQ_SERVICE_HANDLE_T handle, void *bulk_userdata)
 {
 	/* How do we ensure the callback goes to the right client?
@@ -1666,7 +1666,7 @@ vchiq_compat_ioctl_queue_bulk(struct file *file,
 }
 
 struct vchiq_completion_data32 {
-	VCHIQ_REASON_T reason;
+	enum vchiq_reason reason;
 	compat_uptr_t header;
 	compat_uptr_t service_userdata;
 	compat_uptr_t bulk_userdata;
@@ -2271,7 +2271,7 @@ vchiq_videocore_wanted(struct vchiq_state *state)
 }
 
 static VCHIQ_STATUS_T
-vchiq_keepalive_vchiq_callback(VCHIQ_REASON_T reason,
+vchiq_keepalive_vchiq_callback(enum vchiq_reason reason,
 	struct vchiq_header *header,
 	VCHIQ_SERVICE_HANDLE_T service_user,
 	void *bulk_user)

@@ -15,7 +15,7 @@
 #define VCHIQ_GET_SERVICE_USERDATA(service) vchiq_get_service_userdata(service)
 #define VCHIQ_GET_SERVICE_FOURCC(service)   vchiq_get_service_fourcc(service)
 
-typedef enum {
+enum vchiq_reason {
 	VCHIQ_SERVICE_OPENED,         /* service, -, -             */
 	VCHIQ_SERVICE_CLOSED,         /* service, -, -             */
 	VCHIQ_MESSAGE_AVAILABLE,      /* service, header, -        */
@@ -23,7 +23,7 @@ typedef enum {
 	VCHIQ_BULK_RECEIVE_DONE,      /* service, -, bulk_userdata */
 	VCHIQ_BULK_TRANSMIT_ABORTED,  /* service, -, bulk_userdata */
 	VCHIQ_BULK_RECEIVE_ABORTED    /* service, -, bulk_userdata */
-} VCHIQ_REASON_T;
+};
 
 typedef enum {
 	VCHIQ_ERROR   = -1,
@@ -63,7 +63,7 @@ struct vchiq_element {
 
 typedef unsigned int VCHIQ_SERVICE_HANDLE_T;
 
-typedef VCHIQ_STATUS_T (*VCHIQ_CALLBACK_T)(VCHIQ_REASON_T,
+typedef VCHIQ_STATUS_T (*VCHIQ_CALLBACK_T)(enum vchiq_reason,
 					   struct vchiq_header *,
 					   VCHIQ_SERVICE_HANDLE_T, void *);
 
