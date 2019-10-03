@@ -562,8 +562,8 @@ static void update_hw_ht_param(struct adapter *padapter)
 {
 	u8 max_ampdu_len;
 	u8 min_mpdu_spacing;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	DBG_88E("%s\n", __func__);
 
@@ -573,11 +573,9 @@ static void update_hw_ht_param(struct adapter *padapter)
 		ampdu_params_info [4:2]:Min MPDU Start Spacing
 	*/
 	max_ampdu_len = pmlmeinfo->HT_caps.ampdu_params_info & 0x03;
-
 	min_mpdu_spacing = (pmlmeinfo->HT_caps.ampdu_params_info & 0x1c) >> 2;
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_AMPDU_MIN_SPACE, &min_mpdu_spacing);
-
 	rtw_hal_set_hwreg(padapter, HW_VAR_AMPDU_FACTOR, &max_ampdu_len);
 
 	/*  */
