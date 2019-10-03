@@ -82,6 +82,7 @@
 
 
 struct _vcs_dpi_ip_params_st dcn2_1_ip = {
+	.odm_capable = 1,
 	.gpuvm_enable = 0,
 	.hostvm_enable = 0,
 	.gpuvm_max_page_table_levels = 1,
@@ -203,11 +204,11 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 				.state = 4,
 				.dcfclk_mhz = 810.0,
 				.fabricclk_mhz = 1600.0,
-				.dispclk_mhz = 1015.0,
-				.dppclk_mhz = 1015.0,
-				.phyclk_mhz = 810.0,
+				.dispclk_mhz = 1395.0,
+				.dppclk_mhz = 1285.0,
+				.phyclk_mhz = 1325.0,
 				.socclk_mhz = 953.0,
-				.dscclk_mhz = 318.334,
+				.dscclk_mhz = 489.0,
 				.dram_speed_mts = 4266.0,
 			},
 			/*Extra state, no dispclk ramping*/
@@ -215,18 +216,18 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 				.state = 5,
 				.dcfclk_mhz = 810.0,
 				.fabricclk_mhz = 1600.0,
-				.dispclk_mhz = 1015.0,
-				.dppclk_mhz = 1015.0,
-				.phyclk_mhz = 810.0,
+				.dispclk_mhz = 1395.0,
+				.dppclk_mhz = 1285.0,
+				.phyclk_mhz = 1325.0,
 				.socclk_mhz = 953.0,
-				.dscclk_mhz = 318.334,
+				.dscclk_mhz = 489.0,
 				.dram_speed_mts = 4266.0,
 			},
 
 		},
 
-	.sr_exit_time_us = 9.0,
-	.sr_enter_plus_exit_time_us = 11.0,
+	.sr_exit_time_us = 12.5,
+	.sr_enter_plus_exit_time_us = 17.0,
 	.urgent_latency_us = 4.0,
 	.urgent_latency_pixel_data_only_us = 4.0,
 	.urgent_latency_pixel_mixed_with_vm_data_us = 4.0,
@@ -766,6 +767,7 @@ static const struct resource_caps res_cap_rn = {
 		.num_pll = 5,  // maybe 3 because the last two used for USB-c
 		.num_dwb = 1,
 		.num_ddc = 5,
+		.num_vmid = 1,
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 		.num_dsc = 3,
 #endif
@@ -835,7 +837,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.disable_dcc = DCC_ENABLE,
 		.vsr_support = true,
 		.performance_trace = false,
-		.max_downscale_src_width = 5120,/*upto 5K*/
+		.max_downscale_src_width = 3840,
 		.disable_pplib_wm_range = false,
 		.scl_reset_length10 = true,
 		.sanity_checks = true,
