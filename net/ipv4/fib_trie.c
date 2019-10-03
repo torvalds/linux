@@ -2015,10 +2015,11 @@ void fib_info_notify_update(struct net *net, struct nl_info *info)
 	}
 }
 
-static void fib_leaf_notify(struct key_vector *l, struct fib_table *tb,
-			    struct notifier_block *nb)
+static int fib_leaf_notify(struct key_vector *l, struct fib_table *tb,
+			   struct notifier_block *nb)
 {
 	struct fib_alias *fa;
+	int err;
 
 	hlist_for_each_entry_rcu(fa, &l->leaf, fa_list) {
 		struct fib_info *fi = fa->fa_info;
@@ -2032,38 +2033,50 @@ static void fib_leaf_notify(struct key_vector *l, struct fib_table *tb,
 		if (tb->tb_id != fa->tb_id)
 			continue;
 
-		call_fib_entry_notifier(nb, FIB_EVENT_ENTRY_ADD, l->key,
-					KEYLENGTH - fa->fa_slen, fa);
+		err = call_fib_entry_notifier(nb, FIB_EVENT_ENTRY_ADD, l->key,
+					      KEYLENGTH - fa->fa_slen, fa);
+		if (err)
+			return err;
 	}
+	return 0;
 }
 
-static void fib_table_notify(struct fib_table *tb, struct notifier_block *nb)
+static int fib_table_notify(struct fib_table *tb, struct notifier_block *nb)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct key_vector *l, *tp = t->kv;
 	t_key key = 0;
+	int err;
 
 	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
-		fib_leaf_notify(l, tb, nb);
+		err = fib_leaf_notify(l, tb, nb);
+		if (err)
+			return err;
 
 		key = l->key + 1;
 		/* stop in case of wrap around */
 		if (key < l->key)
 			break;
 	}
+	return 0;
 }
 
-void fib_notify(struct net *net, struct notifier_block *nb)
+int fib_notify(struct net *net, struct notifier_block *nb)
 {
 	unsigned int h;
+	int err;
 
 	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
 		struct hlist_head *head = &net->ipv4.fib_table_hash[h];
 		struct fib_table *tb;
 
-		hlist_for_each_entry_rcu(tb, head, tb_hlist)
-			fib_table_notify(tb, nb);
+		hlist_for_each_entry_rcu(tb, head, tb_hlist) {
+			err = fib_table_notify(tb, nb);
+			if (err)
+				return err;
+		}
 	}
+	return 0;
 }
 
 static void __trie_free_rcu(struct rcu_head *head)

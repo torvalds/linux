@@ -42,9 +42,7 @@ static int fib4_dump(struct net *net, struct notifier_block *nb)
 	if (err)
 		return err;
 
-	fib_notify(net, nb);
-
-	return 0;
+	return fib_notify(net, nb);
 }
 
 static const struct fib_notifier_ops fib4_notifier_ops_template = {

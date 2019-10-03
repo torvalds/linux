@@ -354,15 +354,20 @@ int fib_rules_dump(struct net *net, struct notifier_block *nb, int family)
 {
 	struct fib_rules_ops *ops;
 	struct fib_rule *rule;
+	int err = 0;
 
 	ops = lookup_rules_ops(net, family);
 	if (!ops)
 		return -EAFNOSUPPORT;
-	list_for_each_entry_rcu(rule, &ops->rules_list, list)
-		call_fib_rule_notifier(nb, FIB_EVENT_RULE_ADD, rule, family);
+	list_for_each_entry_rcu(rule, &ops->rules_list, list) {
+		err = call_fib_rule_notifier(nb, FIB_EVENT_RULE_ADD,
+					     rule, family);
+		if (err)
+			break;
+	}
 	rules_ops_put(ops);
 
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL_GPL(fib_rules_dump);
 
