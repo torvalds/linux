@@ -488,7 +488,8 @@ int __net_init fib6_notifier_init(struct net *net);
 void __net_exit fib6_notifier_exit(struct net *net);
 
 unsigned int fib6_tables_seq_read(struct net *net);
-int fib6_tables_dump(struct net *net, struct notifier_block *nb);
+int fib6_tables_dump(struct net *net, struct notifier_block *nb,
+		     struct netlink_ext_ack *extack);
 
 void fib6_update_sernum(struct net *net, struct fib6_info *rt);
 void fib6_update_sernum_upto_root(struct net *net, struct fib6_info *rt);
@@ -504,7 +505,8 @@ static inline bool fib6_metric_locked(struct fib6_info *f6i, int metric)
 int fib6_rules_init(void);
 void fib6_rules_cleanup(void);
 bool fib6_rule_default(const struct fib_rule *rule);
-int fib6_rules_dump(struct net *net, struct notifier_block *nb);
+int fib6_rules_dump(struct net *net, struct notifier_block *nb,
+		    struct netlink_ext_ack *extack);
 unsigned int fib6_rules_seq_read(struct net *net);
 
 static inline bool fib6_rules_early_flow_dissect(struct net *net,
@@ -537,7 +539,8 @@ static inline bool fib6_rule_default(const struct fib_rule *rule)
 {
 	return true;
 }
-static inline int fib6_rules_dump(struct net *net, struct notifier_block *nb)
+static inline int fib6_rules_dump(struct net *net, struct notifier_block *nb,
+				  struct netlink_ext_ack *extack)
 {
 	return 0;
 }

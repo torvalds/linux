@@ -76,9 +76,11 @@
 
 static int call_fib_entry_notifier(struct notifier_block *nb,
 				   enum fib_event_type event_type, u32 dst,
-				   int dst_len, struct fib_alias *fa)
+				   int dst_len, struct fib_alias *fa,
+				   struct netlink_ext_ack *extack)
 {
 	struct fib_entry_notifier_info info = {
+		.info.extack = extack,
 		.dst = dst,
 		.dst_len = dst_len,
 		.fi = fa->fa_info,
@@ -2016,7 +2018,8 @@ void fib_info_notify_update(struct net *net, struct nl_info *info)
 }
 
 static int fib_leaf_notify(struct key_vector *l, struct fib_table *tb,
-			   struct notifier_block *nb)
+			   struct notifier_block *nb,
+			   struct netlink_ext_ack *extack)
 {
 	struct fib_alias *fa;
 	int err;
@@ -2034,14 +2037,16 @@ static int fib_leaf_notify(struct key_vector *l, struct fib_table *tb,
 			continue;
 
 		err = call_fib_entry_notifier(nb, FIB_EVENT_ENTRY_ADD, l->key,
-					      KEYLENGTH - fa->fa_slen, fa);
+					      KEYLENGTH - fa->fa_slen,
+					      fa, extack);
 		if (err)
 			return err;
 	}
 	return 0;
 }
 
-static int fib_table_notify(struct fib_table *tb, struct notifier_block *nb)
+static int fib_table_notify(struct fib_table *tb, struct notifier_block *nb,
+			    struct netlink_ext_ack *extack)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct key_vector *l, *tp = t->kv;
@@ -2049,7 +2054,7 @@ static int fib_table_notify(struct fib_table *tb, struct notifier_block *nb)
 	int err;
 
 	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
-		err = fib_leaf_notify(l, tb, nb);
+		err = fib_leaf_notify(l, tb, nb, extack);
 		if (err)
 			return err;
 
@@ -2061,7 +2066,8 @@ static int fib_table_notify(struct fib_table *tb, struct notifier_block *nb)
 	return 0;
 }
 
-int fib_notify(struct net *net, struct notifier_block *nb)
+int fib_notify(struct net *net, struct notifier_block *nb,
+	       struct netlink_ext_ack *extack)
 {
 	unsigned int h;
 	int err;
@@ -2071,7 +2077,7 @@ int fib_notify(struct net *net, struct notifier_block *nb)
 		struct fib_table *tb;
 
 		hlist_for_each_entry_rcu(tb, head, tb_hlist) {
-			err = fib_table_notify(tb, nb);
+			err = fib_table_notify(tb, nb, extack);
 			if (err)
 				return err;
 		}

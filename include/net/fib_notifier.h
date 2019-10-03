@@ -29,7 +29,8 @@ struct fib_notifier_ops {
 	int family;
 	struct list_head list;
 	unsigned int (*fib_seq_read)(struct net *net);
-	int (*fib_dump)(struct net *net, struct notifier_block *nb);
+	int (*fib_dump)(struct net *net, struct notifier_block *nb,
+			struct netlink_ext_ack *extack);
 	struct module *owner;
 	struct rcu_head rcu;
 };
@@ -40,7 +41,8 @@ int call_fib_notifier(struct notifier_block *nb,
 int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
 		       struct fib_notifier_info *info);
 int register_fib_notifier(struct net *net, struct notifier_block *nb,
-			  void (*cb)(struct notifier_block *nb));
+			  void (*cb)(struct notifier_block *nb),
+			  struct netlink_ext_ack *extack);
 int unregister_fib_notifier(struct net *net, struct notifier_block *nb);
 struct fib_notifier_ops *
 fib_notifier_ops_register(const struct fib_notifier_ops *tmpl, struct net *net);

@@ -57,7 +57,8 @@ static unsigned int fib_seq_sum(struct net *net)
 	return fib_seq;
 }
 
-static int fib_net_dump(struct net *net, struct notifier_block *nb)
+static int fib_net_dump(struct net *net, struct notifier_block *nb,
+			struct netlink_ext_ack *extack)
 {
 	struct fib_notifier_net *fn_net = net_generic(net, fib_notifier_net_id);
 	struct fib_notifier_ops *ops;
@@ -67,7 +68,7 @@ static int fib_net_dump(struct net *net, struct notifier_block *nb)
 	list_for_each_entry_rcu(ops, &fn_net->fib_notifier_ops, list) {
 		if (!try_module_get(ops->owner))
 			continue;
-		err = ops->fib_dump(net, nb);
+		err = ops->fib_dump(net, nb, extack);
 		module_put(ops->owner);
 		if (err)
 			goto unlock;
@@ -96,7 +97,8 @@ static bool fib_dump_is_consistent(struct net *net, struct notifier_block *nb,
 
 #define FIB_DUMP_MAX_RETRIES 5
 int register_fib_notifier(struct net *net, struct notifier_block *nb,
-			  void (*cb)(struct notifier_block *nb))
+			  void (*cb)(struct notifier_block *nb),
+			  struct netlink_ext_ack *extack)
 {
 	int retries = 0;
 	int err;
@@ -104,7 +106,7 @@ int register_fib_notifier(struct net *net, struct notifier_block *nb,
 	do {
 		unsigned int fib_seq = fib_seq_sum(net);
 
-		err = fib_net_dump(net, nb);
+		err = fib_net_dump(net, nb, extack);
 		if (err)
 			return err;
 

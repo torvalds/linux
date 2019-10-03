@@ -323,10 +323,12 @@ EXPORT_SYMBOL_GPL(fib_rules_lookup);
 
 static int call_fib_rule_notifier(struct notifier_block *nb,
 				  enum fib_event_type event_type,
-				  struct fib_rule *rule, int family)
+				  struct fib_rule *rule, int family,
+				  struct netlink_ext_ack *extack)
 {
 	struct fib_rule_notifier_info info = {
 		.info.family = family,
+		.info.extack = extack,
 		.rule = rule,
 	};
 
@@ -350,7 +352,8 @@ static int call_fib_rule_notifiers(struct net *net,
 }
 
 /* Called with rcu_read_lock() */
-int fib_rules_dump(struct net *net, struct notifier_block *nb, int family)
+int fib_rules_dump(struct net *net, struct notifier_block *nb, int family,
+		   struct netlink_ext_ack *extack)
 {
 	struct fib_rules_ops *ops;
 	struct fib_rule *rule;
@@ -361,7 +364,7 @@ int fib_rules_dump(struct net *net, struct notifier_block *nb, int family)
 		return -EAFNOSUPPORT;
 	list_for_each_entry_rcu(rule, &ops->rules_list, list) {
 		err = call_fib_rule_notifier(nb, FIB_EVENT_RULE_ADD,
-					     rule, family);
+					     rule, family, extack);
 		if (err)
 			break;
 	}

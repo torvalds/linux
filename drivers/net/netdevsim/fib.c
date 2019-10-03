@@ -256,7 +256,7 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink)
 
 	data->fib_nb.notifier_call = nsim_fib_event_nb;
 	err = register_fib_notifier(&init_net, &data->fib_nb,
-				    nsim_fib_dump_inconsistent);
+				    nsim_fib_dump_inconsistent, NULL);
 	if (err) {
 		pr_err("Failed to register fib notifier\n");
 		goto err_out;

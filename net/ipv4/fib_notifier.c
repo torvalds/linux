@@ -34,15 +34,16 @@ static unsigned int fib4_seq_read(struct net *net)
 	return net->ipv4.fib_seq + fib4_rules_seq_read(net);
 }
 
-static int fib4_dump(struct net *net, struct notifier_block *nb)
+static int fib4_dump(struct net *net, struct notifier_block *nb,
+		     struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = fib4_rules_dump(net, nb);
+	err = fib4_rules_dump(net, nb, extack);
 	if (err)
 		return err;
 
-	return fib_notify(net, nb);
+	return fib_notify(net, nb, extack);
 }
 
 static const struct fib_notifier_ops fib4_notifier_ops_template = {

@@ -8135,7 +8135,7 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 
 	mlxsw_sp->router->fib_nb.notifier_call = mlxsw_sp_router_fib_event;
 	err = register_fib_notifier(&init_net, &mlxsw_sp->router->fib_nb,
-				    mlxsw_sp_router_fib_dump_flush);
+				    mlxsw_sp_router_fib_dump_flush, NULL);
 	if (err)
 		goto err_register_fib_notifier;
 

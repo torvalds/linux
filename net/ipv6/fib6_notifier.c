@@ -27,15 +27,16 @@ static unsigned int fib6_seq_read(struct net *net)
 	return fib6_tables_seq_read(net) + fib6_rules_seq_read(net);
 }
 
-static int fib6_dump(struct net *net, struct notifier_block *nb)
+static int fib6_dump(struct net *net, struct notifier_block *nb,
+		     struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = fib6_rules_dump(net, nb);
+	err = fib6_rules_dump(net, nb, extack);
 	if (err)
 		return err;
 
-	return fib6_tables_dump(net, nb);
+	return fib6_tables_dump(net, nb, extack);
 }
 
 static const struct fib_notifier_ops fib6_notifier_ops_template = {

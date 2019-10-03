@@ -309,7 +309,7 @@ int mlx5_lag_mp_init(struct mlx5_lag *ldev)
 
 	mp->fib_nb.notifier_call = mlx5_lag_fib_event;
 	err = register_fib_notifier(&init_net, &mp->fib_nb,
-				    mlx5_lag_fib_event_flush);
+				    mlx5_lag_fib_event_flush, NULL);
 	if (err)
 		mp->fib_nb.notifier_call = NULL;
 

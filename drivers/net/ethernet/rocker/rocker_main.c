@@ -2991,7 +2991,7 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * the device, so no need to pass a callback.
 	 */
 	rocker->fib_nb.notifier_call = rocker_router_fib_event;
-	err = register_fib_notifier(&init_net, &rocker->fib_nb, NULL);
+	err = register_fib_notifier(&init_net, &rocker->fib_nb, NULL, NULL);
 	if (err)
 		goto err_register_fib_notifier;
 
