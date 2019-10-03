@@ -2405,6 +2405,13 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 	if (INTEL_GEN(dev_priv) >= 12) {
 		dc5_reg = TGL_DMC_DEBUG_DC5_COUNT;
 		dc6_reg = TGL_DMC_DEBUG_DC6_COUNT;
+		/*
+		 * NOTE: DMC_DEBUG3 is a general purpose reg.
+		 * According to B.Specs:49196 DMC f/w reuses DC5/6 counter
+		 * reg for DC3CO debugging and validation,
+		 * but TGL DMC f/w is using DMC_DEBUG3 reg for DC3CO counter.
+		 */
+		seq_printf(m, "DC3CO count: %d\n", I915_READ(DMC_DEBUG3));
 	} else {
 		dc5_reg = IS_BROXTON(dev_priv) ? BXT_CSR_DC3_DC5_COUNT :
 						 SKL_CSR_DC3_DC5_COUNT;
