@@ -30,6 +30,7 @@ struct vimc_cap_device {
 	struct mutex lock;
 	u32 sequence;
 	struct vimc_stream stream;
+	struct media_pad pad;
 };
 
 static const struct v4l2_pix_format fmt_default = {
@@ -331,7 +332,6 @@ static void vimc_cap_release(struct video_device *vdev)
 		container_of(vdev, struct vimc_cap_device, vdev);
 
 	media_entity_cleanup(vcap->ved.ent);
-	vimc_pads_cleanup(vcap->ved.pads);
 	kfree(vcap);
 }
 
@@ -398,21 +398,14 @@ struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 	if (!vcap)
 		return NULL;
 
-	/* Allocate the pads */
-	vcap->ved.pads =
-		vimc_pads_init(1, (const unsigned long[1]) {MEDIA_PAD_FL_SINK});
-	if (IS_ERR(vcap->ved.pads)) {
-		ret = PTR_ERR(vcap->ved.pads);
-		goto err_free_vcap;
-	}
-
 	/* Initialize the media entity */
 	vcap->vdev.entity.name = vcfg_name;
 	vcap->vdev.entity.function = MEDIA_ENT_F_IO_V4L;
+	vcap->pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_pads_init(&vcap->vdev.entity,
-				     1, vcap->ved.pads);
+				     1, &vcap->pad);
 	if (ret)
-		goto err_clean_pads;
+		goto err_free_vcap;
 
 	/* Initialize the lock */
 	mutex_init(&vcap->lock);
@@ -481,8 +474,6 @@ err_release_queue:
 	vb2_queue_release(q);
 err_clean_m_ent:
 	media_entity_cleanup(&vcap->vdev.entity);
-err_clean_pads:
-	vimc_pads_cleanup(vcap->ved.pads);
 err_free_vcap:
 	kfree(vcap);
 

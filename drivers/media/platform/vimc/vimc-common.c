@@ -194,26 +194,6 @@ const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat)
 	return NULL;
 }
 
-/* Helper function to allocate and initialize pads */
-struct media_pad *vimc_pads_init(u16 num_pads, const unsigned long *pads_flag)
-{
-	struct media_pad *pads;
-	unsigned int i;
-
-	/* Allocate memory for the pads */
-	pads = kcalloc(num_pads, sizeof(*pads), GFP_KERNEL);
-	if (!pads)
-		return ERR_PTR(-ENOMEM);
-
-	/* Initialize the pads */
-	for (i = 0; i < num_pads; i++) {
-		pads[i].index = i;
-		pads[i].flags = pads_flag[i];
-	}
-
-	return pads;
-}
-
 static int vimc_get_mbus_format(struct media_pad *pad,
 				struct v4l2_subdev_format *fmt)
 {
@@ -335,16 +315,11 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 			 const char *const name,
 			 u32 function,
 			 u16 num_pads,
-			 const unsigned long *pads_flag,
+			 struct media_pad *pads,
 			 const struct v4l2_subdev_internal_ops *sd_int_ops,
 			 const struct v4l2_subdev_ops *sd_ops)
 {
 	int ret;
-
-	/* Allocate the pads. Should be released from the sd_int_op release */
-	ved->pads = vimc_pads_init(num_pads, pads_flag);
-	if (IS_ERR(ved->pads))
-		return PTR_ERR(ved->pads);
 
 	/* Fill the vimc_ent_device struct */
 	ved->ent = &sd->entity;
@@ -364,9 +339,9 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 		sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	/* Initialize the media entity */
-	ret = media_entity_pads_init(&sd->entity, num_pads, ved->pads);
+	ret = media_entity_pads_init(&sd->entity, num_pads, pads);
 	if (ret)
-		goto err_clean_pads;
+		return ret;
 
 	/* Register the subdev with the v4l2 and the media framework */
 	ret = v4l2_device_register_subdev(v4l2_dev, sd);
@@ -381,7 +356,5 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 
 err_clean_m_ent:
 	media_entity_cleanup(&sd->entity);
-err_clean_pads:
-	vimc_pads_cleanup(ved->pads);
 	return ret;
 }

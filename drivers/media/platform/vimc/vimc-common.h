@@ -75,10 +75,10 @@ struct vimc_pix_map {
 };
 
 /**
- * struct vimc_ent_device - core struct that represents a node in the topology
+ * struct vimc_ent_device - core struct that represents an entity in the
+ * topology
  *
  * @ent:		the pointer to struct media_entity for the node
- * @pads:		the list of pads of the node
  * @process_frame:	callback send a frame to that node
  * @vdev_get_format:	callback that returns the current format a pad, used
  *			only when is_media_entity_v4l2_video_device(ent) returns
@@ -94,7 +94,6 @@ struct vimc_pix_map {
  */
 struct vimc_ent_device {
 	struct media_entity *ent;
-	struct media_pad *pads;
 	void * (*process_frame)(struct vimc_ent_device *ved,
 				const void *frame);
 	void (*vdev_get_format)(struct vimc_ent_device *ved,
@@ -155,29 +154,6 @@ struct vimc_ent_device *vimc_sen_add(struct vimc_device *vimc,
 void vimc_sen_rm(struct vimc_device *vimc, struct vimc_ent_device *ved);
 
 /**
- * vimc_pads_init - initialize pads
- *
- * @num_pads:	number of pads to initialize
- * @pads_flags:	flags to use in each pad
- *
- * Helper functions to allocate/initialize pads
- */
-struct media_pad *vimc_pads_init(u16 num_pads,
-				 const unsigned long *pads_flag);
-
-/**
- * vimc_pads_cleanup - free pads
- *
- * @pads: pointer to the pads
- *
- * Helper function to free the pads initialized with vimc_pads_init
- */
-static inline void vimc_pads_cleanup(struct media_pad *pads)
-{
-	kfree(pads);
-}
-
-/**
  * vimc_pix_map_by_index - get vimc_pix_map struct by its index
  *
  * @i:			index of the vimc_pix_map struct in vimc_pix_map_list
@@ -208,7 +184,8 @@ const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat);
  *		unique.
  * @function:	media entity function defined by MEDIA_ENT_F_* macros
  * @num_pads:	number of pads to initialize
- * @pads_flag:	flags to use in each pad
+ * @pads:	the array of pads of the entity, the caller should set the
+		flags of the pads
  * @sd_int_ops:	pointer to &struct v4l2_subdev_internal_ops
  * @sd_ops:	pointer to &struct v4l2_subdev_ops.
  *
@@ -221,7 +198,7 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 			 const char *const name,
 			 u32 function,
 			 u16 num_pads,
-			 const unsigned long *pads_flag,
+			 struct media_pad *pads,
 			 const struct v4l2_subdev_internal_ops *sd_int_ops,
 			 const struct v4l2_subdev_ops *sd_ops);
 

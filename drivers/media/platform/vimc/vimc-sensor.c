@@ -24,6 +24,7 @@ struct vimc_sen_device {
 	/* The active format */
 	struct v4l2_mbus_framefmt mbus_format;
 	struct v4l2_ctrl_handler hdl;
+	struct media_pad pad;
 };
 
 static const struct v4l2_mbus_framefmt fmt_default = {
@@ -292,7 +293,6 @@ static void vimc_sen_release(struct v4l2_subdev *sd)
 	v4l2_ctrl_handler_free(&vsen->hdl);
 	tpg_free(&vsen->tpg);
 	media_entity_cleanup(vsen->ved.ent);
-	vimc_pads_cleanup(vsen->ved.pads);
 	kfree(vsen);
 }
 
@@ -367,10 +367,10 @@ struct vimc_ent_device *vimc_sen_add(struct vimc_device *vimc,
 		goto err_free_hdl;
 
 	/* Initialize ved and sd */
+	vsen->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = vimc_ent_sd_register(&vsen->ved, &vsen->sd, v4l2_dev,
 				   vcfg_name,
-				   MEDIA_ENT_F_CAM_SENSOR, 1,
-				   (const unsigned long[1]) {MEDIA_PAD_FL_SOURCE},
+				   MEDIA_ENT_F_CAM_SENSOR, 1, &vsen->pad,
 				   &vimc_sen_int_ops, &vimc_sen_ops);
 	if (ret)
 		goto err_free_tpg;

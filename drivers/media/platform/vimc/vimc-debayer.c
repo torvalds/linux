@@ -44,6 +44,7 @@ struct vimc_deb_device {
 	u8 *src_frame;
 	const struct vimc_deb_pix_map *sink_pix_map;
 	unsigned int sink_bpp;
+	struct media_pad pads[2];
 };
 
 static const struct v4l2_mbus_framefmt sink_fmt_default = {
@@ -478,7 +479,6 @@ static void vimc_deb_release(struct v4l2_subdev *sd)
 				container_of(sd, struct vimc_deb_device, sd);
 
 	media_entity_cleanup(vdeb->ved.ent);
-	vimc_pads_cleanup(vdeb->ved.pads);
 	kfree(vdeb);
 }
 
@@ -507,11 +507,13 @@ struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
 		return NULL;
 
 	/* Initialize ved and sd */
+	vdeb->pads[0].flags = MEDIA_PAD_FL_SINK;
+	vdeb->pads[1].flags = MEDIA_PAD_FL_SOURCE;
+
 	ret = vimc_ent_sd_register(&vdeb->ved, &vdeb->sd, v4l2_dev,
 				   vcfg_name,
 				   MEDIA_ENT_F_PROC_VIDEO_PIXEL_ENC_CONV, 2,
-				   (const unsigned long[2]) {MEDIA_PAD_FL_SINK,
-				   MEDIA_PAD_FL_SOURCE},
+				   vdeb->pads,
 				   &vimc_deb_int_ops, &vimc_deb_ops);
 	if (ret) {
 		kfree(vdeb);

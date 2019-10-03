@@ -30,6 +30,7 @@ struct vimc_sca_device {
 	u8 *src_frame;
 	unsigned int src_line_size;
 	unsigned int bpp;
+	struct media_pad pads[2];
 };
 
 static const struct v4l2_mbus_framefmt sink_fmt_default = {
@@ -337,7 +338,6 @@ static void vimc_sca_release(struct v4l2_subdev *sd)
 				container_of(sd, struct vimc_sca_device, sd);
 
 	media_entity_cleanup(vsca->ved.ent);
-	vimc_pads_cleanup(vsca->ved.pads);
 	kfree(vsca);
 }
 
@@ -366,11 +366,13 @@ struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
 		return NULL;
 
 	/* Initialize ved and sd */
+	vsca->pads[0].flags = MEDIA_PAD_FL_SINK;
+	vsca->pads[1].flags = MEDIA_PAD_FL_SOURCE;
+
 	ret = vimc_ent_sd_register(&vsca->ved, &vsca->sd, v4l2_dev,
 				   vcfg_name,
 				   MEDIA_ENT_F_PROC_VIDEO_SCALER, 2,
-				   (const unsigned long[2]) {MEDIA_PAD_FL_SINK,
-				   MEDIA_PAD_FL_SOURCE},
+				   vsca->pads,
 				   &vimc_sca_int_ops, &vimc_sca_ops);
 	if (ret) {
 		kfree(vsca);
