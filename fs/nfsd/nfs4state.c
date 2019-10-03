@@ -2382,10 +2382,10 @@ static int nfs4_show_open(struct seq_file *s, struct nfs4_stid *st)
 	access = bmap_to_share_mode(ols->st_access_bmap);
 	deny   = bmap_to_share_mode(ols->st_deny_bmap);
 
-	seq_printf(s, "access: \%s\%s, ",
+	seq_printf(s, "access: %s%s, ",
 		access & NFS4_SHARE_ACCESS_READ ? "r" : "-",
 		access & NFS4_SHARE_ACCESS_WRITE ? "w" : "-");
-	seq_printf(s, "deny: \%s\%s, ",
+	seq_printf(s, "deny: %s%s, ",
 		deny & NFS4_SHARE_ACCESS_READ ? "r" : "-",
 		deny & NFS4_SHARE_ACCESS_WRITE ? "w" : "-");
 
