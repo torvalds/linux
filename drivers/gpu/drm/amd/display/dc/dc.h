@@ -362,6 +362,7 @@ struct dc_debug_options {
 	bool disable_hubp_power_gate;
 	bool disable_dsc_power_gate;
 	int dsc_min_slice_height_override;
+	bool native422_support;
 	bool disable_pplib_wm_range;
 	enum wm_report_mode pplib_wm_report_mode;
 	unsigned int min_disp_clk_khz;

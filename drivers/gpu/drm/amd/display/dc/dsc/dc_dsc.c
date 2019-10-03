@@ -25,6 +25,7 @@
 #include "dc_hw_types.h"
 #include "dsc.h"
 #include <drm/drm_dp_helper.h>
+#include "dc.h"
 
 struct dc_dsc_policy {
 	bool use_min_slices_h;
@@ -236,8 +237,11 @@ static void get_dsc_enc_caps(
 	// This is a static HW query, so we can use any DSC
 
 	memset(dsc_enc_caps, 0, sizeof(struct dsc_enc_caps));
-	if (dsc)
+	if (dsc) {
 		dsc->funcs->dsc_get_enc_caps(dsc_enc_caps, pixel_clock_100Hz);
+		if (dsc->ctx->dc->debug.native422_support)
+			dsc_enc_caps->color_formats.bits.YCBCR_NATIVE_422 = 1;
+	}
 }
 
 /* Returns 'false' if no intersection was found for at least one capablity.
