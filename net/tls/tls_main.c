@@ -668,14 +668,11 @@ static int tls_hw_prot(struct sock *sk)
 			if (!ctx)
 				goto out;
 
-			spin_unlock_bh(&device_spinlock);
-			tls_build_proto(sk);
 			ctx->sk_destruct = sk->sk_destruct;
 			sk->sk_destruct = tls_hw_sk_destruct;
 			ctx->rx_conf = TLS_HW_RECORD;
 			ctx->tx_conf = TLS_HW_RECORD;
 			update_sk_prot(sk, ctx);
-			spin_lock_bh(&device_spinlock);
 			rc = 1;
 			break;
 		}
@@ -776,6 +773,8 @@ static int tls_init(struct sock *sk)
 	struct tls_context *ctx;
 	int rc = 0;
 
+	tls_build_proto(sk);
+
 	if (tls_hw_prot(sk))
 		return 0;
 
@@ -787,8 +786,6 @@ static int tls_init(struct sock *sk)
 	 */
 	if (sk->sk_state != TCP_ESTABLISHED)
 		return -ENOTSUPP;
-
-	tls_build_proto(sk);
 
 	/* allocate tls context */
 	write_lock_bh(&sk->sk_callback_lock);
