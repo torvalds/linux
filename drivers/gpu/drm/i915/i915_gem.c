@@ -351,7 +351,7 @@ i915_gem_gtt_pread(struct drm_i915_gem_object *obj,
 					       PIN_NOEVICT);
 	if (!IS_ERR(vma)) {
 		node.start = i915_ggtt_offset(vma);
-		node.allocated = false;
+		node.flags = 0;
 	} else {
 		ret = insert_mappable_node(ggtt, &node, PAGE_SIZE);
 		if (ret)
@@ -561,7 +561,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 					       PIN_NOEVICT);
 	if (!IS_ERR(vma)) {
 		node.start = i915_ggtt_offset(vma);
-		node.allocated = false;
+		node.flags = 0;
 	} else {
 		ret = insert_mappable_node(ggtt, &node, PAGE_SIZE);
 		if (ret)
