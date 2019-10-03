@@ -53,6 +53,7 @@
 #define AT803X_DEBUG_REG_5			0x05
 #define AT803X_DEBUG_TX_CLK_DLY_EN		BIT(8)
 
+#define ATH9331_PHY_ID 0x004dd041
 #define ATH8030_PHY_ID 0x004dd076
 #define ATH8031_PHY_ID 0x004dd074
 #define ATH8035_PHY_ID 0x004dd072
@@ -61,10 +62,6 @@
 MODULE_DESCRIPTION("Atheros 803x PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
 MODULE_LICENSE("GPL");
-
-struct at803x_priv {
-	bool phy_reset:1;
-};
 
 struct at803x_context {
 	u16 bmcr;
@@ -231,20 +228,6 @@ static int at803x_resume(struct phy_device *phydev)
 	return phy_modify(phydev, MII_BMCR, BMCR_PDOWN | BMCR_ISOLATE, 0);
 }
 
-static int at803x_probe(struct phy_device *phydev)
-{
-	struct device *dev = &phydev->mdio.dev;
-	struct at803x_priv *priv;
-
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	phydev->priv = priv;
-
-	return 0;
-}
-
 static int at803x_config_init(struct phy_device *phydev)
 {
 	int ret;
@@ -363,7 +346,6 @@ static struct phy_driver at803x_driver[] = {
 	.phy_id			= ATH8035_PHY_ID,
 	.name			= "Atheros 8035 ethernet",
 	.phy_id_mask		= AT803X_PHY_ID_MASK,
-	.probe			= at803x_probe,
 	.config_init		= at803x_config_init,
 	.set_wol		= at803x_set_wol,
 	.get_wol		= at803x_get_wol,
@@ -377,7 +359,6 @@ static struct phy_driver at803x_driver[] = {
 	.phy_id			= ATH8030_PHY_ID,
 	.name			= "Atheros 8030 ethernet",
 	.phy_id_mask		= AT803X_PHY_ID_MASK,
-	.probe			= at803x_probe,
 	.config_init		= at803x_config_init,
 	.link_change_notify	= at803x_link_change_notify,
 	.set_wol		= at803x_set_wol,
@@ -392,7 +373,6 @@ static struct phy_driver at803x_driver[] = {
 	.phy_id			= ATH8031_PHY_ID,
 	.name			= "Atheros 8031 ethernet",
 	.phy_id_mask		= AT803X_PHY_ID_MASK,
-	.probe			= at803x_probe,
 	.config_init		= at803x_config_init,
 	.set_wol		= at803x_set_wol,
 	.get_wol		= at803x_get_wol,
@@ -400,6 +380,16 @@ static struct phy_driver at803x_driver[] = {
 	.resume			= at803x_resume,
 	/* PHY_GBIT_FEATURES */
 	.aneg_done		= at803x_aneg_done,
+	.ack_interrupt		= &at803x_ack_interrupt,
+	.config_intr		= &at803x_config_intr,
+}, {
+	/* ATHEROS AR9331 */
+	PHY_ID_MATCH_EXACT(ATH9331_PHY_ID),
+	.name			= "Atheros AR9331 built-in PHY",
+	.config_init		= at803x_config_init,
+	.suspend		= at803x_suspend,
+	.resume			= at803x_resume,
+	/* PHY_BASIC_FEATURES */
 	.ack_interrupt		= &at803x_ack_interrupt,
 	.config_intr		= &at803x_config_intr,
 } };
@@ -410,6 +400,7 @@ static struct mdio_device_id __maybe_unused atheros_tbl[] = {
 	{ ATH8030_PHY_ID, AT803X_PHY_ID_MASK },
 	{ ATH8031_PHY_ID, AT803X_PHY_ID_MASK },
 	{ ATH8035_PHY_ID, AT803X_PHY_ID_MASK },
+	{ PHY_ID_MATCH_EXACT(ATH9331_PHY_ID) },
 	{ }
 };
 
