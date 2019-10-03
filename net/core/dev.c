@@ -8935,6 +8935,7 @@ int register_netdevice(struct net_device *dev)
 	if (ret < 0)
 		goto out;
 
+	ret = -ENOMEM;
 	dev->name_node = netdev_name_node_head_alloc(dev);
 	if (!dev->name_node)
 		goto out;
