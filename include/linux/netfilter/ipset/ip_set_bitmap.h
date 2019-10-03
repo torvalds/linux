@@ -12,18 +12,4 @@ enum {
 	IPSET_ADD_START_STORED_TIMEOUT,
 };
 
-/* Common functions */
-
-static inline u32
-range_to_mask(u32 from, u32 to, u8 *bits)
-{
-	u32 mask = 0xFFFFFFFE;
-
-	*bits = 32;
-	while (--(*bits) > 0 && mask && (to & mask) != from)
-		mask <<= 1;
-
-	return mask;
-}
-
 #endif /* __IP_SET_BITMAP_H */
