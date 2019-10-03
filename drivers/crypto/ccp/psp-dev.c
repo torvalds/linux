@@ -21,6 +21,8 @@
 #include <linux/ccp.h>
 #include <linux/firmware.h>
 
+#include <asm/smp.h>
+
 #include "sp-dev.h"
 #include "psp-dev.h"
 
@@ -235,6 +237,13 @@ static int __sev_platform_init_locked(int *error)
 		return rc;
 
 	psp->sev_state = SEV_STATE_INIT;
+
+	/* Prepare for first SEV guest launch after INIT */
+	wbinvd_on_all_cpus();
+	rc = __sev_do_cmd_locked(SEV_CMD_DF_FLUSH, NULL, error);
+	if (rc)
+		return rc;
+
 	dev_dbg(psp->dev, "SEV firmware initialized\n");
 
 	return rc;

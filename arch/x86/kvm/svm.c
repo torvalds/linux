@@ -6329,21 +6329,6 @@ static int sev_bind_asid(struct kvm *kvm, unsigned int handle, int *error)
 	int asid = sev_get_asid(kvm);
 	int ret;
 
-	/*
-	 * Guard against a DEACTIVATE command before the DF_FLUSH command
-	 * has completed.
-	 */
-	mutex_lock(&sev_deactivate_lock);
-
-	wbinvd_on_all_cpus();
-
-	ret = sev_guest_df_flush(error);
-
-	mutex_unlock(&sev_deactivate_lock);
-
-	if (ret)
-		return ret;
-
 	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
 	if (!data)
 		return -ENOMEM;
