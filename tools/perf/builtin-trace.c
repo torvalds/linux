@@ -1467,15 +1467,16 @@ static int syscall__alloc_arg_fmts(struct syscall *sc, int nr_args)
 	return 0;
 }
 
-static int syscall__set_arg_fmts(struct syscall *sc)
+static struct tep_format_field *
+syscall_arg_fmt__init_array(struct syscall_arg_fmt *arg, struct tep_format_field *field)
 {
-	struct tep_format_field *field, *last_field = NULL;
-	int idx = 0, len;
+	struct tep_format_field *last_field = NULL;
+	int len;
 
-	for (field = sc->args; field; field = field->next, ++idx) {
+	for (; field; field = field->next, ++arg) {
 		last_field = field;
 
-		if (sc->fmt && sc->fmt->arg[idx].scnprintf)
+		if (arg->scnprintf)
 			continue;
 
 		len = strlen(field->name);
@@ -1483,13 +1484,13 @@ static int syscall__set_arg_fmts(struct syscall *sc)
 		if (strcmp(field->type, "const char *") == 0 &&
 		    ((len >= 4 && strcmp(field->name + len - 4, "name") == 0) ||
 		     strstr(field->name, "path") != NULL))
-			sc->arg_fmt[idx].scnprintf = SCA_FILENAME;
+			arg->scnprintf = SCA_FILENAME;
 		else if ((field->flags & TEP_FIELD_IS_POINTER) || strstr(field->name, "addr"))
-			sc->arg_fmt[idx].scnprintf = SCA_PTR;
+			arg->scnprintf = SCA_PTR;
 		else if (strcmp(field->type, "pid_t") == 0)
-			sc->arg_fmt[idx].scnprintf = SCA_PID;
+			arg->scnprintf = SCA_PID;
 		else if (strcmp(field->type, "umode_t") == 0)
-			sc->arg_fmt[idx].scnprintf = SCA_MODE_T;
+			arg->scnprintf = SCA_MODE_T;
 		else if ((strcmp(field->type, "int") == 0 ||
 			  strcmp(field->type, "unsigned int") == 0 ||
 			  strcmp(field->type, "long") == 0) &&
@@ -1501,9 +1502,16 @@ static int syscall__set_arg_fmts(struct syscall *sc)
 			 * 23 unsigned int
 			 * 7 unsigned long
 			 */
-			sc->arg_fmt[idx].scnprintf = SCA_FD;
+			arg->scnprintf = SCA_FD;
 		}
 	}
+
+	return last_field;
+}
+
+static int syscall__set_arg_fmts(struct syscall *sc)
+{
+	struct tep_format_field *last_field = syscall_arg_fmt__init_array(sc->arg_fmt, sc->args);
 
 	if (last_field)
 		sc->args_size = last_field->offset + last_field->size;
