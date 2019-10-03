@@ -166,7 +166,7 @@ struct symbol {
 	struct module *module;
 	unsigned int crc;
 	int crc_valid;
-	const char *namespace;
+	char *namespace;
 	unsigned int weak:1;
 	unsigned int vmlinux:1;    /* 1 if symbol is defined in vmlinux */
 	unsigned int kernel:1;     /* 1 if symbol is from kernel
@@ -348,7 +348,7 @@ static enum export export_from_sec(struct elf_info *elf, unsigned int sec)
 		return export_unknown;
 }
 
-static const char *sym_extract_namespace(const char **symname)
+static char *sym_extract_namespace(const char **symname)
 {
 	char *namespace = NULL;
 	char *ns_separator;
@@ -373,7 +373,6 @@ static struct symbol *sym_add_exported(const char *name, const char *namespace,
 
 	if (!s) {
 		s = new_symbol(name, mod, export);
-		s->namespace = namespace;
 	} else {
 		if (!s->preloaded) {
 			warn("%s: '%s' exported twice. Previous export was in %s%s\n",
@@ -384,6 +383,8 @@ static struct symbol *sym_add_exported(const char *name, const char *namespace,
 			s->module = mod;
 		}
 	}
+	free(s->namespace);
+	s->namespace = namespace ? strdup(namespace) : NULL;
 	s->preloaded = 0;
 	s->vmlinux   = is_vmlinux(mod->name);
 	s->kernel    = 0;
@@ -670,7 +671,8 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 	unsigned int crc;
 	enum export export;
 	bool is_crc = false;
-	const char *name, *namespace;
+	const char *name;
+	char *namespace;
 
 	if ((!is_vmlinux(mod->name) || mod->is_dot_o) &&
 	    strstarts(symname, "__ksymtab"))
@@ -745,6 +747,7 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 			name = symname + strlen("__ksymtab_");
 			namespace = sym_extract_namespace(&name);
 			sym_add_exported(name, namespace, mod, export);
+			free(namespace);
 		}
 		if (strcmp(symname, "init_module") == 0)
 			mod->has_init = 1;
@@ -2193,7 +2196,7 @@ static int check_exports(struct module *mod)
 		else
 			basename = mod->name;
 
-		if (exp->namespace) {
+		if (exp->namespace && exp->namespace[0]) {
 			add_namespace(&mod->required_namespaces,
 				      exp->namespace);
 
