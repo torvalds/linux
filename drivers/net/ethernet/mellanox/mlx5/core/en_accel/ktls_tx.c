@@ -185,26 +185,33 @@ struct tx_sync_info {
 	skb_frag_t frags[MAX_SKB_FRAGS];
 };
 
-static bool tx_sync_info_get(struct mlx5e_ktls_offload_context_tx *priv_tx,
-			     u32 tcp_seq, struct tx_sync_info *info)
+enum mlx5e_ktls_sync_retval {
+	MLX5E_KTLS_SYNC_DONE,
+	MLX5E_KTLS_SYNC_FAIL,
+	MLX5E_KTLS_SYNC_SKIP_NO_DATA,
+};
+
+static enum mlx5e_ktls_sync_retval
+tx_sync_info_get(struct mlx5e_ktls_offload_context_tx *priv_tx,
+		 u32 tcp_seq, struct tx_sync_info *info)
 {
 	struct tls_offload_context_tx *tx_ctx = priv_tx->tx_ctx;
+	enum mlx5e_ktls_sync_retval ret = MLX5E_KTLS_SYNC_DONE;
 	struct tls_record_info *record;
 	int remaining, i = 0;
 	unsigned long flags;
-	bool ret = true;
 
 	spin_lock_irqsave(&tx_ctx->lock, flags);
 	record = tls_get_record(tx_ctx, tcp_seq, &info->rcd_sn);
 
 	if (unlikely(!record)) {
-		ret = false;
+		ret = MLX5E_KTLS_SYNC_FAIL;
 		goto out;
 	}
 
 	if (unlikely(tcp_seq < tls_record_start_seq(record))) {
-		if (!tls_record_is_start_marker(record))
-			ret = false;
+		ret = tls_record_is_start_marker(record) ?
+			MLX5E_KTLS_SYNC_SKIP_NO_DATA : MLX5E_KTLS_SYNC_FAIL;
 		goto out;
 	}
 
@@ -316,20 +323,26 @@ static void tx_post_fence_nop(struct mlx5e_txqsq *sq)
 	mlx5e_post_nop_fence(wq, sq->sqn, &sq->pc);
 }
 
-static struct sk_buff *
+static enum mlx5e_ktls_sync_retval
 mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 			 struct mlx5e_txqsq *sq,
-			 struct sk_buff *skb,
+			 int datalen,
 			 u32 seq)
 {
 	struct mlx5e_sq_stats *stats = sq->stats;
 	struct mlx5_wq_cyc *wq = &sq->wq;
+	enum mlx5e_ktls_sync_retval ret;
 	struct tx_sync_info info = {};
 	u16 contig_wqebbs_room, pi;
 	u8 num_wqebbs;
 	int i = 0;
 
-	if (!tx_sync_info_get(priv_tx, seq, &info)) {
+	ret = tx_sync_info_get(priv_tx, seq, &info);
+	if (unlikely(ret != MLX5E_KTLS_SYNC_DONE)) {
+		if (ret == MLX5E_KTLS_SYNC_SKIP_NO_DATA) {
+			stats->tls_skip_no_sync_data++;
+			return MLX5E_KTLS_SYNC_SKIP_NO_DATA;
+		}
 		/* We might get here if a retransmission reaches the driver
 		 * after the relevant record is acked.
 		 * It should be safe to drop the packet in this case
@@ -339,13 +352,8 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 	}
 
 	if (unlikely(info.sync_len < 0)) {
-		u32 payload;
-		int headln;
-
-		headln = skb_transport_offset(skb) + tcp_hdrlen(skb);
-		payload = skb->len - headln;
-		if (likely(payload <= -info.sync_len))
-			return skb;
+		if (likely(datalen <= -info.sync_len))
+			return MLX5E_KTLS_SYNC_DONE;
 
 		stats->tls_drop_bypass_req++;
 		goto err_out;
@@ -360,7 +368,7 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 	 */
 	if (!info.nr_frags) {
 		tx_post_fence_nop(sq);
-		return skb;
+		return MLX5E_KTLS_SYNC_DONE;
 	}
 
 	num_wqebbs = mlx5e_ktls_dumps_num_wqebbs(sq, info.nr_frags, info.sync_len);
@@ -397,7 +405,7 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 		page_ref_add(skb_frag_page(f), n - 1);
 	}
 
-	return skb;
+	return MLX5E_KTLS_SYNC_DONE;
 
 err_out:
 	for (; i < info.nr_frags; i++)
@@ -408,8 +416,7 @@ err_out:
 		 */
 		put_page(skb_frag_page(&info.frags[i]));
 
-	dev_kfree_skb_any(skb);
-	return NULL;
+	return MLX5E_KTLS_SYNC_FAIL;
 }
 
 struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
@@ -445,10 +452,15 @@ struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
 
 	seq = ntohl(tcp_hdr(skb)->seq);
 	if (unlikely(priv_tx->expected_seq != seq)) {
-		skb = mlx5e_ktls_tx_handle_ooo(priv_tx, sq, skb, seq);
-		if (unlikely(!skb))
+		enum mlx5e_ktls_sync_retval ret =
+			mlx5e_ktls_tx_handle_ooo(priv_tx, sq, datalen, seq);
+
+		if (likely(ret == MLX5E_KTLS_SYNC_DONE))
+			*wqe = mlx5e_sq_fetch_wqe(sq, sizeof(**wqe), pi);
+		else if (ret == MLX5E_KTLS_SYNC_FAIL)
+			goto err_out;
+		else /* ret == MLX5E_KTLS_SYNC_SKIP_NO_DATA */
 			goto out;
-		*wqe = mlx5e_sq_fetch_wqe(sq, sizeof(**wqe), pi);
 	}
 
 	priv_tx->expected_seq = seq + datalen;
