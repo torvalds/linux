@@ -51,6 +51,11 @@
 #define MLXSW_PCI_EQ_ASYNC_NUM	0
 #define MLXSW_PCI_EQ_COMP_NUM	1
 
+#define MLXSW_PCI_SDQS_MIN	2 /* EMAD and control traffic */
+#define MLXSW_PCI_SDQ_EMAD_INDEX	0
+#define MLXSW_PCI_SDQ_EMAD_TC	0
+#define MLXSW_PCI_SDQ_CTL_TC	3
+
 #define MLXSW_PCI_AQ_PAGES	8
 #define MLXSW_PCI_AQ_SIZE	(MLXSW_PCI_PAGE_SIZE * MLXSW_PCI_AQ_PAGES)
 #define MLXSW_PCI_WQE_SIZE	32 /* 32 bytes per element */
