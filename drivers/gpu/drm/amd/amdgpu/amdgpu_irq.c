@@ -245,11 +245,19 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	adev->irq.msi_enabled = false;
 
 	if (amdgpu_msi_ok(adev)) {
-		int nvec = pci_alloc_irq_vectors(adev->pdev, 1, pci_msix_vec_count(adev->pdev),
-					PCI_IRQ_MSI | PCI_IRQ_MSIX);
+		int nvec = pci_msix_vec_count(adev->pdev);
+		unsigned int flags;
+
+		if (nvec <= 0) {
+			flags = PCI_IRQ_MSI;
+		} else {
+			flags = PCI_IRQ_MSI | PCI_IRQ_MSIX;
+		}
+		/* we only need one vector */
+		nvec = pci_alloc_irq_vectors(adev->pdev, 1, 1, flags);
 		if (nvec > 0) {
 			adev->irq.msi_enabled = true;
-			dev_dbg(adev->dev, "amdgpu: using MSI.\n");
+			dev_dbg(adev->dev, "amdgpu: using MSI/MSI-X.\n");
 		}
 	}
 
@@ -272,7 +280,8 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	INIT_WORK(&adev->irq.ih2_work, amdgpu_irq_handle_ih2);
 
 	adev->irq.installed = true;
-	r = drm_irq_install(adev->ddev, adev->ddev->pdev->irq);
+	/* Use vector 0 for MSI-X */
+	r = drm_irq_install(adev->ddev, pci_irq_vector(adev->pdev, 0));
 	if (r) {
 		adev->irq.installed = false;
 		if (!amdgpu_device_has_dc_support(adev))
