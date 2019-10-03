@@ -1934,7 +1934,14 @@ static int convert_context(struct context *oldc, struct context *newc, void *p)
 		rc = string_to_context_struct(args->newp, NULL, s,
 					      newc, SECSID_NULL);
 		if (rc == -EINVAL) {
-			/* Retain string representation for later mapping. */
+			/*
+			 * Retain string representation for later mapping.
+			 *
+			 * IMPORTANT: We need to copy the contents of oldc->str
+			 * back into s again because string_to_context_struct()
+			 * may have garbled it.
+			 */
+			memcpy(s, oldc->str, oldc->len);
 			context_init(newc);
 			newc->str = s;
 			newc->len = oldc->len;
