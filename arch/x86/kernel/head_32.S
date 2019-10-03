@@ -597,8 +597,6 @@ int_msg:
  */
 
 	.data
-.globl boot_gdt_descr
-
 	ALIGN
 # early boot GDT descriptor (must use 1:1 address mapping)
 	.word 0				# 32 bit align gdt_desc.address
