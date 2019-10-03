@@ -23,6 +23,10 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
+#ifdef CONFIG_SUPERH
+#include <asm/platform_early.h>
+#endif
+
 struct sh_mtu2_device;
 
 struct sh_mtu2_channel {
@@ -511,7 +515,10 @@ static void __exit sh_mtu2_exit(void)
 	platform_driver_unregister(&sh_mtu2_device_driver);
 }
 
+#ifdef CONFIG_SUPERH
 early_platform_init("earlytimer", &sh_mtu2_device_driver);
+#endif
+
 subsys_initcall(sh_mtu2_init);
 module_exit(sh_mtu2_exit);
 

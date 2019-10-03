@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <asm/clock.h>
 #include <asm/mmzone.h>
+#include <asm/platform_early.h>
 #include <cpu/sh7723.h>
 
 /* Serial */

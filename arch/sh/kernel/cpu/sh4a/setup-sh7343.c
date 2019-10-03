@@ -12,6 +12,7 @@
 #include <linux/sh_timer.h>
 #include <linux/sh_intc.h>
 #include <asm/clock.h>
+#include <asm/platform_early.h>
 
 /* Serial */
 static struct plat_sci_port scif0_platform_data = {

@@ -13,6 +13,7 @@
 #include <linux/sh_timer.h>
 #include <linux/sh_intc.h>
 #include <asm/rtc.h>
+#include <asm/platform_early.h>
 
 enum {
 	UNUSED = 0,

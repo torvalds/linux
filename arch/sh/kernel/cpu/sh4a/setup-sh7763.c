@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <linux/serial_sci.h>
 #include <linux/usb/ohci_pdriver.h>
+#include <asm/platform_early.h>
 
 static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_REIE,

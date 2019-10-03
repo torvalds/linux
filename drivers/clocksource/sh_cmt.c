@@ -25,6 +25,10 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
+#ifdef CONFIG_SUPERH
+#include <asm/platform_early.h>
+#endif
+
 struct sh_cmt_device;
 
 /*
@@ -1109,7 +1113,10 @@ static void __exit sh_cmt_exit(void)
 	platform_driver_unregister(&sh_cmt_device_driver);
 }
 
+#ifdef CONFIG_SUPERH
 early_platform_init("earlytimer", &sh_cmt_device_driver);
+#endif
+
 subsys_initcall(sh_cmt_init);
 module_exit(sh_cmt_exit);
 

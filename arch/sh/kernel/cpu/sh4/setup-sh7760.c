@@ -11,6 +11,7 @@
 #include <linux/sh_intc.h>
 #include <linux/serial_sci.h>
 #include <linux/io.h>
+#include <asm/platform_early.h>
 
 enum {
 	UNUSED = 0,

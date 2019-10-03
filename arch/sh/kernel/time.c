@@ -18,6 +18,7 @@
 #include <linux/rtc.h>
 #include <asm/clock.h>
 #include <asm/rtc.h>
+#include <asm/platform_early.h>
 
 static void __init sh_late_time_init(void)
 {

@@ -13,6 +13,7 @@
 #include <linux/sh_timer.h>
 #include <linux/sh_intc.h>
 #include <cpu/dma-register.h>
+#include <asm/platform_early.h>
 
 static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_REIE | SCSCR_CKE1,

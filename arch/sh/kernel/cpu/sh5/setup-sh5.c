@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/sh_timer.h>
 #include <asm/addrspace.h>
+#include <asm/platform_early.h>
 
 static struct plat_sci_port scif0_platform_data = {
 	.flags		= UPF_IOREMAP,

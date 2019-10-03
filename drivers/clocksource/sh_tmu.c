@@ -24,6 +24,10 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
+#ifdef CONFIG_SUPERH
+#include <asm/platform_early.h>
+#endif
+
 enum sh_tmu_model {
 	SH_TMU,
 	SH_TMU_SH3,
@@ -615,6 +619,7 @@ static int sh_tmu_probe(struct platform_device *pdev)
 		pm_runtime_idle(&pdev->dev);
 		return ret;
 	}
+
 	if (is_early_platform_device(pdev))
 		return 0;
 
@@ -665,7 +670,10 @@ static void __exit sh_tmu_exit(void)
 	platform_driver_unregister(&sh_tmu_device_driver);
 }
 
+#ifdef CONFIG_SUPERH
 early_platform_init("earlytimer", &sh_tmu_device_driver);
+#endif
+
 subsys_initcall(sh_tmu_init);
 module_exit(sh_tmu_exit);
 

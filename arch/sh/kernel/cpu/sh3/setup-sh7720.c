@@ -19,6 +19,7 @@
 #include <linux/sh_intc.h>
 #include <linux/usb/ohci_pdriver.h>
 #include <asm/rtc.h>
+#include <asm/platform_early.h>
 #include <cpu/serial.h>
 
 static struct resource rtc_resources[] = {

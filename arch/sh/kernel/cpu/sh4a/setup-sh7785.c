@@ -14,6 +14,7 @@
 #include <linux/sh_timer.h>
 #include <linux/sh_intc.h>
 #include <asm/mmzone.h>
+#include <asm/platform_early.h>
 #include <cpu/dma-register.h>
 
 static struct plat_sci_port scif0_platform_data = {

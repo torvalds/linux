@@ -13,6 +13,7 @@
 #include <linux/sh_intc.h>
 #include <linux/serial_sci.h>
 #include <generated/machtypes.h>
+#include <asm/platform_early.h>
 
 static struct resource rtc_resources[] = {
 	[0] = {
