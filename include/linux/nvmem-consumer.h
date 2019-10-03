@@ -89,6 +89,9 @@ void nvmem_del_cell_lookups(struct nvmem_cell_lookup *entries,
 int nvmem_register_notifier(struct notifier_block *nb);
 int nvmem_unregister_notifier(struct notifier_block *nb);
 
+struct nvmem_device *nvmem_device_find(void *data,
+			int (*match)(struct device *dev, const void *data));
+
 #else
 
 static inline struct nvmem_cell *nvmem_cell_get(struct device *dev,
@@ -202,6 +205,12 @@ static inline int nvmem_register_notifier(struct notifier_block *nb)
 static inline int nvmem_unregister_notifier(struct notifier_block *nb)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline struct nvmem_device *nvmem_device_find(void *data,
+			int (*match)(struct device *dev, const void *data))
+{
+	return NULL;
 }
 
 #endif /* CONFIG_NVMEM */
