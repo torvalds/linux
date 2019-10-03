@@ -260,7 +260,7 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
 	nsim_fib_set_max_all(data, devlink);
 
 	data->fib_nb.notifier_call = nsim_fib_event_nb;
-	err = register_fib_notifier(&init_net, &data->fib_nb,
+	err = register_fib_notifier(devlink_net(devlink), &data->fib_nb,
 				    nsim_fib_dump_inconsistent, extack);
 	if (err) {
 		pr_err("Failed to register fib notifier\n");
@@ -300,6 +300,6 @@ void nsim_fib_destroy(struct devlink *devlink, struct nsim_fib_data *data)
 					    NSIM_RESOURCE_IPV4_FIB_RULES);
 	devlink_resource_occ_get_unregister(devlink,
 					    NSIM_RESOURCE_IPV4_FIB);
-	unregister_fib_notifier(&init_net, &data->fib_nb);
+	unregister_fib_notifier(devlink_net(devlink), &data->fib_nb);
 	kfree(data);
 }
