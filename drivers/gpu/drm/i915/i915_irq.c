@@ -29,7 +29,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/circ_buf.h>
-#include <linux/cpuidle.h>
 #include <linux/slab.h>
 #include <linux/sysrq.h>
 
@@ -2910,12 +2909,18 @@ int i8xx_enable_vblank(struct drm_crtc *crtc)
 	return 0;
 }
 
-int i945gm_enable_vblank(struct drm_crtc *crtc)
+int i915gm_enable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 
-	if (dev_priv->i945gm_vblank.enabled++ == 0)
-		schedule_work(&dev_priv->i945gm_vblank.work);
+	/*
+	 * Vblank interrupts fail to wake the device up from C2+.
+	 * Disabling render clock gating during C-states avoids
+	 * the problem. There is a small power cost so we do this
+	 * only when vblank interrupts are actually enabled.
+	 */
+	if (dev_priv->vblank_enabled++ == 0)
+		I915_WRITE(SCPD0, _MASKED_BIT_ENABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
 
 	return i8xx_enable_vblank(crtc);
 }
@@ -2988,14 +2993,14 @@ void i8xx_disable_vblank(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-void i945gm_disable_vblank(struct drm_crtc *crtc)
+void i915gm_disable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 
 	i8xx_disable_vblank(crtc);
 
-	if (--dev_priv->i945gm_vblank.enabled == 0)
-		schedule_work(&dev_priv->i945gm_vblank.work);
+	if (--dev_priv->vblank_enabled == 0)
+		I915_WRITE(SCPD0, _MASKED_BIT_DISABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
 }
 
 void i965_disable_vblank(struct drm_crtc *crtc)
@@ -3032,60 +3037,6 @@ void bdw_disable_vblank(struct drm_crtc *crtc)
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	bdw_disable_pipe_irq(dev_priv, pipe, GEN8_PIPE_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-}
-
-static void i945gm_vblank_work_func(struct work_struct *work)
-{
-	struct drm_i915_private *dev_priv =
-		container_of(work, struct drm_i915_private, i945gm_vblank.work);
-
-	/*
-	 * Vblank interrupts fail to wake up the device from C3,
-	 * hence we want to prevent C3 usage while vblank interrupts
-	 * are enabled.
-	 */
-	pm_qos_update_request(&dev_priv->i945gm_vblank.pm_qos,
-			      READ_ONCE(dev_priv->i945gm_vblank.enabled) ?
-			      dev_priv->i945gm_vblank.c3_disable_latency :
-			      PM_QOS_DEFAULT_VALUE);
-}
-
-static int cstate_disable_latency(const char *name)
-{
-	const struct cpuidle_driver *drv;
-	int i;
-
-	drv = cpuidle_get_driver();
-	if (!drv)
-		return 0;
-
-	for (i = 0; i < drv->state_count; i++) {
-		const struct cpuidle_state *state = &drv->states[i];
-
-		if (!strcmp(state->name, name))
-			return state->exit_latency ?
-				state->exit_latency - 1 : 0;
-	}
-
-	return 0;
-}
-
-static void i945gm_vblank_work_init(struct drm_i915_private *dev_priv)
-{
-	INIT_WORK(&dev_priv->i945gm_vblank.work,
-		  i945gm_vblank_work_func);
-
-	dev_priv->i945gm_vblank.c3_disable_latency =
-		cstate_disable_latency("C3");
-	pm_qos_add_request(&dev_priv->i945gm_vblank.pm_qos,
-			   PM_QOS_CPU_DMA_LATENCY,
-			   PM_QOS_DEFAULT_VALUE);
-}
-
-static void i945gm_vblank_work_fini(struct drm_i915_private *dev_priv)
-{
-	cancel_work_sync(&dev_priv->i945gm_vblank.work);
-	pm_qos_remove_request(&dev_priv->i945gm_vblank.pm_qos);
 }
 
 static void ibx_irq_reset(struct drm_i915_private *dev_priv)
@@ -4298,9 +4249,6 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	int i;
 
-	if (IS_I945GM(dev_priv))
-		i945gm_vblank_work_init(dev_priv);
-
 	intel_hpd_init_work(dev_priv);
 
 	INIT_WORK(&rps->work, gen6_pm_rps_work);
@@ -4387,9 +4335,6 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 void intel_irq_fini(struct drm_i915_private *i915)
 {
 	int i;
-
-	if (IS_I945GM(i915))
-		i945gm_vblank_work_fini(i915);
 
 	for (i = 0; i < MAX_L3_SLICES; ++i)
 		kfree(i915->l3_parity.remap_info[i]);

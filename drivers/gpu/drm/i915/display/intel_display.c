@@ -15060,12 +15060,12 @@ static const struct drm_crtc_funcs i965_crtc_funcs = {
 	.disable_vblank = i965_disable_vblank,
 };
 
-static const struct drm_crtc_funcs i945gm_crtc_funcs = {
+static const struct drm_crtc_funcs i915gm_crtc_funcs = {
 	INTEL_CRTC_FUNCS,
 
 	.get_vblank_counter = i915_get_vblank_counter,
-	.enable_vblank = i945gm_enable_vblank,
-	.disable_vblank = i945gm_disable_vblank,
+	.enable_vblank = i915gm_enable_vblank,
+	.disable_vblank = i915gm_disable_vblank,
 };
 
 static const struct drm_crtc_funcs i915_crtc_funcs = {
@@ -15136,8 +15136,8 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 			funcs = &g4x_crtc_funcs;
 		else if (IS_GEN(dev_priv, 4))
 			funcs = &i965_crtc_funcs;
-		else if (IS_I945GM(dev_priv))
-			funcs = &i945gm_crtc_funcs;
+		else if (IS_I945GM(dev_priv) || IS_I915GM(dev_priv))
+			funcs = &i915gm_crtc_funcs;
 		else if (IS_GEN(dev_priv, 3))
 			funcs = &i915_crtc_funcs;
 		else
