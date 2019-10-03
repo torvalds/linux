@@ -57,7 +57,6 @@ the kernel interface as seen by application developers.
    :maxdepth: 2
 
    userspace-api/index
-   ioctl/index
 
 
 Introduction to kernel development
