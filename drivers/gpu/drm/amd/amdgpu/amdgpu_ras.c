@@ -1542,10 +1542,10 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 release:
 	amdgpu_ras_release_bad_pages(adev);
 free:
-	con->eh_data = NULL;
 	kfree((*data)->bps);
 	kfree((*data)->bps_bo);
 	kfree(*data);
+	con->eh_data = NULL;
 out:
 	DRM_WARN("Failed to initialize ras recovery!\n");
 
