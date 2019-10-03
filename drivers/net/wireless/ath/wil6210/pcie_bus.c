@@ -629,8 +629,7 @@ static int __maybe_unused wil6210_pm_resume(struct device *dev)
 
 static int __maybe_unused wil6210_pm_runtime_idle(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct wil6210_priv *wil = pci_get_drvdata(pdev);
+	struct wil6210_priv *wil = dev_get_drvdata(dev);
 
 	wil_dbg_pm(wil, "Runtime idle\n");
 
@@ -644,8 +643,7 @@ static int __maybe_unused wil6210_pm_runtime_resume(struct device *dev)
 
 static int __maybe_unused wil6210_pm_runtime_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct wil6210_priv *wil = pci_get_drvdata(pdev);
+	struct wil6210_priv *wil = dev_get_drvdata(dev);
 
 	if (test_bit(wil_status_suspended, wil->status)) {
 		wil_dbg_pm(wil, "trying to suspend while suspended\n");

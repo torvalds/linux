@@ -575,6 +575,7 @@ struct wlfw_host_cap_req_msg_v01 {
 
 #define WLFW_HOST_CAP_REQ_MSG_V01_MAX_MSG_LEN 189
 extern struct qmi_elem_info wlfw_host_cap_req_msg_v01_ei[];
+extern struct qmi_elem_info wlfw_host_cap_8bit_req_msg_v01_ei[];
 
 struct wlfw_host_cap_resp_msg_v01 {
 	struct qmi_response_type_v01 resp;
