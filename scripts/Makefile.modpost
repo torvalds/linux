@@ -67,7 +67,11 @@ __modpost:
 
 else
 
-ifneq ($(KBUILD_EXTMOD),)
+MODPOST += $(subst -i,-n,$(filter -i,$(MAKEFLAGS))) -s -T -
+
+ifeq ($(KBUILD_EXTMOD),)
+MODPOST += $(wildcard vmlinux)
+else
 
 # set src + obj - they may be used in the modules's Makefile
 obj := $(KBUILD_EXTMOD)
@@ -77,8 +81,6 @@ src := $(obj)
 include $(if $(wildcard $(KBUILD_EXTMOD)/Kbuild), \
              $(KBUILD_EXTMOD)/Kbuild, $(KBUILD_EXTMOD)/Makefile)
 endif
-
-MODPOST += $(subst -i,-n,$(filter -i,$(MAKEFLAGS))) -s -T - $(wildcard vmlinux)
 
 # find all modules listed in modules.order
 modules := $(sort $(shell cat $(MODORDER)))
