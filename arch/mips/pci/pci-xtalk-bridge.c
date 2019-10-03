@@ -11,16 +11,22 @@
 #include <linux/dma-direct.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/xtalk-bridge.h>
+#include <linux/nvmem-consumer.h>
+#include <linux/crc16.h>
 
 #include <asm/pci/bridge.h>
 #include <asm/paccess.h>
 #include <asm/sn/irq_alloc.h>
+#include <asm/sn/ioc3.h>
+
+#define CRC16_INIT	0
+#define CRC16_VALID	0xb001
 
 /*
  * Most of the IOC3 PCI config register aren't present
  * we emulate what is needed for a normal PCI enumeration
  */
-static int ioc3_cfg_rd(void *addr, int where, int size, u32 *value)
+static int ioc3_cfg_rd(void *addr, int where, int size, u32 *value, u32 sid)
 {
 	u32 cf, shift, mask;
 
@@ -29,6 +35,9 @@ static int ioc3_cfg_rd(void *addr, int where, int size, u32 *value)
 	case 0x40 ... 0x44:
 		if (get_dbe(cf, (u32 *)addr))
 			return PCIBIOS_DEVICE_NOT_FOUND;
+		break;
+	case 0x2c:
+		cf = sid;
 		break;
 	case 0x3c:
 		/* emulate sane interrupt pin value */
@@ -111,7 +120,8 @@ static int pci_conf0_read_config(struct pci_bus *bus, unsigned int devfn,
 	 */
 	if (cf == (PCI_VENDOR_ID_SGI | (PCI_DEVICE_ID_SGI_IOC3 << 16))) {
 		addr = &bridge->b_type0_cfg_dev[slot].f[fn].l[where >> 2];
-		return ioc3_cfg_rd(addr, where, size, value);
+		return ioc3_cfg_rd(addr, where, size, value,
+				   bc->ioc3_sid[slot]);
 	}
 
 	addr = &bridge->b_type0_cfg_dev[slot].f[fn].c[where ^ (4 - size)];
@@ -149,7 +159,8 @@ static int pci_conf1_read_config(struct pci_bus *bus, unsigned int devfn,
 	 */
 	if (cf == (PCI_VENDOR_ID_SGI | (PCI_DEVICE_ID_SGI_IOC3 << 16))) {
 		addr = &bridge->b_type1_cfg.c[(fn << 8) | (where & ~3)];
-		return ioc3_cfg_rd(addr, where, size, value);
+		return ioc3_cfg_rd(addr, where, size, value,
+				   bc->ioc3_sid[slot]);
 	}
 
 	addr = &bridge->b_type1_cfg.c[(fn << 8) | (where ^ (4 - size))];
@@ -426,6 +437,117 @@ static int bridge_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return irq;
 }
 
+#define IOC3_SID(sid)	(PCI_VENDOR_ID_SGI << 16 | (sid))
+
+static void bridge_setup_ip27_baseio6g(struct bridge_controller *bc)
+{
+	bc->ioc3_sid[2] = IOC3_SID(IOC3_SUBSYS_IP27_BASEIO6G);
+	bc->ioc3_sid[6] = IOC3_SID(IOC3_SUBSYS_IP27_MIO);
+}
+
+static void bridge_setup_ip27_baseio(struct bridge_controller *bc)
+{
+	bc->ioc3_sid[2] = IOC3_SID(IOC3_SUBSYS_IP27_BASEIO);
+}
+
+static void bridge_setup_ip29_baseio(struct bridge_controller *bc)
+{
+	bc->ioc3_sid[2] = IOC3_SID(IOC3_SUBSYS_IP29_SYSBOARD);
+}
+
+static void bridge_setup_ip30_sysboard(struct bridge_controller *bc)
+{
+	bc->ioc3_sid[2] = IOC3_SID(IOC3_SUBSYS_IP30_SYSBOARD);
+}
+
+static void bridge_setup_menet(struct bridge_controller *bc)
+{
+	bc->ioc3_sid[0] = IOC3_SID(IOC3_SUBSYS_MENET);
+	bc->ioc3_sid[1] = IOC3_SID(IOC3_SUBSYS_MENET);
+	bc->ioc3_sid[2] = IOC3_SID(IOC3_SUBSYS_MENET);
+	bc->ioc3_sid[3] = IOC3_SID(IOC3_SUBSYS_MENET4);
+}
+
+#define BRIDGE_BOARD_SETUP(_partno, _setup)	\
+	{ .match = _partno, .setup = _setup }
+
+static const struct {
+	char *match;
+	void (*setup)(struct bridge_controller *bc);
+} bridge_ioc3_devid[] = {
+	BRIDGE_BOARD_SETUP("030-0734-", bridge_setup_ip27_baseio6g),
+	BRIDGE_BOARD_SETUP("030-0880-", bridge_setup_ip27_baseio6g),
+	BRIDGE_BOARD_SETUP("030-1023-", bridge_setup_ip27_baseio),
+	BRIDGE_BOARD_SETUP("030-1124-", bridge_setup_ip27_baseio),
+	BRIDGE_BOARD_SETUP("030-1025-", bridge_setup_ip29_baseio),
+	BRIDGE_BOARD_SETUP("030-1244-", bridge_setup_ip29_baseio),
+	BRIDGE_BOARD_SETUP("030-1389-", bridge_setup_ip29_baseio),
+	BRIDGE_BOARD_SETUP("030-0887-", bridge_setup_ip30_sysboard),
+	BRIDGE_BOARD_SETUP("030-1467-", bridge_setup_ip30_sysboard),
+	BRIDGE_BOARD_SETUP("030-0873-", bridge_setup_menet),
+};
+
+static void bridge_setup_board(struct bridge_controller *bc, char *partnum)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(bridge_ioc3_devid); i++)
+		if (!strncmp(partnum, bridge_ioc3_devid[i].match,
+			     strlen(bridge_ioc3_devid[i].match))) {
+			bridge_ioc3_devid[i].setup(bc);
+		}
+}
+
+static int bridge_nvmem_match(struct device *dev, const void *data)
+{
+	const char *name = dev_name(dev);
+	const char *prefix = data;
+
+	if (strlen(name) < strlen(prefix))
+		return 0;
+
+	return memcmp(prefix, dev_name(dev), strlen(prefix)) == 0;
+}
+
+static int bridge_get_partnum(u64 baddr, char *partnum)
+{
+	struct nvmem_device *nvmem;
+	char prefix[24];
+	u8 prom[64];
+	int i, j;
+	int ret;
+
+	snprintf(prefix, sizeof(prefix), "bridge-%012llx-0b-", baddr);
+
+	nvmem = nvmem_device_find(prefix, bridge_nvmem_match);
+	if (IS_ERR(nvmem))
+		return PTR_ERR(nvmem);
+
+	ret = nvmem_device_read(nvmem, 0, 64, prom);
+	nvmem_device_put(nvmem);
+
+	if (ret != 64)
+		return ret;
+
+	if (crc16(CRC16_INIT, prom, 32) != CRC16_VALID ||
+	    crc16(CRC16_INIT, prom + 32, 32) != CRC16_VALID)
+		return -EINVAL;
+
+	/* Assemble part number */
+	j = 0;
+	for (i = 0; i < 19; i++)
+		if (prom[i + 11] != ' ')
+			partnum[j++] = prom[i + 11];
+
+	for (i = 0; i < 6; i++)
+		if (prom[i + 32] != ' ')
+			partnum[j++] = prom[i + 32];
+
+	partnum[j] = 0;
+
+	return 0;
+}
+
 static int bridge_probe(struct platform_device *pdev)
 {
 	struct xtalk_bridge_platform_data *bd = dev_get_platdata(&pdev->dev);
@@ -434,8 +556,13 @@ static int bridge_probe(struct platform_device *pdev)
 	struct pci_host_bridge *host;
 	struct irq_domain *domain, *parent;
 	struct fwnode_handle *fn;
+	char partnum[26];
 	int slot;
 	int err;
+
+	/* get part number from one wire prom */
+	if (bridge_get_partnum(virt_to_phys((void *)bd->bridge_addr), partnum))
+		return -EPROBE_DEFER; /* not available yet */
 
 	parent = irq_get_default_host();
 	if (!parent)
@@ -516,6 +643,8 @@ static int bridge_probe(struct platform_device *pdev)
 		bc->pci_int[slot] = -1;
 	}
 	bridge_read(bc, b_wid_tflush);	  /* wait until Bridge PIO complete */
+
+	bridge_setup_board(bc, partnum);
 
 	host->dev.parent = dev;
 	host->sysdata = bc;
