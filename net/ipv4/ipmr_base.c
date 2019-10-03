@@ -409,7 +409,7 @@ int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
 			if (!v->dev)
 				continue;
 
-			mr_call_vif_notifier(nb, net, family,
+			mr_call_vif_notifier(nb, family,
 					     FIB_EVENT_VIF_ADD,
 					     v, vifi, mrt->id);
 		}
@@ -417,7 +417,7 @@ int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
 
 		/* Notify on table MFC entries */
 		list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list)
-			mr_call_mfc_notifier(nb, net, family,
+			mr_call_mfc_notifier(nb, family,
 					     FIB_EVENT_ENTRY_ADD,
 					     mfc, mrt->id);
 	}

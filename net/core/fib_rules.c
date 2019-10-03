@@ -321,7 +321,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(fib_rules_lookup);
 
-static int call_fib_rule_notifier(struct notifier_block *nb, struct net *net,
+static int call_fib_rule_notifier(struct notifier_block *nb,
 				  enum fib_event_type event_type,
 				  struct fib_rule *rule, int family)
 {
@@ -330,7 +330,7 @@ static int call_fib_rule_notifier(struct notifier_block *nb, struct net *net,
 		.rule = rule,
 	};
 
-	return call_fib_notifier(nb, net, event_type, &info.info);
+	return call_fib_notifier(nb, event_type, &info.info);
 }
 
 static int call_fib_rule_notifiers(struct net *net,
@@ -359,8 +359,7 @@ int fib_rules_dump(struct net *net, struct notifier_block *nb, int family)
 	if (!ops)
 		return -EAFNOSUPPORT;
 	list_for_each_entry_rcu(rule, &ops->rules_list, list)
-		call_fib_rule_notifier(nb, net, FIB_EVENT_RULE_ADD, rule,
-				       family);
+		call_fib_rule_notifier(nb, FIB_EVENT_RULE_ADD, rule, family);
 	rules_ops_put(ops);
 
 	return 0;

@@ -182,9 +182,6 @@ static int nsim_fib_event_nb(struct notifier_block *nb, unsigned long event,
 	struct fib_notifier_info *info = ptr;
 	int err = 0;
 
-	if (!net_eq(info->net, &init_net))
-		return NOTIFY_DONE;
-
 	switch (event) {
 	case FIB_EVENT_RULE_ADD: /* fall through */
 	case FIB_EVENT_RULE_DEL:
@@ -258,7 +255,8 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink)
 	data->ipv6.rules.max = (u64)-1;
 
 	data->fib_nb.notifier_call = nsim_fib_event_nb;
-	err = register_fib_notifier(&data->fib_nb, nsim_fib_dump_inconsistent);
+	err = register_fib_notifier(&init_net, &data->fib_nb,
+				    nsim_fib_dump_inconsistent);
 	if (err) {
 		pr_err("Failed to register fib notifier\n");
 		goto err_out;
@@ -297,6 +295,6 @@ void nsim_fib_destroy(struct devlink *devlink, struct nsim_fib_data *data)
 					    NSIM_RESOURCE_IPV4_FIB_RULES);
 	devlink_resource_occ_get_unregister(devlink,
 					    NSIM_RESOURCE_IPV4_FIB);
-	unregister_fib_notifier(&data->fib_nb);
+	unregister_fib_notifier(&init_net, &data->fib_nb);
 	kfree(data);
 }

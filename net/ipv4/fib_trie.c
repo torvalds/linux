@@ -74,7 +74,7 @@
 #include <trace/events/fib.h>
 #include "fib_lookup.h"
 
-static int call_fib_entry_notifier(struct notifier_block *nb, struct net *net,
+static int call_fib_entry_notifier(struct notifier_block *nb,
 				   enum fib_event_type event_type, u32 dst,
 				   int dst_len, struct fib_alias *fa)
 {
@@ -86,7 +86,7 @@ static int call_fib_entry_notifier(struct notifier_block *nb, struct net *net,
 		.type = fa->fa_type,
 		.tb_id = fa->tb_id,
 	};
-	return call_fib4_notifier(nb, net, event_type, &info.info);
+	return call_fib4_notifier(nb, event_type, &info.info);
 }
 
 static int call_fib_entry_notifiers(struct net *net,
@@ -2015,8 +2015,8 @@ void fib_info_notify_update(struct net *net, struct nl_info *info)
 	}
 }
 
-static void fib_leaf_notify(struct net *net, struct key_vector *l,
-			    struct fib_table *tb, struct notifier_block *nb)
+static void fib_leaf_notify(struct key_vector *l, struct fib_table *tb,
+			    struct notifier_block *nb)
 {
 	struct fib_alias *fa;
 
@@ -2032,20 +2032,19 @@ static void fib_leaf_notify(struct net *net, struct key_vector *l,
 		if (tb->tb_id != fa->tb_id)
 			continue;
 
-		call_fib_entry_notifier(nb, net, FIB_EVENT_ENTRY_ADD, l->key,
+		call_fib_entry_notifier(nb, FIB_EVENT_ENTRY_ADD, l->key,
 					KEYLENGTH - fa->fa_slen, fa);
 	}
 }
 
-static void fib_table_notify(struct net *net, struct fib_table *tb,
-			     struct notifier_block *nb)
+static void fib_table_notify(struct fib_table *tb, struct notifier_block *nb)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct key_vector *l, *tp = t->kv;
 	t_key key = 0;
 
 	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
-		fib_leaf_notify(net, l, tb, nb);
+		fib_leaf_notify(l, tb, nb);
 
 		key = l->key + 1;
 		/* stop in case of wrap around */
@@ -2063,7 +2062,7 @@ void fib_notify(struct net *net, struct notifier_block *nb)
 		struct fib_table *tb;
 
 		hlist_for_each_entry_rcu(tb, head, tb_hlist)
-			fib_table_notify(net, tb, nb);
+			fib_table_notify(tb, nb);
 	}
 }
 

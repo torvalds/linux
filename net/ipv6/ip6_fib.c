@@ -357,7 +357,7 @@ unsigned int fib6_tables_seq_read(struct net *net)
 	return fib_seq;
 }
 
-static int call_fib6_entry_notifier(struct notifier_block *nb, struct net *net,
+static int call_fib6_entry_notifier(struct notifier_block *nb,
 				    enum fib_event_type event_type,
 				    struct fib6_info *rt)
 {
@@ -365,7 +365,7 @@ static int call_fib6_entry_notifier(struct notifier_block *nb, struct net *net,
 		.rt = rt,
 	};
 
-	return call_fib6_notifier(nb, net, event_type, &info.info);
+	return call_fib6_notifier(nb, event_type, &info.info);
 }
 
 int call_fib6_entry_notifiers(struct net *net,
@@ -407,7 +407,7 @@ static void fib6_rt_dump(struct fib6_info *rt, struct fib6_dump_arg *arg)
 {
 	if (rt == arg->net->ipv6.fib6_null_entry)
 		return;
-	call_fib6_entry_notifier(arg->nb, arg->net, FIB_EVENT_ENTRY_ADD, rt);
+	call_fib6_entry_notifier(arg->nb, FIB_EVENT_ENTRY_ADD, rt);
 }
 
 static int fib6_node_dump(struct fib6_walker *w)

@@ -6213,7 +6213,7 @@ static int mlxsw_sp_router_fib_rule_event(unsigned long event,
 	rule = fr_info->rule;
 
 	/* Rule only affects locally generated traffic */
-	if (rule->iifindex == info->net->loopback_dev->ifindex)
+	if (rule->iifindex == init_net.loopback_dev->ifindex)
 		return 0;
 
 	switch (info->family) {
@@ -6250,8 +6250,7 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 	struct mlxsw_sp_router *router;
 	int err;
 
-	if (!net_eq(info->net, &init_net) ||
-	    (info->family != AF_INET && info->family != AF_INET6 &&
+	if ((info->family != AF_INET && info->family != AF_INET6 &&
 	     info->family != RTNL_FAMILY_IPMR &&
 	     info->family != RTNL_FAMILY_IP6MR))
 		return NOTIFY_DONE;
@@ -8155,7 +8154,7 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 		goto err_dscp_init;
 
 	mlxsw_sp->router->fib_nb.notifier_call = mlxsw_sp_router_fib_event;
-	err = register_fib_notifier(&mlxsw_sp->router->fib_nb,
+	err = register_fib_notifier(&init_net, &mlxsw_sp->router->fib_nb,
 				    mlxsw_sp_router_fib_dump_flush);
 	if (err)
 		goto err_register_fib_notifier;
@@ -8195,7 +8194,7 @@ err_register_inetaddr_notifier:
 
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	unregister_fib_notifier(&mlxsw_sp->router->fib_nb);
+	unregister_fib_notifier(&init_net, &mlxsw_sp->router->fib_nb);
 	unregister_netevent_notifier(&mlxsw_sp->router->netevent_nb);
 	mlxsw_sp_neigh_fini(mlxsw_sp);
 	mlxsw_sp_vrs_fini(mlxsw_sp);

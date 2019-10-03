@@ -9,12 +9,12 @@
 #include <net/netns/ipv4.h>
 #include <net/ip_fib.h>
 
-int call_fib4_notifier(struct notifier_block *nb, struct net *net,
+int call_fib4_notifier(struct notifier_block *nb,
 		       enum fib_event_type event_type,
 		       struct fib_notifier_info *info)
 {
 	info->family = AF_INET;
-	return call_fib_notifier(nb, net, event_type, info);
+	return call_fib_notifier(nb, event_type, info);
 }
 
 int call_fib4_notifiers(struct net *net, enum fib_event_type event_type,
