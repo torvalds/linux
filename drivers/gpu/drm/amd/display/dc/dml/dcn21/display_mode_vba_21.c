@@ -3380,6 +3380,8 @@ static unsigned int TruncToValidBPP(
 				return 30;
 			else if (DecimalBPP >= 24 && (DesiredBPP == 0 || DesiredBPP == 24))
 				return 24;
+			else if (DecimalBPP >= 18 && (DesiredBPP == 0 || DesiredBPP == 18))
+				return 18;
 			else
 				return BPP_INVALID;
 		}
