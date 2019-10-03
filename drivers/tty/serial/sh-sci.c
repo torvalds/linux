@@ -3318,7 +3318,7 @@ static int sci_probe(struct platform_device *dev)
 	 * to make it beyond this yet.
 	 */
 #ifdef CONFIG_SUPERH
-	if (is_early_platform_device(dev))
+	if (is_sh_early_platform_device(dev))
 		return sci_probe_earlyprintk(dev);
 #endif
 
@@ -3416,7 +3416,7 @@ static void __exit sci_exit(void)
 }
 
 #if defined(CONFIG_SUPERH) && defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
-early_platform_init_buffer("earlyprintk", &sci_driver,
+sh_early_platform_init_buffer("earlyprintk", &sci_driver,
 			   early_serial_buf, ARRAY_SIZE(early_serial_buf));
 #endif
 #ifdef CONFIG_SERIAL_SH_SCI_EARLYCON

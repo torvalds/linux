@@ -286,7 +286,7 @@ void __init plat_early_device_setup(void)
 		scif1_platform_data.scscr &= ~SCSCR_CKE1;
 	}
 
-	early_platform_add_devices(sh7780_early_devices,
+	sh_early_platform_add_devices(sh7780_early_devices,
 				   ARRAY_SIZE(sh7780_early_devices));
 }
 

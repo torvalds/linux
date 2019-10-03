@@ -599,7 +599,7 @@ static int sh_tmu_probe(struct platform_device *pdev)
 	struct sh_tmu_device *tmu = platform_get_drvdata(pdev);
 	int ret;
 
-	if (!is_early_platform_device(pdev)) {
+	if (!is_sh_early_platform_device(pdev)) {
 		pm_runtime_set_active(&pdev->dev);
 		pm_runtime_enable(&pdev->dev);
 	}
@@ -620,7 +620,7 @@ static int sh_tmu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (is_early_platform_device(pdev))
+	if (is_sh_early_platform_device(pdev))
 		return 0;
 
  out:
@@ -671,7 +671,7 @@ static void __exit sh_tmu_exit(void)
 }
 
 #ifdef CONFIG_SUPERH
-early_platform_init("earlytimer", &sh_tmu_device_driver);
+sh_early_platform_init("earlytimer", &sh_tmu_device_driver);
 #endif
 
 subsys_initcall(sh_tmu_init);

@@ -354,7 +354,7 @@ static struct platform_device *sh7785_early_devices[] __initdata = {
 
 void __init plat_early_device_setup(void)
 {
-	early_platform_add_devices(sh7785_early_devices,
+	sh_early_platform_add_devices(sh7785_early_devices,
 				   ARRAY_SIZE(sh7785_early_devices));
 }
 

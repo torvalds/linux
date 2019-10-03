@@ -200,6 +200,6 @@ void __init plat_early_device_setup(void)
 	/* enable CMT clock */
 	__raw_writeb(__raw_readb(STBCR3) & ~0x10, STBCR3);
 
-	early_platform_add_devices(sh7619_early_devices,
+	sh_early_platform_add_devices(sh7619_early_devices,
 				   ARRAY_SIZE(sh7619_early_devices));
 }

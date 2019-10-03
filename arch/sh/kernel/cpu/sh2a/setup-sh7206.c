@@ -286,6 +286,6 @@ void __init plat_early_device_setup(void)
 	/* enable MTU2 clock */
 	__raw_writeb(__raw_readb(STBCR3) & ~0x20, STBCR3);
 
-	early_platform_add_devices(sh7206_early_devices,
+	sh_early_platform_add_devices(sh7206_early_devices,
 				   ARRAY_SIZE(sh7206_early_devices));
 }

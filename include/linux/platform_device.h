@@ -332,7 +332,7 @@ extern int platform_dma_configure(struct device *dev);
  * drivers. It should go away once we introduce the new platform_device-based
  * early driver framework.
  */
-static inline int is_early_platform_device(struct platform_device *pdev)
+static inline int is_sh_early_platform_device(struct platform_device *pdev)
 {
 	return 0;
 }

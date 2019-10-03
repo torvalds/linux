@@ -835,6 +835,6 @@ arch_initcall(sh7786_devices_setup);
 
 void __init plat_early_device_setup(void)
 {
-	early_platform_add_devices(sh7786_early_devices,
+	sh_early_platform_add_devices(sh7786_early_devices,
 				   ARRAY_SIZE(sh7786_early_devices));
 }

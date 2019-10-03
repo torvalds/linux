@@ -4,8 +4,8 @@
 #include <linux/mod_devicetable.h>
 #include <linux/pm.h>
 
-static __initdata LIST_HEAD(early_platform_driver_list);
-static __initdata LIST_HEAD(early_platform_device_list);
+static __initdata LIST_HEAD(sh_early_platform_driver_list);
+static __initdata LIST_HEAD(sh_early_platform_device_list);
 
 static const struct platform_device_id *
 platform_match_id(const struct platform_device_id *id,
@@ -58,13 +58,13 @@ static void pm_runtime_early_init(struct device *dev) {}
 #endif
 
 /**
- * early_platform_driver_register - register early platform driver
- * @epdrv: early_platform driver structure
+ * sh_early_platform_driver_register - register early platform driver
+ * @epdrv: sh_early_platform driver structure
  * @buf: string passed from early_param()
  *
- * Helper function for early_platform_init() / early_platform_init_buffer()
+ * Helper function for sh_early_platform_init() / sh_early_platform_init_buffer()
  */
-int __init early_platform_driver_register(struct early_platform_driver *epdrv,
+int __init sh_early_platform_driver_register(struct sh_early_platform_driver *epdrv,
 					  char *buf)
 {
 	char *tmp;
@@ -75,7 +75,7 @@ int __init early_platform_driver_register(struct early_platform_driver *epdrv,
 	 */
 	if (!epdrv->list.next) {
 		INIT_LIST_HEAD(&epdrv->list);
-		list_add_tail(&epdrv->list, &early_platform_driver_list);
+		list_add_tail(&epdrv->list, &sh_early_platform_driver_list);
 	}
 
 	/* If the user has specified device then make sure the driver
@@ -84,7 +84,7 @@ int __init early_platform_driver_register(struct early_platform_driver *epdrv,
 	 */
 	n = strlen(epdrv->pdrv->driver.name);
 	if (buf && !strncmp(buf, epdrv->pdrv->driver.name, n)) {
-		list_move(&epdrv->list, &early_platform_driver_list);
+		list_move(&epdrv->list, &sh_early_platform_driver_list);
 
 		/* Allow passing parameters after device name */
 		if (buf[n] == '\0' || buf[n] == ',')
@@ -114,14 +114,14 @@ int __init early_platform_driver_register(struct early_platform_driver *epdrv,
 }
 
 /**
- * early_platform_add_devices - adds a number of early platform devices
+ * sh_early_platform_add_devices - adds a number of early platform devices
  * @devs: array of early platform devices to add
  * @num: number of early platform devices in array
  *
  * Used by early architecture code to register early platform devices and
  * their platform data.
  */
-void __init early_platform_add_devices(struct platform_device **devs, int num)
+void __init sh_early_platform_add_devices(struct platform_device **devs, int num)
 {
 	struct device *dev;
 	int i;
@@ -134,20 +134,20 @@ void __init early_platform_add_devices(struct platform_device **devs, int num)
 			pm_runtime_early_init(dev);
 			INIT_LIST_HEAD(&dev->devres_head);
 			list_add_tail(&dev->devres_head,
-				      &early_platform_device_list);
+				      &sh_early_platform_device_list);
 		}
 	}
 }
 
 /**
- * early_platform_driver_register_all - register early platform drivers
+ * sh_early_platform_driver_register_all - register early platform drivers
  * @class_str: string to identify early platform driver class
  *
  * Used by architecture code to register all early platform drivers
  * for a certain class. If omitted then only early platform drivers
  * with matching kernel command line class parameters will be registered.
  */
-void __init early_platform_driver_register_all(char *class_str)
+void __init sh_early_platform_driver_register_all(char *class_str)
 {
 	/* The "class_str" parameter may or may not be present on the kernel
 	 * command line. If it is present then there may be more than one
@@ -160,23 +160,23 @@ void __init early_platform_driver_register_all(char *class_str)
 	 * We use parse_early_options() to make sure the early_param() gets
 	 * called at least once. The early_param() may be called more than
 	 * once since the name of the preferred device may be specified on
-	 * the kernel command line. early_platform_driver_register() handles
+	 * the kernel command line. sh_early_platform_driver_register() handles
 	 * this case for us.
 	 */
 	parse_early_options(class_str);
 }
 
 /**
- * early_platform_match - find early platform device matching driver
+ * sh_early_platform_match - find early platform device matching driver
  * @epdrv: early platform driver structure
  * @id: id to match against
  */
 static struct platform_device * __init
-early_platform_match(struct early_platform_driver *epdrv, int id)
+sh_early_platform_match(struct sh_early_platform_driver *epdrv, int id)
 {
 	struct platform_device *pd;
 
-	list_for_each_entry(pd, &early_platform_device_list, dev.devres_head)
+	list_for_each_entry(pd, &sh_early_platform_device_list, dev.devres_head)
 		if (platform_match(&pd->dev, &epdrv->pdrv->driver))
 			if (pd->id == id)
 				return pd;
@@ -185,16 +185,16 @@ early_platform_match(struct early_platform_driver *epdrv, int id)
 }
 
 /**
- * early_platform_left - check if early platform driver has matching devices
+ * sh_early_platform_left - check if early platform driver has matching devices
  * @epdrv: early platform driver structure
  * @id: return true if id or above exists
  */
-static int __init early_platform_left(struct early_platform_driver *epdrv,
+static int __init sh_early_platform_left(struct sh_early_platform_driver *epdrv,
 				       int id)
 {
 	struct platform_device *pd;
 
-	list_for_each_entry(pd, &early_platform_device_list, dev.devres_head)
+	list_for_each_entry(pd, &sh_early_platform_device_list, dev.devres_head)
 		if (platform_match(&pd->dev, &epdrv->pdrv->driver))
 			if (pd->id >= id)
 				return 1;
@@ -203,22 +203,22 @@ static int __init early_platform_left(struct early_platform_driver *epdrv,
 }
 
 /**
- * early_platform_driver_probe_id - probe drivers matching class_str and id
+ * sh_early_platform_driver_probe_id - probe drivers matching class_str and id
  * @class_str: string to identify early platform driver class
  * @id: id to match against
  * @nr_probe: number of platform devices to successfully probe before exiting
  */
-static int __init early_platform_driver_probe_id(char *class_str,
+static int __init sh_early_platform_driver_probe_id(char *class_str,
 						 int id,
 						 int nr_probe)
 {
-	struct early_platform_driver *epdrv;
+	struct sh_early_platform_driver *epdrv;
 	struct platform_device *match;
 	int match_id;
 	int n = 0;
 	int left = 0;
 
-	list_for_each_entry(epdrv, &early_platform_driver_list, list) {
+	list_for_each_entry(epdrv, &sh_early_platform_driver_list, list) {
 		/* only use drivers matching our class_str */
 		if (strcmp(class_str, epdrv->class_str))
 			continue;
@@ -229,7 +229,7 @@ static int __init early_platform_driver_probe_id(char *class_str,
 
 		} else {
 			match_id = id;
-			left += early_platform_left(epdrv, id);
+			left += sh_early_platform_left(epdrv, id);
 
 			/* skip requested id */
 			switch (epdrv->requested_id) {
@@ -251,7 +251,7 @@ static int __init early_platform_driver_probe_id(char *class_str,
 			match = NULL;
 			break;
 		default:
-			match = early_platform_match(epdrv, match_id);
+			match = sh_early_platform_match(epdrv, match_id);
 		}
 
 		if (match) {
@@ -293,7 +293,7 @@ static int __init early_platform_driver_probe_id(char *class_str,
 }
 
 /**
- * early_platform_driver_probe - probe a class of registered drivers
+ * sh_early_platform_driver_probe - probe a class of registered drivers
  * @class_str: string to identify early platform driver class
  * @nr_probe: number of platform devices to successfully probe before exiting
  * @user_only: only probe user specified early platform devices
@@ -302,7 +302,7 @@ static int __init early_platform_driver_probe_id(char *class_str,
  * within a certain class. For probe to happen a registered early platform
  * device matching a registered early platform driver is needed.
  */
-int __init early_platform_driver_probe(char *class_str,
+int __init sh_early_platform_driver_probe(char *class_str,
 				       int nr_probe,
 				       int user_only)
 {
@@ -310,7 +310,7 @@ int __init early_platform_driver_probe(char *class_str,
 
 	n = 0;
 	for (i = -2; n < nr_probe; i++) {
-		k = early_platform_driver_probe_id(class_str, i, nr_probe - n);
+		k = sh_early_platform_driver_probe_id(class_str, i, nr_probe - n);
 
 		if (k < 0)
 			break;
@@ -325,14 +325,14 @@ int __init early_platform_driver_probe(char *class_str,
 }
 
 /**
- * early_platform_cleanup - clean up early platform code
+ * sh_early_platform_cleanup - clean up early platform code
  */
-static int __init early_platform_cleanup(void)
+static int __init sh_early_platform_cleanup(void)
 {
 	struct platform_device *pd, *pd2;
 
 	/* clean up the devres list used to chain devices */
-	list_for_each_entry_safe(pd, pd2, &early_platform_device_list,
+	list_for_each_entry_safe(pd, pd2, &sh_early_platform_device_list,
 				 dev.devres_head) {
 		list_del(&pd->dev.devres_head);
 		memset(&pd->dev.devres_head, 0, sizeof(pd->dev.devres_head));
@@ -344,4 +344,4 @@ static int __init early_platform_cleanup(void)
  * This must happen once after all early devices are probed but before probing
  * real platform devices.
  */
-subsys_initcall(early_platform_cleanup);
+subsys_initcall(sh_early_platform_cleanup);

@@ -153,7 +153,7 @@ arch_initcall(shx3_devices_setup);
 
 void __init plat_early_device_setup(void)
 {
-	early_platform_add_devices(shx3_early_devices,
+	sh_early_platform_add_devices(shx3_early_devices,
 				   ARRAY_SIZE(shx3_early_devices));
 }
 
