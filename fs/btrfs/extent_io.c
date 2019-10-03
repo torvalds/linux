@@ -2929,7 +2929,6 @@ struct bio *btrfs_bio_clone_partial(struct bio *orig, int offset, int size)
  *              a contiguous page to the previous one
  * @size:	portion of page that we want to write
  * @offset:	starting offset in the page
- * @bdev:	attach newly created bios to this bdev
  * @bio_ret:	must be valid pointer, newly allocated bio will be stored there
  * @end_io_func:     end_io callback for new bio
  * @mirror_num:	     desired mirror to read/write
@@ -2940,7 +2939,6 @@ static int submit_extent_page(unsigned int opf, struct extent_io_tree *tree,
 			      struct writeback_control *wbc,
 			      struct page *page, u64 offset,
 			      size_t size, unsigned long pg_offset,
-			      struct block_device *bdev,
 			      struct bio **bio_ret,
 			      bio_end_io_t end_io_func,
 			      int mirror_num,
@@ -3077,7 +3075,6 @@ static int __do_readpage(struct extent_io_tree *tree,
 	u64 block_start;
 	u64 cur_end;
 	struct extent_map *em;
-	struct block_device *bdev;
 	int ret = 0;
 	int nr = 0;
 	size_t pg_offset = 0;
@@ -3243,7 +3240,7 @@ static int __do_readpage(struct extent_io_tree *tree,
 
 		ret = submit_extent_page(REQ_OP_READ | read_flags, tree, NULL,
 					 page, offset, disk_io_size,
-					 pg_offset, bdev, bio,
+					 pg_offset, bio,
 					 end_bio_extent_readpage, mirror_num,
 					 *bio_flags,
 					 this_bio_flag,
@@ -3431,7 +3428,6 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 	u64 block_start;
 	u64 iosize;
 	struct extent_map *em;
-	struct block_device *bdev;
 	size_t pg_offset = 0;
 	size_t blocksize;
 	int ret = 0;
@@ -3531,7 +3527,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 
 		ret = submit_extent_page(REQ_OP_WRITE | write_flags, tree, wbc,
 					 page, offset, iosize, pg_offset,
-					 bdev, &epd->bio,
+					 &epd->bio,
 					 end_bio_extent_writepage,
 					 0, 0, 0, false);
 		if (ret) {
@@ -3857,7 +3853,6 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 			struct extent_page_data *epd)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
-	struct block_device *bdev = fs_info->fs_devices->latest_bdev;
 	struct extent_io_tree *tree = &BTRFS_I(fs_info->btree_inode)->io_tree;
 	u64 offset = eb->start;
 	u32 nritems;
@@ -3892,7 +3887,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 		clear_page_dirty_for_io(p);
 		set_page_writeback(p);
 		ret = submit_extent_page(REQ_OP_WRITE | write_flags, tree, wbc,
-					 p, offset, PAGE_SIZE, 0, bdev,
+					 p, offset, PAGE_SIZE, 0,
 					 &epd->bio,
 					 end_bio_extent_buffer_writepage,
 					 0, 0, 0, false);
