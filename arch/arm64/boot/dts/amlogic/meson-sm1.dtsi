@@ -147,6 +147,14 @@
 	compatible = "amlogic,meson-sm1-pwrc";
 };
 
+&simplefb_cvbs {
+	power-domains = <&pwrc PWRC_SM1_VPU_ID>;
+};
+
+&simplefb_hdmi {
+	power-domains = <&pwrc PWRC_SM1_VPU_ID>;
+};
+
 &vpu {
 	power-domains = <&pwrc PWRC_SM1_VPU_ID>;
 };
