@@ -31,7 +31,7 @@ static struct workspace_manager wsm;
 
 static void zlib_cleanup_workspace_manager(void)
 {
-	btrfs_cleanup_workspace_manager(&wsm);
+	btrfs_cleanup_workspace_manager(BTRFS_COMPRESS_ZLIB);
 }
 
 static struct list_head *zlib_get_workspace(unsigned int level)

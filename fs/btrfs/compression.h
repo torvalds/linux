@@ -123,7 +123,7 @@ struct workspace_manager {
 struct list_head *btrfs_get_workspace(struct workspace_manager *wsm,
 				      unsigned int level);
 void btrfs_put_workspace(struct workspace_manager *wsm, struct list_head *ws);
-void btrfs_cleanup_workspace_manager(struct workspace_manager *wsm);
+void btrfs_cleanup_workspace_manager(int type);
 
 struct btrfs_compress_op {
 	void (*cleanup_workspace_manager)(void);

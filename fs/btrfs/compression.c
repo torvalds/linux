@@ -863,7 +863,7 @@ static struct workspace_manager heuristic_wsm;
 
 static void heuristic_cleanup_workspace_manager(void)
 {
-	btrfs_cleanup_workspace_manager(&heuristic_wsm);
+	btrfs_cleanup_workspace_manager(BTRFS_COMPRESS_NONE);
 }
 
 static struct list_head *heuristic_get_workspace(unsigned int level)
@@ -960,10 +960,12 @@ static void btrfs_init_workspace_manager(int type)
 	}
 }
 
-void btrfs_cleanup_workspace_manager(struct workspace_manager *wsman)
+void btrfs_cleanup_workspace_manager(int type)
 {
+	struct workspace_manager *wsman;
 	struct list_head *ws;
 
+	wsman = btrfs_compress_op[type]->workspace_manager;
 	while (!list_empty(&wsman->idle_ws)) {
 		ws = wsman->idle_ws.next;
 		list_del(ws);
