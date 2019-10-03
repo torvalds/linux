@@ -3943,7 +3943,7 @@ int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser)
 {
 	struct goya_device *goya = hdev->asic_specific;
 
-	if (!parser->ext_queue)
+	if (parser->queue_type == QUEUE_TYPE_INT)
 		return goya_parse_cb_no_ext_queue(hdev, parser);
 
 	if (goya->hw_cap_initialized & HW_CAP_MMU)
@@ -4614,7 +4614,7 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u64 size,
 		lin_dma_pkt++;
 	} while (--lin_dma_pkts_cnt);
 
-	job = hl_cs_allocate_job(hdev, true);
+	job = hl_cs_allocate_job(hdev, QUEUE_TYPE_EXT, true);
 	if (!job) {
 		dev_err(hdev->dev, "Failed to allocate a new job\n");
 		rc = -ENOMEM;

@@ -85,12 +85,15 @@ struct hl_fpriv;
  * @QUEUE_TYPE_INT: internal queue that performs DMA inside the device's
  *			memories and/or operates the compute engines.
  * @QUEUE_TYPE_CPU: S/W queue for communication with the device's CPU.
+ * @QUEUE_TYPE_HW: queue of DMA and compute engines jobs, for which completion
+ *                 notifications are sent by H/W.
  */
 enum hl_queue_type {
 	QUEUE_TYPE_NA,
 	QUEUE_TYPE_EXT,
 	QUEUE_TYPE_INT,
-	QUEUE_TYPE_CPU
+	QUEUE_TYPE_CPU,
+	QUEUE_TYPE_HW
 };
 
 /**
@@ -755,11 +758,14 @@ struct hl_cs {
  * @userptr_list: linked-list of userptr mappings that belong to this job and
  *			wait for completion.
  * @debugfs_list: node in debugfs list of command submission jobs.
+ * @queue_type: the type of the H/W queue this job is submitted to.
  * @id: the id of this job inside a CS.
  * @hw_queue_id: the id of the H/W queue this job is submitted to.
  * @user_cb_size: the actual size of the CB we got from the user.
  * @job_cb_size: the actual size of the CB that we put on the queue.
- * @ext_queue: whether the job is for external queue or internal queue.
+ * @is_kernel_allocated_cb: true if the CB handle we got from the user holds a
+ *                          handle to a kernel-allocated CB object, false
+ *                          otherwise (SRAM/DRAM/host address).
  */
 struct hl_cs_job {
 	struct list_head	cs_node;
@@ -769,11 +775,12 @@ struct hl_cs_job {
 	struct work_struct	finish_work;
 	struct list_head	userptr_list;
 	struct list_head	debugfs_list;
+	enum hl_queue_type	queue_type;
 	u32			id;
 	u32			hw_queue_id;
 	u32			user_cb_size;
 	u32			job_cb_size;
-	u8			ext_queue;
+	u8			is_kernel_allocated_cb;
 };
 
 /**
@@ -784,24 +791,28 @@ struct hl_cs_job {
  * @job_userptr_list: linked-list of userptr mappings that belong to the related
  *			job and wait for completion.
  * @cs_sequence: the sequence number of the related CS.
+ * @queue_type: the type of the H/W queue this job is submitted to.
  * @ctx_id: the ID of the context the related CS belongs to.
  * @hw_queue_id: the id of the H/W queue this job is submitted to.
  * @user_cb_size: the actual size of the CB we got from the user.
  * @patched_cb_size: the size of the CB after parsing.
- * @ext_queue: whether the job is for external queue or internal queue.
  * @job_id: the id of the related job inside the related CS.
+ * @is_kernel_allocated_cb: true if the CB handle we got from the user holds a
+ *                          handle to a kernel-allocated CB object, false
+ *                          otherwise (SRAM/DRAM/host address).
  */
 struct hl_cs_parser {
 	struct hl_cb		*user_cb;
 	struct hl_cb		*patched_cb;
 	struct list_head	*job_userptr_list;
 	u64			cs_sequence;
+	enum hl_queue_type	queue_type;
 	u32			ctx_id;
 	u32			hw_queue_id;
 	u32			user_cb_size;
 	u32			patched_cb_size;
-	u8			ext_queue;
 	u8			job_id;
+	u8			is_kernel_allocated_cb;
 };
 
 
@@ -1504,7 +1515,8 @@ int hl_cb_pool_init(struct hl_device *hdev);
 int hl_cb_pool_fini(struct hl_device *hdev);
 
 void hl_cs_rollback_all(struct hl_device *hdev);
-struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev, bool ext_queue);
+struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev,
+		enum hl_queue_type queue_type, bool is_kernel_allocated_cb);
 
 void goya_set_asic_funcs(struct hl_device *hdev);
 
