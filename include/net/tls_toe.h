@@ -69,9 +69,9 @@ struct tls_toe_device {
 	struct kref kref;
 };
 
-int tls_hw_prot(struct sock *sk);
-int tls_hw_hash(struct sock *sk);
-void tls_hw_unhash(struct sock *sk);
+int tls_toe_bypass(struct sock *sk);
+int tls_toe_hash(struct sock *sk);
+void tls_toe_unhash(struct sock *sk);
 
 void tls_toe_register_device(struct tls_toe_device *device);
 void tls_toe_unregister_device(struct tls_toe_device *device);

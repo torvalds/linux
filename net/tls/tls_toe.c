@@ -41,7 +41,7 @@
 static LIST_HEAD(device_list);
 static DEFINE_SPINLOCK(device_spinlock);
 
-static void tls_hw_sk_destruct(struct sock *sk)
+static void tls_toe_sk_destruct(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tls_context *ctx = tls_get_ctx(sk);
@@ -52,7 +52,7 @@ static void tls_hw_sk_destruct(struct sock *sk)
 	tls_ctx_free(sk, ctx);
 }
 
-int tls_hw_prot(struct sock *sk)
+int tls_toe_bypass(struct sock *sk)
 {
 	struct tls_toe_device *dev;
 	struct tls_context *ctx;
@@ -66,7 +66,7 @@ int tls_hw_prot(struct sock *sk)
 				goto out;
 
 			ctx->sk_destruct = sk->sk_destruct;
-			sk->sk_destruct = tls_hw_sk_destruct;
+			sk->sk_destruct = tls_toe_sk_destruct;
 			ctx->rx_conf = TLS_HW_RECORD;
 			ctx->tx_conf = TLS_HW_RECORD;
 			update_sk_prot(sk, ctx);
@@ -79,7 +79,7 @@ out:
 	return rc;
 }
 
-void tls_hw_unhash(struct sock *sk)
+void tls_toe_unhash(struct sock *sk)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
 	struct tls_toe_device *dev;
@@ -98,7 +98,7 @@ void tls_hw_unhash(struct sock *sk)
 	ctx->sk_proto->unhash(sk);
 }
 
-int tls_hw_hash(struct sock *sk)
+int tls_toe_hash(struct sock *sk)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
 	struct tls_toe_device *dev;
@@ -118,7 +118,7 @@ int tls_hw_hash(struct sock *sk)
 	spin_unlock_bh(&device_spinlock);
 
 	if (err)
-		tls_hw_unhash(sk);
+		tls_toe_unhash(sk);
 	return err;
 }
 
