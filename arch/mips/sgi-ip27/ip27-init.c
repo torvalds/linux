@@ -41,25 +41,16 @@
 static DECLARE_BITMAP(hub_init_mask, MAX_COMPACT_NODES);
 nasid_t master_nasid = INVALID_NASID;
 
-cnodeid_t	nasid_to_compact_node[MAX_NASIDS];
-nasid_t		compact_to_nasid_node[MAX_COMPACT_NODES];
-cnodeid_t	cpuid_to_compact_node[MAXCPUS];
-
-EXPORT_SYMBOL(nasid_to_compact_node);
-
 struct cpuinfo_ip27 sn_cpu_info[NR_CPUS];
 EXPORT_SYMBOL_GPL(sn_cpu_info);
 
-extern void pcibr_setup(cnodeid_t);
-
-static void per_hub_init(cnodeid_t cnode)
+static void per_hub_init(nasid_t nasid)
 {
-	struct hub_data *hub = hub_data(cnode);
-	nasid_t nasid = COMPACT_TO_NASID_NODEID(cnode);
+	struct hub_data *hub = hub_data(nasid);
 
 	cpumask_set_cpu(smp_processor_id(), &hub->h_cpus);
 
-	if (test_and_set_bit(cnode, hub_init_mask))
+	if (test_and_set_bit(nasid, hub_init_mask))
 		return;
 	/*
 	 * Set CRB timeout at 5ms, (< PI timeout of 10ms)
@@ -67,14 +58,14 @@ static void per_hub_init(cnodeid_t cnode)
 	REMOTE_HUB_S(nasid, IIO_ICTP, 0x800);
 	REMOTE_HUB_S(nasid, IIO_ICTO, 0xff);
 
-	hub_rtc_init(cnode);
+	hub_rtc_init(nasid);
 
 #ifdef CONFIG_REPLICATE_EXHANDLERS
 	/*
 	 * If this is not a headless node initialization,
 	 * copy over the caliased exception handlers.
 	 */
-	if (get_compact_nodeid() == cnode) {
+	if (get_nasid() == nasid) {
 		extern char except_vec2_generic, except_vec3_generic;
 		extern void build_tlb_refill_handler(void);
 
@@ -92,15 +83,15 @@ void per_cpu_init(void)
 {
 	int cpu = smp_processor_id();
 	int slice = LOCAL_HUB_L(PI_CPU_NUM);
-	cnodeid_t cnode = get_compact_nodeid();
-	struct hub_data *hub = hub_data(cnode);
+	nasid_t nasid = get_nasid();
+	struct hub_data *hub = hub_data(nasid);
 
 	if (test_and_set_bit(slice, &hub->slice_map))
 		return;
 
 	clear_c0_status(ST0_IM);
 
-	per_hub_init(cnode);
+	per_hub_init(nasid);
 
 	cpu_time_init();
 	install_ipi();
@@ -120,14 +111,6 @@ get_nasid(void)
 {
 	return (nasid_t)((LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_NODEID_MASK)
 			 >> NSRI_NODEID_SHFT);
-}
-
-/*
- * Map the physical node id to a virtual node id (virtual node ids are contiguous).
- */
-cnodeid_t get_compact_nodeid(void)
-{
-	return NASID_TO_COMPACT_NODEID(get_nasid());
 }
 
 extern void ip27_reboot_setup(void);

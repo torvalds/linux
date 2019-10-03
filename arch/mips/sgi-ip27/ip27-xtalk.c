@@ -138,14 +138,12 @@ static int xbow_probe(nasid_t nasid)
 	return 0;
 }
 
-static void xtalk_probe_node(cnodeid_t nid)
+static void xtalk_probe_node(nasid_t nasid)
 {
 	volatile u64		hubreg;
-	nasid_t			nasid;
 	xwidget_part_num_t	partnum;
 	widgetreg_t		widget_id;
 
-	nasid = COMPACT_TO_NASID_NODEID(nid);
 	hubreg = REMOTE_HUB_L(nasid, IIO_LLP_CSR);
 
 	/* check whether the link is up */
@@ -173,10 +171,10 @@ static void xtalk_probe_node(cnodeid_t nid)
 
 static int __init xtalk_init(void)
 {
-	cnodeid_t cnode;
+	nasid_t nasid;
 
-	for_each_online_node(cnode)
-		xtalk_probe_node(cnode);
+	for_each_online_node(nasid)
+		xtalk_probe_node(nasid);
 
 	return 0;
 }

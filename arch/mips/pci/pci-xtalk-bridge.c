@@ -285,7 +285,7 @@ static int bridge_set_affinity(struct irq_data *d, const struct cpumask *mask,
 	ret = irq_chip_set_affinity_parent(d, mask, force);
 	if (ret >= 0) {
 		cpu = cpumask_first_and(mask, cpu_online_mask);
-		nasid = COMPACT_TO_NASID_NODEID(cpu_to_node(cpu));
+		nasid = cpu_to_node(cpu);
 		bridge_write(data->bc, b_int_addr[pin].addr,
 			     (((data->bc->intr_addr >> 30) & 0x30000) |
 			      bit | (nasid << 8)));

@@ -170,7 +170,7 @@ void cpu_time_init(void)
 	printk("CPU %d clock is %dMHz.\n", smp_processor_id(), cpu->cpu_speed);
 }
 
-void hub_rtc_init(cnodeid_t cnode)
+void hub_rtc_init(nasid_t nasid)
 {
 
 	/*
@@ -178,7 +178,7 @@ void hub_rtc_init(cnodeid_t cnode)
 	 * If this is not the current node then it is a cpuless
 	 * node and timeouts will not happen there.
 	 */
-	if (get_compact_nodeid() == cnode) {
+	if (get_nasid() == nasid) {
 		LOCAL_HUB_S(PI_RT_EN_A, 1);
 		LOCAL_HUB_S(PI_RT_EN_B, 1);
 		LOCAL_HUB_S(PI_PROF_EN_A, 0);

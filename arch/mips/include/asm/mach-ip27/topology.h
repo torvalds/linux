@@ -7,14 +7,13 @@
 #include <asm/mmzone.h>
 
 struct cpuinfo_ip27 {
-	cnodeid_t	p_nodeid;	/* my node ID in compact-id-space */
 	nasid_t		p_nasid;	/* my node ID in numa-as-id-space */
 	unsigned char	p_slice;	/* Physical position on node board */
 };
 
 extern struct cpuinfo_ip27 sn_cpu_info[NR_CPUS];
 
-#define cpu_to_node(cpu)	(sn_cpu_info[(cpu)].p_nodeid)
+#define cpu_to_node(cpu)	(cputonasid(cpu))
 #define cpumask_of_node(node)	((node) == -1 ?				\
 				 cpu_all_mask :				\
 				 &hub_data(node)->h_cpus)
