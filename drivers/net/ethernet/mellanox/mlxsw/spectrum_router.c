@@ -6019,12 +6019,6 @@ static void mlxsw_sp_router_fib4_event_work(struct work_struct *work)
 		mlxsw_sp_router_fib4_del(mlxsw_sp, &fib_work->fen_info);
 		fib_info_put(fib_work->fen_info.fi);
 		break;
-	case FIB_EVENT_RULE_ADD:
-		/* if we get here, a rule was added that we do not support.
-		 * just do the fib_abort
-		 */
-		mlxsw_sp_router_fib_abort(mlxsw_sp);
-		break;
 	case FIB_EVENT_NH_ADD: /* fall through */
 	case FIB_EVENT_NH_DEL:
 		mlxsw_sp_nexthop4_event(mlxsw_sp, fib_work->event,
@@ -6064,12 +6058,6 @@ static void mlxsw_sp_router_fib6_event_work(struct work_struct *work)
 					 fib_work->fib6_work.rt_arr,
 					 fib_work->fib6_work.nrt6);
 		mlxsw_sp_router_fib6_work_fini(&fib_work->fib6_work);
-		break;
-	case FIB_EVENT_RULE_ADD:
-		/* if we get here, a rule was added that we do not support.
-		 * just do the fib_abort
-		 */
-		mlxsw_sp_router_fib_abort(mlxsw_sp);
 		break;
 	}
 	rtnl_unlock();
@@ -6111,12 +6099,6 @@ static void mlxsw_sp_router_fibmr_event_work(struct work_struct *work)
 		mlxsw_sp_router_fibmr_vif_del(mlxsw_sp,
 					      &fib_work->ven_info);
 		dev_put(fib_work->ven_info.dev);
-		break;
-	case FIB_EVENT_RULE_ADD:
-		/* if we get here, a rule was added that we do not support.
-		 * just do the fib_abort
-		 */
-		mlxsw_sp_router_fib_abort(mlxsw_sp);
 		break;
 	}
 	rtnl_unlock();
@@ -6262,9 +6244,7 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 	case FIB_EVENT_RULE_DEL:
 		err = mlxsw_sp_router_fib_rule_event(event, info,
 						     router->mlxsw_sp);
-		if (!err || info->extack)
-			return notifier_from_errno(err);
-		break;
+		return notifier_from_errno(err);
 	case FIB_EVENT_ENTRY_ADD:
 	case FIB_EVENT_ENTRY_REPLACE: /* fall through */
 	case FIB_EVENT_ENTRY_APPEND:  /* fall through */
