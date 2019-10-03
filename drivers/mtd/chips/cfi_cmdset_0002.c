@@ -1713,7 +1713,7 @@ static int __xipram do_write_oneword_start(struct map_info *map,
 					   struct flchip *chip,
 					   unsigned long adr, int mode)
 {
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&chip->mutex);
 
@@ -1791,7 +1791,7 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 				     unsigned long adr, map_word datum,
 				     int mode)
 {
-	int ret = 0;
+	int ret;
 
 	adr += chip->start;
 
@@ -1815,7 +1815,7 @@ static int cfi_amdstd_write_words(struct mtd_info *mtd, loff_t to, size_t len,
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
-	int ret = 0;
+	int ret;
 	int chipnum;
 	unsigned long ofs, chipstart;
 	DECLARE_WAITQUEUE(wait, current);
@@ -2014,7 +2014,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 				    int len)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
-	int ret = -EIO;
+	int ret;
 	unsigned long cmd_adr;
 	int z, words;
 	map_word datum;
@@ -2095,7 +2095,7 @@ static int cfi_amdstd_write_buffers(struct mtd_info *mtd, loff_t to, size_t len,
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
 	int wbufsize = cfi_interleave(cfi) << cfi->cfiq->MaxBufWriteSize;
-	int ret = 0;
+	int ret;
 	int chipnum;
 	unsigned long ofs;
 
@@ -2232,7 +2232,7 @@ static int do_panic_write_oneword(struct map_info *map, struct flchip *chip,
 	struct cfi_private *cfi = map->fldrv_priv;
 	int retry_cnt = 0;
 	map_word oldd;
-	int ret = 0;
+	int ret;
 	int i;
 
 	adr += chip->start;
@@ -2307,7 +2307,7 @@ static int cfi_amdstd_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
 	unsigned long ofs, chipstart;
-	int ret = 0;
+	int ret;
 	int chipnum;
 
 	chipnum = to >> cfi->chipshift;
@@ -2411,7 +2411,7 @@ static int __xipram do_erase_chip(struct map_info *map, struct flchip *chip)
 	unsigned long timeo = jiffies + HZ;
 	unsigned long int adr;
 	DECLARE_WAITQUEUE(wait, current);
-	int ret = 0;
+	int ret;
 	int retry_cnt = 0;
 
 	adr = cfi->addr_unlock1;
@@ -2508,7 +2508,7 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 	struct cfi_private *cfi = map->fldrv_priv;
 	unsigned long timeo = jiffies + HZ;
 	DECLARE_WAITQUEUE(wait, current);
-	int ret = 0;
+	int ret;
 	int retry_cnt = 0;
 
 	adr += chip->start;
