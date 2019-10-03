@@ -257,6 +257,8 @@ void intel_display_power_suspend_late(struct drm_i915_private *i915);
 void intel_display_power_resume_early(struct drm_i915_private *i915);
 void intel_display_power_suspend(struct drm_i915_private *i915);
 void intel_display_power_resume(struct drm_i915_private *i915);
+void intel_display_power_set_target_dc_state(struct drm_i915_private *dev_priv,
+					     u32 state);
 
 const char *
 intel_display_power_domain_str(enum intel_display_power_domain domain);

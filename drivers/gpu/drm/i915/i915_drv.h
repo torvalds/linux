@@ -502,6 +502,9 @@ struct i915_psr {
 	bool sink_not_reliable;
 	bool irq_aux_error;
 	u16 su_x_granularity;
+	bool dc3co_enabled;
+	u32 dc3co_exit_delay;
+	struct delayed_work idle_work;
 };
 
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)

@@ -870,6 +870,51 @@ lookup_power_well(struct drm_i915_private *dev_priv,
 	return &dev_priv->power_domains.power_wells[0];
 }
 
+/**
+ * intel_display_power_set_target_dc_state - Set target dc state.
+ * @dev_priv: i915 device
+ * @state: state which needs to be set as target_dc_state.
+ *
+ * This function set the "DC off" power well target_dc_state,
+ * based upon this target_dc_stste, "DC off" power well will
+ * enable desired DC state.
+ */
+void intel_display_power_set_target_dc_state(struct drm_i915_private *dev_priv,
+					     u32 state)
+{
+	struct i915_power_well *power_well;
+	bool dc_off_enabled;
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+
+	mutex_lock(&power_domains->lock);
+	power_well = lookup_power_well(dev_priv, SKL_DISP_DC_OFF);
+
+	if (WARN_ON(!power_well))
+		goto unlock;
+
+	state = sanitize_target_dc_state(dev_priv, state);
+
+	if (state == dev_priv->csr.target_dc_state)
+		goto unlock;
+
+	dc_off_enabled = power_well->desc->ops->is_enabled(dev_priv,
+							   power_well);
+	/*
+	 * If DC off power well is disabled, need to enable and disable the
+	 * DC off power well to effect target DC state.
+	 */
+	if (!dc_off_enabled)
+		power_well->desc->ops->enable(dev_priv, power_well);
+
+	dev_priv->csr.target_dc_state = state;
+
+	if (!dc_off_enabled)
+		power_well->desc->ops->disable(dev_priv, power_well);
+
+unlock:
+	mutex_unlock(&power_domains->lock);
+}
+
 static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 {
 	bool pg2_enabled = intel_display_power_well_is_enabled(dev_priv,
