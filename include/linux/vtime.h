@@ -57,13 +57,13 @@ static inline void vtime_task_switch(struct task_struct *prev)
 }
 #endif /* __ARCH_HAS_VTIME_TASK_SWITCH */
 
-extern void vtime_account_system(struct task_struct *tsk);
+extern void vtime_account_kernel(struct task_struct *tsk);
 extern void vtime_account_idle(struct task_struct *tsk);
 
 #else /* !CONFIG_VIRT_CPU_ACCOUNTING */
 
 static inline void vtime_task_switch(struct task_struct *prev) { }
-static inline void vtime_account_system(struct task_struct *tsk) { }
+static inline void vtime_account_kernel(struct task_struct *tsk) { }
 #endif /* !CONFIG_VIRT_CPU_ACCOUNTING */
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
@@ -86,7 +86,7 @@ extern void vtime_account_irq_enter(struct task_struct *tsk);
 static inline void vtime_account_irq_exit(struct task_struct *tsk)
 {
 	/* On hard|softirq exit we always account to hard|softirq cputime */
-	vtime_account_system(tsk);
+	vtime_account_kernel(tsk);
 }
 extern void vtime_flush(struct task_struct *tsk);
 #else /* !CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */

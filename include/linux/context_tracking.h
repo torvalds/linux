@@ -141,7 +141,7 @@ static inline void guest_enter_irqoff(void)
 	 * to assume that it's the stime pending cputime
 	 * to flush.
 	 */
-	vtime_account_system(current);
+	vtime_account_kernel(current);
 	current->flags |= PF_VCPU;
 	rcu_virt_note_context_switch(smp_processor_id());
 }
@@ -149,7 +149,7 @@ static inline void guest_enter_irqoff(void)
 static inline void guest_exit_irqoff(void)
 {
 	/* Flush the guest cputime we spent on the guest */
-	vtime_account_system(current);
+	vtime_account_kernel(current);
 	current->flags &= ~PF_VCPU;
 }
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING_GEN */

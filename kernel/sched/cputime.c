@@ -412,7 +412,7 @@ void vtime_common_task_switch(struct task_struct *prev)
 	if (is_idle_task(prev))
 		vtime_account_idle(prev);
 	else
-		vtime_account_system(prev);
+		vtime_account_kernel(prev);
 
 	vtime_flush(prev);
 	arch_vtime_task_switch(prev);
@@ -425,7 +425,7 @@ void vtime_common_task_switch(struct task_struct *prev)
 /*
  * Archs that account the whole time spent in the idle task
  * (outside irq) as idle time can rely on this and just implement
- * vtime_account_system() and vtime_account_idle(). Archs that
+ * vtime_account_kernel() and vtime_account_idle(). Archs that
  * have other meaning of the idle time (s390 only includes the
  * time spent by the CPU when it's in low power mode) must override
  * vtime_account().
@@ -436,7 +436,7 @@ void vtime_account_irq_enter(struct task_struct *tsk)
 	if (!in_interrupt() && is_idle_task(tsk))
 		vtime_account_idle(tsk);
 	else
-		vtime_account_system(tsk);
+		vtime_account_kernel(tsk);
 }
 EXPORT_SYMBOL_GPL(vtime_account_irq_enter);
 #endif /* __ARCH_HAS_VTIME_ACCOUNT */
@@ -711,8 +711,8 @@ static u64 get_vtime_delta(struct vtime *vtime)
 	return delta - other;
 }
 
-static void __vtime_account_system(struct task_struct *tsk,
-				   struct vtime *vtime)
+static void vtime_account_system(struct task_struct *tsk,
+				 struct vtime *vtime)
 {
 	vtime->stime += get_vtime_delta(vtime);
 	if (vtime->stime >= TICK_NSEC) {
@@ -731,7 +731,7 @@ static void vtime_account_guest(struct task_struct *tsk,
 	}
 }
 
-void vtime_account_system(struct task_struct *tsk)
+void vtime_account_kernel(struct task_struct *tsk)
 {
 	struct vtime *vtime = &tsk->vtime;
 
@@ -743,7 +743,7 @@ void vtime_account_system(struct task_struct *tsk)
 	if (tsk->flags & PF_VCPU)
 		vtime_account_guest(tsk, vtime);
 	else
-		__vtime_account_system(tsk, vtime);
+		vtime_account_system(tsk, vtime);
 	write_seqcount_end(&vtime->seqcount);
 }
 
@@ -752,7 +752,7 @@ void vtime_user_enter(struct task_struct *tsk)
 	struct vtime *vtime = &tsk->vtime;
 
 	write_seqcount_begin(&vtime->seqcount);
-	__vtime_account_system(tsk, vtime);
+	vtime_account_system(tsk, vtime);
 	vtime->state = VTIME_USER;
 	write_seqcount_end(&vtime->seqcount);
 }
@@ -782,7 +782,7 @@ void vtime_guest_enter(struct task_struct *tsk)
 	 * that can thus safely catch up with a tickless delta.
 	 */
 	write_seqcount_begin(&vtime->seqcount);
-	__vtime_account_system(tsk, vtime);
+	vtime_account_system(tsk, vtime);
 	tsk->flags |= PF_VCPU;
 	write_seqcount_end(&vtime->seqcount);
 }
