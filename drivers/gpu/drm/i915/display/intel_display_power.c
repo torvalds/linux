@@ -695,7 +695,11 @@ static u32 gen9_dc_mask(struct drm_i915_private *dev_priv)
 	u32 mask;
 
 	mask = DC_STATE_EN_UPTO_DC5;
-	if (INTEL_GEN(dev_priv) >= 11)
+
+	if (INTEL_GEN(dev_priv) >= 12)
+		mask |= DC_STATE_EN_DC3CO | DC_STATE_EN_UPTO_DC6
+					  | DC_STATE_EN_DC9;
+	else if (IS_GEN(dev_priv, 11))
 		mask |= DC_STATE_EN_UPTO_DC6 | DC_STATE_EN_DC9;
 	else if (IS_GEN9_LP(dev_priv))
 		mask |= DC_STATE_EN_DC9;
@@ -3924,13 +3928,16 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	int requested_dc;
 	int max_dc;
 
-	if (INTEL_GEN(dev_priv) >= 11) {
-		max_dc = 2;
+	if (INTEL_GEN(dev_priv) >= 12) {
+		max_dc = 4;
 		/*
 		 * DC9 has a separate HW flow from the rest of the DC states,
 		 * not depending on the DMC firmware. It's needed by system
 		 * suspend/resume, so allow it unconditionally.
 		 */
+		mask = DC_STATE_EN_DC9;
+	} else if (IS_GEN(dev_priv, 11)) {
+		max_dc = 2;
 		mask = DC_STATE_EN_DC9;
 	} else if (IS_GEN(dev_priv, 10) || IS_GEN9_BC(dev_priv)) {
 		max_dc = 2;
@@ -3950,7 +3957,7 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 		requested_dc = enable_dc;
 	} else if (enable_dc == -1) {
 		requested_dc = max_dc;
-	} else if (enable_dc > max_dc && enable_dc <= 2) {
+	} else if (enable_dc > max_dc && enable_dc <= 4) {
 		DRM_DEBUG_KMS("Adjusting requested max DC state (%d->%d)\n",
 			      enable_dc, max_dc);
 		requested_dc = max_dc;
@@ -3959,10 +3966,20 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 		requested_dc = max_dc;
 	}
 
-	if (requested_dc > 1)
+	switch (requested_dc) {
+	case 4:
+		mask |= DC_STATE_EN_DC3CO | DC_STATE_EN_UPTO_DC6;
+		break;
+	case 3:
+		mask |= DC_STATE_EN_DC3CO | DC_STATE_EN_UPTO_DC5;
+		break;
+	case 2:
 		mask |= DC_STATE_EN_UPTO_DC6;
-	if (requested_dc > 0)
+		break;
+	case 1:
 		mask |= DC_STATE_EN_UPTO_DC5;
+		break;
+	}
 
 	DRM_DEBUG_KMS("Allowed DC state mask %02x\n", mask);
 
