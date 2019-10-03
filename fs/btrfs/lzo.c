@@ -65,7 +65,7 @@ static struct workspace_manager wsm;
 
 static void lzo_init_workspace_manager(void)
 {
-	btrfs_init_workspace_manager(&wsm, &btrfs_lzo_compress);
+	btrfs_init_workspace_manager(BTRFS_COMPRESS_LZO);
 }
 
 static void lzo_cleanup_workspace_manager(void)

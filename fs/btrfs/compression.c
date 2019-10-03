@@ -862,7 +862,7 @@ static struct workspace_manager heuristic_wsm;
 
 static void heuristic_init_workspace_manager(void)
 {
-	btrfs_init_workspace_manager(&heuristic_wsm, &btrfs_heuristic_compress);
+	btrfs_init_workspace_manager(BTRFS_COMPRESS_NONE);
 }
 
 static void heuristic_cleanup_workspace_manager(void)
@@ -937,9 +937,10 @@ static const struct btrfs_compress_op * const btrfs_compress_op[] = {
 	&btrfs_zstd_compress,
 };
 
-void btrfs_init_workspace_manager(struct workspace_manager *wsm,
-				  const struct btrfs_compress_op *ops)
+void btrfs_init_workspace_manager(int type)
 {
+	const struct btrfs_compress_op *ops = btrfs_compress_op[type];
+	struct workspace_manager *wsm = ops->workspace_manager;
 	struct list_head *workspace;
 
 	wsm->ops = ops;

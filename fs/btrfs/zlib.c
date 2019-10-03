@@ -31,7 +31,7 @@ static struct workspace_manager wsm;
 
 static void zlib_init_workspace_manager(void)
 {
-	btrfs_init_workspace_manager(&wsm, &btrfs_zlib_compress);
+	btrfs_init_workspace_manager(BTRFS_COMPRESS_ZLIB);
 }
 
 static void zlib_cleanup_workspace_manager(void)
