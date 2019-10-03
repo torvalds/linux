@@ -63,12 +63,10 @@ u64 nsim_fib_get_val(struct nsim_fib_data *fib_data,
 	return max ? entry->max : entry->num;
 }
 
-int nsim_fib_set_max(struct nsim_fib_data *fib_data,
-		     enum nsim_resource_id res_id, u64 val,
-		     struct netlink_ext_ack *extack)
+static void nsim_fib_set_max(struct nsim_fib_data *fib_data,
+			     enum nsim_resource_id res_id, u64 val)
 {
 	struct nsim_fib_entry *entry;
-	int err = 0;
 
 	switch (res_id) {
 	case NSIM_RESOURCE_IPV4_FIB:
@@ -84,20 +82,10 @@ int nsim_fib_set_max(struct nsim_fib_data *fib_data,
 		entry = &fib_data->ipv6.rules;
 		break;
 	default:
-		return 0;
+		WARN_ON(1);
+		return;
 	}
-
-	/* not allowing a new max to be less than curren occupancy
-	 * --> no means of evicting entries
-	 */
-	if (val < entry->num) {
-		NL_SET_ERR_MSG_MOD(extack, "New size is less than current occupancy");
-		err = -EINVAL;
-	} else {
-		entry->max = val;
-	}
-
-	return err;
+	entry->max = val;
 }
 
 static int nsim_fib_rule_account(struct nsim_fib_entry *entry, bool add,
@@ -239,7 +227,28 @@ static u64 nsim_fib_ipv6_rules_res_occ_get(void *priv)
 	return nsim_fib_get_val(data, NSIM_RESOURCE_IPV6_FIB_RULES, false);
 }
 
-struct nsim_fib_data *nsim_fib_create(struct devlink *devlink)
+static void nsim_fib_set_max_all(struct nsim_fib_data *data,
+				 struct devlink *devlink)
+{
+	enum nsim_resource_id res_ids[] = {
+		NSIM_RESOURCE_IPV4_FIB, NSIM_RESOURCE_IPV4_FIB_RULES,
+		NSIM_RESOURCE_IPV6_FIB, NSIM_RESOURCE_IPV6_FIB_RULES
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(res_ids); i++) {
+		int err;
+		u64 val;
+
+		err = devlink_resource_size_get(devlink, res_ids[i], &val);
+		if (err)
+			val = (u64) -1;
+		nsim_fib_set_max(data, res_ids[i], val);
+	}
+}
+
+struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
+				      struct netlink_ext_ack *extack)
 {
 	struct nsim_fib_data *data;
 	int err;
@@ -248,15 +257,11 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink)
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
-	data->ipv4.fib.max = (u64)-1;
-	data->ipv4.rules.max = (u64)-1;
-
-	data->ipv6.fib.max = (u64)-1;
-	data->ipv6.rules.max = (u64)-1;
+	nsim_fib_set_max_all(data, devlink);
 
 	data->fib_nb.notifier_call = nsim_fib_event_nb;
 	err = register_fib_notifier(&init_net, &data->fib_nb,
-				    nsim_fib_dump_inconsistent, NULL);
+				    nsim_fib_dump_inconsistent, extack);
 	if (err) {
 		pr_err("Failed to register fib notifier\n");
 		goto err_out;
