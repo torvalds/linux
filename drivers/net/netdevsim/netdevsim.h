@@ -164,6 +164,11 @@ struct nsim_dev {
 	struct devlink_region *dummy_region;
 };
 
+static inline struct net *nsim_dev_net(struct nsim_dev *nsim_dev)
+{
+	return devlink_net(priv_to_devlink(nsim_dev));
+}
+
 int nsim_dev_init(void);
 void nsim_dev_exit(void);
 int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev);
