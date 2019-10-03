@@ -339,6 +339,7 @@ struct intel_csr {
 	i915_reg_t mmioaddr[20];
 	u32 mmiodata[20];
 	u32 dc_state;
+	u32 target_dc_state;
 	u32 allowed_dc_mask;
 	intel_wakeref_t wakeref;
 };

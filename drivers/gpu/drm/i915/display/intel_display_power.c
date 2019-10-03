@@ -769,6 +769,52 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, u32 state)
 	dev_priv->csr.dc_state = val & mask;
 }
 
+static u32
+sanitize_target_dc_state(struct drm_i915_private *dev_priv,
+			 u32 target_dc_state)
+{
+	u32 states[] = {
+		DC_STATE_EN_UPTO_DC6,
+		DC_STATE_EN_UPTO_DC5,
+		DC_STATE_EN_DC3CO,
+		DC_STATE_DISABLE,
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(states) - 1; i++) {
+		if (target_dc_state != states[i])
+			continue;
+
+		if (dev_priv->csr.allowed_dc_mask & target_dc_state)
+			break;
+
+		target_dc_state = states[i + 1];
+	}
+
+	return target_dc_state;
+}
+
+static void tgl_enable_dc3co(struct drm_i915_private *dev_priv)
+{
+	DRM_DEBUG_KMS("Enabling DC3CO\n");
+	gen9_set_dc_state(dev_priv, DC_STATE_EN_DC3CO);
+}
+
+static void tgl_disable_dc3co(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	DRM_DEBUG_KMS("Disabling DC3CO\n");
+	val = I915_READ(DC_STATE_EN);
+	val &= ~DC_STATE_DC3CO_STATUS;
+	I915_WRITE(DC_STATE_EN, val);
+	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+	/*
+	 * Delay of 200us DC3CO Exit time B.Spec 49196
+	 */
+	usleep_range(200, 210);
+}
+
 static void bxt_enable_dc9(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc9(dev_priv);
@@ -936,7 +982,8 @@ static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
 static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	return (I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5_DC6_MASK) == 0;
+	return ((I915_READ(DC_STATE_EN) & DC_STATE_EN_DC3CO) == 0 &&
+		(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5_DC6_MASK) == 0);
 }
 
 static void gen9_assert_dbuf_enabled(struct drm_i915_private *dev_priv)
@@ -951,6 +998,11 @@ static void gen9_assert_dbuf_enabled(struct drm_i915_private *dev_priv)
 static void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state cdclk_state = {};
+
+	if (dev_priv->csr.target_dc_state == DC_STATE_EN_DC3CO) {
+		tgl_disable_dc3co(dev_priv);
+		return;
+	}
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
@@ -984,10 +1036,17 @@ static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
 	if (!dev_priv->csr.dmc_payload)
 		return;
 
-	if (dev_priv->csr.allowed_dc_mask & DC_STATE_EN_UPTO_DC6)
+	switch (dev_priv->csr.target_dc_state) {
+	case DC_STATE_EN_DC3CO:
+		tgl_enable_dc3co(dev_priv);
+		break;
+	case DC_STATE_EN_UPTO_DC6:
 		skl_enable_dc6(dev_priv);
-	else if (dev_priv->csr.allowed_dc_mask & DC_STATE_EN_UPTO_DC5)
+		break;
+	case DC_STATE_EN_UPTO_DC5:
 		gen9_enable_dc5(dev_priv);
+		break;
+	}
 }
 
 static void i9xx_power_well_sync_hw_noop(struct drm_i915_private *dev_priv,
@@ -2935,7 +2994,7 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 		.name = "DC off",
 		.domains = SKL_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = SKL_DISP_DC_OFF,
 	},
 	{
 		.name = "power well 2",
@@ -3017,7 +3076,7 @@ static const struct i915_power_well_desc bxt_power_wells[] = {
 		.name = "DC off",
 		.domains = BXT_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = SKL_DISP_DC_OFF,
 	},
 	{
 		.name = "power well 2",
@@ -3077,7 +3136,7 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 		.name = "DC off",
 		.domains = GLK_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = SKL_DISP_DC_OFF,
 	},
 	{
 		.name = "power well 2",
@@ -3246,7 +3305,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "DC off",
 		.domains = CNL_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = SKL_DISP_DC_OFF,
 	},
 	{
 		.name = "power well 2",
@@ -3374,7 +3433,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "DC off",
 		.domains = ICL_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = SKL_DISP_DC_OFF,
 	},
 	{
 		.name = "power well 2",
@@ -3607,7 +3666,7 @@ static const struct i915_power_well_desc tgl_power_wells[] = {
 		.name = "DC off",
 		.domains = TGL_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = SKL_DISP_DC_OFF,
 	},
 	{
 		.name = "power well 2",
@@ -4039,6 +4098,9 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 						   i915_modparams.disable_power_well);
 	dev_priv->csr.allowed_dc_mask =
 		get_allowed_dc_mask(dev_priv, i915_modparams.enable_dc);
+
+	dev_priv->csr.target_dc_state =
+		sanitize_target_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
 
 	BUILD_BUG_ON(POWER_DOMAIN_NUM > 64);
 
