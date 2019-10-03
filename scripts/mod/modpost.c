@@ -2561,7 +2561,7 @@ int main(int argc, char **argv)
 {
 	struct module *mod;
 	struct buffer buf = { };
-	char *kernel_read = NULL, *module_read = NULL;
+	char *kernel_read = NULL;
 	char *dump_write = NULL, *files_source = NULL;
 	int opt;
 	int err;
@@ -2569,13 +2569,10 @@ int main(int argc, char **argv)
 	struct ext_sym_list *extsym_iter;
 	struct ext_sym_list *extsym_start = NULL;
 
-	while ((opt = getopt(argc, argv, "i:I:e:mnsT:o:awEd")) != -1) {
+	while ((opt = getopt(argc, argv, "i:e:mnsT:o:awEd")) != -1) {
 		switch (opt) {
 		case 'i':
 			kernel_read = optarg;
-			break;
-		case 'I':
-			module_read = optarg;
 			external_module = 1;
 			break;
 		case 'e':
@@ -2620,8 +2617,6 @@ int main(int argc, char **argv)
 
 	if (kernel_read)
 		read_dump(kernel_read, 1);
-	if (module_read)
-		read_dump(module_read, 0);
 	while (extsym_start) {
 		read_dump(extsym_start->file, 0);
 		extsym_iter = extsym_start->next;
