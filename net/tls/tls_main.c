@@ -657,8 +657,8 @@ static void tls_hw_sk_destruct(struct sock *sk)
 
 static int tls_hw_prot(struct sock *sk)
 {
+	struct tls_toe_device *dev;
 	struct tls_context *ctx;
-	struct tls_device *dev;
 	int rc = 0;
 
 	spin_lock_bh(&device_spinlock);
@@ -688,7 +688,7 @@ out:
 static void tls_hw_unhash(struct sock *sk)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
-	struct tls_device *dev;
+	struct tls_toe_device *dev;
 
 	spin_lock_bh(&device_spinlock);
 	list_for_each_entry(dev, &device_list, dev_list) {
@@ -707,7 +707,7 @@ static void tls_hw_unhash(struct sock *sk)
 static int tls_hw_hash(struct sock *sk)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
-	struct tls_device *dev;
+	struct tls_toe_device *dev;
 	int err;
 
 	err = ctx->sk_proto->hash(sk);
@@ -878,21 +878,21 @@ static size_t tls_get_info_size(const struct sock *sk)
 	return size;
 }
 
-void tls_register_device(struct tls_device *device)
+void tls_toe_register_device(struct tls_toe_device *device)
 {
 	spin_lock_bh(&device_spinlock);
 	list_add_tail(&device->dev_list, &device_list);
 	spin_unlock_bh(&device_spinlock);
 }
-EXPORT_SYMBOL(tls_register_device);
+EXPORT_SYMBOL(tls_toe_register_device);
 
-void tls_unregister_device(struct tls_device *device)
+void tls_toe_unregister_device(struct tls_toe_device *device)
 {
 	spin_lock_bh(&device_spinlock);
 	list_del(&device->dev_list);
 	spin_unlock_bh(&device_spinlock);
 }
-EXPORT_SYMBOL(tls_unregister_device);
+EXPORT_SYMBOL(tls_toe_unregister_device);
 
 static struct tcp_ulp_ops tcp_tls_ulp_ops __read_mostly = {
 	.name			= "tls",
