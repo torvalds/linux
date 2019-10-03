@@ -992,6 +992,7 @@ static int __mlxsw_sx_port_eth_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
 	if (!dev)
 		return -ENOMEM;
 	SET_NETDEV_DEV(dev, mlxsw_sx->bus_info->dev);
+	dev_net_set(dev, mlxsw_core_net(mlxsw_sx->core));
 	mlxsw_sx_port = netdev_priv(dev);
 	mlxsw_sx_port->dev = dev;
 	mlxsw_sx_port->mlxsw_sx = mlxsw_sx;
