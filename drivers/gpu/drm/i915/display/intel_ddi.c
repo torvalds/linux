@@ -45,6 +45,7 @@
 #include "intel_lspcon.h"
 #include "intel_panel.h"
 #include "intel_psr.h"
+#include "intel_sprite.h"
 #include "intel_tc.h"
 #include "intel_vdsc.h"
 
@@ -3330,6 +3331,86 @@ static void intel_ddi_disable_fec_state(struct intel_encoder *encoder,
 	POSTING_READ(intel_dp->regs.dp_tp_ctl);
 }
 
+static void
+tgl_clear_psr2_transcoder_exitline(const struct intel_crtc_state *cstate)
+{
+	struct drm_i915_private *dev_priv = to_i915(cstate->base.crtc->dev);
+	u32 val;
+
+	if (!cstate->dc3co_exitline)
+		return;
+
+	val = I915_READ(EXITLINE(cstate->cpu_transcoder));
+	val &= ~(EXITLINE_MASK | EXITLINE_ENABLE);
+	I915_WRITE(EXITLINE(cstate->cpu_transcoder), val);
+}
+
+static void
+tgl_set_psr2_transcoder_exitline(const struct intel_crtc_state *cstate)
+{
+	u32 val, exit_scanlines;
+	struct drm_i915_private *dev_priv = to_i915(cstate->base.crtc->dev);
+
+	if (!cstate->dc3co_exitline)
+		return;
+
+	exit_scanlines = cstate->dc3co_exitline;
+	exit_scanlines <<= EXITLINE_SHIFT;
+	val = I915_READ(EXITLINE(cstate->cpu_transcoder));
+	val &= ~(EXITLINE_MASK | EXITLINE_ENABLE);
+	val |= exit_scanlines;
+	val |= EXITLINE_ENABLE;
+	I915_WRITE(EXITLINE(cstate->cpu_transcoder), val);
+}
+
+static void tgl_dc3co_exitline_compute_config(struct intel_encoder *encoder,
+					      struct intel_crtc_state *cstate)
+{
+	u32 exit_scanlines;
+	struct drm_i915_private *dev_priv = to_i915(cstate->base.crtc->dev);
+	u32 crtc_vdisplay = cstate->base.adjusted_mode.crtc_vdisplay;
+
+	cstate->dc3co_exitline = 0;
+
+	if (!(dev_priv->csr.allowed_dc_mask & DC_STATE_EN_DC3CO))
+		return;
+
+	/* B.Specs:49196 DC3CO only works with pipeA and DDIA.*/
+	if (to_intel_crtc(cstate->base.crtc)->pipe != PIPE_A ||
+	    encoder->port != PORT_A)
+		return;
+
+	if (!cstate->has_psr2 || !cstate->base.active)
+		return;
+
+	/*
+	 * DC3CO Exit time 200us B.Spec 49196
+	 * PSR2 transcoder Early Exit scanlines = ROUNDUP(200 / line time) + 1
+	 */
+	exit_scanlines =
+		intel_usecs_to_scanlines(&cstate->base.adjusted_mode, 200) + 1;
+
+	if (WARN_ON(exit_scanlines > crtc_vdisplay))
+		return;
+
+	cstate->dc3co_exitline = crtc_vdisplay - exit_scanlines;
+	DRM_DEBUG_KMS("DC3CO exit scanlines %d\n", cstate->dc3co_exitline);
+}
+
+static void tgl_dc3co_exitline_get_config(struct intel_crtc_state *crtc_state)
+{
+	u32 val;
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+
+	if (INTEL_GEN(dev_priv) < 12)
+		return;
+
+	val = I915_READ(EXITLINE(crtc_state->cpu_transcoder));
+
+	if (val & EXITLINE_ENABLE)
+		crtc_state->dc3co_exitline = val & EXITLINE_MASK;
+}
+
 static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state)
@@ -3342,6 +3423,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	int level = intel_ddi_dp_level(intel_dp);
 	enum transcoder transcoder = crtc_state->cpu_transcoder;
 
+	tgl_set_psr2_transcoder_exitline(crtc_state);
 	intel_dp_set_link_params(intel_dp, crtc_state->port_clock,
 				 crtc_state->lane_count, is_mst);
 
@@ -3666,6 +3748,7 @@ static void intel_ddi_post_disable_dp(struct intel_encoder *encoder,
 						  dig_port->ddi_io_power_domain);
 
 	intel_ddi_clk_disable(encoder);
+	tgl_clear_psr2_transcoder_exitline(old_crtc_state);
 }
 
 static void intel_ddi_post_disable_hdmi(struct intel_encoder *encoder,
@@ -4212,6 +4295,9 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		break;
 	}
 
+	if (encoder->type == INTEL_OUTPUT_EDP)
+		tgl_dc3co_exitline_get_config(pipe_config);
+
 	pipe_config->has_audio =
 		intel_ddi_is_audio_enabled(dev_priv, cpu_transcoder);
 
@@ -4289,10 +4375,13 @@ static int intel_ddi_compute_config(struct intel_encoder *encoder,
 	if (HAS_TRANSCODER_EDP(dev_priv) && port == PORT_A)
 		pipe_config->cpu_transcoder = TRANSCODER_EDP;
 
-	if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_HDMI))
+	if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_HDMI)) {
 		ret = intel_hdmi_compute_config(encoder, pipe_config, conn_state);
-	else
+	} else {
 		ret = intel_dp_compute_config(encoder, pipe_config, conn_state);
+		tgl_dc3co_exitline_compute_config(encoder, pipe_config);
+	}
+
 	if (ret)
 		return ret;
 

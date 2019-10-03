@@ -870,6 +870,7 @@ struct intel_crtc_state {
 
 	bool has_psr;
 	bool has_psr2;
+	u32 dc3co_exitline;
 
 	/*
 	 * Frequence the dpll for the port should run at. Differs from the
