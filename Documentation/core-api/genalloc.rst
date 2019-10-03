@@ -53,7 +53,7 @@ to the pool.  That can be done with one of:
    :functions: gen_pool_add
 
 .. kernel-doc:: lib/genalloc.c
-   :functions: gen_pool_add_virt
+   :functions: gen_pool_add_owner
 
 A call to :c:func:`gen_pool_add` will place the size bytes of memory
 starting at addr (in the kernel's virtual address space) into the given
@@ -65,14 +65,14 @@ for DMA allocations.
 The functions for allocating memory from the pool (and putting it back)
 are:
 
-.. kernel-doc:: lib/genalloc.c
+.. kernel-doc:: include/linux/genalloc.h
    :functions: gen_pool_alloc
 
 .. kernel-doc:: lib/genalloc.c
    :functions: gen_pool_dma_alloc
 
 .. kernel-doc:: lib/genalloc.c
-   :functions: gen_pool_free
+   :functions: gen_pool_free_owner
 
 As one would expect, :c:func:`gen_pool_alloc` will allocate size< bytes
 from the given pool.  The :c:func:`gen_pool_dma_alloc` variant allocates
@@ -89,7 +89,7 @@ return.  If that sort of control is needed, the following functions will be
 of interest:
 
 .. kernel-doc:: lib/genalloc.c
-   :functions: gen_pool_alloc_algo
+   :functions: gen_pool_alloc_algo_owner
 
 .. kernel-doc:: lib/genalloc.c
    :functions: gen_pool_set_algo
