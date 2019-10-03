@@ -2462,7 +2462,7 @@ static int btrfs_search_path_in_tree_user(struct inode *inode,
 				goto out;
 			}
 
-			temp_inode = btrfs_iget(sb, &key2, root, NULL);
+			temp_inode = btrfs_iget(sb, &key2, root);
 			if (IS_ERR(temp_inode)) {
 				ret = PTR_ERR(temp_inode);
 				goto out;
