@@ -515,6 +515,17 @@ static int software_node_read_string_array(const struct fwnode_handle *fwnode,
 						propname, val, nval);
 }
 
+static const char *
+software_node_get_name(const struct fwnode_handle *fwnode)
+{
+	const struct swnode *swnode = to_swnode(fwnode);
+
+	if (!swnode)
+		return "(null)";
+
+	return kobject_name(&swnode->kobj);
+}
+
 static struct fwnode_handle *
 software_node_get_parent(const struct fwnode_handle *fwnode)
 {
@@ -615,6 +626,7 @@ static const struct fwnode_operations software_node_ops = {
 	.property_present = software_node_property_present,
 	.property_read_int_array = software_node_read_int_array,
 	.property_read_string_array = software_node_read_string_array,
+	.get_name = software_node_get_name,
 	.get_parent = software_node_get_parent,
 	.get_next_child_node = software_node_get_next_child,
 	.get_named_child_node = software_node_get_named_child_node,
