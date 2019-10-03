@@ -858,7 +858,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 		struct gpio_irq_chip *girq;
 
 		irqc = &chip->irqchip;
-		irqc->name = "bcm-iproc-gpio";
+		irqc->name = dev_name(dev);
 		irqc->irq_ack = iproc_gpio_irq_ack;
 		irqc->irq_mask = iproc_gpio_irq_mask;
 		irqc->irq_unmask = iproc_gpio_irq_unmask;
