@@ -1574,6 +1574,19 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	return syscall__set_arg_fmts(sc);
 }
 
+static int perf_evsel__init_tp_arg_scnprintf(struct evsel *evsel)
+{
+	int nr_args = evsel->tp_format->format.nr_fields;
+
+	evsel->priv = calloc(nr_args, sizeof(struct syscall_arg_fmt));
+	if (evsel->priv != NULL) {
+		syscall_arg_fmt__init_array(evsel->priv, evsel->tp_format->format.fields);
+		return 0;
+	}
+
+	return -ENOMEM;
+}
+
 static int intcmp(const void *a, const void *b)
 {
 	const int *one = a, *another = b;
@@ -3936,8 +3949,10 @@ static int evlist__set_syscall_tp_fields(struct evlist *evlist)
 		if (evsel->priv || !evsel->tp_format)
 			continue;
 
-		if (strcmp(evsel->tp_format->system, "syscalls"))
+		if (strcmp(evsel->tp_format->system, "syscalls")) {
+			perf_evsel__init_tp_arg_scnprintf(evsel);
 			continue;
+		}
 
 		if (perf_evsel__init_syscall_tp(evsel))
 			return -1;
