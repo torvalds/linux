@@ -1418,6 +1418,30 @@ static int ip_set_swap(struct net *net, struct sock *ctnl, struct sk_buff *skb,
 #define DUMP_TYPE(arg)		(((u32)(arg)) & 0x0000FFFF)
 #define DUMP_FLAGS(arg)		(((u32)(arg)) >> 16)
 
+int
+ip_set_put_flags(struct sk_buff *skb, struct ip_set *set)
+{
+	u32 cadt_flags = 0;
+
+	if (SET_WITH_TIMEOUT(set))
+		if (unlikely(nla_put_net32(skb, IPSET_ATTR_TIMEOUT,
+					   htonl(set->timeout))))
+			return -EMSGSIZE;
+	if (SET_WITH_COUNTER(set))
+		cadt_flags |= IPSET_FLAG_WITH_COUNTERS;
+	if (SET_WITH_COMMENT(set))
+		cadt_flags |= IPSET_FLAG_WITH_COMMENT;
+	if (SET_WITH_SKBINFO(set))
+		cadt_flags |= IPSET_FLAG_WITH_SKBINFO;
+	if (SET_WITH_FORCEADD(set))
+		cadt_flags |= IPSET_FLAG_WITH_FORCEADD;
+
+	if (!cadt_flags)
+		return 0;
+	return nla_put_net32(skb, IPSET_ATTR_CADT_FLAGS, htonl(cadt_flags));
+}
+EXPORT_SYMBOL_GPL(ip_set_put_flags);
+
 static int
 ip_set_dump_done(struct netlink_callback *cb)
 {
