@@ -414,7 +414,9 @@ static struct hl_cb *validate_queue_index(struct hl_device *hdev,
 			"Queue index %d is restricted for the kernel driver\n",
 			chunk->queue_index);
 		return NULL;
-	} else if (hw_queue_prop->type == QUEUE_TYPE_INT) {
+	}
+
+	if (!hw_queue_prop->requires_kernel_cb) {
 		*ext_queue = false;
 		return (struct hl_cb *) (uintptr_t) chunk->cb_handle;
 	}

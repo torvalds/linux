@@ -98,10 +98,13 @@ enum hl_queue_type {
  * @type: queue type.
  * @driver_only: true if only the driver is allowed to send a job to this queue,
  *               false otherwise.
+ * @requires_kernel_cb: true if a CB handle must be provided for jobs on this
+ *                      queue, false otherwise (a CB address must be provided).
  */
 struct hw_queue_properties {
 	enum hl_queue_type	type;
 	u8			driver_only;
+	u8			requires_kernel_cb;
 };
 
 /**
