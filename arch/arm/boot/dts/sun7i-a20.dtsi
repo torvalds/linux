@@ -380,9 +380,8 @@
 			compatible = "allwinner,sun7i-a20-csi0";
 			reg = <0x01c09000 0x1000>;
 			interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ccu CLK_AHB_CSI0>, <&ccu CLK_CSI0>,
-				 <&ccu CLK_CSI_SCLK>, <&ccu CLK_DRAM_CSI0>;
-			clock-names = "bus", "mod", "isp", "ram";
+			clocks = <&ccu CLK_AHB_CSI0>, <&ccu CLK_CSI_SCLK>, <&ccu CLK_DRAM_CSI0>;
+			clock-names = "bus", "isp", "ram";
 			resets = <&ccu RST_CSI0>;
 			status = "disabled";
 		};
