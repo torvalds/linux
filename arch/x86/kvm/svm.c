@@ -38,6 +38,7 @@
 #include <linux/file.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
+#include <linux/rwsem.h>
 
 #include <asm/apic.h>
 #include <asm/perf_event.h>
@@ -418,11 +419,13 @@ enum {
 
 #define VMCB_AVIC_APIC_BAR_MASK		0xFFFFFFFFFF000ULL
 
-static DEFINE_MUTEX(sev_deactivate_lock);
+static int sev_flush_asids(void);
+static DECLARE_RWSEM(sev_deactivate_lock);
 static DEFINE_MUTEX(sev_bitmap_lock);
 static unsigned int max_sev_asid;
 static unsigned int min_sev_asid;
 static unsigned long *sev_asid_bitmap;
+static unsigned long *sev_reclaim_asid_bitmap;
 #define __sme_page_pa(x) __sme_set(page_to_pfn(x) << PAGE_SHIFT)
 
 struct enc_region {
@@ -1231,9 +1234,13 @@ static __init int sev_hardware_setup(void)
 	/* Minimum ASID value that should be used for SEV guest */
 	min_sev_asid = cpuid_edx(0x8000001F);
 
-	/* Initialize SEV ASID bitmap */
+	/* Initialize SEV ASID bitmaps */
 	sev_asid_bitmap = bitmap_zalloc(max_sev_asid, GFP_KERNEL);
 	if (!sev_asid_bitmap)
+		return 1;
+
+	sev_reclaim_asid_bitmap = bitmap_zalloc(max_sev_asid, GFP_KERNEL);
+	if (!sev_reclaim_asid_bitmap)
 		return 1;
 
 	status = kmalloc(sizeof(*status), GFP_KERNEL);
@@ -1414,8 +1421,12 @@ static __exit void svm_hardware_unsetup(void)
 {
 	int cpu;
 
-	if (svm_sev_enabled())
+	if (svm_sev_enabled()) {
 		bitmap_free(sev_asid_bitmap);
+		bitmap_free(sev_reclaim_asid_bitmap);
+
+		sev_flush_asids();
+	}
 
 	for_each_possible_cpu(cpu)
 		svm_cpu_uninit(cpu);
@@ -1733,7 +1744,7 @@ static void sev_asid_free(int asid)
 	mutex_lock(&sev_bitmap_lock);
 
 	pos = asid - 1;
-	__clear_bit(pos, sev_asid_bitmap);
+	__set_bit(pos, sev_reclaim_asid_bitmap);
 
 	for_each_possible_cpu(cpu) {
 		sd = per_cpu(svm_data, cpu);
@@ -1758,18 +1769,10 @@ static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
 	/* deactivate handle */
 	data->handle = handle;
 
-	/*
-	 * Guard against a parallel DEACTIVATE command before the DF_FLUSH
-	 * command has completed.
-	 */
-	mutex_lock(&sev_deactivate_lock);
-
+	/* Guard DEACTIVATE against WBINVD/DF_FLUSH used in ASID recycling */
+	down_read(&sev_deactivate_lock);
 	sev_guest_deactivate(data, NULL);
-
-	wbinvd_on_all_cpus();
-	sev_guest_df_flush(NULL);
-
-	mutex_unlock(&sev_deactivate_lock);
+	up_read(&sev_deactivate_lock);
 
 	kfree(data);
 
@@ -6273,8 +6276,51 @@ static int enable_smi_window(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int sev_flush_asids(void)
+{
+	int ret, error;
+
+	/*
+	 * DEACTIVATE will clear the WBINVD indicator causing DF_FLUSH to fail,
+	 * so it must be guarded.
+	 */
+	down_write(&sev_deactivate_lock);
+
+	wbinvd_on_all_cpus();
+	ret = sev_guest_df_flush(&error);
+
+	up_write(&sev_deactivate_lock);
+
+	if (ret)
+		pr_err("SEV: DF_FLUSH failed, ret=%d, error=%#x\n", ret, error);
+
+	return ret;
+}
+
+/* Must be called with the sev_bitmap_lock held */
+static bool __sev_recycle_asids(void)
+{
+	int pos;
+
+	/* Check if there are any ASIDs to reclaim before performing a flush */
+	pos = find_next_bit(sev_reclaim_asid_bitmap,
+			    max_sev_asid, min_sev_asid - 1);
+	if (pos >= max_sev_asid)
+		return false;
+
+	if (sev_flush_asids())
+		return false;
+
+	bitmap_xor(sev_asid_bitmap, sev_asid_bitmap, sev_reclaim_asid_bitmap,
+		   max_sev_asid);
+	bitmap_zero(sev_reclaim_asid_bitmap, max_sev_asid);
+
+	return true;
+}
+
 static int sev_asid_new(void)
 {
+	bool retry = true;
 	int pos;
 
 	mutex_lock(&sev_bitmap_lock);
@@ -6282,8 +6328,13 @@ static int sev_asid_new(void)
 	/*
 	 * SEV-enabled guest must use asid from min_sev_asid to max_sev_asid.
 	 */
+again:
 	pos = find_next_zero_bit(sev_asid_bitmap, max_sev_asid, min_sev_asid - 1);
 	if (pos >= max_sev_asid) {
+		if (retry && __sev_recycle_asids()) {
+			retry = false;
+			goto again;
+		}
 		mutex_unlock(&sev_bitmap_lock);
 		return -EBUSY;
 	}
