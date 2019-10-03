@@ -862,6 +862,11 @@ static unsigned long i915_audio_component_get_power(struct device *kdev)
 		/* Force CDCLK to 2*BCLK as long as we need audio powered. */
 		if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
 			glk_force_audio_cdclk(dev_priv, true);
+
+		if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+			I915_WRITE(AUD_PIN_BUF_CTL,
+				   (I915_READ(AUD_PIN_BUF_CTL) |
+				    AUD_PIN_BUF_ENABLE));
 	}
 
 	return ret;
