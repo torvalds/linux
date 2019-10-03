@@ -174,7 +174,7 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 
 	node->__subtree_last = LAST(node);
 
-	if (hole_node->allocated) {
+	if (drm_mm_node_allocated(hole_node)) {
 		rb = &hole_node->rb;
 		while (rb) {
 			parent = rb_entry(rb, struct drm_mm_node, rb);
@@ -561,6 +561,11 @@ int drm_mm_insert_node_in_range(struct drm_mm * const mm,
 }
 EXPORT_SYMBOL(drm_mm_insert_node_in_range);
 
+static inline bool drm_mm_node_scanned_block(const struct drm_mm_node *node)
+{
+	return node->scanned_block;
+}
+
 /**
  * drm_mm_remove_node - Remove a memory node from the allocator.
  * @node: drm_mm_node to remove
@@ -574,8 +579,8 @@ void drm_mm_remove_node(struct drm_mm_node *node)
 	struct drm_mm *mm = node->mm;
 	struct drm_mm_node *prev_node;
 
-	DRM_MM_BUG_ON(!node->allocated);
-	DRM_MM_BUG_ON(node->scanned_block);
+	DRM_MM_BUG_ON(!drm_mm_node_allocated(node));
+	DRM_MM_BUG_ON(drm_mm_node_scanned_block(node));
 
 	prev_node = list_prev_entry(node, node_list);
 
@@ -605,7 +610,7 @@ void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)
 {
 	struct drm_mm *mm = old->mm;
 
-	DRM_MM_BUG_ON(!old->allocated);
+	DRM_MM_BUG_ON(!drm_mm_node_allocated(old));
 
 	*new = *old;
 
@@ -731,8 +736,8 @@ bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 	u64 adj_start, adj_end;
 
 	DRM_MM_BUG_ON(node->mm != mm);
-	DRM_MM_BUG_ON(!node->allocated);
-	DRM_MM_BUG_ON(node->scanned_block);
+	DRM_MM_BUG_ON(!drm_mm_node_allocated(node));
+	DRM_MM_BUG_ON(drm_mm_node_scanned_block(node));
 	node->scanned_block = true;
 	mm->scan_active++;
 
@@ -818,7 +823,7 @@ bool drm_mm_scan_remove_block(struct drm_mm_scan *scan,
 	struct drm_mm_node *prev_node;
 
 	DRM_MM_BUG_ON(node->mm != scan->mm);
-	DRM_MM_BUG_ON(!node->scanned_block);
+	DRM_MM_BUG_ON(!drm_mm_node_scanned_block(node));
 	node->scanned_block = false;
 
 	DRM_MM_BUG_ON(!node->mm->scan_active);

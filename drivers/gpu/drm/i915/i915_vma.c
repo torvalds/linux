@@ -479,7 +479,7 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 
 static bool color_differs(struct drm_mm_node *node, unsigned long color)
 {
-	return node->allocated && node->color != color;
+	return drm_mm_node_allocated(node) && node->color != color;
 }
 
 bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long cache_level)
@@ -797,7 +797,7 @@ void i915_vma_reopen(struct i915_vma *vma)
 
 static void __i915_vma_destroy(struct i915_vma *vma)
 {
-	GEM_BUG_ON(vma->node.allocated);
+	GEM_BUG_ON(drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(vma->fence);
 
 	mutex_lock(&vma->vm->mutex);

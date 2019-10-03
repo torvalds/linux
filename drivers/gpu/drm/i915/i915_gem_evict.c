@@ -301,7 +301,7 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 			break;
 		}
 
-		GEM_BUG_ON(!node->allocated);
+		GEM_BUG_ON(!drm_mm_node_allocated(node));
 		vma = container_of(node, typeof(*vma), node);
 
 		/* If we are using coloring to insert guard pages between

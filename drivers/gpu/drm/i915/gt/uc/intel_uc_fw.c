@@ -400,7 +400,7 @@ static u32 uc_fw_ggtt_offset(struct intel_uc_fw *uc_fw, struct i915_ggtt *ggtt)
 {
 	struct drm_mm_node *node = &ggtt->uc_fw;
 
-	GEM_BUG_ON(!node->allocated);
+	GEM_BUG_ON(!drm_mm_node_allocated(node));
 	GEM_BUG_ON(upper_32_bits(node->start));
 	GEM_BUG_ON(upper_32_bits(node->start + node->size - 1));
 
