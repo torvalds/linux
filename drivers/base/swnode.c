@@ -526,6 +526,27 @@ software_node_get_name(const struct fwnode_handle *fwnode)
 	return kobject_name(&swnode->kobj);
 }
 
+static const char *
+software_node_get_name_prefix(const struct fwnode_handle *fwnode)
+{
+	struct fwnode_handle *parent;
+	const char *prefix;
+
+	parent = fwnode_get_parent(fwnode);
+	if (!parent)
+		return "";
+
+	/* Figure out the prefix from the parents. */
+	while (is_software_node(parent))
+		parent = fwnode_get_next_parent(parent);
+
+	prefix = fwnode_get_name_prefix(parent);
+	fwnode_handle_put(parent);
+
+	/* Guess something if prefix was NULL. */
+	return prefix ?: "/";
+}
+
 static struct fwnode_handle *
 software_node_get_parent(const struct fwnode_handle *fwnode)
 {
@@ -627,6 +648,7 @@ static const struct fwnode_operations software_node_ops = {
 	.property_read_int_array = software_node_read_int_array,
 	.property_read_string_array = software_node_read_string_array,
 	.get_name = software_node_get_name,
+	.get_name_prefix = software_node_get_name_prefix,
 	.get_parent = software_node_get_parent,
 	.get_next_child_node = software_node_get_next_child,
 	.get_named_child_node = software_node_get_named_child_node,
