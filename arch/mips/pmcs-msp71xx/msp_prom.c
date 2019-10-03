@@ -378,7 +378,6 @@ void __init prom_free_prom_memory(void)
 	char	*ptr;
 	int	len = 0;
 	int	i;
-	unsigned long addr;
 
 	/*
 	 * preserve environment variables and command line from pmon/bbload
