@@ -687,7 +687,8 @@ out:
 	return ret;
 }
 
-static inline void sock_valbool_flag(struct sock *sk, int bit, int valbool)
+static inline void sock_valbool_flag(struct sock *sk, enum sock_flags bit,
+				     int valbool)
 {
 	if (valbool)
 		sock_set_flag(sk, bit);
@@ -3033,7 +3034,7 @@ int sock_gettstamp(struct socket *sock, void __user *userstamp,
 }
 EXPORT_SYMBOL(sock_gettstamp);
 
-void sock_enable_timestamp(struct sock *sk, int flag)
+void sock_enable_timestamp(struct sock *sk, enum sock_flags flag)
 {
 	if (!sock_flag(sk, flag)) {
 		unsigned long previous_flags = sk->sk_flags;
