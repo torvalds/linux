@@ -42,6 +42,7 @@
 #include <linux/inet_diag.h>
 
 #include <net/tls.h>
+#include <net/tls_toe.h>
 
 MODULE_AUTHOR("Mellanox Technologies");
 MODULE_DESCRIPTION("Transport Layer Security Support");
