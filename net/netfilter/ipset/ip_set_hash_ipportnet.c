@@ -59,7 +59,7 @@ struct hash_ipportnet4_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_ipportnet4_data_equal(const struct hash_ipportnet4_elem *ip1,
 			   const struct hash_ipportnet4_elem *ip2,
 			   u32 *multi)
@@ -71,25 +71,25 @@ hash_ipportnet4_data_equal(const struct hash_ipportnet4_elem *ip1,
 	       ip1->proto == ip2->proto;
 }
 
-static inline int
+static int
 hash_ipportnet4_do_data_match(const struct hash_ipportnet4_elem *elem)
 {
 	return elem->nomatch ? -ENOTEMPTY : 1;
 }
 
-static inline void
+static void
 hash_ipportnet4_data_set_flags(struct hash_ipportnet4_elem *elem, u32 flags)
 {
 	elem->nomatch = !!((flags >> 16) & IPSET_FLAG_NOMATCH);
 }
 
-static inline void
+static void
 hash_ipportnet4_data_reset_flags(struct hash_ipportnet4_elem *elem, u8 *flags)
 {
 	swap(*flags, elem->nomatch);
 }
 
-static inline void
+static void
 hash_ipportnet4_data_netmask(struct hash_ipportnet4_elem *elem, u8 cidr)
 {
 	elem->ip2 &= ip_set_netmask(cidr);
@@ -116,7 +116,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_ipportnet4_data_next(struct hash_ipportnet4_elem *next,
 			  const struct hash_ipportnet4_elem *d)
 {
@@ -308,7 +308,7 @@ struct hash_ipportnet6_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_ipportnet6_data_equal(const struct hash_ipportnet6_elem *ip1,
 			   const struct hash_ipportnet6_elem *ip2,
 			   u32 *multi)
@@ -320,25 +320,25 @@ hash_ipportnet6_data_equal(const struct hash_ipportnet6_elem *ip1,
 	       ip1->proto == ip2->proto;
 }
 
-static inline int
+static int
 hash_ipportnet6_do_data_match(const struct hash_ipportnet6_elem *elem)
 {
 	return elem->nomatch ? -ENOTEMPTY : 1;
 }
 
-static inline void
+static void
 hash_ipportnet6_data_set_flags(struct hash_ipportnet6_elem *elem, u32 flags)
 {
 	elem->nomatch = !!((flags >> 16) & IPSET_FLAG_NOMATCH);
 }
 
-static inline void
+static void
 hash_ipportnet6_data_reset_flags(struct hash_ipportnet6_elem *elem, u8 *flags)
 {
 	swap(*flags, elem->nomatch);
 }
 
-static inline void
+static void
 hash_ipportnet6_data_netmask(struct hash_ipportnet6_elem *elem, u8 cidr)
 {
 	ip6_netmask(&elem->ip2, cidr);
@@ -365,7 +365,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_ipportnet6_data_next(struct hash_ipportnet6_elem *next,
 			  const struct hash_ipportnet6_elem *d)
 {

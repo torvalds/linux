@@ -35,7 +35,7 @@ struct ip_set_net {
 
 static unsigned int ip_set_net_id __read_mostly;
 
-static inline struct ip_set_net *ip_set_pernet(struct net *net)
+static struct ip_set_net *ip_set_pernet(struct net *net)
 {
 	return net_generic(net, ip_set_net_id);
 }
@@ -67,13 +67,13 @@ MODULE_ALIAS_NFNL_SUBSYS(NFNL_SUBSYS_IPSET);
  * serialized by ip_set_type_mutex.
  */
 
-static inline void
+static void
 ip_set_type_lock(void)
 {
 	mutex_lock(&ip_set_type_mutex);
 }
 
-static inline void
+static void
 ip_set_type_unlock(void)
 {
 	mutex_unlock(&ip_set_type_mutex);
@@ -277,7 +277,7 @@ ip_set_free(void *members)
 }
 EXPORT_SYMBOL_GPL(ip_set_free);
 
-static inline bool
+static bool
 flag_nested(const struct nlattr *nla)
 {
 	return nla->nla_type & NLA_F_NESTED;
@@ -356,7 +356,7 @@ const struct ip_set_ext_type ip_set_extensions[] = {
 };
 EXPORT_SYMBOL_GPL(ip_set_extensions);
 
-static inline bool
+static bool
 add_extension(enum ip_set_ext_id id, u32 flags, struct nlattr *tb[])
 {
 	return ip_set_extensions[id].flag ?
@@ -506,7 +506,7 @@ EXPORT_SYMBOL_GPL(ip_set_match_extensions);
  * The set behind an index may change by swapping only, from userspace.
  */
 
-static inline void
+static void
 __ip_set_get(struct ip_set *set)
 {
 	write_lock_bh(&ip_set_ref_lock);
@@ -514,7 +514,7 @@ __ip_set_get(struct ip_set *set)
 	write_unlock_bh(&ip_set_ref_lock);
 }
 
-static inline void
+static void
 __ip_set_put(struct ip_set *set)
 {
 	write_lock_bh(&ip_set_ref_lock);
@@ -526,7 +526,7 @@ __ip_set_put(struct ip_set *set)
 /* set->ref can be swapped out by ip_set_swap, netlink events (like dump) need
  * a separate reference counter
  */
-static inline void
+static void
 __ip_set_put_netlink(struct ip_set *set)
 {
 	write_lock_bh(&ip_set_ref_lock);
@@ -541,7 +541,7 @@ __ip_set_put_netlink(struct ip_set *set)
  * so it can't be destroyed (or changed) under our foot.
  */
 
-static inline struct ip_set *
+static struct ip_set *
 ip_set_rcu_get(struct net *net, ip_set_id_t index)
 {
 	struct ip_set *set;
@@ -670,7 +670,7 @@ EXPORT_SYMBOL_GPL(ip_set_get_byname);
  *
  */
 
-static inline void
+static void
 __ip_set_put_byindex(struct ip_set_net *inst, ip_set_id_t index)
 {
 	struct ip_set *set;

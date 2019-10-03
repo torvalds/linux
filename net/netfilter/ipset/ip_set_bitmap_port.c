@@ -46,7 +46,7 @@ struct bitmap_port_adt_elem {
 	u16 id;
 };
 
-static inline u16
+static u16
 port_to_id(const struct bitmap_port *m, u16 port)
 {
 	return port - m->first_port;
@@ -54,34 +54,34 @@ port_to_id(const struct bitmap_port *m, u16 port)
 
 /* Common functions */
 
-static inline int
+static int
 bitmap_port_do_test(const struct bitmap_port_adt_elem *e,
 		    const struct bitmap_port *map, size_t dsize)
 {
 	return !!test_bit(e->id, map->members);
 }
 
-static inline int
+static int
 bitmap_port_gc_test(u16 id, const struct bitmap_port *map, size_t dsize)
 {
 	return !!test_bit(id, map->members);
 }
 
-static inline int
+static int
 bitmap_port_do_add(const struct bitmap_port_adt_elem *e,
 		   struct bitmap_port *map, u32 flags, size_t dsize)
 {
 	return !!test_bit(e->id, map->members);
 }
 
-static inline int
+static int
 bitmap_port_do_del(const struct bitmap_port_adt_elem *e,
 		   struct bitmap_port *map)
 {
 	return !test_and_clear_bit(e->id, map->members);
 }
 
-static inline int
+static int
 bitmap_port_do_list(struct sk_buff *skb, const struct bitmap_port *map, u32 id,
 		    size_t dsize)
 {
@@ -89,7 +89,7 @@ bitmap_port_do_list(struct sk_buff *skb, const struct bitmap_port *map, u32 id,
 			     htons(map->first_port + id));
 }
 
-static inline int
+static int
 bitmap_port_do_head(struct sk_buff *skb, const struct bitmap_port *map)
 {
 	return nla_put_net16(skb, IPSET_ATTR_PORT, htons(map->first_port)) ||
