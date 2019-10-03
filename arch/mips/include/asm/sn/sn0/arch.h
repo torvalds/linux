@@ -66,7 +66,5 @@
 #define SLOT_MIN_MEM_SIZE	(32*1024*1024)
 
 #define CPUS_PER_NODE		2	/* CPUs on a single hub */
-#define CPUS_PER_NODE_SHFT	1	/* Bits to shift in the node number */
-#define CPUS_PER_SUBNODE	2	/* CPUs on a single hub PI */
 
 #endif /* _ASM_SN_SN0_ARCH_H */
