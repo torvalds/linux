@@ -546,6 +546,8 @@ void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struc
 {
 	int i, j = 0;
 
+	j = -1;
+
 	ASSERT(PP_SMU_NUM_FCLK_DPM_LEVELS <= MAX_NUM_DPM_LVL);
 
 	/* Find lowest DPM, FCLK is filled in reverse order*/
@@ -555,6 +557,12 @@ void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struc
 			j = i;
 			break;
 		}
+	}
+
+	if (j == -1) {
+		/* clock table is all 0s, just use our own hardcode */
+		ASSERT(0);
+		return;
 	}
 
 	bw_params->clk_table.num_entries = j + 1;
