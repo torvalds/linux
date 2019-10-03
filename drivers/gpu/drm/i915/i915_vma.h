@@ -228,7 +228,7 @@ static inline bool i915_vma_is_closed(const struct i915_vma *vma)
 static inline u32 i915_ggtt_offset(const struct i915_vma *vma)
 {
 	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
-	GEM_BUG_ON(!vma->node.allocated);
+	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(upper_32_bits(vma->node.start));
 	GEM_BUG_ON(upper_32_bits(vma->node.start + vma->node.size - 1));
 	return lower_32_bits(vma->node.start);
@@ -390,7 +390,7 @@ static inline bool i915_vma_is_bound(const struct i915_vma *vma,
 static inline bool i915_node_color_differs(const struct drm_mm_node *node,
 					   unsigned long color)
 {
-	return node->allocated && node->color != color;
+	return drm_mm_node_allocated(node) && node->color != color;
 }
 
 /**

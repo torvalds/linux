@@ -795,7 +795,7 @@ void i915_vma_reopen(struct i915_vma *vma)
 
 static void __i915_vma_destroy(struct i915_vma *vma)
 {
-	GEM_BUG_ON(vma->node.allocated);
+	GEM_BUG_ON(drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(vma->fence);
 
 	mutex_lock(&vma->vm->mutex);
