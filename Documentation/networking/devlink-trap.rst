@@ -172,7 +172,7 @@ help debug packet drops caused by these exceptions. The following list includes
 links to the description of driver-specific traps registered by various device
 drivers:
 
-  * :doc:`/devlink-trap-netdevsim`
+  * :doc:`devlink-trap-netdevsim`
 
 Generic Packet Trap Groups
 ==========================
