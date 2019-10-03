@@ -476,7 +476,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_execution(struct mod_hdcp *hdcp,
 		status = computations_validate_rx_test_for_repeater(hdcp,
 				event_ctx, input);
 		break;
-	case H1_A45_AUTHENICATED:
+	case H1_A45_AUTHENTICATED:
 		status = authenticated(hdcp, event_ctx, input);
 		break;
 	case H1_A8_WAIT_FOR_READY:
@@ -513,7 +513,7 @@ extern enum mod_hdcp_status mod_hdcp_hdcp1_dp_execution(struct mod_hdcp *hdcp,
 		status = computations_validate_rx_test_for_repeater(
 				hdcp, event_ctx, input);
 		break;
-	case D1_A4_AUTHENICATED:
+	case D1_A4_AUTHENTICATED:
 		status = authenticated_dp(hdcp, event_ctx, input);
 		break;
 	case D1_A6_WAIT_FOR_READY:

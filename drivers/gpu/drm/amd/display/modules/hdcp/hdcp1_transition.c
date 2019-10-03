@@ -81,11 +81,11 @@ enum mod_hdcp_status mod_hdcp_hdcp1_transition(struct mod_hdcp *hdcp,
 			set_state_id(hdcp, output, H1_A8_WAIT_FOR_READY);
 		} else {
 			callback_in_ms(0, output);
-			set_state_id(hdcp, output, H1_A45_AUTHENICATED);
+			set_state_id(hdcp, output, H1_A45_AUTHENTICATED);
 			HDCP_FULL_DDC_TRACE(hdcp);
 		}
 		break;
-	case H1_A45_AUTHENICATED:
+	case H1_A45_AUTHENTICATED:
 		if (input->link_maintenance != PASS) {
 			/* 1A-07: consider invalid ri' a failure */
 			/* 1A-07a: consider read ri' not returned a failure */
@@ -129,7 +129,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_transition(struct mod_hdcp *hdcp,
 			break;
 		}
 		callback_in_ms(0, output);
-		set_state_id(hdcp, output, H1_A45_AUTHENICATED);
+		set_state_id(hdcp, output, H1_A45_AUTHENTICATED);
 		HDCP_FULL_DDC_TRACE(hdcp);
 		break;
 	default:
@@ -224,11 +224,11 @@ enum mod_hdcp_status mod_hdcp_hdcp1_dp_transition(struct mod_hdcp *hdcp,
 			set_watchdog_in_ms(hdcp, 5000, output);
 			set_state_id(hdcp, output, D1_A6_WAIT_FOR_READY);
 		} else {
-			set_state_id(hdcp, output, D1_A4_AUTHENICATED);
+			set_state_id(hdcp, output, D1_A4_AUTHENTICATED);
 			HDCP_FULL_DDC_TRACE(hdcp);
 		}
 		break;
-	case D1_A4_AUTHENICATED:
+	case D1_A4_AUTHENTICATED:
 		if (input->link_integiry_check != PASS ||
 				input->reauth_request_check != PASS) {
 			/* 1A-07: restart hdcp on a link integrity failure */
@@ -295,7 +295,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_dp_transition(struct mod_hdcp *hdcp,
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		}
-		set_state_id(hdcp, output, D1_A4_AUTHENICATED);
+		set_state_id(hdcp, output, D1_A4_AUTHENTICATED);
 		HDCP_FULL_DDC_TRACE(hdcp);
 		break;
 	default:
