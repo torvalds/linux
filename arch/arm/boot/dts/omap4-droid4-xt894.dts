@@ -709,7 +709,12 @@
 &usb_otg_hs {
 	interface-type = <1>;
 	mode = <3>;
-	power = <50>;
+
+	/*
+	 * Max 300 mA steps based on similar PMIC MC13783UG.pdf "Table 10-4.
+	 * VBUS Regulator Main Characteristics". Binding uses 2 mA units.
+	 */
+	power = <150>;
 };
 
 &i2c4 {
