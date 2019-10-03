@@ -52,7 +52,7 @@ extern struct module __this_module;
 	__ADDRESSABLE(sym)						\
 	asm("	.section \"___ksymtab" sec "+" #sym "\", \"a\"	\n"	\
 	    "	.balign	4					\n"	\
-	    "__ksymtab_" #sym NS_SEPARATOR #ns ":		\n"	\
+	    "__ksymtab_" #ns NS_SEPARATOR #sym ":		\n"	\
 	    "	.long	" #sym "- .				\n"	\
 	    "	.long	__kstrtab_" #sym "- .			\n"	\
 	    "	.long	__kstrtab_ns_" #sym "- .		\n"	\
@@ -76,7 +76,7 @@ struct kernel_symbol {
 #else
 #define __KSYMTAB_ENTRY_NS(sym, sec, ns)				\
 	static const struct kernel_symbol __ksymtab_##sym##__##ns	\
-	asm("__ksymtab_" #sym NS_SEPARATOR #ns)				\
+	asm("__ksymtab_" #ns NS_SEPARATOR #sym)				\
 	__attribute__((section("___ksymtab" sec "+" #sym), used))	\
 	__aligned(sizeof(void *))					\
 	= { (unsigned long)&sym, __kstrtab_##sym, __kstrtab_ns_##sym }

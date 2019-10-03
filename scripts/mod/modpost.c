@@ -350,18 +350,16 @@ static enum export export_from_sec(struct elf_info *elf, unsigned int sec)
 
 static const char *sym_extract_namespace(const char **symname)
 {
-	size_t n;
-	char *dupsymname;
+	char *namespace = NULL;
+	char *ns_separator;
 
-	n = strcspn(*symname, ".");
-	if (n < strlen(*symname) - 1) {
-		dupsymname = NOFAIL(strdup(*symname));
-		dupsymname[n] = '\0';
-		*symname = dupsymname;
-		return dupsymname + n + 1;
+	ns_separator = strchr(*symname, '.');
+	if (ns_separator) {
+		namespace = NOFAIL(strndup(*symname, ns_separator - *symname));
+		*symname = ns_separator + 1;
 	}
 
-	return NULL;
+	return namespace;
 }
 
 /**
