@@ -199,6 +199,8 @@ void led_classdev_resume(struct led_classdev *led_cdev);
 
 extern struct led_classdev *of_led_get(struct device_node *np, int index);
 extern void led_put(struct led_classdev *led_cdev);
+struct led_classdev *__must_check devm_of_led_get(struct device *dev,
+						  int index);
 
 /**
  * led_blink_set - set blinking with software fallback
