@@ -31,7 +31,7 @@ static struct workspace_manager wsm;
 
 struct list_head *zlib_get_workspace(unsigned int level)
 {
-	struct list_head *ws = btrfs_get_workspace(&wsm, level);
+	struct list_head *ws = btrfs_get_workspace(BTRFS_COMPRESS_ZLIB, level);
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 
 	workspace->level = level;

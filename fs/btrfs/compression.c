@@ -972,9 +972,9 @@ static void btrfs_cleanup_workspace_manager(int type)
  * Preallocation makes a forward progress guarantees and we do not return
  * errors.
  */
-struct list_head *btrfs_get_workspace(struct workspace_manager *wsm,
-				      unsigned int level)
+struct list_head *btrfs_get_workspace(int type, unsigned int level)
 {
+	struct workspace_manager *wsm;
 	struct list_head *workspace;
 	int cpus = num_online_cpus();
 	unsigned nofs_flag;
@@ -984,6 +984,7 @@ struct list_head *btrfs_get_workspace(struct workspace_manager *wsm,
 	wait_queue_head_t *ws_wait;
 	int *free_ws;
 
+	wsm = btrfs_compress_op[type]->workspace_manager;
 	idle_ws	 = &wsm->idle_ws;
 	ws_lock	 = &wsm->ws_lock;
 	total_ws = &wsm->total_ws;
@@ -1052,13 +1053,10 @@ again:
 
 static struct list_head *get_workspace(int type, int level)
 {
-	struct workspace_manager *wsm;
-
-	wsm = btrfs_compress_op[type]->workspace_manager;
 	switch (type) {
-	case BTRFS_COMPRESS_NONE: return btrfs_get_workspace(wsm, level);
+	case BTRFS_COMPRESS_NONE: return btrfs_get_workspace(type, level);
 	case BTRFS_COMPRESS_ZLIB: return zlib_get_workspace(level);
-	case BTRFS_COMPRESS_LZO:  return btrfs_get_workspace(wsm, level);
+	case BTRFS_COMPRESS_LZO:  return btrfs_get_workspace(type, level);
 	case BTRFS_COMPRESS_ZSTD: return zstd_get_workspace(level);
 	default:
 		/*

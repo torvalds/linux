@@ -120,8 +120,7 @@ struct workspace_manager {
 	wait_queue_head_t ws_wait;
 };
 
-struct list_head *btrfs_get_workspace(struct workspace_manager *wsm,
-				      unsigned int level);
+struct list_head *btrfs_get_workspace(int type, unsigned int level);
 void btrfs_put_workspace(struct workspace_manager *wsm, struct list_head *ws);
 
 struct btrfs_compress_op {
