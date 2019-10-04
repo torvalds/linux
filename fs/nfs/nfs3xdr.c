@@ -463,7 +463,7 @@ static __be32 *xdr_encode_nfstime3(__be32 *p, const struct timespec *timep)
 	return p;
 }
 
-static __be32 *xdr_decode_nfstime3(__be32 *p, struct timespec *timep)
+static __be32 *xdr_decode_nfstime3(__be32 *p, struct timespec64 *timep)
 {
 	timep->tv_sec = be32_to_cpup(p++);
 	timep->tv_nsec = be32_to_cpup(p++);

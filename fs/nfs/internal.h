@@ -713,7 +713,7 @@ unsigned int nfs_page_array_len(unsigned int base, size_t len)
  * 1024*1024*1024.
  */
 static inline
-u64 nfs_timespec_to_change_attr(const struct timespec *ts)
+u64 nfs_timespec_to_change_attr(const struct timespec64 *ts)
 {
 	return ((u64)ts->tv_sec << 30) + ts->tv_nsec;
 }

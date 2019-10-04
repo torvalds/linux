@@ -4065,17 +4065,17 @@ static int decode_attr_space_used(struct xdr_stream *xdr, uint32_t *bitmap, uint
 }
 
 static __be32 *
-xdr_decode_nfstime4(__be32 *p, struct timespec *t)
+xdr_decode_nfstime4(__be32 *p, struct timespec64 *t)
 {
 	__u64 sec;
 
 	p = xdr_decode_hyper(p, &sec);
-	t-> tv_sec = (time_t)sec;
+	t-> tv_sec = sec;
 	t->tv_nsec = be32_to_cpup(p++);
 	return p;
 }
 
-static int decode_attr_time(struct xdr_stream *xdr, struct timespec *time)
+static int decode_attr_time(struct xdr_stream *xdr, struct timespec64 *time)
 {
 	__be32 *p;
 
@@ -4086,7 +4086,7 @@ static int decode_attr_time(struct xdr_stream *xdr, struct timespec *time)
 	return 0;
 }
 
-static int decode_attr_time_access(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec *time)
+static int decode_attr_time_access(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec64 *time)
 {
 	int status = 0;
 
@@ -4104,7 +4104,7 @@ static int decode_attr_time_access(struct xdr_stream *xdr, uint32_t *bitmap, str
 	return status;
 }
 
-static int decode_attr_time_metadata(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec *time)
+static int decode_attr_time_metadata(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec64 *time)
 {
 	int status = 0;
 
@@ -4123,7 +4123,7 @@ static int decode_attr_time_metadata(struct xdr_stream *xdr, uint32_t *bitmap, s
 }
 
 static int decode_attr_time_delta(struct xdr_stream *xdr, uint32_t *bitmap,
-				  struct timespec *time)
+				  struct timespec64 *time)
 {
 	int status = 0;
 
@@ -4186,7 +4186,7 @@ static int decode_attr_security_label(struct xdr_stream *xdr, uint32_t *bitmap,
 	return status;
 }
 
-static int decode_attr_time_modify(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec *time)
+static int decode_attr_time_modify(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec64 *time)
 {
 	int status = 0;
 
