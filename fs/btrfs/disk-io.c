@@ -545,9 +545,11 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct page *page)
 		ret = btrfs_check_leaf_full(eb);
 
 	if (ret < 0) {
+		btrfs_print_tree(eb, 0);
 		btrfs_err(fs_info,
 		"block=%llu write time tree block corruption detected",
 			  eb->start);
+		WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
 		return ret;
 	}
 	write_extent_buffer(eb, result, 0, csum_size);
