@@ -959,11 +959,7 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	if (fs_params->max_display < 100) // cap at 100 at the top
 		max_display = dc_fixpt_from_int(100);
 
-	if (fs_params->min_content < fs_params->min_display)
-		use_eetf = true;
-	else
-		min_content = min_display;
-
+	// only max used, we don't adjust min luminance
 	if (fs_params->max_content > fs_params->max_display)
 		use_eetf = true;
 	else
