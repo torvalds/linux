@@ -1500,21 +1500,11 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 
 static int i915_opregion(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_opregion *opregion = &dev_priv->opregion;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		goto out;
+	struct intel_opregion *opregion = &node_to_i915(m->private)->opregion;
 
 	if (opregion->header)
 		seq_write(m, opregion->header, OPREGION_SIZE);
 
-	mutex_unlock(&dev->struct_mutex);
-
-out:
 	return 0;
 }
 
