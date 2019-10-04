@@ -1144,6 +1144,8 @@ bool amdgpu_device_supports_boco(struct drm_device *dev);
 bool amdgpu_device_supports_baco(struct drm_device *dev);
 bool amdgpu_device_is_peer_accessible(struct amdgpu_device *adev,
 				      struct amdgpu_device *peer_adev);
+int amdgpu_device_baco_enter(struct drm_device *dev);
+int amdgpu_device_baco_exit(struct drm_device *dev);
 
 /* atpx handler */
 #if defined(CONFIG_VGA_SWITCHEROO)
