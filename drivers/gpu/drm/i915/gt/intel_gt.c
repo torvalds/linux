@@ -334,7 +334,7 @@ static int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)
 	int ret;
 
 	obj = i915_gem_object_create_stolen(i915, size);
-	if (!obj)
+	if (IS_ERR(obj))
 		obj = i915_gem_object_create_internal(i915, size);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("Failed to allocate scratch page\n");

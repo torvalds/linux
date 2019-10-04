@@ -141,10 +141,10 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	/* If the FB is too big, just don't use it since fbdev is not very
 	 * important and we should probably use that space with FBC or other
 	 * features. */
-	obj = NULL;
+	obj = ERR_PTR(-ENODEV);
 	if (size * 2 < dev_priv->stolen_usable_size)
 		obj = i915_gem_object_create_stolen(dev_priv, size);
-	if (obj == NULL)
+	if (IS_ERR(obj))
 		obj = i915_gem_object_create_shmem(dev_priv, size);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("failed to allocate framebuffer\n");

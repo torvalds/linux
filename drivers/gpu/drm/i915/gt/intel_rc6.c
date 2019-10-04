@@ -299,8 +299,8 @@ static int vlv_rc6_init(struct intel_rc6 *rc6)
 								      pcbr_offset,
 								      I915_GTT_OFFSET_NONE,
 								      pctx_size);
-		if (!pctx)
-			return -ENOMEM;
+		if (IS_ERR(pctx))
+			return PTR_ERR(pctx);
 
 		goto out;
 	}
@@ -316,9 +316,9 @@ static int vlv_rc6_init(struct intel_rc6 *rc6)
 	 * memory, or any other relevant ranges.
 	 */
 	pctx = i915_gem_object_create_stolen(i915, pctx_size);
-	if (!pctx) {
+	if (IS_ERR(pctx)) {
 		DRM_DEBUG("not enough stolen space for PCTX, disabling\n");
-		return -ENOMEM;
+		return PTR_ERR(pctx);
 	}
 
 	GEM_BUG_ON(range_overflows_t(u64,

@@ -1274,7 +1274,7 @@ static struct i915_vma *create_ring_vma(struct i915_ggtt *ggtt, int size)
 	struct i915_vma *vma;
 
 	obj = i915_gem_object_create_stolen(i915, size);
-	if (!obj)
+	if (IS_ERR(obj))
 		obj = i915_gem_object_create_internal(i915, size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
