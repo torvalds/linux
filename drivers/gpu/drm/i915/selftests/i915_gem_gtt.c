@@ -1797,7 +1797,6 @@ static int igt_cs_tlb(void *arg)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	mutex_lock(&i915->drm.struct_mutex);
 	ctx = live_context(i915, file);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
@@ -2020,7 +2019,6 @@ out_put_bbe:
 out_vm:
 	i915_vm_put(vm);
 out_unlock:
-	mutex_unlock(&i915->drm.struct_mutex);
 	mock_file_free(i915, file);
 	return err;
 }

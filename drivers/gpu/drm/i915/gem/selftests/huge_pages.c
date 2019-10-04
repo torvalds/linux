@@ -1639,7 +1639,6 @@ int i915_gem_huge_page_mock_selftests(void)
 	mkwrite_device_info(dev_priv)->ppgtt_type = INTEL_PPGTT_FULL;
 	mkwrite_device_info(dev_priv)->ppgtt_size = 48;
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
 	ppgtt = i915_ppgtt_create(dev_priv);
 	if (IS_ERR(ppgtt)) {
 		err = PTR_ERR(ppgtt);
@@ -1665,9 +1664,7 @@ out_close:
 	i915_vm_put(&ppgtt->vm);
 
 out_unlock:
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 	drm_dev_put(&dev_priv->drm);
-
 	return err;
 }
 
@@ -1684,7 +1681,6 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 	struct drm_file *file;
 	struct i915_gem_context *ctx;
 	struct i915_address_space *vm;
-	intel_wakeref_t wakeref;
 	int err;
 
 	if (!HAS_PPGTT(i915)) {
@@ -1699,13 +1695,10 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-
 	ctx = live_context(i915, file);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
-		goto out_unlock;
+		goto out_file;
 	}
 
 	mutex_lock(&ctx->mutex);
@@ -1716,11 +1709,7 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 
 	err = i915_subtests(tests, ctx);
 
-out_unlock:
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	mutex_unlock(&i915->drm.struct_mutex);
-
+out_file:
 	mock_file_free(i915, file);
-
 	return err;
 }

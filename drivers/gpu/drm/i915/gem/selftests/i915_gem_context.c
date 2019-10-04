@@ -307,9 +307,7 @@ static int live_parallel_switch(void *arg)
 		struct igt_live_test t;
 		int n;
 
-		mutex_lock(&i915->drm.struct_mutex);
 		err = igt_live_test_begin(&t, i915, __func__, "");
-		mutex_unlock(&i915->drm.struct_mutex);
 		if (err)
 			break;
 
@@ -341,10 +339,8 @@ static int live_parallel_switch(void *arg)
 			data[n].tsk = NULL;
 		}
 
-		mutex_lock(&i915->drm.struct_mutex);
 		if (igt_live_test_end(&t))
 			err = -EIO;
-		mutex_unlock(&i915->drm.struct_mutex);
 	}
 
 out:

@@ -708,9 +708,7 @@ static int live_dirty_whitelist(void *arg)
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
-	mutex_unlock(&i915->drm.struct_mutex);
 	file = mock_file(i915);
-	mutex_lock(&i915->drm.struct_mutex);
 	if (IS_ERR(file)) {
 		err = PTR_ERR(file);
 		goto out_rpm;
@@ -732,9 +730,7 @@ static int live_dirty_whitelist(void *arg)
 	}
 
 out_file:
-	mutex_unlock(&i915->drm.struct_mutex);
 	mock_file_free(i915, file);
-	mutex_lock(&i915->drm.struct_mutex);
 out_rpm:
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	return err;
@@ -1274,14 +1270,9 @@ int intel_workarounds_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_gpu_reset_workarounds),
 		SUBTEST(live_engine_reset_workarounds),
 	};
-	int err;
 
 	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
-	mutex_lock(&i915->drm.struct_mutex);
-	err = i915_subtests(tests, i915);
-	mutex_unlock(&i915->drm.struct_mutex);
-
-	return err;
+	return i915_subtests(tests, i915);
 }
