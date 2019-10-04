@@ -282,10 +282,12 @@ int cg_enter(const char *cgroup, int pid)
 
 int cg_enter_current(const char *cgroup)
 {
-	char pidbuf[64];
+	return cg_write(cgroup, "cgroup.procs", "0");
+}
 
-	snprintf(pidbuf, sizeof(pidbuf), "%d", getpid());
-	return cg_write(cgroup, "cgroup.procs", pidbuf);
+int cg_enter_current_thread(const char *cgroup)
+{
+	return cg_write(cgroup, "cgroup.threads", "0");
 }
 
 int cg_run(const char *cgroup,
@@ -410,11 +412,15 @@ int set_oom_adj_score(int pid, int score)
 	return 0;
 }
 
-char proc_read_text(int pid, const char *item, char *buf, size_t size)
+ssize_t proc_read_text(int pid, bool thread, const char *item, char *buf, size_t size)
 {
 	char path[PATH_MAX];
 
-	snprintf(path, sizeof(path), "/proc/%d/%s", pid, item);
+	if (!pid)
+		snprintf(path, sizeof(path), "/proc/%s/%s",
+			 thread ? "thread-self" : "self", item);
+	else
+		snprintf(path, sizeof(path), "/proc/%d/%s", pid, item);
 
 	return read_text(path, buf, size);
 }

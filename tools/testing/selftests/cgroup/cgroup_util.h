@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <stdbool.h>
 #include <stdlib.h>
 
 #define PAGE_SIZE 4096
@@ -35,6 +36,7 @@ extern int cg_run(const char *cgroup,
 		  void *arg);
 extern int cg_enter(const char *cgroup, int pid);
 extern int cg_enter_current(const char *cgroup);
+extern int cg_enter_current_thread(const char *cgroup);
 extern int cg_run_nowait(const char *cgroup,
 			 int (*fn)(const char *cgroup, void *arg),
 			 void *arg);
@@ -45,4 +47,4 @@ extern int is_swap_enabled(void);
 extern int set_oom_adj_score(int pid, int score);
 extern int cg_wait_for_proc_count(const char *cgroup, int count);
 extern int cg_killall(const char *cgroup);
-extern char proc_read_text(int pid, const char *item, char *buf, size_t size);
+extern ssize_t proc_read_text(int pid, bool thread, const char *item, char *buf, size_t size);
