@@ -68,7 +68,7 @@ static struct live_active *__live_alloc(struct drm_i915_private *i915)
 		return NULL;
 
 	kref_init(&active->ref);
-	i915_active_init(i915, &active->base, __live_active, __live_retire);
+	i915_active_init(&active->base, __live_active, __live_retire);
 
 	return active;
 }
@@ -146,19 +146,13 @@ static int live_active_wait(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct live_active *active;
-	intel_wakeref_t wakeref;
 	int err = 0;
 
 	/* Check that we get a callback when requests retire upon waiting */
 
-	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-
 	active = __live_active_setup(i915);
-	if (IS_ERR(active)) {
-		err = PTR_ERR(active);
-		goto err;
-	}
+	if (IS_ERR(active))
+		return PTR_ERR(active);
 
 	i915_active_wait(&active->base);
 	if (!READ_ONCE(active->retired)) {
@@ -168,11 +162,9 @@ static int live_active_wait(void *arg)
 
 	__live_put(active);
 
+	mutex_lock(&i915->drm.struct_mutex);
 	if (igt_flush_test(i915, I915_WAIT_LOCKED))
 		err = -EIO;
-
-err:
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	return err;
@@ -182,23 +174,19 @@ static int live_active_retire(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct live_active *active;
-	intel_wakeref_t wakeref;
 	int err = 0;
 
 	/* Check that we get a callback when requests are indirectly retired */
 
-	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-
 	active = __live_active_setup(i915);
-	if (IS_ERR(active)) {
-		err = PTR_ERR(active);
-		goto err;
-	}
+	if (IS_ERR(active))
+		return PTR_ERR(active);
 
 	/* waits for & retires all requests */
+	mutex_lock(&i915->drm.struct_mutex);
 	if (igt_flush_test(i915, I915_WAIT_LOCKED))
 		err = -EIO;
+	mutex_unlock(&i915->drm.struct_mutex);
 
 	if (!READ_ONCE(active->retired)) {
 		pr_err("i915_active not retired after flushing!\n");
@@ -206,10 +194,6 @@ static int live_active_retire(void *arg)
 	}
 
 	__live_put(active);
-
-err:
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	return err;
 }

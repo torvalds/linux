@@ -17,17 +17,9 @@
 
 #include "i915_utils.h"
 
-struct drm_i915_private;
-struct i915_active_request;
-struct i915_request;
-
-typedef void (*i915_active_retire_fn)(struct i915_active_request *,
-				      struct i915_request *);
-
-struct i915_active_request {
-	struct i915_request __rcu *request;
-	struct list_head link;
-	i915_active_retire_fn retire;
+struct i915_active_fence {
+	struct dma_fence __rcu *fence;
+	struct dma_fence_cb cb;
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
 	/*
 	 * Incorporeal!
@@ -53,20 +45,17 @@ struct active_node;
 #define i915_active_may_sleep(fn) ptr_pack_bits(&(fn), I915_ACTIVE_MAY_SLEEP, 2)
 
 struct i915_active {
-	struct drm_i915_private *i915;
+	atomic_t count;
+	struct mutex mutex;
 
 	struct active_node *cache;
 	struct rb_root tree;
-	struct mutex mutex;
-	atomic_t count;
 
 	/* Preallocated "exclusive" node */
-	struct dma_fence __rcu *excl;
-	struct dma_fence_cb excl_cb;
+	struct i915_active_fence excl;
 
 	unsigned long flags;
 #define I915_ACTIVE_RETIRE_SLEEPS BIT(0)
-#define I915_ACTIVE_GRAB_BIT 1
 
 	int (*active)(struct i915_active *ref);
 	void (*retire)(struct i915_active *ref);

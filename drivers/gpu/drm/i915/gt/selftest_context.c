@@ -47,24 +47,20 @@ static int context_sync(struct intel_context *ce)
 
 	mutex_lock(&tl->mutex);
 	do {
-		struct i915_request *rq;
+		struct dma_fence *fence;
 		long timeout;
 
-		rcu_read_lock();
-		rq = rcu_dereference(tl->last_request.request);
-		if (rq)
-			rq = i915_request_get_rcu(rq);
-		rcu_read_unlock();
-		if (!rq)
+		fence = i915_active_fence_get(&tl->last_request);
+		if (!fence)
 			break;
 
-		timeout = i915_request_wait(rq, 0, HZ / 10);
+		timeout = dma_fence_wait_timeout(fence, false, HZ / 10);
 		if (timeout < 0)
 			err = timeout;
 		else
-			i915_request_retire_upto(rq);
+			i915_request_retire_upto(to_request(fence));
 
-		i915_request_put(rq);
+		dma_fence_put(fence);
 	} while (!err);
 	mutex_unlock(&tl->mutex);
 

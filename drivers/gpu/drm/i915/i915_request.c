@@ -218,8 +218,6 @@ static void remove_from_engine(struct i915_request *rq)
 
 static bool i915_request_retire(struct i915_request *rq)
 {
-	struct i915_active_request *active, *next;
-
 	if (!i915_request_completed(rq))
 		return false;
 
@@ -243,35 +241,6 @@ static bool i915_request_retire(struct i915_request *rq)
 	GEM_BUG_ON(!list_is_first(&rq->link,
 				  &i915_request_timeline(rq)->requests));
 	rq->ring->head = rq->postfix;
-
-	/*
-	 * Walk through the active list, calling retire on each. This allows
-	 * objects to track their GPU activity and mark themselves as idle
-	 * when their *last* active request is completed (updating state
-	 * tracking lists for eviction, active references for GEM, etc).
-	 *
-	 * As the ->retire() may free the node, we decouple it first and
-	 * pass along the auxiliary information (to avoid dereferencing
-	 * the node after the callback).
-	 */
-	list_for_each_entry_safe(active, next, &rq->active_list, link) {
-		/*
-		 * In microbenchmarks or focusing upon time inside the kernel,
-		 * we may spend an inordinate amount of time simply handling
-		 * the retirement of requests and processing their callbacks.
-		 * Of which, this loop itself is particularly hot due to the
-		 * cache misses when jumping around the list of
-		 * i915_active_request.  So we try to keep this loop as
-		 * streamlined as possible and also prefetch the next
-		 * i915_active_request to try and hide the likely cache miss.
-		 */
-		prefetchw(next);
-
-		INIT_LIST_HEAD(&active->link);
-		RCU_INIT_POINTER(active->request, NULL);
-
-		active->retire(active, rq);
-	}
 
 	local_irq_disable();
 
@@ -704,7 +673,6 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->flags = 0;
 	rq->execution_mask = ALL_ENGINES;
 
-	INIT_LIST_HEAD(&rq->active_list);
 	INIT_LIST_HEAD(&rq->execute_cb);
 
 	/*
@@ -743,7 +711,6 @@ err_unwind:
 	ce->ring->emit = rq->head;
 
 	/* Make sure we didn't add ourselves to external state before freeing */
-	GEM_BUG_ON(!list_empty(&rq->active_list));
 	GEM_BUG_ON(!list_empty(&rq->sched.signalers_list));
 	GEM_BUG_ON(!list_empty(&rq->sched.waiters_list));
 
@@ -1174,8 +1141,8 @@ __i915_request_add_to_timeline(struct i915_request *rq)
 	 * precludes optimising to use semaphores serialisation of a single
 	 * timeline across engines.
 	 */
-	prev = rcu_dereference_protected(timeline->last_request.request,
-					 lockdep_is_held(&timeline->mutex));
+	prev = to_request(__i915_active_fence_set(&timeline->last_request,
+						  &rq->fence));
 	if (prev && !i915_request_completed(prev)) {
 		if (is_power_of_2(prev->engine->mask | rq->engine->mask))
 			i915_sw_fence_await_sw_fence(&rq->submit,
@@ -1200,7 +1167,6 @@ __i915_request_add_to_timeline(struct i915_request *rq)
 	 * us, the timeline will hold its seqno which is later than ours.
 	 */
 	GEM_BUG_ON(timeline->seqno != rq->fence.seqno);
-	__i915_active_request_set(&timeline->last_request, rq);
 
 	return prev;
 }

@@ -868,20 +868,18 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 				void (*task)(void *data),
 				void *data)
 {
-	struct drm_i915_private *i915 = ctx->i915;
 	struct context_barrier_task *cb;
 	struct i915_gem_engines_iter it;
 	struct intel_context *ce;
 	int err = 0;
 
-	lockdep_assert_held(&i915->drm.struct_mutex);
 	GEM_BUG_ON(!task);
 
 	cb = kmalloc(sizeof(*cb), GFP_KERNEL);
 	if (!cb)
 		return -ENOMEM;
 
-	i915_active_init(i915, &cb->base, NULL, cb_retire);
+	i915_active_init(&cb->base, NULL, cb_retire);
 	err = i915_active_acquire(&cb->base);
 	if (err) {
 		kfree(cb);

@@ -95,7 +95,7 @@ node_create(struct intel_engine_pool *pool, size_t sz)
 		return ERR_PTR(-ENOMEM);
 
 	node->pool = pool;
-	i915_active_init(engine->i915, &node->active, pool_active, pool_retire);
+	i915_active_init(&node->active, pool_active, pool_retire);
 
 	obj = i915_gem_object_create_internal(engine->i915, sz);
 	if (IS_ERR(obj)) {

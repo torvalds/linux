@@ -1172,8 +1172,12 @@ static struct i915_request *dummy_request(struct intel_engine_cs *engine)
 	if (!rq)
 		return NULL;
 
-	INIT_LIST_HEAD(&rq->active_list);
 	rq->engine = engine;
+
+	spin_lock_init(&rq->lock);
+	INIT_LIST_HEAD(&rq->fence.cb_list);
+	rq->fence.lock = &rq->lock;
+	rq->fence.ops = &i915_fence_ops;
 
 	i915_sched_node_init(&rq->sched);
 
@@ -1267,8 +1271,8 @@ static int live_suppress_wait_preempt(void *arg)
 				}
 
 				/* Disable NEWCLIENT promotion */
-				__i915_active_request_set(&i915_request_timeline(rq[i])->last_request,
-							  dummy);
+				__i915_active_fence_set(&i915_request_timeline(rq[i])->last_request,
+							&dummy->fence);
 				i915_request_add(rq[i]);
 			}
 

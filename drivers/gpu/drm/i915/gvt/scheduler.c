@@ -385,10 +385,7 @@ intel_gvt_workload_req_alloc(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
 	struct intel_vgpu_submission *s = &vgpu->submission;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct i915_request *rq;
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	if (workload->req)
 		return 0;

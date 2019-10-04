@@ -844,10 +844,10 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	 */
 	spin_lock_irqsave(&timelines->lock, flags);
 	list_for_each_entry(tl, &timelines->active_list, link) {
-		struct i915_request *rq;
+		struct dma_fence *fence;
 
-		rq = i915_active_request_get_unlocked(&tl->last_request);
-		if (!rq)
+		fence = i915_active_fence_get(&tl->last_request);
+		if (!fence)
 			continue;
 
 		spin_unlock_irqrestore(&timelines->lock, flags);
@@ -859,8 +859,8 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 		 * (I915_FENCE_TIMEOUT) so this wait should not be unbounded
 		 * in the worst case.
 		 */
-		dma_fence_default_wait(&rq->fence, false, MAX_SCHEDULE_TIMEOUT);
-		i915_request_put(rq);
+		dma_fence_default_wait(fence, false, MAX_SCHEDULE_TIMEOUT);
+		dma_fence_put(fence);
 
 		/* Restart iteration after droping lock */
 		spin_lock_irqsave(&timelines->lock, flags);

@@ -178,8 +178,7 @@ cacheline_alloc(struct intel_timeline_hwsp *hwsp, unsigned int cacheline)
 	cl->hwsp = hwsp;
 	cl->vaddr = page_pack_bits(vaddr, cacheline);
 
-	i915_active_init(hwsp->gt->i915, &cl->active,
-			 __cacheline_active, __cacheline_retire);
+	i915_active_init(&cl->active, __cacheline_active, __cacheline_retire);
 
 	return cl;
 }
@@ -255,7 +254,7 @@ int intel_timeline_init(struct intel_timeline *timeline,
 
 	mutex_init(&timeline->mutex);
 
-	INIT_ACTIVE_REQUEST(&timeline->last_request, &timeline->mutex);
+	INIT_ACTIVE_FENCE(&timeline->last_request, &timeline->mutex);
 	INIT_LIST_HEAD(&timeline->requests);
 
 	i915_syncmap_init(&timeline->sync);
@@ -443,7 +442,7 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 	 * free it after the current request is retired, which ensures that
 	 * all writes into the cacheline from previous requests are complete.
 	 */
-	err = i915_active_ref(&tl->hwsp_cacheline->active, tl, rq);
+	err = i915_active_ref(&tl->hwsp_cacheline->active, tl, &rq->fence);
 	if (err)
 		goto err_cacheline;
 

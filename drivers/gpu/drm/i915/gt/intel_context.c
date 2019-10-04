@@ -240,7 +240,7 @@ intel_context_init(struct intel_context *ce,
 
 	mutex_init(&ce->pin_mutex);
 
-	i915_active_init(ctx->i915, &ce->active,
+	i915_active_init(&ce->active,
 			 __intel_context_active, __intel_context_retire);
 }
 
@@ -307,7 +307,7 @@ int intel_context_prepare_remote_request(struct intel_context *ce,
 			return err;
 
 		/* Queue this switch after current activity by this context. */
-		err = i915_active_request_set(&tl->last_request, rq);
+		err = i915_active_fence_set(&tl->last_request, rq);
 		mutex_unlock(&tl->mutex);
 		if (err)
 			return err;

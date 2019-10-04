@@ -257,7 +257,7 @@ intel_frontbuffer_get(struct drm_i915_gem_object *obj)
 	front->obj = obj;
 	kref_init(&front->ref);
 	atomic_set(&front->bits, 0);
-	i915_active_init(i915, &front->write,
+	i915_active_init(&front->write,
 			 frontbuffer_active,
 			 i915_active_may_sleep(frontbuffer_retire));
 

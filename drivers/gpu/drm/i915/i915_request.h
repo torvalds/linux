@@ -211,7 +211,6 @@ struct i915_request {
 	 * on the active_list (of their final request).
 	 */
 	struct i915_capture_list *capture_list;
-	struct list_head active_list;
 
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;

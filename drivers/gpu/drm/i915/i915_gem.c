@@ -892,28 +892,38 @@ wait_for_timelines(struct intel_gt *gt, unsigned int wait, long timeout)
 
 	spin_lock_irqsave(&timelines->lock, flags);
 	list_for_each_entry(tl, &timelines->active_list, link) {
-		struct i915_request *rq;
+		struct dma_fence *fence;
 
-		rq = i915_active_request_get_unlocked(&tl->last_request);
-		if (!rq)
+		fence = i915_active_fence_get(&tl->last_request);
+		if (!fence)
 			continue;
 
 		spin_unlock_irqrestore(&timelines->lock, flags);
 
-		/*
-		 * "Race-to-idle".
-		 *
-		 * Switching to the kernel context is often used a synchronous
-		 * step prior to idling, e.g. in suspend for flushing all
-		 * current operations to memory before sleeping. These we
-		 * want to complete as quickly as possible to avoid prolonged
-		 * stalls, so allow the gpu to boost to maximum clocks.
-		 */
-		if (wait & I915_WAIT_FOR_IDLE_BOOST)
-			gen6_rps_boost(rq);
+		if (!dma_fence_is_i915(fence)) {
+			timeout = dma_fence_wait_timeout(fence,
+							 flags & I915_WAIT_INTERRUPTIBLE,
+							 timeout);
+		} else {
+			struct i915_request *rq = to_request(fence);
 
-		timeout = i915_request_wait(rq, wait, timeout);
-		i915_request_put(rq);
+			/*
+			 * "Race-to-idle".
+			 *
+			 * Switching to the kernel context is often used as
+			 * a synchronous step prior to idling, e.g. in suspend
+			 * for flushing all current operations to memory before
+			 * sleeping. These we want to complete as quickly as
+			 * possible to avoid prolonged stalls, so allow the gpu
+			 * to boost to maximum clocks.
+			 */
+			if (flags & I915_WAIT_FOR_IDLE_BOOST)
+				gen6_rps_boost(rq);
+
+			timeout = i915_request_wait(rq, flags, timeout);
+		}
+
+		dma_fence_put(fence);
 		if (timeout < 0)
 			return timeout;
 

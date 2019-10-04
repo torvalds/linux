@@ -16,14 +16,11 @@ static void call_idle_barriers(struct intel_engine_cs *engine)
 	struct llist_node *node, *next;
 
 	llist_for_each_safe(node, next, llist_del_all(&engine->barrier_tasks)) {
-		struct i915_active_request *active =
+		struct dma_fence_cb *cb =
 			container_of((struct list_head *)node,
-				     typeof(*active), link);
+				     typeof(*cb), node);
 
-		INIT_LIST_HEAD(&active->link);
-		RCU_INIT_POINTER(active->request, NULL);
-
-		active->retire(active, NULL);
+		cb->func(NULL, cb);
 	}
 }
 
