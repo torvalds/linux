@@ -60,7 +60,6 @@
 #define TLS_RECORD_TYPE_DATA		0x17
 
 #define TLS_AAD_SPACE_SIZE		13
-#define TLS_DEVICE_NAME_MAX		32
 
 #define MAX_IV_SIZE			16
 #define TLS_MAX_REC_SEQ_SIZE		8
@@ -73,37 +72,6 @@
  * Hence b0 contains (3 - 1) = 2.
  */
 #define TLS_AES_CCM_IV_B0_BYTE		2
-
-/*
- * This structure defines the routines for Inline TLS driver.
- * The following routines are optional and filled with a
- * null pointer if not defined.
- *
- * @name: Its the name of registered Inline tls device
- * @dev_list: Inline tls device list
- * int (*feature)(struct tls_device *device);
- *     Called to return Inline TLS driver capability
- *
- * int (*hash)(struct tls_device *device, struct sock *sk);
- *     This function sets Inline driver for listen and program
- *     device specific functioanlity as required
- *
- * void (*unhash)(struct tls_device *device, struct sock *sk);
- *     This function cleans listen state set by Inline TLS driver
- *
- * void (*release)(struct kref *kref);
- *     Release the registered device and allocated resources
- * @kref: Number of reference to tls_device
- */
-struct tls_device {
-	char name[TLS_DEVICE_NAME_MAX];
-	struct list_head dev_list;
-	int  (*feature)(struct tls_device *device);
-	int  (*hash)(struct tls_device *device, struct sock *sk);
-	void (*unhash)(struct tls_device *device, struct sock *sk);
-	void (*release)(struct kref *kref);
-	struct kref kref;
-};
 
 enum {
 	TLS_BASE,
@@ -340,7 +308,10 @@ struct tls_offload_context_rx {
 #define TLS_OFFLOAD_CONTEXT_SIZE_RX					\
 	(sizeof(struct tls_offload_context_rx) + TLS_DRIVER_STATE_SIZE_RX)
 
+struct tls_context *tls_ctx_create(struct sock *sk);
 void tls_ctx_free(struct sock *sk, struct tls_context *ctx);
+void update_sk_prot(struct sock *sk, struct tls_context *ctx);
+
 int wait_on_pending_writer(struct sock *sk, long *timeo);
 int tls_sk_query(struct sock *sk, int optname, char __user *optval,
 		int __user *optlen);
@@ -643,8 +614,6 @@ static inline bool tls_offload_tx_resync_pending(struct sock *sk)
 
 int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
 		      unsigned char *record_type);
-void tls_register_device(struct tls_device *device);
-void tls_unregister_device(struct tls_device *device);
 int decrypt_skb(struct sock *sk, struct sk_buff *skb,
 		struct scatterlist *sgout);
 struct sk_buff *tls_encrypt_skb(struct sk_buff *skb);

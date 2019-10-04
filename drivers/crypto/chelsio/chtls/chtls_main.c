@@ -124,7 +124,7 @@ static void chtls_stop_listen(struct chtls_dev *cdev, struct sock *sk)
 	mutex_unlock(&notify_mutex);
 }
 
-static int chtls_inline_feature(struct tls_device *dev)
+static int chtls_inline_feature(struct tls_toe_device *dev)
 {
 	struct net_device *netdev;
 	struct chtls_dev *cdev;
@@ -140,7 +140,7 @@ static int chtls_inline_feature(struct tls_device *dev)
 	return 0;
 }
 
-static int chtls_create_hash(struct tls_device *dev, struct sock *sk)
+static int chtls_create_hash(struct tls_toe_device *dev, struct sock *sk)
 {
 	struct chtls_dev *cdev = to_chtls_dev(dev);
 
@@ -149,7 +149,7 @@ static int chtls_create_hash(struct tls_device *dev, struct sock *sk)
 	return 0;
 }
 
-static void chtls_destroy_hash(struct tls_device *dev, struct sock *sk)
+static void chtls_destroy_hash(struct tls_toe_device *dev, struct sock *sk)
 {
 	struct chtls_dev *cdev = to_chtls_dev(dev);
 
@@ -161,7 +161,7 @@ static void chtls_free_uld(struct chtls_dev *cdev)
 {
 	int i;
 
-	tls_unregister_device(&cdev->tlsdev);
+	tls_toe_unregister_device(&cdev->tlsdev);
 	kvfree(cdev->kmap.addr);
 	idr_destroy(&cdev->hwtid_idr);
 	for (i = 0; i < (1 << RSPQ_HASH_BITS); i++)
@@ -173,27 +173,27 @@ static void chtls_free_uld(struct chtls_dev *cdev)
 
 static inline void chtls_dev_release(struct kref *kref)
 {
+	struct tls_toe_device *dev;
 	struct chtls_dev *cdev;
-	struct tls_device *dev;
 
-	dev = container_of(kref, struct tls_device, kref);
+	dev = container_of(kref, struct tls_toe_device, kref);
 	cdev = to_chtls_dev(dev);
 	chtls_free_uld(cdev);
 }
 
 static void chtls_register_dev(struct chtls_dev *cdev)
 {
-	struct tls_device *tlsdev = &cdev->tlsdev;
+	struct tls_toe_device *tlsdev = &cdev->tlsdev;
 
-	strlcpy(tlsdev->name, "chtls", TLS_DEVICE_NAME_MAX);
+	strlcpy(tlsdev->name, "chtls", TLS_TOE_DEVICE_NAME_MAX);
 	strlcat(tlsdev->name, cdev->lldi->ports[0]->name,
-		TLS_DEVICE_NAME_MAX);
+		TLS_TOE_DEVICE_NAME_MAX);
 	tlsdev->feature = chtls_inline_feature;
 	tlsdev->hash = chtls_create_hash;
 	tlsdev->unhash = chtls_destroy_hash;
 	tlsdev->release = chtls_dev_release;
 	kref_init(&tlsdev->kref);
-	tls_register_device(tlsdev);
+	tls_toe_register_device(tlsdev);
 	cdev->cdev_state = CHTLS_CDEV_STATE_UP;
 }
 
