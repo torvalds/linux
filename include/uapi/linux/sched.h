@@ -71,6 +71,8 @@ struct clone_args {
 };
 #endif
 
+#define CLONE_ARGS_SIZE_VER0 64 /* sizeof first published struct */
+
 /*
  * Scheduling policies
  */
