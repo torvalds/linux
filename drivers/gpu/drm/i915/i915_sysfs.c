@@ -144,12 +144,12 @@ static const struct attribute_group media_rc6_attr_group = {
 };
 #endif
 
-static int l3_access_valid(struct drm_i915_private *dev_priv, loff_t offset)
+static int l3_access_valid(struct drm_i915_private *i915, loff_t offset)
 {
-	if (!HAS_L3_DPF(dev_priv))
+	if (!HAS_L3_DPF(i915))
 		return -EPERM;
 
-	if (offset % 4 != 0)
+	if (!IS_ALIGNED(offset, sizeof(u32)))
 		return -EINVAL;
 
 	if (offset >= GEN7_L3LOG_SIZE)
@@ -164,31 +164,28 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	     loff_t offset, size_t count)
 {
 	struct device *kdev = kobj_to_dev(kobj);
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct drm_device *dev = &dev_priv->drm;
+	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
 	int slice = (int)(uintptr_t)attr->private;
 	int ret;
 
-	count = round_down(count, 4);
-
-	ret = l3_access_valid(dev_priv, offset);
+	ret = l3_access_valid(i915, offset);
 	if (ret)
 		return ret;
 
+	count = round_down(count, sizeof(u32));
 	count = min_t(size_t, GEN7_L3LOG_SIZE - offset, count);
+	memset(buf, 0, count);
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_mutex_lock_interruptible(&i915->drm);
 	if (ret)
 		return ret;
 
-	if (dev_priv->l3_parity.remap_info[slice])
+	if (i915->l3_parity.remap_info[slice])
 		memcpy(buf,
-		       dev_priv->l3_parity.remap_info[slice] + (offset/4),
+		       i915->l3_parity.remap_info[slice] + offset / sizeof(u32),
 		       count);
-	else
-		memset(buf, 0, count);
 
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&i915->drm.struct_mutex);
 
 	return count;
 }
@@ -199,22 +196,24 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	      loff_t offset, size_t count)
 {
 	struct device *kdev = kobj_to_dev(kobj);
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct drm_device *dev = &dev_priv->drm;
-	struct i915_gem_context *ctx;
+	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
 	int slice = (int)(uintptr_t)attr->private;
+	struct i915_gem_context *ctx;
 	u32 **remap_info;
 	int ret;
 
-	ret = l3_access_valid(dev_priv, offset);
+	ret = l3_access_valid(i915, offset);
 	if (ret)
 		return ret;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	if (count < sizeof(u32))
+		return -EINVAL;
+
+	ret = i915_mutex_lock_interruptible(&i915->drm);
 	if (ret)
 		return ret;
 
-	remap_info = &dev_priv->l3_parity.remap_info[slice];
+	remap_info = &i915->l3_parity.remap_info[slice];
 	if (!*remap_info) {
 		*remap_info = kzalloc(GEN7_L3LOG_SIZE, GFP_KERNEL);
 		if (!*remap_info) {
@@ -223,20 +222,22 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 		}
 	}
 
-	/* TODO: Ideally we really want a GPU reset here to make sure errors
+	count = round_down(count, sizeof(u32));
+	memcpy(*remap_info + offset / sizeof(u32), buf, count);
+
+	/* NB: We defer the remapping until we switch to the context */
+	list_for_each_entry(ctx, &i915->contexts.list, link)
+		ctx->remap_slice |= BIT(slice);
+
+	/*
+	 * TODO: Ideally we really want a GPU reset here to make sure errors
 	 * aren't propagated. Since I cannot find a stable way to reset the GPU
 	 * at this point it is left as a TODO.
 	*/
-	memcpy(*remap_info + (offset/4), buf, count);
-
-	/* NB: We defer the remapping until we switch to the context */
-	list_for_each_entry(ctx, &dev_priv->contexts.list, link)
-		ctx->remap_slice |= (1<<slice);
 
 	ret = count;
-
 out:
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&i915->drm.struct_mutex);
 
 	return ret;
 }
