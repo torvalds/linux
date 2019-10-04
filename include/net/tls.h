@@ -43,6 +43,7 @@
 #include <linux/netdevice.h>
 #include <linux/rcupdate.h>
 
+#include <net/net_namespace.h>
 #include <net/tcp.h>
 #include <net/strparser.h>
 #include <crypto/aead.h>
@@ -72,6 +73,15 @@
  * Hence b0 contains (3 - 1) = 2.
  */
 #define TLS_AES_CCM_IV_B0_BYTE		2
+
+#define __TLS_INC_STATS(net, field)				\
+	__SNMP_INC_STATS((net)->mib.tls_statistics, field)
+#define TLS_INC_STATS(net, field)				\
+	SNMP_INC_STATS((net)->mib.tls_statistics, field)
+#define __TLS_DEC_STATS(net, field)				\
+	__SNMP_DEC_STATS((net)->mib.tls_statistics, field)
+#define TLS_DEC_STATS(net, field)				\
+	SNMP_DEC_STATS((net)->mib.tls_statistics, field)
 
 enum {
 	TLS_BASE,
@@ -604,6 +614,9 @@ static inline bool tls_offload_tx_resync_pending(struct sock *sk)
 	smp_mb__after_atomic();
 	return ret;
 }
+
+int __net_init tls_proc_init(struct net *net);
+void __net_exit tls_proc_fini(struct net *net);
 
 int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
 		      unsigned char *record_type);

@@ -213,3 +213,9 @@ A patchset to OpenSSL to use ktls as the record layer is
 of calling send directly after a handshake using gnutls.
 Since it doesn't implement a full record layer, control
 messages are not supported.
+
+Statistics
+==========
+
+TLS implementation exposes the following per-namespace statistics
+(``/proc/net/tls_stat``):

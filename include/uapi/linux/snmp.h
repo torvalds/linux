@@ -323,4 +323,11 @@ enum
 	__LINUX_MIB_XFRMMAX
 };
 
+/* linux TLS mib definitions */
+enum
+{
+	LINUX_MIB_TLSNUM = 0,
+	__LINUX_MIB_TLSMAX
+};
+
 #endif	/* _LINUX_SNMP_H */
