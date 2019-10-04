@@ -233,3 +233,6 @@ TLS implementation exposes the following per-namespace statistics
 
 - ``TlsTxDevice``, ``TlsRxDevice`` -
   number of TX and RX sessions opened with NIC cryptography
+
+- ``TlsDecryptError`` -
+  record decryption failed (e.g. due to incorrect authentication tag)

@@ -168,6 +168,9 @@ static void tls_decrypt_done(struct crypto_async_request *req, int err)
 
 	/* Propagate if there was an err */
 	if (err) {
+		if (err == -EBADMSG)
+			TLS_INC_STATS(sock_net(skb->sk),
+				      LINUX_MIB_TLSDECRYPTERROR);
 		ctx->async_wait.err = err;
 		tls_err_abort(skb->sk, err);
 	} else {
@@ -253,6 +256,8 @@ static int tls_do_decryption(struct sock *sk,
 			return ret;
 
 		ret = crypto_wait_req(ret, &ctx->async_wait);
+	} else if (ret == -EBADMSG) {
+		TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSDECRYPTERROR);
 	}
 
 	if (async)

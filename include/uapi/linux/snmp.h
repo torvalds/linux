@@ -335,6 +335,7 @@ enum
 	LINUX_MIB_TLSRXSW,			/* TlsRxSw */
 	LINUX_MIB_TLSTXDEVICE,			/* TlsTxDevice */
 	LINUX_MIB_TLSRXDEVICE,			/* TlsRxDevice */
+	LINUX_MIB_TLSDECRYPTERROR,		/* TlsDecryptError */
 	__LINUX_MIB_TLSMAX
 };
 
