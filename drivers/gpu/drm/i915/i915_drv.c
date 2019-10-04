@@ -53,7 +53,6 @@
 #include "display/intel_display_types.h"
 #include "display/intel_dp.h"
 #include "display/intel_fbdev.h"
-#include "display/intel_gmbus.h"
 #include "display/intel_hotplug.h"
 #include "display/intel_overlay.h"
 #include "display/intel_pipe_crc.h"
@@ -307,8 +306,6 @@ static int i915_driver_modeset_probe(struct drm_i915_private *i915)
 	if (ret)
 		goto cleanup_csr;
 
-	intel_gmbus_setup(i915);
-
 	/* Important: The output setup functions called by modeset_init need
 	 * working irqs for e.g. gmbus and dp aux transfers. */
 	ret = intel_modeset_init(i915);
@@ -343,7 +340,6 @@ cleanup_modeset:
 	intel_modeset_driver_remove(i915);
 cleanup_irq:
 	intel_irq_uninstall(i915);
-	intel_gmbus_teardown(i915);
 cleanup_csr:
 	intel_csr_ucode_fini(i915);
 	intel_power_domains_driver_remove(i915);

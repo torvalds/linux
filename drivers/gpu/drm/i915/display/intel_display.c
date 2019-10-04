@@ -16216,6 +16216,8 @@ int intel_modeset_init(struct drm_i915_private *i915)
 
 	intel_panel_sanitize_ssc(i915);
 
+	intel_gmbus_setup(i915);
+
 	DRM_DEBUG_KMS("%d display pipe%s available.\n",
 		      INTEL_NUM_PIPES(i915),
 		      INTEL_NUM_PIPES(i915) > 1 ? "s" : "");
