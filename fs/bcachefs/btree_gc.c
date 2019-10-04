@@ -642,12 +642,7 @@ static int bch2_gc_start(struct bch_fs *c,
 {
 	struct bch_dev *ca;
 	unsigned i;
-
-	/*
-	 * indicate to stripe code that we need to allocate for the gc stripes
-	 * radix tree, too
-	 */
-	gc_pos_set(c, gc_phase(GC_PHASE_START));
+	int ret;
 
 	BUG_ON(c->usage_gc);
 
@@ -675,6 +670,18 @@ static int bch2_gc_start(struct bch_fs *c,
 		}
 	}
 
+	ret = bch2_ec_mem_alloc(c, true);
+	if (ret)
+		return ret;
+
+	percpu_down_write(&c->mark_lock);
+
+	/*
+	 * indicate to stripe code that we need to allocate for the gc stripes
+	 * radix tree, too
+	 */
+	gc_pos_set(c, gc_phase(GC_PHASE_START));
+
 	for_each_member_device(ca, c, i) {
 		struct bucket_array *dst = __bucket_array(ca, 1);
 		struct bucket_array *src = __bucket_array(ca, 0);
@@ -699,7 +706,9 @@ static int bch2_gc_start(struct bch_fs *c,
 		}
 	};
 
-	return bch2_ec_mem_alloc(c, true);
+	percpu_up_write(&c->mark_lock);
+
+	return 0;
 }
 
 /**
@@ -732,10 +741,7 @@ int bch2_gc(struct bch_fs *c, struct journal_keys *journal_keys,
 
 	down_write(&c->gc_lock);
 again:
-	percpu_down_write(&c->mark_lock);
 	ret = bch2_gc_start(c, metadata_only);
-	percpu_up_write(&c->mark_lock);
-
 	if (ret)
 		goto out;
 
