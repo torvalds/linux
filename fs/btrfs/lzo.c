@@ -63,11 +63,6 @@ struct workspace {
 
 static struct workspace_manager wsm;
 
-struct list_head *lzo_get_workspace(unsigned int level)
-{
-	return btrfs_get_workspace(&wsm, level);
-}
-
 void lzo_put_workspace(struct list_head *ws)
 {
 	btrfs_put_workspace(&wsm, ws);
@@ -494,7 +489,6 @@ out:
 
 const struct btrfs_compress_op btrfs_lzo_compress = {
 	.workspace_manager	= &wsm,
-	.get_workspace		= lzo_get_workspace,
 	.put_workspace		= lzo_put_workspace,
 	.alloc_workspace	= lzo_alloc_workspace,
 	.free_workspace		= lzo_free_workspace,
