@@ -485,6 +485,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 
 	/* cpuid 0x80000008.ebx */
 	const u32 kvm_cpuid_8000_0008_ebx_x86_features =
+		F(CLZERO) | F(XSAVEERPTR) |
 		F(WBNOINVD) | F(AMD_IBPB) | F(AMD_IBRS) | F(AMD_SSBD) | F(VIRT_SSBD) |
 		F(AMD_SSB_NO) | F(AMD_STIBP) | F(AMD_STIBP_ALWAYS_ON);
 
@@ -618,16 +619,20 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 	 */
 	case 0x1f:
 	case 0xb: {
-		int i, level_type;
+		int i;
 
-		/* read more entries until level_type is zero */
-		for (i = 1; ; ++i) {
+		/*
+		 * We filled in entry[0] for CPUID(EAX=<function>,
+		 * ECX=00H) above.  If its level type (ECX[15:8]) is
+		 * zero, then the leaf is unimplemented, and we're
+		 * done.  Otherwise, continue to populate entries
+		 * until the level type (ECX[15:8]) of the previously
+		 * added entry is zero.
+		 */
+		for (i = 1; entry[i - 1].ecx & 0xff00; ++i) {
 			if (*nent >= maxnent)
 				goto out;
 
-			level_type = entry[i - 1].ecx & 0xff00;
-			if (!level_type)
-				break;
 			do_host_cpuid(&entry[i], function, i);
 			++*nent;
 		}
@@ -969,53 +974,66 @@ struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry);
 
 /*
- * If no match is found, check whether we exceed the vCPU's limit
- * and return the content of the highest valid _standard_ leaf instead.
- * This is to satisfy the CPUID specification.
+ * If the basic or extended CPUID leaf requested is higher than the
+ * maximum supported basic or extended leaf, respectively, then it is
+ * out of range.
  */
-static struct kvm_cpuid_entry2* check_cpuid_limit(struct kvm_vcpu *vcpu,
-                                                  u32 function, u32 index)
+static bool cpuid_function_in_range(struct kvm_vcpu *vcpu, u32 function)
 {
-	struct kvm_cpuid_entry2 *maxlevel;
+	struct kvm_cpuid_entry2 *max;
 
-	maxlevel = kvm_find_cpuid_entry(vcpu, function & 0x80000000, 0);
-	if (!maxlevel || maxlevel->eax >= function)
-		return NULL;
-	if (function & 0x80000000) {
-		maxlevel = kvm_find_cpuid_entry(vcpu, 0, 0);
-		if (!maxlevel)
-			return NULL;
-	}
-	return kvm_find_cpuid_entry(vcpu, maxlevel->eax, index);
+	max = kvm_find_cpuid_entry(vcpu, function & 0x80000000, 0);
+	return max && function <= max->eax;
 }
 
 bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 	       u32 *ecx, u32 *edx, bool check_limit)
 {
 	u32 function = *eax, index = *ecx;
-	struct kvm_cpuid_entry2 *best;
-	bool entry_found = true;
+	struct kvm_cpuid_entry2 *entry;
+	struct kvm_cpuid_entry2 *max;
+	bool found;
 
-	best = kvm_find_cpuid_entry(vcpu, function, index);
-
-	if (!best) {
-		entry_found = false;
-		if (!check_limit)
-			goto out;
-
-		best = check_cpuid_limit(vcpu, function, index);
+	entry = kvm_find_cpuid_entry(vcpu, function, index);
+	found = entry;
+	/*
+	 * Intel CPUID semantics treats any query for an out-of-range
+	 * leaf as if the highest basic leaf (i.e. CPUID.0H:EAX) were
+	 * requested. AMD CPUID semantics returns all zeroes for any
+	 * undefined leaf, whether or not the leaf is in range.
+	 */
+	if (!entry && check_limit && !guest_cpuid_is_amd(vcpu) &&
+	    !cpuid_function_in_range(vcpu, function)) {
+		max = kvm_find_cpuid_entry(vcpu, 0, 0);
+		if (max) {
+			function = max->eax;
+			entry = kvm_find_cpuid_entry(vcpu, function, index);
+		}
 	}
-
-out:
-	if (best) {
-		*eax = best->eax;
-		*ebx = best->ebx;
-		*ecx = best->ecx;
-		*edx = best->edx;
-	} else
+	if (entry) {
+		*eax = entry->eax;
+		*ebx = entry->ebx;
+		*ecx = entry->ecx;
+		*edx = entry->edx;
+	} else {
 		*eax = *ebx = *ecx = *edx = 0;
-	trace_kvm_cpuid(function, *eax, *ebx, *ecx, *edx, entry_found);
-	return entry_found;
+		/*
+		 * When leaf 0BH or 1FH is defined, CL is pass-through
+		 * and EDX is always the x2APIC ID, even for undefined
+		 * subleaves. Index 1 will exist iff the leaf is
+		 * implemented, so we pass through CL iff leaf 1
+		 * exists. EDX can be copied from any existing index.
+		 */
+		if (function == 0xb || function == 0x1f) {
+			entry = kvm_find_cpuid_entry(vcpu, function, 1);
+			if (entry) {
+				*ecx = index & 0xff;
+				*edx = entry->edx;
+			}
+		}
+	}
+	trace_kvm_cpuid(function, *eax, *ebx, *ecx, *edx, found);
+	return found;
 }
 EXPORT_SYMBOL_GPL(kvm_cpuid);
 
