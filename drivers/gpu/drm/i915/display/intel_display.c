@@ -14358,12 +14358,14 @@ static void fb_obj_bump_render_priority(struct drm_i915_gem_object *obj)
  */
 int
 intel_prepare_plane_fb(struct drm_plane *plane,
-		       struct drm_plane_state *new_state)
+		       struct drm_plane_state *_new_plane_state)
 {
+	struct intel_plane_state *new_plane_state =
+		to_intel_plane_state(_new_plane_state);
 	struct intel_atomic_state *intel_state =
-		to_intel_atomic_state(new_state->state);
+		to_intel_atomic_state(new_plane_state->base.state);
 	struct drm_i915_private *dev_priv = to_i915(plane->dev);
-	struct drm_framebuffer *fb = new_state->fb;
+	struct drm_framebuffer *fb = new_plane_state->base.fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->state->fb);
 	int ret;
@@ -14394,9 +14396,9 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		}
 	}
 
-	if (new_state->fence) { /* explicit fencing */
+	if (new_plane_state->base.fence) { /* explicit fencing */
 		ret = i915_sw_fence_await_dma_fence(&intel_state->commit_ready,
-						    new_state->fence,
+						    new_plane_state->base.fence,
 						    I915_FENCE_TIMEOUT,
 						    GFP_KERNEL);
 		if (ret < 0)
@@ -14410,7 +14412,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
-	ret = intel_plane_pin_fb(to_intel_plane_state(new_state));
+	ret = intel_plane_pin_fb(new_plane_state);
 
 	i915_gem_object_unpin_pages(obj);
 	if (ret)
@@ -14419,7 +14421,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	fb_obj_bump_render_priority(obj);
 	intel_frontbuffer_flush(obj->frontbuffer, ORIGIN_DIRTYFB);
 
-	if (!new_state->fence) { /* implicit fencing */
+	if (!new_plane_state->base.fence) { /* implicit fencing */
 		struct dma_fence *fence;
 
 		ret = i915_sw_fence_await_reservation(&intel_state->commit_ready,
@@ -14431,11 +14433,13 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 
 		fence = dma_resv_get_excl_rcu(obj->base.resv);
 		if (fence) {
-			add_rps_boost_after_vblank(new_state->crtc, fence);
+			add_rps_boost_after_vblank(new_plane_state->base.crtc,
+						   fence);
 			dma_fence_put(fence);
 		}
 	} else {
-		add_rps_boost_after_vblank(new_state->crtc, new_state->fence);
+		add_rps_boost_after_vblank(new_plane_state->base.crtc,
+					   new_plane_state->base.fence);
 	}
 
 	/*
@@ -14463,10 +14467,12 @@ intel_prepare_plane_fb(struct drm_plane *plane,
  */
 void
 intel_cleanup_plane_fb(struct drm_plane *plane,
-		       struct drm_plane_state *old_state)
+		       struct drm_plane_state *_old_plane_state)
 {
+	struct intel_plane_state *old_plane_state =
+		to_intel_plane_state(_old_plane_state);
 	struct intel_atomic_state *intel_state =
-		to_intel_atomic_state(old_state->state);
+		to_intel_atomic_state(old_plane_state->base.state);
 	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 
 	if (intel_state->rps_interactive) {
@@ -14475,7 +14481,7 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 	}
 
 	/* Should only be called after a successful intel_prepare_plane_fb()! */
-	intel_plane_unpin_fb(to_intel_plane_state(old_state));
+	intel_plane_unpin_fb(old_plane_state);
 }
 
 int
