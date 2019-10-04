@@ -359,7 +359,7 @@ static int stih_cec_probe(struct platform_device *pdev)
 	return 0;
 
 err_notifier:
-	cec_notifier_cec_adap_unregister(cec->notifier);
+	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
 
 err_delete_adapter:
 	cec_delete_adapter(cec->adap);
@@ -370,7 +370,7 @@ static int stih_cec_remove(struct platform_device *pdev)
 {
 	struct stih_cec *cec = platform_get_drvdata(pdev);
 
-	cec_notifier_cec_adap_unregister(cec->notifier);
+	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
 	cec_unregister_adapter(cec->adap);
 
 	return 0;

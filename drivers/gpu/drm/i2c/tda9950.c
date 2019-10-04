@@ -465,7 +465,7 @@ static int tda9950_probe(struct i2c_client *client,
 
 	ret = cec_register_adapter(priv->adap, priv->hdmi);
 	if (ret < 0) {
-		cec_notifier_cec_adap_unregister(priv->notify);
+		cec_notifier_cec_adap_unregister(priv->notify, priv->adap);
 		return ret;
 	}
 
@@ -482,7 +482,7 @@ static int tda9950_remove(struct i2c_client *client)
 {
 	struct tda9950_priv *priv = i2c_get_clientdata(client);
 
-	cec_notifier_cec_adap_unregister(priv->notify);
+	cec_notifier_cec_adap_unregister(priv->notify, priv->adap);
 	cec_unregister_adapter(priv->adap);
 
 	return 0;

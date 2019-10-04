@@ -153,13 +153,14 @@ cec_notifier_cec_adap_register(struct device *hdmi_dev, const char *conn_name,
 }
 EXPORT_SYMBOL_GPL(cec_notifier_cec_adap_register);
 
-void cec_notifier_cec_adap_unregister(struct cec_notifier *n)
+void cec_notifier_cec_adap_unregister(struct cec_notifier *n,
+				      struct cec_adapter *adap)
 {
 	if (!n)
 		return;
 
 	mutex_lock(&n->lock);
-	n->cec_adap->notifier = NULL;
+	adap->notifier = NULL;
 	n->cec_adap = NULL;
 	n->callback = NULL;
 	mutex_unlock(&n->lock);
