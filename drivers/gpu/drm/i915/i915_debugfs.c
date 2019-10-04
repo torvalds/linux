@@ -1534,11 +1534,6 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_framebuffer *fbdev_fb = NULL;
 	struct drm_framebuffer *drm_fb;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	if (dev_priv->fbdev && dev_priv->fbdev->helper.fb) {
@@ -1573,7 +1568,6 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		seq_putc(m, '\n');
 	}
 	mutex_unlock(&dev->mode_config.fb_lock);
-	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
