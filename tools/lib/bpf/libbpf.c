@@ -4231,7 +4231,7 @@ bpf_object__next(struct bpf_object *prev)
 
 const char *bpf_object__name(const struct bpf_object *obj)
 {
-	return obj ? obj->path : ERR_PTR(-EINVAL);
+	return obj ? obj->name : ERR_PTR(-EINVAL);
 }
 
 unsigned int bpf_object__kversion(const struct bpf_object *obj)
