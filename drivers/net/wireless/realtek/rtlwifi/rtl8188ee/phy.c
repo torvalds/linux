@@ -649,7 +649,7 @@ static bool phy_config_bb_with_pghdr(struct ieee80211_hw *hw, u8 configtype)
 	int i;
 	u32 *phy_reg_page;
 	u16 phy_reg_page_len;
-	u32 v1 = 0, v2 = 0, v3 = 0;
+	u32 v1 = 0, v2 = 0;
 
 	phy_reg_page_len = RTL8188EEPHY_REG_ARRAY_PGLEN;
 	phy_reg_page = RTL8188EEPHY_REG_ARRAY_PG;
@@ -658,7 +658,6 @@ static bool phy_config_bb_with_pghdr(struct ieee80211_hw *hw, u8 configtype)
 		for (i = 0; i < phy_reg_page_len; i = i + 3) {
 			v1 = phy_reg_page[i];
 			v2 = phy_reg_page[i+1];
-			v3 = phy_reg_page[i+2];
 
 			if (v1 < 0xcdcdcdcd) {
 				if (phy_reg_page[i] == 0xfe)
@@ -689,13 +688,11 @@ static bool phy_config_bb_with_pghdr(struct ieee80211_hw *hw, u8 configtype)
 
 				    v1 = phy_reg_page[i];
 				    v2 = phy_reg_page[i+1];
-				    v3 = phy_reg_page[i+2];
 				    while (v2 != 0xDEAD &&
 					   i < phy_reg_page_len - 5) {
 					i += 3;
 					v1 = phy_reg_page[i];
 					v2 = phy_reg_page[i+1];
-					v3 = phy_reg_page[i+2];
 				    }
 				}
 			}
@@ -769,7 +766,6 @@ bool rtl88e_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 					  enum radio_path rfpath)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	bool rtstatus = true;
 	u32 *radioa_array_table;
 	u16 radioa_arraylen;
 
@@ -778,7 +774,6 @@ bool rtl88e_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "Radio_A:RTL8188EE_RADIOA_1TARRAY %d\n", radioa_arraylen);
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "Radio No %x\n", rfpath);
-	rtstatus = true;
 	switch (rfpath) {
 	case RF90_PATH_A:
 		process_path_a(hw, radioa_arraylen, radioa_array_table);
@@ -1940,9 +1935,9 @@ void rtl88e_phy_iq_calibrate(struct ieee80211_hw *hw, bool b_recovery)
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	long result[4][8];
 	u8 i, final_candidate;
-	bool b_patha_ok, b_pathb_ok;
-	long reg_e94, reg_e9c, reg_ea4, reg_eac, reg_eb4, reg_ebc, reg_ec4,
-	    reg_ecc, reg_tmp = 0;
+	bool b_patha_ok;
+	long reg_e94, reg_e9c, reg_ea4, reg_eb4, reg_ebc,
+	    reg_tmp = 0;
 	bool is12simular, is13simular, is23simular;
 	u32 iqk_bb_reg[9] = {
 		ROFDM0_XARXIQIMBALANCE,
@@ -1971,7 +1966,6 @@ void rtl88e_phy_iq_calibrate(struct ieee80211_hw *hw, bool b_recovery)
 	}
 	final_candidate = 0xff;
 	b_patha_ok = false;
-	b_pathb_ok = false;
 	is12simular = false;
 	is23simular = false;
 	is13simular = false;
@@ -2014,27 +2008,20 @@ void rtl88e_phy_iq_calibrate(struct ieee80211_hw *hw, bool b_recovery)
 		reg_e94 = result[i][0];
 		reg_e9c = result[i][1];
 		reg_ea4 = result[i][2];
-		reg_eac = result[i][3];
 		reg_eb4 = result[i][4];
 		reg_ebc = result[i][5];
-		reg_ec4 = result[i][6];
-		reg_ecc = result[i][7];
 	}
 	if (final_candidate != 0xff) {
 		reg_e94 = result[final_candidate][0];
 		reg_e9c = result[final_candidate][1];
 		reg_ea4 = result[final_candidate][2];
-		reg_eac = result[final_candidate][3];
 		reg_eb4 = result[final_candidate][4];
 		reg_ebc = result[final_candidate][5];
-		reg_ec4 = result[final_candidate][6];
-		reg_ecc = result[final_candidate][7];
 		rtlphy->reg_eb4 = reg_eb4;
 		rtlphy->reg_ebc = reg_ebc;
 		rtlphy->reg_e94 = reg_e94;
 		rtlphy->reg_e9c = reg_e9c;
 		b_patha_ok = true;
-		b_pathb_ok = true;
 	} else {
 		rtlphy->reg_e94 = 0x100;
 		rtlphy->reg_eb4 = 0x100;
