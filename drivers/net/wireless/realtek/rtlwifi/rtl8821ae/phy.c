@@ -2076,7 +2076,6 @@ static bool _rtl8821ae_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
 bool rtl8812ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 					     enum radio_path rfpath)
 {
-	bool rtstatus = true;
 	u32 *radioa_array_table_a, *radioa_array_table_b;
 	u16 radioa_arraylen_a, radioa_arraylen_b;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -2088,7 +2087,6 @@ bool rtl8812ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "Radio_A:RTL8821AE_RADIOA_ARRAY %d\n", radioa_arraylen_a);
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "Radio No %x\n", rfpath);
-	rtstatus = true;
 	switch (rfpath) {
 	case RF90_PATH_A:
 		return __rtl8821ae_phy_config_with_headerfile(hw,
@@ -2111,7 +2109,6 @@ bool rtl8812ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 bool rtl8821ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 						enum radio_path rfpath)
 {
-	bool rtstatus = true;
 	u32 *radioa_array_table;
 	u16 radioa_arraylen;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -2121,7 +2118,6 @@ bool rtl8821ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "Radio_A:RTL8821AE_RADIOA_ARRAY %d\n", radioa_arraylen);
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "Radio No %x\n", rfpath);
-	rtstatus = true;
 	switch (rfpath) {
 	case RF90_PATH_A:
 		return __rtl8821ae_phy_config_with_headerfile(hw,
@@ -2351,7 +2347,7 @@ static s8 _rtl8812ae_phy_get_txpower_limit(struct ieee80211_hw *hw,
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	short band_temp = -1, regulation = -1, bandwidth_temp = -1,
 		 rate_section = -1, channel_temp = -1;
-	u16 bd, regu, bdwidth, sec, chnl;
+	u16 regu, bdwidth, sec, chnl;
 	s8 power_limit = MAX_POWER_INDEX;
 
 	if (rtlefuse->eeprom_regulatory == 2)
@@ -2472,7 +2468,6 @@ static s8 _rtl8812ae_phy_get_txpower_limit(struct ieee80211_hw *hw,
 		return MAX_POWER_INDEX;
 	}
 
-	bd = band_temp;
 	regu = regulation;
 	bdwidth = bandwidth_temp;
 	sec = rate_section;
