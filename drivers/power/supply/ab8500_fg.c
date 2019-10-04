@@ -3165,7 +3165,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 		if (ret != 0) {
 			dev_err(di->dev, "failed to request %s IRQ %d: %d\n",
 				ab8500_fg_irq_th[i].name, irq, ret);
-			goto free_irq;
+			goto free_irq_th;
 		}
 		dev_dbg(di->dev, "Requested %s IRQ %d: %d\n",
 			ab8500_fg_irq_th[i].name, irq, ret);
@@ -3180,7 +3180,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		dev_err(di->dev, "failed to request %s IRQ %d: %d\n",
 			ab8500_fg_irq_bh[0].name, irq, ret);
-		goto free_irq;
+		goto free_irq_th;
 	}
 	dev_dbg(di->dev, "Requested %s IRQ %d: %d\n",
 		ab8500_fg_irq_bh[0].name, irq, ret);
@@ -3222,7 +3222,9 @@ free_irq:
 	/* We also have to free all registered irqs */
 	irq = platform_get_irq_byname(pdev, ab8500_fg_irq_bh[0].name);
 	free_irq(irq, di);
-	for (i = 0; i < ARRAY_SIZE(ab8500_fg_irq_th); i++) {
+free_irq_th:
+	while (--i >= 0) {
+		/* Last assignment of i from primary interrupt handlers */
 		irq = platform_get_irq_byname(pdev, ab8500_fg_irq_th[i].name);
 		free_irq(irq, di);
 	}
