@@ -163,16 +163,16 @@ static int dust_map_read(struct dust_device *dd, sector_t thisblock,
 			 bool fail_read_on_bb)
 {
 	unsigned long flags;
-	int ret = DM_MAPIO_REMAPPED;
+	int r = DM_MAPIO_REMAPPED;
 
 	if (fail_read_on_bb) {
 		thisblock >>= dd->sect_per_block_shift;
 		spin_lock_irqsave(&dd->dust_lock, flags);
-		ret = __dust_map_read(dd, thisblock);
+		r = __dust_map_read(dd, thisblock);
 		spin_unlock_irqrestore(&dd->dust_lock, flags);
 	}
 
-	return ret;
+	return r;
 }
 
 static void __dust_map_write(struct dust_device *dd, sector_t thisblock)
@@ -209,17 +209,17 @@ static int dust_map_write(struct dust_device *dd, sector_t thisblock,
 static int dust_map(struct dm_target *ti, struct bio *bio)
 {
 	struct dust_device *dd = ti->private;
-	int ret;
+	int r;
 
 	bio_set_dev(bio, dd->dev->bdev);
 	bio->bi_iter.bi_sector = dd->start + dm_target_offset(ti, bio->bi_iter.bi_sector);
 
 	if (bio_data_dir(bio) == READ)
-		ret = dust_map_read(dd, bio->bi_iter.bi_sector, dd->fail_read_on_bb);
+		r = dust_map_read(dd, bio->bi_iter.bi_sector, dd->fail_read_on_bb);
 	else
-		ret = dust_map_write(dd, bio->bi_iter.bi_sector, dd->fail_read_on_bb);
+		r = dust_map_write(dd, bio->bi_iter.bi_sector, dd->fail_read_on_bb);
 
-	return ret;
+	return r;
 }
 
 static bool __dust_clear_badblocks(struct rb_root *tree,
