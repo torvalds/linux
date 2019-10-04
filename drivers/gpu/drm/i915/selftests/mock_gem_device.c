@@ -41,8 +41,6 @@ void mock_device_flush(struct drm_i915_private *i915)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	lockdep_assert_held(&i915->drm.struct_mutex);
-
 	do {
 		for_each_engine(engine, i915, id)
 			mock_engine_flush(engine);
@@ -55,9 +53,7 @@ static void mock_device_release(struct drm_device *dev)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	mutex_lock(&i915->drm.struct_mutex);
 	mock_device_flush(i915);
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	flush_work(&i915->gem.idle_work);
 	i915_gem_drain_workqueue(i915);

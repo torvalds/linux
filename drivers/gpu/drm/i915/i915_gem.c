@@ -945,19 +945,16 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915,
 	if (!intel_gt_pm_is_awake(gt))
 		return 0;
 
-	GEM_TRACE("flags=%x (%s), timeout=%ld%s\n",
-		  flags, flags & I915_WAIT_LOCKED ? "locked" : "unlocked",
-		  timeout, timeout == MAX_SCHEDULE_TIMEOUT ? " (forever)" : "");
+	do {
+		timeout = wait_for_timelines(gt, flags, timeout);
+		if (timeout < 0)
+			return timeout;
 
-	timeout = wait_for_timelines(gt, flags, timeout);
-	if (timeout < 0)
-		return timeout;
+		cond_resched();
+		if (signal_pending(current))
+			return -EINTR;
 
-	if (flags & I915_WAIT_LOCKED) {
-		lockdep_assert_held(&i915->drm.struct_mutex);
-
-		i915_retire_requests(i915);
-	}
+	} while (i915_retire_requests(i915));
 
 	return 0;
 }

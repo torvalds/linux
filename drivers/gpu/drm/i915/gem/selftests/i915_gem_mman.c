@@ -581,12 +581,8 @@ static void disable_retire_worker(struct drm_i915_private *i915)
 
 static void restore_retire_worker(struct drm_i915_private *i915)
 {
+	igt_flush_test(i915);
 	intel_gt_pm_put(&i915->gt);
-
-	mutex_lock(&i915->drm.struct_mutex);
-	igt_flush_test(i915, I915_WAIT_LOCKED);
-	mutex_unlock(&i915->drm.struct_mutex);
-
 	i915_gem_driver_register__shrinker(i915);
 }
 

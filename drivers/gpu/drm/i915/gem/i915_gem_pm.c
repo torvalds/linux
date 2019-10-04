@@ -48,11 +48,7 @@ static void retire_work_handler(struct work_struct *work)
 	struct drm_i915_private *i915 =
 		container_of(work, typeof(*i915), gem.retire_work.work);
 
-	/* Come back later if the device is busy... */
-	if (mutex_trylock(&i915->drm.struct_mutex)) {
-		i915_retire_requests(i915);
-		mutex_unlock(&i915->drm.struct_mutex);
-	}
+	i915_retire_requests(i915);
 
 	queue_delayed_work(i915->wq,
 			   &i915->gem.retire_work,
@@ -86,26 +82,23 @@ static bool switch_to_kernel_context_sync(struct intel_gt *gt)
 {
 	bool result = !intel_gt_is_wedged(gt);
 
-	do {
-		if (i915_gem_wait_for_idle(gt->i915,
-					   I915_WAIT_LOCKED |
-					   I915_WAIT_FOR_IDLE_BOOST,
-					   I915_GEM_IDLE_TIMEOUT) == -ETIME) {
-			/* XXX hide warning from gem_eio */
-			if (i915_modparams.reset) {
-				dev_err(gt->i915->drm.dev,
-					"Failed to idle engines, declaring wedged!\n");
-				GEM_TRACE_DUMP();
-			}
-
-			/*
-			 * Forcibly cancel outstanding work and leave
-			 * the gpu quiet.
-			 */
-			intel_gt_set_wedged(gt);
-			result = false;
+	if (i915_gem_wait_for_idle(gt->i915,
+				   I915_WAIT_FOR_IDLE_BOOST,
+				   I915_GEM_IDLE_TIMEOUT) == -ETIME) {
+		/* XXX hide warning from gem_eio */
+		if (i915_modparams.reset) {
+			dev_err(gt->i915->drm.dev,
+				"Failed to idle engines, declaring wedged!\n");
+			GEM_TRACE_DUMP();
 		}
-	} while (i915_retire_requests(gt->i915) && result);
+
+		/*
+		 * Forcibly cancel outstanding work and leave
+		 * the gpu quiet.
+		 */
+		intel_gt_set_wedged(gt);
+		result = false;
+	}
 
 	if (intel_gt_pm_wait_for_idle(gt))
 		result = false;
@@ -145,8 +138,6 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 
 	user_forcewake(&i915->gt, true);
 
-	mutex_lock(&i915->drm.struct_mutex);
-
 	/*
 	 * We have to flush all the executing contexts to main memory so
 	 * that they can saved in the hibernation image. To ensure the last
@@ -157,8 +148,6 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	 * not rely on its state.
 	 */
 	switch_to_kernel_context_sync(&i915->gt);
-
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	cancel_delayed_work_sync(&i915->gt.hangcheck.work);
 

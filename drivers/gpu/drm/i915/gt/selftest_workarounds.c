@@ -676,7 +676,7 @@ out_unpin:
 			break;
 	}
 
-	if (igt_flush_test(ctx->i915, I915_WAIT_LOCKED))
+	if (igt_flush_test(ctx->i915))
 		err = -EIO;
 out_batch:
 	i915_vma_unpin_and_release(&batch, 0);
@@ -1090,7 +1090,7 @@ err:
 		kernel_context_close(client[i].ctx);
 	}
 
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+	if (igt_flush_test(i915))
 		err = -EIO;
 
 	return err;
@@ -1248,7 +1248,7 @@ err:
 	igt_global_reset_unlock(&i915->gt);
 	kernel_context_close(ctx);
 
-	igt_flush_test(i915, I915_WAIT_LOCKED);
+	igt_flush_test(i915);
 
 	return ret;
 }

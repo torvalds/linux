@@ -7,6 +7,7 @@
 #include <linux/prime_numbers.h>
 
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_pm.h"
 
 #include "i915_selftest.h"
 #include "selftests/i915_random.h"
@@ -78,7 +79,7 @@ static int gtt_set(struct drm_i915_gem_object *obj,
 {
 	struct i915_vma *vma;
 	u32 __iomem *map;
-	int err;
+	int err = 0;
 
 	i915_gem_object_lock(obj);
 	err = i915_gem_object_set_to_gtt_domain(obj, true);
@@ -90,15 +91,21 @@ static int gtt_set(struct drm_i915_gem_object *obj,
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
+	intel_gt_pm_get(vma->vm->gt);
+
 	map = i915_vma_pin_iomap(vma);
 	i915_vma_unpin(vma);
-	if (IS_ERR(map))
-		return PTR_ERR(map);
+	if (IS_ERR(map)) {
+		err = PTR_ERR(map);
+		goto out_rpm;
+	}
 
 	iowrite32(v, &map[offset / sizeof(*map)]);
 	i915_vma_unpin_iomap(vma);
 
-	return 0;
+out_rpm:
+	intel_gt_pm_put(vma->vm->gt);
+	return err;
 }
 
 static int gtt_get(struct drm_i915_gem_object *obj,
@@ -107,7 +114,7 @@ static int gtt_get(struct drm_i915_gem_object *obj,
 {
 	struct i915_vma *vma;
 	u32 __iomem *map;
-	int err;
+	int err = 0;
 
 	i915_gem_object_lock(obj);
 	err = i915_gem_object_set_to_gtt_domain(obj, false);
@@ -119,15 +126,21 @@ static int gtt_get(struct drm_i915_gem_object *obj,
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
+	intel_gt_pm_get(vma->vm->gt);
+
 	map = i915_vma_pin_iomap(vma);
 	i915_vma_unpin(vma);
-	if (IS_ERR(map))
-		return PTR_ERR(map);
+	if (IS_ERR(map)) {
+		err = PTR_ERR(map);
+		goto out_rpm;
+	}
 
 	*v = ioread32(&map[offset / sizeof(*map)]);
 	i915_vma_unpin_iomap(vma);
 
-	return 0;
+out_rpm:
+	intel_gt_pm_put(vma->vm->gt);
+	return err;
 }
 
 static int wc_set(struct drm_i915_gem_object *obj,
@@ -280,7 +293,6 @@ static int igt_gem_coherency(void *arg)
 	struct drm_i915_private *i915 = arg;
 	const struct igt_coherency_mode *read, *write, *over;
 	struct drm_i915_gem_object *obj;
-	intel_wakeref_t wakeref;
 	unsigned long count, n;
 	u32 *offsets, *values;
 	int err = 0;
@@ -299,8 +311,6 @@ static int igt_gem_coherency(void *arg)
 
 	values = offsets + ncachelines;
 
-	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	for (over = igt_coherency_mode; over->name; over++) {
 		if (!over->set)
 			continue;
@@ -326,7 +336,7 @@ static int igt_gem_coherency(void *arg)
 					obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 					if (IS_ERR(obj)) {
 						err = PTR_ERR(obj);
-						goto unlock;
+						goto free;
 					}
 
 					i915_random_reorder(offsets, ncachelines, &prng);
@@ -377,15 +387,13 @@ static int igt_gem_coherency(void *arg)
 			}
 		}
 	}
-unlock:
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	mutex_unlock(&i915->drm.struct_mutex);
+free:
 	kfree(offsets);
 	return err;
 
 put_object:
 	i915_gem_object_put(obj);
-	goto unlock;
+	goto free;
 }
 
 int i915_gem_coherency_live_selftests(struct drm_i915_private *i915)

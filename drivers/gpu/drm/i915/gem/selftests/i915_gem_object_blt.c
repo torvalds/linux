@@ -65,9 +65,7 @@ static int igt_fill_blt(void *arg)
 		if (!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE))
 			obj->cache_dirty = true;
 
-		mutex_lock(&i915->drm.struct_mutex);
 		err = i915_gem_object_fill_blt(obj, ce, val);
-		mutex_unlock(&i915->drm.struct_mutex);
 		if (err)
 			goto err_unpin;
 
@@ -166,9 +164,7 @@ static int igt_copy_blt(void *arg)
 		if (!(dst->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE))
 			dst->cache_dirty = true;
 
-		mutex_lock(&i915->drm.struct_mutex);
 		err = i915_gem_object_copy_blt(src, dst, ce);
-		mutex_unlock(&i915->drm.struct_mutex);
 		if (err)
 			goto err_unpin;
 

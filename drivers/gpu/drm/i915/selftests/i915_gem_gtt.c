@@ -1705,12 +1705,8 @@ int i915_gem_gtt_mock_selftests(void)
 
 	err = i915_subtests(tests, ggtt);
 
-	mutex_lock(&i915->drm.struct_mutex);
 	mock_device_flush(i915);
-	mutex_unlock(&i915->drm.struct_mutex);
-
 	i915_gem_drain_freed_objects(i915);
-
 	mock_fini_ggtt(ggtt);
 	kfree(ggtt);
 out_put:
@@ -2006,7 +2002,7 @@ static int igt_cs_tlb(void *arg)
 		}
 	}
 end:
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+	if (igt_flush_test(i915))
 		err = -EIO;
 	i915_gem_context_unlock_engines(ctx);
 	i915_gem_object_unpin_map(out);

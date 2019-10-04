@@ -308,10 +308,9 @@ long i915_request_wait(struct i915_request *rq,
 		       long timeout)
 	__attribute__((nonnull(1)));
 #define I915_WAIT_INTERRUPTIBLE	BIT(0)
-#define I915_WAIT_LOCKED	BIT(1) /* struct_mutex held, handle GPU reset */
-#define I915_WAIT_PRIORITY	BIT(2) /* small priority bump for the request */
-#define I915_WAIT_ALL		BIT(3) /* used by i915_gem_object_wait() */
-#define I915_WAIT_FOR_IDLE_BOOST BIT(4)
+#define I915_WAIT_PRIORITY	BIT(1) /* small priority bump for the request */
+#define I915_WAIT_ALL		BIT(2) /* used by i915_gem_object_wait() */
+#define I915_WAIT_FOR_IDLE_BOOST BIT(3)
 
 static inline bool i915_request_signaled(const struct i915_request *rq)
 {

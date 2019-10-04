@@ -196,26 +196,14 @@ int intel_gt_resume(struct intel_gt *gt)
 
 static void wait_for_idle(struct intel_gt *gt)
 {
-	mutex_lock(&gt->i915->drm.struct_mutex); /* XXX */
-	do {
-		if (i915_gem_wait_for_idle(gt->i915,
-					   I915_WAIT_LOCKED,
-					   I915_GEM_IDLE_TIMEOUT) == -ETIME) {
-			/* XXX hide warning from gem_eio */
-			if (i915_modparams.reset) {
-				dev_err(gt->i915->drm.dev,
-					"Failed to idle engines, declaring wedged!\n");
-				GEM_TRACE_DUMP();
-			}
-
-			/*
-			 * Forcibly cancel outstanding work and leave
-			 * the gpu quiet.
-			 */
-			intel_gt_set_wedged(gt);
-		}
-	} while (i915_retire_requests(gt->i915));
-	mutex_unlock(&gt->i915->drm.struct_mutex);
+	if (i915_gem_wait_for_idle(gt->i915, 0,
+				   I915_GEM_IDLE_TIMEOUT) == -ETIME) {
+		/*
+		 * Forcibly cancel outstanding work and leave
+		 * the gpu quiet.
+		 */
+		intel_gt_set_wedged(gt);
+	}
 
 	intel_gt_pm_wait_for_idle(gt);
 }

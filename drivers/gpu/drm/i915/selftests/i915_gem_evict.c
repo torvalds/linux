@@ -523,7 +523,7 @@ static int igt_evict_contexts(void *arg)
 
 	mutex_lock(&i915->ggtt.vm.mutex);
 out_locked:
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+	if (igt_flush_test(i915))
 		err = -EIO;
 	while (reserved) {
 		struct reserved *next = reserved->next;

@@ -164,7 +164,6 @@ struct parallel_switch {
 static int __live_parallel_switch1(void *data)
 {
 	struct parallel_switch *arg = data;
-	struct drm_i915_private *i915 = arg->ce[0]->engine->i915;
 	IGT_TIMEOUT(end_time);
 	unsigned long count;
 
@@ -176,16 +175,12 @@ static int __live_parallel_switch1(void *data)
 		for (n = 0; n < ARRAY_SIZE(arg->ce); n++) {
 			i915_request_put(rq);
 
-			mutex_lock(&i915->drm.struct_mutex);
 			rq = i915_request_create(arg->ce[n]);
-			if (IS_ERR(rq)) {
-				mutex_unlock(&i915->drm.struct_mutex);
+			if (IS_ERR(rq))
 				return PTR_ERR(rq);
-			}
 
 			i915_request_get(rq);
 			i915_request_add(rq);
-			mutex_unlock(&i915->drm.struct_mutex);
 		}
 
 		err = 0;
@@ -205,7 +200,6 @@ static int __live_parallel_switch1(void *data)
 static int __live_parallel_switchN(void *data)
 {
 	struct parallel_switch *arg = data;
-	struct drm_i915_private *i915 = arg->ce[0]->engine->i915;
 	IGT_TIMEOUT(end_time);
 	unsigned long count;
 	int n;
@@ -215,15 +209,11 @@ static int __live_parallel_switchN(void *data)
 		for (n = 0; n < ARRAY_SIZE(arg->ce); n++) {
 			struct i915_request *rq;
 
-			mutex_lock(&i915->drm.struct_mutex);
 			rq = i915_request_create(arg->ce[n]);
-			if (IS_ERR(rq)) {
-				mutex_unlock(&i915->drm.struct_mutex);
+			if (IS_ERR(rq))
 				return PTR_ERR(rq);
-			}
 
 			i915_request_add(rq);
-			mutex_unlock(&i915->drm.struct_mutex);
 		}
 
 		count++;
@@ -1173,7 +1163,7 @@ __sseu_test(const char *name,
 	if (ret)
 		return ret;
 
-	ret = __intel_context_reconfigure_sseu(ce, sseu);
+	ret = intel_context_reconfigure_sseu(ce, sseu);
 	if (ret)
 		goto out_spin;
 
@@ -1277,7 +1267,7 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 		goto out_fail;
 
 out_fail:
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+	if (igt_flush_test(i915))
 		ret = -EIO;
 
 	intel_context_unpin(ce);

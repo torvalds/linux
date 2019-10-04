@@ -318,7 +318,7 @@ static int live_active_context(void *arg)
 		if (err)
 			break;
 
-		err = igt_flush_test(gt->i915, I915_WAIT_LOCKED);
+		err = igt_flush_test(gt->i915);
 		if (err)
 			break;
 	}
@@ -431,7 +431,7 @@ static int live_remote_context(void *arg)
 		if (err)
 			break;
 
-		err = igt_flush_test(gt->i915, I915_WAIT_LOCKED);
+		err = igt_flush_test(gt->i915);
 		if (err)
 			break;
 	}

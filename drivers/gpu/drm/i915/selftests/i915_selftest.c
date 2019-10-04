@@ -263,10 +263,8 @@ int __i915_live_teardown(int err, void *data)
 {
 	struct drm_i915_private *i915 = data;
 
-	mutex_lock(&i915->drm.struct_mutex);
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+	if (igt_flush_test(i915))
 		err = -EIO;
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	i915_gem_drain_freed_objects(i915);
 
@@ -284,10 +282,8 @@ int __intel_gt_live_teardown(int err, void *data)
 {
 	struct intel_gt *gt = data;
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
-	if (igt_flush_test(gt->i915, I915_WAIT_LOCKED))
+	if (igt_flush_test(gt->i915))
 		err = -EIO;
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 
 	i915_gem_drain_freed_objects(gt->i915);
 

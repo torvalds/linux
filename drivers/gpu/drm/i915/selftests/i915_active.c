@@ -162,10 +162,8 @@ static int live_active_wait(void *arg)
 
 	__live_put(active);
 
-	mutex_lock(&i915->drm.struct_mutex);
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+	if (igt_flush_test(i915))
 		err = -EIO;
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	return err;
 }
@@ -183,10 +181,8 @@ static int live_active_retire(void *arg)
 		return PTR_ERR(active);
 
 	/* waits for & retires all requests */
-	mutex_lock(&i915->drm.struct_mutex);
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+	if (igt_flush_test(i915))
 		err = -EIO;
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	if (!READ_ONCE(active->retired)) {
 		pr_err("i915_active not retired after flushing!\n");

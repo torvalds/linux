@@ -833,12 +833,8 @@ int i915_vma_mock_selftests(void)
 
 	err = i915_subtests(tests, ggtt);
 
-	mutex_lock(&i915->drm.struct_mutex);
 	mock_device_flush(i915);
-	mutex_unlock(&i915->drm.struct_mutex);
-
 	i915_gem_drain_freed_objects(i915);
-
 	mock_fini_ggtt(ggtt);
 	kfree(ggtt);
 out_put:

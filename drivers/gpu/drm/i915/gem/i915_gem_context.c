@@ -1159,8 +1159,7 @@ gen8_modify_rpcs(struct intel_context *ce, struct intel_sseu sseu)
 }
 
 static int
-__intel_context_reconfigure_sseu(struct intel_context *ce,
-				 struct intel_sseu sseu)
+intel_context_reconfigure_sseu(struct intel_context *ce, struct intel_sseu sseu)
 {
 	int ret;
 
@@ -1180,23 +1179,6 @@ __intel_context_reconfigure_sseu(struct intel_context *ce,
 
 unlock:
 	intel_context_unlock_pinned(ce);
-	return ret;
-}
-
-static int
-intel_context_reconfigure_sseu(struct intel_context *ce, struct intel_sseu sseu)
-{
-	struct drm_i915_private *i915 = ce->engine->i915;
-	int ret;
-
-	ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
-	if (ret)
-		return ret;
-
-	ret = __intel_context_reconfigure_sseu(ce, sseu);
-
-	mutex_unlock(&i915->drm.struct_mutex);
-
 	return ret;
 }
 

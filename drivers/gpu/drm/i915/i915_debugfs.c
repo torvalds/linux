@@ -3621,6 +3621,7 @@ static int
 i915_drop_caches_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
+	int ret;
 
 	DRM_DEBUG("Dropping caches: 0x%08llx [0x%08llx]\n",
 		  val, val & DROP_ALL);
@@ -3630,40 +3631,21 @@ i915_drop_caches_set(void *data, u64 val)
 		     I915_IDLE_ENGINES_TIMEOUT))
 		intel_gt_set_wedged(&i915->gt);
 
-	/* No need to check and wait for gpu resets, only libdrm auto-restarts
-	 * on ioctls on -EAGAIN. */
-	if (val & (DROP_ACTIVE | DROP_IDLE | DROP_RETIRE | DROP_RESET_SEQNO)) {
-		int ret;
+	if (val & DROP_RETIRE)
+		i915_retire_requests(i915);
 
-		ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
+	if (val & (DROP_IDLE | DROP_ACTIVE)) {
+		ret = i915_gem_wait_for_idle(i915,
+					     I915_WAIT_INTERRUPTIBLE,
+					     MAX_SCHEDULE_TIMEOUT);
 		if (ret)
 			return ret;
+	}
 
-		/*
-		 * To finish the flush of the idle_worker, we must complete
-		 * the switch-to-kernel-context, which requires a double
-		 * pass through wait_for_idle: first queues the switch,
-		 * second waits for the switch.
-		 */
-		if (ret == 0 && val & (DROP_IDLE | DROP_ACTIVE))
-			ret = i915_gem_wait_for_idle(i915,
-						     I915_WAIT_INTERRUPTIBLE |
-						     I915_WAIT_LOCKED,
-						     MAX_SCHEDULE_TIMEOUT);
-
-		if (ret == 0 && val & DROP_IDLE)
-			ret = i915_gem_wait_for_idle(i915,
-						     I915_WAIT_INTERRUPTIBLE |
-						     I915_WAIT_LOCKED,
-						     MAX_SCHEDULE_TIMEOUT);
-
-		if (val & DROP_RETIRE)
-			i915_retire_requests(i915);
-
-		mutex_unlock(&i915->drm.struct_mutex);
-
-		if (ret == 0 && val & DROP_IDLE)
-			ret = intel_gt_pm_wait_for_idle(&i915->gt);
+	if (val & DROP_IDLE) {
+		ret = intel_gt_pm_wait_for_idle(&i915->gt);
+		if (ret)
+			return ret;
 	}
 
 	if (val & DROP_RESET_ACTIVE && intel_gt_terminally_wedged(&i915->gt))
