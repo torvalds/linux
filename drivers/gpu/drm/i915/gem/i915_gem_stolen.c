@@ -692,7 +692,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	__i915_vma_set_map_and_fenceable(vma);
 
 	mutex_lock(&ggtt->vm.mutex);
-	list_move_tail(&vma->vm_link, &ggtt->vm.bound_list);
+	list_add_tail(&vma->vm_link, &ggtt->vm.bound_list);
 	mutex_unlock(&ggtt->vm.mutex);
 
 	GEM_BUG_ON(i915_gem_object_is_shrinkable(obj));

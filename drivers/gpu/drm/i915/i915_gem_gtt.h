@@ -320,11 +320,6 @@ struct i915_address_space {
 	 */
 	struct list_head bound_list;
 
-	/**
-	 * List of vma that are not unbound.
-	 */
-	struct list_head unbound_list;
-
 	struct pagestash free_pages;
 
 	/* Global GTT */

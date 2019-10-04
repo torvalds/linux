@@ -1242,7 +1242,7 @@ static void track_vma_bind(struct i915_vma *vma)
 	vma->pages = obj->mm.pages;
 
 	mutex_lock(&vma->vm->mutex);
-	list_move_tail(&vma->vm_link, &vma->vm->bound_list);
+	list_add_tail(&vma->vm_link, &vma->vm->bound_list);
 	mutex_unlock(&vma->vm->mutex);
 }
 

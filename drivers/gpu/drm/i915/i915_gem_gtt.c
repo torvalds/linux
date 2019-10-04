@@ -505,19 +505,12 @@ static void i915_address_space_fini(struct i915_address_space *vm)
 
 static void ppgtt_destroy_vma(struct i915_address_space *vm)
 {
-	struct list_head *phases[] = {
-		&vm->bound_list,
-		&vm->unbound_list,
-		NULL,
-	}, **phase;
+	struct i915_vma *vma, *vn;
 
 	mutex_lock(&vm->i915->drm.struct_mutex);
-	for (phase = phases; *phase; phase++) {
-		struct i915_vma *vma, *vn;
-
-		list_for_each_entry_safe(vma, vn, *phase, vm_link)
-			i915_vma_destroy(vma);
-	}
+	list_for_each_entry_safe(vma, vn, &vm->bound_list, vm_link)
+		i915_vma_destroy(vma);
+	GEM_BUG_ON(!list_empty(&vm->bound_list));
 	mutex_unlock(&vm->i915->drm.struct_mutex);
 }
 
@@ -527,9 +520,6 @@ static void __i915_vm_release(struct work_struct *work)
 		container_of(work, struct i915_address_space, rcu.work);
 
 	ppgtt_destroy_vma(vm);
-
-	GEM_BUG_ON(!list_empty(&vm->bound_list));
-	GEM_BUG_ON(!list_empty(&vm->unbound_list));
 
 	vm->cleanup(vm);
 	i915_address_space_fini(vm);
@@ -569,7 +559,6 @@ static void i915_address_space_init(struct i915_address_space *vm, int subclass)
 
 	stash_init(&vm->free_pages);
 
-	INIT_LIST_HEAD(&vm->unbound_list);
 	INIT_LIST_HEAD(&vm->bound_list);
 }
 
@@ -1886,10 +1875,6 @@ static struct i915_vma *pd_vma_create(struct gen6_ppgtt *ppgtt, int size)
 
 	INIT_LIST_HEAD(&vma->obj_link);
 	INIT_LIST_HEAD(&vma->closed_link);
-
-	mutex_lock(&vma->vm->mutex);
-	list_add(&vma->vm_link, &vma->vm->unbound_list);
-	mutex_unlock(&vma->vm->mutex);
 
 	return vma;
 }
