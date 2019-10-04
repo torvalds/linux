@@ -223,7 +223,8 @@ enum stcctm_ctr_set {
 	MT_DIAG = 5,
 	MT_DIAG_CLEARING = 9,	/* clears loss-of-MT-ctr-data alert */
 };
-static inline int stcctm(enum stcctm_ctr_set set, u64 range, u64 *dest)
+
+static __always_inline int stcctm(enum stcctm_ctr_set set, u64 range, u64 *dest)
 {
 	int cc;
 
