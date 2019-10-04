@@ -678,6 +678,7 @@ static inline bool phy_is_started(struct phy_device *phydev)
 	return phydev->state >= PHY_UP;
 }
 
+void phy_resolve_aneg_pause(struct phy_device *phydev);
 void phy_resolve_aneg_linkmode(struct phy_device *phydev);
 
 /**
