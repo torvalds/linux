@@ -10,6 +10,7 @@ enum perf_data_mode {
 };
 
 enum perf_dir_version {
+	PERF_DIR_SINGLE_FILE	= 0,
 	PERF_DIR_VERSION	= 1,
 };
 
@@ -52,6 +53,11 @@ static inline int perf_data__is_pipe(struct perf_data *data)
 static inline bool perf_data__is_dir(struct perf_data *data)
 {
 	return data->is_dir;
+}
+
+static inline bool perf_data__is_single_file(struct perf_data *data)
+{
+	return data->dir.version == PERF_DIR_SINGLE_FILE;
 }
 
 static inline int perf_data__fd(struct perf_data *data)

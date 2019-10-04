@@ -1,0 +1,28 @@
+perf.data directory format
+
+DISCLAIMER This is not ABI yet and is subject to possible change
+           in following versions of perf. We will remove this
+           disclaimer once the directory format soaks in.
+
+
+This document describes the on-disk perf.data directory format.
+
+The layout is described by HEADER_DIR_FORMAT feature.
+Currently it holds only version number (0):
+
+  HEADER_DIR_FORMAT = 24
+
+  struct {
+     uint64_t version;
+  }
+
+The current only version value 0 means that:
+  - there is a single perf.data file named 'data' within the directory.
+  e.g.
+
+    $ tree -ps perf.data
+    perf.data
+    └── [-rw-------       25912]  data
+
+Future versions are expected to describe different data files
+layout according to special needs.

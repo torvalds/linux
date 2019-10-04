@@ -76,6 +76,13 @@ int perf_data__open_dir(struct perf_data *data)
 	DIR *dir;
 	int nr = 0;
 
+	/*
+	 * Directory containing a single regular perf data file which is already
+	 * open, means there is nothing more to do here.
+	 */
+	if (perf_data__is_single_file(data))
+		return 0;
+
 	if (WARN_ON(!data->is_dir))
 		return -EINVAL;
 
@@ -406,7 +413,7 @@ unsigned long perf_data__size(struct perf_data *data)
 	u64 size = data->file.size;
 	int i;
 
-	if (!data->is_dir)
+	if (perf_data__is_single_file(data))
 		return size;
 
 	for (i = 0; i < data->dir.nr; i++) {
