@@ -1,0 +1,58 @@
+From b9b64c04b9ba674d30ad0445f3fed0ac3be16eff Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Maciej=20=C5=BBenczykowski?= <maze@google.com>
+Date: Thu, 4 Apr 2019 00:40:13 -0700
+Subject: ANDROID: cuttlefish: enable CONFIG_NET_SCH_INGRESS=y
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This is to mirror:
+  https://android-review.googlesource.com/c/kernel/configs/+/939600
+  android-4.9+ for Q: require CONFIG_NET_SCH_INGRESS=y
+
+Generated via:
+  echo 'CONFIG_NET_SCH_INGRESS=y' >> arch/x86/configs/x86_64_cuttlefish_defconfig
+  echo 'CONFIG_NET_SCH_INGRESS=y' >> arch/arm64/configs/cuttlefish_defconfig
+  make ARCH=x86_64 x86_64_cuttlefish_defconfig
+  make ARCH=x86_64 savedefconfig
+  cat defconfig > arch/x86/configs/x86_64_cuttlefish_defconfig
+  make ARCH=arm64 cuttlefish_defconfig
+  make ARCH=arm64 savedefconfig
+  cat defconfig > arch/arm64/configs/cuttlefish_defconfig
+  rm defconfig
+
+Bug: 65674744
+Signed-off-by: Maciej Żenczykowski <maze@google.com>
+Change-Id: I3ad4fb15e450392e527563208587b18b8285b3a8
+---
+ arch/arm64/configs/cuttlefish_defconfig      | 1 +
+ arch/x86/configs/x86_64_cuttlefish_defconfig | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
+index 76a68561f2fb1..3e13e7149946a 100644
+--- a/arch/arm64/configs/cuttlefish_defconfig
++++ b/arch/arm64/configs/cuttlefish_defconfig
+@@ -182,6 +182,7 @@ CONFIG_L2TP=y
+ CONFIG_NET_SCHED=y
+ CONFIG_NET_SCH_HTB=y
+ CONFIG_NET_SCH_NETEM=y
++CONFIG_NET_SCH_INGRESS=y
+ CONFIG_NET_CLS_U32=y
+ CONFIG_NET_CLS_BPF=y
+ CONFIG_NET_EMATCH=y
+diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
+index b2ad519f11c70..bc44933298024 100644
+--- a/arch/x86/configs/x86_64_cuttlefish_defconfig
++++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
+@@ -188,6 +188,7 @@ CONFIG_IP6_NF_RAW=y
+ CONFIG_NET_SCHED=y
+ CONFIG_NET_SCH_HTB=y
+ CONFIG_NET_SCH_NETEM=y
++CONFIG_NET_SCH_INGRESS=y
+ CONFIG_NET_CLS_U32=y
+ CONFIG_NET_CLS_BPF=y
+ CONFIG_NET_EMATCH=y
+-- 
+2.23.0.444.g18eeb5a265-goog
+

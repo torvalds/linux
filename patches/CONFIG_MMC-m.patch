@@ -1,0 +1,48 @@
+From 76dd6e0a5844f12e518d76df823eee1ad31cef9b Mon Sep 17 00:00:00 2001
+From: Mark Salyzyn <salyzyn@google.com>
+Date: Thu, 12 Sep 2019 14:06:44 -0700
+Subject: CONFIG_MMC=m
+
+Signed-off-by: Mark Salyzyn <salyzyn@google.com>
+Test: compile
+Bug: 140652382
+Change-Id: Ie6002cde4d964920c71edd347851df9ceec4ee0f
+(cherry picked from commit 30f8bea960e42921156a401e8e8ddb80fa3ee5c6)
+---
+ arch/arm64/configs/gki_defconfig | 6 +++---
+ arch/x86/configs/gki_defconfig   | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+Index: common/arch/arm64/configs/gki_defconfig
+===================================================================
+--- common.orig/arch/arm64/configs/gki_defconfig
++++ common/arch/arm64/configs/gki_defconfig
+@@ -323,11 +323,11 @@ CONFIG_USB_CONFIGFS_F_FS=y
+ CONFIG_USB_CONFIGFS_F_ACC=y
+ CONFIG_USB_CONFIGFS_F_AUDIO_SRC=y
+ CONFIG_USB_CONFIGFS_F_MIDI=y
+-CONFIG_MMC=y
++CONFIG_MMC=m
+ # CONFIG_PWRSEQ_EMMC is not set
+ # CONFIG_PWRSEQ_SIMPLE is not set
+-CONFIG_MMC_SDHCI=y
+-CONFIG_MMC_SDHCI_PLTFM=y
++CONFIG_MMC_SDHCI=m
++CONFIG_MMC_SDHCI_PLTFM=m
+ CONFIG_NEW_LEDS=y
+ CONFIG_LEDS_CLASS=y
+ CONFIG_LEDS_TRIGGERS=y
+Index: common/arch/x86/configs/gki_defconfig
+===================================================================
+--- common.orig/arch/x86/configs/gki_defconfig
++++ common/arch/x86/configs/gki_defconfig
+@@ -280,8 +280,7 @@ CONFIG_USB_CONFIGFS_F_FS=y
+ CONFIG_USB_CONFIGFS_F_ACC=y
+ CONFIG_USB_CONFIGFS_F_AUDIO_SRC=y
+ CONFIG_USB_CONFIGFS_F_MIDI=y
+-CONFIG_MMC=y
+-# CONFIG_MMC_BLOCK is not set
++CONFIG_MMC=m
+ CONFIG_NEW_LEDS=y
+ CONFIG_LEDS_CLASS=y
+ CONFIG_LEDS_TRIGGERS=y

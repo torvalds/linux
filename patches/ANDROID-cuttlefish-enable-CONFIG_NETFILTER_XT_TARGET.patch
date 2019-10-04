@@ -1,0 +1,59 @@
+From e3ace526f9d00eed15557bb2425a4ff307a806ae Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Maciej=20=C5=BBenczykowski?= <maze@google.com>
+Date: Tue, 5 Mar 2019 23:04:17 -0800
+Subject: ANDROID: cuttlefish: enable
+ CONFIG_NETFILTER_XT_TARGET_CT=y
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This is to mirror:
+  https://android-review.googlesource.com/c/kernel/configs/+/919855
+  android-4.9+: add CONFIG_NETFILTER_XT_TARGET_CT=y to base config
+
+Generated via:
+  echo 'CONFIG_NETFILTER_XT_TARGET_CT=y' >> arch/x86/configs/x86_64_cuttlefish_defconfig
+  echo 'CONFIG_NETFILTER_XT_TARGET_CT=y' >> arch/arm64/configs/cuttlefish_defconfig
+  make ARCH=x86_64 x86_64_cuttlefish_defconfig
+  make ARCH=x86_64 savedefconfig
+  cat defconfig > arch/x86/configs/x86_64_cuttlefish_defconfig
+  make ARCH=arm64 cuttlefish_defconfig
+  make ARCH=arm64 savedefconfig
+  cat defconfig > arch/arm64/configs/cuttlefish_defconfig
+  rm defconfig
+
+Bug: 124361845
+Signed-off-by: Maciej Żenczykowski <maze@google.com>
+Change-Id: I6035ef8e75f9daada706a9233999368a22904c4e
+---
+ arch/arm64/configs/cuttlefish_defconfig      | 1 +
+ arch/x86/configs/x86_64_cuttlefish_defconfig | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
+index 622db3a8c04b1..2bff38b2701fc 100644
+--- a/arch/arm64/configs/cuttlefish_defconfig
++++ b/arch/arm64/configs/cuttlefish_defconfig
+@@ -123,6 +123,7 @@ CONFIG_NF_CT_NETLINK=y
+ CONFIG_NETFILTER_XT_TARGET_CLASSIFY=y
+ CONFIG_NETFILTER_XT_TARGET_CONNMARK=y
+ CONFIG_NETFILTER_XT_TARGET_CONNSECMARK=y
++CONFIG_NETFILTER_XT_TARGET_CT=y
+ CONFIG_NETFILTER_XT_TARGET_IDLETIMER=y
+ CONFIG_NETFILTER_XT_TARGET_MARK=y
+ CONFIG_NETFILTER_XT_TARGET_NFLOG=y
+diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
+index e8da561819039..f2682d56232ba 100644
+--- a/arch/x86/configs/x86_64_cuttlefish_defconfig
++++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
+@@ -127,6 +127,7 @@ CONFIG_NF_CT_NETLINK=y
+ CONFIG_NETFILTER_XT_TARGET_CLASSIFY=y
+ CONFIG_NETFILTER_XT_TARGET_CONNMARK=y
+ CONFIG_NETFILTER_XT_TARGET_CONNSECMARK=y
++CONFIG_NETFILTER_XT_TARGET_CT=y
+ CONFIG_NETFILTER_XT_TARGET_IDLETIMER=y
+ CONFIG_NETFILTER_XT_TARGET_MARK=y
+ CONFIG_NETFILTER_XT_TARGET_NFLOG=y
+-- 
+2.23.0.444.g18eeb5a265-goog
+

@@ -1,0 +1,59 @@
+From 04117ea579e13122c3c44954aa2b1233d65efa96 Mon Sep 17 00:00:00 2001
+From: Alistair Strachan <astrachan@google.com>
+Date: Tue, 14 May 2019 16:07:58 -0700
+Subject: ANDROID: Move from clang r349610 to r353983c.
+
+Bug: 120439617
+Bug: 132097678
+Test: make ARCH=arm64 cuttlefish_defconfig && make ARCH=arm64
+Test: make ARCH=x86_64 x86_64_cuttlefish_defconfig && make ARCH=x86_64
+Change-Id: If5542a39e36fb4de6dd4b4135a22e188f752dd84
+Signed-off-by: Alistair Strachan <astrachan@google.com>
+---
+ build.config.cuttlefish.aarch64 | 2 +-
+ build.config.cuttlefish.x86_64  | 2 +-
+ build.config.gki.aarch64        | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/build.config.cuttlefish.aarch64 b/build.config.cuttlefish.aarch64
+index fe921b46a9a8d..ec53d6eac9ea3 100644
+--- a/build.config.cuttlefish.aarch64
++++ b/build.config.cuttlefish.aarch64
+@@ -6,7 +6,7 @@ DEFCONFIG=cuttlefish_defconfig
+ EXTRA_CMDS=''
+ KERNEL_DIR=common
+ POST_DEFCONFIG_CMDS="check_defconfig"
+-CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r349610/bin
++CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r353983c/bin
+ LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
+ FILES="
+ arch/arm64/boot/Image.gz
+diff --git a/build.config.cuttlefish.x86_64 b/build.config.cuttlefish.x86_64
+index 31e4057673f41..b49683d476d62 100644
+--- a/build.config.cuttlefish.x86_64
++++ b/build.config.cuttlefish.x86_64
+@@ -6,7 +6,7 @@ DEFCONFIG=x86_64_cuttlefish_defconfig
+ EXTRA_CMDS=''
+ KERNEL_DIR=common
+ POST_DEFCONFIG_CMDS="check_defconfig"
+-CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r349610/bin
++CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r353983c/bin
+ LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/bin
+ FILES="
+ arch/x86/boot/bzImage
+diff --git a/build.config.gki.aarch64 b/build.config.gki.aarch64
+index dec295284ffa0..ecc2985e92cb5 100644
+--- a/build.config.gki.aarch64
++++ b/build.config.gki.aarch64
+@@ -7,7 +7,7 @@ DEFCONFIG=gki_defconfig
+ EXTRA_CMDS=''
+ KERNEL_DIR=common
+ POST_DEFCONFIG_CMDS="check_defconfig"
+-CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r349610/bin
++CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r353983c/bin
+ LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
+ FILES="
+ arch/arm64/boot/Image.gz
+-- 
+2.23.0.444.g18eeb5a265-goog
+

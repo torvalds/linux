@@ -1,0 +1,40 @@
+From 812391f188cfdf1a43a6247232daef6b2bb9bf9f Mon Sep 17 00:00:00 2001
+From: Alistair Strachan <astrachan@google.com>
+Date: Wed, 2 Jan 2019 15:24:37 -0800
+Subject: ANDROID: cuttlefish_defconfig: Enable VIRTIO_INPUT
+
+Bug: 120439617
+Change-Id: I83fdb2088f17e71f377e5864d217655b47839267
+Signed-off-by: Alistair Strachan <astrachan@google.com>
+---
+ arch/arm64/configs/cuttlefish_defconfig      | 1 +
+ arch/x86/configs/x86_64_cuttlefish_defconfig | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
+index 7506d19bd6fb6..730006337b2c3 100644
+--- a/arch/arm64/configs/cuttlefish_defconfig
++++ b/arch/arm64/configs/cuttlefish_defconfig
+@@ -372,6 +372,7 @@ CONFIG_RTC_DRV_PL031=y
+ CONFIG_VIRTIO_PCI=y
+ # CONFIG_VIRTIO_PCI_LEGACY is not set
+ CONFIG_VIRTIO_BALLOON=y
++CONFIG_VIRTIO_INPUT=y
+ CONFIG_VIRTIO_MMIO=y
+ CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES=y
+ CONFIG_STAGING=y
+diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
+index 94ca3e49694c6..3bd7f24a945f5 100644
+--- a/arch/x86/configs/x86_64_cuttlefish_defconfig
++++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
+@@ -383,6 +383,7 @@ CONFIG_RTC_CLASS=y
+ CONFIG_SW_SYNC=y
+ CONFIG_VIRTIO_PCI=y
+ CONFIG_VIRTIO_BALLOON=y
++CONFIG_VIRTIO_INPUT=y
+ CONFIG_VIRTIO_MMIO=y
+ CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES=y
+ CONFIG_STAGING=y
+-- 
+2.23.0.444.g18eeb5a265-goog
+

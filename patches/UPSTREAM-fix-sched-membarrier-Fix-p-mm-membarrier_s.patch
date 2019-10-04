@@ -1,0 +1,31 @@
+From 935f8bc6f7aa2acf33de46a7aa15ec9a5825f977 Mon Sep 17 00:00:00 2001
+From: Greg Kroah-Hartman <gregkh@google.com>
+Date: Wed, 2 Oct 2019 19:11:32 +0200
+Subject: UPSTREAM: fix "sched/membarrier: Fix
+ p->mm->membarrier_state racy load"
+
+Upstream patch fix from this thread:
+https://lore.kernel.org/lkml/20191001071921.GJ4519@hirez.programming.kicks-ass.net/
+
+Signed-off-by: Greg Kroah-Hartman <gregkh@google.com>
+Reviewed-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+Change-Id: Ia54bf5a29eba3c6d36e7a0b32442af7ff09a3998
+---
+ kernel/sched/membarrier.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/kernel/sched/membarrier.c b/kernel/sched/membarrier.c
+index a39bed2c784f..168479a7d61b 100644
+--- a/kernel/sched/membarrier.c
++++ b/kernel/sched/membarrier.c
+@@ -174,7 +174,6 @@ static int membarrier_private_expedited(int flags)
+ 		 */
+ 		if (cpu == raw_smp_processor_id())
+ 			continue;
+-		rcu_read_lock();
+ 		p = rcu_dereference(cpu_rq(cpu)->curr);
+ 		if (p && p->mm == mm)
+ 			__cpumask_set_cpu(cpu, tmpmask);
+-- 
+2.23.0.444.g18eeb5a265-goog
+

@@ -1,0 +1,57 @@
+From 4d401c69ddd4131e1fd9a73e229686e1c6785dd7 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Maciej=20=C5=BBenczykowski?= <maze@google.com>
+Date: Tue, 15 Jan 2019 16:35:27 -0800
+Subject: ANDROID: cuttlefish: enable CONFIG_NET_CLS_BPF=y
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This is to mirror
+  https://android-review.googlesource.com/c/kernel/configs/+/870517
+  android-4.9+: add CONFIG_NET_CLS_BPF to base
+
+Generated via:
+  echo 'CONFIG_NET_CLS_BPF=y' >> arch/x86/configs/x86_64_cuttlefish_defconfig
+  echo 'CONFIG_NET_CLS_BPF=y' >> arch/arm64/configs/cuttlefish_defconfig
+  make ARCH=x86_64 x86_64_cuttlefish_defconfig
+  make ARCH=x86_64 savedefconfig
+  cat defconfig > arch/x86/configs/x86_64_cuttlefish_defconfig
+  make ARCH=arm64 cuttlefish_defconfig
+  make ARCH=arm64 savedefconfig
+  cat defconfig > arch/arm64/configs/cuttlefish_defconfig
+
+Bug: 65674744
+Change-Id: I8e4dfe7a99d38fd5942001a1aab83b7ac9df30dd
+Signed-off-by: Maciej Żenczykowski <maze@google.com>
+---
+ arch/arm64/configs/cuttlefish_defconfig      | 1 +
+ arch/x86/configs/x86_64_cuttlefish_defconfig | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
+index 730006337b2c3..0aaf923e8c5a0 100644
+--- a/arch/arm64/configs/cuttlefish_defconfig
++++ b/arch/arm64/configs/cuttlefish_defconfig
+@@ -178,6 +178,7 @@ CONFIG_L2TP=y
+ CONFIG_NET_SCHED=y
+ CONFIG_NET_SCH_HTB=y
+ CONFIG_NET_CLS_U32=y
++CONFIG_NET_CLS_BPF=y
+ CONFIG_NET_EMATCH=y
+ CONFIG_NET_EMATCH_U32=y
+ CONFIG_NET_CLS_ACT=y
+diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
+index 3bd7f24a945f5..183dd803421eb 100644
+--- a/arch/x86/configs/x86_64_cuttlefish_defconfig
++++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
+@@ -183,6 +183,7 @@ CONFIG_IP6_NF_RAW=y
+ CONFIG_NET_SCHED=y
+ CONFIG_NET_SCH_HTB=y
+ CONFIG_NET_CLS_U32=y
++CONFIG_NET_CLS_BPF=y
+ CONFIG_NET_EMATCH=y
+ CONFIG_NET_EMATCH_U32=y
+ CONFIG_NET_CLS_ACT=y
+-- 
+2.23.0.444.g18eeb5a265-goog
+

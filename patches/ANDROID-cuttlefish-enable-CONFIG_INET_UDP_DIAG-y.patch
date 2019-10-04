@@ -1,0 +1,45 @@
+From 1fdc8c1e4dbae081228965ed9235e573740b6400 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Maciej=20=C5=BBenczykowski?= <maze@google.com>
+Date: Fri, 8 Mar 2019 12:59:37 -0800
+Subject: ANDROID: cuttlefish: enable CONFIG_INET_UDP_DIAG=y
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This is to mirror:
+  https://android-review.googlesource.com/c/kernel/configs/+/721208
+  android-base.cfg: enable CONFIG_INET_UDP_DIAG
+
+Generated via:
+  echo 'CONFIG_INET_UDP_DIAG=y' >> arch/x86/configs/x86_64_cuttlefish_defconfig
+  echo 'CONFIG_INET_UDP_DIAG=y' >> arch/arm64/configs/cuttlefish_defconfig
+  make ARCH=x86_64 x86_64_cuttlefish_defconfig
+  make ARCH=x86_64 savedefconfig
+  cat defconfig > arch/x86/configs/x86_64_cuttlefish_defconfig
+  make ARCH=arm64 cuttlefish_defconfig
+  make ARCH=arm64 savedefconfig
+  cat defconfig > arch/arm64/configs/cuttlefish_defconfig
+  rm defconfig
+
+Bug: 127981801
+Signed-off-by: Maciej Żenczykowski <maze@google.com>
+Change-Id: I5d4533b7c3b9a11e45e96b0346a70b3f93d4a812
+---
+ arch/x86/configs/x86_64_cuttlefish_defconfig | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
+index 6bc11c09af2be..e0729ca6bd0e0 100644
+--- a/arch/x86/configs/x86_64_cuttlefish_defconfig
++++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
+@@ -96,6 +96,7 @@ CONFIG_SYN_COOKIES=y
+ CONFIG_NET_IPVTI=y
+ CONFIG_INET_ESP=y
+ # CONFIG_INET_XFRM_MODE_BEET is not set
++CONFIG_INET_UDP_DIAG=y
+ CONFIG_INET_DIAG_DESTROY=y
+ CONFIG_TCP_CONG_ADVANCED=y
+ # CONFIG_TCP_CONG_BIC is not set
+-- 
+2.23.0.444.g18eeb5a265-goog
+

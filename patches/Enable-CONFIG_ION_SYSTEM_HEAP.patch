@@ -1,0 +1,41 @@
+From 56a578319367ae92d8c64809a8a96ddd4d5b6f72 Mon Sep 17 00:00:00 2001
+From: "Jorge E. Moreira" <jemoreira@google.com>
+Date: Thu, 23 May 2019 17:26:51 -0700
+Subject: Enable CONFIG_ION_SYSTEM_HEAP
+
+Bug: 132983011
+Test: atest MediaStore_Video_ThumbnailsTest
+Signed-off-by: Jorge E. Moreira <jemoreira@google.com>
+Change-Id: I2211af2700439c14e7ff53ac5c7e45579d0ab8bf
+---
+ arch/arm64/configs/cuttlefish_defconfig      | 1 +
+ arch/x86/configs/x86_64_cuttlefish_defconfig | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
+index 41502bd397dd5..69ee170e471d6 100644
+--- a/arch/arm64/configs/cuttlefish_defconfig
++++ b/arch/arm64/configs/cuttlefish_defconfig
+@@ -390,6 +390,7 @@ CONFIG_STAGING=y
+ CONFIG_ASHMEM=y
+ CONFIG_ANDROID_VSOC=y
+ CONFIG_ION=y
++CONFIG_ION_SYSTEM_HEAP=y
+ CONFIG_COMMON_CLK_SCPI=y
+ # CONFIG_COMMON_CLK_XGENE is not set
+ CONFIG_MAILBOX=y
+diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
+index 06c931405999c..cdb7e31593e1c 100644
+--- a/arch/x86/configs/x86_64_cuttlefish_defconfig
++++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
+@@ -407,6 +407,7 @@ CONFIG_STAGING=y
+ CONFIG_ASHMEM=y
+ CONFIG_ANDROID_VSOC=y
+ CONFIG_ION=y
++CONFIG_ION_SYSTEM_HEAP=y
+ # CONFIG_X86_PLATFORM_DEVICES is not set
+ # CONFIG_IOMMU_SUPPORT is not set
+ CONFIG_ANDROID=y
+-- 
+2.23.0.444.g18eeb5a265-goog
+

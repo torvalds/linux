@@ -1,0 +1,32 @@
+From 21d4489e0abdfcff64c88a0505392f9256315c2a Mon Sep 17 00:00:00 2001
+From: Ram Muthiah <rammuthiah@google.com>
+Date: Tue, 13 Aug 2019 10:11:28 -0700
+Subject: Adding GKI Ramdisk to gki config
+
+Test: Treehugger
+Bug: 132629930
+Change-Id: I3773d828cea4ab0ea8cfaef8a533a5ae925f037c
+Signed-of-by: Ram Muthiah <rammuthiah@google.com>
+---
+ build.config.gki.aarch64 | 1 +
+ build.config.gki.x86_64  | 1 +
+ 2 files changed, 2 insertions(+)
+
+Index: common/build.config.gki.aarch64
+===================================================================
+--- common.orig/build.config.gki.aarch64
++++ common/build.config.gki.aarch64
+@@ -16,3 +16,4 @@ vmlinux
+ System.map
+ "
+ STOP_SHIP_TRACEPRINTK=1
++BUILD_INITRAMFS=1
+Index: common/build.config.gki.x86_64
+===================================================================
+--- common.orig/build.config.gki.x86_64
++++ common/build.config.gki.x86_64
+@@ -16,3 +16,4 @@ vmlinux
+ System.map
+ "
+ STOP_SHIP_TRACEPRINTK=1
++BUILD_INITRAMFS=1

@@ -1,0 +1,26 @@
+From 9c1e79aef63fc344f83656f4183264bb3db23f87 Mon Sep 17 00:00:00 2001
+From: Tri Vo <trong@google.com>
+Date: Wed, 17 Jul 2019 15:25:54 -0700
+Subject: ANDROID: gki_defconfig: disable BRIDGE_NETFILTER
+
+This config is explicitly disabled on Pixel 3.
+
+Change-Id: I126e5222180e3880a71c0f78b99276b0157ef4c8
+Signed-off-by: Tri Vo <trong@google.com>
+---
+ abi_gki_aarch64.xml              | 132495 +++++++++++++++-------------
+ arch/arm64/configs/gki_defconfig |      1 +
+ 2 files changed, 70038 insertions(+), 62458 deletions(-)
+
+Index: common/arch/arm64/configs/gki_defconfig
+===================================================================
+--- common.orig/arch/arm64/configs/gki_defconfig
++++ common/arch/arm64/configs/gki_defconfig
+@@ -101,6 +101,7 @@ CONFIG_IPV6_MIP6=y
+ CONFIG_IPV6_VTI=y
+ CONFIG_IPV6_MULTIPLE_TABLES=y
+ CONFIG_NETFILTER=y
++# CONFIG_BRIDGE_NETFILTER is not set
+ CONFIG_NF_CONNTRACK=y
+ CONFIG_NF_CONNTRACK_SECMARK=y
+ CONFIG_NF_CONNTRACK_EVENTS=y
