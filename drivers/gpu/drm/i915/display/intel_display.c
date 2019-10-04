@@ -135,8 +135,6 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
 static void chv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
-static void intel_begin_crtc_commit(struct intel_atomic_state *, struct intel_crtc *);
-static void intel_finish_crtc_commit(struct intel_atomic_state *, struct intel_crtc *);
 static void intel_crtc_init_scalers(struct intel_crtc *crtc,
 				    struct intel_crtc_state *crtc_state);
 static void skylake_pfit_enable(const struct intel_crtc_state *crtc_state);
@@ -4399,45 +4397,6 @@ static void icl_set_pipe_chicken(struct intel_crtc *crtc)
 	 */
 	tmp |= PIXEL_ROUNDING_TRUNC_FB_PASSTHRU;
 	I915_WRITE(PIPE_CHICKEN(pipe), tmp);
-}
-
-static void intel_update_pipe_config(const struct intel_crtc_state *old_crtc_state,
-				     const struct intel_crtc_state *new_crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-
-	/* drm_atomic_helper_update_legacy_modeset_state might not be called. */
-	crtc->base.mode = new_crtc_state->base.mode;
-
-	/*
-	 * Update pipe size and adjust fitter if needed: the reason for this is
-	 * that in compute_mode_changes we check the native mode (not the pfit
-	 * mode) to see if we can flip rather than do a full mode set. In the
-	 * fastboot case, we'll flip, but if we don't update the pipesrc and
-	 * pfit state, we'll end up with a big fb scanned out into the wrong
-	 * sized surface.
-	 */
-
-	I915_WRITE(PIPESRC(crtc->pipe),
-		   ((new_crtc_state->pipe_src_w - 1) << 16) |
-		   (new_crtc_state->pipe_src_h - 1));
-
-	/* on skylake this is done by detaching scalers */
-	if (INTEL_GEN(dev_priv) >= 9) {
-		skl_detach_scalers(new_crtc_state);
-
-		if (new_crtc_state->pch_pfit.enabled)
-			skylake_pfit_enable(new_crtc_state);
-	} else if (HAS_PCH_SPLIT(dev_priv)) {
-		if (new_crtc_state->pch_pfit.enabled)
-			ironlake_pfit_enable(new_crtc_state);
-		else if (old_crtc_state->pch_pfit.enabled)
-			ironlake_pfit_disable(old_crtc_state);
-	}
-
-	if (INTEL_GEN(dev_priv) >= 11)
-		icl_set_pipe_chicken(crtc);
 }
 
 static void intel_fdi_normal_train(struct intel_crtc *crtc)
@@ -13695,13 +13654,95 @@ u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc)
 	return crtc->base.funcs->get_vblank_counter(&crtc->base);
 }
 
+void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
+				  struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	if (!IS_GEN(dev_priv, 2))
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, true);
+
+	if (crtc_state->has_pch_encoder) {
+		enum pipe pch_transcoder =
+			intel_crtc_pch_transcoder(crtc);
+
+		intel_set_pch_fifo_underrun_reporting(dev_priv, pch_transcoder, true);
+	}
+}
+
+static void intel_pipe_fastset(const struct intel_crtc_state *old_crtc_state,
+			       const struct intel_crtc_state *new_crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	/* drm_atomic_helper_update_legacy_modeset_state might not be called. */
+	crtc->base.mode = new_crtc_state->base.mode;
+
+	/*
+	 * Update pipe size and adjust fitter if needed: the reason for this is
+	 * that in compute_mode_changes we check the native mode (not the pfit
+	 * mode) to see if we can flip rather than do a full mode set. In the
+	 * fastboot case, we'll flip, but if we don't update the pipesrc and
+	 * pfit state, we'll end up with a big fb scanned out into the wrong
+	 * sized surface.
+	 */
+	intel_set_pipe_src_size(new_crtc_state);
+
+	/* on skylake this is done by detaching scalers */
+	if (INTEL_GEN(dev_priv) >= 9) {
+		skl_detach_scalers(new_crtc_state);
+
+		if (new_crtc_state->pch_pfit.enabled)
+			skylake_pfit_enable(new_crtc_state);
+	} else if (HAS_PCH_SPLIT(dev_priv)) {
+		if (new_crtc_state->pch_pfit.enabled)
+			ironlake_pfit_enable(new_crtc_state);
+		else if (old_crtc_state->pch_pfit.enabled)
+			ironlake_pfit_disable(old_crtc_state);
+	}
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		icl_set_pipe_chicken(crtc);
+}
+
+static void commit_pipe_config(struct intel_atomic_state *state,
+			       struct intel_crtc_state *old_crtc_state,
+			       struct intel_crtc_state *new_crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	bool modeset = needs_modeset(new_crtc_state);
+
+	/*
+	 * During modesets pipe configuration was programmed as the
+	 * CRTC was enabled.
+	 */
+	if (!modeset) {
+		if (new_crtc_state->base.color_mgmt_changed ||
+		    new_crtc_state->update_pipe)
+			intel_color_commit(new_crtc_state);
+
+		if (INTEL_GEN(dev_priv) >= 9)
+			skl_detach_scalers(new_crtc_state);
+
+		if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
+			bdw_set_pipemisc(new_crtc_state);
+
+		if (new_crtc_state->update_pipe)
+			intel_pipe_fastset(old_crtc_state, new_crtc_state);
+	}
+
+	if (dev_priv->display.atomic_update_watermarks)
+		dev_priv->display.atomic_update_watermarks(state,
+							   new_crtc_state);
+}
+
 static void intel_update_crtc(struct intel_crtc *crtc,
 			      struct intel_atomic_state *state,
 			      struct intel_crtc_state *old_crtc_state,
 			      struct intel_crtc_state *new_crtc_state)
 {
-	struct drm_device *dev = state->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	bool modeset = needs_modeset(new_crtc_state);
 	struct intel_plane_state *new_plane_state =
 		intel_atomic_get_new_plane_state(state,
@@ -13725,14 +13766,27 @@ static void intel_update_crtc(struct intel_crtc *crtc,
 	else if (new_plane_state)
 		intel_fbc_enable(crtc, new_crtc_state, new_plane_state);
 
-	intel_begin_crtc_commit(state, crtc);
+	/* Perform vblank evasion around commit operation */
+	intel_pipe_update_start(new_crtc_state);
+
+	commit_pipe_config(state, old_crtc_state, new_crtc_state);
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		skl_update_planes_on_crtc(state, crtc);
 	else
 		i9xx_update_planes_on_crtc(state, crtc);
 
-	intel_finish_crtc_commit(state, crtc);
+	intel_pipe_update_end(new_crtc_state);
+
+	/*
+	 * We usually enable FIFO underrun interrupts as part of the
+	 * CRTC enable sequence during modesets.  But when we inherit a
+	 * valid pipe configuration from the BIOS we need to take care
+	 * of enabling them on the CRTC's first fastset.
+	 */
+	if (new_crtc_state->update_pipe && !modeset &&
+	    old_crtc_state->base.mode.private_flags & I915_MODE_FLAG_INHERITED)
+		intel_crtc_arm_fifo_underrun(crtc, new_crtc_state);
 }
 
 static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
@@ -14520,72 +14574,6 @@ skl_max_scale(const struct intel_crtc_state *crtc_state,
 	max_scale = min(tmpclk1, tmpclk2);
 
 	return max_scale;
-}
-
-static void intel_begin_crtc_commit(struct intel_atomic_state *state,
-				    struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_crtc_state *old_crtc_state =
-		intel_atomic_get_old_crtc_state(state, crtc);
-	struct intel_crtc_state *new_crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-	bool modeset = needs_modeset(new_crtc_state);
-
-	/* Perform vblank evasion around commit operation */
-	intel_pipe_update_start(new_crtc_state);
-
-	if (modeset)
-		goto out;
-
-	if (new_crtc_state->base.color_mgmt_changed ||
-	    new_crtc_state->update_pipe)
-		intel_color_commit(new_crtc_state);
-
-	if (new_crtc_state->update_pipe)
-		intel_update_pipe_config(old_crtc_state, new_crtc_state);
-	else if (INTEL_GEN(dev_priv) >= 9)
-		skl_detach_scalers(new_crtc_state);
-
-	if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
-		bdw_set_pipemisc(new_crtc_state);
-
-out:
-	if (dev_priv->display.atomic_update_watermarks)
-		dev_priv->display.atomic_update_watermarks(state,
-							   new_crtc_state);
-}
-
-void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
-				  struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-
-	if (!IS_GEN(dev_priv, 2))
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, true);
-
-	if (crtc_state->has_pch_encoder) {
-		enum pipe pch_transcoder =
-			intel_crtc_pch_transcoder(crtc);
-
-		intel_set_pch_fifo_underrun_reporting(dev_priv, pch_transcoder, true);
-	}
-}
-
-static void intel_finish_crtc_commit(struct intel_atomic_state *state,
-				     struct intel_crtc *crtc)
-{
-	struct intel_crtc_state *old_crtc_state =
-		intel_atomic_get_old_crtc_state(state, crtc);
-	struct intel_crtc_state *new_crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-
-	intel_pipe_update_end(new_crtc_state);
-
-	if (new_crtc_state->update_pipe &&
-	    !needs_modeset(new_crtc_state) &&
-	    old_crtc_state->base.mode.private_flags & I915_MODE_FLAG_INHERITED)
-		intel_crtc_arm_fifo_underrun(crtc, new_crtc_state);
 }
 
 /**
