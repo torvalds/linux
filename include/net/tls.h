@@ -594,13 +594,6 @@ tls_offload_rx_resync_set_type(struct sock *sk, enum tls_offload_sync_type type)
 	tls_offload_ctx_rx(tls_ctx)->resync_type = type;
 }
 
-static inline void tls_offload_tx_resync_request(struct sock *sk)
-{
-	struct tls_context *tls_ctx = tls_get_ctx(sk);
-
-	WARN_ON(test_and_set_bit(TLS_TX_SYNC_SCHED, &tls_ctx->flags));
-}
-
 /* Driver's seq tracking has to be disabled until resync succeeded */
 static inline bool tls_offload_tx_resync_pending(struct sock *sk)
 {
@@ -634,6 +627,7 @@ void tls_device_free_resources_tx(struct sock *sk);
 int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx);
 void tls_device_offload_cleanup_rx(struct sock *sk);
 void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq);
+void tls_offload_tx_resync_request(struct sock *sk, u32 got_seq, u32 exp_seq);
 int tls_device_decrypted(struct sock *sk, struct sk_buff *skb);
 #else
 static inline void tls_device_init(void) {}
