@@ -296,7 +296,7 @@ komeda_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct komeda_crtc_state *old_st = to_kcrtc_st(old);
 	struct komeda_pipeline *master = kcrtc->master;
 	struct komeda_pipeline *slave  = kcrtc->slave;
-	struct completion *disable_done = &crtc->state->commit->flip_done;
+	struct completion *disable_done;
 	bool needs_phase2 = false;
 
 	DRM_DEBUG_ATOMIC("CRTC%d_DISABLE: active_pipes: 0x%x, affected: 0x%x\n",
