@@ -204,7 +204,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		sizes->fb_height = intel_fb->base.height;
 	}
 
-	mutex_lock(&dev->struct_mutex);
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	/* Pin the GGTT vma for our access via info->screen_base.
@@ -266,7 +265,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	ifbdev->vma_flags = flags;
 
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-	mutex_unlock(&dev->struct_mutex);
 	vga_switcheroo_client_fb_set(pdev, info);
 	return 0;
 
@@ -274,7 +272,6 @@ out_unpin:
 	intel_unpin_fb_vma(vma, flags);
 out_unlock:
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -291,11 +288,8 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 
 	drm_fb_helper_fini(&ifbdev->helper);
 
-	if (ifbdev->vma) {
-		mutex_lock(&ifbdev->helper.dev->struct_mutex);
+	if (ifbdev->vma)
 		intel_unpin_fb_vma(ifbdev->vma, ifbdev->vma_flags);
-		mutex_unlock(&ifbdev->helper.dev->struct_mutex);
-	}
 
 	if (ifbdev->fb)
 		drm_framebuffer_remove(&ifbdev->fb->base);

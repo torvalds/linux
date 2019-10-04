@@ -624,8 +624,6 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return NULL;
 
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
 	DRM_DEBUG_DRIVER("creating preallocated stolen object: stolen_offset=%pa, gtt_offset=%pa, size=%pa\n",
 			 &stolen_offset, &gtt_offset, &size);
 
@@ -677,21 +675,25 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	 * setting up the GTT space. The actual reservation will occur
 	 * later.
 	 */
+	mutex_lock(&ggtt->vm.mutex);
 	ret = i915_gem_gtt_reserve(&ggtt->vm, &vma->node,
 				   size, gtt_offset, obj->cache_level,
 				   0);
 	if (ret) {
 		DRM_DEBUG_DRIVER("failed to allocate stolen GTT space\n");
+		mutex_unlock(&ggtt->vm.mutex);
 		goto err_pages;
 	}
 
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 
+	GEM_BUG_ON(vma->pages);
 	vma->pages = obj->mm.pages;
+	atomic_set(&vma->pages_count, I915_VMA_PAGES_ACTIVE);
+
 	set_bit(I915_VMA_GLOBAL_BIND_BIT, __i915_vma_flags(vma));
 	__i915_vma_set_map_and_fenceable(vma);
 
-	mutex_lock(&ggtt->vm.mutex);
 	list_add_tail(&vma->vm_link, &ggtt->vm.bound_list);
 	mutex_unlock(&ggtt->vm.mutex);
 

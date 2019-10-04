@@ -302,11 +302,12 @@ void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		struct intel_uncore *uncore = gt->uncore;
+		unsigned long flags;
 
-		spin_lock_irq(&uncore->lock);
+		spin_lock_irqsave(&uncore->lock, flags);
 		intel_uncore_posting_read_fw(uncore,
 					     RING_HEAD(RENDER_RING_BASE));
-		spin_unlock_irq(&uncore->lock);
+		spin_unlock_irqrestore(&uncore->lock, flags);
 	}
 }
 

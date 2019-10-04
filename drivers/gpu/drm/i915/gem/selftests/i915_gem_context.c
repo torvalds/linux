@@ -971,10 +971,7 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 	if (err)
 		goto skip_request;
 
-	i915_vma_unpin(batch);
-	i915_vma_close(batch);
-	i915_vma_put(batch);
-
+	i915_vma_unpin_and_release(&batch, 0);
 	i915_vma_unpin(vma);
 
 	*rq_out = i915_request_get(rq);
@@ -988,8 +985,7 @@ skip_request:
 err_request:
 	i915_request_add(rq);
 err_batch:
-	i915_vma_unpin(batch);
-	i915_vma_put(batch);
+	i915_vma_unpin_and_release(&batch, 0);
 err_vma:
 	i915_vma_unpin(vma);
 
@@ -1533,9 +1529,7 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	if (err)
 		goto skip_request;
 
-	i915_vma_unpin(vma);
-	i915_vma_close(vma);
-	i915_vma_put(vma);
+	i915_vma_unpin_and_release(&vma, 0);
 
 	i915_request_add(rq);
 

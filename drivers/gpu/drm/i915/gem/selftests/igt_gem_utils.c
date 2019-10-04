@@ -154,9 +154,7 @@ int igt_gpu_fill_dw(struct intel_context *ce,
 
 	i915_request_add(rq);
 
-	i915_vma_unpin(batch);
-	i915_vma_close(batch);
-	i915_vma_put(batch);
+	i915_vma_unpin_and_release(&batch, 0);
 
 	return 0;
 
@@ -165,7 +163,6 @@ skip_request:
 err_request:
 	i915_request_add(rq);
 err_batch:
-	i915_vma_unpin(batch);
-	i915_vma_put(batch);
+	i915_vma_unpin_and_release(&batch, 0);
 	return err;
 }

@@ -1338,15 +1338,13 @@ void intel_ring_free(struct kref *ref)
 {
 	struct intel_ring *ring = container_of(ref, typeof(*ring), ref);
 
-	i915_vma_close(ring->vma);
 	i915_vma_put(ring->vma);
-
 	kfree(ring);
 }
 
 static void __ring_context_fini(struct intel_context *ce)
 {
-	i915_gem_object_put(ce->state->obj);
+	i915_vma_put(ce->state);
 }
 
 static void ring_context_destroy(struct kref *ref)

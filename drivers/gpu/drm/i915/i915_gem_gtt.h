@@ -307,7 +307,14 @@ struct i915_address_space {
 
 	unsigned int bind_async_flags;
 
-	bool closed;
+	/*
+	 * Each active user context has its own address space (in full-ppgtt).
+	 * Since the vm may be shared between multiple contexts, we count how
+	 * many contexts keep us "open". Once open hits zero, we are closed
+	 * and do not allow any new attachments, and proceed to shutdown our
+	 * vma and page directories.
+	 */
+	atomic_t open;
 
 	struct mutex mutex; /* protects vma and our lists */
 #define VM_CLASS_GGTT 0
@@ -581,6 +588,35 @@ static inline void i915_vm_put(struct i915_address_space *vm)
 	kref_put(&vm->ref, i915_vm_release);
 }
 
+static inline struct i915_address_space *
+i915_vm_open(struct i915_address_space *vm)
+{
+	GEM_BUG_ON(!atomic_read(&vm->open));
+	atomic_inc(&vm->open);
+	return i915_vm_get(vm);
+}
+
+static inline bool
+i915_vm_tryopen(struct i915_address_space *vm)
+{
+	if (atomic_add_unless(&vm->open, 1, 0))
+		return i915_vm_get(vm);
+
+	return false;
+}
+
+void __i915_vm_close(struct i915_address_space *vm);
+
+static inline void
+i915_vm_close(struct i915_address_space *vm)
+{
+	GEM_BUG_ON(!atomic_read(&vm->open));
+	if (atomic_dec_and_test(&vm->open))
+		__i915_vm_close(vm);
+
+	i915_vm_put(vm);
+}
+
 int gen6_ppgtt_pin(struct i915_ppgtt *base);
 void gen6_ppgtt_unpin(struct i915_ppgtt *base);
 void gen6_ppgtt_unpin_all(struct i915_ppgtt *base);
@@ -613,10 +649,9 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 #define PIN_OFFSET_BIAS		BIT_ULL(6)
 #define PIN_OFFSET_FIXED	BIT_ULL(7)
 
-#define PIN_MBZ			BIT_ULL(8) /* I915_VMA_PIN_OVERFLOW */
-#define PIN_GLOBAL		BIT_ULL(9) /* I915_VMA_GLOBAL_BIND */
-#define PIN_USER		BIT_ULL(10) /* I915_VMA_LOCAL_BIND */
-#define PIN_UPDATE		BIT_ULL(11)
+#define PIN_UPDATE		BIT_ULL(9)
+#define PIN_GLOBAL		BIT_ULL(10) /* I915_VMA_GLOBAL_BIND */
+#define PIN_USER		BIT_ULL(11) /* I915_VMA_LOCAL_BIND */
 
 #define PIN_OFFSET_MASK		(-I915_GTT_PAGE_SIZE)
 

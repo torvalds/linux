@@ -2079,7 +2079,6 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	unsigned int pinctl;
 	u32 alignment;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 	if (WARN_ON(!i915_gem_object_is_framebuffer(obj)))
 		return ERR_PTR(-EINVAL);
 
@@ -2163,8 +2162,6 @@ err:
 
 void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags)
 {
-	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
-
 	i915_gem_object_lock(vma->obj);
 	if (flags & PLANE_HAS_FENCE)
 		i915_vma_unpin_fence(vma);
@@ -3065,12 +3062,10 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 		return false;
 	}
 
-	mutex_lock(&dev->struct_mutex);
 	obj = i915_gem_object_create_stolen_for_preallocated(dev_priv,
 							     base_aligned,
 							     base_aligned,
 							     size_aligned);
-	mutex_unlock(&dev->struct_mutex);
 	if (!obj)
 		return false;
 
@@ -3232,13 +3227,11 @@ valid_fb:
 	intel_state->color_plane[0].stride =
 		intel_fb_pitch(fb, 0, intel_state->base.rotation);
 
-	mutex_lock(&dev->struct_mutex);
 	intel_state->vma =
 		intel_pin_and_fence_fb_obj(fb,
 					   &intel_state->view,
 					   intel_plane_uses_fence(intel_state),
 					   &intel_state->flags);
-	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(intel_state->vma)) {
 		DRM_ERROR("failed to pin boot fb on pipe %d: %li\n",
 			  intel_crtc->pipe, PTR_ERR(intel_state->vma));
@@ -14365,8 +14358,6 @@ static void fb_obj_bump_render_priority(struct drm_i915_gem_object *obj)
  * bits.  Some older platforms need special physical address handling for
  * cursor planes.
  *
- * Must be called with struct_mutex held.
- *
  * Returns 0 on success, negative error code on failure.
  */
 int
@@ -14423,15 +14414,8 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
-	ret = mutex_lock_interruptible(&dev_priv->drm.struct_mutex);
-	if (ret) {
-		i915_gem_object_unpin_pages(obj);
-		return ret;
-	}
-
 	ret = intel_plane_pin_fb(to_intel_plane_state(new_state));
 
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 	i915_gem_object_unpin_pages(obj);
 	if (ret)
 		return ret;
@@ -14480,8 +14464,6 @@ intel_prepare_plane_fb(struct drm_plane *plane,
  * @old_state: the state from the previous modeset
  *
  * Cleans up a framebuffer that has just been removed from a plane.
- *
- * Must be called with struct_mutex held.
  */
 void
 intel_cleanup_plane_fb(struct drm_plane *plane,
@@ -14497,9 +14479,7 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 	}
 
 	/* Should only be called after a successful intel_prepare_plane_fb()! */
-	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_plane_unpin_fb(to_intel_plane_state(old_state));
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 }
 
 int
@@ -14702,7 +14682,6 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 			   u32 src_w, u32 src_h,
 			   struct drm_modeset_acquire_ctx *ctx)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct drm_plane_state *old_plane_state, *new_plane_state;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_crtc_state *crtc_state =
@@ -14768,13 +14747,9 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	if (ret)
 		goto out_free;
 
-	ret = mutex_lock_interruptible(&dev_priv->drm.struct_mutex);
-	if (ret)
-		goto out_free;
-
 	ret = intel_plane_pin_fb(to_intel_plane_state(new_plane_state));
 	if (ret)
-		goto out_unlock;
+		goto out_free;
 
 	intel_frontbuffer_flush(to_intel_frontbuffer(fb), ORIGIN_FLIP);
 	intel_frontbuffer_track(to_intel_frontbuffer(old_plane_state->fb),
@@ -14804,8 +14779,6 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 
 	intel_plane_unpin_fb(to_intel_plane_state(old_plane_state));
 
-out_unlock:
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 out_free:
 	if (new_crtc_state)
 		intel_crtc_destroy_state(crtc, &new_crtc_state->base);

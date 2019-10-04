@@ -1303,15 +1303,11 @@ static int get_registers(struct intel_overlay *overlay, bool use_phys)
 	struct i915_vma *vma;
 	int err;
 
-	mutex_lock(&i915->drm.struct_mutex);
-
 	obj = i915_gem_object_create_stolen(i915, PAGE_SIZE);
 	if (obj == NULL)
 		obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
-	if (IS_ERR(obj)) {
-		err = PTR_ERR(obj);
-		goto err_unlock;
-	}
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
 
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, PIN_MAPPABLE);
 	if (IS_ERR(vma)) {
@@ -1332,13 +1328,10 @@ static int get_registers(struct intel_overlay *overlay, bool use_phys)
 	}
 
 	overlay->reg_bo = obj;
-	mutex_unlock(&i915->drm.struct_mutex);
 	return 0;
 
 err_put_bo:
 	i915_gem_object_put(obj);
-err_unlock:
-	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
 

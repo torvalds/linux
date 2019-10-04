@@ -47,8 +47,7 @@ static int ggtt_flush(struct drm_i915_private *i915)
 	 * bound by their active reference.
 	 */
 	return i915_gem_wait_for_idle(i915,
-				      I915_WAIT_INTERRUPTIBLE |
-				      I915_WAIT_LOCKED,
+				      I915_WAIT_INTERRUPTIBLE,
 				      MAX_SCHEDULE_TIMEOUT);
 }
 
@@ -104,7 +103,7 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	struct i915_vma *active;
 	int ret;
 
-	lockdep_assert_held(&vm->i915->drm.struct_mutex);
+	lockdep_assert_held(&vm->mutex);
 	trace_i915_gem_evict(vm, min_size, alignment, flags);
 
 	/*
@@ -126,15 +125,6 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	drm_mm_scan_init_with_range(&scan, &vm->mm,
 				    min_size, alignment, color,
 				    start, end, mode);
-
-	/*
-	 * Retire before we search the active list. Although we have
-	 * reasonable accuracy in our retirement lists, we may have
-	 * a stray pin (preventing eviction) that can only be resolved by
-	 * retiring.
-	 */
-	if (!(flags & PIN_NONBLOCK))
-		i915_retire_requests(dev_priv);
 
 search_again:
 	active = NULL;
@@ -235,12 +225,12 @@ found:
 	list_for_each_entry_safe(vma, next, &eviction_list, evict_link) {
 		__i915_vma_unpin(vma);
 		if (ret == 0)
-			ret = i915_vma_unbind(vma);
+			ret = __i915_vma_unbind(vma);
 	}
 
 	while (ret == 0 && (node = drm_mm_scan_color_evict(&scan))) {
 		vma = container_of(node, struct i915_vma, node);
-		ret = i915_vma_unbind(vma);
+		ret = __i915_vma_unbind(vma);
 	}
 
 	return ret;
@@ -268,7 +258,7 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 	struct i915_vma *vma, *next;
 	int ret = 0;
 
-	lockdep_assert_held(&vm->i915->drm.struct_mutex);
+	lockdep_assert_held(&vm->mutex);
 	GEM_BUG_ON(!IS_ALIGNED(start, I915_GTT_PAGE_SIZE));
 	GEM_BUG_ON(!IS_ALIGNED(end, I915_GTT_PAGE_SIZE));
 
@@ -349,7 +339,7 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 	list_for_each_entry_safe(vma, next, &eviction_list, evict_link) {
 		__i915_vma_unpin(vma);
 		if (ret == 0)
-			ret = i915_vma_unbind(vma);
+			ret = __i915_vma_unbind(vma);
 	}
 
 	return ret;
@@ -373,7 +363,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm)
 	struct i915_vma *vma, *next;
 	int ret;
 
-	lockdep_assert_held(&vm->i915->drm.struct_mutex);
+	lockdep_assert_held(&vm->mutex);
 	trace_i915_gem_evict_vm(vm);
 
 	/* Switch back to the default context in order to unpin
@@ -388,7 +378,6 @@ int i915_gem_evict_vm(struct i915_address_space *vm)
 	}
 
 	INIT_LIST_HEAD(&eviction_list);
-	mutex_lock(&vm->mutex);
 	list_for_each_entry(vma, &vm->bound_list, vm_link) {
 		if (i915_vma_is_pinned(vma))
 			continue;
@@ -396,13 +385,12 @@ int i915_gem_evict_vm(struct i915_address_space *vm)
 		__i915_vma_pin(vma);
 		list_add(&vma->evict_link, &eviction_list);
 	}
-	mutex_unlock(&vm->mutex);
 
 	ret = 0;
 	list_for_each_entry_safe(vma, next, &eviction_list, evict_link) {
 		__i915_vma_unpin(vma);
 		if (ret == 0)
-			ret = i915_vma_unbind(vma);
+			ret = __i915_vma_unbind(vma);
 	}
 	return ret;
 }

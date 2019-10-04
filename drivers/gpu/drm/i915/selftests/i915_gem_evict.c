@@ -106,14 +106,11 @@ static int populate_ggtt(struct drm_i915_private *i915,
 
 static void unpin_ggtt(struct drm_i915_private *i915)
 {
-	struct i915_ggtt *ggtt = &i915->ggtt;
 	struct i915_vma *vma;
 
-	mutex_lock(&ggtt->vm.mutex);
 	list_for_each_entry(vma, &i915->ggtt.vm.bound_list, vm_link)
 		if (vma->obj->mm.quirked)
 			i915_vma_unpin(vma);
-	mutex_unlock(&ggtt->vm.mutex);
 }
 
 static void cleanup_objects(struct drm_i915_private *i915,
@@ -127,11 +124,7 @@ static void cleanup_objects(struct drm_i915_private *i915,
 		i915_gem_object_put(obj);
 	}
 
-	mutex_unlock(&i915->drm.struct_mutex);
-
 	i915_gem_drain_freed_objects(i915);
-
-	mutex_lock(&i915->drm.struct_mutex);
 }
 
 static int igt_evict_something(void *arg)
@@ -148,10 +141,12 @@ static int igt_evict_something(void *arg)
 		goto cleanup;
 
 	/* Everything is pinned, nothing should happen */
+	mutex_lock(&ggtt->vm.mutex);
 	err = i915_gem_evict_something(&ggtt->vm,
 				       I915_GTT_PAGE_SIZE, 0, 0,
 				       0, U64_MAX,
 				       0);
+	mutex_unlock(&ggtt->vm.mutex);
 	if (err != -ENOSPC) {
 		pr_err("i915_gem_evict_something failed on a full GGTT with err=%d\n",
 		       err);
@@ -161,10 +156,12 @@ static int igt_evict_something(void *arg)
 	unpin_ggtt(i915);
 
 	/* Everything is unpinned, we should be able to evict something */
+	mutex_lock(&ggtt->vm.mutex);
 	err = i915_gem_evict_something(&ggtt->vm,
 				       I915_GTT_PAGE_SIZE, 0, 0,
 				       0, U64_MAX,
 				       0);
+	mutex_unlock(&ggtt->vm.mutex);
 	if (err) {
 		pr_err("i915_gem_evict_something failed on a full GGTT with err=%d\n",
 		       err);
@@ -230,7 +227,9 @@ static int igt_evict_for_vma(void *arg)
 		goto cleanup;
 
 	/* Everything is pinned, nothing should happen */
+	mutex_lock(&ggtt->vm.mutex);
 	err = i915_gem_evict_for_node(&ggtt->vm, &target, 0);
+	mutex_unlock(&ggtt->vm.mutex);
 	if (err != -ENOSPC) {
 		pr_err("i915_gem_evict_for_node on a full GGTT returned err=%d\n",
 		       err);
@@ -240,7 +239,9 @@ static int igt_evict_for_vma(void *arg)
 	unpin_ggtt(i915);
 
 	/* Everything is unpinned, we should be able to evict the node */
+	mutex_lock(&ggtt->vm.mutex);
 	err = i915_gem_evict_for_node(&ggtt->vm, &target, 0);
+	mutex_unlock(&ggtt->vm.mutex);
 	if (err) {
 		pr_err("i915_gem_evict_for_node returned err=%d\n",
 		       err);
@@ -319,7 +320,9 @@ static int igt_evict_for_cache_color(void *arg)
 	i915_vma_unpin(vma);
 
 	/* Remove just the second vma */
+	mutex_lock(&ggtt->vm.mutex);
 	err = i915_gem_evict_for_node(&ggtt->vm, &target, 0);
+	mutex_unlock(&ggtt->vm.mutex);
 	if (err) {
 		pr_err("[0]i915_gem_evict_for_node returned err=%d\n", err);
 		goto cleanup;
@@ -330,7 +333,9 @@ static int igt_evict_for_cache_color(void *arg)
 	 */
 	target.color = I915_CACHE_L3_LLC;
 
+	mutex_lock(&ggtt->vm.mutex);
 	err = i915_gem_evict_for_node(&ggtt->vm, &target, 0);
+	mutex_unlock(&ggtt->vm.mutex);
 	if (!err) {
 		pr_err("[1]i915_gem_evict_for_node returned err=%d\n", err);
 		err = -EINVAL;
@@ -360,7 +365,9 @@ static int igt_evict_vm(void *arg)
 		goto cleanup;
 
 	/* Everything is pinned, nothing should happen */
+	mutex_lock(&ggtt->vm.mutex);
 	err = i915_gem_evict_vm(&ggtt->vm);
+	mutex_unlock(&ggtt->vm.mutex);
 	if (err) {
 		pr_err("i915_gem_evict_vm on a full GGTT returned err=%d]\n",
 		       err);
@@ -369,7 +376,9 @@ static int igt_evict_vm(void *arg)
 
 	unpin_ggtt(i915);
 
+	mutex_lock(&ggtt->vm.mutex);
 	err = i915_gem_evict_vm(&ggtt->vm);
+	mutex_unlock(&ggtt->vm.mutex);
 	if (err) {
 		pr_err("i915_gem_evict_vm on a full GGTT returned err=%d]\n",
 		       err);
@@ -410,11 +419,11 @@ static int igt_evict_contexts(void *arg)
 	if (!HAS_FULL_PPGTT(i915))
 		return 0;
 
-	mutex_lock(&i915->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	/* Reserve a block so that we know we have enough to fit a few rq */
 	memset(&hole, 0, sizeof(hole));
+	mutex_lock(&i915->ggtt.vm.mutex);
 	err = i915_gem_gtt_insert(&i915->ggtt.vm, &hole,
 				  PRETEND_GGTT_SIZE, 0, I915_COLOR_UNEVICTABLE,
 				  0, i915->ggtt.vm.total,
@@ -427,7 +436,9 @@ static int igt_evict_contexts(void *arg)
 	do {
 		struct reserved *r;
 
+		mutex_unlock(&i915->ggtt.vm.mutex);
 		r = kcalloc(1, sizeof(*r), GFP_KERNEL);
+		mutex_lock(&i915->ggtt.vm.mutex);
 		if (!r) {
 			err = -ENOMEM;
 			goto out_locked;
@@ -447,7 +458,7 @@ static int igt_evict_contexts(void *arg)
 		count++;
 	} while (1);
 	drm_mm_remove_node(&hole);
-	mutex_unlock(&i915->drm.struct_mutex);
+	mutex_unlock(&i915->ggtt.vm.mutex);
 	pr_info("Filled GGTT with %lu 1MiB nodes\n", count);
 
 	/* Overfill the GGTT with context objects and so try to evict one. */
@@ -510,7 +521,7 @@ static int igt_evict_contexts(void *arg)
 			break;
 	}
 
-	mutex_lock(&i915->drm.struct_mutex);
+	mutex_lock(&i915->ggtt.vm.mutex);
 out_locked:
 	if (igt_flush_test(i915, I915_WAIT_LOCKED))
 		err = -EIO;
@@ -524,8 +535,8 @@ out_locked:
 	}
 	if (drm_mm_node_allocated(&hole))
 		drm_mm_remove_node(&hole);
+	mutex_unlock(&i915->ggtt.vm.mutex);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	return err;
 }
@@ -547,11 +558,8 @@ int i915_gem_evict_mock_selftests(void)
 	if (!i915)
 		return -ENOMEM;
 
-	mutex_lock(&i915->drm.struct_mutex);
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		err = i915_subtests(tests, i915);
-
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	drm_dev_put(&i915->drm);
 	return err;

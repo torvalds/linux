@@ -322,7 +322,6 @@ static int igt_partial_tiling(void *arg)
 		goto out;
 	}
 
-	mutex_lock(&i915->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	if (1) {
@@ -415,7 +414,6 @@ next_tiling: ;
 
 out_unlock:
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	mutex_unlock(&i915->drm.struct_mutex);
 	i915_gem_object_unpin_pages(obj);
 out:
 	i915_gem_object_put(obj);
@@ -458,7 +456,6 @@ static int igt_smoke_tiling(void *arg)
 		goto out;
 	}
 
-	mutex_lock(&i915->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	count = 0;
@@ -508,7 +505,6 @@ static int igt_smoke_tiling(void *arg)
 	pr_info("%s: Completed %lu trials\n", __func__, count);
 
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	mutex_unlock(&i915->drm.struct_mutex);
 	i915_gem_object_unpin_pages(obj);
 out:
 	i915_gem_object_put(obj);

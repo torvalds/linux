@@ -106,6 +106,11 @@ static inline void i915_gem_object_lock(struct drm_i915_gem_object *obj)
 	dma_resv_lock(obj->base.resv, NULL);
 }
 
+static inline bool i915_gem_object_trylock(struct drm_i915_gem_object *obj)
+{
+	return dma_resv_trylock(obj->base.resv);
+}
+
 static inline int
 i915_gem_object_lock_interruptible(struct drm_i915_gem_object *obj)
 {

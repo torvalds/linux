@@ -119,9 +119,7 @@ intel_dsb_get(struct intel_crtc *crtc)
 		goto err;
 	}
 
-	mutex_lock(&i915->drm.struct_mutex);
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, PIN_MAPPABLE);
-	mutex_unlock(&i915->drm.struct_mutex);
 	if (IS_ERR(vma)) {
 		DRM_ERROR("Vma creation failed\n");
 		i915_gem_object_put(obj);
@@ -164,10 +162,7 @@ void intel_dsb_put(struct intel_dsb *dsb)
 		return;
 
 	if (atomic_dec_and_test(&dsb->refcount)) {
-		mutex_lock(&i915->drm.struct_mutex);
-		i915_gem_object_unpin_map(dsb->vma->obj);
-		i915_vma_unpin_and_release(&dsb->vma, 0);
-		mutex_unlock(&i915->drm.struct_mutex);
+		i915_vma_unpin_and_release(&dsb->vma, I915_VMA_RELEASE_MAP);
 		dsb->cmd_buf = NULL;
 		dsb->free_pos = 0;
 		dsb->ins_start_offset = 0;

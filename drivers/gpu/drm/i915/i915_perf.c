@@ -1204,14 +1204,9 @@ static int i915_oa_read(struct i915_perf_stream *stream,
 static struct intel_context *oa_pin_context(struct i915_perf_stream *stream)
 {
 	struct i915_gem_engines_iter it;
-	struct drm_i915_private *i915 = stream->dev_priv;
 	struct i915_gem_context *ctx = stream->ctx;
 	struct intel_context *ce;
 	int err;
-
-	err = i915_mutex_lock_interruptible(&i915->drm);
-	if (err)
-		return ERR_PTR(err);
 
 	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
 		if (ce->engine->class != RENDER_CLASS)
@@ -1228,10 +1223,6 @@ static struct intel_context *oa_pin_context(struct i915_perf_stream *stream)
 		}
 	}
 	i915_gem_context_unlock_engines(ctx);
-
-	mutex_unlock(&i915->drm.struct_mutex);
-	if (err)
-		return ERR_PTR(err);
 
 	return stream->pinned_ctx;
 }
@@ -1331,31 +1322,21 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
  */
 static void oa_put_render_ctx_id(struct i915_perf_stream *stream)
 {
-	struct drm_i915_private *dev_priv = stream->dev_priv;
 	struct intel_context *ce;
 
 	stream->specific_ctx_id = INVALID_CTX_ID;
 	stream->specific_ctx_id_mask = 0;
 
 	ce = fetch_and_zero(&stream->pinned_ctx);
-	if (ce) {
-		mutex_lock(&dev_priv->drm.struct_mutex);
+	if (ce)
 		intel_context_unpin(ce);
-		mutex_unlock(&dev_priv->drm.struct_mutex);
-	}
 }
 
 static void
 free_oa_buffer(struct i915_perf_stream *stream)
 {
-	struct drm_i915_private *i915 = stream->dev_priv;
-
-	mutex_lock(&i915->drm.struct_mutex);
-
 	i915_vma_unpin_and_release(&stream->oa_buffer.vma,
 				   I915_VMA_RELEASE_MAP);
-
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	stream->oa_buffer.vaddr = NULL;
 }
@@ -1511,18 +1492,13 @@ static int alloc_oa_buffer(struct i915_perf_stream *stream)
 	if (WARN_ON(stream->oa_buffer.vma))
 		return -ENODEV;
 
-	ret = i915_mutex_lock_interruptible(&dev_priv->drm);
-	if (ret)
-		return ret;
-
 	BUILD_BUG_ON_NOT_POWER_OF_2(OA_BUFFER_SIZE);
 	BUILD_BUG_ON(OA_BUFFER_SIZE < SZ_128K || OA_BUFFER_SIZE > SZ_16M);
 
 	bo = i915_gem_object_create_shmem(dev_priv, OA_BUFFER_SIZE);
 	if (IS_ERR(bo)) {
 		DRM_ERROR("Failed to allocate OA buffer\n");
-		ret = PTR_ERR(bo);
-		goto unlock;
+		return PTR_ERR(bo);
 	}
 
 	i915_gem_object_set_cache_coherency(bo, I915_CACHE_LLC);
@@ -1546,7 +1522,7 @@ static int alloc_oa_buffer(struct i915_perf_stream *stream)
 			 i915_ggtt_offset(stream->oa_buffer.vma),
 			 stream->oa_buffer.vaddr);
 
-	goto unlock;
+	return 0;
 
 err_unpin:
 	__i915_vma_unpin(vma);
@@ -1557,8 +1533,6 @@ err_unref:
 	stream->oa_buffer.vaddr = NULL;
 	stream->oa_buffer.vma = NULL;
 
-unlock:
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 	return ret;
 }
 

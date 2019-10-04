@@ -313,8 +313,6 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
 
 	release_hw_id(ctx);
-	if (ctx->vm)
-		i915_vm_put(ctx->vm);
 
 	free_engines(rcu_access_pointer(ctx->engines));
 	mutex_destroy(&ctx->engines_mutex);
@@ -379,9 +377,13 @@ void i915_gem_context_release(struct kref *ref)
 
 static void context_close(struct i915_gem_context *ctx)
 {
+	i915_gem_context_set_closed(ctx);
+
+	if (ctx->vm)
+		i915_vm_close(ctx->vm);
+
 	mutex_lock(&ctx->mutex);
 
-	i915_gem_context_set_closed(ctx);
 	ctx->file_priv = ERR_PTR(-EBADF);
 
 	/*
@@ -474,7 +476,7 @@ __set_ppgtt(struct i915_gem_context *ctx, struct i915_address_space *vm)
 
 	GEM_BUG_ON(old && i915_vm_is_4lvl(vm) != i915_vm_is_4lvl(old));
 
-	ctx->vm = i915_vm_get(vm);
+	ctx->vm = i915_vm_open(vm);
 	context_apply_all(ctx, __apply_ppgtt, vm);
 
 	return old;
@@ -488,7 +490,7 @@ static void __assign_ppgtt(struct i915_gem_context *ctx,
 
 	vm = __set_ppgtt(ctx, vm);
 	if (vm)
-		i915_vm_put(vm);
+		i915_vm_close(vm);
 }
 
 static void __set_timeline(struct intel_timeline **dst,
@@ -953,7 +955,7 @@ static int get_ppgtt(struct drm_i915_file_private *file_priv,
 	if (ret < 0)
 		goto err_unlock;
 
-	i915_vm_get(vm);
+	i915_vm_open(vm);
 
 	args->size = 0;
 	args->value = ret;
@@ -973,7 +975,7 @@ static void set_ppgtt_barrier(void *data)
 	if (INTEL_GEN(old->i915) < 8)
 		gen6_ppgtt_unpin_all(i915_vm_to_ppgtt(old));
 
-	i915_vm_put(old);
+	i915_vm_close(old);
 }
 
 static int emit_ppgtt_update(struct i915_request *rq, void *data)
@@ -1090,8 +1092,8 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 				   set_ppgtt_barrier,
 				   old);
 	if (err) {
-		i915_vm_put(__set_ppgtt(ctx, old));
-		i915_vm_put(old);
+		i915_vm_close(__set_ppgtt(ctx, old));
+		i915_vm_close(old);
 	}
 
 unlock:

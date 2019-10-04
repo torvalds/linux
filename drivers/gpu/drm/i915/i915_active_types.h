@@ -8,6 +8,7 @@
 #define _I915_ACTIVE_TYPES_H_
 
 #include <linux/atomic.h>
+#include <linux/dma-fence.h>
 #include <linux/llist.h>
 #include <linux/mutex.h>
 #include <linux/rbtree.h>
@@ -50,6 +51,10 @@ struct i915_active {
 	struct rb_root tree;
 	struct mutex mutex;
 	atomic_t count;
+
+	/* Preallocated "exclusive" node */
+	struct dma_fence __rcu *excl;
+	struct dma_fence_cb excl_cb;
 
 	unsigned long flags;
 #define I915_ACTIVE_GRAB_BIT 0

@@ -831,8 +831,9 @@ int i915_vma_mock_selftests(void)
 	}
 	mock_init_ggtt(i915, ggtt);
 
-	mutex_lock(&i915->drm.struct_mutex);
 	err = i915_subtests(tests, ggtt);
+
+	mutex_lock(&i915->drm.struct_mutex);
 	mock_device_flush(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
@@ -878,8 +879,6 @@ static int igt_vma_remapped_gtt(void *arg)
 	obj = i915_gem_object_create_internal(i915, 10 * 10 * PAGE_SIZE);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
-
-	mutex_lock(&i915->drm.struct_mutex);
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
@@ -976,7 +975,6 @@ static int igt_vma_remapped_gtt(void *arg)
 
 out:
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	mutex_unlock(&i915->drm.struct_mutex);
 	i915_gem_object_put(obj);
 
 	return err;

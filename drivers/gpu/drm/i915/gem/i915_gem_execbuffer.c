@@ -698,7 +698,9 @@ static int eb_reserve(struct i915_execbuffer *eb)
 
 		case 1:
 			/* Too fragmented, unbind everything and retry */
+			mutex_lock(&eb->context->vm->mutex);
 			err = i915_gem_evict_vm(eb->context->vm);
+			mutex_unlock(&eb->context->vm->mutex);
 			if (err)
 				return err;
 			break;
@@ -972,7 +974,9 @@ static void reloc_cache_reset(struct reloc_cache *cache)
 			ggtt->vm.clear_range(&ggtt->vm,
 					     cache->node.start,
 					     cache->node.size);
+			mutex_lock(&ggtt->vm.mutex);
 			drm_mm_remove_node(&cache->node);
+			mutex_unlock(&ggtt->vm.mutex);
 		} else {
 			i915_vma_unpin((struct i915_vma *)cache->node.mm);
 		}
@@ -1047,11 +1051,13 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 					       PIN_NOEVICT);
 		if (IS_ERR(vma)) {
 			memset(&cache->node, 0, sizeof(cache->node));
+			mutex_lock(&ggtt->vm.mutex);
 			err = drm_mm_insert_node_in_range
 				(&ggtt->vm.mm, &cache->node,
 				 PAGE_SIZE, 0, I915_COLOR_UNEVICTABLE,
 				 0, ggtt->mappable_end,
 				 DRM_MM_INSERT_LOW);
+			mutex_unlock(&ggtt->vm.mutex);
 			if (err) /* no inactive aperture space, use cpu reloc */
 				return NULL;
 		} else {
@@ -1416,7 +1422,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 		if (reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
 		    IS_GEN(eb->i915, 6)) {
 			err = i915_vma_bind(target, target->obj->cache_level,
-					    PIN_GLOBAL);
+					    PIN_GLOBAL, NULL);
 			if (WARN_ONCE(err,
 				      "Unexpected failure to bind target VMA!"))
 				return err;
@@ -2142,35 +2148,6 @@ static struct i915_request *eb_throttle(struct intel_context *ce)
 	return i915_request_get(rq);
 }
 
-static int
-__eb_pin_context(struct i915_execbuffer *eb, struct intel_context *ce)
-{
-	int err;
-
-	if (likely(atomic_inc_not_zero(&ce->pin_count)))
-		return 0;
-
-	err = mutex_lock_interruptible(&eb->i915->drm.struct_mutex);
-	if (err)
-		return err;
-
-	err = __intel_context_do_pin(ce);
-	mutex_unlock(&eb->i915->drm.struct_mutex);
-
-	return err;
-}
-
-static void
-__eb_unpin_context(struct i915_execbuffer *eb, struct intel_context *ce)
-{
-	if (likely(atomic_add_unless(&ce->pin_count, -1, 1)))
-		return;
-
-	mutex_lock(&eb->i915->drm.struct_mutex);
-	intel_context_unpin(ce);
-	mutex_unlock(&eb->i915->drm.struct_mutex);
-}
-
 static int __eb_pin_engine(struct i915_execbuffer *eb, struct intel_context *ce)
 {
 	struct intel_timeline *tl;
@@ -2190,7 +2167,7 @@ static int __eb_pin_engine(struct i915_execbuffer *eb, struct intel_context *ce)
 	 * GGTT space, so do this first before we reserve a seqno for
 	 * ourselves.
 	 */
-	err = __eb_pin_context(eb, ce);
+	err = intel_context_pin(ce);
 	if (err)
 		return err;
 
@@ -2234,7 +2211,7 @@ err_exit:
 	intel_context_exit(ce);
 	intel_context_timeline_unlock(tl);
 err_unpin:
-	__eb_unpin_context(eb, ce);
+	intel_context_unpin(ce);
 	return err;
 }
 
@@ -2247,7 +2224,7 @@ static void eb_unpin_engine(struct i915_execbuffer *eb)
 	intel_context_exit(ce);
 	mutex_unlock(&tl->mutex);
 
-	__eb_unpin_context(eb, ce);
+	intel_context_unpin(ce);
 }
 
 static unsigned int

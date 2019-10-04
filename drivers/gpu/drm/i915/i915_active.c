@@ -146,6 +146,7 @@ __active_retire(struct i915_active *ref)
 	if (!retire)
 		return;
 
+	GEM_BUG_ON(rcu_access_pointer(ref->excl));
 	rbtree_postorder_for_each_entry_safe(it, n, &root, node) {
 		GEM_BUG_ON(i915_active_request_isset(&it->base));
 		kmem_cache_free(global.slab_cache, it);
@@ -245,6 +246,8 @@ void __i915_active_init(struct drm_i915_private *i915,
 	ref->flags = 0;
 	ref->active = active;
 	ref->retire = retire;
+
+	ref->excl = NULL;
 	ref->tree = RB_ROOT;
 	ref->cache = NULL;
 	init_llist_head(&ref->preallocated_barriers);
@@ -341,6 +344,46 @@ out:
 	return err;
 }
 
+static void excl_cb(struct dma_fence *f, struct dma_fence_cb *cb)
+{
+	struct i915_active *ref = container_of(cb, typeof(*ref), excl_cb);
+
+	RCU_INIT_POINTER(ref->excl, NULL);
+	dma_fence_put(f);
+
+	active_retire(ref);
+}
+
+void i915_active_set_exclusive(struct i915_active *ref, struct dma_fence *f)
+{
+	/* We expect the caller to manage the exclusive timeline ordering */
+	GEM_BUG_ON(i915_active_is_idle(ref));
+
+	dma_fence_get(f);
+
+	rcu_read_lock();
+	if (rcu_access_pointer(ref->excl)) {
+		struct dma_fence *old;
+
+		old = dma_fence_get_rcu_safe(&ref->excl);
+		if (old) {
+			if (dma_fence_remove_callback(old, &ref->excl_cb))
+				atomic_dec(&ref->count);
+			dma_fence_put(old);
+		}
+	}
+	rcu_read_unlock();
+
+	atomic_inc(&ref->count);
+	rcu_assign_pointer(ref->excl, f);
+
+	if (dma_fence_add_callback(f, &ref->excl_cb, excl_cb)) {
+		RCU_INIT_POINTER(ref->excl, NULL);
+		atomic_dec(&ref->count);
+		dma_fence_put(f);
+	}
+}
+
 int i915_active_acquire(struct i915_active *ref)
 {
 	int err;
@@ -399,6 +442,25 @@ void i915_active_ungrab(struct i915_active *ref)
 	__active_ungrab(ref);
 }
 
+static int excl_wait(struct i915_active *ref)
+{
+	struct dma_fence *old;
+	int err = 0;
+
+	if (!rcu_access_pointer(ref->excl))
+		return 0;
+
+	rcu_read_lock();
+	old = dma_fence_get_rcu_safe(&ref->excl);
+	rcu_read_unlock();
+	if (old) {
+		err = dma_fence_wait(old, true);
+		dma_fence_put(old);
+	}
+
+	return err;
+}
+
 int i915_active_wait(struct i915_active *ref)
 {
 	struct active_node *it, *n;
@@ -419,6 +481,10 @@ int i915_active_wait(struct i915_active *ref)
 		return 0;
 	}
 
+	err = excl_wait(ref);
+	if (err)
+		goto out;
+
 	rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
 		if (is_barrier(&it->base)) { /* unconnected idle-barrier */
 			err = -EBUSY;
@@ -430,6 +496,7 @@ int i915_active_wait(struct i915_active *ref)
 			break;
 	}
 
+out:
 	__active_retire(ref);
 	if (err)
 		return err;
@@ -454,26 +521,22 @@ int i915_request_await_active_request(struct i915_request *rq,
 
 int i915_request_await_active(struct i915_request *rq, struct i915_active *ref)
 {
-	struct active_node *it, *n;
-	int err;
+	int err = 0;
 
-	if (RB_EMPTY_ROOT(&ref->tree))
-		return 0;
+	if (rcu_access_pointer(ref->excl)) {
+		struct dma_fence *fence;
 
-	/* await allocates and so we need to avoid hitting the shrinker */
-	err = i915_active_acquire(ref);
-	if (err)
-		return err;
-
-	mutex_lock(&ref->mutex);
-	rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
-		err = i915_request_await_active_request(rq, &it->base);
-		if (err)
-			break;
+		rcu_read_lock();
+		fence = dma_fence_get_rcu_safe(&ref->excl);
+		rcu_read_unlock();
+		if (fence) {
+			err = i915_request_await_dma_fence(rq, fence);
+			dma_fence_put(fence);
+		}
 	}
-	mutex_unlock(&ref->mutex);
 
-	i915_active_release(ref);
+	/* In the future we may choose to await on all fences */
+
 	return err;
 }
 

@@ -1127,15 +1127,14 @@ static int evict_vma(void *data)
 {
 	struct evict_vma *arg = data;
 	struct i915_address_space *vm = arg->vma->vm;
-	struct drm_i915_private *i915 = vm->i915;
 	struct drm_mm_node evict = arg->vma->node;
 	int err;
 
 	complete(&arg->completion);
 
-	mutex_lock(&i915->drm.struct_mutex);
+	mutex_lock(&vm->mutex);
 	err = i915_gem_evict_for_node(vm, &evict, 0);
-	mutex_unlock(&i915->drm.struct_mutex);
+	mutex_unlock(&vm->mutex);
 
 	return err;
 }
@@ -1143,39 +1142,33 @@ static int evict_vma(void *data)
 static int evict_fence(void *data)
 {
 	struct evict_vma *arg = data;
-	struct drm_i915_private *i915 = arg->vma->vm->i915;
 	int err;
 
 	complete(&arg->completion);
-
-	mutex_lock(&i915->drm.struct_mutex);
 
 	/* Mark the fence register as dirty to force the mmio update. */
 	err = i915_gem_object_set_tiling(arg->vma->obj, I915_TILING_Y, 512);
 	if (err) {
 		pr_err("Invalid Y-tiling settings; err:%d\n", err);
-		goto out_unlock;
+		return err;
 	}
 
 	err = i915_vma_pin(arg->vma, 0, 0, PIN_GLOBAL | PIN_MAPPABLE);
 	if (err) {
 		pr_err("Unable to pin vma for Y-tiled fence; err:%d\n", err);
-		goto out_unlock;
+		return err;
 	}
 
 	err = i915_vma_pin_fence(arg->vma);
 	i915_vma_unpin(arg->vma);
 	if (err) {
 		pr_err("Unable to pin Y-tiled fence; err:%d\n", err);
-		goto out_unlock;
+		return err;
 	}
 
 	i915_vma_unpin_fence(arg->vma);
 
-out_unlock:
-	mutex_unlock(&i915->drm.struct_mutex);
-
-	return err;
+	return 0;
 }
 
 static int __igt_reset_evict_vma(struct intel_gt *gt,

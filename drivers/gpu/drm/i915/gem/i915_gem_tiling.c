@@ -181,22 +181,25 @@ static int
 i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj,
 			      int tiling_mode, unsigned int stride)
 {
+	struct i915_ggtt *ggtt = &to_i915(obj->base.dev)->ggtt;
 	struct i915_vma *vma;
-	int ret;
+	int ret = 0;
 
 	if (tiling_mode == I915_TILING_NONE)
 		return 0;
 
+	mutex_lock(&ggtt->vm.mutex);
 	for_each_ggtt_vma(vma, obj) {
 		if (i915_vma_fence_prepare(vma, tiling_mode, stride))
 			continue;
 
-		ret = i915_vma_unbind(vma);
+		ret = __i915_vma_unbind(vma);
 		if (ret)
-			return ret;
+			break;
 	}
+	mutex_unlock(&ggtt->vm.mutex);
 
-	return 0;
+	return ret;
 }
 
 int
@@ -212,7 +215,6 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 
 	GEM_BUG_ON(!i915_tiling_ok(obj, tiling, stride));
 	GEM_BUG_ON(!stride ^ (tiling == I915_TILING_NONE));
-	lockdep_assert_held(&i915->drm.struct_mutex);
 
 	if ((tiling | stride) == obj->tiling_and_stride)
 		return 0;
@@ -233,14 +235,16 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 	 * whilst executing a fenced command for an untiled object.
 	 */
 
-	err = i915_gem_object_fence_prepare(obj, tiling, stride);
-	if (err)
-		return err;
-
 	i915_gem_object_lock(obj);
 	if (i915_gem_object_is_framebuffer(obj)) {
 		i915_gem_object_unlock(obj);
 		return -EBUSY;
+	}
+
+	err = i915_gem_object_fence_prepare(obj, tiling, stride);
+	if (err) {
+		i915_gem_object_unlock(obj);
+		return err;
 	}
 
 	/* If the memory has unknown (i.e. varying) swizzling, we pin the
@@ -368,12 +372,7 @@ i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	err = mutex_lock_interruptible(&dev->struct_mutex);
-	if (err)
-		goto err;
-
 	err = i915_gem_object_set_tiling(obj, args->tiling_mode, args->stride);
-	mutex_unlock(&dev->struct_mutex);
 
 	/* We have to maintain this existing ABI... */
 	args->stride = i915_gem_object_get_stride(obj);

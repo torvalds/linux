@@ -333,7 +333,12 @@ static int igt_check_page_sizes(struct i915_vma *vma)
 	struct drm_i915_private *i915 = vma->vm->i915;
 	unsigned int supported = INTEL_INFO(i915)->page_sizes;
 	struct drm_i915_gem_object *obj = vma->obj;
-	int err = 0;
+	int err;
+
+	/* We have to wait for the async bind to complete before our asserts */
+	err = i915_vma_sync(vma);
+	if (err)
+		return err;
 
 	if (!HAS_PAGE_SIZES(i915, vma->page_sizes.sg)) {
 		pr_err("unsupported page_sizes.sg=%u, supported=%u\n",
@@ -1390,7 +1395,7 @@ static int igt_ppgtt_pin_update(void *arg)
 			goto out_unpin;
 		}
 
-		err = i915_vma_bind(vma, I915_CACHE_NONE, PIN_UPDATE);
+		err = i915_vma_bind(vma, I915_CACHE_NONE, PIN_UPDATE, NULL);
 		if (err)
 			goto out_unpin;
 

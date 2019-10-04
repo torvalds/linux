@@ -288,7 +288,12 @@ restart:
 			if (!drm_mm_node_allocated(&vma->node))
 				continue;
 
-			ret = i915_vma_bind(vma, cache_level, PIN_UPDATE);
+			/* Wait for an earlier async bind, need to rewrite it */
+			ret = i915_vma_sync(vma);
+			if (ret)
+				return ret;
+
+			ret = i915_vma_bind(vma, cache_level, PIN_UPDATE, NULL);
 			if (ret)
 				return ret;
 		}
@@ -391,16 +396,11 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto out;
 
-	ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
-	if (ret)
-		goto out;
-
 	ret = i915_gem_object_lock_interruptible(obj);
 	if (ret == 0) {
 		ret = i915_gem_object_set_cache_level(obj, level);
 		i915_gem_object_unlock(obj);
 	}
-	mutex_unlock(&i915->drm.struct_mutex);
 
 out:
 	i915_gem_object_put(obj);
@@ -485,6 +485,7 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 
+		GEM_BUG_ON(vma->vm != &i915->ggtt.vm);
 		list_move_tail(&vma->vm_link, &vma->vm->bound_list);
 	}
 	mutex_unlock(&i915->ggtt.vm.mutex);

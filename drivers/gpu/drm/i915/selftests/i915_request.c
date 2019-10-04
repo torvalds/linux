@@ -647,8 +647,15 @@ static struct i915_vma *empty_batch(struct drm_i915_private *i915)
 	if (err)
 		goto err;
 
+	/* Force the wait wait now to avoid including it in the benchmark */
+	err = i915_vma_sync(vma);
+	if (err)
+		goto err_pin;
+
 	return vma;
 
+err_pin:
+	i915_vma_unpin(vma);
 err:
 	i915_gem_object_put(obj);
 	return ERR_PTR(err);
