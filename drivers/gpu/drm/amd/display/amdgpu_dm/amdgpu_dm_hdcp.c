@@ -29,7 +29,8 @@
 #include "dm_helpers.h"
 #include <drm/drm_hdcp.h>
 
-bool lp_write_i2c(void *handle, uint32_t address, const uint8_t *data, uint32_t size)
+static bool
+lp_write_i2c(void *handle, uint32_t address, const uint8_t *data, uint32_t size)
 {
 
 	struct dc_link *link = handle;
@@ -39,7 +40,8 @@ bool lp_write_i2c(void *handle, uint32_t address, const uint8_t *data, uint32_t 
 	return dm_helpers_submit_i2c(link->ctx, link, &cmd);
 }
 
-bool lp_read_i2c(void *handle, uint32_t address, uint8_t offset, uint8_t *data, uint32_t size)
+static bool
+lp_read_i2c(void *handle, uint32_t address, uint8_t offset, uint8_t *data, uint32_t size)
 {
 	struct dc_link *link = handle;
 
@@ -49,14 +51,16 @@ bool lp_read_i2c(void *handle, uint32_t address, uint8_t offset, uint8_t *data, 
 	return dm_helpers_submit_i2c(link->ctx, link, &cmd);
 }
 
-bool lp_write_dpcd(void *handle, uint32_t address, const uint8_t *data, uint32_t size)
+static bool
+lp_write_dpcd(void *handle, uint32_t address, const uint8_t *data, uint32_t size)
 {
 	struct dc_link *link = handle;
 
 	return dm_helpers_dp_write_dpcd(link->ctx, link, address, data, size);
 }
 
-bool lp_read_dpcd(void *handle, uint32_t address, uint8_t *data, uint32_t size)
+static bool
+lp_read_dpcd(void *handle, uint32_t address, uint8_t *data, uint32_t size)
 {
 	struct dc_link *link = handle;
 
