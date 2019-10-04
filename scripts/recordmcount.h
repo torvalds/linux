@@ -174,7 +174,7 @@ static int MIPS_is_fake_mcount(Elf_Rel const *rp)
 }
 
 /* Append the new shstrtab, Elf_Shdr[], __mcount_loc and its relocations. */
-static void append_func(Elf_Ehdr *const ehdr,
+static int append_func(Elf_Ehdr *const ehdr,
 			Elf_Shdr *const shstr,
 			uint_t const *const mloc0,
 			uint_t const *const mlocp,
@@ -202,15 +202,20 @@ static void append_func(Elf_Ehdr *const ehdr,
 	new_e_shoff = t;
 
 	/* body for new shstrtab */
-	ulseek(fd_map, sb.st_size, SEEK_SET);
-	uwrite(fd_map, old_shstr_sh_offset + (void *)ehdr, old_shstr_sh_size);
-	uwrite(fd_map, mc_name, 1 + strlen(mc_name));
+	if (ulseek(sb.st_size, SEEK_SET) < 0)
+		return -1;
+	if (uwrite(old_shstr_sh_offset + (void *)ehdr, old_shstr_sh_size) < 0)
+		return -1;
+	if (uwrite(mc_name, 1 + strlen(mc_name)) < 0)
+		return -1;
 
 	/* old(modified) Elf_Shdr table, word-byte aligned */
-	ulseek(fd_map, t, SEEK_SET);
+	if (ulseek(t, SEEK_SET) < 0)
+		return -1;
 	t += sizeof(Elf_Shdr) * old_shnum;
-	uwrite(fd_map, old_shoff + (void *)ehdr,
-	       sizeof(Elf_Shdr) * old_shnum);
+	if (uwrite(old_shoff + (void *)ehdr,
+	       sizeof(Elf_Shdr) * old_shnum) < 0)
+		return -1;
 
 	/* new sections __mcount_loc and .rel__mcount_loc */
 	t += 2*sizeof(mcsec);
@@ -225,7 +230,8 @@ static void append_func(Elf_Ehdr *const ehdr,
 	mcsec.sh_info = 0;
 	mcsec.sh_addralign = _w(_size);
 	mcsec.sh_entsize = _w(_size);
-	uwrite(fd_map, &mcsec, sizeof(mcsec));
+	if (uwrite(&mcsec, sizeof(mcsec)) < 0)
+		return -1;
 
 	mcsec.sh_name = w(old_shstr_sh_size);
 	mcsec.sh_type = (sizeof(Elf_Rela) == rel_entsize)
@@ -239,15 +245,22 @@ static void append_func(Elf_Ehdr *const ehdr,
 	mcsec.sh_info = w(old_shnum);
 	mcsec.sh_addralign = _w(_size);
 	mcsec.sh_entsize = _w(rel_entsize);
-	uwrite(fd_map, &mcsec, sizeof(mcsec));
 
-	uwrite(fd_map, mloc0, (void *)mlocp - (void *)mloc0);
-	uwrite(fd_map, mrel0, (void *)mrelp - (void *)mrel0);
+	if (uwrite(&mcsec, sizeof(mcsec)) < 0)
+		return -1;
+
+	if (uwrite(mloc0, (void *)mlocp - (void *)mloc0) < 0)
+		return -1;
+	if (uwrite(mrel0, (void *)mrelp - (void *)mrel0) < 0)
+		return -1;
 
 	ehdr->e_shoff = _w(new_e_shoff);
 	ehdr->e_shnum = w2(2 + w2(ehdr->e_shnum));  /* {.rel,}__mcount_loc */
-	ulseek(fd_map, 0, SEEK_SET);
-	uwrite(fd_map, ehdr, sizeof(*ehdr));
+	if (ulseek(0, SEEK_SET) < 0)
+		return -1;
+	if (uwrite(ehdr, sizeof(*ehdr)) < 0)
+		return -1;
+	return 0;
 }
 
 static unsigned get_mcountsym(Elf_Sym const *const sym0,
@@ -351,9 +364,9 @@ static uint_t *sift_rel_mcount(uint_t *mlocp,
  * that are not going to be traced. The mcount calls here will be converted
  * into nops.
  */
-static void nop_mcount(Elf_Shdr const *const relhdr,
-		       Elf_Ehdr const *const ehdr,
-		       const char *const txtname)
+static int nop_mcount(Elf_Shdr const *const relhdr,
+		      Elf_Ehdr const *const ehdr,
+		      const char *const txtname)
 {
 	Elf_Shdr *const shdr0 = (Elf_Shdr *)(_w(ehdr->e_shoff)
 		+ (void *)ehdr);
@@ -376,15 +389,18 @@ static void nop_mcount(Elf_Shdr const *const relhdr,
 			mcountsym = get_mcountsym(sym0, relp, str0);
 
 		if (mcountsym == Elf_r_sym(relp) && !is_fake_mcount(relp)) {
-			if (make_nop)
+			if (make_nop) {
 				ret = make_nop((void *)ehdr, _w(shdr->sh_offset) + _w(relp->r_offset));
+				if (ret < 0)
+					return -1;
+			}
 			if (warn_on_notrace_sect && !once) {
 				printf("Section %s has mcount callers being ignored\n",
 				       txtname);
 				once = 1;
 				/* just warn? */
 				if (!make_nop)
-					return;
+					return 0;
 			}
 		}
 
@@ -396,13 +412,15 @@ static void nop_mcount(Elf_Shdr const *const relhdr,
 			Elf_Rel rel;
 			rel = *(Elf_Rel *)relp;
 			Elf_r_info(&rel, Elf_r_sym(relp), rel_type_nop);
-			ulseek(fd_map, (void *)relp - (void *)ehdr, SEEK_SET);
-			uwrite(fd_map, &rel, sizeof(rel));
+			if (ulseek((void *)relp - (void *)ehdr, SEEK_SET) < 0)
+				return -1;
+			if (uwrite(&rel, sizeof(rel)) < 0)
+				return -1;
 		}
 		relp = (Elf_Rel const *)(rel_entsize + (void *)relp);
 	}
+	return 0;
 }
-
 
 /*
  * Find a symbol in the given section, to be used as the base for relocating
@@ -414,9 +432,10 @@ static void nop_mcount(Elf_Shdr const *const relhdr,
  *    Num:    Value  Size Type    Bind   Vis      Ndx Name
  *      2: 00000000     0 SECTION LOCAL  DEFAULT    1
  */
-static unsigned find_secsym_ndx(unsigned const txtndx,
+static int find_secsym_ndx(unsigned const txtndx,
 				char const *const txtname,
 				uint_t *const recvalp,
+				unsigned int *sym_index,
 				Elf_Shdr const *const symhdr,
 				Elf_Ehdr const *const ehdr)
 {
@@ -438,21 +457,20 @@ static unsigned find_secsym_ndx(unsigned const txtndx,
 				continue;
 
 			*recvalp = _w(symp->st_value);
-			return symp - sym0;
+			*sym_index = symp - sym0;
+			return 0;
 		}
 	}
 	fprintf(stderr, "Cannot find symbol for section %u: %s.\n",
 		txtndx, txtname);
-	fail_file();
+	return -1;
 }
 
-
 /* Evade ISO C restriction: no declaration after statement in has_rel_mcount. */
-static char const *
-__has_rel_mcount(Elf_Shdr const *const relhdr,  /* is SHT_REL or SHT_RELA */
-		 Elf_Shdr const *const shdr0,
-		 char const *const shstrtab,
-		 char const *const fname)
+static char const * __has_rel_mcount(Elf_Shdr const *const relhdr, /* reltype */
+				     Elf_Shdr const *const shdr0,
+				     char const *const shstrtab,
+				     char const *const fname)
 {
 	/* .sh_info depends on .sh_type == SHT_REL[,A] */
 	Elf_Shdr const *const txthdr = &shdr0[w(relhdr->sh_info)];
@@ -461,7 +479,7 @@ __has_rel_mcount(Elf_Shdr const *const relhdr,  /* is SHT_REL or SHT_RELA */
 	if (strcmp("__mcount_loc", txtname) == 0) {
 		fprintf(stderr, "warning: __mcount_loc already exists: %s\n",
 			fname);
-		succeed_file();
+		return already_has_rel_mcount;
 	}
 	if (w(txthdr->sh_type) != SHT_PROGBITS ||
 	    !(_w(txthdr->sh_flags) & SHF_EXECINSTR))
@@ -491,6 +509,10 @@ static unsigned tot_relsize(Elf_Shdr const *const shdr0,
 
 	for (; nhdr; --nhdr, ++shdrp) {
 		txtname = has_rel_mcount(shdrp, shdr0, shstrtab, fname);
+		if (txtname == already_has_rel_mcount) {
+			totrelsz = 0;
+			break;
+		}
 		if (txtname && is_mcounted_section_name(txtname))
 			totrelsz += _w(shdrp->sh_size);
 	}
@@ -499,8 +521,8 @@ static unsigned tot_relsize(Elf_Shdr const *const shdr0,
 
 
 /* Overall supervision for Elf32 ET_REL file. */
-static void
-do_func(Elf_Ehdr *const ehdr, char const *const fname, unsigned const reltype)
+static int do_func(Elf_Ehdr *const ehdr, char const *const fname,
+		   unsigned const reltype)
 {
 	Elf_Shdr *const shdr0 = (Elf_Shdr *)(_w(ehdr->e_shoff)
 		+ (void *)ehdr);
@@ -513,26 +535,54 @@ do_func(Elf_Ehdr *const ehdr, char const *const fname, unsigned const reltype)
 	unsigned k;
 
 	/* Upper bound on space: assume all relevant relocs are for mcount. */
-	unsigned const totrelsz = tot_relsize(shdr0, nhdr, shstrtab, fname);
-	Elf_Rel *const mrel0 = umalloc(totrelsz);
-	Elf_Rel *      mrelp = mrel0;
+	unsigned       totrelsz;
 
-	/* 2*sizeof(address) <= sizeof(Elf_Rel) */
-	uint_t *const mloc0 = umalloc(totrelsz>>1);
-	uint_t *      mlocp = mloc0;
+	Elf_Rel *      mrel0;
+	Elf_Rel *      mrelp;
+
+	uint_t *      mloc0;
+	uint_t *      mlocp;
 
 	unsigned rel_entsize = 0;
 	unsigned symsec_sh_link = 0;
 
+	int result = 0;
+
+	totrelsz = tot_relsize(shdr0, nhdr, shstrtab, fname);
+	if (totrelsz == 0)
+		return 0;
+	mrel0 = umalloc(totrelsz);
+	mrelp = mrel0;
+	if (!mrel0)
+		return -1;
+
+	/* 2*sizeof(address) <= sizeof(Elf_Rel) */
+	mloc0 = umalloc(totrelsz>>1);
+	mlocp = mloc0;
+	if (!mloc0) {
+		free(mrel0);
+		return -1;
+	}
+
 	for (relhdr = shdr0, k = nhdr; k; --k, ++relhdr) {
 		char const *const txtname = has_rel_mcount(relhdr, shdr0,
 			shstrtab, fname);
+		if (txtname == already_has_rel_mcount) {
+			result = 0;
+			file_updated = 0;
+			goto out; /* Nothing to be done; don't append! */
+		}
 		if (txtname && is_mcounted_section_name(txtname)) {
+			unsigned int recsym;
 			uint_t recval = 0;
-			unsigned const recsym = find_secsym_ndx(
-				w(relhdr->sh_info), txtname, &recval,
-				&shdr0[symsec_sh_link = w(relhdr->sh_link)],
-				ehdr);
+
+			symsec_sh_link = w(relhdr->sh_link);
+			result = find_secsym_ndx(w(relhdr->sh_info), txtname,
+						&recval, &recsym,
+						&shdr0[symsec_sh_link],
+						ehdr);
+			if (result)
+				goto out;
 
 			rel_entsize = _w(relhdr->sh_entsize);
 			mlocp = sift_rel_mcount(mlocp,
@@ -543,13 +593,17 @@ do_func(Elf_Ehdr *const ehdr, char const *const fname, unsigned const reltype)
 			 * This section is ignored by ftrace, but still
 			 * has mcount calls. Convert them to nops now.
 			 */
-			nop_mcount(relhdr, ehdr, txtname);
+			if (nop_mcount(relhdr, ehdr, txtname) < 0) {
+				result = -1;
+				goto out;
+			}
 		}
 	}
-	if (mloc0 != mlocp) {
-		append_func(ehdr, shstr, mloc0, mlocp, mrel0, mrelp,
-			    rel_entsize, symsec_sh_link);
-	}
+	if (!result && mloc0 != mlocp)
+		result = append_func(ehdr, shstr, mloc0, mlocp, mrel0, mrelp,
+				     rel_entsize, symsec_sh_link);
+out:
 	free(mrel0);
 	free(mloc0);
+	return result;
 }

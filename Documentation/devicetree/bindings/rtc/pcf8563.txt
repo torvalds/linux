@@ -3,7 +3,9 @@
 Philips PCF8563/Epson RTC8564 Real Time Clock
 
 Required properties:
-- compatible: Should contain "nxp,pcf8563".
+- compatible: Should contain "nxp,pcf8563",
+	"epson,rtc8564" or
+	"microcrystal,rv8564"
 - reg: I2C address for chip.
 
 Optional property:

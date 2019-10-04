@@ -13,21 +13,91 @@
 #include <linux/types.h>
 
 #include <asm/barrier.h>
+#include <asm/cmpxchg.h>
 #include <asm/lse.h>
 
-#ifdef __KERNEL__
+#define ATOMIC_OP(op)							\
+static inline void arch_##op(int i, atomic_t *v)			\
+{									\
+	__lse_ll_sc_body(op, i, v);					\
+}
 
-#define __ARM64_IN_ATOMIC_IMPL
+ATOMIC_OP(atomic_andnot)
+ATOMIC_OP(atomic_or)
+ATOMIC_OP(atomic_xor)
+ATOMIC_OP(atomic_add)
+ATOMIC_OP(atomic_and)
+ATOMIC_OP(atomic_sub)
 
-#if defined(CONFIG_ARM64_LSE_ATOMICS) && defined(CONFIG_AS_LSE)
-#include <asm/atomic_lse.h>
-#else
-#include <asm/atomic_ll_sc.h>
-#endif
+#undef ATOMIC_OP
 
-#undef __ARM64_IN_ATOMIC_IMPL
+#define ATOMIC_FETCH_OP(name, op)					\
+static inline int arch_##op##name(int i, atomic_t *v)			\
+{									\
+	return __lse_ll_sc_body(op##name, i, v);			\
+}
 
-#include <asm/cmpxchg.h>
+#define ATOMIC_FETCH_OPS(op)						\
+	ATOMIC_FETCH_OP(_relaxed, op)					\
+	ATOMIC_FETCH_OP(_acquire, op)					\
+	ATOMIC_FETCH_OP(_release, op)					\
+	ATOMIC_FETCH_OP(        , op)
+
+ATOMIC_FETCH_OPS(atomic_fetch_andnot)
+ATOMIC_FETCH_OPS(atomic_fetch_or)
+ATOMIC_FETCH_OPS(atomic_fetch_xor)
+ATOMIC_FETCH_OPS(atomic_fetch_add)
+ATOMIC_FETCH_OPS(atomic_fetch_and)
+ATOMIC_FETCH_OPS(atomic_fetch_sub)
+ATOMIC_FETCH_OPS(atomic_add_return)
+ATOMIC_FETCH_OPS(atomic_sub_return)
+
+#undef ATOMIC_FETCH_OP
+#undef ATOMIC_FETCH_OPS
+
+#define ATOMIC64_OP(op)							\
+static inline void arch_##op(long i, atomic64_t *v)			\
+{									\
+	__lse_ll_sc_body(op, i, v);					\
+}
+
+ATOMIC64_OP(atomic64_andnot)
+ATOMIC64_OP(atomic64_or)
+ATOMIC64_OP(atomic64_xor)
+ATOMIC64_OP(atomic64_add)
+ATOMIC64_OP(atomic64_and)
+ATOMIC64_OP(atomic64_sub)
+
+#undef ATOMIC64_OP
+
+#define ATOMIC64_FETCH_OP(name, op)					\
+static inline long arch_##op##name(long i, atomic64_t *v)		\
+{									\
+	return __lse_ll_sc_body(op##name, i, v);			\
+}
+
+#define ATOMIC64_FETCH_OPS(op)						\
+	ATOMIC64_FETCH_OP(_relaxed, op)					\
+	ATOMIC64_FETCH_OP(_acquire, op)					\
+	ATOMIC64_FETCH_OP(_release, op)					\
+	ATOMIC64_FETCH_OP(        , op)
+
+ATOMIC64_FETCH_OPS(atomic64_fetch_andnot)
+ATOMIC64_FETCH_OPS(atomic64_fetch_or)
+ATOMIC64_FETCH_OPS(atomic64_fetch_xor)
+ATOMIC64_FETCH_OPS(atomic64_fetch_add)
+ATOMIC64_FETCH_OPS(atomic64_fetch_and)
+ATOMIC64_FETCH_OPS(atomic64_fetch_sub)
+ATOMIC64_FETCH_OPS(atomic64_add_return)
+ATOMIC64_FETCH_OPS(atomic64_sub_return)
+
+#undef ATOMIC64_FETCH_OP
+#undef ATOMIC64_FETCH_OPS
+
+static inline long arch_atomic64_dec_if_positive(atomic64_t *v)
+{
+	return __lse_ll_sc_body(atomic64_dec_if_positive, v);
+}
 
 #define ATOMIC_INIT(i)	{ (i) }
 
@@ -157,5 +227,4 @@
 
 #include <asm-generic/atomic-instrumented.h>
 
-#endif
-#endif
+#endif /* __ASM_ATOMIC_H */

@@ -120,9 +120,6 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 	    (!IS_ENABLED(CONFIG_USB_ISP1761_UDC) || udc_disabled))
 		return -ENODEV;
 
-	/* prevent usb-core allocating DMA pages */
-	dev->dma_mask = NULL;
-
 	isp = devm_kzalloc(dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp)
 		return -ENOMEM;

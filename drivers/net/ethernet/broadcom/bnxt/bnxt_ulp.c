@@ -226,6 +226,9 @@ static int bnxt_send_msg(struct bnxt_en_dev *edev, int ulp_id,
 	struct input *req;
 	int rc;
 
+	if (ulp_id != BNXT_ROCE_ULP && bp->fw_reset_state)
+		return -EBUSY;
+
 	mutex_lock(&bp->hwrm_cmd_lock);
 	req = fw_msg->msg;
 	req->resp_addr = cpu_to_le64(bp->hwrm_cmd_resp_dma_addr);

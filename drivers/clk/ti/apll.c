@@ -140,6 +140,7 @@ static void __init omap_clk_register_apll(void *user,
 	struct clk_hw_omap *clk_hw = to_clk_hw_omap(hw);
 	struct dpll_data *ad = clk_hw->dpll_data;
 	struct clk *clk;
+	const struct clk_init_data *init = clk_hw->hw.init;
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
@@ -168,15 +169,15 @@ static void __init omap_clk_register_apll(void *user,
 	clk = ti_clk_register_omap_hw(NULL, &clk_hw->hw, node->name);
 	if (!IS_ERR(clk)) {
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
-		kfree(clk_hw->hw.init->parent_names);
-		kfree(clk_hw->hw.init);
+		kfree(init->parent_names);
+		kfree(init);
 		return;
 	}
 
 cleanup:
 	kfree(clk_hw->dpll_data);
-	kfree(clk_hw->hw.init->parent_names);
-	kfree(clk_hw->hw.init);
+	kfree(init->parent_names);
+	kfree(init);
 	kfree(clk_hw);
 }
 

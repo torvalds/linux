@@ -82,5 +82,6 @@
 #define SERIO_EGALAX	0x3f
 #define SERIO_PULSE8_CEC	0x40
 #define SERIO_RAINSHADOW_CEC	0x41
+#define SERIO_FSIA6B	0x42
 
 #endif /* _UAPI_SERIO_H */

@@ -25,6 +25,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <asm/io.h>
@@ -1048,24 +1049,6 @@ void acpi_ec_unblock_transactions(void)
 		acpi_ec_start(first_ec, true);
 }
 
-void acpi_ec_mark_gpe_for_wake(void)
-{
-	if (first_ec && !ec_no_wakeup)
-		acpi_mark_gpe_for_wake(NULL, first_ec->gpe);
-}
-
-void acpi_ec_set_gpe_wake_mask(u8 action)
-{
-	if (first_ec && !ec_no_wakeup)
-		acpi_set_gpe_wake_mask(NULL, first_ec->gpe, action);
-}
-
-void acpi_ec_dispatch_gpe(void)
-{
-	if (first_ec)
-		acpi_dispatch_gpe(NULL, first_ec->gpe);
-}
-
 /* --------------------------------------------------------------------------
                                 Event Management
    -------------------------------------------------------------------------- */
@@ -1931,7 +1914,7 @@ static int acpi_ec_suspend(struct device *dev)
 	struct acpi_ec *ec =
 		acpi_driver_data(to_acpi_device(dev));
 
-	if (acpi_sleep_no_ec_events() && ec_freeze_events)
+	if (!pm_suspend_no_platform() && ec_freeze_events)
 		acpi_ec_disable_event(ec);
 	return 0;
 }
@@ -1948,8 +1931,7 @@ static int acpi_ec_suspend_noirq(struct device *dev)
 	    ec->reference_count >= 1)
 		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_DISABLE);
 
-	if (acpi_sleep_no_ec_events())
-		acpi_ec_enter_noirq(ec);
+	acpi_ec_enter_noirq(ec);
 
 	return 0;
 }
@@ -1958,8 +1940,7 @@ static int acpi_ec_resume_noirq(struct device *dev)
 {
 	struct acpi_ec *ec = acpi_driver_data(to_acpi_device(dev));
 
-	if (acpi_sleep_no_ec_events())
-		acpi_ec_leave_noirq(ec);
+	acpi_ec_leave_noirq(ec);
 
 	if (ec_no_wakeup && test_bit(EC_FLAGS_STARTED, &ec->flags) &&
 	    ec->reference_count >= 1)
@@ -1976,7 +1957,35 @@ static int acpi_ec_resume(struct device *dev)
 	acpi_ec_enable_event(ec);
 	return 0;
 }
-#endif
+
+void acpi_ec_mark_gpe_for_wake(void)
+{
+	if (first_ec && !ec_no_wakeup)
+		acpi_mark_gpe_for_wake(NULL, first_ec->gpe);
+}
+EXPORT_SYMBOL_GPL(acpi_ec_mark_gpe_for_wake);
+
+void acpi_ec_set_gpe_wake_mask(u8 action)
+{
+	if (pm_suspend_no_platform() && first_ec && !ec_no_wakeup)
+		acpi_set_gpe_wake_mask(NULL, first_ec->gpe, action);
+}
+
+bool acpi_ec_dispatch_gpe(void)
+{
+	u32 ret;
+
+	if (!first_ec)
+		return false;
+
+	ret = acpi_dispatch_gpe(NULL, first_ec->gpe);
+	if (ret == ACPI_INTERRUPT_HANDLED) {
+		pm_pr_dbg("EC GPE dispatched\n");
+		return true;
+	}
+	return false;
+}
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops acpi_ec_pm = {
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(acpi_ec_suspend_noirq, acpi_ec_resume_noirq)

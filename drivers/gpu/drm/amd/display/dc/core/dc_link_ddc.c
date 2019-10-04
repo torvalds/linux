@@ -294,7 +294,7 @@ static uint32_t defer_delay_converter_wa(
 {
 	struct dc_link *link = ddc->link;
 
-	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_4 &&
+	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_0080E1 &&
 		!memcmp(link->dpcd_caps.branch_dev_name,
 			DP_DVI_CONVERTER_ID_4,
 			sizeof(link->dpcd_caps.branch_dev_name)))

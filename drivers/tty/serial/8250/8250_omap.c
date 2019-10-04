@@ -1234,7 +1234,16 @@ static int omap8250_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, true);
 	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_set_autosuspend_delay(&pdev->dev, -1);
+
+	/*
+	 * Disable runtime PM until autosuspend delay unless specifically
+	 * enabled by the user via sysfs. This is the historic way to
+	 * prevent an unsafe default policy with lossy characters on wake-up.
+	 * For serdev devices this is not needed, the policy can be managed by
+	 * the serdev driver.
+	 */
+	if (!of_get_available_child_count(pdev->dev.of_node))
+		pm_runtime_set_autosuspend_delay(&pdev->dev, -1);
 
 	pm_runtime_irq_safe(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);

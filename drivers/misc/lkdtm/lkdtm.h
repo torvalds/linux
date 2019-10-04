@@ -11,6 +11,7 @@ void __init lkdtm_bugs_init(int *recur_param);
 void lkdtm_PANIC(void);
 void lkdtm_BUG(void);
 void lkdtm_WARNING(void);
+void lkdtm_WARNING_MESSAGE(void);
 void lkdtm_EXCEPTION(void);
 void lkdtm_LOOP(void);
 void lkdtm_EXHAUST_STACK(void);
@@ -94,5 +95,8 @@ void lkdtm_USERCOPY_KERNEL_DS(void);
 
 /* lkdtm_stackleak.c */
 void lkdtm_STACKLEAK_ERASING(void);
+
+/* cfi.c */
+void lkdtm_CFI_FORWARD_PROTO(void);
 
 #endif

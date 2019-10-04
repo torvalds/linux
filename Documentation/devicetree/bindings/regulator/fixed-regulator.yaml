@@ -19,14 +19,31 @@ description:
 allOf:
   - $ref: "regulator.yaml#"
 
+if:
+  properties:
+    compatible:
+      contains:
+        const: regulator-fixed-clock
+  required:
+    - clocks
+
 properties:
   compatible:
-    const: regulator-fixed
+    enum:
+      - const: regulator-fixed
+      - const: regulator-fixed-clock
 
   regulator-name: true
 
   gpio:
     description: gpio to use for enable control
+    maxItems: 1
+
+  clocks:
+    description:
+      clock to use for enable control. This binding is only available if
+      the compatible is chosen to regulator-fixed-clock. The clock binding
+      is mandatory if compatible is chosen to regulator-fixed-clock.
     maxItems: 1
 
   startup-delay-us:

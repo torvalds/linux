@@ -137,6 +137,9 @@ static int kernfs_path_from_node_locked(struct kernfs_node *kn_to,
 	if (kn_from == kn_to)
 		return strlcpy(buf, "/", buflen);
 
+	if (!buf)
+		return -EINVAL;
+
 	common = kernfs_common_ancestor(kn_from, kn_to);
 	if (WARN_ON(!common))
 		return -EINVAL;
@@ -144,8 +147,7 @@ static int kernfs_path_from_node_locked(struct kernfs_node *kn_to,
 	depth_to = kernfs_depth(common, kn_to);
 	depth_from = kernfs_depth(common, kn_from);
 
-	if (buf)
-		buf[0] = '\0';
+	buf[0] = '\0';
 
 	for (i = 0; i < depth_from; i++)
 		len += strlcpy(buf + len, parent_str,
@@ -430,7 +432,6 @@ struct kernfs_node *kernfs_get_active(struct kernfs_node *kn)
  */
 void kernfs_put_active(struct kernfs_node *kn)
 {
-	struct kernfs_root *root = kernfs_root(kn);
 	int v;
 
 	if (unlikely(!kn))
@@ -442,7 +443,7 @@ void kernfs_put_active(struct kernfs_node *kn)
 	if (likely(v != KN_DEACTIVATED_BIAS))
 		return;
 
-	wake_up_all(&root->deactivate_waitq);
+	wake_up_all(&kernfs_root(kn)->deactivate_waitq);
 }
 
 /**

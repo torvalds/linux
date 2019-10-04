@@ -248,11 +248,8 @@ static int ptp_dte_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ptp_dte->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(ptp_dte->regs)) {
-		dev_err(dev,
-			"%s: io remap failed\n", __func__);
+	if (IS_ERR(ptp_dte->regs))
 		return PTR_ERR(ptp_dte->regs);
-	}
 
 	spin_lock_init(&ptp_dte->lock);
 

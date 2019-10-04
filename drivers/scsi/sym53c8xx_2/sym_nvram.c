@@ -648,7 +648,7 @@ static int sym_read_T93C46_nvram(struct sym_device *np, Tekram_nvram *nvram)
 {
 	u_char gpcntl, gpreg;
 	u_char old_gpcntl, old_gpreg;
-	int retv = 1;
+	int retv;
 
 	/* save current state of GPCNTL and GPREG */
 	old_gpreg	= INB(np, nc_gpreg);

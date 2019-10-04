@@ -17,9 +17,9 @@
 #include <asm/setup.h>
 #include <asm/delay.h>
 #include <plat/pcie.h>
-#include <mach/irqs.h>
-#include <mach/bridge-regs.h>
 #include <plat/addr-map.h>
+#include "irqs.h"
+#include "bridge-regs.h"
 #include "common.h"
 
 struct pcie_port {

@@ -82,7 +82,7 @@ enum iwl_location_subcmd_ids {
 	TOF_RANGE_ABORT_CMD = 0x2,
 	/**
 	 * @TOF_RANGE_REQ_EXT_CMD: TOF extended ranging config,
-	 *	uses &struct iwl_tof_range_request_ext_cmd
+	 *	uses &struct iwl_tof_range_req_ext_cmd
 	 */
 	TOF_RANGE_REQ_EXT_CMD = 0x3,
 	/**
@@ -292,7 +292,7 @@ struct iwl_tof_responder_dyn_config_cmd {
 } __packed; /* TOF_RESPONDER_DYN_CONFIG_CMD_API_S_VER_2 */
 
 /**
- * struct iwl_tof_range_request_ext_cmd - extended range req for WLS
+ * struct iwl_tof_range_req_ext_cmd - extended range req for WLS
  * @tsf_timer_offset_msec: the recommended time offset (mSec) from the AP's TSF
  * @reserved: reserved
  * @min_delta_ftm: Minimal time between two consecutive measurements,

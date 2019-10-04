@@ -83,8 +83,8 @@ void amdgpu_ucode_print_smc_hdr(const struct common_firmware_header *hdr)
 		const struct smc_firmware_header_v2_0 *v2_hdr =
 			container_of(v1_hdr, struct smc_firmware_header_v2_0, v1_0);
 
-		DRM_INFO("ppt_offset_bytes: %u\n", le32_to_cpu(v2_hdr->ppt_offset_bytes));
-		DRM_INFO("ppt_size_bytes: %u\n", le32_to_cpu(v2_hdr->ppt_size_bytes));
+		DRM_DEBUG("ppt_offset_bytes: %u\n", le32_to_cpu(v2_hdr->ppt_offset_bytes));
+		DRM_DEBUG("ppt_size_bytes: %u\n", le32_to_cpu(v2_hdr->ppt_size_bytes));
 	} else {
 		DRM_ERROR("Unknown SMC ucode version: %u.%u\n", version_major, version_minor);
 	}
@@ -269,6 +269,16 @@ void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
 			DRM_DEBUG("kdb_size_bytes: %u\n",
 				  le32_to_cpu(psp_hdr_v1_1->kdb_size_bytes));
 		}
+		if (version_minor == 2) {
+			const struct psp_firmware_header_v1_2 *psp_hdr_v1_2 =
+				container_of(psp_hdr, struct psp_firmware_header_v1_2, v1_0);
+			DRM_DEBUG("kdb_header_version: %u\n",
+				  le32_to_cpu(psp_hdr_v1_2->kdb_header_version));
+			DRM_DEBUG("kdb_offset_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_2->kdb_offset_bytes));
+			DRM_DEBUG("kdb_size_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_2->kdb_size_bytes));
+		}
 	} else {
 		DRM_ERROR("Unknown PSP ucode version: %u.%u\n",
 			  version_major, version_minor);
@@ -350,11 +360,17 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	case CHIP_RAVEN:
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
+	case CHIP_RENOIR:
 	case CHIP_NAVI10:
+	case CHIP_NAVI14:
+	case CHIP_NAVI12:
 		if (!load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else
 			return AMDGPU_FW_LOAD_PSP;
+	case CHIP_ARCTURUS:
+		return AMDGPU_FW_LOAD_DIRECT;
+
 	default:
 		DRM_ERROR("Unknown firmware load type\n");
 	}

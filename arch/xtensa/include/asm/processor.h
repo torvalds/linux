@@ -176,14 +176,21 @@ struct thread_struct {
 
 /*
  * Do necessary setup to start up a newly executed thread.
- * Note: We set-up ps as if we did a call4 to the new pc.
+ * Note: When windowed ABI is used for userspace we set-up ps
+ *       as if we did a call4 to the new pc.
  *       set_thread_state in signal.c depends on it.
  */
-#define USER_PS_VALUE ((1 << PS_WOE_BIT) |				\
+#if IS_ENABLED(CONFIG_USER_ABI_CALL0)
+#define USER_PS_VALUE ((USER_RING << PS_RING_SHIFT) |			\
+		       (1 << PS_UM_BIT) |				\
+		       (1 << PS_EXCM_BIT))
+#else
+#define USER_PS_VALUE (PS_WOE_MASK |					\
 		       (1 << PS_CALLINC_SHIFT) |			\
 		       (USER_RING << PS_RING_SHIFT) |			\
 		       (1 << PS_UM_BIT) |				\
 		       (1 << PS_EXCM_BIT))
+#endif
 
 /* Clearing a0 terminates the backtrace. */
 #define start_thread(regs, new_pc, new_sp) \

@@ -54,9 +54,9 @@ static const struct {
 	{ RC_PROTO_RC6_MCE, "rc-6-mce", 0x00007fff, "rc-6" },
 	{ RC_PROTO_SHARP, "sharp", 0x1fff, "sharp" },
 	{ RC_PROTO_IMON, "imon", 0x7fffffff, "imon" },
-	{ RC_PROTO_RCMM12, "rcmm-12", 0x00000fff, "rcmm" },
-	{ RC_PROTO_RCMM24, "rcmm-24", 0x00ffffff, "rcmm" },
-	{ RC_PROTO_RCMM32, "rcmm-32", 0xffffffff, "rcmm" },
+	{ RC_PROTO_RCMM12, "rcmm-12", 0x00000fff, "rc-mm" },
+	{ RC_PROTO_RCMM24, "rcmm-24", 0x00ffffff, "rc-mm" },
+	{ RC_PROTO_RCMM32, "rcmm-32", 0xffffffff, "rc-mm" },
 };
 
 int lirc_open(const char *rc)

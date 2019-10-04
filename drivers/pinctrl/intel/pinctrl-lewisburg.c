@@ -17,6 +17,7 @@
 #define LBG_PAD_OWN	0x020
 #define LBG_PADCFGLOCK	0x060
 #define LBG_HOSTSW_OWN	0x080
+#define LBG_GPI_IS	0x100
 #define LBG_GPI_IE	0x110
 
 #define LBG_COMMUNITY(b, s, e)				\
@@ -25,6 +26,7 @@
 		.padown_offset = LBG_PAD_OWN,		\
 		.padcfglock_offset = LBG_PADCFGLOCK,	\
 		.hostown_offset = LBG_HOSTSW_OWN,	\
+		.is_offset = LBG_GPI_IS,		\
 		.ie_offset = LBG_GPI_IE,		\
 		.gpp_size = 24,				\
 		.pin_base = (s),			\

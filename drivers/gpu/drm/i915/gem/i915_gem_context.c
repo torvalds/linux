@@ -70,6 +70,7 @@
 #include <drm/i915_drm.h>
 
 #include "gt/intel_lrc_reg.h"
+#include "gt/intel_engine_user.h"
 
 #include "i915_gem_context.h"
 #include "i915_globals.h"
@@ -158,7 +159,7 @@ lookup_user_engine(struct i915_gem_context *ctx,
 		if (!engine)
 			return ERR_PTR(-EINVAL);
 
-		idx = engine->id;
+		idx = engine->legacy_idx;
 	} else {
 		idx = ci->engine_instance;
 	}
@@ -172,7 +173,9 @@ static inline int new_hw_id(struct drm_i915_private *i915, gfp_t gfp)
 
 	lockdep_assert_held(&i915->contexts.mutex);
 
-	if (INTEL_GEN(i915) >= 11)
+	if (INTEL_GEN(i915) >= 12)
+		max = GEN12_MAX_CONTEXT_HW_ID;
+	else if (INTEL_GEN(i915) >= 11)
 		max = GEN11_MAX_CONTEXT_HW_ID;
 	else if (USES_GUC_SUBMISSION(i915))
 		/*
@@ -278,6 +281,7 @@ static void free_engines_rcu(struct rcu_head *rcu)
 
 static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
 {
+	const struct intel_gt *gt = &ctx->i915->gt;
 	struct intel_engine_cs *engine;
 	struct i915_gem_engines *e;
 	enum intel_engine_id id;
@@ -287,7 +291,7 @@ static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
 		return ERR_PTR(-ENOMEM);
 
 	init_rcu_head(&e->rcu);
-	for_each_engine(engine, ctx->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct intel_context *ce;
 
 		ce = intel_context_create(ctx, engine);
@@ -297,8 +301,8 @@ static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
 		}
 
 		e->engines[id] = ce;
+		e->num_engines = id + 1;
 	}
-	e->num_engines = id;
 
 	return e;
 }
@@ -316,7 +320,7 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	mutex_destroy(&ctx->engines_mutex);
 
 	if (ctx->timeline)
-		i915_timeline_put(ctx->timeline);
+		intel_timeline_put(ctx->timeline);
 
 	kfree(ctx->name);
 	put_pid(ctx->pid);
@@ -397,30 +401,6 @@ static void context_close(struct i915_gem_context *ctx)
 	i915_gem_context_put(ctx);
 }
 
-static u32 default_desc_template(const struct drm_i915_private *i915,
-				 const struct i915_address_space *vm)
-{
-	u32 address_mode;
-	u32 desc;
-
-	desc = GEN8_CTX_VALID | GEN8_CTX_PRIVILEGE;
-
-	address_mode = INTEL_LEGACY_32B_CONTEXT;
-	if (vm && i915_vm_is_4lvl(vm))
-		address_mode = INTEL_LEGACY_64B_CONTEXT;
-	desc |= address_mode << GEN8_CTX_ADDRESSING_MODE_SHIFT;
-
-	if (IS_GEN(i915, 8))
-		desc |= GEN8_CTX_L3LLC_COHERENT;
-
-	/* TODO: WaDisableLiteRestore when we start using semaphore
-	 * signalling between Command Streamers
-	 * ring->ctx_desc_template |= GEN8_CTX_FORCE_RESTORE;
-	 */
-
-	return desc;
-}
-
 static struct i915_gem_context *
 __create_context(struct drm_i915_private *i915)
 {
@@ -458,10 +438,6 @@ __create_context(struct drm_i915_private *i915)
 	i915_gem_context_set_bannable(ctx);
 	i915_gem_context_set_recoverable(ctx);
 
-	ctx->ring_size = 4 * PAGE_SIZE;
-	ctx->desc_template =
-		default_desc_template(i915, &i915->mm.aliasing_ppgtt->vm);
-
 	for (i = 0; i < ARRAY_SIZE(ctx->hang_timestamp); i++)
 		ctx->hang_timestamp[i] = jiffies - CONTEXT_FAST_HANG_JIFFIES;
 
@@ -472,13 +448,34 @@ err_free:
 	return ERR_PTR(err);
 }
 
+static void
+context_apply_all(struct i915_gem_context *ctx,
+		  void (*fn)(struct intel_context *ce, void *data),
+		  void *data)
+{
+	struct i915_gem_engines_iter it;
+	struct intel_context *ce;
+
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it)
+		fn(ce, data);
+	i915_gem_context_unlock_engines(ctx);
+}
+
+static void __apply_ppgtt(struct intel_context *ce, void *vm)
+{
+	i915_vm_put(ce->vm);
+	ce->vm = i915_vm_get(vm);
+}
+
 static struct i915_address_space *
 __set_ppgtt(struct i915_gem_context *ctx, struct i915_address_space *vm)
 {
 	struct i915_address_space *old = ctx->vm;
 
+	GEM_BUG_ON(old && i915_vm_is_4lvl(vm) != i915_vm_is_4lvl(old));
+
 	ctx->vm = i915_vm_get(vm);
-	ctx->desc_template = default_desc_template(ctx->i915, vm);
+	context_apply_all(ctx, __apply_ppgtt, vm);
 
 	return old;
 }
@@ -492,6 +489,29 @@ static void __assign_ppgtt(struct i915_gem_context *ctx,
 	vm = __set_ppgtt(ctx, vm);
 	if (vm)
 		i915_vm_put(vm);
+}
+
+static void __set_timeline(struct intel_timeline **dst,
+			   struct intel_timeline *src)
+{
+	struct intel_timeline *old = *dst;
+
+	*dst = src ? intel_timeline_get(src) : NULL;
+
+	if (old)
+		intel_timeline_put(old);
+}
+
+static void __apply_timeline(struct intel_context *ce, void *timeline)
+{
+	__set_timeline(&ce->timeline, timeline);
+}
+
+static void __assign_timeline(struct i915_gem_context *ctx,
+			      struct intel_timeline *timeline)
+{
+	__set_timeline(&ctx->timeline, timeline);
+	context_apply_all(ctx, __apply_timeline, timeline);
 }
 
 static struct i915_gem_context *
@@ -528,66 +548,20 @@ i915_gem_create_context(struct drm_i915_private *dev_priv, unsigned int flags)
 	}
 
 	if (flags & I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE) {
-		struct i915_timeline *timeline;
+		struct intel_timeline *timeline;
 
-		timeline = i915_timeline_create(dev_priv, NULL);
+		timeline = intel_timeline_create(&dev_priv->gt, NULL);
 		if (IS_ERR(timeline)) {
 			context_close(ctx);
 			return ERR_CAST(timeline);
 		}
 
-		ctx->timeline = timeline;
+		__assign_timeline(ctx, timeline);
+		intel_timeline_put(timeline);
 	}
 
 	trace_i915_context_create(ctx);
 
-	return ctx;
-}
-
-/**
- * i915_gem_context_create_gvt - create a GVT GEM context
- * @dev: drm device *
- *
- * This function is used to create a GVT specific GEM context.
- *
- * Returns:
- * pointer to i915_gem_context on success, error pointer if failed
- *
- */
-struct i915_gem_context *
-i915_gem_context_create_gvt(struct drm_device *dev)
-{
-	struct i915_gem_context *ctx;
-	int ret;
-
-	if (!IS_ENABLED(CONFIG_DRM_I915_GVT))
-		return ERR_PTR(-ENODEV);
-
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ERR_PTR(ret);
-
-	ctx = i915_gem_create_context(to_i915(dev), 0);
-	if (IS_ERR(ctx))
-		goto out;
-
-	ret = i915_gem_context_pin_hw_id(ctx);
-	if (ret) {
-		context_close(ctx);
-		ctx = ERR_PTR(ret);
-		goto out;
-	}
-
-	ctx->file_priv = ERR_PTR(-EBADF);
-	i915_gem_context_set_closed(ctx); /* not user accessible */
-	i915_gem_context_clear_bannable(ctx);
-	i915_gem_context_set_force_single_submission(ctx);
-	if (!USES_GUC_SUBMISSION(to_i915(dev)))
-		ctx->ring_size = 512 * PAGE_SIZE; /* Max ring buffer size */
-
-	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
-out:
-	mutex_unlock(&dev->struct_mutex);
 	return ctx;
 }
 
@@ -622,7 +596,6 @@ i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio)
 
 	i915_gem_context_clear_bannable(ctx);
 	ctx->sched.priority = I915_USER_PRIORITY(prio);
-	ctx->ring_size = PAGE_SIZE;
 
 	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
 
@@ -644,20 +617,13 @@ static void init_contexts(struct drm_i915_private *i915)
 	init_llist_head(&i915->contexts.free_list);
 }
 
-static bool needs_preempt_context(struct drm_i915_private *i915)
-{
-	return HAS_EXECLISTS(i915);
-}
-
 int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_gem_context *ctx;
 
 	/* Reassure ourselves we are only called once */
 	GEM_BUG_ON(dev_priv->kernel_context);
-	GEM_BUG_ON(dev_priv->preempt_context);
 
-	intel_engine_init_ctx_wa(dev_priv->engine[RCS0]);
 	init_contexts(dev_priv);
 
 	/* lowest priority; idle task */
@@ -677,15 +643,6 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(!atomic_read(&ctx->hw_id_pin_count));
 	dev_priv->kernel_context = ctx;
 
-	/* highest priority; preempting task */
-	if (needs_preempt_context(dev_priv)) {
-		ctx = i915_gem_context_create_kernel(dev_priv, INT_MAX);
-		if (!IS_ERR(ctx))
-			dev_priv->preempt_context = ctx;
-		else
-			DRM_ERROR("Failed to create preempt context; disabling preemption\n");
-	}
-
 	DRM_DEBUG_DRIVER("%s context support initialized\n",
 			 DRIVER_CAPS(dev_priv)->has_logical_contexts ?
 			 "logical" : "fake");
@@ -696,8 +653,6 @@ void i915_gem_contexts_fini(struct drm_i915_private *i915)
 {
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
-	if (i915->preempt_context)
-		destroy_kernel_context(&i915->preempt_context);
 	destroy_kernel_context(&i915->kernel_context);
 
 	/* Must free all deferred contexts (via flush_workqueue) first */
@@ -923,8 +878,12 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 	if (!cb)
 		return -ENOMEM;
 
-	i915_active_init(i915, &cb->base, cb_retire);
-	i915_active_acquire(&cb->base);
+	i915_active_init(i915, &cb->base, NULL, cb_retire);
+	err = i915_active_acquire(&cb->base);
+	if (err) {
+		kfree(cb);
+		return err;
+	}
 
 	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
 		struct i915_request *rq;
@@ -951,7 +910,7 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 		if (emit)
 			err = emit(rq, data);
 		if (err == 0)
-			err = i915_active_ref(&cb->base, rq->fence.context, rq);
+			err = i915_active_ref(&cb->base, rq->timeline, rq);
 
 		i915_request_add(rq);
 		if (err)
@@ -1019,7 +978,7 @@ static void set_ppgtt_barrier(void *data)
 
 static int emit_ppgtt_update(struct i915_request *rq, void *data)
 {
-	struct i915_address_space *vm = rq->gem_context->vm;
+	struct i915_address_space *vm = rq->hw_context->vm;
 	struct intel_engine_cs *engine = rq->engine;
 	u32 base = engine->mmio_base;
 	u32 *cs;
@@ -1128,9 +1087,8 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 				   set_ppgtt_barrier,
 				   old);
 	if (err) {
-		ctx->vm = old;
-		ctx->desc_template = default_desc_template(ctx->i915, old);
-		i915_vm_put(vm);
+		i915_vm_put(__set_ppgtt(ctx, old));
+		i915_vm_put(old);
 	}
 
 unlock:
@@ -1187,26 +1145,11 @@ gen8_modify_rpcs(struct intel_context *ce, struct intel_sseu sseu)
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
-	/* Queue this switch after all other activity by this context. */
-	ret = i915_active_request_set(&ce->ring->timeline->last_request, rq);
-	if (ret)
-		goto out_add;
+	/* Serialise with the remote context */
+	ret = intel_context_prepare_remote_request(ce, rq);
+	if (ret == 0)
+		ret = gen8_emit_rpcs_config(rq, ce, sseu);
 
-	/*
-	 * Guarantee context image and the timeline remains pinned until the
-	 * modifying request is retired by setting the ce activity tracker.
-	 *
-	 * But we only need to take one pin on the account of it. Or in other
-	 * words transfer the pinned ce object to tracked active request.
-	 */
-	GEM_BUG_ON(i915_active_is_idle(&ce->active));
-	ret = i915_active_ref(&ce->active, rq->fence.context, rq);
-	if (ret)
-		goto out_add;
-
-	ret = gen8_emit_rpcs_config(rq, ce, sseu);
-
-out_add:
 	i915_request_add(rq);
 	return ret;
 }
@@ -1217,7 +1160,7 @@ __intel_context_reconfigure_sseu(struct intel_context *ce,
 {
 	int ret;
 
-	GEM_BUG_ON(INTEL_GEN(ce->gem_context->i915) < 8);
+	GEM_BUG_ON(INTEL_GEN(ce->engine->i915) < 8);
 
 	ret = intel_context_lock_pinned(ce);
 	if (ret)
@@ -1239,7 +1182,7 @@ unlock:
 static int
 intel_context_reconfigure_sseu(struct intel_context *ce, struct intel_sseu sseu)
 {
-	struct drm_i915_private *i915 = ce->gem_context->i915;
+	struct drm_i915_private *i915 = ce->engine->i915;
 	int ret;
 
 	ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
@@ -1636,6 +1579,7 @@ set_engines(struct i915_gem_context *ctx,
 	for (n = 0; n < num_engines; n++) {
 		struct i915_engine_class_instance ci;
 		struct intel_engine_cs *engine;
+		struct intel_context *ce;
 
 		if (copy_from_user(&ci, &user->engines[n], sizeof(ci))) {
 			__free_engines(set.engines, n);
@@ -1658,11 +1602,13 @@ set_engines(struct i915_gem_context *ctx,
 			return -ENOENT;
 		}
 
-		set.engines->engines[n] = intel_context_create(ctx, engine);
-		if (!set.engines->engines[n]) {
+		ce = intel_context_create(ctx, engine);
+		if (IS_ERR(ce)) {
 			__free_engines(set.engines, n);
-			return -ENOMEM;
+			return PTR_ERR(ce);
 		}
+
+		set.engines->engines[n] = ce;
 	}
 	set.engines->num_engines = num_engines;
 
@@ -1776,7 +1722,7 @@ get_engines(struct i915_gem_context *ctx,
 
 		if (e->engines[n]) {
 			ci.engine_class = e->engines[n]->engine->uabi_class;
-			ci.engine_instance = e->engines[n]->engine->instance;
+			ci.engine_instance = e->engines[n]->engine->uabi_instance;
 		}
 
 		if (copy_to_user(&user->engines[n], &ci, sizeof(ci))) {
@@ -2011,13 +1957,8 @@ unlock:
 static int clone_timeline(struct i915_gem_context *dst,
 			  struct i915_gem_context *src)
 {
-	if (src->timeline) {
-		GEM_BUG_ON(src->timeline == dst->timeline);
-
-		if (dst->timeline)
-			i915_timeline_put(dst->timeline);
-		dst->timeline = i915_timeline_get(src->timeline);
-	}
+	if (src->timeline)
+		__assign_timeline(dst, src->timeline);
 
 	return 0;
 }
@@ -2141,7 +2082,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & I915_CONTEXT_CREATE_FLAGS_UNKNOWN)
 		return -EINVAL;
 
-	ret = i915_terminally_wedged(i915);
+	ret = intel_gt_terminally_wedged(&i915->gt);
 	if (ret)
 		return ret;
 
@@ -2287,8 +2228,8 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		args->size = 0;
 		if (ctx->vm)
 			args->value = ctx->vm->total;
-		else if (to_i915(dev)->mm.aliasing_ppgtt)
-			args->value = to_i915(dev)->mm.aliasing_ppgtt->vm.total;
+		else if (to_i915(dev)->ggtt.alias)
+			args->value = to_i915(dev)->ggtt.alias->vm.total;
 		else
 			args->value = to_i915(dev)->ggtt.vm.total;
 		break;

@@ -31,6 +31,7 @@
 #define IMA_NEW_FILE		0x04000000
 #define EVM_IMMUTABLE_DIGSIG	0x08000000
 #define IMA_FAIL_UNVERIFIABLE_SIGS	0x10000000
+#define IMA_MODSIG_ALLOWED	0x20000000
 
 #define IMA_DO_MASK		(IMA_MEASURE | IMA_APPRAISE | IMA_AUDIT | \
 				 IMA_HASH | IMA_APPRAISE_SUBMASK)
@@ -147,10 +148,13 @@ int integrity_kernel_read(struct file *file, loff_t offset,
 
 extern struct dentry *integrity_dir;
 
+struct modsig;
+
 #ifdef CONFIG_INTEGRITY_SIGNATURE
 
 int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
 			    const char *digest, int digestlen);
+int integrity_modsig_verify(unsigned int id, const struct modsig *modsig);
 
 int __init integrity_init_keyring(const unsigned int id);
 int __init integrity_load_x509(const unsigned int id, const char *path);
@@ -161,6 +165,12 @@ int __init integrity_load_cert(const unsigned int id, const char *source,
 static inline int integrity_digsig_verify(const unsigned int id,
 					  const char *sig, int siglen,
 					  const char *digest, int digestlen)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int integrity_modsig_verify(unsigned int id,
+					  const struct modsig *modsig)
 {
 	return -EOPNOTSUPP;
 }
@@ -185,6 +195,16 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 #else
 static inline int asymmetric_verify(struct key *keyring, const char *sig,
 				    int siglen, const char *data, int datalen)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
+#ifdef CONFIG_IMA_APPRAISE_MODSIG
+int ima_modsig_verify(struct key *keyring, const struct modsig *modsig);
+#else
+static inline int ima_modsig_verify(struct key *keyring,
+				    const struct modsig *modsig)
 {
 	return -EOPNOTSUPP;
 }

@@ -14,7 +14,7 @@
 #include <sys/mman.h>
 #include <linux/stringify.h>
 
-#include "util.h"
+#include "build-id.h"
 #include "event.h"
 #include "debug.h"
 #include "evlist.h"
@@ -26,7 +26,6 @@
 #include "jit.h"
 #include "jitdump.h"
 #include "genelf.h"
-#include "../builtin.h"
 
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
@@ -118,13 +117,13 @@ jit_close(struct jit_buf_desc *jd)
 static int
 jit_validate_events(struct perf_session *session)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	/*
 	 * check that all events use CLOCK_MONOTONIC
 	 */
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (evsel->attr.use_clockid == 0 || evsel->attr.clockid != CLOCK_MONOTONIC)
+		if (evsel->core.attr.use_clockid == 0 || evsel->core.attr.clockid != CLOCK_MONOTONIC)
 			return -1;
 	}
 	return 0;
@@ -758,7 +757,7 @@ jit_process(struct perf_session *session,
 	    pid_t pid,
 	    u64 *nbytes)
 {
-	struct perf_evsel *first;
+	struct evsel *first;
 	struct jit_buf_desc jd;
 	int ret;
 
@@ -778,8 +777,8 @@ jit_process(struct perf_session *session,
 	 * track sample_type to compute id_all layout
 	 * perf sets the same sample type to all events as of now
 	 */
-	first = perf_evlist__first(session->evlist);
-	jd.sample_type = first->attr.sample_type;
+	first = evlist__first(session->evlist);
+	jd.sample_type = first->core.attr.sample_type;
 
 	*nbytes = 0;
 

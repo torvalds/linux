@@ -3024,6 +3024,21 @@ void qed_read_regs(struct qed_hwfn *p_hwfn,
  */
 bool qed_read_fw_info(struct qed_hwfn *p_hwfn,
 		      struct qed_ptt *p_ptt, struct fw_info *fw_info);
+/**
+ * @brief qed_dbg_grc_config - Sets the value of a GRC parameter.
+ *
+ * @param p_hwfn -	HW device data
+ * @param grc_param -	GRC parameter
+ * @param val -		Value to set.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ *	- grc_param is invalid
+ *	- val is outside the allowed boundaries
+ */
+enum dbg_status qed_dbg_grc_config(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   enum dbg_grc_params grc_param, u32 val);
 
 /**
  * @brief qed_dbg_grc_set_params_default - Reverts all GRC parameters to their
@@ -12580,6 +12595,8 @@ struct public_drv_mb {
 #define DRV_MSG_CODE_BW_UPDATE_ACK		0x32000000
 #define DRV_MSG_CODE_NIG_DRAIN			0x30000000
 #define DRV_MSG_CODE_S_TAG_UPDATE_ACK		0x3b000000
+#define DRV_MSG_CODE_GET_NVM_CFG_OPTION		0x003e0000
+#define DRV_MSG_CODE_SET_NVM_CFG_OPTION		0x003f0000
 #define DRV_MSG_CODE_INITIATE_PF_FLR            0x02010000
 #define DRV_MSG_CODE_VF_DISABLED_DONE		0xc0000000
 #define DRV_MSG_CODE_CFG_VF_MSIX		0xc0010000
@@ -12747,6 +12764,21 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_OFFSET	0
 #define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EEE		0x00000002
 #define DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_VLINK		0x00010000
+
+#define DRV_MB_PARAM_NVM_CFG_OPTION_ID_SHIFT		0
+#define DRV_MB_PARAM_NVM_CFG_OPTION_ID_MASK		0x0000FFFF
+#define DRV_MB_PARAM_NVM_CFG_OPTION_ALL_SHIFT		16
+#define DRV_MB_PARAM_NVM_CFG_OPTION_ALL_MASK		0x00010000
+#define DRV_MB_PARAM_NVM_CFG_OPTION_INIT_SHIFT		17
+#define DRV_MB_PARAM_NVM_CFG_OPTION_INIT_MASK		0x00020000
+#define DRV_MB_PARAM_NVM_CFG_OPTION_COMMIT_SHIFT	18
+#define DRV_MB_PARAM_NVM_CFG_OPTION_COMMIT_MASK		0x00040000
+#define DRV_MB_PARAM_NVM_CFG_OPTION_FREE_SHIFT		19
+#define DRV_MB_PARAM_NVM_CFG_OPTION_FREE_MASK		0x00080000
+#define DRV_MB_PARAM_NVM_CFG_OPTION_ENTITY_SEL_SHIFT	20
+#define DRV_MB_PARAM_NVM_CFG_OPTION_ENTITY_SEL_MASK	0x00100000
+#define DRV_MB_PARAM_NVM_CFG_OPTION_ENTITY_ID_SHIFT	24
+#define DRV_MB_PARAM_NVM_CFG_OPTION_ENTITY_ID_MASK	0x0f000000
 
 	u32 fw_mb_header;
 #define FW_MSG_CODE_MASK			0xffff0000

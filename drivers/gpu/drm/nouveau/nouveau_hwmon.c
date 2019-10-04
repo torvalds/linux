@@ -29,8 +29,6 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 
-#include <drm/drmP.h>
-
 #include "nouveau_drv.h"
 #include "nouveau_hwmon.h"
 

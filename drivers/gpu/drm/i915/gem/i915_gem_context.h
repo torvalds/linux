@@ -141,8 +141,6 @@ int i915_gem_context_open(struct drm_i915_private *i915,
 void i915_gem_context_close(struct drm_file *file);
 
 void i915_gem_context_release(struct kref *ctx_ref);
-struct i915_gem_context *
-i915_gem_context_create_gvt(struct drm_device *dev);
 
 int i915_gem_vm_create_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file);
@@ -195,12 +193,6 @@ i915_gem_context_unlock_engines(struct i915_gem_context *ctx)
 	__releases(&ctx->engines_mutex)
 {
 	mutex_unlock(&ctx->engines_mutex);
-}
-
-static inline struct intel_context *
-i915_gem_context_lookup_engine(struct i915_gem_context *ctx, unsigned int idx)
-{
-	return i915_gem_context_engines(ctx)->engines[idx];
 }
 
 static inline struct intel_context *

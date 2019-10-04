@@ -218,6 +218,8 @@ void cec_notifier_unregister(struct cec_notifier *n)
 
 	mutex_lock(&n->lock);
 	n->callback = NULL;
+	n->cec_adap->notifier = NULL;
+	n->cec_adap = NULL;
 	mutex_unlock(&n->lock);
 	cec_notifier_put(n);
 }

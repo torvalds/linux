@@ -632,33 +632,30 @@ static void generic_online_page(struct page *page, unsigned int order)
 #endif
 }
 
-static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
-{
-	unsigned long end = start + nr_pages;
-	int order, onlined_pages = 0;
-
-	while (start < end) {
-		order = min(MAX_ORDER - 1,
-			get_order(PFN_PHYS(end) - PFN_PHYS(start)));
-		(*online_page_callback)(pfn_to_page(start), order);
-
-		onlined_pages += (1UL << order);
-		start += (1UL << order);
-	}
-	return onlined_pages;
-}
-
 static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
 			void *arg)
 {
-	unsigned long onlined_pages = *(unsigned long *)arg;
+	const unsigned long end_pfn = start_pfn + nr_pages;
+	unsigned long pfn;
+	int order;
 
-	if (PageReserved(pfn_to_page(start_pfn)))
-		onlined_pages += online_pages_blocks(start_pfn, nr_pages);
+	/*
+	 * Online the pages. The callback might decide to keep some pages
+	 * PG_reserved (to add them to the buddy later), but we still account
+	 * them as being online/belonging to this zone ("present").
+	 */
+	for (pfn = start_pfn; pfn < end_pfn; pfn += 1ul << order) {
+		order = min(MAX_ORDER - 1, get_order(PFN_PHYS(end_pfn - pfn)));
+		/* __free_pages_core() wants pfns to be aligned to the order */
+		if (WARN_ON_ONCE(!IS_ALIGNED(pfn, 1ul << order)))
+			order = 0;
+		(*online_page_callback)(pfn_to_page(pfn), order);
+	}
 
-	online_mem_sections(start_pfn, start_pfn + nr_pages);
+	/* mark all involved sections as online */
+	online_mem_sections(start_pfn, end_pfn);
 
-	*(unsigned long *)arg = onlined_pages;
+	*(unsigned long *)arg += nr_pages;
 	return 0;
 }
 
@@ -714,8 +711,13 @@ static void __meminit resize_pgdat_range(struct pglist_data *pgdat, unsigned lon
 		pgdat->node_start_pfn = start_pfn;
 
 	pgdat->node_spanned_pages = max(start_pfn + nr_pages, old_end_pfn) - pgdat->node_start_pfn;
-}
 
+}
+/*
+ * Associate the pfn range with the given zone, initializing the memmaps
+ * and resizing the pgdat/zone data to span the added pages. After this
+ * call, all affected pages are PG_reserved.
+ */
 void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
 		unsigned long nr_pages, struct vmem_altmap *altmap)
 {
@@ -804,20 +806,6 @@ struct zone * zone_for_pfn_range(int online_type, int nid, unsigned start_pfn,
 	return default_zone_for_pfn(nid, start_pfn, nr_pages);
 }
 
-/*
- * Associates the given pfn range with the given node and the zone appropriate
- * for the given online type.
- */
-static struct zone * __meminit move_pfn_range(int online_type, int nid,
-		unsigned long start_pfn, unsigned long nr_pages)
-{
-	struct zone *zone;
-
-	zone = zone_for_pfn_range(online_type, nid, start_pfn, nr_pages);
-	move_pfn_range_to_zone(zone, start_pfn, nr_pages, NULL);
-	return zone;
-}
-
 int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_type)
 {
 	unsigned long flags;
@@ -840,7 +828,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 	put_device(&mem->dev);
 
 	/* associate pfn range with the zone */
-	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
+	zone = zone_for_pfn_range(online_type, nid, pfn, nr_pages);
+	move_pfn_range_to_zone(zone, pfn, nr_pages, NULL);
 
 	arg.start_pfn = pfn;
 	arg.nr_pages = nr_pages;
@@ -864,6 +853,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 	ret = walk_system_ram_range(pfn, nr_pages, &onlined_pages,
 		online_pages_range);
 	if (ret) {
+		/* not a single memory resource was applicable */
 		if (need_zonelists_rebuild)
 			zone_pcp_reset(zone);
 		goto failed_addition;
@@ -877,27 +867,22 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 
 	shuffle_zone(zone);
 
-	if (onlined_pages) {
-		node_states_set_node(nid, &arg);
-		if (need_zonelists_rebuild)
-			build_all_zonelists(NULL);
-		else
-			zone_pcp_update(zone);
-	}
+	node_states_set_node(nid, &arg);
+	if (need_zonelists_rebuild)
+		build_all_zonelists(NULL);
+	else
+		zone_pcp_update(zone);
 
 	init_per_zone_wmark_min();
 
-	if (onlined_pages) {
-		kswapd_run(nid);
-		kcompactd_run(nid);
-	}
+	kswapd_run(nid);
+	kcompactd_run(nid);
 
 	vm_total_pages = nr_free_pagecache_pages();
 
 	writeback_set_ratelimit();
 
-	if (onlined_pages)
-		memory_notify(MEM_ONLINE, &arg);
+	memory_notify(MEM_ONLINE, &arg);
 	mem_hotplug_done();
 	return 0;
 
@@ -933,8 +918,11 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
 		if (!pgdat)
 			return NULL;
 
+		pgdat->per_cpu_nodestats =
+			alloc_percpu(struct per_cpu_nodestat);
 		arch_refresh_nodedata(nid, pgdat);
 	} else {
+		int cpu;
 		/*
 		 * Reset the nr_zones, order and classzone_idx before reuse.
 		 * Note that kswapd will init kswapd_classzone_idx properly
@@ -943,6 +931,12 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
 		pgdat->nr_zones = 0;
 		pgdat->kswapd_order = 0;
 		pgdat->kswapd_classzone_idx = 0;
+		for_each_online_cpu(cpu) {
+			struct per_cpu_nodestat *p;
+
+			p = per_cpu_ptr(pgdat->per_cpu_nodestats, cpu);
+			memset(p, 0, sizeof(*p));
+		}
 	}
 
 	/* we can use NODE_DATA(nid) from here */
@@ -952,7 +946,6 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
 
 	/* init node's zones as empty zones, we don't have any present pages.*/
 	free_area_init_core_hotplug(nid);
-	pgdat->per_cpu_nodestats = alloc_percpu(struct per_cpu_nodestat);
 
 	/*
 	 * The node we allocated has no zone fallback lists. For avoiding
@@ -1309,7 +1302,7 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
 		head = compound_head(page);
 		if (page_huge_active(head))
 			return pfn;
-		skip = (1 << compound_order(head)) - (page - head);
+		skip = compound_nr(head) - (page - head);
 		pfn += skip - 1;
 	}
 	return 0;
@@ -1347,7 +1340,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 
 		if (PageHuge(page)) {
 			struct page *head = compound_head(page);
-			pfn = page_to_pfn(head) + (1<<compound_order(head)) - 1;
+			pfn = page_to_pfn(head) + compound_nr(head) - 1;
 			isolate_huge_page(head, &source);
 			continue;
 		} else if (PageTransHuge(page))
@@ -1662,7 +1655,7 @@ static int check_memblock_offlined_cb(struct memory_block *mem, void *arg)
 		phys_addr_t beginpa, endpa;
 
 		beginpa = PFN_PHYS(section_nr_to_pfn(mem->start_section_nr));
-		endpa = PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1))-1;
+		endpa = beginpa + memory_block_size_bytes() - 1;
 		pr_warn("removing memory fails, because memory [%pa-%pa] is onlined\n",
 			&beginpa, &endpa);
 
@@ -1800,7 +1793,7 @@ void __remove_memory(int nid, u64 start, u64 size)
 {
 
 	/*
-	 * trigger BUG() is some memory is not offlined prior to calling this
+	 * trigger BUG() if some memory is not offlined prior to calling this
 	 * function
 	 */
 	if (try_remove_memory(nid, start, size))

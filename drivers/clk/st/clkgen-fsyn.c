@@ -67,7 +67,6 @@ struct clkgen_quadfs_data {
 };
 
 static const struct clk_ops st_quadfs_pll_c32_ops;
-static const struct clk_ops st_quadfs_fs660c32_ops;
 
 static int clk_fs660c32_dig_get_params(unsigned long input,
 		unsigned long output, struct stm_fs *fs);

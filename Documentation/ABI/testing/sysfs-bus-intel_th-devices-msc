@@ -12,7 +12,8 @@ Description:	(RW) Configure MSC operating mode:
 		  - "single", for contiguous buffer mode (high-order alloc);
 		  - "multi", for multiblock mode;
 		  - "ExI", for DCI handler mode;
-		  - "debug", for debug mode.
+		  - "debug", for debug mode;
+		  - any of the currently loaded buffer sinks.
 		If operating mode changes, existing buffer is deallocated,
 		provided there are no active users and tracing is not enabled,
 		otherwise the write will fail.

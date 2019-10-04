@@ -2,9 +2,10 @@ SMI (Smart Multimedia Interface) Common
 
 The hardware block diagram please check bindings/iommu/mediatek,iommu.txt
 
-Mediatek SMI have two generations of HW architecture, mt2712 and mt8173 use
-the second generation of SMI HW while mt2701 uses the first generation HW of
-SMI.
+Mediatek SMI have two generations of HW architecture, here is the list
+which generation the SoCs use:
+generation 1: mt2701 and mt7623.
+generation 2: mt2712, mt8173 and mt8183.
 
 There's slight differences between the two SMI, for generation 2, the
 register which control the iommu port is at each larb's register base. But
@@ -19,6 +20,7 @@ Required properties:
 	"mediatek,mt2712-smi-common"
 	"mediatek,mt7623-smi-common", "mediatek,mt2701-smi-common"
 	"mediatek,mt8173-smi-common"
+	"mediatek,mt8183-smi-common"
 - reg : the register and size of the SMI block.
 - power-domains : a phandle to the power domain of this local arbiter.
 - clocks : Must contain an entry for each entry in clock-names.
@@ -30,6 +32,10 @@ Required properties:
 	    They may be the same if both source clocks are the same.
   - "async" : asynchronous clock, it help transform the smi clock into the emi
 	      clock domain, this clock is only needed by generation 1 smi HW.
+  and these 2 option clocks for generation 2 smi HW:
+  - "gals0": the path0 clock of GALS(Global Async Local Sync).
+  - "gals1": the path1 clock of GALS(Global Async Local Sync).
+  Here is the list which has this GALS: mt8183.
 
 Example:
 	smi_common: smi@14022000 {

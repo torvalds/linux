@@ -90,6 +90,15 @@ struct psp_firmware_header_v1_1 {
 	uint32_t kdb_size_bytes;
 };
 
+/* version_major=1, version_minor=2 */
+struct psp_firmware_header_v1_2 {
+	struct psp_firmware_header_v1_0 v1_0;
+	uint32_t reserve[3];
+	uint32_t kdb_header_version;
+	uint32_t kdb_offset_bytes;
+	uint32_t kdb_size_bytes;
+};
+
 /* version_major=1, version_minor=0 */
 struct ta_firmware_header_v1_0 {
 	struct common_firmware_header header;
@@ -262,6 +271,12 @@ union amdgpu_firmware_header {
 enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_SDMA0 = 0,
 	AMDGPU_UCODE_ID_SDMA1,
+	AMDGPU_UCODE_ID_SDMA2,
+	AMDGPU_UCODE_ID_SDMA3,
+	AMDGPU_UCODE_ID_SDMA4,
+	AMDGPU_UCODE_ID_SDMA5,
+	AMDGPU_UCODE_ID_SDMA6,
+	AMDGPU_UCODE_ID_SDMA7,
 	AMDGPU_UCODE_ID_CP_CE,
 	AMDGPU_UCODE_ID_CP_PFP,
 	AMDGPU_UCODE_ID_CP_ME,
@@ -281,6 +296,7 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_UVD1,
 	AMDGPU_UCODE_ID_VCE,
 	AMDGPU_UCODE_ID_VCN,
+	AMDGPU_UCODE_ID_VCN1,
 	AMDGPU_UCODE_ID_DMCU_ERAM,
 	AMDGPU_UCODE_ID_DMCU_INTV,
 	AMDGPU_UCODE_ID_VCN0_RAM,

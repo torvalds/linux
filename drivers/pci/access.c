@@ -336,15 +336,6 @@ static inline int pcie_cap_version(const struct pci_dev *dev)
 	return pcie_caps_reg(dev) & PCI_EXP_FLAGS_VERS;
 }
 
-static bool pcie_downstream_port(const struct pci_dev *dev)
-{
-	int type = pci_pcie_type(dev);
-
-	return type == PCI_EXP_TYPE_ROOT_PORT ||
-	       type == PCI_EXP_TYPE_DOWNSTREAM ||
-	       type == PCI_EXP_TYPE_PCIE_BRIDGE;
-}
-
 bool pcie_cap_has_lnkctl(const struct pci_dev *dev)
 {
 	int type = pci_pcie_type(dev);

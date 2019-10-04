@@ -161,7 +161,8 @@ static inline u8 num_of_ant(u8 mask)
 		!!((mask) & ANT_C);
 }
 
-/*
+/**
+ * struct iwl_base_params - params not likely to change within a device family
  * @max_ll_items: max number of OTP blocks
  * @shadow_ram_support: shadow support for OTP memory
  * @led_compensation: compensate on the led on/off time per HW according
@@ -331,7 +332,36 @@ struct iwl_csr_params {
 };
 
 /**
+ * struct iwl_cfg_trans - information needed to start the trans
+ *
+ * These values cannot be changed when multiple configs are used for a
+ * single PCI ID, because they are needed before the HW REV or RFID
+ * can be read.
+ *
+ * @base_params: pointer to basic parameters
+ * @csr: csr flags and addresses that are different across devices
+ * @device_family: the device family
+ * @umac_prph_offset: offset to add to UMAC periphery address
+ * @rf_id: need to read rf_id to determine the firmware image
+ * @use_tfh: use TFH
+ * @gen2: 22000 and on transport operation
+ * @mq_rx_supported: multi-queue rx support
+ */
+struct iwl_cfg_trans_params {
+	const struct iwl_base_params *base_params;
+	const struct iwl_csr_params *csr;
+	enum iwl_device_family device_family;
+	u32 umac_prph_offset;
+	u32 rf_id:1,
+	    use_tfh:1,
+	    gen2:1,
+	    mq_rx_supported:1,
+	    bisr_workaround:1;
+};
+
+/**
  * struct iwl_cfg
+ * @trans: the trans-specific configuration part
  * @name: Official name of the device
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
@@ -346,10 +376,10 @@ struct iwl_csr_params {
  * @nvm_ver: NVM version
  * @nvm_calib_ver: NVM calibration version
  * @lib: pointer to the lib ops
- * @base_params: pointer to basic parameters
  * @ht_params: point to ht parameters
  * @led_mode: 0=blinking, 1=On(RF On)/Off(RF Off)
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
+ * @tx_with_siso_diversity: 1x1 device with tx antenna diversity
  * @internal_wimax_coex: internal wifi/wimax combo device
  * @high_temp: Is this NIC is designated to be in high temperature.
  * @host_interrupt_operation_mode: device needs host interrupt operation
@@ -358,7 +388,6 @@ struct iwl_csr_params {
  * @mac_addr_from_csr: read HW address from CSR registers
  * @features: hw features, any combination of feature_whitelist
  * @pwr_tx_backoffs: translation table between power limits and backoffs
- * @csr: csr flags and addresses that are different across devices
  * @max_rx_agg_size: max RX aggregation size of the ADDBA request/response
  * @max_tx_agg_size: max TX aggregation size of the ADDBA request/response
  * @max_ht_ampdu_factor: the exponent of the max length of A-MPDU that the
@@ -371,18 +400,14 @@ struct iwl_csr_params {
  * @dccm2_len: length of the second DCCM
  * @smem_offset: offset from which the SMEM begins
  * @smem_len: the length of SMEM
- * @mq_rx_supported: multi-queue rx support
  * @vht_mu_mimo_supported: VHT MU-MIMO support
- * @rf_id: need to read rf_id to determine the firmware image
  * @integrated: discrete or integrated
- * @gen2: 22000 and on transport operation
  * @cdb: CDB support
  * @nvm_type: see &enum iwl_nvm_type
  * @d3_debug_data_base_addr: base address where D3 debug data is stored
  * @d3_debug_data_length: length of the D3 debug data
  * @bisr_workaround: BISR hardware workaround (for 22260 series devices)
  * @min_txq_size: minimum number of slots required in a TX queue
- * @umac_prph_offset: offset to add to UMAC periphery address
  * @uhb_supported: ultra high band channels supported
  * @min_256_ba_txq_size: minimum number of slots required in a TX queue which
  *	supports 256 BA aggregation
@@ -392,19 +417,16 @@ struct iwl_csr_params {
  * and/or the uCode API version instead.
  */
 struct iwl_cfg {
+	struct iwl_cfg_trans_params trans;
 	/* params specific to an individual device within a device family */
 	const char *name;
 	const char *fw_name_pre;
-	/* params not likely to change within a device family */
-	const struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
 	const struct iwl_ht_params *ht_params;
 	const struct iwl_eeprom_params *eeprom_params;
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
 	const char *default_nvm_file_C_step;
 	const struct iwl_tt_params *thermal_params;
-	const struct iwl_csr_params *csr;
-	enum iwl_device_family device_family;
 	enum iwl_led_mode led_mode;
 	enum iwl_nvm_type nvm_type;
 	u32 max_data_size;
@@ -420,6 +442,7 @@ struct iwl_cfg {
 	u16 nvm_ver;
 	u16 nvm_calib_ver;
 	u32 rx_with_siso_diversity:1,
+	    tx_with_siso_diversity:1,
 	    bt_shared_single_ant:1,
 	    internal_wimax_coex:1,
 	    host_interrupt_operation_mode:1,
@@ -428,15 +451,10 @@ struct iwl_cfg {
 	    lp_xtal_workaround:1,
 	    disable_dummy_notification:1,
 	    apmg_not_supported:1,
-	    mq_rx_supported:1,
 	    vht_mu_mimo_supported:1,
-	    rf_id:1,
 	    integrated:1,
-	    use_tfh:1,
-	    gen2:1,
 	    cdb:1,
 	    dbgc_supported:1,
-	    bisr_workaround:1,
 	    uhb_supported:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
@@ -453,7 +471,6 @@ struct iwl_cfg {
 	u32 d3_debug_data_base_addr;
 	u32 d3_debug_data_length;
 	u32 min_txq_size;
-	u32 umac_prph_offset;
 	u32 fw_mon_smem_write_ptr_addr;
 	u32 fw_mon_smem_write_ptr_msk;
 	u32 fw_mon_smem_cycle_cnt_ptr_addr;

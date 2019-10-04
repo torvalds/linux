@@ -9,7 +9,7 @@
  * Check platform the perf data file was created on and perform platform
  * specific interpretation.
  */
-void perf_evlist__init_trace_event_sample_raw(struct perf_evlist *evlist)
+void perf_evlist__init_trace_event_sample_raw(struct evlist *evlist)
 {
 	const char *arch_pf = perf_env__arch(evlist->env);
 

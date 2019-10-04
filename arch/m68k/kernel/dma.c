@@ -23,8 +23,7 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 	cache_push(page_to_phys(page), size);
 }
 
-pgprot_t arch_dma_mmap_pgprot(struct device *dev, pgprot_t prot,
-		unsigned long attrs)
+pgprot_t pgprot_dmacoherent(pgprot_t prot)
 {
 	if (CPU_IS_040_OR_060) {
 		pgprot_val(prot) &= ~_PAGE_CACHE040;
@@ -77,14 +76,5 @@ void arch_sync_dma_for_device(struct device *dev, phys_addr_t handle,
 		pr_err_ratelimited("dma_sync_single_for_device: unsupported dir %u\n",
 				   dir);
 		break;
-	}
-}
-
-void arch_setup_pdev_archdata(struct platform_device *pdev)
-{
-	if (pdev->dev.coherent_dma_mask == DMA_MASK_NONE &&
-	    pdev->dev.dma_mask == NULL) {
-		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 	}
 }

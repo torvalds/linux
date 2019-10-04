@@ -3,6 +3,7 @@
  */
 
 #include "main.h"
+#include "coex.h"
 #include "fw.h"
 #include "tx.h"
 #include "reg.h"
@@ -36,17 +37,51 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 	c2h = (struct rtw_c2h_cmd *)(skb->data + pkt_offset);
 	len = skb->len - pkt_offset - 2;
 
-	rtw_dbg(rtwdev, RTW_DBG_FW, "recv C2H, id=0x%02x, seq=0x%02x, len=%d\n",
-		c2h->id, c2h->seq, len);
+	mutex_lock(&rtwdev->mutex);
 
 	switch (c2h->id) {
+	case C2H_BT_INFO:
+		rtw_coex_bt_info_notify(rtwdev, c2h->payload, len);
+		break;
+	case C2H_WLAN_INFO:
+		rtw_coex_wl_fwdbginfo_notify(rtwdev, c2h->payload, len);
+		break;
 	case C2H_HALMAC:
 		rtw_fw_c2h_cmd_handle_ext(rtwdev, skb);
 		break;
 	default:
 		break;
 	}
+
+	mutex_unlock(&rtwdev->mutex);
 }
+
+void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
+			       struct sk_buff *skb)
+{
+	struct rtw_c2h_cmd *c2h;
+	u8 len;
+
+	c2h = (struct rtw_c2h_cmd *)(skb->data + pkt_offset);
+	len = skb->len - pkt_offset - 2;
+	*((u32 *)skb->cb) = pkt_offset;
+
+	rtw_dbg(rtwdev, RTW_DBG_FW, "recv C2H, id=0x%02x, seq=0x%02x, len=%d\n",
+		c2h->id, c2h->seq, len);
+
+	switch (c2h->id) {
+	case C2H_BT_MP_INFO:
+		rtw_coex_info_response(rtwdev, skb);
+		break;
+	default:
+		/* pass offset for further operation */
+		*((u32 *)skb->cb) = pkt_offset;
+		skb_queue_tail(&rtwdev->c2h_queue, skb);
+		ieee80211_queue_work(rtwdev->hw, &rtwdev->c2h_work);
+		break;
+	}
+}
+EXPORT_SYMBOL(rtw_fw_c2h_cmd_rx_irqsafe);
 
 static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 				    u8 *h2c)
@@ -179,6 +214,102 @@ void rtw_fw_do_iqk(struct rtw_dev *rtwdev, struct rtw_iqk_para *para)
 	IQK_SET_SEGMENT_IQK(h2c_pkt, para->segment_iqk);
 
 	rtw_fw_send_h2c_packet(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_query_bt_info(struct rtw_dev *rtwdev)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_QUERY_BT_INFO);
+
+	SET_QUERY_BT_INFO(h2c_pkt, true);
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_wl_ch_info(struct rtw_dev *rtwdev, u8 link, u8 ch, u8 bw)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_WL_CH_INFO);
+
+	SET_WL_CH_INFO_LINK(h2c_pkt, link);
+	SET_WL_CH_INFO_CHNL(h2c_pkt, ch);
+	SET_WL_CH_INFO_BW(h2c_pkt, bw);
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_query_bt_mp_info(struct rtw_dev *rtwdev,
+			     struct rtw_coex_info_req *req)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_QUERY_BT_MP_INFO);
+
+	SET_BT_MP_INFO_SEQ(h2c_pkt, req->seq);
+	SET_BT_MP_INFO_OP_CODE(h2c_pkt, req->op_code);
+	SET_BT_MP_INFO_PARA1(h2c_pkt, req->para1);
+	SET_BT_MP_INFO_PARA2(h2c_pkt, req->para2);
+	SET_BT_MP_INFO_PARA3(h2c_pkt, req->para3);
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_force_bt_tx_power(struct rtw_dev *rtwdev, u8 bt_pwr_dec_lvl)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+	u8 index = 0 - bt_pwr_dec_lvl;
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_FORCE_BT_TX_POWER);
+
+	SET_BT_TX_POWER_INDEX(h2c_pkt, index);
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_bt_ignore_wlan_action(struct rtw_dev *rtwdev, bool enable)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_IGNORE_WLAN_ACTION);
+
+	SET_IGNORE_WLAN_ACTION_EN(h2c_pkt, enable);
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_coex_tdma_type(struct rtw_dev *rtwdev,
+			   u8 para1, u8 para2, u8 para3, u8 para4, u8 para5)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_COEX_TDMA_TYPE);
+
+	SET_COEX_TDMA_TYPE_PARA1(h2c_pkt, para1);
+	SET_COEX_TDMA_TYPE_PARA2(h2c_pkt, para2);
+	SET_COEX_TDMA_TYPE_PARA3(h2c_pkt, para3);
+	SET_COEX_TDMA_TYPE_PARA4(h2c_pkt, para4);
+	SET_COEX_TDMA_TYPE_PARA5(h2c_pkt, para5);
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_bt_wifi_control(struct rtw_dev *rtwdev, u8 op_code, u8 *data)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_BT_WIFI_CONTROL);
+
+	SET_BT_WIFI_CONTROL_OP_CODE(h2c_pkt, op_code);
+
+	SET_BT_WIFI_CONTROL_DATA1(h2c_pkt, *data);
+	SET_BT_WIFI_CONTROL_DATA2(h2c_pkt, *(data + 1));
+	SET_BT_WIFI_CONTROL_DATA3(h2c_pkt, *(data + 2));
+	SET_BT_WIFI_CONTROL_DATA4(h2c_pkt, *(data + 3));
+	SET_BT_WIFI_CONTROL_DATA5(h2c_pkt, *(data + 4));
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
 
 void rtw_fw_send_rssi_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)

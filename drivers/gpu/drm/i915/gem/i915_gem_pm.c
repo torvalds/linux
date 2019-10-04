@@ -5,6 +5,7 @@
  */
 
 #include "gem/i915_gem_pm.h"
+#include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 
 #include "i915_drv.h"
@@ -33,12 +34,9 @@ static void i915_gem_park(struct drm_i915_private *i915)
 
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, i915, id)
 		call_idle_barriers(engine); /* cleanup after wedging */
-		i915_gem_batch_pool_fini(&engine->batch_pool);
-	}
 
-	i915_timelines_park(i915);
 	i915_vma_parked(i915);
 
 	i915_globals_park();
@@ -54,7 +52,8 @@ static void idle_work_handler(struct work_struct *work)
 	mutex_lock(&i915->drm.struct_mutex);
 
 	intel_wakeref_lock(&i915->gt.wakeref);
-	park = !intel_wakeref_active(&i915->gt.wakeref) && !work_pending(work);
+	park = (!intel_wakeref_is_active(&i915->gt.wakeref) &&
+		!work_pending(work));
 	intel_wakeref_unlock(&i915->gt.wakeref);
 	if (park)
 		i915_gem_park(i915);
@@ -105,18 +104,18 @@ static int pm_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static bool switch_to_kernel_context_sync(struct drm_i915_private *i915)
+static bool switch_to_kernel_context_sync(struct intel_gt *gt)
 {
-	bool result = !i915_terminally_wedged(i915);
+	bool result = !intel_gt_is_wedged(gt);
 
 	do {
-		if (i915_gem_wait_for_idle(i915,
+		if (i915_gem_wait_for_idle(gt->i915,
 					   I915_WAIT_LOCKED |
 					   I915_WAIT_FOR_IDLE_BOOST,
 					   I915_GEM_IDLE_TIMEOUT) == -ETIME) {
 			/* XXX hide warning from gem_eio */
 			if (i915_modparams.reset) {
-				dev_err(i915->drm.dev,
+				dev_err(gt->i915->drm.dev,
 					"Failed to idle engines, declaring wedged!\n");
 				GEM_TRACE_DUMP();
 			}
@@ -125,18 +124,20 @@ static bool switch_to_kernel_context_sync(struct drm_i915_private *i915)
 			 * Forcibly cancel outstanding work and leave
 			 * the gpu quiet.
 			 */
-			i915_gem_set_wedged(i915);
+			intel_gt_set_wedged(gt);
 			result = false;
 		}
-	} while (i915_retire_requests(i915) && result);
+	} while (i915_retire_requests(gt->i915) && result);
 
-	GEM_BUG_ON(i915->gt.awake);
+	if (intel_gt_pm_wait_for_idle(gt))
+		result = false;
+
 	return result;
 }
 
 bool i915_gem_load_power_context(struct drm_i915_private *i915)
 {
-	return switch_to_kernel_context_sync(i915);
+	return switch_to_kernel_context_sync(&i915->gt);
 }
 
 void i915_gem_suspend(struct drm_i915_private *i915)
@@ -157,22 +158,15 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	 * state. Fortunately, the kernel_context is disposable and we do
 	 * not rely on its state.
 	 */
-	switch_to_kernel_context_sync(i915);
+	switch_to_kernel_context_sync(&i915->gt);
 
 	mutex_unlock(&i915->drm.struct_mutex);
 
-	/*
-	 * Assert that we successfully flushed all the work and
-	 * reset the GPU back to its idle, low power state.
-	 */
-	GEM_BUG_ON(i915->gt.awake);
-	flush_work(&i915->gem.idle_work);
-
-	cancel_delayed_work_sync(&i915->gpu_error.hangcheck_work);
+	cancel_delayed_work_sync(&i915->gt.hangcheck.work);
 
 	i915_gem_drain_freed_objects(i915);
 
-	intel_uc_suspend(i915);
+	intel_uc_suspend(&i915->gt.uc);
 }
 
 static struct drm_i915_gem_object *first_mm_object(struct list_head *list)
@@ -237,15 +231,12 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 	}
 	spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
-	intel_uc_sanitize(i915);
 	i915_gem_sanitize(i915);
 }
 
 void i915_gem_resume(struct drm_i915_private *i915)
 {
 	GEM_TRACE("\n");
-
-	WARN_ON(i915->gt.awake);
 
 	mutex_lock(&i915->drm.struct_mutex);
 	intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
@@ -261,10 +252,10 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	 * guarantee that the context image is complete. So let's just reset
 	 * it and start again.
 	 */
-	if (intel_gt_resume(i915))
+	if (intel_gt_resume(&i915->gt))
 		goto err_wedged;
 
-	intel_uc_resume(i915);
+	intel_uc_resume(&i915->gt.uc);
 
 	/* Always reload a context for powersaving. */
 	if (!i915_gem_load_power_context(i915))
@@ -276,10 +267,10 @@ out_unlock:
 	return;
 
 err_wedged:
-	if (!i915_reset_failed(i915)) {
+	if (!intel_gt_is_wedged(&i915->gt)) {
 		dev_err(i915->drm.dev,
 			"Failed to re-initialize GPU, declaring it wedged!\n");
-		i915_gem_set_wedged(i915);
+		intel_gt_set_wedged(&i915->gt);
 	}
 	goto out_unlock;
 }

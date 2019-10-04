@@ -408,23 +408,38 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 		break;
 	case AMDGPU_HW_IP_VCN_DEC:
 		type = AMD_IP_BLOCK_TYPE_VCN;
-		if (adev->vcn.ring_dec.sched.ready)
-			++num_rings;
+		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+			if (adev->uvd.harvest_config & (1 << i))
+				continue;
+
+			if (adev->vcn.inst[i].ring_dec.sched.ready)
+				++num_rings;
+		}
 		ib_start_alignment = 16;
 		ib_size_alignment = 16;
 		break;
 	case AMDGPU_HW_IP_VCN_ENC:
 		type = AMD_IP_BLOCK_TYPE_VCN;
-		for (i = 0; i < adev->vcn.num_enc_rings; i++)
-			if (adev->vcn.ring_enc[i].sched.ready)
-				++num_rings;
+		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+			if (adev->uvd.harvest_config & (1 << i))
+				continue;
+
+			for (j = 0; j < adev->vcn.num_enc_rings; j++)
+				if (adev->vcn.inst[i].ring_enc[j].sched.ready)
+					++num_rings;
+		}
 		ib_start_alignment = 64;
 		ib_size_alignment = 1;
 		break;
 	case AMDGPU_HW_IP_VCN_JPEG:
 		type = AMD_IP_BLOCK_TYPE_VCN;
-		if (adev->vcn.ring_jpeg.sched.ready)
-			++num_rings;
+		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+			if (adev->uvd.harvest_config & (1 << i))
+				continue;
+
+			if (adev->vcn.inst[i].ring_jpeg.sched.ready)
+				++num_rings;
+		}
 		ib_start_alignment = 16;
 		ib_size_alignment = 16;
 		break;
@@ -661,6 +676,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			se_num = 0xffffffff;
 		if (sh_num == AMDGPU_INFO_MMR_SH_INDEX_MASK)
 			sh_num = 0xffffffff;
+
+		if (info->read_mmr_reg.count > 128)
+			return -EINVAL;
 
 		regs = kmalloc_array(info->read_mmr_reg.count, sizeof(*regs), GFP_KERNEL);
 		if (!regs)
@@ -1088,7 +1106,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	amdgpu_vm_fini(adev, &fpriv->vm);
 
 	if (pasid)
-		amdgpu_pasid_free_delayed(pd->tbo.resv, pasid);
+		amdgpu_pasid_free_delayed(pd->tbo.base.resv, pasid);
 	amdgpu_bo_unref(&pd);
 
 	idr_for_each_entry(&fpriv->bo_list_handles, list, handle)

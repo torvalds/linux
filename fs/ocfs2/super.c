@@ -1080,10 +1080,8 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	osb->osb_debug_root = debugfs_create_dir(osb->uuid_str,
 						 ocfs2_debugfs_root);
 
-	osb->osb_ctxt = debugfs_create_file("fs_state", S_IFREG|S_IRUSR,
-					    osb->osb_debug_root,
-					    osb,
-					    &ocfs2_osb_debug_fops);
+	debugfs_create_file("fs_state", S_IFREG|S_IRUSR, osb->osb_debug_root,
+			    osb, &ocfs2_osb_debug_fops);
 
 	if (ocfs2_meta_ecc(osb))
 		ocfs2_blockcheck_stats_debugfs_install( &osb->osb_ecc_stats,
@@ -1861,8 +1859,6 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	kset_unregister(osb->osb_dev_kset);
 
-	debugfs_remove(osb->osb_ctxt);
-
 	/* Orphan scan should be stopped as early as possible */
 	ocfs2_orphan_scan_stop(osb);
 
@@ -1918,7 +1914,7 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 		ocfs2_dlm_shutdown(osb, hangup_needed);
 
 	ocfs2_blockcheck_stats_debugfs_remove(&osb->osb_ecc_stats);
-	debugfs_remove(osb->osb_debug_root);
+	debugfs_remove_recursive(osb->osb_debug_root);
 
 	if (hangup_needed)
 		ocfs2_cluster_hangup(osb->uuid_str, strlen(osb->uuid_str));

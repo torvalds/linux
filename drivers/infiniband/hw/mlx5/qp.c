@@ -3386,19 +3386,16 @@ static int __mlx5_ib_qp_set_counter(struct ib_qp *qp,
 	struct mlx5_ib_dev *dev = to_mdev(qp->device);
 	struct mlx5_ib_qp *mqp = to_mqp(qp);
 	struct mlx5_qp_context context = {};
-	struct mlx5_ib_port *mibport = NULL;
 	struct mlx5_ib_qp_base *base;
 	u32 set_id;
 
 	if (!MLX5_CAP_GEN(dev->mdev, rts2rts_qp_counters_set_id))
 		return 0;
 
-	if (counter) {
+	if (counter)
 		set_id = counter->id;
-	} else {
-		mibport = &dev->port[mqp->port - 1];
-		set_id = mibport->cnts.set_id;
-	}
+	else
+		set_id = mlx5_ib_get_counters_id(dev, mqp->port - 1);
 
 	base = &mqp->trans_qp.base;
 	context.qp_counter_set_usr_page &= cpu_to_be32(0xffffff);
@@ -3459,7 +3456,6 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	struct mlx5_ib_cq *send_cq, *recv_cq;
 	struct mlx5_qp_context *context;
 	struct mlx5_ib_pd *pd;
-	struct mlx5_ib_port *mibport = NULL;
 	enum mlx5_qp_state mlx5_cur, mlx5_new;
 	enum mlx5_qp_optpar optpar;
 	u32 set_id = 0;
@@ -3624,11 +3620,10 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 		if (qp->flags & MLX5_IB_QP_UNDERLAY)
 			port_num = 0;
 
-		mibport = &dev->port[port_num];
 		if (ibqp->counter)
 			set_id = ibqp->counter->id;
 		else
-			set_id = mibport->cnts.set_id;
+			set_id = mlx5_ib_get_counters_id(dev, port_num);
 		context->qp_counter_set_usr_page |=
 			cpu_to_be32(set_id << 24);
 	}
@@ -3817,6 +3812,8 @@ static int mlx5_ib_modify_dct(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	dctc = MLX5_ADDR_OF(create_dct_in, qp->dct.in, dct_context_entry);
 	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
+		u16 set_id;
+
 		required |= IB_QP_ACCESS_FLAGS | IB_QP_PKEY_INDEX | IB_QP_PORT;
 		if (!is_valid_mask(attr_mask, required, 0))
 			return -EINVAL;
@@ -3843,7 +3840,9 @@ static int mlx5_ib_modify_dct(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		}
 		MLX5_SET(dctc, dctc, pkey_index, attr->pkey_index);
 		MLX5_SET(dctc, dctc, port, attr->port_num);
-		MLX5_SET(dctc, dctc, counter_set_id, dev->port[attr->port_num - 1].cnts.set_id);
+
+		set_id = mlx5_ib_get_counters_id(dev, attr->port_num - 1);
+		MLX5_SET(dctc, dctc, counter_set_id, set_id);
 
 	} else if (cur_state == IB_QPS_INIT && new_state == IB_QPS_RTR) {
 		struct mlx5_ib_modify_qp_resp resp = {};
@@ -6345,11 +6344,13 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 	}
 
 	if (curr_wq_state == IB_WQS_RESET && wq_state == IB_WQS_RDY) {
+		u16 set_id;
+
+		set_id = mlx5_ib_get_counters_id(dev, 0);
 		if (MLX5_CAP_GEN(dev->mdev, modify_rq_counter_set_id)) {
 			MLX5_SET64(modify_rq_in, in, modify_bitmask,
 				   MLX5_MODIFY_RQ_IN_MODIFY_BITMASK_RQ_COUNTER_SET_ID);
-			MLX5_SET(rqc, rqc, counter_set_id,
-				 dev->port->cnts.set_id);
+			MLX5_SET(rqc, rqc, counter_set_id, set_id);
 		} else
 			dev_info_once(
 				&dev->ib_dev.dev,

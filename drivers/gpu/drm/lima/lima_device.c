@@ -80,25 +80,22 @@ const char *lima_ip_name(struct lima_ip *ip)
 static int lima_clk_init(struct lima_device *dev)
 {
 	int err;
-	unsigned long bus_rate, gpu_rate;
 
 	dev->clk_bus = devm_clk_get(dev->dev, "bus");
 	if (IS_ERR(dev->clk_bus)) {
-		dev_err(dev->dev, "get bus clk failed %ld\n", PTR_ERR(dev->clk_bus));
-		return PTR_ERR(dev->clk_bus);
+		err = PTR_ERR(dev->clk_bus);
+		if (err != -EPROBE_DEFER)
+			dev_err(dev->dev, "get bus clk failed %d\n", err);
+		return err;
 	}
 
 	dev->clk_gpu = devm_clk_get(dev->dev, "core");
 	if (IS_ERR(dev->clk_gpu)) {
-		dev_err(dev->dev, "get core clk failed %ld\n", PTR_ERR(dev->clk_gpu));
-		return PTR_ERR(dev->clk_gpu);
+		err = PTR_ERR(dev->clk_gpu);
+		if (err != -EPROBE_DEFER)
+			dev_err(dev->dev, "get core clk failed %d\n", err);
+		return err;
 	}
-
-	bus_rate = clk_get_rate(dev->clk_bus);
-	dev_info(dev->dev, "bus rate = %lu\n", bus_rate);
-
-	gpu_rate = clk_get_rate(dev->clk_gpu);
-	dev_info(dev->dev, "mod rate = %lu", gpu_rate);
 
 	err = clk_prepare_enable(dev->clk_bus);
 	if (err)
@@ -111,11 +108,17 @@ static int lima_clk_init(struct lima_device *dev)
 	dev->reset = devm_reset_control_get_optional(dev->dev, NULL);
 	if (IS_ERR(dev->reset)) {
 		err = PTR_ERR(dev->reset);
+		if (err != -EPROBE_DEFER)
+			dev_err(dev->dev, "get reset controller failed %d\n",
+				err);
 		goto error_out1;
 	} else if (dev->reset != NULL) {
 		err = reset_control_deassert(dev->reset);
-		if (err)
+		if (err) {
+			dev_err(dev->dev,
+				"reset controller deassert failed %d\n", err);
 			goto error_out1;
+		}
 	}
 
 	return 0;
@@ -145,7 +148,8 @@ static int lima_regulator_init(struct lima_device *dev)
 		dev->regulator = NULL;
 		if (ret == -ENODEV)
 			return 0;
-		dev_err(dev->dev, "failed to get regulator: %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev->dev, "failed to get regulator: %d\n", ret);
 		return ret;
 	}
 
@@ -291,16 +295,12 @@ int lima_device_init(struct lima_device *ldev)
 	dma_set_coherent_mask(ldev->dev, DMA_BIT_MASK(32));
 
 	err = lima_clk_init(ldev);
-	if (err) {
-		dev_err(ldev->dev, "clk init fail %d\n", err);
+	if (err)
 		return err;
-	}
 
 	err = lima_regulator_init(ldev);
-	if (err) {
-		dev_err(ldev->dev, "regulator init fail %d\n", err);
+	if (err)
 		goto err_out0;
-	}
 
 	ldev->empty_vm = lima_vm_create(ldev);
 	if (!ldev->empty_vm) {
@@ -342,6 +342,9 @@ int lima_device_init(struct lima_device *ldev)
 	err = lima_init_pp_pipe(ldev);
 	if (err)
 		goto err_out5;
+
+	dev_info(ldev->dev, "bus rate = %lu\n", clk_get_rate(ldev->clk_bus));
+	dev_info(ldev->dev, "mod rate = %lu", clk_get_rate(ldev->clk_gpu));
 
 	return 0;
 

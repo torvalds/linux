@@ -491,15 +491,8 @@ xvip_dma_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 	struct v4l2_fh *vfh = file->private_data;
 	struct xvip_dma *dma = to_xvip_dma(vfh->vdev);
 
-	cap->device_caps = V4L2_CAP_STREAMING;
-
-	if (dma->queue.type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		cap->device_caps |= V4L2_CAP_VIDEO_CAPTURE;
-	else
-		cap->device_caps |= V4L2_CAP_VIDEO_OUTPUT;
-
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS
-			  | dma->xdev->v4l2_caps;
+	cap->capabilities = dma->xdev->v4l2_caps | V4L2_CAP_STREAMING |
+			    V4L2_CAP_DEVICE_CAPS;
 
 	strscpy(cap->driver, "xilinx-vipp", sizeof(cap->driver));
 	strscpy(cap->card, dma->video.name, sizeof(cap->card));
@@ -524,8 +517,6 @@ xvip_dma_enum_format(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 		return -EINVAL;
 
 	f->pixelformat = dma->format.pixelformat;
-	strscpy(f->description, dma->fmtinfo->description,
-		sizeof(f->description));
 
 	return 0;
 }
@@ -700,6 +691,11 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 	dma->video.release = video_device_release_empty;
 	dma->video.ioctl_ops = &xvip_dma_ioctl_ops;
 	dma->video.lock = &dma->lock;
+	dma->video.device_caps = V4L2_CAP_STREAMING;
+	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		dma->video.device_caps |= V4L2_CAP_VIDEO_CAPTURE;
+	else
+		dma->video.device_caps |= V4L2_CAP_VIDEO_OUTPUT;
 
 	video_set_drvdata(&dma->video, dma);
 

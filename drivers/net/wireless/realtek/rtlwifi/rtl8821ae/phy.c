@@ -3613,14 +3613,14 @@ u8 rtl8821ae_phy_sw_chnl(struct ieee80211_hw *hw)
 
 u8 _rtl8812ae_get_right_chnl_place_for_iqk(u8 chnl)
 {
-	u8 channel_all[TARGET_CHNL_NUM_2G_5G_8812] = {
+	static const u8 channel_all[TARGET_CHNL_NUM_2G_5G_8812] = {
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
 		14, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54,
 		56, 58, 60, 62, 64, 100, 102, 104, 106, 108,
 		110, 112, 114, 116, 118, 120, 122, 124, 126,
 		128, 130, 132, 134, 136, 138, 140, 149, 151,
 		153, 155, 157, 159, 161, 163, 165};
-	u8 place = chnl;
+	u8 place;
 
 	if (chnl > 14) {
 		for (place = 14; place < sizeof(channel_all); place++)

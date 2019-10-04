@@ -10,14 +10,13 @@
  */
 #include "builtin.h"
 
-#include "perf.h"
-
 #include "util/parse-events.h"
-#include "util/cache.h"
 #include "util/pmu.h"
 #include "util/debug.h"
 #include "util/metricgroup.h"
+#include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
+#include <stdio.h>
 
 static bool desc_flag = true;
 static bool details_flag;
@@ -82,9 +81,9 @@ int cmd_list(int argc, const char **argv)
 						long_desc_flag, details_flag);
 		else if (strcmp(argv[i], "sdt") == 0)
 			print_sdt_events(NULL, NULL, raw_dump);
-		else if (strcmp(argv[i], "metric") == 0)
+		else if (strcmp(argv[i], "metric") == 0 || strcmp(argv[i], "metrics") == 0)
 			metricgroup__print(true, false, NULL, raw_dump, details_flag);
-		else if (strcmp(argv[i], "metricgroup") == 0)
+		else if (strcmp(argv[i], "metricgroup") == 0 || strcmp(argv[i], "metricgroups") == 0)
 			metricgroup__print(false, true, NULL, raw_dump, details_flag);
 		else if ((sep = strchr(argv[i], ':')) != NULL) {
 			int sep_idx;

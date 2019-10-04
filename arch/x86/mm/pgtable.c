@@ -45,7 +45,7 @@ early_param("userpte", setup_userpte);
 
 void ___pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
 {
-	pgtable_page_dtor(pte);
+	pgtable_pte_page_dtor(pte);
 	paravirt_release_pte(page_to_pfn(pte));
 	paravirt_tlb_remove_table(tlb, pte);
 }
@@ -357,7 +357,7 @@ static void pgd_prepopulate_user_pmd(struct mm_struct *mm,
 
 static struct kmem_cache *pgd_cache;
 
-void __init pgd_cache_init(void)
+void __init pgtable_cache_init(void)
 {
 	/*
 	 * When PAE kernel is running as a Xen domain, it does not use
@@ -401,10 +401,6 @@ static inline void _pgd_free(pgd_t *pgd)
 		kmem_cache_free(pgd_cache, pgd);
 }
 #else
-
-void __init pgd_cache_init(void)
-{
-}
 
 static inline pgd_t *_pgd_alloc(void)
 {

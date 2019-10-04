@@ -395,11 +395,6 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 /* to cope with aliasing VIPT cache */
 #define HAVE_ARCH_UNMAPPED_AREA
 
-/*
- * No page table caches to initialise
- */
-#define pgtable_cache_init()   do { } while (0)
-
 #endif /* __ASSEMBLY__ */
 
 #endif

@@ -23,7 +23,6 @@
 
 /**
  * struct ion_buffer - metadata for a particular buffer
- * @node:		node in the ion_device buffers tree
  * @list:		element in list of deferred freeable buffers
  * @dev:		back pointer to the ion_device
  * @heap:		back pointer to the heap the buffer came from
@@ -39,10 +38,7 @@
  * @attachments:	list of devices attached to this buffer
  */
 struct ion_buffer {
-	union {
-		struct rb_node node;
-		struct list_head list;
-	};
+	struct list_head list;
 	struct ion_device *dev;
 	struct ion_heap *heap;
 	unsigned long flags;
@@ -61,14 +57,10 @@ void ion_buffer_destroy(struct ion_buffer *buffer);
 /**
  * struct ion_device - the metadata of the ion device node
  * @dev:		the actual misc device
- * @buffers:		an rb tree of all the existing buffers
- * @buffer_lock:	lock protecting the tree of buffers
  * @lock:		rwsem protecting the tree of heaps and clients
  */
 struct ion_device {
 	struct miscdevice dev;
-	struct rb_root buffers;
-	struct mutex buffer_lock;
 	struct rw_semaphore lock;
 	struct plist_head heaps;
 	struct dentry *debug_root;

@@ -21,6 +21,7 @@
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
+#include <linux/security.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
@@ -1574,6 +1575,10 @@ static ssize_t pccard_store_cis(struct file *filp, struct kobject *kobj,
 {
 	struct pcmcia_socket *s;
 	int error;
+
+	error = security_locked_down(LOCKDOWN_PCMCIA_CIS);
+	if (error)
+		return error;
 
 	s = to_socket(container_of(kobj, struct device, kobj));
 

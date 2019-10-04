@@ -198,7 +198,7 @@ static u8 lochnagar_clk_get_parent(struct clk_hw *hw)
 	if (ret < 0) {
 		dev_dbg(priv->dev, "Failed to read parent of %s: %d\n",
 			lclk->name, ret);
-		return hw->init->num_parents;
+		return clk_hw_get_num_parents(hw);
 	}
 
 	val &= lclk->src_mask;

@@ -40,6 +40,26 @@
 	(sizeof(struct mlx5e_tx_wqe) / MLX5_SEND_WQE_DS)
 #define MLX5E_XDP_TX_DS_COUNT (MLX5E_XDP_TX_EMPTY_DS_COUNT + 1 /* SG DS */)
 
+#define MLX5E_XDPSQ_STOP_ROOM (MLX5E_SQ_STOP_ROOM)
+
+#define MLX5E_XDP_INLINE_WQE_SZ_THRSD (256 - sizeof(struct mlx5_wqe_inline_seg))
+#define MLX5E_XDP_INLINE_WQE_MAX_DS_CNT \
+	DIV_ROUND_UP(MLX5E_XDP_INLINE_WQE_SZ_THRSD, MLX5_SEND_WQE_DS)
+
+/* The mult of MLX5_SEND_WQE_MAX_WQEBBS * MLX5_SEND_WQEBB_NUM_DS
+ * (16 * 4 == 64) does not fit in the 6-bit DS field of Ctrl Segment.
+ * We use a bound lower that MLX5_SEND_WQE_MAX_WQEBBS to let a
+ * full-session WQE be cache-aligned.
+ */
+#if L1_CACHE_BYTES < 128
+#define MLX5E_XDP_MPW_MAX_WQEBBS (MLX5_SEND_WQE_MAX_WQEBBS - 1)
+#else
+#define MLX5E_XDP_MPW_MAX_WQEBBS (MLX5_SEND_WQE_MAX_WQEBBS - 2)
+#endif
+
+#define MLX5E_XDP_MPW_MAX_NUM_DS \
+	(MLX5E_XDP_MPW_MAX_WQEBBS * MLX5_SEND_WQEBB_NUM_DS)
+
 struct mlx5e_xsk_param;
 int mlx5e_xdp_max_mtu(struct mlx5e_params *params, struct mlx5e_xsk_param *xsk);
 bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct mlx5e_dma_info *di,
@@ -114,6 +134,30 @@ static inline void mlx5e_xdp_update_inline_state(struct mlx5e_xdpsq *sq)
 		session->inline_on = 1;
 }
 
+static inline bool
+mlx5e_xdp_no_room_for_inline_pkt(struct mlx5e_xdp_mpwqe *session)
+{
+	return session->inline_on &&
+	       session->ds_count + MLX5E_XDP_INLINE_WQE_MAX_DS_CNT > MLX5E_XDP_MPW_MAX_NUM_DS;
+}
+
+static inline void
+mlx5e_fill_xdpsq_frag_edge(struct mlx5e_xdpsq *sq, struct mlx5_wq_cyc *wq,
+			   u16 pi, u16 nnops)
+{
+	struct mlx5e_xdp_wqe_info *edge_wi, *wi = &sq->db.wqe_info[pi];
+
+	edge_wi = wi + nnops;
+	/* fill sq frag edge with nops to avoid wqe wrapping two pages */
+	for (; wi < edge_wi; wi++) {
+		wi->num_wqebbs = 1;
+		wi->num_pkts   = 0;
+		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
+	}
+
+	sq->stats->nops += nnops;
+}
+
 static inline void
 mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq,
 			 struct mlx5e_xdp_xmit_data *xdptxd,
@@ -126,19 +170,11 @@ mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq,
 
 	session->pkt_count++;
 
-#define MLX5E_XDP_INLINE_WQE_SZ_THRSD (256 - sizeof(struct mlx5_wqe_inline_seg))
-
 	if (session->inline_on && dma_len <= MLX5E_XDP_INLINE_WQE_SZ_THRSD) {
 		struct mlx5_wqe_inline_seg *inline_dseg =
 			(struct mlx5_wqe_inline_seg *)dseg;
 		u16 ds_len = sizeof(*inline_dseg) + dma_len;
 		u16 ds_cnt = DIV_ROUND_UP(ds_len, MLX5_SEND_WQE_DS);
-
-		if (unlikely(session->ds_count + ds_cnt > session->max_ds_count)) {
-			/* Not enough space for inline wqe, send with memory pointer */
-			session->complete = true;
-			goto no_inline;
-		}
 
 		inline_dseg->byte_count = cpu_to_be32(dma_len | MLX5_INLINE_SEG);
 		memcpy(inline_dseg->data, xdptxd->data, dma_len);
@@ -148,21 +184,23 @@ mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq,
 		return;
 	}
 
-no_inline:
 	dseg->addr       = cpu_to_be64(xdptxd->dma_addr);
 	dseg->byte_count = cpu_to_be32(dma_len);
 	dseg->lkey       = sq->mkey_be;
 	session->ds_count++;
 }
 
-static inline void mlx5e_xdpsq_fetch_wqe(struct mlx5e_xdpsq *sq,
-					 struct mlx5e_tx_wqe **wqe)
+static inline struct mlx5e_tx_wqe *
+mlx5e_xdpsq_fetch_wqe(struct mlx5e_xdpsq *sq, u16 *pi)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
-	u16 pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	struct mlx5e_tx_wqe *wqe;
 
-	*wqe = mlx5_wq_cyc_get_wqe(wq, pi);
-	memset(*wqe, 0, sizeof(**wqe));
+	*pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	wqe = mlx5_wq_cyc_get_wqe(wq, *pi);
+	memset(wqe, 0, sizeof(*wqe));
+
+	return wqe;
 }
 
 static inline void

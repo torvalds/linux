@@ -323,7 +323,7 @@ config ACPI_NUMA
 	bool "NUMA support"
 	depends on NUMA
 	depends on (X86 || IA64 || ARM64)
-	default y if IA64_GENERIC || IA64_SGI_SN2 || ARM64
+	default y if IA64 || ARM64
 
 config ACPI_CUSTOM_DSDT_FILE
 	string "Custom DSDT Table file to include"

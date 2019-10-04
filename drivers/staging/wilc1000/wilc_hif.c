@@ -248,7 +248,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 		goto error;
 	}
 
-	if (vif->obtaining_ip || vif->connecting) {
+	if (vif->connecting) {
 		netdev_err(vif->ndev, "Don't do obss scan\n");
 		result = -EBUSY;
 		goto error;
@@ -679,13 +679,7 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 	if (mac_status == WILC_MAC_STATUS_CONNECTED &&
 	    conn_info->status == WLAN_STATUS_SUCCESS) {
 		ether_addr_copy(hif_drv->assoc_bssid, conn_info->bssid);
-		wilc_set_power_mgmt(vif, 0, 0);
-
 		hif_drv->hif_state = HOST_IF_CONNECTED;
-
-		vif->obtaining_ip = true;
-		mod_timer(&vif->during_ip_timer,
-			  jiffies + msecs_to_jiffies(10000));
 	} else {
 		hif_drv->hif_state = HOST_IF_IDLE;
 	}
@@ -708,15 +702,11 @@ static inline void host_int_handle_disconnect(struct wilc_vif *vif)
 		handle_scan_done(vif, SCAN_EVENT_ABORTED);
 	}
 
-	if (hif_drv->conn_info.conn_result) {
-		vif->obtaining_ip = false;
-		wilc_set_power_mgmt(vif, 0, 0);
-
+	if (hif_drv->conn_info.conn_result)
 		hif_drv->conn_info.conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF,
 					       0, hif_drv->conn_info.arg);
-	} else {
+	else
 		netdev_err(vif->ndev, "%s: conn_result is NULL\n", __func__);
-	}
 
 	eth_zero_addr(hif_drv->assoc_bssid);
 
@@ -772,9 +762,6 @@ int wilc_disconnect(struct wilc_vif *vif)
 	wid.val = (s8 *)&dummy_reason_code;
 	wid.size = sizeof(char);
 
-	vif->obtaining_ip = false;
-	wilc_set_power_mgmt(vif, 0, 0);
-
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
 	if (result) {
 		netdev_err(vif->ndev, "Failed to send disconnect\n");
@@ -809,15 +796,6 @@ int wilc_disconnect(struct wilc_vif *vif)
 	conn_info->req_ies = NULL;
 
 	return 0;
-}
-
-void wilc_resolve_disconnect_aberration(struct wilc_vif *vif)
-{
-	if (!vif->hif_drv)
-		return;
-	if (vif->hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP ||
-	    vif->hif_drv->hif_state == HOST_IF_CONNECTING)
-		wilc_disconnect(vif);
 }
 
 int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats)
@@ -924,7 +902,7 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 	if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP)
 		return -EBUSY;
 
-	if (vif->obtaining_ip || vif->connecting)
+	if (vif->connecting)
 		return -EBUSY;
 
 	remain_on_chan_flag = true;
@@ -1069,12 +1047,8 @@ static void handle_scan_timer(struct work_struct *work)
 static void handle_scan_complete(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc *wilc = msg->vif->wilc;
 
 	del_timer(&msg->vif->hif_drv->scan_timer);
-
-	if (!wilc_wlan_get_num_conn_ifcs(wilc))
-		wilc_chip_sleep_manually(wilc);
 
 	handle_scan_done(msg->vif, SCAN_EVENT_DONE);
 
@@ -1426,18 +1400,14 @@ int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel)
 	return result;
 }
 
-int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
-			     u8 ifc_id)
+int wilc_set_operation_mode(struct wilc_vif *vif, int index, u8 mode,
+			    u8 ifc_id)
 {
 	struct wid wid;
-	struct host_if_drv *hif_drv = vif->hif_drv;
 	int result;
 	struct wilc_drv_handler drv;
 
-	if (!hif_drv)
-		return -EFAULT;
-
-	wid.id = WID_SET_DRV_HANDLER;
+	wid.id = WID_SET_OPERATION_MODE;
 	wid.type = WID_STR;
 	wid.size = sizeof(drv);
 	wid.val = (u8 *)&drv;
@@ -1448,26 +1418,6 @@ int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
 	if (result)
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
-
-	return result;
-}
-
-int wilc_set_operation_mode(struct wilc_vif *vif, u32 mode)
-{
-	struct wid wid;
-	struct wilc_op_mode op_mode;
-	int result;
-
-	wid.id = WID_SET_OPERATION_MODE;
-	wid.type = WID_INT;
-	wid.size = sizeof(op_mode);
-	wid.val = (u8 *)&op_mode;
-
-	op_mode.mode = cpu_to_le32(mode);
-
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
-	if (result)
-		netdev_err(vif->ndev, "Failed to set operation mode\n");
 
 	return result;
 }
@@ -1610,7 +1560,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	*hif_drv_handler = hif_drv;
 
 	vif->hif_drv = hif_drv;
-	vif->obtaining_ip = false;
 
 	if (wilc->clients_count == 0)
 		mutex_init(&wilc->deinit_lock);
@@ -1647,8 +1596,6 @@ int wilc_deinit(struct wilc_vif *vif)
 	del_timer_sync(&hif_drv->connect_timer);
 	del_timer_sync(&vif->periodic_rssi);
 	del_timer_sync(&hif_drv->remain_on_ch_timer);
-
-	wilc_set_wfi_drv_handler(vif, 0, 0, 0);
 
 	if (hif_drv->usr_scan_req.scan_result) {
 		hif_drv->usr_scan_req.scan_result(SCAN_EVENT_ABORTED, NULL,
@@ -2023,9 +1970,6 @@ int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 	struct wid wid;
 	int result;
 	s8 power_mode;
-
-	if (wilc_wlan_get_num_conn_ifcs(vif->wilc) == 2 && enabled)
-		return 0;
 
 	if (enabled)
 		power_mode = WILC_FW_MIN_FAST_PS;

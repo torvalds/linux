@@ -32,10 +32,10 @@
 #include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
+#include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_mst.h"
 #include "intel_dpio_phy.h"
-#include "intel_drv.h"
 
 static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 					    struct intel_crtc_state *crtc_state,
@@ -346,11 +346,8 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    DP_TP_STATUS(port),
-				    DP_TP_STATUS_ACT_SENT,
-				    DP_TP_STATUS_ACT_SENT,
-				    1))
+	if (intel_de_wait_for_set(dev_priv, DP_TP_STATUS(port),
+				  DP_TP_STATUS_ACT_SENT, 1))
 		DRM_ERROR("Timed out waiting for ACT sent\n");
 
 	drm_dp_check_act_status(&intel_dp->mst_mgr);
@@ -618,7 +615,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum
 	intel_encoder->type = INTEL_OUTPUT_DP_MST;
 	intel_encoder->power_domain = intel_dig_port->base.power_domain;
 	intel_encoder->port = intel_dig_port->base.port;
-	intel_encoder->crtc_mask = 0x7;
+	intel_encoder->crtc_mask = BIT(pipe);
 	intel_encoder->cloneable = 0;
 
 	intel_encoder->compute_config = intel_dp_mst_compute_config;
@@ -645,6 +642,12 @@ intel_dp_create_fake_mst_encoders(struct intel_digital_port *intel_dig_port)
 	for_each_pipe(dev_priv, pipe)
 		intel_dp->mst_encoders[pipe] = intel_dp_create_fake_mst_encoder(intel_dig_port, pipe);
 	return true;
+}
+
+int
+intel_dp_mst_encoder_active_links(struct intel_digital_port *intel_dig_port)
+{
+	return intel_dig_port->dp.active_mst_links;
 }
 
 int

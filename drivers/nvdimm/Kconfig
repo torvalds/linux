@@ -118,4 +118,16 @@ config NVDIMM_KEYS
 	depends on ENCRYPTED_KEYS
 	depends on (LIBNVDIMM=ENCRYPTED_KEYS) || LIBNVDIMM=m
 
+config NVDIMM_TEST_BUILD
+	tristate "Build the unit test core"
+	depends on m
+	depends on COMPILE_TEST && X86_64
+	default m if COMPILE_TEST
+	help
+	  Build the core of the unit test infrastructure. The result of
+	  this build is non-functional for unit test execution, but it
+	  otherwise helps catch build errors induced by changes to the
+	  core devm_memremap_pages() implementation and other
+	  infrastructure.
+
 endif

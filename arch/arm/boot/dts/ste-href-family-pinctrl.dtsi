@@ -607,7 +607,6 @@
 						groups =
 						"lcdvsi0_a_1", /* VSI0 for LCD */
 						"lcd_d0_d7_a_1", /* Data lines */
-						"lcd_d8_d11_a_1", /* TV-out */
 						"lcdvsi1_a_1"; /* VSI1 for HDMI */
 					};
 					default_mux2 {

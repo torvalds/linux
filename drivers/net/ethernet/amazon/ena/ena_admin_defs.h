@@ -808,6 +808,12 @@ struct ena_admin_host_info {
 	u16 num_cpus;
 
 	u16 reserved;
+
+	/* 1 :0 : reserved
+	 * 2 : interrupt_moderation
+	 * 31:3 : reserved
+	 */
+	u32 driver_supported_features;
 };
 
 struct ena_admin_rss_ind_table_entry {
@@ -1110,6 +1116,8 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 #define ENA_ADMIN_HOST_INFO_DEVICE_MASK                     GENMASK(7, 3)
 #define ENA_ADMIN_HOST_INFO_BUS_SHIFT                       8
 #define ENA_ADMIN_HOST_INFO_BUS_MASK                        GENMASK(15, 8)
+#define ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_SHIFT      2
+#define ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_MASK       BIT(2)
 
 /* aenq_common_desc */
 #define ENA_ADMIN_AENQ_COMMON_DESC_PHASE_MASK               BIT(0)

@@ -153,38 +153,10 @@ static uint8_t hpd_sel_to_atom(enum hpd_source_id id)
 
 static uint8_t dig_encoder_sel_to_atom(enum engine_id id)
 {
-	uint8_t atom_dig_encoder_sel = 0;
-
-	switch (id) {
-	case ENGINE_ID_DIGA:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V5__DIGA_SEL;
-		break;
-	case ENGINE_ID_DIGB:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V5__DIGB_SEL;
-		break;
-	case ENGINE_ID_DIGC:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V5__DIGC_SEL;
-		break;
-	case ENGINE_ID_DIGD:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V5__DIGD_SEL;
-		break;
-	case ENGINE_ID_DIGE:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V5__DIGE_SEL;
-		break;
-	case ENGINE_ID_DIGF:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V5__DIGF_SEL;
-		break;
-	case ENGINE_ID_DIGG:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V5__DIGG_SEL;
-		break;
-	case ENGINE_ID_UNKNOWN:
-		 /* No DIG_FRONT is associated to DIG_BACKEND */
-		atom_dig_encoder_sel = 0;
-		break;
-	default:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V5__DIGA_SEL;
-		break;
-	}
+	/* On any ASIC after DCE80, we manually program the DIG_FE
+	 * selection (see connect_dig_be_to_fe function of the link
+	 * encoder), so translation should always return 0 (no FE).
+	 */
 
 	return 0;
 }

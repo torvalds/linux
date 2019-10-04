@@ -100,16 +100,18 @@ static void ftm_quaddec_init(struct ftm_quaddec *ftm)
 	ftm_set_write_protection(ftm);
 }
 
-static void ftm_quaddec_disable(struct ftm_quaddec *ftm)
+static void ftm_quaddec_disable(void *ftm)
 {
-	ftm_clear_write_protection(ftm);
-	ftm_write(ftm, FTM_MODE, 0);
-	ftm_write(ftm, FTM_QDCTRL, 0);
+	struct ftm_quaddec *ftm_qua = ftm;
+
+	ftm_clear_write_protection(ftm_qua);
+	ftm_write(ftm_qua, FTM_MODE, 0);
+	ftm_write(ftm_qua, FTM_QDCTRL, 0);
 	/*
 	 * This is enough to disable the counter. No clock has been
 	 * selected by writing to FTM_SC in init()
 	 */
-	ftm_set_write_protection(ftm);
+	ftm_set_write_protection(ftm_qua);
 }
 
 static int ftm_quaddec_get_prescaler(struct counter_device *counter,
@@ -317,20 +319,13 @@ static int ftm_quaddec_probe(struct platform_device *pdev)
 
 	ftm_quaddec_init(ftm);
 
-	ret = counter_register(&ftm->counter);
+	ret = devm_add_action_or_reset(&pdev->dev, ftm_quaddec_disable, ftm);
 	if (ret)
-		ftm_quaddec_disable(ftm);
+		return ret;
 
-	return ret;
-}
-
-static int ftm_quaddec_remove(struct platform_device *pdev)
-{
-	struct ftm_quaddec *ftm = platform_get_drvdata(pdev);
-
-	counter_unregister(&ftm->counter);
-
-	ftm_quaddec_disable(ftm);
+	ret = devm_counter_register(&pdev->dev, &ftm->counter);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -346,7 +341,6 @@ static struct platform_driver ftm_quaddec_driver = {
 		.of_match_table = ftm_quaddec_match,
 	},
 	.probe = ftm_quaddec_probe,
-	.remove = ftm_quaddec_remove,
 };
 
 module_platform_driver(ftm_quaddec_driver);

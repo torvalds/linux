@@ -158,6 +158,8 @@
 
 #define SII902X_I2C_BUS_ACQUISITION_TIMEOUT_MS	500
 
+#define SII902X_AUDIO_PORT_INDEX		3
+
 struct sii902x {
 	struct i2c_client *i2c;
 	struct regmap *regmap;
@@ -568,13 +570,14 @@ static int sii902x_audio_hw_params(struct device *dev, void *data,
 		return ret;
 	}
 
-	mclk_rate = clk_get_rate(sii902x->audio.mclk);
-
-	ret = sii902x_select_mclk_div(&i2s_config_reg, params->sample_rate,
-				      mclk_rate);
-	if (mclk_rate != ret * params->sample_rate)
-		dev_dbg(dev, "Inaccurate reference clock (%ld/%d != %u)\n",
-			mclk_rate, ret, params->sample_rate);
+	if (sii902x->audio.mclk) {
+		mclk_rate = clk_get_rate(sii902x->audio.mclk);
+		ret = sii902x_select_mclk_div(&i2s_config_reg,
+					      params->sample_rate, mclk_rate);
+		if (mclk_rate != ret * params->sample_rate)
+			dev_dbg(dev, "Inaccurate reference clock (%ld/%d != %u)\n",
+				mclk_rate, ret, params->sample_rate);
+	}
 
 	mutex_lock(&sii902x->mutex);
 
@@ -662,7 +665,8 @@ static void sii902x_audio_shutdown(struct device *dev, void *data)
 	clk_disable_unprepare(sii902x->audio.mclk);
 }
 
-int sii902x_audio_digital_mute(struct device *dev, void *data, bool enable)
+static int sii902x_audio_digital_mute(struct device *dev,
+				      void *data, bool enable)
 {
 	struct sii902x *sii902x = dev_get_drvdata(dev);
 
@@ -690,11 +694,32 @@ static int sii902x_audio_get_eld(struct device *dev, void *data,
 	return 0;
 }
 
+static int sii902x_audio_get_dai_id(struct snd_soc_component *component,
+				    struct device_node *endpoint)
+{
+	struct of_endpoint of_ep;
+	int ret;
+
+	ret = of_graph_parse_endpoint(endpoint, &of_ep);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * HDMI sound should be located at reg = <3>
+	 * Return expected DAI index 0.
+	 */
+	if (of_ep.port == SII902X_AUDIO_PORT_INDEX)
+		return 0;
+
+	return -EINVAL;
+}
+
 static const struct hdmi_codec_ops sii902x_audio_codec_ops = {
 	.hw_params = sii902x_audio_hw_params,
 	.audio_shutdown = sii902x_audio_shutdown,
 	.digital_mute = sii902x_audio_digital_mute,
 	.get_eld = sii902x_audio_get_eld,
+	.get_dai_id = sii902x_audio_get_dai_id,
 };
 
 static int sii902x_audio_codec_init(struct sii902x *sii902x,
@@ -750,10 +775,11 @@ static int sii902x_audio_codec_init(struct sii902x *sii902x,
 		sii902x->audio.i2s_fifo_sequence[i] |= audio_fifo_id[i] |
 			i2s_lane_id[lanes[i]] |	SII902X_TPI_I2S_FIFO_ENABLE;
 
+	sii902x->audio.mclk = devm_clk_get_optional(dev, "mclk");
 	if (IS_ERR(sii902x->audio.mclk)) {
 		dev_err(dev, "%s: No clock (audio mclk) found: %ld\n",
 			__func__, PTR_ERR(sii902x->audio.mclk));
-		return 0;
+		return PTR_ERR(sii902x->audio.mclk);
 	}
 
 	sii902x->audio.pdev = platform_device_register_data(

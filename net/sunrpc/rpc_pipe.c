@@ -1416,8 +1416,7 @@ EXPORT_SYMBOL_GPL(gssd_running);
 
 static int rpc_fs_get_tree(struct fs_context *fc)
 {
-	fc->s_fs_info = get_net(fc->net_ns);
-	return vfs_get_super(fc, vfs_get_keyed_super, rpc_fill_super);
+	return get_tree_keyed(fc, rpc_fill_super, get_net(fc->net_ns));
 }
 
 static void rpc_fs_free_fc(struct fs_context *fc)

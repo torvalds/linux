@@ -250,7 +250,7 @@ xfs_getfsmap_helper(
 		rec_daddr += XFS_FSB_TO_BB(mp, rec->rm_blockcount);
 		if (info->next_daddr < rec_daddr)
 			info->next_daddr = rec_daddr;
-		return XFS_BTREE_QUERY_RANGE_CONTINUE;
+		return 0;
 	}
 
 	/* Are we just counting mappings? */
@@ -259,14 +259,14 @@ xfs_getfsmap_helper(
 			info->head->fmh_entries++;
 
 		if (info->last)
-			return XFS_BTREE_QUERY_RANGE_CONTINUE;
+			return 0;
 
 		info->head->fmh_entries++;
 
 		rec_daddr += XFS_FSB_TO_BB(mp, rec->rm_blockcount);
 		if (info->next_daddr < rec_daddr)
 			info->next_daddr = rec_daddr;
-		return XFS_BTREE_QUERY_RANGE_CONTINUE;
+		return 0;
 	}
 
 	/*
@@ -276,7 +276,7 @@ xfs_getfsmap_helper(
 	 */
 	if (rec_daddr > info->next_daddr) {
 		if (info->head->fmh_entries >= info->head->fmh_count)
-			return XFS_BTREE_QUERY_RANGE_ABORT;
+			return -ECANCELED;
 
 		fmr.fmr_device = info->dev;
 		fmr.fmr_physical = info->next_daddr;
@@ -295,7 +295,7 @@ xfs_getfsmap_helper(
 
 	/* Fill out the extent we found */
 	if (info->head->fmh_entries >= info->head->fmh_count)
-		return XFS_BTREE_QUERY_RANGE_ABORT;
+		return -ECANCELED;
 
 	trace_xfs_fsmap_mapping(mp, info->dev, info->agno, rec);
 
@@ -328,7 +328,7 @@ out:
 	rec_daddr += XFS_FSB_TO_BB(mp, rec->rm_blockcount);
 	if (info->next_daddr < rec_daddr)
 		info->next_daddr = rec_daddr;
-	return XFS_BTREE_QUERY_RANGE_CONTINUE;
+	return 0;
 }
 
 /* Transform a rmapbt irec into a fsmap */

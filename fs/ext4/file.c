@@ -230,8 +230,6 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (IS_DAX(inode))
 		return ext4_dax_write_iter(iocb, from);
 #endif
-	if (!o_direct && (iocb->ki_flags & IOCB_NOWAIT))
-		return -EOPNOTSUPP;
 
 	if (!inode_trylock(inode)) {
 		if (iocb->ki_flags & IOCB_NOWAIT)
@@ -454,6 +452,10 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 		return ret;
 
 	ret = fscrypt_file_open(inode, filp);
+	if (ret)
+		return ret;
+
+	ret = fsverity_file_open(inode, filp);
 	if (ret)
 		return ret;
 

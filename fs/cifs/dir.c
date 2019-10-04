@@ -125,7 +125,7 @@ cifs_bp_rename_retry:
 	}
 	rcu_read_unlock();
 
-	full_path = kmalloc(namelen+1, GFP_KERNEL);
+	full_path = kmalloc(namelen+1, GFP_ATOMIC);
 	if (full_path == NULL)
 		return full_path;
 	full_path[namelen] = 0;	/* trailing null */
