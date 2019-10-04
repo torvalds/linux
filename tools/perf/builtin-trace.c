@@ -91,6 +91,7 @@ struct syscall_arg_fmt {
 	unsigned long (*mask_val)(struct syscall_arg *arg, unsigned long val);
 	void	   *parm;
 	const char *name;
+	u16	   nr_entries; // for arrays
 	bool	   show_zero;
 };
 
@@ -521,6 +522,16 @@ size_t syscall_arg__scnprintf_long(char *bf, size_t size, struct syscall_arg *ar
 {
 	return scnprintf(bf, size, "%ld", arg->val);
 }
+
+static size_t syscall_arg__scnprintf_char_array(char *bf, size_t size, struct syscall_arg *arg)
+{
+	// XXX Hey, maybe for sched:sched_switch prev/next comm fields we can
+	//     fill missing comms using thread__set_comm()...
+	//     here or in a special syscall_arg__scnprintf_pid_sched_tp...
+	return scnprintf(bf, size, "\"%-.*s\"", arg->fmt->nr_entries, arg->val);
+}
+
+#define SCA_CHAR_ARRAY syscall_arg__scnprintf_char_array
 
 static const char *bpf_cmd[] = {
 	"MAP_CREATE", "MAP_LOOKUP_ELEM", "MAP_UPDATE_ELEM", "MAP_DELETE_ELEM",
@@ -1491,7 +1502,10 @@ syscall_arg_fmt__init_array(struct syscall_arg_fmt *arg, struct tep_format_field
 			arg->scnprintf = SCA_PID;
 		else if (strcmp(field->type, "umode_t") == 0)
 			arg->scnprintf = SCA_MODE_T;
-		else if ((strcmp(field->type, "int") == 0 ||
+		else if ((field->flags & TEP_FIELD_IS_ARRAY) && strstarts(field->type, "char")) {
+			arg->scnprintf = SCA_CHAR_ARRAY;
+			arg->nr_entries = field->arraylen;
+		} else if ((strcmp(field->type, "int") == 0 ||
 			  strcmp(field->type, "unsigned int") == 0 ||
 			  strcmp(field->type, "long") == 0) &&
 			 len >= 2 && strcmp(field->name + len - 2, "fd") == 0) {
