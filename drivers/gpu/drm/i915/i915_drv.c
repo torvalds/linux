@@ -72,6 +72,7 @@
 #include "i915_perf.h"
 #include "i915_query.h"
 #include "i915_suspend.h"
+#include "i915_switcheroo.h"
 #include "i915_sysfs.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
@@ -269,56 +270,8 @@ intel_teardown_mchbar(struct drm_i915_private *dev_priv)
 		release_resource(&dev_priv->mch_res);
 }
 
-static int i915_resume_switcheroo(struct drm_i915_private *i915);
-static int i915_suspend_switcheroo(struct drm_i915_private *i915,
-				   pm_message_t state);
-
-static void i915_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
-{
-	struct drm_i915_private *i915 = pdev_to_i915(pdev);
-	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
-
-	if (!i915) {
-		dev_err(&pdev->dev, "DRM not initialized, aborting switch.\n");
-		return;
-	}
-
-	if (state == VGA_SWITCHEROO_ON) {
-		pr_info("switched on\n");
-		i915->drm.switch_power_state = DRM_SWITCH_POWER_CHANGING;
-		/* i915 resume handler doesn't set to D0 */
-		pci_set_power_state(pdev, PCI_D0);
-		i915_resume_switcheroo(i915);
-		i915->drm.switch_power_state = DRM_SWITCH_POWER_ON;
-	} else {
-		pr_info("switched off\n");
-		i915->drm.switch_power_state = DRM_SWITCH_POWER_CHANGING;
-		i915_suspend_switcheroo(i915, pmm);
-		i915->drm.switch_power_state = DRM_SWITCH_POWER_OFF;
-	}
-}
-
-static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
-{
-	struct drm_i915_private *i915 = pdev_to_i915(pdev);
-
-	/*
-	 * FIXME: open_count is protected by drm_global_mutex but that would lead to
-	 * locking inversion with the driver load path. And the access here is
-	 * completely racy anyway. So don't bother with locking for now.
-	 */
-	return i915 && i915->drm.open_count == 0;
-}
-
-static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
-	.set_gpu_state = i915_switcheroo_set_state,
-	.reprobe = NULL,
-	.can_switch = i915_switcheroo_can_switch,
-};
-
 static int i915_driver_modeset_probe(struct drm_i915_private *i915)
 {
-	struct pci_dev *pdev = i915->drm.pdev;
 	int ret;
 
 	if (i915_inject_probe_failure(i915))
@@ -339,7 +292,7 @@ static int i915_driver_modeset_probe(struct drm_i915_private *i915)
 
 	intel_register_dsm_handler();
 
-	ret = vga_switcheroo_register_client(pdev, &i915_switcheroo_ops, false);
+	ret = i915_switcheroo_register(i915);
 	if (ret)
 		goto cleanup_vga_client;
 
@@ -394,7 +347,7 @@ cleanup_irq:
 cleanup_csr:
 	intel_csr_ucode_fini(i915);
 	intel_power_domains_driver_remove(i915);
-	vga_switcheroo_unregister_client(pdev);
+	i915_switcheroo_unregister(i915);
 cleanup_vga_client:
 	intel_vga_unregister(i915);
 out:
@@ -428,13 +381,12 @@ static int i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 
 static void i915_driver_modeset_remove(struct drm_i915_private *i915)
 {
-	struct pci_dev *pdev = i915->drm.pdev;
-
 	intel_modeset_driver_remove(i915);
 
 	intel_bios_driver_remove(i915);
 
-	vga_switcheroo_unregister_client(pdev);
+	i915_switcheroo_unregister(i915);
+
 	intel_vga_unregister(i915);
 
 	intel_csr_ucode_fini(i915);
@@ -1860,8 +1812,7 @@ out:
 	return ret;
 }
 
-static int
-i915_suspend_switcheroo(struct drm_i915_private *i915, pm_message_t state)
+int i915_suspend_switcheroo(struct drm_i915_private *i915, pm_message_t state)
 {
 	int error;
 
@@ -2027,7 +1978,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	return ret;
 }
 
-static int i915_resume_switcheroo(struct drm_i915_private *i915)
+int i915_resume_switcheroo(struct drm_i915_private *i915)
 {
 	int ret;
 
