@@ -516,8 +516,6 @@ static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 
 	dev_info(adev->dev, "GPU BACO reset\n");
 
-	adev->in_baco_reset = 1;
-
 	return 0;
 }
 

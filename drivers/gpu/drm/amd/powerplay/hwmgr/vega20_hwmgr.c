@@ -493,8 +493,8 @@ static int vega20_setup_asic_task(struct pp_hwmgr *hwmgr)
 			"Failed to init sclk threshold!",
 			return ret);
 
-	if (adev->in_baco_reset) {
-		adev->in_baco_reset = 0;
+	if (adev->in_gpu_reset &&
+	    (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)) {
 
 		ret = vega20_baco_apply_vdci_flush_workaround(hwmgr);
 		if (ret)

@@ -960,8 +960,6 @@ struct amdgpu_device {
 	int asic_reset_res;
 	struct work_struct		xgmi_reset_work;
 
-	bool                            in_baco_reset;
-
 	long				gfx_timeout;
 	long				sdma_timeout;
 	long				video_timeout;
