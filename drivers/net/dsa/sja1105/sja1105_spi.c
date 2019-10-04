@@ -156,9 +156,9 @@ int sja1105_xfer_u32(const struct sja1105_private *priv,
  * must be sent/received. Splitting the buffer into chunks and assembling
  * those into SPI messages is done automatically by this function.
  */
-int sja1105_xfer_long_buf(const struct sja1105_private *priv,
-			  sja1105_spi_rw_mode_t rw, u64 base_addr,
-			  void *packed_buf, u64 buf_len)
+static int sja1105_xfer_long_buf(const struct sja1105_private *priv,
+				 sja1105_spi_rw_mode_t rw, u64 base_addr,
+				 void *packed_buf, u64 buf_len)
 {
 	struct chunk {
 		void *buf_ptr;
