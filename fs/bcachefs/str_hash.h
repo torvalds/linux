@@ -251,9 +251,10 @@ int bch2_hash_set(struct btree_trans *trans,
 	if (!ret)
 		ret = -ENOSPC;
 out:
-	if (slot)
+	if (!IS_ERR_OR_NULL(slot))
 		bch2_trans_iter_put(trans, slot);
-	bch2_trans_iter_put(trans, iter);
+	if (!IS_ERR_OR_NULL(iter))
+		bch2_trans_iter_put(trans, iter);
 
 	return ret;
 found:
