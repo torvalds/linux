@@ -301,6 +301,24 @@ static inline void *phys_to_virt(phys_addr_t x)
 #define sym_to_pfn(x)		__phys_to_pfn(__pa_symbol(x))
 
 /*
+ * With non-canonical CFI jump tables, the compiler replaces function
+ * address references with the address of the function's CFI jump
+ * table entry. This results in __pa_symbol(function) returning the
+ * physical address of the jump table entry, which can lead to address
+ * space confusion since the jump table points to the function's
+ * virtual address. Therefore, use inline assembly to ensure we are
+ * always taking the address of the actual function.
+ */
+#define __va_function(x) ({						\
+	void *addr;							\
+	asm("adrp %0, " __stringify(x) "\n\t"				\
+	    "add  %0, %0, :lo12:" __stringify(x) : "=r" (addr));	\
+	addr;								\
+})
+
+#define __pa_function(x) 	__pa_symbol(__va_function(x))
+
+/*
  *  virt_to_page(x)	convert a _valid_ virtual address to struct page *
  *  virt_addr_valid(x)	indicates whether a virtual address is valid
  */
