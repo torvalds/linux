@@ -127,6 +127,8 @@ The high-level Driver API consists of following functions:
 
 -  request_irq()
 
+-  request_threaded_irq()
+
 -  free_irq()
 
 -  disable_irq()
