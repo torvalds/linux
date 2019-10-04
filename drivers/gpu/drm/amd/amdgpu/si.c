@@ -1197,6 +1197,11 @@ static int si_asic_reset(struct amdgpu_device *adev)
 	return 0;
 }
 
+static bool si_asic_supports_baco(struct amdgpu_device *adev)
+{
+	return false;
+}
+
 static enum amd_reset_method
 si_asic_reset_method(struct amdgpu_device *adev)
 {
@@ -1425,6 +1430,7 @@ static const struct amdgpu_asic_funcs si_asic_funcs =
 	.get_pcie_usage = &si_get_pcie_usage,
 	.need_reset_on_init = &si_need_reset_on_init,
 	.get_pcie_replay_count = &si_get_pcie_replay_count,
+	.supports_baco = &si_asic_supports_baco,
 };
 
 static uint32_t si_get_rev_id(struct amdgpu_device *adev)
