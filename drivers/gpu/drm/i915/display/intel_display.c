@@ -7261,7 +7261,7 @@ retry:
 	pipe_config->fdi_lanes = lane;
 
 	intel_link_compute_m_n(pipe_config->pipe_bpp, lane, fdi_dotclock,
-			       link_bw, &pipe_config->fdi_m_n, false);
+			       link_bw, &pipe_config->fdi_m_n, false, false);
 
 	ret = ironlake_check_fdi_lanes(dev, intel_crtc->pipe, pipe_config);
 	if (ret == -EDEADLK)
@@ -7508,11 +7508,15 @@ void
 intel_link_compute_m_n(u16 bits_per_pixel, int nlanes,
 		       int pixel_clock, int link_clock,
 		       struct intel_link_m_n *m_n,
-		       bool constant_n)
+		       bool constant_n, bool fec_enable)
 {
-	m_n->tu = 64;
+	u32 data_clock = bits_per_pixel * pixel_clock;
 
-	compute_m_n(bits_per_pixel * pixel_clock,
+	if (fec_enable)
+		data_clock = intel_dp_mode_to_fec_clock(data_clock);
+
+	m_n->tu = 64;
+	compute_m_n(data_clock,
 		    link_clock * nlanes * 8,
 		    &m_n->gmch_m, &m_n->gmch_n,
 		    constant_n);

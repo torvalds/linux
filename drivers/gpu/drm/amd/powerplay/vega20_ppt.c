@@ -3023,6 +3023,7 @@ static int vega20_read_sensor(struct smu_context *smu,
 	if(!data || !size)
 		return -EINVAL;
 
+	mutex_lock(&smu->sensor_lock);
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_MAX_FAN_RPM:
 		*(uint32_t *)data = pptable->FanMaximumRpm;
@@ -3048,6 +3049,7 @@ static int vega20_read_sensor(struct smu_context *smu,
 	default:
 		ret = smu_smc_read_sensor(smu, sensor, data, size);
 	}
+	mutex_unlock(&smu->sensor_lock);
 
 	return ret;
 }
