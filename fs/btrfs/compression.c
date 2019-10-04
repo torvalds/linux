@@ -39,7 +39,6 @@ int zlib_decompress(struct list_head *ws, unsigned char *data_in,
 struct list_head *zlib_alloc_workspace(unsigned int level);
 void zlib_free_workspace(struct list_head *ws);
 struct list_head *zlib_get_workspace(unsigned int level);
-void zlib_put_workspace(struct list_head *ws);
 
 int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
 		u64 start, struct page **pages, unsigned long *out_pages,
@@ -50,7 +49,6 @@ int lzo_decompress(struct list_head *ws, unsigned char *data_in,
 		size_t destlen);
 struct list_head *lzo_alloc_workspace(unsigned int level);
 void lzo_free_workspace(struct list_head *ws);
-void lzo_put_workspace(struct list_head *ws);
 
 int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
 		u64 start, struct page **pages, unsigned long *out_pages,
@@ -873,11 +871,6 @@ struct heuristic_ws {
 
 static struct workspace_manager heuristic_wsm;
 
-static void heuristic_put_workspace(struct list_head *ws)
-{
-	btrfs_put_workspace(&heuristic_wsm, ws);
-}
-
 static void free_heuristic_ws(struct list_head *ws)
 {
 	struct heuristic_ws *workspace;
@@ -919,7 +912,6 @@ fail:
 
 const struct btrfs_compress_op btrfs_heuristic_compress = {
 	.workspace_manager = &heuristic_wsm,
-	.put_workspace = heuristic_put_workspace,
 	.alloc_workspace = alloc_heuristic_ws,
 	.free_workspace = free_heuristic_ws,
 };
@@ -1112,7 +1104,21 @@ wake:
 
 static void put_workspace(int type, struct list_head *ws)
 {
-	return btrfs_compress_op[type]->put_workspace(ws);
+	struct workspace_manager *wsm;
+
+	wsm = btrfs_compress_op[type]->workspace_manager;
+	switch (type) {
+	case BTRFS_COMPRESS_NONE: return btrfs_put_workspace(wsm, ws);
+	case BTRFS_COMPRESS_ZLIB: return btrfs_put_workspace(wsm, ws);
+	case BTRFS_COMPRESS_LZO:  return btrfs_put_workspace(wsm, ws);
+	case BTRFS_COMPRESS_ZSTD: return zstd_put_workspace(ws);
+	default:
+		/*
+		 * This can't happen, the type is validated several times
+		 * before we get here.
+		 */
+		BUG();
+	}
 }
 
 /*
