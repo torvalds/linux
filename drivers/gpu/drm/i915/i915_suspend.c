@@ -66,8 +66,6 @@ int i915_save_state(struct drm_i915_private *dev_priv)
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int i;
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
-
 	i915_save_display(dev_priv);
 
 	if (IS_GEN(dev_priv, 4))
@@ -101,8 +99,6 @@ int i915_save_state(struct drm_i915_private *dev_priv)
 			dev_priv->regfile.saveSWF3[i] = I915_READ(SWF3(i));
 	}
 
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
 	return 0;
 }
 
@@ -110,8 +106,6 @@ int i915_restore_state(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int i;
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
 
 	if (IS_GEN(dev_priv, 4))
 		pci_write_config_word(pdev, GCDGMBUS,
@@ -145,8 +139,6 @@ int i915_restore_state(struct drm_i915_private *dev_priv)
 		for (i = 0; i < 3; i++)
 			I915_WRITE(SWF3(i), dev_priv->regfile.saveSWF3[i]);
 	}
-
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	intel_gmbus_reset(dev_priv);
 
