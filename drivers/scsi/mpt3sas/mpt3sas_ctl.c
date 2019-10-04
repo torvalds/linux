@@ -1821,7 +1821,7 @@ mpt3sas_enable_diag_buffer(struct MPT3SAS_ADAPTER *ioc, u8 bits_to_register)
 				     trace_buff_size>>10);
 				ioc_err(ioc,
 				    "Using zero Min Trace Buff Size\n");
-				    min_trace_buff_size = 0;
+				min_trace_buff_size = 0;
 			}
 
 			if (decr_trace_buff_size == 0) {
