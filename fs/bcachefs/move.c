@@ -549,7 +549,8 @@ peek:
 		if (!bkey_extent_is_direct_data(k.k))
 			goto next_nondata;
 
-		if (cur_inum != k.k->p.inode) {
+		if (btree_id == BTREE_ID_EXTENTS &&
+		    cur_inum != k.k->p.inode) {
 			struct bch_inode_unpacked inode;
 
 			/* don't hold btree locks while looking up inode: */
