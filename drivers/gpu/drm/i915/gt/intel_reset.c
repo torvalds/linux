@@ -1288,10 +1288,6 @@ int intel_gt_terminally_wedged(struct intel_gt *gt)
 	if (!test_bit(I915_RESET_BACKOFF, &gt->reset.flags))
 		return -EIO;
 
-	/* XXX intel_reset_finish() still takes struct_mutex!!! */
-	if (mutex_is_locked(&gt->i915->drm.struct_mutex))
-		return -EAGAIN;
-
 	if (wait_event_interruptible(gt->reset.queue,
 				     !test_bit(I915_RESET_BACKOFF,
 					       &gt->reset.flags)))

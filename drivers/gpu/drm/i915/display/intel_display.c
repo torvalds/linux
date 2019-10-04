@@ -5738,13 +5738,8 @@ void hsw_disable_ips(const struct intel_crtc_state *crtc_state)
 
 static void intel_crtc_dpms_overlay_disable(struct intel_crtc *intel_crtc)
 {
-	if (intel_crtc->overlay) {
-		struct drm_device *dev = intel_crtc->base.dev;
-
-		mutex_lock(&dev->struct_mutex);
+	if (intel_crtc->overlay)
 		(void) intel_overlay_switch_off(intel_crtc->overlay);
-		mutex_unlock(&dev->struct_mutex);
-	}
 
 	/* Let userspace switch the overlay on again. In most cases userspace
 	 * has to recompute where to put it anyway.
