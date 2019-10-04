@@ -181,9 +181,7 @@ static int igt_request_rewind(void *arg)
 	struct intel_context *ce;
 	int err = -EINVAL;
 
-	mutex_lock(&i915->drm.struct_mutex);
 	ctx[0] = mock_context(i915, "A");
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	ce = i915_gem_context_get_engine(ctx[0], RCS0);
 	GEM_BUG_ON(IS_ERR(ce));
@@ -197,9 +195,7 @@ static int igt_request_rewind(void *arg)
 	i915_request_get(request);
 	i915_request_add(request);
 
-	mutex_lock(&i915->drm.struct_mutex);
 	ctx[1] = mock_context(i915, "B");
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	ce = i915_gem_context_get_engine(ctx[1], RCS0);
 	GEM_BUG_ON(IS_ERR(ce));
@@ -438,9 +434,7 @@ static int mock_breadcrumbs_smoketest(void *arg)
 	}
 
 	for (n = 0; n < t.ncontexts; n++) {
-		mutex_lock(&t.engine->i915->drm.struct_mutex);
 		t.contexts[n] = mock_context(t.engine->i915, "mock");
-		mutex_unlock(&t.engine->i915->drm.struct_mutex);
 		if (!t.contexts[n]) {
 			ret = -ENOMEM;
 			goto out_contexts;
@@ -734,9 +728,9 @@ out_batch:
 static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 {
 	struct i915_gem_context *ctx = i915->kernel_context;
-	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
 	struct drm_i915_gem_object *obj;
 	const int gen = INTEL_GEN(i915);
+	struct i915_address_space *vm;
 	struct i915_vma *vma;
 	u32 *cmd;
 	int err;
@@ -745,7 +739,9 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
+	vm = i915_gem_context_get_vm_rcu(ctx);
 	vma = i915_vma_instance(obj, vm, NULL);
+	i915_vm_put(vm);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err;
@@ -1220,9 +1216,7 @@ static int live_breadcrumbs_smoketest(void *arg)
 	}
 
 	for (n = 0; n < t[0].ncontexts; n++) {
-		mutex_lock(&i915->drm.struct_mutex);
 		t[0].contexts[n] = live_context(i915, file);
-		mutex_unlock(&i915->drm.struct_mutex);
 		if (!t[0].contexts[n]) {
 			ret = -ENOMEM;
 			goto out_contexts;

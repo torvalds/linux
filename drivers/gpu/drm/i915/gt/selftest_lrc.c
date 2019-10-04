@@ -1631,7 +1631,11 @@ static int smoke_submit(struct preempt_smoke *smoke,
 	int err = 0;
 
 	if (batch) {
-		vma = i915_vma_instance(batch, ctx->vm, NULL);
+		struct i915_address_space *vm;
+
+		vm = i915_gem_context_get_vm_rcu(ctx);
+		vma = i915_vma_instance(batch, vm, NULL);
+		i915_vm_put(vm);
 		if (IS_ERR(vma))
 			return PTR_ERR(vma);
 

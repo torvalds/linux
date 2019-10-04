@@ -1853,8 +1853,8 @@ static int gen8_configure_all_contexts(struct i915_perf_stream *stream,
 	};
 #undef ctx_flexeuN
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *ctx;
-	int i;
+	struct i915_gem_context *ctx, *cn;
+	int i, err;
 
 	for (i = 2; i < ARRAY_SIZE(regs); i++)
 		regs[i].value = oa_config_flex_reg(oa_config, regs[i].reg);
@@ -1877,16 +1877,27 @@ static int gen8_configure_all_contexts(struct i915_perf_stream *stream,
 	 * context. Contexts idle at the time of reconfiguration are not
 	 * trapped behind the barrier.
 	 */
-	list_for_each_entry(ctx, &i915->contexts.list, link) {
-		int err;
-
+	spin_lock(&i915->gem.contexts.lock);
+	list_for_each_entry_safe(ctx, cn, &i915->gem.contexts.list, link) {
 		if (ctx == i915->kernel_context)
 			continue;
 
+		if (!kref_get_unless_zero(&ctx->ref))
+			continue;
+
+		spin_unlock(&i915->gem.contexts.lock);
+
 		err = gen8_configure_context(ctx, regs, ARRAY_SIZE(regs));
-		if (err)
+		if (err) {
+			i915_gem_context_put(ctx);
 			return err;
+		}
+
+		spin_lock(&i915->gem.contexts.lock);
+		list_safe_reset_next(ctx, cn, link);
+		i915_gem_context_put(ctx);
 	}
+	spin_unlock(&i915->gem.contexts.lock);
 
 	/*
 	 * After updating all other contexts, we need to modify ourselves.
@@ -1895,7 +1906,6 @@ static int gen8_configure_all_contexts(struct i915_perf_stream *stream,
 	 */
 	for_each_uabi_engine(engine, i915) {
 		struct intel_context *ce = engine->kernel_context;
-		int err;
 
 		if (engine->class != RENDER_CLASS)
 			continue;

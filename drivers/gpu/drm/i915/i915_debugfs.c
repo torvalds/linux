@@ -316,11 +316,17 @@ static void print_context_stats(struct seq_file *m,
 				struct drm_i915_private *i915)
 {
 	struct file_stats kstats = {};
-	struct i915_gem_context *ctx;
+	struct i915_gem_context *ctx, *cn;
 
-	list_for_each_entry(ctx, &i915->contexts.list, link) {
+	spin_lock(&i915->gem.contexts.lock);
+	list_for_each_entry_safe(ctx, cn, &i915->gem.contexts.list, link) {
 		struct i915_gem_engines_iter it;
 		struct intel_context *ce;
+
+		if (!kref_get_unless_zero(&ctx->ref))
+			continue;
+
+		spin_unlock(&i915->gem.contexts.lock);
 
 		for_each_gem_engine(ce,
 				    i915_gem_context_lock_engines(ctx), it) {
@@ -338,7 +344,9 @@ static void print_context_stats(struct seq_file *m,
 		i915_gem_context_unlock_engines(ctx);
 
 		if (!IS_ERR_OR_NULL(ctx->file_priv)) {
-			struct file_stats stats = { .vm = ctx->vm, };
+			struct file_stats stats = {
+				.vm = rcu_access_pointer(ctx->vm),
+			};
 			struct drm_file *file = ctx->file_priv->file;
 			struct task_struct *task;
 			char name[80];
@@ -355,7 +363,12 @@ static void print_context_stats(struct seq_file *m,
 
 			print_file_stats(m, name, stats);
 		}
+
+		spin_lock(&i915->gem.contexts.lock);
+		list_safe_reset_next(ctx, cn, link);
+		i915_gem_context_put(ctx);
 	}
+	spin_unlock(&i915->gem.contexts.lock);
 
 	print_file_stats(m, "[k]contexts", kstats);
 }
@@ -363,7 +376,6 @@ static void print_context_stats(struct seq_file *m,
 static int i915_gem_object_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
-	int ret;
 
 	seq_printf(m, "%u shrinkable [%u free] objects, %llu bytes\n",
 		   i915->mm.shrink_count,
@@ -372,12 +384,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 
 	seq_putc(m, '\n');
 
-	ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
-	if (ret)
-		return ret;
-
 	print_context_stats(m, i915);
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	return 0;
 }
@@ -1579,18 +1586,18 @@ static void describe_ctx_ring(struct seq_file *m, struct intel_ring *ring)
 
 static int i915_context_status(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct i915_gem_context *ctx;
-	int ret;
+	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct i915_gem_context *ctx, *cn;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
+	spin_lock(&i915->gem.contexts.lock);
+	list_for_each_entry_safe(ctx, cn, &i915->gem.contexts.list, link) {
 		struct i915_gem_engines_iter it;
 		struct intel_context *ce;
+
+		if (!kref_get_unless_zero(&ctx->ref))
+			continue;
+
+		spin_unlock(&i915->gem.contexts.lock);
 
 		seq_puts(m, "HW context ");
 		if (ctx->pid) {
@@ -1626,9 +1633,12 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		i915_gem_context_unlock_engines(ctx);
 
 		seq_putc(m, '\n');
-	}
 
-	mutex_unlock(&dev->struct_mutex);
+		spin_lock(&i915->gem.contexts.lock);
+		list_safe_reset_next(ctx, cn, link);
+		i915_gem_context_put(ctx);
+	}
+	spin_unlock(&i915->gem.contexts.lock);
 
 	return 0;
 }

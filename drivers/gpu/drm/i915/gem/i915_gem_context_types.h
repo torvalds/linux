@@ -88,7 +88,7 @@ struct i915_gem_context {
 	 * In other modes, this is a NULL pointer with the expectation that
 	 * the caller uses the shared global GTT.
 	 */
-	struct i915_address_space *vm;
+	struct i915_address_space __rcu *vm;
 
 	/**
 	 * @pid: process id of creator

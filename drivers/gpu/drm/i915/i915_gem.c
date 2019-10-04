@@ -1266,7 +1266,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		goto err_unlock;
 	}
 
-	ret = i915_gem_contexts_init(dev_priv);
+	ret = i915_gem_init_contexts(dev_priv);
 	if (ret) {
 		GEM_BUG_ON(ret == -EIO);
 		goto err_scratch;
@@ -1348,7 +1348,7 @@ err_uc_init:
 	}
 err_context:
 	if (ret != -EIO)
-		i915_gem_contexts_fini(dev_priv);
+		i915_gem_driver_release__contexts(dev_priv);
 err_scratch:
 	intel_gt_driver_release(&dev_priv->gt);
 err_unlock:
@@ -1416,11 +1416,9 @@ void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 
 void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 {
-	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_engines_cleanup(dev_priv);
-	i915_gem_contexts_fini(dev_priv);
+	i915_gem_driver_release__contexts(dev_priv);
 	intel_gt_driver_release(&dev_priv->gt);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	intel_wa_list_free(&dev_priv->gt_wa_list);
 
@@ -1430,7 +1428,7 @@ void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 
 	i915_gem_drain_freed_objects(dev_priv);
 
-	WARN_ON(!list_empty(&dev_priv->contexts.list));
+	WARN_ON(!list_empty(&dev_priv->gem.contexts.list));
 }
 
 void i915_gem_init_mmio(struct drm_i915_private *i915)

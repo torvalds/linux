@@ -1366,7 +1366,9 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 	if (vm->has_read_only &&
 	    vm->i915->kernel_context &&
 	    vm->i915->kernel_context->vm) {
-		struct i915_address_space *clone = vm->i915->kernel_context->vm;
+		struct i915_address_space *clone =
+			rcu_dereference_protected(vm->i915->kernel_context->vm,
+						  true); /* static */
 
 		GEM_BUG_ON(!clone->has_read_only);
 

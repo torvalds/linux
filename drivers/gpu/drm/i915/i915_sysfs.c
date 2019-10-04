@@ -176,16 +176,12 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	count = min_t(size_t, GEN7_L3LOG_SIZE - offset, count);
 	memset(buf, 0, count);
 
-	ret = i915_mutex_lock_interruptible(&i915->drm);
-	if (ret)
-		return ret;
-
+	spin_lock(&i915->gem.contexts.lock);
 	if (i915->l3_parity.remap_info[slice])
 		memcpy(buf,
 		       i915->l3_parity.remap_info[slice] + offset / sizeof(u32),
 		       count);
-
-	mutex_unlock(&i915->drm.struct_mutex);
+	spin_unlock(&i915->gem.contexts.lock);
 
 	return count;
 }
@@ -198,8 +194,8 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	struct device *kdev = kobj_to_dev(kobj);
 	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
 	int slice = (int)(uintptr_t)attr->private;
+	u32 *remap_info, *freeme = NULL;
 	struct i915_gem_context *ctx;
-	u32 **remap_info;
 	int ret;
 
 	ret = l3_access_valid(i915, offset);
@@ -209,25 +205,28 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	if (count < sizeof(u32))
 		return -EINVAL;
 
-	ret = i915_mutex_lock_interruptible(&i915->drm);
-	if (ret)
-		return ret;
+	remap_info = kzalloc(GEN7_L3LOG_SIZE, GFP_KERNEL);
+	if (!remap_info)
+		return -ENOMEM;
 
-	remap_info = &i915->l3_parity.remap_info[slice];
-	if (!*remap_info) {
-		*remap_info = kzalloc(GEN7_L3LOG_SIZE, GFP_KERNEL);
-		if (!*remap_info) {
-			ret = -ENOMEM;
-			goto out;
-		}
+	spin_lock(&i915->gem.contexts.lock);
+
+	if (i915->l3_parity.remap_info[slice]) {
+		freeme = remap_info;
+		remap_info = i915->l3_parity.remap_info[slice];
+	} else {
+		i915->l3_parity.remap_info[slice] = remap_info;
 	}
 
 	count = round_down(count, sizeof(u32));
-	memcpy(*remap_info + offset / sizeof(u32), buf, count);
+	memcpy(remap_info + offset / sizeof(u32), buf, count);
 
 	/* NB: We defer the remapping until we switch to the context */
-	list_for_each_entry(ctx, &i915->contexts.list, link)
+	list_for_each_entry(ctx, &i915->gem.contexts.list, link)
 		ctx->remap_slice |= BIT(slice);
+
+	spin_unlock(&i915->gem.contexts.lock);
+	kfree(freeme);
 
 	/*
 	 * TODO: Ideally we really want a GPU reset here to make sure errors
@@ -235,11 +234,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	 * at this point it is left as a TODO.
 	*/
 
-	ret = count;
-out:
-	mutex_unlock(&i915->drm.struct_mutex);
-
-	return ret;
+	return count;
 }
 
 static const struct bin_attribute dpf_attrs = {

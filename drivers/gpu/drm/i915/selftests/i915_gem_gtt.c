@@ -1246,6 +1246,7 @@ static int exercise_mock(struct drm_i915_private *i915,
 				     unsigned long end_time))
 {
 	const u64 limit = totalram_pages() << PAGE_SHIFT;
+	struct i915_address_space *vm;
 	struct i915_gem_context *ctx;
 	IGT_TIMEOUT(end_time);
 	int err;
@@ -1254,7 +1255,9 @@ static int exercise_mock(struct drm_i915_private *i915,
 	if (!ctx)
 		return -ENOMEM;
 
-	err = func(i915, ctx->vm, 0, min(ctx->vm->total, limit), end_time);
+	vm = i915_gem_context_get_vm_rcu(ctx);
+	err = func(i915, vm, 0, min(vm->total, limit), end_time);
+	i915_vm_put(vm);
 
 	mock_context_close(ctx);
 	return err;
@@ -1801,15 +1804,15 @@ static int igt_cs_tlb(void *arg)
 		goto out_unlock;
 	}
 
-	vm = ctx->vm;
-	if (!vm)
-		goto out_unlock;
+	vm = i915_gem_context_get_vm_rcu(ctx);
+	if (i915_is_ggtt(vm))
+		goto out_vm;
 
 	/* Create two pages; dummy we prefill the TLB, and intended */
 	bbe = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(bbe)) {
 		err = PTR_ERR(bbe);
-		goto out_unlock;
+		goto out_vm;
 	}
 
 	batch = i915_gem_object_pin_map(bbe, I915_MAP_WC);
@@ -2014,6 +2017,8 @@ out_put_act:
 	i915_gem_object_put(act);
 out_put_bbe:
 	i915_gem_object_put(bbe);
+out_vm:
+	i915_vm_put(vm);
 out_unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
 	mock_file_free(i915, file);

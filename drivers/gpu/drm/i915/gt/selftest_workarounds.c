@@ -260,7 +260,6 @@ switch_to_scratch_context(struct intel_engine_cs *engine,
 		rq = igt_spinner_create_request(spin, ce, MI_NOOP);
 
 	intel_context_put(ce);
-	kernel_context_close(ctx);
 
 	if (IS_ERR(rq)) {
 		spin = NULL;
@@ -279,6 +278,7 @@ err:
 	if (err && spin)
 		igt_spinner_end(spin);
 
+	kernel_context_close(ctx);
 	return err;
 }
 
@@ -355,6 +355,7 @@ out_ctx:
 static struct i915_vma *create_batch(struct i915_gem_context *ctx)
 {
 	struct drm_i915_gem_object *obj;
+	struct i915_address_space *vm;
 	struct i915_vma *vma;
 	int err;
 
@@ -362,7 +363,9 @@ static struct i915_vma *create_batch(struct i915_gem_context *ctx)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	vma = i915_vma_instance(obj, ctx->vm, NULL);
+	vm = i915_gem_context_get_vm_rcu(ctx);
+	vma = i915_vma_instance(obj, vm, NULL);
+	i915_vm_put(vm);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err_obj;
@@ -463,12 +466,15 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 		0xffff00ff,
 		0xffffffff,
 	};
+	struct i915_address_space *vm;
 	struct i915_vma *scratch;
 	struct i915_vma *batch;
 	int err = 0, i, v;
 	u32 *cs, *results;
 
-	scratch = create_scratch(ctx->vm, 2 * ARRAY_SIZE(values) + 1);
+	vm = i915_gem_context_get_vm_rcu(ctx);
+	scratch = create_scratch(vm, 2 * ARRAY_SIZE(values) + 1);
+	i915_vm_put(vm);
 	if (IS_ERR(scratch))
 		return PTR_ERR(scratch);
 
@@ -1010,6 +1016,7 @@ static int live_isolated_whitelist(void *arg)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(client); i++) {
+		struct i915_address_space *vm;
 		struct i915_gem_context *c;
 
 		c = kernel_context(i915);
@@ -1018,22 +1025,27 @@ static int live_isolated_whitelist(void *arg)
 			goto err;
 		}
 
-		client[i].scratch[0] = create_scratch(c->vm, 1024);
+		vm = i915_gem_context_get_vm_rcu(c);
+
+		client[i].scratch[0] = create_scratch(vm, 1024);
 		if (IS_ERR(client[i].scratch[0])) {
 			err = PTR_ERR(client[i].scratch[0]);
+			i915_vm_put(vm);
 			kernel_context_close(c);
 			goto err;
 		}
 
-		client[i].scratch[1] = create_scratch(c->vm, 1024);
+		client[i].scratch[1] = create_scratch(vm, 1024);
 		if (IS_ERR(client[i].scratch[1])) {
 			err = PTR_ERR(client[i].scratch[1]);
 			i915_vma_unpin_and_release(&client[i].scratch[0], 0);
+			i915_vm_put(vm);
 			kernel_context_close(c);
 			goto err;
 		}
 
 		client[i].ctx = c;
+		i915_vm_put(vm);
 	}
 
 	for_each_engine(engine, i915, id) {

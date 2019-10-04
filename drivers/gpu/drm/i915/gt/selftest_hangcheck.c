@@ -58,9 +58,7 @@ static int hang_init(struct hang *h, struct intel_gt *gt)
 	memset(h, 0, sizeof(*h));
 	h->gt = gt;
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
 	h->ctx = kernel_context(gt->i915);
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 	if (IS_ERR(h->ctx))
 		return PTR_ERR(h->ctx);
 
@@ -133,7 +131,7 @@ static struct i915_request *
 hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 {
 	struct intel_gt *gt = h->gt;
-	struct i915_address_space *vm = h->ctx->vm ?: &engine->gt->ggtt->vm;
+	struct i915_address_space *vm = i915_gem_context_get_vm_rcu(h->ctx);
 	struct drm_i915_gem_object *obj;
 	struct i915_request *rq = NULL;
 	struct i915_vma *hws, *vma;
@@ -143,12 +141,15 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 	int err;
 
 	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
-	if (IS_ERR(obj))
+	if (IS_ERR(obj)) {
+		i915_vm_put(vm);
 		return ERR_CAST(obj);
+	}
 
 	vaddr = i915_gem_object_pin_map(obj, i915_coherent_map_type(gt->i915));
 	if (IS_ERR(vaddr)) {
 		i915_gem_object_put(obj);
+		i915_vm_put(vm);
 		return ERR_CAST(vaddr);
 	}
 
@@ -159,16 +160,22 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 	h->batch = vaddr;
 
 	vma = i915_vma_instance(h->obj, vm, NULL);
-	if (IS_ERR(vma))
+	if (IS_ERR(vma)) {
+		i915_vm_put(vm);
 		return ERR_CAST(vma);
+	}
 
 	hws = i915_vma_instance(h->hws, vm, NULL);
-	if (IS_ERR(hws))
+	if (IS_ERR(hws)) {
+		i915_vm_put(vm);
 		return ERR_CAST(hws);
+	}
 
 	err = i915_vma_pin(vma, 0, 0, PIN_USER);
-	if (err)
+	if (err) {
+		i915_vm_put(vm);
 		return ERR_PTR(err);
+	}
 
 	err = i915_vma_pin(hws, 0, 0, PIN_USER);
 	if (err)
@@ -266,6 +273,7 @@ unpin_hws:
 	i915_vma_unpin(hws);
 unpin_vma:
 	i915_vma_unpin(vma);
+	i915_vm_put(vm);
 	return err ? ERR_PTR(err) : rq;
 }
 
@@ -382,9 +390,7 @@ static int igt_reset_nop(void *arg)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
 	ctx = live_context(gt->i915, file);
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
 		goto out;
@@ -458,9 +464,7 @@ static int igt_reset_nop_engine(void *arg)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
 	ctx = live_context(gt->i915, file);
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
 		goto out;
@@ -705,9 +709,7 @@ static int active_engine(void *data)
 		return PTR_ERR(file);
 
 	for (count = 0; count < ARRAY_SIZE(ctx); count++) {
-		mutex_lock(&engine->i915->drm.struct_mutex);
 		ctx[count] = live_context(engine->i915, file);
-		mutex_unlock(&engine->i915->drm.struct_mutex);
 		if (IS_ERR(ctx[count])) {
 			err = PTR_ERR(ctx[count]);
 			while (--count)
@@ -1291,6 +1293,7 @@ static int igt_reset_evict_ppgtt(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct i915_gem_context *ctx;
+	struct i915_address_space *vm;
 	struct drm_file *file;
 	int err;
 
@@ -1298,18 +1301,20 @@ static int igt_reset_evict_ppgtt(void *arg)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
 	ctx = live_context(gt->i915, file);
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
 		goto out;
 	}
 
 	err = 0;
-	if (ctx->vm) /* aliasing == global gtt locking, covered above */
-		err = __igt_reset_evict_vma(gt, ctx->vm,
+	vm = i915_gem_context_get_vm_rcu(ctx);
+	if (!i915_is_ggtt(vm)) {
+		/* aliasing == global gtt locking, covered above */
+		err = __igt_reset_evict_vma(gt, vm,
 					    evict_vma, EXEC_OBJECT_WRITE);
+	}
+	i915_vm_put(vm);
 
 out:
 	mock_file_free(gt->i915, file);

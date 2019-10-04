@@ -11,7 +11,9 @@
 
 #include "gt/intel_context.h"
 
+#include "i915_drv.h"
 #include "i915_gem.h"
+#include "i915_gem_gtt.h"
 #include "i915_scheduler.h"
 #include "intel_device_info.h"
 
@@ -118,8 +120,8 @@ static inline bool i915_gem_context_is_kernel(struct i915_gem_context *ctx)
 }
 
 /* i915_gem_context.c */
-int __must_check i915_gem_contexts_init(struct drm_i915_private *dev_priv);
-void i915_gem_contexts_fini(struct drm_i915_private *dev_priv);
+int __must_check i915_gem_init_contexts(struct drm_i915_private *i915);
+void i915_gem_driver_release__contexts(struct drm_i915_private *i915);
 
 int i915_gem_context_open(struct drm_i915_private *i915,
 			  struct drm_file *file);
@@ -156,6 +158,27 @@ i915_gem_context_get(struct i915_gem_context *ctx)
 static inline void i915_gem_context_put(struct i915_gem_context *ctx)
 {
 	kref_put(&ctx->ref, i915_gem_context_release);
+}
+
+static inline struct i915_address_space *
+i915_gem_context_vm(struct i915_gem_context *ctx)
+{
+	return rcu_dereference_protected(ctx->vm, lockdep_is_held(&ctx->mutex));
+}
+
+static inline struct i915_address_space *
+i915_gem_context_get_vm_rcu(struct i915_gem_context *ctx)
+{
+	struct i915_address_space *vm;
+
+	rcu_read_lock();
+	vm = rcu_dereference(ctx->vm);
+	if (!vm)
+		vm = &ctx->i915->ggtt.vm;
+	vm = i915_vm_get(vm);
+	rcu_read_unlock();
+
+	return vm;
 }
 
 static inline struct i915_gem_engines *

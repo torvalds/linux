@@ -766,7 +766,8 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		 * On almost all of the older hw, we cannot tell the GPU that
 		 * a page is readonly.
 		 */
-		vm = dev_priv->kernel_context->vm;
+		vm = rcu_dereference_protected(dev_priv->kernel_context->vm,
+					       true); /* static vm */
 		if (!vm || !vm->has_read_only)
 			return -ENODEV;
 	}

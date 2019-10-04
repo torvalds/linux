@@ -952,7 +952,7 @@ DECLARE_EVENT_CLASS(i915_context,
 	TP_fast_assign(
 			__entry->dev = ctx->i915->drm.primary->index;
 			__entry->ctx = ctx;
-			__entry->vm = ctx->vm;
+			__entry->vm = rcu_access_pointer(ctx->vm);
 	),
 
 	TP_printk("dev=%u, ctx=%p, ctx_vm=%p",

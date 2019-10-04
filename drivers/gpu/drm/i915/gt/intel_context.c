@@ -221,12 +221,20 @@ intel_context_init(struct intel_context *ce,
 		   struct i915_gem_context *ctx,
 		   struct intel_engine_cs *engine)
 {
+	struct i915_address_space *vm;
+
 	GEM_BUG_ON(!engine->cops);
 
 	kref_init(&ce->ref);
 
 	ce->gem_context = ctx;
-	ce->vm = i915_vm_get(ctx->vm ?: &engine->gt->ggtt->vm);
+	rcu_read_lock();
+	vm = rcu_dereference(ctx->vm);
+	if (vm)
+		ce->vm = i915_vm_get(vm);
+	else
+		ce->vm = i915_vm_get(&engine->gt->ggtt->vm);
+	rcu_read_unlock();
 	if (ctx->timeline)
 		ce->timeline = intel_timeline_get(ctx->timeline);
 

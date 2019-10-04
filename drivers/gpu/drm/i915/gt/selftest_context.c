@@ -155,13 +155,9 @@ static int live_context_size(void *arg)
 	 * HW tries to write past the end of one.
 	 */
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
-
 	fixme = kernel_context(gt->i915);
-	if (IS_ERR(fixme)) {
-		err = PTR_ERR(fixme);
-		goto unlock;
-	}
+	if (IS_ERR(fixme))
+		return PTR_ERR(fixme);
 
 	for_each_engine(engine, gt->i915, id) {
 		struct {
@@ -201,8 +197,6 @@ static int live_context_size(void *arg)
 	}
 
 	kernel_context_close(fixme);
-unlock:
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 	return err;
 }
 
@@ -305,12 +299,10 @@ static int live_active_context(void *arg)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
-
 	fixme = live_context(gt->i915, file);
 	if (IS_ERR(fixme)) {
 		err = PTR_ERR(fixme);
-		goto unlock;
+		goto out_file;
 	}
 
 	for_each_engine(engine, gt->i915, id) {
@@ -323,8 +315,7 @@ static int live_active_context(void *arg)
 			break;
 	}
 
-unlock:
-	mutex_unlock(&gt->i915->drm.struct_mutex);
+out_file:
 	mock_file_free(gt->i915, file);
 	return err;
 }
@@ -418,12 +409,10 @@ static int live_remote_context(void *arg)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
-
 	fixme = live_context(gt->i915, file);
 	if (IS_ERR(fixme)) {
 		err = PTR_ERR(fixme);
-		goto unlock;
+		goto out_file;
 	}
 
 	for_each_engine(engine, gt->i915, id) {
@@ -436,8 +425,7 @@ static int live_remote_context(void *arg)
 			break;
 	}
 
-unlock:
-	mutex_unlock(&gt->i915->drm.struct_mutex);
+out_file:
 	mock_file_free(gt->i915, file);
 	return err;
 }

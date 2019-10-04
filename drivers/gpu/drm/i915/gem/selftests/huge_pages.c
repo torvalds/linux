@@ -1322,15 +1322,15 @@ static int igt_ppgtt_pin_update(void *arg)
 	struct i915_gem_context *ctx = arg;
 	struct drm_i915_private *dev_priv = ctx->i915;
 	unsigned long supported = INTEL_INFO(dev_priv)->page_sizes;
-	struct i915_address_space *vm = ctx->vm;
 	struct drm_i915_gem_object *obj;
 	struct i915_gem_engines_iter it;
+	struct i915_address_space *vm;
 	struct intel_context *ce;
 	struct i915_vma *vma;
 	unsigned int flags = PIN_USER | PIN_OFFSET_FIXED;
 	unsigned int n;
 	int first, last;
-	int err;
+	int err = 0;
 
 	/*
 	 * Make sure there's no funny business when doing a PIN_UPDATE -- in the
@@ -1340,9 +1340,10 @@ static int igt_ppgtt_pin_update(void *arg)
 	 * huge-gtt-pages.
 	 */
 
-	if (!vm || !i915_vm_is_4lvl(vm)) {
+	vm = i915_gem_context_get_vm_rcu(ctx);
+	if (!i915_vm_is_4lvl(vm)) {
 		pr_info("48b PPGTT not supported, skipping\n");
-		return 0;
+		goto out_vm;
 	}
 
 	first = ilog2(I915_GTT_PAGE_SIZE_64K);
@@ -1451,6 +1452,8 @@ out_close:
 	i915_vma_close(vma);
 out_put:
 	i915_gem_object_put(obj);
+out_vm:
+	i915_vm_put(vm);
 
 	return err;
 }
@@ -1460,7 +1463,7 @@ static int igt_tmpfs_fallback(void *arg)
 	struct i915_gem_context *ctx = arg;
 	struct drm_i915_private *i915 = ctx->i915;
 	struct vfsmount *gemfs = i915->mm.gemfs;
-	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
+	struct i915_address_space *vm = i915_gem_context_get_vm_rcu(ctx);
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	u32 *vaddr;
@@ -1510,6 +1513,7 @@ out_put:
 out_restore:
 	i915->mm.gemfs = gemfs;
 
+	i915_vm_put(vm);
 	return err;
 }
 
@@ -1517,14 +1521,14 @@ static int igt_shrink_thp(void *arg)
 {
 	struct i915_gem_context *ctx = arg;
 	struct drm_i915_private *i915 = ctx->i915;
-	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
+	struct i915_address_space *vm = i915_gem_context_get_vm_rcu(ctx);
 	struct drm_i915_gem_object *obj;
 	struct i915_gem_engines_iter it;
 	struct intel_context *ce;
 	struct i915_vma *vma;
 	unsigned int flags = PIN_USER;
 	unsigned int n;
-	int err;
+	int err = 0;
 
 	/*
 	 * Sanity check shrinking huge-paged object -- make sure nothing blows
@@ -1533,12 +1537,14 @@ static int igt_shrink_thp(void *arg)
 
 	if (!igt_can_allocate_thp(i915)) {
 		pr_info("missing THP support, skipping\n");
-		return 0;
+		goto out_vm;
 	}
 
 	obj = i915_gem_object_create_shmem(i915, SZ_2M);
-	if (IS_ERR(obj))
-		return PTR_ERR(obj);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		goto out_vm;
+	}
 
 	vma = i915_vma_instance(obj, vm, NULL);
 	if (IS_ERR(vma)) {
@@ -1607,6 +1613,8 @@ out_close:
 	i915_vma_close(vma);
 out_put:
 	i915_gem_object_put(obj);
+out_vm:
+	i915_vm_put(vm);
 
 	return err;
 }
@@ -1675,6 +1683,7 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 	};
 	struct drm_file *file;
 	struct i915_gem_context *ctx;
+	struct i915_address_space *vm;
 	intel_wakeref_t wakeref;
 	int err;
 
@@ -1699,8 +1708,11 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 		goto out_unlock;
 	}
 
-	if (ctx->vm)
-		ctx->vm->scrub_64K = true;
+	mutex_lock(&ctx->mutex);
+	vm = i915_gem_context_vm(ctx);
+	if (vm)
+		WRITE_ONCE(vm->scrub_64K, true);
+	mutex_unlock(&ctx->mutex);
 
 	err = i915_subtests(tests, ctx);
 

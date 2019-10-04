@@ -24,6 +24,7 @@
 
 #include <linux/prime_numbers.h>
 
+#include "gem/i915_gem_context.h"
 #include "gem/selftests/mock_context.h"
 
 #include "i915_scatterlist.h"
@@ -38,7 +39,7 @@ static bool assert_vma(struct i915_vma *vma,
 {
 	bool ok = true;
 
-	if (vma->vm != ctx->vm) {
+	if (vma->vm != rcu_access_pointer(ctx->vm)) {
 		pr_err("VMA created with wrong VM\n");
 		ok = false;
 	}
@@ -113,11 +114,13 @@ static int create_vmas(struct drm_i915_private *i915,
 	list_for_each_entry(obj, objects, st_link) {
 		for (pinned = 0; pinned <= 1; pinned++) {
 			list_for_each_entry(ctx, contexts, link) {
-				struct i915_address_space *vm = ctx->vm;
+				struct i915_address_space *vm;
 				struct i915_vma *vma;
 				int err;
 
+				vm = i915_gem_context_get_vm_rcu(ctx);
 				vma = checked_vma_instance(obj, vm, NULL);
+				i915_vm_put(vm);
 				if (IS_ERR(vma))
 					return PTR_ERR(vma);
 

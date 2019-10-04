@@ -138,11 +138,9 @@ static int igt_gem_suspend(void *arg)
 		return PTR_ERR(file);
 
 	err = -ENOMEM;
-	mutex_lock(&i915->drm.struct_mutex);
 	ctx = live_context(i915, file);
 	if (!IS_ERR(ctx))
 		err = switch_to_context(i915, ctx);
-	mutex_unlock(&i915->drm.struct_mutex);
 	if (err)
 		goto out;
 
@@ -157,9 +155,7 @@ static int igt_gem_suspend(void *arg)
 
 	pm_resume(i915);
 
-	mutex_lock(&i915->drm.struct_mutex);
 	err = switch_to_context(i915, ctx);
-	mutex_unlock(&i915->drm.struct_mutex);
 out:
 	mock_file_free(i915, file);
 	return err;
@@ -177,11 +173,9 @@ static int igt_gem_hibernate(void *arg)
 		return PTR_ERR(file);
 
 	err = -ENOMEM;
-	mutex_lock(&i915->drm.struct_mutex);
 	ctx = live_context(i915, file);
 	if (!IS_ERR(ctx))
 		err = switch_to_context(i915, ctx);
-	mutex_unlock(&i915->drm.struct_mutex);
 	if (err)
 		goto out;
 
@@ -196,9 +190,7 @@ static int igt_gem_hibernate(void *arg)
 
 	pm_resume(i915);
 
-	mutex_lock(&i915->drm.struct_mutex);
 	err = switch_to_context(i915, ctx);
-	mutex_unlock(&i915->drm.struct_mutex);
 out:
 	mock_file_free(i915, file);
 	return err;

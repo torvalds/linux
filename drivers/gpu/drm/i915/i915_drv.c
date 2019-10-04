@@ -1702,10 +1702,8 @@ static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
-	mutex_lock(&dev->struct_mutex);
 	i915_gem_context_close(file);
 	i915_gem_release(dev, file);
-	mutex_unlock(&dev->struct_mutex);
 
 	kfree_rcu(file_priv, rcu);
 
