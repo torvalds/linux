@@ -1117,10 +1117,7 @@ static u16 g4x_compute_wm(const struct intel_crtc_state *crtc_state,
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 
-	if (plane->id == PLANE_CURSOR)
-		width = plane_state->base.crtc_w;
-	else
-		width = drm_rect_width(&plane_state->base.dst);
+	width = drm_rect_width(&plane_state->base.dst);
 
 	if (plane->id == PLANE_CURSOR) {
 		wm = intel_wm_method2(clock, htotal, width, cpp, latency);
@@ -2549,7 +2546,8 @@ static u32 ilk_compute_cur_wm(const struct intel_crtc_state *crtc_state,
 
 	return ilk_wm_method2(crtc_state->pixel_rate,
 			      crtc_state->base.adjusted_mode.crtc_htotal,
-			      plane_state->base.crtc_w, cpp, mem_value);
+			      drm_rect_width(&plane_state->base.dst),
+			      cpp, mem_value);
 }
 
 /* Only for WM_LP. */
@@ -4046,7 +4044,6 @@ static uint_fixed_16_16_t
 skl_plane_downscale_amount(const struct intel_crtc_state *crtc_state,
 			   const struct intel_plane_state *plane_state)
 {
-	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	u32 src_w, src_h, dst_w, dst_h;
 	uint_fixed_16_16_t fp_w_ratio, fp_h_ratio;
 	uint_fixed_16_16_t downscale_h, downscale_w;
@@ -4054,27 +4051,17 @@ skl_plane_downscale_amount(const struct intel_crtc_state *crtc_state,
 	if (WARN_ON(!intel_wm_plane_visible(crtc_state, plane_state)))
 		return u32_to_fixed16(0);
 
-	/* n.b., src is 16.16 fixed point, dst is whole integer */
-	if (plane->id == PLANE_CURSOR) {
-		/*
-		 * Cursors only support 0/180 degree rotation,
-		 * hence no need to account for rotation here.
-		 */
-		src_w = plane_state->base.src_w >> 16;
-		src_h = plane_state->base.src_h >> 16;
-		dst_w = plane_state->base.crtc_w;
-		dst_h = plane_state->base.crtc_h;
-	} else {
-		/*
-		 * Src coordinates are already rotated by 270 degrees for
-		 * the 90/270 degree plane rotation cases (to match the
-		 * GTT mapping), hence no need to account for rotation here.
-		 */
-		src_w = drm_rect_width(&plane_state->base.src) >> 16;
-		src_h = drm_rect_height(&plane_state->base.src) >> 16;
-		dst_w = drm_rect_width(&plane_state->base.dst);
-		dst_h = drm_rect_height(&plane_state->base.dst);
-	}
+	/*
+	 * Src coordinates are already rotated by 270 degrees for
+	 * the 90/270 degree plane rotation cases (to match the
+	 * GTT mapping), hence no need to account for rotation here.
+	 *
+	 * n.b., src is 16.16 fixed point, dst is whole integer.
+	 */
+	src_w = drm_rect_width(&plane_state->base.src) >> 16;
+	src_h = drm_rect_height(&plane_state->base.src) >> 16;
+	dst_w = drm_rect_width(&plane_state->base.dst);
+	dst_h = drm_rect_height(&plane_state->base.dst);
 
 	fp_w_ratio = div_fixed16(src_w, dst_w);
 	fp_h_ratio = div_fixed16(src_h, dst_h);
@@ -4698,20 +4685,15 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *crtc_state,
 			    const struct intel_plane_state *plane_state,
 			    struct skl_wm_params *wp, int color_plane)
 {
-	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	int width;
 
-	if (plane->id == PLANE_CURSOR) {
-		width = plane_state->base.crtc_w;
-	} else {
-		/*
-		 * Src coordinates are already rotated by 270 degrees for
-		 * the 90/270 degree plane rotation cases (to match the
-		 * GTT mapping), hence no need to account for rotation here.
-		 */
-		width = drm_rect_width(&plane_state->base.src) >> 16;
-	}
+	/*
+	 * Src coordinates are already rotated by 270 degrees for
+	 * the 90/270 degree plane rotation cases (to match the
+	 * GTT mapping), hence no need to account for rotation here.
+	 */
+	width = drm_rect_width(&plane_state->base.src) >> 16;
 
 	return skl_compute_wm_params(crtc_state, width,
 				     fb->format, fb->modifier,

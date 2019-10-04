@@ -10538,16 +10538,16 @@ static u32 intel_cursor_base(const struct intel_plane_state *plane_state)
 	/* ILK+ do this automagically */
 	if (HAS_GMCH(dev_priv) &&
 	    plane_state->base.rotation & DRM_MODE_ROTATE_180)
-		base += (plane_state->base.crtc_h *
-			 plane_state->base.crtc_w - 1) * fb->format->cpp[0];
+		base += (drm_rect_height(&plane_state->base.dst) *
+			 drm_rect_width(&plane_state->base.dst) - 1) * fb->format->cpp[0];
 
 	return base;
 }
 
 static u32 intel_cursor_position(const struct intel_plane_state *plane_state)
 {
-	int x = plane_state->base.crtc_x;
-	int y = plane_state->base.crtc_y;
+	int x = plane_state->base.dst.x1;
+	int y = plane_state->base.dst.y1;
 	u32 pos = 0;
 
 	if (x < 0) {
@@ -10569,8 +10569,8 @@ static bool intel_cursor_size_ok(const struct intel_plane_state *plane_state)
 {
 	const struct drm_mode_config *config =
 		&plane_state->base.plane->dev->mode_config;
-	int width = plane_state->base.crtc_w;
-	int height = plane_state->base.crtc_h;
+	int width = drm_rect_width(&plane_state->base.dst);
+	int height = drm_rect_height(&plane_state->base.dst);
 
 	return width > 0 && width <= config->cursor_width &&
 		height > 0 && height <= config->cursor_height;
@@ -10589,8 +10589,8 @@ static int intel_cursor_check_surface(struct intel_plane_state *plane_state)
 	if (!plane_state->base.visible)
 		return 0;
 
-	src_x = plane_state->base.src_x >> 16;
-	src_y = plane_state->base.src_y >> 16;
+	src_x = plane_state->base.src.x1 >> 16;
+	src_y = plane_state->base.src.y1 >> 16;
 
 	intel_add_fb_offsets(&src_x, &src_y, plane_state, 0);
 	offset = intel_plane_compute_aligned_offset(&src_x, &src_y,
@@ -10624,6 +10624,10 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 						  true, true);
 	if (ret)
 		return ret;
+
+	/* Use the unclipped src/dst rectangles, which we program to hw */
+	plane_state->base.src = drm_plane_state_src(&plane_state->base);
+	plane_state->base.dst = drm_plane_state_dest(&plane_state->base);
 
 	ret = intel_cursor_check_surface(plane_state);
 	if (ret)
@@ -10667,7 +10671,7 @@ static u32 i845_cursor_ctl(const struct intel_crtc_state *crtc_state,
 
 static bool i845_cursor_size_ok(const struct intel_plane_state *plane_state)
 {
-	int width = plane_state->base.crtc_w;
+	int width = drm_rect_width(&plane_state->base.dst);
 
 	/*
 	 * 845g/865g are only limited by the width of their cursors,
@@ -10693,8 +10697,8 @@ static int i845_check_cursor(struct intel_crtc_state *crtc_state,
 	/* Check for which cursor types we support */
 	if (!i845_cursor_size_ok(plane_state)) {
 		DRM_DEBUG("Cursor dimension %dx%d not supported\n",
-			  plane_state->base.crtc_w,
-			  plane_state->base.crtc_h);
+			  drm_rect_width(&plane_state->base.dst),
+			  drm_rect_height(&plane_state->base.dst));
 		return -EINVAL;
 	}
 
@@ -10727,8 +10731,8 @@ static void i845_update_cursor(struct intel_plane *plane,
 	unsigned long irqflags;
 
 	if (plane_state && plane_state->base.visible) {
-		unsigned int width = plane_state->base.crtc_w;
-		unsigned int height = plane_state->base.crtc_h;
+		unsigned int width = drm_rect_width(&plane_state->base.src);
+		unsigned int height = drm_rect_height(&plane_state->base.dst);
 
 		cntl = plane_state->ctl |
 			i845_cursor_ctl_crtc(crtc_state);
@@ -10830,7 +10834,7 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 	if (IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
 		cntl |= MCURSOR_TRICKLE_FEED_DISABLE;
 
-	switch (plane_state->base.crtc_w) {
+	switch (drm_rect_width(&plane_state->base.dst)) {
 	case 64:
 		cntl |= MCURSOR_MODE_64_ARGB_AX;
 		break;
@@ -10841,7 +10845,7 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 		cntl |= MCURSOR_MODE_256_ARGB_AX;
 		break;
 	default:
-		MISSING_CASE(plane_state->base.crtc_w);
+		MISSING_CASE(drm_rect_width(&plane_state->base.dst));
 		return 0;
 	}
 
@@ -10855,8 +10859,8 @@ static bool i9xx_cursor_size_ok(const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv =
 		to_i915(plane_state->base.plane->dev);
-	int width = plane_state->base.crtc_w;
-	int height = plane_state->base.crtc_h;
+	int width = drm_rect_width(&plane_state->base.dst);
+	int height = drm_rect_height(&plane_state->base.dst);
 
 	if (!intel_cursor_size_ok(plane_state))
 		return false;
@@ -10909,17 +10913,19 @@ static int i9xx_check_cursor(struct intel_crtc_state *crtc_state,
 	/* Check for which cursor types we support */
 	if (!i9xx_cursor_size_ok(plane_state)) {
 		DRM_DEBUG("Cursor dimension %dx%d not supported\n",
-			  plane_state->base.crtc_w,
-			  plane_state->base.crtc_h);
+			  drm_rect_width(&plane_state->base.dst),
+			  drm_rect_height(&plane_state->base.dst));
 		return -EINVAL;
 	}
 
 	WARN_ON(plane_state->base.visible &&
 		plane_state->color_plane[0].stride != fb->pitches[0]);
 
-	if (fb->pitches[0] != plane_state->base.crtc_w * fb->format->cpp[0]) {
+	if (fb->pitches[0] !=
+	    drm_rect_width(&plane_state->base.dst) * fb->format->cpp[0]) {
 		DRM_DEBUG_KMS("Invalid cursor stride (%u) (cursor width %d)\n",
-			      fb->pitches[0], plane_state->base.crtc_w);
+			      fb->pitches[0],
+			      drm_rect_width(&plane_state->base.dst));
 		return -EINVAL;
 	}
 
@@ -10934,7 +10940,7 @@ static int i9xx_check_cursor(struct intel_crtc_state *crtc_state,
 	 * Refuse the put the cursor into that compromised position.
 	 */
 	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_C &&
-	    plane_state->base.visible && plane_state->base.crtc_x < 0) {
+	    plane_state->base.visible && plane_state->base.dst.x1 < 0) {
 		DRM_DEBUG_KMS("CHV cursor C not allowed to straddle the left screen edge\n");
 		return -EINVAL;
 	}
@@ -10954,11 +10960,14 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 	unsigned long irqflags;
 
 	if (plane_state && plane_state->base.visible) {
+		unsigned width = drm_rect_width(&plane_state->base.dst);
+		unsigned height = drm_rect_height(&plane_state->base.dst);
+
 		cntl = plane_state->ctl |
 			i9xx_cursor_ctl_crtc(crtc_state);
 
-		if (plane_state->base.crtc_h != plane_state->base.crtc_w)
-			fbc_ctl = CUR_FBC_CTL_EN | (plane_state->base.crtc_h - 1);
+		if (width != height)
+			fbc_ctl = CUR_FBC_CTL_EN | (height - 1);
 
 		base = intel_cursor_base(plane_state);
 		pos = intel_cursor_position(plane_state);
