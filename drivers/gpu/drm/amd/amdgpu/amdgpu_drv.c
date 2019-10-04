@@ -1155,7 +1155,8 @@ static int amdgpu_pmops_resume(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
 	/* GPU comes up enabled by the bios on resume */
-	if (amdgpu_device_supports_boco(drm_dev)) {
+	if (amdgpu_device_supports_boco(drm_dev) ||
+	    amdgpu_device_supports_baco(drm_dev)) {
 		pm_runtime_disable(dev);
 		pm_runtime_set_active(dev);
 		pm_runtime_enable(dev);
@@ -1222,6 +1223,8 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 		else if (!amdgpu_has_atpx_dgpu_power_cntl())
 			pci_set_power_state(pdev, PCI_D3hot);
 		drm_dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
+	} else if (amdgpu_device_supports_baco(drm_dev)) {
+		amdgpu_device_baco_enter(drm_dev);
 	}
 
 	return 0;
@@ -1247,6 +1250,8 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 		if (ret)
 			return ret;
 		pci_set_master(pdev);
+	} else if (amdgpu_device_supports_baco(drm_dev)) {
+		amdgpu_device_baco_exit(drm_dev);
 	}
 	ret = amdgpu_device_resume(drm_dev, false, false);
 	drm_kms_helper_poll_enable(drm_dev);
