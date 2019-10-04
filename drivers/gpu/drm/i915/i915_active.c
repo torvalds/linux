@@ -693,6 +693,7 @@ void i915_active_acquire_barrier(struct i915_active *ref)
 		rb_link_node(&node->node, parent, p);
 		rb_insert_color(&node->node, &ref->tree);
 
+		GEM_BUG_ON(!intel_engine_pm_is_awake(engine));
 		llist_add(barrier_to_ll(node), &engine->barrier_tasks);
 		intel_engine_pm_put(engine);
 	}

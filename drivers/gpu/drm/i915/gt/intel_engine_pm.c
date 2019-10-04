@@ -124,6 +124,19 @@ out_unlock:
 	return result;
 }
 
+static void call_idle_barriers(struct intel_engine_cs *engine)
+{
+	struct llist_node *node, *next;
+
+	llist_for_each_safe(node, next, llist_del_all(&engine->barrier_tasks)) {
+		struct dma_fence_cb *cb =
+			container_of((struct list_head *)node,
+				     typeof(*cb), node);
+
+		cb->func(NULL, cb);
+	}
+}
+
 static int __engine_park(struct intel_wakeref *wf)
 {
 	struct intel_engine_cs *engine =
@@ -142,6 +155,8 @@ static int __engine_park(struct intel_wakeref *wf)
 		return -EBUSY;
 
 	GEM_TRACE("%s\n", engine->name);
+
+	call_idle_barriers(engine); /* cleanup after wedging */
 
 	intel_engine_disarm_breadcrumbs(engine);
 	intel_engine_pool_park(&engine->pool);
