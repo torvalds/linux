@@ -65,6 +65,7 @@
 #define SDMA_DESCQ_CNT 2048
 #define SDMA_DESC_INTR 64
 #define INVALID_TAIL 0xffff
+#define SDMA_PAD max_t(size_t, MAX_16B_PADDING, sizeof(u32))
 
 static uint sdma_descq_cnt = SDMA_DESCQ_CNT;
 module_param(sdma_descq_cnt, uint, S_IRUGO);
@@ -1280,7 +1281,7 @@ void sdma_clean(struct hfi1_devdata *dd, size_t num_engines)
 	struct sdma_engine *sde;
 
 	if (dd->sdma_pad_dma) {
-		dma_free_coherent(&dd->pcidev->dev, 4,
+		dma_free_coherent(&dd->pcidev->dev, SDMA_PAD,
 				  (void *)dd->sdma_pad_dma,
 				  dd->sdma_pad_phys);
 		dd->sdma_pad_dma = NULL;
@@ -1481,7 +1482,7 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 	/* Allocate memory for pad */
 	dd->sdma_pad_dma = dma_zalloc_coherent(
 		&dd->pcidev->dev,
-		sizeof(u32),
+		SDMA_PAD,
 		&dd->sdma_pad_phys,
 		GFP_KERNEL
 	);
