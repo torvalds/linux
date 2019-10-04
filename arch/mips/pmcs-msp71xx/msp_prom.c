@@ -61,6 +61,7 @@ int init_debug = 1;
 /* memory blocks */
 struct prom_pmemblock mdesc[PROM_MAX_PMEMBLOCKS];
 
+#define MAX_PROM_MEM 5
 static phys_addr_t prom_mem_base[MAX_PROM_MEM] __initdata;
 static phys_addr_t prom_mem_size[MAX_PROM_MEM] __initdata;
 static unsigned int nr_prom_mem __initdata;
@@ -358,7 +359,7 @@ void __init prom_meminit(void)
 		p++;
 
 		if (type == BOOT_MEM_ROM_DATA) {
-			if (nr_prom_mem >= 5) {
+			if (nr_prom_mem >= MAX_PROM_MEM) {
 				pr_err("Too many ROM DATA regions");
 				continue;
 			}
@@ -377,7 +378,6 @@ void __init prom_free_prom_memory(void)
 	char	*ptr;
 	int	len = 0;
 	int	i;
-	unsigned long addr;
 
 	/*
 	 * preserve environment variables and command line from pmon/bbload
