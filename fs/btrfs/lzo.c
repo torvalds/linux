@@ -484,7 +484,6 @@ out:
 
 const struct btrfs_compress_op btrfs_lzo_compress = {
 	.workspace_manager	= &wsm,
-	.free_workspace		= lzo_free_workspace,
 	.max_level		= 1,
 	.default_level		= 1,
 };

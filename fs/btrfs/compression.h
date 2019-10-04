@@ -124,8 +124,6 @@ struct list_head *btrfs_get_workspace(int type, unsigned int level);
 void btrfs_put_workspace(int type, struct list_head *ws);
 
 struct btrfs_compress_op {
-	void (*free_workspace)(struct list_head *workspace);
-
 	struct workspace_manager *workspace_manager;
 	/* Maximum level supported by the compression algorithm */
 	unsigned int max_level;

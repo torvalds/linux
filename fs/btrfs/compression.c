@@ -912,7 +912,6 @@ fail:
 
 const struct btrfs_compress_op btrfs_heuristic_compress = {
 	.workspace_manager = &heuristic_wsm,
-	.free_workspace = free_heuristic_ws,
 };
 
 static const struct btrfs_compress_op * const btrfs_compress_op[] = {
@@ -930,6 +929,22 @@ static struct list_head *alloc_workspace(int type, unsigned int level)
 	case BTRFS_COMPRESS_ZLIB: return zlib_alloc_workspace(level);
 	case BTRFS_COMPRESS_LZO:  return lzo_alloc_workspace(level);
 	case BTRFS_COMPRESS_ZSTD: return zstd_alloc_workspace(level);
+	default:
+		/*
+		 * This can't happen, the type is validated several times
+		 * before we get here.
+		 */
+		BUG();
+	}
+}
+
+static void free_workspace(int type, struct list_head *ws)
+{
+	switch (type) {
+	case BTRFS_COMPRESS_NONE: return free_heuristic_ws(ws);
+	case BTRFS_COMPRESS_ZLIB: return zlib_free_workspace(ws);
+	case BTRFS_COMPRESS_LZO:  return lzo_free_workspace(ws);
+	case BTRFS_COMPRESS_ZSTD: return zstd_free_workspace(ws);
 	default:
 		/*
 		 * This can't happen, the type is validated several times
@@ -976,7 +991,7 @@ static void btrfs_cleanup_workspace_manager(int type)
 	while (!list_empty(&wsman->idle_ws)) {
 		ws = wsman->idle_ws.next;
 		list_del(ws);
-		wsman->ops->free_workspace(ws);
+		free_workspace(type, ws);
 		atomic_dec(&wsman->total_ws);
 	}
 }
@@ -1111,7 +1126,7 @@ void btrfs_put_workspace(int type, struct list_head *ws)
 	}
 	spin_unlock(ws_lock);
 
-	wsm->ops->free_workspace(ws);
+	free_workspace(type, ws);
 	atomic_dec(total_ws);
 wake:
 	cond_wake_up(ws_wait);
