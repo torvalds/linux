@@ -2736,11 +2736,6 @@ static bool handle_read_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 				diff = cmp_psn(psn,
 					       flow->flow_state.r_next_psn);
 				if (diff > 0) {
-					if (!(qp->r_flags & RVT_R_RDMAR_SEQ))
-						restart_tid_rdma_read_req(rcd,
-									  qp,
-									  wqe);
-
 					/* Drop the packet.*/
 					goto s_unlock;
 				} else if (diff < 0) {
