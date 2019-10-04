@@ -3206,18 +3206,10 @@ static bool drm_valid_cea_vic(u8 vic)
 	return vic > 0 && vic < ARRAY_SIZE(edid_cea_modes);
 }
 
-/**
- * drm_get_cea_aspect_ratio - get the picture aspect ratio corresponding to
- * the input VIC from the CEA mode list
- * @video_code: ID given to each of the CEA modes
- *
- * Returns picture aspect ratio
- */
-enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code)
+static enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code)
 {
 	return edid_cea_modes[video_code].picture_aspect_ratio;
 }
-EXPORT_SYMBOL(drm_get_cea_aspect_ratio);
 
 /*
  * Calculate the alternate clock for HDMI modes (those from the HDMI vendor
