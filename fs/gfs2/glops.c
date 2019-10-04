@@ -350,7 +350,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 		ip->i_inode.i_rdev = MKDEV(be32_to_cpu(str->di_major),
 					   be32_to_cpu(str->di_minor));
 		break;
-	};
+	}
 
 	i_uid_write(&ip->i_inode, be32_to_cpu(str->di_uid));
 	i_gid_write(&ip->i_inode, be32_to_cpu(str->di_gid));

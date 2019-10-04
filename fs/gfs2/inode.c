@@ -1475,7 +1475,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			error = -EEXIST;
 		default:
 			goto out_gunlock;
-		};
+		}
 
 		if (odip != ndip) {
 			if (!ndip->i_inode.i_nlink) {
