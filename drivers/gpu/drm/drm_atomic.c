@@ -430,10 +430,15 @@ static int drm_atomic_connector_check(struct drm_connector *connector,
 		return -EINVAL;
 	}
 
-	if (writeback_job->out_fence && !writeback_job->fb) {
-		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] requesting out-fence without framebuffer\n",
-				 connector->base.id, connector->name);
-		return -EINVAL;
+	if (!writeback_job->fb) {
+		if (writeback_job->out_fence) {
+			DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] requesting out-fence without framebuffer\n",
+					 connector->base.id, connector->name);
+			return -EINVAL;
+		}
+
+		drm_writeback_cleanup_job(writeback_job);
+		state->writeback_job = NULL;
 	}
 
 	return 0;
