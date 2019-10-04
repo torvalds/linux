@@ -793,7 +793,7 @@ static int rsi_probe(struct usb_interface *pfunction,
 		adapter->device_model = RSI_DEV_9116;
 	} else {
 		rsi_dbg(ERR_ZONE, "%s: Unsupported RSI device id 0x%x\n",
-			__func__, id ? id->idProduct : 0x0);
+			__func__, id->idProduct);
 		goto err1;
 	}
 
