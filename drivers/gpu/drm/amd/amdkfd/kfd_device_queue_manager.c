@@ -1937,7 +1937,8 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 		}
 	}
 
-	for (pipe = 0; pipe < get_num_sdma_engines(dqm); pipe++) {
+	for (pipe = 0; pipe < get_num_sdma_engines(dqm) +
+			get_num_xgmi_sdma_engines(dqm); pipe++) {
 		for (queue = 0;
 		     queue < dqm->dev->device_info->num_sdma_queues_per_engine;
 		     queue++) {
