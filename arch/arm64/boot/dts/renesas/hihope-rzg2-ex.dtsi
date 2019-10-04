@@ -84,10 +84,6 @@
 	status = "okay";
 };
 
-&pciec1 {
-	status = "okay";
-};
-
 &pfc {
 	pinctrl-0 = <&scif_clk_pins>;
 	pinctrl-names = "default";
