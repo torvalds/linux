@@ -571,7 +571,7 @@ void free_initmem(void)
 {
 	free_reserved_area(lm_alias(__init_begin),
 			   lm_alias(__init_end),
-			   0, "unused kernel");
+			   POISON_FREE_INITMEM, "unused kernel");
 	/*
 	 * Unmap the __init region but leave the VM area in place. This
 	 * prevents the region from being reused for kernel modules, which
