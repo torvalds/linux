@@ -332,8 +332,6 @@ static void submit_bios(struct bio_list *bios)
  */
 static void issue_bio(struct clone *clone, struct bio *bio)
 {
-	unsigned long flags;
-
 	if (!bio_triggers_commit(clone, bio)) {
 		generic_make_request(bio);
 		return;
@@ -352,9 +350,9 @@ static void issue_bio(struct clone *clone, struct bio *bio)
 	 * Batch together any bios that trigger commits and then issue a single
 	 * commit for them in process_deferred_flush_bios().
 	 */
-	spin_lock_irqsave(&clone->lock, flags);
+	spin_lock_irq(&clone->lock);
 	bio_list_add(&clone->deferred_flush_bios, bio);
-	spin_unlock_irqrestore(&clone->lock, flags);
+	spin_unlock_irq(&clone->lock);
 
 	wake_worker(clone);
 }
@@ -469,7 +467,7 @@ static void complete_discard_bio(struct clone *clone, struct bio *bio, bool succ
 
 static void process_discard_bio(struct clone *clone, struct bio *bio)
 {
-	unsigned long rs, re, flags;
+	unsigned long rs, re;
 
 	bio_region_range(clone, bio, &rs, &re);
 	BUG_ON(re > clone->nr_regions);
@@ -501,9 +499,9 @@ static void process_discard_bio(struct clone *clone, struct bio *bio)
 	/*
 	 * Defer discard processing.
 	 */
-	spin_lock_irqsave(&clone->lock, flags);
+	spin_lock_irq(&clone->lock);
 	bio_list_add(&clone->deferred_discard_bios, bio);
-	spin_unlock_irqrestore(&clone->lock, flags);
+	spin_unlock_irq(&clone->lock);
 
 	wake_worker(clone);
 }
@@ -1140,13 +1138,13 @@ static void process_deferred_discards(struct clone *clone)
 	int r = -EPERM;
 	struct bio *bio;
 	struct blk_plug plug;
-	unsigned long rs, re, flags;
+	unsigned long rs, re;
 	struct bio_list discards = BIO_EMPTY_LIST;
 
-	spin_lock_irqsave(&clone->lock, flags);
+	spin_lock_irq(&clone->lock);
 	bio_list_merge(&discards, &clone->deferred_discard_bios);
 	bio_list_init(&clone->deferred_discard_bios);
-	spin_unlock_irqrestore(&clone->lock, flags);
+	spin_unlock_irq(&clone->lock);
 
 	if (bio_list_empty(&discards))
 		return;
@@ -1176,13 +1174,12 @@ out:
 
 static void process_deferred_bios(struct clone *clone)
 {
-	unsigned long flags;
 	struct bio_list bios = BIO_EMPTY_LIST;
 
-	spin_lock_irqsave(&clone->lock, flags);
+	spin_lock_irq(&clone->lock);
 	bio_list_merge(&bios, &clone->deferred_bios);
 	bio_list_init(&clone->deferred_bios);
-	spin_unlock_irqrestore(&clone->lock, flags);
+	spin_unlock_irq(&clone->lock);
 
 	if (bio_list_empty(&bios))
 		return;
@@ -1193,7 +1190,6 @@ static void process_deferred_bios(struct clone *clone)
 static void process_deferred_flush_bios(struct clone *clone)
 {
 	struct bio *bio;
-	unsigned long flags;
 	struct bio_list bios = BIO_EMPTY_LIST;
 	struct bio_list bio_completions = BIO_EMPTY_LIST;
 
@@ -1201,13 +1197,13 @@ static void process_deferred_flush_bios(struct clone *clone)
 	 * If there are any deferred flush bios, we must commit the metadata
 	 * before issuing them or signaling their completion.
 	 */
-	spin_lock_irqsave(&clone->lock, flags);
+	spin_lock_irq(&clone->lock);
 	bio_list_merge(&bios, &clone->deferred_flush_bios);
 	bio_list_init(&clone->deferred_flush_bios);
 
 	bio_list_merge(&bio_completions, &clone->deferred_flush_completions);
 	bio_list_init(&clone->deferred_flush_completions);
-	spin_unlock_irqrestore(&clone->lock, flags);
+	spin_unlock_irq(&clone->lock);
 
 	if (bio_list_empty(&bios) && bio_list_empty(&bio_completions) &&
 	    !(dm_clone_changed_this_transaction(clone->cmd) && need_commit_due_to_time(clone)))
