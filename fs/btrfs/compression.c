@@ -956,12 +956,10 @@ static void free_workspace(int type, struct list_head *ws)
 
 static void btrfs_init_workspace_manager(int type)
 {
-	const struct btrfs_compress_op *ops = btrfs_compress_op[type];
-	struct workspace_manager *wsm = ops->workspace_manager;
+	struct workspace_manager *wsm;
 	struct list_head *workspace;
 
-	wsm->ops = ops;
-
+	wsm = btrfs_compress_op[type]->workspace_manager;
 	INIT_LIST_HEAD(&wsm->idle_ws);
 	spin_lock_init(&wsm->ws_lock);
 	atomic_set(&wsm->total_ws, 0);

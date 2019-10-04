@@ -109,7 +109,6 @@ enum btrfs_compression_type {
 };
 
 struct workspace_manager {
-	const struct btrfs_compress_op *ops;
 	struct list_head idle_ws;
 	spinlock_t ws_lock;
 	/* Number of free workspaces */
