@@ -246,7 +246,7 @@
 				status = "disabled";
 			};
 
-			ap_syscon: system-controller@6f4000 {
+			ap_syscon0: system-controller@6f4000 {
 				compatible = "syscon", "simple-mfd";
 				reg = <0x6f4000 0x2000>;
 
