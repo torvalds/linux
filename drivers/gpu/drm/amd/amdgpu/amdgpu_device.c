@@ -137,14 +137,14 @@ static DEVICE_ATTR(pcie_replay_count, S_IRUGO,
 static void amdgpu_device_get_pcie_info(struct amdgpu_device *adev);
 
 /**
- * amdgpu_device_is_px - Is the device is a dGPU with HG/PX power control
+ * amdgpu_device_supports_boco - Is the device a dGPU with HG/PX power control
  *
  * @dev: drm_device pointer
  *
  * Returns true if the device is a dGPU with HG/PX power control,
  * otherwise return false.
  */
-bool amdgpu_device_is_px(struct drm_device *dev)
+bool amdgpu_device_supports_boco(struct drm_device *dev)
 {
 	struct amdgpu_device *adev = dev->dev_private;
 
@@ -1088,7 +1088,7 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
-	if (amdgpu_device_is_px(dev) && state == VGA_SWITCHEROO_OFF)
+	if (amdgpu_device_supports_boco(dev) && state == VGA_SWITCHEROO_OFF)
 		return;
 
 	if (state == VGA_SWITCHEROO_ON) {
@@ -2913,7 +2913,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	 * ignore it */
 	vga_client_register(adev->pdev, adev, NULL, amdgpu_device_vga_set_decode);
 
-	if (amdgpu_device_is_px(ddev))
+	if (amdgpu_device_supports_boco(ddev))
 		runtime = true;
 	if (!pci_is_thunderbolt_attached(adev->pdev))
 		vga_switcheroo_register_client(adev->pdev,

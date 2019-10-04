@@ -1155,7 +1155,7 @@ static int amdgpu_pmops_resume(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
 	/* GPU comes up enabled by the bios on resume */
-	if (amdgpu_device_is_px(drm_dev)) {
+	if (amdgpu_device_supports_boco(drm_dev)) {
 		pm_runtime_disable(dev);
 		pm_runtime_set_active(dev);
 		pm_runtime_enable(dev);
@@ -1203,7 +1203,7 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	if (!amdgpu_device_is_px(drm_dev)) {
+	if (!amdgpu_device_supports_boco(drm_dev)) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
@@ -1230,7 +1230,7 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	if (!amdgpu_device_is_px(drm_dev))
+	if (!amdgpu_device_supports_boco(drm_dev))
 		return -EINVAL;
 
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
@@ -1255,7 +1255,7 @@ static int amdgpu_pmops_runtime_idle(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct drm_crtc *crtc;
 
-	if (!amdgpu_device_is_px(drm_dev)) {
+	if (!amdgpu_device_supports_boco(drm_dev)) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
