@@ -899,8 +899,7 @@ static void css_set_move_task(struct task_struct *task,
 		/*
 		 * We are synchronized through cgroup_threadgroup_rwsem
 		 * against PF_EXITING setting such that we can't race
-		 * against cgroup_exit() changing the css_set to
-		 * init_css_set and dropping the old one.
+		 * against cgroup_exit()/cgroup_free() dropping the css_set.
 		 */
 		WARN_ON_ONCE(task->flags & PF_EXITING);
 
@@ -1432,9 +1431,8 @@ struct cgroup *task_cgroup_from_root(struct task_struct *task,
 				     struct cgroup_root *root)
 {
 	/*
-	 * No need to lock the task - since we hold cgroup_mutex the
-	 * task can't change groups, so the only thing that can happen
-	 * is that it exits and its css is set back to init_css_set.
+	 * No need to lock the task - since we hold css_set_lock the
+	 * task can't change groups.
 	 */
 	return cset_cgroup_from_root(task_css_set(task), root);
 }
@@ -6030,7 +6028,7 @@ void cgroup_post_fork(struct task_struct *child)
 		struct css_set *cset;
 
 		spin_lock_irq(&css_set_lock);
-		cset = task_css_set(current);
+		cset = task_css_set(current); /* current is @child's parent */
 		if (list_empty(&child->cg_list)) {
 			get_css_set(cset);
 			cset->nr_tasks++;
@@ -6073,20 +6071,8 @@ void cgroup_post_fork(struct task_struct *child)
  * cgroup_exit - detach cgroup from exiting task
  * @tsk: pointer to task_struct of exiting process
  *
- * Description: Detach cgroup from @tsk and release it.
+ * Description: Detach cgroup from @tsk.
  *
- * Note that cgroups marked notify_on_release force every task in
- * them to take the global cgroup_mutex mutex when exiting.
- * This could impact scaling on very large systems.  Be reluctant to
- * use notify_on_release cgroups where very high task exit scaling
- * is required on large systems.
- *
- * We set the exiting tasks cgroup to the root cgroup (top_cgroup).  We
- * call cgroup_exit() while the task is still competent to handle
- * notify_on_release(), then leave the task attached to the root cgroup in
- * each hierarchy for the remainder of its exit.  No need to bother with
- * init_css_set refcnting.  init_css_set never goes away and we can't race
- * with migration path - PF_EXITING is visible to migration path.
  */
 void cgroup_exit(struct task_struct *tsk)
 {
@@ -6096,7 +6082,8 @@ void cgroup_exit(struct task_struct *tsk)
 
 	/*
 	 * Unlink from @tsk from its css_set.  As migration path can't race
-	 * with us, we can check css_set and cg_list without synchronization.
+	 * with us (thanks to cgroup_threadgroup_rwsem), we can check css_set
+	 * and cg_list without synchronization.
 	 */
 	cset = task_css_set(tsk);
 
@@ -6112,6 +6099,8 @@ void cgroup_exit(struct task_struct *tsk)
 
 		spin_unlock_irq(&css_set_lock);
 	} else {
+		/* Take reference to avoid freeing init_css_set in cgroup_free,
+		 * see cgroup_fork(). */
 		get_css_set(cset);
 	}
 
