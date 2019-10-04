@@ -1086,14 +1086,16 @@ static struct list_head *get_workspace(int type, int level)
  * put a workspace struct back on the list or free it if we have enough
  * idle ones sitting around
  */
-void btrfs_put_workspace(struct workspace_manager *wsm, struct list_head *ws)
+void btrfs_put_workspace(int type, struct list_head *ws)
 {
+	struct workspace_manager *wsm;
 	struct list_head *idle_ws;
 	spinlock_t *ws_lock;
 	atomic_t *total_ws;
 	wait_queue_head_t *ws_wait;
 	int *free_ws;
 
+	wsm = btrfs_compress_op[type]->workspace_manager;
 	idle_ws	 = &wsm->idle_ws;
 	ws_lock	 = &wsm->ws_lock;
 	total_ws = &wsm->total_ws;
@@ -1117,13 +1119,10 @@ wake:
 
 static void put_workspace(int type, struct list_head *ws)
 {
-	struct workspace_manager *wsm;
-
-	wsm = btrfs_compress_op[type]->workspace_manager;
 	switch (type) {
-	case BTRFS_COMPRESS_NONE: return btrfs_put_workspace(wsm, ws);
-	case BTRFS_COMPRESS_ZLIB: return btrfs_put_workspace(wsm, ws);
-	case BTRFS_COMPRESS_LZO:  return btrfs_put_workspace(wsm, ws);
+	case BTRFS_COMPRESS_NONE: return btrfs_put_workspace(type, ws);
+	case BTRFS_COMPRESS_ZLIB: return btrfs_put_workspace(type, ws);
+	case BTRFS_COMPRESS_LZO:  return btrfs_put_workspace(type, ws);
 	case BTRFS_COMPRESS_ZSTD: return zstd_put_workspace(ws);
 	default:
 		/*
