@@ -422,6 +422,8 @@ struct mei_fw_version {
  *
  * @fw_ver : FW versions
  *
+ * @fw_f_fw_ver_supported : fw feature: fw version supported
+ *
  * @me_clients_rwsem: rw lock over me_clients list
  * @me_clients  : list of FW clients
  * @me_clients_map : FW clients bit map
@@ -499,6 +501,8 @@ struct mei_device {
 	unsigned int hbm_f_dr_supported:1;
 
 	struct mei_fw_version fw_ver[MEI_MAX_FW_VER_BLOCKS];
+
+	unsigned int fw_f_fw_ver_supported:1;
 
 	struct rw_semaphore me_clients_rwsem;
 	struct list_head me_clients;
