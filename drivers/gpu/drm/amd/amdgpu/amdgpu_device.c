@@ -3176,10 +3176,6 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
 		pci_set_power_state(dev->pdev, PCI_D3hot);
-	} else {
-		r = amdgpu_asic_reset(adev);
-		if (r)
-			DRM_ERROR("amdgpu asic reset failed\n");
 	}
 
 	return 0;
