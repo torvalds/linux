@@ -3219,15 +3219,15 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	return ret;
 
 free_irq:
-	power_supply_unregister(di->fg_psy);
-
 	/* We also have to free all registered irqs */
+	irq = platform_get_irq_byname(pdev, ab8500_fg_irq_bh[0].name);
+	free_irq(irq, di);
 	for (i = 0; i < ARRAY_SIZE(ab8500_fg_irq_th); i++) {
 		irq = platform_get_irq_byname(pdev, ab8500_fg_irq_th[i].name);
 		free_irq(irq, di);
 	}
-	irq = platform_get_irq_byname(pdev, ab8500_fg_irq_bh[0].name);
-	free_irq(irq, di);
+
+	power_supply_unregister(di->fg_psy);
 free_inst_curr_wq:
 	destroy_workqueue(di->fg_wq);
 	return ret;

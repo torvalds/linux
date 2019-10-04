@@ -1121,13 +1121,13 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 	return ret;
 
 free_irq:
-	power_supply_unregister(di->btemp_psy);
-
 	/* We also have to free all successfully registered irqs */
 	for (i = i - 1; i >= 0; i--) {
 		irq = platform_get_irq_byname(pdev, ab8500_btemp_irq[i].name);
 		free_irq(irq, di);
 	}
+
+	power_supply_unregister(di->btemp_psy);
 free_btemp_wq:
 	destroy_workqueue(di->btemp_wq);
 	return ret;
