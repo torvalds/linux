@@ -350,7 +350,7 @@ enum phy_fia {
 			    &(dev)->mode_config.plane_list,		\
 			    base.head)					\
 		for_each_if((plane_mask) &				\
-			    drm_plane_mask(&intel_plane->base)))
+			    drm_plane_mask(&intel_plane->base))
 
 #define for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane)	\
 	list_for_each_entry(intel_plane,				\
