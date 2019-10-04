@@ -431,19 +431,12 @@ static int create_mmap_offset(struct drm_i915_gem_object *obj)
 		return 0;
 
 	/* Attempt to reap some mmap space from dead objects */
-	do {
-		err = i915_gem_wait_for_idle(i915, MAX_SCHEDULE_TIMEOUT);
-		if (err)
-			break;
+	err = i915_retire_requests_timeout(i915, MAX_SCHEDULE_TIMEOUT);
+	if (err)
+		return err;
 
-		i915_gem_drain_freed_objects(i915);
-		err = drm_gem_create_mmap_offset(&obj->base);
-		if (!err)
-			break;
-
-	} while (flush_delayed_work(&i915->gem.retire_work));
-
-	return err;
+	i915_gem_drain_freed_objects(i915);
+	return drm_gem_create_mmap_offset(&obj->base);
 }
 
 int
