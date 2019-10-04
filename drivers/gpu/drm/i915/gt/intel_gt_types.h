@@ -50,6 +50,17 @@ struct intel_gt {
 		struct list_head hwsp_free_list;
 	} timelines;
 
+	struct intel_gt_requests {
+		/**
+		 * We leave the user IRQ off as much as possible,
+		 * but this means that requests will finish and never
+		 * be retired once the system goes idle. Set a timer to
+		 * fire periodically while the ring is running. When it
+		 * fires, go retire requests.
+		 */
+		struct delayed_work retire_work;
+	} requests;
+
 	struct intel_wakeref wakeref;
 	atomic_t user_wakeref;
 

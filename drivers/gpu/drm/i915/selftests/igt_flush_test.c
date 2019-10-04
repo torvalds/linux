@@ -4,8 +4,8 @@
  * Copyright © 2018 Intel Corporation
  */
 
-#include "gem/i915_gem_context.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_requests.h"
 
 #include "i915_drv.h"
 #include "i915_selftest.h"
@@ -14,11 +14,12 @@
 
 int igt_flush_test(struct drm_i915_private *i915)
 {
-	int ret = intel_gt_is_wedged(&i915->gt) ? -EIO : 0;
+	struct intel_gt *gt = &i915->gt;
+	int ret = intel_gt_is_wedged(gt) ? -EIO : 0;
 
 	cond_resched();
 
-	if (i915_gem_wait_for_idle(i915, HZ / 5) == -ETIME) {
+	if (intel_gt_wait_for_idle(gt, HZ / 5) == -ETIME) {
 		pr_err("%pS timed out, cancelling all further testing.\n",
 		       __builtin_return_address(0));
 
@@ -26,7 +27,7 @@ int igt_flush_test(struct drm_i915_private *i915)
 			  __builtin_return_address(0));
 		GEM_TRACE_DUMP();
 
-		intel_gt_set_wedged(&i915->gt);
+		intel_gt_set_wedged(gt);
 		ret = -EIO;
 	}
 

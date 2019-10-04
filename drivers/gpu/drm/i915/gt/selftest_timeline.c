@@ -8,6 +8,7 @@
 
 #include "intel_engine_pm.h"
 #include "intel_gt.h"
+#include "intel_gt_requests.h"
 
 #include "../selftests/i915_random.h"
 #include "../i915_selftest.h"
@@ -641,6 +642,7 @@ out:
 static int live_hwsp_wrap(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
+	struct intel_gt *gt = &i915->gt;
 	struct intel_engine_cs *engine;
 	struct intel_timeline *tl;
 	enum intel_engine_id id;
@@ -651,7 +653,7 @@ static int live_hwsp_wrap(void *arg)
 	 * foreign GPU references.
 	 */
 
-	tl = intel_timeline_create(&i915->gt, NULL);
+	tl = intel_timeline_create(gt, NULL);
 	if (IS_ERR(tl))
 		return PTR_ERR(tl);
 
@@ -662,7 +664,7 @@ static int live_hwsp_wrap(void *arg)
 	if (err)
 		goto out_free;
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt->i915, id) {
 		const u32 *hwsp_seqno[2];
 		struct i915_request *rq;
 		u32 seqno[2];
@@ -734,7 +736,7 @@ static int live_hwsp_wrap(void *arg)
 			goto out;
 		}
 
-		i915_retire_requests(i915); /* recycle HWSP */
+		intel_gt_retire_requests(gt); /* recycle HWSP */
 	}
 
 out:

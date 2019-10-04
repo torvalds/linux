@@ -7,29 +7,16 @@
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
+#include "gt/intel_gt_requests.h"
 
 #include "i915_drv.h"
 #include "i915_globals.h"
 
 static void i915_gem_park(struct drm_i915_private *i915)
 {
-	cancel_delayed_work(&i915->gem.retire_work);
-
 	i915_vma_parked(i915);
 
 	i915_globals_park();
-}
-
-static void retire_work_handler(struct work_struct *work)
-{
-	struct drm_i915_private *i915 =
-		container_of(work, typeof(*i915), gem.retire_work.work);
-
-	i915_retire_requests(i915);
-
-	queue_delayed_work(i915->wq,
-			   &i915->gem.retire_work,
-			   round_jiffies_up_relative(HZ));
 }
 
 static int pm_notifier(struct notifier_block *nb,
@@ -42,9 +29,6 @@ static int pm_notifier(struct notifier_block *nb,
 	switch (action) {
 	case INTEL_GT_UNPARK:
 		i915_globals_unpark();
-		queue_delayed_work(i915->wq,
-				   &i915->gem.retire_work,
-				   round_jiffies_up_relative(HZ));
 		break;
 
 	case INTEL_GT_PARK:
@@ -59,7 +43,7 @@ static bool switch_to_kernel_context_sync(struct intel_gt *gt)
 {
 	bool result = !intel_gt_is_wedged(gt);
 
-	if (i915_gem_wait_for_idle(gt->i915, I915_GEM_IDLE_TIMEOUT) == -ETIME) {
+	if (intel_gt_wait_for_idle(gt, I915_GEM_IDLE_TIMEOUT) == -ETIME) {
 		/* XXX hide warning from gem_eio */
 		if (i915_modparams.reset) {
 			dev_err(gt->i915->drm.dev,
@@ -122,14 +106,12 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	 * state. Fortunately, the kernel_context is disposable and we do
 	 * not rely on its state.
 	 */
-	switch_to_kernel_context_sync(&i915->gt);
+	intel_gt_suspend(&i915->gt);
+	intel_uc_suspend(&i915->gt.uc);
 
 	cancel_delayed_work_sync(&i915->gt.hangcheck.work);
 
 	i915_gem_drain_freed_objects(i915);
-
-	intel_uc_suspend(&i915->gt.uc);
-	intel_gt_suspend(&i915->gt);
 }
 
 static struct drm_i915_gem_object *first_mm_object(struct list_head *list)
@@ -239,8 +221,6 @@ err_wedged:
 
 void i915_gem_init__pm(struct drm_i915_private *i915)
 {
-	INIT_DELAYED_WORK(&i915->gem.retire_work, retire_work_handler);
-
 	i915->gem.pm_notifier.notifier_call = pm_notifier;
 	blocking_notifier_chain_register(&i915->gt.pm_notifications,
 					 &i915->gem.pm_notifier);

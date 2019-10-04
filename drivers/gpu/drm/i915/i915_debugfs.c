@@ -41,6 +41,7 @@
 
 #include "gem/i915_gem_context.h"
 #include "gt/intel_gt_pm.h"
+#include "gt/intel_gt_requests.h"
 #include "gt/intel_reset.h"
 #include "gt/intel_rc6.h"
 #include "gt/uc/intel_guc_submission.h"
@@ -3621,33 +3622,33 @@ static int
 i915_drop_caches_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
+	struct intel_gt *gt = &i915->gt;
 	int ret;
 
 	DRM_DEBUG("Dropping caches: 0x%08llx [0x%08llx]\n",
 		  val, val & DROP_ALL);
 
 	if (val & DROP_RESET_ACTIVE &&
-	    wait_for(intel_engines_are_idle(&i915->gt),
-		     I915_IDLE_ENGINES_TIMEOUT))
-		intel_gt_set_wedged(&i915->gt);
+	    wait_for(intel_engines_are_idle(gt), I915_IDLE_ENGINES_TIMEOUT))
+		intel_gt_set_wedged(gt);
 
 	if (val & DROP_RETIRE)
-		i915_retire_requests(i915);
+		intel_gt_retire_requests(gt);
 
 	if (val & (DROP_IDLE | DROP_ACTIVE)) {
-		ret = i915_gem_wait_for_idle(i915, MAX_SCHEDULE_TIMEOUT);
+		ret = intel_gt_wait_for_idle(gt, MAX_SCHEDULE_TIMEOUT);
 		if (ret)
 			return ret;
 	}
 
 	if (val & DROP_IDLE) {
-		ret = intel_gt_pm_wait_for_idle(&i915->gt);
+		ret = intel_gt_pm_wait_for_idle(gt);
 		if (ret)
 			return ret;
 	}
 
-	if (val & DROP_RESET_ACTIVE && intel_gt_terminally_wedged(&i915->gt))
-		intel_gt_handle_error(&i915->gt, ALL_ENGINES, 0, NULL);
+	if (val & DROP_RESET_ACTIVE && intel_gt_terminally_wedged(gt))
+		intel_gt_handle_error(gt, ALL_ENGINES, 0, NULL);
 
 	fs_reclaim_acquire(GFP_KERNEL);
 	if (val & DROP_BOUND)

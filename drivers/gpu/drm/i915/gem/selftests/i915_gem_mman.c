@@ -573,7 +573,7 @@ static void disable_retire_worker(struct drm_i915_private *i915)
 {
 	i915_gem_driver_unregister__shrinker(i915);
 	intel_gt_pm_get(&i915->gt);
-	cancel_delayed_work_sync(&i915->gem.retire_work);
+	cancel_delayed_work_sync(&i915->gt.requests.retire_work);
 }
 
 static void restore_retire_worker(struct drm_i915_private *i915)

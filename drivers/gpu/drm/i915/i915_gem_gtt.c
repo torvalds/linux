@@ -38,6 +38,7 @@
 
 #include "display/intel_frontbuffer.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_requests.h"
 
 #include "i915_drv.h"
 #include "i915_scatterlist.h"
@@ -2529,8 +2530,8 @@ void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
 
 	if (unlikely(ggtt->do_idle_maps)) {
 		/* XXX This does not prevent more requests being submitted! */
-		if (i915_retire_requests_timeout(dev_priv,
-						 -MAX_SCHEDULE_TIMEOUT)) {
+		if (intel_gt_retire_requests_timeout(ggtt->vm.gt,
+						     -MAX_SCHEDULE_TIMEOUT)) {
 			DRM_ERROR("Failed to wait for idle; VT'd may hang.\n");
 			/* Wait a bit, in hopes it avoids the hang */
 			udelay(10);

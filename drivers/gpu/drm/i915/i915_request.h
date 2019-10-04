@@ -250,6 +250,7 @@ struct i915_request *__i915_request_commit(struct i915_request *request);
 void __i915_request_queue(struct i915_request *rq,
 			  const struct i915_sched_attr *attr);
 
+bool i915_request_retire(struct i915_request *rq);
 void i915_request_retire_upto(struct i915_request *rq);
 
 static inline struct i915_request *
@@ -457,12 +458,6 @@ i915_request_active_timeline(struct i915_request *rq)
 	 */
 	return rcu_dereference_protected(rq->timeline,
 					 lockdep_is_held(&rq->engine->active.lock));
-}
-
-long i915_retire_requests_timeout(struct drm_i915_private *i915, long timeout);
-static inline void i915_retire_requests(struct drm_i915_private *i915)
-{
-	i915_retire_requests_timeout(i915, 0);
 }
 
 #endif /* I915_REQUEST_H */

@@ -8,6 +8,7 @@
 
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_requests.h"
 #include "gt/intel_reset.h"
 #include "i915_selftest.h"
 
@@ -518,7 +519,7 @@ create_test_object(struct i915_address_space *vm,
 	int err;
 
 	/* Keep in GEM's good graces */
-	i915_retire_requests(vm->i915);
+	intel_gt_retire_requests(vm->gt);
 
 	size = min(vm->total / 2, 1024ull * DW_PER_PAGE * PAGE_SIZE);
 	size = round_down(size, DW_PER_PAGE * PAGE_SIZE);
@@ -1136,7 +1137,7 @@ out:
 		igt_spinner_end(spin);
 
 	if ((flags & TEST_IDLE) && ret == 0) {
-		ret = i915_gem_wait_for_idle(ce->engine->i915,
+		ret = intel_gt_wait_for_idle(ce->engine->gt,
 					     MAX_SCHEDULE_TIMEOUT);
 		if (ret)
 			return ret;

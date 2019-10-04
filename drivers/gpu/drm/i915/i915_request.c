@@ -216,7 +216,7 @@ static void remove_from_engine(struct i915_request *rq)
 	spin_unlock(&locked->active.lock);
 }
 
-static bool i915_request_retire(struct i915_request *rq)
+bool i915_request_retire(struct i915_request *rq)
 {
 	if (!i915_request_completed(rq))
 		return false;
@@ -1506,68 +1506,6 @@ out:
 	mutex_release(&rq->engine->gt->reset.mutex.dep_map, 0, _THIS_IP_);
 	trace_i915_request_wait_end(rq);
 	return timeout;
-}
-
-long i915_retire_requests_timeout(struct drm_i915_private *i915, long timeout)
-{
-	struct intel_gt_timelines *timelines = &i915->gt.timelines;
-	struct intel_timeline *tl, *tn;
-	unsigned long active_count = 0;
-	unsigned long flags;
-	bool interruptible;
-	LIST_HEAD(free);
-
-	interruptible = true;
-	if (timeout < 0)
-		timeout = -timeout, interruptible = false;
-
-	spin_lock_irqsave(&timelines->lock, flags);
-	list_for_each_entry_safe(tl, tn, &timelines->active_list, link) {
-		if (!mutex_trylock(&tl->mutex))
-			continue;
-
-		intel_timeline_get(tl);
-		GEM_BUG_ON(!tl->active_count);
-		tl->active_count++; /* pin the list element */
-		spin_unlock_irqrestore(&timelines->lock, flags);
-
-		if (timeout > 0) {
-			struct dma_fence *fence;
-
-			fence = i915_active_fence_get(&tl->last_request);
-			if (fence) {
-				timeout = dma_fence_wait_timeout(fence,
-								 interruptible,
-								 timeout);
-				dma_fence_put(fence);
-			}
-		}
-
-		retire_requests(tl);
-
-		spin_lock_irqsave(&timelines->lock, flags);
-
-		/* Resume iteration after dropping lock */
-		list_safe_reset_next(tl, tn, link);
-		if (--tl->active_count)
-			active_count += !!rcu_access_pointer(tl->last_request.fence);
-		else
-			list_del(&tl->link);
-
-		mutex_unlock(&tl->mutex);
-
-		/* Defer the final release to after the spinlock */
-		if (refcount_dec_and_test(&tl->kref.refcount)) {
-			GEM_BUG_ON(tl->active_count);
-			list_add(&tl->link, &free);
-		}
-	}
-	spin_unlock_irqrestore(&timelines->lock, flags);
-
-	list_for_each_entry_safe(tl, tn, &free, link)
-		__intel_timeline_free(&tl->kref);
-
-	return active_count ? timeout : 0;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

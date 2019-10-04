@@ -883,23 +883,6 @@ void i915_gem_runtime_suspend(struct drm_i915_private *i915)
 	}
 }
 
-int i915_gem_wait_for_idle(struct drm_i915_private *i915, long timeout)
-{
-	struct intel_gt *gt = &i915->gt;
-
-	/* If the device is asleep, we have no requests outstanding */
-	if (!intel_gt_pm_is_awake(gt))
-		return 0;
-
-	while ((timeout = i915_retire_requests_timeout(i915, timeout)) > 0) {
-		cond_resched();
-		if (signal_pending(current))
-			return -EINTR;
-	}
-
-	return timeout;
-}
-
 struct i915_vma *
 i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 const struct i915_ggtt_view *view,

@@ -10,6 +10,7 @@
 #include "intel_engine_pm.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
+#include "intel_gt_requests.h"
 #include "intel_pm.h"
 #include "intel_rc6.h"
 #include "intel_wakeref.h"
@@ -49,6 +50,7 @@ static int __gt_unpark(struct intel_wakeref *wf)
 	i915_pmu_gt_unparked(i915);
 
 	intel_gt_queue_hangcheck(gt);
+	intel_gt_unpark_requests(gt);
 
 	pm_notify(gt, INTEL_GT_UNPARK);
 
@@ -64,6 +66,7 @@ static int __gt_park(struct intel_wakeref *wf)
 	GEM_TRACE("\n");
 
 	pm_notify(gt, INTEL_GT_PARK);
+	intel_gt_park_requests(gt);
 
 	i915_pmu_gt_parked(i915);
 	if (INTEL_GEN(i915) >= 6)
@@ -196,7 +199,7 @@ int intel_gt_resume(struct intel_gt *gt)
 
 static void wait_for_idle(struct intel_gt *gt)
 {
-	if (i915_gem_wait_for_idle(gt->i915, I915_GEM_IDLE_TIMEOUT) == -ETIME) {
+	if (intel_gt_wait_for_idle(gt, I915_GEM_IDLE_TIMEOUT) == -ETIME) {
 		/*
 		 * Forcibly cancel outstanding work and leave
 		 * the gpu quiet.

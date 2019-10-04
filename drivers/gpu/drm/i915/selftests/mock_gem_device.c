@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_requests.h"
 #include "gt/mock_engine.h"
 
 #include "mock_request.h"
@@ -44,7 +45,8 @@ void mock_device_flush(struct drm_i915_private *i915)
 	do {
 		for_each_engine(engine, i915, id)
 			mock_engine_flush(engine);
-	} while (i915_retire_requests_timeout(i915, MAX_SCHEDULE_TIMEOUT));
+	} while (intel_gt_retire_requests_timeout(&i915->gt,
+						  MAX_SCHEDULE_TIMEOUT));
 }
 
 static void mock_device_release(struct drm_device *dev)
@@ -96,10 +98,6 @@ static void release_dev(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 
 	kfree(pdev);
-}
-
-static void mock_retire_work_handler(struct work_struct *work)
-{
 }
 
 static int pm_domain_resume(struct device *dev)
@@ -180,8 +178,6 @@ struct drm_i915_private *mock_gem_device(void)
 		goto err_drv;
 
 	mock_init_contexts(i915);
-
-	INIT_DELAYED_WORK(&i915->gem.retire_work, mock_retire_work_handler);
 
 	intel_timelines_init(i915);
 
