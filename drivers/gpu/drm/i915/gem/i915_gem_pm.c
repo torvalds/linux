@@ -174,7 +174,6 @@ void i915_gem_resume(struct drm_i915_private *i915)
 {
 	GEM_TRACE("\n");
 
-	mutex_lock(&i915->drm.struct_mutex);
 	intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
 
 	if (intel_gt_init_hw(&i915->gt))
@@ -198,7 +197,6 @@ void i915_gem_resume(struct drm_i915_private *i915)
 
 out_unlock:
 	intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
-	mutex_unlock(&i915->drm.struct_mutex);
 	return;
 
 err_wedged:

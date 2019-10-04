@@ -1249,7 +1249,6 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 * we hold the forcewake during initialisation these problems
 	 * just magically go away.
 	 */
-	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	ret = i915_init_ggtt(dev_priv);
@@ -1319,7 +1318,6 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		goto err_gt;
 
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	return 0;
 
@@ -1330,15 +1328,11 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 * driver doesn't explode during runtime.
 	 */
 err_gt:
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
 	intel_gt_set_wedged_on_init(&dev_priv->gt);
 	i915_gem_suspend(dev_priv);
 	i915_gem_suspend_late(dev_priv);
 
 	i915_gem_drain_workqueue(dev_priv);
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
 err_init_hw:
 	intel_uc_fini_hw(&dev_priv->gt.uc);
 err_uc_init:
@@ -1353,7 +1347,6 @@ err_scratch:
 	intel_gt_driver_release(&dev_priv->gt);
 err_unlock:
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	if (ret != -EIO) {
 		intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
@@ -1406,10 +1399,8 @@ void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 	/* Flush any outstanding unpin_work. */
 	i915_gem_drain_workqueue(dev_priv);
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uc_fini_hw(&dev_priv->gt.uc);
 	intel_uc_fini(&dev_priv->gt.uc);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	i915_gem_drain_freed_objects(dev_priv);
 }
