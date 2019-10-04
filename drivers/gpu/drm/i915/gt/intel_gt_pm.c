@@ -196,8 +196,7 @@ int intel_gt_resume(struct intel_gt *gt)
 
 static void wait_for_idle(struct intel_gt *gt)
 {
-	if (i915_gem_wait_for_idle(gt->i915, 0,
-				   I915_GEM_IDLE_TIMEOUT) == -ETIME) {
+	if (i915_gem_wait_for_idle(gt->i915, I915_GEM_IDLE_TIMEOUT) == -ETIME) {
 		/*
 		 * Forcibly cancel outstanding work and leave
 		 * the gpu quiet.

@@ -1137,7 +1137,7 @@ out:
 
 	if ((flags & TEST_IDLE) && ret == 0) {
 		ret = i915_gem_wait_for_idle(ce->engine->i915,
-					     0, MAX_SCHEDULE_TIMEOUT);
+					     MAX_SCHEDULE_TIMEOUT);
 		if (ret)
 			return ret;
 

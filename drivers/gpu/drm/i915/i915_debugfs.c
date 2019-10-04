@@ -3635,9 +3635,7 @@ i915_drop_caches_set(void *data, u64 val)
 		i915_retire_requests(i915);
 
 	if (val & (DROP_IDLE | DROP_ACTIVE)) {
-		ret = i915_gem_wait_for_idle(i915,
-					     I915_WAIT_INTERRUPTIBLE,
-					     MAX_SCHEDULE_TIMEOUT);
+		ret = i915_gem_wait_for_idle(i915, MAX_SCHEDULE_TIMEOUT);
 		if (ret)
 			return ret;
 	}

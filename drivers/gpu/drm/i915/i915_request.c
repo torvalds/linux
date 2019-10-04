@@ -1508,12 +1508,18 @@ out:
 	return timeout;
 }
 
-bool i915_retire_requests(struct drm_i915_private *i915)
+long i915_retire_requests_timeout(struct drm_i915_private *i915, long timeout)
 {
 	struct intel_gt_timelines *timelines = &i915->gt.timelines;
 	struct intel_timeline *tl, *tn;
+	unsigned long active_count = 0;
 	unsigned long flags;
+	bool interruptible;
 	LIST_HEAD(free);
+
+	interruptible = true;
+	if (timeout < 0)
+		timeout = -timeout, interruptible = false;
 
 	spin_lock_irqsave(&timelines->lock, flags);
 	list_for_each_entry_safe(tl, tn, &timelines->active_list, link) {
@@ -1525,13 +1531,27 @@ bool i915_retire_requests(struct drm_i915_private *i915)
 		tl->active_count++; /* pin the list element */
 		spin_unlock_irqrestore(&timelines->lock, flags);
 
+		if (timeout > 0) {
+			struct dma_fence *fence;
+
+			fence = i915_active_fence_get(&tl->last_request);
+			if (fence) {
+				timeout = dma_fence_wait_timeout(fence,
+								 interruptible,
+								 timeout);
+				dma_fence_put(fence);
+			}
+		}
+
 		retire_requests(tl);
 
 		spin_lock_irqsave(&timelines->lock, flags);
 
 		/* Resume iteration after dropping lock */
 		list_safe_reset_next(tl, tn, link);
-		if (!--tl->active_count)
+		if (--tl->active_count)
+			active_count += !!rcu_access_pointer(tl->last_request.fence);
+		else
 			list_del(&tl->link);
 
 		mutex_unlock(&tl->mutex);
@@ -1547,7 +1567,7 @@ bool i915_retire_requests(struct drm_i915_private *i915)
 	list_for_each_entry_safe(tl, tn, &free, link)
 		__intel_timeline_free(&tl->kref);
 
-	return !list_empty(&timelines->active_list);
+	return active_count ? timeout : 0;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

@@ -883,61 +883,7 @@ void i915_gem_runtime_suspend(struct drm_i915_private *i915)
 	}
 }
 
-static long
-wait_for_timelines(struct intel_gt *gt, unsigned int wait, long timeout)
-{
-	struct intel_gt_timelines *timelines = &gt->timelines;
-	struct intel_timeline *tl;
-	unsigned long flags;
-
-	spin_lock_irqsave(&timelines->lock, flags);
-	list_for_each_entry(tl, &timelines->active_list, link) {
-		struct dma_fence *fence;
-
-		fence = i915_active_fence_get(&tl->last_request);
-		if (!fence)
-			continue;
-
-		spin_unlock_irqrestore(&timelines->lock, flags);
-
-		if (!dma_fence_is_i915(fence)) {
-			timeout = dma_fence_wait_timeout(fence,
-							 flags & I915_WAIT_INTERRUPTIBLE,
-							 timeout);
-		} else {
-			struct i915_request *rq = to_request(fence);
-
-			/*
-			 * "Race-to-idle".
-			 *
-			 * Switching to the kernel context is often used as
-			 * a synchronous step prior to idling, e.g. in suspend
-			 * for flushing all current operations to memory before
-			 * sleeping. These we want to complete as quickly as
-			 * possible to avoid prolonged stalls, so allow the gpu
-			 * to boost to maximum clocks.
-			 */
-			if (flags & I915_WAIT_FOR_IDLE_BOOST)
-				gen6_rps_boost(rq);
-
-			timeout = i915_request_wait(rq, flags, timeout);
-		}
-
-		dma_fence_put(fence);
-		if (timeout < 0)
-			return timeout;
-
-		/* restart after reacquiring the lock */
-		spin_lock_irqsave(&timelines->lock, flags);
-		tl = list_entry(&timelines->active_list, typeof(*tl), link);
-	}
-	spin_unlock_irqrestore(&timelines->lock, flags);
-
-	return timeout;
-}
-
-int i915_gem_wait_for_idle(struct drm_i915_private *i915,
-			   unsigned int flags, long timeout)
+int i915_gem_wait_for_idle(struct drm_i915_private *i915, long timeout)
 {
 	struct intel_gt *gt = &i915->gt;
 
@@ -945,18 +891,13 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915,
 	if (!intel_gt_pm_is_awake(gt))
 		return 0;
 
-	do {
-		timeout = wait_for_timelines(gt, flags, timeout);
-		if (timeout < 0)
-			return timeout;
-
+	while ((timeout = i915_retire_requests_timeout(i915, timeout)) > 0) {
 		cond_resched();
 		if (signal_pending(current))
 			return -EINTR;
+	}
 
-	} while (i915_retire_requests(i915));
-
-	return 0;
+	return timeout;
 }
 
 struct i915_vma *

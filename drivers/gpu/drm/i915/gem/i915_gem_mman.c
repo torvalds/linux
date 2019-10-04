@@ -432,9 +432,7 @@ static int create_mmap_offset(struct drm_i915_gem_object *obj)
 
 	/* Attempt to reap some mmap space from dead objects */
 	do {
-		err = i915_gem_wait_for_idle(i915,
-					     I915_WAIT_INTERRUPTIBLE,
-					     MAX_SCHEDULE_TIMEOUT);
+		err = i915_gem_wait_for_idle(i915, MAX_SCHEDULE_TIMEOUT);
 		if (err)
 			break;
 

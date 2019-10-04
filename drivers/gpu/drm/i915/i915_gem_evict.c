@@ -46,9 +46,7 @@ static int ggtt_flush(struct drm_i915_private *i915)
 	 * the hopes that we can then remove contexts and the like only
 	 * bound by their active reference.
 	 */
-	return i915_gem_wait_for_idle(i915,
-				      I915_WAIT_INTERRUPTIBLE,
-				      MAX_SCHEDULE_TIMEOUT);
+	return i915_gem_wait_for_idle(i915, MAX_SCHEDULE_TIMEOUT);
 }
 
 static bool
@@ -125,6 +123,8 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	drm_mm_scan_init_with_range(&scan, &vm->mm,
 				    min_size, alignment, color,
 				    start, end, mode);
+
+	i915_retire_requests(vm->i915);
 
 search_again:
 	active = NULL;
@@ -264,13 +264,13 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 
 	trace_i915_gem_evict_node(vm, target, flags);
 
-	/* Retire before we search the active list. Although we have
+	/*
+	 * Retire before we search the active list. Although we have
 	 * reasonable accuracy in our retirement lists, we may have
 	 * a stray pin (preventing eviction) that can only be resolved by
 	 * retiring.
 	 */
-	if (!(flags & PIN_NONBLOCK))
-		i915_retire_requests(vm->i915);
+	i915_retire_requests(vm->i915);
 
 	if (i915_vm_has_cache_coloring(vm)) {
 		/* Expand search to cover neighbouring guard pages (or lack!) */

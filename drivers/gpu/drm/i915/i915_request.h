@@ -310,7 +310,6 @@ long i915_request_wait(struct i915_request *rq,
 #define I915_WAIT_INTERRUPTIBLE	BIT(0)
 #define I915_WAIT_PRIORITY	BIT(1) /* small priority bump for the request */
 #define I915_WAIT_ALL		BIT(2) /* used by i915_gem_object_wait() */
-#define I915_WAIT_FOR_IDLE_BOOST BIT(3)
 
 static inline bool i915_request_signaled(const struct i915_request *rq)
 {
@@ -460,6 +459,10 @@ i915_request_active_timeline(struct i915_request *rq)
 					 lockdep_is_held(&rq->engine->active.lock));
 }
 
-bool i915_retire_requests(struct drm_i915_private *i915);
+long i915_retire_requests_timeout(struct drm_i915_private *i915, long timeout);
+static inline void i915_retire_requests(struct drm_i915_private *i915)
+{
+	i915_retire_requests_timeout(i915, 0);
+}
 
 #endif /* I915_REQUEST_H */

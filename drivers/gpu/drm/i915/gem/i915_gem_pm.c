@@ -59,9 +59,7 @@ static bool switch_to_kernel_context_sync(struct intel_gt *gt)
 {
 	bool result = !intel_gt_is_wedged(gt);
 
-	if (i915_gem_wait_for_idle(gt->i915,
-				   I915_WAIT_FOR_IDLE_BOOST,
-				   I915_GEM_IDLE_TIMEOUT) == -ETIME) {
+	if (i915_gem_wait_for_idle(gt->i915, I915_GEM_IDLE_TIMEOUT) == -ETIME) {
 		/* XXX hide warning from gem_eio */
 		if (i915_modparams.reset) {
 			dev_err(gt->i915->drm.dev,

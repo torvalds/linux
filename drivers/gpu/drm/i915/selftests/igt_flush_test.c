@@ -18,8 +18,7 @@ int igt_flush_test(struct drm_i915_private *i915)
 
 	cond_resched();
 
-	i915_retire_requests(i915);
-	if (i915_gem_wait_for_idle(i915, 0, HZ / 5) == -ETIME) {
+	if (i915_gem_wait_for_idle(i915, HZ / 5) == -ETIME) {
 		pr_err("%pS timed out, cancelling all further testing.\n",
 		       __builtin_return_address(0));
 
@@ -30,7 +29,6 @@ int igt_flush_test(struct drm_i915_private *i915)
 		intel_gt_set_wedged(&i915->gt);
 		ret = -EIO;
 	}
-	i915_retire_requests(i915);
 
 	return ret;
 }

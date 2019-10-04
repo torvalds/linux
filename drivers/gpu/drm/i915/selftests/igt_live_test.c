@@ -23,9 +23,7 @@ int igt_live_test_begin(struct igt_live_test *t,
 	t->func = func;
 	t->name = name;
 
-	err = i915_gem_wait_for_idle(i915,
-				     I915_WAIT_INTERRUPTIBLE,
-				     MAX_SCHEDULE_TIMEOUT);
+	err = i915_gem_wait_for_idle(i915, MAX_SCHEDULE_TIMEOUT);
 	if (err) {
 		pr_err("%s(%s): failed to idle before, with err=%d!",
 		       func, name, err);
