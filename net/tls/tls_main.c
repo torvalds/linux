@@ -286,14 +286,19 @@ static void tls_sk_proto_cleanup(struct sock *sk,
 		kfree(ctx->tx.rec_seq);
 		kfree(ctx->tx.iv);
 		tls_sw_release_resources_tx(sk);
+		TLS_DEC_STATS(sock_net(sk), LINUX_MIB_TLSCURRTXSW);
 	} else if (ctx->tx_conf == TLS_HW) {
 		tls_device_free_resources_tx(sk);
+		TLS_DEC_STATS(sock_net(sk), LINUX_MIB_TLSCURRTXDEVICE);
 	}
 
-	if (ctx->rx_conf == TLS_SW)
+	if (ctx->rx_conf == TLS_SW) {
 		tls_sw_release_resources_rx(sk);
-	else if (ctx->rx_conf == TLS_HW)
+		TLS_DEC_STATS(sock_net(sk), LINUX_MIB_TLSCURRRXSW);
+	} else if (ctx->rx_conf == TLS_HW) {
 		tls_device_offload_cleanup_rx(sk);
+		TLS_DEC_STATS(sock_net(sk), LINUX_MIB_TLSCURRRXDEVICE);
+	}
 }
 
 static void tls_sk_proto_close(struct sock *sk, long timeout)
@@ -534,19 +539,29 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 	if (tx) {
 		rc = tls_set_device_offload(sk, ctx);
 		conf = TLS_HW;
-		if (rc) {
+		if (!rc) {
+			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSTXDEVICE);
+			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSCURRTXDEVICE);
+		} else {
 			rc = tls_set_sw_offload(sk, ctx, 1);
 			if (rc)
 				goto err_crypto_info;
+			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSTXSW);
+			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSCURRTXSW);
 			conf = TLS_SW;
 		}
 	} else {
 		rc = tls_set_device_offload_rx(sk, ctx);
 		conf = TLS_HW;
-		if (rc) {
+		if (!rc) {
+			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSRXDEVICE);
+			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSCURRRXDEVICE);
+		} else {
 			rc = tls_set_sw_offload(sk, ctx, 0);
 			if (rc)
 				goto err_crypto_info;
+			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSRXSW);
+			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSCURRRXSW);
 			conf = TLS_SW;
 		}
 		tls_sw_strparser_arm(sk, ctx);

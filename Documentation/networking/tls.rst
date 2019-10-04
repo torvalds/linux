@@ -219,3 +219,17 @@ Statistics
 
 TLS implementation exposes the following per-namespace statistics
 (``/proc/net/tls_stat``):
+
+- ``TlsCurrTxSw``, ``TlsCurrRxSw`` -
+  number of TX and RX sessions currently installed where host handles
+  cryptography
+
+- ``TlsCurrTxDevice``, ``TlsCurrRxDevice`` -
+  number of TX and RX sessions currently installed where NIC handles
+  cryptography
+
+- ``TlsTxSw``, ``TlsRxSw`` -
+  number of TX and RX sessions opened with host cryptography
+
+- ``TlsTxDevice``, ``TlsRxDevice`` -
+  number of TX and RX sessions opened with NIC cryptography

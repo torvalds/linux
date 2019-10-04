@@ -327,6 +327,14 @@ enum
 enum
 {
 	LINUX_MIB_TLSNUM = 0,
+	LINUX_MIB_TLSCURRTXSW,			/* TlsCurrTxSw */
+	LINUX_MIB_TLSCURRRXSW,			/* TlsCurrRxSw */
+	LINUX_MIB_TLSCURRTXDEVICE,		/* TlsCurrTxDevice */
+	LINUX_MIB_TLSCURRRXDEVICE,		/* TlsCurrRxDevice */
+	LINUX_MIB_TLSTXSW,			/* TlsTxSw */
+	LINUX_MIB_TLSRXSW,			/* TlsRxSw */
+	LINUX_MIB_TLSTXDEVICE,			/* TlsTxDevice */
+	LINUX_MIB_TLSRXDEVICE,			/* TlsRxDevice */
 	__LINUX_MIB_TLSMAX
 };
 
