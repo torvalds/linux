@@ -41,6 +41,39 @@ TRACE_EVENT(tls_device_offload_set,
 	)
 );
 
+TRACE_EVENT(tls_device_decrypted,
+
+	TP_PROTO(struct sock *sk, u32 tcp_seq, u8 *rec_no, u32 rec_len,
+		 bool encrypted, bool decrypted),
+
+	TP_ARGS(sk, tcp_seq, rec_no, rec_len, encrypted, decrypted),
+
+	TP_STRUCT__entry(
+		__field(	struct sock *,	sk		)
+		__field(	u64,		rec_no		)
+		__field(	u32,		tcp_seq		)
+		__field(	u32,		rec_len		)
+		__field(	bool,		encrypted	)
+		__field(	bool,		decrypted	)
+	),
+
+	TP_fast_assign(
+		__entry->sk = sk;
+		__entry->rec_no = get_unaligned_be64(rec_no);
+		__entry->tcp_seq = tcp_seq;
+		__entry->rec_len = rec_len;
+		__entry->encrypted = encrypted;
+		__entry->decrypted = decrypted;
+	),
+
+	TP_printk(
+		"sk=%p tcp_seq=%u rec_no=%llu len=%u encrypted=%d decrypted=%d",
+		__entry->sk, __entry->tcp_seq,
+		__entry->rec_no, __entry->rec_len,
+		__entry->encrypted, __entry->decrypted
+	)
+);
+
 TRACE_EVENT(tls_device_rx_resync_send,
 
 	TP_PROTO(struct sock *sk, u32 tcp_seq, u8 *rec_no, int sync_type),

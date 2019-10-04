@@ -850,6 +850,7 @@ int tls_device_decrypted(struct sock *sk, struct sk_buff *skb)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_offload_context_rx *ctx = tls_offload_ctx_rx(tls_ctx);
+	struct strp_msg *rxm = strp_msg(skb);
 	int is_decrypted = skb->decrypted;
 	int is_encrypted = !is_decrypted;
 	struct sk_buff *skb_iter;
@@ -859,6 +860,10 @@ int tls_device_decrypted(struct sock *sk, struct sk_buff *skb)
 		is_decrypted &= skb_iter->decrypted;
 		is_encrypted &= !skb_iter->decrypted;
 	}
+
+	trace_tls_device_decrypted(sk, tcp_sk(sk)->copied_seq - rxm->full_len,
+				   tls_ctx->rx.rec_seq, rxm->full_len,
+				   is_encrypted, is_decrypted);
 
 	ctx->sw.decrypted |= is_decrypted;
 
