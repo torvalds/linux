@@ -912,7 +912,6 @@ fail:
 
 const struct btrfs_compress_op btrfs_heuristic_compress = {
 	.workspace_manager = &heuristic_wsm,
-	.alloc_workspace = alloc_heuristic_ws,
 	.free_workspace = free_heuristic_ws,
 };
 
@@ -923,6 +922,22 @@ static const struct btrfs_compress_op * const btrfs_compress_op[] = {
 	&btrfs_lzo_compress,
 	&btrfs_zstd_compress,
 };
+
+static struct list_head *alloc_workspace(int type, unsigned int level)
+{
+	switch (type) {
+	case BTRFS_COMPRESS_NONE: return alloc_heuristic_ws(level);
+	case BTRFS_COMPRESS_ZLIB: return zlib_alloc_workspace(level);
+	case BTRFS_COMPRESS_LZO:  return lzo_alloc_workspace(level);
+	case BTRFS_COMPRESS_ZSTD: return zstd_alloc_workspace(level);
+	default:
+		/*
+		 * This can't happen, the type is validated several times
+		 * before we get here.
+		 */
+		BUG();
+	}
+}
 
 static void btrfs_init_workspace_manager(int type)
 {
@@ -941,7 +956,7 @@ static void btrfs_init_workspace_manager(int type)
 	 * Preallocate one workspace for each compression type so we can
 	 * guarantee forward progress in the worst case
 	 */
-	workspace = wsm->ops->alloc_workspace(0);
+	workspace = alloc_workspace(type, 0);
 	if (IS_ERR(workspace)) {
 		pr_warn(
 	"BTRFS: cannot preallocate compression workspace, will try later\n");
@@ -1020,7 +1035,7 @@ again:
 	 * context of btrfs_compress_bio/btrfs_compress_pages
 	 */
 	nofs_flag = memalloc_nofs_save();
-	workspace = wsm->ops->alloc_workspace(level);
+	workspace = alloc_workspace(type, level);
 	memalloc_nofs_restore(nofs_flag);
 
 	if (IS_ERR(workspace)) {

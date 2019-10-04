@@ -124,8 +124,6 @@ struct list_head *btrfs_get_workspace(int type, unsigned int level);
 void btrfs_put_workspace(struct workspace_manager *wsm, struct list_head *ws);
 
 struct btrfs_compress_op {
-	struct list_head *(*alloc_workspace)(unsigned int level);
-
 	void (*free_workspace)(struct list_head *workspace);
 
 	struct workspace_manager *workspace_manager;
