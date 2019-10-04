@@ -143,11 +143,11 @@ static int live_unlite_restore(struct drm_i915_private *i915, int prio)
 		GEM_BUG_ON(!ce[1]->ring->size);
 		intel_ring_reset(ce[1]->ring, ce[1]->ring->size / 2);
 
-		local_bh_disable(); /* appease lockdep */
+		local_irq_disable(); /* appease lockdep */
 		__context_pin_acquire(ce[1]);
 		__execlists_update_reg_state(ce[1], engine);
 		__context_pin_release(ce[1]);
-		local_bh_enable();
+		local_irq_enable();
 
 		rq[0] = igt_spinner_create_request(&spin, ce[0], MI_ARB_CHECK);
 		if (IS_ERR(rq[0])) {
