@@ -5,6 +5,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_globals.h"
 #include "i915_params.h"
 #include "intel_context.h"
 #include "intel_engine_pm.h"
@@ -26,6 +27,8 @@ static int __gt_unpark(struct intel_wakeref *wf)
 	struct drm_i915_private *i915 = gt->i915;
 
 	GEM_TRACE("\n");
+
+	i915_globals_unpark();
 
 	/*
 	 * It seems that the DMC likes to transition between the DC states a lot
@@ -77,6 +80,8 @@ static int __gt_park(struct intel_wakeref *wf)
 
 	GEM_BUG_ON(!wakeref);
 	intel_display_power_put(i915, POWER_DOMAIN_GT_IRQ, wakeref);
+
+	i915_globals_park();
 
 	return 0;
 }

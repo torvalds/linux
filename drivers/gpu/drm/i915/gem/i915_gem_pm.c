@@ -10,14 +10,6 @@
 #include "gt/intel_gt_requests.h"
 
 #include "i915_drv.h"
-#include "i915_globals.h"
-
-static void i915_gem_park(struct drm_i915_private *i915)
-{
-	i915_vma_parked(i915);
-
-	i915_globals_park();
-}
 
 static int pm_notifier(struct notifier_block *nb,
 		       unsigned long action,
@@ -28,11 +20,10 @@ static int pm_notifier(struct notifier_block *nb,
 
 	switch (action) {
 	case INTEL_GT_UNPARK:
-		i915_globals_unpark();
 		break;
 
 	case INTEL_GT_PARK:
-		i915_gem_park(i915);
+		i915_vma_parked(i915);
 		break;
 	}
 
