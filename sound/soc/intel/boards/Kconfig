@@ -3,13 +3,13 @@ menuconfig SND_SOC_INTEL_MACH
 	bool "Intel Machine drivers"
 	depends on SND_SOC_INTEL_SST_TOPLEVEL || SND_SOC_SOF_INTEL_TOPLEVEL
 	help
-         Intel ASoC Machine Drivers. If you have a Intel machine that
-         has an audio controller with a DSP and I2S or DMIC port, then
-         enable this option by saying Y
+	 Intel ASoC Machine Drivers. If you have a Intel machine that
+	 has an audio controller with a DSP and I2S or DMIC port, then
+	 enable this option by saying Y
 
-         Note that the answer to this question doesn't directly affect the
-         kernel: saying N will just cause the configurator to skip all
-         the questions about Intel ASoC machine drivers.
+	 Note that the answer to this question doesn't directly affect the
+	 kernel: saying N will just cause the configurator to skip all
+	 the questions about Intel ASoC machine drivers.
 
 if SND_SOC_INTEL_MACH
 
@@ -114,11 +114,11 @@ config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
 	depends on X86_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_RT5670
-        help
-          This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
-          platforms with RT5672 audio codec.
-          Say Y or m if you have such a device. This is a recommended option.
-          If unsure select "N".
+	help
+	  This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
+	  platforms with RT5672 audio codec.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
 
 config SND_SOC_INTEL_CHT_BSW_RT5645_MACH
 	tristate "Cherrytrail & Braswell with RT5645/5650 codec"
@@ -311,20 +311,20 @@ config SND_SOC_INTEL_KBL_RT5663_MAX98927_MACH
 	  If unsure select "N".
 
 config SND_SOC_INTEL_KBL_RT5663_RT5514_MAX98927_MACH
-        tristate "KBL with RT5663, RT5514 and MAX98927 in I2S Mode"
+	tristate "KBL with RT5663, RT5514 and MAX98927 in I2S Mode"
 	depends on I2C && ACPI
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
-        depends on SPI
-        select SND_SOC_RT5663
-        select SND_SOC_RT5514
-        select SND_SOC_RT5514_SPI
-        select SND_SOC_MAX98927
-        select SND_SOC_HDAC_HDMI
-        help
-          This adds support for ASoC Onboard Codec I2S machine driver. This will
-          create an alsa sound card for RT5663 + RT5514 + MAX98927.
-          Say Y or m if you have such a device. This is a recommended option.
-          If unsure select "N".
+	depends on SPI
+	select SND_SOC_RT5663
+	select SND_SOC_RT5514
+	select SND_SOC_RT5514_SPI
+	select SND_SOC_MAX98927
+	select SND_SOC_HDAC_HDMI
+	help
+	  This adds support for ASoC Onboard Codec I2S machine driver. This will
+	  create an alsa sound card for RT5663 + RT5514 + MAX98927.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
 
 config SND_SOC_INTEL_KBL_DA7219_MAX98357A_MACH
 	tristate "KBL with DA7219 and MAX98357A in I2S Mode"
@@ -393,7 +393,7 @@ config SND_SOC_INTEL_SKL_HDA_DSP_GENERIC_MACH
 	help
 	  This adds support for ASoC machine driver for Intel platforms
 	  SKL/KBL/BXT/APL with iDisp, HDA audio codecs.
-          Say Y or m if you have such a device. This is a recommended option.
+	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
 endif ## SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC || SND_SOC_SOF_HDA_AUDIO_CODEC

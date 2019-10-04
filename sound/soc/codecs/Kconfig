@@ -257,16 +257,16 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM9705 if (SND_SOC_AC97_BUS || SND_SOC_AC97_BUS_NEW)
 	select SND_SOC_WM9712 if (SND_SOC_AC97_BUS || SND_SOC_AC97_BUS_NEW)
 	select SND_SOC_WM9713 if (SND_SOC_AC97_BUS || SND_SOC_AC97_BUS_NEW)
-        help
-          Normally ASoC codec drivers are only built if a machine driver which
-          uses them is also built since they are only usable with a machine
-          driver.  Selecting this option will allow these drivers to be built
-          without an explicit machine driver for test and development purposes.
+	help
+	  Normally ASoC codec drivers are only built if a machine driver which
+	  uses them is also built since they are only usable with a machine
+	  driver.  Selecting this option will allow these drivers to be built
+	  without an explicit machine driver for test and development purposes.
 
 	  Support for the bus types used to access the codecs to be built must
 	  be selected separately.
 
-          If unsure select "N".
+	  If unsure select "N".
 
 config SND_SOC_88PM860X
 	tristate
@@ -570,8 +570,8 @@ config SND_SOC_CS42XX8_I2C
 
 # Cirrus Logic CS43130 HiFi DAC
 config SND_SOC_CS43130
-        tristate "Cirrus Logic CS43130 CODEC"
-        depends on I2C
+	tristate "Cirrus Logic CS43130 CODEC"
+	depends on I2C
 
 config SND_SOC_CS4341
 	tristate "Cirrus Logic CS4341 CODEC"
@@ -643,19 +643,19 @@ config SND_SOC_L3
        tristate
 
 config SND_SOC_DA7210
-        tristate
+	tristate
 
 config SND_SOC_DA7213
-        tristate
+	tristate
 
 config SND_SOC_DA7218
 	tristate
 
 config SND_SOC_DA7219
-        tristate
+	tristate
 
 config SND_SOC_DA732X
-        tristate
+	tristate
 
 config SND_SOC_DA9055
 	tristate
@@ -717,7 +717,7 @@ config SND_SOC_INNO_RK3036
 	select REGMAP_MMIO
 
 config SND_SOC_ISABELLE
-        tristate
+	tristate
 
 config SND_SOC_LM49453
 	tristate
@@ -988,7 +988,7 @@ config SND_SOC_RT5640
 	tristate
 
 config SND_SOC_RT5645
-        tristate
+	tristate
 
 config SND_SOC_RT5651
 	tristate
@@ -1220,7 +1220,7 @@ config SND_SOC_UDA134X
        tristate
 
 config SND_SOC_UDA1380
-        tristate
+	tristate
 	depends on I2C
 
 config SND_SOC_WCD9335
@@ -1348,7 +1348,7 @@ config SND_SOC_WM8904
 	depends on I2C
 
 config SND_SOC_WM8940
-        tristate
+	tristate
 
 config SND_SOC_WM8955
 	tristate
