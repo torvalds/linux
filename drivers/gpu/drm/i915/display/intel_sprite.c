@@ -1528,6 +1528,7 @@ g4x_sprite_check_scaling(struct intel_crtc_state *crtc_state,
 	int src_x, src_w, src_h, crtc_w, crtc_h;
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->base.adjusted_mode;
+	unsigned int stride = plane_state->color_plane[0].stride;
 	unsigned int cpp = fb->format->cpp[0];
 	unsigned int width_bytes;
 	int min_width, min_height;
@@ -1569,9 +1570,9 @@ g4x_sprite_check_scaling(struct intel_crtc_state *crtc_state,
 		return -EINVAL;
 	}
 
-	if (width_bytes > 4096 || fb->pitches[0] > 4096) {
+	if (stride > 4096) {
 		DRM_DEBUG_KMS("Stride (%u) exceeds hardware max with scaling (%u)\n",
-			      fb->pitches[0], 4096);
+			      stride, 4096);
 		return -EINVAL;
 	}
 
