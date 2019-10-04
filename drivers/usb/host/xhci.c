@@ -5238,8 +5238,16 @@ static void xhci_clear_tt_buffer_complete(struct usb_hcd *hcd,
 	unsigned int ep_index;
 	unsigned long flags;
 
+	/*
+	 * udev might be NULL if tt buffer is cleared during a failed device
+	 * enumeration due to a halted control endpoint. Usb core might
+	 * have allocated a new udev for the next enumeration attempt.
+	 */
+
 	xhci = hcd_to_xhci(hcd);
 	udev = (struct usb_device *)ep->hcpriv;
+	if (!udev)
+		return;
 	slot_id = udev->slot_id;
 	ep_index = xhci_get_endpoint_index(&ep->desc);
 
