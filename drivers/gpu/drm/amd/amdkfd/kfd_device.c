@@ -39,7 +39,9 @@
  */
 static atomic_t kfd_locked = ATOMIC_INIT(0);
 
+#ifdef CONFIG_DRM_AMDGPU_CIK
 extern const struct kfd2kgd_calls gfx_v7_kfd2kgd;
+#endif
 extern const struct kfd2kgd_calls gfx_v8_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v9_kfd2kgd;
 extern const struct kfd2kgd_calls arcturus_kfd2kgd;
@@ -47,11 +49,15 @@ extern const struct kfd2kgd_calls gfx_v10_kfd2kgd;
 
 static const struct kfd2kgd_calls *kfd2kgd_funcs[] = {
 #ifdef KFD_SUPPORT_IOMMU_V2
+#ifdef CONFIG_DRM_AMDGPU_CIK
 	[CHIP_KAVERI] = &gfx_v7_kfd2kgd,
+#endif
 	[CHIP_CARRIZO] = &gfx_v8_kfd2kgd,
 	[CHIP_RAVEN] = &gfx_v9_kfd2kgd,
 #endif
+#ifdef CONFIG_DRM_AMDGPU_CIK
 	[CHIP_HAWAII] = &gfx_v7_kfd2kgd,
+#endif
 	[CHIP_TONGA] = &gfx_v8_kfd2kgd,
 	[CHIP_FIJI] = &gfx_v8_kfd2kgd,
 	[CHIP_POLARIS10] = &gfx_v8_kfd2kgd,
