@@ -3,7 +3,7 @@
 #define __BPF_HELPERS__
 
 #define __uint(name, val) int (*name)[val]
-#define __type(name, val) val *name
+#define __type(name, val) typeof(val) *name
 
 /* helper macro to print out debug messages */
 #define bpf_printk(fmt, ...)				\
