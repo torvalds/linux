@@ -132,6 +132,7 @@ __active_retire(struct i915_active *ref)
 	bool retire = false;
 
 	lockdep_assert_held(&ref->mutex);
+	GEM_BUG_ON(i915_active_is_idle(ref));
 
 	/* return the unused nodes to our slabcache -- flushing the allocator */
 	if (atomic_dec_and_test(&ref->count)) {
@@ -158,14 +159,32 @@ __active_retire(struct i915_active *ref)
 }
 
 static void
+active_work(struct work_struct *wrk)
+{
+	struct i915_active *ref = container_of(wrk, typeof(*ref), work);
+
+	GEM_BUG_ON(!atomic_read(&ref->count));
+	if (atomic_add_unless(&ref->count, -1, 1))
+		return;
+
+	mutex_lock(&ref->mutex);
+	__active_retire(ref);
+}
+
+static void
 active_retire(struct i915_active *ref)
 {
 	GEM_BUG_ON(!atomic_read(&ref->count));
 	if (atomic_add_unless(&ref->count, -1, 1))
 		return;
 
-	/* One active may be flushed from inside the acquire of another */
-	mutex_lock_nested(&ref->mutex, SINGLE_DEPTH_NESTING);
+	/* If we are inside interrupt context (fence signaling), defer */
+	if (ref->flags & I915_ACTIVE_RETIRE_SLEEPS ||
+	    !mutex_trylock(&ref->mutex)) {
+		queue_work(system_unbound_wq, &ref->work);
+		return;
+	}
+
 	__active_retire(ref);
 }
 
@@ -240,12 +259,16 @@ void __i915_active_init(struct drm_i915_private *i915,
 			void (*retire)(struct i915_active *ref),
 			struct lock_class_key *key)
 {
+	unsigned long bits;
+
 	debug_active_init(ref);
 
 	ref->i915 = i915;
 	ref->flags = 0;
 	ref->active = active;
-	ref->retire = retire;
+	ref->retire = ptr_unpack_bits(retire, &bits, 2);
+	if (bits & I915_ACTIVE_MAY_SLEEP)
+		ref->flags |= I915_ACTIVE_RETIRE_SLEEPS;
 
 	ref->excl = NULL;
 	ref->tree = RB_ROOT;
@@ -253,6 +276,7 @@ void __i915_active_init(struct drm_i915_private *i915,
 	init_llist_head(&ref->preallocated_barriers);
 	atomic_set(&ref->count, 0);
 	__mutex_init(&ref->mutex, "i915_active", key);
+	INIT_WORK(&ref->work, active_work);
 }
 
 static bool ____active_del_barrier(struct i915_active *ref,
@@ -504,6 +528,7 @@ out:
 	if (wait_on_bit(&ref->flags, I915_ACTIVE_GRAB_BIT, TASK_KILLABLE))
 		return -EINTR;
 
+	flush_work(&ref->work);
 	if (!i915_active_is_idle(ref))
 		return -EBUSY;
 
@@ -544,8 +569,9 @@ int i915_request_await_active(struct i915_request *rq, struct i915_active *ref)
 void i915_active_fini(struct i915_active *ref)
 {
 	debug_active_fini(ref);
-	GEM_BUG_ON(!RB_EMPTY_ROOT(&ref->tree));
 	GEM_BUG_ON(atomic_read(&ref->count));
+	GEM_BUG_ON(work_pending(&ref->work));
+	GEM_BUG_ON(!RB_EMPTY_ROOT(&ref->tree));
 	mutex_destroy(&ref->mutex);
 }
 #endif

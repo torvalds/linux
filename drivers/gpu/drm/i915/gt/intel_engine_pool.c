@@ -61,6 +61,7 @@ static int pool_active(struct i915_active *ref)
 	return 0;
 }
 
+__i915_active_call
 static void pool_retire(struct i915_active *ref)
 {
 	struct intel_engine_pool_node *node =

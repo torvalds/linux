@@ -121,7 +121,7 @@ __live_active_setup(struct drm_i915_private *i915)
 	}
 
 	i915_active_release(&active->base);
-	if (active->retired && count) {
+	if (READ_ONCE(active->retired) && count) {
 		pr_err("i915_active retired before submission!\n");
 		err = -EINVAL;
 	}
@@ -161,7 +161,7 @@ static int live_active_wait(void *arg)
 	}
 
 	i915_active_wait(&active->base);
-	if (!active->retired) {
+	if (!READ_ONCE(active->retired)) {
 		pr_err("i915_active not retired after waiting!\n");
 		err = -EINVAL;
 	}
@@ -200,7 +200,7 @@ static int live_active_retire(void *arg)
 	if (igt_flush_test(i915, I915_WAIT_LOCKED))
 		err = -EIO;
 
-	if (!active->retired) {
+	if (!READ_ONCE(active->retired)) {
 		pr_err("i915_active not retired after flushing!\n");
 		err = -EINVAL;
 	}

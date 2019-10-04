@@ -91,6 +91,7 @@ static int __i915_vma_active(struct i915_active *ref)
 	return i915_vma_tryget(active_to_vma(ref)) ? 0 : -ENOENT;
 }
 
+__i915_active_call
 static void __i915_vma_retire(struct i915_active *ref)
 {
 	i915_vma_put(active_to_vma(ref));
@@ -1152,6 +1153,7 @@ int __i915_vma_unbind(struct i915_vma *vma)
 		return -EBUSY;
 	}
 
+	GEM_BUG_ON(i915_vma_is_active(vma));
 	if (!drm_mm_node_allocated(&vma->node))
 		return 0;
 

@@ -138,6 +138,7 @@ static void __context_unpin_state(struct i915_vma *vma)
 	__i915_vma_unpin(vma);
 }
 
+__i915_active_call
 static void __intel_context_retire(struct i915_active *active)
 {
 	struct intel_context *ce = container_of(active, typeof(*ce), active);
@@ -150,6 +151,7 @@ static void __intel_context_retire(struct i915_active *active)
 
 	intel_timeline_unpin(ce->timeline);
 	intel_ring_unpin(ce->ring);
+
 	intel_context_put(ce);
 }
 

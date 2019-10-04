@@ -848,6 +848,7 @@ struct context_barrier_task {
 	void *data;
 };
 
+__i915_active_call
 static void cb_retire(struct i915_active *base)
 {
 	struct context_barrier_task *cb = container_of(base, typeof(*cb), base);

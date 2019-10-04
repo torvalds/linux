@@ -13,6 +13,9 @@
 #include <linux/mutex.h>
 #include <linux/rbtree.h>
 #include <linux/rcupdate.h>
+#include <linux/workqueue.h>
+
+#include "i915_utils.h"
 
 struct drm_i915_private;
 struct i915_active_request;
@@ -44,6 +47,11 @@ struct i915_active_request {
 
 struct active_node;
 
+#define I915_ACTIVE_MAY_SLEEP BIT(0)
+
+#define __i915_active_call __aligned(4)
+#define i915_active_may_sleep(fn) ptr_pack_bits(&(fn), I915_ACTIVE_MAY_SLEEP, 2)
+
 struct i915_active {
 	struct drm_i915_private *i915;
 
@@ -57,10 +65,13 @@ struct i915_active {
 	struct dma_fence_cb excl_cb;
 
 	unsigned long flags;
-#define I915_ACTIVE_GRAB_BIT 0
+#define I915_ACTIVE_RETIRE_SLEEPS BIT(0)
+#define I915_ACTIVE_GRAB_BIT 1
 
 	int (*active)(struct i915_active *ref);
 	void (*retire)(struct i915_active *ref);
+
+	struct work_struct work;
 
 	struct llist_head preallocated_barriers;
 };
