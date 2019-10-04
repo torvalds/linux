@@ -275,7 +275,7 @@ static bool __kprobes is_spurious_el1_translation_fault(unsigned long addr,
 	 * If we got a different type of fault from the AT instruction,
 	 * treat the translation fault as spurious.
 	 */
-	dfsc = FIELD_PREP(SYS_PAR_EL1_FST, par);
+	dfsc = FIELD_GET(SYS_PAR_EL1_FST, par);
 	return (dfsc & ESR_ELx_FSC_TYPE) != ESR_ELx_FSC_FAULT;
 }
 
