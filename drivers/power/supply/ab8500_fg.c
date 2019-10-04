@@ -3158,6 +3158,11 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	/* Register primary interrupt handlers */
 	for (i = 0; i < ARRAY_SIZE(ab8500_fg_irq_th); i++) {
 		irq = platform_get_irq_byname(pdev, ab8500_fg_irq_th[i].name);
+		if (irq < 0) {
+			ret = irq;
+			goto free_irq_th;
+		}
+
 		ret = request_irq(irq, ab8500_fg_irq_th[i].isr,
 				  IRQF_SHARED | IRQF_NO_SUSPEND,
 				  ab8500_fg_irq_th[i].name, di);
@@ -3173,6 +3178,11 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 
 	/* Register threaded interrupt handler */
 	irq = platform_get_irq_byname(pdev, ab8500_fg_irq_bh[0].name);
+	if (irq < 0) {
+		ret = irq;
+		goto free_irq_th;
+	}
+
 	ret = request_threaded_irq(irq, NULL, ab8500_fg_irq_bh[0].isr,
 				IRQF_SHARED | IRQF_NO_SUSPEND | IRQF_ONESHOT,
 			ab8500_fg_irq_bh[0].name, di);

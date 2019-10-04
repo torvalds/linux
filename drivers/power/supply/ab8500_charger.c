@@ -3594,6 +3594,11 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	/* Register interrupts */
 	for (i = 0; i < ARRAY_SIZE(ab8500_charger_irq); i++) {
 		irq = platform_get_irq_byname(pdev, ab8500_charger_irq[i].name);
+		if (irq < 0) {
+			ret = irq;
+			goto free_irq;
+		}
+
 		ret = request_threaded_irq(irq, NULL, ab8500_charger_irq[i].isr,
 			IRQF_SHARED | IRQF_NO_SUSPEND,
 			ab8500_charger_irq[i].name, di);
