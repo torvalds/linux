@@ -3171,8 +3171,8 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 	 */
 	amdgpu_bo_evict_vram(adev);
 
-	pci_save_state(dev->pdev);
 	if (suspend) {
+		pci_save_state(dev->pdev);
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
 		pci_set_power_state(dev->pdev, PCI_D3hot);
