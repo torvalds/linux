@@ -661,6 +661,7 @@ static void tls_device_resync_rx(struct tls_context *tls_ctx,
 		netdev->tlsdev_ops->tls_dev_resync(netdev, sk, seq, rcd_sn,
 						   TLS_OFFLOAD_CTX_DIR_RX);
 	clear_bit_unlock(TLS_RX_SYNC_RUNNING, &tls_ctx->flags);
+	TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSRXDEVICERESYNC);
 }
 
 void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq)

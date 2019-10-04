@@ -236,3 +236,6 @@ TLS implementation exposes the following per-namespace statistics
 
 - ``TlsDecryptError`` -
   record decryption failed (e.g. due to incorrect authentication tag)
+
+- ``TlsDeviceRxResync`` -
+  number of RX resyncs sent to NICs handling cryptography
