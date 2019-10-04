@@ -50,6 +50,7 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <592>;
 			next-level-cache = <&l2>;
+			#cooling-cells = <2>;
 		};
 
 		cpu1: cpu@1 {
@@ -59,6 +60,7 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <592>;
 			next-level-cache = <&l2>;
+			#cooling-cells = <2>;
 		};
 
 		cpu100: cpu@100 {
@@ -68,6 +70,7 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&l2>;
+			#cooling-cells = <2>;
 		};
 
 		cpu101: cpu@101 {
@@ -77,6 +80,7 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&l2>;
+			#cooling-cells = <2>;
 		};
 
 		cpu102: cpu@102 {
@@ -86,6 +90,7 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&l2>;
+			#cooling-cells = <2>;
 		};
 
 		cpu103: cpu@103 {
@@ -95,6 +100,7 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&l2>;
+			#cooling-cells = <2>;
 		};
 
 		l2: l2-cache0 {
