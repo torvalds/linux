@@ -660,9 +660,9 @@ static int igt_ctx_exec(void *arg)
 
 			err = gpu_fill(ce, obj, dw);
 			if (err) {
-				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
+				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
-				       engine->name, ctx->hw_id,
+				       engine->name,
 				       yesno(!!ctx->vm), err);
 				intel_context_put(ce);
 				kernel_context_close(ctx);
@@ -798,9 +798,9 @@ static int igt_shared_ctx_exec(void *arg)
 
 			err = gpu_fill(ce, obj, dw);
 			if (err) {
-				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
+				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
-				       engine->name, ctx->hw_id,
+				       engine->name,
 				       yesno(!!ctx->vm), err);
 				intel_context_put(ce);
 				kernel_context_close(ctx);
@@ -1382,10 +1382,9 @@ static int igt_ctx_readonly(void *arg)
 
 			err = gpu_fill(ce, obj, dw);
 			if (err) {
-				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
+				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
-				       ce->engine->name, ctx->hw_id,
-				       yesno(!!ctx->vm), err);
+				       ce->engine->name, yesno(!!ctx->vm), err);
 				i915_gem_context_unlock_engines(ctx);
 				goto out_unlock;
 			}

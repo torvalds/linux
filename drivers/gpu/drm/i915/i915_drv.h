@@ -1541,18 +1541,6 @@ struct drm_i915_private {
 		struct list_head list;
 		struct llist_head free_list;
 		struct work_struct free_work;
-
-		/* The hw wants to have a stable context identifier for the
-		 * lifetime of the context (for OA, PASID, faults, etc).
-		 * This is limited in execlists to 21 bits.
-		 */
-		struct ida hw_ida;
-#define MAX_CONTEXT_HW_ID (1<<21) /* exclusive */
-#define MAX_GUC_CONTEXT_HW_ID (1 << 20) /* exclusive */
-#define GEN11_MAX_CONTEXT_HW_ID (1<<11) /* exclusive */
-/* in Gen12 ID 0x7FF is reserved to indicate idle */
-#define GEN12_MAX_CONTEXT_HW_ID	(GEN11_MAX_CONTEXT_HW_ID - 1)
-		struct list_head hw_id_list;
 	} contexts;
 
 	u32 fdi_rx_config;

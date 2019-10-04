@@ -440,11 +440,7 @@ assert_priority_queue(const struct i915_request *prev,
 static u64
 lrc_descriptor(struct intel_context *ce, struct intel_engine_cs *engine)
 {
-	struct i915_gem_context *ctx = ce->gem_context;
 	u64 desc;
-
-	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > (BIT(GEN8_CTX_ID_WIDTH)));
-	BUILD_BUG_ON(GEN11_MAX_CONTEXT_HW_ID > (BIT(GEN11_SW_CTX_ID_WIDTH)));
 
 	desc = INTEL_LEGACY_32B_CONTEXT;
 	if (i915_vm_is_4lvl(ce->vm))
@@ -463,20 +459,11 @@ lrc_descriptor(struct intel_context *ce, struct intel_engine_cs *engine)
 	 * anything below.
 	 */
 	if (INTEL_GEN(engine->i915) >= 11) {
-		GEM_BUG_ON(ctx->hw_id >= BIT(GEN11_SW_CTX_ID_WIDTH));
-		desc |= (u64)ctx->hw_id << GEN11_SW_CTX_ID_SHIFT;
-								/* bits 37-47 */
-
 		desc |= (u64)engine->instance << GEN11_ENGINE_INSTANCE_SHIFT;
 								/* bits 48-53 */
 
-		/* TODO: decide what to do with SW counter (bits 55-60) */
-
 		desc |= (u64)engine->class << GEN11_ENGINE_CLASS_SHIFT;
 								/* bits 61-63 */
-	} else {
-		GEM_BUG_ON(ctx->hw_id >= BIT(GEN8_CTX_ID_WIDTH));
-		desc |= (u64)ctx->hw_id << GEN8_CTX_ID_SHIFT;	/* bits 32-52 */
 	}
 
 	return desc;
@@ -984,6 +971,18 @@ __execlists_schedule_in(struct i915_request *rq)
 	struct intel_context * const ce = rq->hw_context;
 
 	intel_context_get(ce);
+
+	if (ce->tag) {
+		/* Use a fixed tag for OA and friends */
+		ce->lrc_desc |= (u64)ce->tag << 32;
+	} else {
+		/* We don't need a strict matching tag, just different values */
+		ce->lrc_desc &= ~GENMASK_ULL(47, 37);
+		ce->lrc_desc |=
+			(u64)(engine->context_tag++ % NUM_CONTEXT_TAG) <<
+			GEN11_SW_CTX_ID_SHIFT;
+		BUILD_BUG_ON(NUM_CONTEXT_TAG > GEN12_MAX_CONTEXT_HW_ID);
+	}
 
 	intel_gt_pm_get(engine->gt);
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_IN);
@@ -2114,7 +2113,6 @@ static void execlists_context_unpin(struct intel_context *ce)
 	check_redzone((void *)ce->lrc_reg_state - LRC_STATE_PN * PAGE_SIZE,
 		      ce->engine);
 
-	i915_gem_context_unpin_hw_id(ce->gem_context);
 	i915_gem_object_unpin_map(ce->state->obj);
 	intel_ring_reset(ce->ring, ce->ring->tail);
 }
@@ -2164,18 +2162,12 @@ __execlists_context_pin(struct intel_context *ce,
 		goto unpin_active;
 	}
 
-	ret = i915_gem_context_pin_hw_id(ce->gem_context);
-	if (ret)
-		goto unpin_map;
-
 	ce->lrc_desc = lrc_descriptor(ce, engine);
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 	__execlists_update_reg_state(ce, engine);
 
 	return 0;
 
-unpin_map:
-	i915_gem_object_unpin_map(ce->state->obj);
 unpin_active:
 	intel_context_active_release(ce);
 err:

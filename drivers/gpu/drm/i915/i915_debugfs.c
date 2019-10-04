@@ -1593,9 +1593,6 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		struct intel_context *ce;
 
 		seq_puts(m, "HW context ");
-		if (!list_empty(&ctx->hw_id_link))
-			seq_printf(m, "%x [pin %u]", ctx->hw_id,
-				   atomic_read(&ctx->hw_id_pin_count));
 		if (ctx->pid) {
 			struct task_struct *task;
 

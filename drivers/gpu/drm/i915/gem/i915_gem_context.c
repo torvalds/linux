@@ -167,97 +167,6 @@ lookup_user_engine(struct i915_gem_context *ctx,
 	return i915_gem_context_get_engine(ctx, idx);
 }
 
-static inline int new_hw_id(struct drm_i915_private *i915, gfp_t gfp)
-{
-	unsigned int max;
-
-	lockdep_assert_held(&i915->contexts.mutex);
-
-	if (INTEL_GEN(i915) >= 12)
-		max = GEN12_MAX_CONTEXT_HW_ID;
-	else if (INTEL_GEN(i915) >= 11)
-		max = GEN11_MAX_CONTEXT_HW_ID;
-	else if (USES_GUC_SUBMISSION(i915))
-		/*
-		 * When using GuC in proxy submission, GuC consumes the
-		 * highest bit in the context id to indicate proxy submission.
-		 */
-		max = MAX_GUC_CONTEXT_HW_ID;
-	else
-		max = MAX_CONTEXT_HW_ID;
-
-	return ida_simple_get(&i915->contexts.hw_ida, 0, max, gfp);
-}
-
-static int steal_hw_id(struct drm_i915_private *i915)
-{
-	struct i915_gem_context *ctx, *cn;
-	LIST_HEAD(pinned);
-	int id = -ENOSPC;
-
-	lockdep_assert_held(&i915->contexts.mutex);
-
-	list_for_each_entry_safe(ctx, cn,
-				 &i915->contexts.hw_id_list, hw_id_link) {
-		if (atomic_read(&ctx->hw_id_pin_count)) {
-			list_move_tail(&ctx->hw_id_link, &pinned);
-			continue;
-		}
-
-		GEM_BUG_ON(!ctx->hw_id); /* perma-pinned kernel context */
-		list_del_init(&ctx->hw_id_link);
-		id = ctx->hw_id;
-		break;
-	}
-
-	/*
-	 * Remember how far we got up on the last repossesion scan, so the
-	 * list is kept in a "least recently scanned" order.
-	 */
-	list_splice_tail(&pinned, &i915->contexts.hw_id_list);
-	return id;
-}
-
-static int assign_hw_id(struct drm_i915_private *i915, unsigned int *out)
-{
-	int ret;
-
-	lockdep_assert_held(&i915->contexts.mutex);
-
-	/*
-	 * We prefer to steal/stall ourselves and our users over that of the
-	 * entire system. That may be a little unfair to our users, and
-	 * even hurt high priority clients. The choice is whether to oomkill
-	 * something else, or steal a context id.
-	 */
-	ret = new_hw_id(i915, GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
-	if (unlikely(ret < 0)) {
-		ret = steal_hw_id(i915);
-		if (ret < 0) /* once again for the correct errno code */
-			ret = new_hw_id(i915, GFP_KERNEL);
-		if (ret < 0)
-			return ret;
-	}
-
-	*out = ret;
-	return 0;
-}
-
-static void release_hw_id(struct i915_gem_context *ctx)
-{
-	struct drm_i915_private *i915 = ctx->i915;
-
-	if (list_empty(&ctx->hw_id_link))
-		return;
-
-	mutex_lock(&i915->contexts.mutex);
-	if (!list_empty(&ctx->hw_id_link)) {
-		ida_simple_remove(&i915->contexts.hw_ida, ctx->hw_id);
-		list_del_init(&ctx->hw_id_link);
-	}
-	mutex_unlock(&i915->contexts.mutex);
-}
-
 static void __free_engines(struct i915_gem_engines *e, unsigned int count)
 {
 	while (count--) {
@@ -311,8 +220,6 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 {
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
-
-	release_hw_id(ctx);
 
 	free_engines(rcu_access_pointer(ctx->engines));
 	mutex_destroy(&ctx->engines_mutex);
@@ -387,12 +294,6 @@ static void context_close(struct i915_gem_context *ctx)
 	ctx->file_priv = ERR_PTR(-EBADF);
 
 	/*
-	 * This context will never again be assinged to HW, so we can
-	 * reuse its ID for the next context.
-	 */
-	release_hw_id(ctx);
-
-	/*
 	 * The LUT uses the VMA as a backpointer to unref the object,
 	 * so we need to clear the LUT before we close all the VMA (inside
 	 * the ppgtt).
@@ -430,7 +331,6 @@ __create_context(struct drm_i915_private *i915)
 	RCU_INIT_POINTER(ctx->engines, e);
 
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
-	INIT_LIST_HEAD(&ctx->hw_id_link);
 
 	/* NB: Mark all slices as needing a remap so that when the context first
 	 * loads it will restore whatever remap state already exists. If there
@@ -584,17 +484,10 @@ struct i915_gem_context *
 i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio)
 {
 	struct i915_gem_context *ctx;
-	int err;
 
 	ctx = i915_gem_create_context(i915, 0);
 	if (IS_ERR(ctx))
 		return ctx;
-
-	err = i915_gem_context_pin_hw_id(ctx);
-	if (err) {
-		destroy_kernel_context(&ctx);
-		return ERR_PTR(err);
-	}
 
 	i915_gem_context_clear_bannable(ctx);
 	ctx->sched.priority = I915_USER_PRIORITY(prio);
@@ -608,12 +501,6 @@ static void init_contexts(struct drm_i915_private *i915)
 {
 	mutex_init(&i915->contexts.mutex);
 	INIT_LIST_HEAD(&i915->contexts.list);
-
-	/* Using the simple ida interface, the max is limited by sizeof(int) */
-	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > INT_MAX);
-	BUILD_BUG_ON(GEN11_MAX_CONTEXT_HW_ID > INT_MAX);
-	ida_init(&i915->contexts.hw_ida);
-	INIT_LIST_HEAD(&i915->contexts.hw_id_list);
 
 	INIT_WORK(&i915->contexts.free_work, contexts_free_worker);
 	init_llist_head(&i915->contexts.free_list);
@@ -634,15 +521,6 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 		DRM_ERROR("Failed to create default global context\n");
 		return PTR_ERR(ctx);
 	}
-	/*
-	 * For easy recognisablity, we want the kernel context to be 0 and then
-	 * all user contexts will have non-zero hw_id. Kernel contexts are
-	 * permanently pinned, so that we never suffer a stall and can
-	 * use them from any allocation context (e.g. for evicting other
-	 * contexts and from inside the shrinker).
-	 */
-	GEM_BUG_ON(ctx->hw_id);
-	GEM_BUG_ON(!atomic_read(&ctx->hw_id_pin_count));
 	dev_priv->kernel_context = ctx;
 
 	DRM_DEBUG_DRIVER("%s context support initialized\n",
@@ -656,10 +534,6 @@ void i915_gem_contexts_fini(struct drm_i915_private *i915)
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
 	destroy_kernel_context(&i915->kernel_context);
-
-	/* Must free all deferred contexts (via flush_workqueue) first */
-	GEM_BUG_ON(!list_empty(&i915->contexts.hw_id_list));
-	ida_destroy(&i915->contexts.hw_ida);
 }
 
 static int context_idr_cleanup(int id, void *p, void *data)
@@ -2314,33 +2188,6 @@ int i915_gem_context_reset_stats_ioctl(struct drm_device *dev,
 out:
 	rcu_read_unlock();
 	return ret;
-}
-
-int __i915_gem_context_pin_hw_id(struct i915_gem_context *ctx)
-{
-	struct drm_i915_private *i915 = ctx->i915;
-	int err = 0;
-
-	mutex_lock(&i915->contexts.mutex);
-
-	GEM_BUG_ON(i915_gem_context_is_closed(ctx));
-
-	if (list_empty(&ctx->hw_id_link)) {
-		GEM_BUG_ON(atomic_read(&ctx->hw_id_pin_count));
-
-		err = assign_hw_id(i915, &ctx->hw_id);
-		if (err)
-			goto out_unlock;
-
-		list_add_tail(&ctx->hw_id_link, &i915->contexts.hw_id_list);
-	}
-
-	GEM_BUG_ON(atomic_read(&ctx->hw_id_pin_count) == ~0u);
-	atomic_inc(&ctx->hw_id_pin_count);
-
-out_unlock:
-	mutex_unlock(&i915->contexts.mutex);
-	return err;
 }
 
 /* GEM context-engines iterator: for_each_gem_engine() */

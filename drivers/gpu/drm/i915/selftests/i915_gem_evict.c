@@ -491,8 +491,8 @@ static int igt_evict_contexts(void *arg)
 			if (IS_ERR(rq)) {
 				/* When full, fail_if_busy will trigger EBUSY */
 				if (PTR_ERR(rq) != -EBUSY) {
-					pr_err("Unexpected error from request alloc (ctx hw id %u, on %s): %d\n",
-					       ctx->hw_id, engine->name,
+					pr_err("Unexpected error from request alloc (on %s): %d\n",
+					       engine->name,
 					       (int)PTR_ERR(rq));
 					err = PTR_ERR(rq);
 				}

@@ -1283,28 +1283,23 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 		} else {
 			stream->specific_ctx_id_mask =
 				(1U << GEN8_CTX_ID_WIDTH) - 1;
-			stream->specific_ctx_id =
-				upper_32_bits(ce->lrc_desc);
-			stream->specific_ctx_id &=
-				stream->specific_ctx_id_mask;
+			stream->specific_ctx_id = stream->specific_ctx_id_mask;
 		}
 		break;
 
 	case 11:
 	case 12: {
 		stream->specific_ctx_id_mask =
-			((1U << GEN11_SW_CTX_ID_WIDTH) - 1) << (GEN11_SW_CTX_ID_SHIFT - 32) |
-			((1U << GEN11_ENGINE_INSTANCE_WIDTH) - 1) << (GEN11_ENGINE_INSTANCE_SHIFT - 32) |
-			((1 << GEN11_ENGINE_CLASS_WIDTH) - 1) << (GEN11_ENGINE_CLASS_SHIFT - 32);
-		stream->specific_ctx_id = upper_32_bits(ce->lrc_desc);
-		stream->specific_ctx_id &=
-			stream->specific_ctx_id_mask;
+			((1U << GEN11_SW_CTX_ID_WIDTH) - 1) << (GEN11_SW_CTX_ID_SHIFT - 32);
+		stream->specific_ctx_id = stream->specific_ctx_id_mask;
 		break;
 	}
 
 	default:
 		MISSING_CASE(INTEL_GEN(i915));
 	}
+
+	ce->tag = stream->specific_ctx_id_mask;
 
 	DRM_DEBUG_DRIVER("filtering on ctx_id=0x%x ctx_id_mask=0x%x\n",
 			 stream->specific_ctx_id,
@@ -1324,12 +1319,14 @@ static void oa_put_render_ctx_id(struct i915_perf_stream *stream)
 {
 	struct intel_context *ce;
 
+	ce = fetch_and_zero(&stream->pinned_ctx);
+	if (ce) {
+		ce->tag = 0; /* recomputed on next submission after parking */
+		intel_context_unpin(ce);
+	}
+
 	stream->specific_ctx_id = INVALID_CTX_ID;
 	stream->specific_ctx_id_mask = 0;
-
-	ce = fetch_and_zero(&stream->pinned_ctx);
-	if (ce)
-		intel_context_unpin(ce);
 }
 
 static void

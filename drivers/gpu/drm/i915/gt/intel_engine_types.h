@@ -303,10 +303,12 @@ struct intel_engine_cs {
 	u8 uabi_class;
 	u8 uabi_instance;
 
+	u32 uabi_capabilities;
 	u32 context_size;
 	u32 mmio_base;
 
-	u32 uabi_capabilities;
+	unsigned int context_tag;
+#define NUM_CONTEXT_TAG roundup_pow_of_two(2 * EXECLIST_MAX_PORTS)
 
 	struct rb_node uabi_node;
 

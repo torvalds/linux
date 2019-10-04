@@ -147,24 +147,6 @@ struct i915_gem_context {
 #define CONTEXT_FORCE_SINGLE_SUBMISSION	2
 #define CONTEXT_USER_ENGINES		3
 
-	/**
-	 * @hw_id: - unique identifier for the context
-	 *
-	 * The hardware needs to uniquely identify the context for a few
-	 * functions like fault reporting, PASID, scheduling. The
-	 * &drm_i915_private.context_hw_ida is used to assign a unqiue
-	 * id for the lifetime of the context.
-	 *
-	 * @hw_id_pin_count: - number of times this context had been pinned
-	 * for use (should be, at most, once per engine).
-	 *
-	 * @hw_id_link: - all contexts with an assigned id are tracked
-	 * for possible repossession.
-	 */
-	unsigned int hw_id;
-	atomic_t hw_id_pin_count;
-	struct list_head hw_id_link;
-
 	struct mutex mutex;
 
 	struct i915_sched_attr sched;

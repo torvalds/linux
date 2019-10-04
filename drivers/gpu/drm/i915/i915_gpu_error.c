@@ -471,9 +471,9 @@ static void error_print_context(struct drm_i915_error_state_buf *m,
 				const char *header,
 				const struct drm_i915_error_context *ctx)
 {
-	err_printf(m, "%s%s[%d] hw_id %d, prio %d, guilty %d active %d\n",
-		   header, ctx->comm, ctx->pid, ctx->hw_id,
-		   ctx->sched_attr.priority, ctx->guilty, ctx->active);
+	err_printf(m, "%s%s[%d] prio %d, guilty %d active %d\n",
+		   header, ctx->comm, ctx->pid, ctx->sched_attr.priority,
+		   ctx->guilty, ctx->active);
 }
 
 static void error_print_engine(struct drm_i915_error_state_buf *m,
@@ -1271,7 +1271,6 @@ static bool record_context(struct drm_i915_error_context *e,
 		rcu_read_unlock();
 	}
 
-	e->hw_id = ctx->hw_id;
 	e->sched_attr = ctx->sched;
 	e->guilty = atomic_read(&ctx->guilty_count);
 	e->active = atomic_read(&ctx->active_count);

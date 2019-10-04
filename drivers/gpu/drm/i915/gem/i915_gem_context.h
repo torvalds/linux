@@ -112,21 +112,6 @@ i915_gem_context_clear_user_engines(struct i915_gem_context *ctx)
 	clear_bit(CONTEXT_USER_ENGINES, &ctx->flags);
 }
 
-int __i915_gem_context_pin_hw_id(struct i915_gem_context *ctx);
-static inline int i915_gem_context_pin_hw_id(struct i915_gem_context *ctx)
-{
-	if (atomic_inc_not_zero(&ctx->hw_id_pin_count))
-		return 0;
-
-	return __i915_gem_context_pin_hw_id(ctx);
-}
-
-static inline void i915_gem_context_unpin_hw_id(struct i915_gem_context *ctx)
-{
-	GEM_BUG_ON(atomic_read(&ctx->hw_id_pin_count) == 0u);
-	atomic_dec(&ctx->hw_id_pin_count);
-}
-
 static inline bool i915_gem_context_is_kernel(struct i915_gem_context *ctx)
 {
 	return !ctx->file_priv;

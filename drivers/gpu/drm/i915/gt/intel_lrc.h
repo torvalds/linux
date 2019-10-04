@@ -66,6 +66,12 @@ struct intel_engine_cs;
 #define GEN11_CSB_READ_PTR_MASK (GEN11_CSB_PTR_MASK << 8)
 #define GEN11_CSB_WRITE_PTR_MASK (GEN11_CSB_PTR_MASK << 0)
 
+#define MAX_CONTEXT_HW_ID (1<<21) /* exclusive */
+#define MAX_GUC_CONTEXT_HW_ID (1 << 20) /* exclusive */
+#define GEN11_MAX_CONTEXT_HW_ID (1<<11) /* exclusive */
+/* in Gen12 ID 0x7FF is reserved to indicate idle */
+#define GEN12_MAX_CONTEXT_HW_ID	(GEN11_MAX_CONTEXT_HW_ID - 1)
+
 enum {
 	INTEL_CONTEXT_SCHEDULE_IN = 0,
 	INTEL_CONTEXT_SCHEDULE_OUT,

@@ -119,7 +119,6 @@ struct i915_gpu_state {
 		struct drm_i915_error_context {
 			char comm[TASK_COMM_LEN];
 			pid_t pid;
-			u32 hw_id;
 			int active;
 			int guilty;
 			struct i915_sched_attr sched_attr;
