@@ -72,7 +72,7 @@ void intel_vga_redisable(struct drm_i915_private *i915)
 	intel_display_power_put(i915, POWER_DOMAIN_VGA, wakeref);
 }
 
-void intel_vga_msr_write(struct drm_i915_private *i915)
+void intel_vga_reset_io_mem(struct drm_i915_private *i915)
 {
 	struct pci_dev *pdev = i915->drm.pdev;
 

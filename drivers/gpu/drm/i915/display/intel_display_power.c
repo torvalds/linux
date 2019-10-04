@@ -267,7 +267,7 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv,
 				       u8 irq_pipe_mask, bool has_vga)
 {
 	if (has_vga)
-		intel_vga_msr_write(dev_priv);
+		intel_vga_reset_io_mem(dev_priv);
 
 	if (irq_pipe_mask)
 		gen8_irq_power_well_post_enable(dev_priv, irq_pipe_mask);
