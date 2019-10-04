@@ -278,9 +278,10 @@ static void __net_exit ipmr_rules_exit(struct net *net)
 	rtnl_unlock();
 }
 
-static int ipmr_rules_dump(struct net *net, struct notifier_block *nb)
+static int ipmr_rules_dump(struct net *net, struct notifier_block *nb,
+			   struct netlink_ext_ack *extack)
 {
-	return fib_rules_dump(net, nb, RTNL_FAMILY_IPMR);
+	return fib_rules_dump(net, nb, RTNL_FAMILY_IPMR, extack);
 }
 
 static unsigned int ipmr_rules_seq_read(struct net *net)
@@ -336,7 +337,8 @@ static void __net_exit ipmr_rules_exit(struct net *net)
 	rtnl_unlock();
 }
 
-static int ipmr_rules_dump(struct net *net, struct notifier_block *nb)
+static int ipmr_rules_dump(struct net *net, struct notifier_block *nb,
+			   struct netlink_ext_ack *extack)
 {
 	return 0;
 }
@@ -3040,10 +3042,11 @@ static unsigned int ipmr_seq_read(struct net *net)
 	return net->ipv4.ipmr_seq + ipmr_rules_seq_read(net);
 }
 
-static int ipmr_dump(struct net *net, struct notifier_block *nb)
+static int ipmr_dump(struct net *net, struct notifier_block *nb,
+		     struct netlink_ext_ack *extack)
 {
 	return mr_dump(net, nb, RTNL_FAMILY_IPMR, ipmr_rules_dump,
-		       ipmr_mr_table_iter, &mrt_lock);
+		       ipmr_mr_table_iter, &mrt_lock, extack);
 }
 
 static const struct fib_notifier_ops ipmr_notifier_ops_template = {

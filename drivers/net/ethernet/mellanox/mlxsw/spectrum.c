@@ -3635,6 +3635,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_alloc_etherdev;
 	}
 	SET_NETDEV_DEV(dev, mlxsw_sp->bus_info->dev);
+	dev_net_set(dev, mlxsw_sp_net(mlxsw_sp));
 	mlxsw_sp_port = netdev_priv(dev);
 	mlxsw_sp_port->dev = dev;
 	mlxsw_sp_port->mlxsw_sp = mlxsw_sp;
@@ -4738,7 +4739,8 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
 				    unsigned long event, void *ptr);
 
 static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
-			 const struct mlxsw_bus_info *mlxsw_bus_info)
+			 const struct mlxsw_bus_info *mlxsw_bus_info,
+			 struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	int err;
@@ -4831,7 +4833,7 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_acl_init;
 	}
 
-	err = mlxsw_sp_router_init(mlxsw_sp);
+	err = mlxsw_sp_router_init(mlxsw_sp, extack);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize router\n");
 		goto err_router_init;
@@ -4864,7 +4866,7 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	 * respin.
 	 */
 	mlxsw_sp->netdevice_nb.notifier_call = mlxsw_sp_netdevice_event;
-	err = register_netdevice_notifier_net(&init_net,
+	err = register_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
 					      &mlxsw_sp->netdevice_nb);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to register netdev notifier\n");
@@ -4888,7 +4890,7 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 err_ports_create:
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
 err_dpipe_init:
-	unregister_netdevice_notifier_net(&init_net,
+	unregister_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
 					  &mlxsw_sp->netdevice_nb);
 err_netdev_notifier:
 	if (mlxsw_sp->clock)
@@ -4926,7 +4928,8 @@ err_fids_init:
 }
 
 static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
-			  const struct mlxsw_bus_info *mlxsw_bus_info)
+			  const struct mlxsw_bus_info *mlxsw_bus_info,
+			  struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
@@ -4946,11 +4949,12 @@ static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->listeners = mlxsw_sp1_listener;
 	mlxsw_sp->listeners_count = ARRAY_SIZE(mlxsw_sp1_listener);
 
-	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info);
+	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info, extack);
 }
 
 static int mlxsw_sp2_init(struct mlxsw_core *mlxsw_core,
-			  const struct mlxsw_bus_info *mlxsw_bus_info)
+			  const struct mlxsw_bus_info *mlxsw_bus_info,
+			  struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
@@ -4966,7 +4970,7 @@ static int mlxsw_sp2_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp2_port_type_speed_ops;
 	mlxsw_sp->ptp_ops = &mlxsw_sp2_ptp_ops;
 
-	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info);
+	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info, extack);
 }
 
 static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
@@ -4975,7 +4979,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 
 	mlxsw_sp_ports_remove(mlxsw_sp);
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
-	unregister_netdevice_notifier_net(&init_net,
+	unregister_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
 					  &mlxsw_sp->netdevice_nb);
 	if (mlxsw_sp->clock) {
 		mlxsw_sp->ptp_ops->fini(mlxsw_sp->ptp_state);
