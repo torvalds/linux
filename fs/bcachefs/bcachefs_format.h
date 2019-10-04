@@ -1318,6 +1318,7 @@ enum bch_sb_features {
 	BCH_FEATURE_EC			= 4,
 	BCH_FEATURE_JOURNAL_SEQ_BLACKLIST_V3 = 5,
 	BCH_FEATURE_REFLINK		= 6,
+	BCH_FEATURE_NEW_SIPHASH		= 7,
 	BCH_FEATURE_NR,
 };
 
@@ -1344,11 +1345,19 @@ enum bch_csum_opts {
 	BCH_CSUM_OPT_NR			= 3,
 };
 
-enum bch_str_hash_opts {
+enum bch_str_hash_type {
 	BCH_STR_HASH_CRC32C		= 0,
 	BCH_STR_HASH_CRC64		= 1,
-	BCH_STR_HASH_SIPHASH		= 2,
-	BCH_STR_HASH_NR			= 3,
+	BCH_STR_HASH_SIPHASH_OLD	= 2,
+	BCH_STR_HASH_SIPHASH		= 3,
+	BCH_STR_HASH_NR			= 4,
+};
+
+enum bch_str_hash_opts {
+	BCH_STR_HASH_OPT_CRC32C		= 0,
+	BCH_STR_HASH_OPT_CRC64		= 1,
+	BCH_STR_HASH_OPT_SIPHASH	= 2,
+	BCH_STR_HASH_OPT_NR		= 3,
 };
 
 #define BCH_COMPRESSION_TYPES()		\

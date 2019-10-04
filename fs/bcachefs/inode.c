@@ -6,8 +6,7 @@
 #include "error.h"
 #include "extents.h"
 #include "inode.h"
-#include "io.h"
-#include "keylist.h"
+#include "str_hash.h"
 
 #include <linux/random.h>
 
@@ -303,11 +302,13 @@ void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
 		     struct bch_inode_unpacked *parent)
 {
 	s64 now = bch2_current_time(c);
+	enum bch_str_hash_type str_hash =
+		bch2_str_hash_opt_to_type(c, c->opts.str_hash);
 
 	memset(inode_u, 0, sizeof(*inode_u));
 
 	/* ick */
-	inode_u->bi_flags |= c->opts.str_hash << INODE_STR_HASH_OFFSET;
+	inode_u->bi_flags |= str_hash << INODE_STR_HASH_OFFSET;
 	get_random_bytes(&inode_u->bi_hash_seed,
 			 sizeof(inode_u->bi_hash_seed));
 

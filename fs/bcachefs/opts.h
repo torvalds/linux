@@ -127,7 +127,7 @@ enum opt_type {
 	x(str_hash,			u8,				\
 	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
 	  OPT_STR(bch2_str_hash_types),					\
-	  BCH_SB_STR_HASH_TYPE,		BCH_STR_HASH_SIPHASH,		\
+	  BCH_SB_STR_HASH_TYPE,		BCH_STR_HASH_OPT_SIPHASH,	\
 	  NULL,		"Hash function for directory entries and xattrs")\
 	x(foreground_target,		u16,				\
 	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME|OPT_INODE,			\
