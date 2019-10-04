@@ -9,6 +9,12 @@ ARCH_REL_TYPE_ABS := R_ARM_JUMP_SLOT|R_ARM_GLOB_DAT|R_ARM_ABS32
 include $(srctree)/lib/vdso/Makefile
 
 # Same as cc-*option, but using COMPATCC instead of CC
+ifeq ($(CONFIG_CC_IS_CLANG), y)
+COMPATCC ?= $(CC) --target=$(notdir $(CROSS_COMPILE_COMPAT:%-=%))
+else
+COMPATCC ?= $(CROSS_COMPILE_COMPAT)gcc
+endif
+
 cc32-option = $(call try-run,\
         $(COMPATCC) $(1) -c -x c /dev/null -o "$$TMP",$(1),$(2))
 cc32-disable-warning = $(call try-run,\
