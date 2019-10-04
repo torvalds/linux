@@ -76,6 +76,7 @@
 #include "internal.h"
 
 #define IORING_MAX_ENTRIES	32768
+#define IORING_MAX_CQ_ENTRIES	(2 * IORING_MAX_ENTRIES)
 #define IORING_MAX_FIXED_FILES	1024
 
 struct io_uring {
@@ -4049,10 +4050,23 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p)
 	 * Use twice as many entries for the CQ ring. It's possible for the
 	 * application to drive a higher depth than the size of the SQ ring,
 	 * since the sqes are only used at submission time. This allows for
-	 * some flexibility in overcommitting a bit.
+	 * some flexibility in overcommitting a bit. If the application has
+	 * set IORING_SETUP_CQSIZE, it will have passed in the desired number
+	 * of CQ ring entries manually.
 	 */
 	p->sq_entries = roundup_pow_of_two(entries);
-	p->cq_entries = 2 * p->sq_entries;
+	if (p->flags & IORING_SETUP_CQSIZE) {
+		/*
+		 * If IORING_SETUP_CQSIZE is set, we do the same roundup
+		 * to a power-of-two, if it isn't already. We do NOT impose
+		 * any cq vs sq ring sizing.
+		 */
+		if (p->cq_entries < p->sq_entries || p->cq_entries > IORING_MAX_CQ_ENTRIES)
+			return -EINVAL;
+		p->cq_entries = roundup_pow_of_two(p->cq_entries);
+	} else {
+		p->cq_entries = 2 * p->sq_entries;
+	}
 
 	user = get_uid(current_user());
 	account_mem = !capable(CAP_IPC_LOCK);
@@ -4137,7 +4151,7 @@ static long io_uring_setup(u32 entries, struct io_uring_params __user *params)
 	}
 
 	if (p.flags & ~(IORING_SETUP_IOPOLL | IORING_SETUP_SQPOLL |
-			IORING_SETUP_SQ_AFF))
+			IORING_SETUP_SQ_AFF | IORING_SETUP_CQSIZE))
 		return -EINVAL;
 
 	ret = io_uring_create(entries, &p);
