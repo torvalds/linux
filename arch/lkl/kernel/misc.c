@@ -5,6 +5,7 @@
 #include <asm/ptrace.h>
 #include <asm/host_ops.h>
 
+#ifdef CONFIG_PRINTK
 void dump_stack(void)
 {
 	unsigned long dummy;
@@ -15,13 +16,15 @@ void dump_stack(void)
 	while (((long)stack & (THREAD_SIZE - 1)) != 0) {
 		addr = *stack;
 		if (__kernel_text_address(addr)) {
-			pr_info("%p:  [<%08lx>] %pS", stack, addr, addr);
+			pr_info("%p:  [<%08lx>] %pS", stack, addr,
+				(void *)addr);
 			pr_cont("\n");
 		}
 		stack++;
 	}
 	pr_info("\n");
 }
+#endif
 
 void show_regs(struct pt_regs *regs)
 {
