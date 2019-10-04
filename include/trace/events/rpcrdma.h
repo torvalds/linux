@@ -1498,30 +1498,46 @@ DEFINE_ERROR_EVENT(chunk);
  ** Server-side RDMA API events
  **/
 
-TRACE_EVENT(svcrdma_dma_map_page,
+DECLARE_EVENT_CLASS(svcrdma_dma_map_class,
 	TP_PROTO(
 		const struct svcxprt_rdma *rdma,
-		const void *page
+		u64 dma_addr,
+		u32 length
 	),
 
-	TP_ARGS(rdma, page),
+	TP_ARGS(rdma, dma_addr, length),
 
 	TP_STRUCT__entry(
-		__field(const void *, page);
+		__field(u64, dma_addr)
+		__field(u32, length)
 		__string(device, rdma->sc_cm_id->device->name)
 		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),
 
 	TP_fast_assign(
-		__entry->page = page;
+		__entry->dma_addr = dma_addr;
+		__entry->length = length;
 		__assign_str(device, rdma->sc_cm_id->device->name);
 		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s device=%s page=%p",
-		__get_str(addr), __get_str(device), __entry->page
+	TP_printk("addr=%s device=%s dma_addr=%llu length=%u",
+		__get_str(addr), __get_str(device),
+		__entry->dma_addr, __entry->length
 	)
 );
+
+#define DEFINE_SVC_DMA_EVENT(name)					\
+		DEFINE_EVENT(svcrdma_dma_map_class, svcrdma_##name,	\
+				TP_PROTO(				\
+					const struct svcxprt_rdma *rdma,\
+					u64 dma_addr,			\
+					u32 length			\
+				),					\
+				TP_ARGS(rdma, dma_addr, length))
+
+DEFINE_SVC_DMA_EVENT(dma_map_page);
+DEFINE_SVC_DMA_EVENT(dma_unmap_page);
 
 TRACE_EVENT(svcrdma_dma_map_rwctx,
 	TP_PROTO(
