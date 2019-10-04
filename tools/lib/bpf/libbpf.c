@@ -505,7 +505,8 @@ static __u32 get_kernel_version(void)
 
 static struct bpf_object *bpf_object__new(const char *path,
 					  const void *obj_buf,
-					  size_t obj_buf_sz)
+					  size_t obj_buf_sz,
+					  const char *obj_name)
 {
 	struct bpf_object *obj;
 	char *end;
@@ -517,11 +518,17 @@ static struct bpf_object *bpf_object__new(const char *path,
 	}
 
 	strcpy(obj->path, path);
-	/* Using basename() GNU version which doesn't modify arg. */
-	strncpy(obj->name, basename((void *)path), sizeof(obj->name) - 1);
-	end = strchr(obj->name, '.');
-	if (end)
-		*end = 0;
+	if (obj_name) {
+		strncpy(obj->name, obj_name, sizeof(obj->name) - 1);
+		obj->name[sizeof(obj->name) - 1] = 0;
+	} else {
+		/* Using basename() GNU version which doesn't modify arg. */
+		strncpy(obj->name, basename((void *)path),
+			sizeof(obj->name) - 1);
+		end = strchr(obj->name, '.');
+		if (end)
+			*end = 0;
+	}
 
 	obj->efile.fd = -1;
 	/*
@@ -3547,7 +3554,7 @@ bpf_object__load_progs(struct bpf_object *obj, int log_level)
 
 static struct bpf_object *
 __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
-		   int flags)
+		   const char *obj_name, int flags)
 {
 	struct bpf_object *obj;
 	int err;
@@ -3557,7 +3564,7 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		return ERR_PTR(-LIBBPF_ERRNO__LIBELF);
 	}
 
-	obj = bpf_object__new(path, obj_buf, obj_buf_sz);
+	obj = bpf_object__new(path, obj_buf, obj_buf_sz, obj_name);
 	if (IS_ERR(obj))
 		return obj;
 
@@ -3583,7 +3590,7 @@ __bpf_object__open_xattr(struct bpf_object_open_attr *attr, int flags)
 
 	pr_debug("loading %s\n", attr->file);
 
-	return __bpf_object__open(attr->file, NULL, 0, flags);
+	return __bpf_object__open(attr->file, NULL, 0, NULL, flags);
 }
 
 struct bpf_object *bpf_object__open_xattr(struct bpf_object_open_attr *attr)
@@ -3601,25 +3608,67 @@ struct bpf_object *bpf_object__open(const char *path)
 	return bpf_object__open_xattr(&attr);
 }
 
-struct bpf_object *bpf_object__open_buffer(void *obj_buf,
-					   size_t obj_buf_sz,
-					   const char *name)
+struct bpf_object *
+bpf_object__open_file(const char *path, struct bpf_object_open_opts *opts)
+{
+	const char *obj_name;
+	bool relaxed_maps;
+
+	if (!OPTS_VALID(opts, bpf_object_open_opts))
+		return ERR_PTR(-EINVAL);
+	if (!path)
+		return ERR_PTR(-EINVAL);
+
+	pr_debug("loading %s\n", path);
+
+	obj_name = OPTS_GET(opts, object_name, path);
+	relaxed_maps = OPTS_GET(opts, relaxed_maps, false);
+	return __bpf_object__open(path, NULL, 0, obj_name,
+				  relaxed_maps ? MAPS_RELAX_COMPAT : 0);
+}
+
+struct bpf_object *
+bpf_object__open_mem(const void *obj_buf, size_t obj_buf_sz,
+		     struct bpf_object_open_opts *opts)
 {
 	char tmp_name[64];
+	const char *obj_name;
+	bool relaxed_maps;
 
-	/* param validation */
-	if (!obj_buf || obj_buf_sz <= 0)
-		return NULL;
+	if (!OPTS_VALID(opts, bpf_object_open_opts))
+		return ERR_PTR(-EINVAL);
+	if (!obj_buf || obj_buf_sz == 0)
+		return ERR_PTR(-EINVAL);
 
-	if (!name) {
+	obj_name = OPTS_GET(opts, object_name, NULL);
+	if (!obj_name) {
 		snprintf(tmp_name, sizeof(tmp_name), "%lx-%lx",
 			 (unsigned long)obj_buf,
 			 (unsigned long)obj_buf_sz);
-		name = tmp_name;
+		obj_name = tmp_name;
 	}
-	pr_debug("loading object '%s' from buffer\n", name);
+	pr_debug("loading object '%s' from buffer\n", obj_name);
 
-	return __bpf_object__open(name, obj_buf, obj_buf_sz, true);
+	relaxed_maps = OPTS_GET(opts, relaxed_maps, false);
+	return __bpf_object__open(obj_name, obj_buf, obj_buf_sz, obj_name,
+				  relaxed_maps ? MAPS_RELAX_COMPAT : 0);
+}
+
+struct bpf_object *
+bpf_object__open_buffer(const void *obj_buf, size_t obj_buf_sz,
+			const char *name)
+{
+	LIBBPF_OPTS(bpf_object_open_opts, opts,
+		.object_name = name,
+		/* wrong default, but backwards-compatible */
+		.relaxed_maps = true,
+	);
+
+	/* returning NULL is wrong, but backwards-compatible */
+	if (!obj_buf || obj_buf_sz == 0)
+		return NULL;
+
+	return bpf_object__open_mem(obj_buf, obj_buf_sz, &opts);
 }
 
 int bpf_object__unload(struct bpf_object *obj)
