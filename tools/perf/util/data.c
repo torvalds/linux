@@ -306,7 +306,7 @@ static int open_dir(struct perf_data *data)
 	 * So far we open only the header, so we can read the data version and
 	 * layout.
 	 */
-	if (asprintf(&data->file.path, "%s/header", data->path) < 0)
+	if (asprintf(&data->file.path, "%s/data", data->path) < 0)
 		return -1;
 
 	if (perf_data__is_write(data) &&

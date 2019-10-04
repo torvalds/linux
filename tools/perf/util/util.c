@@ -185,7 +185,7 @@ static int rm_rf_depth_pat(const char *path, int depth, const char **pat)
 int rm_rf_perf_data(const char *path)
 {
 	const char *pat[] = {
-		"header",
+		"data",
 		"data.*",
 		NULL,
 	};
