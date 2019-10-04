@@ -1596,7 +1596,7 @@ static u32 sdhci_read_present_state(struct sdhci_host *host)
 	return sdhci_readl(host, SDHCI_PRESENT_STATE);
 }
 
-void amd_sdhci_reset(struct sdhci_host *host, u8 mask)
+static void amd_sdhci_reset(struct sdhci_host *host, u8 mask)
 {
 	struct sdhci_pci_slot *slot = sdhci_priv(host);
 	struct pci_dev *pdev = slot->chip->pdev;
