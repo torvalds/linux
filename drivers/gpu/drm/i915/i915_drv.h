@@ -1719,15 +1719,6 @@ struct drm_i915_private {
 		 * fires, go retire requests.
 		 */
 		struct delayed_work retire_work;
-
-		/**
-		 * When we detect an idle GPU, we want to turn on
-		 * powersaving features. So once we see that there
-		 * are no more requests outstanding and no more
-		 * arrive within a small period of time, we fire
-		 * off the idle_work.
-		 */
-		struct work_struct idle_work;
 	} gem;
 
 	/* For i945gm vblank irq vs. C3 workaround */

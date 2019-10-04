@@ -3662,11 +3662,6 @@ i915_drop_caches_set(void *data, u64 val)
 		i915_gem_shrink_all(i915);
 	fs_reclaim_release(GFP_KERNEL);
 
-	if (val & DROP_IDLE) {
-		flush_delayed_work(&i915->gem.retire_work);
-		flush_work(&i915->gem.idle_work);
-	}
-
 	if (val & DROP_FREED)
 		i915_gem_drain_freed_objects(i915);
 

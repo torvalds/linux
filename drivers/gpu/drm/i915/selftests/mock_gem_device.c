@@ -55,7 +55,6 @@ static void mock_device_release(struct drm_device *dev)
 
 	mock_device_flush(i915);
 
-	flush_work(&i915->gem.idle_work);
 	i915_gem_drain_workqueue(i915);
 
 	mutex_lock(&i915->drm.struct_mutex);
@@ -100,10 +99,6 @@ static void release_dev(struct device *dev)
 }
 
 static void mock_retire_work_handler(struct work_struct *work)
-{
-}
-
-static void mock_idle_work_handler(struct work_struct *work)
 {
 }
 
@@ -187,7 +182,6 @@ struct drm_i915_private *mock_gem_device(void)
 	mock_init_contexts(i915);
 
 	INIT_DELAYED_WORK(&i915->gem.retire_work, mock_retire_work_handler);
-	INIT_WORK(&i915->gem.idle_work, mock_idle_work_handler);
 
 	intel_timelines_init(i915);
 

@@ -13,34 +13,11 @@
 
 static void i915_gem_park(struct drm_i915_private *i915)
 {
-	lockdep_assert_held(&i915->drm.struct_mutex);
+	cancel_delayed_work(&i915->gem.retire_work);
 
 	i915_vma_parked(i915);
 
 	i915_globals_park();
-}
-
-static void idle_work_handler(struct work_struct *work)
-{
-	struct drm_i915_private *i915 =
-		container_of(work, typeof(*i915), gem.idle_work);
-	bool park;
-
-	cancel_delayed_work_sync(&i915->gem.retire_work);
-	mutex_lock(&i915->drm.struct_mutex);
-
-	intel_wakeref_lock(&i915->gt.wakeref);
-	park = (!intel_wakeref_is_active(&i915->gt.wakeref) &&
-		!work_pending(work));
-	intel_wakeref_unlock(&i915->gt.wakeref);
-	if (park)
-		i915_gem_park(i915);
-	else
-		queue_delayed_work(i915->wq,
-				   &i915->gem.retire_work,
-				   round_jiffies_up_relative(HZ));
-
-	mutex_unlock(&i915->drm.struct_mutex);
 }
 
 static void retire_work_handler(struct work_struct *work)
@@ -71,7 +48,7 @@ static int pm_notifier(struct notifier_block *nb,
 		break;
 
 	case INTEL_GT_PARK:
-		queue_work(i915->wq, &i915->gem.idle_work);
+		i915_gem_park(i915);
 		break;
 	}
 
@@ -264,7 +241,6 @@ err_wedged:
 
 void i915_gem_init__pm(struct drm_i915_private *i915)
 {
-	INIT_WORK(&i915->gem.idle_work, idle_work_handler);
 	INIT_DELAYED_WORK(&i915->gem.retire_work, retire_work_handler);
 
 	i915->gem.pm_notifier.notifier_call = pm_notifier;
