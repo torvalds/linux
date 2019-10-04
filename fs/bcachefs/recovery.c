@@ -268,7 +268,7 @@ retry:
 				   BTREE_ITER_INTENT);
 
 	do {
-		ret = bch2_btree_iter_traverse(iter);
+		ret = bch2_extent_atomic_end(iter, k, &atomic_end);
 		if (ret)
 			goto err;
 
@@ -279,10 +279,6 @@ retry:
 
 		split = bch2_trans_kmalloc(&trans, bkey_bytes(&k->k));
 		ret = PTR_ERR_OR_ZERO(split);
-		if (ret)
-			goto err;
-
-		ret = bch2_extent_atomic_end(split_iter, k, &atomic_end);
 		if (ret)
 			goto err;
 

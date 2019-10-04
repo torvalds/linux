@@ -1010,13 +1010,19 @@ int bch2_extent_atomic_end(struct btree_iter *iter,
 			   struct bpos *end)
 {
 	struct btree_trans *trans = iter->trans;
-	struct btree *b = iter->l[0].b;
-	struct btree_node_iter	node_iter = iter->l[0].iter;
+	struct btree *b;
+	struct btree_node_iter	node_iter;
 	struct bkey_packed	*_k;
 	unsigned		nr_iters = 0;
 	int ret;
 
-	BUG_ON(iter->uptodate > BTREE_ITER_NEED_PEEK);
+	ret = bch2_btree_iter_traverse(iter);
+	if (ret)
+		return ret;
+
+	b = iter->l[0].b;
+	node_iter = iter->l[0].iter;
+
 	BUG_ON(bkey_cmp(bkey_start_pos(&insert->k), b->data->min_key) < 0);
 
 	*end = bpos_min(insert->k.p, b->key.k.p);

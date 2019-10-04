@@ -297,10 +297,6 @@ int bch2_extent_update(struct btree_trans *trans,
 	s64 i_sectors_delta;
 	int ret;
 
-	ret = bch2_btree_iter_traverse(extent_iter);
-	if (ret)
-		return ret;
-
 	ret = bch2_extent_trim_atomic(k, extent_iter);
 	if (ret)
 		return ret;
@@ -2694,10 +2690,6 @@ reassemble:
 
 		copy.k.k.p.offset += shift >> 9;
 		bch2_btree_iter_set_pos(dst, bkey_start_pos(&copy.k.k));
-
-		ret = bch2_btree_iter_traverse(dst);
-		if (ret)
-			goto bkey_err;
 
 		ret = bch2_extent_atomic_end(dst, &copy.k, &atomic_end);
 		if (ret)
