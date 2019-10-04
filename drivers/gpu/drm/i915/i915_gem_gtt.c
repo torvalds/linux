@@ -1502,6 +1502,7 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 			goto err_free_pd;
 	}
 
+	ppgtt->vm.bind_async_flags = I915_VMA_LOCAL_BIND;
 	ppgtt->vm.insert_entries = gen8_ppgtt_insert;
 	ppgtt->vm.allocate_va_range = gen8_ppgtt_alloc;
 	ppgtt->vm.clear_range = gen8_ppgtt_clear;
@@ -1950,6 +1951,7 @@ static struct i915_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 	ppgtt_init(&ppgtt->base, &i915->gt);
 	ppgtt->base.vm.top = 1;
 
+	ppgtt->base.vm.bind_async_flags = I915_VMA_LOCAL_BIND;
 	ppgtt->base.vm.allocate_va_range = gen6_alloc_va_range;
 	ppgtt->base.vm.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->base.vm.insert_entries = gen6_ppgtt_insert_entries;
@@ -2581,6 +2583,7 @@ static int init_aliasing_ppgtt(struct i915_ggtt *ggtt)
 		goto err_ppgtt;
 
 	ggtt->alias = ppgtt;
+	ggtt->vm.bind_async_flags |= ppgtt->vm.bind_async_flags;
 
 	GEM_BUG_ON(ggtt->vm.vma_ops.bind_vma != ggtt_bind_vma);
 	ggtt->vm.vma_ops.bind_vma = aliasing_gtt_bind_vma;

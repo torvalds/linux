@@ -305,6 +305,8 @@ struct i915_address_space {
 	u64 total;		/* size addr space maps (ex. 2GB for ggtt) */
 	u64 reserved;		/* size addr space reserved */
 
+	unsigned int bind_async_flags;
+
 	bool closed;
 
 	struct mutex mutex; /* protects vma and our lists */
