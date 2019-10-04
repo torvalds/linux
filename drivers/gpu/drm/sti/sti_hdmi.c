@@ -892,7 +892,7 @@ static void sti_hdmi_pre_enable(struct drm_bridge *bridge)
 	if (clk_prepare_enable(hdmi->clk_tmds))
 		DRM_ERROR("Failed to prepare/enable hdmi_tmds clk\n");
 	if (clk_prepare_enable(hdmi->clk_phy))
-		DRM_ERROR("Failed to prepare/enable hdmi_rejec_pll clk\n");
+		DRM_ERROR("Failed to prepare/enable hdmi_rejection_pll clk\n");
 
 	hdmi->enabled = true;
 
