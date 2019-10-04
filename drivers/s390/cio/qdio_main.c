@@ -423,9 +423,6 @@ static inline void account_sbals(struct qdio_q *q, unsigned int count)
 static void process_buffer_error(struct qdio_q *q, unsigned int start,
 				 int count)
 {
-	unsigned char state = (q->is_input_q) ? SLSB_P_INPUT_NOT_INIT :
-					SLSB_P_OUTPUT_NOT_INIT;
-
 	q->qdio_error = QDIO_ERROR_SLSB_STATE;
 
 	/* special handling for no target buffer empty */
@@ -433,7 +430,7 @@ static void process_buffer_error(struct qdio_q *q, unsigned int start,
 	    q->sbal[start]->element[15].sflags == 0x10) {
 		qperf_inc(q, target_full);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%02x", start);
-		goto set;
+		return;
 	}
 
 	DBF_ERROR("%4x BUF ERROR", SCH_NO(q));
@@ -442,13 +439,6 @@ static void process_buffer_error(struct qdio_q *q, unsigned int start,
 	DBF_ERROR("F14:%2x F15:%2x",
 		  q->sbal[start]->element[14].sflags,
 		  q->sbal[start]->element[15].sflags);
-
-set:
-	/*
-	 * Interrupts may be avoided as long as the error is present
-	 * so change the buffer state immediately to avoid starvation.
-	 */
-	set_buf_states(q, start, state, count);
 }
 
 static inline void inbound_primed(struct qdio_q *q, unsigned int start,
@@ -530,6 +520,11 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 		return count;
 	case SLSB_P_INPUT_ERROR:
 		process_buffer_error(q, start, count);
+		/*
+		 * Interrupts may be avoided as long as the error is present
+		 * so change the buffer state immediately to avoid starvation.
+		 */
+		set_buf_states(q, start, SLSB_P_INPUT_NOT_INIT, count);
 		if (atomic_sub_return(count, &q->nr_buf_used) == 0)
 			qperf_inc(q, inbound_queue_full);
 		if (q->irq_ptr->perf_stat_enabled)
