@@ -375,7 +375,7 @@ static int dust_message(struct dm_target *ti, unsigned int argc, char **argv,
 	struct dust_device *dd = ti->private;
 	sector_t size = i_size_read(dd->dev->bdev->bd_inode) >> SECTOR_SHIFT;
 	bool invalid_msg = false;
-	int result = -EINVAL;
+	int r = -EINVAL;
 	unsigned long long tmp, block;
 	unsigned long flags;
 	char dummy;
@@ -388,45 +388,45 @@ static int dust_message(struct dm_target *ti, unsigned int argc, char **argv,
 		} else if (!strcasecmp(argv[0], "disable")) {
 			DMINFO("disabling read failures on bad sectors");
 			dd->fail_read_on_bb = false;
-			result = 0;
+			r = 0;
 		} else if (!strcasecmp(argv[0], "enable")) {
 			DMINFO("enabling read failures on bad sectors");
 			dd->fail_read_on_bb = true;
-			result = 0;
+			r = 0;
 		} else if (!strcasecmp(argv[0], "countbadblocks")) {
 			spin_lock_irqsave(&dd->dust_lock, flags);
 			DMINFO("countbadblocks: %llu badblock(s) found",
 			       dd->badblock_count);
 			spin_unlock_irqrestore(&dd->dust_lock, flags);
-			result = 0;
+			r = 0;
 		} else if (!strcasecmp(argv[0], "clearbadblocks")) {
-			result = dust_clear_badblocks(dd);
+			r = dust_clear_badblocks(dd);
 		} else if (!strcasecmp(argv[0], "quiet")) {
 			if (!dd->quiet_mode)
 				dd->quiet_mode = true;
 			else
 				dd->quiet_mode = false;
-			result = 0;
+			r = 0;
 		} else {
 			invalid_msg = true;
 		}
 	} else if (argc == 2) {
 		if (sscanf(argv[1], "%llu%c", &tmp, &dummy) != 1)
-			return result;
+			return r;
 
 		block = tmp;
 		sector_div(size, dd->sect_per_block);
 		if (block > size) {
 			DMERR("selected block value out of range");
-			return result;
+			return r;
 		}
 
 		if (!strcasecmp(argv[0], "addbadblock"))
-			result = dust_add_block(dd, block);
+			r = dust_add_block(dd, block);
 		else if (!strcasecmp(argv[0], "removebadblock"))
-			result = dust_remove_block(dd, block);
+			r = dust_remove_block(dd, block);
 		else if (!strcasecmp(argv[0], "queryblock"))
-			result = dust_query_block(dd, block);
+			r = dust_query_block(dd, block);
 		else
 			invalid_msg = true;
 
@@ -436,7 +436,7 @@ static int dust_message(struct dm_target *ti, unsigned int argc, char **argv,
 	if (invalid_msg)
 		DMERR("unrecognized message '%s' received", argv[0]);
 
-	return result;
+	return r;
 }
 
 static void dust_status(struct dm_target *ti, status_type_t type,
@@ -499,12 +499,12 @@ static struct target_type dust_target = {
 
 static int __init dm_dust_init(void)
 {
-	int result = dm_register_target(&dust_target);
+	int r = dm_register_target(&dust_target);
 
-	if (result < 0)
-		DMERR("dm_register_target failed %d", result);
+	if (r < 0)
+		DMERR("dm_register_target failed %d", r);
 
-	return result;
+	return r;
 }
 
 static void __exit dm_dust_exit(void)
