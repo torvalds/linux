@@ -458,10 +458,19 @@ void *genlmsg_put(struct sk_buff *skb, u32 portid, u32 seq,
 }
 EXPORT_SYMBOL(genlmsg_put);
 
+static struct genl_dumpit_info *genl_dumpit_info_alloc(void)
+{
+	return kmalloc(sizeof(struct genl_dumpit_info), GFP_KERNEL);
+}
+
+static void genl_dumpit_info_free(const struct genl_dumpit_info *info)
+{
+	kfree(info);
+}
+
 static int genl_lock_start(struct netlink_callback *cb)
 {
-	/* our ops are always const - netlink API doesn't propagate that */
-	const struct genl_ops *ops = cb->data;
+	const struct genl_ops *ops = genl_dumpit_info(cb)->ops;
 	int rc = 0;
 
 	if (ops->start) {
@@ -474,8 +483,7 @@ static int genl_lock_start(struct netlink_callback *cb)
 
 static int genl_lock_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	/* our ops are always const - netlink API doesn't propagate that */
-	const struct genl_ops *ops = cb->data;
+	const struct genl_ops *ops = genl_dumpit_info(cb)->ops;
 	int rc;
 
 	genl_lock();
@@ -486,8 +494,8 @@ static int genl_lock_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 
 static int genl_lock_done(struct netlink_callback *cb)
 {
-	/* our ops are always const - netlink API doesn't propagate that */
-	const struct genl_ops *ops = cb->data;
+	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	const struct genl_ops *ops = info->ops;
 	int rc = 0;
 
 	if (ops->done) {
@@ -495,6 +503,19 @@ static int genl_lock_done(struct netlink_callback *cb)
 		rc = ops->done(cb);
 		genl_unlock();
 	}
+	genl_dumpit_info_free(info);
+	return rc;
+}
+
+static int genl_parallel_done(struct netlink_callback *cb)
+{
+	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	const struct genl_ops *ops = info->ops;
+	int rc = 0;
+
+	if (ops->done)
+		rc = ops->done(cb);
+	genl_dumpit_info_free(info);
 	return rc;
 }
 
@@ -505,6 +526,7 @@ static int genl_family_rcv_msg_dumpit(const struct genl_family *family,
 				      const struct genl_ops *ops,
 				      int hdrlen, struct net *net)
 {
+	struct genl_dumpit_info *info;
 	int err;
 
 	if (!ops->dumpit)
@@ -528,11 +550,17 @@ static int genl_family_rcv_msg_dumpit(const struct genl_family *family,
 		}
 	}
 
+	/* Allocate dumpit info. It is going to be freed by done() callback. */
+	info = genl_dumpit_info_alloc();
+	if (!info)
+		return -ENOMEM;
+
+	info->ops = ops;
+
 	if (!family->parallel_ops) {
 		struct netlink_dump_control c = {
 			.module = family->module,
-			/* we have const, but the netlink API doesn't */
-			.data = (void *)ops,
+			.data = info,
 			.start = genl_lock_start,
 			.dump = genl_lock_dumpit,
 			.done = genl_lock_done,
@@ -545,9 +573,10 @@ static int genl_family_rcv_msg_dumpit(const struct genl_family *family,
 	} else {
 		struct netlink_dump_control c = {
 			.module = family->module,
+			.data = info,
 			.start = ops->start,
 			.dump = ops->dumpit,
-			.done = ops->done,
+			.done = genl_parallel_done,
 		};
 
 		err = __netlink_dump_start(net->genl_sock, skb, nlh, &c);
