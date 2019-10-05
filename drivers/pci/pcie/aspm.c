@@ -1066,19 +1066,26 @@ void pcie_aspm_powersave_config_link(struct pci_dev *pdev)
 	up_read(&pci_bus_sem);
 }
 
-static int __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem)
+static struct pcie_link_state *pcie_aspm_get_link(struct pci_dev *pdev)
 {
-	struct pci_dev *parent = pdev->bus->self;
-	struct pcie_link_state *link;
+	struct pci_dev *bridge;
 
 	if (!pci_is_pcie(pdev))
-		return 0;
+		return NULL;
 
-	if (pcie_downstream_port(pdev))
-		parent = pdev;
-	if (!parent || !parent->link_state)
+	bridge = pci_upstream_bridge(pdev);
+	if (!bridge || !pci_is_pcie(bridge))
+		return NULL;
+
+	return bridge->link_state;
+}
+
+static int __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem)
+{
+	struct pcie_link_state *link = pcie_aspm_get_link(pdev);
+
+	if (!link)
 		return -EINVAL;
-
 	/*
 	 * A driver requested that ASPM be disabled on this device, but
 	 * if we don't have permission to manage ASPM (e.g., on ACPI
@@ -1095,7 +1102,6 @@ static int __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem)
 	if (sem)
 		down_read(&pci_bus_sem);
 	mutex_lock(&aspm_lock);
-	link = parent->link_state;
 	if (state & PCIE_LINK_STATE_L0S)
 		link->aspm_disable |= ASPM_STATE_L0S;
 	if (state & PCIE_LINK_STATE_L1)
@@ -1193,12 +1199,12 @@ module_param_call(policy, pcie_aspm_set_policy, pcie_aspm_get_policy,
  */
 bool pcie_aspm_enabled(struct pci_dev *pdev)
 {
-	struct pci_dev *bridge = pci_upstream_bridge(pdev);
+	struct pcie_link_state *link = pcie_aspm_get_link(pdev);
 
-	if (!bridge)
+	if (!link)
 		return false;
 
-	return bridge->link_state ? !!bridge->link_state->aspm_enabled : false;
+	return link->aspm_enabled;
 }
 EXPORT_SYMBOL_GPL(pcie_aspm_enabled);
 
