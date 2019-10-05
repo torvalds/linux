@@ -4445,7 +4445,7 @@ static int setup_dfs_tgt_conn(const char *path,
 	int rc;
 	struct dfs_info3_param ref = {0};
 	char *mdata = NULL, *fake_devname = NULL;
-	struct smb_vol fake_vol = {0};
+	struct smb_vol fake_vol = {NULL};
 
 	cifs_dbg(FYI, "%s: dfs path: %s\n", __func__, path);
 

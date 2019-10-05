@@ -751,8 +751,8 @@ add_posix_context(struct kvec *iov, unsigned int *num_iovec, umode_t mode)
 	unsigned int num = *num_iovec;
 
 	iov[num].iov_base = create_posix_buf(mode);
-	if (mode == -1)
-		cifs_dbg(VFS, "illegal mode\n"); /* BB REMOVEME */
+	if (mode == ACL_NO_MODE)
+		cifs_dbg(FYI, "illegal mode\n");
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = sizeof(struct create_posix);
@@ -2521,11 +2521,8 @@ SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst, __u8 *oplock,
 			return rc;
 	}
 
-	/* TODO: add handling for the mode on create */
-	if (oparms->disposition == FILE_CREATE)
-		cifs_dbg(VFS, "mode is 0x%x\n", oparms->mode); /* BB REMOVEME */
-
-	if ((oparms->disposition == FILE_CREATE) && (oparms->mode != -1)) {
+	if ((oparms->disposition == FILE_CREATE) &&
+	    (oparms->mode != ACL_NO_MODE)) {
 		if (n_iov > 2) {
 			struct create_context *ccontext =
 			    (struct create_context *)iov[n_iov-1].iov_base;
