@@ -22,6 +22,10 @@ fi
 # Example enforce param "-m" for dst_mac
 [ -z "$DST_MAC" ] && usage && err 2 "Must specify -m dst_mac"
 [ -z "$COUNT" ]   && COUNT="100000" # Zero means indefinitely
+if [ -n "$DEST_IP" ]; then
+    validate_addr${IP6} $DEST_IP
+    read -r DST_MIN DST_MAX <<< $(parse_addr${IP6} $DEST_IP)
+fi
 if [ -n "$DST_PORT" ]; then
     read -r UDP_DST_MIN UDP_DST_MAX <<< $(parse_ports $DST_PORT)
     validate_ports $UDP_DST_MIN $UDP_DST_MAX
@@ -61,7 +65,8 @@ pg_set $DEV "flag NO_TIMESTAMP"
 
 # Destination
 pg_set $DEV "dst_mac $DST_MAC"
-pg_set $DEV "dst$IP6 $DEST_IP"
+pg_set $DEV "dst${IP6}_min $DST_MIN"
+pg_set $DEV "dst${IP6}_max $DST_MAX"
 
 if [ -n "$DST_PORT" ]; then
     # Single destination port or random port range
