@@ -1220,6 +1220,37 @@ enum ratr_table_mode_new {
 	RATEID_IDX_BGN_3SS = 14,
 };
 
+#define BT_INFO_8723B_1ANT_B_FTP		BIT(7)
+#define BT_INFO_8723B_1ANT_B_A2DP		BIT(6)
+#define BT_INFO_8723B_1ANT_B_HID		BIT(5)
+#define BT_INFO_8723B_1ANT_B_SCO_BUSY		BIT(4)
+#define BT_INFO_8723B_1ANT_B_ACL_BUSY		BIT(3)
+#define BT_INFO_8723B_1ANT_B_INQ_PAGE		BIT(2)
+#define BT_INFO_8723B_1ANT_B_SCO_ESCO		BIT(1)
+#define BT_INFO_8723B_1ANT_B_CONNECTION	BIT(0)
+
+enum _BT_8723B_1ANT_STATUS {
+	BT_8723B_1ANT_STATUS_NON_CONNECTED_IDLE      = 0x0,
+	BT_8723B_1ANT_STATUS_CONNECTED_IDLE          = 0x1,
+	BT_8723B_1ANT_STATUS_INQ_PAGE                = 0x2,
+	BT_8723B_1ANT_STATUS_ACL_BUSY                = 0x3,
+	BT_8723B_1ANT_STATUS_SCO_BUSY                = 0x4,
+	BT_8723B_1ANT_STATUS_ACL_SCO_BUSY            = 0x5,
+	BT_8723B_1ANT_STATUS_MAX
+};
+
+struct rtl8xxxu_btcoex {
+	u8      bt_status;
+	bool	bt_busy;
+	bool	has_sco;
+	bool	has_a2dp;
+	bool    has_hid;
+	bool    has_pan;
+	bool	hid_only;
+	bool	a2dp_only;
+	bool    c2h_bt_inquiry;
+};
+
 #define RTL8XXXU_RATR_STA_INIT 0
 #define RTL8XXXU_RATR_STA_HIGH 1
 #define RTL8XXXU_RATR_STA_MID  2
@@ -1340,6 +1371,10 @@ struct rtl8xxxu_priv {
 	 */
 	struct ieee80211_vif *vif;
 	struct delayed_work ra_watchdog;
+	struct work_struct c2hcmd_work;
+	struct sk_buff_head c2hcmd_queue;
+	spinlock_t c2hcmd_lock;
+	struct rtl8xxxu_btcoex bt_coex;
 };
 
 struct rtl8xxxu_rx_urb {
@@ -1486,6 +1521,8 @@ void rtl8xxxu_fill_txdesc_v2(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 			     struct rtl8xxxu_txdesc32 *tx_desc32, bool sgi,
 			     bool short_preamble, bool ampdu_enable,
 			     u32 rts_rate);
+void rtl8723bu_set_ps_tdma(struct rtl8xxxu_priv *priv,
+			   u8 arg1, u8 arg2, u8 arg3, u8 arg4, u8 arg5);
 
 extern struct rtl8xxxu_fileops rtl8192cu_fops;
 extern struct rtl8xxxu_fileops rtl8192eu_fops;
