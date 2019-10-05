@@ -204,7 +204,6 @@ static int _dpu_core_perf_crtc_update_bus(struct dpu_kms *kms,
 void dpu_core_perf_crtc_release_bw(struct drm_crtc *crtc)
 {
 	struct dpu_crtc *dpu_crtc;
-	struct dpu_crtc_state *dpu_cstate;
 	struct dpu_kms *kms;
 
 	if (!crtc) {
@@ -219,7 +218,6 @@ void dpu_core_perf_crtc_release_bw(struct drm_crtc *crtc)
 	}
 
 	dpu_crtc = to_dpu_crtc(crtc);
-	dpu_cstate = to_dpu_crtc_state(crtc->state);
 
 	if (atomic_dec_return(&kms->bandwidth_ref) > 0)
 		return;
@@ -276,7 +274,6 @@ int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 	u64 clk_rate = 0;
 	struct dpu_crtc *dpu_crtc;
 	struct dpu_crtc_state *dpu_cstate;
-	struct msm_drm_private *priv;
 	struct dpu_kms *kms;
 	int ret;
 
@@ -290,7 +287,6 @@ int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 		DPU_ERROR("invalid kms\n");
 		return -EINVAL;
 	}
-	priv = kms->dev->dev_private;
 
 	dpu_crtc = to_dpu_crtc(crtc);
 	dpu_cstate = to_dpu_crtc_state(crtc->state);
