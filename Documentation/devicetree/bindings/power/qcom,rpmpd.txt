@@ -5,6 +5,7 @@ which then translates it into a corresponding voltage on a rail
 
 Required Properties:
  - compatible: Should be one of the following
+	* qcom,msm8976-rpmpd: RPM Power domain for the msm8976 family of SoC
 	* qcom,msm8996-rpmpd: RPM Power domain for the msm8996 family of SoC
 	* qcom,msm8998-rpmpd: RPM Power domain for the msm8998 family of SoC
 	* qcom,qcs404-rpmpd: RPM Power domain for the qcs404 family of SoC
