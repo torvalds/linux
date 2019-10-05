@@ -6,7 +6,6 @@
 #include <string.h>
 #include <linux/stringify.h>
 #include "header.h"
-#include "util.h"
 
 #define mfspr(rn)       ({unsigned long rval; \
 			 asm volatile("mfspr %0," __stringify(rn) \

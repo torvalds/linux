@@ -225,8 +225,6 @@ static int elf_header_exclude_ranges(struct crash_mem *cmem)
 	if (crashk_low_res.end) {
 		ret = crash_exclude_mem_range(cmem, crashk_low_res.start,
 							crashk_low_res.end);
-		if (ret)
-			return ret;
 	}
 
 	return ret;

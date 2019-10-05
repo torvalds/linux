@@ -507,7 +507,7 @@ void pblk_set_sec_per_write(struct pblk *pblk, int sec_per_write)
 	pblk->sec_per_write = sec_per_write;
 }
 
-int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd)
+int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd, void *buf)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 
@@ -518,7 +518,7 @@ int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd)
 		return NVM_IO_ERR;
 #endif
 
-	return nvm_submit_io(dev, rqd);
+	return nvm_submit_io(dev, rqd, buf);
 }
 
 void pblk_check_chunk_state_update(struct pblk *pblk, struct nvm_rq *rqd)
@@ -541,7 +541,7 @@ void pblk_check_chunk_state_update(struct pblk *pblk, struct nvm_rq *rqd)
 	}
 }
 
-int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd)
+int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd, void *buf)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	int ret;
@@ -553,7 +553,7 @@ int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd)
 		return NVM_IO_ERR;
 #endif
 
-	ret = nvm_submit_io_sync(dev, rqd);
+	ret = nvm_submit_io_sync(dev, rqd, buf);
 
 	if (trace_pblk_chunk_state_enabled() && !ret &&
 	    rqd->opcode == NVM_OP_PWRITE)
@@ -562,63 +562,17 @@ int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd)
 	return ret;
 }
 
-int pblk_submit_io_sync_sem(struct pblk *pblk, struct nvm_rq *rqd)
+static int pblk_submit_io_sync_sem(struct pblk *pblk, struct nvm_rq *rqd,
+				   void *buf)
 {
 	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 	int ret;
 
 	pblk_down_chunk(pblk, ppa_list[0]);
-	ret = pblk_submit_io_sync(pblk, rqd);
+	ret = pblk_submit_io_sync(pblk, rqd, buf);
 	pblk_up_chunk(pblk, ppa_list[0]);
 
 	return ret;
-}
-
-static void pblk_bio_map_addr_endio(struct bio *bio)
-{
-	bio_put(bio);
-}
-
-struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
-			      unsigned int nr_secs, unsigned int len,
-			      int alloc_type, gfp_t gfp_mask)
-{
-	struct nvm_tgt_dev *dev = pblk->dev;
-	void *kaddr = data;
-	struct page *page;
-	struct bio *bio;
-	int i, ret;
-
-	if (alloc_type == PBLK_KMALLOC_META)
-		return bio_map_kern(dev->q, kaddr, len, gfp_mask);
-
-	bio = bio_kmalloc(gfp_mask, nr_secs);
-	if (!bio)
-		return ERR_PTR(-ENOMEM);
-
-	for (i = 0; i < nr_secs; i++) {
-		page = vmalloc_to_page(kaddr);
-		if (!page) {
-			pblk_err(pblk, "could not map vmalloc bio\n");
-			bio_put(bio);
-			bio = ERR_PTR(-ENOMEM);
-			goto out;
-		}
-
-		ret = bio_add_pc_page(dev->q, bio, page, PAGE_SIZE, 0);
-		if (ret != PAGE_SIZE) {
-			pblk_err(pblk, "could not add page to bio\n");
-			bio_put(bio);
-			bio = ERR_PTR(-ENOMEM);
-			goto out;
-		}
-
-		kaddr += PAGE_SIZE;
-	}
-
-	bio->bi_end_io = pblk_bio_map_addr_endio;
-out:
-	return bio;
 }
 
 int pblk_calc_secs(struct pblk *pblk, unsigned long secs_avail,
@@ -722,9 +676,7 @@ u64 pblk_line_smeta_start(struct pblk *pblk, struct pblk_line *line)
 
 int pblk_line_smeta_read(struct pblk *pblk, struct pblk_line *line)
 {
-	struct nvm_tgt_dev *dev = pblk->dev;
 	struct pblk_line_meta *lm = &pblk->lm;
-	struct bio *bio;
 	struct ppa_addr *ppa_list;
 	struct nvm_rq rqd;
 	u64 paddr = pblk_line_smeta_start(pblk, line);
@@ -736,16 +688,6 @@ int pblk_line_smeta_read(struct pblk *pblk, struct pblk_line *line)
 	if (ret)
 		return ret;
 
-	bio = bio_map_kern(dev->q, line->smeta, lm->smeta_len, GFP_KERNEL);
-	if (IS_ERR(bio)) {
-		ret = PTR_ERR(bio);
-		goto clear_rqd;
-	}
-
-	bio->bi_iter.bi_sector = 0; /* internal bio */
-	bio_set_op_attrs(bio, REQ_OP_READ, 0);
-
-	rqd.bio = bio;
 	rqd.opcode = NVM_OP_PREAD;
 	rqd.nr_ppas = lm->smeta_sec;
 	rqd.is_seq = 1;
@@ -754,10 +696,9 @@ int pblk_line_smeta_read(struct pblk *pblk, struct pblk_line *line)
 	for (i = 0; i < lm->smeta_sec; i++, paddr++)
 		ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
 
-	ret = pblk_submit_io_sync(pblk, &rqd);
+	ret = pblk_submit_io_sync(pblk, &rqd, line->smeta);
 	if (ret) {
 		pblk_err(pblk, "smeta I/O submission failed: %d\n", ret);
-		bio_put(bio);
 		goto clear_rqd;
 	}
 
@@ -776,9 +717,7 @@ clear_rqd:
 static int pblk_line_smeta_write(struct pblk *pblk, struct pblk_line *line,
 				 u64 paddr)
 {
-	struct nvm_tgt_dev *dev = pblk->dev;
 	struct pblk_line_meta *lm = &pblk->lm;
-	struct bio *bio;
 	struct ppa_addr *ppa_list;
 	struct nvm_rq rqd;
 	__le64 *lba_list = emeta_to_lbas(pblk, line->emeta->buf);
@@ -791,16 +730,6 @@ static int pblk_line_smeta_write(struct pblk *pblk, struct pblk_line *line,
 	if (ret)
 		return ret;
 
-	bio = bio_map_kern(dev->q, line->smeta, lm->smeta_len, GFP_KERNEL);
-	if (IS_ERR(bio)) {
-		ret = PTR_ERR(bio);
-		goto clear_rqd;
-	}
-
-	bio->bi_iter.bi_sector = 0; /* internal bio */
-	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-
-	rqd.bio = bio;
 	rqd.opcode = NVM_OP_PWRITE;
 	rqd.nr_ppas = lm->smeta_sec;
 	rqd.is_seq = 1;
@@ -814,10 +743,9 @@ static int pblk_line_smeta_write(struct pblk *pblk, struct pblk_line *line,
 		meta->lba = lba_list[paddr] = addr_empty;
 	}
 
-	ret = pblk_submit_io_sync_sem(pblk, &rqd);
+	ret = pblk_submit_io_sync_sem(pblk, &rqd, line->smeta);
 	if (ret) {
 		pblk_err(pblk, "smeta I/O submission failed: %d\n", ret);
-		bio_put(bio);
 		goto clear_rqd;
 	}
 
@@ -838,10 +766,8 @@ int pblk_line_emeta_read(struct pblk *pblk, struct pblk_line *line,
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
 	void *ppa_list_buf, *meta_list;
-	struct bio *bio;
 	struct ppa_addr *ppa_list;
 	struct nvm_rq rqd;
 	u64 paddr = line->emeta_ssec;
@@ -867,17 +793,6 @@ next_rq:
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0, false);
 	rq_len = rq_ppas * geo->csecs;
 
-	bio = pblk_bio_map_addr(pblk, emeta_buf, rq_ppas, rq_len,
-					l_mg->emeta_alloc_type, GFP_KERNEL);
-	if (IS_ERR(bio)) {
-		ret = PTR_ERR(bio);
-		goto free_rqd_dma;
-	}
-
-	bio->bi_iter.bi_sector = 0; /* internal bio */
-	bio_set_op_attrs(bio, REQ_OP_READ, 0);
-
-	rqd.bio = bio;
 	rqd.meta_list = meta_list;
 	rqd.ppa_list = ppa_list_buf;
 	rqd.dma_meta_list = dma_meta_list;
@@ -896,7 +811,6 @@ next_rq:
 		while (test_bit(pos, line->blk_bitmap)) {
 			paddr += min;
 			if (pblk_boundary_paddr_checks(pblk, paddr)) {
-				bio_put(bio);
 				ret = -EINTR;
 				goto free_rqd_dma;
 			}
@@ -906,7 +820,6 @@ next_rq:
 		}
 
 		if (pblk_boundary_paddr_checks(pblk, paddr + min)) {
-			bio_put(bio);
 			ret = -EINTR;
 			goto free_rqd_dma;
 		}
@@ -915,10 +828,9 @@ next_rq:
 			ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line_id);
 	}
 
-	ret = pblk_submit_io_sync(pblk, &rqd);
+	ret = pblk_submit_io_sync(pblk, &rqd, emeta_buf);
 	if (ret) {
 		pblk_err(pblk, "emeta I/O submission failed: %d\n", ret);
-		bio_put(bio);
 		goto free_rqd_dma;
 	}
 
@@ -963,7 +875,7 @@ static int pblk_blk_erase_sync(struct pblk *pblk, struct ppa_addr ppa)
 	/* The write thread schedules erases so that it minimizes disturbances
 	 * with writes. Thus, there is no need to take the LUN semaphore.
 	 */
-	ret = pblk_submit_io_sync(pblk, &rqd);
+	ret = pblk_submit_io_sync(pblk, &rqd, NULL);
 	rqd.private = pblk;
 	__pblk_end_io_erase(pblk, &rqd);
 
@@ -1792,7 +1704,7 @@ int pblk_blk_erase_async(struct pblk *pblk, struct ppa_addr ppa)
 	/* The write thread schedules erases so that it minimizes disturbances
 	 * with writes. Thus, there is no need to take the LUN semaphore.
 	 */
-	err = pblk_submit_io(pblk, rqd);
+	err = pblk_submit_io(pblk, rqd, NULL);
 	if (err) {
 		struct nvm_tgt_dev *dev = pblk->dev;
 		struct nvm_geo *geo = &dev->geo;
@@ -1923,13 +1835,11 @@ void pblk_line_close_meta(struct pblk *pblk, struct pblk_line *line)
 static void pblk_save_lba_list(struct pblk *pblk, struct pblk_line *line)
 {
 	struct pblk_line_meta *lm = &pblk->lm;
-	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	unsigned int lba_list_size = lm->emeta_len[2];
 	struct pblk_w_err_gc *w_err_gc = line->w_err_gc;
 	struct pblk_emeta *emeta = line->emeta;
 
-	w_err_gc->lba_list = pblk_malloc(lba_list_size,
-					 l_mg->emeta_alloc_type, GFP_KERNEL);
+	w_err_gc->lba_list = kvmalloc(lba_list_size, GFP_KERNEL);
 	memcpy(w_err_gc->lba_list, emeta_to_lbas(pblk, emeta->buf),
 				lba_list_size);
 }

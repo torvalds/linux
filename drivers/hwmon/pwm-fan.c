@@ -304,7 +304,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	ctx->irq = platform_get_irq(pdev, 0);
+	ctx->irq = platform_get_irq_optional(pdev, 0);
 	if (ctx->irq == -EPROBE_DEFER)
 		return ctx->irq;
 

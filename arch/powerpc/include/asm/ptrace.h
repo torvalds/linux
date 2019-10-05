@@ -203,7 +203,11 @@ do {									      \
 #endif /* __powerpc64__ */
 
 #define arch_has_single_step()	(1)
-#define arch_has_block_step()	(!cpu_has_feature(CPU_FTR_601))
+#ifndef CONFIG_BOOK3S_601
+#define arch_has_block_step()	(true)
+#else
+#define arch_has_block_step()	(false)
+#endif
 #define ARCH_HAS_USER_SINGLE_STEP_REPORT
 
 /*

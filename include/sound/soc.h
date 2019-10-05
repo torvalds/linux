@@ -1148,7 +1148,6 @@ struct snd_soc_pcm_runtime {
 	struct list_head component_list; /* list of connected components */
 
 	/* bit field */
-	unsigned int dev_registered:1;
 	unsigned int pop_wait:1;
 	unsigned int fe_compr:1; /* for Dynamic PCM */
 };

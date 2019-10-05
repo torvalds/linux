@@ -491,11 +491,11 @@ static int ti_sysc_clkdm_init(struct device *dev,
 			      struct clk *fck, struct clk *ick,
 			      struct ti_sysc_cookie *cookie)
 {
-	if (fck)
+	if (!IS_ERR(fck))
 		cookie->clkdm = ti_sysc_find_one_clockdomain(fck);
 	if (cookie->clkdm)
 		return 0;
-	if (ick)
+	if (!IS_ERR(ick))
 		cookie->clkdm = ti_sysc_find_one_clockdomain(ick);
 	if (cookie->clkdm)
 		return 0;

@@ -318,12 +318,8 @@ error:
 
 void rtw_buf_free(u8 **buf, u32 *buf_len)
 {
-	u32 ori_len;
-
 	if (!buf || !buf_len)
 		return;
-
-	ori_len = *buf_len;
 
 	if (*buf) {
 		*buf_len = 0;

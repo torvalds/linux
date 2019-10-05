@@ -44,6 +44,10 @@ Optional properties:
 			what bootloader sets up in IOMUXC_GPR1[11:0] will be
 			used.
 
+ - fsl,burst-clk-enable	For "fsl,imx50-weim" and "fsl,imx6q-weim" type of
+			devices, the presence of this property indicates that
+			the weim bus should operate in Burst Clock Mode.
+
 Timing property for child nodes. It is mandatory, not optional.
 
  - fsl,weim-cs-timing:	The timing array, contains timing values for the

@@ -102,7 +102,7 @@ static int st_rng_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, ddata);
 
-	ret = hwrng_register(&ddata->ops);
+	ret = devm_hwrng_register(&pdev->dev, &ddata->ops);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register HW RNG\n");
 		clk_disable_unprepare(clk);
@@ -117,8 +117,6 @@ static int st_rng_probe(struct platform_device *pdev)
 static int st_rng_remove(struct platform_device *pdev)
 {
 	struct st_rng_data *ddata = dev_get_drvdata(&pdev->dev);
-
-	hwrng_unregister(&ddata->ops);
 
 	clk_disable_unprepare(ddata->clk);
 

@@ -1,4 +1,4 @@
-/**
+/*
  * \file drm_lock.c
  * IOCTLs for locking
  *

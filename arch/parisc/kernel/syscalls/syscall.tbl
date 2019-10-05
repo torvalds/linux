@@ -399,7 +399,8 @@
 352	common	pkey_alloc		sys_pkey_alloc
 353	common	pkey_free		sys_pkey_free
 354	common	rseq			sys_rseq
-# 355 through 402 are unassigned to sync up with generic numbers
+355	common	kexec_file_load		sys_kexec_file_load		sys_kexec_file_load
+# up to 402 is unassigned and reserved for arch specific syscalls
 403	32	clock_gettime64			sys_clock_gettime		sys_clock_gettime
 404	32	clock_settime64			sys_clock_settime		sys_clock_settime
 405	32	clock_adjtime64			sys_clock_adjtime		sys_clock_adjtime

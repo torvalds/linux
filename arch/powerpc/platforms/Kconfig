@@ -197,7 +197,8 @@ endmenu
 
 config PPC601_SYNC_FIX
 	bool "Workarounds for PPC601 bugs"
-	depends on PPC_BOOK3S_32 && PPC_PMAC
+	depends on PPC_BOOK3S_601 && PPC_PMAC
+	default y
 	help
 	  Some versions of the PPC601 (the first PowerPC chip) have bugs which
 	  mean that extra synchronization instructions are required near

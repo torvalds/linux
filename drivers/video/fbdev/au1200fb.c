@@ -1234,7 +1234,7 @@ static int au1200fb_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct au1200fb_device *fbdev = info->par;
 
 	return dma_mmap_attrs(fbdev->dev, vma, fbdev->fb_mem, fbdev->fb_phys,
-			fbdev->fb_len, DMA_ATTR_NON_CONSISTENT);
+			fbdev->fb_len, 0);
 }
 
 static void set_global(u_int cmd, struct au1200_lcd_global_regs_t *pdata)
@@ -1692,8 +1692,7 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 
 		fbdev->fb_mem = dmam_alloc_attrs(&dev->dev,
 				PAGE_ALIGN(fbdev->fb_len),
-				&fbdev->fb_phys, GFP_KERNEL,
-				DMA_ATTR_NON_CONSISTENT);
+				&fbdev->fb_phys, GFP_KERNEL, 0);
 		if (!fbdev->fb_mem) {
 			print_err("fail to allocate framebuffer (size: %dK))",
 				  fbdev->fb_len / 1024);

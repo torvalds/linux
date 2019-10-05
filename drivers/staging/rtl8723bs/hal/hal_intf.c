@@ -369,7 +369,7 @@ void rtw_hal_dm_watchdog_in_lps(struct adapter *padapter)
 	}
 }
 
-void rtw_hal_bcn_related_reg_setting(struct adapter *padapter)
+void beacon_timing_control(struct adapter *padapter)
 {
 	if (padapter->HalFunc.SetBeaconRelatedRegistersHandler)
 		padapter->HalFunc.SetBeaconRelatedRegistersHandler(padapter);

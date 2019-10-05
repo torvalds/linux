@@ -10,8 +10,8 @@
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
+#include <linux/greybus.h>
 
-#include "greybus.h"
 #include "firmware.h"
 
 /* Timeout, in jiffies, within which the next request must be received */

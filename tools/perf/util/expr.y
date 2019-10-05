@@ -2,9 +2,11 @@
 %{
 #include "util.h"
 #include "util/debug.h"
+#include <stdlib.h> // strtod()
 #define IN_EXPR_Y 1
 #include "expr.h"
 #include "smt.h"
+#include <assert.h>
 #include <string.h>
 
 #define MAXIDLEN 256

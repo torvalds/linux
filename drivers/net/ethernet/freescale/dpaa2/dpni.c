@@ -838,18 +838,54 @@ int dpni_set_link_cfg(struct fsl_mc_io *mc_io,
 		      const struct dpni_link_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
-	struct dpni_cmd_set_link_cfg *cmd_params;
+	struct dpni_cmd_link_cfg *cmd_params;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPNI_CMDID_SET_LINK_CFG,
 					  cmd_flags,
 					  token);
-	cmd_params = (struct dpni_cmd_set_link_cfg *)cmd.params;
+	cmd_params = (struct dpni_cmd_link_cfg *)cmd.params;
 	cmd_params->rate = cpu_to_le32(cfg->rate);
 	cmd_params->options = cpu_to_le64(cfg->options);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpni_get_link_cfg() - return the link configuration
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPNI object
+ * @cfg:	Link configuration from dpni object
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpni_get_link_cfg(struct fsl_mc_io *mc_io,
+		      u32 cmd_flags,
+		      u16 token,
+		      struct dpni_link_cfg *cfg)
+{
+	struct fsl_mc_command cmd = { 0 };
+	struct dpni_cmd_link_cfg *rsp_params;
+	int err;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPNI_CMDID_GET_LINK_CFG,
+					  cmd_flags,
+					  token);
+
+	/* send command to mc*/
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	/* retrieve response parameters */
+	rsp_params = (struct dpni_cmd_link_cfg *)cmd.params;
+	cfg->rate = le32_to_cpu(rsp_params->rate);
+	cfg->options = le64_to_cpu(rsp_params->options);
+
+	return err;
 }
 
 /**
@@ -1434,7 +1470,7 @@ int dpni_get_queue(struct fsl_mc_io *mc_io,
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPNI object
  * @page:	Selects the statistics page to retrieve, see
- *		DPNI_GET_STATISTICS output. Pages are numbered 0 to 2.
+ *		DPNI_GET_STATISTICS output. Pages are numbered 0 to 6.
  * @stat:	Structure containing the statistics
  *
  * Return:	'0' on Success; Error code otherwise.

@@ -37,6 +37,237 @@
 #define SMUIO_MCM_CONFIG__PKG_TYPE_MASK                                                                       0x0000001CL
 #define SMUIO_MCM_CONFIG__SOCKET_ID_MASK                                                                      0x00000020L
 #define SMUIO_MCM_CONFIG__PKG_SUBTYPE_MASK                                                                    0x000000C0L
+//CKSVII2C_IC_CON
+#define CKSVII2C_IC_CON__IC_MASTER_MODE__SHIFT                                                                0x0
+#define CKSVII2C_IC_CON__IC_MAX_SPEED_MODE__SHIFT                                                             0x1
+#define CKSVII2C_IC_CON__IC_10BITADDR_SLAVE__SHIFT                                                            0x3
+#define CKSVII2C_IC_CON__IC_10BITADDR_MASTER__SHIFT                                                           0x4
+#define CKSVII2C_IC_CON__IC_RESTART_EN__SHIFT                                                                 0x5
+#define CKSVII2C_IC_CON__IC_SLAVE_DISABLE__SHIFT                                                              0x6
+#define CKSVII2C_IC_CON__STOP_DET_IFADDRESSED__SHIFT                                                          0x7
+#define CKSVII2C_IC_CON__TX_EMPTY_CTRL__SHIFT                                                                 0x8
+#define CKSVII2C_IC_CON__RX_FIFO_FULL_HLD_CTRL__SHIFT                                                         0x9
+#define CKSVII2C_IC_CON__IC_MASTER_MODE_MASK                                                                  0x00000001L
+#define CKSVII2C_IC_CON__IC_MAX_SPEED_MODE_MASK                                                               0x00000006L
+#define CKSVII2C_IC_CON__IC_10BITADDR_SLAVE_MASK                                                              0x00000008L
+#define CKSVII2C_IC_CON__IC_10BITADDR_MASTER_MASK                                                             0x00000010L
+#define CKSVII2C_IC_CON__IC_RESTART_EN_MASK                                                                   0x00000020L
+#define CKSVII2C_IC_CON__IC_SLAVE_DISABLE_MASK                                                                0x00000040L
+#define CKSVII2C_IC_CON__STOP_DET_IFADDRESSED_MASK                                                            0x00000080L
+#define CKSVII2C_IC_CON__TX_EMPTY_CTRL_MASK                                                                   0x00000100L
+#define CKSVII2C_IC_CON__RX_FIFO_FULL_HLD_CTRL_MASK                                                           0x00000200L
+//CKSVII2C_IC_TAR
+#define CKSVII2C_IC_TAR__IC_TAR__SHIFT                                                                        0x0
+#define CKSVII2C_IC_TAR__GC_OR_START__SHIFT                                                                   0xa
+#define CKSVII2C_IC_TAR__SPECIAL__SHIFT                                                                       0xb
+#define CKSVII2C_IC_TAR__IC_10BITADDR_MASTER__SHIFT                                                           0xc
+#define CKSVII2C_IC_TAR__IC_TAR_MASK                                                                          0x000003FFL
+#define CKSVII2C_IC_TAR__GC_OR_START_MASK                                                                     0x00000400L
+#define CKSVII2C_IC_TAR__SPECIAL_MASK                                                                         0x00000800L
+#define CKSVII2C_IC_TAR__IC_10BITADDR_MASTER_MASK                                                             0x00001000L
+//CKSVII2C_IC_SAR
+#define CKSVII2C_IC_SAR__IC_SAR__SHIFT                                                                        0x0
+#define CKSVII2C_IC_SAR__IC_SAR_MASK                                                                          0x000003FFL
+//CKSVII2C_IC_HS_MADDR
+#define CKSVII2C_IC_HS_MADDR__IC_HS_MADDR__SHIFT                                                              0x0
+#define CKSVII2C_IC_HS_MADDR__IC_HS_MADDR_MASK                                                                0x00000007L
+//CKSVII2C_IC_DATA_CMD
+#define CKSVII2C_IC_DATA_CMD__DAT__SHIFT                                                                      0x0
+#define CKSVII2C_IC_DATA_CMD__CMD__SHIFT                                                                      0x8
+#define CKSVII2C_IC_DATA_CMD__STOP__SHIFT                                                                     0x9
+#define CKSVII2C_IC_DATA_CMD__RESTART__SHIFT                                                                  0xa
+#define CKSVII2C_IC_DATA_CMD__DAT_MASK                                                                        0x000000FFL
+#define CKSVII2C_IC_DATA_CMD__CMD_MASK                                                                        0x00000100L
+#define CKSVII2C_IC_DATA_CMD__STOP_MASK                                                                       0x00000200L
+#define CKSVII2C_IC_DATA_CMD__RESTART_MASK                                                                    0x00000400L
+//CKSVII2C_IC_SS_SCL_HCNT
+#define CKSVII2C_IC_SS_SCL_HCNT__IC_SS_SCL_HCNT__SHIFT                                                        0x0
+#define CKSVII2C_IC_SS_SCL_HCNT__IC_SS_SCL_HCNT_MASK                                                          0x0000FFFFL
+//CKSVII2C_IC_SS_SCL_LCNT
+#define CKSVII2C_IC_SS_SCL_LCNT__IC_SS_SCL_LCNT__SHIFT                                                        0x0
+#define CKSVII2C_IC_SS_SCL_LCNT__IC_SS_SCL_LCNT_MASK                                                          0x0000FFFFL
+//CKSVII2C_IC_FS_SCL_HCNT
+#define CKSVII2C_IC_FS_SCL_HCNT__IC_FS_SCL_HCNT__SHIFT                                                        0x0
+#define CKSVII2C_IC_FS_SCL_HCNT__IC_FS_SCL_HCNT_MASK                                                          0x0000FFFFL
+//CKSVII2C_IC_FS_SCL_LCNT
+#define CKSVII2C_IC_FS_SCL_LCNT__IC_FS_SCL_LCNT__SHIFT                                                        0x0
+#define CKSVII2C_IC_FS_SCL_LCNT__IC_FS_SCL_LCNT_MASK                                                          0x0000FFFFL
+//CKSVII2C_IC_HS_SCL_HCNT
+#define CKSVII2C_IC_HS_SCL_HCNT__IC_HS_SCL_HCNT__SHIFT                                                        0x0
+#define CKSVII2C_IC_HS_SCL_HCNT__IC_HS_SCL_HCNT_MASK                                                          0x0000FFFFL
+//CKSVII2C_IC_HS_SCL_LCNT
+#define CKSVII2C_IC_HS_SCL_LCNT__IC_HS_SCL_LCNT__SHIFT                                                        0x0
+#define CKSVII2C_IC_HS_SCL_LCNT__IC_HS_SCL_LCNT_MASK                                                          0x0000FFFFL
+//CKSVII2C_IC_INTR_STAT
+#define CKSVII2C_IC_INTR_STAT__R_RX_UNDER__SHIFT                                                              0x0
+#define CKSVII2C_IC_INTR_STAT__R_RX_OVER__SHIFT                                                               0x1
+#define CKSVII2C_IC_INTR_STAT__R_RX_FULL__SHIFT                                                               0x2
+#define CKSVII2C_IC_INTR_STAT__R_TX_OVER__SHIFT                                                               0x3
+#define CKSVII2C_IC_INTR_STAT__R_TX_EMPTY__SHIFT                                                              0x4
+#define CKSVII2C_IC_INTR_STAT__R_RD_REQ__SHIFT                                                                0x5
+#define CKSVII2C_IC_INTR_STAT__R_TX_ABRT__SHIFT                                                               0x6
+#define CKSVII2C_IC_INTR_STAT__R_RX_DONE__SHIFT                                                               0x7
+#define CKSVII2C_IC_INTR_STAT__R_ACTIVITY__SHIFT                                                              0x8
+#define CKSVII2C_IC_INTR_STAT__R_STOP_DET__SHIFT                                                              0x9
+#define CKSVII2C_IC_INTR_STAT__R_START_DET__SHIFT                                                             0xa
+#define CKSVII2C_IC_INTR_STAT__R_GEN_CALL__SHIFT                                                              0xb
+#define CKSVII2C_IC_INTR_STAT__R_RESTART_DET__SHIFT                                                           0xc
+#define CKSVII2C_IC_INTR_STAT__R_MST_ON_HOLD__SHIFT                                                           0xd
+#define CKSVII2C_IC_INTR_STAT__R_RX_UNDER_MASK                                                                0x00000001L
+#define CKSVII2C_IC_INTR_STAT__R_RX_OVER_MASK                                                                 0x00000002L
+#define CKSVII2C_IC_INTR_STAT__R_RX_FULL_MASK                                                                 0x00000004L
+#define CKSVII2C_IC_INTR_STAT__R_TX_OVER_MASK                                                                 0x00000008L
+#define CKSVII2C_IC_INTR_STAT__R_TX_EMPTY_MASK                                                                0x00000010L
+#define CKSVII2C_IC_INTR_STAT__R_RD_REQ_MASK                                                                  0x00000020L
+#define CKSVII2C_IC_INTR_STAT__R_TX_ABRT_MASK                                                                 0x00000040L
+#define CKSVII2C_IC_INTR_STAT__R_RX_DONE_MASK                                                                 0x00000080L
+#define CKSVII2C_IC_INTR_STAT__R_ACTIVITY_MASK                                                                0x00000100L
+#define CKSVII2C_IC_INTR_STAT__R_STOP_DET_MASK                                                                0x00000200L
+#define CKSVII2C_IC_INTR_STAT__R_START_DET_MASK                                                               0x00000400L
+#define CKSVII2C_IC_INTR_STAT__R_GEN_CALL_MASK                                                                0x00000800L
+#define CKSVII2C_IC_INTR_STAT__R_RESTART_DET_MASK                                                             0x00001000L
+#define CKSVII2C_IC_INTR_STAT__R_MST_ON_HOLD_MASK                                                             0x00002000L
+//CKSVII2C_IC_INTR_MASK
+#define CKSVII2C_IC_INTR_MASK__M_RX_UNDER__SHIFT                                                              0x0
+#define CKSVII2C_IC_INTR_MASK__M_RX_OVER__SHIFT                                                               0x1
+#define CKSVII2C_IC_INTR_MASK__M_RX_FULL__SHIFT                                                               0x2
+#define CKSVII2C_IC_INTR_MASK__M_TX_OVER__SHIFT                                                               0x3
+#define CKSVII2C_IC_INTR_MASK__M_TX_EMPTY__SHIFT                                                              0x4
+#define CKSVII2C_IC_INTR_MASK__M_RD_REQ__SHIFT                                                                0x5
+#define CKSVII2C_IC_INTR_MASK__M_TX_ABRT__SHIFT                                                               0x6
+#define CKSVII2C_IC_INTR_MASK__M_RX_DONE__SHIFT                                                               0x7
+#define CKSVII2C_IC_INTR_MASK__M_ACTIVITY__SHIFT                                                              0x8
+#define CKSVII2C_IC_INTR_MASK__M_STOP_DET__SHIFT                                                              0x9
+#define CKSVII2C_IC_INTR_MASK__M_START_DET__SHIFT                                                             0xa
+#define CKSVII2C_IC_INTR_MASK__M_GEN_CALL__SHIFT                                                              0xb
+#define CKSVII2C_IC_INTR_MASK__M_RESTART_DET__SHIFT                                                           0xc
+#define CKSVII2C_IC_INTR_MASK__M_MST_ON_HOLD__SHIFT                                                           0xd
+#define CKSVII2C_IC_INTR_MASK__M_RX_UNDER_MASK                                                                0x00000001L
+#define CKSVII2C_IC_INTR_MASK__M_RX_OVER_MASK                                                                 0x00000002L
+#define CKSVII2C_IC_INTR_MASK__M_RX_FULL_MASK                                                                 0x00000004L
+#define CKSVII2C_IC_INTR_MASK__M_TX_OVER_MASK                                                                 0x00000008L
+#define CKSVII2C_IC_INTR_MASK__M_TX_EMPTY_MASK                                                                0x00000010L
+#define CKSVII2C_IC_INTR_MASK__M_RD_REQ_MASK                                                                  0x00000020L
+#define CKSVII2C_IC_INTR_MASK__M_TX_ABRT_MASK                                                                 0x00000040L
+#define CKSVII2C_IC_INTR_MASK__M_RX_DONE_MASK                                                                 0x00000080L
+#define CKSVII2C_IC_INTR_MASK__M_ACTIVITY_MASK                                                                0x00000100L
+#define CKSVII2C_IC_INTR_MASK__M_STOP_DET_MASK                                                                0x00000200L
+#define CKSVII2C_IC_INTR_MASK__M_START_DET_MASK                                                               0x00000400L
+#define CKSVII2C_IC_INTR_MASK__M_GEN_CALL_MASK                                                                0x00000800L
+#define CKSVII2C_IC_INTR_MASK__M_RESTART_DET_MASK                                                             0x00001000L
+#define CKSVII2C_IC_INTR_MASK__M_MST_ON_HOLD_MASK                                                             0x00002000L
+//CKSVII2C_IC_RAW_INTR_STAT
+#define CKSVII2C_IC_RAW_INTR_STAT__R_RX_UNDER__SHIFT                                                              0x0
+#define CKSVII2C_IC_RAW_INTR_STAT__R_RX_OVER__SHIFT                                                               0x1
+#define CKSVII2C_IC_RAW_INTR_STAT__R_RX_FULL__SHIFT                                                               0x2
+#define CKSVII2C_IC_RAW_INTR_STAT__R_TX_OVER__SHIFT                                                               0x3
+#define CKSVII2C_IC__RAW_INTR_STAT__R_TX_EMPTY__SHIFT                                                              0x4
+#define CKSVII2C_IC_RAW_INTR_STAT__R_RD_REQ__SHIFT                                                                0x5
+#define CKSVII2C_IC_RAW_INTR_STAT__R_TX_ABRT__SHIFT                                                               0x6
+#define CKSVII2C_IC_RAW_INTR_STAT__R_RX_DONE__SHIFT                                                               0x7
+#define CKSVII2C_IC_RAW_INTR_STAT__R_ACTIVITY__SHIFT                                                              0x8
+#define CKSVII2C_IC_RAW_INTR_STAT__R_STOP_DET__SHIFT                                                              0x9
+#define CKSVII2C_IC_RAW_INTR_STAT__R_START_DET__SHIFT                                                             0xa
+#define CKSVII2C_IC_RAW_INTR_STAT__R_GEN_CALL__SHIFT                                                              0xb
+#define CKSVII2C_IC_RAW_INTR_STAT__R_RESTART_DET__SHIFT                                                           0xc
+#define CKSVII2C_IC_RAW_INTR_STAT__R_MST_ON_HOLD__SHIFT                                                           0xd
+#define CKSVII2C_IC_RAW_INTR_STAT__R_RX_UNDER_MASK                                                                0x00000001L
+#define CKSVII2C_IC_RAW_INTR_STAT__R_RX_OVER_MASK                                                                 0x00000002L
+#define CKSVII2C_IC_RAW_INTR_STAT__R_RX_FULL_MASK                                                                 0x00000004L
+#define CKSVII2C_IC_RAW_INTR_STAT__R_TX_OVER_MASK                                                                 0x00000008L
+#define CKSVII2C_IC_RAW_INTR_STAT__R_TX_EMPTY_MASK                                                                0x00000010L
+#define CKSVII2C_IC_RAW_INTR_STAT__R_RD_REQ_MASK                                                                  0x00000020L
+#define CKSVII2C_IC_RAW_INTR_STAT__R_TX_ABRT_MASK                                                                 0x00000040L
+#define CKSVII2C_IC_RAW_INTR_STAT__R_RX_DONE_MASK                                                                 0x00000080L
+#define CKSVII2C_IC_RAW_INTR_STAT__R_ACTIVITY_MASK                                                                0x00000100L
+#define CKSVII2C_IC_RAW_INTR_STAT__R_STOP_DET_MASK                                                                0x00000200L
+#define CKSVII2C_IC_RAW_INTR_STAT__R_START_DET_MASK                                                               0x00000400L
+#define CKSVII2C_IC_RAW_INTR_STAT__R_GEN_CALL_MASK                                                                0x00000800L
+#define CKSVII2C_IC_RAW_INTR_STAT__R_RESTART_DET_MASK                                                             0x00001000L
+#define CKSVII2C_IC_RAW_INTR_STAT__R_MST_ON_HOLD_MASK                                                             0x00002000L
+//CKSVII2C_IC_RX_TL
+//CKSVII2C_IC_TX_TL
+//CKSVII2C_IC_CLR_INTR
+//CKSVII2C_IC_CLR_RX_UNDER
+//CKSVII2C_IC_CLR_RX_OVER
+//CKSVII2C_IC_CLR_TX_OVER
+//CKSVII2C_IC_CLR_RD_REQ
+//CKSVII2C_IC_CLR_TX_ABRT
+//CKSVII2C_IC_CLR_RX_DONE
+//CKSVII2C_IC_CLR_ACTIVITY
+#define CKSVII2C_IC_CLR_ACTIVITY__CLR_ACTIVITY__SHIFT                                                         0x0
+#define CKSVII2C_IC_CLR_ACTIVITY__CLR_ACTIVITY_MASK                                                           0x00000001L
+//CKSVII2C_IC_CLR_STOP_DET
+//CKSVII2C_IC_CLR_START_DET
+//CKSVII2C_IC_CLR_GEN_CALL
+//CKSVII2C_IC_ENABLE
+#define CKSVII2C_IC_ENABLE__ENABLE__SHIFT                                                                     0x0
+#define CKSVII2C_IC_ENABLE__ABORT__SHIFT                                                                      0x1
+#define CKSVII2C_IC_ENABLE__ENABLE_MASK                                                                       0x00000001L
+#define CKSVII2C_IC_ENABLE__ABORT_MASK                                                                        0x00000002L
+//CKSVII2C_IC_STATUS
+#define CKSVII2C_IC_STATUS__ACTIVITY__SHIFT                                                                   0x0
+#define CKSVII2C_IC_STATUS__TFNF__SHIFT                                                                       0x1
+#define CKSVII2C_IC_STATUS__TFE__SHIFT                                                                        0x2
+#define CKSVII2C_IC_STATUS__RFNE__SHIFT                                                                       0x3
+#define CKSVII2C_IC_STATUS__RFF__SHIFT                                                                        0x4
+#define CKSVII2C_IC_STATUS__MST_ACTIVITY__SHIFT                                                               0x5
+#define CKSVII2C_IC_STATUS__SLV_ACTIVITY__SHIFT                                                               0x6
+#define CKSVII2C_IC_STATUS__ACTIVITY_MASK                                                                     0x00000001L
+#define CKSVII2C_IC_STATUS__TFNF_MASK                                                                         0x00000002L
+#define CKSVII2C_IC_STATUS__TFE_MASK                                                                          0x00000004L
+#define CKSVII2C_IC_STATUS__RFNE_MASK                                                                         0x00000008L
+#define CKSVII2C_IC_STATUS__RFF_MASK                                                                          0x00000010L
+#define CKSVII2C_IC_STATUS__MST_ACTIVITY_MASK                                                                 0x00000020L
+#define CKSVII2C_IC_STATUS__SLV_ACTIVITY_MASK                                                                 0x00000040L
+//CKSVII2C_IC_TXFLR
+//CKSVII2C_IC_RXFLR
+//CKSVII2C_IC_SDA_HOLD
+#define CKSVII2C_IC_SDA_HOLD__IC_SDA_HOLD__SHIFT                                                              0x0
+#define CKSVII2C_IC_SDA_HOLD__IC_SDA_HOLD_MASK                                                                0x00FFFFFFL
+//CKSVII2C_IC_TX_ABRT_SOURCE
+
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_7B_ADDR_NOACK__SHIFT                                                  0x0
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_10ADDR1_NOACK__SHIFT                                                  0x1
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_10ADDR2_NOACK__SHIFT                                                  0x2
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_TXDATA_NOACK__SHIFT                                                   0x3
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_7B_ADDR_NOACK_MASK                                                   0x00000001L
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_10ADDR1_NOACK_MASK                                                   0x00000002L
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_10ADDR2_NOACK_MASK                                                   0x00000004L
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_TXDATA_NOACK_MASK                                                    0x00000008L
+//CKSVII2C_IC_SLV_DATA_NACK_ONLY
+//CKSVII2C_IC_DMA_CR
+//CKSVII2C_IC_DMA_TDLR
+//CKSVII2C_IC_DMA_RDLR
+//CKSVII2C_IC_SDA_SETUP
+#define CKSVII2C_IC_SDA_SETUP__SDA_SETUP__SHIFT                                                               0x0
+#define CKSVII2C_IC_SDA_SETUP__SDA_SETUP_MASK                                                                 0x000000FFL
+//CKSVII2C_IC_ACK_GENERAL_CALL
+#define CKSVII2C_IC_ACK_GENERAL_CALL__ACK_GENERAL_CALL__SHIFT                                                 0x0
+#define CKSVII2C_IC_ACK_GENERAL_CALL__ACK_GENERAL_CALL_MASK                                                   0x00000001L
+//CKSVII2C_IC_ENABLE_STATUS
+#define CKSVII2C_IC_ENABLE_STATUS__IC_EN__SHIFT                                                               0x0
+#define CKSVII2C_IC_ENABLE_STATUS__SLV_RX_ABORTED__SHIFT                                                      0x1
+#define CKSVII2C_IC_ENABLE_STATUS__SLV_FIFO_FILLED_AND_FLUSHED__SHIFT                                         0x2
+#define CKSVII2C_IC_ENABLE_STATUS__IC_EN_MASK                                                                 0x00000001L
+#define CKSVII2C_IC_ENABLE_STATUS__SLV_RX_ABORTED_MASK                                                        0x00000002L
+#define CKSVII2C_IC_ENABLE_STATUS__SLV_FIFO_FILLED_AND_FLUSHED_MASK                                           0x00000004L
+//CKSVII2C_IC_FS_SPKLEN
+#define CKSVII2C_IC_FS_SPKLEN__FS_SPKLEN__SHIFT                                                               0x0
+#define CKSVII2C_IC_FS_SPKLEN__FS_SPKLEN_MASK                                                                 0x000000FFL
+//CKSVII2C_IC_HS_SPKLEN
+#define CKSVII2C_IC_HS_SPKLEN__HS_SPKLEN__SHIFT                                                               0x0
+#define CKSVII2C_IC_HS_SPKLEN__HS_SPKLEN_MASK                                                                 0x000000FFL
+//CKSVII2C_IC_CLR_RESTART_DET
+//CKSVII2C_IC_COMP_PARAM_1
+#define CKSVII2C_IC_COMP_PARAM_1__COMP_PARAM_1__SHIFT                                                         0x0
+#define CKSVII2C_IC_COMP_PARAM_1__COMP_PARAM_1_MASK                                                           0xFFFFFFFFL
+//CKSVII2C_IC_COMP_VERSION
+#define CKSVII2C_IC_COMP_VERSION__COMP_VERSION__SHIFT                                                         0x0
+#define CKSVII2C_IC_COMP_VERSION__COMP_VERSION_MASK                                                           0xFFFFFFFFL
+//CKSVII2C_IC_COMP_TYPE
+#define CKSVII2C_IC_COMP_TYPE__COMP_TYPE__SHIFT                                                               0x0
+#define CKSVII2C_IC_COMP_TYPE__COMP_TYPE_MASK                                                                 0xFFFFFFFFL
 //SMUIO_MP_RESET_INTR
 #define SMUIO_MP_RESET_INTR__SMUIO_MP_RESET_INTR__SHIFT                                                       0x0
 #define SMUIO_MP_RESET_INTR__SMUIO_MP_RESET_INTR_MASK                                                         0x00000001L

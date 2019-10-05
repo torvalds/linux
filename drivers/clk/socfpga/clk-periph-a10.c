@@ -40,11 +40,12 @@ static u8 clk_periclk_get_parent(struct clk_hw *hwclk)
 {
 	struct socfpga_periph_clk *socfpgaclk = to_socfpga_periph_clk(hwclk);
 	u32 clk_src;
+	const char *name = clk_hw_get_name(hwclk);
 
 	clk_src = readl(socfpgaclk->hw.reg);
-	if (streq(hwclk->init->name, SOCFPGA_MPU_FREE_CLK) ||
-	    streq(hwclk->init->name, SOCFPGA_NOC_FREE_CLK) ||
-	    streq(hwclk->init->name, SOCFPGA_SDMMC_FREE_CLK))
+	if (streq(name, SOCFPGA_MPU_FREE_CLK) ||
+	    streq(name, SOCFPGA_NOC_FREE_CLK) ||
+	    streq(name, SOCFPGA_SDMMC_FREE_CLK))
 		return (clk_src >> CLK_MGR_FREE_SHIFT) &
 			CLK_MGR_FREE_MASK;
 	else

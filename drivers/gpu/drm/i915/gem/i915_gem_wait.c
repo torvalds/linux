@@ -31,11 +31,10 @@ i915_gem_object_wait_fence(struct dma_fence *fence,
 }
 
 static long
-i915_gem_object_wait_reservation(struct reservation_object *resv,
+i915_gem_object_wait_reservation(struct dma_resv *resv,
 				 unsigned int flags,
 				 long timeout)
 {
-	unsigned int seq = __read_seqcount_begin(&resv->seq);
 	struct dma_fence *excl;
 	bool prune_fences = false;
 
@@ -44,7 +43,7 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 		unsigned int count, i;
 		int ret;
 
-		ret = reservation_object_get_fences_rcu(resv,
+		ret = dma_resv_get_fences_rcu(resv,
 							&excl, &count, &shared);
 		if (ret)
 			return ret;
@@ -73,7 +72,7 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 		 */
 		prune_fences = count && timeout >= 0;
 	} else {
-		excl = reservation_object_get_excl_rcu(resv);
+		excl = dma_resv_get_excl_rcu(resv);
 	}
 
 	if (excl && timeout >= 0)
@@ -83,15 +82,12 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 
 	/*
 	 * Opportunistically prune the fences iff we know they have *all* been
-	 * signaled and that the reservation object has not been changed (i.e.
-	 * no new fences have been added).
+	 * signaled.
 	 */
-	if (prune_fences && !__read_seqcount_retry(&resv->seq, seq)) {
-		if (reservation_object_trylock(resv)) {
-			if (!__read_seqcount_retry(&resv->seq, seq))
-				reservation_object_add_excl_fence(resv, NULL);
-			reservation_object_unlock(resv);
-		}
+	if (prune_fences && dma_resv_trylock(resv)) {
+		if (dma_resv_test_signaled_rcu(resv, true))
+			dma_resv_add_excl_fence(resv, NULL);
+		dma_resv_unlock(resv);
 	}
 
 	return timeout;
@@ -144,7 +140,7 @@ i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 		unsigned int count, i;
 		int ret;
 
-		ret = reservation_object_get_fences_rcu(obj->base.resv,
+		ret = dma_resv_get_fences_rcu(obj->base.resv,
 							&excl, &count, &shared);
 		if (ret)
 			return ret;
@@ -156,7 +152,7 @@ i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 
 		kfree(shared);
 	} else {
-		excl = reservation_object_get_excl_rcu(obj->base.resv);
+		excl = dma_resv_get_excl_rcu(obj->base.resv);
 	}
 
 	if (excl) {

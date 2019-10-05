@@ -39,8 +39,8 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
-    Pointer to struct :c:type:`v4l2_queryctl`, :c:type:`v4l2_query_ext_ctrl`
-    or :c:type`v4l2_querymenu` (depending on the ioctl).
+    Pointer to struct :c:type:`v4l2_queryctrl`, :c:type:`v4l2_query_ext_ctrl`
+    or :c:type:`v4l2_querymenu` (depending on the ioctl).
 
 
 Description

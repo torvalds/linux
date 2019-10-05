@@ -11,6 +11,11 @@ config VIDEO_V4L2
 	select VIDEOBUF2_V4L2 if VIDEOBUF2_CORE
 	default (I2C || I2C=n) && VIDEO_DEV
 
+config VIDEO_V4L2_I2C
+	bool
+	depends on I2C && VIDEO_V4L2
+	default y
+
 config VIDEO_ADV_DEBUG
 	bool "Enable advanced debug functionality on V4L2 drivers"
 	help

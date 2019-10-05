@@ -75,37 +75,6 @@ enum dpsw_component_type {
 	DPSW_COMPONENT_TYPE_S_VLAN
 };
 
-/**
- * struct dpsw_cfg - DPSW configuration
- * @num_ifs: Number of external and internal interfaces
- * @adv: Advanced parameters; default is all zeros;
- *	 use this structure to change default settings
- * @adv.options: Enable/Disable DPSW features (bitmap)
- * @adv.max_vlans: Maximum Number of VLAN's; 0 - indicates default 16
- * @adv.max_meters_per_if: Number of meters per interface
- * @adv.max_fdbs: Maximum Number of FDB's; 0 - indicates default 16
- * @adv.max_fdb_entries: Number of FDB entries for default FDB table;
- *	0 - indicates default 1024 entries.
- * @adv.fdb_aging_time: Default FDB aging time for default FDB table;
- *	0 - indicates default 300 seconds
- * @adv.max_fdb_mc_groups: Number of multicast groups in each FDB table;
- *	0 - indicates default 32
- * @adv.component_type: Indicates the component type of this bridge
- */
-struct dpsw_cfg {
-	u16 num_ifs;
-	struct {
-		u64 options;
-		u16 max_vlans;
-		u8 max_meters_per_if;
-		u8 max_fdbs;
-		u16 max_fdb_entries;
-		u16 fdb_aging_time;
-		u16 max_fdb_mc_groups;
-		enum dpsw_component_type component_type;
-	} adv;
-};
-
 int dpsw_enable(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);
@@ -495,6 +464,31 @@ int dpsw_fdb_remove_unicast(struct fsl_mc_io *mc_io,
 			    u16 token,
 			    u16 fdb_id,
 			    const struct dpsw_fdb_unicast_cfg *cfg);
+
+#define DPSW_FDB_ENTRY_TYPE_DYNAMIC  BIT(0)
+#define DPSW_FDB_ENTRY_TYPE_UNICAST  BIT(1)
+
+/**
+ * struct fdb_dump_entry - fdb snapshot entry
+ * @mac_addr: MAC address
+ * @type: bit0 - DINAMIC(1)/STATIC(0), bit1 - UNICAST(1)/MULTICAST(0)
+ * @if_info: unicast - egress interface, multicast - number of egress interfaces
+ * @if_mask: multicast - egress interface mask
+ */
+struct fdb_dump_entry {
+	u8 mac_addr[6];
+	u8 type;
+	u8 if_info;
+	u8 if_mask[8];
+};
+
+int dpsw_fdb_dump(struct fsl_mc_io *mc_io,
+		  u32 cmd_flags,
+		  u16 token,
+		  u16 fdb_id,
+		  u64 iova_addr,
+		  u32 iova_size,
+		  u16 *num_entries);
 
 /**
  * struct dpsw_fdb_multicast_cfg - Multi-cast entry configuration

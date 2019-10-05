@@ -357,6 +357,5 @@ module_init(ghash_pclmulqdqni_mod_init);
 module_exit(ghash_pclmulqdqni_mod_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("GHASH Message Digest Algorithm, "
-		   "accelerated by PCLMULQDQ-NI");
+MODULE_DESCRIPTION("GHASH hash function, accelerated by PCLMULQDQ-NI");
 MODULE_ALIAS_CRYPTO("ghash");

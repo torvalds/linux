@@ -36,7 +36,7 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
 	page = alloc_pages(GFP_KERNEL|__GFP_ZERO, 0);
 	if(!page)
 		return NULL;
-	if (!pgtable_page_ctor(page)) {
+	if (!pgtable_pte_page_ctor(page)) {
 		__free_page(page);
 		return NULL;
 	}
@@ -51,7 +51,7 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
 
 static inline void pte_free(struct mm_struct *mm, pgtable_t page)
 {
-	pgtable_page_dtor(page);
+	pgtable_pte_page_dtor(page);
 	cache_page(kmap(page));
 	kunmap(page);
 	__free_page(page);
@@ -60,7 +60,7 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t page)
 static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t page,
 				  unsigned long address)
 {
-	pgtable_page_dtor(page);
+	pgtable_pte_page_dtor(page);
 	cache_page(kmap(page));
 	kunmap(page);
 	__free_page(page);

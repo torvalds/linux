@@ -89,6 +89,7 @@ struct pci_dev *pnv_pci_get_npu_dev(struct pci_dev *gpdev, int index)
 }
 EXPORT_SYMBOL(pnv_pci_get_npu_dev);
 
+#ifdef CONFIG_IOMMU_API
 /*
  * Returns the PE assoicated with the PCI device of the given
  * NPU. Returns the linked pci device if pci_dev != NULL.
@@ -192,106 +193,6 @@ static long pnv_npu_unset_window(struct iommu_table_group *table_group, int num)
 	return 0;
 }
 
-/*
- * Enables 32 bit DMA on NPU.
- */
-static void pnv_npu_dma_set_32(struct pnv_ioda_pe *npe)
-{
-	struct pci_dev *gpdev;
-	struct pnv_ioda_pe *gpe;
-	int64_t rc;
-
-	/*
-	 * Find the assoicated PCI devices and get the dma window
-	 * information from there.
-	 */
-	if (!npe->pdev || !(npe->flags & PNV_IODA_PE_DEV))
-		return;
-
-	gpe = get_gpu_pci_dev_and_pe(npe, &gpdev);
-	if (!gpe)
-		return;
-
-	rc = pnv_npu_set_window(&npe->table_group, 0,
-			gpe->table_group.tables[0]);
-
-	/*
-	 * NVLink devices use the same TCE table configuration as
-	 * their parent device so drivers shouldn't be doing DMA
-	 * operations directly on these devices.
-	 */
-	set_dma_ops(&npe->pdev->dev, &dma_dummy_ops);
-}
-
-/*
- * Enables bypass mode on the NPU. The NPU only supports one
- * window per link, so bypass needs to be explicitly enabled or
- * disabled. Unlike for a PHB3 bypass and non-bypass modes can't be
- * active at the same time.
- */
-static int pnv_npu_dma_set_bypass(struct pnv_ioda_pe *npe)
-{
-	struct pnv_phb *phb = npe->phb;
-	int64_t rc = 0;
-	phys_addr_t top = memblock_end_of_DRAM();
-
-	if (phb->type != PNV_PHB_NPU_NVLINK || !npe->pdev)
-		return -EINVAL;
-
-	rc = pnv_npu_unset_window(&npe->table_group, 0);
-	if (rc != OPAL_SUCCESS)
-		return rc;
-
-	/* Enable the bypass window */
-
-	top = roundup_pow_of_two(top);
-	dev_info(&npe->pdev->dev, "Enabling bypass for PE %x\n",
-			npe->pe_number);
-	rc = opal_pci_map_pe_dma_window_real(phb->opal_id,
-			npe->pe_number, npe->pe_number,
-			0 /* bypass base */, top);
-
-	if (rc == OPAL_SUCCESS)
-		pnv_pci_ioda2_tce_invalidate_entire(phb, false);
-
-	return rc;
-}
-
-void pnv_npu_try_dma_set_bypass(struct pci_dev *gpdev, bool bypass)
-{
-	int i;
-	struct pnv_phb *phb;
-	struct pci_dn *pdn;
-	struct pnv_ioda_pe *npe;
-	struct pci_dev *npdev;
-
-	for (i = 0; ; ++i) {
-		npdev = pnv_pci_get_npu_dev(gpdev, i);
-
-		if (!npdev)
-			break;
-
-		pdn = pci_get_pdn(npdev);
-		if (WARN_ON(!pdn || pdn->pe_number == IODA_INVALID_PE))
-			return;
-
-		phb = pci_bus_to_host(npdev->bus)->private_data;
-
-		/* We only do bypass if it's enabled on the linked device */
-		npe = &phb->ioda.pe_array[pdn->pe_number];
-
-		if (bypass) {
-			dev_info(&npdev->dev,
-					"Using 64-bit DMA iommu bypass\n");
-			pnv_npu_dma_set_bypass(npe);
-		} else {
-			dev_info(&npdev->dev, "Using 32-bit DMA via iommu\n");
-			pnv_npu_dma_set_32(npe);
-		}
-	}
-}
-
-#ifdef CONFIG_IOMMU_API
 /* Switch ownership from platform code to external user (e.g. VFIO) */
 static void pnv_npu_take_ownership(struct iommu_table_group *table_group)
 {

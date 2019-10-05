@@ -115,16 +115,16 @@ void pre_surface_trace(
 				plane_state->clip_rect.height);
 
 		SURFACE_TRACE(
-				"plane_state->plane_size.grph.surface_size.x = %d;\n"
-				"plane_state->plane_size.grph.surface_size.y = %d;\n"
-				"plane_state->plane_size.grph.surface_size.width = %d;\n"
-				"plane_state->plane_size.grph.surface_size.height = %d;\n"
-				"plane_state->plane_size.grph.surface_pitch = %d;\n",
-				plane_state->plane_size.grph.surface_size.x,
-				plane_state->plane_size.grph.surface_size.y,
-				plane_state->plane_size.grph.surface_size.width,
-				plane_state->plane_size.grph.surface_size.height,
-				plane_state->plane_size.grph.surface_pitch);
+				"plane_state->plane_size.surface_size.x = %d;\n"
+				"plane_state->plane_size.surface_size.y = %d;\n"
+				"plane_state->plane_size.surface_size.width = %d;\n"
+				"plane_state->plane_size.surface_size.height = %d;\n"
+				"plane_state->plane_size.surface_pitch = %d;\n",
+				plane_state->plane_size.surface_size.x,
+				plane_state->plane_size.surface_size.y,
+				plane_state->plane_size.surface_size.width,
+				plane_state->plane_size.surface_size.height,
+				plane_state->plane_size.surface_pitch);
 
 
 		SURFACE_TRACE(
@@ -202,20 +202,20 @@ void update_surface_trace(
 			SURFACE_TRACE(
 					"plane_info->color_space = %d;\n"
 					"plane_info->format = %d;\n"
-					"plane_info->plane_size.grph.surface_pitch = %d;\n"
-					"plane_info->plane_size.grph.surface_size.height = %d;\n"
-					"plane_info->plane_size.grph.surface_size.width = %d;\n"
-					"plane_info->plane_size.grph.surface_size.x = %d;\n"
-					"plane_info->plane_size.grph.surface_size.y = %d;\n"
+					"plane_info->plane_size.surface_pitch = %d;\n"
+					"plane_info->plane_size.surface_size.height = %d;\n"
+					"plane_info->plane_size.surface_size.width = %d;\n"
+					"plane_info->plane_size.surface_size.x = %d;\n"
+					"plane_info->plane_size.surface_size.y = %d;\n"
 					"plane_info->rotation = %d;\n"
 					"plane_info->stereo_format = %d;\n",
 					update->plane_info->color_space,
 					update->plane_info->format,
-					update->plane_info->plane_size.grph.surface_pitch,
-					update->plane_info->plane_size.grph.surface_size.height,
-					update->plane_info->plane_size.grph.surface_size.width,
-					update->plane_info->plane_size.grph.surface_size.x,
-					update->plane_info->plane_size.grph.surface_size.y,
+					update->plane_info->plane_size.surface_pitch,
+					update->plane_info->plane_size.surface_size.height,
+					update->plane_info->plane_size.surface_size.width,
+					update->plane_info->plane_size.surface_size.x,
+					update->plane_info->plane_size.surface_size.y,
 					update->plane_info->rotation,
 					update->plane_info->stereo_format);
 

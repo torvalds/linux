@@ -19,6 +19,7 @@
 #define CNL_PADCFGLOCK		0x080
 #define CNL_LP_HOSTSW_OWN	0x0b0
 #define CNL_H_HOSTSW_OWN	0x0c0
+#define CNL_GPI_IS		0x100
 #define CNL_GPI_IE		0x120
 
 #define CNL_GPP(r, s, e, g)				\
@@ -37,6 +38,7 @@
 		.padown_offset = CNL_PAD_OWN,		\
 		.padcfglock_offset = CNL_PADCFGLOCK,	\
 		.hostown_offset = (o),			\
+		.is_offset = CNL_GPI_IS,		\
 		.ie_offset = CNL_GPI_IE,		\
 		.pin_base = (s),			\
 		.npins = ((e) - (s) + 1),		\

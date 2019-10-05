@@ -61,7 +61,6 @@ struct screen_info screen_info = {
 #ifdef CONFIG_BLK_DEV_INITRD
 extern unsigned long initrd_start;
 extern unsigned long initrd_end;
-int initrd_is_mapped = 0;
 extern int initrd_below_start_ok;
 #endif
 
@@ -332,13 +331,11 @@ void __init setup_arch(char **cmdline_p)
 	/* Reserve some memory regions */
 
 #ifdef CONFIG_BLK_DEV_INITRD
-	if (initrd_start < initrd_end) {
-		initrd_is_mapped = mem_reserve(__pa(initrd_start),
-					       __pa(initrd_end)) == 0;
+	if (initrd_start < initrd_end &&
+	    !mem_reserve(__pa(initrd_start), __pa(initrd_end)))
 		initrd_below_start_ok = 1;
-	} else {
+	else
 		initrd_start = 0;
-	}
 #endif
 
 	mem_reserve(__pa(_stext), __pa(_end));

@@ -197,7 +197,7 @@ static int smm665_read_adc(struct smm665_data *data, int adc)
 	if (rv != -ENXIO) {
 		/*
 		 * We expect ENXIO to reflect NACK
-		 * (per Documentation/i2c/fault-codes).
+		 * (per Documentation/i2c/fault-codes.rst).
 		 * Everything else is an error.
 		 */
 		dev_dbg(&client->dev,
@@ -586,10 +586,10 @@ static int smm665_probe(struct i2c_client *client,
 
 	data->client = client;
 	data->type = id->driver_data;
-	data->cmdreg = i2c_new_dummy(adapter, (client->addr & ~SMM665_REGMASK)
+	data->cmdreg = i2c_new_dummy_device(adapter, (client->addr & ~SMM665_REGMASK)
 				     | SMM665_CMDREG_BASE);
-	if (!data->cmdreg)
-		return -ENOMEM;
+	if (IS_ERR(data->cmdreg))
+		return PTR_ERR(data->cmdreg);
 
 	switch (data->type) {
 	case smm465:
