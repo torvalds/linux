@@ -189,9 +189,10 @@ enum tc_port {
 	I915_MAX_TC_PORTS
 };
 
-enum tc_port_mode {
-	TC_PORT_TBT_ALT,
-	TC_PORT_DP_ALT,
+enum tc_port_type {
+	TC_PORT_UNKNOWN = 0,
+	TC_PORT_TYPEC,
+	TC_PORT_TBT,
 	TC_PORT_LEGACY,
 };
 
