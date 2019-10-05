@@ -508,7 +508,7 @@ extern const struct tsens_plat_data data_8960;
 extern const struct tsens_plat_data data_8916, data_8974;
 
 /* TSENS v1 targets */
-extern const struct tsens_plat_data data_tsens_v1;
+extern const struct tsens_plat_data data_tsens_v1, data_8976;
 
 /* TSENS v2 targets */
 extern const struct tsens_plat_data data_8996, data_tsens_v2;
