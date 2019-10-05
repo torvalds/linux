@@ -43,6 +43,7 @@
 #include <linux/netdevice.h>
 #include <linux/rcupdate.h>
 
+#include <net/net_namespace.h>
 #include <net/tcp.h>
 #include <net/strparser.h>
 #include <crypto/aead.h>
@@ -72,6 +73,15 @@
  * Hence b0 contains (3 - 1) = 2.
  */
 #define TLS_AES_CCM_IV_B0_BYTE		2
+
+#define __TLS_INC_STATS(net, field)				\
+	__SNMP_INC_STATS((net)->mib.tls_statistics, field)
+#define TLS_INC_STATS(net, field)				\
+	SNMP_INC_STATS((net)->mib.tls_statistics, field)
+#define __TLS_DEC_STATS(net, field)				\
+	__SNMP_DEC_STATS((net)->mib.tls_statistics, field)
+#define TLS_DEC_STATS(net, field)				\
+	SNMP_DEC_STATS((net)->mib.tls_statistics, field)
 
 enum {
 	TLS_BASE,
@@ -594,13 +604,6 @@ tls_offload_rx_resync_set_type(struct sock *sk, enum tls_offload_sync_type type)
 	tls_offload_ctx_rx(tls_ctx)->resync_type = type;
 }
 
-static inline void tls_offload_tx_resync_request(struct sock *sk)
-{
-	struct tls_context *tls_ctx = tls_get_ctx(sk);
-
-	WARN_ON(test_and_set_bit(TLS_TX_SYNC_SCHED, &tls_ctx->flags));
-}
-
 /* Driver's seq tracking has to be disabled until resync succeeded */
 static inline bool tls_offload_tx_resync_pending(struct sock *sk)
 {
@@ -611,6 +614,9 @@ static inline bool tls_offload_tx_resync_pending(struct sock *sk)
 	smp_mb__after_atomic();
 	return ret;
 }
+
+int __net_init tls_proc_init(struct net *net);
+void __net_exit tls_proc_fini(struct net *net);
 
 int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
 		      unsigned char *record_type);
@@ -634,6 +640,7 @@ void tls_device_free_resources_tx(struct sock *sk);
 int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx);
 void tls_device_offload_cleanup_rx(struct sock *sk);
 void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq);
+void tls_offload_tx_resync_request(struct sock *sk, u32 got_seq, u32 exp_seq);
 int tls_device_decrypted(struct sock *sk, struct sk_buff *skb);
 #else
 static inline void tls_device_init(void) {}

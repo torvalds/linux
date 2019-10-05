@@ -38,6 +38,8 @@
 #include <net/tcp.h>
 #include <net/tls.h>
 
+#include "trace.h"
+
 /* device_offload_lock is used to synchronize tls_dev_add
  * against NETDEV_DOWN notifications.
  */
@@ -202,6 +204,15 @@ void tls_device_free_resources_tx(struct sock *sk)
 	tls_free_partial_record(sk, tls_ctx);
 }
 
+void tls_offload_tx_resync_request(struct sock *sk, u32 got_seq, u32 exp_seq)
+{
+	struct tls_context *tls_ctx = tls_get_ctx(sk);
+
+	trace_tls_device_tx_resync_req(sk, got_seq, exp_seq);
+	WARN_ON(test_and_set_bit(TLS_TX_SYNC_SCHED, &tls_ctx->flags));
+}
+EXPORT_SYMBOL_GPL(tls_offload_tx_resync_request);
+
 static void tls_device_resync_tx(struct sock *sk, struct tls_context *tls_ctx,
 				 u32 seq)
 {
@@ -216,6 +227,7 @@ static void tls_device_resync_tx(struct sock *sk, struct tls_context *tls_ctx,
 
 	rcd_sn = tls_ctx->tx.rec_seq;
 
+	trace_tls_device_tx_resync_send(sk, seq, rcd_sn);
 	down_read(&device_offload_lock);
 	netdev = tls_ctx->netdev;
 	if (netdev)
@@ -637,15 +649,19 @@ void tls_device_write_space(struct sock *sk, struct tls_context *ctx)
 static void tls_device_resync_rx(struct tls_context *tls_ctx,
 				 struct sock *sk, u32 seq, u8 *rcd_sn)
 {
+	struct tls_offload_context_rx *rx_ctx = tls_offload_ctx_rx(tls_ctx);
 	struct net_device *netdev;
 
 	if (WARN_ON(test_and_set_bit(TLS_RX_SYNC_RUNNING, &tls_ctx->flags)))
 		return;
+
+	trace_tls_device_rx_resync_send(sk, seq, rcd_sn, rx_ctx->resync_type);
 	netdev = READ_ONCE(tls_ctx->netdev);
 	if (netdev)
 		netdev->tlsdev_ops->tls_dev_resync(netdev, sk, seq, rcd_sn,
 						   TLS_OFFLOAD_CTX_DIR_RX);
 	clear_bit_unlock(TLS_RX_SYNC_RUNNING, &tls_ctx->flags);
+	TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSRXDEVICERESYNC);
 }
 
 void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq)
@@ -653,8 +669,8 @@ void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq)
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_offload_context_rx *rx_ctx;
 	u8 rcd_sn[TLS_MAX_REC_SEQ_SIZE];
+	u32 sock_data, is_req_pending;
 	struct tls_prot_info *prot;
-	u32 is_req_pending;
 	s64 resync_req;
 	u32 req_seq;
 
@@ -683,8 +699,12 @@ void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq)
 		/* head of next rec is already in, note that the sock_inq will
 		 * include the currently parsed message when called from parser
 		 */
-		if (tcp_inq(sk) > rcd_len)
+		sock_data = tcp_inq(sk);
+		if (sock_data > rcd_len) {
+			trace_tls_device_rx_resync_nh_delay(sk, sock_data,
+							    rcd_len);
 			return;
+		}
 
 		rx_ctx->resync_nh_do_now = 0;
 		seq += rcd_len;
@@ -728,6 +748,7 @@ static void tls_device_core_ctrl_rx_resync(struct tls_context *tls_ctx,
 
 	/* head of next rec is already in, parser will sync for us */
 	if (tcp_inq(sk) > rxm->full_len) {
+		trace_tls_device_rx_resync_nh_schedule(sk);
 		ctx->resync_nh_do_now = 1;
 	} else {
 		struct tls_prot_info *prot = &tls_ctx->prot_info;
@@ -830,6 +851,7 @@ int tls_device_decrypted(struct sock *sk, struct sk_buff *skb)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_offload_context_rx *ctx = tls_offload_ctx_rx(tls_ctx);
+	struct strp_msg *rxm = strp_msg(skb);
 	int is_decrypted = skb->decrypted;
 	int is_encrypted = !is_decrypted;
 	struct sk_buff *skb_iter;
@@ -839,6 +861,10 @@ int tls_device_decrypted(struct sock *sk, struct sk_buff *skb)
 		is_decrypted &= skb_iter->decrypted;
 		is_encrypted &= !skb_iter->decrypted;
 	}
+
+	trace_tls_device_decrypted(sk, tcp_sk(sk)->copied_seq - rxm->full_len,
+				   tls_ctx->rx.rec_seq, rxm->full_len,
+				   is_encrypted, is_decrypted);
 
 	ctx->sw.decrypted |= is_decrypted;
 
@@ -1013,6 +1039,8 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	rc = netdev->tlsdev_ops->tls_dev_add(netdev, sk, TLS_OFFLOAD_CTX_DIR_TX,
 					     &ctx->crypto_send.info,
 					     tcp_sk(sk)->write_seq);
+	trace_tls_device_offload_set(sk, TLS_OFFLOAD_CTX_DIR_TX,
+				     tcp_sk(sk)->write_seq, rec_seq, rc);
 	if (rc)
 		goto release_lock;
 
@@ -1049,6 +1077,7 @@ free_marker_record:
 
 int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 {
+	struct tls12_crypto_info_aes_gcm_128 *info;
 	struct tls_offload_context_rx *context;
 	struct net_device *netdev;
 	int rc = 0;
@@ -1096,6 +1125,9 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 	rc = netdev->tlsdev_ops->tls_dev_add(netdev, sk, TLS_OFFLOAD_CTX_DIR_RX,
 					     &ctx->crypto_recv.info,
 					     tcp_sk(sk)->copied_seq);
+	info = (void *)&ctx->crypto_recv.info;
+	trace_tls_device_offload_set(sk, TLS_OFFLOAD_CTX_DIR_RX,
+				     tcp_sk(sk)->copied_seq, info->rec_seq, rc);
 	if (rc)
 		goto free_sw_resources;
 
