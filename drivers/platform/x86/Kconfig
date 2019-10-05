@@ -927,14 +927,20 @@ config INTEL_CHT_INT33FE
 	  This driver add support for the INT33FE ACPI device found on
 	  some Intel Cherry Trail devices.
 
+	  There are two kinds of INT33FE ACPI device possible: for hardware
+	  with USB Type-C and Micro-B connectors. This driver supports both.
+
 	  The INT33FE ACPI device has a CRS table with I2cSerialBusV2
-	  resources for 3 devices: Maxim MAX17047 Fuel Gauge Controller,
+	  resources for Fuel Gauge Controller and (in the Type-C variant)
 	  FUSB302 USB Type-C Controller and PI3USB30532 USB switch.
 	  This driver instantiates i2c-clients for these, so that standard
 	  i2c drivers for these chips can bind to the them.
 
 	  If you enable this driver it is advised to also select
-	  CONFIG_TYPEC_FUSB302=m and CONFIG_BATTERY_MAX17042=m.
+	  CONFIG_BATTERY_BQ27XXX=m or CONFIG_BATTERY_BQ27XXX_I2C=m for Micro-B
+	  device and CONFIG_TYPEC_FUSB302=m and CONFIG_BATTERY_MAX17042=m
+	  for Type-C device.
+
 
 config INTEL_INT0002_VGPIO
 	tristate "Intel ACPI INT0002 Virtual GPIO driver"
