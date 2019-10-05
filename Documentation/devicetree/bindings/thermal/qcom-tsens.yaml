@@ -29,6 +29,7 @@ properties:
       - description: v1 of TSENS
         items:
           - enum:
+              - qcom,msm8976-tsens
               - qcom,qcs404-tsens
           - const: qcom,tsens-v1
 
@@ -82,6 +83,7 @@ allOf:
             enum:
               - qcom,msm8916-tsens
               - qcom,msm8974-tsens
+              - qcom,msm8976-tsens
               - qcom,qcs404-tsens
               - qcom,tsens-v0_1
               - qcom,tsens-v1
