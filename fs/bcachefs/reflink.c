@@ -144,20 +144,18 @@ err:
 static struct bkey_s_c get_next_src(struct btree_iter *iter, struct bpos end)
 {
 	struct bkey_s_c k = bch2_btree_iter_peek(iter);
+	int ret;
 
-	while (1) {
-		if (bkey_err(k))
-			return k;
-
+	for_each_btree_key_continue(iter, 0, k, ret) {
 		if (bkey_cmp(iter->pos, end) >= 0)
 			return bkey_s_c_null;
 
 		if (k.k->type == KEY_TYPE_extent ||
 		    k.k->type == KEY_TYPE_reflink_p)
-			return k;
-
-		k = bch2_btree_iter_next(iter);
+			break;
 	}
+
+	return k;
 }
 
 s64 bch2_remap_range(struct bch_fs *c,

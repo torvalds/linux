@@ -451,6 +451,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bch_fs_usage_online *fs_usage = NULL;
 	struct btree_insert_entry *i;
+	struct btree_iter *iter;
 	unsigned mark_flags = trans->flags & BTREE_INSERT_BUCKET_INVALIDATE
 		? BCH_BUCKET_MARK_BUCKET_INVALIDATE
 		: 0;
@@ -472,6 +473,14 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 			if (ret)
 				goto out_clear_replicas;
 		}
+
+	trans_for_each_iter(trans, iter) {
+		if (iter->nodes_locked != iter->nodes_intent_locked) {
+			BUG_ON(iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT);
+			BUG_ON(trans->iters_live & (1ULL << iter->idx));
+			__bch2_btree_iter_unlock(iter);
+		}
+	}
 
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG))
 		trans_for_each_update(trans, i)

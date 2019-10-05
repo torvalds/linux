@@ -296,10 +296,10 @@ int bch2_dirent_delete(struct bch_fs *c, u64 dir_inum,
 struct btree_iter *
 __bch2_dirent_lookup_trans(struct btree_trans *trans, u64 dir_inum,
 			   const struct bch_hash_info *hash_info,
-			   const struct qstr *name)
+			   const struct qstr *name, unsigned flags)
 {
 	return bch2_hash_lookup(trans, bch2_dirent_hash_desc,
-				hash_info, dir_inum, name, 0);
+				hash_info, dir_inum, name, flags);
 }
 
 u64 bch2_dirent_lookup(struct bch_fs *c, u64 dir_inum,
@@ -313,7 +313,8 @@ u64 bch2_dirent_lookup(struct bch_fs *c, u64 dir_inum,
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	iter = __bch2_dirent_lookup_trans(&trans, dir_inum, hash_info, name);
+	iter = __bch2_dirent_lookup_trans(&trans, dir_inum,
+					  hash_info, name, 0);
 	if (IS_ERR(iter)) {
 		BUG_ON(PTR_ERR(iter) == -EINTR);
 		goto out;

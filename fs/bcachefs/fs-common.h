@@ -12,8 +12,7 @@ int bch2_create_trans(struct btree_trans *, u64,
 		      struct posix_acl *,
 		      struct posix_acl *);
 
-int bch2_link_trans(struct btree_trans *,
-		    u64,
+int bch2_link_trans(struct btree_trans *, u64,
 		    u64, struct bch_inode_unpacked *,
 		    const struct qstr *);
 
