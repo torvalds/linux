@@ -176,7 +176,8 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 	},
 	{
 		.cmd	= TIPC_NL_PUBL_GET,
-		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.validate = GENL_DONT_VALIDATE_STRICT |
+			    GENL_DONT_VALIDATE_DUMP_STRICT,
 		.dumpit	= tipc_nl_publ_dump,
 	},
 	{
@@ -239,7 +240,8 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 	},
 	{
 		.cmd	= TIPC_NL_MON_PEER_GET,
-		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.validate = GENL_DONT_VALIDATE_STRICT |
+			    GENL_DONT_VALIDATE_DUMP_STRICT,
 		.dumpit	= tipc_nl_node_dump_monitor_peer,
 	},
 	{
@@ -250,7 +252,8 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 #ifdef CONFIG_TIPC_MEDIA_UDP
 	{
 		.cmd	= TIPC_NL_UDP_GET_REMOTEIP,
-		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.validate = GENL_DONT_VALIDATE_STRICT |
+			    GENL_DONT_VALIDATE_DUMP_STRICT,
 		.dumpit	= tipc_udp_nl_dump_remoteip,
 	},
 #endif
