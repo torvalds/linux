@@ -340,10 +340,7 @@ void dpu_debugfs_core_irq_init(struct dpu_kms *dpu_kms,
 
 void dpu_core_irq_preinstall(struct dpu_kms *dpu_kms)
 {
-	struct msm_drm_private *priv;
 	int i;
-
-	priv = dpu_kms->dev->dev_private;
 
 	pm_runtime_get_sync(&dpu_kms->pdev->dev);
 	dpu_clear_all_irqs(dpu_kms);
@@ -369,10 +366,7 @@ void dpu_core_irq_preinstall(struct dpu_kms *dpu_kms)
 
 void dpu_core_irq_uninstall(struct dpu_kms *dpu_kms)
 {
-	struct msm_drm_private *priv;
 	int i;
-
-	priv = dpu_kms->dev->dev_private;
 
 	pm_runtime_get_sync(&dpu_kms->pdev->dev);
 	for (i = 0; i < dpu_kms->irq_obj.total_irqs; i++)
