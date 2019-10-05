@@ -566,7 +566,6 @@ static void dpu_encoder_phys_vid_prepare_for_kickoff(
 
 static void dpu_encoder_phys_vid_disable(struct dpu_encoder_phys *phys_enc)
 {
-	struct msm_drm_private *priv;
 	unsigned long lock_flags;
 	int ret;
 
@@ -574,7 +573,6 @@ static void dpu_encoder_phys_vid_disable(struct dpu_encoder_phys *phys_enc)
 		DPU_ERROR("invalid encoder/device\n");
 		return;
 	}
-	priv = phys_enc->parent->dev->dev_private;
 
 	if (!phys_enc->hw_intf || !phys_enc->hw_ctl) {
 		DPU_ERROR("invalid hw_intf %d hw_ctl %d\n",
