@@ -271,18 +271,6 @@ struct genl_family tipc_genl_family __ro_after_init = {
 	.n_ops		= ARRAY_SIZE(tipc_genl_v2_ops),
 };
 
-int tipc_nlmsg_parse(const struct nlmsghdr *nlh, struct nlattr ***attr)
-{
-	u32 maxattr = tipc_genl_family.maxattr;
-
-	*attr = genl_family_attrbuf(&tipc_genl_family);
-	if (!*attr)
-		return -EOPNOTSUPP;
-
-	return nlmsg_parse_deprecated(nlh, GENL_HDRLEN, *attr, maxattr,
-				      tipc_nl_policy, NULL);
-}
-
 int __init tipc_netlink_start(void)
 {
 	int res;
