@@ -64,7 +64,6 @@ static int _dpu_danger_signal_status(struct seq_file *s,
 		bool danger_status)
 {
 	struct dpu_kms *kms = (struct dpu_kms *)s->private;
-	struct msm_drm_private *priv;
 	struct dpu_danger_safe_status status;
 	int i;
 
@@ -73,7 +72,6 @@ static int _dpu_danger_signal_status(struct seq_file *s,
 		return 0;
 	}
 
-	priv = kms->dev->dev_private;
 	memset(&status, 0, sizeof(struct dpu_danger_safe_status));
 
 	pm_runtime_get_sync(&kms->pdev->dev);
@@ -270,7 +268,6 @@ static void dpu_kms_prepare_commit(struct msm_kms *kms,
 		struct drm_atomic_state *state)
 {
 	struct dpu_kms *dpu_kms;
-	struct msm_drm_private *priv;
 	struct drm_device *dev;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
@@ -281,7 +278,6 @@ static void dpu_kms_prepare_commit(struct msm_kms *kms,
 		return;
 	dpu_kms = to_dpu_kms(kms);
 	dev = dpu_kms->dev;
-	priv = dev->dev_private;
 
 	/* Call prepare_commit for all affected encoders */
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
