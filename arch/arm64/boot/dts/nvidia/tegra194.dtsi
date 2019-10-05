@@ -1186,7 +1186,6 @@
 
 		nvidia,bpmp = <&bpmp 1>;
 
-		supports-clkreq;
 		nvidia,aspm-cmrt-us = <60>;
 		nvidia,aspm-pwr-on-t-us = <20>;
 		nvidia,aspm-l0s-entrance-latency-us = <3>;
@@ -1232,7 +1231,6 @@
 
 		nvidia,bpmp = <&bpmp 2>;
 
-		supports-clkreq;
 		nvidia,aspm-cmrt-us = <60>;
 		nvidia,aspm-pwr-on-t-us = <20>;
 		nvidia,aspm-l0s-entrance-latency-us = <3>;
@@ -1278,7 +1276,6 @@
 
 		nvidia,bpmp = <&bpmp 3>;
 
-		supports-clkreq;
 		nvidia,aspm-cmrt-us = <60>;
 		nvidia,aspm-pwr-on-t-us = <20>;
 		nvidia,aspm-l0s-entrance-latency-us = <3>;
@@ -1324,7 +1321,6 @@
 
 		nvidia,bpmp = <&bpmp 4>;
 
-		supports-clkreq;
 		nvidia,aspm-cmrt-us = <60>;
 		nvidia,aspm-pwr-on-t-us = <20>;
 		nvidia,aspm-l0s-entrance-latency-us = <3>;
@@ -1370,7 +1366,6 @@
 
 		nvidia,bpmp = <&bpmp 0>;
 
-		supports-clkreq;
 		nvidia,aspm-cmrt-us = <60>;
 		nvidia,aspm-pwr-on-t-us = <20>;
 		nvidia,aspm-l0s-entrance-latency-us = <3>;
@@ -1420,7 +1415,6 @@
 		interrupt-map-mask = <0 0 0 0>;
 		interrupt-map = <0 0 0 0 &gic GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 
-		supports-clkreq;
 		nvidia,aspm-cmrt-us = <60>;
 		nvidia,aspm-pwr-on-t-us = <20>;
 		nvidia,aspm-l0s-entrance-latency-us = <3>;
