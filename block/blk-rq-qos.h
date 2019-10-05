@@ -94,8 +94,8 @@ static inline void rq_qos_del(struct request_queue *q, struct rq_qos *rqos)
 }
 
 bool rq_wait_inc_below(struct rq_wait *rq_wait, unsigned int limit);
-void rq_depth_scale_up(struct rq_depth *rqd);
-void rq_depth_scale_down(struct rq_depth *rqd, bool hard_throttle);
+bool rq_depth_scale_up(struct rq_depth *rqd);
+bool rq_depth_scale_down(struct rq_depth *rqd, bool hard_throttle);
 bool rq_depth_calc_max_depth(struct rq_depth *rqd);
 
 void rq_qos_cleanup(struct request_queue *, struct bio *);
