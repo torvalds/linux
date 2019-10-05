@@ -416,6 +416,9 @@ journal_get_next_pin(struct journal *j, u64 max_seq, u64 *seq)
 	struct journal_entry_pin_list *pin_list;
 	struct journal_entry_pin *ret = NULL;
 
+	if (!test_bit(JOURNAL_RECLAIM_STARTED, &j->flags))
+		return NULL;
+
 	spin_lock(&j->lock);
 
 	fifo_for_each_entry_ptr(pin_list, &j->pin, *seq)

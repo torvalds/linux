@@ -4,6 +4,7 @@
 #include "alloc_foreground.h"
 #include "btree_cache.h"
 #include "btree_io.h"
+#include "btree_key_cache.h"
 #include "btree_update.h"
 #include "btree_update_interior.h"
 #include "btree_gc.h"
@@ -276,6 +277,13 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	struct bkey_i_alloc *a;
 	int ret;
 retry:
+	bch2_trans_begin(trans);
+
+	ret = bch2_btree_key_cache_flush(trans,
+			BTREE_ID_ALLOC, iter->pos);
+	if (ret)
+		goto err;
+
 	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -330,7 +338,7 @@ int bch2_alloc_write(struct bch_fs *c, unsigned flags, bool *wrote)
 
 	BUG_ON(BKEY_ALLOC_VAL_U64s_MAX > 8);
 
-	bch2_trans_init(&trans, c, 0, 0);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC, POS_MIN,
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
@@ -361,25 +369,6 @@ int bch2_alloc_write(struct bch_fs *c, unsigned flags, bool *wrote)
 
 	bch2_trans_exit(&trans);
 
-	return ret < 0 ? ret : 0;
-}
-
-int bch2_alloc_replay_key(struct bch_fs *c, struct bkey_i *k)
-{
-	struct btree_trans trans;
-	struct btree_iter *iter;
-	int ret;
-
-	bch2_trans_init(&trans, c, 0, 0);
-
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC, k->k.p,
-				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-
-	ret = bch2_alloc_write_key(&trans, iter,
-				   BTREE_INSERT_NOFAIL|
-				   BTREE_INSERT_LAZY_RW|
-				   BTREE_INSERT_JOURNAL_REPLAY);
-	bch2_trans_exit(&trans);
 	return ret < 0 ? ret : 0;
 }
 
@@ -840,7 +829,6 @@ static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
 	struct bkey_alloc_unpacked u;
 	struct bucket *g;
 	struct bucket_mark m;
-	struct bkey_s_c k;
 	bool invalidating_cached_data;
 	size_t b;
 	int ret = 0;
@@ -892,27 +880,14 @@ static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
 
 	bch2_btree_iter_set_pos(iter, POS(ca->dev_idx, b));
 retry:
-	k = bch2_btree_iter_peek_slot(iter);
-	ret = bkey_err(k);
+	ret = bch2_btree_iter_traverse(iter);
 	if (ret)
 		return ret;
 
 	percpu_down_read(&c->mark_lock);
 	g = bucket(ca, iter->pos.offset);
 	m = READ_ONCE(g->mark);
-
-	if (unlikely(!test_bit(BCH_FS_ALLOC_WRITTEN, &c->flags))) {
-		/*
-		 * During journal replay, and if gc repairs alloc info at
-		 * runtime, the alloc info in the btree might not be up to date
-		 * yet - so, trust the in memory mark:
-		 */
-		u		= alloc_mem_to_key(g, m);
-	} else {
-		u		= bch2_alloc_unpack(k);
-		u.read_time	= g->io_time[READ];
-		u.write_time	= g->io_time[WRITE];
-	}
+	u = alloc_mem_to_key(g, m);
 
 	percpu_up_read(&c->mark_lock);
 
@@ -1000,7 +975,9 @@ static int bch2_invalidate_buckets(struct bch_fs *c, struct bch_dev *ca)
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC,
 				   POS(ca->dev_idx, 0),
-				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+				   BTREE_ITER_CACHED|
+				   BTREE_ITER_CACHED_NOFILL|
+				   BTREE_ITER_INTENT);
 
 	/* Only use nowait if we've already invalidated at least one bucket: */
 	while (!ret &&

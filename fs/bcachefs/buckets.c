@@ -1455,13 +1455,11 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 
 /* trans_mark: */
 
-static int trans_get_key(struct btree_trans *trans,
-			 enum btree_id btree_id, struct bpos pos,
-			 struct btree_iter **iter,
-			 struct bkey_s_c *k)
+static struct btree_iter *trans_get_update(struct btree_trans *trans,
+			    enum btree_id btree_id, struct bpos pos,
+			    struct bkey_s_c *k)
 {
 	struct btree_insert_entry *i;
-	int ret;
 
 	trans_for_each_update(trans, i)
 		if (i->iter->btree_id == btree_id &&
@@ -1469,17 +1467,33 @@ static int trans_get_key(struct btree_trans *trans,
 		     ? bkey_cmp(pos, bkey_start_pos(&i->k->k)) >= 0 &&
 		       bkey_cmp(pos, i->k->k.p) < 0
 		     : !bkey_cmp(pos, i->iter->pos))) {
-			*iter	= i->iter;
-			*k	= bkey_i_to_s_c(i->k);
-			return 1;
+			*k = bkey_i_to_s_c(i->k);
+			return i->iter;
 		}
 
+	return NULL;
+}
+
+static int trans_get_key(struct btree_trans *trans,
+			 enum btree_id btree_id, struct bpos pos,
+			 struct btree_iter **iter,
+			 struct bkey_s_c *k)
+{
+	unsigned flags = btree_id != BTREE_ID_ALLOC
+		? BTREE_ITER_SLOTS
+		: BTREE_ITER_CACHED;
+	int ret;
+
+	*iter = trans_get_update(trans, btree_id, pos, k);
+	if (*iter)
+		return 1;
+
 	*iter = bch2_trans_get_iter(trans, btree_id, pos,
-				    BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+				    flags|BTREE_ITER_INTENT);
 	if (IS_ERR(*iter))
 		return PTR_ERR(*iter);
 
-	*k = bch2_btree_iter_peek_slot(*iter);
+	*k = __bch2_btree_iter_peek(*iter, flags);
 	ret = bkey_err(*k);
 	if (ret)
 		bch2_trans_iter_put(trans, *iter);
@@ -1492,45 +1506,34 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
+	struct bpos pos = POS(p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr));
 	struct btree_iter *iter;
 	struct bkey_s_c k_a;
 	struct bkey_alloc_unpacked u;
 	struct bkey_i_alloc *a;
 	struct bucket *g;
-	struct bucket_mark m;
 	int ret;
 
-	ret = trans_get_key(trans, BTREE_ID_ALLOC,
-			    POS(p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr)),
-			    &iter, &k_a);
-	if (ret < 0)
-		return ret;
-
-	percpu_down_read(&c->mark_lock);
-	g = bucket(ca, iter->pos.offset);
-	m = READ_ONCE(g->mark);
-
-	if (unlikely(!test_bit(BCH_FS_ALLOC_WRITTEN, &c->flags) && !ret)) {
-		/*
-		 * During journal replay, and if gc repairs alloc info at
-		 * runtime, the alloc info in the btree might not be up to date
-		 * yet - so, trust the in memory mark - unless we're already
-		 * updating that key:
-		 */
-		u		= alloc_mem_to_key(g, m);
+	iter = trans_get_update(trans, BTREE_ID_ALLOC, pos, &k_a);
+	if (iter) {
+		u = bch2_alloc_unpack(k_a);
 	} else {
-		u		= bch2_alloc_unpack(k_a);
-		u.read_time	= g->io_time[READ];
-		u.write_time	= g->io_time[WRITE];
+		iter = bch2_trans_get_iter(trans, BTREE_ID_ALLOC, pos,
+					   BTREE_ITER_CACHED|
+					   BTREE_ITER_CACHED_NOFILL|
+					   BTREE_ITER_INTENT);
+		if (IS_ERR(iter))
+			return PTR_ERR(iter);
+
+		ret = bch2_btree_iter_traverse(iter);
+		if (ret)
+			goto out;
+
+		percpu_down_read(&c->mark_lock);
+		g = bucket(ca, pos.offset);
+		u = alloc_mem_to_key(g, READ_ONCE(g->mark));
+		percpu_up_read(&c->mark_lock);
 	}
-
-	percpu_up_read(&c->mark_lock);
-
-	/*
-	 * Incrementing the bucket gen can be done lazily:
-	 */
-	if (gen_after(m.gen, u.gen) && !u.data_type)
-		u.gen = m.gen;
 
 	ret = __mark_pointer(c, k, p, sectors, data_type, u.gen, &u.data_type,
 			     &u.dirty_sectors, &u.cached_sectors);
@@ -1543,7 +1546,7 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 		goto out;
 
 	bkey_alloc_init(&a->k_i);
-	a->k.p = iter->pos;
+	a->k.p = pos;
 	bch2_alloc_pack(a, u);
 	bch2_trans_update(trans, iter, &a->k_i, 0);
 out:

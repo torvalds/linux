@@ -1389,6 +1389,31 @@ int bch2_dev_set_state(struct bch_fs *c, struct bch_dev *ca,
 
 /* Device add/removal: */
 
+int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
+{
+	struct btree_trans trans;
+	size_t i;
+	int ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	for (i = 0; i < ca->mi.nbuckets; i++) {
+		ret = bch2_btree_key_cache_flush(&trans,
+				BTREE_ID_ALLOC, POS(ca->dev_idx, i));
+		if (ret)
+			break;
+	}
+	bch2_trans_exit(&trans);
+
+	if (ret)
+		return ret;
+
+	return bch2_btree_delete_range(c, BTREE_ID_ALLOC,
+				       POS(ca->dev_idx, 0),
+				       POS(ca->dev_idx + 1, 0),
+				       NULL);
+}
+
 int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 {
 	struct bch_sb_field_members *mi;
@@ -1422,10 +1447,7 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 		goto err;
 	}
 
-	ret = bch2_btree_delete_range(c, BTREE_ID_ALLOC,
-				      POS(ca->dev_idx, 0),
-				      POS(ca->dev_idx + 1, 0),
-				      NULL);
+	ret = bch2_dev_remove_alloc(c, ca);
 	if (ret) {
 		bch_err(ca, "Remove failed, error deleting alloc info");
 		goto err;
