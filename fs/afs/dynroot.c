@@ -10,13 +10,6 @@
 #include <linux/dns_resolver.h>
 #include "internal.h"
 
-const struct file_operations afs_dynroot_file_operations = {
-	.open		= dcache_dir_open,
-	.release	= dcache_dir_close,
-	.iterate_shared	= dcache_readdir,
-	.llseek		= dcache_dir_lseek,
-};
-
 /*
  * Probe to see if a cell may exist.  This prevents positive dentries from
  * being created unnecessarily.

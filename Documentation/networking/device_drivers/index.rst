@@ -23,6 +23,7 @@ Contents:
    intel/ice
    google/gve
    mellanox/mlx5
+   netronome/nfp
    pensando/ionic
 
 .. only::  subproject and html

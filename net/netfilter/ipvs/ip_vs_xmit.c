@@ -613,7 +613,7 @@ static inline int ip_vs_tunnel_xmit_prepare(struct sk_buff *skb,
 	if (unlikely(cp->flags & IP_VS_CONN_F_NFCT))
 		ret = ip_vs_confirm_conntrack(skb);
 	if (ret == NF_ACCEPT) {
-		nf_reset(skb);
+		nf_reset_ct(skb);
 		skb_forward_csum(skb);
 	}
 	return ret;

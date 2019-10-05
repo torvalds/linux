@@ -1622,13 +1622,14 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
 	}
 
 	/* BB add setting the equivalent of mode via CreateX w/ACLs */
-	rc = server->ops->mkdir(xid, tcon, full_path, cifs_sb);
+	rc = server->ops->mkdir(xid, inode, mode, tcon, full_path, cifs_sb);
 	if (rc) {
 		cifs_dbg(FYI, "cifs_mkdir returned 0x%x\n", rc);
 		d_drop(direntry);
 		goto mkdir_out;
 	}
 
+	/* TODO: skip this for smb2/smb3 */
 	rc = cifs_mkdir_qinfo(inode, direntry, mode, full_path, cifs_sb, tcon,
 			      xid);
 mkdir_out:
