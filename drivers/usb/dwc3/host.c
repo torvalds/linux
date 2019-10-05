@@ -34,9 +34,6 @@ static int dwc3_host_get_irq(struct dwc3 *dwc)
 	if (irq > 0)
 		goto out;
 
-	if (irq != -EPROBE_DEFER)
-		dev_err(dwc->dev, "missing host IRQ\n");
-
 	if (!irq)
 		irq = -EINVAL;
 
