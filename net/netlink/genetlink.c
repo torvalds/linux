@@ -542,6 +542,7 @@ static int genl_lock_done(struct netlink_callback *cb)
 		rc = ops->done(cb);
 		genl_unlock();
 	}
+	genl_family_rcv_msg_attrs_free(info->family, info->attrs);
 	genl_dumpit_info_free(info);
 	return rc;
 }
@@ -554,6 +555,7 @@ static int genl_parallel_done(struct netlink_callback *cb)
 
 	if (ops->done)
 		rc = ops->done(cb);
+	genl_family_rcv_msg_attrs_free(info->family, info->attrs);
 	genl_dumpit_info_free(info);
 	return rc;
 }
@@ -566,35 +568,38 @@ static int genl_family_rcv_msg_dumpit(const struct genl_family *family,
 				      int hdrlen, struct net *net)
 {
 	struct genl_dumpit_info *info;
+	struct nlattr **attrs = NULL;
 	int err;
 
 	if (!ops->dumpit)
 		return -EOPNOTSUPP;
 
-	if (!(ops->validate & GENL_DONT_VALIDATE_DUMP)) {
-		if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
-			return -EINVAL;
+	if (ops->validate & GENL_DONT_VALIDATE_DUMP)
+		goto no_attrs;
 
-		if (family->maxattr) {
-			unsigned int validate = NL_VALIDATE_STRICT;
+	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
+		return -EINVAL;
 
-			if (ops->validate & GENL_DONT_VALIDATE_DUMP_STRICT)
-				validate = NL_VALIDATE_LIBERAL;
-			err = __nla_validate(nlmsg_attrdata(nlh, hdrlen),
-					     nlmsg_attrlen(nlh, hdrlen),
-					     family->maxattr, family->policy,
-					     validate, extack);
-			if (err)
-				return err;
-		}
-	}
+	if (!family->maxattr)
+		goto no_attrs;
 
+	attrs = genl_family_rcv_msg_attrs_parse(family, nlh, extack,
+						ops, hdrlen,
+						GENL_DONT_VALIDATE_DUMP_STRICT);
+	if (IS_ERR(attrs))
+		return PTR_ERR(attrs);
+
+no_attrs:
 	/* Allocate dumpit info. It is going to be freed by done() callback. */
 	info = genl_dumpit_info_alloc();
-	if (!info)
+	if (!info) {
+		genl_family_rcv_msg_attrs_free(family, attrs);
 		return -ENOMEM;
+	}
 
+	info->family = family;
 	info->ops = ops;
+	info->attrs = attrs;
 
 	if (!family->parallel_ops) {
 		struct netlink_dump_control c = {
