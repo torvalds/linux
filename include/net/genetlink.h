@@ -75,8 +75,6 @@ struct genl_family {
 	struct module		*module;
 };
 
-struct nlattr **genl_family_attrbuf(const struct genl_family *family);
-
 /**
  * struct genl_info - receiving information
  * @snd_seq: sending sequence number
