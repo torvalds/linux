@@ -944,7 +944,6 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 {
 	/* notify audio driver for audio modes of monitor */
 	struct dc *core_dc;
-	struct pp_smu_funcs *pp_smu = NULL;
 	struct clk_mgr *clk_mgr;
 	unsigned int i, num_audio = 1;
 
@@ -956,9 +955,6 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 
 	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == true)
 		return;
-
-	if (core_dc->res_pool->pp_smu)
-		pp_smu = core_dc->res_pool->pp_smu;
 
 	if (pipe_ctx->stream_res.audio) {
 		for (i = 0; i < MAX_PIPES; i++) {
@@ -984,7 +980,6 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc *dc;
-	struct pp_smu_funcs *pp_smu = NULL;
 	struct clk_mgr *clk_mgr;
 
 	if (!pipe_ctx || !pipe_ctx->stream)
@@ -1000,9 +995,6 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->stream_res.stream_enc, true);
 	if (pipe_ctx->stream_res.audio) {
 		pipe_ctx->stream_res.audio->enabled = false;
-
-		if (dc->res_pool->pp_smu)
-			pp_smu = dc->res_pool->pp_smu;
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_disable(
@@ -2464,16 +2456,12 @@ static void dce110_program_front_end_for_pipe(
 		struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct mem_input *mi = pipe_ctx->plane_res.mi;
-	struct pipe_ctx *old_pipe = NULL;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct xfm_grph_csc_adjustment adjust;
 	struct out_csc_color_matrix tbl_entry;
 	unsigned int i;
 	DC_LOGGER_INIT();
 	memset(&tbl_entry, 0, sizeof(tbl_entry));
-
-	if (dc->current_state)
-		old_pipe = &dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
 
 	memset(&adjust, 0, sizeof(adjust));
 	adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
