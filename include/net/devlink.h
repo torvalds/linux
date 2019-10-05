@@ -39,6 +39,7 @@ struct devlink {
 	possible_net_t _net;
 	struct mutex lock;
 	bool reload_failed;
+	bool registered;
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
@@ -772,6 +773,7 @@ static inline struct devlink *netdev_to_devlink(struct net_device *dev)
 struct ib_device;
 
 struct net *devlink_net(const struct devlink *devlink);
+void devlink_net_set(struct devlink *devlink, struct net *net);
 struct devlink *devlink_alloc(const struct devlink_ops *ops, size_t priv_size);
 int devlink_register(struct devlink *devlink, struct device *dev);
 void devlink_unregister(struct devlink *devlink);
