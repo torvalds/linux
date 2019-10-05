@@ -52,13 +52,14 @@ static int test_check_nonzero_user(char *kmem, char __user *umem, size_t size)
 	size_t zero_end = size - zero_start;
 
 	/*
-	 * We conduct a series of check_nonzero_user() tests on a block of memory
-	 * with the following byte-pattern (trying every possible [start,end]
-	 * pair):
+	 * We conduct a series of check_nonzero_user() tests on a block of
+	 * memory with the following byte-pattern (trying every possible
+	 * [start,end] pair):
 	 *
 	 *   [ 00 ff 00 ff ... 00 00 00 00 ... ff 00 ff 00 ]
 	 *
-	 * And we verify that check_nonzero_user() acts identically to memchr_inv().
+	 * And we verify that check_nonzero_user() acts identically to
+	 * memchr_inv().
 	 */
 
 	memset(kmem, 0x0, size);
@@ -93,11 +94,13 @@ static int test_copy_struct_from_user(char *kmem, char __user *umem,
 	size_t ksize, usize;
 
 	umem_src = kmalloc(size, GFP_KERNEL);
-	if ((ret |= test(umem_src == NULL, "kmalloc failed")))
+	ret = test(umem_src == NULL, "kmalloc failed");
+	if (ret)
 		goto out_free;
 
 	expected = kmalloc(size, GFP_KERNEL);
-	if ((ret |= test(expected == NULL, "kmalloc failed")))
+	ret = test(expected == NULL, "kmalloc failed");
+	if (ret)
 		goto out_free;
 
 	/* Fill umem with a fixed byte pattern. */
