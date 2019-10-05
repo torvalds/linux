@@ -899,6 +899,14 @@ static struct pcie_link_state *alloc_pcie_link_state(struct pci_dev *pdev)
 	return link;
 }
 
+static void pcie_aspm_update_sysfs_visibility(struct pci_dev *pdev)
+{
+	struct pci_dev *child;
+
+	list_for_each_entry(child, &pdev->subordinate->devices, bus_list)
+		sysfs_update_group(&child->dev.kobj, &aspm_ctrl_attr_group);
+}
+
 /*
  * pcie_aspm_init_link_state: Initiate PCI express link state.
  * It is called after the pcie and its children devices are scanned.
@@ -959,6 +967,8 @@ void pcie_aspm_init_link_state(struct pci_dev *pdev)
 		pcie_config_aspm_path(link);
 		pcie_set_clkpm(link, policy_to_clkpm_state(link));
 	}
+
+	pcie_aspm_update_sysfs_visibility(pdev);
 
 unlock:
 	mutex_unlock(&aspm_lock);
@@ -1312,6 +1322,145 @@ void pcie_aspm_remove_sysfs_dev_files(struct pci_dev *pdev)
 			&dev_attr_clk_ctl.attr, power_group);
 }
 #endif
+
+static ssize_t aspm_attr_show_common(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf, u8 state)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pcie_link_state *link = pcie_aspm_get_link(pdev);
+
+	return sprintf(buf, "%d\n", (link->aspm_enabled & state) ? 1 : 0);
+}
+
+static ssize_t aspm_attr_store_common(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t len, u8 state)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pcie_link_state *link = pcie_aspm_get_link(pdev);
+	bool state_enable;
+
+	if (strtobool(buf, &state_enable) < 0)
+		return -EINVAL;
+
+	down_read(&pci_bus_sem);
+	mutex_lock(&aspm_lock);
+
+	if (state_enable) {
+		link->aspm_disable &= ~state;
+		/* need to enable L1 for substates */
+		if (state & ASPM_STATE_L1SS)
+			link->aspm_disable &= ~ASPM_STATE_L1;
+	} else {
+		link->aspm_disable |= state;
+	}
+
+	pcie_config_aspm_link(link, policy_to_aspm_state(link));
+
+	mutex_unlock(&aspm_lock);
+	up_read(&pci_bus_sem);
+
+	return len;
+}
+
+#define ASPM_ATTR(_f, _s)						\
+static ssize_t _f##_show(struct device *dev,				\
+			 struct device_attribute *attr, char *buf)	\
+{ return aspm_attr_show_common(dev, attr, buf, ASPM_STATE_##_s); }	\
+									\
+static ssize_t _f##_store(struct device *dev,				\
+			  struct device_attribute *attr,		\
+			  const char *buf, size_t len)			\
+{ return aspm_attr_store_common(dev, attr, buf, len, ASPM_STATE_##_s); }
+
+ASPM_ATTR(l0s_aspm, L0S)
+ASPM_ATTR(l1_aspm, L1)
+ASPM_ATTR(l1_1_aspm, L1_1)
+ASPM_ATTR(l1_2_aspm, L1_2)
+ASPM_ATTR(l1_1_pcipm, L1_1_PCIPM)
+ASPM_ATTR(l1_2_pcipm, L1_2_PCIPM)
+
+static ssize_t clkpm_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pcie_link_state *link = pcie_aspm_get_link(pdev);
+
+	return sprintf(buf, "%d\n", link->clkpm_enabled);
+}
+
+static ssize_t clkpm_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t len)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pcie_link_state *link = pcie_aspm_get_link(pdev);
+	bool state_enable;
+
+	if (strtobool(buf, &state_enable) < 0)
+		return -EINVAL;
+
+	down_read(&pci_bus_sem);
+	mutex_lock(&aspm_lock);
+
+	link->clkpm_disable = !state_enable;
+	pcie_set_clkpm(link, policy_to_clkpm_state(link));
+
+	mutex_unlock(&aspm_lock);
+	up_read(&pci_bus_sem);
+
+	return len;
+}
+
+static DEVICE_ATTR_RW(clkpm);
+static DEVICE_ATTR_RW(l0s_aspm);
+static DEVICE_ATTR_RW(l1_aspm);
+static DEVICE_ATTR_RW(l1_1_aspm);
+static DEVICE_ATTR_RW(l1_2_aspm);
+static DEVICE_ATTR_RW(l1_1_pcipm);
+static DEVICE_ATTR_RW(l1_2_pcipm);
+
+static struct attribute *aspm_ctrl_attrs[] = {
+	&dev_attr_clkpm.attr,
+	&dev_attr_l0s_aspm.attr,
+	&dev_attr_l1_aspm.attr,
+	&dev_attr_l1_1_aspm.attr,
+	&dev_attr_l1_2_aspm.attr,
+	&dev_attr_l1_1_pcipm.attr,
+	&dev_attr_l1_2_pcipm.attr,
+	NULL
+};
+
+static umode_t aspm_ctrl_attrs_are_visible(struct kobject *kobj,
+					   struct attribute *a, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pcie_link_state *link = pcie_aspm_get_link(pdev);
+	static const u8 aspm_state_map[] = {
+		ASPM_STATE_L0S,
+		ASPM_STATE_L1,
+		ASPM_STATE_L1_1,
+		ASPM_STATE_L1_2,
+		ASPM_STATE_L1_1_PCIPM,
+		ASPM_STATE_L1_2_PCIPM,
+	};
+
+	if (aspm_disabled || !link)
+		return 0;
+
+	if (n == 0)
+		return link->clkpm_capable ? a->mode : 0;
+
+	return link->aspm_capable & aspm_state_map[n - 1] ? a->mode : 0;
+}
+
+const struct attribute_group aspm_ctrl_attr_group = {
+	.name = "link",
+	.attrs = aspm_ctrl_attrs,
+	.is_visible = aspm_ctrl_attrs_are_visible,
+};
 
 static int __init pcie_aspm_disable(char *str)
 {

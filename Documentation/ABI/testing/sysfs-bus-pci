@@ -347,3 +347,16 @@ Description:
 		If the device has any Peer-to-Peer memory registered, this
 	        file contains a '1' if the memory has been published for
 		use outside the driver that owns the device.
+
+What:		/sys/bus/pci/devices/.../link/clkpm
+		/sys/bus/pci/devices/.../link/l0s_aspm
+		/sys/bus/pci/devices/.../link/l1_aspm
+		/sys/bus/pci/devices/.../link/l1_1_aspm
+		/sys/bus/pci/devices/.../link/l1_2_aspm
+		/sys/bus/pci/devices/.../link/l1_1_pcipm
+		/sys/bus/pci/devices/.../link/l1_2_pcipm
+Date:		October 2019
+Contact:	Heiner Kallweit <hkallweit1@gmail.com>
+Description:	If ASPM is supported for an endpoint, these files can be
+		used to disable or enable the individual power management
+		states. Write y/1/on to enable, n/0/off to disable.

@@ -667,4 +667,8 @@ static inline int pci_acpi_program_hp_params(struct pci_dev *dev)
 }
 #endif
 
+#ifdef CONFIG_PCIEASPM
+extern const struct attribute_group aspm_ctrl_attr_group;
+#endif
+
 #endif /* DRIVERS_PCI_H */
