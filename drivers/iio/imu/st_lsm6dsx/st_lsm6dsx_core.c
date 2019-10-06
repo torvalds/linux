@@ -62,10 +62,6 @@
 #include "st_lsm6dsx.h"
 
 #define ST_LSM6DSX_REG_WHOAMI_ADDR		0x0f
-#define ST_LSM6DSX_REG_RESET_MASK		BIT(0)
-#define ST_LSM6DSX_REG_BOOT_MASK		BIT(7)
-#define ST_LSM6DSX_REG_BDU_ADDR			0x12
-#define ST_LSM6DSX_REG_BDU_MASK			BIT(6)
 
 static const struct iio_chan_spec st_lsm6dsx_acc_channels[] = {
 	ST_LSM6DSX_CHANNEL_ACC(IIO_ACCEL, 0x28, IIO_MOD_X, 0),
@@ -91,7 +87,18 @@ static const struct iio_chan_spec st_lsm6ds0_gyro_channels[] = {
 static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 	{
 		.wai = 0x68,
-		.reset_addr = 0x22,
+		.reset = {
+			.addr = 0x22,
+			.mask = BIT(0),
+		},
+		.boot = {
+			.addr = 0x22,
+			.mask = BIT(7),
+		},
+		.bdu = {
+			.addr = 0x22,
+			.mask = BIT(6),
+		},
 		.max_fifo_size = 32,
 		.id = {
 			{
@@ -179,7 +186,18 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 	},
 	{
 		.wai = 0x69,
-		.reset_addr = 0x12,
+		.reset = {
+			.addr = 0x12,
+			.mask = BIT(0),
+		},
+		.boot = {
+			.addr = 0x12,
+			.mask = BIT(7),
+		},
+		.bdu = {
+			.addr = 0x12,
+			.mask = BIT(6),
+		},
 		.max_fifo_size = 1365,
 		.id = {
 			{
@@ -332,7 +350,18 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 	},
 	{
 		.wai = 0x69,
-		.reset_addr = 0x12,
+		.reset = {
+			.addr = 0x12,
+			.mask = BIT(0),
+		},
+		.boot = {
+			.addr = 0x12,
+			.mask = BIT(7),
+		},
+		.bdu = {
+			.addr = 0x12,
+			.mask = BIT(6),
+		},
 		.max_fifo_size = 682,
 		.id = {
 			{
@@ -485,7 +514,18 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 	},
 	{
 		.wai = 0x6a,
-		.reset_addr = 0x12,
+		.reset = {
+			.addr = 0x12,
+			.mask = BIT(0),
+		},
+		.boot = {
+			.addr = 0x12,
+			.mask = BIT(7),
+		},
+		.bdu = {
+			.addr = 0x12,
+			.mask = BIT(6),
+		},
 		.max_fifo_size = 682,
 		.id = {
 			{
@@ -651,7 +691,18 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 	},
 	{
 		.wai = 0x6c,
-		.reset_addr = 0x12,
+		.reset = {
+			.addr = 0x12,
+			.mask = BIT(0),
+		},
+		.boot = {
+			.addr = 0x12,
+			.mask = BIT(7),
+		},
+		.bdu = {
+			.addr = 0x12,
+			.mask = BIT(6),
+		},
 		.max_fifo_size = 512,
 		.id = {
 			{
@@ -810,7 +861,18 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 	},
 	{
 		.wai = 0x6b,
-		.reset_addr = 0x12,
+		.reset = {
+			.addr = 0x12,
+			.mask = BIT(0),
+		},
+		.boot = {
+			.addr = 0x12,
+			.mask = BIT(7),
+		},
+		.bdu = {
+			.addr = 0x12,
+			.mask = BIT(6),
+		},
 		.max_fifo_size = 512,
 		.id = {
 			{
@@ -963,7 +1025,18 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 	},
 	{
 		.wai = 0x6b,
-		.reset_addr = 0x12,
+		.reset = {
+			.addr = 0x12,
+			.mask = BIT(0),
+		},
+		.boot = {
+			.addr = 0x12,
+			.mask = BIT(7),
+		},
+		.bdu = {
+			.addr = 0x12,
+			.mask = BIT(6),
+		},
 		.max_fifo_size = 512,
 		.id = {
 			{
@@ -1788,27 +1861,27 @@ static int st_lsm6dsx_init_device(struct st_lsm6dsx_hw *hw)
 	int err;
 
 	/* device sw reset */
-	err = regmap_update_bits(hw->regmap, hw->settings->reset_addr,
-				 ST_LSM6DSX_REG_RESET_MASK,
-				 FIELD_PREP(ST_LSM6DSX_REG_RESET_MASK, 1));
+	reg = &hw->settings->reset;
+	err = regmap_update_bits(hw->regmap, reg->addr, reg->mask,
+				 ST_LSM6DSX_SHIFT_VAL(1, reg->mask));
 	if (err < 0)
 		return err;
 
 	msleep(50);
 
 	/* reload trimming parameter */
-	err = regmap_update_bits(hw->regmap, hw->settings->reset_addr,
-				 ST_LSM6DSX_REG_BOOT_MASK,
-				 FIELD_PREP(ST_LSM6DSX_REG_BOOT_MASK, 1));
+	reg = &hw->settings->boot;
+	err = regmap_update_bits(hw->regmap, reg->addr, reg->mask,
+				 ST_LSM6DSX_SHIFT_VAL(1, reg->mask));
 	if (err < 0)
 		return err;
 
 	msleep(50);
 
 	/* enable Block Data Update */
-	err = regmap_update_bits(hw->regmap, ST_LSM6DSX_REG_BDU_ADDR,
-				 ST_LSM6DSX_REG_BDU_MASK,
-				 FIELD_PREP(ST_LSM6DSX_REG_BDU_MASK, 1));
+	reg = &hw->settings->bdu;
+	err = regmap_update_bits(hw->regmap, reg->addr, reg->mask,
+				 ST_LSM6DSX_SHIFT_VAL(1, reg->mask));
 	if (err < 0)
 		return err;
 

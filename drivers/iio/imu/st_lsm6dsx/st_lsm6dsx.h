@@ -238,7 +238,9 @@ struct st_lsm6dsx_ext_dev_settings {
 /**
  * struct st_lsm6dsx_settings - ST IMU sensor settings
  * @wai: Sensor WhoAmI default value.
- * @reset_addr: register address for reset/reboot
+ * @reset: register address for reset.
+ * @boot: register address for boot.
+ * @bdu: register address for Block Data Update.
  * @max_fifo_size: Sensor max fifo length in FIFO words.
  * @id: List of hw id/device name supported by the driver configuration.
  * @channels: IIO channels supported by the device.
@@ -253,7 +255,9 @@ struct st_lsm6dsx_ext_dev_settings {
  */
 struct st_lsm6dsx_settings {
 	u8 wai;
-	u8 reset_addr;
+	struct st_lsm6dsx_reg reset;
+	struct st_lsm6dsx_reg boot;
+	struct st_lsm6dsx_reg bdu;
 	u16 max_fifo_size;
 	struct {
 		enum st_lsm6dsx_hw_id hw_id;
