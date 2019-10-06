@@ -31,7 +31,6 @@
 #include "vega10_enum.h"
 
 #include "soc15_common.h"
-#include "amdgpu_ras.h"
 
 #define mmDAGB0_CNTL_MISC2_RV 0x008f
 #define mmDAGB0_CNTL_MISC2_RV_BASE_IDX 0
