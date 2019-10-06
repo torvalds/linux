@@ -93,35 +93,28 @@ struct ti_eqep_cnt {
 };
 
 static int ti_eqep_count_read(struct counter_device *counter,
-			      struct counter_count *count,
-			      struct counter_count_read_value *val)
+			      struct counter_count *count, unsigned long *val)
 {
 	struct ti_eqep_cnt *priv = counter->priv;
 	u32 cnt;
 
 	regmap_read(priv->regmap32, QPOSCNT, &cnt);
-	counter_count_read_value_set(val, COUNTER_COUNT_POSITION, &cnt);
+	*val = cnt;
 
 	return 0;
 }
 
 static int ti_eqep_count_write(struct counter_device *counter,
-			       struct counter_count *count,
-			       struct counter_count_write_value *val)
+			       struct counter_count *count, unsigned long val)
 {
 	struct ti_eqep_cnt *priv = counter->priv;
-	u32 cnt, max;
-	int err;
-
-	err = counter_count_write_value_get(&cnt, COUNTER_COUNT_POSITION, val);
-	if (err)
-		return err;
+	u32 max;
 
 	regmap_read(priv->regmap32, QPOSMAX, &max);
-	if (cnt > max)
+	if (val > max)
 		return -EINVAL;
 
-	return regmap_write(priv->regmap32, QPOSCNT, cnt);
+	return regmap_write(priv->regmap32, QPOSCNT, val);
 }
 
 static int ti_eqep_function_get(struct counter_device *counter,
