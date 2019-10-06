@@ -734,14 +734,8 @@ static void ena_get_channels(struct net_device *netdev,
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
-	channels->max_rx = adapter->num_io_queues;
-	channels->max_tx = adapter->num_io_queues;
-	channels->max_other = 0;
-	channels->max_combined = 0;
-	channels->rx_count = adapter->num_io_queues;
-	channels->tx_count = adapter->num_io_queues;
-	channels->other_count = 0;
-	channels->combined_count = 0;
+	channels->max_combined = adapter->num_io_queues;
+	channels->combined_count = adapter->num_io_queues;
 }
 
 static int ena_get_tunable(struct net_device *netdev,
