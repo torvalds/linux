@@ -65,7 +65,7 @@ static int idi_48_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(chip);
 	unsigned i;
-	const unsigned register_offset[6] = { 0, 1, 2, 4, 5, 6 };
+	static const unsigned int register_offset[6] = { 0, 1, 2, 4, 5, 6 };
 	unsigned base_offset;
 	unsigned mask;
 
