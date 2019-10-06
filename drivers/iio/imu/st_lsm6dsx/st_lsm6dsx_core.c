@@ -1825,6 +1825,9 @@ static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 
 	event = st_lsm6dsx_report_motion_event(hw);
 
+	if (!hw->settings->fifo_ops.read_fifo)
+		return event ? IRQ_HANDLED : IRQ_NONE;
+
 	mutex_lock(&hw->fifo_lock);
 	count = hw->settings->fifo_ops.read_fifo(hw);
 	mutex_unlock(&hw->fifo_lock);
