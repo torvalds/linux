@@ -2,8 +2,8 @@
 VERSION = 5
 PATCHLEVEL = 4
 SUBLEVEL = 0
-EXTRAVERSION = -rc1
-NAME = Bobtail Squid
+EXTRAVERSION = -rc2
+NAME = Nesting Opossum
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
