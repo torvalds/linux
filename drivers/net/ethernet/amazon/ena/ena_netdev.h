@@ -324,7 +324,7 @@ struct ena_adapter {
 	u32 rx_copybreak;
 	u32 max_mtu;
 
-	int num_queues;
+	int num_io_queues;
 
 	int msix_vecs;
 
