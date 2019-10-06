@@ -30,6 +30,7 @@
  * SOFTWARE.
  *
  */
+#include <linux/dmapool.h>
 #include <linux/kernel.h>
 #include <linux/in.h>
 #include <linux/slab.h>
