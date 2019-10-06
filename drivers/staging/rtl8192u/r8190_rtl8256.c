@@ -43,8 +43,8 @@ void phy_set_rf8256_bandwidth(struct net_device *dev, enum ht_channel_width Band
 		switch (Bandwidth) {
 		case HT_CHANNEL_WIDTH_20:
 				if (priv->card_8192_version == VERSION_819XU_A ||
-					priv->card_8192_version ==
-					VERSION_819XU_B) { /* 8256 D-cut, E-cut, xiong: consider it later! */
+				    priv->card_8192_version == VERSION_819XU_B) {
+					/* 8256 D-cut, E-cut, xiong: consider it later! */
 					rtl8192_phy_SetRFReg(dev,
 						(enum rf90_radio_path_e)eRFPath,
 						0x0b, bMask12Bits, 0x100); /* phy para:1ba */
