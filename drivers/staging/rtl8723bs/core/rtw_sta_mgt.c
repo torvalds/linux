@@ -187,7 +187,6 @@ u32 _rtw_free_sta_priv(struct	sta_priv *pstapriv)
 /* struct	sta_info *rtw_alloc_stainfo(_queue *pfree_sta_queue, unsigned char *hwaddr) */
 struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr)
 {
-	uint tmp_aid;
 	s32	index;
 	struct list_head	*phash_list;
 	struct sta_info *psta;
@@ -210,8 +209,6 @@ struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr)
 		list_del_init(&(psta->list));
 
 		/* spin_unlock_bh(&(pfree_sta_queue->lock)); */
-
-		tmp_aid = psta->aid;
 
 		_rtw_init_stainfo(psta);
 
