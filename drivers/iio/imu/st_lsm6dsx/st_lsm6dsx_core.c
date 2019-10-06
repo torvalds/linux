@@ -1767,10 +1767,23 @@ static struct iio_dev *st_lsm6dsx_alloc_iiodev(struct st_lsm6dsx_hw *hw,
 	return iio_dev;
 }
 
-static void st_lsm6dsx_report_motion_event(struct st_lsm6dsx_hw *hw, int data)
+static bool
+st_lsm6dsx_report_motion_event(struct st_lsm6dsx_hw *hw)
 {
-	s64 timestamp = iio_get_time_ns(hw->iio_devs[ST_LSM6DSX_ID_ACC]);
+	const struct st_lsm6dsx_event_settings *event_settings;
+	int err, data;
+	s64 timestamp;
 
+	if (!hw->enable_event)
+		return false;
+
+	event_settings = &hw->settings->event_settings;
+	err = st_lsm6dsx_read_locked(hw, event_settings->wakeup_src_reg,
+				     &data, sizeof(data));
+	if (err < 0)
+		return false;
+
+	timestamp = iio_get_time_ns(hw->iio_devs[ST_LSM6DSX_ID_ACC]);
 	if ((data & hw->settings->event_settings.wakeup_src_z_mask) &&
 	    (hw->enable_event & BIT(IIO_MOD_Z)))
 		iio_push_event(hw->iio_devs[ST_LSM6DSX_ID_ACC],
@@ -1800,30 +1813,23 @@ static void st_lsm6dsx_report_motion_event(struct st_lsm6dsx_hw *hw, int data)
 						  IIO_EV_TYPE_THRESH,
 						  IIO_EV_DIR_EITHER),
 						  timestamp);
+
+	return data & event_settings->wakeup_src_status_mask;
 }
 
 static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 {
 	struct st_lsm6dsx_hw *hw = private;
+	bool event;
 	int count;
-	int data, err;
 
-	if (hw->enable_event) {
-		err = regmap_read(hw->regmap,
-				  hw->settings->event_settings.wakeup_src_reg,
-				  &data);
-		if (err < 0)
-			return IRQ_NONE;
-
-		if (data & hw->settings->event_settings.wakeup_src_status_mask)
-			st_lsm6dsx_report_motion_event(hw, data);
-	}
+	event = st_lsm6dsx_report_motion_event(hw);
 
 	mutex_lock(&hw->fifo_lock);
 	count = hw->settings->fifo_ops.read_fifo(hw);
 	mutex_unlock(&hw->fifo_lock);
 
-	return count ? IRQ_HANDLED : IRQ_NONE;
+	return count || event ? IRQ_HANDLED : IRQ_NONE;
 }
 
 static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
