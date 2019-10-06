@@ -369,7 +369,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	preempt_disable();
 	tsk->thread.sp0 += 16;
 
-	if (static_cpu_has(X86_FEATURE_SEP)) {
+	if (boot_cpu_has(X86_FEATURE_SEP)) {
 		tsk->thread.sysenter_cs = 0;
 		refresh_sysenter_cs(&tsk->thread);
 	}
@@ -583,7 +583,7 @@ int handle_vm86_trap(struct kernel_vm86_regs *regs, long error_code, int trapno)
 		return 1; /* we let this handle by the calling routine */
 	current->thread.trap_nr = trapno;
 	current->thread.error_code = error_code;
-	force_sig(SIGTRAP, current);
+	force_sig(SIGTRAP);
 	return 0;
 }
 

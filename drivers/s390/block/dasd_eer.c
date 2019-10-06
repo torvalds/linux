@@ -386,6 +386,7 @@ void dasd_eer_write(struct dasd_device *device, struct dasd_ccw_req *cqr,
 		dasd_eer_write_standard_trigger(device, cqr, id);
 		break;
 	case DASD_EER_NOPATH:
+	case DASD_EER_NOSPC:
 		dasd_eer_write_standard_trigger(device, NULL, id);
 		break;
 	case DASD_EER_STATECHANGE:

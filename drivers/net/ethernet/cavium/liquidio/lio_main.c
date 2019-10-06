@@ -21,7 +21,6 @@
 #include <linux/firmware.h>
 #include <net/vxlan.h>
 #include <linux/kthread.h>
-#include <net/switchdev.h>
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
@@ -1193,6 +1192,11 @@ static void send_rx_ctrl_cmd(struct lio *lio, int start_stop)
 	sc = (struct octeon_soft_command *)
 		octeon_alloc_soft_command(oct, OCTNET_CMD_SIZE,
 					  16, 0);
+	if (!sc) {
+		netif_info(lio, rx_err, lio->netdev,
+			   "Failed to allocate octeon_soft_command\n");
+		return;
+	}
 
 	ncmd = (union octnet_cmd *)sc->virtdptr;
 
@@ -1488,11 +1492,11 @@ static void free_netsgbuf(void *buf)
 
 	i = 1;
 	while (frags--) {
-		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i - 1];
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];
 
 		pci_unmap_page((lio->oct_dev)->pci_dev,
 			       g->sg[(i >> 2)].ptr[(i & 3)],
-			       frag->size, DMA_TO_DEVICE);
+			       skb_frag_size(frag), DMA_TO_DEVICE);
 		i++;
 	}
 
@@ -1531,11 +1535,11 @@ static void free_netsgbuf_with_resp(void *buf)
 
 	i = 1;
 	while (frags--) {
-		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i - 1];
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];
 
 		pci_unmap_page((lio->oct_dev)->pci_dev,
 			       g->sg[(i >> 2)].ptr[(i & 3)],
-			       frag->size, DMA_TO_DEVICE);
+			       skb_frag_size(frag), DMA_TO_DEVICE);
 		i++;
 	}
 
@@ -2420,7 +2424,7 @@ static netdev_tx_t liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	} else {
 		int i, frags;
-		struct skb_frag_struct *frag;
+		skb_frag_t *frag;
 		struct octnic_gather *g;
 
 		spin_lock(&lio->glist_lock[q_idx]);
@@ -2458,11 +2462,9 @@ static netdev_tx_t liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 			frag = &skb_shinfo(skb)->frags[i - 1];
 
 			g->sg[(i >> 2)].ptr[(i & 3)] =
-				dma_map_page(&oct->pci_dev->dev,
-					     frag->page.p,
-					     frag->page_offset,
-					     frag->size,
-					     DMA_TO_DEVICE);
+				skb_frag_dma_map(&oct->pci_dev->dev,
+					         frag, 0, skb_frag_size(frag),
+						 DMA_TO_DEVICE);
 
 			if (dma_mapping_error(&oct->pci_dev->dev,
 					      g->sg[i >> 2].ptr[i & 3])) {
@@ -2474,7 +2476,7 @@ static netdev_tx_t liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 					frag = &skb_shinfo(skb)->frags[j - 1];
 					dma_unmap_page(&oct->pci_dev->dev,
 						       g->sg[j >> 2].ptr[j & 3],
-						       frag->size,
+						       skb_frag_size(frag),
 						       DMA_TO_DEVICE);
 				}
 				dev_err(&oct->pci_dev->dev, "%s DMA mapping error 3\n",
@@ -2482,7 +2484,8 @@ static netdev_tx_t liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 				return NETDEV_TX_BUSY;
 			}
 
-			add_sg_size(&g->sg[(i >> 2)], frag->size, (i & 3));
+			add_sg_size(&g->sg[(i >> 2)], skb_frag_size(frag),
+				    (i & 3));
 			i++;
 		}
 
@@ -2518,7 +2521,7 @@ static netdev_tx_t liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		irh->vlan = skb_vlan_tag_get(skb) & 0xfff;
 	}
 
-	xmit_more = skb->xmit_more;
+	xmit_more = netdev_xmit_more();
 
 	if (unlikely(cmdsetup.s.timestamp))
 		status = send_nic_timestamp_pkt(oct, &ndata, finfo, xmit_more);
@@ -2908,7 +2911,7 @@ static int liquidio_set_vf_spoofchk(struct net_device *netdev, int vfidx,
 	nctrl.ncmd.s.param2 = enable;
 	nctrl.ncmd.s.more = 0;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.cb_fn = 0;
+	nctrl.cb_fn = NULL;
 
 	retval = octnet_send_nic_ctrl_pkt(oct, &nctrl);
 
@@ -3184,7 +3187,8 @@ static const struct devlink_ops liquidio_devlink_ops = {
 };
 
 static int
-lio_pf_switchdev_attr_get(struct net_device *dev, struct switchdev_attr *attr)
+liquidio_get_port_parent_id(struct net_device *dev,
+			    struct netdev_phys_item_id *ppid)
 {
 	struct lio *lio = GET_LIO(dev);
 	struct octeon_device *oct = lio->oct_dev;
@@ -3192,23 +3196,11 @@ lio_pf_switchdev_attr_get(struct net_device *dev, struct switchdev_attr *attr)
 	if (oct->eswitch_mode != DEVLINK_ESWITCH_MODE_SWITCHDEV)
 		return -EOPNOTSUPP;
 
-	switch (attr->id) {
-	case SWITCHDEV_ATTR_ID_PORT_PARENT_ID:
-		attr->u.ppid.id_len = ETH_ALEN;
-		ether_addr_copy(attr->u.ppid.id,
-				(void *)&lio->linfo.hw_addr + 2);
-		break;
-
-	default:
-		return -EOPNOTSUPP;
-	}
+	ppid->id_len = ETH_ALEN;
+	ether_addr_copy(ppid->id, (void *)&lio->linfo.hw_addr + 2);
 
 	return 0;
 }
-
-static const struct switchdev_ops lio_pf_switchdev_ops = {
-	.switchdev_port_attr_get = lio_pf_switchdev_attr_get,
-};
 
 static int liquidio_get_vf_stats(struct net_device *netdev, int vfidx,
 				 struct ifla_vf_stats *vf_stats)
@@ -3259,6 +3251,7 @@ static const struct net_device_ops lionetdevops = {
 	.ndo_set_vf_trust	= liquidio_set_vf_trust,
 	.ndo_set_vf_link_state  = liquidio_set_vf_link_state,
 	.ndo_get_vf_stats	= liquidio_get_vf_stats,
+	.ndo_get_port_parent_id	= liquidio_get_port_parent_id,
 };
 
 /** \brief Entry point for the liquidio module
@@ -3534,7 +3527,6 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		 * netdev tasks.
 		 */
 		netdev->netdev_ops = &lionetdevops;
-		SWITCHDEV_SET_OPS(netdev, &lio_pf_switchdev_ops);
 
 		retval = netif_set_real_num_rx_queues(netdev, num_oqueues);
 		if (retval) {

@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the TAOS evaluation modules
  * These devices include an I2C master which can be controlled over the
  * serial port.
  *
  * Copyright (C) 2007 Jean Delvare <jdelvare@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -47,7 +39,7 @@ struct taos_data {
 };
 
 /* TAOS TSL2550 EVM */
-static struct i2c_board_info tsl2550_info = {
+static const struct i2c_board_info tsl2550_info = {
 	I2C_BOARD_INFO("tsl2550", 0x39),
 };
 
@@ -133,7 +125,7 @@ static int taos_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 			/*
 			 * Voluntarily dropping error code of kstrtou8 since all
 			 * error code that it could return are invalid according
-			 * to Documentation/i2c/fault-codes.
+			 * to Documentation/i2c/fault-codes.rst.
 			 */
 			if (kstrtou8(p + 1, 16, &data->byte))
 				return -EPROTO;

@@ -51,10 +51,6 @@
 
 #define NUM_ELEMENTS(a) (sizeof(a) / sizeof((a)[0]))
 
-struct dcn10_input_csc_matrix {
-	enum dc_color_space color_space;
-	uint16_t regval[12];
-};
 
 enum dcn10_coef_filter_type_sel {
 	SCL_COEF_LUMA_VERT_FILTER = 0,
@@ -92,14 +88,7 @@ enum dscl_mode_sel {
 	DSCL_MODE_DSCL_BYPASS = 6
 };
 
-enum gamut_remap_select {
-	GAMUT_REMAP_BYPASS = 0,
-	GAMUT_REMAP_COEFF,
-	GAMUT_REMAP_COMA_COEFF,
-	GAMUT_REMAP_COMB_COEFF
-};
-
-static const struct dcn10_input_csc_matrix dcn10_input_csc_matrix[] = {
+static const struct dpp_input_csc_matrix dpp_input_csc_matrix[] = {
 	{COLOR_SPACE_SRGB,
 		{0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },
 	{COLOR_SPACE_SRGB_LIMITED,
@@ -454,7 +443,7 @@ void dpp1_program_input_csc(
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	int i;
-	int arr_size = sizeof(dcn10_input_csc_matrix)/sizeof(struct dcn10_input_csc_matrix);
+	int arr_size = sizeof(dpp_input_csc_matrix)/sizeof(struct dpp_input_csc_matrix);
 	const uint16_t *regval = NULL;
 	uint32_t cur_select = 0;
 	enum dcn10_input_csc_select select;
@@ -467,8 +456,8 @@ void dpp1_program_input_csc(
 
 	if (tbl_entry == NULL) {
 		for (i = 0; i < arr_size; i++)
-			if (dcn10_input_csc_matrix[i].color_space == color_space) {
-				regval = dcn10_input_csc_matrix[i].regval;
+			if (dpp_input_csc_matrix[i].color_space == color_space) {
+				regval = dpp_input_csc_matrix[i].regval;
 				break;
 			}
 
@@ -742,6 +731,10 @@ void dpp1_full_bypass(struct dpp *dpp_base)
 	/* COLOR_KEYER_CONTROL.COLOR_KEYER_EN = 0 this should be default */
 	if (dpp->tf_mask->CM_BYPASS_EN)
 		REG_SET(CM_CONTROL, 0, CM_BYPASS_EN, 1);
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	else
+		REG_SET(CM_CONTROL, 0, CM_BYPASS, 1);
+#endif
 
 	/* Setting degamma bypass for now */
 	REG_SET(CM_DGAM_CONTROL, 0, CM_DGAM_LUT_MODE, 0);

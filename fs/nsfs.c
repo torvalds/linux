@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/mount.h>
+#include <linux/pseudo_fs.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/proc_ns.h>
@@ -85,13 +86,12 @@ slow:
 	inode->i_fop = &ns_file_operations;
 	inode->i_private = ns;
 
-	dentry = d_alloc_pseudo(mnt->mnt_sb, &empty_name);
+	dentry = d_alloc_anon(mnt->mnt_sb);
 	if (!dentry) {
 		iput(inode);
 		return ERR_PTR(-ENOMEM);
 	}
 	d_instantiate(dentry, inode);
-	dentry->d_flags |= DCACHE_RCUACCESS;
 	dentry->d_fsdata = (void *)ns->ops;
 	d = atomic_long_cmpxchg(&ns->stashed, 0, (unsigned long)dentry);
 	if (d) {
@@ -106,17 +106,16 @@ slow:
 void *ns_get_path_cb(struct path *path, ns_get_path_helper_t *ns_get_cb,
 		     void *private_data)
 {
-	struct ns_common *ns;
 	void *ret;
 
-again:
-	ns = ns_get_cb(private_data);
-	if (!ns)
-		return ERR_PTR(-ENOENT);
+	do {
+		struct ns_common *ns = ns_get_cb(private_data);
+		if (!ns)
+			return ERR_PTR(-ENOENT);
 
-	ret = __ns_get_path(path, ns);
-	if (IS_ERR(ret) && PTR_ERR(ret) == -EAGAIN)
-		goto again;
+		ret = __ns_get_path(path, ns);
+	} while (ret == ERR_PTR(-EAGAIN));
+
 	return ret;
 }
 
@@ -155,7 +154,7 @@ int open_related_ns(struct ns_common *ns,
 	if (fd < 0)
 		return fd;
 
-	while (1) {
+	do {
 		struct ns_common *relative;
 
 		relative = get_ns(ns);
@@ -165,10 +164,8 @@ int open_related_ns(struct ns_common *ns,
 		}
 
 		err = __ns_get_path(&path, relative);
-		if (IS_ERR(err) && PTR_ERR(err) == -EAGAIN)
-			continue;
-		break;
-	}
+	} while (err == ERR_PTR(-EAGAIN));
+
 	if (IS_ERR(err)) {
 		put_unused_fd(fd);
 		return PTR_ERR(err);
@@ -262,15 +259,20 @@ static const struct super_operations nsfs_ops = {
 	.evict_inode = nsfs_evict,
 	.show_path = nsfs_show_path,
 };
-static struct dentry *nsfs_mount(struct file_system_type *fs_type,
-			int flags, const char *dev_name, void *data)
+
+static int nsfs_init_fs_context(struct fs_context *fc)
 {
-	return mount_pseudo(fs_type, "nsfs:", &nsfs_ops,
-			&ns_dentry_operations, NSFS_MAGIC);
+	struct pseudo_fs_context *ctx = init_pseudo(fc, NSFS_MAGIC);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->ops = &nsfs_ops;
+	ctx->dops = &ns_dentry_operations;
+	return 0;
 }
+
 static struct file_system_type nsfs = {
 	.name = "nsfs",
-	.mount = nsfs_mount,
+	.init_fs_context = nsfs_init_fs_context,
 	.kill_sb = kill_anon_super,
 };
 

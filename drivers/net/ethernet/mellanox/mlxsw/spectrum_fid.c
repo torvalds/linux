@@ -126,6 +126,16 @@ static const int *mlxsw_sp_packet_type_sfgc_types[] = {
 	[MLXSW_SP_FLOOD_TYPE_MC]	= mlxsw_sp_sfgc_mc_packet_types,
 };
 
+bool mlxsw_sp_fid_is_dummy(struct mlxsw_sp *mlxsw_sp, u16 fid_index)
+{
+	enum mlxsw_sp_fid_type fid_type = MLXSW_SP_FID_TYPE_DUMMY;
+	struct mlxsw_sp_fid_family *fid_family;
+
+	fid_family = mlxsw_sp->fid_core->fid_family_arr[fid_type];
+
+	return fid_family->start_index == fid_index;
+}
+
 bool mlxsw_sp_fid_lag_vid_valid(const struct mlxsw_sp_fid *fid)
 {
 	return fid->fid_family->lag_vid_valid;
@@ -1188,8 +1198,7 @@ static int mlxsw_sp_fid_family_register(struct mlxsw_sp *mlxsw_sp,
 
 	fid_family->mlxsw_sp = mlxsw_sp;
 	INIT_LIST_HEAD(&fid_family->fids_list);
-	fid_family->fids_bitmap = kcalloc(BITS_TO_LONGS(nr_fids),
-					  sizeof(unsigned long), GFP_KERNEL);
+	fid_family->fids_bitmap = bitmap_zalloc(nr_fids, GFP_KERNEL);
 	if (!fid_family->fids_bitmap) {
 		err = -ENOMEM;
 		goto err_alloc_fids_bitmap;
@@ -1206,7 +1215,7 @@ static int mlxsw_sp_fid_family_register(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_fid_flood_tables_init:
-	kfree(fid_family->fids_bitmap);
+	bitmap_free(fid_family->fids_bitmap);
 err_alloc_fids_bitmap:
 	kfree(fid_family);
 	return err;
@@ -1217,7 +1226,7 @@ mlxsw_sp_fid_family_unregister(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_fid_family *fid_family)
 {
 	mlxsw_sp->fid_core->fid_family_arr[fid_family->type] = NULL;
-	kfree(fid_family->fids_bitmap);
+	bitmap_free(fid_family->fids_bitmap);
 	WARN_ON_ONCE(!list_empty(&fid_family->fids_list));
 	kfree(fid_family);
 }

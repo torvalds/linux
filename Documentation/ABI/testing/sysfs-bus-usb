@@ -186,7 +186,7 @@ Contact:	Lan Tianyu <tianyu.lan@intel.com>
 Description:
 		Some platforms provide usb port connect types through ACPI.
 		This attribute is to expose these information to user space.
-		The file will read "hotplug", "wired" and "not used" if the
+		The file will read "hotplug", "hardwired" and "not used" if the
 		information is available, and "unknown" otherwise.
 
 What:		/sys/bus/usb/devices/.../(hub interface)/portX/location

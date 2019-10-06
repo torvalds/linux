@@ -9,21 +9,13 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_btree.h"
-#include "xfs_bit.h"
 #include "xfs_log_format.h"
-#include "xfs_trans.h"
-#include "xfs_sb.h"
 #include "xfs_inode.h"
 #include "xfs_icache.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
-#include "xfs_ialloc.h"
-#include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
-#include "scrub/trace.h"
 
 /* Set us up to scrub parents. */
 int
@@ -320,7 +312,7 @@ out:
 	 * If we failed to lock the parent inode even after a retry, just mark
 	 * this scrub incomplete and return.
 	 */
-	if (sc->try_harder && error == -EDEADLOCK) {
+	if ((sc->flags & XCHK_TRY_HARDER) && error == -EDEADLOCK) {
 		error = 0;
 		xchk_set_incomplete(sc);
 	}

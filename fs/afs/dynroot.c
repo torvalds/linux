@@ -1,25 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* AFS dynamic root handling
  *
  * Copyright (C) 2018 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #include <linux/fs.h>
 #include <linux/namei.h>
 #include <linux/dns_resolver.h>
 #include "internal.h"
-
-const struct file_operations afs_dynroot_file_operations = {
-	.open		= dcache_dir_open,
-	.release	= dcache_dir_close,
-	.iterate_shared	= dcache_readdir,
-	.llseek		= dcache_dir_lseek,
-};
 
 /*
  * Probe to see if a cell may exist.  This prevents positive dentries from
@@ -28,6 +17,7 @@ const struct file_operations afs_dynroot_file_operations = {
 static int afs_probe_cell_name(struct dentry *dentry)
 {
 	struct afs_cell *cell;
+	struct afs_net *net = afs_d2net(dentry);
 	const char *name = dentry->d_name.name;
 	size_t len = dentry->d_name.len;
 	int ret;
@@ -40,13 +30,14 @@ static int afs_probe_cell_name(struct dentry *dentry)
 		len--;
 	}
 
-	cell = afs_lookup_cell_rcu(afs_d2net(dentry), name, len);
+	cell = afs_lookup_cell_rcu(net, name, len);
 	if (!IS_ERR(cell)) {
-		afs_put_cell(afs_d2net(dentry), cell);
+		afs_put_cell(net, cell);
 		return 0;
 	}
 
-	ret = dns_query("afsdb", name, len, "srv=1", NULL, NULL);
+	ret = dns_query(net->net, "afsdb", name, len, "srv=1",
+			NULL, NULL, false);
 	if (ret == -ENODATA)
 		ret = -EDESTADDRREQ;
 	return ret;
@@ -261,8 +252,7 @@ int afs_dynroot_populate(struct super_block *sb)
 	struct afs_net *net = afs_sb2net(sb);
 	int ret;
 
-	if (mutex_lock_interruptible(&net->proc_cells_lock) < 0)
-		return -ERESTARTSYS;
+	mutex_lock(&net->proc_cells_lock);
 
 	net->dynroot_sb = sb;
 	hlist_for_each_entry(cell, &net->proc_cells, proc_link) {

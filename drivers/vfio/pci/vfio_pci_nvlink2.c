@@ -161,8 +161,7 @@ static int vfio_pci_nvgpu_mmap(struct vfio_pci_device *vdev,
 
 	atomic_inc(&data->mm->mm_count);
 	ret = (int) mm_iommu_newdev(data->mm, data->useraddr,
-			(vma->vm_end - vma->vm_start) >> PAGE_SHIFT,
-			data->gpu_hpa, &data->mem);
+			vma_pages(vma), data->gpu_hpa, &data->mem);
 
 	trace_vfio_pci_nvgpu_mmap(vdev->pdev, data->gpu_hpa, data->useraddr,
 			vma->vm_end - vma->vm_start, ret);
@@ -472,6 +471,8 @@ int vfio_pci_ibm_npu2_init(struct vfio_pci_device *vdev)
 	return 0;
 
 free_exit:
+	if (data->base)
+		memunmap(data->base);
 	kfree(data);
 
 	return ret;

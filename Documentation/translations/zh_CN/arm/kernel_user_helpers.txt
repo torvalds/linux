@@ -1,4 +1,4 @@
-Chinese translated version of Documentation/arm/kernel_user_helpers.txt
+Chinese translated version of Documentation/arm/kernel_user_helpers.rst
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -10,7 +10,7 @@ Maintainer: Nicolas Pitre <nicolas.pitre@linaro.org>
 		Dave Martin <dave.martin@linaro.org>
 Chinese maintainer: Fu Wei <tekkamanninja@gmail.com>
 ---------------------------------------------------------------------
-Documentation/arm/kernel_user_helpers.txt 的中文翻译
+Documentation/arm/kernel_user_helpers.rst 的中文翻译
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻

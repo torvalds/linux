@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 			  sizeof(__u32)) == 0);
 
 	if (argc > 1)
-		f = popen("ping -c5 localhost", "r");
+		f = popen("ping -4 -c5 localhost", "r");
 	else
 		f = popen("netperf -l 4 localhost", "r");
 	(void) f;

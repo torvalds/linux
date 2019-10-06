@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016 Facebook
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 #include <linux/bpf.h>
 #include <linux/if_link.h>
@@ -12,12 +9,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <net/if.h>
 #include <sys/resource.h>
 #include <arpa/inet.h>
 #include <netinet/ether.h>
 #include <unistd.h>
 #include <time.h>
-#include "bpf_load.h"
+#include "libbpf.h"
 #include <bpf/bpf.h>
 #include "bpf_util.h"
 #include "xdp_tx_iptunnel_common.h"
@@ -25,12 +23,26 @@
 #define STATS_INTERVAL_S 2U
 
 static int ifindex = -1;
-static __u32 xdp_flags = 0;
+static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
+static int rxcnt_map_fd;
+static __u32 prog_id;
 
 static void int_exit(int sig)
 {
-	if (ifindex > -1)
-		bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
+	__u32 curr_prog_id = 0;
+
+	if (ifindex > -1) {
+		if (bpf_get_link_xdp_id(ifindex, &curr_prog_id, xdp_flags)) {
+			printf("bpf_get_link_xdp_id failed\n");
+			exit(1);
+		}
+		if (prog_id == curr_prog_id)
+			bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
+		else if (!curr_prog_id)
+			printf("couldn't find a prog id on a given iface\n");
+		else
+			printf("program on interface changed, not removing\n");
+	}
 	exit(0);
 }
 
@@ -53,7 +65,8 @@ static void poll_stats(unsigned int kill_after_s)
 		for (proto = 0; proto < nr_protos; proto++) {
 			__u64 sum = 0;
 
-			assert(bpf_map_lookup_elem(map_fd[0], &proto, values) == 0);
+			assert(bpf_map_lookup_elem(rxcnt_map_fd, &proto,
+						   values) == 0);
 			for (i = 0; i < nr_cpus; i++)
 				sum += (values[i] - prev[proto][i]);
 
@@ -71,7 +84,7 @@ static void usage(const char *cmd)
 	       "in an IPv4/v6 header and XDP_TX it out.  The dst <VIP:PORT>\n"
 	       "is used to select packets to encapsulate\n\n");
 	printf("Usage: %s [...]\n", cmd);
-	printf("    -i <ifindex> Interface Index\n");
+	printf("    -i <ifname|ifindex> Interface\n");
 	printf("    -a <vip-service-address> IPv4 or IPv6\n");
 	printf("    -p <vip-service-port> A port range (e.g. 433-444) is also allowed\n");
 	printf("    -s <source-ip> Used in the IPTunnel header\n");
@@ -81,6 +94,7 @@ static void usage(const char *cmd)
 	printf("    -P <IP-Protocol> Default is TCP\n");
 	printf("    -S use skb-mode\n");
 	printf("    -N enforce native mode\n");
+	printf("    -F Force loading the XDP prog\n");
 	printf("    -h Display this help\n");
 }
 
@@ -138,16 +152,22 @@ static int parse_ports(const char *port_str, int *min_port, int *max_port)
 
 int main(int argc, char **argv)
 {
-	unsigned char opt_flags[256] = {};
-	unsigned int kill_after_s = 0;
-	const char *optstr = "i:a:p:s:d:m:T:P:SNh";
-	int min_port = 0, max_port = 0;
-	struct iptnl_info tnl = {};
+	struct bpf_prog_load_attr prog_load_attr = {
+		.prog_type	= BPF_PROG_TYPE_XDP,
+	};
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	int min_port = 0, max_port = 0, vip2tnl_map_fd;
+	const char *optstr = "i:a:p:s:d:m:T:P:FSNh";
+	unsigned char opt_flags[256] = {};
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
+	unsigned int kill_after_s = 0;
+	struct iptnl_info tnl = {};
+	struct bpf_object *obj;
 	struct vip vip = {};
 	char filename[256];
-	int opt;
-	int i;
+	int opt, prog_fd;
+	int i, err;
 
 	tnl.family = AF_UNSPEC;
 	vip.protocol = IPPROTO_TCP;
@@ -162,7 +182,9 @@ int main(int argc, char **argv)
 
 		switch (opt) {
 		case 'i':
-			ifindex = atoi(optarg);
+			ifindex = if_nametoindex(optarg);
+			if (!ifindex)
+				ifindex = atoi(optarg);
 			break;
 		case 'a':
 			vip.family = parse_ipstr(optarg, vip.daddr.v6);
@@ -211,6 +233,9 @@ int main(int argc, char **argv)
 		case 'N':
 			xdp_flags |= XDP_FLAGS_DRV_MODE;
 			break;
+		case 'F':
+			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
+			break;
 		default:
 			usage(argv[0]);
 			return 1;
@@ -231,15 +256,26 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
+	if (!ifindex) {
+		fprintf(stderr, "Invalid ifname\n");
 		return 1;
 	}
 
-	if (!prog_fd[0]) {
+	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	prog_load_attr.file = filename;
+
+	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+		return 1;
+
+	if (!prog_fd) {
 		printf("load_bpf_file: %s\n", strerror(errno));
+		return 1;
+	}
+
+	rxcnt_map_fd = bpf_object__find_map_fd_by_name(obj, "rxcnt");
+	vip2tnl_map_fd = bpf_object__find_map_fd_by_name(obj, "vip2tnl");
+	if (vip2tnl_map_fd < 0 || rxcnt_map_fd < 0) {
+		printf("bpf_object__find_map_fd_by_name failed\n");
 		return 1;
 	}
 
@@ -248,16 +284,24 @@ int main(int argc, char **argv)
 
 	while (min_port <= max_port) {
 		vip.dport = htons(min_port++);
-		if (bpf_map_update_elem(map_fd[1], &vip, &tnl, BPF_NOEXIST)) {
+		if (bpf_map_update_elem(vip2tnl_map_fd, &vip, &tnl,
+					BPF_NOEXIST)) {
 			perror("bpf_map_update_elem(&vip2tnl)");
 			return 1;
 		}
 	}
 
-	if (bpf_set_link_xdp_fd(ifindex, prog_fd[0], xdp_flags) < 0) {
+	if (bpf_set_link_xdp_fd(ifindex, prog_fd, xdp_flags) < 0) {
 		printf("link set xdp fd failed\n");
 		return 1;
 	}
+
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	if (err) {
+		printf("can't get prog info - %s\n", strerror(errno));
+		return err;
+	}
+	prog_id = info.id;
 
 	poll_stats(kill_after_s);
 

@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * linux/arch/unicore32/include/asm/pgtable.h
  *
  * Code specific to PKUnity SoC and UniCore ISA
  *
  * Copyright (C) 2001-2010 GUAN Xue-tao
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef __UNICORE_PGTABLE_H__
 #define __UNICORE_PGTABLE_H__
@@ -201,8 +198,6 @@ static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
 	__pgprot(pgprot_val(prot) & ~PTE_CACHEABLE)
 #define pgprot_writecombine(prot)	\
 	__pgprot(pgprot_val(prot) & ~PTE_CACHEABLE)
-#define pgprot_dmacoherent(prot)	\
-	__pgprot(pgprot_val(prot) & ~PTE_CACHEABLE)
 
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define pmd_present(pmd)	(pmd_val(pmd) & PMD_PRESENT)
@@ -289,8 +284,6 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 #define kern_addr_valid(addr)	(1)
 
 #include <asm-generic/pgtable.h>
-
-#define pgtable_cache_init() do { } while (0)
 
 #endif /* !__ASSEMBLY__ */
 

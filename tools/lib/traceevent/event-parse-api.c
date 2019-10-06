@@ -9,6 +9,22 @@
 #include "event-utils.h"
 
 /**
+ * tep_get_event - returns the event with the given index
+ * @tep: a handle to the tep_handle
+ * @index: index of the requested event, in the range 0 .. nr_events
+ *
+ * This returns pointer to the element of the events array with the given index
+ * If @tep is NULL, or @index is not in the range 0 .. nr_events, NULL is returned.
+ */
+struct tep_event *tep_get_event(struct tep_handle *tep, int index)
+{
+	if (tep && tep->events && index < tep->nr_events)
+		return tep->events[index];
+
+	return NULL;
+}
+
+/**
  * tep_get_first_event - returns the first event in the events array
  * @tep: a handle to the tep_handle
  *
@@ -17,10 +33,7 @@
  */
 struct tep_event *tep_get_first_event(struct tep_handle *tep)
 {
-	if (tep && tep->events)
-		return tep->events[0];
-
-	return NULL;
+	return tep_get_event(tep, 0);
 }
 
 /**
@@ -32,7 +45,7 @@ struct tep_event *tep_get_first_event(struct tep_handle *tep)
  */
 int tep_get_events_count(struct tep_handle *tep)
 {
-	if(tep)
+	if (tep)
 		return tep->nr_events;
 	return 0;
 }
@@ -43,19 +56,47 @@ int tep_get_events_count(struct tep_handle *tep)
  * @flag: flag, or combination of flags to be set
  * can be any combination from enum tep_flag
  *
- * This sets a flag or mbination of flags  from enum tep_flag
-  */
+ * This sets a flag or combination of flags from enum tep_flag
+ */
 void tep_set_flag(struct tep_handle *tep, int flag)
 {
-	if(tep)
+	if (tep)
 		tep->flags |= flag;
 }
 
-unsigned short tep_data2host2(struct tep_handle *pevent, unsigned short data)
+/**
+ * tep_clear_flag - clear event parser flag
+ * @tep: a handle to the tep_handle
+ * @flag: flag to be cleared
+ *
+ * This clears a tep flag
+ */
+void tep_clear_flag(struct tep_handle *tep, enum tep_flag flag)
+{
+	if (tep)
+		tep->flags &= ~flag;
+}
+
+/**
+ * tep_test_flag - check the state of event parser flag
+ * @tep: a handle to the tep_handle
+ * @flag: flag to be checked
+ *
+ * This returns the state of the requested tep flag.
+ * Returns: true if the flag is set, false otherwise.
+ */
+bool tep_test_flag(struct tep_handle *tep, enum tep_flag flag)
+{
+	if (tep)
+		return tep->flags & flag;
+	return false;
+}
+
+unsigned short tep_data2host2(struct tep_handle *tep, unsigned short data)
 {
 	unsigned short swap;
 
-	if (!pevent || pevent->host_bigendian == pevent->file_bigendian)
+	if (!tep || tep->host_bigendian == tep->file_bigendian)
 		return data;
 
 	swap = ((data & 0xffULL) << 8) |
@@ -64,11 +105,11 @@ unsigned short tep_data2host2(struct tep_handle *pevent, unsigned short data)
 	return swap;
 }
 
-unsigned int tep_data2host4(struct tep_handle *pevent, unsigned int data)
+unsigned int tep_data2host4(struct tep_handle *tep, unsigned int data)
 {
 	unsigned int swap;
 
-	if (!pevent || pevent->host_bigendian == pevent->file_bigendian)
+	if (!tep || tep->host_bigendian == tep->file_bigendian)
 		return data;
 
 	swap = ((data & 0xffULL) << 24) |
@@ -80,11 +121,11 @@ unsigned int tep_data2host4(struct tep_handle *pevent, unsigned int data)
 }
 
 unsigned long long
-tep_data2host8(struct tep_handle *pevent, unsigned long long data)
+tep_data2host8(struct tep_handle *tep, unsigned long long data)
 {
 	unsigned long long swap;
 
-	if (!pevent || pevent->host_bigendian == pevent->file_bigendian)
+	if (!tep || tep->host_bigendian == tep->file_bigendian)
 		return data;
 
 	swap = ((data & 0xffULL) << 56) |
@@ -101,175 +142,192 @@ tep_data2host8(struct tep_handle *pevent, unsigned long long data)
 
 /**
  * tep_get_header_page_size - get size of the header page
- * @pevent: a handle to the tep_handle
+ * @tep: a handle to the tep_handle
  *
  * This returns size of the header page
- * If @pevent is NULL, 0 is returned.
+ * If @tep is NULL, 0 is returned.
  */
-int tep_get_header_page_size(struct tep_handle *pevent)
+int tep_get_header_page_size(struct tep_handle *tep)
 {
-	if(pevent)
-		return pevent->header_page_size_size;
+	if (tep)
+		return tep->header_page_size_size;
+	return 0;
+}
+
+/**
+ * tep_get_header_timestamp_size - get size of the timestamp in the header page
+ * @tep: a handle to the tep_handle
+ *
+ * This returns size of the timestamp in the header page
+ * If @tep is NULL, 0 is returned.
+ */
+int tep_get_header_timestamp_size(struct tep_handle *tep)
+{
+	if (tep)
+		return tep->header_page_ts_size;
 	return 0;
 }
 
 /**
  * tep_get_cpus - get the number of CPUs
- * @pevent: a handle to the tep_handle
+ * @tep: a handle to the tep_handle
  *
  * This returns the number of CPUs
- * If @pevent is NULL, 0 is returned.
+ * If @tep is NULL, 0 is returned.
  */
-int tep_get_cpus(struct tep_handle *pevent)
+int tep_get_cpus(struct tep_handle *tep)
 {
-	if(pevent)
-		return pevent->cpus;
+	if (tep)
+		return tep->cpus;
 	return 0;
 }
 
 /**
  * tep_set_cpus - set the number of CPUs
- * @pevent: a handle to the tep_handle
+ * @tep: a handle to the tep_handle
  *
  * This sets the number of CPUs
  */
-void tep_set_cpus(struct tep_handle *pevent, int cpus)
+void tep_set_cpus(struct tep_handle *tep, int cpus)
 {
-	if(pevent)
-		pevent->cpus = cpus;
+	if (tep)
+		tep->cpus = cpus;
 }
 
 /**
- * tep_get_long_size - get the size of a long integer on the current machine
- * @pevent: a handle to the tep_handle
+ * tep_get_long_size - get the size of a long integer on the traced machine
+ * @tep: a handle to the tep_handle
  *
- * This returns the size of a long integer on the current machine
- * If @pevent is NULL, 0 is returned.
+ * This returns the size of a long integer on the traced machine
+ * If @tep is NULL, 0 is returned.
  */
-int tep_get_long_size(struct tep_handle *pevent)
+int tep_get_long_size(struct tep_handle *tep)
 {
-	if(pevent)
-		return pevent->long_size;
+	if (tep)
+		return tep->long_size;
 	return 0;
 }
 
 /**
- * tep_set_long_size - set the size of a long integer on the current machine
- * @pevent: a handle to the tep_handle
+ * tep_set_long_size - set the size of a long integer on the traced machine
+ * @tep: a handle to the tep_handle
  * @size: size, in bytes, of a long integer
  *
- * This sets the size of a long integer on the current machine
+ * This sets the size of a long integer on the traced machine
  */
-void tep_set_long_size(struct tep_handle *pevent, int long_size)
+void tep_set_long_size(struct tep_handle *tep, int long_size)
 {
-	if(pevent)
-		pevent->long_size = long_size;
+	if (tep)
+		tep->long_size = long_size;
 }
 
 /**
- * tep_get_page_size - get the size of a memory page on the current machine
- * @pevent: a handle to the tep_handle
+ * tep_get_page_size - get the size of a memory page on the traced machine
+ * @tep: a handle to the tep_handle
  *
- * This returns the size of a memory page on the current machine
- * If @pevent is NULL, 0 is returned.
+ * This returns the size of a memory page on the traced machine
+ * If @tep is NULL, 0 is returned.
  */
-int tep_get_page_size(struct tep_handle *pevent)
+int tep_get_page_size(struct tep_handle *tep)
 {
-	if(pevent)
-		return pevent->page_size;
+	if (tep)
+		return tep->page_size;
 	return 0;
 }
 
 /**
- * tep_set_page_size - set the size of a memory page on the current machine
- * @pevent: a handle to the tep_handle
+ * tep_set_page_size - set the size of a memory page on the traced machine
+ * @tep: a handle to the tep_handle
  * @_page_size: size of a memory page, in bytes
  *
- * This sets the size of a memory page on the current machine
+ * This sets the size of a memory page on the traced machine
  */
-void tep_set_page_size(struct tep_handle *pevent, int _page_size)
+void tep_set_page_size(struct tep_handle *tep, int _page_size)
 {
-	if(pevent)
-		pevent->page_size = _page_size;
+	if (tep)
+		tep->page_size = _page_size;
 }
 
 /**
- * tep_file_bigendian - get if the file is in big endian order
- * @pevent: a handle to the tep_handle
+ * tep_is_file_bigendian - return the endian of the file
+ * @tep: a handle to the tep_handle
  *
- * This returns if the file is in big endian order
- * If @pevent is NULL, 0 is returned.
+ * This returns true if the file is in big endian order
+ * If @tep is NULL, false is returned.
  */
-int tep_file_bigendian(struct tep_handle *pevent)
+bool tep_is_file_bigendian(struct tep_handle *tep)
 {
-	if(pevent)
-		return pevent->file_bigendian;
-	return 0;
+	if (tep)
+		return (tep->file_bigendian == TEP_BIG_ENDIAN);
+	return false;
 }
 
 /**
  * tep_set_file_bigendian - set if the file is in big endian order
- * @pevent: a handle to the tep_handle
+ * @tep: a handle to the tep_handle
  * @endian: non zero, if the file is in big endian order
  *
  * This sets if the file is in big endian order
  */
-void tep_set_file_bigendian(struct tep_handle *pevent, enum tep_endian endian)
+void tep_set_file_bigendian(struct tep_handle *tep, enum tep_endian endian)
 {
-	if(pevent)
-		pevent->file_bigendian = endian;
+	if (tep)
+		tep->file_bigendian = endian;
 }
 
 /**
- * tep_is_host_bigendian - get if the order of the current host is big endian
- * @pevent: a handle to the tep_handle
+ * tep_is_local_bigendian - return the endian of the saved local machine
+ * @tep: a handle to the tep_handle
  *
- * This gets if the order of the current host is big endian
- * If @pevent is NULL, 0 is returned.
+ * This returns true if the saved local machine in @tep is big endian.
+ * If @tep is NULL, false is returned.
  */
-int tep_is_host_bigendian(struct tep_handle *pevent)
+bool tep_is_local_bigendian(struct tep_handle *tep)
 {
-	if(pevent)
-		return pevent->host_bigendian;
+	if (tep)
+		return (tep->host_bigendian == TEP_BIG_ENDIAN);
 	return 0;
 }
 
 /**
- * tep_set_host_bigendian - set the order of the local host
- * @pevent: a handle to the tep_handle
+ * tep_set_local_bigendian - set the stored local machine endian order
+ * @tep: a handle to the tep_handle
  * @endian: non zero, if the local host has big endian order
  *
- * This sets the order of the local host
+ * This sets the endian order for the local machine.
  */
-void tep_set_host_bigendian(struct tep_handle *pevent, enum tep_endian endian)
+void tep_set_local_bigendian(struct tep_handle *tep, enum tep_endian endian)
 {
-	if(pevent)
-		pevent->host_bigendian = endian;
+	if (tep)
+		tep->host_bigendian = endian;
 }
 
 /**
- * tep_is_latency_format - get if the latency output format is configured
- * @pevent: a handle to the tep_handle
+ * tep_is_old_format - get if an old kernel is used
+ * @tep: a handle to the tep_handle
  *
- * This gets if the latency output format is configured
- * If @pevent is NULL, 0 is returned.
+ * This returns true, if an old kernel is used to generate the tracing events or
+ * false if a new kernel is used. Old kernels did not have header page info.
+ * If @tep is NULL, false is returned.
  */
-int tep_is_latency_format(struct tep_handle *pevent)
+bool tep_is_old_format(struct tep_handle *tep)
 {
-	if(pevent)
-		return pevent->latency_format;
-	return 0;
+	if (tep)
+		return tep->old_format;
+	return false;
 }
 
 /**
- * tep_set_latency_format - set the latency output format
- * @pevent: a handle to the tep_handle
- * @lat: non zero for latency output format
+ * tep_set_test_filters - set a flag to test a filter string
+ * @tep: a handle to the tep_handle
+ * @test_filters: the new value of the test_filters flag
  *
- * This sets the latency output format
-  */
-void tep_set_latency_format(struct tep_handle *pevent, int lat)
+ * This sets a flag to test a filter string. If this flag is set, when
+ * tep_filter_add_filter_str() API as called,it will print the filter string
+ * instead of adding it.
+ */
+void tep_set_test_filters(struct tep_handle *tep, int test_filters)
 {
-	if(pevent)
-		pevent->latency_format = lat;
+	if (tep)
+		tep->test_filters = test_filters;
 }

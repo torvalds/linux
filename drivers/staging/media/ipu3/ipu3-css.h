@@ -43,7 +43,7 @@
  * The pipe id type, distinguishes the kind of pipes that
  * can be run in parallel.
  */
-enum ipu3_css_pipe_id {
+enum imgu_css_pipe_id {
 	IPU3_CSS_PIPE_ID_PREVIEW,
 	IPU3_CSS_PIPE_ID_COPY,
 	IPU3_CSS_PIPE_ID_VIDEO,
@@ -53,29 +53,29 @@ enum ipu3_css_pipe_id {
 	IPU3_CSS_PIPE_ID_NUM
 };
 
-struct ipu3_css_resolution {
+struct imgu_css_resolution {
 	u32 w;
 	u32 h;
 };
 
-enum ipu3_css_buffer_state {
+enum imgu_css_buffer_state {
 	IPU3_CSS_BUFFER_NEW,	/* Not yet queued */
 	IPU3_CSS_BUFFER_QUEUED,	/* Queued, waiting to be filled */
 	IPU3_CSS_BUFFER_DONE,	/* Finished processing, removed from queue */
 	IPU3_CSS_BUFFER_FAILED,	/* Was not processed, removed from queue */
 };
 
-struct ipu3_css_buffer {
+struct imgu_css_buffer {
 	/* Private fields: user doesn't touch */
 	dma_addr_t daddr;
 	unsigned int queue;
-	enum ipu3_css_buffer_state state;
+	enum imgu_css_buffer_state state;
 	struct list_head list;
 	u8 queue_pos;
 	unsigned int pipe;
 };
 
-struct ipu3_css_format {
+struct imgu_css_format {
 	u32 pixelformat;
 	enum v4l2_colorspace colorspace;
 	enum imgu_abi_frame_format frame_format;
@@ -89,22 +89,22 @@ struct ipu3_css_format {
 	u8 flags;
 };
 
-struct ipu3_css_queue {
+struct imgu_css_queue {
 	union {
 		struct v4l2_pix_format_mplane mpix;
 		struct v4l2_meta_format	meta;
 
 	} fmt;
-	const struct ipu3_css_format *css_fmt;
+	const struct imgu_css_format *css_fmt;
 	unsigned int width_pad;
 	struct list_head bufs;
 };
 
-struct ipu3_css_pipe {
-	enum ipu3_css_pipe_id pipe_id;
+struct imgu_css_pipe {
+	enum imgu_css_pipe_id pipe_id;
 	unsigned int bindex;
 
-	struct ipu3_css_queue queue[IPU3_CSS_QUEUES];
+	struct imgu_css_queue queue[IPU3_CSS_QUEUES];
 	struct v4l2_rect rect[IPU3_CSS_RECTS];
 
 	bool vf_output_en;
@@ -112,21 +112,21 @@ struct ipu3_css_pipe {
 	spinlock_t qlock;
 
 	/* Data structures shared with IMGU and driver, always allocated */
-	struct ipu3_css_map sp_ddr_ptrs;
-	struct ipu3_css_map xmem_sp_stage_ptrs[IPU3_CSS_PIPE_ID_NUM]
+	struct imgu_css_map sp_ddr_ptrs;
+	struct imgu_css_map xmem_sp_stage_ptrs[IPU3_CSS_PIPE_ID_NUM]
 					    [IMGU_ABI_MAX_STAGES];
-	struct ipu3_css_map xmem_isp_stage_ptrs[IPU3_CSS_PIPE_ID_NUM]
+	struct imgu_css_map xmem_isp_stage_ptrs[IPU3_CSS_PIPE_ID_NUM]
 					    [IMGU_ABI_MAX_STAGES];
 
 	/*
 	 * Data structures shared with IMGU and driver, binary specific.
 	 * PARAM_CLASS_CONFIG and PARAM_CLASS_STATE parameters.
 	 */
-	struct ipu3_css_map binary_params_cs[IMGU_ABI_PARAM_CLASS_NUM - 1]
+	struct imgu_css_map binary_params_cs[IMGU_ABI_PARAM_CLASS_NUM - 1]
 					    [IMGU_ABI_NUM_MEMORIES];
 
 	struct {
-		struct ipu3_css_map mem[IPU3_CSS_AUX_FRAMES];
+		struct imgu_css_map mem[IPU3_CSS_AUX_FRAMES];
 		unsigned int width;
 		unsigned int height;
 		unsigned int bytesperline;
@@ -134,76 +134,76 @@ struct ipu3_css_pipe {
 	} aux_frames[IPU3_CSS_AUX_FRAME_TYPES];
 
 	struct {
-		struct ipu3_css_pool parameter_set_info;
-		struct ipu3_css_pool acc;
-		struct ipu3_css_pool gdc;
-		struct ipu3_css_pool obgrid;
+		struct imgu_css_pool parameter_set_info;
+		struct imgu_css_pool acc;
+		struct imgu_css_pool gdc;
+		struct imgu_css_pool obgrid;
 		/* PARAM_CLASS_PARAM parameters for binding while streaming */
-		struct ipu3_css_pool binary_params_p[IMGU_ABI_NUM_MEMORIES];
+		struct imgu_css_pool binary_params_p[IMGU_ABI_NUM_MEMORIES];
 	} pool;
 
-	struct ipu3_css_map abi_buffers[IPU3_CSS_QUEUES]
+	struct imgu_css_map abi_buffers[IPU3_CSS_QUEUES]
 				    [IMGU_ABI_HOST2SP_BUFQ_SIZE];
 };
 
 /* IPU3 Camera Sub System structure */
-struct ipu3_css {
+struct imgu_css {
 	struct device *dev;
 	void __iomem *base;
 	const struct firmware *fw;
 	struct imgu_fw_header *fwp;
 	int iomem_length;
 	int fw_bl, fw_sp[IMGU_NUM_SP];	/* Indices of bl and SP binaries */
-	struct ipu3_css_map *binary;	/* fw binaries mapped to device */
+	struct imgu_css_map *binary;	/* fw binaries mapped to device */
 	bool streaming;		/* true when streaming is enabled */
 
-	struct ipu3_css_pipe pipes[IMGU_MAX_PIPE_NUM];
-	struct ipu3_css_map xmem_sp_group_ptrs;
+	struct imgu_css_pipe pipes[IMGU_MAX_PIPE_NUM];
+	struct imgu_css_map xmem_sp_group_ptrs;
 
 	/* enabled pipe(s) */
 	DECLARE_BITMAP(enabled_pipes, IMGU_MAX_PIPE_NUM);
 };
 
 /******************* css v4l *******************/
-int ipu3_css_init(struct device *dev, struct ipu3_css *css,
+int imgu_css_init(struct device *dev, struct imgu_css *css,
 		  void __iomem *base, int length);
-void ipu3_css_cleanup(struct ipu3_css *css);
-int ipu3_css_fmt_try(struct ipu3_css *css,
+void imgu_css_cleanup(struct imgu_css *css);
+int imgu_css_fmt_try(struct imgu_css *css,
 		     struct v4l2_pix_format_mplane *fmts[IPU3_CSS_QUEUES],
 		     struct v4l2_rect *rects[IPU3_CSS_RECTS],
 		     unsigned int pipe);
-int ipu3_css_fmt_set(struct ipu3_css *css,
+int imgu_css_fmt_set(struct imgu_css *css,
 		     struct v4l2_pix_format_mplane *fmts[IPU3_CSS_QUEUES],
 		     struct v4l2_rect *rects[IPU3_CSS_RECTS],
 		     unsigned int pipe);
-int ipu3_css_meta_fmt_set(struct v4l2_meta_format *fmt);
-int ipu3_css_buf_queue(struct ipu3_css *css, unsigned int pipe,
-		       struct ipu3_css_buffer *b);
-struct ipu3_css_buffer *ipu3_css_buf_dequeue(struct ipu3_css *css);
-int ipu3_css_start_streaming(struct ipu3_css *css);
-void ipu3_css_stop_streaming(struct ipu3_css *css);
-bool ipu3_css_queue_empty(struct ipu3_css *css);
-bool ipu3_css_is_streaming(struct ipu3_css *css);
-bool ipu3_css_pipe_queue_empty(struct ipu3_css *css, unsigned int pipe);
+int imgu_css_meta_fmt_set(struct v4l2_meta_format *fmt);
+int imgu_css_buf_queue(struct imgu_css *css, unsigned int pipe,
+		       struct imgu_css_buffer *b);
+struct imgu_css_buffer *imgu_css_buf_dequeue(struct imgu_css *css);
+int imgu_css_start_streaming(struct imgu_css *css);
+void imgu_css_stop_streaming(struct imgu_css *css);
+bool imgu_css_queue_empty(struct imgu_css *css);
+bool imgu_css_is_streaming(struct imgu_css *css);
+bool imgu_css_pipe_queue_empty(struct imgu_css *css, unsigned int pipe);
 
 /******************* css hw *******************/
-int ipu3_css_set_powerup(struct device *dev, void __iomem *base);
-void ipu3_css_set_powerdown(struct device *dev, void __iomem *base);
-int ipu3_css_irq_ack(struct ipu3_css *css);
+int imgu_css_set_powerup(struct device *dev, void __iomem *base);
+void imgu_css_set_powerdown(struct device *dev, void __iomem *base);
+int imgu_css_irq_ack(struct imgu_css *css);
 
 /******************* set parameters ************/
-int ipu3_css_set_parameters(struct ipu3_css *css, unsigned int pipe,
+int imgu_css_set_parameters(struct imgu_css *css, unsigned int pipe,
 			    struct ipu3_uapi_params *set_params);
 
 /******************* auxiliary helpers *******************/
-static inline enum ipu3_css_buffer_state
-ipu3_css_buf_state(struct ipu3_css_buffer *b)
+static inline enum imgu_css_buffer_state
+imgu_css_buf_state(struct imgu_css_buffer *b)
 {
 	return b->state;
 }
 
 /* Initialize given buffer. May be called several times. */
-static inline void ipu3_css_buf_init(struct ipu3_css_buffer *b,
+static inline void imgu_css_buf_init(struct imgu_css_buffer *b,
 				     unsigned int queue, dma_addr_t daddr)
 {
 	b->state = IPU3_CSS_BUFFER_NEW;

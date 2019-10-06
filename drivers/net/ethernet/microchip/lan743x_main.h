@@ -26,6 +26,8 @@
 #define FPGA_REV_GET_MAJOR_(fpga_rev)	((fpga_rev) & 0x000000FF)
 
 #define HW_CFG					(0x010)
+#define HW_CFG_RELOAD_TYPE_ALL_			(0x00000FC0)
+#define HW_CFG_EE_OTP_RELOAD_			BIT(4)
 #define HW_CFG_LRST_				BIT(1)
 
 #define PMT_CTL					(0x014)
@@ -453,16 +455,18 @@
 #define OTP_PWR_DN				(0x1000)
 #define OTP_PWR_DN_PWRDN_N_			BIT(0)
 
-#define OTP_ADDR1				(0x1004)
-#define OTP_ADDR1_15_11_MASK_			(0x1F)
-
-#define OTP_ADDR2				(0x1008)
-#define OTP_ADDR2_10_3_MASK_			(0xFF)
+#define OTP_ADDR_HIGH				(0x1004)
+#define OTP_ADDR_LOW				(0x1008)
 
 #define OTP_PRGM_DATA				(0x1010)
 
 #define OTP_PRGM_MODE				(0x1014)
 #define OTP_PRGM_MODE_BYTE_			BIT(0)
+
+#define OTP_READ_DATA				(0x1018)
+
+#define OTP_FUNC_CMD				(0x1020)
+#define OTP_FUNC_CMD_READ_			BIT(0)
 
 #define OTP_TST_CMD				(0x1024)
 #define OTP_TST_CMD_PRGVRFY_			BIT(3)
@@ -713,6 +717,9 @@ struct lan743x_adapter {
 	struct lan743x_phy      phy;
 	struct lan743x_tx       tx[LAN743X_MAX_TX_CHANNELS];
 	struct lan743x_rx       rx[LAN743X_MAX_RX_CHANNELS];
+
+#define LAN743X_ADAPTER_FLAG_OTP		BIT(0)
+	u32			flags;
 };
 
 #define LAN743X_COMPONENT_FLAG_RX(channel)  BIT(20 + (channel))

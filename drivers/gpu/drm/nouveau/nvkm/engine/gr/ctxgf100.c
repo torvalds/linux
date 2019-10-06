@@ -1523,13 +1523,9 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	/* Make channel current. */
 	addr = nvkm_memory_addr(inst) >> 12;
 	if (gr->firmware) {
-		nvkm_wr32(device, 0x409840, 0x00000030);
-		nvkm_wr32(device, 0x409500, 0x80000000 | addr);
-		nvkm_wr32(device, 0x409504, 0x00000003);
-		nvkm_msec(device, 2000,
-			if (nvkm_rd32(device, 0x409800) & 0x00000010)
-				break;
-		);
+		ret = gf100_gr_fecs_bind_pointer(gr, 0x80000000 | addr);
+		if (ret)
+			goto done;
 
 		nvkm_kmap(data);
 		nvkm_wo32(data, 0x1c, 1);

@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Z-Star/Vimicro zc301/zc302p/vc30x driver
  *
  * Copyright (C) 2009-2012 Jean-Francois Moine <http://moinejf.free.fr>
  * Copyright (C) 2004 2005 2006 Michel Xhaard mxhaard@magic.fr
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -3602,7 +3593,7 @@ static const struct usb_action pas106b_InitialScale[] = {	/* 176x144 */
 	{0xaa, 0x14, 0x0081},
 /* Other registers */
 	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
-/* Frame retreiving */
+/* Frame retrieving */
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 /* Gains */
 	{0xa0, 0xa0, ZC3XX_R1A8_DIGITALGAIN},
@@ -3718,7 +3709,7 @@ static const struct usb_action pas106b_Initial[] = {	/* 352x288 */
 	{0xaa, 0x14, 0x0081},
 /* Other registers */
 	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
-/* Frame retreiving */
+/* Frame retrieving */
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 /* Gains */
 	{0xa0, 0xa0, ZC3XX_R1A8_DIGITALGAIN},
@@ -6775,7 +6766,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_HV7131R:
 	case SENSOR_TAS5130C:
 		reg_r(gspca_dev, 0x0008);
-		/* fall thru */
+		/* fall through */
 	case SENSOR_PO2030:
 		reg_w(gspca_dev, 0x03, 0x0008);
 		break;
@@ -6824,7 +6815,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_TAS5130C:
 		reg_w(gspca_dev, 0x09, 0x01ad);	/* (from win traces) */
 		reg_w(gspca_dev, 0x15, 0x01ae);
-		/* fall thru */
+		/* fall through */
 	case SENSOR_PAS202B:
 	case SENSOR_PO2030:
 /*		reg_w(gspca_dev, 0x40, ZC3XX_R117_GGAIN); in win traces */

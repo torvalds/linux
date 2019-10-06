@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * NVMe Fabrics command implementation.
  * Copyright (c) 2015-2016 HGST, a Western Digital Company.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/blkdev.h>
@@ -80,7 +72,7 @@ static void nvmet_execute_prop_get(struct nvmet_req *req)
 			offsetof(struct nvmf_property_get_command, attrib);
 	}
 
-	req->rsp->result.u64 = cpu_to_le64(val);
+	req->cqe->result.u64 = cpu_to_le64(val);
 	nvmet_req_complete(req, status);
 }
 
@@ -132,7 +124,7 @@ static u16 nvmet_install_queue(struct nvmet_ctrl *ctrl, struct nvmet_req *req)
 
 	if (c->cattr & NVME_CONNECT_DISABLE_SQFLOW) {
 		req->sq->sqhd_disabled = true;
-		req->rsp->sq_head = cpu_to_le16(0xffff);
+		req->cqe->sq_head = cpu_to_le16(0xffff);
 	}
 
 	if (ctrl->ops->install_queue) {
@@ -166,7 +158,7 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 		goto out;
 
 	/* zero out initial completion result, assign values as needed */
-	req->rsp->result.u32 = 0;
+	req->cqe->result.u32 = 0;
 
 	if (c->recfmt != 0) {
 		pr_warn("invalid connect version (%d).\n",
@@ -180,7 +172,7 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 		pr_warn("connect attempt for invalid controller ID %#x\n",
 			d->cntlid);
 		status = NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
-		req->rsp->result.u32 = IPO_IATTR_CONNECT_DATA(cntlid);
+		req->cqe->result.u32 = IPO_IATTR_CONNECT_DATA(cntlid);
 		goto out;
 	}
 
@@ -203,7 +195,7 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 
 	pr_info("creating controller %d for subsystem %s for NQN %s.\n",
 		ctrl->cntlid, ctrl->subsys->subsysnqn, ctrl->hostnqn);
-	req->rsp->result.u16 = cpu_to_le16(ctrl->cntlid);
+	req->cqe->result.u16 = cpu_to_le16(ctrl->cntlid);
 
 out:
 	kfree(d);
@@ -230,7 +222,7 @@ static void nvmet_execute_io_connect(struct nvmet_req *req)
 		goto out;
 
 	/* zero out initial completion result, assign values as needed */
-	req->rsp->result.u32 = 0;
+	req->cqe->result.u32 = 0;
 
 	if (c->recfmt != 0) {
 		pr_warn("invalid connect version (%d).\n",
@@ -248,14 +240,14 @@ static void nvmet_execute_io_connect(struct nvmet_req *req)
 	if (unlikely(qid > ctrl->subsys->max_qid)) {
 		pr_warn("invalid queue id (%d)\n", qid);
 		status = NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
-		req->rsp->result.u32 = IPO_IATTR_CONNECT_SQE(qid);
+		req->cqe->result.u32 = IPO_IATTR_CONNECT_SQE(qid);
 		goto out_ctrl_put;
 	}
 
 	status = nvmet_install_queue(ctrl, req);
 	if (status) {
 		/* pass back cntlid that had the issue of installing queue */
-		req->rsp->result.u16 = cpu_to_le16(ctrl->cntlid);
+		req->cqe->result.u16 = cpu_to_le16(ctrl->cntlid);
 		goto out_ctrl_put;
 	}
 
@@ -276,7 +268,7 @@ u16 nvmet_parse_connect_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
 
-	if (cmd->common.opcode != nvme_fabrics_command) {
+	if (!nvme_is_fabrics(cmd)) {
 		pr_err("invalid command 0x%x on unconnected queue.\n",
 			cmd->fabrics.opcode);
 		req->error_loc = offsetof(struct nvme_common_command, opcode);

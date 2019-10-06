@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Marvell 88E6xxx Switch PTP support
  *
@@ -7,11 +8,6 @@
  *      Erik Hons <erik.hons@ni.com>
  *      Brandon Streiff <brandon.streiff@ni.com>
  *      Dane Wagner <dane.wagner@ni.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _MV88E6XXX_PTP_H
@@ -152,8 +148,9 @@ void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip);
 #define ptp_to_chip(ptp) container_of(ptp, struct mv88e6xxx_chip,	\
 				      ptp_clock_info)
 
-extern const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops;
 extern const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops;
+extern const struct mv88e6xxx_ptp_ops mv88e6250_ptp_ops;
+extern const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops;
 
 #else /* !CONFIG_NET_DSA_MV88E6XXX_PTP */
 
@@ -171,8 +168,9 @@ static inline void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip)
 {
 }
 
-static const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops = {};
 static const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops = {};
+static const struct mv88e6xxx_ptp_ops mv88e6250_ptp_ops = {};
+static const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops = {};
 
 #endif /* CONFIG_NET_DSA_MV88E6XXX_PTP */
 

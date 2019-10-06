@@ -100,13 +100,11 @@ static void bnx2x_vf_igu_ack_sb(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	DP(NETIF_MSG_HW, "write 0x%08x to IGU(via GRC) addr 0x%x\n",
 	   cmd_data.sb_id_and_flags, igu_addr_data);
 	REG_WR(bp, igu_addr_data, cmd_data.sb_id_and_flags);
-	mmiowb();
 	barrier();
 
 	DP(NETIF_MSG_HW, "write 0x%08x to IGU(via GRC) addr 0x%x\n",
 	   ctl, igu_addr_ctl);
 	REG_WR(bp, igu_addr_ctl, ctl);
-	mmiowb();
 	barrier();
 }
 
@@ -2230,7 +2228,7 @@ int bnx2x_vf_free(struct bnx2x *bp, struct bnx2x_virtf *vf)
 		rc = bnx2x_vf_close(bp, vf);
 		if (rc)
 			goto op_err;
-		/* Fallthrough to release resources */
+		/* Fall through - to release resources */
 	case VF_ACQUIRED:
 		DP(BNX2X_MSG_IOV, "about to free resources\n");
 		bnx2x_vf_free_resc(bp, vf);

@@ -290,6 +290,7 @@ static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
 /* Config space accessors. */
 #define virtio_cread(vdev, structname, member, ptr)			\
 	do {								\
+		might_sleep();						\
 		/* Must match the member's type, and be integer */	\
 		if (!typecheck(typeof((((structname*)0)->member)), *(ptr))) \
 			(*ptr) = 1;					\
@@ -319,6 +320,7 @@ static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
 /* Config space accessors. */
 #define virtio_cwrite(vdev, structname, member, ptr)			\
 	do {								\
+		might_sleep();						\
 		/* Must match the member's type, and be integer */	\
 		if (!typecheck(typeof((((structname*)0)->member)), *(ptr))) \
 			BUG_ON((*ptr) == 1);				\
@@ -358,6 +360,7 @@ static inline void __virtio_cread_many(struct virtio_device *vdev,
 		vdev->config->generation(vdev) : 0;
 	int i;
 
+	might_sleep();
 	do {
 		old = gen;
 
@@ -380,6 +383,8 @@ static inline void virtio_cread_bytes(struct virtio_device *vdev,
 static inline u8 virtio_cread8(struct virtio_device *vdev, unsigned int offset)
 {
 	u8 ret;
+
+	might_sleep();
 	vdev->config->get(vdev, offset, &ret, sizeof(ret));
 	return ret;
 }
@@ -387,6 +392,7 @@ static inline u8 virtio_cread8(struct virtio_device *vdev, unsigned int offset)
 static inline void virtio_cwrite8(struct virtio_device *vdev,
 				  unsigned int offset, u8 val)
 {
+	might_sleep();
 	vdev->config->set(vdev, offset, &val, sizeof(val));
 }
 
@@ -394,6 +400,8 @@ static inline u16 virtio_cread16(struct virtio_device *vdev,
 				 unsigned int offset)
 {
 	u16 ret;
+
+	might_sleep();
 	vdev->config->get(vdev, offset, &ret, sizeof(ret));
 	return virtio16_to_cpu(vdev, (__force __virtio16)ret);
 }
@@ -401,6 +409,7 @@ static inline u16 virtio_cread16(struct virtio_device *vdev,
 static inline void virtio_cwrite16(struct virtio_device *vdev,
 				   unsigned int offset, u16 val)
 {
+	might_sleep();
 	val = (__force u16)cpu_to_virtio16(vdev, val);
 	vdev->config->set(vdev, offset, &val, sizeof(val));
 }
@@ -409,6 +418,8 @@ static inline u32 virtio_cread32(struct virtio_device *vdev,
 				 unsigned int offset)
 {
 	u32 ret;
+
+	might_sleep();
 	vdev->config->get(vdev, offset, &ret, sizeof(ret));
 	return virtio32_to_cpu(vdev, (__force __virtio32)ret);
 }
@@ -416,6 +427,7 @@ static inline u32 virtio_cread32(struct virtio_device *vdev,
 static inline void virtio_cwrite32(struct virtio_device *vdev,
 				   unsigned int offset, u32 val)
 {
+	might_sleep();
 	val = (__force u32)cpu_to_virtio32(vdev, val);
 	vdev->config->set(vdev, offset, &val, sizeof(val));
 }
@@ -431,6 +443,7 @@ static inline u64 virtio_cread64(struct virtio_device *vdev,
 static inline void virtio_cwrite64(struct virtio_device *vdev,
 				   unsigned int offset, u64 val)
 {
+	might_sleep();
 	val = (__force u64)cpu_to_virtio64(vdev, val);
 	vdev->config->set(vdev, offset, &val, sizeof(val));
 }

@@ -1,24 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright © 2017 Keith Packard <keithp@keithp.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
+#include <linux/file.h>
+#include <linux/uaccess.h>
 
-#include <drm/drmP.h>
-#include "drm_internal.h"
-#include "drm_legacy.h"
-#include "drm_crtc_internal.h"
-#include <drm/drm_lease.h>
 #include <drm/drm_auth.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_lease.h>
+#include <drm/drm_print.h>
+
+#include "drm_crtc_internal.h"
+#include "drm_internal.h"
+#include "drm_legacy.h"
 
 #define drm_for_each_lessee(lessee, lessor) \
 	list_for_each_entry((lessee), &(lessor)->lessees, lessee_list)
@@ -111,7 +107,7 @@ static bool _drm_has_leased(struct drm_master *master, int id)
  */
 bool _drm_lease_held(struct drm_file *file_priv, int id)
 {
-	if (file_priv == NULL || file_priv->master == NULL)
+	if (!file_priv || !file_priv->master)
 		return true;
 
 	return _drm_lease_held_master(file_priv->master, id);
@@ -133,7 +129,7 @@ bool drm_lease_held(struct drm_file *file_priv, int id)
 	struct drm_master *master;
 	bool ret;
 
-	if (file_priv == NULL || file_priv->master == NULL)
+	if (!file_priv || !file_priv->master || !file_priv->master->lessor)
 		return true;
 
 	master = file_priv->master;
@@ -159,7 +155,7 @@ uint32_t drm_lease_filter_crtcs(struct drm_file *file_priv, uint32_t crtcs_in)
 	int count_in, count_out;
 	uint32_t crtcs_out = 0;
 
-	if (file_priv == NULL || file_priv->master == NULL)
+	if (!file_priv || !file_priv->master || !file_priv->master->lessor)
 		return crtcs_in;
 
 	master = file_priv->master;
@@ -218,10 +214,8 @@ static struct drm_master *drm_lease_create(struct drm_master *lessor, struct idr
 
 	idr_for_each_entry(leases, entry, object) {
 		error = 0;
-		if (!idr_find(&dev->mode_config.crtc_idr, object))
+		if (!idr_find(&dev->mode_config.object_idr, object))
 			error = -ENOENT;
-		else if (!_drm_lease_held_master(lessor, object))
-			error = -EACCES;
 		else if (_drm_has_leased(lessor, object))
 			error = -EBUSY;
 
@@ -403,11 +397,6 @@ static int fill_object_idr(struct drm_device *dev,
 	/* step one - get references to all the mode objects
 	   and check for validity. */
 	for (o = 0; o < object_count; o++) {
-		if ((int) object_ids[o] < 0) {
-			ret = -EINVAL;
-			goto out_free_objects;
-		}
-
 		objects[o] = drm_mode_object_find(dev, lessor_priv,
 						  object_ids[o],
 						  DRM_MODE_OBJECT_ANY);
@@ -439,7 +428,7 @@ static int fill_object_idr(struct drm_device *dev,
 		/*
 		 * We're using an IDR to hold the set of leased
 		 * objects, but we don't need to point at the object's
-		 * data structure from the lease as the main crtc_idr
+		 * data structure from the lease as the main object_idr
 		 * will be used to actually find that. Instead, all we
 		 * really want is a 'leased/not-leased' result, for
 		 * which any non-NULL pointer will work fine.
@@ -688,7 +677,7 @@ int drm_mode_get_lease_ioctl(struct drm_device *dev,
 
 	if (lessee->lessor == NULL)
 		/* owner can use all objects */
-		object_idr = &lessee->dev->mode_config.crtc_idr;
+		object_idr = &lessee->dev->mode_config.object_idr;
 	else
 		/* lessee can only use allowed object */
 		object_idr = &lessee->leases;

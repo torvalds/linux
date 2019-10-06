@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Adaptec AAC series RAID controller driver
  *	(c) Copyright 2001 Red Hat Inc.
@@ -9,26 +10,11 @@
  *               2010-2015 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
  *		 2016-2017 Microsemi Corp. (aacraid@microsemi.com)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
- * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * Module Name:
  *  commsup.c
  *
  * Abstract: Contain all routines that are required for FSA host/adapter
  *    communication.
- *
  */
 
 #include <linux/kernel.h>
@@ -672,7 +658,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 					return -ETIMEDOUT;
 				}
 
-				if (unlikely(pci_channel_offline(dev->pdev)))
+				if (unlikely(aac_pci_offline(dev)))
 					return -EFAULT;
 
 				if ((blink = aac_adapter_check_health(dev)) > 0) {
@@ -772,7 +758,7 @@ int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 
 		spin_unlock_irqrestore(&fibptr->event_lock, flags);
 
-		if (unlikely(pci_channel_offline(dev->pdev)))
+		if (unlikely(aac_pci_offline(dev)))
 			return -EFAULT;
 
 		fibptr->flags |= FIB_CONTEXT_FLAG_WAIT;
@@ -1303,8 +1289,9 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 				  ADD : DELETE;
 				break;
 			}
-			case AifBuManagerEvent:
-				aac_handle_aif_bu(dev, aifcmd);
+			break;
+		case AifBuManagerEvent:
+			aac_handle_aif_bu(dev, aifcmd);
 			break;
 		}
 
@@ -1376,18 +1363,19 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 
 	container = 0;
 retry_next:
-	if (device_config_needed == NOTHING)
-	for (; container < dev->maximum_num_containers; ++container) {
-		if ((dev->fsa_dev[container].config_waiting_on == 0) &&
-			(dev->fsa_dev[container].config_needed != NOTHING) &&
-			time_before(jiffies, dev->fsa_dev[container].config_waiting_stamp + AIF_SNIFF_TIMEOUT)) {
-			device_config_needed =
-				dev->fsa_dev[container].config_needed;
-			dev->fsa_dev[container].config_needed = NOTHING;
-			channel = CONTAINER_TO_CHANNEL(container);
-			id = CONTAINER_TO_ID(container);
-			lun = CONTAINER_TO_LUN(container);
-			break;
+	if (device_config_needed == NOTHING) {
+		for (; container < dev->maximum_num_containers; ++container) {
+			if ((dev->fsa_dev[container].config_waiting_on == 0) &&
+			    (dev->fsa_dev[container].config_needed != NOTHING) &&
+			    time_before(jiffies, dev->fsa_dev[container].config_waiting_stamp + AIF_SNIFF_TIMEOUT)) {
+				device_config_needed =
+					dev->fsa_dev[container].config_needed;
+				dev->fsa_dev[container].config_needed = NOTHING;
+				channel = CONTAINER_TO_CHANNEL(container);
+				id = CONTAINER_TO_ID(container);
+				lun = CONTAINER_TO_LUN(container);
+				break;
+			}
 		}
 	}
 	if (device_config_needed == NOTHING)

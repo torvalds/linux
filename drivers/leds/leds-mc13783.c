@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LEDs driver for Freescale MC13783/MC13892/MC34708
  *
@@ -9,10 +10,6 @@
  *
  * Copyright (C) 2006-2008 Marvell International Ltd.
  *      Eric Miao <eric.miao@marvell.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

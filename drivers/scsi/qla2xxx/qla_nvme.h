@@ -7,12 +7,12 @@
 #ifndef __QLA_NVME_H
 #define __QLA_NVME_H
 
-#include <linux/blk-mq.h>
 #include <uapi/scsi/fc/fc_fs.h>
 #include <uapi/scsi/fc/fc_els.h>
 #include <linux/nvme-fc-driver.h>
 
 #include "qla_def.h"
+#include "qla_dsd.h"
 
 /* default dev loss time (seconds) before transport tears down ctrl */
 #define NVME_FC_DEV_LOSS_TMO  30
@@ -33,10 +33,10 @@ struct nvme_private {
 	struct work_struct ls_work;
 	struct work_struct abort_work;
 	int comp_status;
+	spinlock_t cmd_lock;
 };
 
 struct qla_nvme_rport {
-	struct list_head list;
 	struct fc_port *fcport;
 };
 
@@ -57,23 +57,22 @@ struct cmd_nvme {
 	uint64_t rsvd;
 
 	uint16_t control_flags;         /* Control Flags */
-#define CF_NVME_ENABLE                  BIT_9
+#define CF_NVME_FIRST_BURST_ENABLE	BIT_11
 #define CF_DIF_SEG_DESCR_ENABLE         BIT_3
 #define CF_DATA_SEG_DESCR_ENABLE        BIT_2
 #define CF_READ_DATA                    BIT_1
 #define CF_WRITE_DATA                   BIT_0
 
 	uint16_t nvme_cmnd_dseg_len;             /* Data segment length. */
-	uint32_t nvme_cmnd_dseg_address[2];      /* Data segment address. */
-	uint32_t nvme_rsp_dseg_address[2];       /* Data segment address. */
+	__le64	 nvme_cmnd_dseg_address __packed;/* Data segment address. */
+	__le64	 nvme_rsp_dseg_address __packed; /* Data segment address. */
 
 	uint32_t byte_count;            /* Total byte count. */
 
 	uint8_t port_id[3];             /* PortID of destination port. */
 	uint8_t vp_index;
 
-	uint32_t nvme_data_dseg_address[2];      /* Data segment address. */
-	uint32_t nvme_data_dseg_len;             /* Data segment length. */
+	struct dsd64 nvme_dsd;
 };
 
 #define PT_LS4_REQUEST 0x89	/* Link Service pass-through IOCB (request) */
@@ -101,10 +100,7 @@ struct pt_ls4_request {
 	uint32_t rsvd3;
 	uint32_t rx_byte_count;
 	uint32_t tx_byte_count;
-	uint32_t dseg0_address[2];
-	uint32_t dseg0_len;
-	uint32_t dseg1_address[2];
-	uint32_t dseg1_len;
+	struct dsd64 dsd[2];
 };
 
 #define PT_LS4_UNSOL 0x56	/* pass-up unsolicited rec FC-NVMe request */
@@ -122,7 +118,7 @@ struct pt_ls4_rx_unsol {
 	uint32_t exchange_address;
 	uint8_t d_id[3];
 	uint8_t r_ctl;
-	uint8_t s_id[3];
+	be_id_t s_id;
 	uint8_t cs_ctl;
 	uint8_t f_ctl[3];
 	uint8_t type;
@@ -145,8 +141,7 @@ struct pt_ls4_rx_unsol {
 int qla_nvme_register_hba(struct scsi_qla_host *);
 int  qla_nvme_register_remote(struct scsi_qla_host *, struct fc_port *);
 void qla_nvme_delete(struct scsi_qla_host *);
-void qla_nvme_abort(struct qla_hw_data *, struct srb *sp, int res);
 void qla24xx_nvme_ls4_iocb(struct scsi_qla_host *, struct pt_ls4_request *,
     struct req_que *);
-void qla24xx_async_gffid_sp_done(void *, int);
+void qla24xx_async_gffid_sp_done(struct srb *sp, int);
 #endif

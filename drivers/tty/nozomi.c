@@ -1282,7 +1282,7 @@ static void nozomi_setup_private_data(struct nozomi *dc)
 static ssize_t card_type_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	const struct nozomi *dc = pci_get_drvdata(to_pci_dev(dev));
+	const struct nozomi *dc = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%d\n", dc->card_type);
 }
@@ -1291,7 +1291,7 @@ static DEVICE_ATTR_RO(card_type);
 static ssize_t open_ttys_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	const struct nozomi *dc = pci_get_drvdata(to_pci_dev(dev));
+	const struct nozomi *dc = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%u\n", dc->open_ttys);
 }
@@ -1317,7 +1317,6 @@ static void remove_sysfs_files(struct nozomi *dc)
 static int nozomi_card_init(struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
-	resource_size_t start;
 	int ret;
 	struct nozomi *dc = NULL;
 	int ndev_idx;
@@ -1357,17 +1356,10 @@ static int nozomi_card_init(struct pci_dev *pdev,
 		goto err_disable_device;
 	}
 
-	start = pci_resource_start(dc->pdev, 0);
-	if (start == 0) {
-		dev_err(&pdev->dev, "No I/O address for card detected\n");
-		ret = -ENODEV;
-		goto err_rel_regs;
-	}
-
 	/* Find out what card type it is */
 	nozomi_get_card_type(dc);
 
-	dc->base_addr = ioremap_nocache(start, dc->card_type);
+	dc->base_addr = pci_iomap(dc->pdev, 0, dc->card_type);
 	if (!dc->base_addr) {
 		dev_err(&pdev->dev, "Unable to map card MMIO\n");
 		ret = -ENODEV;

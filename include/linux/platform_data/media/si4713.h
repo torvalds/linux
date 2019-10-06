@@ -31,7 +31,7 @@ struct si4713_platform_data {
  */
 struct si4713_rnl {
 	__u32 index;		/* modulator index */
-	__u32 frequency;	/* frequency to peform rnl measurement */
+	__u32 frequency;	/* frequency to perform rnl measurement */
 	__s32 rnl;		/* result of measurement in dBuV */
 	__u32 reserved[4];	/* drivers and apps must init this to 0 */
 };
@@ -40,7 +40,7 @@ struct si4713_rnl {
  * This is the ioctl number to query for rnl. Users must pass a
  * struct si4713_rnl pointer specifying desired frequency in 'frequency' field
  * following driver capabilities (i.e V4L2_TUNER_CAP_LOW).
- * Driver must return measured value in the same struture, filling 'rnl' field.
+ * Driver must return measured value in the same structure, filling 'rnl' field.
  */
 #define SI4713_IOC_MEASURE_RNL	_IOWR('V', BASE_VIDIOC_PRIVATE + 0, \
 						struct si4713_rnl)

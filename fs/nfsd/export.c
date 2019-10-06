@@ -22,6 +22,7 @@
 #include "nfsfh.h"
 #include "netns.h"
 #include "pnfs.h"
+#include "filecache.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_EXPORT
 
@@ -232,6 +233,17 @@ static struct cache_head *expkey_alloc(void)
 		return NULL;
 }
 
+static void expkey_flush(void)
+{
+	/*
+	 * Take the nfsd_mutex here to ensure that the file cache is not
+	 * destroyed while we're in the middle of flushing.
+	 */
+	mutex_lock(&nfsd_mutex);
+	nfsd_file_cache_purge(current->nsproxy->net_ns);
+	mutex_unlock(&nfsd_mutex);
+}
+
 static const struct cache_detail svc_expkey_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= EXPKEY_HASHMAX,
@@ -244,6 +256,7 @@ static const struct cache_detail svc_expkey_cache_template = {
 	.init		= expkey_init,
 	.update       	= expkey_update,
 	.alloc		= expkey_alloc,
+	.flush		= expkey_flush,
 };
 
 static int
@@ -570,13 +583,13 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 		err = get_int(&mesg, &an_int);
 		if (err)
 			goto out3;
-		exp.ex_anon_uid= make_kuid(&init_user_ns, an_int);
+		exp.ex_anon_uid= make_kuid(current_user_ns(), an_int);
 
 		/* anon gid */
 		err = get_int(&mesg, &an_int);
 		if (err)
 			goto out3;
-		exp.ex_anon_gid= make_kgid(&init_user_ns, an_int);
+		exp.ex_anon_gid= make_kgid(current_user_ns(), an_int);
 
 		/* fsid */
 		err = get_int(&mesg, &an_int);
@@ -1170,15 +1183,17 @@ static void show_secinfo(struct seq_file *m, struct svc_export *exp)
 static void exp_flags(struct seq_file *m, int flag, int fsid,
 		kuid_t anonu, kgid_t anong, struct nfsd4_fs_locations *fsloc)
 {
+	struct user_namespace *userns = m->file->f_cred->user_ns;
+
 	show_expflags(m, flag, NFSEXP_ALLFLAGS);
 	if (flag & NFSEXP_FSID)
 		seq_printf(m, ",fsid=%d", fsid);
-	if (!uid_eq(anonu, make_kuid(&init_user_ns, (uid_t)-2)) &&
-	    !uid_eq(anonu, make_kuid(&init_user_ns, 0x10000-2)))
-		seq_printf(m, ",anonuid=%u", from_kuid(&init_user_ns, anonu));
-	if (!gid_eq(anong, make_kgid(&init_user_ns, (gid_t)-2)) &&
-	    !gid_eq(anong, make_kgid(&init_user_ns, 0x10000-2)))
-		seq_printf(m, ",anongid=%u", from_kgid(&init_user_ns, anong));
+	if (!uid_eq(anonu, make_kuid(userns, (uid_t)-2)) &&
+	    !uid_eq(anonu, make_kuid(userns, 0x10000-2)))
+		seq_printf(m, ",anonuid=%u", from_kuid_munged(userns, anonu));
+	if (!gid_eq(anong, make_kgid(userns, (gid_t)-2)) &&
+	    !gid_eq(anong, make_kgid(userns, 0x10000-2)))
+		seq_printf(m, ",anongid=%u", from_kgid_munged(userns, anong));
 	if (fsloc && fsloc->locations_count > 0) {
 		char *loctype = (fsloc->migrated) ? "refer" : "replicas";
 		int i;

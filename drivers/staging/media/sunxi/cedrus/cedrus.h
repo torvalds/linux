@@ -28,9 +28,11 @@
 
 #define CEDRUS_CAPABILITY_UNTILED	BIT(0)
 
+#define CEDRUS_QUIRK_NO_DMA_OFFSET	BIT(0)
+
 enum cedrus_codec {
 	CEDRUS_CODEC_MPEG2,
-
+	CEDRUS_CODEC_H264,
 	CEDRUS_CODEC_LAST,
 };
 
@@ -40,11 +42,24 @@ enum cedrus_irq_status {
 	CEDRUS_IRQ_OK,
 };
 
+enum cedrus_h264_pic_type {
+	CEDRUS_H264_PIC_TYPE_FRAME	= 0,
+	CEDRUS_H264_PIC_TYPE_FIELD,
+	CEDRUS_H264_PIC_TYPE_MBAFF,
+};
+
 struct cedrus_control {
-	u32			id;
-	u32			elem_size;
+	struct v4l2_ctrl_config cfg;
 	enum cedrus_codec	codec;
 	unsigned char		required:1;
+};
+
+struct cedrus_h264_run {
+	const struct v4l2_ctrl_h264_decode_params	*decode_params;
+	const struct v4l2_ctrl_h264_pps			*pps;
+	const struct v4l2_ctrl_h264_scaling_matrix	*scaling_matrix;
+	const struct v4l2_ctrl_h264_slice_params	*slice_params;
+	const struct v4l2_ctrl_h264_sps			*sps;
 };
 
 struct cedrus_mpeg2_run {
@@ -57,12 +72,20 @@ struct cedrus_run {
 	struct vb2_v4l2_buffer	*dst;
 
 	union {
+		struct cedrus_h264_run	h264;
 		struct cedrus_mpeg2_run	mpeg2;
 	};
 };
 
 struct cedrus_buffer {
 	struct v4l2_m2m_buffer          m2m_buf;
+
+	union {
+		struct {
+			unsigned int			position;
+			enum cedrus_h264_pic_type	pic_type;
+		} h264;
+	} codec;
 };
 
 struct cedrus_ctx {
@@ -76,7 +99,18 @@ struct cedrus_ctx {
 	struct v4l2_ctrl_handler	hdl;
 	struct v4l2_ctrl		**ctrls;
 
-	struct vb2_buffer		*dst_bufs[VIDEO_MAX_FRAME];
+	union {
+		struct {
+			void		*mv_col_buf;
+			dma_addr_t	mv_col_buf_dma;
+			ssize_t		mv_col_buf_field_size;
+			ssize_t		mv_col_buf_size;
+			void		*pic_info_buf;
+			dma_addr_t	pic_info_buf_dma;
+			void		*neighbor_info_buf;
+			dma_addr_t	neighbor_info_buf_dma;
+		} h264;
+	} codec;
 };
 
 struct cedrus_dec_ops {
@@ -91,6 +125,8 @@ struct cedrus_dec_ops {
 
 struct cedrus_variant {
 	unsigned int	capabilities;
+	unsigned int	quirks;
+	unsigned int	mod_rate;
 };
 
 struct cedrus_dev {
@@ -118,6 +154,7 @@ struct cedrus_dev {
 };
 
 extern struct cedrus_dec_ops cedrus_dec_ops_mpeg2;
+extern struct cedrus_dec_ops cedrus_dec_ops_h264;
 
 static inline void cedrus_write(struct cedrus_dev *dev, u32 reg, u32 val)
 {
@@ -140,11 +177,14 @@ static inline dma_addr_t cedrus_buf_addr(struct vb2_buffer *buf,
 }
 
 static inline dma_addr_t cedrus_dst_buf_addr(struct cedrus_ctx *ctx,
-					     unsigned int index,
-					     unsigned int plane)
+					     int index, unsigned int plane)
 {
-	struct vb2_buffer *buf = ctx->dst_bufs[index];
+	struct vb2_buffer *buf;
 
+	if (index < 0)
+		return 0;
+
+	buf = ctx->fh.m2m_ctx->cap_q_ctx.q.bufs[index];
 	return buf ? cedrus_buf_addr(buf, &ctx->dst_fmt, plane) : 0;
 }
 

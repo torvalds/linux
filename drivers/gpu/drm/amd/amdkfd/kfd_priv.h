@@ -35,6 +35,7 @@
 #include <linux/kfifo.h>
 #include <linux/seq_file.h>
 #include <linux/kref.h>
+#include <linux/sysfs.h>
 #include <kgd_kfd_interface.h>
 
 #include "amd_shared.h"
@@ -59,6 +60,7 @@
 #define KFD_MMAP_TYPE_DOORBELL	(0x3ULL << KFD_MMAP_TYPE_SHIFT)
 #define KFD_MMAP_TYPE_EVENTS	(0x2ULL << KFD_MMAP_TYPE_SHIFT)
 #define KFD_MMAP_TYPE_RESERVED_MEM	(0x1ULL << KFD_MMAP_TYPE_SHIFT)
+#define KFD_MMAP_TYPE_MMIO	(0x0ULL << KFD_MMAP_TYPE_SHIFT)
 
 #define KFD_MMAP_GPU_ID_SHIFT (46 - PAGE_SHIFT)
 #define KFD_MMAP_GPU_ID_MASK (((1ULL << KFD_GPU_ID_HASH_WIDTH) - 1) \
@@ -97,17 +99,31 @@
 #define KFD_CWSR_TBA_TMA_SIZE (PAGE_SIZE * 2)
 #define KFD_CWSR_TMA_OFFSET PAGE_SIZE
 
+#define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE		\
+	(KFD_MAX_NUM_OF_PROCESSES *			\
+			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
+
+#define KFD_KERNEL_QUEUE_SIZE 2048
+
+#define KFD_UNMAP_LATENCY_MS	(4000)
+
+/*
+ * 512 = 0x200
+ * The doorbell index distance between SDMA RLC (2*i) and (2*i+1) in the
+ * same SDMA engine on SOC15, which has 8-byte doorbells for SDMA.
+ * 512 8-byte doorbell distance (i.e. one page away) ensures that SDMA RLC
+ * (2*i+1) doorbells (in terms of the lower 12 bit address) lie exactly in
+ * the OFFSET and SIZE set in registers like BIF_SDMA0_DOORBELL_RANGE.
+ */
+#define KFD_QUEUE_DOORBELL_MIRROR_OFFSET 512
+
+
 /*
  * Kernel module parameter to specify maximum number of supported queues per
  * device
  */
 extern int max_num_of_queues_per_device;
 
-#define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE		\
-	(KFD_MAX_NUM_OF_PROCESSES *			\
-			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
-
-#define KFD_KERNEL_QUEUE_SIZE 2048
 
 /* Kernel module parameter to specify the scheduling policy */
 extern int sched_policy;
@@ -141,18 +157,32 @@ extern int ignore_crat;
 /*
  * Set sh_mem_config.retry_disable on Vega10
  */
-extern int noretry;
+extern int amdgpu_noretry;
 
 /*
  * Halt if HWS hang is detected
  */
 extern int halt_if_hws_hang;
 
+/*
+ * Whether MEC FW support GWS barriers
+ */
+extern bool hws_gws_support;
+
+/*
+ * Queue preemption timeout in ms
+ */
+extern int queue_preemption_timeout_ms;
+
 enum cache_policy {
 	cache_policy_coherent,
 	cache_policy_noncoherent
 };
 
+#define KFD_IS_VI(chip) ((chip) >= CHIP_CARRIZO && (chip) <= CHIP_POLARIS11)
+#define KFD_IS_DGPU(chip) (((chip) >= CHIP_TONGA && \
+			   (chip) <= CHIP_NAVI10) || \
+			   (chip) == CHIP_HAWAII)
 #define KFD_IS_SOC15(chip) ((chip) >= CHIP_VEGA10)
 
 struct kfd_event_interrupt_class {
@@ -165,6 +195,7 @@ struct kfd_event_interrupt_class {
 
 struct kfd_device_info {
 	enum amd_asic_type asic_family;
+	const char *asic_name;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
 	unsigned int max_no_of_hqd;
@@ -176,6 +207,7 @@ struct kfd_device_info {
 	bool needs_iommu_device;
 	bool needs_pci_atomics;
 	unsigned int num_sdma_engines;
+	unsigned int num_xgmi_sdma_engines;
 	unsigned int num_sdma_queues_per_engine;
 };
 
@@ -246,7 +278,7 @@ struct kfd_dev {
 	bool interrupts_active;
 
 	/* Debug manager */
-	struct kfd_dbgmgr           *dbgmgr;
+	struct kfd_dbgmgr *dbgmgr;
 
 	/* Firmware versions */
 	uint16_t mec_fw_version;
@@ -264,15 +296,16 @@ struct kfd_dev {
 	uint64_t hive_id;
 
 	bool pci_atomic_requested;
-};
 
-/* KGD2KFD callbacks */
-void kgd2kfd_exit(void);
-struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
-			struct pci_dev *pdev, const struct kfd2kgd_calls *f2g);
-bool kgd2kfd_device_init(struct kfd_dev *kfd,
-			const struct kgd2kfd_shared_resources *gpu_resources);
-void kgd2kfd_device_exit(struct kfd_dev *kfd);
+	/* SRAM ECC flag */
+	atomic_t sram_ecc_flag;
+
+	/* Compute Profile ref. count */
+	atomic_t compute_profile;
+
+	/* Global GWS resource shared b/t processes*/
+	void *gws;
+};
 
 enum kfd_mempool {
 	KFD_MEMPOOL_SYSTEM_CACHEABLE = 1,
@@ -319,12 +352,18 @@ enum kfd_queue_type  {
 	KFD_QUEUE_TYPE_COMPUTE,
 	KFD_QUEUE_TYPE_SDMA,
 	KFD_QUEUE_TYPE_HIQ,
-	KFD_QUEUE_TYPE_DIQ
+	KFD_QUEUE_TYPE_DIQ,
+	KFD_QUEUE_TYPE_SDMA_XGMI
 };
 
 enum kfd_queue_format {
 	KFD_QUEUE_FORMAT_PM4,
 	KFD_QUEUE_FORMAT_AQL
+};
+
+enum KFD_QUEUE_PRIORITY {
+	KFD_QUEUE_PRIORITY_MINIMUM = 0,
+	KFD_QUEUE_PRIORITY_MAXIMUM = 15
 };
 
 /**
@@ -409,6 +448,11 @@ struct queue_properties {
 	uint32_t *cu_mask;
 };
 
+#define QUEUE_IS_ACTIVE(q) ((q).queue_size > 0 &&	\
+			    (q).queue_address != 0 &&	\
+			    (q).queue_percent > 0 &&	\
+			    !(q).is_evicted)
+
 /**
  * struct queue
  *
@@ -434,6 +478,9 @@ struct queue_properties {
  *
  * @device: The kfd device that created this queue.
  *
+ * @gws: Pointing to gws kgd_mem if this is a gws control queue; NULL
+ * otherwise.
+ *
  * This structure represents user mode compute queues.
  * It contains all the necessary data to handle such queues.
  *
@@ -455,6 +502,7 @@ struct queue {
 
 	struct kfd_process	*process;
 	struct kfd_dev		*device;
+	void *gws;
 };
 
 /*
@@ -465,7 +513,14 @@ enum KFD_MQD_TYPE {
 	KFD_MQD_TYPE_HIQ,		/* for hiq */
 	KFD_MQD_TYPE_CP,		/* for cp queues and diq */
 	KFD_MQD_TYPE_SDMA,		/* for sdma queues */
+	KFD_MQD_TYPE_DIQ,		/* for diq */
 	KFD_MQD_TYPE_MAX
+};
+
+enum KFD_PIPE_PRIORITY {
+	KFD_PIPE_PRIORITY_CS_LOW = 0,
+	KFD_PIPE_PRIORITY_CS_MEDIUM,
+	KFD_PIPE_PRIORITY_CS_HIGH
 };
 
 struct scheduling_resources {
@@ -540,11 +595,6 @@ struct qcm_process_device {
 #define PROCESS_BACK_OFF_TIME_MS 100
 /* Approx. time before evicting the process again */
 #define PROCESS_ACTIVE_TIME_MS 10
-
-int kgd2kfd_quiesce_mm(struct mm_struct *mm);
-int kgd2kfd_resume_mm(struct mm_struct *mm);
-int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
-					       struct dma_fence *fence);
 
 /* 8 byte handle containing GPU ID in the most significant 4 bytes and
  * idr_handle in the least significant 4 bytes
@@ -637,9 +687,6 @@ struct kfd_process {
 	/* We want to receive a notification when the mm_struct is destroyed */
 	struct mmu_notifier mmu_notifier;
 
-	/* Use for delayed freeing of kfd_process structure */
-	struct rcu_head	rcu;
-
 	unsigned int pasid;
 	unsigned int doorbell_index;
 
@@ -681,6 +728,10 @@ struct kfd_process {
 	 * restored after an eviction
 	 */
 	unsigned long last_restore_timestamp;
+
+	/* Kobj for our procfs */
+	struct kobject *kobj;
+	struct attribute attr_pasid;
 };
 
 #define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */
@@ -783,6 +834,10 @@ int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj);
 
 extern struct device *kfd_device;
 
+/* KFD's procfs */
+void kfd_procfs_init(void);
+void kfd_procfs_shutdown(void);
+
 /* Topology */
 int kfd_topology_init(void);
 void kfd_topology_shutdown(void);
@@ -800,19 +855,10 @@ int kfd_numa_node_to_apic_id(int numa_node_id);
 /* Interrupts */
 int kfd_interrupt_init(struct kfd_dev *dev);
 void kfd_interrupt_exit(struct kfd_dev *dev);
-void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry);
 bool enqueue_ih_ring_entry(struct kfd_dev *kfd,	const void *ih_ring_entry);
 bool interrupt_is_wanted(struct kfd_dev *dev,
 				const uint32_t *ih_ring_entry,
 				uint32_t *patched_ihre, bool *flag);
-
-/* Power Management */
-void kgd2kfd_suspend(struct kfd_dev *kfd);
-int kgd2kfd_resume(struct kfd_dev *kfd);
-
-/* GPU reset */
-int kgd2kfd_pre_reset(struct kfd_dev *kfd);
-int kgd2kfd_post_reset(struct kfd_dev *kfd);
 
 /* amdkfd Apertures */
 int kfd_init_apertures(struct kfd_process *process);
@@ -823,8 +869,6 @@ void uninit_queue(struct queue *q);
 void print_queue_properties(struct queue_properties *q);
 void print_queue(struct queue *q);
 
-struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
-					struct kfd_dev *dev);
 struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev);
 struct mqd_manager *mqd_manager_init_cik_hawaii(enum KFD_MQD_TYPE type,
@@ -834,6 +878,8 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 struct mqd_manager *mqd_manager_init_vi_tonga(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev);
 struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
+		struct kfd_dev *dev);
+struct mqd_manager *mqd_manager_init_v10(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev);
 struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev);
 void device_queue_manager_uninit(struct device_queue_manager *dqm);
@@ -863,6 +909,8 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
 int pqm_set_cu_mask(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
+int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
+			void *gws);
 struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
 						unsigned int qid);
 int pqm_get_wave_state(struct process_queue_manager *pqm,
@@ -872,8 +920,8 @@ int pqm_get_wave_state(struct process_queue_manager *pqm,
 		       u32 *save_area_used_size);
 
 int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
-				unsigned int fence_value,
-				unsigned int timeout_ms);
+			      unsigned int fence_value,
+			      unsigned int timeout_ms);
 
 /* Packet Manager */
 
@@ -887,6 +935,7 @@ struct packet_manager {
 	bool allocated;
 	struct kfd_mem_obj *ib_buffer_obj;
 	unsigned int ib_size_bytes;
+	bool is_over_subscription;
 
 	const struct packet_manager_funcs *pmf;
 };
@@ -922,6 +971,7 @@ struct packet_manager_funcs {
 
 extern const struct packet_manager_funcs kfd_vi_pm_funcs;
 extern const struct packet_manager_funcs kfd_v9_pm_funcs;
+extern const struct packet_manager_funcs kfd_v10_pm_funcs;
 
 int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm);
 void pm_uninit(struct packet_manager *pm);
@@ -941,7 +991,8 @@ void pm_release_ib(struct packet_manager *pm);
 /* Following PM funcs can be shared among VI and AI */
 unsigned int pm_build_pm4_header(unsigned int opcode, size_t packet_size);
 int pm_set_resources_vi(struct packet_manager *pm, uint32_t *buffer,
-				struct scheduling_resources *res);
+			struct scheduling_resources *res);
+
 
 uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 
@@ -984,6 +1035,10 @@ void kfd_flush_tlb(struct kfd_process_device *pdd);
 int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p);
 
 bool kfd_is_locked(void);
+
+/* Compute profile */
+void kfd_inc_compute_active(struct kfd_dev *dev);
+void kfd_dec_compute_active(struct kfd_dev *dev);
 
 /* Debugfs */
 #if defined(CONFIG_DEBUG_FS)

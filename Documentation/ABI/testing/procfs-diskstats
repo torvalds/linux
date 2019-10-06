@@ -29,4 +29,4 @@ Description:
 		17 - sectors discarded
 		18 - time spent discarding
 
-		For more details refer to Documentation/iostats.txt
+		For more details refer to Documentation/admin-guide/iostats.rst

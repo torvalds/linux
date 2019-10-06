@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File aq_hw.h: Declaration of abstract interface for NIC hardware specific
@@ -87,6 +84,8 @@ struct aq_stats_s {
 #define AQ_HW_IRQ_LEGACY  1U
 #define AQ_HW_IRQ_MSI     2U
 #define AQ_HW_IRQ_MSIX    3U
+
+#define AQ_HW_SERVICE_IRQS   1U
 
 #define AQ_HW_POWER_STATE_D0   0U
 #define AQ_HW_POWER_STATE_D3   3U
@@ -258,6 +257,8 @@ struct aq_fw_ops {
 	int (*update_link_status)(struct aq_hw_s *self);
 
 	int (*update_stats)(struct aq_hw_s *self);
+
+	int (*get_phy_temp)(struct aq_hw_s *self, int *temp);
 
 	u32 (*get_flow_control)(struct aq_hw_s *self, u32 *fcmode);
 

@@ -11,11 +11,19 @@ Required properties:
 - reg-names:
    - "ctrl" for the control register region
    - "config" for the config space region
-- interrupts: Interrupt specifier for the PCIe controler
+- interrupts: Interrupt specifier for the PCIe controller
 - clocks: reference to the PCIe controller clocks
 - clock-names: mandatory if there is a second clock, in this case the
    name must be "core" for the first clock and "reg" for the second
    one
+
+Optional properties:
+- phys: phandle(s) to PHY node(s) following the generic PHY bindings.
+	Either 1, 2 or 4 PHYs might be needed depending on the number of
+	PCIe lanes.
+- phy-names: names of the PHYs corresponding to the number of lanes.
+	Must be "cp0-pcie0-x4-lane0-phy", "cp0-pcie0-x4-lane1-phy" for
+	2 PHYs.
 
 Example:
 

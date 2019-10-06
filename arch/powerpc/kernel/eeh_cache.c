@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PCI address cache; allows the lookup of PCI devices based on I/O address
  *
  * Copyright IBM Corporation 2004
  * Copyright Linas Vepstas <linas@austin.ibm.com> 2004
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/list.h>
@@ -26,10 +13,13 @@
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
 #include <asm/pci-bridge.h>
+#include <asm/debugfs.h>
 #include <asm/ppc-pci.h>
 
 
 /**
+ * DOC: Overview
+ *
  * The pci address cache subsystem.  This subsystem places
  * PCI device address resources into a red-black tree, sorted
  * according to the address range, so that given only an i/o
@@ -46,6 +36,7 @@
  * than any hash algo I could think of for this problem, even
  * with the penalty of slow pointer chases for d-cache misses).
  */
+
 struct pci_io_addr_range {
 	struct rb_node rb_node;
 	resource_size_t addr_lo;
@@ -113,7 +104,7 @@ static void eeh_addr_cache_print(struct pci_io_addr_cache *cache)
 	while (n) {
 		struct pci_io_addr_range *piar;
 		piar = rb_entry(n, struct pci_io_addr_range, rb_node);
-		pr_debug("PCI: %s addr range %d [%pap-%pap]: %s\n",
+		pr_info("PCI: %s addr range %d [%pap-%pap]: %s\n",
 		       (piar->flags & IORESOURCE_IO) ? "i/o" : "mem", cnt,
 		       &piar->addr_lo, &piar->addr_hi, pci_name(piar->pcidev));
 		cnt++;
@@ -157,10 +148,8 @@ eeh_addr_cache_insert(struct pci_dev *dev, resource_size_t alo,
 	piar->pcidev = dev;
 	piar->flags = flags;
 
-#ifdef DEBUG
-	pr_debug("PIAR: insert range=[%pap:%pap] dev=%s\n",
-		 &alo, &ahi, pci_name(dev));
-#endif
+	eeh_edev_dbg(piar->edev, "PIAR: insert range=[%pap:%pap]\n",
+		 &alo, &ahi);
 
 	rb_link_node(&piar->rb_node, parent, p);
 	rb_insert_color(&piar->rb_node, &pci_io_addr_cache_root.rb_root);
@@ -240,6 +229,8 @@ restart:
 		piar = rb_entry(n, struct pci_io_addr_range, rb_node);
 
 		if (piar->pcidev == dev) {
+			eeh_edev_dbg(piar->edev, "PIAR: remove range=[%pap:%pap]\n",
+				 &piar->addr_lo, &piar->addr_hi);
 			rb_erase(n, &pci_io_addr_cache_root.rb_root);
 			kfree(piar);
 			goto restart;
@@ -267,40 +258,38 @@ void eeh_addr_cache_rmv_dev(struct pci_dev *dev)
 }
 
 /**
- * eeh_addr_cache_build - Build a cache of I/O addresses
+ * eeh_addr_cache_init - Initialize a cache of I/O addresses
  *
- * Build a cache of pci i/o addresses.  This cache will be used to
+ * Initialize a cache of pci i/o addresses.  This cache will be used to
  * find the pci device that corresponds to a given address.
- * This routine scans all pci busses to build the cache.
- * Must be run late in boot process, after the pci controllers
- * have been scanned for devices (after all device resources are known).
  */
-void eeh_addr_cache_build(void)
+void eeh_addr_cache_init(void)
 {
-	struct pci_dn *pdn;
-	struct eeh_dev *edev;
-	struct pci_dev *dev = NULL;
-
 	spin_lock_init(&pci_io_addr_cache_root.piar_lock);
+}
 
-	for_each_pci_dev(dev) {
-		pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
-		if (!pdn)
-			continue;
+static int eeh_addr_cache_show(struct seq_file *s, void *v)
+{
+	struct pci_io_addr_range *piar;
+	struct rb_node *n;
 
-		edev = pdn_to_eeh_dev(pdn);
-		if (!edev)
-			continue;
+	spin_lock(&pci_io_addr_cache_root.piar_lock);
+	for (n = rb_first(&pci_io_addr_cache_root.rb_root); n; n = rb_next(n)) {
+		piar = rb_entry(n, struct pci_io_addr_range, rb_node);
 
-		dev->dev.archdata.edev = edev;
-		edev->pdev = dev;
-
-		eeh_addr_cache_insert_dev(dev);
-		eeh_sysfs_add_device(dev);
+		seq_printf(s, "%s addr range [%pap-%pap]: %s\n",
+		       (piar->flags & IORESOURCE_IO) ? "i/o" : "mem",
+		       &piar->addr_lo, &piar->addr_hi, pci_name(piar->pcidev));
 	}
+	spin_unlock(&pci_io_addr_cache_root.piar_lock);
 
-#ifdef DEBUG
-	/* Verify tree built up above, echo back the list of addrs. */
-	eeh_addr_cache_print(&pci_io_addr_cache_root);
-#endif
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(eeh_addr_cache);
+
+void eeh_cache_debugfs_init(void)
+{
+	debugfs_create_file_unsafe("eeh_address_cache", 0400,
+			powerpc_debugfs_root, NULL,
+			&eeh_addr_cache_fops);
 }

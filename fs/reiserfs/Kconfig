@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config REISERFS_FS
 	tristate "Reiserfs support"
 	select CRC32

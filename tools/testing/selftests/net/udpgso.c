@@ -17,7 +17,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -90,12 +89,9 @@ struct testcase testcases_v4[] = {
 		.tfail = true,
 	},
 	{
-		/* send a single MSS: will fail with GSO, because the segment
-		 * logic in udp4_ufo_fragment demands a gso skb to be > MTU
-		 */
+		/* send a single MSS: will fall back to no GSO */
 		.tlen = CONST_MSS_V4,
 		.gso_len = CONST_MSS_V4,
-		.tfail = true,
 		.r_num_mss = 1,
 	},
 	{
@@ -140,10 +136,9 @@ struct testcase testcases_v4[] = {
 		.tfail = true,
 	},
 	{
-		/* send a single 1B MSS: will fail, see single MSS above */
+		/* send a single 1B MSS: will fall back to no GSO */
 		.tlen = 1,
 		.gso_len = 1,
-		.tfail = true,
 		.r_num_mss = 1,
 	},
 	{
@@ -197,12 +192,9 @@ struct testcase testcases_v6[] = {
 		.tfail = true,
 	},
 	{
-		/* send a single MSS: will fail with GSO, because the segment
-		 * logic in udp4_ufo_fragment demands a gso skb to be > MTU
-		 */
+		/* send a single MSS: will fall back to no GSO */
 		.tlen = CONST_MSS_V6,
 		.gso_len = CONST_MSS_V6,
-		.tfail = true,
 		.r_num_mss = 1,
 	},
 	{
@@ -247,10 +239,9 @@ struct testcase testcases_v6[] = {
 		.tfail = true,
 	},
 	{
-		/* send a single 1B MSS: will fail, see single MSS above */
+		/* send a single 1B MSS: will fall back to no GSO */
 		.tlen = 1,
 		.gso_len = 1,
-		.tfail = true,
 		.r_num_mss = 1,
 	},
 	{

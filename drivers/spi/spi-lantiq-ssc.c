@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011-2015 Daniel Schwierzeck <daniel.schwierzeck@gmail.com>
  * Copyright (C) 2016 Hauke Mehrtens <hauke@hauke-m.de>
- *
- * This program is free software; you can distribute it and/or modify it
- * under the terms of the GNU General Public License (Version 2) as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -822,22 +819,16 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 	}
 
 	rx_irq = platform_get_irq_byname(pdev, LTQ_SPI_RX_IRQ_NAME);
-	if (rx_irq < 0) {
-		dev_err(dev, "failed to get %s\n", LTQ_SPI_RX_IRQ_NAME);
+	if (rx_irq < 0)
 		return -ENXIO;
-	}
 
 	tx_irq = platform_get_irq_byname(pdev, LTQ_SPI_TX_IRQ_NAME);
-	if (tx_irq < 0) {
-		dev_err(dev, "failed to get %s\n", LTQ_SPI_TX_IRQ_NAME);
+	if (tx_irq < 0)
 		return -ENXIO;
-	}
 
 	err_irq = platform_get_irq_byname(pdev, LTQ_SPI_ERR_IRQ_NAME);
-	if (err_irq < 0) {
-		dev_err(dev, "failed to get %s\n", LTQ_SPI_ERR_IRQ_NAME);
+	if (err_irq < 0)
 		return -ENXIO;
-	}
 
 	master = spi_alloc_master(dev, sizeof(struct lantiq_ssc_spi));
 	if (!master)

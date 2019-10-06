@@ -16,16 +16,23 @@ static u8 plla_out[] = { 0 };
 
 static u16 plla_icpll[] = { 0 };
 
-static struct clk_range plla_outputs[] = {
+static const struct clk_range plla_outputs[] = {
 	{ .min = 600000000, .max = 1200000000 },
 };
 
 static const struct clk_pll_characteristics plla_characteristics = {
-	.input = { .min = 12000000, .max = 12000000 },
+	.input = { .min = 12000000, .max = 24000000 },
 	.num_output = ARRAY_SIZE(plla_outputs),
 	.output = plla_outputs,
 	.icpll = plla_icpll,
 	.out = plla_out,
+};
+
+static const struct clk_pcr_layout sama5d2_pcr_layout = {
+	.offset = 0x10c,
+	.cmd = BIT(12),
+	.gckcss_mask = GENMASK(10, 8),
+	.pid_mask = GENMASK(6, 0),
 };
 
 static const struct {
@@ -123,6 +130,14 @@ static const struct {
 	{ .n = "can1_gclk",   .id = 57, .r = { .min = 0, .max = 80000000 }, },
 	{ .n = "classd_gclk", .id = 59, .r = { .min = 0, .max = 100000000 },
 	  .pll = true },
+};
+
+static const struct clk_programmable_layout sama5d2_programmable_layout = {
+	.pres_mask = 0xff,
+	.pres_shift = 4,
+	.css_mask = 0x7,
+	.have_slck_mck = 0,
+	.is_pres_direct = 1,
 };
 
 static void __init sama5d2_pmc_setup(struct device_node *np)
@@ -241,14 +256,15 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 	parent_names[2] = "plladivck";
 	parent_names[3] = "utmick";
 	parent_names[4] = "masterck";
+	parent_names[5] = "audiopll_pmcck";
 	for (i = 0; i < 3; i++) {
 		char name[6];
 
 		snprintf(name, sizeof(name), "prog%d", i);
 
 		hw = at91_clk_register_programmable(regmap, name,
-						    parent_names, 5, i,
-						    &at91sam9x5_programmable_layout);
+						    parent_names, 6, i,
+						    &sama5d2_programmable_layout);
 		if (IS_ERR(hw))
 			goto err_free;
 	}
@@ -265,6 +281,7 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 
 	for (i = 0; i < ARRAY_SIZE(sama5d2_periphck); i++) {
 		hw = at91_clk_register_sam9x5_peripheral(regmap, &pmc_pcr_lock,
+							 &sama5d2_pcr_layout,
 							 sama5d2_periphck[i].n,
 							 "masterck",
 							 sama5d2_periphck[i].id,
@@ -277,6 +294,7 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 
 	for (i = 0; i < ARRAY_SIZE(sama5d2_periph32ck); i++) {
 		hw = at91_clk_register_sam9x5_peripheral(regmap, &pmc_pcr_lock,
+							 &sama5d2_pcr_layout,
 							 sama5d2_periph32ck[i].n,
 							 "h32mxck",
 							 sama5d2_periph32ck[i].id,
@@ -295,6 +313,7 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 	parent_names[5] = "audiopll_pmcck";
 	for (i = 0; i < ARRAY_SIZE(sama5d2_gck); i++) {
 		hw = at91_clk_register_generated(regmap, &pmc_pcr_lock,
+						 &sama5d2_pcr_layout,
 						 sama5d2_gck[i].n,
 						 parent_names, 6,
 						 sama5d2_gck[i].id,

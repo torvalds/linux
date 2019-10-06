@@ -1,24 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Sleepable Read-Copy Update mechanism for mutual exclusion,
  *	tree variant.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
  * Copyright (C) IBM Corporation, 2017
  *
- * Author: Paul McKenney <paulmck@us.ibm.com>
+ * Author: Paul McKenney <paulmck@linux.ibm.com>
  */
 
 #ifndef _LINUX_SRCU_TREE_H
@@ -45,7 +32,8 @@ struct srcu_data {
 	unsigned long srcu_gp_seq_needed;	/* Furthest future GP needed. */
 	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
 	bool srcu_cblist_invoking;		/* Invoking these CBs? */
-	struct delayed_work work;		/* Context for CB invoking. */
+	struct timer_list delay_work;		/* Delay for CB invoking */
+	struct work_struct work;		/* Context for CB invoking. */
 	struct rcu_head srcu_barrier_head;	/* For srcu_barrier() use. */
 	struct srcu_node *mynode;		/* Leaf srcu_node. */
 	unsigned long grpmask;			/* Mask for leaf srcu_node */
@@ -132,9 +120,17 @@ struct srcu_struct {
  *
  * See include/linux/percpu-defs.h for the rules on per-CPU variables.
  */
-#define __DEFINE_SRCU(name, is_static)					\
-	static DEFINE_PER_CPU(struct srcu_data, name##_srcu_data);\
-	is_static struct srcu_struct name = __SRCU_STRUCT_INIT(name, name##_srcu_data)
+#ifdef MODULE
+# define __DEFINE_SRCU(name, is_static)					\
+	is_static struct srcu_struct name;				\
+	struct srcu_struct * const __srcu_struct_##name			\
+		__section("___srcu_struct_ptrs") = &name
+#else
+# define __DEFINE_SRCU(name, is_static)					\
+	static DEFINE_PER_CPU(struct srcu_data, name##_srcu_data);	\
+	is_static struct srcu_struct name =				\
+		__SRCU_STRUCT_INIT(name, name##_srcu_data)
+#endif
 #define DEFINE_SRCU(name)		__DEFINE_SRCU(name, /* not static */)
 #define DEFINE_STATIC_SRCU(name)	__DEFINE_SRCU(name, static)
 

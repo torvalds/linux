@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * (C) 2012 by Pablo Neira Ayuso <pablo@netfilter.org>
  * (C) 2012 by Vyatta Inc. <http://www.vyatta.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation (or any later at your option).
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -59,8 +56,11 @@ ctnl_timeout_parse_policy(void *timeout,
 	if (!tb)
 		return -ENOMEM;
 
-	ret = nla_parse_nested(tb, l4proto->ctnl_timeout.nlattr_max, attr,
-			       l4proto->ctnl_timeout.nla_policy, NULL);
+	ret = nla_parse_nested_deprecated(tb,
+					  l4proto->ctnl_timeout.nlattr_max,
+					  attr,
+					  l4proto->ctnl_timeout.nla_policy,
+					  NULL);
 	if (ret < 0)
 		goto err;
 
@@ -122,7 +122,7 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 		return -EBUSY;
 	}
 
-	l4proto = nf_ct_l4proto_find_get(l4num);
+	l4proto = nf_ct_l4proto_find(l4num);
 
 	/* This protocol is not supportted, skip. */
 	if (l4proto->l4proto != l4num) {
@@ -152,7 +152,6 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 err:
 	kfree(timeout);
 err_proto_put:
-	nf_ct_l4proto_put(l4proto);
 	return ret;
 }
 
@@ -185,7 +184,7 @@ ctnl_timeout_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 			 htonl(refcount_read(&timeout->refcnt))))
 		goto nla_put_failure;
 
-	nest_parms = nla_nest_start(skb, CTA_TIMEOUT_DATA | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_TIMEOUT_DATA);
 	if (!nest_parms)
 		goto nla_put_failure;
 
@@ -302,7 +301,6 @@ static int ctnl_timeout_try_del(struct net *net, struct ctnl_timeout *timeout)
 	if (refcount_dec_if_one(&timeout->refcnt)) {
 		/* We are protected by nfnl mutex. */
 		list_del_rcu(&timeout->head);
-		nf_ct_l4proto_put(timeout->timeout.l4proto);
 		nf_ct_untimeout(net, &timeout->timeout);
 		kfree_rcu(timeout, rcu_head);
 	} else {
@@ -359,7 +357,7 @@ static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 		return -EINVAL;
 
 	l4num = nla_get_u8(cda[CTA_TIMEOUT_L4PROTO]);
-	l4proto = nf_ct_l4proto_find_get(l4num);
+	l4proto = nf_ct_l4proto_find(l4num);
 
 	/* This protocol is not supported, skip. */
 	if (l4proto->l4proto != l4num) {
@@ -372,10 +370,8 @@ static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 	if (ret < 0)
 		goto err;
 
-	nf_ct_l4proto_put(l4proto);
 	return 0;
 err:
-	nf_ct_l4proto_put(l4proto);
 	return ret;
 }
 
@@ -405,7 +401,7 @@ cttimeout_default_fill_info(struct net *net, struct sk_buff *skb, u32 portid,
 	    nla_put_u8(skb, CTA_TIMEOUT_L4PROTO, l4proto->l4proto))
 		goto nla_put_failure;
 
-	nest_parms = nla_nest_start(skb, CTA_TIMEOUT_DATA | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_TIMEOUT_DATA);
 	if (!nest_parms)
 		goto nla_put_failure;
 
@@ -442,7 +438,7 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 
 	l3num = ntohs(nla_get_be16(cda[CTA_TIMEOUT_L3PROTO]));
 	l4num = nla_get_u8(cda[CTA_TIMEOUT_L4PROTO]);
-	l4proto = nf_ct_l4proto_find_get(l4num);
+	l4proto = nf_ct_l4proto_find(l4num);
 
 	err = -EOPNOTSUPP;
 	if (l4proto->l4proto != l4num)
@@ -474,12 +470,7 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 		break;
 	case IPPROTO_GRE:
 #ifdef CONFIG_NF_CT_PROTO_GRE
-		if (l4proto->net_id) {
-			struct netns_proto_gre *net_gre;
-
-			net_gre = net_generic(net, *l4proto->net_id);
-			timeouts = net_gre->gre_timeouts;
-		}
+		timeouts = nf_gre_pernet(net)->timeouts;
 #endif
 		break;
 	case 255:
@@ -516,7 +507,6 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 	/* this avoids a loop in nfnetlink. */
 	return ret == -EAGAIN ? -ENOBUFS : ret;
 err:
-	nf_ct_l4proto_put(l4proto);
 	return err;
 }
 
@@ -597,7 +587,6 @@ static void __net_exit cttimeout_net_exit(struct net *net)
 
 	list_for_each_entry_safe(cur, tmp, &net->nfct_timeout_list, head) {
 		list_del_rcu(&cur->head);
-		nf_ct_l4proto_put(cur->timeout.l4proto);
 
 		if (refcount_dec_and_test(&cur->refcnt))
 			kfree_rcu(cur, rcu_head);

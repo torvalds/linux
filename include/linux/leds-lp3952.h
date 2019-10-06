@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *	LED driver for TI lp3952 controller
  *
  *	Copyright (C) 2016, DAQRI, LLC.
  *	Author: Tony Makkiel <tony.makkiel@daqri.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #ifndef LEDS_LP3952_H_

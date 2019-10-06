@@ -4,6 +4,8 @@
 
 #include <net/udp_tunnel.h>
 
+#define GENEVE_UDP_PORT		6081
+
 /* Geneve Header:
  *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *  |Ver|  Opt Len  |O|C|    Rsvd.  |          Protocol Type        |

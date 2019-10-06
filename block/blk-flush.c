@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Functions to sequence PREFLUSH and FUA writes.
  *
  * Copyright (C) 2011		Max Planck Institute for Gravitational Physics
  * Copyright (C) 2011		Tejun Heo <tj@kernel.org>
- *
- * This file is released under the GPLv2.
  *
  * REQ_{PREFLUSH|FUA} requests are decomposed to sequences consisted of three
  * optional steps - PREFLUSH, DATA and POSTFLUSH - according to the request
@@ -215,12 +214,22 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 
 	/* release the tag's ownership to the req cloned from */
 	spin_lock_irqsave(&fq->mq_flush_lock, flags);
+
+	if (!refcount_dec_and_test(&flush_rq->ref)) {
+		fq->rq_status = error;
+		spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
+		return;
+	}
+
+	if (fq->rq_status != BLK_STS_OK)
+		error = fq->rq_status;
+
 	hctx = flush_rq->mq_hctx;
 	if (!q->elevator) {
 		blk_mq_tag_set_rq(hctx, flush_rq->tag, fq->orig_rq);
 		flush_rq->tag = -1;
 	} else {
-		blk_mq_put_driver_tag_hctx(hctx, flush_rq);
+		blk_mq_put_driver_tag(flush_rq);
 		flush_rq->internal_tag = -1;
 	}
 
@@ -324,7 +333,7 @@ static void mq_flush_data_end_io(struct request *rq, blk_status_t error)
 
 	if (q->elevator) {
 		WARN_ON(rq->tag < 0);
-		blk_mq_put_driver_tag_hctx(hctx, rq);
+		blk_mq_put_driver_tag(rq);
 	}
 
 	/*

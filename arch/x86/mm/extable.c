@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/extable.h>
 #include <linux/uaccess.h>
 #include <linux/sched/debug.h>
@@ -122,6 +123,7 @@ __visible bool ex_handler_uaccess(const struct exception_table_entry *fixup,
 				  unsigned long error_code,
 				  unsigned long fault_addr)
 {
+	WARN_ONCE(trapnr == X86_TRAP_GP, "General protection fault in user access. Non-canonical address?");
 	regs->ip = ex_fixup_addr(fixup);
 	return true;
 }
@@ -144,7 +146,7 @@ __visible bool ex_handler_rdmsr_unsafe(const struct exception_table_entry *fixup
 				       unsigned long error_code,
 				       unsigned long fault_addr)
 {
-	if (pr_warn_once("unchecked MSR access error: RDMSR from 0x%x at rIP: 0x%lx (%pF)\n",
+	if (pr_warn_once("unchecked MSR access error: RDMSR from 0x%x at rIP: 0x%lx (%pS)\n",
 			 (unsigned int)regs->cx, regs->ip, (void *)regs->ip))
 		show_stack_regs(regs);
 
@@ -161,7 +163,7 @@ __visible bool ex_handler_wrmsr_unsafe(const struct exception_table_entry *fixup
 				       unsigned long error_code,
 				       unsigned long fault_addr)
 {
-	if (pr_warn_once("unchecked MSR access error: WRMSR to 0x%x (tried to write 0x%08x%08x) at rIP: 0x%lx (%pF)\n",
+	if (pr_warn_once("unchecked MSR access error: WRMSR to 0x%x (tried to write 0x%08x%08x) at rIP: 0x%lx (%pS)\n",
 			 (unsigned int)regs->cx, (unsigned int)regs->dx,
 			 (unsigned int)regs->ax,  regs->ip, (void *)regs->ip))
 		show_stack_regs(regs);

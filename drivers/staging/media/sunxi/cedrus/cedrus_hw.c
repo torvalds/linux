@@ -46,6 +46,10 @@ int cedrus_engine_enable(struct cedrus_dev *dev, enum cedrus_codec codec)
 		reg |= VE_MODE_DEC_MPEG;
 		break;
 
+	case CEDRUS_CODEC_H264:
+		reg |= VE_MODE_DEC_H264;
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -74,9 +78,6 @@ void cedrus_dst_format_set(struct cedrus_dev *dev,
 
 		reg = VE_PRIMARY_OUT_FMT_NV12;
 		cedrus_write(dev, VE_PRIMARY_OUT_FMT, reg);
-
-		reg = VE_CHROMA_BUF_LEN_SDRT(chroma_size / 2);
-		cedrus_write(dev, VE_CHROMA_BUF_LEN, reg);
 
 		reg = chroma_size / 2;
 		cedrus_write(dev, VE_PRIMARY_CHROMA_BUF_LEN, reg);
@@ -156,15 +157,12 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 	dev->capabilities = variant->capabilities;
 
 	irq_dec = platform_get_irq(dev->pdev, 0);
-	if (irq_dec <= 0) {
-		v4l2_err(&dev->v4l2_dev, "Failed to get IRQ\n");
-
+	if (irq_dec <= 0)
 		return irq_dec;
-	}
 	ret = devm_request_irq(dev->dev, irq_dec, cedrus_irq,
 			       0, dev_name(dev->dev), dev);
 	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to request IRQ\n");
+		dev_err(dev->dev, "Failed to request IRQ\n");
 
 		return ret;
 	}
@@ -177,26 +175,27 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 	 */
 
 #ifdef PHYS_PFN_OFFSET
-	dev->dev->dma_pfn_offset = PHYS_PFN_OFFSET;
+	if (!(variant->quirks & CEDRUS_QUIRK_NO_DMA_OFFSET))
+		dev->dev->dma_pfn_offset = PHYS_PFN_OFFSET;
 #endif
 
 	ret = of_reserved_mem_device_init(dev->dev);
 	if (ret && ret != -ENODEV) {
-		v4l2_err(&dev->v4l2_dev, "Failed to reserve memory\n");
+		dev_err(dev->dev, "Failed to reserve memory\n");
 
 		return ret;
 	}
 
 	ret = sunxi_sram_claim(dev->dev);
 	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to claim SRAM\n");
+		dev_err(dev->dev, "Failed to claim SRAM\n");
 
 		goto err_mem;
 	}
 
 	dev->ahb_clk = devm_clk_get(dev->dev, "ahb");
 	if (IS_ERR(dev->ahb_clk)) {
-		v4l2_err(&dev->v4l2_dev, "Failed to get AHB clock\n");
+		dev_err(dev->dev, "Failed to get AHB clock\n");
 
 		ret = PTR_ERR(dev->ahb_clk);
 		goto err_sram;
@@ -204,7 +203,7 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 
 	dev->mod_clk = devm_clk_get(dev->dev, "mod");
 	if (IS_ERR(dev->mod_clk)) {
-		v4l2_err(&dev->v4l2_dev, "Failed to get MOD clock\n");
+		dev_err(dev->dev, "Failed to get MOD clock\n");
 
 		ret = PTR_ERR(dev->mod_clk);
 		goto err_sram;
@@ -212,7 +211,7 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 
 	dev->ram_clk = devm_clk_get(dev->dev, "ram");
 	if (IS_ERR(dev->ram_clk)) {
-		v4l2_err(&dev->v4l2_dev, "Failed to get RAM clock\n");
+		dev_err(dev->dev, "Failed to get RAM clock\n");
 
 		ret = PTR_ERR(dev->ram_clk);
 		goto err_sram;
@@ -220,7 +219,7 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 
 	dev->rstc = devm_reset_control_get(dev->dev, NULL);
 	if (IS_ERR(dev->rstc)) {
-		v4l2_err(&dev->v4l2_dev, "Failed to get reset control\n");
+		dev_err(dev->dev, "Failed to get reset control\n");
 
 		ret = PTR_ERR(dev->rstc);
 		goto err_sram;
@@ -229,43 +228,43 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 	res = platform_get_resource(dev->pdev, IORESOURCE_MEM, 0);
 	dev->base = devm_ioremap_resource(dev->dev, res);
 	if (IS_ERR(dev->base)) {
-		v4l2_err(&dev->v4l2_dev, "Failed to map registers\n");
+		dev_err(dev->dev, "Failed to map registers\n");
 
 		ret = PTR_ERR(dev->base);
 		goto err_sram;
 	}
 
-	ret = clk_set_rate(dev->mod_clk, CEDRUS_CLOCK_RATE_DEFAULT);
+	ret = clk_set_rate(dev->mod_clk, variant->mod_rate);
 	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to set clock rate\n");
+		dev_err(dev->dev, "Failed to set clock rate\n");
 
 		goto err_sram;
 	}
 
 	ret = clk_prepare_enable(dev->ahb_clk);
 	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to enable AHB clock\n");
+		dev_err(dev->dev, "Failed to enable AHB clock\n");
 
 		goto err_sram;
 	}
 
 	ret = clk_prepare_enable(dev->mod_clk);
 	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to enable MOD clock\n");
+		dev_err(dev->dev, "Failed to enable MOD clock\n");
 
 		goto err_ahb_clk;
 	}
 
 	ret = clk_prepare_enable(dev->ram_clk);
 	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to enable RAM clock\n");
+		dev_err(dev->dev, "Failed to enable RAM clock\n");
 
 		goto err_mod_clk;
 	}
 
 	ret = reset_control_reset(dev->rstc);
 	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to apply reset\n");
+		dev_err(dev->dev, "Failed to apply reset\n");
 
 		goto err_ram_clk;
 	}

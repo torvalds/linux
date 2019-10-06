@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * probe-file.c : operate ftrace k/uprobe events files
  *
  * Written by Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #include <errno.h>
 #include <fcntl.h>
@@ -20,15 +10,17 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
-#include "util.h"
+#include <linux/zalloc.h>
+#include "namespaces.h"
 #include "event.h"
 #include "strlist.h"
 #include "strfilter.h"
 #include "debug.h"
-#include "cache.h"
+#include "build-id.h"
+#include "dso.h"
 #include "color.h"
 #include "symbol.h"
-#include "thread.h"
+#include "strbuf.h"
 #include <api/fs/tracing_path.h>
 #include "probe-event.h"
 #include "probe-file.h"
@@ -1014,6 +1006,7 @@ enum ftrace_readme {
 	FTRACE_README_PROBE_TYPE_X = 0,
 	FTRACE_README_KRETPROBE_OFFSET,
 	FTRACE_README_UPROBE_REF_CTR,
+	FTRACE_README_USER_ACCESS,
 	FTRACE_README_END,
 };
 
@@ -1026,6 +1019,7 @@ static struct {
 	DEFINE_TYPE(FTRACE_README_PROBE_TYPE_X, "*type: * x8/16/32/64,*"),
 	DEFINE_TYPE(FTRACE_README_KRETPROBE_OFFSET, "*place (kretprobe): *"),
 	DEFINE_TYPE(FTRACE_README_UPROBE_REF_CTR, "*ref_ctr_offset*"),
+	DEFINE_TYPE(FTRACE_README_USER_ACCESS, "*[u]<offset>*"),
 };
 
 static bool scan_ftrace_readme(enum ftrace_readme type)
@@ -1085,4 +1079,9 @@ bool kretprobe_offset_is_supported(void)
 bool uprobe_ref_ctr_is_supported(void)
 {
 	return scan_ftrace_readme(FTRACE_README_UPROBE_REF_CTR);
+}
+
+bool user_access_is_supported(void)
+{
+	return scan_ftrace_readme(FTRACE_README_USER_ACCESS);
 }

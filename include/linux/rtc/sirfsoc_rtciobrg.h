@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * RTC I/O Bridge interfaces for CSR SiRFprimaII
  * ARM access the registers of SYSRTC, GPSRTC and PWRC through this module
  *
  * Copyright (c) 2011 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 #ifndef _SIRFSOC_RTC_IOBRG_H_
 #define _SIRFSOC_RTC_IOBRG_H_

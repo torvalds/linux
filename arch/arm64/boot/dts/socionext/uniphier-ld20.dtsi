@@ -9,8 +9,6 @@
 #include <dt-bindings/gpio/uniphier-gpio.h>
 #include <dt-bindings/thermal/thermal.h>
 
-/memreserve/ 0x80000000 0x02000000;
-
 / {
 	compatible = "socionext,uniphier-ld20";
 	#address-cells = <2>;
@@ -43,7 +41,7 @@
 
 		cpu0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a72", "arm,armv8";
+			compatible = "arm,cortex-a72";
 			reg = <0 0x000>;
 			clocks = <&sys_clk 32>;
 			enable-method = "psci";
@@ -53,7 +51,7 @@
 
 		cpu1: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a72", "arm,armv8";
+			compatible = "arm,cortex-a72";
 			reg = <0 0x001>;
 			clocks = <&sys_clk 32>;
 			enable-method = "psci";
@@ -63,7 +61,7 @@
 
 		cpu2: cpu@100 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0 0x100>;
 			clocks = <&sys_clk 33>;
 			enable-method = "psci";
@@ -73,7 +71,7 @@
 
 		cpu3: cpu@101 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0 0x101>;
 			clocks = <&sys_clk 33>;
 			enable-method = "psci";
@@ -212,6 +210,17 @@
 							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		secure-memory@81000000 {
+			reg = <0x0 0x81000000 0x0 0x01000000>;
+			no-map;
 		};
 	};
 
@@ -869,11 +878,60 @@
 			};
 		};
 
+		pcie: pcie@66000000 {
+			compatible = "socionext,uniphier-pcie", "snps,dw-pcie";
+			status = "disabled";
+			reg-names = "dbi", "link", "config";
+			reg = <0x66000000 0x1000>, <0x66010000 0x10000>,
+			      <0x2fff0000 0x10000>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			clocks = <&sys_clk 24>;
+			resets = <&sys_rst 24>;
+			num-lanes = <1>;
+			num-viewport = <1>;
+			bus-range = <0x0 0xff>;
+			device_type = "pci";
+			ranges =
+			/* downstream I/O */
+				<0x81000000 0 0x00000000 0x2ffe0000 0 0x00010000>,
+			/* non-prefetchable memory */
+				<0x82000000 0 0x20000000 0x20000000 0 0x0ffe0000>;
+			#interrupt-cells = <1>;
+			interrupt-names = "dma", "msi";
+			interrupts = <0 224 4>, <0 225 4>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie_intc 0>,	/* INTA */
+					<0 0 0 2 &pcie_intc 1>,	/* INTB */
+					<0 0 0 3 &pcie_intc 2>,	/* INTC */
+					<0 0 0 4 &pcie_intc 3>;	/* INTD */
+			phy-names = "pcie-phy";
+			phys = <&pcie_phy>;
+
+			pcie_intc: legacy-interrupt-controller {
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&gic>;
+				interrupts = <0 226 4>;
+			};
+		};
+
+		pcie_phy: phy@66038000 {
+			compatible = "socionext,uniphier-ld20-pcie-phy";
+			reg = <0x66038000 0x4000>;
+			#phy-cells = <0>;
+			clocks = <&sys_clk 24>;
+			resets = <&sys_rst 24>;
+			socionext,syscon = <&soc_glue>;
+		};
+
 		nand: nand@68000000 {
 			compatible = "socionext,uniphier-denali-nand-v5b";
 			status = "disabled";
 			reg-names = "nand_data", "denali_reg";
 			reg = <0x68000000 0x20>, <0x68100000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 65 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_nand>;

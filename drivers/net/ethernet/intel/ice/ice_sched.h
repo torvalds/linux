@@ -24,10 +24,16 @@ struct ice_sched_agg_info {
 };
 
 /* FW AQ command calls */
+enum ice_status
+ice_aq_query_sched_elems(struct ice_hw *hw, u16 elems_req,
+			 struct ice_aqc_get_elem *buf, u16 buf_size,
+			 u16 *elems_ret, struct ice_sq_cd *cd);
 enum ice_status ice_sched_init_port(struct ice_port_info *pi);
 enum ice_status ice_sched_query_res_alloc(struct ice_hw *hw);
 void ice_sched_clear_port(struct ice_port_info *pi);
 void ice_sched_cleanup_all(struct ice_hw *hw);
+void ice_sched_clear_agg(struct ice_hw *hw);
+
 struct ice_sched_node *
 ice_sched_find_node_by_teid(struct ice_sched_node *start_node, u32 teid);
 enum ice_status

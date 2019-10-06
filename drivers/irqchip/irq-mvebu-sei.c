@@ -478,7 +478,7 @@ dispose_irq:
 	return ret;
 }
 
-struct mvebu_sei_caps mvebu_sei_ap806_caps = {
+static struct mvebu_sei_caps mvebu_sei_ap806_caps = {
 	.ap_range = {
 		.first = 0,
 		.size = 21,

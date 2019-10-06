@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Pinctrl driver for Rockchip RK805 PMIC
  *
  * Copyright (c) 2017, Fuzhou Rockchip Electronics Co., Ltd
  *
  * Author: Joseph Chen <chenjh@rock-chips.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under  the terms of the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the License, or (at your
- * option) any later version.
  *
  * Based on the pinctrl-as3722 driver
  */
@@ -201,7 +197,7 @@ static int rk805_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 	return !(val & pci->pin_cfg[offset].dir_msk);
 }
 
-static struct gpio_chip rk805_gpio_chip = {
+static const struct gpio_chip rk805_gpio_chip = {
 	.label			= "rk805-gpio",
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,
@@ -408,7 +404,7 @@ static const struct pinconf_ops rk805_pinconf_ops = {
 	.pin_config_set = rk805_pinconf_set,
 };
 
-static struct pinctrl_desc rk805_pinctrl_desc = {
+static const struct pinctrl_desc rk805_pinctrl_desc = {
 	.name = "rk805-pinctrl",
 	.pctlops = &rk805_pinctrl_ops,
 	.pmxops = &rk805_pinmux_ops,

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Broadcom UniMAC MDIO bus controller driver
  *
  * Copyright (C) 2014-2017 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -96,10 +92,7 @@ static int unimac_mdio_poll(void *wait_func_data)
 		usleep_range(1000, 2000);
 	} while (--timeout);
 
-	if (!timeout)
-		return -ETIMEDOUT;
-
-	return 0;
+	return -ETIMEDOUT;
 }
 
 static int unimac_mdio_read(struct mii_bus *bus, int phy_id, int reg)
@@ -296,7 +289,7 @@ static int unimac_mdio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	dev_info(&pdev->dev, "Broadcom UniMAC MDIO bus at 0x%p\n", priv->base);
+	dev_info(&pdev->dev, "Broadcom UniMAC MDIO bus\n");
 
 	return 0;
 

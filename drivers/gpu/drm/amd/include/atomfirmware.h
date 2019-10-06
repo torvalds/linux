@@ -177,9 +177,10 @@ enum atom_voltage_type
   VOLTAGE_TYPE_GENERIC_I2C_10 = 0x1A,
 };
 
-enum atom_dgpu_vram_type{
+enum atom_dgpu_vram_type {
   ATOM_DGPU_VRAM_TYPE_GDDR5 = 0x50,
   ATOM_DGPU_VRAM_TYPE_HBM2  = 0x60,
+  ATOM_DGPU_VRAM_TYPE_GDDR6 = 0x70,
 };
 
 enum atom_dp_vs_preemph_def{
@@ -494,6 +495,9 @@ enum atombios_firmware_capability
   ATOM_FIRMWARE_CAP_FIRMWARE_POSTED = 0x00000001,
   ATOM_FIRMWARE_CAP_GPU_VIRTUALIZATION  = 0x00000002,
   ATOM_FIRMWARE_CAP_WMI_SUPPORT  = 0x00000040,
+  ATOM_FIRMWARE_CAP_HWEMU_ENABLE  = 0x00000080,
+  ATOM_FIRMWARE_CAP_HWEMU_UMC_CFG = 0x00000100,
+  ATOM_FIRMWARE_CAP_SRAM_ECC      = 0x00000200,
 };
 
 enum atom_cooling_solution_id{
@@ -526,6 +530,35 @@ struct atom_firmware_info_v3_2 {
   uint16_t bootup_mvpp_mv;
   uint32_t zfbstartaddrin16mb;
   uint32_t reserved2[3];
+};
+
+struct atom_firmware_info_v3_3
+{
+  struct atom_common_table_header table_header;
+  uint32_t firmware_revision;
+  uint32_t bootup_sclk_in10khz;
+  uint32_t bootup_mclk_in10khz;
+  uint32_t firmware_capability;             // enum atombios_firmware_capability
+  uint32_t main_call_parser_entry;          /* direct address of main parser call in VBIOS binary. */
+  uint32_t bios_scratch_reg_startaddr;      // 1st bios scratch register dword address
+  uint16_t bootup_vddc_mv;
+  uint16_t bootup_vddci_mv;
+  uint16_t bootup_mvddc_mv;
+  uint16_t bootup_vddgfx_mv;
+  uint8_t  mem_module_id;
+  uint8_t  coolingsolution_id;              /*0: Air cooling; 1: Liquid cooling ... */
+  uint8_t  reserved1[2];
+  uint32_t mc_baseaddr_high;
+  uint32_t mc_baseaddr_low;
+  uint8_t  board_i2c_feature_id;            // enum of atom_board_i2c_feature_id_def
+  uint8_t  board_i2c_feature_gpio_id;       // i2c id find in gpio_lut data table gpio_id
+  uint8_t  board_i2c_feature_slave_addr;
+  uint8_t  reserved3;
+  uint16_t bootup_mvddq_mv;
+  uint16_t bootup_mvpp_mv;
+  uint32_t zfbstartaddrin16mb;
+  uint32_t pplib_pptable_id;                // if pplib_pptable_id!=0, pplib get powerplay table inside driver instead of from VBIOS
+  uint32_t reserved2[2];
 };
 
 /* 
@@ -686,6 +719,7 @@ enum atom_encoder_caps_def
   ATOM_ENCODER_CAP_RECORD_HBR2_EN               =0x02,         // DP1.2 HBR2 setting is qualified and HBR2 can be enabled 
   ATOM_ENCODER_CAP_RECORD_HDMI6Gbps_EN          =0x04,         // HDMI2.0 6Gbps enable or not. 
   ATOM_ENCODER_CAP_RECORD_HBR3_EN               =0x08,         // DP1.3 HBR3 is supported by board. 
+  ATOM_ENCODER_CAP_RECORD_USB_C_TYPE            =0x100,        // the DP connector is a USB-C type.
 };
 
 struct  atom_encoder_caps_record
@@ -1226,16 +1260,17 @@ struct  atom_gfx_info_v2_3 {
   uint32_t rm21_sram_vmin_value;
 };
 
-struct  atom_gfx_info_v2_4 {
+struct  atom_gfx_info_v2_4
+{
   struct  atom_common_table_header  table_header;
   uint8_t gfxip_min_ver;
   uint8_t gfxip_max_ver;
-  uint8_t gc_num_se;
-  uint8_t max_tile_pipes;
-  uint8_t gc_num_cu_per_sh;
-  uint8_t gc_num_sh_per_se;
-  uint8_t gc_num_rb_per_se;
-  uint8_t gc_num_tccs;
+  uint8_t max_shader_engines;
+  uint8_t reserved;
+  uint8_t max_cu_per_sh;
+  uint8_t max_sh_per_se;
+  uint8_t max_backends_per_se;
+  uint8_t max_texture_channel_caches;
   uint32_t regaddr_cp_dma_src_addr;
   uint32_t regaddr_cp_dma_src_addr_hi;
   uint32_t regaddr_cp_dma_dst_addr;
@@ -1623,6 +1658,223 @@ struct atom_smc_dpm_info_v4_4
   uint32_t boardreserved[10];
 };
 
+enum smudpm_v4_5_i2ccontrollername_e{
+    SMC_V4_5_I2C_CONTROLLER_NAME_VR_GFX = 0,
+    SMC_V4_5_I2C_CONTROLLER_NAME_VR_SOC,
+    SMC_V4_5_I2C_CONTROLLER_NAME_VR_VDDCI,
+    SMC_V4_5_I2C_CONTROLLER_NAME_VR_MVDD,
+    SMC_V4_5_I2C_CONTROLLER_NAME_LIQUID0,
+    SMC_V4_5_I2C_CONTROLLER_NAME_LIQUID1,
+    SMC_V4_5_I2C_CONTROLLER_NAME_PLX,
+    SMC_V4_5_I2C_CONTROLLER_NAME_SPARE,
+    SMC_V4_5_I2C_CONTROLLER_NAME_COUNT,
+};
+
+enum smudpm_v4_5_i2ccontrollerthrottler_e{
+    SMC_V4_5_I2C_CONTROLLER_THROTTLER_TYPE_NONE = 0,
+    SMC_V4_5_I2C_CONTROLLER_THROTTLER_VR_GFX,
+    SMC_V4_5_I2C_CONTROLLER_THROTTLER_VR_SOC,
+    SMC_V4_5_I2C_CONTROLLER_THROTTLER_VR_VDDCI,
+    SMC_V4_5_I2C_CONTROLLER_THROTTLER_VR_MVDD,
+    SMC_V4_5_I2C_CONTROLLER_THROTTLER_LIQUID0,
+    SMC_V4_5_I2C_CONTROLLER_THROTTLER_LIQUID1,
+    SMC_V4_5_I2C_CONTROLLER_THROTTLER_PLX,
+    SMC_V4_5_I2C_CONTROLLER_THROTTLER_COUNT,
+};
+
+enum smudpm_v4_5_i2ccontrollerprotocol_e{
+    SMC_V4_5_I2C_CONTROLLER_PROTOCOL_VR_0,
+    SMC_V4_5_I2C_CONTROLLER_PROTOCOL_VR_1,
+    SMC_V4_5_I2C_CONTROLLER_PROTOCOL_TMP_0,
+    SMC_V4_5_I2C_CONTROLLER_PROTOCOL_TMP_1,
+    SMC_V4_5_I2C_CONTROLLER_PROTOCOL_SPARE_0,
+    SMC_V4_5_I2C_CONTROLLER_PROTOCOL_SPARE_1,
+    SMC_V4_5_I2C_CONTROLLER_PROTOCOL_COUNT,
+};
+
+struct smudpm_i2c_controller_config_v2
+{
+    uint8_t   Enabled;
+    uint8_t   Speed;
+    uint8_t   Padding[2];
+    uint32_t  SlaveAddress;
+    uint8_t   ControllerPort;
+    uint8_t   ControllerName;
+    uint8_t   ThermalThrotter;
+    uint8_t   I2cProtocol;
+};
+
+struct atom_smc_dpm_info_v4_5
+{
+  struct   atom_common_table_header  table_header;
+    // SECTION: BOARD PARAMETERS
+    // I2C Control
+  struct smudpm_i2c_controller_config_v2  I2cControllers[8];
+
+  // SVI2 Board Parameters
+  uint16_t     MaxVoltageStepGfx; // In mV(Q2) Max voltage step that SMU will request. Multiple steps are taken if voltage change exceeds this value.
+  uint16_t     MaxVoltageStepSoc; // In mV(Q2) Max voltage step that SMU will request. Multiple steps are taken if voltage change exceeds this value.
+
+  uint8_t      VddGfxVrMapping;   // Use VR_MAPPING* bitfields
+  uint8_t      VddSocVrMapping;   // Use VR_MAPPING* bitfields
+  uint8_t      VddMem0VrMapping;  // Use VR_MAPPING* bitfields
+  uint8_t      VddMem1VrMapping;  // Use VR_MAPPING* bitfields
+
+  uint8_t      GfxUlvPhaseSheddingMask; // set this to 1 to set PSI0/1 to 1 in ULV mode
+  uint8_t      SocUlvPhaseSheddingMask; // set this to 1 to set PSI0/1 to 1 in ULV mode
+  uint8_t      ExternalSensorPresent; // External RDI connected to TMON (aka TEMP IN)
+  uint8_t      Padding8_V;
+
+  // Telemetry Settings
+  uint16_t     GfxMaxCurrent;   // in Amps
+  uint8_t      GfxOffset;       // in Amps
+  uint8_t      Padding_TelemetryGfx;
+  uint16_t     SocMaxCurrent;   // in Amps
+  uint8_t      SocOffset;       // in Amps
+  uint8_t      Padding_TelemetrySoc;
+
+  uint16_t     Mem0MaxCurrent;   // in Amps
+  uint8_t      Mem0Offset;       // in Amps
+  uint8_t      Padding_TelemetryMem0;
+
+  uint16_t     Mem1MaxCurrent;   // in Amps
+  uint8_t      Mem1Offset;       // in Amps
+  uint8_t      Padding_TelemetryMem1;
+
+  // GPIO Settings
+  uint8_t      AcDcGpio;        // GPIO pin configured for AC/DC switching
+  uint8_t      AcDcPolarity;    // GPIO polarity for AC/DC switching
+  uint8_t      VR0HotGpio;      // GPIO pin configured for VR0 HOT event
+  uint8_t      VR0HotPolarity;  // GPIO polarity for VR0 HOT event
+
+  uint8_t      VR1HotGpio;      // GPIO pin configured for VR1 HOT event 
+  uint8_t      VR1HotPolarity;  // GPIO polarity for VR1 HOT event 
+  uint8_t      GthrGpio;        // GPIO pin configured for GTHR Event
+  uint8_t      GthrPolarity;    // replace GPIO polarity for GTHR
+
+  // LED Display Settings
+  uint8_t      LedPin0;         // GPIO number for LedPin[0]
+  uint8_t      LedPin1;         // GPIO number for LedPin[1]
+  uint8_t      LedPin2;         // GPIO number for LedPin[2]
+  uint8_t      padding8_4;
+
+  // GFXCLK PLL Spread Spectrum
+  uint8_t      PllGfxclkSpreadEnabled;   // on or off
+  uint8_t      PllGfxclkSpreadPercent;   // Q4.4
+  uint16_t     PllGfxclkSpreadFreq;      // kHz
+
+  // GFXCLK DFLL Spread Spectrum
+  uint8_t      DfllGfxclkSpreadEnabled;   // on or off
+  uint8_t      DfllGfxclkSpreadPercent;   // Q4.4
+  uint16_t     DfllGfxclkSpreadFreq;      // kHz
+
+  // UCLK Spread Spectrum
+  uint8_t      UclkSpreadEnabled;   // on or off
+  uint8_t      UclkSpreadPercent;   // Q4.4
+  uint16_t     UclkSpreadFreq;      // kHz
+
+  // SOCCLK Spread Spectrum
+  uint8_t      SoclkSpreadEnabled;   // on or off
+  uint8_t      SocclkSpreadPercent;   // Q4.4
+  uint16_t     SocclkSpreadFreq;      // kHz
+
+  // Total board power
+  uint16_t     TotalBoardPower;     //Only needed for TCP Estimated case, where TCP = TGP+Total Board Power
+  uint16_t     BoardPadding; 
+
+  // Mvdd Svi2 Div Ratio Setting
+  uint32_t MvddRatio; // This is used for MVDD Vid workaround. It has 16 fractional bits (Q16.16)
+  
+  uint32_t     BoardReserved[9];
+
+};
+
+struct atom_smc_dpm_info_v4_6
+{
+  struct   atom_common_table_header  table_header;
+  // section: board parameters
+  uint32_t     i2c_padding[3];   // old i2c control are moved to new area
+
+  uint16_t     maxvoltagestepgfx; // in mv(q2) max voltage step that smu will request. multiple steps are taken if voltage change exceeds this value.
+  uint16_t     maxvoltagestepsoc; // in mv(q2) max voltage step that smu will request. multiple steps are taken if voltage change exceeds this value.
+
+  uint8_t      vddgfxvrmapping;     // use vr_mapping* bitfields
+  uint8_t      vddsocvrmapping;     // use vr_mapping* bitfields
+  uint8_t      vddmemvrmapping;     // use vr_mapping* bitfields
+  uint8_t      boardvrmapping;      // use vr_mapping* bitfields
+
+  uint8_t      gfxulvphasesheddingmask; // set this to 1 to set psi0/1 to 1 in ulv mode
+  uint8_t      externalsensorpresent; // external rdi connected to tmon (aka temp in)
+  uint8_t      padding8_v[2];
+
+  // telemetry settings
+  uint16_t     gfxmaxcurrent;   // in amps
+  uint8_t      gfxoffset;       // in amps
+  uint8_t      padding_telemetrygfx;
+
+  uint16_t     socmaxcurrent;   // in amps
+  uint8_t      socoffset;       // in amps
+  uint8_t      padding_telemetrysoc;
+
+  uint16_t     memmaxcurrent;   // in amps
+  uint8_t      memoffset;       // in amps
+  uint8_t      padding_telemetrymem;
+
+  uint16_t     boardmaxcurrent;   // in amps
+  uint8_t      boardoffset;       // in amps
+  uint8_t      padding_telemetryboardinput;
+
+  // gpio settings
+  uint8_t      vr0hotgpio;      // gpio pin configured for vr0 hot event
+  uint8_t      vr0hotpolarity;  // gpio polarity for vr0 hot event
+  uint8_t      vr1hotgpio;      // gpio pin configured for vr1 hot event
+  uint8_t      vr1hotpolarity;  // gpio polarity for vr1 hot event
+
+ // gfxclk pll spread spectrum
+  uint8_t	   pllgfxclkspreadenabled;	// on or off
+  uint8_t	   pllgfxclkspreadpercent;	// q4.4
+  uint16_t	   pllgfxclkspreadfreq;		// khz
+
+ // uclk spread spectrum
+  uint8_t	   uclkspreadenabled;   // on or off
+  uint8_t	   uclkspreadpercent;   // q4.4
+  uint16_t	   uclkspreadfreq;	   // khz
+
+ // fclk spread spectrum
+  uint8_t	   fclkspreadenabled;   // on or off
+  uint8_t	   fclkspreadpercent;   // q4.4
+  uint16_t	   fclkspreadfreq;	   // khz
+
+
+  // gfxclk fll spread spectrum
+  uint8_t      fllgfxclkspreadenabled;   // on or off
+  uint8_t      fllgfxclkspreadpercent;   // q4.4
+  uint16_t     fllgfxclkspreadfreq;      // khz
+
+  // i2c controller structure
+  struct smudpm_i2c_controller_config_v2 i2ccontrollers[8];
+
+  // memory section
+  uint32_t	 memorychannelenabled; // for dram use only, max 32 channels enabled bit mask.
+
+  uint8_t 	 drambitwidth; // for dram use only.  see dram bit width type defines
+  uint8_t 	 paddingmem[3];
+
+	// total board power
+  uint16_t	 totalboardpower;	  //only needed for tcp estimated case, where tcp = tgp+total board power
+  uint16_t	 boardpadding;
+
+	// section: xgmi training
+  uint8_t 	 xgmilinkspeed[4];
+  uint8_t 	 xgmilinkwidth[4];
+
+  uint16_t	 xgmifclkfreq[4];
+  uint16_t	 xgmisocvoltage[4];
+
+  // reserved
+  uint32_t   boardreserved[10];
+};
+
 /* 
   ***************************************************************************
     Data Table asic_profiling_info  structure
@@ -1780,14 +2032,63 @@ struct atom_umc_info_v3_1
   uint32_t mem_refclk_10khz;
 };
 
+// umc_info.umc_config
+enum atom_umc_config_def {
+  UMC_CONFIG__ENABLE_1KB_INTERLEAVE_MODE  =   0x00000001,
+  UMC_CONFIG__DEFAULT_MEM_ECC_ENABLE      =   0x00000002,
+  UMC_CONFIG__ENABLE_HBM_LANE_REPAIR      =   0x00000004,
+  UMC_CONFIG__ENABLE_BANK_HARVESTING      =   0x00000008,
+  UMC_CONFIG__ENABLE_PHY_REINIT           =   0x00000010,
+  UMC_CONFIG__DISABLE_UCODE_CHKSTATUS     =   0x00000020,
+};
+
+struct atom_umc_info_v3_2
+{
+  struct  atom_common_table_header  table_header;
+  uint32_t ucode_version;
+  uint32_t ucode_rom_startaddr;
+  uint32_t ucode_length;
+  uint16_t umc_reg_init_offset;
+  uint16_t customer_ucode_name_offset;
+  uint16_t mclk_ss_percentage;
+  uint16_t mclk_ss_rate_10hz;
+  uint8_t umcip_min_ver;
+  uint8_t umcip_max_ver;
+  uint8_t vram_type;              //enum of atom_dgpu_vram_type
+  uint8_t umc_config;
+  uint32_t mem_refclk_10khz;
+  uint32_t pstate_uclk_10khz[4];
+  uint16_t umcgoldenoffset;
+  uint16_t densitygoldenoffset;
+};
+
+struct atom_umc_info_v3_3
+{
+  struct  atom_common_table_header  table_header;
+  uint32_t ucode_reserved;
+  uint32_t ucode_rom_startaddr;
+  uint32_t ucode_length;
+  uint16_t umc_reg_init_offset;
+  uint16_t customer_ucode_name_offset;
+  uint16_t mclk_ss_percentage;
+  uint16_t mclk_ss_rate_10hz;
+  uint8_t umcip_min_ver;
+  uint8_t umcip_max_ver;
+  uint8_t vram_type;              //enum of atom_dgpu_vram_type
+  uint8_t umc_config;
+  uint32_t mem_refclk_10khz;
+  uint32_t pstate_uclk_10khz[4];
+  uint16_t umcgoldenoffset;
+  uint16_t densitygoldenoffset;
+  uint32_t reserved[4];
+};
 
 /* 
   ***************************************************************************
     Data Table vram_info  structure
   ***************************************************************************
 */
-struct atom_vram_module_v9
-{
+struct atom_vram_module_v9 {
   // Design Specific Values
   uint32_t  memory_size;                   // Total memory size in unit of MB for CONFIG_MEMSIZE zeros
   uint32_t  channel_enable;                // bit vector, each bit indicate specific channel enable or not
@@ -1803,13 +2104,12 @@ struct atom_vram_module_v9
   uint8_t   tunningset_id;                 // MC phy registers set per. 
   uint8_t   vender_rev_id;                 // [7:4] Revision, [3:0] Vendor code
   uint8_t   refreshrate;                   // [1:0]=RefreshFactor (00=8ms, 01=16ms, 10=32ms,11=64ms)
-  uint8_t   hbm_ven_rev_id;				   // hbm_ven_rev_id
-  uint8_t   vram_rsd2;					   // reserved
+  uint8_t   hbm_ven_rev_id;		   // hbm_ven_rev_id
+  uint8_t   vram_rsd2;			   // reserved
   char    dram_pnstring[20];               // part number end with '0'. 
 };
 
-struct atom_vram_info_header_v2_3
-{
+struct atom_vram_info_header_v2_3 {
   struct   atom_common_table_header table_header;
   uint16_t mem_adjust_tbloffset;                         // offset of atom_umc_init_reg_block structure for memory vendor specific UMC adjust setting
   uint16_t mem_clk_patch_tbloffset;                      // offset of atom_umc_init_reg_block structure for memory clock specific UMC setting
@@ -1820,7 +2120,8 @@ struct atom_vram_info_header_v2_3
   uint16_t post_ucode_init_offset;                       // offset of atom_umc_init_reg_block structure for MC phy init after MC uCode complete umc init
   uint16_t vram_rsd2;
   uint8_t  vram_module_num;                              // indicate number of VRAM module
-  uint8_t  vram_rsd1[2];
+  uint8_t  umcip_min_ver;
+  uint8_t  umcip_max_ver;
   uint8_t  mc_phy_tile_num;                              // indicate the MCD tile number which use in DramDataRemapTbl and usMcAdjustPerTileTblOffset
   struct   atom_vram_module_v9  vram_module[16];         // just for allocation, real number of blocks is in ucNumOfVRAMModule;
 };
@@ -1865,6 +2166,47 @@ struct atom_umc_init_reg_block{
   struct atom_umc_reg_setting_data_block umc_reg_setting_list[1];
 };
 
+struct atom_vram_module_v10 {
+  // Design Specific Values
+  uint32_t  memory_size;                   // Total memory size in unit of MB for CONFIG_MEMSIZE zeros
+  uint32_t  channel_enable;                // bit vector, each bit indicate specific channel enable or not
+  uint32_t  max_mem_clk;                   // max memory clock of this memory in unit of 10kHz, =0 means it is not defined
+  uint16_t  reserved[3];
+  uint16_t  mem_voltage;                   // mem_voltage
+  uint16_t  vram_module_size;              // Size of atom_vram_module_v9
+  uint8_t   ext_memory_id;                 // Current memory module ID
+  uint8_t   memory_type;                   // enum of atom_dgpu_vram_type
+  uint8_t   channel_num;                   // Number of mem. channels supported in this module
+  uint8_t   channel_width;                 // CHANNEL_16BIT/CHANNEL_32BIT/CHANNEL_64BIT
+  uint8_t   density;                       // _8Mx32, _16Mx32, _16Mx16, _32Mx16
+  uint8_t   tunningset_id;                 // MC phy registers set per
+  uint8_t   vender_rev_id;                 // [7:4] Revision, [3:0] Vendor code
+  uint8_t   refreshrate;                   // [1:0]=RefreshFactor (00=8ms, 01=16ms, 10=32ms,11=64ms)
+  uint8_t   vram_flags;			   // bit0= bankgroup enable
+  uint8_t   vram_rsd2;			   // reserved
+  uint16_t  gddr6_mr10;                    // gddr6 mode register10 value
+  uint16_t  gddr6_mr1;                     // gddr6 mode register1 value
+  uint16_t  gddr6_mr2;                     // gddr6 mode register2 value
+  uint16_t  gddr6_mr7;                     // gddr6 mode register7 value
+  char    dram_pnstring[20];               // part number end with '0'
+};
+
+struct atom_vram_info_header_v2_4 {
+  struct   atom_common_table_header table_header;
+  uint16_t mem_adjust_tbloffset;                         // offset of atom_umc_init_reg_block structure for memory vendor specific UMC adjust setting
+  uint16_t mem_clk_patch_tbloffset;                      // offset of atom_umc_init_reg_block structure for memory clock specific UMC setting
+  uint16_t mc_adjust_pertile_tbloffset;                  // offset of atom_umc_init_reg_block structure for Per Byte Offset Preset Settings
+  uint16_t mc_phyinit_tbloffset;                         // offset of atom_umc_init_reg_block structure for MC phy init set
+  uint16_t dram_data_remap_tbloffset;                    // reserved for now
+  uint16_t reserved;                                     // offset of reserved
+  uint16_t post_ucode_init_offset;                       // offset of atom_umc_init_reg_block structure for MC phy init after MC uCode complete umc init
+  uint16_t vram_rsd2;
+  uint8_t  vram_module_num;                              // indicate number of VRAM module
+  uint8_t  umcip_min_ver;
+  uint8_t  umcip_max_ver;
+  uint8_t  mc_phy_tile_num;                              // indicate the MCD tile number which use in DramDataRemapTbl and usMcAdjustPerTileTblOffset
+  struct   atom_vram_module_v10  vram_module[16];        // just for allocation, real number of blocks is in ucNumOfVRAMModule;
+};
 
 /* 
   ***************************************************************************

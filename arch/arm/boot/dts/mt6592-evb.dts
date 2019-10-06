@@ -13,7 +13,7 @@
 	compatible = "mediatek,mt6592-evb", "mediatek,mt6592";
 
 	memory {
+		device_type = "memory";
 		reg = <0x80000000 0x40000000>;
 	};
 };
-

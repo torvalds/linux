@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
  * Copyright(c) 2017 Huawei Technologies Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -97,9 +88,6 @@ static int get_capability(struct hinic_hwdev *hwdev,
 
 	if (nic_cap->num_qps > HINIC_Q_CTXT_MAX)
 		nic_cap->num_qps = HINIC_Q_CTXT_MAX;
-
-	/* num_qps must be power of 2 */
-	nic_cap->num_qps = BIT(fls(nic_cap->num_qps) - 1);
 
 	nic_cap->max_qps = dev_cap->max_sqs + 1;
 	if (nic_cap->max_qps != (dev_cap->max_rqs + 1))
@@ -312,6 +300,8 @@ static int set_hw_ioctxt(struct hinic_hwdev *hwdev, unsigned int rq_depth,
 
 	hw_ioctxt.set_cmdq_depth = HW_IOCTXT_SET_CMDQ_DEPTH_DEFAULT;
 	hw_ioctxt.cmdq_depth = 0;
+
+	hw_ioctxt.lro_en = 1;
 
 	hw_ioctxt.rq_depth  = ilog2(rq_depth);
 
@@ -881,6 +871,13 @@ void hinic_free_hwdev(struct hinic_hwdev *hwdev)
 	hinic_free_hwif(hwdev->hwif);
 }
 
+int hinic_hwdev_max_num_qps(struct hinic_hwdev *hwdev)
+{
+	struct hinic_cap *nic_cap = &hwdev->nic_cap;
+
+	return nic_cap->max_qps;
+}
+
 /**
  * hinic_hwdev_num_qps - return the number QPs available for use
  * @hwdev: the NIC HW device
@@ -1007,4 +1004,17 @@ int hinic_hwdev_hw_ci_addr_set(struct hinic_hwdev *hwdev, struct hinic_sq *sq,
 				 HINIC_COMM_CMD_SQ_HI_CI_SET,
 				 &hw_ci, sizeof(hw_ci), NULL,
 				 NULL, HINIC_MGMT_MSG_SYNC);
+}
+
+/**
+ * hinic_hwdev_set_msix_state- set msix state
+ * @hwdev: the NIC HW device
+ * @msix_index: IRQ corresponding index number
+ * @flag: msix state
+ *
+ **/
+void hinic_hwdev_set_msix_state(struct hinic_hwdev *hwdev, u16 msix_index,
+				enum hinic_msix_state flag)
+{
+	hinic_set_msix_state(hwdev->hwif, msix_index, flag);
 }

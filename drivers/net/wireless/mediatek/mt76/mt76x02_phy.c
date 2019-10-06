@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/kernel.h>
@@ -132,53 +121,6 @@ void mt76x02_phy_set_txpower(struct mt76x02_dev *dev, int txp_0, int txp_1)
 }
 EXPORT_SYMBOL_GPL(mt76x02_phy_set_txpower);
 
-int mt76x02_phy_get_min_avg_rssi(struct mt76x02_dev *dev)
-{
-	struct mt76x02_sta *sta;
-	struct mt76_wcid *wcid;
-	int i, j, min_rssi = 0;
-	s8 cur_rssi;
-
-	local_bh_disable();
-	rcu_read_lock();
-
-	for (i = 0; i < ARRAY_SIZE(dev->mt76.wcid_mask); i++) {
-		unsigned long mask = dev->mt76.wcid_mask[i];
-
-		if (!mask)
-			continue;
-
-		for (j = i * BITS_PER_LONG; mask; j++, mask >>= 1) {
-			if (!(mask & 1))
-				continue;
-
-			wcid = rcu_dereference(dev->mt76.wcid[j]);
-			if (!wcid)
-				continue;
-
-			sta = container_of(wcid, struct mt76x02_sta, wcid);
-			spin_lock(&dev->mt76.rx_lock);
-			if (sta->inactive_count++ < 5)
-				cur_rssi = ewma_signal_read(&sta->rssi);
-			else
-				cur_rssi = 0;
-			spin_unlock(&dev->mt76.rx_lock);
-
-			if (cur_rssi < min_rssi)
-				min_rssi = cur_rssi;
-		}
-	}
-
-	rcu_read_unlock();
-	local_bh_enable();
-
-	if (!min_rssi)
-		return -75;
-
-	return min_rssi;
-}
-EXPORT_SYMBOL_GPL(mt76x02_phy_get_min_avg_rssi);
-
 void mt76x02_phy_set_bw(struct mt76x02_dev *dev, int width, u8 ctrl)
 {
 	int core_val, agc_val;
@@ -230,7 +172,8 @@ bool mt76x02_phy_adjust_vga_gain(struct mt76x02_dev *dev)
 	bool ret = false;
 	u32 false_cca;
 
-	false_cca = FIELD_GET(MT_RX_STAT_1_CCA_ERRORS, mt76_rr(dev, MT_RX_STAT_1));
+	false_cca = FIELD_GET(MT_RX_STAT_1_CCA_ERRORS,
+			      mt76_rr(dev, MT_RX_STAT_1));
 	dev->cal.false_cca = false_cca;
 	if (false_cca > 800 && dev->cal.agc_gain_adjust < limit) {
 		dev->cal.agc_gain_adjust += 2;
@@ -240,6 +183,8 @@ bool mt76x02_phy_adjust_vga_gain(struct mt76x02_dev *dev)
 		dev->cal.agc_gain_adjust -= 2;
 		ret = true;
 	}
+
+	dev->cal.agc_lowest_gain = dev->cal.agc_gain_adjust >= limit;
 
 	return ret;
 }

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 config DRM_MSM
 	tristate "MSM DRM"
@@ -5,6 +6,7 @@ config DRM_MSM
 	depends on ARCH_QCOM || SOC_IMX5 || (ARM && COMPILE_TEST)
 	depends on OF && COMMON_CLK
 	depends on MMU
+	depends on INTERCONNECT || !INTERCONNECT
 	select QCOM_MDT_LOADER if ARCH_QCOM
 	select REGULATOR
 	select DRM_KMS_HELPER
@@ -12,13 +14,18 @@ config DRM_MSM
 	select SHMEM
 	select TMPFS
 	select QCOM_SCM if ARCH_QCOM
+	select QCOM_COMMAND_DB if ARCH_QCOM
 	select WANT_DEV_COREDUMP
 	select SND_SOC_HDMI_CODEC if SND_SOC
 	select SYNC_FILE
 	select PM_OPP
-	default y
 	help
 	  DRM/KMS driver for MSM/snapdragon.
+
+config DRM_MSM_GPU_STATE
+	bool
+	depends on DRM_MSM && (DEBUG_FS || DEV_COREDUMP)
+	default y
 
 config DRM_MSM_REGISTER_LOGGING
 	bool "MSM DRM register logging"

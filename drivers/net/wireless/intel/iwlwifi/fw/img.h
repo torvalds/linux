@@ -8,7 +8,7 @@
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016        Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016        Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,8 +105,13 @@ struct iwl_ucode_capabilities {
 	u32 n_scan_channels;
 	u32 standard_phy_calibration_size;
 	u32 flags;
+	u32 error_log_addr;
+	u32 error_log_size;
 	unsigned long _api[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_API)];
 	unsigned long _capa[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_CAPA)];
+
+	const struct iwl_fw_cmd_version *cmd_versions;
+	u32 n_cmd_versions;
 };
 
 static inline bool
@@ -225,25 +230,13 @@ struct iwl_fw_dbg {
 /**
  * struct iwl_fw_ini_active_triggers
  * @active: is this trigger active
- * @apply_point: last apply point that updated this trigger
- * @conf: active trigger
- * @conf_ext: second trigger, contains extra regions to dump
+ * @size: allocated memory size of the trigger
+ * @trig: trigger
  */
 struct iwl_fw_ini_active_triggers {
 	bool active;
-	enum iwl_fw_ini_apply_point apply_point;
-	struct iwl_fw_ini_trigger *conf;
-	struct iwl_fw_ini_trigger *conf_ext;
-};
-
-/**
- * struct iwl_fw_ini_active_regs
- * @reg: active region from TLV
- * @apply_point: apply point where it became active
- */
-struct iwl_fw_ini_active_regs {
-	struct iwl_fw_ini_region_cfg *reg;
-	enum iwl_fw_ini_apply_point apply_point;
+	size_t size;
+	struct iwl_fw_ini_trigger *trig;
 };
 
 /**

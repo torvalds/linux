@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File hw_atl_a0.c: Definition of Atlantic hardware specific functions. */
@@ -85,6 +82,7 @@ const struct aq_hw_caps_s hw_atl_a0_caps_aqc109 = {
 static int hw_atl_a0_hw_reset(struct aq_hw_s *self)
 {
 	int err = 0;
+	u32 val;
 
 	hw_atl_glb_glb_reg_res_dis_set(self, 1U);
 	hw_atl_pci_pci_reg_res_dis_set(self, 0U);
@@ -95,7 +93,9 @@ static int hw_atl_a0_hw_reset(struct aq_hw_s *self)
 	hw_atl_glb_soft_res_set(self, 1);
 
 	/* check 10 times by 1ms */
-	AQ_HW_WAIT_FOR(hw_atl_glb_soft_res_get(self) == 0, 1000U, 10U);
+	err = readx_poll_timeout_atomic(hw_atl_glb_soft_res_get,
+					self, val, val == 0,
+					1000U, 10000U);
 	if (err < 0)
 		goto err_exit;
 
@@ -103,7 +103,9 @@ static int hw_atl_a0_hw_reset(struct aq_hw_s *self)
 	hw_atl_itr_res_irq_set(self, 1U);
 
 	/* check 10 times by 1ms */
-	AQ_HW_WAIT_FOR(hw_atl_itr_res_irq_get(self) == 0, 1000U, 10U);
+	err = readx_poll_timeout_atomic(hw_atl_itr_res_irq_get,
+					self, val, val == 0,
+					1000U, 10000U);
 	if (err < 0)
 		goto err_exit;
 
@@ -181,6 +183,7 @@ static int hw_atl_a0_hw_rss_hash_set(struct aq_hw_s *self,
 	int err = 0;
 	unsigned int i = 0U;
 	unsigned int addr = 0U;
+	u32 val;
 
 	for (i = 10, addr = 0U; i--; ++addr) {
 		u32 key_data = cfg->is_rss ?
@@ -188,8 +191,9 @@ static int hw_atl_a0_hw_rss_hash_set(struct aq_hw_s *self,
 		hw_atl_rpf_rss_key_wr_data_set(self, key_data);
 		hw_atl_rpf_rss_key_addr_set(self, addr);
 		hw_atl_rpf_rss_key_wr_en_set(self, 1U);
-		AQ_HW_WAIT_FOR(hw_atl_rpf_rss_key_wr_en_get(self) == 0,
-			       1000U, 10U);
+		err = readx_poll_timeout_atomic(hw_atl_rpf_rss_key_wr_en_get,
+						self, val, val == 0,
+						1000U, 10000U);
 		if (err < 0)
 			goto err_exit;
 	}
@@ -207,8 +211,9 @@ static int hw_atl_a0_hw_rss_set(struct aq_hw_s *self,
 	u32 i = 0U;
 	u32 num_rss_queues = max(1U, self->aq_nic_cfg->num_rss_queues);
 	int err = 0;
-	u16 bitary[(HW_ATL_A0_RSS_REDIRECTION_MAX *
-					HW_ATL_A0_RSS_REDIRECTION_BITS / 16U)];
+	u16 bitary[1 + (HW_ATL_A0_RSS_REDIRECTION_MAX *
+		   HW_ATL_A0_RSS_REDIRECTION_BITS / 16U)];
+	u32 val;
 
 	memset(bitary, 0, sizeof(bitary));
 
@@ -222,8 +227,9 @@ static int hw_atl_a0_hw_rss_set(struct aq_hw_s *self,
 		hw_atl_rpf_rss_redir_tbl_wr_data_set(self, bitary[i]);
 		hw_atl_rpf_rss_redir_tbl_addr_set(self, i);
 		hw_atl_rpf_rss_redir_wr_en_set(self, 1U);
-		AQ_HW_WAIT_FOR(hw_atl_rpf_rss_redir_wr_en_get(self) == 0,
-			       1000U, 10U);
+		err = readx_poll_timeout_atomic(hw_atl_rpf_rss_redir_wr_en_get,
+						self, val, val == 0,
+						1000U, 10000U);
 		if (err < 0)
 			goto err_exit;
 	}
@@ -341,10 +347,10 @@ err_exit:
 static int hw_atl_a0_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 {
 	static u32 aq_hw_atl_igcr_table_[4][2] = {
-		{ 0x20000000U, 0x20000000U }, /* AQ_IRQ_INVALID */
-		{ 0x20000080U, 0x20000080U }, /* AQ_IRQ_LEGACY */
-		{ 0x20000021U, 0x20000025U }, /* AQ_IRQ_MSI */
-		{ 0x20000022U, 0x20000026U }  /* AQ_IRQ_MSIX */
+		[AQ_HW_IRQ_INVALID] = { 0x20000000U, 0x20000000U },
+		[AQ_HW_IRQ_LEGACY]  = { 0x20000080U, 0x20000080U },
+		[AQ_HW_IRQ_MSI]     = { 0x20000021U, 0x20000025U },
+		[AQ_HW_IRQ_MSIX]    = { 0x20000022U, 0x20000026U },
 	};
 
 	int err = 0;
@@ -445,7 +451,7 @@ static int hw_atl_a0_hw_ring_tx_xmit(struct aq_hw_s *self,
 
 		buff = &ring->buff_ring[ring->sw_tail];
 
-		if (buff->is_txc) {
+		if (buff->is_gso) {
 			txd->ctl |= (buff->len_l3 << 31) |
 				(buff->len_l2 << 24) |
 				HW_ATL_A0_TXD_CTL_CMD_TCP |
@@ -610,8 +616,6 @@ err_exit:
 static int hw_atl_a0_hw_ring_rx_receive(struct aq_hw_s *self,
 					struct aq_ring_s *ring)
 {
-	struct device *ndev = aq_nic_get_dev(ring->aq_nic);
-
 	for (; ring->hw_head != ring->sw_tail;
 		ring->hw_head = aq_ring_next_dx(ring, ring->hw_head)) {
 		struct aq_ring_buff_s *buff = NULL;
@@ -677,8 +681,6 @@ static int hw_atl_a0_hw_ring_rx_receive(struct aq_hw_s *self,
 
 		is_err &= ~0x18U;
 		is_err &= ~0x04U;
-
-		dma_unmap_page(ndev, buff->pa, buff->len, DMA_FROM_DEVICE);
 
 		if (is_err || rxd_wb->type & 0x1000U) {
 			/* status error or DMA error */

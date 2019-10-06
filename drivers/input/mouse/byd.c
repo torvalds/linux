@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * BYD TouchPad PS/2 mouse driver
  *
@@ -6,10 +7,6 @@
  * Copyright (C) 2015 Tai Chi Minh Ralph Eastwood
  * Copyright (C) 2015 Martin Wimpress
  * Copyright (C) 2015 Jay Kuri
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/delay.h>

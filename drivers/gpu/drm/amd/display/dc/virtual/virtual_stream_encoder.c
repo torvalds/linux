@@ -23,13 +23,16 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 #include "virtual_stream_encoder.h"
 
 static void virtual_stream_encoder_dp_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
-	enum dc_color_space output_color_space) {}
+	enum dc_color_space output_color_space,
+	uint32_t enable_sdp_splitting) {}
 
 static void virtual_stream_encoder_hdmi_set_stream_attribute(
 	struct stream_encoder *enc,
@@ -74,7 +77,26 @@ static void virtual_audio_mute_control(
 	struct stream_encoder *enc,
 	bool mute) {}
 
+static void virtual_stream_encoder_reset_hdmi_stream_attribute(
+		struct stream_encoder *enc)
+{}
+
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+static void virtual_enc_dp_set_odm_combine(
+	struct stream_encoder *enc,
+	bool odm_combine)
+{}
+#endif
+#endif
+
 static const struct stream_encoder_funcs virtual_str_enc_funcs = {
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	.dp_set_odm_combine =
+		virtual_enc_dp_set_odm_combine,
+#endif
+#endif
 	.dp_set_stream_attribute =
 		virtual_stream_encoder_dp_set_stream_attribute,
 	.hdmi_set_stream_attribute =
@@ -98,6 +120,7 @@ static const struct stream_encoder_funcs virtual_str_enc_funcs = {
 
 	.audio_mute_control = virtual_audio_mute_control,
 	.set_avmute = virtual_stream_encoder_set_avmute,
+	.hdmi_reset_stream_attribute = virtual_stream_encoder_reset_hdmi_stream_attribute,
 };
 
 bool virtual_stream_encoder_construct(

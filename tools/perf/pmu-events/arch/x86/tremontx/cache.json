@@ -1,0 +1,111 @@
+[
+    {
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts cacheable memory requests that miss in the the Last Level Cache.  Requests include Demand Loads, Reads for Ownership(RFO), Instruction fetches and L1 HW prefetches. If the platform has an L3 cache, last level cache is the L3, otherwise it is the L2.",
+        "EventCode": "0x2e",
+        "Counter": "0,1,2,3",
+        "UMask": "0x41",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "LONGEST_LAT_CACHE.MISS",
+        "PDIR_COUNTER": "na",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Counts memory requests originating from the core that miss in the last level cache. If the platform has an L3 cache, last level cache is the L3, otherwise it is the L2."
+    },
+    {
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts cacheable memory requests that access the Last Level Cache.  Requests include Demand Loads, Reads for Ownership(RFO), Instruction fetches and L1 HW prefetches. If the platform has an L3 cache, last level cache is the L3, otherwise it is the L2.",
+        "EventCode": "0x2e",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4f",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "LONGEST_LAT_CACHE.REFERENCE",
+        "PDIR_COUNTER": "na",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Counts memory requests originating from the core that reference a cache line in the last level cache. If the platform has an L3 cache, last level cache is the L3, otherwise it is the L2."
+    },
+    {
+        "PEBS": "1",
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts the number of load uops retired. This event is Precise Event capable",
+        "EventCode": "0xd0",
+        "Counter": "0,1,2,3",
+        "UMask": "0x81",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "MEM_UOPS_RETIRED.ALL_LOADS",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Counts the number of load uops retired.",
+        "Data_LA": "1"
+    },
+    {
+        "PEBS": "1",
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts the number of store uops retired. This event is Precise Event capable",
+        "EventCode": "0xd0",
+        "Counter": "0,1,2,3",
+        "UMask": "0x82",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "MEM_UOPS_RETIRED.ALL_STORES",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Counts the number of store uops retired.",
+        "Data_LA": "1"
+    },
+    {
+        "PEBS": "1",
+        "CollectPEBSRecord": "2",
+        "EventCode": "0xd1",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L1_HIT",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Counts the number of load uops retired that hit the level 1 data cache",
+        "Data_LA": "1"
+    },
+    {
+        "PEBS": "1",
+        "CollectPEBSRecord": "2",
+        "EventCode": "0xd1",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L2_HIT",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Counts the number of load uops retired that hit in the level 2 cache",
+        "Data_LA": "1"
+    },
+    {
+        "PEBS": "1",
+        "CollectPEBSRecord": "2",
+        "EventCode": "0xd1",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L3_HIT",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Counts the number of load uops retired that miss in the level 3 cache"
+    },
+    {
+        "PEBS": "1",
+        "CollectPEBSRecord": "2",
+        "EventCode": "0xd1",
+        "Counter": "0,1,2,3",
+        "UMask": "0x8",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L1_MISS",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Counts the number of load uops retired that miss in the level 1 data cache",
+        "Data_LA": "1"
+    },
+    {
+        "PEBS": "1",
+        "CollectPEBSRecord": "2",
+        "EventCode": "0xd1",
+        "Counter": "0,1,2,3",
+        "UMask": "0x10",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L2_MISS",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Counts the number of load uops retired that miss in the level 2 cache",
+        "Data_LA": "1"
+    }
+]

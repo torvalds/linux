@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2010 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -17759,7 +17748,7 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(struct brcms_phy *pi)
 			num = 8 *
 			      (16 * b0[tbl_id - 26] + b1[tbl_id - 26] * idx);
 			den = 32768 + a1[tbl_id - 26] * idx;
-			pwr_est = max(((4 * num + den / 2) / den), -8);
+			pwr_est = max(DIV_ROUND_CLOSEST(4 * num, den), -8);
 			if (NREV_LT(pi->pubpi.phy_rev, 3)) {
 				if (idx <=
 				    (uint) (31 - idle_tssi[tbl_id - 26] + 1))
@@ -20046,7 +20035,7 @@ static void wlc_phy_radio_init_2056(struct brcms_phy *pi)
 			break;
 
 		default:
-			break;
+			return;
 		}
 	}
 
@@ -27001,8 +26990,8 @@ wlc_phy_rxcal_gainctrl_nphy_rev5(struct brcms_phy *pi, u8 rx_core,
 				     NPHY_RXCAL_TONEAMP, 0, cal_type, false);
 
 		wlc_phy_rx_iq_est_nphy(pi, est, num_samps, 32, 0);
-		i_pwr = (est[rx_core].i_pwr + num_samps / 2) / num_samps;
-		q_pwr = (est[rx_core].q_pwr + num_samps / 2) / num_samps;
+		i_pwr = DIV_ROUND_CLOSEST(est[rx_core].i_pwr, num_samps);
+		q_pwr = DIV_ROUND_CLOSEST(est[rx_core].q_pwr, num_samps);
 		curr_pwr = i_pwr + q_pwr;
 
 		switch (gainctrl_dirn) {
@@ -27684,10 +27673,10 @@ wlc_phy_cal_rxiq_nphy_rev2(struct brcms_phy *pi,
 					wlc_phy_rx_iq_est_nphy(pi, est,
 							       num_samps, 32,
 							       0);
-					i_pwr =	(est[rx_core].i_pwr +
-						 num_samps / 2) / num_samps;
-					q_pwr =	(est[rx_core].q_pwr +
-						 num_samps / 2) / num_samps;
+					i_pwr = DIV_ROUND_CLOSEST(est[rx_core].i_pwr,
+									 num_samps);
+					q_pwr = DIV_ROUND_CLOSEST(est[rx_core].q_pwr,
+									 num_samps);
 					tot_pwr[gain_pass] = i_pwr + q_pwr;
 				} else {
 

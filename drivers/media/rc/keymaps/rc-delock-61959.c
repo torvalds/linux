@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* rc-delock-61959.c - Keytable for Delock
  *
  * Copyright (c) 2013 by Jakob Haufe <sur5r@sur5r.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <media/rc-map.h>
@@ -18,16 +14,16 @@ static struct rc_map_table delock_61959[] = {
 	{ 0x866b16, KEY_POWER2 },	/* Power */
 	{ 0x866b0c, KEY_POWER },	/* Shut Down */
 
-	{ 0x866b00, KEY_1},
-	{ 0x866b01, KEY_2},
-	{ 0x866b02, KEY_3},
-	{ 0x866b03, KEY_4},
-	{ 0x866b04, KEY_5},
-	{ 0x866b05, KEY_6},
-	{ 0x866b06, KEY_7},
-	{ 0x866b07, KEY_8},
-	{ 0x866b08, KEY_9},
-	{ 0x866b14, KEY_0},
+	{ 0x866b00, KEY_NUMERIC_1},
+	{ 0x866b01, KEY_NUMERIC_2},
+	{ 0x866b02, KEY_NUMERIC_3},
+	{ 0x866b03, KEY_NUMERIC_4},
+	{ 0x866b04, KEY_NUMERIC_5},
+	{ 0x866b05, KEY_NUMERIC_6},
+	{ 0x866b06, KEY_NUMERIC_7},
+	{ 0x866b07, KEY_NUMERIC_8},
+	{ 0x866b08, KEY_NUMERIC_9},
+	{ 0x866b14, KEY_NUMERIC_0},
 
 	{ 0x866b0a, KEY_ZOOM},		/* Full Screen */
 	{ 0x866b10, KEY_CAMERA},	/* Photo */

@@ -100,9 +100,6 @@ static int ehci_atmel_drv_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
-		dev_err(&pdev->dev,
-			"Found HC with no IRQ. Check %s setup!\n",
-			dev_name(&pdev->dev));
 		retval = -ENODEV;
 		goto fail_create_hcd;
 	}

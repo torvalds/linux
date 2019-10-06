@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #ifndef __ASM_NDS32_MEMORY_H
@@ -13,14 +13,6 @@
 
 #ifndef PHYS_OFFSET
 #define PHYS_OFFSET     (0x0)
-#endif
-
-#ifndef __virt_to_bus
-#define __virt_to_bus	__virt_to_phys
-#endif
-
-#ifndef __bus_to_virt
-#define __bus_to_virt	__phys_to_virt
 #endif
 
 /*

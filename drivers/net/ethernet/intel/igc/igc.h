@@ -13,19 +13,56 @@
 
 #include "igc_hw.h"
 
-/* main */
+/* forward declaration */
+void igc_set_ethtool_ops(struct net_device *);
+
+struct igc_adapter;
+struct igc_ring;
+
+void igc_up(struct igc_adapter *adapter);
+void igc_down(struct igc_adapter *adapter);
+int igc_setup_tx_resources(struct igc_ring *ring);
+int igc_setup_rx_resources(struct igc_ring *ring);
+void igc_free_tx_resources(struct igc_ring *ring);
+void igc_free_rx_resources(struct igc_ring *ring);
+unsigned int igc_get_max_rss_queues(struct igc_adapter *adapter);
+void igc_set_flag_queue_pairs(struct igc_adapter *adapter,
+			      const u32 max_rss_queues);
+int igc_reinit_queues(struct igc_adapter *adapter);
+void igc_write_rss_indir_tbl(struct igc_adapter *adapter);
+bool igc_has_link(struct igc_adapter *adapter);
+void igc_reset(struct igc_adapter *adapter);
+int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx);
+int igc_add_mac_steering_filter(struct igc_adapter *adapter,
+				const u8 *addr, u8 queue, u8 flags);
+int igc_del_mac_steering_filter(struct igc_adapter *adapter,
+				const u8 *addr, u8 queue, u8 flags);
+void igc_update_stats(struct igc_adapter *adapter);
+
 extern char igc_driver_name[];
 extern char igc_driver_version[];
+
+#define IGC_REGS_LEN			740
+#define IGC_RETA_SIZE			128
 
 /* Interrupt defines */
 #define IGC_START_ITR			648 /* ~6000 ints/sec */
 #define IGC_FLAG_HAS_MSI		BIT(0)
-#define IGC_FLAG_QUEUE_PAIRS		BIT(4)
+#define IGC_FLAG_QUEUE_PAIRS		BIT(3)
+#define IGC_FLAG_DMAC			BIT(4)
 #define IGC_FLAG_NEED_LINK_UPDATE	BIT(9)
 #define IGC_FLAG_MEDIA_RESET		BIT(10)
 #define IGC_FLAG_MAS_ENABLE		BIT(12)
 #define IGC_FLAG_HAS_MSIX		BIT(13)
 #define IGC_FLAG_VLAN_PROMISC		BIT(15)
+#define IGC_FLAG_RX_LEGACY		BIT(16)
+
+#define IGC_FLAG_RSS_FIELD_IPV4_UDP	BIT(6)
+#define IGC_FLAG_RSS_FIELD_IPV6_UDP	BIT(7)
+
+#define IGC_MRQC_ENABLE_RSS_MQ		0x00000002
+#define IGC_MRQC_RSS_FIELD_IPV4_UDP	0x00400000
+#define IGC_MRQC_RSS_FIELD_IPV6_UDP	0x00800000
 
 #define IGC_START_ITR			648 /* ~6000 ints/sec */
 #define IGC_4K_ITR			980
@@ -60,6 +97,7 @@ extern char igc_driver_version[];
 #define IGC_RXBUFFER_2048		2048
 #define IGC_RXBUFFER_3072		3072
 
+#define AUTO_ALL_MODES		0
 #define IGC_RX_HDR_LEN			IGC_RXBUFFER_256
 
 /* RX and TX descriptor control thresholds.
@@ -96,6 +134,9 @@ extern char igc_driver_version[];
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define IGC_RX_BUFFER_WRITE	16 /* Must be power of 2 */
+
+/* VLAN info */
+#define IGC_TX_FLAGS_VLAN_MASK	0xffff0000
 
 /* igc_test_staterr - tests bits within Rx descriptor status and error fields */
 static inline __le32 igc_test_staterr(union igc_adv_rx_desc *rx_desc,
@@ -216,6 +257,7 @@ struct igc_ring {
 	u16 count;                      /* number of desc. in the ring */
 	u8 queue_index;                 /* logical index of the ring*/
 	u8 reg_idx;                     /* physical index of the ring */
+	bool launchtime_enable;		/* true if LaunchTime is enabled */
 
 	/* everything past this point are written often */
 	u16 next_to_clean;
@@ -259,15 +301,50 @@ struct igc_q_vector {
 	struct igc_ring ring[0] ____cacheline_internodealigned_in_smp;
 };
 
+#define MAX_ETYPE_FILTER		(4 - 1)
+
+enum igc_filter_match_flags {
+	IGC_FILTER_FLAG_ETHER_TYPE =	0x1,
+	IGC_FILTER_FLAG_VLAN_TCI   =	0x2,
+	IGC_FILTER_FLAG_SRC_MAC_ADDR =	0x4,
+	IGC_FILTER_FLAG_DST_MAC_ADDR =	0x8,
+};
+
+/* RX network flow classification data structure */
+struct igc_nfc_input {
+	/* Byte layout in order, all values with MSB first:
+	 * match_flags - 1 byte
+	 * etype - 2 bytes
+	 * vlan_tci - 2 bytes
+	 */
+	u8 match_flags;
+	__be16 etype;
+	__be16 vlan_tci;
+	u8 src_addr[ETH_ALEN];
+	u8 dst_addr[ETH_ALEN];
+};
+
+struct igc_nfc_filter {
+	struct hlist_node nfc_node;
+	struct igc_nfc_input filter;
+	unsigned long cookie;
+	u16 etype_reg_index;
+	u16 sw_idx;
+	u16 action;
+};
+
 struct igc_mac_addr {
 	u8 addr[ETH_ALEN];
 	u8 queue;
 	u8 state; /* bitmask */
 };
 
-#define IGC_MAC_STATE_DEFAULT	0x1
-#define IGC_MAC_STATE_MODIFIED	0x2
-#define IGC_MAC_STATE_IN_USE	0x4
+#define IGC_MAC_STATE_DEFAULT		0x1
+#define IGC_MAC_STATE_IN_USE		0x2
+#define IGC_MAC_STATE_SRC_ADDR		0x4
+#define IGC_MAC_STATE_QUEUE_STEERING	0x8
+
+#define IGC_MAX_RXNFC_FILTERS		16
 
 /* Board specific private data structure */
 struct igc_adapter {
@@ -331,14 +408,26 @@ struct igc_adapter {
 	u16 tx_ring_count;
 	u16 rx_ring_count;
 
+	u32 tx_hwtstamp_timeouts;
+	u32 tx_hwtstamp_skipped;
+	u32 rx_hwtstamp_cleared;
 	u32 *shadow_vfta;
 
 	u32 rss_queues;
+	u32 rss_indir_tbl_init;
+
+	/* RX network flow classification support */
+	struct hlist_head nfc_filter_list;
+	struct hlist_head cls_flower_list;
+	unsigned int nfc_filter_count;
 
 	/* lock for RX network flow classification filter */
 	spinlock_t nfc_lock;
+	bool etype_bitmap[MAX_ETYPE_FILTER];
 
 	struct igc_mac_addr *mac_table;
+
+	u8 rss_indir_tbl[IGC_RETA_SIZE];
 
 	unsigned long link_check_timeout;
 	struct igc_info ei;
@@ -417,6 +506,13 @@ static inline s32 igc_read_phy_reg(struct igc_hw *hw, u32 offset, u16 *data)
 
 	return 0;
 }
+
+/* forward declaration */
+void igc_reinit_locked(struct igc_adapter *);
+int igc_add_filter(struct igc_adapter *adapter,
+		   struct igc_nfc_filter *input);
+int igc_erase_filter(struct igc_adapter *adapter,
+		     struct igc_nfc_filter *input);
 
 #define igc_rx_pg_size(_ring) (PAGE_SIZE << igc_rx_pg_order(_ring))
 

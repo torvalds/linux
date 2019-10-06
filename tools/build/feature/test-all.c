@@ -38,6 +38,10 @@
 # include "test-get_current_dir_name.c"
 #undef main
 
+#define main main_test_gettid
+# include "test-gettid.c"
+#undef main
+
 #define main main_test_glibc
 # include "test-glibc.c"
 #undef main
@@ -170,12 +174,20 @@
 # include "test-setns.c"
 #undef main
 
-#define main main_test_libopencsd
-# include "test-libopencsd.c"
-#undef main
-
 #define main main_test_libaio
 # include "test-libaio.c"
+#undef main
+
+#define main main_test_reallocarray
+# include "test-reallocarray.c"
+#undef main
+
+#define main main_test_disassembler_four_args
+# include "test-disassembler-four-args.c"
+#undef main
+
+#define main main_test_libzstd
+# include "test-libzstd.c"
 #undef main
 
 int main(int argc, char *argv[])
@@ -187,6 +199,7 @@ int main(int argc, char *argv[])
 	main_test_libelf();
 	main_test_libelf_mmap();
 	main_test_get_current_dir_name();
+	main_test_gettid();
 	main_test_glibc();
 	main_test_dwarf();
 	main_test_dwarf_getlocations();
@@ -217,8 +230,10 @@ int main(int argc, char *argv[])
 	main_test_sched_getcpu();
 	main_test_sdt();
 	main_test_setns();
-	main_test_libopencsd();
 	main_test_libaio();
+	main_test_reallocarray();
+	main_test_disassembler_four_args();
+	main_test_libzstd();
 
 	return 0;
 }

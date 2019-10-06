@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2013 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
  *
  * Disclaimer: The codes contained in these modules may be specific to
  * the Intel Software Development Platform codenamed: Knights Ferry, and
@@ -22,7 +11,6 @@
  * support the codes or instruction set in future products.
  *
  * Intel MIC Card driver.
- *
  */
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -245,8 +233,8 @@ static struct scif_hw_ops scif_hw_ops = {
 	.next_db = ___mic_next_db,
 	.send_intr = ___mic_send_intr,
 	.send_p2p_intr = ___mic_send_p2p_intr,
-	.ioremap = ___mic_ioremap,
-	.iounmap = ___mic_iounmap,
+	.remap = ___mic_ioremap,
+	.unmap = ___mic_iounmap,
 };
 
 static inline struct mic_driver *vpdev_to_mdrv(struct vop_device *vpdev)
@@ -316,8 +304,8 @@ static struct vop_hw_ops vop_hw_ops = {
 	.next_db = __mic_next_db,
 	.get_remote_dp = __mic_get_remote_dp,
 	.send_intr = __mic_send_intr,
-	.ioremap = __mic_ioremap,
-	.iounmap = __mic_iounmap,
+	.remap = __mic_ioremap,
+	.unmap = __mic_iounmap,
 };
 
 static int mic_request_dma_chans(struct mic_driver *mdrv)

@@ -100,7 +100,7 @@ MODULE_DESCRIPTION("PCIe NTB Performance Measurement Tool");
 #define DMA_TRIES		100
 #define DMA_MDELAY		10
 
-#define MSG_TRIES		500
+#define MSG_TRIES		1000
 #define MSG_UDELAY_LOW		1000
 #define MSG_UDELAY_HIGH		2000
 
@@ -284,11 +284,9 @@ static int perf_spad_cmd_send(struct perf_peer *peer, enum perf_cmd cmd,
 		ntb_peer_spad_write(perf->ntb, peer->pidx,
 				    PERF_SPAD_HDATA(perf->gidx),
 				    upper_32_bits(data));
-		mmiowb();
 		ntb_peer_spad_write(perf->ntb, peer->pidx,
 				    PERF_SPAD_CMD(perf->gidx),
 				    cmd);
-		mmiowb();
 		ntb_peer_db_set(perf->ntb, PERF_SPAD_NOTIFY(peer->gidx));
 
 		dev_dbg(&perf->ntb->dev, "DB ring peer %#llx\n",
@@ -379,7 +377,6 @@ static int perf_msg_cmd_send(struct perf_peer *peer, enum perf_cmd cmd,
 
 		ntb_peer_msg_write(perf->ntb, peer->pidx, PERF_MSG_HDATA,
 				   upper_32_bits(data));
-		mmiowb();
 
 		/* This call shall trigger peer message event */
 		ntb_peer_msg_write(perf->ntb, peer->pidx, PERF_MSG_CMD, cmd);
@@ -737,8 +734,6 @@ static void perf_disable_service(struct perf_ctx *perf)
 {
 	int pidx;
 
-	ntb_link_disable(perf->ntb);
-
 	if (perf->cmd_send == perf_msg_cmd_send) {
 		u64 inbits;
 
@@ -755,6 +750,16 @@ static void perf_disable_service(struct perf_ctx *perf)
 
 	for (pidx = 0; pidx < perf->pcnt; pidx++)
 		flush_work(&perf->peers[pidx].service);
+
+	for (pidx = 0; pidx < perf->pcnt; pidx++) {
+		struct perf_peer *peer = &perf->peers[pidx];
+
+		ntb_spad_write(perf->ntb, PERF_SPAD_CMD(peer->gidx), 0);
+	}
+
+	ntb_db_clear(perf->ntb, PERF_SPAD_NOTIFY(perf->gidx));
+
+	ntb_link_disable(perf->ntb);
 }
 
 /*==============================================================================
@@ -1373,7 +1378,7 @@ static int perf_setup_peer_mw(struct perf_peer *peer)
 	int ret;
 
 	/* Get outbound MW parameters and map it */
-	ret = ntb_peer_mw_get_addr(perf->ntb, peer->gidx, &phys_addr,
+	ret = ntb_peer_mw_get_addr(perf->ntb, perf->gidx, &phys_addr,
 				   &peer->outbuf_size);
 	if (ret)
 		return ret;

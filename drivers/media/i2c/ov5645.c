@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the OV5645 camera sensor.
  *
@@ -14,15 +15,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitops.h>
@@ -42,10 +34,6 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define OV5645_VOLTAGE_ANALOG               2800000
-#define OV5645_VOLTAGE_DIGITAL_CORE         1500000
-#define OV5645_VOLTAGE_DIGITAL_IO           1800000
-
 #define OV5645_SYSTEM_CTRL0		0x3008
 #define		OV5645_SYSTEM_CTRL0_START	0x02
 #define		OV5645_SYSTEM_CTRL0_STOP	0x42
@@ -53,6 +41,8 @@
 #define		OV5645_CHIP_ID_HIGH_BYTE	0x56
 #define OV5645_CHIP_ID_LOW		0x300b
 #define		OV5645_CHIP_ID_LOW_BYTE		0x45
+#define OV5645_IO_MIPI_CTRL00		0x300e
+#define OV5645_PAD_OUTPUT00		0x3019
 #define OV5645_AWB_MANUAL_CONTROL	0x3406
 #define		OV5645_AWB_MANUAL_ENABLE	BIT(0)
 #define OV5645_AEC_PK_MANUAL		0x3503
@@ -63,12 +53,22 @@
 #define		OV5645_ISP_VFLIP		BIT(2)
 #define OV5645_TIMING_TC_REG21		0x3821
 #define		OV5645_SENSOR_MIRROR		BIT(1)
+#define OV5645_MIPI_CTRL00		0x4800
 #define OV5645_PRE_ISP_TEST_SETTING_1	0x503d
 #define		OV5645_TEST_PATTERN_MASK	0x3
 #define		OV5645_SET_TEST_PATTERN(x)	((x) & OV5645_TEST_PATTERN_MASK)
 #define		OV5645_TEST_PATTERN_ENABLE	BIT(7)
 #define OV5645_SDE_SAT_U		0x5583
 #define OV5645_SDE_SAT_V		0x5584
+
+/* regulator supplies */
+static const char * const ov5645_supply_name[] = {
+	"vdddo", /* Digital I/O (1.8V) supply */
+	"vdda",  /* Analog (2.8V) supply */
+	"vddd",  /* Digital Core (1.5V) supply */
+};
+
+#define OV5645_NUM_SUPPLIES ARRAY_SIZE(ov5645_supply_name)
 
 struct reg_value {
 	u16 reg;
@@ -94,9 +94,7 @@ struct ov5645 {
 	struct v4l2_rect crop;
 	struct clk *xclk;
 
-	struct regulator *io_regulator;
-	struct regulator *core_regulator;
-	struct regulator *analog_regulator;
+	struct regulator_bulk_data supplies[OV5645_NUM_SUPPLIES];
 
 	const struct ov5645_mode_info *current_mode;
 
@@ -129,7 +127,6 @@ static const struct reg_value ov5645_global_init_setting[] = {
 	{ 0x3503, 0x07 },
 	{ 0x3002, 0x1c },
 	{ 0x3006, 0xc3 },
-	{ 0x300e, 0x45 },
 	{ 0x3017, 0x00 },
 	{ 0x3018, 0x00 },
 	{ 0x302e, 0x0b },
@@ -358,7 +355,10 @@ static const struct reg_value ov5645_global_init_setting[] = {
 	{ 0x3a1f, 0x14 },
 	{ 0x0601, 0x02 },
 	{ 0x3008, 0x42 },
-	{ 0x3008, 0x02 }
+	{ 0x3008, 0x02 },
+	{ OV5645_IO_MIPI_CTRL00, 0x40 },
+	{ OV5645_MIPI_CTRL00, 0x24 },
+	{ OV5645_PAD_OUTPUT00, 0x70 }
 };
 
 static const struct reg_value ov5645_setting_sxga[] = {
@@ -541,55 +541,6 @@ static const struct ov5645_mode_info ov5645_mode_info_data[] = {
 	},
 };
 
-static int ov5645_regulators_enable(struct ov5645 *ov5645)
-{
-	int ret;
-
-	ret = regulator_enable(ov5645->io_regulator);
-	if (ret < 0) {
-		dev_err(ov5645->dev, "set io voltage failed\n");
-		return ret;
-	}
-
-	ret = regulator_enable(ov5645->analog_regulator);
-	if (ret) {
-		dev_err(ov5645->dev, "set analog voltage failed\n");
-		goto err_disable_io;
-	}
-
-	ret = regulator_enable(ov5645->core_regulator);
-	if (ret) {
-		dev_err(ov5645->dev, "set core voltage failed\n");
-		goto err_disable_analog;
-	}
-
-	return 0;
-
-err_disable_analog:
-	regulator_disable(ov5645->analog_regulator);
-err_disable_io:
-	regulator_disable(ov5645->io_regulator);
-
-	return ret;
-}
-
-static void ov5645_regulators_disable(struct ov5645 *ov5645)
-{
-	int ret;
-
-	ret = regulator_disable(ov5645->core_regulator);
-	if (ret < 0)
-		dev_err(ov5645->dev, "core regulator disable failed\n");
-
-	ret = regulator_disable(ov5645->analog_regulator);
-	if (ret < 0)
-		dev_err(ov5645->dev, "analog regulator disable failed\n");
-
-	ret = regulator_disable(ov5645->io_regulator);
-	if (ret < 0)
-		dev_err(ov5645->dev, "io regulator disable failed\n");
-}
-
 static int ov5645_write_reg(struct ov5645 *ov5645, u16 reg, u8 val)
 {
 	u8 regbuf[3];
@@ -688,15 +639,14 @@ static int ov5645_set_power_on(struct ov5645 *ov5645)
 {
 	int ret;
 
-	ret = ov5645_regulators_enable(ov5645);
-	if (ret < 0) {
+	ret = regulator_bulk_enable(OV5645_NUM_SUPPLIES, ov5645->supplies);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = clk_prepare_enable(ov5645->xclk);
 	if (ret < 0) {
 		dev_err(ov5645->dev, "clk prepare enable failed\n");
-		ov5645_regulators_disable(ov5645);
+		regulator_bulk_disable(OV5645_NUM_SUPPLIES, ov5645->supplies);
 		return ret;
 	}
 
@@ -716,7 +666,7 @@ static void ov5645_set_power_off(struct ov5645 *ov5645)
 	gpiod_set_value_cansleep(ov5645->rst_gpio, 1);
 	gpiod_set_value_cansleep(ov5645->enable_gpio, 0);
 	clk_disable_unprepare(ov5645->xclk);
-	ov5645_regulators_disable(ov5645);
+	regulator_bulk_disable(OV5645_NUM_SUPPLIES, ov5645->supplies);
 }
 
 static int ov5645_s_power(struct v4l2_subdev *sd, int on)
@@ -745,13 +695,9 @@ static int ov5645_s_power(struct v4l2_subdev *sd, int on)
 				goto exit;
 			}
 
-			ret = ov5645_write_reg(ov5645, OV5645_SYSTEM_CTRL0,
-					       OV5645_SYSTEM_CTRL0_STOP);
-			if (ret < 0) {
-				ov5645_set_power_off(ov5645);
-				goto exit;
-			}
+			usleep_range(500, 1000);
 		} else {
+			ov5645_write_reg(ov5645, OV5645_IO_MIPI_CTRL00, 0x58);
 			ov5645_set_power_off(ov5645);
 		}
 	}
@@ -1057,11 +1003,20 @@ static int ov5645_s_stream(struct v4l2_subdev *subdev, int enable)
 			dev_err(ov5645->dev, "could not sync v4l2 controls\n");
 			return ret;
 		}
+
+		ret = ov5645_write_reg(ov5645, OV5645_IO_MIPI_CTRL00, 0x45);
+		if (ret < 0)
+			return ret;
+
 		ret = ov5645_write_reg(ov5645, OV5645_SYSTEM_CTRL0,
 				       OV5645_SYSTEM_CTRL0_START);
 		if (ret < 0)
 			return ret;
 	} else {
+		ret = ov5645_write_reg(ov5645, OV5645_IO_MIPI_CTRL00, 0x40);
+		if (ret < 0)
+			return ret;
+
 		ret = ov5645_write_reg(ov5645, OV5645_SYSTEM_CTRL0,
 				       OV5645_SYSTEM_CTRL0_STOP);
 		if (ret < 0)
@@ -1094,13 +1049,13 @@ static const struct v4l2_subdev_ops ov5645_subdev_ops = {
 	.pad = &ov5645_subdev_pad_ops,
 };
 
-static int ov5645_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov5645_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *endpoint;
 	struct ov5645 *ov5645;
 	u8 chip_id_high, chip_id_low;
+	unsigned int i;
 	u32 xclk_freq;
 	int ret;
 
@@ -1158,47 +1113,13 @@ static int ov5645_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ov5645->io_regulator = devm_regulator_get(dev, "vdddo");
-	if (IS_ERR(ov5645->io_regulator)) {
-		dev_err(dev, "cannot get io regulator\n");
-		return PTR_ERR(ov5645->io_regulator);
-	}
+	for (i = 0; i < OV5645_NUM_SUPPLIES; i++)
+		ov5645->supplies[i].supply = ov5645_supply_name[i];
 
-	ret = regulator_set_voltage(ov5645->io_regulator,
-				    OV5645_VOLTAGE_DIGITAL_IO,
-				    OV5645_VOLTAGE_DIGITAL_IO);
-	if (ret < 0) {
-		dev_err(dev, "cannot set io voltage\n");
+	ret = devm_regulator_bulk_get(dev, OV5645_NUM_SUPPLIES,
+				      ov5645->supplies);
+	if (ret < 0)
 		return ret;
-	}
-
-	ov5645->core_regulator = devm_regulator_get(dev, "vddd");
-	if (IS_ERR(ov5645->core_regulator)) {
-		dev_err(dev, "cannot get core regulator\n");
-		return PTR_ERR(ov5645->core_regulator);
-	}
-
-	ret = regulator_set_voltage(ov5645->core_regulator,
-				    OV5645_VOLTAGE_DIGITAL_CORE,
-				    OV5645_VOLTAGE_DIGITAL_CORE);
-	if (ret < 0) {
-		dev_err(dev, "cannot set core voltage\n");
-		return ret;
-	}
-
-	ov5645->analog_regulator = devm_regulator_get(dev, "vdda");
-	if (IS_ERR(ov5645->analog_regulator)) {
-		dev_err(dev, "cannot get analog regulator\n");
-		return PTR_ERR(ov5645->analog_regulator);
-	}
-
-	ret = regulator_set_voltage(ov5645->analog_regulator,
-				    OV5645_VOLTAGE_ANALOG,
-				    OV5645_VOLTAGE_ANALOG);
-	if (ret < 0) {
-		dev_err(dev, "cannot set analog voltage\n");
-		return ret;
-	}
 
 	ov5645->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(ov5645->enable_gpio)) {
@@ -1363,7 +1284,7 @@ static struct i2c_driver ov5645_i2c_driver = {
 		.of_match_table = of_match_ptr(ov5645_of_match),
 		.name  = "ov5645",
 	},
-	.probe  = ov5645_probe,
+	.probe_new = ov5645_probe,
 	.remove = ov5645_remove,
 	.id_table = ov5645_id,
 };

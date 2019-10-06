@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  cb710/cb710.h
  *
  *  Copyright by Michał Mirosław, 2008-2009
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef LINUX_CB710_DRIVER_H
 #define LINUX_CB710_DRIVER_H
@@ -129,10 +126,6 @@ void cb710_dump_regs(struct cb710_chip *chip, unsigned dump);
  *  cb710/sgbuf2.h
  *
  *  Copyright by Michał Mirosław, 2008-2009
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef LINUX_CB710_SG_H
 #define LINUX_CB710_SG_H

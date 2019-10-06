@@ -98,10 +98,6 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
 	return index % n_rx_rings;
 }
 
-/* number of link mode bits/ulongs handled internally by kernel */
-#define __ETHTOOL_LINK_MODE_MASK_NBITS			\
-	(__ETHTOOL_LINK_MODE_LAST + 1)
-
 /* declare a link mode bitmap */
 #define __ETHTOOL_DECLARE_LINK_MODE_MASK(name)		\
 	DECLARE_BITMAP(name, __ETHTOOL_LINK_MODE_MASK_NBITS)
@@ -264,6 +260,15 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
  *	will remain unchanged.
  *	Returns a negative error code or zero. An error code must be returned
  *	if at least one unsupported change was requested.
+ * @get_rxfh_context: Get the contents of the RX flow hash indirection table,
+ *	hash key, and/or hash function assiciated to the given rss context.
+ *	Returns a negative error code or zero.
+ * @set_rxfh_context: Create, remove and configure RSS contexts. Allows setting
+ *	the contents of the RX flow hash indirection table, hash key, and/or
+ *	hash function associated to the given context. Arguments which are set
+ *	to %NULL or zero will remain unchanged.
+ *	Returns a negative error code or zero. An error code must be returned
+ *	if at least one unsupported change was requested.
  * @get_channels: Get number of channels.
  * @set_channels: Set number of channels.  Returns a negative error code or
  *	zero.
@@ -400,4 +405,19 @@ struct ethtool_ops {
 	void	(*get_ethtool_phy_stats)(struct net_device *,
 					 struct ethtool_stats *, u64 *);
 };
+
+struct ethtool_rx_flow_rule {
+	struct flow_rule	*rule;
+	unsigned long		priv[0];
+};
+
+struct ethtool_rx_flow_spec_input {
+	const struct ethtool_rx_flow_spec	*fs;
+	u32					rss_ctx;
+};
+
+struct ethtool_rx_flow_rule *
+ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input);
+void ethtool_rx_flow_rule_destroy(struct ethtool_rx_flow_rule *rule);
+
 #endif /* _LINUX_ETHTOOL_H */

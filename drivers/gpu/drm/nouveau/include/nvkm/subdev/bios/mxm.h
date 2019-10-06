@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVBIOS_MXM_H__
 #define __NVBIOS_MXM_H__
 u16 mxm_table(struct nvkm_bios *, u8 *ver, u8 *hdr);

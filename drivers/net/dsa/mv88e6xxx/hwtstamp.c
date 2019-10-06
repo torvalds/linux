@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Marvell 88E6xxx Switch hardware timestamping support
  *
@@ -7,11 +8,6 @@
  *      Erik Hons <erik.hons@ni.com>
  *      Brandon Streiff <brandon.streiff@ni.com>
  *      Dane Wagner <dane.wagner@ni.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include "chip.h"
@@ -151,7 +147,7 @@ static int mv88e6xxx_set_hwtstamp_config(struct mv88e6xxx_chip *chip, int port,
 		return -ERANGE;
 	}
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	if (tstamp_enable) {
 		chip->enable_count += 1;
 		if (chip->enable_count == 1 && ptp_ops->global_enable)
@@ -165,7 +161,7 @@ static int mv88e6xxx_set_hwtstamp_config(struct mv88e6xxx_chip *chip, int port,
 		if (chip->enable_count == 0 && ptp_ops->global_disable)
 			ptp_ops->global_disable(chip);
 	}
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	/* Once hardware has been configured, enable timestamp checks
 	 * in the RX/TX paths.
@@ -305,10 +301,10 @@ static void mv88e6xxx_get_rxts(struct mv88e6xxx_chip *chip,
 	skb_queue_splice_tail_init(rxq, &received);
 	spin_unlock_irqrestore(&rxq->lock, flags);
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_port_ptp_read(chip, ps->port_id,
 				      reg, buf, ARRAY_SIZE(buf));
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 	if (err)
 		pr_err("failed to get the receive time stamp\n");
 
@@ -318,9 +314,9 @@ static void mv88e6xxx_get_rxts(struct mv88e6xxx_chip *chip,
 	seq_id = buf[3];
 
 	if (status & MV88E6XXX_PTP_TS_VALID) {
-		mutex_lock(&chip->reg_lock);
+		mv88e6xxx_reg_lock(chip);
 		err = mv88e6xxx_port_ptp_write(chip, ps->port_id, reg, 0);
-		mutex_unlock(&chip->reg_lock);
+		mv88e6xxx_reg_unlock(chip);
 		if (err)
 			pr_err("failed to clear the receive status\n");
 	}
@@ -331,9 +327,9 @@ static void mv88e6xxx_get_rxts(struct mv88e6xxx_chip *chip,
 		if (mv88e6xxx_ts_valid(status) && seq_match(skb, seq_id)) {
 			ns = timehi << 16 | timelo;
 
-			mutex_lock(&chip->reg_lock);
+			mv88e6xxx_reg_lock(chip);
 			ns = timecounter_cyc2time(&chip->tstamp_tc, ns);
-			mutex_unlock(&chip->reg_lock);
+			mv88e6xxx_reg_unlock(chip);
 			shwt = skb_hwtstamps(skb);
 			memset(shwt, 0, sizeof(*shwt));
 			shwt->hwtstamp = ns_to_ktime(ns);
@@ -409,12 +405,12 @@ static int mv88e6xxx_txtstamp_work(struct mv88e6xxx_chip *chip,
 	if (!ps->tx_skb)
 		return 0;
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_port_ptp_read(chip, ps->port_id,
 				      ptp_ops->dep_sts_reg,
 				      departure_block,
 				      ARRAY_SIZE(departure_block));
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	if (err)
 		goto free_and_clear_skb;
@@ -434,9 +430,9 @@ static int mv88e6xxx_txtstamp_work(struct mv88e6xxx_chip *chip,
 	}
 
 	/* We have the timestamp; go ahead and clear valid now */
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	mv88e6xxx_port_ptp_write(chip, ps->port_id, ptp_ops->dep_sts_reg, 0);
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	status = departure_block[0] & MV88E6XXX_PTP_TS_STATUS_MASK;
 	if (status != MV88E6XXX_PTP_TS_STATUS_NORMAL) {
@@ -451,9 +447,9 @@ static int mv88e6xxx_txtstamp_work(struct mv88e6xxx_chip *chip,
 
 	memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 	time_raw = ((u32)departure_block[2] << 16) | departure_block[1];
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	ns = timecounter_cyc2time(&chip->tstamp_tc, time_raw);
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 	shhwtstamps.hwtstamp = ns_to_ktime(ns);
 
 	dev_dbg(chip->dev,

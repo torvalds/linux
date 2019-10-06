@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* DVB USB compliant Linux driver for the Afatech 9005
  * USB1.1 DVB-T receiver.
  *
  * Copyright (C) 2007 Luca Olivetti (luca@ventoso.org)
  *
  * Thanks to Afatech who kindly provided information.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
  */
@@ -845,7 +836,7 @@ static int af9005_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
 
 	/* deb_info("rc_query\n"); */
 	st->data[0] = 3;		/* rest of packet length low */
-	st->data[1] = 0;		/* rest of packet lentgh high */
+	st->data[1] = 0;		/* rest of packet length high */
 	st->data[2] = 0x40;		/* read remote */
 	st->data[3] = 1;		/* rest of packet length */
 	st->data[4] = seq = st->sequence++;	/* sequence number */

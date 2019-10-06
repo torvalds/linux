@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Crypto acceleration support for Rockchip RK3288
  *
  * Copyright (c) 2015, Fuzhou Rockchip Electronics Co., Ltd
  *
  * Author: Zain Wang <zain.wang@rock-chips.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  *
  * Some ideas are from marvell/cesa.c and s5p-sss.c driver.
  */
@@ -206,7 +203,7 @@ static int rk_ahash_start(struct rk_crypto_info *dev)
 	dev->sg_dst = NULL;
 	dev->sg_src = req->src;
 	dev->first = req->src;
-	dev->nents = sg_nents(req->src);
+	dev->src_nents = sg_nents(req->src);
 	rctx = ahash_request_ctx(req);
 	rctx->mode = 0;
 

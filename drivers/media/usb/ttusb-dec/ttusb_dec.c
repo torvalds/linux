@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * TTUSB DEC Driver
  *
  * Copyright (C) 2003-2004 Alex Woods <linux-dvb@giblets.org>
  * IR support by Peter Beutner <p.beutner@gmx.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/list.h>
@@ -284,7 +274,7 @@ static void ttusb_dec_handle_irq( struct urb *urb)
 		 *
 		 * this is an fact a bit too simple implementation;
 		 * the box also reports a keyrepeat signal
-		 * (with buffer[3] == 0x40) in an intervall of ~100ms.
+		 * (with buffer[3] == 0x40) in an interval of ~100ms.
 		 * But to handle this correctly we had to imlemenent some
 		 * kind of timer which signals a 'key up' event if no
 		 * keyrepeat signal is received for lets say 200ms.
@@ -329,7 +319,7 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 
 	dprintk("%s\n", __func__);
 
-	b = kmalloc(COMMAND_PACKET_SIZE + 4, GFP_KERNEL);
+	b = kzalloc(COMMAND_PACKET_SIZE + 4, GFP_KERNEL);
 	if (!b)
 		return -ENOMEM;
 

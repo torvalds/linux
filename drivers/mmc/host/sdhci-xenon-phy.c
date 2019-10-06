@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PHY support for Xenon SDHC
  *
@@ -5,10 +6,6 @@
  *
  * Author:	Hu Ziji <huziji@marvell.com>
  * Date:	2016-8-24
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
  */
 
 #include <linux/slab.h>
@@ -530,7 +527,7 @@ static bool xenon_emmc_phy_slow_mode(struct sdhci_host *host,
 			ret = true;
 			break;
 		}
-		/* else: fall through */
+		/* fall through */
 	default:
 		reg &= ~XENON_TIMING_ADJUST_SLOW_MODE;
 		ret = false;

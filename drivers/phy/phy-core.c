@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * phy-core.c  --  Generic Phy framework.
  *
  * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com
  *
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -384,14 +380,30 @@ int phy_reset(struct phy *phy)
 	if (!phy || !phy->ops->reset)
 		return 0;
 
+	ret = phy_pm_runtime_get_sync(phy);
+	if (ret < 0 && ret != -ENOTSUPP)
+		return ret;
+
 	mutex_lock(&phy->mutex);
 	ret = phy->ops->reset(phy);
 	mutex_unlock(&phy->mutex);
+
+	phy_pm_runtime_put(phy);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(phy_reset);
 
+/**
+ * phy_calibrate() - Tunes the phy hw parameters for current configuration
+ * @phy: the phy returned by phy_get()
+ *
+ * Used to calibrate phy hardware, typically by adjusting some parameters in
+ * runtime, which are otherwise lost after host controller reset and cannot
+ * be applied in phy_init() or phy_power_on().
+ *
+ * Returns: 0 if successful, an negative error code otherwise
+ */
 int phy_calibrate(struct phy *phy)
 {
 	int ret;
@@ -563,6 +575,11 @@ void phy_put(struct phy *phy)
 {
 	if (!phy || IS_ERR(phy))
 		return;
+
+	mutex_lock(&phy->mutex);
+	if (phy->ops->release)
+		phy->ops->release(phy);
+	mutex_unlock(&phy->mutex);
 
 	module_put(phy->ops->owner);
 	put_device(&phy->dev);
@@ -1112,14 +1129,4 @@ static int __init phy_core_init(void)
 
 	return 0;
 }
-module_init(phy_core_init);
-
-static void __exit phy_core_exit(void)
-{
-	class_destroy(phy_class);
-}
-module_exit(phy_core_exit);
-
-MODULE_DESCRIPTION("Generic PHY Framework");
-MODULE_AUTHOR("Kishon Vijay Abraham I <kishon@ti.com>");
-MODULE_LICENSE("GPL v2");
+device_initcall(phy_core_init);

@@ -8,6 +8,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
 
 #include "hi3670.dtsi"
 #include "hikey970-pinctrl.dtsi"
@@ -17,6 +18,8 @@
 	compatible = "hisilicon,hi3670-hikey970", "hisilicon,hi3670";
 
 	aliases {
+		mshc1 = &dwmmc1;
+		mshc2 = &dwmmc2;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -34,6 +37,37 @@
 		device_type = "memory";
 		/* expect bootloader to fill in this region */
 		reg = <0x0 0x0 0x0 0x0>;
+	};
+
+	sd_1v8: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	sd_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	wlan_en: wlan-en-1-8v {
+		compatible = "regulator-fixed";
+		regulator-name = "wlan-en-regulator";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		/* GPIO_051_WIFI_EN */
+		gpio = <&gpio6 3 0>;
+
+		/* WLAN card specific delay */
+		startup-delay-us = <70000>;
+		enable-active-high;
 	};
 };
 
@@ -352,6 +386,47 @@
 		"[CAN_SPI_DO]",
 		"[CAN_SPI_CS]",
 		"GPIO_231_HDMI_INT";
+};
+
+&dwmmc1 {
+	bus-width = <0x4>;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	cap-sd-highspeed;
+	disable-wp;
+	cd-inverted;
+	cd-gpios = <&gpio25 5 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd_pmx_func
+		     &sd_clk_cfg_func
+		     &sd_cfg_func>;
+	vmmc-supply = <&sd_3v3>;
+	vqmmc-supply = <&sd_1v8>;
+	status = "okay";
+};
+
+&dwmmc2 { /* WIFI */
+	bus-width = <0x4>;
+	non-removable;
+	broken-cd;
+	cap-power-off-card;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio_pmx_func
+		     &sdio_clk_cfg_func
+		     &sdio_cfg_func>;
+	/* WL_EN */
+	vmmc-supply = <&wlan_en>;
+	status = "ok";
+
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1837";
+		reg = <2>;      /* sdio func num */
+		/* WL_IRQ, GPIO_177_WL_WAKEUP_AP */
+		interrupt-parent = <&gpio22>;
+		interrupts = <1 IRQ_TYPE_EDGE_RISING>;
+	};
 };
 
 &uart0 {

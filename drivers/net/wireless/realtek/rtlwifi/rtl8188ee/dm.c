@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2013  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2013  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../base.h"
@@ -1433,12 +1411,13 @@ void rtl88e_dm_set_tx_ant_by_tx_info(struct ieee80211_hw *hw,
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	struct rtl_dm *rtldm = rtl_dm(rtl_priv(hw));
 	struct fast_ant_training *pfat_table = &rtldm->fat_table;
+	__le32 *pdesc32 = (__le32 *)pdesc;
 
 	if ((rtlefuse->antenna_div_type == CG_TRX_HW_ANTDIV) ||
 	    (rtlefuse->antenna_div_type == CG_TRX_SMART_ANTDIV)) {
-		SET_TX_DESC_ANTSEL_A(pdesc, pfat_table->antsel_a[mac_id]);
-		SET_TX_DESC_ANTSEL_B(pdesc, pfat_table->antsel_b[mac_id]);
-		SET_TX_DESC_ANTSEL_C(pdesc, pfat_table->antsel_c[mac_id]);
+		set_tx_desc_antsel_a(pdesc32, pfat_table->antsel_a[mac_id]);
+		set_tx_desc_antsel_b(pdesc32, pfat_table->antsel_b[mac_id]);
+		set_tx_desc_antsel_c(pdesc32, pfat_table->antsel_c[mac_id]);
 	}
 }
 

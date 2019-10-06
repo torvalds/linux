@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
  *
@@ -6,12 +7,6 @@
  *  Authors: Hongjun Chen <hong-jun.chen@freescale.com>
  *	     Porting to 2.6.35 by DENX Software Engineering,
  *	     Anatolij Gustschin <agust@denx.de>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -37,7 +32,7 @@
 #define VIU_VERSION		"0.5.1"
 
 /* Allow building this driver with COMPILE_TEST */
-#ifndef CONFIG_PPC
+#if !defined(CONFIG_PPC) && !defined(CONFIG_MICROBLAZE)
 #define out_be32(v, a)	iowrite32be(a, (void __iomem *)v)
 #define in_be32(a)	ioread32be((void __iomem *)a)
 #endif
@@ -219,7 +214,7 @@ enum status_config {
 	FIELD_NO		= 0x01 << 28,	/* Field number */
 	DITHER_ON		= 0x01 << 29,	/* Dithering is on */
 	ROUND_ON		= 0x01 << 30,	/* Round is on */
-	MODE_32BIT		= 0x01 << 31,	/* Data in RGBa888,
+	MODE_32BIT		= 1UL << 31,	/* Data in RGBa888,
 						 * 0 in RGB565
 						 */
 };
@@ -568,11 +563,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strscpy(cap->driver, "viu", sizeof(cap->driver));
 	strscpy(cap->card, "viu", sizeof(cap->card));
 	strscpy(cap->bus_info, "platform:viu", sizeof(cap->bus_info));
-	cap->device_caps =	V4L2_CAP_VIDEO_CAPTURE |
-				V4L2_CAP_STREAMING     |
-				V4L2_CAP_VIDEO_OVERLAY |
-				V4L2_CAP_READWRITE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -1090,7 +1080,7 @@ static void viu_capture_intr(struct viu_dev *dev, u32 status)
 
 		if (waitqueue_active(&buf->vb.done)) {
 			list_del(&buf->vb.queue);
-			v4l2_get_timestamp(&buf->vb.ts);
+			buf->vb.ts = ktime_get_ns();
 			buf->vb.state = VIDEOBUF_DONE;
 			buf->vb.field_count++;
 			wake_up(&buf->vb.done);
@@ -1385,6 +1375,8 @@ static const struct video_device viu_template = {
 	.release	= video_device_release,
 
 	.tvnorms        = V4L2_STD_NTSC_M | V4L2_STD_PAL,
+	.device_caps	= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
+			  V4L2_CAP_VIDEO_OVERLAY | V4L2_CAP_READWRITE,
 };
 
 static int viu_of_probe(struct platform_device *op)

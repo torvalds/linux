@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 nouveau-y += dispnv50/disp.o
 nouveau-y += dispnv50/lut.o
 

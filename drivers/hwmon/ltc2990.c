@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Linear Technology LTC2990 power monitor
  *
  * Copyright (C) 2014 Topic Embedded Products
  * Author: Mike Looijmans <mike.looijmans@topic.nl>
- *
- * License: GPLv2
  */
 
 #include <linux/bitops.h>
@@ -14,7 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/property.h>
 
 #define LTC2990_STATUS	0x00
 #define LTC2990_CONTROL	0x01
@@ -136,7 +135,7 @@ static int ltc2990_get_value(struct i2c_client *i2c, int index, int *result)
 	return 0;
 }
 
-static ssize_t ltc2990_show_value(struct device *dev,
+static ssize_t ltc2990_value_show(struct device *dev,
 				  struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
@@ -170,26 +169,16 @@ static umode_t ltc2990_attrs_visible(struct kobject *kobj,
 	return 0;
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_TEMP1);
-static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_TEMP2);
-static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_TEMP3);
-static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_CURR1);
-static SENSOR_DEVICE_ATTR(curr2_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_CURR2);
-static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_IN0);
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_IN1);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_IN2);
-static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_IN3);
-static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_IN4);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, ltc2990_value, LTC2990_TEMP1);
+static SENSOR_DEVICE_ATTR_RO(temp2_input, ltc2990_value, LTC2990_TEMP2);
+static SENSOR_DEVICE_ATTR_RO(temp3_input, ltc2990_value, LTC2990_TEMP3);
+static SENSOR_DEVICE_ATTR_RO(curr1_input, ltc2990_value, LTC2990_CURR1);
+static SENSOR_DEVICE_ATTR_RO(curr2_input, ltc2990_value, LTC2990_CURR2);
+static SENSOR_DEVICE_ATTR_RO(in0_input, ltc2990_value, LTC2990_IN0);
+static SENSOR_DEVICE_ATTR_RO(in1_input, ltc2990_value, LTC2990_IN1);
+static SENSOR_DEVICE_ATTR_RO(in2_input, ltc2990_value, LTC2990_IN2);
+static SENSOR_DEVICE_ATTR_RO(in3_input, ltc2990_value, LTC2990_IN3);
+static SENSOR_DEVICE_ATTR_RO(in4_input, ltc2990_value, LTC2990_IN4);
 
 static struct attribute *ltc2990_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -217,7 +206,6 @@ static int ltc2990_i2c_probe(struct i2c_client *i2c,
 	int ret;
 	struct device *hwmon_dev;
 	struct ltc2990_data *data;
-	struct device_node *of_node = i2c->dev.of_node;
 
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WORD_DATA))
@@ -229,9 +217,10 @@ static int ltc2990_i2c_probe(struct i2c_client *i2c,
 
 	data->i2c = i2c;
 
-	if (of_node) {
-		ret = of_property_read_u32_array(of_node, "lltc,meas-mode",
-						 data->mode, 2);
+	if (dev_fwnode(&i2c->dev)) {
+		ret = device_property_read_u32_array(&i2c->dev,
+						     "lltc,meas-mode",
+						     data->mode, 2);
 		if (ret < 0)
 			return ret;
 

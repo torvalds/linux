@@ -28,8 +28,8 @@
  */
 #include <linux/compat.h>
 
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
+#include <drm/drm_ioctl.h>
 #include "i915_drv.h"
 
 struct drm_i915_getparam32 {

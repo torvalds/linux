@@ -297,7 +297,8 @@ static void vep_free_request(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct vrequest *req;
 
-	if (WARN_ON(!_ep || !_req))
+	/* ep is always valid here - see usb_ep_free_request() */
+	if (!_req)
 		return;
 
 	req = to_vrequest(_req);
@@ -615,18 +616,10 @@ int vudc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_add_udc;
 
-	ret = sysfs_create_group(&pdev->dev.kobj, &vudc_attr_group);
-	if (ret) {
-		dev_err(&udc->pdev->dev, "create sysfs files\n");
-		goto err_sysfs;
-	}
-
 	platform_set_drvdata(pdev, udc);
 
 	return ret;
 
-err_sysfs:
-	usb_del_gadget_udc(&udc->gadget);
 err_add_udc:
 	cleanup_vudc_hw(udc);
 err_init_vudc_hw:
@@ -639,7 +632,6 @@ int vudc_remove(struct platform_device *pdev)
 {
 	struct vudc *udc = platform_get_drvdata(pdev);
 
-	sysfs_remove_group(&pdev->dev.kobj, &vudc_attr_group);
 	usb_del_gadget_udc(&udc->gadget);
 	cleanup_vudc_hw(udc);
 	kfree(udc);

@@ -8,7 +8,7 @@
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -242,7 +242,8 @@ static void iwl_fw_dump_rxf(struct iwl_fw_runtime *fwrt,
 				  cfg->lmac[0].rxfifo1_size, 0, 0);
 		/* Pull RXF2 */
 		iwl_fwrt_dump_rxf(fwrt, dump_data, cfg->rxfifo2_size,
-				  RXF_DIFF_FROM_PREV, 1);
+				  RXF_DIFF_FROM_PREV +
+				  fwrt->trans->trans_cfg->umac_prph_offset, 1);
 		/* Pull LMAC2 RXF1 */
 		if (fwrt->smem_cfg.num_lmacs > 1)
 			iwl_fwrt_dump_rxf(fwrt, dump_data,
@@ -467,6 +468,103 @@ static const struct iwl_prph_range iwl_prph_dump_addr_9000[] = {
 	{ .start = 0x00a05400, .end = 0x00a056e8 },
 	{ .start = 0x00a08000, .end = 0x00a098bc },
 	{ .start = 0x00a02400, .end = 0x00a02758 },
+	{ .start = 0x00a04764, .end = 0x00a0476c },
+	{ .start = 0x00a04770, .end = 0x00a04774 },
+	{ .start = 0x00a04620, .end = 0x00a04624 },
+};
+
+static const struct iwl_prph_range iwl_prph_dump_addr_22000[] = {
+	{ .start = 0x00a00000, .end = 0x00a00000 },
+	{ .start = 0x00a0000c, .end = 0x00a00024 },
+	{ .start = 0x00a0002c, .end = 0x00a00034 },
+	{ .start = 0x00a0003c, .end = 0x00a0003c },
+	{ .start = 0x00a00410, .end = 0x00a00418 },
+	{ .start = 0x00a00420, .end = 0x00a00420 },
+	{ .start = 0x00a00428, .end = 0x00a00428 },
+	{ .start = 0x00a00430, .end = 0x00a0043c },
+	{ .start = 0x00a00444, .end = 0x00a00444 },
+	{ .start = 0x00a00840, .end = 0x00a00840 },
+	{ .start = 0x00a00850, .end = 0x00a00858 },
+	{ .start = 0x00a01004, .end = 0x00a01008 },
+	{ .start = 0x00a01010, .end = 0x00a01010 },
+	{ .start = 0x00a01018, .end = 0x00a01018 },
+	{ .start = 0x00a01024, .end = 0x00a01024 },
+	{ .start = 0x00a0102c, .end = 0x00a01034 },
+	{ .start = 0x00a0103c, .end = 0x00a01040 },
+	{ .start = 0x00a01048, .end = 0x00a01050 },
+	{ .start = 0x00a01058, .end = 0x00a01058 },
+	{ .start = 0x00a01060, .end = 0x00a01070 },
+	{ .start = 0x00a0108c, .end = 0x00a0108c },
+	{ .start = 0x00a01c20, .end = 0x00a01c28 },
+	{ .start = 0x00a01d10, .end = 0x00a01d10 },
+	{ .start = 0x00a01e28, .end = 0x00a01e2c },
+	{ .start = 0x00a01e60, .end = 0x00a01e60 },
+	{ .start = 0x00a01e80, .end = 0x00a01e80 },
+	{ .start = 0x00a01ea0, .end = 0x00a01ea0 },
+	{ .start = 0x00a02000, .end = 0x00a0201c },
+	{ .start = 0x00a02024, .end = 0x00a02024 },
+	{ .start = 0x00a02040, .end = 0x00a02048 },
+	{ .start = 0x00a020c0, .end = 0x00a020e0 },
+	{ .start = 0x00a02400, .end = 0x00a02404 },
+	{ .start = 0x00a0240c, .end = 0x00a02414 },
+	{ .start = 0x00a0241c, .end = 0x00a0243c },
+	{ .start = 0x00a02448, .end = 0x00a024bc },
+	{ .start = 0x00a024c4, .end = 0x00a024cc },
+	{ .start = 0x00a02508, .end = 0x00a02508 },
+	{ .start = 0x00a02510, .end = 0x00a02514 },
+	{ .start = 0x00a0251c, .end = 0x00a0251c },
+	{ .start = 0x00a0252c, .end = 0x00a0255c },
+	{ .start = 0x00a02564, .end = 0x00a025a0 },
+	{ .start = 0x00a025a8, .end = 0x00a025b4 },
+	{ .start = 0x00a025c0, .end = 0x00a025c0 },
+	{ .start = 0x00a025e8, .end = 0x00a025f4 },
+	{ .start = 0x00a02c08, .end = 0x00a02c18 },
+	{ .start = 0x00a02c2c, .end = 0x00a02c38 },
+	{ .start = 0x00a02c68, .end = 0x00a02c78 },
+	{ .start = 0x00a03000, .end = 0x00a03000 },
+	{ .start = 0x00a03010, .end = 0x00a03014 },
+	{ .start = 0x00a0301c, .end = 0x00a0302c },
+	{ .start = 0x00a03034, .end = 0x00a03038 },
+	{ .start = 0x00a03040, .end = 0x00a03044 },
+	{ .start = 0x00a03060, .end = 0x00a03068 },
+	{ .start = 0x00a03070, .end = 0x00a03070 },
+	{ .start = 0x00a0307c, .end = 0x00a03084 },
+	{ .start = 0x00a0308c, .end = 0x00a03090 },
+	{ .start = 0x00a03098, .end = 0x00a03098 },
+	{ .start = 0x00a030a0, .end = 0x00a030a0 },
+	{ .start = 0x00a030a8, .end = 0x00a030b4 },
+	{ .start = 0x00a030bc, .end = 0x00a030c0 },
+	{ .start = 0x00a030c8, .end = 0x00a030f4 },
+	{ .start = 0x00a03100, .end = 0x00a0312c },
+	{ .start = 0x00a03c00, .end = 0x00a03c5c },
+	{ .start = 0x00a04400, .end = 0x00a04454 },
+	{ .start = 0x00a04460, .end = 0x00a04474 },
+	{ .start = 0x00a044c0, .end = 0x00a044ec },
+	{ .start = 0x00a04500, .end = 0x00a04504 },
+	{ .start = 0x00a04510, .end = 0x00a04538 },
+	{ .start = 0x00a04540, .end = 0x00a04548 },
+	{ .start = 0x00a04560, .end = 0x00a04560 },
+	{ .start = 0x00a04570, .end = 0x00a0457c },
+	{ .start = 0x00a04590, .end = 0x00a04590 },
+	{ .start = 0x00a04598, .end = 0x00a04598 },
+	{ .start = 0x00a045c0, .end = 0x00a045f4 },
+	{ .start = 0x00a05c18, .end = 0x00a05c1c },
+	{ .start = 0x00a0c000, .end = 0x00a0c018 },
+	{ .start = 0x00a0c020, .end = 0x00a0c028 },
+	{ .start = 0x00a0c038, .end = 0x00a0c094 },
+	{ .start = 0x00a0c0c0, .end = 0x00a0c104 },
+	{ .start = 0x00a0c10c, .end = 0x00a0c118 },
+	{ .start = 0x00a0c150, .end = 0x00a0c174 },
+	{ .start = 0x00a0c17c, .end = 0x00a0c188 },
+	{ .start = 0x00a0c190, .end = 0x00a0c198 },
+	{ .start = 0x00a0c1a0, .end = 0x00a0c1a8 },
+	{ .start = 0x00a0c1b0, .end = 0x00a0c1b8 },
+};
+
+static const struct iwl_prph_range iwl_prph_dump_addr_ax210[] = {
+	{ .start = 0x00d03c00, .end = 0x00d03c64 },
+	{ .start = 0x00d05c18, .end = 0x00d05c1c },
+	{ .start = 0x00d0c000, .end = 0x00d0c174 },
 };
 
 static void iwl_read_prph_block(struct iwl_trans *trans, u32 start,
@@ -478,14 +576,19 @@ static void iwl_read_prph_block(struct iwl_trans *trans, u32 start,
 		*data++ = cpu_to_le32(iwl_read_prph_no_grab(trans, start + i));
 }
 
-static void iwl_dump_prph(struct iwl_trans *trans,
-			  struct iwl_fw_error_dump_data **data,
+static void iwl_dump_prph(struct iwl_fw_runtime *fwrt,
 			  const struct iwl_prph_range *iwl_prph_dump_addr,
-			  u32 range_len)
+			  u32 range_len, void *ptr)
 {
 	struct iwl_fw_error_dump_prph *prph;
+	struct iwl_trans *trans = fwrt->trans;
+	struct iwl_fw_error_dump_data **data =
+		(struct iwl_fw_error_dump_data **)ptr;
 	unsigned long flags;
 	u32 i;
+
+	if (!data)
+		return;
 
 	IWL_DEBUG_INFO(trans, "WRT PRPH dump\n");
 
@@ -552,37 +655,51 @@ static struct scatterlist *alloc_sgtable(int size)
 	return table;
 }
 
-static int iwl_fw_get_prph_len(struct iwl_fw_runtime *fwrt)
+static void iwl_fw_get_prph_len(struct iwl_fw_runtime *fwrt,
+				const struct iwl_prph_range *iwl_prph_dump_addr,
+				u32 range_len, void *ptr)
 {
-	u32 prph_len = 0;
-	int i;
+	u32 *prph_len = (u32 *)ptr;
+	int i, num_bytes_in_chunk;
 
-	for (i = 0; i < ARRAY_SIZE(iwl_prph_dump_addr_comm);
-	     i++) {
+	if (!prph_len)
+		return;
+
+	for (i = 0; i < range_len; i++) {
 		/* The range includes both boundaries */
-		int num_bytes_in_chunk =
-			iwl_prph_dump_addr_comm[i].end -
-			iwl_prph_dump_addr_comm[i].start + 4;
+		num_bytes_in_chunk =
+			iwl_prph_dump_addr[i].end -
+			iwl_prph_dump_addr[i].start + 4;
 
-		prph_len += sizeof(struct iwl_fw_error_dump_data) +
+		*prph_len += sizeof(struct iwl_fw_error_dump_data) +
 			sizeof(struct iwl_fw_error_dump_prph) +
 			num_bytes_in_chunk;
 	}
+}
 
-	if (fwrt->trans->cfg->mq_rx_supported) {
-		for (i = 0; i <
-			ARRAY_SIZE(iwl_prph_dump_addr_9000); i++) {
-			/* The range includes both boundaries */
-			int num_bytes_in_chunk =
-				iwl_prph_dump_addr_9000[i].end -
-				iwl_prph_dump_addr_9000[i].start + 4;
+static void iwl_fw_prph_handler(struct iwl_fw_runtime *fwrt, void *ptr,
+				void (*handler)(struct iwl_fw_runtime *,
+						const struct iwl_prph_range *,
+						u32, void *))
+{
+	u32 range_len;
 
-			prph_len += sizeof(struct iwl_fw_error_dump_data) +
-				sizeof(struct iwl_fw_error_dump_prph) +
-				num_bytes_in_chunk;
+	if (fwrt->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+		range_len = ARRAY_SIZE(iwl_prph_dump_addr_ax210);
+		handler(fwrt, iwl_prph_dump_addr_ax210, range_len, ptr);
+	} else if (fwrt->trans->trans_cfg->device_family >=
+		   IWL_DEVICE_FAMILY_22000) {
+		range_len = ARRAY_SIZE(iwl_prph_dump_addr_22000);
+		handler(fwrt, iwl_prph_dump_addr_22000, range_len, ptr);
+	} else {
+		range_len = ARRAY_SIZE(iwl_prph_dump_addr_comm);
+		handler(fwrt, iwl_prph_dump_addr_comm, range_len, ptr);
+
+		if (fwrt->trans->trans_cfg->mq_rx_supported) {
+			range_len = ARRAY_SIZE(iwl_prph_dump_addr_9000);
+			handler(fwrt, iwl_prph_dump_addr_9000, range_len, ptr);
 		}
 	}
-	return prph_len;
 }
 
 static void iwl_fw_dump_mem(struct iwl_fw_runtime *fwrt,
@@ -599,28 +716,6 @@ static void iwl_fw_dump_mem(struct iwl_fw_runtime *fwrt,
 	dump_mem = (void *)(*dump_data)->data;
 	dump_mem->type = cpu_to_le32(type);
 	dump_mem->offset = cpu_to_le32(ofs);
-	iwl_trans_read_mem_bytes(fwrt->trans, ofs, dump_mem->data, len);
-	*dump_data = iwl_fw_error_next_data(*dump_data);
-
-	IWL_DEBUG_INFO(fwrt, "WRT memory dump. Type=%u\n", dump_mem->type);
-}
-
-static void iwl_fw_dump_named_mem(struct iwl_fw_runtime *fwrt,
-				  struct iwl_fw_error_dump_data **dump_data,
-				  u32 len, u32 ofs, u8 *name, u8 name_len)
-{
-	struct iwl_fw_error_dump_named_mem *dump_mem;
-
-	if (!len)
-		return;
-
-	(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
-	(*dump_data)->len = cpu_to_le32(len + sizeof(*dump_mem));
-	dump_mem = (void *)(*dump_data)->data;
-	dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_NAMED_MEM);
-	dump_mem->offset = cpu_to_le32(ofs);
-	dump_mem->name_len = name_len;
-	memcpy(dump_mem->name, name, name_len);
 	iwl_trans_read_mem_bytes(fwrt->trans, ofs, dump_mem->data, len);
 	*dump_data = iwl_fw_error_next_data(*dump_data);
 
@@ -646,6 +741,9 @@ static int iwl_fw_rxf_len(struct iwl_fw_runtime *fwrt,
 	ADD_LEN(fifo_len, mem_cfg->rxfifo2_size, hdr_len);
 
 	/* Count RXF1 sizes */
+	if (WARN_ON(mem_cfg->num_lmacs > MAX_NUM_LMAC))
+		mem_cfg->num_lmacs = MAX_NUM_LMAC;
+
 	for (i = 0; i < mem_cfg->num_lmacs; i++)
 		ADD_LEN(fifo_len, mem_cfg->lmac[i].rxfifo1_size, hdr_len);
 
@@ -664,6 +762,9 @@ static int iwl_fw_txf_len(struct iwl_fw_runtime *fwrt,
 		goto dump_internal_txf;
 
 	/* Count TXF sizes */
+	if (WARN_ON(mem_cfg->num_lmacs > MAX_NUM_LMAC))
+		mem_cfg->num_lmacs = MAX_NUM_LMAC;
+
 	for (i = 0; i < mem_cfg->num_lmacs; i++) {
 		int j;
 
@@ -707,13 +808,16 @@ static void iwl_dump_paging(struct iwl_fw_runtime *fwrt,
 					DMA_BIDIRECTIONAL);
 		memcpy(paging->data, page_address(pages),
 		       PAGING_BLOCK_SIZE);
+		dma_sync_single_for_device(fwrt->trans->dev, addr,
+					   PAGING_BLOCK_SIZE,
+					   DMA_BIDIRECTIONAL);
 		(*data) = iwl_fw_error_next_data(*data);
 	}
 }
 
 static struct iwl_fw_error_dump_file *
-_iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
-		   struct iwl_fw_dump_ptrs *fw_error_dump)
+iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
+		       struct iwl_fw_dump_ptrs *fw_error_dump)
 {
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
@@ -733,6 +837,8 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 	if (!fwrt->trans->cfg->dccm_offset || !fwrt->trans->cfg->dccm_len) {
 		const struct fw_img *img;
 
+		if (fwrt->cur_fw_img >= IWL_UCODE_TYPE_MAX)
+			return NULL;
 		img = &fwrt->fw->img[fwrt->cur_fw_img];
 		sram_ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
 		sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
@@ -747,11 +853,12 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 		fifo_len += iwl_fw_txf_len(fwrt, mem_cfg);
 
 		/* Make room for PRPH registers */
-		if (!fwrt->trans->cfg->gen2 &&
-		   iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_PRPH))
-			prph_len += iwl_fw_get_prph_len(fwrt);
+		if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_PRPH))
+			iwl_fw_prph_handler(fwrt, &prph_len,
+					    iwl_fw_get_prph_len);
 
-		if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000 &&
+		if (fwrt->trans->trans_cfg->device_family ==
+		    IWL_DEVICE_FAMILY_7000 &&
 		    iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_RADIO_REG))
 			radio_len = sizeof(*dump_data) + RADIO_REG_MAX_READ;
 	}
@@ -815,11 +922,8 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_DEV_FW_INFO);
 		dump_data->len = cpu_to_le32(sizeof(*dump_info));
 		dump_info = (void *)dump_data->data;
-		dump_info->device_family =
-			fwrt->trans->cfg->device_family ==
-			IWL_DEVICE_FAMILY_7000 ?
-				cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_7) :
-				cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_8);
+		dump_info->hw_type =
+			cpu_to_le32(CSR_HW_REV_TYPE(fwrt->trans->hw_rev));
 		dump_info->hw_step =
 			cpu_to_le32(CSR_HW_REV_STEP(fwrt->trans->hw_rev));
 		memcpy(dump_info->fw_human_readable, fwrt->fw->human_readable,
@@ -828,7 +932,13 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 			sizeof(dump_info->dev_human_readable) - 1);
 		strncpy(dump_info->bus_human_readable, fwrt->dev->bus->name,
 			sizeof(dump_info->bus_human_readable) - 1);
-		dump_info->rt_status = cpu_to_le32(fwrt->dump.rt_status);
+		dump_info->num_of_lmacs = fwrt->smem_cfg.num_lmacs;
+		dump_info->lmac_err_id[0] =
+			cpu_to_le32(fwrt->dump.lmac_err_id[0]);
+		if (fwrt->smem_cfg.num_lmacs > 1)
+			dump_info->lmac_err_id[1] =
+				cpu_to_le32(fwrt->dump.lmac_err_id[1]);
+		dump_info->umac_err_id = cpu_to_le32(fwrt->dump.umac_err_id);
 
 		dump_data = iwl_fw_error_next_data(dump_data);
 	}
@@ -867,9 +977,10 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 	if (fifo_len) {
 		iwl_fw_dump_rxf(fwrt, &dump_data);
 		iwl_fw_dump_txf(fwrt, &dump_data);
-		if (radio_len)
-			iwl_read_radio_regs(fwrt, &dump_data);
 	}
+
+	if (radio_len)
+		iwl_read_radio_regs(fwrt, &dump_data);
 
 	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_ERROR_INFO) &&
 	    fwrt->dump.desc) {
@@ -935,293 +1046,918 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 	if (iwl_fw_dbg_is_paging_enabled(fwrt))
 		iwl_dump_paging(fwrt, &dump_data);
 
-	if (prph_len) {
-		iwl_dump_prph(fwrt->trans, &dump_data,
-			      iwl_prph_dump_addr_comm,
-			      ARRAY_SIZE(iwl_prph_dump_addr_comm));
-
-		if (fwrt->trans->cfg->mq_rx_supported)
-			iwl_dump_prph(fwrt->trans, &dump_data,
-				      iwl_prph_dump_addr_9000,
-				      ARRAY_SIZE(iwl_prph_dump_addr_9000));
-	}
+	if (prph_len)
+		iwl_fw_prph_handler(fwrt, &dump_data, iwl_dump_prph);
 
 out:
 	dump_file->file_len = cpu_to_le32(file_len);
 	return dump_file;
 }
 
-static void iwl_dump_prph_ini(struct iwl_trans *trans,
-			      struct iwl_fw_error_dump_data **data,
-			      struct iwl_fw_ini_region_cfg *reg)
+static int iwl_dump_ini_prph_iter(struct iwl_fw_runtime *fwrt,
+				  struct iwl_fw_ini_region_cfg *reg,
+				  void *range_ptr, int idx)
 {
-	struct iwl_fw_error_dump_prph *prph;
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	__le32 *val = range->data;
+	u32 prph_val;
+	u32 addr = le32_to_cpu(reg->start_addr[idx]) + le32_to_cpu(reg->offset);
+	int i;
+
+	range->internal_base_addr = cpu_to_le32(addr);
+	range->range_data_size = reg->internal.range_data_size;
+	for (i = 0; i < le32_to_cpu(reg->internal.range_data_size); i += 4) {
+		prph_val = iwl_read_prph(fwrt->trans, addr + i);
+		if (prph_val == 0x5a5a5a5a)
+			return -EBUSY;
+		*val++ = cpu_to_le32(prph_val);
+	}
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
+static int iwl_dump_ini_csr_iter(struct iwl_fw_runtime *fwrt,
+				 struct iwl_fw_ini_region_cfg *reg,
+				 void *range_ptr, int idx)
+{
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	__le32 *val = range->data;
+	u32 addr = le32_to_cpu(reg->start_addr[idx]) + le32_to_cpu(reg->offset);
+	int i;
+
+	range->internal_base_addr = cpu_to_le32(addr);
+	range->range_data_size = reg->internal.range_data_size;
+	for (i = 0; i < le32_to_cpu(reg->internal.range_data_size); i += 4)
+		*val++ = cpu_to_le32(iwl_trans_read32(fwrt->trans, addr + i));
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
+static int iwl_dump_ini_dev_mem_iter(struct iwl_fw_runtime *fwrt,
+				     struct iwl_fw_ini_region_cfg *reg,
+				     void *range_ptr, int idx)
+{
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	u32 addr = le32_to_cpu(reg->start_addr[idx]) + le32_to_cpu(reg->offset);
+
+	range->internal_base_addr = cpu_to_le32(addr);
+	range->range_data_size = reg->internal.range_data_size;
+	iwl_trans_read_mem_bytes(fwrt->trans, addr, range->data,
+				 le32_to_cpu(reg->internal.range_data_size));
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
+static int _iwl_dump_ini_paging_iter(struct iwl_fw_runtime *fwrt,
+				     struct iwl_fw_ini_region_cfg *reg,
+				     void *range_ptr, int idx)
+{
+	/* increase idx by 1 since the pages are from 1 to
+	 * fwrt->num_of_paging_blk + 1
+	 */
+	struct page *page = fwrt->fw_paging_db[++idx].fw_paging_block;
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	dma_addr_t addr = fwrt->fw_paging_db[idx].fw_paging_phys;
+	u32 page_size = fwrt->fw_paging_db[idx].fw_paging_size;
+
+	range->page_num = cpu_to_le32(idx);
+	range->range_data_size = cpu_to_le32(page_size);
+	dma_sync_single_for_cpu(fwrt->trans->dev, addr,	page_size,
+				DMA_BIDIRECTIONAL);
+	memcpy(range->data, page_address(page), page_size);
+	dma_sync_single_for_device(fwrt->trans->dev, addr, page_size,
+				   DMA_BIDIRECTIONAL);
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
+static int iwl_dump_ini_paging_iter(struct iwl_fw_runtime *fwrt,
+				    struct iwl_fw_ini_region_cfg *reg,
+				    void *range_ptr, int idx)
+{
+	struct iwl_fw_ini_error_dump_range *range;
+	u32 page_size;
+
+	if (!fwrt->trans->trans_cfg->gen2)
+		return _iwl_dump_ini_paging_iter(fwrt, reg, range_ptr, idx);
+
+	range = range_ptr;
+	page_size = fwrt->trans->init_dram.paging[idx].size;
+
+	range->page_num = cpu_to_le32(idx);
+	range->range_data_size = cpu_to_le32(page_size);
+	memcpy(range->data, fwrt->trans->init_dram.paging[idx].block,
+	       page_size);
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
+static int
+iwl_dump_ini_mon_dram_iter(struct iwl_fw_runtime *fwrt,
+			   struct iwl_fw_ini_region_cfg *reg, void *range_ptr,
+			   int idx)
+{
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	u32 start_addr = iwl_read_umac_prph(fwrt->trans,
+					    MON_BUFF_BASE_ADDR_VER2);
+
+	if (start_addr == 0x5a5a5a5a)
+		return -EBUSY;
+
+	range->dram_base_addr = cpu_to_le64(start_addr);
+	range->range_data_size = cpu_to_le32(fwrt->trans->dbg.fw_mon[idx].size);
+
+	memcpy(range->data, fwrt->trans->dbg.fw_mon[idx].block,
+	       fwrt->trans->dbg.fw_mon[idx].size);
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
+static bool iwl_ini_txf_iter(struct iwl_fw_runtime *fwrt,
+			     struct iwl_fw_ini_region_cfg *reg, int idx)
+{
+	struct iwl_txf_iter_data *iter = &fwrt->dump.txf_iter_data;
+	struct iwl_fwrt_shared_mem_cfg *cfg = &fwrt->smem_cfg;
+	int txf_num = cfg->num_txfifo_entries;
+	int int_txf_num = ARRAY_SIZE(cfg->internal_txfifo_size);
+	u32 lmac_bitmap = le32_to_cpu(reg->fifos.fid1);
+
+	if (!idx) {
+		if (le32_to_cpu(reg->offset) &&
+		    WARN_ONCE(cfg->num_lmacs == 1,
+			      "Invalid lmac offset: 0x%x\n",
+			      le32_to_cpu(reg->offset)))
+			return false;
+
+		iter->internal_txf = 0;
+		iter->fifo_size = 0;
+		iter->fifo = -1;
+		if (le32_to_cpu(reg->offset))
+			iter->lmac = 1;
+		else
+			iter->lmac = 0;
+	}
+
+	if (!iter->internal_txf)
+		for (iter->fifo++; iter->fifo < txf_num; iter->fifo++) {
+			iter->fifo_size =
+				cfg->lmac[iter->lmac].txfifo_size[iter->fifo];
+			if (iter->fifo_size && (lmac_bitmap & BIT(iter->fifo)))
+				return true;
+		}
+
+	iter->internal_txf = 1;
+
+	if (!fw_has_capa(&fwrt->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG))
+		return false;
+
+	for (iter->fifo++; iter->fifo < int_txf_num + txf_num; iter->fifo++) {
+		iter->fifo_size =
+			cfg->internal_txfifo_size[iter->fifo - txf_num];
+		if (iter->fifo_size && (lmac_bitmap & BIT(iter->fifo)))
+			return true;
+	}
+
+	return false;
+}
+
+static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
+				 struct iwl_fw_ini_region_cfg *reg,
+				 void *range_ptr, int idx)
+{
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	struct iwl_txf_iter_data *iter = &fwrt->dump.txf_iter_data;
+	struct iwl_fw_ini_error_dump_register *reg_dump = (void *)range->data;
+	u32 offs = le32_to_cpu(reg->offset), addr;
+	u32 registers_size =
+		le32_to_cpu(reg->fifos.num_of_registers) * sizeof(*reg_dump);
+	__le32 *data;
 	unsigned long flags;
-	u32 i, size = le32_to_cpu(reg->num_regions);
+	int i;
 
-	IWL_DEBUG_INFO(trans, "WRT PRPH dump\n");
+	if (!iwl_ini_txf_iter(fwrt, reg, idx))
+		return -EIO;
 
-	if (!iwl_trans_grab_nic_access(trans, &flags))
+	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
+		return -EBUSY;
+
+	range->fifo_hdr.fifo_num = cpu_to_le32(iter->fifo);
+	range->fifo_hdr.num_of_registers = reg->fifos.num_of_registers;
+	range->range_data_size = cpu_to_le32(iter->fifo_size + registers_size);
+
+	iwl_write_prph_no_grab(fwrt->trans, TXF_LARC_NUM + offs, iter->fifo);
+
+	/*
+	 * read txf registers. for each register, write to the dump the
+	 * register address and its value
+	 */
+	for (i = 0; i < le32_to_cpu(reg->fifos.num_of_registers); i++) {
+		addr = le32_to_cpu(reg->start_addr[i]) + offs;
+
+		reg_dump->addr = cpu_to_le32(addr);
+		reg_dump->data = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans,
+								   addr));
+
+		reg_dump++;
+	}
+
+	if (reg->fifos.header_only) {
+		range->range_data_size = cpu_to_le32(registers_size);
+		goto out;
+	}
+
+	/* Set the TXF_READ_MODIFY_ADDR to TXF_WR_PTR */
+	iwl_write_prph_no_grab(fwrt->trans, TXF_READ_MODIFY_ADDR + offs,
+			       TXF_WR_PTR + offs);
+
+	/* Dummy-read to advance the read pointer to the head */
+	iwl_read_prph_no_grab(fwrt->trans, TXF_READ_MODIFY_DATA + offs);
+
+	/* Read FIFO */
+	addr = TXF_READ_MODIFY_DATA + offs;
+	data = (void *)reg_dump;
+	for (i = 0; i < iter->fifo_size; i += sizeof(*data))
+		*data++ = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans, addr));
+
+out:
+	iwl_trans_release_nic_access(fwrt->trans, &flags);
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
+struct iwl_ini_rxf_data {
+	u32 fifo_num;
+	u32 size;
+	u32 offset;
+};
+
+static void iwl_ini_get_rxf_data(struct iwl_fw_runtime *fwrt,
+				 struct iwl_fw_ini_region_cfg *reg,
+				 struct iwl_ini_rxf_data *data)
+{
+	u32 fid1 = le32_to_cpu(reg->fifos.fid1);
+	u32 fid2 = le32_to_cpu(reg->fifos.fid2);
+	u32 fifo_idx;
+
+	if (!data)
 		return;
 
-	for (i = 0; i < size; i++) {
-		(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_PRPH);
-		(*data)->len = cpu_to_le32(le32_to_cpu(reg->size) +
-					   sizeof(*prph));
-		prph = (void *)(*data)->data;
-		prph->prph_start = reg->start_addr[i];
-		prph->data[0] = cpu_to_le32(iwl_read_prph_no_grab(trans,
-								  le32_to_cpu(prph->prph_start)));
-		*data = iwl_fw_error_next_data(*data);
+	memset(data, 0, sizeof(*data));
+
+	if (WARN_ON_ONCE((fid1 && fid2) || (!fid1 && !fid2)))
+		return;
+
+	fifo_idx = ffs(fid1) - 1;
+	if (fid1 && !WARN_ON_ONCE((~BIT(fifo_idx) & fid1) ||
+				  fifo_idx >= MAX_NUM_LMAC)) {
+		data->size = fwrt->smem_cfg.lmac[fifo_idx].rxfifo1_size;
+		data->fifo_num = fifo_idx;
+		return;
 	}
-	iwl_trans_release_nic_access(trans, &flags);
-}
 
-static void iwl_dump_csr_ini(struct iwl_trans *trans,
-			     struct iwl_fw_error_dump_data **data,
-			     struct iwl_fw_ini_region_cfg *reg)
-{
-	int i, num = le32_to_cpu(reg->num_regions);
-	u32 size = le32_to_cpu(reg->size);
-
-	IWL_DEBUG_INFO(trans, "WRT CSR dump\n");
-
-	for (i = 0; i < num; i++) {
-		u32 add = le32_to_cpu(reg->start_addr[i]);
-		__le32 *val;
-		int j;
-
-		(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_CSR);
-		(*data)->len = cpu_to_le32(size);
-		val = (void *)(*data)->data;
-
-		for (j = 0; j < size; j += 4)
-			*val++ = cpu_to_le32(iwl_trans_read32(trans, j + add));
-
-		*data = iwl_fw_error_next_data(*data);
+	fifo_idx = ffs(fid2) - 1;
+	if (fid2 && !WARN_ON_ONCE(fifo_idx != 0)) {
+		data->size = fwrt->smem_cfg.rxfifo2_size;
+		data->offset = RXF_DIFF_FROM_PREV;
+		/* use bit 31 to distinguish between umac and lmac rxf while
+		 * parsing the dump
+		 */
+		data->fifo_num = fifo_idx | IWL_RXF_UMAC_BIT;
+		return;
 	}
 }
 
-static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
-				      struct iwl_fw_ini_trigger *trigger)
+static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
+				 struct iwl_fw_ini_region_cfg *reg,
+				 void *range_ptr, int idx)
 {
-	int i, num, size = 0, hdr_len = sizeof(struct iwl_fw_error_dump_data);
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	struct iwl_ini_rxf_data rxf_data;
+	struct iwl_fw_ini_error_dump_register *reg_dump = (void *)range->data;
+	u32 offs = le32_to_cpu(reg->offset), addr;
+	u32 registers_size =
+		le32_to_cpu(reg->fifos.num_of_registers) * sizeof(*reg_dump);
+	__le32 *data;
+	unsigned long flags;
+	int i;
 
-	if (!trigger || !trigger->num_regions)
+	iwl_ini_get_rxf_data(fwrt, reg, &rxf_data);
+	if (!rxf_data.size)
+		return -EIO;
+
+	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
+		return -EBUSY;
+
+	range->fifo_hdr.fifo_num = cpu_to_le32(rxf_data.fifo_num);
+	range->fifo_hdr.num_of_registers = reg->fifos.num_of_registers;
+	range->range_data_size = cpu_to_le32(rxf_data.size + registers_size);
+
+	/*
+	 * read rxf registers. for each register, write to the dump the
+	 * register address and its value
+	 */
+	for (i = 0; i < le32_to_cpu(reg->fifos.num_of_registers); i++) {
+		addr = le32_to_cpu(reg->start_addr[i]) + offs;
+
+		reg_dump->addr = cpu_to_le32(addr);
+		reg_dump->data = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans,
+								   addr));
+
+		reg_dump++;
+	}
+
+	if (reg->fifos.header_only) {
+		range->range_data_size = cpu_to_le32(registers_size);
+		goto out;
+	}
+
+	/*
+	 * region register have absolute value so apply rxf offset after
+	 * reading the registers
+	 */
+	offs += rxf_data.offset;
+
+	/* Lock fence */
+	iwl_write_prph_no_grab(fwrt->trans, RXF_SET_FENCE_MODE + offs, 0x1);
+	/* Set fence pointer to the same place like WR pointer */
+	iwl_write_prph_no_grab(fwrt->trans, RXF_LD_WR2FENCE + offs, 0x1);
+	/* Set fence offset */
+	iwl_write_prph_no_grab(fwrt->trans, RXF_LD_FENCE_OFFSET_ADDR + offs,
+			       0x0);
+
+	/* Read FIFO */
+	addr =  RXF_FIFO_RD_FENCE_INC + offs;
+	data = (void *)reg_dump;
+	for (i = 0; i < rxf_data.size; i += sizeof(*data))
+		*data++ = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans, addr));
+
+out:
+	iwl_trans_release_nic_access(fwrt->trans, &flags);
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
+static void *iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt,
+					  struct iwl_fw_ini_region_cfg *reg,
+					  void *data)
+{
+	struct iwl_fw_ini_error_dump *dump = data;
+
+	dump->header.version = cpu_to_le32(IWL_INI_DUMP_VER);
+
+	return dump->ranges;
+}
+
+static void
+*iwl_dump_ini_mon_fill_header(struct iwl_fw_runtime *fwrt,
+			      struct iwl_fw_ini_region_cfg *reg,
+			      struct iwl_fw_ini_monitor_dump *data,
+			      u32 write_ptr_addr, u32 write_ptr_msk,
+			      u32 cycle_cnt_addr, u32 cycle_cnt_msk)
+{
+	u32 write_ptr, cycle_cnt;
+	unsigned long flags;
+
+	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags)) {
+		IWL_ERR(fwrt, "Failed to get monitor header\n");
+		return NULL;
+	}
+
+	write_ptr = iwl_read_prph_no_grab(fwrt->trans, write_ptr_addr);
+	cycle_cnt = iwl_read_prph_no_grab(fwrt->trans, cycle_cnt_addr);
+
+	iwl_trans_release_nic_access(fwrt->trans, &flags);
+
+	data->header.version = cpu_to_le32(IWL_INI_DUMP_VER);
+	data->write_ptr = cpu_to_le32(write_ptr & write_ptr_msk);
+	data->cycle_cnt = cpu_to_le32(cycle_cnt & cycle_cnt_msk);
+
+	return data->ranges;
+}
+
+static void
+*iwl_dump_ini_mon_dram_fill_header(struct iwl_fw_runtime *fwrt,
+				   struct iwl_fw_ini_region_cfg *reg,
+				   void *data)
+{
+	struct iwl_fw_ini_monitor_dump *mon_dump = (void *)data;
+	u32 write_ptr_addr, write_ptr_msk, cycle_cnt_addr, cycle_cnt_msk;
+
+	switch (fwrt->trans->trans_cfg->device_family) {
+	case IWL_DEVICE_FAMILY_9000:
+	case IWL_DEVICE_FAMILY_22000:
+		write_ptr_addr = MON_BUFF_WRPTR_VER2;
+		write_ptr_msk = -1;
+		cycle_cnt_addr = MON_BUFF_CYCLE_CNT_VER2;
+		cycle_cnt_msk = -1;
+		break;
+	default:
+		IWL_ERR(fwrt, "Unsupported device family %d\n",
+			fwrt->trans->trans_cfg->device_family);
+		return NULL;
+	}
+
+	return iwl_dump_ini_mon_fill_header(fwrt, reg, mon_dump, write_ptr_addr,
+					    write_ptr_msk, cycle_cnt_addr,
+					    cycle_cnt_msk);
+}
+
+static void
+*iwl_dump_ini_mon_smem_fill_header(struct iwl_fw_runtime *fwrt,
+				   struct iwl_fw_ini_region_cfg *reg,
+				   void *data)
+{
+	struct iwl_fw_ini_monitor_dump *mon_dump = (void *)data;
+	const struct iwl_cfg *cfg = fwrt->trans->cfg;
+
+	if (fwrt->trans->trans_cfg->device_family != IWL_DEVICE_FAMILY_9000 &&
+	    fwrt->trans->trans_cfg->device_family != IWL_DEVICE_FAMILY_22000) {
+		IWL_ERR(fwrt, "Unsupported device family %d\n",
+			fwrt->trans->trans_cfg->device_family);
+		return NULL;
+	}
+
+	return iwl_dump_ini_mon_fill_header(fwrt, reg, mon_dump,
+					    cfg->fw_mon_smem_write_ptr_addr,
+					    cfg->fw_mon_smem_write_ptr_msk,
+					    cfg->fw_mon_smem_cycle_cnt_ptr_addr,
+					    cfg->fw_mon_smem_cycle_cnt_ptr_msk);
+
+}
+
+static u32 iwl_dump_ini_mem_ranges(struct iwl_fw_runtime *fwrt,
+				   struct iwl_fw_ini_region_cfg *reg)
+{
+	return le32_to_cpu(reg->internal.num_of_ranges);
+}
+
+static u32 iwl_dump_ini_paging_ranges(struct iwl_fw_runtime *fwrt,
+				      struct iwl_fw_ini_region_cfg *reg)
+{
+	if (fwrt->trans->trans_cfg->gen2)
+		return fwrt->trans->init_dram.paging_cnt;
+
+	return fwrt->num_of_paging_blk;
+}
+
+static u32 iwl_dump_ini_mon_dram_ranges(struct iwl_fw_runtime *fwrt,
+					struct iwl_fw_ini_region_cfg *reg)
+{
+	return 1;
+}
+
+static u32 iwl_dump_ini_txf_ranges(struct iwl_fw_runtime *fwrt,
+				   struct iwl_fw_ini_region_cfg *reg)
+{
+	u32 num_of_fifos = 0;
+
+	while (iwl_ini_txf_iter(fwrt, reg, num_of_fifos))
+		num_of_fifos++;
+
+	return num_of_fifos;
+}
+
+static u32 iwl_dump_ini_rxf_ranges(struct iwl_fw_runtime *fwrt,
+				   struct iwl_fw_ini_region_cfg *reg)
+{
+	/* Each Rx fifo needs a different offset and therefore, it's
+	 * region can contain only one fifo, i.e. 1 memory range.
+	 */
+	return 1;
+}
+
+static u32 iwl_dump_ini_mem_get_size(struct iwl_fw_runtime *fwrt,
+				     struct iwl_fw_ini_region_cfg *reg)
+{
+	return sizeof(struct iwl_fw_ini_error_dump) +
+		iwl_dump_ini_mem_ranges(fwrt, reg) *
+		(sizeof(struct iwl_fw_ini_error_dump_range) +
+		 le32_to_cpu(reg->internal.range_data_size));
+}
+
+static u32 iwl_dump_ini_paging_get_size(struct iwl_fw_runtime *fwrt,
+					struct iwl_fw_ini_region_cfg *reg)
+{
+	int i;
+	u32 range_header_len = sizeof(struct iwl_fw_ini_error_dump_range);
+	u32 size = sizeof(struct iwl_fw_ini_error_dump);
+
+	if (fwrt->trans->trans_cfg->gen2) {
+		for (i = 0; i < iwl_dump_ini_paging_ranges(fwrt, reg); i++)
+			size += range_header_len +
+				fwrt->trans->init_dram.paging[i].size;
+	} else {
+		for (i = 1; i <= iwl_dump_ini_paging_ranges(fwrt, reg); i++)
+			size += range_header_len +
+				fwrt->fw_paging_db[i].fw_paging_size;
+	}
+
+	return size;
+}
+
+static u32 iwl_dump_ini_mon_dram_get_size(struct iwl_fw_runtime *fwrt,
+					  struct iwl_fw_ini_region_cfg *reg)
+{
+	u32 size = sizeof(struct iwl_fw_ini_monitor_dump) +
+		sizeof(struct iwl_fw_ini_error_dump_range);
+
+	if (fwrt->trans->dbg.num_blocks)
+		size += fwrt->trans->dbg.fw_mon[0].size;
+
+	return size;
+}
+
+static u32 iwl_dump_ini_mon_smem_get_size(struct iwl_fw_runtime *fwrt,
+					  struct iwl_fw_ini_region_cfg *reg)
+{
+	return sizeof(struct iwl_fw_ini_monitor_dump) +
+		iwl_dump_ini_mem_ranges(fwrt, reg) *
+		(sizeof(struct iwl_fw_ini_error_dump_range) +
+		 le32_to_cpu(reg->internal.range_data_size));
+}
+
+static u32 iwl_dump_ini_txf_get_size(struct iwl_fw_runtime *fwrt,
+				     struct iwl_fw_ini_region_cfg *reg)
+{
+	struct iwl_txf_iter_data *iter = &fwrt->dump.txf_iter_data;
+	u32 size = 0;
+	u32 fifo_hdr = sizeof(struct iwl_fw_ini_error_dump_range) +
+		le32_to_cpu(reg->fifos.num_of_registers) *
+		sizeof(struct iwl_fw_ini_error_dump_register);
+
+	while (iwl_ini_txf_iter(fwrt, reg, size)) {
+		size += fifo_hdr;
+		if (!reg->fifos.header_only)
+			size += iter->fifo_size;
+	}
+
+	if (size)
+		size += sizeof(struct iwl_fw_ini_error_dump);
+
+	return size;
+}
+
+static u32 iwl_dump_ini_rxf_get_size(struct iwl_fw_runtime *fwrt,
+				     struct iwl_fw_ini_region_cfg *reg)
+{
+	struct iwl_ini_rxf_data rx_data;
+	u32 size = sizeof(struct iwl_fw_ini_error_dump) +
+		sizeof(struct iwl_fw_ini_error_dump_range) +
+		le32_to_cpu(reg->fifos.num_of_registers) *
+		sizeof(struct iwl_fw_ini_error_dump_register);
+
+	if (reg->fifos.header_only)
+		return size;
+
+	iwl_ini_get_rxf_data(fwrt, reg, &rx_data);
+	size += rx_data.size;
+
+	return size;
+}
+
+/**
+ * struct iwl_dump_ini_mem_ops - ini memory dump operations
+ * @get_num_of_ranges: returns the number of memory ranges in the region.
+ * @get_size: returns the total size of the region.
+ * @fill_mem_hdr: fills region type specific headers and returns pointer to
+ *	the first range or NULL if failed to fill headers.
+ * @fill_range: copies a given memory range into the dump.
+ *	Returns the size of the range or negative error value otherwise.
+ */
+struct iwl_dump_ini_mem_ops {
+	u32 (*get_num_of_ranges)(struct iwl_fw_runtime *fwrt,
+				 struct iwl_fw_ini_region_cfg *reg);
+	u32 (*get_size)(struct iwl_fw_runtime *fwrt,
+			struct iwl_fw_ini_region_cfg *reg);
+	void *(*fill_mem_hdr)(struct iwl_fw_runtime *fwrt,
+			      struct iwl_fw_ini_region_cfg *reg, void *data);
+	int (*fill_range)(struct iwl_fw_runtime *fwrt,
+			  struct iwl_fw_ini_region_cfg *reg, void *range,
+			  int idx);
+};
+
+/**
+ * iwl_dump_ini_mem
+ *
+ * Creates a dump tlv and copy a memory region into it.
+ * Returns the size of the current dump tlv or 0 if failed
+ *
+ * @fwrt: fw runtime struct
+ * @list: list to add the dump tlv to
+ * @reg: memory region
+ * @ops: memory dump operations
+ */
+static u32 iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt, struct list_head *list,
+			    struct iwl_fw_ini_region_cfg *reg,
+			    const struct iwl_dump_ini_mem_ops *ops)
+{
+	struct iwl_fw_ini_dump_entry *entry;
+	struct iwl_fw_error_dump_data *tlv;
+	struct iwl_fw_ini_error_dump_header *header;
+	u32 num_of_ranges, i, type = le32_to_cpu(reg->region_type), size;
+	void *range;
+
+	if (!ops->get_num_of_ranges || !ops->get_size || !ops->fill_mem_hdr ||
+	    !ops->fill_range)
 		return 0;
 
-	num = le32_to_cpu(trigger->num_regions);
-	for (i = 0; i < num; i++) {
-		u32 reg_id = le32_to_cpu(trigger->data[i]);
+	size = ops->get_size(fwrt, reg);
+	if (!size)
+		return 0;
+
+	entry = kmalloc(sizeof(*entry) + sizeof(*tlv) + size, GFP_KERNEL);
+	if (!entry)
+		return 0;
+
+	entry->size = sizeof(*tlv) + size;
+
+	tlv = (void *)entry->data;
+	tlv->type = cpu_to_le32(type);
+	tlv->len = cpu_to_le32(size);
+
+	IWL_DEBUG_FW(fwrt, "WRT: Collecting region: id=%d, type=%d\n",
+		     le32_to_cpu(reg->region_id), type);
+
+	num_of_ranges = ops->get_num_of_ranges(fwrt, reg);
+
+	header = (void *)tlv->data;
+	header->region_id = reg->region_id;
+	header->num_of_ranges = cpu_to_le32(num_of_ranges);
+	header->name_len = cpu_to_le32(min_t(int, IWL_FW_INI_MAX_NAME,
+					     le32_to_cpu(reg->name_len)));
+	memcpy(header->name, reg->name, le32_to_cpu(header->name_len));
+
+	range = ops->fill_mem_hdr(fwrt, reg, header);
+	if (!range) {
+		IWL_ERR(fwrt,
+			"WRT: Failed to fill region header: id=%d, type=%d\n",
+			le32_to_cpu(reg->region_id), type);
+		goto out_err;
+	}
+
+	for (i = 0; i < num_of_ranges; i++) {
+		int range_size = ops->fill_range(fwrt, reg, range, i);
+
+		if (range_size < 0) {
+			IWL_ERR(fwrt,
+				"WRT: Failed to dump region: id=%d, type=%d\n",
+				le32_to_cpu(reg->region_id), type);
+			goto out_err;
+		}
+		range = range + range_size;
+	}
+
+	list_add_tail(&entry->list, list);
+
+	return entry->size;
+
+out_err:
+	kfree(entry);
+
+	return 0;
+}
+
+static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
+			     struct iwl_fw_ini_trigger *trigger,
+			     struct list_head *list)
+{
+	struct iwl_fw_ini_dump_entry *entry;
+	struct iwl_fw_error_dump_data *tlv;
+	struct iwl_fw_ini_dump_info *dump;
+	u32 reg_ids_size = le32_to_cpu(trigger->num_regions) * sizeof(__le32);
+	u32 size = sizeof(*tlv) + sizeof(*dump) + reg_ids_size;
+
+	entry = kmalloc(sizeof(*entry) + size, GFP_KERNEL);
+	if (!entry)
+		return 0;
+
+	entry->size = size;
+
+	tlv = (void *)entry->data;
+	tlv->type = cpu_to_le32(IWL_INI_DUMP_INFO_TYPE);
+	tlv->len = cpu_to_le32(sizeof(*dump) + reg_ids_size);
+
+	dump = (void *)tlv->data;
+
+	dump->version = cpu_to_le32(IWL_INI_DUMP_VER);
+	dump->trigger_id = trigger->trigger_id;
+	dump->is_external_cfg =
+		cpu_to_le32(fwrt->trans->dbg.external_ini_cfg);
+
+	dump->ver_type = cpu_to_le32(fwrt->dump.fw_ver.type);
+	dump->ver_subtype = cpu_to_le32(fwrt->dump.fw_ver.subtype);
+
+	dump->hw_step = cpu_to_le32(CSR_HW_REV_STEP(fwrt->trans->hw_rev));
+	dump->hw_type = cpu_to_le32(CSR_HW_REV_TYPE(fwrt->trans->hw_rev));
+
+	dump->rf_id_flavor =
+		cpu_to_le32(CSR_HW_RFID_FLAVOR(fwrt->trans->hw_rf_id));
+	dump->rf_id_dash = cpu_to_le32(CSR_HW_RFID_DASH(fwrt->trans->hw_rf_id));
+	dump->rf_id_step = cpu_to_le32(CSR_HW_RFID_STEP(fwrt->trans->hw_rf_id));
+	dump->rf_id_type = cpu_to_le32(CSR_HW_RFID_TYPE(fwrt->trans->hw_rf_id));
+
+	dump->lmac_major = cpu_to_le32(fwrt->dump.fw_ver.lmac_major);
+	dump->lmac_minor = cpu_to_le32(fwrt->dump.fw_ver.lmac_minor);
+	dump->umac_major = cpu_to_le32(fwrt->dump.fw_ver.umac_major);
+	dump->umac_minor = cpu_to_le32(fwrt->dump.fw_ver.umac_minor);
+
+	dump->build_tag_len = cpu_to_le32(sizeof(dump->build_tag));
+	memcpy(dump->build_tag, fwrt->fw->human_readable,
+	       sizeof(dump->build_tag));
+
+	dump->img_name_len = cpu_to_le32(sizeof(dump->img_name));
+	memcpy(dump->img_name, fwrt->dump.img_name, sizeof(dump->img_name));
+
+	dump->internal_dbg_cfg_name_len =
+		cpu_to_le32(sizeof(dump->internal_dbg_cfg_name));
+	memcpy(dump->internal_dbg_cfg_name, fwrt->dump.internal_dbg_cfg_name,
+	       sizeof(dump->internal_dbg_cfg_name));
+
+	dump->external_dbg_cfg_name_len =
+		cpu_to_le32(sizeof(dump->external_dbg_cfg_name));
+
+	memcpy(dump->external_dbg_cfg_name, fwrt->dump.external_dbg_cfg_name,
+	       sizeof(dump->external_dbg_cfg_name));
+
+	dump->regions_num = trigger->num_regions;
+	memcpy(dump->region_ids, trigger->data, reg_ids_size);
+
+	/* add dump info TLV to the beginning of the list since it needs to be
+	 * the first TLV in the dump
+	 */
+	list_add(&entry->list, list);
+
+	return entry->size;
+}
+
+static const struct iwl_dump_ini_mem_ops iwl_dump_ini_region_ops[] = {
+	[IWL_FW_INI_REGION_INVALID] = {},
+	[IWL_FW_INI_REGION_DEVICE_MEMORY] = {
+		.get_num_of_ranges = iwl_dump_ini_mem_ranges,
+		.get_size = iwl_dump_ini_mem_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_dev_mem_iter,
+	},
+	[IWL_FW_INI_REGION_PERIPHERY_MAC] = {
+		.get_num_of_ranges = iwl_dump_ini_mem_ranges,
+		.get_size = iwl_dump_ini_mem_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_prph_iter,
+	},
+	[IWL_FW_INI_REGION_PERIPHERY_PHY] = {},
+	[IWL_FW_INI_REGION_PERIPHERY_AUX] = {},
+	[IWL_FW_INI_REGION_DRAM_BUFFER] = {
+		.get_num_of_ranges = iwl_dump_ini_mon_dram_ranges,
+		.get_size = iwl_dump_ini_mon_dram_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mon_dram_fill_header,
+		.fill_range = iwl_dump_ini_mon_dram_iter,
+	},
+	[IWL_FW_INI_REGION_DRAM_IMR] = {},
+	[IWL_FW_INI_REGION_INTERNAL_BUFFER] = {
+		.get_num_of_ranges = iwl_dump_ini_mem_ranges,
+		.get_size = iwl_dump_ini_mon_smem_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mon_smem_fill_header,
+		.fill_range = iwl_dump_ini_dev_mem_iter,
+	},
+	[IWL_FW_INI_REGION_TXF] = {
+		.get_num_of_ranges = iwl_dump_ini_txf_ranges,
+		.get_size = iwl_dump_ini_txf_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_txf_iter,
+	},
+	[IWL_FW_INI_REGION_RXF] = {
+		.get_num_of_ranges = iwl_dump_ini_rxf_ranges,
+		.get_size = iwl_dump_ini_rxf_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_rxf_iter,
+	},
+	[IWL_FW_INI_REGION_PAGING] = {
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.get_num_of_ranges = iwl_dump_ini_paging_ranges,
+		.get_size = iwl_dump_ini_paging_get_size,
+		.fill_range = iwl_dump_ini_paging_iter,
+	},
+	[IWL_FW_INI_REGION_CSR] = {
+		.get_num_of_ranges = iwl_dump_ini_mem_ranges,
+		.get_size = iwl_dump_ini_mem_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_csr_iter,
+	},
+	[IWL_FW_INI_REGION_NOTIFICATION] = {},
+	[IWL_FW_INI_REGION_DHC] = {},
+	[IWL_FW_INI_REGION_LMAC_ERROR_TABLE] = {
+		.get_num_of_ranges = iwl_dump_ini_mem_ranges,
+		.get_size = iwl_dump_ini_mem_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_dev_mem_iter,
+	},
+	[IWL_FW_INI_REGION_UMAC_ERROR_TABLE] = {
+		.get_num_of_ranges = iwl_dump_ini_mem_ranges,
+		.get_size = iwl_dump_ini_mem_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_dev_mem_iter,
+	},
+};
+
+static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
+				struct iwl_fw_ini_trigger *trigger,
+				struct list_head *list)
+{
+	int i;
+	u32 size = 0;
+
+	for (i = 0; i < le32_to_cpu(trigger->num_regions); i++) {
+		u32 reg_id = le32_to_cpu(trigger->data[i]), reg_type;
 		struct iwl_fw_ini_region_cfg *reg;
-		enum iwl_fw_ini_region_type type;
-		u32 num_entries;
 
 		if (WARN_ON(reg_id >= ARRAY_SIZE(fwrt->dump.active_regs)))
 			continue;
 
-		reg = fwrt->dump.active_regs[reg_id].reg;
-		if (WARN(!reg, "Unassigned region %d\n", reg_id))
+		reg = fwrt->dump.active_regs[reg_id];
+		if (!reg) {
+			IWL_WARN(fwrt,
+				 "WRT: Unassigned region id %d, skipping\n",
+				 reg_id);
+			continue;
+		}
+
+		/* currently the driver supports always on domain only */
+		if (le32_to_cpu(reg->domain) != IWL_FW_INI_DBG_DOMAIN_ALWAYS_ON)
 			continue;
 
-		type = le32_to_cpu(reg->region_type);
-		num_entries = le32_to_cpu(reg->num_regions);
+		reg_type = le32_to_cpu(reg->region_type);
+		if (reg_type >= ARRAY_SIZE(iwl_dump_ini_region_ops))
+			continue;
 
-		switch (type) {
-		case IWL_FW_INI_REGION_DEVICE_MEMORY:
-			size += hdr_len +
-				sizeof(struct iwl_fw_error_dump_named_mem) +
-				le32_to_cpu(reg->size);
-			break;
-		case IWL_FW_INI_REGION_PERIPHERY_MAC:
-		case IWL_FW_INI_REGION_PERIPHERY_PHY:
-		case IWL_FW_INI_REGION_PERIPHERY_AUX:
-			size += num_entries *
-				(hdr_len +
-				 sizeof(struct iwl_fw_error_dump_prph) +
-				 sizeof(u32));
-			break;
-		case IWL_FW_INI_REGION_TXF:
-			size += iwl_fw_txf_len(fwrt, &fwrt->smem_cfg);
-			break;
-		case IWL_FW_INI_REGION_RXF:
-			size += iwl_fw_rxf_len(fwrt, &fwrt->smem_cfg);
-			break;
-		case IWL_FW_INI_REGION_PAGING:
-			if (!iwl_fw_dbg_is_paging_enabled(fwrt))
-				break;
-			size += fwrt->num_of_paging_blk *
-				(hdr_len +
-				 sizeof(struct iwl_fw_error_dump_paging) +
-				 PAGING_BLOCK_SIZE);
-			break;
-		case IWL_FW_INI_REGION_CSR:
-			size += num_entries *
-				(hdr_len + le32_to_cpu(reg->size));
-			break;
-		case IWL_FW_INI_REGION_DRAM_BUFFER:
-			/* Transport takes care of DRAM dumping */
-		case IWL_FW_INI_REGION_INTERNAL_BUFFER:
-		case IWL_FW_INI_REGION_DRAM_IMR:
-			/* Undefined yet */
-		default:
-			break;
-		}
+		size += iwl_dump_ini_mem(fwrt, list, reg,
+					 &iwl_dump_ini_region_ops[reg_type]);
 	}
+
+	if (size)
+		size += iwl_dump_ini_info(fwrt, trigger, list);
+
 	return size;
 }
 
-static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
-				    struct iwl_fw_ini_trigger *trigger,
-				    struct iwl_fw_error_dump_data **data,
-				    u32 *dump_mask)
+static u32 iwl_dump_ini_file_gen(struct iwl_fw_runtime *fwrt,
+				 enum iwl_fw_ini_trigger_id trig_id,
+				 struct list_head *list)
 {
-	int i, num = le32_to_cpu(trigger->num_regions);
+	struct iwl_fw_ini_dump_entry *entry;
+	struct iwl_fw_ini_dump_file_hdr *hdr;
+	struct iwl_fw_ini_trigger *trigger;
+	u32 size;
 
-	for (i = 0; i < num; i++) {
-		u32 reg_id = le32_to_cpu(trigger->data[i]);
-		enum iwl_fw_ini_region_type type;
-		struct iwl_fw_ini_region_cfg *reg;
+	if (!iwl_fw_ini_trigger_on(fwrt, trig_id))
+		return 0;
 
-		if (reg_id >= ARRAY_SIZE(fwrt->dump.active_regs))
-			continue;
+	trigger = fwrt->dump.active_trigs[trig_id].trig;
+	if (!trigger || !le32_to_cpu(trigger->num_regions))
+		return 0;
 
-		reg = fwrt->dump.active_regs[reg_id].reg;
-		/* Don't warn, get_trigger_len already warned */
-		if (!reg)
-			continue;
+	entry = kmalloc(sizeof(*entry) + sizeof(*hdr), GFP_KERNEL);
+	if (!entry)
+		return 0;
 
-		type = le32_to_cpu(reg->region_type);
-		switch (type) {
-		case IWL_FW_INI_REGION_DEVICE_MEMORY:
-			if (WARN_ON(le32_to_cpu(reg->num_regions) > 1))
-				continue;
-			iwl_fw_dump_named_mem(fwrt, data,
-					      le32_to_cpu(reg->size),
-					      le32_to_cpu(reg->start_addr[0]),
-					      reg->name,
-					      le32_to_cpu(reg->name_len));
-			break;
-		case IWL_FW_INI_REGION_PERIPHERY_MAC:
-		case IWL_FW_INI_REGION_PERIPHERY_PHY:
-		case IWL_FW_INI_REGION_PERIPHERY_AUX:
-			iwl_dump_prph_ini(fwrt->trans, data, reg);
-			break;
-		case IWL_FW_INI_REGION_DRAM_BUFFER:
-			*dump_mask |= IWL_FW_ERROR_DUMP_FW_MONITOR;
-			break;
-		case IWL_FW_INI_REGION_PAGING:
-			if (iwl_fw_dbg_is_paging_enabled(fwrt))
-				iwl_dump_paging(fwrt, data);
-			else
-				*dump_mask |= IWL_FW_ERROR_DUMP_PAGING;
-			break;
-		case IWL_FW_INI_REGION_TXF:
-			iwl_fw_dump_txf(fwrt, data);
-			break;
-		case IWL_FW_INI_REGION_RXF:
-			iwl_fw_dump_rxf(fwrt, data);
-			break;
-		case IWL_FW_INI_REGION_CSR:
-			iwl_dump_csr_ini(fwrt->trans, data, reg);
-			break;
-		case IWL_FW_INI_REGION_DRAM_IMR:
-		case IWL_FW_INI_REGION_INTERNAL_BUFFER:
-			/* This is undefined yet */
-		default:
-			break;
-		}
+	entry->size = sizeof(*hdr);
+
+	size = iwl_dump_ini_trigger(fwrt, trigger, list);
+	if (!size) {
+		kfree(entry);
+		return 0;
 	}
+
+	hdr = (void *)entry->data;
+	hdr->barker = cpu_to_le32(IWL_FW_INI_ERROR_DUMP_BARKER);
+	hdr->file_len = cpu_to_le32(size + entry->size);
+
+	list_add(&entry->list, list);
+
+	return le32_to_cpu(hdr->file_len);
 }
 
-static struct iwl_fw_error_dump_file *
-_iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt,
-		       struct iwl_fw_dump_ptrs *fw_error_dump,
-		       u32 *dump_mask)
+static void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 {
-	int size, id = le32_to_cpu(fwrt->dump.desc->trig_desc.type);
-	struct iwl_fw_error_dump_data *dump_data;
-	struct iwl_fw_error_dump_file *dump_file;
-	struct iwl_fw_ini_trigger *trigger, *ext;
-
-	if (id == FW_DBG_TRIGGER_FW_ASSERT)
-		id = IWL_FW_TRIGGER_ID_FW_ASSERT;
-	else if (id == FW_DBG_TRIGGER_USER)
-		id = IWL_FW_TRIGGER_ID_USER_TRIGGER;
-	else if (id < FW_DBG_TRIGGER_MAX)
-		return NULL;
-
-	if (WARN_ON(id >= ARRAY_SIZE(fwrt->dump.active_trigs)))
-		return NULL;
-
-	trigger = fwrt->dump.active_trigs[id].conf;
-	ext = fwrt->dump.active_trigs[id].conf_ext;
-
-	size = sizeof(*dump_file);
-	size += iwl_fw_ini_get_trigger_len(fwrt, trigger);
-	size += iwl_fw_ini_get_trigger_len(fwrt, ext);
-
-	if (!size)
-		return NULL;
-
-	dump_file = vzalloc(size);
-	if (!dump_file)
-		return NULL;
-
-	fw_error_dump->fwrt_ptr = dump_file;
-
-	dump_file->barker = cpu_to_le32(IWL_FW_ERROR_DUMP_BARKER);
-	dump_data = (void *)dump_file->data;
-	dump_file->file_len = cpu_to_le32(size);
-
-	*dump_mask = 0;
-	if (trigger)
-		iwl_fw_ini_dump_trigger(fwrt, trigger, &dump_data, dump_mask);
-	if (ext)
-		iwl_fw_ini_dump_trigger(fwrt, ext, &dump_data, dump_mask);
-
-	return dump_file;
-}
-
-void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
-{
-	struct iwl_fw_dump_ptrs *fw_error_dump;
+	struct iwl_fw_dump_ptrs fw_error_dump = {};
 	struct iwl_fw_error_dump_file *dump_file;
 	struct scatterlist *sg_dump_data;
 	u32 file_len;
 	u32 dump_mask = fwrt->fw->dbg.dump_mask;
 
-	IWL_DEBUG_INFO(fwrt, "WRT dump start\n");
-
-	/* there's no point in fw dump if the bus is dead */
-	if (test_bit(STATUS_TRANS_DEAD, &fwrt->trans->status)) {
-		IWL_ERR(fwrt, "Skip fw error dump since bus is dead\n");
-		goto out;
-	}
-
-	fw_error_dump = kzalloc(sizeof(*fw_error_dump), GFP_KERNEL);
-	if (!fw_error_dump)
+	dump_file = iwl_fw_error_dump_file(fwrt, &fw_error_dump);
+	if (!dump_file)
 		goto out;
 
-	if (fwrt->trans->ini_valid)
-		dump_file = _iwl_fw_error_ini_dump(fwrt, fw_error_dump,
-						   &dump_mask);
-	else
-		dump_file = _iwl_fw_error_dump(fwrt, fw_error_dump);
-
-	if (!dump_file) {
-		kfree(fw_error_dump);
-		goto out;
-	}
-
-	if (!fwrt->trans->ini_valid && fwrt->dump.monitor_only)
+	if (fwrt->dump.monitor_only)
 		dump_mask &= IWL_FW_ERROR_DUMP_FW_MONITOR;
 
-	fw_error_dump->trans_ptr = iwl_trans_dump_data(fwrt->trans, dump_mask);
+	fw_error_dump.trans_ptr = iwl_trans_dump_data(fwrt->trans, dump_mask);
 	file_len = le32_to_cpu(dump_file->file_len);
-	fw_error_dump->fwrt_len = file_len;
-	if (fw_error_dump->trans_ptr) {
-		file_len += fw_error_dump->trans_ptr->len;
+	fw_error_dump.fwrt_len = file_len;
+
+	if (fw_error_dump.trans_ptr) {
+		file_len += fw_error_dump.trans_ptr->len;
 		dump_file->file_len = cpu_to_le32(file_len);
 	}
 
@@ -1229,27 +1965,65 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 	if (sg_dump_data) {
 		sg_pcopy_from_buffer(sg_dump_data,
 				     sg_nents(sg_dump_data),
-				     fw_error_dump->fwrt_ptr,
-				     fw_error_dump->fwrt_len, 0);
-		if (fw_error_dump->trans_ptr)
+				     fw_error_dump.fwrt_ptr,
+				     fw_error_dump.fwrt_len, 0);
+		if (fw_error_dump.trans_ptr)
 			sg_pcopy_from_buffer(sg_dump_data,
 					     sg_nents(sg_dump_data),
-					     fw_error_dump->trans_ptr->data,
-					     fw_error_dump->trans_ptr->len,
-					     fw_error_dump->fwrt_len);
+					     fw_error_dump.trans_ptr->data,
+					     fw_error_dump.trans_ptr->len,
+					     fw_error_dump.fwrt_len);
 		dev_coredumpsg(fwrt->trans->dev, sg_dump_data, file_len,
 			       GFP_KERNEL);
 	}
-	vfree(fw_error_dump->fwrt_ptr);
-	vfree(fw_error_dump->trans_ptr);
-	kfree(fw_error_dump);
+	vfree(fw_error_dump.fwrt_ptr);
+	vfree(fw_error_dump.trans_ptr);
 
 out:
 	iwl_fw_free_dump_desc(fwrt);
-	clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
-	IWL_DEBUG_INFO(fwrt, "WRT dump done\n");
 }
-IWL_EXPORT_SYMBOL(iwl_fw_error_dump);
+
+static void iwl_dump_ini_list_free(struct list_head *list)
+{
+	while (!list_empty(list)) {
+		struct iwl_fw_ini_dump_entry *entry =
+			list_entry(list->next, typeof(*entry), list);
+
+		list_del(&entry->list);
+		kfree(entry);
+	}
+}
+
+static void iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt, u8 wk_idx)
+{
+	enum iwl_fw_ini_trigger_id trig_id = fwrt->dump.wks[wk_idx].ini_trig_id;
+	struct list_head dump_list = LIST_HEAD_INIT(dump_list);
+	struct scatterlist *sg_dump_data;
+	u32 file_len;
+
+	file_len = iwl_dump_ini_file_gen(fwrt, trig_id, &dump_list);
+	if (!file_len)
+		goto out;
+
+	sg_dump_data = alloc_sgtable(file_len);
+	if (sg_dump_data) {
+		struct iwl_fw_ini_dump_entry *entry;
+		int sg_entries = sg_nents(sg_dump_data);
+		u32 offs = 0;
+
+		list_for_each_entry(entry, &dump_list, list) {
+			sg_pcopy_from_buffer(sg_dump_data, sg_entries,
+					     entry->data, entry->size, offs);
+			offs += entry->size;
+		}
+		dev_coredumpsg(fwrt->trans->dev, sg_dump_data, file_len,
+			       GFP_KERNEL);
+	}
+	iwl_dump_ini_list_free(&dump_list);
+
+out:
+	fwrt->dump.wks[wk_idx].ini_trig_id = IWL_FW_TRIGGER_ID_INVALID;
+}
 
 const struct iwl_fw_dump_desc iwl_dump_desc_assert = {
 	.trig_desc = {
@@ -1258,61 +2032,26 @@ const struct iwl_fw_dump_desc iwl_dump_desc_assert = {
 };
 IWL_EXPORT_SYMBOL(iwl_dump_desc_assert);
 
-void iwl_fw_assert_error_dump(struct iwl_fw_runtime *fwrt)
-{
-	IWL_INFO(fwrt, "error dump due to fw assert\n");
-	fwrt->dump.desc = &iwl_dump_desc_assert;
-	iwl_fw_error_dump(fwrt);
-}
-IWL_EXPORT_SYMBOL(iwl_fw_assert_error_dump);
-
-void iwl_fw_alive_error_dump(struct iwl_fw_runtime *fwrt)
-{
-	struct iwl_fw_dump_desc *iwl_dump_desc_no_alive =
-		kmalloc(sizeof(*iwl_dump_desc_no_alive), GFP_KERNEL);
-
-	if (!iwl_dump_desc_no_alive)
-		return;
-
-	iwl_dump_desc_no_alive->trig_desc.type =
-		cpu_to_le32(FW_DBG_TRIGGER_NO_ALIVE);
-	iwl_dump_desc_no_alive->len = 0;
-
-	if (WARN_ON(fwrt->dump.desc))
-		iwl_fw_free_dump_desc(fwrt);
-
-	IWL_WARN(fwrt, "Collecting data: trigger %d fired.\n",
-		 FW_DBG_TRIGGER_NO_ALIVE);
-
-	fwrt->dump.desc = iwl_dump_desc_no_alive;
-	iwl_fw_error_dump(fwrt);
-	clear_bit(IWL_FWRT_STATUS_WAIT_ALIVE, &fwrt->status);
-}
-IWL_EXPORT_SYMBOL(iwl_fw_alive_error_dump);
-
 int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 			    const struct iwl_fw_dump_desc *desc,
 			    bool monitor_only,
 			    unsigned int delay)
 {
-	/*
-	 * If the loading of the FW completed successfully, the next step is to
-	 * get the SMEM config data. Thus, if fwrt->smem_cfg.num_lmacs is non
-	 * zero, the FW was already loaded successully. If the state is "NO_FW"
-	 * in such a case - exit, since FW may be dead. Otherwise, we
-	 * can try to collect the data, since FW might just not be fully
-	 * loaded (no "ALIVE" yet), and the debug data is accessible.
-	 *
-	 * Corner case: got the FW alive but crashed before getting the SMEM
-	 *	config. In such a case, due to HW access problems, we might
-	 *	collect garbage.
-	 */
-	if (fwrt->trans->state == IWL_TRANS_NO_FW &&
-	    fwrt->smem_cfg.num_lmacs)
-		return -EIO;
+	u32 trig_type = le32_to_cpu(desc->trig_desc.type);
+	int ret;
 
-	if (test_and_set_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status) ||
-	    test_bit(IWL_FWRT_STATUS_WAIT_ALIVE, &fwrt->status))
+	if (iwl_trans_dbg_ini_valid(fwrt->trans)) {
+		ret = iwl_fw_dbg_ini_collect(fwrt, trig_type);
+		if (!ret)
+			iwl_fw_free_dump_desc(fwrt);
+
+		return ret;
+	}
+
+	/* use wks[0] since dump flow prior to ini does not need to support
+	 * consecutive triggers collection
+	 */
+	if (test_and_set_bit(fwrt->dump.wks[0].idx, &fwrt->dump.active_wks))
 		return -EBUSY;
 
 	if (WARN_ON(fwrt->dump.desc))
@@ -1324,16 +2063,42 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	fwrt->dump.desc = desc;
 	fwrt->dump.monitor_only = monitor_only;
 
-	schedule_delayed_work(&fwrt->dump.wk, delay);
+	schedule_delayed_work(&fwrt->dump.wks[0].wk, usecs_to_jiffies(delay));
 
 	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_desc);
 
-int _iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
-			enum iwl_fw_dbg_trigger trig,
-			const char *str, size_t len,
-			struct iwl_fw_dbg_trigger_tlv *trigger)
+int iwl_fw_dbg_error_collect(struct iwl_fw_runtime *fwrt,
+			     enum iwl_fw_dbg_trigger trig_type)
+{
+	int ret;
+	struct iwl_fw_dump_desc *iwl_dump_error_desc;
+
+	if (!test_bit(STATUS_DEVICE_ENABLED, &fwrt->trans->status))
+		return -EIO;
+
+	iwl_dump_error_desc = kmalloc(sizeof(*iwl_dump_error_desc), GFP_KERNEL);
+	if (!iwl_dump_error_desc)
+		return -ENOMEM;
+
+	iwl_dump_error_desc->trig_desc.type = cpu_to_le32(trig_type);
+	iwl_dump_error_desc->len = 0;
+
+	ret = iwl_fw_dbg_collect_desc(fwrt, iwl_dump_error_desc, false, 0);
+	if (ret)
+		kfree(iwl_dump_error_desc);
+	else
+		iwl_trans_sync_nmi(fwrt->trans);
+
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_error_collect);
+
+int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
+		       enum iwl_fw_dbg_trigger trig,
+		       const char *str, size_t len,
+		       struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	struct iwl_fw_dump_desc *desc;
 	unsigned int delay = 0;
@@ -1353,8 +2118,10 @@ int _iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		}
 
 		trigger->occurrences = cpu_to_le16(occurrences);
-		delay = le16_to_cpu(trigger->trig_dis_ms);
 		monitor_only = trigger->mode & IWL_FW_DBG_TRIGGER_MONITOR_ONLY;
+
+		/* convert msec to usec */
+		delay = le32_to_cpu(trigger->stop_delay) * USEC_PER_MSEC;
 	}
 
 	desc = kzalloc(sizeof(*desc) + len, GFP_ATOMIC);
@@ -1368,48 +2135,81 @@ int _iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 
 	return iwl_fw_dbg_collect_desc(fwrt, desc, monitor_only, delay);
 }
-IWL_EXPORT_SYMBOL(_iwl_fw_dbg_collect);
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect);
 
-int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
-		       u32 id, const char *str, size_t len)
+int _iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
+			    enum iwl_fw_ini_trigger_id id)
 {
-	struct iwl_fw_dump_desc *desc;
+	struct iwl_fw_ini_active_triggers *active;
 	u32 occur, delay;
+	unsigned long idx;
 
-	if (!fwrt->trans->ini_valid)
-		return _iwl_fw_dbg_collect(fwrt, id, str, len, NULL);
-
-	if (id == FW_DBG_TRIGGER_USER)
-		id = IWL_FW_TRIGGER_ID_USER_TRIGGER;
-
-	if (WARN_ON(!fwrt->dump.active_trigs[id].active))
+	if (WARN_ON(!iwl_fw_ini_trigger_on(fwrt, id)))
 		return -EINVAL;
 
-	delay = le32_to_cpu(fwrt->dump.active_trigs[id].conf->ignore_consec);
-	occur = le32_to_cpu(fwrt->dump.active_trigs[id].conf->occurrences);
+	if (!iwl_fw_ini_trigger_on(fwrt, id)) {
+		IWL_WARN(fwrt, "WRT: Trigger %d is not active, aborting dump\n",
+			 id);
+		return -EINVAL;
+	}
+
+	active = &fwrt->dump.active_trigs[id];
+	delay = le32_to_cpu(active->trig->dump_delay);
+	occur = le32_to_cpu(active->trig->occurrences);
 	if (!occur)
 		return 0;
 
-	if (le32_to_cpu(fwrt->dump.active_trigs[id].conf->force_restart)) {
-		IWL_WARN(fwrt, "Force restart: trigger %d fired.\n", id);
+	active->trig->occurrences = cpu_to_le32(--occur);
+
+	if (le32_to_cpu(active->trig->force_restart)) {
+		IWL_WARN(fwrt, "WRT: Force restart: trigger %d fired.\n", id);
 		iwl_force_nmi(fwrt->trans);
 		return 0;
 	}
 
-	desc = kzalloc(sizeof(*desc) + len, GFP_ATOMIC);
-	if (!desc)
-		return -ENOMEM;
+	/* Check there is an available worker.
+	 * ffz return value is undefined if no zero exists,
+	 * so check against ~0UL first.
+	 */
+	if (fwrt->dump.active_wks == ~0UL)
+		return -EBUSY;
 
-	occur--;
-	fwrt->dump.active_trigs[id].conf->occurrences = cpu_to_le32(occur);
+	idx = ffz(fwrt->dump.active_wks);
 
-	desc->len = len;
-	desc->trig_desc.type = cpu_to_le32(id);
-	memcpy(desc->trig_desc.data, str, len);
+	if (idx >= IWL_FW_RUNTIME_DUMP_WK_NUM ||
+	    test_and_set_bit(fwrt->dump.wks[idx].idx, &fwrt->dump.active_wks))
+		return -EBUSY;
 
-	return iwl_fw_dbg_collect_desc(fwrt, desc, true, delay);
+	fwrt->dump.wks[idx].ini_trig_id = id;
+
+	IWL_WARN(fwrt, "WRT: Collecting data: ini trigger %d fired.\n", id);
+
+	schedule_delayed_work(&fwrt->dump.wks[idx].wk, usecs_to_jiffies(delay));
+
+	return 0;
 }
-IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect);
+IWL_EXPORT_SYMBOL(_iwl_fw_dbg_ini_collect);
+
+int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt, u32 legacy_trigger_id)
+{
+	int id;
+
+	switch (legacy_trigger_id) {
+	case FW_DBG_TRIGGER_FW_ASSERT:
+	case FW_DBG_TRIGGER_ALIVE_TIMEOUT:
+	case FW_DBG_TRIGGER_DRIVER:
+		id = IWL_FW_TRIGGER_ID_FW_ASSERT;
+		break;
+	case FW_DBG_TRIGGER_USER:
+		id = IWL_FW_TRIGGER_ID_USER_TRIGGER;
+		break;
+	default:
+		return -EIO;
+	}
+
+	return _iwl_fw_dbg_ini_collect(fwrt, id);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_ini_collect);
 
 int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 			    struct iwl_fw_dbg_trigger_tlv *trigger,
@@ -1417,9 +2217,6 @@ int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 {
 	int ret, len = 0;
 	char buf[64];
-
-	if (fwrt->trans->ini_valid)
-		return 0;
 
 	if (fmt) {
 		va_list ap;
@@ -1437,8 +2234,8 @@ int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 		len = strlen(buf) + 1;
 	}
 
-	ret = _iwl_fw_dbg_collect(fwrt, le32_to_cpu(trigger->id), buf, len,
-				  trigger);
+	ret = iwl_fw_dbg_collect(fwrt, le32_to_cpu(trigger->id), buf, len,
+				 trigger);
 
 	if (ret)
 		return ret;
@@ -1497,45 +2294,60 @@ IWL_EXPORT_SYMBOL(iwl_fw_start_dbg_conf);
 /* this function assumes dump_start was called beforehand and dump_end will be
  * called afterwards
  */
-void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt)
+static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 {
 	struct iwl_fw_dbg_params params = {0};
 
-	if (!test_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
+	if (!test_bit(wk_idx, &fwrt->dump.active_wks))
 		return;
 
 	if (fwrt->ops && fwrt->ops->fw_running &&
 	    !fwrt->ops->fw_running(fwrt->ops_ctx)) {
 		IWL_ERR(fwrt, "Firmware not running - cannot dump error\n");
 		iwl_fw_free_dump_desc(fwrt);
-		clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
-		return;
+		goto out;
 	}
 
-	iwl_fw_dbg_stop_recording(fwrt, &params);
-
-	iwl_fw_error_dump(fwrt);
-
-	/* start recording again if the firmware is not crashed */
-	if (!test_bit(STATUS_FW_ERROR, &fwrt->trans->status) &&
-	    fwrt->fw->dbg.dest_tlv) {
-		/* wait before we collect the data till the DBGC stop */
-		udelay(500);
-		iwl_fw_dbg_restart_recording(fwrt, &params);
+	/* there's no point in fw dump if the bus is dead */
+	if (test_bit(STATUS_TRANS_DEAD, &fwrt->trans->status)) {
+		IWL_ERR(fwrt, "Skip fw error dump since bus is dead\n");
+		goto out;
 	}
+
+	if (iwl_fw_dbg_stop_restart_recording(fwrt, &params, true)) {
+		IWL_ERR(fwrt, "Failed to stop DBGC recording, aborting dump\n");
+		goto out;
+	}
+
+	IWL_DEBUG_FW_INFO(fwrt, "WRT: Data collection start\n");
+	if (iwl_trans_dbg_ini_valid(fwrt->trans))
+		iwl_fw_error_ini_dump(fwrt, wk_idx);
+	else
+		iwl_fw_error_dump(fwrt);
+	IWL_DEBUG_FW_INFO(fwrt, "WRT: Data collection done\n");
+
+	iwl_fw_dbg_stop_restart_recording(fwrt, &params, false);
+
+out:
+	clear_bit(wk_idx, &fwrt->dump.active_wks);
 }
-IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_sync);
 
 void iwl_fw_error_dump_wk(struct work_struct *work)
 {
-	struct iwl_fw_runtime *fwrt =
-		container_of(work, struct iwl_fw_runtime, dump.wk.work);
+	struct iwl_fw_runtime *fwrt;
+	typeof(fwrt->dump.wks[0]) *wks;
 
+	wks = container_of(work, typeof(fwrt->dump.wks[0]), wk.work);
+	fwrt = container_of(wks, struct iwl_fw_runtime, dump.wks[wks->idx]);
+
+	/* assumes the op mode mutex is locked in dump_start since
+	 * iwl_fw_dbg_collect_sync can't run in parallel
+	 */
 	if (fwrt->ops && fwrt->ops->dump_start &&
 	    fwrt->ops->dump_start(fwrt->ops_ctx))
 		return;
 
-	iwl_fw_dbg_collect_sync(fwrt);
+	iwl_fw_dbg_collect_sync(fwrt, wks->idx);
 
 	if (fwrt->ops && fwrt->ops->dump_end)
 		fwrt->ops->dump_end(fwrt->ops_ctx);
@@ -1565,216 +2377,142 @@ void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt)
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_read_d3_debug_data);
 
-static void
-iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt,
-			     struct iwl_fw_ini_allocation_tlv *alloc)
+void iwl_fw_dbg_stop_sync(struct iwl_fw_runtime *fwrt)
+{
+	int i;
+
+	iwl_dbg_tlv_del_timers(fwrt->trans);
+	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++)
+		iwl_fw_dbg_collect_sync(fwrt, i);
+
+	iwl_fw_dbg_stop_restart_recording(fwrt, NULL, true);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_stop_sync);
+
+#define FSEQ_REG(x) { .addr = (x), .str = #x, }
+
+void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt)
 {
 	struct iwl_trans *trans = fwrt->trans;
-	struct iwl_continuous_record_cmd cont_rec = {};
-	struct iwl_buffer_allocation_cmd *cmd = (void *)&cont_rec.pad[0];
-	struct iwl_host_cmd hcmd = {
-		.id = LDBG_CONFIG_CMD,
-		.flags = CMD_ASYNC,
-		.data[0] = &cont_rec,
-		.len[0] = sizeof(cont_rec),
-	};
-	void *virtual_addr = NULL;
-	u32 size = le32_to_cpu(alloc->size);
-	dma_addr_t phys_addr;
-
-	cont_rec.record_mode.enable_recording = cpu_to_le16(BUFFER_ALLOCATION);
-
-	if (!trans->num_blocks &&
-	    le32_to_cpu(alloc->buffer_location) !=
-	    IWL_FW_INI_LOCATION_DRAM_PATH)
-		return;
-
-	virtual_addr = dma_alloc_coherent(fwrt->trans->dev, size,
-					  &phys_addr, GFP_KERNEL);
-
-	/* TODO: alloc fragments if needed */
-	if (!virtual_addr)
-		IWL_ERR(fwrt, "Failed to allocate debug memory\n");
-
-	if (WARN_ON_ONCE(trans->num_blocks == ARRAY_SIZE(trans->fw_mon)))
-		return;
-
-	trans->fw_mon[trans->num_blocks].block = virtual_addr;
-	trans->fw_mon[trans->num_blocks].physical = phys_addr;
-	trans->fw_mon[trans->num_blocks].size = size;
-	trans->num_blocks++;
-
-	IWL_DEBUG_FW(trans, "Allocated debug block of size %d\n", size);
-
-	/* First block is assigned via registers / context info */
-	if (trans->num_blocks == 1)
-		return;
-
-	cmd->num_frags = cpu_to_le32(1);
-	cmd->fragments[0].address = cpu_to_le64(phys_addr);
-	cmd->fragments[0].size = alloc->size;
-	cmd->allocation_id = alloc->allocation_id;
-	cmd->buffer_location = alloc->buffer_location;
-
-	iwl_trans_send_cmd(trans, &hcmd);
-}
-
-static void iwl_fw_dbg_send_hcmd(struct iwl_fw_runtime *fwrt,
-				 struct iwl_ucode_tlv *tlv)
-{
-	struct iwl_fw_ini_hcmd_tlv *hcmd_tlv = (void *)&tlv->data[0];
-	struct iwl_fw_ini_hcmd *data = &hcmd_tlv->hcmd;
-	u16 len = le32_to_cpu(tlv->length) - sizeof(*hcmd_tlv);
-
-	struct iwl_host_cmd hcmd = {
-		.id = WIDE_ID(data->group, data->id),
-		.len = { len, },
-		.data = { data->data, },
+	unsigned long flags;
+	int i;
+	struct {
+		u32 addr;
+		const char *str;
+	} fseq_regs[] = {
+		FSEQ_REG(FSEQ_ERROR_CODE),
+		FSEQ_REG(FSEQ_TOP_INIT_VERSION),
+		FSEQ_REG(FSEQ_CNVIO_INIT_VERSION),
+		FSEQ_REG(FSEQ_OTP_VERSION),
+		FSEQ_REG(FSEQ_TOP_CONTENT_VERSION),
+		FSEQ_REG(FSEQ_ALIVE_TOKEN),
+		FSEQ_REG(FSEQ_CNVI_ID),
+		FSEQ_REG(FSEQ_CNVR_ID),
+		FSEQ_REG(CNVI_AUX_MISC_CHIP),
+		FSEQ_REG(CNVR_AUX_MISC_CHIP),
+		FSEQ_REG(CNVR_SCU_SD_REGS_SD_REG_DIG_DCDC_VTRIM),
+		FSEQ_REG(CNVR_SCU_SD_REGS_SD_REG_ACTIVE_VDIG_MIRROR),
 	};
 
-	iwl_trans_send_cmd(fwrt->trans, &hcmd);
+	if (!iwl_trans_grab_nic_access(trans, &flags))
+		return;
+
+	IWL_ERR(fwrt, "Fseq Registers:\n");
+
+	for (i = 0; i < ARRAY_SIZE(fseq_regs); i++)
+		IWL_ERR(fwrt, "0x%08X | %s\n",
+			iwl_read_prph_no_grab(trans, fseq_regs[i].addr),
+			fseq_regs[i].str);
+
+	iwl_trans_release_nic_access(trans, &flags);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_error_print_fseq_regs);
+
+static int iwl_fw_dbg_suspend_resume_hcmd(struct iwl_trans *trans, bool suspend)
+{
+	struct iwl_dbg_suspend_resume_cmd cmd = {
+		.operation = suspend ?
+			cpu_to_le32(DBGC_SUSPEND_CMD) :
+			cpu_to_le32(DBGC_RESUME_CMD),
+	};
+	struct iwl_host_cmd hcmd = {
+		.id = WIDE_ID(DEBUG_GROUP, DBGC_SUSPEND_RESUME),
+		.data[0] = &cmd,
+		.len[0] = sizeof(cmd),
+	};
+
+	return iwl_trans_send_cmd(trans, &hcmd);
 }
 
-static void iwl_fw_dbg_update_regions(struct iwl_fw_runtime *fwrt,
-				      struct iwl_fw_ini_region_tlv *tlv,
-				      bool ext, enum iwl_fw_ini_apply_point pnt)
+static void iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
+				      struct iwl_fw_dbg_params *params)
 {
-	void *iter = (void *)tlv->region_config;
-	int i, size = le32_to_cpu(tlv->num_regions);
-
-	for (i = 0; i < size; i++) {
-		struct iwl_fw_ini_region_cfg *reg = iter;
-		int id = le32_to_cpu(reg->region_id);
-		struct iwl_fw_ini_active_regs *active;
-
-		if (WARN(id >= ARRAY_SIZE(fwrt->dump.active_regs),
-			 "Invalid region id %d for apply point %d\n", id, pnt))
-			break;
-
-		active = &fwrt->dump.active_regs[id];
-
-		if (ext && active->apply_point == pnt)
-			IWL_WARN(fwrt->trans,
-				 "External region TLV overrides FW default %x\n",
-				 id);
-
-		IWL_DEBUG_FW(fwrt,
-			     "%s: apply point %d, activating region ID %d\n",
-			     __func__, pnt, id);
-
-		active->reg = reg;
-		active->apply_point = pnt;
-
-		if (le32_to_cpu(reg->region_type) !=
-		    IWL_FW_INI_REGION_DRAM_BUFFER)
-			iter += le32_to_cpu(reg->num_regions) * sizeof(__le32);
-
-		iter += sizeof(*reg);
+	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
+		return;
 	}
-}
 
-static void iwl_fw_dbg_update_triggers(struct iwl_fw_runtime *fwrt,
-				       struct iwl_fw_ini_trigger_tlv *tlv,
-				       bool ext,
-				       enum iwl_fw_ini_apply_point apply_point)
-{
-	int i, size = le32_to_cpu(tlv->num_triggers);
-	void *iter = (void *)tlv->trigger_config;
-
-	for (i = 0; i < size; i++) {
-		struct iwl_fw_ini_trigger *trig = iter;
-		struct iwl_fw_ini_active_triggers *active;
-		int id = le32_to_cpu(trig->trigger_id);
-		u32 num;
-
-		if (WARN_ON(id >= ARRAY_SIZE(fwrt->dump.active_trigs)))
-			break;
-
-		active = &fwrt->dump.active_trigs[id];
-
-		if (active->apply_point != apply_point) {
-			active->conf = NULL;
-			active->conf_ext = NULL;
-		}
-
-		num = le32_to_cpu(trig->num_regions);
-
-		if (ext && active->apply_point == apply_point) {
-			num += le32_to_cpu(active->conf->num_regions);
-			if (trig->ignore_default) {
-				active->conf_ext = active->conf;
-				active->conf = trig;
-			} else {
-				active->conf_ext = trig;
-			}
-		} else {
-			active->conf = trig;
-		}
-
-		/* Since zero means infinity - just set to -1 */
-		if (!le32_to_cpu(trig->occurrences))
-			trig->occurrences = cpu_to_le32(-1);
-		if (!le32_to_cpu(trig->ignore_consec))
-			trig->ignore_consec = cpu_to_le32(-1);
-
-		iter += sizeof(*trig) +
-			le32_to_cpu(trig->num_regions) * sizeof(__le32);
-
-		active->active = num;
-		active->apply_point = apply_point;
+	if (params) {
+		params->in_sample = iwl_read_umac_prph(trans, DBGC_IN_SAMPLE);
+		params->out_ctrl = iwl_read_umac_prph(trans, DBGC_OUT_CTRL);
 	}
+
+	iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, 0);
+	/* wait for the DBGC to finish writing the internal buffer to DRAM to
+	 * avoid halting the HW while writing
+	 */
+	usleep_range(700, 1000);
+	iwl_write_umac_prph(trans, DBGC_OUT_CTRL, 0);
 }
 
-static void _iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
-				    struct iwl_apply_point_data *data,
-				    enum iwl_fw_ini_apply_point pnt,
-				    bool ext)
+static int iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
+					struct iwl_fw_dbg_params *params)
 {
-	void *iter = data->data;
+	if (!params)
+		return -EIO;
 
-	while (iter && iter < data->data + data->size) {
-		struct iwl_ucode_tlv *tlv = iter;
-		void *ini_tlv = (void *)tlv->data;
-		u32 type = le32_to_cpu(tlv->type);
-
-		switch (type) {
-		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION:
-			iwl_fw_dbg_buffer_allocation(fwrt, ini_tlv);
-			break;
-		case IWL_UCODE_TLV_TYPE_HCMD:
-			if (pnt < IWL_FW_INI_APPLY_AFTER_ALIVE) {
-				IWL_ERR(fwrt,
-					"Invalid apply point %x for host command\n",
-					pnt);
-				goto next;
-			}
-			iwl_fw_dbg_send_hcmd(fwrt, tlv);
-			break;
-		case IWL_UCODE_TLV_TYPE_REGIONS:
-			iwl_fw_dbg_update_regions(fwrt, ini_tlv, ext, pnt);
-			break;
-		case IWL_UCODE_TLV_TYPE_TRIGGERS:
-			iwl_fw_dbg_update_triggers(fwrt, ini_tlv, ext, pnt);
-			break;
-		case IWL_UCODE_TLV_TYPE_DEBUG_FLOW:
-			break;
-		default:
-			WARN_ONCE(1, "Invalid TLV %x for apply point\n", type);
-			break;
-		}
-next:
-		iter += sizeof(*tlv) + le32_to_cpu(tlv->length);
+	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
+		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
+		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
+	} else {
+		iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, params->in_sample);
+		iwl_write_umac_prph(trans, DBGC_OUT_CTRL, params->out_ctrl);
 	}
+
+	return 0;
 }
 
-void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
-			    enum iwl_fw_ini_apply_point apply_point)
+int iwl_fw_dbg_stop_restart_recording(struct iwl_fw_runtime *fwrt,
+				      struct iwl_fw_dbg_params *params,
+				      bool stop)
 {
-	void *data = &fwrt->trans->apply_points[apply_point];
+	int ret = 0;
 
-	_iwl_fw_dbg_apply_point(fwrt, data, apply_point, false);
+	/* if the FW crashed or not debug monitor cfg was given, there is
+	 * no point in changing the recording state
+	 */
+	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status) ||
+	    (!fwrt->trans->dbg.dest_tlv &&
+	     fwrt->trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID))
+		return 0;
 
-	data = &fwrt->trans->apply_points_ext[apply_point];
-	_iwl_fw_dbg_apply_point(fwrt, data, apply_point, true);
+	if (fw_has_capa(&fwrt->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_DBG_SUSPEND_RESUME_CMD_SUPP))
+		ret = iwl_fw_dbg_suspend_resume_hcmd(fwrt->trans, stop);
+	else if (stop)
+		iwl_fw_dbg_stop_recording(fwrt->trans, params);
+	else
+		ret = iwl_fw_dbg_restart_recording(fwrt->trans, params);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (!ret) {
+		if (stop)
+			fwrt->trans->dbg.rec_on = false;
+		else
+			iwl_fw_set_dbg_rec_on(fwrt);
+	}
+#endif
+
+	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_fw_dbg_apply_point);
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_stop_restart_recording);

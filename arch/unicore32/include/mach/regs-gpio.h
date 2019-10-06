@@ -32,7 +32,7 @@
  */
 #define GPIO_GEDR	(PKUNITY_GPIO_BASE + 0x0018)
 /*
- * Sepcial Voltage Detect Reg GPIO_GPIR.
+ * Special Voltage Detect Reg GPIO_GPIR.
  */
 #define GPIO_GPIR	(PKUNITY_GPIO_BASE + 0x0020)
 

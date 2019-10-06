@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8960.c  --  WM8960 ALSA SoC Audio driver
  *
  * Copyright 2007-11 Wolfson Microelectronics, plc
  *
  * Author: Liam Girdwood
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

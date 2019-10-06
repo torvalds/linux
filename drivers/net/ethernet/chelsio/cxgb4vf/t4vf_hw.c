@@ -313,7 +313,17 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 	return ret;
 }
 
+/* In the Physical Function Driver Common Code, the ADVERT_MASK is used to
+ * mask out bits in the Advertised Port Capabilities which are managed via
+ * separate controls, like Pause Frames and Forward Error Correction.  In the
+ * Virtual Function Common Code, since we never perform L1 Configuration on
+ * the Link, the only things we really need to filter out are things which
+ * we decode and report separately like Speed.
+ */
 #define ADVERT_MASK (FW_PORT_CAP32_SPEED_V(FW_PORT_CAP32_SPEED_M) | \
+		     FW_PORT_CAP32_802_3_PAUSE | \
+		     FW_PORT_CAP32_802_3_ASM_DIR | \
+		     FW_PORT_CAP32_FEC_V(FW_PORT_CAP32_FEC_M) | \
 		     FW_PORT_CAP32_ANEG)
 
 /**
@@ -2005,8 +2015,10 @@ static void t4vf_handle_get_port_info(struct port_info *pi,
 	    fc != lc->fc || fec != lc->fec) {	/* something changed */
 		if (!link_ok && lc->link_ok) {
 			lc->link_down_rc = linkdnrc;
-			dev_warn(adapter->pdev_dev, "Port %d link down, reason: %s\n",
-				 pi->port_id, t4vf_link_down_rc_str(linkdnrc));
+			dev_warn_ratelimited(adapter->pdev_dev,
+					     "Port %d link down, reason: %s\n",
+					     pi->port_id,
+					     t4vf_link_down_rc_str(linkdnrc));
 		}
 		lc->link_ok = link_ok;
 		lc->speed = speed;

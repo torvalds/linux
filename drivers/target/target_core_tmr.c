@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Filename:  target_core_tmr.c
  *
@@ -6,20 +7,6 @@
  * (c) Copyright 2009-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  ******************************************************************************/
 
@@ -111,21 +98,6 @@ static bool __target_check_io_state(struct se_cmd *se_cmd,
 	if (se_cmd->transport_state & (CMD_T_COMPLETE | CMD_T_FABRIC_STOP)) {
 		pr_debug("Attempted to abort io tag: %llu already complete or"
 			" fabric stop, skipping\n", se_cmd->tag);
-		spin_unlock(&se_cmd->t_state_lock);
-		return false;
-	}
-	if (se_cmd->transport_state & CMD_T_PRE_EXECUTE) {
-		if (se_cmd->scsi_status) {
-			pr_debug("Attempted to abort io tag: %llu early failure"
-				 " status: 0x%02x\n", se_cmd->tag,
-				 se_cmd->scsi_status);
-			spin_unlock(&se_cmd->t_state_lock);
-			return false;
-		}
-	}
-	if (sess->sess_tearing_down) {
-		pr_debug("Attempted to abort io tag: %llu already shutdown,"
-			" skipping\n", se_cmd->tag);
 		spin_unlock(&se_cmd->t_state_lock);
 		return false;
 	}
@@ -232,33 +204,13 @@ static void core_tmr_drain_tmr_list(
 			continue;
 
 		spin_lock(&sess->sess_cmd_lock);
-		spin_lock(&cmd->t_state_lock);
-		if (!(cmd->transport_state & CMD_T_ACTIVE) ||
-		     (cmd->transport_state & CMD_T_FABRIC_STOP)) {
-			spin_unlock(&cmd->t_state_lock);
-			spin_unlock(&sess->sess_cmd_lock);
-			continue;
-		}
-		if (cmd->t_state == TRANSPORT_ISTATE_PROCESSING) {
-			spin_unlock(&cmd->t_state_lock);
-			spin_unlock(&sess->sess_cmd_lock);
-			continue;
-		}
-		if (sess->sess_tearing_down) {
-			spin_unlock(&cmd->t_state_lock);
-			spin_unlock(&sess->sess_cmd_lock);
-			continue;
-		}
-		cmd->transport_state |= CMD_T_ABORTED;
-		spin_unlock(&cmd->t_state_lock);
+		rc = __target_check_io_state(cmd, sess, 0);
+		spin_unlock(&sess->sess_cmd_lock);
 
-		rc = kref_get_unless_zero(&cmd->cmd_kref);
 		if (!rc) {
 			printk("LUN_RESET TMR: non-zero kref_get_unless_zero\n");
-			spin_unlock(&sess->sess_cmd_lock);
 			continue;
 		}
-		spin_unlock(&sess->sess_cmd_lock);
 
 		list_move_tail(&tmr_p->tmr_list, &drain_tmr_list);
 	}
@@ -425,7 +377,7 @@ int core_tmr_lun_reset(
 	if (!preempt_and_abort_list &&
 	     (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)) {
 		spin_lock(&dev->dev_reservation_lock);
-		dev->dev_reserved_node_acl = NULL;
+		dev->reservation_holder = NULL;
 		dev->dev_reservation_flags &= ~DRF_SPC2_RESERVATIONS;
 		spin_unlock(&dev->dev_reservation_lock);
 		pr_debug("LUN_RESET: SCSI-2 Released reservation\n");

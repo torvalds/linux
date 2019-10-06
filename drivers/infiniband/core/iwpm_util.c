@@ -51,6 +51,12 @@ static DEFINE_SPINLOCK(iwpm_reminfo_lock);
 static DEFINE_MUTEX(iwpm_admin_lock);
 static struct iwpm_admin_data iwpm_admin;
 
+/**
+ * iwpm_init - Allocate resources for the iwarp port mapper
+ * @nl_client: The index of the netlink client
+ *
+ * Should be called when network interface goes up.
+ */
 int iwpm_init(u8 nl_client)
 {
 	int ret = 0;
@@ -87,6 +93,12 @@ init_exit:
 static void free_hash_bucket(void);
 static void free_reminfo_bucket(void);
 
+/**
+ * iwpm_exit - Deallocate resources for the iwarp port mapper
+ * @nl_client: The index of the netlink client
+ *
+ * Should be called when network interface goes down.
+ */
 int iwpm_exit(u8 nl_client)
 {
 
@@ -112,9 +124,17 @@ int iwpm_exit(u8 nl_client)
 static struct hlist_head *get_mapinfo_hash_bucket(struct sockaddr_storage *,
 					       struct sockaddr_storage *);
 
+/**
+ * iwpm_create_mapinfo - Store local and mapped IPv4/IPv6 address
+ *                       info in a hash table
+ * @local_addr: Local ip/tcp address
+ * @mapped_addr: Mapped local ip/tcp address
+ * @nl_client: The index of the netlink client
+ * @map_flags: IWPM mapping flags
+ */
 int iwpm_create_mapinfo(struct sockaddr_storage *local_sockaddr,
 			struct sockaddr_storage *mapped_sockaddr,
-			u8 nl_client)
+			u8 nl_client, u32 map_flags)
 {
 	struct hlist_head *hash_bucket_head = NULL;
 	struct iwpm_mapping_info *map_info;
@@ -132,6 +152,7 @@ int iwpm_create_mapinfo(struct sockaddr_storage *local_sockaddr,
 	memcpy(&map_info->mapped_sockaddr, mapped_sockaddr,
 	       sizeof(struct sockaddr_storage));
 	map_info->nl_client = nl_client;
+	map_info->map_flags = map_flags;
 
 	spin_lock_irqsave(&iwpm_mapinfo_lock, flags);
 	if (iwpm_hash_bucket) {
@@ -150,6 +171,15 @@ int iwpm_create_mapinfo(struct sockaddr_storage *local_sockaddr,
 	return ret;
 }
 
+/**
+ * iwpm_remove_mapinfo - Remove local and mapped IPv4/IPv6 address
+ *                       info from the hash table
+ * @local_addr: Local ip/tcp address
+ * @mapped_local_addr: Mapped local ip/tcp address
+ *
+ * Returns err code if mapping info is not found in the hash table,
+ * otherwise returns 0
+ */
 int iwpm_remove_mapinfo(struct sockaddr_storage *local_sockaddr,
 			struct sockaddr_storage *mapped_local_addr)
 {
@@ -250,6 +280,17 @@ void iwpm_add_remote_info(struct iwpm_remote_info *rem_info)
 	spin_unlock_irqrestore(&iwpm_reminfo_lock, flags);
 }
 
+/**
+ * iwpm_get_remote_info - Get the remote connecting peer address info
+ *
+ * @mapped_loc_addr: Mapped local address of the listening peer
+ * @mapped_rem_addr: Mapped remote address of the connecting peer
+ * @remote_addr: To store the remote address of the connecting peer
+ * @nl_client: The index of the netlink client
+ *
+ * The remote address info is retrieved and provided to the client in
+ * the remote_addr. After that it is removed from the hash table
+ */
 int iwpm_get_remote_info(struct sockaddr_storage *mapped_loc_addr,
 			 struct sockaddr_storage *mapped_rem_addr,
 			 struct sockaddr_storage *remote_addr,
@@ -465,14 +506,14 @@ int iwpm_parse_nlmsg(struct netlink_callback *cb, int policy_max,
 	int ret;
 	const char *err_str = "";
 
-	ret = nlmsg_validate(cb->nlh, nlh_len, policy_max - 1, nlmsg_policy,
-			     NULL);
+	ret = nlmsg_validate_deprecated(cb->nlh, nlh_len, policy_max - 1,
+					nlmsg_policy, NULL);
 	if (ret) {
 		err_str = "Invalid attribute";
 		goto parse_nlmsg_error;
 	}
-	ret = nlmsg_parse(cb->nlh, nlh_len, nltb, policy_max - 1,
-			  nlmsg_policy, NULL);
+	ret = nlmsg_parse_deprecated(cb->nlh, nlh_len, nltb, policy_max - 1,
+				     nlmsg_policy, NULL);
 	if (ret) {
 		err_str = "Unable to parse the nlmsg";
 		goto parse_nlmsg_error;
@@ -604,7 +645,7 @@ static int send_mapinfo_num(u32 mapping_num, u8 nl_client, int iwpm_pid)
 
 	nlmsg_end(skb, nlh);
 
-	ret = rdma_nl_unicast(skb, iwpm_pid);
+	ret = rdma_nl_unicast(&init_net, skb, iwpm_pid);
 	if (ret) {
 		skb = NULL;
 		err_str = "Unable to send a nlmsg";
@@ -614,8 +655,7 @@ static int send_mapinfo_num(u32 mapping_num, u8 nl_client, int iwpm_pid)
 	return 0;
 mapinfo_num_error:
 	pr_info("%s: %s\n", __func__, err_str);
-	if (skb)
-		dev_kfree_skb(skb);
+	dev_kfree_skb(skb);
 	return ret;
 }
 
@@ -633,7 +673,7 @@ static int send_nlmsg_done(struct sk_buff *skb, u8 nl_client, int iwpm_pid)
 		return -ENOMEM;
 	}
 	nlh->nlmsg_type = NLMSG_DONE;
-	ret = rdma_nl_unicast(skb, iwpm_pid);
+	ret = rdma_nl_unicast(&init_net, skb, iwpm_pid);
 	if (ret)
 		pr_warn("%s Unable to send a nlmsg\n", __func__);
 	return ret;
@@ -686,6 +726,14 @@ int iwpm_send_mapinfo(u8 nl_client, int iwpm_pid)
 			if (ret)
 				goto send_mapping_info_unlock;
 
+			if (iwpm_ulib_version > IWPM_UABI_VERSION_MIN) {
+				ret = ibnl_put_attr(skb, nlh, sizeof(u32),
+						&map_info->map_flags,
+						IWPM_NLA_MAPINFO_FLAGS);
+				if (ret)
+					goto send_mapping_info_unlock;
+			}
+
 			nlmsg_end(skb, nlh);
 
 			iwpm_print_sockaddr(&map_info->local_sockaddr,
@@ -729,8 +777,7 @@ send_mapping_info_unlock:
 send_mapping_info_exit:
 	if (ret) {
 		pr_warn("%s: %s (ret = %d)\n", __func__, err_str, ret);
-		if (skb)
-			dev_kfree_skb(skb);
+		dev_kfree_skb(skb);
 		return ret;
 	}
 	send_nlmsg_done(skb, nl_client, iwpm_pid);
@@ -753,4 +800,38 @@ int iwpm_mapinfo_available(void)
 	}
 	spin_unlock_irqrestore(&iwpm_mapinfo_lock, flags);
 	return full_bucket;
+}
+
+int iwpm_send_hello(u8 nl_client, int iwpm_pid, u16 abi_version)
+{
+	struct sk_buff *skb = NULL;
+	struct nlmsghdr *nlh;
+	const char *err_str = "";
+	int ret = -EINVAL;
+
+	skb = iwpm_create_nlmsg(RDMA_NL_IWPM_HELLO, &nlh, nl_client);
+	if (!skb) {
+		err_str = "Unable to create a nlmsg";
+		goto hello_num_error;
+	}
+	nlh->nlmsg_seq = iwpm_get_nlmsg_seq();
+	err_str = "Unable to put attribute of abi_version into nlmsg";
+	ret = ibnl_put_attr(skb, nlh, sizeof(u16), &abi_version,
+			    IWPM_NLA_HELLO_ABI_VERSION);
+	if (ret)
+		goto hello_num_error;
+	nlmsg_end(skb, nlh);
+
+	ret = rdma_nl_unicast(&init_net, skb, iwpm_pid);
+	if (ret) {
+		skb = NULL;
+		err_str = "Unable to send a nlmsg";
+		goto hello_num_error;
+	}
+	pr_debug("%s: Sent hello abi_version = %u\n", __func__, abi_version);
+	return 0;
+hello_num_error:
+	pr_info("%s: %s\n", __func__, err_str);
+	dev_kfree_skb(skb);
+	return ret;
 }

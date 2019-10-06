@@ -44,7 +44,7 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 	vgpu_vreg_t(vgpu, vgtif_reg(display_ready)) = 0;
 	vgpu_vreg_t(vgpu, vgtif_reg(vgt_id)) = vgpu->id;
 
-	vgpu_vreg_t(vgpu, vgtif_reg(vgt_caps)) = VGT_CAPS_FULL_48BIT_PPGTT;
+	vgpu_vreg_t(vgpu, vgtif_reg(vgt_caps)) = VGT_CAPS_FULL_PPGTT;
 	vgpu_vreg_t(vgpu, vgtif_reg(vgt_caps)) |= VGT_CAPS_HWSP_EMULATION;
 	vgpu_vreg_t(vgpu, vgtif_reg(vgt_caps)) |= VGT_CAPS_HUGE_GTT;
 
@@ -148,10 +148,10 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 		gvt->types[i].avail_instance = min(low_avail / vgpu_types[i].low_mm,
 						   high_avail / vgpu_types[i].high_mm);
 
-		if (IS_GEN8(gvt->dev_priv))
+		if (IS_GEN(gvt->dev_priv, 8))
 			sprintf(gvt->types[i].name, "GVTg_V4_%s",
 						vgpu_types[i].name);
-		else if (IS_GEN9(gvt->dev_priv))
+		else if (IS_GEN(gvt->dev_priv, 9))
 			sprintf(gvt->types[i].name, "GVTg_V5_%s",
 						vgpu_types[i].name);
 
@@ -420,11 +420,15 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	if (ret)
 		goto out_clean_submission;
 
-	ret = intel_gvt_debugfs_add_vgpu(vgpu);
+	intel_gvt_debugfs_add_vgpu(vgpu);
+
+	ret = intel_gvt_hypervisor_set_opregion(vgpu);
 	if (ret)
 		goto out_clean_sched_policy;
 
-	ret = intel_gvt_hypervisor_set_opregion(vgpu);
+	/*TODO: add more platforms support */
+	if (IS_SKYLAKE(gvt->dev_priv) || IS_KABYLAKE(gvt->dev_priv))
+		ret = intel_gvt_hypervisor_set_edid(vgpu, PORT_D);
 	if (ret)
 		goto out_clean_sched_policy;
 
@@ -520,11 +524,11 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
  * GPU engines. For FLR, engine_mask is ignored.
  */
 void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
-				 unsigned int engine_mask)
+				 intel_engine_mask_t engine_mask)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
-	unsigned int resetting_eng = dmlr ? ALL_ENGINES : engine_mask;
+	intel_engine_mask_t resetting_eng = dmlr ? ALL_ENGINES : engine_mask;
 
 	gvt_dbg_core("------------------------------------------\n");
 	gvt_dbg_core("resseting vgpu%d, dmlr %d, engine_mask %08x\n",

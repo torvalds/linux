@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for the Renesas PHY uPD60620.
  *
  * Copyright (C) 2015 Softing Industrial Automation GmbH
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
  */
 
 #include <linux/kernel.h>
@@ -92,7 +87,7 @@ static struct phy_driver upd60620_driver[1] = { {
 	.phy_id         = UPD60620_PHY_ID,
 	.phy_id_mask    = 0xfffffffe,
 	.name           = "Renesas uPD60620",
-	.features       = PHY_BASIC_FEATURES,
+	/* PHY_BASIC_FEATURES */
 	.flags          = 0,
 	.config_init    = upd60620_config_init,
 	.read_status    = upd60620_read_status,

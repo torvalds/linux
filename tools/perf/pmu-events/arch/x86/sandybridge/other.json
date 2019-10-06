@@ -9,6 +9,15 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "EventCode": "0x4E",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "EventName": "HW_PRE_REQ.DL1_MISS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Hardware Prefetch requests that miss the L1D cache. This accounts for both L1 streamer and IP-based (IPP) HW prefetchers. A request is being counted each time it access the cache & miss it, including if a block is applicable or if hit the Fill Buffer for .",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
         "EventCode": "0x5C",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -35,15 +44,6 @@
         "EventName": "CPL_CYCLES.RING123",
         "SampleAfterValue": "2000003",
         "BriefDescription": "Unhalted core cycles when thread is in rings 1, 2, or 3.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x4E",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "HW_PRE_REQ.DL1_MISS",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Hardware Prefetch requests that miss the L1D cache. This accounts for both L1 streamer and IP-based (IPP) HW prefetchers. A request is being counted each time it access the cache & miss it, including if a block is applicable or if hit the Fill Buffer for .",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {

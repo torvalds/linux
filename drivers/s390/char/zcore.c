@@ -4,7 +4,7 @@
  * dumps on SCSI disks (zfcpdump). The "zcore/mem" debugfs file shows the same
  * dump format as s390 standalone dumps.
  *
- * For more information please refer to Documentation/s390/zfcpdump.txt
+ * For more information please refer to Documentation/s390/zfcpdump.rst
  *
  * Copyright IBM Corp. 2003, 2008
  * Author(s): Michael Holzheu
@@ -51,7 +51,7 @@ static struct dentry *zcore_dir;
 static struct dentry *zcore_memmap_file;
 static struct dentry *zcore_reipl_file;
 static struct dentry *zcore_hsa_file;
-static struct ipl_parameter_block *ipl_block;
+static struct ipl_parameter_block *zcore_ipl_block;
 
 static char hsa_buf[PAGE_SIZE] __aligned(PAGE_SIZE);
 
@@ -182,8 +182,8 @@ static const struct file_operations zcore_memmap_fops = {
 static ssize_t zcore_reipl_write(struct file *filp, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
-	if (ipl_block) {
-		diag308(DIAG308_SET, ipl_block);
+	if (zcore_ipl_block) {
+		diag308(DIAG308_SET, zcore_ipl_block);
 		diag308(DIAG308_LOAD_CLEAR, NULL);
 	}
 	return count;
@@ -191,7 +191,7 @@ static ssize_t zcore_reipl_write(struct file *filp, const char __user *buf,
 
 static int zcore_reipl_open(struct inode *inode, struct file *filp)
 {
-	return nonseekable_open(inode, filp);
+	return stream_open(inode, filp);
 }
 
 static int zcore_reipl_release(struct inode *inode, struct file *filp)
@@ -265,18 +265,20 @@ static int __init zcore_reipl_init(void)
 		return rc;
 	if (ipib_info.ipib == 0)
 		return 0;
-	ipl_block = (void *) __get_free_page(GFP_KERNEL);
-	if (!ipl_block)
+	zcore_ipl_block = (void *) __get_free_page(GFP_KERNEL);
+	if (!zcore_ipl_block)
 		return -ENOMEM;
 	if (ipib_info.ipib < sclp.hsa_size)
-		rc = memcpy_hsa_kernel(ipl_block, ipib_info.ipib, PAGE_SIZE);
+		rc = memcpy_hsa_kernel(zcore_ipl_block, ipib_info.ipib,
+				       PAGE_SIZE);
 	else
-		rc = memcpy_real(ipl_block, (void *) ipib_info.ipib, PAGE_SIZE);
-	if (rc || (__force u32)csum_partial(ipl_block, ipl_block->hdr.len, 0) !=
+		rc = memcpy_real(zcore_ipl_block, (void *) ipib_info.ipib,
+				 PAGE_SIZE);
+	if (rc || (__force u32)csum_partial(zcore_ipl_block, zcore_ipl_block->hdr.len, 0) !=
 	    ipib_info.checksum) {
 		TRACE("Checksum does not match\n");
-		free_page((unsigned long) ipl_block);
-		ipl_block = NULL;
+		free_page((unsigned long) zcore_ipl_block);
+		zcore_ipl_block = NULL;
 	}
 	return 0;
 }

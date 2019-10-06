@@ -30,6 +30,8 @@
 #define I40E_CEE_SUBTYPE_APP_PRI	4
 
 #define I40E_CEE_MAX_FEAT_TYPE		3
+#define I40E_LLDP_CURRENT_STATUS_XL710_OFFSET	0x2B
+#define I40E_LLDP_CURRENT_STATUS_X722_OFFSET	0x31
 /* Defines for LLDP TLV header */
 #define I40E_LLDP_TLV_LEN_SHIFT		0
 #define I40E_LLDP_TLV_LEN_MASK		(0x01FF << I40E_LLDP_TLV_LEN_SHIFT)
@@ -124,5 +126,5 @@ i40e_status i40e_aq_get_dcb_config(struct i40e_hw *hw, u8 mib_type,
 					     u8 bridgetype,
 					     struct i40e_dcbx_config *dcbcfg);
 i40e_status i40e_get_dcb_config(struct i40e_hw *hw);
-i40e_status i40e_init_dcb(struct i40e_hw *hw);
+i40e_status i40e_init_dcb(struct i40e_hw *hw, bool enable_mib_change);
 #endif /* _I40E_DCB_H_ */

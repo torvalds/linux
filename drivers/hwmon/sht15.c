@@ -10,7 +10,7 @@
  *
  * Copyright (c) 2007 Wouter Horre
  *
- * For further information, see the Documentation/hwmon/sht15 file.
+ * For further information, see the Documentation/hwmon/sht15.rst file.
  */
 
 #include <linux/interrupt.h>
@@ -677,9 +677,8 @@ static inline int sht15_calc_humid(struct sht15_data *data)
  * and heater_enable sysfs attributes.
  * Returns number of bytes written into buffer, negative errno on error.
  */
-static ssize_t sht15_show_status(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
+static ssize_t sht15_status_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	int ret;
 	struct sht15_data *data = dev_get_drvdata(dev);
@@ -700,7 +699,7 @@ static ssize_t sht15_show_status(struct device *dev,
  * Will be called on write access to heater_enable sysfs attribute.
  * Returns number of bytes actually decoded, negative errno on error.
  */
-static ssize_t sht15_store_heater(struct device *dev,
+static ssize_t sht15_status_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
@@ -734,9 +733,8 @@ static ssize_t sht15_store_heater(struct device *dev,
  * Will be called on read access to temp1_input sysfs attribute.
  * Returns number of bytes written into buffer, negative errno on error.
  */
-static ssize_t sht15_show_temp(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+static ssize_t sht15_temp_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	int ret;
 	struct sht15_data *data = dev_get_drvdata(dev);
@@ -757,9 +755,8 @@ static ssize_t sht15_show_temp(struct device *dev,
  * Will be called on read access to humidity1_input sysfs attribute.
  * Returns number of bytes written into buffer, negative errno on error.
  */
-static ssize_t sht15_show_humidity(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
+static ssize_t sht15_humidity_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	int ret;
 	struct sht15_data *data = dev_get_drvdata(dev);
@@ -777,16 +774,13 @@ static ssize_t name_show(struct device *dev,
 	return sprintf(buf, "%s\n", pdev->name);
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO,
-			  sht15_show_temp, NULL, 0);
-static SENSOR_DEVICE_ATTR(humidity1_input, S_IRUGO,
-			  sht15_show_humidity, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_fault, S_IRUGO, sht15_show_status, NULL,
-			  SHT15_STATUS_LOW_BATTERY);
-static SENSOR_DEVICE_ATTR(humidity1_fault, S_IRUGO, sht15_show_status, NULL,
-			  SHT15_STATUS_LOW_BATTERY);
-static SENSOR_DEVICE_ATTR(heater_enable, S_IRUGO | S_IWUSR, sht15_show_status,
-			  sht15_store_heater, SHT15_STATUS_HEATER);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, sht15_temp, 0);
+static SENSOR_DEVICE_ATTR_RO(humidity1_input, sht15_humidity, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_fault, sht15_status,
+			     SHT15_STATUS_LOW_BATTERY);
+static SENSOR_DEVICE_ATTR_RO(humidity1_fault, sht15_status,
+			     SHT15_STATUS_LOW_BATTERY);
+static SENSOR_DEVICE_ATTR_RW(heater_enable, sht15_status, SHT15_STATUS_HEATER);
 static DEVICE_ATTR_RO(name);
 static struct attribute *sht15_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,

@@ -57,7 +57,7 @@ int intel_vgpu_gpa_to_mmio_offset(struct intel_vgpu *vgpu, u64 gpa)
 	(reg >= gvt->device_info.gtt_start_offset \
 	 && reg < gvt->device_info.gtt_start_offset + gvt_ggtt_sz(gvt))
 
-static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, uint64_t pa,
+static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, u64 pa,
 		void *p_data, unsigned int bytes, bool read)
 {
 	struct intel_gvt *gvt = NULL;
@@ -99,7 +99,7 @@ static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, uint64_t pa,
  * Returns:
  * Zero on success, negative error code if failed
  */
-int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
+int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, u64 pa,
 		void *p_data, unsigned int bytes)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
@@ -171,7 +171,7 @@ out:
  * Returns:
  * Zero on success, negative error code if failed
  */
-int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, uint64_t pa,
+int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, u64 pa,
 		void *p_data, unsigned int bytes)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
@@ -239,7 +239,6 @@ void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu, bool dmlr)
 
 	if (dmlr) {
 		memcpy(vgpu->mmio.vreg, mmio, info->mmio_size);
-		memcpy(vgpu->mmio.sreg, mmio, info->mmio_size);
 
 		vgpu_vreg_t(vgpu, GEN6_GT_THREAD_STATUS_REG) = 0;
 
@@ -280,7 +279,6 @@ void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu, bool dmlr)
 		 * touched
 		 */
 		memcpy(vgpu->mmio.vreg, mmio, GVT_GEN8_MMIO_RESET_OFFSET);
-		memcpy(vgpu->mmio.sreg, mmio, GVT_GEN8_MMIO_RESET_OFFSET);
 	}
 
 }
@@ -296,11 +294,9 @@ int intel_vgpu_init_mmio(struct intel_vgpu *vgpu)
 {
 	const struct intel_gvt_device_info *info = &vgpu->gvt->device_info;
 
-	vgpu->mmio.vreg = vzalloc(array_size(info->mmio_size, 2));
+	vgpu->mmio.vreg = vzalloc(info->mmio_size);
 	if (!vgpu->mmio.vreg)
 		return -ENOMEM;
-
-	vgpu->mmio.sreg = vgpu->mmio.vreg + info->mmio_size;
 
 	intel_vgpu_reset_mmio(vgpu, true);
 
@@ -315,5 +311,5 @@ int intel_vgpu_init_mmio(struct intel_vgpu *vgpu)
 void intel_vgpu_clean_mmio(struct intel_vgpu *vgpu)
 {
 	vfree(vgpu->mmio.vreg);
-	vgpu->mmio.vreg = vgpu->mmio.sreg = NULL;
+	vgpu->mmio.vreg = NULL;
 }

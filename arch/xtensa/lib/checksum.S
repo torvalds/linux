@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -7,17 +8,12 @@
  *
  * Xtensa version:  Copyright (C) 2001 Tensilica, Inc. by Kevin Chea
  *                  Optimized by Joe Taylor
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 
 #include <linux/errno.h>
 #include <linux/linkage.h>
-#include <variant/core.h>
 #include <asm/asmmacro.h>
+#include <asm/core.h>
 
 /*
  * computes a partial checksum, e.g. for TCP/UDP fragments
@@ -47,7 +43,7 @@ ENTRY(csum_partial)
 	 * Experiments with Ethernet and SLIP connections show that buf
 	 * is aligned on either a 2-byte or 4-byte boundary.
 	 */
-	entry	sp, 32
+	abi_entry_default
 	extui	a5, a2, 0, 2
 	bnez	a5, 8f		/* branch if 2-byte aligned */
 	/* Fall-through on common case, 4-byte alignment */
@@ -111,7 +107,7 @@ ENTRY(csum_partial)
 	ONES_ADD(a4, a6)
 7:
 	mov	a2, a4
-	retw
+	abi_ret_default
 
 	/* uncommon case, buf is 2-byte aligned */
 8:
@@ -199,7 +195,7 @@ unsigned int csum_partial_copy_generic (const char *src, char *dst, int len,
 
 ENTRY(csum_partial_copy_generic)
 
-	entry	sp, 32
+	abi_entry_default
 	mov	a12, a3
 	mov	a11, a4
 	or	a10, a2, a3
@@ -320,7 +316,7 @@ EX(11f)	s8i	a9, a3, 0
 	ONES_ADD(a5, a9)
 8:
 	mov	a2, a5
-	retw
+	abi_ret_default
 
 5:
 	/* Control branch to here when either src or dst is odd.  We
@@ -387,12 +383,12 @@ ENDPROC(csum_partial_copy_generic)
 	blt	a12, a11, .Leloop
 #endif
 2:
-	retw
+	abi_ret_default
 
 11:
 	movi	a2, -EFAULT
 	s32i	a2, a7, 0	/* dst_err_ptr */
 	movi	a2, 0
-	retw
+	abi_ret_default
 
 .previous

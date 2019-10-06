@@ -7,6 +7,7 @@
  * we directly assign the wireless handlers of wireless interfaces.
  *
  * Copyright 2008-2009	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright (C) 2019 Intel Corporation
  */
 
 #include <linux/export.h>
@@ -352,9 +353,6 @@ static int cfg80211_wext_siwretry(struct net_device *dev,
 		changed |= WIPHY_PARAM_RETRY_LONG;
 		changed |= WIPHY_PARAM_RETRY_SHORT;
 	}
-
-	if (!changed)
-		return 0;
 
 	err = rdev_set_wiphy_params(rdev, changed);
 	if (err) {
@@ -800,7 +798,7 @@ static int cfg80211_wext_giwfreq(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
-	struct cfg80211_chan_def chandef;
+	struct cfg80211_chan_def chandef = {};
 	int ret;
 
 	switch (wdev->iftype) {
@@ -867,8 +865,8 @@ static int cfg80211_wext_siwtxpower(struct net_device *dev,
 			}
 		}
 	} else {
-		rfkill_set_sw_state(rdev->rfkill, true);
-		schedule_work(&rdev->rfkill_sync);
+		if (rfkill_set_sw_state(rdev->rfkill, true))
+			schedule_work(&rdev->rfkill_block);
 		return 0;
 	}
 
@@ -1337,6 +1335,7 @@ static struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 			wstats.qual.qual = sig + 110;
 			break;
 		}
+		/* fall through */
 	case CFG80211_SIGNAL_TYPE_UNSPEC:
 		if (sinfo.filled & BIT_ULL(NL80211_STA_INFO_SIGNAL)) {
 			wstats.qual.updated |= IW_QUAL_LEVEL_UPDATED;
@@ -1345,6 +1344,7 @@ static struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 			wstats.qual.qual = sinfo.signal;
 			break;
 		}
+		/* fall through */
 	default:
 		wstats.qual.updated |= IW_QUAL_LEVEL_INVALID;
 		wstats.qual.updated |= IW_QUAL_QUAL_INVALID;

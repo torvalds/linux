@@ -1,7 +1,8 @@
+# SPDX-License-Identifier: ISC
 config ATH6KL
 	tristate "Atheros mobile chipsets support"
 	depends on CFG80211
-        ---help---
+	---help---
 	  This module adds core support for wireless adapters based on
 	  Atheros AR6003 and AR6004 chipsets. You still need separate
 	  bus drivers for USB and SDIO to be able to use real devices.

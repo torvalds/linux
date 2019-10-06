@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #include "wifi.h"
 #include "rc.h"
@@ -452,6 +430,7 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 		SET_IEEE80211_PERM_ADDR(hw, rtlefuse->dev_addr);
 	} else {
 		u8 rtlmac1[] = { 0x00, 0xe0, 0x4c, 0x81, 0x92, 0x00 };
+
 		get_random_bytes((rtlmac1 + (ETH_ALEN - 1)), 1);
 		SET_IEEE80211_PERM_ADDR(hw, rtlmac1);
 	}
@@ -469,6 +448,11 @@ static void _rtl_init_deferred_work(struct ieee80211_hw *hw)
 	/* <2> work queue */
 	rtlpriv->works.hw = hw;
 	rtlpriv->works.rtl_wq = alloc_workqueue("%s", 0, 0, rtlpriv->cfg->name);
+	if (unlikely(!rtlpriv->works.rtl_wq)) {
+		pr_err("Failed to allocate work queue\n");
+		return;
+	}
+
 	INIT_DELAYED_WORK(&rtlpriv->works.watchdog_wq,
 			  (void *)rtl_watchdog_wq_callback);
 	INIT_DELAYED_WORK(&rtlpriv->works.ips_nic_off_wq,
@@ -481,7 +465,6 @@ static void _rtl_init_deferred_work(struct ieee80211_hw *hw)
 			  (void *)rtl_fwevt_wq_callback);
 	INIT_DELAYED_WORK(&rtlpriv->works.c2hcmd_wq,
 			  (void *)rtl_c2hcmd_wq_callback);
-
 }
 
 void rtl_deinit_deferred_work(struct ieee80211_hw *hw, bool ips_wq)
@@ -640,6 +623,7 @@ static void _rtl_query_shortgi(struct ieee80211_hw *hw,
 	u8 rate_flag = info->control.rates[0].flags;
 	u8 sgi_40 = 0, sgi_20 = 0, bw_40 = 0;
 	u8 sgi_80 = 0, bw_80 = 0;
+
 	tcb_desc->use_shortgi = false;
 
 	if (sta == NULL)
@@ -1872,6 +1856,7 @@ int rtl_rx_agg_stop(struct ieee80211_hw *hw,
 
 	return 0;
 }
+
 int rtl_tx_agg_oper(struct ieee80211_hw *hw,
 		struct ieee80211_sta *sta, u16 tid)
 {
@@ -2095,7 +2080,6 @@ void rtl_watchdog_wq_callback(void *data)
 	 * busytraffic we don't change channel
 	 */
 	if (mac->link_state >= MAC80211_LINKED) {
-
 		/* (1) get aver_rx_cnt_inperiod & aver_tx_cnt_inperiod */
 		for (idx = 0; idx <= 2; idx++) {
 			rtlpriv->link_info.num_rx_in4period[idx] =
@@ -2172,8 +2156,6 @@ label_lps_done:
 		;
 	}
 
-	rtlpriv->link_info.num_rx_inperiod = 0;
-	rtlpriv->link_info.num_tx_inperiod = 0;
 	for (tid = 0; tid <= 7; tid++)
 		rtlpriv->link_info.tidtx_inperiod[tid] = 0;
 
@@ -2236,6 +2218,8 @@ label_lps_done:
 			rtlpriv->btcoexist.btc_info.in_4way = false;
 	}
 
+	rtlpriv->link_info.num_rx_inperiod = 0;
+	rtlpriv->link_info.num_tx_inperiod = 0;
 	rtlpriv->link_info.bcn_rx_inperiod = 0;
 
 	/* <6> scan list */
@@ -2255,6 +2239,7 @@ void rtl_watch_dog_timer_callback(struct timer_list *t)
 	mod_timer(&rtlpriv->works.watchdog_timer,
 		  jiffies + MSECS(RTL_WATCH_DOG_TIME));
 }
+
 void rtl_fwevt_wq_callback(void *data)
 {
 	struct rtl_works *rtlworks =
@@ -2311,11 +2296,10 @@ static void rtl_c2h_content_parsing(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal_ops *hal_ops = rtlpriv->cfg->ops;
 	const struct rtl_btc_ops *btc_ops = rtlpriv->btcoexist.btc_ops;
-	u8 cmd_id, cmd_seq, cmd_len;
+	u8 cmd_id, cmd_len;
 	u8 *cmd_buf = NULL;
 
 	cmd_id = GET_C2H_CMD_ID(skb->data);
-	cmd_seq = GET_C2H_SEQ(skb->data);
 	cmd_len = skb->len - C2H_DATA_OFFSET;
 	cmd_buf = GET_C2H_DATA_PTR(skb->data);
 
@@ -2407,6 +2391,7 @@ void rtl_easy_concurrent_retrytimer_callback(struct timer_list *t)
 
 	rtlpriv->cfg->ops->dualmac_easy_concurrent(hw);
 }
+
 /*********************************************************
  *
  * frame process functions

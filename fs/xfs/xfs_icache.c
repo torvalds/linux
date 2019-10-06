@@ -5,13 +5,13 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
-#include "xfs_error.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_inode_item.h"
@@ -23,8 +23,6 @@
 #include "xfs_dquot.h"
 #include "xfs_reflink.h"
 
-#include <linux/kthread.h>
-#include <linux/freezer.h>
 #include <linux/iversion.h>
 
 /*
@@ -42,7 +40,7 @@ xfs_inode_alloc(
 	 * KM_MAYFAIL and return NULL here on ENOMEM. Set the
 	 * code up to do this anyway.
 	 */
-	ip = kmem_zone_alloc(xfs_inode_zone, KM_SLEEP);
+	ip = kmem_zone_alloc(xfs_inode_zone, 0);
 	if (!ip)
 		return NULL;
 	if (inode_init_always(mp->m_super, VFS_I(ip))) {
@@ -70,6 +68,11 @@ xfs_inode_alloc(
 	ip->i_flags = 0;
 	ip->i_delayed_blks = 0;
 	memset(&ip->i_d, 0, sizeof(ip->i_d));
+	ip->i_sick = 0;
+	ip->i_checked = 0;
+	INIT_WORK(&ip->i_ioend_work, xfs_end_io);
+	INIT_LIST_HEAD(&ip->i_ioend_list);
+	spin_lock_init(&ip->i_ioend_lock);
 
 	return ip;
 }
@@ -446,6 +449,8 @@ xfs_iget_cache_hit(
 		ip->i_flags |= XFS_INEW;
 		xfs_inode_clear_reclaim_tag(pag, ip->i_ino);
 		inode->i_state = I_NEW;
+		ip->i_sick = 0;
+		ip->i_checked = 0;
 
 		ASSERT(!rwsem_is_locked(&inode->i_rwsem));
 		init_rwsem(&inode->i_rwsem);
@@ -1815,7 +1820,7 @@ xfs_inode_clear_cowblocks_tag(
 
 /* Disable post-EOF and CoW block auto-reclamation. */
 void
-xfs_icache_disable_reclaim(
+xfs_stop_block_reaping(
 	struct xfs_mount	*mp)
 {
 	cancel_delayed_work_sync(&mp->m_eofblocks_work);
@@ -1824,7 +1829,7 @@ xfs_icache_disable_reclaim(
 
 /* Enable post-EOF and CoW block auto-reclamation. */
 void
-xfs_icache_enable_reclaim(
+xfs_start_block_reaping(
 	struct xfs_mount	*mp)
 {
 	xfs_queue_eofblocks(mp);

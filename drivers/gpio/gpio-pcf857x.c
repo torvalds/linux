@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for pcf857x, pca857x, and pca967x I2C GPIO expanders
  *
  * Copyright (C) 2007 David Brownell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/gpio/driver.h>
@@ -89,7 +76,6 @@ struct pcf857x {
 	struct mutex		lock;		/* protect 'out' */
 	unsigned		out;		/* software latch */
 	unsigned		status;		/* current status */
-	unsigned int		irq_parent;
 	unsigned		irq_enabled;	/* enabled irqs */
 
 	int (*write)(struct i2c_client *client, unsigned data);
@@ -211,18 +197,7 @@ static int pcf857x_irq_set_wake(struct irq_data *data, unsigned int on)
 {
 	struct pcf857x *gpio = irq_data_get_irq_chip_data(data);
 
-	int error = 0;
-
-	if (gpio->irq_parent) {
-		error = irq_set_irq_wake(gpio->irq_parent, on);
-		if (error) {
-			dev_dbg(&gpio->client->dev,
-				"irq %u doesn't support irq_set_wake\n",
-				gpio->irq_parent);
-			gpio->irq_parent = 0;
-		}
-	}
-	return error;
+	return irq_set_irq_wake(gpio->client->irq, on);
 }
 
 static void pcf857x_irq_enable(struct irq_data *data)
@@ -392,7 +367,6 @@ static int pcf857x_probe(struct i2c_client *client,
 
 		gpiochip_set_nested_irqchip(&gpio->chip, &gpio->irqchip,
 					    client->irq);
-		gpio->irq_parent = client->irq;
 	}
 
 	/* Let platform code set up the GPIOs and their users.

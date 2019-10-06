@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013 Nicira, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -89,9 +76,12 @@ void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 	__ip_select_ident(net, iph, skb_shinfo(skb)->gso_segs ?: 1);
 
 	err = ip_local_out(net, sk, skb);
-	if (unlikely(net_xmit_eval(err)))
-		pkt_len = 0;
-	iptunnel_xmit_stats(dev, pkt_len);
+
+	if (dev) {
+		if (unlikely(net_xmit_eval(err)))
+			pkt_len = 0;
+		iptunnel_xmit_stats(dev, pkt_len);
+	}
 }
 EXPORT_SYMBOL_GPL(iptunnel_xmit);
 
@@ -239,8 +229,8 @@ static int ip_tun_build_state(struct nlattr *attr,
 	struct nlattr *tb[LWTUNNEL_IP_MAX + 1];
 	int err;
 
-	err = nla_parse_nested(tb, LWTUNNEL_IP_MAX, attr, ip_tun_policy,
-			       extack);
+	err = nla_parse_nested_deprecated(tb, LWTUNNEL_IP_MAX, attr,
+					  ip_tun_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -251,6 +241,14 @@ static int ip_tun_build_state(struct nlattr *attr,
 	new_state->type = LWTUNNEL_ENCAP_IP;
 
 	tun_info = lwt_tun_info(new_state);
+
+#ifdef CONFIG_DST_CACHE
+	err = dst_cache_init(&tun_info->dst_cache, GFP_KERNEL);
+	if (err) {
+		lwtstate_free(new_state);
+		return err;
+	}
+#endif
 
 	if (tb[LWTUNNEL_IP_ID])
 		tun_info->key.tun_id = nla_get_be64(tb[LWTUNNEL_IP_ID]);
@@ -276,6 +274,15 @@ static int ip_tun_build_state(struct nlattr *attr,
 	*ts = new_state;
 
 	return 0;
+}
+
+static void ip_tun_destroy_state(struct lwtunnel_state *lwtstate)
+{
+#ifdef CONFIG_DST_CACHE
+	struct ip_tunnel_info *tun_info = lwt_tun_info(lwtstate);
+
+	dst_cache_destroy(&tun_info->dst_cache);
+#endif
 }
 
 static int ip_tun_fill_encap_info(struct sk_buff *skb,
@@ -313,6 +320,7 @@ static int ip_tun_cmp_encap(struct lwtunnel_state *a, struct lwtunnel_state *b)
 
 static const struct lwtunnel_encap_ops ip_tun_lwt_ops = {
 	.build_state = ip_tun_build_state,
+	.destroy_state = ip_tun_destroy_state,
 	.fill_encap = ip_tun_fill_encap_info,
 	.get_encap_size = ip_tun_encap_nlsize,
 	.cmp_encap = ip_tun_cmp_encap,
@@ -338,8 +346,8 @@ static int ip6_tun_build_state(struct nlattr *attr,
 	struct nlattr *tb[LWTUNNEL_IP6_MAX + 1];
 	int err;
 
-	err = nla_parse_nested(tb, LWTUNNEL_IP6_MAX, attr, ip6_tun_policy,
-			       extack);
+	err = nla_parse_nested_deprecated(tb, LWTUNNEL_IP6_MAX, attr,
+					  ip6_tun_policy, extack);
 	if (err < 0)
 		return err;
 

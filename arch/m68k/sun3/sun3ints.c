@@ -61,8 +61,10 @@ static irqreturn_t sun3_int7(int irq, void *dev_id)
 
 static irqreturn_t sun3_int5(int irq, void *dev_id)
 {
+	unsigned long flags;
 	unsigned int cnt;
 
+	local_irq_save(flags);
 #ifdef CONFIG_SUN3
 	intersil_clear();
 #endif
@@ -76,6 +78,7 @@ static irqreturn_t sun3_int5(int irq, void *dev_id)
 	cnt = kstat_irqs_cpu(irq, 0);
 	if (!(cnt % 20))
 		sun3_leds(led_pattern[cnt % 160 / 20]);
+	local_irq_restore(flags);
 	return IRQ_HANDLED;
 }
 

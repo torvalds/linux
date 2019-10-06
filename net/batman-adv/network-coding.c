@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2012-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2012-2019  B.A.T.M.A.N. contributors:
  *
  * Martin Hundebøll, Jeppe Ledet-Pedersen
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "network-coding.h"
@@ -1963,34 +1951,19 @@ out:
 /**
  * batadv_nc_init_debugfs() - create nc folder and related files in debugfs
  * @bat_priv: the bat priv with all the soft interface information
- *
- * Return: 0 on success or negative error number in case of failure
  */
-int batadv_nc_init_debugfs(struct batadv_priv *bat_priv)
+void batadv_nc_init_debugfs(struct batadv_priv *bat_priv)
 {
-	struct dentry *nc_dir, *file;
+	struct dentry *nc_dir;
 
 	nc_dir = debugfs_create_dir("nc", bat_priv->debug_dir);
-	if (!nc_dir)
-		goto out;
 
-	file = debugfs_create_u8("min_tq", 0644, nc_dir, &bat_priv->nc.min_tq);
-	if (!file)
-		goto out;
+	debugfs_create_u8("min_tq", 0644, nc_dir, &bat_priv->nc.min_tq);
 
-	file = debugfs_create_u32("max_fwd_delay", 0644, nc_dir,
-				  &bat_priv->nc.max_fwd_delay);
-	if (!file)
-		goto out;
+	debugfs_create_u32("max_fwd_delay", 0644, nc_dir,
+			   &bat_priv->nc.max_fwd_delay);
 
-	file = debugfs_create_u32("max_buffer_time", 0644, nc_dir,
-				  &bat_priv->nc.max_buffer_time);
-	if (!file)
-		goto out;
-
-	return 0;
-
-out:
-	return -ENOMEM;
+	debugfs_create_u32("max_buffer_time", 0644, nc_dir,
+			   &bat_priv->nc.max_buffer_time);
 }
 #endif

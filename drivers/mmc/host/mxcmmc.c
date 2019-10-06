@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/mmc/host/mxcmmc.c - Freescale i.MX MMCI driver
  *
@@ -10,11 +11,6 @@
  *  Copyright (C) 2006 Pavel Pisa, PiKRON <ppisa@pikron.com>
  *
  *  derived from pxamci.c by Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -31,14 +27,12 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/dmaengine.h>
 #include <linux/types.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
-#include <linux/of_gpio.h>
 #include <linux/mmc/slot-gpio.h>
 
 #include <asm/dma.h>
@@ -292,11 +286,8 @@ static void mxcmci_swap_buffers(struct mmc_data *data)
 	struct scatterlist *sg;
 	int i;
 
-	for_each_sg(data->sg, sg, data->sg_len, i) {
-		void *buf = kmap_atomic(sg_page(sg) + sg->offset);
-		buffer_swap32(buf, sg->length);
-		kunmap_atomic(buf);
-	}
+	for_each_sg(data->sg, sg, data->sg_len, i)
+		buffer_swap32(sg_virt(sg), sg->length);
 }
 #else
 static inline void mxcmci_swap_buffers(struct mmc_data *data) {}
@@ -613,7 +604,6 @@ static int mxcmci_transfer_data(struct mxcmci_host *host)
 {
 	struct mmc_data *data = host->req->data;
 	struct scatterlist *sg;
-	void *buf;
 	int stat, i;
 
 	host->data = data;
@@ -621,18 +611,14 @@ static int mxcmci_transfer_data(struct mxcmci_host *host)
 
 	if (data->flags & MMC_DATA_READ) {
 		for_each_sg(data->sg, sg, data->sg_len, i) {
-			buf = kmap_atomic(sg_page(sg) + sg->offset);
-			stat = mxcmci_pull(host, buf, sg->length);
-			kunmap(buf);
+			stat = mxcmci_pull(host, sg_virt(sg), sg->length);
 			if (stat)
 				return stat;
 			host->datasize += sg->length;
 		}
 	} else {
 		for_each_sg(data->sg, sg, data->sg_len, i) {
-			buf = kmap_atomic(sg_page(sg) + sg->offset);
-			stat = mxcmci_push(host, buf, sg->length);
-			kunmap(buf);
+			stat = mxcmci_push(host, sg_virt(sg), sg->length);
 			if (stat)
 				return stat;
 			host->datasize += sg->length;
@@ -1024,10 +1010,8 @@ static int mxcmci_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get IRQ: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	mmc = mmc_alloc_host(sizeof(*host), &pdev->dev);
 	if (!mmc)

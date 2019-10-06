@@ -198,7 +198,7 @@ struct ib_sa_hdr {
 	__be16			attr_offset;
 	__be16			reserved;
 	ib_sa_comp_mask		comp_mask;
-} __attribute__ ((packed));
+} __packed;
 
 struct ib_mad {
 	struct ib_mad_hdr	mad_hdr;
@@ -227,7 +227,7 @@ struct ib_sa_mad {
 	struct ib_rmpp_hdr	rmpp_hdr;
 	struct ib_sa_hdr	sa_hdr;
 	u8			data[IB_MGMT_SA_DATA];
-} __attribute__ ((packed));
+} __packed;
 
 struct ib_vendor_mad {
 	struct ib_mad_hdr	mad_hdr;
@@ -616,12 +616,11 @@ struct ib_mad_agent {
 	void			*context;
 	u32			hi_tid;
 	u32			flags;
+	void			*security;
+	struct list_head	mad_agent_sec_list;
 	u8			port_num;
 	u8			rmpp_version;
-	void			*security;
 	bool			smp_allowed;
-	bool			lsm_nb_reg;
-	struct notifier_block   lsm_nb;
 };
 
 /**

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
  * Copyright 2005-2006 Ian Kent <raven@themaw.net>
- *
- * This file is part of the Linux kernel and is made available under
- * the terms of the GNU General Public License, version 2, or at your
- * option, any later version, incorporated herein by reference.
  */
 
 #include <linux/seq_file.h>
@@ -36,7 +33,7 @@ void autofs_clean_ino(struct autofs_info *ino)
 
 void autofs_free_ino(struct autofs_info *ino)
 {
-	kfree(ino);
+	kfree_rcu(ino, rcu);
 }
 
 void autofs_kill_sb(struct super_block *sb)
@@ -82,18 +79,20 @@ static int autofs_show_options(struct seq_file *m, struct dentry *root)
 	seq_printf(m, ",maxproto=%d", sbi->max_proto);
 
 	if (autofs_type_offset(sbi->type))
-		seq_printf(m, ",offset");
+		seq_puts(m, ",offset");
 	else if (autofs_type_direct(sbi->type))
-		seq_printf(m, ",direct");
+		seq_puts(m, ",direct");
 	else
-		seq_printf(m, ",indirect");
+		seq_puts(m, ",indirect");
 	if (sbi->flags & AUTOFS_SBI_STRICTEXPIRE)
-		seq_printf(m, ",strictexpire");
+		seq_puts(m, ",strictexpire");
+	if (sbi->flags & AUTOFS_SBI_IGNORE)
+		seq_puts(m, ",ignore");
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	if (sbi->pipe)
 		seq_printf(m, ",pipe_ino=%ld", file_inode(sbi->pipe)->i_ino);
 	else
-		seq_printf(m, ",pipe_ino=-1");
+		seq_puts(m, ",pipe_ino=-1");
 #endif
 	return 0;
 }
@@ -111,7 +110,8 @@ static const struct super_operations autofs_sops = {
 };
 
 enum {Opt_err, Opt_fd, Opt_uid, Opt_gid, Opt_pgrp, Opt_minproto, Opt_maxproto,
-	Opt_indirect, Opt_direct, Opt_offset, Opt_strictexpire};
+	Opt_indirect, Opt_direct, Opt_offset, Opt_strictexpire,
+	Opt_ignore};
 
 static const match_table_t tokens = {
 	{Opt_fd, "fd=%u"},
@@ -124,6 +124,7 @@ static const match_table_t tokens = {
 	{Opt_direct, "direct"},
 	{Opt_offset, "offset"},
 	{Opt_strictexpire, "strictexpire"},
+	{Opt_ignore, "ignore"},
 	{Opt_err, NULL}
 };
 
@@ -205,6 +206,9 @@ static int parse_options(char *options,
 			break;
 		case Opt_strictexpire:
 			sbi->flags |= AUTOFS_SBI_STRICTEXPIRE;
+			break;
+		case Opt_ignore:
+			sbi->flags |= AUTOFS_SBI_IGNORE;
 			break;
 		default:
 			return 1;

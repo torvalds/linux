@@ -60,7 +60,7 @@ MODULE_PARM_DESC(dbg_level, "Debug flag (default=0)");
 #define CXGB4I_DEFAULT_10G_RCV_WIN (256 * 1024)
 static int cxgb4i_rcv_win = -1;
 module_param(cxgb4i_rcv_win, int, 0644);
-MODULE_PARM_DESC(cxgb4i_rcv_win, "TCP reveive window in bytes");
+MODULE_PARM_DESC(cxgb4i_rcv_win, "TCP receive window in bytes");
 
 #define CXGB4I_DEFAULT_10G_SND_WIN (128 * 1024)
 static int cxgb4i_snd_win = -1;
@@ -1210,7 +1210,8 @@ static void do_rx_iscsi_hdr(struct cxgbi_device *cdev, struct sk_buff *skb)
 		csk->skb_ulp_lhdr = skb;
 		cxgbi_skcb_set_flag(skb, SKCBF_RX_HDR);
 
-		if (cxgbi_skcb_tcp_seq(skb) != csk->rcv_nxt) {
+		if ((CHELSIO_CHIP_VERSION(lldi->adapter_type) <= CHELSIO_T5) &&
+		    (cxgbi_skcb_tcp_seq(skb) != csk->rcv_nxt)) {
 			pr_info("tid %u, CPL_ISCSI_HDR, bad seq, 0x%x/0x%x.\n",
 				csk->tid, cxgbi_skcb_tcp_seq(skb),
 				csk->rcv_nxt);
@@ -1664,8 +1665,12 @@ static u8 get_iscsi_dcb_priority(struct net_device *ndev)
 		return 0;
 
 	if (caps & DCB_CAP_DCBX_VER_IEEE) {
-		iscsi_dcb_app.selector = IEEE_8021QAZ_APP_SEL_ANY;
+		iscsi_dcb_app.selector = IEEE_8021QAZ_APP_SEL_STREAM;
 		rv = dcb_ieee_getapp_mask(ndev, &iscsi_dcb_app);
+		if (!rv) {
+			iscsi_dcb_app.selector = IEEE_8021QAZ_APP_SEL_ANY;
+			rv = dcb_ieee_getapp_mask(ndev, &iscsi_dcb_app);
+		}
 	} else if (caps & DCB_CAP_DCBX_VER_CEE) {
 		iscsi_dcb_app.selector = DCB_APP_IDTYPE_PORTNUM;
 		rv = dcb_getapp(ndev, &iscsi_dcb_app);
@@ -2069,7 +2074,7 @@ static int cxgb4i_ddp_init(struct cxgbi_device *cdev)
 	struct net_device *ndev = cdev->ports[0];
 	struct cxgbi_tag_format tformat;
 	unsigned int ppmax;
-	int i;
+	int i, err;
 
 	if (!lldi->vr->iscsi.size) {
 		pr_warn("%s, iscsi NOT enabled, check config!\n", ndev->name);
@@ -2085,8 +2090,17 @@ static int cxgb4i_ddp_init(struct cxgbi_device *cdev)
 					 & 0xF;
 	cxgbi_tagmask_check(lldi->iscsi_tagmask, &tformat);
 
-	cxgbi_ddp_ppm_setup(lldi->iscsi_ppm, cdev, &tformat, ppmax,
-			    lldi->iscsi_llimit, lldi->vr->iscsi.start, 2);
+	pr_info("iscsi_edram.start 0x%x iscsi_edram.size 0x%x",
+		lldi->vr->ppod_edram.start, lldi->vr->ppod_edram.size);
+
+	err = cxgbi_ddp_ppm_setup(lldi->iscsi_ppm, cdev, &tformat,
+				  lldi->vr->iscsi.size, lldi->iscsi_llimit,
+				  lldi->vr->iscsi.start, 2,
+				  lldi->vr->ppod_edram.start,
+				  lldi->vr->ppod_edram.size);
+
+	if (err < 0)
+		return err;
 
 	cdev->csk_ddp_setup_digest = ddp_setup_conn_digest;
 	cdev->csk_ddp_setup_pgidx = ddp_setup_conn_pgidx;
@@ -2134,14 +2148,13 @@ static void *t4_uld_add(const struct cxgb4_lld_info *lldi)
 	cdev->itp = &cxgb4i_iscsi_transport;
 	cdev->owner = THIS_MODULE;
 
-	cdev->pfvf = FW_VIID_PFN_G(cxgb4_port_viid(lldi->ports[0]))
-			<< FW_VIID_PFN_S;
+	cdev->pfvf = FW_PFVF_CMD_PFN_V(lldi->pf);
 	pr_info("cdev 0x%p,%s, pfvf %u.\n",
 		cdev, lldi->ports[0]->name, cdev->pfvf);
 
 	rc = cxgb4i_ddp_init(cdev);
 	if (rc) {
-		pr_info("t4 0x%p ddp init failed.\n", cdev);
+		pr_info("t4 0x%p ddp init failed %d.\n", cdev, rc);
 		goto err_out;
 	}
 	rc = cxgb4i_ofld_init(cdev);
@@ -2251,7 +2264,8 @@ cxgb4_dcb_change_notify(struct notifier_block *self, unsigned long val,
 	u8 priority;
 
 	if (iscsi_app->dcbx & DCB_CAP_DCBX_VER_IEEE) {
-		if (iscsi_app->app.selector != IEEE_8021QAZ_APP_SEL_ANY)
+		if ((iscsi_app->app.selector != IEEE_8021QAZ_APP_SEL_STREAM) &&
+		    (iscsi_app->app.selector != IEEE_8021QAZ_APP_SEL_ANY))
 			return NOTIFY_DONE;
 
 		priority = iscsi_app->app.priority;

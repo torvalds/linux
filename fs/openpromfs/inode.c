@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* inode.c: /proc/openprom handling routines
  *
  * Copyright (C) 1996-1999 Jakub Jelinek  (jakub@redhat.com)
@@ -8,6 +9,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/fs.h>
+#include <linux/fs_context.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
@@ -336,15 +338,9 @@ static struct inode *openprom_alloc_inode(struct super_block *sb)
 	return &oi->vfs_inode;
 }
 
-static void openprom_i_callback(struct rcu_head *head)
+static void openprom_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(op_inode_cachep, OP_I(inode));
-}
-
-static void openprom_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, openprom_i_callback);
 }
 
 static struct inode *openprom_iget(struct super_block *sb, ino_t ino)
@@ -375,12 +371,12 @@ static int openprom_remount(struct super_block *sb, int *flags, char *data)
 
 static const struct super_operations openprom_sops = {
 	.alloc_inode	= openprom_alloc_inode,
-	.destroy_inode	= openprom_destroy_inode,
+	.free_inode	= openprom_free_inode,
 	.statfs		= simple_statfs,
 	.remount_fs	= openprom_remount,
 };
 
-static int openprom_fill_super(struct super_block *s, void *data, int silent)
+static int openprom_fill_super(struct super_block *s, struct fs_context *fc)
 {
 	struct inode *root_inode;
 	struct op_inode_info *oi;
@@ -414,16 +410,25 @@ out_no_root:
 	return ret;
 }
 
-static struct dentry *openprom_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int openpromfs_get_tree(struct fs_context *fc)
 {
-	return mount_single(fs_type, flags, data, openprom_fill_super);
+	return get_tree_single(fc, openprom_fill_super);
+}
+
+static const struct fs_context_operations openpromfs_context_ops = {
+	.get_tree	= openpromfs_get_tree,
+};
+
+static int openpromfs_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &openpromfs_context_ops;
+	return 0;
 }
 
 static struct file_system_type openprom_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "openpromfs",
-	.mount		= openprom_mount,
+	.init_fs_context = openpromfs_init_fs_context,
 	.kill_sb	= kill_anon_super,
 };
 MODULE_ALIAS_FS("openpromfs");

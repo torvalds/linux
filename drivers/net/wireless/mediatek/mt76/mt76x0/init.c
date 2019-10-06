@@ -1,23 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (c) Copyright 2002-2010, Ralink Technology, Inc.
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
  * Copyright (C) 2018 Stanislaw Gruszka <stf_xl@wp.pl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "mt76x0.h"
 #include "eeprom.h"
 #include "mcu.h"
 #include "initvals.h"
+#include "../mt76x02_phy.h"
 
 static void mt76x0_vht_cap_mask(struct ieee80211_supported_band *sband)
 {
@@ -186,6 +179,8 @@ void mt76x0_mac_stop(struct mt76x02_dev *dev)
 {
 	int i = 200, ok = 0;
 
+	mt76_clear(dev, MT_TXOP_CTRL_CFG, MT_TXOP_ED_CCA_EN);
+
 	/* Page count on TxQ */
 	while (i-- && ((mt76_rr(dev, 0x0438) & 0xffffffff) ||
 		       (mt76_rr(dev, 0x0a30) & 0x000000ff) ||
@@ -256,33 +251,31 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 		return ret;
 
 	mt76x0_phy_init(dev);
-	mt76x02_init_beacon_config(dev);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x0_init_hardware);
 
-struct mt76x02_dev *
-mt76x0_alloc_device(struct device *pdev,
-		    const struct mt76_driver_ops *drv_ops,
-		    const struct ieee80211_ops *ops)
+static void
+mt76x0_init_txpower(struct mt76x02_dev *dev,
+		    struct ieee80211_supported_band *sband)
 {
-	struct mt76x02_dev *dev;
-	struct mt76_dev *mdev;
+	struct ieee80211_channel *chan;
+	struct mt76_rate_power t;
+	s8 tp;
+	int i;
 
-	mdev = mt76_alloc_device(sizeof(*dev), ops);
-	if (!mdev)
-		return NULL;
+	for (i = 0; i < sband->n_channels; i++) {
+		chan = &sband->channels[i];
 
-	mdev->dev = pdev;
-	mdev->drv = drv_ops;
+		mt76x0_get_tx_power_per_rate(dev, chan, &t);
+		mt76x0_get_power_info(dev, chan, &tp);
 
-	dev = container_of(mdev, struct mt76x02_dev, mt76);
-	mutex_init(&dev->phy_mutex);
-
-	return dev;
+		chan->orig_mpwr = (mt76x02_get_max_rate_power(&t) + tp) / 2;
+		chan->max_power = min_t(int, chan->max_reg_power,
+					chan->orig_mpwr);
+	}
 }
-EXPORT_SYMBOL_GPL(mt76x0_alloc_device);
 
 int mt76x0_register_device(struct mt76x02_dev *dev)
 {
@@ -296,9 +289,14 @@ int mt76x0_register_device(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	/* overwrite unsupported features */
-	if (dev->mt76.cap.has_5ghz)
+	if (dev->mt76.cap.has_5ghz) {
+		/* overwrite unsupported features */
 		mt76x0_vht_cap_mask(&dev->mt76.sband_5g.sband);
+		mt76x0_init_txpower(dev, &dev->mt76.sband_5g.sband);
+	}
+
+	if (dev->mt76.cap.has_2ghz)
+		mt76x0_init_txpower(dev, &dev->mt76.sband_2g.sband);
 
 	mt76x02_init_debugfs(dev);
 

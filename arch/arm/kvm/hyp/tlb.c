@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Original code:
  * Copyright (C) 2012 - Virtual Open Systems and Columbia University
  * Author: Christoffer Dall <c.dall@virtualopensystems.com>
  *
  * Mostly rewritten in C by Marc Zyngier <marc.zyngier@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <asm/kvm_hyp.h>
@@ -41,7 +30,7 @@ void __hyp_text __kvm_tlb_flush_vmid(struct kvm *kvm)
 
 	/* Switch to requested VMID */
 	kvm = kern_hyp_va(kvm);
-	write_sysreg(kvm->arch.vttbr, VTTBR);
+	write_sysreg(kvm_get_vttbr(kvm), VTTBR);
 	isb();
 
 	write_sysreg(0, TLBIALLIS);
@@ -61,7 +50,7 @@ void __hyp_text __kvm_tlb_flush_local_vmid(struct kvm_vcpu *vcpu)
 	struct kvm *kvm = kern_hyp_va(kern_hyp_va(vcpu)->kvm);
 
 	/* Switch to requested VMID */
-	write_sysreg(kvm->arch.vttbr, VTTBR);
+	write_sysreg(kvm_get_vttbr(kvm), VTTBR);
 	isb();
 
 	write_sysreg(0, TLBIALL);

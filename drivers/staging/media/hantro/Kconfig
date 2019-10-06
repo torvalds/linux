@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0
+config VIDEO_HANTRO
+	tristate "Hantro VPU driver"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on VIDEO_DEV && VIDEO_V4L2 && MEDIA_CONTROLLER
+	depends on MEDIA_CONTROLLER_REQUEST_API
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_VMALLOC
+	select V4L2_MEM2MEM_DEV
+	help
+	  Support for the Hantro IP based Video Processing Unit present on
+	  Rockchip SoC, which accelerates video and image encoding and
+	  decoding.
+	  To compile this driver as a module, choose M here: the module
+	  will be called hantro-vpu.
+
+config VIDEO_HANTRO_ROCKCHIP
+	bool "Hantro VPU Rockchip support"
+	depends on VIDEO_HANTRO
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	default y
+	help
+	  Enable support for RK3288, RK3328, and RK3399 SoCs.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* flash.c: Allow mmap access to the OBP Flash, for OBP updates.
  *
  * Copyright (C) 1997  Eddie C. Dost  (ecd@skynet.be)

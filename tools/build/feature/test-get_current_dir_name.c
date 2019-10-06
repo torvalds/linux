@@ -8,3 +8,4 @@ int main(void)
 	free(get_current_dir_name());
 	return 0;
 }
+#undef _GNU_SOURCE

@@ -137,13 +137,23 @@ struct safexcel_command_desc *safexcel_add_cdesc(struct safexcel_crypto_priv *pr
 		struct safexcel_token *token =
 			(struct safexcel_token *)cdesc->control_data.token;
 
-		cdesc->control_data.packet_length = full_data_len;
+		/*
+		 * Note that the length here MUST be >0 or else the EIP(1)97
+		 * may hang. Newer EIP197 firmware actually incorporates this
+		 * fix already, but that doesn't help the EIP97 and we may
+		 * also be running older firmware.
+		 */
+		cdesc->control_data.packet_length = full_data_len ?: 1;
 		cdesc->control_data.options = EIP197_OPTION_MAGIC_VALUE |
 					      EIP197_OPTION_64BIT_CTX |
 					      EIP197_OPTION_CTX_CTRL_IN_CMD;
 		cdesc->control_data.context_lo =
 			(lower_32_bits(context) & GENMASK(31, 2)) >> 2;
 		cdesc->control_data.context_hi = upper_32_bits(context);
+
+		if (priv->version == EIP197B_MRVL ||
+		    priv->version == EIP197D_MRVL)
+			cdesc->control_data.options |= EIP197_OPTION_RC_AUTO;
 
 		/* TODO: large xform HMAC with SHA-384/512 uses refresh = 3 */
 		cdesc->control_data.refresh = 2;

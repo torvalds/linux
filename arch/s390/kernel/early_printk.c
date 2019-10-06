@@ -25,7 +25,7 @@ static int __init setup_early_printk(char *buf)
 	if (early_console)
 		return 0;
 	/* Accept only "earlyprintk" and "earlyprintk=sclp" */
-	if (buf && strncmp(buf, "sclp", 4))
+	if (buf && !str_has_prefix(buf, "sclp"))
 		return 0;
 	if (!sclp.has_linemode && !sclp.has_vt220)
 		return 0;

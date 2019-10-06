@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Based on Rusty Russell's IPv4 NAT code. Development of IPv6 NAT
  * funded by Astaro.
@@ -17,8 +14,6 @@
 #include <net/ipv6.h>
 
 #include <net/netfilter/nf_nat.h>
-#include <net/netfilter/nf_nat_core.h>
-#include <net/netfilter/nf_nat_l3proto.h>
 
 static int __net_init ip6table_nat_table_init(struct net *net);
 
@@ -72,10 +67,10 @@ static int ip6t_nat_register_lookups(struct net *net)
 	int i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(nf_nat_ipv6_ops); i++) {
-		ret = nf_nat_l3proto_ipv6_register_fn(net, &nf_nat_ipv6_ops[i]);
+		ret = nf_nat_ipv6_register_fn(net, &nf_nat_ipv6_ops[i]);
 		if (ret) {
 			while (i)
-				nf_nat_l3proto_ipv6_unregister_fn(net, &nf_nat_ipv6_ops[--i]);
+				nf_nat_ipv6_unregister_fn(net, &nf_nat_ipv6_ops[--i]);
 
 			return ret;
 		}
@@ -89,7 +84,7 @@ static void ip6t_nat_unregister_lookups(struct net *net)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(nf_nat_ipv6_ops); i++)
-		nf_nat_l3proto_ipv6_unregister_fn(net, &nf_nat_ipv6_ops[i]);
+		nf_nat_ipv6_unregister_fn(net, &nf_nat_ipv6_ops[i]);
 }
 
 static int __net_init ip6table_nat_table_init(struct net *net)

@@ -1,6 +1,19 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __BPF_HELPERS_H
-#define __BPF_HELPERS_H
+/* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
+#ifndef __BPF_HELPERS__
+#define __BPF_HELPERS__
+
+#define __uint(name, val) int (*name)[val]
+#define __type(name, val) val *name
+
+/* helper macro to print out debug messages */
+#define bpf_printk(fmt, ...)				\
+({							\
+	char ____fmt[] = fmt;				\
+	bpf_trace_printk(____fmt, sizeof(____fmt),	\
+			 ##__VA_ARGS__);		\
+})
+
+#ifdef __clang__
 
 /* helper macro to place programs, maps, license in
  * different sections in elf_bpf file. Section names
@@ -9,21 +22,21 @@
 #define SEC(NAME) __attribute__((section(NAME), used))
 
 /* helper functions called from eBPF programs written in C */
-static void *(*bpf_map_lookup_elem)(void *map, void *key) =
+static void *(*bpf_map_lookup_elem)(void *map, const void *key) =
 	(void *) BPF_FUNC_map_lookup_elem;
-static int (*bpf_map_update_elem)(void *map, void *key, void *value,
+static int (*bpf_map_update_elem)(void *map, const void *key, const void *value,
 				  unsigned long long flags) =
 	(void *) BPF_FUNC_map_update_elem;
-static int (*bpf_map_delete_elem)(void *map, void *key) =
+static int (*bpf_map_delete_elem)(void *map, const void *key) =
 	(void *) BPF_FUNC_map_delete_elem;
-static int (*bpf_map_push_elem)(void *map, void *value,
+static int (*bpf_map_push_elem)(void *map, const void *value,
 				unsigned long long flags) =
 	(void *) BPF_FUNC_map_push_elem;
 static int (*bpf_map_pop_elem)(void *map, void *value) =
 	(void *) BPF_FUNC_map_pop_elem;
 static int (*bpf_map_peek_elem)(void *map, void *value) =
 	(void *) BPF_FUNC_map_peek_elem;
-static int (*bpf_probe_read)(void *dst, int size, void *unsafe_ptr) =
+static int (*bpf_probe_read)(void *dst, int size, const void *unsafe_ptr) =
 	(void *) BPF_FUNC_probe_read;
 static unsigned long long (*bpf_ktime_get_ns)(void) =
 	(void *) BPF_FUNC_ktime_get_ns;
@@ -54,7 +67,7 @@ static int (*bpf_perf_event_output)(void *ctx, void *map,
 	(void *) BPF_FUNC_perf_event_output;
 static int (*bpf_get_stackid)(void *ctx, void *map, int flags) =
 	(void *) BPF_FUNC_get_stackid;
-static int (*bpf_probe_write_user)(void *dst, void *src, int size) =
+static int (*bpf_probe_write_user)(void *dst, const void *src, int size) =
 	(void *) BPF_FUNC_probe_write_user;
 static int (*bpf_current_task_under_cgroup)(void *map, int index) =
 	(void *) BPF_FUNC_current_task_under_cgroup;
@@ -159,6 +172,11 @@ static struct bpf_sock *(*bpf_sk_lookup_tcp)(void *ctx,
 					     int size, unsigned long long netns_id,
 					     unsigned long long flags) =
 	(void *) BPF_FUNC_sk_lookup_tcp;
+static struct bpf_sock *(*bpf_skc_lookup_tcp)(void *ctx,
+					     struct bpf_sock_tuple *tuple,
+					     int size, unsigned long long netns_id,
+					     unsigned long long flags) =
+	(void *) BPF_FUNC_skc_lookup_tcp;
 static struct bpf_sock *(*bpf_sk_lookup_udp)(void *ctx,
 					     struct bpf_sock_tuple *tuple,
 					     int size, unsigned long long netns_id,
@@ -172,6 +190,49 @@ static int (*bpf_skb_vlan_pop)(void *ctx) =
 	(void *) BPF_FUNC_skb_vlan_pop;
 static int (*bpf_rc_pointer_rel)(void *ctx, int rel_x, int rel_y) =
 	(void *) BPF_FUNC_rc_pointer_rel;
+static void (*bpf_spin_lock)(struct bpf_spin_lock *lock) =
+	(void *) BPF_FUNC_spin_lock;
+static void (*bpf_spin_unlock)(struct bpf_spin_lock *lock) =
+	(void *) BPF_FUNC_spin_unlock;
+static struct bpf_sock *(*bpf_sk_fullsock)(struct bpf_sock *sk) =
+	(void *) BPF_FUNC_sk_fullsock;
+static struct bpf_tcp_sock *(*bpf_tcp_sock)(struct bpf_sock *sk) =
+	(void *) BPF_FUNC_tcp_sock;
+static struct bpf_sock *(*bpf_get_listener_sock)(struct bpf_sock *sk) =
+	(void *) BPF_FUNC_get_listener_sock;
+static int (*bpf_skb_ecn_set_ce)(void *ctx) =
+	(void *) BPF_FUNC_skb_ecn_set_ce;
+static int (*bpf_tcp_check_syncookie)(struct bpf_sock *sk,
+	    void *ip, int ip_len, void *tcp, int tcp_len) =
+	(void *) BPF_FUNC_tcp_check_syncookie;
+static int (*bpf_sysctl_get_name)(void *ctx, char *buf,
+				  unsigned long long buf_len,
+				  unsigned long long flags) =
+	(void *) BPF_FUNC_sysctl_get_name;
+static int (*bpf_sysctl_get_current_value)(void *ctx, char *buf,
+					   unsigned long long buf_len) =
+	(void *) BPF_FUNC_sysctl_get_current_value;
+static int (*bpf_sysctl_get_new_value)(void *ctx, char *buf,
+				       unsigned long long buf_len) =
+	(void *) BPF_FUNC_sysctl_get_new_value;
+static int (*bpf_sysctl_set_new_value)(void *ctx, const char *buf,
+				       unsigned long long buf_len) =
+	(void *) BPF_FUNC_sysctl_set_new_value;
+static int (*bpf_strtol)(const char *buf, unsigned long long buf_len,
+			 unsigned long long flags, long *res) =
+	(void *) BPF_FUNC_strtol;
+static int (*bpf_strtoul)(const char *buf, unsigned long long buf_len,
+			  unsigned long long flags, unsigned long *res) =
+	(void *) BPF_FUNC_strtoul;
+static void *(*bpf_sk_storage_get)(void *map, struct bpf_sock *sk,
+				   void *value, __u64 flags) =
+	(void *) BPF_FUNC_sk_storage_get;
+static int (*bpf_sk_storage_delete)(void *map, struct bpf_sock *sk) =
+	(void *)BPF_FUNC_sk_storage_delete;
+static int (*bpf_send_signal)(unsigned sig) = (void *)BPF_FUNC_send_signal;
+static long long (*bpf_tcp_gen_syncookie)(struct bpf_sock *sk, void *ip,
+					  int ip_len, void *tcp, int tcp_len) =
+	(void *) BPF_FUNC_tcp_gen_syncookie;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions
@@ -196,6 +257,12 @@ struct bpf_map_def {
 	unsigned int inner_map_idx;
 	unsigned int numa_node;
 };
+
+#else
+
+#include <bpf-helpers.h>
+
+#endif
 
 #define BPF_ANNOTATE_KV_PAIR(name, type_key, type_val)		\
 	struct ____btf_map_##name {				\
@@ -224,13 +291,46 @@ static int (*bpf_skb_change_head)(void *, int len, int flags) =
 	(void *) BPF_FUNC_skb_change_head;
 static int (*bpf_skb_pull_data)(void *, int len) =
 	(void *) BPF_FUNC_skb_pull_data;
+static unsigned int (*bpf_get_cgroup_classid)(void *ctx) =
+	(void *) BPF_FUNC_get_cgroup_classid;
+static unsigned int (*bpf_get_route_realm)(void *ctx) =
+	(void *) BPF_FUNC_get_route_realm;
+static int (*bpf_skb_change_proto)(void *ctx, __be16 proto, __u64 flags) =
+	(void *) BPF_FUNC_skb_change_proto;
+static int (*bpf_skb_change_type)(void *ctx, __u32 type) =
+	(void *) BPF_FUNC_skb_change_type;
+static unsigned int (*bpf_get_hash_recalc)(void *ctx) =
+	(void *) BPF_FUNC_get_hash_recalc;
+static unsigned long long (*bpf_get_current_task)(void) =
+	(void *) BPF_FUNC_get_current_task;
+static int (*bpf_skb_change_tail)(void *ctx, __u32 len, __u64 flags) =
+	(void *) BPF_FUNC_skb_change_tail;
+static long long (*bpf_csum_update)(void *ctx, __u32 csum) =
+	(void *) BPF_FUNC_csum_update;
+static void (*bpf_set_hash_invalid)(void *ctx) =
+	(void *) BPF_FUNC_set_hash_invalid;
+static int (*bpf_get_numa_node_id)(void) =
+	(void *) BPF_FUNC_get_numa_node_id;
+static int (*bpf_probe_read_str)(void *ctx, __u32 size,
+				 const void *unsafe_ptr) =
+	(void *) BPF_FUNC_probe_read_str;
+static unsigned int (*bpf_get_socket_uid)(void *ctx) =
+	(void *) BPF_FUNC_get_socket_uid;
+static unsigned int (*bpf_set_hash)(void *ctx, __u32 hash) =
+	(void *) BPF_FUNC_set_hash;
+static int (*bpf_skb_adjust_room)(void *ctx, __s32 len_diff, __u32 mode,
+				  unsigned long long flags) =
+	(void *) BPF_FUNC_skb_adjust_room;
 
 /* Scan the ARCH passed in from ARCH env variable (see Makefile) */
 #if defined(__TARGET_ARCH_x86)
 	#define bpf_target_x86
 	#define bpf_target_defined
-#elif defined(__TARGET_ARCH_s930x)
-	#define bpf_target_s930x
+#elif defined(__TARGET_ARCH_s390)
+	#define bpf_target_s390
+	#define bpf_target_defined
+#elif defined(__TARGET_ARCH_arm)
+	#define bpf_target_arm
 	#define bpf_target_defined
 #elif defined(__TARGET_ARCH_arm64)
 	#define bpf_target_arm64
@@ -252,8 +352,10 @@ static int (*bpf_skb_pull_data)(void *, int len) =
 #ifndef bpf_target_defined
 #if defined(__x86_64__)
 	#define bpf_target_x86
-#elif defined(__s390x__)
-	#define bpf_target_s930x
+#elif defined(__s390__)
+	#define bpf_target_s390
+#elif defined(__arm__)
+	#define bpf_target_arm
 #elif defined(__aarch64__)
 	#define bpf_target_arm64
 #elif defined(__mips__)
@@ -267,6 +369,7 @@ static int (*bpf_skb_pull_data)(void *, int len) =
 
 #if defined(bpf_target_x86)
 
+#ifdef __KERNEL__
 #define PT_REGS_PARM1(x) ((x)->di)
 #define PT_REGS_PARM2(x) ((x)->si)
 #define PT_REGS_PARM3(x) ((x)->dx)
@@ -277,32 +380,79 @@ static int (*bpf_skb_pull_data)(void *, int len) =
 #define PT_REGS_RC(x) ((x)->ax)
 #define PT_REGS_SP(x) ((x)->sp)
 #define PT_REGS_IP(x) ((x)->ip)
+#else
+#ifdef __i386__
+/* i386 kernel is built with -mregparm=3 */
+#define PT_REGS_PARM1(x) ((x)->eax)
+#define PT_REGS_PARM2(x) ((x)->edx)
+#define PT_REGS_PARM3(x) ((x)->ecx)
+#define PT_REGS_PARM4(x) 0
+#define PT_REGS_PARM5(x) 0
+#define PT_REGS_RET(x) ((x)->esp)
+#define PT_REGS_FP(x) ((x)->ebp)
+#define PT_REGS_RC(x) ((x)->eax)
+#define PT_REGS_SP(x) ((x)->esp)
+#define PT_REGS_IP(x) ((x)->eip)
+#else
+#define PT_REGS_PARM1(x) ((x)->rdi)
+#define PT_REGS_PARM2(x) ((x)->rsi)
+#define PT_REGS_PARM3(x) ((x)->rdx)
+#define PT_REGS_PARM4(x) ((x)->rcx)
+#define PT_REGS_PARM5(x) ((x)->r8)
+#define PT_REGS_RET(x) ((x)->rsp)
+#define PT_REGS_FP(x) ((x)->rbp)
+#define PT_REGS_RC(x) ((x)->rax)
+#define PT_REGS_SP(x) ((x)->rsp)
+#define PT_REGS_IP(x) ((x)->rip)
+#endif
+#endif
 
-#elif defined(bpf_target_s390x)
+#elif defined(bpf_target_s390)
 
-#define PT_REGS_PARM1(x) ((x)->gprs[2])
-#define PT_REGS_PARM2(x) ((x)->gprs[3])
-#define PT_REGS_PARM3(x) ((x)->gprs[4])
-#define PT_REGS_PARM4(x) ((x)->gprs[5])
-#define PT_REGS_PARM5(x) ((x)->gprs[6])
-#define PT_REGS_RET(x) ((x)->gprs[14])
-#define PT_REGS_FP(x) ((x)->gprs[11]) /* Works only with CONFIG_FRAME_POINTER */
-#define PT_REGS_RC(x) ((x)->gprs[2])
-#define PT_REGS_SP(x) ((x)->gprs[15])
-#define PT_REGS_IP(x) ((x)->psw.addr)
+/* s390 provides user_pt_regs instead of struct pt_regs to userspace */
+struct pt_regs;
+#define PT_REGS_S390 const volatile user_pt_regs
+#define PT_REGS_PARM1(x) (((PT_REGS_S390 *)(x))->gprs[2])
+#define PT_REGS_PARM2(x) (((PT_REGS_S390 *)(x))->gprs[3])
+#define PT_REGS_PARM3(x) (((PT_REGS_S390 *)(x))->gprs[4])
+#define PT_REGS_PARM4(x) (((PT_REGS_S390 *)(x))->gprs[5])
+#define PT_REGS_PARM5(x) (((PT_REGS_S390 *)(x))->gprs[6])
+#define PT_REGS_RET(x) (((PT_REGS_S390 *)(x))->gprs[14])
+/* Works only with CONFIG_FRAME_POINTER */
+#define PT_REGS_FP(x) (((PT_REGS_S390 *)(x))->gprs[11])
+#define PT_REGS_RC(x) (((PT_REGS_S390 *)(x))->gprs[2])
+#define PT_REGS_SP(x) (((PT_REGS_S390 *)(x))->gprs[15])
+#define PT_REGS_IP(x) (((PT_REGS_S390 *)(x))->psw.addr)
+
+#elif defined(bpf_target_arm)
+
+#define PT_REGS_PARM1(x) ((x)->uregs[0])
+#define PT_REGS_PARM2(x) ((x)->uregs[1])
+#define PT_REGS_PARM3(x) ((x)->uregs[2])
+#define PT_REGS_PARM4(x) ((x)->uregs[3])
+#define PT_REGS_PARM5(x) ((x)->uregs[4])
+#define PT_REGS_RET(x) ((x)->uregs[14])
+#define PT_REGS_FP(x) ((x)->uregs[11]) /* Works only with CONFIG_FRAME_POINTER */
+#define PT_REGS_RC(x) ((x)->uregs[0])
+#define PT_REGS_SP(x) ((x)->uregs[13])
+#define PT_REGS_IP(x) ((x)->uregs[12])
 
 #elif defined(bpf_target_arm64)
 
-#define PT_REGS_PARM1(x) ((x)->regs[0])
-#define PT_REGS_PARM2(x) ((x)->regs[1])
-#define PT_REGS_PARM3(x) ((x)->regs[2])
-#define PT_REGS_PARM4(x) ((x)->regs[3])
-#define PT_REGS_PARM5(x) ((x)->regs[4])
-#define PT_REGS_RET(x) ((x)->regs[30])
-#define PT_REGS_FP(x) ((x)->regs[29]) /* Works only with CONFIG_FRAME_POINTER */
-#define PT_REGS_RC(x) ((x)->regs[0])
-#define PT_REGS_SP(x) ((x)->sp)
-#define PT_REGS_IP(x) ((x)->pc)
+/* arm64 provides struct user_pt_regs instead of struct pt_regs to userspace */
+struct pt_regs;
+#define PT_REGS_ARM64 const volatile struct user_pt_regs
+#define PT_REGS_PARM1(x) (((PT_REGS_ARM64 *)(x))->regs[0])
+#define PT_REGS_PARM2(x) (((PT_REGS_ARM64 *)(x))->regs[1])
+#define PT_REGS_PARM3(x) (((PT_REGS_ARM64 *)(x))->regs[2])
+#define PT_REGS_PARM4(x) (((PT_REGS_ARM64 *)(x))->regs[3])
+#define PT_REGS_PARM5(x) (((PT_REGS_ARM64 *)(x))->regs[4])
+#define PT_REGS_RET(x) (((PT_REGS_ARM64 *)(x))->regs[30])
+/* Works only with CONFIG_FRAME_POINTER */
+#define PT_REGS_FP(x) (((PT_REGS_ARM64 *)(x))->regs[29])
+#define PT_REGS_RC(x) (((PT_REGS_ARM64 *)(x))->regs[0])
+#define PT_REGS_SP(x) (((PT_REGS_ARM64 *)(x))->sp)
+#define PT_REGS_IP(x) (((PT_REGS_ARM64 *)(x))->pc)
 
 #elif defined(bpf_target_mips)
 
@@ -348,10 +498,10 @@ static int (*bpf_skb_pull_data)(void *, int len) =
 
 #endif
 
-#ifdef bpf_target_powerpc
+#if defined(bpf_target_powerpc)
 #define BPF_KPROBE_READ_RET_IP(ip, ctx)		({ (ip) = (ctx)->link; })
 #define BPF_KRETPROBE_READ_RET_IP		BPF_KPROBE_READ_RET_IP
-#elif bpf_target_sparc
+#elif defined(bpf_target_sparc)
 #define BPF_KPROBE_READ_RET_IP(ip, ctx)		({ (ip) = PT_REGS_RET(ctx); })
 #define BPF_KRETPROBE_READ_RET_IP		BPF_KPROBE_READ_RET_IP
 #else
@@ -361,5 +511,25 @@ static int (*bpf_skb_pull_data)(void *, int len) =
 		bpf_probe_read(&(ip), sizeof(ip),				\
 				(void *)(PT_REGS_FP(ctx) + sizeof(ip))); })
 #endif
+
+/*
+ * BPF_CORE_READ abstracts away bpf_probe_read() call and captures offset
+ * relocation for source address using __builtin_preserve_access_index()
+ * built-in, provided by Clang.
+ *
+ * __builtin_preserve_access_index() takes as an argument an expression of
+ * taking an address of a field within struct/union. It makes compiler emit
+ * a relocation, which records BTF type ID describing root struct/union and an
+ * accessor string which describes exact embedded field that was used to take
+ * an address. See detailed description of this relocation format and
+ * semantics in comments to struct bpf_offset_reloc in libbpf_internal.h.
+ *
+ * This relocation allows libbpf to adjust BPF instruction to use correct
+ * actual field offset, based on target kernel BTF type that matches original
+ * (local) BTF, used to record relocation.
+ */
+#define BPF_CORE_READ(dst, src)						\
+	bpf_probe_read((dst), sizeof(*(src)),				\
+		       __builtin_preserve_access_index(src))
 
 #endif

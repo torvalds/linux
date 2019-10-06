@@ -26,24 +26,19 @@
 #include <linux/module.h>
 #include <linux/crc-t10dif.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <asm/fpu/api.h>
 #include <asm/cpufeatures.h>
 #include <asm/cpu_device_id.h>
+#include <asm/simd.h>
 
-asmlinkage __u16 crc_t10dif_pcl(__u16 crc, const unsigned char *buf,
-				size_t len);
+asmlinkage u16 crc_t10dif_pcl(u16 init_crc, const u8 *buf, size_t len);
 
 struct chksum_desc_ctx {
 	__u16 crc;
 };
-
-/*
- * Steps through buffer one byte at at time, calculates reflected
- * crc using table.
- */
 
 static int chksum_init(struct shash_desc *desc)
 {
@@ -59,7 +54,7 @@ static int chksum_update(struct shash_desc *desc, const u8 *data,
 {
 	struct chksum_desc_ctx *ctx = shash_desc_ctx(desc);
 
-	if (irq_fpu_usable()) {
+	if (length >= 16 && crypto_simd_usable()) {
 		kernel_fpu_begin();
 		ctx->crc = crc_t10dif_pcl(ctx->crc, data, length);
 		kernel_fpu_end();
@@ -76,15 +71,14 @@ static int chksum_final(struct shash_desc *desc, u8 *out)
 	return 0;
 }
 
-static int __chksum_finup(__u16 *crcp, const u8 *data, unsigned int len,
-			u8 *out)
+static int __chksum_finup(__u16 crc, const u8 *data, unsigned int len, u8 *out)
 {
-	if (irq_fpu_usable()) {
+	if (len >= 16 && crypto_simd_usable()) {
 		kernel_fpu_begin();
-		*(__u16 *)out = crc_t10dif_pcl(*crcp, data, len);
+		*(__u16 *)out = crc_t10dif_pcl(crc, data, len);
 		kernel_fpu_end();
 	} else
-		*(__u16 *)out = crc_t10dif_generic(*crcp, data, len);
+		*(__u16 *)out = crc_t10dif_generic(crc, data, len);
 	return 0;
 }
 
@@ -93,15 +87,13 @@ static int chksum_finup(struct shash_desc *desc, const u8 *data,
 {
 	struct chksum_desc_ctx *ctx = shash_desc_ctx(desc);
 
-	return __chksum_finup(&ctx->crc, data, len, out);
+	return __chksum_finup(ctx->crc, data, len, out);
 }
 
 static int chksum_digest(struct shash_desc *desc, const u8 *data,
 			 unsigned int length, u8 *out)
 {
-	struct chksum_desc_ctx *ctx = shash_desc_ctx(desc);
-
-	return __chksum_finup(&ctx->crc, data, length, out);
+	return __chksum_finup(0, data, length, out);
 }
 
 static struct shash_alg alg = {

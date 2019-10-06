@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
  */
 
 #include <linux/ptrace.h>
@@ -145,7 +143,8 @@ static void show_ecr_verbose(struct pt_regs *regs)
 	} else if (vec == ECR_V_PROTV) {
 		if (cause_code == ECR_C_PROTV_INST_FETCH)
 			pr_cont("Execute from Non-exec Page\n");
-		else if (cause_code == ECR_C_PROTV_MISALIG_DATA)
+		else if (cause_code == ECR_C_PROTV_MISALIG_DATA &&
+		         IS_ENABLED(CONFIG_ISA_ARCOMPACT))
 			pr_cont("Misaligned r/w from 0x%08lx\n", address);
 		else
 			pr_cont("%s access not allowed on page\n",
@@ -161,6 +160,8 @@ static void show_ecr_verbose(struct pt_regs *regs)
 			pr_cont("Bus Error from Data Mem\n");
 		else
 			pr_cont("Bus Error, check PRM\n");
+	} else if (vec == ECR_V_MISALIGN) {
+		pr_cont("Misaligned r/w from 0x%08lx\n", address);
 #endif
 	} else if (vec == ECR_V_TRAP) {
 		if (regs->ecr_param == 5)

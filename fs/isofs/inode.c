@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/isofs/inode.c
  *
@@ -28,6 +29,9 @@
 
 #include "isofs.h"
 #include "zisofs.h"
+
+/* max tz offset is 13 hours */
+#define MAX_TZ_OFFSET (52*15*60)
 
 #define BEQUIET
 
@@ -72,15 +76,9 @@ static struct inode *isofs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void isofs_i_callback(struct rcu_head *head)
+static void isofs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(isofs_inode_cachep, ISOFS_I(inode));
-}
-
-static void isofs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, isofs_i_callback);
 }
 
 static void init_once(void *foo)
@@ -122,7 +120,7 @@ static int isofs_remount(struct super_block *sb, int *flags, char *data)
 
 static const struct super_operations isofs_sops = {
 	.alloc_inode	= isofs_alloc_inode,
-	.destroy_inode	= isofs_destroy_inode,
+	.free_inode	= isofs_free_inode,
 	.put_super	= isofs_put_super,
 	.statfs		= isofs_statfs,
 	.remount_fs	= isofs_remount,
@@ -805,6 +803,10 @@ root_found:
 	 * size of a file system, which is 8 TB.
 	 */
 	s->s_maxbytes = 0x80000000000LL;
+
+	/* ECMA-119 timestamp from 1900/1/1 with tz offset */
+	s->s_time_min = mktime64(1900, 1, 1, 0, 0, 0) - MAX_TZ_OFFSET;
+	s->s_time_max = mktime64(U8_MAX+1900, 12, 31, 23, 59, 59) + MAX_TZ_OFFSET;
 
 	/* Set this for reference. Its not currently used except on write
 	   which we don't have .. */

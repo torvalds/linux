@@ -601,20 +601,14 @@ static const struct cec_adap_ops meson_ao_cec_ops = {
 static int meson_ao_cec_probe(struct platform_device *pdev)
 {
 	struct meson_ao_cec_device *ao_cec;
-	struct platform_device *hdmi_dev;
-	struct device_node *np;
+	struct device *hdmi_dev;
 	struct resource *res;
 	int ret, irq;
 
-	np = of_parse_phandle(pdev->dev.of_node, "hdmi-phandle", 0);
-	if (!np) {
-		dev_err(&pdev->dev, "Failed to find hdmi node\n");
-		return -ENODEV;
-	}
+	hdmi_dev = cec_notifier_parse_hdmi_phandle(&pdev->dev);
 
-	hdmi_dev = of_find_device_by_node(np);
-	if (hdmi_dev == NULL)
-		return -EPROBE_DEFER;
+	if (IS_ERR(hdmi_dev))
+		return PTR_ERR(hdmi_dev);
 
 	ao_cec = devm_kzalloc(&pdev->dev, sizeof(*ao_cec), GFP_KERNEL);
 	if (!ao_cec)
@@ -622,20 +616,19 @@ static int meson_ao_cec_probe(struct platform_device *pdev)
 
 	spin_lock_init(&ao_cec->cec_reg_lock);
 
-	ao_cec->notify = cec_notifier_get(&hdmi_dev->dev);
-	if (!ao_cec->notify)
-		return -ENOMEM;
-
 	ao_cec->adap = cec_allocate_adapter(&meson_ao_cec_ops, ao_cec,
 					    "meson_ao_cec",
-					    CEC_CAP_LOG_ADDRS |
-					    CEC_CAP_TRANSMIT |
-					    CEC_CAP_RC |
-					    CEC_CAP_PASSTHROUGH,
+					    CEC_CAP_DEFAULTS |
+					    CEC_CAP_CONNECTOR_INFO,
 					    1); /* Use 1 for now */
-	if (IS_ERR(ao_cec->adap)) {
-		ret = PTR_ERR(ao_cec->adap);
-		goto out_probe_notify;
+	if (IS_ERR(ao_cec->adap))
+		return PTR_ERR(ao_cec->adap);
+
+	ao_cec->notify = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+							ao_cec->adap);
+	if (!ao_cec->notify) {
+		ret = -ENOMEM;
+		goto out_probe_adapter;
 	}
 
 	ao_cec->adap->owner = THIS_MODULE;
@@ -644,7 +637,7 @@ static int meson_ao_cec_probe(struct platform_device *pdev)
 	ao_cec->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(ao_cec->base)) {
 		ret = PTR_ERR(ao_cec->base);
-		goto out_probe_adapter;
+		goto out_probe_notify;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -654,20 +647,20 @@ static int meson_ao_cec_probe(struct platform_device *pdev)
 					0, NULL, ao_cec);
 	if (ret) {
 		dev_err(&pdev->dev, "irq request failed\n");
-		goto out_probe_adapter;
+		goto out_probe_notify;
 	}
 
 	ao_cec->core = devm_clk_get(&pdev->dev, "core");
 	if (IS_ERR(ao_cec->core)) {
 		dev_err(&pdev->dev, "core clock request failed\n");
 		ret = PTR_ERR(ao_cec->core);
-		goto out_probe_adapter;
+		goto out_probe_notify;
 	}
 
 	ret = clk_prepare_enable(ao_cec->core);
 	if (ret) {
 		dev_err(&pdev->dev, "core clock enable failed\n");
-		goto out_probe_adapter;
+		goto out_probe_notify;
 	}
 
 	ret = clk_set_rate(ao_cec->core, CEC_CLK_RATE);
@@ -682,27 +675,23 @@ static int meson_ao_cec_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ao_cec);
 
 	ret = cec_register_adapter(ao_cec->adap, &pdev->dev);
-	if (ret < 0) {
-		cec_notifier_put(ao_cec->notify);
+	if (ret < 0)
 		goto out_probe_clk;
-	}
 
 	/* Setup Hardware */
 	writel_relaxed(CEC_GEN_CNTL_RESET,
 		       ao_cec->base + CEC_GEN_CNTL_REG);
-
-	cec_register_cec_notifier(ao_cec->adap, ao_cec->notify);
 
 	return 0;
 
 out_probe_clk:
 	clk_disable_unprepare(ao_cec->core);
 
+out_probe_notify:
+	cec_notifier_cec_adap_unregister(ao_cec->notify);
+
 out_probe_adapter:
 	cec_delete_adapter(ao_cec->adap);
-
-out_probe_notify:
-	cec_notifier_put(ao_cec->notify);
 
 	dev_err(&pdev->dev, "CEC controller registration failed\n");
 
@@ -715,9 +704,8 @@ static int meson_ao_cec_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(ao_cec->core);
 
+	cec_notifier_cec_adap_unregister(ao_cec->notify);
 	cec_unregister_adapter(ao_cec->adap);
-
-	cec_notifier_put(ao_cec->notify);
 
 	return 0;
 }

@@ -15,7 +15,7 @@
 #include <mach/microdev.h>
 #include <asm/io.h>
 #include <asm/machvec.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 static struct resource smc91x_resources[] = {
 	[0] = {

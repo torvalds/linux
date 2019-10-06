@@ -8,7 +8,7 @@ struct k_clock {
 			     const struct timespec64 *tp);
 	int	(*clock_get)(const clockid_t which_clock,
 			     struct timespec64 *tp);
-	int	(*clock_adj)(const clockid_t which_clock, struct timex *tx);
+	int	(*clock_adj)(const clockid_t which_clock, struct __kernel_timex *tx);
 	int	(*timer_create)(struct k_itimer *timer);
 	int	(*nsleep)(const clockid_t which_clock, int flags,
 			  const struct timespec64 *);
@@ -24,6 +24,7 @@ struct k_clock {
 	int	(*timer_try_to_cancel)(struct k_itimer *timr);
 	void	(*timer_arm)(struct k_itimer *timr, ktime_t expires,
 			     bool absolute, bool sigev_none);
+	void	(*timer_wait_running)(struct k_itimer *timr);
 };
 
 extern const struct k_clock clock_posix_cpu;

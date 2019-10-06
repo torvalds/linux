@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * intel_pt_pkt_decoder.h: Intel Processor Trace support
  * Copyright (c) 2013-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #ifndef INCLUDE__INTEL_PT_PKT_DECODER_H__
@@ -59,6 +50,10 @@ enum intel_pt_pkt_type {
 	INTEL_PT_MWAIT,
 	INTEL_PT_PWRE,
 	INTEL_PT_PWRX,
+	INTEL_PT_BBP,
+	INTEL_PT_BIP,
+	INTEL_PT_BEP,
+	INTEL_PT_BEP_IP,
 };
 
 struct intel_pt_pkt {
@@ -67,10 +62,25 @@ struct intel_pt_pkt {
 	uint64_t		payload;
 };
 
+/*
+ * Decoding of BIP packets conflicts with single-byte TNT packets. Since BIP
+ * packets only occur in the context of a block (i.e. between BBP and BEP), that
+ * context must be recorded and passed to the packet decoder.
+ */
+enum intel_pt_pkt_ctx {
+	INTEL_PT_NO_CTX,	/* BIP packets are invalid */
+	INTEL_PT_BLK_4_CTX,	/* 4-byte BIP packets */
+	INTEL_PT_BLK_8_CTX,	/* 8-byte BIP packets */
+};
+
 const char *intel_pt_pkt_name(enum intel_pt_pkt_type);
 
 int intel_pt_get_packet(const unsigned char *buf, size_t len,
-			struct intel_pt_pkt *packet);
+			struct intel_pt_pkt *packet,
+			enum intel_pt_pkt_ctx *ctx);
+
+void intel_pt_upd_pkt_ctx(const struct intel_pt_pkt *packet,
+			  enum intel_pt_pkt_ctx *ctx);
 
 int intel_pt_pkt_desc(const struct intel_pt_pkt *packet, char *buf, size_t len);
 

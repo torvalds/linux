@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Handling of a single switch port
  *
  * Copyright (c) 2017 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/if_bridge.h>
@@ -85,7 +81,7 @@ int dsa_port_enable(struct dsa_port *dp, struct phy_device *phy)
 	return 0;
 }
 
-void dsa_port_disable(struct dsa_port *dp, struct phy_device *phy)
+void dsa_port_disable(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
 	int port = dp->index;
@@ -94,7 +90,7 @@ void dsa_port_disable(struct dsa_port *dp, struct phy_device *phy)
 		dsa_port_set_state_now(dp, BR_STATE_DISABLED);
 
 	if (ds->ops->port_disable)
-		ds->ops->port_disable(ds, port, phy);
+		ds->ops->port_disable(ds, port);
 }
 
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)
@@ -106,16 +102,23 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)
 	};
 	int err;
 
-	/* Here the port is already bridged. Reflect the current configuration
-	 * so that drivers can program their chips accordingly.
+	/* Set the flooding mode before joining the port in the switch */
+	err = dsa_port_bridge_flags(dp, BR_FLOOD | BR_MCAST_FLOOD, NULL);
+	if (err)
+		return err;
+
+	/* Here the interface is already bridged. Reflect the current
+	 * configuration so that drivers can program their chips accordingly.
 	 */
 	dp->bridge_dev = br;
 
 	err = dsa_port_notify(dp, DSA_NOTIFIER_BRIDGE_JOIN, &info);
 
 	/* The bridging is rolled back on error */
-	if (err)
+	if (err) {
+		dsa_port_bridge_flags(dp, 0, NULL);
 		dp->bridge_dev = NULL;
+	}
 
 	return err;
 }
@@ -138,25 +141,76 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 	if (err)
 		pr_err("DSA: failed to notify DSA_NOTIFIER_BRIDGE_LEAVE\n");
 
+	/* Port is leaving the bridge, disable flooding */
+	dsa_port_bridge_flags(dp, 0, NULL);
+
 	/* Port left the bridge, put in BR_STATE_DISABLED by the bridge layer,
 	 * so allow it to be in BR_STATE_FORWARDING to be kept functional
 	 */
 	dsa_port_set_state_now(dp, BR_STATE_FORWARDING);
 }
 
+static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
+					      bool vlan_filtering)
+{
+	struct dsa_switch *ds = dp->ds;
+	int i;
+
+	if (!ds->vlan_filtering_is_global)
+		return true;
+
+	/* For cases where enabling/disabling VLAN awareness is global to the
+	 * switch, we need to handle the case where multiple bridges span
+	 * different ports of the same switch device and one of them has a
+	 * different setting than what is being requested.
+	 */
+	for (i = 0; i < ds->num_ports; i++) {
+		struct net_device *other_bridge;
+
+		other_bridge = dsa_to_port(ds, i)->bridge_dev;
+		if (!other_bridge)
+			continue;
+		/* If it's the same bridge, it also has same
+		 * vlan_filtering setting => no need to check
+		 */
+		if (other_bridge == dp->bridge_dev)
+			continue;
+		if (br_vlan_enabled(other_bridge) != vlan_filtering) {
+			dev_err(ds->dev, "VLAN filtering is a global setting\n");
+			return false;
+		}
+	}
+	return true;
+}
+
 int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 			    struct switchdev_trans *trans)
 {
 	struct dsa_switch *ds = dp->ds;
+	int err;
 
 	/* bridge skips -EOPNOTSUPP, so skip the prepare phase */
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
-	if (ds->ops->port_vlan_filtering)
-		return ds->ops->port_vlan_filtering(ds, dp->index,
-						    vlan_filtering);
+	if (!ds->ops->port_vlan_filtering)
+		return 0;
 
+	if (!dsa_port_can_apply_vlan_filtering(dp, vlan_filtering))
+		return -EINVAL;
+
+	if (dsa_port_is_vlan_filtering(dp) == vlan_filtering)
+		return 0;
+
+	err = ds->ops->port_vlan_filtering(ds, dp->index,
+					   vlan_filtering);
+	if (err)
+		return err;
+
+	if (ds->vlan_filtering_is_global)
+		ds->vlan_filtering = vlan_filtering;
+	else
+		dp->vlan_filtering = vlan_filtering;
 	return 0;
 }
 
@@ -176,6 +230,47 @@ int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
 	dp->ageing_time = ageing_time;
 
 	return dsa_port_notify(dp, DSA_NOTIFIER_AGEING_TIME, &info);
+}
+
+int dsa_port_pre_bridge_flags(const struct dsa_port *dp, unsigned long flags,
+			      struct switchdev_trans *trans)
+{
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->port_egress_floods ||
+	    (flags & ~(BR_FLOOD | BR_MCAST_FLOOD)))
+		return -EINVAL;
+
+	return 0;
+}
+
+int dsa_port_bridge_flags(const struct dsa_port *dp, unsigned long flags,
+			  struct switchdev_trans *trans)
+{
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+	int err = 0;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	if (ds->ops->port_egress_floods)
+		err = ds->ops->port_egress_floods(ds, port, flags & BR_FLOOD,
+						  flags & BR_MCAST_FLOOD);
+
+	return err;
+}
+
+int dsa_port_mrouter(struct dsa_port *dp, bool mrouter,
+		     struct switchdev_trans *trans)
+{
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return ds->ops->port_egress_floods ? 0 : -EOPNOTSUPP;
+
+	return ds->ops->port_egress_floods(ds, port, true, mrouter);
 }
 
 int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
@@ -253,10 +348,7 @@ int dsa_port_vlan_add(struct dsa_port *dp,
 		.vlan = vlan,
 	};
 
-	if (br_vlan_enabled(dp->bridge_dev))
-		return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_ADD, &info);
-
-	return 0;
+	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_ADD, &info);
 }
 
 int dsa_port_vlan_del(struct dsa_port *dp,
@@ -268,14 +360,41 @@ int dsa_port_vlan_del(struct dsa_port *dp,
 		.vlan = vlan,
 	};
 
-	if (netif_is_bridge_master(vlan->obj.orig_dev))
-		return -EOPNOTSUPP;
-
-	if (br_vlan_enabled(dp->bridge_dev))
-		return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
-
-	return 0;
+	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
 }
+
+int dsa_port_vid_add(struct dsa_port *dp, u16 vid, u16 flags)
+{
+	struct switchdev_obj_port_vlan vlan = {
+		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
+		.flags = flags,
+		.vid_begin = vid,
+		.vid_end = vid,
+	};
+	struct switchdev_trans trans;
+	int err;
+
+	trans.ph_prepare = true;
+	err = dsa_port_vlan_add(dp, &vlan, &trans);
+	if (err)
+		return err;
+
+	trans.ph_prepare = false;
+	return dsa_port_vlan_add(dp, &vlan, &trans);
+}
+EXPORT_SYMBOL(dsa_port_vid_add);
+
+int dsa_port_vid_del(struct dsa_port *dp, u16 vid)
+{
+	struct switchdev_obj_port_vlan vlan = {
+		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
+		.vid_begin = vid,
+		.vid_end = vid,
+	};
+
+	return dsa_port_vlan_del(dp, &vlan);
+}
+EXPORT_SYMBOL(dsa_port_vid_del);
 
 static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
 {
@@ -296,6 +415,108 @@ static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
 	return phydev;
 }
 
+void dsa_port_phylink_validate(struct phylink_config *config,
+			       unsigned long *supported,
+			       struct phylink_link_state *state)
+{
+	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->phylink_validate)
+		return;
+
+	ds->ops->phylink_validate(ds, dp->index, supported, state);
+}
+EXPORT_SYMBOL_GPL(dsa_port_phylink_validate);
+
+int dsa_port_phylink_mac_link_state(struct phylink_config *config,
+				    struct phylink_link_state *state)
+{
+	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_switch *ds = dp->ds;
+
+	/* Only called for SGMII and 802.3z */
+	if (!ds->ops->phylink_mac_link_state)
+		return -EOPNOTSUPP;
+
+	return ds->ops->phylink_mac_link_state(ds, dp->index, state);
+}
+EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_link_state);
+
+void dsa_port_phylink_mac_config(struct phylink_config *config,
+				 unsigned int mode,
+				 const struct phylink_link_state *state)
+{
+	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->phylink_mac_config)
+		return;
+
+	ds->ops->phylink_mac_config(ds, dp->index, mode, state);
+}
+EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_config);
+
+void dsa_port_phylink_mac_an_restart(struct phylink_config *config)
+{
+	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->phylink_mac_an_restart)
+		return;
+
+	ds->ops->phylink_mac_an_restart(ds, dp->index);
+}
+EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_an_restart);
+
+void dsa_port_phylink_mac_link_down(struct phylink_config *config,
+				    unsigned int mode,
+				    phy_interface_t interface)
+{
+	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct phy_device *phydev = NULL;
+	struct dsa_switch *ds = dp->ds;
+
+	if (dsa_is_user_port(ds, dp->index))
+		phydev = dp->slave->phydev;
+
+	if (!ds->ops->phylink_mac_link_down) {
+		if (ds->ops->adjust_link && phydev)
+			ds->ops->adjust_link(ds, dp->index, phydev);
+		return;
+	}
+
+	ds->ops->phylink_mac_link_down(ds, dp->index, mode, interface);
+}
+EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_link_down);
+
+void dsa_port_phylink_mac_link_up(struct phylink_config *config,
+				  unsigned int mode,
+				  phy_interface_t interface,
+				  struct phy_device *phydev)
+{
+	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->phylink_mac_link_up) {
+		if (ds->ops->adjust_link && phydev)
+			ds->ops->adjust_link(ds, dp->index, phydev);
+		return;
+	}
+
+	ds->ops->phylink_mac_link_up(ds, dp->index, mode, interface, phydev);
+}
+EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_link_up);
+
+const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
+	.validate = dsa_port_phylink_validate,
+	.mac_link_state = dsa_port_phylink_mac_link_state,
+	.mac_config = dsa_port_phylink_mac_config,
+	.mac_an_restart = dsa_port_phylink_mac_an_restart,
+	.mac_link_down = dsa_port_phylink_mac_link_down,
+	.mac_link_up = dsa_port_phylink_mac_link_up,
+};
+
 static int dsa_port_setup_phy_of(struct dsa_port *dp, bool enable)
 {
 	struct dsa_switch *ds = dp->ds;
@@ -311,10 +532,6 @@ static int dsa_port_setup_phy_of(struct dsa_port *dp, bool enable)
 		return PTR_ERR(phydev);
 
 	if (enable) {
-		err = genphy_config_init(phydev);
-		if (err < 0)
-			goto err_put_dev;
-
 		err = genphy_resume(phydev);
 		if (err < 0)
 			goto err_put_dev;
@@ -362,7 +579,6 @@ static int dsa_port_fixed_link_register_of(struct dsa_port *dp)
 		mode = PHY_INTERFACE_MODE_NA;
 	phydev->interface = mode;
 
-	genphy_config_init(phydev);
 	genphy_read_status(phydev);
 
 	if (ds->ops->adjust_link)
@@ -373,8 +589,53 @@ static int dsa_port_fixed_link_register_of(struct dsa_port *dp)
 	return 0;
 }
 
+static int dsa_port_phylink_register(struct dsa_port *dp)
+{
+	struct dsa_switch *ds = dp->ds;
+	struct device_node *port_dn = dp->dn;
+	int mode, err;
+
+	mode = of_get_phy_mode(port_dn);
+	if (mode < 0)
+		mode = PHY_INTERFACE_MODE_NA;
+
+	dp->pl_config.dev = ds->dev;
+	dp->pl_config.type = PHYLINK_DEV;
+
+	dp->pl = phylink_create(&dp->pl_config, of_fwnode_handle(port_dn),
+				mode, &dsa_port_phylink_mac_ops);
+	if (IS_ERR(dp->pl)) {
+		pr_err("error creating PHYLINK: %ld\n", PTR_ERR(dp->pl));
+		return PTR_ERR(dp->pl);
+	}
+
+	err = phylink_of_phy_connect(dp->pl, port_dn, 0);
+	if (err && err != -ENODEV) {
+		pr_err("could not attach to PHY: %d\n", err);
+		goto err_phy_connect;
+	}
+
+	rtnl_lock();
+	phylink_start(dp->pl);
+	rtnl_unlock();
+
+	return 0;
+
+err_phy_connect:
+	phylink_destroy(dp->pl);
+	return err;
+}
+
 int dsa_port_link_register_of(struct dsa_port *dp)
 {
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->adjust_link)
+		return dsa_port_phylink_register(dp);
+
+	dev_warn(ds->dev,
+		 "Using legacy PHYLIB callbacks. Please migrate to PHYLINK!\n");
+
 	if (of_phy_is_fixed_link(dp->dn))
 		return dsa_port_fixed_link_register_of(dp);
 	else
@@ -383,6 +644,16 @@ int dsa_port_link_register_of(struct dsa_port *dp)
 
 void dsa_port_link_unregister_of(struct dsa_port *dp)
 {
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->adjust_link) {
+		rtnl_lock();
+		phylink_disconnect_phy(dp->pl);
+		rtnl_unlock();
+		phylink_destroy(dp->pl);
+		return;
+	}
+
 	if (of_phy_is_fixed_link(dp->dn))
 		of_phy_deregister_fixed_link(dp->dn);
 	else

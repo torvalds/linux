@@ -46,11 +46,14 @@ enum dc_lane_count {
  */
 enum dc_link_rate {
 	LINK_RATE_UNKNOWN = 0,
-	LINK_RATE_LOW = 0x06,
-	LINK_RATE_HIGH = 0x0A,
-	LINK_RATE_RBR2 = 0x0C,
-	LINK_RATE_HIGH2 = 0x14,
-	LINK_RATE_HIGH3 = 0x1E
+	LINK_RATE_LOW = 0x06,		// Rate_1 (RBR)	- 1.62 Gbps/Lane
+	LINK_RATE_RATE_2 = 0x08,	// Rate_2		- 2.16 Gbps/Lane
+	LINK_RATE_RATE_3 = 0x09,	// Rate_3		- 2.43 Gbps/Lane
+	LINK_RATE_HIGH = 0x0A,		// Rate_4 (HBR)	- 2.70 Gbps/Lane
+	LINK_RATE_RBR2 = 0x0C,		// Rate_5 (RBR2)- 3.24 Gbps/Lane
+	LINK_RATE_RATE_6 = 0x10,	// Rate_6		- 4.32 Gbps/Lane
+	LINK_RATE_HIGH2 = 0x14,		// Rate_7 (HBR2)- 5.40 Gbps/Lane
+	LINK_RATE_HIGH3 = 0x1E		// Rate_8 (HBR3)- 8.10 Gbps/Lane
 };
 
 enum dc_link_spread {
@@ -87,10 +90,19 @@ enum dc_post_cursor2 {
 	POST_CURSOR2_MAX_LEVEL = POST_CURSOR2_LEVEL3,
 };
 
+enum dc_dp_training_pattern {
+	DP_TRAINING_PATTERN_SEQUENCE_1 = 0,
+	DP_TRAINING_PATTERN_SEQUENCE_2,
+	DP_TRAINING_PATTERN_SEQUENCE_3,
+	DP_TRAINING_PATTERN_SEQUENCE_4,
+};
+
 struct dc_link_settings {
 	enum dc_lane_count lane_count;
 	enum dc_link_rate link_rate;
 	enum dc_link_spread link_spread;
+	bool use_link_rate_set;
+	uint8_t link_rate_set;
 };
 
 struct dc_lane_settings {
@@ -104,6 +116,23 @@ struct dc_link_training_settings {
 	struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX];
 };
 
+struct dc_link_training_overrides {
+	enum dc_voltage_swing *voltage_swing;
+	enum dc_pre_emphasis *pre_emphasis;
+	enum dc_post_cursor2 *post_cursor2;
+
+	uint16_t *cr_pattern_time;
+	uint16_t *eq_pattern_time;
+	enum dc_dp_training_pattern *pattern_for_eq;
+
+	enum dc_link_spread *downspread;
+	bool *alternate_scrambler_reset;
+	bool *enhanced_framing;
+	bool *mst_enable;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	bool *fec_enable;
+#endif
+};
 
 union dpcd_rev {
 	struct {
@@ -417,10 +446,24 @@ union edp_configuration_cap {
 	uint8_t raw;
 };
 
+union dprx_feature {
+	struct {
+		uint8_t GTC_CAP:1;                             // bit 0: DP 1.3+
+		uint8_t SST_SPLIT_SDP_CAP:1;                   // bit 1: DP 1.4
+		uint8_t AV_SYNC_CAP:1;                         // bit 2: DP 1.3+
+		uint8_t VSC_SDP_COLORIMETRY_SUPPORTED:1;       // bit 3: DP 1.3+
+		uint8_t VSC_EXT_VESA_SDP_SUPPORTED:1;          // bit 4: DP 1.4
+		uint8_t VSC_EXT_VESA_SDP_CHAINING_SUPPORTED:1; // bit 5: DP 1.4
+		uint8_t VSC_EXT_CEA_SDP_SUPPORTED:1;           // bit 6: DP 1.4
+		uint8_t VSC_EXT_CEA_SDP_CHAINING_SUPPORTED:1;  // bit 7: DP 1.4
+	} bits;
+	uint8_t raw;
+};
+
 union training_aux_rd_interval {
 	struct {
 		uint8_t TRAINIG_AUX_RD_INTERVAL:7;
-		uint8_t EXT_RECIEVER_CAP_FIELD_PRESENT:1;
+		uint8_t EXT_RECEIVER_CAP_FIELD_PRESENT:1;
 	} bits;
 	uint8_t raw;
 };
@@ -492,5 +535,132 @@ union test_misc {
 	} bits;
 	unsigned char raw;
 };
+
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+/* FEC capability DPCD register field bits-*/
+union dpcd_fec_capability {
+	struct {
+		uint8_t FEC_CAPABLE:1;
+		uint8_t UNCORRECTED_BLOCK_ERROR_COUNT_CAPABLE:1;
+		uint8_t CORRECTED_BLOCK_ERROR_COUNT_CAPABLE:1;
+		uint8_t BIT_ERROR_COUNT_CAPABLE:1;
+		uint8_t RESERVED:4;
+	} bits;
+	uint8_t raw;
+};
+
+/* DSC capability DPCD register field bits-*/
+struct dpcd_dsc_support {
+	uint8_t DSC_SUPPORT		:1;
+	uint8_t DSC_PASSTHROUGH_SUPPORT	:1;
+	uint8_t RESERVED		:6;
+};
+
+struct dpcd_dsc_algorithm_revision {
+	uint8_t DSC_VERSION_MAJOR	:4;
+	uint8_t DSC_VERSION_MINOR	:4;
+};
+
+struct dpcd_dsc_rc_buffer_block_size {
+	uint8_t RC_BLOCK_BUFFER_SIZE	:2;
+	uint8_t RESERVED		:6;
+};
+
+struct dpcd_dsc_slice_capability1 {
+	uint8_t ONE_SLICE_PER_DP_DSC_SINK_DEVICE	:1;
+	uint8_t TWO_SLICES_PER_DP_DSC_SINK_DEVICE	:1;
+	uint8_t RESERVED				:1;
+	uint8_t FOUR_SLICES_PER_DP_DSC_SINK_DEVICE	:1;
+	uint8_t SIX_SLICES_PER_DP_DSC_SINK_DEVICE	:1;
+	uint8_t EIGHT_SLICES_PER_DP_DSC_SINK_DEVICE	:1;
+	uint8_t TEN_SLICES_PER_DP_DSC_SINK_DEVICE	:1;
+	uint8_t TWELVE_SLICES_PER_DP_DSC_SINK_DEVICE	:1;
+};
+
+struct dpcd_dsc_line_buffer_bit_depth {
+	uint8_t LINE_BUFFER_BIT_DEPTH	:4;
+	uint8_t RESERVED		:4;
+};
+
+struct dpcd_dsc_block_prediction_support {
+	uint8_t BLOCK_PREDICTION_SUPPORT:1;
+	uint8_t RESERVED		:7;
+};
+
+struct dpcd_maximum_bits_per_pixel_supported_by_the_decompressor {
+	uint8_t MAXIMUM_BITS_PER_PIXEL_SUPPORTED_BY_THE_DECOMPRESSOR_LOW	:7;
+	uint8_t MAXIMUM_BITS_PER_PIXEL_SUPPORTED_BY_THE_DECOMPRESSOR_HIGH	:7;
+	uint8_t RESERVED							:2;
+};
+
+struct dpcd_dsc_decoder_color_format_capabilities {
+	uint8_t RGB_SUPPORT			:1;
+	uint8_t Y_CB_CR_444_SUPPORT		:1;
+	uint8_t Y_CB_CR_SIMPLE_422_SUPPORT	:1;
+	uint8_t Y_CB_CR_NATIVE_422_SUPPORT	:1;
+	uint8_t Y_CB_CR_NATIVE_420_SUPPORT	:1;
+	uint8_t RESERVED			:3;
+};
+
+struct dpcd_dsc_decoder_color_depth_capabilities {
+	uint8_t RESERVED0			:1;
+	uint8_t EIGHT_BITS_PER_COLOR_SUPPORT	:1;
+	uint8_t TEN_BITS_PER_COLOR_SUPPORT	:1;
+	uint8_t TWELVE_BITS_PER_COLOR_SUPPORT	:1;
+	uint8_t RESERVED1			:4;
+};
+
+struct dpcd_peak_dsc_throughput_dsc_sink {
+	uint8_t THROUGHPUT_MODE_0:4;
+	uint8_t THROUGHPUT_MODE_1:4;
+};
+
+struct dpcd_dsc_slice_capabilities_2 {
+	uint8_t SIXTEEN_SLICES_PER_DSC_SINK_DEVICE	:1;
+	uint8_t TWENTY_SLICES_PER_DSC_SINK_DEVICE	:1;
+	uint8_t TWENTYFOUR_SLICES_PER_DSC_SINK_DEVICE	:1;
+	uint8_t RESERVED				:5;
+};
+
+struct dpcd_bits_per_pixel_increment{
+	uint8_t INCREMENT_OF_BITS_PER_PIXEL_SUPPORTED	:3;
+	uint8_t RESERVED				:5;
+};
+union dpcd_dsc_basic_capabilities {
+	struct {
+		struct dpcd_dsc_support dsc_support;
+		struct dpcd_dsc_algorithm_revision dsc_algorithm_revision;
+		struct dpcd_dsc_rc_buffer_block_size dsc_rc_buffer_block_size;
+		uint8_t dsc_rc_buffer_size;
+		struct dpcd_dsc_slice_capability1 dsc_slice_capabilities_1;
+		struct dpcd_dsc_line_buffer_bit_depth dsc_line_buffer_bit_depth;
+		struct dpcd_dsc_block_prediction_support dsc_block_prediction_support;
+		struct dpcd_maximum_bits_per_pixel_supported_by_the_decompressor maximum_bits_per_pixel_supported_by_the_decompressor;
+		struct dpcd_dsc_decoder_color_format_capabilities dsc_decoder_color_format_capabilities;
+		struct dpcd_dsc_decoder_color_depth_capabilities dsc_decoder_color_depth_capabilities;
+		struct dpcd_peak_dsc_throughput_dsc_sink peak_dsc_throughput_dsc_sink;
+		uint8_t dsc_maximum_slice_width;
+		struct dpcd_dsc_slice_capabilities_2 dsc_slice_capabilities_2;
+		uint8_t reserved;
+		struct dpcd_bits_per_pixel_increment bits_per_pixel_increment;
+	} fields;
+	uint8_t raw[16];
+};
+
+union dpcd_dsc_ext_capabilities {
+	struct {
+		uint8_t BRANCH_OVERALL_THROUGHPUT_0;
+		uint8_t BRANCH_OVERALL_THROUGHPUT_1;
+		uint8_t BRANCH_MAX_LINE_WIDTH;
+	} fields;
+	uint8_t raw[3];
+};
+
+struct dpcd_dsc_capabilities {
+	union dpcd_dsc_basic_capabilities dsc_basic_caps;
+	union dpcd_dsc_ext_capabilities dsc_ext_caps;
+};
+
+#endif /* CONFIG_DRM_AMD_DC_DSC_SUPPORT */
 
 #endif /* DC_DP_TYPES_H */

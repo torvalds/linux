@@ -85,16 +85,18 @@ leads to a few additional requirements:
 - The userspace side must be fully reviewed and tested to the standards of that
   userspace project. For e.g. mesa this means piglit testcases and review on the
   mailing list. This is again to ensure that the new interface actually gets the
-  job done.
+  job done.  The userspace-side reviewer should also provide an Acked-by on the
+  kernel uAPI patch indicating that they believe the proposed uAPI is sound and
+  sufficiently documented and validated for userspace's consumption.
 
 - The userspace patches must be against the canonical upstream, not some vendor
   fork. This is to make sure that no one cheats on the review and testing
   requirements by doing a quick fork.
 
 - The kernel patch can only be merged after all the above requirements are met,
-  but it **must** be merged **before** the userspace patches land. uAPI always flows
-  from the kernel, doing things the other way round risks divergence of the uAPI
-  definitions and header files.
+  but it **must** be merged to either drm-next or drm-misc-next **before** the
+  userspace patches land. uAPI always flows from the kernel, doing things the
+  other way round risks divergence of the uAPI definitions and header files.
 
 These are fairly steep requirements, but have grown out from years of shared
 pain and experience with uAPI added hastily, and almost always regretted about
@@ -238,6 +240,14 @@ DRM specific patterns. Note that ENOTTY has the slightly unintuitive meaning of
 Testing and validation
 ======================
 
+Testing Requirements for userspace API
+--------------------------------------
+
+New cross-driver userspace interface extensions, like new IOCTL, new KMS
+properties, new files in sysfs or anything else that constitutes an API change
+should have driver-agnostic testcases in IGT for that feature, if such a test
+can be reasonably made using IGT for the target hardware.
+
 Validating changes with IGT
 ---------------------------
 
@@ -319,3 +329,12 @@ DRM_IOCTL_MODESET_CTL
     mode setting, since on many devices the vertical blank counter is
     reset to 0 at some point during modeset. Modern drivers should not
     call this any more since with kernel mode setting it is a no-op.
+
+Userspace API Structures
+========================
+
+.. kernel-doc:: include/uapi/drm/drm_mode.h
+   :doc: overview
+
+.. kernel-doc:: include/uapi/drm/drm_mode.h
+   :internal:

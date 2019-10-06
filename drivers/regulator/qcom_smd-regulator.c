@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, Sony Mobile Communications AB.
  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -31,6 +23,11 @@ struct qcom_rpm_reg {
 
 	int is_enabled;
 	int uV;
+	u32 load;
+
+	unsigned int enabled_updated:1;
+	unsigned int uv_updated:1;
+	unsigned int load_updated:1;
 };
 
 struct rpm_regulator_req {
@@ -43,30 +40,59 @@ struct rpm_regulator_req {
 #define RPM_KEY_UV	0x00007675 /* "uv" */
 #define RPM_KEY_MA	0x0000616d /* "ma" */
 
-static int rpm_reg_write_active(struct qcom_rpm_reg *vreg,
-				struct rpm_regulator_req *req,
-				size_t size)
+static int rpm_reg_write_active(struct qcom_rpm_reg *vreg)
 {
-	return qcom_rpm_smd_write(vreg->rpm,
-				  QCOM_SMD_RPM_ACTIVE_STATE,
-				  vreg->type,
-				  vreg->id,
-				  req, size);
+	struct rpm_regulator_req req[3];
+	int reqlen = 0;
+	int ret;
+
+	if (vreg->enabled_updated) {
+		req[reqlen].key = cpu_to_le32(RPM_KEY_SWEN);
+		req[reqlen].nbytes = cpu_to_le32(sizeof(u32));
+		req[reqlen].value = cpu_to_le32(vreg->is_enabled);
+		reqlen++;
+	}
+
+	if (vreg->uv_updated && vreg->is_enabled) {
+		req[reqlen].key = cpu_to_le32(RPM_KEY_UV);
+		req[reqlen].nbytes = cpu_to_le32(sizeof(u32));
+		req[reqlen].value = cpu_to_le32(vreg->uV);
+		reqlen++;
+	}
+
+	if (vreg->load_updated && vreg->is_enabled) {
+		req[reqlen].key = cpu_to_le32(RPM_KEY_MA);
+		req[reqlen].nbytes = cpu_to_le32(sizeof(u32));
+		req[reqlen].value = cpu_to_le32(vreg->load / 1000);
+		reqlen++;
+	}
+
+	if (!reqlen)
+		return 0;
+
+	ret = qcom_rpm_smd_write(vreg->rpm, QCOM_SMD_RPM_ACTIVE_STATE,
+				 vreg->type, vreg->id,
+				 req, sizeof(req[0]) * reqlen);
+	if (!ret) {
+		vreg->enabled_updated = 0;
+		vreg->uv_updated = 0;
+		vreg->load_updated = 0;
+	}
+
+	return ret;
 }
 
 static int rpm_reg_enable(struct regulator_dev *rdev)
 {
 	struct qcom_rpm_reg *vreg = rdev_get_drvdata(rdev);
-	struct rpm_regulator_req req;
 	int ret;
 
-	req.key = cpu_to_le32(RPM_KEY_SWEN);
-	req.nbytes = cpu_to_le32(sizeof(u32));
-	req.value = cpu_to_le32(1);
+	vreg->is_enabled = 1;
+	vreg->enabled_updated = 1;
 
-	ret = rpm_reg_write_active(vreg, &req, sizeof(req));
-	if (!ret)
-		vreg->is_enabled = 1;
+	ret = rpm_reg_write_active(vreg);
+	if (ret)
+		vreg->is_enabled = 0;
 
 	return ret;
 }
@@ -81,16 +107,14 @@ static int rpm_reg_is_enabled(struct regulator_dev *rdev)
 static int rpm_reg_disable(struct regulator_dev *rdev)
 {
 	struct qcom_rpm_reg *vreg = rdev_get_drvdata(rdev);
-	struct rpm_regulator_req req;
 	int ret;
 
-	req.key = cpu_to_le32(RPM_KEY_SWEN);
-	req.nbytes = cpu_to_le32(sizeof(u32));
-	req.value = 0;
+	vreg->is_enabled = 0;
+	vreg->enabled_updated = 1;
 
-	ret = rpm_reg_write_active(vreg, &req, sizeof(req));
-	if (!ret)
-		vreg->is_enabled = 0;
+	ret = rpm_reg_write_active(vreg);
+	if (ret)
+		vreg->is_enabled = 1;
 
 	return ret;
 }
@@ -108,16 +132,15 @@ static int rpm_reg_set_voltage(struct regulator_dev *rdev,
 			       unsigned *selector)
 {
 	struct qcom_rpm_reg *vreg = rdev_get_drvdata(rdev);
-	struct rpm_regulator_req req;
-	int ret = 0;
+	int ret;
+	int old_uV = vreg->uV;
 
-	req.key = cpu_to_le32(RPM_KEY_UV);
-	req.nbytes = cpu_to_le32(sizeof(u32));
-	req.value = cpu_to_le32(min_uV);
+	vreg->uV = min_uV;
+	vreg->uv_updated = 1;
 
-	ret = rpm_reg_write_active(vreg, &req, sizeof(req));
-	if (!ret)
-		vreg->uV = min_uV;
+	ret = rpm_reg_write_active(vreg);
+	if (ret)
+		vreg->uV = old_uV;
 
 	return ret;
 }
@@ -125,13 +148,16 @@ static int rpm_reg_set_voltage(struct regulator_dev *rdev,
 static int rpm_reg_set_load(struct regulator_dev *rdev, int load_uA)
 {
 	struct qcom_rpm_reg *vreg = rdev_get_drvdata(rdev);
-	struct rpm_regulator_req req;
+	u32 old_load = vreg->load;
+	int ret;
 
-	req.key = cpu_to_le32(RPM_KEY_MA);
-	req.nbytes = cpu_to_le32(sizeof(u32));
-	req.value = cpu_to_le32(load_uA / 1000);
+	vreg->load = load_uA;
+	vreg->load_updated = 1;
+	ret = rpm_reg_write_active(vreg);
+	if (ret)
+		vreg->load = old_load;
 
-	return rpm_reg_write_active(vreg, &req, sizeof(req));
+	return ret;
 }
 
 static const struct regulator_ops rpm_smps_ldo_ops = {

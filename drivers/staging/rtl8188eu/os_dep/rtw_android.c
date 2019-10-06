@@ -67,7 +67,7 @@ int rtw_android_cmdstr_to_num(char *cmdstr)
 	int cmd_num;
 
 	for (cmd_num = 0; cmd_num < ANDROID_WIFI_CMD_MAX; cmd_num++)
-		if (0 == strncasecmp(cmdstr, android_wifi_cmd_str[cmd_num],
+		if (!strncasecmp(cmdstr, android_wifi_cmd_str[cmd_num],
 				  strlen(android_wifi_cmd_str[cmd_num])))
 			break;
 	return cmd_num;
@@ -84,7 +84,7 @@ static int rtw_android_get_rssi(struct net_device *net, char *command,
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 		bytes_written += snprintf(&command[bytes_written], total_len,
 					  "%s rssi %d",
-					  pcur_network->network.Ssid.Ssid,
+					  pcur_network->network.ssid.ssid,
 					  padapter->recvpriv.rssi);
 	}
 	return bytes_written;

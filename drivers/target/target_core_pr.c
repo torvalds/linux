@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Filename:  target_core_pr.c
  *
@@ -7,20 +8,6 @@
  * (c) Copyright 2009-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  ******************************************************************************/
 
@@ -111,10 +98,10 @@ target_scsi2_reservation_check(struct se_cmd *cmd)
 		break;
 	}
 
-	if (!dev->dev_reserved_node_acl || !sess)
+	if (!dev->reservation_holder || !sess)
 		return 0;
 
-	if (dev->dev_reserved_node_acl != sess->se_node_acl)
+	if (dev->reservation_holder->se_node_acl != sess->se_node_acl)
 		return TCM_RESERVATION_CONFLICT;
 
 	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS_WITH_ISID) {
@@ -200,6 +187,16 @@ static int target_check_scsi2_reservation_conflict(struct se_cmd *cmd)
 	return 0;
 }
 
+void target_release_reservation(struct se_device *dev)
+{
+	dev->reservation_holder = NULL;
+	dev->dev_reservation_flags &= ~DRF_SPC2_RESERVATIONS;
+	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS_WITH_ISID) {
+		dev->dev_res_bin_isid = 0;
+		dev->dev_reservation_flags &= ~DRF_SPC2_RESERVATIONS_WITH_ISID;
+	}
+}
+
 sense_reason_t
 target_scsi2_reservation_release(struct se_cmd *cmd)
 {
@@ -217,21 +214,16 @@ target_scsi2_reservation_release(struct se_cmd *cmd)
 		return TCM_RESERVATION_CONFLICT;
 
 	spin_lock(&dev->dev_reservation_lock);
-	if (!dev->dev_reserved_node_acl || !sess)
+	if (!dev->reservation_holder || !sess)
 		goto out_unlock;
 
-	if (dev->dev_reserved_node_acl != sess->se_node_acl)
+	if (dev->reservation_holder->se_node_acl != sess->se_node_acl)
 		goto out_unlock;
 
 	if (dev->dev_res_bin_isid != sess->sess_bin_isid)
 		goto out_unlock;
 
-	dev->dev_reserved_node_acl = NULL;
-	dev->dev_reservation_flags &= ~DRF_SPC2_RESERVATIONS;
-	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS_WITH_ISID) {
-		dev->dev_res_bin_isid = 0;
-		dev->dev_reservation_flags &= ~DRF_SPC2_RESERVATIONS_WITH_ISID;
-	}
+	target_release_reservation(dev);
 	tpg = sess->se_tpg;
 	pr_debug("SCSI-2 Released reservation for %s LUN: %llu ->"
 		" MAPPED LUN: %llu for %s\n",
@@ -275,13 +267,13 @@ target_scsi2_reservation_reserve(struct se_cmd *cmd)
 
 	tpg = sess->se_tpg;
 	spin_lock(&dev->dev_reservation_lock);
-	if (dev->dev_reserved_node_acl &&
-	   (dev->dev_reserved_node_acl != sess->se_node_acl)) {
+	if (dev->reservation_holder &&
+	    dev->reservation_holder->se_node_acl != sess->se_node_acl) {
 		pr_err("SCSI-2 RESERVATION CONFLIFT for %s fabric\n",
 			tpg->se_tpg_tfo->fabric_name);
 		pr_err("Original reserver LUN: %llu %s\n",
 			cmd->se_lun->unpacked_lun,
-			dev->dev_reserved_node_acl->initiatorname);
+			dev->reservation_holder->se_node_acl->initiatorname);
 		pr_err("Current attempt - LUN: %llu -> MAPPED LUN: %llu"
 			" from %s \n", cmd->se_lun->unpacked_lun,
 			cmd->orig_fe_lun,
@@ -290,7 +282,7 @@ target_scsi2_reservation_reserve(struct se_cmd *cmd)
 		goto out_unlock;
 	}
 
-	dev->dev_reserved_node_acl = sess->se_node_acl;
+	dev->reservation_holder = sess;
 	dev->dev_reservation_flags |= DRF_SPC2_RESERVATIONS;
 	if (sess->sess_bin_isid != 0) {
 		dev->dev_res_bin_isid = sess->sess_bin_isid;
@@ -1290,9 +1282,6 @@ static int core_scsi3_check_implicit_release(
 	return ret;
 }
 
-/*
- * Called with struct t10_reservation->registration_lock held.
- */
 static void __core_scsi3_free_registration(
 	struct se_device *dev,
 	struct t10_pr_registration *pr_reg,
@@ -1307,6 +1296,8 @@ static void __core_scsi3_free_registration(
 	struct se_node_acl *nacl = pr_reg->pr_reg_nacl;
 	struct se_dev_entry *deve;
 	char i_buf[PR_REG_ISID_ID_LEN];
+
+	lockdep_assert_held(&pr_tmpl->registration_lock);
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
@@ -2450,9 +2441,6 @@ core_scsi3_emulate_pro_reserve(struct se_cmd *cmd, int type, int scope,
 	}
 }
 
-/*
- * Called with struct se_device->dev_reservation_lock held.
- */
 static void __core_scsi3_complete_pro_release(
 	struct se_device *dev,
 	struct se_node_acl *se_nacl,
@@ -2463,6 +2451,8 @@ static void __core_scsi3_complete_pro_release(
 	const struct target_core_fabric_ops *tfo = se_nacl->se_tpg->se_tpg_tfo;
 	char i_buf[PR_REG_ISID_ID_LEN];
 	int pr_res_type = 0, pr_res_scope = 0;
+
+	lockdep_assert_held(&dev->dev_reservation_lock);
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
@@ -2760,9 +2750,6 @@ core_scsi3_emulate_pro_clear(struct se_cmd *cmd, u64 res_key)
 	return 0;
 }
 
-/*
- * Called with struct se_device->dev_reservation_lock held.
- */
 static void __core_scsi3_complete_pro_preempt(
 	struct se_device *dev,
 	struct t10_pr_registration *pr_reg,
@@ -2774,6 +2761,8 @@ static void __core_scsi3_complete_pro_preempt(
 	struct se_node_acl *nacl = pr_reg->pr_reg_nacl;
 	const struct target_core_fabric_ops *tfo = nacl->se_tpg->se_tpg_tfo;
 	char i_buf[PR_REG_ISID_ID_LEN];
+
+	lockdep_assert_held(&dev->dev_reservation_lock);
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);

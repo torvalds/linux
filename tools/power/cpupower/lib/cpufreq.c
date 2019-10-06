@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  (C) 2004-2009  Dominik Brodowski <linux@dominikbrodowski.de>
- *
- *  Licensed under the terms of the GNU GPL License version 2.
  */
 
 
@@ -333,17 +332,20 @@ void cpufreq_put_available_governors(struct cpufreq_available_governors *any)
 }
 
 
-struct cpufreq_available_frequencies
-*cpufreq_get_available_frequencies(unsigned int cpu)
+struct cpufreq_frequencies
+*cpufreq_get_frequencies(const char *type, unsigned int cpu)
 {
-	struct cpufreq_available_frequencies *first = NULL;
-	struct cpufreq_available_frequencies *current = NULL;
+	struct cpufreq_frequencies *first = NULL;
+	struct cpufreq_frequencies *current = NULL;
 	char one_value[SYSFS_PATH_MAX];
 	char linebuf[MAX_LINE_LEN];
+	char fname[MAX_LINE_LEN];
 	unsigned int pos, i;
 	unsigned int len;
 
-	len = sysfs_cpufreq_read_file(cpu, "scaling_available_frequencies",
+	snprintf(fname, MAX_LINE_LEN, "scaling_%s_frequencies", type);
+
+	len = sysfs_cpufreq_read_file(cpu, fname,
 				linebuf, sizeof(linebuf));
 	if (len == 0)
 		return NULL;
@@ -389,9 +391,9 @@ struct cpufreq_available_frequencies
 	return NULL;
 }
 
-void cpufreq_put_available_frequencies(struct cpufreq_available_frequencies
-				*any) {
-	struct cpufreq_available_frequencies *tmp, *next;
+void cpufreq_put_frequencies(struct cpufreq_frequencies *any)
+{
+	struct cpufreq_frequencies *tmp, *next;
 
 	if (!any)
 		return;

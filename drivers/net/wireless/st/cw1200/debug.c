@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mac80211 glue code for mac80211 ST-Ericsson CW1200 drivers
  * DebugFS code
  *
  * Copyright (c) 2010, ST-Ericsson
  * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -371,28 +368,14 @@ int cw1200_debug_init(struct cw1200_common *priv)
 
 	d->debugfs_phy = debugfs_create_dir("cw1200",
 					    priv->hw->wiphy->debugfsdir);
-	if (!d->debugfs_phy)
-		goto err;
-
-	if (!debugfs_create_file("status", 0400, d->debugfs_phy,
-				 priv, &cw1200_status_fops))
-		goto err;
-
-	if (!debugfs_create_file("counters", 0400, d->debugfs_phy,
-				 priv, &cw1200_counters_fops))
-		goto err;
-
-	if (!debugfs_create_file("wsm_dumps", 0200, d->debugfs_phy,
-				 priv, &fops_wsm_dumps))
-		goto err;
+	debugfs_create_file("status", 0400, d->debugfs_phy, priv,
+			    &cw1200_status_fops);
+	debugfs_create_file("counters", 0400, d->debugfs_phy, priv,
+			    &cw1200_counters_fops);
+	debugfs_create_file("wsm_dumps", 0200, d->debugfs_phy, priv,
+			    &fops_wsm_dumps);
 
 	return 0;
-
-err:
-	priv->debug = NULL;
-	debugfs_remove_recursive(d->debugfs_phy);
-	kfree(d);
-	return ret;
 }
 
 void cw1200_debug_release(struct cw1200_common *priv)

@@ -59,7 +59,7 @@
 #define PPSMC_MSG_SetDriverDramAddrLow          0x1B
 #define PPSMC_MSG_TransferTableSmu2Dram         0x1C
 #define PPSMC_MSG_TransferTableDram2Smu         0x1D
-#define PPSMC_MSG_ControlGfxRM                  0x1E
+#define PPSMC_MSG_DeviceDriverReset             0x1E
 #define PPSMC_MSG_SetGfxclkOverdriveByFreqVid   0x1F
 #define PPSMC_MSG_SetHardMinDcefclkByFreq       0x20
 #define PPSMC_MSG_SetHardMinSocclkByFreq        0x21
@@ -84,7 +84,6 @@
 #define PPSMC_MSG_PowerGateMmHub                0x35
 #define PPSMC_MSG_SetRccPfcPmeRestoreRegister   0x36
 #define PPSMC_Message_Count                     0x37
-
 
 typedef uint16_t PPSMC_Result;
 typedef int      PPSMC_Msg;

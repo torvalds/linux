@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Private header for the mmc subsystem
  *
  * Copyright (C) 2016 Linaro Ltd
  *
  * Author: Ulf Hansson <ulf.hansson@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #ifndef _MMC_CORE_CARD_H

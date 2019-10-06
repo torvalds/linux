@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for Teranetics PHY
  *
  * Author: Shaohui Xie <Shaohui.Xie@freescale.com>
  *
  * Copyright 2015 Freescale Semiconductor, Inc.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #include <linux/kernel.h>
@@ -81,9 +78,8 @@ static struct phy_driver teranetics_driver[] = {
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Teranetics TN2020",
 	.features       = PHY_10GBIT_FEATURES,
-	.soft_reset	= gen10g_no_soft_reset,
+	.soft_reset	= genphy_no_soft_reset,
 	.aneg_done	= teranetics_aneg_done,
-	.config_init    = gen10g_config_init,
 	.config_aneg    = gen10g_config_aneg,
 	.read_status	= teranetics_read_status,
 	.match_phy_device = teranetics_match_phy_device,

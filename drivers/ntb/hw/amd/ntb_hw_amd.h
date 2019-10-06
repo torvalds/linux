@@ -52,7 +52,6 @@
 #include <linux/ntb.h>
 #include <linux/pci.h>
 
-#define PCI_DEVICE_ID_AMD_NTB	0x145B
 #define AMD_LINK_HB_TIMEOUT	msecs_to_jiffies(1000)
 #define AMD_LINK_STATUS_OFFSET	0x68
 #define NTB_LIN_STA_ACTIVE_BIT	0x00000002
@@ -93,7 +92,6 @@ static inline void _write64(u64 val, void __iomem *mmio)
 
 enum {
 	/* AMD NTB Capability */
-	AMD_MW_CNT		= 3,
 	AMD_DB_CNT		= 16,
 	AMD_MSIX_VECTOR_CNT	= 24,
 	AMD_SPADS_CNT		= 16,
@@ -170,6 +168,11 @@ enum {
 	AMD_PEER_OFFSET		= 0x400,
 };
 
+struct ntb_dev_data {
+	const unsigned char mw_count;
+	const unsigned int mw_idx;
+};
+
 struct amd_ntb_dev;
 
 struct amd_ntb_vec {
@@ -185,6 +188,7 @@ struct amd_ntb_dev {
 	u32 cntl_sta;
 	u32 peer_sta;
 
+	struct ntb_dev_data *dev_data;
 	unsigned char mw_count;
 	unsigned char spad_count;
 	unsigned char db_count;

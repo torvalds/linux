@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # USB Core configuration
 #
@@ -44,7 +45,6 @@ config USB_DYNAMIC_MINORS
 config USB_OTG
 	bool "OTG support"
 	depends on PM
-	default n
 	help
 	  The most notable feature of USB OTG is support for a
 	  "Dual-Role" device, which can act as either a device
@@ -90,3 +90,15 @@ config USB_LEDS_TRIGGER_USBPORT
 	  This driver allows LEDs to be controlled by USB events. Enabling this
 	  trigger allows specifying list of USB ports that should turn on LED
 	  when some USB device gets connected.
+
+config USB_AUTOSUSPEND_DELAY
+	int "Default autosuspend delay"
+	depends on USB
+	default 2
+	help
+	  The default autosuspend delay in seconds.  Can be overridden
+	  with the usbcore.autosuspend command line or module parameter.
+
+	  The default value Linux has always had is 2 seconds.  Change
+	  this value if you want a different delay and cannot modify
+	  the command line or module parameter.

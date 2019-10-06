@@ -54,8 +54,9 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
 						 pages + i);
 			break;
 		case GUP_LONGTERM_BENCHMARK:
-			nr = get_user_pages_longterm(addr, nr, gup->flags & 1,
-						     pages + i, NULL);
+			nr = get_user_pages(addr, nr,
+					    (gup->flags & 1) | FOLL_LONGTERM,
+					    pages + i, NULL);
 			break;
 		case GUP_BENCHMARK:
 			nr = get_user_pages(addr, nr, gup->flags & 1, pages + i,
@@ -122,12 +123,8 @@ static const struct file_operations gup_benchmark_fops = {
 
 static int gup_benchmark_init(void)
 {
-	void *ret;
-
-	ret = debugfs_create_file_unsafe("gup_benchmark", 0600, NULL, NULL,
-			&gup_benchmark_fops);
-	if (!ret)
-		pr_warn("Failed to create gup_benchmark in debugfs");
+	debugfs_create_file_unsafe("gup_benchmark", 0600, NULL, NULL,
+				   &gup_benchmark_fops);
 
 	return 0;
 }

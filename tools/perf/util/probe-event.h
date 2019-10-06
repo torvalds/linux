@@ -4,8 +4,9 @@
 
 #include <linux/compiler.h>
 #include <stdbool.h>
-#include "intlist.h"
-#include "namespaces.h"
+
+struct intlist;
+struct nsinfo;
 
 /* Probe related configurations */
 struct probe_conf {
@@ -36,6 +37,7 @@ struct probe_trace_point {
 struct probe_trace_arg_ref {
 	struct probe_trace_arg_ref	*next;	/* Next reference */
 	long				offset;	/* Offset value */
+	bool				user_access;	/* User-memory access */
 };
 
 /* kprobe-tracer and uprobe-tracer tracing argument */
@@ -81,6 +83,7 @@ struct perf_probe_arg {
 	char				*var;	/* Variable name */
 	char				*type;	/* Type name */
 	struct perf_probe_arg_field	*field;	/* Structure fields */
+	bool				user_access;	/* User-memory access */
 };
 
 /* Perf probe probing event (point + arg) */

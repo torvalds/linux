@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -318,6 +320,25 @@ struct iwl_time_event_notif {
 } __packed; /* MAC_TIME_EVENT_NTFY_API_S_VER_1 */
 
 /*
+ * struct iwl_hs20_roc_req_tail - tail of iwl_hs20_roc_req
+ *
+ * @node_addr: Our MAC Address
+ * @reserved: reserved for alignment
+ * @apply_time: GP2 value to start (should always be the current GP2 value)
+ * @apply_time_max_delay: Maximum apply time delay value in TU. Defines max
+ *	time by which start of the event is allowed to be postponed.
+ * @duration: event duration in TU To calculate event duration:
+ *	timeEventDuration = min(duration, remainingQuota)
+ */
+struct iwl_hs20_roc_req_tail {
+	u8 node_addr[ETH_ALEN];
+	__le16 reserved;
+	__le32 apply_time;
+	__le32 apply_time_max_delay;
+	__le32 duration;
+} __packed;
+
+/*
  * Aux ROC command
  *
  * Command requests the firmware to create a time event for a certain duration
@@ -336,13 +357,6 @@ struct iwl_time_event_notif {
  * @sta_id_and_color: station id and color, resumed during "Remain On Channel"
  *	activity.
  * @channel_info: channel info
- * @node_addr: Our MAC Address
- * @reserved: reserved for alignment
- * @apply_time: GP2 value to start (should always be the current GP2 value)
- * @apply_time_max_delay: Maximum apply time delay value in TU. Defines max
- *	time by which start of the event is allowed to be postponed.
- * @duration: event duration in TU To calculate event duration:
- *	timeEventDuration = min(duration, remainingQuota)
  */
 struct iwl_hs20_roc_req {
 	/* COMMON_INDEX_HDR_API_S_VER_1 hdr */
@@ -351,11 +365,7 @@ struct iwl_hs20_roc_req {
 	__le32 event_unique_id;
 	__le32 sta_id_and_color;
 	struct iwl_fw_channel_info channel_info;
-	u8 node_addr[ETH_ALEN];
-	__le16 reserved;
-	__le32 apply_time;
-	__le32 apply_time_max_delay;
-	__le32 duration;
+	struct iwl_hs20_roc_req_tail tail;
 } __packed; /* HOT_SPOT_CMD_API_S_VER_1 */
 
 /*

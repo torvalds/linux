@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
  *
@@ -6,16 +7,6 @@
  *
  * Additional work by:
  * John Brooks <john.brooks@bluecherry.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -71,7 +62,7 @@ static void solo_vin_config(struct solo_dev *solo_dev)
 	solo_reg_write(solo_dev, SOLO_VI_CH_FORMAT,
 		       SOLO_VI_FD_SEL_MASK(0) | SOLO_VI_PROG_MASK(0));
 
-	/* On 6110, initialize mozaic darkness stength */
+	/* On 6110, initialize mozaic darkness strength */
 	if (solo_dev->type == SOLO_DEV_6010)
 		solo_reg_write(solo_dev, SOLO_VI_FMT_CFG, 0);
 	else
@@ -230,7 +221,7 @@ int solo_set_motion_block(struct solo_dev *solo_dev, u8 ch,
 }
 
 /* First 8k is motion flag (512 bytes * 16). Following that is an 8k+8k
- * threshold and working table for each channel. Atleast that's what the
+ * threshold and working table for each channel. At least that's what the
  * spec says. However, this code (taken from rdk) has some mystery 8k
  * block right after the flag area, before the first thresh table. */
 static void solo_motion_config(struct solo_dev *solo_dev)

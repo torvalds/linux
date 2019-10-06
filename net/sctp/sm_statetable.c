@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -8,22 +9,6 @@
  * This file is part of the SCTP kernel implementation
  *
  * These are the state tables for the SCTP state machine.
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -991,26 +976,22 @@ static const struct sctp_sm_table_entry *sctp_chunk_event_lookup(
 	if (cid <= SCTP_CID_BASE_MAX)
 		return &chunk_event_table[cid][state];
 
-	if (net->sctp.prsctp_enable) {
-		if (cid == SCTP_CID_FWD_TSN || cid == SCTP_CID_I_FWD_TSN)
-			return &prsctp_chunk_event_table[0][state];
-	}
+	switch ((u16)cid) {
+	case SCTP_CID_FWD_TSN:
+	case SCTP_CID_I_FWD_TSN:
+		return &prsctp_chunk_event_table[0][state];
 
-	if (net->sctp.addip_enable) {
-		if (cid == SCTP_CID_ASCONF)
-			return &addip_chunk_event_table[0][state];
+	case SCTP_CID_ASCONF:
+		return &addip_chunk_event_table[0][state];
 
-		if (cid == SCTP_CID_ASCONF_ACK)
-			return &addip_chunk_event_table[1][state];
-	}
+	case SCTP_CID_ASCONF_ACK:
+		return &addip_chunk_event_table[1][state];
 
-	if (net->sctp.reconf_enable)
-		if (cid == SCTP_CID_RECONF)
-			return &reconf_chunk_event_table[0][state];
+	case SCTP_CID_RECONF:
+		return &reconf_chunk_event_table[0][state];
 
-	if (net->sctp.auth_enable) {
-		if (cid == SCTP_CID_AUTH)
-			return &auth_chunk_event_table[0][state];
+	case SCTP_CID_AUTH:
+		return &auth_chunk_event_table[0][state];
 	}
 
 	return &chunk_event_table_unknown[state];

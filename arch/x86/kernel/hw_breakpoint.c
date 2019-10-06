@@ -1,17 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) 2007 Alan Stern
  * Copyright (C) 2009 IBM Corporation
@@ -261,12 +249,8 @@ static int arch_build_bp_info(struct perf_event *bp,
 		 * allow kernel breakpoints at all.
 		 */
 		if (attr->bp_addr >= TASK_SIZE_MAX) {
-#ifdef CONFIG_KPROBES
 			if (within_kprobe_blacklist(attr->bp_addr))
 				return -EINVAL;
-#else
-			return -EINVAL;
-#endif
 		}
 
 		hw->type = X86_BREAKPOINT_EXECUTE;
@@ -279,6 +263,7 @@ static int arch_build_bp_info(struct perf_event *bp,
 			hw->len = X86_BREAKPOINT_LEN_X;
 			return 0;
 		}
+		/* fall through */
 	default:
 		return -EINVAL;
 	}
@@ -357,6 +342,7 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 #endif
 	default:
 		WARN_ON_ONCE(1);
+		return -EINVAL;
 	}
 
 	/*

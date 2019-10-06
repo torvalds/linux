@@ -396,7 +396,8 @@ static int qlcnic_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 
 static int qlcnic_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			struct net_device *netdev,
-			const unsigned char *addr, u16 vid, u16 flags)
+			const unsigned char *addr, u16 vid, u16 flags,
+			struct netlink_ext_ack *extack)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int err = 0;
@@ -4118,13 +4119,14 @@ static void
 qlcnic_config_indev_addr(struct qlcnic_adapter *adapter,
 			struct net_device *dev, unsigned long event)
 {
+	const struct in_ifaddr *ifa;
 	struct in_device *indev;
 
 	indev = in_dev_get(dev);
 	if (!indev)
 		return;
 
-	for_ifa(indev) {
+	in_dev_for_each_ifa_rtnl(ifa, indev) {
 		switch (event) {
 		case NETDEV_UP:
 			qlcnic_config_ipaddr(adapter,
@@ -4137,7 +4139,7 @@ qlcnic_config_indev_addr(struct qlcnic_adapter *adapter,
 		default:
 			break;
 		}
-	} endfor_ifa(indev);
+	}
 
 	in_dev_put(indev);
 }

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support for CompuLab EM-X270 platform
  *
  * Copyright (C) 2007, 2008 CompuLab, Ltd.
  * Author: Mike Rapoport <mike@compulab.co.il>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/irq.h>
@@ -689,7 +686,7 @@ static inline void em_x270_init_lcd(void) {}
 #endif
 
 #if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
-static struct pxa2xx_spi_master em_x270_spi_info = {
+static struct pxa2xx_spi_controller em_x270_spi_info = {
 	.num_chipselect	= 1,
 };
 
@@ -703,7 +700,7 @@ static struct tdo24m_platform_data em_x270_tdo24m_pdata = {
 	.model = TDO35S,
 };
 
-static struct pxa2xx_spi_master em_x270_spi_2_info = {
+static struct pxa2xx_spi_controller em_x270_spi_2_info = {
 	.num_chipselect	= 1,
 	.enable_dma	= 1,
 };
@@ -976,7 +973,6 @@ static struct fixed_voltage_config camera_dummy_config = {
 	.supply_name		= "camera_vdd",
 	.input_supply		= "vcc cam",
 	.microvolts		= 2800000,
-	.enable_high		= 0,
 	.init_data		= &camera_dummy_initdata,
 };
 

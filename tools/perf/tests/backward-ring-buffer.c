@@ -4,12 +4,15 @@
  * beginning
  */
 
-#include <perf.h>
 #include <evlist.h>
 #include <sys/prctl.h>
+#include "record.h"
 #include "tests.h"
 #include "debug.h"
+#include "parse-events.h"
+#include "util/mmap.h"
 #include <errno.h>
+#include <linux/string.h>
 
 #define NR_ITERS 111
 
@@ -18,20 +21,20 @@ static void testcase(void)
 	int i;
 
 	for (i = 0; i < NR_ITERS; i++) {
-		char proc_name[10];
+		char proc_name[15];
 
 		snprintf(proc_name, sizeof(proc_name), "p:%d\n", i);
 		prctl(PR_SET_NAME, proc_name);
 	}
 }
 
-static int count_samples(struct perf_evlist *evlist, int *sample_count,
+static int count_samples(struct evlist *evlist, int *sample_count,
 			 int *comm_count)
 {
 	int i;
 
-	for (i = 0; i < evlist->nr_mmaps; i++) {
-		struct perf_mmap *map = &evlist->overwrite_mmap[i];
+	for (i = 0; i < evlist->core.nr_mmaps; i++) {
+		struct mmap *map = &evlist->overwrite_mmap[i];
 		union perf_event *event;
 
 		perf_mmap__read_init(map);
@@ -55,25 +58,25 @@ static int count_samples(struct perf_evlist *evlist, int *sample_count,
 	return TEST_OK;
 }
 
-static int do_test(struct perf_evlist *evlist, int mmap_pages,
+static int do_test(struct evlist *evlist, int mmap_pages,
 		   int *sample_count, int *comm_count)
 {
 	int err;
 	char sbuf[STRERR_BUFSIZE];
 
-	err = perf_evlist__mmap(evlist, mmap_pages);
+	err = evlist__mmap(evlist, mmap_pages);
 	if (err < 0) {
-		pr_debug("perf_evlist__mmap: %s\n",
+		pr_debug("evlist__mmap: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		return TEST_FAIL;
 	}
 
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 	testcase();
-	perf_evlist__disable(evlist);
+	evlist__disable(evlist);
 
 	err = count_samples(evlist, sample_count, comm_count);
-	perf_evlist__munmap(evlist);
+	evlist__munmap(evlist);
 	return err;
 }
 
@@ -82,8 +85,8 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 {
 	int ret = TEST_SKIP, err, sample_count = 0, comm_count = 0;
 	char pid[16], sbuf[STRERR_BUFSIZE];
-	struct perf_evlist *evlist;
-	struct perf_evsel *evsel __maybe_unused;
+	struct evlist *evlist;
+	struct evsel *evsel __maybe_unused;
 	struct parse_events_error parse_error;
 	struct record_opts opts = {
 		.target = {
@@ -99,7 +102,7 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 	pid[sizeof(pid) - 1] = '\0';
 	opts.target.tid = opts.target.pid = pid;
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (!evlist) {
 		pr_debug("Not enough memory to create evlist\n");
 		return TEST_FAIL;
@@ -125,7 +128,7 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 
 	perf_evlist__config(evlist, &opts, NULL);
 
-	err = perf_evlist__open(evlist);
+	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
@@ -150,6 +153,6 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 
 	ret = TEST_OK;
 out_delete_evlist:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	return ret;
 }

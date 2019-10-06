@@ -2217,8 +2217,7 @@ static ssize_t radeon_show_edid1(struct file *filp, struct kobject *kobj,
 				 char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct pci_dev *pdev = to_pci_dev(dev);
-        struct fb_info *info = pci_get_drvdata(pdev);
+	struct fb_info *info = dev_get_drvdata(dev);
         struct radeonfb_info *rinfo = info->par;
 
 	return radeon_show_one_edid(buf, off, count, rinfo->mon1_EDID);
@@ -2230,8 +2229,7 @@ static ssize_t radeon_show_edid2(struct file *filp, struct kobject *kobj,
 				 char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct pci_dev *pdev = to_pci_dev(dev);
-        struct fb_info *info = pci_get_drvdata(pdev);
+	struct fb_info *info = dev_get_drvdata(dev);
         struct radeonfb_info *rinfo = info->par;
 
 	return radeon_show_one_edid(buf, off, count, rinfo->mon2_EDID);
@@ -2294,8 +2292,6 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 
 	info = framebuffer_alloc(sizeof(struct radeonfb_info), &pdev->dev);
 	if (!info) {
-		printk (KERN_ERR "radeonfb (%s): could not allocate memory\n",
-			pci_name(pdev));
 		ret = -ENOMEM;
 		goto err_disable;
 	}

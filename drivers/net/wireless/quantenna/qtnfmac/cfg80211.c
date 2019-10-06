@@ -1,18 +1,5 @@
-/*
- * Copyright (c) 2012-2012 Quantenna Communications, Inc.
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+/* Copyright (c) 2015-2016 Quantenna Communications. All rights reserved. */
 
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
@@ -66,9 +53,11 @@ static const u32 qtnf_cipher_suites[] = {
 static const struct ieee80211_txrx_stypes
 qtnf_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 	[NL80211_IFTYPE_STATION] = {
-		.tx = BIT(IEEE80211_STYPE_ACTION >> 4),
+		.tx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4),
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
-		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4),
+		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4),
 	},
 	[NL80211_IFTYPE_AP] = {
 		.tx = BIT(IEEE80211_STYPE_ACTION >> 4),
@@ -122,7 +111,8 @@ qtnf_change_virtual_intf(struct wiphy *wiphy,
 			 struct vif_params *params)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
-	u8 *mac_addr;
+	u8 *mac_addr = NULL;
+	int use4addr = 0;
 	int ret;
 
 	ret = qtnf_validate_iface_combinations(wiphy, vif, type);
@@ -132,14 +122,14 @@ qtnf_change_virtual_intf(struct wiphy *wiphy,
 		return ret;
 	}
 
-	if (params)
+	if (params) {
 		mac_addr = params->macaddr;
-	else
-		mac_addr = NULL;
+		use4addr = params->use_4addr;
+	}
 
 	qtnf_scan_done(vif->mac, true);
 
-	ret = qtnf_cmd_send_change_intf_type(vif, type, mac_addr);
+	ret = qtnf_cmd_send_change_intf_type(vif, type, use4addr, mac_addr);
 	if (ret) {
 		pr_err("VIF%u.%u: failed to change type to %d\n",
 		       vif->mac->macid, vif->vifid, type);
@@ -154,6 +144,7 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 {
 	struct net_device *netdev =  wdev->netdev;
 	struct qtnf_vif *vif;
+	struct sk_buff *skb;
 
 	if (WARN_ON(!netdev))
 		return -EFAULT;
@@ -166,6 +157,11 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	netif_tx_stop_all_queues(netdev);
 	if (netif_carrier_ok(netdev))
 		netif_carrier_off(netdev);
+
+	while ((skb = skb_dequeue(&vif->high_pri_tx_queue)))
+		dev_kfree_skb_any(skb);
+
+	cancel_work_sync(&vif->high_pri_tx_work);
 
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdevice(netdev);
@@ -190,6 +186,7 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 	struct qtnf_wmac *mac;
 	struct qtnf_vif *vif;
 	u8 *mac_addr = NULL;
+	int use4addr = 0;
 	int ret;
 
 	mac = wiphy_priv(wiphy);
@@ -225,10 +222,12 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 		return ERR_PTR(-ENOTSUPP);
 	}
 
-	if (params)
+	if (params) {
 		mac_addr = params->macaddr;
+		use4addr = params->use_4addr;
+	}
 
-	ret = qtnf_cmd_send_add_intf(vif, type, mac_addr);
+	ret = qtnf_cmd_send_add_intf(vif, type, use4addr, mac_addr);
 	if (ret) {
 		pr_err("VIF%u.%u: failed to add VIF %pM\n",
 		       mac->macid, vif->vifid, mac_addr);
@@ -359,11 +358,6 @@ static int qtnf_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 		return -EFAULT;
 	}
 
-	if (changed & (WIPHY_PARAM_RETRY_LONG | WIPHY_PARAM_RETRY_SHORT)) {
-		pr_err("MAC%u: can't modify retry params\n", mac->macid);
-		return -EOPNOTSUPP;
-	}
-
 	ret = qtnf_cmd_send_update_phy_params(mac, changed);
 	if (ret)
 		pr_err("MAC%u: failed to update PHY params\n", mac->macid);
@@ -436,13 +430,13 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	*cookie = short_cookie;
 
 	if (params->offchan)
-		flags |= QLINK_MGMT_FRAME_TX_FLAG_OFFCHAN;
+		flags |= QLINK_FRAME_TX_FLAG_OFFCHAN;
 
 	if (params->no_cck)
-		flags |= QLINK_MGMT_FRAME_TX_FLAG_NO_CCK;
+		flags |= QLINK_FRAME_TX_FLAG_NO_CCK;
 
 	if (params->dont_wait_for_ack)
-		flags |= QLINK_MGMT_FRAME_TX_FLAG_ACK_NOWAIT;
+		flags |= QLINK_FRAME_TX_FLAG_ACK_NOWAIT;
 
 	/* If channel is not specified, pass "freq = 0" to tell device
 	 * firmware to use current channel.
@@ -457,9 +451,8 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 le16_to_cpu(mgmt_frame->frame_control), mgmt_frame->da,
 		 params->len, short_cookie, flags);
 
-	return qtnf_cmd_send_mgmt_frame(vif, short_cookie, flags,
-					freq,
-					params->buf, params->len);
+	return qtnf_cmd_send_frame(vif, short_cookie, flags,
+				   freq, params->buf, params->len);
 }
 
 static int
@@ -650,6 +643,12 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
+	if (sme->auth_type == NL80211_AUTHTYPE_SAE &&
+	    !(sme->flags & CONNECT_REQ_EXTERNAL_AUTH_SUPPORT)) {
+		pr_err("can not offload authentication to userspace\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (sme->bssid)
 		ether_addr_copy(vif->bssid, sme->bssid);
 	else
@@ -658,6 +657,30 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 	ret = qtnf_cmd_send_connect(vif, sme);
 	if (ret) {
 		pr_err("VIF%u.%u: failed to connect\n",
+		       vif->mac->macid, vif->vifid);
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
+static int
+qtnf_external_auth(struct wiphy *wiphy, struct net_device *dev,
+		   struct cfg80211_external_auth_params *auth)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	int ret;
+
+	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
+		return -EOPNOTSUPP;
+
+	if (!ether_addr_equal(vif->bssid, auth->bssid))
+		pr_warn("unexpected bssid: %pM", auth->bssid);
+
+	ret = qtnf_cmd_send_external_auth(vif, auth);
+	if (ret) {
+		pr_err("VIF%u.%u: failed to report external auth\n",
 		       vif->mac->macid, vif->vifid);
 		goto out;
 	}
@@ -960,6 +983,7 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.set_default_mgmt_key	= qtnf_set_default_mgmt_key,
 	.scan			= qtnf_scan,
 	.connect		= qtnf_connect,
+	.external_auth		= qtnf_external_auth,
 	.disconnect		= qtnf_disconnect,
 	.dump_survey		= qtnf_dump_survey,
 	.get_channel		= qtnf_get_channel,
@@ -974,53 +998,31 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 #endif
 };
 
-static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
+static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy,
 				       struct regulatory_request *req)
 {
-	struct qtnf_wmac *mac = wiphy_priv(wiphy_in);
-	struct qtnf_bus *bus = mac->bus;
-	struct wiphy *wiphy;
-	unsigned int mac_idx;
+	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	enum nl80211_band band;
 	int ret;
 
 	pr_debug("MAC%u: initiator=%d alpha=%c%c\n", mac->macid, req->initiator,
 		 req->alpha2[0], req->alpha2[1]);
 
-	ret = qtnf_cmd_reg_notify(bus, req);
+	ret = qtnf_cmd_reg_notify(mac, req, qtnf_mac_slave_radar_get(wiphy));
 	if (ret) {
-		if (ret == -EOPNOTSUPP) {
-			pr_warn("reg update not supported\n");
-		} else if (ret == -EALREADY) {
-			pr_info("regulatory domain is already set to %c%c",
-				req->alpha2[0], req->alpha2[1]);
-		} else {
-			pr_err("failed to update reg domain to %c%c\n",
-			       req->alpha2[0], req->alpha2[1]);
-		}
-
+		pr_err("MAC%u: failed to update region to %c%c: %d\n",
+		       mac->macid, req->alpha2[0], req->alpha2[1], ret);
 		return;
 	}
 
-	for (mac_idx = 0; mac_idx < QTNF_MAX_MAC; ++mac_idx) {
-		if (!(bus->hw_info.mac_bitmap & (1 << mac_idx)))
+	for (band = 0; band < NUM_NL80211_BANDS; ++band) {
+		if (!wiphy->bands[band])
 			continue;
 
-		mac = bus->mac[mac_idx];
-		if (!mac)
-			continue;
-
-		wiphy = priv_to_wiphy(mac);
-
-		for (band = 0; band < NUM_NL80211_BANDS; ++band) {
-			if (!wiphy->bands[band])
-				continue;
-
-			ret = qtnf_cmd_band_info_get(mac, wiphy->bands[band]);
-			if (ret)
-				pr_err("failed to get chan info for mac %u band %u\n",
-				       mac_idx, band);
-		}
+		ret = qtnf_cmd_band_info_get(mac, wiphy->bands[band]);
+		if (ret)
+			pr_err("MAC%u: failed to update band %u\n",
+			       mac->macid, band);
 	}
 }
 
@@ -1076,6 +1078,7 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	struct wiphy *wiphy = priv_to_wiphy(mac);
 	struct qtnf_mac_info *macinfo = &mac->macinfo;
 	int ret;
+	bool regdomain_is_known;
 
 	if (!wiphy) {
 		pr_err("invalid wiphy pointer\n");
@@ -1107,7 +1110,9 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
-			WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+			WIPHY_FLAG_HAS_CHANNEL_SWITCH |
+			WIPHY_FLAG_4ADDR_STATION |
+			WIPHY_FLAG_NETNS_OK;
 	wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	if (hw_info->hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
@@ -1138,16 +1143,27 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	if (!(hw_info->hw_capab & QLINK_HW_CAPAB_OBSS_SCAN))
 		wiphy->features |= NL80211_FEATURE_NEED_OBSS_SCAN;
 
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_SAE)
+		wiphy->features |= NL80211_FEATURE_SAE;
+
 #ifdef CONFIG_PM
 	if (macinfo->wowlan)
 		wiphy->wowlan = macinfo->wowlan;
 #endif
 
+	regdomain_is_known = isalpha(mac->rd->alpha2[0]) &&
+				isalpha(mac->rd->alpha2[1]);
+
 	if (hw_info->hw_capab & QLINK_HW_CAPAB_REG_UPDATE) {
-		wiphy->regulatory_flags |= REGULATORY_STRICT_REG |
-			REGULATORY_CUSTOM_REG;
 		wiphy->reg_notifier = qtnf_cfg80211_reg_notifier;
-		wiphy_apply_custom_regulatory(wiphy, hw_info->rd);
+
+		if (mac->rd->alpha2[0] == '9' && mac->rd->alpha2[1] == '9') {
+			wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+				REGULATORY_STRICT_REG;
+			wiphy_apply_custom_regulatory(wiphy, mac->rd);
+		} else if (regdomain_is_known) {
+			wiphy->regulatory_flags |= REGULATORY_STRICT_REG;
+		}
 	} else {
 		wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
 	}
@@ -1170,10 +1186,9 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 		goto out;
 
 	if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED)
-		ret = regulatory_set_wiphy_regd(wiphy, hw_info->rd);
-	else if (isalpha(hw_info->rd->alpha2[0]) &&
-		 isalpha(hw_info->rd->alpha2[1]))
-		ret = regulatory_hint(wiphy, hw_info->rd->alpha2);
+		ret = regulatory_set_wiphy_regd(wiphy, mac->rd);
+	else if (regdomain_is_known)
+		ret = regulatory_hint(wiphy, mac->rd->alpha2);
 
 out:
 	return ret;

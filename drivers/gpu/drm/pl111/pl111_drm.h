@@ -1,32 +1,27 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
  * (C) COPYRIGHT 2012-2013 ARM Limited. All rights reserved.
- *
  *
  * Parts of this file were based on sources as follows:
  *
  * Copyright (c) 2006-2008 Intel Corporation
  * Copyright (c) 2007 Dave Airlie <airlied@linux.ie>
  * Copyright (C) 2011 Texas Instruments
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms of
- * such GNU licence.
- *
  */
 
 #ifndef _PL111_DRM_H_
 #define _PL111_DRM_H_
 
-#include <drm/drm_gem.h>
-#include <drm/drm_simple_kms_helper.h>
-#include <drm/drm_connector.h>
-#include <drm/drm_encoder.h>
-#include <drm/drm_panel.h>
-#include <drm/drm_bridge.h>
 #include <linux/clk-provider.h>
 #include <linux/interrupt.h>
+
+#include <drm/drm_bridge.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #define CLCD_IRQ_NEXTBASE_UPDATE BIT(2)
 

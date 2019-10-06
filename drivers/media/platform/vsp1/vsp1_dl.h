@@ -17,8 +17,10 @@ struct vsp1_dl_body_pool;
 struct vsp1_dl_list;
 struct vsp1_dl_manager;
 
+/* Keep these flags in sync with VSP1_DU_STATUS_* in include/media/vsp1.h. */
 #define VSP1_DL_FRAME_END_COMPLETED		BIT(0)
-#define VSP1_DL_FRAME_END_INTERNAL		BIT(1)
+#define VSP1_DL_FRAME_END_WRITEBACK		BIT(1)
+#define VSP1_DL_FRAME_END_INTERNAL		BIT(2)
 
 /**
  * struct vsp1_dl_ext_cmd - Extended Display command
@@ -61,7 +63,7 @@ struct vsp1_dl_list *vsp1_dl_list_get(struct vsp1_dl_manager *dlm);
 void vsp1_dl_list_put(struct vsp1_dl_list *dl);
 struct vsp1_dl_body *vsp1_dl_list_get_body0(struct vsp1_dl_list *dl);
 struct vsp1_dl_ext_cmd *vsp1_dl_get_pre_cmd(struct vsp1_dl_list *dl);
-void vsp1_dl_list_commit(struct vsp1_dl_list *dl, bool internal);
+void vsp1_dl_list_commit(struct vsp1_dl_list *dl, unsigned int dl_flags);
 
 struct vsp1_dl_body_pool *
 vsp1_dl_body_pool_create(struct vsp1_device *vsp1, unsigned int num_bodies,

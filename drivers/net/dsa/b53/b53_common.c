@@ -342,6 +342,13 @@ static void b53_set_forwarding(struct b53_device *dev, int enable)
 	b53_read8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, &mgmt);
 	mgmt |= B53_MII_DUMB_FWDG_EN;
 	b53_write8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, mgmt);
+
+	/* Look at B53_UC_FWD_EN and B53_MC_FWD_EN to decide whether
+	 * frames should be flooded or not.
+	 */
+	b53_read8(dev, B53_CTRL_PAGE, B53_IP_MULTICAST_CTRL, &mgmt);
+	mgmt |= B53_UC_FWD_EN | B53_MC_FWD_EN;
+	b53_write8(dev, B53_CTRL_PAGE, B53_IP_MULTICAST_CTRL, mgmt);
 }
 
 static void b53_enable_vlan(struct b53_device *dev, bool enable,
@@ -428,7 +435,6 @@ static void b53_enable_vlan(struct b53_device *dev, bool enable,
 	b53_write8(dev, B53_CTRL_PAGE, B53_SWITCH_MODE, mgmt);
 
 	dev->vlan_enabled = enable;
-	dev->vlan_filtering_enabled = enable_filtering;
 }
 
 static int b53_set_jumbo(struct b53_device *dev, bool enable, bool allow_10_100)
@@ -511,9 +517,14 @@ EXPORT_SYMBOL(b53_imp_vlan_setup);
 int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	struct b53_device *dev = ds->priv;
-	unsigned int cpu_port = ds->ports[port].cpu_dp->index;
+	unsigned int cpu_port;
 	int ret = 0;
 	u16 pvlan;
+
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
+	cpu_port = ds->ports[port].cpu_dp->index;
 
 	if (dev->ops->irq_enable)
 		ret = dev->ops->irq_enable(dev, port);
@@ -543,7 +554,7 @@ int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 }
 EXPORT_SYMBOL(b53_enable_port);
 
-void b53_disable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
+void b53_disable_port(struct dsa_switch *ds, int port)
 {
 	struct b53_device *dev = ds->priv;
 	u8 reg;
@@ -665,7 +676,7 @@ int b53_configure_vlan(struct dsa_switch *ds)
 		b53_do_vlan_op(dev, VTA_CMD_CLEAR);
 	}
 
-	b53_enable_vlan(dev, false, dev->vlan_filtering_enabled);
+	b53_enable_vlan(dev, false, ds->vlan_filtering);
 
 	b53_for_each_port(dev, i)
 		b53_write16(dev, B53_VLAN_PAGE,
@@ -956,15 +967,22 @@ static int b53_setup(struct dsa_switch *ds)
 	if (ret)
 		dev_err(ds->dev, "failed to apply configuration\n");
 
-	/* Configure IMP/CPU port, disable unused ports. Enabled
+	/* Configure IMP/CPU port, disable all other ports. Enabled
 	 * ports will be configured with .port_enable
 	 */
 	for (port = 0; port < dev->num_ports; port++) {
 		if (dsa_is_cpu_port(ds, port))
 			b53_enable_cpu_port(dev, port);
-		else if (dsa_is_unused_port(ds, port))
-			b53_disable_port(ds, port, NULL);
+		else
+			b53_disable_port(ds, port);
 	}
+
+	/* Let DSA handle the case were multiple bridges span the same switch
+	 * device and different VLAN awareness settings are requested, which
+	 * would be breaking filtering semantics for any of the other bridge
+	 * devices. (not hardware supported)
+	 */
+	ds->vlan_filtering_is_global = true;
 
 	return ret;
 }
@@ -1275,35 +1293,17 @@ EXPORT_SYMBOL(b53_phylink_mac_link_up);
 int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 {
 	struct b53_device *dev = ds->priv;
-	struct net_device *bridge_dev;
-	unsigned int i;
 	u16 pvid, new_pvid;
-
-	/* Handle the case were multiple bridges span the same switch device
-	 * and one of them has a different setting than what is being requested
-	 * which would be breaking filtering semantics for any of the other
-	 * bridge devices.
-	 */
-	b53_for_each_port(dev, i) {
-		bridge_dev = dsa_to_port(ds, i)->bridge_dev;
-		if (bridge_dev &&
-		    bridge_dev != dsa_to_port(ds, port)->bridge_dev &&
-		    br_vlan_enabled(bridge_dev) != vlan_filtering) {
-			netdev_err(bridge_dev,
-				   "VLAN filtering is global to the switch!\n");
-			return -EINVAL;
-		}
-	}
 
 	b53_read16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port), &pvid);
 	new_pvid = pvid;
-	if (dev->vlan_filtering_enabled && !vlan_filtering) {
+	if (!vlan_filtering) {
 		/* Filtering is currently enabled, use the default PVID since
 		 * the bridge does not expect tagging anymore
 		 */
 		dev->ports[port].pvid = pvid;
 		new_pvid = b53_default_pvid(dev);
-	} else if (!dev->vlan_filtering_enabled && vlan_filtering) {
+	} else {
 		/* Filtering is currently disabled, restore the previous PVID */
 		new_pvid = dev->ports[port].pvid;
 	}
@@ -1329,7 +1329,7 @@ int b53_vlan_prepare(struct dsa_switch *ds, int port,
 	if (vlan->vid_end > dev->num_vlans)
 		return -ERANGE;
 
-	b53_enable_vlan(dev, true, dev->vlan_filtering_enabled);
+	b53_enable_vlan(dev, true, ds->vlan_filtering);
 
 	return 0;
 }
@@ -1760,6 +1760,31 @@ void b53_br_fast_age(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL(b53_br_fast_age);
 
+int b53_br_egress_floods(struct dsa_switch *ds, int port,
+			 bool unicast, bool multicast)
+{
+	struct b53_device *dev = ds->priv;
+	u16 uc, mc;
+
+	b53_read16(dev, B53_CTRL_PAGE, B53_UC_FWD_EN, &uc);
+	if (unicast)
+		uc |= BIT(port);
+	else
+		uc &= ~BIT(port);
+	b53_write16(dev, B53_CTRL_PAGE, B53_UC_FWD_EN, uc);
+
+	b53_read16(dev, B53_CTRL_PAGE, B53_MC_FWD_EN, &mc);
+	if (multicast)
+		mc |= BIT(port);
+	else
+		mc &= ~BIT(port);
+	b53_write16(dev, B53_CTRL_PAGE, B53_MC_FWD_EN, mc);
+
+	return 0;
+
+}
+EXPORT_SYMBOL(b53_br_egress_floods);
+
 static bool b53_possible_cpu_port(struct dsa_switch *ds, int port)
 {
 	/* Broadcom switches will accept enabling Broadcom tags on the
@@ -1960,6 +1985,7 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_bridge_leave	= b53_br_leave,
 	.port_stp_state_set	= b53_br_set_stp_state,
 	.port_fast_age		= b53_br_fast_age,
+	.port_egress_floods	= b53_br_egress_floods,
 	.port_vlan_filtering	= b53_vlan_filtering,
 	.port_vlan_prepare	= b53_vlan_prepare,
 	.port_vlan_add		= b53_vlan_add,

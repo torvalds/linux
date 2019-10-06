@@ -274,7 +274,8 @@ struct crat_subtype_iolink {
 	uint32_t	minimum_bandwidth_mbs;
 	uint32_t	maximum_bandwidth_mbs;
 	uint32_t	recommended_transfer_size;
-	uint8_t		reserved2[CRAT_IOLINK_RESERVED_LENGTH];
+	uint8_t		reserved2[CRAT_IOLINK_RESERVED_LENGTH - 1];
+	uint8_t		num_hops_xgmi;
 };
 
 /*

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Touch Screen driver for EETI's I2C connected touch screen panels
  *   Copyright (c) 2009,2018 Daniel Mack <daniel@zonque.org>
@@ -8,20 +9,6 @@
  * Based on migor_ts.c
  *   Copyright (c) 2008 Magnus Damm
  *   Copyright (c) 2007 Ujjwal Pande <ujjwal@kenati.com>
- *
- * This file is free software; you can redistribute it and/or
- * modify it under the terms of the GNU  General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This file is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -41,6 +28,7 @@ struct eeti_ts {
 	struct input_dev *input;
 	struct gpio_desc *attn_gpio;
 	struct touchscreen_properties props;
+	struct mutex mutex;
 	bool running;
 };
 
@@ -75,42 +63,80 @@ static void eeti_ts_report_event(struct eeti_ts *eeti, u8 *buf)
 	input_sync(eeti->input);
 }
 
+static int eeti_ts_read(struct eeti_ts *eeti)
+{
+	int len, error;
+	char buf[6];
+
+	len = i2c_master_recv(eeti->client, buf, sizeof(buf));
+	if (len != sizeof(buf)) {
+		error = len < 0 ? len : -EIO;
+		dev_err(&eeti->client->dev,
+			"failed to read touchscreen data: %d\n",
+			error);
+		return error;
+	}
+
+	/* Motion packet */
+	if (buf[0] & 0x80)
+		eeti_ts_report_event(eeti, buf);
+
+	return 0;
+}
+
 static irqreturn_t eeti_ts_isr(int irq, void *dev_id)
 {
 	struct eeti_ts *eeti = dev_id;
-	int len;
 	int error;
-	char buf[6];
+
+	mutex_lock(&eeti->mutex);
 
 	do {
-		len = i2c_master_recv(eeti->client, buf, sizeof(buf));
-		if (len != sizeof(buf)) {
-			error = len < 0 ? len : -EIO;
-			dev_err(&eeti->client->dev,
-				"failed to read touchscreen data: %d\n",
-				error);
+		/*
+		 * If we have attention GPIO, trust it. Otherwise we'll read
+		 * once and exit. We assume that in this case we are using
+		 * level triggered interrupt and it will get raised again
+		 * if/when there is more data.
+		 */
+		if (eeti->attn_gpio &&
+		    !gpiod_get_value_cansleep(eeti->attn_gpio)) {
 			break;
 		}
 
-		if (buf[0] & 0x80) {
-			/* Motion packet */
-			eeti_ts_report_event(eeti, buf);
-		}
-	} while (eeti->running &&
-		 eeti->attn_gpio && gpiod_get_value_cansleep(eeti->attn_gpio));
+		error = eeti_ts_read(eeti);
+		if (error)
+			break;
 
+	} while (eeti->running && eeti->attn_gpio);
+
+	mutex_unlock(&eeti->mutex);
 	return IRQ_HANDLED;
 }
 
 static void eeti_ts_start(struct eeti_ts *eeti)
 {
+	mutex_lock(&eeti->mutex);
+
 	eeti->running = true;
-	wmb();
 	enable_irq(eeti->client->irq);
+
+	/*
+	 * Kick the controller in case we are using edge interrupt and
+	 * we missed our edge while interrupt was disabled. We expect
+	 * the attention GPIO to be wired in this case.
+	 */
+	if (eeti->attn_gpio && gpiod_get_value_cansleep(eeti->attn_gpio))
+		eeti_ts_read(eeti);
+
+	mutex_unlock(&eeti->mutex);
 }
 
 static void eeti_ts_stop(struct eeti_ts *eeti)
 {
+	/*
+	 * Not locking here, just setting a flag and expect that the
+	 * interrupt thread will notice the flag eventually.
+	 */
 	eeti->running = false;
 	wmb();
 	disable_irq(eeti->client->irq);
@@ -152,6 +178,8 @@ static int eeti_ts_probe(struct i2c_client *client,
 		dev_err(dev, "failed to allocate driver data\n");
 		return -ENOMEM;
 	}
+
+	mutex_init(&eeti->mutex);
 
 	input = devm_input_allocate_device(dev);
 	if (!input) {

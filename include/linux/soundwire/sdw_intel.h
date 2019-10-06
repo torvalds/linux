@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
-// Copyright(c) 2015-17 Intel Corporation.
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
+/* Copyright(c) 2015-17 Intel Corporation. */
 
 #ifndef __SDW_INTEL_H
 #define __SDW_INTEL_H
@@ -8,10 +8,11 @@
  * struct sdw_intel_ops: Intel audio driver callback ops
  *
  * @config_stream: configure the stream with the hw_params
+ * the first argument containing the context is mandatory
  */
 struct sdw_intel_ops {
 	int (*config_stream)(void *arg, void *substream,
-			void *dai, void *hw_params, int stream_num);
+			     void *dai, void *hw_params, int stream_num);
 };
 
 /**

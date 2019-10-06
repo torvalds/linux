@@ -21,6 +21,8 @@
  *
  */
 
+#include "clearstate_defs.h"
+
 static const unsigned int ci_SECT_CONTEXT_def_1[] =
 {
     0x00000000, // DB_RENDER_CONTROL

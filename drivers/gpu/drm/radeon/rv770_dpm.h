@@ -23,6 +23,7 @@
 #ifndef __RV770_DPM_H__
 #define __RV770_DPM_H__
 
+#include "radeon.h"
 #include "rv770_smc.h"
 
 struct rv770_clock_registers {

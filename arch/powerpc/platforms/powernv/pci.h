@@ -2,6 +2,7 @@
 #ifndef __POWERNV_PCI_H
 #define __POWERNV_PCI_H
 
+#include <linux/compiler.h>		/* for __printf */
 #include <linux/iommu.h>
 #include <asm/iommu.h>
 #include <asm/msi_bitmap.h>
@@ -77,9 +78,6 @@ struct pnv_ioda_pe {
 	/* PEs in compound case */
 	struct pnv_ioda_pe	*master;
 	struct list_head	slaves;
-
-	/* PCI peer-to-peer*/
-	int			p2p_initiator_count;
 
 	/* Link in list of PE#s */
 	struct list_head	list;
@@ -171,8 +169,6 @@ struct pnv_phb {
 	/* PHB and hub diagnostics */
 	unsigned int		diag_data_size;
 	u8			*diag_data;
-
-	int p2p_target_count;
 };
 
 extern struct pci_ops pnv_pci_ops;
@@ -199,11 +195,11 @@ extern int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type);
 extern void pnv_teardown_msi_irqs(struct pci_dev *pdev);
 extern struct pnv_ioda_pe *pnv_ioda_get_pe(struct pci_dev *dev);
 extern void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq);
-extern void pnv_pci_ioda2_set_bypass(struct pnv_ioda_pe *pe, bool enable);
 extern unsigned long pnv_pci_ioda2_get_table_size(__u32 page_shift,
 		__u64 window_size, __u32 levels);
 extern int pnv_eeh_post_init(void);
 
+__printf(3, 4)
 extern void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 			    const char *fmt, ...);
 #define pe_err(pe, fmt, ...)					\
@@ -223,7 +219,7 @@ extern struct iommu_table_group *pnv_npu_compound_attach(
 		struct pnv_ioda_pe *pe);
 
 /* pci-ioda-tce.c */
-#define POWERNV_IOMMU_DEFAULT_LEVELS	1
+#define POWERNV_IOMMU_DEFAULT_LEVELS	2
 #define POWERNV_IOMMU_MAX_LEVELS	5
 
 extern int pnv_tce_build(struct iommu_table *tbl, long index, long npages,

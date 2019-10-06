@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2000 Deep Blue Solutions Ltd
  *  Copyright (C) 2002 Shane Nay (shane@minirl.com)
  *  Copyright 2006-2007 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/gpio/driver.h>
 /* Needed for gpio_to_irq() */
@@ -237,7 +228,7 @@ static struct fixed_voltage_config mx27ads_lcd_regulator_pdata = {
 static struct gpiod_lookup_table mx27ads_lcd_regulator_gpiod_table = {
 	.dev_id = "reg-fixed-voltage.0", /* Let's hope ID 0 is what we get */
 	.table = {
-		GPIO_LOOKUP("LCD", 0, NULL, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("LCD", 0, NULL, GPIO_ACTIVE_LOW),
 		{ },
 	},
 };

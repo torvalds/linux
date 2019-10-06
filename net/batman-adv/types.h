@@ -1,19 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_TYPES_H_
@@ -26,19 +14,21 @@
 #include <linux/average.h>
 #include <linux/bitops.h>
 #include <linux/compiler.h>
+#include <linux/if.h>
 #include <linux/if_ether.h>
 #include <linux/kref.h>
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
 #include <linux/sched.h> /* for linux/wait.h */
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
 #include <linux/spinlock.h>
+#include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <uapi/linux/batadv_packet.h>
 #include <uapi/linux/batman_adv.h>
-
-struct seq_file;
 
 #ifdef CONFIG_BATMAN_ADV_DAT
 
@@ -126,6 +116,18 @@ struct batadv_hard_iface_bat_v {
 
 	/** @elp_wq: workqueue used to schedule ELP transmissions */
 	struct delayed_work elp_wq;
+
+	/** @aggr_wq: workqueue used to transmit queued OGM packets */
+	struct delayed_work aggr_wq;
+
+	/** @aggr_list: queue for to be aggregated OGM packets */
+	struct sk_buff_head aggr_list;
+
+	/** @aggr_len: size of the OGM aggregate (excluding ethernet header) */
+	unsigned int aggr_len;
+
+	/** @aggr_list_lock: protects aggr_list */
+	spinlock_t aggr_list_lock;
 
 	/**
 	 * @throughput_override: throughput override to disable link
@@ -414,6 +416,17 @@ struct batadv_orig_node {
 	 *  list
 	 */
 	struct hlist_node mcast_want_all_ipv6_node;
+
+	/**
+	 * @mcast_want_all_rtr4_node: a list node for the mcast.want_all_rtr4
+	 *  list
+	 */
+	struct hlist_node mcast_want_all_rtr4_node;
+	/**
+	 * @mcast_want_all_rtr6_node: a list node for the mcast.want_all_rtr6
+	 *  list
+	 */
+	struct hlist_node mcast_want_all_rtr6_node;
 #endif
 
 	/** @capabilities: announced capabilities of this originator */
@@ -1181,6 +1194,26 @@ struct batadv_mcast_querier_state {
 };
 
 /**
+ * struct batadv_mcast_mla_flags - flags for the querier, bridge and tvlv state
+ */
+struct batadv_mcast_mla_flags {
+	/** @querier_ipv4: the current state of an IGMP querier in the mesh */
+	struct batadv_mcast_querier_state querier_ipv4;
+
+	/** @querier_ipv6: the current state of an MLD querier in the mesh */
+	struct batadv_mcast_querier_state querier_ipv6;
+
+	/** @enabled: whether the multicast tvlv is currently enabled */
+	unsigned char enabled:1;
+
+	/** @bridged: whether the soft interface has a bridge on top */
+	unsigned char bridged:1;
+
+	/** @tvlv_flags: the flags we have last sent in our mcast tvlv */
+	u8 tvlv_flags;
+};
+
+/**
  * struct batadv_priv_mcast - per mesh interface mcast data
  */
 struct batadv_priv_mcast {
@@ -1208,20 +1241,27 @@ struct batadv_priv_mcast {
 	 */
 	struct hlist_head want_all_ipv6_list;
 
-	/** @querier_ipv4: the current state of an IGMP querier in the mesh */
-	struct batadv_mcast_querier_state querier_ipv4;
+	/**
+	 * @want_all_rtr4_list: a list of orig_nodes wanting all routable IPv4
+	 *  multicast traffic
+	 */
+	struct hlist_head want_all_rtr4_list;
 
-	/** @querier_ipv6: the current state of an MLD querier in the mesh */
-	struct batadv_mcast_querier_state querier_ipv6;
+	/**
+	 * @want_all_rtr6_list: a list of orig_nodes wanting all routable IPv6
+	 *  multicast traffic
+	 */
+	struct hlist_head want_all_rtr6_list;
 
-	/** @flags: the flags we have last sent in our mcast tvlv */
-	u8 flags;
+	/**
+	 * @mla_flags: flags for the querier, bridge and tvlv state
+	 */
+	struct batadv_mcast_mla_flags mla_flags;
 
-	/** @enabled: whether the multicast tvlv is currently enabled */
-	unsigned char enabled:1;
-
-	/** @bridged: whether the soft interface has a bridge on top */
-	unsigned char bridged:1;
+	/**
+	 * @mla_lock: a lock protecting mla_list and mla_flags
+	 */
+	spinlock_t mla_lock;
 
 	/**
 	 * @num_want_all_unsnoopables: number of nodes wanting unsnoopable IP
@@ -1234,6 +1274,12 @@ struct batadv_priv_mcast {
 
 	/** @num_want_all_ipv6: counter for items in want_all_ipv6_list */
 	atomic_t num_want_all_ipv6;
+
+	/** @num_want_all_rtr4: counter for items in want_all_rtr4_list */
+	atomic_t num_want_all_rtr4;
+
+	/** @num_want_all_rtr6: counter for items in want_all_rtr6_list */
+	atomic_t num_want_all_rtr6;
 
 	/**
 	 * @want_lists_lock: lock for protecting modifications to mcasts
@@ -1565,6 +1611,12 @@ struct batadv_priv {
 	 *  node's sender/originating side
 	 */
 	atomic_t multicast_mode;
+
+	/**
+	 * @multicast_fanout: Maximum number of packet copies to generate for a
+	 *  multicast-to-unicast conversion
+	 */
+	atomic_t multicast_fanout;
 #endif
 
 	/** @orig_interval: OGM broadcast interval in milliseconds */
@@ -2129,6 +2181,9 @@ struct batadv_algo_iface_ops {
 
 	/** @enable: init routing info when hard-interface is enabled */
 	int (*enable)(struct batadv_hard_iface *hard_iface);
+
+	/** @enabled: notification when hard-interface was enabled (optional) */
+	void (*enabled)(struct batadv_hard_iface *hard_iface);
 
 	/** @disable: de-init routing info when hard-interface is disabled */
 	void (*disable)(struct batadv_hard_iface *hard_iface);

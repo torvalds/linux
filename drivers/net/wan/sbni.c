@@ -761,7 +761,7 @@ send_complete( struct net_device *dev )
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += nl->tx_buf_p->len;
 #endif
-	dev_kfree_skb_irq( nl->tx_buf_p );
+	dev_consume_skb_irq(nl->tx_buf_p);
 
 	nl->tx_buf_p = NULL;
 

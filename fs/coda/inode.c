@@ -27,7 +27,7 @@
 #include <linux/vmalloc.h>
 
 #include <linux/coda.h>
-#include <linux/coda_psdev.h>
+#include "coda_psdev.h"
 #include "coda_linux.h"
 #include "coda_cache.h"
 
@@ -54,15 +54,9 @@ static struct inode *coda_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void coda_i_callback(struct rcu_head *head)
+static void coda_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(coda_inode_cachep, ITOC(inode));
-}
-
-static void coda_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, coda_i_callback);
 }
 
 static void init_once(void *foo)
@@ -104,7 +98,7 @@ static int coda_remount(struct super_block *sb, int *flags, char *data)
 static const struct super_operations coda_super_operations =
 {
 	.alloc_inode	= coda_alloc_inode,
-	.destroy_inode	= coda_destroy_inode,
+	.free_inode	= coda_free_inode,
 	.evict_inode	= coda_evict_inode,
 	.put_super	= coda_put_super,
 	.statfs		= coda_statfs,
@@ -194,6 +188,9 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_magic = CODA_SUPER_MAGIC;
 	sb->s_op = &coda_super_operations;
 	sb->s_d_op = &coda_dentry_operations;
+	sb->s_time_gran = 1;
+	sb->s_time_min = S64_MIN;
+	sb->s_time_max = S64_MAX;
 
 	error = super_setup_bdi(sb);
 	if (error)
@@ -242,6 +239,7 @@ static void coda_put_super(struct super_block *sb)
 	vcp->vc_sb = NULL;
 	sb->s_fs_info = NULL;
 	mutex_unlock(&vcp->vc_mutex);
+	mutex_destroy(&vcp->vc_mutex);
 
 	pr_info("Bye bye.\n");
 }

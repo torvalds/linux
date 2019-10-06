@@ -24,6 +24,8 @@
  *
  */
 
+#include <linux/io-64-nonatomic-lo-hi.h>
+
 #include "amdgpu.h"
 
 /**
@@ -77,6 +79,33 @@ uint64_t amdgpu_gmc_pd_addr(struct amdgpu_bo *bo)
 		pd_addr = amdgpu_bo_gpu_offset(bo);
 	}
 	return pd_addr;
+}
+
+/**
+ * amdgpu_gmc_set_pte_pde - update the page tables using CPU
+ *
+ * @adev: amdgpu_device pointer
+ * @cpu_pt_addr: cpu address of the page table
+ * @gpu_page_idx: entry in the page table to update
+ * @addr: dst addr to write into pte/pde
+ * @flags: access flags
+ *
+ * Update the page tables using CPU.
+ */
+int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
+				uint32_t gpu_page_idx, uint64_t addr,
+				uint64_t flags)
+{
+	void __iomem *ptr = (void *)cpu_pt_addr;
+	uint64_t value;
+
+	/*
+	 * The following is for PTE only. GART does not have PDEs.
+	*/
+	value = addr & 0x0000FFFFFFFFF000ULL;
+	value |= flags;
+	writeq(value, ptr + (gpu_page_idx * 8));
+	return 0;
 }
 
 /**
@@ -191,6 +220,14 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	const uint64_t sixteen_gb_mask = ~(sixteen_gb - 1);
 	u64 size_af, size_bf;
 
+	if (amdgpu_sriov_vf(adev)) {
+		mc->agp_start = 0xffffffff;
+		mc->agp_end = 0x0;
+		mc->agp_size = 0;
+
+		return;
+	}
+
 	if (mc->fb_start > mc->gart_start) {
 		size_bf = (mc->fb_start & sixteen_gb_mask) -
 			ALIGN(mc->gart_end + 1, sixteen_gb);
@@ -212,4 +249,59 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	mc->agp_end = mc->agp_start + mc->agp_size - 1;
 	dev_info(adev->dev, "AGP: %lluM 0x%016llX - 0x%016llX\n",
 			mc->agp_size >> 20, mc->agp_start, mc->agp_end);
+}
+
+/**
+ * amdgpu_gmc_filter_faults - filter VM faults
+ *
+ * @adev: amdgpu device structure
+ * @addr: address of the VM fault
+ * @pasid: PASID of the process causing the fault
+ * @timestamp: timestamp of the fault
+ *
+ * Returns:
+ * True if the fault was filtered and should not be processed further.
+ * False if the fault is a new one and needs to be handled.
+ */
+bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
+			      uint16_t pasid, uint64_t timestamp)
+{
+	struct amdgpu_gmc *gmc = &adev->gmc;
+
+	uint64_t stamp, key = addr << 4 | pasid;
+	struct amdgpu_gmc_fault *fault;
+	uint32_t hash;
+
+	/* If we don't have space left in the ring buffer return immediately */
+	stamp = max(timestamp, AMDGPU_GMC_FAULT_TIMEOUT + 1) -
+		AMDGPU_GMC_FAULT_TIMEOUT;
+	if (gmc->fault_ring[gmc->last_fault].timestamp >= stamp)
+		return true;
+
+	/* Try to find the fault in the hash */
+	hash = hash_64(key, AMDGPU_GMC_FAULT_HASH_ORDER);
+	fault = &gmc->fault_ring[gmc->fault_hash[hash].idx];
+	while (fault->timestamp >= stamp) {
+		uint64_t tmp;
+
+		if (fault->key == key)
+			return true;
+
+		tmp = fault->timestamp;
+		fault = &gmc->fault_ring[fault->next];
+
+		/* Check if the entry was reused */
+		if (fault->timestamp >= tmp)
+			break;
+	}
+
+	/* Add the fault to the ring */
+	fault = &gmc->fault_ring[gmc->last_fault];
+	fault->key = key;
+	fault->timestamp = timestamp;
+
+	/* And update the hash */
+	fault->next = gmc->fault_hash[hash].idx;
+	gmc->fault_hash[hash].idx = gmc->last_fault++;
+	return false;
 }

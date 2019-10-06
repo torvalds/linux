@@ -115,13 +115,9 @@
 &gmac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac_mii_pins>;
-	phy = <&phy1>;
+	phy-handle = <&phy1>;
 	phy-mode = "mii";
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &hdmi {
@@ -161,6 +157,12 @@
 	status = "okay";
 };
 
+&gmac_mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
 &ohci0 {
 	status = "okay";
 };
@@ -171,14 +173,6 @@
 
 &otg_sram {
 	status = "okay";
-};
-
-&pio {
-	usb0_id_detect_pin: usb0-id-detect-pin {
-		pins = "PH4";
-		function = "gpio_in";
-		bias-pull-up;
-	};
 };
 
 &reg_ahci_5v {
@@ -236,9 +230,7 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>;
-	usb0_id_det-gpio = <&pio 7 4 GPIO_ACTIVE_HIGH>; /* PH4 */
+	usb0_id_det-gpios = <&pio 7 4 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PH4 */
 	usb1_vbus-supply = <&reg_usb1_vbus>;
 	usb2_vbus-supply = <&reg_usb2_vbus>;
 	status = "okay";

@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/cls_u32.c	Ugly (or Universal) 32bit key Packet Classifier.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  *
@@ -23,9 +19,6 @@
  *	It is especially useful for link sharing combined with QoS;
  *	pure RSVP doesn't need such a general approach and can use
  *	much simpler (and faster) schemes, sort of cls_rsvp.c.
- *
- *	JHS: We should remove the CONFIG_NET_CLS_IND from here
- *	eventually when the meta match extension is made available
  *
  *	nfmark match added by Catalin(ux aka Dino) BOIE <catab at umbrella.ro>
  */
@@ -52,9 +45,7 @@ struct tc_u_knode {
 	u32			handle;
 	struct tc_u_hnode __rcu	*ht_up;
 	struct tcf_exts		exts;
-#ifdef CONFIG_NET_CLS_IND
 	int			ifindex;
-#endif
 	u8			fshift;
 	struct tcf_result	res;
 	struct tc_u_hnode __rcu	*ht_down;
@@ -180,12 +171,10 @@ check_terminal:
 			if (n->sel.flags & TC_U32_TERMINAL) {
 
 				*res = n->res;
-#ifdef CONFIG_NET_CLS_IND
 				if (!tcf_match_indev(skb, n->ifindex)) {
 					n = rcu_dereference_bh(n->next);
 					goto next_knode;
 				}
-#endif
 #ifdef CONFIG_CLS_U32_PERF
 				__this_cpu_inc(n->pf->rhit);
 #endif
@@ -491,7 +480,7 @@ static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
 	cls_u32.hnode.handle = h->handle;
 	cls_u32.hnode.prio = h->prio;
 
-	tc_setup_cb_call(block, TC_SETUP_CLSU32, &cls_u32, false);
+	tc_setup_cb_call(block, TC_SETUP_CLSU32, &cls_u32, false, true);
 }
 
 static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
@@ -509,7 +498,7 @@ static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
 	cls_u32.hnode.handle = h->handle;
 	cls_u32.hnode.prio = h->prio;
 
-	err = tc_setup_cb_call(block, TC_SETUP_CLSU32, &cls_u32, skip_sw);
+	err = tc_setup_cb_call(block, TC_SETUP_CLSU32, &cls_u32, skip_sw, true);
 	if (err < 0) {
 		u32_clear_hw_hnode(tp, h, NULL);
 		return err;
@@ -533,8 +522,8 @@ static void u32_remove_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 	cls_u32.command = TC_CLSU32_DELETE_KNODE;
 	cls_u32.knode.handle = n->handle;
 
-	tc_setup_cb_call(block, TC_SETUP_CLSU32, &cls_u32, false);
-	tcf_block_offload_dec(block, &n->flags);
+	tc_setup_cb_destroy(block, tp, TC_SETUP_CLSU32, &cls_u32, false,
+			    &n->flags, &n->in_hw_count, true);
 }
 
 static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
@@ -563,13 +552,11 @@ static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 	if (n->ht_down)
 		cls_u32.knode.link_handle = ht->handle;
 
-	err = tc_setup_cb_call(block, TC_SETUP_CLSU32, &cls_u32, skip_sw);
-	if (err < 0) {
+	err = tc_setup_cb_add(block, tp, TC_SETUP_CLSU32, &cls_u32, skip_sw,
+			      &n->flags, &n->in_hw_count, true);
+	if (err) {
 		u32_remove_hw_knode(tp, n, NULL);
 		return err;
-	} else if (err > 0) {
-		n->in_hw_count = err;
-		tcf_block_offload_inc(block, &n->flags);
 	}
 
 	if (skip_sw && !(n->flags & TCA_CLS_FLAGS_IN_HW))
@@ -629,7 +616,8 @@ static int u32_destroy_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
 	return -ENOENT;
 }
 
-static void u32_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
+static void u32_destroy(struct tcf_proto *tp, bool rtnl_held,
+			struct netlink_ext_ack *extack)
 {
 	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_hnode *root_ht = rtnl_dereference(tp->root);
@@ -663,7 +651,7 @@ static void u32_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 }
 
 static int u32_delete(struct tcf_proto *tp, void *arg, bool *last,
-		      struct netlink_ext_ack *extack)
+		      bool rtnl_held, struct netlink_ext_ack *extack)
 {
 	struct tc_u_hnode *ht = arg;
 	struct tc_u_common *tp_c = tp->data;
@@ -726,7 +714,7 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &n->exts, ovr, extack);
+	err = tcf_exts_validate(net, tp, tb, est, &n->exts, ovr, true, extack);
 	if (err < 0)
 		return err;
 
@@ -764,7 +752,6 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 		tcf_bind_filter(tp, &n->res, base);
 	}
 
-#ifdef CONFIG_NET_CLS_IND
 	if (tb[TCA_U32_INDEV]) {
 		int ret;
 		ret = tcf_change_indev(net, tb[TCA_U32_INDEV], extack);
@@ -772,7 +759,6 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 			return -EINVAL;
 		n->ifindex = ret;
 	}
-#endif
 	return 0;
 }
 
@@ -803,7 +789,7 @@ static void u32_replace_knode(struct tcf_proto *tp, struct tc_u_common *tp_c,
 	rcu_assign_pointer(*ins, n);
 }
 
-static struct tc_u_knode *u32_init_knode(struct tcf_proto *tp,
+static struct tc_u_knode *u32_init_knode(struct net *net, struct tcf_proto *tp,
 					 struct tc_u_knode *n)
 {
 	struct tc_u_hnode *ht = rtnl_dereference(n->ht_down);
@@ -820,9 +806,7 @@ static struct tc_u_knode *u32_init_knode(struct tcf_proto *tp,
 	new->handle = n->handle;
 	RCU_INIT_POINTER(new->ht_up, n->ht_up);
 
-#ifdef CONFIG_NET_CLS_IND
 	new->ifindex = n->ifindex;
-#endif
 	new->fshift = n->fshift;
 	new->res = n->res;
 	new->flags = n->flags;
@@ -846,9 +830,9 @@ static struct tc_u_knode *u32_init_knode(struct tcf_proto *tp,
 	/* Similarly success statistics must be moved as pointers */
 	new->pcpu_success = n->pcpu_success;
 #endif
-	memcpy(&new->sel, s, sizeof(*s) + s->nkeys*sizeof(struct tc_u32_key));
+	memcpy(&new->sel, s, struct_size(s, keys, s->nkeys));
 
-	if (tcf_exts_init(&new->exts, TCA_U32_ACT, TCA_U32_POLICE)) {
+	if (tcf_exts_init(&new->exts, net, TCA_U32_ACT, TCA_U32_POLICE)) {
 		kfree(new);
 		return NULL;
 	}
@@ -858,7 +842,7 @@ static struct tc_u_knode *u32_init_knode(struct tcf_proto *tp,
 
 static int u32_change(struct net *net, struct sk_buff *in_skb,
 		      struct tcf_proto *tp, unsigned long base, u32 handle,
-		      struct nlattr **tca, void **arg, bool ovr,
+		      struct nlattr **tca, void **arg, bool ovr, bool rtnl_held,
 		      struct netlink_ext_ack *extack)
 {
 	struct tc_u_common *tp_c = tp->data;
@@ -883,7 +867,8 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		}
 	}
 
-	err = nla_parse_nested(tb, TCA_U32_MAX, opt, u32_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_U32_MAX, opt, u32_policy,
+					  extack);
 	if (err < 0)
 		return err;
 
@@ -910,7 +895,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 			return -EINVAL;
 		}
 
-		new = u32_init_knode(tp, n);
+		new = u32_init_knode(net, tp, n);
 		if (!new)
 			return -ENOMEM;
 
@@ -1060,7 +1045,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	n->fshift = s->hmask ? ffs(ntohl(s->hmask)) - 1 : 0;
 	n->flags = flags;
 
-	err = tcf_exts_init(&n->exts, TCA_U32_ACT, TCA_U32_POLICE);
+	err = tcf_exts_init(&n->exts, net, TCA_U32_ACT, TCA_U32_POLICE);
 	if (err < 0)
 		goto errout;
 
@@ -1123,7 +1108,8 @@ erridr:
 	return err;
 }
 
-static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg)
+static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg,
+		     bool rtnl_held)
 {
 	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_hnode *ht;
@@ -1164,7 +1150,7 @@ static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 }
 
 static int u32_reoffload_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
-			       bool add, tc_setup_cb_t *cb, void *cb_priv,
+			       bool add, flow_setup_cb_t *cb, void *cb_priv,
 			       struct netlink_ext_ack *extack)
 {
 	struct tc_cls_u32_offload cls_u32 = {};
@@ -1184,7 +1170,7 @@ static int u32_reoffload_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
 }
 
 static int u32_reoffload_knode(struct tcf_proto *tp, struct tc_u_knode *n,
-			       bool add, tc_setup_cb_t *cb, void *cb_priv,
+			       bool add, flow_setup_cb_t *cb, void *cb_priv,
 			       struct netlink_ext_ack *extack)
 {
 	struct tc_u_hnode *ht = rtnl_dereference(n->ht_down);
@@ -1213,19 +1199,16 @@ static int u32_reoffload_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 			cls_u32.knode.link_handle = ht->handle;
 	}
 
-	err = cb(TC_SETUP_CLSU32, &cls_u32, cb_priv);
-	if (err) {
-		if (add && tc_skip_sw(n->flags))
-			return err;
-		return 0;
-	}
-
-	tc_cls_offload_cnt_update(block, &n->in_hw_count, &n->flags, add);
+	err = tc_setup_cb_reoffload(block, tp, add, cb, TC_SETUP_CLSU32,
+				    &cls_u32, cb_priv, &n->flags,
+				    &n->in_hw_count);
+	if (err)
+		return err;
 
 	return 0;
 }
 
-static int u32_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
+static int u32_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,
 			 void *cb_priv, struct netlink_ext_ack *extack)
 {
 	struct tc_u_common *tp_c = tp->data;
@@ -1281,7 +1264,7 @@ static void u32_bind_class(void *fh, u32 classid, unsigned long cl)
 }
 
 static int u32_dump(struct net *net, struct tcf_proto *tp, void *fh,
-		    struct sk_buff *skb, struct tcmsg *t)
+		    struct sk_buff *skb, struct tcmsg *t, bool rtnl_held)
 {
 	struct tc_u_knode *n = fh;
 	struct tc_u_hnode *ht_up, *ht_down;
@@ -1292,7 +1275,7 @@ static int u32_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	t->tcm_handle = n->handle;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 
@@ -1352,14 +1335,12 @@ static int u32_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		if (tcf_exts_dump(skb, &n->exts) < 0)
 			goto nla_put_failure;
 
-#ifdef CONFIG_NET_CLS_IND
 		if (n->ifindex) {
 			struct net_device *dev;
 			dev = __dev_get_by_index(net, n->ifindex);
 			if (dev && nla_put_string(skb, TCA_U32_INDEV, dev->name))
 				goto nla_put_failure;
 		}
-#endif
 #ifdef CONFIG_CLS_U32_PERF
 		gpf = kzalloc(sizeof(struct tc_u32_pcnt) +
 			      n->sel.nkeys * sizeof(u64),
@@ -1423,9 +1404,7 @@ static int __init init_u32(void)
 #ifdef CONFIG_CLS_U32_PERF
 	pr_info("    Performance counters on\n");
 #endif
-#ifdef CONFIG_NET_CLS_IND
 	pr_info("    input device check on\n");
-#endif
 #ifdef CONFIG_NET_CLS_ACT
 	pr_info("    Actions configured\n");
 #endif

@@ -56,6 +56,9 @@ static const u32 supported_pixformats[] = {
 	V4L2_PIX_FMT_NV16,
 	V4L2_PIX_FMT_NV61,
 	V4L2_PIX_FMT_YUV422P,
+	V4L2_PIX_FMT_RGB565,
+	V4L2_PIX_FMT_RGB565X,
+	V4L2_PIX_FMT_JPEG,
 };
 
 static bool is_pixformat_valid(unsigned int pixformat)
@@ -409,7 +412,7 @@ static int vidioc_enum_input(struct file *file, void *fh,
 	if (inp->index != 0)
 		return -EINVAL;
 
-	strlcpy(inp->name, "camera", sizeof(inp->name));
+	strscpy(inp->name, "camera", sizeof(inp->name));
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 
 	return 0;
@@ -641,7 +644,7 @@ int sun6i_video_init(struct sun6i_video *video, struct sun6i_csi *csi,
 	}
 
 	/* Register video device */
-	strlcpy(vdev->name, name, sizeof(vdev->name));
+	strscpy(vdev->name, name, sizeof(vdev->name));
 	vdev->release		= video_device_release_empty;
 	vdev->fops		= &sun6i_video_fops;
 	vdev->ioctl_ops		= &sun6i_video_ioctl_ops;

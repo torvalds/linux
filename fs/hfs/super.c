@@ -167,20 +167,14 @@ static struct inode *hfs_alloc_inode(struct super_block *sb)
 	return i ? &i->vfs_inode : NULL;
 }
 
-static void hfs_i_callback(struct rcu_head *head)
+static void hfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(hfs_inode_cachep, HFS_I(inode));
-}
-
-static void hfs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, hfs_i_callback);
 }
 
 static const struct super_operations hfs_super_operations = {
 	.alloc_inode	= hfs_alloc_inode,
-	.destroy_inode	= hfs_destroy_inode,
+	.free_inode	= hfs_free_inode,
 	.write_inode	= hfs_write_inode,
 	.evict_inode	= hfs_evict_inode,
 	.put_super	= hfs_put_super,

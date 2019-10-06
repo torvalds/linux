@@ -1,21 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) Jernej Skrabec <jernej.skrabec@siol.net>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
-#include <drm/drmP.h>
+#include <drm/drm_probe_helper.h>
 
 #include "sun8i_vi_layer.h"
 #include "sun8i_mixer.h"
@@ -80,6 +75,8 @@ static int sun8i_vi_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 	u32 bld_base, ch_base;
 	u32 outsize, insize;
 	u32 hphase, vphase;
+	u32 hn = 0, hm = 0;
+	u32 vn = 0, vm = 0;
 	bool subsampled;
 
 	DRM_DEBUG_DRIVER("Updating VI channel %d overlay %d\n",
@@ -137,12 +134,41 @@ static int sun8i_vi_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 	subsampled = format->hsub > 1 || format->vsub > 1;
 
 	if (insize != outsize || subsampled || hphase || vphase) {
-		u32 hscale, vscale;
+		unsigned int scanline, required;
+		struct drm_display_mode *mode;
+		u32 hscale, vscale, fps;
+		u64 ability;
 
 		DRM_DEBUG_DRIVER("HW scaling is enabled\n");
 
-		hscale = state->src_w / state->crtc_w;
-		vscale = state->src_h / state->crtc_h;
+		mode = &plane->state->crtc->state->mode;
+		fps = (mode->clock * 1000) / (mode->vtotal * mode->htotal);
+		ability = clk_get_rate(mixer->mod_clk);
+		/* BSP algorithm assumes 80% efficiency of VI scaler unit */
+		ability *= 80;
+		do_div(ability, mode->vdisplay * fps * max(src_w, dst_w));
+
+		required = src_h * 100 / dst_h;
+
+		if (ability < required) {
+			DRM_DEBUG_DRIVER("Using vertical coarse scaling\n");
+			vm = src_h;
+			vn = (u32)ability * dst_h / 100;
+			src_h = vn;
+		}
+
+		/* it seems that every RGB scaler has buffer for 2048 pixels */
+		scanline = subsampled ? mixer->cfg->scanline_yuv : 2048;
+
+		if (src_w > scanline) {
+			DRM_DEBUG_DRIVER("Using horizontal coarse scaling\n");
+			hm = src_w;
+			hn = scanline;
+			src_w = hn;
+		}
+
+		hscale = (src_w << 16) / dst_w;
+		vscale = (src_h << 16) / dst_h;
 
 		sun8i_vi_scaler_setup(mixer, channel, src_w, src_h, dst_w,
 				      dst_h, hscale, vscale, hphase, vphase,
@@ -152,6 +178,23 @@ static int sun8i_vi_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 		DRM_DEBUG_DRIVER("HW scaling is not needed\n");
 		sun8i_vi_scaler_enable(mixer, channel, false);
 	}
+
+	regmap_write(mixer->engine.regs,
+		     SUN8I_MIXER_CHAN_VI_HDS_Y(ch_base),
+		     SUN8I_MIXER_CHAN_VI_DS_N(hn) |
+		     SUN8I_MIXER_CHAN_VI_DS_M(hm));
+	regmap_write(mixer->engine.regs,
+		     SUN8I_MIXER_CHAN_VI_HDS_UV(ch_base),
+		     SUN8I_MIXER_CHAN_VI_DS_N(hn) |
+		     SUN8I_MIXER_CHAN_VI_DS_M(hm));
+	regmap_write(mixer->engine.regs,
+		     SUN8I_MIXER_CHAN_VI_VDS_Y(ch_base),
+		     SUN8I_MIXER_CHAN_VI_DS_N(vn) |
+		     SUN8I_MIXER_CHAN_VI_DS_M(vm));
+	regmap_write(mixer->engine.regs,
+		     SUN8I_MIXER_CHAN_VI_VDS_UV(ch_base),
+		     SUN8I_MIXER_CHAN_VI_DS_N(vn) |
+		     SUN8I_MIXER_CHAN_VI_DS_M(vm));
 
 	/* Set base coordinates */
 	DRM_DEBUG_DRIVER("Layer destination coordinates X: %d Y: %d\n",
@@ -188,7 +231,9 @@ static int sun8i_vi_layer_update_formats(struct sun8i_mixer *mixer, int channel,
 			   SUN8I_MIXER_CHAN_VI_LAYER_ATTR_FBFMT_MASK, val);
 
 	if (fmt_info->csc != SUN8I_CSC_MODE_OFF) {
-		sun8i_csc_set_ccsc_coefficients(mixer, channel, fmt_info->csc);
+		sun8i_csc_set_ccsc_coefficients(mixer, channel, fmt_info->csc,
+						state->color_encoding,
+						state->color_range);
 		sun8i_csc_enable_ccsc(mixer, channel, true);
 	} else {
 		sun8i_csc_enable_ccsc(mixer, channel, false);
@@ -397,6 +442,7 @@ struct sun8i_vi_layer *sun8i_vi_layer_init_one(struct drm_device *drm,
 					       struct sun8i_mixer *mixer,
 					       int index)
 {
+	u32 supported_encodings, supported_ranges;
 	struct sun8i_vi_layer *layer;
 	unsigned int plane_cnt;
 	int ret;
@@ -422,6 +468,22 @@ struct sun8i_vi_layer *sun8i_vi_layer_init_one(struct drm_device *drm,
 					     0, plane_cnt - 1);
 	if (ret) {
 		dev_err(drm->dev, "Couldn't add zpos property\n");
+		return ERR_PTR(ret);
+	}
+
+	supported_encodings = BIT(DRM_COLOR_YCBCR_BT601) |
+			      BIT(DRM_COLOR_YCBCR_BT709);
+
+	supported_ranges = BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) |
+			   BIT(DRM_COLOR_YCBCR_FULL_RANGE);
+
+	ret = drm_plane_create_color_properties(&layer->plane,
+						supported_encodings,
+						supported_ranges,
+						DRM_COLOR_YCBCR_BT709,
+						DRM_COLOR_YCBCR_LIMITED_RANGE);
+	if (ret) {
+		dev_err(drm->dev, "Couldn't add encoding and range properties!\n");
 		return ERR_PTR(ret);
 	}
 

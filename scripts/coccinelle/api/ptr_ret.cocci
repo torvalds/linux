@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 ///
 /// Use PTR_ERR_OR_ZERO rather than if(IS_ERR(...)) + PTR_ERR
 ///
 // Confidence: High
-// Copyright: (C) 2012 Julia Lawall, INRIA/LIP6.  GPLv2.
-// Copyright: (C) 2012 Gilles Muller, INRIA/LiP6.  GPLv2.
+// Copyright: (C) 2012 Julia Lawall, INRIA/LIP6.
+// Copyright: (C) 2012 Gilles Muller, INRIA/LiP6.
 // URL: http://coccinelle.lip6.fr/
 // Options: --no-includes --include-headers
 //

@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pinctrl pads, groups, functions for CSR SiRFatlasVII
  *
  * Copyright (c) 2011 - 2014 Cambridge Silicon Radio Limited, a CSR plc group
  * company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/init.h>
@@ -6007,8 +6006,8 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 	}
 
 	/* retrieve gpio descriptor data */
-	a7gc = devm_kzalloc(&pdev->dev, sizeof(*a7gc) +
-			sizeof(struct atlas7_gpio_bank) * nbank, GFP_KERNEL);
+	a7gc = devm_kzalloc(&pdev->dev, struct_size(a7gc, banks, nbank),
+			    GFP_KERNEL);
 	if (!a7gc)
 		return -ENOMEM;
 

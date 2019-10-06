@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* X.509 certificate parser
  *
  * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) "X.509: "fmt
@@ -26,6 +22,9 @@ struct x509_parse_context {
 	const void	*cert_start;		/* Start of cert content */
 	const void	*key;			/* Key data */
 	size_t		key_size;		/* Size of key data */
+	const void	*params;		/* Key parameters */
+	size_t		params_size;		/* Size of key parameters */
+	enum OID	key_algo;		/* Public key algorithm */
 	enum OID	last_oid;		/* Last OID encountered */
 	enum OID	algo_oid;		/* Algorithm OID */
 	unsigned char	nr_mpi;			/* Number of MPIs stored */
@@ -108,6 +107,13 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 		goto error_decode;
 
 	cert->pub->keylen = ctx->key_size;
+
+	cert->pub->params = kmemdup(ctx->params, ctx->params_size, GFP_KERNEL);
+	if (!cert->pub->params)
+		goto error_decode;
+
+	cert->pub->paramlen = ctx->params_size;
+	cert->pub->algo = ctx->key_algo;
 
 	/* Grab the signature bits */
 	ret = x509_get_sig_params(cert);
@@ -220,11 +226,24 @@ int x509_note_pkey_algo(void *context, size_t hdrlen,
 	case OID_sha224WithRSAEncryption:
 		ctx->cert->sig->hash_algo = "sha224";
 		goto rsa_pkcs1;
+
+	case OID_gost2012Signature256:
+		ctx->cert->sig->hash_algo = "streebog256";
+		goto ecrdsa;
+
+	case OID_gost2012Signature512:
+		ctx->cert->sig->hash_algo = "streebog512";
+		goto ecrdsa;
 	}
 
 rsa_pkcs1:
 	ctx->cert->sig->pkey_algo = "rsa";
 	ctx->cert->sig->encoding = "pkcs1";
+	ctx->algo_oid = ctx->last_oid;
+	return 0;
+ecrdsa:
+	ctx->cert->sig->pkey_algo = "ecrdsa";
+	ctx->cert->sig->encoding = "raw";
 	ctx->algo_oid = ctx->last_oid;
 	return 0;
 }
@@ -246,7 +265,8 @@ int x509_note_signature(void *context, size_t hdrlen,
 		return -EINVAL;
 	}
 
-	if (strcmp(ctx->cert->sig->pkey_algo, "rsa") == 0) {
+	if (strcmp(ctx->cert->sig->pkey_algo, "rsa") == 0 ||
+	    strcmp(ctx->cert->sig->pkey_algo, "ecrdsa") == 0) {
 		/* Discard the BIT STRING metadata */
 		if (vlen < 1 || *(const u8 *)value != 0)
 			return -EBADMSG;
@@ -401,6 +421,27 @@ int x509_note_subject(void *context, size_t hdrlen,
 }
 
 /*
+ * Extract the parameters for the public key
+ */
+int x509_note_params(void *context, size_t hdrlen,
+		     unsigned char tag,
+		     const void *value, size_t vlen)
+{
+	struct x509_parse_context *ctx = context;
+
+	/*
+	 * AlgorithmIdentifier is used three times in the x509, we should skip
+	 * first and ignore third, using second one which is after subject and
+	 * before subjectPublicKey.
+	 */
+	if (!ctx->cert->raw_subject || ctx->key)
+		return 0;
+	ctx->params = value - hdrlen;
+	ctx->params_size = vlen + hdrlen;
+	return 0;
+}
+
+/*
  * Extract the data for the public key algorithm
  */
 int x509_extract_key_data(void *context, size_t hdrlen,
@@ -409,10 +450,14 @@ int x509_extract_key_data(void *context, size_t hdrlen,
 {
 	struct x509_parse_context *ctx = context;
 
-	if (ctx->last_oid != OID_rsaEncryption)
+	ctx->key_algo = ctx->last_oid;
+	if (ctx->last_oid == OID_rsaEncryption)
+		ctx->cert->pub->pkey_algo = "rsa";
+	else if (ctx->last_oid == OID_gost2012PKey256 ||
+		 ctx->last_oid == OID_gost2012PKey512)
+		ctx->cert->pub->pkey_algo = "ecrdsa";
+	else
 		return -ENOPKG;
-
-	ctx->cert->pub->pkey_algo = "rsa";
 
 	/* Discard the BIT STRING metadata */
 	if (vlen < 1 || *(const u8 *)value != 0)

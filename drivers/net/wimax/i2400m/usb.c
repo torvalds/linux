@@ -1,26 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel Wireless WiMAX Connection 2400m
  * Linux driver model glue for USB device, reset & fw upload
  *
- *
  * Copyright (C) 2007-2008 Intel Corporation <linux-wimax@intel.com>
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
  * Yanir Lubetkin <yanirx.lubetkin@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * See i2400m-usb.h for a general description of this driver.
  *
@@ -210,6 +195,7 @@ retry:
 			msleep(10);	/* give the device some time */
 			goto retry;
 		}
+		/* fall through */
 	case -EINVAL:			/* while removing driver */
 	case -ENODEV:			/* dev disconnect ... */
 	case -ENOENT:			/* just ignore it */
@@ -380,61 +366,25 @@ struct d_level D_LEVEL[] = {
 };
 size_t D_LEVEL_SIZE = ARRAY_SIZE(D_LEVEL);
 
-
-#define __debugfs_register(prefix, name, parent)			\
-do {									\
-	result = d_level_register_debugfs(prefix, name, parent);	\
-	if (result < 0)							\
-		goto error;						\
-} while (0)
-
-
 static
-int i2400mu_debugfs_add(struct i2400mu *i2400mu)
+void i2400mu_debugfs_add(struct i2400mu *i2400mu)
 {
-	int result;
-	struct device *dev = &i2400mu->usb_iface->dev;
 	struct dentry *dentry = i2400mu->i2400m.wimax_dev.debugfs_dentry;
-	struct dentry *fd;
 
 	dentry = debugfs_create_dir("i2400m-usb", dentry);
-	result = PTR_ERR(dentry);
-	if (IS_ERR(dentry)) {
-		if (result == -ENODEV)
-			result = 0;	/* No debugfs support */
-		goto error;
-	}
 	i2400mu->debugfs_dentry = dentry;
-	__debugfs_register("dl_", usb, dentry);
-	__debugfs_register("dl_", fw, dentry);
-	__debugfs_register("dl_", notif, dentry);
-	__debugfs_register("dl_", rx, dentry);
-	__debugfs_register("dl_", tx, dentry);
+
+	d_level_register_debugfs("dl_", usb, dentry);
+	d_level_register_debugfs("dl_", fw, dentry);
+	d_level_register_debugfs("dl_", notif, dentry);
+	d_level_register_debugfs("dl_", rx, dentry);
+	d_level_register_debugfs("dl_", tx, dentry);
 
 	/* Don't touch these if you don't know what you are doing */
-	fd = debugfs_create_u8("rx_size_auto_shrink", 0600, dentry,
-			       &i2400mu->rx_size_auto_shrink);
-	result = PTR_ERR(fd);
-	if (IS_ERR(fd) && result != -ENODEV) {
-		dev_err(dev, "Can't create debugfs entry "
-			"rx_size_auto_shrink: %d\n", result);
-		goto error;
-	}
+	debugfs_create_u8("rx_size_auto_shrink", 0600, dentry,
+			  &i2400mu->rx_size_auto_shrink);
 
-	fd = debugfs_create_size_t("rx_size", 0600, dentry,
-				   &i2400mu->rx_size);
-	result = PTR_ERR(fd);
-	if (IS_ERR(fd) && result != -ENODEV) {
-		dev_err(dev, "Can't create debugfs entry "
-			"rx_size: %d\n", result);
-		goto error;
-	}
-
-	return 0;
-
-error:
-	debugfs_remove_recursive(i2400mu->debugfs_dentry);
-	return result;
+	debugfs_create_size_t("rx_size", 0600, dentry, &i2400mu->rx_size);
 }
 
 
@@ -548,15 +498,9 @@ int i2400mu_probe(struct usb_interface *iface,
 		dev_err(dev, "cannot setup device: %d\n", result);
 		goto error_setup;
 	}
-	result = i2400mu_debugfs_add(i2400mu);
-	if (result < 0) {
-		dev_err(dev, "Can't register i2400mu's debugfs: %d\n", result);
-		goto error_debugfs_add;
-	}
+	i2400mu_debugfs_add(i2400mu);
 	return 0;
 
-error_debugfs_add:
-	i2400m_release(i2400m);
 error_setup:
 	usb_set_intfdata(iface, NULL);
 	usb_put_dev(i2400mu->usb_dev);

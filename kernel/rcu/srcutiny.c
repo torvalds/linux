@@ -1,24 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Sleepable Read-Copy Update mechanism for mutual exclusion,
  *	tiny version for non-preemptible single-CPU use.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
  * Copyright (C) IBM Corporation, 2017
  *
- * Author: Paul McKenney <paulmck@us.ibm.com>
+ * Author: Paul McKenney <paulmck@linux.ibm.com>
  */
 
 #include <linux/export.h>
@@ -89,19 +76,16 @@ EXPORT_SYMBOL_GPL(init_srcu_struct);
  * Must invoke this after you are finished using a given srcu_struct that
  * was initialized via init_srcu_struct(), else you leak memory.
  */
-void _cleanup_srcu_struct(struct srcu_struct *ssp, bool quiesced)
+void cleanup_srcu_struct(struct srcu_struct *ssp)
 {
 	WARN_ON(ssp->srcu_lock_nesting[0] || ssp->srcu_lock_nesting[1]);
-	if (quiesced)
-		WARN_ON(work_pending(&ssp->srcu_work));
-	else
-		flush_work(&ssp->srcu_work);
+	flush_work(&ssp->srcu_work);
 	WARN_ON(ssp->srcu_gp_running);
 	WARN_ON(ssp->srcu_gp_waiting);
 	WARN_ON(ssp->srcu_cb_head);
 	WARN_ON(&ssp->srcu_cb_head != ssp->srcu_cb_tail);
 }
-EXPORT_SYMBOL_GPL(_cleanup_srcu_struct);
+EXPORT_SYMBOL_GPL(cleanup_srcu_struct);
 
 /*
  * Removes the count for the old reader from the appropriate element of

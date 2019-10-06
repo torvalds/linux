@@ -76,7 +76,7 @@ int phm_set_power_state(struct pp_hwmgr *hwmgr,
 int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = NULL;
-	int ret = -EINVAL;;
+	int ret = -EINVAL;
 	PHM_FUNC_CHECK(hwmgr);
 	adev = hwmgr->adev;
 
@@ -154,15 +154,6 @@ int phm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr)
-{
-	PHM_FUNC_CHECK(hwmgr);
-
-	if (NULL != hwmgr->hwmgr_func->enable_clock_power_gating)
-		return hwmgr->hwmgr_func->enable_clock_power_gating(hwmgr);
-
-	return 0;
-}
 
 int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 {
@@ -234,7 +225,16 @@ int phm_register_irq_handlers(struct pp_hwmgr *hwmgr)
 int phm_start_thermal_controller(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
-	struct PP_TemperatureRange range = {TEMP_RANGE_MIN, TEMP_RANGE_MAX};
+	struct PP_TemperatureRange range = {
+		TEMP_RANGE_MIN,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MIN,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MIN,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MAX};
 	struct amdgpu_device *adev = hwmgr->adev;
 
 	if (hwmgr->hwmgr_func->get_thermal_temperature_range)
@@ -248,6 +248,13 @@ int phm_start_thermal_controller(struct pp_hwmgr *hwmgr)
 
 	adev->pm.dpm.thermal.min_temp = range.min;
 	adev->pm.dpm.thermal.max_temp = range.max;
+	adev->pm.dpm.thermal.max_edge_emergency_temp = range.edge_emergency_max;
+	adev->pm.dpm.thermal.min_hotspot_temp = range.hotspot_min;
+	adev->pm.dpm.thermal.max_hotspot_crit_temp = range.hotspot_crit_max;
+	adev->pm.dpm.thermal.max_hotspot_emergency_temp = range.hotspot_emergency_max;
+	adev->pm.dpm.thermal.min_mem_temp = range.mem_min;
+	adev->pm.dpm.thermal.max_mem_crit_temp = range.mem_crit_max;
+	adev->pm.dpm.thermal.max_mem_emergency_temp = range.mem_emergency_max;
 
 	return ret;
 }

@@ -48,6 +48,14 @@ struct fsl_mc_msi_desc {
 };
 
 /**
+ * ti_sci_inta_msi_desc - TISCI based INTA specific msi descriptor data
+ * @dev_index: TISCI device index
+ */
+struct ti_sci_inta_msi_desc {
+	u16	dev_index;
+};
+
+/**
  * struct msi_desc - Descriptor structure for MSI based interrupts
  * @list:	List head for management
  * @irq:	The base interrupt number
@@ -55,6 +63,10 @@ struct fsl_mc_msi_desc {
  * @dev:	Pointer to the device which uses this descriptor
  * @msg:	The last set MSI message cached for reuse
  * @affinity:	Optional pointer to a cpu affinity mask for this descriptor
+ *
+ * @write_msi_msg:	Callback that may be called when the MSI message
+ *			address or data changes
+ * @write_msi_msg_data:	Data parameter for the callback.
  *
  * @masked:	[PCI MSI/X] Mask bits
  * @is_msix:	[PCI MSI/X] True if MSI-X
@@ -68,6 +80,7 @@ struct fsl_mc_msi_desc {
  * @mask_base:	[PCI MSI-X] Mask register base address
  * @platform:	[platform]  Platform device specific msi descriptor data
  * @fsl_mc:	[fsl-mc]    FSL MC device specific msi descriptor data
+ * @inta:	[INTA]	    TISCI based INTA specific msi descriptor data
  */
 struct msi_desc {
 	/* Shared device/bus type independent data */
@@ -77,18 +90,25 @@ struct msi_desc {
 	struct device			*dev;
 	struct msi_msg			msg;
 	struct irq_affinity_desc	*affinity;
+#ifdef CONFIG_IRQ_MSI_IOMMU
+	const void			*iommu_cookie;
+#endif
+
+	void (*write_msi_msg)(struct msi_desc *entry, void *data);
+	void *write_msi_msg_data;
 
 	union {
 		/* PCI MSI/X specific data */
 		struct {
 			u32 masked;
 			struct {
-				__u8	is_msix		: 1;
-				__u8	multiple	: 3;
-				__u8	multi_cap	: 3;
-				__u8	maskbit		: 1;
-				__u8	is_64		: 1;
-				__u16	entry_nr;
+				u8	is_msix		: 1;
+				u8	multiple	: 3;
+				u8	multi_cap	: 3;
+				u8	maskbit		: 1;
+				u8	is_64		: 1;
+				u8	is_virtual	: 1;
+				u16	entry_nr;
 				unsigned default_irq;
 			} msi_attrib;
 			union {
@@ -106,6 +126,7 @@ struct msi_desc {
 		 */
 		struct platform_msi_desc platform;
 		struct fsl_mc_msi_desc fsl_mc;
+		struct ti_sci_inta_msi_desc inta;
 	};
 };
 
@@ -118,6 +139,29 @@ struct msi_desc {
 	list_for_each_entry((desc), dev_to_msi_list((dev)), list)
 #define for_each_msi_entry_safe(desc, tmp, dev)	\
 	list_for_each_entry_safe((desc), (tmp), dev_to_msi_list((dev)), list)
+
+#ifdef CONFIG_IRQ_MSI_IOMMU
+static inline const void *msi_desc_get_iommu_cookie(struct msi_desc *desc)
+{
+	return desc->iommu_cookie;
+}
+
+static inline void msi_desc_set_iommu_cookie(struct msi_desc *desc,
+					     const void *iommu_cookie)
+{
+	desc->iommu_cookie = iommu_cookie;
+}
+#else
+static inline const void *msi_desc_get_iommu_cookie(struct msi_desc *desc)
+{
+	return NULL;
+}
+
+static inline void msi_desc_set_iommu_cookie(struct msi_desc *desc,
+					     const void *iommu_cookie)
+{
+}
+#endif
 
 #ifdef CONFIG_PCI_MSI
 #define first_pci_msi_entry(pdev)	first_msi_entry(&(pdev)->dev)
@@ -147,24 +191,6 @@ u32 __pci_msix_desc_mask_irq(struct msi_desc *desc, u32 flag);
 u32 __pci_msi_desc_mask_irq(struct msi_desc *desc, u32 mask, u32 flag);
 void pci_msi_mask_irq(struct irq_data *data);
 void pci_msi_unmask_irq(struct irq_data *data);
-
-/* Conversion helpers. Should be removed after merging */
-static inline void __write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
-{
-	__pci_write_msi_msg(entry, msg);
-}
-static inline void write_msi_msg(int irq, struct msi_msg *msg)
-{
-	pci_write_msi_msg(irq, msg);
-}
-static inline void mask_msi_irq(struct irq_data *data)
-{
-	pci_msi_mask_irq(data);
-}
-static inline void unmask_msi_irq(struct irq_data *data)
-{
-	pci_msi_unmask_irq(data);
-}
 
 /*
  * The arch hooks to setup up msi irqs. Those functions are

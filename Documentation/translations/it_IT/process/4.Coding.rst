@@ -264,7 +264,7 @@ La maggior parte di queste opzioni possono essere attivate per qualsiasi
 kernel utilizzato per lo sviluppo o a scopo di test.  In particolare dovreste
 attivare:
 
- - ENABLE_WARN_DEPRECATED, ENABLE_MUST_CHECK, e FRAME_WARN per ottenere degli
+ - ENABLE_MUST_CHECK e FRAME_WARN per ottenere degli
    avvertimenti dedicati a problemi come l'uso di interfacce deprecate o
    l'ignorare un importante valore di ritorno di una funzione.  Il risultato
    generato da questi avvertimenti può risultare verboso, ma non bisogna
@@ -314,7 +314,7 @@ di allocazione di memoria sarà destinata al fallimento; questi fallimenti
 possono essere ridotti ad uno specifico pezzo di codice.  Procedere con
 l'inserimento dei fallimenti attivo permette al programmatore di verificare
 come il codice risponde quando le cose vanno male.  Consultate:
-Documentation/fault-injection/fault-injection.txt per avere maggiori
+Documentation/fault-injection/fault-injection.rst per avere maggiori
 informazioni su come utilizzare questo strumento.
 
 Altre tipologie di errori possono essere riscontrati con lo strumento di

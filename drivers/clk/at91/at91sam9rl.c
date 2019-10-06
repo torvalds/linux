@@ -14,7 +14,7 @@ static const struct clk_master_characteristics sam9rl_mck_characteristics = {
 
 static u8 sam9rl_plla_out[] = { 0, 2 };
 
-static struct clk_range sam9rl_plla_outputs[] = {
+static const struct clk_range sam9rl_plla_outputs[] = {
 	{ .min = 80000000, .max = 200000000 },
 	{ .min = 190000000, .max = 240000000 },
 };

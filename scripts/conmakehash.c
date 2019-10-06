@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * conmakehash.c
  *
@@ -8,10 +9,6 @@
  * just for this seems like massive overkill.
  *
  * Copyright (C) 1995-1997 H. Peter Anvin
- *
- * This program is a part of the Linux kernel, and may be freely
- * copied under the terms of the GNU General Public License (GPL),
- * version 2, or at your option any later version.
  */
 
 #include <stdio.h>

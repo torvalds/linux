@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
+/* Copyright (C) 2012-2019 ARM Limited (or its affiliates). */
 
 #ifndef _CC_LLI_DEFS_H_
 #define _CC_LLI_DEFS_H_
@@ -14,7 +14,7 @@
 #define CC_MAX_MLLI_ENTRY_SIZE 0xFFFF
 
 #define LLI_MAX_NUM_OF_DATA_ENTRIES 128
-#define LLI_MAX_NUM_OF_ASSOC_DATA_ENTRIES 4
+#define LLI_MAX_NUM_OF_ASSOC_DATA_ENTRIES 8
 #define MLLI_TABLE_MIN_ALIGNMENT 4 /* 32 bit alignment */
 #define MAX_NUM_OF_BUFFERS_IN_MLLI 4
 #define MAX_NUM_OF_TOTAL_MLLI_ENTRIES \

@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Glue Code for x86_64/AVX2/AES-NI assembler optimized version of Camellia
  *
  * Copyright © 2013 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <asm/crypto/camellia.h>
@@ -187,7 +182,7 @@ static int xts_encrypt(struct skcipher_request *req)
 
 	return glue_xts_req_128bit(&camellia_enc_xts, req,
 				   XTS_TWEAK_CAST(camellia_enc_blk),
-				   &ctx->tweak_ctx, &ctx->crypt_ctx);
+				   &ctx->tweak_ctx, &ctx->crypt_ctx, false);
 }
 
 static int xts_decrypt(struct skcipher_request *req)
@@ -197,7 +192,7 @@ static int xts_decrypt(struct skcipher_request *req)
 
 	return glue_xts_req_128bit(&camellia_dec_xts, req,
 				   XTS_TWEAK_CAST(camellia_enc_blk),
-				   &ctx->tweak_ctx, &ctx->crypt_ctx);
+				   &ctx->tweak_ctx, &ctx->crypt_ctx, true);
 }
 
 static struct skcipher_alg camellia_algs[] = {

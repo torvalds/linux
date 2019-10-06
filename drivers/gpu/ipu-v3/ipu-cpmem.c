@@ -1,13 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2012 Mentor Graphics Inc.
  * Copyright 2005-2012 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 #include <linux/types.h>
 #include <linux/bitrev.h>
@@ -188,9 +182,27 @@ static int v4l2_pix_fmt_to_drm_fourcc(u32 pixelformat)
 	case V4L2_PIX_FMT_RGB32:
 		/* R G B A <=> [32:0] A:B:G:R */
 		return DRM_FORMAT_XBGR8888;
+	case V4L2_PIX_FMT_ABGR32:
+		/* B G R A <=> [32:0] A:R:G:B */
+		return DRM_FORMAT_ARGB8888;
 	case V4L2_PIX_FMT_XBGR32:
 		/* B G R X <=> [32:0] X:R:G:B */
 		return DRM_FORMAT_XRGB8888;
+	case V4L2_PIX_FMT_BGRA32:
+		/* A B G R <=> [32:0] R:G:B:A */
+		return DRM_FORMAT_RGBA8888;
+	case V4L2_PIX_FMT_BGRX32:
+		/* X B G R <=> [32:0] R:G:B:X */
+		return DRM_FORMAT_RGBX8888;
+	case V4L2_PIX_FMT_RGBA32:
+		/* R G B A <=> [32:0] A:B:G:R */
+		return DRM_FORMAT_ABGR8888;
+	case V4L2_PIX_FMT_RGBX32:
+		/* R G B X <=> [32:0] X:B:G:R */
+		return DRM_FORMAT_XBGR8888;
+	case V4L2_PIX_FMT_ARGB32:
+		/* A R G B <=> [32:0] B:G:R:A */
+		return DRM_FORMAT_BGRA8888;
 	case V4L2_PIX_FMT_XRGB32:
 		/* X R G B <=> [32:0] B:G:R:X */
 		return DRM_FORMAT_BGRX8888;
@@ -277,9 +289,10 @@ void ipu_cpmem_set_uv_offset(struct ipuv3_channel *ch, u32 u_off, u32 v_off)
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_uv_offset);
 
-void ipu_cpmem_interlaced_scan(struct ipuv3_channel *ch, int stride)
+void ipu_cpmem_interlaced_scan(struct ipuv3_channel *ch, int stride,
+			       u32 pixelformat)
 {
-	u32 ilo, sly;
+	u32 ilo, sly, sluv;
 
 	if (stride < 0) {
 		stride = -stride;
@@ -290,9 +303,30 @@ void ipu_cpmem_interlaced_scan(struct ipuv3_channel *ch, int stride)
 
 	sly = (stride * 2) - 1;
 
+	switch (pixelformat) {
+	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YVU420:
+		sluv = stride / 2 - 1;
+		break;
+	case V4L2_PIX_FMT_NV12:
+		sluv = stride - 1;
+		break;
+	case V4L2_PIX_FMT_YUV422P:
+		sluv = stride - 1;
+		break;
+	case V4L2_PIX_FMT_NV16:
+		sluv = stride * 2 - 1;
+		break;
+	default:
+		sluv = 0;
+		break;
+	}
+
 	ipu_ch_param_write_field(ch, IPU_FIELD_SO, 1);
 	ipu_ch_param_write_field(ch, IPU_FIELD_ILO, ilo);
 	ipu_ch_param_write_field(ch, IPU_FIELD_SLY, sly);
+	if (sluv)
+		ipu_ch_param_write_field(ch, IPU_FIELD_SLUV, sluv);
 };
 EXPORT_SYMBOL_GPL(ipu_cpmem_interlaced_scan);
 
@@ -807,8 +841,14 @@ int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 		break;
 	case V4L2_PIX_FMT_RGB32:
 	case V4L2_PIX_FMT_BGR32:
-	case V4L2_PIX_FMT_XRGB32:
+	case V4L2_PIX_FMT_ABGR32:
 	case V4L2_PIX_FMT_XBGR32:
+	case V4L2_PIX_FMT_BGRA32:
+	case V4L2_PIX_FMT_BGRX32:
+	case V4L2_PIX_FMT_RGBA32:
+	case V4L2_PIX_FMT_RGBX32:
+	case V4L2_PIX_FMT_ARGB32:
+	case V4L2_PIX_FMT_XRGB32:
 		offset = image->rect.left * 4 +
 			image->rect.top * pix->bytesperline;
 		break;

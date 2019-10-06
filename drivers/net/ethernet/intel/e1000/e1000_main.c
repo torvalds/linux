@@ -820,7 +820,7 @@ static int e1000_set_features(struct net_device *netdev,
 	else
 		e1000_reset(adapter);
 
-	return 0;
+	return 1;
 }
 
 static const struct net_device_ops e1000_netdev_ops = {
@@ -2889,9 +2889,8 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 	}
 
 	for (f = 0; f < nr_frags; f++) {
-		const struct skb_frag_struct *frag;
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[f];
 
-		frag = &skb_shinfo(skb)->frags[f];
 		len = skb_frag_size(frag);
 		offset = 0;
 
@@ -3019,7 +3018,7 @@ static void e1000_tx_queue(struct e1000_adapter *adapter,
 	 * applicable for weak-ordered memory model archs,
 	 * such as IA-64).
 	 */
-	wmb();
+	dma_wmb();
 
 	tx_ring->next_to_use = i;
 }
@@ -3267,14 +3266,9 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 		/* Make sure there is space in the ring for the next send. */
 		e1000_maybe_stop_tx(netdev, tx_ring, desc_needed);
 
-		if (!skb->xmit_more ||
+		if (!netdev_xmit_more() ||
 		    netif_xmit_stopped(netdev_get_tx_queue(netdev, 0))) {
 			writel(tx_ring->next_to_use, hw->hw_addr + tx_ring->tdt);
-			/* we need this if more than one processor can write to
-			 * our tail at a time, it synchronizes IO on IA64/Altix
-			 * systems
-			 */
-			mmiowb();
 		}
 	} else {
 		dev_kfree_skb_any(skb);
@@ -4181,8 +4175,7 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_adapter *adapter,
 				/* an error means any chain goes out the window
 				 * too
 				 */
-				if (rx_ring->rx_skb_top)
-					dev_kfree_skb(rx_ring->rx_skb_top);
+				dev_kfree_skb(rx_ring->rx_skb_top);
 				rx_ring->rx_skb_top = NULL;
 				goto next_desc;
 			}
@@ -4545,7 +4538,7 @@ e1000_alloc_jumbo_rx_buffers(struct e1000_adapter *adapter,
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64).
 		 */
-		wmb();
+		dma_wmb();
 		writel(i, adapter->hw.hw_addr + rx_ring->rdt);
 	}
 }
@@ -4660,7 +4653,7 @@ static void e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64).
 		 */
-		wmb();
+		dma_wmb();
 		writel(i, hw->hw_addr + rx_ring->rdt);
 	}
 }

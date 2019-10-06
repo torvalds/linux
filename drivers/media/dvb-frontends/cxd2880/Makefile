@@ -14,5 +14,3 @@ cxd2880-objs := cxd2880_common.o \
 		cxd2880_top.o
 
 obj-$(CONFIG_DVB_CXD2880) += cxd2880.o
-
-ccflags-y += -Idrivers/media/dvb-frontends

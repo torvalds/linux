@@ -61,7 +61,7 @@ the device is closed.
 
 Applications call the ``DMX_DQBUF`` ioctl to dequeue a filled
 (capturing) buffer from the driver's outgoing queue.
-They just set the ``index`` field withe the buffer ID to be queued.
+They just set the ``index`` field with the buffer ID to be queued.
 When ``DMX_DQBUF`` is called with a pointer to struct :c:type:`dmx_buffer`,
 the driver fills the remaining fields or returns an error code.
 

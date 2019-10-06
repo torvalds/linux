@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HiSilicon SoC Hardware event counters support
  *
@@ -6,10 +7,6 @@
  *         Shaokun Zhang <zhangshaokun@hisilicon.com>
  *
  * This code is based on the uncore PMUs like arm-cci and arm-ccn.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
@@ -141,15 +138,6 @@ int hisi_uncore_pmu_event_init(struct perf_event *event)
 	 */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
 		return -EOPNOTSUPP;
-
-	/* counters do not have these bits */
-	if (event->attr.exclude_user	||
-	    event->attr.exclude_kernel	||
-	    event->attr.exclude_host	||
-	    event->attr.exclude_guest	||
-	    event->attr.exclude_hv	||
-	    event->attr.exclude_idle)
-		return -EINVAL;
 
 	/*
 	 *  The uncore counters not specific to any CPU, so cannot

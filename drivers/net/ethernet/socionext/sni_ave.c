@@ -1553,7 +1553,6 @@ static int ave_probe(struct platform_device *pdev)
 	struct ave_private *priv;
 	struct net_device *ndev;
 	struct device_node *np;
-	struct resource	*res;
 	const void *mac_addr;
 	void __iomem *base;
 	const char *name;
@@ -1567,19 +1566,16 @@ static int ave_probe(struct platform_device *pdev)
 
 	np = dev->of_node;
 	phy_mode = of_get_phy_mode(np);
-	if (phy_mode < 0) {
+	if ((int)phy_mode < 0) {
 		dev_err(dev, "phy-mode not found\n");
 		return -EINVAL;
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "IRQ not found\n");
+	if (irq < 0)
 		return irq;
-	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -1599,7 +1595,7 @@ static int ave_probe(struct platform_device *pdev)
 	ndev->max_mtu = AVE_MAX_ETHFRAME - (ETH_HLEN + ETH_FCS_LEN);
 
 	mac_addr = of_get_mac_address(np);
-	if (mac_addr)
+	if (!IS_ERR(mac_addr))
 		ether_addr_copy(ndev->dev_addr, mac_addr);
 
 	/* if the mac address is invalid, use random mac address */
@@ -1666,19 +1662,19 @@ static int ave_probe(struct platform_device *pdev)
 					       "socionext,syscon-phy-mode",
 					       1, 0, &args);
 	if (ret) {
-		netdev_err(ndev, "can't get syscon-phy-mode property\n");
+		dev_err(dev, "can't get syscon-phy-mode property\n");
 		goto out_free_netdev;
 	}
 	priv->regmap = syscon_node_to_regmap(args.np);
 	of_node_put(args.np);
 	if (IS_ERR(priv->regmap)) {
-		netdev_err(ndev, "can't map syscon-phy-mode\n");
+		dev_err(dev, "can't map syscon-phy-mode\n");
 		ret = PTR_ERR(priv->regmap);
 		goto out_free_netdev;
 	}
 	ret = priv->data->get_pinmode(priv, phy_mode, args.args[0]);
 	if (ret) {
-		netdev_err(ndev, "invalid phy-mode setting\n");
+		dev_err(dev, "invalid phy-mode setting\n");
 		goto out_free_netdev;
 	}
 

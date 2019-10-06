@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Network device driver for the BMAC ethernet controller on
  * Apple Powermacs.  Assumes it's under a DBDMA controller.
@@ -814,8 +815,8 @@ static int reverse6[64] = {
 static unsigned int
 crc416(unsigned int curval, unsigned short nxtval)
 {
-	register unsigned int counter, cur = curval, next = nxtval;
-	register int high_crc_set, low_data_set;
+	unsigned int counter, cur = curval, next = nxtval;
+	int high_crc_set, low_data_set;
 
 	/* Swap bytes */
 	next = ((next & 0x00FF) << 8) | (next >> 8);

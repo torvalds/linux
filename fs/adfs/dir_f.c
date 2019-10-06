@@ -1,15 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/adfs/dir_f.c
  *
  * Copyright (C) 1997-1999 Russell King
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  *  E and F format directory handling
  */
-#include <linux/buffer_head.h>
 #include "adfs.h"
 #include "dir_f.h"
 
@@ -24,8 +20,11 @@ static inline unsigned int adfs_readval(unsigned char *p, int len)
 
 	switch (len) {
 	case 4:		val |= p[3] << 24;
+			/* fall through */
 	case 3:		val |= p[2] << 16;
+			/* fall through */
 	case 2:		val |= p[1] << 8;
+			/* fall through */
 	default:	val |= p[0];
 	}
 	return val;
@@ -35,25 +34,13 @@ static inline void adfs_writeval(unsigned char *p, int len, unsigned int val)
 {
 	switch (len) {
 	case 4:		p[3] = val >> 24;
+			/* fall through */
 	case 3:		p[2] = val >> 16;
+			/* fall through */
 	case 2:		p[1] = val >> 8;
+			/* fall through */
 	default:	p[0] = val;
 	}
-}
-
-static inline int adfs_readname(char *buf, char *ptr, int maxlen)
-{
-	char *old_buf = buf;
-
-	while ((unsigned char)*ptr >= ' ' && maxlen--) {
-		if (*ptr == '/')
-			*buf++ = '.';
-		else
-			*buf++ = *ptr;
-		ptr++;
-	}
-
-	return buf - old_buf;
 }
 
 #define ror13(v) ((v >> 13) | (v << 19))
@@ -136,12 +123,9 @@ adfs_dir_checkbyte(const struct adfs_dir *dir)
 	return (dircheck ^ (dircheck >> 8) ^ (dircheck >> 16) ^ (dircheck >> 24)) & 0xff;
 }
 
-/*
- * Read and check that a directory is valid
- */
-static int
-adfs_dir_read(struct super_block *sb, unsigned long object_id,
-	      unsigned int size, struct adfs_dir *dir)
+/* Read and check that a directory is valid */
+static int adfs_dir_read(struct super_block *sb, u32 indaddr,
+			 unsigned int size, struct adfs_dir *dir)
 {
 	const unsigned int blocksize_bits = sb->s_blocksize_bits;
 	int blk = 0;
@@ -161,10 +145,10 @@ adfs_dir_read(struct super_block *sb, unsigned long object_id,
 	for (blk = 0; blk < size; blk++) {
 		int phys;
 
-		phys = __adfs_block_map(sb, object_id, blk);
+		phys = __adfs_block_map(sb, indaddr, blk);
 		if (!phys) {
-			adfs_error(sb, "dir object %lX has a hole at offset %d",
-				   object_id, blk);
+			adfs_error(sb, "dir %06x has a hole at offset %d",
+				   indaddr, blk);
 			goto release_buffers;
 		}
 
@@ -192,8 +176,7 @@ adfs_dir_read(struct super_block *sb, unsigned long object_id,
 	return 0;
 
 bad_dir:
-	adfs_error(sb, "corrupted directory fragment %lX",
-		   object_id);
+	adfs_error(sb, "dir %06x is corrupted", indaddr);
 release_buffers:
 	for (blk -= 1; blk >= 0; blk -= 1)
 		brelse(dir->bh[blk]);
@@ -210,29 +193,23 @@ static inline void
 adfs_dir2obj(struct adfs_dir *dir, struct object_info *obj,
 	struct adfs_direntry *de)
 {
-	obj->name_len =	adfs_readname(obj->name, de->dirobname, ADFS_F_NAME_LEN);
-	obj->file_id  = adfs_readval(de->dirinddiscadd, 3);
+	unsigned int name_len;
+
+	for (name_len = 0; name_len < ADFS_F_NAME_LEN; name_len++) {
+		if (de->dirobname[name_len] < ' ')
+			break;
+
+		obj->name[name_len] = de->dirobname[name_len];
+	}
+
+	obj->name_len =	name_len;
+	obj->indaddr  = adfs_readval(de->dirinddiscadd, 3);
 	obj->loadaddr = adfs_readval(de->dirload, 4);
 	obj->execaddr = adfs_readval(de->direxec, 4);
 	obj->size     = adfs_readval(de->dirlen,  4);
 	obj->attr     = de->newdiratts;
-	obj->filetype = -1;
 
-	/*
-	 * object is a file and is filetyped and timestamped?
-	 * RISC OS 12-bit filetype is stored in load_address[19:8]
-	 */
-	if ((0 == (obj->attr & ADFS_NDA_DIRECTORY)) &&
-		(0xfff00000 == (0xfff00000 & obj->loadaddr))) {
-		obj->filetype = (__u16) ((0x000fff00 & obj->loadaddr) >> 8);
-
-		/* optionally append the ,xyz hex filetype suffix */
-		if (ADFS_SB(dir->sb)->s_ftsuffix)
-			obj->name_len +=
-				append_filetype_suffix(
-					&obj->name[obj->name_len],
-					obj->filetype);
-	}
+	adfs_object_fixup(dir, obj);
 }
 
 /*
@@ -241,7 +218,7 @@ adfs_dir2obj(struct adfs_dir *dir, struct object_info *obj,
 static inline void
 adfs_obj2dir(struct adfs_direntry *de, struct object_info *obj)
 {
-	adfs_writeval(de->dirinddiscadd, 3, obj->file_id);
+	adfs_writeval(de->dirinddiscadd, 3, obj->indaddr);
 	adfs_writeval(de->dirload, 4, obj->loadaddr);
 	adfs_writeval(de->direxec, 4, obj->execaddr);
 	adfs_writeval(de->dirlen,  4, obj->size);
@@ -327,8 +304,7 @@ __adfs_dir_put(struct adfs_dir *dir, int pos, struct object_info *obj)
  * the caller is responsible for holding the necessary
  * locks.
  */
-static int
-adfs_dir_find_entry(struct adfs_dir *dir, unsigned long object_id)
+static int adfs_dir_find_entry(struct adfs_dir *dir, u32 indaddr)
 {
 	int pos, ret;
 
@@ -340,7 +316,7 @@ adfs_dir_find_entry(struct adfs_dir *dir, unsigned long object_id)
 		if (!__adfs_dir_get(dir, pos, &obj))
 			break;
 
-		if (obj.file_id == object_id) {
+		if (obj.indaddr == indaddr) {
 			ret = pos;
 			break;
 		}
@@ -349,15 +325,15 @@ adfs_dir_find_entry(struct adfs_dir *dir, unsigned long object_id)
 	return ret;
 }
 
-static int
-adfs_f_read(struct super_block *sb, unsigned int id, unsigned int sz, struct adfs_dir *dir)
+static int adfs_f_read(struct super_block *sb, u32 indaddr, unsigned int size,
+		       struct adfs_dir *dir)
 {
 	int ret;
 
-	if (sz != ADFS_NEWDIR_SIZE)
+	if (size != ADFS_NEWDIR_SIZE)
 		return -EIO;
 
-	ret = adfs_dir_read(sb, id, sz, dir);
+	ret = adfs_dir_read(sb, indaddr, size, dir);
 	if (ret)
 		adfs_error(sb, "unable to read directory");
 	else
@@ -394,7 +370,7 @@ adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
 	struct super_block *sb = dir->sb;
 	int ret, i;
 
-	ret = adfs_dir_find_entry(dir, obj->file_id);
+	ret = adfs_dir_find_entry(dir, obj->indaddr);
 	if (ret < 0) {
 		adfs_error(dir->sb, "unable to locate entry to update");
 		goto out;

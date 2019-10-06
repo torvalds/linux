@@ -30,8 +30,8 @@
 	};
 
 	chosen {
-		bootargs ="root=/dev/ram0 rw ramdisk=8192 initrd=0x41000000,8M console=ttySAC2,115200 init=/linuxrc";
-		stdout-path = &serial_2;
+		bootargs = "root=/dev/ram0 rw ramdisk=8192 initrd=0x41000000,8M init=/linuxrc";
+		stdout-path = "serial2:115200n8";
 	};
 
 	mmc_reg: voltage-regulator {
@@ -129,6 +129,11 @@
 &fimd {
 	pinctrl-0 = <&lcd_en &lcd_clk &lcd_data24 &pwm0_out>;
 	pinctrl-names = "default";
+	status = "okay";
+};
+
+&gpu {
+	mali-supply = <&buck3_reg>;
 	status = "okay";
 };
 

@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include <linux/delay.h>
 
 #include "hdmi.h"
 
@@ -101,7 +92,8 @@ static void msm_hdmi_config_avi_infoframe(struct hdmi *hdmi)
 	u32 val;
 	int len;
 
-	drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode, false);
+	drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
+						 hdmi->connector, mode);
 
 	len = hdmi_infoframe_pack(&frame, buffer, sizeof(buffer));
 	if (len < 0) {
@@ -207,8 +199,8 @@ static void msm_hdmi_bridge_post_disable(struct drm_bridge *bridge)
 }
 
 static void msm_hdmi_bridge_mode_set(struct drm_bridge *bridge,
-		 struct drm_display_mode *mode,
-		 struct drm_display_mode *adjusted_mode)
+		 const struct drm_display_mode *mode,
+		 const struct drm_display_mode *adjusted_mode)
 {
 	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
 	struct hdmi *hdmi = hdmi_bridge->hdmi;

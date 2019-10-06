@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig MAILBOX
 	bool "Mailbox Hardware Support"
 	help
@@ -41,9 +42,19 @@ config PL320_MBOX
 	  Management Engine, primarily for cpufreq. Say Y here if you want
 	  to use the PL320 IPCM support.
 
+config ARMADA_37XX_RWTM_MBOX
+	tristate "Armada 37xx rWTM BIU Mailbox"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF
+	help
+	  Mailbox implementation for communication with the the firmware
+	  running on the Cortex-M3 rWTM secure processor of the Armada 37xx
+	  SOC. Say Y here if you are building for such a device (for example
+	  the Turris Mox router).
+
 config OMAP2PLUS_MBOX
 	tristate "OMAP2+ Mailbox framework support"
-	depends on ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS || ARCH_K3
 	help
 	  Mailbox implementation for OMAP family chips with hardware for
 	  interprocessor communication involving DSP, IVA1.0 and IVA2 in
@@ -205,4 +216,15 @@ config MTK_CMDQ_MBOX
 	  mailbox driver. The CMDQ is used to help read/write registers with
 	  critical time limitation, such as updating display configuration
 	  during the vblank.
+
+config ZYNQMP_IPI_MBOX
+	bool "Xilinx ZynqMP IPI Mailbox"
+	depends on ARCH_ZYNQMP && OF
+	help
+	  Say yes here to add support for Xilinx IPI mailbox driver.
+	  This mailbox driver is used to send notification or short message
+	  between processors with Xilinx ZynqMP IPI. It will place the
+	  message to the IPI buffer and will access the IPI control
+	  registers to kick the other processor or enquire status.
+
 endif

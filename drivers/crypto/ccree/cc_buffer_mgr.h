@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
+/* Copyright (C) 2012-2019 ARM Limited (or its affiliates). */
 
 /* \file cc_buffer_mgr.h
  * Buffer Manager
@@ -65,7 +65,5 @@ void cc_unmap_hash_request(struct device *dev, void *ctx,
 
 void cc_copy_sg_portion(struct device *dev, u8 *dest, struct scatterlist *sg,
 			u32 to_skip, u32 end, enum cc_sg_cpy_direct direct);
-
-void cc_zero_sgl(struct scatterlist *sgl, u32 data_len);
 
 #endif /*__BUFFER_MGR_H__*/

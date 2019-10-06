@@ -82,10 +82,10 @@ int mlx5_cmd_modify_cong_params(struct mlx5_core_dev *dev,
 	return mlx5_cmd_exec(dev, in, in_size, out, sizeof(out));
 }
 
-int mlx5_cmd_alloc_memic(struct mlx5_memic *memic, phys_addr_t *addr,
-			  u64 length, u32 alignment)
+int mlx5_cmd_alloc_memic(struct mlx5_dm *dm, phys_addr_t *addr,
+			 u64 length, u32 alignment)
 {
-	struct mlx5_core_dev *dev = memic->dev;
+	struct mlx5_core_dev *dev = dm->dev;
 	u64 num_memic_hw_pages = MLX5_CAP_DEV_MEM(dev, memic_bar_size)
 					>> PAGE_SHIFT;
 	u64 hw_start_addr = MLX5_CAP64_DEV_MEM(dev, memic_bar_start_addr);
@@ -115,17 +115,17 @@ int mlx5_cmd_alloc_memic(struct mlx5_memic *memic, phys_addr_t *addr,
 		 mlx5_alignment);
 
 	while (page_idx < num_memic_hw_pages) {
-		spin_lock(&memic->memic_lock);
-		page_idx = bitmap_find_next_zero_area(memic->memic_alloc_pages,
+		spin_lock(&dm->lock);
+		page_idx = bitmap_find_next_zero_area(dm->memic_alloc_pages,
 						      num_memic_hw_pages,
 						      page_idx,
 						      num_pages, 0);
 
 		if (page_idx < num_memic_hw_pages)
-			bitmap_set(memic->memic_alloc_pages,
+			bitmap_set(dm->memic_alloc_pages,
 				   page_idx, num_pages);
 
-		spin_unlock(&memic->memic_lock);
+		spin_unlock(&dm->lock);
 
 		if (page_idx >= num_memic_hw_pages)
 			break;
@@ -135,10 +135,10 @@ int mlx5_cmd_alloc_memic(struct mlx5_memic *memic, phys_addr_t *addr,
 
 		ret = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 		if (ret) {
-			spin_lock(&memic->memic_lock);
-			bitmap_clear(memic->memic_alloc_pages,
+			spin_lock(&dm->lock);
+			bitmap_clear(dm->memic_alloc_pages,
 				     page_idx, num_pages);
-			spin_unlock(&memic->memic_lock);
+			spin_unlock(&dm->lock);
 
 			if (ret == -EAGAIN) {
 				page_idx++;
@@ -148,7 +148,7 @@ int mlx5_cmd_alloc_memic(struct mlx5_memic *memic, phys_addr_t *addr,
 			return ret;
 		}
 
-		*addr = pci_resource_start(dev->pdev, 0) +
+		*addr = dev->bar_addr +
 			MLX5_GET64(alloc_memic_out, out, memic_start_addr);
 
 		return 0;
@@ -157,9 +157,9 @@ int mlx5_cmd_alloc_memic(struct mlx5_memic *memic, phys_addr_t *addr,
 	return -ENOMEM;
 }
 
-int mlx5_cmd_dealloc_memic(struct mlx5_memic *memic, u64 addr, u64 length)
+int mlx5_cmd_dealloc_memic(struct mlx5_dm *dm, phys_addr_t addr, u64 length)
 {
-	struct mlx5_core_dev *dev = memic->dev;
+	struct mlx5_core_dev *dev = dm->dev;
 	u64 hw_start_addr = MLX5_CAP64_DEV_MEM(dev, memic_bar_start_addr);
 	u32 num_pages = DIV_ROUND_UP(length, PAGE_SIZE);
 	u32 out[MLX5_ST_SZ_DW(dealloc_memic_out)] = {0};
@@ -167,7 +167,7 @@ int mlx5_cmd_dealloc_memic(struct mlx5_memic *memic, u64 addr, u64 length)
 	u64 start_page_idx;
 	int err;
 
-	addr -= pci_resource_start(dev->pdev, 0);
+	addr -= dev->bar_addr;
 	start_page_idx = (addr - hw_start_addr) >> PAGE_SHIFT;
 
 	MLX5_SET(dealloc_memic_in, in, opcode, MLX5_CMD_OP_DEALLOC_MEMIC);
@@ -177,10 +177,10 @@ int mlx5_cmd_dealloc_memic(struct mlx5_memic *memic, u64 addr, u64 length)
 	err =  mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 
 	if (!err) {
-		spin_lock(&memic->memic_lock);
-		bitmap_clear(memic->memic_alloc_pages,
+		spin_lock(&dm->lock);
+		bitmap_clear(dm->memic_alloc_pages,
 			     start_page_idx, num_pages);
-		spin_unlock(&memic->memic_lock);
+		spin_unlock(&dm->lock);
 	}
 
 	return err;
@@ -343,5 +343,42 @@ int mlx5_cmd_alloc_q_counter(struct mlx5_core_dev *dev, u16 *counter_id,
 	if (!err)
 		*counter_id = MLX5_GET(alloc_q_counter_out, out,
 				       counter_set_id);
+	return err;
+}
+
+int mlx5_cmd_mad_ifc(struct mlx5_core_dev *dev, const void *inb, void *outb,
+		     u16 opmod, u8 port)
+{
+	int outlen = MLX5_ST_SZ_BYTES(mad_ifc_out);
+	int inlen = MLX5_ST_SZ_BYTES(mad_ifc_in);
+	int err = -ENOMEM;
+	void *data;
+	void *resp;
+	u32 *out;
+	u32 *in;
+
+	in = kzalloc(inlen, GFP_KERNEL);
+	out = kzalloc(outlen, GFP_KERNEL);
+	if (!in || !out)
+		goto out;
+
+	MLX5_SET(mad_ifc_in, in, opcode, MLX5_CMD_OP_MAD_IFC);
+	MLX5_SET(mad_ifc_in, in, op_mod, opmod);
+	MLX5_SET(mad_ifc_in, in, port, port);
+
+	data = MLX5_ADDR_OF(mad_ifc_in, in, mad);
+	memcpy(data, inb, MLX5_FLD_SZ_BYTES(mad_ifc_in, mad));
+
+	err = mlx5_cmd_exec(dev, in, inlen, out, outlen);
+	if (err)
+		goto out;
+
+	resp = MLX5_ADDR_OF(mad_ifc_out, out, response_mad_packet);
+	memcpy(outb, resp,
+	       MLX5_FLD_SZ_BYTES(mad_ifc_out, response_mad_packet));
+
+out:
+	kfree(out);
+	kfree(in);
 	return err;
 }

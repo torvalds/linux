@@ -3,7 +3,9 @@
 #define pr_fmt(fmt) "ipmi_hardcode: " fmt
 
 #include <linux/moduleparam.h>
+#include <linux/platform_device.h>
 #include "ipmi_si.h"
+#include "ipmi_plat_data.h"
 
 /*
  * There can be 4 IO ports passed in (with or without IRQs), 4 addresses,
@@ -12,23 +14,22 @@
 
 #define SI_MAX_PARMS 4
 
-static char          *si_type[SI_MAX_PARMS];
 #define MAX_SI_TYPE_STR 30
-static char          si_type_str[MAX_SI_TYPE_STR];
+static char          si_type_str[MAX_SI_TYPE_STR] __initdata;
 static unsigned long addrs[SI_MAX_PARMS];
 static unsigned int num_addrs;
 static unsigned int  ports[SI_MAX_PARMS];
 static unsigned int num_ports;
-static int           irqs[SI_MAX_PARMS];
-static unsigned int num_irqs;
-static int           regspacings[SI_MAX_PARMS];
-static unsigned int num_regspacings;
-static int           regsizes[SI_MAX_PARMS];
-static unsigned int num_regsizes;
-static int           regshifts[SI_MAX_PARMS];
-static unsigned int num_regshifts;
-static int slave_addrs[SI_MAX_PARMS]; /* Leaving 0 chooses the default value */
-static unsigned int num_slave_addrs;
+static int           irqs[SI_MAX_PARMS] __initdata;
+static unsigned int num_irqs __initdata;
+static int           regspacings[SI_MAX_PARMS] __initdata;
+static unsigned int num_regspacings __initdata;
+static int           regsizes[SI_MAX_PARMS] __initdata;
+static unsigned int num_regsizes __initdata;
+static int           regshifts[SI_MAX_PARMS] __initdata;
+static unsigned int num_regshifts __initdata;
+static int slave_addrs[SI_MAX_PARMS] __initdata;
+static unsigned int num_slave_addrs __initdata;
 
 module_param_string(type, si_type_str, MAX_SI_TYPE_STR, 0);
 MODULE_PARM_DESC(type, "Defines the type of each interface, each"
@@ -73,12 +74,52 @@ MODULE_PARM_DESC(slave_addrs, "Set the default IPMB slave address for"
 		 " overridden by this parm.  This is an array indexed"
 		 " by interface number.");
 
-int ipmi_si_hardcode_find_bmc(void)
+static void __init ipmi_hardcode_init_one(const char *si_type_str,
+					  unsigned int i,
+					  unsigned long addr,
+					  enum ipmi_addr_space addr_space)
 {
-	int ret = -ENODEV;
-	int             i;
-	struct si_sm_io io;
+	struct ipmi_plat_data p;
+
+	memset(&p, 0, sizeof(p));
+
+	p.iftype = IPMI_PLAT_IF_SI;
+	if (!si_type_str || !*si_type_str || strcmp(si_type_str, "kcs") == 0) {
+		p.type = SI_KCS;
+	} else if (strcmp(si_type_str, "smic") == 0) {
+		p.type = SI_SMIC;
+	} else if (strcmp(si_type_str, "bt") == 0) {
+		p.type = SI_BT;
+	} else if (strcmp(si_type_str, "invalid") == 0) {
+		/*
+		 * Allow a firmware-specified interface to be
+		 * disabled.
+		 */
+		p.type = SI_TYPE_INVALID;
+	} else {
+		pr_warn("Interface type specified for interface %d, was invalid: %s\n",
+			i, si_type_str);
+		return;
+	}
+
+	p.regsize = regsizes[i];
+	p.slave_addr = slave_addrs[i];
+	p.addr_source = SI_HARDCODED;
+	p.regshift = regshifts[i];
+	p.regsize = regsizes[i];
+	p.addr = addr;
+	p.space = addr_space;
+
+	ipmi_platform_add("hardcode-ipmi-si", i, &p);
+}
+
+void __init ipmi_hardcode_init(void)
+{
+	unsigned int i;
 	char *str;
+	char *si_type[SI_MAX_PARMS];
+
+	memset(si_type, 0, sizeof(si_type));
 
 	/* Parse out the si_type string into its components. */
 	str = si_type_str;
@@ -95,54 +136,41 @@ int ipmi_si_hardcode_find_bmc(void)
 		}
 	}
 
-	memset(&io, 0, sizeof(io));
 	for (i = 0; i < SI_MAX_PARMS; i++) {
-		if (!ports[i] && !addrs[i])
-			continue;
-
-		io.addr_source = SI_HARDCODED;
-		pr_info("probing via hardcoded address\n");
-
-		if (!si_type[i] || strcmp(si_type[i], "kcs") == 0) {
-			io.si_type = SI_KCS;
-		} else if (strcmp(si_type[i], "smic") == 0) {
-			io.si_type = SI_SMIC;
-		} else if (strcmp(si_type[i], "bt") == 0) {
-			io.si_type = SI_BT;
-		} else {
-			pr_warn("Interface type specified for interface %d, was invalid: %s\n",
-				i, si_type[i]);
-			continue;
-		}
-
-		if (ports[i]) {
-			/* An I/O port */
-			io.addr_data = ports[i];
-			io.addr_type = IPMI_IO_ADDR_SPACE;
-		} else if (addrs[i]) {
-			/* A memory port */
-			io.addr_data = addrs[i];
-			io.addr_type = IPMI_MEM_ADDR_SPACE;
-		} else {
-			pr_warn("Interface type specified for interface %d, but port and address were not set or set to zero\n",
-				i);
-			continue;
-		}
-
-		io.addr = NULL;
-		io.regspacing = regspacings[i];
-		if (!io.regspacing)
-			io.regspacing = DEFAULT_REGSPACING;
-		io.regsize = regsizes[i];
-		if (!io.regsize)
-			io.regsize = DEFAULT_REGSIZE;
-		io.regshift = regshifts[i];
-		io.irq = irqs[i];
-		if (io.irq)
-			io.irq_setup = ipmi_std_irq_setup;
-		io.slave_addr = slave_addrs[i];
-
-		ret = ipmi_si_add_smi(&io);
+		if (i < num_ports && ports[i])
+			ipmi_hardcode_init_one(si_type[i], i, ports[i],
+					       IPMI_IO_ADDR_SPACE);
+		if (i < num_addrs && addrs[i])
+			ipmi_hardcode_init_one(si_type[i], i, addrs[i],
+					       IPMI_MEM_ADDR_SPACE);
 	}
-	return ret;
+}
+
+
+void ipmi_si_hardcode_exit(void)
+{
+	ipmi_remove_platform_device_by_name("hardcode-ipmi-si");
+}
+
+/*
+ * Returns true of the given address exists as a hardcoded address,
+ * false if not.
+ */
+int ipmi_si_hardcode_match(int addr_space, unsigned long addr)
+{
+	unsigned int i;
+
+	if (addr_space == IPMI_IO_ADDR_SPACE) {
+		for (i = 0; i < num_ports; i++) {
+			if (ports[i] == addr)
+				return 1;
+		}
+	} else {
+		for (i = 0; i < num_addrs; i++) {
+			if (addrs[i] == addr)
+				return 1;
+		}
+	}
+
+	return 0;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Flash memory interface rev.5 driver for the Intel
  * Flash chips used on the NetWinder.

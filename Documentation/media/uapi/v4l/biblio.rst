@@ -122,6 +122,15 @@ ITU BT.1119
 
 :author:    International Telecommunication Union (http://www.itu.ch)
 
+.. _h264:
+
+ITU-T Rec. H.264 Specification (04/2017 Edition)
+================================================
+
+:title:     ITU-T Recommendation H.264 "Advanced Video Coding for Generic Audiovisual Services"
+
+:author:    International Telecommunication Union (http://www.itu.ch)
+
 .. _jfif:
 
 JFIF
@@ -386,3 +395,13 @@ colimg
 :title:     Color Imaging: Fundamentals and Applications
 
 :author:    Erik Reinhard et al.
+
+.. _vp8:
+
+VP8
+===
+
+
+:title:     RFC 6386: "VP8 Data Format and Decoding Guide"
+
+:author:    J. Bankoski et al.

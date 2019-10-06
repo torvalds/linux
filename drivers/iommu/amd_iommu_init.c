@@ -1,23 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007-2010 Advanced Micro Devices, Inc.
  * Author: Joerg Roedel <jroedel@suse.de>
  *         Leo Duran <leo.duran@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #define pr_fmt(fmt)     "AMD-Vi: " fmt
+#define dev_fmt(fmt)    pr_fmt(fmt)
 
 #include <linux/pci.h>
 #include <linux/acpi.h>
@@ -34,6 +23,8 @@
 #include <linux/mem_encrypt.h>
 #include <asm/pci-direct.h>
 #include <asm/iommu.h>
+#include <asm/apic.h>
+#include <asm/msidef.h>
 #include <asm/gart.h>
 #include <asm/x86_init.h>
 #include <asm/iommu_table.h>
@@ -41,6 +32,7 @@
 #include <asm/irq_remapping.h>
 
 #include <linux/crash_dump.h>
+#include "amd_iommu.h"
 #include "amd_iommu_proto.h"
 #include "amd_iommu_types.h"
 #include "irq_remapping.h"
@@ -186,12 +178,6 @@ bool amd_iommu_v2_present __read_mostly;
 static bool amd_iommu_pc_present __read_mostly;
 
 bool amd_iommu_force_isolation __read_mostly;
-
-/*
- * List of protection domains - used during resume
- */
-LIST_HEAD(amd_iommu_pd_list);
-spinlock_t amd_iommu_pd_lock;
 
 /*
  * Pointer to the device table which is shared by all AMD IOMMUs
@@ -358,7 +344,7 @@ static void iommu_write_l2(struct amd_iommu *iommu, u8 address, u32 val)
 static void iommu_set_exclusion_range(struct amd_iommu *iommu)
 {
 	u64 start = iommu->exclusion_start & PAGE_MASK;
-	u64 limit = (start + iommu->exclusion_length) & PAGE_MASK;
+	u64 limit = (start + iommu->exclusion_length - 1) & PAGE_MASK;
 	u64 entry;
 
 	if (!iommu->exclusion_start)
@@ -423,6 +409,9 @@ static void iommu_enable(struct amd_iommu *iommu)
 
 static void iommu_disable(struct amd_iommu *iommu)
 {
+	if (!iommu->mmio_base)
+		return;
+
 	/* Disable command buffer */
 	iommu_feature_disable(iommu, CONTROL_CMDBUF_EN);
 
@@ -1014,7 +1003,7 @@ static void __init set_dev_entry_from_acpi(struct amd_iommu *iommu,
 	set_iommu_for_device(iommu, devid);
 }
 
-static int __init add_special_device(u8 type, u8 id, u16 *devid, bool cmd_line)
+int __init add_special_device(u8 type, u8 id, u16 *devid, bool cmd_line)
 {
 	struct devid_map *entry;
 	struct list_head *list;
@@ -1164,6 +1153,8 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 	ret = add_early_maps();
 	if (ret)
 		return ret;
+
+	amd_iommu_apply_ivrs_quirks();
 
 	/*
 	 * First save the recommended feature enable bits from ACPI
@@ -1457,8 +1448,7 @@ static void amd_iommu_erratum_746_workaround(struct amd_iommu *iommu)
 	pci_write_config_dword(iommu->dev, 0xf0, 0x90 | (1 << 8));
 
 	pci_write_config_dword(iommu->dev, 0xf4, value | 0x4);
-	pr_info("Applying erratum 746 workaround for IOMMU at %s\n",
-		dev_name(&iommu->dev->dev));
+	pci_info(iommu->dev, "Applying erratum 746 workaround\n");
 
 	/* Clear the enable writing bit */
 	pci_write_config_dword(iommu->dev, 0xf0, 0x90);
@@ -1488,8 +1478,7 @@ static void amd_iommu_ats_write_check_workaround(struct amd_iommu *iommu)
 	/* Set L2_DEBUG_3[AtsIgnoreIWDis] = 1 */
 	iommu_write_l2(iommu, 0x47, value | BIT(0));
 
-	pr_info("Applying ATS write check workaround for IOMMU at %s\n",
-		dev_name(&iommu->dev->dev));
+	pci_info(iommu->dev, "Applying ATS write check workaround\n");
 }
 
 /*
@@ -1665,6 +1654,7 @@ static int iommu_pc_get_set_reg(struct amd_iommu *iommu, u8 bank, u8 cntr,
 
 static void init_iommu_perf_ctr(struct amd_iommu *iommu)
 {
+	struct pci_dev *pdev = iommu->dev;
 	u64 val = 0xabcd, val2 = 0;
 
 	if (!iommu_feature(iommu, FEATURE_PC))
@@ -1676,12 +1666,12 @@ static void init_iommu_perf_ctr(struct amd_iommu *iommu)
 	if ((iommu_pc_get_set_reg(iommu, 0, 0, 0, &val, true)) ||
 	    (iommu_pc_get_set_reg(iommu, 0, 0, 0, &val2, false)) ||
 	    (val != val2)) {
-		pr_err("Unable to write to IOMMU perf counter.\n");
+		pci_err(pdev, "Unable to write to IOMMU perf counter.\n");
 		amd_iommu_pc_present = false;
 		return;
 	}
 
-	pr_info("IOMMU performance counters supported\n");
+	pci_info(pdev, "IOMMU performance counters supported\n");
 
 	val = readl(iommu->mmio_base + MMIO_CNTR_CONF_OFFSET);
 	iommu->max_banks = (u8) ((val >> 12) & 0x3f);
@@ -1840,14 +1830,14 @@ static void print_iommu_info(void)
 	struct amd_iommu *iommu;
 
 	for_each_iommu(iommu) {
+		struct pci_dev *pdev = iommu->dev;
 		int i;
 
-		pr_info("Found IOMMU at %s cap 0x%hx\n",
-			dev_name(&iommu->dev->dev), iommu->cap_ptr);
+		pci_info(pdev, "Found IOMMU cap 0x%hx\n", iommu->cap_ptr);
 
 		if (iommu->cap & (1 << IOMMU_CAP_EFR)) {
-			pr_info("Extended features (%#llx):\n",
-				iommu->features);
+			pci_info(pdev, "Extended features (%#llx):\n",
+				 iommu->features);
 			for (i = 0; i < ARRAY_SIZE(feat_str); ++i) {
 				if (iommu_feature(iommu, (1ULL << i)))
 					pr_cont(" %s", feat_str[i]);
@@ -1935,6 +1925,90 @@ static int iommu_setup_msi(struct amd_iommu *iommu)
 	return 0;
 }
 
+#define XT_INT_DEST_MODE(x)	(((x) & 0x1ULL) << 2)
+#define XT_INT_DEST_LO(x)	(((x) & 0xFFFFFFULL) << 8)
+#define XT_INT_VEC(x)		(((x) & 0xFFULL) << 32)
+#define XT_INT_DEST_HI(x)	((((x) >> 24) & 0xFFULL) << 56)
+
+/**
+ * Setup the IntCapXT registers with interrupt routing information
+ * based on the PCI MSI capability block registers, accessed via
+ * MMIO MSI address low/hi and MSI data registers.
+ */
+static void iommu_update_intcapxt(struct amd_iommu *iommu)
+{
+	u64 val;
+	u32 addr_lo = readl(iommu->mmio_base + MMIO_MSI_ADDR_LO_OFFSET);
+	u32 addr_hi = readl(iommu->mmio_base + MMIO_MSI_ADDR_HI_OFFSET);
+	u32 data    = readl(iommu->mmio_base + MMIO_MSI_DATA_OFFSET);
+	bool dm     = (addr_lo >> MSI_ADDR_DEST_MODE_SHIFT) & 0x1;
+	u32 dest    = ((addr_lo >> MSI_ADDR_DEST_ID_SHIFT) & 0xFF);
+
+	if (x2apic_enabled())
+		dest |= MSI_ADDR_EXT_DEST_ID(addr_hi);
+
+	val = XT_INT_VEC(data & 0xFF) |
+	      XT_INT_DEST_MODE(dm) |
+	      XT_INT_DEST_LO(dest) |
+	      XT_INT_DEST_HI(dest);
+
+	/**
+	 * Current IOMMU implemtation uses the same IRQ for all
+	 * 3 IOMMU interrupts.
+	 */
+	writeq(val, iommu->mmio_base + MMIO_INTCAPXT_EVT_OFFSET);
+	writeq(val, iommu->mmio_base + MMIO_INTCAPXT_PPR_OFFSET);
+	writeq(val, iommu->mmio_base + MMIO_INTCAPXT_GALOG_OFFSET);
+}
+
+static void _irq_notifier_notify(struct irq_affinity_notify *notify,
+				 const cpumask_t *mask)
+{
+	struct amd_iommu *iommu;
+
+	for_each_iommu(iommu) {
+		if (iommu->dev->irq == notify->irq) {
+			iommu_update_intcapxt(iommu);
+			break;
+		}
+	}
+}
+
+static void _irq_notifier_release(struct kref *ref)
+{
+}
+
+static int iommu_init_intcapxt(struct amd_iommu *iommu)
+{
+	int ret;
+	struct irq_affinity_notify *notify = &iommu->intcapxt_notify;
+
+	/**
+	 * IntCapXT requires XTSup=1, which can be inferred
+	 * amd_iommu_xt_mode.
+	 */
+	if (amd_iommu_xt_mode != IRQ_REMAP_X2APIC_MODE)
+		return 0;
+
+	/**
+	 * Also, we need to setup notifier to update the IntCapXT registers
+	 * whenever the irq affinity is changed from user-space.
+	 */
+	notify->irq = iommu->dev->irq;
+	notify->notify = _irq_notifier_notify,
+	notify->release = _irq_notifier_release,
+	ret = irq_set_affinity_notifier(iommu->dev->irq, notify);
+	if (ret) {
+		pr_err("Failed to register irq affinity notifier (devid=%#x, irq %d)\n",
+		       iommu->devid, iommu->dev->irq);
+		return ret;
+	}
+
+	iommu_update_intcapxt(iommu);
+	iommu_feature_enable(iommu, CONTROL_INTCAPXT_EN);
+	return ret;
+}
+
 static int iommu_init_msi(struct amd_iommu *iommu)
 {
 	int ret;
@@ -1951,6 +2025,10 @@ static int iommu_init_msi(struct amd_iommu *iommu)
 		return ret;
 
 enable_faults:
+	ret = iommu_init_intcapxt(iommu);
+	if (ret)
+		return ret;
+
 	iommu_feature_enable(iommu, CONTROL_EVT_INT_EN);
 
 	if (iommu->ppr_log != NULL)
@@ -2013,6 +2091,9 @@ static int __init init_unity_map_range(struct ivmd_header *m)
 	if (e == NULL)
 		return -ENOMEM;
 
+	if (m->flags & IVMD_FLAG_EXCL_RANGE)
+		init_exclusion_range(m);
+
 	switch (m->type) {
 	default:
 		kfree(e);
@@ -2059,9 +2140,7 @@ static int __init init_memory_definitions(struct acpi_table_header *table)
 
 	while (p < end) {
 		m = (struct ivmd_header *)p;
-		if (m->flags & IVMD_FLAG_EXCL_RANGE)
-			init_exclusion_range(m);
-		else if (m->flags & IVMD_FLAG_UNITY_MAP)
+		if (m->flags & (IVMD_FLAG_UNITY_MAP | IVMD_FLAG_EXCL_RANGE))
 			init_unity_map_range(m);
 
 		p += m->length;
@@ -2342,15 +2421,6 @@ static void __init free_iommu_resources(void)
 	amd_iommu_dev_table = NULL;
 
 	free_iommu_all();
-
-#ifdef CONFIG_GART_IOMMU
-	/*
-	 * We failed to initialize the AMD IOMMU - try fallback to GART
-	 * if possible.
-	 */
-	gart_iommu_init();
-
-#endif
 }
 
 /* SB IOAPIC is always on this device in AMD systems */
@@ -2525,8 +2595,6 @@ static int __init early_amd_iommu_init(void)
 	 */
 	__set_bit(0, amd_iommu_pd_alloc_bitmap);
 
-	spin_lock_init(&amd_iommu_pd_lock);
-
 	/*
 	 * now the data structures are allocated and basically initialized
 	 * start the real acpi table scan
@@ -2644,8 +2712,6 @@ static int __init state_next(void)
 		init_state = ret ? IOMMU_INIT_ERROR : IOMMU_ACPI_FINISHED;
 		if (init_state == IOMMU_ACPI_FINISHED && amd_iommu_disabled) {
 			pr_info("AMD IOMMU disabled on kernel command-line\n");
-			free_dma_resources();
-			free_iommu_resources();
 			init_state = IOMMU_CMDLINE_DISABLED;
 			ret = -EINVAL;
 		}
@@ -2686,6 +2752,19 @@ static int __init state_next(void)
 		BUG();
 	}
 
+	if (ret) {
+		free_dma_resources();
+		if (!irq_remapping_enabled) {
+			disable_iommus();
+			free_iommu_resources();
+		} else {
+			struct amd_iommu *iommu;
+
+			uninit_device_table_dma();
+			for_each_iommu(iommu)
+				iommu_flush_all_caches(iommu);
+		}
+	}
 	return ret;
 }
 
@@ -2759,17 +2838,15 @@ static int __init amd_iommu_init(void)
 	int ret;
 
 	ret = iommu_go_to_state(IOMMU_INITIALIZED);
-	if (ret) {
-		free_dma_resources();
-		if (!irq_remapping_enabled) {
-			disable_iommus();
-			free_iommu_resources();
-		} else {
-			uninit_device_table_dma();
-			for_each_iommu(iommu)
-				iommu_flush_all_caches(iommu);
-		}
+#ifdef CONFIG_GART_IOMMU
+	if (ret && list_empty(&amd_iommu_list)) {
+		/*
+		 * We failed to initialize the AMD IOMMU - try fallback
+		 * to GART if possible.
+		 */
+		gart_iommu_init();
 	}
+#endif
 
 	for_each_iommu(iommu)
 		amd_iommu_debugfs_setup(iommu);

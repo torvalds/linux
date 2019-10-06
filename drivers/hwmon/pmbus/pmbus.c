@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Hardware monitoring driver for PMBus devices
  *
  * Copyright (c) 2010, 2011 Ericsson AB.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -27,6 +14,11 @@
 #include <linux/i2c.h>
 #include <linux/pmbus.h>
 #include "pmbus.h"
+
+struct pmbus_device_info {
+	int pages;
+	u32 flags;
+};
 
 /*
  * Find sensor groups and status registers on each page.
@@ -172,13 +164,14 @@ static int pmbus_probe(struct i2c_client *client,
 	struct pmbus_driver_info *info;
 	struct pmbus_platform_data *pdata = NULL;
 	struct device *dev = &client->dev;
+	struct pmbus_device_info *device_info;
 
 	info = devm_kzalloc(dev, sizeof(struct pmbus_driver_info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	if (!strcmp(id->name, "dps460") || !strcmp(id->name, "dps800") ||
-	    !strcmp(id->name, "sgd009")) {
+	device_info = (struct pmbus_device_info *)id->driver_data;
+	if (device_info->flags & PMBUS_SKIP_STATUS_CHECK) {
 		pdata = devm_kzalloc(dev, sizeof(struct pmbus_platform_data),
 				     GFP_KERNEL);
 		if (!pdata)
@@ -187,36 +180,50 @@ static int pmbus_probe(struct i2c_client *client,
 		pdata->flags = PMBUS_SKIP_STATUS_CHECK;
 	}
 
-	info->pages = id->driver_data;
+	info->pages = device_info->pages;
 	info->identify = pmbus_identify;
 	dev->platform_data = pdata;
 
 	return pmbus_do_probe(client, id, info);
 }
 
+static const struct pmbus_device_info pmbus_info_one = {
+	.pages = 1,
+	.flags = 0
+};
+static const struct pmbus_device_info pmbus_info_zero = {
+	.pages = 0,
+	.flags = 0
+};
+static const struct pmbus_device_info pmbus_info_one_skip = {
+	.pages = 1,
+	.flags = PMBUS_SKIP_STATUS_CHECK
+};
+
 /*
  * Use driver_data to set the number of pages supported by the chip.
  */
 static const struct i2c_device_id pmbus_id[] = {
-	{"adp4000", 1},
-	{"bmr453", 1},
-	{"bmr454", 1},
-	{"dps460", 1},
-	{"dps800", 1},
-	{"mdt040", 1},
-	{"ncp4200", 1},
-	{"ncp4208", 1},
-	{"pdt003", 1},
-	{"pdt006", 1},
-	{"pdt012", 1},
-	{"pmbus", 0},
-	{"sgd009", 1},
-	{"tps40400", 1},
-	{"tps544b20", 1},
-	{"tps544b25", 1},
-	{"tps544c20", 1},
-	{"tps544c25", 1},
-	{"udt020", 1},
+	{"adp4000", (kernel_ulong_t)&pmbus_info_one},
+	{"bmr453", (kernel_ulong_t)&pmbus_info_one},
+	{"bmr454", (kernel_ulong_t)&pmbus_info_one},
+	{"dps460", (kernel_ulong_t)&pmbus_info_one_skip},
+	{"dps650ab", (kernel_ulong_t)&pmbus_info_one_skip},
+	{"dps800", (kernel_ulong_t)&pmbus_info_one_skip},
+	{"mdt040", (kernel_ulong_t)&pmbus_info_one},
+	{"ncp4200", (kernel_ulong_t)&pmbus_info_one},
+	{"ncp4208", (kernel_ulong_t)&pmbus_info_one},
+	{"pdt003", (kernel_ulong_t)&pmbus_info_one},
+	{"pdt006", (kernel_ulong_t)&pmbus_info_one},
+	{"pdt012", (kernel_ulong_t)&pmbus_info_one},
+	{"pmbus", (kernel_ulong_t)&pmbus_info_zero},
+	{"sgd009", (kernel_ulong_t)&pmbus_info_one_skip},
+	{"tps40400", (kernel_ulong_t)&pmbus_info_one},
+	{"tps544b20", (kernel_ulong_t)&pmbus_info_one},
+	{"tps544b25", (kernel_ulong_t)&pmbus_info_one},
+	{"tps544c20", (kernel_ulong_t)&pmbus_info_one},
+	{"tps544c25", (kernel_ulong_t)&pmbus_info_one},
+	{"udt020", (kernel_ulong_t)&pmbus_info_one},
 	{}
 };
 

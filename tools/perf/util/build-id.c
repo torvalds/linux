@@ -7,14 +7,18 @@
  * Copyright (C) 2009, 2010 Red Hat Inc.
  * Copyright (C) 2009, 2010 Arnaldo Carvalho de Melo <acme@redhat.com>
  */
-#include "util.h"
+#include "util.h" // lsdir(), mkdir_p(), rm_rf()
 #include <dirent.h>
 #include <errno.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include "util/copyfile.h"
+#include "dso.h"
 #include "build-id.h"
 #include "event.h"
+#include "namespaces.h"
+#include "map.h"
 #include "symbol.h"
 #include "thread.h"
 #include <linux/kernel.h>
@@ -27,14 +31,15 @@
 #include "probe-file.h"
 #include "strlist.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
+#include <linux/zalloc.h>
 
 static bool no_buildid_cache;
 
 int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 			   union perf_event *event,
 			   struct perf_sample *sample,
-			   struct perf_evsel *evsel __maybe_unused,
+			   struct evsel *evsel __maybe_unused,
 			   struct machine *machine)
 {
 	struct addr_location al;
@@ -183,6 +188,7 @@ char *build_id_cache__linkname(const char *sbuild_id, char *bf, size_t size)
 	return bf;
 }
 
+/* The caller is responsible to free the returned buffer. */
 char *build_id_cache__origname(const char *sbuild_id)
 {
 	char *linkname;
@@ -291,7 +297,7 @@ static int write_buildid(const char *name, size_t name_len, u8 *build_id,
 			 pid_t pid, u16 misc, struct feat_fd *fd)
 {
 	int err;
-	struct build_id_event b;
+	struct perf_record_header_build_id b;
 	size_t len;
 
 	len = name_len + 1;
@@ -363,7 +369,8 @@ int perf_session__write_buildid_table(struct perf_session *session,
 	if (err)
 		return err;
 
-	for (nd = rb_first(&session->machines.guests); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&session->machines.guests); nd;
+	     nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		err = machine__write_buildid_table(pos, fd);
 		if (err)
@@ -396,7 +403,8 @@ int dsos__hit_all(struct perf_session *session)
 	if (err)
 		return err;
 
-	for (nd = rb_first(&session->machines.guests); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&session->machines.guests); nd;
+	     nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 
 		err = machine__hit_all_dsos(pos);
@@ -849,7 +857,8 @@ int perf_session__cache_build_ids(struct perf_session *session)
 
 	ret = machine__cache_build_ids(&session->machines.host);
 
-	for (nd = rb_first(&session->machines.guests); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&session->machines.guests); nd;
+	     nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		ret |= machine__cache_build_ids(pos);
 	}
@@ -866,7 +875,8 @@ bool perf_session__read_build_ids(struct perf_session *session, bool with_hits)
 	struct rb_node *nd;
 	bool ret = machine__read_build_ids(&session->machines.host, with_hits);
 
-	for (nd = rb_first(&session->machines.guests); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&session->machines.guests); nd;
+	     nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		ret |= machine__read_build_ids(pos, with_hits);
 	}

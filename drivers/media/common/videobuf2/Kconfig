@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Used by drivers that need Videobuf2 modules
 config VIDEOBUF2_CORE
 	select DMA_SHARED_BUFFER

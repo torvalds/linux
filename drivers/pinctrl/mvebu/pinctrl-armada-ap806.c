@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Marvell Armada ap806 pinctrl driver based on mvebu pinctrl core
  *
@@ -5,11 +6,6 @@
  *
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  * Hanna Hawa <hannah@marvell.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/err.h>

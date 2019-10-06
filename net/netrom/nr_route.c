@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Copyright Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  * Copyright Alan Cox GW4PTS (alan@lxorguk.ukuu.org.uk)
@@ -953,7 +950,7 @@ const struct seq_operations nr_neigh_seqops = {
 /*
  *	Free all memory associated with the nodes and routes lists.
  */
-void __exit nr_rt_free(void)
+void nr_rt_free(void)
 {
 	struct nr_neigh *s = NULL;
 	struct nr_node  *t = NULL;

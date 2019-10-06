@@ -42,7 +42,7 @@
 #include <net/dn_fib.h>
 #include <net/dn_neigh.h>
 #include <net/dn_dev.h>
-#include <net/nexthop.h>
+#include <net/rtnh.h>
 
 #define RT_MIN_TABLE 1
 
@@ -282,7 +282,7 @@ struct dn_fib_info *dn_fib_create_info(const struct rtmsg *r, struct nlattr *att
 	    (nhs = dn_fib_count_nhs(attrs[RTA_MULTIPATH])) == 0)
 		goto err_inval;
 
-	fi = kzalloc(sizeof(*fi)+nhs*sizeof(struct dn_fib_nh), GFP_KERNEL);
+	fi = kzalloc(struct_size(fi, fib_nh, nhs), GFP_KERNEL);
 	err = -ENOBUFS;
 	if (fi == NULL)
 		goto failure;
@@ -517,8 +517,8 @@ static int dn_fib_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!net_eq(net, &init_net))
 		return -EINVAL;
 
-	err = nlmsg_parse(nlh, sizeof(*r), attrs, RTA_MAX, rtm_dn_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(nlh, sizeof(*r), attrs, RTA_MAX,
+				     rtm_dn_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -544,8 +544,8 @@ static int dn_fib_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!net_eq(net, &init_net))
 		return -EINVAL;
 
-	err = nlmsg_parse(nlh, sizeof(*r), attrs, RTA_MAX, rtm_dn_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(nlh, sizeof(*r), attrs, RTA_MAX,
+				     rtm_dn_policy, extack);
 	if (err < 0)
 		return err;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Implements a dummy match to allow attaching comments to rules
  *

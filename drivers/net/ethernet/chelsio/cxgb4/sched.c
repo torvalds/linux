@@ -207,7 +207,6 @@ static int t4_sched_queue_bind(struct port_info *pi, struct ch_sched_queue *p)
 		goto out_err;
 
 	/* Bind queue to specified class */
-	memset(qe, 0, sizeof(*qe));
 	qe->cntxt_id = qid;
 	memcpy(&qe->param, p, sizeof(qe->param));
 
@@ -478,7 +477,7 @@ struct sched_table *t4_init_sched(unsigned int sched_size)
 	struct sched_table *s;
 	unsigned int i;
 
-	s = kvzalloc(sizeof(*s) + sched_size * sizeof(struct sched_class), GFP_KERNEL);
+	s = kvzalloc(struct_size(s, tab, sched_size), GFP_KERNEL);
 	if (!s)
 		return NULL;
 

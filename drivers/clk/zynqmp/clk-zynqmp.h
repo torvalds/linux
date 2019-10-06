@@ -10,12 +10,6 @@
 
 #include <linux/firmware/xlnx-zynqmp.h>
 
-/* Clock APIs payload parameters */
-#define CLK_GET_NAME_RESP_LEN				16
-#define CLK_GET_TOPOLOGY_RESP_WORDS			3
-#define CLK_GET_PARENTS_RESP_WORDS			3
-#define CLK_GET_ATTR_RESP_WORDS				1
-
 enum topology_type {
 	TYPE_INVALID,
 	TYPE_MUX,

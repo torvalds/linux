@@ -16,6 +16,7 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_bridge.h>
 #include <net/netfilter/nf_log.h>
 
 #include <linux/ip.h>
@@ -43,40 +44,9 @@
 
 extern unsigned int nf_conntrack_net_id;
 
-static struct nf_conntrack_l4proto __rcu *nf_ct_protos[MAX_NF_CT_PROTO + 1] __read_mostly;
-
 static DEFINE_MUTEX(nf_ct_proto_mutex);
 
 #ifdef CONFIG_SYSCTL
-static int
-nf_ct_register_sysctl(struct net *net,
-		      struct ctl_table_header **header,
-		      const char *path,
-		      struct ctl_table *table)
-{
-	if (*header == NULL) {
-		*header = register_net_sysctl(net, path, table);
-		if (*header == NULL)
-			return -ENOMEM;
-	}
-
-	return 0;
-}
-
-static void
-nf_ct_unregister_sysctl(struct ctl_table_header **header,
-			struct ctl_table **table,
-			unsigned int users)
-{
-	if (users > 0)
-		return;
-
-	unregister_net_sysctl_table(*header);
-	kfree(*table);
-	*header = NULL;
-	*table = NULL;
-}
-
 __printf(5, 6)
 void nf_l4proto_log_invalid(const struct sk_buff *skb,
 			    struct net *net,
@@ -86,7 +56,7 @@ void nf_l4proto_log_invalid(const struct sk_buff *skb,
 	struct va_format vaf;
 	va_list args;
 
-	if (net->ct.sysctl_log_invalid != protonum ||
+	if (net->ct.sysctl_log_invalid != protonum &&
 	    net->ct.sysctl_log_invalid != IPPROTO_RAW)
 		return;
 
@@ -124,295 +94,81 @@ void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_log_invalid);
 #endif
 
-const struct nf_conntrack_l4proto *__nf_ct_l4proto_find(u8 l4proto)
+const struct nf_conntrack_l4proto *nf_ct_l4proto_find(u8 l4proto)
 {
-	if (unlikely(l4proto >= ARRAY_SIZE(nf_ct_protos)))
-		return &nf_conntrack_l4proto_generic;
-
-	return rcu_dereference(nf_ct_protos[l4proto]);
-}
-EXPORT_SYMBOL_GPL(__nf_ct_l4proto_find);
-
-const struct nf_conntrack_l4proto *nf_ct_l4proto_find_get(u8 l4num)
-{
-	const struct nf_conntrack_l4proto *p;
-
-	rcu_read_lock();
-	p = __nf_ct_l4proto_find(l4num);
-	if (!try_module_get(p->me))
-		p = &nf_conntrack_l4proto_generic;
-	rcu_read_unlock();
-
-	return p;
-}
-EXPORT_SYMBOL_GPL(nf_ct_l4proto_find_get);
-
-void nf_ct_l4proto_put(const struct nf_conntrack_l4proto *p)
-{
-	module_put(p->me);
-}
-EXPORT_SYMBOL_GPL(nf_ct_l4proto_put);
-
-static int kill_l4proto(struct nf_conn *i, void *data)
-{
-	const struct nf_conntrack_l4proto *l4proto;
-	l4proto = data;
-	return nf_ct_protonum(i) == l4proto->l4proto;
-}
-
-static struct nf_proto_net *nf_ct_l4proto_net(struct net *net,
-				const struct nf_conntrack_l4proto *l4proto)
-{
-	if (l4proto->get_net_proto) {
-		/* statically built-in protocols use static per-net */
-		return l4proto->get_net_proto(net);
-	} else if (l4proto->net_id) {
-		/* ... and loadable protocols use dynamic per-net */
-		return net_generic(net, *l4proto->net_id);
-	}
-	return NULL;
-}
-
-static
-int nf_ct_l4proto_register_sysctl(struct net *net,
-				  struct nf_proto_net *pn)
-{
-	int err = 0;
-
-#ifdef CONFIG_SYSCTL
-	if (pn->ctl_table != NULL) {
-		err = nf_ct_register_sysctl(net,
-					    &pn->ctl_table_header,
-					    "net/netfilter",
-					    pn->ctl_table);
-		if (err < 0) {
-			if (!pn->users) {
-				kfree(pn->ctl_table);
-				pn->ctl_table = NULL;
-			}
-		}
-	}
-#endif /* CONFIG_SYSCTL */
-	return err;
-}
-
-static
-void nf_ct_l4proto_unregister_sysctl(struct nf_proto_net *pn)
-{
-#ifdef CONFIG_SYSCTL
-	if (pn->ctl_table_header != NULL)
-		nf_ct_unregister_sysctl(&pn->ctl_table_header,
-					&pn->ctl_table,
-					pn->users);
-#endif /* CONFIG_SYSCTL */
-}
-
-/* FIXME: Allow NULL functions and sub in pointers to generic for
-   them. --RR */
-int nf_ct_l4proto_register_one(const struct nf_conntrack_l4proto *l4proto)
-{
-	int ret = 0;
-
-	if ((l4proto->to_nlattr && l4proto->nlattr_size == 0) ||
-	    (l4proto->tuple_to_nlattr && !l4proto->nlattr_tuple_size))
-		return -EINVAL;
-
-	mutex_lock(&nf_ct_proto_mutex);
-	if (rcu_dereference_protected(
-			nf_ct_protos[l4proto->l4proto],
-			lockdep_is_held(&nf_ct_proto_mutex)
-			) != &nf_conntrack_l4proto_generic) {
-		ret = -EBUSY;
-		goto out_unlock;
+	switch (l4proto) {
+	case IPPROTO_UDP: return &nf_conntrack_l4proto_udp;
+	case IPPROTO_TCP: return &nf_conntrack_l4proto_tcp;
+	case IPPROTO_ICMP: return &nf_conntrack_l4proto_icmp;
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+	case IPPROTO_DCCP: return &nf_conntrack_l4proto_dccp;
+#endif
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+	case IPPROTO_SCTP: return &nf_conntrack_l4proto_sctp;
+#endif
+#ifdef CONFIG_NF_CT_PROTO_UDPLITE
+	case IPPROTO_UDPLITE: return &nf_conntrack_l4proto_udplite;
+#endif
+#ifdef CONFIG_NF_CT_PROTO_GRE
+	case IPPROTO_GRE: return &nf_conntrack_l4proto_gre;
+#endif
+#if IS_ENABLED(CONFIG_IPV6)
+	case IPPROTO_ICMPV6: return &nf_conntrack_l4proto_icmpv6;
+#endif /* CONFIG_IPV6 */
 	}
 
-	rcu_assign_pointer(nf_ct_protos[l4proto->l4proto], l4proto);
-out_unlock:
-	mutex_unlock(&nf_ct_proto_mutex);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(nf_ct_l4proto_register_one);
+	return &nf_conntrack_l4proto_generic;
+};
+EXPORT_SYMBOL_GPL(nf_ct_l4proto_find);
 
-int nf_ct_l4proto_pernet_register_one(struct net *net,
-				const struct nf_conntrack_l4proto *l4proto)
+unsigned int nf_confirm(struct sk_buff *skb, unsigned int protoff,
+			struct nf_conn *ct, enum ip_conntrack_info ctinfo)
 {
-	int ret = 0;
-	struct nf_proto_net *pn = NULL;
-
-	if (l4proto->init_net) {
-		ret = l4proto->init_net(net);
-		if (ret < 0)
-			goto out;
-	}
-
-	pn = nf_ct_l4proto_net(net, l4proto);
-	if (pn == NULL)
-		goto out;
-
-	ret = nf_ct_l4proto_register_sysctl(net, pn);
-	if (ret < 0)
-		goto out;
-
-	pn->users++;
-out:
-	return ret;
-}
-EXPORT_SYMBOL_GPL(nf_ct_l4proto_pernet_register_one);
-
-static void __nf_ct_l4proto_unregister_one(const struct nf_conntrack_l4proto *l4proto)
-
-{
-	BUG_ON(l4proto->l4proto >= ARRAY_SIZE(nf_ct_protos));
-
-	BUG_ON(rcu_dereference_protected(
-			nf_ct_protos[l4proto->l4proto],
-			lockdep_is_held(&nf_ct_proto_mutex)
-			) != l4proto);
-	rcu_assign_pointer(nf_ct_protos[l4proto->l4proto],
-			   &nf_conntrack_l4proto_generic);
-}
-
-void nf_ct_l4proto_unregister_one(const struct nf_conntrack_l4proto *l4proto)
-{
-	mutex_lock(&nf_ct_proto_mutex);
-	__nf_ct_l4proto_unregister_one(l4proto);
-	mutex_unlock(&nf_ct_proto_mutex);
-
-	synchronize_net();
-	/* Remove all contrack entries for this protocol */
-	nf_ct_iterate_destroy(kill_l4proto, (void *)l4proto);
-}
-EXPORT_SYMBOL_GPL(nf_ct_l4proto_unregister_one);
-
-void nf_ct_l4proto_pernet_unregister_one(struct net *net,
-				const struct nf_conntrack_l4proto *l4proto)
-{
-	struct nf_proto_net *pn = nf_ct_l4proto_net(net, l4proto);
-
-	if (pn == NULL)
-		return;
-
-	pn->users--;
-	nf_ct_l4proto_unregister_sysctl(pn);
-}
-EXPORT_SYMBOL_GPL(nf_ct_l4proto_pernet_unregister_one);
-
-static void
-nf_ct_l4proto_unregister(const struct nf_conntrack_l4proto * const l4proto[],
-			 unsigned int num_proto)
-{
-	int i;
-
-	mutex_lock(&nf_ct_proto_mutex);
-	for (i = 0; i < num_proto; i++)
-		__nf_ct_l4proto_unregister_one(l4proto[i]);
-	mutex_unlock(&nf_ct_proto_mutex);
-
-	synchronize_net();
-
-	for (i = 0; i < num_proto; i++)
-		nf_ct_iterate_destroy(kill_l4proto, (void *)l4proto[i]);
-}
-
-static int
-nf_ct_l4proto_register(const struct nf_conntrack_l4proto * const l4proto[],
-		       unsigned int num_proto)
-{
-	int ret = -EINVAL;
-	unsigned int i;
-
-	for (i = 0; i < num_proto; i++) {
-		ret = nf_ct_l4proto_register_one(l4proto[i]);
-		if (ret < 0)
-			break;
-	}
-	if (i != num_proto) {
-		pr_err("nf_conntrack: can't register l4 %d proto.\n",
-		       l4proto[i]->l4proto);
-		nf_ct_l4proto_unregister(l4proto, i);
-	}
-	return ret;
-}
-
-int nf_ct_l4proto_pernet_register(struct net *net,
-				  const struct nf_conntrack_l4proto *const l4proto[],
-				  unsigned int num_proto)
-{
-	int ret = -EINVAL;
-	unsigned int i;
-
-	for (i = 0; i < num_proto; i++) {
-		ret = nf_ct_l4proto_pernet_register_one(net, l4proto[i]);
-		if (ret < 0)
-			break;
-	}
-	if (i != num_proto) {
-		pr_err("nf_conntrack %d: pernet registration failed\n",
-		       l4proto[i]->l4proto);
-		nf_ct_l4proto_pernet_unregister(net, l4proto, i);
-	}
-	return ret;
-}
-EXPORT_SYMBOL_GPL(nf_ct_l4proto_pernet_register);
-
-void nf_ct_l4proto_pernet_unregister(struct net *net,
-				const struct nf_conntrack_l4proto *const l4proto[],
-				unsigned int num_proto)
-{
-	while (num_proto-- != 0)
-		nf_ct_l4proto_pernet_unregister_one(net, l4proto[num_proto]);
-}
-EXPORT_SYMBOL_GPL(nf_ct_l4proto_pernet_unregister);
-
-static unsigned int ipv4_helper(void *priv,
-				struct sk_buff *skb,
-				const struct nf_hook_state *state)
-{
-	struct nf_conn *ct;
-	enum ip_conntrack_info ctinfo;
 	const struct nf_conn_help *help;
-	const struct nf_conntrack_helper *helper;
-
-	/* This is where we call the helper: as the packet goes out. */
-	ct = nf_ct_get(skb, &ctinfo);
-	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
-		return NF_ACCEPT;
 
 	help = nfct_help(ct);
-	if (!help)
-		return NF_ACCEPT;
+	if (help) {
+		const struct nf_conntrack_helper *helper;
+		int ret;
 
-	/* rcu_read_lock()ed by nf_hook_thresh */
-	helper = rcu_dereference(help->helper);
-	if (!helper)
-		return NF_ACCEPT;
+		/* rcu_read_lock()ed by nf_hook_thresh */
+		helper = rcu_dereference(help->helper);
+		if (helper) {
+			ret = helper->help(skb,
+					   protoff,
+					   ct, ctinfo);
+			if (ret != NF_ACCEPT)
+				return ret;
+		}
+	}
 
-	return helper->help(skb, skb_network_offset(skb) + ip_hdrlen(skb),
-			    ct, ctinfo);
+	if (test_bit(IPS_SEQ_ADJUST_BIT, &ct->status) &&
+	    !nf_is_loopback_packet(skb)) {
+		if (!nf_ct_seq_adjust(skb, ct, ctinfo, protoff)) {
+			NF_CT_STAT_INC_ATOMIC(nf_ct_net(ct), drop);
+			return NF_DROP;
+		}
+	}
+
+	/* We've seen it coming out the other side: confirm it */
+	return nf_conntrack_confirm(skb);
 }
+EXPORT_SYMBOL_GPL(nf_confirm);
 
 static unsigned int ipv4_confirm(void *priv,
 				 struct sk_buff *skb,
 				 const struct nf_hook_state *state)
 {
-	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct;
 
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
-		goto out;
+		return nf_conntrack_confirm(skb);
 
-	/* adjust seqs for loopback traffic only in outgoing direction */
-	if (test_bit(IPS_SEQ_ADJUST_BIT, &ct->status) &&
-	    !nf_is_loopback_packet(skb)) {
-		if (!nf_ct_seq_adjust(skb, ct, ctinfo, ip_hdrlen(skb))) {
-			NF_CT_STAT_INC_ATOMIC(nf_ct_net(ct), drop);
-			return NF_DROP;
-		}
-	}
-out:
-	/* We've seen it coming out the other side: confirm it */
-	return nf_conntrack_confirm(skb);
+	return nf_confirm(skb,
+			  skb_network_offset(skb) + ip_hdrlen(skb),
+			  ct, ctinfo);
 }
 
 static unsigned int ipv4_conntrack_in(void *priv,
@@ -461,22 +217,10 @@ static const struct nf_hook_ops ipv4_conntrack_ops[] = {
 		.priority	= NF_IP_PRI_CONNTRACK,
 	},
 	{
-		.hook		= ipv4_helper,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_POST_ROUTING,
-		.priority	= NF_IP_PRI_CONNTRACK_HELPER,
-	},
-	{
 		.hook		= ipv4_confirm,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP_PRI_CONNTRACK_CONFIRM,
-	},
-	{
-		.hook		= ipv4_helper,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_LOCAL_IN,
-		.priority	= NF_IP_PRI_CONNTRACK_HELPER,
 	},
 	{
 		.hook		= ipv4_confirm,
@@ -623,31 +367,21 @@ static unsigned int ipv6_confirm(void *priv,
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	unsigned char pnum = ipv6_hdr(skb)->nexthdr;
-	int protoff;
 	__be16 frag_off;
+	int protoff;
 
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
-		goto out;
+		return nf_conntrack_confirm(skb);
 
 	protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &pnum,
 				   &frag_off);
 	if (protoff < 0 || (frag_off & htons(~0x7)) != 0) {
 		pr_debug("proto header not found\n");
-		goto out;
+		return nf_conntrack_confirm(skb);
 	}
 
-	/* adjust seqs for loopback traffic only in outgoing direction */
-	if (test_bit(IPS_SEQ_ADJUST_BIT, &ct->status) &&
-	    !nf_is_loopback_packet(skb)) {
-		if (!nf_ct_seq_adjust(skb, ct, ctinfo, protoff)) {
-			NF_CT_STAT_INC_ATOMIC(nf_ct_net(ct), drop);
-			return NF_DROP;
-		}
-	}
-out:
-	/* We've seen it coming out the other side: confirm it */
-	return nf_conntrack_confirm(skb);
+	return nf_confirm(skb, protoff, ct, ctinfo);
 }
 
 static unsigned int ipv6_conntrack_in(void *priv,
@@ -664,42 +398,6 @@ static unsigned int ipv6_conntrack_local(void *priv,
 	return nf_conntrack_in(skb, state);
 }
 
-static unsigned int ipv6_helper(void *priv,
-				struct sk_buff *skb,
-				const struct nf_hook_state *state)
-{
-	struct nf_conn *ct;
-	const struct nf_conn_help *help;
-	const struct nf_conntrack_helper *helper;
-	enum ip_conntrack_info ctinfo;
-	__be16 frag_off;
-	int protoff;
-	u8 nexthdr;
-
-	/* This is where we call the helper: as the packet goes out. */
-	ct = nf_ct_get(skb, &ctinfo);
-	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
-		return NF_ACCEPT;
-
-	help = nfct_help(ct);
-	if (!help)
-		return NF_ACCEPT;
-	/* rcu_read_lock()ed by nf_hook_thresh */
-	helper = rcu_dereference(help->helper);
-	if (!helper)
-		return NF_ACCEPT;
-
-	nexthdr = ipv6_hdr(skb)->nexthdr;
-	protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr,
-				   &frag_off);
-	if (protoff < 0 || (frag_off & htons(~0x7)) != 0) {
-		pr_debug("proto header not found\n");
-		return NF_ACCEPT;
-	}
-
-	return helper->help(skb, protoff, ct, ctinfo);
-}
-
 static const struct nf_hook_ops ipv6_conntrack_ops[] = {
 	{
 		.hook		= ipv6_conntrack_in,
@@ -714,22 +412,10 @@ static const struct nf_hook_ops ipv6_conntrack_ops[] = {
 		.priority	= NF_IP6_PRI_CONNTRACK,
 	},
 	{
-		.hook		= ipv6_helper,
-		.pf		= NFPROTO_IPV6,
-		.hooknum	= NF_INET_POST_ROUTING,
-		.priority	= NF_IP6_PRI_CONNTRACK_HELPER,
-	},
-	{
 		.hook		= ipv6_confirm,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP6_PRI_LAST,
-	},
-	{
-		.hook		= ipv6_helper,
-		.pf		= NFPROTO_IPV6,
-		.hooknum	= NF_INET_LOCAL_IN,
-		.priority	= NF_IP6_PRI_CONNTRACK_HELPER,
 	},
 	{
 		.hook		= ipv6_confirm,
@@ -756,12 +442,14 @@ static int nf_ct_tcp_fixup(struct nf_conn *ct, void *_nfproto)
 	return 0;
 }
 
+static struct nf_ct_bridge_info *nf_ct_bridge_info;
+
 static int nf_ct_netns_do_get(struct net *net, u8 nfproto)
 {
 	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
-	bool fixup_needed = false;
+	bool fixup_needed = false, retry = true;
 	int err = 0;
-
+retry:
 	mutex_lock(&nf_ct_proto_mutex);
 
 	switch (nfproto) {
@@ -801,6 +489,32 @@ static int nf_ct_netns_do_get(struct net *net, u8 nfproto)
 			fixup_needed = true;
 		break;
 #endif
+	case NFPROTO_BRIDGE:
+		if (!nf_ct_bridge_info) {
+			if (!retry) {
+				err = -EPROTO;
+				goto out_unlock;
+			}
+			mutex_unlock(&nf_ct_proto_mutex);
+			request_module("nf_conntrack_bridge");
+			retry = false;
+			goto retry;
+		}
+		if (!try_module_get(nf_ct_bridge_info->me)) {
+			err = -EPROTO;
+			goto out_unlock;
+		}
+		cnet->users_bridge++;
+		if (cnet->users_bridge > 1)
+			goto out_unlock;
+
+		err = nf_register_net_hooks(net, nf_ct_bridge_info->ops,
+					    nf_ct_bridge_info->ops_size);
+		if (err)
+			cnet->users_bridge = 0;
+		else
+			fixup_needed = true;
+		break;
 	default:
 		err = -EPROTO;
 		break;
@@ -833,68 +547,102 @@ static void nf_ct_netns_do_put(struct net *net, u8 nfproto)
 						ARRAY_SIZE(ipv6_conntrack_ops));
 		break;
 #endif
-	}
+	case NFPROTO_BRIDGE:
+		if (!nf_ct_bridge_info)
+			break;
+		if (cnet->users_bridge && (--cnet->users_bridge == 0))
+			nf_unregister_net_hooks(net, nf_ct_bridge_info->ops,
+						nf_ct_bridge_info->ops_size);
 
+		module_put(nf_ct_bridge_info->me);
+		break;
+	}
 	mutex_unlock(&nf_ct_proto_mutex);
+}
+
+static int nf_ct_netns_inet_get(struct net *net)
+{
+	int err;
+
+	err = nf_ct_netns_do_get(net, NFPROTO_IPV4);
+	if (err < 0)
+		goto err1;
+	err = nf_ct_netns_do_get(net, NFPROTO_IPV6);
+	if (err < 0)
+		goto err2;
+
+	return err;
+err2:
+	nf_ct_netns_put(net, NFPROTO_IPV4);
+err1:
+	return err;
 }
 
 int nf_ct_netns_get(struct net *net, u8 nfproto)
 {
 	int err;
 
-	if (nfproto == NFPROTO_INET) {
-		err = nf_ct_netns_do_get(net, NFPROTO_IPV4);
+	switch (nfproto) {
+	case NFPROTO_INET:
+		err = nf_ct_netns_inet_get(net);
+		break;
+	case NFPROTO_BRIDGE:
+		err = nf_ct_netns_do_get(net, NFPROTO_BRIDGE);
 		if (err < 0)
-			goto err1;
-		err = nf_ct_netns_do_get(net, NFPROTO_IPV6);
-		if (err < 0)
-			goto err2;
-	} else {
-		err = nf_ct_netns_do_get(net, nfproto);
-		if (err < 0)
-			goto err1;
-	}
-	return 0;
+			return err;
 
-err2:
-	nf_ct_netns_put(net, NFPROTO_IPV4);
-err1:
+		err = nf_ct_netns_inet_get(net);
+		if (err < 0) {
+			nf_ct_netns_put(net, NFPROTO_BRIDGE);
+			return err;
+		}
+		break;
+	default:
+		err = nf_ct_netns_do_get(net, nfproto);
+		break;
+	}
 	return err;
 }
 EXPORT_SYMBOL_GPL(nf_ct_netns_get);
 
 void nf_ct_netns_put(struct net *net, uint8_t nfproto)
 {
-	if (nfproto == NFPROTO_INET) {
+	switch (nfproto) {
+	case NFPROTO_BRIDGE:
+		nf_ct_netns_do_put(net, NFPROTO_BRIDGE);
+		/* fall through */
+	case NFPROTO_INET:
 		nf_ct_netns_do_put(net, NFPROTO_IPV4);
 		nf_ct_netns_do_put(net, NFPROTO_IPV6);
-	} else {
+		break;
+	default:
 		nf_ct_netns_do_put(net, nfproto);
+		break;
 	}
 }
 EXPORT_SYMBOL_GPL(nf_ct_netns_put);
 
-static const struct nf_conntrack_l4proto * const builtin_l4proto[] = {
-	&nf_conntrack_l4proto_tcp,
-	&nf_conntrack_l4proto_udp,
-	&nf_conntrack_l4proto_icmp,
-#ifdef CONFIG_NF_CT_PROTO_DCCP
-	&nf_conntrack_l4proto_dccp,
-#endif
-#ifdef CONFIG_NF_CT_PROTO_SCTP
-	&nf_conntrack_l4proto_sctp,
-#endif
-#ifdef CONFIG_NF_CT_PROTO_UDPLITE
-	&nf_conntrack_l4proto_udplite,
-#endif
-#if IS_ENABLED(CONFIG_IPV6)
-	&nf_conntrack_l4proto_icmpv6,
-#endif /* CONFIG_IPV6 */
-};
+void nf_ct_bridge_register(struct nf_ct_bridge_info *info)
+{
+	WARN_ON(nf_ct_bridge_info);
+	mutex_lock(&nf_ct_proto_mutex);
+	nf_ct_bridge_info = info;
+	mutex_unlock(&nf_ct_proto_mutex);
+}
+EXPORT_SYMBOL_GPL(nf_ct_bridge_register);
+
+void nf_ct_bridge_unregister(struct nf_ct_bridge_info *info)
+{
+	WARN_ON(!nf_ct_bridge_info);
+	mutex_lock(&nf_ct_proto_mutex);
+	nf_ct_bridge_info = NULL;
+	mutex_unlock(&nf_ct_proto_mutex);
+}
+EXPORT_SYMBOL_GPL(nf_ct_bridge_unregister);
 
 int nf_conntrack_proto_init(void)
 {
-	int ret = 0, i;
+	int ret;
 
 	ret = nf_register_sockopt(&so_getorigdst);
 	if (ret < 0)
@@ -906,18 +654,8 @@ int nf_conntrack_proto_init(void)
 		goto cleanup_sockopt;
 #endif
 
-	for (i = 0; i < ARRAY_SIZE(nf_ct_protos); i++)
-		RCU_INIT_POINTER(nf_ct_protos[i],
-				 &nf_conntrack_l4proto_generic);
-
-	ret = nf_ct_l4proto_register(builtin_l4proto,
-				     ARRAY_SIZE(builtin_l4proto));
-	if (ret < 0)
-		goto cleanup_sockopt2;
-
 	return ret;
-cleanup_sockopt2:
-	nf_unregister_sockopt(&so_getorigdst);
+
 #if IS_ENABLED(CONFIG_IPV6)
 cleanup_sockopt:
 	nf_unregister_sockopt(&so_getorigdst6);
@@ -933,42 +671,32 @@ void nf_conntrack_proto_fini(void)
 #endif
 }
 
-int nf_conntrack_proto_pernet_init(struct net *net)
+void nf_conntrack_proto_pernet_init(struct net *net)
 {
-	int err;
-	struct nf_proto_net *pn = nf_ct_l4proto_net(net,
-					&nf_conntrack_l4proto_generic);
-
-	err = nf_conntrack_l4proto_generic.init_net(net);
-	if (err < 0)
-		return err;
-	err = nf_ct_l4proto_register_sysctl(net,
-					    pn);
-	if (err < 0)
-		return err;
-
-	err = nf_ct_l4proto_pernet_register(net, builtin_l4proto,
-					    ARRAY_SIZE(builtin_l4proto));
-	if (err < 0) {
-		nf_ct_l4proto_unregister_sysctl(pn);
-		return err;
-	}
-
-	pn->users++;
-	return 0;
+	nf_conntrack_generic_init_net(net);
+	nf_conntrack_udp_init_net(net);
+	nf_conntrack_tcp_init_net(net);
+	nf_conntrack_icmp_init_net(net);
+#if IS_ENABLED(CONFIG_IPV6)
+	nf_conntrack_icmpv6_init_net(net);
+#endif
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+	nf_conntrack_dccp_init_net(net);
+#endif
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+	nf_conntrack_sctp_init_net(net);
+#endif
+#ifdef CONFIG_NF_CT_PROTO_GRE
+	nf_conntrack_gre_init_net(net);
+#endif
 }
 
 void nf_conntrack_proto_pernet_fini(struct net *net)
 {
-	struct nf_proto_net *pn = nf_ct_l4proto_net(net,
-					&nf_conntrack_l4proto_generic);
-
-	nf_ct_l4proto_pernet_unregister(net, builtin_l4proto,
-					ARRAY_SIZE(builtin_l4proto));
-	pn->users--;
-	nf_ct_l4proto_unregister_sysctl(pn);
+#ifdef CONFIG_NF_CT_PROTO_GRE
+	nf_ct_gre_keymap_flush(net);
+#endif
 }
-
 
 module_param_call(hashsize, nf_conntrack_set_hashsize, param_get_uint,
 		  &nf_conntrack_htable_size, 0600);

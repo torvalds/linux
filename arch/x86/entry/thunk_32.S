@@ -1,8 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Trampoline to trace irqs off. (otherwise CALLER_ADDR1 might crash)
  * Copyright 2008 by Steven Rostedt, Red Hat, Inc
  *  (inspired by Andi Kleen's thunk_64.S)
- * Subject to the GNU public license, v.2. No warranty of any kind.
  */
 	#include <linux/linkage.h>
 	#include <asm/asm.h>
@@ -34,7 +34,7 @@
 	THUNK trace_hardirqs_off_thunk,trace_hardirqs_off_caller,1
 #endif
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	THUNK ___preempt_schedule, preempt_schedule
 	THUNK ___preempt_schedule_notrace, preempt_schedule_notrace
 	EXPORT_SYMBOL(___preempt_schedule)

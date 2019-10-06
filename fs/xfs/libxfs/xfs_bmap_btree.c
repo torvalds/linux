@@ -11,10 +11,8 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
-#include "xfs_inode_item.h"
 #include "xfs_alloc.h"
 #include "xfs_btree.h"
 #include "xfs_bmap_btree.h"
@@ -22,7 +20,6 @@
 #include "xfs_error.h"
 #include "xfs_quota.h"
 #include "xfs_trace.h"
-#include "xfs_cksum.h"
 #include "xfs_rmap.h"
 
 /*
@@ -403,21 +400,35 @@ xfs_bmbt_diff_two_keys(
 	union xfs_btree_key	*k1,
 	union xfs_btree_key	*k2)
 {
-	return (int64_t)be64_to_cpu(k1->bmbt.br_startoff) -
-			  be64_to_cpu(k2->bmbt.br_startoff);
+	uint64_t		a = be64_to_cpu(k1->bmbt.br_startoff);
+	uint64_t		b = be64_to_cpu(k2->bmbt.br_startoff);
+
+	/*
+	 * Note: This routine previously casted a and b to int64 and subtracted
+	 * them to generate a result.  This lead to problems if b was the
+	 * "maximum" key value (all ones) being signed incorrectly, hence this
+	 * somewhat less efficient version.
+	 */
+	if (a > b)
+		return 1;
+	if (b > a)
+		return -1;
+	return 0;
 }
 
 static xfs_failaddr_t
 xfs_bmbt_verify(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
 	xfs_failaddr_t		fa;
 	unsigned int		level;
 
-	switch (block->bb_magic) {
-	case cpu_to_be32(XFS_BMAP_CRC_MAGIC):
+	if (!xfs_verify_magic(bp, block->bb_magic))
+		return __this_address;
+
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		/*
 		 * XXX: need a better way of verifying the owner here. Right now
 		 * just make sure there has been one set.
@@ -425,11 +436,6 @@ xfs_bmbt_verify(
 		fa = xfs_btree_lblock_v5hdr_verify(bp, XFS_RMAP_OWN_UNKNOWN);
 		if (fa)
 			return fa;
-		/* fall through */
-	case cpu_to_be32(XFS_BMAP_MAGIC):
-		break;
-	default:
-		return __this_address;
 	}
 
 	/*
@@ -481,6 +487,8 @@ xfs_bmbt_write_verify(
 
 const struct xfs_buf_ops xfs_bmbt_buf_ops = {
 	.name = "xfs_bmbt",
+	.magic = { cpu_to_be32(XFS_BMAP_MAGIC),
+		   cpu_to_be32(XFS_BMAP_CRC_MAGIC) },
 	.verify_read = xfs_bmbt_read_verify,
 	.verify_write = xfs_bmbt_write_verify,
 	.verify_struct = xfs_bmbt_verify,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/fs/nfs/pagelist.c
  *
@@ -16,8 +17,8 @@
 #include <linux/nfs.h>
 #include <linux/nfs3.h>
 #include <linux/nfs4.h>
-#include <linux/nfs_page.h>
 #include <linux/nfs_fs.h>
+#include <linux/nfs_page.h>
 #include <linux/nfs_mount.h>
 #include <linux/export.h>
 
@@ -47,7 +48,7 @@ void nfs_pgheader_init(struct nfs_pageio_descriptor *desc,
 
 	hdr->req = nfs_list_entry(mirror->pg_list.next);
 	hdr->inode = desc->pg_inode;
-	hdr->cred = hdr->req->wb_context->cred;
+	hdr->cred = nfs_req_openctx(hdr->req)->cred;
 	hdr->io_start = req_offset(hdr->req);
 	hdr->good_bytes = mirror->pg_count;
 	hdr->io_completion = desc->pg_io_completion;
@@ -76,7 +77,7 @@ void nfs_set_pgio_error(struct nfs_pgio_header *hdr, int error, loff_t pos)
 static inline struct nfs_page *
 nfs_page_alloc(void)
 {
-	struct nfs_page	*p = kmem_cache_zalloc(nfs_page_cachep, GFP_NOIO);
+	struct nfs_page	*p = kmem_cache_zalloc(nfs_page_cachep, GFP_KERNEL);
 	if (p)
 		INIT_LIST_HEAD(&p->wb_list);
 	return p;
@@ -295,25 +296,13 @@ out:
 		nfs_release_request(head);
 }
 
-/**
- * nfs_create_request - Create an NFS read/write request.
- * @ctx: open context to use
- * @page: page to write
- * @last: last nfs request created for this page group or NULL if head
- * @offset: starting offset within the page for the write
- * @count: number of bytes to read/write
- *
- * The page must be locked by the caller. This makes sure we never
- * create two different requests for the same page.
- * User should ensure it is safe to sleep in this function.
- */
-struct nfs_page *
-nfs_create_request(struct nfs_open_context *ctx, struct page *page,
-		   struct nfs_page *last, unsigned int offset,
+static struct nfs_page *
+__nfs_create_request(struct nfs_lock_context *l_ctx, struct page *page,
+		   unsigned int pgbase, unsigned int offset,
 		   unsigned int count)
 {
 	struct nfs_page		*req;
-	struct nfs_lock_context *l_ctx;
+	struct nfs_open_context *ctx = l_ctx->open_context;
 
 	if (test_bit(NFS_CONTEXT_BAD, &ctx->flags))
 		return ERR_PTR(-EBADF);
@@ -322,13 +311,8 @@ nfs_create_request(struct nfs_open_context *ctx, struct page *page,
 	if (req == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	/* get lock context early so we can deal with alloc failures */
-	l_ctx = nfs_get_lock_context(ctx);
-	if (IS_ERR(l_ctx)) {
-		nfs_page_free(req);
-		return ERR_CAST(l_ctx);
-	}
 	req->wb_lock_context = l_ctx;
+	refcount_inc(&l_ctx->count);
 	atomic_inc(&l_ctx->io_count);
 
 	/* Initialize the request struct. Initially, we assume a
@@ -340,17 +324,61 @@ nfs_create_request(struct nfs_open_context *ctx, struct page *page,
 		get_page(page);
 	}
 	req->wb_offset  = offset;
-	req->wb_pgbase	= offset;
+	req->wb_pgbase	= pgbase;
 	req->wb_bytes   = count;
-	req->wb_context = get_nfs_open_context(ctx);
 	kref_init(&req->wb_kref);
-	nfs_page_group_init(req, last);
+	req->wb_nio = 0;
 	return req;
 }
 
 /**
+ * nfs_create_request - Create an NFS read/write request.
+ * @ctx: open context to use
+ * @page: page to write
+ * @offset: starting offset within the page for the write
+ * @count: number of bytes to read/write
+ *
+ * The page must be locked by the caller. This makes sure we never
+ * create two different requests for the same page.
+ * User should ensure it is safe to sleep in this function.
+ */
+struct nfs_page *
+nfs_create_request(struct nfs_open_context *ctx, struct page *page,
+		   unsigned int offset, unsigned int count)
+{
+	struct nfs_lock_context *l_ctx = nfs_get_lock_context(ctx);
+	struct nfs_page *ret;
+
+	if (IS_ERR(l_ctx))
+		return ERR_CAST(l_ctx);
+	ret = __nfs_create_request(l_ctx, page, offset, offset, count);
+	if (!IS_ERR(ret))
+		nfs_page_group_init(ret, NULL);
+	nfs_put_lock_context(l_ctx);
+	return ret;
+}
+
+static struct nfs_page *
+nfs_create_subreq(struct nfs_page *req, struct nfs_page *last,
+		  unsigned int pgbase, unsigned int offset,
+		  unsigned int count)
+{
+	struct nfs_page *ret;
+
+	ret = __nfs_create_request(req->wb_lock_context, req->wb_page,
+			pgbase, offset, count);
+	if (!IS_ERR(ret)) {
+		nfs_lock_request(ret);
+		ret->wb_index = req->wb_index;
+		nfs_page_group_init(ret, last);
+		ret->wb_nio = req->wb_nio;
+	}
+	return ret;
+}
+
+/**
  * nfs_unlock_request - Unlock request and wake up sleepers.
- * @req:
+ * @req: pointer to request
  */
 void nfs_unlock_request(struct nfs_page *req)
 {
@@ -368,7 +396,7 @@ void nfs_unlock_request(struct nfs_page *req)
 
 /**
  * nfs_unlock_and_release_request - Unlock request and release the nfs_page
- * @req:
+ * @req: pointer to request
  */
 void nfs_unlock_and_release_request(struct nfs_page *req)
 {
@@ -386,8 +414,8 @@ void nfs_unlock_and_release_request(struct nfs_page *req)
 static void nfs_clear_request(struct nfs_page *req)
 {
 	struct page *page = req->wb_page;
-	struct nfs_open_context *ctx = req->wb_context;
 	struct nfs_lock_context *l_ctx = req->wb_lock_context;
+	struct nfs_open_context *ctx;
 
 	if (page != NULL) {
 		put_page(page);
@@ -396,15 +424,12 @@ static void nfs_clear_request(struct nfs_page *req)
 	if (l_ctx != NULL) {
 		if (atomic_dec_and_test(&l_ctx->io_count)) {
 			wake_up_var(&l_ctx->io_count);
+			ctx = l_ctx->open_context;
 			if (test_bit(NFS_CONTEXT_UNLOCK, &ctx->flags))
 				rpc_wake_up(&NFS_SERVER(d_inode(ctx->dentry))->uoc_rpcwaitq);
 		}
 		nfs_put_lock_context(l_ctx);
 		req->wb_lock_context = NULL;
-	}
-	if (ctx != NULL) {
-		put_nfs_open_context(ctx);
-		req->wb_context = NULL;
 	}
 }
 
@@ -531,7 +556,6 @@ EXPORT_SYMBOL_GPL(nfs_pgio_header_free);
  * nfs_pgio_rpcsetup - Set up arguments for a pageio call
  * @hdr: The pageio hdr
  * @count: Number of bytes to read
- * @offset: Initial offset
  * @how: How to commit data (writes only)
  * @cinfo: Commit information for the call (writes only)
  */
@@ -551,7 +575,7 @@ static void nfs_pgio_rpcsetup(struct nfs_pgio_header *hdr,
 	hdr->args.pgbase = req->wb_pgbase;
 	hdr->args.pages  = hdr->page_array.pagevec;
 	hdr->args.count  = count;
-	hdr->args.context = get_nfs_open_context(req->wb_context);
+	hdr->args.context = get_nfs_open_context(nfs_req_openctx(req));
 	hdr->args.lock_context = req->wb_lock_context;
 	hdr->args.stable  = NFS_UNSTABLE;
 	switch (how & (FLUSH_STABLE | FLUSH_COND_STABLE)) {
@@ -566,7 +590,7 @@ static void nfs_pgio_rpcsetup(struct nfs_pgio_header *hdr,
 	}
 
 	hdr->res.fattr   = &hdr->fattr;
-	hdr->res.count   = count;
+	hdr->res.count   = 0;
 	hdr->res.eof     = 0;
 	hdr->res.verf    = &hdr->verf;
 	nfs_fattr_init(&hdr->fattr);
@@ -634,7 +658,6 @@ EXPORT_SYMBOL_GPL(nfs_initiate_pgio);
 
 /**
  * nfs_pgio_error - Clean up from a pageio error
- * @desc: IO descriptor
  * @hdr: pageio header
  */
 static void nfs_pgio_error(struct nfs_pgio_header *hdr)
@@ -700,6 +723,7 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_mirrors_dynamic = NULL;
 	desc->pg_mirrors = desc->pg_mirrors_static;
 	nfs_pageio_mirror_init(&desc->pg_mirrors[0], bsize);
+	desc->pg_maxretrans = 0;
 }
 
 /**
@@ -751,8 +775,6 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 	if (pagecount <= ARRAY_SIZE(pg_array->page_array))
 		pg_array->pagevec = pg_array->page_array;
 	else {
-		if (hdr->rw_mode == FMODE_WRITE)
-			gfp_flags = GFP_NOIO;
 		pg_array->pagevec = kcalloc(pagecount, sizeof(struct page *), gfp_flags);
 		if (!pg_array->pagevec) {
 			pg_array->npages = 0;
@@ -768,8 +790,7 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 	pageused = 0;
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
-		nfs_list_remove_request(req);
-		nfs_list_add_request(req, &hdr->pages);
+		nfs_list_move_request(req, &hdr->pages);
 
 		if (!last_page || last_page != req->wb_page) {
 			pageused++;
@@ -828,7 +849,7 @@ nfs_pageio_alloc_mirrors(struct nfs_pageio_descriptor *desc,
 	desc->pg_mirrors_dynamic = NULL;
 	if (mirror_count == 1)
 		return desc->pg_mirrors_static;
-	ret = kmalloc_array(mirror_count, sizeof(*ret), GFP_NOFS);
+	ret = kmalloc_array(mirror_count, sizeof(*ret), GFP_KERNEL);
 	if (ret != NULL) {
 		for (i = 0; i < mirror_count; i++)
 			nfs_pageio_mirror_init(&ret[i], desc->pg_bsize);
@@ -893,6 +914,7 @@ static bool nfs_match_lock_context(const struct nfs_lock_context *l1,
  * nfs_can_coalesce_requests - test two requests for compatibility
  * @prev: pointer to nfs_page
  * @req: pointer to nfs_page
+ * @pgio: pointer to nfs_pagio_descriptor
  *
  * The nfs_page structures 'prev' and 'req' are compared to ensure that the
  * page data area they describe is contiguous, and that their RPC
@@ -908,9 +930,9 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 	struct file_lock_context *flctx;
 
 	if (prev) {
-		if (!nfs_match_open_context(req->wb_context, prev->wb_context))
+		if (!nfs_match_open_context(nfs_req_openctx(req), nfs_req_openctx(prev)))
 			return false;
-		flctx = d_inode(req->wb_context->dentry)->i_flctx;
+		flctx = d_inode(nfs_req_openctx(req)->dentry)->i_flctx;
 		if (flctx != NULL &&
 		    !(list_empty_careful(&flctx->flc_posix) &&
 		      list_empty_careful(&flctx->flc_flock)) &&
@@ -959,10 +981,18 @@ static int nfs_pageio_do_add_request(struct nfs_pageio_descriptor *desc,
 			return 0;
 		mirror->pg_base = req->wb_pgbase;
 	}
+
+	if (desc->pg_maxretrans && req->wb_nio > desc->pg_maxretrans) {
+		if (NFS_SERVER(desc->pg_inode)->flags & NFS_MOUNT_SOFTERR)
+			desc->pg_error = -ETIMEDOUT;
+		else
+			desc->pg_error = -EIO;
+		return 0;
+	}
+
 	if (!nfs_can_coalesce_requests(prev, req, desc))
 		return 0;
-	nfs_list_remove_request(req);
-	nfs_list_add_request(req, &mirror->pg_list);
+	nfs_list_move_request(req, &mirror->pg_list);
 	mirror->pg_count += req->wb_bytes;
 	return 1;
 }
@@ -986,6 +1016,16 @@ static void nfs_pageio_doio(struct nfs_pageio_descriptor *desc)
 		mirror->pg_count = 0;
 		mirror->pg_base = 0;
 	}
+}
+
+static void
+nfs_pageio_cleanup_request(struct nfs_pageio_descriptor *desc,
+		struct nfs_page *req)
+{
+	LIST_HEAD(head);
+
+	nfs_list_move_request(req, &head);
+	desc->pg_completion_ops->error_cleanup(&head, desc->pg_error);
 }
 
 /**
@@ -1025,10 +1065,8 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 			nfs_page_group_unlock(req);
 			desc->pg_moreio = 1;
 			nfs_pageio_doio(desc);
-			if (desc->pg_error < 0)
-				return 0;
-			if (mirror->pg_recoalesce)
-				return 0;
+			if (desc->pg_error < 0 || mirror->pg_recoalesce)
+				goto out_cleanup_subreq;
 			/* retry add_request for this subreq */
 			nfs_page_group_lock(req);
 			continue;
@@ -1044,14 +1082,10 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 		pgbase += subreq->wb_bytes;
 
 		if (bytes_left) {
-			subreq = nfs_create_request(req->wb_context,
-					req->wb_page,
-					subreq, pgbase, bytes_left);
+			subreq = nfs_create_subreq(req, subreq, pgbase,
+					offset, bytes_left);
 			if (IS_ERR(subreq))
 				goto err_ptr;
-			nfs_lock_request(subreq);
-			subreq->wb_offset  = offset;
-			subreq->wb_index = req->wb_index;
 		}
 	} while (bytes_left > 0);
 
@@ -1060,6 +1094,10 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 err_ptr:
 	desc->pg_error = PTR_ERR(subreq);
 	nfs_page_group_unlock(req);
+	return 0;
+out_cleanup_subreq:
+	if (req != subreq)
+		nfs_pageio_cleanup_request(desc, subreq);
 	return 0;
 }
 
@@ -1079,7 +1117,6 @@ static int nfs_do_recoalesce(struct nfs_pageio_descriptor *desc)
 			struct nfs_page *req;
 
 			req = list_first_entry(&head, struct nfs_page, wb_list);
-			nfs_list_remove_request(req);
 			if (__nfs_pageio_add_request(desc, req))
 				continue;
 			if (desc->pg_error < 0) {
@@ -1120,7 +1157,8 @@ static void nfs_pageio_error_cleanup(struct nfs_pageio_descriptor *desc)
 
 	for (midx = 0; midx < desc->pg_mirror_count; midx++) {
 		mirror = &desc->pg_mirrors[midx];
-		desc->pg_completion_ops->error_cleanup(&mirror->pg_list);
+		desc->pg_completion_ops->error_cleanup(&mirror->pg_list,
+				desc->pg_error);
 	}
 }
 
@@ -1149,30 +1187,28 @@ int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 			     lastreq = lastreq->wb_this_page)
 				;
 
-			dupreq = nfs_create_request(req->wb_context,
-					req->wb_page, lastreq, pgbase, bytes);
+			dupreq = nfs_create_subreq(req, lastreq,
+					pgbase, offset, bytes);
 
+			nfs_page_group_unlock(req);
 			if (IS_ERR(dupreq)) {
-				nfs_page_group_unlock(req);
 				desc->pg_error = PTR_ERR(dupreq);
 				goto out_failed;
 			}
-
-			nfs_lock_request(dupreq);
-			nfs_page_group_unlock(req);
-			dupreq->wb_offset = offset;
-			dupreq->wb_index = req->wb_index;
 		} else
 			dupreq = req;
 
 		if (nfs_pgio_has_mirroring(desc))
 			desc->pg_mirror_idx = midx;
 		if (!nfs_pageio_add_request_mirror(desc, dupreq))
-			goto out_failed;
+			goto out_cleanup_subreq;
 	}
 
 	return 1;
 
+out_cleanup_subreq:
+	if (req != dupreq)
+		nfs_pageio_cleanup_request(desc, dupreq);
 out_failed:
 	nfs_pageio_error_cleanup(desc);
 	return 0;
@@ -1194,7 +1230,7 @@ static void nfs_pageio_complete_mirror(struct nfs_pageio_descriptor *desc,
 		desc->pg_mirror_idx = mirror_idx;
 	for (;;) {
 		nfs_pageio_doio(desc);
-		if (!mirror->pg_recoalesce)
+		if (desc->pg_error < 0 || !mirror->pg_recoalesce)
 			break;
 		if (!nfs_do_recoalesce(desc))
 			break;
@@ -1215,21 +1251,23 @@ static void nfs_pageio_complete_mirror(struct nfs_pageio_descriptor *desc,
 int nfs_pageio_resend(struct nfs_pageio_descriptor *desc,
 		      struct nfs_pgio_header *hdr)
 {
-	LIST_HEAD(failed);
+	LIST_HEAD(pages);
 
 	desc->pg_io_completion = hdr->io_completion;
 	desc->pg_dreq = hdr->dreq;
-	while (!list_empty(&hdr->pages)) {
-		struct nfs_page *req = nfs_list_entry(hdr->pages.next);
+	list_splice_init(&hdr->pages, &pages);
+	while (!list_empty(&pages)) {
+		struct nfs_page *req = nfs_list_entry(pages.next);
 
-		nfs_list_remove_request(req);
 		if (!nfs_pageio_add_request(desc, req))
-			nfs_list_add_request(req, &failed);
+			break;
 	}
 	nfs_pageio_complete(desc);
-	if (!list_empty(&failed)) {
-		list_move(&failed, &hdr->pages);
-		return desc->pg_error < 0 ? desc->pg_error : -EIO;
+	if (!list_empty(&pages)) {
+		int err = desc->pg_error < 0 ? desc->pg_error : -EIO;
+		hdr->completion_ops->error_cleanup(&pages, err);
+		nfs_set_pgio_error(hdr, err, hdr->io_start);
+		return err;
 	}
 	return 0;
 }

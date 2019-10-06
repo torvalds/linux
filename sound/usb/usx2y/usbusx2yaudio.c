@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   US-X2Y AUDIO
  *   Copyright (c) 2002-2004 by Karsten Wiese
@@ -13,21 +14,6 @@
  *   Many codes borrowed from audio.c by 
  *	    Alan Cox (alan@lxorguk.ukuu.org.uk)
  *	    Thomas Sailer (sailer@ife.ee.ethz.ch)
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 
@@ -981,18 +967,17 @@ static int usX2Y_audio_stream_new(struct snd_card *card, int playback_endpoint, 
 
 	sprintf(pcm->name, NAME_ALLCAPS" Audio #%d", usX2Y(card)->pcm_devs);
 
-	if ((playback_endpoint &&
-	     0 > (err = snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
-						     SNDRV_DMA_TYPE_CONTINUOUS,
-						     snd_dma_continuous_data(GFP_KERNEL),
-						     64*1024, 128*1024))) ||
-	    0 > (err = snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
-	    					     SNDRV_DMA_TYPE_CONTINUOUS,
-	    					     snd_dma_continuous_data(GFP_KERNEL),
-						     64*1024, 128*1024))) {
-		snd_usX2Y_pcm_private_free(pcm);
-		return err;
+	if (playback_endpoint) {
+		snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
+					      SNDRV_DMA_TYPE_CONTINUOUS,
+					      snd_dma_continuous_data(GFP_KERNEL),
+					      64*1024, 128*1024);
 	}
+
+	snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
+				      SNDRV_DMA_TYPE_CONTINUOUS,
+				      snd_dma_continuous_data(GFP_KERNEL),
+				      64*1024, 128*1024);
 	usX2Y(card)->pcm_devs++;
 
 	return 0;

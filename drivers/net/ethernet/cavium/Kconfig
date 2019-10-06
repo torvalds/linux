@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Cavium ethernet device configuration
 #
@@ -64,11 +65,11 @@ config CAVIUM_PTP
 config LIQUIDIO
 	tristate "Cavium LiquidIO support"
 	depends on 64BIT && PCI
-	depends on MAY_USE_DEVLINK
 	depends on PCI
 	imply PTP_1588_CLOCK
 	select FW_LOADER
 	select LIBCRC32C
+	select NET_DEVLINK
 	---help---
 	  This driver supports Cavium LiquidIO Intelligent Server Adapters
 	  based on CN66XX, CN68XX and CN23XX chips.

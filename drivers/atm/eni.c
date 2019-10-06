@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/atm/eni.c - Efficient Networks ENI155P device driver */
  
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
@@ -1135,7 +1136,7 @@ DPRINTK("doing direct send\n"); /* @@@ well, this doesn't work anyway */
 			else
 				put_dma(tx->index,eni_dev->dma,&j,(unsigned long)
 				    skb_frag_page(&skb_shinfo(skb)->frags[i]) +
-					skb_shinfo(skb)->frags[i].page_offset,
+					skb_frag_off(&skb_shinfo(skb)->frags[i]),
 				    skb_frag_size(&skb_shinfo(skb)->frags[i]));
 	}
 	if (skb->len & 3) {

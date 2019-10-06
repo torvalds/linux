@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2010-2017 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
  *
  * membarrier system call
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include "sched.h"
 
@@ -39,10 +30,42 @@ static void ipi_mb(void *info)
 	smp_mb();	/* IPIs should be serializing but paranoid. */
 }
 
+static void ipi_sync_rq_state(void *info)
+{
+	struct mm_struct *mm = (struct mm_struct *) info;
+
+	if (current->mm != mm)
+		return;
+	this_cpu_write(runqueues.membarrier_state,
+		       atomic_read(&mm->membarrier_state));
+	/*
+	 * Issue a memory barrier after setting
+	 * MEMBARRIER_STATE_GLOBAL_EXPEDITED in the current runqueue to
+	 * guarantee that no memory access following registration is reordered
+	 * before registration.
+	 */
+	smp_mb();
+}
+
+void membarrier_exec_mmap(struct mm_struct *mm)
+{
+	/*
+	 * Issue a memory barrier before clearing membarrier_state to
+	 * guarantee that no memory access prior to exec is reordered after
+	 * clearing this state.
+	 */
+	smp_mb();
+	atomic_set(&mm->membarrier_state, 0);
+	/*
+	 * Keep the runqueue membarrier_state in sync with this mm
+	 * membarrier_state.
+	 */
+	this_cpu_write(runqueues.membarrier_state, 0);
+}
+
 static int membarrier_global_expedited(void)
 {
 	int cpu;
-	bool fallback = false;
 	cpumask_var_t tmpmask;
 
 	if (num_online_cpus() == 1)
@@ -54,17 +77,11 @@ static int membarrier_global_expedited(void)
 	 */
 	smp_mb();	/* system call entry is not a mb. */
 
-	/*
-	 * Expedited membarrier commands guarantee that they won't
-	 * block, hence the GFP_NOWAIT allocation flag and fallback
-	 * implementation.
-	 */
-	if (!zalloc_cpumask_var(&tmpmask, GFP_NOWAIT)) {
-		/* Fallback for OOM. */
-		fallback = true;
-	}
+	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
+		return -ENOMEM;
 
 	cpus_read_lock();
+	rcu_read_lock();
 	for_each_online_cpu(cpu) {
 		struct task_struct *p;
 
@@ -79,23 +96,28 @@ static int membarrier_global_expedited(void)
 		if (cpu == raw_smp_processor_id())
 			continue;
 
-		rcu_read_lock();
-		p = task_rcu_dereference(&cpu_rq(cpu)->curr);
-		if (p && p->mm && (atomic_read(&p->mm->membarrier_state) &
-				   MEMBARRIER_STATE_GLOBAL_EXPEDITED)) {
-			if (!fallback)
-				__cpumask_set_cpu(cpu, tmpmask);
-			else
-				smp_call_function_single(cpu, ipi_mb, NULL, 1);
-		}
-		rcu_read_unlock();
+		if (!(READ_ONCE(cpu_rq(cpu)->membarrier_state) &
+		    MEMBARRIER_STATE_GLOBAL_EXPEDITED))
+			continue;
+
+		/*
+		 * Skip the CPU if it runs a kernel thread. The scheduler
+		 * leaves the prior task mm in place as an optimization when
+		 * scheduling a kthread.
+		 */
+		p = rcu_dereference(cpu_rq(cpu)->curr);
+		if (p->flags & PF_KTHREAD)
+			continue;
+
+		__cpumask_set_cpu(cpu, tmpmask);
 	}
-	if (!fallback) {
-		preempt_disable();
-		smp_call_function_many(tmpmask, ipi_mb, NULL, 1);
-		preempt_enable();
-		free_cpumask_var(tmpmask);
-	}
+	rcu_read_unlock();
+
+	preempt_disable();
+	smp_call_function_many(tmpmask, ipi_mb, NULL, 1);
+	preempt_enable();
+
+	free_cpumask_var(tmpmask);
 	cpus_read_unlock();
 
 	/*
@@ -110,22 +132,22 @@ static int membarrier_global_expedited(void)
 static int membarrier_private_expedited(int flags)
 {
 	int cpu;
-	bool fallback = false;
 	cpumask_var_t tmpmask;
+	struct mm_struct *mm = current->mm;
 
 	if (flags & MEMBARRIER_FLAG_SYNC_CORE) {
 		if (!IS_ENABLED(CONFIG_ARCH_HAS_MEMBARRIER_SYNC_CORE))
 			return -EINVAL;
-		if (!(atomic_read(&current->mm->membarrier_state) &
+		if (!(atomic_read(&mm->membarrier_state) &
 		      MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE_READY))
 			return -EPERM;
 	} else {
-		if (!(atomic_read(&current->mm->membarrier_state) &
+		if (!(atomic_read(&mm->membarrier_state) &
 		      MEMBARRIER_STATE_PRIVATE_EXPEDITED_READY))
 			return -EPERM;
 	}
 
-	if (num_online_cpus() == 1)
+	if (atomic_read(&mm->mm_users) == 1 || num_online_cpus() == 1)
 		return 0;
 
 	/*
@@ -134,17 +156,11 @@ static int membarrier_private_expedited(int flags)
 	 */
 	smp_mb();	/* system call entry is not a mb. */
 
-	/*
-	 * Expedited membarrier commands guarantee that they won't
-	 * block, hence the GFP_NOWAIT allocation flag and fallback
-	 * implementation.
-	 */
-	if (!zalloc_cpumask_var(&tmpmask, GFP_NOWAIT)) {
-		/* Fallback for OOM. */
-		fallback = true;
-	}
+	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
+		return -ENOMEM;
 
 	cpus_read_lock();
+	rcu_read_lock();
 	for_each_online_cpu(cpu) {
 		struct task_struct *p;
 
@@ -158,22 +174,17 @@ static int membarrier_private_expedited(int flags)
 		 */
 		if (cpu == raw_smp_processor_id())
 			continue;
-		rcu_read_lock();
-		p = task_rcu_dereference(&cpu_rq(cpu)->curr);
-		if (p && p->mm == current->mm) {
-			if (!fallback)
-				__cpumask_set_cpu(cpu, tmpmask);
-			else
-				smp_call_function_single(cpu, ipi_mb, NULL, 1);
-		}
-		rcu_read_unlock();
+		p = rcu_dereference(cpu_rq(cpu)->curr);
+		if (p && p->mm == mm)
+			__cpumask_set_cpu(cpu, tmpmask);
 	}
-	if (!fallback) {
-		preempt_disable();
-		smp_call_function_many(tmpmask, ipi_mb, NULL, 1);
-		preempt_enable();
-		free_cpumask_var(tmpmask);
-	}
+	rcu_read_unlock();
+
+	preempt_disable();
+	smp_call_function_many(tmpmask, ipi_mb, NULL, 1);
+	preempt_enable();
+
+	free_cpumask_var(tmpmask);
 	cpus_read_unlock();
 
 	/*
@@ -186,32 +197,78 @@ static int membarrier_private_expedited(int flags)
 	return 0;
 }
 
+static int sync_runqueues_membarrier_state(struct mm_struct *mm)
+{
+	int membarrier_state = atomic_read(&mm->membarrier_state);
+	cpumask_var_t tmpmask;
+	int cpu;
+
+	if (atomic_read(&mm->mm_users) == 1 || num_online_cpus() == 1) {
+		this_cpu_write(runqueues.membarrier_state, membarrier_state);
+
+		/*
+		 * For single mm user, we can simply issue a memory barrier
+		 * after setting MEMBARRIER_STATE_GLOBAL_EXPEDITED in the
+		 * mm and in the current runqueue to guarantee that no memory
+		 * access following registration is reordered before
+		 * registration.
+		 */
+		smp_mb();
+		return 0;
+	}
+
+	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
+		return -ENOMEM;
+
+	/*
+	 * For mm with multiple users, we need to ensure all future
+	 * scheduler executions will observe @mm's new membarrier
+	 * state.
+	 */
+	synchronize_rcu();
+
+	/*
+	 * For each cpu runqueue, if the task's mm match @mm, ensure that all
+	 * @mm's membarrier state set bits are also set in in the runqueue's
+	 * membarrier state. This ensures that a runqueue scheduling
+	 * between threads which are users of @mm has its membarrier state
+	 * updated.
+	 */
+	cpus_read_lock();
+	rcu_read_lock();
+	for_each_online_cpu(cpu) {
+		struct rq *rq = cpu_rq(cpu);
+		struct task_struct *p;
+
+		p = rcu_dereference(rq->curr);
+		if (p && p->mm == mm)
+			__cpumask_set_cpu(cpu, tmpmask);
+	}
+	rcu_read_unlock();
+
+	preempt_disable();
+	smp_call_function_many(tmpmask, ipi_sync_rq_state, mm, 1);
+	preempt_enable();
+
+	free_cpumask_var(tmpmask);
+	cpus_read_unlock();
+
+	return 0;
+}
+
 static int membarrier_register_global_expedited(void)
 {
 	struct task_struct *p = current;
 	struct mm_struct *mm = p->mm;
+	int ret;
 
 	if (atomic_read(&mm->membarrier_state) &
 	    MEMBARRIER_STATE_GLOBAL_EXPEDITED_READY)
 		return 0;
 	atomic_or(MEMBARRIER_STATE_GLOBAL_EXPEDITED, &mm->membarrier_state);
-	if (atomic_read(&mm->mm_users) == 1 && get_nr_threads(p) == 1) {
-		/*
-		 * For single mm user, single threaded process, we can
-		 * simply issue a memory barrier after setting
-		 * MEMBARRIER_STATE_GLOBAL_EXPEDITED to guarantee that
-		 * no memory access following registration is reordered
-		 * before registration.
-		 */
-		smp_mb();
-	} else {
-		/*
-		 * For multi-mm user threads, we need to ensure all
-		 * future scheduler executions will observe the new
-		 * thread flag state for this mm.
-		 */
-		synchronize_rcu();
-	}
+	ret = sync_runqueues_membarrier_state(mm);
+	if (ret)
+		return ret;
 	atomic_or(MEMBARRIER_STATE_GLOBAL_EXPEDITED_READY,
 		  &mm->membarrier_state);
 
@@ -222,12 +279,15 @@ static int membarrier_register_private_expedited(int flags)
 {
 	struct task_struct *p = current;
 	struct mm_struct *mm = p->mm;
-	int state = MEMBARRIER_STATE_PRIVATE_EXPEDITED_READY;
+	int ready_state = MEMBARRIER_STATE_PRIVATE_EXPEDITED_READY,
+	    set_state = MEMBARRIER_STATE_PRIVATE_EXPEDITED,
+	    ret;
 
 	if (flags & MEMBARRIER_FLAG_SYNC_CORE) {
 		if (!IS_ENABLED(CONFIG_ARCH_HAS_MEMBARRIER_SYNC_CORE))
 			return -EINVAL;
-		state = MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE_READY;
+		ready_state =
+			MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE_READY;
 	}
 
 	/*
@@ -235,20 +295,15 @@ static int membarrier_register_private_expedited(int flags)
 	 * groups, which use the same mm. (CLONE_VM but not
 	 * CLONE_THREAD).
 	 */
-	if (atomic_read(&mm->membarrier_state) & state)
+	if ((atomic_read(&mm->membarrier_state) & ready_state) == ready_state)
 		return 0;
-	atomic_or(MEMBARRIER_STATE_PRIVATE_EXPEDITED, &mm->membarrier_state);
 	if (flags & MEMBARRIER_FLAG_SYNC_CORE)
-		atomic_or(MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE,
-			  &mm->membarrier_state);
-	if (!(atomic_read(&mm->mm_users) == 1 && get_nr_threads(p) == 1)) {
-		/*
-		 * Ensure all future scheduler executions will observe the
-		 * new thread flag state for this process.
-		 */
-		synchronize_rcu();
-	}
-	atomic_or(state, &mm->membarrier_state);
+		set_state |= MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE;
+	atomic_or(set_state, &mm->membarrier_state);
+	ret = sync_runqueues_membarrier_state(mm);
+	if (ret)
+		return ret;
+	atomic_or(ready_state, &mm->membarrier_state);
 
 	return 0;
 }
@@ -262,8 +317,10 @@ static int membarrier_register_private_expedited(int flags)
  * command specified does not exist, not available on the running
  * kernel, or if the command argument is invalid, this system call
  * returns -EINVAL. For a given command, with flags argument set to 0,
- * this system call is guaranteed to always return the same value until
- * reboot.
+ * if this system call returns -ENOSYS or -EINVAL, it is guaranteed to
+ * always return the same value until reboot. In addition, it can return
+ * -ENOMEM if there is not enough memory available to perform the system
+ * call.
  *
  * All memory accesses performed in program order from each targeted thread
  * is guaranteed to be ordered with respect to sys_membarrier(). If we use

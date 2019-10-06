@@ -112,6 +112,8 @@ static const struct vmw_res_func vmw_legacy_surface_func = {
 	.res_type = vmw_res_surface,
 	.needs_backup = false,
 	.may_evict = true,
+	.prio = 1,
+	.dirty_prio = 1,
 	.type_name = "legacy surfaces",
 	.backup_placement = &vmw_srf_placement,
 	.create = &vmw_legacy_srf_create,
@@ -124,6 +126,8 @@ static const struct vmw_res_func vmw_gb_surface_func = {
 	.res_type = vmw_res_surface,
 	.needs_backup = true,
 	.may_evict = true,
+	.prio = 1,
+	.dirty_prio = 2,
 	.type_name = "guest backed surfaces",
 	.backup_placement = &vmw_mob_placement,
 	.create = vmw_gb_surface_create,
@@ -342,12 +346,9 @@ static void vmw_hw_surface_destroy(struct vmw_resource *res)
 
 	if (res->id != -1) {
 
-		cmd = vmw_fifo_reserve(dev_priv, vmw_surface_destroy_size());
-		if (unlikely(!cmd)) {
-			DRM_ERROR("Failed reserving FIFO space for surface "
-				  "destruction.\n");
+		cmd = VMW_FIFO_RESERVE(dev_priv, vmw_surface_destroy_size());
+		if (unlikely(!cmd))
 			return;
-		}
 
 		vmw_surface_destroy_encode(res->id, cmd);
 		vmw_fifo_commit(dev_priv, vmw_surface_destroy_size());
@@ -414,10 +415,8 @@ static int vmw_legacy_srf_create(struct vmw_resource *res)
 	 */
 
 	submit_size = vmw_surface_define_size(srf);
-	cmd = vmw_fifo_reserve(dev_priv, submit_size);
+	cmd = VMW_FIFO_RESERVE(dev_priv, submit_size);
 	if (unlikely(!cmd)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "creation.\n");
 		ret = -ENOMEM;
 		goto out_no_fifo;
 	}
@@ -468,12 +467,10 @@ static int vmw_legacy_srf_dma(struct vmw_resource *res,
 
 	BUG_ON(!val_buf->bo);
 	submit_size = vmw_surface_dma_size(srf);
-	cmd = vmw_fifo_reserve(dev_priv, submit_size);
-	if (unlikely(!cmd)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "DMA.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, submit_size);
+	if (unlikely(!cmd))
 		return -ENOMEM;
-	}
+
 	vmw_bo_get_guest_ptr(val_buf->bo, &ptr);
 	vmw_surface_dma_encode(srf, cmd, &ptr, bind);
 
@@ -556,12 +553,9 @@ static int vmw_legacy_srf_destroy(struct vmw_resource *res)
 	 */
 
 	submit_size = vmw_surface_destroy_size();
-	cmd = vmw_fifo_reserve(dev_priv, submit_size);
-	if (unlikely(!cmd)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "eviction.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, submit_size);
+	if (unlikely(!cmd))
 		return -ENOMEM;
-	}
 
 	vmw_surface_destroy_encode(res->id, cmd);
 	vmw_fifo_commit(dev_priv, submit_size);
@@ -748,11 +742,10 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		ttm_round_pot(num_sizes * sizeof(struct drm_vmw_size)) +
 		ttm_round_pot(num_sizes * sizeof(struct vmw_surface_offset));
 
-
 	desc = svga3dsurface_get_desc(req->format);
 	if (unlikely(desc->block_desc == SVGA3DBLOCKDESC_NONE)) {
-		DRM_ERROR("Invalid surface format for surface creation.\n");
-		DRM_ERROR("Format requested is: %d\n", req->format);
+		VMW_DEBUG_USER("Invalid format %d for surface creation.\n",
+			       req->format);
 		return -EINVAL;
 	}
 
@@ -764,8 +757,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 				   size, &ctx);
 	if (unlikely(ret != 0)) {
 		if (ret != -ERESTARTSYS)
-			DRM_ERROR("Out of graphics memory for surface"
-				  " creation.\n");
+			DRM_ERROR("Out of graphics memory for surface.\n");
 		goto out_unlock;
 	}
 
@@ -927,24 +919,18 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 		if (unlikely(drm_is_render_client(file_priv)))
 			require_exist = true;
 
-		if (READ_ONCE(vmw_fpriv(file_priv)->locked_master)) {
-			DRM_ERROR("Locked master refused legacy "
-				  "surface reference.\n");
-			return -EACCES;
-		}
-
 		handle = u_handle;
 	}
 
 	ret = -EINVAL;
 	base = ttm_base_object_lookup_for_ref(dev_priv->tdev, handle);
 	if (unlikely(!base)) {
-		DRM_ERROR("Could not find surface to reference.\n");
+		VMW_DEBUG_USER("Could not find surface to reference.\n");
 		goto out_no_lookup;
 	}
 
 	if (unlikely(ttm_base_object_type(base) != VMW_RES_SURFACE)) {
-		DRM_ERROR("Referenced object is not a surface.\n");
+		VMW_DEBUG_USER("Referenced object is not a surface.\n");
 		goto out_bad_resource;
 	}
 
@@ -1022,8 +1008,8 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 		ret = copy_to_user(user_sizes, &srf->base_size,
 				   sizeof(srf->base_size));
 	if (unlikely(ret != 0)) {
-		DRM_ERROR("copy_to_user failed %p %u\n",
-			  user_sizes, srf->num_sizes);
+		VMW_DEBUG_USER("copy_to_user failed %p %u\n", user_sizes,
+			       srf->num_sizes);
 		ttm_ref_object_base_unref(tfile, base->handle, TTM_REF_USAGE);
 		ret = -EFAULT;
 	}
@@ -1088,12 +1074,10 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		submit_len = sizeof(*cmd);
 	}
 
-	cmd = vmw_fifo_reserve(dev_priv, submit_len);
+	cmd = VMW_FIFO_RESERVE(dev_priv, submit_len);
 	cmd2 = (typeof(cmd2))cmd;
 	cmd3 = (typeof(cmd3))cmd;
 	if (unlikely(!cmd)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "creation.\n");
 		ret = -ENOMEM;
 		goto out_no_fifo;
 	}
@@ -1171,12 +1155,9 @@ static int vmw_gb_surface_bind(struct vmw_resource *res,
 
 	submit_size = sizeof(*cmd1) + (res->backup_dirty ? sizeof(*cmd2) : 0);
 
-	cmd1 = vmw_fifo_reserve(dev_priv, submit_size);
-	if (unlikely(!cmd1)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "binding.\n");
+	cmd1 = VMW_FIFO_RESERVE(dev_priv, submit_size);
+	if (unlikely(!cmd1))
 		return -ENOMEM;
-	}
 
 	cmd1->header.id = SVGA_3D_CMD_BIND_GB_SURFACE;
 	cmd1->header.size = sizeof(cmd1->body);
@@ -1221,12 +1202,9 @@ static int vmw_gb_surface_unbind(struct vmw_resource *res,
 	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
 
 	submit_size = sizeof(*cmd3) + (readback ? sizeof(*cmd1) : sizeof(*cmd2));
-	cmd = vmw_fifo_reserve(dev_priv, submit_size);
-	if (unlikely(!cmd)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "unbinding.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, submit_size);
+	if (unlikely(!cmd))
 		return -ENOMEM;
-	}
 
 	if (readback) {
 		cmd1 = (void *) cmd;
@@ -1280,10 +1258,8 @@ static int vmw_gb_surface_destroy(struct vmw_resource *res)
 	vmw_view_surface_list_destroy(dev_priv, &srf->view_list);
 	vmw_binding_res_list_scrub(&res->binding_head);
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(!cmd)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "destruction.\n");
 		mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}
@@ -1405,16 +1381,16 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 
 	if (for_scanout) {
 		if (!svga3dsurface_is_screen_target_format(format)) {
-			DRM_ERROR("Invalid Screen Target surface format.");
+			VMW_DEBUG_USER("Invalid Screen Target surface format.");
 			return -EINVAL;
 		}
 
 		if (size.width > dev_priv->texture_max_width ||
 		    size.height > dev_priv->texture_max_height) {
-			DRM_ERROR("%ux%u\n, exceeds max surface size %ux%u",
-				  size.width, size.height,
-				  dev_priv->texture_max_width,
-				  dev_priv->texture_max_height);
+			VMW_DEBUG_USER("%ux%u\n, exceeds max surface size %ux%u",
+				       size.width, size.height,
+				       dev_priv->texture_max_width,
+				       dev_priv->texture_max_height);
 			return -EINVAL;
 		}
 	} else {
@@ -1422,14 +1398,14 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 
 		desc = svga3dsurface_get_desc(format);
 		if (unlikely(desc->block_desc == SVGA3DBLOCKDESC_NONE)) {
-			DRM_ERROR("Invalid surface format.\n");
+			VMW_DEBUG_USER("Invalid surface format.\n");
 			return -EINVAL;
 		}
 	}
 
 	/* array_size must be null for non-GL3 host. */
 	if (array_size > 0 && !dev_priv->has_dx) {
-		DRM_ERROR("Tried to create DX surface on non-DX host.\n");
+		VMW_DEBUG_USER("Tried to create DX surface on non-DX host.\n");
 		return -EINVAL;
 	}
 
@@ -1651,7 +1627,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 		if (ret == 0) {
 			if (res->backup->base.num_pages * PAGE_SIZE <
 			    res->backup_size) {
-				DRM_ERROR("Surface backup buffer too small.\n");
+				VMW_DEBUG_USER("Surface backup buffer too small.\n");
 				vmw_bo_unreference(&res->backup);
 				ret = -EINVAL;
 				goto out_unlock;
@@ -1691,7 +1667,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 	rep->backup_size = res->backup_size;
 	if (res->backup) {
 		rep->buffer_map_handle =
-			drm_vma_node_offset_addr(&res->backup->base.vma_node);
+			drm_vma_node_offset_addr(&res->backup->base.base.vma_node);
 		rep->buffer_size = res->backup->base.num_pages * PAGE_SIZE;
 		rep->buffer_handle = backup_handle;
 	} else {
@@ -1767,7 +1743,7 @@ vmw_gb_surface_reference_internal(struct drm_device *dev,
 	rep->crep.backup_size = srf->res.backup_size;
 	rep->crep.buffer_handle = backup_handle;
 	rep->crep.buffer_map_handle =
-		drm_vma_node_offset_addr(&srf->res.backup->base.vma_node);
+		drm_vma_node_offset_addr(&srf->res.backup->base.base.vma_node);
 	rep->crep.buffer_size = srf->res.backup->base.num_pages * PAGE_SIZE;
 
 	rep->creq.version = drm_vmw_gb_surface_v1;

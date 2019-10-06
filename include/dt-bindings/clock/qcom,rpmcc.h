@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2015 Linaro Limited
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _DT_BINDINGS_CLK_MSM_RPMCC_H
@@ -127,5 +119,15 @@
 #define RPM_SMD_BIMC_GPU_A_CLK			77
 #define RPM_SMD_QPIC_CLK			78
 #define RPM_SMD_QPIC_CLK_A			79
+#define RPM_SMD_LN_BB_CLK1			80
+#define RPM_SMD_LN_BB_CLK1_A			81
+#define RPM_SMD_LN_BB_CLK2			82
+#define RPM_SMD_LN_BB_CLK2_A			83
+#define RPM_SMD_LN_BB_CLK3_PIN			84
+#define RPM_SMD_LN_BB_CLK3_A_PIN		85
+#define RPM_SMD_RF_CLK3				86
+#define RPM_SMD_RF_CLK3_A			87
+#define RPM_SMD_RF_CLK3_PIN			88
+#define RPM_SMD_RF_CLK3_A_PIN			89
 
 #endif

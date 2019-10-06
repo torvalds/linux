@@ -33,11 +33,22 @@ struct ice_aqc_get_ver {
 	u8 api_patch;
 };
 
+/* Send driver version (indirect 0x0002) */
+struct ice_aqc_driver_ver {
+	u8 major_ver;
+	u8 minor_ver;
+	u8 build_ver;
+	u8 subbuild_ver;
+	u8 reserved[4];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
 /* Queue Shutdown (direct 0x0003) */
 struct ice_aqc_q_shutdown {
+	u8 driver_unloading;
 #define ICE_AQC_DRIVER_UNLOADING	BIT(0)
-	__le32 driver_unloading;
-	u8 reserved[12];
+	u8 reserved[15];
 };
 
 /* Request resource ownership (direct 0x0008)
@@ -62,7 +73,7 @@ struct ice_aqc_req_res {
 #define ICE_AQ_RES_NVM_WRITE_DFLT_TIMEOUT_MS	180000
 #define ICE_AQ_RES_CHNG_LOCK_DFLT_TIMEOUT_MS	1000
 #define ICE_AQ_RES_GLBL_LOCK_DFLT_TIMEOUT_MS	3000
-	/* For SDP: pin id of the SDP */
+	/* For SDP: pin ID of the SDP */
 	__le32 res_number;
 	/* Status is only used for ICE_AQC_RES_ID_GLBL_LOCK */
 	__le16 status;
@@ -91,6 +102,7 @@ struct ice_aqc_list_caps_elem {
 #define ICE_AQC_CAPS_SRIOV				0x0012
 #define ICE_AQC_CAPS_VF					0x0013
 #define ICE_AQC_CAPS_VSI				0x0017
+#define ICE_AQC_CAPS_DCB				0x0018
 #define ICE_AQC_CAPS_RSS				0x0040
 #define ICE_AQC_CAPS_RXQS				0x0041
 #define ICE_AQC_CAPS_TXQS				0x0042
@@ -120,11 +132,9 @@ struct ice_aqc_manage_mac_read {
 #define ICE_AQC_MAN_MAC_WOL_ADDR_VALID		BIT(7)
 #define ICE_AQC_MAN_MAC_READ_S			4
 #define ICE_AQC_MAN_MAC_READ_M			(0xF << ICE_AQC_MAN_MAC_READ_S)
-	u8 lport_num;
-	u8 lport_num_valid;
-#define ICE_AQC_MAN_MAC_PORT_NUM_IS_VALID	BIT(0)
+	u8 rsvd[2];
 	u8 num_addr; /* Used in response */
-	u8 reserved[3];
+	u8 rsvd1[3];
 	__le32 addr_high;
 	__le32 addr_low;
 };
@@ -140,7 +150,7 @@ struct ice_aqc_manage_mac_read_resp {
 
 /* Manage MAC address, write command - direct (0x0108) */
 struct ice_aqc_manage_mac_write {
-	u8 port_num;
+	u8 rsvd;
 	u8 flags;
 #define ICE_AQC_MAN_MAC_WR_MC_MAG_EN		BIT(0)
 #define ICE_AQC_MAN_MAC_WR_WOL_LAA_PFR_KEEP	BIT(1)
@@ -657,8 +667,13 @@ struct ice_aqc_get_topo {
 
 /* Update TSE (indirect 0x0403)
  * Get TSE (indirect 0x0404)
+ * Add TSE (indirect 0x0401)
+ * Delete TSE (indirect 0x040F)
+ * Move TSE (indirect 0x0408)
+ * Suspend Nodes (indirect 0x0409)
+ * Resume Nodes (indirect 0x040A)
  */
-struct ice_aqc_get_cfg_elem {
+struct ice_aqc_sched_elem_cmd {
 	__le16 num_elem_req;	/* Used by commands */
 	__le16 num_elem_resp;	/* Used by responses */
 	__le32 reserved;
@@ -672,18 +687,6 @@ struct ice_aqc_get_cfg_elem {
  */
 struct ice_aqc_suspend_resume_elem {
 	__le32 teid[1];
-};
-
-/* Add TSE (indirect 0x0401)
- * Delete TSE (indirect 0x040F)
- * Move TSE (indirect 0x0408)
- */
-struct ice_aqc_add_move_delete_elem {
-	__le16 num_grps_req;
-	__le16 num_grps_updated;
-	__le32 reserved;
-	__le32 addr_high;
-	__le32 addr_low;
 };
 
 struct ice_aqc_elem_info_bw {
@@ -752,6 +755,32 @@ struct ice_aqc_get_topo_elem {
 struct ice_aqc_delete_elem {
 	struct ice_aqc_txsched_topo_grp_info_hdr hdr;
 	__le32 teid[1];
+};
+
+/* Query Port ETS (indirect 0x040E)
+ *
+ * This indirect command is used to query port TC node configuration.
+ */
+struct ice_aqc_query_port_ets {
+	__le32 port_teid;
+	__le32 reserved;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+struct ice_aqc_port_ets_elem {
+	u8 tc_valid_bits;
+	u8 reserved[3];
+	/* 3 bits for UP per TC 0-7, 4th byte reserved */
+	__le32 up2tc;
+	u8 tc_bw_share[8];
+	__le32 port_eir_prof_id;
+	__le32 port_cir_prof_id;
+	/* 3 bits per Node priority to TC 0-7, 4th byte reserved */
+	__le32 tc_node_prio;
+#define ICE_TC_NODE_PRIO_S	0x4
+	u8 reserved1[4];
+	__le32 tc_node_teid[8]; /* Used for response, reserved in command */
 };
 
 /* Query Scheduler Resource Allocation (indirect 0x0412)
@@ -854,11 +883,46 @@ struct ice_aqc_get_phy_caps {
 #define ICE_PHY_TYPE_LOW_40GBASE_KR4		BIT_ULL(33)
 #define ICE_PHY_TYPE_LOW_40G_XLAUI_AOC_ACC	BIT_ULL(34)
 #define ICE_PHY_TYPE_LOW_40G_XLAUI		BIT_ULL(35)
+#define ICE_PHY_TYPE_LOW_50GBASE_CR2		BIT_ULL(36)
+#define ICE_PHY_TYPE_LOW_50GBASE_SR2		BIT_ULL(37)
+#define ICE_PHY_TYPE_LOW_50GBASE_LR2		BIT_ULL(38)
+#define ICE_PHY_TYPE_LOW_50GBASE_KR2		BIT_ULL(39)
+#define ICE_PHY_TYPE_LOW_50G_LAUI2_AOC_ACC	BIT_ULL(40)
+#define ICE_PHY_TYPE_LOW_50G_LAUI2		BIT_ULL(41)
+#define ICE_PHY_TYPE_LOW_50G_AUI2_AOC_ACC	BIT_ULL(42)
+#define ICE_PHY_TYPE_LOW_50G_AUI2		BIT_ULL(43)
+#define ICE_PHY_TYPE_LOW_50GBASE_CP		BIT_ULL(44)
+#define ICE_PHY_TYPE_LOW_50GBASE_SR		BIT_ULL(45)
+#define ICE_PHY_TYPE_LOW_50GBASE_FR		BIT_ULL(46)
+#define ICE_PHY_TYPE_LOW_50GBASE_LR		BIT_ULL(47)
+#define ICE_PHY_TYPE_LOW_50GBASE_KR_PAM4	BIT_ULL(48)
+#define ICE_PHY_TYPE_LOW_50G_AUI1_AOC_ACC	BIT_ULL(49)
+#define ICE_PHY_TYPE_LOW_50G_AUI1		BIT_ULL(50)
+#define ICE_PHY_TYPE_LOW_100GBASE_CR4		BIT_ULL(51)
+#define ICE_PHY_TYPE_LOW_100GBASE_SR4		BIT_ULL(52)
+#define ICE_PHY_TYPE_LOW_100GBASE_LR4		BIT_ULL(53)
+#define ICE_PHY_TYPE_LOW_100GBASE_KR4		BIT_ULL(54)
+#define ICE_PHY_TYPE_LOW_100G_CAUI4_AOC_ACC	BIT_ULL(55)
+#define ICE_PHY_TYPE_LOW_100G_CAUI4		BIT_ULL(56)
+#define ICE_PHY_TYPE_LOW_100G_AUI4_AOC_ACC	BIT_ULL(57)
+#define ICE_PHY_TYPE_LOW_100G_AUI4		BIT_ULL(58)
+#define ICE_PHY_TYPE_LOW_100GBASE_CR_PAM4	BIT_ULL(59)
+#define ICE_PHY_TYPE_LOW_100GBASE_KR_PAM4	BIT_ULL(60)
+#define ICE_PHY_TYPE_LOW_100GBASE_CP2		BIT_ULL(61)
+#define ICE_PHY_TYPE_LOW_100GBASE_SR2		BIT_ULL(62)
+#define ICE_PHY_TYPE_LOW_100GBASE_DR		BIT_ULL(63)
 #define ICE_PHY_TYPE_LOW_MAX_INDEX		63
+/* The second set of defines is for phy_type_high. */
+#define ICE_PHY_TYPE_HIGH_100GBASE_KR2_PAM4	BIT_ULL(0)
+#define ICE_PHY_TYPE_HIGH_100G_CAUI2_AOC_ACC	BIT_ULL(1)
+#define ICE_PHY_TYPE_HIGH_100G_CAUI2		BIT_ULL(2)
+#define ICE_PHY_TYPE_HIGH_100G_AUI2_AOC_ACC	BIT_ULL(3)
+#define ICE_PHY_TYPE_HIGH_100G_AUI2		BIT_ULL(4)
+#define ICE_PHY_TYPE_HIGH_MAX_INDEX		19
 
 struct ice_aqc_get_phy_caps_data {
 	__le64 phy_type_low; /* Use values from ICE_PHY_TYPE_LOW_* */
-	__le64 reserved;
+	__le64 phy_type_high; /* Use values from ICE_PHY_TYPE_HIGH_* */
 	u8 caps;
 #define ICE_AQC_PHY_EN_TX_LINK_PAUSE			BIT(0)
 #define ICE_AQC_PHY_EN_RX_LINK_PAUSE			BIT(1)
@@ -866,6 +930,8 @@ struct ice_aqc_get_phy_caps_data {
 #define ICE_AQC_PHY_EN_LINK				BIT(3)
 #define ICE_AQC_PHY_AN_MODE				BIT(4)
 #define ICE_AQC_GET_PHY_EN_MOD_QUAL			BIT(5)
+#define ICE_AQC_PHY_EN_AUTO_FEC				BIT(7)
+#define ICE_AQC_PHY_CAPS_MASK				ICE_M(0xff, 0)
 	u8 low_power_ctrl;
 #define ICE_AQC_PHY_EN_D3COLD_LOW_POWER_AUTONEG		BIT(0)
 	__le16 eee_cap;
@@ -878,6 +944,7 @@ struct ice_aqc_get_phy_caps_data {
 #define ICE_AQC_PHY_EEE_EN_40GBASE_KR4			BIT(6)
 	__le16 eeer_value;
 	u8 phy_id_oui[4]; /* PHY/Module ID connected on the port */
+	u8 phy_fw_ver[8];
 	u8 link_fec_options;
 #define ICE_AQC_PHY_FEC_10G_KR_40G_KR4_EN		BIT(0)
 #define ICE_AQC_PHY_FEC_10G_KR_40G_KR4_REQ		BIT(1)
@@ -886,6 +953,8 @@ struct ice_aqc_get_phy_caps_data {
 #define ICE_AQC_PHY_FEC_25G_RS_544_REQ			BIT(4)
 #define ICE_AQC_PHY_FEC_25G_RS_CLAUSE91_EN		BIT(6)
 #define ICE_AQC_PHY_FEC_25G_KR_CLAUSE74_EN		BIT(7)
+#define ICE_AQC_PHY_FEC_MASK				ICE_M(0xdf, 0)
+	u8 rsvd1;	/* Byte 35 reserved */
 	u8 extended_compliance_code;
 #define ICE_MODULE_TYPE_TOTAL_BYTE			3
 	u8 module_type[ICE_MODULE_TYPE_TOTAL_BYTE];
@@ -900,13 +969,14 @@ struct ice_aqc_get_phy_caps_data {
 #define ICE_AQC_MOD_TYPE_BYTE2_SFP_PLUS			0xA0
 #define ICE_AQC_MOD_TYPE_BYTE2_QSFP_PLUS		0x86
 	u8 qualified_module_count;
+	u8 rsvd2[7];	/* Bytes 47:41 reserved */
 #define ICE_AQC_QUAL_MOD_COUNT_MAX			16
 	struct {
 		u8 v_oui[3];
-		u8 rsvd1;
+		u8 rsvd3;
 		u8 v_part[16];
 		__le32 v_rev;
-		__le64 rsvd8;
+		__le64 rsvd4;
 	} qual_modules[ICE_AQC_QUAL_MOD_COUNT_MAX];
 };
 
@@ -923,10 +993,11 @@ struct ice_aqc_set_phy_cfg {
 /* Set PHY config command data structure */
 struct ice_aqc_set_phy_cfg_data {
 	__le64 phy_type_low; /* Use values from ICE_PHY_TYPE_LOW_* */
-	__le64 rsvd0;
+	__le64 phy_type_high; /* Use values from ICE_PHY_TYPE_HIGH_* */
 	u8 caps;
-#define ICE_AQ_PHY_ENA_TX_PAUSE_ABILITY		BIT(0)
-#define ICE_AQ_PHY_ENA_RX_PAUSE_ABILITY		BIT(1)
+#define ICE_AQ_PHY_ENA_VALID_MASK	ICE_M(0xef, 0)
+#define ICE_AQ_PHY_ENA_TX_PAUSE_ABILITY	BIT(0)
+#define ICE_AQ_PHY_ENA_RX_PAUSE_ABILITY	BIT(1)
 #define ICE_AQ_PHY_ENA_LOW_POWER	BIT(2)
 #define ICE_AQ_PHY_ENA_LINK		BIT(3)
 #define ICE_AQ_PHY_ENA_AUTO_LINK_UPDT	BIT(5)
@@ -995,7 +1066,7 @@ struct ice_aqc_get_link_status_data {
 	u8 ext_info;
 #define ICE_AQ_LINK_PHY_TEMP_ALARM	BIT(0)
 #define ICE_AQ_LINK_EXCESSIVE_ERRORS	BIT(1)	/* Excessive Link Errors */
-	/* Port TX Suspended */
+	/* Port Tx Suspended */
 #define ICE_AQ_LINK_TX_S		2
 #define ICE_AQ_LINK_TX_M		(0x03 << ICE_AQ_LINK_TX_S)
 #define ICE_AQ_LINK_TX_ACTIVE		0
@@ -1007,6 +1078,7 @@ struct ice_aqc_get_link_status_data {
 #define ICE_AQ_LINK_25G_KR_FEC_EN	BIT(0)
 #define ICE_AQ_LINK_25G_RS_528_FEC_EN	BIT(1)
 #define ICE_AQ_LINK_25G_RS_544_FEC_EN	BIT(2)
+#define ICE_AQ_FEC_MASK			ICE_M(0x7, 0)
 	/* Pacing Config */
 #define ICE_AQ_CFG_PACING_S		3
 #define ICE_AQ_CFG_PACING_M		(0xF << ICE_AQ_CFG_PACING_S)
@@ -1032,10 +1104,12 @@ struct ice_aqc_get_link_status_data {
 #define ICE_AQ_LINK_SPEED_20GB		BIT(6)
 #define ICE_AQ_LINK_SPEED_25GB		BIT(7)
 #define ICE_AQ_LINK_SPEED_40GB		BIT(8)
+#define ICE_AQ_LINK_SPEED_50GB		BIT(9)
+#define ICE_AQ_LINK_SPEED_100GB		BIT(10)
 #define ICE_AQ_LINK_SPEED_UNKNOWN	BIT(15)
 	__le32 reserved3; /* Aligns next field to 8-byte boundary */
 	__le64 phy_type_low; /* Use values from ICE_PHY_TYPE_LOW_* */
-	__le64 reserved4;
+	__le64 phy_type_high; /* Use values from ICE_PHY_TYPE_HIGH_* */
 };
 
 /* Set event mask command (direct 0x0613) */
@@ -1053,6 +1127,24 @@ struct ice_aqc_set_event_mask {
 #define ICE_AQ_LINK_EVENT_MODULE_QUAL_FAIL	BIT(8)
 #define ICE_AQ_LINK_EVENT_PORT_TX_SUSPENDED	BIT(9)
 	u8	reserved1[6];
+};
+
+/* Set MAC Loopback command (direct 0x0620) */
+struct ice_aqc_set_mac_lb {
+	u8 lb_mode;
+#define ICE_AQ_MAC_LB_EN		BIT(0)
+#define ICE_AQ_MAC_LB_OSC_CLK		BIT(1)
+	u8 reserved[15];
+};
+
+/* Set Port Identification LED (direct, 0x06E9) */
+struct ice_aqc_set_port_id_led {
+	u8 lport_num;
+	u8 lport_num_valid;
+	u8 ident_mode;
+#define ICE_AQC_PORT_IDENT_LED_BLINK	BIT(0)
+#define ICE_AQC_PORT_IDENT_LED_ORIG	0
+	u8 rsvd[13];
 };
 
 /* NVM Read command (indirect 0x0701)
@@ -1078,10 +1170,21 @@ struct ice_aqc_nvm {
 	__le32 addr_low;
 };
 
+/* NVM Checksum Command (direct, 0x0706) */
+struct ice_aqc_nvm_checksum {
+	u8 flags;
+#define ICE_AQC_NVM_CHECKSUM_VERIFY	BIT(0)
+#define ICE_AQC_NVM_CHECKSUM_RECALC	BIT(1)
+	u8 rsvd;
+	__le16 checksum; /* Used only by response */
+#define ICE_AQC_NVM_CHECKSUM_CORRECT	0xBABA
+	u8 rsvd2[12];
+};
+
 /**
- * Send to PF command (indirect 0x0801) id is only used by PF
+ * Send to PF command (indirect 0x0801) ID is only used by PF
  *
- * Send to VF command (indirect 0x0802) id is only used by PF
+ * Send to VF command (indirect 0x0802) ID is only used by PF
  *
  */
 struct ice_aqc_pf_vf_msg {
@@ -1089,6 +1192,126 @@ struct ice_aqc_pf_vf_msg {
 	u32 reserved;
 	__le32 addr_high;
 	__le32 addr_low;
+};
+
+/* Get LLDP MIB (indirect 0x0A00)
+ * Note: This is also used by the LLDP MIB Change Event (0x0A01)
+ * as the format is the same.
+ */
+struct ice_aqc_lldp_get_mib {
+	u8 type;
+#define ICE_AQ_LLDP_MIB_TYPE_S			0
+#define ICE_AQ_LLDP_MIB_TYPE_M			(0x3 << ICE_AQ_LLDP_MIB_TYPE_S)
+#define ICE_AQ_LLDP_MIB_LOCAL			0
+#define ICE_AQ_LLDP_MIB_REMOTE			1
+#define ICE_AQ_LLDP_MIB_LOCAL_AND_REMOTE	2
+#define ICE_AQ_LLDP_BRID_TYPE_S			2
+#define ICE_AQ_LLDP_BRID_TYPE_M			(0x3 << ICE_AQ_LLDP_BRID_TYPE_S)
+#define ICE_AQ_LLDP_BRID_TYPE_NEAREST_BRID	0
+#define ICE_AQ_LLDP_BRID_TYPE_NON_TPMR		1
+/* Tx pause flags in the 0xA01 event use ICE_AQ_LLDP_TX_* */
+#define ICE_AQ_LLDP_TX_S			0x4
+#define ICE_AQ_LLDP_TX_M			(0x03 << ICE_AQ_LLDP_TX_S)
+#define ICE_AQ_LLDP_TX_ACTIVE			0
+#define ICE_AQ_LLDP_TX_SUSPENDED		1
+#define ICE_AQ_LLDP_TX_FLUSHED			3
+/* The following bytes are reserved for the Get LLDP MIB command (0x0A00)
+ * and in the LLDP MIB Change Event (0x0A01). They are valid for the
+ * Get LLDP MIB (0x0A00) response only.
+ */
+	u8 reserved1;
+	__le16 local_len;
+	__le16 remote_len;
+	u8 reserved2[2];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* Configure LLDP MIB Change Event (direct 0x0A01) */
+/* For MIB Change Event use ice_aqc_lldp_get_mib structure above */
+struct ice_aqc_lldp_set_mib_change {
+	u8 command;
+#define ICE_AQ_LLDP_MIB_UPDATE_ENABLE		0x0
+#define ICE_AQ_LLDP_MIB_UPDATE_DIS		0x1
+	u8 reserved[15];
+};
+
+/* Stop LLDP (direct 0x0A05) */
+struct ice_aqc_lldp_stop {
+	u8 command;
+#define ICE_AQ_LLDP_AGENT_STATE_MASK	BIT(0)
+#define ICE_AQ_LLDP_AGENT_STOP		0x0
+#define ICE_AQ_LLDP_AGENT_SHUTDOWN	ICE_AQ_LLDP_AGENT_STATE_MASK
+#define ICE_AQ_LLDP_AGENT_PERSIST_DIS	BIT(1)
+	u8 reserved[15];
+};
+
+/* Start LLDP (direct 0x0A06) */
+struct ice_aqc_lldp_start {
+	u8 command;
+#define ICE_AQ_LLDP_AGENT_START		BIT(0)
+#define ICE_AQ_LLDP_AGENT_PERSIST_ENA	BIT(1)
+	u8 reserved[15];
+};
+
+/* Get CEE DCBX Oper Config (0x0A07)
+ * The command uses the generic descriptor struct and
+ * returns the struct below as an indirect response.
+ */
+struct ice_aqc_get_cee_dcb_cfg_resp {
+	u8 oper_num_tc;
+	u8 oper_prio_tc[4];
+	u8 oper_tc_bw[8];
+	u8 oper_pfc_en;
+	__le16 oper_app_prio;
+#define ICE_AQC_CEE_APP_FCOE_S		0
+#define ICE_AQC_CEE_APP_FCOE_M		(0x7 << ICE_AQC_CEE_APP_FCOE_S)
+#define ICE_AQC_CEE_APP_ISCSI_S		3
+#define ICE_AQC_CEE_APP_ISCSI_M		(0x7 << ICE_AQC_CEE_APP_ISCSI_S)
+#define ICE_AQC_CEE_APP_FIP_S		8
+#define ICE_AQC_CEE_APP_FIP_M		(0x7 << ICE_AQC_CEE_APP_FIP_S)
+	__le32 tlv_status;
+#define ICE_AQC_CEE_PG_STATUS_S		0
+#define ICE_AQC_CEE_PG_STATUS_M		(0x7 << ICE_AQC_CEE_PG_STATUS_S)
+#define ICE_AQC_CEE_PFC_STATUS_S	3
+#define ICE_AQC_CEE_PFC_STATUS_M	(0x7 << ICE_AQC_CEE_PFC_STATUS_S)
+#define ICE_AQC_CEE_FCOE_STATUS_S	8
+#define ICE_AQC_CEE_FCOE_STATUS_M	(0x7 << ICE_AQC_CEE_FCOE_STATUS_S)
+#define ICE_AQC_CEE_ISCSI_STATUS_S	11
+#define ICE_AQC_CEE_ISCSI_STATUS_M	(0x7 << ICE_AQC_CEE_ISCSI_STATUS_S)
+#define ICE_AQC_CEE_FIP_STATUS_S	16
+#define ICE_AQC_CEE_FIP_STATUS_M	(0x7 << ICE_AQC_CEE_FIP_STATUS_S)
+	u8 reserved[12];
+};
+
+/* Set Local LLDP MIB (indirect 0x0A08)
+ * Used to replace the local MIB of a given LLDP agent. e.g. DCBX
+ */
+struct ice_aqc_lldp_set_local_mib {
+	u8 type;
+#define SET_LOCAL_MIB_TYPE_DCBX_M		BIT(0)
+#define SET_LOCAL_MIB_TYPE_LOCAL_MIB		0
+#define SET_LOCAL_MIB_TYPE_CEE_M		BIT(1)
+#define SET_LOCAL_MIB_TYPE_CEE_WILLING		0
+#define SET_LOCAL_MIB_TYPE_CEE_NON_WILLING	SET_LOCAL_MIB_TYPE_CEE_M
+	u8 reserved0;
+	__le16 length;
+	u8 reserved1[4];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* Stop/Start LLDP Agent (direct 0x0A09)
+ * Used for stopping/starting specific LLDP agent. e.g. DCBX.
+ * The same structure is used for the response, with the command field
+ * being used as the status field.
+ */
+struct ice_aqc_lldp_stop_start_specific_agent {
+	u8 command;
+#define ICE_AQC_START_STOP_AGENT_M		BIT(0)
+#define ICE_AQC_START_STOP_AGENT_STOP_DCBX	0
+#define ICE_AQC_START_STOP_AGENT_START_DCBX	ICE_AQC_START_STOP_AGENT_M
+	u8 reserved[15];
 };
 
 /* Get/Set RSS key (indirect 0x0B04/0x0B02) */
@@ -1104,6 +1327,9 @@ struct ice_aqc_get_set_rss_key {
 
 #define ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE	0x28
 #define ICE_AQC_GET_SET_RSS_KEY_DATA_HASH_KEY_SIZE	0xC
+#define ICE_GET_SET_RSS_KEY_EXTEND_KEY_SIZE \
+				(ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE + \
+				 ICE_AQC_GET_SET_RSS_KEY_DATA_HASH_KEY_SIZE)
 
 struct ice_aqc_get_set_rss_keys {
 	u8 standard_rss_key[ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE];
@@ -1145,7 +1371,7 @@ struct ice_aqc_get_set_rss_lut {
 	__le32 addr_low;
 };
 
-/* Add TX LAN Queues (indirect 0x0C30) */
+/* Add Tx LAN Queues (indirect 0x0C30) */
 struct ice_aqc_add_txqs {
 	u8 num_qgrps;
 	u8 reserved[3];
@@ -1154,7 +1380,7 @@ struct ice_aqc_add_txqs {
 	__le32 addr_low;
 };
 
-/* This is the descriptor of each queue entry for the Add TX LAN Queues
+/* This is the descriptor of each queue entry for the Add Tx LAN Queues
  * command (0x0C30). Only used within struct ice_aqc_add_tx_qgrp.
  */
 struct ice_aqc_add_txqs_perq {
@@ -1166,7 +1392,7 @@ struct ice_aqc_add_txqs_perq {
 	struct ice_aqc_txsched_elem info;
 };
 
-/* The format of the command buffer for Add TX LAN Queues (0x0C30)
+/* The format of the command buffer for Add Tx LAN Queues (0x0C30)
  * is an array of the following structs. Please note that the length of
  * each struct ice_aqc_add_tx_qgrp is variable due
  * to the variable number of queues in each group!
@@ -1178,7 +1404,7 @@ struct ice_aqc_add_tx_qgrp {
 	struct ice_aqc_add_txqs_perq txqs[1];
 };
 
-/* Disable TX LAN Queues (indirect 0x0C31) */
+/* Disable Tx LAN Queues (indirect 0x0C31) */
 struct ice_aqc_dis_txqs {
 	u8 cmd_type;
 #define ICE_AQC_Q_DIS_CMD_S		0
@@ -1200,7 +1426,7 @@ struct ice_aqc_dis_txqs {
 	__le32 addr_low;
 };
 
-/* The buffer for Disable TX LAN Queues (indirect 0x0C31)
+/* The buffer for Disable Tx LAN Queues (indirect 0x0C31)
  * contains the following structures, arrayed one after the
  * other.
  * Note: Since the q_id is 16 bits wide, if the
@@ -1304,6 +1530,56 @@ struct ice_aqc_get_clear_fw_log {
 	__le32 addr_low;
 };
 
+/* Download Package (indirect 0x0C40) */
+/* Also used for Update Package (indirect 0x0C42) */
+struct ice_aqc_download_pkg {
+	u8 flags;
+#define ICE_AQC_DOWNLOAD_PKG_LAST_BUF	0x01
+	u8 reserved[3];
+	__le32 reserved1;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+struct ice_aqc_download_pkg_resp {
+	__le32 error_offset;
+	__le32 error_info;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* Get Package Info List (indirect 0x0C43) */
+struct ice_aqc_get_pkg_info_list {
+	__le32 reserved1;
+	__le32 reserved2;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* Version format for packages */
+struct ice_pkg_ver {
+	u8 major;
+	u8 minor;
+	u8 update;
+	u8 draft;
+};
+
+#define ICE_PKG_NAME_SIZE	32
+
+struct ice_aqc_get_pkg_info {
+	struct ice_pkg_ver ver;
+	char name[ICE_PKG_NAME_SIZE];
+	u8 is_in_nvm;
+	u8 is_active;
+	u8 is_active_at_boot;
+	u8 is_modified;
+};
+
+/* Get Package Info List response buffer format (0x0C43) */
+struct ice_aqc_get_pkg_info_resp {
+	__le32 count;
+	struct ice_aqc_get_pkg_info pkg_info[1];
+};
 /**
  * struct ice_aq_desc - Admin Queue (AQ) descriptor
  * @flags: ICE_AQ_FLAG_* flags
@@ -1332,6 +1608,7 @@ struct ice_aq_desc {
 		u8 raw[16];
 		struct ice_aqc_generic generic;
 		struct ice_aqc_get_ver get_ver;
+		struct ice_aqc_driver_ver driver_ver;
 		struct ice_aqc_q_shutdown q_shutdown;
 		struct ice_aqc_req_res res_owner;
 		struct ice_aqc_manage_mac_read mac_read;
@@ -1341,14 +1618,22 @@ struct ice_aq_desc {
 		struct ice_aqc_get_phy_caps get_phy;
 		struct ice_aqc_set_phy_cfg set_phy;
 		struct ice_aqc_restart_an restart_an;
+		struct ice_aqc_set_port_id_led set_port_id_led;
 		struct ice_aqc_get_sw_cfg get_sw_conf;
 		struct ice_aqc_sw_rules sw_rules;
 		struct ice_aqc_get_topo get_topo;
-		struct ice_aqc_get_cfg_elem get_update_elem;
+		struct ice_aqc_sched_elem_cmd sched_elem_cmd;
 		struct ice_aqc_query_txsched_res query_sched_res;
-		struct ice_aqc_add_move_delete_elem add_move_delete_elem;
+		struct ice_aqc_query_port_ets port_ets;
 		struct ice_aqc_nvm nvm;
+		struct ice_aqc_nvm_checksum nvm_checksum;
 		struct ice_aqc_pf_vf_msg virt;
+		struct ice_aqc_lldp_get_mib lldp_get_mib;
+		struct ice_aqc_lldp_set_mib_change lldp_set_event;
+		struct ice_aqc_lldp_stop lldp_stop;
+		struct ice_aqc_lldp_start lldp_start;
+		struct ice_aqc_lldp_set_local_mib lldp_set_mib;
+		struct ice_aqc_lldp_stop_start_specific_agent lldp_agent_ctrl;
 		struct ice_aqc_get_set_rss_lut get_set_rss_lut;
 		struct ice_aqc_get_set_rss_key get_set_rss_key;
 		struct ice_aqc_add_txqs add_txqs;
@@ -1357,6 +1642,8 @@ struct ice_aq_desc {
 		struct ice_aqc_add_update_free_vsi_resp add_update_free_vsi_res;
 		struct ice_aqc_fw_logging fw_logging;
 		struct ice_aqc_get_clear_fw_log get_clear_fw_log;
+		struct ice_aqc_download_pkg download_pkg;
+		struct ice_aqc_set_mac_lb set_mac_lb;
 		struct ice_aqc_alloc_free_res_cmd sw_res_ctrl;
 		struct ice_aqc_set_event_mask set_event_mask;
 		struct ice_aqc_get_link_status get_link_status;
@@ -1381,16 +1668,25 @@ struct ice_aq_desc {
 /* error codes */
 enum ice_aq_err {
 	ICE_AQ_RC_OK		= 0,  /* Success */
+	ICE_AQ_RC_EPERM		= 1,  /* Operation not permitted */
+	ICE_AQ_RC_ENOENT	= 2,  /* No such element */
 	ICE_AQ_RC_ENOMEM	= 9,  /* Out of memory */
 	ICE_AQ_RC_EBUSY		= 12, /* Device or resource busy */
 	ICE_AQ_RC_EEXIST	= 13, /* Object already exists */
 	ICE_AQ_RC_ENOSPC	= 16, /* No space left or allocation failure */
+	ICE_AQ_RC_ENOSYS	= 17, /* Function not implemented */
+	ICE_AQ_RC_ENOSEC	= 24, /* Missing security manifest */
+	ICE_AQ_RC_EBADSIG	= 25, /* Bad RSA signature */
+	ICE_AQ_RC_ESVN		= 26, /* SVN number prohibits this package */
+	ICE_AQ_RC_EBADMAN	= 27, /* Manifest hash mismatch */
+	ICE_AQ_RC_EBADBUF	= 28, /* Buffer hash mismatches manifest */
 };
 
 /* Admin Queue command opcodes */
 enum ice_adminq_opc {
 	/* AQ commands */
 	ice_aqc_opc_get_ver				= 0x0001,
+	ice_aqc_opc_driver_ver				= 0x0002,
 	ice_aqc_opc_q_shutdown				= 0x0003,
 
 	/* resource ownership */
@@ -1433,6 +1729,7 @@ enum ice_adminq_opc {
 	ice_aqc_opc_get_sched_elems			= 0x0404,
 	ice_aqc_opc_suspend_sched_elems			= 0x0409,
 	ice_aqc_opc_resume_sched_elems			= 0x040A,
+	ice_aqc_opc_query_port_ets			= 0x040E,
 	ice_aqc_opc_delete_sched_elems			= 0x040F,
 	ice_aqc_opc_query_sched_res			= 0x0412,
 
@@ -1442,13 +1739,24 @@ enum ice_adminq_opc {
 	ice_aqc_opc_restart_an				= 0x0605,
 	ice_aqc_opc_get_link_status			= 0x0607,
 	ice_aqc_opc_set_event_mask			= 0x0613,
+	ice_aqc_opc_set_mac_lb				= 0x0620,
+	ice_aqc_opc_set_port_id_led			= 0x06E9,
 
 	/* NVM commands */
 	ice_aqc_opc_nvm_read				= 0x0701,
+	ice_aqc_opc_nvm_checksum			= 0x0706,
 
 	/* PF/VF mailbox commands */
 	ice_mbx_opc_send_msg_to_pf			= 0x0801,
 	ice_mbx_opc_send_msg_to_vf			= 0x0802,
+	/* LLDP commands */
+	ice_aqc_opc_lldp_get_mib			= 0x0A00,
+	ice_aqc_opc_lldp_set_mib_change			= 0x0A01,
+	ice_aqc_opc_lldp_stop				= 0x0A05,
+	ice_aqc_opc_lldp_start				= 0x0A06,
+	ice_aqc_opc_get_cee_dcb_cfg			= 0x0A07,
+	ice_aqc_opc_lldp_set_local_mib			= 0x0A08,
+	ice_aqc_opc_lldp_stop_start_specific_agent	= 0x0A09,
 
 	/* RSS commands */
 	ice_aqc_opc_set_rss_key				= 0x0B02,
@@ -1456,12 +1764,17 @@ enum ice_adminq_opc {
 	ice_aqc_opc_get_rss_key				= 0x0B04,
 	ice_aqc_opc_get_rss_lut				= 0x0B05,
 
-	/* TX queue handling commands/events */
+	/* Tx queue handling commands/events */
 	ice_aqc_opc_add_txqs				= 0x0C30,
 	ice_aqc_opc_dis_txqs				= 0x0C31,
 
+	/* package commands */
+	ice_aqc_opc_download_pkg			= 0x0C40,
+	ice_aqc_opc_get_pkg_info_list			= 0x0C43,
+
 	/* debug commands */
 	ice_aqc_opc_fw_logging				= 0xFF09,
+	ice_aqc_opc_fw_logging_info			= 0xFF10,
 };
 
 #endif /* _ICE_ADMINQ_CMD_H_ */

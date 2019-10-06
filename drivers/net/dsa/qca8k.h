@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2009 Felix Fietkau <nbd@nbd.name>
  * Copyright (C) 2011-2012 Gabor Juhos <juhosg@openwrt.org>
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __QCA8K_H
@@ -18,6 +10,7 @@
 
 #include <linux/delay.h>
 #include <linux/regmap.h>
+#include <linux/gpio.h>
 
 #define QCA8K_NUM_PORTS					7
 
@@ -40,6 +33,7 @@
 						((0x8 + (x & 0x3)) << 22)
 #define   QCA8K_PORT_PAD_RGMII_RX_DELAY(x)		\
 						((0x10 + (x & 0x3)) << 20)
+#define   QCA8K_MAX_DELAY				3
 #define   QCA8K_PORT_PAD_RGMII_RX_DELAY_EN		BIT(24)
 #define   QCA8K_PORT_PAD_SGMII_EN			BIT(7)
 #define QCA8K_REG_MODULE_EN				0x030
@@ -48,6 +42,18 @@
 #define   QCA8K_MIB_FLUSH				BIT(24)
 #define   QCA8K_MIB_CPU_KEEP				BIT(20)
 #define   QCA8K_MIB_BUSY				BIT(17)
+#define QCA8K_MDIO_MASTER_CTRL				0x3c
+#define   QCA8K_MDIO_MASTER_BUSY			BIT(31)
+#define   QCA8K_MDIO_MASTER_EN				BIT(30)
+#define   QCA8K_MDIO_MASTER_READ			BIT(27)
+#define   QCA8K_MDIO_MASTER_WRITE			0
+#define   QCA8K_MDIO_MASTER_SUP_PRE			BIT(26)
+#define   QCA8K_MDIO_MASTER_PHY_ADDR(x)			((x) << 21)
+#define   QCA8K_MDIO_MASTER_REG_ADDR(x)			((x) << 16)
+#define   QCA8K_MDIO_MASTER_DATA(x)			(x)
+#define   QCA8K_MDIO_MASTER_DATA_MASK			GENMASK(15, 0)
+#define   QCA8K_MDIO_MASTER_MAX_PORTS			5
+#define   QCA8K_MDIO_MASTER_MAX_REG			32
 #define QCA8K_GOL_MAC_ADDR0				0x60
 #define QCA8K_GOL_MAC_ADDR1				0x64
 #define QCA8K_REG_PORT_STATUS(_i)			(0x07c + (_i) * 4)
@@ -168,6 +174,8 @@ struct qca8k_priv {
 	struct dsa_switch *ds;
 	struct mutex reg_mutex;
 	struct device *dev;
+	struct dsa_switch_ops ops;
+	struct gpio_desc *reset_gpio;
 };
 
 struct qca8k_mib_desc {

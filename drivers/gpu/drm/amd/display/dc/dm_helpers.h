@@ -58,6 +58,13 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 		bool enable);
 
 /*
+ * poll pending down reply
+ */
+void dm_helpers_dp_mst_poll_pending_down_reply(
+	struct dc_context *ctx,
+	const struct dc_link *link);
+
+/*
  * Clear payload allocation table before enable MST DP link.
  */
 void dm_helpers_dp_mst_clear_payload_allocation_table(
@@ -111,6 +118,13 @@ bool dm_helpers_submit_i2c(
 		const struct dc_link *link,
 		struct i2c_command *cmd);
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+bool dm_helpers_dp_write_dsc_enable(
+		struct dc_context *ctx,
+		const struct dc_stream_state *stream,
+		bool enable
+);
+#endif
 bool dm_helpers_is_dp_sink_present(
 		struct dc_link *link);
 

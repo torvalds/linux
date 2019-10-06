@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Access to user system call parameters and results
  *
  * See asm-generic/syscall.h for function descriptions.
  *
  * Copyright (C) 2015 Mickaël Salaün <mic@digikod.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __UM_SYSCALL_GENERIC_H
@@ -53,84 +50,30 @@ static inline void syscall_set_return_value(struct task_struct *task,
 
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
 	const struct uml_pt_regs *r = &regs->regs;
 
-	switch (i) {
-	case 0:
-		if (!n--)
-			break;
-		*args++ = UPT_SYSCALL_ARG1(r);
-	case 1:
-		if (!n--)
-			break;
-		*args++ = UPT_SYSCALL_ARG2(r);
-	case 2:
-		if (!n--)
-			break;
-		*args++ = UPT_SYSCALL_ARG3(r);
-	case 3:
-		if (!n--)
-			break;
-		*args++ = UPT_SYSCALL_ARG4(r);
-	case 4:
-		if (!n--)
-			break;
-		*args++ = UPT_SYSCALL_ARG5(r);
-	case 5:
-		if (!n--)
-			break;
-		*args++ = UPT_SYSCALL_ARG6(r);
-	case 6:
-		if (!n--)
-			break;
-	default:
-		BUG();
-		break;
-	}
+	*args++ = UPT_SYSCALL_ARG1(r);
+	*args++ = UPT_SYSCALL_ARG2(r);
+	*args++ = UPT_SYSCALL_ARG3(r);
+	*args++ = UPT_SYSCALL_ARG4(r);
+	*args++ = UPT_SYSCALL_ARG5(r);
+	*args   = UPT_SYSCALL_ARG6(r);
 }
 
 static inline void syscall_set_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
 	struct uml_pt_regs *r = &regs->regs;
 
-	switch (i) {
-	case 0:
-		if (!n--)
-			break;
-		UPT_SYSCALL_ARG1(r) = *args++;
-	case 1:
-		if (!n--)
-			break;
-		UPT_SYSCALL_ARG2(r) = *args++;
-	case 2:
-		if (!n--)
-			break;
-		UPT_SYSCALL_ARG3(r) = *args++;
-	case 3:
-		if (!n--)
-			break;
-		UPT_SYSCALL_ARG4(r) = *args++;
-	case 4:
-		if (!n--)
-			break;
-		UPT_SYSCALL_ARG5(r) = *args++;
-	case 5:
-		if (!n--)
-			break;
-		UPT_SYSCALL_ARG6(r) = *args++;
-	case 6:
-		if (!n--)
-			break;
-	default:
-		BUG();
-		break;
-	}
+	UPT_SYSCALL_ARG1(r) = *args++;
+	UPT_SYSCALL_ARG2(r) = *args++;
+	UPT_SYSCALL_ARG3(r) = *args++;
+	UPT_SYSCALL_ARG4(r) = *args++;
+	UPT_SYSCALL_ARG5(r) = *args++;
+	UPT_SYSCALL_ARG6(r) = *args;
 }
 
 /* See arch/x86/um/asm/syscall.h for syscall_get_arch() definition. */

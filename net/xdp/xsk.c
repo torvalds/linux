@@ -27,13 +27,9 @@
 
 #include "xsk_queue.h"
 #include "xdp_umem.h"
+#include "xsk.h"
 
 #define TX_BATCH_SIZE 16
-
-static struct xdp_sock *xdp_sk(struct sock *sk)
-{
-	return (struct xdp_sock *)sk;
-}
 
 bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
 {
@@ -41,9 +37,15 @@ bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
 		READ_ONCE(xs->umem->fq);
 }
 
+bool xsk_umem_has_addrs(struct xdp_umem *umem, u32 cnt)
+{
+	return xskq_has_addrs(umem->fq, cnt);
+}
+EXPORT_SYMBOL(xsk_umem_has_addrs);
+
 u64 *xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr)
 {
-	return xskq_peek_addr(umem->fq, addr);
+	return xskq_peek_addr(umem->fq, addr, umem);
 }
 EXPORT_SYMBOL(xsk_umem_peek_addr);
 
@@ -53,20 +55,102 @@ void xsk_umem_discard_addr(struct xdp_umem *umem)
 }
 EXPORT_SYMBOL(xsk_umem_discard_addr);
 
+void xsk_set_rx_need_wakeup(struct xdp_umem *umem)
+{
+	if (umem->need_wakeup & XDP_WAKEUP_RX)
+		return;
+
+	umem->fq->ring->flags |= XDP_RING_NEED_WAKEUP;
+	umem->need_wakeup |= XDP_WAKEUP_RX;
+}
+EXPORT_SYMBOL(xsk_set_rx_need_wakeup);
+
+void xsk_set_tx_need_wakeup(struct xdp_umem *umem)
+{
+	struct xdp_sock *xs;
+
+	if (umem->need_wakeup & XDP_WAKEUP_TX)
+		return;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(xs, &umem->xsk_list, list) {
+		xs->tx->ring->flags |= XDP_RING_NEED_WAKEUP;
+	}
+	rcu_read_unlock();
+
+	umem->need_wakeup |= XDP_WAKEUP_TX;
+}
+EXPORT_SYMBOL(xsk_set_tx_need_wakeup);
+
+void xsk_clear_rx_need_wakeup(struct xdp_umem *umem)
+{
+	if (!(umem->need_wakeup & XDP_WAKEUP_RX))
+		return;
+
+	umem->fq->ring->flags &= ~XDP_RING_NEED_WAKEUP;
+	umem->need_wakeup &= ~XDP_WAKEUP_RX;
+}
+EXPORT_SYMBOL(xsk_clear_rx_need_wakeup);
+
+void xsk_clear_tx_need_wakeup(struct xdp_umem *umem)
+{
+	struct xdp_sock *xs;
+
+	if (!(umem->need_wakeup & XDP_WAKEUP_TX))
+		return;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(xs, &umem->xsk_list, list) {
+		xs->tx->ring->flags &= ~XDP_RING_NEED_WAKEUP;
+	}
+	rcu_read_unlock();
+
+	umem->need_wakeup &= ~XDP_WAKEUP_TX;
+}
+EXPORT_SYMBOL(xsk_clear_tx_need_wakeup);
+
+bool xsk_umem_uses_need_wakeup(struct xdp_umem *umem)
+{
+	return umem->flags & XDP_UMEM_USES_NEED_WAKEUP;
+}
+EXPORT_SYMBOL(xsk_umem_uses_need_wakeup);
+
+/* If a buffer crosses a page boundary, we need to do 2 memcpy's, one for
+ * each page. This is only required in copy mode.
+ */
+static void __xsk_rcv_memcpy(struct xdp_umem *umem, u64 addr, void *from_buf,
+			     u32 len, u32 metalen)
+{
+	void *to_buf = xdp_umem_get_data(umem, addr);
+
+	addr = xsk_umem_add_offset_to_addr(addr);
+	if (xskq_crosses_non_contig_pg(umem, addr, len + metalen)) {
+		void *next_pg_addr = umem->pages[(addr >> PAGE_SHIFT) + 1].addr;
+		u64 page_start = addr & ~(PAGE_SIZE - 1);
+		u64 first_len = PAGE_SIZE - (addr - page_start);
+
+		memcpy(to_buf, from_buf, first_len + metalen);
+		memcpy(next_pg_addr, from_buf + first_len, len - first_len);
+
+		return;
+	}
+
+	memcpy(to_buf, from_buf, len + metalen);
+}
+
 static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 {
-	void *to_buf, *from_buf;
+	u64 offset = xs->umem->headroom;
+	u64 addr, memcpy_addr;
+	void *from_buf;
 	u32 metalen;
-	u64 addr;
 	int err;
 
-	if (!xskq_peek_addr(xs->umem->fq, &addr) ||
+	if (!xskq_peek_addr(xs->umem->fq, &addr, xs->umem) ||
 	    len > xs->umem->chunk_size_nohr - XDP_PACKET_HEADROOM) {
 		xs->rx_dropped++;
 		return -ENOSPC;
 	}
-
-	addr += xs->umem->headroom;
 
 	if (unlikely(xdp_data_meta_unsupported(xdp))) {
 		from_buf = xdp->data;
@@ -76,9 +160,11 @@ static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 		metalen = xdp->data - xdp->data_meta;
 	}
 
-	to_buf = xdp_umem_get_data(xs->umem, addr);
-	memcpy(to_buf, from_buf, len + metalen);
-	addr += metalen;
+	memcpy_addr = xsk_umem_adjust_offset(xs->umem, addr, offset);
+	__xsk_rcv_memcpy(xs->umem, memcpy_addr, from_buf, len, metalen);
+
+	offset += metalen;
+	addr = xsk_umem_adjust_offset(xs->umem, addr, offset);
 	err = xskq_produce_batch_desc(xs->rx, addr, len);
 	if (!err) {
 		xskq_discard_addr(xs->umem->fq);
@@ -100,9 +186,22 @@ static int __xsk_rcv_zc(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 	return err;
 }
 
+static bool xsk_is_bound(struct xdp_sock *xs)
+{
+	if (READ_ONCE(xs->state) == XSK_BOUND) {
+		/* Matches smp_wmb() in bind(). */
+		smp_rmb();
+		return true;
+	}
+	return false;
+}
+
 int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
 	u32 len;
+
+	if (!xsk_is_bound(xs))
+		return -EINVAL;
 
 	if (xs->dev != xdp->rxq->dev || xs->queue_id != xdp->rxq->queue_index)
 		return -EINVAL;
@@ -123,32 +222,45 @@ int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
 	u32 metalen = xdp->data - xdp->data_meta;
 	u32 len = xdp->data_end - xdp->data;
+	u64 offset = xs->umem->headroom;
 	void *buffer;
 	u64 addr;
 	int err;
 
-	if (xs->dev != xdp->rxq->dev || xs->queue_id != xdp->rxq->queue_index)
-		return -EINVAL;
+	spin_lock_bh(&xs->rx_lock);
 
-	if (!xskq_peek_addr(xs->umem->fq, &addr) ||
-	    len > xs->umem->chunk_size_nohr - XDP_PACKET_HEADROOM) {
-		xs->rx_dropped++;
-		return -ENOSPC;
+	if (xs->dev != xdp->rxq->dev || xs->queue_id != xdp->rxq->queue_index) {
+		err = -EINVAL;
+		goto out_unlock;
 	}
 
-	addr += xs->umem->headroom;
+	if (!xskq_peek_addr(xs->umem->fq, &addr, xs->umem) ||
+	    len > xs->umem->chunk_size_nohr - XDP_PACKET_HEADROOM) {
+		err = -ENOSPC;
+		goto out_drop;
+	}
 
+	addr = xsk_umem_adjust_offset(xs->umem, addr, offset);
 	buffer = xdp_umem_get_data(xs->umem, addr);
 	memcpy(buffer, xdp->data_meta, len + metalen);
-	addr += metalen;
-	err = xskq_produce_batch_desc(xs->rx, addr, len);
-	if (!err) {
-		xskq_discard_addr(xs->umem->fq);
-		xsk_flush(xs);
-		return 0;
-	}
 
+	addr = xsk_umem_adjust_offset(xs->umem, addr, metalen);
+	err = xskq_produce_batch_desc(xs->rx, addr, len);
+	if (err)
+		goto out_drop;
+
+	xskq_discard_addr(xs->umem->fq);
+	xskq_produce_flush_desc(xs->rx);
+
+	spin_unlock_bh(&xs->rx_lock);
+
+	xs->sk.sk_data_ready(&xs->sk);
+	return 0;
+
+out_drop:
 	xs->rx_dropped++;
+out_unlock:
+	spin_unlock_bh(&xs->rx_lock);
 	return err;
 }
 
@@ -170,21 +282,17 @@ void xsk_umem_consume_tx_done(struct xdp_umem *umem)
 }
 EXPORT_SYMBOL(xsk_umem_consume_tx_done);
 
-bool xsk_umem_consume_tx(struct xdp_umem *umem, dma_addr_t *dma, u32 *len)
+bool xsk_umem_consume_tx(struct xdp_umem *umem, struct xdp_desc *desc)
 {
-	struct xdp_desc desc;
 	struct xdp_sock *xs;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(xs, &umem->xsk_list, list) {
-		if (!xskq_peek_desc(xs->tx, &desc))
+		if (!xskq_peek_desc(xs->tx, desc, umem))
 			continue;
 
-		if (xskq_produce_addr_lazy(umem->cq, desc.addr))
+		if (xskq_produce_addr_lazy(umem->cq, desc->addr))
 			goto out;
-
-		*dma = xdp_umem_get_dma(umem, desc.addr);
-		*len = desc.len;
 
 		xskq_discard_desc(xs->tx);
 		rcu_read_unlock();
@@ -202,7 +310,8 @@ static int xsk_zc_xmit(struct sock *sk)
 	struct xdp_sock *xs = xdp_sk(sk);
 	struct net_device *dev = xs->dev;
 
-	return dev->netdev_ops->ndo_xsk_async_xmit(dev, xs->queue_id);
+	return dev->netdev_ops->ndo_xsk_wakeup(dev, xs->queue_id,
+					       XDP_WAKEUP_TX);
 }
 
 static void xsk_destruct_skb(struct sk_buff *skb)
@@ -230,7 +339,10 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 
 	mutex_lock(&xs->mutex);
 
-	while (xskq_peek_desc(xs->tx, &desc)) {
+	if (xs->queue_id >= xs->dev->real_num_tx_queues)
+		goto out;
+
+	while (xskq_peek_desc(xs->tx, &desc, xs->umem)) {
 		char *buffer;
 		u64 addr;
 		u32 len;
@@ -239,12 +351,6 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 			err = -EAGAIN;
 			goto out;
 		}
-
-		if (xskq_reserve_addr(xs->umem->cq))
-			goto out;
-
-		if (xs->queue_id >= xs->dev->real_num_tx_queues)
-			goto out;
 
 		len = desc.len;
 		skb = sock_alloc_send_skb(sk, len, 1, &err);
@@ -257,7 +363,7 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 		addr = desc.addr;
 		buffer = xdp_umem_get_data(xs->umem, addr);
 		err = skb_store_bits(skb, 0, buffer, len);
-		if (unlikely(err)) {
+		if (unlikely(err) || xskq_reserve_addr(xs->umem->cq)) {
 			kfree_skb(skb);
 			goto out;
 		}
@@ -265,7 +371,7 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 		skb->dev = xs->dev;
 		skb->priority = sk->sk_priority;
 		skb->mark = sk->sk_mark;
-		skb_shinfo(skb)->destructor_arg = (void *)(long)addr;
+		skb_shinfo(skb)->destructor_arg = (void *)(long)desc.addr;
 		skb->destructor = xsk_destruct_skb;
 
 		err = dev_direct_xmit(skb, xs->queue_id);
@@ -294,7 +400,7 @@ static int xsk_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 	struct sock *sk = sock->sk;
 	struct xdp_sock *xs = xdp_sk(sk);
 
-	if (unlikely(!xs->dev))
+	if (unlikely(!xsk_is_bound(xs)))
 		return -ENXIO;
 	if (unlikely(!(xs->dev->flags & IFF_UP)))
 		return -ENETDOWN;
@@ -310,8 +416,19 @@ static unsigned int xsk_poll(struct file *file, struct socket *sock,
 			     struct poll_table_struct *wait)
 {
 	unsigned int mask = datagram_poll(file, sock, wait);
-	struct sock *sk = sock->sk;
-	struct xdp_sock *xs = xdp_sk(sk);
+	struct xdp_sock *xs = xdp_sk(sock->sk);
+	struct net_device *dev;
+	struct xdp_umem *umem;
+
+	if (unlikely(!xsk_is_bound(xs)))
+		return mask;
+
+	dev = xs->dev;
+	umem = xs->umem;
+
+	if (umem->need_wakeup)
+		dev->netdev_ops->ndo_xsk_wakeup(dev, xs->queue_id,
+						umem->need_wakeup);
 
 	if (xs->rx && !xskq_empty_desc(xs->rx))
 		mask |= POLLIN | POLLRDNORM;
@@ -335,8 +452,69 @@ static int xsk_init_queue(u32 entries, struct xsk_queue **queue,
 
 	/* Make sure queue is ready before it can be seen by others */
 	smp_wmb();
-	*queue = q;
+	WRITE_ONCE(*queue, q);
 	return 0;
+}
+
+static void xsk_unbind_dev(struct xdp_sock *xs)
+{
+	struct net_device *dev = xs->dev;
+
+	if (xs->state != XSK_BOUND)
+		return;
+	WRITE_ONCE(xs->state, XSK_UNBOUND);
+
+	/* Wait for driver to stop using the xdp socket. */
+	xdp_del_sk_umem(xs->umem, xs);
+	xs->dev = NULL;
+	synchronize_net();
+	dev_put(dev);
+}
+
+static struct xsk_map *xsk_get_map_list_entry(struct xdp_sock *xs,
+					      struct xdp_sock ***map_entry)
+{
+	struct xsk_map *map = NULL;
+	struct xsk_map_node *node;
+
+	*map_entry = NULL;
+
+	spin_lock_bh(&xs->map_list_lock);
+	node = list_first_entry_or_null(&xs->map_list, struct xsk_map_node,
+					node);
+	if (node) {
+		WARN_ON(xsk_map_inc(node->map));
+		map = node->map;
+		*map_entry = node->map_entry;
+	}
+	spin_unlock_bh(&xs->map_list_lock);
+	return map;
+}
+
+static void xsk_delete_from_maps(struct xdp_sock *xs)
+{
+	/* This function removes the current XDP socket from all the
+	 * maps it resides in. We need to take extra care here, due to
+	 * the two locks involved. Each map has a lock synchronizing
+	 * updates to the entries, and each socket has a lock that
+	 * synchronizes access to the list of maps (map_list). For
+	 * deadlock avoidance the locks need to be taken in the order
+	 * "map lock"->"socket map list lock". We start off by
+	 * accessing the socket map list, and take a reference to the
+	 * map to guarantee existence between the
+	 * xsk_get_map_list_entry() and xsk_map_try_sock_delete()
+	 * calls. Then we ask the map to remove the socket, which
+	 * tries to remove the socket from the map. Note that there
+	 * might be updates to the map between
+	 * xsk_get_map_list_entry() and xsk_map_try_sock_delete().
+	 */
+	struct xdp_sock **map_entry = NULL;
+	struct xsk_map *map;
+
+	while ((map = xsk_get_map_list_entry(xs, &map_entry))) {
+		xsk_map_try_sock_delete(map, xs, map_entry);
+		xsk_map_put(map);
+	}
 }
 
 static int xsk_release(struct socket *sock)
@@ -350,19 +528,18 @@ static int xsk_release(struct socket *sock)
 
 	net = sock_net(sk);
 
+	mutex_lock(&net->xdp.lock);
+	sk_del_node_init_rcu(sk);
+	mutex_unlock(&net->xdp.lock);
+
 	local_bh_disable();
 	sock_prot_inuse_add(net, sk->sk_prot, -1);
 	local_bh_enable();
 
-	if (xs->dev) {
-		struct net_device *dev = xs->dev;
-
-		/* Wait for driver to stop using the xdp socket. */
-		xdp_del_sk_umem(xs->umem, xs);
-		xs->dev = NULL;
-		synchronize_net();
-		dev_put(dev);
-	}
+	xsk_delete_from_maps(xs);
+	mutex_lock(&xs->mutex);
+	xsk_unbind_dev(xs);
+	mutex_unlock(&xs->mutex);
 
 	xskq_destroy(xs->rx);
 	xskq_destroy(xs->tx);
@@ -393,6 +570,24 @@ static struct socket *xsk_lookup_xsk_from_fd(int fd)
 	return sock;
 }
 
+/* Check if umem pages are contiguous.
+ * If zero-copy mode, use the DMA address to do the page contiguity check
+ * For all other modes we use addr (kernel virtual address)
+ * Store the result in the low bits of addr.
+ */
+static void xsk_check_page_contiguity(struct xdp_umem *umem, u32 flags)
+{
+	struct xdp_umem_page *pgs = umem->pages;
+	int i, is_contig;
+
+	for (i = 0; i < umem->npgs - 1; i++) {
+		is_contig = (flags & XDP_ZEROCOPY) ?
+			(pgs[i].dma + PAGE_SIZE == pgs[i + 1].dma) :
+			(pgs[i].addr + PAGE_SIZE == pgs[i + 1].addr);
+		pgs[i].addr += is_contig << XSK_NEXT_PG_CONTIG_SHIFT;
+	}
+}
+
 static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 {
 	struct sockaddr_xdp *sxdp = (struct sockaddr_xdp *)addr;
@@ -407,8 +602,14 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	if (sxdp->sxdp_family != AF_XDP)
 		return -EINVAL;
 
+	flags = sxdp->sxdp_flags;
+	if (flags & ~(XDP_SHARED_UMEM | XDP_COPY | XDP_ZEROCOPY |
+		      XDP_USE_NEED_WAKEUP))
+		return -EINVAL;
+
+	rtnl_lock();
 	mutex_lock(&xs->mutex);
-	if (xs->dev) {
+	if (xs->state != XSK_READY) {
 		err = -EBUSY;
 		goto out_release;
 	}
@@ -425,13 +626,13 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	}
 
 	qid = sxdp->sxdp_queue_id;
-	flags = sxdp->sxdp_flags;
 
 	if (flags & XDP_SHARED_UMEM) {
 		struct xdp_sock *umem_xs;
 		struct socket *sock;
 
-		if ((flags & XDP_COPY) || (flags & XDP_ZEROCOPY)) {
+		if ((flags & XDP_COPY) || (flags & XDP_ZEROCOPY) ||
+		    (flags & XDP_USE_NEED_WAKEUP)) {
 			/* Cannot specify flags for shared sockets. */
 			err = -EINVAL;
 			goto out_unlock;
@@ -450,19 +651,19 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		}
 
 		umem_xs = xdp_sk(sock->sk);
-		if (!umem_xs->umem) {
-			/* No umem to inherit. */
+		if (!xsk_is_bound(umem_xs)) {
 			err = -EBADF;
 			sockfd_put(sock);
 			goto out_unlock;
-		} else if (umem_xs->dev != dev || umem_xs->queue_id != qid) {
+		}
+		if (umem_xs->dev != dev || umem_xs->queue_id != qid) {
 			err = -EINVAL;
 			sockfd_put(sock);
 			goto out_unlock;
 		}
 
 		xdp_get_umem(umem_xs->umem);
-		xs->umem = umem_xs->umem;
+		WRITE_ONCE(xs->umem, umem_xs->umem);
 		sockfd_put(sock);
 	} else if (!xs->umem || !xdp_umem_validate_queues(xs->umem)) {
 		err = -EINVAL;
@@ -477,6 +678,8 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		err = xdp_umem_assign_dev(xs->umem, dev, qid, flags);
 		if (err)
 			goto out_unlock;
+
+		xsk_check_page_contiguity(xs->umem, flags);
 	}
 
 	xs->dev = dev;
@@ -487,12 +690,27 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	xdp_add_sk_umem(xs->umem, xs);
 
 out_unlock:
-	if (err)
+	if (err) {
 		dev_put(dev);
+	} else {
+		/* Matches smp_rmb() in bind() for shared umem
+		 * sockets, and xsk_is_bound().
+		 */
+		smp_wmb();
+		WRITE_ONCE(xs->state, XSK_BOUND);
+	}
 out_release:
 	mutex_unlock(&xs->mutex);
+	rtnl_unlock();
 	return err;
 }
+
+struct xdp_umem_reg_v1 {
+	__u64 addr; /* Start of packet data area */
+	__u64 len; /* Length of packet data area */
+	__u32 chunk_size;
+	__u32 headroom;
+};
 
 static int xsk_setsockopt(struct socket *sock, int level, int optname,
 			  char __user *optval, unsigned int optlen)
@@ -517,21 +735,34 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 			return -EFAULT;
 
 		mutex_lock(&xs->mutex);
+		if (xs->state != XSK_READY) {
+			mutex_unlock(&xs->mutex);
+			return -EBUSY;
+		}
 		q = (optname == XDP_TX_RING) ? &xs->tx : &xs->rx;
 		err = xsk_init_queue(entries, q, false);
+		if (!err && optname == XDP_TX_RING)
+			/* Tx needs to be explicitly woken up the first time */
+			xs->tx->ring->flags |= XDP_RING_NEED_WAKEUP;
 		mutex_unlock(&xs->mutex);
 		return err;
 	}
 	case XDP_UMEM_REG:
 	{
-		struct xdp_umem_reg mr;
+		size_t mr_size = sizeof(struct xdp_umem_reg);
+		struct xdp_umem_reg mr = {};
 		struct xdp_umem *umem;
 
-		if (copy_from_user(&mr, optval, sizeof(mr)))
+		if (optlen < sizeof(struct xdp_umem_reg_v1))
+			return -EINVAL;
+		else if (optlen < sizeof(mr))
+			mr_size = sizeof(struct xdp_umem_reg_v1);
+
+		if (copy_from_user(&mr, optval, mr_size))
 			return -EFAULT;
 
 		mutex_lock(&xs->mutex);
-		if (xs->umem) {
+		if (xs->state != XSK_READY || xs->umem) {
 			mutex_unlock(&xs->mutex);
 			return -EBUSY;
 		}
@@ -544,7 +775,7 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 
 		/* Make sure umem is ready before it can be seen by others */
 		smp_wmb();
-		xs->umem = umem;
+		WRITE_ONCE(xs->umem, umem);
 		mutex_unlock(&xs->mutex);
 		return 0;
 	}
@@ -558,6 +789,10 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 			return -EFAULT;
 
 		mutex_lock(&xs->mutex);
+		if (xs->state != XSK_READY) {
+			mutex_unlock(&xs->mutex);
+			return -EBUSY;
+		}
 		if (!xs->umem) {
 			mutex_unlock(&xs->mutex);
 			return -EINVAL;
@@ -574,6 +809,20 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 	}
 
 	return -ENOPROTOOPT;
+}
+
+static void xsk_enter_rxtx_offsets(struct xdp_ring_offset_v1 *ring)
+{
+	ring->producer = offsetof(struct xdp_rxtx_ring, ptrs.producer);
+	ring->consumer = offsetof(struct xdp_rxtx_ring, ptrs.consumer);
+	ring->desc = offsetof(struct xdp_rxtx_ring, desc);
+}
+
+static void xsk_enter_umem_offsets(struct xdp_ring_offset_v1 *ring)
+{
+	ring->producer = offsetof(struct xdp_umem_ring, ptrs.producer);
+	ring->consumer = offsetof(struct xdp_umem_ring, ptrs.consumer);
+	ring->desc = offsetof(struct xdp_umem_ring, desc);
 }
 
 static int xsk_getsockopt(struct socket *sock, int level, int optname,
@@ -615,26 +864,69 @@ static int xsk_getsockopt(struct socket *sock, int level, int optname,
 	case XDP_MMAP_OFFSETS:
 	{
 		struct xdp_mmap_offsets off;
+		struct xdp_mmap_offsets_v1 off_v1;
+		bool flags_supported = true;
+		void *to_copy;
 
-		if (len < sizeof(off))
+		if (len < sizeof(off_v1))
+			return -EINVAL;
+		else if (len < sizeof(off))
+			flags_supported = false;
+
+		if (flags_supported) {
+			/* xdp_ring_offset is identical to xdp_ring_offset_v1
+			 * except for the flags field added to the end.
+			 */
+			xsk_enter_rxtx_offsets((struct xdp_ring_offset_v1 *)
+					       &off.rx);
+			xsk_enter_rxtx_offsets((struct xdp_ring_offset_v1 *)
+					       &off.tx);
+			xsk_enter_umem_offsets((struct xdp_ring_offset_v1 *)
+					       &off.fr);
+			xsk_enter_umem_offsets((struct xdp_ring_offset_v1 *)
+					       &off.cr);
+			off.rx.flags = offsetof(struct xdp_rxtx_ring,
+						ptrs.flags);
+			off.tx.flags = offsetof(struct xdp_rxtx_ring,
+						ptrs.flags);
+			off.fr.flags = offsetof(struct xdp_umem_ring,
+						ptrs.flags);
+			off.cr.flags = offsetof(struct xdp_umem_ring,
+						ptrs.flags);
+
+			len = sizeof(off);
+			to_copy = &off;
+		} else {
+			xsk_enter_rxtx_offsets(&off_v1.rx);
+			xsk_enter_rxtx_offsets(&off_v1.tx);
+			xsk_enter_umem_offsets(&off_v1.fr);
+			xsk_enter_umem_offsets(&off_v1.cr);
+
+			len = sizeof(off_v1);
+			to_copy = &off_v1;
+		}
+
+		if (copy_to_user(optval, to_copy, len))
+			return -EFAULT;
+		if (put_user(len, optlen))
+			return -EFAULT;
+
+		return 0;
+	}
+	case XDP_OPTIONS:
+	{
+		struct xdp_options opts = {};
+
+		if (len < sizeof(opts))
 			return -EINVAL;
 
-		off.rx.producer = offsetof(struct xdp_rxtx_ring, ptrs.producer);
-		off.rx.consumer = offsetof(struct xdp_rxtx_ring, ptrs.consumer);
-		off.rx.desc	= offsetof(struct xdp_rxtx_ring, desc);
-		off.tx.producer = offsetof(struct xdp_rxtx_ring, ptrs.producer);
-		off.tx.consumer = offsetof(struct xdp_rxtx_ring, ptrs.consumer);
-		off.tx.desc	= offsetof(struct xdp_rxtx_ring, desc);
+		mutex_lock(&xs->mutex);
+		if (xs->zc)
+			opts.flags |= XDP_OPTIONS_ZEROCOPY;
+		mutex_unlock(&xs->mutex);
 
-		off.fr.producer = offsetof(struct xdp_umem_ring, ptrs.producer);
-		off.fr.consumer = offsetof(struct xdp_umem_ring, ptrs.consumer);
-		off.fr.desc	= offsetof(struct xdp_umem_ring, desc);
-		off.cr.producer = offsetof(struct xdp_umem_ring, ptrs.producer);
-		off.cr.consumer = offsetof(struct xdp_umem_ring, ptrs.consumer);
-		off.cr.desc	= offsetof(struct xdp_umem_ring, desc);
-
-		len = sizeof(off);
-		if (copy_to_user(optval, &off, len))
+		len = sizeof(opts);
+		if (copy_to_user(optval, &opts, len))
 			return -EFAULT;
 		if (put_user(len, optlen))
 			return -EFAULT;
@@ -659,6 +951,9 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 	unsigned long pfn;
 	struct page *qpg;
 
+	if (READ_ONCE(xs->state) != XSK_READY)
+		return -EBUSY;
+
 	if (offset == XDP_PGOFF_RX_RING) {
 		q = READ_ONCE(xs->rx);
 	} else if (offset == XDP_PGOFF_TX_RING) {
@@ -682,12 +977,44 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 	/* Matches the smp_wmb() in xsk_init_queue */
 	smp_rmb();
 	qpg = virt_to_head_page(q->ring);
-	if (size > (PAGE_SIZE << compound_order(qpg)))
+	if (size > page_size(qpg))
 		return -EINVAL;
 
 	pfn = virt_to_phys(q->ring) >> PAGE_SHIFT;
 	return remap_pfn_range(vma, vma->vm_start, pfn,
 			       size, vma->vm_page_prot);
+}
+
+static int xsk_notifier(struct notifier_block *this,
+			unsigned long msg, void *ptr)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net *net = dev_net(dev);
+	struct sock *sk;
+
+	switch (msg) {
+	case NETDEV_UNREGISTER:
+		mutex_lock(&net->xdp.lock);
+		sk_for_each(sk, &net->xdp.list) {
+			struct xdp_sock *xs = xdp_sk(sk);
+
+			mutex_lock(&xs->mutex);
+			if (xs->dev == dev) {
+				sk->sk_err = ENETDOWN;
+				if (!sock_flag(sk, SOCK_DEAD))
+					sk->sk_error_report(sk);
+
+				xsk_unbind_dev(xs);
+
+				/* Clear device references in umem. */
+				xdp_umem_clear_dev(xs->umem);
+			}
+			mutex_unlock(&xs->mutex);
+		}
+		mutex_unlock(&net->xdp.lock);
+		break;
+	}
+	return NOTIFY_DONE;
 }
 
 static struct proto xsk_proto = {
@@ -761,8 +1088,17 @@ static int xsk_create(struct net *net, struct socket *sock, int protocol,
 	sock_set_flag(sk, SOCK_RCU_FREE);
 
 	xs = xdp_sk(sk);
+	xs->state = XSK_READY;
 	mutex_init(&xs->mutex);
+	spin_lock_init(&xs->rx_lock);
 	spin_lock_init(&xs->tx_completion_lock);
+
+	INIT_LIST_HEAD(&xs->map_list);
+	spin_lock_init(&xs->map_list_lock);
+
+	mutex_lock(&net->xdp.lock);
+	sk_add_node_rcu(sk, &net->xdp.list);
+	mutex_unlock(&net->xdp.lock);
 
 	local_bh_disable();
 	sock_prot_inuse_add(net, &xsk_proto, 1);
@@ -777,6 +1113,27 @@ static const struct net_proto_family xsk_family_ops = {
 	.owner	= THIS_MODULE,
 };
 
+static struct notifier_block xsk_netdev_notifier = {
+	.notifier_call	= xsk_notifier,
+};
+
+static int __net_init xsk_net_init(struct net *net)
+{
+	mutex_init(&net->xdp.lock);
+	INIT_HLIST_HEAD(&net->xdp.list);
+	return 0;
+}
+
+static void __net_exit xsk_net_exit(struct net *net)
+{
+	WARN_ON_ONCE(!hlist_empty(&net->xdp.list));
+}
+
+static struct pernet_operations xsk_net_ops = {
+	.init = xsk_net_init,
+	.exit = xsk_net_exit,
+};
+
 static int __init xsk_init(void)
 {
 	int err;
@@ -789,8 +1146,20 @@ static int __init xsk_init(void)
 	if (err)
 		goto out_proto;
 
+	err = register_pernet_subsys(&xsk_net_ops);
+	if (err)
+		goto out_sk;
+
+	err = register_netdevice_notifier(&xsk_netdev_notifier);
+	if (err)
+		goto out_pernet;
+
 	return 0;
 
+out_pernet:
+	unregister_pernet_subsys(&xsk_net_ops);
+out_sk:
+	sock_unregister(PF_XDP);
 out_proto:
 	proto_unregister(&xsk_proto);
 out:

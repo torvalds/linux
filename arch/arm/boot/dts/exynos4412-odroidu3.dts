@@ -34,8 +34,6 @@
 	fan0: pwm-fan {
 		compatible = "pwm-fan";
 		pwms = <&pwm 0 10000 0>;
-		cooling-min-state = <0>;
-		cooling-max-state = <3>;
 		#cooling-cells = <2>;
 		cooling-levels = <0 102 170 230>;
 	};
@@ -64,6 +62,11 @@
 			};
 		};
 	};
+};
+
+&adc {
+	vdd-supply = <&ldo10_reg>;
+	/* Nothing connected to ADC inputs, keep it disabled */
 };
 
 /* Supply for LAN9730/SMSC95xx */
@@ -102,12 +105,8 @@
 };
 
 &ehci {
-	port@1 {
-		status = "okay";
-	};
-	port@2 {
-		status = "okay";
-	};
+	phys = <&exynos_usbphy 2>, <&exynos_usbphy 3>;
+	phy-names = "hsic0", "hsic1";
 };
 
 &sound {

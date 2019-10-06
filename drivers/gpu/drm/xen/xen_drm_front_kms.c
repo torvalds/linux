@@ -8,17 +8,18 @@
  * Author: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
  */
 
-#include "xen_drm_front_kms.h"
-
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "xen_drm_front.h"
 #include "xen_drm_front_conn.h"
+#include "xen_drm_front_kms.h"
 
 /*
  * Timeout in ms to wait for frame done event from the backend:
@@ -45,7 +46,7 @@ static void fb_destroy(struct drm_framebuffer *fb)
 	drm_gem_fb_destroy(fb);
 }
 
-static struct drm_framebuffer_funcs fb_funcs = {
+static const struct drm_framebuffer_funcs fb_funcs = {
 	.destroy = fb_destroy,
 };
 
@@ -54,7 +55,7 @@ fb_create(struct drm_device *dev, struct drm_file *filp,
 	  const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct xen_drm_front_drm_info *drm_info = dev->dev_private;
-	static struct drm_framebuffer *fb;
+	struct drm_framebuffer *fb;
 	struct drm_gem_object *gem_obj;
 	int ret;
 

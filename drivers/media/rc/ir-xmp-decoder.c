@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ir-xmp-decoder.c - handle XMP IR Pulse/Space protocol
  *
  * Copyright (C) 2014 by Marcel Mol
- *
- * This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  *
  * - Based on info from http://www.hifi-remote.com
  * - Ignore Toggle=9 frames
@@ -94,7 +86,7 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			n = data->durations;
 			/*
 			 * the 4th nibble should be 15 so base the divider on this
-			 * to transform durations into nibbles. Substract 2000 from
+			 * to transform durations into nibbles. Subtract 2000 from
 			 * the divider to compensate for fluctuations in the signal
 			 */
 			divider = (n[3] - XMP_NIBBLE_PREFIX) / 15 - 2000;

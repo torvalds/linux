@@ -33,7 +33,8 @@
 
 #define IFETCH_ALIGN_BYTES	(1 << IFETCH_ALIGN_SHIFT)
 
-#if defined(__powerpc64__) && !defined(__ASSEMBLY__)
+#if !defined(__ASSEMBLY__)
+#ifdef CONFIG_PPC64
 
 struct ppc_cache_info {
 	u32 size;
@@ -53,7 +54,28 @@ struct ppc64_caches {
 };
 
 extern struct ppc64_caches ppc64_caches;
-#endif /* __powerpc64__ && ! __ASSEMBLY__ */
+
+static inline u32 l1_cache_shift(void)
+{
+	return ppc64_caches.l1d.log_block_size;
+}
+
+static inline u32 l1_cache_bytes(void)
+{
+	return ppc64_caches.l1d.block_size;
+}
+#else
+static inline u32 l1_cache_shift(void)
+{
+	return L1_CACHE_SHIFT;
+}
+
+static inline u32 l1_cache_bytes(void)
+{
+	return L1_CACHE_BYTES;
+}
+#endif
+#endif /* ! __ASSEMBLY__ */
 
 #if defined(__ASSEMBLY__)
 /*

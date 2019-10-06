@@ -21,7 +21,9 @@
  *
  */
 
-#include <drm/drmP.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_dpm.h"
@@ -4098,14 +4100,13 @@ static int si_notify_smc_display_change(struct amdgpu_device *adev,
 
 static void si_program_response_times(struct amdgpu_device *adev)
 {
-	u32 voltage_response_time, backbias_response_time, acpi_delay_time, vbi_time_out;
+	u32 voltage_response_time, acpi_delay_time, vbi_time_out;
 	u32 vddc_dly, acpi_dly, vbi_dly;
 	u32 reference_clock;
 
 	si_write_smc_soft_register(adev, SI_SMC_SOFT_REGISTER_mvdd_chg_time, 1);
 
 	voltage_response_time = (u32)adev->pm.dpm.voltage_response_time;
-	backbias_response_time = (u32)adev->pm.dpm.backbias_response_time;
 
 	if (voltage_response_time == 0)
 		voltage_response_time = 1000;
@@ -6216,10 +6217,12 @@ static void si_request_link_speed_change_before_state_change(struct amdgpu_devic
 			si_pi->force_pcie_gen = AMDGPU_PCIE_GEN2;
 			if (current_link_speed == AMDGPU_PCIE_GEN2)
 				break;
+			/* fall through */
 		case AMDGPU_PCIE_GEN2:
 			if (amdgpu_acpi_pcie_performance_request(adev, PCIE_PERF_REQ_PECI_GEN2, false) == 0)
 				break;
 #endif
+			/* fall through */
 		default:
 			si_pi->force_pcie_gen = si_get_current_pcie_speed(adev);
 			break;

@@ -144,8 +144,6 @@ struct synquacer_i2c {
 	u32			timeout_ms;
 	enum i2c_state		state;
 	struct i2c_adapter	adapter;
-
-	bool			is_suspended;
 };
 
 static inline int is_lastmsg(struct synquacer_i2c *i2c)
@@ -316,9 +314,6 @@ static int synquacer_i2c_doxfer(struct synquacer_i2c *i2c,
 	unsigned long timeout;
 	int ret;
 
-	if (i2c->is_suspended)
-		return -EBUSY;
-
 	synquacer_i2c_hw_init(i2c);
 	bsr = readb(i2c->base + SYNQUACER_I2C_REG_BSR);
 	if (bsr & SYNQUACER_I2C_BSR_BB) {
@@ -356,7 +351,7 @@ static int synquacer_i2c_doxfer(struct synquacer_i2c *i2c,
 	/* wait 2 clock periods to ensure the stop has been through the bus */
 	udelay(DIV_ROUND_UP(2 * 1000, i2c->speed_khz));
 
-	return 0;
+	return ret;
 }
 
 static irqreturn_t synquacer_i2c_isr(int irq, void *dev_id)
@@ -531,7 +526,7 @@ static const struct i2c_algorithm synquacer_i2c_algo = {
 	.functionality	= synquacer_i2c_functionality,
 };
 
-static struct i2c_adapter synquacer_i2c_ops = {
+static const struct i2c_adapter synquacer_i2c_ops = {
 	.owner		= THIS_MODULE,
 	.name		= "synquacer_i2c-adapter",
 	.algo		= &synquacer_i2c_algo,
@@ -602,6 +597,8 @@ static int synquacer_i2c_probe(struct platform_device *pdev)
 	i2c->adapter = synquacer_i2c_ops;
 	i2c_set_adapdata(&i2c->adapter, i2c);
 	i2c->adapter.dev.parent = &pdev->dev;
+	i2c->adapter.dev.of_node = pdev->dev.of_node;
+	ACPI_COMPANION_SET(&i2c->adapter.dev, ACPI_COMPANION(&pdev->dev));
 	i2c->adapter.nr = pdev->id;
 	init_completion(&i2c->completion);
 

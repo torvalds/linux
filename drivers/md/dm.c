@@ -158,9 +158,6 @@ struct table_device {
 	struct dm_dev dm_dev;
 };
 
-static struct kmem_cache *_rq_tio_cache;
-static struct kmem_cache *_rq_cache;
-
 /*
  * Bio-based DM's mempools' reserved IOs set by the user.
  */
@@ -222,20 +219,11 @@ static unsigned dm_get_numa_node(void)
 
 static int __init local_init(void)
 {
-	int r = -ENOMEM;
-
-	_rq_tio_cache = KMEM_CACHE(dm_rq_target_io, 0);
-	if (!_rq_tio_cache)
-		return r;
-
-	_rq_cache = kmem_cache_create("dm_old_clone_request", sizeof(struct request),
-				      __alignof__(struct request), 0, NULL);
-	if (!_rq_cache)
-		goto out_free_rq_tio_cache;
+	int r;
 
 	r = dm_uevent_init();
 	if (r)
-		goto out_free_rq_cache;
+		return r;
 
 	deferred_remove_workqueue = alloc_workqueue("kdmremove", WQ_UNBOUND, 1);
 	if (!deferred_remove_workqueue) {
@@ -257,10 +245,6 @@ out_free_workqueue:
 	destroy_workqueue(deferred_remove_workqueue);
 out_uevent_exit:
 	dm_uevent_exit();
-out_free_rq_cache:
-	kmem_cache_destroy(_rq_cache);
-out_free_rq_tio_cache:
-	kmem_cache_destroy(_rq_tio_cache);
 
 	return r;
 }
@@ -270,8 +254,6 @@ static void local_exit(void)
 	flush_scheduled_work();
 	destroy_workqueue(deferred_remove_workqueue);
 
-	kmem_cache_destroy(_rq_cache);
-	kmem_cache_destroy(_rq_tio_cache);
 	unregister_blkdev(_major, _name);
 	dm_uevent_exit();
 
@@ -459,8 +441,7 @@ static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 }
 
 static int dm_blk_report_zones(struct gendisk *disk, sector_t sector,
-			       struct blk_zone *zones, unsigned int *nr_zones,
-			       gfp_t gfp_mask)
+			       struct blk_zone *zones, unsigned int *nr_zones)
 {
 #ifdef CONFIG_BLK_DEV_ZONED
 	struct mapped_device *md = disk->private_data;
@@ -476,7 +457,7 @@ static int dm_blk_report_zones(struct gendisk *disk, sector_t sector,
 		return -EIO;
 
 	tgt = dm_table_find_target(map, sector);
-	if (!dm_target_is_valid(tgt)) {
+	if (!tgt) {
 		ret = -EIO;
 		goto out;
 	}
@@ -498,8 +479,7 @@ static int dm_blk_report_zones(struct gendisk *disk, sector_t sector,
 	 * So there is no need to loop here trying to fill the entire array
 	 * of zones.
 	 */
-	ret = tgt->type->report_zones(tgt, sector, zones,
-				      nr_zones, gfp_mask);
+	ret = tgt->type->report_zones(tgt, sector, zones, nr_zones);
 
 out:
 	dm_put_live_table(md, srcu_idx);
@@ -799,7 +779,8 @@ static void close_table_device(struct table_device *td, struct mapped_device *md
 }
 
 static struct table_device *find_table_device(struct list_head *l, dev_t dev,
-					      fmode_t mode) {
+					      fmode_t mode)
+{
 	struct table_device *td;
 
 	list_for_each_entry(td, l, list)
@@ -810,7 +791,8 @@ static struct table_device *find_table_device(struct list_head *l, dev_t dev,
 }
 
 int dm_get_table_device(struct mapped_device *md, dev_t dev, fmode_t mode,
-			struct dm_dev **result) {
+			struct dm_dev **result)
+{
 	int r;
 	struct table_device *td;
 
@@ -963,6 +945,15 @@ static void dec_pending(struct dm_io *io, blk_status_t error)
 	}
 }
 
+void disable_discard(struct mapped_device *md)
+{
+	struct queue_limits *limits = dm_get_queue_limits(md);
+
+	/* device doesn't really support DISCARD, disable it */
+	limits->max_discard_sectors = 0;
+	blk_queue_flag_clear(QUEUE_FLAG_DISCARD, md->queue);
+}
+
 void disable_write_same(struct mapped_device *md)
 {
 	struct queue_limits *limits = dm_get_queue_limits(md);
@@ -988,11 +979,14 @@ static void clone_endio(struct bio *bio)
 	dm_endio_fn endio = tio->ti->type->end_io;
 
 	if (unlikely(error == BLK_STS_TARGET) && md->type != DM_TYPE_NVME_BIO_BASED) {
-		if (bio_op(bio) == REQ_OP_WRITE_SAME &&
-		    !bio->bi_disk->queue->limits.max_write_same_sectors)
+		if (bio_op(bio) == REQ_OP_DISCARD &&
+		    !bio->bi_disk->queue->limits.max_discard_sectors)
+			disable_discard(md);
+		else if (bio_op(bio) == REQ_OP_WRITE_SAME &&
+			 !bio->bi_disk->queue->limits.max_write_same_sectors)
 			disable_write_same(md);
-		if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
-		    !bio->bi_disk->queue->limits.max_write_zeroes_sectors)
+		else if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
+			 !bio->bi_disk->queue->limits.max_write_zeroes_sectors)
 			disable_write_zeroes(md);
 	}
 
@@ -1060,15 +1054,7 @@ int dm_set_target_max_io_len(struct dm_target *ti, sector_t len)
 		return -EINVAL;
 	}
 
-	/*
-	 * BIO based queue uses its own splitting. When multipage bvecs
-	 * is switched on, size of the incoming bio may be too big to
-	 * be handled in some targets, such as crypt.
-	 *
-	 * When these targets are ready for the big bio, we can remove
-	 * the limit.
-	 */
-	ti->max_io_len = min_t(uint32_t, len, BIO_MAX_PAGES * PAGE_SIZE);
+	ti->max_io_len = (uint32_t) len;
 
 	return 0;
 }
@@ -1086,7 +1072,7 @@ static struct dm_target *dm_dax_get_live_target(struct mapped_device *md,
 		return NULL;
 
 	ti = dm_table_find_target(map, sector);
-	if (!dm_target_is_valid(ti))
+	if (!ti)
 		return NULL;
 
 	return ti;
@@ -1114,6 +1100,25 @@ static long dm_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 	ret = ti->type->direct_access(ti, pgoff, nr_pages, kaddr, pfn);
 
  out:
+	dm_put_live_table(md, srcu_idx);
+
+	return ret;
+}
+
+static bool dm_dax_supported(struct dax_device *dax_dev, struct block_device *bdev,
+		int blocksize, sector_t start, sector_t len)
+{
+	struct mapped_device *md = dax_get_private(dax_dev);
+	struct dm_table *map;
+	int srcu_idx;
+	bool ret;
+
+	map = dm_get_live_table(md, &srcu_idx);
+	if (!map)
+		return false;
+
+	ret = dm_table_supports_dax(map, device_supports_dax, &blocksize);
+
 	dm_put_live_table(md, srcu_idx);
 
 	return ret;
@@ -1478,15 +1483,8 @@ static unsigned get_num_write_zeroes_bios(struct dm_target *ti)
 	return ti->num_write_zeroes_bios;
 }
 
-typedef bool (*is_split_required_fn)(struct dm_target *ti);
-
-static bool is_split_required_for_discard(struct dm_target *ti)
-{
-	return ti->split_discard_bios;
-}
-
 static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *ti,
-				       unsigned num_bios, bool is_split_required)
+				       unsigned num_bios)
 {
 	unsigned len;
 
@@ -1499,10 +1497,7 @@ static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *
 	if (!num_bios)
 		return -EOPNOTSUPP;
 
-	if (!is_split_required)
-		len = min((sector_t)ci->sector_count, max_io_len_target_boundary(ci->sector, ti));
-	else
-		len = min((sector_t)ci->sector_count, max_io_len(ci->sector, ti));
+	len = min((sector_t)ci->sector_count, max_io_len_target_boundary(ci->sector, ti));
 
 	__send_duplicate_bios(ci, ti, num_bios, &len);
 
@@ -1514,23 +1509,38 @@ static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *
 
 static int __send_discard(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_discard_bios(ti),
-					   is_split_required_for_discard(ti));
+	return __send_changing_extent_only(ci, ti, get_num_discard_bios(ti));
 }
 
 static int __send_secure_erase(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_secure_erase_bios(ti), false);
+	return __send_changing_extent_only(ci, ti, get_num_secure_erase_bios(ti));
 }
 
 static int __send_write_same(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_write_same_bios(ti), false);
+	return __send_changing_extent_only(ci, ti, get_num_write_same_bios(ti));
 }
 
 static int __send_write_zeroes(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_write_zeroes_bios(ti), false);
+	return __send_changing_extent_only(ci, ti, get_num_write_zeroes_bios(ti));
+}
+
+static bool is_abnormal_io(struct bio *bio)
+{
+	bool r = false;
+
+	switch (bio_op(bio)) {
+	case REQ_OP_DISCARD:
+	case REQ_OP_SECURE_ERASE:
+	case REQ_OP_WRITE_SAME:
+	case REQ_OP_WRITE_ZEROES:
+		r = true;
+		break;
+	}
+
+	return r;
 }
 
 static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
@@ -1562,10 +1572,10 @@ static int __split_and_process_non_flush(struct clone_info *ci)
 	int r;
 
 	ti = dm_table_find_target(ci->map, ci->sector);
-	if (!dm_target_is_valid(ti))
+	if (!ti)
 		return -EIO;
 
-	if (unlikely(__process_abnormal_io(ci, ti, &r)))
+	if (__process_abnormal_io(ci, ti, &r))
 		return r;
 
 	len = min_t(sector_t, max_io_len(ci->sector, ti), ci->sector_count);
@@ -1600,13 +1610,6 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
 	struct clone_info ci;
 	blk_qc_t ret = BLK_QC_T_NONE;
 	int error = 0;
-
-	if (unlikely(!map)) {
-		bio_io_error(bio);
-		return ret;
-	}
-
-	blk_queue_split(md->queue, &bio);
 
 	init_clone_info(&ci, md, map, bio);
 
@@ -1675,17 +1678,12 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
  * Optimized variant of __split_and_process_bio that leverages the
  * fact that targets that use it do _not_ have a need to split bios.
  */
-static blk_qc_t __process_bio(struct mapped_device *md,
-			      struct dm_table *map, struct bio *bio)
+static blk_qc_t __process_bio(struct mapped_device *md, struct dm_table *map,
+			      struct bio *bio, struct dm_target *ti)
 {
 	struct clone_info ci;
 	blk_qc_t ret = BLK_QC_T_NONE;
 	int error = 0;
-
-	if (unlikely(!map)) {
-		bio_io_error(bio);
-		return ret;
-	}
 
 	init_clone_info(&ci, md, map, bio);
 
@@ -1704,21 +1702,11 @@ static blk_qc_t __process_bio(struct mapped_device *md,
 		error = __send_empty_flush(&ci);
 		/* dec_pending submits any data associated with flush */
 	} else {
-		struct dm_target *ti = md->immutable_target;
 		struct dm_target_io *tio;
-
-		/*
-		 * Defend against IO still getting in during teardown
-		 * - as was seen for a time with nvme-fcloop
-		 */
-		if (WARN_ON_ONCE(!ti || !dm_target_is_valid(ti))) {
-			error = -EIO;
-			goto out;
-		}
 
 		ci.bio = bio;
 		ci.sector_count = bio_sectors(bio);
-		if (unlikely(__process_abnormal_io(&ci, ti, &error)))
+		if (__process_abnormal_io(&ci, ti, &error))
 			goto out;
 
 		tio = alloc_tio(&ci, ti, 0, GFP_NOIO);
@@ -1730,11 +1718,55 @@ out:
 	return ret;
 }
 
+static void dm_queue_split(struct mapped_device *md, struct dm_target *ti, struct bio **bio)
+{
+	unsigned len, sector_count;
+
+	sector_count = bio_sectors(*bio);
+	len = min_t(sector_t, max_io_len((*bio)->bi_iter.bi_sector, ti), sector_count);
+
+	if (sector_count > len) {
+		struct bio *split = bio_split(*bio, len, GFP_NOIO, &md->queue->bio_split);
+
+		bio_chain(split, *bio);
+		trace_block_split(md->queue, split, (*bio)->bi_iter.bi_sector);
+		generic_make_request(*bio);
+		*bio = split;
+	}
+}
+
 static blk_qc_t dm_process_bio(struct mapped_device *md,
 			       struct dm_table *map, struct bio *bio)
 {
+	blk_qc_t ret = BLK_QC_T_NONE;
+	struct dm_target *ti = md->immutable_target;
+
+	if (unlikely(!map)) {
+		bio_io_error(bio);
+		return ret;
+	}
+
+	if (!ti) {
+		ti = dm_table_find_target(map, bio->bi_iter.bi_sector);
+		if (unlikely(!ti)) {
+			bio_io_error(bio);
+			return ret;
+		}
+	}
+
+	/*
+	 * If in ->make_request_fn we need to use blk_queue_split(), otherwise
+	 * queue_limits for abnormal requests (e.g. discard, writesame, etc)
+	 * won't be imposed.
+	 */
+	if (current->bio_list) {
+		blk_queue_split(md->queue, &bio);
+		if (!is_abnormal_io(bio))
+			dm_queue_split(md, ti, &bio);
+	}
+
 	if (dm_get_md_type(md) == DM_TYPE_NVME_BIO_BASED)
-		return __process_bio(md, map, bio);
+		return __process_bio(md, map, bio, ti);
 	else
 		return __split_and_process_bio(md, map, bio);
 }
@@ -1895,7 +1927,6 @@ static void cleanup_mapped_device(struct mapped_device *md)
 static struct mapped_device *alloc_dev(int minor)
 {
 	int r, numa_node_id = dm_get_numa_node();
-	struct dax_device *dax_dev = NULL;
 	struct mapped_device *md;
 	void *old_md;
 
@@ -1958,11 +1989,11 @@ static struct mapped_device *alloc_dev(int minor)
 	sprintf(md->disk->disk_name, "dm-%d", minor);
 
 	if (IS_ENABLED(CONFIG_DAX_DRIVER)) {
-		dax_dev = alloc_dax(md, md->disk->disk_name, &dm_dax_ops);
-		if (!dax_dev)
+		md->dax_dev = alloc_dax(md, md->disk->disk_name,
+					&dm_dax_ops, 0);
+		if (!md->dax_dev)
 			goto bad;
 	}
-	md->dax_dev = dax_dev;
 
 	add_disk_no_queue_reg(md->disk);
 	format_dev_t(md->name, MKDEV(_major, minor));
@@ -3181,6 +3212,7 @@ static const struct block_device_operations dm_blk_dops = {
 
 static const struct dax_operations dm_dax_ops = {
 	.direct_access = dm_dax_direct_access,
+	.dax_supported = dm_dax_supported,
 	.copy_from_iter = dm_dax_copy_from_iter,
 	.copy_to_iter = dm_dax_copy_to_iter,
 };

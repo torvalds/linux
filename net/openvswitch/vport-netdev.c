@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2007-2012 Nicira, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -169,7 +156,7 @@ void ovs_netdev_detach_dev(struct vport *vport)
 static void netdev_destroy(struct vport *vport)
 {
 	rtnl_lock();
-	if (vport->dev->priv_flags & IFF_OVS_DATAPATH)
+	if (netif_is_ovs_port(vport->dev))
 		ovs_netdev_detach_dev(vport);
 	rtnl_unlock();
 
@@ -179,7 +166,7 @@ static void netdev_destroy(struct vport *vport)
 void ovs_netdev_tunnel_destroy(struct vport *vport)
 {
 	rtnl_lock();
-	if (vport->dev->priv_flags & IFF_OVS_DATAPATH)
+	if (netif_is_ovs_port(vport->dev))
 		ovs_netdev_detach_dev(vport);
 
 	/* We can be invoked by both explicit vport deletion and
@@ -199,7 +186,7 @@ EXPORT_SYMBOL_GPL(ovs_netdev_tunnel_destroy);
 /* Returns null if this device is not attached to a datapath. */
 struct vport *ovs_netdev_get_vport(struct net_device *dev)
 {
-	if (likely(dev->priv_flags & IFF_OVS_DATAPATH))
+	if (likely(netif_is_ovs_port(dev)))
 		return (struct vport *)
 			rcu_dereference_rtnl(dev->rx_handler_data);
 	else

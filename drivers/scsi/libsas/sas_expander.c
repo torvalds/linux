@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Serial Attached SCSI (SAS) Expander discovery and configuration
  *
@@ -5,26 +6,12 @@
  * Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
  *
  * This file is licensed under GPLv2.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include <linux/scatterlist.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
+#include <asm/unaligned.h>
 
 #include "sas_internal.h"
 
@@ -614,7 +601,14 @@ int sas_smp_phy_control(struct domain_device *dev, int phy_id,
 	}
 
 	res = smp_execute_task(dev, pc_req, PC_REQ_SIZE, pc_resp,PC_RESP_SIZE);
-
+	if (res) {
+		pr_err("ex %016llx phy%02d PHY control failed: %d\n",
+		       SAS_ADDR(dev->sas_addr), phy_id, res);
+	} else if (pc_resp[2] != SMP_RESP_FUNC_ACC) {
+		pr_err("ex %016llx phy%02d PHY control failed: function result 0x%x\n",
+		       SAS_ADDR(dev->sas_addr), phy_id, pc_resp[2]);
+		res = pc_resp[2];
+	}
 	kfree(pc_resp);
 	kfree(pc_req);
 	return res;
@@ -689,10 +683,10 @@ int sas_smp_get_phy_events(struct sas_phy *phy)
 	if (res)
 		goto out;
 
-	phy->invalid_dword_count = scsi_to_u32(&resp[12]);
-	phy->running_disparity_error_count = scsi_to_u32(&resp[16]);
-	phy->loss_of_dword_sync_count = scsi_to_u32(&resp[20]);
-	phy->phy_reset_problem_count = scsi_to_u32(&resp[24]);
+	phy->invalid_dword_count = get_unaligned_be32(&resp[12]);
+	phy->running_disparity_error_count = get_unaligned_be32(&resp[16]);
+	phy->loss_of_dword_sync_count = get_unaligned_be32(&resp[20]);
+	phy->phy_reset_problem_count = get_unaligned_be32(&resp[24]);
 
  out:
 	kfree(req);
@@ -817,6 +811,31 @@ static struct domain_device *sas_ex_discover_end_dev(
 
 #ifdef CONFIG_SCSI_SAS_ATA
 	if ((phy->attached_tproto & SAS_PROTOCOL_STP) || phy->attached_sata_dev) {
+		if (child->linkrate > parent->min_linkrate) {
+			struct sas_phy *cphy = child->phy;
+			enum sas_linkrate min_prate = cphy->minimum_linkrate,
+				parent_min_lrate = parent->min_linkrate,
+				min_linkrate = (min_prate > parent_min_lrate) ?
+					       parent_min_lrate : 0;
+			struct sas_phy_linkrates rates = {
+				.maximum_linkrate = parent->min_linkrate,
+				.minimum_linkrate = min_linkrate,
+			};
+			int ret;
+
+			pr_notice("ex %016llx phy%02d SATA device linkrate > min pathway connection rate, attempting to lower device linkrate\n",
+				   SAS_ADDR(child->sas_addr), phy_id);
+			ret = sas_smp_phy_control(parent, phy_id,
+						  PHY_FUNC_LINK_RESET, &rates);
+			if (ret) {
+				pr_err("ex %016llx phy%02d SATA device could not set linkrate (%d)\n",
+				       SAS_ADDR(child->sas_addr), phy_id, ret);
+				goto out_free;
+			}
+			pr_notice("ex %016llx phy%02d SATA device set linkrate successfully\n",
+				  SAS_ADDR(child->sas_addr), phy_id);
+			child->linkrate = child->min_linkrate;
+		}
 		res = sas_get_ata_info(child, phy);
 		if (res)
 			goto out_free;
@@ -837,7 +856,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 
 		res = sas_discover_sata(child);
 		if (res) {
-			pr_notice("sas_discover_sata() for device %16llx at %016llx:0x%x returned 0x%x\n",
+			pr_notice("sas_discover_sata() for device %16llx at %016llx:%02d returned 0x%x\n",
 				  SAS_ADDR(child->sas_addr),
 				  SAS_ADDR(parent->sas_addr), phy_id, res);
 			goto out_list_del;
@@ -862,7 +881,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 
 		res = sas_discover_end_dev(child);
 		if (res) {
-			pr_notice("sas_discover_end_dev() for device %16llx at %016llx:0x%x returned 0x%x\n",
+			pr_notice("sas_discover_end_dev() for device %16llx at %016llx:%02d returned 0x%x\n",
 				  SAS_ADDR(child->sas_addr),
 				  SAS_ADDR(parent->sas_addr), phy_id, res);
 			goto out_list_del;
@@ -927,7 +946,7 @@ static struct domain_device *sas_ex_discover_expander(
 	int res;
 
 	if (phy->routing_attr == DIRECT_ROUTING) {
-		pr_warn("ex %016llx:0x%x:D <--> ex %016llx:0x%x is not allowed\n",
+		pr_warn("ex %016llx:%02d:D <--> ex %016llx:0x%x is not allowed\n",
 			SAS_ADDR(parent->sas_addr), phy_id,
 			SAS_ADDR(phy->attached_sas_addr),
 			phy->attached_phy_id);
@@ -986,6 +1005,8 @@ static struct domain_device *sas_ex_discover_expander(
 		list_del(&child->dev_list_node);
 		spin_unlock_irq(&parent->port->dev_list_lock);
 		sas_put_device(child);
+		sas_port_delete(phy->port);
+		phy->port = NULL;
 		return NULL;
 	}
 	list_add_tail(&child->siblings, &parent->ex_dev.children);
@@ -1037,7 +1058,7 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 	    ex_phy->attached_dev_type != SAS_FANOUT_EXPANDER_DEVICE &&
 	    ex_phy->attached_dev_type != SAS_EDGE_EXPANDER_DEVICE &&
 	    ex_phy->attached_dev_type != SAS_SATA_PENDING) {
-		pr_warn("unknown device type(0x%x) attached to ex %016llx phy 0x%x\n",
+		pr_warn("unknown device type(0x%x) attached to ex %016llx phy%02d\n",
 			ex_phy->attached_dev_type,
 			SAS_ADDR(dev->sas_addr),
 			phy_id);
@@ -1053,7 +1074,7 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 	}
 
 	if (sas_ex_join_wide_port(dev, phy_id)) {
-		pr_debug("Attaching ex phy%d to wide port %016llx\n",
+		pr_debug("Attaching ex phy%02d to wide port %016llx\n",
 			 phy_id, SAS_ADDR(ex_phy->attached_sas_addr));
 		return res;
 	}
@@ -1065,13 +1086,13 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 		break;
 	case SAS_FANOUT_EXPANDER_DEVICE:
 		if (SAS_ADDR(dev->port->disc.fanout_sas_addr)) {
-			pr_debug("second fanout expander %016llx phy 0x%x attached to ex %016llx phy 0x%x\n",
+			pr_debug("second fanout expander %016llx phy%02d attached to ex %016llx phy%02d\n",
 				 SAS_ADDR(ex_phy->attached_sas_addr),
 				 ex_phy->attached_phy_id,
 				 SAS_ADDR(dev->sas_addr),
 				 phy_id);
 			sas_ex_disable_phy(dev, phy_id);
-			break;
+			return res;
 		} else
 			memcpy(dev->port->disc.fanout_sas_addr,
 			       ex_phy->attached_sas_addr, SAS_ADDR_SIZE);
@@ -1083,27 +1104,9 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 		break;
 	}
 
-	if (child) {
-		int i;
-
-		for (i = 0; i < ex->num_phys; i++) {
-			if (ex->ex_phy[i].phy_state == PHY_VACANT ||
-			    ex->ex_phy[i].phy_state == PHY_NOT_PRESENT)
-				continue;
-			/*
-			 * Due to races, the phy might not get added to the
-			 * wide port, so we add the phy to the wide port here.
-			 */
-			if (SAS_ADDR(ex->ex_phy[i].attached_sas_addr) ==
-			    SAS_ADDR(child->sas_addr)) {
-				ex->ex_phy[i].phy_state= PHY_DEVICE_DISCOVERED;
-				if (sas_ex_join_wide_port(dev, i))
-					pr_debug("Attaching ex phy%d to wide port %016llx\n",
-						 i, SAS_ADDR(ex->ex_phy[i].attached_sas_addr));
-			}
-		}
-	}
-
+	if (!child)
+		pr_notice("ex %016llx phy%02d failed to discover\n",
+			  SAS_ADDR(dev->sas_addr), phy_id);
 	return res;
 }
 
@@ -1119,11 +1122,10 @@ static int sas_find_sub_addr(struct domain_device *dev, u8 *sub_addr)
 		    phy->phy_state == PHY_NOT_PRESENT)
 			continue;
 
-		if ((phy->attached_dev_type == SAS_EDGE_EXPANDER_DEVICE ||
-		     phy->attached_dev_type == SAS_FANOUT_EXPANDER_DEVICE) &&
+		if (dev_is_expander(phy->attached_dev_type) &&
 		    phy->routing_attr == SUBTRACTIVE_ROUTING) {
 
-			memcpy(sub_addr, phy->attached_sas_addr,SAS_ADDR_SIZE);
+			memcpy(sub_addr, phy->attached_sas_addr, SAS_ADDR_SIZE);
 
 			return 1;
 		}
@@ -1135,17 +1137,16 @@ static int sas_check_level_subtractive_boundary(struct domain_device *dev)
 {
 	struct expander_device *ex = &dev->ex_dev;
 	struct domain_device *child;
-	u8 sub_addr[8] = {0, };
+	u8 sub_addr[SAS_ADDR_SIZE] = {0, };
 
 	list_for_each_entry(child, &ex->children, siblings) {
-		if (child->dev_type != SAS_EDGE_EXPANDER_DEVICE &&
-		    child->dev_type != SAS_FANOUT_EXPANDER_DEVICE)
+		if (!dev_is_expander(child->dev_type))
 			continue;
 		if (sub_addr[0] == 0) {
 			sas_find_sub_addr(child, sub_addr);
 			continue;
 		} else {
-			u8 s2[8];
+			u8 s2[SAS_ADDR_SIZE];
 
 			if (sas_find_sub_addr(child, s2) &&
 			    (SAS_ADDR(sub_addr) != SAS_ADDR(s2))) {
@@ -1224,8 +1225,7 @@ static int sas_check_ex_subtractive_boundary(struct domain_device *dev)
 		    phy->phy_state == PHY_NOT_PRESENT)
 			continue;
 
-		if ((phy->attached_dev_type == SAS_FANOUT_EXPANDER_DEVICE ||
-		     phy->attached_dev_type == SAS_EDGE_EXPANDER_DEVICE) &&
+		if (dev_is_expander(phy->attached_dev_type) &&
 		    phy->routing_attr == SUBTRACTIVE_ROUTING) {
 
 			if (!sub_sas_addr)
@@ -1233,7 +1233,7 @@ static int sas_check_ex_subtractive_boundary(struct domain_device *dev)
 			else if (SAS_ADDR(sub_sas_addr) !=
 				 SAS_ADDR(phy->attached_sas_addr)) {
 
-				pr_notice("ex %016llx phy 0x%x diverges(%016llx) on subtractive boundary(%016llx). Disabled\n",
+				pr_notice("ex %016llx phy%02d diverges(%016llx) on subtractive boundary(%016llx). Disabled\n",
 					  SAS_ADDR(dev->sas_addr), i,
 					  SAS_ADDR(phy->attached_sas_addr),
 					  SAS_ADDR(sub_sas_addr));
@@ -1254,7 +1254,7 @@ static void sas_print_parent_topology_bug(struct domain_device *child,
 	};
 	struct domain_device *parent = child->parent;
 
-	pr_notice("%s ex %016llx phy 0x%x <--> %s ex %016llx phy 0x%x has %c:%c routing link!\n",
+	pr_notice("%s ex %016llx phy%02d <--> %s ex %016llx phy%02d has %c:%c routing link!\n",
 		  ex_type[parent->dev_type],
 		  SAS_ADDR(parent->sas_addr),
 		  parent_phy->phy_id,
@@ -1276,7 +1276,7 @@ static int sas_check_eeds(struct domain_device *child,
 
 	if (SAS_ADDR(parent->port->disc.fanout_sas_addr) != 0) {
 		res = -ENODEV;
-		pr_warn("edge ex %016llx phy S:0x%x <--> edge ex %016llx phy S:0x%x, while there is a fanout ex %016llx\n",
+		pr_warn("edge ex %016llx phy S:%02d <--> edge ex %016llx phy S:%02d, while there is a fanout ex %016llx\n",
 			SAS_ADDR(parent->sas_addr),
 			parent_phy->phy_id,
 			SAS_ADDR(child->sas_addr),
@@ -1299,7 +1299,7 @@ static int sas_check_eeds(struct domain_device *child,
 		;
 	else {
 		res = -ENODEV;
-		pr_warn("edge ex %016llx phy 0x%x <--> edge ex %016llx phy 0x%x link forms a third EEDS!\n",
+		pr_warn("edge ex %016llx phy%02d <--> edge ex %016llx phy%02d link forms a third EEDS!\n",
 			SAS_ADDR(parent->sas_addr),
 			parent_phy->phy_id,
 			SAS_ADDR(child->sas_addr),
@@ -1321,8 +1321,7 @@ static int sas_check_parent_topology(struct domain_device *child)
 	if (!child->parent)
 		return 0;
 
-	if (child->parent->dev_type != SAS_EDGE_EXPANDER_DEVICE &&
-	    child->parent->dev_type != SAS_FANOUT_EXPANDER_DEVICE)
+	if (!dev_is_expander(child->parent->dev_type))
 		return 0;
 
 	parent_ex = &child->parent->ex_dev;
@@ -1417,11 +1416,11 @@ static int sas_configure_present(struct domain_device *dev, int phy_id,
 			goto out;
 		res = rri_resp[2];
 		if (res == SMP_RESP_NO_INDEX) {
-			pr_warn("overflow of indexes: dev %016llx phy 0x%x index 0x%x\n",
+			pr_warn("overflow of indexes: dev %016llx phy%02d index 0x%x\n",
 				SAS_ADDR(dev->sas_addr), phy_id, i);
 			goto out;
 		} else if (res != SMP_RESP_FUNC_ACC) {
-			pr_notice("%s: dev %016llx phy 0x%x index 0x%x result 0x%x\n",
+			pr_notice("%s: dev %016llx phy%02d index 0x%x result 0x%x\n",
 				  __func__, SAS_ADDR(dev->sas_addr), phy_id,
 				  i, res);
 			goto out;
@@ -1487,7 +1486,7 @@ static int sas_configure_set(struct domain_device *dev, int phy_id,
 		goto out;
 	res = cri_resp[2];
 	if (res == SMP_RESP_NO_INDEX) {
-		pr_warn("overflow of indexes: dev %016llx phy 0x%x index 0x%x\n",
+		pr_warn("overflow of indexes: dev %016llx phy%02d index 0x%x\n",
 			SAS_ADDR(dev->sas_addr), phy_id, index);
 	}
 out:
@@ -1618,8 +1617,7 @@ static int sas_ex_level_discovery(struct asd_sas_port *port, const int level)
 	struct domain_device *dev;
 
 	list_for_each_entry(dev, &port->dev_list, dev_list_node) {
-		if (dev->dev_type == SAS_EDGE_EXPANDER_DEVICE ||
-		    dev->dev_type == SAS_FANOUT_EXPANDER_DEVICE) {
+		if (dev_is_expander(dev->dev_type)) {
 			struct sas_expander_device *ex =
 				rphy_to_expander_device(dev->rphy);
 
@@ -1732,10 +1730,11 @@ static int sas_get_phy_attached_dev(struct domain_device *dev, int phy_id,
 
 	res = sas_get_phy_discover(dev, phy_id, disc_resp);
 	if (res == 0) {
-		memcpy(sas_addr, disc_resp->disc.attached_sas_addr, 8);
+		memcpy(sas_addr, disc_resp->disc.attached_sas_addr,
+		       SAS_ADDR_SIZE);
 		*type = to_dev_type(dr);
 		if (*type == 0)
-			memset(sas_addr, 0, 8);
+			memset(sas_addr, 0, SAS_ADDR_SIZE);
 	}
 	kfree(disc_resp);
 	return res;
@@ -1842,13 +1841,15 @@ static int sas_find_bcast_dev(struct domain_device *dev,
 		if (phy_id != -1) {
 			*src_dev = dev;
 			ex->ex_change_count = ex_change_count;
-			pr_info("Expander phy change count has changed\n");
+			pr_info("ex %016llx phy%02d change count has changed\n",
+				SAS_ADDR(dev->sas_addr), phy_id);
 			return res;
 		} else
-			pr_info("Expander phys DID NOT change\n");
+			pr_info("ex %016llx phys DID NOT change\n",
+				SAS_ADDR(dev->sas_addr));
 	}
 	list_for_each_entry(ch, &ex->children, siblings) {
-		if (ch->dev_type == SAS_EDGE_EXPANDER_DEVICE || ch->dev_type == SAS_FANOUT_EXPANDER_DEVICE) {
+		if (dev_is_expander(ch->dev_type)) {
 			res = sas_find_bcast_dev(ch, src_dev);
 			if (*src_dev)
 				return res;
@@ -1865,8 +1866,7 @@ static void sas_unregister_ex_tree(struct asd_sas_port *port, struct domain_devi
 
 	list_for_each_entry_safe(child, n, &ex->children, siblings) {
 		set_bit(SAS_DEV_GONE, &child->state);
-		if (child->dev_type == SAS_EDGE_EXPANDER_DEVICE ||
-		    child->dev_type == SAS_FANOUT_EXPANDER_DEVICE)
+		if (dev_is_expander(child->dev_type))
 			sas_unregister_ex_tree(port, child);
 		else
 			sas_unregister_dev(port, child);
@@ -1886,8 +1886,7 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 			if (SAS_ADDR(child->sas_addr) ==
 			    SAS_ADDR(phy->attached_sas_addr)) {
 				set_bit(SAS_DEV_GONE, &child->state);
-				if (child->dev_type == SAS_EDGE_EXPANDER_DEVICE ||
-				    child->dev_type == SAS_FANOUT_EXPANDER_DEVICE)
+				if (dev_is_expander(child->dev_type))
 					sas_unregister_ex_tree(parent->port, child);
 				else
 					sas_unregister_dev(parent->port, child);
@@ -1916,8 +1915,7 @@ static int sas_discover_bfs_by_root_level(struct domain_device *root,
 	int res = 0;
 
 	list_for_each_entry(child, &ex_root->children, siblings) {
-		if (child->dev_type == SAS_EDGE_EXPANDER_DEVICE ||
-		    child->dev_type == SAS_FANOUT_EXPANDER_DEVICE) {
+		if (dev_is_expander(child->dev_type)) {
 			struct sas_expander_device *ex =
 				rphy_to_expander_device(child->rphy);
 
@@ -1955,7 +1953,7 @@ static int sas_discover_new(struct domain_device *dev, int phy_id)
 	struct domain_device *child;
 	int res;
 
-	pr_debug("ex %016llx phy%d new device attached\n",
+	pr_debug("ex %016llx phy%02d new device attached\n",
 		 SAS_ADDR(dev->sas_addr), phy_id);
 	res = sas_ex_phy_discover(dev, phy_id);
 	if (res)
@@ -1970,8 +1968,7 @@ static int sas_discover_new(struct domain_device *dev, int phy_id)
 	list_for_each_entry(child, &dev->ex_dev.children, siblings) {
 		if (SAS_ADDR(child->sas_addr) ==
 		    SAS_ADDR(ex_phy->attached_sas_addr)) {
-			if (child->dev_type == SAS_EDGE_EXPANDER_DEVICE ||
-			    child->dev_type == SAS_FANOUT_EXPANDER_DEVICE)
+			if (dev_is_expander(child->dev_type))
 				res = sas_discover_bfs_by_root(child);
 			break;
 		}
@@ -1994,15 +1991,23 @@ static bool dev_type_flutter(enum sas_device_type new, enum sas_device_type old)
 	return false;
 }
 
-static int sas_rediscover_dev(struct domain_device *dev, int phy_id, bool last)
+static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
+			      bool last, int sibling)
 {
 	struct expander_device *ex = &dev->ex_dev;
 	struct ex_phy *phy = &ex->ex_phy[phy_id];
 	enum sas_device_type type = SAS_PHY_UNUSED;
-	u8 sas_addr[8];
+	u8 sas_addr[SAS_ADDR_SIZE];
+	char msg[80] = "";
 	int res;
 
-	memset(sas_addr, 0, 8);
+	if (!last)
+		sprintf(msg, ", part of a wide port with phy%02d", sibling);
+
+	pr_debug("ex %016llx rediscovering phy%02d%s\n",
+		 SAS_ADDR(dev->sas_addr), phy_id, msg);
+
+	memset(sas_addr, 0, SAS_ADDR_SIZE);
 	res = sas_get_phy_attached_dev(dev, phy_id, sas_addr, &type);
 	switch (res) {
 	case SMP_RESP_NO_PHY:
@@ -2024,6 +2029,11 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id, bool last)
 	if ((SAS_ADDR(sas_addr) == 0) || (res == -ECOMM)) {
 		phy->phy_state = PHY_EMPTY;
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
+		/*
+		 * Even though the PHY is empty, for convenience we discover
+		 * the PHY to update the PHY info, like negotiated linkrate.
+		 */
+		sas_ex_phy_discover(dev, phy_id);
 		return res;
 	} else if (SAS_ADDR(sas_addr) == SAS_ADDR(phy->attached_sas_addr) &&
 		   dev_type_flutter(type, phy->attached_dev_type)) {
@@ -2034,13 +2044,13 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id, bool last)
 
 		if (ata_dev && phy->attached_dev_type == SAS_SATA_PENDING)
 			action = ", needs recovery";
-		pr_debug("ex %016llx phy 0x%x broadcast flutter%s\n",
+		pr_debug("ex %016llx phy%02d broadcast flutter%s\n",
 			 SAS_ADDR(dev->sas_addr), phy_id, action);
 		return res;
 	}
 
 	/* we always have to delete the old device when we went here */
-	pr_info("ex %016llx phy 0x%x replace %016llx\n",
+	pr_info("ex %016llx phy%02d replace %016llx\n",
 		SAS_ADDR(dev->sas_addr), phy_id,
 		SAS_ADDR(phy->attached_sas_addr));
 	sas_unregister_devs_sas_addr(dev, phy_id, last);
@@ -2070,7 +2080,7 @@ static int sas_rediscover(struct domain_device *dev, const int phy_id)
 	int i;
 	bool last = true;	/* is this the last phy of the port */
 
-	pr_debug("ex %016llx phy%d originated BROADCAST(CHANGE)\n",
+	pr_debug("ex %016llx phy%02d originated BROADCAST(CHANGE)\n",
 		 SAS_ADDR(dev->sas_addr), phy_id);
 
 	if (SAS_ADDR(changed_phy->attached_sas_addr) != 0) {
@@ -2081,13 +2091,11 @@ static int sas_rediscover(struct domain_device *dev, const int phy_id)
 				continue;
 			if (SAS_ADDR(phy->attached_sas_addr) ==
 			    SAS_ADDR(changed_phy->attached_sas_addr)) {
-				pr_debug("phy%d part of wide port with phy%d\n",
-					 phy_id, i);
 				last = false;
 				break;
 			}
 		}
-		res = sas_rediscover_dev(dev, phy_id, last);
+		res = sas_rediscover_dev(dev, phy_id, last, i);
 	} else
 		res = sas_discover_new(dev, phy_id);
 	return res;

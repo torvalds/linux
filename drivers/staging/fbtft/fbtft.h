@@ -27,7 +27,7 @@
  */
 struct fbtft_gpio {
 	char name[FBTFT_GPIO_NAME_SIZE];
-	unsigned int gpio;
+	struct gpio_desc *gpio;
 };
 
 struct fbtft_par;
@@ -134,7 +134,6 @@ struct fbtft_display {
  */
 struct fbtft_platform_data {
 	struct fbtft_display display;
-	const struct fbtft_gpio *gpios;
 	unsigned int rotate;
 	bool bgr;
 	unsigned int fps;
@@ -207,15 +206,15 @@ struct fbtft_par {
 	unsigned int dirty_lines_start;
 	unsigned int dirty_lines_end;
 	struct {
-		int reset;
-		int dc;
-		int rd;
-		int wr;
-		int latch;
-		int cs;
-		int db[16];
-		int led[16];
-		int aux[16];
+		struct gpio_desc *reset;
+		struct gpio_desc *dc;
+		struct gpio_desc *rd;
+		struct gpio_desc *wr;
+		struct gpio_desc *latch;
+		struct gpio_desc *cs;
+		struct gpio_desc *db[16];
+		struct gpio_desc *led[16];
+		struct gpio_desc *aux[16];
 	} gpio;
 	const s16 *init_sequence;
 	struct {
@@ -239,6 +238,7 @@ struct fbtft_par {
 
 /* fbtft-core.c */
 int fbtft_write_buf_dc(struct fbtft_par *par, void *buf, size_t len, int dc);
+__printf(5, 6)
 void fbtft_dbg_hex(const struct device *dev, int groupsize,
 		   void *buf, size_t len, const char *fmt, ...);
 struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,

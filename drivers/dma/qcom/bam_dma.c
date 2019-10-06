@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 /*
  * QCOM BAM DMA engine driver
@@ -636,8 +627,8 @@ static struct dma_async_tx_descriptor *bam_prep_slave_sg(struct dma_chan *chan,
 		num_alloc += DIV_ROUND_UP(sg_dma_len(sg), BAM_FIFO_SIZE);
 
 	/* allocate enough room to accomodate the number of entries */
-	async_desc = kzalloc(sizeof(*async_desc) +
-			(num_alloc * sizeof(struct bam_desc_hw)), GFP_NOWAIT);
+	async_desc = kzalloc(struct_size(async_desc, desc, num_alloc),
+			     GFP_NOWAIT);
 
 	if (!async_desc)
 		goto err_out;
@@ -807,6 +798,9 @@ static u32 process_channel_irqs(struct bam_device *bdev)
 
 		/* Number of bytes available to read */
 		avail = CIRC_CNT(offset, bchan->head, MAX_DESCRIPTORS + 1);
+
+		if (offset < bchan->head)
+			avail--;
 
 		list_for_each_entry_safe(async_desc, tmp,
 					 &bchan->desc_list, desc_node) {

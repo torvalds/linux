@@ -143,7 +143,7 @@ static struct clk *_register_mux(struct device *dev, const char *name,
 
 	init.name = name;
 	init.ops = &ti_clk_mux_ops;
-	init.flags = flags | CLK_IS_BASIC;
+	init.flags = flags;
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
 
@@ -162,37 +162,6 @@ static struct clk *_register_mux(struct device *dev, const char *name,
 		kfree(mux);
 
 	return clk;
-}
-
-struct clk *ti_clk_register_mux(struct ti_clk *setup)
-{
-	struct ti_clk_mux *mux;
-	u32 flags;
-	u8 mux_flags = 0;
-	struct clk_omap_reg reg;
-	u32 mask;
-
-	mux = setup->data;
-	flags = CLK_SET_RATE_NO_REPARENT;
-
-	mask = mux->num_parents;
-	if (!(mux->flags & CLKF_INDEX_STARTS_AT_ONE))
-		mask--;
-
-	mask = (1 << fls(mask)) - 1;
-	reg.index = mux->module;
-	reg.offset = mux->reg;
-	reg.ptr = NULL;
-
-	if (mux->flags & CLKF_INDEX_STARTS_AT_ONE)
-		mux_flags |= CLK_MUX_INDEX_ONE;
-
-	if (mux->flags & CLKF_SET_RATE_PARENT)
-		flags |= CLK_SET_RATE_PARENT;
-
-	return _register_mux(NULL, setup->name, mux->parents, mux->num_parents,
-			     flags, &reg, mux->bit_shift, mask, -EINVAL,
-			     mux_flags, NULL);
 }
 
 /**

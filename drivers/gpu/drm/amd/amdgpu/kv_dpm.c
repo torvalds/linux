@@ -21,7 +21,6 @@
  *
  */
 
-#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
 #include "cikd.h"
@@ -2824,7 +2823,7 @@ static int kv_dpm_init(struct amdgpu_device *adev)
 		pi->caps_tcp_ramping = true;
 	}
 
-	if (adev->powerplay.pp_feature & PP_SCLK_DEEP_SLEEP_MASK)
+	if (adev->pm.pp_feature & PP_SCLK_DEEP_SLEEP_MASK)
 		pi->caps_sclk_ds = true;
 	else
 		pi->caps_sclk_ds = false;

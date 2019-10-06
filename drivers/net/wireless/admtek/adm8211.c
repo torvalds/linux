@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 
 /*
  * Linux device driver for ADMtek ADM8211 (IEEE 802.11b MAC/BBP)
@@ -8,11 +9,6 @@
  * and used with permission.
  *
  * Much thanks to Infineon-ADMtek for their support of this driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation. See README and COPYING for
- * more details.
  */
 
 #include <linux/interrupt.h>

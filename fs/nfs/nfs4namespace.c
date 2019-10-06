@@ -137,6 +137,7 @@ static size_t nfs_parse_server_name(char *string, size_t len,
 
 /**
  * nfs_find_best_sec - Find a security mechanism supported locally
+ * @clnt: pointer to rpc_clnt
  * @server: NFS server struct
  * @flavors: List of security tuples returned by SECINFO procedure
  *
@@ -288,8 +289,8 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 
 /**
  * nfs_follow_referral - set up mountpoint when hitting a referral on moved error
- * @dentry - parent directory
- * @locations - array of NFSv4 server location information
+ * @dentry: parent directory
+ * @locations: array of NFSv4 server location information
  *
  */
 static struct vfsmount *nfs_follow_referral(struct dentry *dentry,

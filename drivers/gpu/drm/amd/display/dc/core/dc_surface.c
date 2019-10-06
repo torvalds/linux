@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/mm.h>
+
 /* DC interface (public) */
 #include "dm_services.h"
 #include "dc.h"
@@ -40,11 +42,32 @@ static void construct(struct dc_context *ctx, struct dc_plane_state *plane_state
 	plane_state->ctx = ctx;
 
 	plane_state->gamma_correction = dc_create_gamma();
-	plane_state->gamma_correction->is_identity = true;
+	if (plane_state->gamma_correction != NULL)
+		plane_state->gamma_correction->is_identity = true;
 
 	plane_state->in_transfer_func = dc_create_transfer_func();
-	plane_state->in_transfer_func->type = TF_TYPE_BYPASS;
-	plane_state->in_transfer_func->ctx = ctx;
+	if (plane_state->in_transfer_func != NULL) {
+		plane_state->in_transfer_func->type = TF_TYPE_BYPASS;
+		plane_state->in_transfer_func->ctx = ctx;
+	}
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	plane_state->in_shaper_func = dc_create_transfer_func();
+	if (plane_state->in_shaper_func != NULL) {
+		plane_state->in_shaper_func->type = TF_TYPE_BYPASS;
+		plane_state->in_shaper_func->ctx = ctx;
+	}
+
+	plane_state->lut3d_func = dc_create_3dlut_func();
+	if (plane_state->lut3d_func != NULL) {
+		plane_state->lut3d_func->ctx = ctx;
+	}
+	plane_state->blend_tf = dc_create_transfer_func();
+	if (plane_state->blend_tf != NULL) {
+		plane_state->blend_tf->type = TF_TYPE_BYPASS;
+		plane_state->blend_tf->ctx = ctx;
+	}
+
+#endif
 }
 
 static void destruct(struct dc_plane_state *plane_state)
@@ -57,6 +80,24 @@ static void destruct(struct dc_plane_state *plane_state)
 				plane_state->in_transfer_func);
 		plane_state->in_transfer_func = NULL;
 	}
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	if (plane_state->in_shaper_func != NULL) {
+		dc_transfer_func_release(
+				plane_state->in_shaper_func);
+		plane_state->in_shaper_func = NULL;
+	}
+	if (plane_state->lut3d_func != NULL) {
+		dc_3dlut_func_release(
+				plane_state->lut3d_func);
+		plane_state->lut3d_func = NULL;
+	}
+	if (plane_state->blend_tf != NULL) {
+		dc_transfer_func_release(
+				plane_state->blend_tf);
+		plane_state->blend_tf = NULL;
+	}
+
+#endif
 }
 
 /*******************************************************************************
@@ -115,6 +156,19 @@ const struct dc_plane_status *dc_plane_get_status(
 
 	if (core_dc->current_state == NULL)
 		return NULL;
+
+	/* Find the current plane state and set its pending bit to false */
+	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx =
+				&core_dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->plane_state != plane_state)
+			continue;
+
+		pipe_ctx->plane_state->status.is_flip_pending = false;
+
+		break;
+	}
 
 	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx =
@@ -207,5 +261,41 @@ struct dc_transfer_func *dc_create_transfer_func(void)
 alloc_fail:
 	return NULL;
 }
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+static void dc_3dlut_func_free(struct kref *kref)
+{
+	struct dc_3dlut *lut = container_of(kref, struct dc_3dlut, refcount);
+
+	kvfree(lut);
+}
+
+struct dc_3dlut *dc_create_3dlut_func(void)
+{
+	struct dc_3dlut *lut = kvzalloc(sizeof(*lut), GFP_KERNEL);
+
+	if (lut == NULL)
+		goto alloc_fail;
+
+	kref_init(&lut->refcount);
+	lut->state.raw = 0;
+
+	return lut;
+
+alloc_fail:
+	return NULL;
+
+}
+
+void dc_3dlut_func_release(struct dc_3dlut *lut)
+{
+	kref_put(&lut->refcount, dc_3dlut_func_free);
+}
+
+void dc_3dlut_func_retain(struct dc_3dlut *lut)
+{
+	kref_get(&lut->refcount);
+}
+#endif
 
 

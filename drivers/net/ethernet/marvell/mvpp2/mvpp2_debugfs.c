@@ -18,8 +18,18 @@ struct mvpp2_dbgfs_prs_entry {
 	struct mvpp2 *priv;
 };
 
+struct mvpp2_dbgfs_c2_entry {
+	int id;
+	struct mvpp2 *priv;
+};
+
 struct mvpp2_dbgfs_flow_entry {
 	int flow;
+	struct mvpp2 *priv;
+};
+
+struct mvpp2_dbgfs_flow_tbl_entry {
+	int id;
 	struct mvpp2 *priv;
 };
 
@@ -28,12 +38,28 @@ struct mvpp2_dbgfs_port_flow_entry {
 	struct mvpp2_dbgfs_flow_entry *dbg_fe;
 };
 
+struct mvpp2_dbgfs_entries {
+	/* Entries for Header Parser debug info */
+	struct mvpp2_dbgfs_prs_entry prs_entries[MVPP2_PRS_TCAM_SRAM_SIZE];
+
+	/* Entries for Classifier C2 engine debug info */
+	struct mvpp2_dbgfs_c2_entry c2_entries[MVPP22_CLS_C2_N_ENTRIES];
+
+	/* Entries for Classifier Flow Table debug info */
+	struct mvpp2_dbgfs_flow_tbl_entry flt_entries[MVPP2_CLS_FLOWS_TBL_SIZE];
+
+	/* Entries for Classifier flows debug info */
+	struct mvpp2_dbgfs_flow_entry flow_entries[MVPP2_N_PRS_FLOWS];
+
+	/* Entries for per-port flows debug info */
+	struct mvpp2_dbgfs_port_flow_entry port_flow_entries[MVPP2_MAX_PORTS];
+};
+
 static int mvpp2_dbgfs_flow_flt_hits_show(struct seq_file *s, void *unused)
 {
-	struct mvpp2_dbgfs_flow_entry *entry = s->private;
-	int id = MVPP2_FLOW_C2_ENTRY(entry->flow);
+	struct mvpp2_dbgfs_flow_tbl_entry *entry = s->private;
 
-	u32 hits = mvpp2_cls_flow_hits(entry->priv, id);
+	u32 hits = mvpp2_cls_flow_hits(entry->priv, entry->id);
 
 	seq_printf(s, "%u\n", hits);
 
@@ -58,7 +84,7 @@ DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_flow_dec_hits);
 static int mvpp2_dbgfs_flow_type_show(struct seq_file *s, void *unused)
 {
 	struct mvpp2_dbgfs_flow_entry *entry = s->private;
-	struct mvpp2_cls_flow *f;
+	const struct mvpp2_cls_flow *f;
 	const char *flow_name;
 
 	f = mvpp2_cls_flow_get(entry->flow);
@@ -93,30 +119,12 @@ static int mvpp2_dbgfs_flow_type_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int mvpp2_dbgfs_flow_type_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mvpp2_dbgfs_flow_type_show, inode->i_private);
-}
-
-static int mvpp2_dbgfs_flow_type_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct mvpp2_dbgfs_flow_entry *flow_entry = seq->private;
-
-	kfree(flow_entry);
-	return single_release(inode, file);
-}
-
-static const struct file_operations mvpp2_dbgfs_flow_type_fops = {
-	.open = mvpp2_dbgfs_flow_type_open,
-	.read = seq_read,
-	.release = mvpp2_dbgfs_flow_type_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_flow_type);
 
 static int mvpp2_dbgfs_flow_id_show(struct seq_file *s, void *unused)
 {
-	struct mvpp2_dbgfs_flow_entry *entry = s->private;
-	struct mvpp2_cls_flow *f;
+	const struct mvpp2_dbgfs_flow_entry *entry = s->private;
+	const struct mvpp2_cls_flow *f;
 
 	f = mvpp2_cls_flow_get(entry->flow);
 	if (!f)
@@ -134,7 +142,7 @@ static int mvpp2_dbgfs_port_flow_hash_opt_show(struct seq_file *s, void *unused)
 	struct mvpp2_dbgfs_port_flow_entry *entry = s->private;
 	struct mvpp2_port *port = entry->port;
 	struct mvpp2_cls_flow_entry fe;
-	struct mvpp2_cls_flow *f;
+	const struct mvpp2_cls_flow *f;
 	int flow_index;
 	u16 hash_opts;
 
@@ -142,7 +150,7 @@ static int mvpp2_dbgfs_port_flow_hash_opt_show(struct seq_file *s, void *unused)
 	if (!f)
 		return -EINVAL;
 
-	flow_index = MVPP2_PORT_FLOW_HASH_ENTRY(entry->port->id, f->flow_id);
+	flow_index = MVPP2_CLS_FLT_HASH_ENTRY(entry->port->id, f->flow_id);
 
 	mvpp2_cls_flow_read(port->priv, flow_index, &fe);
 
@@ -153,42 +161,21 @@ static int mvpp2_dbgfs_port_flow_hash_opt_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int mvpp2_dbgfs_port_flow_hash_opt_open(struct inode *inode,
-					       struct file *file)
-{
-	return single_open(file, mvpp2_dbgfs_port_flow_hash_opt_show,
-			   inode->i_private);
-}
-
-static int mvpp2_dbgfs_port_flow_hash_opt_release(struct inode *inode,
-						  struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct mvpp2_dbgfs_port_flow_entry *flow_entry = seq->private;
-
-	kfree(flow_entry);
-	return single_release(inode, file);
-}
-
-static const struct file_operations mvpp2_dbgfs_port_flow_hash_opt_fops = {
-	.open = mvpp2_dbgfs_port_flow_hash_opt_open,
-	.read = seq_read,
-	.release = mvpp2_dbgfs_port_flow_hash_opt_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_port_flow_hash_opt);
 
 static int mvpp2_dbgfs_port_flow_engine_show(struct seq_file *s, void *unused)
 {
 	struct mvpp2_dbgfs_port_flow_entry *entry = s->private;
 	struct mvpp2_port *port = entry->port;
 	struct mvpp2_cls_flow_entry fe;
-	struct mvpp2_cls_flow *f;
+	const struct mvpp2_cls_flow *f;
 	int flow_index, engine;
 
 	f = mvpp2_cls_flow_get(entry->dbg_fe->flow);
 	if (!f)
 		return -EINVAL;
 
-	flow_index = MVPP2_PORT_FLOW_HASH_ENTRY(entry->port->id, f->flow_id);
+	flow_index = MVPP2_CLS_FLT_HASH_ENTRY(entry->port->id, f->flow_id);
 
 	mvpp2_cls_flow_read(port->priv, flow_index, &fe);
 
@@ -203,11 +190,10 @@ DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_port_flow_engine);
 
 static int mvpp2_dbgfs_flow_c2_hits_show(struct seq_file *s, void *unused)
 {
-	struct mvpp2_port *port = s->private;
+	struct mvpp2_dbgfs_c2_entry *entry = s->private;
 	u32 hits;
 
-	hits = mvpp2_cls_c2_hit_count(port->priv,
-				      MVPP22_CLS_C2_RSS_ENTRY(port->id));
+	hits = mvpp2_cls_c2_hit_count(entry->priv, entry->id);
 
 	seq_printf(s, "%u\n", hits);
 
@@ -218,11 +204,11 @@ DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_flow_c2_hits);
 
 static int mvpp2_dbgfs_flow_c2_rxq_show(struct seq_file *s, void *unused)
 {
-	struct mvpp2_port *port = s->private;
+	struct mvpp2_dbgfs_c2_entry *entry = s->private;
 	struct mvpp2_cls_c2_entry c2;
 	u8 qh, ql;
 
-	mvpp2_cls_c2_read(port->priv, MVPP22_CLS_C2_RSS_ENTRY(port->id), &c2);
+	mvpp2_cls_c2_read(entry->priv, entry->id, &c2);
 
 	qh = (c2.attr[0] >> MVPP22_CLS_C2_ATTR0_QHIGH_OFFS) &
 	     MVPP22_CLS_C2_ATTR0_QHIGH_MASK;
@@ -239,11 +225,11 @@ DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_flow_c2_rxq);
 
 static int mvpp2_dbgfs_flow_c2_enable_show(struct seq_file *s, void *unused)
 {
-	struct mvpp2_port *port = s->private;
+	struct mvpp2_dbgfs_c2_entry *entry = s->private;
 	struct mvpp2_cls_c2_entry c2;
 	int enabled;
 
-	mvpp2_cls_c2_read(port->priv, MVPP22_CLS_C2_RSS_ENTRY(port->id), &c2);
+	mvpp2_cls_c2_read(entry->priv, entry->id, &c2);
 
 	enabled = !!(c2.attr[2] & MVPP22_CLS_C2_ATTR2_RSS_EN);
 
@@ -456,25 +442,7 @@ static int mvpp2_dbgfs_prs_valid_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int mvpp2_dbgfs_prs_valid_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mvpp2_dbgfs_prs_valid_show, inode->i_private);
-}
-
-static int mvpp2_dbgfs_prs_valid_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct mvpp2_dbgfs_prs_entry *entry = seq->private;
-
-	kfree(entry);
-	return single_release(inode, file);
-}
-
-static const struct file_operations mvpp2_dbgfs_prs_valid_fops = {
-	.open = mvpp2_dbgfs_prs_valid_open,
-	.read = seq_read,
-	.release = mvpp2_dbgfs_prs_valid_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_prs_valid);
 
 static int mvpp2_dbgfs_flow_port_init(struct dentry *parent,
 				      struct mvpp2_port *port,
@@ -484,13 +452,8 @@ static int mvpp2_dbgfs_flow_port_init(struct dentry *parent,
 	struct dentry *port_dir;
 
 	port_dir = debugfs_create_dir(port->dev->name, parent);
-	if (IS_ERR(port_dir))
-		return PTR_ERR(port_dir);
 
-	/* This will be freed by 'hash_opts' release op */
-	port_entry = kmalloc(sizeof(*port_entry), GFP_KERNEL);
-	if (!port_entry)
-		return -ENOMEM;
+	port_entry = &port->priv->dbgfs_entries->port_flow_entries[port->id];
 
 	port_entry->port = port;
 	port_entry->dbg_fe = entry;
@@ -515,19 +478,11 @@ static int mvpp2_dbgfs_flow_entry_init(struct dentry *parent,
 	sprintf(flow_entry_name, "%02d", flow);
 
 	flow_entry_dir = debugfs_create_dir(flow_entry_name, parent);
-	if (!flow_entry_dir)
-		return -ENOMEM;
 
-	/* This will be freed by 'type' release op */
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return -ENOMEM;
+	entry = &priv->dbgfs_entries->flow_entries[flow];
 
 	entry->flow = flow;
 	entry->priv = priv;
-
-	debugfs_create_file("flow_hits", 0444, flow_entry_dir, entry,
-			    &mvpp2_dbgfs_flow_flt_hits_fops);
 
 	debugfs_create_file("dec_hits", 0444, flow_entry_dir, entry,
 			    &mvpp2_dbgfs_flow_dec_hits_fops);
@@ -545,6 +500,7 @@ static int mvpp2_dbgfs_flow_entry_init(struct dentry *parent,
 		if (ret)
 			return ret;
 	}
+
 	return 0;
 }
 
@@ -554,10 +510,8 @@ static int mvpp2_dbgfs_flow_init(struct dentry *parent, struct mvpp2 *priv)
 	int i, ret;
 
 	flow_dir = debugfs_create_dir("flows", parent);
-	if (!flow_dir)
-		return -ENOMEM;
 
-	for (i = 0; i < MVPP2_N_FLOWS; i++) {
+	for (i = 0; i < MVPP2_N_PRS_FLOWS; i++) {
 		ret = mvpp2_dbgfs_flow_entry_init(flow_dir, priv, i);
 		if (ret)
 			return ret;
@@ -579,13 +533,8 @@ static int mvpp2_dbgfs_prs_entry_init(struct dentry *parent,
 	sprintf(prs_entry_name, "%03d", tid);
 
 	prs_entry_dir = debugfs_create_dir(prs_entry_name, parent);
-	if (!prs_entry_dir)
-		return -ENOMEM;
 
-	/* The 'valid' entry's ops will free that */
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return -ENOMEM;
+	entry = &priv->dbgfs_entries->prs_entries[tid];
 
 	entry->tid = tid;
 	entry->priv = priv;
@@ -609,6 +558,9 @@ static int mvpp2_dbgfs_prs_entry_init(struct dentry *parent,
 	debugfs_create_file("hits", 0444, prs_entry_dir, entry,
 			    &mvpp2_dbgfs_prs_hits_fops);
 
+	debugfs_create_file("pmap", 0444, prs_entry_dir, entry,
+			     &mvpp2_dbgfs_prs_pmap_fops);
+
 	return 0;
 }
 
@@ -618,11 +570,101 @@ static int mvpp2_dbgfs_prs_init(struct dentry *parent, struct mvpp2 *priv)
 	int i, ret;
 
 	prs_dir = debugfs_create_dir("parser", parent);
-	if (!prs_dir)
-		return -ENOMEM;
 
 	for (i = 0; i < MVPP2_PRS_TCAM_SRAM_SIZE; i++) {
 		ret = mvpp2_dbgfs_prs_entry_init(prs_dir, priv, i);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int mvpp2_dbgfs_c2_entry_init(struct dentry *parent,
+				     struct mvpp2 *priv, int id)
+{
+	struct mvpp2_dbgfs_c2_entry *entry;
+	struct dentry *c2_entry_dir;
+	char c2_entry_name[10];
+
+	if (id >= MVPP22_CLS_C2_N_ENTRIES)
+		return -EINVAL;
+
+	sprintf(c2_entry_name, "%03d", id);
+
+	c2_entry_dir = debugfs_create_dir(c2_entry_name, parent);
+	if (!c2_entry_dir)
+		return -ENOMEM;
+
+	entry = &priv->dbgfs_entries->c2_entries[id];
+
+	entry->id = id;
+	entry->priv = priv;
+
+	debugfs_create_file("hits", 0444, c2_entry_dir, entry,
+			    &mvpp2_dbgfs_flow_c2_hits_fops);
+
+	debugfs_create_file("default_rxq", 0444, c2_entry_dir, entry,
+			    &mvpp2_dbgfs_flow_c2_rxq_fops);
+
+	debugfs_create_file("rss_enable", 0444, c2_entry_dir, entry,
+			    &mvpp2_dbgfs_flow_c2_enable_fops);
+
+	return 0;
+}
+
+static int mvpp2_dbgfs_flow_tbl_entry_init(struct dentry *parent,
+					   struct mvpp2 *priv, int id)
+{
+	struct mvpp2_dbgfs_flow_tbl_entry *entry;
+	struct dentry *flow_tbl_entry_dir;
+	char flow_tbl_entry_name[10];
+
+	if (id >= MVPP2_CLS_FLOWS_TBL_SIZE)
+		return -EINVAL;
+
+	sprintf(flow_tbl_entry_name, "%03d", id);
+
+	flow_tbl_entry_dir = debugfs_create_dir(flow_tbl_entry_name, parent);
+	if (!flow_tbl_entry_dir)
+		return -ENOMEM;
+
+	entry = &priv->dbgfs_entries->flt_entries[id];
+
+	entry->id = id;
+	entry->priv = priv;
+
+	debugfs_create_file("hits", 0444, flow_tbl_entry_dir, entry,
+			    &mvpp2_dbgfs_flow_flt_hits_fops);
+
+	return 0;
+}
+
+static int mvpp2_dbgfs_cls_init(struct dentry *parent, struct mvpp2 *priv)
+{
+	struct dentry *cls_dir, *c2_dir, *flow_tbl_dir;
+	int i, ret;
+
+	cls_dir = debugfs_create_dir("classifier", parent);
+	if (!cls_dir)
+		return -ENOMEM;
+
+	c2_dir = debugfs_create_dir("c2", cls_dir);
+	if (!c2_dir)
+		return -ENOMEM;
+
+	for (i = 0; i < MVPP22_CLS_C2_N_ENTRIES; i++) {
+		ret = mvpp2_dbgfs_c2_entry_init(c2_dir, priv, i);
+		if (ret)
+			return ret;
+	}
+
+	flow_tbl_dir = debugfs_create_dir("flow_table", cls_dir);
+	if (!flow_tbl_dir)
+		return -ENOMEM;
+
+	for (i = 0; i < MVPP2_CLS_FLOWS_TBL_SIZE; i++) {
+		ret = mvpp2_dbgfs_flow_tbl_entry_init(flow_tbl_dir, priv, i);
 		if (ret)
 			return ret;
 	}
@@ -636,8 +678,6 @@ static int mvpp2_dbgfs_port_init(struct dentry *parent,
 	struct dentry *port_dir;
 
 	port_dir = debugfs_create_dir(port->dev->name, parent);
-	if (IS_ERR(port_dir))
-		return PTR_ERR(port_dir);
 
 	debugfs_create_file("parser_entries", 0444, port_dir, port,
 			    &mvpp2_dbgfs_port_parser_fops);
@@ -648,21 +688,14 @@ static int mvpp2_dbgfs_port_init(struct dentry *parent,
 	debugfs_create_file("vid_filter", 0444, port_dir, port,
 			    &mvpp2_dbgfs_port_vid_fops);
 
-	debugfs_create_file("c2_hits", 0444, port_dir, port,
-			    &mvpp2_dbgfs_flow_c2_hits_fops);
-
-	debugfs_create_file("default_rxq", 0444, port_dir, port,
-			    &mvpp2_dbgfs_flow_c2_rxq_fops);
-
-	debugfs_create_file("rss_enable", 0444, port_dir, port,
-			    &mvpp2_dbgfs_flow_c2_enable_fops);
-
 	return 0;
 }
 
 void mvpp2_dbgfs_cleanup(struct mvpp2 *priv)
 {
 	debugfs_remove_recursive(priv->dbgfs_dir);
+
+	kfree(priv->dbgfs_entries);
 }
 
 void mvpp2_dbgfs_init(struct mvpp2 *priv, const char *name)
@@ -671,19 +704,21 @@ void mvpp2_dbgfs_init(struct mvpp2 *priv, const char *name)
 	int ret, i;
 
 	mvpp2_root = debugfs_lookup(MVPP2_DRIVER_NAME, NULL);
-	if (!mvpp2_root) {
+	if (!mvpp2_root)
 		mvpp2_root = debugfs_create_dir(MVPP2_DRIVER_NAME, NULL);
-		if (IS_ERR(mvpp2_root))
-			return;
-	}
 
 	mvpp2_dir = debugfs_create_dir(name, mvpp2_root);
-	if (IS_ERR(mvpp2_dir))
-		return;
 
 	priv->dbgfs_dir = mvpp2_dir;
+	priv->dbgfs_entries = kzalloc(sizeof(*priv->dbgfs_entries), GFP_KERNEL);
+	if (!priv->dbgfs_entries)
+		goto err;
 
 	ret = mvpp2_dbgfs_prs_init(mvpp2_dir, priv);
+	if (ret)
+		goto err;
+
+	ret = mvpp2_dbgfs_cls_init(mvpp2_dir, priv);
 	if (ret)
 		goto err;
 

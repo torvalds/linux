@@ -112,7 +112,8 @@ mlxsw_sp1_acl_ctcam_region_catchall_del(struct mlxsw_sp *mlxsw_sp,
 static int
 mlxsw_sp1_acl_tcam_region_init(struct mlxsw_sp *mlxsw_sp, void *region_priv,
 			       void *tcam_priv,
-			       struct mlxsw_sp_acl_tcam_region *_region)
+			       struct mlxsw_sp_acl_tcam_region *_region,
+			       void *hints_priv)
 {
 	struct mlxsw_sp1_acl_tcam_region *region = region_priv;
 	int err;
@@ -194,8 +195,7 @@ static void mlxsw_sp1_acl_tcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 
 static int
 mlxsw_sp1_acl_tcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
-					void *region_priv, void *chunk_priv,
-					void *entry_priv,
+					void *region_priv, void *entry_priv,
 					struct mlxsw_sp_acl_rule_info *rulei)
 {
 	return -EOPNOTSUPP;

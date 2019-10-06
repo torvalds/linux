@@ -44,8 +44,8 @@
  * DOC: overview
  *
  * This file contains the marshalling and demarshalling glue for the atomic UAPI
- * in all it's form: The monster ATOMIC IOCTL itself, code for GET_PROPERTY and
- * SET_PROPERTY IOCTls. Plus interface functions for compatibility helpers and
+ * in all its forms: The monster ATOMIC IOCTL itself, code for GET_PROPERTY and
+ * SET_PROPERTY IOCTLs. Plus interface functions for compatibility helpers and
  * drivers which have special needs to construct their own atomic updates, e.g.
  * for load detect or similiar.
  */
@@ -490,7 +490,7 @@ drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 	struct drm_mode_config *config = &dev->mode_config;
 
 	if (property == config->prop_active)
-		*val = state->active;
+		*val = drm_atomic_crtc_effectively_active(state);
 	else if (property == config->prop_mode_id)
 		*val = (state->mode_blob) ? state->mode_blob->base.id : 0;
 	else if (property == config->prop_vrr_enabled)
@@ -512,8 +512,8 @@ drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 }
 
 static int drm_atomic_plane_set_property(struct drm_plane *plane,
-		struct drm_plane_state *state, struct drm_property *property,
-		uint64_t val)
+		struct drm_plane_state *state, struct drm_file *file_priv,
+		struct drm_property *property, uint64_t val)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_mode_config *config = &dev->mode_config;
@@ -521,7 +521,8 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 	int ret;
 
 	if (property == config->prop_fb_id) {
-		struct drm_framebuffer *fb = drm_framebuffer_lookup(dev, NULL, val);
+		struct drm_framebuffer *fb;
+		fb = drm_framebuffer_lookup(dev, file_priv, val);
 		drm_atomic_set_fb_for_plane(state, fb);
 		if (fb)
 			drm_framebuffer_put(fb);
@@ -537,7 +538,9 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 			return -EINVAL;
 
 	} else if (property == config->prop_crtc_id) {
-		struct drm_crtc *crtc = drm_crtc_find(dev, NULL, val);
+		struct drm_crtc *crtc = drm_crtc_find(dev, file_priv, val);
+		if (val && !crtc)
+			return -EACCES;
 		return drm_atomic_set_crtc_for_plane(state, crtc);
 	} else if (property == config->prop_crtc_x) {
 		state->crtc_x = U642I64(val);
@@ -647,28 +650,15 @@ drm_atomic_plane_get_property(struct drm_plane *plane,
 	return 0;
 }
 
-static struct drm_writeback_job *
-drm_atomic_get_writeback_job(struct drm_connector_state *conn_state)
-{
-	WARN_ON(conn_state->connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK);
-
-	if (!conn_state->writeback_job)
-		conn_state->writeback_job =
-			kzalloc(sizeof(*conn_state->writeback_job), GFP_KERNEL);
-
-	return conn_state->writeback_job;
-}
-
 static int drm_atomic_set_writeback_fb_for_connector(
 		struct drm_connector_state *conn_state,
 		struct drm_framebuffer *fb)
 {
-	struct drm_writeback_job *job =
-		drm_atomic_get_writeback_job(conn_state);
-	if (!job)
-		return -ENOMEM;
+	int ret;
 
-	drm_framebuffer_assign(&job->fb, fb);
+	ret = drm_writeback_set_fb(conn_state, fb);
+	if (ret < 0)
+		return ret;
 
 	if (fb)
 		DRM_DEBUG_ATOMIC("Set [FB:%d] for connector state %p\n",
@@ -681,14 +671,18 @@ static int drm_atomic_set_writeback_fb_for_connector(
 }
 
 static int drm_atomic_connector_set_property(struct drm_connector *connector,
-		struct drm_connector_state *state, struct drm_property *property,
-		uint64_t val)
+		struct drm_connector_state *state, struct drm_file *file_priv,
+		struct drm_property *property, uint64_t val)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_mode_config *config = &dev->mode_config;
+	bool replaced = false;
+	int ret;
 
 	if (property == config->prop_crtc_id) {
-		struct drm_crtc *crtc = drm_crtc_find(dev, NULL, val);
+		struct drm_crtc *crtc = drm_crtc_find(dev, file_priv, val);
+		if (val && !crtc)
+			return -EACCES;
 		return drm_atomic_set_crtc_for_connector(state, crtc);
 	} else if (property == config->dpms_property) {
 		/* setting DPMS property requires special handling, which
@@ -734,21 +728,34 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 		 */
 		if (state->link_status != DRM_LINK_STATUS_GOOD)
 			state->link_status = val;
+	} else if (property == config->hdr_output_metadata_property) {
+		ret = drm_atomic_replace_property_blob_from_id(dev,
+				&state->hdr_output_metadata,
+				val,
+				sizeof(struct hdr_output_metadata), -1,
+				&replaced);
+		return ret;
 	} else if (property == config->aspect_ratio_property) {
 		state->picture_aspect_ratio = val;
 	} else if (property == config->content_type_property) {
 		state->content_type = val;
 	} else if (property == connector->scaling_mode_property) {
 		state->scaling_mode = val;
-	} else if (property == connector->content_protection_property) {
+	} else if (property == config->content_protection_property) {
 		if (val == DRM_MODE_CONTENT_PROTECTION_ENABLED) {
 			DRM_DEBUG_KMS("only drivers can set CP Enabled\n");
 			return -EINVAL;
 		}
 		state->content_protection = val;
+	} else if (property == config->hdcp_content_type_property) {
+		state->hdcp_content_type = val;
+	} else if (property == connector->colorspace_property) {
+		state->colorspace = val;
 	} else if (property == config->writeback_fb_id_property) {
-		struct drm_framebuffer *fb = drm_framebuffer_lookup(dev, NULL, val);
-		int ret = drm_atomic_set_writeback_fb_for_connector(state, fb);
+		struct drm_framebuffer *fb;
+		int ret;
+		fb = drm_framebuffer_lookup(dev, file_priv, val);
+		ret = drm_atomic_set_writeback_fb_for_connector(state, fb);
 		if (fb)
 			drm_framebuffer_put(fb);
 		return ret;
@@ -783,7 +790,10 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 	if (property == config->prop_crtc_id) {
 		*val = (state->crtc) ? state->crtc->base.id : 0;
 	} else if (property == config->dpms_property) {
-		*val = connector->dpms;
+		if (state->crtc && state->crtc->state->self_refresh_active)
+			*val = DRM_MODE_DPMS_ON;
+		else
+			*val = connector->dpms;
 	} else if (property == config->tv_select_subconnector_property) {
 		*val = state->tv.subconnector;
 	} else if (property == config->tv_left_margin_property) {
@@ -814,10 +824,17 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		*val = state->picture_aspect_ratio;
 	} else if (property == config->content_type_property) {
 		*val = state->content_type;
+	} else if (property == connector->colorspace_property) {
+		*val = state->colorspace;
 	} else if (property == connector->scaling_mode_property) {
 		*val = state->scaling_mode;
-	} else if (property == connector->content_protection_property) {
+	} else if (property == config->hdr_output_metadata_property) {
+		*val = state->hdr_output_metadata ?
+			state->hdr_output_metadata->base.id : 0;
+	} else if (property == config->content_protection_property) {
 		*val = state->content_protection;
+	} else if (property == config->hdcp_content_type_property) {
+		*val = state->hdcp_content_type;
 	} else if (property == config->writeback_fb_id_property) {
 		/* Writeback framebuffer is one-shot, write and forget */
 		*val = 0;
@@ -943,6 +960,7 @@ out:
 }
 
 int drm_atomic_set_property(struct drm_atomic_state *state,
+			    struct drm_file *file_priv,
 			    struct drm_mode_object *obj,
 			    struct drm_property *prop,
 			    uint64_t prop_value)
@@ -965,7 +983,8 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
 		}
 
 		ret = drm_atomic_connector_set_property(connector,
-				connector_state, prop, prop_value);
+				connector_state, file_priv,
+				prop, prop_value);
 		break;
 	}
 	case DRM_MODE_OBJECT_CRTC: {
@@ -993,7 +1012,8 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
 		}
 
 		ret = drm_atomic_plane_set_property(plane,
-				plane_state, prop, prop_value);
+				plane_state, file_priv,
+				prop, prop_value);
 		break;
 	}
 	default:
@@ -1017,7 +1037,7 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
  * As a contrast, with implicit fencing the kernel keeps track of any
  * ongoing rendering, and automatically ensures that the atomic update waits
  * for any pending rendering to complete. For shared buffers represented with
- * a &struct dma_buf this is tracked in &struct reservation_object.
+ * a &struct dma_buf this is tracked in &struct dma_resv.
  * Implicit syncing is how Linux traditionally worked (e.g. DRI2/3 on X.org),
  * whereas explicit fencing is what Android wants.
  *
@@ -1158,18 +1178,16 @@ static int prepare_signaling(struct drm_device *dev,
 
 	for_each_new_connector_in_state(state, conn, conn_state, i) {
 		struct drm_writeback_connector *wb_conn;
-		struct drm_writeback_job *job;
 		struct drm_out_fence_state *f;
 		struct dma_fence *fence;
 		s32 __user *fence_ptr;
 
+		if (!conn_state->writeback_job)
+			continue;
+
 		fence_ptr = get_out_fence_for_connector(state, conn);
 		if (!fence_ptr)
 			continue;
-
-		job = drm_atomic_get_writeback_job(conn_state);
-		if (!job)
-			return -ENOMEM;
 
 		f = krealloc(*fence_state, sizeof(**fence_state) *
 			     (*num_fences + 1), GFP_KERNEL);
@@ -1192,7 +1210,7 @@ static int prepare_signaling(struct drm_device *dev,
 			return ret;
 		}
 
-		job->out_fence = fence;
+		conn_state->writeback_job->out_fence = fence;
 	}
 
 	/*
@@ -1287,8 +1305,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	if (arg->reserved)
 		return -EINVAL;
 
-	if ((arg->flags & DRM_MODE_PAGE_FLIP_ASYNC) &&
-			!dev->mode_config.async_page_flip)
+	if (arg->flags & DRM_MODE_PAGE_FLIP_ASYNC)
 		return -EINVAL;
 
 	/* can't test and expect an event at the same time. */
@@ -1365,8 +1382,8 @@ retry:
 				goto out;
 			}
 
-			ret = drm_atomic_set_property(state, obj, prop,
-						      prop_value);
+			ret = drm_atomic_set_property(state, file_priv,
+						      obj, prop, prop_value);
 			if (ret) {
 				drm_mode_object_put(obj);
 				goto out;

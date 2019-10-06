@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "CPU Idle"
 
 config CPU_IDLE
 	bool "CPU idle PM support"
 	default y if ACPI || PPC_PSERIES
 	select CPU_IDLE_GOV_LADDER if (!NO_HZ && !NO_HZ_IDLE)
-	select CPU_IDLE_GOV_MENU if (NO_HZ || NO_HZ_IDLE)
+	select CPU_IDLE_GOV_MENU if (NO_HZ || NO_HZ_IDLE) && !CPU_IDLE_GOV_TEO
 	help
 	  CPU idle is a generic framework for supporting software-controlled
 	  idle processor power management.  It includes modular cross-platform
@@ -23,6 +24,26 @@ config CPU_IDLE_GOV_LADDER
 config CPU_IDLE_GOV_MENU
 	bool "Menu governor (for tickless system)"
 
+config CPU_IDLE_GOV_TEO
+	bool "Timer events oriented (TEO) governor (for tickless systems)"
+	help
+	  This governor implements a simplified idle state selection method
+	  focused on timer events and does not do any interactivity boosting.
+
+	  Some workloads benefit from using it and it generally should be safe
+	  to use.  Say Y here if you are not happy with the alternatives.
+
+config CPU_IDLE_GOV_HALTPOLL
+	bool "Haltpoll governor (for virtualized systems)"
+	depends on KVM_GUEST
+	help
+	  This governor implements haltpoll idle state selection, to be
+	  used in conjunction with the haltpoll cpuidle driver, allowing
+	  for polling for a certain amount of time before entering idle
+	  state.
+
+	  Some virtualized workloads benefit from using it.
+
 config DT_IDLE_STATES
 	bool
 
@@ -40,6 +61,15 @@ menu "POWERPC CPU Idle Drivers"
 depends on PPC
 source "drivers/cpuidle/Kconfig.powerpc"
 endmenu
+
+config HALTPOLL_CPUIDLE
+       tristate "Halt poll cpuidle driver"
+       depends on X86 && KVM_GUEST
+       default y
+       help
+         This option enables halt poll cpuidle driver, which allows to poll
+         before halting in the guest (more efficient than polling in the
+         host via halt_poll_ns for some scenarios).
 
 endif
 

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018 Chelsio Communications, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Written by: Atul Gupta (atul.gupta@chelsio.com)
  */
@@ -24,6 +21,7 @@
 #include <net/inet_common.h>
 #include <net/tcp.h>
 #include <net/dst.h>
+#include <net/tls.h>
 
 #include "chtls.h"
 #include "chtls_cm.h"
@@ -615,7 +613,7 @@ int chtls_listen_start(struct chtls_dev *cdev, struct sock *sk)
 
 	pi = netdev_priv(ndev);
 	adap = pi->adapter;
-	if (!(adap->flags & FULL_INIT_DONE))
+	if (!(adap->flags & CXGB4_FULL_INIT_DONE))
 		return -EBADF;
 
 	if (listen_hash_find(cdev, sk) >= 0)   /* already have it */
@@ -1015,6 +1013,7 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 {
 	struct inet_sock *newinet;
 	const struct iphdr *iph;
+	struct tls_context *ctx;
 	struct net_device *ndev;
 	struct chtls_sock *csk;
 	struct dst_entry *dst;
@@ -1063,6 +1062,8 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 
 	oreq->ts_recent = PASS_OPEN_TID_G(ntohl(req->tos_stid));
 	sk_setup_caps(newsk, dst);
+	ctx = tls_get_ctx(lsk);
+	newsk->sk_destruct = ctx->sk_destruct;
 	csk->sk = newsk;
 	csk->passive_reap_next = oreq;
 	csk->tx_chan = cxgb4_port_chan(ndev);

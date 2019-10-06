@@ -7,6 +7,7 @@
 #define __PTP_QORIQ_H__
 
 #include <linux/io.h>
+#include <linux/interrupt.h>
 #include <linux/ptp_clock_kernel.h>
 
 /*
@@ -49,7 +50,7 @@ struct etts_regs {
 	u32 tmr_etts2_l;  /* Timestamp of general purpose external trigger */
 };
 
-struct qoriq_ptp_registers {
+struct ptp_qoriq_registers {
 	struct ctrl_regs __iomem *ctrl_regs;
 	struct alarm_regs __iomem *alarm_regs;
 	struct fiper_regs __iomem *fiper_regs;
@@ -57,15 +58,15 @@ struct qoriq_ptp_registers {
 };
 
 /* Offset definitions for the four register groups */
-#define CTRL_REGS_OFFSET	0x0
-#define ALARM_REGS_OFFSET	0x40
-#define FIPER_REGS_OFFSET	0x80
-#define ETTS_REGS_OFFSET	0xa0
+#define ETSEC_CTRL_REGS_OFFSET	0x0
+#define ETSEC_ALARM_REGS_OFFSET	0x40
+#define ETSEC_FIPER_REGS_OFFSET	0x80
+#define ETSEC_ETTS_REGS_OFFSET	0xa0
 
-#define FMAN_CTRL_REGS_OFFSET	0x80
-#define FMAN_ALARM_REGS_OFFSET	0xb8
-#define FMAN_FIPER_REGS_OFFSET	0xd0
-#define FMAN_ETTS_REGS_OFFSET	0xe0
+#define CTRL_REGS_OFFSET	0x80
+#define ALARM_REGS_OFFSET	0xb8
+#define FIPER_REGS_OFFSET	0xd0
+#define ETTS_REGS_OFFSET	0xe0
 
 
 /* Bit definitions for the TMR_CTRL register */
@@ -120,6 +121,8 @@ struct qoriq_ptp_registers {
 /* Bit definitions for the TMR_STAT register */
 #define STAT_VEC_SHIFT        (0) /* Timer general purpose status vector */
 #define STAT_VEC_MASK         (0x3f)
+#define ETS1_VLD              (1<<24)
+#define ETS2_VLD              (1<<25)
 
 /* Bit definitions for the TMR_PRSC register */
 #define PRSC_OCK_SHIFT        (0) /* Output clock division/prescale factor. */
@@ -134,13 +137,16 @@ struct qoriq_ptp_registers {
 #define DEFAULT_FIPER1_PERIOD	1000000000
 #define DEFAULT_FIPER2_PERIOD	100000
 
-struct qoriq_ptp {
+struct ptp_qoriq {
 	void __iomem *base;
-	struct qoriq_ptp_registers regs;
+	struct ptp_qoriq_registers regs;
 	spinlock_t lock; /* protects regs */
 	struct ptp_clock *clock;
 	struct ptp_clock_info caps;
 	struct resource *rsrc;
+	struct dentry *debugfs_root;
+	struct device *dev;
+	bool extts_fifo_support;
 	int irq;
 	int phc_index;
 	u64 alarm_interval; /* for periodic alarm */
@@ -151,19 +157,49 @@ struct qoriq_ptp {
 	u32 cksel;
 	u32 tmr_fiper1;
 	u32 tmr_fiper2;
+	u32 (*read)(unsigned __iomem *addr);
+	void (*write)(unsigned __iomem *addr, u32 val);
 };
 
-static inline u32 qoriq_read(unsigned __iomem *addr)
+static inline u32 qoriq_read_be(unsigned __iomem *addr)
 {
-	u32 val;
-
-	val = ioread32be(addr);
-	return val;
+	return ioread32be(addr);
 }
 
-static inline void qoriq_write(unsigned __iomem *addr, u32 val)
+static inline void qoriq_write_be(unsigned __iomem *addr, u32 val)
 {
 	iowrite32be(val, addr);
 }
+
+static inline u32 qoriq_read_le(unsigned __iomem *addr)
+{
+	return ioread32(addr);
+}
+
+static inline void qoriq_write_le(unsigned __iomem *addr, u32 val)
+{
+	iowrite32(val, addr);
+}
+
+irqreturn_t ptp_qoriq_isr(int irq, void *priv);
+int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
+		   const struct ptp_clock_info *caps);
+void ptp_qoriq_free(struct ptp_qoriq *ptp_qoriq);
+int ptp_qoriq_adjfine(struct ptp_clock_info *ptp, long scaled_ppm);
+int ptp_qoriq_adjtime(struct ptp_clock_info *ptp, s64 delta);
+int ptp_qoriq_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts);
+int ptp_qoriq_settime(struct ptp_clock_info *ptp,
+		      const struct timespec64 *ts);
+int ptp_qoriq_enable(struct ptp_clock_info *ptp,
+		     struct ptp_clock_request *rq, int on);
+#ifdef CONFIG_DEBUG_FS
+void ptp_qoriq_create_debugfs(struct ptp_qoriq *ptp_qoriq);
+void ptp_qoriq_remove_debugfs(struct ptp_qoriq *ptp_qoriq);
+#else
+static inline void ptp_qoriq_create_debugfs(struct ptp_qoriq *ptp_qoriq)
+{ }
+static inline void ptp_qoriq_remove_debugfs(struct ptp_qoriq *ptp_qoriq)
+{ }
+#endif
 
 #endif

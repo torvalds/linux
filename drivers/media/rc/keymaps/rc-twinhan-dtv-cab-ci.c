@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* keytable for Twinhan DTV CAB CI Remote Controller
  *
  * Copyright (c) 2010 by Igor M. Liplianin <liplianin@me.by>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <media/rc-map.h>
@@ -19,16 +15,16 @@ static struct rc_map_table twinhan_dtv_cab_ci[] = {
 	{ 0x23, KEY_EPG},
 	{ 0x3b, KEY_F22},               /* Record List */
 
-	{ 0x3c, KEY_1},
-	{ 0x3e, KEY_2},
-	{ 0x39, KEY_3},
-	{ 0x36, KEY_4},
-	{ 0x22, KEY_5},
-	{ 0x20, KEY_6},
-	{ 0x32, KEY_7},
-	{ 0x26, KEY_8},
-	{ 0x24, KEY_9},
-	{ 0x2a, KEY_0},
+	{ 0x3c, KEY_NUMERIC_1},
+	{ 0x3e, KEY_NUMERIC_2},
+	{ 0x39, KEY_NUMERIC_3},
+	{ 0x36, KEY_NUMERIC_4},
+	{ 0x22, KEY_NUMERIC_5},
+	{ 0x20, KEY_NUMERIC_6},
+	{ 0x32, KEY_NUMERIC_7},
+	{ 0x26, KEY_NUMERIC_8},
+	{ 0x24, KEY_NUMERIC_9},
+	{ 0x2a, KEY_NUMERIC_0},
 
 	{ 0x33, KEY_CANCEL},
 	{ 0x2c, KEY_BACK},

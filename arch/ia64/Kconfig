@@ -10,13 +10,16 @@ config IA64
 	bool
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
-	select ACPI if (!IA64_HP_SIM)
-	select ARCH_SUPPORTS_ACPI if (!IA64_HP_SIM)
+	select ACPI
+	select ACPI_NUMA if NUMA
+	select ARCH_SUPPORTS_ACPI
 	select ACPI_SYSTEM_POWER_STATES_SUPPORT if ACPI
 	select ARCH_MIGHT_HAVE_ACPI_PDC if ACPI
-	select FORCE_PCI if (!IA64_HP_SIM)
+	select FORCE_PCI
 	select PCI_DOMAINS if PCI
+	select PCI_MSI
 	select PCI_SYSCALL if PCI
+	select HAVE_ASM_MODVERSIONS
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_EXIT_THREAD
 	select HAVE_IDE
@@ -30,10 +33,9 @@ config IA64
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_VIRT_CPU_ACCOUNTING
-	select ARCH_HAS_DMA_COHERENT_TO_PFN if SWIOTLB
-	select ARCH_HAS_SYNC_DMA_FOR_CPU if SWIOTLB
+	select ARCH_HAS_DMA_COHERENT_TO_PFN
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select VIRT_TO_BUS
-	select ARCH_DISCARD_MEMBLOCK
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_IRQ_SHOW
@@ -46,6 +48,7 @@ config IA64
 	select ARCH_THREAD_STACK_ALLOCATOR
 	select ARCH_CLOCKSOURCE_DATA
 	select GENERIC_TIME_VSYSCALL
+	select SWIOTLB
 	select SYSCTL_ARCH_UNALIGN_NO_WARN
 	select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_RELA
@@ -53,6 +56,7 @@ config IA64
 	select HAVE_ARCH_AUDITSYSCALL
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
+	select NUMA if !FLATMEM
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -67,11 +71,6 @@ config 64BIT
 
 config ZONE_DMA32
 	def_bool y
-	depends on !IA64_SGI_SN2
-
-config QUICKLIST
-	bool
-	default y
 
 config MMU
 	bool
@@ -82,10 +81,6 @@ config STACKTRACE_SUPPORT
 
 config GENERIC_LOCKBREAK
 	def_bool n
-
-config RWSEM_XCHGADD_ALGORITHM
-	bool
-	default y
 
 config HUGETLB_PAGE_SIZE_VARIABLE
 	bool
@@ -124,87 +119,6 @@ config ARCH_USES_PG_UNCACHED
 config AUDIT_ARCH
 	bool
 	default y
-
-choice
-	prompt "System type"
-	default IA64_GENERIC
-
-config IA64_GENERIC
-	bool "generic"
-	select NUMA
-	select ACPI_NUMA
-	select SWIOTLB
-	select PCI_MSI
-	help
-	  This selects the system type of your hardware.  A "generic" kernel
-	  will run on any supported IA-64 system.  However, if you configure
-	  a kernel for your specific system, it will be faster and smaller.
-
-	  generic		For any supported IA-64 system
-	  DIG-compliant		For DIG ("Developer's Interface Guide") compliant systems
-	  DIG+Intel+IOMMU	For DIG systems with Intel IOMMU
-	  HP-zx1/sx1000		For HP systems
-	  HP-zx1/sx1000+swiotlb	For HP systems with (broken) DMA-constrained devices.
-	  SGI-SN2		For SGI Altix systems
-	  SGI-UV		For SGI UV systems
-	  Ski-simulator		For the HP simulator <http://www.hpl.hp.com/research/linux/ski/>
-
-	  If you don't know what to do, choose "generic".
-
-config IA64_DIG
-	bool "DIG-compliant"
-	select SWIOTLB
-
-config IA64_DIG_VTD
-	bool "DIG+Intel+IOMMU"
-	select INTEL_IOMMU
-	select PCI_MSI
-
-config IA64_HP_ZX1
-	bool "HP-zx1/sx1000"
-	help
-	  Build a kernel that runs on HP zx1 and sx1000 systems.  This adds
-	  support for the HP I/O MMU.
-
-config IA64_HP_ZX1_SWIOTLB
-	bool "HP-zx1/sx1000 with software I/O TLB"
-	select SWIOTLB
-	help
-	  Build a kernel that runs on HP zx1 and sx1000 systems even when they
-	  have broken PCI devices which cannot DMA to full 32 bits.  Apart
-	  from support for the HP I/O MMU, this includes support for the software
-	  I/O TLB, which allows supporting the broken devices at the expense of
-	  wasting some kernel memory (about 2MB by default).
-
-config IA64_SGI_SN2
-	bool "SGI-SN2"
-	select NUMA
-	select ACPI_NUMA
-	help
-	  Selecting this option will optimize the kernel for use on sn2 based
-	  systems, but the resulting kernel binary will not run on other
-	  types of ia64 systems.  If you have an SGI Altix system, it's safe
-	  to select this option.  If in doubt, select ia64 generic support
-	  instead.
-
-config IA64_SGI_UV
-	bool "SGI-UV"
-	select NUMA
-	select ACPI_NUMA
-	select SWIOTLB
-	help
-	  Selecting this option will optimize the kernel for use on UV based
-	  systems, but the resulting kernel binary will not run on other
-	  types of ia64 systems.  If you have an SGI UV system, it's safe
-	  to select this option.  If in doubt, select ia64 generic support
-	  instead.
-
-config IA64_HP_SIM
-	bool "Ski-simulator"
-	select SWIOTLB
-	depends on !PM
-
-endchoice
 
 choice
 	prompt "Processor type"
@@ -257,14 +171,7 @@ config IA64_PAGE_SIZE_64KB
 
 endchoice
 
-if IA64_HP_SIM
-config HZ
-	default 32
-endif
-
-if !IA64_HP_SIM
 source "kernel/Kconfig.hz"
-endif
 
 config IA64_BRL_EMU
 	bool
@@ -277,16 +184,25 @@ config IA64_L1_CACHE_SHIFT
 	default "7" if MCKINLEY
 	default "6" if ITANIUM
 
+config IA64_SGI_UV
+	bool "SGI-UV support"
+	help
+	  Selecting this option will add specific support for running on SGI
+	  UV based systems.  If you have an SGI UV system or are building a
+	  distro kernel, select this option.
+
+config IA64_HP_SBA_IOMMU
+	bool "HP SBA IOMMU support"
+	default y
+	help
+	  Say Y here to add support for the SBA IOMMU found on HP zx1 and
+	  sx1000 systems.  If you're unsure, answer Y.
+
 config IA64_CYCLONE
 	bool "Cyclone (EXA) Time Source support"
 	help
 	  Say Y here to enable support for IBM EXA Cyclone time source.
 	  If you're unsure, answer N.
-
-config IOSAPIC
-	bool
-	depends on !IA64_HP_SIM
-	default y
 
 config FORCE_MAX_ZONEORDER
 	int "MAX_ORDER (11 - 17)"  if !HUGETLB_PAGE
@@ -386,14 +302,13 @@ config ARCH_SPARSEMEM_ENABLE
 	select SPARSEMEM_VMEMMAP_ENABLE
 
 config ARCH_DISCONTIGMEM_DEFAULT
-	def_bool y if (IA64_SGI_SN2 || IA64_GENERIC || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB)
+	def_bool y
 	depends on ARCH_DISCONTIGMEM_ENABLE
 
 config NUMA
 	bool "NUMA support"
-	depends on !IA64_HP_SIM && !FLATMEM
-	default y if IA64_SGI_SN2
-	select ACPI_NUMA if ACPI
+	depends on !FLATMEM
+	select SMP
 	help
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
 	  Access).  This option is for configuring high-end multiprocessor
@@ -414,7 +329,7 @@ config NODES_SHIFT
 config VIRTUAL_MEM_MAP
 	bool "Virtual mem map"
 	depends on !SPARSEMEM
-	default y if !IA64_HP_SIM
+	default y
 	help
 	  Say Y to compile the kernel with support for a virtual mem map.
 	  This code also only takes effect if a memory hole of greater than
@@ -477,9 +392,6 @@ config IA64_MC_ERR_INJECT
 
 	  If you're unsure, do not select this option.
 
-config SGI_SN
-	def_bool y if (IA64_SGI_SN2 || IA64_GENERIC)
-
 config IA64_ESI
 	bool "ESI (Extensible SAL Interface) support"
 	help
@@ -498,11 +410,9 @@ config IA64_HP_AML_NFW
 	  the "force" module parameter, e.g., with the "aml_nfw.force"
 	  kernel command line option.
 
-source "drivers/sn/Kconfig"
-
 config KEXEC
 	bool "kexec system call"
-	depends on !IA64_HP_SIM && (!SMP || HOTPLUG_CPU)
+	depends on !SMP || HOTPLUG_CPU
 	select KEXEC_CORE
 	help
 	  kexec is a system call that implements the ability to shutdown your
@@ -520,7 +430,7 @@ config KEXEC
 
 config CRASH_DUMP
 	  bool "kernel crash dumps"
-	  depends on IA64_MCA_RECOVERY && !IA64_HP_SIM && (!SMP || HOTPLUG_CPU)
+	  depends on IA64_MCA_RECOVERY && (!SMP || HOTPLUG_CPU)
 	  help
 	    Generate crash dump after being started by kexec.
 
@@ -541,8 +451,6 @@ endmenu
 endif
 
 endmenu
-
-source "arch/ia64/hp/sim/Kconfig"
 
 config MSPEC
 	tristate "Memory special operations driver"

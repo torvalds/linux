@@ -667,6 +667,7 @@
 #define MIPS_CONF5_FRE		(_ULCAST_(1) << 8)
 #define MIPS_CONF5_UFE		(_ULCAST_(1) << 9)
 #define MIPS_CONF5_CA2		(_ULCAST_(1) << 14)
+#define MIPS_CONF5_MI		(_ULCAST_(1) << 17)
 #define MIPS_CONF5_CRCP		(_ULCAST_(1) << 18)
 #define MIPS_CONF5_MSAEN	(_ULCAST_(1) << 27)
 #define MIPS_CONF5_EVA		(_ULCAST_(1) << 28)
@@ -687,6 +688,9 @@
 
 #define MIPS_CONF7_IAR		(_ULCAST_(1) << 10)
 #define MIPS_CONF7_AR		(_ULCAST_(1) << 16)
+
+/* Ingenic Config7 bits */
+#define MIPS_CONF7_BTB_LOOP_EN	(_ULCAST_(1) << 4)
 
 /* Config7 Bits specific to MIPS Technologies. */
 
@@ -1247,6 +1251,13 @@ __asm__(".macro	parse_r var r\n\t"
 		ENC							\
 		".endm")
 
+/* Instructions with 1 register operand & 1 immediate operand */
+#define _ASM_MACRO_1R1I(OP, R1, I2, ENC)				\
+	__asm__(".macro	" #OP " " #R1 ", " #I2 "\n\t"			\
+		"parse_r __" #R1 ", \\" #R1 "\n\t"			\
+		ENC							\
+		".endm")
+
 /* Instructions with 2 register operands */
 #define _ASM_MACRO_2R(OP, R1, R2, ENC)					\
 	__asm__(".macro	" #OP " " #R1 ", " #R2 "\n\t"			\
@@ -1602,6 +1613,9 @@ do {									\
 
 #define read_c0_xcontextconfig()	__read_ulong_c0_register($4, 3)
 #define write_c0_xcontextconfig(val)	__write_ulong_c0_register($4, 3, val)
+
+#define read_c0_memorymapid()		__read_32bit_c0_register($4, 5)
+#define write_c0_memorymapid(val)	__write_32bit_c0_register($4, 5, val)
 
 #define read_c0_pagemask()	__read_32bit_c0_register($5, 0)
 #define write_c0_pagemask(val)	__write_32bit_c0_register($5, 0, val)
@@ -2802,6 +2816,7 @@ __BUILD_SET_C0(status)
 __BUILD_SET_C0(cause)
 __BUILD_SET_C0(config)
 __BUILD_SET_C0(config5)
+__BUILD_SET_C0(config7)
 __BUILD_SET_C0(intcontrol)
 __BUILD_SET_C0(intctl)
 __BUILD_SET_C0(srsmap)

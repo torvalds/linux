@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INFINIBAND_USNIC
 	tristate "Verbs support for Cisco VIC"
 	depends on NETDEVICES && ETHERNET && INET && PCI && INTEL_IOMMU

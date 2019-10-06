@@ -29,7 +29,6 @@ struct ipmi_file_private
 	struct ipmi_user     *user;
 	spinlock_t           recv_msg_lock;
 	struct list_head     recv_msgs;
-	struct file          *file;
 	struct fasync_struct *fasync_queue;
 	wait_queue_head_t    wait;
 	struct mutex	     recv_mutex;
@@ -94,8 +93,6 @@ static int ipmi_open(struct inode *inode, struct file *file)
 	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	priv->file = file;
 
 	rv = ipmi_create_user(if_num,
 			      &ipmi_hndlrs,
@@ -207,7 +204,7 @@ static int handle_recv(struct ipmi_file_private *priv,
 	struct list_head *entry;
 	struct ipmi_recv_msg  *msg;
 	unsigned long    flags;
-	int rv = 0;
+	int rv = 0, rv2 = 0;
 
 	/* We claim a mutex because we don't want two
 	   users getting something from the queue at a time.
@@ -250,7 +247,7 @@ static int handle_recv(struct ipmi_file_private *priv,
 
 	if (msg->msg.data_len > 0) {
 		if (rsp->msg.data_len < msg->msg.data_len) {
-			rv = -EMSGSIZE;
+			rv2 = -EMSGSIZE;
 			if (trunc)
 				msg->msg.data_len = rsp->msg.data_len;
 			else
@@ -274,7 +271,7 @@ static int handle_recv(struct ipmi_file_private *priv,
 
 	mutex_unlock(&priv->recv_mutex);
 	ipmi_free_recv_msg(msg);
-	return 0;
+	return rv2;
 
 recv_putback_on_err:
 	/* If we got an error, put the message back onto

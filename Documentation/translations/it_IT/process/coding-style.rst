@@ -449,6 +449,9 @@ Nonostante questo non sia richiesto dal linguaggio C, in Linux viene preferito
 perché è un modo semplice per aggiungere informazioni importanti per il
 lettore.
 
+Non usate la parola chiave ``extern`` coi prototipi di funzione perché
+rende le righe più lunghe e non è strettamente necessario.
+
 7) Centralizzare il ritorno delle funzioni
 ------------------------------------------
 
@@ -600,26 +603,43 @@ segue nel vostro file .emacs:
       (* (max steps 1)
          c-basic-offset)))
 
-  (add-hook 'c-mode-common-hook
-            (lambda ()
-              ;; Add kernel style
-              (c-add-style
-               "linux-tabs-only"
-               '("linux" (c-offsets-alist
-                          (arglist-cont-nonempty
-                           c-lineup-gcc-asm-reg
-                           c-lineup-arglist-tabs-only))))))
+  (dir-locals-set-class-variables
+   'linux-kernel
+   '((c-mode . (
+          (c-basic-offset . 8)
+          (c-label-minimum-indentation . 0)
+          (c-offsets-alist . (
+                  (arglist-close         . c-lineup-arglist-tabs-only)
+                  (arglist-cont-nonempty .
+		      (c-lineup-gcc-asm-reg c-lineup-arglist-tabs-only))
+                  (arglist-intro         . +)
+                  (brace-list-intro      . +)
+                  (c                     . c-lineup-C-comments)
+                  (case-label            . 0)
+                  (comment-intro         . c-lineup-comment)
+                  (cpp-define-intro      . +)
+                  (cpp-macro             . -1000)
+                  (cpp-macro-cont        . +)
+                  (defun-block-intro     . +)
+                  (else-clause           . 0)
+                  (func-decl-cont        . +)
+                  (inclass               . +)
+                  (inher-cont            . c-lineup-multi-inher)
+                  (knr-argdecl-intro     . 0)
+                  (label                 . -1000)
+                  (statement             . 0)
+                  (statement-block-intro . +)
+                  (statement-case-intro  . +)
+                  (statement-cont        . +)
+                  (substatement          . +)
+                  ))
+          (indent-tabs-mode . t)
+          (show-trailing-whitespace . t)
+          ))))
 
-  (add-hook 'c-mode-hook
-            (lambda ()
-              (let ((filename (buffer-file-name)))
-                ;; Enable kernel mode for the appropriate files
-                (when (and filename
-                           (string-match (expand-file-name "~/src/linux-trees")
-                                         filename))
-                  (setq indent-tabs-mode t)
-                  (setq show-trailing-whitespace t)
-                  (c-set-style "linux-tabs-only")))))
+  (dir-locals-set-directory-class
+   (expand-file-name "~/src/linux-trees")
+   'linux-kernel)
 
 Questo farà funzionare meglio emacs con lo stile del kernel per i file che
 si trovano nella cartella ``~/src/linux-trees``.
@@ -676,7 +696,7 @@ nella stringa di titolo::
 	...
 
 Per la documentazione completa sui file di configurazione, consultate
-il documento Documentation/translations/it_IT/kbuild/kconfig-language.txt
+il documento Documentation/kbuild/kconfig-language.rst
 
 
 11) Strutture dati
@@ -839,7 +859,8 @@ racchiusa in #ifdef, potete usare printk(KERN_DEBUG ...).
 
 Il kernel fornisce i seguenti assegnatori ad uso generico:
 kmalloc(), kzalloc(), kmalloc_array(), kcalloc(), vmalloc(), e vzalloc().
-Per maggiori informazioni, consultate la documentazione dell'API.
+Per maggiori informazioni, consultate la documentazione dell'API:
+:ref:`Documentation/translations/it_IT/core-api/memory-allocation.rst <it_memory_allocation>`
 
 Il modo preferito per passare la dimensione di una struttura è il seguente:
 
@@ -869,6 +890,11 @@ Il modo preferito per assegnare un vettore a zero è il seguente:
 
 Entrambe verificano la condizione di overflow per la dimensione
 d'assegnamento n * sizeof(...), se accade ritorneranno NULL.
+
+Questi allocatori generici producono uno *stack dump* in caso di fallimento
+a meno che non venga esplicitamente specificato __GFP_NOWARN. Quindi, nella
+maggior parte dei casi, è inutile stampare messaggi aggiuntivi quando uno di
+questi allocatori ritornano un puntatore NULL.
 
 15) Il morbo inline
 -------------------
@@ -929,7 +955,40 @@ qualche valore fuori dai limiti.  Un tipico esempio è quello delle funzioni
 che ritornano un puntatore; queste utilizzano NULL o ERR_PTR come meccanismo
 di notifica degli errori.
 
-17) Non reinventate le macro del kernel
+17) L'uso di bool
+-----------------
+
+Nel kernel Linux il tipo bool deriva dal tipo _Bool dello standard C99.
+Un valore bool può assumere solo i valori 0 o 1, e implicitamente o
+esplicitamente la conversione a bool converte i valori in vero (*true*) o
+falso (*false*).  Quando si usa un tipo bool il costrutto !! non sarà più
+necessario, e questo va ad eliminare una certa serie di bachi.
+
+Quando si usano i valori booleani, dovreste utilizzare le definizioni di true
+e false al posto dei valori 1 e 0.
+
+Per il valore di ritorno delle funzioni e per le variabili sullo stack, l'uso
+del tipo bool è sempre appropriato.  L'uso di bool viene incoraggiato per
+migliorare la leggibilità e spesso è molto meglio di 'int' nella gestione di
+valori booleani.
+
+Non usate bool se per voi sono importanti l'ordine delle righe di cache o
+la loro dimensione; la dimensione e l'allineamento cambia a seconda
+dell'architettura per la quale è stato compilato.  Le strutture che sono state
+ottimizzate per l'allineamento o la dimensione non dovrebbero usare bool.
+
+Se una struttura ha molti valori true/false, considerate l'idea di raggrupparli
+in un intero usando campi da 1 bit, oppure usate un tipo dalla larghezza fissa,
+come u8.
+
+Come per gli argomenti delle funzioni, molti valori true/false possono essere
+raggruppati in un singolo argomento a bit denominato 'flags'; spesso 'flags' è
+un'alternativa molto più leggibile se si hanno valori costanti per true/false.
+
+Detto ciò, un uso parsimonioso di bool nelle strutture dati e negli argomenti
+può migliorare la leggibilità.
+
+18) Non reinventate le macro del kernel
 ---------------------------------------
 
 Il file di intestazione include/linux/kernel.h contiene un certo numero
@@ -953,7 +1012,7 @@ rigido sui tipi.  Sentitevi liberi di leggere attentamente questo file
 d'intestazione per scoprire cos'altro è stato definito che non dovreste
 reinventare nel vostro codice.
 
-18) Linee di configurazione degli editor e altre schifezze
+19) Linee di configurazione degli editor e altre schifezze
 -----------------------------------------------------------
 
 Alcuni editor possono interpretare dei parametri di configurazione integrati
@@ -987,8 +1046,8 @@ d'indentazione e di modalità d'uso.  Le persone potrebbero aver configurato una
 modalità su misura, oppure potrebbero avere qualche altra magia per far
 funzionare bene l'indentazione.
 
-19) Inline assembly
----------------------
+20) Inline assembly
+-------------------
 
 Nel codice specifico per un'architettura, potreste aver bisogno di codice
 *inline assembly* per interfacciarvi col processore o con una funzionalità
@@ -1020,7 +1079,7 @@ al fine di allineare correttamente l'assembler che verrà generato:
 	     "more_magic %reg2, %reg3"
 	     : /* outputs */ : /* inputs */ : /* clobbers */);
 
-20) Compilazione sotto condizione
+21) Compilazione sotto condizione
 ---------------------------------
 
 Ovunque sia possibile, non usate le direttive condizionali del preprocessore

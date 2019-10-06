@@ -63,7 +63,7 @@ static void ccwreq_stop(struct ccw_device *cdev, int rc)
 		return;
 	req->done = 1;
 	ccw_device_set_timeout(cdev, 0);
-	memset(&cdev->private->irb, 0, sizeof(struct irb));
+	memset(&cdev->private->dma_area->irb, 0, sizeof(struct irb));
 	if (rc && rc != -ENODEV && req->drc)
 		rc = req->drc;
 	req->callback(cdev, req->data, rc);
@@ -86,7 +86,7 @@ static void ccwreq_do(struct ccw_device *cdev)
 			continue;
 		}
 		/* Perform start function. */
-		memset(&cdev->private->irb, 0, sizeof(struct irb));
+		memset(&cdev->private->dma_area->irb, 0, sizeof(struct irb));
 		rc = cio_start(sch, cp, (u8) req->mask);
 		if (rc == 0) {
 			/* I/O started successfully. */
@@ -169,7 +169,7 @@ int ccw_request_cancel(struct ccw_device *cdev)
  */
 static enum io_status ccwreq_status(struct ccw_device *cdev, struct irb *lcirb)
 {
-	struct irb *irb = &cdev->private->irb;
+	struct irb *irb = &cdev->private->dma_area->irb;
 	struct cmd_scsw *scsw = &irb->scsw.cmd;
 	enum uc_todo todo;
 
@@ -187,7 +187,8 @@ static enum io_status ccwreq_status(struct ccw_device *cdev, struct irb *lcirb)
 		CIO_TRACE_EVENT(2, "sensedata");
 		CIO_HEX_EVENT(2, &cdev->private->dev_id,
 			      sizeof(struct ccw_dev_id));
-		CIO_HEX_EVENT(2, &cdev->private->irb.ecw, SENSE_MAX_COUNT);
+		CIO_HEX_EVENT(2, &cdev->private->dma_area->irb.ecw,
+			      SENSE_MAX_COUNT);
 		/* Check for command reject. */
 		if (irb->ecw[0] & SNS0_CMD_REJECT)
 			return IO_REJECTED;

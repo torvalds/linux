@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AppArmor security module
  *
  * This file contains AppArmor security identifier (secid) manipulation fns
  *
  * Copyright 2009-2017 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
- *
  *
  * AppArmor allocates a unique secid for every label used. If a label
  * is replaced it receives the secid of the label it is replacing.

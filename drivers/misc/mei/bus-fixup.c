@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- *
+ * Copyright (c) 2013-2019, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2018, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -39,6 +29,9 @@ static const uuid_le mei_nfc_info_guid = MEI_UUID_NFC_INFO;
 
 #define MEI_UUID_MKHIF_FIX UUID_LE(0x55213584, 0x9a29, 0x4916, \
 			0xba, 0xdf, 0xf, 0xb7, 0xed, 0x68, 0x2a, 0xeb)
+
+#define MEI_UUID_HDCP UUID_LE(0xB638AB7E, 0x94E2, 0x4EA2, \
+			      0xA5, 0x52, 0xD1, 0xC5, 0x4B, 0x62, 0x7F, 0x04)
 
 #define MEI_UUID_ANY NULL_UUID_LE
 
@@ -69,6 +62,18 @@ static void blacklist(struct mei_cl_device *cldev)
 	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
 
 	cldev->do_match = 0;
+}
+
+/**
+ * whitelist - forcefully whitelist client
+ *
+ * @cldev: me clients device
+ */
+static void whitelist(struct mei_cl_device *cldev)
+{
+	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
+
+	cldev->do_match = 1;
 }
 
 #define OSTYPE_LINUX    2
@@ -472,6 +477,7 @@ static struct mei_fixup {
 	MEI_FIXUP(MEI_UUID_NFC_HCI, mei_nfc),
 	MEI_FIXUP(MEI_UUID_WD, mei_wd),
 	MEI_FIXUP(MEI_UUID_MKHIF_FIX, mei_mkhi_fix),
+	MEI_FIXUP(MEI_UUID_HDCP, whitelist),
 };
 
 /**

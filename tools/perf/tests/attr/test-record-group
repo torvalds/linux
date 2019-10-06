@@ -1,6 +1,6 @@
 [config]
 command = record
-args    = --group -e cycles,instructions kill >/dev/null 2>&1
+args    = --no-bpf-event --group -e cycles,instructions kill >/dev/null 2>&1
 ret     = 1
 
 [event-1:base-record]

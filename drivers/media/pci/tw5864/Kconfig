@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_TW5864
 	tristate "Techwell TW5864 video/audio grabber and encoder"
 	depends on VIDEO_DEV && PCI && VIDEO_V4L2
 	select VIDEOBUF2_DMA_CONTIG
-	---help---
+	help
 	  Support for boards based on Techwell TW5864 chip which provides
 	  multichannel video & audio grabbing and encoding (H.264, MJPEG,
 	  ADPCM G.726).

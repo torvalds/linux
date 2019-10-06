@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/kernel.h>
@@ -21,11 +10,10 @@
 #include "mt76x2u.h"
 
 static const struct usb_device_id mt76x2u_device_table[] = {
-	{ USB_DEVICE(0x0e8d, 0x7612) }, /* Alfa AWUS036ACM */
 	{ USB_DEVICE(0x0b05, 0x1833) },	/* Asus USB-AC54 */
 	{ USB_DEVICE(0x0b05, 0x17eb) },	/* Asus USB-AC55 */
 	{ USB_DEVICE(0x0b05, 0x180b) },	/* Asus USB-N53 B1 */
-	{ USB_DEVICE(0x0e8d, 0x7612) },	/* Aukey USB-AC1200 */
+	{ USB_DEVICE(0x0e8d, 0x7612) },	/* Aukey USBAC1200 - Alfa AWUS036ACM */
 	{ USB_DEVICE(0x057c, 0x8503) },	/* Avm FRITZ!WLAN AC860 */
 	{ USB_DEVICE(0x7392, 0xb711) },	/* Edimax EW 7722 UAC */
 	{ USB_DEVICE(0x0846, 0x9053) },	/* Netgear A6210 */
@@ -36,24 +24,44 @@ static const struct usb_device_id mt76x2u_device_table[] = {
 static int mt76x2u_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
+	static const struct mt76_driver_ops drv_ops = {
+		.update_survey = mt76x02_update_channel,
+		.tx_prepare_skb = mt76x02u_tx_prepare_skb,
+		.tx_complete_skb = mt76x02u_tx_complete_skb,
+		.tx_status_data = mt76x02_tx_status_data,
+		.rx_skb = mt76x02_queue_rx_skb,
+		.sta_ps = mt76x02_sta_ps,
+		.sta_add = mt76x02_sta_add,
+		.sta_remove = mt76x02_sta_remove,
+	};
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct mt76x02_dev *dev;
+	struct mt76_dev *mdev;
 	int err;
 
-	dev = mt76x2u_alloc_device(&intf->dev);
-	if (!dev)
+	mdev = mt76_alloc_device(&udev->dev, sizeof(*dev), &mt76x2u_ops,
+				 &drv_ops);
+	if (!mdev)
 		return -ENOMEM;
+
+	dev = container_of(mdev, struct mt76x02_dev, mt76);
 
 	udev = usb_get_dev(udev);
 	usb_reset_device(udev);
 
-	mt76x02u_init_mcu(&dev->mt76);
-	err = mt76u_init(&dev->mt76, intf);
+	usb_set_intfdata(intf, dev);
+
+	mt76x02u_init_mcu(mdev);
+	err = mt76u_init(mdev, intf);
 	if (err < 0)
 		goto err;
 
-	dev->mt76.rev = mt76_rr(dev, MT_ASIC_VERSION);
-	dev_info(dev->mt76.dev, "ASIC revision: %08x\n", dev->mt76.rev);
+	mdev->rev = mt76_rr(dev, MT_ASIC_VERSION);
+	dev_info(mdev->dev, "ASIC revision: %08x\n", mdev->rev);
+	if (!is_mt76x2(dev)) {
+		err = -ENODEV;
+		goto err;
+	}
 
 	err = mt76x2u_register_device(dev);
 	if (err < 0)
@@ -88,11 +96,8 @@ static int __maybe_unused mt76x2u_suspend(struct usb_interface *intf,
 					  pm_message_t state)
 {
 	struct mt76x02_dev *dev = usb_get_intfdata(intf);
-	struct mt76_usb *usb = &dev->mt76.usb;
 
-	mt76u_stop_queues(&dev->mt76);
-	mt76x2u_stop_hw(dev);
-	usb_kill_urb(usb->mcu.res.urb);
+	mt76u_stop_rx(&dev->mt76);
 
 	return 0;
 }
@@ -100,24 +105,11 @@ static int __maybe_unused mt76x2u_suspend(struct usb_interface *intf,
 static int __maybe_unused mt76x2u_resume(struct usb_interface *intf)
 {
 	struct mt76x02_dev *dev = usb_get_intfdata(intf);
-	struct mt76_usb *usb = &dev->mt76.usb;
 	int err;
 
-	reinit_completion(&usb->mcu.cmpl);
-	err = mt76u_submit_buf(&dev->mt76, USB_DIR_IN,
-			       MT_EP_IN_CMD_RESP,
-			       &usb->mcu.res, GFP_KERNEL,
-			       mt76u_mcu_complete_urb,
-			       &usb->mcu.cmpl);
+	err = mt76u_resume_rx(&dev->mt76);
 	if (err < 0)
 		goto err;
-
-	err = mt76u_submit_rx_buffers(&dev->mt76);
-	if (err < 0)
-		goto err;
-
-	tasklet_enable(&usb->rx_tasklet);
-	tasklet_enable(&usb->tx_tasklet);
 
 	err = mt76x2u_init_hardware(dev);
 	if (err < 0)

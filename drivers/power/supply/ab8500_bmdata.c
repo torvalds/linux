@@ -508,6 +508,7 @@ int ab8500_bm_of_probe(struct device *dev,
 	btech = of_get_property(battery_node, "stericsson,battery-type", NULL);
 	if (!btech) {
 		dev_warn(dev, "missing property battery-name/type\n");
+		of_node_put(battery_node);
 		return -EINVAL;
 	}
 

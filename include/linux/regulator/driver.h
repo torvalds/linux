@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * driver.h -- SoC Regulator driver support.
  *
@@ -5,17 +6,11 @@
  *
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Regulator Driver Interface.
  */
 
 #ifndef __LINUX_REGULATOR_DRIVER_H_
 #define __LINUX_REGULATOR_DRIVER_H_
-
-#define MAX_COUPLED		2
 
 #include <linux/device.h>
 #include <linux/notifier.h>
@@ -264,6 +259,7 @@ enum regulator_type {
  * @continuous_voltage_range: Indicates if the regulator can set any
  *                            voltage within constrains range.
  * @n_voltages: Number of selectors available for ops.list_voltage().
+ * @n_current_limits: Number of selectors available for current limits
  *
  * @min_uV: Voltage given by the lowest selector (if linear mapping)
  * @uV_step: Voltage increase with each selector (if linear mapping)
@@ -278,14 +274,20 @@ enum regulator_type {
  * @n_linear_ranges: Number of entries in the @linear_ranges (and in
  *		     linear_range_selectors if used) table(s).
  * @volt_table: Voltage mapping table (if table based mapping)
+ * @curr_table: Current limit mapping table (if table based mapping)
  *
  * @vsel_range_reg: Register for range selector when using pickable ranges
  *		    and regulator_regmap_X_voltage_X_pickable functions.
  * @vsel_range_mask: Mask for register bitfield used for range selector
  * @vsel_reg: Register for selector when using regulator_regmap_X_voltage_
  * @vsel_mask: Mask for register bitfield used for selector
- * @csel_reg: Register for TPS65218 LS3 current regulator
- * @csel_mask: Mask for TPS65218 LS3 current regulator
+ * @vsel_step: Specify the resolution of selector stepping when setting
+ *	       voltage. If 0, then no stepping is done (requested selector is
+ *	       set directly), if >0 then the regulator API will ramp the
+ *	       voltage up/down gradually each time increasing/decreasing the
+ *	       selector by the specified step value.
+ * @csel_reg: Register for current limit selector using regmap set_current_limit
+ * @csel_mask: Mask for register bitfield used for current limit selector
  * @apply_reg: Register for initiate voltage change on the output when
  *                using regulator_set_voltage_sel_regmap
  * @apply_bit: Register bitfield used for initiate voltage change on the
@@ -333,6 +335,7 @@ struct regulator_desc {
 	int id;
 	unsigned int continuous_voltage_range:1;
 	unsigned n_voltages;
+	unsigned int n_current_limits;
 	const struct regulator_ops *ops;
 	int irq;
 	enum regulator_type type;
@@ -351,11 +354,13 @@ struct regulator_desc {
 	int n_linear_ranges;
 
 	const unsigned int *volt_table;
+	const unsigned int *curr_table;
 
 	unsigned int vsel_range_reg;
 	unsigned int vsel_range_mask;
 	unsigned int vsel_reg;
 	unsigned int vsel_mask;
+	unsigned int vsel_step;
 	unsigned int csel_reg;
 	unsigned int csel_mask;
 	unsigned int apply_reg;
@@ -401,13 +406,7 @@ struct regulator_desc {
  *           NULL).
  * @regmap: regmap to use for core regmap helpers if dev_get_regmap() is
  *          insufficient.
- * @ena_gpio_initialized: GPIO controlling regulator enable was properly
- *                        initialized, meaning that >= 0 is a valid gpio
- *                        identifier and < 0 is a non existent gpio.
- * @ena_gpio: GPIO controlling regulator enable.
- * @ena_gpiod: GPIO descriptor controlling regulator enable.
- * @ena_gpio_invert: Sense for GPIO enable control.
- * @ena_gpio_flags: Flags to use when calling gpio_request_one()
+ * @ena_gpiod: GPIO controlling regulator enable.
  */
 struct regulator_config {
 	struct device *dev;
@@ -416,11 +415,7 @@ struct regulator_config {
 	struct device_node *of_node;
 	struct regmap *regmap;
 
-	bool ena_gpio_initialized;
-	int ena_gpio;
 	struct gpio_desc *ena_gpiod;
-	unsigned int ena_gpio_invert:1;
-	unsigned int ena_gpio_flags;
 };
 
 /*
@@ -432,7 +427,8 @@ struct regulator_config {
  * incremented.
  */
 struct coupling_desc {
-	struct regulator_dev *coupled_rdevs[MAX_COUPLED];
+	struct regulator_dev **coupled_rdevs;
+	struct regulator_coupler *coupler;
 	int n_resolved;
 	int n_coupled;
 };
@@ -503,6 +499,7 @@ int regulator_notifier_call_chain(struct regulator_dev *rdev,
 
 void *rdev_get_drvdata(struct regulator_dev *rdev);
 struct device *rdev_get_dev(struct regulator_dev *rdev);
+struct regmap *rdev_get_regmap(struct regulator_dev *rdev);
 int rdev_get_id(struct regulator_dev *rdev);
 
 int regulator_mode_to_status(unsigned int);
@@ -543,9 +540,19 @@ int regulator_set_pull_down_regmap(struct regulator_dev *rdev);
 
 int regulator_set_active_discharge_regmap(struct regulator_dev *rdev,
 					  bool enable);
+int regulator_set_current_limit_regmap(struct regulator_dev *rdev,
+				       int min_uA, int max_uA);
+int regulator_get_current_limit_regmap(struct regulator_dev *rdev);
 void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data);
 
 void regulator_lock(struct regulator_dev *rdev);
 void regulator_unlock(struct regulator_dev *rdev);
+
+/*
+ * Helper functions intended to be used by regulator drivers prior registering
+ * their regulators.
+ */
+int regulator_desc_list_voltage_linear_range(const struct regulator_desc *desc,
+					     unsigned int selector);
 
 #endif

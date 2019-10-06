@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MIPI-DSI based S6E63J0X03 AMOLED lcd 1.63 inch panel driver.
  *
@@ -5,19 +6,20 @@
  *
  * Inki Dae <inki.dae@samsung.com>
  * Hoegeun Kwon <hoegeun.kwon@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_mipi_dsi.h>
-#include <drm/drm_panel.h>
 #include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/module.h>
 #include <linux/regulator/consumer.h>
+
 #include <video/mipi_display.h>
+
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 
 #define MCS_LEVEL2_KEY		0xf0
 #define MCS_MTP_KEY		0xf1

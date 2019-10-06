@@ -292,6 +292,7 @@
 #define LINK_STATUS		0x4
 
 struct moxart_mac_priv_t {
+	struct platform_device *pdev;
 	void __iomem *base;
 	unsigned int reg_maccr;
 	unsigned int reg_imr;

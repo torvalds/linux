@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * DLCI/FRAD	Definitions for Frame Relay Access Devices.  DLCI devices are
  *		created for each DLCI associated with a FRAD.  The FRAD driver
@@ -14,11 +15,6 @@
  *		0.15	Mike McLagan	changed structure defs (packed)
  *					re-arranged flags
  *					added DLCI_RET vars
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #ifndef _FRAD_H_
 #define _FRAD_H_

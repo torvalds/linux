@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * GHES/EDAC Linux driver
- *
- * This file may be distributed under the terms of the GNU General Public
- * License version 2.
  *
  * Copyright (c) 2013 by Mauro Carvalho Chehab
  *
@@ -70,7 +68,7 @@ struct memdev_dmi_entry {
 
 struct ghes_edac_dimm_fill {
 	struct mem_ctl_info *mci;
-	unsigned count;
+	unsigned int count;
 };
 
 static void ghes_edac_count_dimms(const struct dmi_header *dh, void *arg)

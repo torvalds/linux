@@ -137,17 +137,16 @@ static int uldrx_handler(struct sge_rspq *q, const __be64 *rsp,
 static int alloc_uld_rxqs(struct adapter *adap,
 			  struct sge_uld_rxq_info *rxq_info, bool lro)
 {
-	struct sge *s = &adap->sge;
 	unsigned int nq = rxq_info->nrxq + rxq_info->nciq;
+	int i, err, msi_idx, que_idx = 0, bmap_idx = 0;
 	struct sge_ofld_rxq *q = rxq_info->uldrxq;
 	unsigned short *ids = rxq_info->rspq_id;
-	unsigned int bmap_idx = 0;
+	struct sge *s = &adap->sge;
 	unsigned int per_chan;
-	int i, err, msi_idx, que_idx = 0;
 
 	per_chan = rxq_info->nrxq / adap->params.nports;
 
-	if (adap->flags & USING_MSIX)
+	if (adap->flags & CXGB4_USING_MSIX)
 		msi_idx = 1;
 	else
 		msi_idx = -((int)s->intrq.abs_id + 1);
@@ -161,6 +160,10 @@ static int alloc_uld_rxqs(struct adapter *adap,
 
 		if (msi_idx >= 0) {
 			bmap_idx = get_msix_idx_from_bmap(adap);
+			if (bmap_idx < 0) {
+				err = -ENOSPC;
+				goto freeout;
+			}
 			msi_idx = adap->msix_info_ulds[bmap_idx].idx;
 		}
 		err = t4_sge_alloc_rxq(adap, &q->rspq, false,
@@ -195,7 +198,7 @@ setup_sge_queues_uld(struct adapter *adap, unsigned int uld_type, bool lro)
 	struct sge_uld_rxq_info *rxq_info = adap->sge.uld_rxq_info[uld_type];
 	int i, ret = 0;
 
-	if (adap->flags & USING_MSIX) {
+	if (adap->flags & CXGB4_USING_MSIX) {
 		rxq_info->msix_tbl = kcalloc((rxq_info->nrxq + rxq_info->nciq),
 					     sizeof(unsigned short),
 					     GFP_KERNEL);
@@ -206,7 +209,7 @@ setup_sge_queues_uld(struct adapter *adap, unsigned int uld_type, bool lro)
 	ret = !(!alloc_uld_rxqs(adap, rxq_info, lro));
 
 	/* Tell uP to route control queue completions to rdma rspq */
-	if (adap->flags & FULL_INIT_DONE &&
+	if (adap->flags & CXGB4_FULL_INIT_DONE &&
 	    !ret && uld_type == CXGB4_ULD_RDMA) {
 		struct sge *s = &adap->sge;
 		unsigned int cmplqid;
@@ -239,7 +242,7 @@ static void free_sge_queues_uld(struct adapter *adap, unsigned int uld_type)
 {
 	struct sge_uld_rxq_info *rxq_info = adap->sge.uld_rxq_info[uld_type];
 
-	if (adap->flags & FULL_INIT_DONE && uld_type == CXGB4_ULD_RDMA) {
+	if (adap->flags & CXGB4_FULL_INIT_DONE && uld_type == CXGB4_ULD_RDMA) {
 		struct sge *s = &adap->sge;
 		u32 param, cmdop, cmplqid = 0;
 		int i;
@@ -258,7 +261,7 @@ static void free_sge_queues_uld(struct adapter *adap, unsigned int uld_type)
 		t4_free_uld_rxqs(adap, rxq_info->nciq,
 				 rxq_info->uldrxq + rxq_info->nrxq);
 	t4_free_uld_rxqs(adap, rxq_info->nrxq, rxq_info->uldrxq);
-	if (adap->flags & USING_MSIX)
+	if (adap->flags & CXGB4_USING_MSIX)
 		kfree(rxq_info->msix_tbl);
 }
 
@@ -273,7 +276,7 @@ static int cfg_queues_uld(struct adapter *adap, unsigned int uld_type,
 	if (!rxq_info)
 		return -ENOMEM;
 
-	if (adap->flags & USING_MSIX && uld_info->nrxq > s->nqs_per_uld) {
+	if (adap->flags & CXGB4_USING_MSIX && uld_info->nrxq > s->nqs_per_uld) {
 		i = s->nqs_per_uld;
 		rxq_info->nrxq = roundup(i, adap->params.nports);
 	} else {
@@ -284,7 +287,7 @@ static int cfg_queues_uld(struct adapter *adap, unsigned int uld_type,
 	if (!uld_info->ciq) {
 		rxq_info->nciq = 0;
 	} else  {
-		if (adap->flags & USING_MSIX)
+		if (adap->flags & CXGB4_USING_MSIX)
 			rxq_info->nciq = min_t(int, s->nqs_per_uld,
 					       num_online_cpus());
 		else
@@ -352,25 +355,32 @@ static int
 request_msix_queue_irqs_uld(struct adapter *adap, unsigned int uld_type)
 {
 	struct sge_uld_rxq_info *rxq_info = adap->sge.uld_rxq_info[uld_type];
+	struct uld_msix_info *minfo;
 	int err = 0;
 	unsigned int idx, bmap_idx;
 
 	for_each_uldrxq(rxq_info, idx) {
 		bmap_idx = rxq_info->msix_tbl[idx];
-		err = request_irq(adap->msix_info_ulds[bmap_idx].vec,
+		minfo = &adap->msix_info_ulds[bmap_idx];
+		err = request_irq(minfo->vec,
 				  t4_sge_intr_msix, 0,
-				  adap->msix_info_ulds[bmap_idx].desc,
+				  minfo->desc,
 				  &rxq_info->uldrxq[idx].rspq);
 		if (err)
 			goto unwind;
+
+		cxgb4_set_msix_aff(adap, minfo->vec,
+				   &minfo->aff_mask, idx);
 	}
 	return 0;
+
 unwind:
 	while (idx-- > 0) {
 		bmap_idx = rxq_info->msix_tbl[idx];
+		minfo = &adap->msix_info_ulds[bmap_idx];
+		cxgb4_clear_msix_aff(minfo->vec, minfo->aff_mask);
 		free_msix_idx_in_bmap(adap, bmap_idx);
-		free_irq(adap->msix_info_ulds[bmap_idx].vec,
-			 &rxq_info->uldrxq[idx].rspq);
+		free_irq(minfo->vec, &rxq_info->uldrxq[idx].rspq);
 	}
 	return err;
 }
@@ -379,14 +389,16 @@ static void
 free_msix_queue_irqs_uld(struct adapter *adap, unsigned int uld_type)
 {
 	struct sge_uld_rxq_info *rxq_info = adap->sge.uld_rxq_info[uld_type];
+	struct uld_msix_info *minfo;
 	unsigned int idx, bmap_idx;
 
 	for_each_uldrxq(rxq_info, idx) {
 		bmap_idx = rxq_info->msix_tbl[idx];
+		minfo = &adap->msix_info_ulds[bmap_idx];
 
+		cxgb4_clear_msix_aff(minfo->vec, minfo->aff_mask);
 		free_msix_idx_in_bmap(adap, bmap_idx);
-		free_irq(adap->msix_info_ulds[bmap_idx].vec,
-			 &rxq_info->uldrxq[idx].rspq);
+		free_irq(minfo->vec, &rxq_info->uldrxq[idx].rspq);
 	}
 }
 
@@ -611,10 +623,10 @@ static void cxgb4_shutdown_uld_adapter(struct adapter *adap, enum cxgb4_uld type
 		adap->uld[type].add = NULL;
 		release_sge_txq_uld(adap, type);
 
-		if (adap->flags & FULL_INIT_DONE)
+		if (adap->flags & CXGB4_FULL_INIT_DONE)
 			quiesce_rx_uld(adap, type);
 
-		if (adap->flags & USING_MSIX)
+		if (adap->flags & CXGB4_USING_MSIX)
 			free_msix_queue_irqs_uld(adap, type);
 
 		free_sge_queues_uld(adap, type);
@@ -673,7 +685,7 @@ static void uld_init(struct adapter *adap, struct cxgb4_lld_info *lld)
 	lld->sge_egrstatuspagesize = adap->sge.stat_len;
 	lld->sge_pktshift = adap->sge.pktshift;
 	lld->ulp_crypto = adap->params.crypto;
-	lld->enable_fw_ofld_conn = adap->flags & FW_OFLD_CONN;
+	lld->enable_fw_ofld_conn = adap->flags & CXGB4_FW_OFLD_CONN;
 	lld->max_ordird_qp = adap->params.max_ordird_qp;
 	lld->max_ird_adapter = adap->params.max_ird_adapter;
 	lld->ulptx_memwrite_dsgl = adap->params.ulptx_memwrite_dsgl;
@@ -702,7 +714,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	adap->uld[uld].handle = handle;
 	t4_register_netevent_notifier();
 
-	if (adap->flags & FULL_INIT_DONE)
+	if (adap->flags & CXGB4_FULL_INIT_DONE)
 		adap->uld[uld].state_change(handle, CXGB4_STATE_UP);
 }
 
@@ -737,13 +749,13 @@ void cxgb4_register_uld(enum cxgb4_uld type,
 		ret = setup_sge_queues_uld(adap, type, p->lro);
 		if (ret)
 			goto free_queues;
-		if (adap->flags & USING_MSIX) {
+		if (adap->flags & CXGB4_USING_MSIX) {
 			name_msix_vecs_uld(adap, type);
 			ret = request_msix_queue_irqs_uld(adap, type);
 			if (ret)
 				goto free_rxq;
 		}
-		if (adap->flags & FULL_INIT_DONE)
+		if (adap->flags & CXGB4_FULL_INIT_DONE)
 			enable_rx_uld(adap, type);
 		if (adap->uld[type].add)
 			goto free_irq;
@@ -754,9 +766,9 @@ void cxgb4_register_uld(enum cxgb4_uld type,
 		uld_attach(adap, type);
 		continue;
 free_irq:
-		if (adap->flags & FULL_INIT_DONE)
+		if (adap->flags & CXGB4_FULL_INIT_DONE)
 			quiesce_rx_uld(adap, type);
-		if (adap->flags & USING_MSIX)
+		if (adap->flags & CXGB4_USING_MSIX)
 			free_msix_queue_irqs_uld(adap, type);
 free_rxq:
 		free_sge_queues_uld(adap, type);

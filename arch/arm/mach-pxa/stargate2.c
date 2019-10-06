@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/stargate2.c
  *
@@ -6,10 +7,6 @@
  *  Copyright:	Intel Corp.
  *
  *  Modified 2009:  Jonathan Cameron <jic23@cam.ac.uk>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -337,15 +334,15 @@ static struct platform_device stargate2_flash_device = {
 	.num_resources = 1,
 };
 
-static struct pxa2xx_spi_master pxa_ssp_master_0_info = {
+static struct pxa2xx_spi_controller pxa_ssp_master_0_info = {
 	.num_chipselect = 1,
 };
 
-static struct pxa2xx_spi_master pxa_ssp_master_1_info = {
+static struct pxa2xx_spi_controller pxa_ssp_master_1_info = {
 	.num_chipselect = 1,
 };
 
-static struct pxa2xx_spi_master pxa_ssp_master_2_info = {
+static struct pxa2xx_spi_controller pxa_ssp_master_2_info = {
 	.num_chipselect = 1,
 };
 

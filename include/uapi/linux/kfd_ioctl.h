@@ -35,9 +35,10 @@ struct kfd_ioctl_get_version_args {
 };
 
 /* For kfd_ioctl_create_queue_args.queue_type. */
-#define KFD_IOC_QUEUE_TYPE_COMPUTE	0
-#define KFD_IOC_QUEUE_TYPE_SDMA		1
-#define KFD_IOC_QUEUE_TYPE_COMPUTE_AQL	2
+#define KFD_IOC_QUEUE_TYPE_COMPUTE		0x0
+#define KFD_IOC_QUEUE_TYPE_SDMA			0x1
+#define KFD_IOC_QUEUE_TYPE_COMPUTE_AQL		0x2
+#define KFD_IOC_QUEUE_TYPE_SDMA_XGMI		0x3
 
 #define KFD_MAX_QUEUE_PERCENTAGE	100
 #define KFD_MAX_QUEUE_PRIORITY		15
@@ -211,6 +212,11 @@ struct kfd_ioctl_dbg_wave_control_args {
 #define KFD_HW_EXCEPTION_GPU_HANG	0
 #define KFD_HW_EXCEPTION_ECC		1
 
+/* For kfd_hsa_memory_exception_data.ErrorType */
+#define KFD_MEM_ERR_NO_RAS		0
+#define KFD_MEM_ERR_SRAM_ECC		1
+#define KFD_MEM_ERR_POISON_CONSUMED	2
+#define KFD_MEM_ERR_GPU_HANG		3
 
 struct kfd_ioctl_create_event_args {
 	__u64 event_page_offset;	/* from KFD */
@@ -250,7 +256,12 @@ struct kfd_hsa_memory_exception_data {
 	struct kfd_memory_exception_failure failure;
 	__u64 va;
 	__u32 gpu_id;
-	__u32 pad;
+	__u32 ErrorType; /* 0 = no RAS error,
+			  * 1 = ECC_SRAM,
+			  * 2 = Link_SYNFLOOD (poison),
+			  * 3 = GPU hang (not attributable to a specific cause),
+			  * other values reserved
+			  */
 };
 
 /* hw exception data */
@@ -328,6 +339,7 @@ struct kfd_ioctl_acquire_vm_args {
 #define KFD_IOC_ALLOC_MEM_FLAGS_GTT		(1 << 1)
 #define KFD_IOC_ALLOC_MEM_FLAGS_USERPTR		(1 << 2)
 #define KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL	(1 << 3)
+#define KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP	(1 << 4)
 /* Allocation flags: attributes/access options */
 #define KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE	(1 << 31)
 #define KFD_IOC_ALLOC_MEM_FLAGS_EXECUTABLE	(1 << 30)
@@ -414,6 +426,13 @@ struct kfd_ioctl_import_dmabuf_args {
 	__u64 handle;	/* from KFD */
 	__u32 gpu_id;	/* to KFD */
 	__u32 dmabuf_fd;	/* to KFD */
+};
+
+/* Register offset inside the remapped mmio page
+ */
+enum kfd_mmio_remap {
+	KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL = 0,
+	KFD_MMIO_REMAP_HDP_REG_FLUSH_CNTL = 4,
 };
 
 #define AMDKFD_IOCTL_BASE 'K'

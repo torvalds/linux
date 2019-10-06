@@ -31,11 +31,14 @@
 
 #include <linux/module.h>
 
-#include <drm/drmP.h>
-#include <drm/r128_drm.h>
-#include "r128_drv.h"
-
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_pci.h>
 #include <drm/drm_pciids.h>
+#include <drm/drm_vblank.h>
+#include <drm/r128_drm.h>
+
+#include "r128_drv.h"
 
 static struct pci_device_id pciidlist[] = {
 	r128_PCI_IDS
@@ -57,7 +60,7 @@ static const struct file_operations r128_driver_fops = {
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_SG | DRIVER_LEGACY |
-	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
+	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ,
 	.dev_priv_size = sizeof(drm_r128_buf_priv_t),
 	.load = r128_driver_load,
 	.preclose = r128_driver_preclose,

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-pxa/cm-x270.c
  *
  * Copyright (C) 2007, 2008 CompuLab, Ltd.
  * Mike Rapoport <mike@compulab.co.il>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/platform_device.h>
@@ -313,7 +310,7 @@ static inline void cmx270_init_mmc(void) {}
 #endif
 
 #if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
-static struct pxa2xx_spi_master cm_x270_spi_info = {
+static struct pxa2xx_spi_controller cm_x270_spi_info = {
 	.num_chipselect	= 1,
 	.enable_dma	= 1,
 };

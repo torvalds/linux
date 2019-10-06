@@ -23,6 +23,8 @@
 
 #include <subdev/mc.h>
 
+#include <nvif/class.h>
+
 static void
 gp100_fault_buffer_intr(struct nvkm_fault_buffer *buffer, bool enable)
 {
@@ -69,6 +71,7 @@ gp100_fault = {
 	.buffer.init = gp100_fault_buffer_init,
 	.buffer.fini = gp100_fault_buffer_fini,
 	.buffer.intr = gp100_fault_buffer_intr,
+	.user = { { 0, 0, MAXWELL_FAULT_BUFFER_A }, 0 },
 };
 
 int

@@ -87,7 +87,8 @@ static struct rdma_nl_cbs iwcm_nl_cb_table[RDMA_NL_IWPM_NUM_OPS] = {
 	[RDMA_NL_IWPM_REMOTE_INFO] = {.dump = iwpm_remote_info_cb},
 	[RDMA_NL_IWPM_HANDLE_ERR] = {.dump = iwpm_mapping_error_cb},
 	[RDMA_NL_IWPM_MAPINFO] = {.dump = iwpm_mapping_info_cb},
-	[RDMA_NL_IWPM_MAPINFO_NUM] = {.dump = iwpm_ack_mapping_info_cb}
+	[RDMA_NL_IWPM_MAPINFO_NUM] = {.dump = iwpm_ack_mapping_info_cb},
+	[RDMA_NL_IWPM_HELLO] = {.dump = iwpm_hello_cb}
 };
 
 static struct workqueue_struct *iwcm_wq;
@@ -393,7 +394,7 @@ static void destroy_cm_id(struct iw_cm_id *cm_id)
 		cm_id_priv->state = IW_CM_STATE_DESTROYING;
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		/* destroy the listening endpoint */
-		cm_id->device->iwcm->destroy_listen(cm_id);
+		cm_id->device->ops.iw_destroy_listen(cm_id);
 		spin_lock_irqsave(&cm_id_priv->lock, flags);
 		break;
 	case IW_CM_STATE_ESTABLISHED:
@@ -416,7 +417,7 @@ static void destroy_cm_id(struct iw_cm_id *cm_id)
 		 */
 		cm_id_priv->state = IW_CM_STATE_DESTROYING;
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
-		cm_id->device->iwcm->reject(cm_id, NULL, 0);
+		cm_id->device->ops.iw_reject(cm_id, NULL, 0);
 		spin_lock_irqsave(&cm_id_priv->lock, flags);
 		break;
 	case IW_CM_STATE_CONN_SENT:
@@ -426,7 +427,7 @@ static void destroy_cm_id(struct iw_cm_id *cm_id)
 		break;
 	}
 	if (cm_id_priv->qp) {
-		cm_id_priv->id.device->iwcm->rem_ref(cm_id_priv->qp);
+		cm_id_priv->id.device->ops.iw_rem_ref(cm_id_priv->qp);
 		cm_id_priv->qp = NULL;
 	}
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
@@ -503,8 +504,8 @@ static void iw_cm_check_wildcard(struct sockaddr_storage *pm_addr,
 static int iw_cm_map(struct iw_cm_id *cm_id, bool active)
 {
 	const char *devname = dev_name(&cm_id->device->dev);
-	const char *ifname = cm_id->device->iwcm->ifname;
-	struct iwpm_dev_data pm_reg_msg;
+	const char *ifname = cm_id->device->iw_ifname;
+	struct iwpm_dev_data pm_reg_msg = {};
 	struct iwpm_sa_data pm_msg;
 	int status;
 
@@ -515,8 +516,8 @@ static int iw_cm_map(struct iw_cm_id *cm_id, bool active)
 	cm_id->m_local_addr = cm_id->local_addr;
 	cm_id->m_remote_addr = cm_id->remote_addr;
 
-	strncpy(pm_reg_msg.dev_name, devname, sizeof(pm_reg_msg.dev_name));
-	strncpy(pm_reg_msg.if_name, ifname, sizeof(pm_reg_msg.if_name));
+	strcpy(pm_reg_msg.dev_name, devname);
+	strcpy(pm_reg_msg.if_name, ifname);
 
 	if (iwpm_register_pid(&pm_reg_msg, RDMA_NL_IWCM) ||
 	    !iwpm_valid_pid())
@@ -525,6 +526,8 @@ static int iw_cm_map(struct iw_cm_id *cm_id, bool active)
 	cm_id->mapped = true;
 	pm_msg.loc_addr = cm_id->local_addr;
 	pm_msg.rem_addr = cm_id->remote_addr;
+	pm_msg.flags = (cm_id->device->iw_driver_flags & IW_F_NO_PORT_MAP) ?
+		       IWPM_FLAGS_NO_PORT_MAP : 0;
 	if (active)
 		status = iwpm_add_and_query_mapping(&pm_msg,
 						    RDMA_NL_IWCM);
@@ -543,7 +546,7 @@ static int iw_cm_map(struct iw_cm_id *cm_id, bool active)
 
 	return iwpm_create_mapinfo(&cm_id->local_addr,
 				   &cm_id->m_local_addr,
-				   RDMA_NL_IWCM);
+				   RDMA_NL_IWCM, pm_msg.flags);
 }
 
 /*
@@ -574,7 +577,8 @@ int iw_cm_listen(struct iw_cm_id *cm_id, int backlog)
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		ret = iw_cm_map(cm_id, false);
 		if (!ret)
-			ret = cm_id->device->iwcm->create_listen(cm_id, backlog);
+			ret = cm_id->device->ops.iw_create_listen(cm_id,
+								  backlog);
 		if (ret)
 			cm_id_priv->state = IW_CM_STATE_IDLE;
 		spin_lock_irqsave(&cm_id_priv->lock, flags);
@@ -614,7 +618,7 @@ int iw_cm_reject(struct iw_cm_id *cm_id,
 	cm_id_priv->state = IW_CM_STATE_IDLE;
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
-	ret = cm_id->device->iwcm->reject(cm_id, private_data,
+	ret = cm_id->device->ops.iw_reject(cm_id, private_data,
 					  private_data_len);
 
 	clear_bit(IWCM_F_CONNECT_WAIT, &cm_id_priv->flags);
@@ -650,25 +654,25 @@ int iw_cm_accept(struct iw_cm_id *cm_id,
 		return -EINVAL;
 	}
 	/* Get the ib_qp given the QPN */
-	qp = cm_id->device->iwcm->get_qp(cm_id->device, iw_param->qpn);
+	qp = cm_id->device->ops.iw_get_qp(cm_id->device, iw_param->qpn);
 	if (!qp) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		clear_bit(IWCM_F_CONNECT_WAIT, &cm_id_priv->flags);
 		wake_up_all(&cm_id_priv->connect_wait);
 		return -EINVAL;
 	}
-	cm_id->device->iwcm->add_ref(qp);
+	cm_id->device->ops.iw_add_ref(qp);
 	cm_id_priv->qp = qp;
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
-	ret = cm_id->device->iwcm->accept(cm_id, iw_param);
+	ret = cm_id->device->ops.iw_accept(cm_id, iw_param);
 	if (ret) {
 		/* An error on accept precludes provider events */
 		BUG_ON(cm_id_priv->state != IW_CM_STATE_CONN_RECV);
 		cm_id_priv->state = IW_CM_STATE_IDLE;
 		spin_lock_irqsave(&cm_id_priv->lock, flags);
 		if (cm_id_priv->qp) {
-			cm_id->device->iwcm->rem_ref(qp);
+			cm_id->device->ops.iw_rem_ref(qp);
 			cm_id_priv->qp = NULL;
 		}
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
@@ -709,25 +713,25 @@ int iw_cm_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param)
 	}
 
 	/* Get the ib_qp given the QPN */
-	qp = cm_id->device->iwcm->get_qp(cm_id->device, iw_param->qpn);
+	qp = cm_id->device->ops.iw_get_qp(cm_id->device, iw_param->qpn);
 	if (!qp) {
 		ret = -EINVAL;
 		goto err;
 	}
-	cm_id->device->iwcm->add_ref(qp);
+	cm_id->device->ops.iw_add_ref(qp);
 	cm_id_priv->qp = qp;
 	cm_id_priv->state = IW_CM_STATE_CONN_SENT;
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
 	ret = iw_cm_map(cm_id, true);
 	if (!ret)
-		ret = cm_id->device->iwcm->connect(cm_id, iw_param);
+		ret = cm_id->device->ops.iw_connect(cm_id, iw_param);
 	if (!ret)
 		return 0;	/* success */
 
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	if (cm_id_priv->qp) {
-		cm_id->device->iwcm->rem_ref(qp);
+		cm_id->device->ops.iw_rem_ref(qp);
 		cm_id_priv->qp = NULL;
 	}
 	cm_id_priv->state = IW_CM_STATE_IDLE;
@@ -892,7 +896,7 @@ static int cm_conn_rep_handler(struct iwcm_id_private *cm_id_priv,
 		cm_id_priv->state = IW_CM_STATE_ESTABLISHED;
 	} else {
 		/* REJECTED or RESET */
-		cm_id_priv->id.device->iwcm->rem_ref(cm_id_priv->qp);
+		cm_id_priv->id.device->ops.iw_rem_ref(cm_id_priv->qp);
 		cm_id_priv->qp = NULL;
 		cm_id_priv->state = IW_CM_STATE_IDLE;
 	}
@@ -943,7 +947,7 @@ static int cm_close_handler(struct iwcm_id_private *cm_id_priv,
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 
 	if (cm_id_priv->qp) {
-		cm_id_priv->id.device->iwcm->rem_ref(cm_id_priv->qp);
+		cm_id_priv->id.device->ops.iw_rem_ref(cm_id_priv->qp);
 		cm_id_priv->qp = NULL;
 	}
 	switch (cm_id_priv->state) {

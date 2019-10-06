@@ -1,19 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 2005, 2006 Red Hat Inc.
  *
  * Author: David Woodhouse <dwmw2@infradead.org>
  *	   Tom Sylla <tom.sylla@amd.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  *  Overview:
  *   This is a device driver for the NAND flash controller found on
  *   the AMD CS5535/CS5536 companion chipsets for the Geode processor.
  *   mtd-id for command line partitioning is cs553x_nand_cs[0-3]
  *   where 0-3 reflects the chip select for NAND.
- *
  */
 
 #include <linux/kernel.h>

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD Cryptographic Coprocessor (CCP) AES XTS crypto API support
  *
@@ -5,10 +6,6 @@
  *
  * Author: Gary R Hook <gary.hook@amd.com>
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -117,9 +114,6 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 	int ret;
 
 	if (!ctx->u.aes.key_len)
-		return -EINVAL;
-
-	if (req->nbytes & (AES_BLOCK_SIZE - 1))
 		return -EINVAL;
 
 	if (!req->info)

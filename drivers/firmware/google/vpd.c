@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vpd.c
  *
  * Driver for exporting VPD content to sysfs.
  *
  * Copyright 2017 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License v2.0 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/ctype.h>
@@ -100,8 +92,8 @@ static int vpd_section_check_key_name(const u8 *key, s32 key_len)
 	return VPD_OK;
 }
 
-static int vpd_section_attrib_add(const u8 *key, s32 key_len,
-				  const u8 *value, s32 value_len,
+static int vpd_section_attrib_add(const u8 *key, u32 key_len,
+				  const u8 *value, u32 value_len,
 				  void *arg)
 {
 	int ret;
@@ -254,7 +246,7 @@ static int vpd_section_destroy(struct vpd_section *sec)
 
 static int vpd_sections_init(phys_addr_t physaddr)
 {
-	struct vpd_cbmem __iomem *temp;
+	struct vpd_cbmem *temp;
 	struct vpd_cbmem header;
 	int ret = 0;
 
@@ -262,7 +254,7 @@ static int vpd_sections_init(phys_addr_t physaddr)
 	if (!temp)
 		return -ENOMEM;
 
-	memcpy_fromio(&header, temp, sizeof(struct vpd_cbmem));
+	memcpy(&header, temp, sizeof(struct vpd_cbmem));
 	memunmap(temp);
 
 	if (header.magic != VPD_CBMEM_MAGIC)
@@ -324,19 +316,7 @@ static struct coreboot_driver vpd_driver = {
 	},
 	.tag = CB_TAG_VPD,
 };
-
-static int __init coreboot_vpd_init(void)
-{
-	return coreboot_driver_register(&vpd_driver);
-}
-
-static void __exit coreboot_vpd_exit(void)
-{
-	coreboot_driver_unregister(&vpd_driver);
-}
-
-module_init(coreboot_vpd_init);
-module_exit(coreboot_vpd_exit);
+module_coreboot_driver(vpd_driver);
 
 MODULE_AUTHOR("Google, Inc.");
 MODULE_LICENSE("GPL");

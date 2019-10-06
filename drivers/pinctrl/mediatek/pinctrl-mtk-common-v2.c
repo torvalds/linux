@@ -290,7 +290,13 @@ static int mtk_xt_set_gpio_as_eint(void *data, unsigned long eint_n)
 		return err;
 
 	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_SMT, MTK_ENABLE);
-	if (err)
+	/* SMT is supposed to be supported by every real GPIO and doesn't
+	 * support virtual GPIOs, so the extra condition err != -ENOTSUPP
+	 * is just for adding EINT support to these virtual GPIOs. It should
+	 * add an extra flag in the pin descriptor when more pins with
+	 * distinctive characteristic come out.
+	 */
+	if (err && err != -ENOTSUPP)
 		return err;
 
 	return 0;
@@ -665,6 +671,55 @@ int mtk_pinconf_adv_pull_get(struct mtk_pinctrl *hw,
 		return err;
 
 	*val = (t | t2 << 1) & 0x7;
+
+	return 0;
+}
+
+int mtk_pinconf_adv_drive_set(struct mtk_pinctrl *hw,
+			      const struct mtk_pin_desc *desc, u32 arg)
+{
+	int err;
+	int en = arg & 1;
+	int e0 = !!(arg & 2);
+	int e1 = !!(arg & 4);
+
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_DRV_EN, en);
+	if (err)
+		return err;
+
+	if (!en)
+		return err;
+
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_DRV_E0, e0);
+	if (err)
+		return err;
+
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_DRV_E1, e1);
+	if (err)
+		return err;
+
+	return err;
+}
+
+int mtk_pinconf_adv_drive_get(struct mtk_pinctrl *hw,
+			      const struct mtk_pin_desc *desc, u32 *val)
+{
+	u32 en, e0, e1;
+	int err;
+
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_DRV_EN, &en);
+	if (err)
+		return err;
+
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_DRV_E0, &e0);
+	if (err)
+		return err;
+
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_DRV_E1, &e1);
+	if (err)
+		return err;
+
+	*val = (en | e0 << 1 | e1 << 2) & 0x7;
 
 	return 0;
 }

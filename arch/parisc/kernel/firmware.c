@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/parisc/kernel/firmware.c  - safe PDC access routines
  *
@@ -12,12 +13,6 @@
  * Copyright 2003 Grant Grundler <grundler parisc-linux org>
  * Copyright 2003,2004 Ryan Bradetich <rbrad@parisc-linux.org>
  * Copyright 2004,2006 Thibaut VARENE <varenet@parisc-linux.org>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
  */
 
 /*	I think it would be in everyone's best interest to follow this
@@ -87,7 +82,7 @@ extern unsigned long pdc_result2[NUM_PDC_RESULT];
 
 /* Firmware needs to be initially set to narrow to determine the 
  * actual firmware width. */
-int parisc_narrow_firmware __read_mostly = 1;
+int parisc_narrow_firmware __ro_after_init = 1;
 #endif
 
 /* On most currently-supported platforms, IODC I/O calls are 32-bit calls
@@ -315,6 +310,19 @@ int pdc_chassis_disp(unsigned long disp)
 
 	return retval;
 }
+
+/**
+ * pdc_cpu_rendenzvous - Stop currently executing CPU
+ * @retval: -1 on error, 0 on success
+ */
+int __pdc_cpu_rendezvous(void)
+{
+	if (is_pdc_pat())
+		return mem_pdc_call(PDC_PAT_CPU, PDC_PAT_CPU_RENDEZVOUS);
+	else
+		return mem_pdc_call(PDC_PROC, 1, 0);
+}
+
 
 /**
  * pdc_chassis_warn - Fetches chassis warnings
@@ -566,6 +574,30 @@ int pdc_model_capabilities(unsigned long *capabilities)
         spin_unlock_irqrestore(&pdc_lock, flags);
 
         return retval;
+}
+
+/**
+ * pdc_model_platform_info - Returns machine product and serial number.
+ * @orig_prod_num: Return buffer for original product number.
+ * @current_prod_num: Return buffer for current product number.
+ * @serial_no: Return buffer for serial number.
+ *
+ * Returns strings containing the original and current product numbers and the
+ * serial number of the system.
+ */
+int pdc_model_platform_info(char *orig_prod_num, char *current_prod_num,
+		char *serial_no)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_MODEL, PDC_MODEL_GET_PLATFORM_INFO,
+		__pa(orig_prod_num), __pa(current_prod_num), __pa(serial_no));
+	convert_to_wide(pdc_result);
+	spin_unlock_irqrestore(&pdc_lock, flags);
+
+	return retval;
 }
 
 /**

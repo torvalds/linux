@@ -1,14 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD Secure Processor device driver
  *
- * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2018 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  * Author: Gary R Hook <gary.hook@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -226,8 +223,6 @@ static int sp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto e_err;
 
-	dev_notice(dev, "enabled\n");
-
 	return 0;
 
 e_err:
@@ -246,8 +241,6 @@ static void sp_pci_remove(struct pci_dev *pdev)
 	sp_destroy(sp);
 
 	sp_free_irqs(sp);
-
-	dev_notice(dev, "disabled\n");
 }
 
 #ifdef CONFIG_PM

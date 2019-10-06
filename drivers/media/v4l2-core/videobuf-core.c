@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * generic helper functions for handling video4linux capture buffers
  *
@@ -7,10 +8,6 @@
  * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
  * (c) 2006 Mauro Carvalho Chehab, <mchehab@kernel.org>
  * (c) 2006 Ted Walther and John Sokol
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2
  */
 
 #include <linux/init.h>
@@ -214,7 +211,7 @@ int videobuf_queue_is_busy(struct videobuf_queue *q)
 			return 1;
 		}
 		if (q->bufs[i]->state == VIDEOBUF_ACTIVE) {
-			dprintk(1, "busy: buffer #%d avtive\n", i);
+			dprintk(1, "busy: buffer #%d active\n", i);
 			return 1;
 		}
 	}
@@ -367,7 +364,7 @@ static void videobuf_status(struct videobuf_queue *q, struct v4l2_buffer *b,
 	}
 
 	b->field     = vb->field;
-	b->timestamp = vb->ts;
+	b->timestamp = ns_to_timeval(vb->ts);
 	b->bytesused = vb->size;
 	b->sequence  = vb->field_count >> 1;
 }
@@ -581,7 +578,7 @@ int videobuf_qbuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 		    || q->type == V4L2_BUF_TYPE_SDR_OUTPUT) {
 			buf->size = b->bytesused;
 			buf->field = b->field;
-			buf->ts = b->timestamp;
+			buf->ts = v4l2_timeval_to_ns(&b->timestamp);
 		}
 		break;
 	case V4L2_MEMORY_USERPTR:
@@ -1119,8 +1116,8 @@ done:
 EXPORT_SYMBOL_GPL(videobuf_read_stream);
 
 __poll_t videobuf_poll_stream(struct file *file,
-				  struct videobuf_queue *q,
-				  poll_table *wait)
+			      struct videobuf_queue *q,
+			      poll_table *wait)
 {
 	__poll_t req_events = poll_requested_events(wait);
 	struct videobuf_buffer *buf = NULL;
@@ -1145,11 +1142,12 @@ __poll_t videobuf_poll_stream(struct file *file,
 		}
 		buf = q->read_buf;
 	}
-	if (!buf)
+	if (buf)
+		poll_wait(file, &buf->done, wait);
+	else
 		rc = EPOLLERR;
 
 	if (0 == rc) {
-		poll_wait(file, &buf->done, wait);
 		if (buf->state == VIDEOBUF_DONE ||
 		    buf->state == VIDEOBUF_ERROR) {
 			switch (q->type) {

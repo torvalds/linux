@@ -1,17 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*******************************************************************************
   Copyright (C) 2007-2009  STMicroelectronics Ltd
 
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
 
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
@@ -23,12 +13,15 @@
 #define DRV_MODULE_VERSION	"Jan_2016"
 
 #include <linux/clk.h>
+#include <linux/if_vlan.h>
 #include <linux/stmmac.h>
-#include <linux/phy.h>
+#include <linux/phylink.h>
 #include <linux/pci.h>
 #include "common.h"
 #include <linux/ptp_clock_kernel.h>
+#include <linux/net_tstamp.h>
 #include <linux/reset.h>
+#include <net/page_pool.h>
 
 struct stmmac_resources {
 	void __iomem *addr;
@@ -63,26 +56,39 @@ struct stmmac_tx_queue {
 	u32 mss;
 };
 
+struct stmmac_rx_buffer {
+	struct page *page;
+	struct page *sec_page;
+	dma_addr_t addr;
+	dma_addr_t sec_addr;
+};
+
 struct stmmac_rx_queue {
+	u32 rx_count_frames;
 	u32 queue_index;
+	struct page_pool *page_pool;
+	struct stmmac_rx_buffer *buf_pool;
 	struct stmmac_priv *priv_data;
 	struct dma_extended_desc *dma_erx;
 	struct dma_desc *dma_rx ____cacheline_aligned_in_smp;
-	struct sk_buff **rx_skbuff;
-	dma_addr_t *rx_skbuff_dma;
 	unsigned int cur_rx;
 	unsigned int dirty_rx;
 	u32 rx_zeroc_thresh;
 	dma_addr_t dma_rx_phy;
 	u32 rx_tail_addr;
+	unsigned int state_saved;
+	struct {
+		struct sk_buff *skb;
+		unsigned int len;
+		unsigned int error;
+	} state;
 };
 
 struct stmmac_channel {
-	struct napi_struct napi ____cacheline_aligned_in_smp;
+	struct napi_struct rx_napi ____cacheline_aligned_in_smp;
+	struct napi_struct tx_napi ____cacheline_aligned_in_smp;
 	struct stmmac_priv *priv_data;
 	u32 index;
-	int has_rx;
-	int has_tx;
 };
 
 struct stmmac_tc_entry {
@@ -116,15 +122,34 @@ struct stmmac_pps_cfg {
 	struct timespec64 period;
 };
 
+struct stmmac_rss {
+	int enable;
+	u8 key[STMMAC_RSS_HASH_KEY_SIZE];
+	u32 table[STMMAC_RSS_MAX_TABLE_SIZE];
+};
+
+#define STMMAC_FLOW_ACTION_DROP		BIT(0)
+struct stmmac_flow_entry {
+	unsigned long cookie;
+	unsigned long action;
+	u8 ip_proto;
+	int in_use;
+	int idx;
+	int is_l4;
+};
+
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
 	u32 tx_coal_frames;
 	u32 tx_coal_timer;
+	u32 rx_coal_frames;
 
 	int tx_coalesce;
 	int hwts_tx_en;
 	bool tx_path_in_lpi_mode;
 	bool tso;
+	int sph;
+	u32 sarc_type;
 
 	unsigned int dma_buf_sz;
 	unsigned int rx_copybreak;
@@ -147,13 +172,14 @@ struct stmmac_priv {
 	/* Generic channel for NAPI */
 	struct stmmac_channel channel[STMMAC_CH_MAX];
 
-	bool oldlink;
 	int speed;
-	int oldduplex;
 	unsigned int flow_ctrl;
 	unsigned int pause;
 	struct mii_bus *mii;
 	int mii_irq[PHY_MAX_ADDR];
+
+	struct phylink_config phylink_config;
+	struct phylink *phylink;
 
 	struct stmmac_extra_stats xstats ____cacheline_aligned_in_smp;
 	struct stmmac_safety_stats sstats;
@@ -174,6 +200,7 @@ struct stmmac_priv {
 	unsigned int mode;
 	unsigned int chain_mode;
 	int extend_desc;
+	struct hwtstamp_config tstamp_config;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_ops;
 	unsigned int default_addend;
@@ -185,11 +212,10 @@ struct stmmac_priv {
 	spinlock_t ptp_lock;
 	void __iomem *mmcaddr;
 	void __iomem *ptpaddr;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dbgfs_dir;
-	struct dentry *dbgfs_rings_status;
-	struct dentry *dbgfs_dma_cap;
 #endif
 
 	unsigned long state;
@@ -200,9 +226,14 @@ struct stmmac_priv {
 	unsigned int tc_entries_max;
 	unsigned int tc_off_max;
 	struct stmmac_tc_entry *tc_entries;
+	unsigned int flow_entries_max;
+	struct stmmac_flow_entry *flow_entries;
 
 	/* Pulse Per Second output */
 	struct stmmac_pps_cfg pps[STMMAC_PPS_MAX];
+
+	/* Receive Side Scaling */
+	struct stmmac_rss rss;
 };
 
 enum stmmac_state {
@@ -227,5 +258,27 @@ int stmmac_dvr_probe(struct device *device,
 		     struct stmmac_resources *res);
 void stmmac_disable_eee_mode(struct stmmac_priv *priv);
 bool stmmac_eee_init(struct stmmac_priv *priv);
+
+#if IS_ENABLED(CONFIG_STMMAC_SELFTESTS)
+void stmmac_selftest_run(struct net_device *dev,
+			 struct ethtool_test *etest, u64 *buf);
+void stmmac_selftest_get_strings(struct stmmac_priv *priv, u8 *data);
+int stmmac_selftest_get_count(struct stmmac_priv *priv);
+#else
+static inline void stmmac_selftest_run(struct net_device *dev,
+				       struct ethtool_test *etest, u64 *buf)
+{
+	/* Not enabled */
+}
+static inline void stmmac_selftest_get_strings(struct stmmac_priv *priv,
+					       u8 *data)
+{
+	/* Not enabled */
+}
+static inline int stmmac_selftest_get_count(struct stmmac_priv *priv)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* CONFIG_STMMAC_SELFTESTS */
 
 #endif /* __STMMAC_H__ */

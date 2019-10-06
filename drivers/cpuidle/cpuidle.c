@@ -328,9 +328,23 @@ int cpuidle_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 int cpuidle_enter(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		  int index)
 {
+	int ret = 0;
+
+	/*
+	 * Store the next hrtimer, which becomes either next tick or the next
+	 * timer event, whatever expires first. Additionally, to make this data
+	 * useful for consumers outside cpuidle, we rely on that the governor's
+	 * ->select() callback have decided, whether to stop the tick or not.
+	 */
+	WRITE_ONCE(dev->next_hrtimer, tick_nohz_get_next_hrtimer());
+
 	if (cpuidle_state_is_coupled(drv, index))
-		return cpuidle_enter_state_coupled(dev, drv, index);
-	return cpuidle_enter_state(dev, drv, index);
+		ret = cpuidle_enter_state_coupled(dev, drv, index);
+	else
+		ret = cpuidle_enter_state(dev, drv, index);
+
+	WRITE_ONCE(dev->next_hrtimer, 0);
+	return ret;
 }
 
 /**
@@ -345,6 +359,36 @@ void cpuidle_reflect(struct cpuidle_device *dev, int index)
 {
 	if (cpuidle_curr_governor->reflect && index >= 0)
 		cpuidle_curr_governor->reflect(dev, index);
+}
+
+/**
+ * cpuidle_poll_time - return amount of time to poll for,
+ * governors can override dev->poll_limit_ns if necessary
+ *
+ * @drv:   the cpuidle driver tied with the cpu
+ * @dev:   the cpuidle device
+ *
+ */
+u64 cpuidle_poll_time(struct cpuidle_driver *drv,
+		      struct cpuidle_device *dev)
+{
+	int i;
+	u64 limit_ns;
+
+	if (dev->poll_limit_ns)
+		return dev->poll_limit_ns;
+
+	limit_ns = TICK_NSEC;
+	for (i = 1; i < drv->state_count; i++) {
+		if (drv->states[i].disabled || dev->states_usage[i].disable)
+			continue;
+
+		limit_ns = (u64)drv->states[i].target_residency * NSEC_PER_USEC;
+	}
+
+	dev->poll_limit_ns = limit_ns;
+
+	return dev->poll_limit_ns;
 }
 
 /**
@@ -511,6 +555,7 @@ static void __cpuidle_device_init(struct cpuidle_device *dev)
 {
 	memset(dev->states_usage, 0, sizeof(dev->states_usage));
 	dev->last_residency = 0;
+	dev->next_hrtimer = 0;
 }
 
 /**

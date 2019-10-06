@@ -52,7 +52,6 @@ preemption must be disabled around such regions.
 
 Note, some FPU functions are already explicitly preempt safe.  For example,
 kernel_fpu_begin and kernel_fpu_end will disable and enable preemption.
-However, fpu__restore() must be called with preemption disabled.
 
 
 RULE #3: Lock acquire and release must be performed by same task

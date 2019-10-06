@@ -10,69 +10,6 @@
 #include "i40e_xsk.h"
 
 /**
- * i40e_alloc_xsk_umems - Allocate an array to store per ring UMEMs
- * @vsi: Current VSI
- *
- * Returns 0 on success, <0 on failure
- **/
-static int i40e_alloc_xsk_umems(struct i40e_vsi *vsi)
-{
-	if (vsi->xsk_umems)
-		return 0;
-
-	vsi->num_xsk_umems_used = 0;
-	vsi->num_xsk_umems = vsi->alloc_queue_pairs;
-	vsi->xsk_umems = kcalloc(vsi->num_xsk_umems, sizeof(*vsi->xsk_umems),
-				 GFP_KERNEL);
-	if (!vsi->xsk_umems) {
-		vsi->num_xsk_umems = 0;
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-/**
- * i40e_add_xsk_umem - Store a UMEM for a certain ring/qid
- * @vsi: Current VSI
- * @umem: UMEM to store
- * @qid: Ring/qid to associate with the UMEM
- *
- * Returns 0 on success, <0 on failure
- **/
-static int i40e_add_xsk_umem(struct i40e_vsi *vsi, struct xdp_umem *umem,
-			     u16 qid)
-{
-	int err;
-
-	err = i40e_alloc_xsk_umems(vsi);
-	if (err)
-		return err;
-
-	vsi->xsk_umems[qid] = umem;
-	vsi->num_xsk_umems_used++;
-
-	return 0;
-}
-
-/**
- * i40e_remove_xsk_umem - Remove a UMEM for a certain ring/qid
- * @vsi: Current VSI
- * @qid: Ring/qid associated with the UMEM
- **/
-static void i40e_remove_xsk_umem(struct i40e_vsi *vsi, u16 qid)
-{
-	vsi->xsk_umems[qid] = NULL;
-	vsi->num_xsk_umems_used--;
-
-	if (vsi->num_xsk_umems == 0) {
-		kfree(vsi->xsk_umems);
-		vsi->xsk_umems = NULL;
-		vsi->num_xsk_umems = 0;
-	}
-}
-
-/**
  * i40e_xsk_umem_dma_map - DMA maps all UMEM memory for the netdev
  * @vsi: Current VSI
  * @umem: UMEM to DMA map
@@ -140,6 +77,7 @@ static void i40e_xsk_umem_dma_unmap(struct i40e_vsi *vsi, struct xdp_umem *umem)
 static int i40e_xsk_umem_enable(struct i40e_vsi *vsi, struct xdp_umem *umem,
 				u16 qid)
 {
+	struct net_device *netdev = vsi->netdev;
 	struct xdp_umem_fq_reuse *reuseq;
 	bool if_running;
 	int err;
@@ -150,12 +88,9 @@ static int i40e_xsk_umem_enable(struct i40e_vsi *vsi, struct xdp_umem *umem,
 	if (qid >= vsi->num_queue_pairs)
 		return -EINVAL;
 
-	if (vsi->xsk_umems) {
-		if (qid >= vsi->num_xsk_umems)
-			return -EINVAL;
-		if (vsi->xsk_umems[qid])
-			return -EBUSY;
-	}
+	if (qid >= netdev->real_num_rx_queues ||
+	    qid >= netdev->real_num_tx_queues)
+		return -EINVAL;
 
 	reuseq = xsk_reuseq_prepare(vsi->rx_rings[0]->count);
 	if (!reuseq)
@@ -167,25 +102,21 @@ static int i40e_xsk_umem_enable(struct i40e_vsi *vsi, struct xdp_umem *umem,
 	if (err)
 		return err;
 
+	set_bit(qid, vsi->af_xdp_zc_qps);
+
 	if_running = netif_running(vsi->netdev) && i40e_enabled_xdp_vsi(vsi);
 
 	if (if_running) {
 		err = i40e_queue_pair_disable(vsi, qid);
 		if (err)
 			return err;
-	}
 
-	err = i40e_add_xsk_umem(vsi, umem, qid);
-	if (err)
-		return err;
-
-	if (if_running) {
 		err = i40e_queue_pair_enable(vsi, qid);
 		if (err)
 			return err;
 
 		/* Kick start the NAPI context so that receiving will start */
-		err = i40e_xsk_async_xmit(vsi->netdev, qid);
+		err = i40e_xsk_wakeup(vsi->netdev, qid, XDP_WAKEUP_RX);
 		if (err)
 			return err;
 	}
@@ -202,11 +133,13 @@ static int i40e_xsk_umem_enable(struct i40e_vsi *vsi, struct xdp_umem *umem,
  **/
 static int i40e_xsk_umem_disable(struct i40e_vsi *vsi, u16 qid)
 {
+	struct net_device *netdev = vsi->netdev;
+	struct xdp_umem *umem;
 	bool if_running;
 	int err;
 
-	if (!vsi->xsk_umems || qid >= vsi->num_xsk_umems ||
-	    !vsi->xsk_umems[qid])
+	umem = xdp_get_umem_from_qid(netdev, qid);
+	if (!umem)
 		return -EINVAL;
 
 	if_running = netif_running(vsi->netdev) && i40e_enabled_xdp_vsi(vsi);
@@ -217,45 +150,20 @@ static int i40e_xsk_umem_disable(struct i40e_vsi *vsi, u16 qid)
 			return err;
 	}
 
-	i40e_xsk_umem_dma_unmap(vsi, vsi->xsk_umems[qid]);
-	i40e_remove_xsk_umem(vsi, qid);
+	clear_bit(qid, vsi->af_xdp_zc_qps);
+	i40e_xsk_umem_dma_unmap(vsi, umem);
 
 	if (if_running) {
 		err = i40e_queue_pair_enable(vsi, qid);
 		if (err)
 			return err;
+
+		/* Kick start the NAPI context so that receiving will start */
+		err = i40e_xsk_wakeup(vsi->netdev, qid, XDP_WAKEUP_RX);
+		if (err)
+			return err;
 	}
 
-	return 0;
-}
-
-/**
- * i40e_xsk_umem_query - Queries a certain ring/qid for its UMEM
- * @vsi: Current VSI
- * @umem: UMEM associated to the ring, if any
- * @qid: Rx ring to associate UMEM to
- *
- * This function will store, if any, the UMEM associated to certain ring.
- *
- * Returns 0 on success, <0 on failure
- **/
-int i40e_xsk_umem_query(struct i40e_vsi *vsi, struct xdp_umem **umem,
-			u16 qid)
-{
-	if (vsi->type != I40E_VSI_MAIN)
-		return -EINVAL;
-
-	if (qid >= vsi->num_queue_pairs)
-		return -EINVAL;
-
-	if (vsi->xsk_umems) {
-		if (qid >= vsi->num_xsk_umems)
-			return -EINVAL;
-		*umem = vsi->xsk_umems[qid];
-		return 0;
-	}
-
-	*umem = NULL;
 	return 0;
 }
 
@@ -287,9 +195,11 @@ int i40e_xsk_umem_setup(struct i40e_vsi *vsi, struct xdp_umem *umem,
  **/
 static int i40e_run_xdp_zc(struct i40e_ring *rx_ring, struct xdp_buff *xdp)
 {
+	struct xdp_umem *umem = rx_ring->xsk_umem;
 	int err, result = I40E_XDP_PASS;
 	struct i40e_ring *xdp_ring;
 	struct bpf_prog *xdp_prog;
+	u64 offset;
 	u32 act;
 
 	rcu_read_lock();
@@ -298,7 +208,10 @@ static int i40e_run_xdp_zc(struct i40e_ring *rx_ring, struct xdp_buff *xdp)
 	 */
 	xdp_prog = READ_ONCE(rx_ring->xdp_prog);
 	act = bpf_prog_run_xdp(xdp_prog, xdp);
-	xdp->handle += xdp->data - xdp->data_hard_start;
+	offset = xdp->data - xdp->data_hard_start;
+
+	xdp->handle = xsk_umem_adjust_offset(umem, xdp->handle, offset);
+
 	switch (act) {
 	case XDP_PASS:
 		break;
@@ -312,6 +225,7 @@ static int i40e_run_xdp_zc(struct i40e_ring *rx_ring, struct xdp_buff *xdp)
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
+		/* fall through */
 	case XDP_ABORTED:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
 		/* fallthrough -- handle aborts by dropping packet */
@@ -358,7 +272,7 @@ static bool i40e_alloc_buffer_zc(struct i40e_ring *rx_ring,
 	bi->addr = xdp_umem_get_data(umem, handle);
 	bi->addr += hr;
 
-	bi->handle = handle + umem->headroom;
+	bi->handle = xsk_umem_adjust_offset(umem, handle, umem->headroom);
 
 	xsk_umem_discard_addr(umem);
 	return true;
@@ -395,7 +309,7 @@ static bool i40e_alloc_buffer_slow_zc(struct i40e_ring *rx_ring,
 	bi->addr = xdp_umem_get_data(umem, handle);
 	bi->addr += hr;
 
-	bi->handle = handle + umem->headroom;
+	bi->handle = xsk_umem_adjust_offset(umem, handle, umem->headroom);
 
 	xsk_umem_discard_addr_rq(umem);
 	return true;
@@ -516,8 +430,6 @@ static void i40e_reuse_rx_buffer_zc(struct i40e_ring *rx_ring,
 				    struct i40e_rx_buffer *old_bi)
 {
 	struct i40e_rx_buffer *new_bi = &rx_ring->rx_bi[rx_ring->next_to_alloc];
-	unsigned long mask = (unsigned long)rx_ring->xsk_umem->chunk_mask;
-	u64 hr = rx_ring->xsk_umem->headroom + XDP_PACKET_HEADROOM;
 	u16 nta = rx_ring->next_to_alloc;
 
 	/* update, and store next to alloc */
@@ -525,14 +437,9 @@ static void i40e_reuse_rx_buffer_zc(struct i40e_ring *rx_ring,
 	rx_ring->next_to_alloc = (nta < rx_ring->count) ? nta : 0;
 
 	/* transfer page from old buffer to new buffer */
-	new_bi->dma = old_bi->dma & mask;
-	new_bi->dma += hr;
-
-	new_bi->addr = (void *)((unsigned long)old_bi->addr & mask);
-	new_bi->addr += hr;
-
-	new_bi->handle = old_bi->handle & mask;
-	new_bi->handle += rx_ring->xsk_umem->headroom;
+	new_bi->dma = old_bi->dma;
+	new_bi->addr = old_bi->addr;
+	new_bi->handle = old_bi->handle;
 
 	old_bi->addr = NULL;
 }
@@ -567,7 +474,8 @@ void i40e_zca_free(struct zero_copy_allocator *alloc, unsigned long handle)
 	bi->addr = xdp_umem_get_data(rx_ring->xsk_umem, handle);
 	bi->addr += hr;
 
-	bi->handle = (u64)handle + rx_ring->xsk_umem->headroom;
+	bi->handle = xsk_umem_adjust_offset(rx_ring->xsk_umem, (u64)handle,
+					    rx_ring->xsk_umem->headroom);
 }
 
 /**
@@ -722,6 +630,15 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 
 	i40e_finalize_xdp_rx(rx_ring, xdp_xmit);
 	i40e_update_rx_stats(rx_ring, total_rx_bytes, total_rx_packets);
+
+	if (xsk_umem_uses_need_wakeup(rx_ring->xsk_umem)) {
+		if (failure || rx_ring->next_to_clean == rx_ring->next_to_use)
+			xsk_set_rx_need_wakeup(rx_ring->xsk_umem);
+		else
+			xsk_clear_rx_need_wakeup(rx_ring->xsk_umem);
+
+		return (int)total_rx_packets;
+	}
 	return failure ? budget : (int)total_rx_packets;
 }
 
@@ -737,8 +654,8 @@ static bool i40e_xmit_zc(struct i40e_ring *xdp_ring, unsigned int budget)
 	struct i40e_tx_desc *tx_desc = NULL;
 	struct i40e_tx_buffer *tx_bi;
 	bool work_done = true;
+	struct xdp_desc desc;
 	dma_addr_t dma;
-	u32 len;
 
 	while (budget-- > 0) {
 		if (!unlikely(I40E_DESC_UNUSED(xdp_ring))) {
@@ -747,21 +664,23 @@ static bool i40e_xmit_zc(struct i40e_ring *xdp_ring, unsigned int budget)
 			break;
 		}
 
-		if (!xsk_umem_consume_tx(xdp_ring->xsk_umem, &dma, &len))
+		if (!xsk_umem_consume_tx(xdp_ring->xsk_umem, &desc))
 			break;
 
-		dma_sync_single_for_device(xdp_ring->dev, dma, len,
+		dma = xdp_umem_get_dma(xdp_ring->xsk_umem, desc.addr);
+
+		dma_sync_single_for_device(xdp_ring->dev, dma, desc.len,
 					   DMA_BIDIRECTIONAL);
 
 		tx_bi = &xdp_ring->tx_bi[xdp_ring->next_to_use];
-		tx_bi->bytecount = len;
+		tx_bi->bytecount = desc.len;
 
 		tx_desc = I40E_TX_DESC(xdp_ring, xdp_ring->next_to_use);
 		tx_desc->buffer_addr = cpu_to_le64(dma);
 		tx_desc->cmd_type_offset_bsz =
 			build_ctob(I40E_TX_DESC_CMD_ICRC
 				   | I40E_TX_DESC_CMD_EOP,
-				   0, len, 0);
+				   0, desc.len, 0);
 
 		xdp_ring->next_to_use++;
 		if (xdp_ring->next_to_use == xdp_ring->count)
@@ -775,6 +694,8 @@ static bool i40e_xmit_zc(struct i40e_ring *xdp_ring, unsigned int budget)
 		i40e_xdp_ring_update_tail(xdp_ring);
 
 		xsk_umem_consume_tx_done(xdp_ring->xsk_umem);
+		if (xsk_umem_uses_need_wakeup(xdp_ring->xsk_umem))
+			xsk_clear_tx_need_wakeup(xdp_ring->xsk_umem);
 	}
 
 	return !!budget && work_done;
@@ -853,19 +774,27 @@ bool i40e_clean_xdp_tx_irq(struct i40e_vsi *vsi,
 	i40e_update_tx_stats(tx_ring, completed_frames, total_bytes);
 
 out_xmit:
+	if (xsk_umem_uses_need_wakeup(tx_ring->xsk_umem)) {
+		if (tx_ring->next_to_clean == tx_ring->next_to_use)
+			xsk_set_tx_need_wakeup(tx_ring->xsk_umem);
+		else
+			xsk_clear_tx_need_wakeup(tx_ring->xsk_umem);
+	}
+
 	xmit_done = i40e_xmit_zc(tx_ring, budget);
 
 	return work_done && xmit_done;
 }
 
 /**
- * i40e_xsk_async_xmit - Implements the ndo_xsk_async_xmit
+ * i40e_xsk_wakeup - Implements the ndo_xsk_wakeup
  * @dev: the netdevice
  * @queue_id: queue id to wake up
+ * @flags: ignored in our case since we have Rx and Tx in the same NAPI.
  *
  * Returns <0 for errors, 0 otherwise.
  **/
-int i40e_xsk_async_xmit(struct net_device *dev, u32 queue_id)
+int i40e_xsk_wakeup(struct net_device *dev, u32 queue_id, u32 flags)
 {
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	struct i40e_vsi *vsi = np->vsi;
@@ -950,13 +879,11 @@ void i40e_xsk_clean_tx_ring(struct i40e_ring *tx_ring)
  **/
 bool i40e_xsk_any_rx_ring_enabled(struct i40e_vsi *vsi)
 {
+	struct net_device *netdev = vsi->netdev;
 	int i;
 
-	if (!vsi->xsk_umems)
-		return false;
-
 	for (i = 0; i < vsi->num_queue_pairs; i++) {
-		if (vsi->xsk_umems[i])
+		if (xdp_get_umem_from_qid(netdev, i))
 			return true;
 	}
 

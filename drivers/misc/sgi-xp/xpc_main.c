@@ -279,13 +279,6 @@ xpc_hb_checker(void *ignore)
 
 			dev_dbg(xpc_part, "checking remote heartbeats\n");
 			xpc_check_remote_hb();
-
-			/*
-			 * On sn2 we need to periodically recheck to ensure no
-			 * IRQ/amo pairs have been missed.
-			 */
-			if (is_shub())
-				force_IRQ = 1;
 		}
 
 		/* check for outstanding IRQs */
@@ -1050,9 +1043,7 @@ xpc_do_exit(enum xp_retval reason)
 
 	xpc_teardown_partitions();
 
-	if (is_shub())
-		xpc_exit_sn2();
-	else if (is_uv())
+	if (is_uv())
 		xpc_exit_uv();
 }
 
@@ -1235,21 +1226,7 @@ xpc_init(void)
 	dev_set_name(xpc_part, "part");
 	dev_set_name(xpc_chan, "chan");
 
-	if (is_shub()) {
-		/*
-		 * The ia64-sn2 architecture supports at most 64 partitions.
-		 * And the inability to unregister remote amos restricts us
-		 * further to only support exactly 64 partitions on this
-		 * architecture, no less.
-		 */
-		if (xp_max_npartitions != 64) {
-			dev_err(xpc_part, "max #of partitions not set to 64\n");
-			ret = -EINVAL;
-		} else {
-			ret = xpc_init_sn2();
-		}
-
-	} else if (is_uv()) {
+	if (is_uv()) {
 		ret = xpc_init_uv();
 
 	} else {
@@ -1335,9 +1312,7 @@ out_2:
 
 	xpc_teardown_partitions();
 out_1:
-	if (is_shub())
-		xpc_exit_sn2();
-	else if (is_uv())
+	if (is_uv())
 		xpc_exit_uv();
 	return ret;
 }

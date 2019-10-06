@@ -35,6 +35,7 @@
 
 #include "zcrypt_msgtype6.h"
 #include "zcrypt_msgtype50.h"
+#include "zcrypt_ccamisc.h"
 
 /*
  * Module description.
@@ -133,18 +134,6 @@ struct zcdn_device {
 static int zcdn_create(const char *name);
 static int zcdn_destroy(const char *name);
 
-/* helper function, matches the name for find_zcdndev_by_name() */
-static int __match_zcdn_name(struct device *dev, const void *data)
-{
-	return strcmp(dev_name(dev), (const char *)data) == 0;
-}
-
-/* helper function, matches the devt value for find_zcdndev_by_devt() */
-static int __match_zcdn_devt(struct device *dev, const void *data)
-{
-	return dev->devt == *((dev_t *) data);
-}
-
 /*
  * Find zcdn device by name.
  * Returns reference to the zcdn device which needs to be released
@@ -152,10 +141,7 @@ static int __match_zcdn_devt(struct device *dev, const void *data)
  */
 static inline struct zcdn_device *find_zcdndev_by_name(const char *name)
 {
-	struct device *dev =
-		class_find_device(zcrypt_class, NULL,
-				  (void *) name,
-				  __match_zcdn_name);
+	struct device *dev = class_find_device_by_name(zcrypt_class, name);
 
 	return dev ? to_zcdn_dev(dev) : NULL;
 }
@@ -167,10 +153,7 @@ static inline struct zcdn_device *find_zcdndev_by_name(const char *name)
  */
 static inline struct zcdn_device *find_zcdndev_by_devt(dev_t devt)
 {
-	struct device *dev =
-		class_find_device(zcrypt_class, NULL,
-				  (void *) &devt,
-				  __match_zcdn_devt);
+	struct device *dev = class_find_device_by_devt(zcrypt_class, devt);
 
 	return dev ? to_zcdn_dev(dev) : NULL;
 }
@@ -525,7 +508,7 @@ static int zcrypt_open(struct inode *inode, struct file *filp)
 	filp->private_data = (void *) perms;
 
 	atomic_inc(&zcrypt_open_count);
-	return nonseekable_open(inode, filp);
+	return stream_open(inode, filp);
 }
 
 /**
@@ -586,6 +569,7 @@ static inline bool zcrypt_check_queue(struct ap_perms *perms, int queue)
 
 static inline struct zcrypt_queue *zcrypt_pick_queue(struct zcrypt_card *zc,
 						     struct zcrypt_queue *zq,
+						     struct module **pmod,
 						     unsigned int weight)
 {
 	if (!zq || !try_module_get(zq->queue->ap_dev.drv->driver.owner))
@@ -595,15 +579,15 @@ static inline struct zcrypt_queue *zcrypt_pick_queue(struct zcrypt_card *zc,
 	atomic_add(weight, &zc->load);
 	atomic_add(weight, &zq->load);
 	zq->request_count++;
+	*pmod = zq->queue->ap_dev.drv->driver.owner;
 	return zq;
 }
 
 static inline void zcrypt_drop_queue(struct zcrypt_card *zc,
 				     struct zcrypt_queue *zq,
+				     struct module *mod,
 				     unsigned int weight)
 {
-	struct module *mod = zq->queue->ap_dev.drv->driver.owner;
-
 	zq->request_count--;
 	atomic_sub(weight, &zc->load);
 	atomic_sub(weight, &zq->load);
@@ -653,10 +637,12 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 	unsigned int weight, pref_weight;
 	unsigned int func_code;
 	int qid = 0, rc = -ENODEV;
+	struct module *mod;
 
 	trace_s390_zcrypt_req(mex, TP_ICARSAMODEXPO);
 
 	if (mex->outputdatalength < mex->inputdatalength) {
+		func_code = 0;
 		rc = -EINVAL;
 		goto out;
 	}
@@ -706,7 +692,7 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 			pref_weight = weight;
 		}
 	}
-	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, weight);
+	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, &mod, weight);
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
@@ -718,7 +704,7 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 	rc = pref_zq->ops->rsa_modexpo(pref_zq, mex);
 
 	spin_lock(&zcrypt_list_lock);
-	zcrypt_drop_queue(pref_zc, pref_zq, weight);
+	zcrypt_drop_queue(pref_zc, pref_zq, mod, weight);
 	spin_unlock(&zcrypt_list_lock);
 
 out:
@@ -735,10 +721,12 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 	unsigned int weight, pref_weight;
 	unsigned int func_code;
 	int qid = 0, rc = -ENODEV;
+	struct module *mod;
 
 	trace_s390_zcrypt_req(crt, TP_ICARSACRT);
 
 	if (crt->outputdatalength < crt->inputdatalength) {
+		func_code = 0;
 		rc = -EINVAL;
 		goto out;
 	}
@@ -788,7 +776,7 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 			pref_weight = weight;
 		}
 	}
-	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, weight);
+	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, &mod, weight);
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
@@ -800,7 +788,7 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 	rc = pref_zq->ops->rsa_modexpo_crt(pref_zq, crt);
 
 	spin_lock(&zcrypt_list_lock);
-	zcrypt_drop_queue(pref_zc, pref_zq, weight);
+	zcrypt_drop_queue(pref_zc, pref_zq, mod, weight);
 	spin_unlock(&zcrypt_list_lock);
 
 out:
@@ -817,8 +805,9 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 	struct ap_message ap_msg;
 	unsigned int weight, pref_weight;
 	unsigned int func_code;
-	unsigned short *domain;
+	unsigned short *domain, tdom;
 	int qid = 0, rc = -ENODEV;
+	struct module *mod;
 
 	trace_s390_zcrypt_req(xcRB, TB_ZSECSENDCPRB);
 
@@ -827,6 +816,17 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 	rc = get_cprb_fc(xcRB, &ap_msg, &func_code, &domain);
 	if (rc)
 		goto out;
+
+	/*
+	 * If a valid target domain is set and this domain is NOT a usage
+	 * domain but a control only domain, use the default domain as target.
+	 */
+	tdom = *domain;
+	if (tdom >= 0 && tdom < AP_DOMAINS &&
+	    !ap_test_config_usage_domain(tdom) &&
+	    ap_test_config_ctrl_domain(tdom) &&
+	    ap_domain_index >= 0)
+		tdom = ap_domain_index;
 
 	pref_zc = NULL;
 	pref_zq = NULL;
@@ -850,8 +850,8 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 			/* check if device is online and eligible */
 			if (!zq->online ||
 			    !zq->ops->send_cprb ||
-			    ((*domain != (unsigned short) AUTOSELECT) &&
-			     (*domain != AP_QID_QUEUE(zq->queue->qid))))
+			    (tdom != (unsigned short) AUTOSELECT &&
+			     tdom != AP_QID_QUEUE(zq->queue->qid)))
 				continue;
 			/* check if device node has admission for this queue */
 			if (!zcrypt_check_queue(perms,
@@ -865,7 +865,7 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 			pref_weight = weight;
 		}
 	}
-	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, weight);
+	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, &mod, weight);
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
@@ -881,7 +881,7 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 	rc = pref_zq->ops->send_cprb(pref_zq, xcRB, &ap_msg);
 
 	spin_lock(&zcrypt_list_lock);
-	zcrypt_drop_queue(pref_zc, pref_zq, weight);
+	zcrypt_drop_queue(pref_zc, pref_zq, mod, weight);
 	spin_unlock(&zcrypt_list_lock);
 
 out:
@@ -932,6 +932,7 @@ static long zcrypt_send_ep11_cprb(struct ap_perms *perms,
 	unsigned int func_code;
 	struct ap_message ap_msg;
 	int qid = 0, rc = -ENODEV;
+	struct module *mod;
 
 	trace_s390_zcrypt_req(xcrb, TP_ZSENDEP11CPRB);
 
@@ -946,6 +947,7 @@ static long zcrypt_send_ep11_cprb(struct ap_perms *perms,
 
 		targets = kcalloc(target_num, sizeof(*targets), GFP_KERNEL);
 		if (!targets) {
+			func_code = 0;
 			rc = -ENOMEM;
 			goto out;
 		}
@@ -953,6 +955,7 @@ static long zcrypt_send_ep11_cprb(struct ap_perms *perms,
 		uptr = (struct ep11_target_dev __force __user *) xcrb->targets;
 		if (copy_from_user(targets, uptr,
 				   target_num * sizeof(*targets))) {
+			func_code = 0;
 			rc = -EFAULT;
 			goto out_free;
 		}
@@ -1000,7 +1003,7 @@ static long zcrypt_send_ep11_cprb(struct ap_perms *perms,
 			pref_weight = weight;
 		}
 	}
-	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, weight);
+	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, &mod, weight);
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
@@ -1012,7 +1015,7 @@ static long zcrypt_send_ep11_cprb(struct ap_perms *perms,
 	rc = pref_zq->ops->send_ep11_cprb(pref_zq, xcrb, &ap_msg);
 
 	spin_lock(&zcrypt_list_lock);
-	zcrypt_drop_queue(pref_zc, pref_zq, weight);
+	zcrypt_drop_queue(pref_zc, pref_zq, mod, weight);
 	spin_unlock(&zcrypt_list_lock);
 
 out_free:
@@ -1033,6 +1036,7 @@ static long zcrypt_rng(char *buffer)
 	struct ap_message ap_msg;
 	unsigned int domain;
 	int qid = 0, rc = -ENODEV;
+	struct module *mod;
 
 	trace_s390_zcrypt_req(buffer, TP_HWRNGCPRB);
 
@@ -1064,7 +1068,7 @@ static long zcrypt_rng(char *buffer)
 			pref_weight = weight;
 		}
 	}
-	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, weight);
+	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, &mod, weight);
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
@@ -1076,7 +1080,7 @@ static long zcrypt_rng(char *buffer)
 	rc = pref_zq->ops->rng(pref_zq, buffer, &ap_msg);
 
 	spin_lock(&zcrypt_list_lock);
-	zcrypt_drop_queue(pref_zc, pref_zq, weight);
+	zcrypt_drop_queue(pref_zc, pref_zq, mod, weight);
 	spin_unlock(&zcrypt_list_lock);
 
 out:
@@ -1138,6 +1142,34 @@ void zcrypt_device_status_mask_ext(struct zcrypt_device_status_ext *devstatus)
 	spin_unlock(&zcrypt_list_lock);
 }
 EXPORT_SYMBOL(zcrypt_device_status_mask_ext);
+
+int zcrypt_device_status_ext(int card, int queue,
+			     struct zcrypt_device_status_ext *devstat)
+{
+	struct zcrypt_card *zc;
+	struct zcrypt_queue *zq;
+
+	memset(devstat, 0, sizeof(*devstat));
+
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		for_each_zcrypt_queue(zq, zc) {
+			if (card == AP_QID_CARD(zq->queue->qid) &&
+			    queue == AP_QID_QUEUE(zq->queue->qid)) {
+				devstat->hwtype = zc->card->ap_dev.device_type;
+				devstat->functions = zc->card->functions >> 26;
+				devstat->qid = zq->queue->qid;
+				devstat->online = zq->online ? 0x01 : 0x00;
+				spin_unlock(&zcrypt_list_lock);
+				return 0;
+			}
+		}
+	}
+	spin_unlock(&zcrypt_list_lock);
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL(zcrypt_device_status_ext);
 
 static void zcrypt_status_mask(char status[], size_t max_adapters)
 {
@@ -1853,6 +1885,7 @@ void __exit zcrypt_api_exit(void)
 	misc_deregister(&zcrypt_misc_device);
 	zcrypt_msgtype6_exit();
 	zcrypt_msgtype50_exit();
+	zcrypt_ccamisc_exit();
 	zcrypt_debug_exit();
 }
 

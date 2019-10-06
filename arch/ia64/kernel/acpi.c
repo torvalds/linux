@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  acpi.c - Architecture-Specific Low-Level ACPI Support
  *
@@ -12,24 +13,6 @@
  *  Copyright (C) 2001 Takayoshi Kochi <t-kochi@bq.jp.nec.com>
  *  Copyright (C) 2002 Erich Focht <efocht@ess.nec.de>
  *  Copyright (C) 2004 Ashok Raj <ashok.raj@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 #include <linux/module.h>
@@ -48,7 +31,6 @@
 #include <acpi/processor.h>
 #include <asm/io.h>
 #include <asm/iosapic.h>
-#include <asm/machvec.h>
 #include <asm/page.h>
 #include <asm/numa.h>
 #include <asm/sal.h>
@@ -61,77 +43,6 @@ unsigned int acpi_cpei_override;
 unsigned int acpi_cpei_phys_cpuid;
 
 unsigned long acpi_wakeup_address = 0;
-
-#ifdef CONFIG_IA64_GENERIC
-static unsigned long __init acpi_find_rsdp(void)
-{
-	unsigned long rsdp_phys = 0;
-
-	if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
-		rsdp_phys = efi.acpi20;
-	else if (efi.acpi != EFI_INVALID_TABLE_ADDR)
-		printk(KERN_WARNING PREFIX
-		       "v1.0/r0.71 tables no longer supported\n");
-	return rsdp_phys;
-}
-
-const char __init *
-acpi_get_sysname(void)
-{
-	unsigned long rsdp_phys;
-	struct acpi_table_rsdp *rsdp;
-	struct acpi_table_xsdt *xsdt;
-	struct acpi_table_header *hdr;
-#ifdef CONFIG_INTEL_IOMMU
-	u64 i, nentries;
-#endif
-
-	rsdp_phys = acpi_find_rsdp();
-	if (!rsdp_phys) {
-		printk(KERN_ERR
-		       "ACPI 2.0 RSDP not found, default to \"dig\"\n");
-		return "dig";
-	}
-
-	rsdp = (struct acpi_table_rsdp *)__va(rsdp_phys);
-	if (strncmp(rsdp->signature, ACPI_SIG_RSDP, sizeof(ACPI_SIG_RSDP) - 1)) {
-		printk(KERN_ERR
-		       "ACPI 2.0 RSDP signature incorrect, default to \"dig\"\n");
-		return "dig";
-	}
-
-	xsdt = (struct acpi_table_xsdt *)__va(rsdp->xsdt_physical_address);
-	hdr = &xsdt->header;
-	if (strncmp(hdr->signature, ACPI_SIG_XSDT, sizeof(ACPI_SIG_XSDT) - 1)) {
-		printk(KERN_ERR
-		       "ACPI 2.0 XSDT signature incorrect, default to \"dig\"\n");
-		return "dig";
-	}
-
-	if (!strcmp(hdr->oem_id, "HP")) {
-		return "hpzx1";
-	} else if (!strcmp(hdr->oem_id, "SGI")) {
-		if (!strcmp(hdr->oem_table_id + 4, "UV"))
-			return "uv";
-		else
-			return "sn2";
-	}
-
-#ifdef CONFIG_INTEL_IOMMU
-	/* Look for Intel IOMMU */
-	nentries = (hdr->length - sizeof(*hdr)) /
-			 sizeof(xsdt->table_offset_entry[0]);
-	for (i = 0; i < nentries; i++) {
-		hdr = __va(xsdt->table_offset_entry[i]);
-		if (strncmp(hdr->signature, ACPI_SIG_DMAR,
-			sizeof(ACPI_SIG_DMAR) - 1) == 0)
-			return "dig_vtd";
-	}
-#endif
-
-	return "dig";
-}
-#endif /* CONFIG_IA64_GENERIC */
 
 #define ACPI_MAX_PLATFORM_INTERRUPTS	256
 
@@ -177,7 +88,7 @@ struct acpi_table_madt *acpi_madt __initdata;
 static u8 has_8259;
 
 static int __init
-acpi_parse_lapic_addr_ovr(struct acpi_subtable_header * header,
+acpi_parse_lapic_addr_ovr(union acpi_subtable_headers * header,
 			  const unsigned long end)
 {
 	struct acpi_madt_local_apic_override *lapic;
@@ -195,7 +106,7 @@ acpi_parse_lapic_addr_ovr(struct acpi_subtable_header * header,
 }
 
 static int __init
-acpi_parse_lsapic(struct acpi_subtable_header * header, const unsigned long end)
+acpi_parse_lsapic(union acpi_subtable_headers *header, const unsigned long end)
 {
 	struct acpi_madt_local_sapic *lsapic;
 
@@ -216,7 +127,7 @@ acpi_parse_lsapic(struct acpi_subtable_header * header, const unsigned long end)
 }
 
 static int __init
-acpi_parse_lapic_nmi(struct acpi_subtable_header * header, const unsigned long end)
+acpi_parse_lapic_nmi(union acpi_subtable_headers * header, const unsigned long end)
 {
 	struct acpi_madt_local_apic_nmi *lacpi_nmi;
 
@@ -230,7 +141,7 @@ acpi_parse_lapic_nmi(struct acpi_subtable_header * header, const unsigned long e
 }
 
 static int __init
-acpi_parse_iosapic(struct acpi_subtable_header * header, const unsigned long end)
+acpi_parse_iosapic(union acpi_subtable_headers * header, const unsigned long end)
 {
 	struct acpi_madt_io_sapic *iosapic;
 
@@ -245,7 +156,7 @@ acpi_parse_iosapic(struct acpi_subtable_header * header, const unsigned long end
 static unsigned int __initdata acpi_madt_rev;
 
 static int __init
-acpi_parse_plat_int_src(struct acpi_subtable_header * header,
+acpi_parse_plat_int_src(union acpi_subtable_headers * header,
 			const unsigned long end)
 {
 	struct acpi_madt_interrupt_source *plintsrc;
@@ -329,7 +240,7 @@ unsigned int get_cpei_target_cpu(void)
 }
 
 static int __init
-acpi_parse_int_src_ovr(struct acpi_subtable_header * header,
+acpi_parse_int_src_ovr(union acpi_subtable_headers * header,
 		       const unsigned long end)
 {
 	struct acpi_madt_interrupt_override *p;
@@ -350,7 +261,7 @@ acpi_parse_int_src_ovr(struct acpi_subtable_header * header,
 }
 
 static int __init
-acpi_parse_nmi_src(struct acpi_subtable_header * header, const unsigned long end)
+acpi_parse_nmi_src(union acpi_subtable_headers * header, const unsigned long end)
 {
 	struct acpi_madt_nmi_source *nmi_src;
 
@@ -424,7 +335,7 @@ get_processor_proximity_domain(struct acpi_srat_cpu_affinity *pa)
 	int pxm;
 
 	pxm = pa->proximity_domain_lo;
-	if (ia64_platform_is("sn2") || acpi_srat_revision >= 2)
+	if (acpi_srat_revision >= 2)
 		pxm += pa->proximity_domain_hi[0] << 8;
 	return pxm;
 }
@@ -435,7 +346,7 @@ get_memory_proximity_domain(struct acpi_srat_mem_affinity *ma)
 	int pxm;
 
 	pxm = ma->proximity_domain;
-	if (!ia64_platform_is("sn2") && acpi_srat_revision <= 1)
+	if (acpi_srat_revision <= 1)
 		pxm &= 0xff;
 
 	return pxm;
@@ -727,9 +638,8 @@ int __init acpi_boot_init(void)
 
 	if (acpi_table_parse_madt
 	    (ACPI_MADT_TYPE_IO_SAPIC, acpi_parse_iosapic, NR_IOSAPICS) < 1) {
-		if (!ia64_platform_is("sn2"))
-			printk(KERN_ERR PREFIX
-			       "Error parsing MADT - no IOSAPIC entries\n");
+		printk(KERN_ERR PREFIX
+		       "Error parsing MADT - no IOSAPIC entries\n");
 	}
 
 	/* System-Level Interrupt Routing */

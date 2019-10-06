@@ -31,7 +31,7 @@
 
 #undef i386     /* in case the preprocessor is a 32bit one */
 
-OUTPUT_FORMAT(CONFIG_OUTPUT_FORMAT, CONFIG_OUTPUT_FORMAT, CONFIG_OUTPUT_FORMAT)
+OUTPUT_FORMAT(CONFIG_OUTPUT_FORMAT)
 
 #ifdef CONFIG_X86_32
 OUTPUT_ARCH(i386)
@@ -362,11 +362,19 @@ SECTIONS
 	.bss : AT(ADDR(.bss) - LOAD_OFFSET) {
 		__bss_start = .;
 		*(.bss..page_aligned)
-		*(.bss)
+		*(BSS_MAIN)
 		BSS_DECRYPTED
 		. = ALIGN(PAGE_SIZE);
 		__bss_stop = .;
 	}
+
+	/*
+	 * The memory occupied from _text to here, __end_of_kernel_reserve, is
+	 * automatically reserved in setup_arch(). Anything after here must be
+	 * explicitly reserved using memblock_reserve() or it will be discarded
+	 * and treated as available memory.
+	 */
+	__end_of_kernel_reserve = .;
 
 	. = ALIGN(PAGE_SIZE);
 	.brk : AT(ADDR(.brk) - LOAD_OFFSET) {
@@ -379,10 +387,34 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);		/* keep VO_INIT_SIZE page aligned */
 	_end = .;
 
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+	/*
+	 * Early scratch/workarea section: Lives outside of the kernel proper
+	 * (_text - _end).
+	 *
+	 * Resides after _end because even though the .brk section is after
+	 * __end_of_kernel_reserve, the .brk section is later reserved as a
+	 * part of the kernel. Since it is located after __end_of_kernel_reserve
+	 * it will be discarded and become part of the available memory. As
+	 * such, it can only be used by very early boot code and must not be
+	 * needed afterwards.
+	 *
+	 * Currently used by SME for performing in-place encryption of the
+	 * kernel during boot. Resides on a 2MB boundary to simplify the
+	 * pagetable setup used for SME in-place encryption.
+	 */
+	. = ALIGN(HPAGE_SIZE);
+	.init.scratch : AT(ADDR(.init.scratch) - LOAD_OFFSET) {
+		__init_scratch_begin = .;
+		*(.init.scratch)
+		. = ALIGN(HPAGE_SIZE);
+		__init_scratch_end = .;
+	}
+#endif
+
 	STABS_DEBUG
 	DWARF_DEBUG
 
-	/* Sections to be discarded */
 	DISCARDS
 	/DISCARD/ : {
 		*(.eh_frame)
@@ -401,9 +433,10 @@ SECTIONS
  * Per-cpu symbols which need to be offset from __per_cpu_load
  * for the boot processor.
  */
-#define INIT_PER_CPU(x) init_per_cpu__##x = x + __per_cpu_load
+#define INIT_PER_CPU(x) init_per_cpu__##x = ABSOLUTE(x) + __per_cpu_load
 INIT_PER_CPU(gdt_page);
-INIT_PER_CPU(irq_stack_union);
+INIT_PER_CPU(fixed_percpu_data);
+INIT_PER_CPU(irq_stack_backing_store);
 
 /*
  * Build-time check on the image size:
@@ -412,8 +445,8 @@ INIT_PER_CPU(irq_stack_union);
 	   "kernel image bigger than KERNEL_IMAGE_SIZE");
 
 #ifdef CONFIG_SMP
-. = ASSERT((irq_stack_union == 0),
-           "irq_stack_union is not at start of per-cpu area");
+. = ASSERT((fixed_percpu_data == 0),
+           "fixed_percpu_data is not at start of per-cpu area");
 #endif
 
 #endif /* CONFIG_X86_32 */

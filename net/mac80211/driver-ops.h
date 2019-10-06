@@ -2,7 +2,7 @@
 /*
 * Portions of this file
 * Copyright(c) 2016 Intel Deutschland GmbH
-* Copyright (C) 2018 Intel Corporation
+* Copyright (C) 2018 - 2019 Intel Corporation
 */
 
 #ifndef __MAC80211_DRIVER_OPS
@@ -529,6 +529,11 @@ int drv_sta_state(struct ieee80211_local *local,
 		  enum ieee80211_sta_state old_state,
 		  enum ieee80211_sta_state new_state);
 
+__must_check
+int drv_sta_set_txpwr(struct ieee80211_local *local,
+		      struct ieee80211_sub_if_data *sdata,
+		      struct sta_info *sta);
+
 void drv_sta_rc_update(struct ieee80211_local *local,
 		       struct ieee80211_sub_if_data *sdata,
 		       struct ieee80211_sta *sta, u32 changed);
@@ -687,14 +692,16 @@ static inline int drv_remain_on_channel(struct ieee80211_local *local,
 	return ret;
 }
 
-static inline int drv_cancel_remain_on_channel(struct ieee80211_local *local)
+static inline int
+drv_cancel_remain_on_channel(struct ieee80211_local *local,
+			     struct ieee80211_sub_if_data *sdata)
 {
 	int ret;
 
 	might_sleep();
 
-	trace_drv_cancel_remain_on_channel(local);
-	ret = local->ops->cancel_remain_on_channel(&local->hw);
+	trace_drv_cancel_remain_on_channel(local, sdata);
+	ret = local->ops->cancel_remain_on_channel(&local->hw, &sdata->vif);
 	trace_drv_return_int(local, ret);
 
 	return ret;
@@ -1052,6 +1059,35 @@ drv_post_channel_switch(struct ieee80211_sub_if_data *sdata)
 	return ret;
 }
 
+static inline void
+drv_abort_channel_switch(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	trace_drv_abort_channel_switch(local, sdata);
+
+	if (local->ops->abort_channel_switch)
+		local->ops->abort_channel_switch(&local->hw, &sdata->vif);
+}
+
+static inline void
+drv_channel_switch_rx_beacon(struct ieee80211_sub_if_data *sdata,
+			     struct ieee80211_channel_switch *ch_switch)
+{
+	struct ieee80211_local *local = sdata->local;
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	trace_drv_channel_switch_rx_beacon(local, sdata, ch_switch);
+	if (local->ops->channel_switch_rx_beacon)
+		local->ops->channel_switch_rx_beacon(&local->hw, &sdata->vif,
+						     ch_switch);
+}
+
 static inline int drv_join_ibss(struct ieee80211_local *local,
 				struct ieee80211_sub_if_data *sdata)
 {
@@ -1166,11 +1202,21 @@ static inline void drv_wake_tx_queue(struct ieee80211_local *local,
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(txq->txq.vif);
 
+	if (local->in_reconfig)
+		return;
+
 	if (!check_sdata_in_driver(sdata))
 		return;
 
 	trace_drv_wake_tx_queue(local, sdata, txq);
 	local->ops->wake_tx_queue(&local->hw, &txq->txq);
+}
+
+static inline void schedule_and_wake_txq(struct ieee80211_local *local,
+					 struct txq_info *txqi)
+{
+	ieee80211_schedule_txq(&local->hw, &txqi->txq);
+	drv_wake_tx_queue(local, txqi);
 }
 
 static inline int drv_can_aggregate_in_amsdu(struct ieee80211_local *local,

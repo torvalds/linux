@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Testsuite for eBPF maps
  *
  * Copyright (c) 2014 PLUMgrid, http://plumgrid.com
  * Copyright (c) 2016 Facebook
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 
 #include <stdio.h>
@@ -27,23 +24,17 @@
 
 #include "bpf_util.h"
 #include "bpf_rlimit.h"
+#include "test_maps.h"
 
 #ifndef ENOTSUPP
 #define ENOTSUPP 524
 #endif
 
+static int skips;
+
 static int map_flags;
 
-#define CHECK(condition, tag, format...) ({				\
-	int __ret = !!(condition);					\
-	if (__ret) {							\
-		printf("%s(%d):FAIL:%s ", __func__, __LINE__, tag);	\
-		printf(format);						\
-		exit(-1);						\
-	}								\
-})
-
-static void test_hashmap(int task, void *data)
+static void test_hashmap(unsigned int task, void *data)
 {
 	long long key, next_key, first_key, value;
 	int fd;
@@ -133,7 +124,7 @@ static void test_hashmap(int task, void *data)
 	close(fd);
 }
 
-static void test_hashmap_sizes(int task, void *data)
+static void test_hashmap_sizes(unsigned int task, void *data)
 {
 	int fd, i, j;
 
@@ -153,7 +144,7 @@ static void test_hashmap_sizes(int task, void *data)
 		}
 }
 
-static void test_hashmap_percpu(int task, void *data)
+static void test_hashmap_percpu(unsigned int task, void *data)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
 	BPF_DECLARE_PERCPU(long, value);
@@ -280,7 +271,7 @@ static int helper_fill_hashmap(int max_entries)
 	return fd;
 }
 
-static void test_hashmap_walk(int task, void *data)
+static void test_hashmap_walk(unsigned int task, void *data)
 {
 	int fd, i, max_entries = 1000;
 	long long key, value, next_key;
@@ -351,7 +342,7 @@ static void test_hashmap_zero_seed(void)
 	close(second);
 }
 
-static void test_arraymap(int task, void *data)
+static void test_arraymap(unsigned int task, void *data)
 {
 	int key, next_key, fd;
 	long long value;
@@ -406,7 +397,7 @@ static void test_arraymap(int task, void *data)
 	close(fd);
 }
 
-static void test_arraymap_percpu(int task, void *data)
+static void test_arraymap_percpu(unsigned int task, void *data)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
 	BPF_DECLARE_PERCPU(long, values);
@@ -502,7 +493,7 @@ static void test_arraymap_percpu_many_keys(void)
 	close(fd);
 }
 
-static void test_devmap(int task, void *data)
+static void test_devmap(unsigned int task, void *data)
 {
 	int fd;
 	__u32 key, value;
@@ -517,7 +508,22 @@ static void test_devmap(int task, void *data)
 	close(fd);
 }
 
-static void test_queuemap(int task, void *data)
+static void test_devmap_hash(unsigned int task, void *data)
+{
+	int fd;
+	__u32 key, value;
+
+	fd = bpf_create_map(BPF_MAP_TYPE_DEVMAP_HASH, sizeof(key), sizeof(value),
+			    2, 0);
+	if (fd < 0) {
+		printf("Failed to create devmap_hash '%s'!\n", strerror(errno));
+		exit(1);
+	}
+
+	close(fd);
+}
+
+static void test_queuemap(unsigned int task, void *data)
 {
 	const int MAP_SIZE = 32;
 	__u32 vals[MAP_SIZE + MAP_SIZE/2], val;
@@ -575,7 +581,7 @@ static void test_queuemap(int task, void *data)
 	close(fd);
 }
 
-static void test_stackmap(int task, void *data)
+static void test_stackmap(unsigned int task, void *data)
 {
 	const int MAP_SIZE = 32;
 	__u32 vals[MAP_SIZE + MAP_SIZE/2], val;
@@ -633,7 +639,6 @@ static void test_stackmap(int task, void *data)
 	close(fd);
 }
 
-#include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
 #include <sys/select.h>
@@ -641,7 +646,7 @@ static void test_stackmap(int task, void *data)
 #define SOCKMAP_PARSE_PROG "./sockmap_parse_prog.o"
 #define SOCKMAP_VERDICT_PROG "./sockmap_verdict_prog.o"
 #define SOCKMAP_TCP_MSG_PROG "./sockmap_tcp_msg_prog.o"
-static void test_sockmap(int tasks, void *data)
+static void test_sockmap(unsigned int tasks, void *data)
 {
 	struct bpf_map *bpf_map_rx, *bpf_map_tx, *bpf_map_msg, *bpf_map_break;
 	int map_fd_msg = 0, map_fd_rx = 0, map_fd_tx = 0, map_fd_break;
@@ -725,6 +730,15 @@ static void test_sockmap(int tasks, void *data)
 			    sizeof(key), sizeof(value),
 			    6, 0);
 	if (fd < 0) {
+		if (!bpf_probe_map_type(BPF_MAP_TYPE_SOCKMAP, 0)) {
+			printf("%s SKIP (unsupported map type BPF_MAP_TYPE_SOCKMAP)\n",
+			       __func__);
+			skips++;
+			for (i = 0; i < 6; i++)
+				close(sfd[i]);
+			return;
+		}
+
 		printf("Failed to create sockmap %i\n", fd);
 		goto out_sockmap;
 	}
@@ -1258,10 +1272,11 @@ static void test_map_large(void)
 }
 
 #define run_parallel(N, FN, DATA) \
-	printf("Fork %d tasks to '" #FN "'\n", N); \
+	printf("Fork %u tasks to '" #FN "'\n", N); \
 	__run_parallel(N, FN, DATA)
 
-static void __run_parallel(int tasks, void (*fn)(int task, void *data),
+static void __run_parallel(unsigned int tasks,
+			   void (*fn)(unsigned int task, void *data),
 			   void *data)
 {
 	pid_t pid[tasks];
@@ -1302,7 +1317,7 @@ static void test_map_stress(void)
 #define DO_UPDATE 1
 #define DO_DELETE 0
 
-static void test_update_delete(int fn, void *data)
+static void test_update_delete(unsigned int fn, void *data)
 {
 	int do_update = ((int *)data)[1];
 	int fd = ((int *)data)[0];
@@ -1418,7 +1433,7 @@ static void test_map_wronly(void)
 	assert(bpf_map_get_next_key(fd, &key, &value) == -1 && errno == EPERM);
 }
 
-static void prepare_reuseport_grp(int type, int map_fd,
+static void prepare_reuseport_grp(int type, int map_fd, size_t map_elem_size,
 				  __s64 *fds64, __u64 *sk_cookies,
 				  unsigned int n)
 {
@@ -1428,6 +1443,8 @@ static void prepare_reuseport_grp(int type, int map_fd,
 	const int optval = 1;
 	unsigned int i;
 	u64 sk_cookie;
+	void *value;
+	__s32 fd32;
 	__s64 fd64;
 	int err;
 
@@ -1449,8 +1466,14 @@ static void prepare_reuseport_grp(int type, int map_fd,
 		      "err:%d errno:%d\n", err, errno);
 
 		/* reuseport_array does not allow unbound sk */
-		err = bpf_map_update_elem(map_fd, &index0, &fd64,
-					  BPF_ANY);
+		if (map_elem_size == sizeof(__u64))
+			value = &fd64;
+		else {
+			assert(map_elem_size == sizeof(__u32));
+			fd32 = (__s32)fd64;
+			value = &fd32;
+		}
+		err = bpf_map_update_elem(map_fd, &index0, value, BPF_ANY);
 		CHECK(err != -1 || errno != EINVAL,
 		      "reuseport array update unbound sk",
 		      "sock_type:%d err:%d errno:%d\n",
@@ -1478,7 +1501,7 @@ static void prepare_reuseport_grp(int type, int map_fd,
 			 * reuseport_array does not allow
 			 * non-listening tcp sk.
 			 */
-			err = bpf_map_update_elem(map_fd, &index0, &fd64,
+			err = bpf_map_update_elem(map_fd, &index0, value,
 						  BPF_ANY);
 			CHECK(err != -1 || errno != EINVAL,
 			      "reuseport array update non-listening sk",
@@ -1541,7 +1564,7 @@ static void test_reuseport_array(void)
 	for (t = 0; t < ARRAY_SIZE(types); t++) {
 		type = types[t];
 
-		prepare_reuseport_grp(type, map_fd, grpa_fds64,
+		prepare_reuseport_grp(type, map_fd, sizeof(__u64), grpa_fds64,
 				      grpa_cookies, ARRAY_SIZE(grpa_fds64));
 
 		/* Test BPF_* update flags */
@@ -1649,7 +1672,8 @@ static void test_reuseport_array(void)
 				sizeof(__u32), sizeof(__u32), array_size, 0);
 	CHECK(map_fd == -1, "reuseport array create",
 	      "map_fd:%d, errno:%d\n", map_fd, errno);
-	prepare_reuseport_grp(SOCK_STREAM, map_fd, &fd64, &sk_cookie, 1);
+	prepare_reuseport_grp(SOCK_STREAM, map_fd, sizeof(__u32), &fd64,
+			      &sk_cookie, 1);
 	fd = fd64;
 	err = bpf_map_update_elem(map_fd, &index3, &fd, BPF_NOEXIST);
 	CHECK(err == -1, "reuseport array update 32 bit fd",
@@ -1675,6 +1699,7 @@ static void run_all_tests(void)
 	test_arraymap_percpu_many_keys();
 
 	test_devmap(0, NULL);
+	test_devmap_hash(0, NULL);
 	test_sockmap(0, NULL);
 
 	test_map_large();
@@ -1692,6 +1717,10 @@ static void run_all_tests(void)
 	test_map_in_map();
 }
 
+#define DECLARE
+#include <map_tests/tests.h>
+#undef DECLARE
+
 int main(void)
 {
 	srand(time(NULL));
@@ -1702,6 +1731,10 @@ int main(void)
 	map_flags = BPF_F_NO_PREALLOC;
 	run_all_tests();
 
-	printf("test_maps: OK\n");
+#define CALL
+#include <map_tests/tests.h>
+#undef CALL
+
+	printf("test_maps: OK, %d SKIPPED\n", skips);
 	return 0;
 }

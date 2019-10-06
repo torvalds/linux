@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * TI BQ25890 charger driver
  *
  * Copyright (C) 2015 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/module.h>
@@ -32,6 +22,7 @@
 #define BQ25890_IRQ_PIN			"bq25890_irq"
 
 #define BQ25890_ID			3
+#define BQ25895_ID			7
 #define BQ25896_ID			0
 
 enum bq25890_fields {
@@ -181,7 +172,7 @@ static const struct reg_field bq25890_reg_fields[] = {
 	[F_WD]			= REG_FIELD(0x07, 4, 5),
 	[F_TMR_EN]		= REG_FIELD(0x07, 3, 3),
 	[F_CHG_TMR]		= REG_FIELD(0x07, 1, 2),
-	[F_JEITA_ISET]		= REG_FIELD(0x07, 0, 0),
+	[F_JEITA_ISET]		= REG_FIELD(0x07, 0, 0), // reserved on BQ25895
 	/* REG08 */
 	[F_BATCMP]		= REG_FIELD(0x08, 5, 7),
 	[F_VCLAMP]		= REG_FIELD(0x08, 2, 4),
@@ -190,7 +181,7 @@ static const struct reg_field bq25890_reg_fields[] = {
 	[F_FORCE_ICO]		= REG_FIELD(0x09, 7, 7),
 	[F_TMR2X_EN]		= REG_FIELD(0x09, 6, 6),
 	[F_BATFET_DIS]		= REG_FIELD(0x09, 5, 5),
-	[F_JEITA_VSET]		= REG_FIELD(0x09, 4, 4),
+	[F_JEITA_VSET]		= REG_FIELD(0x09, 4, 4), // reserved on BQ25895
 	[F_BATFET_DLY]		= REG_FIELD(0x09, 3, 3),
 	[F_BATFET_RST_EN]	= REG_FIELD(0x09, 2, 2),
 	[F_PUMPX_UP]		= REG_FIELD(0x09, 1, 1),
@@ -198,7 +189,7 @@ static const struct reg_field bq25890_reg_fields[] = {
 	/* REG0A */
 	[F_BOOSTV]		= REG_FIELD(0x0A, 4, 7),
 	/* PFM_OTG_DIS 3 on BQ25896 */
-	[F_BOOSTI]		= REG_FIELD(0x0A, 0, 2),
+	[F_BOOSTI]		= REG_FIELD(0x0A, 0, 2), // reserved on BQ25895
 	/* REG0B */
 	[F_VBUS_STAT]		= REG_FIELD(0x0B, 5, 7),
 	[F_CHG_STAT]		= REG_FIELD(0x0B, 3, 4),
@@ -402,6 +393,8 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		if (bq->chip_id == BQ25890_ID)
 			val->strval = "BQ25890";
+		else if (bq->chip_id == BQ25895_ID)
+			val->strval = "BQ25895";
 		else if (bq->chip_id == BQ25896_ID)
 			val->strval = "BQ25896";
 		else
@@ -436,7 +429,7 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
-		val->intval = bq25890_tables[TBL_ICHG].rt.max;
+		val->intval = bq25890_find_val(bq->init_data.ichg, TBL_ICHG);
 		break;
 
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
@@ -454,7 +447,7 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
-		val->intval = bq25890_tables[TBL_VREG].rt.max;
+		val->intval = bq25890_find_val(bq->init_data.vreg, TBL_VREG);
 		break;
 
 	case POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
@@ -827,7 +820,7 @@ static int bq25890_fw_probe(struct bq25890_device *bq)
 static int bq25890_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct device *dev = &client->dev;
 	struct bq25890_device *bq;
 	int ret;
@@ -872,7 +865,8 @@ static int bq25890_probe(struct i2c_client *client,
 		return bq->chip_id;
 	}
 
-	if ((bq->chip_id != BQ25890_ID) && (bq->chip_id != BQ25896_ID)) {
+	if ((bq->chip_id != BQ25890_ID) && (bq->chip_id != BQ25895_ID)
+			&& (bq->chip_id != BQ25896_ID)) {
 		dev_err(dev, "Chip with ID=%d, not supported!\n", bq->chip_id);
 		return -ENODEV;
 	}

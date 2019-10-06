@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ASIX AX88179/178A USB 3.0/2.0 to Gigabit Ethernet Devices
  *
  * Copyright (C) 2011-2013 ASIX
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -1378,8 +1366,7 @@ static int ax88179_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		return 0;
 
 	skb_trim(skb, skb->len - 4);
-	memcpy(&rx_hdr, skb_tail_pointer(skb), 4);
-	le32_to_cpus(&rx_hdr);
+	rx_hdr = get_unaligned_le32(skb_tail_pointer(skb));
 
 	pkt_cnt = (u16)rx_hdr;
 	hdr_off = (u16)(rx_hdr >> 16);
@@ -1434,6 +1421,7 @@ ax88179_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	int frame_size = dev->maxpacket;
 	int mss = skb_shinfo(skb)->gso_size;
 	int headroom;
+	void *ptr;
 
 	tx_hdr1 = skb->len;
 	tx_hdr2 = mss;
@@ -1448,13 +1436,9 @@ ax88179_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 		return NULL;
 	}
 
-	skb_push(skb, 4);
-	cpu_to_le32s(&tx_hdr2);
-	skb_copy_to_linear_data(skb, &tx_hdr2, 4);
-
-	skb_push(skb, 4);
-	cpu_to_le32s(&tx_hdr1);
-	skb_copy_to_linear_data(skb, &tx_hdr1, 4);
+	ptr = skb_push(skb, 8);
+	put_unaligned_le32(tx_hdr1, ptr);
+	put_unaligned_le32(tx_hdr2, ptr + 4);
 
 	return skb;
 }

@@ -1185,9 +1185,6 @@ static long mbochs_ioctl(struct mdev_device *mdev, unsigned int cmd,
 {
 	int ret = 0;
 	unsigned long minsz, outsz;
-	struct mdev_state *mdev_state;
-
-	mdev_state = mdev_get_drvdata(mdev);
 
 	switch (cmd) {
 	case VFIO_DEVICE_GET_INFO:
@@ -1448,13 +1445,13 @@ static int __init mbochs_dev_init(void)
 {
 	int ret = 0;
 
-	ret = alloc_chrdev_region(&mbochs_devt, 0, MINORMASK, MBOCHS_NAME);
+	ret = alloc_chrdev_region(&mbochs_devt, 0, MINORMASK + 1, MBOCHS_NAME);
 	if (ret < 0) {
 		pr_err("Error: failed to register mbochs_dev, err: %d\n", ret);
 		return ret;
 	}
 	cdev_init(&mbochs_cdev, &vd_fops);
-	cdev_add(&mbochs_cdev, mbochs_devt, MINORMASK);
+	cdev_add(&mbochs_cdev, mbochs_devt, MINORMASK + 1);
 	pr_info("%s: major %d\n", __func__, MAJOR(mbochs_devt));
 
 	mbochs_class = class_create(THIS_MODULE, MBOCHS_CLASS_NAME);
@@ -1483,7 +1480,7 @@ failed2:
 	class_destroy(mbochs_class);
 failed1:
 	cdev_del(&mbochs_cdev);
-	unregister_chrdev_region(mbochs_devt, MINORMASK);
+	unregister_chrdev_region(mbochs_devt, MINORMASK + 1);
 	return ret;
 }
 
@@ -1494,7 +1491,7 @@ static void __exit mbochs_dev_exit(void)
 
 	device_unregister(&mbochs_dev);
 	cdev_del(&mbochs_cdev);
-	unregister_chrdev_region(mbochs_devt, MINORMASK);
+	unregister_chrdev_region(mbochs_devt, MINORMASK + 1);
 	class_destroy(mbochs_class);
 	mbochs_class = NULL;
 }

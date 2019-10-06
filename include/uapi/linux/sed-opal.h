@@ -5,15 +5,6 @@
  * Authors:
  *    Rafael Antognolli <rafael.antognolli@intel.com>
  *    Scott  Bauer      <scott.bauer@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _UAPI_SED_OPAL_H
@@ -27,6 +18,11 @@
 enum opal_mbr {
 	OPAL_MBR_ENABLE = 0x0,
 	OPAL_MBR_DISABLE = 0x01,
+};
+
+enum opal_mbr_done_flag {
+	OPAL_MBR_NOT_DONE = 0x0,
+	OPAL_MBR_DONE = 0x01
 };
 
 enum opal_user {
@@ -58,7 +54,7 @@ struct opal_key {
 struct opal_lr_act {
 	struct opal_key key;
 	__u32 sum;
-	__u8    num_lrs;
+	__u8 num_lrs;
 	__u8 lr[OPAL_MAX_LRS];
 	__u8 align[2]; /* Align to 8 byte boundary */
 };
@@ -104,6 +100,19 @@ struct opal_mbr_data {
 	__u8 __align[7];
 };
 
+struct opal_mbr_done {
+	struct opal_key key;
+	__u8 done_flag;
+	__u8 __align[7];
+};
+
+struct opal_shadow_mbr {
+	struct opal_key key;
+	const __u64 data;
+	__u64 offset;
+	__u64 size;
+};
+
 #define IOC_OPAL_SAVE		    _IOW('p', 220, struct opal_lock_unlock)
 #define IOC_OPAL_LOCK_UNLOCK	    _IOW('p', 221, struct opal_lock_unlock)
 #define IOC_OPAL_TAKE_OWNERSHIP	    _IOW('p', 222, struct opal_key)
@@ -116,5 +125,8 @@ struct opal_mbr_data {
 #define IOC_OPAL_ENABLE_DISABLE_MBR _IOW('p', 229, struct opal_mbr_data)
 #define IOC_OPAL_ERASE_LR           _IOW('p', 230, struct opal_session_info)
 #define IOC_OPAL_SECURE_ERASE_LR    _IOW('p', 231, struct opal_session_info)
+#define IOC_OPAL_PSID_REVERT_TPR    _IOW('p', 232, struct opal_key)
+#define IOC_OPAL_MBR_DONE           _IOW('p', 233, struct opal_mbr_done)
+#define IOC_OPAL_WRITE_SHADOW_MBR   _IOW('p', 234, struct opal_shadow_mbr)
 
 #endif /* _UAPI_SED_OPAL_H */

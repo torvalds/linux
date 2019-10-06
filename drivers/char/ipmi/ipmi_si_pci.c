@@ -107,10 +107,10 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 	io.addr_source_data = pdev;
 
 	if (pci_resource_flags(pdev, 0) & IORESOURCE_IO) {
-		io.addr_type = IPMI_IO_ADDR_SPACE;
+		io.addr_space = IPMI_IO_ADDR_SPACE;
 		io.io_setup = ipmi_si_port_setup;
 	} else {
-		io.addr_type = IPMI_MEM_ADDR_SPACE;
+		io.addr_space = IPMI_MEM_ADDR_SPACE;
 		io.io_setup = ipmi_si_mem_setup;
 	}
 	io.addr_data = pci_resource_start(pdev, 0);
@@ -150,7 +150,7 @@ static const struct pci_device_id ipmi_pci_devices[] = {
 MODULE_DEVICE_TABLE(pci, ipmi_pci_devices);
 
 static struct pci_driver ipmi_pci_driver = {
-	.name =         DEVICE_NAME,
+	.name =         SI_DEVICE_NAME,
 	.id_table =     ipmi_pci_devices,
 	.probe =        ipmi_pci_probe,
 	.remove =       ipmi_pci_remove,

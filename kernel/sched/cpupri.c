@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  kernel/sched/cpupri.c
  *
@@ -20,11 +21,6 @@
  *  searches).  For tasks with affinity restrictions, the algorithm has a
  *  worst case complexity of O(min(102, nr_domcpus)), though the scenario that
  *  yields the worst case search is fairly contrived.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; version 2
- *  of the License.
  */
 #include "sched.h"
 
@@ -98,11 +94,11 @@ int cpupri_find(struct cpupri *cp, struct task_struct *p,
 		if (skip)
 			continue;
 
-		if (cpumask_any_and(&p->cpus_allowed, vec->mask) >= nr_cpu_ids)
+		if (cpumask_any_and(p->cpus_ptr, vec->mask) >= nr_cpu_ids)
 			continue;
 
 		if (lowest_mask) {
-			cpumask_and(lowest_mask, &p->cpus_allowed, vec->mask);
+			cpumask_and(lowest_mask, p->cpus_ptr, vec->mask);
 
 			/*
 			 * We have to ensure that we have at least one bit

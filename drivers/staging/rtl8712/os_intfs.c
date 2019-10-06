@@ -221,9 +221,9 @@ struct net_device *r8712_init_netdev(void)
 
 static u32 start_drv_threads(struct _adapter *padapter)
 {
-	padapter->cmdThread = kthread_run(r8712_cmd_thread, padapter, "%s",
+	padapter->cmd_thread = kthread_run(r8712_cmd_thread, padapter, "%s",
 					  padapter->pnetdev->name);
-	if (IS_ERR(padapter->cmdThread))
+	if (IS_ERR(padapter->cmd_thread))
 		return _FAIL;
 	return _SUCCESS;
 }
@@ -235,7 +235,7 @@ void r8712_stop_drv_threads(struct _adapter *padapter)
 
 	/*Below is to terminate r8712_cmd_thread & event_thread...*/
 	complete(&padapter->cmdpriv.cmd_queue_comp);
-	if (padapter->cmdThread)
+	if (padapter->cmd_thread)
 		wait_for_completion_interruptible(completion);
 	padapter->cmdpriv.cmd_seq = 1;
 }
@@ -258,7 +258,7 @@ void r8712_stop_drv_timers(struct _adapter *padapter)
 	del_timer_sync(&padapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer);
 }
 
-static u8 init_default_value(struct _adapter *padapter)
+static void init_default_value(struct _adapter *padapter)
 {
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
@@ -292,36 +292,41 @@ static u8 init_default_value(struct _adapter *padapter)
 	r8712_init_registrypriv_dev_network(padapter);
 	r8712_update_registrypriv_dev_network(padapter);
 	/*misc.*/
-	return _SUCCESS;
 }
 
-u8 r8712_init_drv_sw(struct _adapter *padapter)
+int r8712_init_drv_sw(struct _adapter *padapter)
 {
-	if ((r8712_init_cmd_priv(&padapter->cmdpriv)) == _FAIL)
-		return _FAIL;
+	int ret;
+
+	ret = r8712_init_cmd_priv(&padapter->cmdpriv);
+	if (ret)
+		return ret;
 	padapter->cmdpriv.padapter = padapter;
-	if ((r8712_init_evt_priv(&padapter->evtpriv)) == _FAIL)
-		return _FAIL;
-	if (r8712_init_mlme_priv(padapter) == _FAIL)
-		return _FAIL;
+	ret = r8712_init_evt_priv(&padapter->evtpriv);
+	if (ret)
+		return ret;
+	ret = r8712_init_mlme_priv(padapter);
+	if (ret)
+		return ret;
 	_r8712_init_xmit_priv(&padapter->xmitpriv, padapter);
 	_r8712_init_recv_priv(&padapter->recvpriv, padapter);
 	memset((unsigned char *)&padapter->securitypriv, 0,
 	       sizeof(struct security_priv));
 	timer_setup(&padapter->securitypriv.tkip_timer,
 		    r8712_use_tkipkey_handler, 0);
-	_r8712_init_sta_priv(&padapter->stapriv);
+	ret = _r8712_init_sta_priv(&padapter->stapriv);
+	if (ret)
+		return ret;
 	padapter->stapriv.padapter = padapter;
 	r8712_init_bcmc_stainfo(padapter);
 	r8712_init_pwrctrl_priv(padapter);
 	mp871xinit(padapter);
-	if (init_default_value(padapter) != _SUCCESS)
-		return _FAIL;
+	init_default_value(padapter);
 	r8712_InitSwLeds(padapter);
-	return _SUCCESS;
+	return ret;
 }
 
-u8 r8712_free_drv_sw(struct _adapter *padapter)
+void r8712_free_drv_sw(struct _adapter *padapter)
 {
 	struct net_device *pnetdev = padapter->pnetdev;
 
@@ -336,7 +341,6 @@ u8 r8712_free_drv_sw(struct _adapter *padapter)
 	mp871xdeinit(padapter);
 	if (pnetdev)
 		free_netdev(pnetdev);
-	return _SUCCESS;
 }
 
 static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
@@ -362,7 +366,7 @@ static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
 	r8712_fw_cmd(padapter, intcmd);
 }
 
-/**
+/*
  *
  * This function intends to handle the activation of an interface
  * i.e. when it is brought Up/Active from a Down state.
@@ -374,8 +378,8 @@ static int netdev_open(struct net_device *pnetdev)
 
 	mutex_lock(&padapter->mutex_start);
 	if (!padapter->bup) {
-		padapter->bDriverStopped = false;
-		padapter->bSurpriseRemoved = false;
+		padapter->driver_stopped = false;
+		padapter->surprise_removed = false;
 		padapter->bup = true;
 		if (rtl871x_hal_init(padapter) != _SUCCESS)
 			goto netdev_open_error;
@@ -430,7 +434,7 @@ netdev_open_error:
 	return -1;
 }
 
-/**
+/*
  *
  * This function intends to handle the shutdown of an interface
  * i.e. when it is brought Down from an Up/Active state.

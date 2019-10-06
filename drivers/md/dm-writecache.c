@@ -190,8 +190,6 @@ struct writeback_struct {
 	struct dm_writecache *wc;
 	struct wc_entry **wc_list;
 	unsigned wc_list_n;
-	unsigned page_offset;
-	struct page *page;
 	struct wc_entry *wc_list_inline[WB_LIST_INLINE];
 	struct bio bio;
 };
@@ -546,21 +544,20 @@ static struct wc_entry *writecache_find_entry(struct dm_writecache *wc,
 		e = container_of(node, struct wc_entry, rb_node);
 		if (read_original_sector(wc, e) == block)
 			break;
+
 		node = (read_original_sector(wc, e) >= block ?
 			e->rb_node.rb_left : e->rb_node.rb_right);
 		if (unlikely(!node)) {
-			if (!(flags & WFE_RETURN_FOLLOWING)) {
+			if (!(flags & WFE_RETURN_FOLLOWING))
 				return NULL;
-			}
 			if (read_original_sector(wc, e) >= block) {
-				break;
+				return e;
 			} else {
 				node = rb_next(&e->rb_node);
-				if (unlikely(!node)) {
+				if (unlikely(!node))
 					return NULL;
-				}
 				e = container_of(node, struct wc_entry, rb_node);
-				break;
+				return e;
 			}
 		}
 	}
@@ -571,7 +568,7 @@ static struct wc_entry *writecache_find_entry(struct dm_writecache *wc,
 			node = rb_prev(&e->rb_node);
 		else
 			node = rb_next(&e->rb_node);
-		if (!node)
+		if (unlikely(!node))
 			return e;
 		e2 = container_of(node, struct wc_entry, rb_node);
 		if (read_original_sector(wc, e2) != block)
@@ -729,7 +726,8 @@ static void writecache_flush(struct dm_writecache *wc)
 	}
 	writecache_commit_flushed(wc);
 
-	writecache_wait_for_ios(wc, WRITE);
+	if (!WC_MODE_PMEM(wc))
+		writecache_wait_for_ios(wc, WRITE);
 
 	wc->seq_count++;
 	pmem_assign(sb(wc)->seq_count, cpu_to_le64(wc->seq_count));
@@ -804,7 +802,7 @@ static void writecache_discard(struct dm_writecache *wc, sector_t start, sector_
 			writecache_free_entry(wc, e);
 		}
 
-		if (!node)
+		if (unlikely(!node))
 			break;
 
 		e = container_of(node, struct wc_entry, rb_node);
@@ -1478,10 +1476,9 @@ static void __writecache_writeback_pmem(struct dm_writecache *wc, struct writeba
 		bio = bio_alloc_bioset(GFP_NOIO, max_pages, &wc->bio_set);
 		wb = container_of(bio, struct writeback_struct, bio);
 		wb->wc = wc;
-		wb->bio.bi_end_io = writecache_writeback_endio;
-		bio_set_dev(&wb->bio, wc->dev->bdev);
-		wb->bio.bi_iter.bi_sector = read_original_sector(wc, e);
-		wb->page_offset = PAGE_SIZE;
+		bio->bi_end_io = writecache_writeback_endio;
+		bio_set_dev(bio, wc->dev->bdev);
+		bio->bi_iter.bi_sector = read_original_sector(wc, e);
 		if (max_pages <= WB_LIST_INLINE ||
 		    unlikely(!(wb->wc_list = kmalloc_array(max_pages, sizeof(struct wc_entry *),
 							   GFP_NOIO | __GFP_NORETRY |
@@ -1507,12 +1504,12 @@ static void __writecache_writeback_pmem(struct dm_writecache *wc, struct writeba
 			wb->wc_list[wb->wc_list_n++] = f;
 			e = f;
 		}
-		bio_set_op_attrs(&wb->bio, REQ_OP_WRITE, WC_MODE_FUA(wc) * REQ_FUA);
+		bio_set_op_attrs(bio, REQ_OP_WRITE, WC_MODE_FUA(wc) * REQ_FUA);
 		if (writecache_has_error(wc)) {
 			bio->bi_status = BLK_STS_IOERR;
-			bio_endio(&wb->bio);
+			bio_endio(bio);
 		} else {
-			submit_bio(&wb->bio);
+			submit_bio(bio);
 		}
 
 		__writeback_throttle(wc, wbl);
@@ -1564,7 +1561,7 @@ static void writecache_writeback(struct work_struct *work)
 {
 	struct dm_writecache *wc = container_of(work, struct dm_writecache, writeback_work);
 	struct blk_plug plug;
-	struct wc_entry *e, *f, *g;
+	struct wc_entry *f, *g, *e = NULL;
 	struct rb_node *node, *next_node;
 	struct list_head skipped;
 	struct writeback_list wbl;
@@ -1601,7 +1598,14 @@ restart:
 			break;
 		}
 
-		e = container_of(wc->lru.prev, struct wc_entry, lru);
+		if (unlikely(wc->writeback_all)) {
+			if (unlikely(!e)) {
+				writecache_flush(wc);
+				e = container_of(rb_first(&wc->tree), struct wc_entry, rb_node);
+			} else
+				e = g;
+		} else
+			e = container_of(wc->lru.prev, struct wc_entry, lru);
 		BUG_ON(e->write_in_progress);
 		if (unlikely(!writecache_entry_is_committed(wc, e))) {
 			writecache_flush(wc);
@@ -1632,8 +1636,8 @@ restart:
 			if (unlikely(!next_node))
 				break;
 			g = container_of(next_node, struct wc_entry, rb_node);
-			if (read_original_sector(wc, g) ==
-			    read_original_sector(wc, f)) {
+			if (unlikely(read_original_sector(wc, g) ==
+			    read_original_sector(wc, f))) {
 				f = g;
 				continue;
 			}
@@ -1662,8 +1666,14 @@ restart:
 			g->wc_list_contiguous = BIO_MAX_PAGES;
 			f = g;
 			e->wc_list_contiguous++;
-			if (unlikely(e->wc_list_contiguous == BIO_MAX_PAGES))
+			if (unlikely(e->wc_list_contiguous == BIO_MAX_PAGES)) {
+				if (unlikely(wc->writeback_all)) {
+					next_node = rb_next(&f->rb_node);
+					if (likely(next_node))
+						g = container_of(next_node, struct wc_entry, rb_node);
+				}
 				break;
+			}
 		}
 		cond_resched();
 	}
@@ -1859,7 +1869,7 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto bad;
 	}
 
-	wc->writeback_wq = alloc_workqueue("writecache-writeabck", WQ_MEM_RECLAIM, 1);
+	wc->writeback_wq = alloc_workqueue("writecache-writeback", WQ_MEM_RECLAIM, 1);
 	if (!wc->writeback_wq) {
 		r = -ENOMEM;
 		ti->error = "Could not allocate writeback workqueue";

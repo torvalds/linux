@@ -28,7 +28,6 @@
 
 #include <drm/ttm/ttm_placement.h>
 
-#include <drm/drmP.h>
 #include "vmwgfx_drv.h"
 #include "ttm_object.h"
 
@@ -342,7 +341,7 @@ void vmw_bo_pin_reserved(struct vmw_buffer_object *vbo, bool pin)
 	uint32_t old_mem_type = bo->mem.mem_type;
 	int ret;
 
-	lockdep_assert_held(&bo->resv->lock.base);
+	dma_resv_assert_held(bo->base.resv);
 
 	if (pin) {
 		if (vbo->pin_count++ > 0)
@@ -510,6 +509,8 @@ int vmw_bo_init(struct vmw_private *dev_priv,
 
 	acc_size = vmw_bo_acc_size(dev_priv, size, user);
 	memset(vmw_bo, 0, sizeof(*vmw_bo));
+	BUILD_BUG_ON(TTM_MAX_BO_PRIORITY <= 3);
+	vmw_bo->base.priority = 3;
 
 	INIT_LIST_HEAD(&vmw_bo->res_list);
 
@@ -534,7 +535,6 @@ static void vmw_user_bo_release(struct ttm_base_object **p_base)
 {
 	struct vmw_user_buffer_object *vmw_user_bo;
 	struct ttm_base_object *base = *p_base;
-	struct ttm_buffer_object *bo;
 
 	*p_base = NULL;
 
@@ -543,8 +543,7 @@ static void vmw_user_bo_release(struct ttm_base_object **p_base)
 
 	vmw_user_bo = container_of(base, struct vmw_user_buffer_object,
 				   prime.base);
-	bo = &vmw_user_bo->vbo.base;
-	ttm_bo_unref(&bo);
+	ttm_bo_put(&vmw_user_bo->vbo.base);
 }
 
 
@@ -597,7 +596,6 @@ int vmw_user_bo_alloc(struct vmw_private *dev_priv,
 		      struct ttm_base_object **p_base)
 {
 	struct vmw_user_buffer_object *user_bo;
-	struct ttm_buffer_object *tmp;
 	int ret;
 
 	user_bo = kzalloc(sizeof(*user_bo), GFP_KERNEL);
@@ -614,7 +612,7 @@ int vmw_user_bo_alloc(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	tmp = ttm_bo_reference(&user_bo->vbo.base);
+	ttm_bo_get(&user_bo->vbo.base);
 	ret = ttm_prime_object_init(tfile,
 				    size,
 				    &user_bo->prime,
@@ -623,7 +621,7 @@ int vmw_user_bo_alloc(struct vmw_private *dev_priv,
 				    &vmw_user_bo_release,
 				    &vmw_user_bo_ref_obj_release);
 	if (unlikely(ret != 0)) {
-		ttm_bo_unref(&tmp);
+		ttm_bo_put(&user_bo->vbo.base);
 		goto out_no_base_object;
 	}
 
@@ -692,8 +690,8 @@ static int vmw_user_bo_synccpu_grab(struct vmw_user_buffer_object *user_bo,
 		bool nonblock = !!(flags & drm_vmw_synccpu_dontblock);
 		long lret;
 
-		lret = reservation_object_wait_timeout_rcu
-			(bo->resv, true, true,
+		lret = dma_resv_wait_timeout_rcu
+			(bo->base.resv, true, true,
 			 nonblock ? 0 : MAX_SCHEDULE_TIMEOUT);
 		if (!lret)
 			return -EBUSY;
@@ -838,7 +836,7 @@ int vmw_bo_alloc_ioctl(struct drm_device *dev, void *data,
 		goto out_no_bo;
 
 	rep->handle = handle;
-	rep->map_handle = drm_vma_node_offset_addr(&vbo->base.vma_node);
+	rep->map_handle = drm_vma_node_offset_addr(&vbo->base.base.vma_node);
 	rep->cur_gmr_id = handle;
 	rep->cur_gmr_offset = 0;
 
@@ -911,7 +909,7 @@ int vmw_user_bo_lookup(struct ttm_object_file *tfile,
 
 	vmw_user_bo = container_of(base, struct vmw_user_buffer_object,
 				   prime.base);
-	(void)ttm_bo_reference(&vmw_user_bo->vbo.base);
+	ttm_bo_get(&vmw_user_bo->vbo.base);
 	if (p_base)
 		*p_base = base;
 	else
@@ -1010,10 +1008,10 @@ void vmw_bo_fence_single(struct ttm_buffer_object *bo,
 
 	if (fence == NULL) {
 		vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
-		reservation_object_add_excl_fence(bo->resv, &fence->base);
+		dma_resv_add_excl_fence(bo->base.resv, &fence->base);
 		dma_fence_put(&fence->base);
 	} else
-		reservation_object_add_excl_fence(bo->resv, &fence->base);
+		dma_resv_add_excl_fence(bo->base.resv, &fence->base);
 }
 
 
@@ -1080,7 +1078,7 @@ int vmw_dumb_map_offset(struct drm_file *file_priv,
 	if (ret != 0)
 		return -EINVAL;
 
-	*offset = drm_vma_node_offset_addr(&out_buf->base.vma_node);
+	*offset = drm_vma_node_offset_addr(&out_buf->base.base.vma_node);
 	vmw_bo_unreference(&out_buf);
 	return 0;
 }

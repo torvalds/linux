@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #ifndef _ASMNDS32_PGTABLE_H
@@ -6,7 +6,7 @@
 
 #define __PAGETABLE_PMD_FOLDED 1
 #include <asm-generic/4level-fixup.h>
-#include <asm-generic/sizes.h>
+#include <linux/sizes.h>
 
 #include <asm/memory.h>
 #include <asm/nds32.h>
@@ -402,8 +402,6 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
  * remap a physical address `phys' of size `size' with page protection `prot'
  * into virtual address `from'
  */
-
-#define pgtable_cache_init()       do { } while (0)
 
 #endif /* !__ASSEMBLY__ */
 

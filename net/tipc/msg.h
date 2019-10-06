@@ -102,13 +102,15 @@ struct plist;
 #define TIPC_MEDIA_INFO_OFFSET	5
 
 struct tipc_skb_cb {
-	u32 bytes_read;
-	u32 orig_member;
 	struct sk_buff *tail;
 	unsigned long nxt_retr;
-	bool validated;
+	unsigned long retr_stamp;
+	u32 bytes_read;
+	u32 orig_member;
 	u16 chain_imp;
 	u16 ackers;
+	u16 retr_cnt;
+	bool validated;
 };
 
 #define TIPC_SKB_CB(__skb) ((struct tipc_skb_cb *)&((__skb)->cb[0]))
@@ -116,6 +118,37 @@ struct tipc_skb_cb {
 struct tipc_msg {
 	__be32 hdr[15];
 };
+
+/* struct tipc_gap_ack - TIPC Gap ACK block
+ * @ack: seqno of the last consecutive packet in link deferdq
+ * @gap: number of gap packets since the last ack
+ *
+ * E.g:
+ *       link deferdq: 1 2 3 4      10 11      13 14 15       20
+ * --> Gap ACK blocks:      <4, 5>,   <11, 1>,      <15, 4>, <20, 0>
+ */
+struct tipc_gap_ack {
+	__be16 ack;
+	__be16 gap;
+};
+
+/* struct tipc_gap_ack_blks
+ * @len: actual length of the record
+ * @gack_cnt: number of Gap ACK blocks in the record
+ * @gacks: array of Gap ACK blocks
+ */
+struct tipc_gap_ack_blks {
+	__be16 len;
+	u8 gack_cnt;
+	u8 reserved;
+	struct tipc_gap_ack gacks[];
+};
+
+#define tipc_gap_ack_blks_sz(n) (sizeof(struct tipc_gap_ack_blks) + \
+				 sizeof(struct tipc_gap_ack) * (n))
+
+#define MAX_GAP_ACK_BLKS	32
+#define MAX_GAP_ACK_BLKS_SZ	tipc_gap_ack_blks_sz(MAX_GAP_ACK_BLKS)
 
 static inline struct tipc_msg *buf_msg(struct sk_buff *skb)
 {
@@ -257,6 +290,16 @@ static inline void msg_set_src_droppable(struct tipc_msg *m, u32 d)
 	msg_set_bits(m, 0, 18, 1, d);
 }
 
+static inline bool msg_is_rcast(struct tipc_msg *m)
+{
+	return msg_bits(m, 0, 18, 0x1);
+}
+
+static inline void msg_set_is_rcast(struct tipc_msg *m, bool d)
+{
+	msg_set_bits(m, 0, 18, 0x1, d);
+}
+
 static inline void msg_set_size(struct tipc_msg *m, u32 sz)
 {
 	m->hdr[0] = htonl((msg_word(m, 0) & ~0x1ffff) | sz);
@@ -267,7 +310,7 @@ static inline unchar *msg_data(struct tipc_msg *m)
 	return ((unchar *)m) + msg_hdr_sz(m);
 }
 
-static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
+static inline struct tipc_msg *msg_inner_hdr(struct tipc_msg *m)
 {
 	return (struct tipc_msg *)msg_data(m);
 }
@@ -445,7 +488,7 @@ static inline void msg_set_prevnode(struct tipc_msg *m, u32 a)
 static inline u32 msg_origport(struct tipc_msg *m)
 {
 	if (msg_user(m) == MSG_FRAGMENTER)
-		m = msg_get_wrapped(m);
+		m = msg_inner_hdr(m);
 	return msg_word(m, 4);
 }
 
@@ -680,11 +723,25 @@ static inline void msg_set_last_bcast(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 4, 16, 0xffff, n);
 }
 
+static inline u32 msg_nof_fragms(struct tipc_msg *m)
+{
+	return msg_bits(m, 4, 0, 0xffff);
+}
+
+static inline void msg_set_nof_fragms(struct tipc_msg *m, u32 n)
+{
+	msg_set_bits(m, 4, 0, 0xffff, n);
+}
+
+static inline u32 msg_fragm_no(struct tipc_msg *m)
+{
+	return msg_bits(m, 4, 16, 0xffff);
+}
+
 static inline void msg_set_fragm_no(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 4, 16, 0xffff, n);
 }
-
 
 static inline u16 msg_next_sent(struct tipc_msg *m)
 {
@@ -832,6 +889,16 @@ static inline u16 msg_msgcnt(struct tipc_msg *m)
 }
 
 static inline void msg_set_msgcnt(struct tipc_msg *m, u16 n)
+{
+	msg_set_bits(m, 9, 16, 0xffff, n);
+}
+
+static inline u16 msg_syncpt(struct tipc_msg *m)
+{
+	return msg_bits(m, 9, 16, 0xffff);
+}
+
+static inline void msg_set_syncpt(struct tipc_msg *m, u16 n)
 {
 	msg_set_bits(m, 9, 16, 0xffff, n);
 }
@@ -994,6 +1061,8 @@ bool tipc_msg_bundle(struct sk_buff *skb, struct tipc_msg *msg, u32 mtu);
 bool tipc_msg_make_bundle(struct sk_buff **skb, struct tipc_msg *msg,
 			  u32 mtu, u32 dnode);
 bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos);
+int tipc_msg_fragment(struct sk_buff *skb, const struct tipc_msg *hdr,
+		      int pktmax, struct sk_buff_head *frags);
 int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		   int offset, int dsz, int mtu, struct sk_buff_head *list);
 bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err);
@@ -1108,6 +1177,27 @@ static inline void tipc_skb_queue_splice_tail_init(struct sk_buff_head *list,
 	skb_queue_splice_tail_init(list, &tmp);
 	spin_unlock_bh(&list->lock);
 	tipc_skb_queue_splice_tail(&tmp, head);
+}
+
+/* __tipc_skb_dequeue() - dequeue the head skb according to expected seqno
+ * @list: list to be dequeued from
+ * @seqno: seqno of the expected msg
+ *
+ * returns skb dequeued from the list if its seqno is less than or equal to
+ * the expected one, otherwise the skb is still hold
+ *
+ * Note: must be used with appropriate locks held only
+ */
+static inline struct sk_buff *__tipc_skb_dequeue(struct sk_buff_head *list,
+						 u16 seqno)
+{
+	struct sk_buff *skb = skb_peek(list);
+
+	if (skb && less_eq(buf_seqno(skb), seqno)) {
+		__skb_unlink(skb, list);
+		return skb;
+	}
+	return NULL;
 }
 
 #endif

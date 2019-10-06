@@ -54,6 +54,22 @@ DEFINE_EVENT(ppc64_interrupt_class, timer_interrupt_exit,
 	TP_ARGS(regs)
 );
 
+#ifdef CONFIG_PPC_DOORBELL
+DEFINE_EVENT(ppc64_interrupt_class, doorbell_entry,
+
+	TP_PROTO(struct pt_regs *regs),
+
+	TP_ARGS(regs)
+);
+
+DEFINE_EVENT(ppc64_interrupt_class, doorbell_exit,
+
+	TP_PROTO(struct pt_regs *regs),
+
+	TP_ARGS(regs)
+);
+#endif
+
 #ifdef CONFIG_PPC_PSERIES
 extern int hcall_tracepoint_regfunc(void);
 extern void hcall_tracepoint_unregfunc(void);

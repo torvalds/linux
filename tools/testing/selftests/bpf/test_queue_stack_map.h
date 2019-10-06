@@ -10,21 +10,21 @@
 
 int _version SEC("version") = 1;
 
-struct bpf_map_def __attribute__ ((section("maps"), used)) map_in = {
-	.type = MAP_TYPE,
-	.key_size = 0,
-	.value_size = sizeof(__u32),
-	.max_entries = 32,
-	.map_flags = 0,
-};
+struct {
+	__uint(type, MAP_TYPE);
+	__uint(max_entries, 32);
+	__uint(map_flags, 0);
+	__uint(key_size, 0);
+	__uint(value_size, sizeof(__u32));
+} map_in SEC(".maps");
 
-struct bpf_map_def __attribute__ ((section("maps"), used)) map_out = {
-	.type = MAP_TYPE,
-	.key_size = 0,
-	.value_size = sizeof(__u32),
-	.max_entries = 32,
-	.map_flags = 0,
-};
+struct {
+	__uint(type, MAP_TYPE);
+	__uint(max_entries, 32);
+	__uint(map_flags, 0);
+	__uint(key_size, 0);
+	__uint(value_size, sizeof(__u32));
+} map_out SEC(".maps");
 
 SEC("test")
 int _test(struct __sk_buff *skb)

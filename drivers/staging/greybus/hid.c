@@ -12,8 +12,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-
-#include "greybus.h"
+#include <linux/greybus.h>
 
 /* Greybus HID device's structure */
 struct gb_hid {
@@ -292,7 +291,6 @@ static int gb_hid_parse(struct hid_device *hid)
 
 	rdesc = kzalloc(rsize, GFP_KERNEL);
 	if (!rdesc) {
-		dbg_hid("couldn't allocate rdesc memory\n");
 		return -ENOMEM;
 	}
 

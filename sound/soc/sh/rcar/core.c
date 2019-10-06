@@ -110,6 +110,8 @@ static const struct of_device_id rsnd_of_match[] = {
 	{ .compatible = "renesas,rcar_sound-gen1", .data = (void *)RSND_GEN1 },
 	{ .compatible = "renesas,rcar_sound-gen2", .data = (void *)RSND_GEN2 },
 	{ .compatible = "renesas,rcar_sound-gen3", .data = (void *)RSND_GEN3 },
+	/* Special Handling */
+	{ .compatible = "renesas,rcar_sound-r8a77990", .data = (void *)(RSND_GEN3 | RSND_SOC_E) },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rsnd_of_match);
@@ -298,6 +300,18 @@ int rsnd_runtime_channel_after_ctu_with_params(struct rsnd_dai_stream *io,
 	return chan;
 }
 
+int rsnd_channel_normalization(int chan)
+{
+	if ((chan > 8) || (chan < 0))
+		return 0;
+
+	/* TDM Extend Mode needs 8ch */
+	if (chan == 6)
+		chan = 8;
+
+	return chan;
+}
+
 int rsnd_runtime_channel_for_ssi_with_params(struct rsnd_dai_stream *io,
 					     struct snd_pcm_hw_params *params)
 {
@@ -310,11 +324,7 @@ int rsnd_runtime_channel_for_ssi_with_params(struct rsnd_dai_stream *io,
 	if (rsnd_runtime_is_multi_ssi(io))
 		chan /= rsnd_rdai_ssi_lane_get(rdai);
 
-	/* TDM Extend Mode needs 8ch */
-	if (chan == 6)
-		chan = 8;
-
-	return chan;
+	return rsnd_channel_normalization(chan);
 }
 
 int rsnd_runtime_is_multi_ssi(struct rsnd_dai_stream *io)
@@ -1031,23 +1041,17 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	.prepare	= rsnd_soc_dai_prepare,
 };
 
-static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
-				      struct device_node *dai_np,
-				      int dai_i, int is_play)
+static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
+				      struct rsnd_dai_stream *io,
+				      struct device_node *dai_np)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
-	struct rsnd_dai_stream *io = is_play ?
-		&rdai->playback :
-		&rdai->capture;
 	struct device_node *ssiu_np = rsnd_ssiu_of_node(priv);
 	struct device_node *np;
+	int is_play = rsnd_io_is_play(io);
 	int i, j;
 
 	if (!ssiu_np)
-		return;
-
-	if (!rsnd_io_to_mod_ssi(io))
 		return;
 
 	/*
@@ -1074,12 +1078,21 @@ static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
 	}
 }
 
+static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
+				      struct rsnd_dai_stream *io,
+				      struct device_node *dai_np)
+{
+	if (!rsnd_io_to_mod_ssi(io))
+		return;
+
+	rsnd_parse_tdm_split_mode(priv, io, dai_np);
+}
+
 static void rsnd_parse_connect_graph(struct rsnd_priv *priv,
 				     struct rsnd_dai_stream *io,
 				     struct device_node *endpoint)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *remote_port = of_graph_get_remote_port(endpoint);
 	struct device_node *remote_node = of_graph_get_remote_port_parent(endpoint);
 
 	if (!rsnd_io_to_mod_ssi(io))
@@ -1097,14 +1110,7 @@ static void rsnd_parse_connect_graph(struct rsnd_priv *priv,
 		dev_dbg(dev, "%s connected to HDMI1\n", io->name);
 	}
 
-	/*
-	 * This driver assumes that it is TDM Split mode
-	 * if remote node has multi endpoint
-	 */
-	if (of_get_child_count(remote_port) > 1) {
-		rsnd_flags_set(io, RSND_STREAM_TDM_SPLIT);
-		dev_dbg(dev, "%s is part of TDM Split\n", io->name);
-	}
+	rsnd_parse_tdm_split_mode(priv, io, endpoint);
 }
 
 void rsnd_parse_connect_common(struct rsnd_dai *rdai,
@@ -1170,6 +1176,65 @@ of_node_compatible:
 	return ret;
 }
 
+
+#define PREALLOC_BUFFER		(32 * 1024)
+#define PREALLOC_BUFFER_MAX	(32 * 1024)
+
+static int rsnd_preallocate_pages(struct snd_soc_pcm_runtime *rtd,
+				  struct rsnd_dai_stream *io,
+				  int stream)
+{
+	struct rsnd_priv *priv = rsnd_io_to_priv(io);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct snd_pcm_substream *substream;
+
+	/*
+	 * use Audio-DMAC dev if we can use IPMMU
+	 * see
+	 *	rsnd_dmaen_attach()
+	 */
+	if (io->dmac_dev)
+		dev = io->dmac_dev;
+
+	for (substream = rtd->pcm->streams[stream].substream;
+	     substream;
+	     substream = substream->next) {
+		snd_pcm_lib_preallocate_pages(substream,
+					      SNDRV_DMA_TYPE_DEV,
+					      dev,
+					      PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
+	}
+
+	return 0;
+}
+
+static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd,
+			struct snd_soc_dai *dai)
+{
+	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	int ret;
+
+	ret = rsnd_dai_call(pcm_new, &rdai->playback, rtd);
+	if (ret)
+		return ret;
+
+	ret = rsnd_dai_call(pcm_new, &rdai->capture, rtd);
+	if (ret)
+		return ret;
+
+	ret = rsnd_preallocate_pages(rtd, &rdai->playback,
+				     SNDRV_PCM_STREAM_PLAYBACK);
+	if (ret)
+		return ret;
+
+	ret = rsnd_preallocate_pages(rtd, &rdai->capture,
+				     SNDRV_PCM_STREAM_CAPTURE);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static void __rsnd_dai_probe(struct rsnd_priv *priv,
 			     struct device_node *dai_np,
 			     int dai_i)
@@ -1192,6 +1257,7 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	rdai->priv	= priv;
 	drv->name	= rdai->name;
 	drv->ops	= &rsnd_soc_dai_ops;
+	drv->pcm_new	= rsnd_pcm_new;
 
 	snprintf(io_playback->name, RSND_DAI_NAME_SIZE,
 		 "DAI%d Playback", dai_i);
@@ -1292,8 +1358,10 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 		for_each_child_of_node(dai_node, dai_np) {
 			__rsnd_dai_probe(priv, dai_np, dai_i);
 			if (rsnd_is_gen3(priv)) {
-				rsnd_parse_connect_simple(priv, dai_np, dai_i, 1);
-				rsnd_parse_connect_simple(priv, dai_np, dai_i, 0);
+				struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
+
+				rsnd_parse_connect_simple(priv, &rdai->playback, dai_np);
+				rsnd_parse_connect_simple(priv, &rdai->capture,  dai_np);
 			}
 			dai_i++;
 		}
@@ -1353,6 +1421,20 @@ static int rsnd_hw_params(struct snd_pcm_substream *substream,
 					params_buffer_bytes(hw_params));
 }
 
+static int rsnd_hw_free(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_dai *dai = rsnd_substream_to_dai(substream);
+	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
+	int ret;
+
+	ret = rsnd_dai_call(hw_free, io, substream);
+	if (ret)
+		return ret;
+
+	return snd_pcm_lib_free_pages(substream);
+}
+
 static snd_pcm_uframes_t rsnd_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_dai *dai = rsnd_substream_to_dai(substream);
@@ -1368,7 +1450,7 @@ static snd_pcm_uframes_t rsnd_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops rsnd_pcm_ops = {
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= rsnd_hw_params,
-	.hw_free	= snd_pcm_lib_free_pages,
+	.hw_free	= rsnd_hw_free,
 	.pointer	= rsnd_pointer,
 };
 
@@ -1564,71 +1646,8 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 /*
  *		snd_soc_component
  */
-
-#define PREALLOC_BUFFER		(32 * 1024)
-#define PREALLOC_BUFFER_MAX	(32 * 1024)
-
-static int rsnd_preallocate_pages(struct snd_soc_pcm_runtime *rtd,
-				  struct rsnd_dai_stream *io,
-				  int stream)
-{
-	struct rsnd_priv *priv = rsnd_io_to_priv(io);
-	struct device *dev = rsnd_priv_to_dev(priv);
-	struct snd_pcm_substream *substream;
-	int err;
-
-	/*
-	 * use Audio-DMAC dev if we can use IPMMU
-	 * see
-	 *	rsnd_dmaen_attach()
-	 */
-	if (io->dmac_dev)
-		dev = io->dmac_dev;
-
-	for (substream = rtd->pcm->streams[stream].substream;
-	     substream;
-	     substream = substream->next) {
-		err = snd_pcm_lib_preallocate_pages(substream,
-					SNDRV_DMA_TYPE_DEV,
-					dev,
-					PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
-static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_dai *dai = rtd->cpu_dai;
-	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
-	int ret;
-
-	ret = rsnd_dai_call(pcm_new, &rdai->playback, rtd);
-	if (ret)
-		return ret;
-
-	ret = rsnd_dai_call(pcm_new, &rdai->capture, rtd);
-	if (ret)
-		return ret;
-
-	ret = rsnd_preallocate_pages(rtd, &rdai->playback,
-				     SNDRV_PCM_STREAM_PLAYBACK);
-	if (ret)
-		return ret;
-
-	ret = rsnd_preallocate_pages(rtd, &rdai->capture,
-				     SNDRV_PCM_STREAM_CAPTURE);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static const struct snd_soc_component_driver rsnd_soc_component = {
 	.ops		= &rsnd_pcm_ops,
-	.pcm_new	= rsnd_pcm_new,
 	.name		= "rsnd",
 };
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * w83781d.c - Part of lm_sensors, Linux kernel modules for hardware
  *	       monitoring
@@ -5,20 +6,6 @@
  *			      Philip Edelbrock <phil@netroedge.com>,
  *			      and Mark Studebaker <mdsxyz123@yahoo.com>
  * Copyright (c) 2007 - 2008  Jean Delvare <jdelvare@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -907,12 +894,12 @@ w83781d_detect_subclients(struct i2c_client *new_client)
 	}
 
 	for (i = 0; i < num_sc; i++) {
-		data->lm75[i] = i2c_new_dummy(adapter, sc_addr[i]);
-		if (!data->lm75[i]) {
+		data->lm75[i] = i2c_new_dummy_device(adapter, sc_addr[i]);
+		if (IS_ERR(data->lm75[i])) {
 			dev_err(&new_client->dev,
 				"Subclient %d registration at address 0x%x failed.\n",
 				i, sc_addr[i]);
-			err = -ENOMEM;
+			err = PTR_ERR(data->lm75[i]);
 			if (i == 1)
 				goto ERROR_SC_3;
 			goto ERROR_SC_2;

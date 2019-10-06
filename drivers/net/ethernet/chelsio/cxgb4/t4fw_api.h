@@ -1221,6 +1221,23 @@ enum fw_params_mnem {
 /*
  * device parameters
  */
+
+#define FW_PARAMS_PARAM_FILTER_MODE_S 16
+#define FW_PARAMS_PARAM_FILTER_MODE_M 0xffff
+#define FW_PARAMS_PARAM_FILTER_MODE_V(x)          \
+	((x) << FW_PARAMS_PARAM_FILTER_MODE_S)
+#define FW_PARAMS_PARAM_FILTER_MODE_G(x)          \
+	(((x) >> FW_PARAMS_PARAM_FILTER_MODE_S) & \
+	FW_PARAMS_PARAM_FILTER_MODE_M)
+
+#define FW_PARAMS_PARAM_FILTER_MASK_S 0
+#define FW_PARAMS_PARAM_FILTER_MASK_M 0xffff
+#define FW_PARAMS_PARAM_FILTER_MASK_V(x)          \
+	((x) << FW_PARAMS_PARAM_FILTER_MASK_S)
+#define FW_PARAMS_PARAM_FILTER_MASK_G(x)          \
+	(((x) >> FW_PARAMS_PARAM_FILTER_MASK_S) & \
+	FW_PARAMS_PARAM_FILTER_MASK_M)
+
 enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_CCLK	= 0x00, /* chip core clock in khz */
 	FW_PARAMS_PARAM_DEV_PORTVEC	= 0x01, /* the port vector */
@@ -1250,10 +1267,16 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_RI_FR_NSMR_TPTE_WR	= 0x1C,
 	FW_PARAMS_PARAM_DEV_FILTER2_WR  = 0x1D,
 	FW_PARAMS_PARAM_DEV_MPSBGMAP	= 0x1E,
+	FW_PARAMS_PARAM_DEV_TPCHMAP     = 0x1F,
 	FW_PARAMS_PARAM_DEV_HMA_SIZE	= 0x20,
 	FW_PARAMS_PARAM_DEV_RDMA_WRITE_WITH_IMM = 0x21,
+	FW_PARAMS_PARAM_DEV_PPOD_EDRAM  = 0x23,
 	FW_PARAMS_PARAM_DEV_RI_WRITE_CMPL_WR    = 0x24,
 	FW_PARAMS_PARAM_DEV_OPAQUE_VIID_SMT_EXTN = 0x27,
+	FW_PARAMS_PARAM_DEV_HASHFILTER_WITH_OFLD = 0x28,
+	FW_PARAMS_PARAM_DEV_DBQ_TIMER	= 0x29,
+	FW_PARAMS_PARAM_DEV_DBQ_TIMERTICK = 0x2A,
+	FW_PARAMS_PARAM_DEV_FILTER = 0x2E,
 };
 
 /*
@@ -1310,6 +1333,16 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_RAWF_END = 0x37,
 	FW_PARAMS_PARAM_PFVF_NCRYPTO_LOOKASIDE = 0x39,
 	FW_PARAMS_PARAM_PFVF_PORT_CAPS32 = 0x3A,
+	FW_PARAMS_PARAM_PFVF_PPOD_EDRAM_START = 0x3B,
+	FW_PARAMS_PARAM_PFVF_PPOD_EDRAM_END = 0x3C,
+	FW_PARAMS_PARAM_PFVF_LINK_STATE = 0x40,
+};
+
+/* Virtual link state as seen by the specified VF */
+enum vf_link_states {
+	FW_VF_LINK_STATE_AUTO		= 0x00,
+	FW_VF_LINK_STATE_ENABLE		= 0x01,
+	FW_VF_LINK_STATE_DISABLE	= 0x02,
 };
 
 /*
@@ -1322,6 +1355,7 @@ enum fw_params_param_dmaq {
 	FW_PARAMS_PARAM_DMAQ_EQ_CMPLIQID_CTRL = 0x11,
 	FW_PARAMS_PARAM_DMAQ_EQ_SCHEDCLASS_ETH = 0x12,
 	FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH = 0x13,
+	FW_PARAMS_PARAM_DMAQ_EQ_TIMERIX	= 0x15,
 	FW_PARAMS_PARAM_DMAQ_CONM_CTXT = 0x20,
 };
 
@@ -1334,6 +1368,11 @@ enum fw_params_param_dev_diag {
 	FW_PARAM_DEV_DIAG_TMP		= 0x00,
 	FW_PARAM_DEV_DIAG_VDD		= 0x01,
 	FW_PARAM_DEV_DIAG_MAXTMPTHRESH	= 0x02,
+};
+
+enum fw_params_param_dev_filter {
+	FW_PARAM_DEV_FILTER_VNIC_MODE   = 0x00,
+	FW_PARAM_DEV_FILTER_MODE_MASK   = 0x01,
 };
 
 enum fw_params_param_dev_fwcache {
@@ -1751,8 +1790,8 @@ struct fw_eq_eth_cmd {
 	__be32 fetchszm_to_iqid;
 	__be32 dcaen_to_eqsize;
 	__be64 eqaddr;
-	__be32 viid_pkd;
-	__be32 r8_lo;
+	__be32 autoequiqe_to_viid;
+	__be32 timeren_timerix;
 	__be64 r9;
 };
 
@@ -1847,12 +1886,29 @@ struct fw_eq_eth_cmd {
 #define FW_EQ_ETH_CMD_EQSIZE_S		0
 #define FW_EQ_ETH_CMD_EQSIZE_V(x)	((x) << FW_EQ_ETH_CMD_EQSIZE_S)
 
+#define FW_EQ_ETH_CMD_AUTOEQUIQE_S	31
+#define FW_EQ_ETH_CMD_AUTOEQUIQE_V(x)	((x) << FW_EQ_ETH_CMD_AUTOEQUIQE_S)
+#define FW_EQ_ETH_CMD_AUTOEQUIQE_F	FW_EQ_ETH_CMD_AUTOEQUIQE_V(1U)
+
 #define FW_EQ_ETH_CMD_AUTOEQUEQE_S	30
 #define FW_EQ_ETH_CMD_AUTOEQUEQE_V(x)	((x) << FW_EQ_ETH_CMD_AUTOEQUEQE_S)
 #define FW_EQ_ETH_CMD_AUTOEQUEQE_F	FW_EQ_ETH_CMD_AUTOEQUEQE_V(1U)
 
 #define FW_EQ_ETH_CMD_VIID_S	16
 #define FW_EQ_ETH_CMD_VIID_V(x)	((x) << FW_EQ_ETH_CMD_VIID_S)
+
+#define FW_EQ_ETH_CMD_TIMEREN_S		3
+#define FW_EQ_ETH_CMD_TIMEREN_M		0x1
+#define FW_EQ_ETH_CMD_TIMEREN_V(x)	((x) << FW_EQ_ETH_CMD_TIMEREN_S)
+#define FW_EQ_ETH_CMD_TIMEREN_G(x)	\
+    (((x) >> FW_EQ_ETH_CMD_TIMEREN_S) & FW_EQ_ETH_CMD_TIMEREN_M)
+#define FW_EQ_ETH_CMD_TIMEREN_F	FW_EQ_ETH_CMD_TIMEREN_V(1U)
+
+#define FW_EQ_ETH_CMD_TIMERIX_S		0
+#define FW_EQ_ETH_CMD_TIMERIX_M		0x7
+#define FW_EQ_ETH_CMD_TIMERIX_V(x)	((x) << FW_EQ_ETH_CMD_TIMERIX_S)
+#define FW_EQ_ETH_CMD_TIMERIX_G(x)	\
+    (((x) >> FW_EQ_ETH_CMD_TIMERIX_S) & FW_EQ_ETH_CMD_TIMERIX_M)
 
 struct fw_eq_ctrl_cmd {
 	__be32 op_to_vfn;

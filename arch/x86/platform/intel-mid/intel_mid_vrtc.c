@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel_mid_vrtc.c: Driver for virtual RTC device on Intel MID platform
  *
  * (C) Copyright 2009 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  *
  * Note:
  * VRTC is emulated by system controller firmware, the real HW

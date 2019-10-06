@@ -1,20 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AMD Platform Security Processor (PSP) interface driver
  *
- * Copyright (C) 2017 Advanced Micro Devices, Inc.
+ * Copyright (C) 2017-2018 Advanced Micro Devices, Inc.
  *
  * Author: Brijesh Singh <brijesh.singh@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __PSP_DEV_H__
 #define __PSP_DEV_H__
 
 #include <linux/device.h>
-#include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/list.h>

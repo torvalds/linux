@@ -32,7 +32,7 @@ struct uniphier_regulator_priv {
 	const struct uniphier_regulator_soc_data *data;
 };
 
-static struct regulator_ops uniphier_regulator_ops = {
+static const struct regulator_ops uniphier_regulator_ops = {
 	.enable     = regulator_enable_regmap,
 	.disable    = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -87,8 +87,10 @@ static int uniphier_regulator_probe(struct platform_device *pdev)
 	}
 
 	regmap = devm_regmap_init_mmio(dev, base, priv->data->regconf);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
+	if (IS_ERR(regmap)) {
+		ret = PTR_ERR(regmap);
+		goto out_rst_assert;
+	}
 
 	config.dev = dev;
 	config.driver_data = priv;
@@ -181,6 +183,10 @@ static const struct of_device_id uniphier_regulator_match[] = {
 	/* USB VBUS */
 	{
 		.compatible = "socionext,uniphier-pro4-usb3-regulator",
+		.data = &uniphier_pro4_usb3_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pro5-usb3-regulator",
 		.data = &uniphier_pro4_usb3_data,
 	},
 	{

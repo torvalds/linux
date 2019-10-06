@@ -46,9 +46,24 @@ void cedrus_device_run(void *priv)
 			V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION);
 		break;
 
+	case V4L2_PIX_FMT_H264_SLICE:
+		run.h264.decode_params = cedrus_find_control_data(ctx,
+			V4L2_CID_MPEG_VIDEO_H264_DECODE_PARAMS);
+		run.h264.pps = cedrus_find_control_data(ctx,
+			V4L2_CID_MPEG_VIDEO_H264_PPS);
+		run.h264.scaling_matrix = cedrus_find_control_data(ctx,
+			V4L2_CID_MPEG_VIDEO_H264_SCALING_MATRIX);
+		run.h264.slice_params = cedrus_find_control_data(ctx,
+			V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAMS);
+		run.h264.sps = cedrus_find_control_data(ctx,
+			V4L2_CID_MPEG_VIDEO_H264_SPS);
+		break;
+
 	default:
 		break;
 	}
+
+	v4l2_m2m_buf_copy_metadata(run.src, run.dst, true);
 
 	dev->dec_ops[ctx->current_codec]->setup(ctx, &run);
 

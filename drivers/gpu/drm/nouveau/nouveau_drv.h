@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NOUVEAU_DRV_H__
 #define __NOUVEAU_DRV_H__
 
@@ -46,7 +46,10 @@
 #include <nvif/mmu.h>
 #include <nvif/vmm.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
 
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
@@ -59,8 +62,6 @@
 
 struct nouveau_channel;
 struct platform_device;
-
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
 #include "nouveau_fence.h"
 #include "nouveau_bios.h"
@@ -96,6 +97,7 @@ struct nouveau_cli {
 	struct nvif_device device;
 	struct nvif_mmu mmu;
 	struct nouveau_vmm vmm;
+	struct nouveau_vmm svm;
 	const struct nvif_mclass *mem;
 
 	struct list_head head;
@@ -128,7 +130,6 @@ nouveau_cli(struct drm_file *fpriv)
 }
 
 #include <nvif/object.h>
-#include <nvif/device.h>
 
 struct nouveau_drm {
 	struct nouveau_cli master;
@@ -181,7 +182,6 @@ struct nouveau_drm {
 	struct nouveau_fbdev *fbcon;
 	struct nvif_object nvsw;
 	struct nvif_object ntfy;
-	struct nvif_notify flip;
 
 	/* nv10-nv40 tiling regions */
 	struct {
@@ -206,10 +206,11 @@ struct nouveau_drm {
 	/* led management */
 	struct nouveau_led *led;
 
-	/* display power reference */
-	bool have_disp_power_ref;
-
 	struct dev_pm_domain vga_pm_domain;
+
+	struct nouveau_svm *svm;
+
+	struct nouveau_dmem *dmem;
 };
 
 static inline struct nouveau_drm *

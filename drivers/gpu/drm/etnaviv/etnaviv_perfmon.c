@@ -4,6 +4,7 @@
  * Copyright (C) 2017 Zodiac Inflight Innovations
  */
 
+#include "common.xml.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_perfmon.h"
 #include "state_hi.xml.h"
@@ -15,8 +16,8 @@ struct etnaviv_pm_signal {
 	u32 data;
 
 	u32 (*sample)(struct etnaviv_gpu *gpu,
-	              const struct etnaviv_pm_domain *domain,
-	              const struct etnaviv_pm_signal *signal);
+		      const struct etnaviv_pm_domain *domain,
+		      const struct etnaviv_pm_signal *signal);
 };
 
 struct etnaviv_pm_domain {
@@ -34,13 +35,6 @@ struct etnaviv_pm_domain_meta {
 	const struct etnaviv_pm_domain *domains;
 	u32 nr_domains;
 };
-
-static u32 simple_reg_read(struct etnaviv_gpu *gpu,
-	const struct etnaviv_pm_domain *domain,
-	const struct etnaviv_pm_signal *signal)
-{
-	return gpu_read(gpu, signal->data);
-}
 
 static u32 perf_reg_read(struct etnaviv_gpu *gpu,
 	const struct etnaviv_pm_domain *domain,
@@ -75,6 +69,34 @@ static u32 pipe_reg_read(struct etnaviv_gpu *gpu,
 	return value;
 }
 
+static u32 hi_total_cycle_read(struct etnaviv_gpu *gpu,
+	const struct etnaviv_pm_domain *domain,
+	const struct etnaviv_pm_signal *signal)
+{
+	u32 reg = VIVS_HI_PROFILE_TOTAL_CYCLES;
+
+	if (gpu->identity.model == chipModel_GC880 ||
+		gpu->identity.model == chipModel_GC2000 ||
+		gpu->identity.model == chipModel_GC2100)
+		reg = VIVS_MC_PROFILE_CYCLE_COUNTER;
+
+	return gpu_read(gpu, reg);
+}
+
+static u32 hi_total_idle_cycle_read(struct etnaviv_gpu *gpu,
+	const struct etnaviv_pm_domain *domain,
+	const struct etnaviv_pm_signal *signal)
+{
+	u32 reg = VIVS_HI_PROFILE_IDLE_CYCLES;
+
+	if (gpu->identity.model == chipModel_GC880 ||
+		gpu->identity.model == chipModel_GC2000 ||
+		gpu->identity.model == chipModel_GC2100)
+		reg = VIVS_HI_PROFILE_TOTAL_CYCLES;
+
+	return gpu_read(gpu, reg);
+}
+
 static const struct etnaviv_pm_domain doms_3d[] = {
 	{
 		.name = "HI",
@@ -84,13 +106,13 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 		.signal = (const struct etnaviv_pm_signal[]) {
 			{
 				"TOTAL_CYCLES",
-				VIVS_HI_PROFILE_TOTAL_CYCLES,
-				&simple_reg_read
+				0,
+				&hi_total_cycle_read
 			},
 			{
 				"IDLE_CYCLES",
-				VIVS_HI_PROFILE_IDLE_CYCLES,
-				&simple_reg_read
+				0,
+				&hi_total_idle_cycle_read
 			},
 			{
 				"AXI_CYCLES_READ_REQUEST_STALLED",
@@ -113,7 +135,7 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 		.name = "PE",
 		.profile_read = VIVS_MC_PROFILE_PE_READ,
 		.profile_config = VIVS_MC_PROFILE_CONFIG0,
-		.nr_signals = 5,
+		.nr_signals = 4,
 		.signal = (const struct etnaviv_pm_signal[]) {
 			{
 				"PIXEL_COUNT_KILLED_BY_COLOR_PIPE",
@@ -435,7 +457,7 @@ int etnaviv_pm_query_sig(struct etnaviv_gpu *gpu,
 
 	dom = meta->domains + signal->domain;
 
-	if (signal->iter > dom->nr_signals)
+	if (signal->iter >= dom->nr_signals)
 		return -EINVAL;
 
 	sig = &dom->signal[signal->iter];
@@ -461,7 +483,7 @@ int etnaviv_pm_req_validate(const struct drm_etnaviv_gem_submit_pmr *r,
 
 	dom = meta->domains + r->domain;
 
-	if (r->signal > dom->nr_signals)
+	if (r->signal >= dom->nr_signals)
 		return -EINVAL;
 
 	return 0;

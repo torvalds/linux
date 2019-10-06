@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Memory merging support.
  *
@@ -10,8 +11,6 @@
  *	Andrea Arcangeli
  *	Chris Wright
  *	Hugh Dickins
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  */
 
 #include <linux/errno.h>
@@ -598,7 +597,7 @@ static struct stable_node *alloc_stable_node_chain(struct stable_node *dup,
 		chain->chain_prune_time = jiffies;
 		chain->rmap_hlist_len = STABLE_NODE_CHAIN;
 #if defined (CONFIG_DEBUG_VM) && defined(CONFIG_NUMA)
-		chain->nid = -1; /* debug */
+		chain->nid = NUMA_NO_NODE; /* debug */
 #endif
 		ksm_stable_node_chains++;
 
@@ -667,6 +666,12 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
 	free_stable_node(stable_node);
 }
 
+enum get_ksm_page_flags {
+	GET_KSM_PAGE_NOLOCK,
+	GET_KSM_PAGE_LOCK,
+	GET_KSM_PAGE_TRYLOCK
+};
+
 /*
  * get_ksm_page: checks if the page indicated by the stable node
  * is still its ksm page, despite having held no reference to it.
@@ -686,7 +691,8 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
  * a page to put something that might look like our key in page->mapping.
  * is on its way to being freed; but it is an anomaly to bear in mind.
  */
-static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
+static struct page *get_ksm_page(struct stable_node *stable_node,
+				 enum get_ksm_page_flags flags)
 {
 	struct page *page;
 	void *expected_mapping;
@@ -706,8 +712,9 @@ again:
 	 * case this node is no longer referenced, and should be freed;
 	 * however, it might mean that the page is under page_ref_freeze().
 	 * The __remove_mapping() case is easy, again the node is now stale;
-	 * but if page is swapcache in migrate_page_move_mapping(), it might
-	 * still be our page, in which case it's essential to keep the node.
+	 * the same is in reuse_ksm_page() case; but if page is swapcache
+	 * in migrate_page_move_mapping(), it might still be our page,
+	 * in which case it's essential to keep the node.
 	 */
 	while (!get_page_unless_zero(page)) {
 		/*
@@ -728,8 +735,15 @@ again:
 		goto stale;
 	}
 
-	if (lock_it) {
+	if (flags == GET_KSM_PAGE_TRYLOCK) {
+		if (!trylock_page(page)) {
+			put_page(page);
+			return ERR_PTR(-EBUSY);
+		}
+	} else if (flags == GET_KSM_PAGE_LOCK)
 		lock_page(page);
+
+	if (flags != GET_KSM_PAGE_NOLOCK) {
 		if (READ_ONCE(page->mapping) != expected_mapping) {
 			unlock_page(page);
 			put_page(page);
@@ -763,7 +777,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 		struct page *page;
 
 		stable_node = rmap_item->head;
-		page = get_ksm_page(stable_node, true);
+		page = get_ksm_page(stable_node, GET_KSM_PAGE_LOCK);
 		if (!page)
 			goto out;
 
@@ -863,7 +877,7 @@ static int remove_stable_node(struct stable_node *stable_node)
 	struct page *page;
 	int err;
 
-	page = get_ksm_page(stable_node, true);
+	page = get_ksm_page(stable_node, GET_KSM_PAGE_LOCK);
 	if (!page) {
 		/*
 		 * get_ksm_page did remove_node_from_stable_tree itself.
@@ -1015,24 +1029,6 @@ static u32 calc_checksum(struct page *page)
 	return checksum;
 }
 
-static int memcmp_pages(struct page *page1, struct page *page2)
-{
-	char *addr1, *addr2;
-	int ret;
-
-	addr1 = kmap_atomic(page1);
-	addr2 = kmap_atomic(page2);
-	ret = memcmp(addr1, addr2, PAGE_SIZE);
-	kunmap_atomic(addr2);
-	kunmap_atomic(addr1);
-	return ret;
-}
-
-static inline int pages_identical(struct page *page1, struct page *page2)
-{
-	return !memcmp_pages(page1, page2);
-}
-
 static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 			      pte_t *orig_pte)
 {
@@ -1051,7 +1047,8 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 
 	BUG_ON(PageTransCompound(page));
 
-	mmu_notifier_range_init(&range, mm, pvmw.address,
+	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, mm,
+				pvmw.address,
 				pvmw.address + PAGE_SIZE);
 	mmu_notifier_invalidate_range_start(&range);
 
@@ -1139,7 +1136,8 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	if (!pmd)
 		goto out;
 
-	mmu_notifier_range_init(&range, mm, addr, addr + PAGE_SIZE);
+	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, mm, addr,
+				addr + PAGE_SIZE);
 	mmu_notifier_invalidate_range_start(&range);
 
 	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
@@ -1385,7 +1383,7 @@ static struct page *stable_node_dup(struct stable_node **_stable_node_dup,
 		 * stable_node parameter itself will be freed from
 		 * under us if it returns NULL.
 		 */
-		_tree_page = get_ksm_page(dup, false);
+		_tree_page = get_ksm_page(dup, GET_KSM_PAGE_NOLOCK);
 		if (!_tree_page)
 			continue;
 		nr += 1;
@@ -1508,7 +1506,7 @@ static struct page *__stable_node_chain(struct stable_node **_stable_node_dup,
 	if (!is_stable_node_chain(stable_node)) {
 		if (is_page_sharing_candidate(stable_node)) {
 			*_stable_node_dup = stable_node;
-			return get_ksm_page(stable_node, false);
+			return get_ksm_page(stable_node, GET_KSM_PAGE_NOLOCK);
 		}
 		/*
 		 * _stable_node_dup set to NULL means the stable_node
@@ -1613,7 +1611,8 @@ again:
 			 * wrprotected at all times. Any will work
 			 * fine to continue the walk.
 			 */
-			tree_page = get_ksm_page(stable_node_any, false);
+			tree_page = get_ksm_page(stable_node_any,
+						 GET_KSM_PAGE_NOLOCK);
 		}
 		VM_BUG_ON(!stable_node_dup ^ !!stable_node_any);
 		if (!tree_page) {
@@ -1673,7 +1672,12 @@ again:
 			 * It would be more elegant to return stable_node
 			 * than kpage, but that involves more changes.
 			 */
-			tree_page = get_ksm_page(stable_node_dup, true);
+			tree_page = get_ksm_page(stable_node_dup,
+						 GET_KSM_PAGE_TRYLOCK);
+
+			if (PTR_ERR(tree_page) == -EBUSY)
+				return ERR_PTR(-EBUSY);
+
 			if (unlikely(!tree_page))
 				/*
 				 * The tree may have been rebalanced,
@@ -1842,7 +1846,8 @@ again:
 			 * wrprotected at all times. Any will work
 			 * fine to continue the walk.
 			 */
-			tree_page = get_ksm_page(stable_node_any, false);
+			tree_page = get_ksm_page(stable_node_any,
+						 GET_KSM_PAGE_NOLOCK);
 		}
 		VM_BUG_ON(!stable_node_dup ^ !!stable_node_any);
 		if (!tree_page) {
@@ -2068,6 +2073,9 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 	remove_rmap_item_from_tree(rmap_item);
 
 	if (kpage) {
+		if (PTR_ERR(kpage) == -EBUSY)
+			return;
+
 		err = try_to_merge_with_ksm_page(rmap_item, page, kpage);
 		if (!err) {
 			/*
@@ -2242,7 +2250,8 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
 
 			list_for_each_entry_safe(stable_node, next,
 						 &migrate_nodes, list) {
-				page = get_ksm_page(stable_node, false);
+				page = get_ksm_page(stable_node,
+						    GET_KSM_PAGE_NOLOCK);
 				if (page)
 					put_page(page);
 				cond_resched();
@@ -2642,6 +2651,31 @@ again:
 		goto again;
 }
 
+bool reuse_ksm_page(struct page *page,
+		    struct vm_area_struct *vma,
+		    unsigned long address)
+{
+#ifdef CONFIG_DEBUG_VM
+	if (WARN_ON(is_zero_pfn(page_to_pfn(page))) ||
+			WARN_ON(!page_mapped(page)) ||
+			WARN_ON(!PageLocked(page))) {
+		dump_page(page, "reuse_ksm_page");
+		return false;
+	}
+#endif
+
+	if (PageSwapCache(page) || !page_stable_node(page))
+		return false;
+	/* Prohibit parallel get_ksm_page() */
+	if (!page_ref_freeze(page, 1))
+		return false;
+
+	page_move_anon_rmap(page, vma);
+	page->index = linear_page_index(vma, address);
+	page_ref_unfreeze(page, 1);
+
+	return true;
+}
 #ifdef CONFIG_MIGRATION
 void ksm_migrate_page(struct page *newpage, struct page *oldpage)
 {

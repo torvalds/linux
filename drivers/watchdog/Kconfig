@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 #
 # Watchdog device configuration
@@ -17,7 +18,7 @@ menuconfig WATCHDOG
 	  reboot the machine) and a driver for hardware watchdog boards, which
 	  are more robust and can also keep track of the temperature inside
 	  your computer. For details, read
-	  <file:Documentation/watchdog/watchdog-api.txt> in the kernel source.
+	  <file:Documentation/watchdog/watchdog-api.rst> in the kernel source.
 
 	  The watchdog is usually used together with the watchdog daemon
 	  which is available from
@@ -30,7 +31,7 @@ menuconfig WATCHDOG
 if WATCHDOG
 
 config WATCHDOG_CORE
-	bool "WatchDog Timer Driver Core"
+	tristate "WatchDog Timer Driver Core"
 	---help---
 	  Say Y here if you want to use the new watchdog timer driver core.
 	  This driver provides a framework for all watchdog timer drivers
@@ -57,11 +58,80 @@ config WATCHDOG_HANDLE_BOOT_ENABLED
 	  the watchdog on its own. Thus if your userspace does not start fast
 	  enough your device will reboot.
 
+config WATCHDOG_OPEN_TIMEOUT
+	int "Timeout value for opening watchdog device"
+	default 0
+	help
+	  The maximum time, in seconds, for which the watchdog framework takes
+	  care of pinging a hardware watchdog.  A value of 0 means infinite. The
+	  value set here can be overridden by the commandline parameter
+	  "watchdog.open_timeout".
+
 config WATCHDOG_SYSFS
 	bool "Read different watchdog information through sysfs"
 	help
 	  Say Y here if you want to enable watchdog device status read through
 	  sysfs attributes.
+
+comment "Watchdog Pretimeout Governors"
+
+config WATCHDOG_PRETIMEOUT_GOV
+	bool "Enable watchdog pretimeout governors"
+	depends on WATCHDOG_CORE
+	help
+	  The option allows to select watchdog pretimeout governors.
+
+config WATCHDOG_PRETIMEOUT_GOV_SEL
+	tristate
+	depends on WATCHDOG_PRETIMEOUT_GOV
+	default m
+	select WATCHDOG_PRETIMEOUT_GOV_PANIC if WATCHDOG_PRETIMEOUT_GOV_NOOP=n
+
+if WATCHDOG_PRETIMEOUT_GOV
+
+config WATCHDOG_PRETIMEOUT_GOV_NOOP
+	tristate "Noop watchdog pretimeout governor"
+	depends on WATCHDOG_CORE
+	default WATCHDOG_CORE
+	help
+	  Noop watchdog pretimeout governor, only an informational
+	  message is added to kernel log buffer.
+
+config WATCHDOG_PRETIMEOUT_GOV_PANIC
+	tristate "Panic watchdog pretimeout governor"
+	depends on WATCHDOG_CORE
+	default WATCHDOG_CORE
+	help
+	  Panic watchdog pretimeout governor, on watchdog pretimeout
+	  event put the kernel into panic.
+
+choice
+	prompt "Default Watchdog Pretimeout Governor"
+	default WATCHDOG_PRETIMEOUT_DEFAULT_GOV_PANIC
+	help
+	  This option selects a default watchdog pretimeout governor.
+	  The governor takes its action, if a watchdog is capable
+	  to report a pretimeout event.
+
+config WATCHDOG_PRETIMEOUT_DEFAULT_GOV_NOOP
+	bool "noop"
+	depends on WATCHDOG_PRETIMEOUT_GOV_NOOP
+	help
+	  Use noop watchdog pretimeout governor by default. If noop
+	  governor is selected by a user, write a short message to
+	  the kernel log buffer and don't do any system changes.
+
+config WATCHDOG_PRETIMEOUT_DEFAULT_GOV_PANIC
+	bool "panic"
+	depends on WATCHDOG_PRETIMEOUT_GOV_PANIC
+	help
+	  Use panic watchdog pretimeout governor by default, if
+	  a watchdog pretimeout event happens, consider that
+	  a watchdog feeder is dead and reboot is unavoidable.
+
+endchoice
+
+endif # WATCHDOG_PRETIMEOUT_GOV
 
 #
 # General Watchdog drivers
@@ -89,6 +159,18 @@ config SOFT_WATCHDOG_PRETIMEOUT
 	  Enable this if you want to use pretimeout governors with the software
 	  watchdog. Be aware that governors might affect the watchdog because it
 	  is purely software, e.g. the panic governor will stall it!
+
+config BD70528_WATCHDOG
+	tristate "ROHM BD70528 PMIC Watchdog"
+	depends on MFD_ROHM_BD70528
+	select WATCHDOG_CORE
+	help
+	  Support for the watchdog in the ROHM BD70528 PMIC. Watchdog trigger
+	  cause system reset.
+
+	  Say Y here to include support for the ROHM BD70528 watchdog.
+	  Alternatively say M to compile the driver as a module,
+	  which will be called bd70528_wdt.
 
 config DA9052_WATCHDOG
 	tristate "Dialog DA9052 Watchdog"
@@ -241,6 +323,22 @@ config RAVE_SP_WATCHDOG
 	help
 	  Support for the watchdog on RAVE SP device.
 
+config MLX_WDT
+	tristate "Mellanox Watchdog"
+	depends on MELLANOX_PLATFORM
+	select WATCHDOG_CORE
+	select REGMAP
+	help
+	  This is the driver for the hardware watchdog on Mellanox systems.
+	  If you are going to use it, say Y here, otherwise N.
+	  This driver can be used together with the watchdog daemon.
+	  It can also watch your kernel to make sure it doesn't freeze,
+	  and if it does, it reboots your system after a certain amount of
+	  time.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mlx-wdt.
+
 # ALPHA Architecture
 
 # ARM Architecture
@@ -379,13 +477,6 @@ config IXP4XX_WATCHDOG
 
 	  Say N if you are unsure.
 
-config KS8695_WATCHDOG
-	tristate "KS8695 watchdog"
-	depends on ARCH_KS8695
-	help
-	  Watchdog timer embedded into KS8695 processor. This will reboot your
-	  system when the timeout is reached.
-
 config HAVE_S3C2410_WATCHDOG
 	bool
 	help
@@ -453,7 +544,7 @@ config OMAP_WATCHDOG
 
 config PNX4008_WATCHDOG
 	tristate "LPC32XX Watchdog"
-	depends on ARCH_LPC32XX
+	depends on ARCH_LPC32XX || COMPILE_TEST
 	select WATCHDOG_CORE
 	help
 	  Say Y here if to include support for the watchdog timer
@@ -536,7 +627,7 @@ config COH901327_WATCHDOG
 	  compiled as a module.
 
 config NPCM7XX_WATCHDOG
-	bool "Nuvoton NPCM750 watchdog"
+	tristate "Nuvoton NPCM750 watchdog"
 	depends on ARCH_NPCM || COMPILE_TEST
 	default y if ARCH_NPCM7XX
 	select WATCHDOG_CORE
@@ -563,15 +654,6 @@ config STMP3XXX_RTC_WATCHDOG
 	  the RTC for the STMP37XX/378X or i.MX23/28 SoC.
 	  To compile this driver as a module, choose M here: the
 	  module will be called stmp3xxx_rtc_wdt.
-
-config NUC900_WATCHDOG
-	tristate "Nuvoton NUC900 watchdog"
-	depends on ARCH_W90X900 || COMPILE_TEST
-	help
-	  Say Y here if to include support for the watchdog timer
-	  for the Nuvoton NUC900 series SoCs.
-	  To compile this driver as a module, choose M here: the
-	  module will be called nuc900_wdt.
 
 config TS4800_WATCHDOG
 	tristate "TS-4800 Watchdog"
@@ -624,6 +706,36 @@ config IMX2_WDT
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx2_wdt.
+
+config IMX_SC_WDT
+	tristate "IMX SC Watchdog"
+	depends on HAVE_ARM_SMCCC
+	depends on IMX_SCU
+	select WATCHDOG_CORE
+	help
+	  This is the driver for the system controller watchdog
+	  on the NXP i.MX SoCs with system controller inside, the
+	  watchdog driver will call ARM SMC API and trap into
+	  ARM-Trusted-Firmware for operations, ARM-Trusted-Firmware
+	  will request system controller to execute the operations.
+	  If you have one of these processors and wish to have
+	  watchdog support enabled, say Y, otherwise say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx_sc_wdt.
+
+config IMX7ULP_WDT
+	tristate "IMX7ULP Watchdog"
+	depends on ARCH_MXC || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  This is the driver for the hardware watchdog on the Freescale
+	  IMX7ULP and later processors. If you have one of these
+	  processors and wish to have watchdog support enabled,
+	  say Y, otherwise say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx7ulp_wdt.
 
 config UX500_WATCHDOG
 	tristate "ST-Ericsson Ux500 watchdog"
@@ -817,6 +929,18 @@ config STM32_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called stm32_iwdg.
 
+config STPMIC1_WATCHDOG
+	tristate "STPMIC1 PMIC watchdog support"
+	depends on MFD_STPMIC1
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include watchdog support embedded into STPMIC1 PMIC.
+	  If the watchdog timer expires, stpmic1 will shut down all its power
+	  supplies.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called spmic1_wdt.
+
 config UNIPHIER_WATCHDOG
 	tristate "UniPhier watchdog support"
 	depends on ARCH_UNIPHIER || COMPILE_TEST
@@ -919,8 +1043,8 @@ config F71808E_WDT
 	depends on X86
 	help
 	  This is the driver for the hardware watchdog on the Fintek F71808E,
-	  F71862FG, F71868, F71869, F71882FG, F71889FG, F81865 and F81866
-	  Super I/O controllers.
+	  F71862FG, F71868, F71869, F71882FG, F71889FG, F81803, F81865, and
+	  F81866 Super I/O controllers.
 
 	  You can compile this driver directly into the kernel, or use
 	  it as a module.  The module will be called f71808e_wdt.
@@ -1145,11 +1269,20 @@ config HP_WATCHDOG
 	select WATCHDOG_CORE
 	depends on X86 && PCI
 	help
-	  A software monitoring watchdog and NMI sourcing driver. This driver
+	  A software monitoring watchdog and NMI handling driver. This driver
 	  will detect lockups and provide a stack trace. This is a driver that
 	  will only load on an HP ProLiant system with a minimum of iLO2 support.
 	  To compile this driver as a module, choose M here: the module will be
 	  called hpwdt.
+
+config HPWDT_NMI_DECODING
+	bool "NMI support for the HP ProLiant iLO2+ Hardware Watchdog Timer"
+	depends on HP_WATCHDOG
+	default y
+	help
+	  Enables the NMI handler for the watchdog pretimeout NMI and the iLO
+	  "Generate NMI to System" virtual button.  When an NMI is claimed
+	  by the driver, panic is called.
 
 config KEMPLD_WDT
 	tristate "Kontron COM Watchdog Timer"
@@ -1161,14 +1294,6 @@ config KEMPLD_WDT
 
 	  This driver can also be built as a module. If so, the module will be
 	  called kempld_wdt.
-
-config HPWDT_NMI_DECODING
-	bool "NMI decoding support for the HP ProLiant iLO2+ Hardware Watchdog Timer"
-	depends on HP_WATCHDOG
-	default y
-	help
-	  When an NMI occurs this feature will make the necessary BIOS calls to
-	  log the cause of the NMI.
 
 config SC1200_WDT
 	tristate "National Semiconductor PC87307/PC97307 (ala SC1200) Watchdog"
@@ -1618,7 +1743,7 @@ config BCM_KONA_WDT
 
 config BCM_KONA_WDT_DEBUG
 	bool "DEBUGFS support for BCM Kona Watchdog"
-	depends on BCM_KONA_WDT || COMPILE_TEST
+	depends on BCM_KONA_WDT
 	help
 	  If enabled, adds /sys/kernel/debug/bcm_kona_wdt/info which provides
 	  access to the driver's internal data structures as well as watchdog
@@ -1752,7 +1877,7 @@ config BOOKE_WDT
 	  Watchdog driver for PowerPC Book-E chips, such as the Freescale
 	  MPC85xx SOCs and the IBM PowerPC 440.
 
-	  Please see Documentation/watchdog/watchdog-api.txt for
+	  Please see Documentation/watchdog/watchdog-api.rst for
 	  more information.
 
 config BOOKE_WDT_DEFAULT_TIMEOUT
@@ -1901,7 +2026,7 @@ config PCWATCHDOG
 	  This card simply watches your kernel to make sure it doesn't freeze,
 	  and if it does, it reboots your computer after a certain amount of
 	  time. This driver is like the WDT501 driver but for different
-	  hardware. Please read <file:Documentation/watchdog/pcwd-watchdog.txt>. The PC
+	  hardware. Please read <file:Documentation/watchdog/pcwd-watchdog.rst>. The PC
 	  watchdog cards can be ordered from <http://www.berkprod.com/>.
 
 	  To compile this driver as a module, choose M here: the
@@ -1994,54 +2119,5 @@ config USBPCWATCHDOG
 	  module will be called pcwd_usb.
 
 	  Most people will say N.
-
-comment "Watchdog Pretimeout Governors"
-
-config WATCHDOG_PRETIMEOUT_GOV
-	bool "Enable watchdog pretimeout governors"
-	help
-	  The option allows to select watchdog pretimeout governors.
-
-if WATCHDOG_PRETIMEOUT_GOV
-
-choice
-	prompt "Default Watchdog Pretimeout Governor"
-	default WATCHDOG_PRETIMEOUT_DEFAULT_GOV_PANIC
-	help
-	  This option selects a default watchdog pretimeout governor.
-	  The governor takes its action, if a watchdog is capable
-	  to report a pretimeout event.
-
-config WATCHDOG_PRETIMEOUT_DEFAULT_GOV_NOOP
-	bool "noop"
-	select WATCHDOG_PRETIMEOUT_GOV_NOOP
-	help
-	  Use noop watchdog pretimeout governor by default. If noop
-	  governor is selected by a user, write a short message to
-	  the kernel log buffer and don't do any system changes.
-
-config WATCHDOG_PRETIMEOUT_DEFAULT_GOV_PANIC
-	bool "panic"
-	select WATCHDOG_PRETIMEOUT_GOV_PANIC
-	help
-	  Use panic watchdog pretimeout governor by default, if
-	  a watchdog pretimeout event happens, consider that
-	  a watchdog feeder is dead and reboot is unavoidable.
-
-endchoice
-
-config WATCHDOG_PRETIMEOUT_GOV_NOOP
-	tristate "Noop watchdog pretimeout governor"
-	help
-	  Noop watchdog pretimeout governor, only an informational
-	  message is added to kernel log buffer.
-
-config WATCHDOG_PRETIMEOUT_GOV_PANIC
-	tristate "Panic watchdog pretimeout governor"
-	help
-	  Panic watchdog pretimeout governor, on watchdog pretimeout
-	  event put the kernel into panic.
-
-endif # WATCHDOG_PRETIMEOUT_GOV
 
 endif # WATCHDOG

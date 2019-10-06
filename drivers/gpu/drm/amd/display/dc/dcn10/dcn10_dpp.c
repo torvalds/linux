@@ -91,13 +91,6 @@ enum dscl_mode_sel {
 	DSCL_MODE_DSCL_BYPASS = 6
 };
 
-enum gamut_remap_select {
-	GAMUT_REMAP_BYPASS = 0,
-	GAMUT_REMAP_COEFF,
-	GAMUT_REMAP_COMA_COEFF,
-	GAMUT_REMAP_COMB_COEFF
-};
-
 void dpp_read_state(struct dpp *dpp_base,
 		struct dcn_dpp_state *s)
 {
@@ -297,7 +290,12 @@ void dpp1_cnv_setup (
 		enum surface_pixel_format format,
 		enum expansion_mode mode,
 		struct dc_csc_transform input_csc_color_matrix,
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+		enum dc_color_space input_color_space,
+		struct cnv_alpha_2bit_lut *alpha_2bit_lut)
+#else
 		enum dc_color_space input_color_space)
+#endif
 {
 	uint32_t pixel_format;
 	uint32_t alpha_en;
@@ -392,6 +390,10 @@ void dpp1_cnv_setup (
 	default:
 		break;
 	}
+
+	/* Set default color space based on format if none is given. */
+	color_space = input_color_space ? input_color_space : color_space;
+
 	REG_SET(CNVC_SURFACE_PIXEL_FORMAT, 0,
 			CNVC_SURFACE_PIXEL_FORMAT, pixel_format);
 	REG_UPDATE(FORMAT_CONTROL, FORMAT_CONTROL__ALPHA_EN, alpha_en);
@@ -403,7 +405,7 @@ void dpp1_cnv_setup (
 		for (i = 0; i < 12; i++)
 			tbl_entry.regval[i] = input_csc_color_matrix.matrix[i];
 
-		tbl_entry.color_space = input_color_space;
+		tbl_entry.color_space = color_space;
 
 		if (color_space >= COLOR_SPACE_YCBCR601)
 			select = INPUT_CSC_SELECT_ICSC;
@@ -424,8 +426,9 @@ void dpp1_cnv_setup (
 
 void dpp1_set_cursor_attributes(
 		struct dpp *dpp_base,
-		enum dc_cursor_color_format color_format)
+		struct dc_cursor_attributes *cursor_attributes)
 {
+	enum dc_cursor_color_format color_format = cursor_attributes->color_format;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	REG_UPDATE_2(CURSOR0_CONTROL,
@@ -453,6 +456,19 @@ void dpp1_set_cursor_position(
 	int src_x_offset = pos->x - pos->x_hotspot - param->viewport.x;
 	int src_y_offset = pos->y - pos->y_hotspot - param->viewport.y;
 	uint32_t cur_en = pos->enable ? 1 : 0;
+
+	// Cursor width/height and hotspots need to be rotated for offset calculation
+	if (param->rotation == ROTATION_ANGLE_90 || param->rotation == ROTATION_ANGLE_270) {
+		swap(width, height);
+		if (param->rotation == ROTATION_ANGLE_90) {
+			src_x_offset = pos->x - pos->y_hotspot - param->viewport.x;
+			src_y_offset = pos->y - pos->x_hotspot - param->viewport.y;
+		}
+	} else if (param->rotation == ROTATION_ANGLE_180) {
+		src_x_offset = pos->x - param->viewport.x;
+		src_y_offset = pos->y - param->viewport.y;
+	}
+
 
 	if (src_x_offset >= (int)param->viewport.width)
 		cur_en = 0;  /* not visible beyond right edge*/
@@ -526,6 +542,11 @@ static const struct dpp_funcs dcn10_dpp_funcs = {
 		.set_optional_cursor_attributes = dpp1_cnv_set_optional_cursor_attributes,
 		.dpp_dppclk_control = dpp1_dppclk_control,
 		.dpp_set_hdr_multiplier = dpp1_set_hdr_multiplier,
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+		.dpp_program_blnd_lut = NULL,
+		.dpp_program_shaper_lut = NULL,
+		.dpp_program_3dlut = NULL
+#endif
 };
 
 static struct dpp_caps dcn10_dpp_cap = {

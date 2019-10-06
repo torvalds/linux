@@ -31,6 +31,7 @@
 		i2c0 = &i2c1;
 		i2c1 = &i2c2;
 		i2c2 = &i2c3;
+		ipu0 = &ipu;
 		mmc0 = &esdhc1;
 		mmc1 = &esdhc2;
 		mmc2 = &esdhc3;
@@ -69,6 +70,11 @@
 	display-subsystem {
 		compatible = "fsl,imx-display-subsystem";
 		ports = <&ipu_di0>, <&ipu_di1>;
+	};
+
+	capture_subsystem {
+		compatible = "fsl,imx-capture-subsystem";
+		ports = <&ipu_csi0>, <&ipu_csi1>;
 	};
 
 	tzic: tz-interrupt-controller@fffc000 {
@@ -158,10 +164,16 @@
 
 			ipu_csi0: port@0 {
 				reg = <0>;
+
+				ipu_csi0_from_parallel_sensor: endpoint {
+				};
 			};
 
 			ipu_csi1: port@1 {
 				reg = <1>;
+
+				ipu_csi1_from_parallel_sensor: endpoint {
+				};
 			};
 
 			ipu_di0: port@2 {
@@ -702,7 +714,7 @@
 				reg = <0x63fb0000 0x4000>;
 				interrupts = <6>;
 				clocks = <&clks IMX5_CLK_SDMA_GATE>,
-					 <&clks IMX5_CLK_SDMA_GATE>;
+					 <&clks IMX5_CLK_AHB>;
 				clock-names = "ipg", "ahb";
 				#dma-cells = <3>;
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx53.bin";

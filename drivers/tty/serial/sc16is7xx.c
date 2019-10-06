@@ -14,9 +14,9 @@
 #include <linux/device.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
@@ -1179,7 +1179,8 @@ static int sc16is7xx_probe(struct device *dev,
 			   struct regmap *regmap, int irq, unsigned long flags)
 {
 	struct sched_param sched_param = { .sched_priority = MAX_RT_PRIO / 2 };
-	unsigned long freq, *pfreq = dev_get_platdata(dev);
+	unsigned long freq = 0, *pfreq = dev_get_platdata(dev);
+	u32 uartclk = 0;
 	int i, ret;
 	struct sc16is7xx_port *s;
 
@@ -1187,18 +1188,23 @@ static int sc16is7xx_probe(struct device *dev,
 		return PTR_ERR(regmap);
 
 	/* Alloc port structure */
-	s = devm_kzalloc(dev, sizeof(*s) +
-			 sizeof(struct sc16is7xx_one) * devtype->nr_uart,
-			 GFP_KERNEL);
+	s = devm_kzalloc(dev, struct_size(s, p, devtype->nr_uart), GFP_KERNEL);
 	if (!s) {
 		dev_err(dev, "Error allocating port structure\n");
 		return -ENOMEM;
 	}
 
+	/* Always ask for fixed clock rate from a property. */
+	device_property_read_u32(dev, "clock-frequency", &uartclk);
+
 	s->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(s->clk)) {
+		if (uartclk)
+			freq = uartclk;
 		if (pfreq)
 			freq = *pfreq;
+		if (freq)
+			dev_dbg(dev, "Clock frequency: %luHz\n", freq);
 		else
 			return PTR_ERR(s->clk);
 	} else {
@@ -1386,13 +1392,9 @@ static int sc16is7xx_spi_probe(struct spi_device *spi)
 		return ret;
 
 	if (spi->dev.of_node) {
-		const struct of_device_id *of_id =
-			of_match_device(sc16is7xx_dt_ids, &spi->dev);
-
-		if (!of_id)
+		devtype = device_get_match_data(&spi->dev);
+		if (!devtype)
 			return -ENODEV;
-
-		devtype = (struct sc16is7xx_devtype *)of_id->data;
 	} else {
 		const struct spi_device_id *id_entry = spi_get_device_id(spi);
 
@@ -1428,7 +1430,7 @@ MODULE_DEVICE_TABLE(spi, sc16is7xx_spi_id_table);
 static struct spi_driver sc16is7xx_spi_uart_driver = {
 	.driver = {
 		.name		= SC16IS7XX_NAME,
-		.of_match_table	= of_match_ptr(sc16is7xx_dt_ids),
+		.of_match_table	= sc16is7xx_dt_ids,
 	},
 	.probe		= sc16is7xx_spi_probe,
 	.remove		= sc16is7xx_spi_remove,
@@ -1447,13 +1449,9 @@ static int sc16is7xx_i2c_probe(struct i2c_client *i2c,
 	struct regmap *regmap;
 
 	if (i2c->dev.of_node) {
-		const struct of_device_id *of_id =
-				of_match_device(sc16is7xx_dt_ids, &i2c->dev);
-
-		if (!of_id)
+		devtype = device_get_match_data(&i2c->dev);
+		if (!devtype)
 			return -ENODEV;
-
-		devtype = (struct sc16is7xx_devtype *)of_id->data;
 	} else {
 		devtype = (struct sc16is7xx_devtype *)id->driver_data;
 		flags = IRQF_TRIGGER_FALLING;
@@ -1486,7 +1484,7 @@ MODULE_DEVICE_TABLE(i2c, sc16is7xx_i2c_id_table);
 static struct i2c_driver sc16is7xx_i2c_uart_driver = {
 	.driver = {
 		.name		= SC16IS7XX_NAME,
-		.of_match_table	= of_match_ptr(sc16is7xx_dt_ids),
+		.of_match_table	= sc16is7xx_dt_ids,
 	},
 	.probe		= sc16is7xx_i2c_probe,
 	.remove		= sc16is7xx_i2c_remove,
@@ -1509,7 +1507,7 @@ static int __init sc16is7xx_init(void)
 	ret = i2c_add_driver(&sc16is7xx_i2c_uart_driver);
 	if (ret < 0) {
 		pr_err("failed to init sc16is7xx i2c --> %d\n", ret);
-		return ret;
+		goto err_i2c;
 	}
 #endif
 
@@ -1517,9 +1515,19 @@ static int __init sc16is7xx_init(void)
 	ret = spi_register_driver(&sc16is7xx_spi_uart_driver);
 	if (ret < 0) {
 		pr_err("failed to init sc16is7xx spi --> %d\n", ret);
-		return ret;
+		goto err_spi;
 	}
 #endif
+	return ret;
+
+#ifdef CONFIG_SERIAL_SC16IS7XX_SPI
+err_spi:
+#endif
+#ifdef CONFIG_SERIAL_SC16IS7XX_I2C
+	i2c_del_driver(&sc16is7xx_i2c_uart_driver);
+err_i2c:
+#endif
+	uart_unregister_driver(&sc16is7xx_uart);
 	return ret;
 }
 module_init(sc16is7xx_init);

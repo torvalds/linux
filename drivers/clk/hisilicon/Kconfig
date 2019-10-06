@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config COMMON_CLK_HI3516CV300
 	tristate "HI3516CV300 Clock Driver"
 	depends on ARCH_HISI || COMPILE_TEST

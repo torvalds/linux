@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012-2013 Uwe Kleine-Koenig for Pengutronix
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
  */
 #include <linux/kernel.h>
 #include <linux/io.h>
@@ -403,10 +400,8 @@ static int efm32_spi_probe(struct platform_device *pdev)
 	}
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret <= 0) {
-		dev_err(&pdev->dev, "failed to get rx irq (%d)\n", ret);
+	if (ret <= 0)
 		goto err;
-	}
 
 	ddata->rxirq = ret;
 

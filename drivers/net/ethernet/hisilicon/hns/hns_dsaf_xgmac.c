@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2014-2015 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/io-64-nonatomic-hi-lo.h>
@@ -129,7 +125,7 @@ static void hns_xgmac_lf_rf_control_init(struct mac_driver *mac_drv)
 	dsaf_set_bit(val, XGMAC_UNIDIR_EN_B, 0);
 	dsaf_set_bit(val, XGMAC_RF_TX_EN_B, 1);
 	dsaf_set_field(val, XGMAC_LF_RF_INSERT_M, XGMAC_LF_RF_INSERT_S, 0);
-	dsaf_write_reg(mac_drv, XGMAC_MAC_TX_LF_RF_CONTROL_REG, val);
+	dsaf_write_dev(mac_drv, XGMAC_MAC_TX_LF_RF_CONTROL_REG, val);
 }
 
 /**

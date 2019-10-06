@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __GK104_FIFO_H__
 #define __GK104_FIFO_H__
 #define gk104_fifo(p) container_of((p), struct gk104_fifo, base)
@@ -45,6 +45,10 @@ struct gk104_fifo {
 };
 
 struct gk104_fifo_func {
+	struct {
+		void (*fault)(struct nvkm_fifo *, int unit);
+	} intr;
+
 	const struct gk104_fifo_pbdma_func {
 		int (*nr)(struct gk104_fifo *);
 		void (*init)(struct gk104_fifo *);
@@ -110,12 +114,14 @@ void gk110_fifo_runlist_cgrp(struct nvkm_fifo_cgrp *,
 extern const struct gk104_fifo_pbdma_func gk208_fifo_pbdma;
 void gk208_fifo_pbdma_init_timeout(struct gk104_fifo *);
 
+void gm107_fifo_intr_fault(struct nvkm_fifo *, int);
 extern const struct nvkm_enum gm107_fifo_fault_engine[];
 extern const struct gk104_fifo_runlist_func gm107_fifo_runlist;
 
 extern const struct gk104_fifo_pbdma_func gm200_fifo_pbdma;
 int gm200_fifo_pbdma_nr(struct gk104_fifo *);
 
+void gp100_fifo_intr_fault(struct nvkm_fifo *, int);
 extern const struct nvkm_enum gp100_fifo_fault_engine[];
 
 extern const struct nvkm_enum gv100_fifo_fault_access[];

@@ -1,36 +1,9 @@
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 /*
  * Copyright (c) 2003-2012 Broadcom Corporation
  * All Rights Reserved
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the Broadcom
- * license below:
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL BROADCOM OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include <linux/phy.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
@@ -114,8 +87,7 @@ static inline unsigned char *xlr_alloc_skb(void)
 	if (!skb)
 		return NULL;
 	skb_data = skb->data;
-	skb_put(skb, MAC_SKB_BACK_PTR_SIZE);
-	skb_pull(skb, MAC_SKB_BACK_PTR_SIZE);
+	skb_reserve(skb, MAC_SKB_BACK_PTR_SIZE);
 	memcpy(skb_data, &skb, buf_len);
 
 	return skb->data;
@@ -212,10 +184,8 @@ static int xlr_net_fill_rx_ring(struct net_device *ndev)
 
 	for (i = 0; i < MAX_FRIN_SPILL / 4; i++) {
 		skb_data = xlr_alloc_skb();
-		if (!skb_data) {
-			netdev_err(ndev, "SKB allocation failed\n");
+		if (!skb_data)
 			return -ENOMEM;
-		}
 		send_to_rfr_fifo(priv, skb_data);
 	}
 	netdev_info(ndev, "Rx ring setup done\n");
@@ -415,11 +385,9 @@ static void *xlr_config_spill(struct xlr_net_priv *priv, int reg_start_0,
 
 	base = priv->base_addr;
 	spill_size = size;
-	spill = kmalloc(spill_size + SMP_CACHE_BYTES, GFP_ATOMIC);
-	if (!spill) {
-		pr_err("Unable to allocate memory for spill area!\n");
+	spill = kmalloc(spill_size + SMP_CACHE_BYTES, GFP_KERNEL);
+	if (!spill)
 		return ZERO_SIZE_PTR;
-	}
 
 	spill = PTR_ALIGN(spill, SMP_CACHE_BYTES);
 	phys_addr = virt_to_phys(spill);

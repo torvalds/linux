@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-omap1/board-ams-delta.c
  *
@@ -6,13 +7,10 @@
  * Board specific inits for the Amstrad E3 (codename Delta) videophone
  *
  * Copyright (C) 2006 Jonathan McDowell <noodles@earth.li>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -182,6 +180,7 @@ static struct resource latch1_resources[] = {
 
 static struct bgpio_pdata latch1_pdata = {
 	.label	= LATCH1_LABEL,
+	.base	= -1,
 	.ngpio	= LATCH1_NGPIO,
 };
 
@@ -219,6 +218,7 @@ static struct resource latch2_resources[] = {
 
 static struct bgpio_pdata latch2_pdata = {
 	.label	= LATCH2_LABEL,
+	.base	= -1,
 	.ngpio	= LATCH2_NGPIO,
 };
 
@@ -246,8 +246,8 @@ static struct platform_device latch2_gpio_device = {
 #define LATCH2_PIN_SCARD_CMDVCC		11
 #define LATCH2_PIN_MODEM_NRESET		12
 #define LATCH2_PIN_MODEM_CODEC		13
-#define LATCH2_PIN_AUDIO_MUTE		14
-#define LATCH2_PIN_HOOKFLASH		15
+#define LATCH2_PIN_HANDSFREE_MUTE	14
+#define LATCH2_PIN_HANDSET_MUTE		15
 
 static struct regulator_consumer_supply modem_nreset_consumers[] = {
 	REGULATOR_SUPPLY("RESET#", "serial8250.1"),
@@ -267,7 +267,6 @@ static struct fixed_voltage_config modem_nreset_config = {
 	.supply_name		= "modem_nreset",
 	.microvolts		= 3300000,
 	.startup_delay		= 25000,
-	.enable_high		= 1,
 	.enabled_at_boot	= 1,
 	.init_data		= &modem_nreset_data,
 };
@@ -477,6 +476,10 @@ static struct gpiod_lookup_table ams_delta_audio_gpio_table = {
 			    "hook_switch", 0),
 		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_MODEM_CODEC,
 			    "modem_codec", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_HANDSFREE_MUTE,
+			    "handsfree_mute", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_HANDSET_MUTE,
+			    "handset_mute", 0),
 		{ },
 	},
 };
@@ -533,7 +536,6 @@ static struct regulator_init_data keybrd_pwr_initdata = {
 static struct fixed_voltage_config keybrd_pwr_config = {
 	.supply_name		= "keybrd_pwr",
 	.microvolts		= 5000000,
-	.enable_high		= 1,
 	.init_data		= &keybrd_pwr_initdata,
 };
 
@@ -592,8 +594,6 @@ static int gpiochip_match_by_label(struct gpio_chip *chip, void *data)
 static struct gpiod_hog ams_delta_gpio_hogs[] = {
 	GPIO_HOG(LATCH2_LABEL, LATCH2_PIN_KEYBRD_DATAOUT, "keybrd_dataout",
 		 GPIO_ACTIVE_HIGH, GPIOD_OUT_LOW),
-	GPIO_HOG(LATCH2_LABEL, LATCH2_PIN_AUDIO_MUTE, "audio_mute",
-		 GPIO_ACTIVE_HIGH, GPIOD_OUT_LOW),
 	{},
 };
 
@@ -609,12 +609,12 @@ static void __init modem_assign_irq(struct gpio_chip *chip)
 	struct gpio_desc *gpiod;
 
 	gpiod = gpiochip_request_own_desc(chip, AMS_DELTA_GPIO_PIN_MODEM_IRQ,
-					  "modem_irq", 0);
+					  "modem_irq", GPIO_ACTIVE_HIGH,
+					  GPIOD_IN);
 	if (IS_ERR(gpiod)) {
 		pr_err("%s: modem IRQ GPIO request failed (%ld)\n", __func__,
 		       PTR_ERR(gpiod));
 	} else {
-		gpiod_direction_input(gpiod);
 		ams_delta_modem_ports[0].irq = gpiod_to_irq(gpiod);
 	}
 }
@@ -749,7 +749,7 @@ static void __init ams_delta_init(void)
 				ARRAY_SIZE(ams_delta_gpio_tables));
 
 	leds_pdev = gpio_led_register_device(PLATFORM_DEVID_NONE, &leds_pdata);
-	if (!IS_ERR(leds_pdev)) {
+	if (!IS_ERR_OR_NULL(leds_pdev)) {
 		leds_gpio_table.dev_id = dev_name(&leds_pdev->dev);
 		gpiod_add_lookup_table(&leds_gpio_table);
 	}

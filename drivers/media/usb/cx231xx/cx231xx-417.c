@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  *  Support for a cx23417 mpeg encoder via cx231xx host port.
@@ -8,16 +9,6 @@
  *      - CX23885/7/8 support
  *
  *  Includes parts from the ivtv driver( http://ivtv.sourceforge.net/),
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx231xx.h"
@@ -1060,6 +1051,7 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 	p_current_fw = p_fw;
 	vfree(p_current_fw);
 	p_current_fw = NULL;
+	vfree(p_buffer);
 	uninitGPIO(dev);
 	release_firmware(firmware);
 	dprintk(1, "Firmware upload successful.\n");
@@ -1316,7 +1308,7 @@ static void buffer_copy(struct cx231xx *dev, char *data, int len, struct urb *ur
 
 		buf->vb.state = VIDEOBUF_DONE;
 		buf->vb.field_count++;
-		v4l2_get_timestamp(&buf->vb.ts);
+		buf->vb.ts = ktime_get_ns();
 		list_del(&buf->vb.queue);
 		wake_up(&buf->vb.done);
 		dma_q->mpeg_buffer_completed = 0;
@@ -1347,7 +1339,7 @@ static void buffer_filled(char *data, int len, struct urb *urb,
 	memcpy(vbuf, data, len);
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
-	v4l2_get_timestamp(&buf->vb.ts);
+	buf->vb.ts = ktime_get_ns();
 	list_del(&buf->vb.queue);
 	wake_up(&buf->vb.done);
 }
@@ -1601,7 +1593,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (f->index != 0)
 		return -EINVAL;
 
-	strscpy(f->description, "MPEG", sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_MPEG;
 
 	return 0;

@@ -4,6 +4,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include "ctree.h"
+#include "volumes.h"
 #include "extent_map.h"
 #include "compression.h"
 
@@ -210,6 +211,9 @@ static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 	if (!list_empty(&prev->list) || !list_empty(&next->list))
 		return 0;
 
+	ASSERT(next->block_start != EXTENT_MAP_DELALLOC &&
+	       prev->block_start != EXTENT_MAP_DELALLOC);
+
 	if (extent_map_end(prev) == next->start &&
 	    prev->flags == next->flags &&
 	    prev->bdev == next->bdev &&
@@ -217,8 +221,6 @@ static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 	      prev->block_start == EXTENT_MAP_HOLE) ||
 	     (next->block_start == EXTENT_MAP_INLINE &&
 	      prev->block_start == EXTENT_MAP_INLINE) ||
-	     (next->block_start == EXTENT_MAP_DELALLOC &&
-	      prev->block_start == EXTENT_MAP_DELALLOC) ||
 	     (next->block_start < EXTENT_MAP_LAST_BYTE - 1 &&
 	      next->block_start == extent_map_block_end(prev)))) {
 		return 1;
@@ -336,6 +338,37 @@ static inline void setup_extent_mapping(struct extent_map_tree *tree,
 		try_merge_map(tree, em);
 }
 
+static void extent_map_device_set_bits(struct extent_map *em, unsigned bits)
+{
+	struct map_lookup *map = em->map_lookup;
+	u64 stripe_size = em->orig_block_len;
+	int i;
+
+	for (i = 0; i < map->num_stripes; i++) {
+		struct btrfs_bio_stripe *stripe = &map->stripes[i];
+		struct btrfs_device *device = stripe->dev;
+
+		set_extent_bits_nowait(&device->alloc_state, stripe->physical,
+				 stripe->physical + stripe_size - 1, bits);
+	}
+}
+
+static void extent_map_device_clear_bits(struct extent_map *em, unsigned bits)
+{
+	struct map_lookup *map = em->map_lookup;
+	u64 stripe_size = em->orig_block_len;
+	int i;
+
+	for (i = 0; i < map->num_stripes; i++) {
+		struct btrfs_bio_stripe *stripe = &map->stripes[i];
+		struct btrfs_device *device = stripe->dev;
+
+		__clear_extent_bit(&device->alloc_state, stripe->physical,
+				   stripe->physical + stripe_size - 1, bits,
+				   0, 0, NULL, GFP_NOWAIT, NULL);
+	}
+}
+
 /**
  * add_extent_mapping - add new extent map to the extent tree
  * @tree:	tree to insert new map in
@@ -351,11 +384,17 @@ int add_extent_mapping(struct extent_map_tree *tree,
 {
 	int ret = 0;
 
+	lockdep_assert_held_write(&tree->lock);
+
 	ret = tree_insert(&tree->map, em);
 	if (ret)
 		goto out;
 
 	setup_extent_mapping(tree, em, modified);
+	if (test_bit(EXTENT_FLAG_FS_MAPPING, &em->flags)) {
+		extent_map_device_set_bits(em, CHUNK_ALLOCATED);
+		extent_map_device_clear_bits(em, CHUNK_TRIMMED);
+	}
 out:
 	return ret;
 }
@@ -437,6 +476,8 @@ void remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 	rb_erase_cached(&em->rb_node, &tree->map);
 	if (!test_bit(EXTENT_FLAG_LOGGING, &em->flags))
 		list_del_init(&em->list);
+	if (test_bit(EXTENT_FLAG_FS_MAPPING, &em->flags))
+		extent_map_device_clear_bits(em, CHUNK_ALLOCATED);
 	RB_CLEAR_NODE(&em->rb_node);
 }
 

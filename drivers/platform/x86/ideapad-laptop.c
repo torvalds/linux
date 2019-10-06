@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  ideapad-laptop.c - Lenovo IdeaPad ACPI Extras
  *
  *  Copyright © 2010 Intel Corporation
  *  Copyright © 2010 David Woodhouse <dwmw2@infradead.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- *  02110-1301, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -330,34 +316,15 @@ static int debugfs_cfg_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(debugfs_cfg);
 
-static int ideapad_debugfs_init(struct ideapad_private *priv)
+static void ideapad_debugfs_init(struct ideapad_private *priv)
 {
-	struct dentry *node;
+	struct dentry *dir;
 
-	priv->debug = debugfs_create_dir("ideapad", NULL);
-	if (priv->debug == NULL) {
-		pr_err("failed to create debugfs directory");
-		goto errout;
-	}
+	dir = debugfs_create_dir("ideapad", NULL);
+	priv->debug = dir;
 
-	node = debugfs_create_file("cfg", S_IRUGO, priv->debug, priv,
-				   &debugfs_cfg_fops);
-	if (!node) {
-		pr_err("failed to create cfg in debugfs");
-		goto errout;
-	}
-
-	node = debugfs_create_file("status", S_IRUGO, priv->debug, priv,
-				   &debugfs_status_fops);
-	if (!node) {
-		pr_err("failed to create status in debugfs");
-		goto errout;
-	}
-
-	return 0;
-
-errout:
-	return -ENOMEM;
+	debugfs_create_file("cfg", S_IRUGO, dir, priv, &debugfs_cfg_fops);
+	debugfs_create_file("status", S_IRUGO, dir, priv, &debugfs_status_fops);
 }
 
 static void ideapad_debugfs_exit(struct ideapad_private *priv)
@@ -980,277 +947,21 @@ static void ideapad_wmi_notify(u32 value, void *context)
 #endif
 
 /*
- * Some ideapads don't have a hardware rfkill switch, reading VPCCMD_R_RF
- * always results in 0 on these models, causing ideapad_laptop to wrongly
- * report all radios as hardware-blocked.
+ * Some ideapads have a hardware rfkill switch, but most do not have one.
+ * Reading VPCCMD_R_RF always results in 0 on models without a hardware rfkill,
+ * switch causing ideapad_laptop to wrongly report all radios as hw-blocked.
+ * There used to be a long list of DMI ids for models without a hw rfkill
+ * switch here, but that resulted in playing whack a mole.
+ * More importantly wrongly reporting the wifi radio as hw-blocked, results in
+ * non working wifi. Whereas not reporting it hw-blocked, when it actually is
+ * hw-blocked results in an empty SSID list, which is a much more benign
+ * failure mode.
+ * So the default now is the much safer option of assuming there is no
+ * hardware rfkill switch. This default also actually matches most hardware,
+ * since having a hw rfkill switch is quite rare on modern hardware, so this
+ * also leads to a much shorter list.
  */
-static const struct dmi_system_id no_hw_rfkill_list[] = {
-	{
-		.ident = "Lenovo RESCUER R720-15IKBN",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_BOARD_NAME, "80WW"),
-		},
-	},
-	{
-		.ident = "Lenovo G40-30",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo G40-30"),
-		},
-	},
-	{
-		.ident = "Lenovo G50-30",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo G50-30"),
-		},
-	},
-	{
-		.ident = "Lenovo V310-14IKB",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-14IKB"),
-		},
-	},
-	{
-		.ident = "Lenovo V310-14ISK",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-14ISK"),
-		},
-	},
-	{
-		.ident = "Lenovo V310-15IKB",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-15IKB"),
-		},
-	},
-	{
-		.ident = "Lenovo V310-15ISK",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-15ISK"),
-		},
-	},
-	{
-		.ident = "Lenovo V510-15IKB",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V510-15IKB"),
-		},
-	},
-	{
-		.ident = "Lenovo ideapad 300-15IBR",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 300-15IBR"),
-		},
-	},
-	{
-		.ident = "Lenovo ideapad 300-15IKB",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 300-15IKB"),
-		},
-	},
-	{
-		.ident = "Lenovo ideapad 300S-11IBR",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 300S-11BR"),
-		},
-	},
-	{
-		.ident = "Lenovo ideapad 310-15ABR",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15ABR"),
-		},
-	},
-	{
-		.ident = "Lenovo ideapad 310-15IAP",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15IAP"),
-		},
-	},
-	{
-		.ident = "Lenovo ideapad 310-15IKB",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15IKB"),
-		},
-	},
-	{
-		.ident = "Lenovo ideapad 310-15ISK",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15ISK"),
-		},
-	},
-	{
-		.ident = "Lenovo ideapad Y700-14ISK",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad Y700-14ISK"),
-		},
-	},
-	{
-		.ident = "Lenovo ideapad Y700-15ACZ",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad Y700-15ACZ"),
-		},
-	},
-	{
-		.ident = "Lenovo ideapad Y700-15ISK",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad Y700-15ISK"),
-		},
-	},
-	{
-		.ident = "Lenovo ideapad Y700 Touch-15ISK",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad Y700 Touch-15ISK"),
-		},
-	},
-	{
-		.ident = "Lenovo ideapad Y700-17ISK",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad Y700-17ISK"),
-		},
-	},
-	{
-		.ident = "Lenovo ideapad MIIX 720-12IKB",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "MIIX 720-12IKB"),
-		},
-	},
-	{
-		.ident = "Lenovo Legion Y520-15IKB",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Y520-15IKB"),
-		},
-	},
-	{
-		.ident = "Lenovo Y520-15IKBM",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Y520-15IKBM"),
-		},
-	},
-	{
-		.ident = "Lenovo Legion Y530-15ICH",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Legion Y530-15ICH"),
-		},
-	},
-	{
-		.ident = "Lenovo Legion Y720-15IKB",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Y720-15IKB"),
-		},
-	},
-	{
-		.ident = "Lenovo Legion Y720-15IKBN",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Y720-15IKBN"),
-		},
-	},
-	{
-		.ident = "Lenovo Y720-15IKBM",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Y720-15IKBM"),
-		},
-	},
-	{
-		.ident = "Lenovo Yoga 2 11 / 13 / Pro",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Yoga 2"),
-		},
-	},
-	{
-		.ident = "Lenovo Yoga 2 11 / 13 / Pro",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_BOARD_NAME, "Yoga2"),
-		},
-	},
-	{
-		.ident = "Lenovo Yoga 2 13",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Yoga 2 13"),
-		},
-	},
-	{
-		.ident = "Lenovo Yoga 3 1170 / 1470",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Yoga 3"),
-		},
-	},
-	{
-		.ident = "Lenovo Yoga 3 Pro 1370",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo YOGA 3"),
-		},
-	},
-	{
-		.ident = "Lenovo Yoga 700",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo YOGA 700"),
-		},
-	},
-	{
-		.ident = "Lenovo Yoga 900",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo YOGA 900"),
-		},
-	},
-	{
-		.ident = "Lenovo Yoga 900",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_BOARD_NAME, "VIUU4"),
-		},
-	},
-	{
-		.ident = "Lenovo YOGA 910-13IKB",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo YOGA 910-13IKB"),
-		},
-	},
-	{
-		.ident = "Lenovo YOGA 920-13IKB",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo YOGA 920-13IKB"),
-		},
-	},
-	{
-		.ident = "Lenovo Zhaoyang E42-80",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "ZHAOYANG E42-80"),
-		},
-	},
+static const struct dmi_system_id hw_rfkill_list[] = {
 	{}
 };
 
@@ -1276,15 +987,13 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	priv->cfg = cfg;
 	priv->adev = adev;
 	priv->platform_device = pdev;
-	priv->has_hw_rfkill_switch = !dmi_check_system(no_hw_rfkill_list);
+	priv->has_hw_rfkill_switch = dmi_check_system(hw_rfkill_list);
 
 	ret = ideapad_sysfs_init(priv);
 	if (ret)
 		return ret;
 
-	ret = ideapad_debugfs_init(priv);
-	if (ret)
-		goto debugfs_failed;
+	ideapad_debugfs_init(priv);
 
 	ret = ideapad_input_init(priv);
 	if (ret)
@@ -1341,7 +1050,6 @@ backlight_failed:
 	ideapad_input_exit(priv);
 input_failed:
 	ideapad_debugfs_exit(priv);
-debugfs_failed:
 	ideapad_sysfs_exit(priv);
 	return ret;
 }

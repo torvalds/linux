@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef __MT76X02_REGS_H
@@ -19,8 +8,8 @@
 
 #define MT_ASIC_VERSION			0x0000
 
-#define MT76XX_REV_E3		0x22
-#define MT76XX_REV_E4		0x33
+#define MT76XX_REV_E3			0x22
+#define MT76XX_REV_E4			0x33
 
 #define MT_CMB_CTRL			0x0020
 #define MT_CMB_CTRL_XTAL_RDY		BIT(22)
@@ -65,6 +54,9 @@
 #define MT_WLAN_FUN_CTRL_GPIO_IN	GENMASK(15, 8) /* MT76x0 */
 #define MT_WLAN_FUN_CTRL_GPIO_OUT	GENMASK(23, 16) /* MT76x0 */
 #define MT_WLAN_FUN_CTRL_GPIO_OUT_EN	GENMASK(31, 24) /* MT76x0 */
+
+/* MT76x0 */
+#define MT_CSR_EE_CFG1			0x0104
 
 #define MT_XO_CTRL0			0x0100
 #define MT_XO_CTRL1			0x0104
@@ -117,7 +109,7 @@
 #define MT_INT_RX_DONE(_n)		BIT(_n)
 #define MT_INT_RX_DONE_ALL		GENMASK(1, 0)
 #define MT_INT_TX_DONE_ALL		GENMASK(13, 4)
-#define MT_INT_TX_DONE(_n)		BIT(_n + 4)
+#define MT_INT_TX_DONE(_n)		BIT((_n) + 4)
 #define MT_INT_RX_COHERENT		BIT(16)
 #define MT_INT_TX_COHERENT		BIT(17)
 #define MT_INT_ANY_COHERENT		BIT(18)
@@ -146,21 +138,21 @@
 
 #define MT_WPDMA_DELAY_INT_CFG		0x0210
 
-#define MT_WMM_AIFSN		0x0214
+#define MT_WMM_AIFSN			0x0214
 #define MT_WMM_AIFSN_MASK		GENMASK(3, 0)
 #define MT_WMM_AIFSN_SHIFT(_n)		((_n) * 4)
 
-#define MT_WMM_CWMIN		0x0218
+#define MT_WMM_CWMIN			0x0218
 #define MT_WMM_CWMIN_MASK		GENMASK(3, 0)
 #define MT_WMM_CWMIN_SHIFT(_n)		((_n) * 4)
 
-#define MT_WMM_CWMAX		0x021c
+#define MT_WMM_CWMAX			0x021c
 #define MT_WMM_CWMAX_MASK		GENMASK(3, 0)
 #define MT_WMM_CWMAX_SHIFT(_n)		((_n) * 4)
 
 #define MT_WMM_TXOP_BASE		0x0220
 #define MT_WMM_TXOP(_n)			(MT_WMM_TXOP_BASE + (((_n) / 2) << 2))
-#define MT_WMM_TXOP_SHIFT(_n)		((_n & 1) * 16)
+#define MT_WMM_TXOP_SHIFT(_n)		(((_n) & 1) * 16)
 #define MT_WMM_TXOP_MASK		GENMASK(15, 0)
 
 #define MT_WMM_CTRL			0x0230 /* MT76x0 */
@@ -229,6 +221,29 @@
 #define MT_COM_REG1			0x0734
 #define MT_COM_REG2			0x0738
 #define MT_COM_REG3			0x073C
+
+#define MT_LED_CTRL			0x0770
+#define MT_LED_CTRL_REPLAY(_n)		BIT(0 + (8 * (_n)))
+#define MT_LED_CTRL_POLARITY(_n)	BIT(1 + (8 * (_n)))
+#define MT_LED_CTRL_TX_BLINK_MODE(_n)	BIT(2 + (8 * (_n)))
+#define MT_LED_CTRL_KICK(_n)		BIT(7 + (8 * (_n)))
+
+#define MT_LED_TX_BLINK_0		0x0774
+#define MT_LED_TX_BLINK_1		0x0778
+
+#define MT_LED_S0_BASE			0x077C
+#define MT_LED_S0(_n)			(MT_LED_S0_BASE + 8 * (_n))
+#define MT_LED_S1_BASE			0x0780
+#define MT_LED_S1(_n)			(MT_LED_S1_BASE + 8 * (_n))
+#define MT_LED_STATUS_OFF_MASK		GENMASK(31, 24)
+#define MT_LED_STATUS_OFF(_v)		(((_v) << __ffs(MT_LED_STATUS_OFF_MASK)) & \
+					 MT_LED_STATUS_OFF_MASK)
+#define MT_LED_STATUS_ON_MASK		GENMASK(23, 16)
+#define MT_LED_STATUS_ON(_v)		(((_v) << __ffs(MT_LED_STATUS_ON_MASK)) & \
+					 MT_LED_STATUS_ON_MASK)
+#define MT_LED_STATUS_DURATION_MASK	GENMASK(15, 8)
+#define MT_LED_STATUS_DURATION(_v)	(((_v) << __ffs(MT_LED_STATUS_DURATION_MASK)) & \
+					 MT_LED_STATUS_DURATION_MASK)
 
 #define MT_FCE_PSE_CTRL			0x0800
 #define MT_FCE_PARAMETERS		0x0804
@@ -318,6 +333,7 @@
 #define MT_CH_TIME_CFG_NAV_AS_BUSY	BIT(3)
 #define MT_CH_TIME_CFG_EIFS_AS_BUSY	BIT(4)
 #define MT_CH_TIME_CFG_MDRDY_CNT_EN	BIT(5)
+#define MT_CH_CCA_RC_EN			BIT(6)
 #define MT_CH_TIME_CFG_CH_TIMER_CLR	GENMASK(9, 8)
 #define MT_CH_TIME_CFG_MDRDY_CLR	GENMASK(11, 10)
 
@@ -332,7 +348,10 @@
 #define MT_BEACON_TIME_CFG_TSF_COMP	GENMASK(31, 24)
 
 #define MT_TBTT_SYNC_CFG		0x1118
-#define MT_TBTT_TIMER_CFG		0x1124
+#define MT_TSF_TIMER_DW0		0x111c
+#define MT_TSF_TIMER_DW1		0x1120
+#define MT_TBTT_TIMER			0x1124
+#define MT_TBTT_TIMER_VAL		GENMASK(16, 0)
 
 #define MT_INT_TIMER_CFG		0x1128
 #define MT_INT_TIMER_CFG_PRE_TBTT	GENMASK(15, 0)
@@ -378,6 +397,9 @@
 #define MT_TX_PWR_CFG_4			0x1324
 #define MT_TX_PIN_CFG			0x1328
 #define MT_TX_PIN_CFG_TXANT		GENMASK(3, 0)
+#define MT_TX_PIN_CFG_RXANT		GENMASK(11, 8)
+#define MT_TX_PIN_RFTR_EN		BIT(16)
+#define MT_TX_PIN_TRSW_EN		BIT(18)
 
 #define MT_TX_BAND_CFG			0x132c
 #define MT_TX_BAND_CFG_UPPER_40M	BIT(0)
@@ -398,6 +420,7 @@
 #define MT_TXOP_CTRL_CFG		0x1340
 #define MT_TXOP_TRUN_EN			GENMASK(5, 0)
 #define MT_TXOP_EXT_CCA_DLY		GENMASK(15, 8)
+#define MT_TXOP_ED_CCA_EN		BIT(20)
 
 #define MT_TX_RTS_CFG			0x1344
 #define MT_TX_RTS_CFG_RETRY_LIMIT	GENMASK(7, 0)
@@ -409,6 +432,7 @@
 
 #define MT_TX_RETRY_CFG			0x134c
 #define MT_TX_LINK_CFG			0x1350
+#define MT_TX_CFACK_EN			BIT(12)
 #define MT_VHT_HT_FBK_CFG0		0x1354
 #define MT_VHT_HT_FBK_CFG1		0x1358
 #define MT_LG_FBK_CFG0			0x135c
@@ -440,9 +464,10 @@
 #define MT_PROT_TXOP_ALLOW_GF40		BIT(25)
 #define MT_PROT_RTS_THR_EN		BIT(26)
 #define MT_PROT_RATE_CCK_11		0x0003
-#define MT_PROT_RATE_OFDM_6		0x4000
-#define MT_PROT_RATE_OFDM_24		0x4004
-#define MT_PROT_RATE_DUP_OFDM_24	0x4084
+#define MT_PROT_RATE_OFDM_6		0x2000
+#define MT_PROT_RATE_OFDM_24		0x2004
+#define MT_PROT_RATE_DUP_OFDM_24	0x2084
+#define MT_PROT_RATE_SGI_OFDM_24	0x2104
 #define MT_PROT_TXOP_ALLOW_ALL		GENMASK(25, 20)
 #define MT_PROT_TXOP_ALLOW_BW20		(MT_PROT_TXOP_ALLOW_ALL &	\
 					 ~MT_PROT_TXOP_ALLOW_MM40 &	\
@@ -511,6 +536,7 @@
 #define MT_RX_FILTR_CFG_CTRL_RSV	BIT(16)
 
 #define MT_AUTO_RSP_CFG			0x1404
+#define MT_AUTO_RSP_EN			BIT(0)
 #define MT_AUTO_RSP_PREAMB_SHORT	BIT(4)
 #define MT_LEGACY_BASIC_RATE		0x1408
 #define MT_HT_BASIC_RATE		0x140c
@@ -532,6 +558,7 @@
 #define MT_PN_PAD_MODE			0x150c
 
 #define MT_TXOP_HLDR_ET			0x1608
+#define MT_TXOP_HLDR_TX40M_BLK_EN	BIT(1)
 
 #define MT_PROT_AUTO_TX_CFG		0x1648
 #define MT_PROT_AUTO_TX_CFG_PROT_PADJ	GENMASK(11, 8)
@@ -569,7 +596,7 @@
 
 #define MT_TX_AGG_CNT(_id)		((_id) < 8 ?			\
 					 MT_TX_AGG_CNT_BASE0 + ((_id) << 2) : \
-					 MT_TX_AGG_CNT_BASE1 + ((_id - 8) << 2))
+					 MT_TX_AGG_CNT_BASE1 + (((_id) - 8) << 2))
 
 #define MT_TX_STAT_FIFO_EXT		0x1798
 #define MT_TX_STAT_FIFO_EXT_RETRY	GENMASK(7, 0)
@@ -642,17 +669,17 @@
 
 #define MT_SKEY_BASE_0			0xac00
 #define MT_SKEY_BASE_1			0xb400
-#define MT_SKEY_0(_bss, _idx)		(MT_SKEY_BASE_0 + (4 * (_bss) + _idx) * 32)
-#define MT_SKEY_1(_bss, _idx)		(MT_SKEY_BASE_1 + (4 * ((_bss) & 7) + _idx) * 32)
-#define MT_SKEY(_bss, _idx)		((_bss & 8) ? MT_SKEY_1(_bss, _idx) : MT_SKEY_0(_bss, _idx))
+#define MT_SKEY_0(_bss, _idx)		(MT_SKEY_BASE_0 + (4 * (_bss) + (_idx)) * 32)
+#define MT_SKEY_1(_bss, _idx)		(MT_SKEY_BASE_1 + (4 * ((_bss) & 7) + (_idx)) * 32)
+#define MT_SKEY(_bss, _idx)		(((_bss) & 8) ? MT_SKEY_1(_bss, _idx) : MT_SKEY_0(_bss, _idx))
 
 #define MT_SKEY_MODE_BASE_0		0xb000
 #define MT_SKEY_MODE_BASE_1		0xb3f0
-#define MT_SKEY_MODE_0(_bss)		(MT_SKEY_MODE_BASE_0 + ((_bss / 2) << 2))
+#define MT_SKEY_MODE_0(_bss)		(MT_SKEY_MODE_BASE_0 + (((_bss) / 2) << 2))
 #define MT_SKEY_MODE_1(_bss)		(MT_SKEY_MODE_BASE_1 + ((((_bss) & 7) / 2) << 2))
-#define MT_SKEY_MODE(_bss)		((_bss & 8) ? MT_SKEY_MODE_1(_bss) : MT_SKEY_MODE_0(_bss))
+#define MT_SKEY_MODE(_bss)		(((_bss) & 8) ? MT_SKEY_MODE_1(_bss) : MT_SKEY_MODE_0(_bss))
 #define MT_SKEY_MODE_MASK		GENMASK(3, 0)
-#define MT_SKEY_MODE_SHIFT(_bss, _idx)	(4 * ((_idx) + 4 * (_bss & 1)))
+#define MT_SKEY_MODE_SHIFT(_bss, _idx)	(4 * ((_idx) + 4 * ((_bss) & 1)))
 
 #define MT_BEACON_BASE			0xc000
 

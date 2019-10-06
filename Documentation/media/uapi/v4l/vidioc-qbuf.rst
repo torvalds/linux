@@ -111,7 +111,7 @@ in use. Setting it means that the buffer will not be passed to the driver
 until the request itself is queued. Also, the driver will apply any
 settings associated with the request for this buffer. This field will
 be ignored unless the ``V4L2_BUF_FLAG_REQUEST_FD`` flag is set.
-If the device does not support requests, then ``EACCES`` will be returned.
+If the device does not support requests, then ``EBADR`` will be returned.
 If requests are supported but an invalid request file descriptor is given,
 then ``EINVAL`` will be returned.
 
@@ -123,9 +123,9 @@ then ``EINVAL`` will be returned.
    :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` or calling :ref:`VIDIOC_REQBUFS`
    the check for this will be reset.
 
-   For :ref:`memory-to-memory devices <codec>` you can specify the
+   For :ref:`memory-to-memory devices <mem2mem>` you can specify the
    ``request_fd`` only for output buffers, not for capture buffers. Attempting
-   to specify this for a capture buffer will result in an ``EACCES`` error.
+   to specify this for a capture buffer will result in an ``EBADR`` error.
 
 Applications call the ``VIDIOC_DQBUF`` ioctl to dequeue a filled
 (capturing) or displayed (output) buffer from the driver's outgoing
@@ -138,6 +138,14 @@ non-critical (recoverable) streaming error. In such case the application
 may continue as normal, but should be aware that data in the dequeued
 buffer might be corrupted. When using the multi-planar API, the planes
 array must be passed in as well.
+
+If the application sets the ``memory`` field to ``V4L2_MEMORY_DMABUF`` to
+dequeue a :ref:`DMABUF <dmabuf>` buffer, the driver fills the ``m.fd`` field
+with a file descriptor numerically the same as the one given to ``VIDIOC_QBUF``
+when the buffer was enqueued. No new file descriptor is created at dequeue time
+and the value is only for the application convenience. When the multi-planar
+API is used the ``m.fd`` fields of the passed array of struct
+:c:type:`v4l2_plane` are filled instead.
 
 By default ``VIDIOC_DQBUF`` blocks when no buffer is in the outgoing
 queue. When the ``O_NONBLOCK`` flag was given to the
@@ -185,9 +193,11 @@ EPIPE
     codecs if a buffer with the ``V4L2_BUF_FLAG_LAST`` was already
     dequeued and no new buffers are expected to become available.
 
-EACCES
+EBADR
     The ``V4L2_BUF_FLAG_REQUEST_FD`` flag was set but the device does not
-    support requests for the given buffer type.
+    support requests for the given buffer type, or
+    the ``V4L2_BUF_FLAG_REQUEST_FD`` flag was not set but the device requires
+    that the buffer is part of a request.
 
 EBUSY
     The first buffer was queued via a request, but the application now tries

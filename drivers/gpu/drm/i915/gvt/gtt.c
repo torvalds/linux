@@ -53,13 +53,19 @@ static int preallocated_oos_pages = 8192;
  */
 bool intel_gvt_ggtt_validate_range(struct intel_vgpu *vgpu, u64 addr, u32 size)
 {
-	if ((!vgpu_gmadr_is_valid(vgpu, addr)) || (size
-			&& !vgpu_gmadr_is_valid(vgpu, addr + size - 1))) {
-		gvt_vgpu_err("invalid range gmadr 0x%llx size 0x%x\n",
-				addr, size);
-		return false;
-	}
-	return true;
+	if (size == 0)
+		return vgpu_gmadr_is_valid(vgpu, addr);
+
+	if (vgpu_gmadr_is_aperture(vgpu, addr) &&
+	    vgpu_gmadr_is_aperture(vgpu, addr + size - 1))
+		return true;
+	else if (vgpu_gmadr_is_hidden(vgpu, addr) &&
+		 vgpu_gmadr_is_hidden(vgpu, addr + size - 1))
+		return true;
+
+	gvt_dbg_mm("Invalid ggtt range at 0x%llx, size: 0x%x\n",
+		     addr, size);
+	return false;
 }
 
 /* translate a guest gmadr to host gmadr */
@@ -750,14 +756,20 @@ static void ppgtt_free_spt(struct intel_vgpu_ppgtt_spt *spt)
 
 static void ppgtt_free_all_spt(struct intel_vgpu *vgpu)
 {
-	struct intel_vgpu_ppgtt_spt *spt;
+	struct intel_vgpu_ppgtt_spt *spt, *spn;
 	struct radix_tree_iter iter;
-	void **slot;
+	LIST_HEAD(all_spt);
+	void __rcu **slot;
 
+	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &vgpu->gtt.spt_tree, &iter, 0) {
 		spt = radix_tree_deref_slot(slot);
-		ppgtt_free_spt(spt);
+		list_move(&spt->post_shadow_list, &all_spt);
 	}
+	rcu_read_unlock();
+
+	list_for_each_entry_safe(spt, spn, &all_spt, post_shadow_list)
+		ppgtt_free_spt(spt);
 }
 
 static int ppgtt_handle_guest_write_page_table_bytes(
@@ -805,7 +817,7 @@ static int reclaim_one_ppgtt_mm(struct intel_gvt *gvt);
 
 /* Allocate shadow page table without guest page. */
 static struct intel_vgpu_ppgtt_spt *ppgtt_alloc_spt(
-		struct intel_vgpu *vgpu, intel_gvt_gtt_type_t type)
+		struct intel_vgpu *vgpu, enum intel_gvt_gtt_type type)
 {
 	struct device *kdev = &vgpu->gvt->dev_priv->drm.pdev->dev;
 	struct intel_vgpu_ppgtt_spt *spt = NULL;
@@ -855,7 +867,7 @@ err_free_spt:
 
 /* Allocate shadow page table associated with specific gfn. */
 static struct intel_vgpu_ppgtt_spt *ppgtt_alloc_spt_gfn(
-		struct intel_vgpu *vgpu, intel_gvt_gtt_type_t type,
+		struct intel_vgpu *vgpu, enum intel_gvt_gtt_type type,
 		unsigned long gfn, bool guest_pde_ips)
 {
 	struct intel_vgpu_ppgtt_spt *spt;
@@ -930,13 +942,22 @@ static int ppgtt_invalidate_spt_by_shadow_entry(struct intel_vgpu *vgpu,
 {
 	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
 	struct intel_vgpu_ppgtt_spt *s;
-	intel_gvt_gtt_type_t cur_pt_type;
+	enum intel_gvt_gtt_type cur_pt_type;
 
 	GEM_BUG_ON(!gtt_type_is_pt(get_next_pt_type(e->type)));
 
 	if (e->type != GTT_TYPE_PPGTT_ROOT_L3_ENTRY
 		&& e->type != GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
-		cur_pt_type = get_next_pt_type(e->type) + 1;
+		cur_pt_type = get_next_pt_type(e->type);
+
+		if (!gtt_type_is_pt(cur_pt_type) ||
+				!gtt_type_is_pt(cur_pt_type + 1)) {
+			WARN(1, "Invalid page table type, cur_pt_type is: %d\n", cur_pt_type);
+			return -EINVAL;
+		}
+
+		cur_pt_type += 1;
+
 		if (ops->get_pfn(e) ==
 			vgpu->gtt.scratch_pt[cur_pt_type].page_mfn)
 			return 0;
@@ -1070,6 +1091,11 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 	} else {
 		int type = get_next_pt_type(we->type);
 
+		if (!gtt_type_is_pt(type)) {
+			ret = -EINVAL;
+			goto err;
+		}
+
 		spt = ppgtt_alloc_spt_gfn(vgpu, type, ops->get_pfn(we), ips);
 		if (IS_ERR(spt)) {
 			ret = PTR_ERR(spt);
@@ -1091,6 +1117,7 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 
 err_free_spt:
 	ppgtt_free_spt(spt);
+	spt = NULL;
 err:
 	gvt_vgpu_err("fail: shadow page %p guest entry 0x%llx type %d\n",
 		     spt, we->val64, we->type);
@@ -1849,7 +1876,7 @@ static void vgpu_free_mm(struct intel_vgpu_mm *mm)
  * Zero on success, negative error code in pointer if failed.
  */
 struct intel_vgpu_mm *intel_vgpu_create_ppgtt_mm(struct intel_vgpu *vgpu,
-		intel_gvt_gtt_type_t root_entry_type, u64 pdps[])
+		enum intel_gvt_gtt_type root_entry_type, u64 pdps[])
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct intel_vgpu_mm *mm;
@@ -1882,7 +1909,11 @@ struct intel_vgpu_mm *intel_vgpu_create_ppgtt_mm(struct intel_vgpu *vgpu,
 	}
 
 	list_add_tail(&mm->ppgtt_mm.list, &vgpu->gtt.ppgtt_mm_list_head);
+
+	mutex_lock(&gvt->gtt.ppgtt_mm_lock);
 	list_add_tail(&mm->ppgtt_mm.lru_list, &gvt->gtt.ppgtt_mm_lru_list_head);
+	mutex_unlock(&gvt->gtt.ppgtt_mm_lock);
+
 	return mm;
 }
 
@@ -1942,7 +1973,7 @@ void _intel_vgpu_mm_release(struct kref *mm_ref)
  */
 void intel_vgpu_unpin_mm(struct intel_vgpu_mm *mm)
 {
-	atomic_dec(&mm->pincount);
+	atomic_dec_if_positive(&mm->pincount);
 }
 
 /**
@@ -1967,9 +1998,10 @@ int intel_vgpu_pin_mm(struct intel_vgpu_mm *mm)
 		if (ret)
 			return ret;
 
+		mutex_lock(&mm->vgpu->gvt->gtt.ppgtt_mm_lock);
 		list_move_tail(&mm->ppgtt_mm.lru_list,
 			       &mm->vgpu->gvt->gtt.ppgtt_mm_lru_list_head);
-
+		mutex_unlock(&mm->vgpu->gvt->gtt.ppgtt_mm_lock);
 	}
 
 	return 0;
@@ -1980,6 +2012,8 @@ static int reclaim_one_ppgtt_mm(struct intel_gvt *gvt)
 	struct intel_vgpu_mm *mm;
 	struct list_head *pos, *n;
 
+	mutex_lock(&gvt->gtt.ppgtt_mm_lock);
+
 	list_for_each_safe(pos, n, &gvt->gtt.ppgtt_mm_lru_list_head) {
 		mm = container_of(pos, struct intel_vgpu_mm, ppgtt_mm.lru_list);
 
@@ -1987,9 +2021,11 @@ static int reclaim_one_ppgtt_mm(struct intel_gvt *gvt)
 			continue;
 
 		list_del_init(&mm->ppgtt_mm.lru_list);
+		mutex_unlock(&gvt->gtt.ppgtt_mm_lock);
 		invalidate_ppgtt_mm(mm);
 		return 1;
 	}
+	mutex_unlock(&gvt->gtt.ppgtt_mm_lock);
 	return 0;
 }
 
@@ -2105,10 +2141,19 @@ static int emulate_ggtt_mmio_read(struct intel_vgpu *vgpu,
 	struct intel_vgpu_mm *ggtt_mm = vgpu->gtt.ggtt_mm;
 	const struct intel_gvt_device_info *info = &vgpu->gvt->device_info;
 	unsigned long index = off >> info->gtt_entry_size_shift;
+	unsigned long gma;
 	struct intel_gvt_gtt_entry e;
 
 	if (bytes != 4 && bytes != 8)
 		return -EINVAL;
+
+	gma = index << I915_GTT_PAGE_SHIFT;
+	if (!intel_gvt_ggtt_validate_range(vgpu,
+					   gma, 1 << I915_GTT_PAGE_SHIFT)) {
+		gvt_dbg_mm("read invalid ggtt at 0x%lx\n", gma);
+		memset(p_data, 0, bytes);
+		return 0;
+	}
 
 	ggtt_get_guest_entry(ggtt_mm, &e, index);
 	memcpy(p_data, (void *)&e.val64 + (off & (info->gtt_entry_size - 1)),
@@ -2163,7 +2208,8 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	struct intel_gvt_gtt_pte_ops *ops = gvt->gtt.pte_ops;
 	unsigned long g_gtt_index = off >> info->gtt_entry_size_shift;
 	unsigned long gma, gfn;
-	struct intel_gvt_gtt_entry e, m;
+	struct intel_gvt_gtt_entry e = {.val64 = 0, .type = GTT_TYPE_GGTT_PTE};
+	struct intel_gvt_gtt_entry m = {.val64 = 0, .type = GTT_TYPE_GGTT_PTE};
 	dma_addr_t dma_addr;
 	int ret;
 	struct intel_gvt_partial_pte *partial_pte, *pos, *n;
@@ -2230,7 +2276,8 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 
 	if (!partial_update && (ops->test_present(&e))) {
 		gfn = ops->get_pfn(&e);
-		m = e;
+		m.val64 = e.val64;
+		m.type = e.type;
 
 		/* one PTE update may be issued in multiple writes and the
 		 * first write may not construct a valid gfn
@@ -2294,7 +2341,7 @@ int intel_vgpu_emulate_ggtt_mmio_write(struct intel_vgpu *vgpu,
 }
 
 static int alloc_scratch_pages(struct intel_vgpu *vgpu,
-		intel_gvt_gtt_type_t type)
+		enum intel_gvt_gtt_type type)
 {
 	struct intel_vgpu_gtt *gtt = &vgpu->gtt;
 	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
@@ -2489,6 +2536,7 @@ static void clean_spt_oos(struct intel_gvt *gvt)
 	list_for_each_safe(pos, n, &gtt->oos_page_free_list_head) {
 		oos_page = container_of(pos, struct intel_vgpu_oos_page, list);
 		list_del(&oos_page->list);
+		free_page((unsigned long)oos_page->mem);
 		kfree(oos_page);
 	}
 }
@@ -2507,6 +2555,12 @@ static int setup_spt_oos(struct intel_gvt *gvt)
 		oos_page = kzalloc(sizeof(*oos_page), GFP_KERNEL);
 		if (!oos_page) {
 			ret = -ENOMEM;
+			goto fail;
+		}
+		oos_page->mem = (void *)__get_free_pages(GFP_KERNEL, 0);
+		if (!oos_page->mem) {
+			ret = -ENOMEM;
+			kfree(oos_page);
 			goto fail;
 		}
 
@@ -2572,7 +2626,7 @@ struct intel_vgpu_mm *intel_vgpu_find_ppgtt_mm(struct intel_vgpu *vgpu,
  * Zero on success, negative error code if failed.
  */
 struct intel_vgpu_mm *intel_vgpu_get_ppgtt_mm(struct intel_vgpu *vgpu,
-		intel_gvt_gtt_type_t root_entry_type, u64 pdps[])
+		enum intel_gvt_gtt_type root_entry_type, u64 pdps[])
 {
 	struct intel_vgpu_mm *mm;
 
@@ -2659,6 +2713,7 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 		}
 	}
 	INIT_LIST_HEAD(&gvt->gtt.ppgtt_mm_lru_list_head);
+	mutex_init(&gvt->gtt.ppgtt_mm_lock);
 	return 0;
 }
 
@@ -2699,7 +2754,9 @@ void intel_vgpu_invalidate_ppgtt(struct intel_vgpu *vgpu)
 	list_for_each_safe(pos, n, &vgpu->gtt.ppgtt_mm_list_head) {
 		mm = container_of(pos, struct intel_vgpu_mm, ppgtt_mm.list);
 		if (mm->type == INTEL_GVT_MM_PPGTT) {
+			mutex_lock(&vgpu->gvt->gtt.ppgtt_mm_lock);
 			list_del_init(&mm->ppgtt_mm.lru_list);
+			mutex_unlock(&vgpu->gvt->gtt.ppgtt_mm_lock);
 			if (mm->ppgtt_mm.shadowed)
 				invalidate_ppgtt_mm(mm);
 		}

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/mm/cache-v7m.S
  *
@@ -5,10 +6,6 @@
  *
  *  Copyright (C) 2001 Deep Blue Solutions Ltd.
  *  Copyright (C) 2005 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  This is the "shell" of the ARMv7M processor support.
  */

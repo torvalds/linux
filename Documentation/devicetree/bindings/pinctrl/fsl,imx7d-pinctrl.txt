@@ -48,9 +48,9 @@ PAD_CTL_HYS                     (1 << 3)
 PAD_CTL_SRE_SLOW                (1 << 2)
 PAD_CTL_SRE_FAST                (0 << 2)
 PAD_CTL_DSE_X1                  (0 << 0)
-PAD_CTL_DSE_X2                  (1 << 0)
-PAD_CTL_DSE_X3                  (2 << 0)
-PAD_CTL_DSE_X4                  (3 << 0)
+PAD_CTL_DSE_X4                  (1 << 0)
+PAD_CTL_DSE_X2                  (2 << 0)
+PAD_CTL_DSE_X6                  (3 << 0)
 
 Examples:
 While iomuxc-lpsr is intended to be used by dedicated peripherals to take

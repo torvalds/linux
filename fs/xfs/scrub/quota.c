@@ -9,24 +9,13 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_btree.h"
-#include "xfs_bit.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
-#include "xfs_sb.h"
 #include "xfs_inode.h"
-#include "xfs_inode_fork.h"
-#include "xfs_alloc.h"
-#include "xfs_bmap.h"
 #include "xfs_quota.h"
 #include "xfs_qm.h"
-#include "xfs_dquot.h"
-#include "xfs_dquot_item.h"
-#include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
-#include "scrub/trace.h"
 
 /* Convert a scrub type code to a DQ flag, or return 0 if error. */
 static inline uint
@@ -60,7 +49,7 @@ xchk_setup_quota(
 	dqtype = xchk_quota_to_dqtype(sc);
 	if (dqtype == 0)
 		return -EINVAL;
-	sc->has_quotaofflock = true;
+	sc->flags |= XCHK_HAS_QUOTAOFFLOCK;
 	mutex_lock(&sc->mp->m_quotainfo->qi_quotaofflock);
 	if (!xfs_this_quota_on(sc->mp, dqtype))
 		return -ENOENT;
@@ -144,7 +133,7 @@ xchk_quota_item(
 	if (bsoft > bhard)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
-	if (ihard > mp->m_maxicount)
+	if (ihard > M_IGEO(mp)->maxicount)
 		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 	if (isoft > ihard)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);

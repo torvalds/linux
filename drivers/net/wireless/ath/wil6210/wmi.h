@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2006-2012 Wilocity
  *
@@ -35,6 +35,7 @@
 #define WMI_PROX_RANGE_NUM		(3)
 #define WMI_MAX_LOSS_DMG_BEACONS	(20)
 #define MAX_NUM_OF_SECTORS		(128)
+#define WMI_INVALID_TEMPERATURE		(0xFFFFFFFF)
 #define WMI_SCHED_MAX_ALLOCS_PER_CMD	(4)
 #define WMI_RF_DTYPE_LENGTH		(3)
 #define WMI_RF_ETYPE_LENGTH		(3)
@@ -64,6 +65,7 @@
 #define WMI_QOS_MAX_WEIGHT		50
 #define WMI_QOS_SET_VIF_PRIORITY	(0xFF)
 #define WMI_QOS_DEFAULT_PRIORITY	(WMI_QOS_NUM_OF_PRIORITY)
+#define WMI_MAX_XIF_PORTS_NUM		(8)
 
 /* Mailbox interface
  * used for commands and events
@@ -95,6 +97,7 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_SET_SILENT_RSSI_TABLE		= 13,
 	WMI_FW_CAPABILITY_LO_POWER_CALIB_FROM_OTP	= 14,
 	WMI_FW_CAPABILITY_PNO				= 15,
+	WMI_FW_CAPABILITY_CHANNEL_BONDING		= 17,
 	WMI_FW_CAPABILITY_REF_CLOCK_CONTROL		= 18,
 	WMI_FW_CAPABILITY_AP_SME_OFFLOAD_NONE		= 19,
 	WMI_FW_CAPABILITY_MULTI_VIFS			= 20,
@@ -104,6 +107,9 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_RAW_MODE			= 24,
 	WMI_FW_CAPABILITY_TX_REQ_EXT			= 25,
 	WMI_FW_CAPABILITY_CHANNEL_4			= 26,
+	WMI_FW_CAPABILITY_IPA				= 27,
+	WMI_FW_CAPABILITY_TEMPERATURE_ALL_RF		= 30,
+	WMI_FW_CAPABILITY_SPLIT_REKEY			= 31,
 	WMI_FW_CAPABILITY_MAX,
 };
 
@@ -294,6 +300,8 @@ enum wmi_command_id {
 	WMI_SET_AP_SLOT_SIZE_CMDID			= 0xA0F,
 	WMI_SET_VRING_PRIORITY_WEIGHT_CMDID		= 0xA10,
 	WMI_SET_VRING_PRIORITY_CMDID			= 0xA11,
+	WMI_RBUFCAP_CFG_CMDID				= 0xA12,
+	WMI_TEMP_SENSE_ALL_CMDID			= 0xA13,
 	WMI_SET_MAC_ADDRESS_CMDID			= 0xF003,
 	WMI_ABORT_SCAN_CMDID				= 0xF007,
 	WMI_SET_PROMISCUOUS_MODE_CMDID			= 0xF041,
@@ -355,6 +363,19 @@ enum wmi_connect_ctrl_flag_bits {
 
 #define WMI_MAX_SSID_LEN	(32)
 
+enum wmi_channel {
+	WMI_CHANNEL_1	= 0x00,
+	WMI_CHANNEL_2	= 0x01,
+	WMI_CHANNEL_3	= 0x02,
+	WMI_CHANNEL_4	= 0x03,
+	WMI_CHANNEL_5	= 0x04,
+	WMI_CHANNEL_6	= 0x05,
+	WMI_CHANNEL_9	= 0x06,
+	WMI_CHANNEL_10	= 0x07,
+	WMI_CHANNEL_11	= 0x08,
+	WMI_CHANNEL_12	= 0x09,
+};
+
 /* WMI_CONNECT_CMDID */
 struct wmi_connect_cmd {
 	u8 network_type;
@@ -366,8 +387,12 @@ struct wmi_connect_cmd {
 	u8 group_crypto_len;
 	u8 ssid_len;
 	u8 ssid[WMI_MAX_SSID_LEN];
+	/* enum wmi_channel WMI_CHANNEL_1..WMI_CHANNEL_6; for EDMG this is
+	 * the primary channel number
+	 */
 	u8 channel;
-	u8 reserved0;
+	/* enum wmi_channel WMI_CHANNEL_9..WMI_CHANNEL_12 */
+	u8 edmg_channel;
 	u8 bssid[WMI_MAC_LEN];
 	__le32 ctrl_flags;
 	u8 dst_mac[WMI_MAC_LEN];
@@ -397,6 +422,8 @@ enum wmi_key_usage {
 	WMI_KEY_USE_PAIRWISE	= 0x00,
 	WMI_KEY_USE_RX_GROUP	= 0x01,
 	WMI_KEY_USE_TX_GROUP	= 0x02,
+	WMI_KEY_USE_STORE_PTK	= 0x03,
+	WMI_KEY_USE_APPLY_PTK	= 0x04,
 };
 
 struct wmi_add_cipher_key_cmd {
@@ -979,10 +1006,22 @@ enum wmi_rx_msg_type {
 	WMI_RX_MSG_TYPE_EXTENDED	= 0x01,
 };
 
+enum wmi_ring_add_irq_mode {
+	/* Backwards compatibility
+	 *  for DESC ring - interrupt disabled
+	 *  for STATUS ring - interrupt enabled
+	 */
+	WMI_RING_ADD_IRQ_MODE_BWC	= 0x00,
+	WMI_RING_ADD_IRQ_MODE_DISABLE	= 0x01,
+	WMI_RING_ADD_IRQ_MODE_ENABLE	= 0x02,
+};
+
 struct wmi_tx_status_ring_add_cmd {
 	struct wmi_edma_ring_cfg ring_cfg;
 	u8 irq_index;
-	u8 reserved[3];
+	/* wmi_ring_add_irq_mode */
+	u8 irq_mode;
+	u8 reserved[2];
 } __packed;
 
 struct wmi_rx_status_ring_add_cmd {
@@ -1016,7 +1055,10 @@ struct wmi_tx_desc_ring_add_cmd {
 	u8 mac_ctrl;
 	u8 to_resolution;
 	u8 agg_max_wsize;
-	u8 reserved[3];
+	u8 irq_index;
+	/* wmi_ring_add_irq_mode */
+	u8 irq_mode;
+	u8 reserved;
 	struct wmi_vring_cfg_schd schd_params;
 } __packed;
 
@@ -1394,12 +1436,7 @@ struct wmi_rf_xpm_write_cmd {
 	u8 data_bytes[0];
 } __packed;
 
-/* WMI_TEMP_SENSE_CMDID
- *
- * Measure MAC and radio temperatures
- *
- * Possible modes for temperature measurement
- */
+/* Possible modes for temperature measurement */
 enum wmi_temperature_measure_mode {
 	TEMPERATURE_USE_OLD_VALUE	= 0x01,
 	TEMPERATURE_MEASURE_NOW		= 0x02,
@@ -1925,6 +1962,14 @@ struct wmi_set_ap_slot_size_cmd {
 	__le32 slot_size;
 } __packed;
 
+/* WMI_TEMP_SENSE_ALL_CMDID */
+struct wmi_temp_sense_all_cmd {
+	u8 measure_baseband_en;
+	u8 measure_rf_en;
+	u8 measure_mode;
+	u8 reserved;
+} __packed;
+
 /* WMI Events
  * List of Events (target to host)
  */
@@ -1982,6 +2027,7 @@ enum wmi_event_id {
 	WMI_BEAMFORMING_MGMT_DONE_EVENTID		= 0x1836,
 	WMI_BF_TXSS_MGMT_DONE_EVENTID			= 0x1837,
 	WMI_BF_RXSS_MGMT_DONE_EVENTID			= 0x1839,
+	WMI_BF_TRIG_EVENTID				= 0x183A,
 	WMI_RS_MGMT_DONE_EVENTID			= 0x1852,
 	WMI_RF_MGMT_STATUS_EVENTID			= 0x1853,
 	WMI_BF_SM_MGMT_DONE_EVENTID			= 0x1838,
@@ -2082,6 +2128,8 @@ enum wmi_event_id {
 	WMI_SET_AP_SLOT_SIZE_EVENTID			= 0x1A0F,
 	WMI_SET_VRING_PRIORITY_WEIGHT_EVENTID		= 0x1A10,
 	WMI_SET_VRING_PRIORITY_EVENTID			= 0x1A11,
+	WMI_RBUFCAP_CFG_EVENTID				= 0x1A12,
+	WMI_TEMP_SENSE_ALL_DONE_EVENTID			= 0x1A13,
 	WMI_SET_CHANNEL_EVENTID				= 0x9000,
 	WMI_ASSOC_REQ_EVENTID				= 0x9001,
 	WMI_EAPOL_RX_EVENTID				= 0x9002,
@@ -2267,7 +2315,9 @@ struct wmi_notify_req_done_event {
 	__le32 status;
 	__le64 tsf;
 	s8 rssi;
-	u8 reserved0[3];
+	/* enum wmi_edmg_tx_mode */
+	u8 tx_mode;
+	u8 reserved0[2];
 	__le32 tx_tpt;
 	__le32 tx_goodput;
 	__le32 rx_goodput;
@@ -2283,8 +2333,12 @@ struct wmi_notify_req_done_event {
 
 /* WMI_CONNECT_EVENTID */
 struct wmi_connect_event {
+	/* enum wmi_channel WMI_CHANNEL_1..WMI_CHANNEL_6; for EDMG this is
+	 * the primary channel number
+	 */
 	u8 channel;
-	u8 reserved0;
+	/* enum wmi_channel WMI_CHANNEL_9..WMI_CHANNEL_12 */
+	u8 edmg_channel;
 	u8 bssid[WMI_MAC_LEN];
 	__le16 listen_interval;
 	__le16 beacon_interval;
@@ -2316,6 +2370,7 @@ enum wmi_disconnect_reason {
 	WMI_DIS_REASON_PROFILE_MISMATCH		= 0x0C,
 	WMI_DIS_REASON_CONNECTION_EVICTED	= 0x0D,
 	WMI_DIS_REASON_IBSS_MERGE		= 0x0E,
+	WMI_DIS_REASON_HIGH_TEMPERATURE		= 0x0F,
 };
 
 /* WMI_DISCONNECT_EVENTID */
@@ -2762,11 +2817,13 @@ struct wmi_fixed_scheduling_ul_config_event {
  */
 struct wmi_temp_sense_done_event {
 	/* Temperature times 1000 (actual temperature will be achieved by
-	 * dividing the value by 1000)
+	 * dividing the value by 1000). When temperature cannot be read from
+	 * device return WMI_INVALID_TEMPERATURE
 	 */
 	__le32 baseband_t1000;
 	/* Temperature times 1000 (actual temperature will be achieved by
-	 * dividing the value by 1000)
+	 * dividing the value by 1000). When temperature cannot be read from
+	 * device return WMI_INVALID_TEMPERATURE
 	 */
 	__le32 rf_t1000;
 } __packed;
@@ -3168,6 +3225,30 @@ struct wmi_brp_set_ant_limit_event {
 	u8 reserved[3];
 } __packed;
 
+enum wmi_bf_type {
+	WMI_BF_TYPE_SLS		= 0x00,
+	WMI_BF_TYPE_BRP_RX	= 0x01,
+};
+
+/* WMI_BF_TRIG_CMDID */
+struct wmi_bf_trig_cmd {
+	/* enum wmi_bf_type - type of requested beamforming */
+	u8 bf_type;
+	/* used only for WMI_BF_TYPE_BRP_RX */
+	u8 cid;
+	/* used only for WMI_BF_TYPE_SLS */
+	u8 dst_mac[WMI_MAC_LEN];
+	u8 reserved[4];
+} __packed;
+
+/* WMI_BF_TRIG_EVENTID */
+struct wmi_bf_trig_event {
+	/* enum wmi_fw_status */
+	u8 status;
+	u8 cid;
+	u8 reserved[2];
+} __packed;
+
 /* broadcast connection ID */
 #define WMI_LINK_MAINTAIN_CFG_CID_BROADCAST	(0xFFFFFFFF)
 
@@ -3263,6 +3344,8 @@ struct wmi_link_maintain_cfg_read_done_event {
 enum wmi_traffic_suspend_status {
 	WMI_TRAFFIC_SUSPEND_APPROVED			= 0x0,
 	WMI_TRAFFIC_SUSPEND_REJECTED_LINK_NOT_IDLE	= 0x1,
+	WMI_TRAFFIC_SUSPEND_REJECTED_DISCONNECT		= 0x2,
+	WMI_TRAFFIC_SUSPEND_REJECTED_OTHER		= 0x3,
 };
 
 /* WMI_TRAFFIC_SUSPEND_EVENTID */
@@ -3282,6 +3365,7 @@ enum wmi_resume_trigger {
 	WMI_RESUME_TRIGGER_UCAST_RX	= 0x2,
 	WMI_RESUME_TRIGGER_BCAST_RX	= 0x4,
 	WMI_RESUME_TRIGGER_WMI_EVT	= 0x8,
+	WMI_RESUME_TRIGGER_DISCONNECT	= 0x10,
 };
 
 /* WMI_TRAFFIC_RESUME_EVENTID */
@@ -4055,6 +4139,61 @@ struct wmi_set_vring_priority_event {
 	/* wmi_fw_status */
 	u8 status;
 	u8 reserved[3];
+} __packed;
+
+/* WMI_RADAR_PCI_CTRL_BLOCK struct */
+struct wmi_radar_pci_ctrl_block {
+	/* last fw tail address index */
+	__le32 fw_tail_index;
+	/* last SW head address index known to FW */
+	__le32 sw_head_index;
+	__le32 last_wr_pulse_tsf_low;
+	__le32 last_wr_pulse_count;
+	__le32 last_wr_in_bytes;
+	__le32 last_wr_pulse_id;
+	__le32 last_wr_burst_id;
+	/* When pre overflow detected, advance sw head in unit of pulses */
+	__le32 sw_head_inc;
+	__le32 reserved[8];
+} __packed;
+
+/* WMI_RBUFCAP_CFG_CMD */
+struct wmi_rbufcap_cfg_cmd {
+	u8 enable;
+	u8 reserved;
+	/* RBUFCAP indicates rx space unavailable when number of rx
+	 * descriptors drops below this threshold. Set 0 to use system
+	 * default
+	 */
+	__le16 rx_desc_threshold;
+} __packed;
+
+/* WMI_RBUFCAP_CFG_EVENTID */
+struct wmi_rbufcap_cfg_event {
+	/* enum wmi_fw_status */
+	u8 status;
+	u8 reserved[3];
+} __packed;
+
+/* WMI_TEMP_SENSE_ALL_DONE_EVENTID
+ * Measure MAC and all radio temperatures
+ */
+struct wmi_temp_sense_all_done_event {
+	/* enum wmi_fw_status */
+	u8 status;
+	/* Bitmap of connected RFs */
+	u8 rf_bitmap;
+	u8 reserved[2];
+	/* Temperature times 1000 (actual temperature will be achieved by
+	 * dividing the value by 1000). When temperature cannot be read from
+	 * device return WMI_INVALID_TEMPERATURE
+	 */
+	__le32 rf_t1000[WMI_MAX_XIF_PORTS_NUM];
+	/* Temperature times 1000 (actual temperature will be achieved by
+	 * dividing the value by 1000). When temperature cannot be read from
+	 * device return WMI_INVALID_TEMPERATURE
+	 */
+	__le32 baseband_t1000;
 } __packed;
 
 #endif /* __WILOCITY_WMI_H__ */

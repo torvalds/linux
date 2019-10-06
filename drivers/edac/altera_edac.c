@@ -9,6 +9,7 @@
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/edac.h>
+#include <linux/firmware/intel/stratix10-smc.h>
 #include <linux/genalloc.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
@@ -29,6 +30,7 @@
 #define EDAC_MOD_STR		"altera_edac"
 #define EDAC_DEVICE		"Altera"
 
+#ifdef CONFIG_EDAC_ALTERA_SDRAM
 static const struct altr_sdram_prv_data c5_data = {
 	.ecc_ctrl_offset    = CV_CTLCFG_OFST,
 	.ecc_ctl_en_mask    = CV_CTLCFG_ECC_AUTO_EN,
@@ -220,7 +222,6 @@ static unsigned long get_total_mem(void)
 static const struct of_device_id altr_sdram_ctrl_of_match[] = {
 	{ .compatible = "altr,sdram-edac", .data = &c5_data},
 	{ .compatible = "altr,sdram-edac-a10", .data = &a10_data},
-	{ .compatible = "altr,sdram-edac-s10", .data = &a10_data},
 	{},
 };
 MODULE_DEVICE_TABLE(of, altr_sdram_ctrl_of_match);
@@ -468,6 +469,39 @@ static int altr_sdram_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/*
+ * If you want to suspend, need to disable EDAC by removing it
+ * from the device tree or defconfig.
+ */
+#ifdef CONFIG_PM
+static int altr_sdram_prepare(struct device *dev)
+{
+	pr_err("Suspend not allowed when EDAC is enabled.\n");
+
+	return -EPERM;
+}
+
+static const struct dev_pm_ops altr_sdram_pm_ops = {
+	.prepare = altr_sdram_prepare,
+};
+#endif
+
+static struct platform_driver altr_sdram_edac_driver = {
+	.probe = altr_sdram_probe,
+	.remove = altr_sdram_remove,
+	.driver = {
+		.name = "altr_sdram_edac",
+#ifdef CONFIG_PM
+		.pm = &altr_sdram_pm_ops,
+#endif
+		.of_match_table = altr_sdram_ctrl_of_match,
+	},
+};
+
+module_platform_driver(altr_sdram_edac_driver);
+
+#endif	/* CONFIG_EDAC_ALTERA_SDRAM */
+
 /**************** Stratix 10 EDAC Memory Controller Functions ************/
 
 /**
@@ -529,37 +563,6 @@ static const struct regmap_config s10_sdram_regmap_cfg = {
 };
 
 /************** </Stratix10 EDAC Memory Controller Functions> ***********/
-
-/*
- * If you want to suspend, need to disable EDAC by removing it
- * from the device tree or defconfig.
- */
-#ifdef CONFIG_PM
-static int altr_sdram_prepare(struct device *dev)
-{
-	pr_err("Suspend not allowed when EDAC is enabled.\n");
-
-	return -EPERM;
-}
-
-static const struct dev_pm_ops altr_sdram_pm_ops = {
-	.prepare = altr_sdram_prepare,
-};
-#endif
-
-static struct platform_driver altr_sdram_edac_driver = {
-	.probe = altr_sdram_probe,
-	.remove = altr_sdram_remove,
-	.driver = {
-		.name = "altr_sdram_edac",
-#ifdef CONFIG_PM
-		.pm = &altr_sdram_pm_ops,
-#endif
-		.of_match_table = altr_sdram_ctrl_of_match,
-	},
-};
-
-module_platform_driver(altr_sdram_edac_driver);
 
 /************************* EDAC Parent Probe *************************/
 
@@ -1046,14 +1049,17 @@ altr_init_a10_ecc_block(struct device_node *np, u32 irq_mask,
 			return -ENODEV;
 		}
 
-		if (of_address_to_resource(sysmgr_np, 0, &res))
+		if (of_address_to_resource(sysmgr_np, 0, &res)) {
+			of_node_put(sysmgr_np);
 			return -ENOMEM;
+		}
 
 		/* Need physical address for SMCC call */
 		base = res.start;
 
 		ecc_mgr_map = regmap_init(NULL, NULL, (void *)base,
 					  &s10_sdram_regmap_cfg);
+		of_node_put(sysmgr_np);
 	}
 	of_node_put(np_eccmgr);
 	if (IS_ERR(ecc_mgr_map)) {
@@ -1163,6 +1169,24 @@ static int __init __maybe_unused altr_init_a10_ecc_device_type(char *compat)
 	return 0;
 }
 
+/*********************** SDRAM EDAC Device Functions *********************/
+
+#ifdef CONFIG_EDAC_ALTERA_SDRAM
+
+static const struct edac_device_prv_data s10_sdramecc_data = {
+	.setup = altr_check_ecc_deps,
+	.ce_clear_mask = ALTR_S10_ECC_SERRPENA,
+	.ue_clear_mask = ALTR_S10_ECC_DERRPENA,
+	.ecc_enable_mask = ALTR_S10_ECC_EN,
+	.ecc_en_ofst = ALTR_S10_ECC_CTRL_SDRAM_OFST,
+	.ce_set_mask = ALTR_S10_ECC_TSERRA,
+	.ue_set_mask = ALTR_S10_ECC_TDERRA,
+	.set_err_ofst = ALTR_S10_ECC_INTTEST_OFST,
+	.ecc_irq_handler = altr_edac_a10_ecc_irq,
+	.inject_fops = &altr_edac_a10_device_inject_fops,
+};
+#endif /* CONFIG_EDAC_ALTERA_SDRAM */
+
 /*********************** OCRAM EDAC Device Functions *********************/
 
 #ifdef CONFIG_EDAC_ALTERA_OCRAM
@@ -1216,8 +1240,31 @@ static const struct edac_device_prv_data ocramecc_data = {
 	.inject_fops = &altr_edac_device_inject_fops,
 };
 
+static int __maybe_unused
+altr_check_ocram_deps_init(struct altr_edac_device_dev *device)
+{
+	void __iomem  *base = device->base;
+	int ret;
+
+	ret = altr_check_ecc_deps(device);
+	if (ret)
+		return ret;
+
+	/* Verify OCRAM has been initialized */
+	if (!ecc_test_bits(ALTR_A10_ECC_INITCOMPLETEA,
+			   (base + ALTR_A10_ECC_INITSTAT_OFST)))
+		return -ENODEV;
+
+	/* Enable IRQ on Single Bit Error */
+	writel(ALTR_A10_ECC_SERRINTEN, (base + ALTR_A10_ECC_ERRINTENS_OFST));
+	/* Ensure all writes complete */
+	wmb();
+
+	return 0;
+}
+
 static const struct edac_device_prv_data a10_ocramecc_data = {
-	.setup = altr_check_ecc_deps,
+	.setup = altr_check_ocram_deps_init,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
 	.irq_status_mask = A10_SYSMGR_ECC_INTSTAT_OCRAM,
@@ -1227,7 +1274,7 @@ static const struct edac_device_prv_data a10_ocramecc_data = {
 	.ue_set_mask = ALTR_A10_ECC_TDERRA,
 	.set_err_ofst = ALTR_A10_ECC_INTTEST_OFST,
 	.ecc_irq_handler = altr_edac_a10_ecc_irq,
-	.inject_fops = &altr_edac_a10_device_inject_fops,
+	.inject_fops = &altr_edac_a10_device_inject2_fops,
 	/*
 	 * OCRAM panic on uncorrectable error because sleep/resume
 	 * functions and FPGA contents are stored in OCRAM. Prefer
@@ -1355,8 +1402,19 @@ static const struct edac_device_prv_data a10_l2ecc_data = {
 
 #ifdef CONFIG_EDAC_ALTERA_ETHERNET
 
+static int __init socfpga_init_ethernet_ecc(struct altr_edac_device_dev *dev)
+{
+	int ret;
+
+	ret = altr_init_a10_ecc_device_type("altr,socfpga-eth-mac-ecc");
+	if (ret)
+		return ret;
+
+	return altr_check_ecc_deps(dev);
+}
+
 static const struct edac_device_prv_data a10_enetecc_data = {
-	.setup = altr_check_ecc_deps,
+	.setup = socfpga_init_ethernet_ecc,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
 	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
@@ -1367,13 +1425,6 @@ static const struct edac_device_prv_data a10_enetecc_data = {
 	.ecc_irq_handler = altr_edac_a10_ecc_irq,
 	.inject_fops = &altr_edac_a10_device_inject2_fops,
 };
-
-static int __init socfpga_init_ethernet_ecc(void)
-{
-	return altr_init_a10_ecc_device_type("altr,socfpga-eth-mac-ecc");
-}
-
-early_initcall(socfpga_init_ethernet_ecc);
 
 #endif	/* CONFIG_EDAC_ALTERA_ETHERNET */
 
@@ -1381,8 +1432,19 @@ early_initcall(socfpga_init_ethernet_ecc);
 
 #ifdef CONFIG_EDAC_ALTERA_NAND
 
+static int __init socfpga_init_nand_ecc(struct altr_edac_device_dev *device)
+{
+	int ret;
+
+	ret = altr_init_a10_ecc_device_type("altr,socfpga-nand-ecc");
+	if (ret)
+		return ret;
+
+	return altr_check_ecc_deps(device);
+}
+
 static const struct edac_device_prv_data a10_nandecc_data = {
-	.setup = altr_check_ecc_deps,
+	.setup = socfpga_init_nand_ecc,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
 	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
@@ -1393,13 +1455,6 @@ static const struct edac_device_prv_data a10_nandecc_data = {
 	.ecc_irq_handler = altr_edac_a10_ecc_irq,
 	.inject_fops = &altr_edac_a10_device_inject_fops,
 };
-
-static int __init socfpga_init_nand_ecc(void)
-{
-	return altr_init_a10_ecc_device_type("altr,socfpga-nand-ecc");
-}
-
-early_initcall(socfpga_init_nand_ecc);
 
 #endif	/* CONFIG_EDAC_ALTERA_NAND */
 
@@ -1407,8 +1462,19 @@ early_initcall(socfpga_init_nand_ecc);
 
 #ifdef CONFIG_EDAC_ALTERA_DMA
 
+static int __init socfpga_init_dma_ecc(struct altr_edac_device_dev *device)
+{
+	int ret;
+
+	ret = altr_init_a10_ecc_device_type("altr,socfpga-dma-ecc");
+	if (ret)
+		return ret;
+
+	return altr_check_ecc_deps(device);
+}
+
 static const struct edac_device_prv_data a10_dmaecc_data = {
-	.setup = altr_check_ecc_deps,
+	.setup = socfpga_init_dma_ecc,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
 	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
@@ -1420,21 +1486,25 @@ static const struct edac_device_prv_data a10_dmaecc_data = {
 	.inject_fops = &altr_edac_a10_device_inject_fops,
 };
 
-static int __init socfpga_init_dma_ecc(void)
-{
-	return altr_init_a10_ecc_device_type("altr,socfpga-dma-ecc");
-}
-
-early_initcall(socfpga_init_dma_ecc);
-
 #endif	/* CONFIG_EDAC_ALTERA_DMA */
 
 /********************** USB Device Functions **********************/
 
 #ifdef CONFIG_EDAC_ALTERA_USB
 
+static int __init socfpga_init_usb_ecc(struct altr_edac_device_dev *device)
+{
+	int ret;
+
+	ret = altr_init_a10_ecc_device_type("altr,socfpga-usb-ecc");
+	if (ret)
+		return ret;
+
+	return altr_check_ecc_deps(device);
+}
+
 static const struct edac_device_prv_data a10_usbecc_data = {
-	.setup = altr_check_ecc_deps,
+	.setup = socfpga_init_usb_ecc,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
 	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
@@ -1446,21 +1516,25 @@ static const struct edac_device_prv_data a10_usbecc_data = {
 	.inject_fops = &altr_edac_a10_device_inject2_fops,
 };
 
-static int __init socfpga_init_usb_ecc(void)
-{
-	return altr_init_a10_ecc_device_type("altr,socfpga-usb-ecc");
-}
-
-early_initcall(socfpga_init_usb_ecc);
-
 #endif	/* CONFIG_EDAC_ALTERA_USB */
 
 /********************** QSPI Device Functions **********************/
 
 #ifdef CONFIG_EDAC_ALTERA_QSPI
 
+static int __init socfpga_init_qspi_ecc(struct altr_edac_device_dev *device)
+{
+	int ret;
+
+	ret = altr_init_a10_ecc_device_type("altr,socfpga-qspi-ecc");
+	if (ret)
+		return ret;
+
+	return altr_check_ecc_deps(device);
+}
+
 static const struct edac_device_prv_data a10_qspiecc_data = {
-	.setup = altr_check_ecc_deps,
+	.setup = socfpga_init_qspi_ecc,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
 	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
@@ -1471,13 +1545,6 @@ static const struct edac_device_prv_data a10_qspiecc_data = {
 	.ecc_irq_handler = altr_edac_a10_ecc_irq,
 	.inject_fops = &altr_edac_a10_device_inject_fops,
 };
-
-static int __init socfpga_init_qspi_ecc(void)
-{
-	return altr_init_a10_ecc_device_type("altr,socfpga-qspi-ecc");
-}
-
-early_initcall(socfpga_init_qspi_ecc);
 
 #endif	/* CONFIG_EDAC_ALTERA_QSPI */
 
@@ -1533,8 +1600,12 @@ static int altr_portb_setup(struct altr_edac_device_dev *device)
 	dci->mod_name = ecc_name;
 	dci->dev_name = ecc_name;
 
-	/* Update the IRQs for PortB */
+	/* Update the PortB IRQs - A10 has 4, S10 has 2, Index accordingly */
+#ifdef CONFIG_ARCH_STRATIX10
+	altdev->sb_irq = irq_of_parse_and_map(np, 1);
+#else
 	altdev->sb_irq = irq_of_parse_and_map(np, 2);
+#endif
 	if (!altdev->sb_irq) {
 		edac_printk(KERN_ERR, EDAC_DEVICE, "Error PortB SBIRQ alloc\n");
 		rc = -ENODEV;
@@ -1549,6 +1620,15 @@ static int altr_portb_setup(struct altr_edac_device_dev *device)
 		goto err_release_group_1;
 	}
 
+#ifdef CONFIG_ARCH_STRATIX10
+	/* Use IRQ to determine SError origin instead of assigning IRQ */
+	rc = of_property_read_u32_index(np, "interrupts", 1, &altdev->db_irq);
+	if (rc) {
+		edac_printk(KERN_ERR, EDAC_DEVICE,
+			    "Error PortB DBIRQ alloc\n");
+		goto err_release_group_1;
+	}
+#else
 	altdev->db_irq = irq_of_parse_and_map(np, 3);
 	if (!altdev->db_irq) {
 		edac_printk(KERN_ERR, EDAC_DEVICE, "Error PortB DBIRQ alloc\n");
@@ -1563,6 +1643,7 @@ static int altr_portb_setup(struct altr_edac_device_dev *device)
 		edac_printk(KERN_ERR, EDAC_DEVICE, "PortB DBERR IRQ error\n");
 		goto err_release_group_1;
 	}
+#endif
 
 	rc = edac_device_add_device(dci);
 	if (rc) {
@@ -1584,6 +1665,35 @@ err_release_group_1:
 	devres_release_group(&altdev->ddev, altr_portb_setup);
 	edac_printk(KERN_ERR, EDAC_DEVICE,
 		    "%s:Error setting up EDAC device: %d\n", ecc_name, rc);
+	return rc;
+}
+
+static int __init socfpga_init_sdmmc_ecc(struct altr_edac_device_dev *device)
+{
+	int rc = -ENODEV;
+	struct device_node *child;
+
+	child = of_find_compatible_node(NULL, NULL, "altr,socfpga-sdmmc-ecc");
+	if (!child)
+		return -ENODEV;
+
+	if (!of_device_is_available(child))
+		goto exit;
+
+	if (validate_parent_available(child))
+		goto exit;
+
+	/* Init portB */
+	rc = altr_init_a10_ecc_block(child, ALTR_A10_SDMMC_IRQ_MASK,
+				     a10_sdmmceccb_data.ecc_enable_mask, 1);
+	if (rc)
+		goto exit;
+
+	/* Setup portB */
+	return altr_portb_setup(device);
+
+exit:
+	of_node_put(child);
 	return rc;
 }
 
@@ -1611,7 +1721,7 @@ static irqreturn_t altr_edac_a10_ecc_irq_portb(int irq, void *dev_id)
 }
 
 static const struct edac_device_prv_data a10_sdmmcecca_data = {
-	.setup = altr_portb_setup,
+	.setup = socfpga_init_sdmmc_ecc,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
 	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
@@ -1624,7 +1734,7 @@ static const struct edac_device_prv_data a10_sdmmcecca_data = {
 };
 
 static const struct edac_device_prv_data a10_sdmmceccb_data = {
-	.setup = altr_portb_setup,
+	.setup = socfpga_init_sdmmc_ecc,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENB,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENB,
 	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
@@ -1635,35 +1745,6 @@ static const struct edac_device_prv_data a10_sdmmceccb_data = {
 	.ecc_irq_handler = altr_edac_a10_ecc_irq_portb,
 	.inject_fops = &altr_edac_a10_device_inject_fops,
 };
-
-static int __init socfpga_init_sdmmc_ecc(void)
-{
-	int rc = -ENODEV;
-	struct device_node *child;
-
-	if (!socfpga_is_a10() && !socfpga_is_s10())
-		return -ENODEV;
-
-	child = of_find_compatible_node(NULL, NULL, "altr,socfpga-sdmmc-ecc");
-	if (!child) {
-		edac_printk(KERN_WARNING, EDAC_DEVICE, "SDMMC node not found\n");
-		return -ENODEV;
-	}
-
-	if (!of_device_is_available(child))
-		goto exit;
-
-	if (validate_parent_available(child))
-		goto exit;
-
-	rc = altr_init_a10_ecc_block(child, ALTR_A10_SDMMC_IRQ_MASK,
-				     a10_sdmmcecca_data.ecc_enable_mask, 1);
-exit:
-	of_node_put(child);
-	return rc;
-}
-
-early_initcall(socfpga_init_sdmmc_ecc);
 
 #endif	/* CONFIG_EDAC_ALTERA_SDMMC */
 
@@ -1694,6 +1775,9 @@ static const struct of_device_id altr_edac_a10_device_of_match[] = {
 #endif
 #ifdef CONFIG_EDAC_ALTERA_SDMMC
 	{ .compatible = "altr,socfpga-sdmmc-ecc", .data = &a10_sdmmcecca_data },
+#endif
+#ifdef CONFIG_EDAC_ALTERA_SDRAM
+	{ .compatible = "altr,sdram-edac-s10", .data = &s10_sdramecc_data },
 #endif
 	{},
 };
@@ -1756,28 +1840,24 @@ static ssize_t altr_edac_a10_device_trig2(struct file *file,
 	if (trig_type == ALTR_UE_TRIGGER_CHAR) {
 		writel(priv->ue_set_mask, set_addr);
 	} else {
-		/* Setup write of 0 to first 4 bytes */
-		writel(0x0, drvdata->base + ECC_BLK_WDATA0_OFST);
-		writel(0x0, drvdata->base + ECC_BLK_WDATA1_OFST);
-		writel(0x0, drvdata->base + ECC_BLK_WDATA2_OFST);
-		writel(0x0, drvdata->base + ECC_BLK_WDATA3_OFST);
-		/* Setup write of 4 bytes */
+		/* Setup read/write of 4 bytes */
 		writel(ECC_WORD_WRITE, drvdata->base + ECC_BLK_DBYTECTRL_OFST);
 		/* Setup Address to 0 */
-		writel(0x0, drvdata->base + ECC_BLK_ADDRESS_OFST);
-		/* Setup accctrl to write & data override */
-		writel(ECC_WRITE_DOVR, drvdata->base + ECC_BLK_ACCCTRL_OFST);
-		/* Kick it. */
-		writel(ECC_XACT_KICK, drvdata->base + ECC_BLK_STARTACC_OFST);
-		/* Setup accctrl to read & ecc override */
-		writel(ECC_READ_EOVR, drvdata->base + ECC_BLK_ACCCTRL_OFST);
+		writel(0, drvdata->base + ECC_BLK_ADDRESS_OFST);
+		/* Setup accctrl to read & ecc & data override */
+		writel(ECC_READ_EDOVR, drvdata->base + ECC_BLK_ACCCTRL_OFST);
 		/* Kick it. */
 		writel(ECC_XACT_KICK, drvdata->base + ECC_BLK_STARTACC_OFST);
 		/* Setup write for single bit change */
-		writel(0x1, drvdata->base + ECC_BLK_WDATA0_OFST);
-		writel(0x0, drvdata->base + ECC_BLK_WDATA1_OFST);
-		writel(0x0, drvdata->base + ECC_BLK_WDATA2_OFST);
-		writel(0x0, drvdata->base + ECC_BLK_WDATA3_OFST);
+		writel(readl(drvdata->base + ECC_BLK_RDATA0_OFST) ^ 0x1,
+		       drvdata->base + ECC_BLK_WDATA0_OFST);
+		writel(readl(drvdata->base + ECC_BLK_RDATA1_OFST),
+		       drvdata->base + ECC_BLK_WDATA1_OFST);
+		writel(readl(drvdata->base + ECC_BLK_RDATA2_OFST),
+		       drvdata->base + ECC_BLK_WDATA2_OFST);
+		writel(readl(drvdata->base + ECC_BLK_RDATA3_OFST),
+		       drvdata->base + ECC_BLK_WDATA3_OFST);
+
 		/* Copy Read ECC to Write ECC */
 		writel(readl(drvdata->base + ECC_BLK_RECC0_OFST),
 		       drvdata->base + ECC_BLK_WECC0_OFST);
@@ -1806,6 +1886,7 @@ static void altr_edac_a10_irq_handler(struct irq_desc *desc)
 	struct altr_arria10_edac *edac = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	int irq = irq_desc_get_irq(desc);
+	unsigned long bits;
 
 	dberr = (irq == edac->db_irq) ? 1 : 0;
 	sm_offset = dberr ? A10_SYSMGR_ECC_INTSTAT_DERR_OFST :
@@ -1815,7 +1896,8 @@ static void altr_edac_a10_irq_handler(struct irq_desc *desc)
 
 	regmap_read(edac->ecc_mgr_map, sm_offset, &irq_status);
 
-	for_each_set_bit(bit, (unsigned long *)&irq_status, 32) {
+	bits = irq_status;
+	for_each_set_bit(bit, &bits, 32) {
 		irq = irq_linear_revmap(edac->domain, dberr * 32 + bit);
 		if (irq)
 			generic_handle_irq(irq);
@@ -1829,12 +1911,32 @@ static int validate_parent_available(struct device_node *np)
 	struct device_node *parent;
 	int ret = 0;
 
+	/* SDRAM must be present for Linux (implied parent) */
+	if (of_device_is_compatible(np, "altr,sdram-edac-s10"))
+		return 0;
+
 	/* Ensure parent device is enabled if parent node exists */
 	parent = of_parse_phandle(np, "altr,ecc-parent", 0);
 	if (parent && !of_device_is_available(parent))
 		ret = -ENODEV;
 
 	of_node_put(parent);
+	return ret;
+}
+
+static int get_s10_sdram_edac_resource(struct device_node *np,
+				       struct resource *res)
+{
+	struct device_node *parent;
+	int ret;
+
+	parent = of_parse_phandle(np, "altr,sdr-syscon", 0);
+	if (!parent)
+		return -ENODEV;
+
+	ret = of_address_to_resource(parent, 0, res);
+	of_node_put(parent);
+
 	return ret;
 }
 
@@ -1865,7 +1967,11 @@ static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
 	if (!devres_open_group(edac->dev, altr_edac_a10_device_add, GFP_KERNEL))
 		return -ENOMEM;
 
-	rc = of_address_to_resource(np, 0, &res);
+	if (of_device_is_compatible(np, "altr,sdram-edac-s10"))
+		rc = get_s10_sdram_edac_resource(np, &res);
+	else
+		rc = of_address_to_resource(np, 0, &res);
+
 	if (rc < 0) {
 		edac_printk(KERN_ERR, EDAC_DEVICE,
 			    "%s: no resource address\n", ecc_name);
@@ -1924,6 +2030,15 @@ static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
 		goto err_release_group1;
 	}
 
+#ifdef CONFIG_ARCH_STRATIX10
+	/* Use IRQ to determine SError origin instead of assigning IRQ */
+	rc = of_property_read_u32_index(np, "interrupts", 0, &altdev->db_irq);
+	if (rc) {
+		edac_printk(KERN_ERR, EDAC_DEVICE,
+			    "Unable to parse DB IRQ index\n");
+		goto err_release_group1;
+	}
+#else
 	altdev->db_irq = irq_of_parse_and_map(np, 1);
 	if (!altdev->db_irq) {
 		edac_printk(KERN_ERR, EDAC_DEVICE, "Error allocating DBIRQ\n");
@@ -1937,6 +2052,7 @@ static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
 		edac_printk(KERN_ERR, EDAC_DEVICE, "No DBERR IRQ resource\n");
 		goto err_release_group1;
 	}
+#endif
 
 	rc = edac_device_add_device(dci);
 	if (rc) {
@@ -1999,6 +2115,10 @@ static const struct irq_domain_ops a10_eccmgr_ic_ops = {
 /************** Stratix 10 EDAC Double Bit Error Handler ************/
 #define to_a10edac(p, m) container_of(p, struct altr_arria10_edac, m)
 
+#ifdef CONFIG_ARCH_STRATIX10
+/* panic routine issues reboot on non-zero panic_timeout */
+extern int panic_timeout;
+
 /*
  * The double bit error is handled through SError which is fatal. This is
  * called as a panic notifier to printout ECC error info as part of the panic.
@@ -2012,17 +2132,37 @@ static int s10_edac_dberr_handler(struct notifier_block *this,
 	regmap_read(edac->ecc_mgr_map, S10_SYSMGR_ECC_INTSTAT_DERR_OFST,
 		    &dberror);
 	regmap_write(edac->ecc_mgr_map, S10_SYSMGR_UE_VAL_OFST, dberror);
-	if (dberror & S10_DDR0_IRQ_MASK) {
-		regmap_read(edac->ecc_mgr_map, A10_DERRADDR_OFST, &err_addr);
-		regmap_write(edac->ecc_mgr_map, S10_SYSMGR_UE_ADDR_OFST,
-			     err_addr);
-		edac_printk(KERN_ERR, EDAC_MC,
-			    "EDAC: [Uncorrectable errors @ 0x%08X]\n\n",
-			    err_addr);
+	if (dberror & S10_DBE_IRQ_MASK) {
+		struct list_head *position;
+		struct altr_edac_device_dev *ed;
+		struct arm_smccc_res result;
+
+		/* Find the matching DBE in the list of devices */
+		list_for_each(position, &edac->a10_ecc_devices) {
+			ed = list_entry(position, struct altr_edac_device_dev,
+					next);
+			if (!(BIT(ed->db_irq) & dberror))
+				continue;
+
+			writel(ALTR_A10_ECC_DERRPENA,
+			       ed->base + ALTR_A10_ECC_INTSTAT_OFST);
+			err_addr = readl(ed->base + ALTR_S10_DERR_ADDRA_OFST);
+			regmap_write(edac->ecc_mgr_map,
+				     S10_SYSMGR_UE_ADDR_OFST, err_addr);
+			edac_printk(KERN_ERR, EDAC_DEVICE,
+				    "EDAC: [Fatal DBE on %s @ 0x%08X]\n",
+				    ed->edac_dev_name, err_addr);
+			break;
+		}
+		/* Notify the System through SMC. Reboot delay = 1 second */
+		panic_timeout = 1;
+		arm_smccc_smc(INTEL_SIP_SMC_ECC_DBE, dberror, 0, 0, 0, 0,
+			      0, 0, &result);
 	}
 
 	return NOTIFY_DONE;
 }
+#endif
 
 /****************** Arria 10 EDAC Probe Function *********************/
 static int altr_edac_a10_probe(struct platform_device *pdev)
@@ -2092,16 +2232,8 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 					 altr_edac_a10_irq_handler,
 					 edac);
 
-	if (socfpga_is_a10()) {
-		edac->db_irq = platform_get_irq(pdev, 1);
-		if (edac->db_irq < 0) {
-			dev_err(&pdev->dev, "No DBERR IRQ resource\n");
-			return edac->db_irq;
-		}
-		irq_set_chained_handler_and_data(edac->db_irq,
-						 altr_edac_a10_irq_handler,
-						 edac);
-	} else {
+#ifdef CONFIG_ARCH_STRATIX10
+	{
 		int dberror, err_addr;
 
 		edac->panic_notifier.notifier_call = s10_edac_dberr_handler;
@@ -2124,6 +2256,15 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 				     S10_SYSMGR_UE_ADDR_OFST, 0);
 		}
 	}
+#else
+	edac->db_irq = platform_get_irq(pdev, 1);
+	if (edac->db_irq < 0) {
+		dev_err(&pdev->dev, "No DBERR IRQ resource\n");
+		return edac->db_irq;
+	}
+	irq_set_chained_handler_and_data(edac->db_irq,
+					 altr_edac_a10_irq_handler, edac);
+#endif
 
 	for_each_child_of_node(pdev->dev.of_node, child) {
 		if (!of_device_is_available(child))
@@ -2136,15 +2277,19 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 		    of_device_is_compatible(child, "altr,socfpga-dma-ecc") ||
 		    of_device_is_compatible(child, "altr,socfpga-usb-ecc") ||
 		    of_device_is_compatible(child, "altr,socfpga-qspi-ecc") ||
+#ifdef CONFIG_EDAC_ALTERA_SDRAM
+		    of_device_is_compatible(child, "altr,sdram-edac-s10") ||
+#endif
 		    of_device_is_compatible(child, "altr,socfpga-sdmmc-ecc"))
 
 			altr_edac_a10_device_add(edac, child);
 
-		else if ((of_device_is_compatible(child, "altr,sdram-edac-a10")) ||
-			 (of_device_is_compatible(child, "altr,sdram-edac-s10")))
+#ifdef CONFIG_EDAC_ALTERA_SDRAM
+		else if (of_device_is_compatible(child, "altr,sdram-edac-a10"))
 			of_platform_populate(pdev->dev.of_node,
 					     altr_sdram_ctrl_of_match,
 					     NULL, &pdev->dev);
+#endif
 	}
 
 	return 0;

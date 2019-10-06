@@ -61,8 +61,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys-polled";
-		pinctrl-names = "default";
-		pinctrl-0 = <&key_pins_inet9f>;
 		poll-interval = <20>;
 
 		left-joystick-left {
@@ -70,7 +68,7 @@
 			linux,code = <ABS_X>;
 			linux,input-type = <EV_ABS>;
 			linux,input-value = <0xffffffff>; /* -1 */
-			gpios = <&pio 0 6 GPIO_ACTIVE_LOW>; /* PA6 */
+			gpios = <&pio 0 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA6 */
 		};
 
 		left-joystick-right {
@@ -78,7 +76,7 @@
 			linux,code = <ABS_X>;
 			linux,input-type = <EV_ABS>;
 			linux,input-value = <1>;
-			gpios = <&pio 0 5 GPIO_ACTIVE_LOW>; /* PA5 */
+			gpios = <&pio 0 5 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA5 */
 		};
 
 		left-joystick-up {
@@ -86,7 +84,7 @@
 			linux,code = <ABS_Y>;
 			linux,input-type = <EV_ABS>;
 			linux,input-value = <0xffffffff>; /* -1 */
-			gpios = <&pio 0 8 GPIO_ACTIVE_LOW>; /* PA8 */
+			gpios = <&pio 0 8 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA8 */
 		};
 
 		left-joystick-down {
@@ -94,7 +92,7 @@
 			linux,code = <ABS_Y>;
 			linux,input-type = <EV_ABS>;
 			linux,input-value = <1>;
-			gpios = <&pio 0 9 GPIO_ACTIVE_LOW>; /* PA9 */
+			gpios = <&pio 0 9 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA9 */
 		};
 
 		right-joystick-left {
@@ -102,7 +100,7 @@
 			linux,code = <ABS_Z>;
 			linux,input-type = <EV_ABS>;
 			linux,input-value = <0xffffffff>; /* -1 */
-			gpios = <&pio 0 1 GPIO_ACTIVE_LOW>; /* PA1 */
+			gpios = <&pio 0 1 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA1 */
 		};
 
 		right-joystick-right {
@@ -110,7 +108,7 @@
 			linux,code = <ABS_Z>;
 			linux,input-type = <EV_ABS>;
 			linux,input-value = <1>;
-			gpios = <&pio 0 0 GPIO_ACTIVE_LOW>; /* PA0 */
+			gpios = <&pio 0 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA0 */
 		};
 
 		right-joystick-up {
@@ -118,7 +116,7 @@
 			linux,code = <ABS_RZ>;
 			linux,input-type = <EV_ABS>;
 			linux,input-value = <0xffffffff>; /* -1 */
-			gpios = <&pio 0 3 GPIO_ACTIVE_LOW>; /* PA3 */
+			gpios = <&pio 0 3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA3 */
 		};
 
 		right-joystick-down {
@@ -126,7 +124,7 @@
 			linux,code = <ABS_RZ>;
 			linux,input-type = <EV_ABS>;
 			linux,input-value = <1>;
-			gpios = <&pio 0 4 GPIO_ACTIVE_LOW>; /* PA4 */
+			gpios = <&pio 0 4 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA4 */
 		};
 
 		dpad-left {
@@ -134,7 +132,7 @@
 			linux,code = <ABS_HAT0X>;
 			linux,input-type = <EV_ABS>;
 			linux,input-value = <0xffffffff>; /* -1 */
-			gpios = <&pio 7 23 GPIO_ACTIVE_LOW>; /* PH23 */
+			gpios = <&pio 7 23 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PH23 */
 		};
 
 		dpad-right {
@@ -142,7 +140,7 @@
 			linux,code = <ABS_HAT0X>;
 			linux,input-type = <EV_ABS>;
 			linux,input-value = <1>;
-			gpios = <&pio 7 24 GPIO_ACTIVE_LOW>; /* PH24 */
+			gpios = <&pio 7 24 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PH24 */
 		};
 
 		dpad-up {
@@ -150,7 +148,7 @@
 			linux,code = <ABS_HAT0Y>;
 			linux,input-type = <EV_ABS>;
 			linux,input-value = <0xffffffff>; /* -1 */
-			gpios = <&pio 7 25 GPIO_ACTIVE_LOW>; /* PH25 */
+			gpios = <&pio 7 25 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PH25 */
 		};
 
 		dpad-down {
@@ -158,55 +156,55 @@
 			linux,code = <ABS_HAT0Y>;
 			linux,input-type = <EV_ABS>;
 			linux,input-value = <1>;
-			gpios = <&pio 7 26 GPIO_ACTIVE_LOW>; /* PH26 */
+			gpios = <&pio 7 26 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PH26 */
 		};
 
 		x {
 			label = "Button X";
 			linux,code = <BTN_X>;
-			gpios = <&pio 0 16 GPIO_ACTIVE_LOW>; /* PA16 */
+			gpios = <&pio 0 16 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA16 */
 		};
 
 		y {
 			label = "Button Y";
 			linux,code = <BTN_Y>;
-			gpios = <&pio 0 14 GPIO_ACTIVE_LOW>; /* PA14 */
+			gpios = <&pio 0 14 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA14 */
 		};
 
 		a {
 			label = "Button A";
 			linux,code = <BTN_A>;
-			gpios = <&pio 0 17 GPIO_ACTIVE_LOW>; /* PA17 */
+			gpios = <&pio 0 17 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA17 */
 		};
 
 		b {
 			label = "Button B";
 			linux,code = <BTN_B>;
-			gpios = <&pio 0 15 GPIO_ACTIVE_LOW>; /* PA15 */
+			gpios = <&pio 0 15 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA15 */
 		};
 
 		select {
 			label = "Select Button";
 			linux,code = <BTN_SELECT>;
-			gpios = <&pio 0 11 GPIO_ACTIVE_LOW>; /* PA11 */
+			gpios = <&pio 0 11 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA11 */
 		};
 
 		start {
 			label = "Start Button";
 			linux,code = <BTN_START>;
-			gpios = <&pio 0 12 GPIO_ACTIVE_LOW>; /* PA12 */
+			gpios = <&pio 0 12 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA12 */
 		};
 
 		top-left {
 			label = "Top Left Button";
 			linux,code = <BTN_TL>;
-			gpios = <&pio 7 22 GPIO_ACTIVE_LOW>; /* PH22 */
+			gpios = <&pio 7 22 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PH22 */
 		};
 
 		top-right {
 			label = "Top Right Button";
 			linux,code = <BTN_TR>;
-			gpios = <&pio 0 13 GPIO_ACTIVE_LOW>; /* PA13 */
+			gpios = <&pio 0 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA13 */
 		};
 	};
 };
@@ -306,30 +304,6 @@
 	status = "okay";
 };
 
-&pio {
-	key_pins_inet9f: key-pins {
-		pins = "PA0", "PA1", "PA3", "PA4",
-		       "PA5", "PA6", "PA8", "PA9",
-		       "PA11", "PA12", "PA13",
-		       "PA14", "PA15", "PA16", "PA17",
-		       "PH22", "PH23", "PH24", "PH25", "PH26";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	usb0_id_detect_pin: usb0-id-detect-pin {
-		pins = "PH4";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	usb0_vbus_detect_pin: usb0-vbus-detect-pin {
-		pins = "PH5";
-		function = "gpio_in";
-		bias-pull-down;
-	};
-};
-
 &reg_dcdc2 {
 	regulator-always-on;
 	regulator-min-microvolt = <1000000>;
@@ -375,10 +349,8 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>, <&usb0_vbus_detect_pin>;
-	usb0_id_det-gpio = <&pio 7 4 GPIO_ACTIVE_HIGH>; /* PH4 */
-	usb0_vbus_det-gpio = <&pio 7 5 GPIO_ACTIVE_HIGH>; /* PH5 */
+	usb0_id_det-gpios = <&pio 7 4 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PH4 */
+	usb0_vbus_det-gpios = <&pio 7 5 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>; /* PH5 */
 	usb0_vbus-supply = <&reg_usb0_vbus>;
 	usb2_vbus-supply = <&reg_usb2_vbus>;
 	status = "okay";

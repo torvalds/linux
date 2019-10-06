@@ -305,7 +305,7 @@ mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
 
 	parms = mlxsw_sp_ipip_netdev_parms4(to_dev);
 	ip_tunnel_init_flow(&fl4, parms.iph.protocol, *daddrp, *saddrp,
-			    0, 0, parms.link, tun->fwmark);
+			    0, 0, parms.link, tun->fwmark, 0);
 
 	rt = ip_route_output_key(tun->net, &fl4);
 	if (IS_ERR(rt))
@@ -316,7 +316,11 @@ mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
 
 	dev = rt->dst.dev;
 	*saddrp = fl4.saddr;
-	*daddrp = rt->rt_gateway;
+	if (rt->rt_gw_family == AF_INET)
+		*daddrp = rt->rt_gw4;
+	/* can not offload if route has an IPv6 gateway */
+	else if (rt->rt_gw_family == AF_INET6)
+		dev = NULL;
 
 out:
 	ip_rt_put(rt);

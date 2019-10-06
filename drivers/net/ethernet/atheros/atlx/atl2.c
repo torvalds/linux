@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright(c) 2006 - 2007 Atheros Corporation. All rights reserved.
  * Copyright(c) 2007 - 2008 Chris Snook <csnook@redhat.com>
  *
  * Derived from Intel e1000 driver
  * Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #include <linux/atomic.h>
@@ -304,7 +291,6 @@ static s32 atl2_setup_ring_resources(struct atl2_adapter *adapter)
 		&adapter->ring_dma);
 	if (!adapter->ring_vir_addr)
 		return -ENOMEM;
-	memset(adapter->ring_vir_addr, 0, adapter->ring_size);
 
 	/* Init TXD Ring */
 	adapter->txd_dma = adapter->ring_dma ;
@@ -553,7 +539,7 @@ static void atl2_intr_tx(struct atl2_adapter *adapter)
 			netdev->stats.tx_aborted_errors++;
 		if (txs->late_col)
 			netdev->stats.tx_window_errors++;
-		if (txs->underun)
+		if (txs->underrun)
 			netdev->stats.tx_fifo_errors++;
 	} while (1);
 
@@ -908,8 +894,7 @@ static netdev_tx_t atl2_xmit_frame(struct sk_buff *skb,
 	ATL2_WRITE_REGW(&adapter->hw, REG_MB_TXD_WR_IDX,
 		(adapter->txd_write_ptr >> 2));
 
-	mmiowb();
-	dev_kfree_skb_any(skb);
+	dev_consume_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -2944,7 +2929,7 @@ static int atl2_validate_option(int *value, struct atl2_option *opt)
 			if (*value == ent->i) {
 				if (ent->str[0] != '\0')
 					printk(KERN_INFO "%s\n", ent->str);
-			return 0;
+				return 0;
 			}
 		}
 		break;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *    pata_ns87415.c - NS87415 (non PARISC) PATA
  *

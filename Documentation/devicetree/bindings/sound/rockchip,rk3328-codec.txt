@@ -1,0 +1,23 @@
+* Rockchip Rk3328 internal codec
+
+Required properties:
+
+- compatible: "rockchip,rk3328-codec"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- rockchip,grf: the phandle of the syscon node for GRF register.
+- clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
+- clock-names: should be "pclk".
+- spk-depop-time-ms: speak depop time msec.
+
+Example for rk3328 internal codec:
+
+codec: codec@ff410000 {
+	compatible = "rockchip,rk3328-codec";
+	reg = <0x0 0xff410000 0x0 0x1000>;
+	rockchip,grf = <&grf>;
+	clocks = <&cru PCLK_ACODEC>;
+	clock-names = "pclk";
+	spk-depop-time-ms = 100;
+	status = "disabled";
+};

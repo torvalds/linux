@@ -1,0 +1,27 @@
+#
+# Google network device configuration
+#
+
+config NET_VENDOR_GOOGLE
+	bool "Google Devices"
+	default y
+	help
+	  If you have a network (Ethernet) device belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Google devices. If you say Y, you will be asked
+	  for your specific device in the following questions.
+
+if NET_VENDOR_GOOGLE
+
+config GVE
+	tristate "Google Virtual NIC (gVNIC) support"
+	depends on PCI_MSI
+	help
+	  This driver supports Google Virtual NIC (gVNIC)"
+
+	  To compile this driver as a module, choose M here.
+	  The module will be called gve.
+
+endif #NET_VENDOR_GOOGLE

@@ -166,29 +166,30 @@ static __always_inline bool memory_is_poisoned(unsigned long addr, size_t size)
 	return memory_is_poisoned_n(addr, size);
 }
 
-static __always_inline void check_memory_region_inline(unsigned long addr,
+static __always_inline bool check_memory_region_inline(unsigned long addr,
 						size_t size, bool write,
 						unsigned long ret_ip)
 {
 	if (unlikely(size == 0))
-		return;
+		return true;
 
 	if (unlikely((void *)addr <
 		kasan_shadow_to_mem((void *)KASAN_SHADOW_START))) {
 		kasan_report(addr, size, write, ret_ip);
-		return;
+		return false;
 	}
 
 	if (likely(!memory_is_poisoned(addr, size)))
-		return;
+		return true;
 
 	kasan_report(addr, size, write, ret_ip);
+	return false;
 }
 
-void check_memory_region(unsigned long addr, size_t size, bool write,
+bool check_memory_region(unsigned long addr, size_t size, bool write,
 				unsigned long ret_ip)
 {
-	check_memory_region_inline(addr, size, write, ret_ip);
+	return check_memory_region_inline(addr, size, write, ret_ip);
 }
 
 void kasan_cache_shrink(struct kmem_cache *cache)
@@ -274,25 +275,6 @@ EXPORT_SYMBOL(__asan_storeN_noabort);
 /* to shut up compiler complaints */
 void __asan_handle_no_return(void) {}
 EXPORT_SYMBOL(__asan_handle_no_return);
-
-/* Emitted by compiler to poison large objects when they go out of scope. */
-void __asan_poison_stack_memory(const void *addr, size_t size)
-{
-	/*
-	 * Addr is KASAN_SHADOW_SCALE_SIZE-aligned and the object is surrounded
-	 * by redzones, so we simply round up size to simplify logic.
-	 */
-	kasan_poison_shadow(addr, round_up(size, KASAN_SHADOW_SCALE_SIZE),
-			    KASAN_USE_AFTER_SCOPE);
-}
-EXPORT_SYMBOL(__asan_poison_stack_memory);
-
-/* Emitted by compiler to unpoison large objects when they go into scope. */
-void __asan_unpoison_stack_memory(const void *addr, size_t size)
-{
-	kasan_unpoison_shadow(addr, size);
-}
-EXPORT_SYMBOL(__asan_unpoison_stack_memory);
 
 /* Emitted by compiler to poison alloca()ed objects. */
 void __asan_alloca_poison(unsigned long addr, size_t size)

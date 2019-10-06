@@ -29,7 +29,6 @@
 #include "odm_HWConfig.h"
 #include "odm_debug.h"
 #include "odm_RegDefine11N.h"
-#include "odm_AntDiv.h"
 #include "odm_EdcaTurboCheck.h"
 #include "odm_DIG.h"
 #include "odm_PathDiv.h"

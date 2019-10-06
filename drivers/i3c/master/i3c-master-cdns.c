@@ -864,11 +864,6 @@ static int cdns_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 	return ret;
 }
 
-static u32 cdns_i3c_master_i2c_funcs(struct i3c_master_controller *m)
-{
-	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C | I2C_FUNC_10BIT_ADDR;
-}
-
 struct cdns_i3c_i2c_dev_data {
 	u16 id;
 	s16 ibi;
@@ -908,7 +903,8 @@ static void cdns_i3c_master_upd_i3c_addr(struct i3c_dev_desc *dev)
 static int cdns_i3c_master_get_rr_slot(struct cdns_i3c_master *master,
 				       u8 dyn_addr)
 {
-	u32 activedevs, rr;
+	unsigned long activedevs;
+	u32 rr;
 	int i;
 
 	if (!dyn_addr) {
@@ -918,13 +914,10 @@ static int cdns_i3c_master_get_rr_slot(struct cdns_i3c_master *master,
 		return ffs(master->free_rr_slots) - 1;
 	}
 
-	activedevs = readl(master->regs + DEVS_CTRL) &
-		     DEVS_CTRL_DEVS_ACTIVE_MASK;
+	activedevs = readl(master->regs + DEVS_CTRL) & DEVS_CTRL_DEVS_ACTIVE_MASK;
+	activedevs &= ~BIT(0);
 
-	for (i = 1; i <= master->maxdevs; i++) {
-		if (!(BIT(i) & activedevs))
-			continue;
-
+	for_each_set_bit(i, &activedevs, master->maxdevs + 1) {
 		rr = readl(master->regs + DEV_ID_RR0(i));
 		if (!(rr & DEV_ID_RR0_IS_I3C) ||
 		    DEV_ID_RR0_GET_DEV_ADDR(rr) != dyn_addr)
@@ -1010,11 +1003,9 @@ static int cdns_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 	master->free_rr_slots &= ~BIT(slot);
 	i2c_dev_set_master_data(dev, data);
 
-	writel(prepare_rr0_dev_address(dev->boardinfo->base.addr) |
-	       (dev->boardinfo->base.flags & I2C_CLIENT_TEN ?
-		DEV_ID_RR0_LVR_EXT_ADDR : 0),
+	writel(prepare_rr0_dev_address(dev->addr),
 	       master->regs + DEV_ID_RR0(data->id));
-	writel(dev->boardinfo->lvr, master->regs + DEV_ID_RR2(data->id));
+	writel(dev->lvr, master->regs + DEV_ID_RR2(data->id));
 	writel(readl(master->regs + DEVS_CTRL) |
 	       DEVS_CTRL_DEV_ACTIVE(data->id),
 	       master->regs + DEVS_CTRL);
@@ -1133,18 +1124,16 @@ static void cdns_i3c_master_upd_i3c_scl_lim(struct cdns_i3c_master *master)
 static int cdns_i3c_master_do_daa(struct i3c_master_controller *m)
 {
 	struct cdns_i3c_master *master = to_cdns_i3c_master(m);
-	u32 olddevs, newdevs;
+	unsigned long olddevs, newdevs;
 	int ret, slot;
 	u8 addrs[MAX_DEVS] = { };
 	u8 last_addr = 0;
 
 	olddevs = readl(master->regs + DEVS_CTRL) & DEVS_CTRL_DEVS_ACTIVE_MASK;
+	olddevs |= BIT(0);
 
 	/* Prepare RR slots before launching DAA. */
-	for (slot = 1; slot <= master->maxdevs; slot++) {
-		if (olddevs & BIT(slot))
-			continue;
-
+	for_each_clear_bit(slot, &olddevs, master->maxdevs + 1) {
 		ret = i3c_master_get_free_addr(m, last_addr + 1);
 		if (ret < 0)
 			return -ENOSPC;
@@ -1168,10 +1157,8 @@ static int cdns_i3c_master_do_daa(struct i3c_master_controller *m)
 	 * Clear all retaining registers filled during DAA. We already
 	 * have the addressed assigned to them in the addrs array.
 	 */
-	for (slot = 1; slot <= master->maxdevs; slot++) {
-		if (newdevs & BIT(slot))
-			i3c_master_add_i3c_dev_locked(m, addrs[slot]);
-	}
+	for_each_set_bit(slot, &newdevs, master->maxdevs + 1)
+		i3c_master_add_i3c_dev_locked(m, addrs[slot]);
 
 	/*
 	 * Clear slots that ended up not being used. Can be caused by I3C
@@ -1518,7 +1505,6 @@ static const struct i3c_master_controller_ops cdns_i3c_master_ops = {
 	.send_ccc_cmd = cdns_i3c_master_send_ccc_cmd,
 	.priv_xfers = cdns_i3c_master_priv_xfers,
 	.i2c_xfers = cdns_i3c_master_i2c_xfers,
-	.i2c_funcs = cdns_i3c_master_i2c_funcs,
 	.enable_ibi = cdns_i3c_master_enable_ibi,
 	.disable_ibi = cdns_i3c_master_disable_ibi,
 	.request_ibi = cdns_i3c_master_request_ibi,

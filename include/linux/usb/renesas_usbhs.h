@@ -3,6 +3,7 @@
  * Renesas USB
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
+ * Copyright (C) 2019 Renesas Electronics Corporation
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
  * This program is distributed in the hope that it will be useful,
@@ -30,17 +31,6 @@ enum {
 	USBHS_HOST = 0,
 	USBHS_GADGET,
 	USBHS_MAX,
-};
-
-/*
- * callback functions table for driver
- *
- * These functions are called from platform for driver.
- * Callback function's pointer will be set before
- * renesas_usbhs_platform_callback :: hardware_init was called
- */
-struct renesas_usbhs_driver_callback {
-	int (*notify_hotplug)(struct platform_device *pdev);
 };
 
 /*
@@ -180,22 +170,19 @@ struct renesas_usbhs_driver_param {
 	 */
 	int pio_dma_border; /* default is 64byte */
 
-	uintptr_t type;
 	u32 enable_gpio;
 
 	/*
 	 * option:
 	 */
-	u32 has_otg:1; /* for controlling PWEN/EXTLP */
-	u32 has_sudmac:1; /* for SUDMAC */
 	u32 has_usb_dmac:1; /* for USB-DMAC */
+	u32 runtime_pwctrl:1;
+	u32 has_cnen:1;
+	u32 cfifo_byte_addr:1; /* CFIFO is byte addressable */
 #define USBHS_USB_DMAC_XFER_SIZE	32	/* hardcode the xfer size */
+	u32 multi_clks:1;
+	u32 has_new_pipe_configs:1;
 };
-
-#define USBHS_TYPE_RCAR_GEN2		1
-#define USBHS_TYPE_RCAR_GEN3		2
-#define USBHS_TYPE_RCAR_GEN3_WITH_PLL	3
-#define USBHS_TYPE_RZA1			4
 
 /*
  * option:
@@ -212,12 +199,6 @@ struct renesas_usbhs_platform_info {
 	struct renesas_usbhs_platform_callback	platform_callback;
 
 	/*
-	 * driver set these callback functions pointer.
-	 * platform can use it on callback functions
-	 */
-	struct renesas_usbhs_driver_callback	driver_callback;
-
-	/*
 	 * option:
 	 *
 	 * driver use these param for some register
@@ -230,12 +211,4 @@ struct renesas_usbhs_platform_info {
  */
 #define renesas_usbhs_get_info(pdev)\
 	((struct renesas_usbhs_platform_info *)(pdev)->dev.platform_data)
-
-#define renesas_usbhs_call_notify_hotplug(pdev)				\
-	({								\
-		struct renesas_usbhs_driver_callback *dc;		\
-		dc = &(renesas_usbhs_get_info(pdev)->driver_callback);	\
-		if (dc && dc->notify_hotplug)				\
-			dc->notify_hotplug(pdev);			\
-	})
 #endif /* RENESAS_USB_H */

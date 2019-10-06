@@ -10,39 +10,6 @@
 
 #include <linux/ceph/libceph.h>
 
-/*
- * build a vector of user pages
- */
-struct page **ceph_get_direct_page_vector(const void __user *data,
-					  int num_pages, bool write_page)
-{
-	struct page **pages;
-	int got = 0;
-	int rc = 0;
-
-	pages = kmalloc_array(num_pages, sizeof(*pages), GFP_NOFS);
-	if (!pages)
-		return ERR_PTR(-ENOMEM);
-
-	while (got < num_pages) {
-		rc = get_user_pages_fast(
-		    (unsigned long)data + ((unsigned long)got * PAGE_SIZE),
-		    num_pages - got, write_page, pages + got);
-		if (rc < 0)
-			break;
-		BUG_ON(rc == 0);
-		got += rc;
-	}
-	if (rc < 0)
-		goto fail;
-	return pages;
-
-fail:
-	ceph_put_page_vector(pages, got, false);
-	return ERR_PTR(rc);
-}
-EXPORT_SYMBOL(ceph_get_direct_page_vector);
-
 void ceph_put_page_vector(struct page **pages, int num_pages, bool dirty)
 {
 	int i;

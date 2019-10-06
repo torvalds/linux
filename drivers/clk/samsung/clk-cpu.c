@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Author: Thomas Abraham <thomas.ab@samsung.com>
  *
  * Copyright (c) 2015 Samsung Electronics Co., Ltd.
  * Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This file contains the utility function to register CPU clock for Samsung
  * Exynos platforms. A CPU clock is defined as a clock supplied to a CPU or a
@@ -33,6 +30,7 @@
 */
 
 #include <linux/errno.h>
+#include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>

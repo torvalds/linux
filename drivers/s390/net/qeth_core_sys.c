@@ -29,13 +29,11 @@ static ssize_t qeth_dev_state_show(struct device *dev,
 	case CARD_STATE_HARDSETUP:
 		return sprintf(buf, "HARDSETUP\n");
 	case CARD_STATE_SOFTSETUP:
+		if (card->dev->flags & IFF_UP)
+			return sprintf(buf, "UP (LAN %s)\n",
+				       netif_carrier_ok(card->dev) ? "ONLINE" :
+								     "OFFLINE");
 		return sprintf(buf, "SOFTSETUP\n");
-	case CARD_STATE_UP:
-		return sprintf(buf, "UP (LAN %s)\n",
-			       netif_carrier_ok(card->dev) ? "ONLINE" :
-							     "OFFLINE");
-	case CARD_STATE_RECOVER:
-		return sprintf(buf, "RECOVER\n");
 	default:
 		return sprintf(buf, "UNKNOWN\n");
 	}
@@ -126,8 +124,7 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER)) {
+	if (card->state != CARD_STATE_DOWN) {
 		rc = -EPERM;
 		goto out;
 	}
@@ -201,9 +198,11 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
+	if (IS_IQD(card))
+		return -EOPNOTSUPP;
+
 	mutex_lock(&card->conf_mutex);
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER)) {
+	if (card->state != CARD_STATE_DOWN) {
 		rc = -EPERM;
 		goto out;
 	}
@@ -243,10 +242,6 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
 		card->qdio.default_out_queue = 2;
 	} else if (sysfs_streq(buf, "no_prio_queueing:3")) {
-		if (card->info.type == QETH_CARD_TYPE_IQD) {
-			rc = -EPERM;
-			goto out;
-		}
 		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
 		card->qdio.default_out_queue = 3;
 	} else if (sysfs_streq(buf, "no_prio_queueing")) {
@@ -285,8 +280,7 @@ static ssize_t qeth_dev_bufcnt_store(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER)) {
+	if (card->state != CARD_STATE_DOWN) {
 		rc = -EPERM;
 		goto out;
 	}
@@ -316,7 +310,7 @@ static ssize_t qeth_dev_recover_store(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	if (card->state != CARD_STATE_UP)
+	if (!qeth_card_hw_is_reachable(card))
 		return -EPERM;
 
 	i = simple_strtoul(buf, &tmp, 16);
@@ -336,35 +330,36 @@ static ssize_t qeth_dev_performance_stats_show(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	return sprintf(buf, "%i\n", card->options.performance_stats ? 1:0);
+	return sprintf(buf, "1\n");
 }
 
 static ssize_t qeth_dev_performance_stats_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
-	char *tmp;
-	int i, rc = 0;
+	struct qeth_qdio_out_q *queue;
+	unsigned int i;
+	bool reset;
+	int rc;
 
 	if (!card)
 		return -EINVAL;
 
-	mutex_lock(&card->conf_mutex);
-	i = simple_strtoul(buf, &tmp, 16);
-	if ((i == 0) || (i == 1)) {
-		if (i == card->options.performance_stats)
-			goto out;
-		card->options.performance_stats = i;
-		if (i == 0)
-			memset(&card->perf_stats, 0,
-				sizeof(struct qeth_perf_stats));
-		card->perf_stats.initial_rx_packets = card->stats.rx_packets;
-		card->perf_stats.initial_tx_packets = card->stats.tx_packets;
-	} else
-		rc = -EINVAL;
-out:
-	mutex_unlock(&card->conf_mutex);
-	return rc ? rc : count;
+	rc = kstrtobool(buf, &reset);
+	if (rc)
+		return rc;
+
+	if (reset) {
+		memset(&card->stats, 0, sizeof(card->stats));
+		for (i = 0; i < card->qdio.no_out_queues; i++) {
+			queue = card->qdio.out_qs[i];
+			if (!queue)
+				break;
+			memset(&queue->stats, 0, sizeof(queue->stats));
+		}
+	}
+
+	return count;
 }
 
 static DEVICE_ATTR(performance_stats, 0644, qeth_dev_performance_stats_show,
@@ -420,7 +415,6 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 		goto out;
 	}
 
-	card->info.mac_bits = 0;
 	if (card->discipline) {
 		/* start with a new, pristine netdevice: */
 		ndev = qeth_clone_netdev(card->dev);
@@ -485,8 +479,7 @@ static ssize_t qeth_dev_isolation_store(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	if (card->info.type != QETH_CARD_TYPE_OSD &&
-	    card->info.type != QETH_CARD_TYPE_OSX) {
+	if (!IS_OSD(card) && !IS_OSX(card)) {
 		rc = -EOPNOTSUPP;
 		dev_err(&card->gdev->dev, "Adapter does not "
 			"support QDIO data connection isolation\n");
@@ -633,8 +626,7 @@ static ssize_t qeth_dev_blkt_store(struct qeth_card *card,
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER)) {
+	if (card->state != CARD_STATE_DOWN) {
 		rc = -EPERM;
 		goto out;
 	}

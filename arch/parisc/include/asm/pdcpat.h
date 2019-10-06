@@ -67,6 +67,10 @@
 #define PDC_PAT_CHASSIS_READ_LOG     	1L /* Read  Log Entry */
 
 
+/* PDC PAT COMPLEX */
+
+#define PDC_PAT_COMPLEX			66L
+
 /* PDC PAT CPU  -- CPU configuration within the protection domain */
 
 #define PDC_PAT_CPU                	67L

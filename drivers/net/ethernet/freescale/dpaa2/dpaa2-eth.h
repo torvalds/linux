@@ -16,6 +16,7 @@
 #include "dpni-cmd.h"
 
 #include "dpaa2-eth-trace.h"
+#include "dpaa2-eth-debugfs.h"
 
 #define DPAA2_WRIOP_VERSION(x, y, z) ((x) << 10 | (y) << 5 | (z) << 0)
 
@@ -52,7 +53,8 @@
  */
 #define DPAA2_ETH_MAX_FRAMES_PER_QUEUE	(DPAA2_ETH_TAILDROP_THRESH / 64)
 #define DPAA2_ETH_NUM_BUFS		(DPAA2_ETH_MAX_FRAMES_PER_QUEUE + 256)
-#define DPAA2_ETH_REFILL_THRESH		DPAA2_ETH_MAX_FRAMES_PER_QUEUE
+#define DPAA2_ETH_REFILL_THRESH \
+	(DPAA2_ETH_NUM_BUFS - DPAA2_ETH_BUFS_PER_CMD)
 
 /* Maximum number of buffers that can be acquired/released through a single
  * QBMan command
@@ -62,9 +64,11 @@
 /* Hardware requires alignment for ingress/egress buffer addresses */
 #define DPAA2_ETH_TX_BUF_ALIGN		64
 
-#define DPAA2_ETH_RX_BUF_SIZE		2048
-#define DPAA2_ETH_SKB_SIZE \
-	(DPAA2_ETH_RX_BUF_SIZE + SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+#define DPAA2_ETH_RX_BUF_RAW_SIZE	PAGE_SIZE
+#define DPAA2_ETH_RX_BUF_TAILROOM \
+	SKB_DATA_ALIGN(sizeof(struct skb_shared_info))
+#define DPAA2_ETH_RX_BUF_SIZE \
+	(DPAA2_ETH_RX_BUF_RAW_SIZE - DPAA2_ETH_RX_BUF_TAILROOM)
 
 /* Hardware annotation area in RX/TX buffers */
 #define DPAA2_ETH_RX_HWA_SIZE		64
@@ -85,12 +89,33 @@
  */
 #define DPAA2_ETH_SWA_SIZE		64
 
+/* We store different information in the software annotation area of a Tx frame
+ * based on what type of frame it is
+ */
+enum dpaa2_eth_swa_type {
+	DPAA2_ETH_SWA_SINGLE,
+	DPAA2_ETH_SWA_SG,
+	DPAA2_ETH_SWA_XDP,
+};
+
 /* Must keep this struct smaller than DPAA2_ETH_SWA_SIZE */
 struct dpaa2_eth_swa {
-	struct sk_buff *skb;
-	struct scatterlist *scl;
-	int num_sg;
-	int sgt_size;
+	enum dpaa2_eth_swa_type type;
+	union {
+		struct {
+			struct sk_buff *skb;
+		} single;
+		struct {
+			struct sk_buff *skb;
+			struct scatterlist *scl;
+			int num_sg;
+			int sgt_size;
+		} sg;
+		struct {
+			int dma_size;
+			struct xdp_frame *xdpf;
+		} xdp;
+	};
 };
 
 /* Annotation valid bits in FD FRC */
@@ -253,13 +278,17 @@ struct dpaa2_eth_ch_stats {
 	__u64 xdp_drop;
 	__u64 xdp_tx;
 	__u64 xdp_tx_err;
+	__u64 xdp_redirect;
 };
 
 /* Maximum number of queues associated with a DPNI */
+#define DPAA2_ETH_MAX_TCS		8
 #define DPAA2_ETH_MAX_RX_QUEUES		16
 #define DPAA2_ETH_MAX_TX_QUEUES		16
 #define DPAA2_ETH_MAX_QUEUES		(DPAA2_ETH_MAX_RX_QUEUES + \
 					DPAA2_ETH_MAX_TX_QUEUES)
+#define DPAA2_ETH_MAX_NETDEV_QUEUES	\
+	(DPAA2_ETH_MAX_TX_QUEUES * DPAA2_ETH_MAX_TCS)
 
 #define DPAA2_ETH_MAX_DPCONS		16
 
@@ -273,7 +302,9 @@ struct dpaa2_eth_priv;
 struct dpaa2_eth_fq {
 	u32 fqid;
 	u32 tx_qdbin;
+	u32 tx_fqid[DPAA2_ETH_MAX_TCS];
 	u16 flowid;
+	u8 tc;
 	int target_cpu;
 	u32 dq_frames;
 	u32 dq_bytes;
@@ -291,6 +322,7 @@ struct dpaa2_eth_ch_xdp {
 	struct bpf_prog *prog;
 	u64 drop_bufs[DPAA2_ETH_BUFS_PER_CMD];
 	int drop_cnt;
+	unsigned int res;
 };
 
 struct dpaa2_eth_channel {
@@ -305,6 +337,8 @@ struct dpaa2_eth_channel {
 	int buf_count;
 	struct dpaa2_eth_ch_stats stats;
 	struct dpaa2_eth_ch_xdp xdp;
+	struct xdp_rxq_info xdp_rxq;
+	struct list_head *rx_list;
 };
 
 struct dpaa2_eth_dist_fields {
@@ -312,6 +346,7 @@ struct dpaa2_eth_dist_fields {
 	enum net_prot cls_prot;
 	int cls_field;
 	int size;
+	u64 id;
 };
 
 struct dpaa2_eth_cls_rule {
@@ -325,6 +360,9 @@ struct dpaa2_eth_priv {
 
 	u8 num_fqs;
 	struct dpaa2_eth_fq fq[DPAA2_ETH_MAX_QUEUES];
+	int (*enqueue)(struct dpaa2_eth_priv *priv,
+		       struct dpaa2_eth_fq *fq,
+		       struct dpaa2_fd *fd, u8 prio);
 
 	u8 num_channels;
 	struct dpaa2_eth_channel *channel[DPAA2_ETH_MAX_DPCONS];
@@ -342,7 +380,6 @@ struct dpaa2_eth_priv {
 	bool rx_tstamp; /* Rx timestamping enabled */
 
 	u16 tx_qdid;
-	u16 rx_buf_align;
 	struct fsl_mc_io *mc_io;
 	/* Cores which have an affine DPIO/DPCON.
 	 * This is the cpu set on which Rx and Tx conf frames are processed
@@ -355,6 +392,7 @@ struct dpaa2_eth_priv {
 	struct dpaa2_eth_drv_stats __percpu *percpu_extras;
 
 	u16 mc_token;
+	u8 rx_td_enabled;
 
 	struct dpni_link_state link_state;
 	bool do_link_poll;
@@ -362,9 +400,13 @@ struct dpaa2_eth_priv {
 
 	/* enabled ethtool hashing bits */
 	u64 rx_hash_fields;
+	u64 rx_cls_fields;
 	struct dpaa2_eth_cls_rule *cls_rules;
 	u8 rx_cls_enabled;
 	struct bpf_prog *xdp_prog;
+#ifdef CONFIG_DEBUG_FS
+	struct dpaa2_debugfs dbg;
+#endif
 };
 
 #define DPAA2_RXH_SUPPORTED	(RXH_L2DA | RXH_VLAN | RXH_L3_PROTO \
@@ -402,28 +444,56 @@ static inline int dpaa2_eth_cmp_dpni_ver(struct dpaa2_eth_priv *priv,
 	(dpaa2_eth_cmp_dpni_ver((priv), DPNI_RX_DIST_KEY_VER_MAJOR,	\
 				DPNI_RX_DIST_KEY_VER_MINOR) < 0)
 
+#define dpaa2_eth_fs_enabled(priv)	\
+	(!((priv)->dpni_attrs.options & DPNI_OPT_NO_FS))
+
+#define dpaa2_eth_fs_mask_enabled(priv)	\
+	((priv)->dpni_attrs.options & DPNI_OPT_HAS_KEY_MASKING)
+
 #define dpaa2_eth_fs_count(priv)        \
 	((priv)->dpni_attrs.fs_entries)
+
+#define dpaa2_eth_tc_count(priv)	\
+	((priv)->dpni_attrs.num_tcs)
+
+/* We have exactly one {Rx, Tx conf} queue per channel */
+#define dpaa2_eth_queue_count(priv)     \
+	((priv)->num_channels)
 
 enum dpaa2_eth_rx_dist {
 	DPAA2_ETH_RX_DIST_HASH,
 	DPAA2_ETH_RX_DIST_CLS
 };
 
-/* Hardware only sees DPAA2_ETH_RX_BUF_SIZE, but the skb built around
- * the buffer also needs space for its shared info struct, and we need
- * to allocate enough to accommodate hardware alignment restrictions
- */
-static inline unsigned int dpaa2_eth_buf_raw_size(struct dpaa2_eth_priv *priv)
-{
-	return DPAA2_ETH_SKB_SIZE + priv->rx_buf_align;
-}
+/* Unique IDs for the supported Rx classification header fields */
+#define DPAA2_ETH_DIST_ETHDST		BIT(0)
+#define DPAA2_ETH_DIST_ETHSRC		BIT(1)
+#define DPAA2_ETH_DIST_ETHTYPE		BIT(2)
+#define DPAA2_ETH_DIST_VLAN		BIT(3)
+#define DPAA2_ETH_DIST_IPSRC		BIT(4)
+#define DPAA2_ETH_DIST_IPDST		BIT(5)
+#define DPAA2_ETH_DIST_IPPROTO		BIT(6)
+#define DPAA2_ETH_DIST_L4SRC		BIT(7)
+#define DPAA2_ETH_DIST_L4DST		BIT(8)
+#define DPAA2_ETH_DIST_ALL		(~0ULL)
+
+#define DPNI_PAUSE_VER_MAJOR		7
+#define DPNI_PAUSE_VER_MINOR		13
+#define dpaa2_eth_has_pause_support(priv)			\
+	(dpaa2_eth_cmp_dpni_ver((priv), DPNI_PAUSE_VER_MAJOR,	\
+				DPNI_PAUSE_VER_MINOR) >= 0)
 
 static inline
 unsigned int dpaa2_eth_needed_headroom(struct dpaa2_eth_priv *priv,
 				       struct sk_buff *skb)
 {
 	unsigned int headroom = DPAA2_ETH_SWA_SIZE;
+
+	/* If we don't have an skb (e.g. XDP buffer), we only need space for
+	 * the software annotation area
+	 */
+	if (!skb)
+		return headroom;
 
 	/* For non-linear skbs we have no headroom requirement, as we build a
 	 * SG frame with a newly allocated SGT buffer
@@ -443,18 +513,13 @@ unsigned int dpaa2_eth_needed_headroom(struct dpaa2_eth_priv *priv,
  */
 static inline unsigned int dpaa2_eth_rx_head_room(struct dpaa2_eth_priv *priv)
 {
-	return priv->tx_data_offset + DPAA2_ETH_TX_BUF_ALIGN -
-	       DPAA2_ETH_RX_HWA_SIZE;
-}
-
-/* We have exactly one {Rx, Tx conf} queue per channel */
-static int dpaa2_eth_queue_count(struct dpaa2_eth_priv *priv)
-{
-	return priv->num_channels;
+	return priv->tx_data_offset - DPAA2_ETH_RX_HWA_SIZE;
 }
 
 int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags);
-int dpaa2_eth_cls_key_size(void);
+int dpaa2_eth_set_cls(struct net_device *net_dev, u64 key);
+int dpaa2_eth_cls_key_size(u64 key);
 int dpaa2_eth_cls_fld_off(int prot, int field);
+void dpaa2_eth_cls_trim_rule(void *key_mem, u64 fields);
 
 #endif	/* __DPAA2_H */

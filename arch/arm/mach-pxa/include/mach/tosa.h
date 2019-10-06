@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Hardware specific definitions for Sharp SL-C6000x series of PDAs
  *
  * Copyright (c) 2005 Dirk Opfer
  *
  * Based on Sharp's 2.4 kernel patches
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #ifndef _ASM_ARCH_TOSA_H_
 #define _ASM_ARCH_TOSA_H_ 1

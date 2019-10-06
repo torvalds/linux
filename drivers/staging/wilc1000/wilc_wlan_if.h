@@ -11,44 +11,9 @@
 
 /********************************************
  *
- *      Host Interface Defines
- *
- ********************************************/
-
-enum {
-	WILC_HIF_SDIO = 0,
-	WILC_HIF_SPI = BIT(0)
-};
-
-/********************************************
- *
- *      Wlan Interface Defines
- *
- ********************************************/
-
-enum {
-	WILC_MAC_STATUS_INIT = -1,
-	WILC_MAC_STATUS_DISCONNECTED = 0,
-	WILC_MAC_STATUS_CONNECTED = 1
-};
-
-struct tx_complete_data {
-	int size;
-	void *buff;
-	u8 *bssid;
-	struct sk_buff *skb;
-};
-
-typedef void (*wilc_tx_complete_func_t)(void *, int);
-
-/********************************************
- *
  *      Wlan Configuration ID
  *
  ********************************************/
-#define WILC_MULTICAST_TABLE_SIZE	8
-#define MAX_SSID_LEN            33
-#define MAX_RATES_SUPPORTED     12
 
 enum bss_types {
 	WILC_FW_BSS_TYPE_INFRA = 0,
@@ -689,7 +654,6 @@ enum {
 	WID_TX_POWER_LEVEL_11N		= 0x00B1,
 
 	/* Custom Character WID list */
-	WID_PC_TEST_MODE		= 0x00C8,
 	/* SCAN Complete notification WID*/
 	WID_SCAN_COMPLETE		= 0x00C9,
 
@@ -720,7 +684,7 @@ enum {
 	WID_LONG_RETRY_LIMIT		= 0x1003,
 	WID_BEACON_INTERVAL		= 0x1006,
 	WID_MEMORY_ACCESS_16BIT		= 0x1008,
-
+	WID_PASSIVE_SCAN_TIME           = 0x100D,
 	WID_JOIN_START_TIMEOUT		= 0x100F,
 	WID_ASOC_TIMEOUT		= 0x1011,
 	WID_11I_PROTOCOL_TIMEOUT	= 0x1012,
@@ -760,7 +724,6 @@ enum {
 	/* NMAC Integer WID list */
 	/* Custom Integer WID list */
 	WID_GET_INACTIVE_TIME		= 0x2084,
-	WID_SET_OPERATION_MODE		= 0X2086,
 	/* EMAC String WID list */
 	WID_SSID			= 0x3000,
 	WID_FIRMWARE_VERSION		= 0x3001,
@@ -791,9 +754,9 @@ enum {
 	WID_MODEL_NAME			= 0x3027, /*Added for CAPI tool */
 	WID_MODEL_NUM			= 0x3028, /*Added for CAPI tool */
 	WID_DEVICE_NAME			= 0x3029, /*Added for CAPI tool */
-	WID_SET_DRV_HANDLER		= 0x3079,
 
 	/* NMAC String WID list */
+	WID_SET_OPERATION_MODE		= 0x3079,
 	WID_11N_P_ACTION_REQ		= 0x3080,
 	WID_HUT_TEST_ID			= 0x3081,
 	WID_PMKID_INFO			= 0x3082,
@@ -835,9 +798,5 @@ enum {
 	WID_ALL				= 0x7FFE,
 	WID_MAX				= 0xFFFF
 };
-
-struct wilc;
-int wilc_wlan_init(struct net_device *dev);
-u32 wilc_get_chipid(struct wilc *wilc, bool update);
 
 #endif

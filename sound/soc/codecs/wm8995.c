@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8995.c  --  WM8995 ALSA SoC Audio driver
  *
@@ -6,10 +7,6 @@
  * Author: Dimitris Papastamos <dp@opensource.wolfsonmicro.com>
  *
  * Based on wm8994.c and wm_hubs.c by Mark Brown
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -1995,20 +1992,6 @@ static int wm8995_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
-static void wm8995_remove(struct snd_soc_component *component)
-{
-	struct wm8995_priv *wm8995;
-	int i;
-
-	wm8995 = snd_soc_component_get_drvdata(component);
-
-	for (i = 0; i < ARRAY_SIZE(wm8995->supplies); ++i)
-		regulator_unregister_notifier(wm8995->supplies[i].consumer,
-					      &wm8995->disable_nb[i]);
-
-	regulator_bulk_free(ARRAY_SIZE(wm8995->supplies), wm8995->supplies);
-}
-
 static int wm8995_probe(struct snd_soc_component *component)
 {
 	struct wm8995_priv *wm8995;
@@ -2021,8 +2004,9 @@ static int wm8995_probe(struct snd_soc_component *component)
 	for (i = 0; i < ARRAY_SIZE(wm8995->supplies); i++)
 		wm8995->supplies[i].supply = wm8995_supply_names[i];
 
-	ret = regulator_bulk_get(component->dev, ARRAY_SIZE(wm8995->supplies),
-				 wm8995->supplies);
+	ret = devm_regulator_bulk_get(component->dev,
+				      ARRAY_SIZE(wm8995->supplies),
+				      wm8995->supplies);
 	if (ret) {
 		dev_err(component->dev, "Failed to request supplies: %d\n", ret);
 		return ret;
@@ -2039,8 +2023,9 @@ static int wm8995_probe(struct snd_soc_component *component)
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8995->supplies); i++) {
-		ret = regulator_register_notifier(wm8995->supplies[i].consumer,
-						  &wm8995->disable_nb[i]);
+		ret = devm_regulator_register_notifier(
+						wm8995->supplies[i].consumer,
+						&wm8995->disable_nb[i]);
 		if (ret) {
 			dev_err(component->dev,
 				"Failed to register regulator notifier: %d\n",
@@ -2052,7 +2037,7 @@ static int wm8995_probe(struct snd_soc_component *component)
 				    wm8995->supplies);
 	if (ret) {
 		dev_err(component->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_reg_get;
+		return ret;
 	}
 
 	ret = snd_soc_component_read32(component, WM8995_SOFTWARE_RESET);
@@ -2099,8 +2084,6 @@ static int wm8995_probe(struct snd_soc_component *component)
 
 err_reg_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8995->supplies), wm8995->supplies);
-err_reg_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8995->supplies), wm8995->supplies);
 	return ret;
 }
 
@@ -2188,7 +2171,6 @@ static struct snd_soc_dai_driver wm8995_dai[] = {
 
 static const struct snd_soc_component_driver soc_component_dev_wm8995 = {
 	.probe			= wm8995_probe,
-	.remove			= wm8995_remove,
 	.set_bias_level		= wm8995_set_bias_level,
 	.controls		= wm8995_snd_controls,
 	.num_controls		= ARRAY_SIZE(wm8995_snd_controls),

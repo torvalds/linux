@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Core driver for the pin muxing portions of the pin control subsystem
  *
@@ -8,8 +9,6 @@
  * Author: Linus Walleij <linus.walleij@linaro.org>
  *
  * Copyright (C) 2012 NVIDIA CORPORATION. All rights reserved.
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 #define pr_fmt(fmt) "pinmux core: " fmt
 
@@ -69,6 +68,30 @@ int pinmux_validate_map(const struct pinctrl_map *map, int i)
 	}
 
 	return 0;
+}
+
+/**
+ * pinmux_can_be_used_for_gpio() - check if a specific pin
+ *	is either muxed to a different function or used as gpio.
+ *
+ * @pin: the pin number in the global pin space
+ *
+ * Controllers not defined as strict will always return true,
+ * menaning that the gpio can be used.
+ */
+bool pinmux_can_be_used_for_gpio(struct pinctrl_dev *pctldev, unsigned pin)
+{
+	struct pin_desc *desc = pin_desc_get(pctldev, pin);
+	const struct pinmux_ops *ops = pctldev->desc->pmxops;
+
+	/* Can't inspect pin, assume it can be used */
+	if (!desc)
+		return true;
+
+	if (ops->strict && desc->mux_usecount)
+		return false;
+
+	return !(ops->strict && !!desc->gpio_owner);
 }
 
 /**

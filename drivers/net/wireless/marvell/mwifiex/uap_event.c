@@ -23,8 +23,8 @@
 
 #define MWIFIEX_BSS_START_EVT_FIX_SIZE    12
 
-static int mwifiex_check_uap_capabilties(struct mwifiex_private *priv,
-					 struct sk_buff *event)
+static int mwifiex_check_uap_capabilities(struct mwifiex_private *priv,
+					  struct sk_buff *event)
 {
 	int evt_len;
 	u8 *curr;
@@ -38,7 +38,7 @@ static int mwifiex_check_uap_capabilties(struct mwifiex_private *priv,
 	evt_len = event->len;
 	curr = event->data;
 
-	mwifiex_dbg_dump(priv->adapter, EVT_D, "uap capabilties:",
+	mwifiex_dbg_dump(priv->adapter, EVT_D, "uap capabilities:",
 			 event->data, event->len);
 
 	skb_push(event, MWIFIEX_BSS_START_EVT_FIX_SIZE);
@@ -201,7 +201,7 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 		       ETH_ALEN);
 		if (priv->hist_data)
 			mwifiex_hist_data_reset(priv);
-		mwifiex_check_uap_capabilties(priv, adapter->event_skb);
+		mwifiex_check_uap_capabilities(priv, adapter->event_skb);
 		break;
 	case EVENT_UAP_MIC_COUNTERMEASURES:
 		/* For future development */
@@ -300,7 +300,7 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 		mwifiex_11h_handle_radar_detected(priv, adapter->event_skb);
 		break;
 	case EVENT_BT_COEX_WLAN_PARA_CHANGE:
-		dev_err(adapter->dev, "EVENT: BT coex wlan param update\n");
+		mwifiex_dbg(adapter, EVENT, "event: BT coex wlan param update\n");
 		mwifiex_bt_coex_wlan_param_update_event(priv,
 							adapter->event_skb);
 		break;

@@ -86,18 +86,9 @@ static umode_t rpi_is_visible(const void *_data, enum hwmon_sensor_types type,
 	return 0444;
 }
 
-static const u32 rpi_in_config[] = {
-	HWMON_I_LCRIT_ALARM,
-	0
-};
-
-static const struct hwmon_channel_info rpi_in = {
-	.type = hwmon_in,
-	.config = rpi_in_config,
-};
-
 static const struct hwmon_channel_info *rpi_info[] = {
-	&rpi_in,
+	HWMON_CHANNEL_INFO(in,
+			   HWMON_I_LCRIT_ALARM),
 	NULL
 };
 
@@ -155,7 +146,7 @@ static struct platform_driver rpi_hwmon_driver = {
 };
 module_platform_driver(rpi_hwmon_driver);
 
-MODULE_AUTHOR("Stefan Wahren <stefan.wahren@i2se.com>");
+MODULE_AUTHOR("Stefan Wahren <wahrenst@gmx.net>");
 MODULE_DESCRIPTION("Raspberry Pi voltage sensor driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:raspberrypi-hwmon");

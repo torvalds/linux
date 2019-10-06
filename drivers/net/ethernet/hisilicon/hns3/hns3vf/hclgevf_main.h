@@ -4,6 +4,7 @@
 #ifndef __HCLGEVF_MAIN_H
 #define __HCLGEVF_MAIN_H
 #include <linux/fs.h>
+#include <linux/if_vlan.h>
 #include <linux/types.h>
 #include "hclge_mbx.h"
 #include "hclgevf_cmd.h"
@@ -12,9 +13,12 @@
 #define HCLGEVF_MOD_VERSION "1.0"
 #define HCLGEVF_DRIVER_NAME "hclgevf"
 
+#define HCLGEVF_MAX_VLAN_ID	4095
 #define HCLGEVF_MISC_VECTOR_NUM		0
 
 #define HCLGEVF_INVALID_VPORT		0xffff
+#define HCLGEVF_GENERAL_TASK_INTERVAL	  5
+#define HCLGEVF_KEEP_ALIVE_TASK_INTERVAL  2
 
 /* This number in actual depends upon the total number of VFs
  * created by physical function. But the maximum number of
@@ -83,6 +87,8 @@
 
 /* Vector0 interrupt CMDQ event source register(RW) */
 #define HCLGEVF_VECTOR0_CMDQ_SRC_REG	0x27100
+/* Vector0 interrupt CMDQ event status register(RO) */
+#define HCLGEVF_VECTOR0_CMDQ_STAT_REG	0x27104
 /* CMDQ register bits for RX event(=MBX event) */
 #define HCLGEVF_VECTOR0_RX_CMDQ_INT_B	1
 /* RST register bits for RESET event */
@@ -98,6 +104,9 @@
 #define HCLGEVF_RST_ING_BITS \
 	(HCLGEVF_FUN_RST_ING_BIT | HCLGEVF_GLOBAL_RST_ING_BIT | \
 	 HCLGEVF_CORE_RST_ING_BIT | HCLGEVF_IMP_RST_ING_BIT)
+
+#define HCLGEVF_VF_RST_ING		0x07008
+#define HCLGEVF_VF_RST_ING_BIT		BIT(16)
 
 #define HCLGEVF_RSS_IND_TBL_SIZE		512
 #define HCLGEVF_RSS_SET_BITMAP_MSK	0xffff
@@ -116,6 +125,8 @@
 #define HCLGEVF_S_IP_BIT		BIT(3)
 #define HCLGEVF_V_TAG_BIT		BIT(4)
 
+#define HCLGEVF_STATS_TIMER_INTERVAL	36U
+
 enum hclgevf_evt_cause {
 	HCLGEVF_VECTOR0_EVENT_RST,
 	HCLGEVF_VECTOR0_EVENT_MBX,
@@ -128,6 +139,8 @@ enum hclgevf_states {
 	HCLGEVF_STATE_DOWN,
 	HCLGEVF_STATE_DISABLED,
 	HCLGEVF_STATE_IRQ_INITED,
+	HCLGEVF_STATE_REMOVING,
+	HCLGEVF_STATE_NIC_REGISTERED,
 	/* task states */
 	HCLGEVF_STATE_SERVICE_SCHED,
 	HCLGEVF_STATE_RST_SERVICE_SCHED,
@@ -141,10 +154,13 @@ enum hclgevf_states {
 
 struct hclgevf_mac {
 	u8 media_type;
+	u8 module_type;
 	u8 mac_addr[ETH_ALEN];
 	int link;
 	u8 duplex;
 	u32 speed;
+	u64 supported;
+	u64 advertising;
 };
 
 struct hclgevf_hw {
@@ -208,6 +224,16 @@ struct hclgevf_misc_vector {
 	int vector_irq;
 };
 
+struct hclgevf_rst_stats {
+	u32 rst_cnt;			/* the number of reset */
+	u32 vf_func_rst_cnt;		/* the number of VF function reset */
+	u32 flr_rst_cnt;		/* the number of FLR */
+	u32 vf_rst_cnt;			/* the number of VF reset */
+	u32 rst_done_cnt;		/* the number of reset completed */
+	u32 hw_rst_done_cnt;		/* the number of HW reset completed */
+	u32 rst_fail_cnt;		/* the number of VF reset fail */
+};
+
 struct hclgevf_dev {
 	struct pci_dev *pdev;
 	struct hnae3_ae_dev *ae_dev;
@@ -225,7 +251,7 @@ struct hclgevf_dev {
 #define HCLGEVF_RESET_REQUESTED		0
 #define HCLGEVF_RESET_PENDING		1
 	unsigned long reset_state;	/* requested, pending */
-	unsigned long reset_count;	/* the number of reset has been done */
+	struct hclgevf_rst_stats rst_stats;
 	u32 reset_attempts;
 
 	u32 fw_version;
@@ -237,7 +263,8 @@ struct hclgevf_dev {
 	u16 num_alloc_vport;	/* num vports this driver supports */
 	u32 numa_node_mask;
 	u16 rx_buf_len;
-	u16 num_desc;
+	u16 num_tx_desc;	/* desc num of per tx queue */
+	u16 num_rx_desc;	/* desc num of per rx queue */
 	u8 hw_tc_map;
 
 	u16 num_msi;
@@ -249,6 +276,8 @@ struct hclgevf_dev {
 	u32 base_msi_vector;
 	u16 *vector_status;
 	int *vector_irq;
+
+	unsigned long vlan_del_fail_bmap[BITS_TO_LONGS(VLAN_N_VID)];
 
 	bool mbx_event_pending;
 	struct hclgevf_mbx_resp_status mbx_resp; /* mailbox response */
@@ -269,6 +298,7 @@ struct hclgevf_dev {
 	struct hnae3_client *nic_client;
 	struct hnae3_client *roce_client;
 	u32 flag;
+	u32 stats_timer;
 };
 
 static inline bool hclgevf_is_reset_pending(struct hclgevf_dev *hdev)
@@ -287,4 +317,6 @@ void hclgevf_update_speed_duplex(struct hclgevf_dev *hdev, u32 speed,
 				 u8 duplex);
 void hclgevf_reset_task_schedule(struct hclgevf_dev *hdev);
 void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev);
+void hclgevf_update_port_base_vlan_info(struct hclgevf_dev *hdev, u16 state,
+					u8 *port_base_vlan_info, u8 data_size);
 #endif

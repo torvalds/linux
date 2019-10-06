@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Network device driver for the MACE ethernet controller on
  * Apple Powermacs.  Assumes it's under a DBDMA controller.
@@ -764,7 +765,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	    dev->stats.tx_bytes += mp->tx_bufs[i]->len;
 	    ++dev->stats.tx_packets;
 	}
-	dev_kfree_skb_irq(mp->tx_bufs[i]);
+	dev_consume_skb_irq(mp->tx_bufs[i]);
 	--mp->tx_active;
 	if (++i >= N_TX_RING)
 	    i = 0;

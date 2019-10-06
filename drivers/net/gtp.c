@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* GTP according to GSM TS 09.60 / 3GPP TS 29.060
  *
  * (C) 2012-2014 by sysmocom - s.f.m.c. GmbH
@@ -6,11 +7,6 @@
  * Author: Harald Welte <hwelte@sysmocom.de>
  *	   Pablo Neira Ayuso <pablo@netfilter.org>
  *	   Andreas Schultz <aschultz@travelping.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -289,16 +285,29 @@ static int gtp1u_udp_encap_recv(struct gtp_dev *gtp, struct sk_buff *skb)
 	return gtp_rx(pctx, skb, hdrlen, gtp->role);
 }
 
-static void gtp_encap_destroy(struct sock *sk)
+static void __gtp_encap_destroy(struct sock *sk)
 {
 	struct gtp_dev *gtp;
 
-	gtp = rcu_dereference_sk_user_data(sk);
+	lock_sock(sk);
+	gtp = sk->sk_user_data;
 	if (gtp) {
+		if (gtp->sk0 == sk)
+			gtp->sk0 = NULL;
+		else
+			gtp->sk1u = NULL;
 		udp_sk(sk)->encap_type = 0;
 		rcu_assign_sk_user_data(sk, NULL);
 		sock_put(sk);
 	}
+	release_sock(sk);
+}
+
+static void gtp_encap_destroy(struct sock *sk)
+{
+	rtnl_lock();
+	__gtp_encap_destroy(sk);
+	rtnl_unlock();
 }
 
 static void gtp_encap_disable_sock(struct sock *sk)
@@ -306,7 +315,7 @@ static void gtp_encap_disable_sock(struct sock *sk)
 	if (!sk)
 		return;
 
-	gtp_encap_destroy(sk);
+	__gtp_encap_destroy(sk);
 }
 
 static void gtp_encap_disable(struct gtp_dev *gtp)
@@ -685,7 +694,6 @@ static void gtp_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct gtp_dev *gtp = netdev_priv(dev);
 
-	gtp_encap_disable(gtp);
 	gtp_hashtable_free(gtp);
 	list_del_rcu(&gtp->list);
 	unregister_netdevice_queue(dev, head);
@@ -800,7 +808,8 @@ static struct sock *gtp_encap_enable_socket(int fd, int type,
 		goto out_sock;
 	}
 
-	if (rcu_dereference_sk_user_data(sock->sk)) {
+	lock_sock(sock->sk);
+	if (sock->sk->sk_user_data) {
 		sk = ERR_PTR(-EBUSY);
 		goto out_sock;
 	}
@@ -816,6 +825,7 @@ static struct sock *gtp_encap_enable_socket(int fd, int type,
 	setup_udp_tunnel_sock(sock_net(sock->sk), sock, &tuncfg);
 
 out_sock:
+	release_sock(sock->sk);
 	sockfd_put(sock);
 	return sk;
 }
@@ -847,8 +857,13 @@ static int gtp_encap_enable(struct gtp_dev *gtp, struct nlattr *data[])
 
 	if (data[IFLA_GTP_ROLE]) {
 		role = nla_get_u32(data[IFLA_GTP_ROLE]);
-		if (role > GTP_ROLE_SGSN)
+		if (role > GTP_ROLE_SGSN) {
+			if (sk0)
+				gtp_encap_disable_sock(sk0);
+			if (sk1u)
+				gtp_encap_disable_sock(sk1u);
 			return -EINVAL;
+		}
 	}
 
 	gtp->sk0 = sk0;
@@ -949,7 +964,7 @@ static int ipv4_pdp_add(struct gtp_dev *gtp, struct sock *sk,
 
 	}
 
-	pctx = kmalloc(sizeof(struct pdp_ctx), GFP_KERNEL);
+	pctx = kmalloc(sizeof(*pctx), GFP_ATOMIC);
 	if (pctx == NULL)
 		return -ENOMEM;
 
@@ -1038,6 +1053,7 @@ static int gtp_genl_new_pdp(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 	}
 
+	rtnl_lock();
 	rcu_read_lock();
 
 	gtp = gtp_find_dev(sock_net(skb->sk), info->attrs);
@@ -1062,6 +1078,7 @@ static int gtp_genl_new_pdp(struct sk_buff *skb, struct genl_info *info)
 
 out_unlock:
 	rcu_read_unlock();
+	rtnl_unlock();
 	return err;
 }
 
@@ -1270,21 +1287,21 @@ static const struct nla_policy gtp_genl_policy[GTPA_MAX + 1] = {
 static const struct genl_ops gtp_genl_ops[] = {
 	{
 		.cmd = GTP_CMD_NEWPDP,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = gtp_genl_new_pdp,
-		.policy = gtp_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = GTP_CMD_DELPDP,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = gtp_genl_del_pdp,
-		.policy = gtp_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = GTP_CMD_GETPDP,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = gtp_genl_get_pdp,
 		.dumpit = gtp_genl_dump_pdp,
-		.policy = gtp_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 };
@@ -1294,6 +1311,7 @@ static struct genl_family gtp_genl_family __ro_after_init = {
 	.version	= 0,
 	.hdrsize	= 0,
 	.maxattr	= GTPA_MAX,
+	.policy = gtp_genl_policy,
 	.netnsok	= true,
 	.module		= THIS_MODULE,
 	.ops		= gtp_genl_ops,
@@ -1363,9 +1381,9 @@ late_initcall(gtp_init);
 
 static void __exit gtp_fini(void)
 {
-	unregister_pernet_subsys(&gtp_net_ops);
 	genl_unregister_family(&gtp_genl_family);
 	rtnl_link_unregister(&gtp_link_ops);
+	unregister_pernet_subsys(&gtp_net_ops);
 
 	pr_info("GTP module unloaded\n");
 }

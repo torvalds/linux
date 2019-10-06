@@ -1,4 +1,5 @@
-menu "Ingenic JZ47xx CGU drivers"
+# SPDX-License-Identifier: GPL-2.0-only
+menu "Ingenic SoCs drivers"
 	depends on MIPS
 
 config INGENIC_CGU_COMMON
@@ -43,5 +44,13 @@ config INGENIC_CGU_JZ4780
 	  and compatible SoCs.
 
 	  If building for a JZ4780 SoC, you want to say Y here.
+
+config INGENIC_TCU_CLK
+	bool "Ingenic JZ47xx TCU clocks driver"
+	default MACH_INGENIC
+	select MFD_SYSCON
+	help
+	  Support the clocks of the Timer/Counter Unit (TCU) of the Ingenic
+	  JZ47xx SoCs.
 
 endmenu

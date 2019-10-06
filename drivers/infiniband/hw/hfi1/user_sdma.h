@@ -110,12 +110,6 @@ enum pkt_q_sdma_state {
 	SDMA_PKT_Q_DEFERRED,
 };
 
-/*
- * Maximum retry attempts to submit a TX request
- * before putting the process to sleep.
- */
-#define MAX_DEFER_RETRY_COUNT 1
-
 #define SDMA_IOWAIT_TIMEOUT 1000 /* in milliseconds */
 
 #define SDMA_DBG(req, fmt, ...)				     \
@@ -245,7 +239,6 @@ struct user_sdma_txreq {
 	struct list_head list;
 	struct user_sdma_request *req;
 	u16 flags;
-	unsigned int busycount;
 	u16 seqnum;
 };
 

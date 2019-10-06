@@ -15,12 +15,12 @@
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 
-#include <drm/drm_modes.h>
-#include <drm/drm_panel.h>
-#include <drm/drmP.h>
-
 #include <video/videomode.h>
 #include <video/display_timing.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
 
 #define LCD_OLINUXINO_HEADER_MAGIC	0x4F4CB727
 #define LCD_OLINUXINO_DATA_LEN		256
@@ -190,7 +190,6 @@ static int lcd_olinuxino_get_modes(struct drm_panel *panel)
 		num++;
 	}
 
-	memcpy(connector->display_info.name, lcd_info->name, 32);
 	connector->display_info.width_mm = lcd_info->width_mm;
 	connector->display_info.height_mm = lcd_info->height_mm;
 	connector->display_info.bpc = lcd_info->bpc;

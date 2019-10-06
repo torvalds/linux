@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * GPIO driver for Fintek Super-I/O F71869, F71869A, F71882, F71889 and F81866
  *
  * Copyright (C) 2010-2013 LaCie
  *
  * Author: Simon Guinot <simon.guinot@sequanux.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -39,8 +35,10 @@
 #define SIO_F71889_ID		0x0909	/* F71889 chipset ID */
 #define SIO_F71889A_ID		0x1005	/* F71889A chipset ID */
 #define SIO_F81866_ID		0x1010	/* F81866 chipset ID */
+#define SIO_F81804_ID		0x1502  /* F81804 chipset ID, same for f81966 */
 
-enum chips { f71869, f71869a, f71882fg, f71889a, f71889f, f81866 };
+
+enum chips { f71869, f71869a, f71882fg, f71889a, f71889f, f81866, f81804 };
 
 static const char * const f7188x_names[] = {
 	"f71869",
@@ -49,6 +47,7 @@ static const char * const f7188x_names[] = {
 	"f71889a",
 	"f71889f",
 	"f81866",
+	"f81804",
 };
 
 struct f7188x_sio {
@@ -222,6 +221,18 @@ static struct f7188x_gpio_bank f81866_gpio_bank[] = {
 	F7188X_GPIO_BANK(70, 8, 0x80),
 	F7188X_GPIO_BANK(80, 8, 0x88),
 };
+
+
+static struct f7188x_gpio_bank f81804_gpio_bank[] = {
+	F7188X_GPIO_BANK(0, 8, 0xF0),
+	F7188X_GPIO_BANK(10, 8, 0xE0),
+	F7188X_GPIO_BANK(20, 8, 0xD0),
+	F7188X_GPIO_BANK(50, 8, 0xA0),
+	F7188X_GPIO_BANK(60, 8, 0x90),
+	F7188X_GPIO_BANK(70, 8, 0x80),
+	F7188X_GPIO_BANK(90, 8, 0x98),
+};
+
 
 static int f7188x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
@@ -407,6 +418,10 @@ static int f7188x_gpio_probe(struct platform_device *pdev)
 		data->nr_bank = ARRAY_SIZE(f81866_gpio_bank);
 		data->bank = f81866_gpio_bank;
 		break;
+	case  f81804:
+		data->nr_bank = ARRAY_SIZE(f81804_gpio_bank);
+		data->bank = f81804_gpio_bank;
+		break;
 	default:
 		return -ENODEV;
 	}
@@ -468,6 +483,9 @@ static int __init f7188x_find(int addr, struct f7188x_sio *sio)
 		break;
 	case SIO_F81866_ID:
 		sio->type = f81866;
+		break;
+	case SIO_F81804_ID:
+		sio->type = f81804;
 		break;
 	default:
 		pr_info(DRVNAME ": Unsupported Fintek device 0x%04x\n", devid);

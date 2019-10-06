@@ -241,12 +241,12 @@ void nitrox_config_pkt_solicit_ports(struct nitrox_device *ndev)
 }
 
 /**
- * enable_nps_interrupts - enable NPS interrutps
+ * enable_nps_core_interrupts - enable NPS core interrutps
  * @ndev: NITROX device.
  *
- * This includes NPS core, packet in and slc interrupts.
+ * This includes NPS core interrupts.
  */
-static void enable_nps_interrupts(struct nitrox_device *ndev)
+static void enable_nps_core_interrupts(struct nitrox_device *ndev)
 {
 	union nps_core_int_ena_w1s core_int;
 
@@ -258,18 +258,9 @@ static void enable_nps_interrupts(struct nitrox_device *ndev)
 	core_int.s.npco_dma_malform = 1;
 	core_int.s.host_nps_wr_err = 1;
 	nitrox_write_csr(ndev, NPS_CORE_INT_ENA_W1S, core_int.value);
-
-	/* NPS packet in ring interrupts */
-	nitrox_write_csr(ndev, NPS_PKT_IN_RERR_LO_ENA_W1S, (~0ULL));
-	nitrox_write_csr(ndev, NPS_PKT_IN_RERR_HI_ENA_W1S, (~0ULL));
-	nitrox_write_csr(ndev, NPS_PKT_IN_ERR_TYPE_ENA_W1S, (~0ULL));
-	/* NPS packet slc port interrupts */
-	nitrox_write_csr(ndev, NPS_PKT_SLC_RERR_HI_ENA_W1S, (~0ULL));
-	nitrox_write_csr(ndev, NPS_PKT_SLC_RERR_LO_ENA_W1S, (~0ULL));
-	nitrox_write_csr(ndev, NPS_PKT_SLC_ERR_TYPE_ENA_W1S, (~0uLL));
 }
 
-void nitrox_config_nps_unit(struct nitrox_device *ndev)
+void nitrox_config_nps_core_unit(struct nitrox_device *ndev)
 {
 	union nps_core_gbl_vfcfg core_gbl_vfcfg;
 
@@ -281,12 +272,149 @@ void nitrox_config_nps_unit(struct nitrox_device *ndev)
 	core_gbl_vfcfg.s.ilk_disable = 1;
 	core_gbl_vfcfg.s.cfg = __NDEV_MODE_PF;
 	nitrox_write_csr(ndev, NPS_CORE_GBL_VFCFG, core_gbl_vfcfg.value);
+
+	/* enable nps core interrupts */
+	enable_nps_core_interrupts(ndev);
+}
+
+/**
+ * enable_nps_pkt_interrupts - enable NPS packet interrutps
+ * @ndev: NITROX device.
+ *
+ * This includes NPS packet in and slc interrupts.
+ */
+static void enable_nps_pkt_interrupts(struct nitrox_device *ndev)
+{
+	/* NPS packet in ring interrupts */
+	nitrox_write_csr(ndev, NPS_PKT_IN_RERR_LO_ENA_W1S, (~0ULL));
+	nitrox_write_csr(ndev, NPS_PKT_IN_RERR_HI_ENA_W1S, (~0ULL));
+	nitrox_write_csr(ndev, NPS_PKT_IN_ERR_TYPE_ENA_W1S, (~0ULL));
+	/* NPS packet slc port interrupts */
+	nitrox_write_csr(ndev, NPS_PKT_SLC_RERR_HI_ENA_W1S, (~0ULL));
+	nitrox_write_csr(ndev, NPS_PKT_SLC_RERR_LO_ENA_W1S, (~0ULL));
+	nitrox_write_csr(ndev, NPS_PKT_SLC_ERR_TYPE_ENA_W1S, (~0uLL));
+}
+
+void nitrox_config_nps_pkt_unit(struct nitrox_device *ndev)
+{
 	/* config input and solicit ports */
 	nitrox_config_pkt_input_rings(ndev);
 	nitrox_config_pkt_solicit_ports(ndev);
 
-	/* enable interrupts */
-	enable_nps_interrupts(ndev);
+	/* enable nps packet interrupts */
+	enable_nps_pkt_interrupts(ndev);
+}
+
+static void reset_aqm_ring(struct nitrox_device *ndev, int ring)
+{
+	union aqmq_en aqmq_en_reg;
+	union aqmq_activity_stat activity_stat;
+	union aqmq_cmp_cnt cmp_cnt;
+	int max_retries = MAX_CSR_RETRIES;
+	u64 offset;
+
+	/* step 1: disable the queue */
+	offset = AQMQ_ENX(ring);
+	aqmq_en_reg.value = 0;
+	aqmq_en_reg.queue_enable = 0;
+	nitrox_write_csr(ndev, offset, aqmq_en_reg.value);
+
+	/* step 2: wait for AQMQ_ACTIVITY_STATX[QUEUE_ACTIVE] to clear */
+	usleep_range(100, 150);
+	offset = AQMQ_ACTIVITY_STATX(ring);
+	do {
+		activity_stat.value = nitrox_read_csr(ndev, offset);
+		if (!activity_stat.queue_active)
+			break;
+		udelay(50);
+	} while (max_retries--);
+
+	/* step 3: clear commands completed count */
+	offset = AQMQ_CMP_CNTX(ring);
+	cmp_cnt.value = nitrox_read_csr(ndev, offset);
+	nitrox_write_csr(ndev, offset, cmp_cnt.value);
+	usleep_range(50, 100);
+}
+
+void enable_aqm_ring(struct nitrox_device *ndev, int ring)
+{
+	union aqmq_en aqmq_en_reg;
+	u64 offset;
+
+	offset = AQMQ_ENX(ring);
+	aqmq_en_reg.value = 0;
+	aqmq_en_reg.queue_enable = 1;
+	nitrox_write_csr(ndev, offset, aqmq_en_reg.value);
+	usleep_range(50, 100);
+}
+
+void nitrox_config_aqm_rings(struct nitrox_device *ndev)
+{
+	int ring;
+
+	for (ring = 0; ring < ndev->nr_queues; ring++) {
+		struct nitrox_cmdq *cmdq = ndev->aqmq[ring];
+		union aqmq_drbl drbl;
+		union aqmq_qsz qsize;
+		union aqmq_cmp_thr cmp_thr;
+		u64 offset;
+
+		/* steps 1 - 3 */
+		reset_aqm_ring(ndev, ring);
+
+		/* step 4: clear doorbell count of ring */
+		offset = AQMQ_DRBLX(ring);
+		drbl.value = 0;
+		drbl.dbell_count = 0xFFFFFFFF;
+		nitrox_write_csr(ndev, offset, drbl.value);
+
+		/* step 5: configure host ring details */
+
+		/* set host address for next command of ring */
+		offset = AQMQ_NXT_CMDX(ring);
+		nitrox_write_csr(ndev, offset, 0ULL);
+
+		/* set host address of ring base */
+		offset = AQMQ_BADRX(ring);
+		nitrox_write_csr(ndev, offset, cmdq->dma);
+
+		/* set ring size */
+		offset = AQMQ_QSZX(ring);
+		qsize.value = 0;
+		qsize.host_queue_size = ndev->qlen;
+		nitrox_write_csr(ndev, offset, qsize.value);
+
+		/* set command completion threshold */
+		offset = AQMQ_CMP_THRX(ring);
+		cmp_thr.value = 0;
+		cmp_thr.commands_completed_threshold = 1;
+		nitrox_write_csr(ndev, offset, cmp_thr.value);
+
+		/* step 6: enable the queue */
+		enable_aqm_ring(ndev, ring);
+	}
+}
+
+static void enable_aqm_interrupts(struct nitrox_device *ndev)
+{
+	/* clear interrupt enable bits */
+	nitrox_write_csr(ndev, AQM_DBELL_OVF_LO_ENA_W1S, (~0ULL));
+	nitrox_write_csr(ndev, AQM_DBELL_OVF_HI_ENA_W1S, (~0ULL));
+	nitrox_write_csr(ndev, AQM_DMA_RD_ERR_LO_ENA_W1S, (~0ULL));
+	nitrox_write_csr(ndev, AQM_DMA_RD_ERR_HI_ENA_W1S, (~0ULL));
+	nitrox_write_csr(ndev, AQM_EXEC_NA_LO_ENA_W1S, (~0ULL));
+	nitrox_write_csr(ndev, AQM_EXEC_NA_HI_ENA_W1S, (~0ULL));
+	nitrox_write_csr(ndev, AQM_EXEC_ERR_LO_ENA_W1S, (~0ULL));
+	nitrox_write_csr(ndev, AQM_EXEC_ERR_HI_ENA_W1S, (~0ULL));
+}
+
+void nitrox_config_aqm_unit(struct nitrox_device *ndev)
+{
+	/* config aqm command queues */
+	nitrox_config_aqm_rings(ndev);
+
+	/* enable aqm interrupts */
+	enable_aqm_interrupts(ndev);
 }
 
 void nitrox_config_pom_unit(struct nitrox_device *ndev)
@@ -437,6 +565,45 @@ void config_nps_core_vfcfg_mode(struct nitrox_device *ndev, enum vf_mode mode)
 	nitrox_write_csr(ndev, NPS_CORE_GBL_VFCFG, vfcfg.value);
 }
 
+static const char *get_core_option(u8 se_cores, u8 ae_cores)
+{
+	const char *option = "";
+
+	if (ae_cores == AE_MAX_CORES) {
+		switch (se_cores) {
+		case SE_MAX_CORES:
+			option = "60";
+			break;
+		case 40:
+			option = "60s";
+			break;
+		}
+	} else if (ae_cores == (AE_MAX_CORES / 2)) {
+		option = "30";
+	} else {
+		option = "60i";
+	}
+
+	return option;
+}
+
+static const char *get_feature_option(u8 zip_cores, int core_freq)
+{
+	if (zip_cores == 0)
+		return "";
+	else if (zip_cores < ZIP_MAX_CORES)
+		return "-C15";
+
+	if (core_freq >= 850)
+		return "-C45";
+	else if (core_freq >= 750)
+		return "-C35";
+	else if (core_freq >= 550)
+		return "-C25";
+
+	return "";
+}
+
 void nitrox_get_hwinfo(struct nitrox_device *ndev)
 {
 	union emu_fuse_map emu_fuse;
@@ -469,24 +636,14 @@ void nitrox_get_hwinfo(struct nitrox_device *ndev)
 		ndev->hw.zip_cores = ZIP_MAX_CORES - dead_cores;
 	}
 
-	/* determine the partname CNN55<cores>-<freq><pincount>-<rev>*/
-	if (ndev->hw.ae_cores == AE_MAX_CORES) {
-		switch (ndev->hw.se_cores) {
-		case SE_MAX_CORES:
-			i = snprintf(name, sizeof(name), "CNN5560");
-			break;
-		case 40:
-			i = snprintf(name, sizeof(name), "CNN5560s");
-			break;
-		}
-	} else if (ndev->hw.ae_cores == (AE_MAX_CORES / 2)) {
-		i = snprintf(name, sizeof(name), "CNN5530");
-	} else {
-		i = snprintf(name, sizeof(name), "CNN5560i");
-	}
-
-	snprintf(name + i, sizeof(name) - i, "-%3dBG676-1.%u",
-		 ndev->hw.freq, ndev->hw.revision_id);
+	/* determine the partname
+	 * CNN55<core option>-<freq><pincount>-<feature option>-<rev>
+	 */
+	snprintf(name, sizeof(name), "CNN55%s-%3dBG676%s-1.%u",
+		 get_core_option(ndev->hw.se_cores, ndev->hw.ae_cores),
+		 ndev->hw.freq,
+		 get_feature_option(ndev->hw.zip_cores, ndev->hw.freq),
+		 ndev->hw.revision_id);
 
 	/* copy partname */
 	strncpy(ndev->hw.partname, name, sizeof(ndev->hw.partname));

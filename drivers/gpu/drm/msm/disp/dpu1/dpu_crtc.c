@@ -1,30 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 #include <linux/sort.h>
 #include <linux/debugfs.h>
 #include <linux/ktime.h>
-#include <drm/drm_mode.h>
+
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_flip_work.h>
+#include <drm/drm_mode.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
+#include <drm/drm_vblank.h>
 
 #include "dpu_kms.h"
 #include "dpu_hw_lm.h"
@@ -45,6 +36,9 @@
 /* layer mixer index on dpu_crtc */
 #define LEFT_MIXER 0
 #define RIGHT_MIXER 1
+
+/* timeout in ms waiting for frame done */
+#define DPU_CRTC_FRAME_DONE_TIMEOUT_MS	60
 
 static struct dpu_kms *_dpu_crtc_get_kms(struct drm_crtc *crtc)
 {
@@ -300,19 +294,6 @@ void dpu_crtc_vblank_callback(struct drm_crtc *crtc)
 	trace_dpu_crtc_vblank_cb(DRMID(crtc));
 }
 
-static void dpu_crtc_release_bw_unlocked(struct drm_crtc *crtc)
-{
-	int ret = 0;
-	struct drm_modeset_acquire_ctx ctx;
-
-	DRM_MODESET_LOCK_ALL_BEGIN(crtc->dev, ctx, 0, ret);
-	dpu_core_perf_crtc_release_bw(crtc);
-	DRM_MODESET_LOCK_ALL_END(ctx, ret);
-	if (ret)
-		DRM_ERROR("Failed to acquire modeset locks to release bw, %d\n",
-			  ret);
-}
-
 static void dpu_crtc_frame_event_work(struct kthread_work *work)
 {
 	struct dpu_crtc_frame_event *fevent = container_of(work,
@@ -332,17 +313,12 @@ static void dpu_crtc_frame_event_work(struct kthread_work *work)
 				| DPU_ENCODER_FRAME_EVENT_PANEL_DEAD)) {
 
 		if (atomic_read(&dpu_crtc->frame_pending) < 1) {
-			/* this should not happen */
-			DRM_ERROR("crtc%d ev:%u ts:%lld frame_pending:%d\n",
-					crtc->base.id,
-					fevent->event,
-					ktime_to_ns(fevent->ts),
-					atomic_read(&dpu_crtc->frame_pending));
+			/* ignore vblank when not pending */
 		} else if (atomic_dec_return(&dpu_crtc->frame_pending) == 0) {
 			/* release bandwidth and other resources */
 			trace_dpu_crtc_frame_event_done(DRMID(crtc),
 							fevent->event);
-			dpu_crtc_release_bw_unlocked(crtc);
+			dpu_core_perf_crtc_release_bw(crtc);
 		} else {
 			trace_dpu_crtc_frame_event_more_pending(DRMID(crtc),
 								fevent->event);
@@ -415,75 +391,9 @@ static void dpu_crtc_frame_event_cb(void *data, u32 event)
 	kthread_queue_work(&priv->event_thread[crtc_id].worker, &fevent->work);
 }
 
-void dpu_crtc_complete_commit(struct drm_crtc *crtc,
-		struct drm_crtc_state *old_state)
+void dpu_crtc_complete_commit(struct drm_crtc *crtc)
 {
-	if (!crtc || !crtc->state) {
-		DPU_ERROR("invalid crtc\n");
-		return;
-	}
 	trace_dpu_crtc_complete_commit(DRMID(crtc));
-}
-
-static void _dpu_crtc_setup_mixer_for_encoder(
-		struct drm_crtc *crtc,
-		struct drm_encoder *enc)
-{
-	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
-	struct dpu_kms *dpu_kms = _dpu_crtc_get_kms(crtc);
-	struct dpu_rm *rm = &dpu_kms->rm;
-	struct dpu_crtc_mixer *mixer;
-	struct dpu_hw_ctl *last_valid_ctl = NULL;
-	int i;
-	struct dpu_rm_hw_iter lm_iter, ctl_iter;
-
-	dpu_rm_init_hw_iter(&lm_iter, enc->base.id, DPU_HW_BLK_LM);
-	dpu_rm_init_hw_iter(&ctl_iter, enc->base.id, DPU_HW_BLK_CTL);
-
-	/* Set up all the mixers and ctls reserved by this encoder */
-	for (i = cstate->num_mixers; i < ARRAY_SIZE(cstate->mixers); i++) {
-		mixer = &cstate->mixers[i];
-
-		if (!dpu_rm_get_hw(rm, &lm_iter))
-			break;
-		mixer->hw_lm = (struct dpu_hw_mixer *)lm_iter.hw;
-
-		/* CTL may be <= LMs, if <, multiple LMs controlled by 1 CTL */
-		if (!dpu_rm_get_hw(rm, &ctl_iter)) {
-			DPU_DEBUG("no ctl assigned to lm %d, using previous\n",
-					mixer->hw_lm->idx - LM_0);
-			mixer->lm_ctl = last_valid_ctl;
-		} else {
-			mixer->lm_ctl = (struct dpu_hw_ctl *)ctl_iter.hw;
-			last_valid_ctl = mixer->lm_ctl;
-		}
-
-		/* Shouldn't happen, mixers are always >= ctls */
-		if (!mixer->lm_ctl) {
-			DPU_ERROR("no valid ctls found for lm %d\n",
-					mixer->hw_lm->idx - LM_0);
-			return;
-		}
-
-		mixer->encoder = enc;
-
-		cstate->num_mixers++;
-		DPU_DEBUG("setup mixer %d: lm %d\n",
-				i, mixer->hw_lm->idx - LM_0);
-		DPU_DEBUG("setup mixer %d: ctl %d\n",
-				i, mixer->lm_ctl->idx - CTL_0);
-	}
-}
-
-static void _dpu_crtc_setup_mixers(struct drm_crtc *crtc)
-{
-	struct drm_encoder *enc;
-
-	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
-
-	/* Check for mixers on all encoders attached to this crtc */
-	drm_for_each_encoder_mask(enc, crtc->dev, crtc->state->encoder_mask)
-		_dpu_crtc_setup_mixer_for_encoder(crtc, enc);
 }
 
 static void _dpu_crtc_setup_lm_bounds(struct drm_crtc *crtc,
@@ -535,10 +445,7 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 	dev = crtc->dev;
 	smmu_state = &dpu_crtc->smmu_state;
 
-	if (!cstate->num_mixers) {
-		_dpu_crtc_setup_mixers(crtc);
-		_dpu_crtc_setup_lm_bounds(crtc, crtc->state);
-	}
+	_dpu_crtc_setup_lm_bounds(crtc, crtc->state);
 
 	if (dpu_crtc->event) {
 		WARN_ON(dpu_crtc->event);
@@ -685,7 +592,7 @@ static int _dpu_crtc_wait_for_frame_done(struct drm_crtc *crtc)
 
 	DPU_ATRACE_BEGIN("frame done completion wait");
 	ret = wait_for_completion_timeout(&dpu_crtc->frame_done_comp,
-			msecs_to_jiffies(DPU_FRAME_DONE_TIMEOUT));
+			msecs_to_jiffies(DPU_CRTC_FRAME_DONE_TIMEOUT_MS));
 	if (!ret) {
 		DRM_ERROR("frame done wait timed out, ret:%d\n", ret);
 		rc = -ETIMEDOUT;
@@ -695,13 +602,12 @@ static int _dpu_crtc_wait_for_frame_done(struct drm_crtc *crtc)
 	return rc;
 }
 
-void dpu_crtc_commit_kickoff(struct drm_crtc *crtc, bool async)
+void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 {
 	struct drm_encoder *encoder;
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 	struct dpu_kms *dpu_kms = _dpu_crtc_get_kms(crtc);
 	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
-	int ret;
 
 	/*
 	 * If no mixers has been allocated in dpu_crtc_atomic_check(),
@@ -718,54 +624,34 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc, bool async)
 	 * may delay and flush at an irq event (e.g. ppdone)
 	 */
 	drm_for_each_encoder_mask(encoder, crtc->dev,
-				  crtc->state->encoder_mask) {
-		struct dpu_encoder_kickoff_params params = { 0 };
-		dpu_encoder_prepare_for_kickoff(encoder, &params, async);
-	}
+				  crtc->state->encoder_mask)
+		dpu_encoder_prepare_for_kickoff(encoder);
 
+	if (atomic_inc_return(&dpu_crtc->frame_pending) == 1) {
+		/* acquire bandwidth and other resources */
+		DPU_DEBUG("crtc%d first commit\n", crtc->base.id);
+	} else
+		DPU_DEBUG("crtc%d commit\n", crtc->base.id);
 
-	if (!async) {
-		/* wait for frame_event_done completion */
-		DPU_ATRACE_BEGIN("wait_for_frame_done_event");
-		ret = _dpu_crtc_wait_for_frame_done(crtc);
-		DPU_ATRACE_END("wait_for_frame_done_event");
-		if (ret) {
-			DPU_ERROR("crtc%d wait for frame done failed;frame_pending%d\n",
-					crtc->base.id,
-					atomic_read(&dpu_crtc->frame_pending));
-			goto end;
-		}
-
-		if (atomic_inc_return(&dpu_crtc->frame_pending) == 1) {
-			/* acquire bandwidth and other resources */
-			DPU_DEBUG("crtc%d first commit\n", crtc->base.id);
-		} else
-			DPU_DEBUG("crtc%d commit\n", crtc->base.id);
-
-		dpu_crtc->play_count++;
-	}
+	dpu_crtc->play_count++;
 
 	dpu_vbif_clear_errors(dpu_kms);
 
 	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
-		dpu_encoder_kickoff(encoder, async);
+		dpu_encoder_kickoff(encoder);
 
-end:
-	if (!async)
-		reinit_completion(&dpu_crtc->frame_done_comp);
+	reinit_completion(&dpu_crtc->frame_done_comp);
 	DPU_ATRACE_END("crtc_commit");
 }
 
 static void dpu_crtc_reset(struct drm_crtc *crtc)
 {
-	struct dpu_crtc_state *cstate;
+	struct dpu_crtc_state *cstate = kzalloc(sizeof(*cstate), GFP_KERNEL);
 
 	if (crtc->state)
 		dpu_crtc_destroy_state(crtc, crtc->state);
 
-	crtc->state = kzalloc(sizeof(*cstate), GFP_KERNEL);
-	if (crtc->state)
-		crtc->state->crtc = crtc;
+	__drm_atomic_helper_crtc_reset(crtc, &cstate->base);
 }
 
 /**
@@ -806,6 +692,7 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 	struct drm_encoder *encoder;
 	struct msm_drm_private *priv;
 	unsigned long flags;
+	bool release_bandwidth = false;
 
 	if (!crtc || !crtc->dev || !crtc->dev->dev_private || !crtc->state) {
 		DPU_ERROR("invalid crtc\n");
@@ -822,8 +709,15 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 	drm_crtc_vblank_off(crtc);
 
 	drm_for_each_encoder_mask(encoder, crtc->dev,
-				  old_crtc_state->encoder_mask)
+				  old_crtc_state->encoder_mask) {
+		/* in video mode, we hold an extra bandwidth reference
+		 * as we cannot drop bandwidth at frame-done if any
+		 * crtc is being used in video mode.
+		 */
+		if (dpu_encoder_get_intf_mode(encoder) == INTF_MODE_VIDEO)
+			release_bandwidth = true;
 		dpu_encoder_assign_crtc(encoder, NULL);
+	}
 
 	/* wait for frame_event_done completion */
 	if (_dpu_crtc_wait_for_frame_done(crtc))
@@ -837,7 +731,8 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 	if (atomic_read(&dpu_crtc->frame_pending)) {
 		trace_dpu_crtc_disable_frame_pending(DRMID(crtc),
 				     atomic_read(&dpu_crtc->frame_pending));
-		dpu_core_perf_crtc_release_bw(crtc);
+		if (release_bandwidth)
+			dpu_core_perf_crtc_release_bw(crtc);
 		atomic_set(&dpu_crtc->frame_pending, 0);
 	}
 
@@ -869,6 +764,7 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 	struct dpu_crtc *dpu_crtc;
 	struct drm_encoder *encoder;
 	struct msm_drm_private *priv;
+	bool request_bandwidth;
 
 	if (!crtc || !crtc->dev || !crtc->dev->dev_private) {
 		DPU_ERROR("invalid crtc\n");
@@ -881,9 +777,19 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 	DRM_DEBUG_KMS("crtc%d\n", crtc->base.id);
 	dpu_crtc = to_dpu_crtc(crtc);
 
-	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
+	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask) {
+		/* in video mode, we hold an extra bandwidth reference
+		 * as we cannot drop bandwidth at frame-done if any
+		 * crtc is being used in video mode.
+		 */
+		if (dpu_encoder_get_intf_mode(encoder) == INTF_MODE_VIDEO)
+			request_bandwidth = true;
 		dpu_encoder_register_frame_event_callback(encoder,
 				dpu_crtc_frame_event_cb, (void *)crtc);
+	}
+
+	if (request_bandwidth)
+		atomic_inc(&_dpu_crtc_get_kms(crtc)->bandwidth_ref);
 
 	trace_dpu_crtc_enable(DRMID(crtc), true, dpu_crtc);
 	dpu_crtc->enabled = true;
@@ -1057,6 +963,8 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 			goto end;
 		}
 	}
+
+	atomic_inc(&_dpu_crtc_get_kms(crtc)->bandwidth_ref);
 
 	rc = dpu_core_perf_crtc_check(crtc, state);
 	if (rc) {
@@ -1299,19 +1207,14 @@ static int dpu_crtc_debugfs_state_show(struct seq_file *s, void *v)
 {
 	struct drm_crtc *crtc = (struct drm_crtc *) s->private;
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
-	int i;
 
 	seq_printf(s, "client type: %d\n", dpu_crtc_get_client_type(crtc));
 	seq_printf(s, "intf_mode: %d\n", dpu_crtc_get_intf_mode(crtc));
 	seq_printf(s, "core_clk_rate: %llu\n",
 			dpu_crtc->cur_perf.core_clk_rate);
-	for (i = DPU_CORE_PERF_DATA_BUS_ID_MNOC;
-			i < DPU_CORE_PERF_DATA_BUS_ID_MAX; i++) {
-		seq_printf(s, "bw_ctl[%d]: %llu\n", i,
-				dpu_crtc->cur_perf.bw_ctl[i]);
-		seq_printf(s, "max_per_pipe_ib[%d]: %llu\n", i,
-				dpu_crtc->cur_perf.max_per_pipe_ib[i]);
-	}
+	seq_printf(s, "bw_ctl: %llu\n", dpu_crtc->cur_perf.bw_ctl);
+	seq_printf(s, "max_per_pipe_ib: %llu\n",
+				dpu_crtc->cur_perf.max_per_pipe_ib);
 
 	return 0;
 }
@@ -1330,10 +1233,7 @@ static int _dpu_crtc_init_debugfs(struct drm_crtc *crtc)
 
 	dpu_crtc->debugfs_root = debugfs_create_dir(dpu_crtc->name,
 			crtc->dev->primary->debugfs_root);
-	if (!dpu_crtc->debugfs_root)
-		return -ENOMEM;
 
-	/* don't error check these */
 	debugfs_create_file("status", 0400,
 			dpu_crtc->debugfs_root,
 			dpu_crtc, &debugfs_status_fops);

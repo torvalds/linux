@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig SND_FIREWIRE
 	bool "FireWire sound devices"
 	depends on FIREWIRE
@@ -163,5 +164,6 @@ config SND_FIREFACE
 	 Say Y here to include support for RME fireface series.
 	  * Fireface 400
 	  * Fireface 800
+	  * Fireface UCX
 
 endif # SND_FIREWIRE

@@ -17,8 +17,6 @@
 #include <asm/sn/sn0/arch.h>
 #endif
 
-typedef u64	hubreg_t;
-
 #define cputonasid(cpu)		(sn_cpu_info[(cpu)].p_nasid)
 #define cputoslice(cpu)		(sn_cpu_info[(cpu)].p_slice)
 #define makespnum(_nasid, _slice)					\

@@ -1,18 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * property.h - Unified device property interface.
  *
  * Copyright (C) 2014, Intel Corporation
  * Authors: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _LINUX_PROPERTY_H_
 #define _LINUX_PROPERTY_H_
 
+#include <linux/bits.h>
 #include <linux/fwnode.h>
 #include <linux/types.h>
 
@@ -77,6 +75,10 @@ int fwnode_property_get_reference_args(const struct fwnode_handle *fwnode,
 				       const char *prop, const char *nargs_prop,
 				       unsigned int nargs, unsigned int index,
 				       struct fwnode_reference_args *args);
+
+struct fwnode_handle *fwnode_find_reference(const struct fwnode_handle *fwnode,
+					    const char *name,
+					    unsigned int index);
 
 struct fwnode_handle *fwnode_get_parent(const struct fwnode_handle *fwnode);
 struct fwnode_handle *fwnode_get_next_parent(
@@ -143,6 +145,26 @@ static inline int device_property_read_u64(struct device *dev,
 	return device_property_read_u64_array(dev, propname, val, 1);
 }
 
+static inline int device_property_count_u8(struct device *dev, const char *propname)
+{
+	return device_property_read_u8_array(dev, propname, NULL, 0);
+}
+
+static inline int device_property_count_u16(struct device *dev, const char *propname)
+{
+	return device_property_read_u16_array(dev, propname, NULL, 0);
+}
+
+static inline int device_property_count_u32(struct device *dev, const char *propname)
+{
+	return device_property_read_u32_array(dev, propname, NULL, 0);
+}
+
+static inline int device_property_count_u64(struct device *dev, const char *propname)
+{
+	return device_property_read_u64_array(dev, propname, NULL, 0);
+}
+
 static inline bool fwnode_property_read_bool(const struct fwnode_handle *fwnode,
 					     const char *propname)
 {
@@ -171,6 +193,30 @@ static inline int fwnode_property_read_u64(const struct fwnode_handle *fwnode,
 					   const char *propname, u64 *val)
 {
 	return fwnode_property_read_u64_array(fwnode, propname, val, 1);
+}
+
+static inline int fwnode_property_count_u8(const struct fwnode_handle *fwnode,
+					   const char *propname)
+{
+	return fwnode_property_read_u8_array(fwnode, propname, NULL, 0);
+}
+
+static inline int fwnode_property_count_u16(const struct fwnode_handle *fwnode,
+					    const char *propname)
+{
+	return fwnode_property_read_u16_array(fwnode, propname, NULL, 0);
+}
+
+static inline int fwnode_property_count_u32(const struct fwnode_handle *fwnode,
+					    const char *propname)
+{
+	return fwnode_property_read_u32_array(fwnode, propname, NULL, 0);
+}
+
+static inline int fwnode_property_count_u64(const struct fwnode_handle *fwnode,
+					    const char *propname)
+{
+	return fwnode_property_read_u64_array(fwnode, propname, NULL, 0);
 }
 
 /**
@@ -258,7 +304,7 @@ struct property_entry {
 #define PROPERTY_ENTRY_STRING(_name_, _val_)		\
 (struct property_entry) {				\
 	.name = _name_,					\
-	.length = sizeof(_val_),			\
+	.length = sizeof(const char *),			\
 	.type = DEV_PROP_STRING,			\
 	{ .value = { .str = _val_ } },			\
 }
@@ -304,6 +350,23 @@ struct fwnode_handle *
 fwnode_graph_get_remote_node(const struct fwnode_handle *fwnode, u32 port,
 			     u32 endpoint);
 
+/*
+ * Fwnode lookup flags
+ *
+ * @FWNODE_GRAPH_ENDPOINT_NEXT: In the case of no exact match, look for the
+ *				closest endpoint ID greater than the specified
+ *				one.
+ * @FWNODE_GRAPH_DEVICE_DISABLED: That the device to which the remote
+ *				  endpoint of the given endpoint belongs to,
+ *				  may be disabled.
+ */
+#define FWNODE_GRAPH_ENDPOINT_NEXT	BIT(0)
+#define FWNODE_GRAPH_DEVICE_DISABLED	BIT(1)
+
+struct fwnode_handle *
+fwnode_graph_get_endpoint_by_id(const struct fwnode_handle *fwnode,
+				u32 port, u32 endpoint, unsigned long flags);
+
 #define fwnode_graph_for_each_endpoint(fwnode, child)			\
 	for (child = NULL;						\
 	     (child = fwnode_graph_get_next_endpoint(fwnode, child)); )
@@ -314,7 +377,58 @@ int fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 /* -------------------------------------------------------------------------- */
 /* Software fwnode support - when HW description is incomplete or missing */
 
+struct software_node;
+
+/**
+ * struct software_node_ref_args - Reference with additional arguments
+ * @node: Reference to a software node
+ * @nargs: Number of elements in @args array
+ * @args: Integer arguments
+ */
+struct software_node_ref_args {
+	const struct software_node *node;
+	unsigned int nargs;
+	u64 args[NR_FWNODE_REFERENCE_ARGS];
+};
+
+/**
+ * struct software_node_reference - Named software node reference property
+ * @name: Name of the property
+ * @nrefs: Number of elements in @refs array
+ * @refs: Array of references with optional arguments
+ */
+struct software_node_reference {
+	const char *name;
+	unsigned int nrefs;
+	const struct software_node_ref_args *refs;
+};
+
+/**
+ * struct software_node - Software node description
+ * @name: Name of the software node
+ * @parent: Parent of the software node
+ * @properties: Array of device properties
+ * @references: Array of software node reference properties
+ */
+struct software_node {
+	const char *name;
+	const struct software_node *parent;
+	const struct property_entry *properties;
+	const struct software_node_reference *references;
+};
+
 bool is_software_node(const struct fwnode_handle *fwnode);
+const struct software_node *to_software_node(struct fwnode_handle *fwnode);
+struct fwnode_handle *software_node_fwnode(const struct software_node *node);
+
+const struct software_node *
+software_node_find_by_name(const struct software_node *parent,
+			   const char *name);
+
+int software_node_register_nodes(const struct software_node *nodes);
+void software_node_unregister_nodes(const struct software_node *nodes);
+
+int software_node_register(const struct software_node *node);
 
 int software_node_notify(struct device *dev, unsigned long action);
 

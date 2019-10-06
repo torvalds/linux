@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Universal Interface for Intel High Definition Audio Codec
  * 
  * Generic proc interface
  *
  * Copyright (c) 2004 Takashi Iwai <tiwai@suse.de>
- *
- *
- *  This driver is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This driver is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/init.h>
@@ -919,15 +905,8 @@ static void print_codec_info(struct snd_info_entry *entry,
 int snd_hda_codec_proc_new(struct hda_codec *codec)
 {
 	char name[32];
-	struct snd_info_entry *entry;
-	int err;
 
 	snprintf(name, sizeof(name), "codec#%d", codec->core.addr);
-	err = snd_card_proc_new(codec->card, name, &entry);
-	if (err < 0)
-		return err;
-
-	snd_info_set_text_ops(entry, codec, print_codec_info);
-	return 0;
+	return snd_card_ro_proc_new(codec->card, name, codec, print_codec_info);
 }
 

@@ -13,11 +13,13 @@ menuconfig ARCH_EXYNOS
 	select ARM_AMBA
 	select ARM_GIC
 	select COMMON_CLK_SAMSUNG
+	select EXYNOS_CHIPID
 	select EXYNOS_THERMAL
 	select EXYNOS_PMU
 	select EXYNOS_SROM
 	select EXYNOS_PM_DOMAINS if PM_GENERIC_DOMAINS
 	select GPIOLIB
+	select HAVE_ARM_ARCH_TIMER if ARCH_EXYNOS5 && VIRTUALIZATION
 	select HAVE_ARM_SCU if SMP
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
@@ -49,6 +51,7 @@ config S5P_DEV_MFC
 
 config ARCH_EXYNOS3
 	bool "SAMSUNG EXYNOS3"
+	default y
 	select ARM_CPU_SUSPEND if PM
 	help
 	  Samsung EXYNOS3 (Cortex-A7) SoC based systems
@@ -106,20 +109,18 @@ config SOC_EXYNOS5420
 	bool "SAMSUNG EXYNOS5420"
 	default y
 	depends on ARCH_EXYNOS5
+	select EXYNOS_MCPM if SMP
+	select ARM_CCI400_PORT_CTRL
+	select ARM_CPU_SUSPEND
 
 config SOC_EXYNOS5800
 	bool "SAMSUNG EXYNOS5800"
 	default y
 	depends on SOC_EXYNOS5420
 
-config EXYNOS5420_MCPM
-	bool "Exynos5420 Multi-Cluster PM support"
-	depends on MCPM && SOC_EXYNOS5420
-	select ARM_CCI400_PORT_CTRL
-	select ARM_CPU_SUSPEND
-	help
-	  This is needed to provide CPU and cluster power management
-	  on Exynos5420 implementing big.LITTLE.
+config EXYNOS_MCPM
+	bool
+	select MCPM
 
 config EXYNOS_CPU_SUSPEND
 	bool

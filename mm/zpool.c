@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * zpool memory storage api
  *
@@ -235,6 +236,22 @@ void zpool_destroy_pool(struct zpool *zpool)
 const char *zpool_get_type(struct zpool *zpool)
 {
 	return zpool->driver->type;
+}
+
+/**
+ * zpool_malloc_support_movable() - Check if the zpool support
+ * allocate movable memory
+ * @zpool:	The zpool to check
+ *
+ * This returns if the zpool support allocate movable memory.
+ *
+ * Implementations must guarantee this to be thread-safe.
+ *
+ * Returns: true if if the zpool support allocate movable memory, false if not
+ */
+bool zpool_malloc_support_movable(struct zpool *zpool)
+{
+	return zpool->driver->malloc_support_movable;
 }
 
 /**

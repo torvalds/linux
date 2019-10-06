@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __MSM_DRV_H__
@@ -33,14 +22,13 @@
 #include <linux/types.h>
 #include <linux/of_graph.h>
 #include <linux/of_device.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <linux/kthread.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/msm_drm.h>
 #include <drm/drm_gem.h>
@@ -68,6 +56,7 @@ struct msm_file_private {
 	rwlock_t queuelock;
 	struct list_head submitqueues;
 	int queueid;
+	struct msm_gem_address_space *aspace;
 };
 
 enum msm_mdp_plane_property {
@@ -75,12 +64,6 @@ enum msm_mdp_plane_property {
 	PLANE_PROP_ALPHA,
 	PLANE_PROP_PREMULTIPLIED,
 	PLANE_PROP_MAX_NUM
-};
-
-struct msm_vblank_ctrl {
-	struct kthread_work work;
-	struct list_head event_list;
-	spinlock_t lock;
 };
 
 #define MSM_GPU_MAX_RINGS 4
@@ -126,7 +109,7 @@ struct msm_display_topology {
 
 /**
  * struct msm_display_info - defines display properties
- * @intf_type:          DRM_MODE_CONNECTOR_ display type
+ * @intf_type:          DRM_MODE_ENCODER_ type
  * @capabilities:       Bitmask of display flags
  * @num_of_h_tiles:     Number of horizontal tiles in case of split interface
  * @h_tile_instance:    Controller instance used per tile. Number of elements is
@@ -191,6 +174,10 @@ struct msm_drm_private {
 	/* list of GEM objects: */
 	struct list_head inactive_list;
 
+	/* worker for delayed free of objects: */
+	struct work_struct free_work;
+	struct llist_head free_list;
+
 	struct workqueue_struct *wq;
 
 	unsigned int num_planes;
@@ -199,7 +186,6 @@ struct msm_drm_private {
 	unsigned int num_crtcs;
 	struct drm_crtc *crtcs[MAX_CRTCS];
 
-	struct msm_drm_thread disp_thread[MAX_CRTCS];
 	struct msm_drm_thread event_thread[MAX_CRTCS];
 
 	unsigned int num_encoders;
@@ -228,7 +214,6 @@ struct msm_drm_private {
 	struct notifier_block vmap_notifier;
 	struct shrinker shrinker;
 
-	struct msm_vblank_ctrl vblank_ctrl;
 	struct drm_atomic_state *pm_state;
 };
 
@@ -236,8 +221,12 @@ struct msm_format {
 	uint32_t pixel_format;
 };
 
+struct msm_pending_timer;
+
 int msm_atomic_prepare_fb(struct drm_plane *plane,
 			  struct drm_plane_state *new_state);
+void msm_atomic_init_pending_timer(struct msm_pending_timer *timer,
+		struct msm_kms *kms, int crtc_idx);
 void msm_atomic_commit_tail(struct drm_atomic_state *state);
 struct drm_atomic_state *msm_atomic_state_alloc(struct drm_device *dev);
 void msm_atomic_state_clear(struct drm_atomic_state *state);
@@ -300,7 +289,6 @@ struct sg_table *msm_gem_prime_get_sg_table(struct drm_gem_object *obj);
 void *msm_gem_prime_vmap(struct drm_gem_object *obj);
 void msm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 int msm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
-struct reservation_object *msm_gem_prime_res_obj(struct drm_gem_object *obj);
 struct drm_gem_object *msm_gem_prime_import_sg_table(struct drm_device *dev,
 		struct dma_buf_attachment *attach, struct sg_table *sg);
 int msm_gem_prime_pin(struct drm_gem_object *obj);
@@ -333,6 +321,7 @@ void msm_gem_kernel_put(struct drm_gem_object *bo,
 		struct msm_gem_address_space *aspace, bool locked);
 struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 		struct dma_buf *dmabuf, struct sg_table *sgt);
+void msm_gem_free_work(struct work_struct *work);
 
 __printf(2, 3)
 void msm_gem_object_set_name(struct drm_gem_object *bo, const char *fmt, ...);
@@ -413,7 +402,6 @@ static inline void msm_perf_debugfs_cleanup(struct msm_drm_private *priv) {}
 #endif
 
 struct clk *msm_clk_get(struct platform_device *pdev, const char *name);
-int msm_clk_bulk_get(struct device *dev, struct clk_bulk_data **bulk);
 
 struct clk *msm_clk_bulk_get_clock(struct clk_bulk_data *bulk, int count,
 	const char *name);
@@ -428,6 +416,8 @@ struct msm_gpu_submitqueue *msm_submitqueue_get(struct msm_file_private *ctx,
 		u32 id);
 int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
 		u32 prio, u32 flags, u32 *id);
+int msm_submitqueue_query(struct drm_device *drm, struct msm_file_private *ctx,
+		struct drm_msm_submitqueue_query *args);
 int msm_submitqueue_remove(struct msm_file_private *ctx, u32 id);
 void msm_submitqueue_close(struct msm_file_private *ctx);
 

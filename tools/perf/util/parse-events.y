@@ -9,12 +9,11 @@
 #define YYDEBUG 1
 
 #include <fnmatch.h>
+#include <stdio.h>
 #include <linux/compiler.h>
-#include <linux/list.h>
 #include <linux/types.h>
-#include "util.h"
 #include "pmu.h"
-#include "debug.h"
+#include "evsel.h"
 #include "parse-events.h"
 #include "parse-events-bison.h"
 
@@ -45,6 +44,7 @@ static void inc_group_count(struct list_head *list,
 
 %token PE_START_EVENTS PE_START_TERMS
 %token PE_VALUE PE_VALUE_SYM_HW PE_VALUE_SYM_SW PE_RAW PE_TERM
+%token PE_VALUE_SYM_TOOL
 %token PE_EVENT_NAME
 %token PE_NAME
 %token PE_BPF_OBJECT PE_BPF_SOURCE
@@ -58,6 +58,7 @@ static void inc_group_count(struct list_head *list,
 %type <num> PE_VALUE
 %type <num> PE_VALUE_SYM_HW
 %type <num> PE_VALUE_SYM_SW
+%type <num> PE_VALUE_SYM_TOOL
 %type <num> PE_RAW
 %type <num> PE_TERM
 %type <str> PE_NAME
@@ -311,7 +312,7 @@ value_sym '/' event_config '/'
 	$$ = list;
 }
 |
-value_sym sep_slash_dc
+value_sym sep_slash_slash_dc
 {
 	struct list_head *list;
 	int type = $1 >> 16;
@@ -319,6 +320,15 @@ value_sym sep_slash_dc
 
 	ALLOC_LIST(list);
 	ABORT_ON(parse_events_add_numeric(_parse_state, list, type, config, NULL));
+	$$ = list;
+}
+|
+PE_VALUE_SYM_TOOL sep_slash_slash_dc
+{
+	struct list_head *list;
+
+	ALLOC_LIST(list);
+	ABORT_ON(parse_events_add_tool(_parse_state, list, $1));
 	$$ = list;
 }
 
@@ -468,7 +478,6 @@ event_bpf_file:
 PE_BPF_OBJECT opt_event_config
 {
 	struct parse_events_state *parse_state = _parse_state;
-	struct parse_events_error *error = parse_state->error;
 	struct list_head *list;
 
 	ALLOC_LIST(list);
@@ -614,7 +623,6 @@ PE_TERM
 PE_NAME array '=' PE_NAME
 {
 	struct parse_events_term *term;
-	int i;
 
 	ABORT_ON(parse_events_term__str(&term, PARSE_EVENTS__TERM_TYPE_USER,
 					$1, $4, &@1, &@4));
@@ -702,7 +710,7 @@ PE_VALUE PE_ARRAY_RANGE PE_VALUE
 
 sep_dc: ':' |
 
-sep_slash_dc: '/' | ':' |
+sep_slash_slash_dc: '/' '/' | ':' |
 
 %%
 

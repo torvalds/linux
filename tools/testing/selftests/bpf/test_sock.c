@@ -13,6 +13,7 @@
 #include <bpf/bpf.h>
 
 #include "cgroup_helpers.h"
+#include "bpf_endian.h"
 #include "bpf_rlimit.h"
 #include "bpf_util.h"
 
@@ -20,6 +21,7 @@
 #define MAX_INSNS	512
 
 char bpf_log_buf[BPF_LOG_BUF_SIZE];
+static bool verbose = false;
 
 struct sock_test {
 	const char *descr;
@@ -231,7 +233,8 @@ static struct sock_test tests[] = {
 			/* if (ip == expected && port == expected) */
 			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
 				    offsetof(struct bpf_sock, src_ip6[3])),
-			BPF_JMP_IMM(BPF_JNE, BPF_REG_7, 0x01000000, 4),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_7,
+				    __bpf_constant_ntohl(0x00000001), 4),
 			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
 				    offsetof(struct bpf_sock, src_port)),
 			BPF_JMP_IMM(BPF_JNE, BPF_REG_7, 0x2001, 2),
@@ -260,7 +263,8 @@ static struct sock_test tests[] = {
 			/* if (ip == expected && port == expected) */
 			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
 				    offsetof(struct bpf_sock, src_ip4)),
-			BPF_JMP_IMM(BPF_JNE, BPF_REG_7, 0x0100007F, 4),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_7,
+				    __bpf_constant_ntohl(0x7F000001), 4),
 			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
 				    offsetof(struct bpf_sock, src_port)),
 			BPF_JMP_IMM(BPF_JNE, BPF_REG_7, 0x1002, 2),
@@ -325,6 +329,7 @@ static int load_sock_prog(const struct bpf_insn *prog,
 			  enum bpf_attach_type attach_type)
 {
 	struct bpf_load_program_attr attr;
+	int ret;
 
 	memset(&attr, 0, sizeof(struct bpf_load_program_attr));
 	attr.prog_type = BPF_PROG_TYPE_CGROUP_SOCK;
@@ -332,8 +337,13 @@ static int load_sock_prog(const struct bpf_insn *prog,
 	attr.insns = prog;
 	attr.insns_cnt = probe_prog_length(attr.insns);
 	attr.license = "GPL";
+	attr.log_level = 2;
 
-	return bpf_load_program_xattr(&attr, bpf_log_buf, BPF_LOG_BUF_SIZE);
+	ret = bpf_load_program_xattr(&attr, bpf_log_buf, BPF_LOG_BUF_SIZE);
+	if (verbose && ret < 0)
+		fprintf(stderr, "%s\n", bpf_log_buf);
+
+	return ret;
 }
 
 static int attach_sock_prog(int cgfd, int progfd,

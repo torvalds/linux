@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * clk-flexgen.c
  *
  * Copyright (C) ST-Microelectronics SA 2013
  * Author:  Maxime Coquelin <maxime.coquelin@st.com> for ST-Microelectronics.
- * License terms:  GNU General Public License (GPL), version 2  */
+ */
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
@@ -325,6 +326,7 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 		return;
 
 	reg = of_iomap(pnode, 0);
+	of_node_put(pnode);
 	if (!reg)
 		return;
 

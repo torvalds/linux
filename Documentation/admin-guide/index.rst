@@ -16,15 +16,14 @@ etc.
    README
    kernel-parameters
    devices
+   sysctl/index
 
-This section describes CPU vulnerabilities and provides an overview of the
-possible mitigations along with guidance for selecting mitigations if they
-are configurable at compile, boot or run time.
+This section describes CPU vulnerabilities and their mitigations.
 
 .. toctree::
    :maxdepth: 1
 
-   l1tf
+   hw-vuln/index
 
 Here is a set of documents aimed at users who are trying to track down
 problems and bugs in particular.
@@ -40,6 +39,8 @@ problems and bugs in particular.
    ramoops
    dynamic-debug-howto
    init
+   kdump/index
+   perf/index
 
 This is the beginning of a section with information of interest to
 application developers.  Documents covering various aspects of the kernel
@@ -58,11 +59,13 @@ configure specific aspects of kernel behavior to your liking.
 
    initrd
    cgroup-v2
+   cgroup-v1/index
    serial-console
    braille-console
    parport
    md
    module-signing
+   rapidio
    sysrq
    unicode
    vga-softcursor
@@ -71,12 +74,43 @@ configure specific aspects of kernel behavior to your liking.
    java
    ras
    bcache
+   blockdev/index
    ext4
+   binderfs
+   cifs/index
+   xfs
+   jfs
+   ufs
    pm/index
    thunderbolt
    LSM/index
    mm/index
+   namespaces/index
    perf-security
+   acpi/index
+   aoe/index
+   btmrvl
+   clearing-warn-once
+   cpu-load
+   cputopology
+   device-mapper/index
+   efi-stub
+   gpio/index
+   highuid
+   hw_random
+   iostats
+   kernel-per-CPU-kthreads
+   laptops/index
+   auxdisplay/index
+   lcd-panel-cgram
+   ldm
+   lockup-watchdogs
+   numastat
+   pnp
+   rtc
+   svga
+   wimax/index
+   video-output
 
 .. only::  subproject and html
 

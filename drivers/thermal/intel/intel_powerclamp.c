@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel_powerclamp.c - package c-state idle injection
  *
@@ -6,20 +7,6 @@
  * Authors:
  *     Arjan van de Ven <arjan@linux.intel.com>
  *     Jacob Pan <jacob.jun.pan@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  *	TODO:
  *           1. better handle wakeup from external interrupts, currently a fixed
@@ -33,8 +20,6 @@
  *              get_cpu_iowait_time_us()
  *
  *	     2. synchronization with other hw blocks
- *
- *
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
@@ -101,7 +86,7 @@ struct powerclamp_worker_data {
 	bool clamping;
 };
 
-static struct powerclamp_worker_data * __percpu worker_data;
+static struct powerclamp_worker_data __percpu *worker_data;
 static struct thermal_cooling_device *cooling_dev;
 static unsigned long *cpu_clamping_mask;  /* bit map for tracking per cpu
 					   * clamping kthread worker
@@ -445,7 +430,7 @@ static void clamp_idle_injection_func(struct kthread_work *work)
 	if (should_skip)
 		goto balance;
 
-	play_idle(jiffies_to_msecs(w_data->duration_jiffies));
+	play_idle(jiffies_to_usecs(w_data->duration_jiffies));
 
 balance:
 	if (clamping && w_data->clamping && cpu_online(w_data->cpu))
@@ -494,7 +479,7 @@ static void start_power_clamp_worker(unsigned long cpu)
 	struct powerclamp_worker_data *w_data = per_cpu_ptr(worker_data, cpu);
 	struct kthread_worker *worker;
 
-	worker = kthread_create_worker_on_cpu(cpu, 0, "kidle_inject/%ld", cpu);
+	worker = kthread_create_worker_on_cpu(cpu, 0, "kidle_inj/%ld", cpu);
 	if (IS_ERR(worker))
 		return;
 
@@ -713,17 +698,9 @@ DEFINE_SHOW_ATTRIBUTE(powerclamp_debug);
 static inline void powerclamp_create_debug_files(void)
 {
 	debug_dir = debugfs_create_dir("intel_powerclamp", NULL);
-	if (!debug_dir)
-		return;
 
-	if (!debugfs_create_file("powerclamp_calib", S_IRUGO, debug_dir,
-					cal_data, &powerclamp_debug_fops))
-		goto file_error;
-
-	return;
-
-file_error:
-	debugfs_remove_recursive(debug_dir);
+	debugfs_create_file("powerclamp_calib", S_IRUGO, debug_dir, cal_data,
+			    &powerclamp_debug_fops);
 }
 
 static enum cpuhp_state hp_state;

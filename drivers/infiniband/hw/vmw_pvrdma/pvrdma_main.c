@@ -143,25 +143,11 @@ static int pvrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
-static struct net_device *pvrdma_get_netdev(struct ib_device *ibdev,
-					    u8 port_num)
-{
-	struct net_device *netdev;
-	struct pvrdma_dev *dev = to_vdev(ibdev);
-
-	if (port_num != 1)
-		return NULL;
-
-	rcu_read_lock();
-	netdev = dev->netdev;
-	if (netdev)
-		dev_hold(netdev);
-	rcu_read_unlock();
-
-	return netdev;
-}
-
 static const struct ib_device_ops pvrdma_dev_ops = {
+	.owner = THIS_MODULE,
+	.driver_id = RDMA_DRIVER_VMW_PVRDMA,
+	.uverbs_abi_ver = PVRDMA_UVERBS_ABI_VERSION,
+
 	.add_gid = pvrdma_add_gid,
 	.alloc_mr = pvrdma_alloc_mr,
 	.alloc_pd = pvrdma_alloc_pd,
@@ -179,7 +165,6 @@ static const struct ib_device_ops pvrdma_dev_ops = {
 	.get_dev_fw_str = pvrdma_get_fw_ver_str,
 	.get_dma_mr = pvrdma_get_dma_mr,
 	.get_link_layer = pvrdma_port_link_layer,
-	.get_netdev = pvrdma_get_netdev,
 	.get_port_immutable = pvrdma_port_immutable,
 	.map_mr_sg = pvrdma_map_mr_sg,
 	.mmap = pvrdma_mmap,
@@ -195,6 +180,11 @@ static const struct ib_device_ops pvrdma_dev_ops = {
 	.query_qp = pvrdma_query_qp,
 	.reg_user_mr = pvrdma_reg_user_mr,
 	.req_notify_cq = pvrdma_req_notify_cq,
+
+	INIT_RDMA_OBJ_SIZE(ib_ah, pvrdma_ah, ibah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, pvrdma_cq, ibcq),
+	INIT_RDMA_OBJ_SIZE(ib_pd, pvrdma_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, pvrdma_ucontext, ibucontext),
 };
 
 static const struct ib_device_ops pvrdma_dev_srq_ops = {
@@ -202,6 +192,8 @@ static const struct ib_device_ops pvrdma_dev_srq_ops = {
 	.destroy_srq = pvrdma_destroy_srq,
 	.modify_srq = pvrdma_modify_srq,
 	.query_srq = pvrdma_query_srq,
+
+	INIT_RDMA_OBJ_SIZE(ib_srq, pvrdma_srq, ibsrq),
 };
 
 static int pvrdma_register_device(struct pvrdma_dev *dev)
@@ -211,10 +203,8 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	dev->ib_dev.node_guid = dev->dsr->caps.node_guid;
 	dev->sys_image_guid = dev->dsr->caps.sys_image_guid;
 	dev->flags = 0;
-	dev->ib_dev.owner = THIS_MODULE;
 	dev->ib_dev.num_comp_vectors = 1;
 	dev->ib_dev.dev.parent = &dev->pdev->dev;
-	dev->ib_dev.uverbs_abi_ver = PVRDMA_UVERBS_ABI_VERSION;
 	dev->ib_dev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
 		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
@@ -274,11 +264,13 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 		if (!dev->srq_tbl)
 			goto err_qp_free;
 	}
-	dev->ib_dev.driver_id = RDMA_DRIVER_VMW_PVRDMA;
+	ret = ib_device_set_netdev(&dev->ib_dev, dev->netdev, 1);
+	if (ret)
+		return ret;
 	spin_lock_init(&dev->srq_tbl_lock);
 	rdma_set_device_sysfs_group(&dev->ib_dev, &pvrdma_attr_group);
 
-	ret = ib_register_device(&dev->ib_dev, "vmw_pvrdma%d", NULL);
+	ret = ib_register_device(&dev->ib_dev, "vmw_pvrdma%d");
 	if (ret)
 		goto err_srq_free;
 
@@ -718,6 +710,7 @@ static void pvrdma_netdevice_event_handle(struct pvrdma_dev *dev,
 			pvrdma_dispatch_event(dev, 1, IB_EVENT_PORT_ACTIVE);
 		break;
 	case NETDEV_UNREGISTER:
+		ib_device_set_netdev(&dev->ib_dev, NULL, 1);
 		dev_put(dev->netdev);
 		dev->netdev = NULL;
 		break;
@@ -729,6 +722,7 @@ static void pvrdma_netdevice_event_handle(struct pvrdma_dev *dev,
 		if ((dev->netdev == NULL) &&
 		    (pci_get_drvdata(pdev_net) == ndev)) {
 			/* this is our netdev */
+			ib_device_set_netdev(&dev->ib_dev, ndev, 1);
 			dev->netdev = ndev;
 			dev_hold(ndev);
 		}
@@ -795,7 +789,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	dev_dbg(&pdev->dev, "initializing driver %s\n", pci_name(pdev));
 
 	/* Allocate zero-out device */
-	dev = (struct pvrdma_dev *)ib_alloc_device(sizeof(*dev));
+	dev = ib_alloc_device(pvrdma_dev, ib_dev);
 	if (!dev) {
 		dev_err(&pdev->dev, "failed to allocate IB device\n");
 		return -ENOMEM;
@@ -905,7 +899,11 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 		PVRDMA_GOS_BITS_64;
 	dev->dsr->gos_info.gos_type = PVRDMA_GOS_TYPE_LINUX;
 	dev->dsr->gos_info.gos_ver = 1;
-	dev->dsr->uar_pfn = dev->driver_uar.pfn;
+
+	if (dev->dsr_version < PVRDMA_PPN64_VERSION)
+		dev->dsr->uar_pfn = dev->driver_uar.pfn;
+	else
+		dev->dsr->uar_pfn64 = dev->driver_uar.pfn;
 
 	/* Command slot. */
 	dev->cmd_slot = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
@@ -1125,6 +1123,8 @@ static void pvrdma_pci_remove(struct pci_dev *pdev)
 	pvrdma_page_dir_cleanup(dev, &dev->cq_pdir);
 	pvrdma_page_dir_cleanup(dev, &dev->async_pdir);
 	pvrdma_free_slots(dev);
+	dma_free_coherent(&pdev->dev, sizeof(*dev->dsr), dev->dsr,
+			  dev->dsrbase);
 
 	iounmap(dev->regs);
 	kfree(dev->sgid_tbl);

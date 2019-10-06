@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # File system configuration
 #
@@ -7,6 +8,12 @@ menu "File systems"
 # Use unaligned word dcache accesses
 config DCACHE_WORD_ACCESS
        bool
+
+config VALIDATE_FS_PARSER
+	bool "Validate filesystem parameter description"
+	help
+	  Enable this to perform validation of the parameter description for a
+	  filesystem when it is registered.
 
 if BLOCK
 
@@ -104,6 +111,8 @@ config MANDATORY_FILE_LOCKING
 	  To the best of my knowledge this is dead code that no one cares about.
 
 source "fs/crypto/Kconfig"
+
+source "fs/verity/Kconfig"
 
 source "fs/notify/Kconfig"
 
@@ -254,11 +263,9 @@ source "fs/romfs/Kconfig"
 source "fs/pstore/Kconfig"
 source "fs/sysv/Kconfig"
 source "fs/ufs/Kconfig"
-source "fs/exofs/Kconfig"
+source "fs/erofs/Kconfig"
 
 endif # MISC_FILESYSTEMS
-
-source "fs/exofs/Kconfig.ore"
 
 menuconfig NETWORK_FILESYSTEMS
 	bool "Network File Systems"
@@ -313,5 +320,6 @@ endif # NETWORK_FILESYSTEMS
 
 source "fs/nls/Kconfig"
 source "fs/dlm/Kconfig"
+source "fs/unicode/Kconfig"
 
 endmenu

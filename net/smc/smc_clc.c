@@ -97,17 +97,19 @@ static int smc_clc_prfx_set4_rcu(struct dst_entry *dst, __be32 ipv4,
 				 struct smc_clc_msg_proposal_prefix *prop)
 {
 	struct in_device *in_dev = __in_dev_get_rcu(dst->dev);
+	const struct in_ifaddr *ifa;
 
 	if (!in_dev)
 		return -ENODEV;
-	for_ifa(in_dev) {
+
+	in_dev_for_each_ifa_rcu(ifa, in_dev) {
 		if (!inet_ifa_match(ipv4, ifa))
 			continue;
 		prop->prefix_len = inet_mask_len(ifa->ifa_mask);
 		prop->outgoing_subnet = ifa->ifa_address & ifa->ifa_mask;
 		/* prop->ipv6_prefixes_cnt = 0; already done by memset before */
 		return 0;
-	} endfor_ifa(in_dev);
+	}
 	return -ENOENT;
 }
 
@@ -190,14 +192,15 @@ static int smc_clc_prfx_match4_rcu(struct net_device *dev,
 				   struct smc_clc_msg_proposal_prefix *prop)
 {
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
+	const struct in_ifaddr *ifa;
 
 	if (!in_dev)
 		return -ENODEV;
-	for_ifa(in_dev) {
+	in_dev_for_each_ifa_rcu(ifa, in_dev) {
 		if (prop->prefix_len == inet_mask_len(ifa->ifa_mask) &&
 		    inet_ifa_match(prop->outgoing_subnet, ifa))
 			return 0;
-	} endfor_ifa(in_dev);
+	}
 
 	return -ENOENT;
 }
@@ -385,8 +388,7 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 
 /* send CLC PROPOSAL message across internal TCP socket */
 int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
-			  struct smc_ib_device *ibdev, u8 ibport, u8 gid[],
-			  struct smcd_dev *ismdev)
+			  struct smc_init_info *ini)
 {
 	struct smc_clc_ipv6_prefix ipv6_prfx[SMC_CLC_MAX_V6_PREFIX];
 	struct smc_clc_msg_proposal_prefix pclc_prfx;
@@ -416,8 +418,9 @@ int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
 		/* add SMC-R specifics */
 		memcpy(pclc.lcl.id_for_peer, local_systemid,
 		       sizeof(local_systemid));
-		memcpy(&pclc.lcl.gid, gid, SMC_GID_SIZE);
-		memcpy(&pclc.lcl.mac, &ibdev->mac[ibport - 1], ETH_ALEN);
+		memcpy(&pclc.lcl.gid, ini->ib_gid, SMC_GID_SIZE);
+		memcpy(&pclc.lcl.mac, &ini->ib_dev->mac[ini->ib_port - 1],
+		       ETH_ALEN);
 		pclc.iparea_offset = htons(0);
 	}
 	if (smc_type == SMC_TYPE_D || smc_type == SMC_TYPE_B) {
@@ -425,7 +428,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
 		memset(&pclc_smcd, 0, sizeof(pclc_smcd));
 		plen += sizeof(pclc_smcd);
 		pclc.iparea_offset = htons(SMC_CLC_PROPOSAL_MAX_OFFSET);
-		pclc_smcd.gid = ismdev->local_gid;
+		pclc_smcd.gid = ini->ism_dev->local_gid;
 	}
 	pclc.hdr.length = htons(plen);
 

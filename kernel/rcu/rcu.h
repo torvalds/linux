@@ -1,36 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Read-Copy Update definitions shared among RCU implementations.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
  * Copyright IBM Corporation, 2011
  *
- * Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+ * Author: Paul E. McKenney <paulmck@linux.ibm.com>
  */
 
 #ifndef __LINUX_RCU_H
 #define __LINUX_RCU_H
 
 #include <trace/events/rcu.h>
-#ifdef CONFIG_RCU_TRACE
-#define RCU_TRACE(stmt) stmt
-#else /* #ifdef CONFIG_RCU_TRACE */
-#define RCU_TRACE(stmt)
-#endif /* #else #ifdef CONFIG_RCU_TRACE */
 
-/* Offset to allow for unmatched rcu_irq_{enter,exit}(). */
+/* Offset to allow distinguishing irq vs. task-based idle entry/exit. */
 #define DYNTICK_IRQ_NONIDLE	((LONG_MAX / 2) + 1)
 
 
@@ -229,12 +211,12 @@ static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head)
 
 	rcu_lock_acquire(&rcu_callback_map);
 	if (__is_kfree_rcu_offset(offset)) {
-		RCU_TRACE(trace_rcu_invoke_kfree_callback(rn, head, offset);)
+		trace_rcu_invoke_kfree_callback(rn, head, offset);
 		kfree((void *)head - offset);
 		rcu_lock_release(&rcu_callback_map);
 		return true;
 	} else {
-		RCU_TRACE(trace_rcu_invoke_callback(rn, head);)
+		trace_rcu_invoke_callback(rn, head);
 		f = head->func;
 		WRITE_ONCE(head->func, (rcu_callback_t)0L);
 		f(head);
@@ -245,7 +227,9 @@ static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head)
 
 #ifdef CONFIG_RCU_STALL_COMMON
 
+extern int rcu_cpu_stall_ftrace_dump;
 extern int rcu_cpu_stall_suppress;
+extern int rcu_cpu_stall_timeout;
 int rcu_jiffies_till_stall_check(void);
 
 #define rcu_ftrace_dump_stall_suppress() \
@@ -462,9 +446,8 @@ void rcu_request_urgent_qs_task(struct task_struct *t);
 
 enum rcutorture_type {
 	RCU_FLAVOR,
-	RCU_BH_FLAVOR,
-	RCU_SCHED_FLAVOR,
 	RCU_TASKS_FLAVOR,
+	RCU_TRIVIAL_FLAVOR,
 	SRCU_FLAVOR,
 	INVALID_RCU_FLAVOR
 };
@@ -496,6 +479,10 @@ void do_trace_rcu_torture_read(const char *rcutorturename,
 #define do_trace_rcu_torture_read(rcutorturename, rhp, secs, c_old, c) \
 	do { } while (0)
 #endif
+#endif
+
+#if IS_ENABLED(CONFIG_RCU_TORTURE_TEST) || IS_MODULE(CONFIG_RCU_TORTURE_TEST)
+long rcutorture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask);
 #endif
 
 #ifdef CONFIG_TINY_SRCU

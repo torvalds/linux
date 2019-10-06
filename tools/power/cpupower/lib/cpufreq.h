@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  cpufreq.h - definitions for libcpufreq
  *
  *  Copyright (C) 2004-2009  Dominik Brodowski <linux@dominikbrodowski.de>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #ifndef __CPUPOWER_CPUFREQ_H__
@@ -28,10 +20,10 @@ struct cpufreq_available_governors {
 	struct cpufreq_available_governors *first;
 };
 
-struct cpufreq_available_frequencies {
+struct cpufreq_frequencies {
 	unsigned long frequency;
-	struct cpufreq_available_frequencies *next;
-	struct cpufreq_available_frequencies *first;
+	struct cpufreq_frequencies *next;
+	struct cpufreq_frequencies *first;
 };
 
 
@@ -129,14 +121,14 @@ void cpufreq_put_available_governors(
  *
  * Only present on _some_ ->target() cpufreq drivers. For information purposes
  * only. Please free allocated memory by calling
- * cpufreq_put_available_frequencies after use.
+ * cpufreq_put_frequencies after use.
  */
 
-struct cpufreq_available_frequencies
-*cpufreq_get_available_frequencies(unsigned int cpu);
+struct cpufreq_frequencies
+*cpufreq_get_frequencies(const char *type, unsigned int cpu);
 
-void cpufreq_put_available_frequencies(
-		struct cpufreq_available_frequencies *first);
+void cpufreq_put_frequencies(
+		struct cpufreq_frequencies *first);
 
 
 /* determine affected CPUs

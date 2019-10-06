@@ -112,7 +112,16 @@
 			&pinctrl_ddcclk_default &pinctrl_ddcdat_default>;
 };
 
+&p2a {
+	status = "okay";
+	memory-region = <&vga_memory>;
+};
+
 &ibt {
+	status = "okay";
+};
+
+&lpc_ctrl {
 	status = "okay";
 };
 
@@ -132,6 +141,10 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
+};
+
+&uart1 {
+	status = "okay";
 };
 
 &uart5 {

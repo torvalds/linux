@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Support for Sharp SL-C6000x PDAs
  *  Model: (Tosa)
@@ -5,11 +6,6 @@
  *  Copyright (c) 2005 Dirk Opfer
  *
  *	Based on code written by Sharp/Lineo for 2.4 kernels
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
  */
 
 #include <linux/clkdev.h>
@@ -813,7 +809,7 @@ static struct platform_device tosa_bt_device = {
 	.dev.platform_data = &tosa_bt_data,
 };
 
-static struct pxa2xx_spi_master pxa_ssp_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp_master_info = {
 	.num_chipselect	= 1,
 };
 

@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014, Fuzhou Rockchip Electronics Co., Ltd
  * Author: Tony Xie <tony.xie@rock-chips.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/init.h>
@@ -59,7 +50,7 @@ static inline u32 rk3288_l2_config(void)
 	return l2ctlr;
 }
 
-static void rk3288_config_bootdata(void)
+static void __init rk3288_config_bootdata(void)
 {
 	rkpm_bootdata_cpusp = rk3288_bootram_phy + (SZ_4K - 8);
 	rkpm_bootdata_cpu_code = __pa_symbol(cpu_resume);
@@ -230,7 +221,7 @@ static void rk3288_suspend_finish(void)
 		pr_err("%s: Suspend finish failed\n", __func__);
 }
 
-static int rk3288_suspend_init(struct device_node *np)
+static int __init rk3288_suspend_init(struct device_node *np)
 {
 	struct device_node *sram_np;
 	struct resource res;
@@ -266,12 +257,14 @@ static int rk3288_suspend_init(struct device_node *np)
 	rk3288_bootram_base = of_iomap(sram_np, 0);
 	if (!rk3288_bootram_base) {
 		pr_err("%s: could not map bootram base\n", __func__);
+		of_node_put(sram_np);
 		return -ENOMEM;
 	}
 
 	ret = of_address_to_resource(sram_np, 0, &res);
 	if (ret) {
 		pr_err("%s: could not get bootram phy addr\n", __func__);
+		of_node_put(sram_np);
 		return ret;
 	}
 	rk3288_bootram_phy = res.start;

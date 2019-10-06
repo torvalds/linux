@@ -2129,17 +2129,18 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 					       rdma_tasks);
 		/* no need for break since RoCE coexist with Ethernet */
 	}
+	/* fall through */
 	case QED_PCI_ETH:
 	{
 		struct qed_eth_pf_params *p_params =
 		    &p_hwfn->pf_params.eth_pf_params;
 
-			if (!p_params->num_vf_cons)
-				p_params->num_vf_cons =
-				    ETH_PF_PARAMS_VF_CONS_DEFAULT;
-			qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_ETH,
-						    p_params->num_cons,
-						    p_params->num_vf_cons);
+		if (!p_params->num_vf_cons)
+			p_params->num_vf_cons =
+			    ETH_PF_PARAMS_VF_CONS_DEFAULT;
+		qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_ETH,
+					    p_params->num_cons,
+					    p_params->num_vf_cons);
 		p_hwfn->p_cxt_mngr->arfs_count = p_params->num_arfs_filters;
 		break;
 	}
@@ -2350,7 +2351,8 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 
 	/* Write via DMAE since the PSWRQ2_REG_ILT_MEMORY line is a wide-bus */
 	qed_dmae_host2grc(p_hwfn, p_ptt, (u64) (uintptr_t)&ilt_hw_entry,
-			  reg_offset, sizeof(ilt_hw_entry) / sizeof(u32), 0);
+			  reg_offset, sizeof(ilt_hw_entry) / sizeof(u32),
+			  NULL);
 
 	if (elem_type == QED_ELEM_CXT) {
 		u32 last_cid_allocated = (1 + (iid / elems_per_p)) *
@@ -2456,7 +2458,7 @@ qed_cxt_free_ilt_range(struct qed_hwfn *p_hwfn,
 				  (u64) (uintptr_t) &ilt_hw_entry,
 				  reg_offset,
 				  sizeof(ilt_hw_entry) / sizeof(u32),
-				  0);
+				  NULL);
 	}
 
 	qed_ptt_release(p_hwfn, p_ptt);

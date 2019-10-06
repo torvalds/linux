@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SND_AOA_FABRIC_LAYOUT
 	tristate "layout-id fabric"
 	select SND_AOA_SOUNDBUS

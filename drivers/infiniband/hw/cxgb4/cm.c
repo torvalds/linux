@@ -331,20 +331,23 @@ static void remove_ep_tid(struct c4iw_ep *ep)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&ep->com.dev->lock, flags);
-	_remove_handle(ep->com.dev, &ep->com.dev->hwtid_idr, ep->hwtid, 0);
-	if (idr_is_empty(&ep->com.dev->hwtid_idr))
+	xa_lock_irqsave(&ep->com.dev->hwtids, flags);
+	__xa_erase(&ep->com.dev->hwtids, ep->hwtid);
+	if (xa_empty(&ep->com.dev->hwtids))
 		wake_up(&ep->com.dev->wait);
-	spin_unlock_irqrestore(&ep->com.dev->lock, flags);
+	xa_unlock_irqrestore(&ep->com.dev->hwtids, flags);
 }
 
-static void insert_ep_tid(struct c4iw_ep *ep)
+static int insert_ep_tid(struct c4iw_ep *ep)
 {
 	unsigned long flags;
+	int err;
 
-	spin_lock_irqsave(&ep->com.dev->lock, flags);
-	_insert_handle(ep->com.dev, &ep->com.dev->hwtid_idr, ep, ep->hwtid, 0);
-	spin_unlock_irqrestore(&ep->com.dev->lock, flags);
+	xa_lock_irqsave(&ep->com.dev->hwtids, flags);
+	err = __xa_insert(&ep->com.dev->hwtids, ep->hwtid, ep, GFP_KERNEL);
+	xa_unlock_irqrestore(&ep->com.dev->hwtids, flags);
+
+	return err;
 }
 
 /*
@@ -355,11 +358,11 @@ static struct c4iw_ep *get_ep_from_tid(struct c4iw_dev *dev, unsigned int tid)
 	struct c4iw_ep *ep;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dev->lock, flags);
-	ep = idr_find(&dev->hwtid_idr, tid);
+	xa_lock_irqsave(&dev->hwtids, flags);
+	ep = xa_load(&dev->hwtids, tid);
 	if (ep)
 		c4iw_get_ep(&ep->com);
-	spin_unlock_irqrestore(&dev->lock, flags);
+	xa_unlock_irqrestore(&dev->hwtids, flags);
 	return ep;
 }
 
@@ -372,11 +375,11 @@ static struct c4iw_listen_ep *get_ep_from_stid(struct c4iw_dev *dev,
 	struct c4iw_listen_ep *ep;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dev->lock, flags);
-	ep = idr_find(&dev->stid_idr, stid);
+	xa_lock_irqsave(&dev->stids, flags);
+	ep = xa_load(&dev->stids, stid);
 	if (ep)
 		c4iw_get_ep(&ep->com);
-	spin_unlock_irqrestore(&dev->lock, flags);
+	xa_unlock_irqrestore(&dev->stids, flags);
 	return ep;
 }
 
@@ -457,6 +460,8 @@ static struct sk_buff *get_skb(struct sk_buff *skb, int len, gfp_t gfp)
 		skb_reset_transport_header(skb);
 	} else {
 		skb = alloc_skb(len, gfp);
+		if (!skb)
+			return NULL;
 	}
 	t4_set_arp_err_handler(skb, NULL, NULL);
 	return skb;
@@ -555,7 +560,7 @@ static void act_open_req_arp_failure(void *handle, struct sk_buff *skb)
 		cxgb4_clip_release(ep->com.dev->rdev.lldi.ports[0],
 				   (const u32 *)&sin6->sin6_addr.s6_addr, 1);
 	}
-	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, ep->atid);
+	xa_erase_irq(&ep->com.dev->atids, ep->atid);
 	cxgb4_free_atid(ep->com.dev->rdev.lldi.tids, ep->atid);
 	queue_arp_failure_cpl(ep, skb, FAKE_CPL_PUT_EP_SAFE);
 }
@@ -655,7 +660,33 @@ static int send_halfclose(struct c4iw_ep *ep)
 	return c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 }
 
-static int send_abort(struct c4iw_ep *ep)
+static void read_tcb(struct c4iw_ep *ep)
+{
+	struct sk_buff *skb;
+	struct cpl_get_tcb *req;
+	int wrlen = roundup(sizeof(*req), 16);
+
+	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
+	if (WARN_ON(!skb))
+		return;
+
+	set_wr_txq(skb, CPL_PRIORITY_CONTROL, ep->ctrlq_idx);
+	req = (struct cpl_get_tcb *) skb_put(skb, wrlen);
+	memset(req, 0, wrlen);
+	INIT_TP_WR(req, ep->hwtid);
+	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_GET_TCB, ep->hwtid));
+	req->reply_ctrl = htons(REPLY_CHAN_V(0) | QUEUENO_V(ep->rss_qid));
+
+	/*
+	 * keep a ref on the ep so the tcb is not unlocked before this
+	 * cpl completes. The ref is released in read_tcb_rpl().
+	 */
+	c4iw_get_ep(&ep->com);
+	if (WARN_ON(c4iw_ofld_send(&ep->com.dev->rdev, skb)))
+		c4iw_put_ep(&ep->com);
+}
+
+static int send_abort_req(struct c4iw_ep *ep)
 {
 	u32 wrlen = roundup(sizeof(struct cpl_abort_req), 16);
 	struct sk_buff *req_skb = skb_dequeue(&ep->com.ep_skb_list);
@@ -668,6 +699,17 @@ static int send_abort(struct c4iw_ep *ep)
 			  ep, abort_arp_failure);
 
 	return c4iw_l2t_send(&ep->com.dev->rdev, req_skb, ep->l2t);
+}
+
+static int send_abort(struct c4iw_ep *ep)
+{
+	if (!ep->com.qp || !ep->com.qp->srq) {
+		send_abort_req(ep);
+		return 0;
+	}
+	set_bit(ABORT_REQ_IN_PROGRESS, &ep->com.flags);
+	read_tcb(ep);
+	return 0;
 }
 
 static int send_connect(struct c4iw_ep *ep)
@@ -911,7 +953,7 @@ static int send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
 	mpalen = sizeof(*mpa) + ep->plen;
 	if (mpa_rev_to_use == 2)
 		mpalen += sizeof(struct mpa_v2_conn_params);
-	wrlen = roundup(mpalen + sizeof *req, 16);
+	wrlen = roundup(mpalen + sizeof(*req), 16);
 	skb = get_skb(skb, wrlen, GFP_KERNEL);
 	if (!skb) {
 		connect_reply_upcall(ep, -ENOMEM);
@@ -955,8 +997,9 @@ static int send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
 	}
 
 	if (mpa_rev_to_use == 2) {
-		mpa->private_data_size = htons(ntohs(mpa->private_data_size) +
-					       sizeof (struct mpa_v2_conn_params));
+		mpa->private_data_size =
+			htons(ntohs(mpa->private_data_size) +
+			      sizeof(struct mpa_v2_conn_params));
 		pr_debug("initiator ird %u ord %u\n", ep->ird,
 			 ep->ord);
 		mpa_v2_params.ird = htons((u16)ep->ird);
@@ -1015,7 +1058,7 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	mpalen = sizeof(*mpa) + plen;
 	if (ep->mpa_attr.version == 2 && ep->mpa_attr.enhanced_rdma_conn)
 		mpalen += sizeof(struct mpa_v2_conn_params);
-	wrlen = roundup(mpalen + sizeof *req, 16);
+	wrlen = roundup(mpalen + sizeof(*req), 16);
 
 	skb = get_skb(NULL, wrlen, GFP_KERNEL);
 	if (!skb) {
@@ -1046,8 +1089,9 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 
 	if (ep->mpa_attr.version == 2 && ep->mpa_attr.enhanced_rdma_conn) {
 		mpa->flags |= MPA_ENHANCED_RDMA_CONN;
-		mpa->private_data_size = htons(ntohs(mpa->private_data_size) +
-					       sizeof (struct mpa_v2_conn_params));
+		mpa->private_data_size =
+			htons(ntohs(mpa->private_data_size) +
+			      sizeof(struct mpa_v2_conn_params));
 		mpa_v2_params.ird = htons(((u16)ep->ird) |
 					  (peer2peer ? MPA_V2_PEER2PEER_MODEL :
 					   0));
@@ -1094,7 +1138,7 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	mpalen = sizeof(*mpa) + plen;
 	if (ep->mpa_attr.version == 2 && ep->mpa_attr.enhanced_rdma_conn)
 		mpalen += sizeof(struct mpa_v2_conn_params);
-	wrlen = roundup(mpalen + sizeof *req, 16);
+	wrlen = roundup(mpalen + sizeof(*req), 16);
 
 	skb = get_skb(NULL, wrlen, GFP_KERNEL);
 	if (!skb) {
@@ -1129,8 +1173,9 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 
 	if (ep->mpa_attr.version == 2 && ep->mpa_attr.enhanced_rdma_conn) {
 		mpa->flags |= MPA_ENHANCED_RDMA_CONN;
-		mpa->private_data_size = htons(ntohs(mpa->private_data_size) +
-					       sizeof (struct mpa_v2_conn_params));
+		mpa->private_data_size =
+			htons(ntohs(mpa->private_data_size) +
+			      sizeof(struct mpa_v2_conn_params));
 		mpa_v2_params.ird = htons((u16)ep->ird);
 		mpa_v2_params.ord = htons((u16)ep->ord);
 		if (peer2peer && (ep->mpa_attr.p2p_type !=
@@ -1198,7 +1243,7 @@ static int act_establish(struct c4iw_dev *dev, struct sk_buff *skb)
 	set_emss(ep, tcp_opt);
 
 	/* dealloc the atid */
-	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, atid);
+	xa_erase_irq(&ep->com.dev->atids, atid);
 	cxgb4_free_atid(t, atid);
 	set_bit(ACT_ESTAB, &ep->com.history);
 
@@ -1851,14 +1896,11 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
-static void complete_cached_srq_buffers(struct c4iw_ep *ep,
-					__be32 srqidx_status)
+static void complete_cached_srq_buffers(struct c4iw_ep *ep, u32 srqidx)
 {
 	enum chip_type adapter_type;
-	u32 srqidx;
 
 	adapter_type = ep->com.dev->rdev.lldi.adapter_type;
-	srqidx = ABORT_RSS_SRQIDX_G(be32_to_cpu(srqidx_status));
 
 	/*
 	 * If this TCB had a srq buffer cached, then we must complete
@@ -1876,6 +1918,7 @@ static void complete_cached_srq_buffers(struct c4iw_ep *ep,
 
 static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 {
+	u32 srqidx;
 	struct c4iw_ep *ep;
 	struct cpl_abort_rpl_rss6 *rpl = cplhdr(skb);
 	int release = 0;
@@ -1887,7 +1930,10 @@ static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		return 0;
 	}
 
-	complete_cached_srq_buffers(ep, rpl->srqidx_status);
+	if (ep->com.qp && ep->com.qp->srq) {
+		srqidx = ABORT_RSS_SRQIDX_G(be32_to_cpu(rpl->srqidx_status));
+		complete_cached_srq_buffers(ep, srqidx ? srqidx : ep->srqe_idx);
+	}
 
 	pr_debug("ep %p tid %u\n", ep, ep->hwtid);
 	mutex_lock(&ep->com.mutex);
@@ -1903,8 +1949,10 @@ static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 	mutex_unlock(&ep->com.mutex);
 
-	if (release)
+	if (release) {
+		close_complete_upcall(ep, -ECONNRESET);
 		release_ep_resources(ep);
+	}
 	c4iw_put_ep(&ep->com);
 	return 0;
 }
@@ -2072,7 +2120,7 @@ static int import_ep(struct c4iw_ep *ep, int iptype, __u8 *peer_ip,
 	} else {
 		pdev = get_real_dev(n->dev);
 		ep->l2t = cxgb4_l2t_get(cdev->rdev.lldi.l2t,
-					n, pdev, 0);
+					n, pdev, rt_tos2priority(tos));
 		if (!ep->l2t)
 			goto out;
 		ep->mtu = dst_mtu(dst);
@@ -2144,7 +2192,9 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 		err = -ENOMEM;
 		goto fail2;
 	}
-	insert_handle(ep->com.dev, &ep->com.dev->atid_idr, ep, ep->atid);
+	err = xa_insert_irq(&ep->com.dev->atids, ep->atid, ep, GFP_KERNEL);
+	if (err)
+		goto fail2a;
 
 	/* find a route */
 	if (ep->com.cm_id->m_local_addr.ss_family == AF_INET) {
@@ -2161,7 +2211,8 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 					   laddr6->sin6_addr.s6_addr,
 					   raddr6->sin6_addr.s6_addr,
 					   laddr6->sin6_port,
-					   raddr6->sin6_port, 0,
+					   raddr6->sin6_port,
+					   ep->com.cm_id->tos,
 					   raddr6->sin6_scope_id);
 		iptype = 6;
 		ra = (__u8 *)&raddr6->sin6_addr;
@@ -2195,7 +2246,8 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 fail4:
 	dst_release(ep->dst);
 fail3:
-	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, ep->atid);
+	xa_erase_irq(&ep->com.dev->atids, ep->atid);
+fail2a:
 	cxgb4_free_atid(ep->com.dev->rdev.lldi.tids, ep->atid);
 fail2:
 	/*
@@ -2278,8 +2330,7 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 						(const u32 *)
 						&sin6->sin6_addr.s6_addr, 1);
 			}
-			remove_handle(ep->com.dev, &ep->com.dev->atid_idr,
-					atid);
+			xa_erase_irq(&ep->com.dev->atids, atid);
 			cxgb4_free_atid(t, atid);
 			dst_release(ep->dst);
 			cxgb4_l2t_release(ep->l2t);
@@ -2316,7 +2367,7 @@ fail:
 		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, GET_TID(rpl),
 				 ep->com.local_addr.ss_family);
 
-	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, atid);
+	xa_erase_irq(&ep->com.dev->atids, atid);
 	cxgb4_free_atid(t, atid);
 	dst_release(ep->dst);
 	cxgb4_l2t_release(ep->l2t);
@@ -2476,7 +2527,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 	u16 peer_mss = ntohs(req->tcpopt.mss);
 	int iptype;
 	unsigned short hdrs;
-	u8 tos = PASS_OPEN_TOS_G(ntohl(req->tos_stid));
+	u8 tos;
 
 	parent_ep = (struct c4iw_ep *)get_ep_from_stid(dev, stid);
 	if (!parent_ep) {
@@ -2489,6 +2540,11 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 		pr_err("%s - listening ep not in LISTEN\n", __func__);
 		goto reject;
 	}
+
+	if (parent_ep->com.cm_id->tos_set)
+		tos = parent_ep->com.cm_id->tos;
+	else
+		tos = PASS_OPEN_TOS_G(ntohl(req->tos_stid));
 
 	cxgb_get_4tuple(req, parent_ep->com.dev->rdev.lldi.adapter_type,
 			&iptype, local_ip, peer_ip, &local_port, &peer_port);
@@ -2509,7 +2565,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 			 ntohs(peer_port), peer_mss);
 		dst = cxgb_find_route6(&dev->rdev.lldi, get_real_dev,
 				local_ip, peer_ip, local_port, peer_port,
-				PASS_OPEN_TOS_G(ntohl(req->tos_stid)),
+				tos,
 				((struct sockaddr_in6 *)
 				 &parent_ep->com.local_addr)->sin6_scope_id);
 	}
@@ -2740,6 +2796,21 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
+static void finish_peer_abort(struct c4iw_dev *dev, struct c4iw_ep *ep)
+{
+	complete_cached_srq_buffers(ep, ep->srqe_idx);
+	if (ep->com.cm_id && ep->com.qp) {
+		struct c4iw_qp_attributes attrs;
+
+		attrs.next_state = C4IW_QP_STATE_ERROR;
+		c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
+			       C4IW_QP_ATTR_NEXT_STATE,	&attrs, 1);
+	}
+	peer_abort_upcall(ep);
+	release_ep_resources(ep);
+	c4iw_put_ep(&ep->com);
+}
+
 static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 {
 	struct cpl_abort_req_rss6 *req = cplhdr(skb);
@@ -2750,6 +2821,7 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 	int release = 0;
 	unsigned int tid = GET_TID(req);
 	u8 status;
+	u32 srqidx;
 
 	u32 len = roundup(sizeof(struct cpl_abort_rpl), 16);
 
@@ -2768,8 +2840,6 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 		mutex_unlock(&dev->rdev.stats.lock);
 		goto deref_ep;
 	}
-
-	complete_cached_srq_buffers(ep, req->srqidx_status);
 
 	pr_debug("ep %p tid %u state %u\n", ep, ep->hwtid,
 		 ep->com.state);
@@ -2819,6 +2889,23 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 		stop_ep_timer(ep);
 		/*FALLTHROUGH*/
 	case FPDU_MODE:
+		if (ep->com.qp && ep->com.qp->srq) {
+			srqidx = ABORT_RSS_SRQIDX_G(
+					be32_to_cpu(req->srqidx_status));
+			if (srqidx) {
+				complete_cached_srq_buffers(ep,
+							    req->srqidx_status);
+			} else {
+				/* Hold ep ref until finish_peer_abort() */
+				c4iw_get_ep(&ep->com);
+				__state_set(&ep->com, ABORTING);
+				set_bit(PEER_ABORT_IN_PROGRESS, &ep->com.flags);
+				read_tcb(ep);
+				break;
+
+			}
+		}
+
 		if (ep->com.cm_id && ep->com.qp) {
 			attrs.next_state = C4IW_QP_STATE_ERROR;
 			ret = c4iw_modify_qp(ep->com.qp->rhp,
@@ -2870,7 +2957,7 @@ out:
 					(const u32 *)&sin6->sin6_addr.s6_addr,
 					1);
 		}
-		remove_handle(ep->com.dev, &ep->com.dev->hwtid_idr, ep->hwtid);
+		xa_erase_irq(&ep->com.dev->hwtids, ep->hwtid);
 		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, ep->hwtid,
 				 ep->com.local_addr.ss_family);
 		dst_release(ep->dst);
@@ -2942,15 +3029,18 @@ static int terminate(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	ep = get_ep_from_tid(dev, tid);
 
-	if (ep && ep->com.qp) {
-		pr_warn("TERM received tid %u qpid %u\n",
-			tid, ep->com.qp->wq.sq.qid);
-		attrs.next_state = C4IW_QP_STATE_TERMINATE;
-		c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
-			       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
+	if (ep) {
+		if (ep->com.qp) {
+			pr_warn("TERM received tid %u qpid %u\n", tid,
+				ep->com.qp->wq.sq.qid);
+			attrs.next_state = C4IW_QP_STATE_TERMINATE;
+			c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
+				       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
+		}
+
+		c4iw_put_ep(&ep->com);
 	} else
 		pr_warn("TERM received tid %u no ep/qp\n", tid);
-	c4iw_put_ep(&ep->com);
 
 	return 0;
 }
@@ -3143,17 +3233,22 @@ static int pick_local_ipaddrs(struct c4iw_dev *dev, struct iw_cm_id *cm_id)
 	int found = 0;
 	struct sockaddr_in *laddr = (struct sockaddr_in *)&cm_id->m_local_addr;
 	struct sockaddr_in *raddr = (struct sockaddr_in *)&cm_id->m_remote_addr;
+	const struct in_ifaddr *ifa;
 
 	ind = in_dev_get(dev->rdev.lldi.ports[0]);
 	if (!ind)
 		return -EADDRNOTAVAIL;
-	for_primary_ifa(ind) {
+	rcu_read_lock();
+	in_dev_for_each_ifa_rcu(ifa, ind) {
+		if (ifa->ifa_flags & IFA_F_SECONDARY)
+			continue;
 		laddr->sin_addr.s_addr = ifa->ifa_address;
 		raddr->sin_addr.s_addr = ifa->ifa_address;
 		found = 1;
 		break;
 	}
-	endfor_ifa(ind);
+	rcu_read_unlock();
+
 	in_dev_put(ind);
 	return found ? 0 : -EADDRNOTAVAIL;
 }
@@ -3262,7 +3357,9 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		err = -ENOMEM;
 		goto fail2;
 	}
-	insert_handle(dev, &dev->atid_idr, ep, ep->atid);
+	err = xa_insert_irq(&dev->atids, ep->atid, ep, GFP_KERNEL);
+	if (err)
+		goto fail5;
 
 	memcpy(&ep->com.local_addr, &cm_id->m_local_addr,
 	       sizeof(ep->com.local_addr));
@@ -3318,7 +3415,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 					   laddr6->sin6_addr.s6_addr,
 					   raddr6->sin6_addr.s6_addr,
 					   laddr6->sin6_port,
-					   raddr6->sin6_port, 0,
+					   raddr6->sin6_port, cm_id->tos,
 					   raddr6->sin6_scope_id);
 	}
 	if (!ep->dst) {
@@ -3350,7 +3447,8 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 fail4:
 	dst_release(ep->dst);
 fail3:
-	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, ep->atid);
+	xa_erase_irq(&ep->com.dev->atids, ep->atid);
+fail5:
 	cxgb4_free_atid(ep->com.dev->rdev.lldi.tids, ep->atid);
 fail2:
 	skb_queue_purge(&ep->com.ep_skb_list);
@@ -3473,7 +3571,9 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		err = -ENOMEM;
 		goto fail2;
 	}
-	insert_handle(dev, &dev->stid_idr, ep, ep->stid);
+	err = xa_insert_irq(&dev->stids, ep->stid, ep, GFP_KERNEL);
+	if (err)
+		goto fail3;
 
 	state_set(&ep->com, LISTEN);
 	if (ep->com.local_addr.ss_family == AF_INET)
@@ -3484,7 +3584,8 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		cm_id->provider_data = ep;
 		goto out;
 	}
-	remove_handle(ep->com.dev, &ep->com.dev->stid_idr, ep->stid);
+	xa_erase_irq(&ep->com.dev->stids, ep->stid);
+fail3:
 	cxgb4_free_stid(ep->com.dev->rdev.lldi.tids, ep->stid,
 			ep->com.local_addr.ss_family);
 fail2:
@@ -3523,7 +3624,7 @@ int c4iw_destroy_listen(struct iw_cm_id *cm_id)
 		cxgb4_clip_release(ep->com.dev->rdev.lldi.ports[0],
 				   (const u32 *)&sin6->sin6_addr.s6_addr, 1);
 	}
-	remove_handle(ep->com.dev, &ep->com.dev->stid_idr, ep->stid);
+	xa_erase_irq(&ep->com.dev->stids, ep->stid);
 	cxgb4_free_stid(ep->com.dev->rdev.lldi.tids, ep->stid,
 			ep->com.local_addr.ss_family);
 done:
@@ -3606,7 +3707,6 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 	if (close) {
 		if (abrupt) {
 			set_bit(EP_DISC_ABORT, &ep->com.history);
-			close_complete_upcall(ep, -ECONNRESET);
 			ret = send_abort(ep);
 		} else {
 			set_bit(EP_DISC_CLOSE, &ep->com.history);
@@ -3684,7 +3784,7 @@ static void active_ofld_conn_reply(struct c4iw_dev *dev, struct sk_buff *skb,
 		cxgb4_clip_release(ep->com.dev->rdev.lldi.ports[0],
 				   (const u32 *)&sin6->sin6_addr.s6_addr, 1);
 	}
-	remove_handle(dev, &dev->atid_idr, atid);
+	xa_erase_irq(&dev->atids, atid);
 	cxgb4_free_atid(dev->rdev.lldi.tids, atid);
 	dst_release(ep->dst);
 	cxgb4_l2t_release(ep->l2t);
@@ -3715,6 +3815,80 @@ static void passive_ofld_conn_reply(struct c4iw_dev *dev, struct sk_buff *skb,
 			kfree_skb(rpl_skb);
 	}
 	return;
+}
+
+static inline u64 t4_tcb_get_field64(__be64 *tcb, u16 word)
+{
+	u64 tlo = be64_to_cpu(tcb[((31 - word) / 2)]);
+	u64 thi = be64_to_cpu(tcb[((31 - word) / 2) - 1]);
+	u64 t;
+	u32 shift = 32;
+
+	t = (thi << shift) | (tlo >> shift);
+
+	return t;
+}
+
+static inline u32 t4_tcb_get_field32(__be64 *tcb, u16 word, u32 mask, u32 shift)
+{
+	u32 v;
+	u64 t = be64_to_cpu(tcb[(31 - word) / 2]);
+
+	if (word & 0x1)
+		shift += 32;
+	v = (t >> shift) & mask;
+	return v;
+}
+
+static int read_tcb_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
+{
+	struct cpl_get_tcb_rpl *rpl = cplhdr(skb);
+	__be64 *tcb = (__be64 *)(rpl + 1);
+	unsigned int tid = GET_TID(rpl);
+	struct c4iw_ep *ep;
+	u64 t_flags_64;
+	u32 rx_pdu_out;
+
+	ep = get_ep_from_tid(dev, tid);
+	if (!ep)
+		return 0;
+	/* Examine the TF_RX_PDU_OUT (bit 49 of the t_flags) in order to
+	 * determine if there's a rx PDU feedback event pending.
+	 *
+	 * If that bit is set, it means we'll need to re-read the TCB's
+	 * rq_start value. The final value is the one present in a TCB
+	 * with the TF_RX_PDU_OUT bit cleared.
+	 */
+
+	t_flags_64 = t4_tcb_get_field64(tcb, TCB_T_FLAGS_W);
+	rx_pdu_out = (t_flags_64 & TF_RX_PDU_OUT_V(1)) >> TF_RX_PDU_OUT_S;
+
+	c4iw_put_ep(&ep->com); /* from get_ep_from_tid() */
+	c4iw_put_ep(&ep->com); /* from read_tcb() */
+
+	/* If TF_RX_PDU_OUT bit is set, re-read the TCB */
+	if (rx_pdu_out) {
+		if (++ep->rx_pdu_out_cnt >= 2) {
+			WARN_ONCE(1, "tcb re-read() reached the guard limit, finishing the cleanup\n");
+			goto cleanup;
+		}
+		read_tcb(ep);
+		return 0;
+	}
+
+	ep->srqe_idx = t4_tcb_get_field32(tcb, TCB_RQ_START_W, TCB_RQ_START_W,
+			TCB_RQ_START_S);
+cleanup:
+	pr_debug("ep %p tid %u %016x\n", ep, ep->hwtid, ep->srqe_idx);
+
+	if (test_bit(PEER_ABORT_IN_PROGRESS, &ep->com.flags))
+		finish_peer_abort(dev, ep);
+	else if (test_bit(ABORT_REQ_IN_PROGRESS, &ep->com.flags))
+		send_abort_req(ep);
+	else
+		WARN_ONCE(1, "unexpected state!");
+
+	return 0;
 }
 
 static int deferred_fw6_msg(struct c4iw_dev *dev, struct sk_buff *skb)
@@ -4037,6 +4211,7 @@ static c4iw_handler_func work_handlers[NUM_CPL_CMDS + NUM_FAKE_CPLS] = {
 	[CPL_CLOSE_CON_RPL] = close_con_rpl,
 	[CPL_RDMA_TERMINATE] = terminate,
 	[CPL_FW4_ACK] = fw4_ack,
+	[CPL_GET_TCB_RPL] = read_tcb_rpl,
 	[CPL_FW6_MSG] = deferred_fw6_msg,
 	[CPL_RX_PKT] = rx_pkt,
 	[FAKE_CPL_PUT_EP_SAFE] = _put_ep_safe,
@@ -4268,6 +4443,7 @@ c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS] = {
 	[CPL_RDMA_TERMINATE] = sched,
 	[CPL_FW4_ACK] = sched,
 	[CPL_SET_TCB_RPL] = set_tcb_rpl,
+	[CPL_GET_TCB_RPL] = sched,
 	[CPL_FW6_MSG] = fw6_msg,
 	[CPL_RX_PKT] = sched
 };

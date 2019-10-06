@@ -9,19 +9,12 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_btree.h"
-#include "xfs_bit.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
-#include "xfs_sb.h"
-#include "xfs_alloc.h"
 #include "xfs_rtalloc.h"
 #include "xfs_inode.h"
-#include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
-#include "scrub/trace.h"
 
 /* Set us up with the realtime metadata locked. */
 int
@@ -141,9 +134,8 @@ xchk_xref_is_used_rt_space(
 	startext = fsbno;
 	endext = fsbno + len - 1;
 	do_div(startext, sc->mp->m_sb.sb_rextsize);
-	if (do_div(endext, sc->mp->m_sb.sb_rextsize))
-		endext++;
-	extcount = endext - startext;
+	do_div(endext, sc->mp->m_sb.sb_rextsize);
+	extcount = endext - startext + 1;
 	xfs_ilock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
 	error = xfs_rtalloc_extent_is_free(sc->mp, sc->tp, startext, extcount,
 			&is_free);

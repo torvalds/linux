@@ -1,45 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**************************************************************************
  * Copyright (c) 2007-2011, Intel Corporation.
  * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  **************************************************************************/
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/pfn_t.h>
-#include <linux/mm.h>
-#include <linux/tty.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/console.h>
+#include <linux/delay.h>
+#include <linux/errno.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/pfn_t.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/tty.h>
 
-#include <drm/drmP.h>
 #include <drm/drm.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
-#include "psb_drv.h"
-#include "psb_intel_reg.h"
-#include "psb_intel_drv.h"
 #include "framebuffer.h"
 #include "gtt.h"
+#include "psb_drv.h"
+#include "psb_intel_drv.h"
+#include "psb_intel_reg.h"
 
 static const struct drm_framebuffer_funcs psb_fb_funcs = {
 	.destroy = drm_gem_fb_destroy,
@@ -232,7 +220,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
 	 * Reject unknown formats, YUV formats, and formats with more than
 	 * 4 bytes per pixel.
 	 */
-	info = drm_format_info(mode_cmd->pixel_format);
+	info = drm_get_format_info(dev, mode_cmd);
 	if (!info || !info->depth || info->cpp[0] > 4)
 		return -EINVAL;
 
@@ -389,7 +377,6 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 		ret = PTR_ERR(info);
 		goto out;
 	}
-	info->par = fbdev;
 
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
 
@@ -402,10 +389,6 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	fbdev->psb_fb_helper.fb = fb;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
-	strcpy(info->fix.id, "psbdrmfb");
-
-	info->flags = FBINFO_DEFAULT;
 	if (dev_priv->ops->accel_2d && pitch_lines > 8)	/* 2D engine */
 		info->fbops = &psbfb_ops;
 	else if (gtt_roll) {	/* GTT rolling seems best */
@@ -428,8 +411,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 		info->apertures->ranges[0].size = dev_priv->gtt.stolen_size;
 	}
 
-	drm_fb_helper_fill_var(info, &fbdev->psb_fb_helper,
-				sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(info, &fbdev->psb_fb_helper, sizes);
 
 	info->fix.mmio_start = pci_resource_start(dev->pdev, 0);
 	info->fix.mmio_len = pci_resource_len(dev->pdev, 0);

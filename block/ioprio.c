@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * fs/ioprio.c
  *
@@ -16,7 +17,7 @@
  *
  * ioprio_set(PRIO_PROCESS, pid, prio);
  *
- * See also Documentation/block/ioprio.txt
+ * See also Documentation/block/ioprio.rst
  *
  */
 #include <linux/gfp.h>

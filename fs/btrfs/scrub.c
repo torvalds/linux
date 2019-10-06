@@ -6,6 +6,7 @@
 #include <linux/blkdev.h>
 #include <linux/ratelimit.h>
 #include <linux/sched/mm.h>
+#include <crypto/hash.h>
 #include "ctree.h"
 #include "volumes.h"
 #include "disk-io.h"
@@ -17,6 +18,7 @@
 #include "check-integrity.h"
 #include "rcu-string.h"
 #include "raid56.h"
+#include "block-group.h"
 
 /*
  * This is only the first step towards a full-features scrub. It reads all
@@ -584,6 +586,7 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 	sctx->pages_per_rd_bio = SCRUB_PAGES_PER_RD_BIO;
 	sctx->curr = -1;
 	sctx->fs_info = fs_info;
+	INIT_LIST_HEAD(&sctx->csum_list);
 	for (i = 0; i < SCRUB_BIOS_PER_SCTX; ++i) {
 		struct scrub_bio *sbio;
 
@@ -608,7 +611,6 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 	atomic_set(&sctx->workers_pending, 0);
 	atomic_set(&sctx->cancel_req, 0);
 	sctx->csum_size = btrfs_super_csum_size(fs_info->super_copy);
-	INIT_LIST_HEAD(&sctx->csum_list);
 
 	spin_lock_init(&sctx->list_lock);
 	spin_lock_init(&sctx->stat_lock);
@@ -1787,17 +1789,21 @@ static int scrub_checksum(struct scrub_block *sblock)
 static int scrub_checksum_data(struct scrub_block *sblock)
 {
 	struct scrub_ctx *sctx = sblock->sctx;
+	struct btrfs_fs_info *fs_info = sctx->fs_info;
+	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	u8 csum[BTRFS_CSUM_SIZE];
 	u8 *on_disk_csum;
 	struct page *page;
 	void *buffer;
-	u32 crc = ~(u32)0;
 	u64 len;
 	int index;
 
 	BUG_ON(sblock->page_count < 1);
 	if (!sblock->pagev[0]->have_csum)
 		return 0;
+
+	shash->tfm = fs_info->csum_shash;
+	crypto_shash_init(shash);
 
 	on_disk_csum = sblock->pagev[0]->csum;
 	page = sblock->pagev[0]->page;
@@ -1808,7 +1814,7 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 	for (;;) {
 		u64 l = min_t(u64, len, PAGE_SIZE);
 
-		crc = btrfs_csum_data(buffer, crc, l);
+		crypto_shash_update(shash, buffer, l);
 		kunmap_atomic(buffer);
 		len -= l;
 		if (len == 0)
@@ -1820,7 +1826,7 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 		buffer = kmap_atomic(page);
 	}
 
-	btrfs_csum_final(crc, csum);
+	crypto_shash_final(shash, csum);
 	if (memcmp(csum, on_disk_csum, sctx->csum_size))
 		sblock->checksum_error = 1;
 
@@ -1832,15 +1838,18 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	struct scrub_ctx *sctx = sblock->sctx;
 	struct btrfs_header *h;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
+	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	u8 calculated_csum[BTRFS_CSUM_SIZE];
 	u8 on_disk_csum[BTRFS_CSUM_SIZE];
 	struct page *page;
 	void *mapped_buffer;
 	u64 mapped_size;
 	void *p;
-	u32 crc = ~(u32)0;
 	u64 len;
 	int index;
+
+	shash->tfm = fs_info->csum_shash;
+	crypto_shash_init(shash);
 
 	BUG_ON(sblock->page_count < 1);
 	page = sblock->pagev[0]->page;
@@ -1875,7 +1884,7 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	for (;;) {
 		u64 l = min_t(u64, len, mapped_size);
 
-		crc = btrfs_csum_data(p, crc, l);
+		crypto_shash_update(shash, p, l);
 		kunmap_atomic(mapped_buffer);
 		len -= l;
 		if (len == 0)
@@ -1889,7 +1898,7 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 		p = mapped_buffer;
 	}
 
-	btrfs_csum_final(crc, calculated_csum);
+	crypto_shash_final(shash, calculated_csum);
 	if (memcmp(calculated_csum, on_disk_csum, sctx->csum_size))
 		sblock->checksum_error = 1;
 
@@ -1900,17 +1909,21 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 {
 	struct btrfs_super_block *s;
 	struct scrub_ctx *sctx = sblock->sctx;
+	struct btrfs_fs_info *fs_info = sctx->fs_info;
+	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	u8 calculated_csum[BTRFS_CSUM_SIZE];
 	u8 on_disk_csum[BTRFS_CSUM_SIZE];
 	struct page *page;
 	void *mapped_buffer;
 	u64 mapped_size;
 	void *p;
-	u32 crc = ~(u32)0;
 	int fail_gen = 0;
 	int fail_cor = 0;
 	u64 len;
 	int index;
+
+	shash->tfm = fs_info->csum_shash;
+	crypto_shash_init(shash);
 
 	BUG_ON(sblock->page_count < 1);
 	page = sblock->pagev[0]->page;
@@ -1934,7 +1947,7 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 	for (;;) {
 		u64 l = min_t(u64, len, mapped_size);
 
-		crc = btrfs_csum_data(p, crc, l);
+		crypto_shash_update(shash, p, l);
 		kunmap_atomic(mapped_buffer);
 		len -= l;
 		if (len == 0)
@@ -1948,7 +1961,7 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 		p = mapped_buffer;
 	}
 
-	btrfs_csum_final(crc, calculated_csum);
+	crypto_shash_final(shash, calculated_csum);
 	if (memcmp(calculated_csum, on_disk_csum, sctx->csum_size))
 		++fail_cor;
 
@@ -2448,7 +2461,7 @@ static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum)
 	ASSERT(index < UINT_MAX);
 
 	num_sectors = sum->len / sctx->fs_info->sectorsize;
-	memcpy(csum, sum->sums + index, sctx->csum_size);
+	memcpy(csum, sum->sums + index * sctx->csum_size, sctx->csum_size);
 	if (index == num_sectors - 1) {
 		list_del(&sum->list);
 		kfree(sum);
@@ -2660,18 +2673,18 @@ static int get_raid56_logic_offset(u64 physical, int num,
 	u64 last_offset;
 	u32 stripe_index;
 	u32 rot;
+	const int data_stripes = nr_data_stripes(map);
 
-	last_offset = (physical - map->stripes[num].physical) *
-		      nr_data_stripes(map);
+	last_offset = (physical - map->stripes[num].physical) * data_stripes;
 	if (stripe_start)
 		*stripe_start = last_offset;
 
 	*offset = last_offset;
-	for (i = 0; i < nr_data_stripes(map); i++) {
+	for (i = 0; i < data_stripes; i++) {
 		*offset = last_offset + i * map->stripe_len;
 
 		stripe_nr = div64_u64(*offset, map->stripe_len);
-		stripe_nr = div_u64(stripe_nr, nr_data_stripes(map));
+		stripe_nr = div_u64(stripe_nr, data_stripes);
 
 		/* Work out the disk rotation on this stripe-set */
 		stripe_nr = div_u64_rem(stripe_nr, map->num_stripes, &rot);
@@ -3079,7 +3092,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 		offset = map->stripe_len * (num / map->sub_stripes);
 		increment = map->stripe_len * factor;
 		mirror_num = num % map->sub_stripes + 1;
-	} else if (map->type & BTRFS_BLOCK_GROUP_RAID1) {
+	} else if (map->type & BTRFS_BLOCK_GROUP_RAID1_MASK) {
 		increment = map->stripe_len;
 		mirror_num = num % map->num_stripes + 1;
 	} else if (map->type & BTRFS_BLOCK_GROUP_DUP) {
@@ -3410,15 +3423,15 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 					  struct btrfs_block_group_cache *cache)
 {
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
-	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
+	struct extent_map_tree *map_tree = &fs_info->mapping_tree;
 	struct map_lookup *map;
 	struct extent_map *em;
 	int i;
 	int ret = 0;
 
-	read_lock(&map_tree->map_tree.lock);
-	em = lookup_extent_mapping(&map_tree->map_tree, chunk_offset, 1);
-	read_unlock(&map_tree->map_tree.lock);
+	read_lock(&map_tree->lock);
+	em = lookup_extent_mapping(map_tree, chunk_offset, 1);
+	read_unlock(&map_tree->lock);
 
 	if (!em) {
 		/*
@@ -3741,25 +3754,33 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 	unsigned int flags = WQ_FREEZABLE | WQ_UNBOUND;
 	int max_active = fs_info->thread_pool_size;
 
-	if (fs_info->scrub_workers_refcnt == 0) {
+	lockdep_assert_held(&fs_info->scrub_lock);
+
+	if (refcount_read(&fs_info->scrub_workers_refcnt) == 0) {
+		ASSERT(fs_info->scrub_workers == NULL);
 		fs_info->scrub_workers = btrfs_alloc_workqueue(fs_info, "scrub",
 				flags, is_dev_replace ? 1 : max_active, 4);
 		if (!fs_info->scrub_workers)
 			goto fail_scrub_workers;
 
+		ASSERT(fs_info->scrub_wr_completion_workers == NULL);
 		fs_info->scrub_wr_completion_workers =
 			btrfs_alloc_workqueue(fs_info, "scrubwrc", flags,
 					      max_active, 2);
 		if (!fs_info->scrub_wr_completion_workers)
 			goto fail_scrub_wr_completion_workers;
 
+		ASSERT(fs_info->scrub_parity_workers == NULL);
 		fs_info->scrub_parity_workers =
 			btrfs_alloc_workqueue(fs_info, "scrubparity", flags,
 					      max_active, 2);
 		if (!fs_info->scrub_parity_workers)
 			goto fail_scrub_parity_workers;
+
+		refcount_set(&fs_info->scrub_workers_refcnt, 1);
+	} else {
+		refcount_inc(&fs_info->scrub_workers_refcnt);
 	}
-	++fs_info->scrub_workers_refcnt;
 	return 0;
 
 fail_scrub_parity_workers:
@@ -3770,16 +3791,6 @@ fail_scrub_workers:
 	return -ENOMEM;
 }
 
-static noinline_for_stack void scrub_workers_put(struct btrfs_fs_info *fs_info)
-{
-	if (--fs_info->scrub_workers_refcnt == 0) {
-		btrfs_destroy_workqueue(fs_info->scrub_workers);
-		btrfs_destroy_workqueue(fs_info->scrub_wr_completion_workers);
-		btrfs_destroy_workqueue(fs_info->scrub_parity_workers);
-	}
-	WARN_ON(fs_info->scrub_workers_refcnt < 0);
-}
-
 int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		    u64 end, struct btrfs_scrub_progress *progress,
 		    int readonly, int is_dev_replace)
@@ -3788,9 +3799,12 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	int ret;
 	struct btrfs_device *dev;
 	unsigned int nofs_flag;
+	struct btrfs_workqueue *scrub_workers = NULL;
+	struct btrfs_workqueue *scrub_wr_comp = NULL;
+	struct btrfs_workqueue *scrub_parity = NULL;
 
 	if (btrfs_fs_closing(fs_info))
-		return -EINVAL;
+		return -EAGAIN;
 
 	if (fs_info->nodesize > BTRFS_STRIPE_LEN) {
 		/*
@@ -3835,7 +3849,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		return PTR_ERR(sctx);
 
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
-	dev = btrfs_find_device(fs_info, devid, NULL, NULL);
+	dev = btrfs_find_device(fs_info->fs_devices, devid, NULL, NULL, true);
 	if (!dev || (test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state) &&
 		     !is_dev_replace)) {
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
@@ -3903,6 +3917,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	 */
 	nofs_flag = memalloc_nofs_save();
 	if (!is_dev_replace) {
+		btrfs_info(fs_info, "scrub: started on devid %llu", devid);
 		/*
 		 * by holding device list mutex, we can
 		 * kick off writing super in log tree sync.
@@ -3925,11 +3940,26 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	if (progress)
 		memcpy(progress, &sctx->stat, sizeof(*progress));
 
+	if (!is_dev_replace)
+		btrfs_info(fs_info, "scrub: %s on devid %llu with status: %d",
+			ret ? "not finished" : "finished", devid, ret);
+
 	mutex_lock(&fs_info->scrub_lock);
 	dev->scrub_ctx = NULL;
-	scrub_workers_put(fs_info);
+	if (refcount_dec_and_test(&fs_info->scrub_workers_refcnt)) {
+		scrub_workers = fs_info->scrub_workers;
+		scrub_wr_comp = fs_info->scrub_wr_completion_workers;
+		scrub_parity = fs_info->scrub_parity_workers;
+
+		fs_info->scrub_workers = NULL;
+		fs_info->scrub_wr_completion_workers = NULL;
+		fs_info->scrub_parity_workers = NULL;
+	}
 	mutex_unlock(&fs_info->scrub_lock);
 
+	btrfs_destroy_workqueue(scrub_workers);
+	btrfs_destroy_workqueue(scrub_wr_comp);
+	btrfs_destroy_workqueue(scrub_parity);
 	scrub_put_ctx(sctx);
 
 	return ret;
@@ -3982,9 +4012,9 @@ int btrfs_scrub_cancel(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
-int btrfs_scrub_cancel_dev(struct btrfs_fs_info *fs_info,
-			   struct btrfs_device *dev)
+int btrfs_scrub_cancel_dev(struct btrfs_device *dev)
 {
+	struct btrfs_fs_info *fs_info = dev->fs_info;
 	struct scrub_ctx *sctx;
 
 	mutex_lock(&fs_info->scrub_lock);
@@ -4012,7 +4042,7 @@ int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
 	struct scrub_ctx *sctx = NULL;
 
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
-	dev = btrfs_find_device(fs_info, devid, NULL, NULL);
+	dev = btrfs_find_device(fs_info->fs_devices, devid, NULL, NULL, true);
 	if (dev)
 		sctx = dev->scrub_ctx;
 	if (sctx)

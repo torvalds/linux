@@ -80,6 +80,29 @@ static DEFINE_MUTEX(bnxt_re_dev_lock);
 static struct workqueue_struct *bnxt_re_wq;
 static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev);
 
+static void bnxt_re_destroy_chip_ctx(struct bnxt_re_dev *rdev)
+{
+	rdev->rcfw.res = NULL;
+	rdev->qplib_res.cctx = NULL;
+}
+
+static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_en_dev *en_dev;
+	struct bnxt *bp;
+
+	en_dev = rdev->en_dev;
+	bp = netdev_priv(en_dev->net);
+
+	rdev->chip_ctx.chip_num = bp->chip_num;
+	/* rest members to follow eventually */
+
+	rdev->qplib_res.cctx = &rdev->chip_ctx;
+	rdev->rcfw.res = &rdev->qplib_res;
+
+	return 0;
+}
+
 /* SR-IOV helper functions */
 
 static void bnxt_re_get_sriov_func_type(struct bnxt_re_dev *rdev)
@@ -278,6 +301,7 @@ static int bnxt_re_register_netdev(struct bnxt_re_dev *rdev)
 
 	rc = en_dev->en_ops->bnxt_register_device(en_dev, BNXT_ROCE_ULP,
 						  &bnxt_re_ulp_ops, rdev);
+	rdev->qplib_res.pdev = rdev->en_dev->pdev;
 	return rc;
 }
 
@@ -345,7 +369,8 @@ static void bnxt_re_fill_fw_msg(struct bnxt_fw_msg *fw_msg, void *msg,
 	fw_msg->timeout = timeout;
 }
 
-static int bnxt_re_net_ring_free(struct bnxt_re_dev *rdev, u16 fw_ring_id)
+static int bnxt_re_net_ring_free(struct bnxt_re_dev *rdev,
+				 u16 fw_ring_id, int type)
 {
 	struct bnxt_en_dev *en_dev = rdev->en_dev;
 	struct hwrm_ring_free_input req = {0};
@@ -359,7 +384,7 @@ static int bnxt_re_net_ring_free(struct bnxt_re_dev *rdev, u16 fw_ring_id)
 	memset(&fw_msg, 0, sizeof(fw_msg));
 
 	bnxt_re_init_hwrm_hdr(rdev, (void *)&req, HWRM_RING_FREE, -1, -1);
-	req.ring_type = RING_ALLOC_REQ_RING_TYPE_L2_CMPL;
+	req.ring_type = type;
 	req.ring_id = cpu_to_le16(fw_ring_id);
 	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
 			    sizeof(resp), DFLT_HWRM_CMD_TIMEOUT);
@@ -396,7 +421,7 @@ static int bnxt_re_net_ring_alloc(struct bnxt_re_dev *rdev, dma_addr_t *dma_arr,
 	/* Association of ring index with doorbell index and MSIX number */
 	req.logical_id = cpu_to_le16(map_index);
 	req.length = cpu_to_le32(ring_mask + 1);
-	req.ring_type = RING_ALLOC_REQ_RING_TYPE_L2_CMPL;
+	req.ring_type = type;
 	req.int_mode = RING_ALLOC_REQ_INT_MODE_MSIX;
 	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
 			    sizeof(resp), DFLT_HWRM_CMD_TIMEOUT);
@@ -538,7 +563,8 @@ static struct bnxt_en_dev *bnxt_re_dev_probe(struct net_device *netdev)
 static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
 			   char *buf)
 {
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
+	struct bnxt_re_dev *rdev =
+		rdma_device_to_drv_device(device, struct bnxt_re_dev, ibdev);
 
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n", rdev->en_dev->pdev->vendor);
 }
@@ -547,7 +573,8 @@ static DEVICE_ATTR_RO(hw_rev);
 static ssize_t hca_type_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
+	struct bnxt_re_dev *rdev =
+		rdma_device_to_drv_device(device, struct bnxt_re_dev, ibdev);
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", rdev->ibdev.node_desc);
 }
@@ -569,6 +596,10 @@ static void bnxt_re_unregister_ib(struct bnxt_re_dev *rdev)
 }
 
 static const struct ib_device_ops bnxt_re_dev_ops = {
+	.owner = THIS_MODULE,
+	.driver_id = RDMA_DRIVER_BNXT_RE,
+	.uverbs_abi_ver = BNXT_RE_ABI_VERSION,
+
 	.add_gid = bnxt_re_add_gid,
 	.alloc_hw_stats = bnxt_re_ib_alloc_hw_stats,
 	.alloc_mr = bnxt_re_alloc_mr,
@@ -590,7 +621,6 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.get_dma_mr = bnxt_re_get_dma_mr,
 	.get_hw_stats = bnxt_re_ib_get_hw_stats,
 	.get_link_layer = bnxt_re_get_link_layer,
-	.get_netdev = bnxt_re_get_netdev,
 	.get_port_immutable = bnxt_re_get_port_immutable,
 	.map_mr_sg = bnxt_re_map_mr_sg,
 	.mmap = bnxt_re_mmap,
@@ -610,14 +640,19 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.query_srq = bnxt_re_query_srq,
 	.reg_user_mr = bnxt_re_reg_user_mr,
 	.req_notify_cq = bnxt_re_req_notify_cq,
+	INIT_RDMA_OBJ_SIZE(ib_ah, bnxt_re_ah, ib_ah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, bnxt_re_cq, ib_cq),
+	INIT_RDMA_OBJ_SIZE(ib_pd, bnxt_re_pd, ib_pd),
+	INIT_RDMA_OBJ_SIZE(ib_srq, bnxt_re_srq, ib_srq),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, bnxt_re_ucontext, ib_uctx),
 };
 
 static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 {
 	struct ib_device *ibdev = &rdev->ibdev;
+	int ret;
 
 	/* ib device init */
-	ibdev->owner = THIS_MODULE;
 	ibdev->node_type = RDMA_NODE_IB_CA;
 	strlcpy(ibdev->node_desc, BNXT_RE_DESC " HCA",
 		strlen(BNXT_RE_DESC) + 5);
@@ -630,7 +665,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->local_dma_lkey = BNXT_QPLIB_RSVD_LKEY;
 
 	/* User space */
-	ibdev->uverbs_abi_ver = BNXT_RE_ABI_VERSION;
 	ibdev->uverbs_cmd_mask =
 			(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
 			(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
@@ -660,9 +694,12 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 
 
 	rdma_set_device_sysfs_group(ibdev, &bnxt_re_dev_attr_group);
-	ibdev->driver_id = RDMA_DRIVER_BNXT_RE;
 	ib_set_device_ops(ibdev, &bnxt_re_dev_ops);
-	return ib_register_device(ibdev, "bnxt_re%d", NULL);
+	ret = ib_device_set_netdev(&rdev->ibdev, rdev->netdev, 1);
+	if (ret)
+		return ret;
+
+	return ib_register_device(ibdev, "bnxt_re%d");
 }
 
 static void bnxt_re_dev_remove(struct bnxt_re_dev *rdev)
@@ -686,7 +723,7 @@ static struct bnxt_re_dev *bnxt_re_dev_add(struct net_device *netdev,
 	struct bnxt_re_dev *rdev;
 
 	/* Allocate bnxt_re_dev instance here */
-	rdev = (struct bnxt_re_dev *)ib_alloc_device(sizeof(*rdev));
+	rdev = ib_alloc_device(bnxt_re_dev, ibdev);
 	if (!rdev) {
 		dev_err(NULL, "%s: bnxt_re_dev allocation failure!",
 			ROCE_DRV_MODULE_NAME);
@@ -858,6 +895,12 @@ static int bnxt_re_cqn_handler(struct bnxt_qplib_nq *nq,
 	return 0;
 }
 
+static u32 bnxt_re_get_nqdb_offset(struct bnxt_re_dev *rdev, u16 indx)
+{
+	return bnxt_qplib_is_chip_gen_p5(&rdev->chip_ctx) ?
+				0x10000 : rdev->msix_entries[indx].db_offset;
+}
+
 static void bnxt_re_cleanup_res(struct bnxt_re_dev *rdev)
 {
 	int i;
@@ -871,18 +914,18 @@ static void bnxt_re_cleanup_res(struct bnxt_re_dev *rdev)
 
 static int bnxt_re_init_res(struct bnxt_re_dev *rdev)
 {
-	int rc = 0, i;
 	int num_vec_enabled = 0;
+	int rc = 0, i;
+	u32 db_offt;
 
 	bnxt_qplib_init_res(&rdev->qplib_res);
 
 	for (i = 1; i < rdev->num_msix ; i++) {
+		db_offt = bnxt_re_get_nqdb_offset(rdev, i);
 		rc = bnxt_qplib_enable_nq(rdev->en_dev->pdev, &rdev->nq[i - 1],
 					  i - 1, rdev->msix_entries[i].vector,
-					  rdev->msix_entries[i].db_offset,
-					  &bnxt_re_cqn_handler,
+					  db_offt, &bnxt_re_cqn_handler,
 					  &bnxt_re_srqn_handler);
-
 		if (rc) {
 			dev_err(rdev_to_dev(rdev),
 				"Failed to enable NQ with rc = 0x%x", rc);
@@ -894,16 +937,18 @@ static int bnxt_re_init_res(struct bnxt_re_dev *rdev)
 fail:
 	for (i = num_vec_enabled; i >= 0; i--)
 		bnxt_qplib_disable_nq(&rdev->nq[i]);
-
 	return rc;
 }
 
 static void bnxt_re_free_nq_res(struct bnxt_re_dev *rdev)
 {
+	u8 type;
 	int i;
 
 	for (i = 0; i < rdev->num_msix - 1; i++) {
-		bnxt_re_net_ring_free(rdev, rdev->nq[i].ring_id);
+		type = bnxt_qplib_get_ring_type(&rdev->chip_ctx);
+		bnxt_re_net_ring_free(rdev, rdev->nq[i].ring_id, type);
+		rdev->nq[i].res = NULL;
 		bnxt_qplib_free_nq(&rdev->nq[i]);
 	}
 }
@@ -925,8 +970,11 @@ static void bnxt_re_free_res(struct bnxt_re_dev *rdev)
 
 static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 {
-	int rc = 0, i;
 	int num_vec_created = 0;
+	dma_addr_t *pg_map;
+	int rc = 0, i;
+	int pages;
+	u8 type;
 
 	/* Configure and allocate resources for qplib */
 	rdev->qplib_res.rcfw = &rdev->rcfw;
@@ -947,6 +995,7 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 		goto dealloc_res;
 
 	for (i = 0; i < rdev->num_msix - 1; i++) {
+		rdev->nq[i].res = &rdev->qplib_res;
 		rdev->nq[i].hwq.max_elements = BNXT_RE_MAX_CQ_COUNT +
 			BNXT_RE_MAX_SRQC_COUNT + 2;
 		rc = bnxt_qplib_alloc_nq(rdev->en_dev->pdev, &rdev->nq[i]);
@@ -955,13 +1004,13 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 				i, rc);
 			goto free_nq;
 		}
-		rc = bnxt_re_net_ring_alloc
-			(rdev, rdev->nq[i].hwq.pbl[PBL_LVL_0].pg_map_arr,
-			 rdev->nq[i].hwq.pbl[rdev->nq[i].hwq.level].pg_count,
-			 HWRM_RING_ALLOC_CMPL,
-			 BNXT_QPLIB_NQE_MAX_CNT - 1,
-			 rdev->msix_entries[i + 1].ring_idx,
-			 &rdev->nq[i].ring_id);
+		type = bnxt_qplib_get_ring_type(&rdev->chip_ctx);
+		pg_map = rdev->nq[i].hwq.pbl[PBL_LVL_0].pg_map_arr;
+		pages = rdev->nq[i].hwq.pbl[rdev->nq[i].hwq.level].pg_count;
+		rc = bnxt_re_net_ring_alloc(rdev, pg_map, pages, type,
+					    BNXT_QPLIB_NQE_MAX_CNT - 1,
+					    rdev->msix_entries[i + 1].ring_idx,
+					    &rdev->nq[i].ring_id);
 		if (rc) {
 			dev_err(rdev_to_dev(rdev),
 				"Failed to allocate NQ fw id with rc = 0x%x",
@@ -974,7 +1023,8 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 	return 0;
 free_nq:
 	for (i = num_vec_created; i >= 0; i--) {
-		bnxt_re_net_ring_free(rdev, rdev->nq[i].ring_id);
+		type = bnxt_qplib_get_ring_type(&rdev->chip_ctx);
+		bnxt_re_net_ring_free(rdev, rdev->nq[i].ring_id, type);
 		bnxt_qplib_free_nq(&rdev->nq[i]);
 	}
 	bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
@@ -1228,6 +1278,7 @@ static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 
 static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev)
 {
+	u8 type;
 	int rc;
 
 	if (test_and_clear_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags)) {
@@ -1251,7 +1302,8 @@ static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev)
 		bnxt_re_net_stats_ctx_free(rdev, rdev->qplib_ctx.stats.fw_id);
 		bnxt_qplib_free_ctx(rdev->en_dev->pdev, &rdev->qplib_ctx);
 		bnxt_qplib_disable_rcfw_channel(&rdev->rcfw);
-		bnxt_re_net_ring_free(rdev, rdev->rcfw.creq_ring_id);
+		type = bnxt_qplib_get_ring_type(&rdev->chip_ctx);
+		bnxt_re_net_ring_free(rdev, rdev->rcfw.creq_ring_id, type);
 		bnxt_qplib_free_rcfw_channel(&rdev->rcfw);
 	}
 	if (test_and_clear_bit(BNXT_RE_FLAG_GOT_MSIX, &rdev->flags)) {
@@ -1260,6 +1312,8 @@ static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev)
 			dev_warn(rdev_to_dev(rdev),
 				 "Failed to free MSI-X vectors: %#x", rc);
 	}
+
+	bnxt_re_destroy_chip_ctx(rdev);
 	if (test_and_clear_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags)) {
 		rc = bnxt_re_unregister_netdev(rdev);
 		if (rc)
@@ -1280,9 +1334,12 @@ static void bnxt_re_worker(struct work_struct *work)
 
 static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 {
-	int rc;
-
+	dma_addr_t *pg_map;
+	u32 db_offt, ridx;
+	int pages, vid;
 	bool locked;
+	u8 type;
+	int rc;
 
 	/* Acquire rtnl lock through out this function */
 	rtnl_lock();
@@ -1296,6 +1353,12 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 		return -EINVAL;
 	}
 	set_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
+
+	rc = bnxt_re_setup_chip_ctx(rdev);
+	if (rc) {
+		dev_err(rdev_to_dev(rdev), "Failed to get chip context\n");
+		return -EINVAL;
+	}
 
 	/* Check whether VF or PF */
 	bnxt_re_get_sriov_func_type(rdev);
@@ -1320,21 +1383,22 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 		pr_err("Failed to allocate RCFW Channel: %#x\n", rc);
 		goto fail;
 	}
-	rc = bnxt_re_net_ring_alloc
-			(rdev, rdev->rcfw.creq.pbl[PBL_LVL_0].pg_map_arr,
-			 rdev->rcfw.creq.pbl[rdev->rcfw.creq.level].pg_count,
-			 HWRM_RING_ALLOC_CMPL, BNXT_QPLIB_CREQE_MAX_CNT - 1,
-			 rdev->msix_entries[BNXT_RE_AEQ_IDX].ring_idx,
-			 &rdev->rcfw.creq_ring_id);
+	type = bnxt_qplib_get_ring_type(&rdev->chip_ctx);
+	pg_map = rdev->rcfw.creq.pbl[PBL_LVL_0].pg_map_arr;
+	pages = rdev->rcfw.creq.pbl[rdev->rcfw.creq.level].pg_count;
+	ridx = rdev->msix_entries[BNXT_RE_AEQ_IDX].ring_idx;
+	rc = bnxt_re_net_ring_alloc(rdev, pg_map, pages, type,
+				    BNXT_QPLIB_CREQE_MAX_CNT - 1,
+				    ridx, &rdev->rcfw.creq_ring_id);
 	if (rc) {
 		pr_err("Failed to allocate CREQ: %#x\n", rc);
 		goto free_rcfw;
 	}
-	rc = bnxt_qplib_enable_rcfw_channel
-				(rdev->en_dev->pdev, &rdev->rcfw,
-				 rdev->msix_entries[BNXT_RE_AEQ_IDX].vector,
-				 rdev->msix_entries[BNXT_RE_AEQ_IDX].db_offset,
-				 rdev->is_virtfn, &bnxt_re_aeq_handler);
+	db_offt = bnxt_re_get_nqdb_offset(rdev, BNXT_RE_AEQ_IDX);
+	vid = rdev->msix_entries[BNXT_RE_AEQ_IDX].vector;
+	rc = bnxt_qplib_enable_rcfw_channel(rdev->en_dev->pdev, &rdev->rcfw,
+					    vid, db_offt, rdev->is_virtfn,
+					    &bnxt_re_aeq_handler);
 	if (rc) {
 		pr_err("Failed to enable RCFW channel: %#x\n", rc);
 		goto free_ring;
@@ -1347,7 +1411,8 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	if (!rdev->is_virtfn)
 		bnxt_re_set_resource_limits(rdev);
 
-	rc = bnxt_qplib_alloc_ctx(rdev->en_dev->pdev, &rdev->qplib_ctx, 0);
+	rc = bnxt_qplib_alloc_ctx(rdev->en_dev->pdev, &rdev->qplib_ctx, 0,
+				  bnxt_qplib_is_chip_gen_p5(&rdev->chip_ctx));
 	if (rc) {
 		pr_err("Failed to allocate QPLIB context: %#x\n", rc);
 		goto disable_rcfw;
@@ -1408,7 +1473,6 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 			 &rdev->active_width);
 	set_bit(BNXT_RE_FLAG_ISSUE_ROCE_STATS, &rdev->flags);
 	bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1, IB_EVENT_PORT_ACTIVE);
-	bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1, IB_EVENT_GID_CHANGE);
 
 	return 0;
 free_sctx:
@@ -1418,7 +1482,8 @@ free_ctx:
 disable_rcfw:
 	bnxt_qplib_disable_rcfw_channel(&rdev->rcfw);
 free_ring:
-	bnxt_re_net_ring_free(rdev, rdev->rcfw.creq_ring_id);
+	type = bnxt_qplib_get_ring_type(&rdev->chip_ctx);
+	bnxt_re_net_ring_free(rdev, rdev->rcfw.creq_ring_id, type);
 free_rcfw:
 	bnxt_qplib_free_rcfw_channel(&rdev->rcfw);
 fail:

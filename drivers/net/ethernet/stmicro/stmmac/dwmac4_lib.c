@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007-2015  STMicroelectronics Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  *
  * Author: Alexandre Torgue <alexandre.torgue@st.com>
  */
@@ -88,10 +85,6 @@ void dwmac4_dma_stop_rx(void __iomem *ioaddr, u32 chan)
 
 	value &= ~DMA_CONTROL_SR;
 	writel(value, ioaddr + DMA_CHAN_RX_CONTROL(chan));
-
-	value = readl(ioaddr + GMAC_CONFIG);
-	value &= ~GMAC_CONFIG_RE;
-	writel(value, ioaddr + GMAC_CONFIG);
 }
 
 void dwmac4_set_tx_ring_len(void __iomem *ioaddr, u32 len, u32 chan)
@@ -124,9 +117,9 @@ void dwmac4_disable_dma_irq(void __iomem *ioaddr, u32 chan)
 int dwmac4_dma_interrupt(void __iomem *ioaddr,
 			 struct stmmac_extra_stats *x, u32 chan)
 {
-	int ret = 0;
-
 	u32 intr_status = readl(ioaddr + DMA_CHAN_STATUS(chan));
+	u32 intr_en = readl(ioaddr + DMA_CHAN_INTR_ENA(chan));
+	int ret = 0;
 
 	/* ABNORMAL interrupts */
 	if (unlikely(intr_status & DMA_CHAN_STATUS_AIS)) {
@@ -151,16 +144,11 @@ int dwmac4_dma_interrupt(void __iomem *ioaddr,
 	if (likely(intr_status & DMA_CHAN_STATUS_NIS)) {
 		x->normal_irq_n++;
 		if (likely(intr_status & DMA_CHAN_STATUS_RI)) {
-			u32 value;
-
-			value = readl(ioaddr + DMA_CHAN_INTR_ENA(chan));
-			/* to schedule NAPI on real RIE event. */
-			if (likely(value & DMA_CHAN_INTR_ENA_RIE)) {
-				x->rx_normal_irq_n++;
-				ret |= handle_rx;
-			}
+			x->rx_normal_irq_n++;
+			ret |= handle_rx;
 		}
-		if (likely(intr_status & DMA_CHAN_STATUS_TI)) {
+		if (likely(intr_status & (DMA_CHAN_STATUS_TI |
+					  DMA_CHAN_STATUS_TBU))) {
 			x->tx_normal_irq_n++;
 			ret |= handle_tx;
 		}
@@ -168,12 +156,7 @@ int dwmac4_dma_interrupt(void __iomem *ioaddr,
 			x->rx_early_irq++;
 	}
 
-	/* Clear the interrupt by writing a logic 1 to the chanX interrupt
-	 * status [21-0] expect reserved bits [5-3]
-	 */
-	writel((intr_status & 0x3fffc7),
-	       ioaddr + DMA_CHAN_STATUS(chan));
-
+	writel(intr_status & intr_en, ioaddr + DMA_CHAN_STATUS(chan));
 	return ret;
 }
 

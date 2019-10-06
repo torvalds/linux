@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*******************************************************************************
   PTP 1588 clock using the STMMAC.
 
   Copyright (C) 2013  Vayavya Labs Pvt Ltd
 
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
 
   Author: Rayagond Kokatanur <rayagond@vayavyalabs.com>
 *******************************************************************************/
@@ -105,7 +95,7 @@ static int stmmac_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	struct stmmac_priv *priv =
 	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
 	unsigned long flags;
-	u64 ns;
+	u64 ns = 0;
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
 	stmmac_get_systime(priv, priv->ptpaddr, &ns);
@@ -203,6 +193,9 @@ void stmmac_ptp_register(struct stmmac_priv *priv)
 			break;
 		priv->pps[i].available = true;
 	}
+
+	if (priv->plat->ptp_max_adj)
+		stmmac_ptp_clock_ops.max_adj = priv->plat->ptp_max_adj;
 
 	stmmac_ptp_clock_ops.n_per_out = priv->dma_cap.pps_out_num;
 

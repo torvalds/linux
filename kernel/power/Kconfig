@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SUSPEND
 	bool "Suspend to RAM and standby"
 	depends on ARCH_SUSPEND_POSSIBLE
@@ -65,7 +66,7 @@ config HIBERNATION
 	  need to run mkswap against the swap partition used for the suspend.
 
 	  It also works with swap files to a limited extent (for details see
-	  <file:Documentation/power/swsusp-and-swap-files.txt>).
+	  <file:Documentation/power/swsusp-and-swap-files.rst>).
 
 	  Right now you may boot without resuming and resume later but in the
 	  meantime you cannot use the swap partition(s)/file(s) involved in
@@ -74,7 +75,7 @@ config HIBERNATION
 	  MOUNT any journaled filesystems mounted before the suspend or they
 	  will get corrupted in a nasty way.
 
-	  For more information take a look at <file:Documentation/power/swsusp.txt>.
+	  For more information take a look at <file:Documentation/power/swsusp.rst>.
 
 config ARCH_SAVE_PAGE_KEYS
 	bool
@@ -113,6 +114,15 @@ config PM_SLEEP_SMP
 	depends on ARCH_SUSPEND_POSSIBLE || ARCH_HIBERNATION_POSSIBLE
 	depends on PM_SLEEP
 	select HOTPLUG_CPU
+
+config PM_SLEEP_SMP_NONZERO_CPU
+	def_bool y
+	depends on PM_SLEEP_SMP
+	depends on ARCH_SUSPEND_NONZERO_CPU
+	---help---
+	If an arch can suspend (for suspend, hibernate, kexec, etc) on a
+	non-zero numbered CPU, it may define ARCH_SUSPEND_NONZERO_CPU. This
+	will allow nohz_full mask to include CPU0.
 
 config PM_AUTOSLEEP
 	bool "Opportunistic sleep"
@@ -246,7 +256,7 @@ config APM_EMULATION
 	  notification of APM "events" (e.g. battery status change).
 
 	  In order to use APM, you will need supporting software. For location
-	  and more information, read <file:Documentation/power/apm-acpi.txt>
+	  and more information, read <file:Documentation/power/apm-acpi.rst>
 	  and the Battery Powered Linux mini-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 

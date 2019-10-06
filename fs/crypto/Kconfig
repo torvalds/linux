@@ -1,16 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config FS_ENCRYPTION
-	tristate "FS Encryption (Per-file encryption)"
+	bool "FS Encryption (Per-file encryption)"
 	select CRYPTO
 	select CRYPTO_AES
 	select CRYPTO_CBC
 	select CRYPTO_ECB
 	select CRYPTO_XTS
 	select CRYPTO_CTS
-	select CRYPTO_CTR
-	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	select CRYPTO_HMAC
 	select KEYS
 	help
 	  Enable encryption of files and directories.  This
 	  feature is similar to ecryptfs, but it is more memory
 	  efficient since it avoids caching the encrypted and
-	  decrypted pages in the page cache.
+	  decrypted pages in the page cache.  Currently Ext4,
+	  F2FS and UBIFS make use of this feature.

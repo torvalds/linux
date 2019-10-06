@@ -514,10 +514,8 @@ struct ufs_vreg {
 	struct regulator *reg;
 	const char *name;
 	bool enabled;
-	bool unused;
 	int min_uV;
 	int max_uV;
-	int min_uA;
 	int max_uA;
 };
 
@@ -543,7 +541,7 @@ struct ufs_dev_info {
  */
 struct ufs_dev_desc {
 	u16 wmanufacturerid;
-	char model[MAX_MODEL_LEN + 1];
+	u8 *model;
 };
 
 /**

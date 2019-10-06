@@ -19,7 +19,7 @@ static inline bool rcu_is_watching(void)
 	return false;
 }
 
-#define rcu_assign_pointer(p, v) ((p) = (v))
-#define RCU_INIT_POINTER(p, v) p=(v)
+#define rcu_assign_pointer(p, v)	do { (p) = (v); } while (0)
+#define RCU_INIT_POINTER(p, v)	do { (p) = (v); } while (0)
 
 #endif

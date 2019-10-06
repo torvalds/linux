@@ -78,10 +78,8 @@ int sk_msg_clone(struct sock *sk, struct sk_msg *dst, struct sk_msg *src,
 {
 	int i = src->sg.start;
 	struct scatterlist *sge = sk_msg_elem(src, i);
+	struct scatterlist *sgd = NULL;
 	u32 sge_len, sge_off;
-
-	if (sk_msg_full(dst))
-		return -ENOSPC;
 
 	while (off) {
 		if (sge->length > off)
@@ -94,16 +92,27 @@ int sk_msg_clone(struct sock *sk, struct sk_msg *dst, struct sk_msg *src,
 	}
 
 	while (len) {
-		if (sk_msg_full(dst))
-			return -ENOSPC;
-
 		sge_len = sge->length - off;
-		sge_off = sge->offset + off;
 		if (sge_len > len)
 			sge_len = len;
+
+		if (dst->sg.end)
+			sgd = sk_msg_elem(dst, dst->sg.end - 1);
+
+		if (sgd &&
+		    (sg_page(sge) == sg_page(sgd)) &&
+		    (sg_virt(sge) + off == sg_virt(sgd) + sgd->length)) {
+			sgd->length += sge_len;
+			dst->sg.size += sge_len;
+		} else if (!sk_msg_full(dst)) {
+			sge_off = sge->offset + off;
+			sk_msg_page_add(dst, sg_page(sge), sge_len, sge_off);
+		} else {
+			return -ENOSPC;
+		}
+
 		off = 0;
 		len -= sge_len;
-		sk_msg_page_add(dst, sg_page(sge), sge_len, sge_off);
 		sk_mem_charge(sk, sge_len);
 		sk_msg_iter_var_next(i);
 		if (i == src->sg.end && len)
@@ -181,8 +190,7 @@ static int __sk_msg_free(struct sock *sk, struct sk_msg *msg, u32 i,
 		sk_msg_check_to_free(msg, i, msg->sg.size);
 		sge = sk_msg_elem(msg, i);
 	}
-	if (msg->skb)
-		consume_skb(msg->skb);
+	consume_skb(msg->skb);
 	sk_msg_init(msg);
 	return freed;
 }
@@ -402,6 +410,7 @@ static int sk_psock_skb_ingress(struct sk_psock *psock, struct sk_buff *skb)
 	sk_mem_charge(sk, skb->len);
 	copied = skb->len;
 	msg->sg.start = 0;
+	msg->sg.size = copied;
 	msg->sg.end = num_sge == MAX_MSG_FRAGS ? 0 : num_sge;
 	msg->skb = skb;
 
@@ -545,7 +554,10 @@ static void sk_psock_destroy_deferred(struct work_struct *gc)
 	struct sk_psock *psock = container_of(gc, struct sk_psock, gc);
 
 	/* No sk_callback_lock since already detached. */
-	strp_done(&psock->parser.strp);
+
+	/* Parser has been stopped */
+	if (psock->progs.skb_parser)
+		strp_done(&psock->parser.strp);
 
 	cancel_work_sync(&psock->work);
 
@@ -572,12 +584,12 @@ EXPORT_SYMBOL_GPL(sk_psock_destroy);
 
 void sk_psock_drop(struct sock *sk, struct sk_psock *psock)
 {
-	rcu_assign_sk_user_data(sk, NULL);
 	sk_psock_cork_free(psock);
 	sk_psock_zap_ingress(psock);
-	sk_psock_restore_proto(sk, psock);
 
 	write_lock_bh(&sk->sk_callback_lock);
+	sk_psock_restore_proto(sk, psock);
+	rcu_assign_sk_user_data(sk, NULL);
 	if (psock->progs.skb_parser)
 		sk_psock_stop_strp(sk, psock);
 	write_unlock_bh(&sk->sk_callback_lock);

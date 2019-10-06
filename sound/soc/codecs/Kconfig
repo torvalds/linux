@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Helper to resolve issues with configs that have SPI enabled but I2C
 # modular, meaning we can't build the codec driver in with I2C support.
 # We use an ordered list of conditional defaults to pick the appropriate
@@ -50,10 +51,12 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_BT_SCO
 	select SND_SOC_BD28623
 	select SND_SOC_CQ0093VC
+	select SND_SOC_CROS_EC_CODEC if CROS_EC
 	select SND_SOC_CS35L32 if I2C
 	select SND_SOC_CS35L33 if I2C
 	select SND_SOC_CS35L34 if I2C
 	select SND_SOC_CS35L35 if I2C
+	select SND_SOC_CS35L36 if I2C
 	select SND_SOC_CS42L42 if I2C
 	select SND_SOC_CS42L51_I2C if I2C
 	select SND_SOC_CS42L52 if I2C && INPUT
@@ -65,10 +68,17 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4271_SPI if SPI_MASTER
 	select SND_SOC_CS42XX8_I2C if I2C
 	select SND_SOC_CS43130 if I2C
+	select SND_SOC_CS4341 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_CS4349 if I2C
+	select SND_SOC_CS47L15 if MFD_CS47L15
 	select SND_SOC_CS47L24 if MFD_CS47L24
+	select SND_SOC_CS47L35 if MFD_CS47L35
+	select SND_SOC_CS47L85 if MFD_CS47L85
+	select SND_SOC_CS47L90 if MFD_CS47L90
+	select SND_SOC_CS47L92 if MFD_CS47L92
 	select SND_SOC_CS53L30 if I2C
 	select SND_SOC_CX20442 if TTY
+	select SND_SOC_CX2072X if I2C
 	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
 	select SND_SOC_DA7218 if I2C
@@ -88,8 +98,10 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_INNO_RK3036
 	select SND_SOC_ISABELLE if I2C
 	select SND_SOC_JZ4740_CODEC
+	select SND_SOC_JZ4725B_CODEC
 	select SND_SOC_LM4857 if I2C
 	select SND_SOC_LM49453 if I2C
+	select SND_SOC_LOCHNAGAR_SC if MFD_LOCHNAGAR
 	select SND_SOC_MAX98088 if I2C
 	select SND_SOC_MAX98090 if I2C
 	select SND_SOC_MAX98095 if I2C
@@ -109,6 +121,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MC13783 if MFD_MC13XXX
 	select SND_SOC_ML26124 if I2C
 	select SND_SOC_MT6351 if MTK_PMIC_WRAP
+	select SND_SOC_MT6358 if MTK_PMIC_WRAP
 	select SND_SOC_NAU8540 if I2C
 	select SND_SOC_NAU8810 if I2C
 	select SND_SOC_NAU8822 if I2C
@@ -129,10 +142,13 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM5102A
 	select SND_SOC_PCM512x_I2C if I2C
 	select SND_SOC_PCM512x_SPI if SPI_MASTER
+	select SND_SOC_RK3328
 	select SND_SOC_RT274 if I2C
 	select SND_SOC_RT286 if I2C
 	select SND_SOC_RT298 if I2C
+	select SND_SOC_RT1011 if I2C
 	select SND_SOC_RT1305 if I2C
+	select SND_SOC_RT1308 if I2C
 	select SND_SOC_RT5514 if I2C
 	select SND_SOC_RT5616 if I2C
 	select SND_SOC_RT5631 if I2C
@@ -173,8 +189,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TLV320AIC23_SPI if SPI_MASTER
 	select SND_SOC_TLV320AIC26 if SPI_MASTER
 	select SND_SOC_TLV320AIC31XX if I2C
-	select SND_SOC_TLV320AIC32X4_I2C if I2C
-	select SND_SOC_TLV320AIC32X4_SPI if SPI_MASTER
+	select SND_SOC_TLV320AIC32X4_I2C if I2C && COMMON_CLK
+	select SND_SOC_TLV320AIC32X4_SPI if SPI_MASTER && COMMON_CLK
 	select SND_SOC_TLV320AIC3X if I2C
 	select SND_SOC_TPA6130A2 if I2C
 	select SND_SOC_TLV320DAC33 if I2C
@@ -183,8 +199,10 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TS3A227E if I2C
 	select SND_SOC_TWL4030 if TWL4030_CORE
 	select SND_SOC_TWL6040 if TWL6040_CORE
+	select SND_SOC_UDA1334 if GPIOLIB
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
+	select SND_SOC_WCD9335 if SLIMBUS
 	select SND_SOC_WL1273 if MFD_WL1273_CORE
 	select SND_SOC_WM0010 if SPI_MASTER
 	select SND_SOC_WM1250_EV1 if I2C
@@ -274,10 +292,12 @@ config SND_SOC_WM_HUBS
 config SND_SOC_WM_ADSP
 	tristate
 	select SND_SOC_COMPRESS
+	default y if SND_SOC_MADERA=y
 	default y if SND_SOC_CS47L24=y
 	default y if SND_SOC_WM5102=y
 	default y if SND_SOC_WM5110=y
 	default y if SND_SOC_WM2200=y
+	default m if SND_SOC_MADERA=m
 	default m if SND_SOC_CS47L24=m
 	default m if SND_SOC_WM5102=m
 	default m if SND_SOC_WM5110=m
@@ -455,6 +475,13 @@ config SND_SOC_CPCAP
 config SND_SOC_CQ0093VC
 	tristate
 
+config SND_SOC_CROS_EC_CODEC
+	tristate "codec driver for ChromeOS EC"
+	depends on CROS_EC
+	help
+	  If you say yes here you will get support for the
+	  ChromeOS Embedded Controller's Audio Codec.
+
 config SND_SOC_CS35L32
 	tristate "Cirrus Logic CS35L32 CODEC"
 	depends on I2C
@@ -469,6 +496,10 @@ config SND_SOC_CS35L34
 
 config SND_SOC_CS35L35
 	tristate "Cirrus Logic CS35L35 CODEC"
+	depends on I2C
+
+config SND_SOC_CS35L36
+	tristate "Cirrus Logic CS35L36 CODEC"
 	depends on I2C
 
 config SND_SOC_CS42L42
@@ -542,12 +573,33 @@ config SND_SOC_CS43130
         tristate "Cirrus Logic CS43130 CODEC"
         depends on I2C
 
+config SND_SOC_CS4341
+	tristate "Cirrus Logic CS4341 CODEC"
+	depends on SND_SOC_I2C_AND_SPI
+	select REGMAP_I2C if I2C
+	select REGMAP_SPI if SPI_MASTER
+
 # Cirrus Logic CS4349 HiFi DAC
 config SND_SOC_CS4349
 	tristate "Cirrus Logic CS4349 CODEC"
 	depends on I2C
 
+config SND_SOC_CS47L15
+	tristate
+
 config SND_SOC_CS47L24
+	tristate
+
+config SND_SOC_CS47L35
+	tristate
+
+config SND_SOC_CS47L85
+	tristate
+
+config SND_SOC_CS47L90
+	tristate
+
+config SND_SOC_CS47L92
 	tristate
 
 # Cirrus Logic Quad-Channel ADC
@@ -559,9 +611,33 @@ config SND_SOC_CX20442
 	tristate
 	depends on TTY
 
+config SND_SOC_CX2072X
+	tristate "Conexant CX2072X CODEC"
+	depends on I2C
+	help
+	  Enable support for Conexant CX20721 and CX20723 codec chips.
+
 config SND_SOC_JZ4740_CODEC
+	depends on MIPS || COMPILE_TEST
 	select REGMAP_MMIO
-	tristate
+	tristate "Ingenic JZ4740 internal CODEC"
+	help
+	  Enable support for the internal CODEC found in the JZ4740 SoC
+	  from Ingenic.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called snd-soc-jz4740-codec.
+
+config SND_SOC_JZ4725B_CODEC
+	depends on MIPS || COMPILE_TEST
+	select REGMAP
+	tristate "Ingenic JZ4725B internal CODEC"
+	help
+	  Enable support for the internal CODEC found in the JZ4725B SoC
+	  from Ingenic.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called snd-soc-jz4725b-codec.
 
 config SND_SOC_L3
        tristate
@@ -646,6 +722,26 @@ config SND_SOC_ISABELLE
 config SND_SOC_LM49453
 	tristate
 
+config SND_SOC_LOCHNAGAR_SC
+	tristate "Lochnagar Sound Card"
+	depends on MFD_LOCHNAGAR
+	help
+	  This driver support the sound card functionality of the Cirrus
+	  Logic Lochnagar audio development board.
+
+config SND_SOC_MADERA
+	tristate
+	default y if SND_SOC_CS47L15=y
+	default y if SND_SOC_CS47L35=y
+	default y if SND_SOC_CS47L85=y
+	default y if SND_SOC_CS47L90=y
+	default y if SND_SOC_CS47L92=y
+	default m if SND_SOC_CS47L15=m
+	default m if SND_SOC_CS47L35=m
+	default m if SND_SOC_CS47L85=m
+	default m if SND_SOC_CS47L90=m
+	default m if SND_SOC_CS47L92=m
+
 config SND_SOC_MAX98088
 	tristate "Maxim MAX98088/9 Low-Power, Stereo Audio Codec"
 	depends on I2C
@@ -657,7 +753,8 @@ config SND_SOC_MAX98095
        tristate
 
 config SND_SOC_MAX98357A
-       tristate
+	tristate "Maxim MAX98357A CODEC"
+	depends on GPIOLIB
 
 config SND_SOC_MAX98371
        tristate
@@ -698,6 +795,7 @@ config SND_SOC_MSM8916_WCD_ANALOG
 
 config SND_SOC_MSM8916_WCD_DIGITAL
 	tristate "Qualcomm MSM8916 WCD DIGITAL Codec"
+	select REGMAP_MMIO
 
 config SND_SOC_PCM1681
 	tristate "Texas Instruments PCM1681 CODEC"
@@ -799,6 +897,10 @@ config SND_SOC_PCM512x_SPI
 	select SND_SOC_PCM512x
 	select REGMAP_SPI
 
+config SND_SOC_RK3328
+	tristate "Rockchip RK3328 audio CODEC"
+	select REGMAP_MMIO
+
 config SND_SOC_RL6231
 	tristate
 	default y if SND_SOC_RT5514=y
@@ -814,7 +916,9 @@ config SND_SOC_RL6231
 	default y if SND_SOC_RT5670=y
 	default y if SND_SOC_RT5677=y
 	default y if SND_SOC_RT5682=y
+	default y if SND_SOC_RT1011=y
 	default y if SND_SOC_RT1305=y
+	default y if SND_SOC_RT1308=y
 	default m if SND_SOC_RT5514=m
 	default m if SND_SOC_RT5616=m
 	default m if SND_SOC_RT5640=m
@@ -828,7 +932,9 @@ config SND_SOC_RL6231
 	default m if SND_SOC_RT5670=m
 	default m if SND_SOC_RT5677=m
 	default m if SND_SOC_RT5682=m
+	default m if SND_SOC_RT1011=m
 	default m if SND_SOC_RT1305=m
+	default m if SND_SOC_RT1308=m
 
 config SND_SOC_RL6347A
 	tristate
@@ -851,7 +957,13 @@ config SND_SOC_RT298
 	tristate
 	depends on I2C
 
+config SND_SOC_RT1011
+	tristate
+
 config SND_SOC_RT1305
+	tristate
+
+config SND_SOC_RT1308
 	tristate
 
 config SND_SOC_RT5514
@@ -1050,15 +1162,18 @@ config SND_SOC_TLV320AIC31XX
 
 config SND_SOC_TLV320AIC32X4
 	tristate
+	depends on COMMON_CLK
 
 config SND_SOC_TLV320AIC32X4_I2C
 	tristate "Texas Instruments TLV320AIC32x4 audio CODECs - I2C"
 	depends on I2C
+	depends on COMMON_CLK
 	select SND_SOC_TLV320AIC32X4
 
 config SND_SOC_TLV320AIC32X4_SPI
 	tristate "Texas Instruments TLV320AIC32x4 audio CODECs - SPI"
 	depends on SPI_MASTER
+	depends on COMMON_CLK
 	select SND_SOC_TLV320AIC32X4
 
 config SND_SOC_TLV320AIC3X
@@ -1093,12 +1208,30 @@ config SND_SOC_TWL4030
 config SND_SOC_TWL6040
 	tristate
 
+config SND_SOC_UDA1334
+	tristate "NXP UDA1334 DAC"
+	depends on GPIOLIB
+	help
+	  The UDA1334 is an NXP audio codec, supports the I2S-bus data format
+	  and has basic features such as de-emphasis (at 44.1 kHz sampling
+	  rate) and mute.
+
 config SND_SOC_UDA134X
        tristate
 
 config SND_SOC_UDA1380
         tristate
 	depends on I2C
+
+config SND_SOC_WCD9335
+	tristate "WCD9335 Codec"
+	depends on SLIMBUS
+	select REGMAP_SLIMBUS
+	select REGMAP_IRQ
+	help
+	  The WCD9335 is a standalone Hi-Fi audio CODEC IC, supports
+	  Qualcomm Technologies, Inc. (QTI) multimedia solutions,
+	  including the MSM8996, MSM8976, and MSM8956 chipsets.
 
 config SND_SOC_WL1273
 	tristate
@@ -1211,7 +1344,8 @@ config SND_SOC_WM8903
 	depends on I2C
 
 config SND_SOC_WM8904
-	tristate
+	tristate "Wolfson Microelectronics WM8904 CODEC"
+	depends on I2C
 
 config SND_SOC_WM8940
         tristate
@@ -1324,6 +1458,12 @@ config SND_SOC_ML26124
 
 config SND_SOC_MT6351
 	tristate "MediaTek MT6351 Codec"
+
+config SND_SOC_MT6358
+	tristate "MediaTek MT6358 Codec"
+	help
+	  Enable support for the platform which uses MT6358 as
+	  external codec device.
 
 config SND_SOC_NAU8540
        tristate "Nuvoton Technology Corporation NAU85L40 CODEC"

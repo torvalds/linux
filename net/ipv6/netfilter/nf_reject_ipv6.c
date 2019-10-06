@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -232,6 +229,9 @@ static bool reject6_csum_ok(struct sk_buff *skb, int hook)
 
 	if (thoff < 0 || thoff >= skb->len || (fo & htons(~0x7)) != 0)
 		return false;
+
+	if (!nf_reject_verify_csum(proto))
+		return true;
 
 	return nf_ip6_checksum(skb, hook, thoff, proto) == 0;
 }

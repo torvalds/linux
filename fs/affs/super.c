@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/affs/inode.c
  *
@@ -111,15 +112,9 @@ static struct inode *affs_alloc_inode(struct super_block *sb)
 	return &i->vfs_inode;
 }
 
-static void affs_i_callback(struct rcu_head *head)
+static void affs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(affs_inode_cachep, AFFS_I(inode));
-}
-
-static void affs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, affs_i_callback);
 }
 
 static void init_once(void *foo)
@@ -155,7 +150,7 @@ static void destroy_inodecache(void)
 
 static const struct super_operations affs_sops = {
 	.alloc_inode	= affs_alloc_inode,
-	.destroy_inode	= affs_destroy_inode,
+	.free_inode	= affs_free_inode,
 	.write_inode	= affs_write_inode,
 	.evict_inode	= affs_evict_inode,
 	.put_super	= affs_put_super,
@@ -360,6 +355,10 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op                = &affs_sops;
 	sb->s_flags |= SB_NODIRATIME;
 
+	sb->s_time_gran = NSEC_PER_SEC;
+	sb->s_time_min = sys_tz.tz_minuteswest * 60 + AFFS_EPOCH_DELTA;
+	sb->s_time_max = 86400LL * U32_MAX + 86400 + sb->s_time_min;
+
 	sbi = kzalloc(sizeof(struct affs_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
@@ -487,7 +486,7 @@ got_root:
 		break;
 	case MUFS_OFS:
 		affs_set_opt(sbi->s_flags, SF_MUFS);
-		/* fall thru */
+		/* fall through */
 	case FS_OFS:
 		affs_set_opt(sbi->s_flags, SF_OFS);
 		sb->s_flags |= SB_NOEXEC;
@@ -495,6 +494,7 @@ got_root:
 	case MUFS_DCOFS:
 	case MUFS_INTLOFS:
 		affs_set_opt(sbi->s_flags, SF_MUFS);
+		/* fall through */
 	case FS_DCOFS:
 	case FS_INTLOFS:
 		affs_set_opt(sbi->s_flags, SF_INTL);

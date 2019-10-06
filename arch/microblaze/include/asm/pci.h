@@ -1,8 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Based on powerpc version
  */
@@ -68,8 +65,6 @@ extern pgprot_t	pci_phys_mem_access_prot(struct file *file,
 					 unsigned long pfn,
 					 unsigned long size,
 					 pgprot_t prot);
-
-#define HAVE_ARCH_PCI_RESOURCE_TO_USER
 
 /* This part of code was originally in xilinx-pci.h */
 #ifdef CONFIG_PCI_XILINX

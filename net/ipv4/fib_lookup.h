@@ -5,6 +5,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <net/ip_fib.h>
+#include <net/nexthop.h>
 
 struct fib_alias {
 	struct hlist_node	fa_list;
@@ -45,6 +46,7 @@ static inline void fib_result_assign(struct fib_result *res,
 {
 	/* we used to play games with refcounts, but we now use RCU */
 	res->fi = fi;
+	res->nhc = fib_info_nhc(fi, 0);
 }
 
 struct fib_prop {

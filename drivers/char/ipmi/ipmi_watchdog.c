@@ -837,7 +837,7 @@ static int ipmi_open(struct inode *ino, struct file *filep)
 		 * first heartbeat.
 		 */
 		ipmi_start_timer_on_heartbeat = 1;
-		return nonseekable_open(ino, filep);
+		return stream_open(ino, filep);
 
 	default:
 		return (-ENODEV);

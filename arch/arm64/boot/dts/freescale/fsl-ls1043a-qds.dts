@@ -137,7 +137,7 @@
 &qspi {
 	status = "okay";
 
-	qflash0: s25fl128s@0 {
+	qflash0: flash@0 {
 		compatible = "spansion,m25p80";
 		#address-cells = <1>;
 		#size-cells = <1>;

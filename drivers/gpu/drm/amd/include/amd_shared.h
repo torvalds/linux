@@ -26,7 +26,7 @@
 #include <drm/amd_asic_type.h>
 
 
-#define AMD_MAX_USEC_TIMEOUT		200000  /* 200 ms */
+#define AMD_MAX_USEC_TIMEOUT		1000000  /* 1000 ms */
 
 /*
  * Chip flags
@@ -52,7 +52,8 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_UVD,
 	AMD_IP_BLOCK_TYPE_VCE,
 	AMD_IP_BLOCK_TYPE_ACP,
-	AMD_IP_BLOCK_TYPE_VCN
+	AMD_IP_BLOCK_TYPE_VCN,
+	AMD_IP_BLOCK_TYPE_MES
 };
 
 enum amd_clockgating_state {
@@ -93,6 +94,11 @@ enum amd_powergating_state {
 #define AMD_CG_SUPPORT_DRM_MGCG			(1 << 22)
 #define AMD_CG_SUPPORT_DF_MGCG			(1 << 23)
 #define AMD_CG_SUPPORT_VCN_MGCG			(1 << 24)
+#define AMD_CG_SUPPORT_HDP_DS			(1 << 25)
+#define AMD_CG_SUPPORT_HDP_SD			(1 << 26)
+#define AMD_CG_SUPPORT_IH_CG			(1 << 27)
+#define AMD_CG_SUPPORT_ATHUB_LS			(1 << 28)
+#define AMD_CG_SUPPORT_ATHUB_MGCG		(1 << 29)
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
 #define AMD_PG_SUPPORT_GFX_SMG			(1 << 1)
@@ -109,7 +115,8 @@ enum amd_powergating_state {
 #define AMD_PG_SUPPORT_GFX_PIPELINE		(1 << 12)
 #define AMD_PG_SUPPORT_MMHUB			(1 << 13)
 #define AMD_PG_SUPPORT_VCN			(1 << 14)
-#define AMD_PG_SUPPORT_VCN_DPG	(1 << 15)
+#define AMD_PG_SUPPORT_VCN_DPG			(1 << 15)
+#define AMD_PG_SUPPORT_ATHUB			(1 << 16)
 
 enum PP_FEATURE_MASK {
 	PP_SCLK_DPM_MASK = 0x1,
@@ -135,8 +142,10 @@ enum PP_FEATURE_MASK {
 
 enum DC_FEATURE_MASK {
 	DC_FBC_MASK = 0x1,
+	DC_MULTI_MON_PP_MCLK_SWITCH_MASK = 0x2,
 };
 
+enum amd_dpm_forced_level;
 /**
  * struct amd_ip_funcs - general hooks for managing amdgpu IP Blocks
  */
@@ -186,6 +195,8 @@ struct amd_ip_funcs {
 				     enum amd_powergating_state state);
 	/** @get_clockgating_state: get current clockgating status */
 	void (*get_clockgating_state)(void *handle, u32 *flags);
+	/** @enable_umd_pstate: enable UMD powerstate */
+	int (*enable_umd_pstate)(void *handle, enum amd_dpm_forced_level *level);
 };
 
 

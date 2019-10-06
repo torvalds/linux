@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File hw_atl_utils.c: Definition of common functions for Atlantic hardware
@@ -25,7 +22,9 @@
 #define HW_ATL_MIF_ADDR         0x0208U
 #define HW_ATL_MIF_VAL          0x020CU
 
-#define HW_ATL_FW_SM_RAM        0x2U
+#define HW_ATL_RPC_CONTROL_ADR  0x0338U
+#define HW_ATL_RPC_STATE_ADR    0x033CU
+
 #define HW_ATL_MPI_FW_VERSION	0x18
 #define HW_ATL_MPI_CONTROL_ADR  0x0368U
 #define HW_ATL_MPI_STATE_ADR    0x036CU
@@ -52,6 +51,12 @@ static int hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual);
 
 static int hw_atl_utils_mpi_set_state(struct aq_hw_s *self,
 				      enum hal_atl_utils_fw_state_e state);
+
+static u32 hw_atl_utils_get_mpi_mbox_tid(struct aq_hw_s *self);
+static u32 hw_atl_utils_mpi_get_state(struct aq_hw_s *self);
+static u32 hw_atl_utils_mif_cmd_get(struct aq_hw_s *self);
+static u32 hw_atl_utils_mif_addr_get(struct aq_hw_s *self);
+static u32 hw_atl_utils_rpc_state_get(struct aq_hw_s *self);
 
 int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
 {
@@ -234,6 +239,7 @@ int hw_atl_utils_soft_reset(struct aq_hw_s *self)
 {
 	int k;
 	u32 boot_exit_code = 0;
+	u32 val;
 
 	for (k = 0; k < 1000; ++k) {
 		u32 flb_status = aq_hw_read_reg(self,
@@ -260,9 +266,11 @@ int hw_atl_utils_soft_reset(struct aq_hw_s *self)
 		int err = 0;
 
 		hw_atl_utils_mpi_set_state(self, MPI_DEINIT);
-		AQ_HW_WAIT_FOR((aq_hw_read_reg(self, HW_ATL_MPI_STATE_ADR) &
-				HW_ATL_MPI_STATE_MSK) == MPI_DEINIT,
-			       10, 1000U);
+		err = readx_poll_timeout_atomic(hw_atl_utils_mpi_get_state,
+						self, val,
+						(val & HW_ATL_MPI_STATE_MSK) ==
+						 MPI_DEINIT,
+						10, 10000U);
 		if (err)
 			return err;
 	}
@@ -277,16 +285,17 @@ int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
 				  u32 *p, u32 cnt)
 {
 	int err = 0;
+	u32 val;
 
-	AQ_HW_WAIT_FOR(hw_atl_reg_glb_cpu_sem_get(self,
-						  HW_ATL_FW_SM_RAM) == 1U,
-		       1U, 10000U);
+	err = readx_poll_timeout_atomic(hw_atl_sem_ram_get,
+					self, val, val == 1U,
+					1U, 10000U);
 
 	if (err < 0) {
 		bool is_locked;
 
 		hw_atl_reg_glb_cpu_sem_set(self, 1U, HW_ATL_FW_SM_RAM);
-		is_locked = hw_atl_reg_glb_cpu_sem_get(self, HW_ATL_FW_SM_RAM);
+		is_locked = hw_atl_sem_ram_get(self);
 		if (!is_locked) {
 			err = -ETIME;
 			goto err_exit;
@@ -299,13 +308,14 @@ int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
 		aq_hw_write_reg(self, HW_ATL_MIF_CMD, 0x00008000U);
 
 		if (IS_CHIP_FEATURE(REVISION_B1))
-			AQ_HW_WAIT_FOR(a != aq_hw_read_reg(self,
-							   HW_ATL_MIF_ADDR),
-				       1, 1000U);
+			err = readx_poll_timeout_atomic(hw_atl_utils_mif_addr_get,
+							self, val, val != a,
+							1U, 1000U);
 		else
-			AQ_HW_WAIT_FOR(!(0x100 & aq_hw_read_reg(self,
-							   HW_ATL_MIF_CMD)),
-				       1, 1000U);
+			err = readx_poll_timeout_atomic(hw_atl_utils_mif_cmd_get,
+							self, val,
+							!(val & 0x100),
+							1U, 1000U);
 
 		*(p++) = aq_hw_read_reg(self, HW_ATL_MIF_VAL);
 		a += 4;
@@ -320,14 +330,15 @@ err_exit:
 static int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p,
 					 u32 cnt)
 {
+	u32 val;
 	int err = 0;
-	bool is_locked;
 
-	is_locked = hw_atl_reg_glb_cpu_sem_get(self, HW_ATL_FW_SM_RAM);
-	if (!is_locked) {
-		err = -ETIME;
+	err = readx_poll_timeout_atomic(hw_atl_sem_ram_get, self,
+					val, val == 1U,
+					10U, 100000U);
+	if (err < 0)
 		goto err_exit;
-	}
+
 	if (IS_CHIP_FEATURE(REVISION_B1)) {
 		u32 offset = 0;
 
@@ -337,10 +348,11 @@ static int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p,
 					(0x80000000 | (0xFFFF & (offset * 4))));
 			hw_atl_mcp_up_force_intr_set(self, 1);
 			/* 1000 times by 10us = 10ms */
-			AQ_HW_WAIT_FOR((aq_hw_read_reg(self,
-						       0x32C) & 0xF0000000) !=
-				       0x80000000,
-				       10, 1000);
+			err = readx_poll_timeout_atomic(hw_atl_scrpad12_get,
+							self, val,
+							(val & 0xF0000000) !=
+							0x80000000,
+							10U, 10000U);
 		}
 	} else {
 		u32 offset = 0;
@@ -351,8 +363,10 @@ static int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p,
 			aq_hw_write_reg(self, 0x20C, p[offset]);
 			aq_hw_write_reg(self, 0x200, 0xC000);
 
-			AQ_HW_WAIT_FOR((aq_hw_read_reg(self, 0x200U) &
-					0x100) == 0, 10, 1000);
+			err = readx_poll_timeout_atomic(hw_atl_utils_mif_cmd_get,
+							self, val,
+							(val & 0x100) == 0,
+							1000U, 10000U);
 		}
 	}
 
@@ -395,14 +409,13 @@ static int hw_atl_utils_init_ucp(struct aq_hw_s *self,
 	hw_atl_reg_glb_cpu_scratch_scp_set(self, 0x00000000U, 25U);
 
 	/* check 10 times by 1ms */
-	AQ_HW_WAIT_FOR(0U != (self->mbox_addr =
-			      aq_hw_read_reg(self, 0x360U)), 1000U, 10U);
+	err = readx_poll_timeout_atomic(hw_atl_scrpad25_get,
+					self, self->mbox_addr,
+					self->mbox_addr != 0U,
+					1000U, 10000U);
 
 	return err;
 }
-
-#define HW_ATL_RPC_CONTROL_ADR 0x0338U
-#define HW_ATL_RPC_STATE_ADR   0x033CU
 
 struct aq_hw_atl_utils_fw_rpc_tid_s {
 	union {
@@ -452,10 +465,10 @@ int hw_atl_utils_fw_rpc_wait(struct aq_hw_s *self,
 
 		self->rpc_tid = sw.tid;
 
-		AQ_HW_WAIT_FOR(sw.tid ==
-			       (fw.val =
-				aq_hw_read_reg(self, HW_ATL_RPC_STATE_ADR),
-				fw.tid), 1000U, 100U);
+		err = readx_poll_timeout_atomic(hw_atl_utils_rpc_state_get,
+						self, fw.val,
+						sw.tid == fw.tid,
+						1000U, 100000U);
 
 		if (fw.len == 0xFFFFU) {
 			err = hw_atl_utils_fw_rpc_call(self, sw.len);
@@ -529,7 +542,7 @@ void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
 		pmbox->stats.ubtc = pmbox->stats.uptc * mtu;
 		pmbox->stats.dpc = atomic_read(&self->dpc);
 	} else {
-		pmbox->stats.dpc = hw_atl_reg_rx_dma_stat_counter7get(self);
+		pmbox->stats.dpc = hw_atl_rpb_rx_dma_drop_pkt_cnt_get(self);
 	}
 
 err_exit:;
@@ -559,10 +572,11 @@ static int hw_atl_utils_mpi_set_state(struct aq_hw_s *self,
 
 		transaction_id = mbox.transaction_id;
 
-		AQ_HW_WAIT_FOR(transaction_id !=
-			       (hw_atl_utils_mpi_read_mbox(self, &mbox),
-				mbox.transaction_id),
-			       1000U, 100U);
+		err = readx_poll_timeout_atomic(hw_atl_utils_get_mpi_mbox_tid,
+						self, mbox.transaction_id,
+						transaction_id !=
+						mbox.transaction_id,
+						1000U, 100000U);
 		if (err < 0)
 			goto err_exit;
 	}
@@ -585,7 +599,7 @@ err_exit:
 
 int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self)
 {
-	u32 cp0x036C = aq_hw_read_reg(self, HW_ATL_MPI_STATE_ADR);
+	u32 cp0x036C = hw_atl_utils_mpi_get_state(self);
 	u32 link_speed_mask = cp0x036C >> HW_ATL_MPI_SPEED_SHIFT;
 	struct aq_hw_link_status_s *link_status = &self->aq_link_status;
 
@@ -746,6 +760,7 @@ static int hw_atl_fw1x_deinit(struct aq_hw_s *self)
 int hw_atl_utils_update_stats(struct aq_hw_s *self)
 {
 	struct hw_atl_utils_mbox mbox;
+	struct aq_stats_s *cs = &self->curr_stats;
 
 	hw_atl_utils_mpi_read_stats(self, &mbox);
 
@@ -772,10 +787,11 @@ int hw_atl_utils_update_stats(struct aq_hw_s *self)
 		AQ_SDELTA(dpc);
 	}
 #undef AQ_SDELTA
-	self->curr_stats.dma_pkt_rc = hw_atl_stats_rx_dma_good_pkt_counterlsw_get(self);
-	self->curr_stats.dma_pkt_tc = hw_atl_stats_tx_dma_good_pkt_counterlsw_get(self);
-	self->curr_stats.dma_oct_rc = hw_atl_stats_rx_dma_good_octet_counterlsw_get(self);
-	self->curr_stats.dma_oct_tc = hw_atl_stats_tx_dma_good_octet_counterlsw_get(self);
+
+	cs->dma_pkt_rc = hw_atl_stats_rx_dma_good_pkt_counter_get(self);
+	cs->dma_pkt_tc = hw_atl_stats_tx_dma_good_pkt_counter_get(self);
+	cs->dma_oct_rc = hw_atl_stats_rx_dma_good_octet_counter_get(self);
+	cs->dma_oct_tc = hw_atl_stats_tx_dma_good_octet_counter_get(self);
 
 	memcpy(&self->last_stats, &mbox.stats, sizeof(mbox.stats));
 
@@ -905,6 +921,35 @@ err_exit:
 	return err;
 }
 
+static u32 hw_atl_utils_get_mpi_mbox_tid(struct aq_hw_s *self)
+{
+	struct hw_atl_utils_mbox_header mbox;
+
+	hw_atl_utils_mpi_read_mbox(self, &mbox);
+
+	return mbox.transaction_id;
+}
+
+static u32 hw_atl_utils_mpi_get_state(struct aq_hw_s *self)
+{
+	return aq_hw_read_reg(self, HW_ATL_MPI_STATE_ADR);
+}
+
+static u32 hw_atl_utils_mif_cmd_get(struct aq_hw_s *self)
+{
+	return aq_hw_read_reg(self, HW_ATL_MIF_CMD);
+}
+
+static u32 hw_atl_utils_mif_addr_get(struct aq_hw_s *self)
+{
+	return aq_hw_read_reg(self, HW_ATL_MIF_ADDR);
+}
+
+static u32 hw_atl_utils_rpc_state_get(struct aq_hw_s *self)
+{
+	return aq_hw_read_reg(self, HW_ATL_RPC_STATE_ADR);
+}
+
 const struct aq_fw_ops aq_fw_1x_ops = {
 	.init = hw_atl_utils_mpi_create,
 	.deinit = hw_atl_fw1x_deinit,
@@ -914,6 +959,7 @@ const struct aq_fw_ops aq_fw_1x_ops = {
 	.set_state = hw_atl_utils_mpi_set_state,
 	.update_link_status = hw_atl_utils_mpi_get_link_status,
 	.update_stats = hw_atl_utils_update_stats,
+	.get_phy_temp = NULL,
 	.set_power = aq_fw1x_set_power,
 	.set_eee_rate = NULL,
 	.get_eee_rate = NULL,

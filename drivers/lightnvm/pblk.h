@@ -43,8 +43,6 @@
 
 #define PBLK_CACHE_NAME_LEN (DISK_NAME_LEN + 16)
 
-#define PBLK_COMMAND_TIMEOUT_MS 30000
-
 /* Max 512 LUNs per device */
 #define PBLK_MAX_LUNS_BITMAP (4)
 
@@ -121,18 +119,6 @@ struct pblk_g_ctx {
 	void *private;
 	unsigned long start_time;
 	u64 lba;
-};
-
-/* partial read context */
-struct pblk_pr_ctx {
-	struct bio *orig_bio;
-	DECLARE_BITMAP(bitmap, NVM_MAX_VLBA);
-	unsigned int orig_nr_secs;
-	unsigned int bio_init_idx;
-	void *ppa_ptr;
-	dma_addr_t dma_ppa_list;
-	__le64 lba_list_mem[NVM_MAX_VLBA];
-	__le64 lba_list_media[NVM_MAX_VLBA];
 };
 
 /* Pad context */
@@ -305,7 +291,6 @@ struct pblk_rl {
 
 	struct timer_list u_timer;
 
-	unsigned long long nr_secs;
 	unsigned long total_blocks;
 
 	atomic_t free_blocks;		/* Total number of free blocks (+ OP) */
@@ -440,6 +425,7 @@ struct pblk_smeta {
 
 struct pblk_w_err_gc {
 	int has_write_err;
+	int has_gc_err;
 	__le64 *lba_list;
 };
 
@@ -465,7 +451,6 @@ struct pblk_line {
 	int meta_line;			/* Metadata line id */
 	int meta_distance;		/* Distance between data and metadata */
 
-	u64 smeta_ssec;			/* Sector where smeta starts */
 	u64 emeta_ssec;			/* Sector where emeta starts */
 
 	unsigned int sec_in_line;	/* Number of usable secs in line */
@@ -487,6 +472,7 @@ struct pblk_line {
 	__le32 *vsc;			/* Valid sector count in line */
 
 	struct kref ref;		/* Write buffer L2P references */
+	atomic_t sec_to_update;         /* Outstanding L2P updates to ppa */
 
 	struct pblk_w_err_gc *w_err_gc;	/* Write error gc recovery metadata */
 
@@ -494,11 +480,6 @@ struct pblk_line {
 };
 
 #define PBLK_DATA_LINES 4
-
-enum {
-	PBLK_KMALLOC_META = 1,
-	PBLK_VMALLOC_META = 2,
-};
 
 enum {
 	PBLK_EMETA_TYPE_HEADER = 1,	/* struct line_emeta first sector */
@@ -534,9 +515,6 @@ struct pblk_line_mgmt {
 	struct list_head emeta_list;	/* Lines queued to schedule emeta */
 
 	__le32 *vsc_list;		/* Valid sector counts for all lines */
-
-	/* Metadata allocation type: VMALLOC | KMALLOC */
-	int emeta_alloc_type;
 
 	/* Pre-allocated metadata for data lines */
 	struct pblk_smeta *sline_meta[PBLK_DATA_LINES];
@@ -646,7 +624,7 @@ struct pblk {
 
 	int sec_per_write;
 
-	unsigned char instance_uuid[16];
+	guid_t instance_uuid;
 
 	/* Persistent write amplification counters, 4kb sector I/Os */
 	atomic64_t user_wa;		/* Sectors written by user */
@@ -761,7 +739,7 @@ unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct nvm_rq *rqd,
 				 unsigned int pos, unsigned int nr_entries,
 				 unsigned int count);
 int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
-			struct ppa_addr ppa, int bio_iter, bool advanced_bio);
+			struct ppa_addr ppa);
 unsigned int pblk_rb_read_commit(struct pblk_rb *rb, unsigned int entries);
 
 unsigned int pblk_rb_sync_init(struct pblk_rb *rb, unsigned long *flags);
@@ -797,14 +775,10 @@ struct nvm_chk_meta *pblk_chunk_get_off(struct pblk *pblk,
 					      struct ppa_addr ppa);
 void pblk_log_write_err(struct pblk *pblk, struct nvm_rq *rqd);
 void pblk_log_read_err(struct pblk *pblk, struct nvm_rq *rqd);
-int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd);
-int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd);
-int pblk_submit_io_sync_sem(struct pblk *pblk, struct nvm_rq *rqd);
+int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd, void *buf);
+int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd, void *buf);
 int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line);
 void pblk_check_chunk_state_update(struct pblk *pblk, struct nvm_rq *rqd);
-struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
-			      unsigned int nr_secs, unsigned int len,
-			      int alloc_type, gfp_t gfp_mask);
 struct pblk_line *pblk_line_get(struct pblk *pblk);
 struct pblk_line *pblk_line_get_first_data(struct pblk *pblk);
 struct pblk_line *pblk_line_replace_data(struct pblk *pblk);
@@ -861,15 +835,15 @@ int pblk_update_map_gc(struct pblk *pblk, sector_t lba, struct ppa_addr ppa,
 		       struct pblk_line *gc_line, u64 paddr);
 void pblk_lookup_l2p_rand(struct pblk *pblk, struct ppa_addr *ppas,
 			  u64 *lba_list, int nr_secs);
-void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
-			 sector_t blba, int nr_secs);
+int pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
+			 sector_t blba, int nr_secs, bool *from_cache);
 void *pblk_get_meta_for_writes(struct pblk *pblk, struct nvm_rq *rqd);
 void pblk_get_packed_meta(struct pblk *pblk, struct nvm_rq *rqd);
 
 /*
  * pblk user I/O write path
  */
-int pblk_write_to_cache(struct pblk *pblk, struct bio *bio,
+void pblk_write_to_cache(struct pblk *pblk, struct bio *bio,
 			unsigned long flags);
 int pblk_write_gc_to_cache(struct pblk *pblk, struct pblk_gc_rq *gc_rq);
 
@@ -895,7 +869,7 @@ void pblk_write_kick(struct pblk *pblk);
  * pblk read path
  */
 extern struct bio_set pblk_bio_set;
-int pblk_submit_read(struct pblk *pblk, struct bio *bio);
+void pblk_submit_read(struct pblk *pblk, struct bio *bio);
 int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq);
 /*
  * pblk recovery
@@ -920,11 +894,12 @@ void pblk_gc_free_full_lines(struct pblk *pblk);
 void pblk_gc_sysfs_state_show(struct pblk *pblk, int *gc_enabled,
 			      int *gc_active);
 int pblk_gc_sysfs_force(struct pblk *pblk, int force);
+void pblk_put_line_back(struct pblk *pblk, struct pblk_line *line);
 
 /*
  * pblk rate limiter
  */
-void pblk_rl_init(struct pblk_rl *rl, int budget);
+void pblk_rl_init(struct pblk_rl *rl, int budget, int threshold);
 void pblk_rl_free(struct pblk_rl *rl);
 void pblk_rl_update_rates(struct pblk_rl *rl);
 int pblk_rl_high_thrs(struct pblk_rl *rl);
@@ -950,21 +925,6 @@ void pblk_rl_werr_line_out(struct pblk_rl *rl);
  */
 int pblk_sysfs_init(struct gendisk *tdisk);
 void pblk_sysfs_exit(struct gendisk *tdisk);
-
-static inline void *pblk_malloc(size_t size, int type, gfp_t flags)
-{
-	if (type == PBLK_KMALLOC_META)
-		return kmalloc(size, flags);
-	return vmalloc(size);
-}
-
-static inline void pblk_mfree(void *ptr, int type)
-{
-	if (type == PBLK_KMALLOC_META)
-		kfree(ptr);
-	else
-		vfree(ptr);
-}
 
 static inline struct nvm_rq *nvm_rq_from_c_ctx(void *c_ctx)
 {
@@ -1358,14 +1318,6 @@ static inline sector_t pblk_get_lba(struct bio *bio)
 static inline unsigned int pblk_get_secs(struct bio *bio)
 {
 	return  bio->bi_iter.bi_size / PBLK_EXPOSED_PAGE_SIZE;
-}
-
-static inline void pblk_setup_uuid(struct pblk *pblk)
-{
-	uuid_le uuid;
-
-	uuid_le_gen(&uuid);
-	memcpy(pblk->instance_uuid, uuid.b, 16);
 }
 
 static inline char *pblk_disk_name(struct pblk *pblk)

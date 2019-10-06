@@ -1,15 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  linux/drivers/mmc/core/sdio_io.c
  *
  *  Copyright 2007-2008 Pierre Ossman
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #include <linux/export.h>
+#include <linux/kernel.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio.h>
@@ -18,6 +15,7 @@
 #include "sdio_ops.h"
 #include "core.h"
 #include "card.h"
+#include "host.h"
 
 /**
  *	sdio_claim_host - exclusively claim a bus for a certain SDIO function
@@ -203,6 +201,21 @@ static inline unsigned int sdio_max_byte_size(struct sdio_func *func)
 	return min(mval, 512u); /* maximum size for byte mode */
 }
 
+/*
+ * This is legacy code, which needs to be re-worked some day. Basically we need
+ * to take into account the properties of the host, as to enable the SDIO func
+ * driver layer to allocate optimal buffers.
+ */
+static inline unsigned int _sdio_align_size(unsigned int sz)
+{
+	/*
+	 * FIXME: We don't have a system for the controller to tell
+	 * the core about its problems yet, so for now we just 32-bit
+	 * align the size.
+	 */
+	return ALIGN(sz, 4);
+}
+
 /**
  *	sdio_align_size - pads a transfer size to a more optimal value
  *	@func: SDIO function
@@ -230,7 +243,7 @@ unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz)
 	 * wants to increase the size up to a point where it
 	 * might need more than one block.
 	 */
-	sz = mmc_align_data_size(func->card, sz);
+	sz = _sdio_align_size(sz);
 
 	/*
 	 * If we can still do this with just a byte transfer, then
@@ -252,7 +265,7 @@ unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz)
 		 */
 		blk_sz = ((sz + func->cur_blksize - 1) /
 			func->cur_blksize) * func->cur_blksize;
-		blk_sz = mmc_align_data_size(func->card, blk_sz);
+		blk_sz = _sdio_align_size(blk_sz);
 
 		/*
 		 * This value is only good if it is still just
@@ -265,8 +278,7 @@ unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz)
 		 * We failed to do one request, but at least try to
 		 * pad the remainder properly.
 		 */
-		byte_sz = mmc_align_data_size(func->card,
-				sz % func->cur_blksize);
+		byte_sz = _sdio_align_size(sz % func->cur_blksize);
 		if (byte_sz <= sdio_max_byte_size(func)) {
 			blk_sz = sz / func->cur_blksize;
 			return blk_sz * func->cur_blksize + byte_sz;
@@ -276,16 +288,14 @@ unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz)
 		 * We need multiple requests, so first check that the
 		 * controller can handle the chunk size;
 		 */
-		chunk_sz = mmc_align_data_size(func->card,
-				sdio_max_byte_size(func));
+		chunk_sz = _sdio_align_size(sdio_max_byte_size(func));
 		if (chunk_sz == sdio_max_byte_size(func)) {
 			/*
 			 * Fix up the size of the remainder (if any)
 			 */
 			byte_sz = orig_sz % chunk_sz;
 			if (byte_sz) {
-				byte_sz = mmc_align_data_size(func->card,
-						byte_sz);
+				byte_sz = _sdio_align_size(byte_sz);
 			}
 
 			return (orig_sz / chunk_sz) * chunk_sz + byte_sz;
@@ -725,3 +735,79 @@ int sdio_set_host_pm_flags(struct sdio_func *func, mmc_pm_flag_t flags)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sdio_set_host_pm_flags);
+
+/**
+ *	sdio_retune_crc_disable - temporarily disable retuning on CRC errors
+ *	@func: SDIO function attached to host
+ *
+ *	If the SDIO card is known to be in a state where it might produce
+ *	CRC errors on the bus in response to commands (like if we know it is
+ *	transitioning between power states), an SDIO function driver can
+ *	call this function to temporarily disable the SD/MMC core behavior of
+ *	triggering an automatic retuning.
+ *
+ *	This function should be called while the host is claimed and the host
+ *	should remain claimed until sdio_retune_crc_enable() is called.
+ *	Specifically, the expected sequence of calls is:
+ *	- sdio_claim_host()
+ *	- sdio_retune_crc_disable()
+ *	- some number of calls like sdio_writeb() and sdio_readb()
+ *	- sdio_retune_crc_enable()
+ *	- sdio_release_host()
+ */
+void sdio_retune_crc_disable(struct sdio_func *func)
+{
+	func->card->host->retune_crc_disable = true;
+}
+EXPORT_SYMBOL_GPL(sdio_retune_crc_disable);
+
+/**
+ *	sdio_retune_crc_enable - re-enable retuning on CRC errors
+ *	@func: SDIO function attached to host
+ *
+ *	This is the compement to sdio_retune_crc_disable().
+ */
+void sdio_retune_crc_enable(struct sdio_func *func)
+{
+	func->card->host->retune_crc_disable = false;
+}
+EXPORT_SYMBOL_GPL(sdio_retune_crc_enable);
+
+/**
+ *	sdio_retune_hold_now - start deferring retuning requests till release
+ *	@func: SDIO function attached to host
+ *
+ *	This function can be called if it's currently a bad time to do
+ *	a retune of the SDIO card.  Retune requests made during this time
+ *	will be held and we'll actually do the retune sometime after the
+ *	release.
+ *
+ *	This function could be useful if an SDIO card is in a power state
+ *	where it can respond to a small subset of commands that doesn't
+ *	include the retuning command.  Care should be taken when using
+ *	this function since (presumably) the retuning request we might be
+ *	deferring was made for a good reason.
+ *
+ *	This function should be called while the host is claimed.
+ */
+void sdio_retune_hold_now(struct sdio_func *func)
+{
+	mmc_retune_hold_now(func->card->host);
+}
+EXPORT_SYMBOL_GPL(sdio_retune_hold_now);
+
+/**
+ *	sdio_retune_release - signal that it's OK to retune now
+ *	@func: SDIO function attached to host
+ *
+ *	This is the complement to sdio_retune_hold_now().  Calling this
+ *	function won't make a retune happen right away but will allow
+ *	them to be scheduled normally.
+ *
+ *	This function should be called while the host is claimed.
+ */
+void sdio_retune_release(struct sdio_func *func)
+{
+	mmc_retune_release(func->card->host);
+}
+EXPORT_SYMBOL_GPL(sdio_retune_release);

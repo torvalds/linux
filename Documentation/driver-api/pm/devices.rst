@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
 .. |struct dev_pm_ops| replace:: :c:type:`struct dev_pm_ops <dev_pm_ops>`
 .. |struct dev_pm_domain| replace:: :c:type:`struct dev_pm_domain <dev_pm_domain>`
 .. |struct bus_type| replace:: :c:type:`struct bus_type <bus_type>`
@@ -12,11 +15,12 @@
 Device Power Management Basics
 ==============================
 
-::
+:Copyright: |copy| 2010-2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+:Copyright: |copy| 2010 Alan Stern <stern@rowland.harvard.edu>
+:Copyright: |copy| 2016 Intel Corporation
 
- Copyright (c) 2010-2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
- Copyright (c) 2010 Alan Stern <stern@rowland.harvard.edu>
- Copyright (c) 2016 Intel Corp., Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+:Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+
 
 Most of the code in Linux is device drivers, so most of the Linux power
 management (PM) code is also driver-specific.  Most drivers will do very
@@ -221,7 +225,7 @@ system-wide transition to a sleep state even though its :c:member:`runtime_auto`
 flag is clear.
 
 For more information about the runtime power management framework, refer to
-:file:`Documentation/power/runtime_pm.txt`.
+:file:`Documentation/power/runtime_pm.rst`.
 
 
 Calling Drivers to Enter and Leave System Sleep States
@@ -724,7 +728,7 @@ it into account in any way.
 
 Devices may be defined as IRQ-safe which indicates to the PM core that their
 runtime PM callbacks may be invoked with disabled interrupts (see
-:file:`Documentation/power/runtime_pm.txt` for more information).  If an
+:file:`Documentation/power/runtime_pm.rst` for more information).  If an
 IRQ-safe device belongs to a PM domain, the runtime PM of the domain will be
 disallowed, unless the domain itself is defined as IRQ-safe. However, it
 makes sense to define a PM domain as IRQ-safe only if all the devices in it
@@ -791,7 +795,7 @@ so on) and the final state of the device must reflect the "active" runtime PM
 status in that case.
 
 During system-wide resume from a sleep state it's easiest to put devices into
-the full-power state, as explained in :file:`Documentation/power/runtime_pm.txt`.
+the full-power state, as explained in :file:`Documentation/power/runtime_pm.rst`.
 [Refer to that document for more information regarding this particular issue as
 well as for information on the device runtime power management framework in
 general.]

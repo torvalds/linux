@@ -21,6 +21,34 @@
 #include <linux/gpio/machine.h>
 
 #include "gpiolib.h"
+#include "gpiolib-of.h"
+
+/*
+ * This is used by external users of of_gpio_count() from <linux/of_gpio.h>
+ *
+ * FIXME: get rid of those external users by converting them to GPIO
+ * descriptors and let them all use gpiod_get_count()
+ */
+int of_gpio_get_count(struct device *dev, const char *con_id)
+{
+	int ret;
+	char propname[32];
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
+		if (con_id)
+			snprintf(propname, sizeof(propname), "%s-%s",
+				 con_id, gpio_suffixes[i]);
+		else
+			snprintf(propname, sizeof(propname), "%s",
+				 gpio_suffixes[i]);
+
+		ret = of_gpio_named_count(dev->of_node, propname);
+		if (ret > 0)
+			break;
+	}
+	return ret ? ret : -ENOENT;
+}
 
 static int of_gpiochip_match_node_and_xlate(struct gpio_chip *chip, void *data)
 {
@@ -51,6 +79,23 @@ static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
 		return ERR_PTR(ret);
 
 	return gpiochip_get_desc(chip, ret);
+}
+
+/**
+ * of_gpio_need_valid_mask() - figure out if the OF GPIO driver needs
+ * to set the .valid_mask
+ * @dev: the device for the GPIO provider
+ * @return: true if the valid mask needs to be set
+ */
+bool of_gpio_need_valid_mask(const struct gpio_chip *gc)
+{
+	int size;
+	struct device_node *np = gc->of_node;
+
+	size = of_property_count_u32_elems(np,  "gpio-reserved-ranges");
+	if (size > 0 && size % 2 == 0)
+		return true;
+	return false;
 }
 
 static void of_gpio_flags_quirks(struct device_node *np,
@@ -86,7 +131,9 @@ static void of_gpio_flags_quirks(struct device_node *np,
 	if (IS_ENABLED(CONFIG_REGULATOR) &&
 	    (of_device_is_compatible(np, "regulator-fixed") ||
 	     of_device_is_compatible(np, "reg-fixed-voltage") ||
-	     of_device_is_compatible(np, "regulator-gpio"))) {
+	     (!(strcmp(propname, "enable-gpio") &&
+		strcmp(propname, "enable-gpios")) &&
+	      of_device_is_compatible(np, "regulator-gpio")))) {
 		/*
 		 * The regulator GPIO handles are specified such that the
 		 * presence or absence of "enable-active-high" solely controls
@@ -117,7 +164,7 @@ static void of_gpio_flags_quirks(struct device_node *np,
 	 * property named "cs-gpios" we need to inspect the child node
 	 * to determine if the flags should have inverted semantics.
 	 */
-	if (IS_ENABLED(CONFIG_SPI_MASTER) &&
+	if (IS_ENABLED(CONFIG_SPI_MASTER) && !strcmp(propname, "cs-gpios") &&
 	    of_property_read_bool(np, "cs-gpios")) {
 		struct device_node *child;
 		u32 cs;
@@ -125,7 +172,7 @@ static void of_gpio_flags_quirks(struct device_node *np,
 
 		for_each_child_of_node(np, child) {
 			ret = of_property_read_u32(child, "reg", &cs);
-			if (!ret)
+			if (ret)
 				continue;
 			if (cs == index) {
 				/*
@@ -140,22 +187,29 @@ static void of_gpio_flags_quirks(struct device_node *np,
 				 * conflict and the "spi-cs-high" flag will
 				 * take precedence.
 				 */
-				if (of_property_read_bool(np, "spi-cs-high")) {
+				if (of_property_read_bool(child, "spi-cs-high")) {
 					if (*flags & OF_GPIO_ACTIVE_LOW) {
 						pr_warn("%s GPIO handle specifies active low - ignored\n",
-							of_node_full_name(np));
+							of_node_full_name(child));
 						*flags &= ~OF_GPIO_ACTIVE_LOW;
 					}
 				} else {
 					if (!(*flags & OF_GPIO_ACTIVE_LOW))
 						pr_info("%s enforce active low on chipselect handle\n",
-							of_node_full_name(np));
+							of_node_full_name(child));
 					*flags |= OF_GPIO_ACTIVE_LOW;
 				}
+				of_node_put(child);
 				break;
 			}
 		}
 	}
+
+	/* Legacy handling of stmmac's active-low PHY reset line */
+	if (IS_ENABLED(CONFIG_STMMAC_ETH) &&
+	    !strcmp(propname, "snps,reset-gpio") &&
+	    of_property_read_bool(np, "snps,reset-active-low"))
+		*flags |= OF_GPIO_ACTIVE_LOW;
 }
 
 /**
@@ -169,7 +223,7 @@ static void of_gpio_flags_quirks(struct device_node *np,
  * value on the error condition. If @flags is not NULL the function also fills
  * in flags for the GPIO.
  */
-struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
+static struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		     const char *propname, int index, enum of_gpio_flags *flags)
 {
 	struct of_phandle_args gpiospec;
@@ -220,7 +274,76 @@ int of_get_named_gpio_flags(struct device_node *np, const char *list_name,
 	else
 		return desc_to_gpio(desc);
 }
-EXPORT_SYMBOL(of_get_named_gpio_flags);
+EXPORT_SYMBOL_GPL(of_get_named_gpio_flags);
+
+/**
+ * gpiod_get_from_of_node() - obtain a GPIO from an OF node
+ * @node:	handle of the OF node
+ * @propname:	name of the DT property representing the GPIO
+ * @index:	index of the GPIO to obtain for the consumer
+ * @dflags:	GPIO initialization flags
+ * @label:	label to attach to the requested GPIO
+ *
+ * Returns:
+ * On successful request the GPIO pin is configured in accordance with
+ * provided @dflags.
+ *
+ * In case of error an ERR_PTR() is returned.
+ */
+struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
+					 const char *propname, int index,
+					 enum gpiod_flags dflags,
+					 const char *label)
+{
+	unsigned long lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
+	struct gpio_desc *desc;
+	enum of_gpio_flags flags;
+	bool active_low = false;
+	bool single_ended = false;
+	bool open_drain = false;
+	bool transitory = false;
+	int ret;
+
+	desc = of_get_named_gpiod_flags(node, propname,
+					index, &flags);
+
+	if (!desc || IS_ERR(desc)) {
+		return desc;
+	}
+
+	active_low = flags & OF_GPIO_ACTIVE_LOW;
+	single_ended = flags & OF_GPIO_SINGLE_ENDED;
+	open_drain = flags & OF_GPIO_OPEN_DRAIN;
+	transitory = flags & OF_GPIO_TRANSITORY;
+
+	ret = gpiod_request(desc, label);
+	if (ret == -EBUSY && (flags & GPIOD_FLAGS_BIT_NONEXCLUSIVE))
+		return desc;
+	if (ret)
+		return ERR_PTR(ret);
+
+	if (active_low)
+		lflags |= GPIO_ACTIVE_LOW;
+
+	if (single_ended) {
+		if (open_drain)
+			lflags |= GPIO_OPEN_DRAIN;
+		else
+			lflags |= GPIO_OPEN_SOURCE;
+	}
+
+	if (transitory)
+		lflags |= GPIO_TRANSITORY;
+
+	ret = gpiod_configure_flags(desc, propname, lflags, dflags);
+	if (ret < 0) {
+		gpiod_put(desc);
+		return ERR_PTR(ret);
+	}
+
+	return desc;
+}
+EXPORT_SYMBOL_GPL(gpiod_get_from_of_node);
 
 /*
  * The SPI GPIO bindings happened before we managed to establish that GPIO
@@ -250,6 +373,37 @@ static struct gpio_desc *of_find_spi_gpio(struct device *dev, const char *con_id
 
 	desc = of_get_named_gpiod_flags(np, prop_name, 0, of_flags);
 	return desc;
+}
+
+/*
+ * The old Freescale bindings use simply "gpios" as name for the chip select
+ * lines rather than "cs-gpios" like all other SPI hardware. Account for this
+ * with a special quirk.
+ */
+static struct gpio_desc *of_find_spi_cs_gpio(struct device *dev,
+					     const char *con_id,
+					     unsigned int idx,
+					     unsigned long *flags)
+{
+	struct device_node *np = dev->of_node;
+
+	if (!IS_ENABLED(CONFIG_SPI_MASTER))
+		return ERR_PTR(-ENOENT);
+
+	/* Allow this specifically for Freescale devices */
+	if (!of_device_is_compatible(np, "fsl,spi") &&
+	    !of_device_is_compatible(np, "aeroflexgaisler,spictrl"))
+		return ERR_PTR(-ENOENT);
+	/* Allow only if asking for "cs-gpios" */
+	if (!con_id || strcmp(con_id, "cs"))
+		return ERR_PTR(-ENOENT);
+
+	/*
+	 * While all other SPI controllers use "cs-gpios" the Freescale
+	 * uses just "gpios" so translate to that when "cs-gpios" is
+	 * requested.
+	 */
+	return of_find_gpio(dev, NULL, idx, flags);
 }
 
 /*
@@ -284,9 +438,21 @@ static struct gpio_desc *of_find_regulator_gpio(struct device *dev, const char *
 	return desc;
 }
 
+static struct gpio_desc *of_find_arizona_gpio(struct device *dev,
+					      const char *con_id,
+					      enum of_gpio_flags *of_flags)
+{
+	if (!IS_ENABLED(CONFIG_MFD_ARIZONA))
+		return ERR_PTR(-ENOENT);
+
+	if (!con_id || strcmp(con_id, "wlf,reset"))
+		return ERR_PTR(-ENOENT);
+
+	return of_get_named_gpiod_flags(dev->of_node, con_id, 0, of_flags);
+}
+
 struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
-			       unsigned int idx,
-			       enum gpio_lookup_flags *flags)
+			       unsigned int idx, unsigned long *flags)
 {
 	char prop_name[32]; /* 32 is max size of property name */
 	enum of_gpio_flags of_flags;
@@ -304,30 +470,30 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 
 		desc = of_get_named_gpiod_flags(dev->of_node, prop_name, idx,
 						&of_flags);
-		/*
-		 * -EPROBE_DEFER in our case means that we found a
-		 * valid GPIO property, but no controller has been
-		 * registered so far.
-		 *
-		 * This means we don't need to look any further for
-		 * alternate name conventions, and we should really
-		 * preserve the return code for our user to be able to
-		 * retry probing later.
-		 */
-		if (IS_ERR(desc) && PTR_ERR(desc) == -EPROBE_DEFER)
-			return desc;
 
-		if (!IS_ERR(desc) || (PTR_ERR(desc) != -ENOENT))
+		if (!IS_ERR(desc) || PTR_ERR(desc) != -ENOENT)
 			break;
 	}
 
-	/* Special handling for SPI GPIOs if used */
-	if (IS_ERR(desc))
+	if (IS_ERR(desc) && PTR_ERR(desc) == -ENOENT) {
+		/* Special handling for SPI GPIOs if used */
 		desc = of_find_spi_gpio(dev, con_id, &of_flags);
+	}
 
-	/* Special handling for regulator GPIOs if used */
-	if (IS_ERR(desc) && PTR_ERR(desc) != -EPROBE_DEFER)
+	if (IS_ERR(desc) && PTR_ERR(desc) == -ENOENT) {
+		/* This quirk looks up flags and all */
+		desc = of_find_spi_cs_gpio(dev, con_id, idx, flags);
+		if (!IS_ERR(desc))
+			return desc;
+	}
+
+	if (IS_ERR(desc) && PTR_ERR(desc) == -ENOENT) {
+		/* Special handling for regulator GPIOs if used */
 		desc = of_find_regulator_gpio(dev, con_id, &of_flags);
+	}
+
+	if (IS_ERR(desc) && PTR_ERR(desc) == -ENOENT)
+		desc = of_find_arizona_gpio(dev, con_id, &of_flags);
 
 	if (IS_ERR(desc))
 		return desc;
@@ -345,6 +511,11 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 	if (of_flags & OF_GPIO_TRANSITORY)
 		*flags |= GPIO_TRANSITORY;
 
+	if (of_flags & OF_GPIO_PULL_UP)
+		*flags |= GPIO_PULL_UP;
+	if (of_flags & OF_GPIO_PULL_DOWN)
+		*flags |= GPIO_PULL_DOWN;
+
 	return desc;
 }
 
@@ -354,8 +525,8 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
  * @chip:	GPIO chip whose hog is parsed
  * @idx:	Index of the GPIO to parse
  * @name:	GPIO line name
- * @lflags:	gpio_lookup_flags - returned from of_find_gpio() or
- *		of_parse_own_gpio()
+ * @lflags:	bitmask of gpio_lookup_flags GPIO_* values - returned from
+ *		of_find_gpio() or of_parse_own_gpio()
  * @dflags:	gpiod_flags - optional GPIO initialization flags
  *
  * Returns GPIO descriptor to use with Linux GPIO API, or one of the errno
@@ -364,7 +535,7 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 					   struct gpio_chip *chip,
 					   unsigned int idx, const char **name,
-					   enum gpio_lookup_flags *lflags,
+					   unsigned long *lflags,
 					   enum gpiod_flags *dflags)
 {
 	struct device_node *chip_np;
@@ -380,7 +551,7 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 		return ERR_PTR(-EINVAL);
 
 	xlate_flags = 0;
-	*lflags = 0;
+	*lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
 	*dflags = 0;
 
 	ret = of_property_read_u32(chip_np, "#gpio-cells", &tmp);
@@ -437,7 +608,7 @@ static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 	struct gpio_desc *desc = NULL;
 	struct device_node *np;
 	const char *name;
-	enum gpio_lookup_flags lflags;
+	unsigned long lflags;
 	enum gpiod_flags dflags;
 	unsigned int i;
 	int ret;
@@ -473,8 +644,9 @@ static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
  * GPIO chips. This function performs only one sanity check: whether GPIO
  * is less than ngpios (that is specified in the gpio_chip).
  */
-int of_gpio_simple_xlate(struct gpio_chip *gc,
-			 const struct of_phandle_args *gpiospec, u32 *flags)
+static int of_gpio_simple_xlate(struct gpio_chip *gc,
+				const struct of_phandle_args *gpiospec,
+				u32 *flags)
 {
 	/*
 	 * We're discouraging gpio_cells < 2, since that way you'll have to
@@ -498,7 +670,6 @@ int of_gpio_simple_xlate(struct gpio_chip *gc,
 
 	return gpiospec->args[0];
 }
-EXPORT_SYMBOL(of_gpio_simple_xlate);
 
 /**
  * of_mm_gpiochip_add_data - Add memory mapped GPIO chip (bank)
@@ -555,7 +726,7 @@ err0:
 	pr_err("%pOF: GPIO chip registration failed with status %d\n", np, ret);
 	return ret;
 }
-EXPORT_SYMBOL(of_mm_gpiochip_add_data);
+EXPORT_SYMBOL_GPL(of_mm_gpiochip_add_data);
 
 /**
  * of_mm_gpiochip_remove - Remove memory mapped GPIO chip (bank)
@@ -572,7 +743,7 @@ void of_mm_gpiochip_remove(struct of_mm_gpio_chip *mm_gc)
 	iounmap(mm_gc->regs);
 	kfree(gc->label);
 }
-EXPORT_SYMBOL(of_mm_gpiochip_remove);
+EXPORT_SYMBOL_GPL(of_mm_gpiochip_remove);
 
 static void of_gpiochip_init_valid_mask(struct gpio_chip *chip)
 {
@@ -684,7 +855,7 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip) { return 0; }
 
 int of_gpiochip_add(struct gpio_chip *chip)
 {
-	int status;
+	int ret;
 
 	if (!chip->of_node)
 		return 0;
@@ -699,9 +870,9 @@ int of_gpiochip_add(struct gpio_chip *chip)
 
 	of_gpiochip_init_valid_mask(chip);
 
-	status = of_gpiochip_add_pin_range(chip);
-	if (status)
-		return status;
+	ret = of_gpiochip_add_pin_range(chip);
+	if (ret)
+		return ret;
 
 	/* If the chip defines names itself, these take precedence */
 	if (!chip->names)
@@ -710,7 +881,13 @@ int of_gpiochip_add(struct gpio_chip *chip)
 
 	of_node_get(chip->of_node);
 
-	return of_gpiochip_scan_gpios(chip);
+	ret = of_gpiochip_scan_gpios(chip);
+	if (ret) {
+		of_node_put(chip->of_node);
+		gpiochip_remove_pin_ranges(chip);
+	}
+
+	return ret;
 }
 
 void of_gpiochip_remove(struct gpio_chip *chip)

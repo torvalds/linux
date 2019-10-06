@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "IRQ subsystem"
 # Options selectable by the architecture code
 
@@ -90,6 +91,9 @@ config GENERIC_MSI_IRQ_DOMAIN
 	bool
 	select IRQ_DOMAIN_HIERARCHY
 	select GENERIC_MSI_IRQ
+
+config IRQ_MSI_IOMMU
+	bool
 
 config HANDLE_DOMAIN_IRQ
 	bool

@@ -1,29 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel_pt_insn_decoder.c: Intel Processor Trace support
  * Copyright (c) 2013-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
+#include <linux/kernel.h>
 #include <stdio.h>
 #include <string.h>
 #include <endian.h>
 #include <byteswap.h>
+#include "../../../arch/x86/include/asm/insn.h"
+
+#include "../../../arch/x86/lib/inat.c"
+#include "../../../arch/x86/lib/insn.c"
 
 #include "event.h"
-
-#include "insn.h"
-
-#include "inat.c"
-#include "insn.c"
 
 #include "intel-pt-insn-decoder.h"
 #include "dump-insn.h"

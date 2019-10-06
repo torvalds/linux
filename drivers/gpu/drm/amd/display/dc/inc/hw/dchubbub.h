@@ -39,12 +39,84 @@ enum segment_order {
 	segment_order__non_contiguous,
 };
 
+struct dcn_hubbub_wm_set {
+	uint32_t wm_set;
+	uint32_t data_urgent;
+	uint32_t pte_meta_urgent;
+	uint32_t sr_enter;
+	uint32_t sr_exit;
+	uint32_t dram_clk_chanage;
+};
 
+struct dcn_hubbub_wm {
+	struct dcn_hubbub_wm_set sets[4];
+};
+
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+enum dcn_hubbub_page_table_depth {
+	DCN_PAGE_TABLE_DEPTH_1_LEVEL,
+	DCN_PAGE_TABLE_DEPTH_2_LEVEL,
+	DCN_PAGE_TABLE_DEPTH_3_LEVEL,
+	DCN_PAGE_TABLE_DEPTH_4_LEVEL
+};
+
+enum dcn_hubbub_page_table_block_size {
+	DCN_PAGE_TABLE_BLOCK_SIZE_4KB = 0,
+	DCN_PAGE_TABLE_BLOCK_SIZE_64KB = 4,
+};
+
+struct dcn_hubbub_phys_addr_config {
+	struct {
+		uint64_t fb_top;
+		uint64_t fb_offset;
+		uint64_t fb_base;
+		uint64_t agp_top;
+		uint64_t agp_bot;
+		uint64_t agp_base;
+	} system_aperture;
+
+	struct {
+		uint64_t page_table_start_addr;
+		uint64_t page_table_end_addr;
+		uint64_t page_table_base_addr;
+	} gart_config;
+
+	uint64_t page_table_default_page_addr;
+};
+
+struct dcn_hubbub_virt_addr_config {
+	uint64_t				page_table_start_addr;
+	uint64_t				page_table_end_addr;
+	enum dcn_hubbub_page_table_block_size	page_table_block_size;
+	enum dcn_hubbub_page_table_depth	page_table_depth;
+	uint64_t				page_table_base_addr;
+};
+
+struct hubbub_addr_config {
+	struct dcn_hubbub_phys_addr_config pa_config;
+	struct dcn_hubbub_virt_addr_config va_config;
+	struct {
+		uint64_t aperture_check_fault;
+		uint64_t generic_fault;
+	} default_addrs;
+};
+
+#endif
 struct hubbub_funcs {
 	void (*update_dchub)(
 			struct hubbub *hubbub,
 			struct dchub_init_data *dh_data);
 
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	int (*init_dchub_sys_ctx)(
+			struct hubbub *hubbub,
+			struct dcn_hubbub_phys_addr_config *pa_config);
+	void (*init_vm_ctx)(
+			struct hubbub *hubbub,
+			struct dcn_hubbub_virt_addr_config *va_config,
+			int vmid);
+
+#endif
 	bool (*get_dcc_compression_cap)(struct hubbub *hubbub,
 			const struct dc_dcc_surface_param *input,
 			struct dc_surface_dcc_cap *output);
@@ -58,7 +130,28 @@ struct hubbub_funcs {
 	bool (*dcc_support_pixel_format)(
 			enum surface_pixel_format format,
 			unsigned int *bytes_per_element);
+
+	void (*wm_read_state)(struct hubbub *hubbub,
+			struct dcn_hubbub_wm *wm);
+
+	void (*get_dchub_ref_freq)(struct hubbub *hubbub,
+			unsigned int dccg_ref_freq_inKhz,
+			unsigned int *dchub_ref_freq_inKhz);
+
+	void (*program_watermarks)(
+			struct hubbub *hubbub,
+			struct dcn_watermark_set *watermarks,
+			unsigned int refclk_mhz,
+			bool safe_to_lower);
+
+	bool (*is_allow_self_refresh_enabled)(struct hubbub *hubbub);
+	void (*allow_self_refresh_control)(struct hubbub *hubbub, bool allow);
+
 };
 
+struct hubbub {
+	const struct hubbub_funcs *funcs;
+	struct dc_context *ctx;
+};
 
 #endif

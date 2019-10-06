@@ -127,7 +127,7 @@ __malloc void *_uverbs_alloc(struct uverbs_attr_bundle *bundle, size_t size,
 	res = (void *)pbundle->internal_buffer + pbundle->internal_used;
 	pbundle->internal_used =
 		ALIGN(new_used, sizeof(*pbundle->internal_buffer));
-	if (flags & __GFP_ZERO)
+	if (want_init_on_alloc(flags))
 		memset(res, 0, size);
 	return res;
 }
@@ -207,8 +207,8 @@ static int uverbs_process_idrs_array(struct bundle_priv *pbundle,
 
 	for (i = 0; i != array_len; i++) {
 		attr->uobjects[i] = uverbs_get_uobject_from_file(
-			spec->u2.objs_arr.obj_type, pbundle->bundle.ufile,
-			spec->u2.objs_arr.access, idr_vals[i]);
+			spec->u2.objs_arr.obj_type, spec->u2.objs_arr.access,
+			idr_vals[i], &pbundle->bundle);
 		if (IS_ERR(attr->uobjects[i])) {
 			ret = PTR_ERR(attr->uobjects[i]);
 			break;
@@ -222,7 +222,7 @@ static int uverbs_process_idrs_array(struct bundle_priv *pbundle,
 
 static int uverbs_free_idrs_array(const struct uverbs_api_attr *attr_uapi,
 				  struct uverbs_objs_arr_attr *attr,
-				  bool commit)
+				  bool commit, struct uverbs_attr_bundle *attrs)
 {
 	const struct uverbs_attr_spec *spec = &attr_uapi->spec;
 	int current_ret;
@@ -230,8 +230,9 @@ static int uverbs_free_idrs_array(const struct uverbs_api_attr *attr_uapi,
 	size_t i;
 
 	for (i = 0; i != attr->len; i++) {
-		current_ret = uverbs_finalize_object(
-			attr->uobjects[i], spec->u2.objs_arr.access, commit);
+		current_ret = uverbs_finalize_object(attr->uobjects[i],
+						     spec->u2.objs_arr.access,
+						     commit, attrs);
 		if (!ret)
 			ret = current_ret;
 	}
@@ -324,10 +325,8 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 		 * IDR implementation today rejects negative IDs
 		 */
 		o_attr->uobject = uverbs_get_uobject_from_file(
-					spec->u.obj.obj_type,
-					pbundle->bundle.ufile,
-					spec->u.obj.access,
-					uattr->data_s64);
+			spec->u.obj.obj_type, spec->u.obj.access,
+			uattr->data_s64, &pbundle->bundle);
 		if (IS_ERR(o_attr->uobject))
 			return PTR_ERR(o_attr->uobject);
 		__set_bit(attr_bkey, pbundle->uobj_finalize);
@@ -454,12 +453,14 @@ static int ib_uverbs_run_method(struct bundle_priv *pbundle,
 		uverbs_fill_udata(&pbundle->bundle,
 				  &pbundle->bundle.driver_udata,
 				  UVERBS_ATTR_UHW_IN, UVERBS_ATTR_UHW_OUT);
+	else
+		pbundle->bundle.driver_udata = (struct ib_udata){};
 
 	if (destroy_bkey != UVERBS_API_ATTR_BKEY_LEN) {
 		struct uverbs_obj_attr *destroy_attr =
 			&pbundle->bundle.attrs[destroy_bkey].obj_attr;
 
-		ret = uobj_destroy(destroy_attr->uobject);
+		ret = uobj_destroy(destroy_attr->uobject, &pbundle->bundle);
 		if (ret)
 			return ret;
 		__clear_bit(destroy_bkey, pbundle->uobj_finalize);
@@ -510,7 +511,8 @@ static int bundle_destroy(struct bundle_priv *pbundle, bool commit)
 
 		current_ret = uverbs_finalize_object(
 			attr->obj_attr.uobject,
-			attr->obj_attr.attr_elm->spec.u.obj.access, commit);
+			attr->obj_attr.attr_elm->spec.u.obj.access, commit,
+			&pbundle->bundle);
 		if (!ret)
 			ret = current_ret;
 	}
@@ -533,7 +535,8 @@ static int bundle_destroy(struct bundle_priv *pbundle, bool commit)
 
 		if (attr_uapi->spec.type == UVERBS_ATTR_TYPE_IDRS_ARRAY) {
 			current_ret = uverbs_free_idrs_array(
-				attr_uapi, &attr->objs_arr_attr, commit);
+				attr_uapi, &attr->objs_arr_attr, commit,
+				&pbundle->bundle);
 			if (!ret)
 				ret = current_ret;
 		}
@@ -592,6 +595,7 @@ static int ib_uverbs_cmd_verbs(struct ib_uverbs_file *ufile,
 	pbundle->method_elm = method_elm;
 	pbundle->method_key = attrs_iter.index;
 	pbundle->bundle.ufile = ufile;
+	pbundle->bundle.context = NULL; /* only valid if bundle has uobject */
 	pbundle->radix = &uapi->radix;
 	pbundle->radix_slots = slot;
 	pbundle->radix_slots_len = radix_tree_chunk_size(&attrs_iter);

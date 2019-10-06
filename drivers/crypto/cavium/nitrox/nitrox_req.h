@@ -212,6 +212,50 @@ struct nitrox_kcrypt_request {
 };
 
 /**
+ * struct nitrox_aead_rctx - AEAD request context
+ * @nkreq: Base request context
+ * @cryptlen: Encryption/Decryption data length
+ * @assoclen: AAD length
+ * @srclen: Input buffer length
+ * @dstlen: Output buffer length
+ * @iv: IV data
+ * @ivsize: IV data length
+ * @flags: AEAD req flags
+ * @ctx_handle: Device context handle
+ * @src: Source sglist
+ * @dst: Destination sglist
+ * @ctrl_arg: Identifies the request type (ENCRYPT/DECRYPT)
+ */
+struct nitrox_aead_rctx {
+	struct nitrox_kcrypt_request nkreq;
+	unsigned int cryptlen;
+	unsigned int assoclen;
+	unsigned int srclen;
+	unsigned int dstlen;
+	u8 *iv;
+	int ivsize;
+	u32 flags;
+	u64 ctx_handle;
+	struct scatterlist *src;
+	struct scatterlist *dst;
+	u8 ctrl_arg;
+};
+
+/**
+ * struct nitrox_rfc4106_rctx - rfc4106 cipher request context
+ * @base: AEAD request context
+ * @src: Source sglist
+ * @dst: Destination sglist
+ * @assoc: AAD
+ */
+struct nitrox_rfc4106_rctx {
+	struct nitrox_aead_rctx base;
+	struct scatterlist src[3];
+	struct scatterlist dst[3];
+	u8 assoc[20];
+};
+
+/**
  * struct pkt_instr_hdr - Packet Instruction Header
  * @g: Gather used
  *   When [G] is set and [GSZ] != 0, the instruction is
@@ -353,6 +397,36 @@ struct nps_pkt_instr {
 	union pkt_hdr irh;
 	union slc_store_info slc;
 	u64 fdata[2];
+};
+
+/**
+ * struct aqmq_command_s - The 32 byte command for AE processing.
+ * @opcode: Request opcode
+ * @param1: Request control parameter 1
+ * @param2: Request control parameter 2
+ * @dlen: Input length
+ * @dptr: Input pointer points to buffer in remote host
+ * @rptr: Result pointer points to buffer in remote host
+ * @grp: AQM Group (0..7)
+ * @cptr: Context pointer
+ */
+struct aqmq_command_s {
+	__be16 opcode;
+	__be16 param1;
+	__be16 param2;
+	__be16 dlen;
+	__be64 dptr;
+	__be64 rptr;
+	union {
+		__be64 word3;
+#if defined(__BIG_ENDIAN_BITFIELD)
+		u64 grp : 3;
+		u64 cptr : 61;
+#else
+		u64 cptr : 61;
+		u64 grp : 3;
+#endif
+	};
 };
 
 /**
@@ -512,7 +586,7 @@ static inline struct scatterlist *create_multi_sg(struct scatterlist *to_sg,
 	struct scatterlist *sg = to_sg;
 	unsigned int sglen;
 
-	for (; buflen; buflen -= sglen) {
+	for (; buflen && from_sg; buflen -= sglen) {
 		sglen = from_sg->length;
 		if (sglen > buflen)
 			sglen = buflen;

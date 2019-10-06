@@ -34,8 +34,7 @@ struct vb2_vmarea_handler {
 extern const struct vm_operations_struct vb2_common_vm_ops;
 
 struct frame_vector *vb2_create_framevec(unsigned long start,
-					 unsigned long length,
-					 bool write);
+					 unsigned long length);
 void vb2_destroy_framevec(struct frame_vector *vec);
 
 #endif

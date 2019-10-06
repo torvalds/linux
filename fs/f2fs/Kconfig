@@ -1,8 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config F2FS_FS
 	tristate "F2FS filesystem support"
 	depends on BLOCK
+	select NLS
 	select CRYPTO
 	select CRYPTO_CRC32
+	select F2FS_FS_XATTR if FS_ENCRYPTION
 	help
 	  F2FS is based on Log-structured File System (LFS), which supports
 	  versatile "flash-friendly" features. The design has been focused on
@@ -58,7 +61,9 @@ config F2FS_FS_SECURITY
 	  Security Models (LSMs) accepted by AppArmor, SELinux, Smack and TOMOYO
 	  Linux. This option enables an extended attribute handler for file
 	  security labels in the f2fs filesystem, so that it requires enabling
-	  the extended attribute support in advance.
+	  the extended attribute support in advance. In particular you need this
+	  option if you use the setcap command to assign initial process capabi-
+	  lities to executables (the security.* extended attributes).
 
 	  If you are not using a security module, say N.
 
@@ -69,17 +74,6 @@ config F2FS_CHECK_FS
 	  Enables BUG_ONs which check the filesystem consistency in runtime.
 
 	  If you want to improve the performance, say N.
-
-config F2FS_FS_ENCRYPTION
-	bool "F2FS Encryption"
-	depends on F2FS_FS
-	depends on F2FS_FS_XATTR
-	select FS_ENCRYPTION
-	help
-	  Enable encryption of f2fs files and directories.  This
-	  feature is similar to ecryptfs, but it is more memory
-	  efficient since it avoids caching the encrypted and
-	  decrypted pages in the page cache.
 
 config F2FS_IO_TRACE
 	bool "F2FS IO tracer"

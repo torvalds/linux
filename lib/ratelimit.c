@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ratelimit.c - Do something with rate limit.
  *
@@ -5,8 +6,6 @@
  *
  * 2008-05-01 rewrite the function and use a ratelimit_state data struct as
  * parameter. Now every user can use their own standalone ratelimit_state.
- *
- * This file is released under the GPLv2.
  */
 
 #include <linux/ratelimit.h>

@@ -3,7 +3,7 @@
  *
  * Name: acpixf.h - External interfaces to the ACPI subsystem
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -12,7 +12,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20181213
+#define ACPI_CA_VERSION                 0x20190816
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -157,14 +157,6 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_copy_dsdt_locally, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_do_not_use_xsdt, FALSE);
 
 /*
- * Optionally support module level code by parsing an entire table as
- * a method as it is loaded. Default is TRUE.
- * NOTE, this is essentially obsolete and will be removed soon
- * (01/2018).
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_execute_tables_as_methods, TRUE);
-
-/*
  * Optionally use 32-bit FADT addresses if and when there is a conflict
  * (address mismatch) between the 32-bit and 64-bit versions of the
  * address. Although ACPICA adheres to the ACPI specification which
@@ -305,6 +297,9 @@ ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
 #define ACPI_HW_DEPENDENT_RETURN_OK(prototype) \
 	ACPI_EXTERNAL_RETURN_OK(prototype)
 
+#define ACPI_HW_DEPENDENT_RETURN_UINT32(prototype) \
+	ACPI_EXTERNAL_RETURN_UINT32(prototype)
+
 #define ACPI_HW_DEPENDENT_RETURN_VOID(prototype) \
 	ACPI_EXTERNAL_RETURN_VOID(prototype)
 
@@ -314,6 +309,9 @@ ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
 
 #define ACPI_HW_DEPENDENT_RETURN_OK(prototype) \
 	static ACPI_INLINE prototype {return(AE_OK);}
+
+#define ACPI_HW_DEPENDENT_RETURN_UINT32(prototype) \
+	static ACPI_INLINE prototype {return(0);}
 
 #define ACPI_HW_DEPENDENT_RETURN_VOID(prototype) \
 	static ACPI_INLINE prototype {return;}
@@ -746,7 +744,7 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 						     u32 gpe_number,
 						     acpi_event_status
 						     *event_status))
-ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_dispatch_gpe(acpi_handle gpe_device, u32 gpe_number))
+ACPI_HW_DEPENDENT_RETURN_UINT32(u32 acpi_dispatch_gpe(acpi_handle gpe_device, u32 gpe_number))
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_disable_all_gpes(void))
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_enable_all_runtime_gpes(void))
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_enable_all_wakeup_gpes(void))
@@ -903,6 +901,12 @@ ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
 				acpi_bios_error(const char *module_name,
 						u32 line_number,
 						const char *format, ...))
+ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(4)
+				void ACPI_INTERNAL_VAR_XFACE
+				acpi_bios_exception(const char *module_name,
+						    u32 line_number,
+						    acpi_status status,
+						    const char *format, ...))
 ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
 				void ACPI_INTERNAL_VAR_XFACE
 				acpi_bios_warning(const char *module_name,

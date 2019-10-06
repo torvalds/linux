@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Omnivision OV9650/OV9652 CMOS Image Sensor driver
  *
@@ -6,10 +7,6 @@
  * Register definitions and initial settings based on a driver written
  * by Vladimir Fonov.
  * Copyright (c) 2010, Vladimir Fonov
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -45,8 +42,8 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
  * OV9650/OV9652 register definitions
  */
 #define REG_GAIN		0x00	/* Gain control, AGC[7:0] */
-#define REG_BLUE		0x01	/* AWB - Blue chanel gain */
-#define REG_RED			0x02	/* AWB - Red chanel gain */
+#define REG_BLUE		0x01	/* AWB - Blue channel gain */
+#define REG_RED			0x02	/* AWB - Red channel gain */
 #define REG_VREF		0x03	/* [7:6] - AGC[9:8], [5:3]/[2:0] */
 #define  VREF_GAIN_MASK		0xc0	/* - VREF end/start low 3 bits */
 #define REG_COM1		0x04
@@ -706,6 +703,11 @@ static int ov965x_set_gain(struct ov965x *ov965x, int auto_gain)
 		for (m = 6; m >= 0; m--)
 			if (gain >= (1 << m) * 16)
 				break;
+
+		/* Sanity check: don't adjust the gain with a negative value */
+		if (m < 0)
+			return -EINVAL;
+
 		rgain = (gain - ((1 << m) * 16)) / (1 << m);
 		rgain |= (((1 << m) - 1) << 4);
 
@@ -1488,8 +1490,7 @@ out:
 	return ret;
 }
 
-static int ov965x_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov965x_probe(struct i2c_client *client)
 {
 	const struct ov9650_platform_data *pdata = client->dev.platform_data;
 	struct v4l2_subdev *sd;
@@ -1616,7 +1617,7 @@ static struct i2c_driver ov965x_i2c_driver = {
 		.name	= DRIVER_NAME,
 		.of_match_table = of_match_ptr(ov965x_of_match),
 	},
-	.probe		= ov965x_probe,
+	.probe_new	= ov965x_probe,
 	.remove		= ov965x_remove,
 	.id_table	= ov965x_id,
 };

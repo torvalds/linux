@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	Adaptec AAC series RAID controller driver
  *	(c) Copyright 2001 Red Hat Inc.	<alan@redhat.com>
@@ -9,25 +10,10 @@
  *               2010-2015 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
  *		 2016-2017 Microsemi Corp. (aacraid@microsemi.com)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
- * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * Module Name:
  *  aacraid.h
  *
  * Abstract: Contains all routines for control of the aacraid driver
- *
  */
 
 #ifndef _AACRAID_H_
@@ -2640,9 +2626,14 @@ static inline unsigned int cap_to_cyls(sector_t capacity, unsigned divisor)
 	return capacity;
 }
 
+static inline int aac_pci_offline(struct aac_dev *dev)
+{
+	return pci_channel_offline(dev->pdev) || dev->handle_pci_error;
+}
+
 static inline int aac_adapter_check_health(struct aac_dev *dev)
 {
-	if (unlikely(pci_channel_offline(dev->pdev)))
+	if (unlikely(aac_pci_offline(dev)))
 		return -1;
 
 	return (dev)->a_ops.adapter_check_health(dev);
@@ -2706,12 +2697,12 @@ void aac_set_intx_mode(struct aac_dev *dev);
 int aac_get_config_status(struct aac_dev *dev, int commit_flag);
 int aac_get_containers(struct aac_dev *dev);
 int aac_scsi_cmd(struct scsi_cmnd *cmd);
-int aac_dev_ioctl(struct aac_dev *dev, int cmd, void __user *arg);
+int aac_dev_ioctl(struct aac_dev *dev, unsigned int cmd, void __user *arg);
 #ifndef shost_to_class
 #define shost_to_class(shost) &shost->shost_dev
 #endif
 ssize_t aac_get_serial_number(struct device *dev, char *buf);
-int aac_do_ioctl(struct aac_dev * dev, int cmd, void __user *arg);
+int aac_do_ioctl(struct aac_dev *dev, unsigned int cmd, void __user *arg);
 int aac_rx_init(struct aac_dev *dev);
 int aac_rkt_init(struct aac_dev *dev);
 int aac_nark_init(struct aac_dev *dev);

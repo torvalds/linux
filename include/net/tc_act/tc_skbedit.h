@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2008, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Alexander Duyck <alexander.h.duyck@intel.com>
  */
@@ -44,7 +33,7 @@ static inline bool is_tcf_skbedit_mark(const struct tc_action *a)
 #ifdef CONFIG_NET_CLS_ACT
 	u32 flags;
 
-	if (a->ops && a->ops->type == TCA_ACT_SKBEDIT) {
+	if (a->ops && a->ops->id == TCA_ID_SKBEDIT) {
 		rcu_read_lock();
 		flags = rcu_dereference(to_skbedit(a)->params)->flags;
 		rcu_read_unlock();
@@ -63,6 +52,33 @@ static inline u32 tcf_skbedit_mark(const struct tc_action *a)
 	rcu_read_unlock();
 
 	return mark;
+}
+
+/* Return true iff action is ptype */
+static inline bool is_tcf_skbedit_ptype(const struct tc_action *a)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	u32 flags;
+
+	if (a->ops && a->ops->id == TCA_ID_SKBEDIT) {
+		rcu_read_lock();
+		flags = rcu_dereference(to_skbedit(a)->params)->flags;
+		rcu_read_unlock();
+		return flags == SKBEDIT_F_PTYPE;
+	}
+#endif
+	return false;
+}
+
+static inline u32 tcf_skbedit_ptype(const struct tc_action *a)
+{
+	u16 ptype;
+
+	rcu_read_lock();
+	ptype = rcu_dereference(to_skbedit(a)->params)->ptype;
+	rcu_read_unlock();
+
+	return ptype;
 }
 
 #endif /* __NET_TC_SKBEDIT_H */

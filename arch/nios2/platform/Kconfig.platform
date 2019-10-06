@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Platform options"
 
 comment "Memory settings"
@@ -17,7 +18,6 @@ comment "Device tree"
 
 config NIOS2_DTB_AT_PHYS_ADDR
 	bool "DTB at physical address"
-	default n
 	help
 	  When enabled you can select a physical address to load the dtb from.
 	  Normally this address is passed by a bootloader such as u-boot but
@@ -37,7 +37,6 @@ config NIOS2_DTB_PHYS_ADDR
 
 config NIOS2_DTB_SOURCE_BOOL
 	bool "Compile and link device tree into kernel image"
-	default n
 	help
 	  This allows you to specify a dts (device tree source) file
 	  which will be compiled and linked into the kernel image.
@@ -62,21 +61,18 @@ config NIOS2_ARCH_REVISION
 
 config NIOS2_HW_MUL_SUPPORT
 	bool "Enable MUL instruction"
-	default n
 	help
 	  Set to true if you configured the Nios II to include the MUL
 	  instruction.  This will enable the -mhw-mul compiler flag.
 
 config NIOS2_HW_MULX_SUPPORT
 	bool "Enable MULX instruction"
-	default n
 	help
 	  Set to true if you configured the Nios II to include the MULX
 	  instruction.  Enables the -mhw-mulx compiler flag.
 
 config NIOS2_HW_DIV_SUPPORT
 	bool "Enable DIV instruction"
-	default n
 	help
 	  Set to true if you configured the Nios II to include the DIV
 	  instruction.  Enables the -mhw-div compiler flag.
@@ -84,7 +80,6 @@ config NIOS2_HW_DIV_SUPPORT
 config NIOS2_BMX_SUPPORT
 	bool "Enable BMX instructions"
 	depends on NIOS2_ARCH_REVISION = 2
-	default n
 	help
 	  Set to true if you configured the Nios II R2 to include
 	  the BMX Bit Manipulation Extension instructions. Enables
@@ -93,7 +88,6 @@ config NIOS2_BMX_SUPPORT
 config NIOS2_CDX_SUPPORT
 	bool "Enable CDX instructions"
 	depends on NIOS2_ARCH_REVISION = 2
-	default n
 	help
 	  Set to true if you configured the Nios II R2 to include
 	  the CDX Bit Manipulation Extension instructions. Enables
@@ -101,13 +95,11 @@ config NIOS2_CDX_SUPPORT
 
 config NIOS2_FPU_SUPPORT
 	bool "Custom floating point instr support"
-	default n
 	help
 	  Enables the -mcustom-fpu-cfg=60-1 compiler flag.
 
 config NIOS2_CI_SWAB_SUPPORT
 	bool "Byteswap custom instruction"
-	default n
 	help
 	  Use the byteswap (endian converter) Nios II custom instruction provided
 	  by Altera and which can be enabled in QSYS builder. This accelerates

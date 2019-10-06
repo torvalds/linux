@@ -181,7 +181,6 @@ static void mlx5e_tls_complete_sync_skb(struct sk_buff *skb,
 	 */
 	nskb->ip_summed = CHECKSUM_PARTIAL;
 
-	nskb->xmit_more = 1;
 	nskb->queue_mapping = skb->queue_mapping;
 }
 
@@ -248,8 +247,8 @@ mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context_tx *context,
 	sq->stats->tls_resync_bytes += nskb->len;
 	mlx5e_tls_complete_sync_skb(skb, nskb, tcp_seq, headln,
 				    cpu_to_be64(info.rcd_sn));
-	mlx5e_sq_xmit(sq, nskb, *wqe, *pi);
-	mlx5e_sq_fetch_wqe(sq, wqe, pi);
+	mlx5e_sq_xmit(sq, nskb, *wqe, *pi, true);
+	*wqe = mlx5e_sq_fetch_wqe(sq, sizeof(**wqe), pi);
 	return skb;
 
 err_out:
@@ -269,6 +268,11 @@ struct sk_buff *mlx5e_tls_handle_tx_skb(struct net_device *netdev,
 	u32 expected_seq;
 	int datalen;
 	u32 skb_seq;
+
+	if (MLX5_CAP_GEN(sq->channel->mdev, tls)) {
+		skb = mlx5e_ktls_handle_tx_skb(netdev, sq, skb, wqe, pi);
+		goto out;
+	}
 
 	if (!skb->sk || !tls_is_sk_tx_device_offloaded(skb->sk))
 		goto out;

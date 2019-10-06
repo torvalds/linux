@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * s3c24xx/s3c64xx SoC series Camera Interface (CAMIF) driver
  *
@@ -6,10 +7,6 @@
  *
  * Based on drivers/media/platform/s5p-fimc,
  * Copyright (C) 2010 - 2012 Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
@@ -644,10 +641,6 @@ static int s3c_camif_vidioc_querycap(struct file *file, void *priv,
 	strscpy(cap->card, S3C_CAMIF_DRIVER_NAME, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s.%d",
 		 dev_name(vp->camif->dev), vp->id);
-
-	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_CAPTURE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
@@ -688,10 +681,7 @@ static int s3c_camif_vidioc_enum_fmt(struct file *file, void *priv,
 	if (!fmt)
 		return -EINVAL;
 
-	strscpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
-
-	pr_debug("fmt(%d): %s\n", f->index, f->description);
 	return 0;
 }
 
@@ -805,10 +795,10 @@ static int s3c_camif_vidioc_s_fmt(struct file *file, void *priv,
 	if (vp->owner == NULL)
 		vp->owner = priv;
 
-	pr_debug("%ux%u. payload: %u. fmt: %s. %d %d. sizeimage: %d. bpl: %d\n",
-		out_frame->f_width, out_frame->f_height, vp->payload, fmt->name,
-		pix->width * pix->height * fmt->depth, fmt->depth,
-		pix->sizeimage, pix->bytesperline);
+	pr_debug("%ux%u. payload: %u. fmt: 0x%08x. %d %d. sizeimage: %d. bpl: %d\n",
+		 out_frame->f_width, out_frame->f_height, vp->payload,
+		 fmt->fourcc, pix->width * pix->height * fmt->depth,
+		 fmt->depth, pix->sizeimage, pix->bytesperline);
 
 	return 0;
 }
@@ -1166,6 +1156,7 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 		goto err_me_cleanup;
 
 	vfd->ctrl_handler = &vp->ctrl_handler;
+	vfd->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_CAPTURE;
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret)

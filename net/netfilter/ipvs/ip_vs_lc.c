@@ -1,17 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IPVS:        Least-Connection Scheduling module
  *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
- *
  * Changes:
  *     Wensong Zhang            :     added the ip_vs_lc_update_svc
  *     Wensong Zhang            :     added any dest with weight=0 is quiesced
- *
  */
 
 #define KMSG_COMPONENT "IPVS"

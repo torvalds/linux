@@ -1,18 +1,5 @@
-/*
- * Copyright (c) 2015-2016 Quantenna Communications, Inc.
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+/* Copyright (c) 2015-2016 Quantenna Communications. All rights reserved. */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -28,6 +15,12 @@
 
 #define QTNF_DMP_MAX_LEN 48
 #define QTNF_PRIMARY_VIF_IDX	0
+
+static bool slave_radar = true;
+module_param(slave_radar, bool, 0644);
+MODULE_PARM_DESC(slave_radar, "set 0 to disable radar detection in slave mode");
+
+static struct dentry *qtnf_debugfs_dir;
 
 struct qtnf_frame_meta_info {
 	u8 magic_s;
@@ -195,6 +188,7 @@ static int qtnf_netdev_set_mac_address(struct net_device *ndev, void *addr)
 	qtnf_scan_done(vif->mac, true);
 
 	ret = qtnf_cmd_send_change_intf_type(vif, vif->wdev.iftype,
+					     vif->wdev.use_4addr,
 					     sa->sa_data);
 
 	if (ret)
@@ -380,6 +374,23 @@ static void qtnf_mac_scan_timeout(struct work_struct *work)
 	qtnf_mac_scan_finish(mac, true);
 }
 
+static void qtnf_vif_send_data_high_pri(struct work_struct *work)
+{
+	struct qtnf_vif *vif =
+		container_of(work, struct qtnf_vif, high_pri_tx_work);
+	struct sk_buff *skb;
+
+	if (!vif->netdev ||
+	    vif->wdev.iftype == NL80211_IFTYPE_UNSPECIFIED)
+		return;
+
+	while ((skb = skb_dequeue(&vif->high_pri_tx_queue))) {
+		qtnf_cmd_send_frame(vif, 0, QLINK_FRAME_TX_FLAG_8023,
+				    0, skb->data, skb->len);
+		dev_kfree_skb_any(skb);
+	}
+}
+
 static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 					     unsigned int macid)
 {
@@ -407,7 +418,8 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 		vif->mac = mac;
 		vif->vifid = i;
 		qtnf_sta_list_init(&vif->sta_list);
-
+		INIT_WORK(&vif->high_pri_tx_work, qtnf_vif_send_data_high_pri);
+		skb_queue_head_init(&vif->high_pri_tx_queue);
 		vif->stats64 = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 		if (!vif->stats64)
 			pr_warn("VIF%u.%u: per cpu stats allocation failed\n",
@@ -418,6 +430,11 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 	bus->mac[macid] = mac;
 
 	return mac;
+}
+
+bool qtnf_mac_slave_radar_get(struct wiphy *wiphy)
+{
+	return slave_radar;
 }
 
 static const struct ethtool_ops qtnf_ethtool_ops = {
@@ -511,6 +528,8 @@ static void qtnf_core_mac_detach(struct qtnf_bus *bus, unsigned int macid)
 	qtnf_mac_iface_comb_free(mac);
 	qtnf_mac_ext_caps_free(mac);
 	kfree(mac->macinfo.wowlan);
+	kfree(mac->rd);
+	mac->rd = NULL;
 	wiphy_free(wiphy);
 	bus->mac[macid] = NULL;
 }
@@ -545,7 +564,8 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 		goto error;
 	}
 
-	ret = qtnf_cmd_send_add_intf(vif, vif->wdev.iftype, vif->mac_addr);
+	ret = qtnf_cmd_send_add_intf(vif, vif->wdev.iftype,
+				     vif->wdev.use_4addr, vif->mac_addr);
 	if (ret) {
 		pr_err("MAC%u: failed to add VIF\n", macid);
 		goto error;
@@ -598,13 +618,18 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 	int ret;
 
 	qtnf_trans_init(bus);
-
-	bus->fw_state = QTNF_FW_STATE_BOOT_DONE;
 	qtnf_bus_data_rx_start(bus);
 
 	bus->workqueue = alloc_ordered_workqueue("QTNF_BUS", 0);
 	if (!bus->workqueue) {
 		pr_err("failed to alloc main workqueue\n");
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	bus->hprio_workqueue = alloc_workqueue("QTNF_HPRI", WQ_HIGHPRI, 0);
+	if (!bus->hprio_workqueue) {
+		pr_err("failed to alloc high prio workqueue\n");
 		ret = -ENOMEM;
 		goto error;
 	}
@@ -618,7 +643,6 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 	}
 
 	bus->fw_state = QTNF_FW_STATE_ACTIVE;
-
 	ret = qtnf_cmd_get_hw_info(bus);
 	if (ret) {
 		pr_err("failed to get HW info: %d\n", ret);
@@ -648,11 +672,11 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 		}
 	}
 
+	bus->fw_state = QTNF_FW_STATE_RUNNING;
 	return 0;
 
 error:
 	qtnf_core_detach(bus);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(qtnf_core_attach);
@@ -666,7 +690,7 @@ void qtnf_core_detach(struct qtnf_bus *bus)
 	for (macid = 0; macid < QTNF_MAX_MAC; macid++)
 		qtnf_core_mac_detach(bus, macid);
 
-	if (bus->fw_state == QTNF_FW_STATE_ACTIVE)
+	if (qtnf_fw_is_up(bus))
 		qtnf_cmd_send_deinit_fw(bus);
 
 	bus->fw_state = QTNF_FW_STATE_DETACHED;
@@ -674,10 +698,14 @@ void qtnf_core_detach(struct qtnf_bus *bus)
 	if (bus->workqueue) {
 		flush_workqueue(bus->workqueue);
 		destroy_workqueue(bus->workqueue);
+		bus->workqueue = NULL;
 	}
 
-	kfree(bus->hw_info.rd);
-	bus->hw_info.rd = NULL;
+	if (bus->hprio_workqueue) {
+		flush_workqueue(bus->hprio_workqueue);
+		destroy_workqueue(bus->hprio_workqueue);
+		bus->hprio_workqueue = NULL;
+	}
 
 	qtnf_trans_free(bus);
 }
@@ -694,6 +722,9 @@ struct net_device *qtnf_classify_skb(struct qtnf_bus *bus, struct sk_buff *skb)
 	struct net_device *ndev = NULL;
 	struct qtnf_wmac *mac;
 	struct qtnf_vif *vif;
+
+	if (unlikely(bus->fw_state != QTNF_FW_STATE_RUNNING))
+		return NULL;
 
 	meta = (struct qtnf_frame_meta_info *)
 		(skb_tail_pointer(skb) - sizeof(*meta));
@@ -809,6 +840,39 @@ void qtnf_update_tx_stats(struct net_device *ndev, const struct sk_buff *skb)
 	u64_stats_update_end(&stats64->syncp);
 }
 EXPORT_SYMBOL_GPL(qtnf_update_tx_stats);
+
+void qtnf_packet_send_hi_pri(struct sk_buff *skb)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(skb->dev);
+
+	skb_queue_tail(&vif->high_pri_tx_queue, skb);
+	queue_work(vif->mac->bus->hprio_workqueue, &vif->high_pri_tx_work);
+}
+EXPORT_SYMBOL_GPL(qtnf_packet_send_hi_pri);
+
+struct dentry *qtnf_get_debugfs_dir(void)
+{
+	return qtnf_debugfs_dir;
+}
+EXPORT_SYMBOL_GPL(qtnf_get_debugfs_dir);
+
+static int __init qtnf_core_register(void)
+{
+	qtnf_debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+
+	if (IS_ERR(qtnf_debugfs_dir))
+		qtnf_debugfs_dir = NULL;
+
+	return 0;
+}
+
+static void __exit qtnf_core_exit(void)
+{
+	debugfs_remove(qtnf_debugfs_dir);
+}
+
+module_init(qtnf_core_register);
+module_exit(qtnf_core_exit);
 
 MODULE_AUTHOR("Quantenna Communications");
 MODULE_DESCRIPTION("Quantenna 802.11 wireless LAN FullMAC driver.");

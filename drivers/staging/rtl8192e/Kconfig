@@ -1,9 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
 config RTLLIB
 	tristate "Support for rtllib wireless devices"
 	depends on WLAN && m
-	default n
 	select LIB80211
-	---help---
+	help
 	  If you have a wireless card that uses rtllib, say
 	  Y. Currently the only card is the rtl8192e.
 
@@ -15,8 +15,9 @@ config RTLLIB_CRYPTO_CCMP
 	tristate "Support for rtllib CCMP crypto"
 	depends on RTLLIB
 	select CRYPTO_AES
+	select CRYPTO_CCM
 	default y
-	---help---
+	help
 	  CCMP crypto driver for rtllib.
 
 	  If you enabled RTLLIB, you want this.
@@ -27,7 +28,7 @@ config RTLLIB_CRYPTO_TKIP
 	select CRYPTO_ARC4
 	select CRYPTO_MICHAEL_MIC
 	default y
-	---help---
+	help
 	  TKIP crypto driver for rtllib.
 
 	  If you enabled RTLLIB, you want this.
@@ -37,7 +38,7 @@ config RTLLIB_CRYPTO_WEP
 	select CRYPTO_ARC4
 	depends on RTLLIB
 	default y
-	---help---
+	help
 	  TKIP crypto driver for rtllib.
 
 	  If you enabled RTLLIB, you want this.

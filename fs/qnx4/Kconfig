@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config QNX4FS_FS
 	tristate "QNX4 file system support (read only)"
 	depends on BLOCK

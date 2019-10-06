@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /* Advanced  Micro Devices Inc. AMD8111E Linux Network Driver
  * Copyright (C) 2004 Advanced Micro Devices
- *
  *
  * Copyright 2001,2002 Jeff Garzik <jgarzik@mandrakesoft.com> [ 8139cp.c,tg3.c ]
  * Copyright (C) 2001, 2002 David S. Miller (davem@redhat.com)[ tg3.c]
@@ -12,19 +12,6 @@
  * Carsten Langgaard, carstenl@mips.com [ pcnet32.c ]
  * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
  *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 Module Name:
 
@@ -435,7 +422,7 @@ static int amd8111e_restart(struct net_device *dev)
 	int i,reg_val;
 
 	/* stop the chip */
-	 writel(RUN, mmio + CMD0);
+	writel(RUN, mmio + CMD0);
 
 	if(amd8111e_init_ring(dev))
 		return -ENOMEM;
@@ -1720,7 +1707,7 @@ static void amd8111e_config_ipg(struct timer_list *t)
 		writew((u32)tmp_ipg, mmio + IPG);
 		writew((u32)(tmp_ipg - IFS1_DELTA), mmio + IFS1);
 	}
-	 mod_timer(&lp->ipg_data.ipg_timer, jiffies + IPG_CONVERGE_JIFFIES);
+	mod_timer(&lp->ipg_data.ipg_timer, jiffies + IPG_CONVERGE_JIFFIES);
 	return;
 
 }

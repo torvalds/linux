@@ -464,11 +464,14 @@ enum {
 struct fwnode_handle;
 struct ethtool_eeprom;
 struct ethtool_modinfo;
-struct net_device;
 struct sfp_bus;
 
 /**
  * struct sfp_upstream_ops - upstream operations structure
+ * @attach: called when the sfp socket driver is bound to the upstream
+ *   (mandatory).
+ * @detach: called when the sfp socket driver is unbound from the upstream
+ *   (mandatory).
  * @module_insert: called after a module has been detected to determine
  *   whether the module is supported for the upstream device.
  * @module_remove: called after the module has been removed.
@@ -481,6 +484,8 @@ struct sfp_bus;
  *   been removed.
  */
 struct sfp_upstream_ops {
+	void (*attach)(void *priv, struct sfp_bus *bus);
+	void (*detach)(void *priv, struct sfp_bus *bus);
 	int (*module_insert)(void *priv, const struct sfp_eeprom_id *id);
 	void (*module_remove)(void *priv);
 	void (*link_down)(void *priv);
@@ -504,7 +509,7 @@ int sfp_get_module_eeprom(struct sfp_bus *bus, struct ethtool_eeprom *ee,
 void sfp_upstream_start(struct sfp_bus *bus);
 void sfp_upstream_stop(struct sfp_bus *bus);
 struct sfp_bus *sfp_register_upstream(struct fwnode_handle *fwnode,
-				      struct net_device *ndev, void *upstream,
+				      void *upstream,
 				      const struct sfp_upstream_ops *ops);
 void sfp_unregister_upstream(struct sfp_bus *bus);
 #else
@@ -549,8 +554,7 @@ static inline void sfp_upstream_stop(struct sfp_bus *bus)
 }
 
 static inline struct sfp_bus *sfp_register_upstream(
-	struct fwnode_handle *fwnode,
-	struct net_device *ndev, void *upstream,
+	struct fwnode_handle *fwnode, void *upstream,
 	const struct sfp_upstream_ops *ops)
 {
 	return (struct sfp_bus *)-1;

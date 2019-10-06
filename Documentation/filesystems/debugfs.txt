@@ -31,10 +31,10 @@ This call, if successful, will make a directory called name underneath the
 indicated parent directory.  If parent is NULL, the directory will be
 created in the debugfs root.  On success, the return value is a struct
 dentry pointer which can be used to create files in the directory (and to
-clean it up at the end).  A NULL return value indicates that something went
-wrong.  If ERR_PTR(-ENODEV) is returned, that is an indication that the
-kernel has been built without debugfs support and none of the functions
-described below will work.
+clean it up at the end).  An ERR_PTR(-ERROR) return value indicates that
+something went wrong.  If ERR_PTR(-ENODEV) is returned, that is an
+indication that the kernel has been built without debugfs support and none
+of the functions described below will work.
 
 The most general way to create a file within a debugfs directory is with:
 
@@ -48,8 +48,9 @@ should hold the file, data will be stored in the i_private field of the
 resulting inode structure, and fops is a set of file operations which
 implement the file's behavior.  At a minimum, the read() and/or write()
 operations should be provided; others can be included as needed.  Again,
-the return value will be a dentry pointer to the created file, NULL for
-error, or ERR_PTR(-ENODEV) if debugfs support is missing.
+the return value will be a dentry pointer to the created file,
+ERR_PTR(-ERROR) on error, or ERR_PTR(-ENODEV) if debugfs support is
+missing.
 
 Create a file with an initial size, the following function can be used
 instead:
@@ -168,7 +169,7 @@ byte offsets over a base for the register block.
 
 If you want to dump an u32 array in debugfs, you can create file with:
 
-    struct dentry *debugfs_create_u32_array(const char *name, umode_t mode,
+    void debugfs_create_u32_array(const char *name, umode_t mode,
 			struct dentry *parent,
 			u32 *array, u32 elements);
 
@@ -214,7 +215,8 @@ can be removed with:
 
     void debugfs_remove(struct dentry *dentry);
 
-The dentry value can be NULL, in which case nothing will be removed.
+The dentry value can be NULL or an error value, in which case nothing will
+be removed.
 
 Once upon a time, debugfs users were required to remember the dentry
 pointer for every debugfs file they created so that all files could be

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config FS_ENET
        tristate "Freescale Ethernet Driver"
        depends on NET_VENDOR_FREESCALE && (CPM1 || CPM2 || PPC_MPC512x)

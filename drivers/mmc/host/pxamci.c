@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/mmc/host/pxa.c - PXA MMCI driver
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  This hardware is really sick:
  *   - No way to clear interrupts.
@@ -35,7 +32,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include <mach/hardware.h>
 #include <linux/platform_data/mmc-pxamci.h>
@@ -162,7 +159,7 @@ static void pxamci_dma_irq(void *param);
 static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 {
 	struct dma_async_tx_descriptor *tx;
-	enum dma_data_direction direction;
+	enum dma_transfer_direction direction;
 	struct dma_slave_config	config;
 	struct dma_chan *chan;
 	unsigned int nob = data->blocks;
@@ -743,7 +740,7 @@ static int pxamci_probe(struct platform_device *pdev)
 			goto out;
 		}
 
-		ret = mmc_gpiod_request_ro(mmc, "wp", 0, false, 0, NULL);
+		ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0, NULL);
 		if (ret && ret != -ENOENT) {
 			dev_err(dev, "Failed requesting gpio_ro\n");
 			goto out;

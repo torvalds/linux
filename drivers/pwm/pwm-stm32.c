@@ -440,7 +440,7 @@ static void stm32_pwm_disable(struct stm32_pwm *priv, int ch)
 }
 
 static int stm32_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			   struct pwm_state *state)
+			   const struct pwm_state *state)
 {
 	bool enabled;
 	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
@@ -468,7 +468,7 @@ static int stm32_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 }
 
 static int stm32_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *pwm,
-				  struct pwm_state *state)
+				  const struct pwm_state *state)
 {
 	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
 	int ret;
@@ -608,6 +608,8 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 	priv->regmap = ddata->regmap;
 	priv->clk = ddata->clk;
 	priv->max_arr = ddata->max_arr;
+	priv->chip.of_xlate = of_pwm_xlate_with_flags;
+	priv->chip.of_pwm_n_cells = 3;
 
 	if (!priv->regmap || !priv->clk)
 		return -EINVAL;

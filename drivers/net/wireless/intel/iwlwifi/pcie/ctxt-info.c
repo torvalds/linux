@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -20,7 +20,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,8 +59,7 @@
 
 void iwl_pcie_ctxt_info_free_paging(struct iwl_trans *trans)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_self_init_dram *dram = &trans_pcie->init_dram;
+	struct iwl_self_init_dram *dram = &trans->init_dram;
 	int i;
 
 	if (!dram->paging) {
@@ -83,8 +82,7 @@ int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
 			 const struct fw_img *fw,
 			 struct iwl_context_info_dram *ctxt_dram)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_self_init_dram *dram = &trans_pcie->init_dram;
+	struct iwl_self_init_dram *dram = &trans->init_dram;
 	int i, ret, lmac_cnt, umac_cnt, paging_cnt;
 
 	if (WARN(dram->paging,
@@ -212,7 +210,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 	ctxt_info->hcmd_cfg.cmd_queue_addr =
 		cpu_to_le64(trans_pcie->txq[trans_pcie->cmd_queue]->dma_addr);
 	ctxt_info->hcmd_cfg.cmd_queue_size =
-		TFD_QUEUE_CB_SIZE(TFD_CMD_SLOTS);
+		TFD_QUEUE_CB_SIZE(IWL_CMD_QUEUE_SIZE);
 
 	/* allocate ucode sections in dram and set addresses */
 	ret = iwl_pcie_init_fw_sec(trans, fw, &ctxt_info->dram);
@@ -224,7 +222,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 
 	trans_pcie->ctxt_info = ctxt_info;
 
-	iwl_enable_interrupts(trans);
+	iwl_enable_fw_load_int_ctx_info(trans);
 
 	/* Configure debug, if exists */
 	if (iwl_pcie_dbg_on(trans))

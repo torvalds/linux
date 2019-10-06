@@ -34,13 +34,6 @@
 #include "pseudo_lock_event.h"
 
 /*
- * MSR_MISC_FEATURE_CONTROL register enables the modification of hardware
- * prefetcher state. Details about this register can be found in the MSR
- * tables for specific platforms found in Intel's SDM.
- */
-#define MSR_MISC_FEATURE_CONTROL	0x000001a4
-
-/*
  * The bits needed to disable hardware prefetching varies based on the
  * platform. During initialization we will discover which bits to use.
  */
@@ -438,11 +431,7 @@ static int pseudo_lock_fn(void *_rdtgrp)
 #else
 	register unsigned int line_size asm("esi");
 	register unsigned int size asm("edi");
-#ifdef CONFIG_X86_64
-	register void *mem_r asm("rbx");
-#else
-	register void *mem_r asm("ebx");
-#endif /* CONFIG_X86_64 */
+	register void *mem_r asm(_ASM_BX);
 #endif /* CONFIG_KASAN */
 
 	/*
@@ -1510,7 +1499,7 @@ static int pseudo_lock_dev_mmap(struct file *filp, struct vm_area_struct *vma)
 	 * may be scheduled elsewhere and invalidate entries in the
 	 * pseudo-locked region.
 	 */
-	if (!cpumask_subset(&current->cpus_allowed, &plr->d->cpu_mask)) {
+	if (!cpumask_subset(current->cpus_ptr, &plr->d->cpu_mask)) {
 		mutex_unlock(&rdtgroup_mutex);
 		return -EINVAL;
 	}

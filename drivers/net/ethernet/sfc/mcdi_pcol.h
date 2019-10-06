@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2009-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 
@@ -6784,6 +6781,14 @@
  * subset of the information stored in this partition.
  */
 #define          NVRAM_PARTITION_TYPE_FRU_INFORMATION 0x1d00
+/* enum: Bundle image partition */
+#define          NVRAM_PARTITION_TYPE_BUNDLE 0x1e00
+/* enum: Bundle metadata partition that holds additional information related to
+ * a bundle update in TLV format
+ */
+#define          NVRAM_PARTITION_TYPE_BUNDLE_METADATA 0x1e01
+/* enum: Bundle update non-volatile log output partition */
+#define          NVRAM_PARTITION_TYPE_BUNDLE_LOG 0x1e02
 /* enum: Start of reserved value range (firmware may use for any purpose) */
 #define          NVRAM_PARTITION_TYPE_RESERVED_VALUES_MIN 0xff00
 /* enum: End of reserved value range (firmware may use for any purpose) */

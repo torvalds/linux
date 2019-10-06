@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -265,6 +266,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 
 		tw->tw_transparent	= inet->transparent;
 		tw->tw_mark		= sk->sk_mark;
+		tw->tw_priority		= sk->sk_priority;
 		tw->tw_rcv_wscale	= tp->rx_opt.rcv_wscale;
 		tcptw->tw_rcv_nxt	= tp->rcv_nxt;
 		tcptw->tw_snd_nxt	= tp->snd_nxt;
@@ -273,7 +275,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		tcptw->tw_ts_recent_stamp = tp->rx_opt.ts_recent_stamp;
 		tcptw->tw_ts_offset	= tp->tsoffset;
 		tcptw->tw_last_oow_ack_time = 0;
-
+		tcptw->tw_tx_delay	= tp->tcp_tx_delay;
 #if IS_ENABLED(CONFIG_IPV6)
 		if (tw->tw_family == PF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
@@ -282,6 +284,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			tw->tw_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 			tw->tw_tclass = np->tclass;
 			tw->tw_flowlabel = be32_to_cpu(np->flow_label & IPV6_FLOWLABEL_MASK);
+			tw->tw_txhash = sk->sk_txhash;
 			tw->tw_ipv6only = sk->sk_ipv6only;
 		}
 #endif
@@ -294,12 +297,15 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		 * so the timewait ack generating code has the key.
 		 */
 		do {
-			struct tcp_md5sig_key *key;
 			tcptw->tw_md5_key = NULL;
-			key = tp->af_specific->md5_lookup(sk, sk);
-			if (key) {
-				tcptw->tw_md5_key = kmemdup(key, sizeof(*key), GFP_ATOMIC);
-				BUG_ON(tcptw->tw_md5_key && !tcp_alloc_md5sig_pool());
+			if (static_branch_unlikely(&tcp_md5_needed)) {
+				struct tcp_md5sig_key *key;
+
+				key = tp->af_specific->md5_lookup(sk, sk);
+				if (key) {
+					tcptw->tw_md5_key = kmemdup(key, sizeof(*key), GFP_ATOMIC);
+					BUG_ON(tcptw->tw_md5_key && !tcp_alloc_md5sig_pool());
+				}
 			}
 		} while (0);
 #endif
@@ -338,10 +344,12 @@ EXPORT_SYMBOL(tcp_time_wait);
 void tcp_twsk_destructor(struct sock *sk)
 {
 #ifdef CONFIG_TCP_MD5SIG
-	struct tcp_timewait_sock *twsk = tcp_twsk(sk);
+	if (static_branch_unlikely(&tcp_md5_needed)) {
+		struct tcp_timewait_sock *twsk = tcp_twsk(sk);
 
-	if (twsk->tw_md5_key)
-		kfree_rcu(twsk->tw_md5_key, rcu);
+		if (twsk->tw_md5_key)
+			kfree_rcu(twsk->tw_md5_key, rcu);
+	}
 #endif
 }
 EXPORT_SYMBOL_GPL(tcp_twsk_destructor);
@@ -479,42 +487,15 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 
 	tcp_init_wl(newtp, treq->rcv_isn);
 
-	newtp->srtt_us = 0;
-	newtp->mdev_us = jiffies_to_usecs(TCP_TIMEOUT_INIT);
 	minmax_reset(&newtp->rtt_min, tcp_jiffies32, ~0U);
-	newicsk->icsk_rto = TCP_TIMEOUT_INIT;
 	newicsk->icsk_ack.lrcvtime = tcp_jiffies32;
 
-	newtp->packets_out = 0;
-	newtp->retrans_out = 0;
-	newtp->sacked_out = 0;
-	newtp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
-	newtp->tlp_high_seq = 0;
 	newtp->lsndtime = tcp_jiffies32;
 	newsk->sk_txhash = treq->txhash;
-	newtp->last_oow_ack_time = 0;
 	newtp->total_retrans = req->num_retrans;
-
-	/* So many TCP implementations out there (incorrectly) count the
-	 * initial SYN frame in their delayed-ACK and congestion control
-	 * algorithms that we must have the following bandaid to talk
-	 * efficiently to them.  -DaveM
-	 */
-	newtp->snd_cwnd = TCP_INIT_CWND;
-	newtp->snd_cwnd_cnt = 0;
-
-	/* There's a bubble in the pipe until at least the first ACK. */
-	newtp->app_limited = ~0U;
 
 	tcp_init_xmit_timers(newsk);
 	newtp->write_seq = newtp->pushed_seq = treq->snt_isn + 1;
-
-	newtp->rx_opt.saw_tstamp = 0;
-
-	newtp->rx_opt.dsack = 0;
-	newtp->rx_opt.num_sacks = 0;
-
-	newtp->urg_data = 0;
 
 	if (sock_flag(newsk, SOCK_KEEPOPEN))
 		inet_csk_reset_keepalive_timer(newsk,
@@ -544,6 +525,11 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		newtp->rx_opt.ts_recent_stamp = 0;
 		newtp->tcp_header_len = sizeof(struct tcphdr);
 	}
+	if (req->num_timeout) {
+		newtp->undo_marker = treq->snt_isn;
+		newtp->retrans_stamp = div_u64(treq->snt_synack,
+					       USEC_PER_SEC / TCP_TS_HZ);
+	}
 	newtp->tsoffset = treq->ts_off;
 #ifdef CONFIG_TCP_MD5SIG
 	newtp->md5sig_info = NULL;	/*XXX*/
@@ -556,13 +542,6 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	tcp_ecn_openreq_child(newtp, req);
 	newtp->fastopen_req = NULL;
 	newtp->fastopen_rsk = NULL;
-	newtp->syn_data_acked = 0;
-	newtp->rack.mstamp = 0;
-	newtp->rack.advanced = 0;
-	newtp->rack.reo_wnd_steps = 1;
-	newtp->rack.last_delivered = 0;
-	newtp->rack.reo_wnd_persist = 0;
-	newtp->rack.dsack_seen = 0;
 
 	__TCP_INC_STATS(sock_net(sk), TCP_MIB_PASSIVEOPENS);
 

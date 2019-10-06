@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2016 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation (the "GPL").
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License version 2 (GPLv2) for more details.
- *
- * You should have received a copy of the GNU General Public License
- * version 2 (GPLv2) along with this source code.
  */
 
 #include <linux/debugfs.h>
@@ -201,46 +190,6 @@ struct sdesc {
 	char ctx[];
 };
 
-/* do a synchronous decrypt operation */
-int do_decrypt(char *alg_name,
-	       void *key_ptr, unsigned int key_len,
-	       void *iv_ptr, void *src_ptr, void *dst_ptr,
-	       unsigned int block_len)
-{
-	struct scatterlist sg_in[1], sg_out[1];
-	struct crypto_blkcipher *tfm =
-	    crypto_alloc_blkcipher(alg_name, 0, CRYPTO_ALG_ASYNC);
-	struct blkcipher_desc desc = {.tfm = tfm, .flags = 0 };
-	int ret = 0;
-	void *iv;
-	int ivsize;
-
-	flow_log("%s() name:%s block_len:%u\n", __func__, alg_name, block_len);
-
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
-
-	crypto_blkcipher_setkey((void *)tfm, key_ptr, key_len);
-
-	sg_init_table(sg_in, 1);
-	sg_set_buf(sg_in, src_ptr, block_len);
-
-	sg_init_table(sg_out, 1);
-	sg_set_buf(sg_out, dst_ptr, block_len);
-
-	iv = crypto_blkcipher_crt(tfm)->iv;
-	ivsize = crypto_blkcipher_ivsize(tfm);
-	memcpy(iv, iv_ptr, ivsize);
-
-	ret = crypto_blkcipher_decrypt(&desc, sg_out, sg_in, block_len);
-	crypto_free_blkcipher(tfm);
-
-	if (ret < 0)
-		pr_err("aes_decrypt failed %d\n", ret);
-
-	return ret;
-}
-
 /**
  * do_shash() - Do a synchronous hash operation in software
  * @name:       The name of the hash algorithm
@@ -282,7 +231,6 @@ int do_shash(unsigned char *name, unsigned char *result,
 		goto do_shash_err;
 	}
 	sdesc->shash.tfm = hash;
-	sdesc->shash.flags = 0x0;
 
 	if (key_len > 0) {
 		rc = crypto_shash_setkey(hash, key, key_len);

@@ -1,15 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Samsung Electronics Co., Ltd.
  * MyungJoo Ham <myungjoo.ham@samsung.com>
  *
  * This driver enables to monitor battery health and control charger
  * during suspend-to-mem.
- * Charger manager depends on other devices. register this later than
+ * Charger manager depends on other devices. Register this later than
  * the depending devices.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 **/
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -29,7 +27,7 @@
 #include <linux/thermal.h>
 
 /*
- * Default termperature threshold for charging.
+ * Default temperature threshold for charging.
  * Every temperature units are in tenth of centigrade.
  */
 #define CM_DEFAULT_RECHARGE_TEMP_DIFF	50
@@ -356,7 +354,7 @@ static bool is_polling_required(struct charger_manager *cm)
  * Note that Charger Manager keeps the charger enabled regardless whether
  * the charger is charging or not (because battery is full or no external
  * power source exists) except when CM needs to disable chargers forcibly
- * bacause of emergency causes; when the battery is overheated or too cold.
+ * because of emergency causes; when the battery is overheated or too cold.
  */
 static int try_charger_enable(struct charger_manager *cm, bool enable)
 {
@@ -643,7 +641,7 @@ static int cm_check_thermal_status(struct charger_manager *cm)
 	if (ret) {
 		/* FIXME:
 		 * No information of battery temperature might
-		 * occur hazadous result. We have to handle it
+		 * occur hazardous result. We have to handle it
 		 * depending on battery type.
 		 */
 		dev_err(cm->dev, "Failed to get battery temperature\n");
@@ -693,7 +691,7 @@ static bool _cm_monitor(struct charger_manager *cm)
 			uevent_notify(cm, default_event_names[temp_alrt]);
 
 	/*
-	 * Check whole charging duration and discharing duration
+	 * Check whole charging duration and discharging duration
 	 * after full-batt.
 	 */
 	} else if (!cm->emergency_stop && check_charging_duration(cm)) {
@@ -866,7 +864,7 @@ static void battout_handler(struct charger_manager *cm)
 }
 
 /**
- * misc_event_handler - Handler for other evnets
+ * misc_event_handler - Handler for other events
  * @cm: the Charger Manager representing the battery.
  * @type: the Charger Manager representing the battery.
  */
@@ -1218,7 +1216,7 @@ static int charger_extcon_init(struct charger_manager *cm,
 }
 
 /**
- * charger_manager_register_extcon - Register extcon device to recevie state
+ * charger_manager_register_extcon - Register extcon device to receive state
  *				     of charger cable.
  * @cm: the Charger Manager representing the battery.
  *
@@ -1538,7 +1536,7 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 	of_property_read_u32(np, "cm-discharging-max",
 				&desc->discharging_max_duration_ms);
 
-	/* battery charger regualtors */
+	/* battery charger regulators */
 	desc->num_charger_regulators = of_get_child_count(np);
 	if (desc->num_charger_regulators) {
 		struct charger_regulator *chg_regs;
@@ -1801,7 +1799,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 
 	/*
 	 * Charger-manager have to check the charging state right after
-	 * tialization of charger-manager and then update current charging
+	 * initialization of charger-manager and then update current charging
 	 * state.
 	 */
 	cm_monitor();
@@ -1987,6 +1985,9 @@ static struct platform_driver charger_manager_driver = {
 static int __init charger_manager_init(void)
 {
 	cm_wq = create_freezable_workqueue("charger_manager");
+	if (unlikely(!cm_wq))
+		return -ENOMEM;
+
 	INIT_DELAYED_WORK(&cm_monitor_work, cm_monitor_poller);
 
 	return platform_driver_register(&charger_manager_driver);

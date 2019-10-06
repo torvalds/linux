@@ -9,29 +9,21 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
 #include "xfs_btree.h"
-#include "xfs_bit.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_inode.h"
-#include "xfs_icache.h"
 #include "xfs_alloc.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc.h"
 #include "xfs_ialloc_btree.h"
 #include "xfs_rmap.h"
 #include "xfs_rmap_btree.h"
-#include "xfs_refcount.h"
 #include "xfs_refcount_btree.h"
 #include "xfs_extent_busy.h"
 #include "xfs_ag_resv.h"
-#include "xfs_trans_space.h"
 #include "xfs_quota.h"
-#include "xfs_attr.h"
-#include "xfs_reflink.h"
-#include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -46,8 +38,7 @@
 int
 xrep_attempt(
 	struct xfs_inode	*ip,
-	struct xfs_scrub	*sc,
-	bool			*fixed)
+	struct xfs_scrub	*sc)
 {
 	int			error = 0;
 
@@ -66,13 +57,13 @@ xrep_attempt(
 		 * scrub so that we can tell userspace if we fixed the problem.
 		 */
 		sc->sm->sm_flags &= ~XFS_SCRUB_FLAGS_OUT;
-		*fixed = true;
+		sc->flags |= XREP_ALREADY_FIXED;
 		return -EAGAIN;
 	case -EDEADLOCK:
 	case -EAGAIN:
 		/* Tell the caller to try again having grabbed all the locks. */
-		if (!sc->try_harder) {
-			sc->try_harder = true;
+		if (!(sc->flags & XCHK_TRY_HARDER)) {
+			sc->flags |= XCHK_TRY_HARDER;
 			return -EAGAIN;
 		}
 		/*
@@ -137,10 +128,16 @@ xrep_roll_ag_trans(
 	if (sc->sa.agfl_bp)
 		xfs_trans_bhold(sc->tp, sc->sa.agfl_bp);
 
-	/* Roll the transaction. */
+	/*
+	 * Roll the transaction.  We still own the buffer and the buffer lock
+	 * regardless of whether or not the roll succeeds.  If the roll fails,
+	 * the buffers will be released during teardown on our way out of the
+	 * kernel.  If it succeeds, we join them to the new transaction and
+	 * move on.
+	 */
 	error = xfs_trans_roll(&sc->tp);
 	if (error)
-		goto out_release;
+		return error;
 
 	/* Join AG headers to the new transaction. */
 	if (sc->sa.agi_bp)
@@ -151,21 +148,6 @@ xrep_roll_ag_trans(
 		xfs_trans_bjoin(sc->tp, sc->sa.agfl_bp);
 
 	return 0;
-
-out_release:
-	/*
-	 * Rolling failed, so release the hold on the buffers.  The
-	 * buffers will be released during teardown on our way out
-	 * of the kernel.
-	 */
-	if (sc->sa.agi_bp)
-		xfs_trans_bhold_release(sc->tp, sc->sa.agi_bp);
-	if (sc->sa.agf_bp)
-		xfs_trans_bhold_release(sc->tp, sc->sa.agf_bp);
-	if (sc->sa.agfl_bp)
-		xfs_trans_bhold_release(sc->tp, sc->sa.agfl_bp);
-
-	return error;
 }
 
 /*
@@ -367,9 +349,9 @@ xrep_init_btblock(
 	bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, XFS_FSB_TO_DADDR(mp, fsb),
 			XFS_FSB_TO_BB(mp, 1), 0);
 	xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
-	xfs_btree_init_block(mp, bp, btnum, 0, 0, sc->sa.agno, 0);
+	xfs_btree_init_block(mp, bp, btnum, 0, 0, sc->sa.agno);
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_BTREE_BUF);
-	xfs_trans_log_buf(tp, bp, 0, bp->b_length);
+	xfs_trans_log_buf(tp, bp, 0, BBTOB(bp->b_length) - 1);
 	bp->b_ops = ops;
 	*bpp = bp;
 
@@ -682,7 +664,7 @@ xrep_findroot_agfl_walk(
 {
 	xfs_agblock_t		*agbno = priv;
 
-	return (*agbno == bno) ? XFS_BTREE_QUERY_RANGE_ABORT : 0;
+	return (*agbno == bno) ? -ECANCELED : 0;
 }
 
 /* Does this block match the btree information passed in? */
@@ -712,7 +694,7 @@ xrep_findroot_block(
 	if (owner == XFS_RMAP_OWN_AG) {
 		error = xfs_agfl_walk(mp, ri->agf, ri->agfl_bp,
 				xrep_findroot_agfl_walk, &agbno);
-		if (error == XFS_BTREE_QUERY_RANGE_ABORT)
+		if (error == -ECANCELED)
 			return 0;
 		if (error)
 			return error;
@@ -743,7 +725,8 @@ xrep_findroot_block(
 
 	/* Ensure the block magic matches the btree type we're looking for. */
 	btblock = XFS_BUF_TO_BLOCK(bp);
-	if (be32_to_cpu(btblock->bb_magic) != fab->magic)
+	ASSERT(fab->buf_ops->magic[1] != 0);
+	if (btblock->bb_magic != fab->buf_ops->magic[1])
 		goto out;
 
 	/*

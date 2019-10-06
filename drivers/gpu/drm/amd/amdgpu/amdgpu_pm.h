@@ -32,8 +32,11 @@ struct cg_flag_name
 
 void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev);
 int amdgpu_pm_sysfs_init(struct amdgpu_device *adev);
+int amdgpu_pm_virt_sysfs_init(struct amdgpu_device *adev);
 void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev);
+void amdgpu_pm_virt_sysfs_fini(struct amdgpu_device *adev);
 void amdgpu_pm_print_power_states(struct amdgpu_device *adev);
+int amdgpu_pm_load_smu_firmware(struct amdgpu_device *adev, uint32_t *smu_version);
 void amdgpu_pm_compute_clocks(struct amdgpu_device *adev);
 void amdgpu_dpm_thermal_work_handler(struct work_struct *work);
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable);

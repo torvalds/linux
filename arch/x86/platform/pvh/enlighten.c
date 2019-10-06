@@ -44,8 +44,6 @@ void __init __weak mem_map_via_hcall(struct boot_params *ptr __maybe_unused)
 
 static void __init init_pvh_bootparams(bool xen_guest)
 {
-	memset(&pvh_bootparams, 0, sizeof(pvh_bootparams));
-
 	if ((pvh_start_info.version > 0) && (pvh_start_info.memmap_entries)) {
 		struct hvm_memmap_table_entry *ep;
 		int i;
@@ -88,7 +86,7 @@ static void __init init_pvh_bootparams(bool xen_guest)
 	}
 
 	/*
-	 * See Documentation/x86/boot.txt.
+	 * See Documentation/x86/boot.rst.
 	 *
 	 * Version 2.12 supports Xen entry point but we will use default x86/PC
 	 * environment (i.e. hardware_subarch 0).
@@ -103,7 +101,7 @@ static void __init init_pvh_bootparams(bool xen_guest)
  * If we are trying to boot a Xen PVH guest, it is expected that the kernel
  * will have been configured to provide the required override for this routine.
  */
-void __init __weak xen_pvh_init(void)
+void __init __weak xen_pvh_init(struct boot_params *boot_params)
 {
 	xen_raw_printk("Error: Missing xen PVH initialization\n");
 	BUG();
@@ -112,7 +110,7 @@ void __init __weak xen_pvh_init(void)
 static void hypervisor_specific_init(bool xen_guest)
 {
 	if (xen_guest)
-		xen_pvh_init();
+		xen_pvh_init(&pvh_bootparams);
 }
 
 /*
@@ -130,6 +128,8 @@ void __init xen_prepare_pvh(void)
 				pvh_start_info.magic);
 		BUG();
 	}
+
+	memset(&pvh_bootparams, 0, sizeof(pvh_bootparams));
 
 	hypervisor_specific_init(xen_guest);
 

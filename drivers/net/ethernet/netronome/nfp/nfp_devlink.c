@@ -4,6 +4,7 @@
 #include <linux/rtnetlink.h>
 #include <net/devlink.h>
 
+#include "nfpcore/nfp.h"
 #include "nfpcore/nfp_nsp.h"
 #include "nfp_app.h"
 #include "nfp_main.h"
@@ -143,7 +144,8 @@ nfp_devlink_sb_pool_get(struct devlink *devlink, unsigned int sb_index,
 static int
 nfp_devlink_sb_pool_set(struct devlink *devlink, unsigned int sb_index,
 			u16 pool_index,
-			u32 size, enum devlink_sb_threshold_type threshold_type)
+			u32 size, enum devlink_sb_threshold_type threshold_type,
+			struct netlink_ext_ack *extack)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
 
@@ -171,6 +173,173 @@ static int nfp_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	return ret;
 }
 
+static const struct nfp_devlink_versions_simple {
+	const char *key;
+	const char *hwinfo;
+} nfp_devlink_versions_hwinfo[] = {
+	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_ID,	"assembly.partno", },
+	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_REV,	"assembly.revision", },
+	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_MANUFACTURE, "assembly.vendor", },
+	{ "board.model", /* code name */		"assembly.model", },
+};
+
+static int
+nfp_devlink_versions_get_hwinfo(struct nfp_pf *pf, struct devlink_info_req *req)
+{
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < ARRAY_SIZE(nfp_devlink_versions_hwinfo); i++) {
+		const struct nfp_devlink_versions_simple *info;
+		const char *val;
+
+		info = &nfp_devlink_versions_hwinfo[i];
+
+		val = nfp_hwinfo_lookup(pf->hwinfo, info->hwinfo);
+		if (!val)
+			continue;
+
+		err = devlink_info_version_fixed_put(req, info->key, val);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static const struct nfp_devlink_versions {
+	enum nfp_nsp_versions id;
+	const char *key;
+} nfp_devlink_versions_nsp[] = {
+	{ NFP_VERSIONS_BUNDLE,	"fw.bundle_id", },
+	{ NFP_VERSIONS_BSP,	DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, },
+	{ NFP_VERSIONS_CPLD,	"fw.cpld", },
+	{ NFP_VERSIONS_APP,	DEVLINK_INFO_VERSION_GENERIC_FW_APP, },
+	{ NFP_VERSIONS_UNDI,	DEVLINK_INFO_VERSION_GENERIC_FW_UNDI, },
+	{ NFP_VERSIONS_NCSI,	DEVLINK_INFO_VERSION_GENERIC_FW_NCSI, },
+	{ NFP_VERSIONS_CFGR,	"chip.init", },
+};
+
+static int
+nfp_devlink_versions_get_nsp(struct devlink_info_req *req, bool flash,
+			     const u8 *buf, unsigned int size)
+{
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < ARRAY_SIZE(nfp_devlink_versions_nsp); i++) {
+		const struct nfp_devlink_versions *info;
+		const char *version;
+
+		info = &nfp_devlink_versions_nsp[i];
+
+		version = nfp_nsp_versions_get(info->id, flash, buf, size);
+		if (IS_ERR(version)) {
+			if (PTR_ERR(version) == -ENOENT)
+				continue;
+			else
+				return PTR_ERR(version);
+		}
+
+		if (flash)
+			err = devlink_info_version_stored_put(req, info->key,
+							      version);
+		else
+			err = devlink_info_version_running_put(req, info->key,
+							       version);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int
+nfp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
+		     struct netlink_ext_ack *extack)
+{
+	struct nfp_pf *pf = devlink_priv(devlink);
+	const char *sn, *vendor, *part;
+	struct nfp_nsp *nsp;
+	char *buf = NULL;
+	int err;
+
+	err = devlink_info_driver_name_put(req, "nfp");
+	if (err)
+		return err;
+
+	vendor = nfp_hwinfo_lookup(pf->hwinfo, "assembly.vendor");
+	part = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partno");
+	sn = nfp_hwinfo_lookup(pf->hwinfo, "assembly.serial");
+	if (vendor && part && sn) {
+		char *buf;
+
+		buf = kmalloc(strlen(vendor) + strlen(part) + strlen(sn) + 1,
+			      GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+
+		buf[0] = '\0';
+		strcat(buf, vendor);
+		strcat(buf, part);
+		strcat(buf, sn);
+
+		err = devlink_info_serial_number_put(req, buf);
+		kfree(buf);
+		if (err)
+			return err;
+	}
+
+	nsp = nfp_nsp_open(pf->cpp);
+	if (IS_ERR(nsp)) {
+		NL_SET_ERR_MSG_MOD(extack, "can't access NSP");
+		return PTR_ERR(nsp);
+	}
+
+	if (nfp_nsp_has_versions(nsp)) {
+		buf = kzalloc(NFP_NSP_VERSION_BUFSZ, GFP_KERNEL);
+		if (!buf) {
+			err = -ENOMEM;
+			goto err_close_nsp;
+		}
+
+		err = nfp_nsp_versions(nsp, buf, NFP_NSP_VERSION_BUFSZ);
+		if (err)
+			goto err_free_buf;
+
+		err = nfp_devlink_versions_get_nsp(req, false,
+						   buf, NFP_NSP_VERSION_BUFSZ);
+		if (err)
+			goto err_free_buf;
+
+		err = nfp_devlink_versions_get_nsp(req, true,
+						   buf, NFP_NSP_VERSION_BUFSZ);
+		if (err)
+			goto err_free_buf;
+
+		kfree(buf);
+	}
+
+	nfp_nsp_close(nsp);
+
+	return nfp_devlink_versions_get_hwinfo(pf, req);
+
+err_free_buf:
+	kfree(buf);
+err_close_nsp:
+	nfp_nsp_close(nsp);
+	return err;
+}
+
+static int
+nfp_devlink_flash_update(struct devlink *devlink, const char *path,
+			 const char *component, struct netlink_ext_ack *extack)
+{
+	if (component)
+		return -EOPNOTSUPP;
+	return nfp_flash_update_common(devlink_priv(devlink), path, extack);
+}
+
 const struct devlink_ops nfp_devlink_ops = {
 	.port_split		= nfp_devlink_port_split,
 	.port_unsplit		= nfp_devlink_port_unsplit,
@@ -178,12 +347,16 @@ const struct devlink_ops nfp_devlink_ops = {
 	.sb_pool_set		= nfp_devlink_sb_pool_set,
 	.eswitch_mode_get	= nfp_devlink_eswitch_mode_get,
 	.eswitch_mode_set	= nfp_devlink_eswitch_mode_set,
+	.info_get		= nfp_devlink_info_get,
+	.flash_update		= nfp_devlink_flash_update,
 };
 
 int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)
 {
 	struct nfp_eth_table_port eth_port;
 	struct devlink *devlink;
+	const u8 *serial;
+	int serial_len;
 	int ret;
 
 	rtnl_lock();
@@ -192,10 +365,10 @@ int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)
 	if (ret)
 		return ret;
 
-	devlink_port_type_eth_set(&port->dl_port, port->netdev);
+	serial_len = nfp_cpp_serial(port->app->cpp, &serial);
 	devlink_port_attrs_set(&port->dl_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
 			       eth_port.label_port, eth_port.is_split,
-			       eth_port.label_subport);
+			       eth_port.label_subport, serial, serial_len);
 
 	devlink = priv_to_devlink(app->pf);
 
@@ -205,4 +378,25 @@ int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)
 void nfp_devlink_port_unregister(struct nfp_port *port)
 {
 	devlink_port_unregister(&port->dl_port);
+}
+
+void nfp_devlink_port_type_eth_set(struct nfp_port *port)
+{
+	devlink_port_type_eth_set(&port->dl_port, port->netdev);
+}
+
+void nfp_devlink_port_type_clear(struct nfp_port *port)
+{
+	devlink_port_type_clear(&port->dl_port);
+}
+
+struct devlink_port *nfp_devlink_get_devlink_port(struct net_device *netdev)
+{
+	struct nfp_port *port;
+
+	port = nfp_port_from_netdev(netdev);
+	if (!port)
+		return NULL;
+
+	return &port->dl_port;
 }

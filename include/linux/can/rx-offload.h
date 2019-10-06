@@ -1,17 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * linux/can/rx-offload.h
  *
  * Copyright (c) 2014 David Jander, Protonic Holland
  * Copyright (c) 2014-2017 Pengutronix, Marc Kleine-Budde <kernel@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #ifndef _CAN_RX_OFFLOAD_H
@@ -23,7 +15,8 @@
 struct can_rx_offload {
 	struct net_device *dev;
 
-	unsigned int (*mailbox_read)(struct can_rx_offload *offload, struct can_frame *cf,
+	unsigned int (*mailbox_read)(struct can_rx_offload *offload,
+				     struct can_frame *cf,
 				     u32 *timestamp, unsigned int mb);
 
 	struct sk_buff_head skb_queue;
@@ -37,9 +30,13 @@ struct can_rx_offload {
 	bool inc;
 };
 
-int can_rx_offload_add_timestamp(struct net_device *dev, struct can_rx_offload *offload);
-int can_rx_offload_add_fifo(struct net_device *dev, struct can_rx_offload *offload, unsigned int weight);
-int can_rx_offload_irq_offload_timestamp(struct can_rx_offload *offload, u64 reg);
+int can_rx_offload_add_timestamp(struct net_device *dev,
+				 struct can_rx_offload *offload);
+int can_rx_offload_add_fifo(struct net_device *dev,
+			    struct can_rx_offload *offload,
+			    unsigned int weight);
+int can_rx_offload_irq_offload_timestamp(struct can_rx_offload *offload,
+					 u64 reg);
 int can_rx_offload_irq_offload_fifo(struct can_rx_offload *offload);
 int can_rx_offload_queue_sorted(struct can_rx_offload *offload,
 				struct sk_buff *skb, u32 timestamp);

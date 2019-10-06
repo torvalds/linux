@@ -82,8 +82,16 @@ struct gf100_gr {
 	const struct gf100_gr_func *func;
 	struct nvkm_gr base;
 
-	struct nvkm_falcon *fecs;
-	struct nvkm_falcon *gpccs;
+	struct {
+		struct nvkm_falcon *falcon;
+		struct mutex mutex;
+		u32 disable;
+	} fecs;
+
+	struct {
+		struct nvkm_falcon *falcon;
+	} gpccs;
+
 	struct gf100_gr_fuc fuc409c;
 	struct gf100_gr_fuc fuc409d;
 	struct gf100_gr_fuc fuc41ac;
@@ -128,6 +136,8 @@ struct gf100_gr {
 	struct gf100_gr_mmio mmio_list[4096/8];
 	u32  size;
 	u32 *data;
+	u32 size_zcull;
+	u32 size_pm;
 };
 
 int gf100_gr_ctor(const struct gf100_gr_func *, struct nvkm_device *,
@@ -135,6 +145,8 @@ int gf100_gr_ctor(const struct gf100_gr_func *, struct nvkm_device *,
 int gf100_gr_new_(const struct gf100_gr_func *, struct nvkm_device *,
 		  int, struct nvkm_gr **);
 void *gf100_gr_dtor(struct nvkm_gr *);
+
+int gf100_gr_fecs_bind_pointer(struct gf100_gr *, u32 inst);
 
 struct gf100_gr_func_zbc {
 	void (*clear_color)(struct gf100_gr *, int zbc);

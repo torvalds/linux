@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
 /*
  * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
- * Copyright 2016 NXP
+ * Copyright 2016-2019 NXP
  *
  */
 #ifndef __FSL_QBMAN_PORTAL_H
@@ -109,6 +109,11 @@ struct qbman_swp {
 	struct {
 		u32 valid_bit; /* 0x00 or 0x80 */
 	} mc;
+
+	/* Management response */
+	struct {
+		u32 valid_bit; /* 0x00 or 0x80 */
+	} mr;
 
 	/* Push dequeues */
 	u32 sdq;
@@ -428,7 +433,7 @@ static inline int qbman_swp_CDAN_set_context_enable(struct qbman_swp *s,
 static inline void *qbman_swp_mc_complete(struct qbman_swp *swp, void *cmd,
 					  u8 cmd_verb)
 {
-	int loopvar = 1000;
+	int loopvar = 2000;
 
 	qbman_swp_mc_submit(swp, cmd, cmd_verb);
 

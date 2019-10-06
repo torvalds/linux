@@ -31,7 +31,6 @@
 #define USER_DS     ((mm_segment_t) { ASI_AIUS })	/* har har har */
 
 #define get_fs() ((mm_segment_t){(current_thread_info()->current_ds)})
-#define get_ds() (KERNEL_DS)
 
 #define segment_eq(a, b)  ((a).seg == (b).seg)
 

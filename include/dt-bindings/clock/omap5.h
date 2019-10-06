@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2017 Texas Instruments, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #ifndef __DT_BINDINGS_CLK_OMAP5_H
 #define __DT_BINDINGS_CLK_OMAP5_H
@@ -96,6 +88,9 @@
 
 /* dss clocks */
 #define OMAP5_DSS_CORE_CLKCTRL	OMAP5_CLKCTRL_INDEX(0x20)
+
+/* gpu clocks */
+#define OMAP5_GPU_CLKCTRL	OMAP5_CLKCTRL_INDEX(0x20)
 
 /* l3init clocks */
 #define OMAP5_MMC1_CLKCTRL	OMAP5_CLKCTRL_INDEX(0x28)

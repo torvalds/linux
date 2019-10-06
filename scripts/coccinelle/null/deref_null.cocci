@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 ///
 /// A variable is dereferenced under a NULL test.
 /// Even though it is known to be NULL.
 ///
 // Confidence: Moderate
-// Copyright: (C) 2010 Nicolas Palix, DIKU.  GPLv2.
-// Copyright: (C) 2010 Julia Lawall, DIKU.  GPLv2.
-// Copyright: (C) 2010 Gilles Muller, INRIA/LiP6.  GPLv2.
+// Copyright: (C) 2010 Nicolas Palix, DIKU.
+// Copyright: (C) 2010 Julia Lawall, DIKU.
+// Copyright: (C) 2010 Gilles Muller, INRIA/LiP6.
 // URL: http://coccinelle.lip6.fr/
 // Comments: -I ... -all_includes can give more complete results
 // Options:

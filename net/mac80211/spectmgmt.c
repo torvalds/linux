@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * spectrum management
  *
@@ -9,10 +10,6 @@
  * Copyright 2007-2008, Intel Corporation
  * Copyright 2008, Johannes Berg <johannes@sipsolutions.net>
  * Copyright (C) 2018        Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/ieee80211.h>
@@ -176,6 +173,12 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		}
 		csa_ie->chandef = new_vht_chandef;
 	}
+
+	if (elems->max_channel_switch_time)
+		csa_ie->max_switch_time =
+			(elems->max_channel_switch_time[0] << 0) |
+			(elems->max_channel_switch_time[1] <<  8) |
+			(elems->max_channel_switch_time[2] << 16);
 
 	return 0;
 }

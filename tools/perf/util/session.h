@@ -8,6 +8,7 @@
 #include "machine.h"
 #include "data.h"
 #include "ordered-events.h"
+#include "util/compress.h"
 #include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/perf_event.h>
@@ -22,12 +23,12 @@ struct itrace_synth_opts;
 struct perf_session {
 	struct perf_header	header;
 	struct machines		machines;
-	struct perf_evlist	*evlist;
+	struct evlist	*evlist;
 	struct auxtrace		*auxtrace;
 	struct itrace_synth_opts *itrace_synth_opts;
 	struct list_head	auxtrace_index;
 	struct trace_event	tevent;
-	struct time_conv_event	time_conv;
+	struct perf_record_time_conv	time_conv;
 	bool			repipe;
 	bool			one_mmap;
 	void			*one_mmap_addr;
@@ -35,6 +36,20 @@ struct perf_session {
 	struct ordered_events	ordered_events;
 	struct perf_data	*data;
 	struct perf_tool	*tool;
+	u64			bytes_transferred;
+	u64			bytes_compressed;
+	struct zstd_data	zstd_data;
+	struct decomp		*decomp;
+	struct decomp		*decomp_last;
+};
+
+struct decomp {
+	struct decomp *next;
+	u64 file_pos;
+	size_t mmap_len;
+	u64 head;
+	size_t size;
+	char data[];
 };
 
 struct perf_tool;
@@ -58,7 +73,7 @@ int perf_session__queue_event(struct perf_session *s, union perf_event *event,
 void perf_tool__fill_defaults(struct perf_tool *tool);
 
 int perf_session__resolve_callchain(struct perf_session *session,
-				    struct perf_evsel *evsel,
+				    struct evsel *evsel,
 				    struct thread *thread,
 				    struct ip_callchain *chain,
 				    struct symbol **parent);
@@ -95,7 +110,7 @@ size_t perf_session__fprintf_dsos_buildid(struct perf_session *session, FILE *fp
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp);
 
-struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
+struct evsel *perf_session__find_first_evtype(struct perf_session *session,
 					    unsigned int type);
 
 int perf_session__cpu_bitmap(struct perf_session *session,
@@ -103,10 +118,10 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 
 void perf_session__fprintf_info(struct perf_session *s, FILE *fp, bool full);
 
-struct perf_evsel_str_handler;
+struct evsel_str_handler;
 
 int __perf_session__set_tracepoints_handlers(struct perf_session *session,
-					     const struct perf_evsel_str_handler *assocs,
+					     const struct evsel_str_handler *assocs,
 					     size_t nr_assocs);
 
 #define perf_session__set_tracepoints_handlers(session, array) \
@@ -122,10 +137,5 @@ int perf_session__deliver_synth_event(struct perf_session *session,
 
 int perf_event__process_id_index(struct perf_session *session,
 				 union perf_event *event);
-
-int perf_event__synthesize_id_index(struct perf_tool *tool,
-				    perf_event__handler_t process,
-				    struct perf_evlist *evlist,
-				    struct machine *machine);
 
 #endif /* __PERF_SESSION_H */

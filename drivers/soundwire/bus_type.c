@@ -6,6 +6,7 @@
 #include <linux/pm_domain.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
+#include "bus.h"
 
 /**
  * sdw_get_device_id - find the matching SoundWire device id
@@ -107,7 +108,7 @@ static int sdw_drv_probe(struct device *dev)
 		slave->prop.clk_stop_timeout = 300;
 
 	slave->bus->clk_stop_timeout = max_t(u32, slave->bus->clk_stop_timeout,
-					slave->prop.clk_stop_timeout);
+					     slave->prop.clk_stop_timeout);
 
 	return 0;
 }
@@ -148,7 +149,7 @@ int __sdw_register_driver(struct sdw_driver *drv, struct module *owner)
 
 	if (!drv->probe) {
 		pr_err("driver %s didn't provide SDW probe routine\n",
-							drv->name);
+		       drv->name);
 		return -EINVAL;
 	}
 
@@ -177,11 +178,13 @@ EXPORT_SYMBOL_GPL(sdw_unregister_driver);
 
 static int __init sdw_bus_init(void)
 {
+	sdw_debugfs_init();
 	return bus_register(&sdw_bus_type);
 }
 
 static void __exit sdw_bus_exit(void)
 {
+	sdw_debugfs_exit();
 	bus_unregister(&sdw_bus_type);
 }
 

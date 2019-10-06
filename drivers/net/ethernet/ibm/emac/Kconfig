@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config IBM_EMAC
 	tristate "IBM EMAC Ethernet support"
 	depends on PPC_DCR
@@ -27,18 +28,6 @@ config IBM_EMAC_RX_COPY_THRESHOLD
 	int "RX skb copy threshold (bytes)"
 	depends on IBM_EMAC
 	default "256"
-
-config IBM_EMAC_RX_SKB_HEADROOM
-	int "Additional RX skb headroom (bytes)"
-	depends on IBM_EMAC
-	default "0"
-	help
-	  Additional receive skb headroom. Note, that driver
-	  will always reserve at least 2 bytes to make IP header
-	  aligned, so usually there is no need to add any additional
-	  headroom.
-
-	  If unsure, set to 0.
 
 config IBM_EMAC_DEBUG
 	bool "Debugging"

@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 
 #include "ObjectID.h"
@@ -265,6 +267,7 @@ static struct atom_display_object_path_v2 *get_bios_object(
 					&& id.enum_id == obj_id.enum_id)
 				return &bp->object_info_tbl.v1_4->display_path[i];
 		}
+		/* fall through */
 	case OBJECT_TYPE_CONNECTOR:
 	case OBJECT_TYPE_GENERIC:
 		/* Both Generic and Connector Object ID
@@ -277,6 +280,7 @@ static struct atom_display_object_path_v2 *get_bios_object(
 					&& id.enum_id == obj_id.enum_id)
 				return &bp->object_info_tbl.v1_4->display_path[i];
 		}
+		/* fall through */
 	default:
 		return NULL;
 	}
@@ -1083,18 +1087,6 @@ static enum bp_result bios_parser_enable_crtc(
 	return bp->cmd_tbl.enable_crtc(bp, id, enable);
 }
 
-static enum bp_result bios_parser_crtc_source_select(
-	struct dc_bios *dcb,
-	struct bp_crtc_source_select *bp_params)
-{
-	struct bios_parser *bp = BP_FROM_DCB(dcb);
-
-	if (!bp->cmd_tbl.select_crtc_source)
-		return BP_RESULT_FAILURE;
-
-	return bp->cmd_tbl.select_crtc_source(bp, bp_params);
-}
-
 static enum bp_result bios_parser_enable_disp_power_gating(
 	struct dc_bios *dcb,
 	enum controller_id controller_id,
@@ -1323,6 +1315,8 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 			ATOM_ENCODER_CAP_RECORD_HBR3_EN) ? 1 : 0;
 	info->HDMI_6GB_EN = (record->encodercaps &
 			ATOM_ENCODER_CAP_RECORD_HDMI6Gbps_EN) ? 1 : 0;
+	info->DP_IS_USB_C = (record->encodercaps &
+			ATOM_ENCODER_CAP_RECORD_USB_C_TYPE) ? 1 : 0;
 
 	return BP_RESULT_OK;
 }
@@ -1408,6 +1402,10 @@ static enum bp_result get_integrated_info_v11(
 	info->ma_channel_number = info_v11->umachannelnumber;
 	info->lvds_ss_percentage =
 	le16_to_cpu(info_v11->lvds_ss_percentage);
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	info->dp_ss_control =
+	le16_to_cpu(info_v11->reserved1);
+#endif
 	info->lvds_sspread_rate_in_10hz =
 	le16_to_cpu(info_v11->lvds_ss_rate_10hz);
 	info->hdmi_ss_percentage =
@@ -1883,8 +1881,6 @@ static const struct dc_vbios_funcs vbios_funcs = {
 
 	.get_device_tag = bios_parser_get_device_tag,
 
-	.get_firmware_info = bios_parser_get_firmware_info,
-
 	.get_spread_spectrum_info = bios_parser_get_spread_spectrum_info,
 
 	.get_ss_entry_number = bios_parser_get_ss_entry_number,
@@ -1898,8 +1894,6 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.is_device_id_supported = bios_parser_is_device_id_supported,
 
 	.is_accelerated_mode = bios_parser_is_accelerated_mode,
-
-	.is_active_display = bios_is_active_display,
 
 	.set_scratch_critical_state = bios_parser_set_scratch_critical_state,
 
@@ -1916,8 +1910,6 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.set_dce_clock = bios_parser_set_dce_clock,
 
 	.program_crtc_timing = bios_parser_program_crtc_timing,
-
-	.crtc_source_select = bios_parser_crtc_source_select,
 
 	.enable_disp_power_gating = bios_parser_enable_disp_power_gating,
 
@@ -2004,6 +1996,7 @@ static bool bios_parser_construct(
 	dal_bios_parser_init_cmd_tbl_helper2(&bp->cmd_helper, dce_version);
 
 	bp->base.integrated_info = bios_parser_create_integrated_info(&bp->base);
+	bp->base.fw_info_valid = bios_parser_get_firmware_info(&bp->base, &bp->base.fw_info) == BP_RESULT_OK;
 
 	return true;
 }

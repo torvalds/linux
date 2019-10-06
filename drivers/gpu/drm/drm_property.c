@@ -21,7 +21,12 @@
  */
 
 #include <linux/export.h>
-#include <drm/drmP.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_property.h>
 
 #include "drm_crtc_internal.h"
@@ -866,7 +871,7 @@ err:
  * value doesn't become invalid part way through the property update due to
  * race).  The value returned by reference via 'obj' should be passed back
  * to drm_property_change_valid_put() after the property is set (and the
- * object to which the property is attached has a chance to take it's own
+ * object to which the property is attached has a chance to take its own
  * reference).
  */
 bool drm_property_change_valid_get(struct drm_property *property,

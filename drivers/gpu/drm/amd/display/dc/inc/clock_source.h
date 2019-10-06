@@ -78,7 +78,7 @@ struct csdp_ref_clk_ds_params {
 };
 
 struct pixel_clk_params {
-	uint32_t requested_pix_clk; /* in KHz */
+	uint32_t requested_pix_clk_100hz;
 /*> Requested Pixel Clock
  * (based on Video Timing standard used for requested mode)*/
 	uint32_t requested_sym_clk; /* in KHz */
@@ -104,9 +104,9 @@ struct pixel_clk_params {
  *  with actually calculated Clock and reference Crystal frequency
  */
 struct pll_settings {
-	uint32_t actual_pix_clk;
-	uint32_t adjusted_pix_clk;
-	uint32_t calculated_pix_clk;
+	uint32_t actual_pix_clk_100hz;
+	uint32_t adjusted_pix_clk_100hz;
+	uint32_t calculated_pix_clk_100hz;
 	uint32_t vco_freq;
 	uint32_t reference_freq;
 	uint32_t reference_divider;
@@ -166,6 +166,10 @@ struct clock_source_funcs {
 			struct clock_source *,
 			struct pixel_clk_params *,
 			struct pll_settings *);
+	bool (*get_pixel_clk_frequency_100hz)(
+			const struct clock_source *clock_source,
+			unsigned int inst,
+			unsigned int *pixel_clk_khz);
 };
 
 struct clock_source {

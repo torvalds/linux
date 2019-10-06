@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NV50_DEVINIT_H__
 #define __NV50_DEVINIT_H__
 #define nv50_devinit(p) container_of((p), struct nv50_devinit, base)

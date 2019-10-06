@@ -13,7 +13,7 @@
 #	the script prints the string "Disabled" to stdout.
 #
 # Each Distro is expected to implement this script in a distro specific
-# fashion. For instance on Distros that ship with Network Manager enabled,
+# fashion. For instance, on Distros that ship with Network Manager enabled,
 # this script can be based on the Network Manager APIs for retrieving DHCP
 # information.
 

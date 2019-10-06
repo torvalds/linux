@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2006 Netfilter Core Team <coreteam@netfilter.org>
  * (C) 2011 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -15,8 +12,6 @@
 #include <net/ip.h>
 
 #include <net/netfilter/nf_nat.h>
-#include <net/netfilter/nf_nat_core.h>
-#include <net/netfilter/nf_nat_l3proto.h>
 
 static int __net_init iptable_nat_table_init(struct net *net);
 
@@ -70,10 +65,10 @@ static int ipt_nat_register_lookups(struct net *net)
 	int i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(nf_nat_ipv4_ops); i++) {
-		ret = nf_nat_l3proto_ipv4_register_fn(net, &nf_nat_ipv4_ops[i]);
+		ret = nf_nat_ipv4_register_fn(net, &nf_nat_ipv4_ops[i]);
 		if (ret) {
 			while (i)
-				nf_nat_l3proto_ipv4_unregister_fn(net, &nf_nat_ipv4_ops[--i]);
+				nf_nat_ipv4_unregister_fn(net, &nf_nat_ipv4_ops[--i]);
 
 			return ret;
 		}
@@ -87,7 +82,7 @@ static void ipt_nat_unregister_lookups(struct net *net)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(nf_nat_ipv4_ops); i++)
-		nf_nat_l3proto_ipv4_unregister_fn(net, &nf_nat_ipv4_ops[i]);
+		nf_nat_ipv4_unregister_fn(net, &nf_nat_ipv4_ops[i]);
 }
 
 static int __net_init iptable_nat_table_init(struct net *net)

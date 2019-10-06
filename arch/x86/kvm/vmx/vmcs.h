@@ -34,11 +34,20 @@ struct vmcs_host_state {
 	unsigned long cr4;	/* May not match real cr4 */
 	unsigned long gs_base;
 	unsigned long fs_base;
+	unsigned long rsp;
 
 	u16           fs_sel, gs_sel, ldt_sel;
 #ifdef CONFIG_X86_64
 	u16           ds_sel, es_sel;
 #endif
+};
+
+struct vmcs_controls_shadow {
+	u32 vm_entry;
+	u32 vm_exit;
+	u32 pin;
+	u32 exec;
+	u32 secondary_exec;
 };
 
 /*
@@ -52,7 +61,7 @@ struct loaded_vmcs {
 	int cpu;
 	bool launched;
 	bool nmi_known_unmasked;
-	bool hv_timer_armed;
+	bool hv_timer_soft_disabled;
 	/* Support for vnmi-less CPUs */
 	int soft_vnmi_blocked;
 	ktime_t entry_time;
@@ -60,6 +69,7 @@ struct loaded_vmcs {
 	unsigned long *msr_bitmap;
 	struct list_head loaded_vmcss_on_cpu_link;
 	struct vmcs_host_state host_state;
+	struct vmcs_controls_shadow controls_shadow;
 };
 
 static inline bool is_exception_n(u32 intr_info, u8 vector)
@@ -112,6 +122,12 @@ static inline bool is_nmi(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
 		== (INTR_TYPE_NMI_INTR | INTR_INFO_VALID_MASK);
+}
+
+static inline bool is_external_intr(u32 intr_info)
+{
+	return (intr_info & (INTR_INFO_VALID_MASK | INTR_INFO_INTR_TYPE_MASK))
+		== (INTR_INFO_VALID_MASK | INTR_TYPE_EXT_INTR);
 }
 
 enum vmcs_field_width {

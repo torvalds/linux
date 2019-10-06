@@ -11,16 +11,16 @@
 /* Matt Jesson <dvb@jesson.eclipse.co.uk */
 
 static struct rc_map_table avermedia_dvbt[] = {
-	{ 0x28, KEY_0 },		/* '0' / 'enter' */
-	{ 0x22, KEY_1 },		/* '1' */
-	{ 0x12, KEY_2 },		/* '2' / 'up arrow' */
-	{ 0x32, KEY_3 },		/* '3' */
-	{ 0x24, KEY_4 },		/* '4' / 'left arrow' */
-	{ 0x14, KEY_5 },		/* '5' */
-	{ 0x34, KEY_6 },		/* '6' / 'right arrow' */
-	{ 0x26, KEY_7 },		/* '7' */
-	{ 0x16, KEY_8 },		/* '8' / 'down arrow' */
-	{ 0x36, KEY_9 },		/* '9' */
+	{ 0x28, KEY_NUMERIC_0 },	/* '0' / 'enter' */
+	{ 0x22, KEY_NUMERIC_1 },	/* '1' */
+	{ 0x12, KEY_NUMERIC_2 },	/* '2' / 'up arrow' */
+	{ 0x32, KEY_NUMERIC_3 },	/* '3' */
+	{ 0x24, KEY_NUMERIC_4 },	/* '4' / 'left arrow' */
+	{ 0x14, KEY_NUMERIC_5 },	/* '5' */
+	{ 0x34, KEY_NUMERIC_6 },	/* '6' / 'right arrow' */
+	{ 0x26, KEY_NUMERIC_7 },	/* '7' */
+	{ 0x16, KEY_NUMERIC_8 },	/* '8' / 'down arrow' */
+	{ 0x36, KEY_NUMERIC_9 },	/* '9' */
 
 	{ 0x20, KEY_VIDEO },		/* 'source' */
 	{ 0x10, KEY_TEXT },		/* 'teletext' */

@@ -6,7 +6,7 @@
 #ifndef __ETNAVIV_GEM_H__
 #define __ETNAVIV_GEM_H__
 
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
 
@@ -25,7 +25,7 @@ struct etnaviv_vram_mapping {
 	struct list_head scan_node;
 	struct list_head mmu_node;
 	struct etnaviv_gem_object *object;
-	struct etnaviv_iommu *mmu;
+	struct etnaviv_iommu_context *context;
 	struct drm_mm_node vram_node;
 	unsigned int use;
 	u32 iova;
@@ -46,10 +46,6 @@ struct etnaviv_gem_object {
 	struct page **pages;
 	struct sg_table *sgt;
 	void *vaddr;
-
-	/* normally (resv == &_resv) except for imported bo's */
-	struct reservation_object *resv;
-	struct reservation_object _resv;
 
 	struct list_head vram_list;
 
@@ -81,6 +77,7 @@ static inline bool is_active(struct etnaviv_gem_object *etnaviv_obj)
 
 struct etnaviv_gem_submit_bo {
 	u32 flags;
+	u64 va;
 	struct etnaviv_gem_object *obj;
 	struct etnaviv_vram_mapping *mapping;
 	struct dma_fence *excl;
@@ -95,7 +92,9 @@ struct etnaviv_gem_submit_bo {
 struct etnaviv_gem_submit {
 	struct drm_sched_job sched_job;
 	struct kref refcount;
+	struct etnaviv_file_private *ctx;
 	struct etnaviv_gpu *gpu;
+	struct etnaviv_iommu_context *mmu_context, *prev_mmu_context;
 	struct dma_fence *out_fence, *in_fence;
 	int out_fence_id;
 	struct list_head node; /* GPU active submit list */
@@ -115,15 +114,14 @@ void etnaviv_submit_put(struct etnaviv_gem_submit * submit);
 int etnaviv_gem_wait_bo(struct etnaviv_gpu *gpu, struct drm_gem_object *obj,
 	struct timespec *timeout);
 int etnaviv_gem_new_private(struct drm_device *dev, size_t size, u32 flags,
-	struct reservation_object *robj, const struct etnaviv_gem_ops *ops,
-	struct etnaviv_gem_object **res);
+	const struct etnaviv_gem_ops *ops, struct etnaviv_gem_object **res);
 void etnaviv_gem_obj_add(struct drm_device *dev, struct drm_gem_object *obj);
 struct page **etnaviv_gem_get_pages(struct etnaviv_gem_object *obj);
 void etnaviv_gem_put_pages(struct etnaviv_gem_object *obj);
 
 struct etnaviv_vram_mapping *etnaviv_gem_mapping_get(
-	struct drm_gem_object *obj, struct etnaviv_gpu *gpu);
-void etnaviv_gem_mapping_reference(struct etnaviv_vram_mapping *mapping);
+	struct drm_gem_object *obj, struct etnaviv_iommu_context *mmu_context,
+	u64 va);
 void etnaviv_gem_mapping_unreference(struct etnaviv_vram_mapping *mapping);
 
 #endif /* __ETNAVIV_GEM_H__ */

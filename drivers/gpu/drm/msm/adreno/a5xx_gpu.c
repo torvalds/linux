@@ -1,23 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/cpumask.h>
 #include <linux/qcom_scm.h>
-#include <linux/dma-mapping.h>
-#include <linux/of_address.h>
-#include <linux/soc/qcom/mdt_loader.h>
 #include <linux/pm_opp.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/slab.h>
@@ -29,94 +17,6 @@ extern bool hang_debug;
 static void a5xx_dump(struct msm_gpu *gpu);
 
 #define GPU_PAS_ID 13
-
-static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname)
-{
-	struct device *dev = &gpu->pdev->dev;
-	const struct firmware *fw;
-	struct device_node *np;
-	struct resource r;
-	phys_addr_t mem_phys;
-	ssize_t mem_size;
-	void *mem_region = NULL;
-	int ret;
-
-	if (!IS_ENABLED(CONFIG_ARCH_QCOM))
-		return -EINVAL;
-
-	np = of_get_child_by_name(dev->of_node, "zap-shader");
-	if (!np)
-		return -ENODEV;
-
-	np = of_parse_phandle(np, "memory-region", 0);
-	if (!np)
-		return -EINVAL;
-
-	ret = of_address_to_resource(np, 0, &r);
-	if (ret)
-		return ret;
-
-	mem_phys = r.start;
-	mem_size = resource_size(&r);
-
-	/* Request the MDT file for the firmware */
-	fw = adreno_request_fw(to_adreno_gpu(gpu), fwname);
-	if (IS_ERR(fw)) {
-		DRM_DEV_ERROR(dev, "Unable to load %s\n", fwname);
-		return PTR_ERR(fw);
-	}
-
-	/* Figure out how much memory we need */
-	mem_size = qcom_mdt_get_size(fw);
-	if (mem_size < 0) {
-		ret = mem_size;
-		goto out;
-	}
-
-	/* Allocate memory for the firmware image */
-	mem_region = memremap(mem_phys, mem_size,  MEMREMAP_WC);
-	if (!mem_region) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	/*
-	 * Load the rest of the MDT
-	 *
-	 * Note that we could be dealing with two different paths, since
-	 * with upstream linux-firmware it would be in a qcom/ subdir..
-	 * adreno_request_fw() handles this, but qcom_mdt_load() does
-	 * not.  But since we've already gotten thru adreno_request_fw()
-	 * we know which of the two cases it is:
-	 */
-	if (to_adreno_gpu(gpu)->fwloc == FW_LOCATION_LEGACY) {
-		ret = qcom_mdt_load(dev, fw, fwname, GPU_PAS_ID,
-				mem_region, mem_phys, mem_size, NULL);
-	} else {
-		char *newname;
-
-		newname = kasprintf(GFP_KERNEL, "qcom/%s", fwname);
-
-		ret = qcom_mdt_load(dev, fw, newname, GPU_PAS_ID,
-				mem_region, mem_phys, mem_size, NULL);
-		kfree(newname);
-	}
-	if (ret)
-		goto out;
-
-	/* Send the image to the secure world */
-	ret = qcom_scm_pas_auth_and_reset(GPU_PAS_ID);
-	if (ret)
-		DRM_DEV_ERROR(dev, "Unable to authorize the image\n");
-
-out:
-	if (mem_region)
-		memunmap(mem_region);
-
-	release_firmware(fw);
-
-	return ret;
-}
 
 static void a5xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 {
@@ -159,6 +59,7 @@ static void a5xx_submit_in_rb(struct msm_gpu *gpu, struct msm_gem_submit *submit
 		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
 			if (priv->lastctx == ctx)
 				break;
+			/* fall-thru */
 		case MSM_SUBMIT_CMD_BUF:
 			/* copy commands into RB: */
 			obj = submit->bos[submit->cmd[i].idx].obj;
@@ -249,6 +150,7 @@ static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
 			if (priv->lastctx == ctx)
 				break;
+			/* fall-thru */
 		case MSM_SUBMIT_CMD_BUF:
 			OUT_PKT7(ring, CP_INDIRECT_BUFFER_PFE, 3);
 			OUT_RING(ring, lower_32_bits(submit->cmd[i].iova));
@@ -409,11 +311,17 @@ static const struct {
 
 void a5xx_set_hwcg(struct msm_gpu *gpu, bool state)
 {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(a5xx_hwcg); i++)
 		gpu_write(gpu, a5xx_hwcg[i].offset,
 			state ? a5xx_hwcg[i].value : 0);
+
+	if (adreno_is_a540(adreno_gpu)) {
+		gpu_write(gpu, REG_A5XX_RBBM_CLOCK_DELAY_GPMU, state ? 0x00000770 : 0);
+		gpu_write(gpu, REG_A5XX_RBBM_CLOCK_HYST_GPMU, state ? 0x00000004 : 0);
+	}
 
 	gpu_write(gpu, REG_A5XX_RBBM_CLOCK_CNTL, state ? 0xAAA8AA00 : 0);
 	gpu_write(gpu, REG_A5XX_RBBM_ISDB_CNT, state ? 0x182 : 0x180);
@@ -563,8 +471,6 @@ static int a5xx_zap_shader_resume(struct msm_gpu *gpu)
 static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 {
 	static bool loaded;
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct platform_device *pdev = gpu->pdev;
 	int ret;
 
 	/*
@@ -574,23 +480,9 @@ static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 	if (loaded)
 		return a5xx_zap_shader_resume(gpu);
 
-	/* We need SCM to be able to load the firmware */
-	if (!qcom_scm_is_available()) {
-		DRM_DEV_ERROR(&pdev->dev, "SCM is not available\n");
-		return -EPROBE_DEFER;
-	}
-
-	/* Each GPU has a target specific zap shader firmware name to use */
-	if (!adreno_gpu->info->zapfw) {
-		DRM_DEV_ERROR(&pdev->dev,
-			"Zap shader firmware file not specified for this target\n");
-		return -ENODEV;
-	}
-
-	ret = zap_shader_load_mdt(gpu, adreno_gpu->info->zapfw);
+	ret = adreno_zap_shader_load(gpu, GPU_PAS_ID);
 
 	loaded = !ret;
-
 	return ret;
 }
 
@@ -613,6 +505,9 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	int ret;
 
 	gpu_write(gpu, REG_A5XX_VBIF_ROUND_ROBIN_QOS_ARB, 0x00000003);
+
+	if (adreno_is_a540(adreno_gpu))
+		gpu_write(gpu, REG_A5XX_VBIF_GATE_OFF_WRREQ_EN, 0x00000009);
 
 	/* Make all blocks contribute to the GPU BUSY perf counter */
 	gpu_write(gpu, REG_A5XX_RBBM_PERFCTR_GPU_BUSY_MASKED, 0xFFFFFFFF);
@@ -674,7 +569,10 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A5XX_UCHE_GMEM_RANGE_MAX_HI, 0x00000000);
 
 	gpu_write(gpu, REG_A5XX_CP_MEQ_THRESHOLDS, 0x40);
-	gpu_write(gpu, REG_A5XX_CP_MERCIU_SIZE, 0x40);
+	if (adreno_is_a530(adreno_gpu))
+		gpu_write(gpu, REG_A5XX_CP_MERCIU_SIZE, 0x40);
+	if (adreno_is_a540(adreno_gpu))
+		gpu_write(gpu, REG_A5XX_CP_MERCIU_SIZE, 0x400);
 	gpu_write(gpu, REG_A5XX_CP_ROQ_THRESHOLDS_2, 0x80000060);
 	gpu_write(gpu, REG_A5XX_CP_ROQ_THRESHOLDS_1, 0x40201B16);
 
@@ -699,6 +597,8 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	/* Set the highest bank bit */
 	gpu_write(gpu, REG_A5XX_TPL1_MODE_CNTL, 2 << 7);
 	gpu_write(gpu, REG_A5XX_RB_MODE_CNTL, 2 << 1);
+	if (adreno_is_a540(adreno_gpu))
+		gpu_write(gpu, REG_A5XX_UCHE_DBG_ECO_CNTL_2, 2);
 
 	/* Protect registers from the CP */
 	gpu_write(gpu, REG_A5XX_CP_PROTECT_CNTL, 0x00000007);
@@ -748,6 +648,30 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	gpu_write64(gpu, REG_A5XX_RBBM_SECVID_TSB_TRUSTED_BASE_LO,
 		REG_A5XX_RBBM_SECVID_TSB_TRUSTED_BASE_HI, 0x00000000);
 	gpu_write(gpu, REG_A5XX_RBBM_SECVID_TSB_TRUSTED_SIZE, 0x00000000);
+
+	/* Put the GPU into 64 bit by default */
+	gpu_write(gpu, REG_A5XX_CP_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_VSC_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_GRAS_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_RB_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_PC_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_HLSQ_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_VFD_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_VPC_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_UCHE_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_SP_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_TPL1_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_RBBM_SECVID_TSB_ADDR_MODE_CNTL, 0x1);
+
+	/*
+	 * VPC corner case with local memory load kill leads to corrupt
+	 * internal state. Normal Disable does not work for all a5x chips.
+	 * So do the following setting to disable it.
+	 */
+	if (adreno_gpu->info->quirks & ADRENO_QUIRK_LMLOADKILL_DISABLE) {
+		gpu_rmw(gpu, REG_A5XX_VPC_DBG_ECO_CNTL, 0, BIT(23));
+		gpu_rmw(gpu, REG_A5XX_HLSQ_DBG_ECO_CNTL, BIT(18), 0);
+	}
 
 	ret = adreno_hw_init(gpu);
 	if (ret)

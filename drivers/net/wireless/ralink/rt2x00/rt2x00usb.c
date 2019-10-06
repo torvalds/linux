@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
 	Copyright (C) 2004 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -30,6 +19,22 @@
 
 #include "rt2x00.h"
 #include "rt2x00usb.h"
+
+static bool rt2x00usb_check_usb_error(struct rt2x00_dev *rt2x00dev, int status)
+{
+	if (status == -ENODEV || status == -ENOENT)
+		return true;
+
+	if (status == -EPROTO || status == -ETIMEDOUT)
+		rt2x00dev->num_proto_errs++;
+	else
+		rt2x00dev->num_proto_errs = 0;
+
+	if (rt2x00dev->num_proto_errs > 3)
+		return true;
+
+	return false;
+}
 
 /*
  * Interfacing with the HW.
@@ -57,7 +62,7 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 		if (status >= 0)
 			return 0;
 
-		if (status == -ENODEV || status == -ENOENT) {
+		if (rt2x00usb_check_usb_error(rt2x00dev, status)) {
 			/* Device has disappeared. */
 			clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
 			break;
@@ -321,7 +326,7 @@ static bool rt2x00usb_kick_tx_entry(struct queue_entry *entry, void *data)
 
 	status = usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
 	if (status) {
-		if (status == -ENODEV || status == -ENOENT)
+		if (rt2x00usb_check_usb_error(rt2x00dev, status))
 			clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
 		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 		rt2x00lib_dmadone(entry);
@@ -344,8 +349,7 @@ static void rt2x00usb_work_rxdone(struct work_struct *work)
 	while (!rt2x00queue_empty(rt2x00dev->rx)) {
 		entry = rt2x00queue_get_entry(rt2x00dev->rx, Q_INDEX_DONE);
 
-		if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
-		    !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
+		if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 			break;
 
 		/*
@@ -367,13 +371,8 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 
-	if (!test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	if (!test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
-
-	/*
-	 * Report the frame as DMA done
-	 */
-	rt2x00lib_dmadone(entry);
 
 	/*
 	 * Check if the received data is simply too small
@@ -384,8 +383,12 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 
 	/*
-	 * Schedule the delayed work for reading the RX status
-	 * from the device.
+	 * Report the frame as DMA done
+	 */
+	rt2x00lib_dmadone(entry);
+
+	/*
+	 * Schedule the delayed work for processing RX data
 	 */
 	queue_work(rt2x00dev->workqueue, &rt2x00dev->rxdone_work);
 }
@@ -397,8 +400,7 @@ static bool rt2x00usb_kick_rx_entry(struct queue_entry *entry, void *data)
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	int status;
 
-	if (test_and_set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
-	    test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
+	if (test_and_set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return false;
 
 	rt2x00lib_dmastart(entry);
@@ -410,7 +412,7 @@ static bool rt2x00usb_kick_rx_entry(struct queue_entry *entry, void *data)
 
 	status = usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
 	if (status) {
-		if (status == -ENODEV || status == -ENOENT)
+		if (rt2x00usb_check_usb_error(rt2x00dev, status))
 			clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
 		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 		rt2x00lib_dmadone(entry);

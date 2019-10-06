@@ -25,12 +25,17 @@
 #define __AMDGPU_SDMA_H__
 
 /* max number of IP instances */
-#define AMDGPU_MAX_SDMA_INSTANCES		2
+#define AMDGPU_MAX_SDMA_INSTANCES		8
 
 enum amdgpu_sdma_irq {
-	AMDGPU_SDMA_IRQ_TRAP0 = 0,
-	AMDGPU_SDMA_IRQ_TRAP1,
-
+	AMDGPU_SDMA_IRQ_INSTANCE0  = 0,
+	AMDGPU_SDMA_IRQ_INSTANCE1,
+	AMDGPU_SDMA_IRQ_INSTANCE2,
+	AMDGPU_SDMA_IRQ_INSTANCE3,
+	AMDGPU_SDMA_IRQ_INSTANCE4,
+	AMDGPU_SDMA_IRQ_INSTANCE5,
+	AMDGPU_SDMA_IRQ_INSTANCE6,
+	AMDGPU_SDMA_IRQ_INSTANCE7,
 	AMDGPU_SDMA_IRQ_LAST
 };
 
@@ -49,9 +54,11 @@ struct amdgpu_sdma {
 	struct amdgpu_sdma_instance instance[AMDGPU_MAX_SDMA_INSTANCES];
 	struct amdgpu_irq_src	trap_irq;
 	struct amdgpu_irq_src	illegal_inst_irq;
+	struct amdgpu_irq_src	ecc_irq;
 	int			num_instances;
 	uint32_t                    srbm_soft_reset;
 	bool			has_page_queue;
+	struct ras_common_if	*ras_if;
 };
 
 /*
@@ -96,5 +103,5 @@ struct amdgpu_buffer_funcs {
 struct amdgpu_sdma_instance *
 amdgpu_sdma_get_instance_from_ring(struct amdgpu_ring *ring);
 int amdgpu_sdma_get_index_from_ring(struct amdgpu_ring *ring, uint32_t *index);
-
+uint64_t amdgpu_sdma_get_csa_mc_addr(struct amdgpu_ring *ring, unsigned vmid);
 #endif

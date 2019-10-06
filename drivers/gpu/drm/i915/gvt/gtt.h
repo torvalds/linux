@@ -88,14 +88,15 @@ struct intel_gvt_gtt {
 	void (*mm_free_page_table)(struct intel_vgpu_mm *mm);
 	struct list_head oos_page_use_list_head;
 	struct list_head oos_page_free_list_head;
+	struct mutex ppgtt_mm_lock;
 	struct list_head ppgtt_mm_lru_list_head;
 
 	struct page *scratch_page;
 	unsigned long scratch_mfn;
 };
 
-typedef enum {
-	GTT_TYPE_INVALID = -1,
+enum intel_gvt_gtt_type {
+	GTT_TYPE_INVALID = 0,
 
 	GTT_TYPE_GGTT_PTE,
 
@@ -123,7 +124,7 @@ typedef enum {
 	GTT_TYPE_PPGTT_PML4_PT,
 
 	GTT_TYPE_MAX,
-} intel_gvt_gtt_type_t;
+};
 
 enum intel_gvt_mm_type {
 	INTEL_GVT_MM_GGTT,
@@ -147,7 +148,7 @@ struct intel_vgpu_mm {
 
 	union {
 		struct {
-			intel_gvt_gtt_type_t root_entry_type;
+			enum intel_gvt_gtt_type root_entry_type;
 			/*
 			 * The 4 PDPs in ring context. For 48bit addressing,
 			 * only PDP0 is valid and point to PML4. For 32it
@@ -168,7 +169,7 @@ struct intel_vgpu_mm {
 };
 
 struct intel_vgpu_mm *intel_vgpu_create_ppgtt_mm(struct intel_vgpu *vgpu,
-		intel_gvt_gtt_type_t root_entry_type, u64 pdps[]);
+		enum intel_gvt_gtt_type root_entry_type, u64 pdps[]);
 
 static inline void intel_vgpu_mm_get(struct intel_vgpu_mm *mm)
 {
@@ -204,24 +205,25 @@ struct intel_vgpu_gtt {
 	struct intel_vgpu_scratch_pt scratch_pt[GTT_TYPE_MAX];
 };
 
-extern int intel_vgpu_init_gtt(struct intel_vgpu *vgpu);
-extern void intel_vgpu_clean_gtt(struct intel_vgpu *vgpu);
+int intel_vgpu_init_gtt(struct intel_vgpu *vgpu);
+void intel_vgpu_clean_gtt(struct intel_vgpu *vgpu);
 void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu, bool invalidate_old);
 void intel_vgpu_invalidate_ppgtt(struct intel_vgpu *vgpu);
 
-extern int intel_gvt_init_gtt(struct intel_gvt *gvt);
+int intel_gvt_init_gtt(struct intel_gvt *gvt);
 void intel_vgpu_reset_gtt(struct intel_vgpu *vgpu);
-extern void intel_gvt_clean_gtt(struct intel_gvt *gvt);
+void intel_gvt_clean_gtt(struct intel_gvt *gvt);
 
-extern struct intel_vgpu_mm *intel_gvt_find_ppgtt_mm(struct intel_vgpu *vgpu,
-		int page_table_level, void *root_entry);
+struct intel_vgpu_mm *intel_gvt_find_ppgtt_mm(struct intel_vgpu *vgpu,
+					      int page_table_level,
+					      void *root_entry);
 
 struct intel_vgpu_oos_page {
 	struct intel_vgpu_ppgtt_spt *spt;
 	struct list_head list;
 	struct list_head vm_list;
 	int id;
-	unsigned char mem[I915_GTT_PAGE_SIZE];
+	void *mem;
 };
 
 #define GTT_ENTRY_NUM_IN_ONE_PAGE 512
@@ -232,7 +234,7 @@ struct intel_vgpu_ppgtt_spt {
 	struct intel_vgpu *vgpu;
 
 	struct {
-		intel_gvt_gtt_type_t type;
+		enum intel_gvt_gtt_type type;
 		bool pde_ips; /* for 64KB PTEs */
 		void *vaddr;
 		struct page *page;
@@ -240,7 +242,7 @@ struct intel_vgpu_ppgtt_spt {
 	} shadow_page;
 
 	struct {
-		intel_gvt_gtt_type_t type;
+		enum intel_gvt_gtt_type type;
 		bool pde_ips; /* for 64KB PTEs */
 		unsigned long gfn;
 		unsigned long write_cnt;
@@ -266,7 +268,7 @@ struct intel_vgpu_mm *intel_vgpu_find_ppgtt_mm(struct intel_vgpu *vgpu,
 		u64 pdps[]);
 
 struct intel_vgpu_mm *intel_vgpu_get_ppgtt_mm(struct intel_vgpu *vgpu,
-		intel_gvt_gtt_type_t root_entry_type, u64 pdps[]);
+		enum intel_gvt_gtt_type root_entry_type, u64 pdps[]);
 
 int intel_vgpu_put_ppgtt_mm(struct intel_vgpu *vgpu, u64 pdps[]);
 

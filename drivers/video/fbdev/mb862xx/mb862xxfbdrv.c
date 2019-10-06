@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/mb862xx/mb862xxfb.c
  *
@@ -5,11 +6,6 @@
  *
  * (C) 2008 Anatolij Gustschin <agust@denx.de>
  * DENX Software Engineering
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #undef DEBUG
@@ -684,10 +680,8 @@ static int of_platform_mb862xx_probe(struct platform_device *ofdev)
 	}
 
 	info = framebuffer_alloc(sizeof(struct mb862xxfb_par), dev);
-	if (info == NULL) {
-		dev_err(dev, "cannot allocate framebuffer\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	par = info->par;
 	par->info = info;
@@ -1009,7 +1003,6 @@ static int mb862xx_pci_probe(struct pci_dev *pdev,
 
 	info = framebuffer_alloc(sizeof(struct mb862xxfb_par), dev);
 	if (!info) {
-		dev_err(dev, "framebuffer alloc failed\n");
 		ret = -ENOMEM;
 		goto dis_dev;
 	}

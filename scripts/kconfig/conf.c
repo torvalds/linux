@@ -90,7 +90,7 @@ static int conf_askvalue(struct symbol *sym, const char *def)
 	line[0] = '\n';
 	line[1] = 0;
 
-	if (!sym_is_changable(sym)) {
+	if (!sym_is_changeable(sym)) {
 		printf("%s\n", def);
 		line[0] = '\n';
 		line[1] = 0;
@@ -234,7 +234,7 @@ static int conf_choice(struct menu *menu)
 
 	sym = menu->sym;
 	is_new = !sym_has_value(sym);
-	if (sym_is_changable(sym)) {
+	if (sym_is_changeable(sym)) {
 		conf_sym(menu);
 		sym_calc_value(sym);
 		switch (sym_get_tristate_value(sym)) {
@@ -418,7 +418,7 @@ static void check_conf(struct menu *menu)
 
 	sym = menu->sym;
 	if (sym && !sym_has_value(sym)) {
-		if (sym_is_changable(sym) ||
+		if (sym_is_changeable(sym) ||
 		    (sym_is_choice(sym) && sym_get_tristate_value(sym) == yes)) {
 			if (input_mode == listnewconfig) {
 				if (sym->name) {
@@ -451,7 +451,7 @@ static struct option long_opts[] = {
 	{"oldaskconfig",    no_argument,       NULL, oldaskconfig},
 	{"oldconfig",       no_argument,       NULL, oldconfig},
 	{"syncconfig",      no_argument,       NULL, syncconfig},
-	{"defconfig",       optional_argument, NULL, defconfig},
+	{"defconfig",       required_argument, NULL, defconfig},
 	{"savedefconfig",   required_argument, NULL, savedefconfig},
 	{"allnoconfig",     no_argument,       NULL, allnoconfig},
 	{"allyesconfig",    no_argument,       NULL, allyesconfig},
@@ -488,7 +488,6 @@ int main(int ac, char **av)
 	const char *progname = av[0];
 	int opt;
 	const char *name, *defconfig_file = NULL /* gcc uninit */;
-	struct stat tmpstat;
 	int no_conf_write = 0;
 
 	tty_stdio = isatty(0) && isatty(1);
@@ -560,23 +559,9 @@ int main(int ac, char **av)
 	name = av[optind];
 	conf_parse(name);
 	//zconfdump(stdout);
-	if (sync_kconfig) {
-		name = conf_get_configname();
-		if (stat(name, &tmpstat)) {
-			fprintf(stderr, "***\n"
-				"*** Configuration file \"%s\" not found!\n"
-				"***\n"
-				"*** Please run some configurator (e.g. \"make oldconfig\" or\n"
-				"*** \"make menuconfig\" or \"make xconfig\").\n"
-				"***\n", name);
-			exit(1);
-		}
-	}
 
 	switch (input_mode) {
 	case defconfig:
-		if (!defconfig_file)
-			defconfig_file = conf_get_default_confname();
 		if (conf_read(defconfig_file)) {
 			fprintf(stderr,
 				"***\n"

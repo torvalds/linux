@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File aq_hw_utils.c: Definitions of helper functions used across
@@ -51,6 +48,18 @@ u32 aq_hw_read_reg(struct aq_hw_s *hw, u32 reg)
 void aq_hw_write_reg(struct aq_hw_s *hw, u32 reg, u32 value)
 {
 	writel(value, hw->mmio + reg);
+}
+
+/* Most of 64-bit registers are in LSW, MSW form.
+   Counters are normally implemented by HW as latched pairs:
+   reading LSW first locks MSW, to overcome LSW overflow
+ */
+u64 aq_hw_read_reg64(struct aq_hw_s *hw, u32 reg)
+{
+	u64 value = aq_hw_read_reg(hw, reg);
+
+	value |= (u64)aq_hw_read_reg(hw, reg + 4) << 32;
+	return value;
 }
 
 int aq_hw_err_from_flags(struct aq_hw_s *hw)

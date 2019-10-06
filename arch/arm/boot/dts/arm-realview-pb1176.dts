@@ -23,9 +23,10 @@
 /dts-v1/;
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
-#include "skeleton.dtsi"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "ARM RealView PB1176";
 	compatible = "arm,realview-pb1176";
 
@@ -40,6 +41,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		/* 128 MiB memory @ 0x0 */
 		reg = <0x00000000 0x08000000>;
 	};
@@ -118,12 +120,18 @@
 		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x30000000 0x4000000>;
 		bank-width = <4>;
+		partitions {
+			compatible = "arm,arm-firmware-suite";
+		};
 	};
 
 	fpga_flash@38000000 {
 		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x38000000 0x800000>;
 		bank-width = <4>;
+		partitions {
+			compatible = "arm,arm-firmware-suite";
+		};
 	};
 
 	/*

@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/delay.h>
@@ -77,7 +66,7 @@ mt76x2_fixup_xtal(struct mt76x02_dev *dev)
 	}
 }
 
-static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
+int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 {
 	const u8 *macaddr = dev->mt76.macaddr;
 	u32 val;
@@ -119,10 +108,8 @@ static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 	mt76_wr(dev, MT_MCU_CLOCK_CTL, 0x1401);
 	mt76_clear(dev, MT_FCE_L2_STUFF, MT_FCE_L2_STUFF_WR_MPDU_LEN_EN);
 
-	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(macaddr));
-	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(macaddr + 4));
-
-	mt76x02_init_beacon_config(dev);
+	mt76x02_mac_setaddr(dev, macaddr);
+	mt76x02e_init_beacon_config(dev);
 	if (!hard)
 		return 0;
 
@@ -151,6 +138,7 @@ static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 		MT_CH_TIME_CFG_RX_AS_BUSY |
 		MT_CH_TIME_CFG_NAV_AS_BUSY |
 		MT_CH_TIME_CFG_EIFS_AS_BUSY |
+		MT_CH_CCA_RC_EN |
 		FIELD_PREP(MT_CH_TIME_CFG_CH_TIMER_CLR, 1));
 
 	mt76x02_set_tx_ackto(dev);
@@ -172,13 +160,6 @@ int mt76x2_mac_start(struct mt76x02_dev *dev)
 	mt76x02_mac_start(dev);
 
 	return 0;
-}
-
-void mt76x2_mac_resume(struct mt76x02_dev *dev)
-{
-	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		MT_MAC_SYS_CTRL_ENABLE_TX |
-		MT_MAC_SYS_CTRL_ENABLE_RX);
 }
 
 static void
@@ -260,7 +241,7 @@ mt76x2_power_on(struct mt76x02_dev *dev)
 	mt76x2_power_on_rf(dev, 1);
 }
 
-int mt76x2_init_hardware(struct mt76x02_dev *dev)
+static int mt76x2_init_hardware(struct mt76x02_dev *dev)
 {
 	int ret;
 
@@ -299,7 +280,8 @@ int mt76x2_init_hardware(struct mt76x02_dev *dev)
 void mt76x2_stop_hardware(struct mt76x02_dev *dev)
 {
 	cancel_delayed_work_sync(&dev->cal_work);
-	cancel_delayed_work_sync(&dev->mac_work);
+	cancel_delayed_work_sync(&dev->mt76.mac_work);
+	cancel_delayed_work_sync(&dev->wdt_work);
 	mt76x02_mcu_set_radio_state(dev, false);
 	mt76x2_mac_stop(dev, false);
 }
@@ -307,85 +289,10 @@ void mt76x2_stop_hardware(struct mt76x02_dev *dev)
 void mt76x2_cleanup(struct mt76x02_dev *dev)
 {
 	tasklet_disable(&dev->dfs_pd.dfs_tasklet);
-	tasklet_disable(&dev->pre_tbtt_tasklet);
+	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 	mt76x2_stop_hardware(dev);
 	mt76x02_dma_cleanup(dev);
 	mt76x02_mcu_cleanup(dev);
-}
-
-struct mt76x02_dev *mt76x2_alloc_device(struct device *pdev)
-{
-	static const struct mt76_driver_ops drv_ops = {
-		.txwi_size = sizeof(struct mt76x02_txwi),
-		.update_survey = mt76x02_update_channel,
-		.tx_prepare_skb = mt76x02_tx_prepare_skb,
-		.tx_complete_skb = mt76x02_tx_complete_skb,
-		.rx_skb = mt76x02_queue_rx_skb,
-		.rx_poll_complete = mt76x02_rx_poll_complete,
-		.sta_ps = mt76x02_sta_ps,
-		.sta_add = mt76x02_sta_add,
-		.sta_remove = mt76x02_sta_remove,
-	};
-	struct mt76x02_dev *dev;
-	struct mt76_dev *mdev;
-
-	mdev = mt76_alloc_device(sizeof(*dev), &mt76x2_ops);
-	if (!mdev)
-		return NULL;
-
-	dev = container_of(mdev, struct mt76x02_dev, mt76);
-	mdev->dev = pdev;
-	mdev->drv = &drv_ops;
-
-	return dev;
-}
-
-static void mt76x2_led_set_config(struct mt76_dev *mt76, u8 delay_on,
-				  u8 delay_off)
-{
-	struct mt76x02_dev *dev = container_of(mt76, struct mt76x02_dev,
-					       mt76);
-	u32 val;
-
-	val = MT_LED_STATUS_DURATION(0xff) |
-	      MT_LED_STATUS_OFF(delay_off) |
-	      MT_LED_STATUS_ON(delay_on);
-
-	mt76_wr(dev, MT_LED_S0(mt76->led_pin), val);
-	mt76_wr(dev, MT_LED_S1(mt76->led_pin), val);
-
-	val = MT_LED_CTRL_REPLAY(mt76->led_pin) |
-	      MT_LED_CTRL_KICK(mt76->led_pin);
-	if (mt76->led_al)
-		val |= MT_LED_CTRL_POLARITY(mt76->led_pin);
-	mt76_wr(dev, MT_LED_CTRL, val);
-}
-
-static int mt76x2_led_set_blink(struct led_classdev *led_cdev,
-				unsigned long *delay_on,
-				unsigned long *delay_off)
-{
-	struct mt76_dev *mt76 = container_of(led_cdev, struct mt76_dev,
-					     led_cdev);
-	u8 delta_on, delta_off;
-
-	delta_off = max_t(u8, *delay_off / 10, 1);
-	delta_on = max_t(u8, *delay_on / 10, 1);
-
-	mt76x2_led_set_config(mt76, delta_on, delta_off);
-	return 0;
-}
-
-static void mt76x2_led_set_brightness(struct led_classdev *led_cdev,
-				      enum led_brightness brightness)
-{
-	struct mt76_dev *mt76 = container_of(led_cdev, struct mt76_dev,
-					     led_cdev);
-
-	if (!brightness)
-		mt76x2_led_set_config(mt76, 0, 0xff);
-	else
-		mt76x2_led_set_config(mt76, 0xff, 0);
 }
 
 int mt76x2_register_device(struct mt76x02_dev *dev)
@@ -402,12 +309,6 @@ int mt76x2_register_device(struct mt76x02_dev *dev)
 
 	mt76x02_config_mac_addr_list(dev);
 
-	/* init led callbacks */
-	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
-		dev->mt76.led_cdev.brightness_set = mt76x2_led_set_brightness;
-		dev->mt76.led_cdev.blink_set = mt76x2_led_set_blink;
-	}
-
 	ret = mt76_register_device(&dev->mt76, true, mt76x02_rates,
 				   ARRAY_SIZE(mt76x02_rates));
 	if (ret)
@@ -423,5 +324,4 @@ fail:
 	mt76x2_stop_hardware(dev);
 	return ret;
 }
-
 

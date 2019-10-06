@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *    Support for NXT2002 and NXT2004 - VSB/QAM
  *
@@ -5,17 +6,6 @@
  *    Copyright (C) 2006-2014 Michael Krufky <mkrufky@linuxtv.org>
  *    based on nxt2002 by Taylor Jacob <rtjacob@earthlink.net>
  *    and nxt2004 by Jean-Francois Thibert <jeanfrancois@sagetv.com>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
 */
 
 /*
@@ -153,7 +143,7 @@ static int nxt200x_writereg_multibyte (struct nxt200x_state* state, u8 reg, u8* 
 	u8 attr, len2, buf;
 	dprintk("%s\n", __func__);
 
-	/* set mutli register register */
+	/* set multi register register */
 	nxt200x_writebytes(state, 0x35, &reg, 1);
 
 	/* send the actual data */
@@ -214,7 +204,7 @@ static int nxt200x_readreg_multibyte (struct nxt200x_state* state, u8 reg, u8* d
 	u8 buf, len2, attr;
 	dprintk("%s\n", __func__);
 
-	/* set mutli register register */
+	/* set multi register register */
 	nxt200x_writebytes(state, 0x35, &reg, 1);
 
 	switch (state->demod_chip) {

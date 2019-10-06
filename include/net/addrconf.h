@@ -49,6 +49,7 @@ struct prefix_info {
 	struct in6_addr		prefix;
 };
 
+#include <linux/ipv6.h>
 #include <linux/netdevice.h>
 #include <net/if_inet6.h>
 #include <net/ipv6.h>
@@ -201,6 +202,15 @@ u32 ipv6_addr_label(struct net *net, const struct in6_addr *addr,
 /*
  *	multicast prototypes (mcast.c)
  */
+static inline int ipv6_mc_may_pull(struct sk_buff *skb,
+				   unsigned int len)
+{
+	if (skb_transport_offset(skb) + ipv6_transport_len(skb) < len)
+		return 0;
+
+	return pskb_may_pull(skb, len);
+}
+
 int ipv6_sock_mc_join(struct sock *sk, int ifindex,
 		      const struct in6_addr *addr);
 int ipv6_sock_mc_drop(struct sock *sk, int ifindex,
@@ -219,59 +229,14 @@ void ipv6_mc_unmap(struct inet6_dev *idev);
 void ipv6_mc_remap(struct inet6_dev *idev);
 void ipv6_mc_init_dev(struct inet6_dev *idev);
 void ipv6_mc_destroy_dev(struct inet6_dev *idev);
-int ipv6_mc_check_mld(struct sk_buff *skb, struct sk_buff **skb_trimmed);
+int ipv6_mc_check_icmpv6(struct sk_buff *skb);
+int ipv6_mc_check_mld(struct sk_buff *skb);
 void addrconf_dad_failure(struct sk_buff *skb, struct inet6_ifaddr *ifp);
 
 bool ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,
 			 const struct in6_addr *src_addr);
 
 void ipv6_mc_dad_complete(struct inet6_dev *idev);
-
-/* A stub used by vxlan module. This is ugly, ideally these
- * symbols should be built into the core kernel.
- */
-struct ipv6_stub {
-	int (*ipv6_sock_mc_join)(struct sock *sk, int ifindex,
-				 const struct in6_addr *addr);
-	int (*ipv6_sock_mc_drop)(struct sock *sk, int ifindex,
-				 const struct in6_addr *addr);
-	int (*ipv6_dst_lookup)(struct net *net, struct sock *sk,
-			       struct dst_entry **dst, struct flowi6 *fl6);
-
-	struct fib6_table *(*fib6_get_table)(struct net *net, u32 id);
-	struct fib6_info *(*fib6_lookup)(struct net *net, int oif,
-					 struct flowi6 *fl6, int flags);
-	struct fib6_info *(*fib6_table_lookup)(struct net *net,
-					      struct fib6_table *table,
-					      int oif, struct flowi6 *fl6,
-					      int flags);
-	struct fib6_info *(*fib6_multipath_select)(const struct net *net,
-						   struct fib6_info *f6i,
-						   struct flowi6 *fl6, int oif,
-						   const struct sk_buff *skb,
-						   int strict);
-	u32 (*ip6_mtu_from_fib6)(struct fib6_info *f6i, struct in6_addr *daddr,
-				 struct in6_addr *saddr);
-
-	void (*udpv6_encap_enable)(void);
-	void (*ndisc_send_na)(struct net_device *dev, const struct in6_addr *daddr,
-			      const struct in6_addr *solicited_addr,
-			      bool router, bool solicited, bool override, bool inc_opt);
-	struct neigh_table *nd_tbl;
-};
-extern const struct ipv6_stub *ipv6_stub __read_mostly;
-
-/* A stub used by bpf helpers. Similarly ugly as ipv6_stub */
-struct ipv6_bpf_stub {
-	int (*inet6_bind)(struct sock *sk, struct sockaddr *uaddr, int addr_len,
-			  bool force_bind_address_no_port, bool with_lock);
-	struct sock *(*udp6_lib_lookup)(struct net *net,
-					const struct in6_addr *saddr, __be16 sport,
-					const struct in6_addr *daddr, __be16 dport,
-					int dif, int sdif, struct udp_table *tbl,
-					struct sk_buff *skb);
-};
-extern const struct ipv6_bpf_stub *ipv6_bpf_stub __read_mostly;
 
 /*
  * identify MLD packets for MLD filter exceptions
@@ -345,6 +310,22 @@ static inline struct inet6_dev *__in6_dev_get(const struct net_device *dev)
 }
 
 /**
+ * __in6_dev_stats_get - get inet6_dev pointer for stats
+ * @dev: network device
+ * @skb: skb for original incoming interface if neeeded
+ *
+ * Caller must hold rcu_read_lock or RTNL, because this function
+ * does not take a reference on the inet6_dev.
+ */
+static inline struct inet6_dev *__in6_dev_stats_get(const struct net_device *dev,
+						    const struct sk_buff *skb)
+{
+	if (netif_is_l3_master(dev))
+		dev = dev_get_by_index_rcu(dev_net(dev), inet6_iif(skb));
+	return __in6_dev_get(dev);
+}
+
+/**
  * __in6_dev_get_safely - get inet6_dev pointer from netdevice
  * @dev: network device
  *
@@ -411,6 +392,14 @@ static inline void __in6_dev_put(struct inet6_dev *idev)
 static inline void in6_dev_hold(struct inet6_dev *idev)
 {
 	refcount_inc(&idev->refcnt);
+}
+
+/* called with rcu_read_lock held */
+static inline bool ip6_ignore_linkdown(const struct net_device *dev)
+{
+	const struct inet6_dev *idev = __in6_dev_get(dev);
+
+	return !!idev->cnf.ignore_routes_with_linkdown;
 }
 
 void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp);
@@ -486,6 +475,20 @@ static inline bool ipv6_addr_is_solict_mult(const struct in6_addr *addr)
 		addr->s6_addr32[1] |
 		(addr->s6_addr32[2] ^ htonl(0x00000001)) |
 		(addr->s6_addr[12] ^ 0xff)) == 0;
+#endif
+}
+
+static inline bool ipv6_addr_is_all_snoopers(const struct in6_addr *addr)
+{
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+	__be64 *p = (__be64 *)addr;
+
+	return ((p[0] ^ cpu_to_be64(0xff02000000000000UL)) |
+		(p[1] ^ cpu_to_be64(0x6a))) == 0UL;
+#else
+	return ((addr->s6_addr32[0] ^ htonl(0xff020000)) |
+		addr->s6_addr32[1] | addr->s6_addr32[2] |
+		(addr->s6_addr32[3] ^ htonl(0x0000006a))) == 0;
 #endif
 }
 

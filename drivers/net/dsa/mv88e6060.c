@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * net/dsa/mv88e6060.c - Driver for Marvell 88e6060 switch chips
  * Copyright (c) 2008-2009 Marvell Semiconductor
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/delay.h>
@@ -18,39 +14,15 @@
 #include <net/dsa.h>
 #include "mv88e6060.h"
 
-static int reg_read(struct dsa_switch *ds, int addr, int reg)
+static int reg_read(struct mv88e6060_priv *priv, int addr, int reg)
 {
-	struct mv88e6060_priv *priv = ds->priv;
-
 	return mdiobus_read_nested(priv->bus, priv->sw_addr + addr, reg);
 }
 
-#define REG_READ(addr, reg)					\
-	({							\
-		int __ret;					\
-								\
-		__ret = reg_read(ds, addr, reg);		\
-		if (__ret < 0)					\
-			return __ret;				\
-		__ret;						\
-	})
-
-
-static int reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
+static int reg_write(struct mv88e6060_priv *priv, int addr, int reg, u16 val)
 {
-	struct mv88e6060_priv *priv = ds->priv;
-
 	return mdiobus_write_nested(priv->bus, priv->sw_addr + addr, reg, val);
 }
-
-#define REG_WRITE(addr, reg, val)				\
-	({							\
-		int __ret;					\
-								\
-		__ret = reg_write(ds, addr, reg, val);		\
-		if (__ret < 0)					\
-			return __ret;				\
-	})
 
 static const char *mv88e6060_get_name(struct mii_bus *bus, int sw_addr)
 {
@@ -76,28 +48,7 @@ static enum dsa_tag_protocol mv88e6060_get_tag_protocol(struct dsa_switch *ds,
 	return DSA_TAG_PROTO_TRAILER;
 }
 
-static const char *mv88e6060_drv_probe(struct device *dsa_dev,
-				       struct device *host_dev, int sw_addr,
-				       void **_priv)
-{
-	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
-	struct mv88e6060_priv *priv;
-	const char *name;
-
-	name = mv88e6060_get_name(bus, sw_addr);
-	if (name) {
-		priv = devm_kzalloc(dsa_dev, sizeof(*priv), GFP_KERNEL);
-		if (!priv)
-			return NULL;
-		*_priv = priv;
-		priv->bus = bus;
-		priv->sw_addr = sw_addr;
-	}
-
-	return name;
-}
-
-static int mv88e6060_switch_reset(struct dsa_switch *ds)
+static int mv88e6060_switch_reset(struct mv88e6060_priv *priv)
 {
 	int i;
 	int ret;
@@ -105,23 +56,32 @@ static int mv88e6060_switch_reset(struct dsa_switch *ds)
 
 	/* Set all ports to the disabled state. */
 	for (i = 0; i < MV88E6060_PORTS; i++) {
-		ret = REG_READ(REG_PORT(i), PORT_CONTROL);
-		REG_WRITE(REG_PORT(i), PORT_CONTROL,
-			  ret & ~PORT_CONTROL_STATE_MASK);
+		ret = reg_read(priv, REG_PORT(i), PORT_CONTROL);
+		if (ret < 0)
+			return ret;
+		ret = reg_write(priv, REG_PORT(i), PORT_CONTROL,
+				ret & ~PORT_CONTROL_STATE_MASK);
+		if (ret)
+			return ret;
 	}
 
 	/* Wait for transmit queues to drain. */
 	usleep_range(2000, 4000);
 
 	/* Reset the switch. */
-	REG_WRITE(REG_GLOBAL, GLOBAL_ATU_CONTROL,
-		  GLOBAL_ATU_CONTROL_SWRESET |
-		  GLOBAL_ATU_CONTROL_LEARNDIS);
+	ret = reg_write(priv, REG_GLOBAL, GLOBAL_ATU_CONTROL,
+			GLOBAL_ATU_CONTROL_SWRESET |
+			GLOBAL_ATU_CONTROL_LEARNDIS);
+	if (ret)
+		return ret;
 
 	/* Wait up to one second for reset to complete. */
 	timeout = jiffies + 1 * HZ;
 	while (time_before(jiffies, timeout)) {
-		ret = REG_READ(REG_GLOBAL, GLOBAL_STATUS);
+		ret = reg_read(priv, REG_GLOBAL, GLOBAL_STATUS);
+		if (ret < 0)
+			return ret;
+
 		if (ret & GLOBAL_STATUS_INIT_READY)
 			break;
 
@@ -133,61 +93,69 @@ static int mv88e6060_switch_reset(struct dsa_switch *ds)
 	return 0;
 }
 
-static int mv88e6060_setup_global(struct dsa_switch *ds)
+static int mv88e6060_setup_global(struct mv88e6060_priv *priv)
 {
+	int ret;
+
 	/* Disable discarding of frames with excessive collisions,
 	 * set the maximum frame size to 1536 bytes, and mask all
 	 * interrupt sources.
 	 */
-	REG_WRITE(REG_GLOBAL, GLOBAL_CONTROL, GLOBAL_CONTROL_MAX_FRAME_1536);
+	ret = reg_write(priv, REG_GLOBAL, GLOBAL_CONTROL,
+			GLOBAL_CONTROL_MAX_FRAME_1536);
+	if (ret)
+		return ret;
 
 	/* Disable automatic address learning.
 	 */
-	REG_WRITE(REG_GLOBAL, GLOBAL_ATU_CONTROL,
-		  GLOBAL_ATU_CONTROL_LEARNDIS);
-
-	return 0;
+	return reg_write(priv, REG_GLOBAL, GLOBAL_ATU_CONTROL,
+			 GLOBAL_ATU_CONTROL_LEARNDIS);
 }
 
-static int mv88e6060_setup_port(struct dsa_switch *ds, int p)
+static int mv88e6060_setup_port(struct mv88e6060_priv *priv, int p)
 {
 	int addr = REG_PORT(p);
+	int ret;
 
 	/* Do not force flow control, disable Ingress and Egress
 	 * Header tagging, disable VLAN tunneling, and set the port
 	 * state to Forwarding.  Additionally, if this is the CPU
 	 * port, enable Ingress and Egress Trailer tagging mode.
 	 */
-	REG_WRITE(addr, PORT_CONTROL,
-		  dsa_is_cpu_port(ds, p) ?
+	ret = reg_write(priv, addr, PORT_CONTROL,
+			dsa_is_cpu_port(priv->ds, p) ?
 			PORT_CONTROL_TRAILER |
 			PORT_CONTROL_INGRESS_MODE |
 			PORT_CONTROL_STATE_FORWARDING :
 			PORT_CONTROL_STATE_FORWARDING);
+	if (ret)
+		return ret;
 
 	/* Port based VLAN map: give each port its own address
 	 * database, allow the CPU port to talk to each of the 'real'
 	 * ports, and allow each of the 'real' ports to only talk to
 	 * the CPU port.
 	 */
-	REG_WRITE(addr, PORT_VLAN_MAP,
-		  ((p & 0xf) << PORT_VLAN_MAP_DBNUM_SHIFT) |
-		   (dsa_is_cpu_port(ds, p) ? dsa_user_ports(ds) :
-		    BIT(dsa_to_port(ds, p)->cpu_dp->index)));
+	ret = reg_write(priv, addr, PORT_VLAN_MAP,
+			((p & 0xf) << PORT_VLAN_MAP_DBNUM_SHIFT) |
+			(dsa_is_cpu_port(priv->ds, p) ?
+			 dsa_user_ports(priv->ds) :
+			 BIT(dsa_to_port(priv->ds, p)->cpu_dp->index)));
+	if (ret)
+		return ret;
 
 	/* Port Association Vector: when learning source addresses
 	 * of packets, add the address to the address database using
 	 * a port bitmap that has only the bit for this port set and
 	 * the other bits clear.
 	 */
-	REG_WRITE(addr, PORT_ASSOC_VECTOR, BIT(p));
-
-	return 0;
+	return reg_write(priv, addr, PORT_ASSOC_VECTOR, BIT(p));
 }
 
-static int mv88e6060_setup_addr(struct dsa_switch *ds)
+static int mv88e6060_setup_addr(struct mv88e6060_priv *priv)
 {
 	u8 addr[ETH_ALEN];
+	int ret;
 	u16 val;
 
 	eth_random_addr(addr);
@@ -199,34 +167,43 @@ static int mv88e6060_setup_addr(struct dsa_switch *ds)
 	 */
 	val &= 0xfeff;
 
-	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_01, val);
-	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_23, (addr[2] << 8) | addr[3]);
-	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_45, (addr[4] << 8) | addr[5]);
+	ret = reg_write(priv, REG_GLOBAL, GLOBAL_MAC_01, val);
+	if (ret)
+		return ret;
 
-	return 0;
+	ret = reg_write(priv, REG_GLOBAL, GLOBAL_MAC_23,
+			(addr[2] << 8) | addr[3]);
+	if (ret)
+		return ret;
+
+	return reg_write(priv, REG_GLOBAL, GLOBAL_MAC_45,
+			 (addr[4] << 8) | addr[5]);
 }
 
 static int mv88e6060_setup(struct dsa_switch *ds)
 {
+	struct mv88e6060_priv *priv = ds->priv;
 	int ret;
 	int i;
 
-	ret = mv88e6060_switch_reset(ds);
+	priv->ds = ds;
+
+	ret = mv88e6060_switch_reset(priv);
 	if (ret < 0)
 		return ret;
 
 	/* @@@ initialise atu */
 
-	ret = mv88e6060_setup_global(ds);
+	ret = mv88e6060_setup_global(priv);
 	if (ret < 0)
 		return ret;
 
-	ret = mv88e6060_setup_addr(ds);
+	ret = mv88e6060_setup_addr(priv);
 	if (ret < 0)
 		return ret;
 
 	for (i = 0; i < MV88E6060_PORTS; i++) {
-		ret = mv88e6060_setup_port(ds, i);
+		ret = mv88e6060_setup_port(priv, i);
 		if (ret < 0)
 			return ret;
 	}
@@ -243,51 +220,93 @@ static int mv88e6060_port_to_phy_addr(int port)
 
 static int mv88e6060_phy_read(struct dsa_switch *ds, int port, int regnum)
 {
+	struct mv88e6060_priv *priv = ds->priv;
 	int addr;
 
 	addr = mv88e6060_port_to_phy_addr(port);
 	if (addr == -1)
 		return 0xffff;
 
-	return reg_read(ds, addr, regnum);
+	return reg_read(priv, addr, regnum);
 }
 
 static int
 mv88e6060_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val)
 {
+	struct mv88e6060_priv *priv = ds->priv;
 	int addr;
 
 	addr = mv88e6060_port_to_phy_addr(port);
 	if (addr == -1)
 		return 0xffff;
 
-	return reg_write(ds, addr, regnum, val);
+	return reg_write(priv, addr, regnum, val);
 }
 
 static const struct dsa_switch_ops mv88e6060_switch_ops = {
 	.get_tag_protocol = mv88e6060_get_tag_protocol,
-	.probe		= mv88e6060_drv_probe,
 	.setup		= mv88e6060_setup,
 	.phy_read	= mv88e6060_phy_read,
 	.phy_write	= mv88e6060_phy_write,
 };
 
-static struct dsa_switch_driver mv88e6060_switch_drv = {
-	.ops		= &mv88e6060_switch_ops,
+static int mv88e6060_probe(struct mdio_device *mdiodev)
+{
+	struct device *dev = &mdiodev->dev;
+	struct mv88e6060_priv *priv;
+	struct dsa_switch *ds;
+	const char *name;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->bus = mdiodev->bus;
+	priv->sw_addr = mdiodev->addr;
+
+	name = mv88e6060_get_name(priv->bus, priv->sw_addr);
+	if (!name)
+		return -ENODEV;
+
+	dev_info(dev, "switch %s detected\n", name);
+
+	ds = dsa_switch_alloc(dev, MV88E6060_PORTS);
+	if (!ds)
+		return -ENOMEM;
+
+	ds->priv = priv;
+	ds->dev = dev;
+	ds->ops = &mv88e6060_switch_ops;
+
+	dev_set_drvdata(dev, ds);
+
+	return dsa_register_switch(ds);
+}
+
+static void mv88e6060_remove(struct mdio_device *mdiodev)
+{
+	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
+
+	dsa_unregister_switch(ds);
+}
+
+static const struct of_device_id mv88e6060_of_match[] = {
+	{
+		.compatible = "marvell,mv88e6060",
+	},
+	{ /* sentinel */ },
 };
 
-static int __init mv88e6060_init(void)
-{
-	register_switch_driver(&mv88e6060_switch_drv);
-	return 0;
-}
-module_init(mv88e6060_init);
+static struct mdio_driver mv88e6060_driver = {
+	.probe	= mv88e6060_probe,
+	.remove = mv88e6060_remove,
+	.mdiodrv.driver = {
+		.name = "mv88e6060",
+		.of_match_table = mv88e6060_of_match,
+	},
+};
 
-static void __exit mv88e6060_cleanup(void)
-{
-	unregister_switch_driver(&mv88e6060_switch_drv);
-}
-module_exit(mv88e6060_cleanup);
+mdio_module_driver(mv88e6060_driver);
 
 MODULE_AUTHOR("Lennert Buytenhek <buytenh@wantstofly.org>");
 MODULE_DESCRIPTION("Driver for Marvell 88E6060 ethernet switch chip");

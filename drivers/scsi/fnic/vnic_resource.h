@@ -41,6 +41,13 @@ enum vnic_res_type {
 	RES_TYPE_RSVD7,
 	RES_TYPE_DEVCMD,		/* Device command region */
 	RES_TYPE_PASS_THRU_PAGE,	/* Pass-thru page */
+	RES_TYPE_SUBVNIC,               /* subvnic resource type */
+	RES_TYPE_MQ_WQ,                 /* MQ Work queues */
+	RES_TYPE_MQ_RQ,                 /* MQ Receive queues */
+	RES_TYPE_MQ_CQ,                 /* MQ Completion queues */
+	RES_TYPE_DEPRECATED1,           /* Old version of devcmd 2 */
+	RES_TYPE_DEPRECATED2,           /* Old version of devcmd 2 */
+	RES_TYPE_DEVCMD2,               /* Device control region */
 
 	RES_TYPE_MAX,			/* Count of resource types */
 };

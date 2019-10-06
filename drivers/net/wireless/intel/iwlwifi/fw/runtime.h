@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -27,7 +27,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,6 @@
 #include "iwl-trans.h"
 #include "img.h"
 #include "fw/api/debug.h"
-#include "fw/api/dbg-tlv.h"
 #include "fw/api/paging.h"
 #include "iwl-eeprom-parse.h"
 
@@ -73,6 +72,7 @@ struct iwl_fw_runtime_ops {
 	void (*dump_end)(void *ctx);
 	bool (*fw_running)(void *ctx);
 	int (*send_hcmd)(void *ctx, struct iwl_host_cmd *host_cmd);
+	bool (*d3_debug_enable)(void *ctx);
 };
 
 #define MAX_NUM_LMAC 2
@@ -88,9 +88,20 @@ struct iwl_fwrt_shared_mem_cfg {
 	u32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
 };
 
-enum iwl_fw_runtime_status {
-	IWL_FWRT_STATUS_DUMPING = 0,
-	IWL_FWRT_STATUS_WAIT_ALIVE,
+#define IWL_FW_RUNTIME_DUMP_WK_NUM 5
+
+/**
+ * struct iwl_txf_iter_data - Tx fifo iterator data struct
+ * @fifo: fifo number
+ * @lmac: lmac number
+ * @fifo_size: fifo size
+ * @internal_txf: non zero if fifo is  internal Tx fifo
+ */
+struct iwl_txf_iter_data {
+	int fifo;
+	int lmac;
+	u32 fifo_size;
+	u8 internal_txf;
 };
 
 /**
@@ -100,7 +111,6 @@ enum iwl_fw_runtime_status {
  * @dev: device pointer
  * @ops: user ops
  * @ops_ctx: user ops context
- * @status: status flags
  * @fw_paging_db: paging database
  * @num_of_paging_blk: number of paging blocks
  * @num_of_pages_in_last_blk: number of pages in the last block
@@ -117,8 +127,6 @@ struct iwl_fw_runtime {
 	const struct iwl_fw_runtime_ops *ops;
 	void *ops_ctx;
 
-	unsigned long status;
-
 	/* Paging */
 	struct iwl_fw_paging fw_paging_db[NUM_OF_FW_PAGING_BLOCKS];
 	u16 num_of_paging_blk;
@@ -133,16 +141,37 @@ struct iwl_fw_runtime {
 	struct {
 		const struct iwl_fw_dump_desc *desc;
 		bool monitor_only;
-		struct delayed_work wk;
+		struct {
+			u8 idx;
+			enum iwl_fw_ini_trigger_id ini_trig_id;
+			struct delayed_work wk;
+		} wks[IWL_FW_RUNTIME_DUMP_WK_NUM];
+		unsigned long active_wks;
 
 		u8 conf;
 
 		/* ts of the beginning of a non-collect fw dbg data period */
-		unsigned long non_collect_ts_start[IWL_FW_TRIGGER_ID_NUM - 1];
+		unsigned long non_collect_ts_start[IWL_FW_TRIGGER_ID_NUM];
 		u32 *d3_debug_data;
-		struct iwl_fw_ini_active_regs active_regs[IWL_FW_INI_MAX_REGION_ID];
+		struct iwl_fw_ini_region_cfg *active_regs[IWL_FW_INI_MAX_REGION_ID];
 		struct iwl_fw_ini_active_triggers active_trigs[IWL_FW_TRIGGER_ID_NUM];
-		u32 rt_status;
+		u32 lmac_err_id[MAX_NUM_LMAC];
+		u32 umac_err_id;
+
+		struct iwl_txf_iter_data txf_iter_data;
+
+		u8 img_name[IWL_FW_INI_MAX_IMG_NAME_LEN];
+		u8 internal_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
+		u8 external_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
+
+		struct {
+			u8 type;
+			u8 subtype;
+			u32 lmac_major;
+			u32 lmac_minor;
+			u32 umac_major;
+			u32 umac_minor;
+		} fw_ver;
 	} dump;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {
@@ -160,8 +189,24 @@ void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 
 static inline void iwl_fw_runtime_free(struct iwl_fw_runtime *fwrt)
 {
+	int i;
+
 	kfree(fwrt->dump.d3_debug_data);
 	fwrt->dump.d3_debug_data = NULL;
+
+	for (i = 0; i < IWL_FW_TRIGGER_ID_NUM; i++) {
+		struct iwl_fw_ini_active_triggers *active =
+			&fwrt->dump.active_trigs[i];
+
+		active->active = false;
+		active->size = 0;
+		kfree(active->trig);
+		active->trig = NULL;
+	}
+
+	iwl_dbg_tlv_del_timers(fwrt->trans);
+	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++)
+		cancel_delayed_work_sync(&fwrt->dump.wks[i].wk);
 }
 
 void iwl_fw_runtime_suspend(struct iwl_fw_runtime *fwrt);

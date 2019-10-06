@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/io-pgtable.h>
 #include <linux/iommu.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -35,17 +36,20 @@
 #define arm_iommu_detach_device(...)	do {} while (0)
 #endif
 
-#include "io-pgtable.h"
+#define IPMMU_CTX_MAX		8U
+#define IPMMU_CTX_INVALID	-1
 
-#define IPMMU_CTX_MAX 8
+#define IPMMU_UTLB_MAX		48U
 
 struct ipmmu_features {
 	bool use_ns_alias_offset;
 	bool has_cache_leaf_nodes;
 	unsigned int number_of_contexts;
+	unsigned int num_utlbs;
 	bool setup_imbuscr;
 	bool twobit_imttbcr_sl0;
 	bool reserved_context;
+	bool cache_snoop;
 };
 
 struct ipmmu_vmsa_device {
@@ -54,11 +58,11 @@ struct ipmmu_vmsa_device {
 	struct iommu_device iommu;
 	struct ipmmu_vmsa_device *root;
 	const struct ipmmu_features *features;
-	unsigned int num_utlbs;
 	unsigned int num_ctx;
 	spinlock_t lock;			/* Protects ctx and domains[] */
 	DECLARE_BITMAP(ctx, IPMMU_CTX_MAX);
 	struct ipmmu_vmsa_domain *domains[IPMMU_CTX_MAX];
+	s8 utlb_ctx[IPMMU_UTLB_MAX];
 
 	struct iommu_group *group;
 	struct dma_iommu_mapping *mapping;
@@ -112,44 +116,43 @@ static struct ipmmu_vmsa_device *to_ipmmu(struct device *dev)
 #define IMTTBCR				0x0008
 #define IMTTBCR_EAE			(1 << 31)
 #define IMTTBCR_PMB			(1 << 30)
-#define IMTTBCR_SH1_NON_SHAREABLE	(0 << 28)
-#define IMTTBCR_SH1_OUTER_SHAREABLE	(2 << 28)
-#define IMTTBCR_SH1_INNER_SHAREABLE	(3 << 28)
-#define IMTTBCR_SH1_MASK		(3 << 28)
-#define IMTTBCR_ORGN1_NC		(0 << 26)
-#define IMTTBCR_ORGN1_WB_WA		(1 << 26)
-#define IMTTBCR_ORGN1_WT		(2 << 26)
-#define IMTTBCR_ORGN1_WB		(3 << 26)
-#define IMTTBCR_ORGN1_MASK		(3 << 26)
-#define IMTTBCR_IRGN1_NC		(0 << 24)
-#define IMTTBCR_IRGN1_WB_WA		(1 << 24)
-#define IMTTBCR_IRGN1_WT		(2 << 24)
-#define IMTTBCR_IRGN1_WB		(3 << 24)
-#define IMTTBCR_IRGN1_MASK		(3 << 24)
+#define IMTTBCR_SH1_NON_SHAREABLE	(0 << 28)	/* R-Car Gen2 only */
+#define IMTTBCR_SH1_OUTER_SHAREABLE	(2 << 28)	/* R-Car Gen2 only */
+#define IMTTBCR_SH1_INNER_SHAREABLE	(3 << 28)	/* R-Car Gen2 only */
+#define IMTTBCR_SH1_MASK		(3 << 28)	/* R-Car Gen2 only */
+#define IMTTBCR_ORGN1_NC		(0 << 26)	/* R-Car Gen2 only */
+#define IMTTBCR_ORGN1_WB_WA		(1 << 26)	/* R-Car Gen2 only */
+#define IMTTBCR_ORGN1_WT		(2 << 26)	/* R-Car Gen2 only */
+#define IMTTBCR_ORGN1_WB		(3 << 26)	/* R-Car Gen2 only */
+#define IMTTBCR_ORGN1_MASK		(3 << 26)	/* R-Car Gen2 only */
+#define IMTTBCR_IRGN1_NC		(0 << 24)	/* R-Car Gen2 only */
+#define IMTTBCR_IRGN1_WB_WA		(1 << 24)	/* R-Car Gen2 only */
+#define IMTTBCR_IRGN1_WT		(2 << 24)	/* R-Car Gen2 only */
+#define IMTTBCR_IRGN1_WB		(3 << 24)	/* R-Car Gen2 only */
+#define IMTTBCR_IRGN1_MASK		(3 << 24)	/* R-Car Gen2 only */
 #define IMTTBCR_TSZ1_MASK		(7 << 16)
 #define IMTTBCR_TSZ1_SHIFT		16
-#define IMTTBCR_SH0_NON_SHAREABLE	(0 << 12)
-#define IMTTBCR_SH0_OUTER_SHAREABLE	(2 << 12)
-#define IMTTBCR_SH0_INNER_SHAREABLE	(3 << 12)
-#define IMTTBCR_SH0_MASK		(3 << 12)
-#define IMTTBCR_ORGN0_NC		(0 << 10)
-#define IMTTBCR_ORGN0_WB_WA		(1 << 10)
-#define IMTTBCR_ORGN0_WT		(2 << 10)
-#define IMTTBCR_ORGN0_WB		(3 << 10)
-#define IMTTBCR_ORGN0_MASK		(3 << 10)
-#define IMTTBCR_IRGN0_NC		(0 << 8)
-#define IMTTBCR_IRGN0_WB_WA		(1 << 8)
-#define IMTTBCR_IRGN0_WT		(2 << 8)
-#define IMTTBCR_IRGN0_WB		(3 << 8)
-#define IMTTBCR_IRGN0_MASK		(3 << 8)
+#define IMTTBCR_SH0_NON_SHAREABLE	(0 << 12)	/* R-Car Gen2 only */
+#define IMTTBCR_SH0_OUTER_SHAREABLE	(2 << 12)	/* R-Car Gen2 only */
+#define IMTTBCR_SH0_INNER_SHAREABLE	(3 << 12)	/* R-Car Gen2 only */
+#define IMTTBCR_SH0_MASK		(3 << 12)	/* R-Car Gen2 only */
+#define IMTTBCR_ORGN0_NC		(0 << 10)	/* R-Car Gen2 only */
+#define IMTTBCR_ORGN0_WB_WA		(1 << 10)	/* R-Car Gen2 only */
+#define IMTTBCR_ORGN0_WT		(2 << 10)	/* R-Car Gen2 only */
+#define IMTTBCR_ORGN0_WB		(3 << 10)	/* R-Car Gen2 only */
+#define IMTTBCR_ORGN0_MASK		(3 << 10)	/* R-Car Gen2 only */
+#define IMTTBCR_IRGN0_NC		(0 << 8)	/* R-Car Gen2 only */
+#define IMTTBCR_IRGN0_WB_WA		(1 << 8)	/* R-Car Gen2 only */
+#define IMTTBCR_IRGN0_WT		(2 << 8)	/* R-Car Gen2 only */
+#define IMTTBCR_IRGN0_WB		(3 << 8)	/* R-Car Gen2 only */
+#define IMTTBCR_IRGN0_MASK		(3 << 8)	/* R-Car Gen2 only */
+#define IMTTBCR_SL0_TWOBIT_LVL_3	(0 << 6)	/* R-Car Gen3 only */
+#define IMTTBCR_SL0_TWOBIT_LVL_2	(1 << 6)	/* R-Car Gen3 only */
+#define IMTTBCR_SL0_TWOBIT_LVL_1	(2 << 6)	/* R-Car Gen3 only */
 #define IMTTBCR_SL0_LVL_2		(0 << 4)
 #define IMTTBCR_SL0_LVL_1		(1 << 4)
 #define IMTTBCR_TSZ0_MASK		(7 << 0)
 #define IMTTBCR_TSZ0_SHIFT		O
-
-#define IMTTBCR_SL0_TWOBIT_LVL_3	(0 << 6)
-#define IMTTBCR_SL0_TWOBIT_LVL_2	(1 << 6)
-#define IMTTBCR_SL0_TWOBIT_LVL_1	(2 << 6)
 
 #define IMBUSCR				0x000c
 #define IMBUSCR_DVM			(1 << 2)
@@ -187,7 +190,8 @@ static struct ipmmu_vmsa_device *to_ipmmu(struct device *dev)
 #define IMMAIR_ATTR_IDX_WBRWA		1
 #define IMMAIR_ATTR_IDX_DEV		2
 
-#define IMEAR				0x0030
+#define IMELAR				0x0030	/* IMEAR on R-Car Gen2 */
+#define IMEUAR				0x0034	/* R-Car Gen3 only */
 
 #define IMPCTR				0x0200
 #define IMPSTR				0x0208
@@ -335,6 +339,7 @@ static void ipmmu_utlb_enable(struct ipmmu_vmsa_domain *domain,
 	ipmmu_write(mmu, IMUCTR(utlb),
 		    IMUCTR_TTSEL_MMU(domain->context_id) | IMUCTR_FLUSH |
 		    IMUCTR_MMUEN);
+	mmu->utlb_ctx[utlb] = domain->context_id;
 }
 
 /*
@@ -346,6 +351,7 @@ static void ipmmu_utlb_disable(struct ipmmu_vmsa_domain *domain,
 	struct ipmmu_vmsa_device *mmu = domain->mmu;
 
 	ipmmu_write(mmu, IMUCTR(utlb), 0);
+	mmu->utlb_ctx[utlb] = IPMMU_CTX_INVALID;
 }
 
 static void ipmmu_tlb_flush_all(void *cookie)
@@ -355,16 +361,16 @@ static void ipmmu_tlb_flush_all(void *cookie)
 	ipmmu_tlb_invalidate(domain);
 }
 
-static void ipmmu_tlb_add_flush(unsigned long iova, size_t size,
-				size_t granule, bool leaf, void *cookie)
+static void ipmmu_tlb_flush(unsigned long iova, size_t size,
+				size_t granule, void *cookie)
 {
-	/* The hardware doesn't support selective TLB flush. */
+	ipmmu_tlb_flush_all(cookie);
 }
 
-static const struct iommu_gather_ops ipmmu_gather_ops = {
+static const struct iommu_flush_ops ipmmu_flush_ops = {
 	.tlb_flush_all = ipmmu_tlb_flush_all,
-	.tlb_add_flush = ipmmu_tlb_add_flush,
-	.tlb_sync = ipmmu_tlb_flush_all,
+	.tlb_flush_walk = ipmmu_tlb_flush,
+	.tlb_flush_leaf = ipmmu_tlb_flush,
 };
 
 /* -----------------------------------------------------------------------------
@@ -404,52 +410,10 @@ static void ipmmu_domain_free_context(struct ipmmu_vmsa_device *mmu,
 	spin_unlock_irqrestore(&mmu->lock, flags);
 }
 
-static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
+static void ipmmu_domain_setup_context(struct ipmmu_vmsa_domain *domain)
 {
 	u64 ttbr;
 	u32 tmp;
-	int ret;
-
-	/*
-	 * Allocate the page table operations.
-	 *
-	 * VMSA states in section B3.6.3 "Control of Secure or Non-secure memory
-	 * access, Long-descriptor format" that the NStable bit being set in a
-	 * table descriptor will result in the NStable and NS bits of all child
-	 * entries being ignored and considered as being set. The IPMMU seems
-	 * not to comply with this, as it generates a secure access page fault
-	 * if any of the NStable and NS bits isn't set when running in
-	 * non-secure mode.
-	 */
-	domain->cfg.quirks = IO_PGTABLE_QUIRK_ARM_NS;
-	domain->cfg.pgsize_bitmap = SZ_1G | SZ_2M | SZ_4K;
-	domain->cfg.ias = 32;
-	domain->cfg.oas = 40;
-	domain->cfg.tlb = &ipmmu_gather_ops;
-	domain->io_domain.geometry.aperture_end = DMA_BIT_MASK(32);
-	domain->io_domain.geometry.force_aperture = true;
-	/*
-	 * TODO: Add support for coherent walk through CCI with DVM and remove
-	 * cache handling. For now, delegate it to the io-pgtable code.
-	 */
-	domain->cfg.iommu_dev = domain->mmu->root->dev;
-
-	/*
-	 * Find an unused context.
-	 */
-	ret = ipmmu_domain_allocate_context(domain->mmu->root, domain);
-	if (ret < 0)
-		return ret;
-
-	domain->context_id = ret;
-
-	domain->iop = alloc_io_pgtable_ops(ARM_32_LPAE_S1, &domain->cfg,
-					   domain);
-	if (!domain->iop) {
-		ipmmu_domain_free_context(domain->mmu->root,
-					  domain->context_id);
-		return -EINVAL;
-	}
 
 	/* TTBR0 */
 	ttbr = domain->cfg.arm_lpae_s1_cfg.ttbr[0];
@@ -458,17 +422,19 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 
 	/*
 	 * TTBCR
-	 * We use long descriptors with inner-shareable WBWA tables and allocate
-	 * the whole 32-bit VA space to TTBR0.
+	 * We use long descriptors and allocate the whole 32-bit VA space to
+	 * TTBR0.
 	 */
 	if (domain->mmu->features->twobit_imttbcr_sl0)
 		tmp = IMTTBCR_SL0_TWOBIT_LVL_1;
 	else
 		tmp = IMTTBCR_SL0_LVL_1;
 
-	ipmmu_ctx_write_root(domain, IMTTBCR, IMTTBCR_EAE |
-			     IMTTBCR_SH0_INNER_SHAREABLE | IMTTBCR_ORGN0_WB_WA |
-			     IMTTBCR_IRGN0_WB_WA | tmp);
+	if (domain->mmu->features->cache_snoop)
+		tmp |= IMTTBCR_SH0_INNER_SHAREABLE | IMTTBCR_ORGN0_WB_WA |
+		       IMTTBCR_IRGN0_WB_WA;
+
+	ipmmu_ctx_write_root(domain, IMTTBCR, IMTTBCR_EAE | tmp);
 
 	/* MAIR0 */
 	ipmmu_ctx_write_root(domain, IMMAIR0,
@@ -495,7 +461,55 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 	 */
 	ipmmu_ctx_write_all(domain, IMCTR,
 			    IMCTR_INTEN | IMCTR_FLUSH | IMCTR_MMUEN);
+}
 
+static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
+{
+	int ret;
+
+	/*
+	 * Allocate the page table operations.
+	 *
+	 * VMSA states in section B3.6.3 "Control of Secure or Non-secure memory
+	 * access, Long-descriptor format" that the NStable bit being set in a
+	 * table descriptor will result in the NStable and NS bits of all child
+	 * entries being ignored and considered as being set. The IPMMU seems
+	 * not to comply with this, as it generates a secure access page fault
+	 * if any of the NStable and NS bits isn't set when running in
+	 * non-secure mode.
+	 */
+	domain->cfg.quirks = IO_PGTABLE_QUIRK_ARM_NS;
+	domain->cfg.pgsize_bitmap = SZ_1G | SZ_2M | SZ_4K;
+	domain->cfg.ias = 32;
+	domain->cfg.oas = 40;
+	domain->cfg.tlb = &ipmmu_flush_ops;
+	domain->io_domain.geometry.aperture_end = DMA_BIT_MASK(32);
+	domain->io_domain.geometry.force_aperture = true;
+	/*
+	 * TODO: Add support for coherent walk through CCI with DVM and remove
+	 * cache handling. For now, delegate it to the io-pgtable code.
+	 */
+	domain->cfg.coherent_walk = false;
+	domain->cfg.iommu_dev = domain->mmu->root->dev;
+
+	/*
+	 * Find an unused context.
+	 */
+	ret = ipmmu_domain_allocate_context(domain->mmu->root, domain);
+	if (ret < 0)
+		return ret;
+
+	domain->context_id = ret;
+
+	domain->iop = alloc_io_pgtable_ops(ARM_32_LPAE_S1, &domain->cfg,
+					   domain);
+	if (!domain->iop) {
+		ipmmu_domain_free_context(domain->mmu->root,
+					  domain->context_id);
+		return -EINVAL;
+	}
+
+	ipmmu_domain_setup_context(domain);
 	return 0;
 }
 
@@ -523,14 +537,16 @@ static irqreturn_t ipmmu_domain_irq(struct ipmmu_vmsa_domain *domain)
 {
 	const u32 err_mask = IMSTR_MHIT | IMSTR_ABORT | IMSTR_PF | IMSTR_TF;
 	struct ipmmu_vmsa_device *mmu = domain->mmu;
+	unsigned long iova;
 	u32 status;
-	u32 iova;
 
 	status = ipmmu_ctx_read_root(domain, IMSTR);
 	if (!(status & err_mask))
 		return IRQ_NONE;
 
-	iova = ipmmu_ctx_read_root(domain, IMEAR);
+	iova = ipmmu_ctx_read_root(domain, IMELAR);
+	if (IS_ENABLED(CONFIG_64BIT))
+		iova |= (u64)ipmmu_ctx_read_root(domain, IMEUAR) << 32;
 
 	/*
 	 * Clear the error status flags. Unlike traditional interrupt flag
@@ -542,10 +558,10 @@ static irqreturn_t ipmmu_domain_irq(struct ipmmu_vmsa_domain *domain)
 
 	/* Log fatal errors. */
 	if (status & IMSTR_MHIT)
-		dev_err_ratelimited(mmu->dev, "Multiple TLB hits @0x%08x\n",
+		dev_err_ratelimited(mmu->dev, "Multiple TLB hits @0x%lx\n",
 				    iova);
 	if (status & IMSTR_ABORT)
-		dev_err_ratelimited(mmu->dev, "Page Table Walk Abort @0x%08x\n",
+		dev_err_ratelimited(mmu->dev, "Page Table Walk Abort @0x%lx\n",
 				    iova);
 
 	if (!(status & (IMSTR_PF | IMSTR_TF)))
@@ -561,7 +577,7 @@ static irqreturn_t ipmmu_domain_irq(struct ipmmu_vmsa_domain *domain)
 		return IRQ_HANDLED;
 
 	dev_err_ratelimited(mmu->dev,
-			    "Unhandled fault: status 0x%08x iova 0x%08x\n",
+			    "Unhandled fault: status 0x%08x iova 0x%lx\n",
 			    status, iova);
 
 	return IRQ_HANDLED;
@@ -719,19 +735,25 @@ static int ipmmu_map(struct iommu_domain *io_domain, unsigned long iova,
 }
 
 static size_t ipmmu_unmap(struct iommu_domain *io_domain, unsigned long iova,
-			  size_t size)
+			  size_t size, struct iommu_iotlb_gather *gather)
 {
 	struct ipmmu_vmsa_domain *domain = to_vmsa_domain(io_domain);
 
-	return domain->iop->unmap(domain->iop, iova, size);
+	return domain->iop->unmap(domain->iop, iova, size, gather);
 }
 
-static void ipmmu_iotlb_sync(struct iommu_domain *io_domain)
+static void ipmmu_flush_iotlb_all(struct iommu_domain *io_domain)
 {
 	struct ipmmu_vmsa_domain *domain = to_vmsa_domain(io_domain);
 
 	if (domain->mmu)
 		ipmmu_tlb_flush_all(domain);
+}
+
+static void ipmmu_iotlb_sync(struct iommu_domain *io_domain,
+			     struct iommu_iotlb_gather *gather)
+{
+	ipmmu_flush_iotlb_all(io_domain);
 }
 
 static phys_addr_t ipmmu_iova_to_phys(struct iommu_domain *io_domain,
@@ -886,27 +908,37 @@ error:
 
 static int ipmmu_add_device(struct device *dev)
 {
+	struct ipmmu_vmsa_device *mmu = to_ipmmu(dev);
 	struct iommu_group *group;
+	int ret;
 
 	/*
 	 * Only let through devices that have been verified in xlate()
 	 */
-	if (!to_ipmmu(dev))
+	if (!mmu)
 		return -ENODEV;
 
-	if (IS_ENABLED(CONFIG_ARM) && !IS_ENABLED(CONFIG_IOMMU_DMA))
-		return ipmmu_init_arm_mapping(dev);
+	if (IS_ENABLED(CONFIG_ARM) && !IS_ENABLED(CONFIG_IOMMU_DMA)) {
+		ret = ipmmu_init_arm_mapping(dev);
+		if (ret)
+			return ret;
+	} else {
+		group = iommu_group_get_for_dev(dev);
+		if (IS_ERR(group))
+			return PTR_ERR(group);
 
-	group = iommu_group_get_for_dev(dev);
-	if (IS_ERR(group))
-		return PTR_ERR(group);
+		iommu_group_put(group);
+	}
 
-	iommu_group_put(group);
+	iommu_device_link(&mmu->iommu, dev);
 	return 0;
 }
 
 static void ipmmu_remove_device(struct device *dev)
 {
+	struct ipmmu_vmsa_device *mmu = to_ipmmu(dev);
+
+	iommu_device_unlink(&mmu->iommu, dev);
 	arm_iommu_detach_device(dev);
 	iommu_group_remove_device(dev);
 }
@@ -933,7 +965,7 @@ static const struct iommu_ops ipmmu_ops = {
 	.detach_dev = ipmmu_detach_device,
 	.map = ipmmu_map,
 	.unmap = ipmmu_unmap,
-	.flush_iotlb_all = ipmmu_iotlb_sync,
+	.flush_iotlb_all = ipmmu_flush_iotlb_all,
 	.iotlb_sync = ipmmu_iotlb_sync,
 	.iova_to_phys = ipmmu_iova_to_phys,
 	.add_device = ipmmu_add_device,
@@ -960,18 +992,22 @@ static const struct ipmmu_features ipmmu_features_default = {
 	.use_ns_alias_offset = true,
 	.has_cache_leaf_nodes = false,
 	.number_of_contexts = 1, /* software only tested with one context */
+	.num_utlbs = 32,
 	.setup_imbuscr = true,
 	.twobit_imttbcr_sl0 = false,
 	.reserved_context = false,
+	.cache_snoop = true,
 };
 
 static const struct ipmmu_features ipmmu_features_rcar_gen3 = {
 	.use_ns_alias_offset = false,
 	.has_cache_leaf_nodes = true,
 	.number_of_contexts = 8,
+	.num_utlbs = 48,
 	.setup_imbuscr = false,
 	.twobit_imttbcr_sl0 = true,
 	.reserved_context = true,
+	.cache_snoop = false,
 };
 
 static const struct of_device_id ipmmu_of_ids[] = {
@@ -1021,10 +1057,10 @@ static int ipmmu_probe(struct platform_device *pdev)
 	}
 
 	mmu->dev = &pdev->dev;
-	mmu->num_utlbs = 48;
 	spin_lock_init(&mmu->lock);
 	bitmap_zero(mmu->ctx, IPMMU_CTX_MAX);
 	mmu->features = of_device_get_match_data(&pdev->dev);
+	memset(mmu->utlb_ctx, IPMMU_CTX_INVALID, mmu->features->num_utlbs);
 	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40));
 
 	/* Map I/O memory and request IRQ. */
@@ -1048,8 +1084,7 @@ static int ipmmu_probe(struct platform_device *pdev)
 	if (mmu->features->use_ns_alias_offset)
 		mmu->base += IM_NS_ALIAS_OFFSET;
 
-	mmu->num_ctx = min_t(unsigned int, IPMMU_CTX_MAX,
-			     mmu->features->number_of_contexts);
+	mmu->num_ctx = min(IPMMU_CTX_MAX, mmu->features->number_of_contexts);
 
 	irq = platform_get_irq(pdev, 0);
 
@@ -1141,10 +1176,48 @@ static int ipmmu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int ipmmu_resume_noirq(struct device *dev)
+{
+	struct ipmmu_vmsa_device *mmu = dev_get_drvdata(dev);
+	unsigned int i;
+
+	/* Reset root MMU and restore contexts */
+	if (ipmmu_is_root(mmu)) {
+		ipmmu_device_reset(mmu);
+
+		for (i = 0; i < mmu->num_ctx; i++) {
+			if (!mmu->domains[i])
+				continue;
+
+			ipmmu_domain_setup_context(mmu->domains[i]);
+		}
+	}
+
+	/* Re-enable active micro-TLBs */
+	for (i = 0; i < mmu->features->num_utlbs; i++) {
+		if (mmu->utlb_ctx[i] == IPMMU_CTX_INVALID)
+			continue;
+
+		ipmmu_utlb_enable(mmu->root->domains[mmu->utlb_ctx[i]], i);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops ipmmu_pm  = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, ipmmu_resume_noirq)
+};
+#define DEV_PM_OPS	&ipmmu_pm
+#else
+#define DEV_PM_OPS	NULL
+#endif /* CONFIG_PM_SLEEP */
+
 static struct platform_driver ipmmu_driver = {
 	.driver = {
 		.name = "ipmmu-vmsa",
 		.of_match_table = of_match_ptr(ipmmu_of_ids),
+		.pm = DEV_PM_OPS,
 	},
 	.probe = ipmmu_probe,
 	.remove	= ipmmu_remove,

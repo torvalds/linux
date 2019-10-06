@@ -20,7 +20,6 @@ obj-y += amplifiers/
 obj-y += buffer/
 obj-y += chemical/
 obj-y += common/
-obj-y += counter/
 obj-y += dac/
 obj-y += dummy/
 obj-y += gyro/

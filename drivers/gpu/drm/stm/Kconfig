@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_STM
 	tristate "DRM Support for STMicroelectronics SoC Series"
 	depends on DRM && (ARCH_STM32 || ARCH_MULTIPLATFORM)
@@ -6,7 +7,7 @@ config DRM_STM
 	select DRM_KMS_CMA_HELPER
 	select DRM_PANEL_BRIDGE
 	select VIDEOMODE_HELPERS
-	select FB_PROVIDE_GET_FB_UNMAPPED_AREA
+	select FB_PROVIDE_GET_FB_UNMAPPED_AREA if FB
 
 	help
 	  Enable support for the on-chip display controller on

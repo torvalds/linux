@@ -22,10 +22,10 @@
  * Authors: monk liu <monk.liu@amd.com>
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_auth.h>
 #include "amdgpu.h"
 #include "amdgpu_sched.h"
+#include "amdgpu_ras.h"
 
 #define to_amdgpu_ctx_entity(e)	\
 	container_of((e), struct amdgpu_ctx_entity, entity)
@@ -42,7 +42,7 @@ const unsigned int amdgpu_ctx_num_entities[AMDGPU_HW_IP_NUM] = {
 	[AMDGPU_HW_IP_VCN_JPEG]	=	1,
 };
 
-static int amdgput_ctx_total_num_entities(void)
+static int amdgpu_ctx_total_num_entities(void)
 {
 	unsigned i, num_entities = 0;
 
@@ -73,8 +73,8 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 			   struct drm_file *filp,
 			   struct amdgpu_ctx *ctx)
 {
-	unsigned num_entities = amdgput_ctx_total_num_entities();
-	unsigned i, j;
+	unsigned num_entities = amdgpu_ctx_total_num_entities();
+	unsigned i, j, k;
 	int r;
 
 	if (priority < 0 || priority >= DRM_SCHED_PRIORITY_MAX)
@@ -123,7 +123,8 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 	for (i = 0; i < AMDGPU_HW_IP_NUM; ++i) {
 		struct amdgpu_ring *rings[AMDGPU_MAX_RINGS];
 		struct drm_sched_rq *rqs[AMDGPU_MAX_RINGS];
-		unsigned num_rings;
+		unsigned num_rings = 0;
+		unsigned num_rqs = 0;
 
 		switch (i) {
 		case AMDGPU_HW_IP_GFX:
@@ -153,25 +154,39 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 			num_rings = 1;
 			break;
 		case AMDGPU_HW_IP_VCN_DEC:
-			rings[0] = &adev->vcn.ring_dec;
-			num_rings = 1;
+			for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
+				if (adev->vcn.harvest_config & (1 << j))
+					continue;
+				rings[num_rings++] = &adev->vcn.inst[j].ring_dec;
+			}
 			break;
 		case AMDGPU_HW_IP_VCN_ENC:
-			rings[0] = &adev->vcn.ring_enc[0];
-			num_rings = 1;
+			for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
+				if (adev->vcn.harvest_config & (1 << j))
+					continue;
+				for (k = 0; k < adev->vcn.num_enc_rings; ++k)
+					rings[num_rings++] = &adev->vcn.inst[j].ring_enc[k];
+			}
 			break;
 		case AMDGPU_HW_IP_VCN_JPEG:
-			rings[0] = &adev->vcn.ring_jpeg;
-			num_rings = 1;
+			for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
+				if (adev->vcn.harvest_config & (1 << j))
+					continue;
+				rings[num_rings++] = &adev->vcn.inst[j].ring_jpeg;
+			}
 			break;
 		}
 
-		for (j = 0; j < num_rings; ++j)
-			rqs[j] = &rings[j]->sched.sched_rq[priority];
+		for (j = 0; j < num_rings; ++j) {
+			if (!rings[j]->adev)
+				continue;
+
+			rqs[num_rqs++] = &rings[j]->sched.sched_rq[priority];
+		}
 
 		for (j = 0; j < amdgpu_ctx_num_entities[i]; ++j)
 			r = drm_sched_entity_init(&ctx->entities[i][j].entity,
-						  rqs, num_rings, &ctx->guilty);
+						  rqs, num_rqs, &ctx->guilty);
 		if (r)
 			goto error_cleanup_entities;
 	}
@@ -192,7 +207,7 @@ error_free_fences:
 static void amdgpu_ctx_fini(struct kref *ref)
 {
 	struct amdgpu_ctx *ctx = container_of(ref, struct amdgpu_ctx, refcount);
-	unsigned num_entities = amdgput_ctx_total_num_entities();
+	unsigned num_entities = amdgpu_ctx_total_num_entities();
 	struct amdgpu_device *adev = ctx->adev;
 	unsigned i, j;
 
@@ -274,10 +289,7 @@ static void amdgpu_ctx_do_release(struct kref *ref)
 
 	ctx = container_of(ref, struct amdgpu_ctx, refcount);
 
-	num_entities = 0;
-	for (i = 0; i < AMDGPU_HW_IP_NUM; i++)
-		num_entities += amdgpu_ctx_num_entities[i];
-
+	num_entities = amdgpu_ctx_total_num_entities();
 	for (i = 0; i < num_entities; i++)
 		drm_sched_entity_destroy(&ctx->entities[0][i].entity);
 
@@ -339,6 +351,7 @@ static int amdgpu_ctx_query2(struct amdgpu_device *adev,
 {
 	struct amdgpu_ctx *ctx;
 	struct amdgpu_ctx_mgr *mgr;
+	unsigned long ras_counter;
 
 	if (!fpriv)
 		return -EINVAL;
@@ -362,6 +375,21 @@ static int amdgpu_ctx_query2(struct amdgpu_device *adev,
 
 	if (atomic_read(&ctx->guilty))
 		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_GUILTY;
+
+	/*query ue count*/
+	ras_counter = amdgpu_ras_query_error_count(adev, false);
+	/*ras counter is monotonic increasing*/
+	if (ras_counter != ctx->ras_counter_ue) {
+		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_RAS_UE;
+		ctx->ras_counter_ue = ras_counter;
+	}
+
+	/*query ce count*/
+	ras_counter = amdgpu_ras_query_error_count(adev, true);
+	if (ras_counter != ctx->ras_counter_ce) {
+		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_RAS_CE;
+		ctx->ras_counter_ce = ras_counter;
+	}
 
 	mutex_unlock(&mgr->lock);
 	return 0;
@@ -493,7 +521,7 @@ struct dma_fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 void amdgpu_ctx_priority_override(struct amdgpu_ctx *ctx,
 				  enum drm_sched_priority priority)
 {
-	unsigned num_entities = amdgput_ctx_total_num_entities();
+	unsigned num_entities = amdgpu_ctx_total_num_entities();
 	enum drm_sched_priority ctx_prio;
 	unsigned i;
 
@@ -513,21 +541,24 @@ int amdgpu_ctx_wait_prev_fence(struct amdgpu_ctx *ctx,
 			       struct drm_sched_entity *entity)
 {
 	struct amdgpu_ctx_entity *centity = to_amdgpu_ctx_entity(entity);
-	unsigned idx = centity->sequence & (amdgpu_sched_jobs - 1);
-	struct dma_fence *other = centity->fences[idx];
+	struct dma_fence *other;
+	unsigned idx;
+	long r;
 
-	if (other) {
-		signed long r;
-		r = dma_fence_wait(other, true);
-		if (r < 0) {
-			if (r != -ERESTARTSYS)
-				DRM_ERROR("Error (%ld) waiting for fence!\n", r);
+	spin_lock(&ctx->ring_lock);
+	idx = centity->sequence & (amdgpu_sched_jobs - 1);
+	other = dma_fence_get(centity->fences[idx]);
+	spin_unlock(&ctx->ring_lock);
 
-			return r;
-		}
-	}
+	if (!other)
+		return 0;
 
-	return 0;
+	r = dma_fence_wait(other, true);
+	if (r < 0 && r != -ERESTARTSYS)
+		DRM_ERROR("Error (%ld) waiting for fence!\n", r);
+
+	dma_fence_put(other);
+	return r;
 }
 
 void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr)
@@ -536,37 +567,31 @@ void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr)
 	idr_init(&mgr->ctx_handles);
 }
 
-void amdgpu_ctx_mgr_entity_flush(struct amdgpu_ctx_mgr *mgr)
+long amdgpu_ctx_mgr_entity_flush(struct amdgpu_ctx_mgr *mgr, long timeout)
 {
-	unsigned num_entities = amdgput_ctx_total_num_entities();
+	unsigned num_entities = amdgpu_ctx_total_num_entities();
 	struct amdgpu_ctx *ctx;
 	struct idr *idp;
 	uint32_t id, i;
-	long max_wait = MAX_WAIT_SCHED_ENTITY_Q_EMPTY;
 
 	idp = &mgr->ctx_handles;
 
 	mutex_lock(&mgr->lock);
 	idr_for_each_entry(idp, ctx, id) {
-
-		if (!ctx->adev) {
-			mutex_unlock(&mgr->lock);
-			return;
-		}
-
 		for (i = 0; i < num_entities; i++) {
 			struct drm_sched_entity *entity;
 
 			entity = &ctx->entities[0][i].entity;
-			max_wait = drm_sched_entity_flush(entity, max_wait);
+			timeout = drm_sched_entity_flush(entity, timeout);
 		}
 	}
 	mutex_unlock(&mgr->lock);
+	return timeout;
 }
 
 void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
 {
-	unsigned num_entities = amdgput_ctx_total_num_entities();
+	unsigned num_entities = amdgpu_ctx_total_num_entities();
 	struct amdgpu_ctx *ctx;
 	struct idr *idp;
 	uint32_t id, i;
@@ -574,10 +599,6 @@ void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
 	idp = &mgr->ctx_handles;
 
 	idr_for_each_entry(idp, ctx, id) {
-
-		if (!ctx->adev)
-			return;
-
 		if (kref_read(&ctx->refcount) != 1) {
 			DRM_ERROR("ctx %p is still alive\n", ctx);
 			continue;

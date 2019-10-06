@@ -43,6 +43,7 @@ config OF_FLATTREE
 
 config OF_EARLY_FLATTREE
 	bool
+	select DMA_DECLARE_COHERENT if HAS_DMA
 	select OF_FLATTREE
 
 config OF_PROMTREE
@@ -81,10 +82,9 @@ config OF_MDIO
 	  OpenFirmware MDIO bus (Ethernet PHY) accessors
 
 config OF_RESERVED_MEM
-	depends on OF_EARLY_FLATTREE
 	bool
-	help
-	  Helpers to allow for reservation of memory regions
+	depends on OF_EARLY_FLATTREE
+	default y if DMA_DECLARE_COHERENT || DMA_CMA
 
 config OF_RESOLVE
 	bool

@@ -1,17 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/init.h>
@@ -259,6 +247,9 @@ static int create_yamaha_midi_quirk(struct snd_usb_audio *chip,
 	outjd = snd_usb_find_csint_desc(alts->extra, alts->extralen,
 					NULL, USB_MS_MIDI_OUT_JACK);
 	if (!injd && !outjd)
+		return -ENODEV;
+	if (!(injd && snd_usb_validate_midi_desc(injd)) ||
+	    !(outjd && snd_usb_validate_midi_desc(outjd)))
 		return -ENODEV;
 	if (injd && (injd->bLength < 5 ||
 		     (injd->bJackType != USB_MS_EMBEDDED &&
@@ -840,11 +831,13 @@ static int snd_usb_novation_boot_quirk(struct usb_device *dev)
 static int snd_usb_accessmusic_boot_quirk(struct usb_device *dev)
 {
 	int err, actual_length;
-
 	/* "midi send" enable */
 	static const u8 seq[] = { 0x4e, 0x73, 0x52, 0x01 };
+	void *buf;
 
-	void *buf = kmemdup(seq, ARRAY_SIZE(seq), GFP_KERNEL);
+	if (snd_usb_pipe_sanity_check(dev, usb_sndintpipe(dev, 0x05)))
+		return -EINVAL;
+	buf = kmemdup(seq, ARRAY_SIZE(seq), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 	err = usb_interrupt_msg(dev, usb_sndintpipe(dev, 0x05), buf,
@@ -869,7 +862,11 @@ static int snd_usb_accessmusic_boot_quirk(struct usb_device *dev)
 
 static int snd_usb_nativeinstruments_boot_quirk(struct usb_device *dev)
 {
-	int ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+	int ret;
+
+	if (snd_usb_pipe_sanity_check(dev, usb_sndctrlpipe(dev, 0)))
+		return -EINVAL;
+	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 				  0xaf, USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				  1, 0, NULL, 0, 1000);
 
@@ -976,6 +973,8 @@ static int snd_usb_axefx3_boot_quirk(struct usb_device *dev)
 
 	dev_dbg(&dev->dev, "Waiting for Axe-Fx III to boot up...\n");
 
+	if (snd_usb_pipe_sanity_check(dev, usb_sndctrlpipe(dev, 0)))
+		return -EINVAL;
 	/* If the Axe-Fx III has not fully booted, it will timeout when trying
 	 * to enable the audio streaming interface. A more generous timeout is
 	 * used here to detect when the Axe-Fx III has finished booting as the
@@ -998,6 +997,109 @@ static int snd_usb_axefx3_boot_quirk(struct usb_device *dev)
 			"error stopping Axe-Fx III interface: %d\n", err);
 
 	return 0;
+}
+
+
+#define MICROBOOK_BUF_SIZE 128
+
+static int snd_usb_motu_microbookii_communicate(struct usb_device *dev, u8 *buf,
+						int buf_size, int *length)
+{
+	int err, actual_length;
+
+	if (snd_usb_pipe_sanity_check(dev, usb_sndintpipe(dev, 0x01)))
+		return -EINVAL;
+	err = usb_interrupt_msg(dev, usb_sndintpipe(dev, 0x01), buf, *length,
+				&actual_length, 1000);
+	if (err < 0)
+		return err;
+
+	print_hex_dump(KERN_DEBUG, "MicroBookII snd: ", DUMP_PREFIX_NONE, 16, 1,
+		       buf, actual_length, false);
+
+	memset(buf, 0, buf_size);
+
+	if (snd_usb_pipe_sanity_check(dev, usb_rcvintpipe(dev, 0x82)))
+		return -EINVAL;
+	err = usb_interrupt_msg(dev, usb_rcvintpipe(dev, 0x82), buf, buf_size,
+				&actual_length, 1000);
+	if (err < 0)
+		return err;
+
+	print_hex_dump(KERN_DEBUG, "MicroBookII rcv: ", DUMP_PREFIX_NONE, 16, 1,
+		       buf, actual_length, false);
+
+	*length = actual_length;
+	return 0;
+}
+
+static int snd_usb_motu_microbookii_boot_quirk(struct usb_device *dev)
+{
+	int err, actual_length, poll_attempts = 0;
+	static const u8 set_samplerate_seq[] = { 0x00, 0x00, 0x00, 0x00,
+						 0x00, 0x00, 0x0b, 0x14,
+						 0x00, 0x00, 0x00, 0x01 };
+	static const u8 poll_ready_seq[] = { 0x00, 0x04, 0x00, 0x00,
+					     0x00, 0x00, 0x0b, 0x18 };
+	u8 *buf = kzalloc(MICROBOOK_BUF_SIZE, GFP_KERNEL);
+
+	if (!buf)
+		return -ENOMEM;
+
+	dev_info(&dev->dev, "Waiting for MOTU Microbook II to boot up...\n");
+
+	/* First we tell the device which sample rate to use. */
+	memcpy(buf, set_samplerate_seq, sizeof(set_samplerate_seq));
+	actual_length = sizeof(set_samplerate_seq);
+	err = snd_usb_motu_microbookii_communicate(dev, buf, MICROBOOK_BUF_SIZE,
+						   &actual_length);
+
+	if (err < 0) {
+		dev_err(&dev->dev,
+			"failed setting the sample rate for Motu MicroBook II: %d\n",
+			err);
+		goto free_buf;
+	}
+
+	/* Then we poll every 100 ms until the device informs of its readiness. */
+	while (true) {
+		if (++poll_attempts > 100) {
+			dev_err(&dev->dev,
+				"failed booting Motu MicroBook II: timeout\n");
+			err = -ENODEV;
+			goto free_buf;
+		}
+
+		memset(buf, 0, MICROBOOK_BUF_SIZE);
+		memcpy(buf, poll_ready_seq, sizeof(poll_ready_seq));
+
+		actual_length = sizeof(poll_ready_seq);
+		err = snd_usb_motu_microbookii_communicate(
+			dev, buf, MICROBOOK_BUF_SIZE, &actual_length);
+		if (err < 0) {
+			dev_err(&dev->dev,
+				"failed booting Motu MicroBook II: communication error %d\n",
+				err);
+			goto free_buf;
+		}
+
+		/* the device signals its readiness through a message of the
+		 * form
+		 *           XX 06 00 00 00 00 0b 18  00 00 00 01
+		 * If the device is not yet ready to accept audio data, the
+		 * last byte of that sequence is 00.
+		 */
+		if (actual_length == 12 && buf[actual_length - 1] == 1)
+			break;
+
+		msleep(100);
+	}
+
+	dev_info(&dev->dev, "MOTU MicroBook II ready\n");
+
+free_buf:
+	kfree(buf);
+	return err;
 }
 
 /*
@@ -1177,6 +1279,8 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 		return snd_usb_gamecon780_boot_quirk(dev);
 	case USB_ID(0x2466, 0x8010): /* Fractal Audio Axe-Fx 3 */
 		return snd_usb_axefx3_boot_quirk(dev);
+	case USB_ID(0x07fd, 0x0004): /* MOTU MicroBook II */
+		return snd_usb_motu_microbookii_boot_quirk(dev);
 	}
 
 	return 0;
@@ -1462,7 +1566,8 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	struct usb_interface *iface;
 
 	/* Playback Designs */
-	if (USB_ID_VENDOR(chip->usb_id) == 0x23ba) {
+	if (USB_ID_VENDOR(chip->usb_id) == 0x23ba &&
+	    USB_ID_PRODUCT(chip->usb_id) < 0x0110) {
 		switch (fp->altsetting) {
 		case 1:
 			fp->dsd_dop = true;
@@ -1479,37 +1584,19 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	/* XMOS based USB DACs */
 	switch (chip->usb_id) {
 	case USB_ID(0x1511, 0x0037): /* AURALiC VEGA */
-	case USB_ID(0x20b1, 0x0002): /* Wyred 4 Sound DAC-2 DSD */
-	case USB_ID(0x20b1, 0x2004): /* Matrix Audio X-SPDIF 2 */
-	case USB_ID(0x20b1, 0x2008): /* Matrix Audio X-Sabre */
-	case USB_ID(0x20b1, 0x300a): /* Matrix Audio Mini-i Pro */
-	case USB_ID(0x22d9, 0x0416): /* OPPO HA-1 */
-	case USB_ID(0x22d9, 0x0436): /* OPPO Sonica */
-	case USB_ID(0x22d9, 0x0461): /* OPPO UDP-205 */
 	case USB_ID(0x2522, 0x0012): /* LH Labs VI DAC Infinity */
 	case USB_ID(0x2772, 0x0230): /* Pro-Ject Pre Box S2 Digital */
 		if (fp->altsetting == 2)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;
 
-	case USB_ID(0x10cb, 0x0103): /* The Bit Opus #3; with fp->dsd_raw */
-	case USB_ID(0x152a, 0x85de): /* SMSL D1 DAC */
-	case USB_ID(0x16d0, 0x09dd): /* Encore mDSD */
 	case USB_ID(0x0d8c, 0x0316): /* Hegel HD12 DSD */
+	case USB_ID(0x10cb, 0x0103): /* The Bit Opus #3; with fp->dsd_raw */
 	case USB_ID(0x16b0, 0x06b2): /* NuPrime DAC-10 */
+	case USB_ID(0x16d0, 0x09dd): /* Encore mDSD */
 	case USB_ID(0x16d0, 0x0733): /* Furutech ADL Stratos */
 	case USB_ID(0x16d0, 0x09db): /* NuPrime Audio DAC-9 */
 	case USB_ID(0x1db5, 0x0003): /* Bryston BDA3 */
-	case USB_ID(0x20b1, 0x000a): /* Gustard DAC-X20U */
-	case USB_ID(0x20b1, 0x2005): /* Denafrips Ares DAC */
-	case USB_ID(0x20b1, 0x2009): /* DIYINHK DSD DXD 384kHz USB to I2S/DSD */
-	case USB_ID(0x20b1, 0x2023): /* JLsounds I2SoverUSB */
-	case USB_ID(0x20b1, 0x3021): /* Eastern El. MiniMax Tube DAC Supreme */
-	case USB_ID(0x20b1, 0x3023): /* Aune X1S 32BIT/384 DSD DAC */
-	case USB_ID(0x20b1, 0x302d): /* Unison Research Unico CD Due */
-	case USB_ID(0x20b1, 0x307b): /* CH Precision C1 DAC */
-	case USB_ID(0x20b1, 0x3086): /* Singxer F-1 converter board */
-	case USB_ID(0x22d9, 0x0426): /* OPPO HA-2 */
 	case USB_ID(0x22e1, 0xca01): /* HDTA Serenade DSD */
 	case USB_ID(0x249c, 0x9326): /* M2Tech Young MkIII */
 	case USB_ID(0x2616, 0x0106): /* PS Audio NuWave DAC */
@@ -1564,10 +1651,15 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	 * from XMOS/Thesycon
 	 */
 	switch (USB_ID_VENDOR(chip->usb_id)) {
-	case 0x20b1:  /* XMOS based devices */
 	case 0x152a:  /* Thesycon devices */
+	case 0x20b1:  /* XMOS based devices */
+	case 0x22d9:  /* Oppo */
+	case 0x23ba:  /* Playback Designs */
 	case 0x25ce:  /* Mytek devices */
+	case 0x278b:  /* Rotel? */
 	case 0x2ab6:  /* T+A devices */
+	case 0x3842:  /* EVGA */
+	case 0xc502:  /* HiBy devices */
 		if (fp->dsd_raw)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
  *
@@ -6,16 +7,6 @@
  *
  * Additional work by:
  * John Brooks <john.brooks@bluecherry.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -780,9 +771,6 @@ static int solo_enc_querycap(struct file *file, void  *priv,
 		 solo_enc->ch);
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
 		 pci_name(solo_dev->pdev));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
-			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -834,25 +822,18 @@ static int solo_enc_enum_fmt_cap(struct file *file, void *priv,
 		switch (dev_type) {
 		case SOLO_DEV_6010:
 			f->pixelformat = V4L2_PIX_FMT_MPEG4;
-			strscpy(f->description, "MPEG-4 part 2",
-				sizeof(f->description));
 			break;
 		case SOLO_DEV_6110:
 			f->pixelformat = V4L2_PIX_FMT_H264;
-			strscpy(f->description, "H.264", sizeof(f->description));
 			break;
 		}
 		break;
 	case 1:
 		f->pixelformat = V4L2_PIX_FMT_MJPEG;
-		strscpy(f->description, "MJPEG", sizeof(f->description));
 		break;
 	default:
 		return -EINVAL;
 	}
-
-	f->flags = V4L2_FMT_FLAG_COMPRESSED;
-
 	return 0;
 }
 
@@ -898,7 +879,6 @@ static int solo_enc_try_fmt_cap(struct file *file, void *priv,
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	pix->sizeimage = FRAME_BUF_SIZE;
 	pix->bytesperline = 0;
-	pix->priv = 0;
 
 	return 0;
 }
@@ -953,7 +933,6 @@ static int solo_enc_get_fmt_cap(struct file *file, void *priv,
 		     V4L2_FIELD_NONE;
 	pix->sizeimage = FRAME_BUF_SIZE;
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	pix->priv = 0;
 
 	return 0;
 }
@@ -1200,6 +1179,8 @@ static const struct video_device solo_enc_template = {
 	.minor			= -1,
 	.release		= video_device_release,
 	.tvnorms		= V4L2_STD_NTSC_M | V4L2_STD_PAL,
+	.device_caps		= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+				  V4L2_CAP_STREAMING,
 };
 
 static const struct v4l2_ctrl_ops solo_ctrl_ops = {

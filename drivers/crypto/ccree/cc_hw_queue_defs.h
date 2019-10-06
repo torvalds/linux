@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
+/* Copyright (C) 2012-2019 ARM Limited (or its affiliates). */
 
 #ifndef __CC_HW_QUEUE_DEFS_H__
 #define __CC_HW_QUEUE_DEFS_H__
@@ -28,11 +28,13 @@
 	GENMASK(CC_REG_HIGH(word, name), CC_REG_LOW(word, name))
 
 #define WORD0_VALUE		CC_GENMASK(0, VALUE)
+#define	WORD0_CPP_CIPHER_MODE	CC_GENMASK(0, CPP_CIPHER_MODE)
 #define WORD1_DIN_CONST_VALUE	CC_GENMASK(1, DIN_CONST_VALUE)
 #define WORD1_DIN_DMA_MODE	CC_GENMASK(1, DIN_DMA_MODE)
 #define WORD1_DIN_SIZE		CC_GENMASK(1, DIN_SIZE)
 #define WORD1_NOT_LAST		CC_GENMASK(1, NOT_LAST)
 #define WORD1_NS_BIT		CC_GENMASK(1, NS_BIT)
+#define WORD1_LOCK_QUEUE	CC_GENMASK(1, LOCK_QUEUE)
 #define WORD2_VALUE		CC_GENMASK(2, VALUE)
 #define WORD3_DOUT_DMA_MODE	CC_GENMASK(3, DOUT_DMA_MODE)
 #define WORD3_DOUT_LAST_IND	CC_GENMASK(3, DOUT_LAST_IND)
@@ -176,6 +178,15 @@ enum cc_hw_crypto_key {
 	END_OF_KEYS = S32_MAX,
 };
 
+#define CC_NUM_HW_KEY_SLOTS	4
+#define CC_FIRST_HW_KEY_SLOT	0
+#define CC_LAST_HW_KEY_SLOT	(CC_FIRST_HW_KEY_SLOT + CC_NUM_HW_KEY_SLOTS - 1)
+
+#define CC_NUM_CPP_KEY_SLOTS	8
+#define CC_FIRST_CPP_KEY_SLOT	16
+#define CC_LAST_CPP_KEY_SLOT	(CC_FIRST_CPP_KEY_SLOT + \
+					CC_NUM_CPP_KEY_SLOTS - 1)
+
 enum cc_hw_aes_key_size {
 	AES_128_KEY = 0,
 	AES_192_KEY = 1,
@@ -188,6 +199,9 @@ enum cc_hash_cipher_pad {
 	DO_PAD = 1,
 	HASH_CIPHER_DO_PADDING_RESERVE32 = S32_MAX,
 };
+
+#define CC_CPP_DIN_ADDR	0xFF00FF00UL
+#define CC_CPP_DIN_SIZE 0xFF00FFUL
 
 /*****************************/
 /* Descriptor packing macros */
@@ -246,6 +260,25 @@ static inline void set_din_no_dma(struct cc_hw_desc *pdesc, u32 addr, u32 size)
 {
 	pdesc->word[0] = addr;
 	pdesc->word[1] |= FIELD_PREP(WORD1_DIN_SIZE, size);
+}
+
+/*
+ * Setup the special CPP descriptor
+ *
+ * @pdesc: pointer HW descriptor struct
+ * @alg: cipher used (AES / SM4)
+ * @mode: mode used (CTR or CBC)
+ * @slot: slot number
+ * @ksize: key size
+ */
+static inline void set_cpp_crypto_key(struct cc_hw_desc *pdesc, u8 slot)
+{
+	pdesc->word[0] |= CC_CPP_DIN_ADDR;
+
+	pdesc->word[1] |= FIELD_PREP(WORD1_DIN_SIZE, CC_CPP_DIN_SIZE);
+	pdesc->word[1] |= FIELD_PREP(WORD1_LOCK_QUEUE, 1);
+
+	pdesc->word[4] |= FIELD_PREP(WORD4_SETUP_OPERATION, slot);
 }
 
 /*

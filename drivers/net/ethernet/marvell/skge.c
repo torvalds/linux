@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * New driver for Marvell Yukon chipset and SysKonnect Gigabit
  * Ethernet adapters. Based on earlier sk98lin, e100 and
@@ -8,19 +9,6 @@
  * those should be done at higher levels.
  *
  * Copyright (C) 2004, 2005 Stephen Hemminger <shemminger@osdl.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -2570,8 +2558,6 @@ static int skge_up(struct net_device *dev)
 		goto free_pci_mem;
 	}
 
-	memset(skge->mem, 0, skge->mem_size);
-
 	err = skge_ring_alloc(&skge->rx_ring, skge->mem, skge->dma);
 	if (err)
 		goto free_pci_mem;
@@ -3122,7 +3108,7 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 	skb_put(skb, len);
 
 	if (dev->features & NETIF_F_RXCSUM) {
-		skb->csum = csum;
+		skb->csum = le16_to_cpu(csum);
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
 
@@ -3745,7 +3731,6 @@ static int skge_device_event(struct notifier_block *unused,
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct skge_port *skge;
-	struct dentry *d;
 
 	if (dev->netdev_ops->ndo_open != &skge_up || !skge_debug)
 		goto done;
@@ -3753,33 +3738,20 @@ static int skge_device_event(struct notifier_block *unused,
 	skge = netdev_priv(dev);
 	switch (event) {
 	case NETDEV_CHANGENAME:
-		if (skge->debugfs) {
-			d = debugfs_rename(skge_debug, skge->debugfs,
-					   skge_debug, dev->name);
-			if (d)
-				skge->debugfs = d;
-			else {
-				netdev_info(dev, "rename failed\n");
-				debugfs_remove(skge->debugfs);
-			}
-		}
+		if (skge->debugfs)
+			skge->debugfs = debugfs_rename(skge_debug,
+						       skge->debugfs,
+						       skge_debug, dev->name);
 		break;
 
 	case NETDEV_GOING_DOWN:
-		if (skge->debugfs) {
-			debugfs_remove(skge->debugfs);
-			skge->debugfs = NULL;
-		}
+		debugfs_remove(skge->debugfs);
+		skge->debugfs = NULL;
 		break;
 
 	case NETDEV_UP:
-		d = debugfs_create_file(dev->name, 0444,
-					skge_debug, dev,
-					&skge_debug_fops);
-		if (!d || IS_ERR(d))
-			netdev_info(dev, "debugfs create failed\n");
-		else
-			skge->debugfs = d;
+		skge->debugfs = debugfs_create_file(dev->name, 0444, skge_debug,
+						    dev, &skge_debug_fops);
 		break;
 	}
 
@@ -3794,15 +3766,8 @@ static struct notifier_block skge_notifier = {
 
 static __init void skge_debug_init(void)
 {
-	struct dentry *ent;
+	skge_debug = debugfs_create_dir("skge", NULL);
 
-	ent = debugfs_create_dir("skge", NULL);
-	if (!ent || IS_ERR(ent)) {
-		pr_info("debugfs create directory failed\n");
-		return;
-	}
-
-	skge_debug = ent;
 	register_netdevice_notifier(&skge_notifier);
 }
 
@@ -4092,8 +4057,7 @@ static void skge_remove(struct pci_dev *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int skge_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct skge_hw *hw  = pci_get_drvdata(pdev);
+	struct skge_hw *hw  = dev_get_drvdata(dev);
 	int i;
 
 	if (!hw)
@@ -4117,8 +4081,7 @@ static int skge_suspend(struct device *dev)
 
 static int skge_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct skge_hw *hw  = pci_get_drvdata(pdev);
+	struct skge_hw *hw  = dev_get_drvdata(dev);
 	int i, err;
 
 	if (!hw)

@@ -1,19 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) */
-/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _UAPI_LINUX_BATADV_PACKET_H_
@@ -119,12 +107,20 @@ enum batadv_icmp_packettype {
  * @BATADV_MCAST_WANT_ALL_UNSNOOPABLES: we want all packets destined for
  *  224.0.0.0/24 or ff02::1
  * @BATADV_MCAST_WANT_ALL_IPV4: we want all IPv4 multicast packets
+ *  (both link-local and routable ones)
  * @BATADV_MCAST_WANT_ALL_IPV6: we want all IPv6 multicast packets
+ *  (both link-local and routable ones)
+ * @BATADV_MCAST_WANT_NO_RTR4: we have no IPv4 multicast router and therefore
+ * only need routable IPv4 multicast packets we signed up for explicitly
+ * @BATADV_MCAST_WANT_NO_RTR6: we have no IPv6 multicast router and therefore
+ * only need routable IPv6 multicast packets we signed up for explicitly
  */
 enum batadv_mcast_flags {
 	BATADV_MCAST_WANT_ALL_UNSNOOPABLES	= 1UL << 0,
 	BATADV_MCAST_WANT_ALL_IPV4		= 1UL << 1,
 	BATADV_MCAST_WANT_ALL_IPV6		= 1UL << 2,
+	BATADV_MCAST_WANT_NO_RTR4		= 1UL << 3,
+	BATADV_MCAST_WANT_NO_RTR6		= 1UL << 4,
 };
 
 /* tt data subtypes */
@@ -229,7 +225,7 @@ struct batadv_ogm_packet {
  * @packet_type: batman-adv packet type, part of the general header
  * @version: batman-adv protocol version, part of the general header
  * @ttl: time to live for this packet, part of the general header
- * @flags: reseved for routing relevant flags - currently always 0
+ * @flags: reserved for routing relevant flags - currently always 0
  * @seqno: sequence number
  * @orig: originator mac address
  * @tvlv_len: length of the appended tvlv buffer (in bytes)

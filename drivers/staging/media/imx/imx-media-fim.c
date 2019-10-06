@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Frame Interval Monitor.
  *
  * Copyright (c) 2016 Mentor Graphics Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/delay.h>
 #include <linux/irq.h>
@@ -41,8 +37,6 @@ enum {
 #define FIM_CL_TOLERANCE_MAX_DEF   0 /* no max tolerance (unbounded) */
 
 struct imx_media_fim {
-	struct imx_media_dev *md;
-
 	/* the owning subdev of this fim instance */
 	struct v4l2_subdev *sd;
 
@@ -420,7 +414,6 @@ void imx_media_fim_eof_monitor(struct imx_media_fim *fim, ktime_t timestamp)
 
 	spin_unlock_irqrestore(&fim->lock, flags);
 }
-EXPORT_SYMBOL_GPL(imx_media_fim_eof_monitor);
 
 /* Called by the subdev in its s_stream callback */
 int imx_media_fim_set_stream(struct imx_media_fim *fim,
@@ -457,7 +450,6 @@ out:
 	v4l2_ctrl_unlock(fim->ctrl[FIM_CL_ENABLE]);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(imx_media_fim_set_stream);
 
 int imx_media_fim_add_controls(struct imx_media_fim *fim)
 {
@@ -465,7 +457,6 @@ int imx_media_fim_add_controls(struct imx_media_fim *fim)
 	return v4l2_ctrl_add_handler(fim->sd->ctrl_handler,
 				     &fim->ctrl_handler, NULL, false);
 }
-EXPORT_SYMBOL_GPL(imx_media_fim_add_controls);
 
 /* Called by the subdev in its subdev registered callback */
 struct imx_media_fim *imx_media_fim_init(struct v4l2_subdev *sd)
@@ -477,8 +468,6 @@ struct imx_media_fim *imx_media_fim_init(struct v4l2_subdev *sd)
 	if (!fim)
 		return ERR_PTR(-ENOMEM);
 
-	/* get media device */
-	fim->md = dev_get_drvdata(sd->v4l2_dev->dev);
 	fim->sd = sd;
 
 	spin_lock_init(&fim->lock);
@@ -489,10 +478,8 @@ struct imx_media_fim *imx_media_fim_init(struct v4l2_subdev *sd)
 
 	return fim;
 }
-EXPORT_SYMBOL_GPL(imx_media_fim_init);
 
 void imx_media_fim_free(struct imx_media_fim *fim)
 {
 	v4l2_ctrl_handler_free(&fim->ctrl_handler);
 }
-EXPORT_SYMBOL_GPL(imx_media_fim_free);

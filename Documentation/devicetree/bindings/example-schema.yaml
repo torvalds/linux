@@ -5,7 +5,7 @@
 # All the top-level keys are standard json-schema keywords except for
 # 'maintainers' and 'select'
 
-# $id is a unique idenifier based on the filename. There may or may not be a
+# $id is a unique identifier based on the filename. There may or may not be a
 # file present at the URL.
 $id: "http://devicetree.org/schemas/example-schema.yaml#"
 # $schema is the meta-schema this schema should be validated with.

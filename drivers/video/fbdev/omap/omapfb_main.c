@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Framebuffer driver for TI OMAP boards
  *
@@ -9,20 +10,6 @@
  *   Juha Yrjola <juha.yrjola@nokia.com>   - Original driver and improvements
  *   Dirk Behme <dirk.behme@de.bosch.com>  - changes for 2.6 kernel API
  *   Texas Instruments                     - H3 support
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #include <linux/platform_device.h>
 #include <linux/mm.h>
@@ -460,6 +447,7 @@ static int set_color_mode(struct omapfb_plane_struct *plane,
 		return 0;
 	case 12:
 		var->bits_per_pixel = 16;
+		/* fall through */
 	case 16:
 		if (plane->fbdev->panel->bpp == 12)
 			plane->color_mode = OMAPFB_COLOR_RGB444;
@@ -1515,8 +1503,6 @@ static int planes_init(struct omapfb_device *fbdev)
 		fbi = framebuffer_alloc(sizeof(struct omapfb_plane_struct),
 					fbdev->dev);
 		if (fbi == NULL) {
-			dev_err(fbdev->dev,
-				"unable to allocate memory for plane info\n");
 			planes_cleanup(fbdev);
 			return -ENOMEM;
 		}
@@ -1549,20 +1535,27 @@ static void omapfb_free_resources(struct omapfb_device *fbdev, int state)
 	case OMAPFB_ACTIVE:
 		for (i = 0; i < fbdev->mem_desc.region_cnt; i++)
 			unregister_framebuffer(fbdev->fb_info[i]);
+		/* fall through */
 	case 7:
 		omapfb_unregister_sysfs(fbdev);
+		/* fall through */
 	case 6:
 		if (fbdev->panel->disable)
 			fbdev->panel->disable(fbdev->panel);
+		/* fall through */
 	case 5:
 		omapfb_set_update_mode(fbdev, OMAPFB_UPDATE_DISABLED);
+		/* fall through */
 	case 4:
 		planes_cleanup(fbdev);
+		/* fall through */
 	case 3:
 		ctrl_cleanup(fbdev);
+		/* fall through */
 	case 2:
 		if (fbdev->panel->cleanup)
 			fbdev->panel->cleanup(fbdev->panel);
+		/* fall through */
 	case 1:
 		dev_set_drvdata(fbdev->dev, NULL);
 		kfree(fbdev);

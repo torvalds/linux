@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	GRE over IPv4 demultiplexer driver
  *
  *	Authors: Dmitry Kozlov (xeb@mail.ru)
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -88,7 +83,7 @@ int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	options = (__be32 *)(greh + 1);
 	if (greh->flags & GRE_CSUM) {
 		if (!skb_checksum_simple_validate(skb)) {
-			skb_checksum_try_convert(skb, IPPROTO_GRE, 0,
+			skb_checksum_try_convert(skb, IPPROTO_GRE,
 						 null_compute_pseudo);
 		} else if (csum_err) {
 			*csum_err = true;

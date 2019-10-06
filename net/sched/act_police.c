@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/act_police.c	Input police filter
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  * 		J Hadi Salim (action changes)
@@ -21,42 +17,8 @@
 #include <linux/slab.h>
 #include <net/act_api.h>
 #include <net/netlink.h>
-
-struct tcf_police_params {
-	int			tcfp_result;
-	u32			tcfp_ewma_rate;
-	s64			tcfp_burst;
-	u32			tcfp_mtu;
-	s64			tcfp_mtu_ptoks;
-	struct psched_ratecfg	rate;
-	bool			rate_present;
-	struct psched_ratecfg	peak;
-	bool			peak_present;
-	struct rcu_head rcu;
-};
-
-struct tcf_police {
-	struct tc_action	common;
-	struct tcf_police_params __rcu *params;
-
-	spinlock_t		tcfp_lock ____cacheline_aligned_in_smp;
-	s64			tcfp_toks;
-	s64			tcfp_ptoks;
-	s64			tcfp_t_c;
-};
-
-#define to_police(pc) ((struct tcf_police *)pc)
-
-/* old policer structure from before tc actions */
-struct tc_police_compat {
-	u32			index;
-	int			action;
-	u32			limit;
-	u32			burst;
-	u32			mtu;
-	struct tc_ratespec	rate;
-	struct tc_ratespec	peakrate;
-};
+#include <net/pkt_cls.h>
+#include <net/tc_act/tc_police.h>
 
 /* Each policer is serialized by its individual spinlock */
 
@@ -78,26 +40,33 @@ static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
 	[TCA_POLICE_PEAKRATE]	= { .len = TC_RTAB_SIZE },
 	[TCA_POLICE_AVRATE]	= { .type = NLA_U32 },
 	[TCA_POLICE_RESULT]	= { .type = NLA_U32 },
+	[TCA_POLICE_RATE64]     = { .type = NLA_U64 },
+	[TCA_POLICE_PEAKRATE64] = { .type = NLA_U64 },
 };
 
 static int tcf_police_init(struct net *net, struct nlattr *nla,
 			       struct nlattr *est, struct tc_action **a,
 			       int ovr, int bind, bool rtnl_held,
+			       struct tcf_proto *tp,
 			       struct netlink_ext_ack *extack)
 {
 	int ret = 0, tcfp_result = TC_ACT_OK, err, size;
 	struct nlattr *tb[TCA_POLICE_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	struct tc_police *parm;
 	struct tcf_police *police;
 	struct qdisc_rate_table *R_tab = NULL, *P_tab = NULL;
 	struct tc_action_net *tn = net_generic(net, police_net_id);
 	struct tcf_police_params *new;
 	bool exists = false;
+	u32 index;
+	u64 rate64, prate64;
 
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_POLICE_MAX, nla, police_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_POLICE_MAX, nla,
+					  police_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -108,7 +77,8 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 
 	parm = nla_data(tb[TCA_POLICE_TBF]);
-	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	index = parm->index;
+	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (err < 0)
 		return err;
 	exists = err;
@@ -116,10 +86,10 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		return 0;
 
 	if (!exists) {
-		ret = tcf_idr_create(tn, parm->index, NULL, a,
+		ret = tcf_idr_create(tn, index, NULL, a,
 				     &act_police_ops, bind, true);
 		if (ret) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			return ret;
 		}
 		ret = ACT_P_CREATED;
@@ -128,6 +98,9 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0)
+		goto release_idr;
 
 	police = to_police(*a);
 	if (parm->rate.rate) {
@@ -185,14 +158,18 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	}
 	if (R_tab) {
 		new->rate_present = true;
-		psched_ratecfg_precompute(&new->rate, &R_tab->rate, 0);
+		rate64 = tb[TCA_POLICE_RATE64] ?
+			 nla_get_u64(tb[TCA_POLICE_RATE64]) : 0;
+		psched_ratecfg_precompute(&new->rate, &R_tab->rate, rate64);
 		qdisc_put_rtab(R_tab);
 	} else {
 		new->rate_present = false;
 	}
 	if (P_tab) {
 		new->peak_present = true;
-		psched_ratecfg_precompute(&new->peak, &P_tab->rate, 0);
+		prate64 = tb[TCA_POLICE_PEAKRATE64] ?
+			  nla_get_u64(tb[TCA_POLICE_PEAKRATE64]) : 0;
+		psched_ratecfg_precompute(&new->peak, &P_tab->rate, prate64);
 		qdisc_put_rtab(P_tab);
 	} else {
 		new->peak_present = false;
@@ -213,12 +190,14 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	if (new->peak_present)
 		police->tcfp_ptoks = new->tcfp_mtu_ptoks;
 	spin_unlock_bh(&police->tcfp_lock);
-	police->tcf_action = parm->action;
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	rcu_swap_protected(police->params,
 			   new,
 			   lockdep_is_held(&police->tcf_lock));
 	spin_unlock_bh(&police->tcf_lock);
 
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 	if (new)
 		kfree_rcu(new, rcu);
 
@@ -229,6 +208,9 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 failure:
 	qdisc_put_rtab(P_tab);
 	qdisc_put_rtab(R_tab);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+release_idr:
 	tcf_idr_release(*a, bind);
 	return err;
 }
@@ -305,6 +287,20 @@ static void tcf_police_cleanup(struct tc_action *a)
 		kfree_rcu(p, rcu);
 }
 
+static void tcf_police_stats_update(struct tc_action *a,
+				    u64 bytes, u32 packets,
+				    u64 lastuse, bool hw)
+{
+	struct tcf_police *police = to_police(a);
+	struct tcf_t *tm = &police->tcf_tm;
+
+	_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
+	if (hw)
+		_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats_hw),
+				   bytes, packets);
+	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
+}
+
 static int tcf_police_dump(struct sk_buff *skb, struct tc_action *a,
 			       int bind, int ref)
 {
@@ -324,10 +320,22 @@ static int tcf_police_dump(struct sk_buff *skb, struct tc_action *a,
 				      lockdep_is_held(&police->tcf_lock));
 	opt.mtu = p->tcfp_mtu;
 	opt.burst = PSCHED_NS2TICKS(p->tcfp_burst);
-	if (p->rate_present)
+	if (p->rate_present) {
 		psched_ratecfg_getrate(&opt.rate, &p->rate);
-	if (p->peak_present)
+		if ((police->params->rate.rate_bytes_ps >= (1ULL << 32)) &&
+		    nla_put_u64_64bit(skb, TCA_POLICE_RATE64,
+				      police->params->rate.rate_bytes_ps,
+				      TCA_POLICE_PAD))
+			goto nla_put_failure;
+	}
+	if (p->peak_present) {
 		psched_ratecfg_getrate(&opt.peakrate, &p->peak);
+		if ((police->params->peak.rate_bytes_ps >= (1ULL << 32)) &&
+		    nla_put_u64_64bit(skb, TCA_POLICE_PEAKRATE64,
+				      police->params->peak.rate_bytes_ps,
+				      TCA_POLICE_PAD))
+			goto nla_put_failure;
+	}
 	if (nla_put(skb, TCA_POLICE_TBF, sizeof(opt), &opt))
 		goto nla_put_failure;
 	if (p->tcfp_result &&
@@ -366,8 +374,9 @@ MODULE_LICENSE("GPL");
 
 static struct tc_action_ops act_police_ops = {
 	.kind		=	"police",
-	.type		=	TCA_ID_POLICE,
+	.id		=	TCA_ID_POLICE,
 	.owner		=	THIS_MODULE,
+	.stats_update	=	tcf_police_stats_update,
 	.act		=	tcf_police_act,
 	.dump		=	tcf_police_dump,
 	.init		=	tcf_police_init,
@@ -381,7 +390,7 @@ static __net_init int police_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, police_net_id);
 
-	return tc_action_net_init(tn, &act_police_ops);
+	return tc_action_net_init(net, tn, &act_police_ops);
 }
 
 static void __net_exit police_exit_net(struct list_head *net_list)

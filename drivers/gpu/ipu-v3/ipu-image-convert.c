@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2012-2016 Mentor Graphics Inc.
  *
  * Queued image conversion support, with tiling and rotation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 
 #include <linux/interrupt.h>
@@ -155,6 +146,7 @@ struct ipu_image_convert_ctx {
 	/* Source/destination image data and rotation mode */
 	struct ipu_image_convert_image in;
 	struct ipu_image_convert_image out;
+	struct ipu_ic_csc csc;
 	enum ipu_rotate_mode rot_mode;
 	u32 downsize_coeff_h;
 	u32 downsize_coeff_v;
@@ -258,6 +250,12 @@ static const struct ipu_image_pixfmt image_convert_formats[] = {
 		.bpp    = 32,
 	}, {
 		.fourcc	= V4L2_PIX_FMT_XBGR32,
+		.bpp    = 32,
+	}, {
+		.fourcc	= V4L2_PIX_FMT_BGRX32,
+		.bpp    = 32,
+	}, {
+		.fourcc	= V4L2_PIX_FMT_RGBX32,
 		.bpp    = 32,
 	}, {
 		.fourcc	= V4L2_PIX_FMT_YUYV,
@@ -384,8 +382,11 @@ static inline int num_stripes(int dim)
 
 /*
  * Calculate downsizing coefficients, which are the same for all tiles,
- * and bilinear resizing coefficients, which are used to find the best
- * seam positions.
+ * and initial bilinear resizing coefficients, which are used to find the
+ * best seam positions.
+ * Also determine the number of tiles necessary to guarantee that no tile
+ * is larger than 1024 pixels in either dimension at the output and between
+ * IC downsizing and main processing sections.
  */
 static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 					  struct ipu_image *in,
@@ -399,6 +400,8 @@ static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 	u32 resized_height = out->rect.height;
 	u32 resize_coeff_h;
 	u32 resize_coeff_v;
+	u32 cols;
+	u32 rows;
 
 	if (ipu_rot_mode_is_irt(ctx->rot_mode)) {
 		resized_width = out->rect.height;
@@ -428,10 +431,18 @@ static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 	resize_coeff_h = 8192 * (downsized_width - 1) / (resized_width - 1);
 	resize_coeff_v = 8192 * (downsized_height - 1) / (resized_height - 1);
 
+	/*
+	 * Both the output of the IC downsizing section before being passed to
+	 * the IC main processing section and the final output of the IC main
+	 * processing section must be <= 1024 pixels in both dimensions.
+	 */
+	cols = num_stripes(max_t(u32, downsized_width, resized_width));
+	rows = num_stripes(max_t(u32, downsized_height, resized_height));
+
 	dev_dbg(ctx->chan->priv->ipu->dev,
 		"%s: hscale: >>%u, *8192/%u vscale: >>%u, *8192/%u, %ux%u tiles\n",
 		__func__, downsize_coeff_h, resize_coeff_h, downsize_coeff_v,
-		resize_coeff_v, ctx->in.num_cols, ctx->in.num_rows);
+		resize_coeff_v, cols, rows);
 
 	if (downsize_coeff_h > 2 || downsize_coeff_v  > 2 ||
 	    resize_coeff_h > 0x3fff || resize_coeff_v > 0x3fff)
@@ -441,6 +452,8 @@ static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 	ctx->downsize_coeff_v = downsize_coeff_v;
 	ctx->image_resize_coeff_h = resize_coeff_h;
 	ctx->image_resize_coeff_v = resize_coeff_v;
+	ctx->in.num_cols = cols;
+	ctx->in.num_rows = rows;
 
 	return 0;
 }
@@ -448,12 +461,10 @@ static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 #define round_closest(x, y) round_down((x) + (y)/2, (y))
 
 /*
- * Find the best aligned seam position in the inverval [out_start, out_end].
+ * Find the best aligned seam position for the given column / row index.
  * Rotation and image offsets are out of scope.
  *
- * @out_start: start of inverval, must be within 1024 pixels / lines
- *             of out_end
- * @out_end: end of interval, smaller than or equal to out_edge
+ * @index: column / row index, used to calculate valid interval
  * @in_edge: input right / bottom edge
  * @out_edge: output right / bottom edge
  * @in_align: input alignment, either horizontal 8-byte line start address
@@ -469,8 +480,7 @@ static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
  * @_out_seam: aligned output seam position return value
  */
 static void find_best_seam(struct ipu_image_convert_ctx *ctx,
-			   unsigned int out_start,
-			   unsigned int out_end,
+			   unsigned int index,
 			   unsigned int in_edge,
 			   unsigned int out_edge,
 			   unsigned int in_align,
@@ -488,6 +498,24 @@ static void find_best_seam(struct ipu_image_convert_ctx *ctx,
 	unsigned int out_seam = 0;
 	unsigned int in_seam = 0;
 	unsigned int min_diff = UINT_MAX;
+	unsigned int out_start;
+	unsigned int out_end;
+	unsigned int in_start;
+	unsigned int in_end;
+
+	/* Start within 1024 pixels of the right / bottom edge */
+	out_start = max_t(int, index * out_align, out_edge - 1024);
+	/* End before having to add more columns to the left / rows above */
+	out_end = min_t(unsigned int, out_edge, index * 1024 + 1);
+
+	/*
+	 * Limit input seam position to make sure that the downsized input tile
+	 * to the right or bottom does not exceed 1024 pixels.
+	 */
+	in_start = max_t(int, index * in_align,
+			 in_edge - (1024 << downsize_coeff));
+	in_end = min_t(unsigned int, in_edge,
+		       index * (1024 << downsize_coeff) + 1);
 
 	/*
 	 * Output tiles must start at a multiple of 8 bytes horizontally and
@@ -498,6 +526,7 @@ static void find_best_seam(struct ipu_image_convert_ctx *ctx,
 	for (out_pos = out_start; out_pos < out_end; out_pos += out_align) {
 		unsigned int in_pos;
 		unsigned int in_pos_aligned;
+		unsigned int in_pos_rounded;
 		unsigned int abs_diff;
 
 		/*
@@ -518,9 +547,16 @@ static void find_best_seam(struct ipu_image_convert_ctx *ctx,
 		 * start the input tile at, 19.13 fixed point.
 		 */
 		in_pos_aligned = round_closest(in_pos, 8192U * in_align);
+		/* Convert 19.13 fixed point to integer */
+		in_pos_rounded = in_pos_aligned / 8192U;
+
+		if (in_pos_rounded < in_start)
+			continue;
+		if (in_pos_rounded >= in_end)
+			break;
 
 		if ((in_burst > 1) &&
-		    (in_edge - in_pos_aligned / 8192U) % in_burst)
+		    (in_edge - in_pos_rounded) % in_burst)
 			continue;
 
 		if (in_pos < in_pos_aligned)
@@ -529,19 +565,18 @@ static void find_best_seam(struct ipu_image_convert_ctx *ctx,
 			abs_diff = in_pos - in_pos_aligned;
 
 		if (abs_diff < min_diff) {
-			in_seam = in_pos_aligned;
+			in_seam = in_pos_rounded;
 			out_seam = out_pos;
 			min_diff = abs_diff;
 		}
 	}
 
 	*_out_seam = out_seam;
-	/* Convert 19.13 fixed point to integer seam position */
-	*_in_seam = DIV_ROUND_CLOSEST(in_seam, 8192U);
+	*_in_seam = in_seam;
 
-	dev_dbg(dev, "%s: out_seam %u(%u) in [%u, %u], in_seam %u(%u) diff %u.%03u\n",
+	dev_dbg(dev, "%s: out_seam %u(%u) in [%u, %u], in_seam %u(%u) in [%u, %u] diff %u.%03u\n",
 		__func__, out_seam, out_align, out_start, out_end,
-		*_in_seam, in_align, min_diff / 8192,
+		in_seam, in_align, in_start, in_end, min_diff / 8192,
 		DIV_ROUND_CLOSEST(min_diff % 8192 * 1000, 8192));
 }
 
@@ -718,8 +753,6 @@ static void find_seams(struct ipu_image_convert_ctx *ctx,
 					  !(ctx->rot_mode & IPU_ROT_BIT_HFLIP);
 		bool allow_out_overshoot = (col < in->num_cols - 1) &&
 					   !(ctx->rot_mode & IPU_ROT_BIT_HFLIP);
-		unsigned int out_start;
-		unsigned int out_end;
 		unsigned int in_left;
 		unsigned int out_left;
 
@@ -728,12 +761,7 @@ static void find_seams(struct ipu_image_convert_ctx *ctx,
 		 * horizontally.
 		 */
 
-		/* Start within 1024 pixels of the right edge */
-		out_start = max_t(int, 0, out_right - 1024);
-		/* End before having to add more columns to the left */
-		out_end = min_t(unsigned int, out_right, col * 1024);
-
-		find_best_seam(ctx, out_start, out_end,
+		find_best_seam(ctx, col,
 			       in_right, out_right,
 			       in_left_align, out_left_align,
 			       allow_in_overshoot ? 1 : 8 /* burst length */,
@@ -768,17 +796,10 @@ static void find_seams(struct ipu_image_convert_ctx *ctx,
 
 	for (row = in->num_rows - 1; row > 0; row--) {
 		bool allow_overshoot = row < in->num_rows - 1;
-		unsigned int out_start;
-		unsigned int out_end;
 		unsigned int in_top;
 		unsigned int out_top;
 
-		/* Start within 1024 lines of the bottom edge */
-		out_start = max_t(int, 0, out_bottom - 1024);
-		/* End before having to add more rows above */
-		out_end = min_t(unsigned int, out_bottom, row * 1024);
-
-		find_best_seam(ctx, out_start, out_end,
+		find_best_seam(ctx, row,
 			       in_bottom, out_bottom,
 			       in_top_align, out_top_align,
 			       1, allow_overshoot ? 1 : out_height_align,
@@ -815,12 +836,20 @@ static void find_seams(struct ipu_image_convert_ctx *ctx,
 		in_bottom, flipped_out_top, out_bottom);
 }
 
-static void calc_tile_dimensions(struct ipu_image_convert_ctx *ctx,
-				 struct ipu_image_convert_image *image)
+static int calc_tile_dimensions(struct ipu_image_convert_ctx *ctx,
+				struct ipu_image_convert_image *image)
 {
 	struct ipu_image_convert_chan *chan = ctx->chan;
 	struct ipu_image_convert_priv *priv = chan->priv;
+	unsigned int max_width = 1024;
+	unsigned int max_height = 1024;
 	unsigned int i;
+
+	if (image->type == IMAGE_CONVERT_IN) {
+		/* Up to 4096x4096 input tile size */
+		max_width <<= ctx->downsize_coeff_h;
+		max_height <<= ctx->downsize_coeff_v;
+	}
 
 	for (i = 0; i < ctx->num_tiles; i++) {
 		struct ipu_image_tile *tile;
@@ -851,7 +880,17 @@ static void calc_tile_dimensions(struct ipu_image_convert_ctx *ctx,
 			image->type == IMAGE_CONVERT_IN ? "Input" : "Output",
 			row, col,
 			tile->width, tile->height, tile->left, tile->top);
+
+		if (!tile->width || tile->width > max_width ||
+		    !tile->height || tile->height > max_height) {
+			dev_err(priv->ipu->dev, "invalid %s tile size: %ux%u\n",
+				image->type == IMAGE_CONVERT_IN ? "input" :
+				"output", tile->width, tile->height);
+			return -EINVAL;
+		}
 	}
+
+	return 0;
 }
 
 /*
@@ -1082,6 +1121,7 @@ static void calc_tile_resize_coefficients(struct ipu_image_convert_ctx *ctx)
 			       !(ctx->rot_mode & IPU_ROT_BIT_HFLIP);
 		u32 resized_width;
 		u32 resize_coeff_h;
+		u32 in_width;
 
 		tile_idx = col;
 		in_tile = &ctx->in.tile[tile_idx];
@@ -1099,33 +1139,35 @@ static void calc_tile_resize_coefficients(struct ipu_image_convert_ctx *ctx)
 		dev_dbg(priv->ipu->dev, "%s: column %u hscale: *8192/%u\n",
 			__func__, col, resize_coeff_h);
 
+		/*
+		 * With the horizontal scaling factor known, round up resized
+		 * width (output width or height) to burst size.
+		 */
+		resized_width = round_up(resized_width, 8);
+
+		/*
+		 * Calculate input width from the last accessed input pixel
+		 * given resized width and scaling coefficients. Round up to
+		 * burst size.
+		 */
+		last_output = resized_width - 1;
+		if (closest && ((last_output * resize_coeff_h) % 8192))
+			last_output++;
+		in_width = round_up(
+			(DIV_ROUND_UP(last_output * resize_coeff_h, 8192) + 1)
+			<< ctx->downsize_coeff_h, 8);
 
 		for (row = 0; row < ctx->in.num_rows; row++) {
 			tile_idx = row * ctx->in.num_cols + col;
 			in_tile = &ctx->in.tile[tile_idx];
 			out_tile = &ctx->out.tile[ctx->out_tile_map[tile_idx]];
 
-			/*
-			 * With the horizontal scaling factor known, round up
-			 * resized width (output width or height) to burst size.
-			 */
 			if (ipu_rot_mode_is_irt(ctx->rot_mode))
-				out_tile->height = round_up(resized_width, 8);
+				out_tile->height = resized_width;
 			else
-				out_tile->width = round_up(resized_width, 8);
+				out_tile->width = resized_width;
 
-			/*
-			 * Calculate input width from the last accessed input
-			 * pixel given resized width and scaling coefficients.
-			 * Round up to burst size.
-			 */
-			last_output = round_up(resized_width, 8) - 1;
-			if (closest)
-				last_output++;
-			in_tile->width = round_up(
-				(DIV_ROUND_UP(last_output * resize_coeff_h,
-					      8192) + 1)
-				<< ctx->downsize_coeff_h, 8);
+			in_tile->width = in_width;
 		}
 
 		ctx->resize_coeffs_h[col] = resize_coeff_h;
@@ -1136,6 +1178,7 @@ static void calc_tile_resize_coefficients(struct ipu_image_convert_ctx *ctx)
 			       !(ctx->rot_mode & IPU_ROT_BIT_VFLIP);
 		u32 resized_height;
 		u32 resize_coeff_v;
+		u32 in_height;
 
 		tile_idx = row * ctx->in.num_cols;
 		in_tile = &ctx->in.tile[tile_idx];
@@ -1153,33 +1196,35 @@ static void calc_tile_resize_coefficients(struct ipu_image_convert_ctx *ctx)
 		dev_dbg(priv->ipu->dev, "%s: row %u vscale: *8192/%u\n",
 			__func__, row, resize_coeff_v);
 
+		/*
+		 * With the vertical scaling factor known, round up resized
+		 * height (output width or height) to IDMAC limitations.
+		 */
+		resized_height = round_up(resized_height, 2);
+
+		/*
+		 * Calculate input width from the last accessed input pixel
+		 * given resized height and scaling coefficients. Align to
+		 * IDMAC restrictions.
+		 */
+		last_output = resized_height - 1;
+		if (closest && ((last_output * resize_coeff_v) % 8192))
+			last_output++;
+		in_height = round_up(
+			(DIV_ROUND_UP(last_output * resize_coeff_v, 8192) + 1)
+			<< ctx->downsize_coeff_v, 2);
+
 		for (col = 0; col < ctx->in.num_cols; col++) {
 			tile_idx = row * ctx->in.num_cols + col;
 			in_tile = &ctx->in.tile[tile_idx];
 			out_tile = &ctx->out.tile[ctx->out_tile_map[tile_idx]];
 
-			/*
-			 * With the vertical scaling factor known, round up
-			 * resized height (output width or height) to IDMAC
-			 * limitations.
-			 */
 			if (ipu_rot_mode_is_irt(ctx->rot_mode))
-				out_tile->width = round_up(resized_height, 2);
+				out_tile->width = resized_height;
 			else
-				out_tile->height = round_up(resized_height, 2);
+				out_tile->height = resized_height;
 
-			/*
-			 * Calculate input width from the last accessed input
-			 * pixel given resized height and scaling coefficients.
-			 * Align to IDMAC restrictions.
-			 */
-			last_output = round_up(resized_height, 2) - 1;
-			if (closest)
-				last_output++;
-			in_tile->height = round_up(
-				(DIV_ROUND_UP(last_output * resize_coeff_v,
-					      8192) + 1)
-				<< ctx->downsize_coeff_v, 2);
+			in_tile->height = in_height;
 		}
 
 		ctx->resize_coeffs_v[row] = resize_coeff_v;
@@ -1288,6 +1333,15 @@ static void init_idmac_channel(struct ipu_image_convert_ctx *ctx,
 	if (rot_mode)
 		ipu_cpmem_set_rotation(channel, rot_mode);
 
+	/*
+	 * Skip writing U and V components to odd rows in the output
+	 * channels for planar 4:2:0.
+	 */
+	if ((channel == chan->out_chan ||
+	     channel == chan->rotation_out_chan) &&
+	    image->fmt->planar && image->fmt->uv_height_dec == 2)
+		ipu_cpmem_skip_odd_chroma_rows(channel);
+
 	if (channel == chan->rotation_in_chan ||
 	    channel == chan->rotation_out_chan) {
 		burst_size = 8;
@@ -1317,7 +1371,6 @@ static int convert_start(struct ipu_image_convert_run *run, unsigned int tile)
 	struct ipu_image_convert_priv *priv = chan->priv;
 	struct ipu_image_convert_image *s_image = &ctx->in;
 	struct ipu_image_convert_image *d_image = &ctx->out;
-	enum ipu_color_space src_cs, dest_cs;
 	unsigned int dst_tile = ctx->out_tile_map[tile];
 	unsigned int dest_width, dest_height;
 	unsigned int col, row;
@@ -1326,9 +1379,6 @@ static int convert_start(struct ipu_image_convert_run *run, unsigned int tile)
 
 	dev_dbg(priv->ipu->dev, "%s: task %u: starting ctx %p run %p tile %u -> %u\n",
 		__func__, chan->ic_task, ctx, run, tile, dst_tile);
-
-	src_cs = ipu_pixelformat_to_colorspace(s_image->fmt->fourcc);
-	dest_cs = ipu_pixelformat_to_colorspace(d_image->fmt->fourcc);
 
 	if (ipu_rot_mode_is_irt(ctx->rot_mode)) {
 		/* swap width/height for resizer */
@@ -1352,13 +1402,12 @@ static int convert_start(struct ipu_image_convert_run *run, unsigned int tile)
 		s_image->tile[tile].height, dest_width, dest_height, rsc);
 
 	/* setup the IC resizer and CSC */
-	ret = ipu_ic_task_init_rsc(chan->ic,
-			       s_image->tile[tile].width,
-			       s_image->tile[tile].height,
-			       dest_width,
-			       dest_height,
-			       src_cs, dest_cs,
-			       rsc);
+	ret = ipu_ic_task_init_rsc(chan->ic, &ctx->csc,
+				   s_image->tile[tile].width,
+				   s_image->tile[tile].height,
+				   dest_width,
+				   dest_height,
+				   rsc);
 	if (ret) {
 		dev_err(priv->ipu->dev, "ipu_ic_task_init failed, %d\n", ret);
 		return ret;
@@ -1885,7 +1934,8 @@ void ipu_image_convert_adjust(struct ipu_image *in, struct ipu_image *out,
 			      enum ipu_rotate_mode rot_mode)
 {
 	const struct ipu_image_pixfmt *infmt, *outfmt;
-	u32 w_align, h_align;
+	u32 w_align_out, h_align_out;
+	u32 w_align_in, h_align_in;
 
 	infmt = get_format(in->pix.pixelformat);
 	outfmt = get_format(out->pix.pixelformat);
@@ -1917,22 +1967,33 @@ void ipu_image_convert_adjust(struct ipu_image *in, struct ipu_image *out,
 	}
 
 	/* align input width/height */
-	w_align = ilog2(tile_width_align(IMAGE_CONVERT_IN, infmt, rot_mode));
-	h_align = ilog2(tile_height_align(IMAGE_CONVERT_IN, infmt, rot_mode));
-	in->pix.width = clamp_align(in->pix.width, MIN_W, MAX_W, w_align);
-	in->pix.height = clamp_align(in->pix.height, MIN_H, MAX_H, h_align);
+	w_align_in = ilog2(tile_width_align(IMAGE_CONVERT_IN, infmt,
+					    rot_mode));
+	h_align_in = ilog2(tile_height_align(IMAGE_CONVERT_IN, infmt,
+					     rot_mode));
+	in->pix.width = clamp_align(in->pix.width, MIN_W, MAX_W,
+				    w_align_in);
+	in->pix.height = clamp_align(in->pix.height, MIN_H, MAX_H,
+				     h_align_in);
 
 	/* align output width/height */
-	w_align = ilog2(tile_width_align(IMAGE_CONVERT_OUT, outfmt, rot_mode));
-	h_align = ilog2(tile_height_align(IMAGE_CONVERT_OUT, outfmt, rot_mode));
-	out->pix.width = clamp_align(out->pix.width, MIN_W, MAX_W, w_align);
-	out->pix.height = clamp_align(out->pix.height, MIN_H, MAX_H, h_align);
+	w_align_out = ilog2(tile_width_align(IMAGE_CONVERT_OUT, outfmt,
+					     rot_mode));
+	h_align_out = ilog2(tile_height_align(IMAGE_CONVERT_OUT, outfmt,
+					      rot_mode));
+	out->pix.width = clamp_align(out->pix.width, MIN_W, MAX_W,
+				     w_align_out);
+	out->pix.height = clamp_align(out->pix.height, MIN_H, MAX_H,
+				      h_align_out);
 
 	/* set input/output strides and image sizes */
 	in->pix.bytesperline = infmt->planar ?
-		clamp_align(in->pix.width, 2 << w_align, MAX_W, w_align) :
+		clamp_align(in->pix.width, 2 << w_align_in, MAX_W,
+			    w_align_in) :
 		clamp_align((in->pix.width * infmt->bpp) >> 3,
-			    2 << w_align, MAX_W, w_align);
+			    ((2 << w_align_in) * infmt->bpp) >> 3,
+			    (MAX_W * infmt->bpp) >> 3,
+			    w_align_in);
 	in->pix.sizeimage = infmt->planar ?
 		(in->pix.height * in->pix.bytesperline * infmt->bpp) >> 3 :
 		in->pix.height * in->pix.bytesperline;
@@ -2014,22 +2075,26 @@ ipu_image_convert_prepare(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 	ctx->chan = chan;
 	init_completion(&ctx->aborted);
 
+	ctx->rot_mode = rot_mode;
+
+	/* Sets ctx->in.num_rows/cols as well */
+	ret = calc_image_resize_coefficients(ctx, in, out);
+	if (ret)
+		goto out_free;
+
 	s_image = &ctx->in;
 	d_image = &ctx->out;
 
 	/* set tiling and rotation */
-	d_image->num_rows = num_stripes(out->pix.height);
-	d_image->num_cols = num_stripes(out->pix.width);
 	if (ipu_rot_mode_is_irt(rot_mode)) {
-		s_image->num_rows = d_image->num_cols;
-		s_image->num_cols = d_image->num_rows;
+		d_image->num_rows = s_image->num_cols;
+		d_image->num_cols = s_image->num_rows;
 	} else {
-		s_image->num_rows = d_image->num_rows;
-		s_image->num_cols = d_image->num_cols;
+		d_image->num_rows = s_image->num_rows;
+		d_image->num_cols = s_image->num_cols;
 	}
 
 	ctx->num_tiles = d_image->num_cols * d_image->num_rows;
-	ctx->rot_mode = rot_mode;
 
 	ret = fill_image(ctx, s_image, in, IMAGE_CONVERT_IN);
 	if (ret)
@@ -2038,15 +2103,14 @@ ipu_image_convert_prepare(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 	if (ret)
 		goto out_free;
 
-	ret = calc_image_resize_coefficients(ctx, in, out);
-	if (ret)
-		goto out_free;
-
 	calc_out_tile_map(ctx);
 
 	find_seams(ctx, s_image, d_image);
 
-	calc_tile_dimensions(ctx, s_image);
+	ret = calc_tile_dimensions(ctx, s_image);
+	if (ret)
+		goto out_free;
+
 	ret = calc_tile_offsets(ctx, s_image);
 	if (ret)
 		goto out_free;
@@ -2057,6 +2121,16 @@ ipu_image_convert_prepare(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 		goto out_free;
 
 	calc_tile_resize_coefficients(ctx);
+
+	ret = ipu_ic_calc_csc(&ctx->csc,
+			s_image->base.pix.ycbcr_enc,
+			s_image->base.pix.quantization,
+			ipu_pixelformat_to_colorspace(s_image->fmt->fourcc),
+			d_image->base.pix.ycbcr_enc,
+			d_image->base.pix.quantization,
+			ipu_pixelformat_to_colorspace(d_image->fmt->fourcc));
+	if (ret)
+		goto out_free;
 
 	dump_format(ctx, s_image);
 	dump_format(ctx, d_image);

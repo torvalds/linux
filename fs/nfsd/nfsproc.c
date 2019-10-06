@@ -172,6 +172,7 @@ nfsd_proc_read(struct svc_rqst *rqstp)
 	struct nfsd_readargs *argp = rqstp->rq_argp;
 	struct nfsd_readres *resp = rqstp->rq_resp;
 	__be32	nfserr;
+	u32 eof;
 
 	dprintk("nfsd: READ    %s %d bytes at %d\n",
 		SVCFH_fmt(&argp->fh),
@@ -195,7 +196,8 @@ nfsd_proc_read(struct svc_rqst *rqstp)
 	nfserr = nfsd_read(rqstp, fh_copy(&resp->fh, &argp->fh),
 				  argp->offset,
 			   	  rqstp->rq_vec, argp->vlen,
-				  &resp->count);
+				  &resp->count,
+				  &eof);
 
 	if (nfserr) return nfserr;
 	return fh_getattr(&resp->fh, &resp->stat);

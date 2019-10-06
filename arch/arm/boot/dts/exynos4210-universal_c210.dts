@@ -24,8 +24,8 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySAC2,115200N8 root=/dev/mmcblk0p5 rw rootwait earlyprintk panic=5 maxcpus=1";
-		stdout-path = &serial_2;
+		bootargs = "root=/dev/mmcblk0p5 rw rootwait earlyprintk panic=5 maxcpus=1";
+		stdout-path = "serial2:115200n8";
 	};
 
 
@@ -177,6 +177,20 @@
 	};
 };
 
+&amba {
+	mdma0: mdma@12840000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x12840000 0x1000>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clock CLK_MDMA>;
+		clock-names = "apb_pclk";
+		#dma-cells = <1>;
+		#dma-channels = <8>;
+		#dma-requests = <1>;
+		power-domains = <&pd_lcd0>;
+	};
+};
+
 &camera {
 	status = "okay";
 
@@ -190,9 +204,8 @@
 
 &ehci {
 	status = "okay";
-	port@0 {
-		status = "okay";
-	};
+	phys = <&exynos_usbphy 1>;
+	phy-names = "host";
 };
 
 &exynos_usbphy {
@@ -246,6 +259,11 @@
 			remote-endpoint = <&lcd_ep>;
 		};
 	};
+};
+
+&gpu {
+	mali-supply = <&buck2_reg>;
+	status = "okay";
 };
 
 &hdmi {
@@ -491,7 +509,8 @@
 };
 
 &mdma1 {
-	reg = <0x12840000 0x1000>;
+	/* Use the secure mdma0 */
+	status = "disabled";
 };
 
 &mixer {
@@ -500,9 +519,6 @@
 
 &ohci {
 	status = "okay";
-	port@0 {
-		status = "okay";
-	};
 };
 
 &pinctrl_1 {

@@ -4,10 +4,7 @@
  * All Rights Reserved.
  */
 #include "xfs.h"
-#include <linux/sysctl.h>
-#include <linux/proc_fs.h>
 #include "xfs_error.h"
-#include "xfs_stats.h"
 
 static struct ctl_table_header *xfs_table_header;
 

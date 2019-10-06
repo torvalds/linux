@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/kernel/profile.c
  *  Simple profiling. Manages a direct-mapped profile hit count buffer,

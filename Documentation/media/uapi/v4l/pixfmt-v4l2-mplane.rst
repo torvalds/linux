@@ -19,6 +19,7 @@ array of struct :c:type:`v4l2_plane_pix_format` structures,
 describing all planes of that format.
 
 
+
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. c:type:: v4l2_plane_pix_format
@@ -30,7 +31,20 @@ describing all planes of that format.
 
     * - __u32
       - ``sizeimage``
-      - Maximum size in bytes required for image data in this plane.
+      - Maximum size in bytes required for image data in this plane,
+	set by the driver. When the image consists of variable length
+	compressed data this is the number of bytes required by the
+	codec to support the worst-case compression scenario.
+
+	The driver will set the value for uncompressed images.
+
+	Clients are allowed to set the sizeimage field for variable length
+	compressed data flagged with ``V4L2_FMT_FLAG_COMPRESSED`` at
+	:ref:`VIDIOC_ENUM_FMT`, but the driver may ignore it and set the
+	value itself, or it may modify the provided value based on
+	alignment requirements or minimum/maximum size requirements.
+	If the client wants to leave this to the driver, then it should
+	set sizeimage to 0.
     * - __u32
       - ``bytesperline``
       - Distance in bytes between the leftmost pixels in two adjacent
@@ -40,6 +54,10 @@ describing all planes of that format.
       - Reserved for future extensions. Should be zeroed by drivers and
 	applications.
 
+
+.. raw:: latex
+
+    \small
 
 .. tabularcolumns:: |p{4.4cm}|p{5.6cm}|p{7.5cm}|
 
@@ -82,9 +100,7 @@ describing all planes of that format.
     * - __u8
       - ``flags``
       - Flags set by the application or driver, see :ref:`format-flags`.
-    * - union {
-      - (anonymous)
-      -
+    * - :cspan:`2` union { (anonymous)
     * - __u8
       - ``ycbcr_enc``
       - Y'CbCr encoding, from enum :c:type:`v4l2_ycbcr_encoding`.
@@ -97,9 +113,7 @@ describing all planes of that format.
         This information supplements the ``colorspace`` and must be set by
 	the driver for capture streams and by the application for output
 	streams, see :ref:`colorspaces`.
-    * - }
-      -
-      -
+    * - :cspan:`2` }
     * - __u8
       - ``quantization``
       - Quantization range, from enum :c:type:`v4l2_quantization`.
@@ -116,3 +130,7 @@ describing all planes of that format.
       - ``reserved[7]``
       - Reserved for future extensions. Should be zeroed by drivers and
 	applications.
+
+.. raw:: latex
+
+    \normalsize

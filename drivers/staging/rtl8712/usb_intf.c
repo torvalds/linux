@@ -196,11 +196,7 @@ static int r871x_suspend(struct usb_interface *pusb_intf, pm_message_t state)
 	struct _adapter *padapter = netdev_priv(pnetdev);
 
 	netdev_info(pnetdev, "Suspending...\n");
-	if (!pnetdev || !netif_running(pnetdev)) {
-		netdev_info(pnetdev, "Unable to suspend\n");
-		return 0;
-	}
-	padapter->bSuspended = true;
+	padapter->suspended = true;
 	rtl871x_intf_stop(padapter);
 	if (pnetdev->netdev_ops->ndo_stop)
 		pnetdev->netdev_ops->ndo_stop(pnetdev);
@@ -221,24 +217,13 @@ static int r871x_resume(struct usb_interface *pusb_intf)
 	struct _adapter *padapter = netdev_priv(pnetdev);
 
 	netdev_info(pnetdev,  "Resuming...\n");
-	if (!pnetdev || !netif_running(pnetdev)) {
-		netdev_info(pnetdev, "Unable to resume\n");
-		return 0;
-	}
 	netif_device_attach(pnetdev);
 	if (pnetdev->netdev_ops->ndo_open)
 		pnetdev->netdev_ops->ndo_open(pnetdev);
-	padapter->bSuspended = false;
+	padapter->suspended = false;
 	rtl871x_intf_resume(padapter);
 	return 0;
 }
-
-static int r871x_reset_resume(struct usb_interface *pusb_intf)
-{
-	/* dummy routine */
-	return 0;
-}
-
 #endif
 
 static struct drv_priv drvpriv = {
@@ -249,7 +234,6 @@ static struct drv_priv drvpriv = {
 #ifdef CONFIG_PM
 	.r871xu_drv.suspend = r871x_suspend,
 	.r871xu_drv.resume = r871x_resume,
-	.r871xu_drv.reset_resume = r871x_reset_resume,
 #endif
 };
 
@@ -262,7 +246,7 @@ static uint r8712_usb_dvobj_init(struct _adapter *padapter)
 	struct usb_device *pusbd = pdvobjpriv->pusbdev;
 
 	pdvobjpriv->padapter = padapter;
-	padapter->EepromAddressSize = 6;
+	padapter->eeprom_address_size = 6;
 	phost_iface = &pintf->altsetting[0];
 	piface_desc = &phost_iface->desc;
 	pdvobjpriv->nr_endpoint = piface_desc->bNumEndpoints;
@@ -287,7 +271,7 @@ static void r8712_usb_dvobj_deinit(struct _adapter *padapter)
 void rtl871x_intf_stop(struct _adapter *padapter)
 {
 	/*disable_hw_interrupt*/
-	if (!padapter->bSurpriseRemoved) {
+	if (!padapter->surprise_removed) {
 		/*device still exists, so driver can do i/o operation
 		 * TODO:
 		 */
@@ -305,7 +289,7 @@ void r871x_dev_unload(struct _adapter *padapter)
 {
 	if (padapter->bup) {
 		/*s1.*/
-		padapter->bDriverStopped = true;
+		padapter->driver_stopped = true;
 
 		/*s3.*/
 		rtl871x_intf_stop(padapter);
@@ -314,7 +298,7 @@ void r871x_dev_unload(struct _adapter *padapter)
 		r8712_stop_drv_threads(padapter);
 
 		/*s5.*/
-		if (!padapter->bSurpriseRemoved) {
+		if (!padapter->surprise_removed) {
 			padapter->hw_init_completed = false;
 			rtl8712_hal_deinit(padapter);
 		}
@@ -405,7 +389,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	}
 	/* step 4. */
 	status = r8712_init_drv_sw(padapter);
-	if (status == _FAIL)
+	if (status)
 		goto error;
 	/* step 5. read efuse/eeprom data and get mac_addr */
 	{
@@ -587,7 +571,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	/* step 6. Load the firmware asynchronously */
 	if (rtl871x_load_fw(padapter))
 		goto error;
-	spin_lock_init(&padapter->lockRxFF0Filter);
+	spin_lock_init(&padapter->lock_rx_ff0_filter);
 	mutex_init(&padapter->mutex_start);
 	return 0;
 error:
@@ -616,7 +600,7 @@ static void r871xu_dev_remove(struct usb_interface *pusb_intf)
 		/* never exit with a firmware callback pending */
 		wait_for_completion(&padapter->rtl8712_fw_ready);
 		if (drvpriv.drv_registered)
-			padapter->bSurpriseRemoved = true;
+			padapter->surprise_removed = true;
 		unregister_netdev(pnetdev); /* will call netdev_close() */
 		flush_scheduled_work();
 		udelay(1);

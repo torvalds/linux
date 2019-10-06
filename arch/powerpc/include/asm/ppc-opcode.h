@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2009 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * provides masks and opcode images for use by code generation, emulation
  * and for instructions that older assemblers might not know about
@@ -302,6 +298,7 @@
 /* Misc instructions for BPF compiler */
 #define PPC_INST_LBZ			0x88000000
 #define PPC_INST_LD			0xe8000000
+#define PPC_INST_LDX			0x7c00002a
 #define PPC_INST_LHZ			0xa0000000
 #define PPC_INST_LWZ			0x80000000
 #define PPC_INST_LHBRX			0x7c00062c
@@ -309,6 +306,7 @@
 #define PPC_INST_STB			0x98000000
 #define PPC_INST_STH			0xb0000000
 #define PPC_INST_STD			0xf8000000
+#define PPC_INST_STDX			0x7c00012a
 #define PPC_INST_STDU			0xf8000001
 #define PPC_INST_STW			0x90000000
 #define PPC_INST_STWU			0x94000000
@@ -326,6 +324,7 @@
 #define PPC_INST_ADDI			0x38000000
 #define PPC_INST_ADDIS			0x3c000000
 #define PPC_INST_ADD			0x7c000214
+#define PPC_INST_ADDC			0x7c000014
 #define PPC_INST_SUB			0x7c000050
 #define PPC_INST_BLR			0x4e800020
 #define PPC_INST_BLRL			0x4e800021
@@ -334,9 +333,14 @@
 #define PPC_INST_MULLW			0x7c0001d6
 #define PPC_INST_MULHWU			0x7c000016
 #define PPC_INST_MULLI			0x1c000000
+#define PPC_INST_MADDHD			0x10000030
+#define PPC_INST_MADDHDU		0x10000031
+#define PPC_INST_MADDLD			0x10000033
 #define PPC_INST_DIVWU			0x7c000396
 #define PPC_INST_DIVD			0x7c0003d2
+#define PPC_INST_DIVDU			0x7c000392
 #define PPC_INST_RLWINM			0x54000000
+#define PPC_INST_RLWINM_DOT		0x54000001
 #define PPC_INST_RLWIMI			0x50000000
 #define PPC_INST_RLDICL			0x78000000
 #define PPC_INST_RLDICR			0x78000004
@@ -376,6 +380,7 @@
 /* macros to insert fields into opcodes */
 #define ___PPC_RA(a)	(((a) & 0x1f) << 16)
 #define ___PPC_RB(b)	(((b) & 0x1f) << 11)
+#define ___PPC_RC(c)	(((c) & 0x1f) << 6)
 #define ___PPC_RS(s)	(((s) & 0x1f) << 21)
 #define ___PPC_RT(t)	___PPC_RS(t)
 #define ___PPC_R(r)	(((r) & 0x1) << 16)
@@ -395,7 +400,7 @@
 #define __PPC_WS(w)	(((w) & 0x1f) << 11)
 #define __PPC_SH(s)	__PPC_WS(s)
 #define __PPC_SH64(s)	(__PPC_SH(s) | (((s) & 0x20) >> 4))
-#define __PPC_MB(s)	(((s) & 0x1f) << 6)
+#define __PPC_MB(s)	___PPC_RC(s)
 #define __PPC_ME(s)	(((s) & 0x1f) << 1)
 #define __PPC_MB64(s)	(__PPC_MB(s) | ((s) & 0x20))
 #define __PPC_ME64(s)	__PPC_MB64(s)
@@ -403,6 +408,15 @@
 #define __PPC_CT(t)	(((t) & 0x0f) << 21)
 #define __PPC_SPR(r)	((((r) & 0x1f) << 16) | ((((r) >> 5) & 0x1f) << 11))
 #define __PPC_RC21	(0x1 << 10)
+
+/*
+ * Both low and high 16 bits are added as SIGNED additions, so if low 16 bits
+ * has high bit set, high 16 bits must be adjusted. These macros do that (stolen
+ * from binutils).
+ */
+#define PPC_LO(v)	((v) & 0xffff)
+#define PPC_HI(v)	(((v) >> 16) & 0xffff)
+#define PPC_HA(v)	PPC_HI((v) + 0x8000)
 
 /*
  * Only use the larx hint bit on 64bit CPUs. e500v1/v2 based CPUs will treat a
@@ -437,6 +451,15 @@
 #define PPC_STQCX(t, a, b)	stringify_in_c(.long PPC_INST_STQCX | \
 					___PPC_RT(t) | ___PPC_RA(a) | \
 					___PPC_RB(b))
+#define PPC_MADDHD(t, a, b, c)	stringify_in_c(.long PPC_INST_MADDHD | \
+					___PPC_RT(t) | ___PPC_RA(a)  | \
+					___PPC_RB(b) | ___PPC_RC(c))
+#define PPC_MADDHDU(t, a, b, c)	stringify_in_c(.long PPC_INST_MADDHDU | \
+					___PPC_RT(t) | ___PPC_RA(a)   | \
+					___PPC_RB(b) | ___PPC_RC(c))
+#define PPC_MADDLD(t, a, b, c)	stringify_in_c(.long PPC_INST_MADDLD | \
+					___PPC_RT(t) | ___PPC_RA(a)  | \
+					___PPC_RB(b) | ___PPC_RC(c))
 #define PPC_MSGSND(b)		stringify_in_c(.long PPC_INST_MSGSND | \
 					___PPC_RB(b))
 #define PPC_MSGSYNC		stringify_in_c(.long PPC_INST_MSGSYNC)
@@ -574,7 +597,16 @@
 
 #define PPC_SLBIA(IH)	stringify_in_c(.long PPC_INST_SLBIA | \
 				       ((IH & 0x7) << 21))
-#define PPC_INVALIDATE_ERAT	PPC_SLBIA(7)
+
+/*
+ * These may only be used on ISA v3.0 or later (aka. CPU_FTR_ARCH_300, radix
+ * implies CPU_FTR_ARCH_300). USER/GUEST invalidates may only be used by radix
+ * mode (on HPT these would also invalidate various SLBEs which may not be
+ * desired).
+ */
+#define PPC_ISA_3_0_INVALIDATE_ERAT	PPC_SLBIA(7)
+#define PPC_RADIX_INVALIDATE_ERAT_USER	PPC_SLBIA(3)
+#define PPC_RADIX_INVALIDATE_ERAT_GUEST	PPC_SLBIA(6)
 
 #define VCMPEQUD_RC(vrt, vra, vrb)	stringify_in_c(.long PPC_INST_VCMPEQUD | \
 			      ___PPC_RT(vrt) | ___PPC_RA(vra) | \

@@ -23,6 +23,9 @@
  *
  */
 
+#include <linux/delay.h>
+#include <linux/slab.h>
+
 #include "dm_services.h"
 
 #include "dce/dce_11_0_d.h"
@@ -61,8 +64,6 @@ static const struct dce110_compressor_reg_offsets reg_offsets[] = {
 			- mmDMIF_PG0_DPG_PIPE_DPM_CONTROL),
 }
 };
-
-static const uint32_t dce11_one_lpt_channel_max_resolution = 2560 * 1600;
 
 static uint32_t align_to_chunks_number_per_line(uint32_t pixels)
 {

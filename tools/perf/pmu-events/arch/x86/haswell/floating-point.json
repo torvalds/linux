@@ -1,22 +1,26 @@
 [
     {
+        "PEBS": "1",
+        "PublicDescription": "",
         "EventCode": "0xC1",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
         "Errata": "HSD56, HSM57",
         "EventName": "OTHER_ASSISTS.AVX_TO_SSE",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Number of transitions from AVX-256 to legacy SSE when penalty applicable.",
+        "BriefDescription": "Number of transitions from AVX-256 to legacy SSE when penalty applicable",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "PEBS": "1",
+        "PublicDescription": "",
         "EventCode": "0xC1",
         "Counter": "0,1,2,3",
         "UMask": "0x10",
         "Errata": "HSD56, HSM57",
         "EventName": "OTHER_ASSISTS.SSE_TO_AVX",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Number of transitions from SSE to AVX-256 when penalty applicable.",
+        "BriefDescription": "Number of transitions from legacy SSE to AVX-256 when penalty applicable",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -30,53 +34,58 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Number of X87 FP assists due to output values.",
+        "PEBS": "1",
+        "PublicDescription": "",
         "EventCode": "0xCA",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
         "EventName": "FP_ASSIST.X87_OUTPUT",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Number of X87 assists due to output value.",
+        "BriefDescription": "output - Numeric Overflow, Numeric Underflow, Inexact Result",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Number of X87 FP assists due to input values.",
+        "PEBS": "1",
+        "PublicDescription": "",
         "EventCode": "0xCA",
         "Counter": "0,1,2,3",
         "UMask": "0x4",
         "EventName": "FP_ASSIST.X87_INPUT",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Number of X87 assists due to input value.",
+        "BriefDescription": "input - Invalid Operation, Denormal Operand, SNaN Operand",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Number of SIMD FP assists due to output values.",
+        "PEBS": "1",
+        "PublicDescription": "",
         "EventCode": "0xCA",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
         "EventName": "FP_ASSIST.SIMD_OUTPUT",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Number of SIMD FP assists due to Output values",
+        "BriefDescription": "SSE* FP micro-code assist when output value is invalid.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Number of SIMD FP assists due to input values.",
+        "PEBS": "1",
+        "PublicDescription": "",
         "EventCode": "0xCA",
         "Counter": "0,1,2,3",
         "UMask": "0x10",
         "EventName": "FP_ASSIST.SIMD_INPUT",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Number of SIMD FP assists due to input values",
+        "BriefDescription": "Any input SSE* FP Assist",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Cycles with any input/output SSE* or FP assists.",
+        "PEBS": "1",
+        "PublicDescription": "",
         "EventCode": "0xCA",
         "Counter": "0,1,2,3",
         "UMask": "0x1e",
         "EventName": "FP_ASSIST.ANY",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Cycles with any input/output SSE or FP assist",
+        "BriefDescription": "Counts any FP_ASSIST umask was incrementing",
         "CounterMask": "1",
         "CounterHTOff": "0,1,2,3"
     }

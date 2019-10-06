@@ -1,17 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ip_vs_proto_udp.c:	UDP load balancing support for IPVS
  *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *              Julian Anastasov <ja@ssi.bg>
  *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
- *
  * Changes:     Hans Schillstrom <hans.schillstrom@ericsson.com>
  *              Network name space (netns) aware.
- *
  */
 
 #define KMSG_COMPONENT "IPVS"
@@ -23,10 +18,14 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/udp.h>
+#include <linux/indirect_call_wrapper.h>
 
 #include <net/ip_vs.h>
 #include <net/ip.h>
 #include <net/ip6_checksum.h>
+
+static int
+udp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp);
 
 static int
 udp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
@@ -133,14 +132,14 @@ udp_partial_csum_update(int af, struct udphdr *uhdr,
 }
 
 
-static int
+INDIRECT_CALLABLE_SCOPE int
 udp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 struct ip_vs_conn *cp, struct ip_vs_iphdr *iph)
 {
 	struct udphdr *udph;
 	unsigned int udphoff = iph->len;
+	bool payload_csum = false;
 	int oldlen;
-	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6 && iph->fragoffs)
@@ -149,14 +148,14 @@ udp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 	oldlen = skb->len - udphoff;
 
 	/* csum_check requires unshared skb */
-	if (!skb_make_writable(skb, udphoff+sizeof(*udph)))
+	if (skb_ensure_writable(skb, udphoff + sizeof(*udph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
 		int ret;
 
 		/* Some checks before mangling */
-		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
+		if (!udp_csum_check(cp->af, skb, pp))
 			return 0;
 
 		/*
@@ -168,7 +167,7 @@ udp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		if (ret == 1)
 			oldlen = skb->len - udphoff;
 		else
-			payload_csum = 1;
+			payload_csum = true;
 	}
 
 	udph = (void *)skb_network_header(skb) + udphoff;
@@ -186,7 +185,7 @@ udp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		udp_fast_csum_update(cp->af, udph, &cp->daddr, &cp->vaddr,
 				     cp->dport, cp->vport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = (cp->app && pp->csum_check) ?
+			skb->ip_summed = cp->app ?
 					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
@@ -222,8 +221,8 @@ udp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 {
 	struct udphdr *udph;
 	unsigned int udphoff = iph->len;
+	bool payload_csum = false;
 	int oldlen;
-	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6 && iph->fragoffs)
@@ -232,14 +231,14 @@ udp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 	oldlen = skb->len - udphoff;
 
 	/* csum_check requires unshared skb */
-	if (!skb_make_writable(skb, udphoff+sizeof(*udph)))
+	if (skb_ensure_writable(skb, udphoff + sizeof(*udph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
 		int ret;
 
 		/* Some checks before mangling */
-		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
+		if (!udp_csum_check(cp->af, skb, pp))
 			return 0;
 
 		/*
@@ -252,7 +251,7 @@ udp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		if (ret == 1)
 			oldlen = skb->len - udphoff;
 		else
-			payload_csum = 1;
+			payload_csum = true;
 	}
 
 	udph = (void *)skb_network_header(skb) + udphoff;
@@ -270,7 +269,7 @@ udp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		udp_fast_csum_update(cp->af, udph, &cp->vaddr, &cp->daddr,
 				     cp->vport, cp->dport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = (cp->app && pp->csum_check) ?
+			skb->ip_summed = cp->app ?
 					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
@@ -494,7 +493,6 @@ struct ip_vs_protocol ip_vs_protocol_udp = {
 	.conn_out_get =		ip_vs_conn_out_get_proto,
 	.snat_handler =		udp_snat_handler,
 	.dnat_handler =		udp_dnat_handler,
-	.csum_check =		udp_csum_check,
 	.state_transition =	udp_state_transition,
 	.state_name =		udp_state_name,
 	.register_app =		udp_register_app,

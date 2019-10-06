@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 /*
@@ -777,7 +774,7 @@ static int gfs2_write_disk_quota(struct gfs2_inode *ip, struct gfs2_quota *qp,
 	nbytes = sizeof(struct gfs2_quota);
 
 	pg_beg = loc >> PAGE_SHIFT;
-	pg_off = loc % PAGE_SIZE;
+	pg_off = offset_in_page(loc);
 
 	/* If the quota straddles a page boundary, split the write in two */
 	if ((pg_off + nbytes) > PAGE_SIZE) {
@@ -1478,7 +1475,7 @@ static void quotad_error(struct gfs2_sbd *sdp, const char *msg, int error)
 {
 	if (error == 0 || error == -EROFS)
 		return;
-	if (!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)) {
+	if (!test_bit(SDF_WITHDRAWN, &sdp->sd_flags)) {
 		fs_err(sdp, "gfs2_quotad: %s error %d\n", msg, error);
 		sdp->sd_log_error = error;
 		wake_up(&sdp->sd_logd_waitq);

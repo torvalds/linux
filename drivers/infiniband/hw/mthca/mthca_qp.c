@@ -42,6 +42,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
 #include <rdma/ib_pack.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
@@ -114,7 +115,7 @@ struct mthca_qp_path {
 	u8     hop_limit;
 	__be32 sl_tclass_flowlabel;
 	u8     rgid[16];
-} __attribute__((packed));
+} __packed;
 
 struct mthca_qp_context {
 	__be32 flags;
@@ -153,14 +154,14 @@ struct mthca_qp_context {
 	__be16 rq_wqe_counter;	/* reserved on Tavor */
 	__be16 sq_wqe_counter;	/* reserved on Tavor */
 	u32    reserved3[18];
-} __attribute__((packed));
+} __packed;
 
 struct mthca_qp_param {
 	__be32 opt_param_mask;
 	u32    reserved1;
 	struct mthca_qp_context context;
 	u32    reserved2[62];
-} __attribute__((packed));
+} __packed;
 
 enum {
 	MTHCA_QP_OPTPAR_ALT_ADDR_PATH     = 1 << 0,
@@ -554,10 +555,14 @@ static int mthca_path_set(struct mthca_dev *dev, const struct rdma_ah_attr *ah,
 
 static int __mthca_modify_qp(struct ib_qp *ibqp,
 			     const struct ib_qp_attr *attr, int attr_mask,
-			     enum ib_qp_state cur_state, enum ib_qp_state new_state)
+			     enum ib_qp_state cur_state,
+			     enum ib_qp_state new_state,
+			     struct ib_udata *udata)
 {
 	struct mthca_dev *dev = to_mdev(ibqp->device);
 	struct mthca_qp *qp = to_mqp(ibqp);
+	struct mthca_ucontext *context = rdma_udata_to_drv_context(
+		udata, struct mthca_ucontext, ibucontext);
 	struct mthca_mailbox *mailbox;
 	struct mthca_qp_param *qp_param;
 	struct mthca_qp_context *qp_context;
@@ -619,8 +624,7 @@ static int __mthca_modify_qp(struct ib_qp *ibqp,
 	/* leave arbel_sched_queue as 0 */
 
 	if (qp->ibqp.uobject)
-		qp_context->usr_page =
-			cpu_to_be32(to_mucontext(qp->ibqp.uobject->context)->uar.index);
+		qp_context->usr_page = cpu_to_be32(context->uar.index);
 	else
 		qp_context->usr_page = cpu_to_be32(dev->driver_uar.index);
 	qp_context->local_qpn  = cpu_to_be32(qp->qpn);
@@ -913,7 +917,8 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 		goto out;
 	}
 
-	err = __mthca_modify_qp(ibqp, attr, attr_mask, cur_state, new_state);
+	err = __mthca_modify_qp(ibqp, attr, attr_mask, cur_state, new_state,
+				udata);
 
 out:
 	mutex_unlock(&qp->mutex);
@@ -1804,11 +1809,6 @@ out:
 			      (qp->qpn << 8) | size0,
 			      dev->kar + MTHCA_SEND_DOORBELL,
 			      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
-		/*
-		 * Make sure doorbells don't leak out of SQ spinlock
-		 * and reach the HCA out of order:
-		 */
-		mmiowb();
 	}
 
 	qp->sq.next_ind = ind;
@@ -1918,12 +1918,6 @@ out:
 
 	qp->rq.next_ind = ind;
 	qp->rq.head    += nreq;
-
-	/*
-	 * Make sure doorbells don't leak out of RQ spinlock and reach
-	 * the HCA out of order:
-	 */
-	mmiowb();
 
 	spin_unlock_irqrestore(&qp->rq.lock, flags);
 	return err;
@@ -2158,12 +2152,6 @@ out:
 		mthca_write64(dbhi, (qp->qpn << 8) | size0, dev->kar + MTHCA_SEND_DOORBELL,
 			      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
 	}
-
-	/*
-	 * Make sure doorbells don't leak out of SQ spinlock and reach
-	 * the HCA out of order:
-	 */
-	mmiowb();
 
 	spin_unlock_irqrestore(&qp->sq.lock, flags);
 	return err;

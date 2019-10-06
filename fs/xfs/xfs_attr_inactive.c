@@ -15,18 +15,13 @@
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_inode.h"
-#include "xfs_alloc.h"
 #include "xfs_attr_remote.h"
 #include "xfs_trans.h"
-#include "xfs_inode_item.h"
 #include "xfs_bmap.h"
 #include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
-#include "xfs_error.h"
 #include "xfs_quota.h"
-#include "xfs_trace.h"
 #include "xfs_dir2.h"
-#include "xfs_defer.h"
 
 /*
  * Look at all the extents for this logical region,
@@ -121,7 +116,7 @@ xfs_attr3_leaf_inactive(
 	int			size;
 	int			tmp;
 	int			i;
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 
 	leaf = bp->b_addr;
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr, leaf);
@@ -152,7 +147,7 @@ xfs_attr3_leaf_inactive(
 	 * Allocate storage for a list of all the "remote" value extents.
 	 */
 	size = count * sizeof(xfs_attr_inactive_list_t);
-	list = kmem_alloc(size, KM_SLEEP);
+	list = kmem_alloc(size, 0);
 
 	/*
 	 * Identify each of the "remote" value extents.

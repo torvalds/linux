@@ -28,7 +28,6 @@
 #include "rootnv50.h"
 
 #include <core/client.h>
-#include <core/enum.h>
 #include <core/ramht.h>
 #include <subdev/bios.h>
 #include <subdev/bios/disp.h>
@@ -593,12 +592,15 @@ nv50_disp_super(struct work_struct *work)
 	nvkm_wr32(device, 0x610030, 0x80000000);
 }
 
-static const struct nvkm_enum
+const struct nvkm_enum
 nv50_disp_intr_error_type[] = {
-	{ 3, "ILLEGAL_MTHD" },
-	{ 4, "INVALID_VALUE" },
+	{ 0, "NONE" },
+	{ 1, "PUSHBUFFER_ERR" },
+	{ 2, "TRAP" },
+	{ 3, "RESERVED_METHOD" },
+	{ 4, "INVALID_ARG" },
 	{ 5, "INVALID_STATE" },
-	{ 7, "INVALID_HANDLE" },
+	{ 7, "UNRESOLVABLE_HANDLE" },
 	{}
 };
 

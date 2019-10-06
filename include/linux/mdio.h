@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * linux/mdio.h: definitions for MDIO (clause 45) transceivers
  * Copyright 2006-2009 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 #ifndef __LINUX_MDIO_H__
 #define __LINUX_MDIO_H__
@@ -39,7 +36,8 @@ struct mdio_device {
 	/* Bus address of the MDIO device (0-31) */
 	int addr;
 	int flags;
-	struct gpio_desc *reset;
+	struct gpio_desc *reset_gpio;
+	struct reset_control *reset_ctrl;
 	unsigned int reset_assert_delay;
 	unsigned int reset_deassert_delay;
 };
@@ -69,6 +67,17 @@ struct mdio_driver {
 };
 #define to_mdio_driver(d)						\
 	container_of(to_mdio_common_driver(d), struct mdio_driver, mdiodrv)
+
+/* device driver data */
+static inline void mdiodev_set_drvdata(struct mdio_device *mdio, void *data)
+{
+	dev_set_drvdata(&mdio->dev, data);
+}
+
+static inline void *mdiodev_get_drvdata(struct mdio_device *mdio)
+{
+	return dev_get_drvdata(&mdio->dev);
+}
 
 void mdio_device_free(struct mdio_device *mdiodev);
 struct mdio_device *mdio_device_create(struct mii_bus *bus, int addr);
@@ -259,6 +268,50 @@ static inline u16 ethtool_adv_to_mmd_eee_adv_t(u32 adv)
 		reg |= MDIO_EEE_10GKR;
 
 	return reg;
+}
+
+/**
+ * linkmode_adv_to_mii_10gbt_adv_t
+ * @advertising: the linkmode advertisement settings
+ *
+ * A small helper function that translates linkmode advertisement
+ * settings to phy autonegotiation advertisements for the C45
+ * 10GBASE-T AN CONTROL (7.32) register.
+ */
+static inline u32 linkmode_adv_to_mii_10gbt_adv_t(unsigned long *advertising)
+{
+	u32 result = 0;
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			      advertising))
+		result |= MDIO_AN_10GBT_CTRL_ADV2_5G;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+			      advertising))
+		result |= MDIO_AN_10GBT_CTRL_ADV5G;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			      advertising))
+		result |= MDIO_AN_10GBT_CTRL_ADV10G;
+
+	return result;
+}
+
+/**
+ * mii_10gbt_stat_mod_linkmode_lpa_t
+ * @advertising: target the linkmode advertisement settings
+ * @adv: value of the C45 10GBASE-T AN STATUS register
+ *
+ * A small helper function that translates C45 10GBASE-T AN STATUS register bits
+ * to linkmode advertisement settings. Other bits in advertising aren't changed.
+ */
+static inline void mii_10gbt_stat_mod_linkmode_lpa_t(unsigned long *advertising,
+						     u32 lpa)
+{
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			 advertising, lpa & MDIO_AN_10GBT_STAT_LP2_5G);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+			 advertising, lpa & MDIO_AN_10GBT_STAT_LP5G);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			 advertising, lpa & MDIO_AN_10GBT_STAT_LP10G);
 }
 
 int __mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);

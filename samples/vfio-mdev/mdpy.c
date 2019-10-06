@@ -752,13 +752,13 @@ static int __init mdpy_dev_init(void)
 {
 	int ret = 0;
 
-	ret = alloc_chrdev_region(&mdpy_devt, 0, MINORMASK, MDPY_NAME);
+	ret = alloc_chrdev_region(&mdpy_devt, 0, MINORMASK + 1, MDPY_NAME);
 	if (ret < 0) {
 		pr_err("Error: failed to register mdpy_dev, err: %d\n", ret);
 		return ret;
 	}
 	cdev_init(&mdpy_cdev, &vd_fops);
-	cdev_add(&mdpy_cdev, mdpy_devt, MINORMASK);
+	cdev_add(&mdpy_cdev, mdpy_devt, MINORMASK + 1);
 	pr_info("%s: major %d\n", __func__, MAJOR(mdpy_devt));
 
 	mdpy_class = class_create(THIS_MODULE, MDPY_CLASS_NAME);
@@ -787,7 +787,7 @@ failed2:
 	class_destroy(mdpy_class);
 failed1:
 	cdev_del(&mdpy_cdev);
-	unregister_chrdev_region(mdpy_devt, MINORMASK);
+	unregister_chrdev_region(mdpy_devt, MINORMASK + 1);
 	return ret;
 }
 
@@ -798,7 +798,7 @@ static void __exit mdpy_dev_exit(void)
 
 	device_unregister(&mdpy_dev);
 	cdev_del(&mdpy_cdev);
-	unregister_chrdev_region(mdpy_devt, MINORMASK);
+	unregister_chrdev_region(mdpy_devt, MINORMASK + 1);
 	class_destroy(mdpy_class);
 	mdpy_class = NULL;
 }

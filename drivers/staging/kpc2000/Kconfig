@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config KPC2000
+	bool "Daktronics KPC Device support"
+	select MFD_CORE
+	depends on PCI
+	depends on UIO
+	help
+	  Select this if you wish to use the Daktronics KPC PCI devices
+
+	  If unsure, say N.
+
+config KPC2000_CORE
+	tristate "Daktronics KPC PCI UIO device"
+	depends on KPC2000
+	help
+	  Say Y here if you wish to support the Daktronics KPC PCI
+	  device in UIO mode.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called kpc2000
+
+	  If unsure, say N.
+
+config KPC2000_SPI
+	tristate "Daktronics KPC SPI device"
+	depends on KPC2000 && SPI
+	help
+	  Say Y here if you wish to support the Daktronics KPC PCI
+	  device in SPI mode.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called kpc2000_spi
+
+	  If unsure, say N.
+
+config KPC2000_I2C
+	tristate "Daktronics KPC I2C device"
+	depends on KPC2000 && I2C
+	help
+	  Say Y here if you wish to support the Daktronics KPC PCI
+	  device in I2C mode.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called kpc2000_i2c
+
+	  If unsure, say N.
+
+config KPC2000_DMA
+	tristate "Daktronics KPC DMA controller"
+	depends on KPC2000
+	help
+	  Say Y here if you wish to support the Daktronics DMA controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called kpc2000_dma
+
+	  If unsure, say N.
+

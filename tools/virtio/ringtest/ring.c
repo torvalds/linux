@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Red Hat, Inc.
  * Author: Michael S. Tsirkin <mst@redhat.com>
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Simple descriptor-based ring. virtio 0.9 compatible event index is used for
  * signalling, unconditionally.

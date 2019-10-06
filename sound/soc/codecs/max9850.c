@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * max9850.c  --  codec driver for max9850
  *
@@ -7,12 +8,6 @@
  *
  * Initial development of this code was funded by
  * MICRONIC Computer Systeme GmbH, http://www.mcsberlin.de/
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -30,19 +25,6 @@
 struct max9850_priv {
 	struct regmap *regmap;
 	unsigned int sysclk;
-};
-
-/* max9850 register cache */
-static const struct reg_default max9850_reg[] = {
-	{  2, 0x0c },
-	{  3, 0x00 },
-	{  4, 0x00 },
-	{  5, 0x00 },
-	{  6, 0x00 },
-	{  7, 0x00 },
-	{  8, 0x00 },
-	{  9, 0x00 },
-	{ 10, 0x00 },
 };
 
 /* these registers are not used at the moment but provided for the sake of

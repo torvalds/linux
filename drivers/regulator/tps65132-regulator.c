@@ -55,10 +55,7 @@ struct tps65132_reg_pdata {
 
 struct tps65132_regulator {
 	struct device *dev;
-	struct regmap *rmap;
-	struct regulator_desc *rdesc[TPS65132_MAX_REGULATORS];
 	struct tps65132_reg_pdata reg_pdata[TPS65132_MAX_REGULATORS];
-	struct regulator_dev *rdev[TPS65132_MAX_REGULATORS];
 };
 
 static int tps65132_regulator_enable(struct regulator_dev *rdev)
@@ -120,7 +117,7 @@ static int tps65132_regulator_is_enabled(struct regulator_dev *rdev)
 	return 1;
 }
 
-static struct regulator_ops tps65132_regulator_ops = {
+static const struct regulator_ops tps65132_regulator_ops = {
 	.enable = tps65132_regulator_enable,
 	.disable = tps65132_regulator_disable,
 	.is_enabled = tps65132_regulator_is_enabled,
@@ -141,7 +138,7 @@ static int tps65132_of_parse_cb(struct device_node *np,
 
 	rpdata->en_gpiod = devm_fwnode_get_index_gpiod_from_child(tps->dev,
 					"enable", 0, &np->fwnode, 0, "enable");
-	if (IS_ERR(rpdata->en_gpiod)) {
+	if (IS_ERR_OR_NULL(rpdata->en_gpiod)) {
 		ret = PTR_ERR(rpdata->en_gpiod);
 
 		/* Ignore the error other than probe defer */
@@ -153,7 +150,7 @@ static int tps65132_of_parse_cb(struct device_node *np,
 	rpdata->act_dis_gpiod = devm_fwnode_get_index_gpiod_from_child(
 					tps->dev, "active-discharge", 0,
 					&np->fwnode, 0, "active-discharge");
-	if (IS_ERR(rpdata->act_dis_gpiod)) {
+	if (IS_ERR_OR_NULL(rpdata->act_dis_gpiod)) {
 		ret = PTR_ERR(rpdata->act_dis_gpiod);
 
 		/* Ignore the error other than probe defer */
@@ -196,7 +193,7 @@ static int tps65132_of_parse_cb(struct device_node *np,
 		.owner = THIS_MODULE,			\
 	}
 
-static struct regulator_desc tps_regs_desc[TPS65132_MAX_REGULATORS] = {
+static const struct regulator_desc tps_regs_desc[TPS65132_MAX_REGULATORS] = {
 	TPS65132_REGULATOR_DESC(VPOS, outp),
 	TPS65132_REGULATOR_DESC(VNEG, outn),
 };
@@ -225,6 +222,8 @@ static int tps65132_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	struct tps65132_regulator *tps;
+	struct regulator_dev *rdev;
+	struct regmap *rmap;
 	struct regulator_config config = { };
 	int id;
 	int ret;
@@ -233,9 +232,9 @@ static int tps65132_probe(struct i2c_client *client,
 	if (!tps)
 		return -ENOMEM;
 
-	tps->rmap = devm_regmap_init_i2c(client, &tps65132_regmap_config);
-	if (IS_ERR(tps->rmap)) {
-		ret = PTR_ERR(tps->rmap);
+	rmap = devm_regmap_init_i2c(client, &tps65132_regmap_config);
+	if (IS_ERR(rmap)) {
+		ret = PTR_ERR(rmap);
 		dev_err(dev, "regmap init failed: %d\n", ret);
 		return ret;
 	}
@@ -244,18 +243,16 @@ static int tps65132_probe(struct i2c_client *client,
 	tps->dev = dev;
 
 	for (id = 0; id < TPS65132_MAX_REGULATORS; ++id) {
-		tps->rdesc[id] = &tps_regs_desc[id];
-
-		config.regmap = tps->rmap;
+		config.regmap = rmap;
 		config.dev = dev;
 		config.driver_data = tps;
 
-		tps->rdev[id] = devm_regulator_register(dev,
-					tps->rdesc[id], &config);
-		if (IS_ERR(tps->rdev[id])) {
-			ret = PTR_ERR(tps->rdev[id]);
+		rdev = devm_regulator_register(dev, &tps_regs_desc[id],
+					       &config);
+		if (IS_ERR(rdev)) {
+			ret = PTR_ERR(rdev);
 			dev_err(dev, "regulator %s register failed: %d\n",
-				tps->rdesc[id]->name, ret);
+				tps_regs_desc[id].name, ret);
 			return ret;
 		}
 	}

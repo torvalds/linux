@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pseries CPU Hotplug infrastructure.
  *
@@ -11,11 +12,6 @@
  * Plus various changes from other IBM teams...
  *
  * Copyright (C) 2006 Michael Ellerman, IBM Corporation
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt)     "pseries-hotplug-cpu: " fmt
@@ -799,6 +795,25 @@ static int dlpar_cpu_add_by_count(u32 cpus_to_add)
 	}
 
 	kfree(cpu_drcs);
+	return rc;
+}
+
+int dlpar_cpu_readd(int cpu)
+{
+	struct device_node *dn;
+	struct device *dev;
+	u32 drc_index;
+	int rc;
+
+	dev = get_cpu_device(cpu);
+	dn = dev->of_node;
+
+	rc = of_property_read_u32(dn, "ibm,my-drc-index", &drc_index);
+
+	rc = dlpar_cpu_remove_by_index(drc_index);
+	if (!rc)
+		rc = dlpar_cpu_add(drc_index);
+
 	return rc;
 }
 

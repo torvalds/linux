@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * genelf.c
  * Copyright (C) 2014, Google, Inc
  *
  * Contributed by:
  * 	Stephane Eranian <eranian@gmail.com>
- *
- * Released under the GPL v2. (and only v2, not any later version)
  */
 
 #include <sys/types.h>
@@ -15,6 +14,7 @@
 #include <libelf.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <fcntl.h>
@@ -23,9 +23,9 @@
 #include <dwarf.h>
 #endif
 
-#include "perf.h"
 #include "genelf.h"
 #include "../util/jitdump.h"
+#include <linux/compiler.h>
 
 #ifndef NT_GNU_BUILD_ID
 #define NT_GNU_BUILD_ID 3

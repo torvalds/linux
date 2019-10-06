@@ -192,7 +192,7 @@ EXPORT_SYMBOL_GPL(typec_altmode_vdm);
 const struct typec_altmode *
 typec_altmode_get_partner(struct typec_altmode *adev)
 {
-	return &to_altmode(adev)->partner->adev;
+	return adev ? &to_altmode(adev)->partner->adev : NULL;
 }
 EXPORT_SYMBOL_GPL(typec_altmode_get_partner);
 

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drxk_hard: DRX-K DVB-C/T demodulator driver
  *
  * Copyright (C) 2010-2011 Digital Devices GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 only, as published by the Free Software Foundation.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -723,7 +711,7 @@ static int init_state(struct drxk_state *state)
 	state->m_drxk_state = DRXK_UNINITIALIZED;
 
 	/* MPEG output configuration */
-	state->m_enable_mpeg_output = true;	/* If TRUE; enable MPEG ouput */
+	state->m_enable_mpeg_output = true;	/* If TRUE; enable MPEG output */
 	state->m_insert_rs_byte = false;	/* If TRUE; insert RS byte */
 	state->m_invert_data = false;	/* If TRUE; invert DATA signals */
 	state->m_invert_err = false;	/* If TRUE; invert ERR signal */
@@ -3870,7 +3858,7 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 		goto error;
 	}
 #else
-	/* Set Priorty high */
+	/* Set Priority high */
 	transmission_params |= OFDM_SC_RA_RAM_OP_PARAM_PRIO_HI;
 	status = write16(state, OFDM_EC_SB_PRIOR__A, OFDM_EC_SB_PRIOR_HI);
 	if (status < 0)
@@ -3901,7 +3889,7 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 	}
 
 	/*
-	 * SAW filter selection: normaly not necesarry, but if wanted
+	 * SAW filter selection: normally not necessary, but if wanted
 	 * the application can select a SAW filter via the driver by
 	 * using UIOs
 	 */
@@ -5423,7 +5411,7 @@ static int qam_demodulator_command(struct drxk_state *state,
 
 		set_param_parameters[3] |= (QAM_MIRROR_AUTO_ON);
 		/* Env parameters */
-		/* check for LOCKRANGE Extented */
+		/* check for LOCKRANGE Extended */
 		/* set_param_parameters[3] |= QAM_LOCKRANGE_NORMAL; */
 
 		status = scu_command(state,

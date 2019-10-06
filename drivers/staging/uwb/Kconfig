@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# UWB device configuration
+#
+
+menuconfig UWB
+	tristate "Ultra Wideband devices"
+	default n
+	select GENERIC_NET_UTILS
+	help
+	  UWB is a high-bandwidth, low-power, point-to-point radio
+	  technology using a wide spectrum (3.1-10.6GHz). It is
+	  optimized for in-room use (480Mbps at 2 meters, 110Mbps at
+	  10m). It serves as the transport layer for other protocols,
+	  such as Wireless USB (WUSB).
+
+	  The topology is peer to peer; however, higher level
+	  protocols (such as WUSB) might impose a master/slave
+	  relationship.
+
+	  Say Y here if your computer has UWB radio controllers (USB or PCI)
+	  based. You will need to enable the radio controllers
+	  below.  It is ok to select all of them, no harm done.
+
+	  For more help check the UWB and WUSB related files in
+	  <file:Documentation/usb/>.
+
+	  To compile the UWB stack as a module, choose M here.
+
+if UWB
+
+config UWB_HWA
+	tristate "UWB Radio Control driver for WUSB-compliant USB dongles (HWA)"
+	depends on USB
+	help
+	  This driver enables the radio controller for HWA USB
+	  devices. HWA stands for Host Wire Adapter, and it is a UWB
+	  Radio Controller connected to your system via USB. Most of
+	  them come with a Wireless USB host controller also.
+
+	  To compile this driver select Y (built in) or M (module). It
+	  is safe to select any even if you do not have the hardware.
+
+config UWB_WHCI
+        tristate "UWB Radio Control driver for WHCI-compliant cards"
+        depends on PCI
+        help
+          This driver enables the radio controller for WHCI cards.
+
+          WHCI is a specification developed by Intel
+          (http://www.intel.com/technology/comms/wusb/whci.htm) much
+          in the spirit of USB's EHCI, but for UWB and Wireless USB
+          radio/host controllers connected via memory mapping (eg:
+          PCI). Most of these cards come also with a Wireless USB host
+          controller.
+
+          To compile this driver select Y (built in) or M (module). It
+          is safe to select any even if you do not have the hardware.
+
+config UWB_I1480U
+        tristate "Support for Intel Wireless UWB Link 1480 HWA"
+        depends on UWB_HWA
+        select FW_LOADER
+        help
+         This driver enables support for the i1480 when connected via
+         USB. It consists of a firmware uploader that will enable it
+         to behave as an HWA device.
+
+         To compile this driver select Y (built in) or M (module). It
+         is safe to select any even if you do not have the hardware.
+
+endif # UWB

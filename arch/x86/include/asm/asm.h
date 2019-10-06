@@ -148,30 +148,6 @@
 	_ASM_PTR (entry);					\
 	.popsection
 
-.macro ALIGN_DESTINATION
-	/* check for bad alignment of destination */
-	movl %edi,%ecx
-	andl $7,%ecx
-	jz 102f				/* already aligned */
-	subl $8,%ecx
-	negl %ecx
-	subl %ecx,%edx
-100:	movb (%rsi),%al
-101:	movb %al,(%rdi)
-	incq %rsi
-	incq %rdi
-	decl %ecx
-	jnz 100b
-102:
-	.section .fixup,"ax"
-103:	addl %ecx,%edx			/* ecx is zerorest also */
-	jmp copy_user_handle_tail
-	.previous
-
-	_ASM_EXTABLE_UA(100b, 103b)
-	_ASM_EXTABLE_UA(101b, 103b)
-	.endm
-
 #else
 # define _EXPAND_EXTABLE_HANDLE(x) #x
 # define _ASM_EXTABLE_HANDLE(from, to, handler)			\

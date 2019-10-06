@@ -1,16 +1,7 @@
-/*
- * Copyright (c) 2015 MediaTek Inc.
- * Author: Henry Chen <henryc.chen@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2015 MediaTek Inc.
+// Author: Henry Chen <henryc.chen@mediatek.com>
 
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -38,13 +29,9 @@ static const struct regmap_config mt6311_regmap_config = {
 #define MT6311_MAX_UV		1393750
 #define MT6311_STEP_UV		6250
 
-static const struct regulator_linear_range buck_volt_range[] = {
-	REGULATOR_LINEAR_RANGE(MT6311_MIN_UV, 0, 0x7f, MT6311_STEP_UV),
-};
-
 static const struct regulator_ops mt6311_buck_ops = {
-	.list_voltage = regulator_list_voltage_linear_range,
-	.map_voltage = regulator_map_voltage_linear_range,
+	.list_voltage = regulator_list_voltage_linear,
+	.map_voltage = regulator_map_voltage_linear,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
@@ -71,8 +58,6 @@ static const struct regulator_ops mt6311_ldo_ops = {
 	.min_uV = MT6311_MIN_UV,\
 	.uV_step = MT6311_STEP_UV,\
 	.owner = THIS_MODULE,\
-	.linear_ranges = buck_volt_range, \
-	.n_linear_ranges = ARRAY_SIZE(buck_volt_range), \
 	.enable_reg = MT6311_VDVFS11_CON9,\
 	.enable_mask = MT6311_PMIC_VDVFS11_EN_MASK,\
 	.vsel_reg = MT6311_VDVFS11_CON12,\

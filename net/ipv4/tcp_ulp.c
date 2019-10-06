@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Pluggable TCP upper layer protocol support.
  *
@@ -93,6 +94,19 @@ void tcp_get_available_ulp(char *buf, size_t maxlen)
 				 offs == 0 ? "" : " ", ulp_ops->name);
 	}
 	rcu_read_unlock();
+}
+
+void tcp_update_ulp(struct sock *sk, struct proto *proto)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	if (!icsk->icsk_ulp_ops) {
+		sk->sk_prot = proto;
+		return;
+	}
+
+	if (icsk->icsk_ulp_ops->update)
+		icsk->icsk_ulp_ops->update(sk, proto);
 }
 
 void tcp_cleanup_ulp(struct sock *sk)

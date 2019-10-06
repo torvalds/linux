@@ -1070,6 +1070,27 @@ int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+int qed_mcp_load_done(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u32 resp = 0, param = 0;
+	int rc;
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_LOAD_DONE, 0, &resp,
+			 &param);
+	if (rc) {
+		DP_NOTICE(p_hwfn,
+			  "Failed to send a LOAD_DONE command, rc = %d\n", rc);
+		return rc;
+	}
+
+	/* Check if there is a DID mismatch between nvm-cfg/efuse */
+	if (param & FW_MB_PARAM_LOAD_DONE_DID_EFUSE_ERROR)
+		DP_NOTICE(p_hwfn,
+			  "warning: device configuration is not supported on this board type. The device may not function as expected.\n");
+
+	return 0;
+}
+
 int qed_mcp_unload_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct qed_mcp_mb_params mb_params;
@@ -1528,6 +1549,60 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 	return 0;
 }
 
+u32 qed_get_process_kill_counter(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt)
+{
+	u32 path_offsize_addr, path_offsize, path_addr, proc_kill_cnt;
+
+	if (IS_VF(p_hwfn->cdev))
+		return -EINVAL;
+
+	path_offsize_addr = SECTION_OFFSIZE_ADDR(p_hwfn->mcp_info->public_base,
+						 PUBLIC_PATH);
+	path_offsize = qed_rd(p_hwfn, p_ptt, path_offsize_addr);
+	path_addr = SECTION_ADDR(path_offsize, QED_PATH_ID(p_hwfn));
+
+	proc_kill_cnt = qed_rd(p_hwfn, p_ptt,
+			       path_addr +
+			       offsetof(struct public_path, process_kill)) &
+			PROCESS_KILL_COUNTER_MASK;
+
+	return proc_kill_cnt;
+}
+
+static void qed_mcp_handle_process_kill(struct qed_hwfn *p_hwfn,
+					struct qed_ptt *p_ptt)
+{
+	struct qed_dev *cdev = p_hwfn->cdev;
+	u32 proc_kill_cnt;
+
+	/* Prevent possible attentions/interrupts during the recovery handling
+	 * and till its load phase, during which they will be re-enabled.
+	 */
+	qed_int_igu_disable_int(p_hwfn, p_ptt);
+
+	DP_NOTICE(p_hwfn, "Received a process kill indication\n");
+
+	/* The following operations should be done once, and thus in CMT mode
+	 * are carried out by only the first HW function.
+	 */
+	if (p_hwfn != QED_LEADING_HWFN(cdev))
+		return;
+
+	if (cdev->recov_in_prog) {
+		DP_NOTICE(p_hwfn,
+			  "Ignoring the indication since a recovery process is already in progress\n");
+		return;
+	}
+
+	cdev->recov_in_prog = true;
+
+	proc_kill_cnt = qed_get_process_kill_counter(p_hwfn, p_ptt);
+	DP_NOTICE(p_hwfn, "Process kill counter: %d\n", proc_kill_cnt);
+
+	qed_schedule_recovery_handler(p_hwfn);
+}
+
 static void qed_mcp_send_protocol_stats(struct qed_hwfn *p_hwfn,
 					struct qed_ptt *p_ptt,
 					enum MFW_DRV_MSG_TYPE type)
@@ -1757,6 +1832,9 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			break;
 		case MFW_DRV_MSG_TRANSCEIVER_STATE_CHANGE:
 			qed_mcp_handle_transceiver_change(p_hwfn, p_ptt);
+			break;
+		case MFW_DRV_MSG_ERROR_RECOVERY:
+			qed_mcp_handle_process_kill(p_hwfn, p_ptt);
 			break;
 		case MFW_DRV_MSG_GET_LAN_STATS:
 		case MFW_DRV_MSG_GET_FCOE_STATS:
@@ -2301,6 +2379,43 @@ int qed_mcp_get_flash_size(struct qed_hwfn *p_hwfn,
 	*p_flash_size = flash_size;
 
 	return 0;
+}
+
+int qed_start_recovery_process(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct qed_dev *cdev = p_hwfn->cdev;
+
+	if (cdev->recov_in_prog) {
+		DP_NOTICE(p_hwfn,
+			  "Avoid triggering a recovery since such a process is already in progress\n");
+		return -EAGAIN;
+	}
+
+	DP_NOTICE(p_hwfn, "Triggering a recovery process\n");
+	qed_wr(p_hwfn, p_ptt, MISC_REG_AEU_GENERAL_ATTN_35, 0x1);
+
+	return 0;
+}
+
+#define QED_RECOVERY_PROLOG_SLEEP_MS    100
+
+int qed_recovery_prolog(struct qed_dev *cdev)
+{
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *p_ptt = p_hwfn->p_main_ptt;
+	int rc;
+
+	/* Allow ongoing PCIe transactions to complete */
+	msleep(QED_RECOVERY_PROLOG_SLEEP_MS);
+
+	/* Clear the PF's internal FID_enable in the PXP */
+	rc = qed_pglueb_set_pfid_enable(p_hwfn, p_ptt, false);
+	if (rc)
+		DP_NOTICE(p_hwfn,
+			  "qed_pglueb_set_pfid_enable() failed. rc = %d.\n",
+			  rc);
+
+	return rc;
 }
 
 static int
@@ -3539,6 +3654,12 @@ void qed_mcp_resc_lock_default_init(struct qed_resc_lock_params *p_lock,
 	}
 }
 
+bool qed_mcp_is_smart_an_supported(struct qed_hwfn *p_hwfn)
+{
+	return !!(p_hwfn->mcp_info->capabilities &
+		  FW_MB_PARAM_FEATURE_SUPPORT_SMARTLINQ);
+}
+
 int qed_mcp_get_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 mcp_resp;
@@ -3563,4 +3684,130 @@ int qed_mcp_set_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_FEATURE_SUPPORT,
 			   features, &mcp_resp, &mcp_param);
+}
+
+int qed_mcp_get_engine_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct qed_mcp_mb_params mb_params = {0};
+	struct qed_dev *cdev = p_hwfn->cdev;
+	u8 fir_valid, l2_valid;
+	int rc;
+
+	mb_params.cmd = DRV_MSG_CODE_GET_ENGINE_CONFIG;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc)
+		return rc;
+
+	if (mb_params.mcp_resp == FW_MSG_CODE_UNSUPPORTED) {
+		DP_INFO(p_hwfn,
+			"The get_engine_config command is unsupported by the MFW\n");
+		return -EOPNOTSUPP;
+	}
+
+	fir_valid = QED_MFW_GET_FIELD(mb_params.mcp_param,
+				      FW_MB_PARAM_ENG_CFG_FIR_AFFIN_VALID);
+	if (fir_valid)
+		cdev->fir_affin =
+		    QED_MFW_GET_FIELD(mb_params.mcp_param,
+				      FW_MB_PARAM_ENG_CFG_FIR_AFFIN_VALUE);
+
+	l2_valid = QED_MFW_GET_FIELD(mb_params.mcp_param,
+				     FW_MB_PARAM_ENG_CFG_L2_AFFIN_VALID);
+	if (l2_valid)
+		cdev->l2_affin_hint =
+		    QED_MFW_GET_FIELD(mb_params.mcp_param,
+				      FW_MB_PARAM_ENG_CFG_L2_AFFIN_VALUE);
+
+	DP_INFO(p_hwfn,
+		"Engine affinity config: FIR={valid %hhd, value %hhd}, L2_hint={valid %hhd, value %hhd}\n",
+		fir_valid, cdev->fir_affin, l2_valid, cdev->l2_affin_hint);
+
+	return 0;
+}
+
+int qed_mcp_get_ppfid_bitmap(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct qed_mcp_mb_params mb_params = {0};
+	struct qed_dev *cdev = p_hwfn->cdev;
+	int rc;
+
+	mb_params.cmd = DRV_MSG_CODE_GET_PPFID_BITMAP;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc)
+		return rc;
+
+	if (mb_params.mcp_resp == FW_MSG_CODE_UNSUPPORTED) {
+		DP_INFO(p_hwfn,
+			"The get_ppfid_bitmap command is unsupported by the MFW\n");
+		return -EOPNOTSUPP;
+	}
+
+	cdev->ppfid_bitmap = QED_MFW_GET_FIELD(mb_params.mcp_param,
+					       FW_MB_PARAM_PPFID_BITMAP);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SP, "PPFID bitmap 0x%hhx\n",
+		   cdev->ppfid_bitmap);
+
+	return 0;
+}
+
+int qed_mcp_nvm_get_cfg(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			u16 option_id, u8 entity_id, u16 flags, u8 *p_buf,
+			u32 *p_len)
+{
+	u32 mb_param = 0, resp, param;
+	int rc;
+
+	QED_MFW_SET_FIELD(mb_param, DRV_MB_PARAM_NVM_CFG_OPTION_ID, option_id);
+	if (flags & QED_NVM_CFG_OPTION_INIT)
+		QED_MFW_SET_FIELD(mb_param,
+				  DRV_MB_PARAM_NVM_CFG_OPTION_INIT, 1);
+	if (flags & QED_NVM_CFG_OPTION_FREE)
+		QED_MFW_SET_FIELD(mb_param,
+				  DRV_MB_PARAM_NVM_CFG_OPTION_FREE, 1);
+	if (flags & QED_NVM_CFG_OPTION_ENTITY_SEL) {
+		QED_MFW_SET_FIELD(mb_param,
+				  DRV_MB_PARAM_NVM_CFG_OPTION_ENTITY_SEL, 1);
+		QED_MFW_SET_FIELD(mb_param,
+				  DRV_MB_PARAM_NVM_CFG_OPTION_ENTITY_ID,
+				  entity_id);
+	}
+
+	rc = qed_mcp_nvm_rd_cmd(p_hwfn, p_ptt,
+				DRV_MSG_CODE_GET_NVM_CFG_OPTION,
+				mb_param, &resp, &param, p_len, (u32 *)p_buf);
+
+	return rc;
+}
+
+int qed_mcp_nvm_set_cfg(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			u16 option_id, u8 entity_id, u16 flags, u8 *p_buf,
+			u32 len)
+{
+	u32 mb_param = 0, resp, param;
+
+	QED_MFW_SET_FIELD(mb_param, DRV_MB_PARAM_NVM_CFG_OPTION_ID, option_id);
+	if (flags & QED_NVM_CFG_OPTION_ALL)
+		QED_MFW_SET_FIELD(mb_param,
+				  DRV_MB_PARAM_NVM_CFG_OPTION_ALL, 1);
+	if (flags & QED_NVM_CFG_OPTION_INIT)
+		QED_MFW_SET_FIELD(mb_param,
+				  DRV_MB_PARAM_NVM_CFG_OPTION_INIT, 1);
+	if (flags & QED_NVM_CFG_OPTION_COMMIT)
+		QED_MFW_SET_FIELD(mb_param,
+				  DRV_MB_PARAM_NVM_CFG_OPTION_COMMIT, 1);
+	if (flags & QED_NVM_CFG_OPTION_FREE)
+		QED_MFW_SET_FIELD(mb_param,
+				  DRV_MB_PARAM_NVM_CFG_OPTION_FREE, 1);
+	if (flags & QED_NVM_CFG_OPTION_ENTITY_SEL) {
+		QED_MFW_SET_FIELD(mb_param,
+				  DRV_MB_PARAM_NVM_CFG_OPTION_ENTITY_SEL, 1);
+		QED_MFW_SET_FIELD(mb_param,
+				  DRV_MB_PARAM_NVM_CFG_OPTION_ENTITY_ID,
+				  entity_id);
+	}
+
+	return qed_mcp_nvm_wr_cmd(p_hwfn, p_ptt,
+				  DRV_MSG_CODE_SET_NVM_CFG_OPTION,
+				  mb_param, &resp, &param, len, (u32 *)p_buf);
 }

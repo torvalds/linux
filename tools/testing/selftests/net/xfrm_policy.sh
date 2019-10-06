@@ -106,6 +106,13 @@ do_overlap()
     #
     # 10.0.0.0/24 and 10.0.1.0/24 nodes have been merged as 10.0.0.0/23.
     ip -net $ns xfrm policy add src 10.1.0.0/24 dst 10.0.0.0/23 dir fwd priority 200 action block
+
+    # similar to above: add policies (with partially random address), with shrinking prefixes.
+    for p in 29 28 27;do
+      for k in $(seq 1 32); do
+       ip -net $ns xfrm policy add src 10.253.1.$((RANDOM%255))/$p dst 10.254.1.$((RANDOM%255))/$p dir fwd priority $((200+k)) action block 2>/dev/null
+      done
+    done
 }
 
 do_esp_policy_get_check() {
@@ -257,6 +264,29 @@ check_exceptions()
 	return $lret
 }
 
+check_hthresh_repeat()
+{
+	local log=$1
+	i=0
+
+	for i in $(seq 1 10);do
+		ip -net ns1 xfrm policy update src e000:0001::0000 dst ff01::0014:0000:0001 dir in tmpl src :: dst :: proto esp mode tunnel priority 100 action allow || break
+		ip -net ns1 xfrm policy set hthresh6 0 28 || break
+
+		ip -net ns1 xfrm policy update src e000:0001::0000 dst ff01::01 dir in tmpl src :: dst :: proto esp mode tunnel priority 100 action allow || break
+		ip -net ns1 xfrm policy set hthresh6 0 28 || break
+	done
+
+	if [ $i -ne 10 ] ;then
+		echo "FAIL: $log" 1>&2
+		ret=1
+		return 1
+	fi
+
+	echo "PASS: $log"
+	return 0
+}
+
 #check for needed privileges
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
@@ -404,7 +434,9 @@ for n in ns3 ns4;do
 	ip -net $n xfrm policy set hthresh4 32 32 hthresh6 128 128
 	sleep $((RANDOM%5))
 done
-check_exceptions "exceptions and block policies after hresh change to normal"
+check_exceptions "exceptions and block policies after htresh change to normal"
+
+check_hthresh_repeat "policies with repeated htresh change"
 
 for i in 1 2 3 4;do ip netns del ns$i;done
 

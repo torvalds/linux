@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * cros_ec_baro - Driver for barometer sensor behind CrosEC.
  *
  * Copyright (C) 2017 Google, Inc
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/common/cros_ec_sensors_core.h>
@@ -24,9 +15,10 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/kernel.h>
 #include <linux/mfd/cros_ec.h>
-#include <linux/mfd/cros_ec_commands.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/platform_data/cros_ec_commands.h>
+#include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
 
 /*
@@ -48,26 +40,29 @@ static int cros_ec_baro_read(struct iio_dev *indio_dev,
 {
 	struct cros_ec_baro_state *st = iio_priv(indio_dev);
 	u16 data = 0;
-	int ret = IIO_VAL_INT;
+	int ret;
 	int idx = chan->scan_index;
 
 	mutex_lock(&st->core.cmd_lock);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		if (cros_ec_sensors_read_cmd(indio_dev, 1 << idx,
-					     (s16 *)&data) < 0)
-			ret = -EIO;
+		ret = cros_ec_sensors_read_cmd(indio_dev, 1 << idx,
+					     (s16 *)&data);
+		if (ret)
+			break;
+
 		*val = data;
+		ret = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SCALE:
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_RANGE;
 		st->core.param.sensor_range.data = EC_MOTION_SENSE_NO_VALUE;
 
-		if (cros_ec_motion_send_host_cmd(&st->core, 0)) {
-			ret = -EIO;
+		ret = cros_ec_motion_send_host_cmd(&st->core, 0);
+		if (ret)
 			break;
-		}
+
 		*val = st->core.resp->sensor_range.ret;
 
 		/* scale * in_pressure_raw --> kPa */
@@ -160,8 +155,6 @@ static int cros_ec_baro_probe(struct platform_device *pdev)
 	channel->scan_index = 0;
 	channel->ext_info = cros_ec_sensors_ext_info;
 	channel->scan_type.sign = 'u';
-
-	state->core.calib[0] = 0;
 
 	/* Sensor specific */
 	switch (state->core.type) {

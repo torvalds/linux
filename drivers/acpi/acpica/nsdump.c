@@ -3,7 +3,7 @@
  *
  * Module Name: nsdump - table dumping routines for debug
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -70,7 +70,7 @@ void acpi_ns_print_pathname(u32 num_segments, const char *pathname)
 			    acpi_os_printf("?");
 		}
 
-		pathname += ACPI_NAME_SIZE;
+		pathname += ACPI_NAMESEG_SIZE;
 		num_segments--;
 		if (num_segments) {
 			acpi_os_printf(".");
@@ -197,7 +197,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 	/* Now we can print out the pertinent information */
 
-	acpi_os_printf(" %-12s %p %2.2X ",
+	acpi_os_printf(" %-12s %p %3.3X ",
 		       acpi_ut_get_type_name(type), this_node,
 		       this_node->owner_id);
 

@@ -1,35 +1,34 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2016 BayLibre, SAS
  * Author: Neil Armstrong <narmstrong@baylibre.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __MESON_DRV_H
 #define __MESON_DRV_H
 
-#include <linux/platform_device.h>
-#include <linux/regmap.h>
+#include <linux/device.h>
 #include <linux/of.h>
-#include <linux/soc/amlogic/meson-canvas.h>
-#include <drm/drmP.h>
+#include <linux/of_device.h>
+#include <linux/regmap.h>
+
+struct drm_crtc;
+struct drm_device;
+struct drm_plane;
+struct meson_drm;
+
+enum vpu_compatible {
+	VPU_COMPATIBLE_GXBB = 0,
+	VPU_COMPATIBLE_GXL  = 1,
+	VPU_COMPATIBLE_GXM  = 2,
+	VPU_COMPATIBLE_G12A = 3,
+};
 
 struct meson_drm {
 	struct device *dev;
+	enum vpu_compatible compat;
 	void __iomem *io_base;
 	struct regmap *hhi;
-	struct regmap *dmc;
 	int vsync_irq;
 
 	struct meson_canvas *canvas;
@@ -63,6 +62,10 @@ struct meson_drm {
 		uint32_t osd_sc_h_phase_step;
 		uint32_t osd_sc_h_ctrl0;
 		uint32_t osd_sc_v_ctrl0;
+		uint32_t osd_blend_din0_scope_h;
+		uint32_t osd_blend_din0_scope_v;
+		uint32_t osb_blend0_size;
+		uint32_t osb_blend1_size;
 
 		bool vd1_enabled;
 		bool vd1_commit;
@@ -122,9 +125,9 @@ struct meson_drm {
 };
 
 static inline int meson_vpu_is_compatible(struct meson_drm *priv,
-					  const char *compat)
+					  enum vpu_compatible family)
 {
-	return of_device_is_compatible(priv->dev->of_node, compat);
+	return priv->compat == family;
 }
 
 #endif /* __MESON_DRV_H */

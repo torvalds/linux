@@ -16,18 +16,18 @@
 		 * We also have external pulls, so disable the internal ones.
 		 */
 		sdmmc_bus4: sdmmc-bus4 {
-			rockchip,pins = <6 16 RK_FUNC_1 &pcfg_pull_none_drv_8ma>,
-					<6 17 RK_FUNC_1 &pcfg_pull_none_drv_8ma>,
-					<6 18 RK_FUNC_1 &pcfg_pull_none_drv_8ma>,
-					<6 19 RK_FUNC_1 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <6 RK_PC0 1 &pcfg_pull_none_drv_8ma>,
+					<6 RK_PC1 1 &pcfg_pull_none_drv_8ma>,
+					<6 RK_PC2 1 &pcfg_pull_none_drv_8ma>,
+					<6 RK_PC3 1 &pcfg_pull_none_drv_8ma>;
 		};
 
 		sdmmc_clk: sdmmc-clk {
-			rockchip,pins = <6 20 RK_FUNC_1 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <6 RK_PC4 1 &pcfg_pull_none_drv_8ma>;
 		};
 
 		sdmmc_cmd: sdmmc-cmd {
-			rockchip,pins = <6 21 RK_FUNC_1 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <6 RK_PC5 1 &pcfg_pull_none_drv_8ma>;
 		};
 
 		/*
@@ -37,12 +37,12 @@
 		 * think there's a card inserted
 		 */
 		sdmmc_cd_disabled: sdmmc-cd-disabled {
-			rockchip,pins = <6 22 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <6 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		/* This is where we actually hook up CD */
 		sdmmc_cd_gpio: sdmmc-cd-gpio {
-			rockchip,pins = <7 5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

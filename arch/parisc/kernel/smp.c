@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 ** SMP Support
 **
@@ -11,10 +12,6 @@
 ** Thanks to John Curry and Ullas Ponnadi. I learned a lot from their work.
 ** -grant (1/12/2001)
 **
-**	This program is free software; you can redistribute it and/or modify
-**	it under the terms of the GNU General Public License as published by
-**      the Free Software Foundation; either version 2 of the License, or
-**      (at your option) any later version.
 */
 #include <linux/types.h>
 #include <linux/spinlock.h>
@@ -112,6 +109,7 @@ halt_processor(void)
 	/* REVISIT : does PM *know* this CPU isn't available? */
 	set_cpu_online(smp_processor_id(), false);
 	local_irq_disable();
+	__pdc_cpu_rendezvous();
 	for (;;)
 		;
 }
@@ -155,6 +153,7 @@ ipi_interrupt(int irq, void *dev_id)
 
 			case IPI_CALL_FUNC:
 				smp_debug(100, KERN_DEBUG "CPU%d IPI_CALL_FUNC\n", this_cpu);
+				inc_irq_stat(irq_call_count);
 				generic_smp_call_function_interrupt();
 				break;
 

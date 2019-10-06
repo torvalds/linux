@@ -87,9 +87,11 @@ properties:
           - const: nvidia,tegra124
       - items:
           - enum:
+              - nvidia,darcy
               - nvidia,p2371-0000
               - nvidia,p2371-2180
               - nvidia,p2571
+              - nvidia,p2894-0050-a08
           - const: nvidia,tegra210
       - items:
           - enum:

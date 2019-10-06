@@ -133,8 +133,6 @@
 	status = "okay";
 
 	nand@0 {
-		#address-cells = <2>;
-		#size-cells = <2>;
 		reg = <0>;
 		allwinner,rb = <0>;
 		nand-ecc-mode = "hw";
@@ -233,7 +231,7 @@
 };
 
 &usbphy {
-	usb0_id_det-gpio = <&pio 6 2 GPIO_ACTIVE_HIGH>; /* PG2 */
+	usb0_id_det-gpios = <&pio 6 2 GPIO_ACTIVE_HIGH>; /* PG2 */
 	usb0_vbus_power-supply = <&usb_power_supply>;
 	usb1_vbus-supply = <&reg_vcc5v0>;
 	status = "okay";

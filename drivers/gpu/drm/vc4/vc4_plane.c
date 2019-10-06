@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /**
@@ -20,11 +17,14 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic_uapi.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_plane_helper.h>
 
 #include "uapi/drm/vc4_drm.h"
+
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
@@ -258,16 +258,62 @@ static u32 vc4_get_scl_field(struct drm_plane_state *state, int plane)
 	}
 }
 
+static int vc4_plane_margins_adj(struct drm_plane_state *pstate)
+{
+	struct vc4_plane_state *vc4_pstate = to_vc4_plane_state(pstate);
+	unsigned int left, right, top, bottom, adjhdisplay, adjvdisplay;
+	struct drm_crtc_state *crtc_state;
+
+	crtc_state = drm_atomic_get_new_crtc_state(pstate->state,
+						   pstate->crtc);
+
+	vc4_crtc_get_margins(crtc_state, &left, &right, &top, &bottom);
+	if (!left && !right && !top && !bottom)
+		return 0;
+
+	if (left + right >= crtc_state->mode.hdisplay ||
+	    top + bottom >= crtc_state->mode.vdisplay)
+		return -EINVAL;
+
+	adjhdisplay = crtc_state->mode.hdisplay - (left + right);
+	vc4_pstate->crtc_x = DIV_ROUND_CLOSEST(vc4_pstate->crtc_x *
+					       adjhdisplay,
+					       crtc_state->mode.hdisplay);
+	vc4_pstate->crtc_x += left;
+	if (vc4_pstate->crtc_x > crtc_state->mode.hdisplay - left)
+		vc4_pstate->crtc_x = crtc_state->mode.hdisplay - left;
+
+	adjvdisplay = crtc_state->mode.vdisplay - (top + bottom);
+	vc4_pstate->crtc_y = DIV_ROUND_CLOSEST(vc4_pstate->crtc_y *
+					       adjvdisplay,
+					       crtc_state->mode.vdisplay);
+	vc4_pstate->crtc_y += top;
+	if (vc4_pstate->crtc_y > crtc_state->mode.vdisplay - top)
+		vc4_pstate->crtc_y = crtc_state->mode.vdisplay - top;
+
+	vc4_pstate->crtc_w = DIV_ROUND_CLOSEST(vc4_pstate->crtc_w *
+					       adjhdisplay,
+					       crtc_state->mode.hdisplay);
+	vc4_pstate->crtc_h = DIV_ROUND_CLOSEST(vc4_pstate->crtc_h *
+					       adjvdisplay,
+					       crtc_state->mode.vdisplay);
+
+	if (!vc4_pstate->crtc_w || !vc4_pstate->crtc_h)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 {
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *bo = drm_fb_cma_get_gem_obj(fb, 0);
 	u32 subpixel_src_mask = (1 << 16) - 1;
-	u32 format = fb->format->format;
 	int num_planes = fb->format->num_planes;
 	struct drm_crtc_state *crtc_state;
-	u32 h_subsample, v_subsample;
+	u32 h_subsample = fb->format->hsub;
+	u32 v_subsample = fb->format->vsub;
 	int i, ret;
 
 	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
@@ -281,9 +327,6 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 						  INT_MAX, true, true);
 	if (ret)
 		return ret;
-
-	h_subsample = drm_format_horz_chroma_subsampling(format);
-	v_subsample = drm_format_vert_chroma_subsampling(format);
 
 	for (i = 0; i < num_planes; i++)
 		vc4_state->offsets[i] = bo->paddr + fb->offsets[i];
@@ -305,6 +348,10 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 	vc4_state->crtc_y = state->dst.y1;
 	vc4_state->crtc_w = state->dst.x2 - state->dst.x1;
 	vc4_state->crtc_h = state->dst.y2 - state->dst.y1;
+
+	ret = vc4_plane_margins_adj(state);
+	if (ret)
+		return ret;
 
 	vc4_state->x_scaling[0] = vc4_get_scaling_mode(vc4_state->src_w[0],
 						       vc4_state->crtc_w);
@@ -438,6 +485,61 @@ static void vc4_write_scaling_parameters(struct drm_plane_state *state,
 	}
 }
 
+static void vc4_plane_calc_load(struct drm_plane_state *state)
+{
+	unsigned int hvs_load_shift, vrefresh, i;
+	struct drm_framebuffer *fb = state->fb;
+	struct vc4_plane_state *vc4_state;
+	struct drm_crtc_state *crtc_state;
+	unsigned int vscale_factor;
+
+	vc4_state = to_vc4_plane_state(state);
+	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
+							state->crtc);
+	vrefresh = drm_mode_vrefresh(&crtc_state->adjusted_mode);
+
+	/* The HVS is able to process 2 pixels/cycle when scaling the source,
+	 * 4 pixels/cycle otherwise.
+	 * Alpha blending step seems to be pipelined and it's always operating
+	 * at 4 pixels/cycle, so the limiting aspect here seems to be the
+	 * scaler block.
+	 * HVS load is expressed in clk-cycles/sec (AKA Hz).
+	 */
+	if (vc4_state->x_scaling[0] != VC4_SCALING_NONE ||
+	    vc4_state->x_scaling[1] != VC4_SCALING_NONE ||
+	    vc4_state->y_scaling[0] != VC4_SCALING_NONE ||
+	    vc4_state->y_scaling[1] != VC4_SCALING_NONE)
+		hvs_load_shift = 1;
+	else
+		hvs_load_shift = 2;
+
+	vc4_state->membus_load = 0;
+	vc4_state->hvs_load = 0;
+	for (i = 0; i < fb->format->num_planes; i++) {
+		/* Even if the bandwidth/plane required for a single frame is
+		 *
+		 * vc4_state->src_w[i] * vc4_state->src_h[i] * cpp * vrefresh
+		 *
+		 * when downscaling, we have to read more pixels per line in
+		 * the time frame reserved for a single line, so the bandwidth
+		 * demand can be punctually higher. To account for that, we
+		 * calculate the down-scaling factor and multiply the plane
+		 * load by this number. We're likely over-estimating the read
+		 * demand, but that's better than under-estimating it.
+		 */
+		vscale_factor = DIV_ROUND_UP(vc4_state->src_h[i],
+					     vc4_state->crtc_h);
+		vc4_state->membus_load += vc4_state->src_w[i] *
+					  vc4_state->src_h[i] * vscale_factor *
+					  fb->format->cpp[i];
+		vc4_state->hvs_load += vc4_state->crtc_h * vc4_state->crtc_w;
+	}
+
+	vc4_state->hvs_load *= vrefresh;
+	vc4_state->hvs_load >>= hvs_load_shift;
+	vc4_state->membus_load *= vrefresh;
+}
+
 static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(state->plane->dev);
@@ -487,13 +589,15 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	u32 ctl0_offset = vc4_state->dlist_count;
 	const struct hvs_format *format = vc4_get_hvs_format(fb->format->format);
 	u64 base_format_mod = fourcc_mod_broadcom_mod(fb->modifier);
-	int num_planes = drm_format_num_planes(format->drm);
-	u32 h_subsample, v_subsample;
+	int num_planes = fb->format->num_planes;
+	u32 h_subsample = fb->format->hsub;
+	u32 v_subsample = fb->format->vsub;
 	bool mix_plane_alpha;
 	bool covers_screen;
 	u32 scl0, scl1, pitch0;
-	u32 tiling;
+	u32 tiling, src_y;
 	u32 hvs_format = format->hvs;
+	unsigned int rotation;
 	int ret, i;
 
 	if (vc4_state->dlist_initialized)
@@ -517,8 +621,15 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		scl1 = vc4_get_scl_field(state, 0);
 	}
 
-	h_subsample = drm_format_horz_chroma_subsampling(format->drm);
-	v_subsample = drm_format_vert_chroma_subsampling(format->drm);
+	rotation = drm_rotation_simplify(state->rotation,
+					 DRM_MODE_ROTATE_0 |
+					 DRM_MODE_REFLECT_X |
+					 DRM_MODE_REFLECT_Y);
+
+	/* We must point to the last line when Y reflection is enabled. */
+	src_y = vc4_state->src_y;
+	if (rotation & DRM_MODE_REFLECT_Y)
+		src_y += vc4_state->src_h[0] - 1;
 
 	switch (base_format_mod) {
 	case DRM_FORMAT_MOD_LINEAR:
@@ -529,9 +640,10 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		 * out.
 		 */
 		for (i = 0; i < num_planes; i++) {
-			vc4_state->offsets[i] += vc4_state->src_y /
+			vc4_state->offsets[i] += src_y /
 						 (i ? v_subsample : 1) *
 						 fb->pitches[i];
+
 			vc4_state->offsets[i] += vc4_state->src_x /
 						 (i ? h_subsample : 1) *
 						 fb->format->cpp[i];
@@ -557,22 +669,38 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		u32 tiles_w = fb->pitches[0] >> (tile_size_shift - tile_h_shift);
 		u32 tiles_l = vc4_state->src_x >> tile_w_shift;
 		u32 tiles_r = tiles_w - tiles_l;
-		u32 tiles_t = vc4_state->src_y >> tile_h_shift;
+		u32 tiles_t = src_y >> tile_h_shift;
 		/* Intra-tile offsets, which modify the base address (the
 		 * SCALER_PITCH0_TILE_Y_OFFSET tells HVS how to walk from that
 		 * base address).
 		 */
-		u32 tile_y = (vc4_state->src_y >> 4) & 1;
-		u32 subtile_y = (vc4_state->src_y >> 2) & 3;
-		u32 utile_y = vc4_state->src_y & 3;
+		u32 tile_y = (src_y >> 4) & 1;
+		u32 subtile_y = (src_y >> 2) & 3;
+		u32 utile_y = src_y & 3;
 		u32 x_off = vc4_state->src_x & tile_w_mask;
-		u32 y_off = vc4_state->src_y & tile_h_mask;
+		u32 y_off = src_y & tile_h_mask;
+
+		/* When Y reflection is requested we must set the
+		 * SCALER_PITCH0_TILE_LINE_DIR flag to tell HVS that all lines
+		 * after the initial one should be fetched in descending order,
+		 * which makes sense since we start from the last line and go
+		 * backward.
+		 * Don't know why we need y_off = max_y_off - y_off, but it's
+		 * definitely required (I guess it's also related to the "going
+		 * backward" situation).
+		 */
+		if (rotation & DRM_MODE_REFLECT_Y) {
+			y_off = tile_h_mask - y_off;
+			pitch0 = SCALER_PITCH0_TILE_LINE_DIR;
+		} else {
+			pitch0 = 0;
+		}
 
 		tiling = SCALER_CTL0_TILING_256B_OR_T;
-		pitch0 = (VC4_SET_FIELD(x_off, SCALER_PITCH0_SINK_PIX) |
-			  VC4_SET_FIELD(y_off, SCALER_PITCH0_TILE_Y_OFFSET) |
-			  VC4_SET_FIELD(tiles_l, SCALER_PITCH0_TILE_WIDTH_L) |
-			  VC4_SET_FIELD(tiles_r, SCALER_PITCH0_TILE_WIDTH_R));
+		pitch0 |= (VC4_SET_FIELD(x_off, SCALER_PITCH0_SINK_PIX) |
+			   VC4_SET_FIELD(y_off, SCALER_PITCH0_TILE_Y_OFFSET) |
+			   VC4_SET_FIELD(tiles_l, SCALER_PITCH0_TILE_WIDTH_L) |
+			   VC4_SET_FIELD(tiles_r, SCALER_PITCH0_TILE_WIDTH_R));
 		vc4_state->offsets[0] += tiles_t * (tiles_w << tile_size_shift);
 		vc4_state->offsets[0] += subtile_y << 8;
 		vc4_state->offsets[0] += utile_y << 4;
@@ -595,31 +723,22 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	case DRM_FORMAT_MOD_BROADCOM_SAND128:
 	case DRM_FORMAT_MOD_BROADCOM_SAND256: {
 		uint32_t param = fourcc_mod_broadcom_param(fb->modifier);
+		u32 tile_w, tile, x_off, pix_per_tile;
 
-		/* Column-based NV12 or RGBA.
-		 */
-		if (fb->format->num_planes > 1) {
-			if (hvs_format != HVS_PIXEL_FORMAT_YCBCR_YUV420_2PLANE) {
-				DRM_DEBUG_KMS("SAND format only valid for NV12/21");
-				return -EINVAL;
-			}
-			hvs_format = HVS_PIXEL_FORMAT_H264;
-		} else {
-			if (base_format_mod == DRM_FORMAT_MOD_BROADCOM_SAND256) {
-				DRM_DEBUG_KMS("SAND256 format only valid for H.264");
-				return -EINVAL;
-			}
-		}
+		hvs_format = HVS_PIXEL_FORMAT_H264;
 
 		switch (base_format_mod) {
 		case DRM_FORMAT_MOD_BROADCOM_SAND64:
 			tiling = SCALER_CTL0_TILING_64B;
+			tile_w = 64;
 			break;
 		case DRM_FORMAT_MOD_BROADCOM_SAND128:
 			tiling = SCALER_CTL0_TILING_128B;
+			tile_w = 128;
 			break;
 		case DRM_FORMAT_MOD_BROADCOM_SAND256:
 			tiling = SCALER_CTL0_TILING_256B_OR_T;
+			tile_w = 256;
 			break;
 		default:
 			break;
@@ -628,6 +747,23 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		if (param > SCALER_TILE_HEIGHT_MASK) {
 			DRM_DEBUG_KMS("SAND height too large (%d)\n", param);
 			return -EINVAL;
+		}
+
+		pix_per_tile = tile_w / fb->format->cpp[0];
+		tile = vc4_state->src_x / pix_per_tile;
+		x_off = vc4_state->src_x % pix_per_tile;
+
+		/* Adjust the base pointer to the first pixel to be scanned
+		 * out.
+		 */
+		for (i = 0; i < num_planes; i++) {
+			vc4_state->offsets[i] += param * tile_w * tile;
+			vc4_state->offsets[i] += src_y /
+						 (i ? v_subsample : 1) *
+						 tile_w;
+			vc4_state->offsets[i] += x_off /
+						 (i ? h_subsample : 1) *
+						 fb->format->cpp[i];
 		}
 
 		pitch0 = VC4_SET_FIELD(param, SCALER_TILE_HEIGHT);
@@ -643,6 +779,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	/* Control word */
 	vc4_dlist_write(vc4_state,
 			SCALER_CTL0_VALID |
+			(rotation & DRM_MODE_REFLECT_X ? SCALER_CTL0_HFLIP : 0) |
+			(rotation & DRM_MODE_REFLECT_Y ? SCALER_CTL0_VFLIP : 0) |
 			VC4_SET_FIELD(SCALER_CTL0_RGBA_EXPAND_ROUND, SCALER_CTL0_RGBA_EXPAND) |
 			(format->pixel_order << SCALER_CTL0_ORDER_SHIFT) |
 			(hvs_format << SCALER_CTL0_PIXEL_FORMAT_SHIFT) |
@@ -787,6 +925,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	 */
 	vc4_state->dlist_initialized = 1;
 
+	vc4_plane_calc_load(state);
+
 	return 0;
 }
 
@@ -880,7 +1020,7 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 {
 	struct vc4_plane_state *vc4_state, *new_vc4_state;
 
-	drm_atomic_set_fb_for_plane(plane->state, state->fb);
+	swap(plane->state->fb, state->fb);
 	plane->state->crtc_x = state->crtc_x;
 	plane->state->crtc_y = state->crtc_y;
 	plane->state->crtc_w = state->crtc_w;
@@ -986,7 +1126,6 @@ static int vc4_prepare_fb(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
 	struct vc4_bo *bo;
-	struct dma_fence *fence;
 	int ret;
 
 	if (!state->fb)
@@ -994,8 +1133,7 @@ static int vc4_prepare_fb(struct drm_plane *plane,
 
 	bo = to_vc4_bo(&drm_fb_cma_get_gem_obj(state->fb, 0)->base);
 
-	fence = reservation_object_get_excl_rcu(bo->resv);
-	drm_atomic_set_fence_for_plane(state, fence);
+	drm_gem_fb_prepare_fb(plane, state);
 
 	if (plane->state->fb == state->fb)
 		return 0;
@@ -1050,8 +1188,6 @@ static bool vc4_format_mod_supported(struct drm_plane *plane,
 		switch (fourcc_mod_broadcom_mod(modifier)) {
 		case DRM_FORMAT_MOD_LINEAR:
 		case DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED:
-		case DRM_FORMAT_MOD_BROADCOM_SAND64:
-		case DRM_FORMAT_MOD_BROADCOM_SAND128:
 			return true;
 		default:
 			return false;
@@ -1123,6 +1259,11 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
 
 	drm_plane_create_alpha_property(plane);
+	drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
+					   DRM_MODE_ROTATE_0 |
+					   DRM_MODE_ROTATE_180 |
+					   DRM_MODE_REFLECT_X |
+					   DRM_MODE_REFLECT_Y);
 
 	return plane;
 }

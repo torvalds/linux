@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Just-In-Time compiler for BPF filters on 32bit ARM
  *
  * Copyright (c) 2011 Mircea Gherzan <mgherzan@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License.
  */
 
 #ifndef PFILTER_OPCODES_ARM_H
@@ -62,6 +59,7 @@
 #define ARM_INST_ADDS_I		0x02900000
 
 #define ARM_INST_AND_R		0x00000000
+#define ARM_INST_ANDS_R		0x00100000
 #define ARM_INST_AND_I		0x02000000
 
 #define ARM_INST_BIC_R		0x01c00000
@@ -172,6 +170,7 @@
 #define ARM_ADC_I(rd, rn, imm)	_AL3_I(ARM_INST_ADC, rd, rn, imm)
 
 #define ARM_AND_R(rd, rn, rm)	_AL3_R(ARM_INST_AND, rd, rn, rm)
+#define ARM_ANDS_R(rd, rn, rm)	_AL3_R(ARM_INST_ANDS, rd, rn, rm)
 #define ARM_AND_I(rd, rn, imm)	_AL3_I(ARM_INST_AND, rd, rn, imm)
 
 #define ARM_BIC_R(rd, rn, rm)	_AL3_R(ARM_INST_BIC, rd, rn, rm)

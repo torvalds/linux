@@ -29,6 +29,7 @@ struct fsl_gpio_soc_data {
 
 struct vf610_gpio_port {
 	struct gpio_chip gc;
+	struct irq_chip ic;
 	void __iomem *base;
 	void __iomem *gpio_base;
 	const struct fsl_gpio_soc_data *sdata;
@@ -60,8 +61,6 @@ struct vf610_gpio_port {
 #define PORT_INT_EITHER_EDGE	0xb
 #define PORT_INT_LOGIC_ONE	0xc
 
-static struct irq_chip vf610_gpio_irq_chip;
-
 static const struct fsl_gpio_soc_data imx_data = {
 	.have_paddr = true,
 };
@@ -86,28 +85,24 @@ static int vf610_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct vf610_gpio_port *port = gpiochip_get_data(gc);
 	unsigned long mask = BIT(gpio);
-	void __iomem *addr;
+	unsigned long offset = GPIO_PDIR;
 
 	if (port->sdata && port->sdata->have_paddr) {
 		mask &= vf610_gpio_readl(port->gpio_base + GPIO_PDDR);
-		addr = mask ? port->gpio_base + GPIO_PDOR :
-			      port->gpio_base + GPIO_PDIR;
-		return !!(vf610_gpio_readl(addr) & BIT(gpio));
-	} else {
-		return !!(vf610_gpio_readl(port->gpio_base + GPIO_PDIR)
-					   & BIT(gpio));
+		if (mask)
+			offset = GPIO_PDOR;
 	}
+
+	return !!(vf610_gpio_readl(port->gpio_base + offset) & BIT(gpio));
 }
 
 static void vf610_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct vf610_gpio_port *port = gpiochip_get_data(gc);
 	unsigned long mask = BIT(gpio);
+	unsigned long offset = val ? GPIO_PSOR : GPIO_PCOR;
 
-	if (val)
-		vf610_gpio_writel(mask, port->gpio_base + GPIO_PSOR);
-	else
-		vf610_gpio_writel(mask, port->gpio_base + GPIO_PCOR);
+	vf610_gpio_writel(mask, port->gpio_base + offset);
 }
 
 static int vf610_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
@@ -237,37 +232,32 @@ static int vf610_gpio_irq_set_wake(struct irq_data *d, u32 enable)
 	return 0;
 }
 
-static struct irq_chip vf610_gpio_irq_chip = {
-	.name		= "gpio-vf610",
-	.irq_ack	= vf610_gpio_irq_ack,
-	.irq_mask	= vf610_gpio_irq_mask,
-	.irq_unmask	= vf610_gpio_irq_unmask,
-	.irq_set_type	= vf610_gpio_irq_set_type,
-	.irq_set_wake	= vf610_gpio_irq_set_wake,
-};
+static void vf610_gpio_disable_clk(void *data)
+{
+	clk_disable_unprepare(data);
+}
 
 static int vf610_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct vf610_gpio_port *port;
-	struct resource *iores;
 	struct gpio_chip *gc;
+	struct gpio_irq_chip *girq;
+	struct irq_chip *ic;
 	int i;
 	int ret;
 
-	port = devm_kzalloc(&pdev->dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
 
 	port->sdata = of_device_get_match_data(dev);
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	port->base = devm_ioremap_resource(dev, iores);
+	port->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(port->base))
 		return PTR_ERR(port->base);
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	port->gpio_base = devm_ioremap_resource(dev, iores);
+	port->gpio_base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(port->gpio_base))
 		return PTR_ERR(port->gpio_base);
 
@@ -275,32 +265,37 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	if (port->irq < 0)
 		return port->irq;
 
-	port->clk_port = devm_clk_get(&pdev->dev, "port");
-	if (!IS_ERR(port->clk_port)) {
+	port->clk_port = devm_clk_get(dev, "port");
+	ret = PTR_ERR_OR_ZERO(port->clk_port);
+	if (!ret) {
 		ret = clk_prepare_enable(port->clk_port);
 		if (ret)
 			return ret;
-	} else if (port->clk_port == ERR_PTR(-EPROBE_DEFER)) {
+		ret = devm_add_action_or_reset(dev, vf610_gpio_disable_clk,
+					       port->clk_port);
+		if (ret)
+			return ret;
+	} else if (ret == -EPROBE_DEFER) {
 		/*
 		 * Percolate deferrals, for anything else,
 		 * just live without the clocking.
 		 */
-		return PTR_ERR(port->clk_port);
+		return ret;
 	}
 
-	port->clk_gpio = devm_clk_get(&pdev->dev, "gpio");
-	if (!IS_ERR(port->clk_gpio)) {
+	port->clk_gpio = devm_clk_get(dev, "gpio");
+	ret = PTR_ERR_OR_ZERO(port->clk_gpio);
+	if (!ret) {
 		ret = clk_prepare_enable(port->clk_gpio);
-		if (ret) {
-			clk_disable_unprepare(port->clk_port);
+		if (ret)
 			return ret;
-		}
-	} else if (port->clk_gpio == ERR_PTR(-EPROBE_DEFER)) {
-		clk_disable_unprepare(port->clk_port);
-		return PTR_ERR(port->clk_gpio);
+		ret = devm_add_action_or_reset(dev, vf610_gpio_disable_clk,
+					       port->clk_gpio);
+		if (ret)
+			return ret;
+	} else if (ret == -EPROBE_DEFER) {
+		return ret;
 	}
-
-	platform_set_drvdata(pdev, port);
 
 	gc = &port->gc;
 	gc->of_node = np;
@@ -316,9 +311,13 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	gc->direction_output = vf610_gpio_direction_output;
 	gc->set = vf610_gpio_set;
 
-	ret = gpiochip_add_data(gc, port);
-	if (ret < 0)
-		return ret;
+	ic = &port->ic;
+	ic->name = "gpio-vf610";
+	ic->irq_ack = vf610_gpio_irq_ack;
+	ic->irq_mask = vf610_gpio_irq_mask;
+	ic->irq_unmask = vf610_gpio_irq_unmask;
+	ic->irq_set_type = vf610_gpio_irq_set_type;
+	ic->irq_set_wake = vf610_gpio_irq_set_wake;
 
 	/* Mask all GPIO interrupts */
 	for (i = 0; i < gc->ngpio; i++)
@@ -327,30 +326,20 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	/* Clear the interrupt status register for all GPIO's */
 	vf610_gpio_writel(~0, port->base + PORT_ISFR);
 
-	ret = gpiochip_irqchip_add(gc, &vf610_gpio_irq_chip, 0,
-				   handle_edge_irq, IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(dev, "failed to add irqchip\n");
-		gpiochip_remove(gc);
-		return ret;
-	}
-	gpiochip_set_chained_irqchip(gc, &vf610_gpio_irq_chip, port->irq,
-				     vf610_gpio_irq_handler);
+	girq = &gc->irq;
+	girq->chip = ic;
+	girq->parent_handler = vf610_gpio_irq_handler;
+	girq->num_parents = 1;
+	girq->parents = devm_kcalloc(&pdev->dev, 1,
+				     sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
+	girq->parents[0] = port->irq;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_edge_irq;
 
-	return 0;
-}
-
-static int vf610_gpio_remove(struct platform_device *pdev)
-{
-	struct vf610_gpio_port *port = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&port->gc);
-	if (!IS_ERR(port->clk_port))
-		clk_disable_unprepare(port->clk_port);
-	if (!IS_ERR(port->clk_gpio))
-		clk_disable_unprepare(port->clk_gpio);
-
-	return 0;
+	return devm_gpiochip_add_data(dev, gc, port);
 }
 
 static struct platform_driver vf610_gpio_driver = {
@@ -359,7 +348,6 @@ static struct platform_driver vf610_gpio_driver = {
 		.of_match_table = vf610_gpio_dt_ids,
 	},
 	.probe		= vf610_gpio_probe,
-	.remove		= vf610_gpio_remove,
 };
 
 builtin_platform_driver(vf610_gpio_driver);

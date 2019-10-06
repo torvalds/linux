@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Allwinner sunXi IR controller
  *
@@ -7,16 +8,6 @@
  * Based on sun5i-ir.c:
  * Copyright (C) 2007-2012 Daniel Wang
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -48,11 +39,11 @@
 
 /* Rx Interrupt Enable */
 #define SUNXI_IR_RXINT_REG    0x2C
-/* Rx FIFO Overflow */
+/* Rx FIFO Overflow Interrupt Enable */
 #define REG_RXINT_ROI_EN		BIT(0)
-/* Rx Packet End */
+/* Rx Packet End Interrupt Enable */
 #define REG_RXINT_RPEI_EN		BIT(1)
-/* Rx FIFO Data Available */
+/* Rx FIFO Data Available Interrupt Enable */
 #define REG_RXINT_RAI_EN		BIT(4)
 
 /* Rx FIFO available byte level */
@@ -60,6 +51,12 @@
 
 /* Rx Interrupt Status */
 #define SUNXI_IR_RXSTA_REG    0x30
+/* Rx FIFO Overflow */
+#define REG_RXSTA_ROI			REG_RXINT_ROI_EN
+/* Rx Packet End */
+#define REG_RXSTA_RPE			REG_RXINT_RPEI_EN
+/* Rx FIFO Data Available */
+#define REG_RXSTA_RA			REG_RXINT_RAI_EN
 /* RX FIFO Get Available Counter */
 #define REG_RXSTA_GET_AC(val) (((val) >> 8) & (ir->fifo_size * 2 - 1))
 /* Clear all interrupt status value */
@@ -80,6 +77,17 @@
 #define SUNXI_IR_RXIDLE       20
 /* Time after which device stops sending data in ms */
 #define SUNXI_IR_TIMEOUT      120
+
+/**
+ * struct sunxi_ir_quirks - Differences between SoC variants.
+ *
+ * @has_reset: SoC needs reset deasserted.
+ * @fifo_size: size of the fifo.
+ */
+struct sunxi_ir_quirks {
+	bool		has_reset;
+	int		fifo_size;
+};
 
 struct sunxi_ir {
 	spinlock_t      ir_lock;
@@ -108,7 +116,7 @@ static irqreturn_t sunxi_ir_irq(int irqno, void *dev_id)
 	/* clean all pending statuses */
 	writel(status | REG_RXSTA_CLEARALL, ir->base + SUNXI_IR_RXSTA_REG);
 
-	if (status & (REG_RXINT_RAI_EN | REG_RXINT_RPEI_EN)) {
+	if (status & (REG_RXSTA_RA | REG_RXSTA_RPE)) {
 		/* How many messages in fifo */
 		rc  = REG_RXSTA_GET_AC(status);
 		/* Sanity check */
@@ -124,9 +132,9 @@ static irqreturn_t sunxi_ir_irq(int irqno, void *dev_id)
 		}
 	}
 
-	if (status & REG_RXINT_ROI_EN) {
+	if (status & REG_RXSTA_ROI) {
 		ir_raw_event_reset(ir->rc);
-	} else if (status & REG_RXINT_RPEI_EN) {
+	} else if (status & REG_RXSTA_RPE) {
 		ir_raw_event_set_idle(ir->rc, true);
 		ir_raw_event_handle(ir->rc);
 	}
@@ -143,6 +151,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 
 	struct device *dev = &pdev->dev;
 	struct device_node *dn = dev->of_node;
+	const struct sunxi_ir_quirks *quirks;
 	struct resource *res;
 	struct sunxi_ir *ir;
 	u32 b_clk_freq = SUNXI_IR_BASE_CLK;
@@ -151,12 +160,15 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	if (!ir)
 		return -ENOMEM;
 
+	quirks = of_device_get_match_data(&pdev->dev);
+	if (!quirks) {
+		dev_err(&pdev->dev, "Failed to determine the quirks to use\n");
+		return -ENODEV;
+	}
+
 	spin_lock_init(&ir->ir_lock);
 
-	if (of_device_is_compatible(dn, "allwinner,sun5i-a13-ir"))
-		ir->fifo_size = 64;
-	else
-		ir->fifo_size = 16;
+	ir->fifo_size = quirks->fifo_size;
 
 	/* Clock */
 	ir->apb_clk = devm_clk_get(dev, "apb");
@@ -173,13 +185,15 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	/* Base clock frequency (optional) */
 	of_property_read_u32(dn, "clock-frequency", &b_clk_freq);
 
-	/* Reset (optional) */
-	ir->rst = devm_reset_control_get_optional_exclusive(dev, NULL);
-	if (IS_ERR(ir->rst))
-		return PTR_ERR(ir->rst);
-	ret = reset_control_deassert(ir->rst);
-	if (ret)
-		return ret;
+	/* Reset */
+	if (quirks->has_reset) {
+		ir->rst = devm_reset_control_get_exclusive(dev, NULL);
+		if (IS_ERR(ir->rst))
+			return PTR_ERR(ir->rst);
+		ret = reset_control_deassert(ir->rst);
+		if (ret)
+			return ret;
+	}
 
 	ret = clk_set_rate(ir->clk, b_clk_freq);
 	if (ret) {
@@ -204,7 +218,6 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ir->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ir->base)) {
-		dev_err(dev, "failed to map registers\n");
 		ret = PTR_ERR(ir->base);
 		goto exit_clkdisable_clk;
 	}
@@ -243,7 +256,6 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	/* IRQ */
 	ir->irq = platform_get_irq(pdev, 0);
 	if (ir->irq < 0) {
-		dev_err(dev, "no irq resource\n");
 		ret = ir->irq;
 		goto exit_free_dev;
 	}
@@ -316,10 +328,35 @@ static int sunxi_ir_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct sunxi_ir_quirks sun4i_a10_ir_quirks = {
+	.has_reset = false,
+	.fifo_size = 16,
+};
+
+static const struct sunxi_ir_quirks sun5i_a13_ir_quirks = {
+	.has_reset = false,
+	.fifo_size = 64,
+};
+
+static const struct sunxi_ir_quirks sun6i_a31_ir_quirks = {
+	.has_reset = true,
+	.fifo_size = 64,
+};
+
 static const struct of_device_id sunxi_ir_match[] = {
-	{ .compatible = "allwinner,sun4i-a10-ir", },
-	{ .compatible = "allwinner,sun5i-a13-ir", },
-	{},
+	{
+		.compatible = "allwinner,sun4i-a10-ir",
+		.data = &sun4i_a10_ir_quirks,
+	},
+	{
+		.compatible = "allwinner,sun5i-a13-ir",
+		.data = &sun5i_a13_ir_quirks,
+	},
+	{
+		.compatible = "allwinner,sun6i-a31-ir",
+		.data = &sun6i_a31_ir_quirks,
+	},
+	{}
 };
 MODULE_DEVICE_TABLE(of, sunxi_ir_match);
 

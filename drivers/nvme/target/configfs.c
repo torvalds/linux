@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Configfs interface for the NVMe target.
  * Copyright (c) 2015-2016 HGST, a Western Digital Company.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/kernel.h>
@@ -596,8 +588,10 @@ static struct config_group *nvmet_ns_make(struct config_group *group,
 		goto out;
 
 	ret = -EINVAL;
-	if (nsid == 0 || nsid == NVME_NSID_ALL)
+	if (nsid == 0 || nsid == NVME_NSID_ALL) {
+		pr_err("invalid nsid %#x", nsid);
 		goto out;
+	}
 
 	ret = -ENOMEM;
 	ns = nvmet_ns_alloc(subsys, nsid);
@@ -681,6 +675,7 @@ static void nvmet_port_subsys_drop_link(struct config_item *parent,
 
 found:
 	list_del(&p->entry);
+	nvmet_port_del_ctrls(port, subsys);
 	nvmet_port_disc_changed(port, subsys);
 
 	if (list_empty(&port->subsystems))
@@ -906,8 +901,8 @@ static struct config_group *nvmet_subsys_make(struct config_group *group,
 	}
 
 	subsys = nvmet_subsys_alloc(name, NVME_NQN_NVME);
-	if (!subsys)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(subsys))
+		return ERR_CAST(subsys);
 
 	config_group_init_type_name(&subsys->group, name, &nvmet_subsys_type);
 

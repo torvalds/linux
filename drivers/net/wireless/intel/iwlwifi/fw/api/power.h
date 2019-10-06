@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -200,9 +200,16 @@ struct iwl_powertable_cmd {
  * @DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK:
  *	'1' Allow to save power by turning off
  *	receiver and transmitter. '0' - does not allow.
+ * @DEVICE_POWER_FLAGS_ALLOW_MEM_RETENTION_MSK:
+ *	Device Retention indication, '1' indicate retention is enabled.
+ * @DEVICE_POWER_FLAGS_32K_CLK_VALID_MSK:
+ *	32Khz external slow clock valid indication, '1' indicate cloack is
+ *	valid.
 */
 enum iwl_device_power_flags {
-	DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK	= BIT(0),
+	DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK		= BIT(0),
+	DEVICE_POWER_FLAGS_ALLOW_MEM_RETENTION_MSK	= BIT(1),
+	DEVICE_POWER_FLAGS_32K_CLK_VALID_MSK		= BIT(12),
 };
 
 /**
@@ -413,13 +420,25 @@ struct iwl_per_chain_offset_group {
 } __packed; /* PER_CHAIN_LIMIT_OFFSET_GROUP_S_VER_1 */
 
 /**
+ * struct iwl_geo_tx_power_profile_cmd_v1 - struct for GEO_TX_POWER_LIMIT cmd.
+ * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
+ * @table: offset profile per band.
+ */
+struct iwl_geo_tx_power_profiles_cmd_v1 {
+	__le32 ops;
+	struct iwl_per_chain_offset_group table[IWL_NUM_GEO_PROFILES];
+} __packed; /* GEO_TX_POWER_LIMIT_VER_1 */
+
+/**
  * struct iwl_geo_tx_power_profile_cmd - struct for GEO_TX_POWER_LIMIT cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
  * @table: offset profile per band.
+ * @table_revision: BIOS table revision.
  */
 struct iwl_geo_tx_power_profiles_cmd {
 	__le32 ops;
 	struct iwl_per_chain_offset_group table[IWL_NUM_GEO_PROFILES];
+	__le32 table_revision;
 } __packed; /* GEO_TX_POWER_LIMIT */
 
 /**
@@ -429,6 +448,18 @@ struct iwl_geo_tx_power_profiles_cmd {
 struct iwl_geo_tx_power_profiles_resp {
 	__le32 profile_idx;
 } __packed; /* GEO_TX_POWER_LIMIT_RESP */
+
+/**
+ * struct iwl_ppag_table_cmd - struct for PER_PLATFORM_ANT_GAIN_CMD cmd.
+ * @enabled: 1 if PPAG is enabled, 0 otherwise
+ * @gain: table of antenna gain values per chain and sub-band
+ * @reserved: reserved
+ */
+struct iwl_ppag_table_cmd {
+	__le32 enabled;
+	s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+	s8 reserved[2];
+} __packed; /* PER_PLATFORM_ANT_GAIN_CMD */
 
 /**
  * struct iwl_beacon_filter_cmd
@@ -470,6 +501,13 @@ struct iwl_geo_tx_power_profiles_resp {
  * @ba_escape_timer: Fully receive and parse beacon if no beacons were passed
  *      for a longer period of time then this escape-timeout. Units: Beacons.
  * @ba_enable_beacon_abort: 1, beacon abort is enabled; 0, disabled.
+ * @bf_threshold_absolute_low: See below.
+ * @bf_threshold_absolute_high: Send Beacon to driver if Energy value calculated
+ *      for this beacon crossed this absolute threshold. For the 'Increase'
+ *      direction the bf_energy_absolute_low[i] is used. For the 'Decrease'
+ *      direction the bf_energy_absolute_high[i] is used. Zero value means
+ *      that this specific threshold is ignored for beacon filtering, and
+ *      beacon will not be forced to be sent to driver due to this setting.
  */
 struct iwl_beacon_filter_cmd {
 	__le32 bf_energy_delta;
@@ -483,7 +521,9 @@ struct iwl_beacon_filter_cmd {
 	__le32 bf_escape_timer;
 	__le32 ba_escape_timer;
 	__le32 ba_enable_beacon_abort;
-} __packed;
+	__le32 bf_threshold_absolute_low[2];
+	__le32 bf_threshold_absolute_high[2];
+} __packed; /* BEACON_FILTER_CONFIG_API_S_VER_4 */
 
 /* Beacon filtering and beacon abort */
 #define IWL_BF_ENERGY_DELTA_DEFAULT 5

@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define DSS_SUBSYS_NAME "DISPC"
@@ -4620,11 +4609,10 @@ static int dispc_errata_i734_wa_init(struct dispc_device *dispc)
 	i734_buf.size = i734.ovli.width * i734.ovli.height *
 		color_mode_to_bpp(i734.ovli.fourcc) / 8;
 
-	i734_buf.vaddr = dma_alloc_writecombine(&dispc->pdev->dev,
-						i734_buf.size, &i734_buf.paddr,
-						GFP_KERNEL);
+	i734_buf.vaddr = dma_alloc_wc(&dispc->pdev->dev, i734_buf.size,
+				      &i734_buf.paddr, GFP_KERNEL);
 	if (!i734_buf.vaddr) {
-		dev_err(&dispc->pdev->dev, "%s: dma_alloc_writecombine failed\n",
+		dev_err(&dispc->pdev->dev, "%s: dma_alloc_wc failed\n",
 			__func__);
 		return -ENOMEM;
 	}
@@ -4637,8 +4625,8 @@ static void dispc_errata_i734_wa_fini(struct dispc_device *dispc)
 	if (!dispc->feat->has_gamma_i734_bug)
 		return;
 
-	dma_free_writecombine(&dispc->pdev->dev, i734_buf.size, i734_buf.vaddr,
-			      i734_buf.paddr);
+	dma_free_wc(&dispc->pdev->dev, i734_buf.size, i734_buf.vaddr,
+		    i734_buf.paddr);
 }
 
 static void dispc_errata_i734_wa(struct dispc_device *dispc)

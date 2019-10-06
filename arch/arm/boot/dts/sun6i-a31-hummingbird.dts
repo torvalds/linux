@@ -86,31 +86,23 @@
 	vga-dac {
 		compatible = "dumb-vga-dac";
 		vdd-supply = <&reg_vga_3v3>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
 			port@0 {
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <0>;
 
-				vga_dac_in: endpoint@0 {
-					reg = <0>;
+				vga_dac_in: endpoint {
 					remote-endpoint = <&tcon0_out_vga>;
 				};
 			};
 
 			port@1 {
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <1>;
 
-				vga_dac_out: endpoint@0 {
-					reg = <0>;
+				vga_dac_out: endpoint {
 					remote-endpoint = <&vga_con_in>;
 				};
 			};
@@ -161,16 +153,9 @@
 &gmac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac_rgmii_pins>;
-	phy = <&phy1>;
+	phy-handle = <&phy1>;
 	phy-mode = "rgmii";
-	snps,reset-gpio = <&pio 0 21 GPIO_ACTIVE_HIGH>;
-	snps,reset-active-low;
-	snps,reset-delays-us = <0 10000 30000>;
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &hdmi {
@@ -205,6 +190,15 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&s_ir_rx_pin>;
 	status = "okay";
+};
+
+&mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+		reset-gpios = <&pio 0 21 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10000>;
+		reset-deassert-us = <30000>;
+	};
 };
 
 &mmc0 {
@@ -335,8 +329,8 @@
 };
 
 &usbphy {
-	usb0_id_det-gpio = <&pio 0 15 GPIO_ACTIVE_HIGH>; /* PA15 */
-	usb0_vbus_det-gpio = <&pio 0 16 GPIO_ACTIVE_HIGH>; /* PA16 */
+	usb0_id_det-gpios = <&pio 0 15 GPIO_ACTIVE_HIGH>; /* PA15 */
+	usb0_vbus_det-gpios = <&pio 0 16 GPIO_ACTIVE_HIGH>; /* PA16 */
 	usb0_vbus_power-supply = <&usb_power_supply>;
 	usb0_vbus-supply = <&reg_drivevbus>;
 	usb1_vbus-supply = <&reg_usb1_vbus>;

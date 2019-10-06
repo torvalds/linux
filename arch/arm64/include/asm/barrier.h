@@ -1,24 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Based on arch/arm/include/asm/barrier.h
  *
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef __ASM_BARRIER_H
 #define __ASM_BARRIER_H
 
 #ifndef __ASSEMBLY__
+
+#include <linux/kasan-checks.h>
 
 #define __nops(n)	".rept	" #n "\nnop\n.endr\n"
 #define nops(n)		asm volatile(__nops(n))
@@ -72,31 +63,33 @@ static inline unsigned long array_index_mask_nospec(unsigned long idx,
 
 #define __smp_store_release(p, v)					\
 do {									\
+	typeof(p) __p = (p);						\
 	union { typeof(*p) __val; char __c[1]; } __u =			\
-		{ .__val = (__force typeof(*p)) (v) }; 			\
+		{ .__val = (__force typeof(*p)) (v) };			\
 	compiletime_assert_atomic_type(*p);				\
+	kasan_check_write(__p, sizeof(*p));				\
 	switch (sizeof(*p)) {						\
 	case 1:								\
 		asm volatile ("stlrb %w1, %0"				\
-				: "=Q" (*p)				\
+				: "=Q" (*__p)				\
 				: "r" (*(__u8 *)__u.__c)		\
 				: "memory");				\
 		break;							\
 	case 2:								\
 		asm volatile ("stlrh %w1, %0"				\
-				: "=Q" (*p)				\
+				: "=Q" (*__p)				\
 				: "r" (*(__u16 *)__u.__c)		\
 				: "memory");				\
 		break;							\
 	case 4:								\
 		asm volatile ("stlr %w1, %0"				\
-				: "=Q" (*p)				\
+				: "=Q" (*__p)				\
 				: "r" (*(__u32 *)__u.__c)		\
 				: "memory");				\
 		break;							\
 	case 8:								\
 		asm volatile ("stlr %1, %0"				\
-				: "=Q" (*p)				\
+				: "=Q" (*__p)				\
 				: "r" (*(__u64 *)__u.__c)		\
 				: "memory");				\
 		break;							\
@@ -106,27 +99,29 @@ do {									\
 #define __smp_load_acquire(p)						\
 ({									\
 	union { typeof(*p) __val; char __c[1]; } __u;			\
+	typeof(p) __p = (p);						\
 	compiletime_assert_atomic_type(*p);				\
+	kasan_check_read(__p, sizeof(*p));				\
 	switch (sizeof(*p)) {						\
 	case 1:								\
 		asm volatile ("ldarb %w0, %1"				\
 			: "=r" (*(__u8 *)__u.__c)			\
-			: "Q" (*p) : "memory");				\
+			: "Q" (*__p) : "memory");			\
 		break;							\
 	case 2:								\
 		asm volatile ("ldarh %w0, %1"				\
 			: "=r" (*(__u16 *)__u.__c)			\
-			: "Q" (*p) : "memory");				\
+			: "Q" (*__p) : "memory");			\
 		break;							\
 	case 4:								\
 		asm volatile ("ldar %w0, %1"				\
 			: "=r" (*(__u32 *)__u.__c)			\
-			: "Q" (*p) : "memory");				\
+			: "Q" (*__p) : "memory");			\
 		break;							\
 	case 8:								\
 		asm volatile ("ldar %0, %1"				\
 			: "=r" (*(__u64 *)__u.__c)			\
-			: "Q" (*p) : "memory");				\
+			: "Q" (*__p) : "memory");			\
 		break;							\
 	}								\
 	__u.__val;							\

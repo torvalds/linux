@@ -77,6 +77,15 @@ struct fpsimd_context {
 	__uint128_t vregs[32];
 };
 
+/*
+ * Note: similarly to all other integer fields, each V-register is stored in an
+ * endianness-dependent format, with the byte at offset i from the start of the
+ * in-memory representation of the register value containing
+ *
+ *    bits [(7 + 8 * i) : (8 * i)] of the register on little-endian hosts; or
+ *    bits [(127 - 8 * i) : (120 - 8 * i)] on big-endian hosts.
+ */
+
 /* ESR_EL1 context */
 #define ESR_MAGIC	0x45535201
 
@@ -137,7 +146,7 @@ struct sve_context {
  * vector length beyond its initial architectural limit of 2048 bits
  * (16 quadwords).
  *
- * See linux/Documentation/arm64/sve.txt for a description of the VL/VQ
+ * See linux/Documentation/arm64/sve.rst for a description of the VL/VQ
  * terminology.
  */
 #define SVE_VQ_BYTES		__SVE_VQ_BYTES	/* bytes per quadword */
@@ -204,6 +213,11 @@ struct sve_context {
  *	FFR	uint16_t[vq]			first-fault status register
  *
  * Additional data might be appended in the future.
+ *
+ * Unlike vregs[] in fpsimd_context, each SVE scalable register (Z-, P- or FFR)
+ * is encoded in memory in an endianness-invariant format, with the byte at
+ * offset i from the start of the in-memory representation containing bits
+ * [(7 + 8 * i) : (8 * i)] of the register value.
  */
 
 #define SVE_SIG_ZREG_SIZE(vq)	__SVE_ZREG_SIZE(vq)

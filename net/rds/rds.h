@@ -19,10 +19,13 @@
  */
 #define RDS_PROTOCOL_3_0	0x0300
 #define RDS_PROTOCOL_3_1	0x0301
+#define RDS_PROTOCOL_4_0	0x0400
+#define RDS_PROTOCOL_4_1	0x0401
 #define RDS_PROTOCOL_VERSION	RDS_PROTOCOL_3_1
 #define RDS_PROTOCOL_MAJOR(v)	((v) >> 8)
 #define RDS_PROTOCOL_MINOR(v)	((v) & 255)
 #define RDS_PROTOCOL(maj, min)	(((maj) << 8) | min)
+#define RDS_PROTOCOL_COMPAT_VERSION	RDS_PROTOCOL_3_1
 
 /* The following ports, 16385, 18634, 18635, are registered with IANA as
  * the ports to be used for RDS over TCP and UDP.  Currently, only RDS over
@@ -151,8 +154,12 @@ struct rds_connection {
 	struct rds_cong_map	*c_fcong;
 
 	/* Protocol version */
+	unsigned int		c_proposed_version;
 	unsigned int		c_version;
 	possible_net_t		c_net;
+
+	/* TOS */
+	u8			c_tos;
 
 	struct list_head	c_map_item;
 	unsigned long		c_map_queued;
@@ -264,6 +271,12 @@ struct rds_ext_header_rdma_dest {
 #define	RDS_MSG_RX_END		2
 #define	RDS_MSG_RX_CMSG		3
 
+/* The following values are whitelisted for usercopy */
+struct rds_inc_usercopy {
+	rds_rdma_cookie_t	rdma_cookie;
+	ktime_t			rx_tstamp;
+};
+
 struct rds_incoming {
 	refcount_t		i_refcount;
 	struct list_head	i_item;
@@ -273,8 +286,7 @@ struct rds_incoming {
 	unsigned long		i_rx_jiffies;
 	struct in6_addr		i_saddr;
 
-	rds_rdma_cookie_t	i_rdma_cookie;
-	ktime_t			i_rx_tstamp;
+	struct rds_inc_usercopy i_usercopy;
 	u64			i_rx_lat_trace[RDS_RX_MAX_TRACES];
 };
 
@@ -469,7 +481,6 @@ struct rds_message {
 		} rdma;
 		struct rm_data_op {
 			unsigned int		op_active:1;
-			unsigned int		op_notify:1;
 			unsigned int		op_nents;
 			unsigned int		op_count;
 			unsigned int		op_dmasg;
@@ -567,6 +578,7 @@ struct rds_transport {
 	void (*free_mr)(void *trans_private, int invalidate);
 	void (*flush_mrs)(void);
 	bool (*t_unloading)(struct rds_connection *conn);
+	u8 (*get_tos_map)(u8 tos);
 };
 
 /* Bind hash table key length.  It is the sum of the size of a struct
@@ -648,6 +660,7 @@ struct rds_sock {
 	u8			rs_rx_traces;
 	u8			rs_rx_trace[RDS_MSG_RX_DGRAM_TRACE_MAX];
 	struct rds_msg_zcopy_queue rs_zcookie_queue;
+	u8			rs_tos;
 };
 
 static inline struct rds_sock *rds_sk_to_rs(const struct sock *sk)
@@ -709,7 +722,7 @@ struct rds_statistics {
 	uint64_t	s_cong_send_blocked;
 	uint64_t	s_recv_bytes_added_to_socket;
 	uint64_t	s_recv_bytes_removed_from_socket;
-
+	uint64_t	s_send_stuck_rm;
 };
 
 /* af_rds.c */
@@ -756,13 +769,14 @@ void rds_conn_exit(void);
 struct rds_connection *rds_conn_create(struct net *net,
 				       const struct in6_addr *laddr,
 				       const struct in6_addr *faddr,
-				       struct rds_transport *trans, gfp_t gfp,
+				       struct rds_transport *trans,
+				       u8 tos, gfp_t gfp,
 				       int dev_if);
 struct rds_connection *rds_conn_create_outgoing(struct net *net,
 						const struct in6_addr *laddr,
 						const struct in6_addr *faddr,
 						struct rds_transport *trans,
-						gfp_t gfp, int dev_if);
+						u8 tos, gfp_t gfp, int dev_if);
 void rds_conn_shutdown(struct rds_conn_path *cpath);
 void rds_conn_destroy(struct rds_connection *conn);
 void rds_conn_drop(struct rds_connection *conn);

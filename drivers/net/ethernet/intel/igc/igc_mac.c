@@ -7,10 +7,6 @@
 #include "igc_mac.h"
 #include "igc_hw.h"
 
-/* forward declaration */
-static s32 igc_set_default_fc(struct igc_hw *hw);
-static s32 igc_set_fc_watermarks(struct igc_hw *hw);
-
 /**
  * igc_disable_pcie_master - Disables PCI-express master access
  * @hw: pointer to the HW structure
@@ -76,6 +72,41 @@ void igc_init_rx_addrs(struct igc_hw *hw, u16 rar_count)
 }
 
 /**
+ * igc_set_fc_watermarks - Set flow control high/low watermarks
+ * @hw: pointer to the HW structure
+ *
+ * Sets the flow control high/low threshold (watermark) registers.  If
+ * flow control XON frame transmission is enabled, then set XON frame
+ * transmission as well.
+ */
+static s32 igc_set_fc_watermarks(struct igc_hw *hw)
+{
+	u32 fcrtl = 0, fcrth = 0;
+
+	/* Set the flow control receive threshold registers.  Normally,
+	 * these registers will be set to a default threshold that may be
+	 * adjusted later by the driver's runtime code.  However, if the
+	 * ability to transmit pause frames is not enabled, then these
+	 * registers will be set to 0.
+	 */
+	if (hw->fc.current_mode & igc_fc_tx_pause) {
+		/* We need to set up the Receive Threshold high and low water
+		 * marks as well as (optionally) enabling the transmission of
+		 * XON frames.
+		 */
+		fcrtl = hw->fc.low_water;
+		if (hw->fc.send_xon)
+			fcrtl |= IGC_FCRTL_XONE;
+
+		fcrth = hw->fc.high_water;
+	}
+	wr32(IGC_FCRTL, fcrtl);
+	wr32(IGC_FCRTH, fcrth);
+
+	return 0;
+}
+
+/**
  * igc_setup_link - Setup flow control and link settings
  * @hw: pointer to the HW structure
  *
@@ -96,13 +127,10 @@ s32 igc_setup_link(struct igc_hw *hw)
 		goto out;
 
 	/* If requested flow control is set to default, set flow control
-	 * based on the EEPROM flow control settings.
+	 * to the both 'rx' and 'tx' pause frames.
 	 */
-	if (hw->fc.requested_mode == igc_fc_default) {
-		ret_val = igc_set_default_fc(hw);
-		if (ret_val)
-			goto out;
-	}
+	if (hw->fc.requested_mode == igc_fc_default)
+		hw->fc.requested_mode = igc_fc_full;
 
 	/* We want to save off the original Flow Control configuration just
 	 * in case we get disconnected and then reconnected into a different
@@ -133,19 +161,6 @@ s32 igc_setup_link(struct igc_hw *hw)
 
 out:
 	return ret_val;
-}
-
-/**
- * igc_set_default_fc - Set flow control default values
- * @hw: pointer to the HW structure
- *
- * Read the EEPROM for the default values for flow control and store the
- * values.
- */
-static s32 igc_set_default_fc(struct igc_hw *hw)
-{
-	hw->fc.requested_mode = igc_fc_full;
-	return 0;
 }
 
 /**
@@ -209,41 +224,6 @@ s32 igc_force_mac_fc(struct igc_hw *hw)
 
 out:
 	return ret_val;
-}
-
-/**
- * igc_set_fc_watermarks - Set flow control high/low watermarks
- * @hw: pointer to the HW structure
- *
- * Sets the flow control high/low threshold (watermark) registers.  If
- * flow control XON frame transmission is enabled, then set XON frame
- * transmission as well.
- */
-static s32 igc_set_fc_watermarks(struct igc_hw *hw)
-{
-	u32 fcrtl = 0, fcrth = 0;
-
-	/* Set the flow control receive threshold registers.  Normally,
-	 * these registers will be set to a default threshold that may be
-	 * adjusted later by the driver's runtime code.  However, if the
-	 * ability to transmit pause frames is not enabled, then these
-	 * registers will be set to 0.
-	 */
-	if (hw->fc.current_mode & igc_fc_tx_pause) {
-		/* We need to set up the Receive Threshold high and low water
-		 * marks as well as (optionally) enabling the transmission of
-		 * XON frames.
-		 */
-		fcrtl = hw->fc.low_water;
-		if (hw->fc.send_xon)
-			fcrtl |= IGC_FCRTL_XONE;
-
-		fcrth = hw->fc.high_water;
-	}
-	wr32(IGC_FCRTL, fcrtl);
-	wr32(IGC_FCRTH, fcrth);
-
-	return 0;
 }
 
 /**

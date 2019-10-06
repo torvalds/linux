@@ -19,17 +19,6 @@
 #include <net/neighbour.h>
 #include <asm/processor.h>
 
-#define DST_GC_MIN	(HZ/10)
-#define DST_GC_INC	(HZ/2)
-#define DST_GC_MAX	(120*HZ)
-
-/* Each dst_entry has reference count and sits in some parent list(s).
- * When it is removed from parent list, it is "freed" (dst_free).
- * After this it enters dead state (dst->obsolete > 0) and if its refcnt
- * is zero, it can be destroyed immediately, otherwise it is added
- * to gc list and garbage collector periodically checks the refcnt.
- */
-
 struct sk_buff;
 
 struct dst_entry {
@@ -194,7 +183,7 @@ static inline void dst_metric_set(struct dst_entry *dst, int metric, u32 val)
 }
 
 /* Kernel-internal feature bits that are unallocated in user space. */
-#define DST_FEATURE_ECN_CA	(1 << 31)
+#define DST_FEATURE_ECN_CA	(1U << 31)
 
 #define DST_FEATURE_MASK	(DST_FEATURE_ECN_CA)
 #define DST_FEATURE_ECN_MASK	(DST_FEATURE_ECN_CA | RTAX_FEATURE_ECN)
@@ -313,8 +302,9 @@ static inline bool dst_hold_safe(struct dst_entry *dst)
  * @skb: buffer
  *
  * If dst is not yet refcounted and not destroyed, grab a ref on it.
+ * Returns true if dst is refcounted.
  */
-static inline void skb_dst_force(struct sk_buff *skb)
+static inline bool skb_dst_force(struct sk_buff *skb)
 {
 	if (skb_dst_is_noref(skb)) {
 		struct dst_entry *dst = skb_dst(skb);
@@ -325,6 +315,8 @@ static inline void skb_dst_force(struct sk_buff *skb)
 
 		skb->_skb_refdst = (unsigned long)dst;
 	}
+
+	return skb->_skb_refdst != 0UL;
 }
 
 
