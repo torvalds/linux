@@ -1081,7 +1081,7 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 		ret = ib_check_mr_status(desc->rsc.sig_mr,
 					 IB_MR_CHECK_SIG_STATUS, &mr_status);
 		if (ret) {
-			pr_err("ib_check_mr_status failed, ret %d\n", ret);
+			iser_err("ib_check_mr_status failed, ret %d\n", ret);
 			/* Not a lot we can do, return ambiguous guard error */
 			*sector = 0;
 			return 0x1;
@@ -1093,7 +1093,7 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 			sector_div(sector_off, sector_size + 8);
 			*sector = scsi_get_lba(iser_task->sc) + sector_off;
 
-			pr_err("PI error found type %d at sector %llx "
+			iser_err("PI error found type %d at sector %llx "
 			       "expected %x vs actual %x\n",
 			       mr_status.sig_err.err_type,
 			       (unsigned long long)*sector,
