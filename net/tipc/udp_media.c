@@ -448,14 +448,10 @@ int tipc_udp_nl_dump_remoteip(struct sk_buff *skb, struct netlink_callback *cb)
 	int i;
 
 	if (!bid && !skip_cnt) {
+		struct nlattr **attrs = genl_dumpit_info(cb)->attrs;
 		struct net *net = sock_net(skb->sk);
 		struct nlattr *battrs[TIPC_NLA_BEARER_MAX + 1];
-		struct nlattr **attrs;
 		char *bname;
-
-		err = tipc_nlmsg_parse(cb->nlh, &attrs);
-		if (err)
-			return err;
 
 		if (!attrs[TIPC_NLA_BEARER])
 			return -EINVAL;

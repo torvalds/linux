@@ -2484,12 +2484,8 @@ int tipc_nl_node_dump_monitor_peer(struct sk_buff *skb,
 	int err;
 
 	if (!prev_node) {
-		struct nlattr **attrs;
+		struct nlattr **attrs = genl_dumpit_info(cb)->attrs;
 		struct nlattr *mon[TIPC_NLA_MON_MAX + 1];
-
-		err = tipc_nlmsg_parse(cb->nlh, &attrs);
-		if (err)
-			return err;
 
 		if (!attrs[TIPC_NLA_MON])
 			return -EINVAL;
