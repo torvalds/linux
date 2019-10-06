@@ -362,7 +362,6 @@ static int vnt_init_registers(struct vnt_private *priv)
 			goto end;
 	}
 
-
 	ret = vnt_mac_set_led(priv, LEDSTS_TMLEN, 0x38);
 	if (ret)
 		goto end;
