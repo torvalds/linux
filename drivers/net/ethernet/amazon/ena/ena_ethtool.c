@@ -738,6 +738,18 @@ static void ena_get_channels(struct net_device *netdev,
 	channels->combined_count = adapter->num_io_queues;
 }
 
+static int ena_set_channels(struct net_device *netdev,
+			    struct ethtool_channels *channels)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	u32 count = channels->combined_count;
+	/* The check for max value is already done in ethtool */
+	if (count < ENA_MIN_NUM_IO_QUEUES)
+		return -EINVAL;
+
+	return ena_update_queue_count(adapter, count);
+}
+
 static int ena_get_tunable(struct net_device *netdev,
 			   const struct ethtool_tunable *tuna, void *data)
 {
@@ -801,6 +813,7 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.get_rxfh		= ena_get_rxfh,
 	.set_rxfh		= ena_set_rxfh,
 	.get_channels		= ena_get_channels,
+	.set_channels		= ena_set_channels,
 	.get_tunable		= ena_get_tunable,
 	.set_tunable		= ena_set_tunable,
 };
