@@ -2192,7 +2192,7 @@ SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst, __u8 *oplock,
 	iov[1].iov_len = uni_path_len;
 	iov[1].iov_base = path;
 
-	if (!server->oplocks)
+	if ((!server->oplocks) || (tcon->no_lease))
 		*oplock = SMB2_OPLOCK_LEVEL_NONE;
 
 	if (!(server->capabilities & SMB2_GLOBAL_CAP_LEASING) ||

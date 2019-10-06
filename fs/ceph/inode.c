@@ -579,7 +579,10 @@ void ceph_evict_inode(struct inode *inode)
 		ceph_buffer_put(ci->i_xattrs.prealloc_blob);
 
 	ceph_put_string(rcu_dereference_raw(ci->i_layout.pool_ns));
+}
 
+void ceph_destroy_inode(struct inode *inode)
+{
 	call_rcu(&inode->i_rcu, ceph_i_callback);
 }
 

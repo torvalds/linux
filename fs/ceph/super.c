@@ -827,6 +827,7 @@ static int ceph_remount(struct super_block *sb, int *flags, char *data)
 
 static const struct super_operations ceph_super_ops = {
 	.alloc_inode	= ceph_alloc_inode,
+	.destroy_inode	= ceph_destroy_inode,
 	.write_inode    = ceph_write_inode,
 	.drop_inode	= ceph_drop_inode,
 	.evict_inode	= ceph_evict_inode,

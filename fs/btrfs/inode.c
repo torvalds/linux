@@ -72,6 +72,7 @@ static struct kmem_cache *btrfs_inode_cachep;
 struct kmem_cache *btrfs_trans_handle_cachep;
 struct kmem_cache *btrfs_path_cachep;
 struct kmem_cache *btrfs_free_space_cachep;
+struct kmem_cache *btrfs_free_space_bitmap_cachep;
 
 #define S_SHIFT 12
 static const unsigned char btrfs_type_by_mode[S_IFMT >> S_SHIFT] = {
@@ -9361,6 +9362,7 @@ void __cold btrfs_destroy_cachep(void)
 	kmem_cache_destroy(btrfs_trans_handle_cachep);
 	kmem_cache_destroy(btrfs_path_cachep);
 	kmem_cache_destroy(btrfs_free_space_cachep);
+	kmem_cache_destroy(btrfs_free_space_bitmap_cachep);
 }
 
 int __init btrfs_init_cachep(void)
@@ -9388,6 +9390,12 @@ int __init btrfs_init_cachep(void)
 			sizeof(struct btrfs_free_space), 0,
 			SLAB_MEM_SPREAD, NULL);
 	if (!btrfs_free_space_cachep)
+		goto fail;
+
+	btrfs_free_space_bitmap_cachep = kmem_cache_create("btrfs_free_space_bitmap",
+							PAGE_SIZE, PAGE_SIZE,
+							SLAB_RED_ZONE, NULL);
+	if (!btrfs_free_space_bitmap_cachep)
 		goto fail;
 
 	return 0;
