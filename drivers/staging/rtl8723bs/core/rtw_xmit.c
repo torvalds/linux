@@ -3022,9 +3022,8 @@ int rtw_sctx_wait(struct submit_ctx *sctx, const char *msg)
 		status = sctx->status;
 	}
 
-	if (status == RTW_SCTX_DONE_SUCCESS) {
+	if (status == RTW_SCTX_DONE_SUCCESS)
 		ret = _SUCCESS;
-	}
 
 	return ret;
 }
