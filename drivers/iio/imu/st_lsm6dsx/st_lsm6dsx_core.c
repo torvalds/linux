@@ -1497,26 +1497,25 @@ static int st_lsm6dsx_write_raw(struct iio_dev *iio_dev,
 
 static int st_lsm6dsx_event_setup(struct st_lsm6dsx_hw *hw, int state)
 {
+	const struct st_lsm6dsx_reg *reg;
 	int err;
-	u8 enable = 0;
 
 	if (!hw->settings->irq_config.irq1_func.addr)
 		return -ENOTSUPP;
 
-	enable = state ? hw->settings->event_settings.enable_reg.mask : 0;
-
-	err = regmap_update_bits(hw->regmap,
-				 hw->settings->event_settings.enable_reg.addr,
-				 hw->settings->event_settings.enable_reg.mask,
-				 enable);
-	if (err < 0)
-		return err;
-
-	enable = state ? hw->irq_routing->mask : 0;
+	reg = &hw->settings->event_settings.enable_reg;
+	if (reg->addr) {
+		err = regmap_update_bits(hw->regmap, reg->addr, reg->mask,
+					 ST_LSM6DSX_SHIFT_VAL(state, reg->mask));
+		if (err < 0)
+			return err;
+	}
 
 	/* Enable wakeup interrupt */
 	return regmap_update_bits(hw->regmap, hw->irq_routing->addr,
-				  hw->irq_routing->mask, enable);
+				  hw->irq_routing->mask,
+				  ST_LSM6DSX_SHIFT_VAL(state,
+					hw->irq_routing->mask));
 }
 
 static int st_lsm6dsx_read_event(struct iio_dev *iio_dev,
