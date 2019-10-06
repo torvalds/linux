@@ -34,8 +34,10 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 
 	spin_lock_irqsave(&timelines->lock, flags);
 	list_for_each_entry_safe(tl, tn, &timelines->active_list, link) {
-		if (!mutex_trylock(&tl->mutex))
+		if (!mutex_trylock(&tl->mutex)) {
+			active_count++; /* report busy to caller, try again? */
 			continue;
+		}
 
 		intel_timeline_get(tl);
 		GEM_BUG_ON(!tl->active_count);
