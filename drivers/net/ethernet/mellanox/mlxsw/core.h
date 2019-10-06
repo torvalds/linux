@@ -24,12 +24,17 @@ struct mlxsw_core_port;
 struct mlxsw_driver;
 struct mlxsw_bus;
 struct mlxsw_bus_info;
+struct mlxsw_fw_rev;
 
 unsigned int mlxsw_core_max_ports(const struct mlxsw_core *mlxsw_core);
 
 void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core);
 
 bool mlxsw_core_res_query_enabled(const struct mlxsw_core *mlxsw_core);
+
+bool
+mlxsw_core_fw_rev_minor_subminor_validate(const struct mlxsw_fw_rev *rev,
+					  const struct mlxsw_fw_rev *req_rev);
 
 int mlxsw_core_driver_register(struct mlxsw_driver *mlxsw_driver);
 void mlxsw_core_driver_unregister(struct mlxsw_driver *mlxsw_driver);

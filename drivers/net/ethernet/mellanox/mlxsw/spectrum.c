@@ -409,9 +409,7 @@ static int mlxsw_sp_fw_rev_validate(struct mlxsw_sp *mlxsw_sp)
 	}
 	if (MLXSW_SP_FWREV_MINOR_TO_BRANCH(rev->minor) ==
 	    MLXSW_SP_FWREV_MINOR_TO_BRANCH(req_rev->minor) &&
-	    (rev->minor > req_rev->minor ||
-	     (rev->minor == req_rev->minor &&
-	      rev->subminor >= req_rev->subminor)))
+	    mlxsw_core_fw_rev_minor_subminor_validate(rev, req_rev))
 		return 0;
 
 	dev_info(mlxsw_sp->bus_info->dev, "The firmware version %d.%d.%d is incompatible with the driver\n",
