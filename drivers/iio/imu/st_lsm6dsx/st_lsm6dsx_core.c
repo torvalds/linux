@@ -790,6 +790,14 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x56,
 				.mask = BIT(6),
 			},
+			.irq1_func = {
+				.addr = 0x5e,
+				.mask = BIT(5),
+			},
+			.irq2_func = {
+				.addr = 0x5f,
+				.mask = BIT(5),
+			},
 			.hla = {
 				.addr = 0x12,
 				.mask = BIT(5),
@@ -857,7 +865,22 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			.slv0_addr = 0x15,
 			.dw_slv0_addr = 0x21,
 			.batch_en = BIT(3),
-		}
+		},
+		.event_settings = {
+			.enable_reg = {
+				.addr = 0x58,
+				.mask = BIT(7),
+			},
+			.wakeup_reg = {
+				.addr = 0x5b,
+				.mask = GENMASK(5, 0),
+			},
+			.wakeup_src_reg = 0x1b,
+			.wakeup_src_status_mask = BIT(3),
+			.wakeup_src_z_mask = BIT(0),
+			.wakeup_src_y_mask = BIT(1),
+			.wakeup_src_x_mask = BIT(2),
+		},
 	},
 	{
 		.wai = 0x6b,
