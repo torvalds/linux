@@ -1619,7 +1619,9 @@ static int st_lsm6dsx_write_event_config(struct iio_dev *iio_dev,
 	if (err < 0)
 		return err;
 
+	mutex_lock(&hw->conf_lock);
 	err = st_lsm6dsx_sensor_set_enable(sensor, state);
+	mutex_unlock(&hw->conf_lock);
 	if (err < 0)
 		return err;
 
