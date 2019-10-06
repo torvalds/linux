@@ -496,6 +496,9 @@ static int stmmac_test_hfilt(struct stmmac_priv *priv)
 	if (ret)
 		return ret;
 
+	if (netdev_mc_count(priv->dev) >= priv->hw->multicast_filter_bins)
+		return -EOPNOTSUPP;
+
 	ret = dev_mc_add(priv->dev, gd_addr);
 	if (ret)
 		return ret;
@@ -573,6 +576,8 @@ static int stmmac_test_mcfilt(struct stmmac_priv *priv)
 
 	if (stmmac_filter_check(priv))
 		return -EOPNOTSUPP;
+	if (!priv->hw->multicast_filter_bins)
+		return -EOPNOTSUPP;
 
 	/* Remove all MC addresses */
 	__dev_mc_unsync(priv->dev, NULL);
@@ -610,6 +615,8 @@ static int stmmac_test_ucfilt(struct stmmac_priv *priv)
 	int ret;
 
 	if (stmmac_filter_check(priv))
+		return -EOPNOTSUPP;
+	if (!priv->hw->multicast_filter_bins)
 		return -EOPNOTSUPP;
 
 	/* Remove all UC addresses */
