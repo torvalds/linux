@@ -366,7 +366,7 @@ static void sun6i_dsi_inst_init(struct sun6i_dsi *dsi,
 static u16 sun6i_dsi_get_video_start_delay(struct sun6i_dsi *dsi,
 					   struct drm_display_mode *mode)
 {
-	u16 delay = mode->vtotal - (mode->vsync_end - mode->vdisplay) + 1;
+	u16 delay = mode->vtotal - (mode->vsync_start - mode->vdisplay) + 1;
 
 	if (delay > mode->vtotal)
 		delay = delay % mode->vtotal;
