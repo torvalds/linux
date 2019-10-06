@@ -981,12 +981,8 @@ void mod_freesync_get_settings(struct mod_freesync *mod_freesync,
 		unsigned int *inserted_frames,
 		unsigned int *inserted_duration_in_us)
 {
-	struct core_freesync *core_freesync = NULL;
-
 	if (mod_freesync == NULL)
 		return;
-
-	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
 
 	if (vrr->supported) {
 		*v_total_min = vrr->adjust.v_total_min;
