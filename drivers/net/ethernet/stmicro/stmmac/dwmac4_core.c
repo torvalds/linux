@@ -809,6 +809,106 @@ static void dwmac4_set_arp_offload(struct mac_device_info *hw, bool en,
 	writel(value, ioaddr + GMAC_CONFIG);
 }
 
+static int dwmac4_config_l3_filter(struct mac_device_info *hw, u32 filter_no,
+				   bool en, bool ipv6, bool sa, bool inv,
+				   u32 match)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	value = readl(ioaddr + GMAC_PACKET_FILTER);
+	value |= GMAC_PACKET_FILTER_IPFE;
+	writel(value, ioaddr + GMAC_PACKET_FILTER);
+
+	value = readl(ioaddr + GMAC_L3L4_CTRL(filter_no));
+
+	/* For IPv6 not both SA/DA filters can be active */
+	if (ipv6) {
+		value |= GMAC_L3PEN0;
+		value &= ~(GMAC_L3SAM0 | GMAC_L3SAIM0);
+		value &= ~(GMAC_L3DAM0 | GMAC_L3DAIM0);
+		if (sa) {
+			value |= GMAC_L3SAM0;
+			if (inv)
+				value |= GMAC_L3SAIM0;
+		} else {
+			value |= GMAC_L3DAM0;
+			if (inv)
+				value |= GMAC_L3DAIM0;
+		}
+	} else {
+		value &= ~GMAC_L3PEN0;
+		if (sa) {
+			value |= GMAC_L3SAM0;
+			if (inv)
+				value |= GMAC_L3SAIM0;
+		} else {
+			value |= GMAC_L3DAM0;
+			if (inv)
+				value |= GMAC_L3DAIM0;
+		}
+	}
+
+	writel(value, ioaddr + GMAC_L3L4_CTRL(filter_no));
+
+	if (sa) {
+		writel(match, ioaddr + GMAC_L3_ADDR0(filter_no));
+	} else {
+		writel(match, ioaddr + GMAC_L3_ADDR1(filter_no));
+	}
+
+	if (!en)
+		writel(0, ioaddr + GMAC_L3L4_CTRL(filter_no));
+
+	return 0;
+}
+
+static int dwmac4_config_l4_filter(struct mac_device_info *hw, u32 filter_no,
+				   bool en, bool udp, bool sa, bool inv,
+				   u32 match)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	value = readl(ioaddr + GMAC_PACKET_FILTER);
+	value |= GMAC_PACKET_FILTER_IPFE;
+	writel(value, ioaddr + GMAC_PACKET_FILTER);
+
+	value = readl(ioaddr + GMAC_L3L4_CTRL(filter_no));
+	if (udp) {
+		value |= GMAC_L4PEN0;
+	} else {
+		value &= ~GMAC_L4PEN0;
+	}
+
+	value &= ~(GMAC_L4SPM0 | GMAC_L4SPIM0);
+	value &= ~(GMAC_L4DPM0 | GMAC_L4DPIM0);
+	if (sa) {
+		value |= GMAC_L4SPM0;
+		if (inv)
+			value |= GMAC_L4SPIM0;
+	} else {
+		value |= GMAC_L4DPM0;
+		if (inv)
+			value |= GMAC_L4DPIM0;
+	}
+
+	writel(value, ioaddr + GMAC_L3L4_CTRL(filter_no));
+
+	if (sa) {
+		value = match & GMAC_L4SP0;
+	} else {
+		value = (match << GMAC_L4DP0_SHIFT) & GMAC_L4DP0;
+	}
+
+	writel(value, ioaddr + GMAC_L4_ADDR(filter_no));
+
+	if (!en)
+		writel(0, ioaddr + GMAC_L3L4_CTRL(filter_no));
+
+	return 0;
+}
+
 const struct stmmac_ops dwmac4_ops = {
 	.core_init = dwmac4_core_init,
 	.set_mac = stmmac_set_mac,
@@ -843,6 +943,8 @@ const struct stmmac_ops dwmac4_ops = {
 	.sarc_configure = dwmac4_sarc_configure,
 	.enable_vlan = dwmac4_enable_vlan,
 	.set_arp_offload = dwmac4_set_arp_offload,
+	.config_l3_filter = dwmac4_config_l3_filter,
+	.config_l4_filter = dwmac4_config_l4_filter,
 };
 
 const struct stmmac_ops dwmac410_ops = {
@@ -879,6 +981,8 @@ const struct stmmac_ops dwmac410_ops = {
 	.sarc_configure = dwmac4_sarc_configure,
 	.enable_vlan = dwmac4_enable_vlan,
 	.set_arp_offload = dwmac4_set_arp_offload,
+	.config_l3_filter = dwmac4_config_l3_filter,
+	.config_l4_filter = dwmac4_config_l4_filter,
 };
 
 const struct stmmac_ops dwmac510_ops = {
@@ -920,6 +1024,8 @@ const struct stmmac_ops dwmac510_ops = {
 	.sarc_configure = dwmac4_sarc_configure,
 	.enable_vlan = dwmac4_enable_vlan,
 	.set_arp_offload = dwmac4_set_arp_offload,
+	.config_l3_filter = dwmac4_config_l3_filter,
+	.config_l4_filter = dwmac4_config_l4_filter,
 };
 
 int dwmac4_setup(struct stmmac_priv *priv)
