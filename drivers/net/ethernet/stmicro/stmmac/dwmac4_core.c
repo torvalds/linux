@@ -733,7 +733,7 @@ static void dwmac4_set_mac_loopback(void __iomem *ioaddr, bool enable)
 }
 
 static void dwmac4_update_vlan_hash(struct mac_device_info *hw, u32 hash,
-				    bool is_double)
+				    u16 perfect_match, bool is_double)
 {
 	void __iomem *ioaddr = hw->pcsr;
 
@@ -748,6 +748,16 @@ static void dwmac4_update_vlan_hash(struct mac_device_info *hw, u32 hash,
 		}
 
 		writel(value, ioaddr + GMAC_VLAN_TAG);
+	} else if (perfect_match) {
+		u32 value = GMAC_VLAN_ETV;
+
+		if (is_double) {
+			value |= GMAC_VLAN_EDVLP;
+			value |= GMAC_VLAN_ESVL;
+			value |= GMAC_VLAN_DOVLTC;
+		}
+
+		writel(value | perfect_match, ioaddr + GMAC_VLAN_TAG);
 	} else {
 		u32 value = readl(ioaddr + GMAC_VLAN_TAG);
 
