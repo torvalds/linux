@@ -81,7 +81,6 @@ int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state *state)
 	struct vchiq_drvdata *drvdata = platform_get_drvdata(pdev);
 	struct rpi_firmware *fw = drvdata->fw;
 	struct vchiq_slot_zero *vchiq_slot_zero;
-	struct resource *res;
 	void *slot_mem;
 	dma_addr_t slot_phys;
 	u32 channelbase;
@@ -135,8 +134,7 @@ int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state *state)
 	if (vchiq_init_state(state, vchiq_slot_zero) != VCHIQ_SUCCESS)
 		return -EINVAL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	g_regs = devm_ioremap_resource(&pdev->dev, res);
+	g_regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(g_regs))
 		return PTR_ERR(g_regs);
 
