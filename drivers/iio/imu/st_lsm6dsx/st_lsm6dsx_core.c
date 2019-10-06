@@ -1498,6 +1498,7 @@ static int st_lsm6dsx_write_raw(struct iio_dev *iio_dev,
 static int st_lsm6dsx_event_setup(struct st_lsm6dsx_hw *hw, int state)
 {
 	const struct st_lsm6dsx_reg *reg;
+	unsigned int data;
 	int err;
 
 	if (!hw->settings->irq_config.irq1_func.addr)
@@ -1505,17 +1506,17 @@ static int st_lsm6dsx_event_setup(struct st_lsm6dsx_hw *hw, int state)
 
 	reg = &hw->settings->event_settings.enable_reg;
 	if (reg->addr) {
-		err = regmap_update_bits(hw->regmap, reg->addr, reg->mask,
-					 ST_LSM6DSX_SHIFT_VAL(state, reg->mask));
+		data = ST_LSM6DSX_SHIFT_VAL(state, reg->mask);
+		err = st_lsm6dsx_update_bits_locked(hw, reg->addr,
+						    reg->mask, data);
 		if (err < 0)
 			return err;
 	}
 
 	/* Enable wakeup interrupt */
-	return regmap_update_bits(hw->regmap, hw->irq_routing->addr,
-				  hw->irq_routing->mask,
-				  ST_LSM6DSX_SHIFT_VAL(state,
-					hw->irq_routing->mask));
+	data = ST_LSM6DSX_SHIFT_VAL(state, hw->irq_routing->mask);
+	return st_lsm6dsx_update_bits_locked(hw, hw->irq_routing->addr,
+					     hw->irq_routing->mask, data);
 }
 
 static int st_lsm6dsx_read_event(struct iio_dev *iio_dev,
@@ -1546,6 +1547,8 @@ static int st_lsm6dsx_write_event(struct iio_dev *iio_dev,
 {
 	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
 	struct st_lsm6dsx_hw *hw = sensor->hw;
+	const struct st_lsm6dsx_reg *reg;
+	unsigned int data;
 	int err;
 
 	if (type != IIO_EV_TYPE_THRESH)
@@ -1554,11 +1557,11 @@ static int st_lsm6dsx_write_event(struct iio_dev *iio_dev,
 	if (val < 0 || val > 31)
 		return -EINVAL;
 
-	err = regmap_update_bits(hw->regmap,
-				 hw->settings->event_settings.wakeup_reg.addr,
-				 hw->settings->event_settings.wakeup_reg.mask,
-				 val);
-	if (err)
+	reg = &hw->settings->event_settings.wakeup_reg;
+	data = ST_LSM6DSX_SHIFT_VAL(val, reg->mask);
+	err = st_lsm6dsx_update_bits_locked(hw, reg->addr,
+					    reg->mask, data);
+	if (err < 0)
 		return -EINVAL;
 
 	hw->event_threshold = val;
