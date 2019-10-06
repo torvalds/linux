@@ -31,9 +31,6 @@ fill_static_params_ctx(void *ctx, struct mlx5e_ktls_offload_context_tx *priv_tx)
 	char *salt, *rec_seq;
 	u8 tls_version;
 
-	if (WARN_ON(crypto_info->cipher_type != TLS_CIPHER_AES_GCM_128))
-		return;
-
 	info = (struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
 	EXTRACT_INFO_FIELDS;
 
@@ -242,9 +239,6 @@ tx_post_resync_params(struct mlx5e_txqsq *sq,
 	bool skip_static_post;
 	u16 rec_seq_sz;
 	char *rec_seq;
-
-	if (WARN_ON(crypto_info->cipher_type != TLS_CIPHER_AES_GCM_128))
-		return;
 
 	info = (struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
 	rec_seq = info->rec_seq;
