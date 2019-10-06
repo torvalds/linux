@@ -161,6 +161,8 @@ struct nsim_dev {
 	bool fw_update_status;
 	u32 max_macs;
 	bool test1;
+	bool dont_allow_reload;
+	bool fail_reload;
 	struct devlink_region *dummy_region;
 };
 
