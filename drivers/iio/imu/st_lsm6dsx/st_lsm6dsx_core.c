@@ -1538,12 +1538,13 @@ static int st_lsm6dsx_read_event(struct iio_dev *iio_dev,
 	return IIO_VAL_INT;
 }
 
-static int st_lsm6dsx_write_event(struct iio_dev *iio_dev,
-				    const struct iio_chan_spec *chan,
-				    enum iio_event_type type,
-				    enum iio_event_direction dir,
-				    enum iio_event_info info,
-				    int val, int val2)
+static int
+st_lsm6dsx_write_event(struct iio_dev *iio_dev,
+		       const struct iio_chan_spec *chan,
+		       enum iio_event_type type,
+		       enum iio_event_direction dir,
+		       enum iio_event_info info,
+		       int val, int val2)
 {
 	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
 	struct st_lsm6dsx_hw *hw = sensor->hw;
@@ -1569,10 +1570,11 @@ static int st_lsm6dsx_write_event(struct iio_dev *iio_dev,
 	return 0;
 }
 
-static int st_lsm6dsx_read_event_config(struct iio_dev *iio_dev,
-					  const struct iio_chan_spec *chan,
-					  enum iio_event_type type,
-					  enum iio_event_direction dir)
+static int
+st_lsm6dsx_read_event_config(struct iio_dev *iio_dev,
+			     const struct iio_chan_spec *chan,
+			     enum iio_event_type type,
+			     enum iio_event_direction dir)
 {
 	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
 	struct st_lsm6dsx_hw *hw = sensor->hw;
@@ -1583,11 +1585,11 @@ static int st_lsm6dsx_read_event_config(struct iio_dev *iio_dev,
 	return !!(hw->enable_event & BIT(chan->channel2));
 }
 
-static int st_lsm6dsx_write_event_config(struct iio_dev *iio_dev,
-					   const struct iio_chan_spec *chan,
-					   enum iio_event_type type,
-					   enum iio_event_direction dir,
-					   int state)
+static int
+st_lsm6dsx_write_event_config(struct iio_dev *iio_dev,
+			      const struct iio_chan_spec *chan,
+			      enum iio_event_type type,
+			      enum iio_event_direction dir, int state)
 {
 	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
 	struct st_lsm6dsx_hw *hw = sensor->hw;
@@ -2160,7 +2162,8 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 			return err;
 	}
 
-	if (dev->of_node && of_property_read_bool(dev->of_node, "wakeup-source"))
+	if (dev->of_node &&
+	    of_property_read_bool(dev->of_node, "wakeup-source"))
 		device_init_wakeup(dev, true);
 
 	return 0;
