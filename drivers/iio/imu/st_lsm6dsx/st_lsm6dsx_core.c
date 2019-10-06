@@ -2099,7 +2099,9 @@ static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
 int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 		     struct regmap *regmap)
 {
+	struct st_sensors_platform_data *pdata = dev->platform_data;
 	const struct st_lsm6dsx_shub_settings *hub_settings;
+	struct device_node *np = dev->of_node;
 	struct st_lsm6dsx_hw *hw;
 	const char *name = NULL;
 	int i, err;
@@ -2162,8 +2164,8 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 			return err;
 	}
 
-	if (dev->of_node &&
-	    of_property_read_bool(dev->of_node, "wakeup-source"))
+	if ((np && of_property_read_bool(np, "wakeup-source")) ||
+	    (pdata && pdata->wakeup_source))
 		device_init_wakeup(dev, true);
 
 	return 0;
