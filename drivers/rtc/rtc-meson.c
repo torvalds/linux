@@ -292,7 +292,6 @@ static int meson_rtc_probe(struct platform_device *pdev)
 	};
 	struct device *dev = &pdev->dev;
 	struct meson_rtc *rtc;
-	struct resource *res;
 	void __iomem *base;
 	int ret;
 	u32 tm;
@@ -312,8 +311,7 @@ static int meson_rtc_probe(struct platform_device *pdev)
 	rtc->rtc->ops = &meson_rtc_ops;
 	rtc->rtc->range_max = U32_MAX;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
