@@ -1,0 +1,18 @@
+CMPE283 : Virtualization
+Assignment 1: Communicating with the hypervisor
+Due: Oct 14 2019 Before Midnight
+
+
+Sep 29   task completed
+1- Create a partition in a windows 10
+2- Install Ubuntu 18.04
+   Issues: Unable to install Ubuntu alongside... (windows 10) 
+   Solution: The computer use to have windows 7 when I migrated to windows 10, 
+             I forgot to change the partition from MBR to GUID; so, I ending 
+             with windows 10 in a legacy BIOS and during the installation 
+             Ubuntu does not recognize the windows 10 Operating Sysytem and 
+             it does not give me the option of "install Ubuntu alongside…". 
+             Therefore, I have migrate partition to GUID, change the BIOS to UEFI
+             and now Install a Ubuntu. Finally in same latop I have windows 10 
+             and Ubuntu 18.04.
+
