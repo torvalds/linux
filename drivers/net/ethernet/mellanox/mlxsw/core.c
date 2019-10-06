@@ -127,6 +127,16 @@ bool mlxsw_core_res_query_enabled(const struct mlxsw_core *mlxsw_core)
 }
 EXPORT_SYMBOL(mlxsw_core_res_query_enabled);
 
+bool
+mlxsw_core_fw_rev_minor_subminor_validate(const struct mlxsw_fw_rev *rev,
+					  const struct mlxsw_fw_rev *req_rev)
+{
+	return rev->minor > req_rev->minor ||
+	       (rev->minor == req_rev->minor &&
+		rev->subminor >= req_rev->subminor);
+}
+EXPORT_SYMBOL(mlxsw_core_fw_rev_minor_subminor_validate);
+
 struct mlxsw_rx_listener_item {
 	struct list_head list;
 	struct mlxsw_rx_listener rxl;
