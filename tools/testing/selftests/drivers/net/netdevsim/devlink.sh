@@ -150,6 +150,30 @@ reload_test()
 	devlink dev reload $DL_HANDLE
 	check_err $? "Failed to reload"
 
+	echo "y"> $DEBUGFS_DIR/fail_reload
+	check_err $? "Failed to setup devlink reload to fail"
+
+	devlink dev reload $DL_HANDLE
+	check_fail $? "Unexpected success of devlink reload"
+
+	echo "n"> $DEBUGFS_DIR/fail_reload
+	check_err $? "Failed to setup devlink reload not to fail"
+
+	devlink dev reload $DL_HANDLE
+	check_err $? "Failed to reload after set not to fail"
+
+	echo "y"> $DEBUGFS_DIR/dont_allow_reload
+	check_err $? "Failed to forbid devlink reload"
+
+	devlink dev reload $DL_HANDLE
+	check_fail $? "Unexpected success of devlink reload"
+
+	echo "n"> $DEBUGFS_DIR/dont_allow_reload
+	check_err $? "Failed to re-enable devlink reload"
+
+	devlink dev reload $DL_HANDLE
+	check_err $? "Failed to reload after re-enable"
+
 	log_test "reload test"
 }
 
