@@ -832,8 +832,8 @@ static u32 sun6i_dsi_dcs_build_pkt_hdr(struct sun6i_dsi *dsi,
 	u32 pkt = msg->type;
 
 	if (msg->type == MIPI_DSI_DCS_LONG_WRITE) {
-		pkt |= ((msg->tx_len + 1) & 0xffff) << 8;
-		pkt |= (((msg->tx_len + 1) >> 8) & 0xffff) << 16;
+		pkt |= ((msg->tx_len) & 0xffff) << 8;
+		pkt |= (((msg->tx_len) >> 8) & 0xffff) << 16;
 	} else {
 		pkt |= (((u8 *)msg->tx_buf)[0] << 8);
 		if (msg->tx_len > 1)
