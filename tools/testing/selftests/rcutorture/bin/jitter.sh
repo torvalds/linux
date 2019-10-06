@@ -23,12 +23,12 @@ spinmax=${4-1000}
 
 n=1
 
-starttime=`awk 'BEGIN { print systime(); }' < /dev/null`
+starttime=`gawk 'BEGIN { print systime(); }' < /dev/null`
 
 while :
 do
 	# Check for done.
-	t=`awk -v s=$starttime 'BEGIN { print systime() - s; }' < /dev/null`
+	t=`gawk -v s=$starttime 'BEGIN { print systime() - s; }' < /dev/null`
 	if test "$t" -gt "$duration"
 	then
 		exit 0;

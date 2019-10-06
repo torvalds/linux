@@ -123,7 +123,7 @@ qemu_args=$5
 boot_args=$6
 
 cd $KVM
-kstarttime=`awk 'BEGIN { print systime() }' < /dev/null`
+kstarttime=`gawk 'BEGIN { print systime() }' < /dev/null`
 if test -z "$TORTURE_BUILDONLY"
 then
 	echo ' ---' `date`: Starting kernel
@@ -177,7 +177,7 @@ do
 	then
 		qemu_pid=`cat "$resdir/qemu_pid"`
 	fi
-	kruntime=`awk 'BEGIN { print systime() - '"$kstarttime"' }' < /dev/null`
+	kruntime=`gawk 'BEGIN { print systime() - '"$kstarttime"' }' < /dev/null`
 	if test -z "$qemu_pid" || kill -0 "$qemu_pid" > /dev/null 2>&1
 	then
 		if test $kruntime -ge $seconds
@@ -213,7 +213,7 @@ then
 	oldline="`tail $resdir/console.log`"
 	while :
 	do
-		kruntime=`awk 'BEGIN { print systime() - '"$kstarttime"' }' < /dev/null`
+		kruntime=`gawk 'BEGIN { print systime() - '"$kstarttime"' }' < /dev/null`
 		if kill -0 $qemu_pid > /dev/null 2>&1
 		then
 			:
