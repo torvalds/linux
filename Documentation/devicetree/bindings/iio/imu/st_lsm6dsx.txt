@@ -31,6 +31,7 @@ Optional properties:
 - interrupts: interrupt mapping for IRQ. It should be configured with
   flags IRQ_TYPE_LEVEL_HIGH, IRQ_TYPE_EDGE_RISING, IRQ_TYPE_LEVEL_LOW or
   IRQ_TYPE_EDGE_FALLING.
+- wakeup-source: Enables wake up of host system on event.
 
   Refer to interrupt-controller/interrupts.txt for generic interrupt
   client node bindings.
