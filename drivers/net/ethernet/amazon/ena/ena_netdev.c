@@ -3605,9 +3605,9 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		queue_type_str = "Low Latency";
 
 	dev_info(&pdev->dev,
-		 "%s found at mem %lx, mac addr %pM Queues %d, Placement policy: %s\n",
+		 "%s found at mem %lx, mac addr %pM, Placement policy: %s\n",
 		 DEVICE_NAME, (long)pci_resource_start(pdev, 0),
-		 netdev->dev_addr, max_num_io_queues, queue_type_str);
+		 netdev->dev_addr, queue_type_str);
 
 	set_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
 
