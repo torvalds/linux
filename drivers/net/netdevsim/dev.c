@@ -90,6 +90,10 @@ static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 			    &nsim_dev->test1);
 	debugfs_create_file("take_snapshot", 0200, nsim_dev->ddir, nsim_dev,
 			    &nsim_dev_take_snapshot_fops);
+	debugfs_create_bool("dont_allow_reload", 0600, nsim_dev->ddir,
+			    &nsim_dev->dont_allow_reload);
+	debugfs_create_bool("fail_reload", 0600, nsim_dev->ddir,
+			    &nsim_dev->fail_reload);
 	return 0;
 }
 
@@ -478,6 +482,14 @@ static int nsim_dev_reload_down(struct devlink *devlink, bool netns_change,
 {
 	struct nsim_dev *nsim_dev = devlink_priv(devlink);
 
+	if (nsim_dev->dont_allow_reload) {
+		/* For testing purposes, user set debugfs dont_allow_reload
+		 * value to true. So forbid it.
+		 */
+		NL_SET_ERR_MSG_MOD(extack, "User forbidded reload for testing purposes");
+		return -EOPNOTSUPP;
+	}
+
 	nsim_dev_reload_destroy(nsim_dev);
 	return 0;
 }
@@ -486,6 +498,14 @@ static int nsim_dev_reload_up(struct devlink *devlink,
 			      struct netlink_ext_ack *extack)
 {
 	struct nsim_dev *nsim_dev = devlink_priv(devlink);
+
+	if (nsim_dev->fail_reload) {
+		/* For testing purposes, user set debugfs fail_reload
+		 * value to true. Fail right away.
+		 */
+		NL_SET_ERR_MSG_MOD(extack, "User setup the reload to fail for testing purposes");
+		return -EINVAL;
+	}
 
 	return nsim_dev_reload_create(nsim_dev, extack);
 }
