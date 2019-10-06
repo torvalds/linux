@@ -315,7 +315,7 @@ enum counter_signal_value {
  *			Count's functions_list array.
  * @action_get:		function to get the current action mode. Returns 0 on
  *			success and negative error code on error. The index of
- *			the respective Signal's returned action mode should be
+ *			the respective Synapse's returned action mode should be
  *			passed back via the action parameter.
  * @action_set:		function to set the action mode. action is the index of
  *			the requested action mode from the respective Synapse's
