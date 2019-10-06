@@ -396,11 +396,11 @@ config TUNE_ZEC12
 	depends on $(cc-option,-mtune=zEC12)
 
 config TUNE_Z13
-	bool "IBM z13"
+	bool "IBM z13s and z13"
 	depends on $(cc-option,-mtune=z13)
 
 config TUNE_Z14
-	bool "IBM z14"
+	bool "IBM z14 ZR1 and z14"
 	depends on $(cc-option,-mtune=z14)
 
 config TUNE_Z15
