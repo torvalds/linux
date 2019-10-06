@@ -48,7 +48,7 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 			fence = i915_active_fence_get(&tl->last_request);
 			if (fence) {
 				timeout = dma_fence_wait_timeout(fence,
-								 true,
+								 interruptible,
 								 timeout);
 				dma_fence_put(fence);
 			}
