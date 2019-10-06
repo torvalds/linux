@@ -238,29 +238,21 @@ struct st_lsm6dsx_ext_dev_settings {
 /**
  * struct st_lsm6dsx_settings - ST IMU sensor settings
  * @wai: Sensor WhoAmI default value.
- * @int1_addr: Control Register address for INT1
- * @int2_addr: Control Register address for INT2
  * @reset_addr: register address for reset/reboot
  * @max_fifo_size: Sensor max fifo length in FIFO words.
  * @id: List of hw id/device name supported by the driver configuration.
  * @channels: IIO channels supported by the device.
+ * @irq_config: interrupts related registers.
  * @odr_table: Hw sensors odr table (Hz + val).
  * @fs_table: Hw sensors gain table (gain + val).
  * @decimator: List of decimator register info (addr + mask).
  * @batch: List of FIFO batching register info (addr + mask).
- * @lir: Latched interrupt register info (addr + mask).
- * @clear_on_read: Clear on read register info (addr + mask).
  * @fifo_ops: Sensor hw FIFO parameters.
  * @ts_settings: Hw timer related settings.
  * @shub_settings: i2c controller related settings.
  */
 struct st_lsm6dsx_settings {
 	u8 wai;
-	u8 int1_addr;
-	u8 int2_addr;
-	u8 int1_func_addr;
-	u8 int2_func_addr;
-	u8 int_func_mask;
 	u8 reset_addr;
 	u16 max_fifo_size;
 	struct {
@@ -271,12 +263,18 @@ struct st_lsm6dsx_settings {
 		const struct iio_chan_spec *chan;
 		int len;
 	} channels[2];
+	struct {
+		struct st_lsm6dsx_reg irq1;
+		struct st_lsm6dsx_reg irq2;
+		struct st_lsm6dsx_reg irq1_func;
+		struct st_lsm6dsx_reg irq2_func;
+		struct st_lsm6dsx_reg lir;
+		struct st_lsm6dsx_reg clear_on_read;
+	} irq_config;
 	struct st_lsm6dsx_odr_table_entry odr_table[2];
 	struct st_lsm6dsx_fs_table_entry fs_table[2];
 	struct st_lsm6dsx_reg decimator[ST_LSM6DSX_MAX_ID];
 	struct st_lsm6dsx_reg batch[ST_LSM6DSX_MAX_ID];
-	struct st_lsm6dsx_reg lir;
-	struct st_lsm6dsx_reg clear_on_read;
 	struct st_lsm6dsx_fifo_ops fifo_ops;
 	struct st_lsm6dsx_hw_ts_settings ts_settings;
 	struct st_lsm6dsx_shub_settings shub_settings;
@@ -361,9 +359,9 @@ struct st_lsm6dsx_hw {
 	u8 ts_sip;
 	u8 sip;
 
+	const struct st_lsm6dsx_reg *irq_routing;
 	u8 event_threshold;
 	u8 enable_event;
-	struct st_lsm6dsx_reg irq_routing;
 
 	u8 *buff;
 
