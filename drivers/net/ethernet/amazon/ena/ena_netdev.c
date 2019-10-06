@@ -3135,16 +3135,16 @@ static void ena_timer_service(struct timer_list *t)
 	mod_timer(&adapter->timer_service, jiffies + HZ);
 }
 
-static int ena_calc_io_queue_num(struct pci_dev *pdev,
-				 struct ena_com_dev *ena_dev,
-				 struct ena_com_dev_get_features_ctx *get_feat_ctx)
+static int ena_calc_max_io_queue_num(struct pci_dev *pdev,
+				     struct ena_com_dev *ena_dev,
+				     struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
-	int io_tx_sq_num, io_tx_cq_num, io_rx_num, io_queue_num;
+	int io_tx_sq_num, io_tx_cq_num, io_rx_num, max_num_io_queues;
 
 	if (ena_dev->supported_features & BIT(ENA_ADMIN_MAX_QUEUES_EXT)) {
 		struct ena_admin_queue_ext_feature_fields *max_queue_ext =
 			&get_feat_ctx->max_queue_ext.max_queue_ext;
-		io_rx_num = min_t(int, max_queue_ext->max_rx_sq_num,
+		io_rx_num = min_t(u32, max_queue_ext->max_rx_sq_num,
 				  max_queue_ext->max_rx_cq_num);
 
 		io_tx_sq_num = max_queue_ext->max_tx_sq_num;
@@ -3154,25 +3154,25 @@ static int ena_calc_io_queue_num(struct pci_dev *pdev,
 			&get_feat_ctx->max_queues;
 		io_tx_sq_num = max_queues->max_sq_num;
 		io_tx_cq_num = max_queues->max_cq_num;
-		io_rx_num = min_t(int, io_tx_sq_num, io_tx_cq_num);
+		io_rx_num = min_t(u32, io_tx_sq_num, io_tx_cq_num);
 	}
 
 	/* In case of LLQ use the llq fields for the tx SQ/CQ */
 	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
 		io_tx_sq_num = get_feat_ctx->llq.max_llq_num;
 
-	io_queue_num = min_t(int, num_online_cpus(), ENA_MAX_NUM_IO_QUEUES);
-	io_queue_num = min_t(int, io_queue_num, io_rx_num);
-	io_queue_num = min_t(int, io_queue_num, io_tx_sq_num);
-	io_queue_num = min_t(int, io_queue_num, io_tx_cq_num);
+	max_num_io_queues = min_t(u32, num_online_cpus(), ENA_MAX_NUM_IO_QUEUES);
+	max_num_io_queues = min_t(u32, max_num_io_queues, io_rx_num);
+	max_num_io_queues = min_t(u32, max_num_io_queues, io_tx_sq_num);
+	max_num_io_queues = min_t(u32, max_num_io_queues, io_tx_cq_num);
 	/* 1 IRQ for for mgmnt and 1 IRQs for each IO direction */
-	io_queue_num = min_t(int, io_queue_num, pci_msix_vec_count(pdev) - 1);
-	if (unlikely(!io_queue_num)) {
+	max_num_io_queues = min_t(u32, max_num_io_queues, pci_msix_vec_count(pdev) - 1);
+	if (unlikely(!max_num_io_queues)) {
 		dev_err(&pdev->dev, "The device doesn't have io queues\n");
 		return -EFAULT;
 	}
 
-	return io_queue_num;
+	return max_num_io_queues;
 }
 
 static int ena_set_queues_placement_policy(struct pci_dev *pdev,
@@ -3430,11 +3430,12 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ena_llq_configurations llq_config;
 	struct ena_com_dev *ena_dev = NULL;
 	struct ena_adapter *adapter;
-	int io_queue_num, bars, rc;
 	struct net_device *netdev;
 	static int adapters_found;
+	u32 max_num_io_queues;
 	char *queue_type_str;
 	bool wd_state;
+	int bars, rc;
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
@@ -3500,15 +3501,15 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ena_dev->intr_moder_tx_interval = ENA_INTR_INITIAL_TX_INTERVAL_USECS;
 	ena_dev->intr_moder_rx_interval = ENA_INTR_INITIAL_RX_INTERVAL_USECS;
 	ena_dev->intr_delay_resolution = ENA_DEFAULT_INTR_DELAY_RESOLUTION;
-	io_queue_num = ena_calc_io_queue_num(pdev, ena_dev, &get_feat_ctx);
+	max_num_io_queues = ena_calc_max_io_queue_num(pdev, ena_dev, &get_feat_ctx);
 	rc = ena_calc_io_queue_size(&calc_queue_ctx);
-	if (rc || io_queue_num <= 0) {
+	if (rc || !max_num_io_queues) {
 		rc = -EFAULT;
 		goto err_device_destroy;
 	}
 
 	/* dev zeroed in init_etherdev */
-	netdev = alloc_etherdev_mq(sizeof(struct ena_adapter), io_queue_num);
+	netdev = alloc_etherdev_mq(sizeof(struct ena_adapter), max_num_io_queues);
 	if (!netdev) {
 		dev_err(&pdev->dev, "alloc_etherdev_mq failed\n");
 		rc = -ENOMEM;
@@ -3536,7 +3537,9 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->max_tx_sgl_size = calc_queue_ctx.max_tx_sgl_size;
 	adapter->max_rx_sgl_size = calc_queue_ctx.max_rx_sgl_size;
 
-	adapter->num_io_queues = io_queue_num;
+	adapter->num_io_queues = max_num_io_queues;
+	adapter->max_num_io_queues = max_num_io_queues;
+
 	adapter->last_monitored_tx_qid = 0;
 
 	adapter->rx_copybreak = ENA_DEFAULT_RX_COPYBREAK;
@@ -3604,7 +3607,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev_info(&pdev->dev,
 		 "%s found at mem %lx, mac addr %pM Queues %d, Placement policy: %s\n",
 		 DEVICE_NAME, (long)pci_resource_start(pdev, 0),
-		 netdev->dev_addr, io_queue_num, queue_type_str);
+		 netdev->dev_addr, max_num_io_queues, queue_type_str);
 
 	set_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
 
