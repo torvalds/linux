@@ -67,11 +67,6 @@
 #define ST_LSM6DSX_REG_BDU_ADDR			0x12
 #define ST_LSM6DSX_REG_BDU_MASK			BIT(6)
 
-#define ST_LSM6DSX_REG_HLACTIVE_ADDR		0x12
-#define ST_LSM6DSX_REG_HLACTIVE_MASK		BIT(5)
-#define ST_LSM6DSX_REG_PP_OD_ADDR		0x12
-#define ST_LSM6DSX_REG_PP_OD_MASK		BIT(4)
-
 static const struct iio_chan_spec st_lsm6dsx_acc_channels[] = {
 	ST_LSM6DSX_CHANNEL_ACC(IIO_ACCEL, 0x28, IIO_MOD_X, 0),
 	ST_LSM6DSX_CHANNEL_ACC(IIO_ACCEL, 0x2a, IIO_MOD_Y, 1),
@@ -172,6 +167,14 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x0d,
 				.mask = BIT(3),
 			},
+			.hla = {
+				.addr = 0x22,
+				.mask = BIT(5),
+			},
+			.od = {
+				.addr = 0x22,
+				.mask = BIT(4),
+			},
 		},
 	},
 	{
@@ -264,6 +267,14 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			.irq2_func = {
 				.addr = 0x5f,
 				.mask = BIT(5),
+			},
+			.hla = {
+				.addr = 0x12,
+				.mask = BIT(5),
+			},
+			.od = {
+				.addr = 0x12,
+				.mask = BIT(4),
 			},
 		},
 		.decimator = {
@@ -409,6 +420,14 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			.irq2_func = {
 				.addr = 0x5f,
 				.mask = BIT(5),
+			},
+			.hla = {
+				.addr = 0x12,
+				.mask = BIT(5),
+			},
+			.od = {
+				.addr = 0x12,
+				.mask = BIT(4),
 			},
 		},
 		.decimator = {
@@ -564,6 +583,14 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x5f,
 				.mask = BIT(5),
 			},
+			.hla = {
+				.addr = 0x12,
+				.mask = BIT(5),
+			},
+			.od = {
+				.addr = 0x12,
+				.mask = BIT(4),
+			},
 		},
 		.decimator = {
 			[ST_LSM6DSX_ID_ACC] = {
@@ -711,6 +738,14 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			.clear_on_read = {
 				.addr = 0x56,
 				.mask = BIT(6),
+			},
+			.hla = {
+				.addr = 0x12,
+				.mask = BIT(5),
+			},
+			.od = {
+				.addr = 0x12,
+				.mask = BIT(4),
 			},
 		},
 		.batch = {
@@ -868,6 +903,14 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x5f,
 				.mask = BIT(5),
 			},
+			.hla = {
+				.addr = 0x12,
+				.mask = BIT(5),
+			},
+			.od = {
+				.addr = 0x12,
+				.mask = BIT(4),
+			},
 		},
 		.batch = {
 			[ST_LSM6DSX_ID_ACC] = {
@@ -1015,6 +1058,14 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			.irq2_func = {
 				.addr = 0x5f,
 				.mask = BIT(5),
+			},
+			.hla = {
+				.addr = 0x12,
+				.mask = BIT(5),
+			},
+			.od = {
+				.addr = 0x12,
+				.mask = BIT(4),
 			},
 		},
 		.batch = {
@@ -1910,8 +1961,9 @@ static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 
 static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
 {
-	struct st_sensors_platform_data *pdata;
 	struct device_node *np = hw->dev->of_node;
+	struct st_sensors_platform_data *pdata;
+	const struct st_lsm6dsx_reg *reg;
 	unsigned long irq_type;
 	bool irq_active_low;
 	int err;
@@ -1932,20 +1984,19 @@ static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
 		return -EINVAL;
 	}
 
-	err = regmap_update_bits(hw->regmap, ST_LSM6DSX_REG_HLACTIVE_ADDR,
-				 ST_LSM6DSX_REG_HLACTIVE_MASK,
-				 FIELD_PREP(ST_LSM6DSX_REG_HLACTIVE_MASK,
-					    irq_active_low));
+	reg = &hw->settings->irq_config.hla;
+	err = regmap_update_bits(hw->regmap, reg->addr, reg->mask,
+				 ST_LSM6DSX_SHIFT_VAL(irq_active_low,
+						      reg->mask));
 	if (err < 0)
 		return err;
 
 	pdata = (struct st_sensors_platform_data *)hw->dev->platform_data;
 	if ((np && of_property_read_bool(np, "drive-open-drain")) ||
 	    (pdata && pdata->open_drain)) {
-		err = regmap_update_bits(hw->regmap, ST_LSM6DSX_REG_PP_OD_ADDR,
-					 ST_LSM6DSX_REG_PP_OD_MASK,
-					 FIELD_PREP(ST_LSM6DSX_REG_PP_OD_MASK,
-						    1));
+		reg = &hw->settings->irq_config.od;
+		err = regmap_update_bits(hw->regmap, reg->addr, reg->mask,
+					 ST_LSM6DSX_SHIFT_VAL(1, reg->mask));
 		if (err < 0)
 			return err;
 
