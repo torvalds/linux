@@ -569,11 +569,12 @@ static void sun6i_dsi_setup_timings(struct sun6i_dsi *dsi,
 			  (mode->htotal - mode->hsync_end) * Bpp - HBP_PACKET_OVERHEAD);
 
 		/*
-		 * The frontporch is set using a blanking packet (4
-		 * bytes + payload + 2 bytes). Its minimal size is
-		 * therefore 6 bytes
+		 * The frontporch is set using a sync event (4 bytes)
+		 * and two blanking packets (each one is 4 bytes +
+		 * payload + 2 bytes). Its minimal size is therefore
+		 * 16 bytes
 		 */
-#define HFP_PACKET_OVERHEAD	6
+#define HFP_PACKET_OVERHEAD	16
 		hfp = max((unsigned int)HFP_PACKET_OVERHEAD,
 			  (mode->hsync_start - mode->hdisplay) * Bpp - HFP_PACKET_OVERHEAD);
 
