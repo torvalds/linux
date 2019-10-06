@@ -1989,7 +1989,6 @@ int rtw_select_roaming_candidate(struct mlme_priv *mlme)
 {
 	int ret = _FAIL;
 	struct list_head	*phead;
-	struct adapter *adapter;
 	struct __queue	*queue	= &(mlme->scanned_queue);
 	struct	wlan_network	*pnetwork = NULL;
 	struct	wlan_network	*candidate = NULL;
@@ -2001,7 +2000,6 @@ int rtw_select_roaming_candidate(struct mlme_priv *mlme)
 
 	spin_lock_bh(&(mlme->scanned_queue.lock));
 	phead = get_list_head(queue);
-	adapter = (struct adapter *)mlme->nic_hdl;
 
 	mlme->pscanned = get_next(phead);
 
