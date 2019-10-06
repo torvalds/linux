@@ -427,7 +427,6 @@ static u32 sdio_read_port(
 	struct adapter *adapter;
 	struct sdio_data *psdio;
 	struct hal_com_data *hal;
-	u32 oldcnt;
 	s32 err;
 
 
@@ -437,7 +436,6 @@ static u32 sdio_read_port(
 
 	HalSdioGetCmdAddr8723BSdio(adapter, addr, hal->SdioRxFIFOCnt++, &addr);
 
-	oldcnt = cnt;
 	if (cnt > psdio->block_transfer_len)
 		cnt = _RND(cnt, psdio->block_transfer_len);
 /* 	cnt = sdio_align_size(cnt); */
