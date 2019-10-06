@@ -347,6 +347,9 @@ struct st_lsm6dsx_sensor {
  * @ts_sip: Total number of timestamp samples in a given pattern.
  * @sip: Total number of samples (acc/gyro/ts) in a given pattern.
  * @buff: Device read buffer.
+ * @irq_routing: pointer to interrupt routing configuration.
+ * @event_threshold: wakeup event threshold.
+ * @enable_event: enabled event bitmask.
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
  * @settings: Pointer to the specific sensor settings in use.
  */
