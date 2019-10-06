@@ -656,7 +656,6 @@ u32 rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	u8   hw_hdr_offset = 0;
 	struct arc4context mycontext;
 	sint			curfragnum, length;
-	u32 prwskeylen;
 
 	u8 *pframe, *payload, *iv, *prwskey;
 	union pn48 dot11txpn;
@@ -702,8 +701,6 @@ u32 rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 			else
 				/* prwskey =&stainfo->dot118021x_UncstKey.skey[0]; */
 				prwskey = pattrib->dot118021x_UncstKey.skey;
-
-			prwskeylen = 16;
 
 			for (curfragnum = 0; curfragnum < pattrib->nr_frags; curfragnum++) {
 				iv = pframe+pattrib->hdrlen;
@@ -764,7 +761,6 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 	u8 crc[4];
 	struct arc4context mycontext;
 	sint			length;
-	u32 prwskeylen;
 
 	u8 *pframe, *payload, *iv, *prwskey;
 	union pn48 dot11txpn;
@@ -819,10 +815,8 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 				/* DBG_871X("rx bc/mc packets, to perform sw rtw_tkip_decrypt\n"); */
 				/* prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey; */
 				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
-				prwskeylen = 16;
 			} else {
 				prwskey = &stainfo->dot118021x_UncstKey.skey[0];
-				prwskeylen = 16;
 			}
 
 			iv = pframe+prxattrib->hdrlen;
@@ -1524,7 +1518,6 @@ u32 rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 
 	/* Intermediate Buffers */
 	sint	curfragnum, length;
-	u32 prwskeylen;
 	u8 *pframe, *prwskey;	/*  *payload,*iv */
 	u8   hw_hdr_offset = 0;
 	/* struct	sta_info 	*stainfo = NULL; */
@@ -1550,8 +1543,6 @@ u32 rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 		else
 			/* prwskey =&stainfo->dot118021x_UncstKey.skey[0]; */
 			prwskey = pattrib->dot118021x_UncstKey.skey;
-
-		prwskeylen = 16;
 
 		for (curfragnum = 0; curfragnum < pattrib->nr_frags; curfragnum++) {
 			if ((curfragnum+1) == pattrib->nr_frags) {	/* 4 the last fragment */
