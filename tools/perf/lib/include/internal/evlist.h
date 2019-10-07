@@ -22,6 +22,8 @@ struct perf_evlist {
 	size_t			 mmap_len;
 	struct fdarray		 pollfd;
 	struct hlist_head	 heads[PERF_EVLIST__HLIST_SIZE];
+	struct perf_mmap	*mmap;
+	struct perf_mmap	*mmap_ovw;
 };
 
 int perf_evlist__alloc_pollfd(struct perf_evlist *evlist);
