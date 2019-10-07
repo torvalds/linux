@@ -1550,10 +1550,10 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 		uurb->buffer_length = le16_to_cpu(dr->wLength);
 		uurb->buffer += 8;
 		if ((dr->bRequestType & USB_DIR_IN) && uurb->buffer_length) {
-			is_in = 1;
+			is_in = true;
 			uurb->endpoint |= USB_DIR_IN;
 		} else {
-			is_in = 0;
+			is_in = false;
 			uurb->endpoint &= ~USB_DIR_IN;
 		}
 		if (is_in)
