@@ -374,7 +374,6 @@ static int tas2770_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	u8 tdm_rx_start_slot = 0, asi_cfg_1 = 0;
 	int ret;
-	int value = 0;
 	struct snd_soc_component *component = dai->component;
 	struct tas2770_priv *tas2770 =
 			snd_soc_component_get_drvdata(component);
@@ -429,8 +428,6 @@ static int tas2770_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	(tdm_rx_start_slot << TAS2770_TDM_CFG_REG1_51_SHIFT));
 	if (ret)
 		return ret;
-
-	value = snd_soc_component_read32(component, TAS2770_TDM_CFG_REG3);
 
 	tas2770->asi_format = fmt;
 
