@@ -1,4 +1,5 @@
 /s390x/sync_regs_test
+/s390x/memop
 /x86_64/cr4_cpuid_sync_test
 /x86_64/evmcs_test
 /x86_64/hyperv_cpuid
@@ -9,6 +10,7 @@
 /x86_64/state_test
 /x86_64/sync_regs_test
 /x86_64/vmx_close_while_nested_test
+/x86_64/vmx_dirty_log_test
 /x86_64/vmx_set_nested_state_test
 /x86_64/vmx_tsc_adjust_test
 /clear_dirty_log_test
