@@ -160,19 +160,17 @@ err_rm_links:
 static int vimc_add_subdevs(struct vimc_device *vimc)
 {
 	unsigned int i;
-	struct vimc_ent_device *ved;
 
 	for (i = 0; i < vimc->pipe_cfg->num_ents; i++) {
 		dev_dbg(&vimc->pdev.dev, "new entity for %s\n",
 			vimc->pipe_cfg->ents[i].name);
-		ved = vimc->pipe_cfg->ents[i].add(vimc,
+		vimc->ent_devs[i] = vimc->pipe_cfg->ents[i].add(vimc,
 					vimc->pipe_cfg->ents[i].name);
-		if (!ved) {
+		if (!vimc->ent_devs[i]) {
 			dev_err(&vimc->pdev.dev, "add new entity for %s\n",
 				vimc->pipe_cfg->ents[i].name);
 			return -EINVAL;
 		}
-		vimc->ent_devs[i] = ved;
 	}
 	return 0;
 }
