@@ -323,6 +323,25 @@ static const struct dmi_system_id i2c_hid_dmi_desc_override_table[] = {
 		.driver_data = (void *)&sipodev_desc
 	},
 	{
+		/*
+		 * There are at least 2 Primebook C11B versions, the older
+		 * version has a product-name of "Primebook C11B", and a
+		 * bios version / release / firmware revision of:
+		 * V2.1.2 / 05/03/2018 / 18.2
+		 * The new version has "PRIMEBOOK C11B" as product-name and a
+		 * bios version / release / firmware revision of:
+		 * CFALKSW05_BIOS_V1.1.2 / 11/19/2018 / 19.2
+		 * Only the older version needs this quirk, note the newer
+		 * version will not match as it has a different product-name.
+		 */
+		.ident = "Trekstor Primebook C11B",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "TREKSTOR"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Primebook C11B"),
+		},
+		.driver_data = (void *)&sipodev_desc
+	},
+	{
 		.ident = "Direkt-Tek DTLAPY116-2",
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Direkt-Tek"),
