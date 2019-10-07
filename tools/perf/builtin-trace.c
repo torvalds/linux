@@ -77,6 +77,7 @@
 #include <sys/sysmacros.h>
 
 #include <linux/ctype.h>
+#include <perf/mmap.h>
 
 #ifndef O_CLOEXEC
 # define O_CLOEXEC		02000000
@@ -3810,7 +3811,7 @@ again:
 			if (err)
 				goto out_disable;
 
-			perf_mmap__consume(md);
+			perf_mmap__consume(&md->core);
 
 			if (interrupted)
 				goto out_disable;

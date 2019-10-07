@@ -15,6 +15,7 @@
 #include "util/mmap.h"
 #include "util/thread_map.h"
 #include <perf/evlist.h>
+#include <perf/mmap.h>
 
 #define NR_LOOPS  10000000
 
@@ -117,7 +118,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		total_periods += sample.period;
 		nr_samples++;
 next_event:
-		perf_mmap__consume(md);
+		perf_mmap__consume(&md->core);
 	}
 	perf_mmap__read_done(md);
 

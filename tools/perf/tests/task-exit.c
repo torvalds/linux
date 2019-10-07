@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <perf/cpumap.h>
 #include <perf/evlist.h>
+#include <perf/mmap.h>
 
 static int exited;
 static int nr_exit;
@@ -124,7 +125,7 @@ retry:
 		if (event->header.type == PERF_RECORD_EXIT)
 			nr_exit++;
 
-		perf_mmap__consume(md);
+		perf_mmap__consume(&md->core);
 	}
 	perf_mmap__read_done(md);
 

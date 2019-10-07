@@ -49,4 +49,6 @@ void perf_mmap__munmap(struct perf_mmap *map);
 void perf_mmap__get(struct perf_mmap *map);
 void perf_mmap__put(struct perf_mmap *map);
 
+u64 perf_mmap__read_head(struct perf_mmap *map);
+
 #endif /* __LIBPERF_INTERNAL_MMAP_H */

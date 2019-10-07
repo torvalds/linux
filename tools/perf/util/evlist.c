@@ -42,6 +42,7 @@
 #include <perf/evlist.h>
 #include <perf/evsel.h>
 #include <perf/cpumap.h>
+#include <perf/mmap.h>
 
 #include <internal/xyarray.h>
 
@@ -1818,7 +1819,7 @@ static void *perf_evlist__poll_thread(void *arg)
 				else
 					pr_warning("cannot locate proper evsel for the side band event\n");
 
-				perf_mmap__consume(map);
+				perf_mmap__consume(&map->core);
 				got_data = true;
 			}
 			perf_mmap__read_done(map);

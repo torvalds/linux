@@ -5,6 +5,7 @@
 #include <sys/prctl.h>
 #include <perf/cpumap.h>
 #include <perf/evlist.h>
+#include <perf/mmap.h>
 
 #include "debug.h"
 #include "parse-events.h"
@@ -46,7 +47,7 @@ static int find_comm(struct evlist *evlist, const char *comm)
 			    (pid_t)event->comm.tid == getpid() &&
 			    strcmp(event->comm.comm, comm) == 0)
 				found += 1;
-			perf_mmap__consume(md);
+			perf_mmap__consume(&md->core);
 		}
 		perf_mmap__read_done(md);
 	}

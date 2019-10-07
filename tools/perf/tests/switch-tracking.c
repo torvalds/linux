@@ -8,6 +8,7 @@
 #include <linux/zalloc.h>
 #include <perf/cpumap.h>
 #include <perf/evlist.h>
+#include <perf/mmap.h>
 
 #include "debug.h"
 #include "parse-events.h"
@@ -275,7 +276,7 @@ static int process_events(struct evlist *evlist,
 		while ((event = perf_mmap__read_event(md)) != NULL) {
 			cnt += 1;
 			ret = add_event(evlist, &events, event);
-			 perf_mmap__consume(md);
+			 perf_mmap__consume(&md->core);
 			if (ret < 0)
 				goto out_free_nodes;
 		}

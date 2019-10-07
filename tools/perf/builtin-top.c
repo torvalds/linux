@@ -82,6 +82,7 @@
 #include <linux/err.h>
 
 #include <linux/ctype.h>
+#include <perf/mmap.h>
 
 static volatile int done;
 static volatile int resize;
@@ -883,7 +884,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 		if (ret)
 			break;
 
-		perf_mmap__consume(md);
+		perf_mmap__consume(&md->core);
 
 		if (top->qe.rotate) {
 			pthread_mutex_lock(&top->qe.mutex);

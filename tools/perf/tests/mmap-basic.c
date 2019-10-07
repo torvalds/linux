@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <perf/evlist.h>
+#include <perf/mmap.h>
 
 /*
  * This test will generate random numbers of calls to some getpid syscalls,
@@ -139,7 +140,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 			goto out_delete_evlist;
 		}
 		nr_events[evsel->idx]++;
-		perf_mmap__consume(md);
+		perf_mmap__consume(&md->core);
 	}
 	perf_mmap__read_done(md);
 

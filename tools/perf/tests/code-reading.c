@@ -10,6 +10,7 @@
 #include <sys/param.h>
 #include <perf/cpumap.h>
 #include <perf/evlist.h>
+#include <perf/mmap.h>
 
 #include "debug.h"
 #include "dso.h"
@@ -430,7 +431,7 @@ static int process_events(struct machine *machine, struct evlist *evlist,
 
 		while ((event = perf_mmap__read_event(md)) != NULL) {
 			ret = process_event(machine, evlist, event, state);
-			perf_mmap__consume(md);
+			perf_mmap__consume(&md->core);
 			if (ret < 0)
 				return ret;
 		}

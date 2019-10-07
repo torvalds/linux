@@ -15,6 +15,7 @@
 #include <linux/string.h>
 #include <api/fs/fs.h>
 #include <bpf/bpf.h>
+#include <perf/mmap.h>
 #include "tests.h"
 #include "llvm.h"
 #include "debug.h"

@@ -6,6 +6,7 @@
 #include <pthread.h>
 
 #include <sched.h>
+#include <perf/mmap.h>
 #include "evlist.h"
 #include "evsel.h"
 #include "debug.h"
@@ -276,7 +277,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 					++errs;
 				}
 
-				perf_mmap__consume(md);
+				perf_mmap__consume(&md->core);
 			}
 			perf_mmap__read_done(md);
 		}

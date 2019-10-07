@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <sys/mman.h>
+#include <linux/ring_buffer.h>
+#include <linux/perf_event.h>
+#include <perf/mmap.h>
 #include <internal/mmap.h>
 #include <internal/lib.h>
 #include <linux/kernel.h>
@@ -58,4 +61,33 @@ void perf_mmap__put(struct perf_mmap *map)
 
 	if (refcount_dec_and_test(&map->refcnt))
 		perf_mmap__munmap(map);
+}
+
+static inline void perf_mmap__write_tail(struct perf_mmap *md, u64 tail)
+{
+	ring_buffer_write_tail(md->base, tail);
+}
+
+u64 perf_mmap__read_head(struct perf_mmap *map)
+{
+	return ring_buffer_read_head(map->base);
+}
+
+static bool perf_mmap__empty(struct perf_mmap *map)
+{
+	struct perf_event_mmap_page *pc = map->base;
+
+	return perf_mmap__read_head(map) == map->prev && !pc->aux_size;
+}
+
+void perf_mmap__consume(struct perf_mmap *map)
+{
+	if (!map->overwrite) {
+		u64 old = map->prev;
+
+		perf_mmap__write_tail(map, old);
+	}
+
+	if (refcount_read(&map->refcnt) == 1 && perf_mmap__empty(map))
+		perf_mmap__put(map);
 }

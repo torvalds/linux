@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "util/mmap.h"
 #include <errno.h>
+#include <perf/mmap.h>
 
 #ifndef O_DIRECTORY
 #define O_DIRECTORY    00200000
@@ -103,7 +104,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 				++nr_events;
 
 				if (type != PERF_RECORD_SAMPLE) {
-					perf_mmap__consume(md);
+					perf_mmap__consume(&md->core);
 					continue;
 				}
 
