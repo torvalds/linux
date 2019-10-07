@@ -832,8 +832,7 @@ static struct tc_cookie *nla_memdup_cookie(struct nlattr **tb)
 }
 
 static const struct nla_policy tcf_action_policy[TCA_ACT_MAX + 1] = {
-	[TCA_ACT_KIND]		= { .type = NLA_NUL_STRING,
-				    .len = IFNAMSIZ - 1 },
+	[TCA_ACT_KIND]		= { .type = NLA_STRING },
 	[TCA_ACT_INDEX]		= { .type = NLA_U32 },
 	[TCA_ACT_COOKIE]	= { .type = NLA_BINARY,
 				    .len = TC_COOKIE_MAX_SIZE },
@@ -865,8 +864,10 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 			NL_SET_ERR_MSG(extack, "TC action kind must be specified");
 			goto err_out;
 		}
-		nla_strlcpy(act_name, kind, IFNAMSIZ);
-
+		if (nla_strlcpy(act_name, kind, IFNAMSIZ) >= IFNAMSIZ) {
+			NL_SET_ERR_MSG(extack, "TC action name too long");
+			goto err_out;
+		}
 		if (tb[TCA_ACT_COOKIE]) {
 			cookie = nla_memdup_cookie(tb);
 			if (!cookie) {
