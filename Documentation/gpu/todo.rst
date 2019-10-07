@@ -299,18 +299,6 @@ connector register/unregister fixes
 Core refactorings
 =================
 
-Clean up the DRM header mess
-----------------------------
-
-The DRM subsystem originally had only one huge global header, ``drmP.h``. This
-is now split up, but many source files still include it. The remaining part of
-the cleanup work here is to replace any ``#include <drm/drmP.h>`` by only the
-headers needed (and fixing up any missing pre-declarations in the headers).
-
-In the end no .c file should need to include ``drmP.h`` anymore.
-
-Contact: Daniel Vetter
-
 Make panic handling work
 ------------------------
 
