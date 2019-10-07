@@ -238,8 +238,8 @@ int can_rx_offload_irq_offload_timestamp(struct can_rx_offload *offload,
 		skb_queue_splice_tail(&skb_queue, &offload->skb_queue);
 		spin_unlock_irqrestore(&offload->skb_queue.lock, flags);
 
-		if ((queue_len = skb_queue_len(&offload->skb_queue)) >
-		    (offload->skb_queue_len_max / 8))
+		queue_len = skb_queue_len(&offload->skb_queue);
+		if (queue_len > offload->skb_queue_len_max / 8)
 			netdev_dbg(offload->dev, "%s: queue_len=%d\n",
 				   __func__, queue_len);
 
