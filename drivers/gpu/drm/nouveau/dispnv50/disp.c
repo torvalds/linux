@@ -783,6 +783,19 @@ struct nv50_msto {
 	bool disabled;
 };
 
+struct nouveau_encoder *nv50_real_outp(struct drm_encoder *encoder)
+{
+	struct nv50_msto *msto;
+
+	if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST)
+		return nouveau_encoder(encoder);
+
+	msto = nv50_msto(encoder);
+	if (!msto->mstc)
+		return NULL;
+	return msto->mstc->mstm->outp;
+}
+
 static struct drm_dp_payload *
 nv50_msto_payload(struct nv50_msto *msto)
 {
@@ -1932,6 +1945,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	int i;
 
 	NV_ATOMIC(drm, "commit %d %d\n", atom->lock_core, atom->flush_disable);
+	nv50_crc_atomic_stop_reporting(state);
 	drm_atomic_helper_wait_for_fences(dev, state, false);
 	drm_atomic_helper_wait_for_dependencies(state);
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
@@ -2001,6 +2015,8 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 			memset(interlock, 0x00, sizeof(interlock));
 		}
 	}
+
+	nv50_crc_atomic_prepare_notifier_contexts(state);
 
 	/* Update output path(s). */
 	list_for_each_entry_safe(outp, outt, &atom->outp, head) {
@@ -2115,6 +2131,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		}
 	}
 
+	nv50_crc_atomic_start_reporting(state);
 	drm_atomic_helper_commit_hw_done(state);
 	drm_atomic_helper_cleanup_planes(dev, state);
 	drm_atomic_helper_commit_cleanup_done(state);

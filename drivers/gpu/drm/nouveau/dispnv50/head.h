@@ -1,22 +1,28 @@
 #ifndef __NV50_KMS_HEAD_H__
 #define __NV50_KMS_HEAD_H__
 #define nv50_head(c) container_of((c), struct nv50_head, base.base)
+#include <linux/workqueue.h>
+
 #include "disp.h"
 #include "atom.h"
+#include "crc.h"
 #include "lut.h"
 
 #include "nouveau_crtc.h"
+#include "nouveau_encoder.h"
 
 struct nv50_head {
 	const struct nv50_head_func *func;
 	struct nouveau_crtc base;
+	struct nv50_crc crc;
 	struct nv50_lut olut;
 	struct nv50_msto *msto;
 };
 
 struct nv50_head *nv50_head_create(struct drm_device *, int index);
-void nv50_head_flush_set(struct nv50_head *, struct nv50_head_atom *);
-void nv50_head_flush_clr(struct nv50_head *, struct nv50_head_atom *, bool y);
+void nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh);
+void nv50_head_flush_clr(struct nv50_head *head,
+			 struct nv50_head_atom *asyh, bool flush);
 
 struct nv50_head_func {
 	void (*view)(struct nv50_head *, struct nv50_head_atom *);

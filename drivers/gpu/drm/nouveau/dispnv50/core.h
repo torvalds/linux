@@ -2,6 +2,7 @@
 #define __NV50_KMS_CORE_H__
 #include "disp.h"
 #include "atom.h"
+#include "crc.h"
 #include <nouveau_encoder.h>
 
 struct nv50_core {
@@ -26,6 +27,9 @@ struct nv50_core_func {
 	} wndw;
 
 	const struct nv50_head_func *head;
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	const struct nv50_crc_func *crc;
+#endif
 	const struct nv50_outp_func {
 		void (*ctrl)(struct nv50_core *, int or, u32 ctrl,
 			     struct nv50_head_atom *);

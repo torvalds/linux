@@ -46,10 +46,10 @@ headc37d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 		}
 
 		evo_mthd(push, 0x2004 + (head->base.index * 0x400), 1);
-		evo_data(push, 0x00000001 |
-			       asyh->or.depth << 4 |
+		evo_data(push, depth << 4 |
 			       asyh->or.nvsync << 3 |
-			       asyh->or.nhsync << 2);
+			       asyh->or.nhsync << 2 |
+			       asyh->or.crc_raster);
 		evo_kick(push, core);
 	}
 }

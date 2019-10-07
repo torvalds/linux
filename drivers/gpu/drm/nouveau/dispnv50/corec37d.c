@@ -142,6 +142,9 @@ corec37d = {
 	.wndw.owner = corec37d_wndw_owner,
 	.head = &headc37d,
 	.sor = &sorc37d,
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	.crc = &crcc37d,
+#endif
 };
 
 int
