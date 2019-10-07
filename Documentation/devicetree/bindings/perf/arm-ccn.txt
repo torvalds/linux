@@ -6,6 +6,7 @@ Required properties:
 	"arm,ccn-502"
 	"arm,ccn-504"
 	"arm,ccn-508"
+	"arm,ccn-512"
 
 - reg: (standard registers property) physical address and size
 	(16MB) of the configuration registers block
