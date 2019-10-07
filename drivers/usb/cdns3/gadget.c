@@ -2571,6 +2571,7 @@ static int cdns3_gadget_start(struct cdns3 *cdns)
 	switch (max_speed) {
 	case USB_SPEED_FULL:
 		writel(USB_CONF_SFORCE_FS, &priv_dev->regs->usb_conf);
+		writel(USB_CONF_USB3DIS, &priv_dev->regs->usb_conf);
 		break;
 	case USB_SPEED_HIGH:
 		writel(USB_CONF_USB3DIS, &priv_dev->regs->usb_conf);
