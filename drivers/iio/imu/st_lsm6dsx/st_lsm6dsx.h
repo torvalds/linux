@@ -153,12 +153,14 @@ struct st_lsm6dsx_fifo_ops {
  * @hr_timer: Hw timer resolution register info (addr + mask).
  * @fifo_en: Hw timer FIFO enable register info (addr + mask).
  * @decimator: Hw timer FIFO decimator register info (addr + mask).
+ * @freq_fine: Difference in % of ODR with respect to the typical.
  */
 struct st_lsm6dsx_hw_ts_settings {
 	struct st_lsm6dsx_reg timer_en;
 	struct st_lsm6dsx_reg hr_timer;
 	struct st_lsm6dsx_reg fifo_en;
 	struct st_lsm6dsx_reg decimator;
+	u8 freq_fine;
 };
 
 /**
@@ -346,6 +348,7 @@ struct st_lsm6dsx_sensor {
  * @fifo_mode: FIFO operating mode supported by the device.
  * @suspend_mask: Suspended sensor bitmask.
  * @enable_mask: Enabled sensor bitmask.
+ * @ts_gain: Hw timestamp rate after internal calibration.
  * @ts_sip: Total number of timestamp samples in a given pattern.
  * @sip: Total number of samples (acc/gyro/ts) in a given pattern.
  * @buff: Device read buffer.
@@ -367,6 +370,7 @@ struct st_lsm6dsx_hw {
 	enum st_lsm6dsx_fifo_mode fifo_mode;
 	u8 suspend_mask;
 	u8 enable_mask;
+	s64 ts_gain;
 	u8 ts_sip;
 	u8 sip;
 

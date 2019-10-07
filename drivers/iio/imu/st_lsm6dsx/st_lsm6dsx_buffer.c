@@ -50,7 +50,6 @@
 
 #define ST_LSM6DSX_MAX_FIFO_ODR_VAL		0x08
 
-#define ST_LSM6DSX_TS_SENSITIVITY		25000UL /* 25us */
 #define ST_LSM6DSX_TS_RESET_VAL			0xaa
 
 struct st_lsm6dsx_decimator_entry {
@@ -423,7 +422,7 @@ int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 				 */
 				if (!reset_ts && ts >= 0xff0000)
 					reset_ts = true;
-				ts *= ST_LSM6DSX_TS_SENSITIVITY;
+				ts *= hw->ts_gain;
 
 				offset += ST_LSM6DSX_SAMPLE_SIZE;
 			}
@@ -572,7 +571,7 @@ int st_lsm6dsx_read_tagged_fifo(struct st_lsm6dsx_hw *hw)
 				 */
 				if (!reset_ts && ts >= 0xffff0000)
 					reset_ts = true;
-				ts *= ST_LSM6DSX_TS_SENSITIVITY;
+				ts *= hw->ts_gain;
 			} else {
 				st_lsm6dsx_push_tagged_data(hw, tag, iio_buff,
 							    ts);
