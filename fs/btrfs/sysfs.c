@@ -295,8 +295,30 @@ static ssize_t rmdir_subvol_show(struct kobject *kobj,
 }
 BTRFS_ATTR(static_feature, rmdir_subvol, rmdir_subvol_show);
 
+static ssize_t supported_checksums_show(struct kobject *kobj,
+					struct kobj_attribute *a, char *buf)
+{
+	ssize_t ret = 0;
+	int i;
+
+	for (i = 0; i < btrfs_get_num_csums(); i++) {
+		/*
+		 * This "trick" only works as long as 'enum btrfs_csum_type' has
+		 * no holes in it
+		 */
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%s%s",
+				(i == 0 ? "" : " "), btrfs_super_csum_name(i));
+
+	}
+
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
+	return ret;
+}
+BTRFS_ATTR(static_feature, supported_checksums, supported_checksums_show);
+
 static struct attribute *btrfs_supported_static_feature_attrs[] = {
 	BTRFS_ATTR_PTR(static_feature, rmdir_subvol),
+	BTRFS_ATTR_PTR(static_feature, supported_checksums),
 	NULL
 };
 
