@@ -1194,6 +1194,9 @@ static int gmc_v9_0_hw_init(void *handle)
 		/* TODO for renoir */
 		mmhub_v1_0_update_power_gating(adev, true);
 		break;
+	case CHIP_ARCTURUS:
+		WREG32_FIELD15(HDP, 0, HDP_MMHUB_CNTL, HDP_MMHUB_GCC, 1);
+		break;
 	default:
 		break;
 	}
