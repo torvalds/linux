@@ -827,6 +827,7 @@ xfs_attr_shortform_to_leaf(
 
 	xfs_idata_realloc(dp, -size, XFS_ATTR_FORK);
 	xfs_bmap_local_to_extents_empty(dp, XFS_ATTR_FORK);
+	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE);
 
 	bp = NULL;
 	error = xfs_da_grow_inode(args, &blkno);
