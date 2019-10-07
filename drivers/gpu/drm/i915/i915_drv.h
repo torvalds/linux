@@ -1332,61 +1332,7 @@ struct drm_i915_private {
 
 	struct intel_runtime_pm runtime_pm;
 
-	struct {
-		bool initialized;
-
-		struct kobject *metrics_kobj;
-		struct ctl_table_header *sysctl_header;
-
-		/*
-		 * Lock associated with adding/modifying/removing OA configs
-		 * in dev_priv->perf.metrics_idr.
-		 */
-		struct mutex metrics_lock;
-
-		/*
-		 * List of dynamic configurations, you need to hold
-		 * dev_priv->perf.metrics_lock to access it.
-		 */
-		struct idr metrics_idr;
-
-		/*
-		 * Lock associated with anything below within this structure
-		 * except exclusive_stream.
-		 */
-		struct mutex lock;
-		struct list_head streams;
-
-		/*
-		 * The stream currently using the OA unit. If accessed
-		 * outside a syscall associated to its file
-		 * descriptor, you need to hold
-		 * dev_priv->drm.struct_mutex.
-		 */
-		struct i915_perf_stream *exclusive_stream;
-
-		/**
-		 * For rate limiting any notifications of spurious
-		 * invalid OA reports
-		 */
-		struct ratelimit_state spurious_report_rs;
-
-		struct i915_oa_config test_config;
-
-		u32 gen7_latched_oastatus1;
-		u32 ctx_oactxctrl_offset;
-		u32 ctx_flexeu0_offset;
-
-		/**
-		 * The RPT_ID/reason field for Gen8+ includes a bit
-		 * to determine if the CTX ID in the report is valid
-		 * but the specific bit differs between Gen 8 and 9
-		 */
-		u32 gen8_valid_ctx_bit;
-
-		struct i915_oa_ops ops;
-		const struct i915_oa_format *oa_formats;
-	} perf;
+	struct i915_perf perf;
 
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
 	struct intel_gt gt;
