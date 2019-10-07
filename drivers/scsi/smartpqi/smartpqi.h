@@ -912,7 +912,6 @@ struct pqi_scsi_dev {
 	u8	scsi3addr[8];
 	__be64	wwid;
 	u8	volume_id[16];
-	u8	unique_id[16];
 	u8	is_physical_device : 1;
 	u8	is_external_raid_device : 1;
 	u8	is_expander_smp_device : 1;
