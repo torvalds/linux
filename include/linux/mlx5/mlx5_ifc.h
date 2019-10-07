@@ -9471,6 +9471,13 @@ struct mlx5_ifc_mcda_reg_bits {
 	u8         data[0][0x20];
 };
 
+struct mlx5_ifc_mirc_reg_bits {
+	u8         reserved_at_0[0x18];
+	u8         status_code[0x8];
+
+	u8         reserved_at_20[0x20];
+};
+
 union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_bufferx_reg_bits bufferx_reg;
 	struct mlx5_ifc_eth_2819_cntrs_grp_data_layout_bits eth_2819_cntrs_grp_data_layout;
@@ -9526,6 +9533,7 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_mcqi_reg_bits mcqi_reg;
 	struct mlx5_ifc_mcc_reg_bits mcc_reg;
 	struct mlx5_ifc_mcda_reg_bits mcda_reg;
+	struct mlx5_ifc_mirc_reg_bits mirc_reg;
 	u8         reserved_at_0[0x60e0];
 };
 
