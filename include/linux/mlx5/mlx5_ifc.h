@@ -8832,6 +8832,28 @@ struct mlx5_ifc_mcam_access_reg_bits {
 	u8         regs_31_to_0[0x20];
 };
 
+struct mlx5_ifc_mcam_access_reg_bits1 {
+	u8         regs_127_to_96[0x20];
+
+	u8         regs_95_to_64[0x20];
+
+	u8         regs_63_to_32[0x20];
+
+	u8         regs_31_to_0[0x20];
+};
+
+struct mlx5_ifc_mcam_access_reg_bits2 {
+	u8         regs_127_to_99[0x1d];
+	u8         mirc[0x1];
+	u8         regs_97_to_96[0x2];
+
+	u8         regs_95_to_64[0x20];
+
+	u8         regs_63_to_32[0x20];
+
+	u8         regs_31_to_0[0x20];
+};
+
 struct mlx5_ifc_mcam_reg_bits {
 	u8         reserved_at_0[0x8];
 	u8         feature_group[0x8];
@@ -8842,6 +8864,8 @@ struct mlx5_ifc_mcam_reg_bits {
 
 	union {
 		struct mlx5_ifc_mcam_access_reg_bits access_regs;
+		struct mlx5_ifc_mcam_access_reg_bits1 access_regs1;
+		struct mlx5_ifc_mcam_access_reg_bits2 access_regs2;
 		u8         reserved_at_0[0x80];
 	} mng_access_reg_cap_mask;
 
