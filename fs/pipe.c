@@ -463,6 +463,11 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			spin_lock_irq(&pipe->wait.lock);
 
 			head = pipe->head;
+			if (pipe_full(head, pipe->tail, max_usage)) {
+				spin_unlock_irq(&pipe->wait.lock);
+				continue;
+			}
+
 			pipe->head = head + 1;
 
 			/* Always wake up, even if the copy fails. Otherwise
