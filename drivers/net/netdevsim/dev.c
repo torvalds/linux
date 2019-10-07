@@ -510,6 +510,13 @@ static int nsim_dev_reload_up(struct devlink *devlink,
 	return nsim_dev_reload_create(nsim_dev, extack);
 }
 
+static int nsim_dev_info_get(struct devlink *devlink,
+			     struct devlink_info_req *req,
+			     struct netlink_ext_ack *extack)
+{
+	return devlink_info_driver_name_put(req, DRV_NAME);
+}
+
 #define NSIM_DEV_FLASH_SIZE 500000
 #define NSIM_DEV_FLASH_CHUNK_SIZE 1000
 #define NSIM_DEV_FLASH_CHUNK_TIME_MS 10
@@ -603,6 +610,7 @@ nsim_dev_devlink_trap_action_set(struct devlink *devlink,
 static const struct devlink_ops nsim_dev_devlink_ops = {
 	.reload_down = nsim_dev_reload_down,
 	.reload_up = nsim_dev_reload_up,
+	.info_get = nsim_dev_info_get,
 	.flash_update = nsim_dev_flash_update,
 	.trap_init = nsim_dev_devlink_trap_init,
 	.trap_action_set = nsim_dev_devlink_trap_action_set,
