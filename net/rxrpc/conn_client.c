@@ -353,6 +353,7 @@ static int rxrpc_get_client_conn(struct rxrpc_sock *rx,
 
 	if (cp->exclusive) {
 		call->conn = candidate;
+		call->security = candidate->security;
 		call->security_ix = candidate->security_ix;
 		call->service_id = candidate->service_id;
 		_leave(" = 0 [exclusive %d]", candidate->debug_id);
@@ -404,6 +405,7 @@ static int rxrpc_get_client_conn(struct rxrpc_sock *rx,
 candidate_published:
 	set_bit(RXRPC_CONN_IN_CLIENT_CONNS, &candidate->flags);
 	call->conn = candidate;
+	call->security = candidate->security;
 	call->security_ix = candidate->security_ix;
 	call->service_id = candidate->service_id;
 	spin_unlock(&local->client_conns_lock);
@@ -426,6 +428,7 @@ found_extant_conn:
 
 	spin_lock(&conn->channel_lock);
 	call->conn = conn;
+	call->security = conn->security;
 	call->security_ix = conn->security_ix;
 	call->service_id = conn->service_id;
 	list_add_tail(&call->chan_wait_link, &conn->waiting_calls);

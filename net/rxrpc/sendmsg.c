@@ -419,7 +419,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 				 call->tx_winsize)
 				sp->hdr.flags |= RXRPC_MORE_PACKETS;
 
-			ret = conn->security->secure_packet(
+			ret = call->security->secure_packet(
 				call, skb, skb->mark, skb->head);
 			if (ret < 0)
 				goto out;
