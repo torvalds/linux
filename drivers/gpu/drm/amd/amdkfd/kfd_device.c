@@ -498,7 +498,7 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	device_info = kfd_supported_devices[asic_type][vf];
 	f2g = kfd2kgd_funcs[asic_type];
 
-	if (!device_info && !f2g) {
+	if (!device_info || !f2g) {
 		dev_err(kfd_device, "%s %s not supported in kfd\n",
 			amdgpu_asic_name[asic_type], vf ? "VF" : "");
 		return NULL;
