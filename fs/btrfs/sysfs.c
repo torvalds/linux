@@ -9,6 +9,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/bug.h>
+#include <crypto/hash.h>
 
 #include "ctree.h"
 #include "disk-io.h"
@@ -626,6 +627,19 @@ static ssize_t btrfs_metadata_uuid_show(struct kobject *kobj,
 
 BTRFS_ATTR(, metadata_uuid, btrfs_metadata_uuid_show);
 
+static ssize_t btrfs_checksum_show(struct kobject *kobj,
+				   struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	u16 csum_type = btrfs_super_csum_type(fs_info->super_copy);
+
+	return snprintf(buf, PAGE_SIZE, "%s (%s)\n",
+			btrfs_super_csum_name(csum_type),
+			crypto_shash_driver_name(fs_info->csum_shash));
+}
+
+BTRFS_ATTR(, checksum, btrfs_checksum_show);
+
 static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, label),
 	BTRFS_ATTR_PTR(, nodesize),
@@ -633,6 +647,7 @@ static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, clone_alignment),
 	BTRFS_ATTR_PTR(, quota_override),
 	BTRFS_ATTR_PTR(, metadata_uuid),
+	BTRFS_ATTR_PTR(, checksum),
 	NULL,
 };
 
