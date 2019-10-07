@@ -4145,6 +4145,7 @@ enum {
 #define _VTOTAL_A	0x6000c
 #define _VBLANK_A	0x60010
 #define _VSYNC_A	0x60014
+#define _EXITLINE_A	0x60018
 #define _PIPEASRC	0x6001c
 #define _BCLRPAT_A	0x60020
 #define _VSYNCSHIFT_A	0x60028
@@ -4195,6 +4196,11 @@ enum {
 #define VSYNCSHIFT(trans)	_MMIO_TRANS2(trans, _VSYNCSHIFT_A)
 #define PIPESRC(trans)		_MMIO_TRANS2(trans, _PIPEASRC)
 #define PIPE_MULT(trans)	_MMIO_TRANS2(trans, _PIPE_MULT_A)
+
+#define EXITLINE(trans)		_MMIO_TRANS2(trans, _EXITLINE_A)
+#define   EXITLINE_ENABLE	REG_BIT(31)
+#define   EXITLINE_MASK		REG_GENMASK(12, 0)
+#define   EXITLINE_SHIFT	0
 
 /*
  * HSW+ eDP PSR registers
@@ -10291,6 +10297,8 @@ enum skl_power_gate {
 /* GEN9 DC */
 #define DC_STATE_EN			_MMIO(0x45504)
 #define  DC_STATE_DISABLE		0
+#define  DC_STATE_EN_DC3CO		REG_BIT(30)
+#define  DC_STATE_DC3CO_STATUS		REG_BIT(29)
 #define  DC_STATE_EN_UPTO_DC5		(1 << 0)
 #define  DC_STATE_EN_DC9		(1 << 3)
 #define  DC_STATE_EN_UPTO_DC6		(2 << 0)
