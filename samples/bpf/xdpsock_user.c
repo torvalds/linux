@@ -378,7 +378,7 @@ static void usage(const char *prog)
 		"  -q, --queue=n	Use queue n (default 0)\n"
 		"  -p, --poll		Use poll syscall\n"
 		"  -S, --xdp-skb=n	Use XDP skb-mod\n"
-		"  -N, --xdp-native=n	Enfore XDP native mode\n"
+		"  -N, --xdp-native=n	Enforce XDP native mode\n"
 		"  -n, --interval=n	Specify statistics update interval (default 1 sec).\n"
 		"  -z, --zero-copy      Force zero-copy mode.\n"
 		"  -c, --copy           Force copy mode.\n"
