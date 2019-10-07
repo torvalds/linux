@@ -131,11 +131,11 @@ static int mlx5_get_pcam_reg(struct mlx5_core_dev *dev)
 				   MLX5_PCAM_REGS_5000_TO_507F);
 }
 
-static int mlx5_get_mcam_reg(struct mlx5_core_dev *dev)
+static int mlx5_get_mcam_access_reg_group(struct mlx5_core_dev *dev,
+					  enum mlx5_mcam_reg_groups group)
 {
-	return mlx5_query_mcam_reg(dev, dev->caps.mcam,
-				   MLX5_MCAM_FEATURE_ENHANCED_FEATURES,
-				   MLX5_MCAM_REGS_FIRST_128);
+	return mlx5_query_mcam_reg(dev, dev->caps.mcam[group],
+				   MLX5_MCAM_FEATURE_ENHANCED_FEATURES, group);
 }
 
 static int mlx5_get_qcam_reg(struct mlx5_core_dev *dev)
@@ -221,8 +221,11 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 	if (MLX5_CAP_GEN(dev, pcam_reg))
 		mlx5_get_pcam_reg(dev);
 
-	if (MLX5_CAP_GEN(dev, mcam_reg))
-		mlx5_get_mcam_reg(dev);
+	if (MLX5_CAP_GEN(dev, mcam_reg)) {
+		mlx5_get_mcam_access_reg_group(dev, MLX5_MCAM_REGS_FIRST_128);
+		mlx5_get_mcam_access_reg_group(dev, MLX5_MCAM_REGS_0x9080_0x90FF);
+		mlx5_get_mcam_access_reg_group(dev, MLX5_MCAM_REGS_0x9100_0x917F);
+	}
 
 	if (MLX5_CAP_GEN(dev, qcam_reg))
 		mlx5_get_qcam_reg(dev);
