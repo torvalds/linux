@@ -1336,6 +1336,12 @@ struct display_stream_compressor *dcn21_dsc_create(
 
 static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
+	/*
+	TODO: Fix this function to calcualte correct values.
+	There are known issues with this function currently
+	that will need to be investigated. Use hardcoded known good values for now.
+
+
 	struct dcn21_resource_pool *pool = TO_DCN21_RES_POOL(dc->res_pool);
 	struct clk_limit_table *clk_table = &bw_params->clk_table;
 	int i;
@@ -1350,11 +1356,11 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 		dcn2_1_soc.clock_limits[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
 		dcn2_1_soc.clock_limits[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
 		dcn2_1_soc.clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
-		/* This is probably wrong, TODO: find correct calculation */
 		dcn2_1_soc.clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 16 / 1000;
 	}
 	dcn2_1_soc.clock_limits[i] = dcn2_1_soc.clock_limits[i - i];
 	dcn2_1_soc.num_states = i;
+	*/
 }
 
 /* Temporary Place holder until we can get them from fuse */
