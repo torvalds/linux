@@ -170,30 +170,47 @@ end:
 static int pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_oxfw *oxfw = substream->private_data;
+	struct amdtp_domain *d = &oxfw->domain;
 	int err;
 
 	err = snd_oxfw_stream_lock_try(oxfw);
 	if (err < 0)
-		goto end;
+		return err;
 
 	err = init_hw_params(oxfw, substream);
 	if (err < 0)
 		goto err_locked;
 
-	/*
-	 * When any PCM streams are already running, the available sampling
-	 * rate is limited at current value.
-	 */
-	if (amdtp_stream_pcm_running(&oxfw->tx_stream) ||
-	    amdtp_stream_pcm_running(&oxfw->rx_stream)) {
+	mutex_lock(&oxfw->mutex);
+
+	// When source of clock is not internal or any stream is reserved for
+	// transmission of PCM frames, the available sampling rate is limited
+	// at current one.
+	if (oxfw->substreams_count > 0 && d->events_per_period > 0) {
+		unsigned int frames_per_period = d->events_per_period;
+
 		err = limit_to_current_params(substream);
-		if (err < 0)
-			goto end;
+		if (err < 0) {
+			mutex_unlock(&oxfw->mutex);
+			goto err_locked;
+		}
+
+		if (frames_per_period > 0) {
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+					frames_per_period, frames_per_period);
+			if (err < 0) {
+				mutex_unlock(&oxfw->mutex);
+				goto err_locked;
+			}
+		}
 	}
 
+	mutex_unlock(&oxfw->mutex);
+
 	snd_pcm_set_sync(substream);
-end:
-	return err;
+
+	return 0;
 err_locked:
 	snd_oxfw_stream_lock_release(oxfw);
 	return err;
