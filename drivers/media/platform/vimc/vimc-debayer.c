@@ -491,7 +491,7 @@ void vimc_deb_rm(struct vimc_device *vimc, struct vimc_ent_device *ved)
 	struct vimc_deb_device *vdeb;
 
 	vdeb = container_of(ved, struct vimc_deb_device, ved);
-	vimc_ent_sd_unregister(ved, &vdeb->sd);
+	v4l2_device_unregister_subdev(&vdeb->sd);
 }
 
 struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,

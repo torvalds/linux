@@ -305,7 +305,7 @@ void vimc_sen_rm(struct vimc_device *vimc, struct vimc_ent_device *ved)
 	struct vimc_sen_device *vsen;
 
 	vsen = container_of(ved, struct vimc_sen_device, ved);
-	vimc_ent_sd_unregister(ved, &vsen->sd);
+	v4l2_device_unregister_subdev(&vsen->sd);
 }
 
 /* Image Processing Controls */

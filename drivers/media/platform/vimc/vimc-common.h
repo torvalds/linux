@@ -252,18 +252,6 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 			 const struct v4l2_subdev_ops *sd_ops);
 
 /**
- * vimc_ent_sd_unregister - cleanup and unregister a subdev node
- *
- * @ved:	the vimc_ent_device struct to be cleaned up
- * @sd:		the v4l2_subdev struct to be unregistered
- *
- * Helper function cleanup and unregister the struct vimc_ent_device and struct
- * v4l2_subdev which represents a subdev node in the topology
- */
-void vimc_ent_sd_unregister(struct vimc_ent_device *ved,
-			    struct v4l2_subdev *sd);
-
-/**
  * vimc_link_validate - validates a media link
  *
  * @link: pointer to &struct media_link

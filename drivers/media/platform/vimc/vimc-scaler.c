@@ -350,7 +350,7 @@ void vimc_sca_rm(struct vimc_device *vimc, struct vimc_ent_device *ved)
 	struct vimc_sca_device *vsca;
 
 	vsca = container_of(ved, struct vimc_sca_device, ved);
-	vimc_ent_sd_unregister(ved, &vsca->sd);
+	v4l2_device_unregister_subdev(&vsca->sd);
 }
 
 struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,

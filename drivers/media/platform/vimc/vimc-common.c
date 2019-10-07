@@ -421,8 +421,3 @@ err_clean_pads:
 }
 EXPORT_SYMBOL_GPL(vimc_ent_sd_register);
 
-void vimc_ent_sd_unregister(struct vimc_ent_device *ved, struct v4l2_subdev *sd)
-{
-	v4l2_device_unregister_subdev(sd);
-}
-EXPORT_SYMBOL_GPL(vimc_ent_sd_unregister);
