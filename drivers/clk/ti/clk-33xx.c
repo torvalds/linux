@@ -217,7 +217,7 @@ static const struct omap_clkctrl_reg_data am3_l4_rtc_clkctrl_regs[] __initconst 
 };
 
 static const struct omap_clkctrl_reg_data am3_gfx_l3_clkctrl_regs[] __initconst = {
-	{ AM3_GFX_L3_GFX_CLKCTRL, NULL, CLKF_SW_SUP, "gfx_fck_div_ck" },
+	{ AM3_GFX_L3_GFX_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_NO_IDLEST, "gfx_fck_div_ck" },
 	{ 0 },
 };
 
