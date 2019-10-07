@@ -168,6 +168,14 @@ mlx5e_ktls_tx_post_param_wqes(struct mlx5e_txqsq *sq,
 			      bool skip_static_post, bool fence_first_post)
 {
 	bool progress_fence = skip_static_post || !fence_first_post;
+	struct mlx5_wq_cyc *wq = &sq->wq;
+	u16 contig_wqebbs_room, pi;
+
+	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	contig_wqebbs_room = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
+	if (unlikely(contig_wqebbs_room <
+		     MLX5E_KTLS_STATIC_WQEBBS + MLX5E_KTLS_PROGRESS_WQEBBS))
+		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
 
 	if (!skip_static_post)
 		post_static_params(sq, priv_tx, fence_first_post);
@@ -355,10 +363,20 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 
 	stats->tls_ooo++;
 
-	num_wqebbs = MLX5E_KTLS_STATIC_WQEBBS + MLX5E_KTLS_PROGRESS_WQEBBS +
-		(info.nr_frags ? info.nr_frags * MLX5E_KTLS_DUMP_WQEBBS : 1);
+	tx_post_resync_params(sq, priv_tx, info.rcd_sn);
+
+	/* If no dump WQE was sent, we need to have a fence NOP WQE before the
+	 * actual data xmit.
+	 */
+	if (!info.nr_frags) {
+		tx_post_fence_nop(sq);
+		return skb;
+	}
+
+	num_wqebbs = info.nr_frags * MLX5E_KTLS_DUMP_WQEBBS;
 	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 	contig_wqebbs_room = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
+
 	if (unlikely(contig_wqebbs_room < num_wqebbs))
 		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
 
@@ -367,12 +385,6 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 	for (; i < info.nr_frags; i++)
 		if (tx_post_resync_dump(sq, &info.frags[i], priv_tx->tisn, !i))
 			goto err_out;
-
-	/* If no dump WQE was sent, we need to have a fence NOP WQE before the
-	 * actual data xmit.
-	 */
-	if (!info.nr_frags)
-		tx_post_fence_nop(sq);
 
 	return skb;
 
