@@ -958,13 +958,9 @@ struct pqi_scsi_dev {
 };
 
 /* VPD inquiry pages */
-#define SCSI_VPD_SUPPORTED_PAGES	0x0	/* standard page */
-#define SCSI_VPD_DEVICE_ID		0x83	/* standard page */
 #define CISS_VPD_LV_DEVICE_GEOMETRY	0xc1	/* vendor-specific page */
 #define CISS_VPD_LV_BYPASS_STATUS	0xc2	/* vendor-specific page */
 #define CISS_VPD_LV_STATUS		0xc3	/* vendor-specific page */
-#define SCSI_VPD_HEADER_SZ		4
-#define SCSI_VPD_DEVICE_ID_IDX		8	/* Index of page id in page */
 
 #define VPD_PAGE	(1 << 8)
 
