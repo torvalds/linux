@@ -1137,13 +1137,7 @@ static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
  */
 static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 {
-	int r, i;
-	bool value;
-	u32 tmp;
-
-	amdgpu_device_program_register_sequence(adev,
-						golden_settings_vega10_hdp,
-						ARRAY_SIZE(golden_settings_vega10_hdp));
+	int r;
 
 	if (adev->gart.bo == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
@@ -1152,15 +1146,6 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	r = amdgpu_gart_table_vram_pin(adev);
 	if (r)
 		return r;
-
-	switch (adev->asic_type) {
-	case CHIP_RAVEN:
-		/* TODO for renoir */
-		mmhub_v1_0_update_power_gating(adev, true);
-		break;
-	default:
-		break;
-	}
 
 	r = gfxhub_v1_0_gart_enable(adev);
 	if (r)
@@ -1172,6 +1157,46 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 		r = mmhub_v1_0_gart_enable(adev);
 	if (r)
 		return r;
+
+	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
+		 (unsigned)(adev->gmc.gart_size >> 20),
+		 (unsigned long long)amdgpu_bo_gpu_offset(adev->gart.bo));
+	adev->gart.ready = true;
+	return 0;
+}
+
+static int gmc_v9_0_hw_init(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	bool value;
+	int r, i;
+	u32 tmp;
+
+	/* The sequence of these two function calls matters.*/
+	gmc_v9_0_init_golden_registers(adev);
+
+	if (adev->mode_info.num_crtc) {
+		if (adev->asic_type != CHIP_ARCTURUS) {
+			/* Lockout access through VGA aperture*/
+			WREG32_FIELD15(DCE, 0, VGA_HDP_CONTROL, VGA_MEMORY_DISABLE, 1);
+
+			/* disable VGA render */
+			WREG32_FIELD15(DCE, 0, VGA_RENDER_CONTROL, VGA_VSTATUS_CNTL, 0);
+		}
+	}
+
+	amdgpu_device_program_register_sequence(adev,
+						golden_settings_vega10_hdp,
+						ARRAY_SIZE(golden_settings_vega10_hdp));
+
+	switch (adev->asic_type) {
+	case CHIP_RAVEN:
+		/* TODO for renoir */
+		mmhub_v1_0_update_power_gating(adev, true);
+		break;
+	default:
+		break;
+	}
 
 	WREG32_FIELD15(HDP, 0, HDP_MISC_CNTL, FLUSH_INVALIDATE_CACHE, 1);
 
@@ -1200,31 +1225,6 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 
 	if (adev->umc.funcs && adev->umc.funcs->init_registers)
 		adev->umc.funcs->init_registers(adev);
-
-	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
-		 (unsigned)(adev->gmc.gart_size >> 20),
-		 (unsigned long long)amdgpu_bo_gpu_offset(adev->gart.bo));
-	adev->gart.ready = true;
-	return 0;
-}
-
-static int gmc_v9_0_hw_init(void *handle)
-{
-	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	/* The sequence of these two function calls matters.*/
-	gmc_v9_0_init_golden_registers(adev);
-
-	if (adev->mode_info.num_crtc) {
-		if (adev->asic_type != CHIP_ARCTURUS) {
-			/* Lockout access through VGA aperture*/
-			WREG32_FIELD15(DCE, 0, VGA_HDP_CONTROL, VGA_MEMORY_DISABLE, 1);
-
-			/* disable VGA render */
-			WREG32_FIELD15(DCE, 0, VGA_RENDER_CONTROL, VGA_VSTATUS_CNTL, 0);
-		}
-	}
 
 	r = gmc_v9_0_gart_enable(adev);
 
