@@ -268,9 +268,11 @@ retry:
 				   BTREE_ITER_INTENT);
 
 	do {
-		ret = bch2_extent_atomic_end(iter, k, &atomic_end);
+		ret = bch2_btree_iter_traverse(iter);
 		if (ret)
 			goto err;
+
+		atomic_end = bpos_min(k->k.p, iter->l[0].b->key.k.p);
 
 		split_iter = bch2_trans_copy_iter(&trans, iter);
 		ret = PTR_ERR_OR_ZERO(split_iter);
