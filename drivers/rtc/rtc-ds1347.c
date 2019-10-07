@@ -52,7 +52,7 @@ static int ds1347_read_time(struct device *dev, struct rtc_time *dt)
 		return err;
 
 	dt->tm_sec = bcd2bin(buf[0]);
-	dt->tm_min = bcd2bin(buf[1]);
+	dt->tm_min = bcd2bin(buf[1] & 0x7f);
 	dt->tm_hour = bcd2bin(buf[2] & 0x3F);
 	dt->tm_mday = bcd2bin(buf[3]);
 	dt->tm_mon = bcd2bin(buf[4]) - 1;
