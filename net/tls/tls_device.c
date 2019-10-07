@@ -452,9 +452,8 @@ static int tls_push_data(struct sock *sk,
 	max_open_record_len = TLS_MAX_PAYLOAD_SIZE +
 			      prot->prepend_size;
 	do {
-		rc = tls_do_allocation(sk, ctx, pfrag,
-				       prot->prepend_size);
-		if (rc) {
+		rc = tls_do_allocation(sk, ctx, pfrag, prot->prepend_size);
+		if (unlikely(rc)) {
 			rc = sk_stream_wait_memory(sk, &timeo);
 			if (!rc)
 				continue;
