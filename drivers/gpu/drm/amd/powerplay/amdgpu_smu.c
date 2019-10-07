@@ -1384,7 +1384,7 @@ static int smu_resume(void *handle)
 	ret = smu_start_smc_engine(smu);
 	if (ret) {
 		pr_err("SMU is not ready yet!\n");
-		return ret;
+		goto failed;
 	}
 
 	ret = smu_smc_table_hw_init(smu, false);
