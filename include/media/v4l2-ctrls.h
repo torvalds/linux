@@ -74,6 +74,18 @@ union v4l2_ctrl_ptr {
 };
 
 /**
+ * v4l2_ctrl_ptr_create() - Helper function to return a v4l2_ctrl_ptr from a
+ * void pointer
+ * @ptr:	The void pointer
+ */
+static inline union v4l2_ctrl_ptr v4l2_ctrl_ptr_create(void *ptr)
+{
+	union v4l2_ctrl_ptr p = { .p = ptr };
+
+	return p;
+}
+
+/**
  * struct v4l2_ctrl_ops - The control operations that the driver has to provide.
  *
  * @g_volatile_ctrl: Get a new value for this control. Generally only relevant
