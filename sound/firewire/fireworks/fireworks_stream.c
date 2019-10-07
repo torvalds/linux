@@ -181,7 +181,8 @@ static int keep_resources(struct snd_efw *efw, struct amdtp_stream *stream,
 	return cmp_connection_reserve(conn, amdtp_stream_get_max_payload(stream));
 }
 
-int snd_efw_stream_reserve_duplex(struct snd_efw *efw, unsigned int rate)
+int snd_efw_stream_reserve_duplex(struct snd_efw *efw, unsigned int rate,
+				  unsigned int frames_per_period)
 {
 	unsigned int curr_rate;
 	int err;
@@ -226,6 +227,14 @@ int snd_efw_stream_reserve_duplex(struct snd_efw *efw, unsigned int rate)
 		err = keep_resources(efw, &efw->rx_stream, rate, mode);
 		if (err < 0) {
 			cmp_connection_release(&efw->in_conn);
+			return err;
+		}
+
+		err = amdtp_domain_set_events_per_period(&efw->domain,
+							 frames_per_period);
+		if (err < 0) {
+			cmp_connection_release(&efw->in_conn);
+			cmp_connection_release(&efw->out_conn);
 			return err;
 		}
 	}
