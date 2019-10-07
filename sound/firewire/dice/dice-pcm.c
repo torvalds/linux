@@ -243,9 +243,14 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		unsigned int rate = params_rate(hw_params);
+		unsigned int events_per_period = params_period_size(hw_params);
 
 		mutex_lock(&dice->mutex);
-		err = snd_dice_stream_reserve_duplex(dice, rate);
+		// For double_pcm_frame quirk.
+		if (rate > 96000)
+			events_per_period /= 2;
+		err = snd_dice_stream_reserve_duplex(dice, rate,
+						     events_per_period);
 		if (err >= 0)
 			++dice->substreams_counter;
 		mutex_unlock(&dice->mutex);
