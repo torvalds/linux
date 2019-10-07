@@ -115,7 +115,7 @@ void perf_mmap__put(struct mmap *map)
 	BUG_ON(map->core.base && refcount_read(&map->core.refcnt) == 0);
 
 	if (refcount_dec_and_test(&map->core.refcnt))
-		perf_mmap__munmap(map);
+		mmap__munmap(map);
 }
 
 void perf_mmap__consume(struct mmap *map)
@@ -306,18 +306,13 @@ static void perf_mmap__aio_munmap(struct mmap *map __maybe_unused)
 }
 #endif
 
-void perf_mmap__munmap(struct mmap *map)
+void mmap__munmap(struct mmap *map)
 {
+	perf_mmap__munmap(&map->core);
 	perf_mmap__aio_munmap(map);
 	if (map->data != NULL) {
 		munmap(map->data, mmap__mmap_len(map));
 		map->data = NULL;
-	}
-	if (map->core.base != NULL) {
-		munmap(map->core.base, mmap__mmap_len(map));
-		map->core.base = NULL;
-		map->core.fd = -1;
-		refcount_set(&map->core.refcnt, 0);
 	}
 	auxtrace_mmap__munmap(&map->auxtrace_mmap);
 }
