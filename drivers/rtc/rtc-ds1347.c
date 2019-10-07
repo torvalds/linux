@@ -102,7 +102,6 @@ static int ds1347_probe(struct spi_device *spi)
 	struct regmap_config config;
 	struct regmap *map;
 	unsigned int data;
-	int res;
 
 	memset(&config, 0, sizeof(config));
 	config.reg_bits = 8;
@@ -124,11 +123,6 @@ static int ds1347_probe(struct spi_device *spi)
 	}
 
 	spi_set_drvdata(spi, map);
-
-	/* RTC Settings */
-	res = regmap_read(map, DS1347_SECONDS_REG, &data);
-	if (res)
-		return res;
 
 	/* Disable the write protect of rtc */
 	regmap_read(map, DS1347_CONTROL_REG, &data);
