@@ -1068,6 +1068,26 @@ int perf_evlist__set_tp_filter(struct evlist *evlist, const char *filter)
 	return err;
 }
 
+int perf_evlist__append_tp_filter(struct evlist *evlist, const char *filter)
+{
+	struct evsel *evsel;
+	int err = 0;
+
+	if (filter == NULL)
+		return -1;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT)
+			continue;
+
+		err = perf_evsel__append_tp_filter(evsel, filter);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
 static char *asprintf__tp_filter_pids(size_t npids, pid_t *pids)
 {
 	char *filter;
