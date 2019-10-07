@@ -29,6 +29,8 @@
 #define DS1347_STATUS_REG	0x17
 #define DS1347_CLOCK_BURST	0x3F
 
+#define DS1347_WP_BIT		BIT(7)
+
 #define DS1347_NEOSC_BIT	BIT(7)
 #define DS1347_OSF_BIT		BIT(2)
 
@@ -117,7 +119,7 @@ static int ds1347_probe(struct spi_device *spi)
 	struct rtc_device *rtc;
 	struct regmap_config config;
 	struct regmap *map;
-	unsigned int data;
+	int err;
 
 	memset(&config, 0, sizeof(config));
 	config.reg_bits = 8;
@@ -141,9 +143,9 @@ static int ds1347_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, map);
 
 	/* Disable the write protect of rtc */
-	regmap_read(map, DS1347_CONTROL_REG, &data);
-	data = data & ~(1<<7);
-	regmap_write(map, DS1347_CONTROL_REG, data);
+	err = regmap_update_bits(map, DS1347_CONTROL_REG, DS1347_WP_BIT, 0);
+	if (err)
+		return err;
 
 	rtc = devm_rtc_allocate_device(&spi->dev);
 	if (IS_ERR(rtc))
