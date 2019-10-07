@@ -794,7 +794,7 @@ static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 			break;
 	}
 
-	perf_mmap__read_done(md);
+	perf_mmap__read_done(&md->core);
 	return n;
 }
 

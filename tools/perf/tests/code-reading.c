@@ -435,7 +435,7 @@ static int process_events(struct machine *machine, struct evlist *evlist,
 			if (ret < 0)
 				return ret;
 		}
-		perf_mmap__read_done(md);
+		perf_mmap__read_done(&md->core);
 	}
 	return 0;
 }

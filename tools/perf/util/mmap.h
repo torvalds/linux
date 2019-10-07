@@ -54,5 +54,4 @@ int perf_mmap__push(struct mmap *md, void *to,
 
 size_t mmap__mmap_len(struct mmap *map);
 
-void perf_mmap__read_done(struct mmap *map);
 #endif /*__PERF_MMAP_H */

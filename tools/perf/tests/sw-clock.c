@@ -120,7 +120,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 next_event:
 		perf_mmap__consume(&md->core);
 	}
-	perf_mmap__read_done(md);
+	perf_mmap__read_done(&md->core);
 
 out_init:
 	if ((u64) nr_samples == total_periods) {

@@ -127,7 +127,7 @@ retry:
 
 		perf_mmap__consume(&md->core);
 	}
-	perf_mmap__read_done(md);
+	perf_mmap__read_done(&md->core);
 
 out_init:
 	if (!exited || !nr_exit) {

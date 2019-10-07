@@ -49,7 +49,7 @@ static int find_comm(struct evlist *evlist, const char *comm)
 				found += 1;
 			perf_mmap__consume(&md->core);
 		}
-		perf_mmap__read_done(md);
+		perf_mmap__read_done(&md->core);
 	}
 	return found;
 }

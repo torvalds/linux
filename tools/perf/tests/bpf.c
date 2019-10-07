@@ -194,7 +194,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 			if (type == PERF_RECORD_SAMPLE)
 				count ++;
 		}
-		perf_mmap__read_done(md);
+		perf_mmap__read_done(&md->core);
 	}
 
 	if (count != expect) {

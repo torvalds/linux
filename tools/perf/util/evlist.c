@@ -1822,7 +1822,7 @@ static void *perf_evlist__poll_thread(void *arg)
 				perf_mmap__consume(&map->core);
 				got_data = true;
 			}
-			perf_mmap__read_done(map);
+			perf_mmap__read_done(&map->core);
 		}
 
 		if (draining && !got_data)
