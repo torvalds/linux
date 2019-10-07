@@ -2663,6 +2663,13 @@ static int __cdns3_gadget_init(struct cdns3 *cdns)
 {
 	int ret = 0;
 
+	/* Ensure 32-bit DMA Mask in case we switched back from Host mode */
+	ret = dma_set_mask_and_coherent(cdns->dev, DMA_BIT_MASK(32));
+	if (ret) {
+		dev_err(cdns->dev, "Failed to set dma mask: %d\n", ret);
+		return ret;
+	}
+
 	cdns3_drd_switch_gadget(cdns, 1);
 	pm_runtime_get_sync(cdns->dev);
 
