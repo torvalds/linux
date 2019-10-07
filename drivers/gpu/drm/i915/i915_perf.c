@@ -1343,10 +1343,8 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 	 * Unset exclusive_stream first, it will be checked while disabling
 	 * the metric set on gen8+.
 	 */
-	mutex_lock(&perf->i915->drm.struct_mutex);
 	perf->exclusive_stream = NULL;
 	perf->ops.disable_metric_set(stream);
-	mutex_unlock(&perf->i915->drm.struct_mutex);
 
 	free_oa_buffer(stream);
 
@@ -1853,7 +1851,7 @@ static int gen8_configure_all_contexts(struct i915_perf_stream *stream,
 	for (i = 2; i < ARRAY_SIZE(regs); i++)
 		regs[i].value = oa_config_flex_reg(oa_config, regs[i].reg);
 
-	lockdep_assert_held(&i915->drm.struct_mutex);
+	lockdep_assert_held(&stream->perf->lock);
 
 	/*
 	 * The OA register config is setup through the context image. This image
@@ -2220,10 +2218,6 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	if (ret)
 		goto err_oa_buf_alloc;
 
-	ret = i915_mutex_lock_interruptible(&stream->perf->i915->drm);
-	if (ret)
-		goto err_lock;
-
 	stream->ops = &i915_oa_stream_ops;
 	perf->exclusive_stream = stream;
 
@@ -2232,8 +2226,6 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 		DRM_DEBUG("Unable to enable metric set\n");
 		goto err_enable;
 	}
-
-	mutex_unlock(&stream->perf->i915->drm.struct_mutex);
 
 	hrtimer_init(&stream->poll_check_timer,
 		     CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -2246,9 +2238,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 err_enable:
 	perf->exclusive_stream = NULL;
 	perf->ops.disable_metric_set(stream);
-	mutex_unlock(&stream->perf->i915->drm.struct_mutex);
 
-err_lock:
 	free_oa_buffer(stream);
 
 err_oa_buf_alloc:
