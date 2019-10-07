@@ -62,6 +62,7 @@ struct i915_sched_node {
 
 struct i915_dependency {
 	struct i915_sched_node *signaler;
+	struct i915_sched_node *waiter;
 	struct list_head signal_link;
 	struct list_head wait_link;
 	struct list_head dfs_link;

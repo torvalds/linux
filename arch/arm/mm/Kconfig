@@ -106,7 +106,7 @@ config CPU_ARM922T
 	help
 	  The ARM922T is a version of the ARM920T, but with smaller
 	  instruction and data caches. It is used in Altera's
-	  Excalibur XA device family and Micrel's KS8695 Centaur.
+	  Excalibur XA device family and the ARM Integrator.
 
 	  Say Y if you want support for the ARM922T processor.
 	  Otherwise, say N.

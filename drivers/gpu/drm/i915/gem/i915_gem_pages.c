@@ -153,24 +153,13 @@ static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
 struct sg_table *
 __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct sg_table *pages;
 
 	pages = fetch_and_zero(&obj->mm.pages);
 	if (IS_ERR_OR_NULL(pages))
 		return pages;
 
-	if (i915_gem_object_is_shrinkable(obj)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&i915->mm.obj_lock, flags);
-
-		list_del(&obj->mm.link);
-		i915->mm.shrink_count--;
-		i915->mm.shrink_memory -= obj->base.size;
-
-		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
-	}
+	i915_gem_object_make_unshrinkable(obj);
 
 	if (obj->mm.mapping) {
 		void *ptr;

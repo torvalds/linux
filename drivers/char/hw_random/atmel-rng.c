@@ -86,7 +86,7 @@ static int atmel_trng_probe(struct platform_device *pdev)
 	trng->rng.name = pdev->name;
 	trng->rng.read = atmel_trng_read;
 
-	ret = hwrng_register(&trng->rng);
+	ret = devm_hwrng_register(&pdev->dev, &trng->rng);
 	if (ret)
 		goto err_register;
 
@@ -103,7 +103,6 @@ static int atmel_trng_remove(struct platform_device *pdev)
 {
 	struct atmel_trng *trng = platform_get_drvdata(pdev);
 
-	hwrng_unregister(&trng->rng);
 
 	atmel_trng_disable(trng);
 	clk_disable_unprepare(trng->clk);

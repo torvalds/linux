@@ -6,6 +6,9 @@
  * Written by Gilad Ben-Yossef <gilad@benyossef.com>
  */
 
+#ifndef _CRYPTO_SM3_BASE_H
+#define _CRYPTO_SM3_BASE_H
+
 #include <crypto/internal/hash.h>
 #include <crypto/sm3.h>
 #include <linux/crypto.h>
@@ -104,3 +107,5 @@ static inline int sm3_base_finish(struct shash_desc *desc, u8 *out)
 	*sctx = (struct sm3_state){};
 	return 0;
 }
+
+#endif /* _CRYPTO_SM3_BASE_H */

@@ -38,7 +38,6 @@ header-test- += linux/ivtv.h
 header-test- += linux/jffs2.h
 header-test- += linux/kexec.h
 header-test- += linux/matroxfb.h
-header-test- += linux/netfilter_bridge/ebtables.h
 header-test- += linux/netfilter_ipv4/ipt_LOG.h
 header-test- += linux/netfilter_ipv6/ip6t_LOG.h
 header-test- += linux/nfc.h
@@ -115,6 +114,4 @@ header-test-y += $(filter-out $(header-test-), \
 			$(patsubst $(obj)/%,%, $(wildcard \
 			$(addprefix $(obj)/, *.h */*.h */*/*.h */*/*/*.h))))
 
-# For GNU Make <= 4.2.1, $(wildcard $(obj)/*/) matches to not only directories
-# but also regular files. Use $(filter %/, ...) just in case.
-clean-dirs += $(patsubst $(obj)/%/,%,$(filter %/, $(wildcard $(obj)/*/)))
+clean-files += $(filter-out Makefile, $(notdir $(wildcard $(obj)/*)))

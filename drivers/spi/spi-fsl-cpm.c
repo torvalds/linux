@@ -305,12 +305,10 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 	}
 
 	if (mspi->flags & SPI_CPM1) {
-		struct resource *res;
 		void *pram;
 
-		res = platform_get_resource(to_platform_device(dev),
-					    IORESOURCE_MEM, 1);
-		pram = devm_ioremap_resource(dev, res);
+		pram = devm_platform_ioremap_resource(to_platform_device(dev),
+						      1);
 		if (IS_ERR(pram))
 			mspi->pram = NULL;
 		else

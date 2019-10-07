@@ -166,6 +166,8 @@ struct ingenic_drm {
 
 	struct ingenic_dma_hwdesc *dma_hwdesc;
 	dma_addr_t dma_hwdesc_phys;
+
+	bool panel_is_sharp;
 };
 
 static const u32 ingenic_drm_primary_formats[] = {
@@ -283,6 +285,13 @@ static void ingenic_drm_crtc_update_timings(struct ingenic_drm *priv,
 	regmap_write(priv->map, JZ_REG_LCD_DAV,
 		     vds << JZ_LCD_DAV_VDS_OFFSET |
 		     vde << JZ_LCD_DAV_VDE_OFFSET);
+
+	if (priv->panel_is_sharp) {
+		regmap_write(priv->map, JZ_REG_LCD_PS, hde << 16 | (hde + 1));
+		regmap_write(priv->map, JZ_REG_LCD_CLS, hde << 16 | (hde + 1));
+		regmap_write(priv->map, JZ_REG_LCD_SPL, hpe << 16 | (hpe + 1));
+		regmap_write(priv->map, JZ_REG_LCD_REV, mode->htotal << 16);
+	}
 }
 
 static void ingenic_drm_crtc_update_ctrl(struct ingenic_drm *priv,
@@ -378,11 +387,18 @@ static void ingenic_drm_encoder_atomic_mode_set(struct drm_encoder *encoder,
 {
 	struct ingenic_drm *priv = drm_encoder_get_priv(encoder);
 	struct drm_display_mode *mode = &crtc_state->adjusted_mode;
-	struct drm_display_info *info = &conn_state->connector->display_info;
-	unsigned int cfg = JZ_LCD_CFG_PS_DISABLE
-			 | JZ_LCD_CFG_CLS_DISABLE
-			 | JZ_LCD_CFG_SPL_DISABLE
-			 | JZ_LCD_CFG_REV_DISABLE;
+	struct drm_connector *conn = conn_state->connector;
+	struct drm_display_info *info = &conn->display_info;
+	unsigned int cfg;
+
+	priv->panel_is_sharp = info->bus_flags & DRM_BUS_FLAG_SHARP_SIGNALS;
+
+	if (priv->panel_is_sharp) {
+		cfg = JZ_LCD_CFG_MODE_SPECIAL_TFT_1 | JZ_LCD_CFG_REV_POLARITY;
+	} else {
+		cfg = JZ_LCD_CFG_PS_DISABLE | JZ_LCD_CFG_CLS_DISABLE
+		    | JZ_LCD_CFG_SPL_DISABLE | JZ_LCD_CFG_REV_DISABLE;
+	}
 
 	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
 		cfg |= JZ_LCD_CFG_HSYNC_ACTIVE_LOW;
@@ -393,24 +409,29 @@ static void ingenic_drm_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	if (info->bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
 		cfg |= JZ_LCD_CFG_PCLK_FALLING_EDGE;
 
-	if (conn_state->connector->connector_type == DRM_MODE_CONNECTOR_TV) {
-		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-			cfg |= JZ_LCD_CFG_MODE_TV_OUT_I;
-		else
-			cfg |= JZ_LCD_CFG_MODE_TV_OUT_P;
-	} else {
-		switch (*info->bus_formats) {
-		case MEDIA_BUS_FMT_RGB565_1X16:
-			cfg |= JZ_LCD_CFG_MODE_GENERIC_16BIT;
-			break;
-		case MEDIA_BUS_FMT_RGB666_1X18:
-			cfg |= JZ_LCD_CFG_MODE_GENERIC_18BIT;
-			break;
-		case MEDIA_BUS_FMT_RGB888_1X24:
-			cfg |= JZ_LCD_CFG_MODE_GENERIC_24BIT;
-			break;
-		default:
-			break;
+	if (!priv->panel_is_sharp) {
+		if (conn->connector_type == DRM_MODE_CONNECTOR_TV) {
+			if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+				cfg |= JZ_LCD_CFG_MODE_TV_OUT_I;
+			else
+				cfg |= JZ_LCD_CFG_MODE_TV_OUT_P;
+		} else {
+			switch (*info->bus_formats) {
+			case MEDIA_BUS_FMT_RGB565_1X16:
+				cfg |= JZ_LCD_CFG_MODE_GENERIC_16BIT;
+				break;
+			case MEDIA_BUS_FMT_RGB666_1X18:
+				cfg |= JZ_LCD_CFG_MODE_GENERIC_18BIT;
+				break;
+			case MEDIA_BUS_FMT_RGB888_1X24:
+				cfg |= JZ_LCD_CFG_MODE_GENERIC_24BIT;
+				break;
+			case MEDIA_BUS_FMT_RGB888_3X8:
+				cfg |= JZ_LCD_CFG_MODE_8BIT_SERIAL;
+				break;
+			default:
+				break;
+			}
 		}
 	}
 
@@ -433,6 +454,7 @@ static int ingenic_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	case MEDIA_BUS_FMT_RGB565_1X16:
 	case MEDIA_BUS_FMT_RGB666_1X18:
 	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB888_3X8:
 		return 0;
 	default:
 		return -EINVAL;
@@ -484,8 +506,7 @@ static void ingenic_drm_disable_vblank(struct drm_crtc *crtc)
 DEFINE_DRM_GEM_CMA_FOPS(ingenic_drm_fops);
 
 static struct drm_driver ingenic_drm_driver_data = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME
-				| DRIVER_ATOMIC,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.name			= "ingenic-drm",
 	.desc			= "DRM module for Ingenic SoCs",
 	.date			= "20190422",
@@ -581,7 +602,6 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 	struct drm_bridge *bridge;
 	struct drm_panel *panel;
 	struct drm_device *drm;
-	struct resource *mem;
 	void __iomem *base;
 	long parent_rate;
 	int ret, irq;
@@ -615,8 +635,7 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 	drm->mode_config.max_height = 600;
 	drm->mode_config.funcs = &ingenic_drm_mode_config_funcs;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, mem);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base)) {
 		dev_err(dev, "Failed to get memory resource");
 		return PTR_ERR(base);

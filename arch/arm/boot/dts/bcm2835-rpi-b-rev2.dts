@@ -9,6 +9,11 @@
 	compatible = "raspberrypi,model-b-rev2", "brcm,bcm2835";
 	model = "Raspberry Pi Model B rev2";
 
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0x10000000>;
+	};
+
 	leds {
 		act {
 			gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
@@ -94,11 +99,20 @@
 
 &hdmi {
 	hpd-gpios = <&gpio 46 GPIO_ACTIVE_HIGH>;
+	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
+	status = "okay";
 };
 
 &pwm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm0_gpio40 &pwm1_gpio45>;
+	status = "okay";
+};
+
+&sdhost {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhost_gpio48>;
+	bus-width = <4>;
 	status = "okay";
 };
 

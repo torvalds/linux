@@ -212,13 +212,7 @@
 		 */
 		gpio-sck = <&gpio0 5 GPIO_ACTIVE_HIGH>;
 		gpio-mosi = <&gpio0 4 GPIO_ACTIVE_HIGH>;
-		/*
-		 * It's not actually active high, but the frameworks assume
-		 * the polarity of the passed-in GPIO is "normal" (active
-		 * high) then actively drives the line low to select the
-		 * chip.
-		 */
-		cs-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
 		num-chipselects = <1>;
 
 		/*

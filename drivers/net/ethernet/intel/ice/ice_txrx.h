@@ -144,6 +144,19 @@ enum ice_rx_dtype {
 #define ICE_DFLT_INTRL	0
 #define ICE_MAX_INTRL	236
 
+#define ICE_WB_ON_ITR_USECS	2
+#define ICE_IN_WB_ON_ITR_MODE	255
+/* Sets WB_ON_ITR and assumes INTENA bit is already cleared, which allows
+ * setting the MSK_M bit to tell hardware to ignore the INTENA_M bit. Also,
+ * set the write-back latency to the usecs passed in.
+ */
+#define ICE_GLINT_DYN_CTL_WB_ON_ITR(usecs, itr_idx)	\
+	((((usecs) << (GLINT_DYN_CTL_INTERVAL_S - ICE_ITR_GRAN_S)) & \
+	  GLINT_DYN_CTL_INTERVAL_M) | \
+	 (((itr_idx) << GLINT_DYN_CTL_ITR_INDX_S) & \
+	  GLINT_DYN_CTL_ITR_INDX_M) | GLINT_DYN_CTL_INTENA_MSK_M | \
+	 GLINT_DYN_CTL_WB_ON_ITR_M)
+
 /* Legacy or Advanced Mode Queue */
 #define ICE_TX_ADVANCED	0
 #define ICE_TX_LEGACY	1

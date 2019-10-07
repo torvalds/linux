@@ -39,4 +39,9 @@ config UDMABUF
 	  A driver to let userspace turn memfd regions into dma-bufs.
 	  Qemu can use this to create host dmabufs for guest framebuffers.
 
+config DMABUF_SELFTESTS
+	tristate "Selftests for the dma-buf interfaces"
+	default n
+	depends on DMA_SHARED_BUFFER
+
 endmenu

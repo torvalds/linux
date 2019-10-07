@@ -17,7 +17,6 @@
 #include "cs-etm.h"
 #include "cs-etm-decoder.h"
 #include "intlist.h"
-#include "util.h"
 
 /* use raw logging */
 #ifdef CS_DEBUG_RAW

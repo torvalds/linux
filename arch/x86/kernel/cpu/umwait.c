@@ -17,6 +17,12 @@
  */
 static u32 umwait_control_cached = UMWAIT_CTRL_VAL(100000, UMWAIT_C02_ENABLE);
 
+u32 get_umwait_control_msr(void)
+{
+	return umwait_control_cached;
+}
+EXPORT_SYMBOL_GPL(get_umwait_control_msr);
+
 /*
  * Cache the original IA32_UMWAIT_CONTROL MSR value which is configured by
  * hardware or BIOS before kernel boot.

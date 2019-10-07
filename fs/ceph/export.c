@@ -35,7 +35,7 @@ struct ceph_nfs_snapfh {
 static int ceph_encode_snapfh(struct inode *inode, u32 *rawfh, int *max_len,
 			      struct inode *parent_inode)
 {
-	const static int snap_handle_length =
+	static const int snap_handle_length =
 		sizeof(struct ceph_nfs_snapfh) >> 2;
 	struct ceph_nfs_snapfh *sfh = (void *)rawfh;
 	u64 snapid = ceph_snap(inode);
@@ -85,9 +85,9 @@ out:
 static int ceph_encode_fh(struct inode *inode, u32 *rawfh, int *max_len,
 			  struct inode *parent_inode)
 {
-	const static int handle_length =
+	static const int handle_length =
 		sizeof(struct ceph_nfs_fh) >> 2;
-	const static int connected_handle_length =
+	static const int connected_handle_length =
 		sizeof(struct ceph_nfs_confh) >> 2;
 	int type;
 
@@ -458,33 +458,33 @@ static int __get_snap_name(struct dentry *parent, char *name,
 		if (err < 0)
 			goto out;
 
-		 rinfo = &req->r_reply_info;
-		 for (i = 0; i < rinfo->dir_nr; i++) {
-			 rde = rinfo->dir_entries + i;
-			 BUG_ON(!rde->inode.in);
-			 if (ceph_snap(inode) ==
-			     le64_to_cpu(rde->inode.in->snapid)) {
-				 memcpy(name, rde->name, rde->name_len);
-				 name[rde->name_len] = '\0';
-				 err = 0;
-				 goto out;
-			 }
-		 }
+		rinfo = &req->r_reply_info;
+		for (i = 0; i < rinfo->dir_nr; i++) {
+			rde = rinfo->dir_entries + i;
+			BUG_ON(!rde->inode.in);
+			if (ceph_snap(inode) ==
+			    le64_to_cpu(rde->inode.in->snapid)) {
+				memcpy(name, rde->name, rde->name_len);
+				name[rde->name_len] = '\0';
+				err = 0;
+				goto out;
+			}
+		}
 
-		 if (rinfo->dir_end)
-			 break;
+		if (rinfo->dir_end)
+			break;
 
-		 BUG_ON(rinfo->dir_nr <= 0);
-		 rde = rinfo->dir_entries + (rinfo->dir_nr - 1);
-		 next_offset += rinfo->dir_nr;
-		 last_name = kstrndup(rde->name, rde->name_len, GFP_KERNEL);
-		 if (!last_name) {
-			 err = -ENOMEM;
-			 goto out;
-		 }
+		BUG_ON(rinfo->dir_nr <= 0);
+		rde = rinfo->dir_entries + (rinfo->dir_nr - 1);
+		next_offset += rinfo->dir_nr;
+		last_name = kstrndup(rde->name, rde->name_len, GFP_KERNEL);
+		if (!last_name) {
+			err = -ENOMEM;
+			goto out;
+		}
 
-		 ceph_mdsc_put_request(req);
-		 req = NULL;
+		ceph_mdsc_put_request(req);
+		req = NULL;
 	}
 	err = -ENOENT;
 out:

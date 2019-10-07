@@ -7,7 +7,8 @@
 
 //
 // Note that this remote has a stick which its own IR protocol,
-// with 16 directions. This is not supported yet.
+// with 16 directions. This is supported by the imon_rsc BPF decoder
+// in v4l-utils.
 //
 static struct rc_map_table imon_rsc[] = {
 	{ 0x801010, KEY_EXIT },
@@ -25,7 +26,7 @@ static struct rc_map_table imon_rsc[] = {
 	{ 0x80105c, KEY_NUMERIC_9 },
 	{ 0x801081, KEY_SCREEN },	/* Desktop */
 	{ 0x80105d, KEY_NUMERIC_0 },
-	{ 0x801082, KEY_MAX },
+	{ 0x801082, KEY_ZOOM },		/* Maximise */
 	{ 0x801048, KEY_ESC },
 	{ 0x80104b, KEY_MEDIA },	/* Windows key */
 	{ 0x801083, KEY_MENU },
@@ -52,7 +53,7 @@ static struct rc_map_table imon_rsc[] = {
 	{ 0x80104e, KEY_STOP },
 	{ 0x801052, KEY_REWIND },
 	{ 0x801053, KEY_FASTFORWARD },
-	{ 0x801089, KEY_ZOOM }		/* full screen */
+	{ 0x801089, KEY_FULL_SCREEN }	/* full screen */
 };
 
 static struct rc_map_list imon_rsc_map = {

@@ -1182,7 +1182,7 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 	struct sockcm_cookie sockc;
 	int flags, err, copied = 0;
 	int mss_now = 0, size_goal, copied_syn = 0;
-	bool process_backlog = false;
+	int process_backlog = 0;
 	bool zc = false;
 	long timeo;
 
@@ -1274,9 +1274,10 @@ new_segment:
 			if (!sk_stream_memory_free(sk))
 				goto wait_for_sndbuf;
 
-			if (process_backlog && sk_flush_backlog(sk)) {
-				process_backlog = false;
-				goto restart;
+			if (unlikely(process_backlog >= 16)) {
+				process_backlog = 0;
+				if (sk_flush_backlog(sk))
+					goto restart;
 			}
 			first_skb = tcp_rtx_and_write_queues_empty(sk);
 			skb = sk_stream_alloc_skb(sk, 0, sk->sk_allocation,
@@ -1284,7 +1285,7 @@ new_segment:
 			if (!skb)
 				goto wait_for_memory;
 
-			process_backlog = true;
+			process_backlog++;
 			skb->ip_summed = CHECKSUM_PARTIAL;
 
 			skb_entail(sk, skb);
@@ -1789,19 +1790,21 @@ static int tcp_zerocopy_receive(struct sock *sk,
 				break;
 			frags = skb_shinfo(skb)->frags;
 			while (offset) {
-				if (frags->size > offset)
+				if (skb_frag_size(frags) > offset)
 					goto out;
-				offset -= frags->size;
+				offset -= skb_frag_size(frags);
 				frags++;
 			}
 		}
-		if (frags->size != PAGE_SIZE || frags->page_offset) {
+		if (skb_frag_size(frags) != PAGE_SIZE || skb_frag_off(frags)) {
 			int remaining = zc->recv_skip_hint;
+			int size = skb_frag_size(frags);
 
-			while (remaining && (frags->size != PAGE_SIZE ||
-					     frags->page_offset)) {
-				remaining -= frags->size;
+			while (remaining && (size != PAGE_SIZE ||
+					     skb_frag_off(frags))) {
+				remaining -= size;
 				frags++;
+				size = skb_frag_size(frags);
 			}
 			zc->recv_skip_hint -= remaining;
 			break;
@@ -2650,6 +2653,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->rx_opt.saw_tstamp = 0;
 	tp->rx_opt.dsack = 0;
 	tp->rx_opt.num_sacks = 0;
+	tp->rcv_ooopack = 0;
 
 
 	/* Clean up fastopen related fields */
@@ -3292,6 +3296,8 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_bytes_retrans = tp->bytes_retrans;
 	info->tcpi_dsack_dups = tp->dsack_dups;
 	info->tcpi_reord_seen = tp->reord_seen;
+	info->tcpi_rcv_ooopack = tp->rcv_ooopack;
+	info->tcpi_snd_wnd = tp->snd_wnd;
 	unlock_sock_fast(sk, slow);
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
@@ -3794,8 +3800,8 @@ int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *hp,
 		return 1;
 
 	for (i = 0; i < shi->nr_frags; ++i) {
-		const struct skb_frag_struct *f = &shi->frags[i];
-		unsigned int offset = f->page_offset;
+		const skb_frag_t *f = &shi->frags[i];
+		unsigned int offset = skb_frag_off(f);
 		struct page *page = skb_frag_page(f) + (offset >> PAGE_SHIFT);
 
 		sg_set_page(&sg, page, skb_frag_size(f),

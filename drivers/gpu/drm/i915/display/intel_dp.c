@@ -44,15 +44,16 @@
 
 #include "i915_debugfs.h"
 #include "i915_drv.h"
+#include "i915_trace.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
+#include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_link_training.h"
 #include "intel_dp_mst.h"
 #include "intel_dpio_phy.h"
-#include "intel_drv.h"
 #include "intel_fifo_underrun.h"
 #include "intel_hdcp.h"
 #include "intel_hdmi.h"
@@ -297,9 +298,9 @@ static int icl_max_source_rate(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum port port = dig_port->base.port;
+	enum phy phy = intel_port_to_phy(dev_priv, dig_port->base.port);
 
-	if (intel_port_is_combophy(dev_priv, port) &&
+	if (intel_phy_is_combo(dev_priv, phy) &&
 	    !IS_ELKHARTLAKE(dev_priv) &&
 	    !intel_dp_is_edp(intel_dp))
 		return 540000;
@@ -1192,6 +1193,8 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	struct drm_i915_private *i915 =
 			to_i915(intel_dig_port->base.base.dev);
 	struct intel_uncore *uncore = &i915->uncore;
+	enum phy phy = intel_port_to_phy(i915, intel_dig_port->base.port);
+	bool is_tc_port = intel_phy_is_tc(i915, phy);
 	i915_reg_t ch_ctl, ch_data[5];
 	u32 aux_clock_divider;
 	enum intel_display_power_domain aux_domain =
@@ -1206,6 +1209,9 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	ch_ctl = intel_dp->aux_ch_ctl_reg(intel_dp);
 	for (i = 0; i < ARRAY_SIZE(ch_data); i++)
 		ch_data[i] = intel_dp->aux_ch_data_reg(intel_dp, i);
+
+	if (is_tc_port)
+		intel_tc_port_lock(intel_dig_port);
 
 	aux_wakeref = intel_display_power_get(i915, aux_domain);
 	pps_wakeref = pps_lock(intel_dp);
@@ -1358,6 +1364,9 @@ out:
 
 	pps_unlock(intel_dp, pps_wakeref);
 	intel_display_power_put_async(i915, aux_domain, aux_wakeref);
+
+	if (is_tc_port)
+		intel_tc_port_unlock(intel_dig_port);
 
 	return ret;
 }
@@ -1846,8 +1855,10 @@ intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
 	int mode_rate, link_clock, link_avail;
 
 	for (bpp = limits->max_bpp; bpp >= limits->min_bpp; bpp -= 2 * 3) {
+		int output_bpp = intel_dp_output_bpp(pipe_config, bpp);
+
 		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
-						   bpp);
+						   output_bpp);
 
 		for (clock = limits->min_clock; clock <= limits->max_clock; clock++) {
 			for (lane_count = limits->min_lane_count;
@@ -2360,9 +2371,8 @@ static void wait_panel_status(struct intel_dp *intel_dp,
 			I915_READ(pp_stat_reg),
 			I915_READ(pp_ctrl_reg));
 
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    pp_stat_reg, mask, value,
-				    5000))
+	if (intel_de_wait_for_register(dev_priv, pp_stat_reg,
+				       mask, value, 5000))
 		DRM_ERROR("Panel status timeout: status %08x control %08x\n",
 				I915_READ(pp_stat_reg),
 				I915_READ(pp_ctrl_reg));
@@ -3949,10 +3959,8 @@ void intel_dp_set_idle_link_train(struct intel_dp *intel_dp)
 	if (port == PORT_A)
 		return;
 
-	if (intel_wait_for_register(&dev_priv->uncore, DP_TP_STATUS(port),
-				    DP_TP_STATUS_IDLE_DONE,
-				    DP_TP_STATUS_IDLE_DONE,
-				    1))
+	if (intel_de_wait_for_set(dev_priv, DP_TP_STATUS(port),
+				  DP_TP_STATUS_IDLE_DONE, 1))
 		DRM_ERROR("Timed out waiting for DP idle patterns\n");
 }
 
@@ -4136,10 +4144,6 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 	drm_dp_read_desc(&intel_dp->aux, &intel_dp->desc,
 			 drm_dp_is_branch(intel_dp->dpcd));
 
-	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11)
-		dev_priv->no_aux_handshake = intel_dp->dpcd[DP_MAX_DOWNSPREAD] &
-			DP_NO_AUX_HANDSHAKE_LINK_TRAINING;
-
 	/*
 	 * Read the eDP display control registers.
 	 *
@@ -4211,8 +4215,14 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	if (!intel_dp_read_dpcd(intel_dp))
 		return false;
 
-	/* Don't clobber cached eDP rates. */
+	/*
+	 * Don't clobber cached eDP rates. Also skip re-reading
+	 * the OUI/ID since we know it won't change.
+	 */
 	if (!intel_dp_is_edp(intel_dp)) {
+		drm_dp_read_desc(&intel_dp->aux, &intel_dp->desc,
+				 drm_dp_is_branch(intel_dp->dpcd));
+
 		intel_dp_set_sink_rates(intel_dp);
 		intel_dp_set_common_rates(intel_dp);
 	}
@@ -4221,7 +4231,8 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	 * Some eDP panels do not set a valid value for sink count, that is why
 	 * it don't care about read it here and in intel_edp_init_dpcd().
 	 */
-	if (!intel_dp_is_edp(intel_dp)) {
+	if (!intel_dp_is_edp(intel_dp) &&
+	    !drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_NO_SINK_COUNT)) {
 		u8 count;
 		ssize_t r;
 
@@ -4846,14 +4857,16 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
  * retrain the link to get a picture. That's in case no
  * userspace component reacted to intermittent HPD dip.
  */
-static bool intel_dp_hotplug(struct intel_encoder *encoder,
-			     struct intel_connector *connector)
+static enum intel_hotplug_state
+intel_dp_hotplug(struct intel_encoder *encoder,
+		 struct intel_connector *connector,
+		 bool irq_received)
 {
 	struct drm_modeset_acquire_ctx ctx;
-	bool changed;
+	enum intel_hotplug_state state;
 	int ret;
 
-	changed = intel_encoder_hotplug(encoder, connector);
+	state = intel_encoder_hotplug(encoder, connector, irq_received);
 
 	drm_modeset_acquire_init(&ctx, 0);
 
@@ -4872,7 +4885,14 @@ static bool intel_dp_hotplug(struct intel_encoder *encoder,
 	drm_modeset_acquire_fini(&ctx);
 	WARN(ret, "Acquiring modeset locks failed with %i\n", ret);
 
-	return changed;
+	/*
+	 * Keeping it consistent with intel_ddi_hotplug() and
+	 * intel_hdmi_hotplug().
+	 */
+	if (state == INTEL_HOTPLUG_UNCHANGED && irq_received)
+		state = INTEL_HOTPLUG_RETRY;
+
+	return state;
 }
 
 static void intel_dp_check_service_irq(struct intel_dp *intel_dp)
@@ -5204,10 +5224,11 @@ static bool icl_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
-	if (intel_port_is_combophy(dev_priv, encoder->port))
+	if (intel_phy_is_combo(dev_priv, phy))
 		return icl_combo_port_connected(dev_priv, dig_port);
-	else if (intel_port_is_tc(dev_priv, encoder->port))
+	else if (intel_phy_is_tc(dev_priv, phy))
 		return intel_tc_port_connected(dig_port);
 	else
 		MISSING_CASE(encoder->hpd_pin);
@@ -5365,9 +5386,6 @@ intel_dp_detect(struct drm_connector *connector,
 	/* Read DP Sink DSC Cap DPCD regs for DP v1.4 */
 	if (INTEL_GEN(dev_priv) >= 11)
 		intel_dp_get_dsc_sink_cap(intel_dp);
-
-	drm_dp_read_desc(&intel_dp->aux, &intel_dp->desc,
-			 drm_dp_is_branch(intel_dp->dpcd));
 
 	intel_dp_configure_mst(intel_dp);
 
@@ -5794,47 +5812,49 @@ struct hdcp2_dp_errata_stream_type {
 	u8	stream_type;
 } __packed;
 
-static struct hdcp2_dp_msg_data {
+struct hdcp2_dp_msg_data {
 	u8 msg_id;
 	u32 offset;
 	bool msg_detectable;
 	u32 timeout;
 	u32 timeout2; /* Added for non_paired situation */
-	} hdcp2_msg_data[] = {
-		{HDCP_2_2_AKE_INIT, DP_HDCP_2_2_AKE_INIT_OFFSET, false, 0, 0},
-		{HDCP_2_2_AKE_SEND_CERT, DP_HDCP_2_2_AKE_SEND_CERT_OFFSET,
-				false, HDCP_2_2_CERT_TIMEOUT_MS, 0},
-		{HDCP_2_2_AKE_NO_STORED_KM, DP_HDCP_2_2_AKE_NO_STORED_KM_OFFSET,
-				false, 0, 0},
-		{HDCP_2_2_AKE_STORED_KM, DP_HDCP_2_2_AKE_STORED_KM_OFFSET,
-				false, 0, 0},
-		{HDCP_2_2_AKE_SEND_HPRIME, DP_HDCP_2_2_AKE_SEND_HPRIME_OFFSET,
-				true, HDCP_2_2_HPRIME_PAIRED_TIMEOUT_MS,
-				HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS},
-		{HDCP_2_2_AKE_SEND_PAIRING_INFO,
-				DP_HDCP_2_2_AKE_SEND_PAIRING_INFO_OFFSET, true,
-				HDCP_2_2_PAIRING_TIMEOUT_MS, 0},
-		{HDCP_2_2_LC_INIT, DP_HDCP_2_2_LC_INIT_OFFSET, false, 0, 0},
-		{HDCP_2_2_LC_SEND_LPRIME, DP_HDCP_2_2_LC_SEND_LPRIME_OFFSET,
-				false, HDCP_2_2_DP_LPRIME_TIMEOUT_MS, 0},
-		{HDCP_2_2_SKE_SEND_EKS, DP_HDCP_2_2_SKE_SEND_EKS_OFFSET, false,
-				0, 0},
-		{HDCP_2_2_REP_SEND_RECVID_LIST,
-				DP_HDCP_2_2_REP_SEND_RECVID_LIST_OFFSET, true,
-				HDCP_2_2_RECVID_LIST_TIMEOUT_MS, 0},
-		{HDCP_2_2_REP_SEND_ACK, DP_HDCP_2_2_REP_SEND_ACK_OFFSET, false,
-				0, 0},
-		{HDCP_2_2_REP_STREAM_MANAGE,
-				DP_HDCP_2_2_REP_STREAM_MANAGE_OFFSET, false,
-				0, 0},
-		{HDCP_2_2_REP_STREAM_READY, DP_HDCP_2_2_REP_STREAM_READY_OFFSET,
-				false, HDCP_2_2_STREAM_READY_TIMEOUT_MS, 0},
+};
+
+static const struct hdcp2_dp_msg_data hdcp2_dp_msg_data[] = {
+	{ HDCP_2_2_AKE_INIT, DP_HDCP_2_2_AKE_INIT_OFFSET, false, 0, 0 },
+	{ HDCP_2_2_AKE_SEND_CERT, DP_HDCP_2_2_AKE_SEND_CERT_OFFSET,
+	  false, HDCP_2_2_CERT_TIMEOUT_MS, 0 },
+	{ HDCP_2_2_AKE_NO_STORED_KM, DP_HDCP_2_2_AKE_NO_STORED_KM_OFFSET,
+	  false, 0, 0 },
+	{ HDCP_2_2_AKE_STORED_KM, DP_HDCP_2_2_AKE_STORED_KM_OFFSET,
+	  false, 0, 0 },
+	{ HDCP_2_2_AKE_SEND_HPRIME, DP_HDCP_2_2_AKE_SEND_HPRIME_OFFSET,
+	  true, HDCP_2_2_HPRIME_PAIRED_TIMEOUT_MS,
+	  HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS },
+	{ HDCP_2_2_AKE_SEND_PAIRING_INFO,
+	  DP_HDCP_2_2_AKE_SEND_PAIRING_INFO_OFFSET, true,
+	  HDCP_2_2_PAIRING_TIMEOUT_MS, 0 },
+	{ HDCP_2_2_LC_INIT, DP_HDCP_2_2_LC_INIT_OFFSET, false, 0, 0 },
+	{ HDCP_2_2_LC_SEND_LPRIME, DP_HDCP_2_2_LC_SEND_LPRIME_OFFSET,
+	  false, HDCP_2_2_DP_LPRIME_TIMEOUT_MS, 0 },
+	{ HDCP_2_2_SKE_SEND_EKS, DP_HDCP_2_2_SKE_SEND_EKS_OFFSET, false,
+	  0, 0 },
+	{ HDCP_2_2_REP_SEND_RECVID_LIST,
+	  DP_HDCP_2_2_REP_SEND_RECVID_LIST_OFFSET, true,
+	  HDCP_2_2_RECVID_LIST_TIMEOUT_MS, 0 },
+	{ HDCP_2_2_REP_SEND_ACK, DP_HDCP_2_2_REP_SEND_ACK_OFFSET, false,
+	  0, 0 },
+	{ HDCP_2_2_REP_STREAM_MANAGE,
+	  DP_HDCP_2_2_REP_STREAM_MANAGE_OFFSET, false,
+	  0, 0 },
+	{ HDCP_2_2_REP_STREAM_READY, DP_HDCP_2_2_REP_STREAM_READY_OFFSET,
+	  false, HDCP_2_2_STREAM_READY_TIMEOUT_MS, 0 },
 /* local define to shovel this through the write_2_2 interface */
 #define HDCP_2_2_ERRATA_DP_STREAM_TYPE	50
-		{HDCP_2_2_ERRATA_DP_STREAM_TYPE,
-				DP_HDCP_2_2_REG_STREAM_TYPE_OFFSET, false,
-				0, 0},
-		};
+	{ HDCP_2_2_ERRATA_DP_STREAM_TYPE,
+	  DP_HDCP_2_2_REG_STREAM_TYPE_OFFSET, false,
+	  0, 0 },
+};
 
 static inline
 int intel_dp_hdcp2_read_rx_status(struct intel_digital_port *intel_dig_port,
@@ -5888,7 +5908,7 @@ int hdcp2_detect_msg_availability(struct intel_digital_port *intel_dig_port,
 
 static ssize_t
 intel_dp_hdcp2_wait_for_msg(struct intel_digital_port *intel_dig_port,
-			    struct hdcp2_dp_msg_data *hdcp2_msg_data)
+			    const struct hdcp2_dp_msg_data *hdcp2_msg_data)
 {
 	struct intel_dp *dp = &intel_dig_port->dp;
 	struct intel_hdcp *hdcp = &dp->attached_connector->hdcp;
@@ -5927,13 +5947,13 @@ intel_dp_hdcp2_wait_for_msg(struct intel_digital_port *intel_dig_port,
 	return ret;
 }
 
-static struct hdcp2_dp_msg_data *get_hdcp2_dp_msg_data(u8 msg_id)
+static const struct hdcp2_dp_msg_data *get_hdcp2_dp_msg_data(u8 msg_id)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(hdcp2_msg_data); i++)
-		if (hdcp2_msg_data[i].msg_id == msg_id)
-			return &hdcp2_msg_data[i];
+	for (i = 0; i < ARRAY_SIZE(hdcp2_dp_msg_data); i++)
+		if (hdcp2_dp_msg_data[i].msg_id == msg_id)
+			return &hdcp2_dp_msg_data[i];
 
 	return NULL;
 }
@@ -5947,7 +5967,7 @@ int intel_dp_hdcp2_write_msg(struct intel_digital_port *intel_dig_port,
 	unsigned int offset;
 	u8 *byte = buf;
 	ssize_t ret, bytes_to_write, len;
-	struct hdcp2_dp_msg_data *hdcp2_msg_data;
+	const struct hdcp2_dp_msg_data *hdcp2_msg_data;
 
 	hdcp2_msg_data = get_hdcp2_dp_msg_data(*byte);
 	if (!hdcp2_msg_data)
@@ -6011,7 +6031,7 @@ int intel_dp_hdcp2_read_msg(struct intel_digital_port *intel_dig_port,
 	unsigned int offset;
 	u8 *byte = buf;
 	ssize_t ret, bytes_to_recv, len;
-	struct hdcp2_dp_msg_data *hdcp2_msg_data;
+	const struct hdcp2_dp_msg_data *hdcp2_msg_data;
 
 	hdcp2_msg_data = get_hdcp2_dp_msg_data(msg_id);
 	if (!hdcp2_msg_data)
@@ -6613,8 +6633,6 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 				    const struct intel_crtc_state *crtc_state,
 				    int refresh_rate)
 {
-	struct intel_encoder *encoder;
-	struct intel_digital_port *dig_port = NULL;
 	struct intel_dp *intel_dp = dev_priv->drrs.dp;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
 	enum drrs_refresh_rate_type index = DRRS_HIGH_RR;
@@ -6628,9 +6646,6 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("DRRS not supported.\n");
 		return;
 	}
-
-	dig_port = dp_to_dig_port(intel_dp);
-	encoder = &dig_port->base;
 
 	if (!intel_crtc) {
 		DRM_DEBUG_KMS("DRRS: intel_crtc not initialized\n");
@@ -7111,6 +7126,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = intel_encoder->port;
+	enum phy phy = intel_port_to_phy(dev_priv, port);
 	int type;
 
 	/* Initialize the work for modeset in case of link train failure */
@@ -7137,7 +7153,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		 * Currently we don't support eDP on TypeC ports, although in
 		 * theory it could work on TypeC legacy ports.
 		 */
-		WARN_ON(intel_port_is_tc(dev_priv, port));
+		WARN_ON(intel_phy_is_tc(dev_priv, phy));
 		type = DRM_MODE_CONNECTOR_eDP;
 	} else {
 		type = DRM_MODE_CONNECTOR_DisplayPort;

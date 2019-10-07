@@ -689,7 +689,7 @@ static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 		 * tail.
 		 */
 		uart_insert_char(port, sts, MAX310X_LSR_RXOVR_BIT,
-				 one->rx_buf[rxlen], flag);
+				 one->rx_buf[rxlen-1], flag);
 
 	} else {
 		if (unlikely(rxlen >= port->fifosize)) {
@@ -955,16 +955,42 @@ static void max310x_set_termios(struct uart_port *port,
 	/* Configure flow control */
 	max310x_port_write(port, MAX310X_XON1_REG, termios->c_cc[VSTART]);
 	max310x_port_write(port, MAX310X_XOFF1_REG, termios->c_cc[VSTOP]);
-	if (termios->c_cflag & CRTSCTS)
+
+	/* Disable transmitter before enabling AutoCTS or auto transmitter
+	 * flow control
+	 */
+	if (termios->c_cflag & CRTSCTS || termios->c_iflag & IXOFF) {
+		max310x_port_update(port, MAX310X_MODE1_REG,
+				    MAX310X_MODE1_TXDIS_BIT,
+				    MAX310X_MODE1_TXDIS_BIT);
+	}
+
+	port->status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS | UPSTAT_AUTOXOFF);
+
+	if (termios->c_cflag & CRTSCTS) {
+		/* Enable AUTORTS and AUTOCTS */
+		port->status |= UPSTAT_AUTOCTS | UPSTAT_AUTORTS;
 		flow |= MAX310X_FLOWCTRL_AUTOCTS_BIT |
 			MAX310X_FLOWCTRL_AUTORTS_BIT;
+	}
 	if (termios->c_iflag & IXON)
 		flow |= MAX310X_FLOWCTRL_SWFLOW3_BIT |
 			MAX310X_FLOWCTRL_SWFLOWEN_BIT;
-	if (termios->c_iflag & IXOFF)
+	if (termios->c_iflag & IXOFF) {
+		port->status |= UPSTAT_AUTOXOFF;
 		flow |= MAX310X_FLOWCTRL_SWFLOW1_BIT |
 			MAX310X_FLOWCTRL_SWFLOWEN_BIT;
+	}
 	max310x_port_write(port, MAX310X_FLOWCTRL_REG, flow);
+
+	/* Enable transmitter after disabling AutoCTS and auto transmitter
+	 * flow control
+	 */
+	if (!(termios->c_cflag & CRTSCTS) && !(termios->c_iflag & IXOFF)) {
+		max310x_port_update(port, MAX310X_MODE1_REG,
+				    MAX310X_MODE1_TXDIS_BIT,
+				    0);
+	}
 
 	/* Get baud rate generator configuration */
 	baud = uart_get_baud_rate(port, termios, old,

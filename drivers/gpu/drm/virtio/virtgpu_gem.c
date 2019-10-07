@@ -23,7 +23,9 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
+#include <drm/drm_file.h>
+#include <drm/drm_fourcc.h>
+
 #include "virtgpu_drv.h"
 
 void virtio_gpu_gem_free_object(struct drm_gem_object *gem_obj)

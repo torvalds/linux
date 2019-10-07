@@ -18,8 +18,6 @@
 #define __HAVE_ARCH_PTE_ALLOC_ONE
 #include <asm-generic/pgalloc.h>
 
-#define check_pgt_cache()		do { } while (0)
-
 #define _PAGE_USER_TABLE	(PMD_TYPE_TABLE | PMD_PRESENT)
 #define _PAGE_KERNEL_TABLE	(PMD_TYPE_TABLE | PMD_PRESENT)
 

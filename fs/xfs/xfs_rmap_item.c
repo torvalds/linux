@@ -142,9 +142,9 @@ xfs_rui_init(
 
 	ASSERT(nextents > 0);
 	if (nextents > XFS_RUI_MAX_FAST_EXTENTS)
-		ruip = kmem_zalloc(xfs_rui_log_item_sizeof(nextents), KM_SLEEP);
+		ruip = kmem_zalloc(xfs_rui_log_item_sizeof(nextents), 0);
 	else
-		ruip = kmem_zone_zalloc(xfs_rui_zone, KM_SLEEP);
+		ruip = kmem_zone_zalloc(xfs_rui_zone, 0);
 
 	xfs_log_item_init(mp, &ruip->rui_item, XFS_LI_RUI, &xfs_rui_item_ops);
 	ruip->rui_format.rui_nextents = nextents;
@@ -244,7 +244,7 @@ xfs_trans_get_rud(
 {
 	struct xfs_rud_log_item		*rudp;
 
-	rudp = kmem_zone_zalloc(xfs_rud_zone, KM_SLEEP);
+	rudp = kmem_zone_zalloc(xfs_rud_zone, 0);
 	xfs_log_item_init(tp->t_mountp, &rudp->rud_item, XFS_LI_RUD,
 			  &xfs_rud_item_ops);
 	rudp->rud_ruip = ruip;

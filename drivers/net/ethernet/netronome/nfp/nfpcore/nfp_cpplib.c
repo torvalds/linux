@@ -24,8 +24,9 @@
 /* NFP6000 PL */
 #define NFP_PL_DEVICE_ID			0x00000004
 #define   NFP_PL_DEVICE_ID_MASK			GENMASK(7, 0)
-
-#define NFP6000_ARM_GCSR_SOFTMODEL0		0x00400144
+#define   NFP_PL_DEVICE_PART_MASK		GENMASK(31, 16)
+#define NFP_PL_DEVICE_MODEL_MASK		(NFP_PL_DEVICE_PART_MASK | \
+						 NFP_PL_DEVICE_ID_MASK)
 
 /**
  * nfp_cpp_readl() - Read a u32 word from a CPP location
@@ -120,22 +121,17 @@ int nfp_cpp_writeq(struct nfp_cpp *cpp, u32 cpp_id,
  */
 int nfp_cpp_model_autodetect(struct nfp_cpp *cpp, u32 *model)
 {
-	const u32 arm_id = NFP_CPP_ID(NFP_CPP_TARGET_ARM, 0, 0);
 	u32 reg;
 	int err;
 
-	err = nfp_cpp_readl(cpp, arm_id, NFP6000_ARM_GCSR_SOFTMODEL0, model);
-	if (err < 0)
-		return err;
-
-	/* The PL's PluDeviceID revision code is authoratative */
-	*model &= ~0xff;
 	err = nfp_xpb_readl(cpp, NFP_XPB_DEVICE(1, 1, 16) + NFP_PL_DEVICE_ID,
 			    &reg);
 	if (err < 0)
 		return err;
 
-	*model |= (NFP_PL_DEVICE_ID_MASK & reg) - 0x10;
+	*model = reg & NFP_PL_DEVICE_MODEL_MASK;
+	if (*model & NFP_PL_DEVICE_ID_MASK)
+		*model -= 0x10;
 
 	return 0;
 }

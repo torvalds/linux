@@ -196,6 +196,8 @@ struct amdgpu_gfx_funcs {
 				uint32_t *dst);
 	void (*select_me_pipe_q)(struct amdgpu_device *adev, u32 me, u32 pipe,
 				 u32 queue, u32 vmid);
+	int (*ras_error_inject)(struct amdgpu_device *adev, void *inject_if);
+	int (*query_ras_error_count) (struct amdgpu_device *adev, void *ras_error_status);
 };
 
 struct amdgpu_ngg_buf {

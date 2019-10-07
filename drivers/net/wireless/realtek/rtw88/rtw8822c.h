@@ -96,6 +96,35 @@ struct rtw8822c_efuse {
 	};
 };
 
+enum rtw8822c_dpk_agc_phase {
+	RTW_DPK_GAIN_CHECK,
+	RTW_DPK_GAIN_LARGE,
+	RTW_DPK_GAIN_LESS,
+	RTW_DPK_GL_LARGE,
+	RTW_DPK_GL_LESS,
+	RTW_DPK_LOSS_CHECK,
+	RTW_DPK_AGC_OUT,
+};
+
+enum rtw8822c_dpk_one_shot_action {
+	RTW_DPK_CAL_PWR,
+	RTW_DPK_GAIN_LOSS,
+	RTW_DPK_DO_DPK,
+	RTW_DPK_DPK_ON,
+	RTW_DPK_DAGC,
+	RTW_DPK_ACTION_MAX
+};
+
+void rtw8822c_parse_tbl_dpk(struct rtw_dev *rtwdev,
+			    const struct rtw_table *tbl);
+
+#define RTW_DECL_TABLE_DPK(name)			\
+const struct rtw_table name ## _tbl = {			\
+	.data = name,					\
+	.size = ARRAY_SIZE(name),			\
+	.parse = rtw8822c_parse_tbl_dpk,		\
+}
+
 #define DACK_PATH_8822C		2
 #define DACK_REG_8822C		16
 #define DACK_RF_8822C		1
@@ -176,6 +205,7 @@ struct rtw8822c_efuse {
 #define REG_TXF7	0x1ab0
 #define REG_CCK_SOURCE	0x1abc
 #define BIT_NBI_EN		BIT(30)
+#define REG_IQKSTAT	0x1b10
 #define REG_TXANT	0x1c28
 #define REG_ENCCK	0x1c3c
 #define BIT_CCK_BLK_EN		BIT(1)
@@ -197,6 +227,7 @@ struct rtw8822c_efuse {
 #define REG_OFDM_FACNT3	0x2d0c
 #define REG_OFDM_FACNT4	0x2d10
 #define REG_OFDM_FACNT5	0x2d20
+#define REG_RPT_CIP	0x2d9c
 #define REG_OFDM_TXCNT	0x2de0
 #define REG_ORITXCODE2	0x4100
 #define REG_3WIRE2	0x410c
@@ -206,4 +237,59 @@ struct rtw8822c_efuse {
 #define REG_DCKB_Q_0	0x41d8
 #define REG_DCKB_Q_1	0x41dc
 
+#define RF_MODE_TRXAGC		0x00
+#define RF_RXAGC_OFFSET		0x19
+#define RF_BW_TRXBB		0x1a
+#define RF_TX_GAIN_OFFSET	0x55
+#define RF_TX_GAIN		0x56
+#define RF_TXA_LB_SW		0x63
+#define RF_RXG_GAIN		0x87
+#define RF_RXA_MIX_GAIN		0x8a
+#define RF_EXT_TIA_BW		0x8f
+#define RF_DEBUG		0xde
+
+#define REG_NCTL0		0x1b00
+#define REG_DPD_CTL0_S0		0x1b04
+#define REG_DPD_CTL1_S0		0x1b08
+#define REG_IQK_CTL1		0x1b20
+#define REG_DPD_LUT0		0x1b44
+#define REG_DPD_CTL0_S1		0x1b5c
+#define REG_DPD_LUT3		0x1b60
+#define REG_DPD_CTL1_S1		0x1b60
+#define REG_DPD_AGC		0x1b67
+#define REG_DPD_CTL0		0x1bb4
+#define REG_R_CONFIG		0x1bcc
+#define REG_RXSRAM_CTL		0x1bd4
+#define REG_DPD_CTL11		0x1be4
+#define REG_DPD_CTL12		0x1be8
+#define REG_DPD_CTL15		0x1bf4
+#define REG_DPD_CTL16		0x1bf8
+#define REG_STAT_RPT		0x1bfc
+
+#define BIT_EXT_TIA_BW		BIT(1)
+#define BIT_DE_TRXBW		BIT(2)
+#define BIT_DE_TX_GAIN		BIT(16)
+#define BIT_RXG_GAIN		BIT(18)
+#define BIT_DE_PWR_TRIM		BIT(19)
+#define BIT_INNER_LB		BIT(21)
+#define BIT_BYPASS_DPD		BIT(25)
+#define BIT_DPD_EN		BIT(31)
+#define BIT_SUBPAGE		GENMASK(3, 0)
+#define BIT_TXAGC		GENMASK(4, 0)
+#define BIT_GAIN_TXBB		GENMASK(4, 0)
+#define BIT_LB_ATT		GENMASK(4, 2)
+#define BIT_RXA_MIX_GAIN	GENMASK(4, 3)
+#define BIT_IQ_SWITCH		GENMASK(5, 0)
+#define BIT_DPD_CLK		GENMASK(7, 4)
+#define BIT_RXAGC		GENMASK(9, 5)
+#define BIT_BW_RXBB		GENMASK(11, 10)
+#define BIT_LB_SW		GENMASK(13, 12)
+#define BIT_BW_TXBB		GENMASK(14, 12)
+#define BIT_GLOSS_DB		GENMASK(14, 12)
+#define BIT_TXA_LB_ATT		GENMASK(15, 14)
+#define BIT_TX_OFFSET_VAL	GENMASK(18, 14)
+#define BIT_RPT_SEL		GENMASK(20, 16)
+#define BIT_GS_PWSF		GENMASK(27, 0)
+#define BIT_RPT_DGAIN		GENMASK(27, 16)
+#define BIT_TX_CFIR		GENMASK(31, 30)
 #endif

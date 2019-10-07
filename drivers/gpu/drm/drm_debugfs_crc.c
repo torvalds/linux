@@ -66,9 +66,18 @@
  * the reported CRCs of frames that should have the same contents.
  *
  * On the driver side the implementation effort is minimal, drivers only need to
- * implement &drm_crtc_funcs.set_crc_source. The debugfs files are automatically
- * set up if that vfunc is set. CRC samples need to be captured in the driver by
- * calling drm_crtc_add_crc_entry().
+ * implement &drm_crtc_funcs.set_crc_source and &drm_crtc_funcs.verify_crc_source.
+ * The debugfs files are automatically set up if those vfuncs are set. CRC samples
+ * need to be captured in the driver by calling drm_crtc_add_crc_entry().
+ * Depending on the driver and HW requirements, &drm_crtc_funcs.set_crc_source
+ * may result in a commit (even a full modeset).
+ *
+ * CRC results must be reliable across non-full-modeset atomic commits, so if a
+ * commit via DRM_IOCTL_MODE_ATOMIC would disable or otherwise interfere with
+ * CRC generation, then the driver must mark that commit as a full modeset
+ * (drm_atomic_crtc_needs_modeset() should return true). As a result, to ensure
+ * consistent results, generic userspace must re-setup CRC generation after a
+ * legacy SETCRTC or an atomic commit with DRM_MODE_ATOMIC_ALLOW_MODESET.
  */
 
 static int crc_control_show(struct seq_file *m, void *data)

@@ -162,7 +162,9 @@
 	SRI(COLOR_KEYER_GREEN, CNVC_CFG, id), \
 	SRI(COLOR_KEYER_BLUE, CNVC_CFG, id), \
 	SRI(CM_SHAPER_LUT_DATA, CM, id), \
-	SRI(CURSOR_CONTROL, CURSOR0_, id)
+	SRI(CURSOR_CONTROL, CURSOR0_, id),\
+	SRI(OBUF_MEM_PWR_CTRL, DSCL, id),\
+	SRI(DSCL_MEM_PWR_CTRL, DSCL, id)
 
 #define TF_REG_LIST_SH_MASK_DCN20(mask_sh)\
 	TF_REG_LIST_SH_MASK_DCN(mask_sh), \
@@ -554,7 +556,9 @@
 	TF_SF(CNVC_CFG0_COLOR_KEYER_BLUE, COLOR_KEYER_BLUE_HIGH, mask_sh), \
 	TF_SF(CNVC_CUR0_CURSOR0_CONTROL, CUR0_PIX_INV_MODE, mask_sh), \
 	TF_SF(CNVC_CUR0_CURSOR0_CONTROL, CUR0_PIXEL_ALPHA_MOD_EN, mask_sh), \
-	TF_SF(CNVC_CUR0_CURSOR0_CONTROL, CUR0_ROM_EN, mask_sh)
+	TF_SF(CNVC_CUR0_CURSOR0_CONTROL, CUR0_ROM_EN, mask_sh),\
+	TF_SF(DSCL0_OBUF_MEM_PWR_CTRL, OBUF_MEM_PWR_FORCE, mask_sh),\
+	TF_SF(DSCL0_DSCL_MEM_PWR_CTRL, LUT_MEM_PWR_FORCE, mask_sh)
 
 #define TF_REG_FIELD_LIST_DCN2_0(type) \
 	TF_REG_FIELD_LIST(type) \
@@ -585,7 +589,9 @@
 	type COLOR_KEYER_BLUE_HIGH; \
 	type CUR0_PIX_INV_MODE; \
 	type CUR0_PIXEL_ALPHA_MOD_EN; \
-	type CUR0_ROM_EN
+	type CUR0_ROM_EN;\
+	type OBUF_MEM_PWR_FORCE;\
+	type LUT_MEM_PWR_FORCE
 
 struct dcn2_dpp_shift {
 	TF_REG_FIELD_LIST_DCN2_0(uint8_t);
@@ -609,7 +615,9 @@ struct dcn2_dpp_mask {
 	uint32_t COLOR_KEYER_ALPHA; \
 	uint32_t COLOR_KEYER_RED; \
 	uint32_t COLOR_KEYER_GREEN; \
-	uint32_t COLOR_KEYER_BLUE
+	uint32_t COLOR_KEYER_BLUE; \
+	uint32_t OBUF_MEM_PWR_CTRL;\
+	uint32_t DSCL_MEM_PWR_CTRL
 
 struct dcn2_dpp_registers {
 	DPP_DCN2_REG_VARIABLE_LIST;
@@ -668,7 +676,7 @@ void dscl2_calc_lb_num_partitions(
 
 void dpp2_set_cursor_attributes(
 		struct dpp *dpp_base,
-		enum dc_cursor_color_format color_format);
+		struct dc_cursor_attributes *cursor_attributes);
 
 void dpp2_dummy_program_input_lut(
 			struct dpp *dpp_base,
@@ -695,4 +703,7 @@ bool dpp2_construct(struct dcn20_dpp *dpp2,
 	const struct dcn2_dpp_shift *tf_shift,
 	const struct dcn2_dpp_mask *tf_mask);
 
+void dpp2_power_on_obuf(
+		struct dpp *dpp_base,
+	bool power_on);
 #endif /* __DC_HWSS_DCN20_H__ */

@@ -82,7 +82,7 @@ gpiom1: gpio@0 {
         compatible = "microchip,mcp23s17";
         gpio-controller;
         #gpio-cells = <2>;
-        spi-present-mask = <0x01>;
+        microchip,spi-present-mask = <0x01>;
         reg = <0>;
         spi-max-frequency = <1000000>;
 };

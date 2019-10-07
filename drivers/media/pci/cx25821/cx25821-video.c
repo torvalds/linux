@@ -35,12 +35,10 @@ MODULE_PARM_DESC(irq_debug, "enable debug messages [IRQ handler]");
 
 static const struct cx25821_fmt formats[] = {
 	{
-		.name = "4:1:1, packed, Y41P",
 		.fourcc = V4L2_PIX_FMT_Y41P,
 		.depth = 12,
 		.flags = FORMAT_FLAGS_PACKED,
 	}, {
-		.name = "4:2:2, packed, YUYV",
 		.fourcc = V4L2_PIX_FMT_YUYV,
 		.depth = 16,
 		.flags = FORMAT_FLAGS_PACKED,
@@ -215,9 +213,9 @@ static int cx25821_buffer_prepare(struct vb2_buffer *vb)
 		break;
 	}
 
-	dprintk(2, "[%p/%d] buffer_prep - %dx%d %dbpp \"%s\" - dma=0x%08lx\n",
+	dprintk(2, "[%p/%d] buffer_prep - %dx%d %dbpp 0x%08x - dma=0x%08lx\n",
 		buf, buf->vb.vb2_buf.index, chan->width, chan->height,
-		chan->fmt->depth, chan->fmt->name,
+		chan->fmt->depth, chan->fmt->fourcc,
 		(unsigned long)buf->risc.dma);
 
 	return ret;
@@ -311,7 +309,6 @@ static int cx25821_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	if (unlikely(f->index >= ARRAY_SIZE(formats)))
 		return -EINVAL;
 
-	strscpy(f->description, formats[f->index].name, sizeof(f->description));
 	f->pixelformat = formats[f->index].fourcc;
 
 	return 0;

@@ -53,7 +53,7 @@ mlx5_get_rsc(struct mlx5_qp_table *table, u32 rsn)
 
 	common = radix_tree_lookup(&table->tree, rsn);
 	if (common)
-		atomic_inc(&common->refcount);
+		refcount_inc(&common->refcount);
 
 	spin_unlock_irqrestore(&table->lock, flags);
 
@@ -62,7 +62,7 @@ mlx5_get_rsc(struct mlx5_qp_table *table, u32 rsn)
 
 void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common)
 {
-	if (atomic_dec_and_test(&common->refcount))
+	if (refcount_dec_and_test(&common->refcount))
 		complete(&common->free);
 }
 
@@ -162,7 +162,7 @@ static int rsc_event_notifier(struct notifier_block *nb,
 
 	common = mlx5_get_rsc(table, rsn);
 	if (!common) {
-		mlx5_core_warn(dev, "Async event for bogus resource 0x%x\n", rsn);
+		mlx5_core_dbg(dev, "Async event for unknown resource 0x%x\n", rsn);
 		return NOTIFY_OK;
 	}
 
@@ -209,7 +209,7 @@ static int create_resource_common(struct mlx5_core_dev *dev,
 	if (err)
 		return err;
 
-	atomic_set(&qp->common.refcount, 1);
+	refcount_set(&qp->common.refcount, 1);
 	init_completion(&qp->common.free);
 	qp->pid = current->pid;
 

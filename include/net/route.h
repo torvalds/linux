@@ -53,10 +53,11 @@ struct rtable {
 	unsigned int		rt_flags;
 	__u16			rt_type;
 	__u8			rt_is_input;
-	u8			rt_gw_family;
+	__u8			rt_uses_gateway;
 
 	int			rt_iif;
 
+	u8			rt_gw_family;
 	/* Info on neighbour */
 	union {
 		__be32		rt_gw4;

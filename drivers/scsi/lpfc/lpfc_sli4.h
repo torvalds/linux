@@ -49,9 +49,6 @@
 #define LPFC_FCP_MQ_THRESHOLD_MAX	256
 #define LPFC_FCP_MQ_THRESHOLD_DEF	8
 
-/* Common buffer size to accomidate SCSI and NVME IO buffers */
-#define LPFC_COMMON_IO_BUF_SZ	768
-
 /*
  * Provide the default FCF Record attributes used by the driver
  * when nonFIP mode is configured and there is no other default
@@ -114,9 +111,8 @@ enum lpfc_sli4_queue_type {
 enum lpfc_sli4_queue_subtype {
 	LPFC_NONE,
 	LPFC_MBOX,
-	LPFC_FCP,
+	LPFC_IO,
 	LPFC_ELS,
-	LPFC_NVME,
 	LPFC_NVMET,
 	LPFC_NVME_LS,
 	LPFC_USOL
@@ -646,22 +642,17 @@ struct lpfc_eq_intr_info {
 struct lpfc_sli4_hdw_queue {
 	/* Pointers to the constructed SLI4 queues */
 	struct lpfc_queue *hba_eq;  /* Event queues for HBA */
-	struct lpfc_queue *fcp_cq;  /* Fast-path FCP compl queue */
-	struct lpfc_queue *nvme_cq; /* Fast-path NVME compl queue */
-	struct lpfc_queue *fcp_wq;  /* Fast-path FCP work queue */
-	struct lpfc_queue *nvme_wq; /* Fast-path NVME work queue */
-	uint16_t fcp_cq_map;
-	uint16_t nvme_cq_map;
+	struct lpfc_queue *io_cq;   /* Fast-path FCP & NVME compl queue */
+	struct lpfc_queue *io_wq;   /* Fast-path FCP & NVME work queue */
+	uint16_t io_cq_map;
 
 	/* Keep track of IO buffers for this hardware queue */
 	spinlock_t io_buf_list_get_lock;  /* Common buf alloc list lock */
 	struct list_head lpfc_io_buf_list_get;
 	spinlock_t io_buf_list_put_lock;  /* Common buf free list lock */
 	struct list_head lpfc_io_buf_list_put;
-	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
-	struct list_head lpfc_abts_scsi_buf_list;
-	spinlock_t abts_nvme_buf_list_lock; /* list of aborted NVME IOs */
-	struct list_head lpfc_abts_nvme_buf_list;
+	spinlock_t abts_io_buf_list_lock; /* list of aborted IOs */
+	struct list_head lpfc_abts_io_buf_list;
 	uint32_t total_io_bufs;
 	uint32_t get_io_bufs;
 	uint32_t put_io_bufs;
@@ -685,6 +676,13 @@ struct lpfc_sli4_hdw_queue {
 	uint32_t cpucheck_xmt_io[LPFC_CHECK_CPU_CNT];
 	uint32_t cpucheck_cmpl_io[LPFC_CHECK_CPU_CNT];
 #endif
+
+	/* Per HDWQ pool resources */
+	struct list_head sgl_list;
+	struct list_head cmd_rsp_buf_list;
+
+	/* Lock for syncing Per HDWQ pool resources */
+	spinlock_t hdwq_lock;
 };
 
 #ifdef LPFC_HDWQ_LOCK_STAT
@@ -850,8 +848,8 @@ struct lpfc_sli4_hba {
 	struct lpfc_queue **cq_lookup;
 	struct list_head lpfc_els_sgl_list;
 	struct list_head lpfc_abts_els_sgl_list;
-	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
-	struct list_head lpfc_abts_scsi_buf_list;
+	spinlock_t abts_io_buf_list_lock; /* list of aborted SCSI IOs */
+	struct list_head lpfc_abts_io_buf_list;
 	struct list_head lpfc_nvmet_sgl_list;
 	spinlock_t abts_nvmet_buf_list_lock; /* list of aborted NVMET IOs */
 	struct list_head lpfc_abts_nvmet_ctx_list;
@@ -1056,10 +1054,11 @@ int lpfc_sli4_resume_rpi(struct lpfc_nodelist *,
 			void (*)(struct lpfc_hba *, LPFC_MBOXQ_t *), void *);
 void lpfc_sli4_fcp_xri_abort_event_proc(struct lpfc_hba *);
 void lpfc_sli4_els_xri_abort_event_proc(struct lpfc_hba *);
-void lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *,
-			       struct sli4_wcqe_xri_aborted *, int);
 void lpfc_sli4_nvme_xri_aborted(struct lpfc_hba *phba,
-				struct sli4_wcqe_xri_aborted *axri, int idx);
+				struct sli4_wcqe_xri_aborted *axri,
+				struct lpfc_io_buf *lpfc_ncmd);
+void lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
+			      struct sli4_wcqe_xri_aborted *axri, int idx);
 void lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 				 struct sli4_wcqe_xri_aborted *axri);
 void lpfc_sli4_els_xri_aborted(struct lpfc_hba *,
@@ -1094,6 +1093,17 @@ int lpfc_sli4_post_status_check(struct lpfc_hba *);
 uint8_t lpfc_sli_config_mbox_subsys_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
 uint8_t lpfc_sli_config_mbox_opcode_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_sli4_ras_dma_free(struct lpfc_hba *phba);
+struct sli4_hybrid_sgl *lpfc_get_sgl_per_hdwq(struct lpfc_hba *phba,
+					      struct lpfc_io_buf *buf);
+struct fcp_cmd_rsp_buf *lpfc_get_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
+						      struct lpfc_io_buf *buf);
+int lpfc_put_sgl_per_hdwq(struct lpfc_hba *phba, struct lpfc_io_buf *buf);
+int lpfc_put_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
+				  struct lpfc_io_buf *buf);
+void lpfc_free_sgl_per_hdwq(struct lpfc_hba *phba,
+			    struct lpfc_sli4_hdw_queue *hdwq);
+void lpfc_free_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
+				    struct lpfc_sli4_hdw_queue *hdwq);
 static inline void *lpfc_sli4_qe(struct lpfc_queue *q, uint16_t idx)
 {
 	return q->q_pgs[idx / q->entry_cnt_per_pg] +

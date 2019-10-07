@@ -2517,7 +2517,7 @@ static struct notifier_block efx_netdev_notifier = {
 static ssize_t
 show_phy_type(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct efx_nic *efx = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", efx->phy_type);
 }
 static DEVICE_ATTR(phy_type, 0444, show_phy_type, NULL);
@@ -2526,7 +2526,7 @@ static DEVICE_ATTR(phy_type, 0444, show_phy_type, NULL);
 static ssize_t show_mcdi_log(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct efx_nic *efx = dev_get_drvdata(dev);
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", mcdi->logging_enabled);
@@ -2534,7 +2534,7 @@ static ssize_t show_mcdi_log(struct device *dev, struct device_attribute *attr,
 static ssize_t set_mcdi_log(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct efx_nic *efx = dev_get_drvdata(dev);
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 	bool enable = count > 0 && *buf != '0';
 
@@ -3654,7 +3654,7 @@ static int efx_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
 
 static int efx_pm_freeze(struct device *dev)
 {
-	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct efx_nic *efx = dev_get_drvdata(dev);
 
 	rtnl_lock();
 
@@ -3675,7 +3675,7 @@ static int efx_pm_freeze(struct device *dev)
 static int efx_pm_thaw(struct device *dev)
 {
 	int rc;
-	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct efx_nic *efx = dev_get_drvdata(dev);
 
 	rtnl_lock();
 

@@ -6,10 +6,12 @@ by mmc.txt and the properties that represent the IPROC SDHCI controller.
 Required properties:
 - compatible : Should be one of the following
 	       "brcm,bcm2835-sdhci"
+	       "brcm,bcm2711-emmc2"
 	       "brcm,sdhci-iproc-cygnus"
 	       "brcm,sdhci-iproc"
 
-Use brcm2835-sdhci for Rasperry PI.
+Use brcm2835-sdhci for the eMMC controller on the BCM2835 (Raspberry Pi) and
+bcm2711-emmc2 for the additional eMMC2 controller on BCM2711.
 
 Use sdhci-iproc-cygnus for Broadcom SDHCI Controllers
 restricted to 32bit host accesses to SDHCI registers.

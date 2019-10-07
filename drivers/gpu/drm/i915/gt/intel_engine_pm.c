@@ -8,6 +8,8 @@
 
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
+#include "intel_engine_pool.h"
+#include "intel_gt.h"
 #include "intel_gt_pm.h"
 
 static int __engine_unpark(struct intel_wakeref *wf)
@@ -18,7 +20,7 @@ static int __engine_unpark(struct intel_wakeref *wf)
 
 	GEM_TRACE("%s\n", engine->name);
 
-	intel_gt_pm_get(engine->i915);
+	intel_gt_pm_get(engine->gt);
 
 	/* Pin the default state for fast resets from atomic context. */
 	map = NULL;
@@ -35,38 +37,51 @@ static int __engine_unpark(struct intel_wakeref *wf)
 	return 0;
 }
 
-void intel_engine_pm_get(struct intel_engine_cs *engine)
+#if IS_ENABLED(CONFIG_LOCKDEP)
+
+static inline unsigned long __timeline_mark_lock(struct intel_context *ce)
 {
-	intel_wakeref_get(&engine->i915->runtime_pm, &engine->wakeref, __engine_unpark);
+	unsigned long flags;
+
+	local_irq_save(flags);
+	mutex_acquire(&ce->timeline->mutex.dep_map, 2, 0, _THIS_IP_);
+
+	return flags;
 }
 
-void intel_engine_park(struct intel_engine_cs *engine)
+static inline void __timeline_mark_unlock(struct intel_context *ce,
+					  unsigned long flags)
 {
-	/*
-	 * We are committed now to parking this engine, make sure there
-	 * will be no more interrupts arriving later and the engine
-	 * is truly idle.
-	 */
-	if (wait_for(intel_engine_is_idle(engine), 10)) {
-		struct drm_printer p = drm_debug_printer(__func__);
-
-		dev_err(engine->i915->drm.dev,
-			"%s is not idle before parking\n",
-			engine->name);
-		intel_engine_dump(engine, &p, NULL);
-	}
+	mutex_release(&ce->timeline->mutex.dep_map, 0, _THIS_IP_);
+	local_irq_restore(flags);
 }
+
+#else
+
+static inline unsigned long __timeline_mark_lock(struct intel_context *ce)
+{
+	return 0;
+}
+
+static inline void __timeline_mark_unlock(struct intel_context *ce,
+					  unsigned long flags)
+{
+}
+
+#endif /* !IS_ENABLED(CONFIG_LOCKDEP) */
 
 static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 {
 	struct i915_request *rq;
+	unsigned long flags;
+	bool result = true;
 
 	/* Already inside the kernel context, safe to power down. */
 	if (engine->wakeref_serial == engine->serial)
 		return true;
 
 	/* GPU is pointing to the void, as good as in the kernel context. */
-	if (i915_reset_failed(engine->i915))
+	if (intel_gt_is_wedged(engine->gt))
 		return true;
 
 	/*
@@ -81,18 +96,31 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	 * retiring the last request, thus all rings should be empty and
 	 * all timelines idle.
 	 */
+	flags = __timeline_mark_lock(engine->kernel_context);
+
 	rq = __i915_request_create(engine->kernel_context, GFP_NOWAIT);
 	if (IS_ERR(rq))
 		/* Context switch failed, hope for the best! Maybe reset? */
-		return true;
+		goto out_unlock;
+
+	intel_timeline_enter(rq->timeline);
 
 	/* Check again on the next retirement. */
 	engine->wakeref_serial = engine->serial + 1;
+	i915_request_add_active_barriers(rq);
 
-	i915_request_add_barriers(rq);
+	/* Install ourselves as a preemption barrier */
+	rq->sched.attr.priority = I915_PRIORITY_UNPREEMPTABLE;
 	__i915_request_commit(rq);
 
-	return false;
+	/* Release our exclusive hold on the engine */
+	__intel_wakeref_defer_park(&engine->wakeref);
+	__i915_request_queue(rq, NULL);
+
+	result = false;
+out_unlock:
+	__timeline_mark_unlock(engine->kernel_context, flags);
+	return result;
 }
 
 static int __engine_park(struct intel_wakeref *wf)
@@ -115,6 +143,7 @@ static int __engine_park(struct intel_wakeref *wf)
 	GEM_TRACE("%s\n", engine->name);
 
 	intel_engine_disarm_breadcrumbs(engine);
+	intel_engine_pool_park(&engine->pool);
 
 	/* Must be reset upon idling, or we may miss the busy wakeup. */
 	GEM_BUG_ON(engine->execlists.queue_priority_hint != INT_MIN);
@@ -129,16 +158,22 @@ static int __engine_park(struct intel_wakeref *wf)
 
 	engine->execlists.no_priolist = false;
 
-	intel_gt_pm_put(engine->i915);
+	intel_gt_pm_put(engine->gt);
 	return 0;
 }
 
-void intel_engine_pm_put(struct intel_engine_cs *engine)
-{
-	intel_wakeref_put(&engine->i915->runtime_pm, &engine->wakeref, __engine_park);
-}
+static const struct intel_wakeref_ops wf_ops = {
+	.get = __engine_unpark,
+	.put = __engine_park,
+};
 
 void intel_engine_init__pm(struct intel_engine_cs *engine)
 {
-	intel_wakeref_init(&engine->wakeref);
+	struct intel_runtime_pm *rpm = &engine->i915->runtime_pm;
+
+	intel_wakeref_init(&engine->wakeref, rpm, &wf_ops);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftest_engine_pm.c"
+#endif

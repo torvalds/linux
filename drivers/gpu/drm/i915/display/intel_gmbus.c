@@ -35,7 +35,7 @@
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_gmbus.h"
 
 struct gmbus_pin {
@@ -82,25 +82,20 @@ static const struct gmbus_pin gmbus_pins_cnp[] = {
 static const struct gmbus_pin gmbus_pins_icp[] = {
 	[GMBUS_PIN_1_BXT] = { "dpa", GPIOB },
 	[GMBUS_PIN_2_BXT] = { "dpb", GPIOC },
+	[GMBUS_PIN_3_BXT] = { "dpc", GPIOD },
 	[GMBUS_PIN_9_TC1_ICP] = { "tc1", GPIOJ },
 	[GMBUS_PIN_10_TC2_ICP] = { "tc2", GPIOK },
 	[GMBUS_PIN_11_TC3_ICP] = { "tc3", GPIOL },
 	[GMBUS_PIN_12_TC4_ICP] = { "tc4", GPIOM },
-};
-
-static const struct gmbus_pin gmbus_pins_mcc[] = {
-	[GMBUS_PIN_1_BXT] = { "dpa", GPIOB },
-	[GMBUS_PIN_2_BXT] = { "dpb", GPIOC },
-	[GMBUS_PIN_9_TC1_ICP] = { "dpc", GPIOJ },
+	[GMBUS_PIN_13_TC5_TGP] = { "tc5", GPION },
+	[GMBUS_PIN_14_TC6_TGP] = { "tc6", GPIOO },
 };
 
 /* pin is expected to be valid */
 static const struct gmbus_pin *get_gmbus_pin(struct drm_i915_private *dev_priv,
 					     unsigned int pin)
 {
-	if (HAS_PCH_MCC(dev_priv))
-		return &gmbus_pins_mcc[pin];
-	else if (HAS_PCH_ICP(dev_priv))
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		return &gmbus_pins_icp[pin];
 	else if (HAS_PCH_CNP(dev_priv))
 		return &gmbus_pins_cnp[pin];
@@ -119,9 +114,7 @@ bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
 {
 	unsigned int size;
 
-	if (HAS_PCH_MCC(dev_priv))
-		size = ARRAY_SIZE(gmbus_pins_mcc);
-	else if (HAS_PCH_ICP(dev_priv))
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		size = ARRAY_SIZE(gmbus_pins_icp);
 	else if (HAS_PCH_CNP(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_cnp);

@@ -6,6 +6,7 @@
 #include <linux/bug.h>
 #include <linux/jiffies.h>
 #include <linux/skbuff.h>
+#include <linux/timekeeping.h>
 
 #include "../ccm.h"
 #include "../nfp_app.h"
@@ -175,29 +176,151 @@ nfp_bpf_ctrl_reply_val(struct nfp_app_bpf *bpf, struct cmsg_reply_map_op *reply,
 	return &reply->data[bpf->cmsg_key_sz * (n + 1) + bpf->cmsg_val_sz * n];
 }
 
+static bool nfp_bpf_ctrl_op_cache_invalidate(enum nfp_ccm_type op)
+{
+	return op == NFP_CCM_TYPE_BPF_MAP_UPDATE ||
+	       op == NFP_CCM_TYPE_BPF_MAP_DELETE;
+}
+
+static bool nfp_bpf_ctrl_op_cache_capable(enum nfp_ccm_type op)
+{
+	return op == NFP_CCM_TYPE_BPF_MAP_LOOKUP ||
+	       op == NFP_CCM_TYPE_BPF_MAP_GETNEXT;
+}
+
+static bool nfp_bpf_ctrl_op_cache_fill(enum nfp_ccm_type op)
+{
+	return op == NFP_CCM_TYPE_BPF_MAP_GETFIRST ||
+	       op == NFP_CCM_TYPE_BPF_MAP_GETNEXT;
+}
+
+static unsigned int
+nfp_bpf_ctrl_op_cache_get(struct nfp_bpf_map *nfp_map, enum nfp_ccm_type op,
+			  const u8 *key, u8 *out_key, u8 *out_value,
+			  u32 *cache_gen)
+{
+	struct bpf_map *map = &nfp_map->offmap->map;
+	struct nfp_app_bpf *bpf = nfp_map->bpf;
+	unsigned int i, count, n_entries;
+	struct cmsg_reply_map_op *reply;
+
+	n_entries = nfp_bpf_ctrl_op_cache_fill(op) ? bpf->cmsg_cache_cnt : 1;
+
+	spin_lock(&nfp_map->cache_lock);
+	*cache_gen = nfp_map->cache_gen;
+	if (nfp_map->cache_blockers)
+		n_entries = 1;
+
+	if (nfp_bpf_ctrl_op_cache_invalidate(op))
+		goto exit_block;
+	if (!nfp_bpf_ctrl_op_cache_capable(op))
+		goto exit_unlock;
+
+	if (!nfp_map->cache)
+		goto exit_unlock;
+	if (nfp_map->cache_to < ktime_get_ns())
+		goto exit_invalidate;
+
+	reply = (void *)nfp_map->cache->data;
+	count = be32_to_cpu(reply->count);
+
+	for (i = 0; i < count; i++) {
+		void *cached_key;
+
+		cached_key = nfp_bpf_ctrl_reply_key(bpf, reply, i);
+		if (memcmp(cached_key, key, map->key_size))
+			continue;
+
+		if (op == NFP_CCM_TYPE_BPF_MAP_LOOKUP)
+			memcpy(out_value, nfp_bpf_ctrl_reply_val(bpf, reply, i),
+			       map->value_size);
+		if (op == NFP_CCM_TYPE_BPF_MAP_GETNEXT) {
+			if (i + 1 == count)
+				break;
+
+			memcpy(out_key,
+			       nfp_bpf_ctrl_reply_key(bpf, reply, i + 1),
+			       map->key_size);
+		}
+
+		n_entries = 0;
+		goto exit_unlock;
+	}
+	goto exit_unlock;
+
+exit_block:
+	nfp_map->cache_blockers++;
+exit_invalidate:
+	dev_consume_skb_any(nfp_map->cache);
+	nfp_map->cache = NULL;
+exit_unlock:
+	spin_unlock(&nfp_map->cache_lock);
+	return n_entries;
+}
+
+static void
+nfp_bpf_ctrl_op_cache_put(struct nfp_bpf_map *nfp_map, enum nfp_ccm_type op,
+			  struct sk_buff *skb, u32 cache_gen)
+{
+	bool blocker, filler;
+
+	blocker = nfp_bpf_ctrl_op_cache_invalidate(op);
+	filler = nfp_bpf_ctrl_op_cache_fill(op);
+	if (blocker || filler) {
+		u64 to = 0;
+
+		if (filler)
+			to = ktime_get_ns() + NFP_BPF_MAP_CACHE_TIME_NS;
+
+		spin_lock(&nfp_map->cache_lock);
+		if (blocker) {
+			nfp_map->cache_blockers--;
+			nfp_map->cache_gen++;
+		}
+		if (filler && !nfp_map->cache_blockers &&
+		    nfp_map->cache_gen == cache_gen) {
+			nfp_map->cache_to = to;
+			swap(nfp_map->cache, skb);
+		}
+		spin_unlock(&nfp_map->cache_lock);
+	}
+
+	dev_consume_skb_any(skb);
+}
+
 static int
 nfp_bpf_ctrl_entry_op(struct bpf_offloaded_map *offmap, enum nfp_ccm_type op,
 		      u8 *key, u8 *value, u64 flags, u8 *out_key, u8 *out_value)
 {
 	struct nfp_bpf_map *nfp_map = offmap->dev_priv;
+	unsigned int n_entries, reply_entries, count;
 	struct nfp_app_bpf *bpf = nfp_map->bpf;
 	struct bpf_map *map = &offmap->map;
 	struct cmsg_reply_map_op *reply;
 	struct cmsg_req_map_op *req;
 	struct sk_buff *skb;
+	u32 cache_gen;
 	int err;
 
 	/* FW messages have no space for more than 32 bits of flags */
 	if (flags >> 32)
 		return -EOPNOTSUPP;
 
+	/* Handle op cache */
+	n_entries = nfp_bpf_ctrl_op_cache_get(nfp_map, op, key, out_key,
+					      out_value, &cache_gen);
+	if (!n_entries)
+		return 0;
+
 	skb = nfp_bpf_cmsg_map_req_alloc(bpf, 1);
-	if (!skb)
-		return -ENOMEM;
+	if (!skb) {
+		err = -ENOMEM;
+		goto err_cache_put;
+	}
 
 	req = (void *)skb->data;
 	req->tid = cpu_to_be32(nfp_map->tid);
-	req->count = cpu_to_be32(1);
+	req->count = cpu_to_be32(n_entries);
 	req->flags = cpu_to_be32(flags);
 
 	/* Copy inputs */
@@ -207,15 +330,37 @@ nfp_bpf_ctrl_entry_op(struct bpf_offloaded_map *offmap, enum nfp_ccm_type op,
 		memcpy(nfp_bpf_ctrl_req_val(bpf, req, 0), value,
 		       map->value_size);
 
-	skb = nfp_ccm_communicate(&bpf->ccm, skb, op,
-				  nfp_bpf_cmsg_map_reply_size(bpf, 1));
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
+	skb = nfp_ccm_communicate(&bpf->ccm, skb, op, 0);
+	if (IS_ERR(skb)) {
+		err = PTR_ERR(skb);
+		goto err_cache_put;
+	}
+
+	if (skb->len < sizeof(*reply)) {
+		cmsg_warn(bpf, "cmsg drop - type 0x%02x too short %d!\n",
+			  op, skb->len);
+		err = -EIO;
+		goto err_free;
+	}
 
 	reply = (void *)skb->data;
+	count = be32_to_cpu(reply->count);
 	err = nfp_bpf_ctrl_rc_to_errno(bpf, &reply->reply_hdr);
+	/* FW responds with message sized to hold the good entries,
+	 * plus one extra entry if there was an error.
+	 */
+	reply_entries = count + !!err;
+	if (n_entries > 1 && count)
+		err = 0;
 	if (err)
 		goto err_free;
+
+	if (skb->len != nfp_bpf_cmsg_map_reply_size(bpf, reply_entries)) {
+		cmsg_warn(bpf, "cmsg drop - type 0x%02x too short %d for %d entries!\n",
+			  op, skb->len, reply_entries);
+		err = -EIO;
+		goto err_free;
+	}
 
 	/* Copy outputs */
 	if (out_key)
@@ -225,11 +370,13 @@ nfp_bpf_ctrl_entry_op(struct bpf_offloaded_map *offmap, enum nfp_ccm_type op,
 		memcpy(out_value, nfp_bpf_ctrl_reply_val(bpf, reply, 0),
 		       map->value_size);
 
-	dev_consume_skb_any(skb);
+	nfp_bpf_ctrl_op_cache_put(nfp_map, op, skb, cache_gen);
 
 	return 0;
 err_free:
 	dev_kfree_skb_any(skb);
+err_cache_put:
+	nfp_bpf_ctrl_op_cache_put(nfp_map, op, NULL, cache_gen);
 	return err;
 }
 
@@ -267,11 +414,29 @@ int nfp_bpf_ctrl_getnext_entry(struct bpf_offloaded_map *offmap,
 				     key, NULL, 0, next_key, NULL);
 }
 
+unsigned int nfp_bpf_ctrl_cmsg_min_mtu(struct nfp_app_bpf *bpf)
+{
+	return max(nfp_bpf_cmsg_map_req_size(bpf, 1),
+		   nfp_bpf_cmsg_map_reply_size(bpf, 1));
+}
+
 unsigned int nfp_bpf_ctrl_cmsg_mtu(struct nfp_app_bpf *bpf)
 {
-	return max3((unsigned int)NFP_NET_DEFAULT_MTU,
-		    nfp_bpf_cmsg_map_req_size(bpf, 1),
-		    nfp_bpf_cmsg_map_reply_size(bpf, 1));
+	return max3(NFP_NET_DEFAULT_MTU,
+		    nfp_bpf_cmsg_map_req_size(bpf, NFP_BPF_MAP_CACHE_CNT),
+		    nfp_bpf_cmsg_map_reply_size(bpf, NFP_BPF_MAP_CACHE_CNT));
+}
+
+unsigned int nfp_bpf_ctrl_cmsg_cache_cnt(struct nfp_app_bpf *bpf)
+{
+	unsigned int mtu, req_max, reply_max, entry_sz;
+
+	mtu = bpf->app->ctrl->dp.mtu;
+	entry_sz = bpf->cmsg_key_sz + bpf->cmsg_val_sz;
+	req_max = (mtu - sizeof(struct cmsg_req_map_op)) / entry_sz;
+	reply_max = (mtu - sizeof(struct cmsg_reply_map_op)) / entry_sz;
+
+	return min3(req_max, reply_max, NFP_BPF_MAP_CACHE_CNT);
 }
 
 void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb)

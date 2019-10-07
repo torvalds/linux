@@ -23,11 +23,14 @@
  *          Alon Levy
  */
 
+#include <linux/io-mapping.h>
+#include <linux/pci.h>
+
+#include <drm/drm_drv.h>
+#include <drm/drm_probe_helper.h>
+
 #include "qxl_drv.h"
 #include "qxl_object.h"
-
-#include <drm/drm_probe_helper.h>
-#include <linux/io-mapping.h>
 
 int qxl_log_level;
 

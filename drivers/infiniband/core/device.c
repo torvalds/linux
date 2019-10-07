@@ -39,7 +39,6 @@
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <net/net_namespace.h>
-#include <net/netns/generic.h>
 #include <linux/security.h>
 #include <linux/notifier.h>
 #include <linux/hashtable.h>
@@ -111,17 +110,7 @@ static void ib_client_put(struct ib_client *client)
  */
 #define CLIENT_DATA_REGISTERED XA_MARK_1
 
-/**
- * struct rdma_dev_net - rdma net namespace metadata for a net
- * @net:	Pointer to owner net namespace
- * @id:		xarray id to identify the net namespace.
- */
-struct rdma_dev_net {
-	possible_net_t net;
-	u32 id;
-};
-
-static unsigned int rdma_dev_net_id;
+unsigned int rdma_dev_net_id;
 
 /*
  * A list of net namespaces is maintained in an xarray. This is necessary
@@ -513,6 +502,9 @@ static void ib_device_release(struct device *device)
 				       pdata[0]),
 			  rcu_head);
 	}
+
+	mutex_destroy(&dev->unregistration_lock);
+	mutex_destroy(&dev->compat_devs_mutex);
 
 	xa_destroy(&dev->compat_devs);
 	xa_destroy(&dev->client_data);
@@ -1060,7 +1052,7 @@ int rdma_compatdev_set(u8 enable)
 
 static void rdma_dev_exit_net(struct net *net)
 {
-	struct rdma_dev_net *rnet = net_generic(net, rdma_dev_net_id);
+	struct rdma_dev_net *rnet = rdma_net_to_dev_net(net);
 	struct ib_device *dev;
 	unsigned long index;
 	int ret;
@@ -1094,25 +1086,32 @@ static void rdma_dev_exit_net(struct net *net)
 	}
 	up_read(&devices_rwsem);
 
+	rdma_nl_net_exit(rnet);
 	xa_erase(&rdma_nets, rnet->id);
 }
 
 static __net_init int rdma_dev_init_net(struct net *net)
 {
-	struct rdma_dev_net *rnet = net_generic(net, rdma_dev_net_id);
+	struct rdma_dev_net *rnet = rdma_net_to_dev_net(net);
 	unsigned long index;
 	struct ib_device *dev;
 	int ret;
+
+	write_pnet(&rnet->net, net);
+
+	ret = rdma_nl_net_init(rnet);
+	if (ret)
+		return ret;
 
 	/* No need to create any compat devices in default init_net. */
 	if (net_eq(net, &init_net))
 		return 0;
 
-	write_pnet(&rnet->net, net);
-
 	ret = xa_alloc(&rdma_nets, &rnet->id, rnet, xa_limit_32b, GFP_KERNEL);
-	if (ret)
+	if (ret) {
+		rdma_nl_net_exit(rnet);
 		return ret;
+	}
 
 	down_read(&devices_rwsem);
 	xa_for_each_marked (&devices, index, dev, DEVICE_REGISTERED) {
@@ -1974,6 +1973,74 @@ void ib_dispatch_event(struct ib_event *event)
 }
 EXPORT_SYMBOL(ib_dispatch_event);
 
+static int iw_query_port(struct ib_device *device,
+			   u8 port_num,
+			   struct ib_port_attr *port_attr)
+{
+	struct in_device *inetdev;
+	struct net_device *netdev;
+	int err;
+
+	memset(port_attr, 0, sizeof(*port_attr));
+
+	netdev = ib_device_get_netdev(device, port_num);
+	if (!netdev)
+		return -ENODEV;
+
+	dev_put(netdev);
+
+	port_attr->max_mtu = IB_MTU_4096;
+	port_attr->active_mtu = ib_mtu_int_to_enum(netdev->mtu);
+
+	if (!netif_carrier_ok(netdev)) {
+		port_attr->state = IB_PORT_DOWN;
+		port_attr->phys_state = IB_PORT_PHYS_STATE_DISABLED;
+	} else {
+		inetdev = in_dev_get(netdev);
+
+		if (inetdev && inetdev->ifa_list) {
+			port_attr->state = IB_PORT_ACTIVE;
+			port_attr->phys_state = IB_PORT_PHYS_STATE_LINK_UP;
+			in_dev_put(inetdev);
+		} else {
+			port_attr->state = IB_PORT_INIT;
+			port_attr->phys_state =
+				IB_PORT_PHYS_STATE_PORT_CONFIGURATION_TRAINING;
+		}
+	}
+
+	err = device->ops.query_port(device, port_num, port_attr);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static int __ib_query_port(struct ib_device *device,
+			   u8 port_num,
+			   struct ib_port_attr *port_attr)
+{
+	union ib_gid gid = {};
+	int err;
+
+	memset(port_attr, 0, sizeof(*port_attr));
+
+	err = device->ops.query_port(device, port_num, port_attr);
+	if (err || port_attr->subnet_prefix)
+		return err;
+
+	if (rdma_port_get_link_layer(device, port_num) !=
+	    IB_LINK_LAYER_INFINIBAND)
+		return 0;
+
+	err = device->ops.query_gid(device, port_num, 0, &gid);
+	if (err)
+		return err;
+
+	port_attr->subnet_prefix = be64_to_cpu(gid.global.subnet_prefix);
+	return 0;
+}
+
 /**
  * ib_query_port - Query IB port attributes
  * @device:Device to query
@@ -1987,26 +2054,13 @@ int ib_query_port(struct ib_device *device,
 		  u8 port_num,
 		  struct ib_port_attr *port_attr)
 {
-	union ib_gid gid;
-	int err;
-
 	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
-	memset(port_attr, 0, sizeof(*port_attr));
-	err = device->ops.query_port(device, port_num, port_attr);
-	if (err || port_attr->subnet_prefix)
-		return err;
-
-	if (rdma_port_get_link_layer(device, port_num) != IB_LINK_LAYER_INFINIBAND)
-		return 0;
-
-	err = device->ops.query_gid(device, port_num, 0, &gid);
-	if (err)
-		return err;
-
-	port_attr->subnet_prefix = be64_to_cpu(gid.global.subnet_prefix);
-	return 0;
+	if (rdma_protocol_iwarp(device, port_num))
+		return iw_query_port(device, port_num, port_attr);
+	else
+		return __ib_query_port(device, port_num, port_attr);
 }
 EXPORT_SYMBOL(ib_query_port);
 
@@ -2562,6 +2616,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, get_vf_config);
 	SET_DEVICE_OP(dev_ops, get_vf_stats);
 	SET_DEVICE_OP(dev_ops, init_port);
+	SET_DEVICE_OP(dev_ops, invalidate_range);
 	SET_DEVICE_OP(dev_ops, iw_accept);
 	SET_DEVICE_OP(dev_ops, iw_add_ref);
 	SET_DEVICE_OP(dev_ops, iw_connect);
@@ -2660,12 +2715,6 @@ static int __init ib_core_init(void)
 		goto err_comp_unbound;
 	}
 
-	ret = rdma_nl_init();
-	if (ret) {
-		pr_warn("Couldn't init IB netlink interface: err %d\n", ret);
-		goto err_sysfs;
-	}
-
 	ret = addr_init();
 	if (ret) {
 		pr_warn("Could't init IB address resolution\n");
@@ -2711,8 +2760,6 @@ err_mad:
 err_addr:
 	addr_cleanup();
 err_ibnl:
-	rdma_nl_exit();
-err_sysfs:
 	class_unregister(&ib_class);
 err_comp_unbound:
 	destroy_workqueue(ib_comp_unbound_wq);

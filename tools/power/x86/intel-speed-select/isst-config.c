@@ -38,6 +38,7 @@ static int fact_avx = 0xFF;
 static unsigned long long fact_trl;
 static int out_format_json;
 static int cmd_help;
+static int force_online_offline;
 
 /* clos related */
 static int current_clos = -1;
@@ -138,14 +139,14 @@ int out_format_is_json(void)
 int get_physical_package_id(int cpu)
 {
 	return parse_int_file(
-		1, "/sys/devices/system/cpu/cpu%d/topology/physical_package_id",
+		0, "/sys/devices/system/cpu/cpu%d/topology/physical_package_id",
 		cpu);
 }
 
 int get_physical_core_id(int cpu)
 {
 	return parse_int_file(
-		1, "/sys/devices/system/cpu/cpu%d/topology/core_id", cpu);
+		0, "/sys/devices/system/cpu/cpu%d/topology/core_id", cpu);
 }
 
 int get_physical_die_id(int cpu)
@@ -163,6 +164,26 @@ int get_physical_die_id(int cpu)
 int get_topo_max_cpus(void)
 {
 	return topo_max_cpus;
+}
+
+static void set_cpu_online_offline(int cpu, int state)
+{
+	char buffer[128];
+	int fd;
+
+	snprintf(buffer, sizeof(buffer),
+		 "/sys/devices/system/cpu/cpu%d/online", cpu);
+
+	fd = open(buffer, O_WRONLY);
+	if (fd < 0)
+		err(-1, "%s open failed", buffer);
+
+	if (state)
+		write(fd, "1\n", 2);
+	else
+		write(fd, "0\n", 2);
+
+	close(fd);
 }
 
 #define MAX_PACKAGE_COUNT 8
@@ -304,7 +325,7 @@ static void set_cpu_present_cpu_mask(void)
 int get_cpu_count(int pkg_id, int die_id)
 {
 	if (pkg_id < MAX_PACKAGE_COUNT && die_id < MAX_DIE_PER_PACKAGE)
-		return cpu_cnt[pkg_id][die_id] + 1;
+		return cpu_cnt[pkg_id][die_id];
 
 	return 0;
 }
@@ -402,6 +423,9 @@ void set_cpu_mask_from_punit_coremask(int cpu, unsigned long long core_mask,
 			int j;
 
 			for (j = 0; j < topo_max_cpus; ++j) {
+				if (!CPU_ISSET_S(j, present_cpumask_size, present_cpumask))
+					continue;
+
 				if (cpu_map[j].pkg_id == pkg_id &&
 				    cpu_map[j].die_id == die_id &&
 				    cpu_map[j].punit_cpu_core == i) {
@@ -484,7 +508,7 @@ int isst_send_mbox_command(unsigned int cpu, unsigned char command,
 		int write = 0;
 		int clos_id, core_id, ret = 0;
 
-		debug_printf("CLOS %d\n", cpu);
+		debug_printf("CPU %d\n", cpu);
 
 		if (parameter & BIT(MBOX_CMD_WRITE_BIT)) {
 			value = req_data;
@@ -603,6 +627,10 @@ static int isst_fill_platform_info(void)
 
 	close(fd);
 
+	if (isst_platform_info.api_version > supported_api_ver) {
+		printf("Incompatible API versions; Upgrade of tool is required\n");
+		return -1;
+	}
 	return 0;
 }
 
@@ -645,8 +673,8 @@ static void exec_on_get_ctdp_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	if (ret)
 		perror("get_tdp_*");
 	else
-		isst_display_result(cpu, outf, "perf-profile", (char *)arg3,
-				    *(unsigned int *)arg4);
+		isst_ctdp_display_core_info(cpu, outf, arg3,
+					    *(unsigned int *)arg4);
 }
 
 #define _get_tdp_level(desc, suffix, object, help)                                \
@@ -729,9 +757,34 @@ static void set_tdp_level_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	ret = isst_set_tdp_level(cpu, tdp_level);
 	if (ret)
 		perror("set_tdp_level_for_cpu");
-	else
+	else {
 		isst_display_result(cpu, outf, "perf-profile", "set_tdp_level",
 				    ret);
+		if (force_online_offline) {
+			struct isst_pkg_ctdp_level_info ctdp_level;
+			int pkg_id = get_physical_package_id(cpu);
+			int die_id = get_physical_die_id(cpu);
+
+			fprintf(stderr, "Option is set to online/offline\n");
+			ctdp_level.core_cpumask_size =
+				alloc_cpu_set(&ctdp_level.core_cpumask);
+			isst_get_coremask_info(cpu, tdp_level, &ctdp_level);
+			if (ctdp_level.cpu_count) {
+				int i, max_cpus = get_topo_max_cpus();
+				for (i = 0; i < max_cpus; ++i) {
+					if (pkg_id != get_physical_package_id(i) || die_id != get_physical_die_id(i))
+						continue;
+					if (CPU_ISSET_S(i, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask)) {
+						fprintf(stderr, "online cpu %d\n", i);
+						set_cpu_online_offline(i, 1);
+					} else {
+						fprintf(stderr, "offline cpu %d\n", i);
+						set_cpu_online_offline(i, 0);
+					}
+				}
+			}
+		}
+	}
 }
 
 static void set_tdp_level(void)
@@ -740,6 +793,8 @@ static void set_tdp_level(void)
 		fprintf(stderr, "Set Config TDP level\n");
 		fprintf(stderr,
 			"\t Arguments: -l|--level : Specify tdp level\n");
+		fprintf(stderr,
+			"\t Optional Arguments: -o | online : online/offline for the tdp level\n");
 		exit(0);
 	}
 
@@ -1078,6 +1133,40 @@ static void dump_clos_config(void)
 	isst_ctdp_display_information_end(outf);
 }
 
+static void get_clos_info_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
+				  void *arg4)
+{
+	int enable, ret, prio_type;
+
+	ret = isst_clos_get_clos_information(cpu, &enable, &prio_type);
+	if (ret)
+		perror("isst_clos_get_info");
+	else
+		isst_clos_display_clos_information(cpu, outf, enable, prio_type);
+}
+
+static void dump_clos_info(void)
+{
+	if (cmd_help) {
+		fprintf(stderr,
+			"Print Intel Speed Select Technology core power information\n");
+		fprintf(stderr, "\tSpecify targeted cpu id with [--cpu|-c]\n");
+		exit(0);
+	}
+
+	if (!max_target_cpus) {
+		fprintf(stderr,
+			"Invalid target cpu. Specify with [-c|--cpu]\n");
+		exit(0);
+	}
+
+	isst_ctdp_display_information_start(outf);
+	for_each_online_target_cpu_in_set(get_clos_info_for_cpu, NULL,
+					  NULL, NULL, NULL);
+	isst_ctdp_display_information_end(outf);
+
+}
+
 static void set_clos_config_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 				    void *arg4)
 {
@@ -1194,7 +1283,7 @@ static void get_clos_assoc_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	if (ret)
 		perror("isst_clos_get_assoc_status");
 	else
-		isst_display_result(cpu, outf, "core-power", "get-assoc", clos);
+		isst_clos_display_assoc_information(cpu, outf, clos);
 }
 
 static void get_clos_assoc(void)
@@ -1204,13 +1293,17 @@ static void get_clos_assoc(void)
 		fprintf(stderr, "\tSpecify targeted cpu id with [--cpu|-c]\n");
 		exit(0);
 	}
-	if (max_target_cpus)
-		for_each_online_target_cpu_in_set(get_clos_assoc_for_cpu, NULL,
-						  NULL, NULL, NULL);
-	else {
+
+	if (!max_target_cpus) {
 		fprintf(stderr,
 			"Invalid target cpu. Specify with [-c|--cpu]\n");
+		exit(0);
 	}
+
+	isst_ctdp_display_information_start(outf);
+	for_each_online_target_cpu_in_set(get_clos_assoc_for_cpu, NULL,
+					  NULL, NULL, NULL);
+	isst_ctdp_display_information_end(outf);
 }
 
 static struct process_cmd_struct isst_cmds[] = {
@@ -1227,10 +1320,11 @@ static struct process_cmd_struct isst_cmds[] = {
 	{ "turbo-freq", "info", dump_fact_config },
 	{ "turbo-freq", "enable", set_fact_enable },
 	{ "turbo-freq", "disable", set_fact_disable },
-	{ "core-power", "info", dump_clos_config },
+	{ "core-power", "info", dump_clos_info },
 	{ "core-power", "enable", set_clos_enable },
 	{ "core-power", "disable", set_clos_disable },
 	{ "core-power", "config", set_clos_config },
+	{ "core-power", "get-config", dump_clos_config },
 	{ "core-power", "assoc", set_clos_assoc },
 	{ "core-power", "get-assoc", get_clos_assoc },
 	{ NULL, NULL, NULL }
@@ -1312,6 +1406,7 @@ static void parse_cmd_args(int argc, int start, char **argv)
 	static struct option long_options[] = {
 		{ "bucket", required_argument, 0, 'b' },
 		{ "level", required_argument, 0, 'l' },
+		{ "online", required_argument, 0, 'o' },
 		{ "trl-type", required_argument, 0, 'r' },
 		{ "trl", required_argument, 0, 't' },
 		{ "help", no_argument, 0, 'h' },
@@ -1328,7 +1423,7 @@ static void parse_cmd_args(int argc, int start, char **argv)
 	option_index = start;
 
 	optind = start + 1;
-	while ((opt = getopt_long(argc, argv, "b:l:t:c:d:e:n:m:p:w:h",
+	while ((opt = getopt_long(argc, argv, "b:l:t:c:d:e:n:m:p:w:ho",
 				  long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'b':
@@ -1339,6 +1434,9 @@ static void parse_cmd_args(int argc, int start, char **argv)
 			break;
 		case 'l':
 			tdp_level = atoi(optarg);
+			break;
+		case 'o':
+			force_online_offline = 1;
 			break;
 		case 't':
 			sscanf(optarg, "0x%llx", &fact_trl);
@@ -1358,7 +1456,6 @@ static void parse_cmd_args(int argc, int start, char **argv)
 		/* CLOS related */
 		case 'c':
 			current_clos = atoi(optarg);
-			printf("clos %d\n", current_clos);
 			break;
 		case 'd':
 			clos_desired = atoi(optarg);
@@ -1429,6 +1526,7 @@ static void core_power_help(void)
 	printf("\tenable\n");
 	printf("\tdisable\n");
 	printf("\tconfig\n");
+	printf("\tget-config\n");
 	printf("\tassoc\n");
 	printf("\tget-assoc\n");
 }
@@ -1491,7 +1589,7 @@ static void usage(void)
 	printf("intel-speed-select [OPTIONS] FEATURE COMMAND COMMAND_ARGUMENTS\n");
 	printf("\nUse this tool to enumerate and control the Intel Speed Select Technology features,\n");
 	printf("\nFEATURE : [perf-profile|base-freq|turbo-freq|core-power]\n");
-	printf("\nFor help on each feature, use --h|--help\n");
+	printf("\nFor help on each feature, use -h|--help\n");
 	printf("\tFor example:  intel-speed-select perf-profile -h\n");
 
 	printf("\nFor additional help on each command for a feature, use --h|--help\n");
@@ -1514,7 +1612,6 @@ static void usage(void)
 	printf("\tResult display uses a common format for each command:\n");
 	printf("\tResults are formatted in text/JSON with\n");
 	printf("\t\tPackage, Die, CPU, and command specific results.\n");
-	printf("\t\t\tFor Set commands, status is 0 for success and rest for failures\n");
 	exit(1);
 }
 
@@ -1529,6 +1626,7 @@ static void cmdline(int argc, char **argv)
 {
 	int opt;
 	int option_index = 0;
+	int ret;
 
 	static struct option long_options[] = {
 		{ "cpu", required_argument, 0, 'c' },
@@ -1590,13 +1688,14 @@ static void cmdline(int argc, char **argv)
 	set_max_cpu_num();
 	set_cpu_present_cpu_mask();
 	set_cpu_target_cpu_mask();
-	isst_fill_platform_info();
-	if (isst_platform_info.api_version > supported_api_ver) {
-		printf("Incompatible API versions; Upgrade of tool is required\n");
-		exit(0);
-	}
+	ret = isst_fill_platform_info();
+	if (ret)
+		goto out;
 
 	process_command(argc, argv);
+out:
+	free_cpu_set(present_cpumask);
+	free_cpu_set(target_cpumask);
 }
 
 int main(int argc, char **argv)

@@ -214,15 +214,42 @@ xlog_grant_head_wake(
 {
 	struct xlog_ticket	*tic;
 	int			need_bytes;
+	bool			woken_task = false;
 
 	list_for_each_entry(tic, &head->waiters, t_queue) {
+
+		/*
+		 * There is a chance that the size of the CIL checkpoints in
+		 * progress at the last AIL push target calculation resulted in
+		 * limiting the target to the log head (l_last_sync_lsn) at the
+		 * time. This may not reflect where the log head is now as the
+		 * CIL checkpoints may have completed.
+		 *
+		 * Hence when we are woken here, it may be that the head of the
+		 * log that has moved rather than the tail. As the tail didn't
+		 * move, there still won't be space available for the
+		 * reservation we require.  However, if the AIL has already
+		 * pushed to the target defined by the old log head location, we
+		 * will hang here waiting for something else to update the AIL
+		 * push target.
+		 *
+		 * Therefore, if there isn't space to wake the first waiter on
+		 * the grant head, we need to push the AIL again to ensure the
+		 * target reflects both the current log tail and log head
+		 * position before we wait for the tail to move again.
+		 */
+
 		need_bytes = xlog_ticket_reservation(log, head, tic);
-		if (*free_bytes < need_bytes)
+		if (*free_bytes < need_bytes) {
+			if (!woken_task)
+				xlog_grant_push_ail(log, need_bytes);
 			return false;
+		}
 
 		*free_bytes -= need_bytes;
 		trace_xfs_log_grant_wake_up(log, tic);
 		wake_up_process(tic->t_task);
+		woken_task = true;
 	}
 
 	return true;
@@ -428,8 +455,7 @@ xfs_log_reserve(
 	XFS_STATS_INC(mp, xs_try_logspace);
 
 	ASSERT(*ticp == NULL);
-	tic = xlog_ticket_alloc(log, unit_bytes, cnt, client, permanent,
-				KM_SLEEP);
+	tic = xlog_ticket_alloc(log, unit_bytes, cnt, client, permanent, 0);
 	*ticp = tic;
 
 	xlog_grant_push_ail(log, tic->t_cnt ? tic->t_unit_res * tic->t_cnt
@@ -1404,6 +1430,7 @@ xlog_alloc_log(
 	 */
 	ASSERT(log->l_iclog_size >= 4096);
 	for (i = 0; i < log->l_iclog_bufs; i++) {
+		int align_mask = xfs_buftarg_dma_alignment(mp->m_logdev_targp);
 		size_t bvec_size = howmany(log->l_iclog_size, PAGE_SIZE) *
 				sizeof(struct bio_vec);
 
@@ -1415,8 +1442,8 @@ xlog_alloc_log(
 		iclog->ic_prev = prev_iclog;
 		prev_iclog = iclog;
 
-		iclog->ic_data = kmem_alloc_large(log->l_iclog_size,
-				KM_MAYFAIL);
+		iclog->ic_data = kmem_alloc_io(log->l_iclog_size, align_mask,
+						KM_MAYFAIL);
 		if (!iclog->ic_data)
 			goto out_free_iclog;
 #ifdef DEBUG
@@ -2496,21 +2523,35 @@ next_lv:
  *****************************************************************************
  */
 
-/* Clean iclogs starting from the head.  This ordering must be
- * maintained, so an iclog doesn't become ACTIVE beyond one that
- * is SYNCING.  This is also required to maintain the notion that we use
- * a ordered wait queue to hold off would be writers to the log when every
- * iclog is trying to sync to disk.
+/*
+ * An iclog has just finished IO completion processing, so we need to update
+ * the iclog state and propagate that up into the overall log state. Hence we
+ * prepare the iclog for cleaning, and then clean all the pending dirty iclogs
+ * starting from the head, and then wake up any threads that are waiting for the
+ * iclog to be marked clean.
  *
- * State Change: DIRTY -> ACTIVE
+ * The ordering of marking iclogs ACTIVE must be maintained, so an iclog
+ * doesn't become ACTIVE beyond one that is SYNCING.  This is also required to
+ * maintain the notion that we use a ordered wait queue to hold off would be
+ * writers to the log when every iclog is trying to sync to disk.
+ *
+ * Caller must hold the icloglock before calling us.
+ *
+ * State Change: !IOERROR -> DIRTY -> ACTIVE
  */
 STATIC void
-xlog_state_clean_log(
-	struct xlog *log)
+xlog_state_clean_iclog(
+	struct xlog		*log,
+	struct xlog_in_core	*dirty_iclog)
 {
-	xlog_in_core_t	*iclog;
-	int changed = 0;
+	struct xlog_in_core	*iclog;
+	int			changed = 0;
 
+	/* Prepare the completed iclog. */
+	if (!(dirty_iclog->ic_state & XLOG_STATE_IOERROR))
+		dirty_iclog->ic_state = XLOG_STATE_DIRTY;
+
+	/* Walk all the iclogs to update the ordered active state. */
 	iclog = log->l_iclog;
 	do {
 		if (iclog->ic_state == XLOG_STATE_DIRTY) {
@@ -2548,7 +2589,13 @@ xlog_state_clean_log(
 		iclog = iclog->ic_next;
 	} while (iclog != log->l_iclog);
 
-	/* log is locked when we are called */
+
+	/*
+	 * Wake up threads waiting in xfs_log_force() for the dirty iclog
+	 * to be cleaned.
+	 */
+	wake_up_all(&dirty_iclog->ic_force_wait);
+
 	/*
 	 * Change state for the dummy log recording.
 	 * We usually go to NEED. But we go to NEED2 if the changed indicates
@@ -2582,7 +2629,7 @@ xlog_state_clean_log(
 			ASSERT(0);
 		}
 	}
-}	/* xlog_state_clean_log */
+}
 
 STATIC xfs_lsn_t
 xlog_get_lowest_lsn(
@@ -2603,30 +2650,205 @@ xlog_get_lowest_lsn(
 	return lowest_lsn;
 }
 
+/*
+ * Completion of a iclog IO does not imply that a transaction has completed, as
+ * transactions can be large enough to span many iclogs. We cannot change the
+ * tail of the log half way through a transaction as this may be the only
+ * transaction in the log and moving the tail to point to the middle of it
+ * will prevent recovery from finding the start of the transaction. Hence we
+ * should only update the last_sync_lsn if this iclog contains transaction
+ * completion callbacks on it.
+ *
+ * We have to do this before we drop the icloglock to ensure we are the only one
+ * that can update it.
+ *
+ * If we are moving the last_sync_lsn forwards, we also need to ensure we kick
+ * the reservation grant head pushing. This is due to the fact that the push
+ * target is bound by the current last_sync_lsn value. Hence if we have a large
+ * amount of log space bound up in this committing transaction then the
+ * last_sync_lsn value may be the limiting factor preventing tail pushing from
+ * freeing space in the log. Hence once we've updated the last_sync_lsn we
+ * should push the AIL to ensure the push target (and hence the grant head) is
+ * no longer bound by the old log head location and can move forwards and make
+ * progress again.
+ */
+static void
+xlog_state_set_callback(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	xfs_lsn_t		header_lsn)
+{
+	iclog->ic_state = XLOG_STATE_CALLBACK;
+
+	ASSERT(XFS_LSN_CMP(atomic64_read(&log->l_last_sync_lsn),
+			   header_lsn) <= 0);
+
+	if (list_empty_careful(&iclog->ic_callbacks))
+		return;
+
+	atomic64_set(&log->l_last_sync_lsn, header_lsn);
+	xlog_grant_push_ail(log, 0);
+}
+
+/*
+ * Return true if we need to stop processing, false to continue to the next
+ * iclog. The caller will need to run callbacks if the iclog is returned in the
+ * XLOG_STATE_CALLBACK state.
+ */
+static bool
+xlog_state_iodone_process_iclog(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	struct xlog_in_core	*completed_iclog,
+	bool			*ioerror)
+{
+	xfs_lsn_t		lowest_lsn;
+	xfs_lsn_t		header_lsn;
+
+	/* Skip all iclogs in the ACTIVE & DIRTY states */
+	if (iclog->ic_state & (XLOG_STATE_ACTIVE | XLOG_STATE_DIRTY))
+		return false;
+
+	/*
+	 * Between marking a filesystem SHUTDOWN and stopping the log, we do
+	 * flush all iclogs to disk (if there wasn't a log I/O error). So, we do
+	 * want things to go smoothly in case of just a SHUTDOWN  w/o a
+	 * LOG_IO_ERROR.
+	 */
+	if (iclog->ic_state & XLOG_STATE_IOERROR) {
+		*ioerror = true;
+		return false;
+	}
+
+	/*
+	 * Can only perform callbacks in order.  Since this iclog is not in the
+	 * DONE_SYNC/ DO_CALLBACK state, we skip the rest and just try to clean
+	 * up.  If we set our iclog to DO_CALLBACK, we will not process it when
+	 * we retry since a previous iclog is in the CALLBACK and the state
+	 * cannot change since we are holding the l_icloglock.
+	 */
+	if (!(iclog->ic_state &
+			(XLOG_STATE_DONE_SYNC | XLOG_STATE_DO_CALLBACK))) {
+		if (completed_iclog &&
+		    (completed_iclog->ic_state == XLOG_STATE_DONE_SYNC)) {
+			completed_iclog->ic_state = XLOG_STATE_DO_CALLBACK;
+		}
+		return true;
+	}
+
+	/*
+	 * We now have an iclog that is in either the DO_CALLBACK or DONE_SYNC
+	 * states. The other states (WANT_SYNC, SYNCING, or CALLBACK were caught
+	 * by the above if and are going to clean (i.e. we aren't doing their
+	 * callbacks) see the above if.
+	 *
+	 * We will do one more check here to see if we have chased our tail
+	 * around. If this is not the lowest lsn iclog, then we will leave it
+	 * for another completion to process.
+	 */
+	header_lsn = be64_to_cpu(iclog->ic_header.h_lsn);
+	lowest_lsn = xlog_get_lowest_lsn(log);
+	if (lowest_lsn && XFS_LSN_CMP(lowest_lsn, header_lsn) < 0)
+		return false;
+
+	xlog_state_set_callback(log, iclog, header_lsn);
+	return false;
+
+}
+
+/*
+ * Keep processing entries in the iclog callback list until we come around and
+ * it is empty.  We need to atomically see that the list is empty and change the
+ * state to DIRTY so that we don't miss any more callbacks being added.
+ *
+ * This function is called with the icloglock held and returns with it held. We
+ * drop it while running callbacks, however, as holding it over thousands of
+ * callbacks is unnecessary and causes excessive contention if we do.
+ */
+static void
+xlog_state_do_iclog_callbacks(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	bool			aborted)
+{
+	spin_unlock(&log->l_icloglock);
+	spin_lock(&iclog->ic_callback_lock);
+	while (!list_empty(&iclog->ic_callbacks)) {
+		LIST_HEAD(tmp);
+
+		list_splice_init(&iclog->ic_callbacks, &tmp);
+
+		spin_unlock(&iclog->ic_callback_lock);
+		xlog_cil_process_committed(&tmp, aborted);
+		spin_lock(&iclog->ic_callback_lock);
+	}
+
+	/*
+	 * Pick up the icloglock while still holding the callback lock so we
+	 * serialise against anyone trying to add more callbacks to this iclog
+	 * now we've finished processing.
+	 */
+	spin_lock(&log->l_icloglock);
+	spin_unlock(&iclog->ic_callback_lock);
+}
+
+#ifdef DEBUG
+/*
+ * Make one last gasp attempt to see if iclogs are being left in limbo.  If the
+ * above loop finds an iclog earlier than the current iclog and in one of the
+ * syncing states, the current iclog is put into DO_CALLBACK and the callbacks
+ * are deferred to the completion of the earlier iclog. Walk the iclogs in order
+ * and make sure that no iclog is in DO_CALLBACK unless an earlier iclog is in
+ * one of the syncing states.
+ *
+ * Note that SYNCING|IOERROR is a valid state so we cannot just check for
+ * ic_state == SYNCING.
+ */
+static void
+xlog_state_callback_check_state(
+	struct xlog		*log)
+{
+	struct xlog_in_core	*first_iclog = log->l_iclog;
+	struct xlog_in_core	*iclog = first_iclog;
+
+	do {
+		ASSERT(iclog->ic_state != XLOG_STATE_DO_CALLBACK);
+		/*
+		 * Terminate the loop if iclogs are found in states
+		 * which will cause other threads to clean up iclogs.
+		 *
+		 * SYNCING - i/o completion will go through logs
+		 * DONE_SYNC - interrupt thread should be waiting for
+		 *              l_icloglock
+		 * IOERROR - give up hope all ye who enter here
+		 */
+		if (iclog->ic_state == XLOG_STATE_WANT_SYNC ||
+		    iclog->ic_state & XLOG_STATE_SYNCING ||
+		    iclog->ic_state == XLOG_STATE_DONE_SYNC ||
+		    iclog->ic_state == XLOG_STATE_IOERROR )
+			break;
+		iclog = iclog->ic_next;
+	} while (first_iclog != iclog);
+}
+#else
+#define xlog_state_callback_check_state(l)	((void)0)
+#endif
+
 STATIC void
 xlog_state_do_callback(
 	struct xlog		*log,
 	bool			aborted,
 	struct xlog_in_core	*ciclog)
 {
-	xlog_in_core_t	   *iclog;
-	xlog_in_core_t	   *first_iclog;	/* used to know when we've
-						 * processed all iclogs once */
-	int		   flushcnt = 0;
-	xfs_lsn_t	   lowest_lsn;
-	int		   ioerrors;	/* counter: iclogs with errors */
-	int		   loopdidcallbacks; /* flag: inner loop did callbacks*/
-	int		   funcdidcallbacks; /* flag: function did callbacks */
-	int		   repeats;	/* for issuing console warnings if
-					 * looping too many times */
-	int		   wake = 0;
+	struct xlog_in_core	*iclog;
+	struct xlog_in_core	*first_iclog;
+	bool			did_callbacks = false;
+	bool			cycled_icloglock;
+	bool			ioerror;
+	int			flushcnt = 0;
+	int			repeats = 0;
 
 	spin_lock(&log->l_icloglock);
-	first_iclog = iclog = log->l_iclog;
-	ioerrors = 0;
-	funcdidcallbacks = 0;
-	repeats = 0;
-
 	do {
 		/*
 		 * Scan all iclogs starting with the one pointed to by the
@@ -2638,136 +2860,33 @@ xlog_state_do_callback(
 		 */
 		first_iclog = log->l_iclog;
 		iclog = log->l_iclog;
-		loopdidcallbacks = 0;
+		cycled_icloglock = false;
+		ioerror = false;
 		repeats++;
 
 		do {
+			if (xlog_state_iodone_process_iclog(log, iclog,
+							ciclog, &ioerror))
+				break;
 
-			/* skip all iclogs in the ACTIVE & DIRTY states */
-			if (iclog->ic_state &
-			    (XLOG_STATE_ACTIVE|XLOG_STATE_DIRTY)) {
+			if (!(iclog->ic_state &
+			      (XLOG_STATE_CALLBACK | XLOG_STATE_IOERROR))) {
 				iclog = iclog->ic_next;
 				continue;
 			}
 
 			/*
-			 * Between marking a filesystem SHUTDOWN and stopping
-			 * the log, we do flush all iclogs to disk (if there
-			 * wasn't a log I/O error). So, we do want things to
-			 * go smoothly in case of just a SHUTDOWN  w/o a
-			 * LOG_IO_ERROR.
+			 * Running callbacks will drop the icloglock which means
+			 * we'll have to run at least one more complete loop.
 			 */
-			if (!(iclog->ic_state & XLOG_STATE_IOERROR)) {
-				/*
-				 * Can only perform callbacks in order.  Since
-				 * this iclog is not in the DONE_SYNC/
-				 * DO_CALLBACK state, we skip the rest and
-				 * just try to clean up.  If we set our iclog
-				 * to DO_CALLBACK, we will not process it when
-				 * we retry since a previous iclog is in the
-				 * CALLBACK and the state cannot change since
-				 * we are holding the l_icloglock.
-				 */
-				if (!(iclog->ic_state &
-					(XLOG_STATE_DONE_SYNC |
-						 XLOG_STATE_DO_CALLBACK))) {
-					if (ciclog && (ciclog->ic_state ==
-							XLOG_STATE_DONE_SYNC)) {
-						ciclog->ic_state = XLOG_STATE_DO_CALLBACK;
-					}
-					break;
-				}
-				/*
-				 * We now have an iclog that is in either the
-				 * DO_CALLBACK or DONE_SYNC states. The other
-				 * states (WANT_SYNC, SYNCING, or CALLBACK were
-				 * caught by the above if and are going to
-				 * clean (i.e. we aren't doing their callbacks)
-				 * see the above if.
-				 */
+			cycled_icloglock = true;
+			xlog_state_do_iclog_callbacks(log, iclog, aborted);
 
-				/*
-				 * We will do one more check here to see if we
-				 * have chased our tail around.
-				 */
-
-				lowest_lsn = xlog_get_lowest_lsn(log);
-				if (lowest_lsn &&
-				    XFS_LSN_CMP(lowest_lsn,
-						be64_to_cpu(iclog->ic_header.h_lsn)) < 0) {
-					iclog = iclog->ic_next;
-					continue; /* Leave this iclog for
-						   * another thread */
-				}
-
-				iclog->ic_state = XLOG_STATE_CALLBACK;
-
-
-				/*
-				 * Completion of a iclog IO does not imply that
-				 * a transaction has completed, as transactions
-				 * can be large enough to span many iclogs. We
-				 * cannot change the tail of the log half way
-				 * through a transaction as this may be the only
-				 * transaction in the log and moving th etail to
-				 * point to the middle of it will prevent
-				 * recovery from finding the start of the
-				 * transaction. Hence we should only update the
-				 * last_sync_lsn if this iclog contains
-				 * transaction completion callbacks on it.
-				 *
-				 * We have to do this before we drop the
-				 * icloglock to ensure we are the only one that
-				 * can update it.
-				 */
-				ASSERT(XFS_LSN_CMP(atomic64_read(&log->l_last_sync_lsn),
-					be64_to_cpu(iclog->ic_header.h_lsn)) <= 0);
-				if (!list_empty_careful(&iclog->ic_callbacks))
-					atomic64_set(&log->l_last_sync_lsn,
-						be64_to_cpu(iclog->ic_header.h_lsn));
-
-			} else
-				ioerrors++;
-
-			spin_unlock(&log->l_icloglock);
-
-			/*
-			 * Keep processing entries in the callback list until
-			 * we come around and it is empty.  We need to
-			 * atomically see that the list is empty and change the
-			 * state to DIRTY so that we don't miss any more
-			 * callbacks being added.
-			 */
-			spin_lock(&iclog->ic_callback_lock);
-			while (!list_empty(&iclog->ic_callbacks)) {
-				LIST_HEAD(tmp);
-
-				list_splice_init(&iclog->ic_callbacks, &tmp);
-
-				spin_unlock(&iclog->ic_callback_lock);
-				xlog_cil_process_committed(&tmp, aborted);
-				spin_lock(&iclog->ic_callback_lock);
-			}
-
-			loopdidcallbacks++;
-			funcdidcallbacks++;
-
-			spin_lock(&log->l_icloglock);
-			spin_unlock(&iclog->ic_callback_lock);
-			if (!(iclog->ic_state & XLOG_STATE_IOERROR))
-				iclog->ic_state = XLOG_STATE_DIRTY;
-
-			/*
-			 * Transition from DIRTY to ACTIVE if applicable.
-			 * NOP if STATE_IOERROR.
-			 */
-			xlog_state_clean_log(log);
-
-			/* wake up threads waiting in xfs_log_force() */
-			wake_up_all(&iclog->ic_force_wait);
-
+			xlog_state_clean_iclog(log, iclog);
 			iclog = iclog->ic_next;
 		} while (first_iclog != iclog);
+
+		did_callbacks |= cycled_icloglock;
 
 		if (repeats > 5000) {
 			flushcnt += repeats;
@@ -2776,50 +2895,15 @@ xlog_state_do_callback(
 				"%s: possible infinite loop (%d iterations)",
 				__func__, flushcnt);
 		}
-	} while (!ioerrors && loopdidcallbacks);
+	} while (!ioerror && cycled_icloglock);
 
-#ifdef DEBUG
-	/*
-	 * Make one last gasp attempt to see if iclogs are being left in limbo.
-	 * If the above loop finds an iclog earlier than the current iclog and
-	 * in one of the syncing states, the current iclog is put into
-	 * DO_CALLBACK and the callbacks are deferred to the completion of the
-	 * earlier iclog. Walk the iclogs in order and make sure that no iclog
-	 * is in DO_CALLBACK unless an earlier iclog is in one of the syncing
-	 * states.
-	 *
-	 * Note that SYNCING|IOABORT is a valid state so we cannot just check
-	 * for ic_state == SYNCING.
-	 */
-	if (funcdidcallbacks) {
-		first_iclog = iclog = log->l_iclog;
-		do {
-			ASSERT(iclog->ic_state != XLOG_STATE_DO_CALLBACK);
-			/*
-			 * Terminate the loop if iclogs are found in states
-			 * which will cause other threads to clean up iclogs.
-			 *
-			 * SYNCING - i/o completion will go through logs
-			 * DONE_SYNC - interrupt thread should be waiting for
-			 *              l_icloglock
-			 * IOERROR - give up hope all ye who enter here
-			 */
-			if (iclog->ic_state == XLOG_STATE_WANT_SYNC ||
-			    iclog->ic_state & XLOG_STATE_SYNCING ||
-			    iclog->ic_state == XLOG_STATE_DONE_SYNC ||
-			    iclog->ic_state == XLOG_STATE_IOERROR )
-				break;
-			iclog = iclog->ic_next;
-		} while (first_iclog != iclog);
-	}
-#endif
+	if (did_callbacks)
+		xlog_state_callback_check_state(log);
 
 	if (log->l_iclog->ic_state & (XLOG_STATE_ACTIVE|XLOG_STATE_IOERROR))
-		wake = 1;
-	spin_unlock(&log->l_icloglock);
-
-	if (wake)
 		wake_up_all(&log->l_flush_wait);
+
+	spin_unlock(&log->l_icloglock);
 }
 
 
@@ -3919,7 +4003,9 @@ xfs_log_force_umount(
 	 * item committed callback functions will do this again under lock to
 	 * avoid races.
 	 */
+	spin_lock(&log->l_cilp->xc_push_lock);
 	wake_up_all(&log->l_cilp->xc_commit_wait);
+	spin_unlock(&log->l_cilp->xc_push_lock);
 	xlog_state_do_callback(log, true, NULL);
 
 #ifdef XFSERRORDEBUG

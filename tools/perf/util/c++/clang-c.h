@@ -3,7 +3,6 @@
 #define PERF_UTIL_CLANG_C_H
 
 #include <stddef.h>	/* for size_t */
-#include <util-cxx.h>	/* for __maybe_unused */
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,6 +21,7 @@ extern int perf_clang__compile_bpf(const char *filename,
 #else
 
 #include <errno.h>
+#include <linux/compiler.h>	/* for __maybe_unused */
 
 static inline void perf_clang__init(void) { }
 static inline void perf_clang__cleanup(void) { }

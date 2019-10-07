@@ -321,18 +321,9 @@ static const struct file_operations aat2870_reg_fops = {
 static void aat2870_init_debugfs(struct aat2870_data *aat2870)
 {
 	aat2870->dentry_root = debugfs_create_dir("aat2870", NULL);
-	if (!aat2870->dentry_root) {
-		dev_warn(aat2870->dev,
-			 "Failed to create debugfs root directory\n");
-		return;
-	}
 
-	aat2870->dentry_reg = debugfs_create_file("regs", 0644,
-						  aat2870->dentry_root,
-						  aat2870, &aat2870_reg_fops);
-	if (!aat2870->dentry_reg)
-		dev_warn(aat2870->dev,
-			 "Failed to create debugfs register file\n");
+	debugfs_create_file("regs", 0644, aat2870->dentry_root, aat2870,
+			    &aat2870_reg_fops);
 }
 
 #else

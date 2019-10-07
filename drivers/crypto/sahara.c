@@ -1403,10 +1403,8 @@ static int sahara_probe(struct platform_device *pdev)
 
 	/* Get the IRQ */
 	irq = platform_get_irq(pdev,  0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get irq resource\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	err = devm_request_irq(&pdev->dev, irq, sahara_irq_handler,
 			       0, dev_name(&pdev->dev), dev);

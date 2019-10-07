@@ -168,7 +168,7 @@ ENDPROC(cpu_do_switch_mm)
 .macro	__idmap_cpu_set_reserved_ttbr1, tmp1, tmp2
 	adrp	\tmp1, empty_zero_page
 	phys_to_ttbr \tmp2, \tmp1
-	offset_ttbr1 \tmp2
+	offset_ttbr1 \tmp2, \tmp1
 	msr	ttbr1_el1, \tmp2
 	isb
 	tlbi	vmalle1
@@ -187,7 +187,7 @@ ENTRY(idmap_cpu_replace_ttbr1)
 
 	__idmap_cpu_set_reserved_ttbr1 x1, x3
 
-	offset_ttbr1 x0
+	offset_ttbr1 x0, x3
 	msr	ttbr1_el1, x0
 	isb
 
@@ -286,6 +286,15 @@ skip_pgd:
 	msr	sctlr_el1, x18
 	isb
 
+	/*
+	 * Invalidate the local I-cache so that any instructions fetched
+	 * speculatively from the PoC are discarded, since they may have
+	 * been dynamically patched at the PoU.
+	 */
+	ic	iallu
+	dsb	nsh
+	isb
+
 	/* Set the flag to zero to indicate that we're all done */
 	str	wzr, [flag_ptr]
 	ret
@@ -362,7 +371,7 @@ __idmap_kpti_secondary:
 	cbnz	w18, 1b
 
 	/* All done, act like nothing happened */
-	offset_ttbr1 swapper_ttb
+	offset_ttbr1 swapper_ttb, x18
 	msr	ttbr1_el1, swapper_ttb
 	isb
 	ret
@@ -438,10 +447,11 @@ ENTRY(__cpu_setup)
 			TCR_TBI0 | TCR_A1 | TCR_KASAN_FLAGS
 	tcr_clear_errata_bits x10, x9, x5
 
-#ifdef CONFIG_ARM64_USER_VA_BITS_52
-	ldr_l		x9, vabits_user
+#ifdef CONFIG_ARM64_VA_BITS_52
+	ldr_l		x9, vabits_actual
 	sub		x9, xzr, x9
 	add		x9, x9, #64
+	tcr_set_t1sz	x10, x9
 #else
 	ldr_l		x9, idmap_t0sz
 #endif

@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 
 #include "gpiolib.h"
+#include "gpiolib-acpi.h"
 
 /*
  * Only first 8bits of a register correspond to each pin,

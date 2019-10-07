@@ -7,7 +7,7 @@
 #include "en/params.h"
 #include <net/xdp_sock.h>
 
-int mlx5e_xsk_async_xmit(struct net_device *dev, u32 qid)
+int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_params *params = &priv->channels.params;
@@ -26,6 +26,13 @@ int mlx5e_xsk_async_xmit(struct net_device *dev, u32 qid)
 		return -ENXIO;
 
 	if (!napi_if_scheduled_mark_missed(&c->napi)) {
+		/* To avoid WQE overrun, don't post a NOP if XSKICOSQ is not
+		 * active and not polled by NAPI. Return 0, because the upcoming
+		 * activate will trigger the IRQ for us.
+		 */
+		if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &c->xskicosq.state)))
+			return 0;
+
 		spin_lock(&c->xskicosq_lock);
 		mlx5e_trigger_irq(&c->xskicosq);
 		spin_unlock(&c->xskicosq_lock);

@@ -4,6 +4,9 @@
 #ifndef __HCLGE_DEBUGFS_H
 #define __HCLGE_DEBUGFS_H
 
+#include <linux/etherdevice.h>
+#include "hclge_cmd.h"
+
 #define HCLGE_DBG_BUF_LEN	   256
 #define HCLGE_DBG_MNG_TBL_MAX	   64
 
@@ -63,9 +66,23 @@ struct hclge_dbg_bitmap_cmd {
 	};
 };
 
+struct hclge_dbg_reg_common_msg {
+	int msg_num;
+	int offset;
+	enum hclge_opcode_type cmd;
+};
+
+#define	HCLGE_DBG_MAX_DFX_MSG_LEN	60
 struct hclge_dbg_dfx_message {
 	int flag;
-	char message[60];
+	char message[HCLGE_DBG_MAX_DFX_MSG_LEN];
+};
+
+#define HCLGE_DBG_MAC_REG_TYPE_LEN	32
+struct hclge_dbg_reg_type_info {
+	const char *reg_type;
+	struct hclge_dbg_dfx_message *dfx_msg;
+	struct hclge_dbg_reg_common_msg reg_msg;
 };
 
 #pragma pack()

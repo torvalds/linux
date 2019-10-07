@@ -2646,6 +2646,9 @@ static bool handle_read_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 	u32 fpsn;
 
 	lockdep_assert_held(&qp->r_lock);
+	trace_hfi1_rsp_read_kdeth_eflags(qp, ibpsn);
+	trace_hfi1_sender_read_kdeth_eflags(qp);
+	trace_hfi1_tid_read_sender_kdeth_eflags(qp, 0);
 	spin_lock(&qp->s_lock);
 	/* If the psn is out of valid range, drop the packet */
 	if (cmp_psn(ibpsn, qp->s_last_psn) < 0 ||
@@ -2710,6 +2713,8 @@ static bool handle_read_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 		goto s_unlock;
 
 	req = wqe_to_tid_req(wqe);
+	trace_hfi1_tid_req_read_kdeth_eflags(qp, 0, wqe->wr.opcode, wqe->psn,
+					     wqe->lpsn, req);
 	switch (rcv_type) {
 	case RHF_RCV_TYPE_EXPECTED:
 		switch (rte) {
@@ -2724,6 +2729,9 @@ static bool handle_read_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 			 * packets that could be still in the fabric.
 			 */
 			flow = &req->flows[req->clear_tail];
+			trace_hfi1_tid_flow_read_kdeth_eflags(qp,
+							      req->clear_tail,
+							      flow);
 			if (priv->s_flags & HFI1_R_TID_SW_PSN) {
 				diff = cmp_psn(psn,
 					       flow->flow_state.r_next_psn);

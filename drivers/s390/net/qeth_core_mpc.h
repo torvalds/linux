@@ -27,7 +27,6 @@ extern unsigned char IPA_PDU_HEADER[];
 
 #define QETH_TIMEOUT		(10 * HZ)
 #define QETH_IPA_TIMEOUT	(45 * HZ)
-#define QETH_IDX_COMMAND_SEQNO	0xffff0000
 
 #define QETH_CLEAR_CHANNEL_PARM	-10
 #define QETH_HALT_CHANNEL_PARM	-11

@@ -124,6 +124,11 @@ static int vfio_ccw_mdev_create(struct kobject *kobj, struct mdev_device *mdev)
 	private->mdev = mdev;
 	private->state = VFIO_CCW_STATE_IDLE;
 
+	VFIO_CCW_MSG_EVENT(2, "mdev %pUl, sch %x.%x.%04x: create\n",
+			   mdev_uuid(mdev), private->sch->schid.cssid,
+			   private->sch->schid.ssid,
+			   private->sch->schid.sch_no);
+
 	return 0;
 }
 
@@ -131,6 +136,11 @@ static int vfio_ccw_mdev_remove(struct mdev_device *mdev)
 {
 	struct vfio_ccw_private *private =
 		dev_get_drvdata(mdev_parent_dev(mdev));
+
+	VFIO_CCW_MSG_EVENT(2, "mdev %pUl, sch %x.%x.%04x: remove\n",
+			   mdev_uuid(mdev), private->sch->schid.cssid,
+			   private->sch->schid.ssid,
+			   private->sch->schid.sch_no);
 
 	if ((private->state != VFIO_CCW_STATE_NOT_OPER) &&
 	    (private->state != VFIO_CCW_STATE_STANDBY)) {

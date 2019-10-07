@@ -36,6 +36,8 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
+#include "drm_crtc_helper_internal.h"
+
 /**
  * DOC: dp mst helper
  *
@@ -53,6 +55,9 @@ static int drm_dp_dpcd_write_payload(struct drm_dp_mst_topology_mgr *mgr,
 				     int id,
 				     struct drm_dp_payload *payload);
 
+static int drm_dp_send_dpcd_read(struct drm_dp_mst_topology_mgr *mgr,
+				 struct drm_dp_mst_port *port,
+				 int offset, int size, u8 *bytes);
 static int drm_dp_send_dpcd_write(struct drm_dp_mst_topology_mgr *mgr,
 				  struct drm_dp_mst_port *port,
 				  int offset, int size, u8 *bytes);
@@ -1483,6 +1488,52 @@ static bool drm_dp_port_setup_pdt(struct drm_dp_mst_port *port)
 	return send_link;
 }
 
+/**
+ * drm_dp_mst_dpcd_read() - read a series of bytes from the DPCD via sideband
+ * @aux: Fake sideband AUX CH
+ * @offset: address of the (first) register to read
+ * @buffer: buffer to store the register values
+ * @size: number of bytes in @buffer
+ *
+ * Performs the same functionality for remote devices via
+ * sideband messaging as drm_dp_dpcd_read() does for local
+ * devices via actual AUX CH.
+ *
+ * Return: Number of bytes read, or negative error code on failure.
+ */
+ssize_t drm_dp_mst_dpcd_read(struct drm_dp_aux *aux,
+			     unsigned int offset, void *buffer, size_t size)
+{
+	struct drm_dp_mst_port *port = container_of(aux, struct drm_dp_mst_port,
+						    aux);
+
+	return drm_dp_send_dpcd_read(port->mgr, port,
+				     offset, size, buffer);
+}
+
+/**
+ * drm_dp_mst_dpcd_write() - write a series of bytes to the DPCD via sideband
+ * @aux: Fake sideband AUX CH
+ * @offset: address of the (first) register to write
+ * @buffer: buffer containing the values to write
+ * @size: number of bytes in @buffer
+ *
+ * Performs the same functionality for remote devices via
+ * sideband messaging as drm_dp_dpcd_write() does for local
+ * devices via actual AUX CH.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+ssize_t drm_dp_mst_dpcd_write(struct drm_dp_aux *aux,
+			      unsigned int offset, void *buffer, size_t size)
+{
+	struct drm_dp_mst_port *port = container_of(aux, struct drm_dp_mst_port,
+						    aux);
+
+	return drm_dp_send_dpcd_write(port->mgr, port,
+				      offset, size, buffer);
+}
+
 static void drm_dp_check_mstb_guid(struct drm_dp_mst_branch *mstb, u8 *guid)
 {
 	int ret;
@@ -1526,6 +1577,46 @@ static void build_mst_prop_path(const struct drm_dp_mst_branch *mstb,
 	strlcat(proppath, temp, proppath_size);
 }
 
+/**
+ * drm_dp_mst_connector_late_register() - Late MST connector registration
+ * @connector: The MST connector
+ * @port: The MST port for this connector
+ *
+ * Helper to register the remote aux device for this MST port. Drivers should
+ * call this from their mst connector's late_register hook to enable MST aux
+ * devices.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int drm_dp_mst_connector_late_register(struct drm_connector *connector,
+				       struct drm_dp_mst_port *port)
+{
+	DRM_DEBUG_KMS("registering %s remote bus for %s\n",
+		      port->aux.name, connector->kdev->kobj.name);
+
+	port->aux.dev = connector->kdev;
+	return drm_dp_aux_register_devnode(&port->aux);
+}
+EXPORT_SYMBOL(drm_dp_mst_connector_late_register);
+
+/**
+ * drm_dp_mst_connector_early_unregister() - Early MST connector unregistration
+ * @connector: The MST connector
+ * @port: The MST port for this connector
+ *
+ * Helper to unregister the remote aux device for this MST port, registered by
+ * drm_dp_mst_connector_late_register(). Drivers should call this from their mst
+ * connector's early_unregister hook.
+ */
+void drm_dp_mst_connector_early_unregister(struct drm_connector *connector,
+					   struct drm_dp_mst_port *port)
+{
+	DRM_DEBUG_KMS("unregistering %s remote bus for %s\n",
+		      port->aux.name, connector->kdev->kobj.name);
+	drm_dp_aux_unregister_devnode(&port->aux);
+}
+EXPORT_SYMBOL(drm_dp_mst_connector_early_unregister);
+
 static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 			    struct drm_device *dev,
 			    struct drm_dp_link_addr_reply_port *port_msg)
@@ -1548,6 +1639,7 @@ static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 		port->mgr = mstb->mgr;
 		port->aux.name = "DPMST";
 		port->aux.dev = dev->dev;
+		port->aux.is_remote = true;
 
 		/*
 		 * Make sure the memory allocation for our parent branch stays
@@ -1816,7 +1908,6 @@ static bool drm_dp_validate_guid(struct drm_dp_mst_topology_mgr *mgr,
 	return false;
 }
 
-#if 0
 static int build_dpcd_read(struct drm_dp_sideband_msg_tx *msg, u8 port_num, u32 offset, u8 num_bytes)
 {
 	struct drm_dp_sideband_msg_req_body req;
@@ -1829,7 +1920,6 @@ static int build_dpcd_read(struct drm_dp_sideband_msg_tx *msg, u8 port_num, u32 
 
 	return 0;
 }
-#endif
 
 static int drm_dp_send_sideband_msg(struct drm_dp_mst_topology_mgr *mgr,
 				    bool up, u8 *msg, int len)
@@ -2441,26 +2531,58 @@ int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr)
 }
 EXPORT_SYMBOL(drm_dp_update_payload_part2);
 
-#if 0 /* unused as of yet */
 static int drm_dp_send_dpcd_read(struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_dp_mst_port *port,
-				 int offset, int size)
+				 int offset, int size, u8 *bytes)
 {
 	int len;
+	int ret = 0;
 	struct drm_dp_sideband_msg_tx *txmsg;
+	struct drm_dp_mst_branch *mstb;
+
+	mstb = drm_dp_mst_topology_get_mstb_validated(mgr, port->parent);
+	if (!mstb)
+		return -EINVAL;
 
 	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
-	if (!txmsg)
-		return -ENOMEM;
+	if (!txmsg) {
+		ret = -ENOMEM;
+		goto fail_put;
+	}
 
-	len = build_dpcd_read(txmsg, port->port_num, 0, 8);
+	len = build_dpcd_read(txmsg, port->port_num, offset, size);
 	txmsg->dst = port->parent;
 
 	drm_dp_queue_down_tx(mgr, txmsg);
 
-	return 0;
+	ret = drm_dp_mst_wait_tx_reply(mstb, txmsg);
+	if (ret < 0)
+		goto fail_free;
+
+	/* DPCD read should never be NACKed */
+	if (txmsg->reply.reply_type == 1) {
+		DRM_ERROR("mstb %p port %d: DPCD read on addr 0x%x for %d bytes NAKed\n",
+			  mstb, port->port_num, offset, size);
+		ret = -EIO;
+		goto fail_free;
+	}
+
+	if (txmsg->reply.u.remote_dpcd_read_ack.num_bytes != size) {
+		ret = -EPROTO;
+		goto fail_free;
+	}
+
+	ret = min_t(size_t, txmsg->reply.u.remote_dpcd_read_ack.num_bytes,
+		    size);
+	memcpy(bytes, txmsg->reply.u.remote_dpcd_read_ack.bytes, ret);
+
+fail_free:
+	kfree(txmsg);
+fail_put:
+	drm_dp_mst_topology_put_mstb(mstb);
+
+	return ret;
 }
-#endif
 
 static int drm_dp_send_dpcd_write(struct drm_dp_mst_topology_mgr *mgr,
 				  struct drm_dp_mst_port *port,
@@ -2489,7 +2611,7 @@ static int drm_dp_send_dpcd_write(struct drm_dp_mst_topology_mgr *mgr,
 	ret = drm_dp_mst_wait_tx_reply(mstb, txmsg);
 	if (ret > 0) {
 		if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK)
-			ret = -EINVAL;
+			ret = -EIO;
 		else
 			ret = 0;
 	}

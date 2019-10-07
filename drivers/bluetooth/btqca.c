@@ -106,8 +106,9 @@ int qca_send_pre_shutdown_cmd(struct hci_dev *hdev)
 
 	bt_dev_dbg(hdev, "QCA pre shutdown cmd");
 
-	skb = __hci_cmd_sync(hdev, QCA_PRE_SHUTDOWN_CMD, 0,
-				NULL, HCI_INIT_TIMEOUT);
+	skb = __hci_cmd_sync_ev(hdev, QCA_PRE_SHUTDOWN_CMD, 0,
+				NULL, HCI_EV_CMD_COMPLETE, HCI_INIT_TIMEOUT);
+
 	if (IS_ERR(skb)) {
 		err = PTR_ERR(skb);
 		bt_dev_err(hdev, "QCA preshutdown_cmd failed (%d)", err);

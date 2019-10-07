@@ -1,0 +1,203 @@
+For discussion. Unclear are:
+* is the definition of +/- values practical or counterintuitive?
+* are the definitions unambiguous and easy to follow?
+* are the examples correct?
+* should we have HOWTO engineer a correct matrix for a new device (without comparing to a different one)?
+
+====
+
+
+Mounting matrix
+
+The mounting matrix is a device tree property used to orient any device
+that produce three-dimensional data in relation to the world where it is
+deployed.
+
+The purpose of the mounting matrix is to translate the sensor frame of
+reference into the device frame of reference using a translation matrix as
+defined in linear algebra.
+
+The typical usecase is that where a component has an internal representation
+of the (x,y,z) triplets, such as different registers to read these coordinates,
+and thus implying that the component should be mounted in a certain orientation
+relative to some specific device frame of reference.
+
+For example a device with some kind of screen, where the user is supposed to
+interact with the environment using an accelerometer, gyroscope or magnetometer
+mounted on the same chassis as this screen, will likely take the screen as
+reference to (x,y,z) orientation, with (x,y) corresponding to these axes on the
+screen and (z) being depth, the axis perpendicular to the screen.
+
+For a screen you probably want (x) coordinates to go from negative on the left
+to positive on the right, (y) from negative on the bottom to positive on top
+and (z) depth to be negative under the screen and positive in front of it,
+toward the face of the user.
+
+A sensor can be mounted in any angle along the axes relative to the frame of
+reference. This means that the sensor may be flipped upside-down, left-right,
+or tilted at any angle relative to the frame of reference.
+
+Another frame of reference is how the device with its sensor relates to the
+external world, the environment where the device is deployed. Usually the data
+from the sensor is used to figure out how the device is oriented with respect
+to this world. When using the mounting matrix, the sensor and device orientation
+becomes identical and we can focus on the data as it relates to the surrounding
+world.
+
+Device-to-world examples for some three-dimensional sensor types:
+
+- Accelerometers have their world frame of reference toward the center of
+  gravity, usually to the core of the planet. A reading of the (x,y,z) values
+  from the sensor will give a projection of the gravity vector through the
+  device relative to the center of the planet, i.e. relative to its surface at
+  this point. Up and down in the world relative to the device frame of
+  reference can thus be determined. and users would likely expect a value of
+  9.81 m/s^2 upwards along the (z) axis, i.e. out of the screen when the device
+  is held with its screen flat on the planets surface and 0 on the other axes,
+  as the gravity vector is projected 1:1 onto the sensors (z)-axis.
+
+  If you tilt the device, the g vector virtually coming out of the display
+  is projected onto the (x,y) plane of the display panel.
+
+  Example:
+
+         ^ z: +g                   ^ z: > 0
+         !                        /!
+         ! x=y=0                 / ! x: > 0
+     +--------+             +--------+
+     !        !             !        !
+     +--------+             +--------+
+         !                    /
+         !                   /
+         v                  v
+      center of         center of
+       gravity           gravity
+
+
+  If the device is tilted to the left, you get a positive x value. If you point
+  its top towards surface, you get a negative y axis.
+
+     (---------)
+     !         !           y: -g
+     !         !             ^
+     !         !             !
+     !         !
+     !         !  x: +g <- z: +g  -> x: -g
+     ! 1  2  3 !
+     ! 4  5  6 !             !
+     ! 7  8  9 !             v
+     ! *  0  # !           y: +g
+     (---------)
+
+
+- Magnetometers (compasses) have their world frame of reference relative to the
+  geomagnetic field. The system orientation vis-a-vis the world is defined with
+  respect to the local earth geomagnetic reference frame where (y) is in the
+  ground plane and positive towards magnetic North, (x) is in the ground plane,
+  perpendicular to the North axis and positive towards the East and (z) is
+  perpendicular to the ground plane and positive upwards.
+
+
+     ^^^ North: y > 0
+
+     (---------)
+     !         !
+     !         !
+     !         !
+     !         !  >
+     !         !  > North: x > 0
+     ! 1  2  3 !  >
+     ! 4  5  6 !
+     ! 7  8  9 !
+     ! *  0  # !
+     (---------)
+
+  Since the geomagnetic field is not uniform this definition fails if we come
+  closer to the poles.
+
+  Sensors and driver can not and should not take care of this because there
+  are complex calculations and empirical data to be taken care of. We leave
+  this up to user space.
+
+  The definition we take:
+
+  If the device is placed at the equator and the top is pointing north, the
+  display is readable by a person standing upright on the earth surface, this
+  defines a positive y value.
+
+
+- Gyroscopes detects the movement relative the device itself. The angular
+  velocity is defined as orthogonal to the plane of rotation, so if you put the
+  device on a flat surface and spin it around the z axis (such as rotating a
+  device with a screen lying flat on a table), you should get a negative value
+  along the (z) axis if rotated clockwise, and a positive value if rotated
+  counter-clockwise according to the right-hand rule.
+
+
+     (---------)     y > 0
+     !         !     v---\
+     !         !
+     !         !
+     !         !      <--\
+     !         !         ! z > 0
+     ! 1  2  3 !       --/
+     ! 4  5  6 !
+     ! 7  8  9 !
+     ! *  0  # !
+     (---------)
+
+
+So unless the sensor is ideally mounted, we need a means to indicate the
+relative orientation of any given sensor of this type with respect to the
+frame of reference.
+
+To achieve this, use the device tree property "mount-matrix" for the sensor.
+
+This supplies a 3x3 rotation matrix in the strict linear algebraic sense,
+to orient the senor axes relative to a desired point of reference. This means
+the resulting values from the sensor, after scaling to proper units, should be
+multiplied by this matrix to give the proper vectors values in three-dimensional
+space, relative to the device or world point of reference.
+
+For more information, consult:
+https://en.wikipedia.org/wiki/Rotation_matrix
+
+The mounting matrix has the layout:
+
+ (mxx, myx, mzx)
+ (mxy, myy, mzy)
+ (mxz, myz, mzz)
+
+Values are intended to be multiplied as:
+
+  x' = mxx * x + myx * y + mzx * z
+  y' = mxy * x + myy * y + mzy * z
+  z' = mxz * x + myz * y + mzz * z
+
+It is represented as an array of strings containing the real values for
+producing the transformation matrix.
+
+Examples:
+
+Identity matrix (nothing happens to the coordinates, which means the device was
+mechanically mounted in an ideal way and we need no transformation):
+
+mount-matrix = "1", "0", "0",
+               "0", "1", "0",
+               "0", "0", "1";
+
+The sensor is mounted 30 degrees (Pi/6 radians) tilted along the X axis, so we
+compensate by performing a -30 degrees rotation around the X axis:
+
+mount-matrix = "1", "0", "0",
+               "0", "0.866", "0.5",
+               "0", "-0.5", "0.866";
+
+The sensor is flipped 180 degrees (Pi radians) around the Z axis, i.e. mounted
+upside-down:
+
+mount-matrix = "0.998", "0.054", "0",
+               "-0.054", "0.998", "0",
+               "0", "0", "1";
+
+???: this does not match "180 degrees" - factors indicate ca. 3 degrees compensation

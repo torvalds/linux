@@ -260,7 +260,6 @@ struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 	r->reorder_buf =
 		kcalloc(size, sizeof(struct sk_buff *), GFP_KERNEL);
 	if (!r->reorder_buf) {
-		kfree(r->reorder_buf);
 		kfree(r);
 		return NULL;
 	}

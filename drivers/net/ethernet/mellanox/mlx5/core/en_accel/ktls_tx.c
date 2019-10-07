@@ -256,8 +256,7 @@ struct mlx5e_dump_wqe {
 };
 
 static int
-tx_post_resync_dump(struct mlx5e_txqsq *sq, struct sk_buff *skb,
-		    skb_frag_t *frag, u32 tisn, bool first)
+tx_post_resync_dump(struct mlx5e_txqsq *sq, skb_frag_t *frag, u32 tisn, bool first)
 {
 	struct mlx5_wqe_ctrl_seg *cseg;
 	struct mlx5_wqe_data_seg *dseg;
@@ -371,8 +370,7 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 	tx_post_resync_params(sq, priv_tx, info.rcd_sn);
 
 	for (i = 0; i < info.nr_frags; i++)
-		if (tx_post_resync_dump(sq, skb, info.frags[i],
-					priv_tx->tisn, !i))
+		if (tx_post_resync_dump(sq, info.frags[i], priv_tx->tisn, !i))
 			goto err_out;
 
 	/* If no dump WQE was sent, we need to have a fence NOP WQE before the
@@ -408,7 +406,7 @@ struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
 		goto out;
 
 	tls_ctx = tls_get_ctx(skb->sk);
-	if (unlikely(WARN_ON_ONCE(tls_ctx->netdev != netdev)))
+	if (WARN_ON_ONCE(tls_ctx->netdev != netdev))
 		goto err_out;
 
 	priv_tx = mlx5e_get_ktls_tx_priv_ctx(tls_ctx);

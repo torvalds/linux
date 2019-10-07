@@ -29,15 +29,6 @@ struct phy_pg_cfg_pair {
 	u32 data;
 };
 
-struct txpwr_lmt_cfg_pair {
-	u8 regd;
-	u8 band;
-	u8 bw;
-	u8 rs;
-	u8 ch;
-	s8 txpwr_lmt;
-};
-
 static const u32 db_invert_table[12][8] = {
 	{10,		13,		16,		20,
 	 25,		32,		40,		50},
@@ -120,6 +111,19 @@ enum rtw_phy_band_type {
 	PHY_BAND_5G	= 1,
 };
 
+static void rtw_phy_cck_pd_init(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u8 i, j;
+
+	for (i = 0; i <= RTW_CHANNEL_WIDTH_40; i++) {
+		for (j = 0; j < RTW_RF_PATH_MAX; j++)
+			dm_info->cck_pd_lv[i][j] = 0;
+	}
+
+	dm_info->cck_fa_avg = CCK_FA_AVG_RESET;
+}
+
 void rtw_phy_init(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -138,6 +142,7 @@ void rtw_phy_init(struct rtw_dev *rtwdev)
 	addr = chip->dig[0].addr;
 	mask = chip->dig[0].mask;
 	dm_info->igi_history[0] = rtw_read32_mask(rtwdev, addr, mask);
+	rtw_phy_cck_pd_init(rtwdev);
 }
 
 void rtw_phy_dig_write(struct rtw_dev *rtwdev, u8 igi)
@@ -448,12 +453,100 @@ static void rtw_phy_ra_info_update(struct rtw_dev *rtwdev)
 	rtw_iterate_stas_atomic(rtwdev, rtw_phy_ra_info_update_iter, rtwdev);
 }
 
+static void rtw_phy_dpk_track(struct rtw_dev *rtwdev)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->dpk_track)
+		chip->ops->dpk_track(rtwdev);
+}
+
+#define CCK_PD_LV_MAX		5
+#define CCK_PD_FA_LV1_MIN	1000
+#define CCK_PD_FA_LV0_MAX	500
+
+static u8 rtw_phy_cck_pd_lv_unlink(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u32 cck_fa_avg = dm_info->cck_fa_avg;
+
+	if (cck_fa_avg > CCK_PD_FA_LV1_MIN)
+		return 1;
+
+	if (cck_fa_avg < CCK_PD_FA_LV0_MAX)
+		return 0;
+
+	return CCK_PD_LV_MAX;
+}
+
+#define CCK_PD_IGI_LV4_VAL 0x38
+#define CCK_PD_IGI_LV3_VAL 0x2a
+#define CCK_PD_IGI_LV2_VAL 0x24
+#define CCK_PD_RSSI_LV4_VAL 32
+#define CCK_PD_RSSI_LV3_VAL 32
+#define CCK_PD_RSSI_LV2_VAL 24
+
+static u8 rtw_phy_cck_pd_lv_link(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u8 igi = dm_info->igi_history[0];
+	u8 rssi = dm_info->min_rssi;
+	u32 cck_fa_avg = dm_info->cck_fa_avg;
+
+	if (igi > CCK_PD_IGI_LV4_VAL && rssi > CCK_PD_RSSI_LV4_VAL)
+		return 4;
+	if (igi > CCK_PD_IGI_LV3_VAL && rssi > CCK_PD_RSSI_LV3_VAL)
+		return 3;
+	if (igi > CCK_PD_IGI_LV2_VAL || rssi > CCK_PD_RSSI_LV2_VAL)
+		return 2;
+	if (cck_fa_avg > CCK_PD_FA_LV1_MIN)
+		return 1;
+	if (cck_fa_avg < CCK_PD_FA_LV0_MAX)
+		return 0;
+
+	return CCK_PD_LV_MAX;
+}
+
+static u8 rtw_phy_cck_pd_lv(struct rtw_dev *rtwdev)
+{
+	if (!rtw_is_assoc(rtwdev))
+		return rtw_phy_cck_pd_lv_unlink(rtwdev);
+	else
+		return rtw_phy_cck_pd_lv_link(rtwdev);
+}
+
+static void rtw_phy_cck_pd(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	u32 cck_fa = dm_info->cck_fa_cnt;
+	u8 level;
+
+	if (rtwdev->hal.current_band_type != RTW_BAND_2G)
+		return;
+
+	if (dm_info->cck_fa_avg == CCK_FA_AVG_RESET)
+		dm_info->cck_fa_avg = cck_fa;
+	else
+		dm_info->cck_fa_avg = (dm_info->cck_fa_avg * 3 + cck_fa) >> 2;
+
+	level = rtw_phy_cck_pd_lv(rtwdev);
+
+	if (level >= CCK_PD_LV_MAX)
+		return;
+
+	if (chip->ops->cck_pd_set)
+		chip->ops->cck_pd_set(rtwdev, level);
+}
+
 void rtw_phy_dynamic_mechanism(struct rtw_dev *rtwdev)
 {
 	/* for further calculation */
 	rtw_phy_statistics(rtwdev);
 	rtw_phy_dig(rtwdev);
+	rtw_phy_cck_pd(rtwdev);
 	rtw_phy_ra_info_update(rtwdev);
+	rtw_phy_dpk_track(rtwdev);
 }
 
 #define FRAC_BITS 3
@@ -1267,10 +1360,8 @@ static void rtw_xref_txpwr_lmt(struct rtw_dev *rtwdev)
 void rtw_parse_tbl_txpwr_lmt(struct rtw_dev *rtwdev,
 			     const struct rtw_table *tbl)
 {
-	const struct txpwr_lmt_cfg_pair *p = tbl->data;
-	const struct txpwr_lmt_cfg_pair *end = p + tbl->size / 6;
-
-	BUILD_BUG_ON(sizeof(struct txpwr_lmt_cfg_pair) != sizeof(u8) * 6);
+	const struct rtw_txpwr_lmt_cfg_pair *p = tbl->data;
+	const struct rtw_txpwr_lmt_cfg_pair *end = p + tbl->size;
 
 	for (; p < end; p++) {
 		rtw_phy_set_tx_power_limit(rtwdev, p->regd, p->band,
@@ -1327,11 +1418,20 @@ void rtw_phy_cfg_rf(struct rtw_dev *rtwdev, const struct rtw_table *tbl,
 static void rtw_load_rfk_table(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_dpk_info *dpk_info = &rtwdev->dm_info.dpk_info;
 
 	if (!chip->rfk_init_tbl)
 		return;
 
+	rtw_write32_mask(rtwdev, 0x1e24, BIT(17), 0x1);
+	rtw_write32_mask(rtwdev, 0x1cd0, BIT(28), 0x1);
+	rtw_write32_mask(rtwdev, 0x1cd0, BIT(29), 0x1);
+	rtw_write32_mask(rtwdev, 0x1cd0, BIT(30), 0x1);
+	rtw_write32_mask(rtwdev, 0x1cd0, BIT(31), 0x0);
+
 	rtw_load_table(rtwdev, chip->rfk_init_tbl);
+
+	dpk_info->is_dpk_pwr_on = 1;
 }
 
 void rtw_phy_load_tables(struct rtw_dev *rtwdev)
@@ -1439,6 +1539,37 @@ static u8 rtw_get_channel_group(u8 channel)
 	case 177:
 		return 13;
 	}
+}
+
+static s8 rtw_phy_get_dis_dpd_by_rate_diff(struct rtw_dev *rtwdev, u16 rate)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+	s8 dpd_diff = 0;
+
+	if (!chip->en_dis_dpd)
+		return 0;
+
+#define RTW_DPD_RATE_CHECK(_rate)					\
+	case DESC_RATE ## _rate:					\
+	if (DIS_DPD_RATE ## _rate & chip->dpd_ratemask)			\
+		dpd_diff = -6 * chip->txgi_factor;			\
+	break
+
+	switch (rate) {
+	RTW_DPD_RATE_CHECK(6M);
+	RTW_DPD_RATE_CHECK(9M);
+	RTW_DPD_RATE_CHECK(MCS0);
+	RTW_DPD_RATE_CHECK(MCS1);
+	RTW_DPD_RATE_CHECK(MCS8);
+	RTW_DPD_RATE_CHECK(MCS9);
+	RTW_DPD_RATE_CHECK(VHT1SS_MCS0);
+	RTW_DPD_RATE_CHECK(VHT1SS_MCS1);
+	RTW_DPD_RATE_CHECK(VHT2SS_MCS0);
+	RTW_DPD_RATE_CHECK(VHT2SS_MCS1);
+	}
+#undef RTW_DPD_RATE_CHECK
+
+	return dpd_diff;
 }
 
 static u8 rtw_phy_get_2g_tx_power_index(struct rtw_dev *rtwdev,
@@ -1648,6 +1779,9 @@ rtw_phy_get_tx_power_index(struct rtw_dev *rtwdev, u8 rf_path, u8 rate,
 
 	tx_power = pwr_param.pwr_base;
 	offset = min_t(s8, pwr_param.pwr_offset, pwr_param.pwr_limit);
+
+	if (rtwdev->chip->en_dis_dpd)
+		offset += rtw_phy_get_dis_dpd_by_rate_diff(rtwdev, rate);
 
 	tx_power += offset;
 

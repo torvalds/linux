@@ -104,7 +104,7 @@ void hubbub1_allow_self_refresh_control(struct hubbub *hubbub, bool allow)
 			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE, !allow);
 }
 
-bool hububu1_is_allow_self_refresh_enabled(struct hubbub *hubbub)
+bool hubbub1_is_allow_self_refresh_enabled(struct hubbub *hubbub)
 {
 	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
 	uint32_t enable = 0;
@@ -945,6 +945,8 @@ static const struct hubbub_funcs hubbub1_funcs = {
 	.get_dcc_compression_cap = hubbub1_get_dcc_compression_cap,
 	.wm_read_state = hubbub1_wm_read_state,
 	.program_watermarks = hubbub1_program_watermarks,
+	.is_allow_self_refresh_enabled = hubbub1_is_allow_self_refresh_enabled,
+	.allow_self_refresh_control = hubbub1_allow_self_refresh_control,
 };
 
 void hubbub1_construct(struct hubbub *hubbub,

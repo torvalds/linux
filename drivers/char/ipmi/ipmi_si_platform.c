@@ -457,7 +457,7 @@ static const struct platform_device_id si_plat_ids[] = {
 
 struct platform_driver ipmi_platform_driver = {
 	.driver = {
-		.name = DEVICE_NAME,
+		.name = SI_DEVICE_NAME,
 		.of_match_table = of_ipmi_match,
 		.acpi_match_table = ACPI_PTR(acpi_ipmi_match),
 	},

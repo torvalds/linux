@@ -3,6 +3,8 @@
  */
 
 #include <linux/kref.h>
+#include <linux/uaccess.h>
+
 #include "msm_gpu.h"
 
 void msm_submitqueue_destroy(struct kref *kref)

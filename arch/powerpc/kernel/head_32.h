@@ -5,19 +5,6 @@
 #include <asm/ptrace.h>	/* for STACK_FRAME_REGS_MARKER */
 
 /*
- * MSR_KERNEL is > 0x8000 on 4xx/Book-E since it include MSR_CE.
- */
-.macro __LOAD_MSR_KERNEL r, x
-.if \x >= 0x8000
-	lis \r, (\x)@h
-	ori \r, \r, (\x)@l
-.else
-	li \r, (\x)
-.endif
-.endm
-#define LOAD_MSR_KERNEL(r, x) __LOAD_MSR_KERNEL r, x
-
-/*
  * Exception entry code.  This code runs with address translation
  * turned off, i.e. using physical addresses.
  * We assume sprg3 has the physical address of the current
@@ -92,7 +79,7 @@
 #ifdef CONFIG_40x
 	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?) */
 #else
-	LOAD_MSR_KERNEL(r10, MSR_KERNEL & ~(MSR_IR|MSR_DR)) /* can take exceptions */
+	LOAD_REG_IMMEDIATE(r10, MSR_KERNEL & ~(MSR_IR|MSR_DR)) /* can take exceptions */
 	MTMSRD(r10)			/* (except for mach check in rtas) */
 #endif
 	lis	r10,STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
@@ -140,10 +127,10 @@
 	 * otherwise we might risk taking an interrupt before we tell lockdep
 	 * they are enabled.
 	 */
-	LOAD_MSR_KERNEL(r10, MSR_KERNEL)
+	LOAD_REG_IMMEDIATE(r10, MSR_KERNEL)
 	rlwimi	r10, r9, 0, MSR_EE
 #else
-	LOAD_MSR_KERNEL(r10, MSR_KERNEL | MSR_EE)
+	LOAD_REG_IMMEDIATE(r10, MSR_KERNEL | MSR_EE)
 #endif
 #if defined(CONFIG_PPC_8xx) && defined(CONFIG_PERF_EVENTS)
 	mtspr	SPRN_NRI, r0
@@ -187,7 +174,7 @@ label:
 #define EXC_XFER_TEMPLATE(hdlr, trap, msr, tfer, ret)		\
 	li	r10,trap;					\
 	stw	r10,_TRAP(r11);					\
-	LOAD_MSR_KERNEL(r10, msr);				\
+	LOAD_REG_IMMEDIATE(r10, msr);				\
 	bl	tfer;						\
 	.long	hdlr;						\
 	.long	ret

@@ -8,7 +8,6 @@
 #include "cc_buffer_mgr.h"
 #include "cc_request_mgr.h"
 #include "cc_sram_mgr.h"
-#include "cc_ivgen.h"
 #include "cc_hash.h"
 #include "cc_pm.h"
 #include "cc_fips.h"
@@ -73,7 +72,6 @@ int cc_pm_resume(struct device *dev)
 	/* must be after the queue resuming as it uses the HW queue*/
 	cc_init_hash_sram(drvdata);
 
-	cc_init_iv_sram(drvdata);
 	return 0;
 }
 

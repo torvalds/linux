@@ -279,12 +279,10 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 
 	dev->rst = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(dev->rst)) {
-		if (PTR_ERR(dev->rst) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-	} else {
-		reset_control_deassert(dev->rst);
-	}
+	if (IS_ERR(dev->rst))
+		return PTR_ERR(dev->rst);
+
+	reset_control_deassert(dev->rst);
 
 	t = &dev->timings;
 	if (pdata)
@@ -346,8 +344,10 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 
 	/* Optional interface clock */
 	dev->pclk = devm_clk_get_optional(&pdev->dev, "pclk");
-	if (IS_ERR(dev->pclk))
-		return PTR_ERR(dev->pclk);
+	if (IS_ERR(dev->pclk)) {
+		ret = PTR_ERR(dev->pclk);
+		goto exit_reset;
+	}
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (!i2c_dw_prepare_clk(dev, true)) {
@@ -400,8 +400,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 exit_probe:
 	dw_i2c_plat_pm_cleanup(dev);
 exit_reset:
-	if (!IS_ERR_OR_NULL(dev->rst))
-		reset_control_assert(dev->rst);
+	reset_control_assert(dev->rst);
 	return ret;
 }
 
@@ -419,8 +418,7 @@ static int dw_i2c_plat_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 	dw_i2c_plat_pm_cleanup(dev);
 
-	if (!IS_ERR_OR_NULL(dev->rst))
-		reset_control_assert(dev->rst);
+	reset_control_assert(dev->rst);
 
 	return 0;
 }

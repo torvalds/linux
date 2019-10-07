@@ -203,7 +203,6 @@ struct wilc_vif {
 	struct net_device *ndev;
 	u8 mode;
 	struct timer_list during_ip_timer;
-	bool obtaining_ip;
 	struct timer_list periodic_rssi;
 	struct rf_info periodic_stat;
 	struct tcp_ack_filter ack_filter;
@@ -217,6 +216,7 @@ struct wilc {
 	int io_type;
 	s8 mac_status;
 	struct gpio_desc *gpio_irq;
+	struct clk *rtc_clk;
 	bool initialized;
 	int dev_irq_num;
 	int close;
@@ -262,7 +262,6 @@ struct wilc {
 	struct device *dev;
 	bool suspend_event;
 
-	bool enable_ps;
 	int clients_count;
 	struct workqueue_struct *hif_workqueue;
 	enum chip_ps_states chip_ps_state;

@@ -1035,11 +1035,11 @@ static int set_recover_size(struct gfs2_sbd *sdp, struct dlm_slot *slots,
 	}
 
 	old_size = ls->ls_recover_size;
-
-	if (old_size >= max_jid + 1)
+	new_size = old_size;
+	while (new_size < max_jid + 1)
+		new_size += RECOVER_SIZE_INC;
+	if (new_size == old_size)
 		return 0;
-
-	new_size = old_size + RECOVER_SIZE_INC;
 
 	submit = kcalloc(new_size, sizeof(uint32_t), GFP_NOFS);
 	result = kcalloc(new_size, sizeof(uint32_t), GFP_NOFS);

@@ -160,7 +160,7 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 
 	while (1) {
 		bool entry_ready =
-			((__le32_to_cpu(eq_base[eq->ci].hdr.ctl) &
+			((le32_to_cpu(eq_base[eq->ci].hdr.ctl) &
 				EQ_CTL_READY_MASK) >> EQ_CTL_READY_SHIFT);
 
 		if (!entry_ready)
@@ -194,7 +194,7 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 skip_irq:
 		/* Clear EQ entry ready bit */
 		eq_entry->hdr.ctl =
-			__cpu_to_le32(__le32_to_cpu(eq_entry->hdr.ctl) &
+			cpu_to_le32(le32_to_cpu(eq_entry->hdr.ctl) &
 							~EQ_CTL_READY_MASK);
 
 		eq->ci = hl_eq_inc_ptr(eq->ci);

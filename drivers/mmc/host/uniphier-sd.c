@@ -557,10 +557,8 @@ static int uniphier_sd_probe(struct platform_device *pdev)
 	int irq, ret;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "failed to get IRQ number");
+	if (irq < 0)
 		return irq;
-	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -631,7 +629,6 @@ static int uniphier_sd_probe(struct platform_device *pdev)
 	host->clk_disable = uniphier_sd_clk_disable;
 	host->set_clock = uniphier_sd_set_clock;
 
-	pm_runtime_enable(&pdev->dev);
 	ret = uniphier_sd_clk_enable(host);
 	if (ret)
 		goto free_host;
@@ -653,7 +650,6 @@ static int uniphier_sd_probe(struct platform_device *pdev)
 
 free_host:
 	tmio_mmc_host_free(host);
-	pm_runtime_disable(&pdev->dev);
 
 	return ret;
 }
@@ -664,7 +660,6 @@ static int uniphier_sd_remove(struct platform_device *pdev)
 
 	tmio_mmc_host_remove(host);
 	uniphier_sd_clk_disable(host);
-	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }

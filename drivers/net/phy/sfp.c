@@ -429,6 +429,7 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 				return 0;
 			/* fall through */
 		case hwmon_temp_input:
+		case hwmon_temp_label:
 			return 0444;
 		default:
 			return 0;
@@ -447,6 +448,7 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 				return 0;
 			/* fall through */
 		case hwmon_in_input:
+		case hwmon_in_label:
 			return 0444;
 		default:
 			return 0;
@@ -465,6 +467,7 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 				return 0;
 			/* fall through */
 		case hwmon_curr_input:
+		case hwmon_curr_label:
 			return 0444;
 		default:
 			return 0;
@@ -492,6 +495,7 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 				return 0;
 			/* fall through */
 		case hwmon_power_input:
+		case hwmon_power_label:
 			return 0444;
 		default:
 			return 0;
@@ -987,9 +991,63 @@ static int sfp_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
+static const char *const sfp_hwmon_power_labels[] = {
+	"TX_power",
+	"RX_power",
+};
+
+static int sfp_hwmon_read_string(struct device *dev,
+				 enum hwmon_sensor_types type,
+				 u32 attr, int channel, const char **str)
+{
+	switch (type) {
+	case hwmon_curr:
+		switch (attr) {
+		case hwmon_curr_label:
+			*str = "bias";
+			return 0;
+		default:
+			return -EOPNOTSUPP;
+		}
+		break;
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_label:
+			*str = "temperature";
+			return 0;
+		default:
+			return -EOPNOTSUPP;
+		}
+		break;
+	case hwmon_in:
+		switch (attr) {
+		case hwmon_in_label:
+			*str = "VCC";
+			return 0;
+		default:
+			return -EOPNOTSUPP;
+		}
+		break;
+	case hwmon_power:
+		switch (attr) {
+		case hwmon_power_label:
+			*str = sfp_hwmon_power_labels[channel];
+			return 0;
+		default:
+			return -EOPNOTSUPP;
+		}
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return -EOPNOTSUPP;
+}
+
 static const struct hwmon_ops sfp_hwmon_ops = {
 	.is_visible = sfp_hwmon_is_visible,
 	.read = sfp_hwmon_read,
+	.read_string = sfp_hwmon_read_string,
 };
 
 static u32 sfp_hwmon_chip_config[] = {
@@ -1007,7 +1065,8 @@ static u32 sfp_hwmon_temp_config[] = {
 	HWMON_T_MAX | HWMON_T_MIN |
 	HWMON_T_MAX_ALARM | HWMON_T_MIN_ALARM |
 	HWMON_T_CRIT | HWMON_T_LCRIT |
-	HWMON_T_CRIT_ALARM | HWMON_T_LCRIT_ALARM,
+	HWMON_T_CRIT_ALARM | HWMON_T_LCRIT_ALARM |
+	HWMON_T_LABEL,
 	0,
 };
 
@@ -1021,7 +1080,8 @@ static u32 sfp_hwmon_vcc_config[] = {
 	HWMON_I_MAX | HWMON_I_MIN |
 	HWMON_I_MAX_ALARM | HWMON_I_MIN_ALARM |
 	HWMON_I_CRIT | HWMON_I_LCRIT |
-	HWMON_I_CRIT_ALARM | HWMON_I_LCRIT_ALARM,
+	HWMON_I_CRIT_ALARM | HWMON_I_LCRIT_ALARM |
+	HWMON_I_LABEL,
 	0,
 };
 
@@ -1035,7 +1095,8 @@ static u32 sfp_hwmon_bias_config[] = {
 	HWMON_C_MAX | HWMON_C_MIN |
 	HWMON_C_MAX_ALARM | HWMON_C_MIN_ALARM |
 	HWMON_C_CRIT | HWMON_C_LCRIT |
-	HWMON_C_CRIT_ALARM | HWMON_C_LCRIT_ALARM,
+	HWMON_C_CRIT_ALARM | HWMON_C_LCRIT_ALARM |
+	HWMON_C_LABEL,
 	0,
 };
 
@@ -1050,13 +1111,15 @@ static u32 sfp_hwmon_power_config[] = {
 	HWMON_P_MAX | HWMON_P_MIN |
 	HWMON_P_MAX_ALARM | HWMON_P_MIN_ALARM |
 	HWMON_P_CRIT | HWMON_P_LCRIT |
-	HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM,
+	HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM |
+	HWMON_P_LABEL,
 	/* Receive power */
 	HWMON_P_INPUT |
 	HWMON_P_MAX | HWMON_P_MIN |
 	HWMON_P_MAX_ALARM | HWMON_P_MIN_ALARM |
 	HWMON_P_CRIT | HWMON_P_LCRIT |
-	HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM,
+	HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM |
+	HWMON_P_LABEL,
 	0,
 };
 
