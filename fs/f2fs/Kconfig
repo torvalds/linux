@@ -1,6 +1,7 @@
 config F2FS_FS
 	tristate "F2FS filesystem support"
 	depends on BLOCK
+	select NLS
 	select CRYPTO
 	select CRYPTO_CRC32
 	select F2FS_FS_XATTR if FS_ENCRYPTION
@@ -59,7 +60,9 @@ config F2FS_FS_SECURITY
 	  Security Models (LSMs) accepted by AppArmor, SELinux, Smack and TOMOYO
 	  Linux. This option enables an extended attribute handler for file
 	  security labels in the f2fs filesystem, so that it requires enabling
-	  the extended attribute support in advance.
+	  the extended attribute support in advance. In particular you need this
+	  option if you use the setcap command to assign initial process capabi-
+	  lities to executables (the security.* extended attributes).
 
 	  If you are not using a security module, say N.
 

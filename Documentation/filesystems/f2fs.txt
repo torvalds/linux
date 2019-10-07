@@ -157,6 +157,11 @@ noinline_data          Disable the inline data feature, inline data feature is
                        enabled by default.
 data_flush             Enable data flushing before checkpoint in order to
                        persist data of regular and symlink.
+reserve_root=%d        Support configuring reserved space which is used for
+                       allocation from a privileged user with specified uid or
+                       gid, unit: 4KB, the default limit is 0.2% of user blocks.
+resuid=%d              The user ID which may use the reserved blocks.
+resgid=%d              The group ID which may use the reserved blocks.
 fault_injection=%d     Enable fault injection in all supported types with
                        specified injection rate.
 fault_type=%d          Support configuring fault injection type, should be
@@ -412,6 +417,9 @@ Files in /sys/fs/f2fs/<devname>
                               If checkpoint=enable it shows the number of blocks
                               that would be unusable if checkpoint=disable were
                               to be set.
+
+encoding 	              This shows the encoding used for casefolding.
+                              If casefolding is not enabled, returns (none)
 
 ================================================================================
 USAGE
