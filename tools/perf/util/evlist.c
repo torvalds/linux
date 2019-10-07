@@ -1809,7 +1809,7 @@ static void *perf_evlist__poll_thread(void *arg)
 			struct mmap *map = &evlist->mmap[i];
 			union perf_event *event;
 
-			if (perf_mmap__read_init(map))
+			if (perf_mmap__read_init(&map->core))
 				continue;
 			while ((event = perf_mmap__read_event(map)) != NULL) {
 				struct evsel *evsel = perf_evlist__event2evsel(evlist, event);

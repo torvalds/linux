@@ -7,5 +7,6 @@
 struct perf_mmap;
 
 LIBPERF_API void perf_mmap__consume(struct perf_mmap *map);
+LIBPERF_API int perf_mmap__read_init(struct perf_mmap *map);
 
 #endif /* __LIBPERF_MMAP_H */

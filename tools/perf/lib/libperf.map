@@ -41,6 +41,7 @@ LIBPERF_0.0.1 {
 		perf_evlist__set_maps;
 		perf_evlist__poll;
 		perf_mmap__consume;
+		perf_mmap__read_init;
 	local:
 		*;
 };
