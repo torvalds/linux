@@ -1128,6 +1128,20 @@ int perf_evlist__set_tp_filter_pid(struct evlist *evlist, pid_t pid)
 	return perf_evlist__set_tp_filter_pids(evlist, 1, &pid);
 }
 
+int perf_evlist__append_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids)
+{
+	char *filter = asprintf__tp_filter_pids(npids, pids);
+	int ret = perf_evlist__append_tp_filter(evlist, filter);
+
+	free(filter);
+	return ret;
+}
+
+int perf_evlist__append_tp_filter_pid(struct evlist *evlist, pid_t pid)
+{
+	return perf_evlist__append_tp_filter_pids(evlist, 1, &pid);
+}
+
 bool perf_evlist__valid_sample_type(struct evlist *evlist)
 {
 	struct evsel *pos;

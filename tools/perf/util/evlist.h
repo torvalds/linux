@@ -142,6 +142,9 @@ int perf_evlist__set_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *
 
 int perf_evlist__append_tp_filter(struct evlist *evlist, const char *filter);
 
+int perf_evlist__append_tp_filter_pid(struct evlist *evlist, pid_t pid);
+int perf_evlist__append_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids);
+
 struct evsel *
 perf_evlist__find_tracepoint_by_id(struct evlist *evlist, int id);
 
