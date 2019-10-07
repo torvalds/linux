@@ -2992,7 +2992,7 @@ int rtw_xmit_thread(void *context)
 	do {
 		err = rtw_hal_xmit_thread_handler(padapter);
 		flush_signals_thread();
-	} while (_SUCCESS == err);
+	} while (err == _SUCCESS);
 
 	complete(&padapter->xmitpriv.terminate_xmitthread_comp);
 
