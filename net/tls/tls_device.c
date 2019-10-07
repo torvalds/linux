@@ -431,7 +431,7 @@ static int tls_push_data(struct sock *sk,
 	    ~(MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL | MSG_SENDPAGE_NOTLAST))
 		return -ENOTSUPP;
 
-	if (sk->sk_err)
+	if (unlikely(sk->sk_err))
 		return -sk->sk_err;
 
 	flags |= MSG_SENDPAGE_DECRYPTED;
