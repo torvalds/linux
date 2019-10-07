@@ -277,17 +277,13 @@ static void mt76_rx_aggr_shutdown(struct mt76_dev *dev, struct mt76_rx_tid *tid)
 
 void mt76_rx_aggr_stop(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tidno)
 {
-	struct mt76_rx_tid *tid;
+	struct mt76_rx_tid *tid = NULL;
 
-	rcu_read_lock();
-
-	tid = rcu_dereference(wcid->aggr[tidno]);
+	rcu_swap_protected(wcid->aggr[tidno], tid,
+			   lockdep_is_held(&dev->mutex));
 	if (tid) {
-		rcu_assign_pointer(wcid->aggr[tidno], NULL);
 		mt76_rx_aggr_shutdown(dev, tid);
 		kfree_rcu(tid, rcu_head);
 	}
-
-	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(mt76_rx_aggr_stop);
