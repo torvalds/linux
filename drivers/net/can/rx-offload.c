@@ -348,7 +348,6 @@ static int can_rx_offload_init_queue(struct net_device *dev,
 	offload->skb_queue_len_max *= 4;
 	skb_queue_head_init(&offload->skb_queue);
 
-	can_rx_offload_reset(offload);
 	netif_napi_add(dev, &offload->napi, can_rx_offload_napi_poll, weight);
 
 	dev_dbg(dev->dev.parent, "%s: skb_queue_len_max=%d\n",
@@ -390,7 +389,6 @@ EXPORT_SYMBOL_GPL(can_rx_offload_add_fifo);
 
 void can_rx_offload_enable(struct can_rx_offload *offload)
 {
-	can_rx_offload_reset(offload);
 	napi_enable(&offload->napi);
 }
 EXPORT_SYMBOL_GPL(can_rx_offload_enable);
@@ -401,8 +399,3 @@ void can_rx_offload_del(struct can_rx_offload *offload)
 	skb_queue_purge(&offload->skb_queue);
 }
 EXPORT_SYMBOL_GPL(can_rx_offload_del);
-
-void can_rx_offload_reset(struct can_rx_offload *offload)
-{
-}
-EXPORT_SYMBOL_GPL(can_rx_offload_reset);
