@@ -72,9 +72,7 @@ static void destroy_session(struct stat_session *session)
 	kfree(session);
 }
 
-typedef int (*cmp_stat_t)(void *, void *);
-
-static int insert_stat(struct rb_root *root, void *stat, cmp_stat_t cmp)
+static int insert_stat(struct rb_root *root, void *stat, cmp_func_t cmp)
 {
 	struct rb_node **new = &(root->rb_node), *parent = NULL;
 	struct stat_node *data;
@@ -112,7 +110,7 @@ static int insert_stat(struct rb_root *root, void *stat, cmp_stat_t cmp)
  * This one will force an insertion as right-most node
  * in the rbtree.
  */
-static int dummy_cmp(void *p1, void *p2)
+static int dummy_cmp(const void *p1, const void *p2)
 {
 	return -1;
 }

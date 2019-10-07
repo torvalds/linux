@@ -465,10 +465,10 @@ static void *function_stat_start(struct tracer_stat *trace)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /* function graph compares on total time */
-static int function_stat_cmp(void *p1, void *p2)
+static int function_stat_cmp(const void *p1, const void *p2)
 {
-	struct ftrace_profile *a = p1;
-	struct ftrace_profile *b = p2;
+	const struct ftrace_profile *a = p1;
+	const struct ftrace_profile *b = p2;
 
 	if (a->time < b->time)
 		return -1;
@@ -479,10 +479,10 @@ static int function_stat_cmp(void *p1, void *p2)
 }
 #else
 /* not function graph compares against hits */
-static int function_stat_cmp(void *p1, void *p2)
+static int function_stat_cmp(const void *p1, const void *p2)
 {
-	struct ftrace_profile *a = p1;
-	struct ftrace_profile *b = p2;
+	const struct ftrace_profile *a = p1;
+	const struct ftrace_profile *b = p2;
 
 	if (a->counter < b->counter)
 		return -1;
