@@ -385,7 +385,6 @@ void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
 			snapshot_buf(rd, submit, i, 0, 0);
 
 	for (i = 0; i < submit->nr_cmds; i++) {
-		uint64_t iova = submit->cmd[i].iova;
 		uint32_t szd  = submit->cmd[i].size; /* in dwords */
 
 		/* snapshot cmdstream bo's (if we haven't already): */
@@ -393,6 +392,11 @@ void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
 			snapshot_buf(rd, submit, submit->cmd[i].idx,
 					submit->cmd[i].iova, szd * 4);
 		}
+	}
+
+	for (i = 0; i < submit->nr_cmds; i++) {
+		uint64_t iova = submit->cmd[i].iova;
+		uint32_t szd  = submit->cmd[i].size; /* in dwords */
 
 		switch (submit->cmd[i].type) {
 		case MSM_SUBMIT_CMD_IB_TARGET_BUF:
