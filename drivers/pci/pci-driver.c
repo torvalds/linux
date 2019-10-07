@@ -315,7 +315,8 @@ static long local_pci_probe(void *_ddi)
 	 * Probe function should return < 0 for failure, 0 for success
 	 * Treat values > 0 as success, but warn.
 	 */
-	dev_warn(dev, "Driver probe function unexpectedly returned %d\n", rc);
+	pci_warn(pci_dev, "Driver probe function unexpectedly returned %d\n",
+		 rc);
 	return 0;
 }
 
@@ -865,7 +866,7 @@ static int pci_pm_suspend_noirq(struct device *dev)
 			pci_prepare_to_sleep(pci_dev);
 	}
 
-	dev_dbg(dev, "PCI PM: Suspend power state: %s\n",
+	pci_dbg(pci_dev, "PCI PM: Suspend power state: %s\n",
 		pci_power_name(pci_dev->current_state));
 
 	if (pci_dev->current_state == PCI_D0) {
@@ -880,7 +881,7 @@ static int pci_pm_suspend_noirq(struct device *dev)
 	}
 
 	if (pci_dev->skip_bus_pm && pm_suspend_no_platform()) {
-		dev_dbg(dev, "PCI PM: Skipped\n");
+		pci_dbg(pci_dev, "PCI PM: Skipped\n");
 		goto Fixup;
 	}
 
@@ -1295,11 +1296,11 @@ static int pci_pm_runtime_suspend(struct device *dev)
 		 * log level.
 		 */
 		if (error == -EBUSY || error == -EAGAIN) {
-			dev_dbg(dev, "can't suspend now (%ps returned %d)\n",
+			pci_dbg(pci_dev, "can't suspend now (%ps returned %d)\n",
 				pm->runtime_suspend, error);
 			return error;
 		} else if (error) {
-			dev_err(dev, "can't suspend (%ps returned %d)\n",
+			pci_err(pci_dev, "can't suspend (%ps returned %d)\n",
 				pm->runtime_suspend, error);
 			return error;
 		}
