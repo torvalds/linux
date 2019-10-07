@@ -190,7 +190,7 @@ static int slob_last(slob_t *s)
 
 static void *slob_new_pages(gfp_t gfp, int order, int node)
 {
-	void *page;
+	struct page *page;
 
 #ifdef CONFIG_NUMA
 	if (node != NUMA_NO_NODE)
@@ -202,14 +202,21 @@ static void *slob_new_pages(gfp_t gfp, int order, int node)
 	if (!page)
 		return NULL;
 
+	mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE,
+			    1 << order);
 	return page_address(page);
 }
 
 static void slob_free_pages(void *b, int order)
 {
+	struct page *sp = virt_to_page(b);
+
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += 1 << order;
-	free_pages((unsigned long)b, order);
+
+	mod_node_page_state(page_pgdat(sp), NR_SLAB_UNRECLAIMABLE,
+			    -(1 << order));
+	__free_pages(sp, order);
 }
 
 /*
@@ -521,8 +528,13 @@ void kfree(const void *block)
 		int align = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
 		unsigned int *m = (unsigned int *)(block - align);
 		slob_free(m, *m + align);
-	} else
-		__free_pages(sp, compound_order(sp));
+	} else {
+		unsigned int order = compound_order(sp);
+		mod_node_page_state(page_pgdat(sp), NR_SLAB_UNRECLAIMABLE,
+				    -(1 << order));
+		__free_pages(sp, order);
+
+	}
 }
 EXPORT_SYMBOL(kfree);
 
