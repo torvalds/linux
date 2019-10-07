@@ -109,7 +109,7 @@ retry:
 		 * read/write. It should be treated as fatal error and
 		 * requires an entire analysis about the firmware/hardware
 		 */
-		WARN_ON("Hardware power state locked\n");
+		WARN(1, "Hardware power state locked\n");
 	}
 }
 EXPORT_SYMBOL(rtw_power_mode_change);
