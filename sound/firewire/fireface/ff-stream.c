@@ -106,7 +106,8 @@ void snd_ff_stream_destroy_duplex(struct snd_ff *ff)
 	destroy_stream(ff, &ff->tx_stream);
 }
 
-int snd_ff_stream_reserve_duplex(struct snd_ff *ff, unsigned int rate)
+int snd_ff_stream_reserve_duplex(struct snd_ff *ff, unsigned int rate,
+				 unsigned int frames_per_period)
 {
 	unsigned int curr_rate;
 	enum snd_ff_clock_src src;
@@ -150,6 +151,14 @@ int snd_ff_stream_reserve_duplex(struct snd_ff *ff, unsigned int rate)
 		err = ff->spec->protocol->allocate_resources(ff, rate);
 		if (err < 0)
 			return err;
+
+		err = amdtp_domain_set_events_per_period(&ff->domain,
+							 frames_per_period);
+		if (err < 0) {
+			fw_iso_resources_free(&ff->tx_resources);
+			fw_iso_resources_free(&ff->rx_resources);
+			return err;
+		}
 	}
 
 	return 0;
