@@ -202,9 +202,11 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		unsigned int rate = params_rate(hw_params);
+		unsigned int frames_per_period = params_period_size(hw_params);
 
 		mutex_lock(&motu->mutex);
-		err = snd_motu_stream_reserve_duplex(motu, rate);
+		err = snd_motu_stream_reserve_duplex(motu, rate,
+						     frames_per_period);
 		if (err >= 0)
 			++motu->substreams_counter;
 		mutex_unlock(&motu->mutex);
