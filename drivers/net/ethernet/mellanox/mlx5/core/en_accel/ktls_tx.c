@@ -373,7 +373,7 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 		return skb;
 	}
 
-	num_wqebbs = info.nr_frags * MLX5E_KTLS_DUMP_WQEBBS;
+	num_wqebbs = mlx5e_ktls_dumps_num_wqebbs(sq, info.nr_frags, info.sync_len);
 	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 	contig_wqebbs_room = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
 
@@ -382,14 +382,40 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 
 	tx_post_resync_params(sq, priv_tx, info.rcd_sn);
 
-	for (; i < info.nr_frags; i++)
-		if (tx_post_resync_dump(sq, &info.frags[i], priv_tx->tisn, !i))
-			goto err_out;
+	for (; i < info.nr_frags; i++) {
+		unsigned int orig_fsz, frag_offset = 0, n = 0;
+		skb_frag_t *f = &info.frags[i];
+
+		orig_fsz = skb_frag_size(f);
+
+		do {
+			bool fence = !(i || frag_offset);
+			unsigned int fsz;
+
+			n++;
+			fsz = min_t(unsigned int, sq->hw_mtu, orig_fsz - frag_offset);
+			skb_frag_size_set(f, fsz);
+			if (tx_post_resync_dump(sq, f, priv_tx->tisn, fence)) {
+				page_ref_add(skb_frag_page(f), n - 1);
+				goto err_out;
+			}
+
+			skb_frag_off_add(f, fsz);
+			frag_offset += fsz;
+		} while (frag_offset < orig_fsz);
+
+		page_ref_add(skb_frag_page(f), n - 1);
+	}
 
 	return skb;
 
 err_out:
 	for (; i < info.nr_frags; i++)
+		/* The put_page() here undoes the page ref obtained in tx_sync_info_get().
+		 * Page refs obtained for the DUMP WQEs above (by page_ref_add) will be
+		 * released only upon their completions (or in mlx5e_free_txqsq_descs,
+		 * if channel closes).
+		 */
 		put_page(skb_frag_page(&info.frags[i]));
 
 	dev_kfree_skb_any(skb);
