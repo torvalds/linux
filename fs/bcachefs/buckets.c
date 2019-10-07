@@ -807,26 +807,42 @@ void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 	preempt_enable();
 }
 
+static s64 disk_sectors_scaled(unsigned n, unsigned d, unsigned sectors)
+{
+	return DIV_ROUND_UP(sectors * n, d);
+}
+
+static s64 __ptr_disk_sectors_delta(unsigned old_size,
+				    unsigned offset, s64 delta,
+				    unsigned flags,
+				    unsigned n, unsigned d)
+{
+	BUG_ON(!n || !d);
+
+	if (flags & BCH_BUCKET_MARK_OVERWRITE_SPLIT) {
+		BUG_ON(offset + -delta > old_size);
+
+		return -disk_sectors_scaled(n, d, old_size) +
+			disk_sectors_scaled(n, d, offset) +
+			disk_sectors_scaled(n, d, old_size - offset + delta);
+	} else if (flags & BCH_BUCKET_MARK_OVERWRITE) {
+		BUG_ON(offset + -delta > old_size);
+
+		return -disk_sectors_scaled(n, d, old_size) +
+			disk_sectors_scaled(n, d, old_size + delta);
+	} else {
+		return  disk_sectors_scaled(n, d, delta);
+	}
+}
+
 static s64 ptr_disk_sectors_delta(struct extent_ptr_decoded p,
 				  unsigned offset, s64 delta,
 				  unsigned flags)
 {
-	if (flags & BCH_BUCKET_MARK_OVERWRITE_SPLIT) {
-		BUG_ON(offset + -delta > p.crc.live_size);
-
-		return -((s64) ptr_disk_sectors(p)) +
-			__ptr_disk_sectors(p, offset) +
-			__ptr_disk_sectors(p, p.crc.live_size -
-					   offset + delta);
-	} else if (flags & BCH_BUCKET_MARK_OVERWRITE) {
-		BUG_ON(offset + -delta > p.crc.live_size);
-
-		return -((s64) ptr_disk_sectors(p)) +
-			__ptr_disk_sectors(p, p.crc.live_size +
-					   delta);
-	} else {
-		return ptr_disk_sectors(p);
-	}
+	return __ptr_disk_sectors_delta(p.crc.live_size,
+					offset, delta, flags,
+					p.crc.compressed_size,
+					p.crc.uncompressed_size);
 }
 
 static void bucket_set_stripe(struct bch_fs *c,
@@ -964,15 +980,15 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 				struct bch_extent_stripe_ptr p,
 				enum bch_data_type data_type,
 				struct bch_fs_usage *fs_usage,
-				s64 sectors, unsigned flags)
+				s64 sectors, unsigned flags,
+				struct bch_replicas_padded *r,
+				unsigned *nr_data,
+				unsigned *nr_parity)
 {
 	bool gc = flags & BCH_BUCKET_MARK_GC;
 	struct stripe *m;
-	unsigned old, new, nr_data;
+	unsigned old, new;
 	int blocks_nonempty_delta;
-	s64 parity_sectors;
-
-	BUG_ON(!sectors);
 
 	m = genradix_ptr(&c->stripes[gc], p.idx);
 
@@ -987,13 +1003,9 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 
 	BUG_ON(m->r.e.data_type != data_type);
 
-	nr_data = m->nr_blocks - m->nr_redundant;
-
-	parity_sectors = DIV_ROUND_UP(abs(sectors) * m->nr_redundant, nr_data);
-
-	if (sectors < 0)
-		parity_sectors = -parity_sectors;
-	sectors += parity_sectors;
+	*nr_data	= m->nr_blocks - m->nr_redundant;
+	*nr_parity	= m->nr_redundant;
+	*r = m->r;
 
 	old = m->block_sectors[p.block];
 	m->block_sectors[p.block] += sectors;
@@ -1010,8 +1022,6 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 	m->dirty = true;
 
 	spin_unlock(&c->ec_stripes_heap_lock);
-
-	update_replicas(c, fs_usage, &m->r.e, sectors);
 
 	return 0;
 }
@@ -1040,7 +1050,7 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 			? sectors
 			: ptr_disk_sectors_delta(p, offset, sectors, flags);
 		bool stale = bch2_mark_pointer(c, p, disk_sectors, data_type,
-					fs_usage, journal_seq, flags);
+					       fs_usage, journal_seq, flags);
 
 		if (p.ptr.cached) {
 			if (!stale)
@@ -1050,12 +1060,30 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 			dirty_sectors	       += disk_sectors;
 			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
 		} else {
-			ret = bch2_mark_stripe_ptr(c, p.ec,
-					data_type, fs_usage,
-					disk_sectors, flags);
+			struct bch_replicas_padded ec_r;
+			unsigned nr_data, nr_parity;
+			s64 parity_sectors;
+
+			ret = bch2_mark_stripe_ptr(c, p.ec, data_type,
+					fs_usage, disk_sectors, flags,
+					&ec_r, &nr_data, &nr_parity);
 			if (ret)
 				return ret;
 
+			parity_sectors =
+				__ptr_disk_sectors_delta(p.crc.live_size,
+					offset, sectors, flags,
+					p.crc.compressed_size * nr_parity,
+					p.crc.uncompressed_size * nr_data);
+
+			update_replicas(c, fs_usage, &ec_r.e,
+					disk_sectors + parity_sectors);
+
+			/*
+			 * There may be other dirty pointers in this extent, but
+			 * if so they're not required for mounting if we have an
+			 * erasure coded pointer in this extent:
+			 */
 			r.e.nr_required = 0;
 		}
 	}
@@ -1499,16 +1527,16 @@ out:
 
 static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 			struct bch_extent_stripe_ptr p,
-			s64 sectors, enum bch_data_type data_type)
+			s64 sectors, enum bch_data_type data_type,
+			struct bch_replicas_padded *r,
+			unsigned *nr_data,
+			unsigned *nr_parity)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_replicas_padded r;
 	struct btree_iter *iter;
 	struct bkey_i *new_k;
 	struct bkey_s_c k;
 	struct bkey_s_stripe s;
-	unsigned nr_data;
-	s64 parity_sectors;
 	int ret = 0;
 
 	ret = trans_get_key(trans, BTREE_ID_EC, POS(0, p.idx), &iter, &k);
@@ -1531,20 +1559,13 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 	bkey_reassemble(new_k, k);
 	s = bkey_i_to_s_stripe(new_k);
 
-	nr_data = s.v->nr_blocks - s.v->nr_redundant;
-
-	parity_sectors = DIV_ROUND_UP(abs(sectors) * s.v->nr_redundant, nr_data);
-
-	if (sectors < 0)
-		parity_sectors = -parity_sectors;
-
 	stripe_blockcount_set(s.v, p.block,
 		stripe_blockcount_get(s.v, p.block) +
-		sectors + parity_sectors);
+		sectors);
 
-	bch2_bkey_to_replicas(&r.e, s.s_c);
-
-	update_replicas_list(trans, &r.e, sectors);
+	*nr_data	= s.v->nr_blocks - s.v->nr_redundant;
+	*nr_parity	= s.v->nr_redundant;
+	bch2_bkey_to_replicas(&r->e, s.s_c);
 out:
 	bch2_trans_iter_put(trans, iter);
 	return ret;
@@ -1589,16 +1610,31 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 			dirty_sectors	       += disk_sectors;
 			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
 		} else {
+			struct bch_replicas_padded ec_r;
+			unsigned nr_data, nr_parity;
+			s64 parity_sectors;
+
 			ret = bch2_trans_mark_stripe_ptr(trans, p.ec,
-					disk_sectors, data_type);
+					disk_sectors, data_type,
+					&ec_r, &nr_data, &nr_parity);
 			if (ret)
 				return ret;
+
+			parity_sectors =
+				__ptr_disk_sectors_delta(p.crc.live_size,
+					offset, sectors, flags,
+					p.crc.compressed_size * nr_parity,
+					p.crc.uncompressed_size * nr_data);
+
+			update_replicas_list(trans, &ec_r.e,
+					     disk_sectors + parity_sectors);
 
 			r.e.nr_required = 0;
 		}
 	}
 
-	update_replicas_list(trans, &r.e, dirty_sectors);
+	if (r.e.nr_devs)
+		update_replicas_list(trans, &r.e, dirty_sectors);
 
 	return 0;
 }

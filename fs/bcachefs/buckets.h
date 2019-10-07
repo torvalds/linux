@@ -137,8 +137,8 @@ static inline u8 ptr_stale(struct bch_dev *ca,
 	return gen_after(ptr_bucket_mark(ca, ptr).gen, ptr->gen);
 }
 
-static inline unsigned __ptr_disk_sectors(struct extent_ptr_decoded p,
-					  unsigned live_size)
+static inline s64 __ptr_disk_sectors(struct extent_ptr_decoded p,
+				     unsigned live_size)
 {
 	return live_size && p.crc.compression_type
 		? max(1U, DIV_ROUND_UP(live_size * p.crc.compressed_size,
@@ -146,7 +146,7 @@ static inline unsigned __ptr_disk_sectors(struct extent_ptr_decoded p,
 		: live_size;
 }
 
-static inline unsigned ptr_disk_sectors(struct extent_ptr_decoded p)
+static inline s64 ptr_disk_sectors(struct extent_ptr_decoded p)
 {
 	return __ptr_disk_sectors(p, p.crc.live_size);
 }
