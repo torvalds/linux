@@ -20,13 +20,16 @@ module_param_named(force_mr, rdma_rw_force_mr, bool, 0);
 MODULE_PARM_DESC(force_mr, "Force usage of MRs for RDMA READ/WRITE operations");
 
 /*
- * Check if the device might use memory registration.  This is currently only
- * true for iWarp devices. In the future we can hopefully fine tune this based
- * on HCA driver input.
+ * Report whether memory registration should be used. Memory registration must
+ * be used for iWarp devices because of iWARP-specific limitations. Memory
+ * registration is also enabled if registering memory might yield better
+ * performance than using multiple SGE entries, see rdma_rw_io_needs_mr()
  */
 static inline bool rdma_rw_can_use_mr(struct ib_device *dev, u8 port_num)
 {
 	if (rdma_protocol_iwarp(dev, port_num))
+		return true;
+	if (dev->attrs.max_sgl_rd)
 		return true;
 	if (unlikely(rdma_rw_force_mr))
 		return true;
@@ -35,17 +38,19 @@ static inline bool rdma_rw_can_use_mr(struct ib_device *dev, u8 port_num)
 
 /*
  * Check if the device will use memory registration for this RW operation.
- * We currently always use memory registrations for iWarp RDMA READs, and
- * have a debug option to force usage of MRs.
- *
- * XXX: In the future we can hopefully fine tune this based on HCA driver
- * input.
+ * For RDMA READs we must use MRs on iWarp and can optionally use them as an
+ * optimization otherwise.  Additionally we have a debug option to force usage
+ * of MRs to help testing this code path.
  */
 static inline bool rdma_rw_io_needs_mr(struct ib_device *dev, u8 port_num,
 		enum dma_data_direction dir, int dma_nents)
 {
-	if (rdma_protocol_iwarp(dev, port_num) && dir == DMA_FROM_DEVICE)
-		return true;
+	if (dir == DMA_FROM_DEVICE) {
+		if (rdma_protocol_iwarp(dev, port_num))
+			return true;
+		if (dev->attrs.max_sgl_rd && dma_nents > dev->attrs.max_sgl_rd)
+			return true;
+	}
 	if (unlikely(rdma_rw_force_mr))
 		return true;
 	return false;
