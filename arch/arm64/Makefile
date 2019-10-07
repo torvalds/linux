@@ -53,11 +53,6 @@ $(warning Detected assembler with broken .inst; disassembly will be unreliable)
   endif
 endif
 
-ifeq ($(CONFIG_GENERIC_COMPAT_VDSO), y)
-  export CONFIG_COMPAT_VDSO := y
-  compat_vdso := -DCONFIG_COMPAT_VDSO=1
-endif
-
 KBUILD_CFLAGS	+= -mgeneral-regs-only $(lseinstr) $(brokengasinst)	\
 		   $(compat_vdso) $(cc_has_k_constraint)
 KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables
