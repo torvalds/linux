@@ -2400,4 +2400,12 @@ void pci_uevent_ers(struct pci_dev *pdev, enum  pci_ers_result err_type);
 #define pci_info_ratelimited(pdev, fmt, arg...) \
 	dev_info_ratelimited(&(pdev)->dev, fmt, ##arg)
 
+#define pci_WARN(pdev, condition, fmt, arg...) \
+	WARN(condition, "%s %s: " fmt, \
+	     dev_driver_string(&(pdev)->dev), pci_name(pdev), ##arg)
+
+#define pci_WARN_ONCE(pdev, condition, fmt, arg...) \
+	WARN_ONCE(condition, "%s %s: " fmt, \
+		  dev_driver_string(&(pdev)->dev), pci_name(pdev), ##arg)
+
 #endif /* LINUX_PCI_H */
