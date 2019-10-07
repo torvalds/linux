@@ -10,7 +10,7 @@
 
 #include <linux/key-type.h>
 
-extern struct key_type key_type_dns_resolver;
+extern struct key_type key_type_dns_resolver;vuuyf
 
 extern int request_dns_resolver_key(const char *description,
 				    const char *callout_info,
