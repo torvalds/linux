@@ -330,6 +330,7 @@ static void vimc_cap_release(struct video_device *vdev)
 	struct vimc_cap_device *vcap =
 		container_of(vdev, struct vimc_cap_device, vdev);
 
+	media_entity_cleanup(vcap->ved.ent);
 	vimc_pads_cleanup(vcap->ved.pads);
 	kfree(vcap);
 }
@@ -340,7 +341,6 @@ void vimc_cap_rm(struct vimc_device *vimc, struct vimc_ent_device *ved)
 
 	vcap = container_of(ved, struct vimc_cap_device, ved);
 	vb2_queue_release(&vcap->queue);
-	media_entity_cleanup(ved->ent);
 	video_unregister_device(&vcap->vdev);
 }
 
