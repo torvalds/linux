@@ -6,6 +6,7 @@ config BTRFS_FS
 	select CRYPTO_CRC32C
 	select LIBCRC32C
 	select CRYPTO_XXHASH
+	select CRYPTO_SHA256
 	select ZLIB_INFLATE
 	select ZLIB_DEFLATE
 	select LZO_COMPRESS
