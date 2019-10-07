@@ -831,28 +831,13 @@ xfs_attr_shortform_to_leaf(
 
 	bp = NULL;
 	error = xfs_da_grow_inode(args, &blkno);
-	if (error) {
-		/*
-		 * If we hit an IO error middle of the transaction inside
-		 * grow_inode(), we may have inconsistent data. Bail out.
-		 */
-		if (error == -EIO)
-			goto out;
-		xfs_idata_realloc(dp, size, XFS_ATTR_FORK);	/* try to put */
-		memcpy(ifp->if_u1.if_data, tmpbuffer, size);	/* it back */
+	if (error)
 		goto out;
-	}
 
 	ASSERT(blkno == 0);
 	error = xfs_attr3_leaf_create(args, blkno, &bp);
-	if (error) {
-		/* xfs_attr3_leaf_create may not have instantiated a block */
-		if (bp && (xfs_da_shrink_inode(args, 0, bp) != 0))
-			goto out;
-		xfs_idata_realloc(dp, size, XFS_ATTR_FORK);	/* try to put */
-		memcpy(ifp->if_u1.if_data, tmpbuffer, size);	/* it back */
+	if (error)
 		goto out;
-	}
 
 	memset((char *)&nargs, 0, sizeof(nargs));
 	nargs.dp = dp;
