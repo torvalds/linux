@@ -1582,11 +1582,14 @@ static int vpe_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		struct vpe_q_data *s_q_data;
 		struct v4l2_pix_format_mplane *spix;
 
-		/* get colorspace from the source queue */
+		/* get colorimetry from the source queue */
 		s_q_data = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
 		spix = &s_q_data->format.fmt.pix_mp;
 
 		pix->colorspace = spix->colorspace;
+		pix->xfer_func = spix->xfer_func;
+		pix->ycbcr_enc = spix->ycbcr_enc;
+		pix->quantization = spix->quantization;
 	}
 
 	return 0;
