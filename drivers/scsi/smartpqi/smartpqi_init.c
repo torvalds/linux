@@ -3858,7 +3858,7 @@ static int pqi_create_admin_queues(struct pqi_ctrl_info *ctrl_info)
 		&pqi_registers->admin_oq_pi_addr);
 
 	reg = PQI_ADMIN_IQ_NUM_ELEMENTS |
-		(PQI_ADMIN_OQ_NUM_ELEMENTS) << 8 |
+		(PQI_ADMIN_OQ_NUM_ELEMENTS << 8) |
 		(admin_queues->int_msg_num << 16);
 	writel(reg, &pqi_registers->admin_iq_num_elements);
 	writel(PQI_CREATE_ADMIN_QUEUE_PAIR,
