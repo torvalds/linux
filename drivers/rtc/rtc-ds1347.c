@@ -43,12 +43,9 @@ static const struct regmap_access_table ds1347_access_table = {
 
 static int ds1347_read_time(struct device *dev, struct rtc_time *dt)
 {
-	struct spi_device *spi = to_spi_device(dev);
-	struct regmap *map;
+	struct regmap *map = dev_get_drvdata(dev);
 	int err;
 	unsigned char buf[8];
-
-	map = spi_get_drvdata(spi);
 
 	err = regmap_bulk_read(map, DS1347_CLOCK_BURST, buf, 8);
 	if (err)
@@ -67,11 +64,8 @@ static int ds1347_read_time(struct device *dev, struct rtc_time *dt)
 
 static int ds1347_set_time(struct device *dev, struct rtc_time *dt)
 {
-	struct spi_device *spi = to_spi_device(dev);
-	struct regmap *map;
+	struct regmap *map = dev_get_drvdata(dev);
 	unsigned char buf[8];
-
-	map = spi_get_drvdata(spi);
 
 	buf[0] = bin2bcd(dt->tm_sec);
 	buf[1] = bin2bcd(dt->tm_min);
