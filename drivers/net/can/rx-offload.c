@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright (c) 2014 David Jander, Protonic Holland
- * Copyright (C) 2014-2017 Pengutronix, Marc Kleine-Budde <kernel@pengutronix.de>
+/* Copyright (c) 2014      Protonic Holland,
+ *                         David Jander
+ * Copyright (C) 2014-2017 Pengutronix,
+ *                         Marc Kleine-Budde <kernel@pengutronix.de>
  */
 
 #include <linux/can/dev.h>
@@ -11,14 +12,17 @@ struct can_rx_offload_cb {
 	u32 timestamp;
 };
 
-static inline struct can_rx_offload_cb *can_rx_offload_get_cb(struct sk_buff *skb)
+static inline struct can_rx_offload_cb *
+can_rx_offload_get_cb(struct sk_buff *skb)
 {
 	BUILD_BUG_ON(sizeof(struct can_rx_offload_cb) > sizeof(skb->cb));
 
 	return (struct can_rx_offload_cb *)skb->cb;
 }
 
-static inline bool can_rx_offload_le(struct can_rx_offload *offload, unsigned int a, unsigned int b)
+static inline bool
+can_rx_offload_le(struct can_rx_offload *offload,
+		  unsigned int a, unsigned int b)
 {
 	if (offload->inc)
 		return a <= b;
@@ -26,7 +30,8 @@ static inline bool can_rx_offload_le(struct can_rx_offload *offload, unsigned in
 		return a >= b;
 }
 
-static inline unsigned int can_rx_offload_inc(struct can_rx_offload *offload, unsigned int *val)
+static inline unsigned int
+can_rx_offload_inc(struct can_rx_offload *offload, unsigned int *val)
 {
 	if (offload->inc)
 		return (*val)++;
@@ -36,7 +41,9 @@ static inline unsigned int can_rx_offload_inc(struct can_rx_offload *offload, un
 
 static int can_rx_offload_napi_poll(struct napi_struct *napi, int quota)
 {
-	struct can_rx_offload *offload = container_of(napi, struct can_rx_offload, napi);
+	struct can_rx_offload *offload = container_of(napi,
+						      struct can_rx_offload,
+						      napi);
 	struct net_device *dev = offload->dev;
 	struct net_device_stats *stats = &dev->stats;
 	struct sk_buff *skb;
@@ -65,8 +72,9 @@ static int can_rx_offload_napi_poll(struct napi_struct *napi, int quota)
 	return work_done;
 }
 
-static inline void __skb_queue_add_sort(struct sk_buff_head *head, struct sk_buff *new,
-					int (*compare)(struct sk_buff *a, struct sk_buff *b))
+static inline void
+__skb_queue_add_sort(struct sk_buff_head *head, struct sk_buff *new,
+		     int (*compare)(struct sk_buff *a, struct sk_buff *b))
 {
 	struct sk_buff *pos, *insert = NULL;
 
@@ -199,7 +207,8 @@ can_rx_offload_offload_one(struct can_rx_offload *offload, unsigned int n)
 	return skb;
 }
 
-int can_rx_offload_irq_offload_timestamp(struct can_rx_offload *offload, u64 pending)
+int can_rx_offload_irq_offload_timestamp(struct can_rx_offload *offload,
+					 u64 pending)
 {
 	struct sk_buff_head skb_queue;
 	unsigned int i;
@@ -328,7 +337,9 @@ int can_rx_offload_queue_tail(struct can_rx_offload *offload,
 }
 EXPORT_SYMBOL_GPL(can_rx_offload_queue_tail);
 
-static int can_rx_offload_init_queue(struct net_device *dev, struct can_rx_offload *offload, unsigned int weight)
+static int can_rx_offload_init_queue(struct net_device *dev,
+				     struct can_rx_offload *offload,
+				     unsigned int weight)
 {
 	offload->dev = dev;
 
@@ -346,7 +357,8 @@ static int can_rx_offload_init_queue(struct net_device *dev, struct can_rx_offlo
 	return 0;
 }
 
-int can_rx_offload_add_timestamp(struct net_device *dev, struct can_rx_offload *offload)
+int can_rx_offload_add_timestamp(struct net_device *dev,
+				 struct can_rx_offload *offload)
 {
 	unsigned int weight;
 
@@ -366,7 +378,8 @@ int can_rx_offload_add_timestamp(struct net_device *dev, struct can_rx_offload *
 }
 EXPORT_SYMBOL_GPL(can_rx_offload_add_timestamp);
 
-int can_rx_offload_add_fifo(struct net_device *dev, struct can_rx_offload *offload, unsigned int weight)
+int can_rx_offload_add_fifo(struct net_device *dev,
+			    struct can_rx_offload *offload, unsigned int weight)
 {
 	if (!offload->mailbox_read)
 		return -EINVAL;
