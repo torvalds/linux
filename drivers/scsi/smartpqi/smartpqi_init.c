@@ -6098,6 +6098,9 @@ static int pqi_passthru_ioctl(struct pqi_ctrl_info *ctrl_info, void __user *arg)
 
 	put_unaligned_le16(iu_length, &request.header.iu_length);
 
+	if (ctrl_info->raid_iu_timeout_supported)
+		put_unaligned_le32(iocommand.Request.Timeout, &request.timeout);
+
 	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header,
 		PQI_SYNC_FLAGS_INTERRUPTABLE, &pqi_error_info, NO_TIMEOUT);
 
@@ -6871,6 +6874,23 @@ static void pqi_firmware_feature_status(struct pqi_ctrl_info *ctrl_info,
 		firmware_feature->feature_name);
 }
 
+static void pqi_ctrl_update_feature_flags(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_firmware_feature *firmware_feature)
+{
+	switch (firmware_feature->feature_bit) {
+	case PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE:
+		ctrl_info->soft_reset_handshake_supported =
+			firmware_feature->enabled;
+		break;
+	case PQI_FIRMWARE_FEATURE_RAID_IU_TIMEOUT:
+		ctrl_info->raid_iu_timeout_supported =
+			firmware_feature->enabled;
+		break;
+	}
+
+	pqi_firmware_feature_status(ctrl_info, firmware_feature);
+}
+
 static inline void pqi_firmware_feature_update(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_firmware_feature *firmware_feature)
 {
@@ -6894,7 +6914,12 @@ static struct pqi_firmware_feature pqi_firmware_features[] = {
 	{
 		.feature_name = "New Soft Reset Handshake",
 		.feature_bit = PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE,
-		.feature_status = pqi_firmware_feature_status,
+		.feature_status = pqi_ctrl_update_feature_flags,
+	},
+	{
+		.feature_name = "RAID IU Timeout",
+		.feature_bit = PQI_FIRMWARE_FEATURE_RAID_IU_TIMEOUT,
+		.feature_status = pqi_ctrl_update_feature_flags,
 	},
 };
 
@@ -6948,7 +6973,6 @@ static void pqi_process_firmware_features(
 		return;
 	}
 
-	ctrl_info->soft_reset_handshake_supported = false;
 	for (i = 0; i < ARRAY_SIZE(pqi_firmware_features); i++) {
 		if (!pqi_firmware_features[i].supported)
 			continue;
@@ -6956,10 +6980,6 @@ static void pqi_process_firmware_features(
 			firmware_features_iomem_addr,
 			pqi_firmware_features[i].feature_bit)) {
 			pqi_firmware_features[i].enabled = true;
-			if (pqi_firmware_features[i].feature_bit ==
-			    PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE)
-				ctrl_info->soft_reset_handshake_supported =
-									true;
 		}
 		pqi_firmware_feature_update(ctrl_info,
 			&pqi_firmware_features[i]);
@@ -8764,6 +8784,8 @@ static void __attribute__((unused)) verify_structures(void)
 		error_index) != 27);
 	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
 		cdb) != 32);
+	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
+		timeout) != 60);
 	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
 		sg_descriptors) != 64);
 	BUILD_BUG_ON(sizeof(struct pqi_raid_path_request) !=

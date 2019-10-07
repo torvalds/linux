@@ -276,7 +276,9 @@ struct pqi_raid_path_request {
 	u8	reserved4 : 2;
 	u8	additional_cdb_bytes_usage : 3;
 	u8	reserved5 : 3;
-	u8	cdb[32];
+	u8	cdb[16];
+	u8	reserved6[12];
+	__le32	timeout;
 	struct pqi_sg_descriptor
 		sg_descriptors[PQI_MAX_EMBEDDED_SG_DESCRIPTORS];
 };
@@ -761,6 +763,7 @@ struct pqi_config_table_firmware_features {
 #define PQI_FIRMWARE_FEATURE_OFA			0
 #define PQI_FIRMWARE_FEATURE_SMP			1
 #define PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE	11
+#define PQI_FIRMWARE_FEATURE_RAID_IU_TIMEOUT		13
 
 struct pqi_config_table_debug {
 	struct pqi_config_table_section_header header;
@@ -1138,6 +1141,7 @@ struct pqi_ctrl_info {
 	u8		pqi_mode_enabled : 1;
 	u8		pqi_reset_quiesce_supported : 1;
 	u8		soft_reset_handshake_supported : 1;
+	u8		raid_iu_timeout_supported: 1;
 
 	struct list_head scsi_device_list;
 	spinlock_t	scsi_device_list_lock;
