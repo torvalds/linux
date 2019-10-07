@@ -136,7 +136,7 @@ struct tls_sw_context_tx {
 	struct list_head tx_list;
 	atomic_t encrypt_pending;
 	int async_notify;
-	int async_capable;
+	u8 async_capable:1;
 
 #define BIT_TX_SCHEDULED	0
 #define BIT_TX_CLOSING		1
@@ -152,7 +152,7 @@ struct tls_sw_context_rx {
 
 	struct sk_buff *recv_pkt;
 	u8 control;
-	int async_capable;
+	u8 async_capable:1;
 	bool decrypted;
 	atomic_t decrypt_pending;
 	bool async_notify;
