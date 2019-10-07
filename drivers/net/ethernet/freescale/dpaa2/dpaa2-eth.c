@@ -2043,7 +2043,6 @@ static struct fsl_mc_device *setup_dpcon(struct dpaa2_eth_priv *priv)
 {
 	struct fsl_mc_device *dpcon;
 	struct device *dev = priv->net_dev->dev.parent;
-	struct dpcon_attr attrs;
 	int err;
 
 	err = fsl_mc_object_allocate(to_fsl_mc_device(dev),
@@ -2065,12 +2064,6 @@ static struct fsl_mc_device *setup_dpcon(struct dpaa2_eth_priv *priv)
 	err = dpcon_reset(priv->mc_io, 0, dpcon->mc_handle);
 	if (err) {
 		dev_err(dev, "dpcon_reset() failed\n");
-		goto close;
-	}
-
-	err = dpcon_get_attributes(priv->mc_io, 0, dpcon->mc_handle, &attrs);
-	if (err) {
-		dev_err(dev, "dpcon_get_attributes() failed\n");
 		goto close;
 	}
 
