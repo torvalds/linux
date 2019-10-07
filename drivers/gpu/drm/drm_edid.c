@@ -2189,7 +2189,8 @@ static int standard_timing_level(struct edid *edid)
 			return LEVEL_CVT;
 		if (drm_gtf2_hbreak(edid))
 			return LEVEL_GTF2;
-		return LEVEL_GTF;
+		if (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF)
+			return LEVEL_GTF;
 	}
 	return LEVEL_DMT;
 }
