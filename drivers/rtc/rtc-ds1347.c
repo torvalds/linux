@@ -129,13 +129,13 @@ static int ds1347_probe(struct spi_device *spi)
 	data = data & 0x1B;
 	regmap_write(map, DS1347_STATUS_REG, data);
 
-	rtc = devm_rtc_device_register(&spi->dev, "ds1347",
-				&ds1347_rtc_ops, THIS_MODULE);
-
+	rtc = devm_rtc_allocate_device(&spi->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
-	return 0;
+	rtc->ops = &ds1347_rtc_ops;
+
+	return rtc_register_device(rtc);
 }
 
 static struct spi_driver ds1347_driver = {
