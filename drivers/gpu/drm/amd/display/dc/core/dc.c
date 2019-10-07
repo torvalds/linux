@@ -1333,7 +1333,9 @@ static void program_timing_sync(
 	struct pipe_ctx *unsynced_pipes[MAX_PIPES] = { NULL };
 
 	for (i = 0; i < pipe_count; i++) {
-		if (!ctx->res_ctx.pipe_ctx[i].stream || ctx->res_ctx.pipe_ctx[i].top_pipe)
+		if (!ctx->res_ctx.pipe_ctx[i].stream
+				|| ctx->res_ctx.pipe_ctx[i].top_pipe
+				|| ctx->res_ctx.pipe_ctx[i].prev_odm_pipe)
 			continue;
 
 		unsynced_pipes[i] = &ctx->res_ctx.pipe_ctx[i];
