@@ -134,6 +134,8 @@ static int ds1347_probe(struct spi_device *spi)
 		return PTR_ERR(rtc);
 
 	rtc->ops = &ds1347_rtc_ops;
+	rtc->range_min = RTC_TIMESTAMP_BEGIN_0000;
+	rtc->range_max = RTC_TIMESTAMP_END_9999;
 
 	return rtc_register_device(rtc);
 }
