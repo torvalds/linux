@@ -811,7 +811,7 @@ void intel_gt_set_wedged(struct intel_gt *gt)
 	intel_wakeref_t wakeref;
 
 	mutex_lock(&gt->reset.mutex);
-	with_intel_runtime_pm(&gt->i915->runtime_pm, wakeref)
+	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
 		__intel_gt_set_wedged(gt);
 	mutex_unlock(&gt->reset.mutex);
 }
@@ -1186,7 +1186,7 @@ void intel_gt_handle_error(struct intel_gt *gt,
 	 * isn't the case at least when we get here by doing a
 	 * simulated reset via debugfs, so get an RPM reference.
 	 */
-	wakeref = intel_runtime_pm_get(&gt->i915->runtime_pm);
+	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 
 	engine_mask &= INTEL_INFO(gt->i915)->engine_mask;
 
@@ -1246,7 +1246,7 @@ void intel_gt_handle_error(struct intel_gt *gt,
 	wake_up_all(&gt->reset.queue);
 
 out:
-	intel_runtime_pm_put(&gt->i915->runtime_pm, wakeref);
+	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 }
 
 int intel_gt_reset_trylock(struct intel_gt *gt, int *srcu)

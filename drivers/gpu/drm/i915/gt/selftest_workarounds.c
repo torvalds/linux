@@ -256,7 +256,7 @@ switch_to_scratch_context(struct intel_engine_cs *engine,
 	GEM_BUG_ON(IS_ERR(ce));
 
 	rq = ERR_PTR(-ENODEV);
-	with_intel_runtime_pm(&engine->i915->runtime_pm, wakeref)
+	with_intel_runtime_pm(engine->uncore->rpm, wakeref)
 		rq = igt_spinner_create_request(spin, ce, MI_NOOP);
 
 	intel_context_put(ce);
@@ -313,7 +313,7 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 	if (err)
 		goto out_spin;
 
-	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+	with_intel_runtime_pm(engine->uncore->rpm, wakeref)
 		err = reset(engine);
 
 	igt_spinner_end(&spin);

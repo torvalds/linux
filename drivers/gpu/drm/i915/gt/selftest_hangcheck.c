@@ -1695,14 +1695,14 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	if (intel_gt_is_wedged(gt))
 		return -EIO; /* we're long past hope of a successful reset */
 
-	wakeref = intel_runtime_pm_get(&gt->i915->runtime_pm);
+	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 	saved_hangcheck = fetch_and_zero(&i915_modparams.enable_hangcheck);
 	drain_delayed_work(&gt->hangcheck.work); /* flush param */
 
 	err = intel_gt_live_subtests(tests, gt);
 
 	i915_modparams.enable_hangcheck = saved_hangcheck;
-	intel_runtime_pm_put(&gt->i915->runtime_pm, wakeref);
+	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 
 	return err;
 }

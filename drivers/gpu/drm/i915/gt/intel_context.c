@@ -62,7 +62,7 @@ int __intel_context_do_pin(struct intel_context *ce)
 		}
 
 		err = 0;
-		with_intel_runtime_pm(&ce->engine->i915->runtime_pm, wakeref)
+		with_intel_runtime_pm(ce->engine->uncore->rpm, wakeref)
 			err = ce->ops->pin(ce);
 		if (err)
 			goto err;

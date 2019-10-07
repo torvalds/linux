@@ -271,7 +271,7 @@ static void hangcheck_elapsed(struct work_struct *work)
 	if (intel_gt_is_wedged(gt))
 		return;
 
-	wakeref = intel_runtime_pm_get_if_in_use(&gt->i915->runtime_pm);
+	wakeref = intel_runtime_pm_get_if_in_use(gt->uncore->rpm);
 	if (!wakeref)
 		return;
 
@@ -322,7 +322,7 @@ static void hangcheck_elapsed(struct work_struct *work)
 	if (hung)
 		hangcheck_declare_hang(gt, hung, stuck);
 
-	intel_runtime_pm_put(&gt->i915->runtime_pm, wakeref);
+	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 
 	/* Reset timer in case GPU hangs without another request being added */
 	intel_gt_queue_hangcheck(gt);

@@ -412,7 +412,7 @@ void gen9_reset_guc_interrupts(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 
-	assert_rpm_wakelock_held(&gt->i915->runtime_pm);
+	assert_rpm_wakelock_held(gt->uncore->rpm);
 
 	spin_lock_irq(&gt->irq_lock);
 	gen6_gt_pm_reset_iir(gt, gt->pm_guc_events);
@@ -423,7 +423,7 @@ void gen9_enable_guc_interrupts(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 
-	assert_rpm_wakelock_held(&gt->i915->runtime_pm);
+	assert_rpm_wakelock_held(gt->uncore->rpm);
 
 	spin_lock_irq(&gt->irq_lock);
 	if (!guc->interrupts.enabled) {
@@ -440,7 +440,7 @@ void gen9_disable_guc_interrupts(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 
-	assert_rpm_wakelock_held(&gt->i915->runtime_pm);
+	assert_rpm_wakelock_held(gt->uncore->rpm);
 
 	spin_lock_irq(&gt->irq_lock);
 	guc->interrupts.enabled = false;

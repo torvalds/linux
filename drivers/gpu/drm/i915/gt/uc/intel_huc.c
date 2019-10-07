@@ -185,7 +185,7 @@ int intel_huc_check_status(struct intel_huc *huc)
 	if (!intel_huc_is_supported(huc))
 		return -ENODEV;
 
-	with_intel_runtime_pm(&gt->i915->runtime_pm, wakeref)
+	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
 		status = intel_uncore_read(gt->uncore, huc->status.reg);
 
 	return (status & huc->status.mask) == huc->status.value;

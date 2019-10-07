@@ -1458,10 +1458,10 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	spin_unlock_irqrestore(&engine->active.lock, flags);
 
 	drm_printf(m, "\tMMIO base:  0x%08x\n", engine->mmio_base);
-	wakeref = intel_runtime_pm_get_if_in_use(&engine->i915->runtime_pm);
+	wakeref = intel_runtime_pm_get_if_in_use(engine->uncore->rpm);
 	if (wakeref) {
 		intel_engine_print_registers(engine, m);
-		intel_runtime_pm_put(&engine->i915->runtime_pm, wakeref);
+		intel_runtime_pm_put(engine->uncore->rpm, wakeref);
 	} else {
 		drm_printf(m, "\tDevice is asleep; skipping register dump\n");
 	}
