@@ -119,7 +119,7 @@ static int mcs_statistics_show(struct seq_file *s, void *p)
 		"cch_interrupt_sync", "cch_deallocate", "tfh_write_only",
 		"tfh_write_restart", "tgh_invalidate"};
 
-	seq_printf(s, "%-20s%12s%12s%12s\n", "#id", "count", "aver-clks", "max-clks");
+	seq_puts(s, "#id                        count   aver-clks    max-clks\n");
 	for (op = 0; op < mcsop_last; op++) {
 		count = atomic_long_read(&mcs_op_statistics[op].count);
 		total = atomic_long_read(&mcs_op_statistics[op].total);
@@ -165,8 +165,7 @@ static int cch_seq_show(struct seq_file *file, void *data)
 	const char *mode[] = { "??", "UPM", "INTR", "OS_POLL" };
 
 	if (gid == 0)
-		seq_printf(file, "#%5s%5s%6s%7s%9s%6s%8s%8s\n", "gid", "bid",
-			   "ctx#", "asid", "pid", "cbrs", "dsbytes", "mode");
+		seq_puts(file, "#  gid  bid  ctx#   asid      pid  cbrs dsbytes    mode\n");
 	if (gru)
 		for (i = 0; i < GRU_NUM_CCH; i++) {
 			ts = gru->gs_gts[i];
@@ -191,10 +190,8 @@ static int gru_seq_show(struct seq_file *file, void *data)
 	struct gru_state *gru = GID_TO_GRU(gid);
 
 	if (gid == 0) {
-		seq_printf(file, "#%5s%5s%7s%6s%6s%8s%6s%6s\n", "gid", "nid",
-			   "ctx", "cbr", "dsr", "ctx", "cbr", "dsr");
-		seq_printf(file, "#%5s%5s%7s%6s%6s%8s%6s%6s\n", "", "", "busy",
-			   "busy", "busy", "free", "free", "free");
+		seq_puts(file, "#  gid  nid    ctx   cbr   dsr     ctx   cbr   dsr\n");
+		seq_puts(file, "#             busy  busy  busy    free  free  free\n");
 	}
 	if (gru) {
 		ctxfree = GRU_NUM_CCH - gru->gs_active_contexts;
