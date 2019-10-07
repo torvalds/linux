@@ -4,7 +4,7 @@
 lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="fw_flash_test params_test regions_test reload_test \
-	   netns_reload_test resource_test"
+	   netns_reload_test resource_test dev_info_test"
 NUM_NETIFS=0
 source $lib_dir/lib.sh
 
@@ -282,6 +282,25 @@ resource_test()
 	ip netns del testns1
 
 	log_test "resource test"
+}
+
+info_get()
+{
+	local name=$1
+
+	cmd_jq "devlink dev info $DL_HANDLE -j" ".[][][\"$name\"]" "-e"
+}
+
+dev_info_test()
+{
+	RET=0
+
+	driver=$(info_get "driver")
+	check_err $? "Failed to get driver name"
+	[ "$driver" == "netdevsim" ]
+	check_err $? "Unexpected driver name $driver"
+
+	log_test "dev_info test"
 }
 
 setup_prepare()
