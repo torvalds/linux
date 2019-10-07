@@ -56,6 +56,11 @@ const struct vpdma_data_format vpdma_yuv_fmts[] = {
 		.data_type	= DATA_TYPE_C420,
 		.depth		= 4,
 	},
+	[VPDMA_DATA_FMT_CB420] = {
+		.type		= VPDMA_DATA_FMT_TYPE_YUV,
+		.data_type	= DATA_TYPE_CB420,
+		.depth		= 4,
+	},
 	[VPDMA_DATA_FMT_YCR422] = {
 		.type		= VPDMA_DATA_FMT_TYPE_YUV,
 		.data_type	= DATA_TYPE_YCR422,
@@ -825,7 +830,8 @@ void vpdma_rawchan_add_out_dtd(struct vpdma_desc_list *list, int width,
 	channel = next_chan = raw_vpdma_chan;
 
 	if (fmt->type == VPDMA_DATA_FMT_TYPE_YUV &&
-			fmt->data_type == DATA_TYPE_C420) {
+	    (fmt->data_type == DATA_TYPE_C420 ||
+	     fmt->data_type == DATA_TYPE_CB420)) {
 		rect.height >>= 1;
 		rect.top >>= 1;
 		depth = 8;
@@ -893,7 +899,8 @@ void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
 	channel = next_chan = chan_info[chan].num;
 
 	if (fmt->type == VPDMA_DATA_FMT_TYPE_YUV &&
-			fmt->data_type == DATA_TYPE_C420) {
+	    (fmt->data_type == DATA_TYPE_C420 ||
+	     fmt->data_type == DATA_TYPE_CB420)) {
 		rect.height >>= 1;
 		rect.top >>= 1;
 		depth = 8;

@@ -92,6 +92,7 @@
 #define DATA_TYPE_C444				0x4
 #define DATA_TYPE_C422				0x5
 #define DATA_TYPE_C420				0x6
+#define DATA_TYPE_CB420				0x16
 #define DATA_TYPE_YC444				0x8
 #define DATA_TYPE_YCB422			0x7
 #define DATA_TYPE_YCR422			0x17
