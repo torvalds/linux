@@ -153,7 +153,7 @@ struct tls_sw_context_rx {
 	struct sk_buff *recv_pkt;
 	u8 control;
 	u8 async_capable:1;
-	bool decrypted;
+	u8 decrypted:1;
 	atomic_t decrypt_pending;
 	bool async_notify;
 };
