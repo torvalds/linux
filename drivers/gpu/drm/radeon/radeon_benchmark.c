@@ -35,7 +35,7 @@
 static int radeon_benchmark_do_move(struct radeon_device *rdev, unsigned size,
 				    uint64_t saddr, uint64_t daddr,
 				    int flag, int n,
-				    struct reservation_object *resv)
+				    struct dma_resv *resv)
 {
 	unsigned long start_jiffies;
 	unsigned long end_jiffies;
@@ -122,7 +122,7 @@ static void radeon_benchmark_move(struct radeon_device *rdev, unsigned size,
 	if (rdev->asic->copy.dma) {
 		time = radeon_benchmark_do_move(rdev, size, saddr, daddr,
 						RADEON_BENCHMARK_COPY_DMA, n,
-						dobj->tbo.resv);
+						dobj->tbo.base.resv);
 		if (time < 0)
 			goto out_cleanup;
 		if (time > 0)
@@ -133,7 +133,7 @@ static void radeon_benchmark_move(struct radeon_device *rdev, unsigned size,
 	if (rdev->asic->copy.blit) {
 		time = radeon_benchmark_do_move(rdev, size, saddr, daddr,
 						RADEON_BENCHMARK_COPY_BLIT, n,
-						dobj->tbo.resv);
+						dobj->tbo.base.resv);
 		if (time < 0)
 			goto out_cleanup;
 		if (time > 0)

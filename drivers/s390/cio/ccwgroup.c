@@ -372,7 +372,7 @@ int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 		goto error;
 	}
 	/* Check for trailing stuff. */
-	if (i == num_devices && strlen(buf) > 0) {
+	if (i == num_devices && buf && strlen(buf) > 0) {
 		rc = -EINVAL;
 		goto error;
 	}
@@ -581,11 +581,6 @@ int ccwgroup_driver_register(struct ccwgroup_driver *cdriver)
 }
 EXPORT_SYMBOL(ccwgroup_driver_register);
 
-static int __ccwgroup_match_all(struct device *dev, const void *data)
-{
-	return 1;
-}
-
 /**
  * ccwgroup_driver_unregister() - deregister a ccw group driver
  * @cdriver: driver to be deregistered
@@ -597,8 +592,7 @@ void ccwgroup_driver_unregister(struct ccwgroup_driver *cdriver)
 	struct device *dev;
 
 	/* We don't want ccwgroup devices to live longer than their driver. */
-	while ((dev = driver_find_device(&cdriver->driver, NULL, NULL,
-					 __ccwgroup_match_all))) {
+	while ((dev = driver_find_next_device(&cdriver->driver, NULL))) {
 		struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
 
 		ccwgroup_ungroup(gdev);
@@ -607,13 +601,6 @@ void ccwgroup_driver_unregister(struct ccwgroup_driver *cdriver)
 	driver_unregister(&cdriver->driver);
 }
 EXPORT_SYMBOL(ccwgroup_driver_unregister);
-
-static int __ccwgroupdev_check_busid(struct device *dev, const void *id)
-{
-	const char *bus_id = id;
-
-	return (strcmp(bus_id, dev_name(dev)) == 0);
-}
 
 /**
  * get_ccwgroupdev_by_busid() - obtain device from a bus id
@@ -631,8 +618,7 @@ struct ccwgroup_device *get_ccwgroupdev_by_busid(struct ccwgroup_driver *gdrv,
 {
 	struct device *dev;
 
-	dev = driver_find_device(&gdrv->driver, NULL, bus_id,
-				 __ccwgroupdev_check_busid);
+	dev = driver_find_device_by_name(&gdrv->driver, bus_id);
 
 	return dev ? to_ccwgroupdev(dev) : NULL;
 }

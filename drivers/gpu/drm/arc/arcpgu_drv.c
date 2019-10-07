@@ -135,8 +135,7 @@ static int arcpgu_debugfs_init(struct drm_minor *minor)
 #endif
 
 static struct drm_driver arcpgu_drm_driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
-			   DRIVER_ATOMIC,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.name = "arcpgu",
 	.desc = "ARC PGU Controller",
 	.date = "20160219",
@@ -150,8 +149,6 @@ static struct drm_driver arcpgu_drm_driver = {
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_print_info = drm_gem_cma_print_info,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
-	.gem_prime_export = drm_gem_prime_export,
-	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_get_sg_table = drm_gem_cma_prime_get_sg_table,
 	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
 	.gem_prime_vmap = drm_gem_cma_prime_vmap,

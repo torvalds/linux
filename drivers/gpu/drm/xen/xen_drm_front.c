@@ -8,12 +8,17 @@
  * Author: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_probe_helper.h>
-#include <drm/drm_gem.h>
-
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
+
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_file.h>
+#include <drm/drm_gem.h>
 
 #include <xen/platform_pci.h>
 #include <xen/xen.h>
@@ -485,15 +490,12 @@ static const struct vm_operations_struct xen_drm_drv_vm_ops = {
 };
 
 static struct drm_driver xen_drm_driver = {
-	.driver_features           = DRIVER_GEM | DRIVER_MODESET |
-				     DRIVER_PRIME | DRIVER_ATOMIC,
+	.driver_features           = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.release                   = xen_drm_drv_release,
 	.gem_vm_ops                = &xen_drm_drv_vm_ops,
 	.gem_free_object_unlocked  = xen_drm_drv_free_object_unlocked,
 	.prime_handle_to_fd        = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle        = drm_gem_prime_fd_to_handle,
-	.gem_prime_import          = drm_gem_prime_import,
-	.gem_prime_export          = drm_gem_prime_export,
 	.gem_prime_import_sg_table = xen_drm_front_gem_import_sg_table,
 	.gem_prime_get_sg_table    = xen_drm_front_gem_get_sg_table,
 	.gem_prime_vmap            = xen_drm_front_gem_prime_vmap,

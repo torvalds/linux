@@ -78,11 +78,14 @@ int aspeed_sig_desc_eval(const struct aspeed_sig_desc *desc,
  * neither the enabled nor disabled state. Thus we must explicitly test for
  * either condition as required.
  */
-int aspeed_sig_expr_eval(const struct aspeed_pinmux_data *ctx,
+int aspeed_sig_expr_eval(struct aspeed_pinmux_data *ctx,
 			 const struct aspeed_sig_expr *expr, bool enabled)
 {
-	int i;
 	int ret;
+	int i;
+
+	if (ctx->ops->eval)
+		return ctx->ops->eval(ctx, expr, enabled);
 
 	for (i = 0; i < expr->ndescs; i++) {
 		const struct aspeed_sig_desc *desc = &expr->descs[i];

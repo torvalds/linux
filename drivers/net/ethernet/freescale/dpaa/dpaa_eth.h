@@ -32,6 +32,7 @@
 #define __DPAA_H
 
 #include <linux/netdevice.h>
+#include <linux/refcount.h>
 #include <soc/fsl/qman.h>
 #include <soc/fsl/bman.h>
 
@@ -99,7 +100,7 @@ struct dpaa_bp {
 	int (*seed_cb)(struct dpaa_bp *);
 	/* bpool can be emptied before freeing by this cb */
 	void (*free_buf_cb)(const struct dpaa_bp *, struct bm_buffer *);
-	atomic_t refs;
+	refcount_t refs;
 };
 
 struct dpaa_rx_errors {

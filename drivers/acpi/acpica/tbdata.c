@@ -750,6 +750,7 @@ acpi_status acpi_tb_delete_namespace_by_owner(u32 table_index)
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
+
 	acpi_ns_delete_namespace_by_owner(owner_id);
 	acpi_ut_release_write_lock(&acpi_gbl_namespace_rw_lock);
 	return_ACPI_STATUS(status);

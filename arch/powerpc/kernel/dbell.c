@@ -33,7 +33,7 @@ void doorbell_global_ipi(int cpu)
 {
 	u32 tag = get_hard_smp_processor_id(cpu);
 
-	kvmppc_set_host_ipi(cpu, 1);
+	kvmppc_set_host_ipi(cpu);
 	/* Order previous accesses vs. msgsnd, which is treated as a store */
 	ppc_msgsnd_sync();
 	ppc_msgsnd(PPC_DBELL_MSGTYPE, 0, tag);
@@ -48,7 +48,7 @@ void doorbell_core_ipi(int cpu)
 {
 	u32 tag = cpu_thread_in_core(cpu);
 
-	kvmppc_set_host_ipi(cpu, 1);
+	kvmppc_set_host_ipi(cpu);
 	/* Order previous accesses vs. msgsnd, which is treated as a store */
 	ppc_msgsnd_sync();
 	ppc_msgsnd(PPC_DBELL_MSGTYPE, 0, tag);
@@ -84,7 +84,7 @@ void doorbell_exception(struct pt_regs *regs)
 
 	may_hard_irq_enable();
 
-	kvmppc_set_host_ipi(smp_processor_id(), 0);
+	kvmppc_clear_host_ipi(smp_processor_id());
 	__this_cpu_inc(irq_stat.doorbell_irqs);
 
 	smp_ipi_demux_relaxed(); /* already performed the barrier */

@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/posix_acl.h>
 #include <linux/refcount.h>
+#include <linux/security.h>
 
 #include <linux/ceph/libceph.h>
 
@@ -31,6 +32,7 @@
 #define CEPH_BLOCK_SHIFT   22  /* 4 MB */
 #define CEPH_BLOCK         (1 << CEPH_BLOCK_SHIFT)
 
+#define CEPH_MOUNT_OPT_CLEANRECOVER    (1<<1) /* auto reonnect (clean mode) after blacklisted */
 #define CEPH_MOUNT_OPT_DIRSTAT         (1<<4) /* `cat dirname` for stats */
 #define CEPH_MOUNT_OPT_RBYTES          (1<<5) /* dir st_bytes = rbytes */
 #define CEPH_MOUNT_OPT_NOASYNCREADDIR  (1<<7) /* no dcache readdir */
@@ -101,6 +103,11 @@ struct ceph_fs_client {
 	struct ceph_client *client;
 
 	unsigned long mount_state;
+
+	unsigned long last_auto_reconnect;
+	bool blacklisted;
+
+	u32 filp_gen;
 	loff_t max_file_size;
 
 	struct ceph_mds_client *mdsc;
@@ -395,6 +402,8 @@ struct ceph_inode_info {
 	struct fscache_cookie *fscache;
 	u32 i_fscache_gen;
 #endif
+	errseq_t i_meta_err;
+
 	struct inode vfs_inode; /* at end */
 };
 
@@ -499,17 +508,16 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 #define CEPH_I_DIR_ORDERED	(1 << 0)  /* dentries in dir are ordered */
 #define CEPH_I_NODELAY		(1 << 1)  /* do not delay cap release */
 #define CEPH_I_FLUSH		(1 << 2)  /* do not delay flush of dirty metadata */
-#define CEPH_I_NOFLUSH		(1 << 3)  /* do not flush dirty caps */
-#define CEPH_I_POOL_PERM	(1 << 4)  /* pool rd/wr bits are valid */
-#define CEPH_I_POOL_RD		(1 << 5)  /* can read from pool */
-#define CEPH_I_POOL_WR		(1 << 6)  /* can write to pool */
-#define CEPH_I_SEC_INITED	(1 << 7)  /* security initialized */
-#define CEPH_I_CAP_DROPPED	(1 << 8)  /* caps were forcibly dropped */
-#define CEPH_I_KICK_FLUSH	(1 << 9)  /* kick flushing caps */
-#define CEPH_I_FLUSH_SNAPS	(1 << 10) /* need flush snapss */
-#define CEPH_I_ERROR_WRITE	(1 << 11) /* have seen write errors */
-#define CEPH_I_ERROR_FILELOCK	(1 << 12) /* have seen file lock errors */
-
+#define CEPH_I_POOL_PERM	(1 << 3)  /* pool rd/wr bits are valid */
+#define CEPH_I_POOL_RD		(1 << 4)  /* can read from pool */
+#define CEPH_I_POOL_WR		(1 << 5)  /* can write to pool */
+#define CEPH_I_SEC_INITED	(1 << 6)  /* security initialized */
+#define CEPH_I_CAP_DROPPED	(1 << 7)  /* caps were forcibly dropped */
+#define CEPH_I_KICK_FLUSH	(1 << 8)  /* kick flushing caps */
+#define CEPH_I_FLUSH_SNAPS	(1 << 9)  /* need flush snapss */
+#define CEPH_I_ERROR_WRITE	(1 << 10) /* have seen write errors */
+#define CEPH_I_ERROR_FILELOCK	(1 << 11) /* have seen file lock errors */
+#define CEPH_I_ODIRECT		(1 << 12) /* inode in direct I/O mode */
 
 /*
  * Masks of ceph inode work.
@@ -703,6 +711,10 @@ struct ceph_file_info {
 
 	spinlock_t rw_contexts_lock;
 	struct list_head rw_contexts;
+
+	errseq_t meta_err;
+	u32 filp_gen;
+	atomic_t num_locks;
 };
 
 struct ceph_dir_file_info {
@@ -842,7 +854,8 @@ static inline int default_congestion_kb(void)
 }
 
 
-
+/* super.c */
+extern int ceph_force_reconnect(struct super_block *sb);
 /* snap.c */
 struct ceph_snap_realm *ceph_lookup_snap_realm(struct ceph_mds_client *mdsc,
 					       u64 ino);
@@ -959,7 +972,10 @@ static inline bool ceph_security_xattr_wanted(struct inode *in)
 #ifdef CONFIG_CEPH_FS_SECURITY_LABEL
 extern int ceph_security_init_secctx(struct dentry *dentry, umode_t mode,
 				     struct ceph_acl_sec_ctx *ctx);
-extern void ceph_security_invalidate_secctx(struct inode *inode);
+static inline void ceph_security_invalidate_secctx(struct inode *inode)
+{
+	security_inode_invalidate_secctx(inode);
+}
 #else
 static inline int ceph_security_init_secctx(struct dentry *dentry, umode_t mode,
 					    struct ceph_acl_sec_ctx *ctx)
@@ -1039,7 +1055,6 @@ extern void ceph_kick_flushing_caps(struct ceph_mds_client *mdsc,
 				    struct ceph_mds_session *session);
 extern struct ceph_cap *ceph_get_cap_for_mds(struct ceph_inode_info *ci,
 					     int mds);
-extern int ceph_get_cap_mds(struct inode *inode);
 extern void ceph_get_cap_refs(struct ceph_inode_info *ci, int caps);
 extern void ceph_put_cap_refs(struct ceph_inode_info *ci, int had);
 extern void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
@@ -1058,9 +1073,9 @@ extern int ceph_encode_dentry_release(void **p, struct dentry *dn,
 				      struct inode *dir,
 				      int mds, int drop, int unless);
 
-extern int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
+extern int ceph_get_caps(struct file *filp, int need, int want,
 			 loff_t endoff, int *got, struct page **pinned_page);
-extern int ceph_try_get_caps(struct ceph_inode_info *ci,
+extern int ceph_try_get_caps(struct inode *inode,
 			     int need, int want, bool nonblock, int *got);
 
 /* for counting open files by mode */
@@ -1071,7 +1086,7 @@ extern void ceph_put_fmode(struct ceph_inode_info *ci, int mode);
 extern const struct address_space_operations ceph_aops;
 extern int ceph_mmap(struct file *file, struct vm_area_struct *vma);
 extern int ceph_uninline_data(struct file *filp, struct page *locked_page);
-extern int ceph_pool_perm_check(struct ceph_inode_info *ci, int need);
+extern int ceph_pool_perm_check(struct inode *inode, int need);
 extern void ceph_pool_perm_destroy(struct ceph_mds_client* mdsc);
 
 /* file.c */

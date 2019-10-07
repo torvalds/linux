@@ -212,10 +212,8 @@ static int lpc32xx_ts_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "Can't get interrupt resource\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	tsc = kzalloc(sizeof(*tsc), GFP_KERNEL);
 	input = input_allocate_device();

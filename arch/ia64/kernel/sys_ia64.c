@@ -166,21 +166,3 @@ ia64_mremap (unsigned long addr, unsigned long old_len, unsigned long new_len, u
 		force_successful_syscall_return();
 	return addr;
 }
-
-#ifndef CONFIG_PCI
-
-asmlinkage long
-sys_pciconfig_read (unsigned long bus, unsigned long dfn, unsigned long off, unsigned long len,
-		    void *buf)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long
-sys_pciconfig_write (unsigned long bus, unsigned long dfn, unsigned long off, unsigned long len,
-		     void *buf)
-{
-	return -ENOSYS;
-}
-
-#endif /* CONFIG_PCI */

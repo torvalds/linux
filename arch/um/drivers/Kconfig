@@ -335,3 +335,10 @@ config UML_NET_SLIRP
 	  Startup example: "eth0=slirp,FE:FD:01:02:03:04,/usr/local/bin/slirp"
 
 endmenu
+
+config VIRTIO_UML
+	tristate "UML driver for virtio devices"
+	select VIRTIO
+	help
+	  This driver provides support for virtio based paravirtual device
+	  drivers over vhost-user sockets.

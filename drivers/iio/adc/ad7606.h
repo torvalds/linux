@@ -8,6 +8,36 @@
 #ifndef IIO_ADC_AD7606_H_
 #define IIO_ADC_AD7606_H_
 
+#define AD760X_CHANNEL(num, mask_sep, mask_type, mask_all) {	\
+		.type = IIO_VOLTAGE,				\
+		.indexed = 1,					\
+		.channel = num,					\
+		.address = num,					\
+		.info_mask_separate = mask_sep,			\
+		.info_mask_shared_by_type = mask_type,		\
+		.info_mask_shared_by_all = mask_all,		\
+		.scan_index = num,				\
+		.scan_type = {					\
+			.sign = 's',				\
+			.realbits = 16,				\
+			.storagebits = 16,			\
+			.endianness = IIO_CPU,			\
+		},						\
+}
+
+#define AD7605_CHANNEL(num)				\
+	AD760X_CHANNEL(num, BIT(IIO_CHAN_INFO_RAW),	\
+		BIT(IIO_CHAN_INFO_SCALE), 0)
+
+#define AD7606_CHANNEL(num)				\
+	AD760X_CHANNEL(num, BIT(IIO_CHAN_INFO_RAW),	\
+		BIT(IIO_CHAN_INFO_SCALE),		\
+		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO))
+
+#define AD7616_CHANNEL(num)	\
+	AD760X_CHANNEL(num, BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),\
+		0, BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO))
+
 /**
  * struct ad7606_chip_info - chip specific information
  * @channels:		channel specification
@@ -16,12 +46,8 @@
  *			oversampling ratios.
  * @oversampling_num	number of elements stored in oversampling_avail array
  * @os_req_reset	some devices require a reset to update oversampling
- * @write_scale_sw	pointer to the function which writes the scale via spi
-			in software mode
- * @write_os_sw		pointer to the function which writes the os via spi
-			in software mode
- * @sw_mode_config:	pointer to a function which configured the device
- *			for software mode
+ * @init_delay_ms	required delay in miliseconds for initialization
+ *			after a restart
  */
 struct ad7606_chip_info {
 	const struct iio_chan_spec	*channels;
@@ -29,9 +55,7 @@ struct ad7606_chip_info {
 	const unsigned int		*oversampling_avail;
 	unsigned int			oversampling_num;
 	bool				os_req_reset;
-	int (*write_scale_sw)(struct iio_dev *indio_dev, int ch, int val);
-	int (*write_os_sw)(struct iio_dev *indio_dev, int val);
-	int (*sw_mode_config)(struct iio_dev *indio_dev);
+	unsigned long			init_delay_ms;
 };
 
 /**
@@ -63,6 +87,7 @@ struct ad7606_chip_info {
  * @complete		completion to indicate end of conversion
  * @trig		The IIO trigger associated with the device.
  * @data		buffer for reading data from the device
+ * @d16			be16 buffer for reading data from the device
  */
 struct ad7606_state {
 	struct device			*dev;
@@ -96,15 +121,32 @@ struct ad7606_state {
 	 * 16 * 16-bit samples + 64-bit timestamp
 	 */
 	unsigned short			data[20] ____cacheline_aligned;
+	__be16				d16[2];
 };
 
 /**
  * struct ad7606_bus_ops - driver bus operations
  * @read_block		function pointer for reading blocks of data
+ * @sw_mode_config:	pointer to a function which configured the device
+ *			for software mode
+ * @reg_read	function pointer for reading spi register
+ * @reg_write	function pointer for writing spi register
+ * @write_mask	function pointer for write spi register with mask
+ * @rd_wr_cmd	pointer to the function which calculates the spi address
  */
 struct ad7606_bus_ops {
 	/* more methods added in future? */
 	int (*read_block)(struct device *dev, int num, void *data);
+	int (*sw_mode_config)(struct iio_dev *indio_dev);
+	int (*reg_read)(struct ad7606_state *st, unsigned int addr);
+	int (*reg_write)(struct ad7606_state *st,
+				unsigned int addr,
+				unsigned int val);
+	int (*write_mask)(struct ad7606_state *st,
+				 unsigned int addr,
+				 unsigned long mask,
+				 unsigned int val);
+	u16 (*rd_wr_cmd)(int addr, char isWriteOp);
 };
 
 int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
@@ -116,6 +158,7 @@ enum ad7606_supported_device_ids {
 	ID_AD7606_8,
 	ID_AD7606_6,
 	ID_AD7606_4,
+	ID_AD7606B,
 	ID_AD7616,
 };
 

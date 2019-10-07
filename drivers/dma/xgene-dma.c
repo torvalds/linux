@@ -1678,20 +1678,16 @@ static int xgene_dma_get_resources(struct platform_device *pdev,
 
 	/* Get DMA error interrupt */
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(&pdev->dev, "Failed to get Error IRQ\n");
+	if (irq <= 0)
 		return -ENXIO;
-	}
 
 	pdma->err_irq = irq;
 
 	/* Get DMA Rx ring descriptor interrupts for all DMA channels */
 	for (i = 1; i <= XGENE_DMA_MAX_CHANNEL; i++) {
 		irq = platform_get_irq(pdev, i);
-		if (irq <= 0) {
-			dev_err(&pdev->dev, "Failed to get Rx IRQ\n");
+		if (irq <= 0)
 			return -ENXIO;
-		}
 
 		pdma->chan[i - 1].rx_irq = irq;
 	}

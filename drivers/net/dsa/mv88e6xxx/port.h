@@ -42,8 +42,9 @@
 #define MV88E6XXX_PORT_STS_TX_PAUSED		0x0020
 #define MV88E6XXX_PORT_STS_FLOW_CTL		0x0010
 #define MV88E6XXX_PORT_STS_CMODE_MASK		0x000f
-#define MV88E6XXX_PORT_STS_CMODE_100BASE_X	0x0008
-#define MV88E6XXX_PORT_STS_CMODE_1000BASE_X	0x0009
+#define MV88E6XXX_PORT_STS_CMODE_RGMII		0x0007
+#define MV88E6XXX_PORT_STS_CMODE_100BASEX	0x0008
+#define MV88E6XXX_PORT_STS_CMODE_1000BASEX	0x0009
 #define MV88E6XXX_PORT_STS_CMODE_SGMII		0x000a
 #define MV88E6XXX_PORT_STS_CMODE_2500BASEX	0x000b
 #define MV88E6XXX_PORT_STS_CMODE_XAUI		0x000c
@@ -117,6 +118,7 @@
 #define MV88E6XXX_PORT_SWITCH_ID_PROD_6190	0x1900
 #define MV88E6XXX_PORT_SWITCH_ID_PROD_6191	0x1910
 #define MV88E6XXX_PORT_SWITCH_ID_PROD_6185	0x1a70
+#define MV88E6XXX_PORT_SWITCH_ID_PROD_6220	0x2200
 #define MV88E6XXX_PORT_SWITCH_ID_PROD_6240	0x2400
 #define MV88E6XXX_PORT_SWITCH_ID_PROD_6250	0x2500
 #define MV88E6XXX_PORT_SWITCH_ID_PROD_6290	0x2900
@@ -220,7 +222,19 @@
 #define MV88E6XXX_PORT_PRI_OVERRIDE	0x0d
 
 /* Offset 0x0E: Policy Control Register */
-#define MV88E6XXX_PORT_POLICY_CTL	0x0e
+#define MV88E6XXX_PORT_POLICY_CTL		0x0e
+#define MV88E6XXX_PORT_POLICY_CTL_DA_MASK	0xc000
+#define MV88E6XXX_PORT_POLICY_CTL_SA_MASK	0x3000
+#define MV88E6XXX_PORT_POLICY_CTL_VTU_MASK	0x0c00
+#define MV88E6XXX_PORT_POLICY_CTL_ETYPE_MASK	0x0300
+#define MV88E6XXX_PORT_POLICY_CTL_PPPOE_MASK	0x00c0
+#define MV88E6XXX_PORT_POLICY_CTL_VBAS_MASK	0x0030
+#define MV88E6XXX_PORT_POLICY_CTL_OPT82_MASK	0x000c
+#define MV88E6XXX_PORT_POLICY_CTL_UDP_MASK	0x0003
+#define MV88E6XXX_PORT_POLICY_CTL_NORMAL	0x0000
+#define MV88E6XXX_PORT_POLICY_CTL_MIRROR	0x0001
+#define MV88E6XXX_PORT_POLICY_CTL_TRAP		0x0002
+#define MV88E6XXX_PORT_POLICY_CTL_DISCARD	0x0003
 
 /* Offset 0x0F: Port Special Ether Type */
 #define MV88E6XXX_PORT_ETH_TYPE		0x0f
@@ -259,14 +273,16 @@
 #define MV88E6095_PORT_IEEE_PRIO_REMAP_4567	0x19
 
 /* Offset 0x1a: Magic undocumented errata register */
-#define PORT_RESERVED_1A			0x1a
-#define PORT_RESERVED_1A_BUSY			BIT(15)
-#define PORT_RESERVED_1A_WRITE			BIT(14)
-#define PORT_RESERVED_1A_READ			0
-#define PORT_RESERVED_1A_PORT_SHIFT		5
-#define PORT_RESERVED_1A_BLOCK			(0xf << 10)
-#define PORT_RESERVED_1A_CTRL_PORT		4
-#define PORT_RESERVED_1A_DATA_PORT		5
+#define MV88E6XXX_PORT_RESERVED_1A		0x1a
+#define MV88E6XXX_PORT_RESERVED_1A_BUSY		0x8000
+#define MV88E6XXX_PORT_RESERVED_1A_WRITE	0x4000
+#define MV88E6XXX_PORT_RESERVED_1A_READ		0x0000
+#define MV88E6XXX_PORT_RESERVED_1A_PORT_SHIFT	5
+#define MV88E6XXX_PORT_RESERVED_1A_BLOCK_SHIFT	10
+#define MV88E6XXX_PORT_RESERVED_1A_CTRL_PORT	0x04
+#define MV88E6XXX_PORT_RESERVED_1A_DATA_PORT	0x05
+#define MV88E6341_PORT_RESERVED_1A_FORCE_CMODE	0x8000
+#define MV88E6341_PORT_RESERVED_1A_SGMII_AN	0x2000
 
 int mv88e6xxx_port_read(struct mv88e6xxx_chip *chip, int port, int reg,
 			u16 *val);
@@ -320,6 +336,9 @@ int mv88e6185_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
 				     bool unicast, bool multicast);
 int mv88e6352_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
 				     bool unicast, bool multicast);
+int mv88e6352_port_set_policy(struct mv88e6xxx_chip *chip, int port,
+			      enum mv88e6xxx_policy_mapping mapping,
+			      enum mv88e6xxx_policy_action action);
 int mv88e6351_port_set_ether_type(struct mv88e6xxx_chip *chip, int port,
 				  u16 etype);
 int mv88e6xxx_port_set_message_port(struct mv88e6xxx_chip *chip, int port,
@@ -332,6 +351,8 @@ int mv88e6097_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
 			       u8 out);
 int mv88e6390_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
 			       u8 out);
+int mv88e6341_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
+			     phy_interface_t mode);
 int mv88e6390_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			     phy_interface_t mode);
 int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
@@ -350,5 +371,11 @@ int mv88e6095_port_set_upstream_port(struct mv88e6xxx_chip *chip, int port,
 
 int mv88e6xxx_port_disable_learn_limit(struct mv88e6xxx_chip *chip, int port);
 int mv88e6xxx_port_disable_pri_override(struct mv88e6xxx_chip *chip, int port);
+
+int mv88e6xxx_port_hidden_write(struct mv88e6xxx_chip *chip, int block,
+				int port, int reg, u16 val);
+int mv88e6xxx_port_hidden_wait(struct mv88e6xxx_chip *chip);
+int mv88e6xxx_port_hidden_read(struct mv88e6xxx_chip *chip, int block, int port,
+			       int reg, u16 *val);
 
 #endif /* _MV88E6XXX_PORT_H */

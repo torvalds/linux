@@ -75,7 +75,6 @@ static inline size_t iwl_rx_trace_len(const struct iwl_trans *trans,
 
 #include <linux/tracepoint.h>
 #include <linux/device.h>
-#include "iwl-trans.h"
 
 
 #if !defined(CONFIG_IWLWIFI_DEVICE_TRACING) || defined(__CHECKER__)

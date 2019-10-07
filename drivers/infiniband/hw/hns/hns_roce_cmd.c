@@ -211,7 +211,6 @@ int hns_roce_cmd_init(struct hns_roce_dev *hr_dev)
 	mutex_init(&hr_dev->cmd.hcr_mutex);
 	sema_init(&hr_dev->cmd.poll_sem, 1);
 	hr_dev->cmd.use_events = 0;
-	hr_dev->cmd.toggle = 1;
 	hr_dev->cmd.max_cmds = CMD_MAX_NUM;
 	hr_dev->cmd.pool = dma_pool_create("hns_roce_cmd", dev,
 					   HNS_ROCE_MAILBOX_SIZE,
@@ -252,23 +251,15 @@ int hns_roce_cmd_use_events(struct hns_roce_dev *hr_dev)
 	hr_cmd->token_mask = CMD_TOKEN_MASK;
 	hr_cmd->use_events = 1;
 
-	down(&hr_cmd->poll_sem);
-
 	return 0;
 }
 
 void hns_roce_cmd_use_polling(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_cmdq *hr_cmd = &hr_dev->cmd;
-	int i;
-
-	hr_cmd->use_events = 0;
-
-	for (i = 0; i < hr_cmd->max_cmds; ++i)
-		down(&hr_cmd->event_sem);
 
 	kfree(hr_cmd->context);
-	up(&hr_cmd->poll_sem);
+	hr_cmd->use_events = 0;
 }
 
 struct hns_roce_cmd_mailbox

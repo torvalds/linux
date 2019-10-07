@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 - Cambridge Greys Limited
  * Copyright (C) 2011 - 2014 Cisco Systems Inc
@@ -5,7 +6,6 @@
  * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org) and
  * James Leu (jleu@mindspring.net).
  * Copyright (C) 2001 by various other people who didn't put their name here.
- * Licensed under the GPL.
  */
 
 #include <linux/version.h>
@@ -76,6 +76,7 @@ static void vector_eth_configure(int n, struct arglist *def);
 #define DEFAULT_VECTOR_SIZE 64
 #define TX_SMALL_PACKET 128
 #define MAX_IOV_SIZE (MAX_SKB_FRAGS + 1)
+#define MAX_ITERATIONS 64
 
 static const struct {
 	const char string[ETH_GSTRING_LEN];
@@ -121,7 +122,8 @@ static int get_mtu(struct arglist *def)
 
 	if (mtu != NULL) {
 		if (kstrtoul(mtu, 10, &result) == 0)
-			return result;
+			if ((result < (1 << 16) - 1) && (result >= 576))
+				return result;
 	}
 	return ETH_MAX_PACKET;
 }
@@ -186,6 +188,8 @@ static int get_transport_options(struct arglist *def)
 
 
 	if (strncmp(transport, TRANS_TAP, TRANS_TAP_LEN) == 0)
+		return 0;
+	if (strncmp(transport, TRANS_HYBRID, TRANS_HYBRID_LEN) == 0)
 		return (vec_rx | VECTOR_BPF);
 	if (strncmp(transport, TRANS_RAW, TRANS_RAW_LEN) == 0)
 		return (vec_rx | vec_tx | VECTOR_QDISC_BYPASS);
@@ -415,6 +419,7 @@ static int vector_send(struct vector_queue *qi)
 					if (net_ratelimit())
 						netdev_err(vp->dev, "sendmmsg err=%i\n",
 							result);
+					vp->in_error = true;
 					result = send_len;
 				}
 				if (result > 0) {
@@ -842,6 +847,10 @@ static int vector_legacy_rx(struct vector_private *vp)
 	}
 
 	pkt_len = uml_vector_recvmsg(vp->fds->rx_fd, &hdr, 0);
+	if (pkt_len < 0) {
+		vp->in_error = true;
+		return pkt_len;
+	}
 
 	if (skb != NULL) {
 		if (pkt_len > vp->header_size) {
@@ -888,11 +897,15 @@ static int writev_tx(struct vector_private *vp, struct sk_buff *skb)
 
 	if (iov_count < 1)
 		goto drop;
+
 	pkt_len = uml_vector_writev(
 		vp->fds->tx_fd,
 		(struct iovec *) &iov,
 		iov_count
 	);
+
+	if (pkt_len < 0)
+		goto drop;
 
 	netif_trans_update(vp->dev);
 	netif_wake_queue(vp->dev);
@@ -908,6 +921,8 @@ static int writev_tx(struct vector_private *vp, struct sk_buff *skb)
 drop:
 	vp->dev->stats.tx_dropped++;
 	consume_skb(skb);
+	if (pkt_len < 0)
+		vp->in_error = true;
 	return pkt_len;
 }
 
@@ -935,6 +950,9 @@ static int vector_mmsg_rx(struct vector_private *vp)
 
 	packet_count = uml_vector_recvmmsg(
 		vp->fds->rx_fd, qi->mmsg_vector, qi->max_depth, 0);
+
+	if (packet_count < 0)
+		vp->in_error = true;
 
 	if (packet_count <= 0)
 		return packet_count;
@@ -1005,21 +1023,31 @@ static int vector_mmsg_rx(struct vector_private *vp)
 static void vector_rx(struct vector_private *vp)
 {
 	int err;
+	int iter = 0;
 
 	if ((vp->options & VECTOR_RX) > 0)
-		while ((err = vector_mmsg_rx(vp)) > 0)
-			;
+		while (((err = vector_mmsg_rx(vp)) > 0) && (iter < MAX_ITERATIONS))
+			iter++;
 	else
-		while ((err = vector_legacy_rx(vp)) > 0)
-			;
+		while (((err = vector_legacy_rx(vp)) > 0) && (iter < MAX_ITERATIONS))
+			iter++;
 	if ((err != 0) && net_ratelimit())
 		netdev_err(vp->dev, "vector_rx: error(%d)\n", err);
+	if (iter == MAX_ITERATIONS)
+		netdev_err(vp->dev, "vector_rx: device stuck, remote end may have closed the connection\n");
 }
 
 static int vector_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct vector_private *vp = netdev_priv(dev);
 	int queue_depth = 0;
+
+	if (vp->in_error) {
+		deactivate_fd(vp->fds->rx_fd, vp->rx_irq);
+		if ((vp->fds->rx_fd != vp->fds->tx_fd) && (vp->tx_irq != 0))
+			deactivate_fd(vp->fds->tx_fd, vp->tx_irq);
+		return NETDEV_TX_BUSY;
+	}
 
 	if ((vp->options & VECTOR_TX) == 0) {
 		writev_tx(vp, skb);
@@ -1131,6 +1159,7 @@ static int vector_net_close(struct net_device *dev)
 	vp->fds = NULL;
 	spin_lock_irqsave(&vp->lock, flags);
 	vp->opened = false;
+	vp->in_error = false;
 	spin_unlock_irqrestore(&vp->lock, flags);
 	return 0;
 }
@@ -1498,7 +1527,8 @@ static void vector_eth_configure(
 		.transport_data		= NULL,
 		.in_write_poll		= false,
 		.coalesce		= 2,
-		.req_size		= get_req_size(def)
+		.req_size		= get_req_size(def),
+		.in_error		= false
 		});
 
 	dev->features = dev->hw_features = (NETIF_F_SG | NETIF_F_FRAGLIST);

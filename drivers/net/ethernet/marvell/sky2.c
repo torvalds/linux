@@ -5174,8 +5174,7 @@ static void sky2_remove(struct pci_dev *pdev)
 
 static int sky2_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct sky2_hw *hw = pci_get_drvdata(pdev);
+	struct sky2_hw *hw = dev_get_drvdata(dev);
 	int i;
 
 	if (!hw)

@@ -24,23 +24,6 @@
 #define is_uv()		0
 #endif
 
-#if defined CONFIG_IA64
-#include <asm/sn/arch.h>	/* defines is_shub1() and is_shub2() */
-#define is_shub()	ia64_platform_is("sn2")
-#endif
-
-#ifndef is_shub1
-#define is_shub1()	0
-#endif
-
-#ifndef is_shub2
-#define is_shub2()	0
-#endif
-
-#ifndef is_shub
-#define is_shub()	0
-#endif
-
 #ifdef USE_DBUG_ON
 #define DBUG_ON(condition)	BUG_ON(condition)
 #else
@@ -360,9 +343,7 @@ extern int xp_nofault_PIOR(void *);
 extern int xp_error_PIOR(void);
 
 extern struct device *xp;
-extern enum xp_retval xp_init_sn2(void);
 extern enum xp_retval xp_init_uv(void);
-extern void xp_exit_sn2(void);
 extern void xp_exit_uv(void);
 
 #endif /* _DRIVERS_MISC_SGIXP_XP_H */

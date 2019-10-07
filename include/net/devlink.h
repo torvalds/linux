@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/refcount.h>
 #include <net/net_namespace.h>
 #include <uapi/linux/devlink.h>
 
@@ -31,10 +32,13 @@ struct devlink {
 	struct list_head reporter_list;
 	struct mutex reporters_lock; /* protects reporter_list */
 	struct devlink_dpipe_headers *dpipe_headers;
+	struct list_head trap_list;
+	struct list_head trap_group_list;
 	const struct devlink_ops *ops;
 	struct device *dev;
 	possible_net_t _net;
 	struct mutex lock;
+	bool reload_failed;
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
@@ -72,7 +76,7 @@ struct devlink_port {
 	struct list_head list;
 	struct list_head param_list;
 	struct devlink *devlink;
-	unsigned index;
+	unsigned int index;
 	bool registered;
 	spinlock_t type_lock; /* Protects type and type_dev
 			       * pointer consistency.
@@ -395,6 +399,7 @@ enum devlink_param_generic_id {
 	DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MAX,
 	DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MIN,
 	DEVLINK_PARAM_GENERIC_ID_FW_LOAD_POLICY,
+	DEVLINK_PARAM_GENERIC_ID_RESET_DEV_ON_DRV_PROBE,
 
 	/* add new param generic ids above here*/
 	__DEVLINK_PARAM_GENERIC_ID_MAX,
@@ -424,6 +429,10 @@ enum devlink_param_generic_id {
 
 #define DEVLINK_PARAM_GENERIC_FW_LOAD_POLICY_NAME "fw_load_policy"
 #define DEVLINK_PARAM_GENERIC_FW_LOAD_POLICY_TYPE DEVLINK_PARAM_TYPE_U8
+
+#define DEVLINK_PARAM_GENERIC_RESET_DEV_ON_DRV_PROBE_NAME \
+	"reset_dev_on_drv_probe"
+#define DEVLINK_PARAM_GENERIC_RESET_DEV_ON_DRV_PROBE_TYPE DEVLINK_PARAM_TYPE_U8
 
 #define DEVLINK_PARAM_GENERIC(_id, _cmodes, _get, _set, _validate)	\
 {									\
@@ -455,6 +464,13 @@ enum devlink_param_generic_id {
 /* Maker of the board */
 #define DEVLINK_INFO_VERSION_GENERIC_BOARD_MANUFACTURE	"board.manufacture"
 
+/* Part number, identifier of asic design */
+#define DEVLINK_INFO_VERSION_GENERIC_ASIC_ID	"asic.id"
+/* Revision of asic design */
+#define DEVLINK_INFO_VERSION_GENERIC_ASIC_REV	"asic.rev"
+
+/* Overall FW version */
+#define DEVLINK_INFO_VERSION_GENERIC_FW		"fw"
 /* Control processor FW version */
 #define DEVLINK_INFO_VERSION_GENERIC_FW_MGMT	"fw.mgmt"
 /* Data path microcode controlling high-speed packet processing */
@@ -497,8 +513,140 @@ struct devlink_health_reporter_ops {
 			struct devlink_fmsg *fmsg);
 };
 
+/**
+ * struct devlink_trap_group - Immutable packet trap group attributes.
+ * @name: Trap group name.
+ * @id: Trap group identifier.
+ * @generic: Whether the trap group is generic or not.
+ *
+ * Describes immutable attributes of packet trap groups that drivers register
+ * with devlink.
+ */
+struct devlink_trap_group {
+	const char *name;
+	u16 id;
+	bool generic;
+};
+
+#define DEVLINK_TRAP_METADATA_TYPE_F_IN_PORT	BIT(0)
+
+/**
+ * struct devlink_trap - Immutable packet trap attributes.
+ * @type: Trap type.
+ * @init_action: Initial trap action.
+ * @generic: Whether the trap is generic or not.
+ * @id: Trap identifier.
+ * @name: Trap name.
+ * @group: Immutable packet trap group attributes.
+ * @metadata_cap: Metadata types that can be provided by the trap.
+ *
+ * Describes immutable attributes of packet traps that drivers register with
+ * devlink.
+ */
+struct devlink_trap {
+	enum devlink_trap_type type;
+	enum devlink_trap_action init_action;
+	bool generic;
+	u16 id;
+	const char *name;
+	struct devlink_trap_group group;
+	u32 metadata_cap;
+};
+
+/* All traps must be documented in
+ * Documentation/networking/devlink-trap.rst
+ */
+enum devlink_trap_generic_id {
+	DEVLINK_TRAP_GENERIC_ID_SMAC_MC,
+	DEVLINK_TRAP_GENERIC_ID_VLAN_TAG_MISMATCH,
+	DEVLINK_TRAP_GENERIC_ID_INGRESS_VLAN_FILTER,
+	DEVLINK_TRAP_GENERIC_ID_INGRESS_STP_FILTER,
+	DEVLINK_TRAP_GENERIC_ID_EMPTY_TX_LIST,
+	DEVLINK_TRAP_GENERIC_ID_PORT_LOOPBACK_FILTER,
+	DEVLINK_TRAP_GENERIC_ID_BLACKHOLE_ROUTE,
+	DEVLINK_TRAP_GENERIC_ID_TTL_ERROR,
+	DEVLINK_TRAP_GENERIC_ID_TAIL_DROP,
+
+	/* Add new generic trap IDs above */
+	__DEVLINK_TRAP_GENERIC_ID_MAX,
+	DEVLINK_TRAP_GENERIC_ID_MAX = __DEVLINK_TRAP_GENERIC_ID_MAX - 1,
+};
+
+/* All trap groups must be documented in
+ * Documentation/networking/devlink-trap.rst
+ */
+enum devlink_trap_group_generic_id {
+	DEVLINK_TRAP_GROUP_GENERIC_ID_L2_DROPS,
+	DEVLINK_TRAP_GROUP_GENERIC_ID_L3_DROPS,
+	DEVLINK_TRAP_GROUP_GENERIC_ID_BUFFER_DROPS,
+
+	/* Add new generic trap group IDs above */
+	__DEVLINK_TRAP_GROUP_GENERIC_ID_MAX,
+	DEVLINK_TRAP_GROUP_GENERIC_ID_MAX =
+		__DEVLINK_TRAP_GROUP_GENERIC_ID_MAX - 1,
+};
+
+#define DEVLINK_TRAP_GENERIC_NAME_SMAC_MC \
+	"source_mac_is_multicast"
+#define DEVLINK_TRAP_GENERIC_NAME_VLAN_TAG_MISMATCH \
+	"vlan_tag_mismatch"
+#define DEVLINK_TRAP_GENERIC_NAME_INGRESS_VLAN_FILTER \
+	"ingress_vlan_filter"
+#define DEVLINK_TRAP_GENERIC_NAME_INGRESS_STP_FILTER \
+	"ingress_spanning_tree_filter"
+#define DEVLINK_TRAP_GENERIC_NAME_EMPTY_TX_LIST \
+	"port_list_is_empty"
+#define DEVLINK_TRAP_GENERIC_NAME_PORT_LOOPBACK_FILTER \
+	"port_loopback_filter"
+#define DEVLINK_TRAP_GENERIC_NAME_BLACKHOLE_ROUTE \
+	"blackhole_route"
+#define DEVLINK_TRAP_GENERIC_NAME_TTL_ERROR \
+	"ttl_value_is_too_small"
+#define DEVLINK_TRAP_GENERIC_NAME_TAIL_DROP \
+	"tail_drop"
+
+#define DEVLINK_TRAP_GROUP_GENERIC_NAME_L2_DROPS \
+	"l2_drops"
+#define DEVLINK_TRAP_GROUP_GENERIC_NAME_L3_DROPS \
+	"l3_drops"
+#define DEVLINK_TRAP_GROUP_GENERIC_NAME_BUFFER_DROPS \
+	"buffer_drops"
+
+#define DEVLINK_TRAP_GENERIC(_type, _init_action, _id, _group, _metadata_cap) \
+	{								      \
+		.type = DEVLINK_TRAP_TYPE_##_type,			      \
+		.init_action = DEVLINK_TRAP_ACTION_##_init_action,	      \
+		.generic = true,					      \
+		.id = DEVLINK_TRAP_GENERIC_ID_##_id,			      \
+		.name = DEVLINK_TRAP_GENERIC_NAME_##_id,		      \
+		.group = _group,					      \
+		.metadata_cap = _metadata_cap,				      \
+	}
+
+#define DEVLINK_TRAP_DRIVER(_type, _init_action, _id, _name, _group,	      \
+			    _metadata_cap)				      \
+	{								      \
+		.type = DEVLINK_TRAP_TYPE_##_type,			      \
+		.init_action = DEVLINK_TRAP_ACTION_##_init_action,	      \
+		.generic = false,					      \
+		.id = _id,						      \
+		.name = _name,						      \
+		.group = _group,					      \
+		.metadata_cap = _metadata_cap,				      \
+	}
+
+#define DEVLINK_TRAP_GROUP_GENERIC(_id)					      \
+	{								      \
+		.name = DEVLINK_TRAP_GROUP_GENERIC_NAME_##_id,		      \
+		.id = DEVLINK_TRAP_GROUP_GENERIC_ID_##_id,		      \
+		.generic = true,					      \
+	}
+
 struct devlink_ops {
-	int (*reload)(struct devlink *devlink, struct netlink_ext_ack *extack);
+	int (*reload_down)(struct devlink *devlink,
+			   struct netlink_ext_ack *extack);
+	int (*reload_up)(struct devlink *devlink,
+			 struct netlink_ext_ack *extack);
 	int (*port_type_set)(struct devlink_port *devlink_port,
 			     enum devlink_port_type port_type);
 	int (*port_split)(struct devlink *devlink, unsigned int port_index,
@@ -558,6 +706,38 @@ struct devlink_ops {
 	int (*flash_update)(struct devlink *devlink, const char *file_name,
 			    const char *component,
 			    struct netlink_ext_ack *extack);
+	/**
+	 * @trap_init: Trap initialization function.
+	 *
+	 * Should be used by device drivers to initialize the trap in the
+	 * underlying device. Drivers should also store the provided trap
+	 * context, so that they could efficiently pass it to
+	 * devlink_trap_report() when the trap is triggered.
+	 */
+	int (*trap_init)(struct devlink *devlink,
+			 const struct devlink_trap *trap, void *trap_ctx);
+	/**
+	 * @trap_fini: Trap de-initialization function.
+	 *
+	 * Should be used by device drivers to de-initialize the trap in the
+	 * underlying device.
+	 */
+	void (*trap_fini)(struct devlink *devlink,
+			  const struct devlink_trap *trap, void *trap_ctx);
+	/**
+	 * @trap_action_set: Trap action set function.
+	 */
+	int (*trap_action_set)(struct devlink *devlink,
+			       const struct devlink_trap *trap,
+			       enum devlink_trap_action action);
+	/**
+	 * @trap_group_init: Trap group initialization function.
+	 *
+	 * Should be used by device drivers to initialize the trap group in the
+	 * underlying device.
+	 */
+	int (*trap_group_init)(struct devlink *devlink,
+			       const struct devlink_trap_group *group);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)
@@ -702,7 +882,7 @@ struct devlink_region *devlink_region_create(struct devlink *devlink,
 					     u64 region_size);
 void devlink_region_destroy(struct devlink_region *region);
 u32 devlink_region_shapshot_id_get(struct devlink *devlink);
-int devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
+int devlink_region_snapshot_create(struct devlink_region *region,
 				   u8 *data, u32 snapshot_id,
 				   devlink_snapshot_data_dest_t *data_destructor);
 int devlink_info_serial_number_put(struct devlink_info_req *req,
@@ -766,6 +946,8 @@ void
 devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
 				     enum devlink_health_reporter_state state);
 
+bool devlink_is_reload_failed(const struct devlink *devlink);
+
 void devlink_flash_update_begin_notify(struct devlink *devlink);
 void devlink_flash_update_end_notify(struct devlink *devlink);
 void devlink_flash_update_status_notify(struct devlink *devlink,
@@ -773,6 +955,17 @@ void devlink_flash_update_status_notify(struct devlink *devlink,
 					const char *component,
 					unsigned long done,
 					unsigned long total);
+
+int devlink_traps_register(struct devlink *devlink,
+			   const struct devlink_trap *traps,
+			   size_t traps_count, void *priv);
+void devlink_traps_unregister(struct devlink *devlink,
+			      const struct devlink_trap *traps,
+			      size_t traps_count);
+void devlink_trap_report(struct devlink *devlink,
+			 struct sk_buff *skb, void *trap_ctx,
+			 struct devlink_port *in_devlink_port);
+void *devlink_trap_ctx_priv(void *trap_ctx);
 
 #if IS_ENABLED(CONFIG_NET_DEVLINK)
 

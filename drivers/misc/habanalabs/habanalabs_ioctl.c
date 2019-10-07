@@ -65,7 +65,7 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.num_of_events = prop->num_of_events;
 	memcpy(hw_ip.armcp_version,
 		prop->armcp_info.armcp_version, VERSION_MAX_LEN);
-	hw_ip.armcp_cpld_version = __le32_to_cpu(prop->armcp_info.cpld_version);
+	hw_ip.armcp_cpld_version = le32_to_cpu(prop->armcp_info.cpld_version);
 	hw_ip.psoc_pci_pll_nr = prop->psoc_pci_pll_nr;
 	hw_ip.psoc_pci_pll_nf = prop->psoc_pci_pll_nf;
 	hw_ip.psoc_pci_pll_od = prop->psoc_pci_pll_od;
@@ -75,7 +75,8 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 		min((size_t)size, sizeof(hw_ip))) ? -EFAULT : 0;
 }
 
-static int hw_events_info(struct hl_device *hdev, struct hl_info_args *args)
+static int hw_events_info(struct hl_device *hdev, bool aggregate,
+			struct hl_info_args *args)
 {
 	u32 size, max_size = args->return_size;
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
@@ -84,13 +85,14 @@ static int hw_events_info(struct hl_device *hdev, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	arr = hdev->asic_funcs->get_events_stat(hdev, &size);
+	arr = hdev->asic_funcs->get_events_stat(hdev, aggregate, &size);
 
 	return copy_to_user(out, arr, min(max_size, size)) ? -EFAULT : 0;
 }
 
-static int dram_usage_info(struct hl_device *hdev, struct hl_info_args *args)
+static int dram_usage_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
+	struct hl_device *hdev = hpriv->hdev;
 	struct hl_info_dram_usage dram_usage = {0};
 	u32 max_size = args->return_size;
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
@@ -104,7 +106,9 @@ static int dram_usage_info(struct hl_device *hdev, struct hl_info_args *args)
 				prop->dram_base_address);
 	dram_usage.dram_free_mem = (prop->dram_size - dram_kmd_size) -
 					atomic64_read(&hdev->dram_used_mem);
-	dram_usage.ctx_dram_mem = atomic64_read(&hdev->user_ctx->dram_phys_mem);
+	if (hpriv->ctx)
+		dram_usage.ctx_dram_mem =
+			atomic64_read(&hpriv->ctx->dram_phys_mem);
 
 	return copy_to_user(out, &dram_usage,
 		min((size_t) max_size, sizeof(dram_usage))) ? -EFAULT : 0;
@@ -141,13 +145,16 @@ static int debug_coresight(struct hl_device *hdev, struct hl_debug_args *args)
 	params->op = args->op;
 
 	if (args->input_ptr && args->input_size) {
-		input = memdup_user(u64_to_user_ptr(args->input_ptr),
-					args->input_size);
-		if (IS_ERR(input)) {
-			rc = PTR_ERR(input);
-			input = NULL;
-			dev_err(hdev->dev,
-				"error %d when copying input debug data\n", rc);
+		input = kzalloc(hl_debug_struct_size[args->op], GFP_KERNEL);
+		if (!input) {
+			rc = -ENOMEM;
+			goto out;
+		}
+
+		if (copy_from_user(input, u64_to_user_ptr(args->input_ptr),
+					args->input_size)) {
+			rc = -EFAULT;
+			dev_err(hdev->dev, "failed to copy input debug data\n");
 			goto out;
 		}
 
@@ -191,47 +198,96 @@ out:
 	return rc;
 }
 
-static int hl_info_ioctl(struct hl_fpriv *hpriv, void *data)
+static int device_utilization(struct hl_device *hdev, struct hl_info_args *args)
+{
+	struct hl_info_device_utilization device_util = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	if ((args->period_ms < 100) || (args->period_ms > 1000) ||
+		(args->period_ms % 100)) {
+		dev_err(hdev->dev,
+			"period %u must be between 100 - 1000 and must be divisible by 100\n",
+			args->period_ms);
+		return -EINVAL;
+	}
+
+	device_util.utilization = hl_device_utilization(hdev, args->period_ms);
+
+	return copy_to_user(out, &device_util,
+		min((size_t) max_size, sizeof(device_util))) ? -EFAULT : 0;
+}
+
+static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
+				struct device *dev)
 {
 	struct hl_info_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
 	int rc;
 
-	/* We want to return device status even if it disabled or in reset */
-	if (args->op == HL_INFO_DEVICE_STATUS)
+	/*
+	 * Information is returned for the following opcodes even if the device
+	 * is disabled or in reset.
+	 */
+	switch (args->op) {
+	case HL_INFO_HW_IP_INFO:
+		return hw_ip_info(hdev, args);
+
+	case HL_INFO_DEVICE_STATUS:
 		return device_status_info(hdev, args);
 
+	default:
+		break;
+	}
+
 	if (hl_device_disabled_or_in_reset(hdev)) {
-		dev_warn_ratelimited(hdev->dev,
+		dev_warn_ratelimited(dev,
 			"Device is %s. Can't execute INFO IOCTL\n",
 			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
 		return -EBUSY;
 	}
 
 	switch (args->op) {
-	case HL_INFO_HW_IP_INFO:
-		rc = hw_ip_info(hdev, args);
-		break;
-
 	case HL_INFO_HW_EVENTS:
-		rc = hw_events_info(hdev, args);
+		rc = hw_events_info(hdev, false, args);
 		break;
 
 	case HL_INFO_DRAM_USAGE:
-		rc = dram_usage_info(hdev, args);
+		rc = dram_usage_info(hpriv, args);
 		break;
 
 	case HL_INFO_HW_IDLE:
 		rc = hw_idle(hdev, args);
 		break;
 
+	case HL_INFO_DEVICE_UTILIZATION:
+		rc = device_utilization(hdev, args);
+		break;
+
+	case HL_INFO_HW_EVENTS_AGGREGATE:
+		rc = hw_events_info(hdev, true, args);
+		break;
+
 	default:
-		dev_err(hdev->dev, "Invalid request %d\n", args->op);
+		dev_err(dev, "Invalid request %d\n", args->op);
 		rc = -ENOTTY;
 		break;
 	}
 
 	return rc;
+}
+
+static int hl_info_ioctl(struct hl_fpriv *hpriv, void *data)
+{
+	return _hl_info_ioctl(hpriv, data, hpriv->hdev->dev);
+}
+
+static int hl_info_ioctl_control(struct hl_fpriv *hpriv, void *data)
+{
+	return _hl_info_ioctl(hpriv, data, hpriv->hdev->dev_ctrl);
 }
 
 static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
@@ -288,51 +344,44 @@ static const struct hl_ioctl_desc hl_ioctls[] = {
 	HL_IOCTL_DEF(HL_IOCTL_DEBUG, hl_debug_ioctl)
 };
 
-#define HL_CORE_IOCTL_COUNT	ARRAY_SIZE(hl_ioctls)
+static const struct hl_ioctl_desc hl_ioctls_control[] = {
+	HL_IOCTL_DEF(HL_IOCTL_INFO, hl_info_ioctl_control)
+};
 
-long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
+static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
+		const struct hl_ioctl_desc *ioctl, struct device *dev)
 {
 	struct hl_fpriv *hpriv = filep->private_data;
 	struct hl_device *hdev = hpriv->hdev;
-	hl_ioctl_t *func;
-	const struct hl_ioctl_desc *ioctl = NULL;
 	unsigned int nr = _IOC_NR(cmd);
 	char stack_kdata[128] = {0};
 	char *kdata = NULL;
 	unsigned int usize, asize;
+	hl_ioctl_t *func;
+	u32 hl_size;
 	int retcode;
 
 	if (hdev->hard_reset_pending) {
-		dev_crit_ratelimited(hdev->dev,
+		dev_crit_ratelimited(hdev->dev_ctrl,
 			"Device HARD reset pending! Please close FD\n");
 		return -ENODEV;
-	}
-
-	if ((nr >= HL_COMMAND_START) && (nr < HL_COMMAND_END)) {
-		u32 hl_size;
-
-		ioctl = &hl_ioctls[nr];
-
-		hl_size = _IOC_SIZE(ioctl->cmd);
-		usize = asize = _IOC_SIZE(cmd);
-		if (hl_size > asize)
-			asize = hl_size;
-
-		cmd = ioctl->cmd;
-	} else {
-		dev_err(hdev->dev, "invalid ioctl: pid=%d, nr=0x%02x\n",
-			  task_pid_nr(current), nr);
-		return -ENOTTY;
 	}
 
 	/* Do not trust userspace, use our own definition */
 	func = ioctl->func;
 
 	if (unlikely(!func)) {
-		dev_dbg(hdev->dev, "no function\n");
+		dev_dbg(dev, "no function\n");
 		retcode = -ENOTTY;
 		goto out_err;
 	}
+
+	hl_size = _IOC_SIZE(ioctl->cmd);
+	usize = asize = _IOC_SIZE(cmd);
+	if (hl_size > asize)
+		asize = hl_size;
+
+	cmd = ioctl->cmd;
 
 	if (cmd & (IOC_IN | IOC_OUT)) {
 		if (asize <= sizeof(stack_kdata)) {
@@ -363,12 +412,47 @@ long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 out_err:
 	if (retcode)
-		dev_dbg(hdev->dev,
-			"error in ioctl: pid=%d, cmd=0x%02x, nr=0x%02x\n",
+		dev_dbg(dev, "error in ioctl: pid=%d, cmd=0x%02x, nr=0x%02x\n",
 			  task_pid_nr(current), cmd, nr);
 
 	if (kdata != stack_kdata)
 		kfree(kdata);
 
 	return retcode;
+}
+
+long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
+{
+	struct hl_fpriv *hpriv = filep->private_data;
+	struct hl_device *hdev = hpriv->hdev;
+	const struct hl_ioctl_desc *ioctl = NULL;
+	unsigned int nr = _IOC_NR(cmd);
+
+	if ((nr >= HL_COMMAND_START) && (nr < HL_COMMAND_END)) {
+		ioctl = &hl_ioctls[nr];
+	} else {
+		dev_err(hdev->dev, "invalid ioctl: pid=%d, nr=0x%02x\n",
+			task_pid_nr(current), nr);
+		return -ENOTTY;
+	}
+
+	return _hl_ioctl(filep, cmd, arg, ioctl, hdev->dev);
+}
+
+long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg)
+{
+	struct hl_fpriv *hpriv = filep->private_data;
+	struct hl_device *hdev = hpriv->hdev;
+	const struct hl_ioctl_desc *ioctl = NULL;
+	unsigned int nr = _IOC_NR(cmd);
+
+	if (nr == _IOC_NR(HL_IOCTL_INFO)) {
+		ioctl = &hl_ioctls_control[nr];
+	} else {
+		dev_err(hdev->dev_ctrl, "invalid ioctl: pid=%d, nr=0x%02x\n",
+			task_pid_nr(current), nr);
+		return -ENOTTY;
+	}
+
+	return _hl_ioctl(filep, cmd, arg, ioctl, hdev->dev_ctrl);
 }

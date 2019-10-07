@@ -13,6 +13,7 @@
 #include <linux/types.h>
 
 #include "i915_active_types.h"
+#include "i915_utils.h"
 #include "intel_engine_types.h"
 #include "intel_sseu.h"
 
@@ -22,6 +23,8 @@ struct intel_context;
 struct intel_ring;
 
 struct intel_context_ops {
+	int (*alloc)(struct intel_context *ce);
+
 	int (*pin)(struct intel_context *ce);
 	void (*unpin)(struct intel_context *ce);
 
@@ -35,20 +38,28 @@ struct intel_context_ops {
 struct intel_context {
 	struct kref ref;
 
-	struct i915_gem_context *gem_context;
 	struct intel_engine_cs *engine;
 	struct intel_engine_cs *inflight;
+#define intel_context_inflight(ce) ptr_mask_bits((ce)->inflight, 2)
+#define intel_context_inflight_count(ce) ptr_unmask_bits((ce)->inflight, 2)
+
+	struct i915_address_space *vm;
+	struct i915_gem_context *gem_context;
 
 	struct list_head signal_link;
 	struct list_head signals;
 
 	struct i915_vma *state;
 	struct intel_ring *ring;
+	struct intel_timeline *timeline;
+
+	unsigned long flags;
+#define CONTEXT_ALLOC_BIT 0
 
 	u32 *lrc_reg_state;
 	u64 lrc_desc;
 
-	unsigned int active_count; /* notionally protected by timeline->mutex */
+	unsigned int active_count; /* protected by timeline->mutex */
 
 	atomic_t pin_count;
 	struct mutex pin_mutex; /* guards pinning and associated on-gpuing */

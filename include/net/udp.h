@@ -480,7 +480,7 @@ static inline struct sk_buff *udp_rcv_segment(struct sock *sk,
 	 * CB fragment
 	 */
 	segs = __skb_gso_segment(skb, features, false);
-	if (unlikely(IS_ERR_OR_NULL(segs))) {
+	if (IS_ERR_OR_NULL(segs)) {
 		int segs_nr = skb_shinfo(skb)->gso_segs;
 
 		atomic_add(segs_nr, &sk->sk_drops);

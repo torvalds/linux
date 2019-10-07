@@ -649,7 +649,6 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			dma-coherent;
-			num-lanes = <4>;
 			num-viewport = <8>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x40 0x00010000 0x0 0x00010000   /* downstream I/O */
@@ -671,7 +670,6 @@
 			reg-names = "regs", "addr_space";
 			num-ib-windows = <6>;
 			num-ob-windows = <8>;
-			num-lanes = <2>;
 			status = "disabled";
 		};
 
@@ -687,7 +685,6 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			dma-coherent;
-			num-lanes = <2>;
 			num-viewport = <8>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x48 0x00010000 0x0 0x00010000   /* downstream I/O */
@@ -709,7 +706,6 @@
 			reg-names = "regs", "addr_space";
 			num-ib-windows = <6>;
 			num-ob-windows = <8>;
-			num-lanes = <2>;
 			status = "disabled";
 		};
 
@@ -725,7 +721,6 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			dma-coherent;
-			num-lanes = <2>;
 			num-viewport = <8>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x50 0x00010000 0x0 0x00010000   /* downstream I/O */
@@ -747,7 +742,6 @@
 			reg-names = "regs", "addr_space";
 			num-ib-windows = <6>;
 			num-ob-windows = <8>;
-			num-lanes = <2>;
 			status = "disabled";
 		};
 

@@ -227,6 +227,7 @@ static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head)
 
 #ifdef CONFIG_RCU_STALL_COMMON
 
+extern int rcu_cpu_stall_ftrace_dump;
 extern int rcu_cpu_stall_suppress;
 extern int rcu_cpu_stall_timeout;
 int rcu_jiffies_till_stall_check(void);

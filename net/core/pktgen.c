@@ -2156,7 +2156,7 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 	s64 remaining;
 	struct hrtimer_sleeper t;
 
-	hrtimer_init_on_stack(&t.timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init_sleeper_on_stack(&t, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	hrtimer_set_expires(&t.timer, spin_until);
 
 	remaining = ktime_to_ns(hrtimer_expires_remaining(&t.timer));
@@ -2170,11 +2170,9 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 			end_time = ktime_get();
 		} while (ktime_compare(end_time, spin_until) < 0);
 	} else {
-		/* see do_nanosleep */
-		hrtimer_init_sleeper(&t, current);
 		do {
 			set_current_state(TASK_INTERRUPTIBLE);
-			hrtimer_start_expires(&t.timer, HRTIMER_MODE_ABS);
+			hrtimer_sleeper_start_expires(&t, HRTIMER_MODE_ABS);
 
 			if (likely(t.task))
 				schedule();
@@ -2652,7 +2650,7 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 			}
 			get_page(pkt_dev->page);
 			skb_frag_set_page(skb, i, pkt_dev->page);
-			skb_shinfo(skb)->frags[i].page_offset = 0;
+			skb_frag_off_set(&skb_shinfo(skb)->frags[i], 0);
 			/*last fragment, fill rest of data*/
 			if (i == (frags - 1))
 				skb_frag_size_set(&skb_shinfo(skb)->frags[i],

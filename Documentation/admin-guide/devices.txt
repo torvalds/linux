@@ -1647,8 +1647,17 @@
 		  0 = /dev/comedi0	First comedi device
 		  1 = /dev/comedi1	Second comedi device
 		    ...
+		 47 = /dev/comedi47	48th comedi device
 
-		See http://stm.lbl.gov/comedi.
+		Minors 48 to 255 are reserved for comedi subdevices with
+		pathnames of the form "/dev/comediX_subdY", where "X" is the
+		minor number of the associated comedi device and "Y" is the
+		subdevice number.  These subdevice minors are assigned
+		dynamically, so there is no fixed mapping from subdevice
+		pathnames to minor numbers.
+
+		See http://www.comedi.org/ for information about the Comedi
+		project.
 
   98 block	User-mode virtual block device
 		  0 = /dev/ubda		First user-mode block device

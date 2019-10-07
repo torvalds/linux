@@ -250,6 +250,25 @@ setup_wait()
 	sleep $WAIT_TIME
 }
 
+cmd_jq()
+{
+	local cmd=$1
+	local jq_exp=$2
+	local ret
+	local output
+
+	output="$($cmd)"
+	# it the command fails, return error right away
+	ret=$?
+	if [[ $ret -ne 0 ]]; then
+		return $ret
+	fi
+	output=$(echo $output | jq -r "$jq_exp")
+	echo $output
+	# return success only in case of non-empty output
+	[ ! -z "$output" ]
+}
+
 lldpad_app_wait_set()
 {
 	local dev=$1; shift

@@ -1104,14 +1104,11 @@ static ssize_t do_flash_store(struct device *dev,
 
 static DEVICE_ATTR_WO(do_flash);
 
-static struct attribute *ucsi_ccg_sysfs_attrs[] = {
+static struct attribute *ucsi_ccg_attrs[] = {
 	&dev_attr_do_flash.attr,
 	NULL,
 };
-
-static struct attribute_group ucsi_ccg_attr_group = {
-	.attrs = ucsi_ccg_sysfs_attrs,
-};
+ATTRIBUTE_GROUPS(ucsi_ccg);
 
 static int ucsi_ccg_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
@@ -1189,10 +1186,6 @@ static int ucsi_ccg_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, uc);
 
-	status = sysfs_create_group(&uc->dev->kobj, &ucsi_ccg_attr_group);
-	if (status)
-		dev_err(uc->dev, "cannot create sysfs group: %d\n", status);
-
 	pm_runtime_set_active(uc->dev);
 	pm_runtime_enable(uc->dev);
 	pm_runtime_idle(uc->dev);
@@ -1209,7 +1202,6 @@ static int ucsi_ccg_remove(struct i2c_client *client)
 	ucsi_unregister_ppm(uc->ucsi);
 	pm_runtime_disable(uc->dev);
 	free_irq(uc->irq, uc);
-	sysfs_remove_group(&uc->dev->kobj, &ucsi_ccg_attr_group);
 
 	return 0;
 }
@@ -1270,6 +1262,7 @@ static struct i2c_driver ucsi_ccg_driver = {
 	.driver = {
 		.name = "ucsi_ccg",
 		.pm = &ucsi_ccg_pm,
+		.dev_groups = ucsi_ccg_groups,
 	},
 	.probe = ucsi_ccg_probe,
 	.remove = ucsi_ccg_remove,

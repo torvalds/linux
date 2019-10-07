@@ -346,8 +346,10 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 	struct rtc_wkalrm alrm;
 	int err;
 
-	if (!rtc->ops)
+	if (!rtc->ops) {
+		dev_dbg(&rtc->dev, "no ops set\n");
 		return -EINVAL;
+	}
 
 	rtc->owner = owner;
 	rtc_device_get_offset(rtc);

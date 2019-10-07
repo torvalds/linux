@@ -1278,40 +1278,33 @@ static int ena_com_ind_tbl_convert_from_device(struct ena_com_dev *ena_dev)
 	return 0;
 }
 
-static int ena_com_init_interrupt_moderation_table(struct ena_com_dev *ena_dev)
-{
-	size_t size;
-
-	size = sizeof(struct ena_intr_moder_entry) * ENA_INTR_MAX_NUM_OF_LEVELS;
-
-	ena_dev->intr_moder_tbl =
-		devm_kzalloc(ena_dev->dmadev, size, GFP_KERNEL);
-	if (!ena_dev->intr_moder_tbl)
-		return -ENOMEM;
-
-	ena_com_config_default_interrupt_moderation_table(ena_dev);
-
-	return 0;
-}
-
 static void ena_com_update_intr_delay_resolution(struct ena_com_dev *ena_dev,
 						 u16 intr_delay_resolution)
 {
-	struct ena_intr_moder_entry *intr_moder_tbl = ena_dev->intr_moder_tbl;
-	unsigned int i;
+	/* Initial value of intr_delay_resolution might be 0 */
+	u16 prev_intr_delay_resolution =
+		ena_dev->intr_delay_resolution ?
+		ena_dev->intr_delay_resolution :
+		ENA_DEFAULT_INTR_DELAY_RESOLUTION;
 
 	if (!intr_delay_resolution) {
 		pr_err("Illegal intr_delay_resolution provided. Going to use default 1 usec resolution\n");
-		intr_delay_resolution = 1;
+		intr_delay_resolution = ENA_DEFAULT_INTR_DELAY_RESOLUTION;
 	}
-	ena_dev->intr_delay_resolution = intr_delay_resolution;
 
 	/* update Rx */
-	for (i = 0; i < ENA_INTR_MAX_NUM_OF_LEVELS; i++)
-		intr_moder_tbl[i].intr_moder_interval /= intr_delay_resolution;
+	ena_dev->intr_moder_rx_interval =
+		ena_dev->intr_moder_rx_interval *
+		prev_intr_delay_resolution /
+		intr_delay_resolution;
 
 	/* update Tx */
-	ena_dev->intr_moder_tx_interval /= intr_delay_resolution;
+	ena_dev->intr_moder_tx_interval =
+		ena_dev->intr_moder_tx_interval *
+		prev_intr_delay_resolution /
+		intr_delay_resolution;
+
+	ena_dev->intr_delay_resolution = intr_delay_resolution;
 }
 
 /*****************************************************************************/
@@ -2776,42 +2769,34 @@ bool ena_com_interrupt_moderation_supported(struct ena_com_dev *ena_dev)
 						  ENA_ADMIN_INTERRUPT_MODERATION);
 }
 
-int ena_com_update_nonadaptive_moderation_interval_tx(struct ena_com_dev *ena_dev,
-						      u32 tx_coalesce_usecs)
+static int ena_com_update_nonadaptive_moderation_interval(u32 coalesce_usecs,
+							  u32 intr_delay_resolution,
+							  u32 *intr_moder_interval)
 {
-	if (!ena_dev->intr_delay_resolution) {
+	if (!intr_delay_resolution) {
 		pr_err("Illegal interrupt delay granularity value\n");
 		return -EFAULT;
 	}
 
-	ena_dev->intr_moder_tx_interval = tx_coalesce_usecs /
-		ena_dev->intr_delay_resolution;
+	*intr_moder_interval = coalesce_usecs / intr_delay_resolution;
 
 	return 0;
+}
+
+int ena_com_update_nonadaptive_moderation_interval_tx(struct ena_com_dev *ena_dev,
+						      u32 tx_coalesce_usecs)
+{
+	return ena_com_update_nonadaptive_moderation_interval(tx_coalesce_usecs,
+							      ena_dev->intr_delay_resolution,
+							      &ena_dev->intr_moder_tx_interval);
 }
 
 int ena_com_update_nonadaptive_moderation_interval_rx(struct ena_com_dev *ena_dev,
 						      u32 rx_coalesce_usecs)
 {
-	if (!ena_dev->intr_delay_resolution) {
-		pr_err("Illegal interrupt delay granularity value\n");
-		return -EFAULT;
-	}
-
-	/* We use LOWEST entry of moderation table for storing
-	 * nonadaptive interrupt coalescing values
-	 */
-	ena_dev->intr_moder_tbl[ENA_INTR_MODER_LOWEST].intr_moder_interval =
-		rx_coalesce_usecs / ena_dev->intr_delay_resolution;
-
-	return 0;
-}
-
-void ena_com_destroy_interrupt_moderation(struct ena_com_dev *ena_dev)
-{
-	if (ena_dev->intr_moder_tbl)
-		devm_kfree(ena_dev->dmadev, ena_dev->intr_moder_tbl);
-	ena_dev->intr_moder_tbl = NULL;
+	return ena_com_update_nonadaptive_moderation_interval(rx_coalesce_usecs,
+							      ena_dev->intr_delay_resolution,
+							      &ena_dev->intr_moder_rx_interval);
 }
 
 int ena_com_init_interrupt_moderation(struct ena_com_dev *ena_dev)
@@ -2838,66 +2823,14 @@ int ena_com_init_interrupt_moderation(struct ena_com_dev *ena_dev)
 		return rc;
 	}
 
-	rc = ena_com_init_interrupt_moderation_table(ena_dev);
-	if (rc)
-		goto err;
-
 	/* if moderation is supported by device we set adaptive moderation */
 	delay_resolution = get_resp.u.intr_moderation.intr_delay_resolution;
 	ena_com_update_intr_delay_resolution(ena_dev, delay_resolution);
 
-	/* Disable adaptive moderation by default - can be enabled from
-	 * ethtool
-	 */
+	/* Disable adaptive moderation by default - can be enabled later */
 	ena_com_disable_adaptive_moderation(ena_dev);
 
 	return 0;
-err:
-	ena_com_destroy_interrupt_moderation(ena_dev);
-	return rc;
-}
-
-void ena_com_config_default_interrupt_moderation_table(struct ena_com_dev *ena_dev)
-{
-	struct ena_intr_moder_entry *intr_moder_tbl = ena_dev->intr_moder_tbl;
-
-	if (!intr_moder_tbl)
-		return;
-
-	intr_moder_tbl[ENA_INTR_MODER_LOWEST].intr_moder_interval =
-		ENA_INTR_LOWEST_USECS;
-	intr_moder_tbl[ENA_INTR_MODER_LOWEST].pkts_per_interval =
-		ENA_INTR_LOWEST_PKTS;
-	intr_moder_tbl[ENA_INTR_MODER_LOWEST].bytes_per_interval =
-		ENA_INTR_LOWEST_BYTES;
-
-	intr_moder_tbl[ENA_INTR_MODER_LOW].intr_moder_interval =
-		ENA_INTR_LOW_USECS;
-	intr_moder_tbl[ENA_INTR_MODER_LOW].pkts_per_interval =
-		ENA_INTR_LOW_PKTS;
-	intr_moder_tbl[ENA_INTR_MODER_LOW].bytes_per_interval =
-		ENA_INTR_LOW_BYTES;
-
-	intr_moder_tbl[ENA_INTR_MODER_MID].intr_moder_interval =
-		ENA_INTR_MID_USECS;
-	intr_moder_tbl[ENA_INTR_MODER_MID].pkts_per_interval =
-		ENA_INTR_MID_PKTS;
-	intr_moder_tbl[ENA_INTR_MODER_MID].bytes_per_interval =
-		ENA_INTR_MID_BYTES;
-
-	intr_moder_tbl[ENA_INTR_MODER_HIGH].intr_moder_interval =
-		ENA_INTR_HIGH_USECS;
-	intr_moder_tbl[ENA_INTR_MODER_HIGH].pkts_per_interval =
-		ENA_INTR_HIGH_PKTS;
-	intr_moder_tbl[ENA_INTR_MODER_HIGH].bytes_per_interval =
-		ENA_INTR_HIGH_BYTES;
-
-	intr_moder_tbl[ENA_INTR_MODER_HIGHEST].intr_moder_interval =
-		ENA_INTR_HIGHEST_USECS;
-	intr_moder_tbl[ENA_INTR_MODER_HIGHEST].pkts_per_interval =
-		ENA_INTR_HIGHEST_PKTS;
-	intr_moder_tbl[ENA_INTR_MODER_HIGHEST].bytes_per_interval =
-		ENA_INTR_HIGHEST_BYTES;
 }
 
 unsigned int ena_com_get_nonadaptive_moderation_interval_tx(struct ena_com_dev *ena_dev)
@@ -2907,49 +2840,7 @@ unsigned int ena_com_get_nonadaptive_moderation_interval_tx(struct ena_com_dev *
 
 unsigned int ena_com_get_nonadaptive_moderation_interval_rx(struct ena_com_dev *ena_dev)
 {
-	struct ena_intr_moder_entry *intr_moder_tbl = ena_dev->intr_moder_tbl;
-
-	if (intr_moder_tbl)
-		return intr_moder_tbl[ENA_INTR_MODER_LOWEST].intr_moder_interval;
-
-	return 0;
-}
-
-void ena_com_init_intr_moderation_entry(struct ena_com_dev *ena_dev,
-					enum ena_intr_moder_level level,
-					struct ena_intr_moder_entry *entry)
-{
-	struct ena_intr_moder_entry *intr_moder_tbl = ena_dev->intr_moder_tbl;
-
-	if (level >= ENA_INTR_MAX_NUM_OF_LEVELS)
-		return;
-
-	intr_moder_tbl[level].intr_moder_interval = entry->intr_moder_interval;
-	if (ena_dev->intr_delay_resolution)
-		intr_moder_tbl[level].intr_moder_interval /=
-			ena_dev->intr_delay_resolution;
-	intr_moder_tbl[level].pkts_per_interval = entry->pkts_per_interval;
-
-	/* use hardcoded value until ethtool supports bytecount parameter */
-	if (entry->bytes_per_interval != ENA_INTR_BYTE_COUNT_NOT_SUPPORTED)
-		intr_moder_tbl[level].bytes_per_interval = entry->bytes_per_interval;
-}
-
-void ena_com_get_intr_moderation_entry(struct ena_com_dev *ena_dev,
-				       enum ena_intr_moder_level level,
-				       struct ena_intr_moder_entry *entry)
-{
-	struct ena_intr_moder_entry *intr_moder_tbl = ena_dev->intr_moder_tbl;
-
-	if (level >= ENA_INTR_MAX_NUM_OF_LEVELS)
-		return;
-
-	entry->intr_moder_interval = intr_moder_tbl[level].intr_moder_interval;
-	if (ena_dev->intr_delay_resolution)
-		entry->intr_moder_interval *= ena_dev->intr_delay_resolution;
-	entry->pkts_per_interval =
-	intr_moder_tbl[level].pkts_per_interval;
-	entry->bytes_per_interval = intr_moder_tbl[level].bytes_per_interval;
+	return ena_dev->intr_moder_rx_interval;
 }
 
 int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,

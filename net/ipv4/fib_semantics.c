@@ -1582,7 +1582,7 @@ failure:
 }
 
 int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc,
-		     unsigned char *flags, bool skip_oif)
+		     u8 rt_family, unsigned char *flags, bool skip_oif)
 {
 	if (nhc->nhc_flags & RTNH_F_DEAD)
 		*flags |= RTNH_F_DEAD;
@@ -1613,7 +1613,7 @@ int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc,
 		/* if gateway family does not match nexthop family
 		 * gateway is encoded as RTA_VIA
 		 */
-		if (nhc->nhc_gw_family != nhc->nhc_family) {
+		if (rt_family != nhc->nhc_gw_family) {
 			int alen = sizeof(struct in6_addr);
 			struct nlattr *nla;
 			struct rtvia *via;
@@ -1654,7 +1654,7 @@ EXPORT_SYMBOL_GPL(fib_nexthop_info);
 
 #if IS_ENABLED(CONFIG_IP_ROUTE_MULTIPATH) || IS_ENABLED(CONFIG_IPV6)
 int fib_add_nexthop(struct sk_buff *skb, const struct fib_nh_common *nhc,
-		    int nh_weight)
+		    int nh_weight, u8 rt_family)
 {
 	const struct net_device *dev = nhc->nhc_dev;
 	struct rtnexthop *rtnh;
@@ -1667,7 +1667,7 @@ int fib_add_nexthop(struct sk_buff *skb, const struct fib_nh_common *nhc,
 	rtnh->rtnh_hops = nh_weight - 1;
 	rtnh->rtnh_ifindex = dev ? dev->ifindex : 0;
 
-	if (fib_nexthop_info(skb, nhc, &flags, true) < 0)
+	if (fib_nexthop_info(skb, nhc, rt_family, &flags, true) < 0)
 		goto nla_put_failure;
 
 	rtnh->rtnh_flags = flags;
@@ -1693,13 +1693,14 @@ static int fib_add_multipath(struct sk_buff *skb, struct fib_info *fi)
 		goto nla_put_failure;
 
 	if (unlikely(fi->nh)) {
-		if (nexthop_mpath_fill_node(skb, fi->nh) < 0)
+		if (nexthop_mpath_fill_node(skb, fi->nh, AF_INET) < 0)
 			goto nla_put_failure;
 		goto mp_end;
 	}
 
 	for_nexthops(fi) {
-		if (fib_add_nexthop(skb, &nh->nh_common, nh->fib_nh_weight) < 0)
+		if (fib_add_nexthop(skb, &nh->nh_common, nh->fib_nh_weight,
+				    AF_INET) < 0)
 			goto nla_put_failure;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		if (nh->nh_tclassid &&
@@ -1775,7 +1776,7 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		const struct fib_nh_common *nhc = fib_info_nhc(fi, 0);
 		unsigned char flags = 0;
 
-		if (fib_nexthop_info(skb, nhc, &flags, false) < 0)
+		if (fib_nexthop_info(skb, nhc, AF_INET, &flags, false) < 0)
 			goto nla_put_failure;
 
 		rtm->rtm_flags = flags;

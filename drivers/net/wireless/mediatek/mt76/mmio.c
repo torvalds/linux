@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "mt76.h"
@@ -40,10 +29,16 @@ static u32 mt76_mmio_rmw(struct mt76_dev *dev, u32 offset, u32 mask, u32 val)
 	return val;
 }
 
-static void mt76_mmio_copy(struct mt76_dev *dev, u32 offset, const void *data,
-			   int len)
+static void mt76_mmio_write_copy(struct mt76_dev *dev, u32 offset,
+				 const void *data, int len)
 {
-	__iowrite32_copy(dev->mmio.regs + offset, data, len >> 2);
+	__iowrite32_copy(dev->mmio.regs + offset, data, DIV_ROUND_UP(len, 4));
+}
+
+static void mt76_mmio_read_copy(struct mt76_dev *dev, u32 offset,
+				void *data, int len)
+{
+	__ioread32_copy(data, dev->mmio.regs + offset, DIV_ROUND_UP(len, 4));
 }
 
 static int mt76_mmio_wr_rp(struct mt76_dev *dev, u32 base,
@@ -89,7 +84,8 @@ void mt76_mmio_init(struct mt76_dev *dev, void __iomem *regs)
 		.rr = mt76_mmio_rr,
 		.rmw = mt76_mmio_rmw,
 		.wr = mt76_mmio_wr,
-		.copy = mt76_mmio_copy,
+		.write_copy = mt76_mmio_write_copy,
+		.read_copy = mt76_mmio_read_copy,
 		.wr_rp = mt76_mmio_wr_rp,
 		.rd_rp = mt76_mmio_rd_rp,
 		.type = MT76_BUS_MMIO,

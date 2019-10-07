@@ -161,7 +161,6 @@ nv_match_device(struct drm_device *dev, unsigned device,
 		dev->pdev->subsystem_device == sub_device;
 }
 
-#include <subdev/bios.h>
 #include <subdev/bios/init.h>
 
 static inline void

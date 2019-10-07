@@ -189,26 +189,16 @@
 			compatible = "samsung,exynos4210-ehci";
 			reg = <0x12110000 0x100>;
 			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-
-			#address-cells = <1>;
-			#size-cells = <0>;
-			port@0 {
-				reg = <0>;
-				phys = <&usb2_phy 1>;
-			};
+			phys = <&usb2_phy 1>;
+			phy-names = "host";
 		};
 
 		usbhost1: usb@12120000 {
 			compatible = "samsung,exynos4210-ohci";
 			reg = <0x12120000 0x100>;
 			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-
-			#address-cells = <1>;
-			#size-cells = <0>;
-			port@0 {
-				reg = <0>;
-				phys = <&usb2_phy 1>;
-			};
+			phys = <&usb2_phy 1>;
+			phy-names = "host";
 		};
 
 		usb2_phy: phy@12130000 {

@@ -83,11 +83,29 @@ void __rq_qos_track(struct rq_qos *rqos, struct request *rq, struct bio *bio)
 	} while (rqos);
 }
 
+void __rq_qos_merge(struct rq_qos *rqos, struct request *rq, struct bio *bio)
+{
+	do {
+		if (rqos->ops->merge)
+			rqos->ops->merge(rqos, rq, bio);
+		rqos = rqos->next;
+	} while (rqos);
+}
+
 void __rq_qos_done_bio(struct rq_qos *rqos, struct bio *bio)
 {
 	do {
 		if (rqos->ops->done_bio)
 			rqos->ops->done_bio(rqos, bio);
+		rqos = rqos->next;
+	} while (rqos);
+}
+
+void __rq_qos_queue_depth_changed(struct rq_qos *rqos)
+{
+	do {
+		if (rqos->ops->queue_depth_changed)
+			rqos->ops->queue_depth_changed(rqos);
 		rqos = rqos->next;
 	} while (rqos);
 }

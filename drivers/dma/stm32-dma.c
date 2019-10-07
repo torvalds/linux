@@ -243,12 +243,6 @@ static void stm32_dma_write(struct stm32_dma_device *dmadev, u32 reg, u32 val)
 	writel_relaxed(val, dmadev->base + reg);
 }
 
-static struct stm32_dma_desc *stm32_dma_alloc_desc(u32 num_sgs)
-{
-	return kzalloc(sizeof(struct stm32_dma_desc) +
-		       sizeof(struct stm32_dma_sg_req) * num_sgs, GFP_NOWAIT);
-}
-
 static int stm32_dma_get_width(struct stm32_dma_chan *chan,
 			       enum dma_slave_buswidth width)
 {
@@ -853,7 +847,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_slave_sg(
 		return NULL;
 	}
 
-	desc = stm32_dma_alloc_desc(sg_len);
+	desc = kzalloc(struct_size(desc, sg_req, sg_len), GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 
@@ -954,7 +948,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_cyclic(
 
 	num_periods = buf_len / period_len;
 
-	desc = stm32_dma_alloc_desc(num_periods);
+	desc = kzalloc(struct_size(desc, sg_req, num_periods), GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 
@@ -989,7 +983,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_memcpy(
 	int i;
 
 	num_sgs = DIV_ROUND_UP(len, STM32_DMA_ALIGNED_MAX_DATA_ITEMS);
-	desc = stm32_dma_alloc_desc(num_sgs);
+	desc = kzalloc(struct_size(desc, sg_req, num_sgs), GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 
@@ -1366,12 +1360,8 @@ static int stm32_dma_probe(struct platform_device *pdev)
 	for (i = 0; i < STM32_DMA_MAX_CHANNELS; i++) {
 		chan = &dmadev->chan[i];
 		ret = platform_get_irq(pdev, i);
-		if (ret < 0)  {
-			if (ret != -EPROBE_DEFER)
-				dev_err(&pdev->dev,
-					"No irq resource for chan %d\n", i);
+		if (ret < 0)
 			goto err_unregister;
-		}
 		chan->irq = ret;
 
 		ret = devm_request_irq(&pdev->dev, chan->irq,

@@ -306,19 +306,10 @@ config CRYPTO_AEGIS128
 	help
 	 Support for the AEGIS-128 dedicated AEAD algorithm.
 
-config CRYPTO_AEGIS128L
-	tristate "AEGIS-128L AEAD algorithm"
-	select CRYPTO_AEAD
-	select CRYPTO_AES  # for AES S-box tables
-	help
-	 Support for the AEGIS-128L dedicated AEAD algorithm.
-
-config CRYPTO_AEGIS256
-	tristate "AEGIS-256 AEAD algorithm"
-	select CRYPTO_AEAD
-	select CRYPTO_AES  # for AES S-box tables
-	help
-	 Support for the AEGIS-256 dedicated AEAD algorithm.
+config CRYPTO_AEGIS128_SIMD
+	bool "Support SIMD acceleration for AEGIS-128"
+	depends on CRYPTO_AEGIS128 && ((ARM || ARM64) && KERNEL_MODE_NEON)
+	default y
 
 config CRYPTO_AEGIS128_AESNI_SSE2
 	tristate "AEGIS-128 AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
@@ -327,78 +318,6 @@ config CRYPTO_AEGIS128_AESNI_SSE2
 	select CRYPTO_SIMD
 	help
 	 AESNI+SSE2 implementation of the AEGIS-128 dedicated AEAD algorithm.
-
-config CRYPTO_AEGIS128L_AESNI_SSE2
-	tristate "AEGIS-128L AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
-	depends on X86 && 64BIT
-	select CRYPTO_AEAD
-	select CRYPTO_SIMD
-	help
-	 AESNI+SSE2 implementation of the AEGIS-128L dedicated AEAD algorithm.
-
-config CRYPTO_AEGIS256_AESNI_SSE2
-	tristate "AEGIS-256 AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
-	depends on X86 && 64BIT
-	select CRYPTO_AEAD
-	select CRYPTO_SIMD
-	help
-	 AESNI+SSE2 implementation of the AEGIS-256 dedicated AEAD algorithm.
-
-config CRYPTO_MORUS640
-	tristate "MORUS-640 AEAD algorithm"
-	select CRYPTO_AEAD
-	help
-	  Support for the MORUS-640 dedicated AEAD algorithm.
-
-config CRYPTO_MORUS640_GLUE
-	tristate
-	depends on X86
-	select CRYPTO_AEAD
-	select CRYPTO_SIMD
-	help
-	  Common glue for SIMD optimizations of the MORUS-640 dedicated AEAD
-	  algorithm.
-
-config CRYPTO_MORUS640_SSE2
-	tristate "MORUS-640 AEAD algorithm (x86_64 SSE2 implementation)"
-	depends on X86 && 64BIT
-	select CRYPTO_AEAD
-	select CRYPTO_MORUS640_GLUE
-	help
-	  SSE2 implementation of the MORUS-640 dedicated AEAD algorithm.
-
-config CRYPTO_MORUS1280
-	tristate "MORUS-1280 AEAD algorithm"
-	select CRYPTO_AEAD
-	help
-	  Support for the MORUS-1280 dedicated AEAD algorithm.
-
-config CRYPTO_MORUS1280_GLUE
-	tristate
-	depends on X86
-	select CRYPTO_AEAD
-	select CRYPTO_SIMD
-	help
-	  Common glue for SIMD optimizations of the MORUS-1280 dedicated AEAD
-	  algorithm.
-
-config CRYPTO_MORUS1280_SSE2
-	tristate "MORUS-1280 AEAD algorithm (x86_64 SSE2 implementation)"
-	depends on X86 && 64BIT
-	select CRYPTO_AEAD
-	select CRYPTO_MORUS1280_GLUE
-	help
-	  SSE2 optimizedimplementation of the MORUS-1280 dedicated AEAD
-	  algorithm.
-
-config CRYPTO_MORUS1280_AVX2
-	tristate "MORUS-1280 AEAD algorithm (x86_64 AVX2 implementation)"
-	depends on X86 && 64BIT
-	select CRYPTO_AEAD
-	select CRYPTO_MORUS1280_GLUE
-	help
-	  AVX2 optimized implementation of the MORUS-1280 dedicated AEAD
-	  algorithm.
 
 config CRYPTO_SEQIV
 	tristate "Sequence Number IV Generator"
@@ -568,6 +487,34 @@ config CRYPTO_ADIANTUM
 
 	  If unsure, say N.
 
+config CRYPTO_ESSIV
+	tristate "ESSIV support for block encryption"
+	select CRYPTO_AUTHENC
+	help
+	  Encrypted salt-sector initialization vector (ESSIV) is an IV
+	  generation method that is used in some cases by fscrypt and/or
+	  dm-crypt. It uses the hash of the block encryption key as the
+	  symmetric key for a block encryption pass applied to the input
+	  IV, making low entropy IV sources more suitable for block
+	  encryption.
+
+	  This driver implements a crypto API template that can be
+	  instantiated either as a skcipher or as a aead (depending on the
+	  type of the first template argument), and which defers encryption
+	  and decryption requests to the encapsulated cipher after applying
+	  ESSIV to the input IV. Note that in the aead case, it is assumed
+	  that the keys are presented in the same format used by the authenc
+	  template, and that the IV appears at the end of the authenticated
+	  associated data (AAD) region (which is how dm-crypt uses it.)
+
+	  Note that the use of ESSIV is not recommended for new deployments,
+	  and so this only needs to be enabled when interoperability with
+	  existing encrypted volumes of filesystems is required, or when
+	  building for a particular system that requires it (e.g., when
+	  the SoC in question has accelerated CBC but not XTS, making CBC
+	  combined with ESSIV the only feasible mode for h/w accelerated
+	  block encryption)
+
 comment "Hash modes"
 
 config CRYPTO_CMAC
@@ -728,11 +675,12 @@ config CRYPTO_VPMSUM_TESTER
 	  Unless you are testing these algorithms, you don't need this.
 
 config CRYPTO_GHASH
-	tristate "GHASH digest algorithm"
+	tristate "GHASH hash function"
 	select CRYPTO_GF128MUL
 	select CRYPTO_HASH
 	help
-	  GHASH is message digest algorithm for GCM (Galois/Counter Mode).
+	  GHASH is the hash function used in GCM (Galois/Counter Mode).
+	  It is not a general-purpose cryptographic hash function.
 
 config CRYPTO_POLY1305
 	tristate "Poly1305 authenticator algorithm"
@@ -929,9 +877,13 @@ config CRYPTO_SHA1_PPC_SPE
 	  SHA-1 secure hash standard (DFIPS 180-4) implemented
 	  using powerpc SPE SIMD instruction set.
 
+config CRYPTO_LIB_SHA256
+	tristate
+
 config CRYPTO_SHA256
 	tristate "SHA224 and SHA256 digest algorithm"
 	select CRYPTO_HASH
+	select CRYPTO_LIB_SHA256
 	help
 	  SHA256 secure hash standard (DFIPS 180-2).
 
@@ -1057,18 +1009,22 @@ config CRYPTO_WP512
 	  <http://www.larc.usp.br/~pbarreto/WhirlpoolPage.html>
 
 config CRYPTO_GHASH_CLMUL_NI_INTEL
-	tristate "GHASH digest algorithm (CLMUL-NI accelerated)"
+	tristate "GHASH hash function (CLMUL-NI accelerated)"
 	depends on X86 && 64BIT
 	select CRYPTO_CRYPTD
 	help
-	  GHASH is message digest algorithm for GCM (Galois/Counter Mode).
-	  The implementation is accelerated by CLMUL-NI of Intel.
+	  This is the x86_64 CLMUL-NI accelerated implementation of
+	  GHASH, the hash function used in GCM (Galois/Counter mode).
 
 comment "Ciphers"
+
+config CRYPTO_LIB_AES
+	tristate
 
 config CRYPTO_AES
 	tristate "AES cipher algorithms"
 	select CRYPTO_ALGAPI
+	select CRYPTO_LIB_AES
 	help
 	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
 	  algorithm.
@@ -1089,6 +1045,7 @@ config CRYPTO_AES
 config CRYPTO_AES_TI
 	tristate "Fixed time AES cipher"
 	select CRYPTO_ALGAPI
+	select CRYPTO_LIB_AES
 	help
 	  This is a generic implementation of AES that attempts to eliminate
 	  data dependent latencies as much as possible without affecting
@@ -1104,56 +1061,11 @@ config CRYPTO_AES_TI
 	  block. Interrupts are also disabled to avoid races where cachelines
 	  are evicted when the CPU is interrupted to do something else.
 
-config CRYPTO_AES_586
-	tristate "AES cipher algorithms (i586)"
-	depends on (X86 || UML_X86) && !64BIT
-	select CRYPTO_ALGAPI
-	select CRYPTO_AES
-	help
-	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
-	  algorithm.
-
-	  Rijndael appears to be consistently a very good performer in
-	  both hardware and software across a wide range of computing
-	  environments regardless of its use in feedback or non-feedback
-	  modes. Its key setup time is excellent, and its key agility is
-	  good. Rijndael's very low memory requirements make it very well
-	  suited for restricted-space environments, in which it also
-	  demonstrates excellent performance. Rijndael's operations are
-	  among the easiest to defend against power and timing attacks.
-
-	  The AES specifies three key sizes: 128, 192 and 256 bits
-
-	  See <http://csrc.nist.gov/encryption/aes/> for more information.
-
-config CRYPTO_AES_X86_64
-	tristate "AES cipher algorithms (x86_64)"
-	depends on (X86 || UML_X86) && 64BIT
-	select CRYPTO_ALGAPI
-	select CRYPTO_AES
-	help
-	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
-	  algorithm.
-
-	  Rijndael appears to be consistently a very good performer in
-	  both hardware and software across a wide range of computing
-	  environments regardless of its use in feedback or non-feedback
-	  modes. Its key setup time is excellent, and its key agility is
-	  good. Rijndael's very low memory requirements make it very well
-	  suited for restricted-space environments, in which it also
-	  demonstrates excellent performance. Rijndael's operations are
-	  among the easiest to defend against power and timing attacks.
-
-	  The AES specifies three key sizes: 128, 192 and 256 bits
-
-	  See <http://csrc.nist.gov/encryption/aes/> for more information.
-
 config CRYPTO_AES_NI_INTEL
 	tristate "AES cipher algorithms (AES-NI)"
 	depends on X86
 	select CRYPTO_AEAD
-	select CRYPTO_AES_X86_64 if 64BIT
-	select CRYPTO_AES_586 if !64BIT
+	select CRYPTO_LIB_AES
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_GLUE_HELPER_X86 if 64BIT
@@ -1426,9 +1338,13 @@ config CRYPTO_CAST6_AVX_X86_64
 	  This module provides the Cast6 cipher algorithm that processes
 	  eight blocks parallel using the AVX instruction set.
 
+config CRYPTO_LIB_DES
+	tristate
+
 config CRYPTO_DES
 	tristate "DES and Triple DES EDE cipher algorithms"
 	select CRYPTO_ALGAPI
+	select CRYPTO_LIB_DES
 	help
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
 
@@ -1436,7 +1352,7 @@ config CRYPTO_DES_SPARC64
 	tristate "DES and Triple DES EDE cipher algorithms (SPARC64)"
 	depends on SPARC64
 	select CRYPTO_ALGAPI
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	help
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3),
 	  optimized using SPARC64 crypto opcodes.
@@ -1445,7 +1361,7 @@ config CRYPTO_DES3_EDE_X86_64
 	tristate "Triple DES EDE cipher algorithm (x86-64)"
 	depends on X86 && 64BIT
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	help
 	  Triple DES EDE (FIPS 46-3) algorithm.
 

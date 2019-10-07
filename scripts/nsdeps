@@ -1,0 +1,58 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
+# Linux kernel symbol namespace import generator
+#
+# This script requires a minimum spatch version.
+SPATCH_REQ_VERSION="1.0.4"
+
+DIR="$(dirname $(readlink -f $0))/.."
+SPATCH="`which ${SPATCH:=spatch}`"
+if [ ! -x "$SPATCH" ]; then
+	echo 'spatch is part of the Coccinelle project and is available at http://coccinelle.lip6.fr/'
+	exit 1
+fi
+
+SPATCH_REQ_VERSION_NUM=$(echo $SPATCH_REQ_VERSION | ${DIR}/scripts/ld-version.sh)
+SPATCH_VERSION=$($SPATCH --version | head -1 | awk '{print $3}')
+SPATCH_VERSION_NUM=$(echo $SPATCH_VERSION | ${DIR}/scripts/ld-version.sh)
+
+if [ "$SPATCH_VERSION_NUM" -lt "$SPATCH_REQ_VERSION_NUM" ] ; then
+	echo "spatch needs to be version $SPATCH_REQ_VERSION or higher"
+	exit 1
+fi
+
+generate_deps_for_ns() {
+	$SPATCH --very-quiet --in-place --sp-file \
+		$srctree/scripts/coccinelle/misc/add_namespace.cocci -D ns=$1 $2
+}
+
+generate_deps() {
+	local mod_name=`basename $@ .ko`
+	local mod_file=`echo $@ | sed -e 's/\.ko/\.mod/'`
+	local ns_deps_file=`echo $@ | sed -e 's/\.ko/\.ns_deps/'`
+	if [ ! -f "$ns_deps_file" ]; then return; fi
+	local mod_source_files=`cat $mod_file | sed -n 1p                      \
+					      | sed -e 's/\.o/\.c/g'           \
+					      | sed "s/[^ ]* */${srctree}\/&/g"`
+	for ns in `cat $ns_deps_file`; do
+		echo "Adding namespace $ns to module $mod_name (if needed)."
+		generate_deps_for_ns $ns $mod_source_files
+		# sort the imports
+		for source_file in $mod_source_files; do
+			sed '/MODULE_IMPORT_NS/Q' $source_file > ${source_file}.tmp
+			offset=$(wc -l ${source_file}.tmp | awk '{print $1;}')
+			cat $source_file | grep MODULE_IMPORT_NS | sort -u >> ${source_file}.tmp
+			tail -n +$((offset +1)) ${source_file} | grep -v MODULE_IMPORT_NS >> ${source_file}.tmp
+			if ! diff -q ${source_file} ${source_file}.tmp; then
+				mv ${source_file}.tmp ${source_file}
+			else
+				rm ${source_file}.tmp
+			fi
+		done
+	done
+}
+
+for f in `cat $objtree/modules.order`; do
+	generate_deps $f
+done
+

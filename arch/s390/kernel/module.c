@@ -472,11 +472,11 @@ int module_finalize(const Elf_Ehdr *hdr,
 			apply_alternatives(aseg, aseg + s->sh_size);
 
 		if (IS_ENABLED(CONFIG_EXPOLINE) &&
-		    (!strncmp(".s390_indirect", secname, 14)))
+		    (str_has_prefix(secname, ".s390_indirect")))
 			nospec_revert(aseg, aseg + s->sh_size);
 
 		if (IS_ENABLED(CONFIG_EXPOLINE) &&
-		    (!strncmp(".s390_return", secname, 12)))
+		    (str_has_prefix(secname, ".s390_return")))
 			nospec_revert(aseg, aseg + s->sh_size);
 	}
 

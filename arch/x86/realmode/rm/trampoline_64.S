@@ -49,9 +49,6 @@ ENTRY(trampoline_start)
 	mov	%ax, %es
 	mov	%ax, %ss
 
-	movl	$0xA5A5A5A5, trampoline_status
-	# write marker for master knows we're running
-
 	# Setup stack
 	movl	$rm_stack_end, %esp
 

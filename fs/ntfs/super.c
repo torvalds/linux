@@ -1475,7 +1475,7 @@ not_enabled:
 	kfree(name);
 	/* Get the inode. */
 	tmp_ino = ntfs_iget(vol->sb, MREF(mref));
-	if (unlikely(IS_ERR(tmp_ino) || is_bad_inode(tmp_ino))) {
+	if (IS_ERR(tmp_ino) || unlikely(is_bad_inode(tmp_ino))) {
 		if (!IS_ERR(tmp_ino))
 			iput(tmp_ino);
 		ntfs_error(vol->sb, "Failed to load $UsnJrnl.");

@@ -49,7 +49,7 @@
 	compatible = "allwinner,q8-a13", "allwinner,sun5i-a13";
 
 	panel: panel {
-		compatible = "bananapi,s070wv20-ct16", "simple-panel";
+		compatible = "bananapi,s070wv20-ct16";
 		power-supply = <&reg_vcc3v3>;
 		enable-gpios = <&axp_gpio 0 GPIO_ACTIVE_HIGH>; /* AXP GPIO0 */
 		backlight = <&backlight>;

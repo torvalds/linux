@@ -22,6 +22,9 @@
 #define ST_ASM330LHH_DEV_NAME	"asm330lhh"
 #define ST_LSM6DSOX_DEV_NAME	"lsm6dsox"
 #define ST_LSM6DSR_DEV_NAME	"lsm6dsr"
+#define ST_LSM6DS3TRC_DEV_NAME	"lsm6ds3tr-c"
+#define ST_ISM330DHCX_DEV_NAME	"ism330dhcx"
+#define ST_LSM9DS1_DEV_NAME	"lsm9ds1-imu"
 
 enum st_lsm6dsx_hw_id {
 	ST_LSM6DS3_ID,
@@ -33,6 +36,9 @@ enum st_lsm6dsx_hw_id {
 	ST_ASM330LHH_ID,
 	ST_LSM6DSOX_ID,
 	ST_LSM6DSR_ID,
+	ST_LSM6DS3TRC_ID,
+	ST_ISM330DHCX_ID,
+	ST_LSM9DS1_ID,
 	ST_LSM6DSX_MAX_ID,
 };
 
@@ -54,8 +60,8 @@ enum st_lsm6dsx_hw_id {
 	.address = addr,						\
 	.modified = 1,							\
 	.channel2 = mod,						\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
-			      BIT(IIO_CHAN_INFO_SCALE),			\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),			\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		\
 	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
 	.scan_index = scan_idx,						\
 	.scan_type = {							\
@@ -71,6 +77,7 @@ struct st_lsm6dsx_reg {
 	u8 mask;
 };
 
+struct st_lsm6dsx_sensor;
 struct st_lsm6dsx_hw;
 
 struct st_lsm6dsx_odr {
@@ -97,12 +104,14 @@ struct st_lsm6dsx_fs_table_entry {
 
 /**
  * struct st_lsm6dsx_fifo_ops - ST IMU FIFO settings
+ * @update_fifo: Update FIFO configuration callback.
  * @read_fifo: Read FIFO callback.
  * @fifo_th: FIFO threshold register info (addr + mask).
  * @fifo_diff: FIFO diff status register info (addr + mask).
  * @th_wl: FIFO threshold word length.
  */
 struct st_lsm6dsx_fifo_ops {
+	int (*update_fifo)(struct st_lsm6dsx_sensor *sensor, bool enable);
 	int (*read_fifo)(struct st_lsm6dsx_hw *hw);
 	struct {
 		u8 addr;
@@ -196,8 +205,14 @@ struct st_lsm6dsx_ext_dev_settings {
 /**
  * struct st_lsm6dsx_settings - ST IMU sensor settings
  * @wai: Sensor WhoAmI default value.
+ * @int1_addr: Control Register address for INT1
+ * @int2_addr: Control Register address for INT2
+ * @reset_addr: register address for reset/reboot
  * @max_fifo_size: Sensor max fifo length in FIFO words.
  * @id: List of hw id/device name supported by the driver configuration.
+ * @channels: IIO channels supported by the device.
+ * @odr_table: Hw sensors odr table (Hz + val).
+ * @fs_table: Hw sensors gain table (gain + val).
  * @decimator: List of decimator register info (addr + mask).
  * @batch: List of FIFO batching register info (addr + mask).
  * @fifo_ops: Sensor hw FIFO parameters.
@@ -206,11 +221,20 @@ struct st_lsm6dsx_ext_dev_settings {
  */
 struct st_lsm6dsx_settings {
 	u8 wai;
+	u8 int1_addr;
+	u8 int2_addr;
+	u8 reset_addr;
 	u16 max_fifo_size;
 	struct {
 		enum st_lsm6dsx_hw_id hw_id;
 		const char *name;
 	} id[ST_LSM6DSX_MAX_ID];
+	struct {
+		const struct iio_chan_spec *chan;
+		int len;
+	} channels[2];
+	struct st_lsm6dsx_odr_table_entry odr_table[2];
+	struct st_lsm6dsx_fs_table_entry fs_table[2];
 	struct st_lsm6dsx_reg decimator[ST_LSM6DSX_MAX_ID];
 	struct st_lsm6dsx_reg batch[ST_LSM6DSX_MAX_ID];
 	struct st_lsm6dsx_fifo_ops fifo_ops;
@@ -314,6 +338,7 @@ int st_lsm6dsx_fifo_setup(struct st_lsm6dsx_hw *hw);
 int st_lsm6dsx_set_watermark(struct iio_dev *iio_dev, unsigned int val);
 int st_lsm6dsx_update_watermark(struct st_lsm6dsx_sensor *sensor,
 				u16 watermark);
+int st_lsm6dsx_update_fifo(struct st_lsm6dsx_sensor *sensor, bool enable);
 int st_lsm6dsx_flush_fifo(struct st_lsm6dsx_hw *hw);
 int st_lsm6dsx_set_fifo_mode(struct st_lsm6dsx_hw *hw,
 			     enum st_lsm6dsx_fifo_mode fifo_mode);

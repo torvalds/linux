@@ -123,12 +123,6 @@ done:
 	return ret;
 }
 
-static void gfrm_remove(struct hid_device *hdev)
-{
-	hid_hw_stop(hdev);
-	hid_set_drvdata(hdev, NULL);
-}
-
 static const struct hid_device_id gfrm_devices[] = {
 	{ HID_BLUETOOTH_DEVICE(0x58, 0x2000),
 		.driver_data = GFRM100 },
@@ -142,7 +136,6 @@ static struct hid_driver gfrm_driver = {
 	.name = "gfrm",
 	.id_table = gfrm_devices,
 	.probe = gfrm_probe,
-	.remove = gfrm_remove,
 	.input_mapping = gfrm_input_mapping,
 	.raw_event = gfrm_raw_event,
 	.input_configured = gfrm_input_configured,

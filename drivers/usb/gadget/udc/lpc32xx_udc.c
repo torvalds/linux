@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/prefetch.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/usb/ch9.h>
@@ -34,8 +35,6 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #endif
-
-#include <mach/hardware.h>
 
 /*
  * USB device configuration structure
@@ -742,7 +741,6 @@ static inline void udc_protocol_cmd_data_w(struct lpc32xx_udc *udc, u32 cmd,
  * response data */
 static u32 udc_protocol_cmd_r(struct lpc32xx_udc *udc, u32 cmd)
 {
-	u32 tmp;
 	int to = 1000;
 
 	/* Write a command and read data from the protocol engine */
@@ -752,7 +750,6 @@ static u32 udc_protocol_cmd_r(struct lpc32xx_udc *udc, u32 cmd)
 	/* Write command code */
 	udc_protocol_cmd_w(udc, cmd);
 
-	tmp = readl(USBD_DEVINTST(udc->udp_baseaddr));
 	while ((!(readl(USBD_DEVINTST(udc->udp_baseaddr)) & USBD_CDFULL))
 	       && (to > 0))
 		to--;
@@ -1992,7 +1989,7 @@ void udc_handle_eps(struct lpc32xx_udc *udc, struct lpc32xx_ep *ep)
 /* DMA end of transfer completion */
 static void udc_handle_dma_ep(struct lpc32xx_udc *udc, struct lpc32xx_ep *ep)
 {
-	u32 status, epstatus;
+	u32 status;
 	struct lpc32xx_request *req;
 	struct lpc32xx_usbd_dd_gad *dd;
 
@@ -2086,7 +2083,7 @@ static void udc_handle_dma_ep(struct lpc32xx_udc *udc, struct lpc32xx_ep *ep)
 		if (udc_clearep_getsts(udc, ep->hwep_num) & EP_SEL_F) {
 			udc_clearep_getsts(udc, ep->hwep_num);
 			uda_enable_hwepint(udc, ep->hwep_num);
-			epstatus = udc_clearep_getsts(udc, ep->hwep_num);
+			udc_clearep_getsts(udc, ep->hwep_num);
 
 			/* Let the EP interrupt handle the ZLP */
 			return;
@@ -2198,7 +2195,7 @@ static void udc_handle_ep0_setup(struct lpc32xx_udc *udc)
 	struct lpc32xx_ep *ep, *ep0 = &udc->ep[0];
 	struct usb_ctrlrequest ctrlpkt;
 	int i, bytes;
-	u16 wIndex, wValue, wLength, reqtype, req, tmp;
+	u16 wIndex, wValue, reqtype, req, tmp;
 
 	/* Nuke previous transfers */
 	nuke(ep0, -EPROTO);
@@ -2214,7 +2211,6 @@ static void udc_handle_ep0_setup(struct lpc32xx_udc *udc)
 	/* Native endianness */
 	wIndex = le16_to_cpu(ctrlpkt.wIndex);
 	wValue = le16_to_cpu(ctrlpkt.wValue);
-	wLength = le16_to_cpu(ctrlpkt.wLength);
 	reqtype = le16_to_cpu(ctrlpkt.bRequestType);
 
 	/* Set direction of EP0 */
@@ -3061,11 +3057,8 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	/* Get IRQs */
 	for (i = 0; i < 4; i++) {
 		udc->udp_irq[i] = platform_get_irq(pdev, i);
-		if (udc->udp_irq[i] < 0) {
-			dev_err(udc->dev,
-				"irq resource %d not available!\n", i);
+		if (udc->udp_irq[i] < 0)
 			return udc->udp_irq[i];
-		}
 	}
 
 	udc->udp_baseaddr = devm_ioremap_resource(dev, res);

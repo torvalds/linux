@@ -185,7 +185,6 @@ spi_lp8841_rtc_probe(struct platform_device *pdev)
 	int				ret;
 	struct spi_master		*master;
 	struct spi_lp8841_rtc		*data;
-	void				*iomem;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*data));
 	if (!master)
@@ -207,8 +206,7 @@ spi_lp8841_rtc_probe(struct platform_device *pdev)
 
 	data = spi_master_get_devdata(master);
 
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->iomem = devm_ioremap_resource(&pdev->dev, iomem);
+	data->iomem = devm_platform_ioremap_resource(pdev, 0);
 	ret = PTR_ERR_OR_ZERO(data->iomem);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get IO address\n");

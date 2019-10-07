@@ -1282,8 +1282,8 @@ static int q6v5_pds_attach(struct device *dev, struct device **devs,
 
 	for (i = 0; i < num_pds; i++) {
 		devs[i] = dev_pm_domain_attach_by_name(dev, pd_names[i]);
-		if (IS_ERR(devs[i])) {
-			ret = PTR_ERR(devs[i]);
+		if (IS_ERR_OR_NULL(devs[i])) {
+			ret = PTR_ERR(devs[i]) ? : -ENODATA;
 			goto unroll_attach;
 		}
 	}

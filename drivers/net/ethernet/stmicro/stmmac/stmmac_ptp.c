@@ -194,6 +194,9 @@ void stmmac_ptp_register(struct stmmac_priv *priv)
 		priv->pps[i].available = true;
 	}
 
+	if (priv->plat->ptp_max_adj)
+		stmmac_ptp_clock_ops.max_adj = priv->plat->ptp_max_adj;
+
 	stmmac_ptp_clock_ops.n_per_out = priv->dma_cap.pps_out_num;
 
 	spin_lock_init(&priv->ptp_lock);

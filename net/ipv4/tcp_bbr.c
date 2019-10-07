@@ -346,7 +346,7 @@ static void bbr_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 
 /* Calculate bdp based on min RTT and the estimated bottleneck bandwidth:
  *
- * bdp = bw * min_rtt * gain
+ * bdp = ceil(bw * min_rtt * gain)
  *
  * The key factor, gain, controls the amount of queue. While a small gain
  * builds a smaller queue, it becomes more vulnerable to noise in RTT
@@ -370,7 +370,9 @@ static u32 bbr_bdp(struct sock *sk, u32 bw, int gain)
 
 	w = (u64)bw * bbr->min_rtt_us;
 
-	/* Apply a gain to the given value, then remove the BW_SCALE shift. */
+	/* Apply a gain to the given value, remove the BW_SCALE shift, and
+	 * round the value up to avoid a negative feedback loop.
+	 */
 	bdp = (((w * gain) >> BBR_SCALE) + BW_UNIT - 1) / BW_UNIT;
 
 	return bdp;
@@ -386,7 +388,7 @@ static u32 bbr_bdp(struct sock *sk, u32 bw, int gain)
  * which allows 2 outstanding 2-packet sequences, to try to keep pipe
  * full even with ACK-every-other-packet delayed ACKs.
  */
-static u32 bbr_quantization_budget(struct sock *sk, u32 cwnd, int gain)
+static u32 bbr_quantization_budget(struct sock *sk, u32 cwnd)
 {
 	struct bbr *bbr = inet_csk_ca(sk);
 
@@ -397,7 +399,7 @@ static u32 bbr_quantization_budget(struct sock *sk, u32 cwnd, int gain)
 	cwnd = (cwnd + 1) & ~1U;
 
 	/* Ensure gain cycling gets inflight above BDP even for small BDPs. */
-	if (bbr->mode == BBR_PROBE_BW && gain > BBR_UNIT)
+	if (bbr->mode == BBR_PROBE_BW && bbr->cycle_idx == 0)
 		cwnd += 2;
 
 	return cwnd;
@@ -409,7 +411,7 @@ static u32 bbr_inflight(struct sock *sk, u32 bw, int gain)
 	u32 inflight;
 
 	inflight = bbr_bdp(sk, bw, gain);
-	inflight = bbr_quantization_budget(sk, inflight, gain);
+	inflight = bbr_quantization_budget(sk, inflight);
 
 	return inflight;
 }
@@ -529,7 +531,7 @@ static void bbr_set_cwnd(struct sock *sk, const struct rate_sample *rs,
 	 * due to aggregation (of data and/or ACKs) visible in the ACK stream.
 	 */
 	target_cwnd += bbr_ack_aggregation_cwnd(sk);
-	target_cwnd = bbr_quantization_budget(sk, target_cwnd, gain);
+	target_cwnd = bbr_quantization_budget(sk, target_cwnd);
 
 	/* If we're below target cwnd, slow start cwnd toward target cwnd. */
 	if (bbr_full_bw_reached(sk))  /* only cut cwnd if we filled the pipe */

@@ -25,6 +25,7 @@
 
 #include <linux/slab.h>
 
+#include "resource.h"
 #include "dm_services.h"
 #include "dce_calcs.h"
 #include "dc.h"
@@ -2852,7 +2853,7 @@ static void populate_initial_data(
 			data->src_height[num_displays * 2 + j] = bw_int_to_fixed(pipe[i].bottom_pipe->plane_res.scl_data.viewport.height);
 			data->src_width[num_displays * 2 + j] = bw_int_to_fixed(pipe[i].bottom_pipe->plane_res.scl_data.viewport.width);
 			data->pitch_in_pixels[num_displays * 2 + j] = bw_int_to_fixed(
-					pipe[i].bottom_pipe->plane_state->plane_size.grph.surface_pitch);
+					pipe[i].bottom_pipe->plane_state->plane_size.surface_pitch);
 			data->h_taps[num_displays * 2 + j] = bw_int_to_fixed(pipe[i].bottom_pipe->plane_res.scl_data.taps.h_taps);
 			data->v_taps[num_displays * 2 + j] = bw_int_to_fixed(pipe[i].bottom_pipe->plane_res.scl_data.taps.v_taps);
 			data->h_scale_ratio[num_displays * 2 + j] = fixed31_32_to_bw_fixed(
@@ -2977,6 +2978,32 @@ static void populate_initial_data(
 	data->number_of_displays = num_displays;
 }
 
+static bool all_displays_in_sync(const struct pipe_ctx pipe[],
+				 int pipe_count)
+{
+	const struct pipe_ctx *active_pipes[MAX_PIPES];
+	int i, num_active_pipes = 0;
+
+	for (i = 0; i < pipe_count; i++) {
+		if (!pipe[i].stream || pipe[i].top_pipe)
+			continue;
+
+		active_pipes[num_active_pipes++] = &pipe[i];
+	}
+
+	if (!num_active_pipes)
+		return false;
+
+	for (i = 1; i < num_active_pipes; ++i) {
+		if (!resource_are_streams_timing_synchronizable(
+			    active_pipes[0]->stream, active_pipes[i]->stream)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 /**
  * Return:
  *	true -	Display(s) configuration supported.
@@ -2998,8 +3025,10 @@ bool bw_calcs(struct dc_context *ctx,
 
 	populate_initial_data(pipe, pipe_count, data);
 
-	/*TODO: this should be taken out calcs output and assigned during timing sync for pplib use*/
-	calcs_output->all_displays_in_sync = false;
+	if (ctx->dc->config.multi_mon_pp_mclk_switch)
+		calcs_output->all_displays_in_sync = all_displays_in_sync(pipe, pipe_count);
+	else
+		calcs_output->all_displays_in_sync = false;
 
 	if (data->number_of_displays != 0) {
 		uint8_t yclk_lvl, sclk_lvl;

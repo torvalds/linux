@@ -515,7 +515,7 @@ xpnet_init(void)
 {
 	int result;
 
-	if (!is_shub() && !is_uv())
+	if (!is_uv())
 		return -ENODEV;
 
 	dev_info(xpnet, "registering network device %s\n", XPNET_DEVICE_NAME);

@@ -307,8 +307,7 @@ static void chx_txdone(fsm_instance *fi, int event, void *arg)
 		ch->ccw[1].count = ch->trans_skb->len;
 		fsm_addtimer(&ch->timer, CTCM_TIME_5_SEC, CTC_EVENT_TIMER, ch);
 		ch->prof.send_stamp = jiffies;
-		rc = ccw_device_start(ch->cdev, &ch->ccw[0],
-						(unsigned long)ch, 0xff, 0);
+		rc = ccw_device_start(ch->cdev, &ch->ccw[0], 0, 0xff, 0);
 		ch->prof.doios_multi++;
 		if (rc != 0) {
 			priv->stats.tx_dropped += i;
@@ -417,8 +416,7 @@ static void chx_rx(fsm_instance *fi, int event, void *arg)
 	if (ctcm_checkalloc_buffer(ch))
 		return;
 	ch->ccw[1].count = ch->max_bufsize;
-	rc = ccw_device_start(ch->cdev, &ch->ccw[0],
-					(unsigned long)ch, 0xff, 0);
+	rc = ccw_device_start(ch->cdev, &ch->ccw[0], 0, 0xff, 0);
 	if (rc != 0)
 		ctcm_ccw_check_rc(ch, rc, "normal RX");
 }
@@ -478,8 +476,7 @@ static void chx_firstio(fsm_instance *fi, int event, void *arg)
 
 	fsm_newstate(fi, (CHANNEL_DIRECTION(ch->flags) == CTCM_READ)
 		     ? CTC_STATE_RXINIT : CTC_STATE_TXINIT);
-	rc = ccw_device_start(ch->cdev, &ch->ccw[0],
-					(unsigned long)ch, 0xff, 0);
+	rc = ccw_device_start(ch->cdev, &ch->ccw[0], 0, 0xff, 0);
 	if (rc != 0) {
 		fsm_deltimer(&ch->timer);
 		fsm_newstate(fi, CTC_STATE_SETUPWAIT);
@@ -527,8 +524,7 @@ static void chx_rxidle(fsm_instance *fi, int event, void *arg)
 			return;
 		ch->ccw[1].count = ch->max_bufsize;
 		fsm_newstate(fi, CTC_STATE_RXIDLE);
-		rc = ccw_device_start(ch->cdev, &ch->ccw[0],
-						(unsigned long)ch, 0xff, 0);
+		rc = ccw_device_start(ch->cdev, &ch->ccw[0], 0, 0xff, 0);
 		if (rc != 0) {
 			fsm_newstate(fi, CTC_STATE_RXINIT);
 			ctcm_ccw_check_rc(ch, rc, "initial RX");
@@ -571,8 +567,7 @@ static void ctcm_chx_setmode(fsm_instance *fi, int event, void *arg)
 			/* Such conditional locking is undeterministic in
 			 * static view. => ignore sparse warnings here. */
 
-	rc = ccw_device_start(ch->cdev, &ch->ccw[6],
-					(unsigned long)ch, 0xff, 0);
+	rc = ccw_device_start(ch->cdev, &ch->ccw[6], 0, 0xff, 0);
 	if (event == CTC_EVENT_TIMER)	/* see above comments */
 		spin_unlock_irqrestore(get_ccwdev_lock(ch->cdev), saveflags);
 	if (rc != 0) {
@@ -637,7 +632,7 @@ static void ctcm_chx_start(fsm_instance *fi, int event, void *arg)
 	fsm_newstate(fi, CTC_STATE_STARTWAIT);
 	fsm_addtimer(&ch->timer, 1000, CTC_EVENT_TIMER, ch);
 	spin_lock_irqsave(get_ccwdev_lock(ch->cdev), saveflags);
-	rc = ccw_device_halt(ch->cdev, (unsigned long)ch);
+	rc = ccw_device_halt(ch->cdev, 0);
 	spin_unlock_irqrestore(get_ccwdev_lock(ch->cdev), saveflags);
 	if (rc != 0) {
 		if (rc != -EBUSY)
@@ -672,7 +667,7 @@ static void ctcm_chx_haltio(fsm_instance *fi, int event, void *arg)
 			 * static view. => ignore sparse warnings here. */
 	oldstate = fsm_getstate(fi);
 	fsm_newstate(fi, CTC_STATE_TERM);
-	rc = ccw_device_halt(ch->cdev, (unsigned long)ch);
+	rc = ccw_device_halt(ch->cdev, 0);
 
 	if (event == CTC_EVENT_STOP)
 		spin_unlock_irqrestore(get_ccwdev_lock(ch->cdev), saveflags);
@@ -799,7 +794,7 @@ static void ctcm_chx_setuperr(fsm_instance *fi, int event, void *arg)
 		fsm_addtimer(&ch->timer, CTCM_TIME_5_SEC, CTC_EVENT_TIMER, ch);
 		if (!IS_MPC(ch) &&
 		    (CHANNEL_DIRECTION(ch->flags) == CTCM_READ)) {
-			int rc = ccw_device_halt(ch->cdev, (unsigned long)ch);
+			int rc = ccw_device_halt(ch->cdev, 0);
 			if (rc != 0)
 				ctcm_ccw_check_rc(ch, rc,
 					"HaltIO in chx_setuperr");
@@ -851,7 +846,7 @@ static void ctcm_chx_restart(fsm_instance *fi, int event, void *arg)
 			/* Such conditional locking is a known problem for
 			 * sparse because its undeterministic in static view.
 			 * Warnings should be ignored here. */
-	rc = ccw_device_halt(ch->cdev, (unsigned long)ch);
+	rc = ccw_device_halt(ch->cdev, 0);
 	if (event == CTC_EVENT_TIMER)
 		spin_unlock_irqrestore(get_ccwdev_lock(ch->cdev), saveflags);
 	if (rc != 0) {
@@ -947,8 +942,8 @@ static void ctcm_chx_rxdisc(fsm_instance *fi, int event, void *arg)
 	ch2 = priv->channel[CTCM_WRITE];
 	fsm_newstate(ch2->fsm, CTC_STATE_DTERM);
 
-	ccw_device_halt(ch->cdev, (unsigned long)ch);
-	ccw_device_halt(ch2->cdev, (unsigned long)ch2);
+	ccw_device_halt(ch->cdev, 0);
+	ccw_device_halt(ch2->cdev, 0);
 }
 
 /**
@@ -1041,8 +1036,7 @@ static void ctcm_chx_txretry(fsm_instance *fi, int event, void *arg)
 			ctcmpc_dumpit((char *)&ch->ccw[3],
 					sizeof(struct ccw1) * 3);
 
-		rc = ccw_device_start(ch->cdev, &ch->ccw[3],
-						(unsigned long)ch, 0xff, 0);
+		rc = ccw_device_start(ch->cdev, &ch->ccw[3], 0, 0xff, 0);
 		if (event == CTC_EVENT_TIMER)
 			spin_unlock_irqrestore(get_ccwdev_lock(ch->cdev),
 					saveflags);
@@ -1361,8 +1355,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 	ch->prof.send_stamp = jiffies;
 	if (do_debug_ccw)
 		ctcmpc_dumpit((char *)&ch->ccw[0], sizeof(struct ccw1) * 3);
-	rc = ccw_device_start(ch->cdev, &ch->ccw[0],
-					(unsigned long)ch, 0xff, 0);
+	rc = ccw_device_start(ch->cdev, &ch->ccw[0], 0, 0xff, 0);
 	ch->prof.doios_multi++;
 	if (rc != 0) {
 		priv->stats.tx_dropped += i;
@@ -1462,8 +1455,7 @@ again:
 		if (dolock)
 			spin_lock_irqsave(
 				get_ccwdev_lock(ch->cdev), saveflags);
-		rc = ccw_device_start(ch->cdev, &ch->ccw[0],
-						(unsigned long)ch, 0xff, 0);
+		rc = ccw_device_start(ch->cdev, &ch->ccw[0], 0, 0xff, 0);
 		if (dolock) /* see remark about conditional locking */
 			spin_unlock_irqrestore(
 				get_ccwdev_lock(ch->cdev), saveflags);
@@ -1569,8 +1561,7 @@ void ctcmpc_chx_rxidle(fsm_instance *fi, int event, void *arg)
 		if (event == CTC_EVENT_START)
 			/* see remark about conditional locking */
 			spin_lock_irqsave(get_ccwdev_lock(ch->cdev), saveflags);
-		rc = ccw_device_start(ch->cdev, &ch->ccw[0],
-						(unsigned long)ch, 0xff, 0);
+		rc = ccw_device_start(ch->cdev, &ch->ccw[0], 0, 0xff, 0);
 		if (event == CTC_EVENT_START)
 			spin_unlock_irqrestore(
 					get_ccwdev_lock(ch->cdev), saveflags);
@@ -1825,8 +1816,7 @@ static void ctcmpc_chx_send_sweep(fsm_instance *fsm, int event, void *arg)
 
 	spin_lock_irqsave(get_ccwdev_lock(wch->cdev), saveflags);
 	wch->prof.send_stamp = jiffies;
-	rc = ccw_device_start(wch->cdev, &wch->ccw[3],
-					(unsigned long) wch, 0xff, 0);
+	rc = ccw_device_start(wch->cdev, &wch->ccw[3], 0, 0xff, 0);
 	spin_unlock_irqrestore(get_ccwdev_lock(wch->cdev), saveflags);
 
 	if ((grp->sweep_req_pend_num == 0) &&

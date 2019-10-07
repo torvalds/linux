@@ -41,7 +41,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 /* CSIS global control */
 #define S5PCSIS_CTRL			0x00
 #define S5PCSIS_CTRL_DPDN_DEFAULT	(0 << 31)
-#define S5PCSIS_CTRL_DPDN_SWAP		(1 << 31)
+#define S5PCSIS_CTRL_DPDN_SWAP		(1UL << 31)
 #define S5PCSIS_CTRL_ALIGN_32BIT	(1 << 20)
 #define S5PCSIS_CTRL_UPDATE_SHADOW	(1 << 16)
 #define S5PCSIS_CTRL_WCLK_EXTCLK	(1 << 8)
@@ -65,7 +65,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
 /* Interrupt mask */
 #define S5PCSIS_INTMSK			0x10
-#define S5PCSIS_INTMSK_EVEN_BEFORE	(1 << 31)
+#define S5PCSIS_INTMSK_EVEN_BEFORE	(1UL << 31)
 #define S5PCSIS_INTMSK_EVEN_AFTER	(1 << 30)
 #define S5PCSIS_INTMSK_ODD_BEFORE	(1 << 29)
 #define S5PCSIS_INTMSK_ODD_AFTER	(1 << 28)
@@ -83,7 +83,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
 /* Interrupt source */
 #define S5PCSIS_INTSRC			0x14
-#define S5PCSIS_INTSRC_EVEN_BEFORE	(1 << 31)
+#define S5PCSIS_INTSRC_EVEN_BEFORE	(1UL << 31)
 #define S5PCSIS_INTSRC_EVEN_AFTER	(1 << 30)
 #define S5PCSIS_INTSRC_EVEN		(0x3 << 30)
 #define S5PCSIS_INTSRC_ODD_BEFORE	(1 << 29)
@@ -803,10 +803,8 @@ static int s5pcsis_probe(struct platform_device *pdev)
 		return PTR_ERR(state->regs);
 
 	state->irq = platform_get_irq(pdev, 0);
-	if (state->irq < 0) {
-		dev_err(dev, "Failed to get irq\n");
+	if (state->irq < 0)
 		return state->irq;
-	}
 
 	for (i = 0; i < CSIS_NUM_SUPPLIES; i++)
 		state->supplies[i].supply = csis_supply_name[i];

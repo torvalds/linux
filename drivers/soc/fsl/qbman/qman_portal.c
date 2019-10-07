@@ -233,7 +233,7 @@ static int qman_portal_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	struct qm_portal_config *pcfg;
 	struct resource *addr_phys[2];
-	int irq, cpu, err;
+	int irq, cpu, err, i;
 	u32 val;
 
 	err = qman_is_probed();
@@ -275,10 +275,8 @@ static int qman_portal_probe(struct platform_device *pdev)
 	pcfg->channel = val;
 	pcfg->cpu = -1;
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(dev, "Can't get %pOF IRQ\n", node);
+	if (irq <= 0)
 		goto err_ioremap1;
-	}
 	pcfg->irq = irq;
 
 	pcfg->addr_virt_ce = memremap(addr_phys[0]->start,
@@ -324,6 +322,22 @@ static int qman_portal_probe(struct platform_device *pdev)
 	/* clear irq affinity if assigned cpu is offline */
 	if (!cpu_online(cpu))
 		qman_offline_cpu(cpu);
+
+	if (__qman_portals_probed == 1 && qman_requires_cleanup()) {
+		/*
+		 * QMan wasn't reset prior to boot (Kexec for example)
+		 * Empty all the frame queues so they are in reset state
+		 */
+		for (i = 0; i < qm_get_fqid_maxcnt(); i++) {
+			err =  qman_shutdown_fq(i);
+			if (err) {
+				dev_err(dev, "Failed to shutdown frame queue %d\n",
+					i);
+				goto err_portal_init;
+			}
+		}
+		qman_done_cleanup();
+	}
 
 	return 0;
 

@@ -1151,7 +1151,7 @@ static int nh_create_ipv4(struct net *net, struct nexthop *nh,
 		.fc_encap_type = cfg->nh_encap_type,
 	};
 	u32 tb_id = l3mdev_fib_table(cfg->dev);
-	int err = -EINVAL;
+	int err;
 
 	err = fib_nh_init(net, fib_nh, &fib_cfg, 1, extack);
 	if (err) {

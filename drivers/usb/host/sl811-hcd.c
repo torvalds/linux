@@ -1632,12 +1632,6 @@ sl811h_probe(struct platform_device *dev)
 	irq = ires->start;
 	irqflags = ires->flags & IRQF_TRIGGER_MASK;
 
-	/* refuse to confuse usbcore */
-	if (dev->dev.dma_mask) {
-		dev_dbg(&dev->dev, "no we won't dma\n");
-		return -EINVAL;
-	}
-
 	/* the chip may be wired for either kind of addressing */
 	addr = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	data = platform_get_resource(dev, IORESOURCE_MEM, 1);

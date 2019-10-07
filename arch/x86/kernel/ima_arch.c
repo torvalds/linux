@@ -74,9 +74,9 @@ bool arch_ima_get_secureboot(void)
 
 /* secureboot arch rules */
 static const char * const sb_arch_rules[] = {
-#if !IS_ENABLED(CONFIG_KEXEC_VERIFY_SIG)
+#if !IS_ENABLED(CONFIG_KEXEC_SIG)
 	"appraise func=KEXEC_KERNEL_CHECK appraise_type=imasig",
-#endif /* CONFIG_KEXEC_VERIFY_SIG */
+#endif /* CONFIG_KEXEC_SIG */
 	"measure func=KEXEC_KERNEL_CHECK",
 #if !IS_ENABLED(CONFIG_MODULE_SIG)
 	"appraise func=MODULE_CHECK appraise_type=imasig",

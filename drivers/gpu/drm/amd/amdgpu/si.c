@@ -1186,6 +1186,12 @@ static int si_asic_reset(struct amdgpu_device *adev)
 	return 0;
 }
 
+static enum amd_reset_method
+si_asic_reset_method(struct amdgpu_device *adev)
+{
+	return AMD_RESET_METHOD_LEGACY;
+}
+
 static u32 si_get_config_memsize(struct amdgpu_device *adev)
 {
 	return RREG32(mmCONFIG_MEMSIZE);
@@ -1394,6 +1400,7 @@ static const struct amdgpu_asic_funcs si_asic_funcs =
 	.read_bios_from_rom = &si_read_bios_from_rom,
 	.read_register = &si_read_register,
 	.reset = &si_asic_reset,
+	.reset_method = &si_asic_reset_method,
 	.set_vga_state = &si_vga_set_state,
 	.get_xclk = &si_get_xclk,
 	.set_uvd_clocks = &si_set_uvd_clocks,
@@ -1881,7 +1888,7 @@ static void si_program_aspm(struct amdgpu_device *adev)
 			if (orig != data)
 				si_pif_phy1_wreg(adev,PB1_PIF_PWRDOWN_1, data);
 
-			if ((adev->family != CHIP_OLAND) && (adev->family != CHIP_HAINAN)) {
+			if ((adev->asic_type != CHIP_OLAND) && (adev->asic_type != CHIP_HAINAN)) {
 				orig = data = si_pif_phy0_rreg(adev,PB0_PIF_PWRDOWN_0);
 				data &= ~PLL_RAMP_UP_TIME_0_MASK;
 				if (orig != data)
@@ -1930,14 +1937,14 @@ static void si_program_aspm(struct amdgpu_device *adev)
 
 			orig = data = si_pif_phy0_rreg(adev,PB0_PIF_CNTL);
 			data &= ~LS2_EXIT_TIME_MASK;
-			if ((adev->family == CHIP_OLAND) || (adev->family == CHIP_HAINAN))
+			if ((adev->asic_type == CHIP_OLAND) || (adev->asic_type == CHIP_HAINAN))
 				data |= LS2_EXIT_TIME(5);
 			if (orig != data)
 				si_pif_phy0_wreg(adev,PB0_PIF_CNTL, data);
 
 			orig = data = si_pif_phy1_rreg(adev,PB1_PIF_CNTL);
 			data &= ~LS2_EXIT_TIME_MASK;
-			if ((adev->family == CHIP_OLAND) || (adev->family == CHIP_HAINAN))
+			if ((adev->asic_type == CHIP_OLAND) || (adev->asic_type == CHIP_HAINAN))
 				data |= LS2_EXIT_TIME(5);
 			if (orig != data)
 				si_pif_phy1_wreg(adev,PB1_PIF_CNTL, data);

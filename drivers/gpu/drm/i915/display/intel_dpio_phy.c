@@ -23,8 +23,8 @@
 
 #include "display/intel_dp.h"
 
+#include "intel_display_types.h"
 #include "intel_dpio_phy.h"
-#include "intel_drv.h"
 #include "intel_sideband.h"
 
 /**
@@ -345,10 +345,8 @@ static u32 bxt_get_grc(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 static void bxt_phy_wait_grc_done(struct drm_i915_private *dev_priv,
 				  enum dpio_phy phy)
 {
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    BXT_PORT_REF_DW3(phy),
-				    GRC_DONE, GRC_DONE,
-				    10))
+	if (intel_de_wait_for_set(dev_priv, BXT_PORT_REF_DW3(phy),
+				  GRC_DONE, 10))
 		DRM_ERROR("timeout waiting for PHY%d GRC\n", phy);
 }
 

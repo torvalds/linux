@@ -374,10 +374,7 @@ static int sil680_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	host->iomap = pcim_iomap_table(pdev);
 
 	/* Setup DMA masks */
-	rc = dma_set_mask(&pdev->dev, ATA_DMA_MASK);
-	if (rc)
-		return rc;
-	rc = dma_set_coherent_mask(&pdev->dev, ATA_DMA_MASK);
+	rc = dma_set_mask_and_coherent(&pdev->dev, ATA_DMA_MASK);
 	if (rc)
 		return rc;
 	pci_set_master(pdev);

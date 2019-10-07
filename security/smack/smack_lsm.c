@@ -288,7 +288,7 @@ static struct smack_known *smk_fetch(const char *name, struct inode *ip,
 	if (!(ip->i_opflags & IOP_XATTR))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	buffer = kzalloc(SMK_LONGLABEL, GFP_KERNEL);
+	buffer = kzalloc(SMK_LONGLABEL, GFP_NOFS);
 	if (buffer == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -307,7 +307,7 @@ static struct smack_known *smk_fetch(const char *name, struct inode *ip,
 
 /**
  * init_inode_smack - initialize an inode security blob
- * @isp: the blob to initialize
+ * @inode: inode to extract the info from
  * @skp: a pointer to the Smack label entry to use in the blob
  *
  */
@@ -509,7 +509,7 @@ static int smack_ptrace_traceme(struct task_struct *ptp)
 
 /**
  * smack_syslog - Smack approval on syslog
- * @type: message type
+ * @typefrom_file: unused
  *
  * Returns 0 on success, error code otherwise.
  */
@@ -765,7 +765,7 @@ static int smack_sb_eat_lsm_opts(char *options, void **mnt_opts)
 /**
  * smack_set_mnt_opts - set Smack specific mount options
  * @sb: the file system superblock
- * @opts: Smack mount options
+ * @mnt_opts: Smack mount options
  * @kern_flags: mount option from kernel space or user space
  * @set_kern_flags: where to store converted mount opts
  *
@@ -937,7 +937,8 @@ static int smack_bprm_set_creds(struct linux_binprm *bprm)
 
 		if (rc != 0)
 			return rc;
-	} else if (bprm->unsafe)
+	}
+	if (bprm->unsafe & ~LSM_UNSAFE_PTRACE)
 		return -EPERM;
 
 	bsp->smk_task = isp->smk_task;
@@ -958,7 +959,7 @@ static int smack_bprm_set_creds(struct linux_binprm *bprm)
  * smack_inode_alloc_security - allocate an inode blob
  * @inode: the inode in need of a blob
  *
- * Returns 0 if it gets a blob, -ENOMEM otherwise
+ * Returns 0
  */
 static int smack_inode_alloc_security(struct inode *inode)
 {
@@ -1164,7 +1165,7 @@ static int smack_inode_rename(struct inode *old_inode,
  *
  * This is the important Smack hook.
  *
- * Returns 0 if access is permitted, -EACCES otherwise
+ * Returns 0 if access is permitted, an error code otherwise
  */
 static int smack_inode_permission(struct inode *inode, int mask)
 {
@@ -1222,8 +1223,7 @@ static int smack_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 
 /**
  * smack_inode_getattr - Smack check for getting attributes
- * @mnt: vfsmount of the object
- * @dentry: the object
+ * @path: path to extract the info from
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
@@ -1870,14 +1870,13 @@ static int smack_file_receive(struct file *file)
 /**
  * smack_file_open - Smack dentry open processing
  * @file: the object
- * @cred: task credential
  *
  * Set the security blob in the file structure.
  * Allow the open only if the task has read access. There are
  * many read operations (e.g. fstat) that you can do with an
  * fd even if you have the file open write-only.
  *
- * Returns 0
+ * Returns 0 if current has access, error code otherwise
  */
 static int smack_file_open(struct file *file)
 {
@@ -1900,7 +1899,7 @@ static int smack_file_open(struct file *file)
 
 /**
  * smack_cred_alloc_blank - "allocate" blank task-level security credentials
- * @new: the new credentials
+ * @cred: the new credentials
  * @gfp: the atomicity of any memory allocations
  *
  * Prepare a blank set of credentials for modification.  This must allocate all
@@ -1983,7 +1982,7 @@ static void smack_cred_transfer(struct cred *new, const struct cred *old)
 
 /**
  * smack_cred_getsecid - get the secid corresponding to a creds structure
- * @c: the object creds
+ * @cred: the object creds
  * @secid: where to put the result
  *
  * Sets the secid to contain a u32 version of the smack label.
@@ -2140,8 +2139,6 @@ static int smack_task_getioprio(struct task_struct *p)
 /**
  * smack_task_setscheduler - Smack check on setting scheduler
  * @p: the task object
- * @policy: unused
- * @lp: unused
  *
  * Return 0 if read access is permitted
  */
@@ -2611,8 +2608,9 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 
 /**
  * smk_ipv6_port_check - check Smack port access
- * @sock: socket
+ * @sk: socket
  * @address: address
+ * @act: the action being taken
  *
  * Create or update the port list entry
  */
@@ -2782,7 +2780,7 @@ static int smack_socket_post_create(struct socket *sock, int family,
  *
  * Cross reference the peer labels for SO_PEERSEC
  *
- * Returns 0 on success, and error code otherwise
+ * Returns 0
  */
 static int smack_socket_socketpair(struct socket *socka,
 		                   struct socket *sockb)
@@ -3014,13 +3012,13 @@ static int smack_shm_shmctl(struct kern_ipc_perm *isp, int cmd)
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smack_shm_shmat(struct kern_ipc_perm *ipc, char __user *shmaddr,
+static int smack_shm_shmat(struct kern_ipc_perm *isp, char __user *shmaddr,
 			   int shmflg)
 {
 	int may;
 
 	may = smack_flags_to_may(shmflg);
-	return smk_curacc_shm(ipc, may);
+	return smk_curacc_shm(isp, may);
 }
 
 /**
@@ -3925,6 +3923,8 @@ access_check:
 			skp = smack_ipv6host_label(&sadd);
 		if (skp == NULL)
 			skp = smack_net_ambient;
+		if (skb == NULL)
+			break;
 #ifdef CONFIG_AUDIT
 		smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
 		ad.a.u.net->family = family;
@@ -4762,7 +4762,7 @@ static __init void init_smack_known_list(void)
 /**
  * smack_init - initialize the smack system
  *
- * Returns 0
+ * Returns 0 on success, -ENOMEM is there's no memory
  */
 static __init int smack_init(void)
 {

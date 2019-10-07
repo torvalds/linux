@@ -44,10 +44,6 @@ unsigned long ioremap_base;
 unsigned long ioremap_bot;
 EXPORT_SYMBOL(ioremap_bot);
 
-#ifndef CONFIG_SMP
-struct pgtable_cache_struct quicklists;
-#endif
-
 static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
 		unsigned long flags)
 {

@@ -81,16 +81,13 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 		return 0;
 	} else if (ir_calc > ir) {
 		/* Increasing the denominator to select ir_s value */
-		while (ir_calc > ir) {
+		while (ir_calc >= ir && ir) {
 			ir_s_calc++;
 			ir_calc = DIVISOR_IR_B_126 / (tick * (1 << ir_s_calc));
 		}
 
-		if (ir_calc == ir)
-			*ir_b = 126;
-		else
-			*ir_b = (ir * tick * (1 << ir_s_calc) +
-				 (DIVISOR_CLK >> 1)) / DIVISOR_CLK;
+		*ir_b = (ir * tick * (1 << ir_s_calc) + (DIVISOR_CLK >> 1)) /
+			DIVISOR_CLK;
 	} else {
 		/* Increasing the numerator to select ir_u value */
 		u32 numerator;
@@ -104,7 +101,7 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 		if (ir_calc == ir) {
 			*ir_b = 126;
 		} else {
-			u32 denominator = (DIVISOR_CLK * (1 << --ir_u_calc));
+			u32 denominator = DIVISOR_CLK * (1 << --ir_u_calc);
 			*ir_b = (ir * tick + (denominator >> 1)) / denominator;
 		}
 	}
@@ -404,8 +401,8 @@ static int hclge_tm_port_shaper_cfg(struct hclge_dev *hdev)
 {
 	struct hclge_port_shapping_cmd *shap_cfg_cmd;
 	struct hclge_desc desc;
-	u32 shapping_para = 0;
 	u8 ir_u, ir_b, ir_s;
+	u32 shapping_para;
 	int ret;
 
 	ret = hclge_shaper_para_calc(hdev->hw.mac.speed,
@@ -650,12 +647,8 @@ static void hclge_pfc_info_init(struct hclge_dev *hdev)
 	}
 }
 
-static int hclge_tm_schd_info_init(struct hclge_dev *hdev)
+static void hclge_tm_schd_info_init(struct hclge_dev *hdev)
 {
-	if ((hdev->tx_sch_mode != HCLGE_FLAG_TC_BASE_SCH_MODE) &&
-	    (hdev->tm_info.num_pg != 1))
-		return -EINVAL;
-
 	hclge_tm_pg_info_init(hdev);
 
 	hclge_tm_tc_info_init(hdev);
@@ -663,8 +656,6 @@ static int hclge_tm_schd_info_init(struct hclge_dev *hdev)
 	hclge_tm_vport_info_update(hdev);
 
 	hclge_pfc_info_init(hdev);
-
-	return 0;
 }
 
 static int hclge_tm_pg_to_pri_map(struct hclge_dev *hdev)
@@ -1428,15 +1419,15 @@ int hclge_tm_init_hw(struct hclge_dev *hdev, bool init)
 
 int hclge_tm_schd_init(struct hclge_dev *hdev)
 {
-	int ret;
-
 	/* fc_mode is HCLGE_FC_FULL on reset */
 	hdev->tm_info.fc_mode = HCLGE_FC_FULL;
 	hdev->fc_mode_last_time = hdev->tm_info.fc_mode;
 
-	ret = hclge_tm_schd_info_init(hdev);
-	if (ret)
-		return ret;
+	if (hdev->tx_sch_mode != HCLGE_FLAG_TC_BASE_SCH_MODE &&
+	    hdev->tm_info.num_pg != 1)
+		return -EINVAL;
+
+	hclge_tm_schd_info_init(hdev);
 
 	return hclge_tm_init_hw(hdev, true);
 }

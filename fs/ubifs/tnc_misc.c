@@ -284,6 +284,7 @@ static int read_znode(struct ubifs_info *c, struct ubifs_zbranch *zzbr,
 	err = ubifs_node_check_hash(c, idx, zzbr->hash);
 	if (err) {
 		ubifs_bad_hash(c, idx, zzbr->hash, lnum, offs);
+		kfree(idx);
 		return err;
 	}
 

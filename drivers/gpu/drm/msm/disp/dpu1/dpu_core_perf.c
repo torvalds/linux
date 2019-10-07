@@ -214,7 +214,6 @@ static int _dpu_core_perf_crtc_update_bus(struct dpu_kms *kms,
  */
 void dpu_core_perf_crtc_release_bw(struct drm_crtc *crtc)
 {
-	struct drm_crtc *tmp_crtc;
 	struct dpu_crtc *dpu_crtc;
 	struct dpu_crtc_state *dpu_cstate;
 	struct dpu_kms *kms;
@@ -233,21 +232,8 @@ void dpu_core_perf_crtc_release_bw(struct drm_crtc *crtc)
 	dpu_crtc = to_dpu_crtc(crtc);
 	dpu_cstate = to_dpu_crtc_state(crtc->state);
 
-	/* only do this for command mode rt client */
-	if (dpu_crtc_get_intf_mode(crtc) != INTF_MODE_CMD)
+	if (atomic_dec_return(&kms->bandwidth_ref) > 0)
 		return;
-
-	/*
-	 * If video interface present, cmd panel bandwidth cannot be
-	 * released.
-	 */
-	if (dpu_crtc_get_intf_mode(crtc) == INTF_MODE_CMD)
-		drm_for_each_crtc(tmp_crtc, crtc->dev) {
-			if (tmp_crtc->enabled &&
-				dpu_crtc_get_intf_mode(tmp_crtc) ==
-						INTF_MODE_VIDEO)
-				return;
-		}
 
 	/* Release the bandwidth */
 	if (kms->perf.enable_bw_release) {

@@ -16,6 +16,8 @@
 #include <linux/fault-inject.h>
 #include <linux/rcupdate.h>
 
+#include <trace/events/block.h>
+
 extern unsigned int nvme_io_timeout;
 #define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
 
@@ -97,6 +99,21 @@ enum nvme_quirks {
 	 * Force simple suspend/resume path.
 	 */
 	NVME_QUIRK_SIMPLE_SUSPEND		= (1 << 10),
+
+	/*
+	 * Use only one interrupt vector for all queues
+	 */
+	NVME_QUIRK_SINGLE_VECTOR		= (1 << 11),
+
+	/*
+	 * Use non-standard 128 bytes SQEs.
+	 */
+	NVME_QUIRK_128_BYTES_SQES		= (1 << 12),
+
+	/*
+	 * Prevent tag overlap between queues
+	 */
+	NVME_QUIRK_SHARED_TAGS                  = (1 << 13),
 };
 
 /*
@@ -169,6 +186,7 @@ struct nvme_ctrl {
 	const struct nvme_ctrl_ops *ops;
 	struct request_queue *admin_q;
 	struct request_queue *connect_q;
+	struct request_queue *fabrics_q;
 	struct device *dev;
 	int instance;
 	int numa_node;
@@ -203,6 +221,7 @@ struct nvme_ctrl {
 	u16 oacs;
 	u16 nssa;
 	u16 nr_streams;
+	u16 sqsize;
 	u32 max_namespaces;
 	atomic_t abort_limit;
 	u8 vwc;
@@ -251,7 +270,6 @@ struct nvme_ctrl {
 	u16 hmmaxd;
 
 	/* Fabrics only */
-	u16 sqsize;
 	u32 ioccsz;
 	u32 iorcsz;
 	u16 icdoff;
@@ -431,8 +449,8 @@ void nvme_complete_rq(struct request *req);
 bool nvme_cancel_request(struct request *req, void *data, bool reserved);
 bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 		enum nvme_ctrl_state new_state);
-int nvme_disable_ctrl(struct nvme_ctrl *ctrl, u64 cap);
-int nvme_enable_ctrl(struct nvme_ctrl *ctrl, u64 cap);
+int nvme_disable_ctrl(struct nvme_ctrl *ctrl);
+int nvme_enable_ctrl(struct nvme_ctrl *ctrl);
 int nvme_shutdown_ctrl(struct nvme_ctrl *ctrl);
 int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		const struct nvme_ctrl_ops *ops, unsigned long quirks);
@@ -520,6 +538,16 @@ static inline void nvme_mpath_check_last_path(struct nvme_ns *ns)
 		kblockd_schedule_work(&head->requeue_work);
 }
 
+static inline void nvme_trace_bio_complete(struct request *req,
+        blk_status_t status)
+{
+	struct nvme_ns *ns = req->q->queuedata;
+
+	if (req->cmd_flags & REQ_NVME_MPATH)
+		trace_block_bio_complete(ns->head->disk->queue,
+					 req->bio, status);
+}
+
 extern struct device_attribute dev_attr_ana_grpid;
 extern struct device_attribute dev_attr_ana_state;
 extern struct device_attribute subsys_attr_iopolicy;
@@ -565,6 +593,10 @@ static inline void nvme_mpath_clear_ctrl_paths(struct nvme_ctrl *ctrl)
 {
 }
 static inline void nvme_mpath_check_last_path(struct nvme_ns *ns)
+{
+}
+static inline void nvme_trace_bio_complete(struct request *req,
+        blk_status_t status)
 {
 }
 static inline int nvme_mpath_init(struct nvme_ctrl *ctrl,

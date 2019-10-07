@@ -180,7 +180,7 @@ static int armada_37xx_mbox_probe(struct platform_device *pdev)
 	mbox->controller.ops = &a37xx_mbox_ops;
 	mbox->controller.txdone_irq = true;
 
-	ret = mbox_controller_register(&mbox->controller);
+	ret = devm_mbox_controller_register(mbox->dev, &mbox->controller);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register mailbox controller\n");
 		return ret;
@@ -190,17 +190,6 @@ static int armada_37xx_mbox_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int armada_37xx_mbox_remove(struct platform_device *pdev)
-{
-	struct a37xx_mbox *mbox = platform_get_drvdata(pdev);
-
-	if (!mbox)
-		return -EINVAL;
-
-	mbox_controller_unregister(&mbox->controller);
-
-	return 0;
-}
 
 static const struct of_device_id armada_37xx_mbox_match[] = {
 	{ .compatible = "marvell,armada-3700-rwtm-mailbox" },
@@ -211,7 +200,6 @@ MODULE_DEVICE_TABLE(of, armada_37xx_mbox_match);
 
 static struct platform_driver armada_37xx_mbox_driver = {
 	.probe	= armada_37xx_mbox_probe,
-	.remove	= armada_37xx_mbox_remove,
 	.driver	= {
 		.name		= DRIVER_NAME,
 		.of_match_table	= armada_37xx_mbox_match,

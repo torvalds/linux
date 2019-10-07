@@ -12,8 +12,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-
-#include "greybus.h"
+#include <linux/greybus.h>
 
 /* Greybus HID device's structure */
 struct gb_hid {

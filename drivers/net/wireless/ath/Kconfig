@@ -34,7 +34,7 @@ config ATH_TRACEPOINTS
        depends on ATH_DEBUG
        depends on EVENT_TRACING
        ---help---
-         This option enables tracepoints for atheros wireless drivers.
+	 This option enables tracepoints for atheros wireless drivers.
 	 Currently, ath9k makes use of this facility.
 
 config ATH_REG_DYNAMIC_USER_REG_HINTS

@@ -583,8 +583,10 @@ static const unsigned system_bus_cs3_pins[] = {156};
 static const int system_bus_cs3_muxvals[] = {1};
 static const unsigned uart0_pins[] = {85, 88};
 static const int uart0_muxvals[] = {1, 1};
-static const unsigned uart0_ctsrts_pins[] = {86, 87, 89};
-static const int uart0_ctsrts_muxvals[] = {1, 1, 1};
+static const unsigned uart0_ctsrts_pins[] = {86, 89};
+static const int uart0_ctsrts_muxvals[] = {1, 1};
+static const unsigned uart0_modem_pins[] = {87};
+static const int uart0_modem_muxvals[] = {1};
 static const unsigned uart1_pins[] = {155, 156};
 static const int uart1_muxvals[] = {13, 13};
 static const unsigned uart1b_pins[] = {69, 70};
@@ -641,6 +643,7 @@ static const struct uniphier_pinctrl_group uniphier_ld4_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(system_bus_cs3),
 	UNIPHIER_PINCTRL_GROUP(uart0),
 	UNIPHIER_PINCTRL_GROUP(uart0_ctsrts),
+	UNIPHIER_PINCTRL_GROUP(uart0_modem),
 	UNIPHIER_PINCTRL_GROUP(uart1),
 	UNIPHIER_PINCTRL_GROUP(uart1b),
 	UNIPHIER_PINCTRL_GROUP(uart2),
@@ -667,7 +670,8 @@ static const char * const system_bus_groups[] = {"system_bus",
 						 "system_bus_cs1",
 						 "system_bus_cs2",
 						 "system_bus_cs3"};
-static const char * const uart0_groups[] = {"uart0", "uart0_ctsrts"};
+static const char * const uart0_groups[] = {"uart0", "uart0_ctsrts",
+					    "uart0_modem"};
 static const char * const uart1_groups[] = {"uart1", "uart1b"};
 static const char * const uart2_groups[] = {"uart2"};
 static const char * const uart3_groups[] = {"uart3"};

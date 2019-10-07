@@ -36,12 +36,12 @@ static inline size_t genradix_depth_size(unsigned depth)
 #define GENRADIX_DEPTH_MASK				\
 	((unsigned long) (roundup_pow_of_two(GENRADIX_MAX_DEPTH + 1) - 1))
 
-unsigned genradix_root_to_depth(struct genradix_root *r)
+static inline unsigned genradix_root_to_depth(struct genradix_root *r)
 {
 	return (unsigned long) r & GENRADIX_DEPTH_MASK;
 }
 
-struct genradix_node *genradix_root_to_node(struct genradix_root *r)
+static inline struct genradix_node *genradix_root_to_node(struct genradix_root *r)
 {
 	return (void *) ((unsigned long) r & ~GENRADIX_DEPTH_MASK);
 }

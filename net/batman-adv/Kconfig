@@ -12,11 +12,11 @@ config BATMAN_ADV
 	depends on NET
 	select LIBCRC32C
 	help
-          B.A.T.M.A.N. (better approach to mobile ad-hoc networking) is
-          a routing protocol for multi-hop ad-hoc mesh networks. The
-          networks may be wired or wireless. See
-          https://www.open-mesh.org/ for more information and user space
-          tools.
+	  B.A.T.M.A.N. (better approach to mobile ad-hoc networking) is
+	  a routing protocol for multi-hop ad-hoc mesh networks. The
+	  networks may be wired or wireless. See
+	  https://www.open-mesh.org/ for more information and user space
+	  tools.
 
 config BATMAN_ADV_BATMAN_V
 	bool "B.A.T.M.A.N. V protocol"

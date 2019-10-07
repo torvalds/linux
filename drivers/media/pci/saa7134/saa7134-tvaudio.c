@@ -319,7 +319,6 @@ static int tvaudio_checkcarrier(struct saa7134_dev *dev, struct mainscan *scan)
 	__s32 left,right,value;
 
 	if (!(dev->tvnorm->id & scan->std)) {
-		value = 0;
 		audio_dbg(1, "skipping %d.%03d MHz [%4s]\n",
 			  scan->carr / 1000, scan->carr % 1000, scan->name);
 		return 0;

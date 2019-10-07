@@ -8,6 +8,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/bitfield.h>
 #include <linux/extable.h>
 #include <linux/signal.h>
 #include <linux/mm.h>
@@ -86,8 +87,8 @@ static void mem_abort_decode(unsigned int esr)
 	pr_alert("Mem abort info:\n");
 
 	pr_alert("  ESR = 0x%08x\n", esr);
-	pr_alert("  Exception class = %s, IL = %u bits\n",
-		 esr_get_class_string(esr),
+	pr_alert("  EC = 0x%02lx: %s, IL = %u bits\n",
+		 ESR_ELx_EC(esr), esr_get_class_string(esr),
 		 (esr & ESR_ELx_IL) ? 32 : 16);
 	pr_alert("  SET = %lu, FnV = %lu\n",
 		 (esr & ESR_ELx_SET_MASK) >> ESR_ELx_SET_SHIFT,
@@ -109,7 +110,7 @@ static inline bool is_ttbr0_addr(unsigned long addr)
 static inline bool is_ttbr1_addr(unsigned long addr)
 {
 	/* TTBR1 addresses may have a tag if KASAN_SW_TAGS is in use */
-	return arch_kasan_reset_tag(addr) >= VA_START;
+	return arch_kasan_reset_tag(addr) >= PAGE_OFFSET;
 }
 
 /*
@@ -138,10 +139,9 @@ static void show_pte(unsigned long addr)
 		return;
 	}
 
-	pr_alert("%s pgtable: %luk pages, %u-bit VAs, pgdp=%016lx\n",
+	pr_alert("%s pgtable: %luk pages, %llu-bit VAs, pgdp=%016lx\n",
 		 mm == &init_mm ? "swapper" : "user", PAGE_SIZE / SZ_1K,
-		 mm == &init_mm ? VA_BITS : (int)vabits_user,
-		 (unsigned long)virt_to_phys(mm->pgd));
+		 vabits_actual, (unsigned long)virt_to_phys(mm->pgd));
 	pgdp = pgd_offset(mm, addr);
 	pgd = READ_ONCE(*pgdp);
 	pr_alert("[%016lx] pgd=%016llx", addr, pgd_val(pgd));
@@ -242,6 +242,34 @@ static inline bool is_el1_permission_fault(unsigned long addr, unsigned int esr,
 	return false;
 }
 
+static bool __kprobes is_spurious_el1_translation_fault(unsigned long addr,
+							unsigned int esr,
+							struct pt_regs *regs)
+{
+	unsigned long flags;
+	u64 par, dfsc;
+
+	if (ESR_ELx_EC(esr) != ESR_ELx_EC_DABT_CUR ||
+	    (esr & ESR_ELx_FSC_TYPE) != ESR_ELx_FSC_FAULT)
+		return false;
+
+	local_irq_save(flags);
+	asm volatile("at s1e1r, %0" :: "r" (addr));
+	isb();
+	par = read_sysreg(par_el1);
+	local_irq_restore(flags);
+
+	if (!(par & SYS_PAR_EL1_F))
+		return false;
+
+	/*
+	 * If we got a different type of fault from the AT instruction,
+	 * treat the translation fault as spurious.
+	 */
+	dfsc = FIELD_PREP(SYS_PAR_EL1_FST, par);
+	return (dfsc & ESR_ELx_FSC_TYPE) != ESR_ELx_FSC_FAULT;
+}
+
 static void die_kernel_fault(const char *msg, unsigned long addr,
 			     unsigned int esr, struct pt_regs *regs)
 {
@@ -268,6 +296,10 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 	 * We are almost certainly not prepared to handle instruction faults.
 	 */
 	if (!is_el1_instruction_abort(esr) && fixup_exception(regs))
+		return;
+
+	if (WARN_RATELIMIT(is_spurious_el1_translation_fault(addr, esr, regs),
+	    "Ignoring spurious kernel translation fault at virtual address %016lx\n", addr))
 		return;
 
 	if (is_el1_permission_fault(addr, esr, regs)) {

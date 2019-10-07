@@ -674,6 +674,7 @@ config EEEPC_LAPTOP
 config ASUS_WMI
 	tristate "ASUS WMI Driver"
 	depends on ACPI_WMI
+	depends on ACPI_BATTERY
 	depends on INPUT
 	depends on HWMON
 	depends on BACKLIGHT_CLASS_DEVICE

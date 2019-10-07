@@ -407,10 +407,8 @@ static int prism2_enable_genesis(local_info_t *local, int hcr)
 		       hcr);
 		return 0;
 	} else {
-		printk(KERN_DEBUG "Readback test failed, HCR 0x%02x "
-		       "write %02x %02x %02x %02x read %02x %02x %02x %02x\n",
-		       hcr, initseq[0], initseq[1], initseq[2], initseq[3],
-		       readbuf[0], readbuf[1], readbuf[2], readbuf[3]);
+		printk(KERN_DEBUG "Readback test failed, HCR 0x%02x write %4ph read %4ph\n",
+		       hcr, initseq, readbuf);
 		return 1;
 	}
 }

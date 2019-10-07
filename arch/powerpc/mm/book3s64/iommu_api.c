@@ -129,11 +129,8 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
 		 * Allow to use larger than 64k IOMMU pages. Only do that
 		 * if we are backed by hugetlb.
 		 */
-		if ((mem->pageshift > PAGE_SHIFT) && PageHuge(page)) {
-			struct page *head = compound_head(page);
-
-			pageshift = compound_order(head) + PAGE_SHIFT;
-		}
+		if ((mem->pageshift > PAGE_SHIFT) && PageHuge(page))
+			pageshift = page_shift(compound_head(page));
 		mem->pageshift = min(mem->pageshift, pageshift);
 		/*
 		 * We don't need struct page reference any more, switch

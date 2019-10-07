@@ -61,8 +61,7 @@ extern void cputime_adjust(struct task_cputime *curr, struct prev_cputime *prev,
  * Thread group CPU time accounting.
  */
 void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times);
-void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times);
-
+void thread_group_sample_cputime(struct task_struct *tsk, u64 *samples);
 
 /*
  * The following are functions that support scheduler-internal time accounting.
@@ -71,7 +70,7 @@ void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times);
  */
 
 /**
- * get_running_cputimer - return &tsk->signal->cputimer if cputimer is running
+ * get_running_cputimer - return &tsk->signal->cputimer if cputimers are active
  *
  * @tsk:	Pointer to target task.
  */
@@ -81,8 +80,11 @@ struct thread_group_cputimer *get_running_cputimer(struct task_struct *tsk)
 {
 	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
 
-	/* Check if cputimer isn't running. This is accessed without locking. */
-	if (!READ_ONCE(cputimer->running))
+	/*
+	 * Check whether posix CPU timers are active. If not the thread
+	 * group accounting is not active either. Lockless check.
+	 */
+	if (!READ_ONCE(tsk->signal->posix_cputimers.timers_active))
 		return NULL;
 
 	/*
