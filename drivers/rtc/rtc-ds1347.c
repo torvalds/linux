@@ -29,6 +29,9 @@
 #define DS1347_STATUS_REG	0x17
 #define DS1347_CLOCK_BURST	0x3F
 
+#define DS1347_NEOSC_BIT	BIT(7)
+#define DS1347_OSF_BIT		BIT(2)
+
 static const struct regmap_range ds1347_ranges[] = {
 	{
 		.range_min = DS1347_SECONDS_REG,
@@ -44,8 +47,16 @@ static const struct regmap_access_table ds1347_access_table = {
 static int ds1347_read_time(struct device *dev, struct rtc_time *dt)
 {
 	struct regmap *map = dev_get_drvdata(dev);
+	unsigned int status;
 	int err;
 	unsigned char buf[8];
+
+	err = regmap_read(map, DS1347_STATUS_REG, &status);
+	if (err)
+		return err;
+
+	if (status & DS1347_OSF_BIT)
+		return -EINVAL;
 
 	err = regmap_bulk_read(map, DS1347_CLOCK_BURST, buf, 8);
 	if (err)
@@ -66,6 +77,12 @@ static int ds1347_set_time(struct device *dev, struct rtc_time *dt)
 {
 	struct regmap *map = dev_get_drvdata(dev);
 	unsigned char buf[8];
+	int err;
+
+	err = regmap_update_bits(map, DS1347_STATUS_REG,
+				 DS1347_NEOSC_BIT, DS1347_NEOSC_BIT);
+	if (err)
+		return err;
 
 	buf[0] = bin2bcd(dt->tm_sec);
 	buf[1] = bin2bcd(dt->tm_min);
@@ -82,7 +99,12 @@ static int ds1347_set_time(struct device *dev, struct rtc_time *dt)
 	buf[7] = bin2bcd(0x00);
 
 	/* write the rtc settings */
-	return regmap_bulk_write(map, DS1347_CLOCK_BURST, buf, 8);
+	err = regmap_bulk_write(map, DS1347_CLOCK_BURST, buf, 8);
+	if (err)
+		return err;
+
+	return regmap_update_bits(map, DS1347_STATUS_REG,
+				  DS1347_NEOSC_BIT | DS1347_OSF_BIT, 0);
 }
 
 static const struct rtc_class_ops ds1347_rtc_ops = {
@@ -122,12 +144,6 @@ static int ds1347_probe(struct spi_device *spi)
 	regmap_read(map, DS1347_CONTROL_REG, &data);
 	data = data & ~(1<<7);
 	regmap_write(map, DS1347_CONTROL_REG, data);
-
-	/* Enable the oscillator , disable the oscillator stop flag,
-	 and glitch filter to reduce current consumption */
-	regmap_read(map, DS1347_STATUS_REG, &data);
-	data = data & 0x1B;
-	regmap_write(map, DS1347_STATUS_REG, data);
 
 	rtc = devm_rtc_allocate_device(&spi->dev);
 	if (IS_ERR(rtc))
