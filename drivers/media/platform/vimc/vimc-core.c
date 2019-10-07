@@ -199,9 +199,8 @@ static int vimc_register_devices(struct vimc_device *vimc)
 	}
 
 	/* allocate ent_devs */
-	vimc->ent_devs = kmalloc_array(vimc->pipe_cfg->num_ents,
-				       sizeof(*vimc->ent_devs),
-				       GFP_KERNEL);
+	vimc->ent_devs = kcalloc(vimc->pipe_cfg->num_ents,
+				 sizeof(*vimc->ent_devs), GFP_KERNEL);
 	if (!vimc->ent_devs) {
 		ret = -ENOMEM;
 		goto err_v4l2_unregister;
