@@ -13316,10 +13316,15 @@ intel_modeset_verify_disabled(struct drm_i915_private *dev_priv,
 	verify_disabled_dpll_state(dev_priv);
 }
 
-static void update_scanline_offset(const struct intel_crtc_state *crtc_state)
+static void
+intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
+
+	drm_calc_timestamping_constants(&crtc->base, adjusted_mode);
 
 	/*
 	 * The scanline counter increments at the leading edge of hsync.
@@ -13349,7 +13354,6 @@ static void update_scanline_offset(const struct intel_crtc_state *crtc_state)
 	 * answer that's slightly in the future.
 	 */
 	if (IS_GEN(dev_priv, 2)) {
-		const struct drm_display_mode *adjusted_mode = &crtc_state->base.adjusted_mode;
 		int vtotal;
 
 		vtotal = adjusted_mode->crtc_vtotal;
@@ -13360,8 +13364,9 @@ static void update_scanline_offset(const struct intel_crtc_state *crtc_state)
 	} else if (HAS_DDI(dev_priv) &&
 		   intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
 		crtc->scanline_offset = 2;
-	} else
+	} else {
 		crtc->scanline_offset = 1;
+	}
 }
 
 static void intel_modeset_clear_plls(struct intel_atomic_state *state)
@@ -13784,7 +13789,8 @@ static void intel_update_crtc(struct intel_crtc *crtc,
 						 to_intel_plane(crtc->base.primary));
 
 	if (modeset) {
-		update_scanline_offset(new_crtc_state);
+		intel_crtc_update_active_timings(new_crtc_state);
+
 		dev_priv->display.crtc_enable(new_crtc_state, state);
 
 		/* vblanks work again, re-enable pipe CRC. */
@@ -16812,9 +16818,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			if (WARN_ON(min_cdclk < 0))
 				min_cdclk = 0;
 
-			drm_calc_timestamping_constants(&crtc->base,
-							&crtc_state->base.adjusted_mode);
-			update_scanline_offset(crtc_state);
+			intel_crtc_update_active_timings(crtc_state);
 		}
 
 		dev_priv->min_cdclk[crtc->pipe] = min_cdclk;
