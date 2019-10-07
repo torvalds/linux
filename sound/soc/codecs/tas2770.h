@@ -125,40 +125,19 @@
 #define ERROR_UNDER_VOLTAGE 0x0000008
 #define ERROR_BROWNOUT      0x0000010
 #define ERROR_CLASSD_PWR    0x0000020
-#define TAS2770_SLOT_16BIT  16
-#define TAS2770_SLOT_32BIT  32
-#define TAS2770_I2C_RETRY_COUNT      3
-
-struct tas2770_register {
-	int book;
-	int page;
-	int reg;
-};
-
-struct tas2770_dai_cfg {
-	unsigned int dai_fmt;
-	unsigned int tdm_delay;
-};
 
 struct tas2770_priv {
 	struct device *dev;
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
 	struct snd_soc_component *component;
-	struct mutex dev_lock;
-	struct hrtimer mtimer;
 	int power_state;
 	int asi_format;
 	struct gpio_desc *reset_gpio;
 	int sampling_rate;
-	int frame_size;
 	int channel_size;
 	int slot_width;
 	int v_sense_slot;
 	int i_sense_slot;
-	bool runtime_suspend;
-	unsigned int err_code;
-	struct mutex codec_lock;
 };
 
 #endif /* __TAS2770__ */
