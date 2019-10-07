@@ -109,7 +109,7 @@ static int can_rx_offload_compare(struct sk_buff *a, struct sk_buff *b)
 	cb_a = can_rx_offload_get_cb(a);
 	cb_b = can_rx_offload_get_cb(b);
 
-	/* Substract two u32 and return result as int, to keep
+	/* Subtract two u32 and return result as int, to keep
 	 * difference steady around the u32 overflow.
 	 */
 	return cb_b->timestamp - cb_a->timestamp;
