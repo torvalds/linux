@@ -1584,11 +1584,6 @@ static int sysc_reset(struct sysc *ddata)
 static int sysc_init_module(struct sysc *ddata)
 {
 	int error = 0;
-	bool manage_clocks = true;
-
-	if (ddata->cfg.quirks &
-	    (SYSC_QUIRK_NO_IDLE | SYSC_QUIRK_NO_IDLE_ON_INIT))
-		manage_clocks = false;
 
 	error = sysc_clockdomain_init(ddata);
 	if (error)
@@ -1621,28 +1616,32 @@ static int sysc_init_module(struct sysc *ddata)
 	if (ddata->legacy_mode) {
 		error = sysc_legacy_init(ddata);
 		if (error)
-			goto err_main_clocks;
+			goto err_reset;
 	}
 
 	if (!ddata->legacy_mode) {
 		error = sysc_enable_module(ddata->dev);
 		if (error)
-			goto err_main_clocks;
+			goto err_reset;
 	}
 
 	error = sysc_reset(ddata);
 	if (error)
 		dev_err(ddata->dev, "Reset failed with %d\n", error);
 
-	if (!ddata->legacy_mode && manage_clocks)
+	if (error && !ddata->legacy_mode)
 		sysc_disable_module(ddata->dev);
 
+err_reset:
+	if (error && !(ddata->cfg.quirks & SYSC_QUIRK_NO_RESET_ON_INIT))
+		reset_control_assert(ddata->rsts);
+
 err_main_clocks:
-	if (manage_clocks)
+	if (error)
 		sysc_disable_main_clocks(ddata);
 err_opt_clocks:
 	/* No re-enable of clockdomain autoidle to prevent module autoidle */
-	if (manage_clocks) {
+	if (error) {
 		sysc_disable_opt_clocks(ddata);
 		sysc_clkdm_allow_idle(ddata);
 	}
@@ -2415,9 +2414,16 @@ static int sysc_probe(struct platform_device *pdev)
 		goto unprepare;
 	}
 
-	/* Balance reset counts */
-	if (ddata->rsts)
+	/* Balance use counts as PM runtime should have enabled these all */
+	if (!(ddata->cfg.quirks & SYSC_QUIRK_NO_RESET_ON_INIT))
 		reset_control_assert(ddata->rsts);
+
+	if (!(ddata->cfg.quirks &
+	      (SYSC_QUIRK_NO_IDLE | SYSC_QUIRK_NO_IDLE_ON_INIT))) {
+		sysc_disable_main_clocks(ddata);
+		sysc_disable_opt_clocks(ddata);
+		sysc_clkdm_allow_idle(ddata);
+	}
 
 	sysc_show_registers(ddata);
 
