@@ -387,7 +387,8 @@ struct pqi_task_management_request {
 	struct pqi_iu_header header;
 	__le16	request_id;
 	__le16	nexus_id;
-	u8	reserved[4];
+	u8	reserved[2];
+	__le16  timeout;
 	u8	lun_number[8];
 	__le16	protocol_specific;
 	__le16	outbound_queue_id_to_manage;
@@ -764,6 +765,7 @@ struct pqi_config_table_firmware_features {
 #define PQI_FIRMWARE_FEATURE_SMP			1
 #define PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE	11
 #define PQI_FIRMWARE_FEATURE_RAID_IU_TIMEOUT		13
+#define PQI_FIRMWARE_FEATURE_TMF_IU_TIMEOUT		14
 
 struct pqi_config_table_debug {
 	struct pqi_config_table_section_header header;
@@ -1142,6 +1144,7 @@ struct pqi_ctrl_info {
 	u8		pqi_reset_quiesce_supported : 1;
 	u8		soft_reset_handshake_supported : 1;
 	u8		raid_iu_timeout_supported: 1;
+	u8		tmf_iu_timeout_supported: 1;
 
 	struct list_head scsi_device_list;
 	spinlock_t	scsi_device_list_lock;
