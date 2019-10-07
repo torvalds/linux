@@ -448,7 +448,7 @@ struct pqi_vendor_general_response {
 
 struct pqi_ofa_memory {
 	__le64	signature;	/* "OFA_QRM" */
-	__le16	version;	/* version of this struct(1 = 1st version) */
+	__le16	version;	/* version of this struct (1 = 1st version) */
 	u8	reserved[62];
 	__le32	bytes_allocated;	/* total allocated memory in bytes */
 	__le16	num_memory_descriptors;
@@ -831,9 +831,16 @@ union pqi_reset_register {
 
 struct report_lun_header {
 	__be32	list_length;
-	u8	extended_response;
+	u8	flags;
 	u8	reserved[3];
 };
+
+/* for flags field of struct report_lun_header */
+#define CISS_REPORT_LOG_FLAG_UNIQUE_LUN_ID	(1 << 0)
+#define CISS_REPORT_LOG_FLAG_QUEUE_DEPTH	(1 << 5)
+#define CISS_REPORT_LOG_FLAG_DRIVE_TYPE_MIX	(1 << 6)
+
+#define CISS_REPORT_PHYS_FLAG_OTHER		(1 << 1)
 
 struct report_log_lun_extended_entry {
 	u8	lunid[8];
@@ -856,7 +863,7 @@ struct report_phys_lun_extended_entry {
 };
 
 /* for device_flags field of struct report_phys_lun_extended_entry */
-#define REPORT_PHYS_LUN_DEV_FLAG_AIO_ENABLED	0x8
+#define CISS_REPORT_PHYS_DEV_FLAG_AIO_ENABLED	0x8
 
 struct report_phys_lun_extended {
 	struct report_lun_header header;
@@ -869,7 +876,7 @@ struct raid_map_disk_data {
 	u8	reserved[2];
 };
 
-/* constants for flags field of RAID map */
+/* for flags field of RAID map */
 #define RAID_MAP_ENCRYPTION_ENABLED	0x1
 
 struct raid_map {
@@ -1173,9 +1180,9 @@ struct pqi_ctrl_info {
 	spinlock_t	raid_bypass_retry_list_lock;
 	struct work_struct raid_bypass_retry_work;
 
-	struct          pqi_ofa_memory *pqi_ofa_mem_virt_addr;
-	dma_addr_t      pqi_ofa_mem_dma_handle;
-	void            **pqi_ofa_chunk_virt_addr;
+	struct pqi_ofa_memory *pqi_ofa_mem_virt_addr;
+	dma_addr_t	pqi_ofa_mem_dma_handle;
+	void		**pqi_ofa_chunk_virt_addr;
 	atomic_t	sync_cmds_outstanding;
 };
 
@@ -1195,10 +1202,6 @@ enum pqi_ctrl_mode {
 #define CISS_REPORT_PHYS	0xc3	/* Report Physical LUNs */
 #define CISS_GET_RAID_MAP	0xc8
 
-/* constants for CISS_REPORT_LOG/CISS_REPORT_PHYS commands */
-#define CISS_REPORT_LOG_EXTENDED		0x1
-#define CISS_REPORT_PHYS_EXTENDED		0x2
-
 /* BMIC commands */
 #define BMIC_IDENTIFY_CONTROLLER		0x11
 #define BMIC_IDENTIFY_PHYSICAL_DEVICE		0x15
@@ -1212,7 +1215,7 @@ enum pqi_ctrl_mode {
 #define BMIC_SET_DIAG_OPTIONS			0xf4
 #define BMIC_SENSE_DIAG_OPTIONS			0xf5
 
-#define CSMI_CC_SAS_SMP_PASSTHRU		0X17
+#define CSMI_CC_SAS_SMP_PASSTHRU		0x17
 
 #define SA_FLUSH_CACHE				0x1
 
@@ -1248,10 +1251,12 @@ struct bmic_sense_subsystem_info {
 	u8	ctrl_serial_number[16];
 };
 
-#define SA_EXPANDER_SMP_DEVICE		0x05
-#define SA_CONTROLLER_DEVICE		0x07
-/*SCSI Invalid Device Type for SAS devices*/
-#define PQI_SAS_SCSI_INVALID_DEVTYPE	0xff
+/* constants for device_type field */
+#define SA_DEVICE_TYPE_SATA		0x1
+#define SA_DEVICE_TYPE_SAS		0x2
+#define SA_DEVICE_TYPE_EXPANDER_SMP	0x5
+#define SA_DEVICE_TYPE_CONTROLLER	0x7
+#define SA_DEVICE_TYPE_NVME		0x9
 
 struct bmic_identify_physical_device {
 	u8	scsi_bus;		/* SCSI Bus number on controller */
@@ -1277,7 +1282,7 @@ struct bmic_identify_physical_device {
 	__le32	rpm;			/* drive rotational speed in RPM */
 	u8	device_type;		/* type of drive */
 	u8	sata_version;		/* only valid when device_type = */
-					/* BMIC_DEVICE_TYPE_SATA */
+					/* SA_DEVICE_TYPE_SATA */
 	__le64	big_total_block_count;
 	__le64	ris_starting_lba;
 	__le32	ris_size;
@@ -1400,18 +1405,6 @@ struct bmic_diag_options {
 
 #pragma pack()
 
-static inline struct pqi_ctrl_info *shost_to_hba(struct Scsi_Host *shost)
-{
-	void *hostdata = shost_priv(shost);
-
-	return *((struct pqi_ctrl_info **)hostdata);
-}
-
-static inline bool pqi_ctrl_offline(struct pqi_ctrl_info *ctrl_info)
-{
-	return !ctrl_info->controller_online;
-}
-
 static inline void pqi_ctrl_busy(struct pqi_ctrl_info *ctrl_info)
 {
 	atomic_inc(&ctrl_info->num_busy_threads);
@@ -1422,14 +1415,11 @@ static inline void pqi_ctrl_unbusy(struct pqi_ctrl_info *ctrl_info)
 	atomic_dec(&ctrl_info->num_busy_threads);
 }
 
-static inline bool pqi_ctrl_blocked(struct pqi_ctrl_info *ctrl_info)
+static inline struct pqi_ctrl_info *shost_to_hba(struct Scsi_Host *shost)
 {
-	return ctrl_info->block_requests;
-}
+	void *hostdata = shost_priv(shost);
 
-static inline bool pqi_device_reset_blocked(struct pqi_ctrl_info *ctrl_info)
-{
-	return ctrl_info->block_device_reset;
+	return *((struct pqi_ctrl_info **)hostdata);
 }
 
 void pqi_sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
