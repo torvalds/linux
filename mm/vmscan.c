@@ -2459,17 +2459,80 @@ out:
 	*lru_pages = 0;
 	for_each_evictable_lru(lru) {
 		int file = is_file_lru(lru);
-		unsigned long size;
+		unsigned long lruvec_size;
 		unsigned long scan;
+		unsigned long protection;
 
-		size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
-		scan = size >> sc->priority;
+		lruvec_size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
+		protection = mem_cgroup_protection(memcg);
+
+		if (protection > 0) {
+			/*
+			 * Scale a cgroup's reclaim pressure by proportioning
+			 * its current usage to its memory.low or memory.min
+			 * setting.
+			 *
+			 * This is important, as otherwise scanning aggression
+			 * becomes extremely binary -- from nothing as we
+			 * approach the memory protection threshold, to totally
+			 * nominal as we exceed it.  This results in requiring
+			 * setting extremely liberal protection thresholds. It
+			 * also means we simply get no protection at all if we
+			 * set it too low, which is not ideal.
+			 */
+			unsigned long cgroup_size = mem_cgroup_size(memcg);
+			unsigned long baseline = 0;
+
+			/*
+			 * During the reclaim first pass, we only consider
+			 * cgroups in excess of their protection setting, but if
+			 * that doesn't produce free pages, we come back for a
+			 * second pass where we reclaim from all groups.
+			 *
+			 * To maintain fairness in both cases, the first pass
+			 * targets groups in proportion to their overage, and
+			 * the second pass targets groups in proportion to their
+			 * protection utilization.
+			 *
+			 * So on the first pass, a group whose size is 130% of
+			 * its protection will be targeted at 30% of its size.
+			 * On the second pass, a group whose size is at 40% of
+			 * its protection will be
+			 * targeted at 40% of its size.
+			 */
+			if (!sc->memcg_low_reclaim)
+				baseline = lruvec_size;
+			scan = lruvec_size * cgroup_size / protection - baseline;
+
+			/*
+			 * Don't allow the scan target to exceed the lruvec
+			 * size, which otherwise could happen if we have >200%
+			 * overage in the normal case, or >100% overage when
+			 * sc->memcg_low_reclaim is set.
+			 *
+			 * This is important because other cgroups without
+			 * memory.low have their scan target initially set to
+			 * their lruvec size, so allowing values >100% of the
+			 * lruvec size here could result in penalising cgroups
+			 * with memory.low set even *more* than their peers in
+			 * some cases in the case of large overages.
+			 *
+			 * Also, minimally target SWAP_CLUSTER_MAX pages to keep
+			 * reclaim moving forwards.
+			 */
+			scan = clamp(scan, SWAP_CLUSTER_MAX, lruvec_size);
+		} else {
+			scan = lruvec_size;
+		}
+
+		scan >>= sc->priority;
+
 		/*
 		 * If the cgroup's already been deleted, make sure to
 		 * scrape out the remaining cache.
 		 */
 		if (!scan && !mem_cgroup_online(memcg))
-			scan = min(size, SWAP_CLUSTER_MAX);
+			scan = min(lruvec_size, SWAP_CLUSTER_MAX);
 
 		switch (scan_balance) {
 		case SCAN_EQUAL:
@@ -2489,7 +2552,7 @@ out:
 		case SCAN_ANON:
 			/* Scan one type exclusively */
 			if ((scan_balance == SCAN_FILE) != file) {
-				size = 0;
+				lruvec_size = 0;
 				scan = 0;
 			}
 			break;
@@ -2498,7 +2561,7 @@ out:
 			BUG();
 		}
 
-		*lru_pages += size;
+		*lru_pages += lruvec_size;
 		nr[lru] = scan;
 	}
 }
@@ -2742,6 +2805,13 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
 				memcg_memory_event(memcg, MEMCG_LOW);
 				break;
 			case MEMCG_PROT_NONE:
+				/*
+				 * All protection thresholds breached. We may
+				 * still choose to vary the scan pressure
+				 * applied based on by how much the cgroup in
+				 * question has exceeded its protection
+				 * thresholds (see get_scan_count).
+				 */
 				break;
 			}
 
