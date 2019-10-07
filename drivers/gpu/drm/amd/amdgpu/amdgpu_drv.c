@@ -81,9 +81,10 @@
  * - 3.32.0 - Add syncobj timeline support to AMDGPU_CS.
  * - 3.33.0 - Fixes for GDS ENOMEM failures in AMDGPU_CS.
  * - 3.34.0 - Non-DC can flip correctly between buffers with different pitches
+ * - 3.35.0 - Add drm_amdgpu_info_device::tcc_disabled_mask
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	34
+#define KMS_DRIVER_MINOR	35
 #define KMS_DRIVER_PATCHLEVEL	0
 
 #define AMDGPU_MAX_TIMEOUT_PARAM_LENTH	256
