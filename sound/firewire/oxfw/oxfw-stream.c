@@ -244,7 +244,8 @@ static int keep_resources(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 
 int snd_oxfw_stream_reserve_duplex(struct snd_oxfw *oxfw,
 				   struct amdtp_stream *stream,
-				   unsigned int rate, unsigned int pcm_channels)
+				   unsigned int rate, unsigned int pcm_channels,
+				   unsigned int frames_per_period)
 {
 	struct snd_oxfw_stream_formation formation;
 	enum avc_general_plug_dir dir;
@@ -304,6 +305,15 @@ int snd_oxfw_stream_reserve_duplex(struct snd_oxfw *oxfw,
 				cmp_connection_release(&oxfw->in_conn);
 				return err;
 			}
+		}
+
+		err = amdtp_domain_set_events_per_period(&oxfw->domain,
+							frames_per_period);
+		if (err < 0) {
+			cmp_connection_release(&oxfw->in_conn);
+			if (oxfw->has_output)
+				cmp_connection_release(&oxfw->out_conn);
+			return err;
 		}
 	}
 

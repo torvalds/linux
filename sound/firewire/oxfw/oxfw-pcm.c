@@ -221,10 +221,11 @@ static int pcm_capture_hw_params(struct snd_pcm_substream *substream,
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		unsigned int rate = params_rate(hw_params);
 		unsigned int channels = params_channels(hw_params);
+		unsigned int frames_per_period = params_period_size(hw_params);
 
 		mutex_lock(&oxfw->mutex);
 		err = snd_oxfw_stream_reserve_duplex(oxfw, &oxfw->tx_stream,
-						     rate, channels);
+					rate, channels, frames_per_period);
 		if (err >= 0)
 			++oxfw->substreams_count;
 		mutex_unlock(&oxfw->mutex);
@@ -246,10 +247,11 @@ static int pcm_playback_hw_params(struct snd_pcm_substream *substream,
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		unsigned int rate = params_rate(hw_params);
 		unsigned int channels = params_channels(hw_params);
+		unsigned int frames_per_period = params_period_size(hw_params);
 
 		mutex_lock(&oxfw->mutex);
 		err = snd_oxfw_stream_reserve_duplex(oxfw, &oxfw->rx_stream,
-						     rate, channels);
+					rate, channels, frames_per_period);
 		if (err >= 0)
 			++oxfw->substreams_count;
 		mutex_unlock(&oxfw->mutex);
