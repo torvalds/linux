@@ -249,6 +249,11 @@ static inline void pqi_ctrl_unblock_requests(struct pqi_ctrl_info *ctrl_info)
 	scsi_unblock_requests(ctrl_info->scsi_host);
 }
 
+static inline void pqi_ctrl_block_device_reset(struct pqi_ctrl_info *ctrl_info)
+{
+	ctrl_info->block_device_reset = true;
+}
+
 static unsigned long pqi_wait_if_ctrl_blocked(struct pqi_ctrl_info *ctrl_info,
 	unsigned long timeout_msecs)
 {
@@ -331,6 +336,16 @@ static inline bool pqi_device_in_remove(struct pqi_ctrl_info *ctrl_info,
 	return device->in_remove && !ctrl_info->in_shutdown;
 }
 
+static inline void pqi_ctrl_shutdown_start(struct pqi_ctrl_info *ctrl_info)
+{
+	ctrl_info->in_shutdown = true;
+}
+
+static inline bool pqi_ctrl_in_shutdown(struct pqi_ctrl_info *ctrl_info)
+{
+	return ctrl_info->in_shutdown;
+}
+
 static inline void pqi_schedule_rescan_worker_with_delay(
 	struct pqi_ctrl_info *ctrl_info, unsigned long delay)
 {
@@ -358,6 +373,11 @@ static inline void pqi_schedule_rescan_worker_delayed(
 static inline void pqi_cancel_rescan_worker(struct pqi_ctrl_info *ctrl_info)
 {
 	cancel_delayed_work_sync(&ctrl_info->rescan_work);
+}
+
+static inline void pqi_cancel_event_worker(struct pqi_ctrl_info *ctrl_info)
+{
+	cancel_work_sync(&ctrl_info->event_work);
 }
 
 static inline u32 pqi_read_heartbeat_counter(struct pqi_ctrl_info *ctrl_info)
@@ -4119,6 +4139,8 @@ static int pqi_submit_raid_request_synchronous(struct pqi_ctrl_info *ctrl_info,
 		goto out;
 	}
 
+	atomic_inc(&ctrl_info->sync_cmds_outstanding);
+
 	io_request = pqi_alloc_io_request(ctrl_info);
 
 	put_unaligned_le16(io_request->index,
@@ -4165,6 +4187,7 @@ static int pqi_submit_raid_request_synchronous(struct pqi_ctrl_info *ctrl_info,
 
 	pqi_free_io_request(io_request);
 
+	atomic_dec(&ctrl_info->sync_cmds_outstanding);
 out:
 	up(&ctrl_info->sync_request_sem);
 
@@ -5399,7 +5422,7 @@ static int pqi_scsi_queue_command(struct Scsi_Host *shost,
 
 	pqi_ctrl_busy(ctrl_info);
 	if (pqi_ctrl_blocked(ctrl_info) || pqi_device_in_reset(device) ||
-	    pqi_ctrl_in_ofa(ctrl_info)) {
+	    pqi_ctrl_in_ofa(ctrl_info) || pqi_ctrl_in_shutdown(ctrl_info)) {
 		rc = SCSI_MLQUEUE_HOST_BUSY;
 		goto out;
 	}
@@ -5647,6 +5670,18 @@ static int pqi_ctrl_wait_for_pending_io(struct pqi_ctrl_info *ctrl_info,
 	return 0;
 }
 
+static int pqi_ctrl_wait_for_pending_sync_cmds(struct pqi_ctrl_info *ctrl_info)
+{
+	while (atomic_read(&ctrl_info->sync_cmds_outstanding)) {
+		pqi_check_ctrl_health(ctrl_info);
+		if (pqi_ctrl_offline(ctrl_info))
+			return -ENXIO;
+		usleep_range(1000, 2000);
+	}
+
+	return 0;
+}
+
 static void pqi_lun_reset_complete(struct pqi_io_request *io_request,
 	void *context)
 {
@@ -5784,17 +5819,17 @@ static int pqi_eh_device_reset_handler(struct scsi_cmnd *scmd)
 		shost->host_no, device->bus, device->target, device->lun);
 
 	pqi_check_ctrl_health(ctrl_info);
-	if (pqi_ctrl_offline(ctrl_info)) {
-		dev_err(&ctrl_info->pci_dev->dev,
-			"controller %u offlined - cannot send device reset\n",
-			ctrl_info->ctrl_id);
+	if (pqi_ctrl_offline(ctrl_info) ||
+		pqi_device_reset_blocked(ctrl_info)) {
 		rc = FAILED;
 		goto out;
 	}
 
 	pqi_wait_until_ofa_finished(ctrl_info);
 
+	atomic_inc(&ctrl_info->sync_cmds_outstanding);
 	rc = pqi_device_reset(ctrl_info, device);
+	atomic_dec(&ctrl_info->sync_cmds_outstanding);
 
 out:
 	dev_err(&ctrl_info->pci_dev->dev,
@@ -6116,7 +6151,8 @@ static int pqi_ioctl(struct scsi_device *sdev, unsigned int cmd,
 
 	ctrl_info = shost_to_hba(sdev->host);
 
-	if (pqi_ctrl_in_ofa(ctrl_info))
+	if (pqi_ctrl_in_ofa(ctrl_info) ||
+		pqi_ctrl_in_shutdown(ctrl_info))
 		return -EBUSY;
 
 	switch (cmd) {
@@ -7065,13 +7101,20 @@ static int pqi_force_sis_mode(struct pqi_ctrl_info *ctrl_info)
 	return pqi_revert_to_sis_mode(ctrl_info);
 }
 
+#define PQI_POST_RESET_DELAY_B4_MSGU_READY	5000
+
 static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
 
-	rc = pqi_force_sis_mode(ctrl_info);
-	if (rc)
-		return rc;
+	if (reset_devices) {
+		sis_soft_reset(ctrl_info);
+		msleep(PQI_POST_RESET_DELAY_B4_MSGU_READY);
+	} else {
+		rc = pqi_force_sis_mode(ctrl_info);
+		if (rc)
+			return rc;
+	}
 
 	/*
 	 * Wait until the controller is ready to start accepting SIS
@@ -7505,6 +7548,7 @@ static struct pqi_ctrl_info *pqi_alloc_ctrl_info(int numa_node)
 
 	INIT_WORK(&ctrl_info->event_work, pqi_event_worker);
 	atomic_set(&ctrl_info->num_interrupts, 0);
+	atomic_set(&ctrl_info->sync_cmds_outstanding, 0);
 
 	INIT_DELAYED_WORK(&ctrl_info->rescan_work, pqi_rescan_worker);
 	INIT_DELAYED_WORK(&ctrl_info->update_time_work, pqi_update_time_worker);
@@ -7778,8 +7822,6 @@ static int pqi_ofa_host_memory_update(struct pqi_ctrl_info *ctrl_info)
 		0, NULL, NO_TIMEOUT);
 }
 
-#define PQI_POST_RESET_DELAY_B4_MSGU_READY	5000
-
 static int pqi_ofa_ctrl_restart(struct pqi_ctrl_info *ctrl_info)
 {
 	msleep(PQI_POST_RESET_DELAY_B4_MSGU_READY);
@@ -7947,28 +7989,74 @@ static void pqi_pci_remove(struct pci_dev *pci_dev)
 	pqi_remove_ctrl(ctrl_info);
 }
 
+static void pqi_crash_if_pending_command(struct pqi_ctrl_info *ctrl_info)
+{
+	unsigned int i;
+	struct pqi_io_request *io_request;
+	struct scsi_cmnd *scmd;
+
+	for (i = 0; i < ctrl_info->max_io_slots; i++) {
+		io_request = &ctrl_info->io_request_pool[i];
+		if (atomic_read(&io_request->refcount) == 0)
+			continue;
+		scmd = io_request->scmd;
+		WARN_ON(scmd != NULL); /* IO command from SML */
+		WARN_ON(scmd == NULL); /* Non-IO cmd or driver initiated*/
+	}
+}
+
 static void pqi_shutdown(struct pci_dev *pci_dev)
 {
 	int rc;
 	struct pqi_ctrl_info *ctrl_info;
 
 	ctrl_info = pci_get_drvdata(pci_dev);
-	if (!ctrl_info)
-		goto error;
+	if (!ctrl_info) {
+		dev_err(&pci_dev->dev,
+			"cache could not be flushed\n");
+		return;
+	}
+
+	pqi_disable_events(ctrl_info);
+	pqi_wait_until_ofa_finished(ctrl_info);
+	pqi_cancel_update_time_worker(ctrl_info);
+	pqi_cancel_rescan_worker(ctrl_info);
+	pqi_cancel_event_worker(ctrl_info);
+
+	pqi_ctrl_shutdown_start(ctrl_info);
+	pqi_ctrl_wait_until_quiesced(ctrl_info);
+
+	rc = pqi_ctrl_wait_for_pending_io(ctrl_info, NO_TIMEOUT);
+	if (rc) {
+		dev_err(&pci_dev->dev,
+			"wait for pending I/O failed\n");
+		return;
+	}
+
+	pqi_ctrl_block_device_reset(ctrl_info);
+	pqi_wait_until_lun_reset_finished(ctrl_info);
 
 	/*
 	 * Write all data in the controller's battery-backed cache to
 	 * storage.
 	 */
 	rc = pqi_flush_cache(ctrl_info, SHUTDOWN);
-	pqi_free_interrupts(ctrl_info);
-	pqi_reset(ctrl_info);
-	if (rc == 0)
-		return;
+	if (rc)
+		dev_err(&pci_dev->dev,
+			"unable to flush controller cache\n");
 
-error:
-	dev_warn(&pci_dev->dev,
-		"unable to flush controller cache\n");
+	pqi_ctrl_block_requests(ctrl_info);
+
+	rc = pqi_ctrl_wait_for_pending_sync_cmds(ctrl_info);
+	if (rc) {
+		dev_err(&pci_dev->dev,
+			"wait for pending sync cmds failed\n");
+		return;
+	}
+
+	pqi_crash_if_pending_command(ctrl_info);
+	pqi_reset(ctrl_info);
+
 }
 
 static void pqi_process_lockup_action_param(void)

@@ -1130,8 +1130,9 @@ struct pqi_ctrl_info {
 	struct mutex	ofa_mutex; /* serialize ofa */
 	bool		controller_online;
 	bool		block_requests;
-	bool		in_shutdown;
+	bool		block_device_reset;
 	bool		in_ofa;
+	bool		in_shutdown;
 	u8		inbound_spanning_supported : 1;
 	u8		outbound_spanning_supported : 1;
 	u8		pqi_mode_enabled : 1;
@@ -1173,6 +1174,7 @@ struct pqi_ctrl_info {
 	struct          pqi_ofa_memory *pqi_ofa_mem_virt_addr;
 	dma_addr_t      pqi_ofa_mem_dma_handle;
 	void            **pqi_ofa_chunk_virt_addr;
+	atomic_t	sync_cmds_outstanding;
 };
 
 enum pqi_ctrl_mode {
@@ -1421,6 +1423,11 @@ static inline void pqi_ctrl_unbusy(struct pqi_ctrl_info *ctrl_info)
 static inline bool pqi_ctrl_blocked(struct pqi_ctrl_info *ctrl_info)
 {
 	return ctrl_info->block_requests;
+}
+
+static inline bool pqi_device_reset_blocked(struct pqi_ctrl_info *ctrl_info)
+{
+	return ctrl_info->block_device_reset;
 }
 
 void pqi_sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
