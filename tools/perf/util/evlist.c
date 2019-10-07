@@ -1053,6 +1053,9 @@ int perf_evlist__set_tp_filter(struct evlist *evlist, const char *filter)
 	struct evsel *evsel;
 	int err = 0;
 
+	if (filter == NULL)
+		return -1;
+
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT)
 			continue;
@@ -1065,16 +1068,15 @@ int perf_evlist__set_tp_filter(struct evlist *evlist, const char *filter)
 	return err;
 }
 
-int perf_evlist__set_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids)
+static char *asprintf__tp_filter_pids(size_t npids, pid_t *pids)
 {
 	char *filter;
-	int ret = -1;
 	size_t i;
 
 	for (i = 0; i < npids; ++i) {
 		if (i == 0) {
 			if (asprintf(&filter, "common_pid != %d", pids[i]) < 0)
-				return -1;
+				return NULL;
 		} else {
 			char *tmp;
 
@@ -1086,8 +1088,17 @@ int perf_evlist__set_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *
 		}
 	}
 
-	ret = perf_evlist__set_tp_filter(evlist, filter);
+	return filter;
 out_free:
+	free(filter);
+	return NULL;
+}
+
+int perf_evlist__set_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids)
+{
+	char *filter = asprintf__tp_filter_pids(npids, pids);
+	int ret = perf_evlist__set_tp_filter(evlist, filter);
+
 	free(filter);
 	return ret;
 }
