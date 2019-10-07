@@ -2,11 +2,14 @@
 #include <sys/mman.h>
 #include <internal/mmap.h>
 #include <internal/lib.h>
+#include <linux/kernel.h>
 
-void perf_mmap__init(struct perf_mmap *map, bool overwrite)
+void perf_mmap__init(struct perf_mmap *map, bool overwrite,
+		     libperf_unmap_cb_t unmap_cb)
 {
 	map->fd = -1;
 	map->overwrite = overwrite;
+	map->unmap_cb  = unmap_cb;
 	refcount_set(&map->refcnt, 0);
 }
 
@@ -40,9 +43,19 @@ void perf_mmap__munmap(struct perf_mmap *map)
 		map->fd = -1;
 		refcount_set(&map->refcnt, 0);
 	}
+	if (map && map->unmap_cb)
+		map->unmap_cb(map);
 }
 
 void perf_mmap__get(struct perf_mmap *map)
 {
 	refcount_inc(&map->refcnt);
+}
+
+void perf_mmap__put(struct perf_mmap *map)
+{
+	BUG_ON(map->base && refcount_read(&map->refcnt) == 0);
+
+	if (refcount_dec_and_test(&map->refcnt))
+		perf_mmap__munmap(map);
 }

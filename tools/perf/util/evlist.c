@@ -433,7 +433,7 @@ static void perf_evlist__munmap_filtered(struct fdarray *fda, int fd,
 	struct mmap *map = fda->priv[fd].ptr;
 
 	if (map)
-		perf_mmap__put(map);
+		perf_mmap__put(&map->core);
 }
 
 int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask)
@@ -601,11 +601,11 @@ static void evlist__munmap_nofree(struct evlist *evlist)
 
 	if (evlist->mmap)
 		for (i = 0; i < evlist->core.nr_mmaps; i++)
-			mmap__munmap(&evlist->mmap[i]);
+			perf_mmap__munmap(&evlist->mmap[i].core);
 
 	if (evlist->overwrite_mmap)
 		for (i = 0; i < evlist->core.nr_mmaps; i++)
-			mmap__munmap(&evlist->overwrite_mmap[i]);
+			perf_mmap__munmap(&evlist->overwrite_mmap[i].core);
 }
 
 void evlist__munmap(struct evlist *evlist)
@@ -613,6 +613,13 @@ void evlist__munmap(struct evlist *evlist)
 	evlist__munmap_nofree(evlist);
 	zfree(&evlist->mmap);
 	zfree(&evlist->overwrite_mmap);
+}
+
+static void perf_mmap__unmap_cb(struct perf_mmap *map)
+{
+	struct mmap *m = container_of(map, struct mmap, core);
+
+	mmap__munmap(m);
 }
 
 static struct mmap *evlist__alloc_mmap(struct evlist *evlist,
@@ -638,7 +645,7 @@ static struct mmap *evlist__alloc_mmap(struct evlist *evlist,
 		 * Each PERF_EVENT_IOC_SET_OUTPUT points to this mmap and
 		 * thus does perf_mmap__get() on it.
 		 */
-		perf_mmap__init(&map[i].core, overwrite);
+		perf_mmap__init(&map[i].core, overwrite, perf_mmap__unmap_cb);
 	}
 
 	return map;
@@ -715,7 +722,7 @@ static int evlist__mmap_per_evsel(struct evlist *evlist, int idx,
 		 */
 		if (!evsel->core.system_wide &&
 		     perf_evlist__add_pollfd(&evlist->core, fd, &maps[idx], revent) < 0) {
-			perf_mmap__put(&maps[idx]);
+			perf_mmap__put(&maps[idx].core);
 			return -1;
 		}
 

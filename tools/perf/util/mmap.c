@@ -110,14 +110,6 @@ static bool perf_mmap__empty(struct mmap *map)
 	return perf_mmap__read_head(map) == map->core.prev && !map->auxtrace_mmap.base;
 }
 
-void perf_mmap__put(struct mmap *map)
-{
-	BUG_ON(map->core.base && refcount_read(&map->core.refcnt) == 0);
-
-	if (refcount_dec_and_test(&map->core.refcnt))
-		mmap__munmap(map);
-}
-
 void perf_mmap__consume(struct mmap *map)
 {
 	if (!map->core.overwrite) {
@@ -127,7 +119,7 @@ void perf_mmap__consume(struct mmap *map)
 	}
 
 	if (refcount_read(&map->core.refcnt) == 1 && perf_mmap__empty(map))
-		perf_mmap__put(map);
+		perf_mmap__put(&map->core);
 }
 
 int __weak auxtrace_mmap__mmap(struct auxtrace_mmap *mm __maybe_unused,
@@ -308,7 +300,6 @@ static void perf_mmap__aio_munmap(struct mmap *map __maybe_unused)
 
 void mmap__munmap(struct mmap *map)
 {
-	perf_mmap__munmap(&map->core);
 	perf_mmap__aio_munmap(map);
 	if (map->data != NULL) {
 		munmap(map->data, mmap__mmap_len(map));
