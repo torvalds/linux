@@ -641,7 +641,8 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx);
 void tls_device_offload_cleanup_rx(struct sock *sk);
 void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq);
 void tls_offload_tx_resync_request(struct sock *sk, u32 got_seq, u32 exp_seq);
-int tls_device_decrypted(struct sock *sk, struct sk_buff *skb);
+int tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx,
+			 struct sk_buff *skb, struct strp_msg *rxm);
 #else
 static inline void tls_device_init(void) {}
 static inline void tls_device_cleanup(void) {}
@@ -664,7 +665,9 @@ static inline void tls_device_offload_cleanup_rx(struct sock *sk) {}
 static inline void
 tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq) {}
 
-static inline int tls_device_decrypted(struct sock *sk, struct sk_buff *skb)
+static inline int
+tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx,
+		     struct sk_buff *skb, struct strp_msg *rxm)
 {
 	return 0;
 }
