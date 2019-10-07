@@ -848,6 +848,11 @@ int mt7615_mcu_set_bss_info(struct mt7615_dev *dev,
 		conn_type = CONNECTION_INFRA_STA;
 		break;
 	}
+	case NL80211_IFTYPE_ADHOC:
+		conn_type = CONNECTION_IBSS_ADHOC;
+		tx_wlan_idx = mvif->sta.wcid.idx;
+		net_type = NETWORK_IBSS;
+		break;
 	default:
 		WARN_ON(1);
 		break;
@@ -1072,6 +1077,9 @@ int mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 		break;
 	case NL80211_IFTYPE_STATION:
 		req.basic.conn_type = cpu_to_le32(CONNECTION_INFRA_AP);
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		req.basic.conn_type = cpu_to_le32(CONNECTION_IBSS_ADHOC);
 		break;
 	default:
 		WARN_ON(1);

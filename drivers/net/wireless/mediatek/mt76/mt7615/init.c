@@ -177,6 +177,9 @@ static struct ieee80211_rate mt7615_rates[] = {
 
 static const struct ieee80211_iface_limit if_limits[] = {
 	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_ADHOC)
+	}, {
 		.max = MT7615_MAX_INTERFACES,
 		.types = BIT(NL80211_IFTYPE_AP) |
 #ifdef CONFIG_MAC80211_MESH
@@ -289,6 +292,8 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	wiphy->reg_notifier = mt7615_regd_notifier;
 	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
+
 	ieee80211_hw_set(hw, TX_STATUS_NO_AMPDU_LEN);
 
 	dev->mt76.sband_2g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
@@ -303,6 +308,7 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	dev->dfs_state = -1;
 
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+				 BIT(NL80211_IFTYPE_ADHOC) |
 #ifdef CONFIG_MAC80211_MESH
 				 BIT(NL80211_IFTYPE_MESH_POINT) |
 #endif
