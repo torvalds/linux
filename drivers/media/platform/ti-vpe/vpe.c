@@ -756,12 +756,12 @@ static void set_src_registers(struct vpe_ctx *ctx)
 static void set_dst_registers(struct vpe_ctx *ctx)
 {
 	struct vpe_mmr_adb *mmr_adb = ctx->mmr_adb.addr;
-	struct v4l2_pix_format_mplane *pix;
 	struct vpe_fmt *fmt = ctx->q_data[Q_DATA_DST].fmt;
+	const struct v4l2_format_info *finfo;
 	u32 val = 0;
 
-	pix = &ctx->q_data[Q_DATA_DST].format.fmt.pix_mp;
-	if (pix->colorspace == V4L2_COLORSPACE_SRGB) {
+	finfo = v4l2_format_info(fmt->fourcc);
+	if (v4l2_is_format_rgb(finfo)) {
 		val |= VPE_RGB_OUT_SELECT;
 		vpdma_set_bg_color(ctx->dev->vpdma,
 			(struct vpdma_data_format *)fmt->vpdma_fmt[0], 0xff);
@@ -865,14 +865,12 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 	unsigned int dst_w = d_q_data->c_rect.width;
 	unsigned int dst_h = d_q_data->c_rect.height;
 	struct v4l2_pix_format_mplane *spix;
-	struct v4l2_pix_format_mplane *dpix;
 	size_t mv_buf_size;
 	int ret;
 
 	ctx->sequence = 0;
 	ctx->field = V4L2_FIELD_TOP;
 	spix = &s_q_data->format.fmt.pix_mp;
-	dpix = &d_q_data->format.fmt.pix_mp;
 
 	if ((s_q_data->flags & Q_IS_INTERLACED) &&
 			!(d_q_data->flags & Q_IS_INTERLACED)) {
@@ -909,7 +907,7 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 	set_dei_regs(ctx);
 
 	csc_set_coeff(ctx->dev->csc, &mmr_adb->csc_regs[0],
-		      spix->colorspace, dpix->colorspace);
+		      &s_q_data->format, &d_q_data->format);
 
 	sc_set_hs_coeffs(ctx->dev->sc, ctx->sc_coeff_h.addr, src_w, dst_w);
 	sc_set_vs_coeffs(ctx->dev->sc, ctx->sc_coeff_v.addr, src_h, dst_h);
@@ -1215,9 +1213,9 @@ static void device_run(void *priv)
 	struct sc_data *sc = ctx->dev->sc;
 	struct vpe_q_data *d_q_data = &ctx->q_data[Q_DATA_DST];
 	struct vpe_q_data *s_q_data = &ctx->q_data[Q_DATA_SRC];
-	struct v4l2_pix_format_mplane *dpix;
+	const struct v4l2_format_info *d_finfo;
 
-	dpix = &d_q_data->format.fmt.pix_mp;
+	d_finfo = v4l2_format_info(d_q_data->fmt->fourcc);
 
 	if (ctx->deinterlacing && s_q_data->flags & Q_IS_SEQ_XX &&
 	    ctx->sequence % 2 == 0) {
@@ -1290,7 +1288,7 @@ static void device_run(void *priv)
 	if (ctx->deinterlacing)
 		add_out_dtd(ctx, VPE_PORT_MV_OUT);
 
-	if (dpix->colorspace == V4L2_COLORSPACE_SRGB) {
+	if (v4l2_is_format_rgb(d_finfo)) {
 		add_out_dtd(ctx, VPE_PORT_RGB_OUT);
 	} else {
 		add_out_dtd(ctx, VPE_PORT_LUMA_OUT);
@@ -1332,7 +1330,7 @@ static void device_run(void *priv)
 	}
 
 	/* sync on channel control descriptors for output ports */
-	if (dpix->colorspace == V4L2_COLORSPACE_SRGB) {
+	if (v4l2_is_format_rgb(d_finfo)) {
 		vpdma_add_sync_on_channel_ctd(&ctx->desc_list,
 			VPE_CHAN_RGB_OUT);
 	} else {
@@ -1603,6 +1601,7 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 	unsigned int w_align;
 	int i, depth, depth_bytes, height;
 	unsigned int stride = 0;
+	const struct v4l2_format_info *finfo;
 
 	if (!fmt || !(fmt->types & type)) {
 		vpe_dbg(ctx->dev, "Fourcc format (0x%08x) invalid.\n",
@@ -1662,6 +1661,7 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 		pix->num_planes = 1;
 
 	pix->pixelformat = fmt->fourcc;
+	finfo = v4l2_format_info(fmt->fourcc);
 
 	/*
 	 * For the actual image parameters, we need to consider the field
@@ -1673,10 +1673,7 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 		height = pix->height;
 
 	if (!pix->colorspace) {
-		if (fmt->fourcc == V4L2_PIX_FMT_RGB24 ||
-				fmt->fourcc == V4L2_PIX_FMT_BGR24 ||
-				fmt->fourcc == V4L2_PIX_FMT_RGB32 ||
-				fmt->fourcc == V4L2_PIX_FMT_BGR32) {
+		if (v4l2_is_format_rgb(finfo)) {
 			pix->colorspace = V4L2_COLORSPACE_SRGB;
 		} else {
 			if (height > 1280)	/* HD */
