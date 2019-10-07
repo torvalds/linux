@@ -1143,6 +1143,8 @@ int amdtp_domain_init(struct amdtp_domain *d)
 {
 	INIT_LIST_HEAD(&d->streams);
 
+	d->events_per_period = 0;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_init);
@@ -1221,5 +1223,7 @@ void amdtp_domain_stop(struct amdtp_domain *d)
 
 		amdtp_stream_stop(s);
 	}
+
+	d->events_per_period = 0;
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_stop);
