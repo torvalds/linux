@@ -178,7 +178,7 @@ static int hd3ss3220_probe(struct i2c_client *client,
 
 	hd3ss3220->role_sw = fwnode_usb_role_switch_get(connector);
 	fwnode_handle_put(connector);
-	if (IS_ERR_OR_NULL(hd3ss3220->role_sw))
+	if (IS_ERR(hd3ss3220->role_sw))
 		return PTR_ERR(hd3ss3220->role_sw);
 
 	hd3ss3220->typec_cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
@@ -188,20 +188,22 @@ static int hd3ss3220_probe(struct i2c_client *client,
 
 	hd3ss3220->port = typec_register_port(&client->dev,
 					      &hd3ss3220->typec_cap);
-	if (IS_ERR(hd3ss3220->port))
-		return PTR_ERR(hd3ss3220->port);
+	if (IS_ERR(hd3ss3220->port)) {
+		ret = PTR_ERR(hd3ss3220->port);
+		goto err_put_role;
+	}
 
 	hd3ss3220_set_role(hd3ss3220);
 	ret = regmap_read(hd3ss3220->regmap, HD3SS3220_REG_CN_STAT_CTRL, &data);
 	if (ret < 0)
-		goto error;
+		goto err_unreg_port;
 
 	if (data & HD3SS3220_REG_CN_STAT_CTRL_INT_STATUS) {
 		ret = regmap_write(hd3ss3220->regmap,
 				HD3SS3220_REG_CN_STAT_CTRL,
 				data | HD3SS3220_REG_CN_STAT_CTRL_INT_STATUS);
 		if (ret < 0)
-			goto error;
+			goto err_unreg_port;
 	}
 
 	if (client->irq > 0) {
@@ -210,18 +212,19 @@ static int hd3ss3220_probe(struct i2c_client *client,
 					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					"hd3ss3220", &client->dev);
 		if (ret)
-			goto error;
+			goto err_unreg_port;
 	}
 
 	ret = i2c_smbus_read_byte_data(client, HD3SS3220_REG_DEV_REV);
 	if (ret < 0)
-		goto error;
+		goto err_unreg_port;
 
 	dev_info(&client->dev, "probed revision=0x%x\n", ret);
 
 	return 0;
-error:
+err_unreg_port:
 	typec_unregister_port(hd3ss3220->port);
+err_put_role:
 	usb_role_switch_put(hd3ss3220->role_sw);
 
 	return ret;
