@@ -103,6 +103,9 @@ static void audio_vchi_callback(void *param,
 
 	status = vchi_msg_dequeue(instance->vchi_handle,
 				  &m, sizeof(m), &msg_len, VCHI_FLAGS_NONE);
+	if (status)
+		return;
+
 	if (m.type == VC_AUDIO_MSG_TYPE_RESULT) {
 		instance->result = m.result.success;
 		complete(&instance->msg_avail_comp);
