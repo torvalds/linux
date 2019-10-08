@@ -1805,6 +1805,28 @@ static int hns3_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 }
 #endif
 
+static int hns3_nic_get_vf_config(struct net_device *ndev, int vf,
+				  struct ifla_vf_info *ivf)
+{
+	struct hnae3_handle *h = hns3_get_handle(ndev);
+
+	if (!h->ae_algo->ops->get_vf_config)
+		return -EOPNOTSUPP;
+
+	return h->ae_algo->ops->get_vf_config(h, vf, ivf);
+}
+
+static int hns3_nic_set_vf_link_state(struct net_device *ndev, int vf,
+				      int link_state)
+{
+	struct hnae3_handle *h = hns3_get_handle(ndev);
+
+	if (!h->ae_algo->ops->set_vf_link_state)
+		return -EOPNOTSUPP;
+
+	return h->ae_algo->ops->set_vf_link_state(h, vf, link_state);
+}
+
 static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_open		= hns3_nic_net_open,
 	.ndo_stop		= hns3_nic_net_stop,
@@ -1823,6 +1845,8 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= hns3_rx_flow_steer,
 #endif
+	.ndo_get_vf_config	= hns3_nic_get_vf_config,
+	.ndo_set_vf_link_state	= hns3_nic_set_vf_link_state,
 
 };
 

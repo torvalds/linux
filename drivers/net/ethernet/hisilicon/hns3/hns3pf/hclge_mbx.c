@@ -428,6 +428,9 @@ static int hclge_get_vf_media_type(struct hclge_vport *vport,
 static int hclge_get_link_info(struct hclge_vport *vport,
 			       struct hclge_mbx_vf_to_pf_cmd *mbx_req)
 {
+#define HCLGE_VF_LINK_STATE_UP		1U
+#define HCLGE_VF_LINK_STATE_DOWN	0U
+
 	struct hclge_dev *hdev = vport->back;
 	u16 link_status;
 	u8 msg_data[8];
@@ -435,7 +438,19 @@ static int hclge_get_link_info(struct hclge_vport *vport,
 	u16 duplex;
 
 	/* mac.link can only be 0 or 1 */
-	link_status = (u16)hdev->hw.mac.link;
+	switch (vport->vf_info.link_state) {
+	case IFLA_VF_LINK_STATE_ENABLE:
+		link_status = HCLGE_VF_LINK_STATE_UP;
+		break;
+	case IFLA_VF_LINK_STATE_DISABLE:
+		link_status = HCLGE_VF_LINK_STATE_DOWN;
+		break;
+	case IFLA_VF_LINK_STATE_AUTO:
+	default:
+		link_status = (u16)hdev->hw.mac.link;
+		break;
+	}
+
 	duplex = hdev->hw.mac.duplex;
 	memcpy(&msg_data[0], &link_status, sizeof(u16));
 	memcpy(&msg_data[2], &hdev->hw.mac.speed, sizeof(u32));

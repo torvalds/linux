@@ -55,6 +55,8 @@
 
 #define HCLGE_LINK_STATUS_MS	10
 
+#define HCLGE_VF_VPORT_START_NUM	1
+
 static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static void hclge_sync_vlan_filter(struct hclge_dev *hdev);
@@ -1633,6 +1635,7 @@ static int hclge_alloc_vport(struct hclge_dev *hdev)
 	for (i = 0; i < num_vport; i++) {
 		vport->back = hdev;
 		vport->vport_id = i;
+		vport->vf_info.link_state = IFLA_VF_LINK_STATE_AUTO;
 		vport->mps = HCLGE_MAC_DEFAULT_FRAME;
 		vport->port_base_vlan_cfg.state = HNAE3_PORT_BASE_VLAN_DISABLE;
 		vport->rxvlan_cfg.rx_vlan_offload_en = true;
@@ -2851,6 +2854,58 @@ static int hclge_get_status(struct hnae3_handle *handle)
 	hclge_update_link_status(hdev);
 
 	return hdev->hw.mac.link;
+}
+
+static struct hclge_vport *hclge_get_vf_vport(struct hclge_dev *hdev, int vf)
+{
+	if (pci_num_vf(hdev->pdev) == 0) {
+		dev_err(&hdev->pdev->dev,
+			"SRIOV is disabled, can not get vport(%d) info.\n", vf);
+		return NULL;
+	}
+
+	if (vf < 0 || vf >= pci_num_vf(hdev->pdev)) {
+		dev_err(&hdev->pdev->dev,
+			"vf id(%d) is out of range(0 <= vfid < %d)\n",
+			vf, pci_num_vf(hdev->pdev));
+		return NULL;
+	}
+
+	/* VF start from 1 in vport */
+	vf += HCLGE_VF_VPORT_START_NUM;
+	return &hdev->vport[vf];
+}
+
+static int hclge_get_vf_config(struct hnae3_handle *handle, int vf,
+			       struct ifla_vf_info *ivf)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	vport = hclge_get_vf_vport(hdev, vf);
+	if (!vport)
+		return -EINVAL;
+
+	ivf->vf = vf;
+	ivf->linkstate = vport->vf_info.link_state;
+	ether_addr_copy(ivf->mac, vport->vf_info.mac);
+
+	return 0;
+}
+
+static int hclge_set_vf_link_state(struct hnae3_handle *handle, int vf,
+				   int link_state)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	vport = hclge_get_vf_vport(hdev, vf);
+	if (!vport)
+		return -EINVAL;
+
+	vport->vf_info.link_state = link_state;
+
+	return 0;
 }
 
 static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
@@ -10152,6 +10207,8 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.mac_connect_phy = hclge_mac_connect_phy,
 	.mac_disconnect_phy = hclge_mac_disconnect_phy,
 	.restore_vlan_table = hclge_restore_vlan_table,
+	.get_vf_config = hclge_get_vf_config,
+	.set_vf_link_state = hclge_set_vf_link_state,
 };
 
 static struct hnae3_ae_algo ae_algo = {

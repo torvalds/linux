@@ -885,6 +885,11 @@ struct hclge_port_base_vlan_config {
 	struct hclge_vlan_info vlan_info;
 };
 
+struct hclge_vf_info {
+	int link_state;
+	u8 mac[ETH_ALEN];
+};
+
 struct hclge_vport {
 	u16 alloc_tqps;	/* Allocated Tx/Rx queues */
 
@@ -916,6 +921,7 @@ struct hclge_vport {
 	unsigned long state;
 	unsigned long last_active_jiffies;
 	u32 mps; /* Max packet size */
+	struct hclge_vf_info vf_info;
 
 	struct list_head uc_mac_list;   /* Store VF unicast table */
 	struct list_head mc_mac_list;   /* Store VF multicast table */
