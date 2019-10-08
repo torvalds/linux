@@ -160,6 +160,15 @@ struct drm_i915_gem_object {
 		atomic_t pages_pin_count;
 		atomic_t shrink_pin;
 
+		/**
+		 * Memory region for this object.
+		 */
+		struct intel_memory_region *region;
+		/**
+		 * List of memory region blocks allocated for this object.
+		 */
+		struct list_head blocks;
+
 		struct sg_table *pages;
 		void *mapping;
 

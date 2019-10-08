@@ -51,6 +51,7 @@ i915-y += i915_drv.o \
 	  i915_utils.o \
 	  intel_csr.o \
 	  intel_device_info.o \
+	  intel_memory_region.o \
 	  intel_pch.o \
 	  intel_pm.o \
 	  intel_runtime_pm.o \
@@ -121,6 +122,7 @@ gem-y += \
 	gem/i915_gem_pages.o \
 	gem/i915_gem_phys.o \
 	gem/i915_gem_pm.o \
+	gem/i915_gem_region.o \
 	gem/i915_gem_shmem.o \
 	gem/i915_gem_shrinker.o \
 	gem/i915_gem_stolen.o \

@@ -33,6 +33,7 @@
 #include "mock_gem_device.h"
 #include "mock_gtt.h"
 #include "mock_uncore.h"
+#include "mock_region.h"
 
 #include "gem/selftests/mock_context.h"
 #include "gem/selftests/mock_gem_object.h"
