@@ -3548,7 +3548,7 @@ static int dsi_proto_config(struct dsi_data *dsi)
 
 static void dsi_proto_timings(struct dsi_data *dsi)
 {
-	unsigned int tlpx, tclk_zero, tclk_prepare, tclk_trail;
+	unsigned int tlpx, tclk_zero, tclk_prepare;
 	unsigned int tclk_pre, tclk_post;
 	unsigned int ths_prepare, ths_prepare_ths_zero, ths_zero;
 	unsigned int ths_trail, ths_exit;
@@ -3567,7 +3567,6 @@ static void dsi_proto_timings(struct dsi_data *dsi)
 
 	r = dsi_read_reg(dsi, DSI_DSIPHY_CFG1);
 	tlpx = FLD_GET(r, 20, 16) * 2;
-	tclk_trail = FLD_GET(r, 15, 8);
 	tclk_zero = FLD_GET(r, 7, 0);
 
 	r = dsi_read_reg(dsi, DSI_DSIPHY_CFG2);
