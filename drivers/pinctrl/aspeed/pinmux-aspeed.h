@@ -738,6 +738,7 @@ struct aspeed_pin_desc {
 	static const char *FUNC_SYM(func)[] = { __VA_ARGS__ }
 
 #define FUNC_DECL_2(func, one, two) FUNC_DECL_(func, #one, #two)
+#define FUNC_DECL_3(func, one, two, three) FUNC_DECL_(func, #one, #two, #three)
 
 #define FUNC_GROUP_DECL(func, ...) \
 	GROUP_DECL(func, __VA_ARGS__); \
