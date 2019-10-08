@@ -1407,9 +1407,6 @@ static void gen7_init_oa_buffer(struct i915_perf_stream *stream)
 	 */
 	memset(stream->oa_buffer.vaddr, 0, OA_BUFFER_SIZE);
 
-	/* Maybe make ->pollin per-stream state if we support multiple
-	 * concurrent streams in the future.
-	 */
 	stream->pollin = false;
 }
 
@@ -1466,10 +1463,6 @@ static void gen8_init_oa_buffer(struct i915_perf_stream *stream)
 	 */
 	memset(stream->oa_buffer.vaddr, 0, OA_BUFFER_SIZE);
 
-	/*
-	 * Maybe make ->pollin per-stream state if we support multiple
-	 * concurrent streams in the future.
-	 */
 	stream->pollin = false;
 }
 
@@ -2585,8 +2578,6 @@ static void i915_perf_destroy_locked(struct i915_perf_stream *stream)
 	if (stream->ops->destroy)
 		stream->ops->destroy(stream);
 
-	list_del(&stream->link);
-
 	if (stream->ctx)
 		i915_gem_context_put(stream->ctx);
 
@@ -2736,8 +2727,6 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 		goto err_flags;
 	}
 
-	list_add(&stream->link, &perf->streams);
-
 	if (param->flags & I915_PERF_FLAG_FD_CLOEXEC)
 		f_flags |= O_CLOEXEC;
 	if (param->flags & I915_PERF_FLAG_FD_NONBLOCK)
@@ -2746,7 +2735,7 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 	stream_fd = anon_inode_getfd("[i915_perf]", &fops, stream, f_flags);
 	if (stream_fd < 0) {
 		ret = stream_fd;
-		goto err_open;
+		goto err_flags;
 	}
 
 	if (!(param->flags & I915_PERF_FLAG_DISABLED))
@@ -2759,8 +2748,6 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 
 	return stream_fd;
 
-err_open:
-	list_del(&stream->link);
 err_flags:
 	if (stream->ops->destroy)
 		stream->ops->destroy(stream);
@@ -3600,7 +3587,6 @@ void i915_perf_init(struct drm_i915_private *i915)
 	}
 
 	if (perf->ops.enable_metric_set) {
-		INIT_LIST_HEAD(&perf->streams);
 		mutex_init(&perf->lock);
 
 		oa_sample_rate_hard_limit = 1000 *

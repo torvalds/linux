@@ -135,11 +135,6 @@ struct i915_perf_stream {
 	struct intel_gt *gt;
 
 	/**
-	 * @link: Links the stream into ``&drm_i915_private->streams``
-	 */
-	struct list_head link;
-
-	/**
 	 * @wakeref: As we keep the device awake while the perf stream is
 	 * active, we track our runtime pm reference for later release.
 	 */
@@ -352,7 +347,6 @@ struct i915_perf {
 	 * except exclusive_stream.
 	 */
 	struct mutex lock;
-	struct list_head streams;
 
 	/*
 	 * The stream currently using the OA unit. If accessed
