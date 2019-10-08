@@ -10,6 +10,7 @@
 #include <uapi/linux/bpf_perf_event.h>
 #include <uapi/linux/perf_event.h>
 #include "bpf_helpers.h"
+#include "bpf_tracing.h"
 
 struct key_t {
 	char comm[TASK_COMM_LEN];
