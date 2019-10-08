@@ -3,6 +3,7 @@
 #include <uapi/linux/if_packet.h>
 #include <uapi/linux/ip.h>
 #include "bpf_helpers.h"
+#include "bpf_legacy.h"
 
 struct bpf_map_def SEC("maps") my_map = {
 	.type = BPF_MAP_TYPE_ARRAY,

@@ -9,6 +9,7 @@
 #include <uapi/linux/bpf.h>
 #include <linux/version.h>
 #include "bpf_helpers.h"
+#include "bpf_tracing.h"
 
 struct bpf_map_def SEC("maps") dnat_map = {
 	.type = BPF_MAP_TYPE_HASH,

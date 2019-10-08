@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <linux/bpf.h>
 #include "bpf_helpers.h"
+#include "bpf_tracing.h"
 
 char _license[] SEC("license") = "GPL";
 

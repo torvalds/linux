@@ -10,6 +10,7 @@
 #include <uapi/linux/bpf.h>
 #include <uapi/linux/perf_event.h>
 #include "bpf_helpers.h"
+#include "bpf_tracing.h"
 
 struct bpf_map_def SEC("maps") my_map = {
 	.type = BPF_MAP_TYPE_HASH,
