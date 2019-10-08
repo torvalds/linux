@@ -240,6 +240,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	struct mock_engine *engine;
 
 	GEM_BUG_ON(id >= I915_NUM_ENGINES);
+	GEM_BUG_ON(!i915->gt.uncore);
 
 	engine = kzalloc(sizeof(*engine) + PAGE_SIZE, GFP_KERNEL);
 	if (!engine)
