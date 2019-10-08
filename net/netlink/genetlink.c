@@ -474,7 +474,8 @@ genl_family_rcv_msg_attrs_parse(const struct genl_family *family,
 				struct netlink_ext_ack *extack,
 				const struct genl_ops *ops,
 				int hdrlen,
-				enum genl_validate_flags no_strict_flag)
+				enum genl_validate_flags no_strict_flag,
+				bool parallel)
 {
 	enum netlink_validation validate = ops->validate & no_strict_flag ?
 					   NL_VALIDATE_LIBERAL :
@@ -482,7 +483,7 @@ genl_family_rcv_msg_attrs_parse(const struct genl_family *family,
 	struct nlattr **attrbuf;
 	int err;
 
-	if (family->maxattr && family->parallel_ops) {
+	if (parallel) {
 		attrbuf = kmalloc_array(family->maxattr + 1,
 					sizeof(struct nlattr *), GFP_KERNEL);
 		if (!attrbuf)
@@ -493,7 +494,7 @@ genl_family_rcv_msg_attrs_parse(const struct genl_family *family,
 
 	err = __nlmsg_parse(nlh, hdrlen, attrbuf, family->maxattr,
 			    family->policy, validate, extack);
-	if (err && family->maxattr && family->parallel_ops) {
+	if (err && parallel) {
 		kfree(attrbuf);
 		return ERR_PTR(err);
 	}
@@ -501,9 +502,10 @@ genl_family_rcv_msg_attrs_parse(const struct genl_family *family,
 }
 
 static void genl_family_rcv_msg_attrs_free(const struct genl_family *family,
-					   struct nlattr **attrbuf)
+					   struct nlattr **attrbuf,
+					   bool parallel)
 {
-	if (family->maxattr && family->parallel_ops)
+	if (parallel)
 		kfree(attrbuf);
 }
 
@@ -542,7 +544,7 @@ static int genl_lock_done(struct netlink_callback *cb)
 		rc = ops->done(cb);
 		genl_unlock();
 	}
-	genl_family_rcv_msg_attrs_free(info->family, info->attrs);
+	genl_family_rcv_msg_attrs_free(info->family, info->attrs, true);
 	genl_dumpit_info_free(info);
 	return rc;
 }
@@ -555,7 +557,7 @@ static int genl_parallel_done(struct netlink_callback *cb)
 
 	if (ops->done)
 		rc = ops->done(cb);
-	genl_family_rcv_msg_attrs_free(info->family, info->attrs);
+	genl_family_rcv_msg_attrs_free(info->family, info->attrs, true);
 	genl_dumpit_info_free(info);
 	return rc;
 }
@@ -585,7 +587,8 @@ static int genl_family_rcv_msg_dumpit(const struct genl_family *family,
 
 	attrs = genl_family_rcv_msg_attrs_parse(family, nlh, extack,
 						ops, hdrlen,
-						GENL_DONT_VALIDATE_DUMP_STRICT);
+						GENL_DONT_VALIDATE_DUMP_STRICT,
+						true);
 	if (IS_ERR(attrs))
 		return PTR_ERR(attrs);
 
@@ -593,7 +596,7 @@ no_attrs:
 	/* Allocate dumpit info. It is going to be freed by done() callback. */
 	info = genl_dumpit_info_alloc();
 	if (!info) {
-		genl_family_rcv_msg_attrs_free(family, attrs);
+		genl_family_rcv_msg_attrs_free(family, attrs, true);
 		return -ENOMEM;
 	}
 
@@ -645,7 +648,9 @@ static int genl_family_rcv_msg_doit(const struct genl_family *family,
 
 	attrbuf = genl_family_rcv_msg_attrs_parse(family, nlh, extack,
 						  ops, hdrlen,
-						  GENL_DONT_VALIDATE_STRICT);
+						  GENL_DONT_VALIDATE_STRICT,
+						  family->maxattr &&
+						  family->parallel_ops);
 	if (IS_ERR(attrbuf))
 		return PTR_ERR(attrbuf);
 
@@ -671,7 +676,8 @@ static int genl_family_rcv_msg_doit(const struct genl_family *family,
 		family->post_doit(ops, skb, &info);
 
 out:
-	genl_family_rcv_msg_attrs_free(family, attrbuf);
+	genl_family_rcv_msg_attrs_free(family, attrbuf,
+				       family->maxattr && family->parallel_ops);
 
 	return err;
 }
