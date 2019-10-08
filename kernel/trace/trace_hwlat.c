@@ -237,6 +237,7 @@ static int get_sample(void)
 	/* If we exceed the threshold value, we have found a hardware latency */
 	if (sample > thresh || outer_sample > thresh) {
 		struct hwlat_sample s;
+		u64 latency;
 
 		ret = 1;
 
@@ -253,11 +254,13 @@ static int get_sample(void)
 		s.nmi_count = nmi_count;
 		trace_hwlat_sample(&s);
 
+		latency = max(sample, outer_sample);
+
 		/* Keep a running maximum ever recorded hardware latency */
-		if (sample > tr->max_latency)
-			tr->max_latency = sample;
-		if (outer_sample > tr->max_latency)
-			tr->max_latency = outer_sample;
+		if (latency > tr->max_latency) {
+			tr->max_latency = latency;
+			latency_fsnotify(tr);
+		}
 	}
 
 out:
