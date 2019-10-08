@@ -1302,6 +1302,7 @@ static void rtw_coex_action_bt_inquiry(struct rtw_dev *rtwdev)
 	struct rtw_chip_info *chip = rtwdev->chip;
 	bool wl_hi_pri = false;
 	u8 table_case, tdma_case;
+	u32 slot_type = 0;
 
 	if (coex_stat->wl_linkscan_proc || coex_stat->wl_hi_pri_task1 ||
 	    coex_stat->wl_hi_pri_task2)
@@ -1312,14 +1313,16 @@ static void rtw_coex_action_bt_inquiry(struct rtw_dev *rtwdev)
 		if (wl_hi_pri) {
 			table_case = 15;
 			if (coex_stat->bt_a2dp_exist &&
-			    !coex_stat->bt_pan_exist)
+			    !coex_stat->bt_pan_exist) {
+				slot_type = TDMA_4SLOT;
 				tdma_case = 11;
-			else if (coex_stat->wl_hi_pri_task1)
+			} else if (coex_stat->wl_hi_pri_task1) {
 				tdma_case = 6;
-			else if (!coex_stat->bt_page)
+			} else if (!coex_stat->bt_page) {
 				tdma_case = 8;
-			else
+			} else {
 				tdma_case = 9;
+			}
 		} else if (coex_stat->wl_connected) {
 			table_case = 10;
 			tdma_case = 10;
@@ -1355,7 +1358,7 @@ static void rtw_coex_action_bt_inquiry(struct rtw_dev *rtwdev)
 	rtw_coex_set_ant_path(rtwdev, false, COEX_SET_ANT_2G);
 	rtw_coex_set_rf_para(rtwdev, chip->wl_rf_para_rx[0]);
 	rtw_coex_table(rtwdev, table_case);
-	rtw_coex_tdma(rtwdev, false, tdma_case);
+	rtw_coex_tdma(rtwdev, false, tdma_case | slot_type);
 }
 
 static void rtw_coex_action_bt_hfp(struct rtw_dev *rtwdev)
@@ -1469,12 +1472,12 @@ static void rtw_coex_action_bt_a2dp(struct rtw_dev *rtwdev)
 
 	if (efuse->share_ant) {
 		/* Shared-Ant */
+		slot_type = TDMA_4SLOT;
+
 		if (coex_stat->wl_gl_busy && coex_stat->wl_noisy_level == 0)
 			table_case = 10;
 		else
 			table_case = 9;
-
-		slot_type = TDMA_4SLOT;
 
 		if (coex_stat->wl_gl_busy)
 			tdma_case = 13;
@@ -1579,13 +1582,14 @@ static void rtw_coex_action_bt_a2dp_hid(struct rtw_dev *rtwdev)
 
 	if (efuse->share_ant) {
 		/* Shared-Ant */
+		slot_type = TDMA_4SLOT;
+
 		if (coex_stat->bt_ble_exist)
 			table_case = 26;
 		else
 			table_case = 9;
 
 		if (coex_stat->wl_gl_busy) {
-			slot_type = TDMA_4SLOT;
 			tdma_case = 13;
 		} else {
 			tdma_case = 14;
@@ -1788,10 +1792,12 @@ static void rtw_coex_action_wl_linkscan(struct rtw_dev *rtwdev)
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	struct rtw_chip_info *chip = rtwdev->chip;
 	u8 table_case, tdma_case;
+	u32 slot_type = 0;
 
 	if (efuse->share_ant) {
 		/* Shared-Ant */
 		if (coex_stat->bt_a2dp_exist) {
+			slot_type = TDMA_4SLOT;
 			table_case = 9;
 			tdma_case = 11;
 		} else {
@@ -1812,7 +1818,7 @@ static void rtw_coex_action_wl_linkscan(struct rtw_dev *rtwdev)
 	rtw_coex_set_ant_path(rtwdev, true, COEX_SET_ANT_2G);
 	rtw_coex_set_rf_para(rtwdev, chip->wl_rf_para_rx[0]);
 	rtw_coex_table(rtwdev, table_case);
-	rtw_coex_tdma(rtwdev, false, tdma_case);
+	rtw_coex_tdma(rtwdev, false, tdma_case | slot_type);
 }
 
 static void rtw_coex_action_wl_not_connected(struct rtw_dev *rtwdev)
