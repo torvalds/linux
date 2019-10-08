@@ -576,17 +576,17 @@ static inline struct tb_switch *tb_switch_parent(struct tb_switch *sw)
 	return tb_to_switch(sw->dev.parent);
 }
 
-static inline bool tb_switch_is_lr(const struct tb_switch *sw)
+static inline bool tb_switch_is_light_ridge(const struct tb_switch *sw)
 {
 	return sw->config.device_id == PCI_DEVICE_ID_INTEL_LIGHT_RIDGE;
 }
 
-static inline bool tb_switch_is_er(const struct tb_switch *sw)
+static inline bool tb_switch_is_eagle_ridge(const struct tb_switch *sw)
 {
 	return sw->config.device_id == PCI_DEVICE_ID_INTEL_EAGLE_RIDGE;
 }
 
-static inline bool tb_switch_is_cr(const struct tb_switch *sw)
+static inline bool tb_switch_is_cactus_ridge(const struct tb_switch *sw)
 {
 	switch (sw->config.device_id) {
 	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_2C:
@@ -597,7 +597,7 @@ static inline bool tb_switch_is_cr(const struct tb_switch *sw)
 	}
 }
 
-static inline bool tb_switch_is_fr(const struct tb_switch *sw)
+static inline bool tb_switch_is_falcon_ridge(const struct tb_switch *sw)
 {
 	switch (sw->config.device_id) {
 	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE:
