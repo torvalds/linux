@@ -418,7 +418,7 @@ static const struct of_device_id rockchip_rgb_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_rgb_dt_ids);
 
-static struct platform_driver rockchip_rgb_driver = {
+struct platform_driver rockchip_rgb_driver = {
 	.probe = rockchip_rgb_probe,
 	.remove = rockchip_rgb_remove,
 	.driver = {
@@ -426,9 +426,3 @@ static struct platform_driver rockchip_rgb_driver = {
 		.of_match_table = of_match_ptr(rockchip_rgb_dt_ids),
 	},
 };
-
-module_platform_driver(rockchip_rgb_driver);
-
-MODULE_AUTHOR("Sandy Huang <hjc@rock-chips.com>");
-MODULE_DESCRIPTION("ROCKCHIP RGB Driver");
-MODULE_LICENSE("GPL v2");
