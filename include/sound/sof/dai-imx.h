@@ -32,4 +32,3 @@ struct sof_ipc_dai_esai_params {
 } __packed;
 
 #endif
-
