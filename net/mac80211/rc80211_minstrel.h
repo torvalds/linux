@@ -47,14 +47,10 @@ minstrel_ewma(int old, int new, int weight)
 	return old + incr;
 }
 
-struct minstrel_avg_ctx {
-	s32 prev[2];
-};
-
-static inline int minstrel_filter_avg_add(struct minstrel_avg_ctx *ctx, s32 in)
+static inline int minstrel_filter_avg_add(u16 *prev_1, u16 *prev_2, s32 in)
 {
-	s32 out_1 = ctx->prev[0];
-	s32 out_2 = ctx->prev[1];
+	s32 out_1 = *prev_1;
+	s32 out_2 = *prev_2;
 	s32 val;
 
 	if (!in)
@@ -76,8 +72,8 @@ static inline int minstrel_filter_avg_add(struct minstrel_avg_ctx *ctx, s32 in)
 		val = 1;
 
 out:
-	ctx->prev[1] = out_1;
-	ctx->prev[0] = val;
+	*prev_2 = out_1;
+	*prev_1 = val;
 
 	return val;
 }
@@ -90,10 +86,9 @@ struct minstrel_rate_stats {
 	/* total attempts/success counters */
 	u32 att_hist, succ_hist;
 
-	struct minstrel_avg_ctx avg;
-
-	/* prob_ewma - exponential weighted moving average of prob */
-	u16 prob_ewma;
+	/* prob_avg - moving average of prob */
+	u16 prob_avg;
+	u16 prob_avg_1;
 
 	/* maximum retry counts */
 	u8 retry_count;
@@ -181,7 +176,7 @@ void minstrel_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir);
 /* Recalculate success probabilities and counters for a given rate using EWMA */
 void minstrel_calc_rate_stats(struct minstrel_priv *mp,
 			      struct minstrel_rate_stats *mrs);
-int minstrel_get_tp_avg(struct minstrel_rate *mr, int prob_ewma);
+int minstrel_get_tp_avg(struct minstrel_rate *mr, int prob_avg);
 
 /* debugfs */
 int minstrel_stats_open(struct inode *inode, struct file *file);
