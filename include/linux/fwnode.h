@@ -49,11 +49,11 @@ struct fwnode_reference_args {
  * struct fwnode_operations - Operations for fwnode interface
  * @get: Get a reference to an fwnode.
  * @put: Put a reference to an fwnode.
+ * @device_is_available: Return true if the device is available.
  * @device_get_match_data: Return the device driver match data.
  * @property_present: Return true if a property is present.
- * @property_read_integer_array: Read an array of integer properties. Return
- *				 zero on success, a negative error code
- *				 otherwise.
+ * @property_read_int_array: Read an array of integer properties. Return zero on
+ *			     success, a negative error code otherwise.
  * @property_read_string_array: Read an array of string properties. Return zero
  *				on success, a negative error code otherwise.
  * @get_name: Return the name of an fwnode.
