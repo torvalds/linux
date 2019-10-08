@@ -56,7 +56,7 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	int release_count;
 	int piggyback = 0;
 
-	WARN_ON(read_len < 4);
+	WARN(read_len < 4, "corrupted read");
 	WARN(read_len > round_down(0xFFF, 2) * sizeof(u16),
 	     "%s: request exceed WFx capability", __func__);
 
@@ -173,7 +173,7 @@ static void tx_helper(struct wfx_dev *wdev, struct hif_msg *hif)
 	bool is_encrypted = false;
 	size_t len = le16_to_cpu(hif->len);
 
-	BUG_ON(len < sizeof(*hif));
+	WARN(len < sizeof(*hif), "try to send corrupted data");
 
 	hif->seqnum = wdev->hif.tx_seqnum;
 	wdev->hif.tx_seqnum = (wdev->hif.tx_seqnum + 1) % (HIF_COUNTER_MAX + 1);

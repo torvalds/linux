@@ -37,7 +37,7 @@ static int wfx_sdio_copy_from_io(void *priv, unsigned int reg_id,
 	unsigned int sdio_addr = reg_id << 2;
 	int ret;
 
-	BUG_ON(reg_id > 7);
+	WARN(reg_id > 7, "chip only has 7 registers");
 	WARN(((uintptr_t) dst) & 3, "unaligned buffer size");
 	WARN(count & 3, "unaligned buffer address");
 
@@ -58,7 +58,7 @@ static int wfx_sdio_copy_to_io(void *priv, unsigned int reg_id,
 	unsigned int sdio_addr = reg_id << 2;
 	int ret;
 
-	BUG_ON(reg_id > 7);
+	WARN(reg_id > 7, "chip only has 7 registers");
 	WARN(((uintptr_t) src) & 3, "unaligned buffer size");
 	WARN(count & 3, "unaligned buffer address");
 

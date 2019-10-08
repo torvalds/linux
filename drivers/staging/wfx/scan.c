@@ -107,7 +107,7 @@ int wfx_hw_scan(struct ieee80211_hw *hw,
 
 	wfx_tx_lock_flush(wdev);
 
-	BUG_ON(wvif->scan.req);
+	WARN(wvif->scan.req, "unexpected concurrent scan");
 	wvif->scan.req = req;
 	wvif->scan.n_ssids = 0;
 	wvif->scan.status = 0;

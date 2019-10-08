@@ -78,7 +78,7 @@ void wfx_tx_queues_unlock(struct wfx_dev *wdev)
 	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
 		queue = &wdev->tx_queue[i];
 		spin_lock_bh(&queue->queue.lock);
-		BUG_ON(!queue->tx_locked_cnt);
+		WARN(!queue->tx_locked_cnt, "queue already unlocked");
 		if (--queue->tx_locked_cnt == 0)
 			ieee80211_wake_queue(wdev->hw, queue->queue_id);
 		spin_unlock_bh(&queue->queue.lock);
@@ -295,8 +295,8 @@ struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id)
 			return skb;
 		}
 	}
-	WARN_ON(1);
 	spin_unlock_bh(&stats->pending.lock);
+	WARN(1, "cannot find packet in pending queue");
 	return NULL;
 }
 
@@ -408,7 +408,7 @@ static bool hif_handle_tx_data(struct wfx_vif *wvif, struct sk_buff *skb,
 
 	switch (action) {
 	case do_drop:
-		BUG_ON(wfx_pending_remove(wvif->wdev, skb));
+		wfx_pending_remove(wvif->wdev, skb);
 		handled = true;
 		break;
 	case do_wep:

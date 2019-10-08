@@ -44,7 +44,7 @@ static void tx_policy_build(struct wfx_vif *wvif, struct tx_policy *policy,
 	size_t count;
 	struct wfx_dev *wdev = wvif->wdev;
 
-	BUG_ON(rates[0].idx < 0);
+	WARN(rates[0].idx < 0, "invalid rate policy");
 	memset(policy, 0, sizeof(*policy));
 	for (i = 1; i < IEEE80211_TX_MAX_RATES; i++)
 		if (rates[i].idx < 0)
@@ -162,7 +162,7 @@ static int tx_policy_get(struct wfx_vif *wvif, struct ieee80211_tx_rate *rates,
 	tx_policy_build(wvif, &wanted, rates);
 
 	spin_lock_bh(&cache->lock);
-	if (WARN_ON_ONCE(list_empty(&cache->free))) {
+	if (WARN_ON(list_empty(&cache->free))) {
 		spin_unlock_bh(&cache->lock);
 		return WFX_INVALID_RATE_ID;
 	}

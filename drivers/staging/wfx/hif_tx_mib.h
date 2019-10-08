@@ -138,7 +138,7 @@ static inline int hif_set_mfp(struct wfx_vif *wvif, bool capable, bool required)
 {
 	struct hif_mib_protected_mgmt_policy val = { };
 
-	WARN_ON(required && !capable);
+	WARN(required && !capable, "incoherent arguments");
 	if (capable) {
 		val.pmf_enable = 1;
 		val.host_enc_auth_frames = 1;

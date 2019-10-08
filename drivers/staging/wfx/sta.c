@@ -1454,6 +1454,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		},
 	};
 
+	BUILD_BUG_ON(ARRAY_SIZE(default_edca_params) != ARRAY_SIZE(wvif->edca.params));
 	if (wfx_api_older_than(wdev, 2, 0)) {
 		default_edca_params[IEEE80211_AC_BE].queue_id = HIF_QUEUE_ID_BACKGROUND;
 		default_edca_params[IEEE80211_AC_BK].queue_id = HIF_QUEUE_ID_BESTEFFORT;
@@ -1526,7 +1527,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	mutex_unlock(&wdev->conf_mutex);
 
 	hif_set_macaddr(wvif, vif->addr);
-	BUG_ON(ARRAY_SIZE(default_edca_params) != ARRAY_SIZE(wvif->edca.params));
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		memcpy(&wvif->edca.params[i], &default_edca_params[i], sizeof(default_edca_params[i]));
 		wvif->edca.uapsd_enable[i] = false;

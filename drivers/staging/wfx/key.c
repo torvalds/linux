@@ -26,7 +26,7 @@ static int wfx_alloc_key(struct wfx_dev *wdev)
 
 static void wfx_free_key(struct wfx_dev *wdev, int idx)
 {
-	BUG_ON(!(wdev->key_map & BIT(idx)));
+	WARN(!(wdev->key_map & BIT(idx)), "inconsistent key allocation");
 	memset(&wdev->keys[idx], 0, sizeof(wdev->keys[idx]));
 	wdev->key_map &= ~BIT(idx);
 }
@@ -34,7 +34,7 @@ static void wfx_free_key(struct wfx_dev *wdev, int idx)
 static uint8_t fill_wep_pair(struct hif_wep_pairwise_key *msg,
 			     struct ieee80211_key_conf *key, u8 *peer_addr)
 {
-	WARN_ON(key->keylen > sizeof(msg->key_data));
+	WARN(key->keylen > sizeof(msg->key_data), "inconsistent data");
 	msg->key_length = key->keylen;
 	memcpy(msg->key_data, key->key, key->keylen);
 	ether_addr_copy(msg->peer_address, peer_addr);
@@ -44,7 +44,7 @@ static uint8_t fill_wep_pair(struct hif_wep_pairwise_key *msg,
 static uint8_t fill_wep_group(struct hif_wep_group_key *msg,
 			      struct ieee80211_key_conf *key)
 {
-	WARN_ON(key->keylen > sizeof(msg->key_data));
+	WARN(key->keylen > sizeof(msg->key_data), "inconsistent data");
 	msg->key_id = key->keyidx;
 	msg->key_length = key->keylen;
 	memcpy(msg->key_data, key->key, key->keylen);
@@ -56,9 +56,9 @@ static uint8_t fill_tkip_pair(struct hif_tkip_pairwise_key *msg,
 {
 	uint8_t *keybuf = key->key;
 
-	WARN_ON(key->keylen != sizeof(msg->tkip_key_data)
-			       + sizeof(msg->tx_mic_key)
-			       + sizeof(msg->rx_mic_key));
+	WARN(key->keylen != sizeof(msg->tkip_key_data)
+			    + sizeof(msg->tx_mic_key)
+			    + sizeof(msg->rx_mic_key), "inconsistent data");
 	memcpy(msg->tkip_key_data, keybuf, sizeof(msg->tkip_key_data));
 	keybuf += sizeof(msg->tkip_key_data);
 	memcpy(msg->tx_mic_key, keybuf, sizeof(msg->tx_mic_key));
@@ -75,8 +75,8 @@ static uint8_t fill_tkip_group(struct hif_tkip_group_key *msg,
 {
 	uint8_t *keybuf = key->key;
 
-	WARN_ON(key->keylen != sizeof(msg->tkip_key_data)
-			       + 2 * sizeof(msg->rx_mic_key));
+	WARN(key->keylen != sizeof(msg->tkip_key_data)
+			    + 2 * sizeof(msg->rx_mic_key), "inconsistent data");
 	msg->key_id = key->keyidx;
 	memcpy(msg->rx_sequence_counter, &seq->tkip.iv16, sizeof(seq->tkip.iv16));
 	memcpy(msg->rx_sequence_counter + sizeof(uint16_t), &seq->tkip.iv32, sizeof(seq->tkip.iv32));
@@ -94,7 +94,7 @@ static uint8_t fill_tkip_group(struct hif_tkip_group_key *msg,
 static uint8_t fill_ccmp_pair(struct hif_aes_pairwise_key *msg,
 			      struct ieee80211_key_conf *key, u8 *peer_addr)
 {
-	WARN_ON(key->keylen != sizeof(msg->aes_key_data));
+	WARN(key->keylen != sizeof(msg->aes_key_data), "inconsistent data");
 	ether_addr_copy(msg->peer_address, peer_addr);
 	memcpy(msg->aes_key_data, key->key, key->keylen);
 	return HIF_KEY_TYPE_AES_PAIRWISE;
@@ -104,7 +104,7 @@ static uint8_t fill_ccmp_group(struct hif_aes_group_key *msg,
 			       struct ieee80211_key_conf *key,
 			       struct ieee80211_key_seq *seq)
 {
-	WARN_ON(key->keylen != sizeof(msg->aes_key_data));
+	WARN(key->keylen != sizeof(msg->aes_key_data), "inconsistent data");
 	memcpy(msg->aes_key_data, key->key, key->keylen);
 	memcpy(msg->rx_sequence_counter, seq->ccmp.pn, sizeof(seq->ccmp.pn));
 	memreverse(msg->rx_sequence_counter, sizeof(seq->ccmp.pn));
@@ -117,8 +117,8 @@ static uint8_t fill_sms4_pair(struct hif_wapi_pairwise_key *msg,
 {
 	uint8_t *keybuf = key->key;
 
-	WARN_ON(key->keylen != sizeof(msg->wapi_key_data)
-			       + sizeof(msg->mic_key_data));
+	WARN(key->keylen != sizeof(msg->wapi_key_data)
+			    + sizeof(msg->mic_key_data), "inconsistent data");
 	ether_addr_copy(msg->peer_address, peer_addr);
 	memcpy(msg->wapi_key_data, keybuf, sizeof(msg->wapi_key_data));
 	keybuf += sizeof(msg->wapi_key_data);
@@ -132,8 +132,8 @@ static uint8_t fill_sms4_group(struct hif_wapi_group_key *msg,
 {
 	uint8_t *keybuf = key->key;
 
-	WARN_ON(key->keylen != sizeof(msg->wapi_key_data)
-			       + sizeof(msg->mic_key_data));
+	WARN(key->keylen != sizeof(msg->wapi_key_data)
+			    + sizeof(msg->mic_key_data), "inconsistent data");
 	memcpy(msg->wapi_key_data, keybuf, sizeof(msg->wapi_key_data));
 	keybuf += sizeof(msg->wapi_key_data);
 	memcpy(msg->mic_key_data, keybuf, sizeof(msg->mic_key_data));
@@ -145,7 +145,7 @@ static uint8_t fill_aes_cmac_group(struct hif_igtk_group_key *msg,
 				   struct ieee80211_key_conf *key,
 				   struct ieee80211_key_seq *seq)
 {
-	WARN_ON(key->keylen != sizeof(msg->igtk_key_data));
+	WARN(key->keylen != sizeof(msg->igtk_key_data), "inconsistent data");
 	memcpy(msg->igtk_key_data, key->key, key->keylen);
 	memcpy(msg->ipn, seq->aes_cmac.pn, sizeof(seq->aes_cmac.pn));
 	memreverse(msg->ipn, sizeof(seq->aes_cmac.pn));
@@ -163,7 +163,7 @@ static int wfx_add_key(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	int idx = wfx_alloc_key(wvif->wdev);
 	bool pairwise = key->flags & IEEE80211_KEY_FLAG_PAIRWISE;
 
-	WARN_ON(key->flags & IEEE80211_KEY_FLAG_PAIRWISE && !sta);
+	WARN(key->flags & IEEE80211_KEY_FLAG_PAIRWISE && !sta, "inconsistent data");
 	ieee80211_get_key_rx_seq(key, 0, &seq);
 	if (idx < 0)
 		return -EINVAL;
