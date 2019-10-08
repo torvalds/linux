@@ -250,7 +250,8 @@ install_headers: bpf_helper_defs.h
 		$(call do_install,bpf_helpers.h,$(prefix)/include/bpf,644); \
 		$(call do_install,bpf_helper_defs.h,$(prefix)/include/bpf,644); \
 		$(call do_install,bpf_tracing.h,$(prefix)/include/bpf,644); \
-		$(call do_install,bpf_endian.h,$(prefix)/include/bpf,644);
+		$(call do_install,bpf_endian.h,$(prefix)/include/bpf,644); \
+		$(call do_install,bpf_core_read.h,$(prefix)/include/bpf,644);
 
 install_pkgconfig: $(PC_FILE)
 	$(call QUIET_INSTALL, $(PC_FILE)) \
