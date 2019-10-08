@@ -1850,6 +1850,18 @@ static int hns3_nic_set_vf_link_state(struct net_device *ndev, int vf,
 	return h->ae_algo->ops->set_vf_link_state(h, vf, link_state);
 }
 
+static int hns3_nic_set_vf_rate(struct net_device *ndev, int vf,
+				int min_tx_rate, int max_tx_rate)
+{
+	struct hnae3_handle *h = hns3_get_handle(ndev);
+
+	if (!h->ae_algo->ops->set_vf_rate)
+		return -EOPNOTSUPP;
+
+	return h->ae_algo->ops->set_vf_rate(h, vf, min_tx_rate, max_tx_rate,
+					    false);
+}
+
 static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_open		= hns3_nic_net_open,
 	.ndo_stop		= hns3_nic_net_stop,
@@ -1872,7 +1884,7 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 #endif
 	.ndo_get_vf_config	= hns3_nic_get_vf_config,
 	.ndo_set_vf_link_state	= hns3_nic_set_vf_link_state,
-
+	.ndo_set_vf_rate	= hns3_nic_set_vf_rate,
 };
 
 bool hns3_is_phys_func(struct pci_dev *pdev)

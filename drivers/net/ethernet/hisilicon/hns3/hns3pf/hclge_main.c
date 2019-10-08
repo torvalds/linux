@@ -1184,6 +1184,35 @@ static void hclge_parse_link_mode(struct hclge_dev *hdev, u8 speed_ability)
 		hclge_parse_backplane_link_mode(hdev, speed_ability);
 }
 
+static u32 hclge_get_max_speed(u8 speed_ability)
+{
+	if (speed_ability & HCLGE_SUPPORT_100G_BIT)
+		return HCLGE_MAC_SPEED_100G;
+
+	if (speed_ability & HCLGE_SUPPORT_50G_BIT)
+		return HCLGE_MAC_SPEED_50G;
+
+	if (speed_ability & HCLGE_SUPPORT_40G_BIT)
+		return HCLGE_MAC_SPEED_40G;
+
+	if (speed_ability & HCLGE_SUPPORT_25G_BIT)
+		return HCLGE_MAC_SPEED_25G;
+
+	if (speed_ability & HCLGE_SUPPORT_10G_BIT)
+		return HCLGE_MAC_SPEED_10G;
+
+	if (speed_ability & HCLGE_SUPPORT_1G_BIT)
+		return HCLGE_MAC_SPEED_1G;
+
+	if (speed_ability & HCLGE_SUPPORT_100M_BIT)
+		return HCLGE_MAC_SPEED_100M;
+
+	if (speed_ability & HCLGE_SUPPORT_10M_BIT)
+		return HCLGE_MAC_SPEED_10M;
+
+	return HCLGE_MAC_SPEED_1G;
+}
+
 static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 {
 	struct hclge_cfg_param_cmd *req;
@@ -1353,6 +1382,8 @@ static int hclge_configure(struct hclge_dev *hdev)
 	}
 
 	hclge_parse_link_mode(hdev, cfg.speed_ability);
+
+	hdev->hw.mac.max_speed = hclge_get_max_speed(cfg.speed_ability);
 
 	if ((hdev->tc_max > HNAE3_MAX_TC) ||
 	    (hdev->tc_max < 1)) {
@@ -2890,6 +2921,8 @@ static int hclge_get_vf_config(struct hnae3_handle *handle, int vf,
 	ivf->linkstate = vport->vf_info.link_state;
 	ivf->spoofchk = vport->vf_info.spoofchk;
 	ivf->trusted = vport->vf_info.trusted;
+	ivf->min_tx_rate = 0;
+	ivf->max_tx_rate = vport->vf_info.max_tx_rate;
 	ether_addr_copy(ivf->mac, vport->vf_info.mac);
 
 	return 0;
@@ -9520,6 +9553,97 @@ static int hclge_set_vf_trust(struct hnae3_handle *handle, int vf, bool enable)
 	return 0;
 }
 
+static void hclge_reset_vf_rate(struct hclge_dev *hdev)
+{
+	int ret;
+	int vf;
+
+	/* reset vf rate to default value */
+	for (vf = HCLGE_VF_VPORT_START_NUM; vf < hdev->num_alloc_vport; vf++) {
+		struct hclge_vport *vport = &hdev->vport[vf];
+
+		vport->vf_info.max_tx_rate = 0;
+		ret = hclge_tm_qs_shaper_cfg(vport, vport->vf_info.max_tx_rate);
+		if (ret)
+			dev_err(&hdev->pdev->dev,
+				"vf%d failed to reset to default, ret=%d\n",
+				vf - HCLGE_VF_VPORT_START_NUM, ret);
+	}
+}
+
+static int hclge_vf_rate_param_check(struct hclge_dev *hdev, int vf,
+				     int min_tx_rate, int max_tx_rate)
+{
+	if (min_tx_rate != 0 ||
+	    max_tx_rate < 0 || max_tx_rate > hdev->hw.mac.max_speed) {
+		dev_err(&hdev->pdev->dev,
+			"min_tx_rate:%d [0], max_tx_rate:%d [0, %u]\n",
+			min_tx_rate, max_tx_rate, hdev->hw.mac.max_speed);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int hclge_set_vf_rate(struct hnae3_handle *handle, int vf,
+			     int min_tx_rate, int max_tx_rate, bool force)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	int ret;
+
+	ret = hclge_vf_rate_param_check(hdev, vf, min_tx_rate, max_tx_rate);
+	if (ret)
+		return ret;
+
+	vport = hclge_get_vf_vport(hdev, vf);
+	if (!vport)
+		return -EINVAL;
+
+	if (!force && max_tx_rate == vport->vf_info.max_tx_rate)
+		return 0;
+
+	ret = hclge_tm_qs_shaper_cfg(vport, max_tx_rate);
+	if (ret)
+		return ret;
+
+	vport->vf_info.max_tx_rate = max_tx_rate;
+
+	return 0;
+}
+
+static int hclge_resume_vf_rate(struct hclge_dev *hdev)
+{
+	struct hnae3_handle *handle = &hdev->vport->nic;
+	struct hclge_vport *vport;
+	int ret;
+	int vf;
+
+	/* resume the vf max_tx_rate after reset */
+	for (vf = 0; vf < pci_num_vf(hdev->pdev); vf++) {
+		vport = hclge_get_vf_vport(hdev, vf);
+		if (!vport)
+			return -EINVAL;
+
+		/* zero means max rate, after reset, firmware already set it to
+		 * max rate, so just continue.
+		 */
+		if (!vport->vf_info.max_tx_rate)
+			continue;
+
+		ret = hclge_set_vf_rate(handle, vf, 0,
+					vport->vf_info.max_tx_rate, true);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"vf%d failed to resume tx_rate:%u, ret=%d\n",
+				vf, vport->vf_info.max_tx_rate, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static void hclge_reset_vport_state(struct hclge_dev *hdev)
 {
 	struct hclge_vport *vport = hdev->vport;
@@ -9623,6 +9747,10 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	if (ret)
 		return ret;
 
+	ret = hclge_resume_vf_rate(hdev);
+	if (ret)
+		return ret;
+
 	dev_info(&pdev->dev, "Reset done, %s driver initialization finished.\n",
 		 HCLGE_DRIVER_NAME);
 
@@ -9634,6 +9762,7 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	struct hclge_dev *hdev = ae_dev->priv;
 	struct hclge_mac *mac = &hdev->hw.mac;
 
+	hclge_reset_vf_rate(hdev);
 	hclge_misc_affinity_teardown(hdev);
 	hclge_state_uninit(hdev);
 
@@ -10360,6 +10489,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_vf_link_state = hclge_set_vf_link_state,
 	.set_vf_spoofchk = hclge_set_vf_spoofchk,
 	.set_vf_trust = hclge_set_vf_trust,
+	.set_vf_rate = hclge_set_vf_rate,
 };
 
 static struct hnae3_ae_algo ae_algo = {

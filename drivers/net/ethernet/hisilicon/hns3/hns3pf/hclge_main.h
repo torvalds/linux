@@ -258,6 +258,7 @@ struct hclge_mac {
 	u8 support_autoneg;
 	u8 speed_type;	/* 0: sfp speed, 1: active speed */
 	u32 speed;
+	u32 max_speed;
 	u32 speed_ability; /* speed ability supported by current media */
 	u32 module_type; /* sub media type, e.g. kr/cr/sr/lr */
 	u32 fec_mode; /* active fec mode */
@@ -889,6 +890,7 @@ struct hclge_vf_info {
 	int link_state;
 	u8 mac[ETH_ALEN];
 	u32 spoofchk;
+	u32 max_tx_rate;
 	u32 trusted;
 	u16 promisc_enable;
 };

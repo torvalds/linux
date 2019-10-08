@@ -1110,6 +1110,82 @@ static void hclge_dbg_dump_mac_tnl_status(struct hclge_dev *hdev)
 	}
 }
 
+static void hclge_dbg_dump_qs_shaper_single(struct hclge_dev *hdev, u16 qsid)
+{
+	struct hclge_qs_shapping_cmd *shap_cfg_cmd;
+	u8 ir_u, ir_b, ir_s, bs_b, bs_s;
+	struct hclge_desc desc;
+	u32 shapping_para;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QCN_SHAPPING_CFG, true);
+
+	shap_cfg_cmd = (struct hclge_qs_shapping_cmd *)desc.data;
+	shap_cfg_cmd->qs_id = cpu_to_le16(qsid);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"qs%u failed to get tx_rate, ret=%d\n",
+			qsid, ret);
+		return;
+	}
+
+	shapping_para = le32_to_cpu(shap_cfg_cmd->qs_shapping_para);
+	ir_b = hclge_tm_get_field(shapping_para, IR_B);
+	ir_u = hclge_tm_get_field(shapping_para, IR_U);
+	ir_s = hclge_tm_get_field(shapping_para, IR_S);
+	bs_b = hclge_tm_get_field(shapping_para, BS_B);
+	bs_s = hclge_tm_get_field(shapping_para, BS_S);
+
+	dev_info(&hdev->pdev->dev,
+		 "qs%u ir_b:%u, ir_u:%u, ir_s:%u, bs_b:%u, bs_s:%u\n",
+		 qsid, ir_b, ir_u, ir_s, bs_b, bs_s);
+}
+
+static void hclge_dbg_dump_qs_shaper_all(struct hclge_dev *hdev)
+{
+	struct hnae3_knic_private_info *kinfo;
+	struct hclge_vport *vport;
+	int vport_id, i;
+
+	for (vport_id = 0; vport_id <= pci_num_vf(hdev->pdev); vport_id++) {
+		vport = &hdev->vport[vport_id];
+		kinfo = &vport->nic.kinfo;
+
+		dev_info(&hdev->pdev->dev, "qs cfg of vport%d:\n", vport_id);
+
+		for (i = 0; i < kinfo->num_tc; i++) {
+			u16 qsid = vport->qs_offset + i;
+
+			hclge_dbg_dump_qs_shaper_single(hdev, qsid);
+		}
+	}
+}
+
+static void hclge_dbg_dump_qs_shaper(struct hclge_dev *hdev,
+				     const char *cmd_buf)
+{
+#define HCLGE_MAX_QSET_NUM 1024
+
+	u16 qsid;
+	int ret;
+
+	ret = kstrtou16(cmd_buf, 0, &qsid);
+	if (ret) {
+		hclge_dbg_dump_qs_shaper_all(hdev);
+		return;
+	}
+
+	if (qsid >= HCLGE_MAX_QSET_NUM) {
+		dev_err(&hdev->pdev->dev, "qsid(%u) out of range[0-1023]\n",
+			qsid);
+		return;
+	}
+
+	hclge_dbg_dump_qs_shaper_single(hdev, qsid);
+}
+
 int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 {
 #define DUMP_REG	"dump reg"
@@ -1145,6 +1221,9 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 					  &cmd_buf[sizeof("dump ncl_config")]);
 	} else if (strncmp(cmd_buf, "dump mac tnl status", 19) == 0) {
 		hclge_dbg_dump_mac_tnl_status(hdev);
+	} else if (strncmp(cmd_buf, "dump qs shaper", 14) == 0) {
+		hclge_dbg_dump_qs_shaper(hdev,
+					 &cmd_buf[sizeof("dump qs shaper")]);
 	} else {
 		dev_info(&hdev->pdev->dev, "unknown command\n");
 		return -EINVAL;
