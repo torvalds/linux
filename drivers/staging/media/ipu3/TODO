@@ -9,7 +9,6 @@ staging directory.
   relevant. (Sakari)
 
 - IPU3 driver documentation (Laurent)
-  Add diagram in driver rst to describe output capability.
   Comments on configuring v4l2 subdevs for CIO2 and ImgU.
 
 - uAPI documentation:
