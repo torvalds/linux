@@ -5396,6 +5396,23 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 }
 EXPORT_SYMBOL(drm_hdmi_avi_infoframe_quant_range);
 
+/**
+ * drm_hdmi_avi_infoframe_bars() - fill the HDMI AVI infoframe
+ *                                 bar information
+ * @frame: HDMI AVI infoframe
+ * @conn_state: connector state
+ */
+void
+drm_hdmi_avi_infoframe_bars(struct hdmi_avi_infoframe *frame,
+			    const struct drm_connector_state *conn_state)
+{
+	frame->right_bar = conn_state->tv.margins.right;
+	frame->left_bar = conn_state->tv.margins.left;
+	frame->top_bar = conn_state->tv.margins.top;
+	frame->bottom_bar = conn_state->tv.margins.bottom;
+}
+EXPORT_SYMBOL(drm_hdmi_avi_infoframe_bars);
+
 static enum hdmi_3d_structure
 s3d_structure_from_display_mode(const struct drm_display_mode *mode)
 {

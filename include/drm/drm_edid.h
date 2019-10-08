@@ -368,6 +368,10 @@ drm_hdmi_avi_infoframe_colorspace(struct hdmi_avi_infoframe *frame,
 				  const struct drm_connector_state *conn_state);
 
 void
+drm_hdmi_avi_infoframe_bars(struct hdmi_avi_infoframe *frame,
+			    const struct drm_connector_state *conn_state);
+
+void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 				   struct drm_connector *connector,
 				   const struct drm_display_mode *mode,
