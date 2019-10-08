@@ -13,7 +13,6 @@
 #include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of_device.h>
 #include <linux/platform_data/pixcir_i2c_ts.h>
