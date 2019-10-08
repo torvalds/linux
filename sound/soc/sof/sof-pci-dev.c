@@ -30,8 +30,8 @@ module_param(tplg_path, charp, 0444);
 MODULE_PARM_DESC(tplg_path, "alternate path for SOF topology.");
 
 static int sof_pci_debug;
-module_param_named(sof_debug, sof_pci_debug, int, 0444);
-MODULE_PARM_DESC(sof_debug, "SOF PCI debug options (0x0 all off)");
+module_param_named(sof_pci_debug, sof_pci_debug, int, 0444);
+MODULE_PARM_DESC(sof_pci_debug, "SOF PCI debug options (0x0 all off)");
 
 #define SOF_PCI_DISABLE_PM_RUNTIME BIT(0)
 
