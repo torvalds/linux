@@ -181,6 +181,7 @@ static int __tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 				   struct tipc_nl_compat_msg *msg,
 				   struct sk_buff *arg)
 {
+	struct genl_dumpit_info info;
 	int len = 0;
 	int err;
 	struct sk_buff *buf;
@@ -191,6 +192,7 @@ static int __tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 	memset(&cb, 0, sizeof(cb));
 	cb.nlh = (struct nlmsghdr *)arg->data;
 	cb.skb = arg;
+	cb.data = &info;
 
 	buf = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!buf)
@@ -208,6 +210,13 @@ static int __tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 		err = -ENOMEM;
 		goto err_out;
 	}
+
+	info.attrs = attrbuf;
+	err = nlmsg_parse_deprecated(cb.nlh, GENL_HDRLEN, attrbuf,
+				     tipc_genl_family.maxattr,
+				     tipc_genl_family.policy, NULL);
+	if (err)
+		goto err_out;
 
 	do {
 		int rem;
