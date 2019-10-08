@@ -1090,9 +1090,6 @@ void hclge_cmd_setup_basic_desc(struct hclge_desc *desc,
 				enum hclge_opcode_type opcode, bool is_read);
 void hclge_cmd_reuse_desc(struct hclge_desc *desc, bool is_read);
 
-int hclge_cmd_set_promisc_mode(struct hclge_dev *hdev,
-			       struct hclge_promisc_param *param);
-
 enum hclge_cmd_status hclge_cmd_mdio_write(struct hclge_hw *hw,
 					   struct hclge_desc *desc);
 enum hclge_cmd_status hclge_cmd_mdio_read(struct hclge_hw *hw,

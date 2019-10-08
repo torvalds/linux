@@ -205,12 +205,38 @@ static int hclge_map_unmap_ring_to_vf_vector(struct hclge_vport *vport, bool en,
 static int hclge_set_vf_promisc_mode(struct hclge_vport *vport,
 				     struct hclge_mbx_vf_to_pf_cmd *req)
 {
-	bool en_bc = req->msg[1] ? true : false;
-	struct hclge_promisc_param param;
+#define HCLGE_MBX_BC_INDEX	1
+#define HCLGE_MBX_UC_INDEX	2
+#define HCLGE_MBX_MC_INDEX	3
 
-	/* vf is not allowed to enable unicast/multicast broadcast */
-	hclge_promisc_param_init(&param, false, false, en_bc, vport->vport_id);
-	return hclge_cmd_set_promisc_mode(vport->back, &param);
+	bool en_bc = req->msg[HCLGE_MBX_BC_INDEX] ? true : false;
+	bool en_uc = req->msg[HCLGE_MBX_UC_INDEX] ? true : false;
+	bool en_mc = req->msg[HCLGE_MBX_MC_INDEX] ? true : false;
+	int ret;
+
+	if (!vport->vf_info.trusted) {
+		en_uc = false;
+		en_mc = false;
+	}
+
+	ret = hclge_set_vport_promisc_mode(vport, en_uc, en_mc, en_bc);
+	if (req->mbx_need_resp)
+		hclge_gen_resp_to_vf(vport, req, ret, NULL, 0);
+
+	vport->vf_info.promisc_enable = (en_uc || en_mc) ? 1 : 0;
+
+	return ret;
+}
+
+void hclge_inform_vf_promisc_info(struct hclge_vport *vport)
+{
+	u8 dest_vfid = (u8)vport->vport_id;
+	u8 msg_data[2];
+
+	memcpy(&msg_data[0], &vport->vf_info.promisc_enable, sizeof(u16));
+
+	hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
+			   HCLGE_MBX_PUSH_PROMISC_INFO, dest_vfid);
 }
 
 static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,

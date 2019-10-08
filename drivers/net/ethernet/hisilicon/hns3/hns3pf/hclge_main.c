@@ -2889,6 +2889,7 @@ static int hclge_get_vf_config(struct hnae3_handle *handle, int vf,
 	ivf->vf = vf;
 	ivf->linkstate = vport->vf_info.link_state;
 	ivf->spoofchk = vport->vf_info.spoofchk;
+	ivf->trusted = vport->vf_info.trusted;
 	ether_addr_copy(ivf->mac, vport->vf_info.mac);
 
 	return 0;
@@ -4614,8 +4615,8 @@ static int hclge_unmap_ring_frm_vector(struct hnae3_handle *handle, int vector,
 	return ret;
 }
 
-int hclge_cmd_set_promisc_mode(struct hclge_dev *hdev,
-			       struct hclge_promisc_param *param)
+static int hclge_cmd_set_promisc_mode(struct hclge_dev *hdev,
+				      struct hclge_promisc_param *param)
 {
 	struct hclge_promisc_cfg_cmd *req;
 	struct hclge_desc desc;
@@ -4642,8 +4643,9 @@ int hclge_cmd_set_promisc_mode(struct hclge_dev *hdev,
 	return ret;
 }
 
-void hclge_promisc_param_init(struct hclge_promisc_param *param, bool en_uc,
-			      bool en_mc, bool en_bc, int vport_id)
+static void hclge_promisc_param_init(struct hclge_promisc_param *param,
+				     bool en_uc, bool en_mc, bool en_bc,
+				     int vport_id)
 {
 	if (!param)
 		return;
@@ -4658,12 +4660,21 @@ void hclge_promisc_param_init(struct hclge_promisc_param *param, bool en_uc,
 	param->vf_id = vport_id;
 }
 
+int hclge_set_vport_promisc_mode(struct hclge_vport *vport, bool en_uc_pmc,
+				 bool en_mc_pmc, bool en_bc_pmc)
+{
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_promisc_param param;
+
+	hclge_promisc_param_init(&param, en_uc_pmc, en_mc_pmc, en_bc_pmc,
+				 vport->vport_id);
+	return hclge_cmd_set_promisc_mode(hdev, &param);
+}
+
 static int hclge_set_promisc_mode(struct hnae3_handle *handle, bool en_uc_pmc,
 				  bool en_mc_pmc)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct hclge_dev *hdev = vport->back;
-	struct hclge_promisc_param param;
 	bool en_bc_pmc = true;
 
 	/* For revision 0x20, if broadcast promisc enabled, vlan filter is
@@ -4673,9 +4684,8 @@ static int hclge_set_promisc_mode(struct hnae3_handle *handle, bool en_uc_pmc,
 	if (handle->pdev->revision == 0x20)
 		en_bc_pmc = handle->netdev_flags & HNAE3_BPE ? true : false;
 
-	hclge_promisc_param_init(&param, en_uc_pmc, en_mc_pmc, en_bc_pmc,
-				 vport->vport_id);
-	return hclge_cmd_set_promisc_mode(hdev, &param);
+	return hclge_set_vport_promisc_mode(vport, en_uc_pmc, en_mc_pmc,
+					    en_bc_pmc);
 }
 
 static int hclge_get_fd_mode(struct hclge_dev *hdev, u8 *fd_mode)
@@ -9479,6 +9489,37 @@ static int hclge_reset_vport_spoofchk(struct hclge_dev *hdev)
 	return 0;
 }
 
+static int hclge_set_vf_trust(struct hnae3_handle *handle, int vf, bool enable)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	u32 new_trusted = enable ? 1 : 0;
+	bool en_bc_pmc;
+	int ret;
+
+	vport = hclge_get_vf_vport(hdev, vf);
+	if (!vport)
+		return -EINVAL;
+
+	if (vport->vf_info.trusted == new_trusted)
+		return 0;
+
+	/* Disable promisc mode for VF if it is not trusted any more. */
+	if (!enable && vport->vf_info.promisc_enable) {
+		en_bc_pmc = hdev->pdev->revision != 0x20;
+		ret = hclge_set_vport_promisc_mode(vport, false, false,
+						   en_bc_pmc);
+		if (ret)
+			return ret;
+		vport->vf_info.promisc_enable = 0;
+		hclge_inform_vf_promisc_info(vport);
+	}
+
+	vport->vf_info.trusted = new_trusted;
+
+	return 0;
+}
+
 static void hclge_reset_vport_state(struct hclge_dev *hdev)
 {
 	struct hclge_vport *vport = hdev->vport;
@@ -10318,6 +10359,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_vf_config = hclge_get_vf_config,
 	.set_vf_link_state = hclge_set_vf_link_state,
 	.set_vf_spoofchk = hclge_set_vf_spoofchk,
+	.set_vf_trust = hclge_set_vf_trust,
 };
 
 static struct hnae3_ae_algo ae_algo = {

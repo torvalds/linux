@@ -889,6 +889,8 @@ struct hclge_vf_info {
 	int link_state;
 	u8 mac[ETH_ALEN];
 	u32 spoofchk;
+	u32 trusted;
+	u16 promisc_enable;
 };
 
 struct hclge_vport {
@@ -929,9 +931,8 @@ struct hclge_vport {
 	struct list_head vlan_list;     /* Store VF vlan table */
 };
 
-void hclge_promisc_param_init(struct hclge_promisc_param *param, bool en_uc,
-			      bool en_mc, bool en_bc, int vport_id);
-
+int hclge_set_vport_promisc_mode(struct hclge_vport *vport, bool en_uc_pmc,
+				 bool en_mc_pmc, bool en_bc_pmc);
 int hclge_add_uc_addr_common(struct hclge_vport *vport,
 			     const unsigned char *addr);
 int hclge_rm_uc_addr_common(struct hclge_vport *vport,
@@ -1000,4 +1001,5 @@ int hclge_query_bd_num_cmd_send(struct hclge_dev *hdev,
 				struct hclge_desc *desc);
 void hclge_report_hw_error(struct hclge_dev *hdev,
 			   enum hnae3_hw_error_type type);
+void hclge_inform_vf_promisc_info(struct hclge_vport *vport);
 #endif
