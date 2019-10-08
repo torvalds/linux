@@ -19,7 +19,7 @@ int	rtw_init_mlme_priv(struct adapter *padapter)
 	int	i;
 	u8 *pbuf;
 	struct wlan_network	*pnetwork;
-	struct mlme_priv 	*pmlmepriv = &padapter->mlmepriv;
+	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	int	res = _SUCCESS;
 
 	pmlmepriv->nic_hdl = (u8 *)padapter;
