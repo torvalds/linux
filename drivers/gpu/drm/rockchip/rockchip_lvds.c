@@ -31,6 +31,19 @@
 
 #define HIWORD_UPDATE(v, h, l)  (((v) << (l)) | (GENMASK(h, l) << 16))
 
+#define PX30_GRF_PD_VO_CON1		0x0438
+#define PX30_LVDS_SELECT(x)		HIWORD_UPDATE(x, 14, 13)
+#define PX30_LVDS_MODE_EN(x)		HIWORD_UPDATE(x, 12, 12)
+#define PX30_LVDS_MSBSEL(x)		HIWORD_UPDATE(x, 11, 11)
+#define PX30_LVDS_P2S_EN(x)		HIWORD_UPDATE(x,  6,  6)
+#define PX30_LVDS_VOP_SEL(x)		HIWORD_UPDATE(x,  1,  1)
+
+#define RK3126_GRF_LVDS_CON0		0x0150
+#define RK3126_LVDS_P2S_EN(x)		HIWORD_UPDATE(x,  9,  9)
+#define RK3126_LVDS_MODE_EN(x)		HIWORD_UPDATE(x,  6,  6)
+#define RK3126_LVDS_MSBSEL(x)		HIWORD_UPDATE(x,  3,  3)
+#define RK3126_LVDS_SELECT(x)		HIWORD_UPDATE(x,  2,  1)
+
 #define RK3288_GRF_SOC_CON6		0x025c
 #define RK3288_LVDS_LCDC_SEL(x)		HIWORD_UPDATE(x,  3,  3)
 #define RK3288_GRF_SOC_CON7		0x0260
@@ -46,6 +59,12 @@
 #define RK3288_LVDS_CON_CHASEL(x)	HIWORD_UPDATE(x,  4,  4)
 #define RK3288_LVDS_CON_MSBSEL(x)	HIWORD_UPDATE(x,  3,  3)
 #define RK3288_LVDS_CON_SELECT(x)	HIWORD_UPDATE(x,  2,  0)
+
+#define RK3368_GRF_SOC_CON7		0x041c
+#define RK3368_LVDS_SELECT(x)		HIWORD_UPDATE(x, 14, 13)
+#define RK3368_LVDS_MODE_EN(x)		HIWORD_UPDATE(x, 12, 12)
+#define RK3368_LVDS_MSBSEL(x)		HIWORD_UPDATE(x, 11, 11)
+#define RK3368_LVDS_P2S_EN(x)		HIWORD_UPDATE(x,  6,  6)
 
 enum lvds_format {
 	LVDS_8BIT_MODE_FORMAT_1,
@@ -349,6 +368,46 @@ static int rockchip_lvds_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void px30_lvds_enable(struct rockchip_lvds *lvds)
+{
+	int pipe = drm_of_encoder_active_endpoint_id(lvds->dev->of_node,
+						     &lvds->encoder);
+
+	regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1,
+		     PX30_LVDS_SELECT(lvds->format) |
+		     PX30_LVDS_MODE_EN(1) | PX30_LVDS_MSBSEL(1) |
+		     PX30_LVDS_P2S_EN(1) | PX30_LVDS_VOP_SEL(pipe));
+}
+
+static void px30_lvds_disable(struct rockchip_lvds *lvds)
+{
+	regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1,
+		     PX30_LVDS_MODE_EN(0) | PX30_LVDS_P2S_EN(0));
+}
+
+static const struct rockchip_lvds_funcs px30_lvds_funcs = {
+	.enable = px30_lvds_enable,
+	.disable = px30_lvds_disable,
+};
+
+static void rk3126_lvds_enable(struct rockchip_lvds *lvds)
+{
+	regmap_write(lvds->grf, RK3126_GRF_LVDS_CON0,
+		     RK3126_LVDS_P2S_EN(1) | RK3126_LVDS_MODE_EN(1) |
+		     RK3126_LVDS_MSBSEL(1) | RK3126_LVDS_SELECT(lvds->format));
+}
+
+static void rk3126_lvds_disable(struct rockchip_lvds *lvds)
+{
+	regmap_write(lvds->grf, RK3126_GRF_LVDS_CON0,
+		     RK3126_LVDS_P2S_EN(0) | RK3126_LVDS_MODE_EN(0));
+}
+
+static const struct rockchip_lvds_funcs rk3126_lvds_funcs = {
+	.enable = rk3126_lvds_enable,
+	.disable = rk3126_lvds_disable,
+};
+
 static void rk3288_lvds_enable(struct rockchip_lvds *lvds)
 {
 	struct drm_display_mode *mode = &lvds->mode;
@@ -396,8 +455,30 @@ static const struct rockchip_lvds_funcs rk3288_lvds_funcs = {
 	.disable = rk3288_lvds_disable,
 };
 
+static void rk3368_lvds_enable(struct rockchip_lvds *lvds)
+{
+	regmap_write(lvds->grf, RK3368_GRF_SOC_CON7,
+		     RK3368_LVDS_SELECT(lvds->format) |
+		     RK3368_LVDS_MODE_EN(1) | RK3368_LVDS_MSBSEL(1) |
+		     RK3368_LVDS_P2S_EN(1));
+}
+
+static void rk3368_lvds_disable(struct rockchip_lvds *lvds)
+{
+	regmap_write(lvds->grf, RK3368_GRF_SOC_CON7,
+		     RK3368_LVDS_MODE_EN(0) | RK3368_LVDS_P2S_EN(0));
+}
+
+static const struct rockchip_lvds_funcs rk3368_lvds_funcs = {
+	.enable = rk3368_lvds_enable,
+	.disable = rk3368_lvds_disable,
+};
+
 static const struct of_device_id rockchip_lvds_dt_ids[] = {
+	{ .compatible = "rockchip,px30-lvds", .data = &px30_lvds_funcs },
+	{ .compatible = "rockchip,rk3126-lvds", .data = &rk3126_lvds_funcs },
 	{ .compatible = "rockchip,rk3288-lvds", .data = &rk3288_lvds_funcs },
+	{ .compatible = "rockchip,rk3368-lvds", .data = &rk3368_lvds_funcs },
 	{}
 };
 MODULE_DEVICE_TABLE(of, rockchip_lvds_dt_ids);
