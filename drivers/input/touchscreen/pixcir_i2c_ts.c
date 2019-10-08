@@ -249,7 +249,7 @@ static int pixcir_set_power_mode(struct pixcir_i2c_ts_data *ts,
 
 	ret = i2c_smbus_read_byte_data(ts->client, PIXCIR_REG_POWER_MODE);
 	if (ret < 0) {
-		dev_err(dev, "%s: can't read reg 0x%x : %d\n",
+		dev_err(dev, "%s: can't read reg %d : %d\n",
 			__func__, PIXCIR_REG_POWER_MODE, ret);
 		return ret;
 	}
@@ -262,7 +262,7 @@ static int pixcir_set_power_mode(struct pixcir_i2c_ts_data *ts,
 
 	ret = i2c_smbus_write_byte_data(ts->client, PIXCIR_REG_POWER_MODE, ret);
 	if (ret < 0) {
-		dev_err(dev, "%s: can't write reg 0x%x : %d\n",
+		dev_err(dev, "%s: can't write reg %d : %d\n",
 			__func__, PIXCIR_REG_POWER_MODE, ret);
 		return ret;
 	}
@@ -288,7 +288,7 @@ static int pixcir_set_int_mode(struct pixcir_i2c_ts_data *ts,
 
 	ret = i2c_smbus_read_byte_data(ts->client, PIXCIR_REG_INT_MODE);
 	if (ret < 0) {
-		dev_err(dev, "%s: can't read reg 0x%x : %d\n",
+		dev_err(dev, "%s: can't read reg %d : %d\n",
 			__func__, PIXCIR_REG_INT_MODE, ret);
 		return ret;
 	}
@@ -303,7 +303,7 @@ static int pixcir_set_int_mode(struct pixcir_i2c_ts_data *ts,
 
 	ret = i2c_smbus_write_byte_data(ts->client, PIXCIR_REG_INT_MODE, ret);
 	if (ret < 0) {
-		dev_err(dev, "%s: can't write reg 0x%x : %d\n",
+		dev_err(dev, "%s: can't write reg %d : %d\n",
 			__func__, PIXCIR_REG_INT_MODE, ret);
 		return ret;
 	}
@@ -321,7 +321,7 @@ static int pixcir_int_enable(struct pixcir_i2c_ts_data *ts, bool enable)
 
 	ret = i2c_smbus_read_byte_data(ts->client, PIXCIR_REG_INT_MODE);
 	if (ret < 0) {
-		dev_err(dev, "%s: can't read reg 0x%x : %d\n",
+		dev_err(dev, "%s: can't read reg %d : %d\n",
 			__func__, PIXCIR_REG_INT_MODE, ret);
 		return ret;
 	}
@@ -333,7 +333,7 @@ static int pixcir_int_enable(struct pixcir_i2c_ts_data *ts, bool enable)
 
 	ret = i2c_smbus_write_byte_data(ts->client, PIXCIR_REG_INT_MODE, ret);
 	if (ret < 0) {
-		dev_err(dev, "%s: can't write reg 0x%x : %d\n",
+		dev_err(dev, "%s: can't write reg %d : %d\n",
 			__func__, PIXCIR_REG_INT_MODE, ret);
 		return ret;
 	}
