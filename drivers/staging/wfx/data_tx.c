@@ -37,7 +37,7 @@ static int wfx_get_hw_rate(struct wfx_dev *wdev, const struct ieee80211_tx_rate 
 
 /* TX policy cache implementation */
 
-static void tx_policy_build(struct wfx_vif *wvif, struct tx_policy *policy,
+static void wfx_tx_policy_build(struct wfx_vif *wvif, struct tx_policy *policy,
 			    struct ieee80211_tx_rate *rates)
 {
 	int i;
@@ -124,7 +124,7 @@ static bool tx_policy_is_equal(const struct tx_policy *a, const struct tx_policy
 	return !memcmp(a->rates, b->rates, sizeof(a->rates));
 }
 
-static int tx_policy_find(struct tx_policy_cache *cache, struct tx_policy *wanted)
+static int wfx_tx_policy_find(struct tx_policy_cache *cache, struct tx_policy *wanted)
 {
 	struct tx_policy *it;
 
@@ -137,13 +137,13 @@ static int tx_policy_find(struct tx_policy_cache *cache, struct tx_policy *wante
 	return -1;
 }
 
-static void tx_policy_use(struct tx_policy_cache *cache, struct tx_policy *entry)
+static void wfx_tx_policy_use(struct tx_policy_cache *cache, struct tx_policy *entry)
 {
 	++entry->usage_count;
 	list_move(&entry->link, &cache->used);
 }
 
-static int tx_policy_release(struct tx_policy_cache *cache, struct tx_policy *entry)
+static int wfx_tx_policy_release(struct tx_policy_cache *cache, struct tx_policy *entry)
 {
 	int ret = --entry->usage_count;
 
@@ -152,21 +152,21 @@ static int tx_policy_release(struct tx_policy_cache *cache, struct tx_policy *en
 	return ret;
 }
 
-static int tx_policy_get(struct wfx_vif *wvif, struct ieee80211_tx_rate *rates,
+static int wfx_tx_policy_get(struct wfx_vif *wvif, struct ieee80211_tx_rate *rates,
 			 bool *renew)
 {
 	int idx;
 	struct tx_policy_cache *cache = &wvif->tx_policy_cache;
 	struct tx_policy wanted;
 
-	tx_policy_build(wvif, &wanted, rates);
+	wfx_tx_policy_build(wvif, &wanted, rates);
 
 	spin_lock_bh(&cache->lock);
 	if (WARN_ON(list_empty(&cache->free))) {
 		spin_unlock_bh(&cache->lock);
 		return WFX_INVALID_RATE_ID;
 	}
-	idx = tx_policy_find(cache, &wanted);
+	idx = wfx_tx_policy_find(cache, &wanted);
 	if (idx >= 0) {
 		*renew = false;
 	} else {
@@ -181,7 +181,7 @@ static int tx_policy_get(struct wfx_vif *wvif, struct ieee80211_tx_rate *rates,
 		entry->usage_count = 0;
 		idx = entry - cache->cache;
 	}
-	tx_policy_use(cache, &cache->cache[idx]);
+	wfx_tx_policy_use(cache, &cache->cache[idx]);
 	if (list_empty(&cache->free)) {
 		/* Lock TX queues. */
 		wfx_tx_queues_lock(wvif->wdev);
@@ -190,14 +190,14 @@ static int tx_policy_get(struct wfx_vif *wvif, struct ieee80211_tx_rate *rates,
 	return idx;
 }
 
-static void tx_policy_put(struct wfx_vif *wvif, int idx)
+static void wfx_tx_policy_put(struct wfx_vif *wvif, int idx)
 {
 	int usage, locked;
 	struct tx_policy_cache *cache = &wvif->tx_policy_cache;
 
 	spin_lock_bh(&cache->lock);
 	locked = list_empty(&cache->free);
-	usage = tx_policy_release(cache, &cache->cache[idx]);
+	usage = wfx_tx_policy_release(cache, &cache->cache[idx]);
 	if (locked && !usage) {
 		/* Unlock TX queues. */
 		wfx_tx_queues_unlock(wvif->wdev);
@@ -205,7 +205,7 @@ static void tx_policy_put(struct wfx_vif *wvif, int idx)
 	spin_unlock_bh(&cache->lock);
 }
 
-static int tx_policy_upload(struct wfx_vif *wvif)
+static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 {
 	int i;
 	struct tx_policy_cache *cache = &wvif->tx_policy_cache;
@@ -238,18 +238,18 @@ static int tx_policy_upload(struct wfx_vif *wvif)
 	return 0;
 }
 
-static void tx_policy_upload_work(struct work_struct *work)
+static void wfx_tx_policy_upload_work(struct work_struct *work)
 {
 	struct wfx_vif *wvif =
 		container_of(work, struct wfx_vif, tx_policy_upload_work);
 
-	tx_policy_upload(wvif);
+	wfx_tx_policy_upload(wvif);
 
 	wfx_tx_unlock(wvif->wdev);
 	wfx_tx_queues_unlock(wvif->wdev);
 }
 
-void tx_policy_init(struct wfx_vif *wvif)
+void wfx_tx_policy_init(struct wfx_vif *wvif)
 {
 	struct tx_policy_cache *cache = &wvif->tx_policy_cache;
 	int i;
@@ -259,7 +259,7 @@ void tx_policy_init(struct wfx_vif *wvif)
 	spin_lock_init(&cache->lock);
 	INIT_LIST_HEAD(&cache->used);
 	INIT_LIST_HEAD(&cache->free);
-	INIT_WORK(&wvif->tx_policy_upload_work, tx_policy_upload_work);
+	INIT_WORK(&wvif->tx_policy_upload_work, wfx_tx_policy_upload_work);
 
 	for (i = 0; i < HIF_MIB_NUM_TX_RATE_RETRY_POLICIES; ++i)
 		list_add(&cache->cache[i].link, &cache->free);
@@ -527,7 +527,7 @@ static uint8_t wfx_tx_get_rate_id(struct wfx_vif *wvif, struct ieee80211_tx_info
 	bool tx_policy_renew = false;
 	uint8_t rate_id;
 
-	rate_id = tx_policy_get(wvif, tx_info->driver_rates, &tx_policy_renew);
+	rate_id = wfx_tx_policy_get(wvif, tx_info->driver_rates, &tx_policy_renew);
 	WARN(rate_id == WFX_INVALID_RATE_ID, "unable to get a valid Tx policy");
 
 	if (tx_policy_renew) {
@@ -794,6 +794,6 @@ void wfx_skb_dtor(struct wfx_dev *wdev, struct sk_buff *skb)
 	WARN_ON(!wvif);
 	skb_pull(skb, offset);
 	wfx_notify_buffered_tx(wvif, skb, req);
-	tx_policy_put(wvif, req->tx_flags.retry_policy_index);
+	wfx_tx_policy_put(wvif, req->tx_flags.retry_policy_index);
 	ieee80211_tx_status_irqsafe(wdev->hw, skb);
 }

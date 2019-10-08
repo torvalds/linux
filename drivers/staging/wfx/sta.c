@@ -1534,7 +1534,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	}
 	wfx_set_uapsd_param(wvif, &wvif->edca);
 
-	tx_policy_init(wvif);
+	wfx_tx_policy_init(wvif);
 	wvif = NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
 		// Combo mode does not support Block Acks. We can re-enable them

@@ -60,7 +60,7 @@ struct wfx_tx_priv {
 	uint8_t tid;
 } __packed;
 
-void tx_policy_init(struct wfx_vif *wvif);
+void wfx_tx_policy_init(struct wfx_vif *wvif);
 
 void wfx_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	    struct sk_buff *skb);
