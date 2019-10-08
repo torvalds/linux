@@ -2987,9 +2987,7 @@ static u64 get_profile_num_devs(struct btrfs_fs_info *fs_info, u64 type)
 }
 
 /*
- * If @is_allocation is true, reserve space in the system space info necessary
- * for allocating a chunk, otherwise if it's false, reserve space necessary for
- * removing a chunk.
+ * Reserve space in the system space for allocating or removing a chunk
  */
 void check_system_chunk(struct btrfs_trans_handle *trans, u64 type)
 {
