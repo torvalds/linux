@@ -202,8 +202,10 @@ static int vimc_register_devices(struct vimc_device *vimc)
 	vimc->ent_devs = kmalloc_array(vimc->pipe_cfg->num_ents,
 				       sizeof(*vimc->ent_devs),
 				       GFP_KERNEL);
-	if (!vimc->ent_devs)
+	if (!vimc->ent_devs) {
+		ret = -ENOMEM;
 		goto err_v4l2_unregister;
+	}
 
 	/* Invoke entity config hooks to initialize and register subdevs */
 	ret = vimc_add_subdevs(vimc);
