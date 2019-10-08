@@ -3362,7 +3362,7 @@ static int trace__set_filter_loop_pids(struct trace *trace)
 		thread = parent;
 	}
 
-	err = perf_evlist__set_tp_filter_pids(trace->evlist, nr, pids);
+	err = perf_evlist__append_tp_filter_pids(trace->evlist, nr, pids);
 	if (!err && trace->filter_pids.map)
 		err = bpf_map__set_filter_pids(trace->filter_pids.map, nr, pids);
 
@@ -3379,8 +3379,8 @@ static int trace__set_filter_pids(struct trace *trace)
 	 * we fork the workload in perf_evlist__prepare_workload.
 	 */
 	if (trace->filter_pids.nr > 0) {
-		err = perf_evlist__set_tp_filter_pids(trace->evlist, trace->filter_pids.nr,
-						      trace->filter_pids.entries);
+		err = perf_evlist__append_tp_filter_pids(trace->evlist, trace->filter_pids.nr,
+							 trace->filter_pids.entries);
 		if (!err && trace->filter_pids.map) {
 			err = bpf_map__set_filter_pids(trace->filter_pids.map, trace->filter_pids.nr,
 						       trace->filter_pids.entries);
@@ -4294,6 +4294,8 @@ int cmd_trace(int argc, const char **argv)
 	OPT_CALLBACK('e', "event", &trace, "event",
 		     "event/syscall selector. use 'perf list' to list available events",
 		     trace__parse_events_option),
+	OPT_CALLBACK(0, "filter", &trace.evlist, "filter",
+		     "event filter", parse_filter),
 	OPT_BOOLEAN(0, "comm", &trace.show_comm,
 		    "show the thread COMM next to its id"),
 	OPT_BOOLEAN(0, "tool_stats", &trace.show_tool_stats, "show tool stats"),

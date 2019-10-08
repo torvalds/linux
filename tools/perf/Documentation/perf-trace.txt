@@ -42,6 +42,11 @@ OPTIONS
 	Prefixing with ! shows all syscalls but the ones specified.  You may
 	need to escape it.
 
+--filter=<filter>::
+        Event filter. This option should follow an event selector (-e) which
+	selects tracepoint event(s).
+
+
 -D msecs::
 --delay msecs::
 After starting the program, wait msecs before measuring. This is useful to
