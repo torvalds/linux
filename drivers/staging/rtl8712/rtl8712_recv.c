@@ -119,7 +119,7 @@ void r8712_init_recvbuf(struct _adapter *padapter, struct recv_buf *precvbuf)
 }
 
 void r8712_free_recvframe(union recv_frame *precvframe,
-		   struct  __queue *pfree_recv_queue)
+			  struct  __queue *pfree_recv_queue)
 {
 	unsigned long irqL;
 	struct _adapter *padapter = precvframe->u.hdr.adapter;
