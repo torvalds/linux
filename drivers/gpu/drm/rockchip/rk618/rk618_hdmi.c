@@ -705,6 +705,7 @@ static int rk618_hdmi_config_video_vsi(struct rk618_hdmi *hdmi,
 	int rc;
 
 	rc = drm_hdmi_vendor_infoframe_from_display_mode(&frame.vendor.hdmi,
+							 &hdmi->connector,
 							 mode);
 
 	return rk618_hdmi_upload_frame(hdmi, rc, &frame,
@@ -970,7 +971,7 @@ static int rk618_hdmi_connector_get_modes(struct drm_connector *connector)
 	if (edid) {
 		hdmi->hdmi_data.sink_is_hdmi = drm_detect_hdmi_monitor(edid);
 		hdmi->hdmi_data.sink_has_audio = drm_detect_monitor_audio(edid);
-		drm_mode_connector_update_edid_property(connector, edid);
+		drm_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 	} else {
@@ -1024,7 +1025,6 @@ rk618_hdmi_probe_single_connector_modes(struct drm_connector *connector,
 }
 
 static const struct drm_connector_funcs rk618_hdmi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = rk618_hdmi_probe_single_connector_modes,
 	.detect = rk618_hdmi_connector_detect,
 	.destroy = drm_connector_cleanup,
@@ -1091,7 +1091,7 @@ static int rk618_hdmi_bridge_attach(struct drm_bridge *bridge)
 
 	drm_connector_helper_add(connector,
 				 &rk618_hdmi_connector_helper_funcs);
-	drm_mode_connector_attach_encoder(connector, bridge->encoder);
+	drm_connector_attach_encoder(connector, bridge->encoder);
 
 	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 1, -1);
 	if (endpoint && of_device_is_available(endpoint)) {
@@ -1107,15 +1107,11 @@ static int rk618_hdmi_bridge_attach(struct drm_bridge *bridge)
 		if (!hdmi->bridge)
 			return -EPROBE_DEFER;
 
-		hdmi->bridge->encoder = bridge->encoder;
-
-		ret = drm_bridge_attach(bridge->dev, hdmi->bridge);
+		ret = drm_bridge_attach(bridge->encoder, hdmi->bridge, bridge);
 		if (ret) {
 			dev_err(dev, "failed to attach bridge\n");
 			return ret;
 		}
-
-		bridge->next = hdmi->bridge;
 	}
 
 	return 0;
@@ -1551,11 +1547,7 @@ static int rk618_hdmi_probe(struct platform_device *pdev)
 
 	hdmi->base.funcs = &rk618_hdmi_bridge_funcs;
 	hdmi->base.of_node = dev->of_node;
-	ret = drm_bridge_add(&hdmi->base);
-	if (ret) {
-		dev_err(dev, "failed to add drm_bridge: %d\n", ret);
-		return ret;
-	}
+	drm_bridge_add(&hdmi->base);
 
 #ifdef CONFIG_SWITCH
 	hdmi->switchdev.name = "hdmi";

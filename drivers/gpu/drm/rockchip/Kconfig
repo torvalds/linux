@@ -92,4 +92,7 @@ config ROCKCHIP_RGB
 	  Some Rockchip CRTCs, like rv1108, can directly output parallel
 	  and serial RGB format to panel or connect to a conversion chip.
 	  say Y to enable its driver.
+
+source "drivers/gpu/drm/rockchip/rk618/Kconfig"
+
 endif

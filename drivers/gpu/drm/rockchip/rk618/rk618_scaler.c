@@ -15,7 +15,8 @@
 #include <linux/regmap.h>
 
 #include <drm/drm_of.h>
-#include <drm/drmP.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_print.h>
 #include <video/videomode.h>
 
 #define RK618_SCALER_REG0		0x0030
@@ -273,10 +274,12 @@ static void rk618_scaler_bridge_mode_set(struct drm_bridge *bridge,
 	struct drm_display_mode *dst = &scl->dst;
 	unsigned long dclk_rate;
 	u64 sclk_rate;
+	struct drm_connector_list_iter conn_iter;
 
 	drm_mode_copy(&scl->src, adjusted);
 
-	drm_for_each_connector(connector, bridge->dev) {
+	drm_connector_list_iter_begin(bridge->dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		const struct drm_display_mode *mode;
 
 		if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA)
@@ -292,6 +295,7 @@ static void rk618_scaler_bridge_mode_set(struct drm_bridge *bridge,
 			}
 		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	dclk_rate = src->clock * 1000;
 	sclk_rate = (u64)dclk_rate * dst->vdisplay * dst->htotal;
@@ -326,15 +330,11 @@ static int rk618_scaler_bridge_attach(struct drm_bridge *bridge)
 		if (!scl->bridge)
 			return -EPROBE_DEFER;
 
-		scl->bridge->encoder = bridge->encoder;
-
-		ret = drm_bridge_attach(bridge->dev, scl->bridge);
+		ret = drm_bridge_attach(bridge->encoder, scl->bridge, bridge);
 		if (ret) {
 			dev_err(dev, "failed to attach bridge\n");
 			return ret;
 		}
-
-		bridge->next = scl->bridge;
 	}
 
 	return 0;
@@ -390,11 +390,7 @@ static int rk618_scaler_probe(struct platform_device *pdev)
 
 	scl->base.funcs = &rk618_scaler_bridge_funcs;
 	scl->base.of_node = dev->of_node;
-	ret = drm_bridge_add(&scl->base);
-	if (ret) {
-		dev_err(dev, "failed to add bridge\n");
-		return ret;
-	}
+	drm_bridge_add(&scl->base);
 
 	return 0;
 }

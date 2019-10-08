@@ -89,7 +89,6 @@ static void rk618_lvds_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs rk618_lvds_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = rk618_lvds_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = rk618_lvds_connector_destroy,
@@ -186,7 +185,7 @@ static int rk618_lvds_bridge_attach(struct drm_bridge *bridge)
 	}
 
 	drm_connector_helper_add(connector, &rk618_lvds_connector_helper_funcs);
-	drm_mode_connector_attach_encoder(connector, bridge->encoder);
+	drm_connector_attach_encoder(connector, bridge->encoder);
 
 	ret = drm_panel_attach(lvds->panel, connector);
 	if (ret) {
@@ -271,11 +270,7 @@ static int rk618_lvds_probe(struct platform_device *pdev)
 
 	lvds->base.funcs = &rk618_lvds_bridge_funcs;
 	lvds->base.of_node = dev->of_node;
-	ret = drm_bridge_add(&lvds->base);
-	if (ret) {
-		dev_err(dev, "failed to add drm_bridge: %d\n", ret);
-		return ret;
-	}
+	drm_bridge_add(&lvds->base);
 
 	return 0;
 }

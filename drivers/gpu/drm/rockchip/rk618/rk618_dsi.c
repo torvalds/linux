@@ -756,7 +756,6 @@ static void rk618_dsi_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs rk618_dsi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = rk618_dsi_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = rk618_dsi_connector_destroy,
@@ -819,7 +818,7 @@ static int rk618_dsi_bridge_attach(struct drm_bridge *bridge)
 	}
 
 	drm_connector_helper_add(connector, &rk618_dsi_connector_helper_funcs);
-	drm_mode_connector_attach_encoder(connector, bridge->encoder);
+	drm_connector_attach_encoder(connector, bridge->encoder);
 
 	ret = drm_panel_attach(dsi->panel, connector);
 	if (ret) {
@@ -1145,11 +1144,7 @@ static int rk618_dsi_probe(struct platform_device *pdev)
 
 	dsi->base.funcs = &rk618_dsi_bridge_funcs;
 	dsi->base.of_node = dev->of_node;
-	ret = drm_bridge_add(&dsi->base);
-	if (ret) {
-		dev_err(dev, "failed to add drm_bridge: %d\n", ret);
-		return ret;
-	}
+	drm_bridge_add(&dsi->base);
 
 	dsi->host.dev = dev;
 	dsi->host.ops = &rk618_dsi_host_ops;
