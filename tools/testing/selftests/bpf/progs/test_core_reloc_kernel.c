@@ -17,6 +17,8 @@ struct task_struct {
 	int tgid;
 };
 
+#define CORE_READ(dst, src) bpf_core_read(dst, sizeof(*(dst)), src)
+
 SEC("raw_tracepoint/sys_enter")
 int test_core_kernel(void *ctx)
 {
@@ -24,8 +26,8 @@ int test_core_kernel(void *ctx)
 	uint64_t pid_tgid = bpf_get_current_pid_tgid();
 	int pid, tgid;
 
-	if (BPF_CORE_READ(&pid, &task->pid) ||
-	    BPF_CORE_READ(&tgid, &task->tgid))
+	if (CORE_READ(&pid, &task->pid) ||
+	    CORE_READ(&tgid, &task->tgid))
 		return 1;
 
 	/* validate pid + tgid matches */

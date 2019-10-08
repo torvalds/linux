@@ -39,6 +39,8 @@ struct core_reloc_flavors___weird {
 	};
 };
 
+#define CORE_READ(dst, src) bpf_core_read(dst, sizeof(*(dst)), src)
+
 SEC("raw_tracepoint/sys_enter")
 int test_core_flavors(void *ctx)
 {
@@ -48,13 +50,13 @@ int test_core_flavors(void *ctx)
 	struct core_reloc_flavors *out = (void *)&data.out;
 
 	/* read a using weird layout */
-	if (BPF_CORE_READ(&out->a, &in_weird->a))
+	if (CORE_READ(&out->a, &in_weird->a))
 		return 1;
 	/* read b using reversed layout */
-	if (BPF_CORE_READ(&out->b, &in_rev->b))
+	if (CORE_READ(&out->b, &in_rev->b))
 		return 1;
 	/* read c using original layout */
-	if (BPF_CORE_READ(&out->c, &in_orig->c))
+	if (CORE_READ(&out->c, &in_orig->c))
 		return 1;
 
 	return 0;
