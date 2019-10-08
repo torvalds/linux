@@ -62,7 +62,7 @@ enum pixcir_int_mode {
 #define PIXCIR_INT_POL_HIGH	(1UL << 2)
 
 /**
- * struct pixcir_irc_chip_data - chip related data
+ * struct pixcir_i2c_chip_data - chip related data
  * @max_fingers:	Max number of fingers reported simultaneously by h/w
  * @has_hw_ids:		Hardware supports finger tracking IDs
  *
@@ -70,12 +70,6 @@ enum pixcir_int_mode {
 struct pixcir_i2c_chip_data {
 	u8 max_fingers;
 	bool has_hw_ids;
-};
-
-struct pixcir_ts_platform_data {
-	int x_max;
-	int y_max;
-	struct pixcir_i2c_chip_data chip;
 };
 
 struct pixcir_i2c_ts_data {
@@ -87,7 +81,6 @@ struct pixcir_i2c_ts_data {
 	struct gpio_desc *gpio_wake;
 	const struct pixcir_i2c_chip_data *chip;
 	struct touchscreen_properties prop;
-	int max_fingers;	/* Max fingers supported in this instance */
 	bool running;
 };
 
@@ -111,7 +104,7 @@ static void pixcir_ts_parse(struct pixcir_i2c_ts_data *tsdata,
 	memset(report, 0, sizeof(struct pixcir_report_data));
 
 	i = chip->has_hw_ids ? 1 : 0;
-	readsize = 2 + tsdata->max_fingers * (4 + i);
+	readsize = 2 + tsdata->chip->max_fingers * (4 + i);
 	if (readsize > sizeof(rdbuf))
 		readsize = sizeof(rdbuf);
 
@@ -132,8 +125,8 @@ static void pixcir_ts_parse(struct pixcir_i2c_ts_data *tsdata,
 	}
 
 	touch = rdbuf[0] & 0x7;
-	if (touch > tsdata->max_fingers)
-		touch = tsdata->max_fingers;
+	if (touch > tsdata->chip->max_fingers)
+		touch = tsdata->chip->max_fingers;
 
 	report->num_touches = touch;
 	bufptr = &rdbuf[2];
@@ -469,31 +462,9 @@ unlock:
 static SIMPLE_DEV_PM_OPS(pixcir_dev_pm_ops,
 			 pixcir_i2c_ts_suspend, pixcir_i2c_ts_resume);
 
-#ifdef CONFIG_OF
-static const struct of_device_id pixcir_of_match[];
-
-static int pixcir_parse_dt(struct device *dev,
-			   struct pixcir_i2c_ts_data *tsdata)
-{
-	tsdata->chip = of_device_get_match_data(dev);
-	if (!tsdata->chip)
-		return -EINVAL;
-
-	return 0;
-}
-#else
-static int pixcir_parse_dt(struct device *dev,
-			   struct pixcir_i2c_ts_data *tsdata)
-{
-	return -EINVAL;
-}
-#endif
-
 static int pixcir_i2c_ts_probe(struct i2c_client *client,
 			       const struct i2c_device_id *id)
 {
-	const struct pixcir_ts_platform_data *pdata =
-			dev_get_platdata(&client->dev);
 	struct device *dev = &client->dev;
 	struct pixcir_i2c_ts_data *tsdata;
 	struct input_dev *input;
@@ -503,19 +474,11 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client,
 	if (!tsdata)
 		return -ENOMEM;
 
-	if (pdata) {
-		tsdata->chip = &pdata->chip;
-	} else if (dev->of_node) {
-		error = pixcir_parse_dt(dev, tsdata);
-		if (error)
-			return error;
-	} else {
-		dev_err(dev, "platform data not defined\n");
-		return -EINVAL;
-	}
-
-	if (!tsdata->chip->max_fingers) {
-		dev_err(dev, "Invalid max_fingers in chip data\n");
+	tsdata->chip = device_get_match_data(dev);
+	if (!tsdata->chip && id)
+		tsdata->chip = (const void *)id->driver_data;
+	if (!tsdata->chip) {
+		dev_err(dev, "can't locate chip data\n");
 		return -EINVAL;
 	}
 
@@ -532,30 +495,17 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client,
 	input->id.bustype = BUS_I2C;
 	input->open = pixcir_input_open;
 	input->close = pixcir_input_close;
-	input->dev.parent = dev;
 
-	if (pdata) {
-		input_set_abs_params(input, ABS_MT_POSITION_X, 0, pdata->x_max, 0, 0);
-		input_set_abs_params(input, ABS_MT_POSITION_Y, 0, pdata->y_max, 0, 0);
-	} else {
-		input_set_capability(input, EV_ABS, ABS_MT_POSITION_X);
-		input_set_capability(input, EV_ABS, ABS_MT_POSITION_Y);
-		touchscreen_parse_properties(input, true, &tsdata->prop);
-		if (!input_abs_get_max(input, ABS_MT_POSITION_X) ||
-		    !input_abs_get_max(input, ABS_MT_POSITION_Y)) {
-			dev_err(dev, "Touchscreen size is not specified\n");
-			return -EINVAL;
-		}
+	input_set_capability(input, EV_ABS, ABS_MT_POSITION_X);
+	input_set_capability(input, EV_ABS, ABS_MT_POSITION_Y);
+	touchscreen_parse_properties(input, true, &tsdata->prop);
+	if (!input_abs_get_max(input, ABS_MT_POSITION_X) ||
+	    !input_abs_get_max(input, ABS_MT_POSITION_Y)) {
+		dev_err(dev, "Touchscreen size is not specified\n");
+		return -EINVAL;
 	}
 
-	tsdata->max_fingers = tsdata->chip->max_fingers;
-	if (tsdata->max_fingers > PIXCIR_MAX_SLOTS) {
-		tsdata->max_fingers = PIXCIR_MAX_SLOTS;
-		dev_info(dev, "Limiting maximum fingers to %d\n",
-			 tsdata->max_fingers);
-	}
-
-	error = input_mt_init_slots(input, tsdata->max_fingers,
+	error = input_mt_init_slots(input, tsdata->chip->max_fingers,
 				    INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
 	if (error) {
 		dev_err(dev, "Error initializing Multi-Touch slots\n");
@@ -635,14 +585,6 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client,
 	return 0;
 }
 
-static const struct i2c_device_id pixcir_i2c_ts_id[] = {
-	{ "pixcir_ts", 0 },
-	{ "pixcir_tangoc", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, pixcir_i2c_ts_id);
-
-#ifdef CONFIG_OF
 static const struct pixcir_i2c_chip_data pixcir_ts_data = {
 	.max_fingers = 2,
 	/* no hw id support */
@@ -653,6 +595,14 @@ static const struct pixcir_i2c_chip_data pixcir_tangoc_data = {
 	.has_hw_ids = true,
 };
 
+static const struct i2c_device_id pixcir_i2c_ts_id[] = {
+	{ "pixcir_ts", (unsigned long) &pixcir_ts_data },
+	{ "pixcir_tangoc", (unsigned long) &pixcir_tangoc_data },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, pixcir_i2c_ts_id);
+
+#ifdef CONFIG_OF
 static const struct of_device_id pixcir_of_match[] = {
 	{ .compatible = "pixcir,pixcir_ts", .data = &pixcir_ts_data },
 	{ .compatible = "pixcir,pixcir_tangoc", .data = &pixcir_tangoc_data },
