@@ -337,9 +337,9 @@ retry:
 	return COLLECT_PRIMARY;	/* :( better luck next time */
 }
 
-static struct z_erofs_collection *cllookup(struct z_erofs_collector *clt,
-					   struct inode *inode,
-					   struct erofs_map_blocks *map)
+static int z_erofs_lookup_collection(struct z_erofs_collector *clt,
+				     struct inode *inode,
+				     struct erofs_map_blocks *map)
 {
 	struct erofs_workgroup *grp;
 	struct z_erofs_pcluster *pcl;
@@ -349,20 +349,20 @@ static struct z_erofs_collection *cllookup(struct z_erofs_collector *clt,
 
 	grp = erofs_find_workgroup(inode->i_sb, map->m_pa >> PAGE_SHIFT, &tag);
 	if (!grp)
-		return NULL;
+		return -ENOENT;
 
 	pcl = container_of(grp, struct z_erofs_pcluster, obj);
 	if (clt->owned_head == &pcl->next || pcl == clt->tailpcl) {
 		DBG_BUGON(1);
 		erofs_workgroup_put(grp);
-		return ERR_PTR(-EFSCORRUPTED);
+		return -EFSCORRUPTED;
 	}
 
 	cl = z_erofs_primarycollection(pcl);
 	if (cl->pageofs != (map->m_la & ~PAGE_MASK)) {
 		DBG_BUGON(1);
 		erofs_workgroup_put(grp);
-		return ERR_PTR(-EFSCORRUPTED);
+		return -EFSCORRUPTED;
 	}
 
 	length = READ_ONCE(pcl->length);
@@ -370,7 +370,7 @@ static struct z_erofs_collection *cllookup(struct z_erofs_collector *clt,
 		if ((map->m_llen << Z_EROFS_PCLUSTER_LENGTH_BIT) > length) {
 			DBG_BUGON(1);
 			erofs_workgroup_put(grp);
-			return ERR_PTR(-EFSCORRUPTED);
+			return -EFSCORRUPTED;
 		}
 	} else {
 		unsigned int llen = map->m_llen << Z_EROFS_PCLUSTER_LENGTH_BIT;
@@ -394,12 +394,12 @@ static struct z_erofs_collection *cllookup(struct z_erofs_collector *clt,
 		clt->tailpcl = NULL;
 	clt->pcl = pcl;
 	clt->cl = cl;
-	return cl;
+	return 0;
 }
 
-static struct z_erofs_collection *clregister(struct z_erofs_collector *clt,
-					     struct inode *inode,
-					     struct erofs_map_blocks *map)
+static int z_erofs_register_collection(struct z_erofs_collector *clt,
+				       struct inode *inode,
+				       struct erofs_map_blocks *map)
 {
 	struct z_erofs_pcluster *pcl;
 	struct z_erofs_collection *cl;
@@ -408,7 +408,7 @@ static struct z_erofs_collection *clregister(struct z_erofs_collector *clt,
 	/* no available workgroup, let's allocate one */
 	pcl = kmem_cache_alloc(pcluster_cachep, GFP_NOFS);
 	if (!pcl)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	z_erofs_pcluster_init_always(pcl);
 	pcl->obj.index = map->m_pa >> PAGE_SHIFT;
@@ -442,7 +442,7 @@ static struct z_erofs_collection *clregister(struct z_erofs_collector *clt,
 	if (err) {
 		mutex_unlock(&cl->lock);
 		kmem_cache_free(pcluster_cachep, pcl);
-		return ERR_PTR(-EAGAIN);
+		return -EAGAIN;
 	}
 	/* used to check tail merging loop due to corrupted images */
 	if (clt->owned_head == Z_EROFS_PCLUSTER_TAIL)
@@ -450,14 +450,14 @@ static struct z_erofs_collection *clregister(struct z_erofs_collector *clt,
 	clt->owned_head = &pcl->next;
 	clt->pcl = pcl;
 	clt->cl = cl;
-	return cl;
+	return 0;
 }
 
 static int z_erofs_collector_begin(struct z_erofs_collector *clt,
 				   struct inode *inode,
 				   struct erofs_map_blocks *map)
 {
-	struct z_erofs_collection *cl;
+	int ret;
 
 	DBG_BUGON(clt->cl);
 
@@ -471,19 +471,22 @@ static int z_erofs_collector_begin(struct z_erofs_collector *clt,
 	}
 
 repeat:
-	cl = cllookup(clt, inode, map);
-	if (!cl) {
-		cl = clregister(clt, inode, map);
+	ret = z_erofs_lookup_collection(clt, inode, map);
+	if (ret == -ENOENT) {
+		ret = z_erofs_register_collection(clt, inode, map);
 
-		if (cl == ERR_PTR(-EAGAIN))
+		/* someone registered at the same time, give another try */
+		if (ret == -EAGAIN) {
+			cond_resched();
 			goto repeat;
+		}
 	}
 
-	if (IS_ERR(cl))
-		return PTR_ERR(cl);
+	if (ret)
+		return ret;
 
 	z_erofs_pagevec_ctor_init(&clt->vector, Z_EROFS_NR_INLINE_PAGEVECS,
-				  cl->pagevec, cl->vcnt);
+				  clt->cl->pagevec, clt->cl->vcnt);
 
 	clt->compressedpages = clt->pcl->compressed_pages;
 	if (clt->mode <= COLLECT_PRIMARY) /* cannot do in-place I/O */
