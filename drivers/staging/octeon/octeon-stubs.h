@@ -38,7 +38,7 @@
 #define CVMX_NPI_RSL_INT_BLOCKS		0
 #define CVMX_POW_WQ_INT_PC		0
 
-typedef union {
+union cvmx_pip_wqe_word2 {
 	uint64_t u64;
 	struct {
 		uint64_t bufs:8;
@@ -114,7 +114,7 @@ typedef union {
 		uint64_t err_code:8;
 	} snoip;
 
-} cvmx_pip_wqe_word2;
+};
 
 union cvmx_pip_wqe_word0 {
 	struct {
@@ -183,7 +183,7 @@ union cvmx_buf_ptr {
 typedef struct {
 	union cvmx_wqe_word0 word0;
 	union cvmx_wqe_word1 word1;
-	cvmx_pip_wqe_word2 word2;
+	union cvmx_pip_wqe_word2 word2;
 	union cvmx_buf_ptr packet_ptr;
 	uint8_t packet_data[96];
 } cvmx_wqe_t;
