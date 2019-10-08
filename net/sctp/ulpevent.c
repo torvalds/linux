@@ -238,7 +238,7 @@ fail:
  * When a destination address on a multi-homed peer encounters a change
  * an interface details event is sent.
  */
-struct sctp_ulpevent *sctp_ulpevent_make_peer_addr_change(
+static struct sctp_ulpevent *sctp_ulpevent_make_peer_addr_change(
 	const struct sctp_association *asoc,
 	const struct sockaddr_storage *aaddr,
 	int flags, int state, int error, gfp_t gfp)
@@ -334,6 +334,22 @@ struct sctp_ulpevent *sctp_ulpevent_make_peer_addr_change(
 
 fail:
 	return NULL;
+}
+
+void sctp_ulpevent_nofity_peer_addr_change(struct sctp_transport *transport,
+					   int state, int error)
+{
+	struct sctp_association *asoc = transport->asoc;
+	struct sockaddr_storage addr;
+	struct sctp_ulpevent *event;
+
+	memset(&addr, 0, sizeof(struct sockaddr_storage));
+	memcpy(&addr, &transport->ipaddr, transport->af_specific->sockaddr_len);
+
+	event = sctp_ulpevent_make_peer_addr_change(asoc, &addr, 0, state,
+						    error, GFP_ATOMIC);
+	if (event)
+		asoc->stream.si->enqueue_event(&asoc->ulpq, event);
 }
 
 /* Create and initialize an SCTP_REMOTE_ERROR notification.
