@@ -2597,7 +2597,9 @@ static u32 gen8_de_port_aux_mask(struct drm_i915_private *dev_priv)
 
 static u32 gen8_de_pipe_fault_mask(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_GEN(dev_priv) >= 9)
+	if (INTEL_GEN(dev_priv) >= 11)
+		return GEN11_DE_PIPE_IRQ_FAULT_ERRORS;
+	else if (INTEL_GEN(dev_priv) >= 9)
 		return GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
 	else
 		return GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
