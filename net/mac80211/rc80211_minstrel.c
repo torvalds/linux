@@ -289,8 +289,7 @@ minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	if (mi->sample_deferred > 0)
 		mi->sample_deferred--;
 
-	if (time_after(jiffies, mi->last_stats_update +
-				(mp->update_interval * HZ) / 1000))
+	if (time_after(jiffies, mi->last_stats_update + mp->update_interval))
 		minstrel_update_stats(mp, mi);
 }
 
