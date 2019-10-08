@@ -66,7 +66,7 @@ unsigned bch2_bkey_nr_dirty_ptrs(struct bkey_s_c k)
 static unsigned bch2_extent_ptr_durability(struct bch_fs *c,
 					   struct extent_ptr_decoded p)
 {
-	unsigned i, durability = 0;
+	unsigned durability = 0;
 	struct bch_dev *ca;
 
 	if (p.ptr.cached)
@@ -77,16 +77,16 @@ static unsigned bch2_extent_ptr_durability(struct bch_fs *c,
 	if (ca->mi.state != BCH_MEMBER_STATE_FAILED)
 		durability = max_t(unsigned, durability, ca->mi.durability);
 
-	for (i = 0; i < p.ec_nr; i++) {
+	if (p.has_ec) {
 		struct stripe *s =
-			genradix_ptr(&c->stripes[0], p.ec[i].idx);
+			genradix_ptr(&c->stripes[0], p.ec.idx);
 
 		if (WARN_ON(!s))
-			continue;
+			goto out;
 
 		durability = max_t(unsigned, durability, s->nr_redundant);
 	}
-
+out:
 	return durability;
 }
 
@@ -205,10 +205,10 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 			p.idx++;
 
 		if (force_reconstruct_read(c) &&
-		    !p.idx && p.ec_nr)
+		    !p.idx && p.has_ec)
 			p.idx++;
 
-		if (p.idx >= p.ec_nr + 1)
+		if (p.idx >= (unsigned) p.has_ec + 1)
 			continue;
 
 		if (ret > 0 && !ptr_better(c, p, *pick))
@@ -1543,7 +1543,6 @@ void bch2_extent_ptr_decoded_append(struct bkey_i *k,
 	struct bch_extent_crc_unpacked crc =
 		bch2_extent_crc_unpack(&k->k, NULL);
 	union bch_extent_entry *pos;
-	unsigned i;
 
 	if (!bch2_crc_unpacked_cmp(crc, p->crc)) {
 		pos = ptrs.start;
@@ -1562,9 +1561,9 @@ found:
 	p->ptr.type = 1 << BCH_EXTENT_ENTRY_ptr;
 	__extent_entry_insert(k, pos, to_entry(&p->ptr));
 
-	for (i = 0; i < p->ec_nr; i++) {
-		p->ec[i].type = 1 << BCH_EXTENT_ENTRY_stripe_ptr;
-		__extent_entry_insert(k, pos, to_entry(&p->ec[i]));
+	if (p->has_ec) {
+		p->ec.type = 1 << BCH_EXTENT_ENTRY_stripe_ptr;
+		__extent_entry_insert(k, pos, to_entry(&p->ec));
 	}
 }
 

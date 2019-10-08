@@ -1027,7 +1027,6 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 	struct extent_ptr_decoded p;
 	struct bch_replicas_padded r;
 	s64 dirty_sectors = 0;
-	unsigned i;
 	int ret;
 
 	r.e.data_type	= data_type;
@@ -1047,17 +1046,15 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 			if (!stale)
 				update_cached_sectors(c, fs_usage, p.ptr.dev,
 						      disk_sectors);
-		} else if (!p.ec_nr) {
+		} else if (!p.has_ec) {
 			dirty_sectors	       += disk_sectors;
 			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
 		} else {
-			for (i = 0; i < p.ec_nr; i++) {
-				ret = bch2_mark_stripe_ptr(c, p.ec[i],
-						data_type, fs_usage,
-						disk_sectors, flags);
-				if (ret)
-					return ret;
-			}
+			ret = bch2_mark_stripe_ptr(c, p.ec,
+					data_type, fs_usage,
+					disk_sectors, flags);
+			if (ret)
+				return ret;
 
 			r.e.nr_required = 0;
 		}
@@ -1564,7 +1561,6 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 	struct bch_replicas_padded r;
 	s64 dirty_sectors = 0;
 	bool stale;
-	unsigned i;
 	int ret;
 
 	r.e.data_type	= data_type;
@@ -1589,16 +1585,14 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 			if (!stale)
 				update_cached_sectors_list(trans, p.ptr.dev,
 							   disk_sectors);
-		} else if (!p.ec_nr) {
+		} else if (!p.has_ec) {
 			dirty_sectors	       += disk_sectors;
 			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
 		} else {
-			for (i = 0; i < p.ec_nr; i++) {
-				ret = bch2_trans_mark_stripe_ptr(trans, p.ec[i],
-						disk_sectors, data_type);
-				if (ret)
-					return ret;
-			}
+			ret = bch2_trans_mark_stripe_ptr(trans, p.ec,
+					disk_sectors, data_type);
+			if (ret)
+				return ret;
 
 			r.e.nr_required = 0;
 		}

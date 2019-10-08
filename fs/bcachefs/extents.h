@@ -228,7 +228,7 @@ struct bkey_ptrs {
 	__label__ out;							\
 									\
 	(_ptr).idx	= 0;						\
-	(_ptr).ec_nr	= 0;						\
+	(_ptr).has_ec	= false;					\
 									\
 	__bkey_extent_entry_for_each_from(_entry, _end, _entry)		\
 		switch (extent_entry_type(_entry)) {			\
@@ -242,7 +242,8 @@ struct bkey_ptrs {
 					entry_to_crc(_entry));		\
 			break;						\
 		case BCH_EXTENT_ENTRY_stripe_ptr:			\
-			(_ptr).ec[(_ptr).ec_nr++] = _entry->stripe_ptr;	\
+			(_ptr).ec = _entry->stripe_ptr;			\
+			(_ptr).has_ec	= true;				\
 			break;						\
 		}							\
 out:									\

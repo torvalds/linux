@@ -21,10 +21,10 @@ struct bch_extent_crc_unpacked {
 
 struct extent_ptr_decoded {
 	unsigned			idx;
-	unsigned			ec_nr;
+	bool				has_ec;
 	struct bch_extent_crc_unpacked	crc;
 	struct bch_extent_ptr		ptr;
-	struct bch_extent_stripe_ptr	ec[4];
+	struct bch_extent_stripe_ptr	ec;
 };
 
 struct bch_io_failures {

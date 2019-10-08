@@ -433,10 +433,9 @@ int bch2_ec_read_extent(struct bch_fs *c, struct bch_read_bio *rbio)
 
 	closure_init_stack(&cl);
 
-	BUG_ON(!rbio->pick.idx ||
-	       rbio->pick.idx - 1 >= rbio->pick.ec_nr);
+	BUG_ON(!rbio->pick.has_ec);
 
-	stripe_idx = rbio->pick.ec[rbio->pick.idx - 1].idx;
+	stripe_idx = rbio->pick.ec.idx;
 
 	buf = kzalloc(sizeof(*buf), GFP_NOIO);
 	if (!buf)
