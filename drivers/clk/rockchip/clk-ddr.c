@@ -14,7 +14,6 @@
  */
 
 #include <drm/drmP.h>
-#include <dt-bindings/display/rk_fb.h>
 #include <linux/arm-smccc.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
