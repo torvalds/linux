@@ -256,9 +256,8 @@ static ssize_t wfx_send_hif_msg_read(struct file *file, char __user *user_buf,
 		return context->ret;
 	// Be carefull, write() is waiting for a full message while read()
 	// only return a payload
-	ret = copy_to_user(user_buf, context->reply, count);
-	if (ret)
-		return ret;
+	if (copy_to_user(user_buf, context->reply, count))
+		return -EFAULT;
 
 	return count;
 }
