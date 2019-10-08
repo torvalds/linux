@@ -40,10 +40,6 @@
 #define RK3288_PVTM_CORE	0
 #define RK3288_PVTM_GPU		1
 
-#define RK3366_PVTM_CORE	0
-#define RK3366_PVTM_GPU		1
-#define RK3366_PVTM_PMU		2
-
 #define RK3399_PVTM_CORE_L	0
 #define RK3399_PVTM_CORE_B	1
 #define RK3399_PVTM_DDR		2
@@ -439,31 +435,6 @@ static const struct rockchip_pvtm_info rk3308_pmupvtm = {
 	.get_value = rockchip_pvtm_get_value,
 };
 
-static const struct rockchip_pvtm_channel rk3366_pvtm_channels[] = {
-	PVTM(RK3366_PVTM_CORE, "core", 1, 0, 1, 0x4, 0, 0x4),
-	PVTM(RK3366_PVTM_GPU, "gpu", 1, 8, 9, 0x8, 1, 0x8),
-};
-
-static const struct rockchip_pvtm_info rk3366_pvtm = {
-	.con = 0x800,
-	.sta = 0x80c,
-	.num_channels = ARRAY_SIZE(rk3366_pvtm_channels),
-	.channels = rk3366_pvtm_channels,
-	.get_value = rockchip_pvtm_get_value,
-};
-
-static const struct rockchip_pvtm_channel rk3366_pmupvtm_channels[] = {
-	PVTM(RK3366_PVTM_PMU, "pmu", 1, 0, 1, 0x4, 0, 0x4),
-};
-
-static const struct rockchip_pvtm_info rk3366_pmupvtm = {
-	.con = 0x180,
-	.sta = 0x190,
-	.num_channels = ARRAY_SIZE(rk3366_pmupvtm_channels),
-	.channels = rk3366_pmupvtm_channels,
-	.get_value = rockchip_pvtm_get_value,
-};
-
 static const struct rockchip_pvtm_channel rk3399_pvtm_channels[] = {
 	PVTM(RK3399_PVTM_CORE_L, "core_l", 4, 0, 1, 0x4, 0, 0x4),
 	PVTM(RK3399_PVTM_CORE_B, "core_b", 6, 4, 5, 0x8, 1, 0x8),
@@ -524,14 +495,6 @@ static const struct of_device_id rockchip_pvtm_match[] = {
 	{
 		.compatible = "rockchip,rk3308-pmu-pvtm",
 		.data = (void *)&rk3308_pmupvtm,
-	},
-	{
-		.compatible = "rockchip,rk3366-pvtm",
-		.data = (void *)&rk3366_pvtm,
-	},
-	{
-		.compatible = "rockchip,rk3366-pmu-pvtm",
-		.data = (void *)&rk3366_pmupvtm,
 	},
 	{
 		.compatible = "rockchip,rk3399-pvtm",

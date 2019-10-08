@@ -15,8 +15,6 @@ Required properties:
  - "rockchip,rk3288-pvtm" - for RK3288 SoCs.
  - "rockchip,rk3308-pvtm" - for RK3308 SoCs.
  - "rockchip,rk3308-pmu-pvtm" - for RK3308 SoCs.
- - "rockchip,rk3366-pvtm" - for RK3366 SoCs.
- - "rockchip,rk3366-pmu-pvtm" - for RK3366 SoCs.
  - "rockchip,rk3399-pvtm" - for RK3399 SoCs.
  - "rockchip,rk3399-pmu-pvtm" - for RK3399 SoCs.
 - clocks: Must contain an entry for each entry in clock-names.
