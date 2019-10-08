@@ -165,7 +165,7 @@ static void rtw_spt_band_free(struct ieee80211_supported_band *spt_band)
 			+ sizeof(struct ieee80211_channel)*RTW_2G_CHANNELS_NUM
 			+ sizeof(struct ieee80211_rate)*RTW_G_RATES_NUM;
 	}
-	kfree((u8 *)spt_band);
+	kfree(spt_band);
 }
 
 static const struct ieee80211_txrx_stypes
@@ -1156,7 +1156,7 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 addkey_end:
-	kfree((u8 *)param);
+	kfree(param);
 
 	return ret;
 
@@ -2193,7 +2193,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 			ret = -EOPNOTSUPP ;
 		}
 
-		kfree((u8 *)pwep);
+		kfree(pwep);
 
 		if (ret < 0)
 			goto exit;
@@ -2646,7 +2646,7 @@ static int rtw_cfg80211_add_monitor_if (struct adapter *padapter, char *name, st
 
 out:
 	if (ret && mon_wdev) {
-		kfree((u8 *)mon_wdev);
+		kfree(mon_wdev);
 		mon_wdev = NULL;
 	}
 
@@ -3502,7 +3502,7 @@ void rtw_wdev_free(struct wireless_dev *wdev)
 
 	wiphy_free(wdev->wiphy);
 
-	kfree((u8 *)wdev);
+	kfree(wdev);
 }
 
 void rtw_wdev_unregister(struct wireless_dev *wdev)

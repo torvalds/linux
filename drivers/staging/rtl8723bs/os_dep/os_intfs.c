@@ -1142,7 +1142,7 @@ void rtw_ndev_destructor(struct net_device *ndev)
 	DBG_871X(FUNC_NDEV_FMT "\n", FUNC_NDEV_ARG(ndev));
 
 	if (ndev->ieee80211_ptr)
-		kfree((u8 *)ndev->ieee80211_ptr);
+		kfree(ndev->ieee80211_ptr);
 }
 
 void rtw_dev_unload(struct adapter *padapter)
