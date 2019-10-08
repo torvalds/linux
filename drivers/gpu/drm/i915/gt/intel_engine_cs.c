@@ -736,6 +736,7 @@ intel_engine_init_active(struct intel_engine_cs *engine, unsigned int subclass)
 static struct intel_context *
 create_kernel_context(struct intel_engine_cs *engine)
 {
+	static struct lock_class_key kernel;
 	struct intel_context *ce;
 	int err;
 
@@ -750,6 +751,14 @@ create_kernel_context(struct intel_engine_cs *engine)
 		intel_context_put(ce);
 		return ERR_PTR(err);
 	}
+
+	/*
+	 * Give our perma-pinned kernel timelines a separate lockdep class,
+	 * so that we can use them from within the normal user timelines
+	 * should we need to inject GPU operations during their request
+	 * construction.
+	 */
+	lockdep_set_class(&ce->timeline->mutex, &kernel);
 
 	return ce;
 }
