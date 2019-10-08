@@ -298,9 +298,9 @@ wl_cfg80211_bt_setflag(struct net_device *dev, bool set)
 #endif
 }
 
-static void wl_cfg80211_bt_timerfunc(ulong data)
+static void wl_cfg80211_bt_timerfunc(struct timer_list *t)
 {
-	struct btcoex_info *bt_local = (struct btcoex_info *)data;
+	struct btcoex_info *bt_local = from_timer(bt_local, t, timer);
 	WL_TRACE(("Enter\n"));
 	bt_local->timer_on = 0;
 	schedule_work(&bt_local->work);
@@ -390,9 +390,7 @@ void* wl_cfg80211_btcoex_init(struct net_device *ndev)
 	btco_inf->ts_dhcp_ok = 0;
 	/* Set up timer for BT  */
 	btco_inf->timer_ms = 10;
-	init_timer(&btco_inf->timer);
-	btco_inf->timer.data = (ulong)btco_inf;
-	btco_inf->timer.function = wl_cfg80211_bt_timerfunc;
+	timer_setup(&btco_inf->timer, wl_cfg80211_bt_timerfunc, 0);
 
 	btco_inf->dev = ndev;
 

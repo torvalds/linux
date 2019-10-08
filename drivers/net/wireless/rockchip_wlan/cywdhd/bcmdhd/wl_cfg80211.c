@@ -1454,7 +1454,7 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
 	unsigned char name_assign_type,
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)) */
-	enum nl80211_iftype type, u32 *flags,
+	enum nl80211_iftype type,
 	struct vif_params *params)
 {
 	s32 err = -ENODEV;
@@ -1923,7 +1923,7 @@ wl_cfg80211_del_virtual_iface(struct wiphy *wiphy, bcm_struct_cfgdev *cfgdev)
 
 static s32
 wl_cfg80211_change_virtual_iface(struct wiphy *wiphy, struct net_device *ndev,
-	enum nl80211_iftype type, u32 *flags,
+	enum nl80211_iftype type,
 	struct vif_params *params)
 {
 	s32 ap = 0;
@@ -9900,7 +9900,7 @@ wl_bss_roaming_done(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 	u32 *channel;
 	u32 freq;
 #endif 
-
+	struct cfg80211_roam_info roam_info = {};
 
 	wl_get_assoc_ies(cfg, ndev);
 	wl_update_prof(cfg, ndev, NULL, (const void *)(e->addr.octet), WL_PROF_BSSID);
@@ -9921,13 +9921,14 @@ wl_bss_roaming_done(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 	printk("wl_bss_roaming_done succeeded to " MACDBG "\n",
 		MAC2STRDBG((const u8*)(&e->addr)));
 
-	cfg80211_roamed(ndev,
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39))
-		notify_channel,
-#endif
-		curbssid,
-		conn_info->req_ie, conn_info->req_ie_len,
-		conn_info->resp_ie, conn_info->resp_ie_len, GFP_KERNEL);
+	roam_info.channel = notify_channel;
+	roam_info.bssid = curbssid;
+	roam_info.req_ie = conn_info->req_ie;
+	roam_info.req_ie_len = conn_info->req_ie_len;
+	roam_info.resp_ie = conn_info->resp_ie;
+	roam_info.resp_ie_len = conn_info->resp_ie_len;
+
+	cfg80211_roamed(ndev, &roam_info, GFP_KERNEL);
 	WL_DBG(("Report roaming result\n"));
 
 	wl_set_drv_status(cfg, CONNECTED, ndev);
@@ -10973,10 +10974,10 @@ void wl_terminate_event_handler(void)
 	}
 }
 
-static void wl_scan_timeout(unsigned long data)
+static void wl_scan_timeout(struct timer_list *t)
 {
 	wl_event_msg_t msg;
-	struct bcm_cfg80211 *cfg = (struct bcm_cfg80211 *)data;
+	struct bcm_cfg80211 *cfg = from_timer(cfg, t, scan_timeout);
 	struct wireless_dev *wdev = NULL;
 	struct net_device *ndev = NULL;
 	struct wl_scan_results *bss_list;
@@ -11047,9 +11048,9 @@ static void wl_del_roam_timeout(struct bcm_cfg80211 *cfg)
 
 }
 
-static void wl_roam_timeout(unsigned long data)
+static void wl_roam_timeout(struct timer_list *t)
 {
-	struct bcm_cfg80211 *cfg = (struct bcm_cfg80211 *)data;
+	struct bcm_cfg80211 *cfg = from_timer(cfg, t, roam_timeout);
 	dhd_pub_t *dhdp = (dhd_pub_t *)(cfg->pub);
 
 	WL_ERR(("roam timer expired\n"));
@@ -11999,9 +12000,7 @@ static s32 wl_init_scan(struct bcm_cfg80211 *cfg)
 	wl_escan_init_sync_id(cfg);
 
 	/* Init scan_timeout timer */
-	init_timer(&cfg->scan_timeout);
-	cfg->scan_timeout.data = (unsigned long) cfg;
-	cfg->scan_timeout.function = wl_scan_timeout;
+	timer_setup(&cfg->scan_timeout, wl_scan_timeout, 0);
 
 	return err;
 }
@@ -12012,9 +12011,7 @@ static s32 wl_init_roam_timeout(struct bcm_cfg80211 *cfg)
 	int err = 0;
 
 	/* Init roam timer */
-	init_timer(&cfg->roam_timeout);
-	cfg->roam_timeout.data = (unsigned long) cfg;
-	cfg->roam_timeout.function = wl_roam_timeout;
+	timer_setup(&cfg->roam_timeout, wl_roam_timeout, 0);
 
 	return err;
 }

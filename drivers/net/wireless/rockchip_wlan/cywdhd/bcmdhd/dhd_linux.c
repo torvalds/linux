@@ -53,6 +53,7 @@
 #include <linux/ip.h>
 #include <linux/reboot.h>
 #include <linux/notifier.h>
+#include <uapi/linux/sched/types.h>
 #include <net/addrconf.h>
 #ifdef ENABLE_ADAPTIVE_SCHED
 #include <linux/cpufreq.h>
@@ -4570,9 +4571,6 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 #endif /* PROP_TXSTATUS */
 		}
 
-		if (ifp->net)
-			ifp->net->last_rx = jiffies;
-
 		if (ntoh16(skb->protocol) != ETHER_TYPE_BRCM) {
 			dhdp->dstats.rx_bytes += skb->len;
 			dhdp->rx_packets++; /* Local count */
@@ -4761,9 +4759,9 @@ dhd_watchdog_thread(void *data)
 	complete_and_exit(&tsk->completed, 0);
 }
 
-static void dhd_watchdog(ulong data)
+static void dhd_watchdog(struct timer_list *t)
 {
-	dhd_info_t *dhd = (dhd_info_t *)data;
+	dhd_info_t *dhd = from_timer(dhd, t, timer);
 	unsigned long flags;
 
 	if (dhd->pub.dongle_reset) {
@@ -6215,13 +6213,11 @@ dhd_allocate_if(dhd_pub_t *dhdpub, int ifidx, char *name,
 		ifp->net->name[IFNAMSIZ - 1] = '\0';
 	}
 
+	ifp->net->needs_free_netdev = true;
 #ifdef WL_CFG80211
-	if (ifidx == 0)
-		ifp->net->destructor = free_netdev;
-	else
-		ifp->net->destructor = dhd_netdev_free;
+	if (ifidx != 0)
+		ifp->net->priv_destructor = dhd_netdev_free;
 #else
-	ifp->net->destructor = free_netdev;
 #endif /* WL_CFG80211 */
 	strncpy(ifp->name, ifp->net->name, IFNAMSIZ);
 	ifp->name[IFNAMSIZ - 1] = '\0';
@@ -6959,9 +6955,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 
 
 	/* Set up the watchdog timer */
-	init_timer(&dhd->timer);
-	dhd->timer.data = (ulong)dhd;
-	dhd->timer.function = dhd_watchdog;
+	timer_setup(&dhd->timer, dhd_watchdog, 0);
 	dhd->default_wd_interval = dhd_watchdog_ms;
 
 	if (dhd_watchdog_prio >= 0) {
@@ -9571,11 +9565,6 @@ int rockchip_wifi_init_module_rkwifi(void)
 {
 #ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
     struct task_struct *kthread;
-    int type = get_wifi_chip_type();
-
-    if (type > WIFI_AP6XXX_SERIES) {
-        return 0;
-    }
 #endif /* CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP */
 
     printk("=======================================================\n");
@@ -9598,14 +9587,6 @@ int rockchip_wifi_init_module_rkwifi(void)
 
 void rockchip_wifi_exit_module_rkwifi(void)
 {
-#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
-    int type = get_wifi_chip_type();    
-
-    if (type > WIFI_AP6XXX_SERIES) {
-        return;
-    }
-#endif /* CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP */
-
     printk("=======================================================\n");
     printk("== Dis-launching Wi-Fi driver! (Powered by Rockchip) ==\n");
     printk("=======================================================\n");
@@ -9856,11 +9837,13 @@ dhd_os_get_image_block(char *buf, int len, void *image)
 {
 	struct file *fp = (struct file *)image;
 	int rdlen;
+	loff_t pos;
 
 	if (!image)
 		return 0;
 
-	rdlen = kernel_read(fp, fp->f_pos, buf, len);
+	pos = fp->f_pos;
+	rdlen = kernel_read(fp, buf, len, &pos);
 	if (rdlen > 0)
 		fp->f_pos += rdlen;
 
