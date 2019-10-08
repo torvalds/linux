@@ -567,7 +567,9 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client,
 	tsdata->gpio_attb = devm_gpiod_get(dev, "attb", GPIOD_IN);
 	if (IS_ERR(tsdata->gpio_attb)) {
 		error = PTR_ERR(tsdata->gpio_attb);
-		dev_err(dev, "Failed to request ATTB gpio: %d\n", error);
+		if (error != -EPROBE_DEFER)
+			dev_err(dev, "Failed to request ATTB gpio: %d\n",
+				error);
 		return error;
 	}
 
@@ -575,7 +577,9 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client,
 						     GPIOD_OUT_LOW);
 	if (IS_ERR(tsdata->gpio_reset)) {
 		error = PTR_ERR(tsdata->gpio_reset);
-		dev_err(dev, "Failed to request RESET gpio: %d\n", error);
+		if (error != -EPROBE_DEFER)
+			dev_err(dev, "Failed to request RESET gpio: %d\n",
+				error);
 		return error;
 	}
 
