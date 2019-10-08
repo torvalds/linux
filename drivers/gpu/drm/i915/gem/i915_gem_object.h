@@ -146,6 +146,18 @@ i915_gem_object_is_contiguous(const struct drm_i915_gem_object *obj)
 }
 
 static inline bool
+i915_gem_object_is_volatile(const struct drm_i915_gem_object *obj)
+{
+	return obj->flags & I915_BO_ALLOC_VOLATILE;
+}
+
+static inline void
+i915_gem_object_set_volatile(struct drm_i915_gem_object *obj)
+{
+	obj->flags |= I915_BO_ALLOC_VOLATILE;
+}
+
+static inline bool
 i915_gem_object_type_has(const struct drm_i915_gem_object *obj,
 			 unsigned long flags)
 {

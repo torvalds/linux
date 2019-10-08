@@ -115,8 +115,6 @@ static int get_huge_pages(struct drm_i915_gem_object *obj)
 	if (i915_gem_gtt_prepare_pages(obj, st))
 		goto err;
 
-	obj->mm.madv = I915_MADV_DONTNEED;
-
 	GEM_BUG_ON(sg_page_sizes != obj->mm.page_mask);
 	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
 
@@ -137,7 +135,6 @@ static void put_huge_pages(struct drm_i915_gem_object *obj,
 	huge_pages_free_pages(pages);
 
 	obj->mm.dirty = false;
-	obj->mm.madv = I915_MADV_WILLNEED;
 }
 
 static const struct drm_i915_gem_object_ops huge_page_ops = {
@@ -169,6 +166,8 @@ huge_pages_object(struct drm_i915_private *i915,
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 	i915_gem_object_init(obj, &huge_page_ops);
+
+	i915_gem_object_set_volatile(obj);
 
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
@@ -229,8 +228,6 @@ static int fake_get_huge_pages(struct drm_i915_gem_object *obj)
 
 	i915_sg_trim(st);
 
-	obj->mm.madv = I915_MADV_DONTNEED;
-
 	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
 
 	return 0;
@@ -263,8 +260,6 @@ static int fake_get_huge_pages_single(struct drm_i915_gem_object *obj)
 	sg_dma_len(sg) = obj->base.size;
 	sg_dma_address(sg) = page_size;
 
-	obj->mm.madv = I915_MADV_DONTNEED;
-
 	__i915_gem_object_set_pages(obj, st, sg->length);
 
 	return 0;
@@ -283,7 +278,6 @@ static void fake_put_huge_pages(struct drm_i915_gem_object *obj,
 {
 	fake_free_huge_pages(obj, pages);
 	obj->mm.dirty = false;
-	obj->mm.madv = I915_MADV_WILLNEED;
 }
 
 static const struct drm_i915_gem_object_ops fake_ops = {
@@ -322,6 +316,8 @@ fake_huge_pages_object(struct drm_i915_private *i915, u64 size, bool single)
 		i915_gem_object_init(obj, &fake_ops_single);
 	else
 		i915_gem_object_init(obj, &fake_ops);
+
+	i915_gem_object_set_volatile(obj);
 
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 	obj->read_domains = I915_GEM_DOMAIN_CPU;

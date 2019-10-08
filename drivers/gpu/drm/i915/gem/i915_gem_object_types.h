@@ -121,7 +121,8 @@ struct drm_i915_gem_object {
 
 	unsigned long flags;
 #define I915_BO_ALLOC_CONTIGUOUS BIT(0)
-#define I915_BO_ALLOC_FLAGS (I915_BO_ALLOC_CONTIGUOUS)
+#define I915_BO_ALLOC_VOLATILE   BIT(1)
+#define I915_BO_ALLOC_FLAGS (I915_BO_ALLOC_CONTIGUOUS | I915_BO_ALLOC_VOLATILE)
 
 	/*
 	 * Is the object to be mapped as read-only to the GPU
@@ -172,6 +173,12 @@ struct drm_i915_gem_object {
 		 * List of memory region blocks allocated for this object.
 		 */
 		struct list_head blocks;
+		/**
+		 * Element within memory_region->objects or region->purgeable
+		 * if the object is marked as DONTNEED. Access is protected by
+		 * region->obj_lock.
+		 */
+		struct list_head region_link;
 
 		struct sg_table *pages;
 		void *mapping;
