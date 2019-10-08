@@ -574,7 +574,7 @@ static int z_erofs_do_read_page(struct z_erofs_decompress_frontend *fe,
 				struct list_head *pagepool)
 {
 	struct inode *const inode = fe->inode;
-	struct erofs_sb_info *const sbi __maybe_unused = EROFS_I_SB(inode);
+	struct erofs_sb_info *const sbi = EROFS_I_SB(inode);
 	struct erofs_map_blocks *const map = &fe->map;
 	struct z_erofs_collector *const clt = &fe->clt;
 	const loff_t offset = page_offset(page);
@@ -997,8 +997,6 @@ static struct page *pickup_page_for_submission(struct z_erofs_pcluster *pcl,
 					       struct address_space *mc,
 					       gfp_t gfp)
 {
-	/* determined at compile time to avoid too many #ifdefs */
-	const bool nocache = __builtin_constant_p(mc) ? !mc : false;
 	const pgoff_t index = pcl->obj.index;
 	bool tocache = false;
 
@@ -1019,7 +1017,7 @@ repeat:
 	 * the cached page has not been allocated and
 	 * an placeholder is out there, prepare it now.
 	 */
-	if (!nocache && page == PAGE_UNALLOCATED) {
+	if (page == PAGE_UNALLOCATED) {
 		tocache = true;
 		goto out_allocpage;
 	}
@@ -1030,21 +1028,6 @@ repeat:
 	page = tagptr_unfold_ptr(t);
 
 	mapping = READ_ONCE(page->mapping);
-
-	/*
-	 * if managed cache is disabled, it's no way to
-	 * get such a cached-like page.
-	 */
-	if (nocache) {
-		/* if managed cache is disabled, it is impossible `justfound' */
-		DBG_BUGON(justfound);
-
-		/* and it should be locked, not uptodate, and not truncated */
-		DBG_BUGON(!PageLocked(page));
-		DBG_BUGON(PageUptodate(page));
-		DBG_BUGON(!mapping);
-		goto out;
-	}
 
 	/*
 	 * unmanaged (file) pages are all locked solidly,
@@ -1102,7 +1085,7 @@ out_allocpage:
 		cpu_relax();
 		goto repeat;
 	}
-	if (nocache || !tocache)
+	if (!tocache)
 		goto out;
 	if (add_to_page_cache_lru(page, mc, index + nr, gfp)) {
 		page->mapping = Z_EROFS_MAPPING_STAGING;
@@ -1208,7 +1191,7 @@ static bool z_erofs_vle_submit_all(struct super_block *sb,
 				   struct z_erofs_unzip_io *fgq,
 				   bool force_fg)
 {
-	struct erofs_sb_info *const sbi __maybe_unused = EROFS_SB(sb);
+	struct erofs_sb_info *const sbi = EROFS_SB(sb);
 	z_erofs_next_pcluster_t qtail[NR_JOBQUEUES];
 	struct z_erofs_unzip_io *q[NR_JOBQUEUES];
 	struct bio *bio;
