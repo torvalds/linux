@@ -215,11 +215,12 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
  * value to the address.
  *
  * Second member: struct ras_debug_if::op.
- * It has three kinds of operations.
+ * It has four kinds of operations.
  *
  * - 0: disable RAS on the block. Take ::head as its data.
  * - 1: enable RAS on the block. Take ::head as its data.
  * - 2: inject errors on the block. Take ::inject as its data.
+ * - 3: reboot on unrecoverable error
  *
  * How to use the interface?
  * programs:
