@@ -228,13 +228,13 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
  *
  * .. code-block:: bash
  *
- *	echo op block [error [sub_blcok address value]] > .../ras/ras_ctrl
+ *	echo op block [error [sub_block address value]] > .../ras/ras_ctrl
  *
  * op: disable, enable, inject
  *	disable: only block is needed
  *	enable: block and error are needed
  *	inject: error, address, value are needed
- * block: umc, smda, gfx, .........
+ * block: umc, sdma, gfx, .........
  *	see ras_block_string[] for details
  * error: ue, ce
  *	ue: multi_uncorrectable
