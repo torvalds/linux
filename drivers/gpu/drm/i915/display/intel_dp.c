@@ -1644,6 +1644,7 @@ static i915_reg_t skl_aux_ctl_reg(struct intel_dp *intel_dp)
 	case AUX_CH_D:
 	case AUX_CH_E:
 	case AUX_CH_F:
+	case AUX_CH_G:
 		return DP_AUX_CH_CTL(aux_ch);
 	default:
 		MISSING_CASE(aux_ch);
@@ -1664,6 +1665,7 @@ static i915_reg_t skl_aux_data_reg(struct intel_dp *intel_dp, int index)
 	case AUX_CH_D:
 	case AUX_CH_E:
 	case AUX_CH_F:
+	case AUX_CH_G:
 		return DP_AUX_CH_DATA(aux_ch, index);
 	default:
 		MISSING_CASE(aux_ch);
