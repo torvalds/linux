@@ -450,12 +450,18 @@ int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 	return read_len;
 }
 
+#define ST_LSM6DSX_INVALID_SAMPLE	0x7ffd
 static int
 st_lsm6dsx_push_tagged_data(struct st_lsm6dsx_hw *hw, u8 tag,
 			    u8 *data, s64 ts)
 {
+	s16 val = le16_to_cpu(*(__le16 *)data);
 	struct st_lsm6dsx_sensor *sensor;
 	struct iio_dev *iio_dev;
+
+	/* invalid sample during bootstrap phase */
+	if (val >= ST_LSM6DSX_INVALID_SAMPLE)
+		return -EINVAL;
 
 	/*
 	 * EXT_TAG are managed in FIFO fashion so ST_LSM6DSX_EXT0_TAG

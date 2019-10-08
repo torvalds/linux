@@ -723,6 +723,10 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.len = ARRAY_SIZE(st_lsm6dsx_gyro_channels),
 			},
 		},
+		.drdy_mask = {
+			.addr = 0x13,
+			.mask = BIT(3),
+		},
 		.odr_table = {
 			[ST_LSM6DSX_ID_ACC] = {
 				.reg = {
@@ -913,6 +917,10 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.len = ARRAY_SIZE(st_lsm6dsx_gyro_channels),
 			},
 		},
+		.drdy_mask = {
+			.addr = 0x13,
+			.mask = BIT(3),
+		},
 		.odr_table = {
 			[ST_LSM6DSX_ID_ACC] = {
 				.reg = {
@@ -1079,6 +1087,10 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.chan = st_lsm6dsx_gyro_channels,
 				.len = ARRAY_SIZE(st_lsm6dsx_gyro_channels),
 			},
+		},
+		.drdy_mask = {
+			.addr = 0x13,
+			.mask = BIT(3),
 		},
 		.odr_table = {
 			[ST_LSM6DSX_ID_ACC] = {
@@ -1941,6 +1953,15 @@ static int st_lsm6dsx_init_device(struct st_lsm6dsx_hw *hw)
 			if (err < 0)
 				return err;
 		}
+	}
+
+	/* enable drdy-mas if available */
+	if (hw->settings->drdy_mask.addr) {
+		reg = &hw->settings->drdy_mask;
+		err = regmap_update_bits(hw->regmap, reg->addr, reg->mask,
+					 ST_LSM6DSX_SHIFT_VAL(1, reg->mask));
+		if (err < 0)
+			return err;
 	}
 
 	err = st_lsm6dsx_init_shub(hw);

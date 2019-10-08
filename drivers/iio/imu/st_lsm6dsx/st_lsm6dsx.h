@@ -245,6 +245,7 @@ struct st_lsm6dsx_ext_dev_settings {
  * @id: List of hw id/device name supported by the driver configuration.
  * @channels: IIO channels supported by the device.
  * @irq_config: interrupts related registers.
+ * @drdy_mask: register info for data-ready mask (addr + mask).
  * @odr_table: Hw sensors odr table (Hz + val).
  * @fs_table: Hw sensors gain table (gain + val).
  * @decimator: List of decimator register info (addr + mask).
@@ -277,6 +278,7 @@ struct st_lsm6dsx_settings {
 		struct st_lsm6dsx_reg hla;
 		struct st_lsm6dsx_reg od;
 	} irq_config;
+	struct st_lsm6dsx_reg drdy_mask;
 	struct st_lsm6dsx_odr_table_entry odr_table[2];
 	struct st_lsm6dsx_fs_table_entry fs_table[2];
 	struct st_lsm6dsx_reg decimator[ST_LSM6DSX_MAX_ID];
