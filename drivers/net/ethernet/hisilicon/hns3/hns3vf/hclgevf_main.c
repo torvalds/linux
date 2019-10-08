@@ -1176,11 +1176,37 @@ static void hclgevf_reset_tqp_stats(struct hnae3_handle *handle)
 	}
 }
 
+static int hclgevf_get_host_mac_addr(struct hclgevf_dev *hdev, u8 *p)
+{
+	u8 host_mac[ETH_ALEN];
+	int status;
+
+	status = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_MAC_ADDR, 0, NULL, 0,
+				      true, host_mac, ETH_ALEN);
+	if (status) {
+		dev_err(&hdev->pdev->dev,
+			"fail to get VF MAC from host %d", status);
+		return status;
+	}
+
+	ether_addr_copy(p, host_mac);
+
+	return 0;
+}
+
 static void hclgevf_get_mac_addr(struct hnae3_handle *handle, u8 *p)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	u8 host_mac_addr[ETH_ALEN];
 
-	ether_addr_copy(p, hdev->hw.mac.mac_addr);
+	if (hclgevf_get_host_mac_addr(hdev, host_mac_addr))
+		return;
+
+	hdev->has_pf_mac = !is_zero_ether_addr(host_mac_addr);
+	if (hdev->has_pf_mac)
+		ether_addr_copy(p, host_mac_addr);
+	else
+		ether_addr_copy(p, hdev->hw.mac.mac_addr);
 }
 
 static int hclgevf_set_mac_addr(struct hnae3_handle *handle, void *p,

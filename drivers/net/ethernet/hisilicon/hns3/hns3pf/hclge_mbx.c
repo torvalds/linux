@@ -249,6 +249,20 @@ static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,
 	if (mbx_req->msg[1] == HCLGE_MBX_MAC_VLAN_UC_MODIFY) {
 		const u8 *old_addr = (const u8 *)(&mbx_req->msg[8]);
 
+		/* If VF MAC has been configured by the host then it
+		 * cannot be overridden by the MAC specified by the VM.
+		 */
+		if (!is_zero_ether_addr(vport->vf_info.mac) &&
+		    !ether_addr_equal(mac_addr, vport->vf_info.mac)) {
+			status = -EPERM;
+			goto out;
+		}
+
+		if (!is_valid_ether_addr(mac_addr)) {
+			status = -EINVAL;
+			goto out;
+		}
+
 		hclge_rm_uc_addr_common(vport, old_addr);
 		status = hclge_add_uc_addr_common(vport, mac_addr);
 		if (status) {
@@ -276,6 +290,7 @@ static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,
 		return -EIO;
 	}
 
+out:
 	if (mbx_req->mbx_need_resp & HCLGE_MBX_NEED_RESP_BIT)
 		hclge_gen_resp_to_vf(vport, mbx_req, status, NULL, 0);
 
@@ -425,6 +440,13 @@ static int hclge_get_vf_queue_info(struct hclge_vport *vport,
 
 	return hclge_gen_resp_to_vf(vport, mbx_req, 0, resp_data,
 				    HCLGE_TQPS_RSS_INFO_LEN);
+}
+
+static int hclge_get_vf_mac_addr(struct hclge_vport *vport,
+				 struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+{
+	return hclge_gen_resp_to_vf(vport, mbx_req, 0, vport->vf_info.mac,
+				    ETH_ALEN);
 }
 
 static int hclge_get_vf_queue_depth(struct hclge_vport *vport,
@@ -792,6 +814,13 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			break;
 		case HCLGE_MBX_PUSH_LINK_STATUS:
 			hclge_handle_link_change_event(hdev, req);
+			break;
+		case HCLGE_MBX_GET_MAC_ADDR:
+			ret = hclge_get_vf_mac_addr(vport, req);
+			if (ret)
+				dev_err(&hdev->pdev->dev,
+					"PF failed(%d) to get MAC for VF\n",
+					ret);
 			break;
 		case HCLGE_MBX_NCSI_ERROR:
 			hclge_handle_ncsi_error(hdev);

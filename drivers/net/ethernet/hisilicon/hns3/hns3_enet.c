@@ -1413,6 +1413,16 @@ static int hns3_nic_net_set_mac_address(struct net_device *netdev, void *p)
 		return 0;
 	}
 
+	/* For VF device, if there is a perm_addr, then the user will not
+	 * be allowed to change the address.
+	 */
+	if (!hns3_is_phys_func(h->pdev) &&
+	    !is_zero_ether_addr(netdev->perm_addr)) {
+		netdev_err(netdev, "has permanent MAC %pM, user MAC %pM not allow\n",
+			   netdev->perm_addr, mac_addr->sa_data);
+		return -EPERM;
+	}
+
 	ret = h->ae_algo->ops->set_mac_addr(h, mac_addr->sa_data, false);
 	if (ret) {
 		netdev_err(netdev, "set_mac_address fail, ret=%d!\n", ret);
@@ -1862,6 +1872,23 @@ static int hns3_nic_set_vf_rate(struct net_device *ndev, int vf,
 					    false);
 }
 
+static int hns3_nic_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (!h->ae_algo->ops->set_vf_mac)
+		return -EOPNOTSUPP;
+
+	if (is_multicast_ether_addr(mac)) {
+		netdev_err(netdev,
+			   "Invalid MAC:%pM specified. Could not set MAC\n",
+			   mac);
+		return -EINVAL;
+	}
+
+	return h->ae_algo->ops->set_vf_mac(h, vf_id, mac);
+}
+
 static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_open		= hns3_nic_net_open,
 	.ndo_stop		= hns3_nic_net_stop,
@@ -1885,6 +1912,7 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_get_vf_config	= hns3_nic_get_vf_config,
 	.ndo_set_vf_link_state	= hns3_nic_set_vf_link_state,
 	.ndo_set_vf_rate	= hns3_nic_set_vf_rate,
+	.ndo_set_vf_mac		= hns3_nic_set_vf_mac,
 };
 
 bool hns3_is_phys_func(struct pci_dev *pdev)
@@ -3804,23 +3832,24 @@ int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 }
 
 /* Set mac addr if it is configured. or leave it to the AE driver */
-static int hns3_init_mac_addr(struct net_device *netdev, bool init)
+static int hns3_init_mac_addr(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
 	u8 mac_addr_temp[ETH_ALEN];
 	int ret = 0;
 
-	if (h->ae_algo->ops->get_mac_addr && init) {
+	if (h->ae_algo->ops->get_mac_addr)
 		h->ae_algo->ops->get_mac_addr(h, mac_addr_temp);
-		ether_addr_copy(netdev->dev_addr, mac_addr_temp);
-	}
 
 	/* Check if the MAC address is valid, if not get a random one */
-	if (!is_valid_ether_addr(netdev->dev_addr)) {
+	if (!is_valid_ether_addr(mac_addr_temp)) {
 		eth_hw_addr_random(netdev);
 		dev_warn(priv->dev, "using random MAC address %pM\n",
 			 netdev->dev_addr);
+	} else {
+		ether_addr_copy(netdev->dev_addr, mac_addr_temp);
+		ether_addr_copy(netdev->perm_addr, mac_addr_temp);
 	}
 
 	if (h->ae_algo->ops->set_mac_addr)
@@ -3924,7 +3953,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	handle->kinfo.netdev = netdev;
 	handle->priv = (void *)priv;
 
-	hns3_init_mac_addr(netdev, true);
+	hns3_init_mac_addr(netdev);
 
 	hns3_set_default_feature(netdev);
 
@@ -4392,7 +4421,7 @@ static int hns3_reset_notify_restore_enet(struct hnae3_handle *handle)
 	bool vlan_filter_enable;
 	int ret;
 
-	ret = hns3_init_mac_addr(netdev, false);
+	ret = hns3_init_mac_addr(netdev);
 	if (ret)
 		return ret;
 

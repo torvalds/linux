@@ -7490,6 +7490,67 @@ static int hclge_get_mac_ethertype_cmd_status(struct hclge_dev *hdev,
 	return return_status;
 }
 
+static bool hclge_check_vf_mac_exist(struct hclge_vport *vport, int vf_idx,
+				     u8 *mac_addr)
+{
+	struct hclge_mac_vlan_tbl_entry_cmd req;
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_desc desc;
+	u16 egress_port = 0;
+	int i;
+
+	if (is_zero_ether_addr(mac_addr))
+		return false;
+
+	memset(&req, 0, sizeof(req));
+	hnae3_set_field(egress_port, HCLGE_MAC_EPORT_VFID_M,
+			HCLGE_MAC_EPORT_VFID_S, vport->vport_id);
+	req.egress_port = cpu_to_le16(egress_port);
+	hclge_prepare_mac_addr(&req, mac_addr, false);
+
+	if (hclge_lookup_mac_vlan_tbl(vport, &req, &desc, false) != -ENOENT)
+		return true;
+
+	vf_idx += HCLGE_VF_VPORT_START_NUM;
+	for (i = hdev->num_vmdq_vport + 1; i < hdev->num_alloc_vport; i++)
+		if (i != vf_idx &&
+		    ether_addr_equal(mac_addr, hdev->vport[i].vf_info.mac))
+			return true;
+
+	return false;
+}
+
+static int hclge_set_vf_mac(struct hnae3_handle *handle, int vf,
+			    u8 *mac_addr)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	vport = hclge_get_vf_vport(hdev, vf);
+	if (!vport)
+		return -EINVAL;
+
+	if (ether_addr_equal(mac_addr, vport->vf_info.mac)) {
+		dev_info(&hdev->pdev->dev,
+			 "Specified MAC(=%pM) is same as before, no change committed!\n",
+			 mac_addr);
+		return 0;
+	}
+
+	if (hclge_check_vf_mac_exist(vport, vf, mac_addr)) {
+		dev_err(&hdev->pdev->dev, "Specified MAC(=%pM) exists!\n",
+			mac_addr);
+		return -EEXIST;
+	}
+
+	ether_addr_copy(vport->vf_info.mac, mac_addr);
+	dev_info(&hdev->pdev->dev,
+		 "MAC of VF %d has been set to %pM, and it will be reinitialized!\n",
+		 vf, mac_addr);
+
+	return hclge_inform_reset_assert_to_vf(vport);
+}
+
 static int hclge_add_mgr_tbl(struct hclge_dev *hdev,
 			     const struct hclge_mac_mgr_tbl_entry_cmd *req)
 {
@@ -10490,6 +10551,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_vf_spoofchk = hclge_set_vf_spoofchk,
 	.set_vf_trust = hclge_set_vf_trust,
 	.set_vf_rate = hclge_set_vf_rate,
+	.set_vf_mac = hclge_set_vf_mac,
 };
 
 static struct hnae3_ae_algo ae_algo = {
