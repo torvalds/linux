@@ -261,7 +261,7 @@ static int rtw_mac_init_system_cfg(struct rtw_dev *rtwdev)
 	value |= BIT_WL_PLATFORM_RST | BIT_DDMA_EN;
 	rtw_write32(rtwdev, REG_CPU_DMEM_CON, value);
 
-	rtw_write8(rtwdev, REG_SYS_FUNC_EN + 1, sys_func_en);
+	rtw_write8_set(rtwdev, REG_SYS_FUNC_EN + 1, sys_func_en);
 	value8 = (rtw_read8(rtwdev, REG_CR_EXT + 3) & 0xF0) | 0x0C;
 	rtw_write8(rtwdev, REG_CR_EXT + 3, value8);
 
