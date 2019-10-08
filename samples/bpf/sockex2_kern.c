@@ -1,5 +1,6 @@
 #include <uapi/linux/bpf.h>
 #include "bpf_helpers.h"
+#include "bpf_legacy.h"
 #include <uapi/linux/in.h>
 #include <uapi/linux/if.h>
 #include <uapi/linux/if_ether.h>

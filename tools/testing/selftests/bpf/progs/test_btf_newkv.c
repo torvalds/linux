@@ -2,6 +2,7 @@
 /* Copyright (c) 2018 Facebook */
 #include <linux/bpf.h>
 #include "bpf_helpers.h"
+#include "bpf_legacy.h"
 
 int _version SEC("version") = 1;
 
