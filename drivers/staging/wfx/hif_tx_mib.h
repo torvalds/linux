@@ -86,13 +86,22 @@ static inline int hif_set_rx_filter(struct wfx_vif *wvif, bool filter_bssid,
 }
 
 static inline int hif_set_beacon_filter_table(struct wfx_vif *wvif,
-					      struct hif_mib_bcn_filter_table *ft)
+					      int tbl_len,
+					      struct hif_ie_table_entry *tbl)
 {
-	size_t buf_len = struct_size(ft, ie_table, ft->num_of_info_elmts);
+	int ret;
+	struct hif_mib_bcn_filter_table *val;
+	int buf_len = struct_size(val, ie_table, tbl_len);
 
-	cpu_to_le32s(&ft->num_of_info_elmts);
-	return hif_write_mib(wvif->wdev, wvif->id,
-			     HIF_MIB_ID_BEACON_FILTER_TABLE, ft, buf_len);
+	val = kzalloc(buf_len, GFP_KERNEL);
+	if (!val)
+		return -ENOMEM;
+	val->num_of_info_elmts = cpu_to_le32(tbl_len);
+	memcpy(val->ie_table, tbl, tbl_len * sizeof(*tbl));
+	ret = hif_write_mib(wvif->wdev, wvif->id,
+			    HIF_MIB_ID_BEACON_FILTER_TABLE, val, buf_len);
+	kfree(val);
+	return ret;
 }
 
 static inline int hif_beacon_filter_control(struct wfx_vif *wvif,

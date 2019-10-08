@@ -217,14 +217,13 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 	bool filter_bssid = wvif->filter_bssid;
 	bool fwd_probe_req = wvif->fwd_probe_req;
 	struct hif_mib_bcn_filter_enable bf_ctrl;
-	struct hif_mib_bcn_filter_table *bf_tbl;
-	struct hif_ie_table_entry ie_tbl[] = {
+	struct hif_ie_table_entry filter_ies[] = {
 		{
 			.ie_id        = WLAN_EID_VENDOR_SPECIFIC,
 			.has_changed  = 1,
 			.no_longer    = 1,
 			.has_appeared = 1,
-			.oui         = { 0x50, 0x6F, 0x9A},
+			.oui          = { 0x50, 0x6F, 0x9A },
 		}, {
 			.ie_id        = WLAN_EID_HT_OPERATION,
 			.has_changed  = 1,
@@ -237,36 +236,34 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 			.has_appeared = 1,
 		}
 	};
+	int n_filter_ies;
 
 	if (wvif->state == WFX_STATE_PASSIVE)
 		return;
 
-	bf_tbl = kmalloc(sizeof(struct hif_mib_bcn_filter_table) + sizeof(ie_tbl), GFP_KERNEL);
-	memcpy(bf_tbl->ie_table, ie_tbl, sizeof(ie_tbl));
 	if (wvif->disable_beacon_filter) {
 		bf_ctrl.enable = 0;
 		bf_ctrl.bcn_count = 1;
-		bf_tbl->num_of_info_elmts = 0;
+		n_filter_ies = 0;
 	} else if (!is_sta) {
 		bf_ctrl.enable = HIF_BEACON_FILTER_ENABLE | HIF_BEACON_FILTER_AUTO_ERP;
 		bf_ctrl.bcn_count = 0;
-		bf_tbl->num_of_info_elmts = 2;
+		n_filter_ies = 2;
 	} else {
 		bf_ctrl.enable = HIF_BEACON_FILTER_ENABLE;
 		bf_ctrl.bcn_count = 0;
-		bf_tbl->num_of_info_elmts = 3;
+		n_filter_ies = 3;
 	}
 
 	ret = hif_set_rx_filter(wvif, filter_bssid, fwd_probe_req);
 	if (!ret)
-		ret = hif_set_beacon_filter_table(wvif, bf_tbl);
+		ret = hif_set_beacon_filter_table(wvif, n_filter_ies, filter_ies);
 	if (!ret)
 		ret = hif_beacon_filter_control(wvif, bf_ctrl.enable, bf_ctrl.bcn_count);
 	if (!ret)
 		ret = wfx_set_mcast_filter(wvif, &wvif->mcast_filter);
 	if (ret)
 		dev_err(wvif->wdev->dev, "update filtering failed: %d\n", ret);
-	kfree(bf_tbl);
 }
 
 void wfx_update_filtering_work(struct work_struct *work)
