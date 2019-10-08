@@ -269,7 +269,7 @@ static inline void me_intr_disable(struct mei_device *dev, u32 hcsr)
 }
 
 /**
- * mei_me_intr_clear - clear and stop interrupts
+ * me_intr_clear - clear and stop interrupts
  *
  * @dev: the device structure
  * @hcsr: supplied hcsr register value
