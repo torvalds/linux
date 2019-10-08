@@ -135,7 +135,6 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
 	const struct drm_format_info *format = omap_fb->format;
-	struct plane *plane = &omap_fb->planes[0];
 	u32 x, y, orient = 0;
 
 	info->fourcc = fb->format->format;
@@ -209,8 +208,6 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 	info->screen_width /= format->cpp[0];
 
 	if (fb->format->format == DRM_FORMAT_NV12) {
-		plane = &omap_fb->planes[1];
-
 		if (info->rotation_type == OMAP_DSS_ROT_TILER) {
 			WARN_ON(!(omap_gem_flags(fb->obj[1]) & OMAP_BO_TILED_MASK));
 			omap_gem_rotated_dma_addr(fb->obj[1], orient, x/2, y/2,
