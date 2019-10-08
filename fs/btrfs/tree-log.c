@@ -2851,7 +2851,7 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 	level = btrfs_header_level(log->node);
 	orig_level = level;
 	path->nodes[level] = log->node;
-	extent_buffer_get(log->node);
+	atomic_inc(&log->node->refs);
 	path->slots[level] = 0;
 
 	while (1) {

@@ -230,11 +230,6 @@ static inline int num_extent_pages(const struct extent_buffer *eb)
 	       (eb->start >> PAGE_SHIFT);
 }
 
-static inline void extent_buffer_get(struct extent_buffer *eb)
-{
-	atomic_inc(&eb->refs);
-}
-
 static inline int extent_buffer_uptodate(struct extent_buffer *eb)
 {
 	return test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);

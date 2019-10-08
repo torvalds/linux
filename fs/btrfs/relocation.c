@@ -2246,7 +2246,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 
 	if (btrfs_disk_key_objectid(&root_item->drop_progress) == 0) {
 		level = btrfs_root_level(root_item);
-		extent_buffer_get(reloc_root->node);
+		atomic_inc(&reloc_root->node->refs);
 		path->nodes[level] = reloc_root->node;
 		path->slots[level] = 0;
 	} else {
@@ -4688,7 +4688,7 @@ int btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
 		       node->new_bytenr != buf->start);
 
 		drop_node_buffer(node);
-		extent_buffer_get(cow);
+		atomic_inc(&cow->refs);
 		node->eb = cow;
 		node->new_bytenr = cow->start;
 

@@ -1100,7 +1100,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 		    btrfs_header_backref_rev(buf) < BTRFS_MIXED_BACKREF_REV)
 			parent_start = buf->start;
 
-		extent_buffer_get(cow);
+		atomic_inc(&cow->refs);
 		ret = tree_mod_log_insert_root(root->node, cow, 1);
 		BUG_ON(ret < 0);
 		rcu_assign_pointer(root->node, cow);
@@ -2011,7 +2011,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 	/* update the path */
 	if (left) {
 		if (btrfs_header_nritems(left) > orig_slot) {
-			extent_buffer_get(left);
+			atomic_inc(&left->refs);
 			/* left was locked after cow */
 			path->nodes[level] = left;
 			path->slots[level + 1] -= 1;
@@ -2601,7 +2601,7 @@ static struct extent_buffer *btrfs_search_slot_get_root(struct btrfs_root *root,
 
 		} else {
 			b = root->commit_root;
-			extent_buffer_get(b);
+			atomic_inc(&b->refs);
 		}
 		level = btrfs_header_level(b);
 		/*
@@ -3375,7 +3375,7 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 	free_extent_buffer(old);
 
 	add_root_to_dirty_list(root);
-	extent_buffer_get(c);
+	atomic_inc(&c->refs);
 	path->nodes[level] = c;
 	path->locks[level] = BTRFS_WRITE_LOCK_BLOCKING;
 	path->slots[level] = 0;
@@ -4908,7 +4908,7 @@ static noinline void btrfs_del_leaf(struct btrfs_trans_handle *trans,
 
 	root_sub_used(root, leaf->len);
 
-	extent_buffer_get(leaf);
+	atomic_inc(&leaf->refs);
 	btrfs_free_tree_block(trans, root, leaf, 0, 1);
 	free_extent_buffer_stale(leaf);
 }
@@ -4989,7 +4989,7 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			 * for possible call to del_ptr below
 			 */
 			slot = path->slots[1];
-			extent_buffer_get(leaf);
+			atomic_inc(&leaf->refs);
 
 			btrfs_set_path_blocking(path);
 			wret = push_leaf_left(trans, root, path, 1, 1,
