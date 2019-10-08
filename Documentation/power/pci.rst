@@ -130,8 +130,8 @@ a full power-on reset sequence and the power-on defaults are restored to the
 device by hardware just as at initial power up.
 
 PCI devices supporting the PCI PM Spec can be programmed to generate PMEs
-while in a low-power state (D1-D3), but they are not required to be capable
-of generating PMEs from all supported low-power states.  In particular, the
+while in any power state (D0-D3), but they are not required to be capable
+of generating PMEs from all supported power states.  In particular, the
 capability of generating PMEs from D3cold is optional and depends on the
 presence of additional voltage (3.3Vaux) allowing the device to remain
 sufficiently active to generate a wakeup signal.
