@@ -337,6 +337,11 @@ struct intel_shared_dpll {
 	 * @info: platform specific info
 	 */
 	const struct dpll_info *info;
+
+	/**
+	 * @wakeref: In some platforms a device-level runtime pm reference may
+	 * need to be grabbed to disable DC states while this DPLL is enabled
+	 */
 	intel_wakeref_t wakeref;
 };
 
