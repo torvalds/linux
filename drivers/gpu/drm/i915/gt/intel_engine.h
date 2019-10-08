@@ -407,8 +407,9 @@ static inline void __intel_engine_reset(struct intel_engine_cs *engine,
 	engine->serial++; /* contexts lost */
 }
 
-bool intel_engine_is_idle(struct intel_engine_cs *engine);
 bool intel_engines_are_idle(struct intel_gt *gt);
+bool intel_engine_is_idle(struct intel_engine_cs *engine);
+void intel_engine_flush_submission(struct intel_engine_cs *engine);
 
 void intel_engines_reset_default_submission(struct intel_gt *gt);
 

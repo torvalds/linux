@@ -4,6 +4,7 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include "i915_drv.h" /* for_each_engine() */
 #include "i915_request.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
@@ -19,6 +20,15 @@ static void retire_requests(struct intel_timeline *tl)
 			break;
 }
 
+static void flush_submission(struct intel_gt *gt)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, gt->i915, id)
+		intel_engine_flush_submission(engine);
+}
+
 long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 {
 	struct intel_gt_timelines *timelines = &gt->timelines;
@@ -31,6 +41,8 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 	interruptible = true;
 	if (unlikely(timeout < 0))
 		timeout = -timeout, interruptible = false;
+
+	flush_submission(gt); /* kick the ksoftirqd tasklets */
 
 	spin_lock_irqsave(&timelines->lock, flags);
 	list_for_each_entry_safe(tl, tn, &timelines->active_list, link) {
