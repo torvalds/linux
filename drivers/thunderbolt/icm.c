@@ -147,6 +147,17 @@ static const struct intel_vss *parse_intel_vss(const void *ep_name, size_t size)
 	return NULL;
 }
 
+static bool intel_vss_is_rtd3(const void *ep_name, size_t size)
+{
+	const struct intel_vss *vss;
+
+	vss = parse_intel_vss(ep_name, size);
+	if (vss)
+		return !!(vss->flags & INTEL_VSS_FLAGS_RTD3);
+
+	return false;
+}
+
 static inline struct tb *icm_to_tb(struct icm *icm)
 {
 	return ((void *)icm - sizeof(struct tb));
@@ -562,58 +573,42 @@ static int icm_fr_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 	return 0;
 }
 
-static struct tb_switch *add_switch(struct tb_switch *parent_sw, u64 route,
-				    const uuid_t *uuid, const u8 *ep_name,
-				    size_t ep_name_size, u8 connection_id,
-				    u8 connection_key, u8 link, u8 depth,
-				    enum tb_security_level security_level,
-				    bool authorized, bool boot)
+static struct tb_switch *alloc_switch(struct tb_switch *parent_sw, u64 route,
+				      const uuid_t *uuid)
 {
-	const struct intel_vss *vss;
+	struct tb *tb = parent_sw->tb;
 	struct tb_switch *sw;
-	int ret;
 
-	pm_runtime_get_sync(&parent_sw->dev);
-
-	sw = tb_switch_alloc(parent_sw->tb, &parent_sw->dev, route);
-	if (IS_ERR(sw))
-		goto out;
+	sw = tb_switch_alloc(tb, &parent_sw->dev, route);
+	if (IS_ERR(sw)) {
+		tb_warn(tb, "failed to allocate switch at %llx\n", route);
+		return sw;
+	}
 
 	sw->uuid = kmemdup(uuid, sizeof(*uuid), GFP_KERNEL);
 	if (!sw->uuid) {
-		tb_sw_warn(sw, "cannot allocate memory for switch\n");
 		tb_switch_put(sw);
-		goto out;
+		return ERR_PTR(-ENOMEM);
 	}
-	sw->connection_id = connection_id;
-	sw->connection_key = connection_key;
-	sw->link = link;
-	sw->depth = depth;
-	sw->authorized = authorized;
-	sw->security_level = security_level;
-	sw->boot = boot;
-	init_completion(&sw->rpm_complete);
 
-	vss = parse_intel_vss(ep_name, ep_name_size);
-	if (vss)
-		sw->rpm = !!(vss->flags & INTEL_VSS_FLAGS_RTD3);
+	init_completion(&sw->rpm_complete);
+	return sw;
+}
+
+static int add_switch(struct tb_switch *parent_sw, struct tb_switch *sw)
+{
+	u64 route = tb_route(sw);
+	int ret;
 
 	/* Link the two switches now */
 	tb_port_at(route, parent_sw)->remote = tb_upstream_port(sw);
 	tb_upstream_port(sw)->remote = tb_port_at(route, parent_sw);
 
 	ret = tb_switch_add(sw);
-	if (ret) {
+	if (ret)
 		tb_port_at(tb_route(sw), parent_sw)->remote = NULL;
-		tb_switch_put(sw);
-		sw = ERR_PTR(ret);
-	}
 
-out:
-	pm_runtime_mark_last_busy(&parent_sw->dev);
-	pm_runtime_put_autosuspend(&parent_sw->dev);
-
-	return sw;
+	return ret;
 }
 
 static void update_switch(struct tb_switch *parent_sw, struct tb_switch *sw,
@@ -811,10 +806,25 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		return;
 	}
 
-	add_switch(parent_sw, route, &pkg->ep_uuid, (const u8 *)pkg->ep_name,
-		   sizeof(pkg->ep_name), pkg->connection_id,
-		   pkg->connection_key, link, depth, security_level,
-		   authorized, boot);
+	pm_runtime_get_sync(&parent_sw->dev);
+
+	sw = alloc_switch(parent_sw, route, &pkg->ep_uuid);
+	if (!IS_ERR(sw)) {
+		sw->connection_id = pkg->connection_id;
+		sw->connection_key = pkg->connection_key;
+		sw->link = link;
+		sw->depth = depth;
+		sw->authorized = authorized;
+		sw->security_level = security_level;
+		sw->boot = boot;
+		sw->rpm = intel_vss_is_rtd3(pkg->ep_name, sizeof(pkg->ep_name));
+
+		if (add_switch(parent_sw, sw))
+			tb_switch_put(sw);
+	}
+
+	pm_runtime_mark_last_busy(&parent_sw->dev);
+	pm_runtime_put_autosuspend(&parent_sw->dev);
 
 	tb_switch_put(parent_sw);
 }
@@ -1205,11 +1215,25 @@ __icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr,
 		return;
 	}
 
-	sw = add_switch(parent_sw, route, &pkg->ep_uuid, (const u8 *)pkg->ep_name,
-			sizeof(pkg->ep_name), pkg->connection_id, 0, 0, 0,
-			security_level, authorized, boot);
-	if (!IS_ERR(sw) && force_rtd3)
-		sw->rpm = true;
+	pm_runtime_get_sync(&parent_sw->dev);
+
+	sw = alloc_switch(parent_sw, route, &pkg->ep_uuid);
+	if (!IS_ERR(sw)) {
+		sw->connection_id = pkg->connection_id;
+		sw->authorized = authorized;
+		sw->security_level = security_level;
+		sw->boot = boot;
+		sw->rpm = force_rtd3;
+		if (!sw->rpm)
+			sw->rpm = intel_vss_is_rtd3(pkg->ep_name,
+						    sizeof(pkg->ep_name));
+
+		if (add_switch(parent_sw, sw))
+			tb_switch_put(sw);
+	}
+
+	pm_runtime_mark_last_busy(&parent_sw->dev);
+	pm_runtime_put_autosuspend(&parent_sw->dev);
 
 	tb_switch_put(parent_sw);
 }
