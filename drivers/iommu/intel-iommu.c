@@ -3471,7 +3471,7 @@ static bool iommu_need_mapping(struct device *dev)
 		if (dev->coherent_dma_mask && dev->coherent_dma_mask < dma_mask)
 			dma_mask = dev->coherent_dma_mask;
 
-		if (dma_mask >= dma_get_required_mask(dev))
+		if (dma_mask >= dma_direct_get_required_mask(dev))
 			return false;
 
 		/*
@@ -3775,6 +3775,13 @@ static int intel_map_sg(struct device *dev, struct scatterlist *sglist, int nele
 	return nelems;
 }
 
+static u64 intel_get_required_mask(struct device *dev)
+{
+	if (!iommu_need_mapping(dev))
+		return dma_direct_get_required_mask(dev);
+	return DMA_BIT_MASK(32);
+}
+
 static const struct dma_map_ops intel_dma_ops = {
 	.alloc = intel_alloc_coherent,
 	.free = intel_free_coherent,
@@ -3787,6 +3794,7 @@ static const struct dma_map_ops intel_dma_ops = {
 	.dma_supported = dma_direct_supported,
 	.mmap = dma_common_mmap,
 	.get_sgtable = dma_common_get_sgtable,
+	.get_required_mask = intel_get_required_mask,
 };
 
 static void
