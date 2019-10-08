@@ -15,8 +15,6 @@
 			 ##__VA_ARGS__);		\
 })
 
-#ifdef __clang__
-
 /* helper macro to place programs, maps, license in
  * different sections in elf_bpf file. Section names
  * are interpreted by elf_bpf loader
@@ -46,12 +44,6 @@ struct bpf_map_def {
 	unsigned int inner_map_idx;
 	unsigned int numa_node;
 };
-
-#else
-
-#include <bpf-helpers.h>
-
-#endif
 
 #define BPF_ANNOTATE_KV_PAIR(name, type_key, type_val)		\
 	struct ____btf_map_##name {				\
