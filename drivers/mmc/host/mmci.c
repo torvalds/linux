@@ -1075,6 +1075,7 @@ static void
 mmci_start_command(struct mmci_host *host, struct mmc_command *cmd, u32 c)
 {
 	void __iomem *base = host->base;
+	unsigned long long clks;
 
 	dev_dbg(mmc_dev(host->mmc), "op %02x arg %08x flags %08x\n",
 	    cmd->opcode, cmd->arg, cmd->flags);
@@ -1097,6 +1098,16 @@ mmci_start_command(struct mmci_host *host, struct mmc_command *cmd, u32 c)
 		else
 			c |= host->variant->cmdreg_srsp;
 	}
+
+	if (host->variant->busy_timeout && cmd->flags & MMC_RSP_BUSY) {
+		if (!cmd->busy_timeout)
+			cmd->busy_timeout = 10 * MSEC_PER_SEC;
+
+		clks = (unsigned long long)cmd->busy_timeout * host->cclk;
+		do_div(clks, MSEC_PER_SEC);
+		writel_relaxed(clks, host->base + MMCIDATATIMER);
+	}
+
 	if (/*interrupt*/0)
 		c |= MCI_CPSM_INTERRUPT;
 
@@ -1201,6 +1212,7 @@ static void
 mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 	     unsigned int status)
 {
+	u32 err_msk = MCI_CMDCRCFAIL | MCI_CMDTIMEOUT;
 	void __iomem *base = host->base;
 	bool sbc, busy_resp;
 
@@ -1215,8 +1227,11 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 	 * handling. Note that we tag on any latent IRQs postponed
 	 * due to waiting for busy status.
 	 */
-	if (!((status|host->busy_status) &
-	      (MCI_CMDCRCFAIL|MCI_CMDTIMEOUT|MCI_CMDSENT|MCI_CMDRESPEND)))
+	if (host->variant->busy_timeout && busy_resp)
+		err_msk |= MCI_DATATIMEOUT;
+
+	if (!((status | host->busy_status) &
+	      (err_msk | MCI_CMDSENT | MCI_CMDRESPEND)))
 		return;
 
 	/* Handle busy detection on DAT0 if the variant supports it. */
@@ -1235,8 +1250,7 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 		 * while, to allow it to be set, but tests indicates that it
 		 * isn't needed.
 		 */
-		if (!host->busy_status &&
-		    !(status & (MCI_CMDCRCFAIL|MCI_CMDTIMEOUT)) &&
+		if (!host->busy_status && !(status & err_msk) &&
 		    (readl(base + MMCISTATUS) & host->variant->busy_detect_flag)) {
 
 			writel(readl(base + MMCIMASK0) |
@@ -1290,6 +1304,9 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 		cmd->error = -ETIMEDOUT;
 	} else if (status & MCI_CMDCRCFAIL && cmd->flags & MMC_RSP_CRC) {
 		cmd->error = -EILSEQ;
+	} else if (host->variant->busy_timeout && busy_resp &&
+		   status & MCI_DATATIMEOUT) {
+		cmd->error = -ETIMEDOUT;
 	} else {
 		cmd->resp[0] = readl(base + MMCIRESPONSE0);
 		cmd->resp[1] = readl(base + MMCIRESPONSE1);
@@ -1583,6 +1600,20 @@ static void mmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
+static void mmci_set_max_busy_timeout(struct mmc_host *mmc)
+{
+	struct mmci_host *host = mmc_priv(mmc);
+	u32 max_busy_timeout = 0;
+
+	if (!host->variant->busy_detect)
+		return;
+
+	if (host->variant->busy_timeout && mmc->actual_clock)
+		max_busy_timeout = ~0UL / (mmc->actual_clock / MSEC_PER_SEC);
+
+	mmc->max_busy_timeout = max_busy_timeout;
+}
+
 static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct mmci_host *host = mmc_priv(mmc);
@@ -1686,6 +1717,8 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		host->ops->set_clkreg(host, ios->clock);
 	else
 		mmci_set_clkreg(host, ios->clock);
+
+	mmci_set_max_busy_timeout(mmc);
 
 	if (host->ops && host->ops->set_pwrreg)
 		host->ops->set_pwrreg(host, pwr);
@@ -1957,7 +1990,6 @@ static int mmci_probe(struct amba_device *dev,
 			mmci_write_datactrlreg(host,
 					       host->variant->busy_dpsm_flag);
 		mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY;
-		mmc->max_busy_timeout = 0;
 	}
 
 	/* Prepare a CMD12 - needed to clear the DPSM on some variants. */
