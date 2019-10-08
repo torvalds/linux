@@ -388,7 +388,7 @@ static int rk817_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 		break;
 	default:
 		dev_warn(&rdev->dev,
-			 "%s ramp_delay: %d not supported, setting 10000\n",
+			 "%s ramp_delay: %d not supported, setting 25000\n",
 			 rdev->desc->name, ramp_delay);
 	}
 
