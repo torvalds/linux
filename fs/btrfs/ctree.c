@@ -32,6 +32,7 @@ static void del_ptr(struct btrfs_root *root, struct btrfs_path *path,
 static const struct btrfs_csums {
 	u16		size;
 	const char	*name;
+	const char	*driver;
 } btrfs_csums[] = {
 	[BTRFS_CSUM_TYPE_CRC32] = { .size = 4, .name = "crc32c" },
 	[BTRFS_CSUM_TYPE_XXHASH] = { .size = 8, .name = "xxhash64" },
@@ -51,6 +52,17 @@ const char *btrfs_super_csum_name(u16 csum_type)
 {
 	/* csum type is validated at mount time */
 	return btrfs_csums[csum_type].name;
+}
+
+/*
+ * Return driver name if defined, otherwise the name that's also a valid driver
+ * name
+ */
+const char *btrfs_super_csum_driver(u16 csum_type)
+{
+	/* csum type is validated at mount time */
+	return btrfs_csums[csum_type].driver ?:
+		btrfs_csums[csum_type].name;
 }
 
 size_t __const btrfs_get_num_csums(void)

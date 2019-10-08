@@ -2219,13 +2219,13 @@ static int btrfs_init_workqueues(struct btrfs_fs_info *fs_info,
 static int btrfs_init_csum_hash(struct btrfs_fs_info *fs_info, u16 csum_type)
 {
 	struct crypto_shash *csum_shash;
-	const char *csum_name = btrfs_super_csum_name(csum_type);
+	const char *csum_driver = btrfs_super_csum_driver(csum_type);
 
-	csum_shash = crypto_alloc_shash(csum_name, 0, 0);
+	csum_shash = crypto_alloc_shash(csum_driver, 0, 0);
 
 	if (IS_ERR(csum_shash)) {
 		btrfs_err(fs_info, "error allocating %s hash for checksum",
-			  csum_name);
+			  csum_driver);
 		return PTR_ERR(csum_shash);
 	}
 
