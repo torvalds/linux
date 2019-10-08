@@ -2212,7 +2212,7 @@ void rtw_free_hwxmits(struct adapter *padapter)
 
 	hwxmits = pxmitpriv->hwxmits;
 	if (hwxmits)
-		kfree((u8 *)hwxmits);
+		kfree(hwxmits);
 }
 
 void rtw_init_hwxmits(struct hw_xmit *phwxmit, sint entry)

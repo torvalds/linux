@@ -372,13 +372,13 @@ void rtw_free_cmd_obj(struct cmd_obj *pcmd)
 	if ((pcmd->cmdcode != _JoinBss_CMD_) &&
 	    (pcmd->cmdcode != _CreateBss_CMD_)) {
 		/* free parmbuf in cmd_obj */
-		kfree((unsigned char *)pcmd->parmbuf);
+		kfree(pcmd->parmbuf);
 	}
 
 	if (pcmd->rsp != NULL) {
 		if (pcmd->rspsz != 0) {
 			/* free rsp in cmd_obj */
-			kfree((unsigned char *)pcmd->rsp);
+			kfree(pcmd->rsp);
 		}
 	}
 

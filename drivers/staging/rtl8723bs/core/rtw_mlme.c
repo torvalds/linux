@@ -2207,7 +2207,7 @@ sint rtw_set_auth(struct adapter *adapter, struct security_priv *psecuritypriv)
 
 	psetauthparm = rtw_zmalloc(sizeof(struct setauth_parm));
 	if (psetauthparm == NULL) {
-		kfree((unsigned char *)pcmd);
+		kfree(pcmd);
 		res = _FAIL;
 		goto exit;
 	}
@@ -2284,7 +2284,7 @@ sint rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, s
 	default:
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("\n rtw_set_key:psecuritypriv->dot11PrivacyAlgrthm = %x (must be 1 or 2 or 4 or 5)\n", psecuritypriv->dot11PrivacyAlgrthm));
 		res = _FAIL;
-		kfree((unsigned char *)psetkeyparm);
+		kfree(psetkeyparm);
 		goto exit;
 	}
 
@@ -2292,7 +2292,7 @@ sint rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, s
 	if (enqueue) {
 		pcmd = rtw_zmalloc(sizeof(struct cmd_obj));
 		if (pcmd == NULL) {
-			kfree((unsigned char *)psetkeyparm);
+			kfree(psetkeyparm);
 			res = _FAIL;  /* try again */
 			goto exit;
 		}
@@ -2308,7 +2308,7 @@ sint rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, s
 		res = rtw_enqueue_cmd(pcmdpriv, pcmd);
 	} else {
 		setkey_hdl(adapter, (u8 *)psetkeyparm);
-		kfree((u8 *) psetkeyparm);
+		kfree(psetkeyparm);
 	}
 exit:
 	return res;

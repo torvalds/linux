@@ -1466,11 +1466,11 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 		}
 	}
 
-	kfree((u8 *)bssid);
+	kfree(bssid);
 	return _SUCCESS;
 
 _mismatch:
-	kfree((u8 *)bssid);
+	kfree(bssid);
 
 	if (pmlmepriv->NumOfBcnInfoChkFail == 0)
 		pmlmepriv->timeBcnInfoChkStart = jiffies;
