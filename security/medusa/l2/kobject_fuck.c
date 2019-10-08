@@ -93,13 +93,11 @@ int validate_fuck(const struct path* fuck_path) {
 	}
 
 	hash = hash_function(accessed_path);
-	if (likely(get_from_hash(accessed_path, hash, &inode_security(fuck_inode)) != NULL)) {
-		med_pr_info("VALIDATE_FUCK: allowed path\n");
-	} else {
-		med_pr_err("VALIDATE_FUCK: denied path (not defined in allowed path list)\n");
+	if (likely(get_from_hash(accessed_path, hash, &inode_security(fuck_inode)) == NULL)) {
+		med_pr_notice("VALIDATE_FUCK: denied path (not defined in allowed path list)\n");
 		ret = -EPERM;
 	}
-	med_pr_debug("VALIDATE_FUCK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
+	med_pr_debug("VALIDATE_FUCK: accessed_path: %s inode: %lu result: %d\n", accessed_path, fuck_inode->i_ino, ret);
 out:
 	kfree(buf);
 	return ret;

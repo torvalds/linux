@@ -173,7 +173,7 @@ ssize_t teleport_cycle(teleport_t * teleport, size_t userlimit)
 				teleport->cycle = tpc_HALT;
 				break;
 			default:
-				med_pr_debug("Unknown instruction (0x%2x) at %p\n", teleport->ip->opcode, teleport->ip);
+				med_pr_warn("Unknown instruction (0x%2x) at %p\n", teleport->ip->opcode, teleport->ip);
 				teleport->cycle = tpc_HALT;
 			}
 		}

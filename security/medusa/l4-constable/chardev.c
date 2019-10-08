@@ -642,7 +642,7 @@ static void decrement_counters(teleport_insn_t* tele) {
 
 #define DOWN(m) do {  \
 	if (down_trylock(m)) { \
-		med_pr_info("Strasny vypis: %d\n", __LINE__); \
+		med_pr_crit("Strasny vypis: %d\n", __LINE__); \
 	} \
 } while(0)
 
@@ -1205,7 +1205,7 @@ static int user_release(struct inode *inode, struct file *file)
 	if (am_i_constable())
 		schedule();
 	else
-		med_pr_warn("Authorization server is not responding.\n");
+		med_pr_crit("Authorization server is not responding.\n");
 	remove_wait_queue(&close_wait, &wait);
 	//MOD_DEC_USE_COUNT; Not needed anymore? JK
 

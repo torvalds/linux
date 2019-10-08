@@ -114,7 +114,7 @@ struct vfsmount * medusa_evocate_mnt(struct dentry *dentry)
 	} while (can_nest);
 
 	dput(dentry);
-	med_pr_err("Fatal error: too drunk to evocate mnt. Returning init's mnt instead.\n");
+	med_pr_notice("Fatal error: too drunk to evocate mnt. Returning init's mnt instead.\n");
 	return mntget(init_task.fs->root.mnt);
 }
 
