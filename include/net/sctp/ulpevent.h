@@ -95,6 +95,13 @@ struct sctp_ulpevent *sctp_ulpevent_make_send_failed(
 	__u32 error,
 	gfp_t gfp);
 
+struct sctp_ulpevent *sctp_ulpevent_make_send_failed_event(
+	const struct sctp_association *asoc,
+	struct sctp_chunk *chunk,
+	__u16 flags,
+	__u32 error,
+	gfp_t gfp);
+
 struct sctp_ulpevent *sctp_ulpevent_make_shutdown_event(
 	const struct sctp_association *asoc,
 	__u16 flags,

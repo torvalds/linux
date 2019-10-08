@@ -527,6 +527,45 @@ fail:
 	return NULL;
 }
 
+struct sctp_ulpevent *sctp_ulpevent_make_send_failed_event(
+	const struct sctp_association *asoc, struct sctp_chunk *chunk,
+	__u16 flags, __u32 error, gfp_t gfp)
+{
+	struct sctp_send_failed_event *ssf;
+	struct sctp_ulpevent *event;
+	struct sk_buff *skb;
+	int len;
+
+	skb = skb_copy_expand(chunk->skb, sizeof(*ssf), 0, gfp);
+	if (!skb)
+		return NULL;
+
+	len = ntohs(chunk->chunk_hdr->length);
+	len -= sctp_datachk_len(&asoc->stream);
+
+	skb_pull(skb, sctp_datachk_len(&asoc->stream));
+	event = sctp_skb2event(skb);
+	sctp_ulpevent_init(event, MSG_NOTIFICATION, skb->truesize);
+
+	ssf = skb_push(skb, sizeof(*ssf));
+	ssf->ssf_type = SCTP_SEND_FAILED_EVENT;
+	ssf->ssf_flags = flags;
+	ssf->ssf_length = sizeof(*ssf) + len;
+	skb_trim(skb, ssf->ssf_length);
+	ssf->ssf_error = error;
+
+	ssf->ssfe_info.snd_sid = chunk->sinfo.sinfo_stream;
+	ssf->ssfe_info.snd_ppid = chunk->sinfo.sinfo_ppid;
+	ssf->ssfe_info.snd_context = chunk->sinfo.sinfo_context;
+	ssf->ssfe_info.snd_assoc_id = chunk->sinfo.sinfo_assoc_id;
+	ssf->ssfe_info.snd_flags = chunk->chunk_hdr->flags;
+
+	sctp_ulpevent_set_owner(event, asoc);
+	ssf->ssf_assoc_id = sctp_assoc2id(asoc);
+
+	return event;
+}
+
 /* Create and initialize a SCTP_SHUTDOWN_EVENT notification.
  *
  * Socket Extensions for SCTP - draft-01
