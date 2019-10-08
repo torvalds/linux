@@ -387,10 +387,10 @@ retry_ipi:
 		}
 		ret = smp_call_function_single(cpu, rcu_exp_handler, NULL, 0);
 		put_cpu();
-		if (!ret) {
-			mask_ofl_ipi &= ~mask;
+		/* The CPU will report the QS in response to the IPI. */
+		if (!ret)
 			continue;
-		}
+
 		/* Failed, raced with CPU hotplug operation. */
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		if ((rnp->qsmaskinitnext & mask) &&
@@ -401,13 +401,12 @@ retry_ipi:
 			schedule_timeout_uninterruptible(1);
 			goto retry_ipi;
 		}
-		/* CPU really is offline, so we can ignore it. */
-		if (!(rnp->expmask & mask))
-			mask_ofl_ipi &= ~mask;
+		/* CPU really is offline, so we must report its QS. */
+		if (rnp->expmask & mask)
+			mask_ofl_test |= mask;
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	}
 	/* Report quiescent states for those that went offline. */
-	mask_ofl_test |= mask_ofl_ipi;
 	if (mask_ofl_test)
 		rcu_report_exp_cpu_mult(rnp, mask_ofl_test, false);
 }
