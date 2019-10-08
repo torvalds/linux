@@ -48,7 +48,7 @@ MODULE_PARM_DESC(gpio_wakeup, "gpio number for wakeup. -1 for none.");
 
 static char *slk_key;
 module_param(slk_key, charp, 0600);
-MODULE_PARM_DESC(slk_key, "secret key for secure link (expect 64 hexdecimal digits).");
+MODULE_PARM_DESC(slk_key, "secret key for secure link (expect 64 hexadecimal digits).");
 
 #define RATETAB_ENT(_rate, _rateid, _flags) { \
 	.bitrate  = (_rate),   \
