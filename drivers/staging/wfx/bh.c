@@ -83,12 +83,12 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 			// piggyback is probably correct.
 			return piggyback;
 		}
-		le16_to_cpus(hif->len);
+		le16_to_cpus(&hif->len);
 		computed_len = round_up(hif->len - sizeof(hif->len), 16)
 			       + sizeof(struct hif_sl_msg)
 			       + sizeof(struct hif_sl_tag);
 	} else {
-		le16_to_cpus(hif->len);
+		le16_to_cpus(&hif->len);
 		computed_len = round_up(hif->len, 2);
 	}
 	if (computed_len != read_len) {
