@@ -888,6 +888,7 @@ struct hclge_port_base_vlan_config {
 struct hclge_vf_info {
 	int link_state;
 	u8 mac[ETH_ALEN];
+	u32 spoofchk;
 };
 
 struct hclge_vport {

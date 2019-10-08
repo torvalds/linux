@@ -324,6 +324,9 @@ static int hclge_set_vf_vlan_cfg(struct hclge_vport *vport,
 		proto =  msg_cmd->proto;
 		status = hclge_set_vlan_filter(handle, cpu_to_be16(proto),
 					       vlan, is_kill);
+		if (mbx_req->mbx_need_resp)
+			return hclge_gen_resp_to_vf(vport, mbx_req, status,
+						    NULL, 0);
 	} else if (msg_cmd->subcode == HCLGE_MBX_VLAN_RX_OFF_CFG) {
 		struct hnae3_handle *handle = &vport->nic;
 		bool en = msg_cmd->is_kill ? true : false;

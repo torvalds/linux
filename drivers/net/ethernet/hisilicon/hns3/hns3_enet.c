@@ -1643,6 +1643,19 @@ static int hns3_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 	return ret;
 }
 
+static int hns3_set_vf_spoofchk(struct net_device *netdev, int vf, bool enable)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+
+	if (hns3_nic_resetting(netdev))
+		return -EBUSY;
+
+	if (!handle->ae_algo->ops->set_vf_spoofchk)
+		return -EOPNOTSUPP;
+
+	return handle->ae_algo->ops->set_vf_spoofchk(handle, vf, enable);
+}
+
 static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
@@ -1842,6 +1855,7 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_vlan_rx_add_vid	= hns3_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= hns3_vlan_rx_kill_vid,
 	.ndo_set_vf_vlan	= hns3_ndo_set_vf_vlan,
+	.ndo_set_vf_spoofchk	= hns3_set_vf_spoofchk,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= hns3_rx_flow_steer,
 #endif

@@ -368,6 +368,8 @@ struct hnae3_ae_dev {
  *   Get the VF configuration setting by the host
  * set_vf_link_state
  *   Set VF link status
+ * set_vf_spoofchk
+ *   Enable/disable spoof check for specified vf
  */
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
@@ -537,6 +539,8 @@ struct hnae3_ae_ops {
 			     struct ifla_vf_info *ivf);
 	int (*set_vf_link_state)(struct hnae3_handle *handle, int vf,
 				 int link_state);
+	int (*set_vf_spoofchk)(struct hnae3_handle *handle, int vf,
+			       bool enable);
 };
 
 struct hnae3_dcb_ops {

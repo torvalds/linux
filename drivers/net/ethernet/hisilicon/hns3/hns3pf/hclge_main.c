@@ -2888,6 +2888,7 @@ static int hclge_get_vf_config(struct hnae3_handle *handle, int vf,
 
 	ivf->vf = vf;
 	ivf->linkstate = vport->vf_info.link_state;
+	ivf->spoofchk = vport->vf_info.spoofchk;
 	ether_addr_copy(ivf->mac, vport->vf_info.mac);
 
 	return 0;
@@ -7619,6 +7620,8 @@ static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, u16 vfid,
 				    __be16 proto)
 {
 #define HCLGE_MAX_VF_BYTES  16
+
+	struct hclge_vport *vport = &hdev->vport[vfid];
 	struct hclge_vlan_filter_vf_cfg_cmd *req0;
 	struct hclge_vlan_filter_vf_cfg_cmd *req1;
 	struct hclge_desc desc[2];
@@ -7627,10 +7630,18 @@ static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, u16 vfid,
 	int ret;
 
 	/* if vf vlan table is full, firmware will close vf vlan filter, it
-	 * is unable and unnecessary to add new vlan id to vf vlan filter
+	 * is unable and unnecessary to add new vlan id to vf vlan filter.
+	 * If spoof check is enable, and vf vlan is full, it shouldn't add
+	 * new vlan, because tx packets with these vlan id will be dropped.
 	 */
-	if (test_bit(vfid, hdev->vf_vlan_full) && !is_kill)
+	if (test_bit(vfid, hdev->vf_vlan_full) && !is_kill) {
+		if (vport->vf_info.spoofchk && vlan) {
+			dev_err(&hdev->pdev->dev,
+				"Can't add vlan due to spoof check is on and vf vlan table is full\n");
+			return -EPERM;
+		}
 		return 0;
+	}
 
 	hclge_cmd_setup_basic_desc(&desc[0],
 				   HCLGE_OPC_VLAN_FILTER_VF_CFG, false);
@@ -8127,12 +8138,15 @@ static void hclge_restore_vlan_table(struct hnae3_handle *handle)
 		}
 
 		list_for_each_entry_safe(vlan, tmp, &vport->vlan_list, node) {
-			if (vlan->hd_tbl_status)
-				hclge_set_vlan_filter_hw(hdev,
-							 htons(ETH_P_8021Q),
-							 vport->vport_id,
-							 vlan->vlan_id,
-							 false);
+			int ret;
+
+			if (!vlan->hd_tbl_status)
+				continue;
+			ret = hclge_set_vlan_filter_hw(hdev, htons(ETH_P_8021Q),
+						       vport->vport_id,
+						       vlan->vlan_id, false);
+			if (ret)
+				break;
 		}
 	}
 
@@ -9374,6 +9388,97 @@ static void hclge_stats_clear(struct hclge_dev *hdev)
 	memset(&hdev->hw_stats, 0, sizeof(hdev->hw_stats));
 }
 
+static int hclge_set_mac_spoofchk(struct hclge_dev *hdev, int vf, bool enable)
+{
+	return hclge_config_switch_param(hdev, vf, enable,
+					 HCLGE_SWITCH_ANTI_SPOOF_MASK);
+}
+
+static int hclge_set_vlan_spoofchk(struct hclge_dev *hdev, int vf, bool enable)
+{
+	return hclge_set_vlan_filter_ctrl(hdev, HCLGE_FILTER_TYPE_VF,
+					  HCLGE_FILTER_FE_NIC_INGRESS_B,
+					  enable, vf);
+}
+
+static int hclge_set_vf_spoofchk_hw(struct hclge_dev *hdev, int vf, bool enable)
+{
+	int ret;
+
+	ret = hclge_set_mac_spoofchk(hdev, vf, enable);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Set vf %d mac spoof check %s failed, ret=%d\n",
+			vf, enable ? "on" : "off", ret);
+		return ret;
+	}
+
+	ret = hclge_set_vlan_spoofchk(hdev, vf, enable);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"Set vf %d vlan spoof check %s failed, ret=%d\n",
+			vf, enable ? "on" : "off", ret);
+
+	return ret;
+}
+
+static int hclge_set_vf_spoofchk(struct hnae3_handle *handle, int vf,
+				 bool enable)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	u32 new_spoofchk = enable ? 1 : 0;
+	int ret;
+
+	if (hdev->pdev->revision == 0x20)
+		return -EOPNOTSUPP;
+
+	vport = hclge_get_vf_vport(hdev, vf);
+	if (!vport)
+		return -EINVAL;
+
+	if (vport->vf_info.spoofchk == new_spoofchk)
+		return 0;
+
+	if (enable && test_bit(vport->vport_id, hdev->vf_vlan_full))
+		dev_warn(&hdev->pdev->dev,
+			 "vf %d vlan table is full, enable spoof check may cause its packet send fail\n",
+			 vf);
+	else if (enable && hclge_is_umv_space_full(vport))
+		dev_warn(&hdev->pdev->dev,
+			 "vf %d mac table is full, enable spoof check may cause its packet send fail\n",
+			 vf);
+
+	ret = hclge_set_vf_spoofchk_hw(hdev, vport->vport_id, enable);
+	if (ret)
+		return ret;
+
+	vport->vf_info.spoofchk = new_spoofchk;
+	return 0;
+}
+
+static int hclge_reset_vport_spoofchk(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = hdev->vport;
+	int ret;
+	int i;
+
+	if (hdev->pdev->revision == 0x20)
+		return 0;
+
+	/* resume the vf spoof check state after reset */
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		ret = hclge_set_vf_spoofchk_hw(hdev, vport->vport_id,
+					       vport->vf_info.spoofchk);
+		if (ret)
+			return ret;
+
+		vport++;
+	}
+
+	return 0;
+}
+
 static void hclge_reset_vport_state(struct hclge_dev *hdev)
 {
 	struct hclge_vport *vport = hdev->vport;
@@ -9473,6 +9578,9 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	}
 
 	hclge_reset_vport_state(hdev);
+	ret = hclge_reset_vport_spoofchk(hdev);
+	if (ret)
+		return ret;
 
 	dev_info(&pdev->dev, "Reset done, %s driver initialization finished.\n",
 		 HCLGE_DRIVER_NAME);
@@ -10209,6 +10317,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.restore_vlan_table = hclge_restore_vlan_table,
 	.get_vf_config = hclge_get_vf_config,
 	.set_vf_link_state = hclge_set_vf_link_state,
+	.set_vf_spoofchk = hclge_set_vf_spoofchk,
 };
 
 static struct hnae3_ae_algo ae_algo = {
