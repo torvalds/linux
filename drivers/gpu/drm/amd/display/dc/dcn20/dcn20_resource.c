@@ -2357,10 +2357,11 @@ int dcn20_validate_apply_pipe_split_flags(
 		int vlevel,
 		bool *split)
 {
-	int i, pipe_idx, vlevel_unsplit;
+	int i, pipe_idx, vlevel_split;
 	bool force_split = false;
 	bool avoid_split = dc->debug.pipe_split_policy != MPC_SPLIT_DYNAMIC;
 
+	/* Single display loop, exits if there is more than one display */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		bool exit_loop = false;
@@ -2391,22 +2392,24 @@ int dcn20_validate_apply_pipe_split_flags(
 	if (context->stream_count > dc->res_pool->pipe_count / 2)
 		avoid_split = true;
 
+	/* Avoid split loop looks for lowest voltage level that allows most unsplit pipes possible */
 	if (avoid_split) {
 		for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 			if (!context->res_ctx.pipe_ctx[i].stream)
 				continue;
 
-			for (vlevel_unsplit = vlevel; vlevel <= context->bw_ctx.dml.soc.num_states; vlevel++)
+			for (vlevel_split = vlevel; vlevel <= context->bw_ctx.dml.soc.num_states; vlevel++)
 				if (context->bw_ctx.dml.vba.NoOfDPP[vlevel][0][pipe_idx] == 1)
 					break;
 			/* Impossible to not split this pipe */
-			if (vlevel == context->bw_ctx.dml.soc.num_states)
-				vlevel = vlevel_unsplit;
+			if (vlevel > context->bw_ctx.dml.soc.num_states)
+				vlevel = vlevel_split;
 			pipe_idx++;
 		}
 		context->bw_ctx.dml.vba.maxMpcComb = 0;
 	}
 
+	/* Split loop sets which pipe should be split based on dml outputs and dc flags */
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
