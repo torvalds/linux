@@ -686,7 +686,7 @@ static const struct regulator_linear_range rk805_buck_1_2_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(2300000, 63, 63, 0),
 };
 
-static struct regulator_ops rk809_buck5_ops_range = {
+static const struct regulator_ops rk809_buck5_ops_range = {
 	.list_voltage		= regulator_list_voltage_linear_range,
 	.map_voltage		= regulator_map_voltage_linear_range,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -700,7 +700,7 @@ static struct regulator_ops rk809_buck5_ops_range = {
 	.set_suspend_disable	= rk817_set_suspend_disable,
 };
 
-static struct regulator_ops rk817_reg_ops = {
+static const struct regulator_ops rk817_reg_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -713,7 +713,7 @@ static struct regulator_ops rk817_reg_ops = {
 	.set_suspend_disable	= rk817_set_suspend_disable,
 };
 
-static struct regulator_ops rk817_boost_ops = {
+static const struct regulator_ops rk817_boost_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -725,7 +725,7 @@ static struct regulator_ops rk817_boost_ops = {
 	.set_suspend_disable	= rk817_set_suspend_disable,
 };
 
-static struct regulator_ops rk817_buck_ops_range = {
+static const struct regulator_ops rk817_buck_ops_range = {
 	.list_voltage		= regulator_list_voltage_linear_range,
 	.map_voltage		= regulator_map_voltage_linear_range,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -743,7 +743,7 @@ static struct regulator_ops rk817_buck_ops_range = {
 	.set_suspend_disable	= rk817_set_suspend_disable,
 };
 
-static struct regulator_ops rk817_switch_ops = {
+static const struct regulator_ops rk817_switch_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= rk8xx_is_enabled_wmsk_regmap,
