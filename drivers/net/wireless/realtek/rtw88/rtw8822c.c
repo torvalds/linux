@@ -1112,6 +1112,7 @@ static void rtw8822c_phy_set_param(struct rtw_dev *rtwdev)
 #define WLAN_RTS_RATE_FB_RATE4_H	0x400003E0
 #define WLAN_RTS_RATE_FB_RATE5		0x0600F015
 #define WLAN_RTS_RATE_FB_RATE5_H	0x000000E0
+#define WLAN_MULTI_ADDR			0xFFFFFFFF
 
 #define WLAN_TX_FUNC_CFG1		0x30
 #define WLAN_TX_FUNC_CFG2		0x30
@@ -1221,6 +1222,8 @@ static int rtw8822c_mac_init(struct rtw_dev *rtwdev)
 	rtw_write8(rtwdev, REG_BCN_MAX_ERR, WLAN_BCN_MAX_ERR);
 
 	/* WMAC configuration */
+	rtw_write32(rtwdev, REG_MAR, WLAN_MULTI_ADDR);
+	rtw_write32(rtwdev, REG_MAR + 4, WLAN_MULTI_ADDR);
 	rtw_write8(rtwdev, REG_BBPSF_CTRL + 2, WLAN_RESP_TXRATE);
 	rtw_write8(rtwdev, REG_ACKTO, WLAN_ACK_TO);
 	rtw_write8(rtwdev, REG_ACKTO_CCK, WLAN_ACK_TO_CCK);
