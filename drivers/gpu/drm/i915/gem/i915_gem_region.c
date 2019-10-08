@@ -23,10 +23,10 @@ i915_gem_object_get_pages_buddy(struct drm_i915_gem_object *obj)
 {
 	struct intel_memory_region *mem = obj->mm.region;
 	struct list_head *blocks = &obj->mm.blocks;
-	unsigned int flags = I915_ALLOC_MIN_PAGE_SIZE;
 	resource_size_t size = obj->base.size;
 	resource_size_t prev_end;
 	struct i915_buddy_block *block;
+	unsigned int flags;
 	struct sg_table *st;
 	struct scatterlist *sg;
 	unsigned int sg_page_sizes;
@@ -40,6 +40,10 @@ i915_gem_object_get_pages_buddy(struct drm_i915_gem_object *obj)
 		kfree(st);
 		return -ENOMEM;
 	}
+
+	flags = I915_ALLOC_MIN_PAGE_SIZE;
+	if (obj->flags & I915_BO_ALLOC_CONTIGUOUS)
+		flags |= I915_ALLOC_CONTIGUOUS;
 
 	ret = __intel_memory_region_get_pages_buddy(mem, size, flags, blocks);
 	if (ret)
@@ -55,7 +59,8 @@ i915_gem_object_get_pages_buddy(struct drm_i915_gem_object *obj)
 	list_for_each_entry(block, blocks, link) {
 		u64 block_size, offset;
 
-		block_size = i915_buddy_block_size(&mem->mm, block);
+		block_size = min_t(u64, size,
+				   i915_buddy_block_size(&mem->mm, block));
 		offset = i915_buddy_block_offset(block);
 
 		GEM_BUG_ON(overflows_type(block_size, sg->length));
@@ -96,10 +101,12 @@ err_free_sg:
 }
 
 void i915_gem_object_init_memory_region(struct drm_i915_gem_object *obj,
-					struct intel_memory_region *mem)
+					struct intel_memory_region *mem,
+					unsigned long flags)
 {
 	INIT_LIST_HEAD(&obj->mm.blocks);
 	obj->mm.region = intel_memory_region_get(mem);
+	obj->flags |= flags;
 }
 
 void i915_gem_object_release_memory_region(struct drm_i915_gem_object *obj)
@@ -119,6 +126,8 @@ i915_gem_object_create_region(struct intel_memory_region *mem,
 	 * resource for the mem->region. We might need to revisit this in the
 	 * future.
 	 */
+
+	GEM_BUG_ON(flags & ~I915_BO_ALLOC_FLAGS);
 
 	if (!mem)
 		return ERR_PTR(-ENODEV);

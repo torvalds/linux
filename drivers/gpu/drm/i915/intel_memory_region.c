@@ -47,8 +47,8 @@ __intel_memory_region_get_pages_buddy(struct intel_memory_region *mem,
 				      unsigned int flags,
 				      struct list_head *blocks)
 {
-	unsigned long n_pages = size >> ilog2(mem->mm.chunk_size);
 	unsigned int min_order = 0;
+	unsigned long n_pages;
 
 	GEM_BUG_ON(!IS_ALIGNED(size, mem->mm.chunk_size));
 	GEM_BUG_ON(!list_empty(blocks));
@@ -57,6 +57,13 @@ __intel_memory_region_get_pages_buddy(struct intel_memory_region *mem,
 		min_order = ilog2(mem->min_page_size) -
 			    ilog2(mem->mm.chunk_size);
 	}
+
+	if (flags & I915_ALLOC_CONTIGUOUS) {
+		size = roundup_pow_of_two(size);
+		min_order = ilog2(size) - ilog2(mem->mm.chunk_size);
+	}
+
+	n_pages = size >> ilog2(mem->mm.chunk_size);
 
 	mutex_lock(&mem->mm_lock);
 

@@ -456,6 +456,7 @@ out_device:
 
 static int igt_mock_memory_region_huge_pages(void *arg)
 {
+	const unsigned int flags[] = { 0, I915_BO_ALLOC_CONTIGUOUS };
 	struct i915_ppgtt *ppgtt = arg;
 	struct drm_i915_private *i915 = ppgtt->vm.i915;
 	unsigned long supported = INTEL_INFO(i915)->page_sizes;
@@ -474,46 +475,52 @@ static int igt_mock_memory_region_huge_pages(void *arg)
 	for_each_set_bit(bit, &supported, ilog2(I915_GTT_MAX_PAGE_SIZE) + 1) {
 		unsigned int page_size = BIT(bit);
 		resource_size_t phys;
+		int i;
 
-		obj = i915_gem_object_create_region(mem, page_size, 0);
-		if (IS_ERR(obj)) {
-			err = PTR_ERR(obj);
-			goto out_region;
+		for (i = 0; i < ARRAY_SIZE(flags); ++i) {
+			obj = i915_gem_object_create_region(mem, page_size,
+							    flags[i]);
+			if (IS_ERR(obj)) {
+				err = PTR_ERR(obj);
+				goto out_region;
+			}
+
+			vma = i915_vma_instance(obj, &ppgtt->vm, NULL);
+			if (IS_ERR(vma)) {
+				err = PTR_ERR(vma);
+				goto out_put;
+			}
+
+			err = i915_vma_pin(vma, 0, 0, PIN_USER);
+			if (err)
+				goto out_close;
+
+			err = igt_check_page_sizes(vma);
+			if (err)
+				goto out_unpin;
+
+			phys = i915_gem_object_get_dma_address(obj, 0);
+			if (!IS_ALIGNED(phys, page_size)) {
+				pr_err("%s addr misaligned(%pa) page_size=%u\n",
+				       __func__, &phys, page_size);
+				err = -EINVAL;
+				goto out_unpin;
+			}
+
+			if (vma->page_sizes.gtt != page_size) {
+				pr_err("%s page_sizes.gtt=%u, expected=%u\n",
+				       __func__, vma->page_sizes.gtt,
+				       page_size);
+				err = -EINVAL;
+				goto out_unpin;
+			}
+
+			i915_vma_unpin(vma);
+			i915_vma_close(vma);
+
+			__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+			i915_gem_object_put(obj);
 		}
-
-		vma = i915_vma_instance(obj, &ppgtt->vm, NULL);
-		if (IS_ERR(vma)) {
-			err = PTR_ERR(vma);
-			goto out_put;
-		}
-
-		err = i915_vma_pin(vma, 0, 0, PIN_USER);
-		if (err)
-			goto out_close;
-
-		err = igt_check_page_sizes(vma);
-		if (err)
-			goto out_unpin;
-
-		phys = i915_gem_object_get_dma_address(obj, 0);
-		if (!IS_ALIGNED(phys, page_size)) {
-			pr_err("%s addr misaligned(%pa) page_size=%u\n",
-			       __func__, &phys, page_size);
-			err = -EINVAL;
-			goto out_unpin;
-		}
-
-		if (vma->page_sizes.gtt != page_size) {
-			pr_err("%s page_sizes.gtt=%u, expected=%u\n",
-			       __func__, vma->page_sizes.gtt, page_size);
-			err = -EINVAL;
-			goto out_unpin;
-		}
-
-		i915_vma_unpin(vma);
-		i915_vma_close(vma);
-
-		i915_gem_object_put(obj);
 	}
 
 	goto out_region;

@@ -119,6 +119,10 @@ struct drm_i915_gem_object {
 
 	I915_SELFTEST_DECLARE(struct list_head st_link);
 
+	unsigned long flags;
+#define I915_BO_ALLOC_CONTIGUOUS BIT(0)
+#define I915_BO_ALLOC_FLAGS (I915_BO_ALLOC_CONTIGUOUS)
+
 	/*
 	 * Is the object to be mapped as read-only to the GPU
 	 * Only honoured if hardware has relevant pte bit

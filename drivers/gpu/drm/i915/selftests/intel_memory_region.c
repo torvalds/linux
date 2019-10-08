@@ -13,6 +13,7 @@
 
 #include "gem/i915_gem_region.h"
 #include "gem/selftests/mock_context.h"
+#include "selftests/i915_random.h"
 
 static void close_objects(struct intel_memory_region *mem,
 			  struct list_head *objects)
@@ -86,10 +87,174 @@ static int igt_mock_fill(void *arg)
 	return err;
 }
 
+static struct drm_i915_gem_object *
+igt_object_create(struct intel_memory_region *mem,
+		  struct list_head *objects,
+		  u64 size,
+		  unsigned int flags)
+{
+	struct drm_i915_gem_object *obj;
+	int err;
+
+	obj = i915_gem_object_create_region(mem, size, flags);
+	if (IS_ERR(obj))
+		return obj;
+
+	err = i915_gem_object_pin_pages(obj);
+	if (err)
+		goto put;
+
+	list_add(&obj->st_link, objects);
+	return obj;
+
+put:
+	i915_gem_object_put(obj);
+	return ERR_PTR(err);
+}
+
+static void igt_object_release(struct drm_i915_gem_object *obj)
+{
+	i915_gem_object_unpin_pages(obj);
+	__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+	list_del(&obj->st_link);
+	i915_gem_object_put(obj);
+}
+
+static int igt_mock_contiguous(void *arg)
+{
+	struct intel_memory_region *mem = arg;
+	struct drm_i915_gem_object *obj;
+	unsigned long n_objects;
+	LIST_HEAD(objects);
+	LIST_HEAD(holes);
+	I915_RND_STATE(prng);
+	resource_size_t target;
+	resource_size_t total;
+	resource_size_t min;
+	int err = 0;
+
+	total = resource_size(&mem->region);
+
+	/* Min size */
+	obj = igt_object_create(mem, &objects, mem->mm.chunk_size,
+				I915_BO_ALLOC_CONTIGUOUS);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	if (obj->mm.pages->nents != 1) {
+		pr_err("%s min object spans multiple sg entries\n", __func__);
+		err = -EINVAL;
+		goto err_close_objects;
+	}
+
+	igt_object_release(obj);
+
+	/* Max size */
+	obj = igt_object_create(mem, &objects, total, I915_BO_ALLOC_CONTIGUOUS);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	if (obj->mm.pages->nents != 1) {
+		pr_err("%s max object spans multiple sg entries\n", __func__);
+		err = -EINVAL;
+		goto err_close_objects;
+	}
+
+	igt_object_release(obj);
+
+	/* Internal fragmentation should not bleed into the object size */
+	target = round_up(prandom_u32_state(&prng) % total, PAGE_SIZE);
+	target = max_t(u64, PAGE_SIZE, target);
+
+	obj = igt_object_create(mem, &objects, target,
+				I915_BO_ALLOC_CONTIGUOUS);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	if (obj->base.size != target) {
+		pr_err("%s obj->base.size(%llx) != target(%llx)\n", __func__,
+		       (u64)obj->base.size, (u64)target);
+		err = -EINVAL;
+		goto err_close_objects;
+	}
+
+	if (obj->mm.pages->nents != 1) {
+		pr_err("%s object spans multiple sg entries\n", __func__);
+		err = -EINVAL;
+		goto err_close_objects;
+	}
+
+	igt_object_release(obj);
+
+	/*
+	 * Try to fragment the address space, such that half of it is free, but
+	 * the max contiguous block size is SZ_64K.
+	 */
+
+	target = SZ_64K;
+	n_objects = div64_u64(total, target);
+
+	while (n_objects--) {
+		struct list_head *list;
+
+		if (n_objects % 2)
+			list = &holes;
+		else
+			list = &objects;
+
+		obj = igt_object_create(mem, list, target,
+					I915_BO_ALLOC_CONTIGUOUS);
+		if (IS_ERR(obj)) {
+			err = PTR_ERR(obj);
+			goto err_close_objects;
+		}
+	}
+
+	close_objects(mem, &holes);
+
+	min = target;
+	target = total >> 1;
+
+	/* Make sure we can still allocate all the fragmented space */
+	obj = igt_object_create(mem, &objects, target, 0);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		goto err_close_objects;
+	}
+
+	igt_object_release(obj);
+
+	/*
+	 * Even though we have enough free space, we don't have a big enough
+	 * contiguous block. Make sure that holds true.
+	 */
+
+	do {
+		bool should_fail = target > min;
+
+		obj = igt_object_create(mem, &objects, target,
+					I915_BO_ALLOC_CONTIGUOUS);
+		if (should_fail != IS_ERR(obj)) {
+			pr_err("%s target allocation(%llx) mismatch\n",
+			       __func__, (u64)target);
+			err = -EINVAL;
+			goto err_close_objects;
+		}
+
+		target >>= 1;
+	} while (target >= mem->mm.chunk_size);
+
+err_close_objects:
+	list_splice_tail(&holes, &objects);
+	close_objects(mem, &objects);
+	return err;
+}
+
 int intel_memory_region_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_mock_fill),
+		SUBTEST(igt_mock_contiguous),
 	};
 	struct intel_memory_region *mem;
 	struct drm_i915_private *i915;

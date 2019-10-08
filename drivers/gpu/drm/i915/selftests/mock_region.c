@@ -36,7 +36,7 @@ mock_object_create(struct intel_memory_region *mem,
 
 	i915_gem_object_set_cache_coherency(obj, I915_CACHE_NONE);
 
-	i915_gem_object_init_memory_region(obj, mem);
+	i915_gem_object_init_memory_region(obj, mem, flags);
 
 	return obj;
 }
