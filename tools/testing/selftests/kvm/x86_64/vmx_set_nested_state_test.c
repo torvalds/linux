@@ -271,12 +271,7 @@ int main(int argc, char *argv[])
 	state.flags = KVM_STATE_NESTED_RUN_PENDING;
 	test_nested_state_expect_einval(vm, &state);
 
-	/*
-	 * TODO: When SVM support is added for KVM_SET_NESTED_STATE
-	 *       add tests here to support it like VMX.
-	 */
-	if (entry->ecx & CPUID_VMX)
-		test_vmx_nested_state(vm);
+	test_vmx_nested_state(vm);
 
 	kvm_vm_free(vm);
 	return 0;
