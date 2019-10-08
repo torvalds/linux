@@ -219,12 +219,24 @@ static void rockchip_lvds_encoder_disable(struct drm_encoder *encoder)
 		drm_panel_unprepare(lvds->panel);
 }
 
+static int rockchip_lvds_encoder_loader_protect(struct drm_encoder *encoder,
+						bool on)
+{
+	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
+
+	if (lvds->panel)
+		return drm_panel_loader_protect(lvds->panel, on);
+
+	return 0;
+}
+
 static const
 struct drm_encoder_helper_funcs rockchip_lvds_encoder_helper_funcs = {
 	.enable = rockchip_lvds_encoder_enable,
 	.disable = rockchip_lvds_encoder_disable,
 	.atomic_check = rockchip_lvds_encoder_atomic_check,
 	.atomic_mode_set = rockchip_lvds_encoder_atomic_mode_set,
+	.loader_protect = rockchip_lvds_encoder_loader_protect,
 };
 
 static const struct drm_encoder_funcs rockchip_lvds_encoder_funcs = {
@@ -245,6 +257,7 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	if (ret)
 		return ret;
 
+	encoder->port = dev->of_node;
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
 							     dev->of_node);
 
