@@ -1002,14 +1002,13 @@ bool rtl92ee_is_tx_desc_closed(struct ieee80211_hw *hw, u8 hw_queue, u16 index)
 	struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[hw_queue];
 
 	{
-		u16 cur_tx_rp, cur_tx_wp;
+		u16 cur_tx_rp;
 		u32 tmpu32;
 
 		tmpu32 =
 		  rtl_read_dword(rtlpriv,
 				 get_desc_addr_fr_q_idx(hw_queue));
 		cur_tx_rp = (u16)((tmpu32 >> 16) & 0x0fff);
-		cur_tx_wp = (u16)(tmpu32 & 0x0fff);
 
 		/* don't need to update ring->cur_tx_wp */
 		ring->cur_tx_rp = cur_tx_rp;
