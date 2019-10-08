@@ -772,9 +772,6 @@ static int orion_spi_probe(struct platform_device *pdev)
 	if (status < 0)
 		goto out_rel_pm;
 
-	pm_runtime_mark_last_busy(&pdev->dev);
-	pm_runtime_put_autosuspend(&pdev->dev);
-
 	master->dev.of_node = pdev->dev.of_node;
 	status = spi_register_master(master);
 	if (status < 0)

@@ -63,6 +63,11 @@
 #define QUADSPI_IPCR			0x08
 #define QUADSPI_IPCR_SEQID(x)		((x) << 24)
 
+#define QUADSPI_FLSHCR			0x0c
+#define QUADSPI_FLSHCR_TCSS_MASK	GENMASK(3, 0)
+#define QUADSPI_FLSHCR_TCSH_MASK	GENMASK(11, 8)
+#define QUADSPI_FLSHCR_TDH_MASK		GENMASK(17, 16)
+
 #define QUADSPI_BUF0CR                  0x10
 #define QUADSPI_BUF1CR                  0x14
 #define QUADSPI_BUF2CR                  0x18
@@ -100,6 +105,9 @@
 #define QUADSPI_FR			0x160
 #define QUADSPI_FR_TFF_MASK		BIT(0)
 
+#define QUADSPI_RSER			0x164
+#define QUADSPI_RSER_TFIE		BIT(0)
+
 #define QUADSPI_SPTRCLR			0x16c
 #define QUADSPI_SPTRCLR_IPPTRC		BIT(8)
 #define QUADSPI_SPTRCLR_BFPTRC		BIT(0)
@@ -116,9 +124,6 @@
 #define QUADSPI_LCKCR			0x304
 #define QUADSPI_LCKER_LOCK		BIT(0)
 #define QUADSPI_LCKER_UNLOCK		BIT(1)
-
-#define QUADSPI_RSER			0x164
-#define QUADSPI_RSER_TFIE		BIT(0)
 
 #define QUADSPI_LUT_BASE		0x310
 #define QUADSPI_LUT_OFFSET		(SEQID_LUT * 4 * 4)
@@ -186,6 +191,12 @@
  */
 #define QUADSPI_QUIRK_BASE_INTERNAL	BIT(4)
 
+/*
+ * Controller uses TDH bits in register QUADSPI_FLSHCR.
+ * They need to be set in accordance with the DDR/SDR mode.
+ */
+#define QUADSPI_QUIRK_USE_TDH_SETTING	BIT(5)
+
 struct fsl_qspi_devtype_data {
 	unsigned int rxfifo;
 	unsigned int txfifo;
@@ -218,7 +229,8 @@ static const struct fsl_qspi_devtype_data imx7d_data = {
 	.txfifo = SZ_512,
 	.invalid_mstrid = QUADSPI_BUFXCR_INVALID_MSTRID,
 	.ahb_buf_size = SZ_1K,
-	.quirks = QUADSPI_QUIRK_TKT253890 | QUADSPI_QUIRK_4X_INT_CLK,
+	.quirks = QUADSPI_QUIRK_TKT253890 | QUADSPI_QUIRK_4X_INT_CLK |
+		  QUADSPI_QUIRK_USE_TDH_SETTING,
 	.little_endian = true,
 };
 
@@ -227,7 +239,8 @@ static const struct fsl_qspi_devtype_data imx6ul_data = {
 	.txfifo = SZ_512,
 	.invalid_mstrid = QUADSPI_BUFXCR_INVALID_MSTRID,
 	.ahb_buf_size = SZ_1K,
-	.quirks = QUADSPI_QUIRK_TKT253890 | QUADSPI_QUIRK_4X_INT_CLK,
+	.quirks = QUADSPI_QUIRK_TKT253890 | QUADSPI_QUIRK_4X_INT_CLK |
+		  QUADSPI_QUIRK_USE_TDH_SETTING,
 	.little_endian = true,
 };
 
@@ -285,6 +298,11 @@ static inline int needs_wakeup_wait_mode(struct fsl_qspi *q)
 static inline int needs_amba_base_offset(struct fsl_qspi *q)
 {
 	return !(q->devtype_data->quirks & QUADSPI_QUIRK_BASE_INTERNAL);
+}
+
+static inline int needs_tdh_setting(struct fsl_qspi *q)
+{
+	return q->devtype_data->quirks & QUADSPI_QUIRK_USE_TDH_SETTING;
 }
 
 /*
@@ -726,6 +744,16 @@ static int fsl_qspi_default_setup(struct fsl_qspi *q)
 	/* Disable the module */
 	qspi_writel(q, QUADSPI_MCR_MDIS_MASK | QUADSPI_MCR_RESERVED_MASK,
 		    base + QUADSPI_MCR);
+
+	/*
+	 * Previous boot stages (BootROM, bootloader) might have used DDR
+	 * mode and did not clear the TDH bits. As we currently use SDR mode
+	 * only, clear the TDH bits if necessary.
+	 */
+	if (needs_tdh_setting(q))
+		qspi_writel(q, qspi_readl(q, base + QUADSPI_FLSHCR) &
+			    ~QUADSPI_FLSHCR_TDH_MASK,
+			    base + QUADSPI_FLSHCR);
 
 	reg = qspi_readl(q, base + QUADSPI_SMPR);
 	qspi_writel(q, reg & ~(QUADSPI_SMPR_FSDLY_MASK
