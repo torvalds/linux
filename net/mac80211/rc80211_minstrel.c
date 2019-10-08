@@ -157,14 +157,18 @@ minstrel_update_rates(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 * Recalculate statistics and counters of a given rate
 */
 void
-minstrel_calc_rate_stats(struct minstrel_rate_stats *mrs)
+minstrel_calc_rate_stats(struct minstrel_priv *mp,
+			 struct minstrel_rate_stats *mrs)
 {
 	unsigned int cur_prob;
 
 	if (unlikely(mrs->attempts > 0)) {
 		mrs->sample_skipped = 0;
 		cur_prob = MINSTREL_FRAC(mrs->success, mrs->attempts);
-		if (unlikely(!mrs->att_hist)) {
+		if (mp->new_avg) {
+			mrs->prob_ewma = minstrel_filter_avg_add(&mrs->avg,
+								 cur_prob);
+		} else if (unlikely(!mrs->att_hist)) {
 			mrs->prob_ewma = cur_prob;
 		} else {
 			/*update exponential weighted moving avarage */
@@ -200,7 +204,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		struct minstrel_rate_stats *tmp_mrs = &mi->r[tmp_prob_rate].stats;
 
 		/* Update statistics of success probability per rate */
-		minstrel_calc_rate_stats(mrs);
+		minstrel_calc_rate_stats(mp, mrs);
 
 		/* Sample less often below the 10% chance of success.
 		 * Sample less often above the 95% chance of success. */
@@ -289,7 +293,8 @@ minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	if (mi->sample_deferred > 0)
 		mi->sample_deferred--;
 
-	if (time_after(jiffies, mi->last_stats_update + mp->update_interval))
+	if (time_after(jiffies, mi->last_stats_update +
+				mp->update_interval / (mp->new_avg ? 2 : 1)))
 		minstrel_update_stats(mp, mi);
 }
 
