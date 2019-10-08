@@ -32,9 +32,6 @@
 /* platform specific devices */
 #include "shim.h"
 
-#define IS_CFL(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0xa348)
-#define IS_CNL(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x9dc8)
-
 #define EXCEPT_MAX_HDR_SIZE	0x400
 
 /*
@@ -261,10 +258,6 @@ static int hda_init(struct snd_sof_dev *sdev)
 
 	/* HDA bus init */
 	sof_hda_bus_init(bus, &pci->dev);
-
-	/* Workaround for a communication error on CFL (bko#199007) and CNL */
-	if (IS_CFL(pci) || IS_CNL(pci))
-		bus->polling_mode = 1;
 
 	bus->use_posbuf = 1;
 	bus->bdl_pos_adj = 0;
