@@ -135,6 +135,7 @@ enum intel_ppgtt_type {
 	func(has_csr); \
 	func(has_ddi); \
 	func(has_dp_mst); \
+	func(has_dsb); \
 	func(has_fbc); \
 	func(has_gmch); \
 	func(has_hotplug); \
@@ -161,7 +162,7 @@ struct intel_device_info {
 
 	u32 display_mmio_offset;
 
-	u8 num_pipes;
+	u8 pipe_mask;
 
 #define DEFINE_FLAG(name) u8 name:1
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);

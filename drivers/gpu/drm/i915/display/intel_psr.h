@@ -30,7 +30,6 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 void intel_psr_init(struct drm_i915_private *dev_priv);
 void intel_psr_compute_config(struct intel_dp *intel_dp,
 			      struct intel_crtc_state *crtc_state);
-void intel_psr_irq_control(struct drm_i915_private *dev_priv, u32 debug);
 void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir);
 void intel_psr_short_pulse(struct intel_dp *intel_dp);
 int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,

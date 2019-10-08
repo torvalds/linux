@@ -92,7 +92,6 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 	struct i915_mmu_notifier *mn =
 		container_of(_mn, struct i915_mmu_notifier, mn);
 	struct interval_tree_node *it;
-	struct mutex *unlock = NULL;
 	unsigned long end;
 	int ret = 0;
 
@@ -129,33 +128,13 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 		}
 		spin_unlock(&mn->lock);
 
-		if (!unlock) {
-			unlock = &mn->mm->i915->drm.struct_mutex;
-
-			switch (mutex_trylock_recursive(unlock)) {
-			default:
-			case MUTEX_TRYLOCK_FAILED:
-				if (mutex_lock_killable_nested(unlock, I915_MM_SHRINKER)) {
-					i915_gem_object_put(obj);
-					return -EINTR;
-				}
-				/* fall through */
-			case MUTEX_TRYLOCK_SUCCESS:
-				break;
-
-			case MUTEX_TRYLOCK_RECURSIVE:
-				unlock = ERR_PTR(-EEXIST);
-				break;
-			}
-		}
-
 		ret = i915_gem_object_unbind(obj,
 					     I915_GEM_OBJECT_UNBIND_ACTIVE);
 		if (ret == 0)
 			ret = __i915_gem_object_put_pages(obj, I915_MM_SHRINKER);
 		i915_gem_object_put(obj);
 		if (ret)
-			goto unlock;
+			return ret;
 
 		spin_lock(&mn->lock);
 
@@ -167,10 +146,6 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 		it = interval_tree_iter_first(&mn->objects, range->start, end);
 	}
 	spin_unlock(&mn->lock);
-
-unlock:
-	if (!IS_ERR_OR_NULL(unlock))
-		mutex_unlock(unlock);
 
 	return ret;
 
@@ -702,6 +677,7 @@ i915_gem_userptr_dmabuf_export(struct drm_i915_gem_object *obj)
 static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE |
 		 I915_GEM_OBJECT_IS_SHRINKABLE |
+		 I915_GEM_OBJECT_NO_GGTT |
 		 I915_GEM_OBJECT_ASYNC_CANCEL,
 	.get_pages = i915_gem_userptr_get_pages,
 	.put_pages = i915_gem_userptr_put_pages,
@@ -782,7 +758,8 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		 * On almost all of the older hw, we cannot tell the GPU that
 		 * a page is readonly.
 		 */
-		vm = dev_priv->kernel_context->vm;
+		vm = rcu_dereference_protected(dev_priv->kernel_context->vm,
+					       true); /* static vm */
 		if (!vm || !vm->has_read_only)
 			return -ENODEV;
 	}

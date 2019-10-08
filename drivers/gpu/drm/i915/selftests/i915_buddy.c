@@ -375,6 +375,8 @@ retry:
 
 		if (err)
 			break;
+
+		cond_resched();
 	}
 
 	if (err == -ENOMEM)
@@ -687,6 +689,8 @@ static int igt_buddy_alloc_range(void *arg)
 		rem -= size;
 		if (!rem)
 			break;
+
+		cond_resched();
 	}
 
 	if (err == -ENOMEM)

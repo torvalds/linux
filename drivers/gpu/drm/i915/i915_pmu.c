@@ -11,6 +11,7 @@
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt_pm.h"
+#include "gt/intel_rc6.h"
 
 #include "i915_drv.h"
 #include "i915_pmu.h"
@@ -116,21 +117,123 @@ static bool pmu_needs_timer(struct i915_pmu *pmu, bool gpu_active)
 	return enable;
 }
 
-void i915_pmu_gt_parked(struct drm_i915_private *i915)
+static u64 __get_rc6(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	u64 val;
+
+	val = intel_rc6_residency_ns(&gt->rc6,
+				     IS_VALLEYVIEW(i915) ?
+				     VLV_GT_RENDER_RC6 :
+				     GEN6_GT_GFX_RC6);
+
+	if (HAS_RC6p(i915))
+		val += intel_rc6_residency_ns(&gt->rc6, GEN6_GT_GFX_RC6p);
+
+	if (HAS_RC6pp(i915))
+		val += intel_rc6_residency_ns(&gt->rc6, GEN6_GT_GFX_RC6pp);
+
+	return val;
+}
+
+#if IS_ENABLED(CONFIG_PM)
+
+static inline s64 ktime_since(const ktime_t kt)
+{
+	return ktime_to_ns(ktime_sub(ktime_get(), kt));
+}
+
+static u64 __pmu_estimate_rc6(struct i915_pmu *pmu)
+{
+	u64 val;
+
+	/*
+	 * We think we are runtime suspended.
+	 *
+	 * Report the delta from when the device was suspended to now,
+	 * on top of the last known real value, as the approximated RC6
+	 * counter value.
+	 */
+	val = ktime_since(pmu->sleep_last);
+	val += pmu->sample[__I915_SAMPLE_RC6].cur;
+
+	pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur = val;
+
+	return val;
+}
+
+static u64 __pmu_update_rc6(struct i915_pmu *pmu, u64 val)
+{
+	/*
+	 * If we are coming back from being runtime suspended we must
+	 * be careful not to report a larger value than returned
+	 * previously.
+	 */
+	if (val >= pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur) {
+		pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur = 0;
+		pmu->sample[__I915_SAMPLE_RC6].cur = val;
+	} else {
+		val = pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur;
+	}
+
+	return val;
+}
+
+static u64 get_rc6(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	struct i915_pmu *pmu = &i915->pmu;
+	unsigned long flags;
+	u64 val;
+
+	val = 0;
+	if (intel_gt_pm_get_if_awake(gt)) {
+		val = __get_rc6(gt);
+		intel_gt_pm_put(gt);
+	}
+
+	spin_lock_irqsave(&pmu->lock, flags);
+
+	if (val)
+		val = __pmu_update_rc6(pmu, val);
+	else
+		val = __pmu_estimate_rc6(pmu);
+
+	spin_unlock_irqrestore(&pmu->lock, flags);
+
+	return val;
+}
+
+static void park_rc6(struct drm_i915_private *i915)
 {
 	struct i915_pmu *pmu = &i915->pmu;
 
-	if (!pmu->base.event_init)
-		return;
+	if (pmu->enable & config_enabled_mask(I915_PMU_RC6_RESIDENCY))
+		__pmu_update_rc6(pmu, __get_rc6(&i915->gt));
 
-	spin_lock_irq(&pmu->lock);
-	/*
-	 * Signal sampling timer to stop if only engine events are enabled and
-	 * GPU went idle.
-	 */
-	pmu->timer_enabled = pmu_needs_timer(pmu, false);
-	spin_unlock_irq(&pmu->lock);
+	pmu->sleep_last = ktime_get();
 }
+
+static void unpark_rc6(struct drm_i915_private *i915)
+{
+	struct i915_pmu *pmu = &i915->pmu;
+
+	/* Estimate how long we slept and accumulate that into rc6 counters */
+	if (pmu->enable & config_enabled_mask(I915_PMU_RC6_RESIDENCY))
+		__pmu_estimate_rc6(pmu);
+}
+
+#else
+
+static u64 get_rc6(struct intel_gt *gt)
+{
+	return __get_rc6(gt);
+}
+
+static void park_rc6(struct drm_i915_private *i915) {}
+static void unpark_rc6(struct drm_i915_private *i915) {}
+
+#endif
 
 static void __i915_pmu_maybe_start_timer(struct i915_pmu *pmu)
 {
@@ -143,6 +246,26 @@ static void __i915_pmu_maybe_start_timer(struct i915_pmu *pmu)
 	}
 }
 
+void i915_pmu_gt_parked(struct drm_i915_private *i915)
+{
+	struct i915_pmu *pmu = &i915->pmu;
+
+	if (!pmu->base.event_init)
+		return;
+
+	spin_lock_irq(&pmu->lock);
+
+	park_rc6(i915);
+
+	/*
+	 * Signal sampling timer to stop if only engine events are enabled and
+	 * GPU went idle.
+	 */
+	pmu->timer_enabled = pmu_needs_timer(pmu, false);
+
+	spin_unlock_irq(&pmu->lock);
+}
+
 void i915_pmu_gt_unparked(struct drm_i915_private *i915)
 {
 	struct i915_pmu *pmu = &i915->pmu;
@@ -151,10 +274,14 @@ void i915_pmu_gt_unparked(struct drm_i915_private *i915)
 		return;
 
 	spin_lock_irq(&pmu->lock);
+
 	/*
 	 * Re-enable sampling timer when GPU goes active.
 	 */
 	__i915_pmu_maybe_start_timer(pmu);
+
+	unpark_rc6(i915);
+
 	spin_unlock_irq(&pmu->lock);
 }
 
@@ -193,6 +320,10 @@ engines_sample(struct intel_gt *gt, unsigned int period_ns)
 			add_sample(&pmu->sample[I915_SAMPLE_WAIT], period_ns);
 		if (val & RING_WAIT_SEMAPHORE)
 			add_sample(&pmu->sample[I915_SAMPLE_SEMA], period_ns);
+
+		/* No need to sample when busy stats are supported. */
+		if (intel_engine_supports_stats(engine))
+			goto skip;
 
 		/*
 		 * While waiting on a semaphore or event, MI_MODE reports the
@@ -424,104 +555,6 @@ static int i915_pmu_event_init(struct perf_event *event)
 		event->destroy = i915_pmu_event_destroy;
 
 	return 0;
-}
-
-static u64 __get_rc6(struct intel_gt *gt)
-{
-	struct drm_i915_private *i915 = gt->i915;
-	u64 val;
-
-	val = intel_rc6_residency_ns(i915,
-				     IS_VALLEYVIEW(i915) ?
-				     VLV_GT_RENDER_RC6 :
-				     GEN6_GT_GFX_RC6);
-
-	if (HAS_RC6p(i915))
-		val += intel_rc6_residency_ns(i915, GEN6_GT_GFX_RC6p);
-
-	if (HAS_RC6pp(i915))
-		val += intel_rc6_residency_ns(i915, GEN6_GT_GFX_RC6pp);
-
-	return val;
-}
-
-static u64 get_rc6(struct intel_gt *gt)
-{
-#if IS_ENABLED(CONFIG_PM)
-	struct drm_i915_private *i915 = gt->i915;
-	struct intel_runtime_pm *rpm = &i915->runtime_pm;
-	struct i915_pmu *pmu = &i915->pmu;
-	intel_wakeref_t wakeref;
-	unsigned long flags;
-	u64 val;
-
-	wakeref = intel_runtime_pm_get_if_in_use(rpm);
-	if (wakeref) {
-		val = __get_rc6(gt);
-		intel_runtime_pm_put(rpm, wakeref);
-
-		/*
-		 * If we are coming back from being runtime suspended we must
-		 * be careful not to report a larger value than returned
-		 * previously.
-		 */
-
-		spin_lock_irqsave(&pmu->lock, flags);
-
-		if (val >= pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur) {
-			pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur = 0;
-			pmu->sample[__I915_SAMPLE_RC6].cur = val;
-		} else {
-			val = pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur;
-		}
-
-		spin_unlock_irqrestore(&pmu->lock, flags);
-	} else {
-		struct device *kdev = rpm->kdev;
-
-		/*
-		 * We are runtime suspended.
-		 *
-		 * Report the delta from when the device was suspended to now,
-		 * on top of the last known real value, as the approximated RC6
-		 * counter value.
-		 */
-		spin_lock_irqsave(&pmu->lock, flags);
-
-		/*
-		 * After the above branch intel_runtime_pm_get_if_in_use failed
-		 * to get the runtime PM reference we cannot assume we are in
-		 * runtime suspend since we can either: a) race with coming out
-		 * of it before we took the power.lock, or b) there are other
-		 * states than suspended which can bring us here.
-		 *
-		 * We need to double-check that we are indeed currently runtime
-		 * suspended and if not we cannot do better than report the last
-		 * known RC6 value.
-		 */
-		if (pm_runtime_status_suspended(kdev)) {
-			val = pm_runtime_suspended_time(kdev);
-
-			if (!pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur)
-				pmu->suspended_time_last = val;
-
-			val -= pmu->suspended_time_last;
-			val += pmu->sample[__I915_SAMPLE_RC6].cur;
-
-			pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur = val;
-		} else if (pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur) {
-			val = pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur;
-		} else {
-			val = pmu->sample[__I915_SAMPLE_RC6].cur;
-		}
-
-		spin_unlock_irqrestore(&pmu->lock, flags);
-	}
-
-	return val;
-#else
-	return __get_rc6(gt);
-#endif
 }
 
 static u64 __i915_pmu_event_read(struct perf_event *event)

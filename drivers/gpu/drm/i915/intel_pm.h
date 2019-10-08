@@ -32,7 +32,6 @@ void intel_pm_setup(struct drm_i915_private *dev_priv);
 void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 void intel_gpu_ips_teardown(void);
 void intel_init_gt_powersave(struct drm_i915_private *dev_priv);
-void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv);
 void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv);
 void intel_enable_gt_powersave(struct drm_i915_private *dev_priv);
 void intel_disable_gt_powersave(struct drm_i915_private *dev_priv);
@@ -72,8 +71,6 @@ void intel_enable_ipc(struct drm_i915_private *dev_priv);
 
 int intel_gpu_freq(struct drm_i915_private *dev_priv, int val);
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
-u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv, i915_reg_t reg);
-u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv, i915_reg_t reg);
 
 u32 intel_get_cagf(struct drm_i915_private *dev_priv, u32 rpstat1);
 

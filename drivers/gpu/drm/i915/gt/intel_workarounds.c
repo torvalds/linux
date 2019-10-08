@@ -567,6 +567,9 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
 				     struct i915_wa_list *wal)
 {
+	/* Wa_1409142259 */
+	WA_SET_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
+			  GEN12_DISABLE_CPS_AWARE_COLOR_PIPE);
 }
 
 static void
@@ -796,11 +799,10 @@ wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	}
 
 	slice = fls(sseu->slice_mask) - 1;
-	GEM_BUG_ON(slice >= ARRAY_SIZE(sseu->subslice_mask));
-	subslice = fls(l3_en & sseu->subslice_mask[slice]);
+	subslice = fls(l3_en & intel_sseu_get_subslices(sseu, slice));
 	if (!subslice) {
 		DRM_WARN("No common index found between subslice mask %x and L3 bank mask %x!\n",
-			 sseu->subslice_mask[slice], l3_en);
+			 intel_sseu_get_subslices(sseu, slice), l3_en);
 		subslice = fls(l3_en);
 		WARN_ON(!subslice);
 	}
@@ -1063,6 +1065,9 @@ static void gen9_whitelist_build(struct i915_wa_list *w)
 
 	/* WaAllowUMDToModifyHDCChicken1:skl,bxt,kbl,glk,cfl */
 	whitelist_reg(w, GEN8_HDC_CHICKEN1);
+
+	/* WaSendPushConstantsFromMMIO:skl,bxt */
+	whitelist_reg(w, COMMON_SLICE_CHICKEN2);
 }
 
 static void skl_whitelist_build(struct intel_engine_cs *engine)
@@ -1449,7 +1454,7 @@ static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 	 * which only controls CPU initiated MMIO. Routing does not
 	 * work for CS access so we cannot verify them on this path.
 	 */
-	if (INTEL_GEN(i915) >= 8 && (offset >= 0xb100 && offset <= 0xb3ff))
+	if (INTEL_GEN(i915) >= 8 && (offset >= 0xb000 && offset <= 0xb4ff))
 		return true;
 
 	return false;

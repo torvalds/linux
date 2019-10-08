@@ -13,6 +13,7 @@
 #include "i915_reg.h"
 
 enum pipe;
+enum port;
 struct drm_connector_state;
 struct drm_encoder;
 struct drm_i915_private;

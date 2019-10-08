@@ -232,7 +232,7 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
 	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	int pipe = crtc->pipe;
+	enum pipe pipe = crtc->pipe;
 	u32 temp;
 
 	if (HAS_PCH_SPLIT(dev_priv)) {
@@ -900,11 +900,11 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	intel_encoder->port = PORT_NONE;
 	intel_encoder->cloneable = 0;
 	if (HAS_PCH_SPLIT(dev_priv))
-		intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+		intel_encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
 	else if (IS_GEN(dev_priv, 4))
-		intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
+		intel_encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B);
 	else
-		intel_encoder->crtc_mask = (1 << 1);
+		intel_encoder->crtc_mask = BIT(PIPE_B);
 
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;

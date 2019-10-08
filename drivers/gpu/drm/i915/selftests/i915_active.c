@@ -68,7 +68,7 @@ static struct live_active *__live_alloc(struct drm_i915_private *i915)
 		return NULL;
 
 	kref_init(&active->ref);
-	i915_active_init(i915, &active->base, __live_active, __live_retire);
+	i915_active_init(&active->base, __live_active, __live_retire);
 
 	return active;
 }
@@ -110,7 +110,7 @@ __live_active_setup(struct drm_i915_private *i915)
 						       submit,
 						       GFP_KERNEL);
 		if (err >= 0)
-			err = i915_active_ref(&active->base, rq->timeline, rq);
+			err = i915_active_add_request(&active->base, rq);
 		i915_request_add(rq);
 		if (err) {
 			pr_err("Failed to track active ref!\n");
@@ -121,7 +121,7 @@ __live_active_setup(struct drm_i915_private *i915)
 	}
 
 	i915_active_release(&active->base);
-	if (active->retired && count) {
+	if (READ_ONCE(active->retired) && count) {
 		pr_err("i915_active retired before submission!\n");
 		err = -EINVAL;
 	}
@@ -146,34 +146,24 @@ static int live_active_wait(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct live_active *active;
-	intel_wakeref_t wakeref;
 	int err = 0;
 
 	/* Check that we get a callback when requests retire upon waiting */
 
-	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-
 	active = __live_active_setup(i915);
-	if (IS_ERR(active)) {
-		err = PTR_ERR(active);
-		goto err;
-	}
+	if (IS_ERR(active))
+		return PTR_ERR(active);
 
 	i915_active_wait(&active->base);
-	if (!active->retired) {
+	if (!READ_ONCE(active->retired)) {
 		pr_err("i915_active not retired after waiting!\n");
 		err = -EINVAL;
 	}
 
 	__live_put(active);
 
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+	if (igt_flush_test(i915))
 		err = -EIO;
-
-err:
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	return err;
 }
@@ -182,34 +172,24 @@ static int live_active_retire(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct live_active *active;
-	intel_wakeref_t wakeref;
 	int err = 0;
 
 	/* Check that we get a callback when requests are indirectly retired */
 
-	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-
 	active = __live_active_setup(i915);
-	if (IS_ERR(active)) {
-		err = PTR_ERR(active);
-		goto err;
-	}
+	if (IS_ERR(active))
+		return PTR_ERR(active);
 
 	/* waits for & retires all requests */
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+	if (igt_flush_test(i915))
 		err = -EIO;
 
-	if (!active->retired) {
+	if (!READ_ONCE(active->retired)) {
 		pr_err("i915_active not retired after flushing!\n");
 		err = -EINVAL;
 	}
 
 	__live_put(active);
-
-err:
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	return err;
 }

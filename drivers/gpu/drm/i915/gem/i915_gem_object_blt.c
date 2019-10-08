@@ -32,7 +32,7 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 	count = div_u64(vma->size, block_size);
 	size = (1 + 8 * count) * sizeof(u32);
 	size = round_up(size, PAGE_SIZE);
-	pool = intel_engine_pool_get(&ce->engine->pool, size);
+	pool = intel_engine_get_pool(ce->engine, size);
 	if (IS_ERR(pool)) {
 		err = PTR_ERR(pool);
 		goto out_pm;
@@ -216,7 +216,7 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 	count = div_u64(dst->size, block_size);
 	size = (1 + 11 * count) * sizeof(u32);
 	size = round_up(size, PAGE_SIZE);
-	pool = intel_engine_pool_get(&ce->engine->pool, size);
+	pool = intel_engine_get_pool(ce->engine, size);
 	if (IS_ERR(pool)) {
 		err = PTR_ERR(pool);
 		goto out_pm;

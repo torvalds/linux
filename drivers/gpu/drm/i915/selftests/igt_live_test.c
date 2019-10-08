@@ -4,7 +4,8 @@
  * Copyright © 2018 Intel Corporation
  */
 
-#include "../i915_drv.h"
+#include "i915_drv.h"
+#include "gt/intel_gt_requests.h"
 
 #include "../i915_selftest.h"
 #include "igt_flush_test.h"
@@ -19,16 +20,11 @@ int igt_live_test_begin(struct igt_live_test *t,
 	enum intel_engine_id id;
 	int err;
 
-	lockdep_assert_held(&i915->drm.struct_mutex);
-
 	t->i915 = i915;
 	t->func = func;
 	t->name = name;
 
-	err = i915_gem_wait_for_idle(i915,
-				     I915_WAIT_INTERRUPTIBLE |
-				     I915_WAIT_LOCKED,
-				     MAX_SCHEDULE_TIMEOUT);
+	err = intel_gt_wait_for_idle(&i915->gt, MAX_SCHEDULE_TIMEOUT);
 	if (err) {
 		pr_err("%s(%s): failed to idle before, with err=%d!",
 		       func, name, err);
@@ -50,9 +46,7 @@ int igt_live_test_end(struct igt_live_test *t)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	lockdep_assert_held(&i915->drm.struct_mutex);
-
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+	if (igt_flush_test(i915))
 		return -EIO;
 
 	if (t->reset_global != i915_reset_count(&i915->gpu_error)) {

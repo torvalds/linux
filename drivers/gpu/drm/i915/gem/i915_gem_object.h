@@ -106,6 +106,11 @@ static inline void i915_gem_object_lock(struct drm_i915_gem_object *obj)
 	dma_resv_lock(obj->base.resv, NULL);
 }
 
+static inline bool i915_gem_object_trylock(struct drm_i915_gem_object *obj)
+{
+	return dma_resv_trylock(obj->base.resv);
+}
+
 static inline int
 i915_gem_object_lock_interruptible(struct drm_i915_gem_object *obj)
 {
@@ -135,27 +140,40 @@ i915_gem_object_is_readonly(const struct drm_i915_gem_object *obj)
 }
 
 static inline bool
+i915_gem_object_type_has(const struct drm_i915_gem_object *obj,
+			 unsigned long flags)
+{
+	return obj->ops->flags & flags;
+}
+
+static inline bool
 i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
 {
-	return obj->ops->flags & I915_GEM_OBJECT_HAS_STRUCT_PAGE;
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_STRUCT_PAGE);
 }
 
 static inline bool
 i915_gem_object_is_shrinkable(const struct drm_i915_gem_object *obj)
 {
-	return obj->ops->flags & I915_GEM_OBJECT_IS_SHRINKABLE;
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_IS_SHRINKABLE);
 }
 
 static inline bool
 i915_gem_object_is_proxy(const struct drm_i915_gem_object *obj)
 {
-	return obj->ops->flags & I915_GEM_OBJECT_IS_PROXY;
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_IS_PROXY);
+}
+
+static inline bool
+i915_gem_object_never_bind_ggtt(const struct drm_i915_gem_object *obj)
+{
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_NO_GGTT);
 }
 
 static inline bool
 i915_gem_object_needs_async_cancel(const struct drm_i915_gem_object *obj)
 {
-	return obj->ops->flags & I915_GEM_OBJECT_ASYNC_CANCEL;
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_ASYNC_CANCEL);
 }
 
 static inline bool
@@ -406,7 +424,8 @@ static inline bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 	if (!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE))
 		return true;
 
-	return obj->pin_global; /* currently in use by HW, keep flushed */
+	/* Currently in use by HW (display engine)? Keep flushed. */
+	return i915_gem_object_is_framebuffer(obj);
 }
 
 static inline void __start_cpu_write(struct drm_i915_gem_object *obj)

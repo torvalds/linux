@@ -79,8 +79,8 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_GPU_RESET:
 		value = i915_modparams.enable_hangcheck &&
-			intel_has_gpu_reset(i915);
-		if (value && intel_has_reset_engine(i915))
+			intel_has_gpu_reset(&i915->gt);
+		if (value && intel_has_reset_engine(&i915->gt))
 			value = 2;
 		break;
 	case I915_PARAM_HAS_RESOURCE_STREAMER:

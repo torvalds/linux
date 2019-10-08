@@ -141,10 +141,10 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	/* If the FB is too big, just don't use it since fbdev is not very
 	 * important and we should probably use that space with FBC or other
 	 * features. */
-	obj = NULL;
+	obj = ERR_PTR(-ENODEV);
 	if (size * 2 < dev_priv->stolen_usable_size)
 		obj = i915_gem_object_create_stolen(dev_priv, size);
-	if (obj == NULL)
+	if (IS_ERR(obj))
 		obj = i915_gem_object_create_shmem(dev_priv, size);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("failed to allocate framebuffer\n");
@@ -204,7 +204,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		sizes->fb_height = intel_fb->base.height;
 	}
 
-	mutex_lock(&dev->struct_mutex);
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	/* Pin the GGTT vma for our access via info->screen_base.
@@ -266,7 +265,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	ifbdev->vma_flags = flags;
 
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-	mutex_unlock(&dev->struct_mutex);
 	vga_switcheroo_client_fb_set(pdev, info);
 	return 0;
 
@@ -274,7 +272,6 @@ out_unpin:
 	intel_unpin_fb_vma(vma, flags);
 out_unlock:
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -291,11 +288,8 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 
 	drm_fb_helper_fini(&ifbdev->helper);
 
-	if (ifbdev->vma) {
-		mutex_lock(&ifbdev->helper.dev->struct_mutex);
+	if (ifbdev->vma)
 		intel_unpin_fb_vma(ifbdev->vma, ifbdev->vma_flags);
-		mutex_unlock(&ifbdev->helper.dev->struct_mutex);
-	}
 
 	if (ifbdev->fb)
 		drm_framebuffer_remove(&ifbdev->fb->base);
@@ -444,7 +438,7 @@ int intel_fbdev_init(struct drm_device *dev)
 	struct intel_fbdev *ifbdev;
 	int ret;
 
-	if (WARN_ON(!HAS_DISPLAY(dev_priv)))
+	if (WARN_ON(!HAS_DISPLAY(dev_priv) || !INTEL_DISPLAY_ENABLED(dev_priv)))
 		return -ENODEV;
 
 	ifbdev = kzalloc(sizeof(struct intel_fbdev), GFP_KERNEL);

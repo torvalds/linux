@@ -23,7 +23,6 @@
  */
 
 #include <linux/console.h>
-#include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 
 #include <drm/drm_drv.h>
@@ -118,6 +117,14 @@
 		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
 	}
 
+#define TGL_CURSOR_OFFSETS \
+	.cursor_offsets = { \
+		[PIPE_A] = CURSOR_A_OFFSET, \
+		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
+		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
+		[PIPE_D] = TGL_CURSOR_D_OFFSET, \
+	}
+
 #define I9XX_COLORS \
 	.color = { .gamma_lut_size = 256 }
 #define I965_COLORS \
@@ -147,7 +154,7 @@
 #define I830_FEATURES \
 	GEN(2), \
 	.is_mobile = 1, \
-	.num_pipes = 2, \
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
 	.display.has_overlay = 1, \
 	.display.cursor_needs_physical = 1, \
 	.display.overlay_needs_physical = 1, \
@@ -165,7 +172,7 @@
 
 #define I845_FEATURES \
 	GEN(2), \
-	.num_pipes = 1, \
+	.pipe_mask = BIT(PIPE_A), \
 	.display.has_overlay = 1, \
 	.display.overlay_needs_physical = 1, \
 	.display.has_gmch = 1, \
@@ -203,7 +210,7 @@ static const struct intel_device_info intel_i865g_info = {
 
 #define GEN3_FEATURES \
 	GEN(3), \
-	.num_pipes = 2, \
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
 	.engine_mask = BIT(RCS0), \
@@ -287,7 +294,7 @@ static const struct intel_device_info intel_pineview_m_info = {
 
 #define GEN4_FEATURES \
 	GEN(4), \
-	.num_pipes = 2, \
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
 	.display.has_hotplug = 1, \
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
@@ -337,7 +344,7 @@ static const struct intel_device_info intel_gm45_info = {
 
 #define GEN5_FEATURES \
 	GEN(5), \
-	.num_pipes = 2, \
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
 	.display.has_hotplug = 1, \
 	.engine_mask = BIT(RCS0) | BIT(VCS0), \
 	.has_snoop = true, \
@@ -363,7 +370,7 @@ static const struct intel_device_info intel_ironlake_m_info = {
 
 #define GEN6_FEATURES \
 	GEN(6), \
-	.num_pipes = 2, \
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
 	.display.has_hotplug = 1, \
 	.display.has_fbc = 1, \
 	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
@@ -411,7 +418,7 @@ static const struct intel_device_info intel_sandybridge_m_gt2_info = {
 
 #define GEN7_FEATURES  \
 	GEN(7), \
-	.num_pipes = 3, \
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C), \
 	.display.has_hotplug = 1, \
 	.display.has_fbc = 1, \
 	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
@@ -420,7 +427,7 @@ static const struct intel_device_info intel_sandybridge_m_gt2_info = {
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
 	.has_rps = true, \
-	.ppgtt_type = INTEL_PPGTT_FULL, \
+	.ppgtt_type = INTEL_PPGTT_ALIASING, \
 	.ppgtt_size = 31, \
 	IVB_PIPE_OFFSETS, \
 	IVB_CURSOR_OFFSETS, \
@@ -462,7 +469,7 @@ static const struct intel_device_info intel_ivybridge_q_info = {
 	GEN7_FEATURES,
 	PLATFORM(INTEL_IVYBRIDGE),
 	.gt = 2,
-	.num_pipes = 0, /* legal, last one wins */
+	.pipe_mask = 0, /* legal, last one wins */
 	.has_l3_dpf = 1,
 };
 
@@ -470,13 +477,13 @@ static const struct intel_device_info intel_valleyview_info = {
 	PLATFORM(INTEL_VALLEYVIEW),
 	GEN(7),
 	.is_lp = 1,
-	.num_pipes = 2,
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B),
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
 	.has_rps = true,
 	.display.has_gmch = 1,
 	.display.has_hotplug = 1,
-	.ppgtt_type = INTEL_PPGTT_FULL,
+	.ppgtt_type = INTEL_PPGTT_ALIASING,
 	.ppgtt_size = 31,
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
@@ -560,7 +567,7 @@ static const struct intel_device_info intel_broadwell_gt3_info = {
 static const struct intel_device_info intel_cherryview_info = {
 	PLATFORM(INTEL_CHERRYVIEW),
 	GEN(8),
-	.num_pipes = 3,
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
 	.display.has_hotplug = 1,
 	.is_lp = 1,
 	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0),
@@ -570,7 +577,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.has_rps = true,
 	.has_logical_ring_contexts = 1,
 	.display.has_gmch = 1,
-	.ppgtt_type = INTEL_PPGTT_FULL,
+	.ppgtt_type = INTEL_PPGTT_ALIASING,
 	.ppgtt_size = 32,
 	.has_reset_engine = 1,
 	.has_snoop = true,
@@ -631,7 +638,7 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	.is_lp = 1, \
 	.display.has_hotplug = 1, \
 	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
-	.num_pipes = 3, \
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C), \
 	.has_64bit_reloc = 1, \
 	.display.has_ddi = 1, \
 	.has_fpga_dbg = 1, \
@@ -787,16 +794,19 @@ static const struct intel_device_info intel_elkhartlake_info = {
 		[TRANSCODER_DSI_0] = TRANSCODER_DSI0_OFFSET, \
 		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET, \
 	}, \
-	.has_global_mocs = 1
+	TGL_CURSOR_OFFSETS, \
+	.has_global_mocs = 1, \
+	.display.has_dsb = 1
 
 static const struct intel_device_info intel_tigerlake_12_info = {
 	GEN12_FEATURES,
 	PLATFORM(INTEL_TIGERLAKE),
-	.num_pipes = 4,
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
 	.require_force_probe = 1,
 	.display.has_modular_fia = 1,
 	.engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
+	.has_rps = false, /* XXX disabled for debugging */
 };
 
 #undef GEN

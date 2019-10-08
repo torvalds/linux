@@ -1204,14 +1204,9 @@ static int i915_oa_read(struct i915_perf_stream *stream,
 static struct intel_context *oa_pin_context(struct i915_perf_stream *stream)
 {
 	struct i915_gem_engines_iter it;
-	struct drm_i915_private *i915 = stream->dev_priv;
 	struct i915_gem_context *ctx = stream->ctx;
 	struct intel_context *ce;
 	int err;
-
-	err = i915_mutex_lock_interruptible(&i915->drm);
-	if (err)
-		return ERR_PTR(err);
 
 	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
 		if (ce->engine->class != RENDER_CLASS)
@@ -1228,10 +1223,6 @@ static struct intel_context *oa_pin_context(struct i915_perf_stream *stream)
 		}
 	}
 	i915_gem_context_unlock_engines(ctx);
-
-	mutex_unlock(&i915->drm.struct_mutex);
-	if (err)
-		return ERR_PTR(err);
 
 	return stream->pinned_ctx;
 }
@@ -1292,27 +1283,23 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 		} else {
 			stream->specific_ctx_id_mask =
 				(1U << GEN8_CTX_ID_WIDTH) - 1;
-			stream->specific_ctx_id =
-				upper_32_bits(ce->lrc_desc);
-			stream->specific_ctx_id &=
-				stream->specific_ctx_id_mask;
+			stream->specific_ctx_id = stream->specific_ctx_id_mask;
 		}
 		break;
 
-	case 11: {
+	case 11:
+	case 12: {
 		stream->specific_ctx_id_mask =
-			((1U << GEN11_SW_CTX_ID_WIDTH) - 1) << (GEN11_SW_CTX_ID_SHIFT - 32) |
-			((1U << GEN11_ENGINE_INSTANCE_WIDTH) - 1) << (GEN11_ENGINE_INSTANCE_SHIFT - 32) |
-			((1 << GEN11_ENGINE_CLASS_WIDTH) - 1) << (GEN11_ENGINE_CLASS_SHIFT - 32);
-		stream->specific_ctx_id = upper_32_bits(ce->lrc_desc);
-		stream->specific_ctx_id &=
-			stream->specific_ctx_id_mask;
+			((1U << GEN11_SW_CTX_ID_WIDTH) - 1) << (GEN11_SW_CTX_ID_SHIFT - 32);
+		stream->specific_ctx_id = stream->specific_ctx_id_mask;
 		break;
 	}
 
 	default:
 		MISSING_CASE(INTEL_GEN(i915));
 	}
+
+	ce->tag = stream->specific_ctx_id_mask;
 
 	DRM_DEBUG_DRIVER("filtering on ctx_id=0x%x ctx_id_mask=0x%x\n",
 			 stream->specific_ctx_id,
@@ -1330,31 +1317,23 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
  */
 static void oa_put_render_ctx_id(struct i915_perf_stream *stream)
 {
-	struct drm_i915_private *dev_priv = stream->dev_priv;
 	struct intel_context *ce;
-
-	stream->specific_ctx_id = INVALID_CTX_ID;
-	stream->specific_ctx_id_mask = 0;
 
 	ce = fetch_and_zero(&stream->pinned_ctx);
 	if (ce) {
-		mutex_lock(&dev_priv->drm.struct_mutex);
+		ce->tag = 0; /* recomputed on next submission after parking */
 		intel_context_unpin(ce);
-		mutex_unlock(&dev_priv->drm.struct_mutex);
 	}
+
+	stream->specific_ctx_id = INVALID_CTX_ID;
+	stream->specific_ctx_id_mask = 0;
 }
 
 static void
 free_oa_buffer(struct i915_perf_stream *stream)
 {
-	struct drm_i915_private *i915 = stream->dev_priv;
-
-	mutex_lock(&i915->drm.struct_mutex);
-
 	i915_vma_unpin_and_release(&stream->oa_buffer.vma,
 				   I915_VMA_RELEASE_MAP);
-
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	stream->oa_buffer.vaddr = NULL;
 }
@@ -1510,18 +1489,13 @@ static int alloc_oa_buffer(struct i915_perf_stream *stream)
 	if (WARN_ON(stream->oa_buffer.vma))
 		return -ENODEV;
 
-	ret = i915_mutex_lock_interruptible(&dev_priv->drm);
-	if (ret)
-		return ret;
-
 	BUILD_BUG_ON_NOT_POWER_OF_2(OA_BUFFER_SIZE);
 	BUILD_BUG_ON(OA_BUFFER_SIZE < SZ_128K || OA_BUFFER_SIZE > SZ_16M);
 
 	bo = i915_gem_object_create_shmem(dev_priv, OA_BUFFER_SIZE);
 	if (IS_ERR(bo)) {
 		DRM_ERROR("Failed to allocate OA buffer\n");
-		ret = PTR_ERR(bo);
-		goto unlock;
+		return PTR_ERR(bo);
 	}
 
 	i915_gem_object_set_cache_coherency(bo, I915_CACHE_LLC);
@@ -1545,7 +1519,7 @@ static int alloc_oa_buffer(struct i915_perf_stream *stream)
 			 i915_ggtt_offset(stream->oa_buffer.vma),
 			 stream->oa_buffer.vaddr);
 
-	goto unlock;
+	return 0;
 
 err_unpin:
 	__i915_vma_unpin(vma);
@@ -1556,8 +1530,6 @@ err_unref:
 	stream->oa_buffer.vaddr = NULL;
 	stream->oa_buffer.vma = NULL;
 
-unlock:
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 	return ret;
 }
 
@@ -1672,10 +1644,8 @@ static u32 oa_config_flex_reg(const struct i915_oa_config *oa_config,
  * in the case that the OA unit has been disabled.
  */
 static void
-gen8_update_reg_state_unlocked(struct i915_perf_stream *stream,
-			       struct intel_context *ce,
-			       u32 *reg_state,
-			       const struct i915_oa_config *oa_config)
+gen8_update_reg_state_unlocked(const struct intel_context *ce,
+			       const struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *i915 = ce->engine->i915;
 	u32 ctx_oactxctrl = i915->perf.ctx_oactxctrl_offset;
@@ -1690,21 +1660,19 @@ gen8_update_reg_state_unlocked(struct i915_perf_stream *stream,
 		EU_PERF_CNTL5,
 		EU_PERF_CNTL6,
 	};
+	u32 *reg_state = ce->lrc_reg_state;
 	int i;
 
-	CTX_REG(reg_state, ctx_oactxctrl, GEN8_OACTXCONTROL,
+	reg_state[ctx_oactxctrl + 1] =
 		(stream->period_exponent << GEN8_OA_TIMER_PERIOD_SHIFT) |
 		(stream->periodic ? GEN8_OA_TIMER_ENABLE : 0) |
-		GEN8_OA_COUNTER_RESUME);
+		GEN8_OA_COUNTER_RESUME;
 
-	for (i = 0; i < ARRAY_SIZE(flex_regs); i++) {
-		CTX_REG(reg_state, ctx_flexeu0 + i * 2, flex_regs[i],
-			oa_config_flex_reg(oa_config, flex_regs[i]));
-	}
+	for (i = 0; i < ARRAY_SIZE(flex_regs); i++)
+		reg_state[ctx_flexeu0 + i * 2 + 1] =
+			oa_config_flex_reg(stream->oa_config, flex_regs[i]);
 
-	CTX_REG(reg_state,
-		CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE,
-		intel_sseu_make_rpcs(i915, &ce->sseu));
+	reg_state[CTX_R_PWR_CLK_STATE] = intel_sseu_make_rpcs(i915, &ce->sseu);
 }
 
 struct flex {
@@ -1728,7 +1696,7 @@ gen8_store_flex(struct i915_request *rq,
 	offset = i915_ggtt_offset(ce->state) + LRC_STATE_PN * PAGE_SIZE;
 	do {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
-		*cs++ = offset + (flex->offset + 1) * sizeof(u32);
+		*cs++ = offset + flex->offset * sizeof(u32);
 		*cs++ = 0;
 		*cs++ = flex->value;
 	} while (flex++, --count);
@@ -1862,7 +1830,7 @@ static int gen8_configure_all_contexts(struct i915_perf_stream *stream,
 	struct drm_i915_private *i915 = stream->dev_priv;
 	/* The MMIO offsets for Flex EU registers aren't contiguous */
 	const u32 ctx_flexeu0 = i915->perf.ctx_flexeu0_offset;
-#define ctx_flexeuN(N) (ctx_flexeu0 + 2 * (N))
+#define ctx_flexeuN(N) (ctx_flexeu0 + 2 * (N) + 1)
 	struct flex regs[] = {
 		{
 			GEN8_R_PWR_CLK_STATE,
@@ -1870,7 +1838,7 @@ static int gen8_configure_all_contexts(struct i915_perf_stream *stream,
 		},
 		{
 			GEN8_OACTXCONTROL,
-			i915->perf.ctx_oactxctrl_offset,
+			i915->perf.ctx_oactxctrl_offset + 1,
 			((stream->period_exponent << GEN8_OA_TIMER_PERIOD_SHIFT) |
 			 (stream->periodic ? GEN8_OA_TIMER_ENABLE : 0) |
 			 GEN8_OA_COUNTER_RESUME)
@@ -1885,8 +1853,8 @@ static int gen8_configure_all_contexts(struct i915_perf_stream *stream,
 	};
 #undef ctx_flexeuN
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *ctx;
-	int i;
+	struct i915_gem_context *ctx, *cn;
+	int i, err;
 
 	for (i = 2; i < ARRAY_SIZE(regs); i++)
 		regs[i].value = oa_config_flex_reg(oa_config, regs[i].reg);
@@ -1909,16 +1877,27 @@ static int gen8_configure_all_contexts(struct i915_perf_stream *stream,
 	 * context. Contexts idle at the time of reconfiguration are not
 	 * trapped behind the barrier.
 	 */
-	list_for_each_entry(ctx, &i915->contexts.list, link) {
-		int err;
-
+	spin_lock(&i915->gem.contexts.lock);
+	list_for_each_entry_safe(ctx, cn, &i915->gem.contexts.list, link) {
 		if (ctx == i915->kernel_context)
 			continue;
 
+		if (!kref_get_unless_zero(&ctx->ref))
+			continue;
+
+		spin_unlock(&i915->gem.contexts.lock);
+
 		err = gen8_configure_context(ctx, regs, ARRAY_SIZE(regs));
-		if (err)
+		if (err) {
+			i915_gem_context_put(ctx);
 			return err;
+		}
+
+		spin_lock(&i915->gem.contexts.lock);
+		list_safe_reset_next(ctx, cn, link);
+		i915_gem_context_put(ctx);
 	}
+	spin_unlock(&i915->gem.contexts.lock);
 
 	/*
 	 * After updating all other contexts, we need to modify ourselves.
@@ -1927,7 +1906,6 @@ static int gen8_configure_all_contexts(struct i915_perf_stream *stream,
 	 */
 	for_each_uabi_engine(engine, i915) {
 		struct intel_context *ce = engine->kernel_context;
-		int err;
 
 		if (engine->class != RENDER_CLASS)
 			continue;
@@ -2298,18 +2276,20 @@ err_config:
 	return ret;
 }
 
-void i915_oa_init_reg_state(struct intel_engine_cs *engine,
-			    struct intel_context *ce,
-			    u32 *regs)
+void i915_oa_init_reg_state(const struct intel_context *ce,
+			    const struct intel_engine_cs *engine)
 {
 	struct i915_perf_stream *stream;
+
+	/* perf.exclusive_stream serialised by gen8_configure_all_contexts() */
+	lockdep_assert_held(&ce->pin_mutex);
 
 	if (engine->class != RENDER_CLASS)
 		return;
 
 	stream = engine->i915->perf.exclusive_stream;
 	if (stream)
-		gen8_update_reg_state_unlocked(stream, ce, regs, stream->oa_config);
+		gen8_update_reg_state_unlocked(ce, stream);
 }
 
 /**

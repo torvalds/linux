@@ -30,6 +30,8 @@
 #include <linux/stat.h>
 #include <linux/sysfs.h>
 
+#include "gt/intel_rc6.h"
+
 #include "i915_drv.h"
 #include "i915_sysfs.h"
 #include "intel_pm.h"
@@ -49,7 +51,7 @@ static u32 calc_residency(struct drm_i915_private *dev_priv,
 	u64 res = 0;
 
 	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
-		res = intel_rc6_residency_us(dev_priv, reg);
+		res = intel_rc6_residency_us(&dev_priv->gt.rc6, reg);
 
 	return DIV_ROUND_CLOSEST_ULL(res, 1000);
 }
@@ -142,12 +144,12 @@ static const struct attribute_group media_rc6_attr_group = {
 };
 #endif
 
-static int l3_access_valid(struct drm_i915_private *dev_priv, loff_t offset)
+static int l3_access_valid(struct drm_i915_private *i915, loff_t offset)
 {
-	if (!HAS_L3_DPF(dev_priv))
+	if (!HAS_L3_DPF(i915))
 		return -EPERM;
 
-	if (offset % 4 != 0)
+	if (!IS_ALIGNED(offset, sizeof(u32)))
 		return -EINVAL;
 
 	if (offset >= GEN7_L3LOG_SIZE)
@@ -162,31 +164,24 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	     loff_t offset, size_t count)
 {
 	struct device *kdev = kobj_to_dev(kobj);
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct drm_device *dev = &dev_priv->drm;
+	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
 	int slice = (int)(uintptr_t)attr->private;
 	int ret;
 
-	count = round_down(count, 4);
-
-	ret = l3_access_valid(dev_priv, offset);
+	ret = l3_access_valid(i915, offset);
 	if (ret)
 		return ret;
 
+	count = round_down(count, sizeof(u32));
 	count = min_t(size_t, GEN7_L3LOG_SIZE - offset, count);
+	memset(buf, 0, count);
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
-
-	if (dev_priv->l3_parity.remap_info[slice])
+	spin_lock(&i915->gem.contexts.lock);
+	if (i915->l3_parity.remap_info[slice])
 		memcpy(buf,
-		       dev_priv->l3_parity.remap_info[slice] + (offset/4),
+		       i915->l3_parity.remap_info[slice] + offset / sizeof(u32),
 		       count);
-	else
-		memset(buf, 0, count);
-
-	mutex_unlock(&dev->struct_mutex);
+	spin_unlock(&i915->gem.contexts.lock);
 
 	return count;
 }
@@ -197,46 +192,49 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	      loff_t offset, size_t count)
 {
 	struct device *kdev = kobj_to_dev(kobj);
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct drm_device *dev = &dev_priv->drm;
-	struct i915_gem_context *ctx;
+	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
 	int slice = (int)(uintptr_t)attr->private;
-	u32 **remap_info;
+	u32 *remap_info, *freeme = NULL;
+	struct i915_gem_context *ctx;
 	int ret;
 
-	ret = l3_access_valid(dev_priv, offset);
+	ret = l3_access_valid(i915, offset);
 	if (ret)
 		return ret;
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
+	if (count < sizeof(u32))
+		return -EINVAL;
 
-	remap_info = &dev_priv->l3_parity.remap_info[slice];
-	if (!*remap_info) {
-		*remap_info = kzalloc(GEN7_L3LOG_SIZE, GFP_KERNEL);
-		if (!*remap_info) {
-			ret = -ENOMEM;
-			goto out;
-		}
+	remap_info = kzalloc(GEN7_L3LOG_SIZE, GFP_KERNEL);
+	if (!remap_info)
+		return -ENOMEM;
+
+	spin_lock(&i915->gem.contexts.lock);
+
+	if (i915->l3_parity.remap_info[slice]) {
+		freeme = remap_info;
+		remap_info = i915->l3_parity.remap_info[slice];
+	} else {
+		i915->l3_parity.remap_info[slice] = remap_info;
 	}
 
-	/* TODO: Ideally we really want a GPU reset here to make sure errors
+	count = round_down(count, sizeof(u32));
+	memcpy(remap_info + offset / sizeof(u32), buf, count);
+
+	/* NB: We defer the remapping until we switch to the context */
+	list_for_each_entry(ctx, &i915->gem.contexts.list, link)
+		ctx->remap_slice |= BIT(slice);
+
+	spin_unlock(&i915->gem.contexts.lock);
+	kfree(freeme);
+
+	/*
+	 * TODO: Ideally we really want a GPU reset here to make sure errors
 	 * aren't propagated. Since I cannot find a stable way to reset the GPU
 	 * at this point it is left as a TODO.
 	*/
-	memcpy(*remap_info + (offset/4), buf, count);
 
-	/* NB: We defer the remapping until we switch to the context */
-	list_for_each_entry(ctx, &dev_priv->contexts.list, link)
-		ctx->remap_slice |= (1<<slice);
-
-	ret = count;
-
-out:
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
+	return count;
 }
 
 static const struct bin_attribute dpf_attrs = {

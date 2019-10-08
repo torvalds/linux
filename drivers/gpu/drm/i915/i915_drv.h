@@ -67,6 +67,7 @@
 #include "display/intel_display.h"
 #include "display/intel_display_power.h"
 #include "display/intel_dpll_mgr.h"
+#include "display/intel_dsb.h"
 #include "display/intel_frontbuffer.h"
 #include "display/intel_gmbus.h"
 #include "display/intel_opregion.h"
@@ -105,8 +106,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20190822"
-#define DRIVER_TIMESTAMP	1566477988
+#define DRIVER_DATE		"20191007"
+#define DRIVER_TIMESTAMP	1570451087
 
 struct drm_i915_gem_object;
 
@@ -185,7 +186,11 @@ struct i915_mmu_object;
 
 struct drm_i915_file_private {
 	struct drm_i915_private *dev_priv;
-	struct drm_file *file;
+
+	union {
+		struct drm_file *file;
+		struct rcu_head rcu;
+	};
 
 	struct {
 		spinlock_t lock;
@@ -272,6 +277,7 @@ struct drm_i915_display_funcs {
 	int (*compute_global_watermarks)(struct intel_atomic_state *state);
 	void (*update_wm)(struct intel_crtc *crtc);
 	int (*modeset_calc_cdclk)(struct intel_atomic_state *state);
+	u8 (*calc_voltage_level)(int cdclk);
 	/* Returns the active state of the crtc, and if the crtc is active,
 	 * fills out the pipe-config with the hw state. */
 	bool (*get_pipe_config)(struct intel_crtc *,
@@ -284,7 +290,8 @@ struct drm_i915_display_funcs {
 			    struct intel_atomic_state *old_state);
 	void (*crtc_disable)(struct intel_crtc_state *old_crtc_state,
 			     struct intel_atomic_state *old_state);
-	void (*update_crtcs)(struct intel_atomic_state *state);
+	void (*commit_modeset_enables)(struct intel_atomic_state *state);
+	void (*commit_modeset_disables)(struct intel_atomic_state *state);
 	void (*audio_codec_enable)(struct intel_encoder *encoder,
 				   const struct intel_crtc_state *crtc_state,
 				   const struct drm_connector_state *conn_state);
@@ -479,6 +486,7 @@ struct i915_psr {
 	bool enabled;
 	struct intel_dp *dp;
 	enum pipe pipe;
+	enum transcoder transcoder;
 	bool active;
 	struct work_struct work;
 	unsigned busy_frontbuffer_bits;
@@ -591,19 +599,12 @@ struct intel_rps {
 	struct intel_rps_ei ei;
 };
 
-struct intel_rc6 {
-	bool enabled;
-	u64 prev_hw_residency[4];
-	u64 cur_residency[4];
-};
-
 struct intel_llc_pstate {
 	bool enabled;
 };
 
 struct intel_gen6_power_mgmt {
 	struct intel_rps rps;
-	struct intel_rc6 rc6;
 	struct intel_llc_pstate llc_pstate;
 };
 
@@ -1126,7 +1127,7 @@ struct i915_perf_stream {
 	struct i915_oa_config *oa_config;
 
 	/**
-	 * The OA context specific information.
+	 * @pinned_ctx: The OA context specific information.
 	 */
 	struct intel_context *pinned_ctx;
 	u32 specific_ctx_id;
@@ -1140,7 +1141,7 @@ struct i915_perf_stream {
 	int period_exponent;
 
 	/**
-	 * State of the OA buffer.
+	 * @oa_buffer: State of the OA buffer.
 	 */
 	struct {
 		struct i915_vma *vma;
@@ -1151,7 +1152,7 @@ struct i915_perf_stream {
 		int size_exponent;
 
 		/**
-		 * Locks reads and writes to all head/tail state
+		 * @ptr_lock: Locks reads and writes to all head/tail state
 		 *
 		 * Consider: the head and tail pointer state needs to be read
 		 * consistently from a hrtimer callback (atomic context) and
@@ -1173,7 +1174,7 @@ struct i915_perf_stream {
 		spinlock_t ptr_lock;
 
 		/**
-		 * One 'aging' tail pointer and one 'aged' tail pointer ready to
+		 * @tails: One 'aging' tail pointer and one 'aged' tail pointer ready to
 		 * used for reading.
 		 *
 		 * Initial values of 0xffffffff are invalid and imply that an
@@ -1185,18 +1186,18 @@ struct i915_perf_stream {
 		} tails[2];
 
 		/**
-		 * Index for the aged tail ready to read() data up to.
+		 * @aged_tail_idx: Index for the aged tail ready to read() data up to.
 		 */
 		unsigned int aged_tail_idx;
 
 		/**
-		 * A monotonic timestamp for when the current aging tail pointer
+		 * @aging_timestamp: A monotonic timestamp for when the current aging tail pointer
 		 * was read; used to determine when it is old enough to trust.
 		 */
 		u64 aging_timestamp;
 
 		/**
-		 * Although we can always read back the head pointer register,
+		 * @head: Although we can always read back the head pointer register,
 		 * we prefer to avoid trusting the HW state, just to avoid any
 		 * risk that some hardware condition could * somehow bump the
 		 * head pointer unpredictably and cause us to forward the wrong
@@ -1331,10 +1332,10 @@ struct drm_i915_private {
 	 */
 	u32 gpio_mmio_base;
 
+	u32 hsw_psr_mmio_adjust;
+
 	/* MMIO base address for MIPI regs */
 	u32 mipi_mmio_base;
-
-	u32 psr_mmio_base;
 
 	u32 pps_mmio_base;
 
@@ -1414,6 +1415,9 @@ struct drm_i915_private {
 		/* The current hardware cdclk state */
 		struct intel_cdclk_state hw;
 
+		/* cdclk, divider, and ratio table from bspec */
+		const struct intel_cdclk_vals *table;
+
 		int force_min_cdclk;
 	} cdclk;
 
@@ -1428,6 +1432,8 @@ struct drm_i915_private {
 
 	/* ordered wq for modesets */
 	struct workqueue_struct *modeset_wq;
+	/* unbound hipri wq for page flips/plane updates */
+	struct workqueue_struct *flip_wq;
 
 	/* Display functions */
 	struct drm_i915_display_funcs display;
@@ -1468,7 +1474,7 @@ struct drm_i915_private {
 	 */
 	struct mutex dpll_lock;
 
-	unsigned int active_crtcs;
+	u8 active_pipes;
 	/* minimum acceptable cdclk for each pipe */
 	int min_cdclk[I915_MAX_PIPES];
 	/* minimum acceptable voltage level for each pipe */
@@ -1528,25 +1534,7 @@ struct drm_i915_private {
 	 */
 	struct mutex av_mutex;
 	int audio_power_refcount;
-
-	struct {
-		struct mutex mutex;
-		struct list_head list;
-		struct llist_head free_list;
-		struct work_struct free_work;
-
-		/* The hw wants to have a stable context identifier for the
-		 * lifetime of the context (for OA, PASID, faults, etc).
-		 * This is limited in execlists to 21 bits.
-		 */
-		struct ida hw_ida;
-#define MAX_CONTEXT_HW_ID (1<<21) /* exclusive */
-#define MAX_GUC_CONTEXT_HW_ID (1 << 20) /* exclusive */
-#define GEN11_MAX_CONTEXT_HW_ID (1<<11) /* exclusive */
-/* in Gen12 ID 0x7FF is reserved to indicate idle */
-#define GEN12_MAX_CONTEXT_HW_ID	(GEN11_MAX_CONTEXT_HW_ID - 1)
-		struct list_head hw_id_list;
-	} contexts;
+	u32 audio_freq_cntrl;
 
 	u32 fdi_rx_config;
 
@@ -1704,32 +1692,17 @@ struct drm_i915_private {
 	struct {
 		struct notifier_block pm_notifier;
 
-		/**
-		 * We leave the user IRQ off as much as possible,
-		 * but this means that requests will finish and never
-		 * be retired once the system goes idle. Set a timer to
-		 * fire periodically while the ring is running. When it
-		 * fires, go retire requests.
-		 */
-		struct delayed_work retire_work;
+		struct i915_gem_contexts {
+			spinlock_t lock; /* locks list */
+			struct list_head list;
 
-		/**
-		 * When we detect an idle GPU, we want to turn on
-		 * powersaving features. So once we see that there
-		 * are no more requests outstanding and no more
-		 * arrive within a small period of time, we fire
-		 * off the idle_work.
-		 */
-		struct work_struct idle_work;
+			struct llist_head free_list;
+			struct work_struct free_work;
+		} contexts;
 	} gem;
 
-	/* For i945gm vblank irq vs. C3 workaround */
-	struct {
-		struct work_struct work;
-		struct pm_qos_request pm_qos;
-		u8 c3_disable_latency;
-		u8 enabled;
-	} i945gm_vblank;
+	/* For i915gm/i945gm vblank irq workaround */
+	u8 vblank_enabled;
 
 	/* perform PHY state sanity checks? */
 	bool chv_phy_assert[2];
@@ -1850,6 +1823,8 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 #define IS_GEN(dev_priv, n) \
 	(BUILD_BUG_ON_ZERO(!__builtin_constant_p(n)) + \
 	 INTEL_INFO(dev_priv)->gen == (n))
+
+#define HAS_DSB(dev_priv)	(INTEL_INFO(dev_priv)->display.has_dsb)
 
 /*
  * Return true if revision is in range [since,until] inclusive.
@@ -2176,7 +2151,12 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define GT_FREQUENCY_MULTIPLIER 50
 #define GEN9_FREQ_SCALER 3
 
-#define HAS_DISPLAY(dev_priv) (INTEL_INFO(dev_priv)->num_pipes > 0)
+#define INTEL_NUM_PIPES(dev_priv) (hweight8(INTEL_INFO(dev_priv)->pipe_mask))
+
+#define HAS_DISPLAY(dev_priv) (INTEL_INFO(dev_priv)->pipe_mask != 0)
+
+/* Only valid when HAS_DISPLAY() is true */
+#define INTEL_DISPLAY_ENABLED(dev_priv) (WARN_ON(!HAS_DISPLAY(dev_priv)), !i915_modparams.disable_display)
 
 static inline bool intel_vtd_active(void)
 {
@@ -2209,6 +2189,9 @@ extern const struct dev_pm_ops i915_pm_ops;
 int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 void i915_driver_remove(struct drm_i915_private *i915);
 
+int i915_resume_switcheroo(struct drm_i915_private *i915);
+int i915_suspend_switcheroo(struct drm_i915_private *i915, pm_message_t state);
+
 void intel_engine_init_hangcheck(struct intel_engine_cs *engine);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
 
@@ -2229,7 +2212,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 int i915_gem_init_userptr(struct drm_i915_private *dev_priv);
 void i915_gem_cleanup_userptr(struct drm_i915_private *dev_priv);
 void i915_gem_sanitize(struct drm_i915_private *i915);
-int i915_gem_init_early(struct drm_i915_private *dev_priv);
+void i915_gem_init_early(struct drm_i915_private *dev_priv);
 void i915_gem_cleanup_early(struct drm_i915_private *dev_priv);
 int i915_gem_freeze(struct drm_i915_private *dev_priv);
 int i915_gem_freeze_late(struct drm_i915_private *dev_priv);
@@ -2312,13 +2295,10 @@ static inline u32 i915_reset_engine_count(struct i915_gpu_error *error,
 
 void i915_gem_init_mmio(struct drm_i915_private *i915);
 int __must_check i915_gem_init(struct drm_i915_private *dev_priv);
-int __must_check i915_gem_init_hw(struct drm_i915_private *dev_priv);
 void i915_gem_driver_register(struct drm_i915_private *i915);
 void i915_gem_driver_unregister(struct drm_i915_private *i915);
 void i915_gem_driver_remove(struct drm_i915_private *dev_priv);
 void i915_gem_driver_release(struct drm_i915_private *dev_priv);
-int i915_gem_wait_for_idle(struct drm_i915_private *dev_priv,
-			   unsigned int flags, long timeout);
 void i915_gem_suspend(struct drm_i915_private *dev_priv);
 void i915_gem_suspend_late(struct drm_i915_private *dev_priv);
 void i915_gem_resume(struct drm_i915_private *dev_priv);
@@ -2358,7 +2338,7 @@ i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct i915_address_space *vm,
 					  u64 min_size, u64 alignment,
-					  unsigned cache_level,
+					  unsigned long color,
 					  u64 start, u64 end,
 					  unsigned flags);
 int __must_check i915_gem_evict_for_node(struct i915_address_space *vm,

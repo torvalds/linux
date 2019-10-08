@@ -100,22 +100,4 @@ extern struct resource intel_graphics_stolen_res;
 #define INTEL_GEN11_BSM_DW1	0xc4
 #define   INTEL_BSM_MASK	(-(1u << 20))
 
-enum port {
-	PORT_NONE = -1,
-
-	PORT_A = 0,
-	PORT_B,
-	PORT_C,
-	PORT_D,
-	PORT_E,
-	PORT_F,
-	PORT_G,
-	PORT_H,
-	PORT_I,
-
-	I915_MAX_PORTS
-};
-
-#define port_name(p) ((p) + 'A')
-
 #endif				/* _I915_DRM_H_ */

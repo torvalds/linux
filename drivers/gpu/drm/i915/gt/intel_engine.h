@@ -335,7 +335,6 @@ void intel_engine_init_execlists(struct intel_engine_cs *engine);
 void intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
 
-void intel_engine_signal_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
 
 static inline void

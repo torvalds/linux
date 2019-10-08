@@ -39,25 +39,27 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
  * Must be ordered based on platform + revid, from newer to older.
  */
 #define INTEL_UC_FIRMWARE_DEFS(fw_def, guc_def, huc_def) \
-	fw_def(ICELAKE,    0, guc_def(icl, 33, 0, 0), huc_def(icl,  8,  4, 3238)) \
-	fw_def(COFFEELAKE, 0, guc_def(kbl, 33, 0, 0), huc_def(kbl, 02, 00, 1810)) \
-	fw_def(GEMINILAKE, 0, guc_def(glk, 33, 0, 0), huc_def(glk, 03, 01, 2893)) \
-	fw_def(KABYLAKE,   0, guc_def(kbl, 33, 0, 0), huc_def(kbl, 02, 00, 1810)) \
-	fw_def(BROXTON,    0, guc_def(bxt, 33, 0, 0), huc_def(bxt, 01,  8, 2893)) \
-	fw_def(SKYLAKE,    0, guc_def(skl, 33, 0, 0), huc_def(skl, 01, 07, 1398))
+	fw_def(ELKHARTLAKE, 0, guc_def(ehl, 33, 0, 4), huc_def(ehl,  9, 0, 0)) \
+	fw_def(ICELAKE,     0, guc_def(icl, 33, 0, 0), huc_def(icl,  9, 0, 0)) \
+	fw_def(COFFEELAKE,  5, guc_def(cml, 33, 0, 0), huc_def(cml,  4, 0, 0)) \
+	fw_def(COFFEELAKE,  0, guc_def(kbl, 33, 0, 0), huc_def(kbl,  4, 0, 0)) \
+	fw_def(GEMINILAKE,  0, guc_def(glk, 33, 0, 0), huc_def(glk,  4, 0, 0)) \
+	fw_def(KABYLAKE,    0, guc_def(kbl, 33, 0, 0), huc_def(kbl,  4, 0, 0)) \
+	fw_def(BROXTON,     0, guc_def(bxt, 33, 0, 0), huc_def(bxt,  2, 0, 0)) \
+	fw_def(SKYLAKE,     0, guc_def(skl, 33, 0, 0), huc_def(skl,  2, 0, 0))
 
-#define __MAKE_UC_FW_PATH(prefix_, name_, separator_, major_, minor_, patch_) \
+#define __MAKE_UC_FW_PATH(prefix_, name_, major_, minor_, patch_) \
 	"i915/" \
 	__stringify(prefix_) name_ \
-	__stringify(major_) separator_ \
-	__stringify(minor_) separator_ \
+	__stringify(major_) "." \
+	__stringify(minor_) "." \
 	__stringify(patch_) ".bin"
 
 #define MAKE_GUC_FW_PATH(prefix_, major_, minor_, patch_) \
-	__MAKE_UC_FW_PATH(prefix_, "_guc_", ".", major_, minor_, patch_)
+	__MAKE_UC_FW_PATH(prefix_, "_guc_", major_, minor_, patch_)
 
 #define MAKE_HUC_FW_PATH(prefix_, major_, minor_, bld_num_) \
-	__MAKE_UC_FW_PATH(prefix_, "_huc_ver", "_", major_, minor_, bld_num_)
+	__MAKE_UC_FW_PATH(prefix_, "_huc_", major_, minor_, bld_num_)
 
 /* All blobs need to be declared via MODULE_FIRMWARE() */
 #define INTEL_UC_MODULE_FW(platform_, revid_, guc_, huc_) \
@@ -337,25 +339,10 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 	}
 
 	/* Get version numbers from the CSS header */
-	switch (uc_fw->type) {
-	case INTEL_UC_FW_TYPE_GUC:
-		uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_GUC_MAJOR,
-						   css->sw_version);
-		uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_GUC_MINOR,
-						   css->sw_version);
-		break;
-
-	case INTEL_UC_FW_TYPE_HUC:
-		uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_HUC_MAJOR,
-						   css->sw_version);
-		uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_HUC_MINOR,
-						   css->sw_version);
-		break;
-
-	default:
-		MISSING_CASE(uc_fw->type);
-		break;
-	}
+	uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
+					   css->sw_version);
+	uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
+					   css->sw_version);
 
 	if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
 	    uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
@@ -400,7 +387,7 @@ static u32 uc_fw_ggtt_offset(struct intel_uc_fw *uc_fw, struct i915_ggtt *ggtt)
 {
 	struct drm_mm_node *node = &ggtt->uc_fw;
 
-	GEM_BUG_ON(!node->allocated);
+	GEM_BUG_ON(!drm_mm_node_allocated(node));
 	GEM_BUG_ON(upper_32_bits(node->start));
 	GEM_BUG_ON(upper_32_bits(node->start + node->size - 1));
 

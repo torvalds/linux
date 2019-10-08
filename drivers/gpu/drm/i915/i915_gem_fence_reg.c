@@ -230,14 +230,15 @@ static int fence_update(struct i915_fence_reg *fence,
 			 i915_gem_object_get_tiling(vma->obj)))
 			return -EINVAL;
 
-		ret = i915_active_wait(&vma->active);
+		ret = i915_vma_sync(vma);
 		if (ret)
 			return ret;
 	}
 
 	old = xchg(&fence->vma, NULL);
 	if (old) {
-		ret = i915_active_wait(&old->active);
+		/* XXX Ideally we would move the waiting to outside the mutex */
+		ret = i915_vma_sync(old);
 		if (ret) {
 			fence->vma = old;
 			return ret;
@@ -331,12 +332,14 @@ static struct i915_fence_reg *fence_find(struct drm_i915_private *i915)
 	return ERR_PTR(-EDEADLK);
 }
 
-static int __i915_vma_pin_fence(struct i915_vma *vma)
+int __i915_vma_pin_fence(struct i915_vma *vma)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vma->vm);
 	struct i915_fence_reg *fence;
 	struct i915_vma *set = i915_gem_object_is_tiled(vma->obj) ? vma : NULL;
 	int err;
+
+	lockdep_assert_held(&vma->vm->mutex);
 
 	/* Just update our place in the LRU if our fence is getting reused. */
 	if (vma->fence) {

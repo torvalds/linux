@@ -425,8 +425,11 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 			bdw_get_stolen_reserved(dev_priv,
 						&reserved_base, &reserved_size);
 		break;
-	case 11:
 	default:
+		MISSING_CASE(INTEL_GEN(dev_priv));
+		/* fall-through */
+	case 11:
+	case 12:
 		icl_get_stolen_reserved(dev_priv, &reserved_base,
 					&reserved_size);
 		break;
@@ -550,10 +553,11 @@ _i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
 {
 	struct drm_i915_gem_object *obj;
 	unsigned int cache_level;
+	int err = -ENOMEM;
 
 	obj = i915_gem_object_alloc();
-	if (obj == NULL)
-		return NULL;
+	if (!obj)
+		goto err;
 
 	drm_gem_private_object_init(&dev_priv->drm, &obj->base, stolen->size);
 	i915_gem_object_init(obj, &i915_gem_object_stolen_ops);
@@ -563,14 +567,16 @@ _i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
 	cache_level = HAS_LLC(dev_priv) ? I915_CACHE_LLC : I915_CACHE_NONE;
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 
-	if (i915_gem_object_pin_pages(obj))
+	err = i915_gem_object_pin_pages(obj);
+	if (err)
 		goto cleanup;
 
 	return obj;
 
 cleanup:
 	i915_gem_object_free(obj);
-	return NULL;
+err:
+	return ERR_PTR(err);
 }
 
 struct drm_i915_gem_object *
@@ -582,28 +588,32 @@ i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
 	int ret;
 
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
-		return NULL;
+		return ERR_PTR(-ENODEV);
 
 	if (size == 0)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	stolen = kzalloc(sizeof(*stolen), GFP_KERNEL);
 	if (!stolen)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	ret = i915_gem_stolen_insert_node(dev_priv, stolen, size, 4096);
 	if (ret) {
-		kfree(stolen);
-		return NULL;
+		obj = ERR_PTR(ret);
+		goto err_free;
 	}
 
 	obj = _i915_gem_object_create_stolen(dev_priv, stolen);
-	if (obj)
-		return obj;
+	if (IS_ERR(obj))
+		goto err_remove;
 
+	return obj;
+
+err_remove:
 	i915_gem_stolen_remove_node(dev_priv, stolen);
+err_free:
 	kfree(stolen);
-	return NULL;
+	return obj;
 }
 
 struct drm_i915_gem_object *
@@ -619,9 +629,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	int ret;
 
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
-		return NULL;
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+		return ERR_PTR(-ENODEV);
 
 	DRM_DEBUG_DRIVER("creating preallocated stolen object: stolen_offset=%pa, gtt_offset=%pa, size=%pa\n",
 			 &stolen_offset, &gtt_offset, &size);
@@ -630,11 +638,11 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	if (WARN_ON(size == 0) ||
 	    WARN_ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE)) ||
 	    WARN_ON(!IS_ALIGNED(stolen_offset, I915_GTT_MIN_ALIGNMENT)))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	stolen = kzalloc(sizeof(*stolen), GFP_KERNEL);
 	if (!stolen)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	stolen->start = stolen_offset;
 	stolen->size = size;
@@ -644,15 +652,15 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	if (ret) {
 		DRM_DEBUG_DRIVER("failed to allocate stolen space\n");
 		kfree(stolen);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	obj = _i915_gem_object_create_stolen(dev_priv, stolen);
-	if (obj == NULL) {
+	if (IS_ERR(obj)) {
 		DRM_DEBUG_DRIVER("failed to allocate stolen object\n");
 		i915_gem_stolen_remove_node(dev_priv, stolen);
 		kfree(stolen);
-		return NULL;
+		return obj;
 	}
 
 	/* Some objects just need physical mem from stolen space */
@@ -674,22 +682,26 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	 * setting up the GTT space. The actual reservation will occur
 	 * later.
 	 */
+	mutex_lock(&ggtt->vm.mutex);
 	ret = i915_gem_gtt_reserve(&ggtt->vm, &vma->node,
 				   size, gtt_offset, obj->cache_level,
 				   0);
 	if (ret) {
 		DRM_DEBUG_DRIVER("failed to allocate stolen GTT space\n");
+		mutex_unlock(&ggtt->vm.mutex);
 		goto err_pages;
 	}
 
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 
+	GEM_BUG_ON(vma->pages);
 	vma->pages = obj->mm.pages;
-	vma->flags |= I915_VMA_GLOBAL_BIND;
+	atomic_set(&vma->pages_count, I915_VMA_PAGES_ACTIVE);
+
+	set_bit(I915_VMA_GLOBAL_BIND_BIT, __i915_vma_flags(vma));
 	__i915_vma_set_map_and_fenceable(vma);
 
-	mutex_lock(&ggtt->vm.mutex);
-	list_move_tail(&vma->vm_link, &ggtt->vm.bound_list);
+	list_add_tail(&vma->vm_link, &ggtt->vm.bound_list);
 	mutex_unlock(&ggtt->vm.mutex);
 
 	GEM_BUG_ON(i915_gem_object_is_shrinkable(obj));
@@ -701,5 +713,5 @@ err_pages:
 	i915_gem_object_unpin_pages(obj);
 err:
 	i915_gem_object_put(obj);
-	return NULL;
+	return ERR_PTR(ret);
 }

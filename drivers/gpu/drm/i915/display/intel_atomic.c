@@ -199,7 +199,6 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->disable_cxsr = false;
 	crtc_state->update_wm_pre = false;
 	crtc_state->update_wm_post = false;
-	crtc_state->fb_changed = false;
 	crtc_state->fifo_changed = false;
 	crtc_state->wm.need_postvbl_update = false;
 	crtc_state->fb_bits = 0;
@@ -264,10 +263,13 @@ static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_sta
 			 */
 			mode = PS_SCALER_MODE_NORMAL;
 		} else {
+			struct intel_plane *linked =
+				plane_state->planar_linked_plane;
+
 			mode = PS_SCALER_MODE_PLANAR;
 
-			if (plane_state->linked_plane)
-				mode |= PS_PLANE_Y_SEL(plane_state->linked_plane->id);
+			if (linked)
+				mode |= PS_PLANE_Y_SEL(linked->id);
 		}
 	} else if (INTEL_GEN(dev_priv) > 9 || IS_GEMINILAKE(dev_priv)) {
 		mode = PS_SCALER_MODE_NORMAL;
@@ -371,6 +373,15 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 			 */
 			if (!plane) {
 				struct drm_plane_state *state;
+
+				/*
+				 * GLK+ scalers don't have a HQ mode so it
+				 * isn't necessary to change between HQ and dyn mode
+				 * on those platforms.
+				 */
+				if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+					continue;
+
 				plane = drm_plane_from_index(&dev_priv->drm, i);
 				state = drm_atomic_get_plane_state(drm_state, plane);
 				if (IS_ERR(state)) {
@@ -378,13 +389,6 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 						plane->base.id);
 					return PTR_ERR(state);
 				}
-
-				/*
-				 * the plane is added after plane checks are run,
-				 * but since this plane is unchanged just do the
-				 * minimum required validation.
-				 */
-				crtc_state->base.planes_changed = true;
 			}
 
 			intel_plane = to_intel_plane(plane);

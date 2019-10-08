@@ -15,10 +15,14 @@ struct drm_connector_state;
 struct drm_i915_private;
 struct intel_connector;
 struct intel_hdcp_shim;
+enum port;
+enum transcoder;
 
 void intel_hdcp_atomic_check(struct drm_connector *connector,
 			     struct drm_connector_state *old_state,
 			     struct drm_connector_state *new_state);
+void intel_hdcp_transcoder_config(struct intel_connector *connector,
+				  enum transcoder cpu_transcoder);
 int intel_hdcp_init(struct intel_connector *connector,
 		    const struct intel_hdcp_shim *hdcp_shim);
 int intel_hdcp_enable(struct intel_connector *connector, u8 content_type);

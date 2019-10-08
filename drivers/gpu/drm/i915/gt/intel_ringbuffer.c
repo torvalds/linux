@@ -322,7 +322,8 @@ static u32 *gen6_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 		 PIPE_CONTROL_DC_FLUSH_ENABLE |
 		 PIPE_CONTROL_QW_WRITE |
 		 PIPE_CONTROL_CS_STALL);
-	*cs++ = rq->timeline->hwsp_offset | PIPE_CONTROL_GLOBAL_GTT;
+	*cs++ = i915_request_active_timeline(rq)->hwsp_offset |
+		PIPE_CONTROL_GLOBAL_GTT;
 	*cs++ = rq->fence.seqno;
 
 	*cs++ = MI_USER_INTERRUPT;
@@ -425,7 +426,7 @@ static u32 *gen7_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 		 PIPE_CONTROL_QW_WRITE |
 		 PIPE_CONTROL_GLOBAL_GTT_IVB |
 		 PIPE_CONTROL_CS_STALL);
-	*cs++ = rq->timeline->hwsp_offset;
+	*cs++ = i915_request_active_timeline(rq)->hwsp_offset;
 	*cs++ = rq->fence.seqno;
 
 	*cs++ = MI_USER_INTERRUPT;
@@ -439,8 +440,8 @@ static u32 *gen7_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 static u32 *gen6_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
-	GEM_BUG_ON(rq->timeline->hwsp_ggtt != rq->engine->status_page.vma);
-	GEM_BUG_ON(offset_in_page(rq->timeline->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
+	GEM_BUG_ON(i915_request_active_timeline(rq)->hwsp_ggtt != rq->engine->status_page.vma);
+	GEM_BUG_ON(offset_in_page(i915_request_active_timeline(rq)->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
 
 	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_STORE_INDEX;
 	*cs++ = I915_GEM_HWS_SEQNO_ADDR | MI_FLUSH_DW_USE_GTT;
@@ -459,8 +460,8 @@ static u32 *gen7_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
 	int i;
 
-	GEM_BUG_ON(rq->timeline->hwsp_ggtt != rq->engine->status_page.vma);
-	GEM_BUG_ON(offset_in_page(rq->timeline->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
+	GEM_BUG_ON(i915_request_active_timeline(rq)->hwsp_ggtt != rq->engine->status_page.vma);
+	GEM_BUG_ON(offset_in_page(i915_request_active_timeline(rq)->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
 
 	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_STORE_INDEX;
 	*cs++ = I915_GEM_HWS_SEQNO_ADDR | MI_FLUSH_DW_USE_GTT;
@@ -930,6 +931,7 @@ static void cancel_requests(struct intel_engine_cs *engine)
 static void i9xx_submit_request(struct i915_request *request)
 {
 	i915_request_submit(request);
+	wmb(); /* paranoid flush writes out of the WCB before mmio */
 
 	ENGINE_WRITE(request->engine, RING_TAIL,
 		     intel_ring_set_tail(request->ring, request->tail));
@@ -937,8 +939,8 @@ static void i9xx_submit_request(struct i915_request *request)
 
 static u32 *i9xx_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
-	GEM_BUG_ON(rq->timeline->hwsp_ggtt != rq->engine->status_page.vma);
-	GEM_BUG_ON(offset_in_page(rq->timeline->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
+	GEM_BUG_ON(i915_request_active_timeline(rq)->hwsp_ggtt != rq->engine->status_page.vma);
+	GEM_BUG_ON(offset_in_page(i915_request_active_timeline(rq)->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
 
 	*cs++ = MI_FLUSH;
 
@@ -960,8 +962,8 @@ static u32 *gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
 	int i;
 
-	GEM_BUG_ON(rq->timeline->hwsp_ggtt != rq->engine->status_page.vma);
-	GEM_BUG_ON(offset_in_page(rq->timeline->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
+	GEM_BUG_ON(i915_request_active_timeline(rq)->hwsp_ggtt != rq->engine->status_page.vma);
+	GEM_BUG_ON(offset_in_page(i915_request_active_timeline(rq)->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
 
 	*cs++ = MI_FLUSH;
 
@@ -1272,7 +1274,7 @@ static struct i915_vma *create_ring_vma(struct i915_ggtt *ggtt, int size)
 	struct i915_vma *vma;
 
 	obj = i915_gem_object_create_stolen(i915, size);
-	if (!obj)
+	if (IS_ERR(obj))
 		obj = i915_gem_object_create_internal(i915, size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
@@ -1336,15 +1338,13 @@ void intel_ring_free(struct kref *ref)
 {
 	struct intel_ring *ring = container_of(ref, typeof(*ring), ref);
 
-	i915_vma_close(ring->vma);
 	i915_vma_put(ring->vma);
-
 	kfree(ring);
 }
 
 static void __ring_context_fini(struct intel_context *ce)
 {
-	i915_gem_object_put(ce->state->obj);
+	i915_vma_put(ce->state);
 }
 
 static void ring_context_destroy(struct kref *ref)
@@ -1573,7 +1573,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 	struct intel_engine_cs *engine = rq->engine;
 	enum intel_engine_id id;
 	const int num_engines =
-		IS_HSW_GT1(i915) ? RUNTIME_INFO(i915)->num_engines - 1 : 0;
+		IS_HASWELL(i915) ? RUNTIME_INFO(i915)->num_engines - 1 : 0;
 	bool force_restore = false;
 	int len;
 	u32 *cs;
@@ -1741,46 +1741,22 @@ static int remap_l3(struct i915_request *rq)
 
 static int switch_context(struct i915_request *rq)
 {
-	struct intel_engine_cs *engine = rq->engine;
-	struct i915_address_space *vm = vm_alias(rq->hw_context);
-	unsigned int unwind_mm = 0;
-	u32 hw_flags = 0;
+	struct intel_context *ce = rq->hw_context;
+	struct i915_address_space *vm = vm_alias(ce);
 	int ret;
 
 	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
 
 	if (vm) {
-		struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-		int loops;
-
-		/*
-		 * Baytail takes a little more convincing that it really needs
-		 * to reload the PD between contexts. It is not just a little
-		 * longer, as adding more stalls after the load_pd_dir (i.e.
-		 * adding a long loop around flush_pd_dir) is not as effective
-		 * as reloading the PD umpteen times. 32 is derived from
-		 * experimentation (gem_exec_parallel/fds) and has no good
-		 * explanation.
-		 */
-		loops = 1;
-		if (engine->id == BCS0 && IS_VALLEYVIEW(engine->i915))
-			loops = 32;
-
-		do {
-			ret = load_pd_dir(rq, ppgtt);
-			if (ret)
-				goto err;
-		} while (--loops);
-
-		if (ppgtt->pd_dirty_engines & engine->mask) {
-			unwind_mm = engine->mask;
-			ppgtt->pd_dirty_engines &= ~unwind_mm;
-			hw_flags = MI_FORCE_RESTORE;
-		}
+		ret = load_pd_dir(rq, i915_vm_to_ppgtt(vm));
+		if (ret)
+			return ret;
 	}
 
-	if (rq->hw_context->state) {
-		GEM_BUG_ON(engine->id != RCS0);
+	if (ce->state) {
+		u32 hw_flags;
+
+		GEM_BUG_ON(rq->engine->id != RCS0);
 
 		/*
 		 * The kernel context(s) is treated as pure scratch and is not
@@ -1789,22 +1765,25 @@ static int switch_context(struct i915_request *rq)
 		 * as nothing actually executes using the kernel context; it
 		 * is purely used for flushing user contexts.
 		 */
+		hw_flags = 0;
 		if (i915_gem_context_is_kernel(rq->gem_context))
 			hw_flags = MI_RESTORE_INHIBIT;
 
 		ret = mi_set_context(rq, hw_flags);
 		if (ret)
-			goto err_mm;
+			return ret;
 	}
 
 	if (vm) {
+		struct intel_engine_cs *engine = rq->engine;
+
 		ret = engine->emit_flush(rq, EMIT_INVALIDATE);
 		if (ret)
-			goto err_mm;
+			return ret;
 
 		ret = flush_pd_dir(rq);
 		if (ret)
-			goto err_mm;
+			return ret;
 
 		/*
 		 * Not only do we need a full barrier (post-sync write) after
@@ -1816,24 +1795,18 @@ static int switch_context(struct i915_request *rq)
 		 */
 		ret = engine->emit_flush(rq, EMIT_INVALIDATE);
 		if (ret)
-			goto err_mm;
+			return ret;
 
 		ret = engine->emit_flush(rq, EMIT_FLUSH);
 		if (ret)
-			goto err_mm;
+			return ret;
 	}
 
 	ret = remap_l3(rq);
 	if (ret)
-		goto err_mm;
+		return ret;
 
 	return 0;
-
-err_mm:
-	if (unwind_mm)
-		i915_vm_to_ppgtt(vm)->pd_dirty_engines |= unwind_mm;
-err:
-	return ret;
 }
 
 static int ring_request_alloc(struct i915_request *request)
@@ -1841,7 +1814,7 @@ static int ring_request_alloc(struct i915_request *request)
 	int ret;
 
 	GEM_BUG_ON(!intel_context_is_pinned(request->hw_context));
-	GEM_BUG_ON(request->timeline->has_initial_breadcrumb);
+	GEM_BUG_ON(i915_request_timeline(request)->has_initial_breadcrumb);
 
 	/*
 	 * Flush enough space to reduce the likelihood of waiting after
@@ -1952,7 +1925,9 @@ u32 *intel_ring_begin(struct i915_request *rq, unsigned int num_dwords)
 		 */
 		GEM_BUG_ON(!rq->reserved_space);
 
-		ret = wait_for_space(ring, rq->timeline, total_bytes);
+		ret = wait_for_space(ring,
+				     i915_request_timeline(rq),
+				     total_bytes);
 		if (unlikely(ret))
 			return ERR_PTR(ret);
 	}

@@ -25,8 +25,7 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file);
 int i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file);
-void i915_oa_init_reg_state(struct intel_engine_cs *engine,
-			    struct intel_context *ce,
-			    u32 *reg_state);
+void i915_oa_init_reg_state(const struct intel_context *ce,
+			    const struct intel_engine_cs *engine);
 
 #endif /* __I915_PERF_H__ */

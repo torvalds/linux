@@ -246,6 +246,15 @@ Display PLLs
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_dpll_mgr.h
    :internal:
 
+Display State Buffer
+--------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dsb.c
+   :doc: DSB
+
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dsb.c
+   :internal:
+
 Memory Management and Command Submission
 ========================================
 
@@ -358,15 +367,6 @@ Batchbuffer Parsing
 .. kernel-doc:: drivers/gpu/drm/i915/i915_cmd_parser.c
    :internal:
 
-Batchbuffer Pools
------------------
-
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_batch_pool.c
-   :doc: batch pool
-
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_batch_pool.c
-   :internal:
-
 User Batchbuffer Execution
 --------------------------
 
@@ -416,31 +416,31 @@ Object Tiling IOCTLs
    :doc: buffer object tiling
 
 WOPCM
-=====
+-----
 
 WOPCM Layout
-------------
+~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/intel_wopcm.c
    :doc: WOPCM Layout
 
 GuC
-===
+---
 
 Firmware Layout
--------------------
+~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_uc_fw_abi.h
    :doc: Firmware Layout
 
 GuC-specific firmware loader
-----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc_fw.c
    :internal:
 
 GuC-based command submission
-----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc_submission.c
    :doc: GuC-based command submission
@@ -449,7 +449,7 @@ GuC-based command submission
    :internal:
 
 GuC Address Space
------------------
+~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
    :doc: GuC Address Space

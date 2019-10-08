@@ -680,6 +680,8 @@ static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 				engine->status_page.vma))
 		goto out_frame;
 
+	mutex_lock(&frame->timeline.mutex);
+
 	frame->ring.vaddr = frame->cs;
 	frame->ring.size = sizeof(frame->cs);
 	frame->ring.effective_size = frame->ring.size;
@@ -688,18 +690,22 @@ static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 	frame->rq.i915 = engine->i915;
 	frame->rq.engine = engine;
 	frame->rq.ring = &frame->ring;
-	frame->rq.timeline = &frame->timeline;
+	rcu_assign_pointer(frame->rq.timeline, &frame->timeline);
 
 	dw = intel_timeline_pin(&frame->timeline);
 	if (dw < 0)
 		goto out_timeline;
 
+	spin_lock_irq(&engine->active.lock);
 	dw = engine->emit_fini_breadcrumb(&frame->rq, frame->cs) - frame->cs;
+	spin_unlock_irq(&engine->active.lock);
+
 	GEM_BUG_ON(dw & 1); /* RING_TAIL must be qword aligned */
 
 	intel_timeline_unpin(&frame->timeline);
 
 out_timeline:
+	mutex_unlock(&frame->timeline.mutex);
 	intel_timeline_fini(&frame->timeline);
 out_frame:
 	kfree(frame);
@@ -814,8 +820,10 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	if (engine->default_state)
 		i915_gem_object_put(engine->default_state);
 
-	intel_context_unpin(engine->kernel_context);
-	intel_context_put(engine->kernel_context);
+	if (engine->kernel_context) {
+		intel_context_unpin(engine->kernel_context);
+		intel_context_put(engine->kernel_context);
+	}
 	GEM_BUG_ON(!llist_empty(&engine->barrier_tasks));
 
 	intel_wa_list_free(&engine->ctx_wa_list);
@@ -948,6 +956,7 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone)
 {
 	struct drm_i915_private *i915 = engine->i915;
+	const struct sseu_dev_info *sseu = &RUNTIME_INFO(i915)->sseu;
 	struct intel_uncore *uncore = engine->uncore;
 	u32 mmio_base = engine->mmio_base;
 	int slice;
@@ -965,7 +974,7 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 
 		instdone->slice_common =
 			intel_uncore_read(uncore, GEN7_SC_INSTDONE);
-		for_each_instdone_slice_subslice(i915, slice, subslice) {
+		for_each_instdone_slice_subslice(i915, sseu, slice, subslice) {
 			instdone->sampler[slice][subslice] =
 				read_subslice_reg(engine, slice, subslice,
 						  GEN7_SAMPLER_INSTDONE);
@@ -1118,6 +1127,8 @@ bool intel_engine_can_store_dword(struct intel_engine_cs *engine)
 	case 3:
 		/* maybe only uses physical not virtual addresses */
 		return !(IS_I915G(engine->i915) || IS_I915GM(engine->i915));
+	case 4:
+		return !IS_I965G(engine->i915); /* who knows! */
 	case 6:
 		return engine->class != VIDEO_DECODE_CLASS; /* b0rked */
 	default:
@@ -1191,6 +1202,27 @@ static void hexdump(struct drm_printer *m, const void *buf, size_t len)
 		prev = buf + pos;
 		skip = false;
 	}
+}
+
+static struct intel_timeline *get_timeline(struct i915_request *rq)
+{
+	struct intel_timeline *tl;
+
+	/*
+	 * Even though we are holding the engine->active.lock here, there
+	 * is no control over the submission queue per-se and we are
+	 * inspecting the active state at a random point in time, with an
+	 * unknown queue. Play safe and make sure the timeline remains valid.
+	 * (Only being used for pretty printing, one extra kref shouldn't
+	 * cause a camel stampede!)
+	 */
+	rcu_read_lock();
+	tl = rcu_dereference(rq->timeline);
+	if (!kref_get_unless_zero(&tl->kref))
+		tl = NULL;
+	rcu_read_unlock();
+
+	return tl;
 }
 
 static void intel_engine_print_registers(struct intel_engine_cs *engine,
@@ -1287,27 +1319,37 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			int len;
 
 			len = snprintf(hdr, sizeof(hdr),
-				       "\t\tActive[%d: ",
+				       "\t\tActive[%d]: ",
 				       (int)(port - execlists->active));
-			if (!i915_request_signaled(rq))
+			if (!i915_request_signaled(rq)) {
+				struct intel_timeline *tl = get_timeline(rq);
+
 				len += snprintf(hdr + len, sizeof(hdr) - len,
 						"ring:{start:%08x, hwsp:%08x, seqno:%08x}, ",
 						i915_ggtt_offset(rq->ring->vma),
-						rq->timeline->hwsp_offset,
+						tl ? tl->hwsp_offset : 0,
 						hwsp_seqno(rq));
+
+				if (tl)
+					intel_timeline_put(tl);
+			}
 			snprintf(hdr + len, sizeof(hdr) - len, "rq: ");
 			print_request(m, rq, hdr);
 		}
 		for (port = execlists->pending; (rq = *port); port++) {
+			struct intel_timeline *tl = get_timeline(rq);
 			char hdr[80];
 
 			snprintf(hdr, sizeof(hdr),
 				 "\t\tPending[%d] ring:{start:%08x, hwsp:%08x, seqno:%08x}, rq: ",
 				 (int)(port - execlists->pending),
 				 i915_ggtt_offset(rq->ring->vma),
-				 rq->timeline->hwsp_offset,
+				 tl ? tl->hwsp_offset : 0,
 				 hwsp_seqno(rq));
 			print_request(m, rq, hdr);
+
+			if (tl)
+				intel_timeline_put(tl);
 		}
 		spin_unlock_irqrestore(&engine->active.lock, flags);
 	} else if (INTEL_GEN(dev_priv) > 6) {
@@ -1385,6 +1427,8 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	spin_lock_irqsave(&engine->active.lock, flags);
 	rq = intel_engine_find_active_request(engine);
 	if (rq) {
+		struct intel_timeline *tl = get_timeline(rq);
+
 		print_request(m, rq, "\t\tactive ");
 
 		drm_printf(m, "\t\tring->start:  0x%08x\n",
@@ -1397,10 +1441,19 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 			   rq->ring->emit);
 		drm_printf(m, "\t\tring->space:  0x%08x\n",
 			   rq->ring->space);
-		drm_printf(m, "\t\tring->hwsp:   0x%08x\n",
-			   rq->timeline->hwsp_offset);
+
+		if (tl) {
+			drm_printf(m, "\t\tring->hwsp:   0x%08x\n",
+				   tl->hwsp_offset);
+			intel_timeline_put(tl);
+		}
 
 		print_request_ring(m, rq);
+
+		if (rq->hw_context->lrc_reg_state) {
+			drm_printf(m, "Logical Ring Context:\n");
+			hexdump(m, rq->hw_context->lrc_reg_state, PAGE_SIZE);
+		}
 	}
 	spin_unlock_irqrestore(&engine->active.lock, flags);
 

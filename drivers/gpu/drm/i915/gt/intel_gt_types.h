@@ -18,6 +18,7 @@
 #include "i915_vma.h"
 #include "intel_engine_types.h"
 #include "intel_reset_types.h"
+#include "intel_rc6_types.h"
 #include "intel_wakeref.h"
 
 struct drm_i915_private;
@@ -49,7 +50,19 @@ struct intel_gt {
 		struct list_head hwsp_free_list;
 	} timelines;
 
+	struct intel_gt_requests {
+		/**
+		 * We leave the user IRQ off as much as possible,
+		 * but this means that requests will finish and never
+		 * be retired once the system goes idle. Set a timer to
+		 * fire periodically while the ring is running. When it
+		 * fires, go retire requests.
+		 */
+		struct delayed_work retire_work;
+	} requests;
+
 	struct intel_wakeref wakeref;
+	atomic_t user_wakeref;
 
 	struct list_head closed_vma;
 	spinlock_t closed_lock; /* guards the list of closed_vma */
@@ -65,6 +78,8 @@ struct intel_gt {
 	 * is a slight delay before we do so.
 	 */
 	intel_wakeref_t awake;
+
+	struct intel_rc6 rc6;
 
 	struct blocking_notifier_head pm_notifications;
 
@@ -87,9 +102,6 @@ struct intel_gt {
 enum intel_gt_scratch_field {
 	/* 8 bytes */
 	INTEL_GT_SCRATCH_FIELD_DEFAULT = 0,
-
-	/* 8 bytes */
-	INTEL_GT_SCRATCH_FIELD_CLEAR_SLM_WA = 128,
 
 	/* 8 bytes */
 	INTEL_GT_SCRATCH_FIELD_RENDER_FLUSH = 128,
