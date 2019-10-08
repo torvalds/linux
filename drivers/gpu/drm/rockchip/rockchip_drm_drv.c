@@ -1002,6 +1002,12 @@ static const char *const loader_protect_clocks[] __initconst = {
 	"hclk_vio",
 	"aclk_vio",
 	"aclk_vio0",
+	"aclk_vio1",
+	"aclk_vo_pre",
+	"aclk_vio_pre",
+	"dclk_vop",
+	"dclk_vopb",
+	"dclk_vopl",
 };
 
 static struct clk **loader_clocks __initdata;
