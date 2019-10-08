@@ -486,7 +486,7 @@ static int nsim_dev_reload_down(struct devlink *devlink, bool netns_change,
 		/* For testing purposes, user set debugfs dont_allow_reload
 		 * value to true. So forbid it.
 		 */
-		NL_SET_ERR_MSG_MOD(extack, "User forbidded reload for testing purposes");
+		NL_SET_ERR_MSG_MOD(extack, "User forbid the reload for testing purposes");
 		return -EOPNOTSUPP;
 	}
 
