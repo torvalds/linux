@@ -1017,7 +1017,7 @@ static bool construct(
 	dc->caps.max_cursor_size = 128;
 	dc->caps.dual_link_dvi = true;
 	dc->caps.psp_setup_panel_mode = true;
-	dc->caps.extended_aux_timeout_support = true;
+	dc->caps.extended_aux_timeout_support = false;
 	dc->debug = debug_defaults;
 
 	/*************************************************
