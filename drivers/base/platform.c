@@ -80,7 +80,24 @@ void __iomem *devm_platform_ioremap_resource(struct platform_device *pdev,
 EXPORT_SYMBOL_GPL(devm_platform_ioremap_resource);
 #endif /* CONFIG_HAS_IOMEM */
 
-static int __platform_get_irq(struct platform_device *dev, unsigned int num)
+/**
+ * platform_get_irq_optional - get an optional IRQ for a device
+ * @dev: platform device
+ * @num: IRQ number index
+ *
+ * Gets an IRQ for a platform device. Device drivers should check the return
+ * value for errors so as to not pass a negative integer value to the
+ * request_irq() APIs. This is the same as platform_get_irq(), except that it
+ * does not print an error message if an IRQ can not be obtained.
+ *
+ * Example:
+ *		int irq = platform_get_irq_optional(pdev, 0);
+ *		if (irq < 0)
+ *			return irq;
+ *
+ * Return: IRQ number on success, negative error number on failure.
+ */
+int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 {
 #ifdef CONFIG_SPARC
 	/* sparc does not have irqs represented as IORESOURCE_IRQ resources */
@@ -144,6 +161,7 @@ static int __platform_get_irq(struct platform_device *dev, unsigned int num)
 	return -ENXIO;
 #endif
 }
+EXPORT_SYMBOL_GPL(platform_get_irq_optional);
 
 /**
  * platform_get_irq - get an IRQ for a device
@@ -165,36 +183,13 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 {
 	int ret;
 
-	ret = __platform_get_irq(dev, num);
+	ret = platform_get_irq_optional(dev, num);
 	if (ret < 0 && ret != -EPROBE_DEFER)
 		dev_err(&dev->dev, "IRQ index %u not found\n", num);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(platform_get_irq);
-
-/**
- * platform_get_irq_optional - get an optional IRQ for a device
- * @dev: platform device
- * @num: IRQ number index
- *
- * Gets an IRQ for a platform device. Device drivers should check the return
- * value for errors so as to not pass a negative integer value to the
- * request_irq() APIs. This is the same as platform_get_irq(), except that it
- * does not print an error message if an IRQ can not be obtained.
- *
- * Example:
- *		int irq = platform_get_irq_optional(pdev, 0);
- *		if (irq < 0)
- *			return irq;
- *
- * Return: IRQ number on success, negative error number on failure.
- */
-int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
-{
-	return __platform_get_irq(dev, num);
-}
-EXPORT_SYMBOL_GPL(platform_get_irq_optional);
 
 /**
  * platform_irq_count - Count the number of IRQs a platform device uses
@@ -206,7 +201,7 @@ int platform_irq_count(struct platform_device *dev)
 {
 	int ret, nr = 0;
 
-	while ((ret = __platform_get_irq(dev, nr)) >= 0)
+	while ((ret = platform_get_irq_optional(dev, nr)) >= 0)
 		nr++;
 
 	if (ret == -EPROBE_DEFER)
