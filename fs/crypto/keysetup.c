@@ -8,14 +8,10 @@
  * Heavily modified since then.
  */
 
-#include <crypto/aes.h>
-#include <crypto/sha.h>
 #include <crypto/skcipher.h>
 #include <linux/key.h>
 
 #include "fscrypt_private.h"
-
-static struct crypto_shash *essiv_hash_tfm;
 
 static struct fscrypt_mode available_modes[] = {
 	[FSCRYPT_MODE_AES_256_XTS] = {
@@ -31,11 +27,10 @@ static struct fscrypt_mode available_modes[] = {
 		.ivsize = 16,
 	},
 	[FSCRYPT_MODE_AES_128_CBC] = {
-		.friendly_name = "AES-128-CBC",
-		.cipher_str = "cbc(aes)",
+		.friendly_name = "AES-128-CBC-ESSIV",
+		.cipher_str = "essiv(cbc(aes),sha256)",
 		.keysize = 16,
 		.ivsize = 16,
-		.needs_essiv = true,
 	},
 	[FSCRYPT_MODE_AES_128_CTS] = {
 		.friendly_name = "AES-128-CTS-CBC",
@@ -111,98 +106,16 @@ err_free_tfm:
 	return ERR_PTR(err);
 }
 
-static int derive_essiv_salt(const u8 *key, int keysize, u8 *salt)
-{
-	struct crypto_shash *tfm = READ_ONCE(essiv_hash_tfm);
-
-	/* init hash transform on demand */
-	if (unlikely(!tfm)) {
-		struct crypto_shash *prev_tfm;
-
-		tfm = crypto_alloc_shash("sha256", 0, 0);
-		if (IS_ERR(tfm)) {
-			if (PTR_ERR(tfm) == -ENOENT) {
-				fscrypt_warn(NULL,
-					     "Missing crypto API support for SHA-256");
-				return -ENOPKG;
-			}
-			fscrypt_err(NULL,
-				    "Error allocating SHA-256 transform: %ld",
-				    PTR_ERR(tfm));
-			return PTR_ERR(tfm);
-		}
-		prev_tfm = cmpxchg(&essiv_hash_tfm, NULL, tfm);
-		if (prev_tfm) {
-			crypto_free_shash(tfm);
-			tfm = prev_tfm;
-		}
-	}
-
-	{
-		SHASH_DESC_ON_STACK(desc, tfm);
-		desc->tfm = tfm;
-		desc->flags = 0;
-
-		return crypto_shash_digest(desc, key, keysize, salt);
-	}
-}
-
-static int init_essiv_generator(struct fscrypt_info *ci, const u8 *raw_key,
-				int keysize)
-{
-	int err;
-	struct crypto_cipher *essiv_tfm;
-	u8 salt[SHA256_DIGEST_SIZE];
-
-	if (WARN_ON(ci->ci_mode->ivsize != AES_BLOCK_SIZE))
-		return -EINVAL;
-
-	essiv_tfm = crypto_alloc_cipher("aes", 0, 0);
-	if (IS_ERR(essiv_tfm))
-		return PTR_ERR(essiv_tfm);
-
-	ci->ci_essiv_tfm = essiv_tfm;
-
-	err = derive_essiv_salt(raw_key, keysize, salt);
-	if (err)
-		goto out;
-
-	/*
-	 * Using SHA256 to derive the salt/key will result in AES-256 being
-	 * used for IV generation. File contents encryption will still use the
-	 * configured keysize (AES-128) nevertheless.
-	 */
-	err = crypto_cipher_setkey(essiv_tfm, salt, sizeof(salt));
-	if (err)
-		goto out;
-
-out:
-	memzero_explicit(salt, sizeof(salt));
-	return err;
-}
-
-/* Given the per-file key, set up the file's crypto transform object(s) */
+/* Given the per-file key, set up the file's crypto transform object */
 int fscrypt_set_derived_key(struct fscrypt_info *ci, const u8 *derived_key)
 {
-	struct fscrypt_mode *mode = ci->ci_mode;
-	struct crypto_skcipher *ctfm;
-	int err;
+	struct crypto_skcipher *tfm;
 
-	ctfm = fscrypt_allocate_skcipher(mode, derived_key, ci->ci_inode);
-	if (IS_ERR(ctfm))
-		return PTR_ERR(ctfm);
+	tfm = fscrypt_allocate_skcipher(ci->ci_mode, derived_key, ci->ci_inode);
+	if (IS_ERR(tfm))
+		return PTR_ERR(tfm);
 
-	ci->ci_ctfm = ctfm;
-
-	if (mode->needs_essiv) {
-		err = init_essiv_generator(ci, derived_key, mode->keysize);
-		if (err) {
-			fscrypt_warn(ci->ci_inode,
-				     "Error initializing ESSIV generator: %d",
-				     err);
-			return err;
-		}
-	}
+	ci->ci_ctfm = tfm;
 	return 0;
 }
 
@@ -389,13 +302,11 @@ static void put_crypt_info(struct fscrypt_info *ci)
 	if (!ci)
 		return;
 
-	if (ci->ci_direct_key) {
+	if (ci->ci_direct_key)
 		fscrypt_put_direct_key(ci->ci_direct_key);
-	} else if ((ci->ci_ctfm != NULL || ci->ci_essiv_tfm != NULL) &&
-		   !fscrypt_is_direct_key_policy(&ci->ci_policy)) {
+	else if (ci->ci_ctfm != NULL &&
+		 !fscrypt_is_direct_key_policy(&ci->ci_policy))
 		crypto_free_skcipher(ci->ci_ctfm);
-		crypto_free_cipher(ci->ci_essiv_tfm);
-	}
 
 	key = ci->ci_master_key;
 	if (key) {
