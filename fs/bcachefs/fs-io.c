@@ -45,23 +45,12 @@ struct quota_res {
 	u64				sectors;
 };
 
-struct bchfs_write_op {
+struct bch_writepage_io {
+	struct closure			cl;
 	struct bch_inode_info		*inode;
-	s64				sectors_added;
-	bool				is_dio;
-	bool				unalloc;
-	u64				new_i_size;
 
 	/* must be last: */
 	struct bch_write_op		op;
-};
-
-struct bch_writepage_io {
-	struct closure			cl;
-	u64				new_sectors;
-
-	/* must be last: */
-	struct bchfs_write_op		op;
 };
 
 struct dio_write {
@@ -77,7 +66,7 @@ struct dio_write {
 	struct iovec			inline_vecs[2];
 
 	/* must be last: */
-	struct bchfs_write_op		iop;
+	struct bch_write_op		op;
 };
 
 struct dio_read {
@@ -235,121 +224,6 @@ static void i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
 #endif
 	inode->v.i_blocks += sectors;
 	mutex_unlock(&inode->ei_quota_lock);
-}
-
-int bchfs_extent_update(struct btree_trans *trans,
-			struct bch_inode_info *inode,
-			struct disk_reservation *disk_res,
-			struct quota_res *quota_res,
-			struct btree_iter *extent_iter,
-			struct bkey_i *k,
-			u64 new_i_size,
-			bool may_allocate,
-			bool direct,
-			s64 *total_delta)
-{
-	s64 i_sectors_delta = 0;
-	int ret;
-
-	ret = bch2_extent_update(trans, extent_iter, k,
-			disk_res, &inode->ei_journal_seq,
-			new_i_size, &i_sectors_delta);
-	if (ret)
-		return ret;
-
-	new_i_size = min(new_i_size, extent_iter->pos.offset << 9);
-
-	if (direct)
-		i_sectors_acct(trans->c, inode, quota_res, i_sectors_delta);
-	if (direct && new_i_size) {
-		spin_lock(&inode->v.i_lock);
-		if (new_i_size > inode->v.i_size)
-			i_size_write(&inode->v, new_i_size);
-		spin_unlock(&inode->v.i_lock);
-	}
-
-	if (total_delta)
-		*total_delta += i_sectors_delta;
-	return 0;
-}
-
-static int bchfs_write_index_update(struct bch_write_op *wop)
-{
-	struct bch_fs *c = wop->c;
-	struct bchfs_write_op *op = container_of(wop,
-				struct bchfs_write_op, op);
-	struct quota_res *quota_res = op->is_dio
-		? &container_of(op, struct dio_write, iop)->quota_res
-		: NULL;
-	struct bch_inode_info *inode = op->inode;
-	struct keylist *keys = &op->op.insert_keys;
-	struct bkey_i *k = bch2_keylist_front(keys);
-	struct btree_trans trans;
-	struct btree_iter *iter;
-	int ret;
-
-	BUG_ON(k->k.p.inode != inode->v.i_ino);
-
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
-
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
-				   bkey_start_pos(&k->k),
-				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-
-	do {
-		BKEY_PADDED(k) tmp;
-
-		bkey_copy(&tmp.k, bch2_keylist_front(keys));
-
-		bch2_trans_begin_updates(&trans);
-
-		ret = bchfs_extent_update(&trans, inode,
-				&wop->res, quota_res,
-				iter, &tmp.k,
-				op->new_i_size,
-				!op->unalloc,
-				op->is_dio,
-				&op->sectors_added);
-		if (ret == -EINTR)
-			continue;
-		if (ret)
-			break;
-
-		if (bkey_cmp(iter->pos, bch2_keylist_front(keys)->k.p) < 0)
-			bch2_cut_front(iter->pos, bch2_keylist_front(keys));
-		else
-			bch2_keylist_pop_front(keys);
-	} while (!bch2_keylist_empty(keys));
-
-	bch2_trans_exit(&trans);
-
-	return ret;
-}
-
-static inline void bch2_fswrite_op_init(struct bchfs_write_op *op,
-					struct bch_fs *c,
-					struct bch_inode_info *inode,
-					struct bch_io_opts opts,
-					bool is_dio)
-{
-	op->inode		= inode;
-	op->sectors_added	= 0;
-	op->is_dio		= is_dio;
-	op->unalloc		= false;
-	op->new_i_size		= U64_MAX;
-
-	bch2_write_op_init(&op->op, c, opts);
-	op->op.target		= opts.foreground_target;
-	op->op.index_update_fn	= bchfs_write_index_update;
-	op_journal_seq_set(&op->op, &inode->ei_journal_seq);
-}
-
-static inline struct bch_io_opts io_opts(struct bch_fs *c, struct bch_inode_info *inode)
-{
-	struct bch_io_opts opts = bch2_opts_to_inode_opts(c->opts);
-
-	bch2_io_opts_apply(&opts, bch2_inode_opts_get(&inode->ei_inode));
-	return opts;
 }
 
 /* page state: */
@@ -947,7 +821,7 @@ void bch2_readahead(struct readahead_control *ractl)
 {
 	struct bch_inode_info *inode = to_bch_ei(ractl->mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct bch_io_opts opts = io_opts(c, inode);
+	struct bch_io_opts opts = io_opts(c, &inode->ei_inode);
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct page *page;
@@ -1028,7 +902,7 @@ static int bch2_read_single_page(struct page *page,
 	DECLARE_COMPLETION_ONSTACK(done);
 
 	rbio = rbio_init(bio_alloc_bioset(NULL, 1, REQ_OP_READ, GFP_NOFS, &c->bio_read),
-			 io_opts(c, inode));
+			 io_opts(c, &inode->ei_inode));
 	rbio->bio.bi_private = &done;
 	rbio->bio.bi_end_io = bch2_read_single_page_end_io;
 
@@ -1065,7 +939,9 @@ struct bch_writepage_state {
 static inline struct bch_writepage_state bch_writepage_state_init(struct bch_fs *c,
 								  struct bch_inode_info *inode)
 {
-	return (struct bch_writepage_state) { .opts = io_opts(c, inode) };
+	return (struct bch_writepage_state) {
+		.opts = io_opts(c, &inode->ei_inode)
+	};
 }
 
 static void bch2_writepage_io_free(struct closure *cl)
@@ -1073,20 +949,20 @@ static void bch2_writepage_io_free(struct closure *cl)
 	struct bch_writepage_io *io = container_of(cl,
 					struct bch_writepage_io, cl);
 
-	bio_put(&io->op.op.wbio.bio);
+	bio_put(&io->op.wbio.bio);
 }
 
 static void bch2_writepage_io_done(struct closure *cl)
 {
 	struct bch_writepage_io *io = container_of(cl,
 					struct bch_writepage_io, cl);
-	struct bch_fs *c = io->op.op.c;
-	struct bio *bio = &io->op.op.wbio.bio;
+	struct bch_fs *c = io->op.c;
+	struct bio *bio = &io->op.wbio.bio;
 	struct bvec_iter_all iter;
 	struct bio_vec *bvec;
 	unsigned i;
 
-	if (io->op.op.error) {
+	if (io->op.error) {
 		bio_for_each_segment_all(bvec, bio, iter) {
 			struct bch_page_state *s;
 
@@ -1105,22 +981,20 @@ static void bch2_writepage_io_done(struct closure *cl)
 	 * racing with fallocate can cause us to add fewer sectors than
 	 * expected - but we shouldn't add more sectors than expected:
 	 */
-	BUG_ON(io->op.sectors_added > (s64) io->new_sectors);
+	BUG_ON(io->op.i_sectors_delta > 0);
 
 	/*
 	 * (error (due to going RO) halfway through a page can screw that up
 	 * slightly)
 	 * XXX wtf?
-	   BUG_ON(io->op.sectors_added - io->new_sectors >= (s64) PAGE_SECTORS);
+	   BUG_ON(io->op.op.i_sectors_delta >= PAGE_SECTORS);
 	 */
 
 	/*
 	 * PageWriteback is effectively our ref on the inode - fixup i_blocks
 	 * before calling end_page_writeback:
 	 */
-	if (io->op.sectors_added != io->new_sectors)
-		i_sectors_acct(c, io->op.inode, NULL,
-			       io->op.sectors_added - (s64) io->new_sectors);
+	i_sectors_acct(c, io->inode, NULL, io->op.i_sectors_delta);
 
 	bio_for_each_segment_all(bvec, bio, iter) {
 		struct bch_page_state *s = __bch2_page_state(bvec->bv_page);
@@ -1137,7 +1011,7 @@ static void bch2_writepage_do_io(struct bch_writepage_state *w)
 	struct bch_writepage_io *io = w->io;
 
 	w->io = NULL;
-	closure_call(&io->op.op.cl, bch2_write, NULL, &io->cl);
+	closure_call(&io->op.cl, bch2_write, NULL, &io->cl);
 	continue_at(&io->cl, bch2_writepage_io_done, NULL);
 }
 
@@ -1157,12 +1031,15 @@ static void bch2_writepage_io_alloc(struct bch_fs *c,
 					      REQ_OP_WRITE,
 					      GFP_NOFS,
 					      &c->writepage_bioset),
-			     struct bch_writepage_io, op.op.wbio.bio);
+			     struct bch_writepage_io, op.wbio.bio);
 
 	closure_init(&w->io->cl, NULL);
-	w->io->new_sectors	= 0;
-	bch2_fswrite_op_init(&w->io->op, c, inode, w->opts, false);
-	op			= &w->io->op.op;
+	w->io->inode		= inode;
+
+	op			= &w->io->op;
+	bch2_write_op_init(op, c, w->opts);
+	op->target		= w->opts.foreground_target;
+	op_journal_seq_set(op, &inode->ei_journal_seq);
 	op->nr_replicas		= nr_replicas;
 	op->res.nr_replicas	= nr_replicas;
 	op->write_point		= writepoint_hashed(inode->ei_last_dirtied);
@@ -1272,32 +1149,31 @@ do_io:
 		}
 
 		if (w->io &&
-		    (w->io->op.op.res.nr_replicas != nr_replicas_this_write ||
-		     bio_full(&w->io->op.op.wbio.bio, PAGE_SIZE) ||
-		     bio_end_sector(&w->io->op.op.wbio.bio) != sector))
+		    (w->io->op.res.nr_replicas != nr_replicas_this_write ||
+		     bio_full(&w->io->op.wbio.bio, PAGE_SIZE) ||
+		     bio_end_sector(&w->io->op.wbio.bio) != sector))
 			bch2_writepage_do_io(w);
 
 		if (!w->io)
 			bch2_writepage_io_alloc(c, w, inode, sector,
 						nr_replicas_this_write);
 
-		w->io->new_sectors += dirty_sectors;
-
 		atomic_inc(&s->write_count);
 
-		BUG_ON(inode != w->io->op.inode);
-		BUG_ON(!bio_add_page(&w->io->op.op.wbio.bio, page,
+		BUG_ON(inode != w->io->inode);
+		BUG_ON(!bio_add_page(&w->io->op.wbio.bio, page,
 				     sectors << 9, offset << 9));
 
 		/* Check for writing past i_size: */
-		WARN_ON((bio_end_sector(&w->io->op.op.wbio.bio) << 9) >
+		WARN_ON((bio_end_sector(&w->io->op.wbio.bio) << 9) >
 			round_up(i_size, block_bytes(c)));
 
-		w->io->op.op.res.sectors += reserved_sectors;
+		w->io->op.res.sectors += reserved_sectors;
+		w->io->op.i_sectors_delta -= dirty_sectors;
 		w->io->op.new_i_size = i_size;
 
 		if (wbc->sync_mode == WB_SYNC_ALL)
-			w->io->op.op.wbio.bio.bi_opf |= REQ_SYNC;
+			w->io->op.wbio.bio.bi_opf |= REQ_SYNC;
 
 		offset += sectors;
 	}
@@ -1705,7 +1581,7 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 	struct file *file = req->ki_filp;
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct bch_io_opts opts = io_opts(c, inode);
+	struct bch_io_opts opts = io_opts(c, &inode->ei_inode);
 	struct dio_read *dio;
 	struct bio *bio;
 	loff_t offset = req->ki_pos;
@@ -1878,14 +1754,15 @@ static void bch2_dio_write_loop_async(struct closure *);
 static long bch2_dio_write_loop(struct dio_write *dio)
 {
 	bool kthread = (current->flags & PF_KTHREAD) != 0;
-	struct bch_fs *c = dio->iop.op.c;
+	struct bch_fs *c = dio->op.c;
 	struct kiocb *req = dio->req;
 	struct address_space *mapping = req->ki_filp->f_mapping;
-	struct bch_inode_info *inode = dio->iop.inode;
-	struct bio *bio = &dio->iop.op.wbio.bio;
+	struct bch_inode_info *inode = file_bch_inode(req->ki_filp);
+	struct bio *bio = &dio->op.wbio.bio;
 	struct bvec_iter_all iter;
 	struct bio_vec *bv;
 	unsigned unaligned;
+	u64 new_i_size;
 	loff_t offset;
 	bool sync;
 	long ret;
@@ -1897,7 +1774,7 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
 
 	/* Write and invalidate pagecache range that we're writing to: */
-	offset = req->ki_pos + (dio->iop.op.written << 9);
+	offset = req->ki_pos + (dio->op.written << 9);
 	ret = write_invalidate_inode_pages_range(mapping,
 					offset,
 					offset + iov_iter_count(&dio->iter) - 1);
@@ -1905,7 +1782,7 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 		goto err;
 
 	while (1) {
-		offset = req->ki_pos + (dio->iop.op.written << 9);
+		offset = req->ki_pos + (dio->op.written << 9);
 
 		if (kthread)
 			kthread_use_mm(dio->mm);
@@ -1943,15 +1820,15 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 		if (unlikely(ret))
 			goto err;
 
-		dio->iop.op.pos = POS(inode->v.i_ino, offset >> 9);
+		dio->op.pos = POS(inode->v.i_ino, offset >> 9);
 
 		task_io_account_write(bio->bi_iter.bi_size);
 
-		closure_call(&dio->iop.op.cl, bch2_write, NULL, &dio->cl);
+		closure_call(&dio->op.cl, bch2_write, NULL, &dio->cl);
 
 		if (!dio->sync && !dio->loop && dio->iter.count) {
 			if (bch2_dio_write_copy_iov(dio)) {
-				dio->iop.op.error = -ENOMEM;
+				dio->op.error = -ENOMEM;
 				goto err_wait_io;
 			}
 		}
@@ -1965,17 +1842,28 @@ err_wait_io:
 
 		closure_sync(&dio->cl);
 loop:
+		i_sectors_acct(c, inode, &dio->quota_res,
+			       dio->op.i_sectors_delta);
+		dio->op.i_sectors_delta = 0;
+
+		new_i_size = req->ki_pos + ((u64) dio->op.written << 9);
+
+		spin_lock(&inode->v.i_lock);
+		if (new_i_size > inode->v.i_size)
+			i_size_write(&inode->v, new_i_size);
+		spin_unlock(&inode->v.i_lock);
+
 		bio_for_each_segment_all(bv, bio, iter)
 			put_page(bv->bv_page);
-		if (!dio->iter.count || dio->iop.op.error)
+		if (!dio->iter.count || dio->op.error)
 			break;
 		bio_reset(bio, NULL, REQ_OP_WRITE);
 	}
 
-	ret = dio->iop.op.error ?: ((long) dio->iop.op.written << 9);
+	ret = dio->op.error ?: ((long) dio->op.written << 9);
 err:
 	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
-	bch2_disk_reservation_put(c, &dio->iop.op.res);
+	bch2_disk_reservation_put(c, &dio->op.res);
 	bch2_quota_reservation_put(c, inode, &dio->quota_res);
 
 	if (dio->free_iov)
@@ -2009,6 +1897,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	struct file *file = req->ki_filp;
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_io_opts opts = io_opts(c, &inode->ei_inode);
 	struct dio_write *dio;
 	struct bio *bio;
 	ssize_t ret;
@@ -2026,7 +1915,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 			       REQ_OP_WRITE,
 			       GFP_KERNEL,
 			       &c->dio_write_bioset);
-	dio = container_of(bio, struct dio_write, iop.op.wbio.bio);
+	dio = container_of(bio, struct dio_write, op.wbio.bio);
 	closure_init(&dio->cl, NULL);
 	dio->req		= req;
 	dio->mm			= current->mm;
@@ -2036,36 +1925,36 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	dio->free_iov		= false;
 	dio->quota_res.sectors	= 0;
 	dio->iter		= *iter;
-	bch2_fswrite_op_init(&dio->iop, c, inode, io_opts(c, inode), true);
-	dio->iop.op.write_point	= writepoint_hashed((unsigned long) current);
-	dio->iop.op.flags |= BCH_WRITE_NOPUT_RESERVATION;
+
+	bch2_write_op_init(&dio->op, c, opts);
+	dio->op.target		= opts.foreground_target;
+	op_journal_seq_set(&dio->op, &inode->ei_journal_seq);
+	dio->op.write_point	= writepoint_hashed((unsigned long) current);
+	dio->op.flags |= BCH_WRITE_NOPUT_RESERVATION;
 
 	if ((req->ki_flags & IOCB_DSYNC) &&
 	    !c->opts.journal_flush_disabled)
-		dio->iop.op.flags |= BCH_WRITE_FLUSH;
+		dio->op.flags |= BCH_WRITE_FLUSH;
 
 	ret = bch2_quota_reservation_add(c, inode, &dio->quota_res,
 					 iter->count >> 9, true);
 	if (unlikely(ret))
 		goto err;
 
-	dio->iop.op.nr_replicas	= dio->iop.op.opts.data_replicas;
+	dio->op.nr_replicas	= dio->op.opts.data_replicas;
 
-	ret = bch2_disk_reservation_get(c, &dio->iop.op.res, iter->count >> 9,
-					dio->iop.op.opts.data_replicas, 0);
-	if (unlikely(ret)) {
-		if (!bch2_check_range_allocated(c, POS(inode->v.i_ino,
-						       req->ki_pos >> 9),
-						iter->count >> 9,
-						dio->iop.op.opts.data_replicas))
-			goto err;
-
-		dio->iop.unalloc = true;
-	}
+	ret = bch2_disk_reservation_get(c, &dio->op.res, iter->count >> 9,
+					dio->op.opts.data_replicas, 0);
+	if (unlikely(ret) &&
+	    !bch2_check_range_allocated(c, POS(inode->v.i_ino,
+					       req->ki_pos >> 9),
+					iter->count >> 9,
+					dio->op.opts.data_replicas))
+		goto err;
 
 	return bch2_dio_write_loop(dio);
 err:
-	bch2_disk_reservation_put(c, &dio->iop.op.res);
+	bch2_disk_reservation_put(c, &dio->op.res);
 	bch2_quota_reservation_put(c, inode, &dio->quota_res);
 	closure_debug_destroy(&dio->cl);
 	bio_put(bio);
@@ -2671,7 +2560,7 @@ static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
 	loff_t block_start	= round_down(offset,	block_bytes(c));
 	loff_t block_end	= round_up(end,		block_bytes(c));
 	unsigned sectors;
-	unsigned replicas = io_opts(c, inode).data_replicas;
+	unsigned replicas = io_opts(c, &inode->ei_inode).data_replicas;
 	int ret;
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
@@ -3180,13 +3069,13 @@ int bch2_fs_fsio_init(struct bch_fs *c)
 	pr_verbose_init(c->opts, "");
 
 	if (bioset_init(&c->writepage_bioset,
-			4, offsetof(struct bch_writepage_io, op.op.wbio.bio),
+			4, offsetof(struct bch_writepage_io, op.wbio.bio),
 			BIOSET_NEED_BVECS) ||
 	    bioset_init(&c->dio_read_bioset,
 			4, offsetof(struct dio_read, rbio.bio),
 			BIOSET_NEED_BVECS) ||
 	    bioset_init(&c->dio_write_bioset,
-			4, offsetof(struct dio_write, iop.op.wbio.bio),
+			4, offsetof(struct dio_write, op.wbio.bio),
 			BIOSET_NEED_BVECS))
 		ret = -ENOMEM;
 

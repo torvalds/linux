@@ -89,6 +89,8 @@ static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 	op->write_point		= (struct write_point_specifier) { 0 };
 	op->res			= (struct disk_reservation) { 0 };
 	op->journal_seq		= 0;
+	op->new_i_size		= U64_MAX;
+	op->i_sectors_delta	= 0;
 	op->index_update_fn	= bch2_write_index_default;
 }
 

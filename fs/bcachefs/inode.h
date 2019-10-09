@@ -111,6 +111,15 @@ static inline u64 bch2_inode_opt_get(struct bch_inode_unpacked *inode,
 	}
 }
 
+static inline struct bch_io_opts
+io_opts(struct bch_fs *c, struct bch_inode_unpacked *inode)
+{
+	struct bch_io_opts opts = bch2_opts_to_inode_opts(c->opts);
+
+	bch2_io_opts_apply(&opts, bch2_inode_opts_get(inode));
+	return opts;
+}
+
 static inline u8 mode_to_type(umode_t mode)
 {
 	return (mode >> 12) & 15;

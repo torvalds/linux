@@ -390,6 +390,47 @@ int bch2_fpunch(struct bch_fs *c, u64 inum, u64 start, u64 end,
 	return ret;
 }
 
+int bch2_write_index_default(struct bch_write_op *op)
+{
+	struct bch_fs *c = op->c;
+	struct keylist *keys = &op->insert_keys;
+	struct bkey_i *k = bch2_keylist_front(keys);
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	int ret;
+
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+				   bkey_start_pos(&k->k),
+				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+
+	do {
+		BKEY_PADDED(k) tmp;
+
+		bkey_copy(&tmp.k, bch2_keylist_front(keys));
+
+		bch2_trans_begin_updates(&trans);
+
+		ret = bch2_extent_update(&trans, iter, &tmp.k,
+					 &op->res, op_journal_seq(op),
+					 op->new_i_size, &op->i_sectors_delta);
+		if (ret == -EINTR)
+			continue;
+		if (ret)
+			break;
+
+		if (bkey_cmp(iter->pos, bch2_keylist_front(keys)->k.p) < 0)
+			bch2_cut_front(iter->pos, bch2_keylist_front(keys));
+		else
+			bch2_keylist_pop_front(keys);
+	} while (!bch2_keylist_empty(keys));
+
+	bch2_trans_exit(&trans);
+
+	return ret;
+}
+
 /* Writes */
 
 void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
@@ -472,58 +513,6 @@ static void bch2_write_done(struct closure *cl)
 	bch2_time_stats_update(&c->times[BCH_TIME_data_write], op->start_time);
 
 	closure_return(cl);
-}
-
-int bch2_write_index_default(struct bch_write_op *op)
-{
-	struct bch_fs *c = op->c;
-	struct btree_trans trans;
-	struct btree_iter *iter;
-	struct keylist *keys = &op->insert_keys;
-	int ret;
-
-	BUG_ON(bch2_keylist_empty(keys));
-	bch2_verify_keylist_sorted(keys);
-
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 256);
-retry:
-	bch2_trans_begin(&trans);
-
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
-				   bkey_start_pos(&bch2_keylist_front(keys)->k),
-				   BTREE_ITER_INTENT);
-
-	do {
-		BKEY_PADDED(k) split;
-
-		bkey_copy(&split.k, bch2_keylist_front(keys));
-
-		ret = bch2_extent_trim_atomic(&split.k, iter);
-		if (ret)
-			break;
-
-		bch2_trans_update(&trans, iter, &split.k);
-
-		ret = bch2_trans_commit(&trans, &op->res, op_journal_seq(op),
-					BTREE_INSERT_NOFAIL|
-					BTREE_INSERT_USE_RESERVE);
-		if (ret)
-			break;
-
-		if (bkey_cmp(iter->pos, bch2_keylist_front(keys)->k.p) < 0)
-			bch2_cut_front(iter->pos, bch2_keylist_front(keys));
-		else
-			bch2_keylist_pop_front(keys);
-	} while (!bch2_keylist_empty(keys));
-
-	if (ret == -EINTR) {
-		ret = 0;
-		goto retry;
-	}
-
-	bch2_trans_exit(&trans);
-
-	return ret;
 }
 
 /**

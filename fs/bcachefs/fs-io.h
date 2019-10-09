@@ -11,14 +11,6 @@
 
 struct quota_res;
 
-int bchfs_extent_update(struct btree_trans *,
-			struct bch_inode_info *,
-			struct disk_reservation *,
-			struct quota_res *,
-			struct btree_iter *,
-			struct bkey_i *,
-			u64, bool, bool, s64 *);
-
 int __must_check bch2_write_inode_size(struct bch_fs *,
 				       struct bch_inode_info *,
 				       loff_t, unsigned);
