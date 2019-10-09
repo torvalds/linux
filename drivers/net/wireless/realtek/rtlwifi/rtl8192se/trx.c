@@ -33,7 +33,7 @@ static u8 _rtl92se_map_hwqueue_to_fwqueue(struct sk_buff *skb,	u8 skb_queue)
 }
 
 static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
-				       struct rtl_stats *pstats, u8 *pdesc,
+				       struct rtl_stats *pstats, __le32 *pdesc,
 				       struct rx_fwinfo *p_drvinfo,
 				       bool packet_match_bssid,
 				       bool packet_toself,
@@ -193,11 +193,10 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 
 static void _rtl92se_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 		struct sk_buff *skb, struct rtl_stats *pstats,
-		u8 *pdesc, struct rx_fwinfo *p_drvinfo)
+		__le32 *pdesc, struct rx_fwinfo *p_drvinfo)
 {
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
-
 	struct ieee80211_hdr *hdr;
 	u8 *tmp_buf;
 	u8 *praddr;
@@ -232,10 +231,11 @@ static void _rtl92se_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 }
 
 bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
-			   struct ieee80211_rx_status *rx_status, u8 *pdesc,
+			   struct ieee80211_rx_status *rx_status, u8 *pdesc8,
 			   struct sk_buff *skb)
 {
 	struct rx_fwinfo *p_drvinfo;
+	__le32 *pdesc = (__le32 *)pdesc8;
 	u32 phystatus = (u32)get_rx_status_desc_phy_status(pdesc);
 	struct ieee80211_hdr *hdr;
 
@@ -310,7 +310,7 @@ bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 }
 
 void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
-		struct ieee80211_hdr *hdr, u8 *pdesc_tx,
+		struct ieee80211_hdr *hdr, u8 *pdesc8,
 		u8 *pbd_desc_tx, struct ieee80211_tx_info *info,
 		struct ieee80211_sta *sta,
 		struct sk_buff *skb,
@@ -320,7 +320,7 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	u8 *pdesc = pdesc_tx;
+	__le32 *pdesc = (__le32 *)pdesc8;
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
 	u8 reserved_macid = 0;
@@ -491,13 +491,14 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
 }
 
-void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
-	bool firstseg, bool lastseg, struct sk_buff *skb)
+void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc8,
+			     bool firstseg, bool lastseg, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_tcb_desc *tcb_desc = (struct rtl_tcb_desc *)(skb->cb);
+	__le32 *pdesc = (__le32 *)pdesc8;
 
 	dma_addr_t mapping = pci_map_single(rtlpci->pdev, skb->data, skb->len,
 			PCI_DMA_TODEVICE);
@@ -549,9 +550,11 @@ void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 	}
 }
 
-void rtl92se_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
+void rtl92se_set_desc(struct ieee80211_hw *hw, u8 *pdesc8, bool istx,
 		      u8 desc_name, u8 *val)
 {
+	__le32 *pdesc = (__le32 *)pdesc8;
+
 	if (istx) {
 		switch (desc_name) {
 		case HW_DESC_OWN:
@@ -590,9 +593,10 @@ void rtl92se_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 }
 
 u64 rtl92se_get_desc(struct ieee80211_hw *hw,
-		     u8 *desc, bool istx, u8 desc_name)
+		     u8 *desc8, bool istx, u8 desc_name)
 {
 	u32 ret = 0;
+	__le32 *desc = (__le32 *)desc8;
 
 	if (istx) {
 		switch (desc_name) {
