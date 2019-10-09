@@ -3641,7 +3641,20 @@ intel_has_sagv(struct drm_i915_private *dev_priv)
 static void
 skl_setup_sagv_block_time(struct drm_i915_private *dev_priv)
 {
-	if (IS_GEN(dev_priv, 11)) {
+	if (INTEL_GEN(dev_priv) >= 12) {
+		u32 val = 0;
+		int ret;
+
+		ret = sandybridge_pcode_read(dev_priv,
+					     GEN12_PCODE_READ_SAGV_BLOCK_TIME_US,
+					     &val, NULL);
+		if (!ret) {
+			dev_priv->sagv_block_time_us = val;
+			return;
+		}
+
+		DRM_DEBUG_DRIVER("Couldn't read SAGV block time!\n");
+	} else if (IS_GEN(dev_priv, 11)) {
 		dev_priv->sagv_block_time_us = 10;
 		return;
 	} else if (IS_GEN(dev_priv, 10)) {
