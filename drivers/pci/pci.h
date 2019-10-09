@@ -458,14 +458,18 @@ static inline void pci_restore_ats_state(struct pci_dev *dev) { }
 
 #ifdef CONFIG_PCI_PRI
 void pci_pri_init(struct pci_dev *dev);
+void pci_restore_pri_state(struct pci_dev *pdev);
 #else
 static inline void pci_pri_init(struct pci_dev *dev) { }
+static inline void pci_restore_pri_state(struct pci_dev *pdev) { }
 #endif
 
 #ifdef CONFIG_PCI_PASID
 void pci_pasid_init(struct pci_dev *dev);
+void pci_restore_pasid_state(struct pci_dev *pdev);
 #else
 static inline void pci_pasid_init(struct pci_dev *dev) { }
+static inline void pci_restore_pasid_state(struct pci_dev *pdev) { }
 #endif
 
 #ifdef CONFIG_PCI_IOV
