@@ -165,6 +165,10 @@ struct scrub_ctx {
 	int			readonly;
 	int			pages_per_rd_bio;
 
+	/* State of IO submission throttling affecting the associated device */
+	ktime_t			throttle_deadline;
+	u64			throttle_sent;
+
 	int			is_dev_replace;
 	u64			write_pointer;
 
@@ -605,6 +609,7 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 	spin_lock_init(&sctx->list_lock);
 	spin_lock_init(&sctx->stat_lock);
 	init_waitqueue_head(&sctx->list_wait);
+	sctx->throttle_deadline = 0;
 
 	WARN_ON(sctx->wr_curr_bio != NULL);
 	mutex_init(&sctx->wr_lock);
@@ -1988,12 +1993,73 @@ static void scrub_page_put(struct scrub_page *spage)
 	}
 }
 
+/*
+ * Throttling of IO submission, bandwidth-limit based, the timeslice is 1
+ * second.  Limit can be set via /sys/fs/UUID/devinfo/devid/scrub_speed_max.
+ */
+static void scrub_throttle(struct scrub_ctx *sctx)
+{
+	const int time_slice = 1000;
+	struct scrub_bio *sbio;
+	struct btrfs_device *device;
+	s64 delta;
+	ktime_t now;
+	u32 div;
+	u64 bwlimit;
+
+	sbio = sctx->bios[sctx->curr];
+	device = sbio->dev;
+	bwlimit = READ_ONCE(device->scrub_speed_max);
+	if (bwlimit == 0)
+		return;
+
+	/*
+	 * Slice is divided into intervals when the IO is submitted, adjust by
+	 * bwlimit and maximum of 64 intervals.
+	 */
+	div = max_t(u32, 1, (u32)(bwlimit / (16 * 1024 * 1024)));
+	div = min_t(u32, 64, div);
+
+	/* Start new epoch, set deadline */
+	now = ktime_get();
+	if (sctx->throttle_deadline == 0) {
+		sctx->throttle_deadline = ktime_add_ms(now, time_slice / div);
+		sctx->throttle_sent = 0;
+	}
+
+	/* Still in the time to send? */
+	if (ktime_before(now, sctx->throttle_deadline)) {
+		/* If current bio is within the limit, send it */
+		sctx->throttle_sent += sbio->bio->bi_iter.bi_size;
+		if (sctx->throttle_sent <= div_u64(bwlimit, div))
+			return;
+
+		/* We're over the limit, sleep until the rest of the slice */
+		delta = ktime_ms_delta(sctx->throttle_deadline, now);
+	} else {
+		/* New request after deadline, start new epoch */
+		delta = 0;
+	}
+
+	if (delta) {
+		long timeout;
+
+		timeout = div_u64(delta * HZ, 1000);
+		schedule_timeout_interruptible(timeout);
+	}
+
+	/* Next call will start the deadline period */
+	sctx->throttle_deadline = 0;
+}
+
 static void scrub_submit(struct scrub_ctx *sctx)
 {
 	struct scrub_bio *sbio;
 
 	if (sctx->curr == -1)
 		return;
+
+	scrub_throttle(sctx);
 
 	sbio = sctx->bios[sctx->curr];
 	sctx->curr = -1;

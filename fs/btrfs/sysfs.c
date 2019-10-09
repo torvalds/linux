@@ -1455,6 +1455,33 @@ static ssize_t btrfs_devinfo_replace_target_show(struct kobject *kobj,
 }
 BTRFS_ATTR(devid, replace_target, btrfs_devinfo_replace_target_show);
 
+static ssize_t btrfs_devinfo_scrub_speed_max_show(struct kobject *kobj,
+					     struct kobj_attribute *a,
+					     char *buf)
+{
+	struct btrfs_device *device = container_of(kobj, struct btrfs_device,
+						   devid_kobj);
+
+	return scnprintf(buf, PAGE_SIZE, "%llu\n",
+			 READ_ONCE(device->scrub_speed_max));
+}
+
+static ssize_t btrfs_devinfo_scrub_speed_max_store(struct kobject *kobj,
+					      struct kobj_attribute *a,
+					      const char *buf, size_t len)
+{
+	struct btrfs_device *device = container_of(kobj, struct btrfs_device,
+						   devid_kobj);
+	char *endptr;
+	unsigned long long limit;
+
+	limit = memparse(buf, &endptr);
+	WRITE_ONCE(device->scrub_speed_max, limit);
+	return len;
+}
+BTRFS_ATTR_RW(devid, scrub_speed_max, btrfs_devinfo_scrub_speed_max_show,
+	      btrfs_devinfo_scrub_speed_max_store);
+
 static ssize_t btrfs_devinfo_writeable_show(struct kobject *kobj,
 					    struct kobj_attribute *a, char *buf)
 {
@@ -1472,6 +1499,7 @@ static struct attribute *devid_attrs[] = {
 	BTRFS_ATTR_PTR(devid, in_fs_metadata),
 	BTRFS_ATTR_PTR(devid, missing),
 	BTRFS_ATTR_PTR(devid, replace_target),
+	BTRFS_ATTR_PTR(devid, scrub_speed_max),
 	BTRFS_ATTR_PTR(devid, writeable),
 	NULL
 };
