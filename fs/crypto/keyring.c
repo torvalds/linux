@@ -704,11 +704,33 @@ static int check_for_busy_inodes(struct super_block *sb,
 	return -EBUSY;
 }
 
+static BLOCKING_NOTIFIER_HEAD(fscrypt_key_removal_notifiers);
+
+/*
+ * Register a function to be executed when the FS_IOC_REMOVE_ENCRYPTION_KEY
+ * ioctl has removed a key and is about to try evicting inodes.
+ */
+int fscrypt_register_key_removal_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&fscrypt_key_removal_notifiers,
+						nb);
+}
+EXPORT_SYMBOL_GPL(fscrypt_register_key_removal_notifier);
+
+int fscrypt_unregister_key_removal_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&fscrypt_key_removal_notifiers,
+						  nb);
+}
+EXPORT_SYMBOL_GPL(fscrypt_unregister_key_removal_notifier);
+
 static int try_to_lock_encrypted_files(struct super_block *sb,
 				       struct fscrypt_master_key *mk)
 {
 	int err1;
 	int err2;
+
+	blocking_notifier_call_chain(&fscrypt_key_removal_notifiers, 0, NULL);
 
 	/*
 	 * An inode can't be evicted while it is dirty or has dirty pages.
