@@ -743,8 +743,6 @@ static void flexcan_irq_state(struct net_device *dev, u32 reg_esr)
 	u32 timestamp;
 	int err;
 
-	timestamp = priv->read(&regs->timer) << 16;
-
 	flt = reg_esr & FLEXCAN_ESR_FLT_CONF_MASK;
 	if (likely(flt == FLEXCAN_ESR_FLT_CONF_ACTIVE)) {
 		tx_state = unlikely(reg_esr & FLEXCAN_ESR_TX_WRN) ?
@@ -763,6 +761,8 @@ static void flexcan_irq_state(struct net_device *dev, u32 reg_esr)
 	/* state hasn't changed */
 	if (likely(new_state == priv->can.state))
 		return;
+
+	timestamp = priv->read(&regs->timer) << 16;
 
 	skb = alloc_can_err_skb(dev, &cf);
 	if (unlikely(!skb))
