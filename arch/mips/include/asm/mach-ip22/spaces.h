@@ -10,10 +10,9 @@
 #ifndef _ASM_MACH_IP22_SPACES_H
 #define _ASM_MACH_IP22_SPACES_H
 
+#define PHYS_OFFSET     _AC(0x08000000, UL)
 
 #ifdef CONFIG_64BIT
-
-#define PAGE_OFFSET		0xffffffff80000000UL
 
 #define CAC_BASE		0xffffffff80000000
 #define IO_BASE			0xffffffffa0000000
