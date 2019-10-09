@@ -230,8 +230,7 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count,
 
 	dev = file->private_data;
 
-	/* if we cannot read at all, return EOF */
-	if (!dev->bulk_in_urb || !count)
+	if (!count)
 		return 0;
 
 	/* no concurrent readers */
