@@ -1335,19 +1335,18 @@ static int z_erofs_vle_normalaccess_readpage(struct file *file,
 	err = z_erofs_do_read_page(&f, page, &pagepool);
 	(void)z_erofs_vle_work_iter_end(&f.builder);
 
-	if (err) {
-		errln("%s, failed to read, err [%d]", __func__, err);
-		goto out;
-	}
-
+	/* if some compressed cluster ready, need submit them anyway */
 	z_erofs_submit_and_unzip(&f, &pagepool, true);
-out:
+
+	if (err)
+		errln("%s, failed to read, err [%d]", __func__, err);
+
 	if (f.m_iter.mpage != NULL)
 		put_page(f.m_iter.mpage);
 
 	/* clean up the remaining free pages */
 	put_pages_list(&pagepool);
-	return 0;
+	return err;
 }
 
 static inline int __z_erofs_vle_normalaccess_readpages(
