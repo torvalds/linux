@@ -233,6 +233,7 @@ static int nand_blktrans_thread(void *arg)
 	unsigned long rq_len = 0;
 	int rw_flag = 0;
 	int req_empty_times = 0;
+	int op;
 
 	spin_lock_irq(rq->queue_lock);
 	rk_ftl_gc_jiffies = HZ / 10; /* do garbage collect after 100ms */
@@ -289,7 +290,8 @@ static int nand_blktrans_thread(void *arg)
 		buf = 0;
 		res = 0;
 
-		if (req->cmd_flags & REQ_OP_DISCARD) {
+		op = req_op(req);
+		if (op == REQ_OP_DISCARD) {
 			spin_unlock_irq(rq->queue_lock);
 			rknand_device_lock();
 			if (FtlDiscard(blk_rq_pos(req) +
@@ -300,7 +302,7 @@ static int nand_blktrans_thread(void *arg)
 			if (!__blk_end_request_cur(req, res))
 				req = NULL;
 			continue;
-		} else if (req->cmd_flags & REQ_OP_FLUSH) {
+		} else if (op == REQ_OP_FLUSH) {
 			spin_unlock_irq(rq->queue_lock);
 			rknand_device_lock();
 			rk_ftl_cache_write_back();
@@ -309,9 +311,16 @@ static int nand_blktrans_thread(void *arg)
 			if (!__blk_end_request_cur(req, res))
 				req = NULL;
 			continue;
+		} else if (op == REQ_OP_READ) {
+			rw_flag = READ;
+		} else if (op == REQ_OP_WRITE) {
+			rw_flag = WRITE;
+		} else {
+			__blk_end_request_all(req, -EIO);
+			req = NULL;
+			continue;
 		}
 
-		rw_flag = req->cmd_flags & REQ_OP_WRITE;
 		if (rw_flag == READ && mtd_read_temp_buffer) {
 			buf = mtd_read_temp_buffer;
 			req_check_buffer_align(req, &buf);
