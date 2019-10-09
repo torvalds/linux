@@ -10,7 +10,6 @@
 #include <linux/usb/role.h>
 #include <linux/irqreturn.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/usb/typec.h>
