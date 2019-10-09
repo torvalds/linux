@@ -15,7 +15,6 @@
 struct vimc_cap_device {
 	struct vimc_ent_device ved;
 	struct video_device vdev;
-	struct device *dev;
 	struct v4l2_pix_format format;
 	struct vb2_queue queue;
 	struct list_head buf_list;
@@ -125,7 +124,7 @@ static int vimc_cap_s_fmt_vid_cap(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	dev_dbg(vcap->dev, "%s: format update: "
+	dev_dbg(vcap->ved.dev, "%s: format update: "
 		"old:%dx%d (0x%x, %d, %d, %d, %d) "
 		"new:%dx%d (0x%x, %d, %d, %d, %d)\n", vcap->vdev.name,
 		/* old */
@@ -301,7 +300,7 @@ static int vimc_cap_buffer_prepare(struct vb2_buffer *vb)
 	unsigned long size = vcap->format.sizeimage;
 
 	if (vb2_plane_size(vb, 0) < size) {
-		dev_err(vcap->dev, "%s: buffer too small (%lu < %lu)\n",
+		dev_err(vcap->ved.dev, "%s: buffer too small (%lu < %lu)\n",
 			vcap->vdev.name, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -444,7 +443,7 @@ struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 	vcap->ved.ent = &vcap->vdev.entity;
 	vcap->ved.process_frame = vimc_cap_process_frame;
 	vcap->ved.vdev_get_format = vimc_cap_get_format;
-	vcap->dev = &vimc->pdev.dev;
+	vcap->ved.dev = &vimc->pdev.dev;
 
 	/* Initialize the video_device struct */
 	vdev = &vcap->vdev;

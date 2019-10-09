@@ -34,7 +34,6 @@ struct vimc_deb_pix_map {
 struct vimc_deb_device {
 	struct vimc_ent_device ved;
 	struct v4l2_subdev sd;
-	struct device *dev;
 	/* The active format */
 	struct v4l2_mbus_framefmt sink_fmt;
 	u32 src_code;
@@ -264,7 +263,7 @@ static int vimc_deb_set_fmt(struct v4l2_subdev *sd,
 		/* Set the new format in the sink pad */
 		vimc_deb_adjust_sink_fmt(&fmt->format);
 
-		dev_dbg(vdeb->dev, "%s: sink format update: "
+		dev_dbg(vdeb->ved.dev, "%s: sink format update: "
 			"old:%dx%d (0x%x, %d, %d, %d, %d) "
 			"new:%dx%d (0x%x, %d, %d, %d, %d)\n", vdeb->sd.name,
 			/* old */
@@ -387,7 +386,7 @@ static void vimc_deb_calc_rgb_sink(struct vimc_deb_device *vdeb,
 
 	/* Sum the values of the colors in the mean window */
 
-	dev_dbg(vdeb->dev,
+	dev_dbg(vdeb->ved.dev,
 		"deb: %s: --- Calc pixel %dx%d, window mean %d, seek %d ---\n",
 		vdeb->sd.name, lin, col, vdeb->sink_fmt.height, seek);
 
@@ -420,7 +419,7 @@ static void vimc_deb_calc_rgb_sink(struct vimc_deb_device *vdeb,
 						 vdeb->sink_fmt.width,
 						 vdeb->sink_bpp);
 
-			dev_dbg(vdeb->dev,
+			dev_dbg(vdeb->ved.dev,
 				"deb: %s: RGB CALC: frame index %d, win pos %dx%d, color %d\n",
 				vdeb->sd.name, index, wlin, wcol, color);
 
@@ -431,21 +430,21 @@ static void vimc_deb_calc_rgb_sink(struct vimc_deb_device *vdeb,
 			/* Save how many values we already added */
 			n_rgb[color]++;
 
-			dev_dbg(vdeb->dev, "deb: %s: RGB CALC: val %d, n %d\n",
+			dev_dbg(vdeb->ved.dev, "deb: %s: RGB CALC: val %d, n %d\n",
 				vdeb->sd.name, rgb[color], n_rgb[color]);
 		}
 	}
 
 	/* Calculate the mean */
 	for (i = 0; i < 3; i++) {
-		dev_dbg(vdeb->dev,
+		dev_dbg(vdeb->ved.dev,
 			"deb: %s: PRE CALC: %dx%d Color %d, val %d, n %d\n",
 			vdeb->sd.name, lin, col, i, rgb[i], n_rgb[i]);
 
 		if (n_rgb[i])
 			rgb[i] = rgb[i] / n_rgb[i];
 
-		dev_dbg(vdeb->dev,
+		dev_dbg(vdeb->ved.dev,
 			"deb: %s: FINAL CALC: %dx%d Color %d, val %d\n",
 			vdeb->sd.name, lin, col, i, rgb[i]);
 	}
@@ -521,7 +520,7 @@ struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
 	}
 
 	vdeb->ved.process_frame = vimc_deb_process_frame;
-	vdeb->dev = &vimc->pdev.dev;
+	vdeb->ved.dev = &vimc->pdev.dev;
 
 	/* Initialize the frame format */
 	vdeb->sink_fmt = sink_fmt_default;

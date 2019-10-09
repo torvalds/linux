@@ -96,8 +96,8 @@ static int vimc_streamer_pipeline_init(struct vimc_stream *stream,
 			sd = media_entity_to_v4l2_subdev(ved->ent);
 			ret = v4l2_subdev_call(sd, video, s_stream, 1);
 			if (ret && ret != -ENOIOCTLCMD) {
-				pr_err("subdev_call error %s\n",
-				       ved->ent->name);
+				dev_err(ved->dev, "subdev_call error %s\n",
+					ved->ent->name);
 				vimc_streamer_pipeline_terminate(stream);
 				return ret;
 			}

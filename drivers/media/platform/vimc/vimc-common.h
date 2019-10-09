@@ -78,6 +78,7 @@ struct vimc_pix_map {
  * struct vimc_ent_device - core struct that represents an entity in the
  * topology
  *
+ * @dev:		a pointer of the device struct of the driver
  * @ent:		the pointer to struct media_entity for the node
  * @process_frame:	callback send a frame to that node
  * @vdev_get_format:	callback that returns the current format a pad, used
@@ -93,6 +94,7 @@ struct vimc_pix_map {
  * media_entity
  */
 struct vimc_ent_device {
+	struct device *dev;
 	struct media_entity *ent;
 	void * (*process_frame)(struct vimc_ent_device *ved,
 				const void *frame);

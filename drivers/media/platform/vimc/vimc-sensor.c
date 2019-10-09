@@ -17,7 +17,6 @@
 struct vimc_sen_device {
 	struct vimc_ent_device ved;
 	struct v4l2_subdev sd;
-	struct device *dev;
 	struct tpg_data tpg;
 	struct task_struct *kthread_sen;
 	u8 *frame;
@@ -159,7 +158,7 @@ static int vimc_sen_set_fmt(struct v4l2_subdev *sd,
 	/* Set the new format */
 	vimc_sen_adjust_fmt(&fmt->format);
 
-	dev_dbg(vsen->dev, "%s: format update: "
+	dev_dbg(vsen->ved.dev, "%s: format update: "
 		"old:%dx%d (0x%x, %d, %d, %d, %d) "
 		"new:%dx%d (0x%x, %d, %d, %d, %d)\n", vsen->sd.name,
 		/* old */
@@ -376,7 +375,7 @@ struct vimc_ent_device *vimc_sen_add(struct vimc_device *vimc,
 		goto err_free_tpg;
 
 	vsen->ved.process_frame = vimc_sen_process_frame;
-	vsen->dev = &vimc->pdev.dev;
+	vsen->ved.dev = &vimc->pdev.dev;
 
 	/* Initialize the frame format */
 	vsen->mbus_format = fmt_default;

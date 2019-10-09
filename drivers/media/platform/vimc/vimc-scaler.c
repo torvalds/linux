@@ -21,7 +21,6 @@ MODULE_PARM_DESC(sca_mult, " the image size multiplier");
 struct vimc_sca_device {
 	struct vimc_ent_device ved;
 	struct v4l2_subdev sd;
-	struct device *dev;
 	/* NOTE: the source fmt is the same as the sink
 	 * with the width and hight multiplied by mult
 	 */
@@ -172,7 +171,7 @@ static int vimc_sca_set_fmt(struct v4l2_subdev *sd,
 		/* Set the new format in the sink pad */
 		vimc_sca_adjust_sink_fmt(&fmt->format);
 
-		dev_dbg(vsca->dev, "%s: sink format update: "
+		dev_dbg(vsca->ved.dev, "%s: sink format update: "
 			"old:%dx%d (0x%x, %d, %d, %d, %d) "
 			"new:%dx%d (0x%x, %d, %d, %d, %d)\n", vsca->sd.name,
 			/* old */
@@ -272,7 +271,7 @@ static void vimc_sca_scale_pix(const struct vimc_sca_device *const vsca,
 				 vsca->bpp);
 	pixel = &sink_frame[index];
 
-	dev_dbg(vsca->dev,
+	dev_dbg(vsca->ved.dev,
 		"sca: %s: --- scale_pix sink pos %dx%d, index %d ---\n",
 		vsca->sd.name, lin, col, index);
 
@@ -282,7 +281,7 @@ static void vimc_sca_scale_pix(const struct vimc_sca_device *const vsca,
 	index = VIMC_FRAME_INDEX(lin * sca_mult, col * sca_mult,
 				 vsca->sink_fmt.width * sca_mult, vsca->bpp);
 
-	dev_dbg(vsca->dev, "sca: %s: scale_pix src pos %dx%d, index %d\n",
+	dev_dbg(vsca->ved.dev, "sca: %s: scale_pix src pos %dx%d, index %d\n",
 		vsca->sd.name, lin * sca_mult, col * sca_mult, index);
 
 	/* Repeat this pixel mult times */
@@ -291,7 +290,7 @@ static void vimc_sca_scale_pix(const struct vimc_sca_device *const vsca,
 		 * pixel repetition in a line
 		 */
 		for (j = 0; j < sca_mult * vsca->bpp; j += vsca->bpp) {
-			dev_dbg(vsca->dev,
+			dev_dbg(vsca->ved.dev,
 				"sca: %s: sca: scale_pix src pos %d\n",
 				vsca->sd.name, index + j);
 
@@ -380,7 +379,7 @@ struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
 	}
 
 	vsca->ved.process_frame = vimc_sca_process_frame;
-	vsca->dev = &vimc->pdev.dev;
+	vsca->ved.dev = &vimc->pdev.dev;
 
 	/* Initialize the frame format */
 	vsca->sink_fmt = sink_fmt_default;
