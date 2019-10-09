@@ -80,7 +80,8 @@ static const char * const fwio_error_strings[] = {
  * NOTE: it may also be possible to use 'pages' from struct firmware and avoid
  * bounce buffer
  */
-int sram_write_dma_safe(struct wfx_dev *wdev, u32 addr, const u8 *buf, size_t len)
+static int sram_write_dma_safe(struct wfx_dev *wdev, u32 addr, const u8 *buf,
+			       size_t len)
 {
 	int ret;
 	const u8 *tmp;
@@ -226,7 +227,7 @@ static void print_boot_status(struct wfx_dev *wdev)
 	}
 }
 
-int load_firmware_secure(struct wfx_dev *wdev)
+static int load_firmware_secure(struct wfx_dev *wdev)
 {
 	const struct firmware *fw = NULL;
 	int header_size;
