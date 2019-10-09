@@ -3210,45 +3210,44 @@ EXPORT_SYMBOL(drm_dp_mst_topology_mgr_suspend);
  */
 int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr)
 {
-	int ret = 0;
+	int ret;
+	u8 guid[16];
 
 	mutex_lock(&mgr->lock);
+	if (!mgr->mst_primary)
+		goto out_fail;
 
-	if (mgr->mst_primary) {
-		int sret;
-		u8 guid[16];
+	ret = drm_dp_dpcd_read(mgr->aux, DP_DPCD_REV, mgr->dpcd,
+			       DP_RECEIVER_CAP_SIZE);
+	if (ret != DP_RECEIVER_CAP_SIZE) {
+		DRM_DEBUG_KMS("dpcd read failed - undocked during suspend?\n");
+		goto out_fail;
+	}
 
-		sret = drm_dp_dpcd_read(mgr->aux, DP_DPCD_REV, mgr->dpcd, DP_RECEIVER_CAP_SIZE);
-		if (sret != DP_RECEIVER_CAP_SIZE) {
-			DRM_DEBUG_KMS("dpcd read failed - undocked during suspend?\n");
-			ret = -1;
-			goto out_unlock;
-		}
+	ret = drm_dp_dpcd_writeb(mgr->aux, DP_MSTM_CTRL,
+				 DP_MST_EN |
+				 DP_UP_REQ_EN |
+				 DP_UPSTREAM_IS_SRC);
+	if (ret < 0) {
+		DRM_DEBUG_KMS("mst write failed - undocked during suspend?\n");
+		goto out_fail;
+	}
 
-		ret = drm_dp_dpcd_writeb(mgr->aux, DP_MSTM_CTRL,
-					 DP_MST_EN | DP_UP_REQ_EN | DP_UPSTREAM_IS_SRC);
-		if (ret < 0) {
-			DRM_DEBUG_KMS("mst write failed - undocked during suspend?\n");
-			ret = -1;
-			goto out_unlock;
-		}
+	/* Some hubs forget their guids after they resume */
+	ret = drm_dp_dpcd_read(mgr->aux, DP_GUID, guid, 16);
+	if (ret != 16) {
+		DRM_DEBUG_KMS("dpcd read failed - undocked during suspend?\n");
+		goto out_fail;
+	}
+	drm_dp_check_mstb_guid(mgr->mst_primary, guid);
 
-		/* Some hubs forget their guids after they resume */
-		sret = drm_dp_dpcd_read(mgr->aux, DP_GUID, guid, 16);
-		if (sret != 16) {
-			DRM_DEBUG_KMS("dpcd read failed - undocked during suspend?\n");
-			ret = -1;
-			goto out_unlock;
-		}
-		drm_dp_check_mstb_guid(mgr->mst_primary, guid);
-
-		ret = 0;
-	} else
-		ret = -1;
-
-out_unlock:
 	mutex_unlock(&mgr->lock);
-	return ret;
+
+	return 0;
+
+out_fail:
+	mutex_unlock(&mgr->lock);
+	return -1;
 }
 EXPORT_SYMBOL(drm_dp_mst_topology_mgr_resume);
 
