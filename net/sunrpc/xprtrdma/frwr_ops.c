@@ -570,7 +570,6 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 */
 	bad_wr = NULL;
 	rc = ib_post_send(r_xprt->rx_ia.ri_id->qp, first, &bad_wr);
-	trace_xprtrdma_post_send(req, rc);
 
 	/* The final LOCAL_INV WR in the chain is supposed to
 	 * do the wake. If it was never posted, the wake will
@@ -583,6 +582,7 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 
 	/* Recycle MRs in the LOCAL_INV chain that did not get posted.
 	 */
+	trace_xprtrdma_post_linv(req, rc);
 	while (bad_wr) {
 		frwr = container_of(bad_wr, struct rpcrdma_frwr,
 				    fr_invwr);
@@ -673,12 +673,12 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 */
 	bad_wr = NULL;
 	rc = ib_post_send(r_xprt->rx_ia.ri_id->qp, first, &bad_wr);
-	trace_xprtrdma_post_send(req, rc);
 	if (!rc)
 		return;
 
 	/* Recycle MRs in the LOCAL_INV chain that did not get posted.
 	 */
+	trace_xprtrdma_post_linv(req, rc);
 	while (bad_wr) {
 		frwr = container_of(bad_wr, struct rpcrdma_frwr, fr_invwr);
 		mr = container_of(frwr, struct rpcrdma_mr, frwr);

@@ -735,6 +735,31 @@ TRACE_EVENT(xprtrdma_post_recvs,
 	)
 );
 
+TRACE_EVENT(xprtrdma_post_linv,
+	TP_PROTO(
+		const struct rpcrdma_req *req,
+		int status
+	),
+
+	TP_ARGS(req, status),
+
+	TP_STRUCT__entry(
+		__field(const void *, req)
+		__field(int, status)
+		__field(u32, xid)
+	),
+
+	TP_fast_assign(
+		__entry->req = req;
+		__entry->status = status;
+		__entry->xid = be32_to_cpu(req->rl_slot.rq_xid);
+	),
+
+	TP_printk("req=%p xid=0x%08x status=%d",
+		__entry->req, __entry->xid, __entry->status
+	)
+);
+
 /**
  ** Completion events
  **/
