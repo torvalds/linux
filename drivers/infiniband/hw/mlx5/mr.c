@@ -90,8 +90,6 @@ static void reg_mr_callback(int status, struct mlx5_async_work *context)
 	struct mlx5_cache_ent *ent = &cache->ent[c];
 	u8 key;
 	unsigned long flags;
-	struct xarray *mkeys = &dev->mdev->priv.mkey_table;
-	int err;
 
 	spin_lock_irqsave(&ent->lock, flags);
 	ent->pending--;
@@ -117,13 +115,6 @@ static void reg_mr_callback(int status, struct mlx5_async_work *context)
 	ent->cur++;
 	ent->size++;
 	spin_unlock_irqrestore(&ent->lock, flags);
-
-	xa_lock_irqsave(mkeys, flags);
-	err = xa_err(__xa_store(mkeys, mlx5_base_mkey(mr->mmkey.key),
-				&mr->mmkey, GFP_ATOMIC));
-	xa_unlock_irqrestore(mkeys, flags);
-	if (err)
-		pr_err("Error inserting to mkey tree. 0x%x\n", -err);
 
 	if (!completion_done(&ent->compl))
 		complete(&ent->compl);
