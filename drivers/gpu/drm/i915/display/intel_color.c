@@ -1420,6 +1420,9 @@ static int icl_color_check(struct intel_crtc_state *crtc_state)
 
 static int i9xx_gamma_precision(const struct intel_crtc_state *crtc_state)
 {
+	if (!crtc_state->gamma_enable)
+		return 0;
+
 	switch (crtc_state->gamma_mode) {
 	case GAMMA_MODE_MODE_8BIT:
 		return 8;
@@ -1433,6 +1436,9 @@ static int i9xx_gamma_precision(const struct intel_crtc_state *crtc_state)
 
 static int ilk_gamma_precision(const struct intel_crtc_state *crtc_state)
 {
+	if (!crtc_state->gamma_enable)
+		return 0;
+
 	if ((crtc_state->csc_mode & CSC_POSITION_BEFORE_GAMMA) == 0)
 		return 0;
 
@@ -1457,6 +1463,9 @@ static int chv_gamma_precision(const struct intel_crtc_state *crtc_state)
 
 static int glk_gamma_precision(const struct intel_crtc_state *crtc_state)
 {
+	if (!crtc_state->gamma_enable)
+		return 0;
+
 	switch (crtc_state->gamma_mode) {
 	case GAMMA_MODE_MODE_8BIT:
 		return 8;
@@ -1472,9 +1481,6 @@ int intel_color_get_gamma_bit_precision(const struct intel_crtc_state *crtc_stat
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-
-	if (!crtc_state->gamma_enable)
-		return 0;
 
 	if (HAS_GMCH(dev_priv)) {
 		if (IS_CHERRYVIEW(dev_priv))
