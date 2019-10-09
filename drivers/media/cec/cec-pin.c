@@ -1279,6 +1279,15 @@ static void cec_pin_adap_free(struct cec_adapter *adap)
 	kfree(pin);
 }
 
+static int cec_pin_received(struct cec_adapter *adap, struct cec_msg *msg)
+{
+	struct cec_pin *pin = adap->pin;
+
+	if (pin->ops->received)
+		return pin->ops->received(adap, msg);
+	return -ENOMSG;
+}
+
 void cec_pin_changed(struct cec_adapter *adap, bool value)
 {
 	struct cec_pin *pin = adap->pin;
@@ -1301,6 +1310,7 @@ static const struct cec_adap_ops cec_pin_adap_ops = {
 	.error_inj_parse_line = cec_pin_error_inj_parse_line,
 	.error_inj_show = cec_pin_error_inj_show,
 #endif
+	.received = cec_pin_received,
 };
 
 struct cec_adapter *cec_pin_allocate_adapter(const struct cec_pin_ops *pin_ops,
