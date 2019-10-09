@@ -3451,7 +3451,7 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 			engine->flags |= I915_ENGINE_HAS_PREEMPTION;
 	}
 
-	if (engine->class != COPY_ENGINE_CLASS && INTEL_GEN(engine->i915) >= 12)
+	if (INTEL_GEN(engine->i915) >= 12)
 		engine->flags |= I915_ENGINE_HAS_RELATIVE_MMIO;
 }
 
