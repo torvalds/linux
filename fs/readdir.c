@@ -20,8 +20,62 @@
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
 #include <linux/compat.h>
-
 #include <linux/uaccess.h>
+
+#include <asm/unaligned.h>
+
+/*
+ * Note the "unsafe_put_user() semantics: we goto a
+ * label for errors.
+ *
+ * Also note how we use a "while()" loop here, even though
+ * only the biggest size needs to loop. The compiler (well,
+ * at least gcc) is smart enough to turn the smaller sizes
+ * into just if-statements, and this way we don't need to
+ * care whether 'u64' or 'u32' is the biggest size.
+ */
+#define unsafe_copy_loop(dst, src, len, type, label) 		\
+	while (len >= sizeof(type)) {				\
+		unsafe_put_user(get_unaligned((type *)src),	\
+			(type __user *)dst, label);		\
+		dst += sizeof(type);				\
+		src += sizeof(type);				\
+		len -= sizeof(type);				\
+	}
+
+/*
+ * We avoid doing 64-bit copies on 32-bit architectures. They
+ * might be better, but the component names are mostly small,
+ * and the 64-bit cases can end up being much more complex and
+ * put much more register pressure on the code, so it's likely
+ * not worth the pain of unaligned accesses etc.
+ *
+ * So limit the copies to "unsigned long" size. I did verify
+ * that at least the x86-32 case is ok without this limiting,
+ * but I worry about random other legacy 32-bit cases that
+ * might not do as well.
+ */
+#define unsafe_copy_type(dst, src, len, type, label) do {	\
+	if (sizeof(type) <= sizeof(unsigned long))		\
+		unsafe_copy_loop(dst, src, len, type, label);	\
+} while (0)
+
+/*
+ * Copy the dirent name to user space, and NUL-terminate
+ * it. This should not be a function call, since we're doing
+ * the copy inside a "user_access_begin/end()" section.
+ */
+#define unsafe_copy_dirent_name(_dst, _src, _len, label) do {	\
+	char __user *dst = (_dst);				\
+	const char *src = (_src);				\
+	size_t len = (_len);					\
+	unsafe_copy_type(dst, src, len, u64, label);	 	\
+	unsafe_copy_type(dst, src, len, u32, label);		\
+	unsafe_copy_type(dst, src, len, u16, label);		\
+	unsafe_copy_type(dst, src, len, u8,  label);		\
+	unsafe_put_user(0, dst, label);				\
+} while (0)
+
 
 int iterate_dir(struct file *file, struct dir_context *ctx)
 {
@@ -63,6 +117,40 @@ out:
 	return res;
 }
 EXPORT_SYMBOL(iterate_dir);
+
+/*
+ * POSIX says that a dirent name cannot contain NULL or a '/'.
+ *
+ * It's not 100% clear what we should really do in this case.
+ * The filesystem is clearly corrupted, but returning a hard
+ * error means that you now don't see any of the other names
+ * either, so that isn't a perfect alternative.
+ *
+ * And if you return an error, what error do you use? Several
+ * filesystems seem to have decided on EUCLEAN being the error
+ * code for EFSCORRUPTED, and that may be the error to use. Or
+ * just EIO, which is perhaps more obvious to users.
+ *
+ * In order to see the other file names in the directory, the
+ * caller might want to make this a "soft" error: skip the
+ * entry, and return the error at the end instead.
+ *
+ * Note that this should likely do a "memchr(name, 0, len)"
+ * check too, since that would be filesystem corruption as
+ * well. However, that case can't actually confuse user space,
+ * which has to do a strlen() on the name anyway to find the
+ * filename length, and the above "soft error" worry means
+ * that it's probably better left alone until we have that
+ * issue clarified.
+ */
+static int verify_dirent_name(const char *name, int len)
+{
+	if (WARN_ON_ONCE(!len))
+		return -EIO;
+	if (WARN_ON_ONCE(memchr(name, '/', len)))
+		return -EIO;
+	return 0;
+}
 
 /*
  * Traditional linux readdir() handling..
@@ -173,6 +261,9 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
 	int reclen = ALIGN(offsetof(struct linux_dirent, d_name) + namlen + 2,
 		sizeof(long));
 
+	buf->error = verify_dirent_name(name, namlen);
+	if (unlikely(buf->error))
+		return buf->error;
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
@@ -182,28 +273,31 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
 		return -EOVERFLOW;
 	}
 	dirent = buf->previous;
-	if (dirent) {
-		if (signal_pending(current))
-			return -EINTR;
-		if (__put_user(offset, &dirent->d_off))
-			goto efault;
-	}
+	if (dirent && signal_pending(current))
+		return -EINTR;
+
+	/*
+	 * Note! This range-checks 'previous' (which may be NULL).
+	 * The real range was checked in getdents
+	 */
+	if (!user_access_begin(dirent, sizeof(*dirent)))
+		goto efault;
+	if (dirent)
+		unsafe_put_user(offset, &dirent->d_off, efault_end);
 	dirent = buf->current_dir;
-	if (__put_user(d_ino, &dirent->d_ino))
-		goto efault;
-	if (__put_user(reclen, &dirent->d_reclen))
-		goto efault;
-	if (copy_to_user(dirent->d_name, name, namlen))
-		goto efault;
-	if (__put_user(0, dirent->d_name + namlen))
-		goto efault;
-	if (__put_user(d_type, (char __user *) dirent + reclen - 1))
-		goto efault;
+	unsafe_put_user(d_ino, &dirent->d_ino, efault_end);
+	unsafe_put_user(reclen, &dirent->d_reclen, efault_end);
+	unsafe_put_user(d_type, (char __user *) dirent + reclen - 1, efault_end);
+	unsafe_copy_dirent_name(dirent->d_name, name, namlen, efault_end);
+	user_access_end();
+
 	buf->previous = dirent;
 	dirent = (void __user *)dirent + reclen;
 	buf->current_dir = dirent;
 	buf->count -= reclen;
 	return 0;
+efault_end:
+	user_access_end();
 efault:
 	buf->error = -EFAULT;
 	return -EFAULT;
@@ -259,34 +353,38 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
 	int reclen = ALIGN(offsetof(struct linux_dirent64, d_name) + namlen + 1,
 		sizeof(u64));
 
+	buf->error = verify_dirent_name(name, namlen);
+	if (unlikely(buf->error))
+		return buf->error;
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
 	dirent = buf->previous;
-	if (dirent) {
-		if (signal_pending(current))
-			return -EINTR;
-		if (__put_user(offset, &dirent->d_off))
-			goto efault;
-	}
+	if (dirent && signal_pending(current))
+		return -EINTR;
+
+	/*
+	 * Note! This range-checks 'previous' (which may be NULL).
+	 * The real range was checked in getdents
+	 */
+	if (!user_access_begin(dirent, sizeof(*dirent)))
+		goto efault;
+	if (dirent)
+		unsafe_put_user(offset, &dirent->d_off, efault_end);
 	dirent = buf->current_dir;
-	if (__put_user(ino, &dirent->d_ino))
-		goto efault;
-	if (__put_user(0, &dirent->d_off))
-		goto efault;
-	if (__put_user(reclen, &dirent->d_reclen))
-		goto efault;
-	if (__put_user(d_type, &dirent->d_type))
-		goto efault;
-	if (copy_to_user(dirent->d_name, name, namlen))
-		goto efault;
-	if (__put_user(0, dirent->d_name + namlen))
-		goto efault;
+	unsafe_put_user(ino, &dirent->d_ino, efault_end);
+	unsafe_put_user(reclen, &dirent->d_reclen, efault_end);
+	unsafe_put_user(d_type, &dirent->d_type, efault_end);
+	unsafe_copy_dirent_name(dirent->d_name, name, namlen, efault_end);
+	user_access_end();
+
 	buf->previous = dirent;
 	dirent = (void __user *)dirent + reclen;
 	buf->current_dir = dirent;
 	buf->count -= reclen;
 	return 0;
+efault_end:
+	user_access_end();
 efault:
 	buf->error = -EFAULT;
 	return -EFAULT;

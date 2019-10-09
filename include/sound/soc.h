@@ -1390,6 +1390,11 @@ static inline void snd_soc_dapm_mutex_unlock(struct snd_soc_dapm_context *dapm)
 	mutex_unlock(&dapm->card->dapm_mutex);
 }
 
+/* bypass */
+int snd_soc_pcm_lib_ioctl(struct snd_soc_component *component,
+			  struct snd_pcm_substream *substream,
+			  unsigned int cmd, void *arg);
+
 #include <sound/soc-component.h>
 
 #endif

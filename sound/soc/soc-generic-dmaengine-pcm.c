@@ -75,12 +75,10 @@ int snd_dmaengine_pcm_prepare_slave_config(struct snd_pcm_substream *substream,
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_prepare_slave_config);
 
-static int dmaengine_pcm_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+static int dmaengine_pcm_hw_params(struct snd_soc_component *component,
+				   struct snd_pcm_substream *substream,
+				   struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, SND_DMAENGINE_PCM_DRV_NAME);
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
 	int (*prepare_slave_config)(struct snd_pcm_substream *substream,
@@ -109,11 +107,11 @@ static int dmaengine_pcm_hw_params(struct snd_pcm_substream *substream,
 	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 }
 
-static int dmaengine_pcm_set_runtime_hwparams(struct snd_pcm_substream *substream)
+static int
+dmaengine_pcm_set_runtime_hwparams(struct snd_soc_component *component,
+				   struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, SND_DMAENGINE_PCM_DRV_NAME);
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 	struct device *dma_dev = dmaengine_dma_dev(pcm, substream);
 	struct dma_chan *chan = pcm->chan[substream->stream];
@@ -150,28 +148,43 @@ static int dmaengine_pcm_set_runtime_hwparams(struct snd_pcm_substream *substrea
 	return snd_soc_set_runtime_hwparams(substream, &hw);
 }
 
-static int dmaengine_pcm_open(struct snd_pcm_substream *substream)
+static int dmaengine_pcm_open(struct snd_soc_component *component,
+			      struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, SND_DMAENGINE_PCM_DRV_NAME);
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 	struct dma_chan *chan = pcm->chan[substream->stream];
 	int ret;
 
-	ret = dmaengine_pcm_set_runtime_hwparams(substream);
+	ret = dmaengine_pcm_set_runtime_hwparams(component, substream);
 	if (ret)
 		return ret;
 
 	return snd_dmaengine_pcm_open(substream, chan);
 }
 
+static int dmaengine_pcm_close(struct snd_soc_component *component,
+			       struct snd_pcm_substream *substream)
+{
+	return snd_dmaengine_pcm_close(substream);
+}
+
+static int dmaengine_pcm_hw_free(struct snd_soc_component *component,
+				 struct snd_pcm_substream *substream)
+{
+	return snd_pcm_lib_free_pages(substream);
+}
+
+static int dmaengine_pcm_trigger(struct snd_soc_component *component,
+				 struct snd_pcm_substream *substream, int cmd)
+{
+	return snd_dmaengine_pcm_trigger(substream, cmd);
+}
+
 static struct dma_chan *dmaengine_pcm_compat_request_channel(
+	struct snd_soc_component *component,
 	struct snd_soc_pcm_runtime *rtd,
 	struct snd_pcm_substream *substream)
 {
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, SND_DMAENGINE_PCM_DRV_NAME);
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	dma_filter_fn fn = NULL;
@@ -209,10 +222,9 @@ static bool dmaengine_pcm_can_report_residue(struct device *dev,
 	return true;
 }
 
-static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static int dmaengine_pcm_new(struct snd_soc_component *component,
+			     struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, SND_DMAENGINE_PCM_DRV_NAME);
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 	const struct snd_dmaengine_pcm_config *config = pcm->config;
 	struct device *dev = component->dev;
@@ -239,8 +251,8 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 				config->chan_names[i]);
 
 		if (!pcm->chan[i] && (pcm->flags & SND_DMAENGINE_PCM_FLAG_COMPAT)) {
-			pcm->chan[i] = dmaengine_pcm_compat_request_channel(rtd,
-				substream);
+			pcm->chan[i] = dmaengine_pcm_compat_request_channel(
+				component, rtd, substream);
 		}
 
 		if (!pcm->chan[i]) {
@@ -269,11 +281,9 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 }
 
 static snd_pcm_uframes_t dmaengine_pcm_pointer(
+	struct snd_soc_component *component,
 	struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, SND_DMAENGINE_PCM_DRV_NAME);
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 
 	if (pcm->flags & SND_DMAENGINE_PCM_FLAG_NO_RESIDUE)
@@ -282,13 +292,11 @@ static snd_pcm_uframes_t dmaengine_pcm_pointer(
 		return snd_dmaengine_pcm_pointer(substream);
 }
 
-static int dmaengine_copy_user(struct snd_pcm_substream *substream,
+static int dmaengine_copy_user(struct snd_soc_component *component,
+			       struct snd_pcm_substream *substream,
 			       int channel, unsigned long hwoff,
 			       void __user *buf, unsigned long bytes)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, SND_DMAENGINE_PCM_DRV_NAME);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 	int (*process)(struct snd_pcm_substream *substream,
@@ -316,39 +324,31 @@ static int dmaengine_copy_user(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_pcm_ops dmaengine_pcm_ops = {
-	.open		= dmaengine_pcm_open,
-	.close		= snd_dmaengine_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= dmaengine_pcm_hw_params,
-	.hw_free	= snd_pcm_lib_free_pages,
-	.trigger	= snd_dmaengine_pcm_trigger,
-	.pointer	= dmaengine_pcm_pointer,
-};
-
-static const struct snd_pcm_ops dmaengine_pcm_process_ops = {
-	.open		= dmaengine_pcm_open,
-	.close		= snd_dmaengine_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= dmaengine_pcm_hw_params,
-	.hw_free	= snd_pcm_lib_free_pages,
-	.trigger	= snd_dmaengine_pcm_trigger,
-	.pointer	= dmaengine_pcm_pointer,
-	.copy_user	= dmaengine_copy_user,
-};
-
 static const struct snd_soc_component_driver dmaengine_pcm_component = {
 	.name		= SND_DMAENGINE_PCM_DRV_NAME,
 	.probe_order	= SND_SOC_COMP_ORDER_LATE,
-	.ops		= &dmaengine_pcm_ops,
-	.pcm_new	= dmaengine_pcm_new,
+	.open		= dmaengine_pcm_open,
+	.close		= dmaengine_pcm_close,
+	.ioctl		= snd_soc_pcm_lib_ioctl,
+	.hw_params	= dmaengine_pcm_hw_params,
+	.hw_free	= dmaengine_pcm_hw_free,
+	.trigger	= dmaengine_pcm_trigger,
+	.pointer	= dmaengine_pcm_pointer,
+	.pcm_construct	= dmaengine_pcm_new,
 };
 
 static const struct snd_soc_component_driver dmaengine_pcm_component_process = {
 	.name		= SND_DMAENGINE_PCM_DRV_NAME,
 	.probe_order	= SND_SOC_COMP_ORDER_LATE,
-	.ops		= &dmaengine_pcm_process_ops,
-	.pcm_new	= dmaengine_pcm_new,
+	.open		= dmaengine_pcm_open,
+	.close		= dmaengine_pcm_close,
+	.ioctl		= snd_soc_pcm_lib_ioctl,
+	.hw_params	= dmaengine_pcm_hw_params,
+	.hw_free	= dmaengine_pcm_hw_free,
+	.trigger	= dmaengine_pcm_trigger,
+	.pointer	= dmaengine_pcm_pointer,
+	.copy_user	= dmaengine_copy_user,
+	.pcm_construct	= dmaengine_pcm_new,
 };
 
 static const char * const dmaengine_pcm_dma_channel_names[] = {
