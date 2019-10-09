@@ -3484,6 +3484,133 @@ static int ordered_events__deliver_event(struct ordered_events *oe,
 	return __trace__deliver_event(trace, event->event);
 }
 
+static struct syscall_arg_fmt *perf_evsel__syscall_arg_fmt(struct evsel *evsel, char *arg)
+{
+	struct tep_format_field *field;
+	struct syscall_arg_fmt *fmt = evsel->priv;
+
+	if (evsel->tp_format == NULL || fmt == NULL)
+		return NULL;
+
+	for (field = evsel->tp_format->format.fields; field; field = field->next, ++fmt)
+		if (strcmp(field->name, arg) == 0)
+			return fmt;
+
+	return NULL;
+}
+
+static int trace__expand_filter(struct trace *trace __maybe_unused, struct evsel *evsel)
+{
+	char *tok, *left = evsel->filter, *new_filter = evsel->filter;
+
+	while ((tok = strpbrk(left, "=<>!")) != NULL) {
+		char *right = tok + 1, *right_end;
+
+		if (*right == '=')
+			++right;
+
+		while (isspace(*right))
+			++right;
+
+		if (*right == '\0')
+			break;
+
+		while (!isalpha(*left))
+			if (++left == tok) {
+				/*
+				 * Bail out, can't find the name of the argument that is being
+				 * used in the filter, let it try to set this filter, will fail later.
+				 */
+				return 0;
+			}
+
+		right_end = right + 1;
+		while (isalnum(*right_end) || *right_end == '_')
+			++right_end;
+
+		if (isalpha(*right)) {
+			struct syscall_arg_fmt *fmt;
+			int left_size = tok - left,
+			    right_size = right_end - right;
+			char arg[128];
+
+			while (isspace(left[left_size - 1]))
+				--left_size;
+
+			scnprintf(arg, sizeof(arg), "%.*s", left_size, left);
+
+			fmt = perf_evsel__syscall_arg_fmt(evsel, arg);
+			if (fmt == NULL) {
+				pr_debug("\"%s\" not found in \"%s\", can't set filter \"%s\"\n",
+					 arg, evsel->name, evsel->filter);
+				return -1;
+			}
+
+			pr_debug2("trying to expand \"%s\" \"%.*s\" \"%.*s\" -> ",
+				 arg, (int)(right - tok), tok, right_size, right);
+
+			if (fmt->strtoul) {
+				u64 val;
+				if (fmt->strtoul(right, right_size, NULL, &val)) {
+					char *n, expansion[19];
+					int expansion_lenght = scnprintf(expansion, sizeof(expansion), "%#" PRIx64, val);
+					int expansion_offset = right - new_filter;
+
+					pr_debug("%s", expansion);
+
+					if (asprintf(&n, "%.*s%s%s", expansion_offset, new_filter, expansion, right_end) < 0) {
+						pr_debug(" out of memory!\n");
+						free(new_filter);
+						return -1;
+					}
+					if (new_filter != evsel->filter)
+						free(new_filter);
+					left = n + expansion_offset + expansion_lenght;
+					new_filter = n;
+				} else {
+					pr_err("\"%.*s\" not found for \"%s\" in \"%s\", can't set filter \"%s\"\n",
+					       right_size, right, arg, evsel->name, evsel->filter);
+					return -1;
+				}
+			} else {
+				pr_err("No resolver (strtoul) for \"%s\" in \"%s\", can't set filter \"%s\"\n",
+				       arg, evsel->name, evsel->filter);
+				return -1;
+			}
+
+			pr_debug("\n");
+		} else {
+			left = right_end;
+		}
+	}
+
+	if (new_filter != evsel->filter) {
+		pr_debug("New filter for %s: %s\n", evsel->name, new_filter);
+		perf_evsel__set_filter(evsel, new_filter);
+		free(new_filter);
+	}
+
+	return 0;
+}
+
+static int trace__expand_filters(struct trace *trace, struct evsel **err_evsel)
+{
+	struct evlist *evlist = trace->evlist;
+	struct evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel->filter == NULL)
+			continue;
+
+		if (trace__expand_filter(trace, evsel)) {
+			*err_evsel = evsel;
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct evlist *evlist = trace->evlist;
@@ -3625,6 +3752,9 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	 */
 	trace->fd_path_disabled = !trace__syscall_enabled(trace, syscalltbl__id(trace->sctbl, "close"));
 
+	err = trace__expand_filters(trace, &evsel);
+	if (err)
+		goto out_delete_evlist;
 	err = perf_evlist__apply_filters(evlist, &evsel);
 	if (err < 0)
 		goto out_error_apply_filters;
