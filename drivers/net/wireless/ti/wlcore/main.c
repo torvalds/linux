@@ -544,11 +544,6 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 	}
 
 	while (!done && loopcount--) {
-		/*
-		 * In order to avoid a race with the hardirq, clear the flag
-		 * before acknowledging the chip.
-		 */
-		clear_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
 		smp_mb__after_atomic();
 
 		ret = wlcore_fw_status(wl, wl->fw_status);
@@ -668,7 +663,7 @@ static irqreturn_t wlcore_irq(int irq, void *cookie)
 		disable_irq_nosync(wl->irq);
 		pm_wakeup_event(wl->dev, 0);
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
-		return IRQ_HANDLED;
+		goto out_handled;
 	}
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
@@ -691,6 +686,11 @@ static irqreturn_t wlcore_irq(int irq, void *cookie)
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	mutex_unlock(&wl->mutex);
+
+out_handled:
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	clear_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	return IRQ_HANDLED;
 }
