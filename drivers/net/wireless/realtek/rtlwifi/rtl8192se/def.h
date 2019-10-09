@@ -53,18 +53,12 @@
 	SET_BITS_OFFSET_LE(__pdesc, 0, 16, __val)
 #define SET_TX_DESC_OFFSET(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc, 16, 8, __val)
-#define SET_TX_DESC_TYPE(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc, 24, 2, __val)
 #define SET_TX_DESC_LAST_SEG(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc, 26, 1, __val)
 #define SET_TX_DESC_FIRST_SEG(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc, 27, 1, __val)
 #define SET_TX_DESC_LINIP(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc, 28, 1, __val)
-#define SET_TX_DESC_AMSDU(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc, 29, 1, __val)
-#define SET_TX_DESC_GREEN_FIELD(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc, 30, 1, __val)
 #define SET_TX_DESC_OWN(__pdesc, __val)				\
 	SET_BITS_OFFSET_LE(__pdesc, 31, 1, __val)
 
@@ -74,76 +68,26 @@
 /* Dword 1 */
 #define SET_TX_DESC_MACID(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc + 4, 0, 5, __val)
-#define SET_TX_DESC_MORE_DATA(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 5, 1, __val)
-#define SET_TX_DESC_MORE_FRAG(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 6, 1, __val)
-#define SET_TX_DESC_PIFS(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 7, 1, __val)
 #define SET_TX_DESC_QUEUE_SEL(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc + 4, 8, 5, __val)
-#define SET_TX_DESC_ACK_POLICY(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 13, 2, __val)
-#define SET_TX_DESC_NO_ACM(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 15, 1, __val)
 #define SET_TX_DESC_NON_QOS(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc + 4, 16, 1, __val)
-#define SET_TX_DESC_KEY_ID(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 17, 2, __val)
-#define SET_TX_DESC_OUI(__pdesc, __val)				\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 19, 1, __val)
-#define SET_TX_DESC_PKT_TYPE(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 20, 1, __val)
-#define SET_TX_DESC_EN_DESC_ID(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 21, 1, __val)
 #define SET_TX_DESC_SEC_TYPE(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc + 4, 22, 2, __val)
-#define SET_TX_DESC_WDS(__pdesc, __val)				\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 24, 1, __val)
-#define SET_TX_DESC_HTC(__pdesc, __val)				\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 25, 1, __val)
-#define SET_TX_DESC_PKT_OFFSET(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 26, 5, __val)
-#define SET_TX_DESC_HWPC(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 27, 1, __val)
 
 /* Dword 2 */
-#define SET_TX_DESC_DATA_RETRY_LIMIT(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 8, 0, 6, __val)
-#define SET_TX_DESC_RETRY_LIMIT_ENABLE(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 8, 6, 1, __val)
-#define SET_TX_DESC_TSFL(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 8, 7, 5, __val)
-#define SET_TX_DESC_RTS_RETRY_COUNT(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 8, 12, 6, __val)
-#define SET_TX_DESC_DATA_RETRY_COUNT(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 8, 18, 6, __val)
 #define	SET_TX_DESC_RSVD_MACID(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(((__pdesc) + 8), 24, 5, __val)
 #define SET_TX_DESC_AGG_ENABLE(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc + 8, 29, 1, __val)
-#define SET_TX_DESC_AGG_BREAK(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 8, 30, 1, __val)
-#define SET_TX_DESC_OWN_MAC(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 8, 31, 1, __val)
 
 /* Dword 3 */
-#define SET_TX_DESC_NEXT_HEAP_PAGE(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 0, 8, __val)
-#define SET_TX_DESC_TAIL_PAGE(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 8, 8, __val)
 #define SET_TX_DESC_SEQ(__pdesc, __val)				\
 	SET_BITS_OFFSET_LE(__pdesc + 12, 16, 12, __val)
-#define SET_TX_DESC_FRAG(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 28, 4, __val)
 
 /* Dword 4 */
 #define SET_TX_DESC_RTS_RATE(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc + 16, 0, 6, __val)
-#define SET_TX_DESC_DISABLE_RTS_FB(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 16, 6, 1, __val)
-#define SET_TX_DESC_RTS_RATE_FB_LIMIT(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 16, 7, 4, __val)
 #define SET_TX_DESC_CTS_ENABLE(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc + 16, 11, 1, __val)
 #define SET_TX_DESC_RTS_ENABLE(__pdesc, __val)			\
@@ -158,12 +102,6 @@
 	SET_BITS_OFFSET_LE(__pdesc + 16, 18, 1, __val)
 #define SET_TX_DESC_TX_SUB_CARRIER(__pdesc, __val)		\
 	SET_BITS_OFFSET_LE(__pdesc + 16, 19, 2, __val)
-#define SET_TX_DESC_TX_STBC(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 16, 21, 2, __val)
-#define SET_TX_DESC_TX_REVERSE_DIRECTION(__pdesc, __val)	\
-	SET_BITS_OFFSET_LE(__pdesc + 16, 23, 1, __val)
-#define SET_TX_DESC_RTS_HT(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 16, 24, 1, __val)
 #define SET_TX_DESC_RTS_SHORT(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc + 16, 25, 1, __val)
 #define SET_TX_DESC_RTS_BANDWIDTH(__pdesc, __val)		\
@@ -180,26 +118,12 @@
 	SET_BITS_OFFSET_LE(__pdesc + 20, 0, 9, __val)
 #define SET_TX_DESC_TX_RATE(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc + 20, 9, 6, __val)
-#define SET_TX_DESC_DISABLE_FB(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 20, 15, 1, __val)
 #define SET_TX_DESC_DATA_RATE_FB_LIMIT(__pdesc, __val)		\
 	SET_BITS_OFFSET_LE(__pdesc + 20, 16, 5, __val)
-#define SET_TX_DESC_TX_AGC(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 20, 21, 11, __val)
-
-/* Dword 6 */
-#define SET_TX_DESC_IP_CHECK_SUM(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 24, 0, 16, __val)
-#define SET_TX_DESC_TCP_CHECK_SUM(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 24, 16, 16, __val)
 
 /* Dword 7 */
 #define SET_TX_DESC_TX_BUFFER_SIZE(__pdesc, __val)		\
 	SET_BITS_OFFSET_LE(__pdesc + 28, 0, 16, __val)
-#define SET_TX_DESC_IP_HEADER_OFFSET(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 28, 16, 8, __val)
-#define SET_TX_DESC_TCP_ENABLE(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 28, 31, 1, __val)
 
 /* Dword 8 */
 #define SET_TX_DESC_TX_BUFFER_ADDRESS(__pdesc, __val)		\
@@ -228,26 +152,6 @@
 /* DWORD 0 */
 #define SET_RX_STATUS_DESC_PKT_LEN(__pdesc, __val)		\
 	SET_BITS_OFFSET_LE(__pdesc, 0, 14, __val)
-#define SET_RX_STATUS_DESC_CRC32(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc, 14, 1, __val)
-#define SET_RX_STATUS_DESC_ICV(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc, 15, 1, __val)
-#define SET_RX_STATUS_DESC_DRVINFO_SIZE(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc, 16, 4, __val)
-#define SET_RX_STATUS_DESC_SECURITY(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc, 20, 3, __val)
-#define SET_RX_STATUS_DESC_QOS(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc, 23, 1, __val)
-#define SET_RX_STATUS_DESC_SHIFT(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc, 24, 2, __val)
-#define SET_RX_STATUS_DESC_PHY_STATUS(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc, 26, 1, __val)
-#define SET_RX_STATUS_DESC_SWDEC(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc, 27, 1, __val)
-#define SET_RX_STATUS_DESC_LAST_SEG(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc, 28, 1, __val)
-#define SET_RX_STATUS_DESC_FIRST_SEG(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc, 29, 1, __val)
 #define SET_RX_STATUS_DESC_EOR(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc, 30, 1, __val)
 #define SET_RX_STATUS_DESC_OWN(__pdesc, __val)			\
@@ -261,159 +165,32 @@
 	SHIFT_AND_MASK_LE(__pdesc, 15, 1)
 #define GET_RX_STATUS_DESC_DRVINFO_SIZE(__pdesc)		\
 	SHIFT_AND_MASK_LE(__pdesc, 16, 4)
-#define GET_RX_STATUS_DESC_SECURITY(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 20, 3)
-#define GET_RX_STATUS_DESC_QOS(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc, 23, 1)
 #define GET_RX_STATUS_DESC_SHIFT(__pdesc)			\
 	SHIFT_AND_MASK_LE(__pdesc, 24, 2)
 #define GET_RX_STATUS_DESC_PHY_STATUS(__pdesc)			\
 	SHIFT_AND_MASK_LE(__pdesc, 26, 1)
 #define GET_RX_STATUS_DESC_SWDEC(__pdesc)			\
 	SHIFT_AND_MASK_LE(__pdesc, 27, 1)
-#define GET_RX_STATUS_DESC_LAST_SEG(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 28, 1)
-#define GET_RX_STATUS_DESC_FIRST_SEG(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 29, 1)
-#define GET_RX_STATUS_DESC_EOR(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc, 30, 1)
 #define GET_RX_STATUS_DESC_OWN(__pdesc)				\
 	SHIFT_AND_MASK_LE(__pdesc, 31, 1)
 
 /* DWORD 1 */
-#define SET_RX_STATUS_DESC_MACID(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 0, 5, __val)
-#define SET_RX_STATUS_DESC_TID(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 5, 4, __val)
-#define SET_RX_STATUS_DESC_PAGGR(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 14, 1, __val)
-#define SET_RX_STATUS_DESC_FAGGR(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 15, 1, __val)
-#define SET_RX_STATUS_DESC_A1_FIT(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 16, 4, __val)
-#define SET_RX_STATUS_DESC_A2_FIT(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 20, 4, __val)
-#define SET_RX_STATUS_DESC_PAM(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 24, 1, __val)
-#define SET_RX_STATUS_DESC_PWR(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 25, 1, __val)
-#define SET_RX_STATUS_DESC_MOREDATA(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 26, 1, __val)
-#define SET_RX_STATUS_DESC_MOREFRAG(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 27, 1, __val)
-#define SET_RX_STATUS_DESC_TYPE(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 28, 2, __val)
-#define SET_RX_STATUS_DESC_MC(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 30, 1, __val)
-#define SET_RX_STATUS_DESC_BC(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 4, 31, 1, __val)
-
-#define GET_RX_STATUS_DEC_MACID(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc + 4, 0, 5)
-#define GET_RX_STATUS_DESC_TID(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc + 4, 5, 4)
 #define GET_RX_STATUS_DESC_PAGGR(__pdesc)			\
 	SHIFT_AND_MASK_LE(__pdesc + 4, 14, 1)
 #define GET_RX_STATUS_DESC_FAGGR(__pdesc)			\
 	SHIFT_AND_MASK_LE(__pdesc + 4, 15, 1)
-#define GET_RX_STATUS_DESC_A1_FIT(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc + 4, 16, 4)
-#define GET_RX_STATUS_DESC_A2_FIT(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc + 4, 20, 4)
-#define GET_RX_STATUS_DESC_PAM(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc + 4, 24, 1)
-#define GET_RX_STATUS_DESC_PWR(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc + 4, 25, 1)
-#define GET_RX_STATUS_DESC_MORE_DATA(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc + 4, 26, 1)
-#define GET_RX_STATUS_DESC_MORE_FRAG(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc + 4, 27, 1)
-#define GET_RX_STATUS_DESC_TYPE(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc + 4, 28, 2)
-#define GET_RX_STATUS_DESC_MC(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc + 4, 30, 1)
-#define GET_RX_STATUS_DESC_BC(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc + 4, 31, 1)
-
-/* DWORD 2 */
-#define SET_RX_STATUS_DESC_SEQ(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 8, 0, 12, __val)
-#define SET_RX_STATUS_DESC_FRAG(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 8, 12, 4, __val)
-#define SET_RX_STATUS_DESC_NEXT_PKTLEN(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 8, 16, 8, __val)
-#define SET_RX_STATUS_DESC_NEXT_IND(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 8, 30, 1, __val)
-
-#define GET_RX_STATUS_DESC_SEQ(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc + 8, 0, 12)
-#define GET_RX_STATUS_DESC_FRAG(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc + 8, 12, 4)
-#define GET_RX_STATUS_DESC_NEXT_PKTLEN(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc + 8, 16, 8)
-#define GET_RX_STATUS_DESC_NEXT_IND(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc + 8, 30, 1)
 
 /* DWORD 3 */
-#define SET_RX_STATUS_DESC_RX_MCS(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 0, 6, __val)
-#define SET_RX_STATUS_DESC_RX_HT(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 6, 1, __val)
-#define SET_RX_STATUS_DESC_AMSDU(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 7, 1, __val)
-#define SET_RX_STATUS_DESC_SPLCP(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 8, 1, __val)
-#define SET_RX_STATUS_DESC_BW(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 9, 1, __val)
-#define SET_RX_STATUS_DESC_HTC(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 10, 1, __val)
-#define SET_RX_STATUS_DESC_TCP_CHK_RPT(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 11, 1, __val)
-#define SET_RX_STATUS_DESC_IP_CHK_RPT(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 12, 1, __val)
-#define SET_RX_STATUS_DESC_TCP_CHK_VALID(__pdesc, __val)	\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 13, 1, __val)
-#define SET_RX_STATUS_DESC_HWPC_ERR(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 14, 1, __val)
-#define SET_RX_STATUS_DESC_HWPC_IND(__pdesc, __val)		\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 15, 1, __val)
-#define SET_RX_STATUS_DESC_IV0(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 12, 16, 16, __val)
-
 #define GET_RX_STATUS_DESC_RX_MCS(__pdesc)			\
 	SHIFT_AND_MASK_LE(__pdesc + 12, 0, 6)
 #define GET_RX_STATUS_DESC_RX_HT(__pdesc)			\
 	SHIFT_AND_MASK_LE(__pdesc + 12, 6, 1)
-#define GET_RX_STATUS_DESC_AMSDU(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc + 12, 7, 1)
 #define GET_RX_STATUS_DESC_SPLCP(__pdesc)			\
 	SHIFT_AND_MASK_LE(__pdesc + 12, 8, 1)
 #define GET_RX_STATUS_DESC_BW(__pdesc)				\
 	SHIFT_AND_MASK_LE(__pdesc + 12, 9, 1)
-#define GET_RX_STATUS_DESC_HTC(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc + 12, 10, 1)
-#define GET_RX_STATUS_DESC_TCP_CHK_RPT(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc + 12, 11, 1)
-#define GET_RX_STATUS_DESC_IP_CHK_RPT(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc + 12, 12, 1)
-#define GET_RX_STATUS_DESC_TCP_CHK_VALID(__pdesc)		\
-	SHIFT_AND_MASK_LE(__pdesc + 12, 13, 1)
-#define GET_RX_STATUS_DESC_HWPC_ERR(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc + 12, 14, 1)
-#define GET_RX_STATUS_DESC_HWPC_IND(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc + 12, 15, 1)
-#define GET_RX_STATUS_DESC_IV0(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc + 12, 16, 16)
-
-/* DWORD 4 */
-#define SET_RX_STATUS_DESC_IV1(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 16, 0, 32, __val)
-#define GET_RX_STATUS_DESC_IV1(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc + 16, 0, 32)
 
 /* DWORD 5 */
-#define SET_RX_STATUS_DESC_TSFL(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc + 20, 0, 32, __val)
 #define GET_RX_STATUS_DESC_TSFL(__pdesc)			\
 	SHIFT_AND_MASK_LE(__pdesc + 20, 0, 32)
 
