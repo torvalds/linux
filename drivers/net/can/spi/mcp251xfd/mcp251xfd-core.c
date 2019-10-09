@@ -2195,8 +2195,10 @@ static irqreturn_t mcp251xfd_irq(int irq, void *dev_id)
 			FIELD_GET(MCP251XFD_REG_INT_IE_MASK,
 				  priv->regs_status.intf);
 
-		if (!(intf_pending))
+		if (!(intf_pending)) {
+			can_rx_offload_irq_finish(&priv->offload);
 			return handled;
+		}
 
 		/* Some interrupts must be ACKed in the
 		 * MCP251XFD_REG_INT register.
@@ -2296,6 +2298,8 @@ static irqreturn_t mcp251xfd_irq(int irq, void *dev_id)
 	} while (1);
 
  out_fail:
+	can_rx_offload_irq_finish(&priv->offload);
+
 	netdev_err(priv->ndev, "IRQ handler returned %d (intf=0x%08x).\n",
 		   err, priv->regs_status.intf);
 	mcp251xfd_dump(priv);

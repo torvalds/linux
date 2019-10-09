@@ -1198,6 +1198,9 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 		}
 	}
 
+	if (handled)
+		can_rx_offload_irq_finish(&priv->offload);
+
 	return handled;
 }
 

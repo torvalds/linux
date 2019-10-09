@@ -1058,6 +1058,9 @@ static irqreturn_t m_can_isr(int irq, void *dev_id)
 		}
 	}
 
+	if (cdev->is_peripheral)
+		can_rx_offload_irq_finish(&cdev->offload);
+
 	return IRQ_HANDLED;
 }
 
