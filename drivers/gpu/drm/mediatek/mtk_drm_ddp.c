@@ -157,6 +157,7 @@ struct mtk_ddp_data {
 	const unsigned int *mutex_sof;
 	const unsigned int mutex_mod_reg;
 	const unsigned int mutex_sof_reg;
+	const bool no_clk;
 };
 
 struct mtk_ddp {
@@ -622,10 +623,14 @@ static int mtk_ddp_probe(struct platform_device *pdev)
 	for (i = 0; i < 10; i++)
 		ddp->mutex[i].id = i;
 
-	ddp->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(ddp->clk)) {
-		dev_err(dev, "Failed to get clock\n");
-		return PTR_ERR(ddp->clk);
+	ddp->data = of_device_get_match_data(dev);
+
+	if (!ddp->data->no_clk) {
+		ddp->clk = devm_clk_get(dev, NULL);
+		if (IS_ERR(ddp->clk)) {
+			dev_err(dev, "Failed to get clock\n");
+			return PTR_ERR(ddp->clk);
+		}
 	}
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -634,8 +639,6 @@ static int mtk_ddp_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to map mutex registers\n");
 		return PTR_ERR(ddp->regs);
 	}
-
-	ddp->data = of_device_get_match_data(dev);
 
 	platform_set_drvdata(pdev, ddp);
 
