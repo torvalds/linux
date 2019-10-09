@@ -345,18 +345,25 @@ static int dw_mci_rockchip_probe(struct platform_device *pdev)
 	const struct dw_mci_drv_data *drv_data;
 	const struct of_device_id *match;
 	int ret;
+	bool use_rpm = true;
 
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
+	if (!device_property_read_bool(&pdev->dev, "non-removable") &&
+	    !device_property_read_bool(&pdev->dev, "cd-gpios"))
+		use_rpm = false;
+
 	match = of_match_node(dw_mci_rockchip_match, pdev->dev.of_node);
 	drv_data = match->data;
 
-	pm_runtime_get_noresume(&pdev->dev);
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
-	pm_runtime_use_autosuspend(&pdev->dev);
+	if (use_rpm) {
+		pm_runtime_get_noresume(&pdev->dev);
+		pm_runtime_set_active(&pdev->dev);
+		pm_runtime_enable(&pdev->dev);
+		pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
+		pm_runtime_use_autosuspend(&pdev->dev);
+	}
 
 	ret = dw_mci_pltfm_register(pdev, drv_data);
 	if (ret) {
@@ -366,7 +373,8 @@ static int dw_mci_rockchip_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pm_runtime_put_autosuspend(&pdev->dev);
+	if (use_rpm)
+		pm_runtime_put_autosuspend(&pdev->dev);
 
 	return 0;
 }
