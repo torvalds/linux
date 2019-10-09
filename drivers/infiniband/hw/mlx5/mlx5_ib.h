@@ -617,10 +617,13 @@ struct mlx5_ib_mr {
 	u64			data_iova;
 	u64			pi_iova;
 
+	/* For ODP and implicit */
 	atomic_t		num_leaf_free;
 	wait_queue_head_t       q_leaf_free;
-	struct mlx5_async_work  cb_work;
 	atomic_t		num_pending_prefetch;
+	struct xarray		implicit_children;
+
+	struct mlx5_async_work  cb_work;
 };
 
 static inline bool is_odp_mr(struct mlx5_ib_mr *mr)

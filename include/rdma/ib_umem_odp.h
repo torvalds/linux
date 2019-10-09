@@ -156,22 +156,6 @@ int rbt_ib_umem_for_each_in_range(struct rb_root_cached *root,
 				  umem_call_back cb,
 				  bool blockable, void *cookie);
 
-/*
- * Find first region intersecting with address range.
- * Return NULL if not found
- */
-static inline struct ib_umem_odp *
-rbt_ib_umem_lookup(struct rb_root_cached *root, u64 addr, u64 length)
-{
-	struct interval_tree_node *node;
-
-	node = interval_tree_iter_first(root, addr, addr + length - 1);
-	if (!node)
-		return NULL;
-	return container_of(node, struct ib_umem_odp, interval_tree);
-
-}
-
 static inline int ib_umem_mmu_notifier_retry(struct ib_umem_odp *umem_odp,
 					     unsigned long mmu_seq)
 {
