@@ -727,6 +727,7 @@ retry:
 	ep->rep_connected = 0;
 	xprt_clear_connected(xprt);
 
+	rpcrdma_reset_cwnd(r_xprt);
 	rpcrdma_post_recvs(r_xprt, true);
 
 	rc = rdma_connect(ia->ri_id, &ep->rep_remote_cma);
@@ -1163,7 +1164,6 @@ int rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 		list_add(&req->rl_list, &buf->rb_send_bufs);
 	}
 
-	buf->rb_credits = 1;
 	init_llist_head(&buf->rb_free_reps);
 
 	rc = rpcrdma_sendctxs_create(r_xprt);

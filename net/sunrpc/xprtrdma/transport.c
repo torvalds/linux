@@ -425,15 +425,6 @@ void xprt_rdma_close(struct rpc_xprt *xprt)
 		return;
 	rpcrdma_ep_disconnect(ep, ia);
 
-	/* Prepare @xprt for the next connection by reinitializing
-	 * its credit grant to one (see RFC 8166, Section 3.3.3).
-	 */
-	spin_lock(&xprt->transport_lock);
-	r_xprt->rx_buf.rb_credits = 1;
-	xprt->cong = 0;
-	xprt->cwnd = RPC_CWNDSHIFT;
-	spin_unlock(&xprt->transport_lock);
-
 out:
 	xprt->reestablish_timeout = 0;
 	++xprt->connect_cookie;

@@ -916,6 +916,40 @@ out_err:
 	return ret;
 }
 
+static void __rpcrdma_update_cwnd_locked(struct rpc_xprt *xprt,
+					 struct rpcrdma_buffer *buf,
+					 u32 grant)
+{
+	buf->rb_credits = grant;
+	xprt->cwnd = grant << RPC_CWNDSHIFT;
+}
+
+static void rpcrdma_update_cwnd(struct rpcrdma_xprt *r_xprt, u32 grant)
+{
+	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
+
+	spin_lock(&xprt->transport_lock);
+	__rpcrdma_update_cwnd_locked(xprt, &r_xprt->rx_buf, grant);
+	spin_unlock(&xprt->transport_lock);
+}
+
+/**
+ * rpcrdma_reset_cwnd - Reset the xprt's congestion window
+ * @r_xprt: controlling transport instance
+ *
+ * Prepare @r_xprt for the next connection by reinitializing
+ * its credit grant to one (see RFC 8166, Section 3.3.3).
+ */
+void rpcrdma_reset_cwnd(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
+
+	spin_lock(&xprt->transport_lock);
+	xprt->cong = 0;
+	__rpcrdma_update_cwnd_locked(xprt, &r_xprt->rx_buf, 1);
+	spin_unlock(&xprt->transport_lock);
+}
+
 /**
  * rpcrdma_inline_fixup - Scatter inline received data into rqst's iovecs
  * @rqst: controlling RPC request
@@ -1356,12 +1390,8 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 		credits = 1;	/* don't deadlock */
 	else if (credits > buf->rb_max_requests)
 		credits = buf->rb_max_requests;
-	if (buf->rb_credits != credits) {
-		spin_lock(&xprt->transport_lock);
-		buf->rb_credits = credits;
-		xprt->cwnd = credits << RPC_CWNDSHIFT;
-		spin_unlock(&xprt->transport_lock);
-	}
+	if (buf->rb_credits != credits)
+		rpcrdma_update_cwnd(r_xprt, credits);
 
 	req = rpcr_to_rdmar(rqst);
 	if (req->rl_reply) {
