@@ -99,34 +99,6 @@ void bch2_pagecache_block_get(struct pagecache_lock *lock)
 	__pagecache_lock_get(lock, -1);
 }
 
-/*
- * I_SIZE_DIRTY requires special handling:
- *
- * To the recovery code, the flag means that there is stale data past i_size
- * that needs to be deleted; it's used for implementing atomic appends and
- * truncates.
- *
- * On append, we set I_SIZE_DIRTY before doing the write, then after the write
- * we clear I_SIZE_DIRTY atomically with updating i_size to the new larger size
- * that exposes the data we just wrote.
- *
- * On truncate, it's the reverse: We set I_SIZE_DIRTY atomically with setting
- * i_size to the new smaller size, then we delete the data that we just made
- * invisible, and then we clear I_SIZE_DIRTY.
- *
- * Because there can be multiple appends in flight at a time, we need a refcount
- * (i_size_dirty_count) instead of manipulating the flag directly. Nonzero
- * refcount means I_SIZE_DIRTY is set, zero means it's cleared.
- *
- * Because write_inode() can be called at any time, i_size_dirty_count means
- * something different to the runtime code - it means to write_inode() "don't
- * update i_size yet".
- *
- * We don't clear I_SIZE_DIRTY directly, we let write_inode() clear it when
- * i_size_dirty_count is zero - but the reverse is not true, I_SIZE_DIRTY must
- * be set explicitly.
- */
-
 void bch2_inode_update_after_write(struct bch_fs *c,
 				   struct bch_inode_info *inode,
 				   struct bch_inode_unpacked *bi,

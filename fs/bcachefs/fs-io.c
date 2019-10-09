@@ -2453,14 +2453,18 @@ static int bch2_truncate_page(struct bch_inode_info *inode, loff_t from)
 				    from, round_up(from, PAGE_SIZE));
 }
 
-static int bch2_extend(struct bch_inode_info *inode, struct iattr *iattr)
+static int bch2_extend(struct bch_inode_info *inode,
+		       struct bch_inode_unpacked *inode_u,
+		       struct iattr *iattr)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct address_space *mapping = inode->v.i_mapping;
 	int ret;
 
-	ret = filemap_write_and_wait_range(mapping,
-			inode->ei_inode.bi_size, S64_MAX);
+	/*
+	 * sync appends:
+	 */
+	ret = filemap_write_and_wait_range(mapping, inode_u->bi_size, S64_MAX);
 	if (ret)
 		return ret;
 
@@ -2501,19 +2505,31 @@ int bch2_truncate(struct bch_inode_info *inode, struct iattr *iattr)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct address_space *mapping = inode->v.i_mapping;
+	struct bch_inode_unpacked inode_u;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	u64 new_i_size = iattr->ia_size;
-	bool shrink;
 	int ret = 0;
 
 	inode_dio_wait(&inode->v);
 	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
 
-	BUG_ON(inode->v.i_size < inode->ei_inode.bi_size);
+	/*
+	 * fetch current on disk i_size: inode is locked, i_size can only
+	 * increase underneath us:
+	 */
+	bch2_trans_init(&trans, c, 0, 0);
+	iter = bch2_inode_peek(&trans, &inode_u, inode->v.i_ino, 0);
+	ret = PTR_ERR_OR_ZERO(iter);
+	bch2_trans_exit(&trans);
 
-	shrink = iattr->ia_size <= inode->v.i_size;
+	if (ret)
+		goto err;
 
-	if (!shrink) {
-		ret = bch2_extend(inode, iattr);
+	BUG_ON(inode->v.i_size < inode_u.bi_size);
+
+	if (iattr->ia_size > inode->v.i_size) {
+		ret = bch2_extend(inode, &inode_u, iattr);
 		goto err;
 	}
 
@@ -2531,9 +2547,9 @@ int bch2_truncate(struct bch_inode_info *inode, struct iattr *iattr)
 	 * userspace has to redirty it and call .mkwrite -> set_page_dirty
 	 * again to allocate the part of the page that was extended.
 	 */
-	if (iattr->ia_size > inode->ei_inode.bi_size)
+	if (iattr->ia_size > inode_u.bi_size)
 		ret = filemap_write_and_wait_range(mapping,
-				inode->ei_inode.bi_size,
+				inode_u.bi_size,
 				iattr->ia_size - 1);
 	else if (iattr->ia_size & (PAGE_SIZE - 1))
 		ret = filemap_write_and_wait_range(mapping,
@@ -2935,33 +2951,49 @@ bkey_err:
 		if (ret)
 			goto err;
 	}
-	bch2_trans_unlock(&trans);
 
-	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
-	    end > inode->v.i_size) {
-		i_size_write(&inode->v, end);
+	/*
+	 * Do we need to extend the file?
+	 *
+	 * If we zeroed up to the end of the file, we dropped whatever writes
+	 * were going to write out the current i_size, so we have to extend
+	 * manually even if FL_KEEP_SIZE was set:
+	 */
+	if (end >= inode->v.i_size &&
+	    (!(mode & FALLOC_FL_KEEP_SIZE) ||
+	     (mode & FALLOC_FL_ZERO_RANGE))) {
+		struct btree_iter *inode_iter;
+		struct bch_inode_unpacked inode_u;
 
-		mutex_lock(&inode->ei_update_lock);
-		ret = bch2_write_inode_size(c, inode, inode->v.i_size, 0);
-		mutex_unlock(&inode->ei_update_lock);
-	}
+		do {
+			bch2_trans_begin(&trans);
+			inode_iter = bch2_inode_peek(&trans, &inode_u,
+						     inode->v.i_ino, 0);
+			ret = PTR_ERR_OR_ZERO(inode_iter);
+		} while (ret == -EINTR);
 
-	/* blech */
-	if ((mode & FALLOC_FL_KEEP_SIZE) &&
-	    (mode & FALLOC_FL_ZERO_RANGE) &&
-	    inode->ei_inode.bi_size != inode->v.i_size) {
-		/* sync appends.. */
-		ret = filemap_write_and_wait_range(mapping,
-					inode->ei_inode.bi_size, S64_MAX);
+		bch2_trans_unlock(&trans);
+
 		if (ret)
 			goto err;
 
-		if (inode->ei_inode.bi_size != inode->v.i_size) {
-			mutex_lock(&inode->ei_update_lock);
-			ret = bch2_write_inode_size(c, inode,
-						    inode->v.i_size, 0);
-			mutex_unlock(&inode->ei_update_lock);
-		}
+		/*
+		 * Sync existing appends before extending i_size,
+		 * as in bch2_extend():
+		 */
+		ret = filemap_write_and_wait_range(mapping,
+					inode_u.bi_size, S64_MAX);
+		if (ret)
+			goto err;
+
+		if (mode & FALLOC_FL_KEEP_SIZE)
+			end = inode->v.i_size;
+		else
+			i_size_write(&inode->v, end);
+
+		mutex_lock(&inode->ei_update_lock);
+		ret = bch2_write_inode_size(c, inode, end, 0);
+		mutex_unlock(&inode->ei_update_lock);
 	}
 err:
 	bch2_trans_exit(&trans);
