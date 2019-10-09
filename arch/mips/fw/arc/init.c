@@ -21,6 +21,11 @@ struct linux_romvec *romvec;
 int prom_argc;
 LONG *_prom_argv, *_prom_envp;
 
+#if defined(CONFIG_64BIT) && defined(CONFIG_FW_ARC32)
+/* stack for calling 32bit ARC prom */
+u64 o32_stk[4096];
+#endif
+
 void __init prom_init(void)
 {
 	PSYSTEM_PARAMETER_BLOCK pb = PROMBLOCK;
