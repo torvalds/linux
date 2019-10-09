@@ -433,13 +433,15 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	if (!IS_ERR(pdata.id_extcon.edev) ||
-	    of_property_read_bool(np, "usb-role-switch"))
-		data->usbmisc_data->ext_id = 1;
+	if (data->usbmisc_data) {
+		if (!IS_ERR(pdata.id_extcon.edev) ||
+		    of_property_read_bool(np, "usb-role-switch"))
+			data->usbmisc_data->ext_id = 1;
 
-	if (!IS_ERR(pdata.vbus_extcon.edev) ||
-	    of_property_read_bool(np, "usb-role-switch"))
-		data->usbmisc_data->ext_vbus = 1;
+		if (!IS_ERR(pdata.vbus_extcon.edev) ||
+		    of_property_read_bool(np, "usb-role-switch"))
+			data->usbmisc_data->ext_vbus = 1;
+	}
 
 	ret = imx_usbmisc_init_post(data->usbmisc_data);
 	if (ret) {
