@@ -360,6 +360,8 @@ config MACH_DECSTATION
 
 config MACH_JAZZ
 	bool "Jazz family of machines"
+	select ARC_MEMORY
+	select ARC_PROMLIB
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select FW_ARC
@@ -632,6 +634,7 @@ config RALINK
 
 config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
+	select ARC_PROMLIB
 	select FW_ARC
 	select FW_ARC32
 	select ARCH_MIGHT_HAVE_PC_SERIO
@@ -700,6 +703,7 @@ config SGI_IP27
 
 config SGI_IP28
 	bool "SGI IP28 (Indigo2 R10k)"
+	select ARC_PROMLIB
 	select FW_ARC
 	select FW_ARC64
 	select ARCH_MIGHT_HAVE_PC_SERIO
@@ -738,6 +742,8 @@ config SGI_IP28
 
 config SGI_IP32
 	bool "SGI IP32 (O2)"
+	select ARC_MEMORY
+	select ARC_PROMLIB
 	select ARCH_HAS_PHYS_TO_DMA
 	select FW_ARC
 	select FW_ARC32
@@ -845,6 +851,8 @@ config SIBYTE_BIGSUR
 
 config SNI_RM
 	bool "SNI RM200/300/400"
+	select ARC_MEMORY
+	select ARC_PROMLIB
 	select FW_ARC if CPU_LITTLE_ENDIAN
 	select FW_ARC32 if CPU_LITTLE_ENDIAN
 	select FW_SNIPROM if CPU_BIG_ENDIAN
@@ -1361,13 +1369,9 @@ config ARC_CONSOLE
 
 config ARC_MEMORY
 	bool
-	depends on MACH_JAZZ || SNI_RM || SGI_IP32
-	default y
 
 config ARC_PROMLIB
 	bool
-	depends on MACH_JAZZ || SNI_RM || SGI_IP22 || SGI_IP28 || SGI_IP32
-	default y
 
 config FW_ARC64
 	bool
