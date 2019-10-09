@@ -377,7 +377,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 			return -ENOMEM;
 		girq->parents[0] = (unsigned)irq_rc->start;
 		girq->default_type = IRQ_TYPE_NONE;
-		girq->handler = handle_simple_irq;
+		girq->handler = handle_bad_irq;
 	}
 
 	ret = devm_gpiochip_add_data(dev, gc, lg);
