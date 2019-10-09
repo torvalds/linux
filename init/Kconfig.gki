@@ -12,6 +12,7 @@ config GKI_HIDDEN_DRM_CONFIGS
 config GKI_HIDDEN_REGMAP_CONFIGS
 	bool "Hidden Regmap configs needed for GKI"
 	select REGMAP_IRQ
+	select REGMAP_MMIO
 	help
 	  Dummy config option used to enable hidden regmap configs.
 	  These are normally selected implicitely when a module
