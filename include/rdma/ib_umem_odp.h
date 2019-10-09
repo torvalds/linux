@@ -78,9 +78,7 @@ struct ib_umem_odp {
 	bool is_implicit_odp;
 
 	struct completion	notifier_completion;
-	int			dying;
 	unsigned int		page_shift;
-	struct work_struct	work;
 };
 
 static inline struct ib_umem_odp *to_ib_umem_odp(struct ib_umem *umem)

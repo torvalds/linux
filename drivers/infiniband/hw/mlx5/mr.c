@@ -1317,7 +1317,7 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	if (is_odp_mr(mr)) {
 		to_ib_umem_odp(mr->umem)->private = mr;
-		atomic_set(&mr->num_pending_prefetch, 0);
+		atomic_set(&mr->num_deferred_work, 0);
 		err = xa_err(xa_store(&dev->odp_mkeys,
 				      mlx5_base_mkey(mr->mmkey.key), &mr->mmkey,
 				      GFP_KERNEL));
@@ -1573,17 +1573,15 @@ static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 		synchronize_srcu(&dev->odp_srcu);
 
 		/* dequeue pending prefetch requests for the mr */
-		if (atomic_read(&mr->num_pending_prefetch))
+		if (atomic_read(&mr->num_deferred_work)) {
 			flush_workqueue(system_unbound_wq);
-		WARN_ON(atomic_read(&mr->num_pending_prefetch));
+			WARN_ON(atomic_read(&mr->num_deferred_work));
+		}
 
 		/* Destroy all page mappings */
-		if (!umem_odp->is_implicit_odp)
-			mlx5_ib_invalidate_range(umem_odp,
-						 ib_umem_start(umem_odp),
-						 ib_umem_end(umem_odp));
-		else
-			mlx5_ib_free_implicit_mr(mr);
+		mlx5_ib_invalidate_range(umem_odp, ib_umem_start(umem_odp),
+					 ib_umem_end(umem_odp));
+
 		/*
 		 * We kill the umem before the MR for ODP,
 		 * so that there will not be any invalidations in
@@ -1618,6 +1616,11 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	if (ibmr->type == IB_MR_TYPE_INTEGRITY) {
 		dereg_mr(to_mdev(mmr->mtt_mr->ibmr.device), mmr->mtt_mr);
 		dereg_mr(to_mdev(mmr->klm_mr->ibmr.device), mmr->klm_mr);
+	}
+
+	if (is_odp_mr(mmr) && to_ib_umem_odp(mmr->umem)->is_implicit_odp) {
+		mlx5_ib_free_implicit_mr(mmr);
+		return 0;
 	}
 
 	dereg_mr(to_mdev(ibmr->device), mmr);

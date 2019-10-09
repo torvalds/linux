@@ -6146,8 +6146,6 @@ static void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
 {
 	mlx5_ib_cleanup_multiport_master(dev);
 	WARN_ON(!xa_empty(&dev->odp_mkeys));
-	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING))
-		srcu_barrier(&dev->odp_srcu);
 	cleanup_srcu_struct(&dev->odp_srcu);
 
 	WARN_ON(!xa_empty(&dev->sig_mrs));

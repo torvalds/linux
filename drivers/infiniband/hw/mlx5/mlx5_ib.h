@@ -618,10 +618,13 @@ struct mlx5_ib_mr {
 	u64			pi_iova;
 
 	/* For ODP and implicit */
-	atomic_t		num_leaf_free;
-	wait_queue_head_t       q_leaf_free;
-	atomic_t		num_pending_prefetch;
+	atomic_t		num_deferred_work;
 	struct xarray		implicit_children;
+	union {
+		struct rcu_head rcu;
+		struct list_head elm;
+		struct work_struct work;
+	} odp_destroy;
 
 	struct mlx5_async_work  cb_work;
 };

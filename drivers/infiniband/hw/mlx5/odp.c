@@ -144,31 +144,79 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
 	}
 }
 
-static void mr_leaf_free_action(struct work_struct *work)
+/*
+ * This must be called after the mr has been removed from implicit_children
+ * and odp_mkeys and the SRCU synchronized.  NOTE: The MR does not necessarily
+ * have to be empty here, parallel page faults could have raced with the free
+ * process and added pages to it.
+ */
+static void free_implicit_child_mr(struct mlx5_ib_mr *mr, bool need_imr_xlt)
 {
-	struct ib_umem_odp *odp = container_of(work, struct ib_umem_odp, work);
-	int idx = ib_umem_start(odp) >> MLX5_IMR_MTT_SHIFT;
-	struct mlx5_ib_mr *mr = odp->private, *imr = mr->parent;
+	struct mlx5_ib_mr *imr = mr->parent;
 	struct ib_umem_odp *odp_imr = to_ib_umem_odp(imr->umem);
+	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
+	unsigned long idx = ib_umem_start(odp) >> MLX5_IMR_MTT_SHIFT;
 	int srcu_key;
 
-	mr->parent = NULL;
-	synchronize_srcu(&mr->dev->odp_srcu);
+	/* implicit_child_mr's are not allowed to have deferred work */
+	WARN_ON(atomic_read(&mr->num_deferred_work));
 
-	if (xa_load(&mr->dev->odp_mkeys, mlx5_base_mkey(imr->mmkey.key))) {
+	if (need_imr_xlt) {
 		srcu_key = srcu_read_lock(&mr->dev->odp_srcu);
 		mutex_lock(&odp_imr->umem_mutex);
-		mlx5_ib_update_xlt(imr, idx, 1, 0,
+		mlx5_ib_update_xlt(mr->parent, idx, 1, 0,
 				   MLX5_IB_UPD_XLT_INDIRECT |
 				   MLX5_IB_UPD_XLT_ATOMIC);
 		mutex_unlock(&odp_imr->umem_mutex);
 		srcu_read_unlock(&mr->dev->odp_srcu, srcu_key);
 	}
-	ib_umem_odp_release(odp);
-	mlx5_mr_cache_free(mr->dev, mr);
 
-	if (atomic_dec_and_test(&imr->num_leaf_free))
-		wake_up(&imr->q_leaf_free);
+	mr->parent = NULL;
+	mlx5_mr_cache_free(mr->dev, mr);
+	ib_umem_odp_release(odp);
+	atomic_dec(&imr->num_deferred_work);
+}
+
+static void free_implicit_child_mr_work(struct work_struct *work)
+{
+	struct mlx5_ib_mr *mr =
+		container_of(work, struct mlx5_ib_mr, odp_destroy.work);
+
+	free_implicit_child_mr(mr, true);
+}
+
+static void free_implicit_child_mr_rcu(struct rcu_head *head)
+{
+	struct mlx5_ib_mr *mr =
+		container_of(head, struct mlx5_ib_mr, odp_destroy.rcu);
+
+	/* Freeing a MR is a sleeping operation, so bounce to a work queue */
+	INIT_WORK(&mr->odp_destroy.work, free_implicit_child_mr_work);
+	queue_work(system_unbound_wq, &mr->odp_destroy.work);
+}
+
+static void destroy_unused_implicit_child_mr(struct mlx5_ib_mr *mr)
+{
+	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
+	unsigned long idx = ib_umem_start(odp) >> MLX5_IMR_MTT_SHIFT;
+	struct mlx5_ib_mr *imr = mr->parent;
+
+	xa_lock(&imr->implicit_children);
+	/*
+	 * This can race with mlx5_ib_free_implicit_mr(), the first one to
+	 * reach the xa lock wins the race and destroys the MR.
+	 */
+	if (__xa_cmpxchg(&imr->implicit_children, idx, mr, NULL, GFP_ATOMIC) !=
+	    mr)
+		goto out_unlock;
+
+	__xa_erase(&mr->dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key));
+	atomic_inc(&imr->num_deferred_work);
+	call_srcu(&mr->dev->odp_srcu, &mr->odp_destroy.rcu,
+		  free_implicit_child_mr_rcu);
+
+out_unlock:
+	xa_unlock(&imr->implicit_children);
 }
 
 void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
@@ -240,15 +288,8 @@ void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
 
 	ib_umem_odp_unmap_dma_pages(umem_odp, start, end);
 
-	if (unlikely(!umem_odp->npages && mr->parent &&
-		     !umem_odp->dying)) {
-		xa_erase(&mr->parent->implicit_children,
-			 ib_umem_start(umem_odp) >> MLX5_IMR_MTT_SHIFT);
-		xa_erase(&mr->dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key));
-		umem_odp->dying = 1;
-		atomic_inc(&mr->parent->num_leaf_free);
-		schedule_work(&umem_odp->work);
-	}
+	if (unlikely(!umem_odp->npages && mr->parent))
+		destroy_unused_implicit_child_mr(mr);
 	mutex_unlock(&umem_odp->umem_mutex);
 }
 
@@ -375,7 +416,6 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	mr->mmkey.iova = idx * MLX5_IMR_MTT_SIZE;
 	mr->parent = imr;
 	odp->private = mr;
-	INIT_WORK(&odp->work, mr_leaf_free_action);
 
 	err = mlx5_ib_update_xlt(mr, 0,
 				 MLX5_IMR_MTT_ENTRIES,
@@ -391,7 +431,11 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	 * Once the store to either xarray completes any error unwind has to
 	 * use synchronize_srcu(). Avoid this with xa_reserve()
 	 */
-	ret = xa_cmpxchg(&imr->implicit_children, idx, NULL, mr, GFP_KERNEL);
+	ret = xa_cmpxchg(&imr->implicit_children, idx, NULL, mr,
+			 GFP_KERNEL);
+	if (likely(!ret))
+		xa_store(&imr->dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key),
+			 &mr->mmkey, GFP_ATOMIC);
 	if (unlikely(ret)) {
 		if (xa_is_err(ret)) {
 			ret = ERR_PTR(xa_err(ret));
@@ -403,9 +447,6 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 		 */
 		goto out_release;
 	}
-
-	xa_store(&imr->dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key),
-		 &mr->mmkey, GFP_ATOMIC);
 
 	mlx5_ib_dbg(imr->dev, "key %x mr %p\n", mr->mmkey.key, mr);
 	return mr;
@@ -445,9 +486,7 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	imr->ibmr.lkey = imr->mmkey.key;
 	imr->ibmr.rkey = imr->mmkey.key;
 	imr->umem = &umem_odp->umem;
-	init_waitqueue_head(&imr->q_leaf_free);
-	atomic_set(&imr->num_leaf_free, 0);
-	atomic_set(&imr->num_pending_prefetch, 0);
+	atomic_set(&imr->num_deferred_work, 0);
 	xa_init(&imr->implicit_children);
 
 	err = mlx5_ib_update_xlt(imr, 0,
@@ -477,35 +516,48 @@ out_umem:
 void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 {
 	struct ib_umem_odp *odp_imr = to_ib_umem_odp(imr->umem);
+	struct mlx5_ib_dev *dev = imr->dev;
+	struct list_head destroy_list;
 	struct mlx5_ib_mr *mtt;
+	struct mlx5_ib_mr *tmp;
 	unsigned long idx;
 
-	mutex_lock(&odp_imr->umem_mutex);
+	INIT_LIST_HEAD(&destroy_list);
+
+	xa_erase(&dev->odp_mkeys, mlx5_base_mkey(imr->mmkey.key));
+	/*
+	 * This stops the SRCU protected page fault path from touching either
+	 * the imr or any children. The page fault path can only reach the
+	 * children xarray via the imr.
+	 */
+	synchronize_srcu(&dev->odp_srcu);
+
+	xa_lock(&imr->implicit_children);
 	xa_for_each (&imr->implicit_children, idx, mtt) {
-		struct ib_umem_odp *umem_odp = to_ib_umem_odp(mtt->umem);
-
-		xa_erase(&imr->implicit_children, idx);
-
-		mutex_lock(&umem_odp->umem_mutex);
-		ib_umem_odp_unmap_dma_pages(umem_odp, ib_umem_start(umem_odp),
-					    ib_umem_end(umem_odp));
-
-		if (umem_odp->dying) {
-			mutex_unlock(&umem_odp->umem_mutex);
-			continue;
-		}
-
-		umem_odp->dying = 1;
-		atomic_inc(&imr->num_leaf_free);
-		schedule_work(&umem_odp->work);
-		mutex_unlock(&umem_odp->umem_mutex);
+		__xa_erase(&imr->implicit_children, idx);
+		__xa_erase(&dev->odp_mkeys, mlx5_base_mkey(mtt->mmkey.key));
+		list_add(&mtt->odp_destroy.elm, &destroy_list);
 	}
-	mutex_unlock(&odp_imr->umem_mutex);
+	xa_unlock(&imr->implicit_children);
 
-	wait_event(imr->q_leaf_free, !atomic_read(&imr->num_leaf_free));
-	WARN_ON(!xa_empty(&imr->implicit_children));
-	/* Remove any left over reserved elements */
-	xa_destroy(&imr->implicit_children);
+	/* Fence access to the child pointers via the pagefault thread */
+	synchronize_srcu(&dev->odp_srcu);
+
+	/*
+	 * num_deferred_work can only be incremented inside the odp_srcu, or
+	 * under xa_lock while the child is in the xarray. Thus at this point
+	 * it is only decreasing, and all work holding it is now on the wq.
+	 */
+	if (atomic_read(&imr->num_deferred_work)) {
+		flush_workqueue(system_unbound_wq);
+		WARN_ON(atomic_read(&imr->num_deferred_work));
+	}
+
+	list_for_each_entry_safe (mtt, tmp, &destroy_list, odp_destroy.elm)
+		free_implicit_child_mr(mtt, false);
+
+	mlx5_mr_cache_free(dev, imr);
+	ib_umem_odp_release(odp_imr);
 }
 
 #define MLX5_PF_FLAGS_DOWNGRADE BIT(1)
@@ -1579,7 +1631,7 @@ static void destroy_prefetch_work(struct prefetch_mr_work *work)
 	u32 i;
 
 	for (i = 0; i < work->num_sge; ++i)
-		atomic_dec(&work->frags[i].mr->num_pending_prefetch);
+		atomic_dec(&work->frags[i].mr->num_deferred_work);
 	kvfree(work);
 }
 
@@ -1658,7 +1710,7 @@ static bool init_prefetch_work(struct ib_pd *pd,
 		}
 
 		/* Keep the MR pointer will valid outside the SRCU */
-		atomic_inc(&work->frags[i].mr->num_pending_prefetch);
+		atomic_inc(&work->frags[i].mr->num_deferred_work);
 	}
 	work->num_sge = num_sge;
 	return true;
