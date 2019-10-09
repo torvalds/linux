@@ -174,9 +174,9 @@ static int srp_tmo_get(char *buffer, const struct kernel_param *kp)
 	int tmo = *(int *)kp->arg;
 
 	if (tmo >= 0)
-		return sprintf(buffer, "%d", tmo);
+		return sprintf(buffer, "%d\n", tmo);
 	else
-		return sprintf(buffer, "off");
+		return sprintf(buffer, "off\n");
 }
 
 static int srp_tmo_set(const char *val, const struct kernel_param *kp)
