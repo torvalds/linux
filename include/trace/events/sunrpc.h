@@ -777,6 +777,99 @@ TRACE_EVENT(xprt_ping,
 			__get_str(addr), __get_str(port), __entry->status)
 );
 
+DECLARE_EVENT_CLASS(xprt_writelock_event,
+	TP_PROTO(
+		const struct rpc_xprt *xprt, const struct rpc_task *task
+	),
+
+	TP_ARGS(xprt, task),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(unsigned int, snd_task_id)
+	),
+
+	TP_fast_assign(
+		if (task) {
+			__entry->task_id = task->tk_pid;
+			__entry->client_id = task->tk_client ?
+					     task->tk_client->cl_clid : -1;
+		} else {
+			__entry->task_id = -1;
+			__entry->client_id = -1;
+		}
+		__entry->snd_task_id = xprt->snd_task ?
+					xprt->snd_task->tk_pid : -1;
+	),
+
+	TP_printk("task:%u@%u snd_task:%u",
+			__entry->task_id, __entry->client_id,
+			__entry->snd_task_id)
+);
+
+#define DEFINE_WRITELOCK_EVENT(name) \
+	DEFINE_EVENT(xprt_writelock_event, xprt_##name, \
+			TP_PROTO( \
+				const struct rpc_xprt *xprt, \
+				const struct rpc_task *task \
+			), \
+			TP_ARGS(xprt, task))
+
+DEFINE_WRITELOCK_EVENT(reserve_xprt);
+DEFINE_WRITELOCK_EVENT(release_xprt);
+
+DECLARE_EVENT_CLASS(xprt_cong_event,
+	TP_PROTO(
+		const struct rpc_xprt *xprt, const struct rpc_task *task
+	),
+
+	TP_ARGS(xprt, task),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(unsigned int, snd_task_id)
+		__field(unsigned long, cong)
+		__field(unsigned long, cwnd)
+		__field(bool, wait)
+	),
+
+	TP_fast_assign(
+		if (task) {
+			__entry->task_id = task->tk_pid;
+			__entry->client_id = task->tk_client ?
+					     task->tk_client->cl_clid : -1;
+		} else {
+			__entry->task_id = -1;
+			__entry->client_id = -1;
+		}
+		__entry->snd_task_id = xprt->snd_task ?
+					xprt->snd_task->tk_pid : -1;
+		__entry->cong = xprt->cong;
+		__entry->cwnd = xprt->cwnd;
+		__entry->wait = test_bit(XPRT_CWND_WAIT, &xprt->state);
+	),
+
+	TP_printk("task:%u@%u snd_task:%u cong=%lu cwnd=%lu%s",
+			__entry->task_id, __entry->client_id,
+			__entry->snd_task_id, __entry->cong, __entry->cwnd,
+			__entry->wait ? " (wait)" : "")
+);
+
+#define DEFINE_CONG_EVENT(name) \
+	DEFINE_EVENT(xprt_cong_event, xprt_##name, \
+			TP_PROTO( \
+				const struct rpc_xprt *xprt, \
+				const struct rpc_task *task \
+			), \
+			TP_ARGS(xprt, task))
+
+DEFINE_CONG_EVENT(reserve_cong);
+DEFINE_CONG_EVENT(release_cong);
+DEFINE_CONG_EVENT(get_cong);
+DEFINE_CONG_EVENT(put_cong);
+
 TRACE_EVENT(xs_stream_read_data,
 	TP_PROTO(struct rpc_xprt *xprt, ssize_t err, size_t total),
 
