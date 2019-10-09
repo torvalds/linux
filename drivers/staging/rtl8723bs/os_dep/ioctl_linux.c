@@ -2430,7 +2430,8 @@ static int rtw_get_ap_info(struct net_device *dev,
                                union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
-	u32 cnt = 0, wpa_ielen;
+	int wpa_ielen;
+	u32 cnt = 0;
 	struct list_head	*plist, *phead;
 	unsigned char *pbuf;
 	u8 bssid[ETH_ALEN];
