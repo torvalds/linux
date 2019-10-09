@@ -1440,6 +1440,14 @@ struct bkey_s_c bch2_btree_iter_next(struct btree_iter *iter)
 		return bch2_btree_iter_peek(iter);
 	}
 
+	if (unlikely(bkey_deleted(&iter->k))) {
+		/*
+		 * we're currently pointed at a hole, because previously we were
+		 * iterating over slots:
+		 */
+		return bch2_btree_iter_peek(iter);
+	}
+
 	do {
 		bch2_btree_node_iter_advance(&l->iter, l->b);
 		p = bch2_btree_node_iter_peek_all(&l->iter, l->b);
