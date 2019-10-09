@@ -1147,6 +1147,33 @@ struct ice_aqc_set_port_id_led {
 	u8 rsvd[13];
 };
 
+/* Read/Write SFF EEPROM command (indirect 0x06EE) */
+struct ice_aqc_sff_eeprom {
+	u8 lport_num;
+	u8 lport_num_valid;
+#define ICE_AQC_SFF_PORT_NUM_VALID	BIT(0)
+	__le16 i2c_bus_addr;
+#define ICE_AQC_SFF_I2CBUS_7BIT_M	0x7F
+#define ICE_AQC_SFF_I2CBUS_10BIT_M	0x3FF
+#define ICE_AQC_SFF_I2CBUS_TYPE_M	BIT(10)
+#define ICE_AQC_SFF_I2CBUS_TYPE_7BIT	0
+#define ICE_AQC_SFF_I2CBUS_TYPE_10BIT	ICE_AQC_SFF_I2CBUS_TYPE_M
+#define ICE_AQC_SFF_SET_EEPROM_PAGE_S	11
+#define ICE_AQC_SFF_SET_EEPROM_PAGE_M	(0x3 << ICE_AQC_SFF_SET_EEPROM_PAGE_S)
+#define ICE_AQC_SFF_NO_PAGE_CHANGE	0
+#define ICE_AQC_SFF_SET_23_ON_MISMATCH	1
+#define ICE_AQC_SFF_SET_22_ON_MISMATCH	2
+#define ICE_AQC_SFF_IS_WRITE		BIT(15)
+	__le16 i2c_mem_addr;
+	__le16 eeprom_page;
+#define  ICE_AQC_SFF_EEPROM_BANK_S 0
+#define  ICE_AQC_SFF_EEPROM_BANK_M (0xFF << ICE_AQC_SFF_EEPROM_BANK_S)
+#define  ICE_AQC_SFF_EEPROM_PAGE_S 8
+#define  ICE_AQC_SFF_EEPROM_PAGE_M (0xFF << ICE_AQC_SFF_EEPROM_PAGE_S)
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
 /* NVM Read command (indirect 0x0701)
  * NVM Erase commands (direct 0x0702)
  * NVM Update commands (indirect 0x0703)
@@ -1618,6 +1645,7 @@ struct ice_aq_desc {
 		struct ice_aqc_get_phy_caps get_phy;
 		struct ice_aqc_set_phy_cfg set_phy;
 		struct ice_aqc_restart_an restart_an;
+		struct ice_aqc_sff_eeprom read_write_sff_param;
 		struct ice_aqc_set_port_id_led set_port_id_led;
 		struct ice_aqc_get_sw_cfg get_sw_conf;
 		struct ice_aqc_sw_rules sw_rules;
@@ -1741,6 +1769,7 @@ enum ice_adminq_opc {
 	ice_aqc_opc_set_event_mask			= 0x0613,
 	ice_aqc_opc_set_mac_lb				= 0x0620,
 	ice_aqc_opc_set_port_id_led			= 0x06E9,
+	ice_aqc_opc_sff_eeprom				= 0x06EE,
 
 	/* NVM commands */
 	ice_aqc_opc_nvm_read				= 0x0701,
