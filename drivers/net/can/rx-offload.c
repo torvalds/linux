@@ -207,8 +207,10 @@ int can_rx_offload_queue_sorted(struct can_rx_offload *offload,
 	unsigned long flags;
 
 	if (skb_queue_len(&offload->skb_queue) >
-	    offload->skb_queue_len_max)
-		return -ENOMEM;
+	    offload->skb_queue_len_max) {
+		kfree_skb(skb);
+		return -ENOBUFS;
+	}
 
 	cb = can_rx_offload_get_cb(skb);
 	cb->timestamp = timestamp;
