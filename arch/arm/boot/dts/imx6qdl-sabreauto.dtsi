@@ -177,6 +177,8 @@
 			accelerometer@1c {
 				compatible = "fsl,mma8451";
 				reg = <0x1c>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_mma8451_int>;
 				interrupt-parent = <&gpio6>;
 				interrupts = <31 IRQ_TYPE_LEVEL_LOW>;
 			};
@@ -519,6 +521,12 @@
 		pinctrl_max7310: max7310grp {
 			fsl,pins = <
 				MX6QDL_PAD_SD2_DAT0__GPIO1_IO15 0x1b0b0
+			>;
+		};
+
+		pinctrl_mma8451_int: mma8451intgrp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_BCLK__GPIO6_IO31		0xb0b1
 			>;
 		};
 
