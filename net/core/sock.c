@@ -974,7 +974,7 @@ set_rcvbuf:
 		if (sock->ops->set_rcvlowat)
 			ret = sock->ops->set_rcvlowat(sk, val);
 		else
-			sk->sk_rcvlowat = val ? : 1;
+			WRITE_ONCE(sk->sk_rcvlowat, val ? : 1);
 		break;
 
 	case SO_RCVTIMEO_OLD:

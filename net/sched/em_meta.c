@@ -554,7 +554,7 @@ META_COLLECTOR(int_sk_rcvlowat)
 		*err = -1;
 		return;
 	}
-	dst->value = sk->sk_rcvlowat;
+	dst->value = READ_ONCE(sk->sk_rcvlowat);
 }
 
 META_COLLECTOR(int_sk_rcvtimeo)

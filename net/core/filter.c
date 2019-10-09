@@ -4274,7 +4274,7 @@ BPF_CALL_5(bpf_setsockopt, struct bpf_sock_ops_kern *, bpf_sock,
 		case SO_RCVLOWAT:
 			if (val < 0)
 				val = INT_MAX;
-			sk->sk_rcvlowat = val ? : 1;
+			WRITE_ONCE(sk->sk_rcvlowat, val ? : 1);
 			break;
 		case SO_MARK:
 			if (sk->sk_mark != val) {

@@ -2271,7 +2271,9 @@ static inline long sock_sndtimeo(const struct sock *sk, bool noblock)
 
 static inline int sock_rcvlowat(const struct sock *sk, int waitall, int len)
 {
-	return (waitall ? len : min_t(int, sk->sk_rcvlowat, len)) ? : 1;
+	int v = waitall ? len : min_t(int, READ_ONCE(sk->sk_rcvlowat), len);
+
+	return v ?: 1;
 }
 
 /* Alas, with timeout socket operations are not restartable.
