@@ -1063,7 +1063,8 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 		}
 	}
 
-	update_replicas(c, fs_usage, &r.e, dirty_sectors);
+	if (r.e.nr_devs)
+		update_replicas(c, fs_usage, &r.e, dirty_sectors);
 
 	return 0;
 }
