@@ -477,6 +477,34 @@ size_t strarrays__scnprintf(struct strarrays *sas, char *bf, size_t size, const 
 	return printed;
 }
 
+bool strarray__strtoul(struct strarray *sa, char *bf, size_t size, u64 *ret)
+{
+	int i;
+
+	for (i = 0; i < sa->nr_entries; ++i) {
+		if (sa->entries[i] && strncmp(sa->entries[i], bf, size) == 0 && sa->entries[i][size] == '\0') {
+			*ret = sa->offset + i;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool strarrays__strtoul(struct strarrays *sas, char *bf, size_t size, u64 *ret)
+{
+	int i;
+
+	for (i = 0; i < sas->nr_entries; ++i) {
+		struct strarray *sa = sas->entries[i];
+
+		if (strarray__strtoul(sa, bf, size, ret))
+			return true;
+	}
+
+	return false;
+}
+
 size_t syscall_arg__scnprintf_strarrays(char *bf, size_t size,
 					struct syscall_arg *arg)
 {

@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
 struct strarray {
 	u64	    offset;
@@ -29,6 +30,8 @@ struct strarray {
 size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, bool show_prefix, int val);
 size_t strarray__scnprintf_flags(struct strarray *sa, char *bf, size_t size, bool show_prefix, unsigned long flags);
 
+bool strarray__strtoul(struct strarray *sa, char *bf, size_t size, u64 *ret);
+
 struct trace;
 struct thread;
 
@@ -50,6 +53,8 @@ struct strarrays {
 }
 
 size_t strarrays__scnprintf(struct strarrays *sas, char *bf, size_t size, const char *intfmt, bool show_prefix, int val);
+
+bool strarrays__strtoul(struct strarrays *sas, char *bf, size_t size, u64 *ret);
 
 size_t pid__scnprintf_fd(struct trace *trace, pid_t pid, int fd, char *bf, size_t size);
 
