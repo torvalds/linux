@@ -1560,6 +1560,7 @@ static void clean_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 					  mr->sig->psv_wire.psv_idx))
 			mlx5_ib_warn(dev, "failed to destroy wire psv %d\n",
 				     mr->sig->psv_wire.psv_idx);
+		xa_erase(&dev->sig_mrs, mlx5_base_mkey(mr->mmkey.key));
 		kfree(mr->sig);
 		mr->sig = NULL;
 	}
@@ -1797,8 +1798,15 @@ static int mlx5_alloc_integrity_descs(struct ib_pd *pd, struct mlx5_ib_mr *mr,
 	if (err)
 		goto err_free_mtt_mr;
 
+	err = xa_err(xa_store(&dev->sig_mrs, mlx5_base_mkey(mr->mmkey.key),
+			      mr->sig, GFP_KERNEL));
+	if (err)
+		goto err_free_descs;
 	return 0;
 
+err_free_descs:
+	destroy_mkey(dev, mr);
+	mlx5_free_priv_descs(mr);
 err_free_mtt_mr:
 	dereg_mr(to_mdev(mr->mtt_mr->ibmr.device), mr->mtt_mr);
 	mr->mtt_mr = NULL;
