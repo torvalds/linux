@@ -63,24 +63,6 @@ int ftrace_arch_code_modify_post_process(void)
 	return 0;
 }
 
-union ftrace_code_union {
-	char code[MCOUNT_INSN_SIZE];
-	struct {
-		char op;
-		int offset;
-	} __attribute__((packed));
-};
-
-static const char *ftrace_text_replace(char op, unsigned long ip, unsigned long addr)
-{
-	static union ftrace_code_union calc;
-
-	calc.op = op;
-	calc.offset = (int)(addr - (ip + MCOUNT_INSN_SIZE));
-
-	return calc.code;
-}
-
 static const char *ftrace_nop_replace(void)
 {
 	return ideal_nops[NOP_ATOMIC5];
@@ -88,7 +70,7 @@ static const char *ftrace_nop_replace(void)
 
 static const char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 {
-	return ftrace_text_replace(CALL_INSN_OPCODE, ip, addr);
+	return text_gen_insn(CALL_INSN_OPCODE, (void *)ip, (void *)addr);
 }
 
 static int ftrace_verify_code(unsigned long ip, const char *old_code)
@@ -480,20 +462,20 @@ void arch_ftrace_update_trampoline(struct ftrace_ops *ops)
 /* Return the address of the function the trampoline calls */
 static void *addr_from_call(void *ptr)
 {
-	union ftrace_code_union calc;
+	union text_poke_insn call;
 	int ret;
 
-	ret = probe_kernel_read(&calc, ptr, MCOUNT_INSN_SIZE);
+	ret = probe_kernel_read(&call, ptr, CALL_INSN_SIZE);
 	if (WARN_ON_ONCE(ret < 0))
 		return NULL;
 
 	/* Make sure this is a call */
-	if (WARN_ON_ONCE(calc.op != 0xe8)) {
-		pr_warn("Expected e8, got %x\n", calc.op);
+	if (WARN_ON_ONCE(call.opcode != CALL_INSN_OPCODE)) {
+		pr_warn("Expected E8, got %x\n", call.opcode);
 		return NULL;
 	}
 
-	return ptr + MCOUNT_INSN_SIZE + calc.offset;
+	return ptr + CALL_INSN_SIZE + call.disp;
 }
 
 void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
@@ -562,7 +544,7 @@ extern void ftrace_graph_call(void);
 
 static const char *ftrace_jmp_replace(unsigned long ip, unsigned long addr)
 {
-	return ftrace_text_replace(JMP32_INSN_OPCODE, ip, addr);
+	return text_gen_insn(JMP32_INSN_OPCODE, (void *)ip, (void *)addr);
 }
 
 static int ftrace_mod_jmp(unsigned long ip, void *func)

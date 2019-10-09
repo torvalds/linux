@@ -80,7 +80,35 @@ static inline int text_opcode_size(u8 opcode)
 	return size;
 }
 
-extern void *text_gen_insn(u8 opcode, const void *addr, const void *dest);
+union text_poke_insn {
+	u8 text[POKE_MAX_OPCODE_SIZE];
+	struct {
+		u8 opcode;
+		s32 disp;
+	} __attribute__((packed));
+};
+
+static __always_inline
+void *text_gen_insn(u8 opcode, const void *addr, const void *dest)
+{
+	static union text_poke_insn insn; /* per instance */
+	int size = text_opcode_size(opcode);
+
+	insn.opcode = opcode;
+
+	if (size > 1) {
+		insn.disp = (long)dest - (long)(addr + size);
+		if (size == 2) {
+			/*
+			 * Ensure that for JMP9 the displacement
+			 * actually fits the signed byte.
+			 */
+			BUG_ON((insn.disp >> 31) != (insn.disp >> 7));
+		}
+	}
+
+	return &insn.text;
+}
 
 extern int after_bootmem;
 extern __ro_after_init struct mm_struct *poking_mm;
