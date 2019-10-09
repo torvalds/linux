@@ -312,31 +312,28 @@ cpcap_battery_read_accumulated(struct cpcap_battery_ddata *ddata,
 static int cpcap_battery_cc_get_avg_current(struct cpcap_battery_ddata *ddata)
 {
 	int value, acc, error;
-	s32 sample = 1;
+	s32 sample;
 	s16 offset;
-
-	if (ddata->vendor == CPCAP_VENDOR_ST)
-		sample = 4;
 
 	/* Coulomb counter integrator */
 	error = regmap_read(ddata->reg, CPCAP_REG_CCI, &value);
 	if (error)
 		return error;
 
-	if ((ddata->vendor == CPCAP_VENDOR_TI) && (value > 0x2000))
-		value = value | 0xc000;
+	if (ddata->vendor == CPCAP_VENDOR_TI) {
+		acc = sign_extend32(value, 13);
+		sample = 1;
+	} else {
+		acc = (s16)value;
+		sample = 4;
+	}
 
-	acc = (s16)value;
-
-	/* Coulomb counter sample time */
+	/* Coulomb counter calibration offset  */
 	error = regmap_read(ddata->reg, CPCAP_REG_CCM, &value);
 	if (error)
 		return error;
 
-	if (value < 0x200)
-		offset = value;
-	else
-		offset = value | 0xfc00;
+	offset = sign_extend32(value, 9);
 
 	return cpcap_battery_cc_to_ua(ddata, sample, acc, offset);
 }
