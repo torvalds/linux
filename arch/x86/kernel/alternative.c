@@ -1259,21 +1259,11 @@ union text_poke_insn {
 void *text_gen_insn(u8 opcode, const void *addr, const void *dest)
 {
 	static union text_poke_insn insn; /* text_mutex */
-	int size = 0;
+	int size = text_opcode_size(opcode);
 
 	lockdep_assert_held(&text_mutex);
 
 	insn.opcode = opcode;
-
-#define __CASE(insn)	\
-	case insn##_INSN_OPCODE: size = insn##_INSN_SIZE; break
-
-	switch(opcode) {
-	__CASE(INT3);
-	__CASE(CALL);
-	__CASE(JMP32);
-	__CASE(JMP8);
-	}
 
 	if (size > 1) {
 		insn.disp = (long)dest - (long)(addr + size);
