@@ -37,6 +37,15 @@ config GKI_HIDDEN_GPIO_CONFIGS
 	  These are normally selected implicitely when a module
 	  that relies on it is configured.
 
+config GKI_HIDDEN_QCOM_CONFIGS
+	bool "Hidden QCOM configs needed for GKI"
+	select QCOM_SMEM_STATE
+	help
+	  Dummy config option used to enable hidden QCOM configs.
+	  These are normally selected implicitely when a module
+	  that relies on it is configured.
+
+
 # LEGACY_WEXT_ALLCONFIG Discussed upstream, soundly rejected as a unique
 # problem for GKI to solve.  It should be noted that these extensions are
 # in-effect deprecated and generally unsupported and we should pressure
@@ -69,6 +78,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_REGMAP_CONFIGS
 	select GKI_HIDDEN_SND_SOC_CONFIGS
 	select GKI_HIDDEN_GPIO_CONFIGS
+	select GKI_HIDDEN_QCOM_CONFIGS
 	select GKI_LEGACY_WEXT_ALLCONFIG
 	help
 	  Dummy config option used to enable core functionality used by
