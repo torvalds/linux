@@ -211,9 +211,11 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 			struct mlx5_ib_mr *mtt = odp->private;
 
 			pklm->key = cpu_to_be32(mtt->ibmr.lkey);
+			pklm->va = cpu_to_be64(va);
 			odp = odp_next(odp);
 		} else {
 			pklm->key = cpu_to_be32(dev->null_mkey);
+			pklm->va = 0;
 		}
 		mlx5_ib_dbg(dev, "[%d] va %lx key %x\n",
 			    i, va, be32_to_cpu(pklm->key));
@@ -446,7 +448,7 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	mr->umem = &odp->umem;
 	mr->ibmr.lkey = mr->mmkey.key;
 	mr->ibmr.rkey = mr->mmkey.key;
-	mr->mmkey.iova = 0;
+	mr->mmkey.iova = idx * MLX5_IMR_MTT_SIZE;
 	mr->parent = imr;
 	odp->private = mr;
 	INIT_WORK(&odp->work, mr_leaf_free_action);
@@ -462,7 +464,6 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 		goto out_release;
 	}
 
-	mr->mmkey.iova = idx * MLX5_IMR_MTT_SIZE;
 	xa_store(&imr->dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key),
 		 &mr->mmkey, GFP_ATOMIC);
 
