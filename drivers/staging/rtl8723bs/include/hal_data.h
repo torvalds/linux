@@ -440,27 +440,6 @@ struct hal_com_data {
 	u32 		SysIntrStatus;
 	u32 		SysIntrMask;
 
-
-	char para_file_buf[MAX_PARA_FILE_BUF_LEN];
-	char *mac_reg;
-	u32 mac_reg_len;
-	char *bb_phy_reg;
-	u32 bb_phy_reg_len;
-	char *bb_agc_tab;
-	u32 bb_agc_tab_len;
-	char *bb_phy_reg_pg;
-	u32 bb_phy_reg_pg_len;
-	char *bb_phy_reg_mp;
-	u32 bb_phy_reg_mp_len;
-	char *rf_radio_a;
-	u32 rf_radio_a_len;
-	char *rf_radio_b;
-	u32 rf_radio_b_len;
-	char *rf_tx_pwr_track;
-	u32 rf_tx_pwr_track_len;
-	char *rf_tx_pwr_lmt;
-	u32 rf_tx_pwr_lmt_len;
-
 #ifdef CONFIG_BACKGROUND_NOISE_MONITOR
 	s16 noise[ODM_MAX_CHANNEL_NUM];
 #endif
