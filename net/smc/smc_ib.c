@@ -242,8 +242,12 @@ static void smc_ib_port_event_work(struct work_struct *work)
 	for_each_set_bit(port_idx, &smcibdev->port_event_mask, SMC_MAX_PORTS) {
 		smc_ib_remember_port_attr(smcibdev, port_idx + 1);
 		clear_bit(port_idx, &smcibdev->port_event_mask);
-		if (!smc_ib_port_active(smcibdev, port_idx + 1))
+		if (!smc_ib_port_active(smcibdev, port_idx + 1)) {
+			set_bit(port_idx, smcibdev->ports_going_away);
 			smc_port_terminate(smcibdev, port_idx + 1);
+		} else {
+			clear_bit(port_idx, smcibdev->ports_going_away);
+		}
 	}
 }
 
@@ -259,8 +263,10 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 	switch (ibevent->event) {
 	case IB_EVENT_DEVICE_FATAL:
 		/* terminate all ports on device */
-		for (port_idx = 0; port_idx < SMC_MAX_PORTS; port_idx++)
+		for (port_idx = 0; port_idx < SMC_MAX_PORTS; port_idx++) {
 			set_bit(port_idx, &smcibdev->port_event_mask);
+			set_bit(port_idx, smcibdev->ports_going_away);
+		}
 		schedule_work(&smcibdev->port_event_work);
 		break;
 	case IB_EVENT_PORT_ERR:
@@ -269,6 +275,10 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 		port_idx = ibevent->element.port_num - 1;
 		if (port_idx < SMC_MAX_PORTS) {
 			set_bit(port_idx, &smcibdev->port_event_mask);
+			if (ibevent->event == IB_EVENT_PORT_ERR)
+				set_bit(port_idx, smcibdev->ports_going_away);
+			else if (ibevent->event == IB_EVENT_PORT_ACTIVE)
+				clear_bit(port_idx, smcibdev->ports_going_away);
 			schedule_work(&smcibdev->port_event_work);
 		}
 		break;
@@ -307,6 +317,7 @@ static void smc_ib_qp_event_handler(struct ib_event *ibevent, void *priv)
 		port_idx = ibevent->element.qp->port - 1;
 		if (port_idx < SMC_MAX_PORTS) {
 			set_bit(port_idx, &smcibdev->port_event_mask);
+			set_bit(port_idx, smcibdev->ports_going_away);
 			schedule_work(&smcibdev->port_event_work);
 		}
 		break;

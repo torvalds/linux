@@ -77,6 +77,7 @@ struct smcd_dev {
 	bool pnetid_by_user;
 	struct list_head lgr_list;
 	spinlock_t lgr_lock;
+	u8 going_away : 1;
 };
 
 struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,

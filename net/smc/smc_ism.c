@@ -315,6 +315,7 @@ void smcd_unregister_dev(struct smcd_dev *smcd)
 	spin_lock(&smcd_dev_list.lock);
 	list_del(&smcd->list);
 	spin_unlock(&smcd_dev_list.lock);
+	smcd->going_away = 1;
 	flush_workqueue(smcd->event_wq);
 	destroy_workqueue(smcd->event_wq);
 	smc_smcd_terminate(smcd, 0, VLAN_VID_MASK);
@@ -344,6 +345,8 @@ void smcd_handle_event(struct smcd_dev *smcd, struct smcd_event *event)
 {
 	struct smc_ism_event_work *wrk;
 
+	if (smcd->going_away)
+		return;
 	/* copy event to event work queue, and let it be handled there */
 	wrk = kmalloc(sizeof(*wrk), GFP_ATOMIC);
 	if (!wrk)

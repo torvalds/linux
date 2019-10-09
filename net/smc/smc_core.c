@@ -1060,12 +1060,35 @@ int smc_rmb_rtoken_handling(struct smc_connection *conn,
 	return 0;
 }
 
+static void smc_core_going_away(void)
+{
+	struct smc_ib_device *smcibdev;
+	struct smcd_dev *smcd;
+
+	spin_lock(&smc_ib_devices.lock);
+	list_for_each_entry(smcibdev, &smc_ib_devices.list, list) {
+		int i;
+
+		for (i = 0; i < SMC_MAX_PORTS; i++)
+			set_bit(i, smcibdev->ports_going_away);
+	}
+	spin_unlock(&smc_ib_devices.lock);
+
+	spin_lock(&smcd_dev_list.lock);
+	list_for_each_entry(smcd, &smcd_dev_list.list, list) {
+		smcd->going_away = 1;
+	}
+	spin_unlock(&smcd_dev_list.lock);
+}
+
 /* Called (from smc_exit) when module is removed */
 void smc_core_exit(void)
 {
 	struct smc_link_group *lgr, *lg;
 	LIST_HEAD(lgr_freeing_list);
 	struct smcd_dev *smcd;
+
+	smc_core_going_away();
 
 	spin_lock_bh(&smc_lgr_list.lock);
 	list_splice_init(&smc_lgr_list.list, &lgr_freeing_list);
