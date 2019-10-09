@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/dts-v1/;
+
+#include "motorola-mapphone-common.dtsi"
+
+/ {
+	model = "Motorola Droid Bionic XT875";
+	compatible = "motorola,droid-bionic", "ti,omap4430", "ti,omap4";
+};
