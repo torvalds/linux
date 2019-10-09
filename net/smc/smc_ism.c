@@ -287,6 +287,7 @@ struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
 
 	spin_lock_init(&smcd->lock);
 	INIT_LIST_HEAD(&smcd->vlan);
+	INIT_LIST_HEAD(&smcd->lgr_list);
 	smcd->event_wq = alloc_ordered_workqueue("ism_evt_wq-%s)",
 						 WQ_MEM_RECLAIM, name);
 	if (!smcd->event_wq) {
