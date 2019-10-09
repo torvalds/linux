@@ -263,7 +263,7 @@ static int live_parallel_switch(void *arg)
 	if (!data) {
 		i915_gem_context_unlock_engines(ctx);
 		err = -ENOMEM;
-		goto out;
+		goto out_file;
 	}
 
 	m = 0; /* Use the first context as our template for the engines */
