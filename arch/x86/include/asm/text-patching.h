@@ -61,6 +61,8 @@ extern void text_poke_finish(void);
 #define JMP8_INSN_SIZE		2
 #define JMP8_INSN_OPCODE	0xEB
 
+#define DISP32_SIZE		4
+
 static inline int text_opcode_size(u8 opcode)
 {
 	int size = 0;

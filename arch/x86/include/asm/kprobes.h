@@ -11,12 +11,11 @@
 
 #include <asm-generic/kprobes.h>
 
-#define BREAKPOINT_INSTRUCTION	0xcc
-
 #ifdef CONFIG_KPROBES
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
+#include <asm/text-patching.h>
 #include <asm/insn.h>
 
 #define  __ARCH_WANT_KPROBES_INSN_SLOT
@@ -25,10 +24,7 @@ struct pt_regs;
 struct kprobe;
 
 typedef u8 kprobe_opcode_t;
-#define RELATIVEJUMP_OPCODE 0xe9
-#define RELATIVEJUMP_SIZE 5
-#define RELATIVECALL_OPCODE 0xe8
-#define RELATIVE_ADDR_SIZE 4
+
 #define MAX_STACK_SIZE 64
 #define CUR_STACK_SIZE(ADDR) \
 	(current_top_of_stack() - (unsigned long)(ADDR))
@@ -43,11 +39,11 @@ extern __visible kprobe_opcode_t optprobe_template_entry[];
 extern __visible kprobe_opcode_t optprobe_template_val[];
 extern __visible kprobe_opcode_t optprobe_template_call[];
 extern __visible kprobe_opcode_t optprobe_template_end[];
-#define MAX_OPTIMIZED_LENGTH (MAX_INSN_SIZE + RELATIVE_ADDR_SIZE)
+#define MAX_OPTIMIZED_LENGTH (MAX_INSN_SIZE + DISP32_SIZE)
 #define MAX_OPTINSN_SIZE 				\
 	(((unsigned long)optprobe_template_end -	\
 	  (unsigned long)optprobe_template_entry) +	\
-	 MAX_OPTIMIZED_LENGTH + RELATIVEJUMP_SIZE)
+	 MAX_OPTIMIZED_LENGTH + JMP32_INSN_SIZE)
 
 extern const int kretprobe_blacklist_size;
 
@@ -73,7 +69,7 @@ struct arch_specific_insn {
 
 struct arch_optimized_insn {
 	/* copy of the original instructions */
-	kprobe_opcode_t copied_insn[RELATIVE_ADDR_SIZE];
+	kprobe_opcode_t copied_insn[DISP32_SIZE];
 	/* detour code buffer */
 	kprobe_opcode_t *insn;
 	/* the size of instructions copied to detour code buffer */
