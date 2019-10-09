@@ -484,6 +484,13 @@ static int sprd_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin_id,
 			       SLEEP_PULL_UP_MASK) << 16;
 			arg |= (reg >> PULL_UP_SHIFT) & PULL_UP_MASK;
 			break;
+		case PIN_CONFIG_BIAS_DISABLE:
+			if ((reg & (SLEEP_PULL_DOWN | SLEEP_PULL_UP)) ||
+			    (reg & (PULL_DOWN | PULL_UP_4_7K | PULL_UP_20K)))
+				return -EINVAL;
+
+			arg = 1;
+			break;
 		case PIN_CONFIG_SLEEP_HARDWARE_STATE:
 			arg = 0;
 			break;
@@ -672,6 +679,16 @@ static int sprd_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin_id,
 
 					mask = PULL_UP_MASK;
 					shift = PULL_UP_SHIFT;
+				}
+				break;
+			case PIN_CONFIG_BIAS_DISABLE:
+				if (is_sleep_config == true) {
+					val = shift = 0;
+					mask = SLEEP_PULL_DOWN | SLEEP_PULL_UP;
+				} else {
+					val = shift = 0;
+					mask = PULL_DOWN | PULL_UP_20K |
+						PULL_UP_4_7K;
 				}
 				break;
 			case PIN_CONFIG_SLEEP_HARDWARE_STATE:
