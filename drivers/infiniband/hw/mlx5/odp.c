@@ -419,68 +419,6 @@ out_umem:
 	return ret;
 }
 
-static struct mlx5_ib_mr *implicit_mr_get_data(struct mlx5_ib_mr *imr,
-						u64 io_virt, size_t bcnt)
-{
-	struct ib_umem_odp *odp_imr = to_ib_umem_odp(imr->umem);
-	unsigned long end_idx = (io_virt + bcnt - 1) >> MLX5_IMR_MTT_SHIFT;
-	unsigned long idx = io_virt >> MLX5_IMR_MTT_SHIFT;
-	unsigned long inv_start_idx = end_idx + 1;
-	unsigned long inv_len = 0;
-	struct mlx5_ib_mr *result = NULL;
-	int ret;
-
-	lockdep_assert_held(&imr->dev->odp_srcu);
-
-	for (idx = idx; idx <= end_idx; idx++) {
-		struct mlx5_ib_mr *mtt = xa_load(&imr->implicit_children, idx);
-
-		if (unlikely(!mtt)) {
-			mtt = implicit_get_child_mr(imr, idx);
-			if (IS_ERR(mtt)) {
-				result = mtt;
-				goto out;
-			}
-			inv_start_idx = min(inv_start_idx, idx);
-			inv_len = idx - inv_start_idx + 1;
-		}
-
-		/* Return first odp if region not covered by single one */
-		if (likely(!result))
-			result = mtt;
-	}
-
-	/*
-	 * Any time the implicit_children are changed we must perform an
-	 * update of the xlt before exiting to ensure the HW and the
-	 * implicit_children remains synchronized.
-	 */
-out:
-	if (likely(!inv_len))
-		return result;
-
-	/*
-	 * Notice this is not strictly ordered right, the KSM is updated after
-	 * the implicit_leaves is updated, so a parallel page fault could see
-	 * a MR that is not yet visible in the KSM.  This is similar to a
-	 * parallel page fault seeing a MR that is being concurrently removed
-	 * from the KSM. Both of these improbable situations are resolved
-	 * safely by resuming the HW and then taking another page fault. The
-	 * next pagefault handler will see the new information.
-	 */
-	mutex_lock(&odp_imr->umem_mutex);
-	ret = mlx5_ib_update_xlt(imr, inv_start_idx, inv_len, 0,
-				 MLX5_IB_UPD_XLT_INDIRECT |
-					 MLX5_IB_UPD_XLT_ATOMIC);
-	mutex_unlock(&odp_imr->umem_mutex);
-	if (ret) {
-		mlx5_ib_err(to_mdev(imr->ibmr.pd->device),
-			    "Failed to update PAS\n");
-		return ERR_PTR(ret);
-	}
-	return result;
-}
-
 struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 					     struct ib_udata *udata,
 					     int access_flags)
@@ -647,6 +585,84 @@ out:
 	return ret;
 }
 
+static int pagefault_implicit_mr(struct mlx5_ib_mr *imr,
+				 struct ib_umem_odp *odp_imr, u64 user_va,
+				 size_t bcnt, u32 *bytes_mapped, u32 flags)
+{
+	unsigned long end_idx = (user_va + bcnt - 1) >> MLX5_IMR_MTT_SHIFT;
+	unsigned long upd_start_idx = end_idx + 1;
+	unsigned long upd_len = 0;
+	unsigned long npages = 0;
+	int err;
+	int ret;
+
+	if (unlikely(user_va >= mlx5_imr_ksm_entries * MLX5_IMR_MTT_SIZE ||
+		     mlx5_imr_ksm_entries * MLX5_IMR_MTT_SIZE - user_va < bcnt))
+		return -EFAULT;
+
+	/* Fault each child mr that intersects with our interval. */
+	while (bcnt) {
+		unsigned long idx = user_va >> MLX5_IMR_MTT_SHIFT;
+		struct ib_umem_odp *umem_odp;
+		struct mlx5_ib_mr *mtt;
+		u64 len;
+
+		mtt = xa_load(&imr->implicit_children, idx);
+		if (unlikely(!mtt)) {
+			mtt = implicit_get_child_mr(imr, idx);
+			if (IS_ERR(mtt)) {
+				ret = PTR_ERR(mtt);
+				goto out;
+			}
+			upd_start_idx = min(upd_start_idx, idx);
+			upd_len = idx - upd_start_idx + 1;
+		}
+
+		umem_odp = to_ib_umem_odp(mtt->umem);
+		len = min_t(u64, user_va + bcnt, ib_umem_end(umem_odp)) -
+		      user_va;
+
+		ret = pagefault_real_mr(mtt, umem_odp, user_va, len,
+					bytes_mapped, flags);
+		if (ret < 0)
+			goto out;
+		user_va += len;
+		bcnt -= len;
+		npages += ret;
+	}
+
+	ret = npages;
+
+	/*
+	 * Any time the implicit_children are changed we must perform an
+	 * update of the xlt before exiting to ensure the HW and the
+	 * implicit_children remains synchronized.
+	 */
+out:
+	if (likely(!upd_len))
+		return ret;
+
+	/*
+	 * Notice this is not strictly ordered right, the KSM is updated after
+	 * the implicit_children is updated, so a parallel page fault could
+	 * see a MR that is not yet visible in the KSM.  This is similar to a
+	 * parallel page fault seeing a MR that is being concurrently removed
+	 * from the KSM. Both of these improbable situations are resolved
+	 * safely by resuming the HW and then taking another page fault. The
+	 * next pagefault handler will see the new information.
+	 */
+	mutex_lock(&odp_imr->umem_mutex);
+	err = mlx5_ib_update_xlt(imr, upd_start_idx, upd_len, 0,
+				 MLX5_IB_UPD_XLT_INDIRECT |
+					 MLX5_IB_UPD_XLT_ATOMIC);
+	mutex_unlock(&odp_imr->umem_mutex);
+	if (err) {
+		mlx5_ib_err(imr->dev, "Failed to update PAS\n");
+		return err;
+	}
+	return ret;
+}
+
 /*
  * Returns:
  *  -EFAULT: The io_virt->bcnt is not within the MR, it covers pages that are
@@ -660,8 +676,6 @@ static int pagefault_mr(struct mlx5_ib_mr *mr, u64 io_virt, size_t bcnt,
 			u32 *bytes_mapped, u32 flags)
 {
 	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
-	struct mlx5_ib_mr *mtt;
-	int npages = 0;
 
 	if (!odp->is_implicit_odp) {
 		if (unlikely(io_virt < ib_umem_start(odp) ||
@@ -670,48 +684,8 @@ static int pagefault_mr(struct mlx5_ib_mr *mr, u64 io_virt, size_t bcnt,
 		return pagefault_real_mr(mr, odp, io_virt, bcnt, bytes_mapped,
 					 flags);
 	}
-
-	if (unlikely(io_virt >= mlx5_imr_ksm_entries * MLX5_IMR_MTT_SIZE ||
-		     mlx5_imr_ksm_entries * MLX5_IMR_MTT_SIZE - io_virt < bcnt))
-		return -EFAULT;
-
-	mtt = implicit_mr_get_data(mr, io_virt, bcnt);
-	if (IS_ERR(mtt))
-		return PTR_ERR(mtt);
-
-	/* Fault each child mr that intersects with our interval. */
-	while (bcnt) {
-		struct ib_umem_odp *umem_odp = to_ib_umem_odp(mtt->umem);
-		u64 end = min_t(u64, io_virt + bcnt, ib_umem_end(umem_odp));
-		u64 len = end - io_virt;
-		int ret;
-
-		ret = pagefault_real_mr(mtt, umem_odp, io_virt, len,
-					bytes_mapped, flags);
-		if (ret < 0)
-			return ret;
-		io_virt += len;
-		bcnt -= len;
-		npages += ret;
-
-		if (unlikely(bcnt)) {
-			mtt = xa_load(&mr->implicit_children,
-				      io_virt >> MLX5_IMR_MTT_SHIFT);
-
-			/*
-			 * implicit_mr_get_data sets up all the leaves, this
-			 * means they got invalidated before we got to them.
-			 */
-			if (!mtt) {
-				mlx5_ib_dbg(
-					mr->dev,
-					"next implicit leaf removed at 0x%llx.\n",
-					io_virt);
-				return -EAGAIN;
-			}
-		}
-	}
-	return npages;
+	return pagefault_implicit_mr(mr, odp, io_virt, bcnt, bytes_mapped,
+				     flags);
 }
 
 struct pf_frame {
