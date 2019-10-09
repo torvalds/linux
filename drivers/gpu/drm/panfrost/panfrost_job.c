@@ -404,8 +404,6 @@ static void panfrost_job_timedout(struct drm_sched_job *sched_job)
 	}
 	spin_unlock_irqrestore(&pfdev->js->job_lock, flags);
 
-	/* panfrost_core_dump(pfdev); */
-
 	panfrost_devfreq_record_transition(pfdev, js);
 	panfrost_device_reset(pfdev);
 
