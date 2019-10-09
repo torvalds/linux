@@ -542,7 +542,7 @@ reserve_space(struct vchiq_state *state, size_t space, int is_blocking)
 	if (space > slot_space) {
 		struct vchiq_header *header;
 		/* Fill the remaining space with padding */
-		WARN_ON(state->tx_data == NULL);
+		WARN_ON(!state->tx_data);
 		header = (struct vchiq_header *)
 			(state->tx_data + (tx_pos & VCHIQ_SLOT_MASK));
 		header->msgid = VCHIQ_MSGID_PADDING;
@@ -3575,7 +3575,7 @@ void vchiq_log_dump_mem(const char *label, u32 addr, const void *void_mem,
 		}
 		*s++ = '\0';
 
-		if ((label != NULL) && (*label != '\0'))
+		if (label && (*label != '\0'))
 			vchiq_log_trace(VCHIQ_LOG_TRACE,
 				"%s: %08x: %s", label, addr, line_buf);
 		else

@@ -628,7 +628,7 @@ int32_t vchi_service_open(VCHI_INSTANCE_T instance_handle,
 		}
 	}
 
-	return (service != NULL) ? 0 : -1;
+	return service ? 0 : -1;
 }
 EXPORT_SYMBOL(vchi_service_open);
 
