@@ -135,11 +135,6 @@ static inline int mt312_writereg(struct mt312_state *state,
 	return mt312_write(state, reg, &tmp, 1);
 }
 
-static inline u32 mt312_div(u32 a, u32 b)
-{
-	return (a + (b / 2)) / b;
-}
-
 static int mt312_reset(struct mt312_state *state, const u8 full)
 {
 	return mt312_writereg(state, RESET, full ? 0x80 : 0x40);
@@ -187,7 +182,7 @@ static int mt312_get_symbol_rate(struct mt312_state *state, u32 *sr)
 		monitor = (buf[0] << 8) | buf[1];
 
 		dprintk("sr(auto) = %u\n",
-		       mt312_div(monitor * 15625, 4));
+			DIV_ROUND_CLOSEST(monitor * 15625, 4));
 	} else {
 		ret = mt312_writereg(state, MON_CTRL, 0x05);
 		if (ret < 0)
@@ -291,10 +286,10 @@ static int mt312_initfe(struct dvb_frontend *fe)
 	}
 
 	/* SYS_CLK */
-	buf[0] = mt312_div(state->xtal * state->freq_mult * 2, 1000000);
+	buf[0] = DIV_ROUND_CLOSEST(state->xtal * state->freq_mult * 2, 1000000);
 
 	/* DISEQC_RATIO */
-	buf[1] = mt312_div(state->xtal, 22000 * 4);
+	buf[1] = DIV_ROUND_CLOSEST(state->xtal, 22000 * 4);
 
 	ret = mt312_write(state, SYS_CLK, buf, sizeof(buf));
 	if (ret < 0)
@@ -610,7 +605,7 @@ static int mt312_set_frontend(struct dvb_frontend *fe)
 	}
 
 	/* sr = (u16)(sr * 256.0 / 1000000.0) */
-	sr = mt312_div(p->symbol_rate * 4, 15625);
+	sr = DIV_ROUND_CLOSEST(p->symbol_rate * 4, 15625);
 
 	/* SYM_RATE */
 	buf[0] = (sr >> 8) & 0x3f;
