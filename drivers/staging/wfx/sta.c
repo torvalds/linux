@@ -266,7 +266,7 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 		dev_err(wvif->wdev->dev, "update filtering failed: %d\n", ret);
 }
 
-void wfx_update_filtering_work(struct work_struct *work)
+static void wfx_update_filtering_work(struct work_struct *work)
 {
 	struct wfx_vif *wvif = container_of(work, struct wfx_vif, update_filtering_work);
 
@@ -472,7 +472,7 @@ static void wfx_event_report_rssi(struct wfx_vif *wvif, uint8_t raw_rcpi_rssi)
 	ieee80211_cqm_rssi_notify(wvif->vif, cqm_evt, rcpi_rssi, GFP_KERNEL);
 }
 
-void wfx_event_handler_work(struct work_struct *work)
+static void wfx_event_handler_work(struct work_struct *work)
 {
 	struct wfx_vif *wvif =
 		container_of(work, struct wfx_vif, event_handler_work);
@@ -518,14 +518,14 @@ void wfx_event_handler_work(struct work_struct *work)
 	__wfx_free_event_queue(&list);
 }
 
-void wfx_bss_loss_work(struct work_struct *work)
+static void wfx_bss_loss_work(struct work_struct *work)
 {
 	struct wfx_vif *wvif = container_of(work, struct wfx_vif, bss_loss_work.work);
 
 	ieee80211_connection_loss(wvif->vif);
 }
 
-void wfx_bss_params_work(struct work_struct *work)
+static void wfx_bss_params_work(struct work_struct *work)
 {
 	struct wfx_vif *wvif = container_of(work, struct wfx_vif, bss_params_work);
 
@@ -536,7 +536,7 @@ void wfx_bss_params_work(struct work_struct *work)
 	mutex_unlock(&wvif->wdev->conf_mutex);
 }
 
-void wfx_set_beacon_wakeup_period_work(struct work_struct *work)
+static void wfx_set_beacon_wakeup_period_work(struct work_struct *work)
 {
 	struct wfx_vif *wvif = container_of(work, struct wfx_vif, set_beacon_wakeup_period_work);
 
@@ -729,7 +729,7 @@ done_put:
 		cfg80211_put_bss(wvif->wdev->hw->wiphy, bss);
 }
 
-void wfx_unjoin_work(struct work_struct *work)
+static void wfx_unjoin_work(struct work_struct *work)
 {
 	struct wfx_vif *wvif = container_of(work, struct wfx_vif, unjoin_work);
 
@@ -791,7 +791,7 @@ int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return 0;
 }
 
-void wfx_set_cts_work(struct work_struct *work)
+static void wfx_set_cts_work(struct work_struct *work)
 {
 	struct wfx_vif *wvif = container_of(work, struct wfx_vif, set_cts_work);
 	u8 erp_ie[3] = { WLAN_EID_ERP_INFO, 1, 0 };
@@ -1231,7 +1231,7 @@ static int wfx_set_tim_impl(struct wfx_vif *wvif, bool aid0_bit_set)
 	return 0;
 }
 
-void wfx_set_tim_work(struct work_struct *work)
+static void wfx_set_tim_work(struct work_struct *work)
 {
 	struct wfx_vif *wvif = container_of(work, struct wfx_vif, set_tim_work);
 
