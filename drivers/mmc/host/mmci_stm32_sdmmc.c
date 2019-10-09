@@ -25,8 +25,8 @@ struct sdmmc_priv {
 	void *sg_cpu;
 };
 
-int sdmmc_idma_validate_data(struct mmci_host *host,
-			     struct mmc_data *data)
+static int sdmmc_idma_validate_data(struct mmci_host *host,
+				    struct mmc_data *data)
 {
 	struct scatterlist *sg;
 	int i;
