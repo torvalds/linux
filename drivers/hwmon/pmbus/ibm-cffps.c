@@ -3,6 +3,7 @@
  * Copyright 2017 IBM Corp.
  */
 
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
@@ -28,6 +29,10 @@
 
 #define CFFPS_INPUT_HISTORY_CMD			0xD6
 #define CFFPS_INPUT_HISTORY_SIZE		100
+
+#define CFFPS_CCIN_VERSION			GENMASK(15, 8)
+#define CFFPS_CCIN_VERSION_1			 0x2b
+#define CFFPS_CCIN_VERSION_2			 0x2e
 
 /* STATUS_MFR_SPECIFIC bits */
 #define CFFPS_MFR_FAN_FAULT			BIT(0)
@@ -58,7 +63,7 @@ enum {
 	CFFPS_DEBUGFS_NUM_ENTRIES
 };
 
-enum versions { cffps1, cffps2 };
+enum versions { cffps1, cffps2, cffps_unknown };
 
 struct ibm_cffps_input_history {
 	struct mutex update_lock;
@@ -408,7 +413,7 @@ static int ibm_cffps_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
 	int i, rc;
-	enum versions vs;
+	enum versions vs = cffps_unknown;
 	struct dentry *debugfs;
 	struct dentry *ibm_cffps_dir;
 	struct ibm_cffps *psu;
@@ -418,8 +423,27 @@ static int ibm_cffps_probe(struct i2c_client *client,
 		vs = (enum versions)md;
 	else if (id)
 		vs = (enum versions)id->driver_data;
-	else
-		vs = cffps1;
+
+	if (vs == cffps_unknown) {
+		u16 ccin_version = CFFPS_CCIN_VERSION_1;
+		int ccin = i2c_smbus_read_word_swapped(client, CFFPS_CCIN_CMD);
+
+		if (ccin > 0)
+			ccin_version = FIELD_GET(CFFPS_CCIN_VERSION, ccin);
+
+		switch (ccin_version) {
+		default:
+		case CFFPS_CCIN_VERSION_1:
+			vs = cffps1;
+			break;
+		case CFFPS_CCIN_VERSION_2:
+			vs = cffps2;
+			break;
+		}
+
+		/* Set the client name to include the version number. */
+		snprintf(client->name, I2C_NAME_SIZE, "cffps%d", vs + 1);
+	}
 
 	client->dev.platform_data = &ibm_cffps_pdata;
 	rc = pmbus_do_probe(client, id, &ibm_cffps_info[vs]);
@@ -478,6 +502,7 @@ static int ibm_cffps_probe(struct i2c_client *client,
 static const struct i2c_device_id ibm_cffps_id[] = {
 	{ "ibm_cffps1", cffps1 },
 	{ "ibm_cffps2", cffps2 },
+	{ "ibm_cffps", cffps_unknown },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ibm_cffps_id);
@@ -490,6 +515,10 @@ static const struct of_device_id ibm_cffps_of_match[] = {
 	{
 		.compatible = "ibm,cffps2",
 		.data = (void *)cffps2
+	},
+	{
+		.compatible = "ibm,cffps",
+		.data = (void *)cffps_unknown
 	},
 	{}
 };
