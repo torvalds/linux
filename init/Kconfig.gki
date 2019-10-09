@@ -28,6 +28,14 @@ config GKI_HIDDEN_SND_SOC_CONFIGS
 	  These are normally selected implicitely when a module
 	  that relies on it is configured.
 
+config GKI_HIDDEN_MMC_CONFIGS
+	bool "Hidden MMC configs needed for GKI"
+	select MMC_SDHCI_IO_ACCESSORS if (MMC_SDHCI)
+	help
+	  Dummy config option used to enable hidden MMC configs.
+	  These are normally selected implicitely when a module
+	  that relies on it is configured.
+
 config GKI_HIDDEN_GPIO_CONFIGS
 	bool "Hidden GPIO configs needed for GKI"
 	select PINCTRL_SINGLE if (PINCTRL && OF && HAS_IOMEM)
@@ -77,6 +85,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_DRM_CONFIGS
 	select GKI_HIDDEN_REGMAP_CONFIGS
 	select GKI_HIDDEN_SND_SOC_CONFIGS
+	select GKI_HIDDEN_MMC_CONFIGS
 	select GKI_HIDDEN_GPIO_CONFIGS
 	select GKI_HIDDEN_QCOM_CONFIGS
 	select GKI_LEGACY_WEXT_ALLCONFIG
