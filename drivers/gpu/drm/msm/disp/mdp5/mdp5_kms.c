@@ -461,13 +461,10 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 {
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
-	const struct mdp5_cfg_hw *hw_cfg;
 	unsigned int num_crtcs;
 	int i, ret, pi = 0, ci = 0;
 	struct drm_plane *primary[MAX_BASES] = { NULL };
 	struct drm_plane *cursor[MAX_BASES] = { NULL };
-
-	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
 	/*
 	 * Construct encoders and modeset initialize connector devices
