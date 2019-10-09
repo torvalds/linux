@@ -33,6 +33,30 @@ struct wa_lists {
 	} engine[I915_NUM_ENGINES];
 };
 
+static int request_add_sync(struct i915_request *rq, int err)
+{
+	i915_request_get(rq);
+	i915_request_add(rq);
+	if (i915_request_wait(rq, 0, HZ / 5) < 0)
+		err = -EIO;
+	i915_request_put(rq);
+
+	return err;
+}
+
+static int request_add_spin(struct i915_request *rq, struct igt_spinner *spin)
+{
+	int err = 0;
+
+	i915_request_get(rq);
+	i915_request_add(rq);
+	if (spin && !igt_wait_for_spinner(spin, rq))
+		err = -ETIMEDOUT;
+	i915_request_put(rq);
+
+	return err;
+}
+
 static void
 reference_lists_init(struct drm_i915_private *i915, struct wa_lists *lists)
 {
@@ -243,7 +267,6 @@ switch_to_scratch_context(struct intel_engine_cs *engine,
 	struct i915_gem_context *ctx;
 	struct intel_context *ce;
 	struct i915_request *rq;
-	intel_wakeref_t wakeref;
 	int err = 0;
 
 	ctx = kernel_context(engine->i915);
@@ -255,9 +278,7 @@ switch_to_scratch_context(struct intel_engine_cs *engine,
 	ce = i915_gem_context_get_engine(ctx, engine->legacy_idx);
 	GEM_BUG_ON(IS_ERR(ce));
 
-	rq = ERR_PTR(-ENODEV);
-	with_intel_runtime_pm(engine->uncore->rpm, wakeref)
-		rq = igt_spinner_create_request(spin, ce, MI_NOOP);
+	rq = igt_spinner_create_request(spin, ce, MI_NOOP);
 
 	intel_context_put(ce);
 
@@ -267,13 +288,7 @@ switch_to_scratch_context(struct intel_engine_cs *engine,
 		goto err;
 	}
 
-	i915_request_add(rq);
-
-	if (spin && !igt_wait_for_spinner(spin, rq)) {
-		pr_err("Spinner failed to start\n");
-		err = -ETIMEDOUT;
-	}
-
+	err = request_add_spin(rq, spin);
 err:
 	if (err && spin)
 		igt_spinner_end(spin);
@@ -586,15 +601,11 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 			goto err_request;
 
 err_request:
-		i915_request_add(rq);
-		if (err)
-			goto out_batch;
-
-		if (i915_request_wait(rq, 0, HZ / 5) < 0) {
+		err = request_add_sync(rq, err);
+		if (err) {
 			pr_err("%s: Futzing %x timedout; cancelling test\n",
 			       engine->name, reg);
 			intel_gt_set_wedged(&ctx->i915->gt);
-			err = -EIO;
 			goto out_batch;
 		}
 
@@ -697,7 +708,6 @@ static int live_dirty_whitelist(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
-	intel_wakeref_t wakeref;
 	struct drm_file *file;
 	int err = 0;
 
@@ -706,13 +716,9 @@ static int live_dirty_whitelist(void *arg)
 	if (INTEL_GEN(i915) < 7) /* minimum requirement for LRI, SRM, LRM */
 		return 0;
 
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-
 	file = mock_file(i915);
-	if (IS_ERR(file)) {
-		err = PTR_ERR(file);
-		goto out_rpm;
-	}
+	if (IS_ERR(file))
+		return PTR_ERR(file);
 
 	ctx = live_context(i915, file);
 	if (IS_ERR(ctx)) {
@@ -731,8 +737,6 @@ static int live_dirty_whitelist(void *arg)
 
 out_file:
 	mock_file_free(i915, file);
-out_rpm:
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	return err;
 }
 
@@ -807,12 +811,7 @@ static int read_whitelisted_registers(struct i915_gem_context *ctx,
 	intel_ring_advance(rq, cs);
 
 err_req:
-	i915_request_add(rq);
-
-	if (i915_request_wait(rq, 0, HZ / 5) < 0)
-		err = -EIO;
-
-	return err;
+	return request_add_sync(rq, err);
 }
 
 static int scrub_whitelisted_registers(struct i915_gem_context *ctx,
@@ -872,9 +871,7 @@ static int scrub_whitelisted_registers(struct i915_gem_context *ctx,
 	err = engine->emit_bb_start(rq, batch->node.start, 0, 0);
 
 err_request:
-	i915_request_add(rq);
-	if (i915_request_wait(rq, 0, HZ / 5) < 0)
-		err = -EIO;
+	err = request_add_sync(rq, err);
 
 err_unpin:
 	i915_gem_object_unpin_map(batch->obj);
@@ -1229,12 +1226,10 @@ live_engine_reset_workarounds(void *arg)
 			goto err;
 		}
 
-		i915_request_add(rq);
-
-		if (!igt_wait_for_spinner(&spin, rq)) {
+		ret = request_add_spin(rq, &spin);
+		if (ret) {
 			pr_err("Spinner failed to start\n");
 			igt_spinner_fini(&spin);
-			ret = -ETIMEDOUT;
 			goto err;
 		}
 
