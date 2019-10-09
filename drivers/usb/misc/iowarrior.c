@@ -54,9 +54,6 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-/* Module parameters */
-static DEFINE_MUTEX(iowarrior_mutex);
-
 static struct usb_driver iowarrior_driver;
 
 /*--------------*/
@@ -480,8 +477,6 @@ static long iowarrior_ioctl(struct file *file, unsigned int cmd,
 	if (!buffer)
 		return -ENOMEM;
 
-	/* lock this object */
-	mutex_lock(&iowarrior_mutex);
 	mutex_lock(&dev->mutex);
 
 	/* verify that the device wasn't unplugged */
@@ -574,7 +569,6 @@ static long iowarrior_ioctl(struct file *file, unsigned int cmd,
 error_out:
 	/* unlock the device */
 	mutex_unlock(&dev->mutex);
-	mutex_unlock(&iowarrior_mutex);
 	kfree(buffer);
 	return retval;
 }
@@ -589,22 +583,18 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 	int subminor;
 	int retval = 0;
 
-	mutex_lock(&iowarrior_mutex);
 	subminor = iminor(inode);
 
 	interface = usb_find_interface(&iowarrior_driver, subminor);
 	if (!interface) {
-		mutex_unlock(&iowarrior_mutex);
 		printk(KERN_ERR "%s - error, can't find device for minor %d\n",
 		       __func__, subminor);
 		return -ENODEV;
 	}
 
 	dev = usb_get_intfdata(interface);
-	if (!dev) {
-		mutex_unlock(&iowarrior_mutex);
+	if (!dev)
 		return -ENODEV;
-	}
 
 	mutex_lock(&dev->mutex);
 
@@ -628,7 +618,6 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 
 out:
 	mutex_unlock(&dev->mutex);
-	mutex_unlock(&iowarrior_mutex);
 	return retval;
 }
 
