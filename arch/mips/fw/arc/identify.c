@@ -87,6 +87,11 @@ const char *get_system_type(void)
 	return system_type;
 }
 
+static pcomponent * __init ArcGetChild(pcomponent *Current)
+{
+	return (pcomponent *) ARC_CALL1(child_component, Current);
+}
+
 void __init prom_identify_arch(void)
 {
 	pcomponent *p;
