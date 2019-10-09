@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * pinctrl-tegra-io-pad.h: Tegra I/O pad source voltage configuration constants
  * pinctrl bindings.

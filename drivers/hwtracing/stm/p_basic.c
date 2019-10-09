@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Basic framing protocol for STM devices.
  * Copyright (c) 2018, Intel Corporation.

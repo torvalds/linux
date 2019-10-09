@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifdef __NR_semop
 DO_TEST(semop, __NR_semop)
 #endif

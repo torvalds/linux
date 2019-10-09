@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 sun4i-backend-y			+= sun4i_backend.o sun4i_layer.o
 sun4i-frontend-y		+= sun4i_frontend.o
 

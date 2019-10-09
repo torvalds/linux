@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 # Handles creation and destruction of IP-in-IP or GRE tunnels over the given
 # topology. Supports both flat and hierarchical models.

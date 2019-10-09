@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __PPC_FSL_SOC_H
 #define __PPC_FSL_SOC_H
 #ifdef __KERNEL__

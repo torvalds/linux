@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR CDDL-1.0) */
+/* SPDX-License-Identifier: (GPL-2.0-only OR CDDL-1.0) */
 /* Copyright (C) 2010-2016 Oracle Corporation */
 
 #ifndef __VBOXGUEST_CORE_H__

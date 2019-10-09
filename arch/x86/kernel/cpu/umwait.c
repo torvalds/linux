@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/syscore_ops.h>
 #include <linux/suspend.h>
 #include <linux/cpu.h>

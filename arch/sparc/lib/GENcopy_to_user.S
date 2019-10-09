@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* GENcopy_to_user.S: Generic sparc64 copy to userspace.
  *
  * Copyright (C) 2007 David S. Miller (davem@davemloft.net)

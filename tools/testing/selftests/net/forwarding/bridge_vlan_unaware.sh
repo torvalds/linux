@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 ALL_TESTS="ping_ipv4 ping_ipv6 learning flooding"
 NUM_NETIFS=4

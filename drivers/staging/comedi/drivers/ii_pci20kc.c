@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ii_pci20kc.c
  * Driver for Intelligent Instruments PCI-20001C carrier board and modules.

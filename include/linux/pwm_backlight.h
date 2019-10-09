@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Generic PWM backlight driver data - see drivers/video/backlight/pwm_bl.c
  */

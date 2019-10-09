@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Broadcom Corporation
  * Copyright (C) 2015 Hauke Mehrtens <hauke@hauke-m.de>

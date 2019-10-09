@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PCIe host controller driver for NWL PCIe Bridge
  * Based on pcie-xilinx.c, pci-tegra.c

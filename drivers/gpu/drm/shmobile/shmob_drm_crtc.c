@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * shmob_drm_crtc.c  --  SH Mobile DRM CRTCs
  *

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // ir-rc5-decoder.c - decoder for RC5(x) and StreamZap protocols
 //
 // Copyright (C) 2010 by Mauro Carvalho Chehab

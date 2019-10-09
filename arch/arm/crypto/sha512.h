@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 int sha512_arm_update(struct shash_desc *desc, const u8 *data,
 		      unsigned int len);

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 1996, 1997, 1998 Hans Reiser, see reiserfs/README for
  * licensing and copyright details

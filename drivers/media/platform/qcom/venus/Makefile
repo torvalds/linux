@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Makefile for Qualcomm Venus driver
 
 venus-core-objs += core.o helpers.o firmware.o \

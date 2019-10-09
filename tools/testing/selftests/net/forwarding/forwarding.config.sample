@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 ##############################################################################
 # Topology description. p1 looped back to p2, p3 to p4 and so on.

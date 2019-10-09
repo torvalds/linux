@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LINUX_SPI_SPI_OC_TINY_H
 #define _LINUX_SPI_SPI_OC_TINY_H
 

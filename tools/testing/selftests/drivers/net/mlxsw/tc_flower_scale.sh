@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 # Test for resource limit of offloaded flower rules. The test adds a given
 # number of flower matches for different IPv6 addresses, then generates traffic,

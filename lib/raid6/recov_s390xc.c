@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RAID-6 data recovery in dual failure mode based on the XC instruction.
  *

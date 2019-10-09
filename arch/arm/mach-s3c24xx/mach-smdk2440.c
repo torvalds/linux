@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // linux/arch/arm/mach-s3c2440/mach-smdk2440.c
 //
 // Copyright (c) 2004-2005 Simtec Electronics

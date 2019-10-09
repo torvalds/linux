@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <linux/compiler_types.h>
 #include <linux/errno.h>

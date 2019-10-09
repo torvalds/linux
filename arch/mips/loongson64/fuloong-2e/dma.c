@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/dma-direct.h>
 
 dma_addr_t __phys_to_dma(struct device *dev, phys_addr_t paddr)

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * fs/verity/verify.c: data verification functions, i.e. hooks for ->readpages()
  *

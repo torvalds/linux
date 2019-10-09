@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * host.c - DesignWare USB3 DRD Controller Host Glue
  *

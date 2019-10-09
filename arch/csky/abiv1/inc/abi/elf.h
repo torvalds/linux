@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __ABI_CSKY_ELF_H
 #define __ABI_CSKY_ELF_H

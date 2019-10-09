@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2000  Ani Joshi <ajoshi@unixbox.com>
  * Copyright (C) 2000, 2001, 06	 Ralf Baechle <ralf@linux-mips.org>

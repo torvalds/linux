@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	Intel Multiprocessor Specification 1.1 and 1.4
  *	compliant MP-table parsing routines.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR X11
+// SPDX-License-Identifier: GPL-2.0-only OR X11
 /* Copyright (c) 2018 Miquèl RAYNAL <miquel.raynal@bootlin.com> */
 
 /dts-v1/;

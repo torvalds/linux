@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Combined GPIO and pin controller support for Renesas RZ/A2 (R7S9210) SoC
  *

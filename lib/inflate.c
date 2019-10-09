@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #define DEBG(x)
 #define DEBG1(x)
 /* inflate.c -- Not copyrighted 1992 by Mark Adler

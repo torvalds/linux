@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * nvec_kbd: keyboard driver for a NVIDIA compliant embedded controller
  *

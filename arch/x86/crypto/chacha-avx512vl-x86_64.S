@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * ChaCha 256-bit cipher algorithm, x64 AVX-512VL functions
  *

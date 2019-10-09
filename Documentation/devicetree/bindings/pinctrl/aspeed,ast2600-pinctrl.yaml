@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/pinctrl/aspeed,ast2600-pinctrl.yaml#

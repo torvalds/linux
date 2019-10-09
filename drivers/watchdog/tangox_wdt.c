@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2015 Mans Rullgard <mans@mansr.com>
  *  SMP86xx/SMP87xx Watchdog driver

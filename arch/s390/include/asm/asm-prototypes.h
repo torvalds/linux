@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ASM_S390_PROTOTYPES_H
 
 #include <linux/kvm_host.h>

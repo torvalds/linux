@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/highmem.h>
 #include <linux/kdebug.h>
 #include <linux/types.h>

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Staging board support for Armadillo 800 eva.
  * Enable not-yet-DT-capable devices here.

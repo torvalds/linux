@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <linux/bitops.h>
 #undef __memset
 extern void *__memset(void *, int, __kernel_size_t);

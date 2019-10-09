@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 ///
 /// Use vma_pages function on vma object instead of explicit computation.
 ///

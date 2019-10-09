@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0-only
 /*******************************************************************************
  *
  * Module Name: rsdumpinfo - Tables used to display resource descriptors.

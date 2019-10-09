@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <asm/mach-au1x00/au1000.h>
 
 void putc(char c)

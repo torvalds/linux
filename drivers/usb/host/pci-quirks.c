@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file contains code to reset and initialize USB host controllers.
  * Some of it includes work-arounds for PCI hardware and BIOS quirks.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Clean ups from Moschip version and a few ioctl implementations by:
  *	Paul B Schroeder <pschroeder "at" uplogix "dot" com>

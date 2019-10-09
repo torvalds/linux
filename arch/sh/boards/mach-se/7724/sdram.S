@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0-only
  *
  * MS7724SE sdram self/auto-refresh setup code
  *

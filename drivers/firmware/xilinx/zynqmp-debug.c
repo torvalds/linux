@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Xilinx Zynq MPSoC Firmware layer for debugfs APIs
  *

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config RTLLIB
 	tristate "Support for rtllib wireless devices"
 	depends on WLAN && m

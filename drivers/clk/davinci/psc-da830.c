@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PSC clock descriptions for TI DA830/OMAP-L137/AM17XX
  *

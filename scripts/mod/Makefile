@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 OBJECT_FILES_NON_STANDARD := y
 
 hostprogs-y	:= modpost mk_elfconfig

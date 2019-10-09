@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // RTC driver for ChromeOS Embedded Controller.
 //
 // Copyright (C) 2017 Google, Inc.

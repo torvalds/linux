@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* List each unit test as selftest(name, function)
  *
  * The name is used as both an enum and expanded as subtest__name to create

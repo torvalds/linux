@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CAAM/SEC 4.x QI transport/backend driver
  * Queue Interface backend functionality

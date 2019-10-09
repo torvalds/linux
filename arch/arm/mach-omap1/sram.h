@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <plat/sram.h>
 
 extern void omap_sram_reprogram_clock(u32 dpllctl, u32 ckctl);

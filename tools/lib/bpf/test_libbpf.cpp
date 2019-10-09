@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
+/* SPDX-License-Identifier: (LGPL-2.1-only OR BSD-2-Clause) */
 #include "libbpf.h"
 #include "bpf.h"
 #include "btf.h"

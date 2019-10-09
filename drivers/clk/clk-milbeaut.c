@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2018 Socionext Inc.
  * Copyright (C) 2016 Linaro Ltd.

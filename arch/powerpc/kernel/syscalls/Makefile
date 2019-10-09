@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 kapi := arch/$(SRCARCH)/include/generated/asm
 uapi := arch/$(SRCARCH)/include/generated/uapi/asm
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * enc28j60_hw.h: EDTP FrameThrower style enc28j60 registers
  *

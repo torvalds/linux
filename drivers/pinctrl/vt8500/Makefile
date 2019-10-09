@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # VIA/Wondermedia pinctrl support
 
 obj-$(CONFIG_PINCTRL_WMT)	+= pinctrl-wmt.o

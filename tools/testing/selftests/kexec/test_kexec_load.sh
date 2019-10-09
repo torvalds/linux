@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Prevent loading a kernel image via the kexec_load syscall when
 # signatures are required.  (Dependent on CONFIG_IMA_ARCH_POLICY.)

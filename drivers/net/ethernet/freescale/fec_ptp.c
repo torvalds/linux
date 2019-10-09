@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Fast Ethernet Controller (ENET) PTP driver for MX6x.
  *

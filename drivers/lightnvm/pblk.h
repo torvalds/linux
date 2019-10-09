@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2015 IT University of Copenhagen (rrpc.h)
  * Copyright (C) 2016 CNEX Labs

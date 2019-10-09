@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <errno.h>
 #include <sched.h>
 #include "util.h" // for sched_getcpu()

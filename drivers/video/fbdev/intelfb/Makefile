@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_FB_INTEL) += intelfb.o
 
 intelfb-y := intelfbdrv.o intelfbhw.o

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #ifndef __REALTEK_PCI92SE_LED_H__

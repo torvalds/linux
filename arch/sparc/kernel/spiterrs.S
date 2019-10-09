@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 	/* We need to carefully read the error status, ACK the errors,
 	 * prevent recursive traps, and pass the information on to C
 	 * code for logging.

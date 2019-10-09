@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LGPL-2.1
+// SPDX-License-Identifier: LGPL-2.1-only
 #include <uapi/linux/mman.h>
 #include <linux/log2.h>
 

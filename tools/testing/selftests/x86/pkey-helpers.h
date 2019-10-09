@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _PKEYS_HELPER_H
 #define _PKEYS_HELPER_H
 #define _GNU_SOURCE

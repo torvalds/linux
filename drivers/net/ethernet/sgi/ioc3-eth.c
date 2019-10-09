@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Driver for SGI's IOC3 based Ethernet cards as found in the PCI card.
  *
  * Copyright (C) 1999, 2000, 01, 03, 06 Ralf Baechle

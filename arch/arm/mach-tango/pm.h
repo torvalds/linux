@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifdef CONFIG_SUSPEND
 void __init tango_pm_init(void);

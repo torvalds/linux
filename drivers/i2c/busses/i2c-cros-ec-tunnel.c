@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Expose an I2C passthrough to the ChromeOS EC.
 //
 // Copyright (C) 2013 Google, Inc.

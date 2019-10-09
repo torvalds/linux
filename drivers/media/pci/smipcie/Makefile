@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 smipcie-objs	:= smipcie-main.o smipcie-ir.o
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  MQ Deadline i/o scheduler - adaptation of the legacy deadline scheduler,
  *  for the blk-mq scheduling framework

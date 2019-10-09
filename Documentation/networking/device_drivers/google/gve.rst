@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0+
+.. SPDX-License-Identifier: GPL-2.0-or-later
 
 ==============================================================
 Linux kernel driver for Compute Engine Virtual Ethernet (gve):

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Simon Budig, <simon.budig@kernelconcepts.de>
  * Daniel Wagener <daniel.wagener@kernelconcepts.de> (M09 firmware support)

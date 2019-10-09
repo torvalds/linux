@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This file contains the Montecito PMU register description tables
  * and pmc checker used by perfmon.c.

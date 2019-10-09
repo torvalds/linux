@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _PRINTK_BRAILLE_H
 #define _PRINTK_BRAILLE_H
 

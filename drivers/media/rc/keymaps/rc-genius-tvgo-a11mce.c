@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // genius-tvgo-a11mce.h - Keytable for genius_tvgo_a11mce Remote Controller
 //
 // keymap imported from ir-keymaps.c

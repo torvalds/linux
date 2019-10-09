@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Watchdog Device Driver for Xilinx axi/xps_timebase_wdt
  *

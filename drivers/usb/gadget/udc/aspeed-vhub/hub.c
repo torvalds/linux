@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * aspeed-vhub -- Driver for Aspeed SoC "vHub" USB gadget
  *

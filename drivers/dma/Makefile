@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #dmaengine debug flags
 subdir-ccflags-$(CONFIG_DMADEVICES_DEBUG)  := -DDEBUG
 subdir-ccflags-$(CONFIG_DMADEVICES_VDEBUG) += -DVERBOSE_DEBUG

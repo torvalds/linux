@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __MACH_X3PROTO_HARDWARE_H
 #define __MACH_X3PROTO_HARDWARE_H
 

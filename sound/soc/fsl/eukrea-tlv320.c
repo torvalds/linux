@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // eukrea-tlv320.c  --  SoC audio for eukrea_cpuimxXX in I2S mode
 //

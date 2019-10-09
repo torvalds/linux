@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _TOOLS_LINUX_BITOPS_H_
 #define _TOOLS_LINUX_BITOPS_H_
 

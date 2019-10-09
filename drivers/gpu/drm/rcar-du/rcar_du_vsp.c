@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * rcar_du_vsp.h  --  R-Car Display Unit VSP-Based Compositor
  *

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * User address space access functions.
  * The non inlined parts of asm-i386/uaccess.h are here.

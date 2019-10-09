@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * mt8183-reg.h  --  Mediatek 8183 audio driver reg definition
  *

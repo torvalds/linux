@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // apac-viewcomp.h - Keytable for apac_viewcomp Remote Controller
 //
 // keymap imported from ir-keymaps.c

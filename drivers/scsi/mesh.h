@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * mesh.h: definitions for the driver for the MESH SCSI bus adaptor
  * (Macintosh Enhanced SCSI Hardware) found on Power Macintosh computers.

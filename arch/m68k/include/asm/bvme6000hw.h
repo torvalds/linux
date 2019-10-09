@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _M68K_BVME6000HW_H_
 #define _M68K_BVME6000HW_H_
 

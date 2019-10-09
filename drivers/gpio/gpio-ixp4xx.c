@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // IXP4 GPIO driver
 // Copyright (C) 2019 Linus Walleij <linus.walleij@linaro.org>

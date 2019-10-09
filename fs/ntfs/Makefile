@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Rules for making the NTFS driver.
 
 obj-$(CONFIG_NTFS_FS) += ntfs.o

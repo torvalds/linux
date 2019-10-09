@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Socionext Milbeaut M10V Evaluation Board */
 /dts-v1/;
 #include "milbeaut-m10v.dtsi"

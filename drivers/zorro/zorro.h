@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifdef CONFIG_ZORRO_NAMES
 extern void zorro_name_device(struct zorro_dev *z);

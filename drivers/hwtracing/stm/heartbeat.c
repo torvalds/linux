@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Simple heartbeat STM source driver
  * Copyright (c) 2016, Intel Corporation.

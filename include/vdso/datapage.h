@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __VDSO_DATAPAGE_H
 #define __VDSO_DATAPAGE_H
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Test vetoing of FDB entries that mlxsw can not offload. This exercises several
 # different veto vectors to test various rollback scenarios in the vxlan driver.

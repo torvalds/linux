@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * API bus driver for ADT7316/7/8 ADT7516/7/9 digital temperature
  * sensor, ADC and DAC

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Machine-dependent software floating-point definitions.
    SuperH kernel version.

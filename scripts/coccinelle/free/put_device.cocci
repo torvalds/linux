@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /// Find missing put_device for every of_find_device_by_node.
 ///
 // Confidence: Moderate

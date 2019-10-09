@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * fs/f2fs/inline.c
  * Copyright (c) 2013, Intel Corporation

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Routines to emulate some Altivec/VMX instructions, specifically
  * those that can trap when given denormalized operands in Java mode.

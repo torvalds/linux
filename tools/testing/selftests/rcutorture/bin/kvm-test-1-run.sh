@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Run a kvm-based test of the specified tree on the specified configs.
 # Fully automated run and error checking, no graphics console.

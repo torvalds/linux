@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Simple kernel driver to link kernel Ftrace and an STM device
  * Copyright (c) 2016, Linaro Ltd.

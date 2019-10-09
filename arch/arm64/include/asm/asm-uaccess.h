@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ASM_ASM_UACCESS_H
 #define __ASM_ASM_UACCESS_H
 

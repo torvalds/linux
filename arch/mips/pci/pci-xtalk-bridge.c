@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2003 Christoph Hellwig (hch@lst.de)
  * Copyright (C) 1999, 2000, 04 Ralf Baechle (ralf@linux-mips.org)

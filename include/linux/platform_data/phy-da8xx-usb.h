@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * phy-da8xx-usb - TI DaVinci DA8xx USB PHY driver
  *

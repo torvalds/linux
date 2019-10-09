@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  das08_isa.c
  *  comedi driver for DAS08 ISA/PC-104 boards

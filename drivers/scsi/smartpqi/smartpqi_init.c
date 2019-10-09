@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *    driver for Microsemi PQI-based storage controllers
  *    Copyright (c) 2019 Microchip Technology Inc. and its subsidiaries

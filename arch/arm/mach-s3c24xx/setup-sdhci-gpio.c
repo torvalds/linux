@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Copyright 2010 Promwad Innovation Company
 //	Yauhen Kharuzhy <yauhen.kharuzhy@promwad.com>

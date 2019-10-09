@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * V4L2 Capture CSI Subdev for Freescale i.MX6UL/L / i.MX7 SOC
  *

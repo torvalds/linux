@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * p1275.c: Sun IEEE 1275 PROM low level interface routines
  *

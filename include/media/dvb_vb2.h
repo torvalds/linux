@@ -1,5 +1,5 @@
 /*
- * SPDX-License-Identifier: GPL-2.0
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * dvb-vb2.h - DVB driver helper framework for streaming I/O
  *

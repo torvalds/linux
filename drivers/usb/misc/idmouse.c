@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Siemens ID Mouse driver v0.6
 
   Copyright (C) 2004-5 by Florian 'Floe' Echtler  <echtler@fs.tum.de>

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 snd-au8810-objs := au8810.o
 snd-au8820-objs := au8820.o
 snd-au8830-objs := au8830.o

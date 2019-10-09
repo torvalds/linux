@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 xilinx-video-objs += xilinx-dma.o xilinx-vip.o xilinx-vipp.o
 

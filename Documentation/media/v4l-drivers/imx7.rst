@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0
+.. SPDX-License-Identifier: GPL-2.0-only
 
 i.MX7 Video Capture Driver
 ==========================

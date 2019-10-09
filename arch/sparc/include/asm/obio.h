@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * obio.h:  Some useful locations in 0xFXXXXXXXX PA obio space on sun4d.
  *

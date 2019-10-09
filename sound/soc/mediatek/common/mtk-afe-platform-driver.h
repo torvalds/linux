@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * mtk-afe-platform-driver.h  --  Mediatek afe platform driver definition
  *

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 
 /* Test that sockets listening on a specific address are preferred
  * over sockets listening on addr_any.

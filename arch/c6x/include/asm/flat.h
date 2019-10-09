@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ASM_C6X_FLAT_H
 #define __ASM_C6X_FLAT_H
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	ICP Wafer 5823 Single Board Computer WDT driver
  *	http://www.icpamerica.com/wafer_5823.php

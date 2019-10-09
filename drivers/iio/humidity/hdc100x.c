@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * hdc100x.c - Support for the TI HDC100x temperature + humidity sensors
  *

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #ifndef __TRACING_MAP_H
 #define __TRACING_MAP_H
 

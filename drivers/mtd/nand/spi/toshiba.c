@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018 exceet electronics GmbH
  * Copyright (c) 2018 Kontron Electronics GmbH

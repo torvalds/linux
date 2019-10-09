@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Azoteq IQS550/572/525 Trackpad/Touchscreen Controller
  *

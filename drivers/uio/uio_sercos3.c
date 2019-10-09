@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* sercos3: UIO driver for the Automata Sercos III PCI card
 
    Copyright (C) 2008 Linutronix GmbH

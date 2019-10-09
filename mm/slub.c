@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SLUB: A slab allocator that limits cache line use instead of queuing
  * objects in per cpu and per node lists.

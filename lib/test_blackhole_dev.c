@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This module tests the blackhole_dev that is created during the
  * net subsystem initialization. The test this module performs is

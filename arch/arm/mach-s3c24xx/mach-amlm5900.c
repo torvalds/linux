@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // Copyright (c) 2006 American Microsystems Limited
 //	David Anders <danders@amltd.com>

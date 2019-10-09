@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LINUX_PLATFORM_DATA_ETH_EP93XX
 #define _LINUX_PLATFORM_DATA_ETH_EP93XX
 

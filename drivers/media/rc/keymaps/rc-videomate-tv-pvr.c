@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // videomate-tv-pvr.h - Keytable for videomate_tv_pvr Remote Controller
 //
 // keymap imported from ir-keymaps.c

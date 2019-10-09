@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include "tests/tests.h"
 #include "cloexec.h"
 #include "debug.h"

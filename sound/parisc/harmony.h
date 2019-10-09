@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Hewlett-Packard Harmony audio driver
  * Copyright (C) 2004, Kyle McMartin <kyle@parisc-linux.org>
  */

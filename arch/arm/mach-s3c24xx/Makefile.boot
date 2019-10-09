@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 ifeq ($(CONFIG_PM_H1940),y)
 	zreladdr-y	+= 0x30108000

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * turbosparc.h:  Defines specific to the TurboSparc module.
  *            This is SRMMU stuff.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Bosch BME680 - Temperature, Pressure, Humidity & Gas Sensor
  *

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * A fast, small, non-recursive O(n log n) sort for the Linux kernel
  *

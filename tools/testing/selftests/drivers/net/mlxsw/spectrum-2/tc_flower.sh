@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 # This test is for checking the A-TCAM and C-TCAM operation in Spectrum-2.
 # It tries to exercise as many code paths in the eRP state machine as

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Texas Instruments Ethernet Switch media-access-controller (MAC) submodule/
  * Ethernet MAC Sliver (CPGMAC_SL) APIs

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #define pr_fmt(fmt) "ASYM-TPM: "fmt
 #include <linux/slab.h>
 #include <linux/module.h>

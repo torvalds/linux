@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 extern void __cmx2xx_pci_init_irq(int irq_gpio);
 extern void __cmx2xx_pci_suspend(void);
 extern void __cmx2xx_pci_resume(void);

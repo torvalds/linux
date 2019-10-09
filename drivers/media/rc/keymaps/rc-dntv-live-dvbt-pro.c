@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // dntv-live-dvbt-pro.h - Keytable for dntv_live_dvbt_pro Remote Controller
 //
 // keymap imported from ir-keymaps.c

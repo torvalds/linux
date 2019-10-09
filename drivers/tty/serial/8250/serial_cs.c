@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
+// SPDX-License-Identifier: (GPL-2.0-only OR MPL-1.1)
 /*======================================================================
 
     A driver for PCMCIA serial devices

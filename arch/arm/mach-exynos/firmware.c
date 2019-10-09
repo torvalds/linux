@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Copyright (C) 2012 Samsung Electronics.
 // Kyungmin Park <kyungmin.park@samsung.com>

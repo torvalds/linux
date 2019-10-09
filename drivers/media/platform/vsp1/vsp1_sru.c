@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * vsp1_sru.c  --  R-Car VSP1 Super Resolution Unit
  *

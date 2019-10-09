@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * typec_wcove.c - WhiskeyCove PMIC USB Type-C PHY driver
  *

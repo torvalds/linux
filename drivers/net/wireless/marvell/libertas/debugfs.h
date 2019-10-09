@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LBS_DEBUGFS_H_
 #define _LBS_DEBUGFS_H_
 

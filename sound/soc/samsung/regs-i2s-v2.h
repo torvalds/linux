@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2007 Simtec Electronics <linux@simtec.co.uk>
  *	http://armlinux.simtec.co.uk/

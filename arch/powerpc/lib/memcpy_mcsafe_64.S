@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) IBM Corporation, 2011
  * Derived from copyuser_power7.s by Anton Blanchard <anton@au.ibm.com>

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/sysctl.h>
 #include <linux/slab.h>
 #include <net/net_namespace.h>

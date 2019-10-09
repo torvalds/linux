@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // tbs-nec.h - Keytable for tbs_nec Remote Controller
 //
 // keymap imported from ir-keymaps.c

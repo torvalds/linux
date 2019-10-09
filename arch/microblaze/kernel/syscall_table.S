@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #define __SYSCALL(nr, entry, nargs) .long entry
 ENTRY(sys_call_table)

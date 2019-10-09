@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __USB_TYPEC_ALTMODE_H__
 #define __USB_TYPEC_ALTMODE_H__

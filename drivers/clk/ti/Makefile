@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 ifeq ($(CONFIG_ARCH_OMAP2PLUS), y)
 
 obj-y					+= clk.o autoidle.o clockdomain.o

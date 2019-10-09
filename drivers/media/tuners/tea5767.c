@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // For Philips TEA5767 FM Chip used on some TV Cards like Prolink Pixelview
 // I2C address is always 0xC0.
 //

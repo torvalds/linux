@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * page.h:  Various defines and such for MMU operations on the Sparc for
  *          the Linux kernel.

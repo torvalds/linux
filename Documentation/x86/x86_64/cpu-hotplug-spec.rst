@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0
+.. SPDX-License-Identifier: GPL-2.0-only
 
 ===================================================
 Firmware support for CPU hotplug under Linux/x86-64

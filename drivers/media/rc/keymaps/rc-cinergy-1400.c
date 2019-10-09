@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // cinergy-1400.h - Keytable for cinergy_1400 Remote Controller
 //
 // keymap imported from ir-keymaps.c

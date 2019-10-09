@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic SH-4 / SH-4A PCIC operations (SH7751, SH7780).
  *

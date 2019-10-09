@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* iommu.h: Definitions for the sun4m IOMMU.
  *
  * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Extract the number of CPUs expected from the specified Kconfig-file
 # fragment by checking CONFIG_SMP and CONFIG_NR_CPUS.  If the specified

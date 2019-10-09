@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Export Runtime Configuration Interface Table Version 2 (RCI2)
  * to sysfs

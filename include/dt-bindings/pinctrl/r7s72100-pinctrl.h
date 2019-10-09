@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Defines macros and constants for Renesas RZ/A1 pin controller pin
  * muxing functions.

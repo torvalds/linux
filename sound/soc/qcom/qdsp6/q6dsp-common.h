@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __Q6DSP_COMMON_H__
 #define __Q6DSP_COMMON_H__

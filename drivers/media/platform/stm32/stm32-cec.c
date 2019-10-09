@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STM32 CEC driver
  * Copyright (C) STMicroelectronics SA 2017

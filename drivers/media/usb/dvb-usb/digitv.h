@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _DVB_USB_DIGITV_H_
 #define _DVB_USB_DIGITV_H_
 

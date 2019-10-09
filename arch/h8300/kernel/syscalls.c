@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/syscalls.h>
 #include <linux/signal.h>
 #include <linux/unistd.h>

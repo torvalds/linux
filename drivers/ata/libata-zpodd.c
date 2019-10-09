@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/libata.h>
 #include <linux/cdrom.h>
 #include <linux/pm_runtime.h>

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * UIO driver for Hilscher NetX based fieldbus cards (cifX, comX).
  * See http://www.hilscher.com for details.

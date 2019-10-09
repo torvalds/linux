@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Copyright (c) 2019 David Ahern <dsahern@gmail.com>. All rights reserved.
 #

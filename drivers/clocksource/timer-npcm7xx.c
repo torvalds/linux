@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014-2018 Nuvoton Technologies tomer.maimon@nuvoton.com
  * All rights reserved.

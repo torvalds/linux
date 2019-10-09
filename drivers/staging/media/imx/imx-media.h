@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * V4L2 Media Controller Driver for Freescale i.MX5/6 SOC
  *

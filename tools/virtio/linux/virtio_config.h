@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <linux/virtio_byteorder.h>
 #include <linux/virtio.h>
 #include <uapi/linux/virtio_config.h>

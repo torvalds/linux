@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* BPF JIT compiler for RV64G
  *
  * Copyright(c) 2019 Björn Töpel <bjorn.topel@gmail.com>

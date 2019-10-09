@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Copyright 2019 Jonathan Corbet <corbet@lwn.net>
 #
 # Apply kernel-specific tweaks after the initial document processing

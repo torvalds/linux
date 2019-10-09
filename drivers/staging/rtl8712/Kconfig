@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config R8712U
 	tristate "RealTek RTL8712U (RTL8192SU) Wireless LAN NIC driver"
 	depends on WLAN && USB

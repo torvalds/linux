@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Marvell PPv2 network controller for Armada 375 SoC.
  *

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Normally compiler builtins are used, but sometimes the compiler calls out
  * of line code. Based on asm-i386/string.h.

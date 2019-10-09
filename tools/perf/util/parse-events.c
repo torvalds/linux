@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/hw_breakpoint.h>
 #include <linux/err.h>
 #include <linux/zalloc.h>

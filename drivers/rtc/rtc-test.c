@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An RTC test device/driver
  * Copyright (C) 2005 Tower Technologies

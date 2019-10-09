@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Written by Kanoj Sarcar (kanoj@sgi.com) Aug 99
  * Adapted for the alpha wildfire architecture Jan 2001.

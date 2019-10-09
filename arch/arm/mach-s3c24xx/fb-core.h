@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2010 Samsung Electronics Co., Ltd.
  *	Pawel Osciak <p.osciak@samsung.com>

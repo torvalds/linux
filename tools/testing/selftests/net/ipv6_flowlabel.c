@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Test IPV6_FLOWINFO cmsg on send and recv */
 
 #define _GNU_SOURCE

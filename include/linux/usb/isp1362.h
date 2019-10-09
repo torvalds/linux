@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * board initialization code should put one of these into dev->platform_data
  * and place the isp1362 onto platform_bus.

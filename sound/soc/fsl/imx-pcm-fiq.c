@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // imx-pcm-fiq.c  --  ALSA Soc Audio Layer
 //
 // Copyright 2009 Sascha Hauer <s.hauer@pengutronix.de>

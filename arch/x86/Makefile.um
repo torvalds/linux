@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 core-y += arch/x86/crypto/
 
 ifeq ($(CONFIG_X86_32),y)

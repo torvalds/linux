@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // powercolor-real-angel.h - Keytable for powercolor_real_angel Remote Controller
 //
 // keymap imported from ir-keymaps.c

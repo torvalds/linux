@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Microchip USB251xB USB 2.0 Hi-Speed Hub Controller
  * Configuration via SMBus.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 *  Digi AccelePort USB-4 and USB-2 Serial Converters
 *

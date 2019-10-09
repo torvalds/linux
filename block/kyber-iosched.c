@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * The Kyber I/O scheduler. Controls latency by throttling queue depths using
  * scalable techniques.

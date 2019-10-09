@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <linux/gfp.h>
 #include <linux/types.h>
 #include <linux/radix-tree.h>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <linux/reboot.h>
 #include <linux/amba/serial.h>
 extern struct amba_pl010_data ap_uart_data;

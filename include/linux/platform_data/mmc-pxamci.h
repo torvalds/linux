@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef ASMARM_ARCH_MMC_H
 #define ASMARM_ARCH_MMC_H
 

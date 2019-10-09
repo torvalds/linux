@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <asm/checksum.h>
 #include <asm/page.h>
 #include <asm/fpu.h>

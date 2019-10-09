@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0
+.. SPDX-License-Identifier: GPL-2.0-only
 ..
 .. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 

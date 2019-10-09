@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ehci-omap.c - driver for USBHOST on OMAP3/4 processors
  *

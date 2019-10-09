@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 ALL_TESTS="unreachable_chain_test gact_goto_chain_test create_destroy_chain \
 	   template_filter_fits"

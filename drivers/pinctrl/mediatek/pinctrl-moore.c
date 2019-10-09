@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MediaTek Pinctrl Moore Driver, which implement the generic dt-binding
  * pinctrl-bindings.txt for MediaTek SoC.

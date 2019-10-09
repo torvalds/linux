@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1 */
+/* SPDX-License-Identifier: LGPL-2.1-only */
 
 #include "util/debug.h"
 #include "util/rlimit.h"

@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Validate cached routes in fib{6}_nh that is used by multiple prefixes.
 # Validate a different # exception is generated in h0 for each remote host.

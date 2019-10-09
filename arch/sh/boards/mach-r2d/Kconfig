@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 if SH_RTS7751R2D
 
 menu "RTS7751R2D Board Revision"

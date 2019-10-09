@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * V4L2 Driver for Renesas Capture Engine Unit (CEU) interface
  * Copyright (C) 2017-2018 Jacopo Mondi <jacopo+renesas@jmondi.org>

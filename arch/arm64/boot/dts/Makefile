@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 subdir-y += actions
 subdir-y += al
 subdir-y += allwinner

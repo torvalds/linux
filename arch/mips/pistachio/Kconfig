@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config PISTACHIO_GPTIMER_CLKSRC
 	bool "Enable General Purpose Timer based clocksource"
 	depends on MACH_PISTACHIO

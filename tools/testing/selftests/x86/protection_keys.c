@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Tests x86 Memory Protection Keys (see Documentation/core-api/protection-keys.rst)
  *

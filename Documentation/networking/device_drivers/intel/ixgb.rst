@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0+
+.. SPDX-License-Identifier: GPL-2.0-or-later
 
 =====================================================================
 Linux Base Driver for 10 Gigabit Intel(R) Ethernet Network Connection

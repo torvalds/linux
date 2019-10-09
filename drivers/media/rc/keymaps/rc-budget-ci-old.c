@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // budget-ci-old.h - Keytable for budget_ci_old Remote Controller
 //
 // keymap imported from ir-keymaps.c

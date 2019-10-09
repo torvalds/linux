@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/rtc/rtc-goldfish.c
  *
  * Copyright (C) 2007 Google, Inc.

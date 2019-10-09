@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // Regulator device driver for DA9061 and DA9062.
 // Copyright (C) 2015-2017  Dialog Semiconductor

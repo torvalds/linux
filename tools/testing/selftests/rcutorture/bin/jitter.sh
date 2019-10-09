@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Alternate sleeping and spinning on randomly selected CPUs.  The purpose
 # of this script is to inflict random OS jitter on a concurrently running

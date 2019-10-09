@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* cnode related routines for the coda kernel code
    (C) 1996 Peter Braam
    */

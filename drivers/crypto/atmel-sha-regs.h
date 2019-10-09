@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ATMEL_SHA_REGS_H__
 #define __ATMEL_SHA_REGS_H__
 

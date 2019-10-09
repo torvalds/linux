@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright 2018 IBM Corp
 /*
  * A FSI master controller, using a simple GPIO bit-banging interface

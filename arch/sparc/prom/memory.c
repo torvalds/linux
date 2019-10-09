@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* memory.c: Prom routine for acquiring various bits of information
  *           about RAM on the machine, both virtual and physical.
  *

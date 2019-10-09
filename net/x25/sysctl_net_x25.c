@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* -*- linux-c -*-
  * sysctl_net_x25.c: sysctl interface to net X.25 subsystem.
  *

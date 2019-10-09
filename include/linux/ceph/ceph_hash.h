@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef FS_CEPH_HASH_H
 #define FS_CEPH_HASH_H
 

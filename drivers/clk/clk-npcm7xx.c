@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Nuvoton NPCM7xx Clock Generator
  * All the clocks are initialized by the bootloader, so this driver allow only

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 #ifndef _UAPI__ASM_GENERIC_PARAM_H
 #define _UAPI__ASM_GENERIC_PARAM_H
 

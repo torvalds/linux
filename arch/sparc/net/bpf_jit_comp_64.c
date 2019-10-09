@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/moduleloader.h>
 #include <linux/workqueue.h>
 #include <linux/netdevice.h>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This file contains the 64-bit "server" PowerPC variant
  * of the low level exception handling including exception

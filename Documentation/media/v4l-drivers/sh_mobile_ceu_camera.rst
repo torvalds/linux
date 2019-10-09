@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0
+.. SPDX-License-Identifier: GPL-2.0-only
 
 Cropping and Scaling algorithm, used in the sh_mobile_ceu_camera driver
 =======================================================================

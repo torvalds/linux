@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2018 Linus Walleij <linus.walleij@linaro.org>
  * Parts of this file were based on the MCDE driver by Marcus Lorentzon

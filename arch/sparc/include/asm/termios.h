@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _SPARC_TERMIOS_H
 #define _SPARC_TERMIOS_H
 

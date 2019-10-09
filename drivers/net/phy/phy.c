@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Framework for configuring and reading PHY devices
  * Based on code in sungem_phy.c and gianfar_phy.c
  *

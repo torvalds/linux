@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /***********************************
  * $Id: quicc_simple.h,v 1.1 2002/03/02 15:01:10 gerg Exp $
  ***********************************

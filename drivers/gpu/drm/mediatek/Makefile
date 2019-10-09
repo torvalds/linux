@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 mediatek-drm-y := mtk_disp_color.o \
 		  mtk_disp_ovl.o \

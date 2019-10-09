@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PCI Hot Plug Controller Driver for RPA-compliant PPC64 platform.
  * Copyright (C) 2003 Linda Xie <lxie@us.ibm.com>

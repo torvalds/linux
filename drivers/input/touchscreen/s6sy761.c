@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Samsung S6SY761 Touchscreen device driver
 //
 // Copyright (c) 2017 Samsung Electronics Co., Ltd.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * atlas-ph-sensor.c - Support for Atlas Scientific OEM pH-SM sensor
  *

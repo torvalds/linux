@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __MAC802154_DRIVER_OPS
 #define __MAC802154_DRIVER_OPS
 

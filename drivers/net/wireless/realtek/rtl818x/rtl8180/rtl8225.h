@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef RTL8180_RTL8225_H
 #define RTL8180_RTL8225_H
 

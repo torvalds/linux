@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * em28xx-video.c - driver for Empia EM2800/EM2820/2840 USB
  *		    video capture devices

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * gpio-au1300.h -- GPIO control for Au1300 GPIC and compatibles.
  *

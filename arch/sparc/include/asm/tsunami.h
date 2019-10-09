@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * tsunami.h:  Module specific definitions for Tsunami V8 Sparcs
  *

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/* SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
  *
  * Copyright (c) 2018 Icenowy Zheng <icenowy@aosc.xyz>
  *

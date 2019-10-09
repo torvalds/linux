@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An rtc/i2c driver for the Dallas DS1672
  * Copyright 2005-06 Tower Technologies

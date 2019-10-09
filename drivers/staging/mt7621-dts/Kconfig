@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config DTB_GNUBEE1
 	bool "GnuBee1 2.5inch NAS"
 	depends on SOC_MT7621 && DTB_RT_NONE

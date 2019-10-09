@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* sunvnet.c: Sun LDOM Virtual Network Driver.
  *
  * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>

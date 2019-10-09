@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // saa711x - Philips SAA711x video decoder driver
 // This driver can work with saa7111, saa7111a, saa7113, saa7114,
 //			     saa7115 and saa7118.

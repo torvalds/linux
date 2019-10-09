@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * i.MX Pixel Pipeline (PXP) mem-to-mem scaler/CSC/rotator driver
  *

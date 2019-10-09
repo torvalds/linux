@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __SND_SEQ_LOCK_H
 #define __SND_SEQ_LOCK_H
 

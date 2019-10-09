@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <test_progs.h>
 
 static void test_task_fd_query_tp_core(const char *probe_name,

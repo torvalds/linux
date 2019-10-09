@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ip27-irq.c: Highlevel interrupt handling for IP27 architecture.
  *

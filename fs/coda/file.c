@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * File operations for Coda.
  * Original version: (C) 1996 Peter Braam 

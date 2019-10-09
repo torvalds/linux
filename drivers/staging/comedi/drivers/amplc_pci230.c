@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * comedi/drivers/amplc_pci230.c
  * Driver for Amplicon PCI230 and PCI260 Multifunction I/O boards.

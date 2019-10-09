@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Makefile for xmon
 
 # Disable clang warning for using setjmp without setjmp.h header

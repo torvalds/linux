@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * apds9960.c - Support for Avago APDS9960 gesture/RGB/ALS/proximity sensor
  *

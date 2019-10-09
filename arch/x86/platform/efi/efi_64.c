@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * x86_64 specific EFI support functions
  * Based on Extensible Firmware Interface Specification version 1.0

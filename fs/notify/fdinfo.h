@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __FSNOTIFY_FDINFO_H__
 #define __FSNOTIFY_FDINFO_H__
 

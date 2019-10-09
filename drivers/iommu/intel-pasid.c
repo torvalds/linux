@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * intel-pasid.c - PASID idr, table and entry manipulation
  *

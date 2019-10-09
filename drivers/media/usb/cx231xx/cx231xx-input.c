@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // cx231xx IR glue driver
 //
 // Copyright (c) 2010 Mauro Carvalho Chehab <mchehab@kernel.org>

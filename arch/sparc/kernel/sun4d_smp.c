@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Sparc SS1000/SC2000 SMP support.
  *
  * Copyright (C) 1998 Jakub Jelinek (jj@sunsite.mff.cuni.cz)

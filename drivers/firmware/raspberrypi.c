@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Defines interfaces for interacting wtih the Raspberry Pi firmware's
  * property channel.

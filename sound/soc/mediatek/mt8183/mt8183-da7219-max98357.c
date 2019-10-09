@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // mt8183-da7219-max98357.c
 //	--  MT8183-DA7219-MAX98357 ALSA SoC machine driver

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef S390_DWARF_REGS_TABLE_H
 #define S390_DWARF_REGS_TABLE_H
 

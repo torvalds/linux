@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Faraday FOTG210 EHCI-like driver
  *
  * Copyright (c) 2013 Faraday Technology Corporation

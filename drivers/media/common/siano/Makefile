@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 smsmdtv-objs := smscoreapi.o sms-cards.o smsendian.o
 smsdvb-objs := smsdvb-main.o
 

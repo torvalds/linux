@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: LGPL-2.1
+# SPDX-License-Identifier: LGPL-2.1-only
 
 if [ $# -ne 3 ] ; then
 	[ $# -eq 1 ] && hostarch=$1 || hostarch=`uname -m | sed -e s/i.86/x86/ -e s/x86_64/x86/`

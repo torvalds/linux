@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
+/* SPDX-License-Identifier: ((GPL-2.0-only WITH Linux-syscall-note) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2009-2010 Chelsio, Inc. All rights reserved.
  *

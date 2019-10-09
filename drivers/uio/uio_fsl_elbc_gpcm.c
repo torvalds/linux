@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* uio_fsl_elbc_gpcm: UIO driver for eLBC/GPCM peripherals
 
    Copyright (C) 2014 Linutronix GmbH

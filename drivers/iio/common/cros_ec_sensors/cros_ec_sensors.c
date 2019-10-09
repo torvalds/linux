@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cros_ec_sensors - Driver for Chrome OS Embedded Controller sensors.
  *

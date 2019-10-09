@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LINUX_BLK_MQ_PCI_H
 #define _LINUX_BLK_MQ_PCI_H
 

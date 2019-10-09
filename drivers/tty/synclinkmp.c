@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-1.0+
+// SPDX-License-Identifier: GPL-1.0-or-later
 /*
  * $Id: synclinkmp.c,v 4.38 2005/07/15 13:29:44 paulkf Exp $
  *

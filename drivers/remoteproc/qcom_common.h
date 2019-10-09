@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __RPROC_QCOM_COMMON_H__
 #define __RPROC_QCOM_COMMON_H__
 

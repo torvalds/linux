@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #define INITRD_MINOR 250 /* shouldn't collide with /dev/ram* too soon ... */
 

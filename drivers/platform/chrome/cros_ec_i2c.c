@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // I2C interface for ChromeOS Embedded Controller
 //
 // Copyright (C) 2012 Google, Inc

@@ -1,5 +1,5 @@
 #! /bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Script to apply kernel patches.
 #   usage: patch-kernel [ sourcedir [ patchdir [ stopversion ] [ -acxx ] ] ]
 #     The source directory defaults to /usr/src/linux, and the patch

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR X11
+// SPDX-License-Identifier: GPL-2.0-only OR X11
 /*
  * Device Tree Source for TQ Systems TQMa7D board on MBa7 carrier board.
  *

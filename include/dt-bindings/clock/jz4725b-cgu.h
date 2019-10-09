@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This header provides clock numbers for the ingenic,jz4725b-cgu DT binding.
  */

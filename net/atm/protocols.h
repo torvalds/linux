@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* net/atm/protocols.h - ATM protocol handler entry points */
 
 /* Written 1995-1997 by Werner Almesberger, EPFL LRC */

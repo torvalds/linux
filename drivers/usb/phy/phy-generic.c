@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NOP USB transceiver for all USB transceiver which are either built-in
  * into USB IP or which are mostly autonomous.

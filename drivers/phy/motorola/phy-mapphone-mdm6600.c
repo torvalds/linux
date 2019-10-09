@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Motorola Mapphone MDM6600 modem GPIO controlled USB PHY driver
  * Copyright (C) 2018 Tony Lindgren <tony@atomide.com>

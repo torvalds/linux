@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __SOUND_SND_WAVEFRONT_H__
 #define __SOUND_SND_WAVEFRONT_H__
 

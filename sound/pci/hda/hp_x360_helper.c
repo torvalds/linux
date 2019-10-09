@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Fixes for HP X360 laptops with top B&O speakers
  * to be included from codec driver
  */

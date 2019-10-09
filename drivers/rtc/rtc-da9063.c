@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Real time clock device driver for DA9063
  * Copyright (C) 2013-2015  Dialog Semiconductor Ltd.

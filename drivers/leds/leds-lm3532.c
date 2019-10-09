@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // TI LM3532 LED driver
 // Copyright (C) 2019 Texas Instruments Incorporated - http://www.ti.com/
 

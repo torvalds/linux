@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # arch/h8300/boot/Makefile
 
 targets := vmlinux.srec vmlinux.bin zImage

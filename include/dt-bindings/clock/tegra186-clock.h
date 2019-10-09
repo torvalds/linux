@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /** @file */
 
 #ifndef _MACH_T186_CLK_T186_H

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Configuration file for O32 and N32 binaries.
  * Note: To be included before lib/vdso/gettimeofday.c

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * rcar_lvds_regs.h  --  R-Car LVDS Interface Registers Definitions
  *

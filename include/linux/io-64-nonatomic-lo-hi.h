@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LINUX_IO_64_NONATOMIC_LO_HI_H_
 #define _LINUX_IO_64_NONATOMIC_LO_HI_H_
 

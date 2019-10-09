@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* HWMON driver for Aquantia PHY
  *
  * Author: Nikita Yushchenko <nikita.yoush@cogentembedded.com>

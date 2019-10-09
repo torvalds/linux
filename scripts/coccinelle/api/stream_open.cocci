@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Author: Kirill Smelkov (kirr@nexedi.com)
 //
 // Search for stream-like files that are using nonseekable_open and convert

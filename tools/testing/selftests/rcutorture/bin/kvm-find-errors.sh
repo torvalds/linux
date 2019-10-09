@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Invoke a text editor on all console.log files for all runs with diagnostics,
 # that is, on all such files having a console.log.diags counterpart.

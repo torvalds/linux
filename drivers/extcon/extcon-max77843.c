@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // extcon-max77843.c - Maxim MAX77843 extcon driver to support
 //			MUIC(Micro USB Interface Controller)

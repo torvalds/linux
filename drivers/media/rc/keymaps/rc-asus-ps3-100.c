@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // asus-ps3-100.h - Keytable for asus_ps3_100 Remote Controller
 //
 // Copyright (c) 2012 by Mauro Carvalho Chehab

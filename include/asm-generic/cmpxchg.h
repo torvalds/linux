@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Generic UP xchg and cmpxchg using interrupt disablement.  Does not
  * support SMP.

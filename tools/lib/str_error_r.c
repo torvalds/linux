@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #undef _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>

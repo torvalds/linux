@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
  *    Zheng Yang <zhengyang@rock-chips.com>

@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 use strict;
 use Getopt::Long qw(:config no_auto_abbrev);

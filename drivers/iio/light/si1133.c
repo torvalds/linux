@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * si1133.c - Support for Silabs SI1133 combined ambient
  * light and UV index sensors

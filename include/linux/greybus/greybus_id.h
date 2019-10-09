@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* FIXME
  * move this to include/linux/mod_devicetable.h when merging
  */

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Internal header file for Samsung S3C2410 serial ports (UART0-2)
  *

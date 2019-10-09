@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Given the results directories for previous KVM-based torture runs,
 # check the build and console output for errors.  Given a directory

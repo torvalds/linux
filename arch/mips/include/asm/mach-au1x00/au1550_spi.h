@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * au1550_spi.h - Au1550 PSC SPI controller driver - platform data structure
  */

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cros_ec_sensors_core - Common function for Chrome OS EC sensor driver.
  *

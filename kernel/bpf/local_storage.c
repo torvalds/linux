@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: GPL-2.0
+//SPDX-License-Identifier: GPL-2.0-only
 #include <linux/bpf-cgroup.h>
 #include <linux/bpf.h>
 #include <linux/btf.h>

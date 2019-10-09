@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Quota code necessary even when VFS quota support is not compiled
  * into the kernel.  The interesting stuff is over in dquot.c, here

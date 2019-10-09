@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
 /*
  * Device tree file for Firefly Rockchip RK3288 Core board
  * Copyright (c) 2016 Randy Li <ayaka@soulik.info>

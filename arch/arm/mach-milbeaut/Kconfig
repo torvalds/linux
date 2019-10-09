@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_MILBEAUT
 	bool "Socionext Milbeaut SoCs"
 	depends on ARCH_MULTI_V7

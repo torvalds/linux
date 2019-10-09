@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (C) 2017 Intel Corporation */
 /* Functions to access TPS68470 power management chip. */
 

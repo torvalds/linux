@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* arch/sparc64/mm/tsb.c
  *
  * Copyright (C) 2006, 2008 David S. Miller <davem@davemloft.net>

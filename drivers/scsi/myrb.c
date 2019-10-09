@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Linux Driver for Mylex DAC960/AcceleRAID/eXtremeRAID PCI RAID Controllers
  *

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Comedi driver for CIO-DAS16/M1
  * Author: Frank Mori Hess, based on code from the das16 driver.

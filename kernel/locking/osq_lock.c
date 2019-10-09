@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/percpu.h>
 #include <linux/sched.h>
 #include <linux/osq_lock.h>

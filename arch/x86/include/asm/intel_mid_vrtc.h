@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _INTEL_MID_VRTC_H
 #define _INTEL_MID_VRTC_H
 

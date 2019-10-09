@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __DRIVERS_MTD_NAND_INGENIC_ECC_INTERNAL_H__
 #define __DRIVERS_MTD_NAND_INGENIC_ECC_INTERNAL_H__
 

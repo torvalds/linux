@@ -1,3 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 extern int f300_set_voltage(struct dvb_frontend *fe,
 			    enum fe_sec_voltage voltage);

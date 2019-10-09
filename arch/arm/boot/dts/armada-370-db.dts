@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
 /*
  * Device Tree file for Marvell Armada 370 evaluation board
  * (DB-88F6710-BP-DDR3)

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * GPIO controller driver for Intel Lynxpoint PCH chipset>
  * Copyright (c) 2012, Intel Corporation.

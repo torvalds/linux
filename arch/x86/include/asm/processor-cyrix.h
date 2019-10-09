@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * NSC/Cyrix CPU indexed register access. Must be inlined instead of
  * macros to ensure correct access ordering

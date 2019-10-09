@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_DW_DMAC_CORE)	+= dw_dmac_core.o
 dw_dmac_core-objs	:= core.o dw.o idma32.o
 

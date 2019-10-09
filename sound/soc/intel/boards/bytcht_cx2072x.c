@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // ASoC DPCM Machine driver for Baytrail / Cherrytrail platforms with
 // CX2072X codec

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *    Copyright IBM Corp. 2007
  *    Author(s): Utz Bacher <utz.bacher@de.ibm.com>,

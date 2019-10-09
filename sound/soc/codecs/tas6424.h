@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ALSA SoC Texas Instruments TAS6424 Quad-Channel Audio Amplifier
  *

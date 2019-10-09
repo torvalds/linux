@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _NF_NAT_HELPER_H
 #define _NF_NAT_HELPER_H
 /* NAT protocol helper routines. */

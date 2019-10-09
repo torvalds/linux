@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include "libgcc.h"
 
 	;; This function also computes the remainder and stores it in er3.

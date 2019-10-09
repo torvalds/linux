@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
  *  xusbatm.c -	dumb usbatm-based driver for modems initialized in userspace
  *

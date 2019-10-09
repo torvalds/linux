@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 # This test uses standard topology for testing gretap. See
 # mirror_gre_topo_lib.sh for more details.

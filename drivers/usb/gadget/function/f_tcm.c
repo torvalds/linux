@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Target based USB-Gadget
  *
  * UAS protocol handling, target callbacks, configfs handling,

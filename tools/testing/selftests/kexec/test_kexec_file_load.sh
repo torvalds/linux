@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Loading a kernel image via the kexec_file_load syscall can verify either
 # the IMA signature stored in the security.ima xattr or the PE signature,

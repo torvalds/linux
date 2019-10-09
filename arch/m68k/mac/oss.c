@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	Operating System Services (OSS) chip handling
  *	Written by Joshua M. Thompson (funaho@jurai.org)

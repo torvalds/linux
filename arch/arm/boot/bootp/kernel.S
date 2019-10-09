@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 	.globl	kernel_start
 kernel_start:
 	.incbin	"arch/arm/boot/zImage"

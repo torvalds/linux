@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2018-2019, Bridge Systems BV
  * Copyright (C) 2018-2019, Bootlin

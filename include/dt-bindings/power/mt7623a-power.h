@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _DT_BINDINGS_POWER_MT7623A_POWER_H
 #define _DT_BINDINGS_POWER_MT7623A_POWER_H
 

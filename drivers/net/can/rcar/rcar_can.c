@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Renesas R-Car CAN device driver
  *
  * Copyright (C) 2013 Cogent Embedded, Inc. <source@cogentembedded.com>

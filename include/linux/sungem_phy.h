@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __SUNGEM_PHY_H__
 #define __SUNGEM_PHY_H__
 

@@ -4,7 +4,7 @@
  * Copyright (c) 2017 Amlogic, Inc. All rights reserved.
  * Author: Xingyu Chen <xingyu.chen@amlogic.com>
  *
- * SPDX-License-Identifier: (GPL-2.0+ or MIT)
+ * SPDX-License-Identifier: (GPL-2.0-or-later or MIT)
  */
 
 #include <dt-bindings/gpio/meson-axg-gpio.h>

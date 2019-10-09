@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This is for all the tests related to refcount bugs (e.g. overflow,
  * underflow, reaching zero untested, etc).

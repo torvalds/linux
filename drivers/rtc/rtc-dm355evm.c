@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * rtc-dm355evm.c - access battery-backed counter in MSP430 firmware
  *

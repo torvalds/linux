@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * uninorth.h: definitions for using the "UniNorth" host bridge chip
  *             from Apple. This chip is used on "Core99" machines

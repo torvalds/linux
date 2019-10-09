@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2015-2017 Pengutronix, Lucas Stach <kernel@pengutronix.de>
  * Copyright 2011-2013 Freescale Semiconductor, Inc.

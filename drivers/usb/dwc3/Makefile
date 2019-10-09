@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # define_trace.h needs to know how to find our header
 CFLAGS_trace.o				:= -I$(src)
 

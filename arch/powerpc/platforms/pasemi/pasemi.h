@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _PASEMI_PASEMI_H
 #define _PASEMI_PASEMI_H
 

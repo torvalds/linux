@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 obj-m := kpc_dma.o
 kpc_dma-objs += dma.o

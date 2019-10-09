@@ -1,3 +1,3 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 $(dirname $0)/../kselftest_module.sh "strscpy*" test_strscpy

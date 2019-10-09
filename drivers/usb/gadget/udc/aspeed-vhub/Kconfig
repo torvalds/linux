@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 config USB_ASPEED_VHUB
 	tristate "Aspeed vHub UDC driver"
 	depends on ARCH_ASPEED || COMPILE_TEST

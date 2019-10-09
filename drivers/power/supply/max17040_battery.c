@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 //  max17040_battery.c
 //  fuel-gauge systems for lithium-ion (Li+) batteries

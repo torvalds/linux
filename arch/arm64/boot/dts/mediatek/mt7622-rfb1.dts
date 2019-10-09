@@ -3,7 +3,7 @@
  * Author: Ming Huang <ming.huang@mediatek.com>
  *	   Sean Wang <sean.wang@mediatek.com>
  *
- * SPDX-License-Identifier: (GPL-2.0 OR MIT)
+ * SPDX-License-Identifier: (GPL-2.0-only OR MIT)
  */
 
 /dts-v1/;

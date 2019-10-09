@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2012 Intel Corporation
  * Author: Josh Triplett <josh@joshtriplett.org>

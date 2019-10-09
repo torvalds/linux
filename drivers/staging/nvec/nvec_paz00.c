@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * nvec_paz00: OEM specific driver for Compal PAZ00 based devices
  *

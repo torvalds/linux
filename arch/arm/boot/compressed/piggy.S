@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 	.section .piggydata,#alloc
 	.globl	input_data
 input_data:

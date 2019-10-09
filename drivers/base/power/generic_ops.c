@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/base/power/generic_ops.c - Generic PM callbacks for subsystems
  *

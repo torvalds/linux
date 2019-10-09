@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-note */
 /*
  *  Universal TUN/TAP device driver.
  *  Copyright (C) 1999-2000 Maxim Krasnyansky <max_mk@yahoo.com>

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCI Express Downstream Port Containment services driver
  * Author: Keith Busch <keith.busch@intel.com>

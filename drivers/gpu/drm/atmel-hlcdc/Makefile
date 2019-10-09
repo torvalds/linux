@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 atmel-hlcdc-dc-y := atmel_hlcdc_crtc.o \
 		atmel_hlcdc_dc.o \
 		atmel_hlcdc_output.o \

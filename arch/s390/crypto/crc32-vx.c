@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Crypto-API module for CRC-32 algorithms implemented with the
  * z/Architecture Vector Extension Facility.

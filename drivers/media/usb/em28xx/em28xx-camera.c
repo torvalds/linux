@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // em28xx-camera.c - driver for Empia EM25xx/27xx/28xx USB video capture devices
 //

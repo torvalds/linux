@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * cb_das16_cs.c
  * Driver for Computer Boards PC-CARD DAS16/16.

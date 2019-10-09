@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #if IS_ENABLED(CONFIG_TYPEC_DP_ALTMODE)
 int dp_altmode_probe(struct typec_altmode *alt);
 void dp_altmode_remove(struct typec_altmode *alt);

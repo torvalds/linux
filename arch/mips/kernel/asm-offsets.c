@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * asm-offsets.c: Calculate pt_regs and task_struct offsets.
  *

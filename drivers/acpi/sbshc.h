@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 struct acpi_smb_hc;
 enum acpi_smb_protocol {
 	SMBUS_WRITE_QUICK = 2,

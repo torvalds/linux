@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ARCH_ORION5X_TSX09_COMMON_H
 #define __ARCH_ORION5X_TSX09_COMMON_H
 

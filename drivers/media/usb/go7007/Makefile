@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_VIDEO_GO7007) += go7007.o
 obj-$(CONFIG_VIDEO_GO7007_USB) += go7007-usb.o
 obj-$(CONFIG_VIDEO_GO7007_LOADER) += go7007-loader.o

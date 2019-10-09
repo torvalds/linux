@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // ir-nec-decoder.c - handle NEC IR Pulse/Space protocol
 //
 // Copyright (C) 2010 by Mauro Carvalho Chehab

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 generic-y += asm-offsets.h
 generic-y += bugs.h
 generic-y += compat.h

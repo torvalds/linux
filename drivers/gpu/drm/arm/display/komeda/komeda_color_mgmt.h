@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * (C) COPYRIGHT 2019 ARM Limited. All rights reserved.
  * Author: James.Qian.Wang <james.qian.wang@arm.com>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 .global sys32_helper
 sys32_helper:
 	/* Args: syscall_args_32*, function pointer */

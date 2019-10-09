@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * pcie-dra7xx - PCIe controller driver for TI DRA7xx SoCs
  *

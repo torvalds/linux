@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __IEEE802154_SYSFS_H
 #define __IEEE802154_SYSFS_H
 

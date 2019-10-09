@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/module.h>

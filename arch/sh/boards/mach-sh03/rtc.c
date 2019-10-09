@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/sh/boards/sh03/rtc.c -- CTP/PCI-SH03 on-chip RTC support
  *

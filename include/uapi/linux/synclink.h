@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0-or-later WITH Linux-syscall-note */
 /*
  * SyncLink Multiprotocol Serial Adapter Driver
  *

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0
+.. SPDX-License-Identifier: GPL-2.0-only
 
 .. include:: ../disclaimer-zh_CN.rst
 
@@ -88,18 +88,18 @@ https://spdx.org/licenses/ 上的官方SPDX许可证列表中检索，并附带�
    带有“或更高”选项的[L]GPL等许可证的许可证标识符通过使用“+”来表示“或更高”
    选项来构建。::
 
-      // SPDX-License-Identifier: GPL-2.0+
-      // SPDX-License-Identifier: LGPL-2.1+
+      // SPDX-License-Identifier: GPL-2.0-or-later
+      // SPDX-License-Identifier: LGPL-2.1-or-later
 
    当需要修正的许可证时，应使用WITH。 例如，linux内核UAPI文件使用表达式::
 
-      // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
-      // SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note
+      // SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note
+      // SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-note
 
    其它在内核中使用WITH例外的事例如下::
 
-      // SPDX-License-Identifier: GPL-2.0 WITH mif-exception
-      // SPDX-License-Identifier: GPL-2.0+ WITH GCC-exception-2.0
+      // SPDX-License-Identifier: GPL-2.0-only WITH mif-exception
+      // SPDX-License-Identifier: GPL-2.0-or-later WITH GCC-exception-2.0
 
    例外只能与特定的许可证标识符一起使用。有效的许可证标识符列在异常文本文件
    的标记中。有关详细信息，请参阅 `许可标识符`_ 一章中的 `例外`_ 。
@@ -107,26 +107,26 @@ https://spdx.org/licenses/ 上的官方SPDX许可证列表中检索，并附带�
    如果文件是双重许可且只选择一个许可证，则应使用OR。例如，一些dtsi文件在双
    许可下可用::
 
-      // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+      // SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
 
    内核中双许可文件中许可表达式的示例::
 
-      // SPDX-License-Identifier: GPL-2.0 OR MIT
-      // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-      // SPDX-License-Identifier: GPL-2.0 OR Apache-2.0
-      // SPDX-License-Identifier: GPL-2.0 OR MPL-1.1
-      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT
-      // SPDX-License-Identifier: GPL-1.0+ OR BSD-3-Clause OR OpenSSL
+      // SPDX-License-Identifier: GPL-2.0-only OR MIT
+      // SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+      // SPDX-License-Identifier: GPL-2.0-only OR Apache-2.0
+      // SPDX-License-Identifier: GPL-2.0-only OR MPL-1.1
+      // SPDX-License-Identifier: (GPL-2.0-only WITH Linux-syscall-note) OR MIT
+      // SPDX-License-Identifier: GPL-1.0-or-later OR BSD-3-Clause OR OpenSSL
 
    如果文件具有多个许可证，其条款全部适用于使用该文件，则应使用AND。例如，
    如果代码是从另一个项目继承的，并且已经授予了将其放入内核的权限，但原始
    许可条款需要保持有效::
 
-      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) AND MIT
+      // SPDX-License-Identifier: (GPL-2.0-only WITH Linux-syscall-note) AND MIT
 
    另一个需要遵守两套许可条款的例子是::
 
-      // SPDX-License-Identifier: GPL-1.0+ AND LGPL-2.1+
+      // SPDX-License-Identifier: GPL-1.0+ AND LGPL-2.1-or-later
 
 许可标识符
 ----------
@@ -186,9 +186,9 @@ https://spdx.org/licenses/ 上的官方SPDX许可证列表中检索，并附带�
 	tag/value pairs into a comment according to the placement
 	guidelines in the licensing rules documentation.
 	For 'GNU General Public License (GPL) version 2 only' use:
-	  SPDX-License-Identifier: GPL-2.0
+	  SPDX-License-Identifier: GPL-2.0-only
 	For 'GNU General Public License (GPL) version 2 or any later version' use:
-	  SPDX-License-Identifier: GPL-2.0+
+	  SPDX-License-Identifier: GPL-2.0-or-later
       License-Text:
         Full license text
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* leon_smp.c: Sparc-Leon SMP support.
  *
  * based on sun4m_smp.c

@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Analyze a given results directory for rcuperf performance measurements,
 # looking for ftrace data.  Exits with 0 if data was found, analyzed, and

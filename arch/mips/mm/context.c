@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/atomic.h>
 #include <linux/mmu_context.h>
 #include <linux/percpu.h>

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2003-2008 Takahiro Hirofuchi
  * Copyright (C) 2015 Nobuo Iwata

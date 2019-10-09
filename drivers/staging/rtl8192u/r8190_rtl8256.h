@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *	 This is part of the rtl8180-sa2400 driver
  *	 released under the GPL (See file COPYING for details).

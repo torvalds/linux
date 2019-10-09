@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Makefile for the L-BOX RE2 specific parts of the kernel
 # Copyright (c) 2007 Nobuhiro Iwamatsu

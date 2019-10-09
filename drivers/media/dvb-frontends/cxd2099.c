@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cxd2099.c: Driver for the Sony CXD2099AR Common Interface Controller
  *

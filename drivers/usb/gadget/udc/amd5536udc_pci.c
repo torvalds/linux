@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * amd5536udc_pci.c -- AMD 5536 UDC high/full speed USB device controller
  *

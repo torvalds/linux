@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef CM9780_H_INCLUDED
 #define CM9780_H_INCLUDED
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Amlogic Meson Successive Approximation Register (SAR) A/D Converter
  *

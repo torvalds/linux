@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // error-inject.c: Function-level error injection table
 #include <linux/error-injection.h>
 #include <linux/debugfs.h>

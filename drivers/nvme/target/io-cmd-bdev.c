@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * NVMe I/O command implementation.
  * Copyright (c) 2015-2016 HGST, a Western Digital Company.

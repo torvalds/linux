@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/vmlinux.lds.h>
 

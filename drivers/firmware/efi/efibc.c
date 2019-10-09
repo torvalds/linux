@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * efibc: control EFI bootloaders which obey LoaderEntryOneShot var
  * Copyright (c) 2013-2016, Intel Corporation.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // ir-sanyo-decoder.c - handle SANYO IR Pulse/Space protocol
 //
 // Copyright (C) 2011 by Mauro Carvalho Chehab

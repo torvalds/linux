@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Test various interface configuration scenarios. Observe that configurations
 # deemed valid by mlxsw succeed, invalid configurations fail and that no traces

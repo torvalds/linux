@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_COMMON_CLK_QCOM) += clk-qcom.o
 
 clk-qcom-y += common.o

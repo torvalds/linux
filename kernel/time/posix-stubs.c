@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Dummy stubs used when CONFIG_POSIX_TIMERS=n
  *

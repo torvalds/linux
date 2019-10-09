@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * t10_pi.c - Functions for generating and verifying T10 Protection
  *	      Information.

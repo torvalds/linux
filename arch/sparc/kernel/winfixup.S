@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* winfixup.S: Handle cases where user stack pointer is found to be bogus.
  *
  * Copyright (C) 1997, 2006 David S. Miller (davem@davemloft.net)

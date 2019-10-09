@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* apc - Driver implementation for power management functions
  * of Aurora Personality Chip (APC) on SPARCstation-4/5 and
  * derivatives.

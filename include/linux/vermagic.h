@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <generated/utsrelease.h>
 
 /* Simply sanity version stamp for modules. */

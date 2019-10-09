@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef BOOT_CPUFLAGS_H
 #define BOOT_CPUFLAGS_H
 

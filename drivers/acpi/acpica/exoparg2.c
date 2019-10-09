@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0-only
 /******************************************************************************
  *
  * Module Name: exoparg2 - AML execution - opcodes with 2 arguments

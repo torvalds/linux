@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CS2000  --  CIRRUS LOGIC Fractional-N Clock Synthesizer & Clock Multiplier
  *

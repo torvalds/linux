@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cros_ec_light_prox - Driver for light and prox sensors behing CrosEC.
  *

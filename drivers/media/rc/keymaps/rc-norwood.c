@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // norwood.h - Keytable for norwood Remote Controller
 //
 // keymap imported from ir-keymaps.c

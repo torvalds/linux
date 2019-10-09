@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Driver for ORISE Technology OTM3225A SOC for TFT LCD
  * Copyright (C) 2017, EETS GmbH, Felix Brack <fb@ltec.ch>
  *

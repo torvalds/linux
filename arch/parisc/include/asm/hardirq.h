@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* hardirq.h: PA-RISC hard IRQ support.
  *
  * Copyright (C) 2001 Matthew Wilcox <matthew@wil.cx>

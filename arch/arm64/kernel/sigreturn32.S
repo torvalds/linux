@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AArch32 sigreturn code.
  * Based on the kuser helpers in arch/arm/kernel/entry-armv.S.

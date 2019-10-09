@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ASM_POWERPC_SYSCALLS_H
 #define __ASM_POWERPC_SYSCALLS_H
 #ifdef __KERNEL__

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // reset-uniphier-glue.c - Glue layer reset driver for UniPhier
 // Copyright 2018 Socionext Inc.

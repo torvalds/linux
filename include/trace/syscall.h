@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _TRACE_SYSCALL_H
 #define _TRACE_SYSCALL_H
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Display a menu with individual samples to browse with perf script */
 #include "hist.h"
 #include "evsel.h"

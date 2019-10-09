@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Copyright IBM Corp. 2016
  *  Author(s): Holger Dengler (hd@linux.vnet.ibm.com)

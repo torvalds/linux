@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* NGbzero.S: Niagara optimized memset/clear_user.
  *
  * Copyright (C) 2006 David S. Miller (davem@davemloft.net)

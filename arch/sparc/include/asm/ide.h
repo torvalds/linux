@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* ide.h: SPARC PCI specific IDE glue.
  *
  * Copyright (C) 1997  David S. Miller (davem@davemloft.net)

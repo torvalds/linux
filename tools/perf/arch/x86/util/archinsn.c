@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include "../../../../arch/x86/include/asm/insn.h"
 #include "archinsn.h"
 #include "event.h"

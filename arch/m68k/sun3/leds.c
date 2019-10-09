@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <asm/contregs.h>
 #include <asm/sun3mmu.h>
 #include <asm/io.h>

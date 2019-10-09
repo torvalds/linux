@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for SCM Microsystems (a.k.a. Shuttle) USB-ATAPI cable
  *

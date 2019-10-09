@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ARCH_ARM_FAULT_H
 #define __ARCH_ARM_FAULT_H
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // HD-Audio helpers to sync with DRM driver
 
 #ifndef __SOUND_HDA_COMPONENT_H

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Cragganmore 6410 shared definitions
  *
  * Copyright 2011 Wolfson Microelectronics plc

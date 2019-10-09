@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support for PNI RM3100 3-axis geomagnetic sensor on a spi bus.
  *

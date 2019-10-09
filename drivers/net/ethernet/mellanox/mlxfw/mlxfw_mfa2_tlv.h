@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0-only */
 /* Copyright (c) 2017-2019 Mellanox Technologies. All rights reserved */
 
 #ifndef _MLXFW_MFA2_TLV_H

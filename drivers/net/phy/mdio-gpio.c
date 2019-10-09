@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * GPIO based MDIO bitbang driver.
  * Supports OpenFirmware.

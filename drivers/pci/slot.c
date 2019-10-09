@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2006 Matthew Wilcox <matthew@wil.cx>
  * Copyright (C) 2006-2009 Hewlett-Packard Development Company, L.P.

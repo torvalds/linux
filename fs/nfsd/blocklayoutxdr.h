@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _NFSD_BLOCKLAYOUTXDR_H
 #define _NFSD_BLOCKLAYOUTXDR_H 1
 

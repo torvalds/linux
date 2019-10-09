@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef ARCH_ARM_PLAT_OMAP4_ISS_H
 #define ARCH_ARM_PLAT_OMAP4_ISS_H
 

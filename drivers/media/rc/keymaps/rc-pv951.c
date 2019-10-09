@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // pv951.h - Keytable for pv951 Remote Controller
 //
 // keymap imported from ir-keymaps.c

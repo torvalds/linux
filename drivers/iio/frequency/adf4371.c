@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Analog Devices ADF4371 SPI Wideband Synthesizer driver
  *

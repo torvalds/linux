@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_RTLWIFI) 		+= rtlwifi.o
 rtlwifi-objs	:=		\
 		base.o		\

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
+/* SPDX-License-Identifier: GPL-2.0-only OR Linux-OpenIB */
 /* Copyright (c) 2018 Mellanox Technologies. */
 
 #ifndef __MLX5_EN_TC_TUNNEL_H__

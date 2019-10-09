@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #define CPUPRI_NR_PRIORITIES	(MAX_RT_PRIO + 2)
 

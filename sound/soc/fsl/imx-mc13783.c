@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // imx-mc13783.c  --  SoC audio for imx based boards with mc13783 codec
 //

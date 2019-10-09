@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ni_65xx.c
  * Comedi driver for National Instruments PCI-65xx static dio boards

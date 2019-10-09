@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # This test installs a TC bpf program that throttles a TCP flow
 # with dst port = 9000 down to 5MBps. Then it measures actual

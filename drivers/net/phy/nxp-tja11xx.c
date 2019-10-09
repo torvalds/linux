@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* NXP TJA1100 BroadRReach PHY driver
  *
  * Copyright (C) 2018 Marek Vasut <marex@denx.de>

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* -*-linux-c-*-
 
  * vendor-specific code for SCSI CD-ROM's goes here.

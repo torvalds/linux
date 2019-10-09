@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _H8300_PGTABLE_H
 #define _H8300_PGTABLE_H
 #define __ARCH_USE_5LEVEL_HACK

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Future Domain TMC-16x0 and TMC-3260 SCSI host adapters
  * Copyright 2019 Ondrej Zary

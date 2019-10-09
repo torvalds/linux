@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * comedi/drivers/cb_pcimdas.c
  * Comedi driver for Computer Boards PCIM-DAS1602/16 and PCIe-DAS1602/16

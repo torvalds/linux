@@ -1,6 +1,6 @@
 #!/bin/sh
 # Copyright (C) 2018, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
-# SPDX-License-Identifier: LGPL-2.1
+# SPDX-License-Identifier: LGPL-2.1-only
 
 [ $# -eq 1 ] && header_dir=$1 || header_dir=tools/include/uapi/linux/
 

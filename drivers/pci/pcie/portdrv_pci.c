@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Purpose:	PCI Express Port Bus Driver
  * Author:	Tom Nguyen <tom.l.nguyen@intel.com>

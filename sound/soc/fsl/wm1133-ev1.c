@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 //  wm1133-ev1.c - Audio for WM1133-EV1 on i.MX31ADS
 //

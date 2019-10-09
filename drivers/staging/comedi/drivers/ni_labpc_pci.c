@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * comedi/drivers/ni_labpc_pci.c
  * Driver for National Instruments Lab-PC PCI-1200

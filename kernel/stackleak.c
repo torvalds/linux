@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This code fills the used part of the kernel stack with a poison value
  * before returning to userspace. It's part of the STACKLEAK feature

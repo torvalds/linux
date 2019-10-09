@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/mount.h>
 #include <linux/pseudo_fs.h>
 #include <linux/file.h>

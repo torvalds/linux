@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Internal header to deal with irq_desc->status which will be renamed
  * to irq_desc->settings.

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <linux/pm_qos.h>
 
 static inline void device_pm_init_common(struct device *dev)

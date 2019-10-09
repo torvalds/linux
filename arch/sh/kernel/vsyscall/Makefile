@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-y += vsyscall.o vsyscall-syscall.o vsyscall-syms.o
 
 $(obj)/vsyscall-syscall.o: \

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __LOCAL_MEI_PHY_H_
 #define __LOCAL_MEI_PHY_H_
 

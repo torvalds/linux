@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0-only
 /* Copyright (c) 2016-2018, NXP Semiconductors
  * Copyright (c) 2018-2019, Vladimir Oltean <olteanv@gmail.com>
  */

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Sleepable Read-Copy Update mechanism for mutual exclusion,
  *	tiny variant.

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 snd-soc-simple-card-utils-objs	:= simple-card-utils.o
 snd-soc-simple-card-objs	:= simple-card.o
 snd-soc-audio-graph-card-objs	:= audio-graph-card.o

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/oprofile.h>
 #include <linux/sched.h>
 #include <linux/mm.h>

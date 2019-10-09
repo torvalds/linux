@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __DRIVERS_USB_CHIPIDEA_HOST_H
 #define __DRIVERS_USB_CHIPIDEA_HOST_H
 

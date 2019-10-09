@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef INCLUDE_XEN_OPS_H
 #define INCLUDE_XEN_OPS_H
 

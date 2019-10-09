@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0 OR MIT
+# SPDX-License-Identifier: GPL-2.0-only OR MIT
 
 drm_xen_front-objs := xen_drm_front.o \
 		      xen_drm_front_kms.o \

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Realtek SMI subdriver for the Realtek RTL8366RB ethernet switch
  *
  * This is a sparsely documented chip, the only viable documentation seems

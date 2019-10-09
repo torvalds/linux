@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include "audit.h"
 #include <linux/fsnotify_backend.h>
 #include <linux/namei.h>

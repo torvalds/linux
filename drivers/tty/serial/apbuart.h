@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __GRLIB_APBUART_H__
 #define __GRLIB_APBUART_H__
 

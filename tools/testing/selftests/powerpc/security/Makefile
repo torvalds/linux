@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 TEST_GEN_PROGS := rfi_flush
 top_srcdir = ../../../../..

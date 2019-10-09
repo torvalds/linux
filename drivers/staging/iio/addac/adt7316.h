@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * ADT7316 digital temperature sensor driver supporting ADT7316/7/8 ADT7516/7/9
  *

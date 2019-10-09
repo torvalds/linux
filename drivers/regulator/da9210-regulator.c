@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // da9210-regulator.c - Regulator device driver for DA9210
 // Copyright (C) 2013  Dialog Semiconductor Ltd.

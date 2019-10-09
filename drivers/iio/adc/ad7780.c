@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD7170/AD7171 and AD7780/AD7781 SPI ADC driver
  *

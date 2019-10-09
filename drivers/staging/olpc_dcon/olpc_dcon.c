@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Mainly by David Woodhouse, somewhat modified by Jordan Crouse
  *

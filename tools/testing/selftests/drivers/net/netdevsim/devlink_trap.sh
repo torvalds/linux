@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # This test is for checking devlink-trap functionality. It makes use of
 # netdevsim which implements the required callbacks.

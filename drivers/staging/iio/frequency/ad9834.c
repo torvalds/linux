@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD9833/AD9834/AD9837/AD9838 SPI DDS driver
  *

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ALPHA_MMU_CONTEXT_H
 #define __ALPHA_MMU_CONTEXT_H
 

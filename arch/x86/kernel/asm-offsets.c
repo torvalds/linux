@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generate definitions needed by assembly language modules.
  * This code generates raw asm output which is post-processed to extract

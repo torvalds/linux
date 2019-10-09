@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef PERF_PRINT_BINARY_H
 #define PERF_PRINT_BINARY_H
 

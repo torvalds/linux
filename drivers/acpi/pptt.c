@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * pptt.c - parsing of Processor Properties Topology Table (PPTT)
  *

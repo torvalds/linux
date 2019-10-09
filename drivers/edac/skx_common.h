@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Common codes for both the skx_edac driver and Intel 10nm server EDAC driver.
  * Originally split out from the skx_edac driver.

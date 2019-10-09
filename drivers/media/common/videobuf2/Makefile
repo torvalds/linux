@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 videobuf2-common-objs := videobuf2-core.o
 
 ifeq ($(CONFIG_TRACEPOINTS),y)

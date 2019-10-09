@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * "RTT as Real Time Clock" driver for AT91SAM9 SoC family
  *

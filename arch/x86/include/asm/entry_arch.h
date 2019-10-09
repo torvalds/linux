@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This file is designed to contain the BUILD_INTERRUPT specifications for
  * all of the extra named interrupt vectors used by the architecture.

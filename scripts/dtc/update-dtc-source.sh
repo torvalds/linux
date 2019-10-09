@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Simple script to update the version of DTC carried by the Linux kernel
 #
 # This script assumes that the dtc and the linux git trees are in the

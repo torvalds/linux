@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 MOUNT_CFLAGS := $(shell pkg-config --cflags mount 2>/dev/null)
 MOUNT_LDLIBS := $(shell pkg-config --libs mount 2>/dev/null)

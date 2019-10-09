@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef DECOMPRESS_UNLZO_H
 #define DECOMPRESS_UNLZO_H
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * mov_ss_trap.c: Exercise the bizarre side effects of a watchpoint on MOV SS
  *

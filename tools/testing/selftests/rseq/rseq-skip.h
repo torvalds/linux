@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1 OR MIT */
+/* SPDX-License-Identifier: LGPL-2.1-only OR MIT */
 /*
  * rseq-skip.h
  *

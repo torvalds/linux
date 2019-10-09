@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // pv88060-regulator.c - Regulator device driver for PV88060
 // Copyright (C) 2015  Powerventure Semiconductor Ltd.

@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Send packets with transmit timestamps over loopback with netem
 # Verify that timestamps correspond to netem delay

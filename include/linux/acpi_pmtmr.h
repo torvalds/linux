@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ACPI_PMTMR_H_
 #define _ACPI_PMTMR_H_
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __NVDIMM_PMEM_H__
 #define __NVDIMM_PMEM_H__
 #include <linux/page-flags.h>

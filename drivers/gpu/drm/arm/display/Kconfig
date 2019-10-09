@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_KOMEDA
 	tristate "ARM Komeda display driver"
 	depends on DRM && OF

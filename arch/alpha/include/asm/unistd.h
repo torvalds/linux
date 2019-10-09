@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ALPHA_UNISTD_H
 #define _ALPHA_UNISTD_H
 

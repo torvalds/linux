@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* net/atm/addr.c - Local ATM address registry */
 
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */

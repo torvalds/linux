@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 dtb-$(CONFIG_ARCH_ACTIONS) += s700-cubieboard7.dtb
 

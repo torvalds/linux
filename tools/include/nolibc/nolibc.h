@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1 OR MIT */
+/* SPDX-License-Identifier: LGPL-2.1-only OR MIT */
 /* nolibc.h
  * Copyright (C) 2017-2018 Willy Tarreau <w@1wt.eu>
  */

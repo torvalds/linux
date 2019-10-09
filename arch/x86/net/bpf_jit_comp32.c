@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Just-In-Time compiler for eBPF filters on IA32 (32bit x86)
  *

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * the definition file of cs5536 Virtual Support Module(VSM).
  * pci configuration space can be accessed through the VSM, so

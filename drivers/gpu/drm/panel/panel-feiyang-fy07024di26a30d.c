@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2018 Amarula Solutions
  * Author: Jagan Teki <jagan@amarulasolutions.com>

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 TEST_PROGS_EXTENDED := functions.sh
 TEST_PROGS := \

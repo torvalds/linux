@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This header provides constants for the reset controller
  * based peripheral powerdown requests on the STMicroelectronics

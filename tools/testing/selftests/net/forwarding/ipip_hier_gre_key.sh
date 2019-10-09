@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 # Test IP-in-IP GRE tunnels without key.
 # This test uses hierarchical topology for IP tunneling tests. See

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) AND MIT) */
+/* SPDX-License-Identifier: ((GPL-2.0-only WITH Linux-syscall-note) AND MIT) */
 /*
  *  compress_params.h - codec types and parameters for compressed data
  *  streaming interface

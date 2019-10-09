@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-3-Clause)
 /*
  * Copyright (C) 2004-2016 Synopsys, Inc.
  *

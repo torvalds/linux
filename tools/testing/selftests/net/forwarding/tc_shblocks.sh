@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 ALL_TESTS="shared_block_test match_indev_test"
 NUM_NETIFS=4

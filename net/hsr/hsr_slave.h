@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright 2011-2014 Autronica Fire and Security AS
  *
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se

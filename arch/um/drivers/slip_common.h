@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __UM_SLIP_COMMON_H
 #define __UM_SLIP_COMMON_H
 

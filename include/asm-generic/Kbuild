@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # asm headers that all architectures except um should have
 # (This file is not included when SRCARCH=um since UML borrows several

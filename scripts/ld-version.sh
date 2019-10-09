@@ -1,5 +1,5 @@
 #!/usr/bin/awk -f
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # extract linker version number from stdin and turn into single number
 	{
 	gsub(".*\\)", "");

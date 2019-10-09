@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* The Sparc trap table, bootloader gives us control at _start. */
         __HEAD
 

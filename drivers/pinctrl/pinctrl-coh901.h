@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 int u300_gpio_config_get(struct gpio_chip *chip,
 			 unsigned offset,
 			 unsigned long *config);

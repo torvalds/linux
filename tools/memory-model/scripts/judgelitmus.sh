@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Given a .litmus test and the corresponding .litmus.out file, check
 # the .litmus.out file against the "Result:" comment to judge whether

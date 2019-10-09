@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR CDDL-1.0) */
+/* SPDX-License-Identifier: (GPL-2.0-only OR CDDL-1.0) */
 /*
  * vboxguest core guest-device handling code, VBoxGuest.cpp in upstream svn.
  *

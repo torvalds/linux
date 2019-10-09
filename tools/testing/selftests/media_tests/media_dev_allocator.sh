@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Media Device Allocator API test script
 # Copyright (c) 2019 Shuah Khan <shuah@kernel.org>
 

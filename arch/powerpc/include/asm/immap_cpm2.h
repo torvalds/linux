@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * CPM2 Internal Memory Map
  * Copyright (c) 1999 Dan Malek (dmalek@jlc.net)

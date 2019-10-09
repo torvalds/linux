@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Makefile for Linux PHY drivers and MDIO bus drivers
 
 libphy-y			:= phy.o phy-c45.o phy-core.o phy_device.o

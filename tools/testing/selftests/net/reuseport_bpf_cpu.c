@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Test functionality of BPF filters with SO_REUSEPORT.  This program creates
  * an SO_REUSEPORT receiver group containing one socket per CPU core. It then

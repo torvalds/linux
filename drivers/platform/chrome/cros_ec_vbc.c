@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Expose the vboot context nvram to userspace
 //
 // Copyright (C) 2012 Google, Inc.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * A dummy STM device for stm/stm_source class testing.
  * Copyright (c) 2014, Intel Corporation.

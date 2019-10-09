@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __DT_MESON_G12A_TOHDMITX_H
 #define __DT_MESON_G12A_TOHDMITX_H
 

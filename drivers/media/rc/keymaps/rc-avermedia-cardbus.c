@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // avermedia-cardbus.h - Keytable for avermedia_cardbus Remote Controller
 //
 // keymap imported from ir-keymaps.c

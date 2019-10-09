@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 
 /*
  * cros_ec_lid_angle - Driver for CrOS EC lid angle sensor.

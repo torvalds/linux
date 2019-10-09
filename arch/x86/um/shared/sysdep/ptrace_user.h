@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <generated/user_constants.h>
 
 #define PT_OFFSET(r) ((r) * sizeof(long))

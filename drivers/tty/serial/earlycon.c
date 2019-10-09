@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Linaro Ltd.
  * Author: Rob Herring <robh@kernel.org>

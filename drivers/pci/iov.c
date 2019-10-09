@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCI Express I/O Virtualization (IOV) support
  *   Single Root IOV 1.0

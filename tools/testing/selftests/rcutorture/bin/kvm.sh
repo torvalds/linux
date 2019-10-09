@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Run a series of tests under KVM.  By default, this series is specified
 # by the relevant CFLIST file, but can be overridden by the --configs

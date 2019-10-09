@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mma8452.c - Support for following Freescale / NXP 3-axis accelerometers:
  *

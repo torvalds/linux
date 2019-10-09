@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 	.file	"shr_Xsig.S"
 /*---------------------------------------------------------------------------+
  |  shr_Xsig.S                                                               |

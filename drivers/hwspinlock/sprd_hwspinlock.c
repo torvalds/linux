@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Spreadtrum hardware spinlock driver
  * Copyright (C) 2017 Spreadtrum  - http://www.spreadtrum.com

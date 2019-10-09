@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /* Copyright (c) 2002-2007 Volkswagen Group Electronic Research
  * Copyright (c) 2017 Pengutronix, Marc Kleine-Budde <kernel@pengutronix.de>
  *

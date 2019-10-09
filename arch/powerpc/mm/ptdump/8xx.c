@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * From split of dump_linuxpagetables.c
  * Copyright 2016, Rashmica Gupta, IBM Corp.

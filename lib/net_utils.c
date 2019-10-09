@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/string.h>
 #include <linux/if_ether.h>
 #include <linux/ctype.h>

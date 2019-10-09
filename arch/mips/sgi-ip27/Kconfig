@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 choice
 	prompt "Node addressing mode"
 	depends on SGI_IP27

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0-only */
 /******************************************************************************
  *
  * Name: acobject.h - Definition of union acpi_operand_object  (Internal object only)

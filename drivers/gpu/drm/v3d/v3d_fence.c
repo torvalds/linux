@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Copyright (C) 2017-2018 Broadcom */
 
 #include "v3d_drv.h"

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * sha512-ce-core.S - core SHA-384/SHA-512 transform using v8 Crypto Extensions
  *

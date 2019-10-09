@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rt1011.c -- rt1011 ALSA SoC amplifier component driver
  *

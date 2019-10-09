@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mtu3_gadget_ep0.c - MediaTek USB3 DRD peripheral driver ep0 handling
  *

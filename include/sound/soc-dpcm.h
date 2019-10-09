@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0-only
  *
  * linux/sound/soc-dpcm.h -- ALSA SoC Dynamic PCM Support
  *

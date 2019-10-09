@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Here is where the ball gets rolling as far as the kernel is concerned.
  * When control is transferred to _start, the bootload has already

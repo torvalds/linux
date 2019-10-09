@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ACPI 5.1 based NUMA setup for ARM64
  * Lots of code was borrowed from arch/x86/mm/srat.c

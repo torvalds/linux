@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/nodemask.h>
 #include <linux/module.h>
 #include <linux/random.h>

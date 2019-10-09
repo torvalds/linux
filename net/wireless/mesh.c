@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/ieee80211.h>
 #include <linux/export.h>
 #include <net/cfg80211.h>

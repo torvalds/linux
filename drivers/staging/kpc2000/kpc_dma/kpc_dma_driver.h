@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef KPC_DMA_DRIVER_H
 #define KPC_DMA_DRIVER_H
 #include <linux/platform_device.h>

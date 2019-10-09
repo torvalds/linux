@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * sni_ave.c - Socionext UniPhier AVE ethernet driver
  * Copyright 2014 Panasonic Corporation

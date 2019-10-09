@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // purpletv.h - Keytable for purpletv Remote Controller
 //
 // keymap imported from ir-keymaps.c

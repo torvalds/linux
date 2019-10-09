@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 NIC_SELECT = RTL8192U
 
 ccflags-y := -O2

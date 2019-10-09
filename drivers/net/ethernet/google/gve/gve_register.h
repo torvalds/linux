@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* SPDX-License-Identifier: (GPL-2.0-only OR MIT)
  * Google virtual Ethernet (gve) driver
  *
  * Copyright (C) 2015-2019 Google, Inc.

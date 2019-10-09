@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Implementation of the diskquota system for the LINUX operating system. QUOTA
  * is implemented using the BSD system call interface as the means of

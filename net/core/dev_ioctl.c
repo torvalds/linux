@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/kmod.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>

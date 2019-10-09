@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This is for all the tests relating directly to heap memory, including
  * page allocation and slab allocations.

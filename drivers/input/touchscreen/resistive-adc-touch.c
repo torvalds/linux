@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ADC generic resistive touchscreen (GRTS)
  * This is a generic input driver that connects to an ADC

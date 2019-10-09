@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ASM_PARISC_ROPES_H_
 #define _ASM_PARISC_ROPES_H_
 

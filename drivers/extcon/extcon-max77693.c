@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // extcon-max77693.c - MAX77693 extcon driver to support MAX77693 MUIC
 //

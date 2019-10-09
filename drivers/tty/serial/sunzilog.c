@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* sunzilog.c: Zilog serial driver for Sparc systems.
  *
  * Driver for Zilog serial chips found on Sun workstations and

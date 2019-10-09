@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * File created by Kanoj Sarcar 06/06/00.
  * Copyright 2000 Silicon Graphics, Inc.

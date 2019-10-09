@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Xilinx AXIS FIFO: interface to the Xilinx AXI-Stream FIFO IP core
  *

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * dev-path-parser.c - EFI Device Path parser
  * Copyright (C) 2016 Lukas Wunner <lukas@wunner.de>

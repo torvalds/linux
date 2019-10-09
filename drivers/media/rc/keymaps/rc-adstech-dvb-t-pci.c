@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // adstech-dvb-t-pci.h - Keytable for adstech_dvb_t_pci Remote Controller
 //
 // keymap imported from ir-keymaps.c

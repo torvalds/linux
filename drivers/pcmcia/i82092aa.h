@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _INCLUDE_GUARD_i82092aa_H_
 #define _INCLUDE_GUARD_i82092aa_H_
 

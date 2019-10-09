@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Realtek SMI interface driver defines
  *
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>

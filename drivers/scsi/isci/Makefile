@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_SCSI_ISCI) += isci.o
 isci-objs := init.o phy.o request.o \
 	     remote_device.o port.o \

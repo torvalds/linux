@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Request reply cache. This is currently a global cache, but this may
  * change in the future and be a per-client cache.

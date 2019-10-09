@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2017 Spreadtrum Communications Inc.
  *
- * SPDX-License-Identifier: GPL-2.0
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 
 #include <linux/delay.h>

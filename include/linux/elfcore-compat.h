@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LINUX_ELFCORE_COMPAT_H
 #define _LINUX_ELFCORE_COMPAT_H
 

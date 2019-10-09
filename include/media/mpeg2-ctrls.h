@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * These are the MPEG2 state controls for use with stateless MPEG-2
  * codec drivers.

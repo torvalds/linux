@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // ir-imon-decoder.c - handle iMon protocol
 //
 // Copyright (C) 2018 by Sean Young <sean@mess.org>

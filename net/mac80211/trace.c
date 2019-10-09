@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* bug in tracepoint.h, it should include this */
 #include <linux/module.h>
 

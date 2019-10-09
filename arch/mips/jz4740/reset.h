@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __MIPS_JZ4740_RESET_H__
 #define __MIPS_JZ4740_RESET_H__
 

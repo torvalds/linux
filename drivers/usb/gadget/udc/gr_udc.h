@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * USB Peripheral Controller driver for Aeroflex Gaisler GRUSBDC.
  *

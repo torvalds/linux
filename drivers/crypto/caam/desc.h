@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * CAAM descriptor composition header
  * Definitions to support CAAM descriptor instruction generation

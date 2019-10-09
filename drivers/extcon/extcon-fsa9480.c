@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * extcon-fsa9480.c - Fairchild Semiconductor FSA9480 extcon driver
  *

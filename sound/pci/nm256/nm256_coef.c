@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #define NM_TOTAL_COEFF_COUNT 0x3158
 
 static char coefficients[NM_TOTAL_COEFF_COUNT * 4] = { 

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_LTE_GDM724X) := gdmulte.o
 gdmulte-y += gdm_lte.o netlink_k.o
 gdmulte-y += gdm_usb.o gdm_endian.o

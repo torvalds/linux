@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 libusbip_la_CPPFLAGS = -DUSBIDS_FILE='"@USBIDS_DIR@/usb.ids"'
 libusbip_la_CFLAGS   = @EXTRA_CFLAGS@
 libusbip_la_LDFLAGS  = -version-info @LIBUSBIP_VERSION@

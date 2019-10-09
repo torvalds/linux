@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0-only
  *
  * This file contains the functions and defines necessary to modify and
  * use the SuperH page table tree.

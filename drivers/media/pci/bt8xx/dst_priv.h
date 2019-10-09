@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * dst-bt878.h: part of the DST driver for the TwinHan DST Frontend
  *

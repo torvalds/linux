@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 	.file	"div_Xsig.S"
 /*---------------------------------------------------------------------------+
  |  div_Xsig.S                                                               |

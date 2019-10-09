@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __INTERNAL_RWSEM_H
 #define __INTERNAL_RWSEM_H

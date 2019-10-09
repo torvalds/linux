@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Keytable for Xbox DVD remote
 // Copyright (c) 2018 by Benjamin Valentin <benpicco@googlemail.com>
 

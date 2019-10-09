@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * comedi/drivers/me_daq.c
  * Hardware driver for Meilhaus data acquisition cards:

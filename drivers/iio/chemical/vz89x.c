@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * vz89x.c - Support for SGX Sensortech MiCS VZ89X VOC sensors
  *

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* ebus.c: EBUS DMA library code.
  *
  * Copyright (C) 1997  Eddie C. Dost  (ecd@skynet.be)

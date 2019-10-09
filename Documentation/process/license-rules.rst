@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0
+.. SPDX-License-Identifier: GPL-2.0-only
 
 .. _kernel_licensing:
 
@@ -102,19 +102,19 @@ License identifier syntax
    License identifiers for licenses like [L]GPL with the 'or later' option
    are constructed by using a "+" for indicating the 'or later' option.::
 
-      // SPDX-License-Identifier: GPL-2.0+
-      // SPDX-License-Identifier: LGPL-2.1+
+      // SPDX-License-Identifier: GPL-2.0-or-later
+      // SPDX-License-Identifier: LGPL-2.1-or-later
 
    WITH should be used when there is a modifier to a license needed.
    For example, the linux kernel UAPI files use the expression::
 
-      // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
-      // SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note
+      // SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note
+      // SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-note
 
    Other examples using WITH exceptions found in the kernel are::
 
-      // SPDX-License-Identifier: GPL-2.0 WITH mif-exception
-      // SPDX-License-Identifier: GPL-2.0+ WITH GCC-exception-2.0
+      // SPDX-License-Identifier: GPL-2.0-only WITH mif-exception
+      // SPDX-License-Identifier: GPL-2.0-or-later WITH GCC-exception-2.0
 
    Exceptions can only be used with particular License identifiers. The
    valid License identifiers are listed in the tags of the exception text
@@ -125,28 +125,28 @@ License identifier syntax
    to be selected.  For example, some dtsi files are available under dual
    licenses::
 
-      // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+      // SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
 
    Examples from the kernel for license expressions in dual licensed files::
 
-      // SPDX-License-Identifier: GPL-2.0 OR MIT
-      // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-      // SPDX-License-Identifier: GPL-2.0 OR Apache-2.0
-      // SPDX-License-Identifier: GPL-2.0 OR MPL-1.1
-      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT
-      // SPDX-License-Identifier: GPL-1.0+ OR BSD-3-Clause OR OpenSSL
+      // SPDX-License-Identifier: GPL-2.0-only OR MIT
+      // SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+      // SPDX-License-Identifier: GPL-2.0-only OR Apache-2.0
+      // SPDX-License-Identifier: GPL-2.0-only OR MPL-1.1
+      // SPDX-License-Identifier: (GPL-2.0-only WITH Linux-syscall-note) OR MIT
+      // SPDX-License-Identifier: GPL-1.0-or-later OR BSD-3-Clause OR OpenSSL
 
    AND should be used if the file has multiple licenses whose terms all
    apply to use the file. For example, if code is inherited from another
    project and permission has been given to put it in the kernel, but the
    original license terms need to remain in effect::
 
-      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) AND MIT
+      // SPDX-License-Identifier: (GPL-2.0-only WITH Linux-syscall-note) AND MIT
 
    Another other example where both sets of license terms need to be
    adhered to is::
 
-      // SPDX-License-Identifier: GPL-1.0+ AND LGPL-2.1+
+      // SPDX-License-Identifier: GPL-1.0+ AND LGPL-2.1-or-later
 
 License identifiers
 -------------------
@@ -214,9 +214,9 @@ kernel, can be broken down into:
 	tag/value pairs into a comment according to the placement
 	guidelines in the licensing rules documentation.
 	For 'GNU General Public License (GPL) version 2 only' use:
-	  SPDX-License-Identifier: GPL-2.0
+	  SPDX-License-Identifier: GPL-2.0-only
 	For 'GNU General Public License (GPL) version 2 or any later version' use:
-	  SPDX-License-Identifier: GPL-2.0+
+	  SPDX-License-Identifier: GPL-2.0-or-later
       License-Text:
         Full license text
 
@@ -347,7 +347,7 @@ kernel, can be broken down into:
 
    Contains the Linux syscall exception as documented in the COPYING
    file of the Linux kernel, which is used for UAPI header files.
-   e.g. /\* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note \*/::
+   e.g. /\* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note \*/::
 
       LICENSES/exceptions/GCC-exception-2.0
 

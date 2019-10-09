@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/drivers/message/fusion/mptdebug.h
  *      For use with LSI PCI chip/adapter(s)

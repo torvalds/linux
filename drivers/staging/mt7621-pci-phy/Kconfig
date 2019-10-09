@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config PCI_MT7621_PHY
 	tristate "MediaTek MT7621 PCI PHY Driver"
 	depends on RALINK && OF

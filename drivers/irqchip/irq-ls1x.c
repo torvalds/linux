@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2019, Jiaxun Yang <jiaxun.yang@flygoat.com>
  *  Loongson-1 platform IRQ support

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef LINUX_SSB_EMBEDDED_H_
 #define LINUX_SSB_EMBEDDED_H_
 

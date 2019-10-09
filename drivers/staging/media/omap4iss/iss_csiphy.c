@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * TI OMAP4 ISS V4L2 Driver - CSI PHY module
  *

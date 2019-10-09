@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Rafael Micro R820T driver
 //
 // Copyright (C) 2013 Mauro Carvalho Chehab

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ROHM BH1710/BH1715/BH1721/BH1750/BH1751 ambient light sensor driver
  *

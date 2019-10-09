@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # (c) 2007, Joe Perches <joe@perches.com>
 #           created from checkpatch.pl

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Since there are many different boards and no standard configuration,
  * we have a unique include file for each.  Rather than change every

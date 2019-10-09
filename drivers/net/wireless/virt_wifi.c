@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/net/wireless/virt_wifi.c
  *
  * A fake implementation of cfg80211_ops that can be tacked on to an ethernet

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-note */
 /***************************************************************************
  * Linux PPP over X - Generic PPP transport layer sockets
  * Linux PPP over Ethernet (PPPoE) Socket Implementation (RFC 2516) 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2009 by Bart Hartgers (bart.hartgers+ark3116@gmail.com)
  * Original version:

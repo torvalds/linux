@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR CDDL-1.0) */
+/* SPDX-License-Identifier: (GPL-2.0-only OR CDDL-1.0) */
 /*
  * Virtual Device for Guest <-> VMM/Host communication interface
  *

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _LINUX_FPGA_BRIDGE_H
 #define _LINUX_FPGA_BRIDGE_H

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Hitachi Audio Controller (AC97) support for SH7760/SH7780
 //

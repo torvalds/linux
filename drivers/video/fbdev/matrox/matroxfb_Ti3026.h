@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __MATROXFB_TI3026_H__
 #define __MATROXFB_TI3026_H__
 

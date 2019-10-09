@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include "qcom-apq8084.dtsi"
 #include "qcom-pma8084.dtsi"
 

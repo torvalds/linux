@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Linux GPIOlib driver for the VIA VX855 integrated southbridge GPIO
  *

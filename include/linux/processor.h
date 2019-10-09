@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Misc low level processor primitives */
 #ifndef _LINUX_PROCESSOR_H
 #define _LINUX_PROCESSOR_H

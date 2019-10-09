@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* atmdev.h - ATM device driver declarations and various related items */
 #ifndef LINUX_ATMDEV_H
 #define LINUX_ATMDEV_H

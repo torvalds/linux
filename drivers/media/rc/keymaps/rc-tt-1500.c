@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // tt-1500.h - Keytable for tt_1500 Remote Controller
 //
 // keymap imported from ir-keymaps.c

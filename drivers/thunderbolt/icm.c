@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Internal Thunderbolt Connection Manager. This is a firmware running on
  * the Thunderbolt host controller performing most of the low-level

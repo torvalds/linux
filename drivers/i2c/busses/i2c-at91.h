@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  i2c Support for Atmel's AT91 Two-Wire Interface (TWI)
  *

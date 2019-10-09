@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __MACH_MXM_8X10_H
 #define __MACH_MXM_8X10_H
 

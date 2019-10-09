@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <asm-generic/vmlinux.lds.h>
 
 OUTPUT_FORMAT(CONFIG_OUTPUT_FORMAT)

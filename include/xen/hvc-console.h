@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef XEN_HVC_CONSOLE_H
 #define XEN_HVC_CONSOLE_H
 

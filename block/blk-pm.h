@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _BLOCK_BLK_PM_H_
 #define _BLOCK_BLK_PM_H_

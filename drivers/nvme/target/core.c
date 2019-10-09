@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Common code for the NVMe target.
  * Copyright (c) 2015-2016 HGST, a Western Digital Company.

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __QCOM_CLK_KRAIT_H
 #define __QCOM_CLK_KRAIT_H

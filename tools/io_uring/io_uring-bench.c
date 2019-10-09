@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Simple benchmark program that uses the various features of io_uring
  * to provide fast random access to a device/file. It has various

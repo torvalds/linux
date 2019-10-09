@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 source ../mirror_gre_scale.sh
 
 mirror_gre_get_target()

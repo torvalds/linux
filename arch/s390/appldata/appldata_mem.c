@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Data gathering module for Linux-VM Monitor Stream, Stage 1.
  * Collects data related to memory management.

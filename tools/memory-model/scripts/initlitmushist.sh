@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Runs the C-language litmus tests matching the specified criteria.
 # Generates the output for each .litmus file into a corresponding

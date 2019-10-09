@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Universal AFS Error codes (UAE).
  *
  * Copyright (C) 2003, Daria Phoebe Brashear

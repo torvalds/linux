@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * mb1232.c - Support for MaxBotix I2CXL-MaxSonar-EZ series ultrasonic
  *   ranger with i2c interface

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0-only
  *
  * linux/sound/soc-dapm.h -- ALSA SoC Dynamic Audio Power Management
  *

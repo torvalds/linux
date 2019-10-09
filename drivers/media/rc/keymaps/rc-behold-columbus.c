@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // behold-columbus.h - Keytable for behold_columbus Remote Controller
 //
 // keymap imported from ir-keymaps.c

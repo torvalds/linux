@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <linux/sh_intc.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // extcon-ptn5150.c - PTN5150 CC logic extcon driver to support USB detection
 //

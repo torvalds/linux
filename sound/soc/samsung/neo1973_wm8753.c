@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // neo1973_wm8753.c - SoC audio for Openmoko Neo1973 and Freerunner devices
 //

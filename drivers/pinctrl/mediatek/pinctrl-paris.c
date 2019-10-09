@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MediaTek Pinctrl Paris Driver, which implement the vendor per-pin
  * bindings for MediaTek SoC.

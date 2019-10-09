@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Run herd7 tests on all .litmus files in the litmus-tests directory
 # and check each file's result against a "Result:" comment within that

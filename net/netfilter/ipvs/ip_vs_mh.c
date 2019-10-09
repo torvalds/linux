@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* IPVS:	Maglev Hashing scheduling module
  *
  * Authors:	Inju Song <inju.song@navercorp.com>

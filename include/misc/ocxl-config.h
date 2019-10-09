@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright 2017 IBM Corp.
 #ifndef _OCXL_CONFIG_H_
 #define _OCXL_CONFIG_H_

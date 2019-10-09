@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2018 BayLibre, SAS
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 static int find_map(void **start, void **end, const char *name)
 {
 	FILE *maps;

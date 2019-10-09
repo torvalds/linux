@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Interface for Dynamic Logical Partitioning of I/O Slots on
  * RPA-compliant PPC64 platform.

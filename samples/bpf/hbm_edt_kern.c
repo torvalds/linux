@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2019 Facebook
  *
  * This program is free software; you can redistribute it and/or

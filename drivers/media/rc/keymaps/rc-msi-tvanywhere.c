@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // msi-tvanywhere.h - Keytable for msi_tvanywhere Remote Controller
 //
 // keymap imported from ir-keymaps.c

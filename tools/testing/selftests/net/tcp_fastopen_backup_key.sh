@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # rotate TFO keys for ipv4/ipv6 and verify that the client does
 # not present an invalid cookie.

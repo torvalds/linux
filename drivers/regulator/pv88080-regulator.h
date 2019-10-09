@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * pv88080-regulator.h - Regulator definitions for PV88080
  * Copyright (C) 2016 Powerventure Semiconductor Ltd.

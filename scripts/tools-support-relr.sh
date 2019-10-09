@@ -1,5 +1,5 @@
 #!/bin/sh -eu
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 tmp_file=$(mktemp)
 trap "rm -f $tmp_file.o $tmp_file $tmp_file.bin" EXIT

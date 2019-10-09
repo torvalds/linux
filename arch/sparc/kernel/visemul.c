@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* visemul.c: Emulation of VIS instructions.
  *
  * Copyright (C) 2006 David S. Miller (davem@davemloft.net)

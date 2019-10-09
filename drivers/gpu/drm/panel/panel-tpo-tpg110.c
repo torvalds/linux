@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Panel driver for the TPO TPG110 400CH LTPS TFT LCD Single Chip
  * Digital Driver.

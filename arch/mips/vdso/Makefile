@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Objects to go into the VDSO.
 
 # Absolute relocation type $(ARCH_REL_TYPE_ABS) needs to be defined before

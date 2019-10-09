@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung's Exynos SoC syscon reboot/poweroff nodes common definition.
  */

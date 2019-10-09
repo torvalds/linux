@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _INCLUDE_GUARD_PD6729_H_
 #define _INCLUDE_GUARD_PD6729_H_
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016-2017, National Instruments Corp.
  *
  * Author: Moritz Fischer <mdf@kernel.org>

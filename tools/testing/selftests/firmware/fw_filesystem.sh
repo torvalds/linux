@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # This validates that the kernel will load firmware out of its list of
 # firmware locations on disk. Since the user helper does similar work,
 # we reset the custom load directory to a location the user helper doesn't

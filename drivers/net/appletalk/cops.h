@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*      cops.h: LocalTalk driver for Linux.
  *
  *      Authors:

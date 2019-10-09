@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
+# SPDX-License-Identifier: (LGPL-2.1-only OR BSD-2-Clause)
 # Most of this file is copied from tools/lib/bpf/Makefile
 
 LIBPERF_VERSION = 0

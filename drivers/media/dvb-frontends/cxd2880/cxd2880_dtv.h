@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * cxd2880_dtv.h
  * Sony CXD2880 DVB-T2/T tuner + demodulator driver

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Analog Devices AD5272 digital potentiometer driver
  * Copyright (C) 2018 Phil Reid <preid@electromag.com.au>

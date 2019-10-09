@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _M68KNOMMU_CACHEFLUSH_H
 #define _M68KNOMMU_CACHEFLUSH_H
 

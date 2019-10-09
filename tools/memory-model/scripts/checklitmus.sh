@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Run a herd7 test and invokes judgelitmus.sh to check the result against
 # a "Result:" comment within the litmus test.  It also outputs verification

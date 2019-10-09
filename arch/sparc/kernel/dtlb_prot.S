@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * dtlb_prot.S: DTLB protection trap strategy.
  *              This is included directly into the trap table.

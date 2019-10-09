@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel SoC Core Telemetry Driver
  * Copyright (C) 2015, Intel Corporation.

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 config USB_ROLE_SWITCH
 	tristate "USB Role Switch Support"

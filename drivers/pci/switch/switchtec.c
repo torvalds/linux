@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Microsemi Switchtec(tm) PCIe Management Driver
  * Copyright (c) 2017, Microsemi Corporation

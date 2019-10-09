@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hyp portion of the (not much of an) Emulation layer for 32bit guests.
  *

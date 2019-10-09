@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * test_ida.c: Test the IDA API
  * Copyright (c) 2016-2018 Microsoft Corporation

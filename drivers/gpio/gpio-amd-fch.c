@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /*
  * GPIO driver for the AMD G series FCH (eg. GX-412TC)

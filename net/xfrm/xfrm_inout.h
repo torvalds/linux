@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <linux/ipv6.h>
 #include <net/dsfield.h>
 #include <net/xfrm.h>

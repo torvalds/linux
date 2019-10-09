@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // Copyright (c) 2004-2005 Simtec Electronics
 //	http://www.simtec.co.uk/products/SWLINUX/

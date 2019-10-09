@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Test various aspects of VxLAN offloading which are specific to mlxsw, such
 # as sanitization of invalid configurations and offload indication.

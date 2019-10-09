@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ALPHA_PERCPU_H
 #define __ALPHA_PERCPU_H
 

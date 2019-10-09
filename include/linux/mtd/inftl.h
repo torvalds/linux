@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *	inftl.h -- defines to support the Inverse NAND Flash Translation Layer
  *

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef USBUSX2Y_H
 #define USBUSX2Y_H
 #include "../usbaudio.h"

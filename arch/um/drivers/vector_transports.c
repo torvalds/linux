@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 - Cambridge Greys Limited
  * Copyright (C) 2011 - 2014 Cisco Systems Inc

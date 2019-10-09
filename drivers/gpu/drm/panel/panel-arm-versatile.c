@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Panel driver for the ARM Versatile family reference designs from
  * ARM Limited.

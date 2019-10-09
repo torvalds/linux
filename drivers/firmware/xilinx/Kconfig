@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Kconfig for Xilinx firmwares
 
 menu "Zynq MPSoC Firmware Drivers"

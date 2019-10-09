@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // DVB USB compliant linux driver for Conexant USB reference design -
 // (analog part).

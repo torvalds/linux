@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This header has been modifies to remove definitions of types that
  * are defined in standard userspace headers or are problematic for some

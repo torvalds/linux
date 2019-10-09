@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2013-2014 Freescale Semiconductor, Inc.
  * Copyright 2018 Angelo Dureghello <angelo@sysam.it>

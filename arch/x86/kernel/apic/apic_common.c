@@ -1,7 +1,7 @@
 /*
  * Common functions shared between the various APIC flavours
  *
- * SPDX-License-Identifier: GPL-2.0
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 #include <linux/irq.h>
 #include <asm/apic.h>

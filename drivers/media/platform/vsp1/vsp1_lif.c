@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * vsp1_lif.c  --  R-Car VSP1 LCD Controller Interface
  *

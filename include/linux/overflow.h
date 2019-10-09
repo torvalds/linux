@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 OR MIT */
+/* SPDX-License-Identifier: GPL-2.0-only OR MIT */
 #ifndef __LINUX_OVERFLOW_H
 #define __LINUX_OVERFLOW_H
 

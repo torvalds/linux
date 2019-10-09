@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef BCM63XX_IRQ_H_
 #define BCM63XX_IRQ_H_
 

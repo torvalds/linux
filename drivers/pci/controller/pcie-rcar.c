@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCIe driver for Renesas R-Car SoCs
  *  Copyright (C) 2014 Renesas Electronics Europe Ltd

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * r8a774c0 Clock Pulse Generator / Module Standby and Software Reset
  *

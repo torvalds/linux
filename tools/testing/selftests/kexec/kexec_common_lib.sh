@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Kselftest framework defines: ksft_pass=0, ksft_fail=1, ksft_skip=4
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0-only
 /******************************************************************************
  *
  * Module Name: utids - support for device Ids - HID, UID, CID, SUB, CLS

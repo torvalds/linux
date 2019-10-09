@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 # Test traffic distribution when there are multiple routes between an IPv4
 # GRE tunnel. The tunnel carries IPv6 traffic between multiple hosts.

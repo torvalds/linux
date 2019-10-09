@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Samsung's S3C64XX generic DMA support using amba-pl08x driver.
 //

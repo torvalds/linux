@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <media/v4l2-common.h>
 #include <media/v4l2-fh.h>
 #include <media/videobuf2-v4l2.h>

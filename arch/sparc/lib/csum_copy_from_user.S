@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* csum_copy_from_user.S: Checksum+copy from userspace.
  *
  * Copyright (C) 2005 David S. Miller (davem@davemloft.net)

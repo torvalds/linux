@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _WCD_CLSH_V2_H_
 #define _WCD_CLSH_V2_H_

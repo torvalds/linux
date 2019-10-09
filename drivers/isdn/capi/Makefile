@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Makefile for the CAPI subsystem.
 
 # Ordering constraints: kernelcapi.o first

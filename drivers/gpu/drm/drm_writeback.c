@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) COPYRIGHT 2016 ARM Limited. All rights reserved.
  * Author: Brian Starkey <brian.starkey@arm.com>

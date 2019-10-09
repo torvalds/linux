@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *    Copyright IBM Corp. 2017
  *    Author(s): Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>

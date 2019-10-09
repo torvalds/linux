@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Detect cycles in the header file dependency graph
 # Vegard Nossum <vegardno@ifi.uio.no>

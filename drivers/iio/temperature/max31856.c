@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* max31856.c
  *
  * Maxim MAX31856 thermocouple sensor driver

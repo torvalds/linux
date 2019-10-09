@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Real Time Clock (RTC) Driver for i.MX53
  * Copyright (c) 2004-2011 Freescale Semiconductor, Inc.

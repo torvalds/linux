@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Makefile for the Linux firmware loader
 
 obj-$(CONFIG_FW_LOADER_USER_HELPER) += fallback_table.o

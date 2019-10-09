@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * kdebug.h:  Defines and definitions for debugging the Linux kernel
  *            under various kernel debuggers.

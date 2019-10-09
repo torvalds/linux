@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * FPGA to SDRAM Bridge Driver for Altera SoCFPGA Devices
  *

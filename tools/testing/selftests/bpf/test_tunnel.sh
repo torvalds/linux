@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 # End-to-end eBPF tunnel test suite
 #   The script tests BPF network tunnel implementation.

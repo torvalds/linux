@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * twl6030_usb - TWL6030 USB transceiver, talking to OMAP OTG driver.
  *

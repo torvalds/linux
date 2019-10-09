@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * June 2006 Steve Glendinning <steve.glendinning@shawell.net>
  *

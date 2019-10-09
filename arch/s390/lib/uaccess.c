@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Standard user space access functions based on mvcp/mvcs and doing
  *  interesting things in the secondary space mode.

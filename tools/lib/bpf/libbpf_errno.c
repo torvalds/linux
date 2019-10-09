@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
+// SPDX-License-Identifier: (LGPL-2.1-only OR BSD-2-Clause)
 
 /*
  * Copyright (C) 2013-2015 Alexei Starovoitov <ast@kernel.org>

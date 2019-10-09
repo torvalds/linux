@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* dvb-usb-ids.h is part of the DVB USB library.
  *
  * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de) see

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* include this file if the platform implements the dma_ DMA Mapping API
  * and wants to provide the pci_ DMA Mapping API in terms of it */
 

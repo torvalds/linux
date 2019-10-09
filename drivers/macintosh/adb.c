@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Device driver for the Apple Desktop Bus
  * and the /dev/adb device on macintoshes.

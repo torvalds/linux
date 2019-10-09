@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef ARM_PLAT_SCHED_CLOCK_H
 #define ARM_PLAT_SCHED_CLOCK_H
 

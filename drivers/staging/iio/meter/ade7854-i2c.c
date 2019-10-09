@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ADE7854/58/68/78 Polyphase Multifunction Energy Metering IC Driver (I2C Bus)
  *

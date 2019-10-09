@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Renesas R-Car CAN FD device driver
  *
  * Copyright (C) 2015 Renesas Electronics Corp.

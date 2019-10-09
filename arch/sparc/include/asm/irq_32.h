@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* irq.h: IRQ registers on the Sparc.
  *
  * Copyright (C) 1995, 2007 David S. Miller (davem@davemloft.net)

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _LINUX_OF_PRIVATE_H
 #define _LINUX_OF_PRIVATE_H
 /*

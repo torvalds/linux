@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 rtl8192ce-objs :=		\
 		dm.o		\
 		hw.o		\

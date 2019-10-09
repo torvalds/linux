@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // spi-mt7621.c -- MediaTek MT7621 SPI controller driver
 //

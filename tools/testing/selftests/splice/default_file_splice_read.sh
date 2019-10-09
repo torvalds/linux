@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 n=`./default_file_splice_read </dev/null | wc -c`
 
 test "$n" = 0 && exit 0

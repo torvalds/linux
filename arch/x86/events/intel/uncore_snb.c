@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Nehalem/SandBridge/Haswell/Broadwell/Skylake uncore support */
 #include "uncore.h"
 

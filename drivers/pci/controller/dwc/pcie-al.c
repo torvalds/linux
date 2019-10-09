@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCIe host controller driver for Amazon's Annapurna Labs IP (used in chips
  * such as Graviton and Alpine)

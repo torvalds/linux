@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Real Time Clock (RTC) Driver for sd3078
  * Copyright (C) 2018 Zoro Li

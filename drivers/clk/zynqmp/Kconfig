@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 config COMMON_CLK_ZYNQMP
 	bool "Support for Xilinx ZynqMP Ultrascale+ clock controllers"

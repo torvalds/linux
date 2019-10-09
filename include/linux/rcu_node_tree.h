@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * RCU node combining tree definitions.  These are used to compute
  * global attributes while avoiding common-case global contention.  A key

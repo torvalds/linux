@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Define the string that exports the set of kernel-supported
  * Kerberos enctypes. This list is sent via upcall to gssd, and

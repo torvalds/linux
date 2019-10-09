@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Functions related to interrupt-poll handling in the block layer. This
  * is similar to NAPI for network devices.

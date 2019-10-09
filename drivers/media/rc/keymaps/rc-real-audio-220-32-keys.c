@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // real-audio-220-32-keys.h - Keytable for real_audio_220_32_keys Remote Controller
 //
 // keymap imported from ir-keymaps.c

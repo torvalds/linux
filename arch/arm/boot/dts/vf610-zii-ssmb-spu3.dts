@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+// SPDX-License-Identifier: (GPL-2.0-only OR MIT)
 
 /*
  * Device tree file for ZII's SSMB SPU3 board

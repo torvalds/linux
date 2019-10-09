@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Comedi driver for National Instruments AT-A2150 boards
  * Copyright (C) 2001, 2002 Frank Mori Hess <fmhess@users.sourceforge.net>

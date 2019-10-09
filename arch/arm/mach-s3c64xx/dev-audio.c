@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Copyright 2009 Wolfson Microelectronics
 //      Mark Brown <broonie@opensource.wolfsonmicro.com>

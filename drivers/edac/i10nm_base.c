@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Intel(R) 10nm server memory controller.
  * Copyright (c) 2019, Intel Corporation.

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __KSELFTEST_MODULE_H
 #define __KSELFTEST_MODULE_H
 

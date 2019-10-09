@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file implements KASLR memory randomization for x86_64. It randomizes
  * the virtual address space of kernel memory regions (physical memory

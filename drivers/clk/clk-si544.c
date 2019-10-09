@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Silicon Labs Si544 Programmable Oscillator
  * Copyright (C) 2018 Topic Embedded Products

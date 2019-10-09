@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * phy-uniphier-usb3ss.c - SS-PHY driver for Socionext UniPhier USB3 controller
  * Copyright 2015-2018 Socionext Inc.

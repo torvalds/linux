@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * bitops.c: atomic operations which got too long to be inlined all over
  *      the place.

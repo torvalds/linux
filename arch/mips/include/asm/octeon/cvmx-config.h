@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __CVMX_CONFIG_H__
 #define __CVMX_CONFIG_H__
 

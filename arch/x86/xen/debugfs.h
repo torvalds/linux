@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _XEN_DEBUGFS_H
 #define _XEN_DEBUGFS_H
 

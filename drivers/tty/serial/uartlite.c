@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * uartlite.c: Serial driver for Xilinx uartlite serial controller
  *

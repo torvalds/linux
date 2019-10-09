@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AS3711 PMIC regulator driver, using DCDC Step Down and LDO supplies
  *

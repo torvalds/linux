@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * kcomedilib/kcomedilib.c
  * a comedlib interface for kernel modules

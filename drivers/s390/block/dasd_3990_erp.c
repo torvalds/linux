@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Author(s)......: Horst  Hummel    <Horst.Hummel@de.ibm.com>
  *		    Holger Smolinski <Holger.Smolinski@de.ibm.com>

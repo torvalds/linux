@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /// Remove dev_err() messages after platform_get_irq*() failures
 //
 // Confidence: Medium

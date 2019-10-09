@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __LINUX_MEMORY_HOTPLUG_H
 #define __LINUX_MEMORY_HOTPLUG_H
 

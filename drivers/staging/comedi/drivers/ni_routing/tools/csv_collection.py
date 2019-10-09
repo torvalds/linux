@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 # vim: ts=2:sw=2:et:tw=80:nowrap
 
 import os, csv, glob

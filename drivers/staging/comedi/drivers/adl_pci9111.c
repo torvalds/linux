@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * adl_pci9111.c
  * Hardware driver for PCI9111 ADLink cards: PCI-9111HR

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * System Trace Module (STM) infrastructure
  * Copyright (c) 2014, Intel Corporation.

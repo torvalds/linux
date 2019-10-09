@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Driver for Xbox DVD Movie Playback Kit
 // Copyright (c) 2018 by Benjamin Valentin <benpicco@googlemail.com>
 

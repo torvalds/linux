@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Shared Memory Communications Direct over ISM devices (SMC-D)
  *
  * Functions for ISM device.

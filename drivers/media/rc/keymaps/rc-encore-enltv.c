@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // encore-enltv.h - Keytable for encore_enltv Remote Controller
 //
 // keymap imported from ir-keymaps.c

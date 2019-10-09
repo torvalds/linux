@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ASM_GENERIC_BITOPS_FFS_H_
 #define _ASM_GENERIC_BITOPS_FFS_H_
 

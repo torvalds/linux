@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 cxd2880-objs := cxd2880_common.o \
 		cxd2880_devio_spi.o \

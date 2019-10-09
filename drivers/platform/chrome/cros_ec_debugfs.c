@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Debug logs for the ChromeOS EC
 //
 // Copyright (C) 2015 Google, Inc.

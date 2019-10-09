@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 extern struct btree_geo btree_geo128;
 
 struct btree_head128 { struct btree_head h; };

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifdef CONFIG_SCHED_AUTOGROUP
 
 struct autogroup {

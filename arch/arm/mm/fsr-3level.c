@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 static struct fsr_info fsr_info[] = {
 	{ do_bad,		SIGBUS,  0,		"unknown 0"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 1"			},

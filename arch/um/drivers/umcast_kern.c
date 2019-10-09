@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * user-mode-linux networking multicast transport
  * Copyright (C) 2001 by Harald Welte <laforge@gnumonks.org>

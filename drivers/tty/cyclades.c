@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #undef	BLOCKMOVE
 #define	Z_WAKE
 #undef	Z_EXT_CHARS_IN_BUFFER

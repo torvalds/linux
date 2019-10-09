@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // For Philips TEA5761 FM Chip
 // I2C address is always 0x20 (0x10 at 7-bit mode).
 //

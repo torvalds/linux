@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * COMEDI driver for the watchdog subdevice found on some addi-data boards
  * Copyright (c) 2013 H Hartley Sweeten <hsweeten@visionengravers.com>

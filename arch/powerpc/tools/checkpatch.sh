@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright 2018, Michael Ellerman, IBM Corporation.
 #
 # Wrapper around checkpatch that uses our preferred settings

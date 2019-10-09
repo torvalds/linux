@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ACENIC_H_
 #define _ACENIC_H_
 #include <linux/interrupt.h>

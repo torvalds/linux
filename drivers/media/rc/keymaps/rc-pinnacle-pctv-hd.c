@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // pinnacle-pctv-hd.h - Keytable for pinnacle_pctv_hd Remote Controller
 //
 // keymap imported from ir-keymaps.c

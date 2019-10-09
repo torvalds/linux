@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Makefile for SPI drivers
 
 snd-at73c213-objs		:= at73c213.o

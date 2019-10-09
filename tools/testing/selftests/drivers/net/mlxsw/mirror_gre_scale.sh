@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 # Test offloading a number of mirrors-to-gretap. The test creates a number of
 # tunnels. Then it adds one flower mirror for each of the tunnels, matching a

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 mc-objs	:= mc-device.o mc-devnode.o mc-entity.o \
 	   mc-request.o

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * w1_ds250x.c - w1 family 09/0b/89/91 (DS250x) driver
  */

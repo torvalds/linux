@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _AM335x_PHY_CONTROL_H_
 #define _AM335x_PHY_CONTROL_H_
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 # Test for DSCP prioritization and rewrite. Packets ingress $swp1 with a DSCP
 # tag and are prioritized according to the map at $swp1. They egress $swp2 and

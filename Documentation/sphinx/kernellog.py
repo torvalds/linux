@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Sphinx has deprecated its older logging interface, but the replacement
 # only goes back to 1.6.  So here's a wrapper layer to keep around for

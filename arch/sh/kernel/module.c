@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*  Kernel module help for SH.
 
     SHcompact version by Kaz Kojima and Paul Mundt.

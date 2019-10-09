@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /************************************************************************
  *
  *	IONSP.H		Definitions for I/O Networks Serial Protocol

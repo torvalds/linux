@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright IBM Corp. 2006, 2019
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>

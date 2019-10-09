@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Framework for MDIO devices, other than PHYs.
  *
  * Copyright (c) 2016 Andrew Lunn <andrew@lunn.ch>

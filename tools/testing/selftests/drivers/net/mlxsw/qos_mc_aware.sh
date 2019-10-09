@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # A test for switch behavior under MC overload. An issue in Spectrum chips
 # causes throughput of UC traffic to drop severely when a switch is under heavy

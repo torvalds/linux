@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #define EOF	(-1)
 
 extern void xmon_set_pagination_lpp(unsigned long lpp);

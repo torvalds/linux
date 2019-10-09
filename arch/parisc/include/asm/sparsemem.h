@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef ASM_PARISC_SPARSEMEM_H
 #define ASM_PARISC_SPARSEMEM_H
 

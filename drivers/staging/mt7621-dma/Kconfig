@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config MTK_HSDMA
 	tristate "MTK HSDMA support"
 	depends on RALINK && SOC_MT7621

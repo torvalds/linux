@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <trace/syscall.h>
 #include <trace/events/syscalls.h>
 #include <linux/syscalls.h>

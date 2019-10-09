@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Copyright (C) 2016-2017 Dmitry Osipenko <digetx@gmail.com> */
 #ifndef _UAPI_TEGRA_VDE_H_
 #define _UAPI_TEGRA_VDE_H_

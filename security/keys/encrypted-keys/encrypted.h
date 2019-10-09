@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ENCRYPTED_KEY_H
 #define __ENCRYPTED_KEY_H
 

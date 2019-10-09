@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 # LED Core
 obj-$(CONFIG_NEW_LEDS)			+= led-core.o

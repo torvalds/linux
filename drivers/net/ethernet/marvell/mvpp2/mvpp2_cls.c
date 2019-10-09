@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RSS and Classifier helpers for Marvell PPv2 Network Controller
  *

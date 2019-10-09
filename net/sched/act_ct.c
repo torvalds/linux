@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+// SPDX-License-Identifier: GPL-2.0-only OR Linux-OpenIB
 /* -
  * net/sched/act_ct.c  Connection Tracking action
  *

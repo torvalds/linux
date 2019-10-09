@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2010 Broadcom
  * Copyright 2012 Simon Arlott, Chris Boot, Stephen Warren

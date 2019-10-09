@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * UHCI HCD (Host Controller Driver) PCI Bus Glue.
  *

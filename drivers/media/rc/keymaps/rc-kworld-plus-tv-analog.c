@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // kworld-plus-tv-analog.h - Keytable for kworld_plus_tv_analog Remote Controller
 //
 // keymap imported from ir-keymaps.c

@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # A test for strict prioritization of traffic in the switch. Run two streams of
 # traffic, each through a different ingress port, one tagged with PCP of 1, the

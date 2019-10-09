@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/fanotify.h>
 #include <linux/fdtable.h>
 #include <linux/fsnotify_backend.h>

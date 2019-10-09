@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 SECTIONS {
 	/* Group unwind sections into a single section: */
 	.IA_64.unwind_info : { *(.IA_64.unwind_info*) }

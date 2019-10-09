@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* rtc-sun4v.c: Hypervisor based RTC for SUN4V systems.
  *
  * Author: David S. Miller

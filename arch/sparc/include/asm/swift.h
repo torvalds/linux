@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* swift.h: Specific definitions for the _broken_ Swift SRMMU
  *          MMU module.
  *

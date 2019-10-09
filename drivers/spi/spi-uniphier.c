@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // spi-uniphier.c - Socionext UniPhier SPI controller driver
 // Copyright 2012      Panasonic Corporation
 // Copyright 2016-2018 Socionext Inc.

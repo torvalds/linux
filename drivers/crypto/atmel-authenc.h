@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * API for Atmel Secure Protocol Layers Improved Performances (SPLIP)
  *

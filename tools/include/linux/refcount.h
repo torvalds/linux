@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _TOOLS_LINUX_REFCOUNT_H
 #define _TOOLS_LINUX_REFCOUNT_H
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mt8173-max98090.c  --  MT8173 MAX98090 ALSA SoC machine driver
  *

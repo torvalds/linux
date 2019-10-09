@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91-wb45n.dtsi - Device Tree file for WB45NBT board
  *

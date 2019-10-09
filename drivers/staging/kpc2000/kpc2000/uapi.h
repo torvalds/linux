@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef KP2000_CDEV_UAPI_H_
 #define KP2000_CDEV_UAPI_H_
 #include <linux/types.h>

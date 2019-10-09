@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include "ieee80211.h"
 #include <linux/etherdevice.h>
 #include <linux/slab.h>

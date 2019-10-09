@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __USBAUDIO_QUIRKS_H
 #define __USBAUDIO_QUIRKS_H
 

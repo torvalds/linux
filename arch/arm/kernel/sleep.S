@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <linux/linkage.h>
 #include <linux/threads.h>
 #include <asm/asm-offsets.h>

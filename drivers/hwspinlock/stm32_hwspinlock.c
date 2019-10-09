@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) STMicroelectronics SA 2018
  * Author: Benjamin Gaignard <benjamin.gaignard@st.com> for STMicroelectronics.

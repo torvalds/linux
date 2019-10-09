@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // avermedia-m135a.c - Keytable for Avermedia M135A Remote Controllers
 //
 // Copyright (c) 2010 by Mauro Carvalho Chehab

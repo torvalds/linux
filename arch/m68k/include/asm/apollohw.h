@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* apollohw.h : some structures to access apollo HW */
 
 #ifndef _ASMm68k_APOLLOHW_H_

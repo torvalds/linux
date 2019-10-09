@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel CHT Whiskey Cove PMIC operation region driver
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>

@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: LGPL-2.1
+# SPDX-License-Identifier: LGPL-2.1-only
 
 if [ $# -ne 1 ] ; then
 	linux_header_dir=tools/include/uapi/linux

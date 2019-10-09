@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ASM_X86_TIMER_H
 #define _ASM_X86_TIMER_H
 #include <linux/pm.h>

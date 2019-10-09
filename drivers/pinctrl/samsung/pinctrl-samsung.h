@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * pin-controller/pin-mux/pin-config/gpio-driver for Samsung's SoC's.
  *

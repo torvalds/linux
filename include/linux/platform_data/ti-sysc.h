@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __TI_SYSC_DATA_H__
 #define __TI_SYSC_DATA_H__

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Address translation interface via ACPI DSM.
  * Copyright (C) 2018 Intel Corporation

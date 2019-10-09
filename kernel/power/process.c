@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/power/process.c - Functions for starting/stopping processes on 
  *                           suspend transitions.

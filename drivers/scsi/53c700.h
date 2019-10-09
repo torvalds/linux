@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* -*- mode: c; c-basic-offset: 8 -*- */
 
 /* Driver for 53c700 and 53c700-66 chips from NCR and Symbios

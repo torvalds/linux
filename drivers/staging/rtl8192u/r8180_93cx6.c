@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  This files contains card eeprom (93c46 or 93c56) programming routines,
  *  memory is addressed by 16 bits words.

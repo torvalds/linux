@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Ethernet device driver for Cortina Systems Gemini SoC
  * Also known as the StorLink SL3512 and SL3516 (SL351x) or Lepus
  * Net Engine and Gigabit Ethernet MAC (GMAC)

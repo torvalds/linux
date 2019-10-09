@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+ OR BSD-2-Clause
+// SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause
 /*
  * Streebog hash function as specified by GOST R 34.11-2012 and
  * described at https://tools.ietf.org/html/rfc6986

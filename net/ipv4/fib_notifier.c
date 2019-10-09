@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/rtnetlink.h>
 #include <linux/notifier.h>
 #include <linux/socket.h>

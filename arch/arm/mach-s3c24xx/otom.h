@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * (c) 2005 Guillaume GOURAT / NexVision
  *          guillaume.gourat@nexvision.fr

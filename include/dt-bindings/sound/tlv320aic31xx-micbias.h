@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __DT_TLV320AIC31XX_MICBIAS_H
 #define __DT_TLV320AIC31XX_MICBIAS_H
 

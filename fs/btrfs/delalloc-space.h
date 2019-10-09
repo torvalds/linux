@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef BTRFS_DELALLOC_SPACE_H
 #define BTRFS_DELALLOC_SPACE_H

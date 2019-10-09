@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PSC clock descriptions for TI DA850/OMAP-L138/AM18XX
  *

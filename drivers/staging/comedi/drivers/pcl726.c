@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pcl726.c
  * Comedi driver for 6/12-Channel D/A Output and DIO cards

@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # description: Kprobe event with comm arguments
 
 [ -f kprobe_events ] || exit_unsupported # this is configurable

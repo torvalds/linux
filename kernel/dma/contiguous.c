@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Contiguous Memory Allocator for DMA mapping framework
  * Copyright (c) 2010-2011 by Samsung Electronics.

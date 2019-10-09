@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ke_counter.c
  * Comedi driver for Kolter-Electronic PCI Counter 1 Card

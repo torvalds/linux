@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * THC63LVD1024 LVDS to parallel data DRM bridge driver.
  *

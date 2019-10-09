@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-m	:=
 
 KDIR	:= /lib/modules/$(shell uname -r)/build

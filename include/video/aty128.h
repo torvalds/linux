@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*  $Id: aty128.h,v 1.1 1999/10/12 11:00:40 geert Exp $
  *  linux/drivers/video/aty128.h
  *  Register definitions for ATI Rage128 boards

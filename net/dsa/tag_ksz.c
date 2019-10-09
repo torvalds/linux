@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/dsa/tag_ksz.c - Microchip KSZ Switch tag format handling
  * Copyright (c) 2017 Microchip Technology

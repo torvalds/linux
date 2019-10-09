@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * fs/sysfs/dir.c - sysfs core and dir operation implementation
  *

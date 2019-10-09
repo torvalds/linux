@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ALPHA_MCPCIA__H__
 #define __ALPHA_MCPCIA__H__
 

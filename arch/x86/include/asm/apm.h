@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Machine specific APM BIOS functions for generic.
  *  Split out from apm.c by Osamu Tomita <tomita@cinet.co.jp>

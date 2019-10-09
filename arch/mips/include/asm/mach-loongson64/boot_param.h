@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ASM_MACH_LOONGSON64_BOOT_PARAM_H_
 #define __ASM_MACH_LOONGSON64_BOOT_PARAM_H_
 

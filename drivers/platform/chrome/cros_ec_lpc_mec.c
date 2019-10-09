@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // LPC variant I/O for Microchip EC
 //
 // Copyright (C) 2016 Google, Inc

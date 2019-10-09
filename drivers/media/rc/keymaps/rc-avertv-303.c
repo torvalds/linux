@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // avertv-303.h - Keytable for avertv_303 Remote Controller
 //
 // keymap imported from ir-keymaps.c

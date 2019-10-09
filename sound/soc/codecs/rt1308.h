@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * rt1308.h  --  RT1308 ALSA SoC amplifier component driver
  *

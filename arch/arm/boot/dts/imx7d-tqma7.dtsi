@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR X11
+// SPDX-License-Identifier: GPL-2.0-only OR X11
 /*
  * Device Tree Include file for TQ Systems TQMa7D board with NXP i.MX7Dual SoC.
  *

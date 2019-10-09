@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __OF_ADDRESS_H
 #define __OF_ADDRESS_H
 #include <linux/ioport.h>

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #pragma GCC diagnostic ignored "-Wstrict-prototypes"
 #include <gtk/gtk.h>
 #pragma GCC diagnostic error "-Wstrict-prototypes"

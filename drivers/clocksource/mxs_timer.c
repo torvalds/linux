@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 //  Copyright (C) 2000-2001 Deep Blue Solutions
 //  Copyright (C) 2002 Shane Nay (shane@minirl.com)

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _SUNVNETCOMMON_H
 #define _SUNVNETCOMMON_H
 

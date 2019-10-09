@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_B53)		+= b53_common.o
 
 obj-$(CONFIG_B53_SPI_DRIVER)	+= b53_spi.o

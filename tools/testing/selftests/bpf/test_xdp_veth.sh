@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Create 3 namespaces with 3 veth peers, and
 # forward packets in-between using native XDP

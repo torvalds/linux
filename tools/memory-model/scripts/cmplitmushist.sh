@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Compares .out and .out.new files for each name on standard input,
 # one full pathname per line.  Outputs comparison results followed by

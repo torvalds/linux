@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Multiplexer driver for Analog Devices ADG792A/G Triple 4:1 mux
  *

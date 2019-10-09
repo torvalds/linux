@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* register 1 */
 #define CS4398_REV_MASK		0x07
 #define CS4398_PART_MASK	0xf8

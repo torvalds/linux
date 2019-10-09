@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Provide kernel headers useful to build tracing programs
  * such as for running eBPF tracing tools.

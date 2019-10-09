@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #if !defined(_NETVSC_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _NETVSC_TRACE_H

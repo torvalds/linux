@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * gadget.c - DesignWare USB3 DRD Controller Gadget Framework Link
  *

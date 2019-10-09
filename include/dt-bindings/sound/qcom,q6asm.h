@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __DT_BINDINGS_Q6_ASM_H__
 #define __DT_BINDINGS_Q6_ASM_H__
 

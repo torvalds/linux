@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Performance event support for sparc64.
  *
  * Copyright (C) 2009, 2010 David S. Miller <davem@davemloft.net>

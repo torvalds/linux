@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __PMAC_ZILOG_H__
 #define __PMAC_ZILOG_H__
 

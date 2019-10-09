@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0-only
  *
  * SH3 CPU-specific DMA definitions, used by both DMA drivers
  *

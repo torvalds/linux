@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * adm1029.c - Part of lm_sensors, Linux kernel modules for hardware monitoring
  *

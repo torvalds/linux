@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * CAAM/SEC 4.x transport/backend driver
  * JobR backend functionality

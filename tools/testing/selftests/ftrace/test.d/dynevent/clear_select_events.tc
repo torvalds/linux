@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # description: Generic dynamic event - selective clear (compatibility)
 
 [ -f dynamic_events ] || exit_unsupported

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Copyright (C) 2014-2015 Pengutronix, Markus Pargmann <mpa@pengutronix.de>
 // Based on driver from 2011:

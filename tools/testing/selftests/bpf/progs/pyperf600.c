@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright (c) 2019 Facebook
 #define STACK_MAX_LEN 600
 /* clang will not unroll the loop 600 times.

@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 #  merge_config.sh - Takes a list of config fragment values, and merges
 #  them one by one. Provides warnings on overridden values, and specified

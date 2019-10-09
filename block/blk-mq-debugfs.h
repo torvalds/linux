@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef INT_BLK_MQ_DEBUGFS_H
 #define INT_BLK_MQ_DEBUGFS_H
 

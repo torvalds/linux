@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012-2013  Renesas Solutions Corp.
  * Copyright (C) 2013  Magnus Damm

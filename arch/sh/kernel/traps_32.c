@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 'traps.c' handles hardware traps and faults after we have saved some
  * state in 'entry.S'.

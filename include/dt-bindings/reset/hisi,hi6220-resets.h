@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /**
  * This header provides index for the reset controller
  * based on hi6220 SoC.

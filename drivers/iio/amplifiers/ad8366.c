@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD8366 and similar Gain Amplifiers
  * This driver supports the following gain amplifiers:

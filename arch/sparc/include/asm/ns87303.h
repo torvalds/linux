@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* ns87303.h: Configuration Register Description for the
  *            National Semiconductor PC87303 (SuperIO).
  *

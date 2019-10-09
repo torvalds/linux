@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _NET_INET_IPX_H_
 #define _NET_INET_IPX_H_
 /*

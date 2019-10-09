@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Test that blackhole routes are marked as offloaded and that packets hitting
 # them are dropped by the ASIC and not by the kernel.

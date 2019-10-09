@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // videomate-s350.h - Keytable for videomate_s350 Remote Controller
 //
 // keymap imported from ir-keymaps.c

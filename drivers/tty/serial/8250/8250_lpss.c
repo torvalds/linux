@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 8250_lpss.c - Driver for UART on Intel Braswell and various other Intel SoCs
  *

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* OCTEON 3XXX DTS common parts. */
 
 /dts-v1/;

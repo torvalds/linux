@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // encore-enltv-fm53.h - Keytable for encore_enltv_fm53 Remote Controller
 //
 // keymap imported from ir-keymaps.c

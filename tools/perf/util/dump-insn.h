@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __PERF_DUMP_INSN_H
 #define __PERF_DUMP_INSN_H 1
 

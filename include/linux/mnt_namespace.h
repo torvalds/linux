@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _NAMESPACE_H_
 #define _NAMESPACE_H_
 #ifdef __KERNEL__

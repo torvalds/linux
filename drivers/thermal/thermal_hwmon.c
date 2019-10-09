@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  thermal_hwmon.c - Generic Thermal Management hwmon support.
  *

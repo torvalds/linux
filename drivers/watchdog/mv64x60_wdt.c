@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mv64x60_wdt.c - MV64X60 (Marvell Discovery) watchdog userspace interface
  *

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright 2011 Broadcom Corporation.  All rights reserved. */
 
 #include <linux/platform_device.h>

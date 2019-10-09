@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Interrupt request handling routines. On the
  * Sparc the IRQs are basically 'cast in stone'

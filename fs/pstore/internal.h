@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __PSTORE_INTERNAL_H__
 #define __PSTORE_INTERNAL_H__
 

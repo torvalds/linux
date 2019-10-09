@@ -7,7 +7,7 @@ Usage-Guide:
   To use the license in source code, put the following SPDX tag/value pair
   into a comment according to the placement guidelines in the licensing
   rules documentation:
-    SPDX-License-Identifier: GPL-1.0+
+    SPDX-License-Identifier: GPL-1.0-or-later
 License-Text:
 
 	    GNU GENERAL PUBLIC LICENSE

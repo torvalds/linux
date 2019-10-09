@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* $Id: memcpy.S,v 1.3 2001/07/27 11:50:52 gniibe Exp $
  *
  * "memcpy" implementation of SuperH

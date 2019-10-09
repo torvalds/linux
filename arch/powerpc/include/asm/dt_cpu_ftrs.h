@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ASM_POWERPC_DT_CPU_FTRS_H
 #define __ASM_POWERPC_DT_CPU_FTRS_H
 

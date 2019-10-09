@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright 2002 Andi Kleen, SuSE Labs */
 
 #include <linux/linkage.h>

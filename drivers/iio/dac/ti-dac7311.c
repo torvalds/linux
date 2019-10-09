@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* ti-dac7311.c - Texas Instruments 8/10/12-bit 1-channel DAC driver
  *
  * Copyright (C) 2018 CMC NV

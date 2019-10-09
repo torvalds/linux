@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/alpha/lib/dbg_stackkill.S
  * Contributed by Richard Henderson (rth@cygnus.com)

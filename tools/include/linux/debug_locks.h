@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LIBLOCKDEP_DEBUG_LOCKS_H_
 #define _LIBLOCKDEP_DEBUG_LOCKS_H_
 

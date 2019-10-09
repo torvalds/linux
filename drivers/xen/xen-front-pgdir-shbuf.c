@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR MIT
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
 
 /*
  * Xen frontend/backend page directory based shared buffer

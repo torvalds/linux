@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* n2_asm.S: Hypervisor calls for NCS support.
  *
  * Copyright (C) 2009 David S. Miller <davem@davemloft.net>

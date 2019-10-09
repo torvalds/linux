@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2017 Martin Blumenstingl <martin.blumenstingl@googlemail.com>.
  *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
  */
 
 #ifndef _DT_BINDINGS_AMLOGIC_MESON8B_CLKC_RESET_H

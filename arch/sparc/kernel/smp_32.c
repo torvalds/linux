@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* smp.c: Sparc SMP support.
  *
  * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)

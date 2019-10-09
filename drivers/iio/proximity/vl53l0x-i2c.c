@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support for ST VL53L0X FlightSense ToF Ranging Sensor on a i2c bus.
  *

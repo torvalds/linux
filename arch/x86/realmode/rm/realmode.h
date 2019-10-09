@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef ARCH_X86_REALMODE_RM_REALMODE_H
 #define ARCH_X86_REALMODE_RM_REALMODE_H
 

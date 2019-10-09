@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Based upon linux/arch/m68k/mm/sun3mmu.c
  * Based upon linux/arch/ppc/mm/mmu_context.c

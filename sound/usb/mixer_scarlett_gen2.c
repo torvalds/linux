@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *   Focusrite Scarlett 6i6/18i8/18i20 Gen 2 Driver for ALSA
  *

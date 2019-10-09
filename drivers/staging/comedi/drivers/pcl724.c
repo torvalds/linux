@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * pcl724.c
  * Comedi driver for 8255 based ISA and PC/104 DIO boards

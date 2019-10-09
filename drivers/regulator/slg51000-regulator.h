@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * SLG51000 High PSRR, Multi-Output Regulators
  * Copyright (C) 2019  Dialog Semiconductor

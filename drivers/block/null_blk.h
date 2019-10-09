@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __BLK_NULL_BLK_H
 #define __BLK_NULL_BLK_H
 

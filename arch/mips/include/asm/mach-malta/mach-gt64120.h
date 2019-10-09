@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  This is a direct copy of the ev96100.h file, with a global
  * search and replace.	The numbers are the same.

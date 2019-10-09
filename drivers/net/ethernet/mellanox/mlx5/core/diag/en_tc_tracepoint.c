@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+// SPDX-License-Identifier: GPL-2.0-only OR Linux-OpenIB
 /* Copyright (c) 2019 Mellanox Technologies. */
 
 #define CREATE_TRACE_POINTS

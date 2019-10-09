@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # gen_kselftest_tar
 # Generate kselftest tarball
 # Author: Shuah Khan <shuahkh@osg.samsung.com>

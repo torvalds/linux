@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Script which prints out the version to use for building cpupowerutils.
 # Must be called from tools/power/cpupower/

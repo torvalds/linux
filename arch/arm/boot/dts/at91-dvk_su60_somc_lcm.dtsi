@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91-dvk_su60_somc_lcm.dtsi - Device Tree file for the DVK SOM60 LCD board
  *

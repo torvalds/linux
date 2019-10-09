@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *    Alternative live-patching for parisc.
  *    Copyright (C) 2018 Helge Deller <deller@gmx.de>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef PLATFORM_DATA_SYSCON_H
 #define PLATFORM_DATA_SYSCON_H
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * vsp1_uds.c  --  R-Car VSP1 Up and Down Scaler
  *

@@ -1,5 +1,5 @@
 #! /usr/bin/perl -w
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 
 # convert an Intel HEX file into a set of C records usable by the firmware

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef ASMARM_DMA_MAPPING_H
 #define ASMARM_DMA_MAPPING_H
 

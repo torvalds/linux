@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An I2C driver for the PCF85063 RTC
  * Copyright 2014 Rose Technology

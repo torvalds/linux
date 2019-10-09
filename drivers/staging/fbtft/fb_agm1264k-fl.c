@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * FB driver for Two KS0108 LCD controllers in AGM1264K-FL display
  *

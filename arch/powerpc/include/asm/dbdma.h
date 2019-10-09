@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Definitions for using the Apple Descriptor-Based DMA controller
  * in Power Macintosh computers.

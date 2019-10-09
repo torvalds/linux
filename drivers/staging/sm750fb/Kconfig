@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config FB_SM750
 	tristate "Silicon Motion SM750 framebuffer support"
 	depends on FB && PCI

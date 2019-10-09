@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // Fuel gauge driver for Maxim 17042 / 8966 / 8997
 //  Note that Maxim 8966 and 8997 are mfd and this is its subdevice.

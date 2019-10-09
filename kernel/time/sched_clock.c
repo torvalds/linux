@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic sched_clock() support, to extend low level hardware time
  * counters to full 64-bit ns values.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LGPL-2.1
+// SPDX-License-Identifier: LGPL-2.1-only
 
 #include "trace/beauty/beauty.h"
 #include <linux/kernel.h>

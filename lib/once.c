@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/once.h>

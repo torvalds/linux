@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __PERF_UNWIND_LIBDW_H
 #define __PERF_UNWIND_LIBDW_H
 

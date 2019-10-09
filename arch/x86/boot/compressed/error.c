@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Callers outside of misc.c need access to the error reporting routines,
  * but the *_putstr() functions need to stay in misc.c because of how

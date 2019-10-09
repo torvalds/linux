@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2006-2007 Silicon Graphics, Inc.
  * Copyright (c) 2014 Christoph Hellwig.

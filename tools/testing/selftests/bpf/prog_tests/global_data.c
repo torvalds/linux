@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <test_progs.h>
 
 static void test_global_data_number(struct bpf_object *obj, __u32 duration)

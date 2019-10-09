@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <linux/shmem_fs.h>
 #include <linux/vmalloc.h>

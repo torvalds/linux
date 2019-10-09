@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* parport.h: sparc64 specific parport initialization and dma.
  *
  * Copyright (C) 1999  Eddie C. Dost  (ecd@skynet.be)

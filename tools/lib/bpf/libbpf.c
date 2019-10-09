@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
+// SPDX-License-Identifier: (LGPL-2.1-only OR BSD-2-Clause)
 
 /*
  * Common eBPF ELF object loading operations.

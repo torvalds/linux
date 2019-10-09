@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // handle au0828 IR remotes via linux kernel input layer.
 //
 // Copyright (c) 2014 Mauro Carvalho Chehab <mchehab@samsung.com>

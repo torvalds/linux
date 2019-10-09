@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0-only
  *
  * Device Tree binding constants for Actions Semi S700 Clock Management Unit
  *

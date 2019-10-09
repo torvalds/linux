@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * rcar_du_regs.h  --  R-Car Display Unit Registers Definitions
  *

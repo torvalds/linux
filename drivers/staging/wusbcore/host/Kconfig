@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 config USB_WHCI_HCD
 	tristate "Wireless USB Host Controller Interface (WHCI) driver"

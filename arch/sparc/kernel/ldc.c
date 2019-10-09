@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* ldc.c: Logical Domain Channel link-layer protocol driver.
  *
  * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef I2C_PCA9564_PLATFORM_H
 #define I2C_PCA9564_PLATFORM_H
 

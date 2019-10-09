@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Machine specific code for the Acer n30, Acer N35, Navman PiN 570,
 // Yakumo AlphaX and Airis NC05 PDAs.

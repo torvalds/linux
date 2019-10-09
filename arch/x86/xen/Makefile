@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 OBJECT_FILES_NON_STANDARD_xen-asm_$(BITS).o := y
 
 ifdef CONFIG_FUNCTION_TRACER

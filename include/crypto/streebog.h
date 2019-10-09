@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ OR BSD-2-Clause */
+/* SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause */
 /*
  * Copyright (c) 2013 Alexey Degtyarev <alexey@renatasystems.org>
  * Copyright (c) 2018 Vitaly Chikunov <vt@altlinux.org>

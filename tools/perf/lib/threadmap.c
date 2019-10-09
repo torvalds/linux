@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <perf/threadmap.h>
 #include <stdlib.h>
 #include <linux/refcount.h>

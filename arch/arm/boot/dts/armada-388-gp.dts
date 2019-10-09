@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+// SPDX-License-Identifier: (GPL-2.0-only OR MIT)
 /*
  * Device Tree file for Marvell Armada 385 development board
  * (RD-88F6820-GP)

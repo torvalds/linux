@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <assert.h>
 #include <bpf/bpf.h>
 #include <linux/filter.h>

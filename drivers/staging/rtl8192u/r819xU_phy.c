@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include "r8192U.h"
 #include "r8192U_hw.h"
 #include "r819xU_phy.h"

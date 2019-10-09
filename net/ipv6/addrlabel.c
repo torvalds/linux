@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv6 Address Label subsystem
  * for the IPv6 "Default" Source Address Selection

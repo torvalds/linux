@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004 Fujitsu Siemens Computers GmbH
  * Author: Bodo Stroesser <bstroesser@fujitsu-siemens.com>

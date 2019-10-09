@@ -2,7 +2,7 @@
  * Copyright (C) Harald Geyer <harald@ccbib.org>
  * based on sun50i-a64-olinuxino.dts by Jagan Teki <jteki@openedev.com>
  *
- * SPDX-License-Identifier: (GPL-2.0 OR MIT)
+ * SPDX-License-Identifier: (GPL-2.0-only OR MIT)
  */
 
 /dts-v1/;

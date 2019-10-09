@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/dma-mapping.h>
 #include <asm/iommu_table.h>
 #include <linux/string.h>

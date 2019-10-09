@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __MACH_SE_MRSHPC_H
 #define __MACH_SE_MRSHPC_H
 

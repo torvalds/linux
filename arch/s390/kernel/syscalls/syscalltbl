@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Generate system call table and header files
 #
@@ -84,7 +84,7 @@ create_syscall_table_entries()
 generate_syscall_table()
 {
 	cat <<-EoHEADER
-	/* SPDX-License-Identifier: GPL-2.0 */
+	/* SPDX-License-Identifier: GPL-2.0-only */
 	/*
 	 * Definitions for sys_call_table, each line represents an
 	 * entry in the table in the form
@@ -135,7 +135,7 @@ generate_syscall_header()
 	fi
 
 	cat <<-EoHEADER
-	/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+	/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 	#ifndef ${fileguard}
 	#define ${fileguard}
 
@@ -171,7 +171,7 @@ generate_syscall_nr()
 	num_syscalls=$((max_syscall_nr + 1))
 
 	cat <<-EoHEADER
-	/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+	/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 	#ifndef __ASM_S390_SYSCALLS_NR
 	#define __ASM_S390_SYSCALLS_NR
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sht15.c - support for the SHT15 Temperature and Humidity Sensor
  *

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Make file to build device tree binaries for boards based on
 # Texas Instruments Inc processors

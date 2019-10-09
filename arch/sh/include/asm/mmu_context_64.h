@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ASM_SH_MMU_CONTEXT_64_H
 #define __ASM_SH_MMU_CONTEXT_64_H
 

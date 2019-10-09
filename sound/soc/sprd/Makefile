@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Spreadtrum Audio Support
 
 snd-soc-sprd-platform-objs := sprd-pcm-dma.o sprd-pcm-compress.o

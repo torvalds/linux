@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* arch/arm64/include/asm/kvm_ptrauth.h: Guest/host ptrauth save/restore
  * Copyright 2019 Arm Limited
  * Authors: Mark Rutland <mark.rutland@arm.com>

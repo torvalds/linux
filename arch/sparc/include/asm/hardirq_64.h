@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* hardirq.h: 64-bit Sparc hard IRQ support.
  *
  * Copyright (C) 1997, 1998, 2005 David S. Miller (davem@davemloft.net)

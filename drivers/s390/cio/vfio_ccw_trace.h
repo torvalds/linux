@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0-only
  * Tracepoints for vfio_ccw driver
  *
  * Copyright IBM Corp. 2018

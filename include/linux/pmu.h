@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Definitions for talking to the PMU.  The PMU is a microcontroller
  * which controls battery charging and system power on PowerBook 3400

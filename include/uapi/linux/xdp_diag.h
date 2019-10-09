@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
  * xdp_diag: interface for query/monitor XDP sockets
  * Copyright(c) 2019 Intel Corporation.

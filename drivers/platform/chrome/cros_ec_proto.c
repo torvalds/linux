@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // ChromeOS EC communication protocol helper functions
 //
 // Copyright (C) 2015 Google, Inc

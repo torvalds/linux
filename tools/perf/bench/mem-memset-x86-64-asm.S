@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #define memset MEMSET /* don't hide glibc's memset() */
 #define altinstr_replacement text
 #define globl p2align 4; .globl

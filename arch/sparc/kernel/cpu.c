@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* cpu.c: Dinky routines to look for the kind of Sparc cpu
  *        we are on.
  *

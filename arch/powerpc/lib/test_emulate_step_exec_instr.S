@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Non-emulated single-stepping support (currently limited to basic integer
  * computations) used to validate the instruction emulation infrastructure.

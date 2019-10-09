@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/pci.h>
 #include <linux/printk.h>
 #include <linux/slab.h>

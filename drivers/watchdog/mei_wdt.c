@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel Management Engine Interface (Intel MEI) Linux driver
  * Copyright (c) 2015, Intel Corporation.

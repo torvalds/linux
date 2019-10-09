@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Written by Kanoj Sarcar (kanoj@sgi.com) Aug 99
  * Rewritten for Linux 2.6 by Christoph Hellwig (hch@lst.de) Jan 2004

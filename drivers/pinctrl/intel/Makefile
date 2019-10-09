@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Intel pin control drivers
 
 obj-$(CONFIG_PINCTRL_BAYTRAIL)		+= pinctrl-baytrail.o

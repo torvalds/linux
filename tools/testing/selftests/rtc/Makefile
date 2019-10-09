@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 CFLAGS += -O3 -Wl,-no-as-needed -Wall
 LDFLAGS += -lrt -lpthread -lm
 

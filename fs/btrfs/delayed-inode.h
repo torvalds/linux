@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2011 Fujitsu.  All rights reserved.
  * Written by Miao Xie <miaox@cn.fujitsu.com>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 OUTPUT_ARCH(powerpc:common)
 ENTRY(_zimage_start_opd)
 EXTERN(_zimage_start_opd)

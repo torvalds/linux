@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Freescale ASRC ALSA SoC Digital Audio Interface (DAI) driver
 //

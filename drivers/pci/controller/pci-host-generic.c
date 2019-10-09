@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Simple, generic PCI host controller driver targeting firmware-initialised
  * systems and virtual machines (e.g. the PCI emulation provided by kvmtool).

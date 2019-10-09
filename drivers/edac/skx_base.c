@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * EDAC driver for Intel(R) Xeon(R) Skylake processors
  * Copyright (c) 2016, Intel Corporation.

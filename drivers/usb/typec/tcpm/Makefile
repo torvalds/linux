@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_TYPEC_TCPM)	+= tcpm.o
 obj-$(CONFIG_TYPEC_FUSB302)	+= fusb302.o
 obj-$(CONFIG_TYPEC_WCOVE)	+= typec_wcove.o

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ORDERED_EVENTS_H
 #define __ORDERED_EVENTS_H
 

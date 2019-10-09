@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (C) 2019 Cadence Design Systems Inc. */
 
 #ifndef _ASM_XTENSA_CORE_H

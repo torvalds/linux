@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sdhci_am654.c - SDHCI driver for TI's AM654 SOCs
  *

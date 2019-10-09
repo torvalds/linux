@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Phytec pcm030 driver for the PSC of the Freescale MPC52xx
 // configured as AC97 interface

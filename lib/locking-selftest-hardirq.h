@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #undef IRQ_DISABLE
 #undef IRQ_ENABLE
 #undef IRQ_ENTER

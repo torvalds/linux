@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* ePAPR hypervisor byte channel device driver
  *
  * Copyright 2009-2011 Freescale Semiconductor, Inc.

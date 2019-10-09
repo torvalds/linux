@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // tevii-nec.h - Keytable for tevii_nec Remote Controller
 //
 // keymap imported from ir-keymaps.c

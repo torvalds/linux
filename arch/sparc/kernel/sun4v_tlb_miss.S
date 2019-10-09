@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* sun4v_tlb_miss.S: Sun4v TLB miss handlers.
  *
  * Copyright (C) 2006 <davem@davemloft.net>

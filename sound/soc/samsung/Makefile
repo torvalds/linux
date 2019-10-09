@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # S3c24XX Platform Support
 snd-soc-s3c-dma-objs := dmaengine.o
 snd-soc-idma-objs := idma.o

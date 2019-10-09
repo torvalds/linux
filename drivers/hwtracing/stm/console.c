@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Simple kernel console driver for STM devices
  * Copyright (c) 2014, Intel Corporation.

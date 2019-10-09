@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 ccflags-y := -I $(srctree)/drivers/net/ethernet/cisco/enic
 
 obj-$(CONFIG_INFINIBAND_USNIC)+= usnic_verbs.o

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* net/atm/resources.c - Statically allocated resources */
 
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */

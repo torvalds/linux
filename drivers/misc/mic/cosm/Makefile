@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Makefile - Intel MIC Coprocessor State Management (COSM) Driver
 # Copyright(c) 2015, Intel Corporation.

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Copyright (c) 2018 Quantenna Communications */
 
 #ifndef __TOPAZ_PCIE_H

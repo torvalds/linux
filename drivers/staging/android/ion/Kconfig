@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig ION
 	bool "Ion Memory Manager"
 	depends on HAS_DMA && MMU

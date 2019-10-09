@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0-only */
 /******************************************************************************
  *
  * Name: amlcode.h - Definitions for AML, as included in "definition blocks"

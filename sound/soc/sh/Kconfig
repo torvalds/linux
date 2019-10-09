@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 menu "SoC Audio support for Renesas SoCs"
 	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 

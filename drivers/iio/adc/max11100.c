@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * iio/adc/max11100.c
  * Maxim max11100 ADC Driver with IIO interface

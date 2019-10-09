@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 #
 # Runs an individual test module.
@@ -8,7 +8,7 @@
 # created by adding a script like this:
 #
 #   #!/bin/sh
-#   SPDX-License-Identifier: GPL-2.0+
+#   SPDX-License-Identifier: GPL-2.0-or-later
 #   $(dirname $0)/../kselftest_module.sh "description" module_name
 #
 # Example: tools/testing/selftests/lib/printf.sh

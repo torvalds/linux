@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Common DCR / SDR / CPR register definitions used on various IBM/AMCC
  * 4xx processors

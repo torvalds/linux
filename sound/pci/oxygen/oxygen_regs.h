@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef OXYGEN_REGS_H_INCLUDED
 #define OXYGEN_REGS_H_INCLUDED
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright (C) 2014 Seth Jennings <sjenning@redhat.com>
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

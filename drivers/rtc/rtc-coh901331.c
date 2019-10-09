@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007-2009 ST-Ericsson AB
  * Real Time Clock interface for ST-Ericsson AB COH 901 331 RTC.

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifdef CONFIG_SUPERH32
 # include <asm/checksum_32.h>
 #else

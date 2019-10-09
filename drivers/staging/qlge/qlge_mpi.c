@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include "qlge.h"
 
 int ql_unpause_mpi_risc(struct ql_adapter *qdev)

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Split spinlock implementation out into its own file, so it can be
  * compiled in a FTRACE-compatible way.

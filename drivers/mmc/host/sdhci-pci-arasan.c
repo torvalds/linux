@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sdhci-pci-arasan.c - Driver for Arasan PCI Controller with
  * integrated phy.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // ChromeOS EC keyboard driver
 //
 // Copyright (C) 2012 Google, Inc.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *    ECBDIC -> ASCII, ASCII -> ECBDIC,
  *    upper to lower case (EBCDIC) conversion tables.

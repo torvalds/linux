@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 // Copyright (C) 2008-2017 Andes Technology Corporation
 
 #ifndef __ASM_NDS32_SUSPEND_H

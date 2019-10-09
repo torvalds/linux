@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config PPC_47x
 	bool "Support for 47x variant"
 	depends on 44x

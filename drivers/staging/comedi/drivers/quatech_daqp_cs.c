@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * quatech_daqp_cs.c
  * Quatech DAQP PCMCIA data capture cards COMEDI client driver

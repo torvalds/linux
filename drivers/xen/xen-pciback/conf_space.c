@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCI Backend - Functions for creating a virtual configuration space for
  *               exported PCI Devices.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // evga-indtube.h - Keytable for evga_indtube Remote Controller
 //
 // keymap imported from ir-keymaps.c

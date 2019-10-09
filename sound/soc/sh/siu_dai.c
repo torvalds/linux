@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // siu_dai.c - ALSA SoC driver for Renesas SH7343, SH7722 SIU peripheral.
 //

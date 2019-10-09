@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * manager.c - Resource Management, Conflict Resolution, Activation and Disabling of Devices
  *

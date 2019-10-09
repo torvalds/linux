@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef FS_CEPH_FRAG_H
 #define FS_CEPH_FRAG_H
 

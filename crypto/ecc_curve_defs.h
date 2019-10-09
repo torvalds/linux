@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _CRYTO_ECC_CURVE_DEFS_H
 #define _CRYTO_ECC_CURVE_DEFS_H
 

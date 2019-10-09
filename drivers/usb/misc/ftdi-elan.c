@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * USB FTDI client driver for Elan Digital Systems's Uxxx adapters
  *

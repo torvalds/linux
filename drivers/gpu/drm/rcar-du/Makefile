@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 rcar-du-drm-y := rcar_du_crtc.o \
 		 rcar_du_drv.o \
 		 rcar_du_encoder.o \

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mt2701-cs42448.c  --  MT2701 CS42448 ALSA SoC machine driver
  *

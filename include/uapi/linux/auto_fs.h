@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-note */
 /*
  * Copyright 1997 Transmeta Corporation - All Rights Reserved
  * Copyright 1999-2000 Jeremy Fitzhardinge <jeremy@goop.org>

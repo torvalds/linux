@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * kirkwood-pogo_e02.dts - Device tree file for Pogoplug E02
  *

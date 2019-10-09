@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2016 Icenowy Zheng <icenowy@aosc.io>
  *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
  */
 
 #ifndef _DT_BINDINGS_CLOCK_SUN8I_DE2_H_

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 asflags-y				+= -march=armv7-a
 
 obj-y                                   += io.o

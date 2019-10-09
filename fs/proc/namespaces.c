@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/proc_fs.h>
 #include <linux/nsproxy.h>
 #include <linux/ptrace.h>

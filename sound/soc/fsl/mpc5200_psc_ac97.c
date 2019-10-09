@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // linux/sound/mpc5200-ac97.c -- AC97 support for the Freescale MPC52xx chip.
 //

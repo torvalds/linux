@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // npgtech.h - Keytable for npgtech Remote Controller
 //
 // keymap imported from ir-keymaps.c

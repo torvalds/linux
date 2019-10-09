@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pcmad.c
  * Hardware driver for Winsystems PCM-A/D12 and PCM-A/D16

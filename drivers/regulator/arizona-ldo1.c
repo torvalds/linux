@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // arizona-ldo1.c  --  LDO1 supply for Arizona devices
 //

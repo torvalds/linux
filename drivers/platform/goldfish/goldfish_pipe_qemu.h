@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * IMPORTANT: The following constants must match the ones used and defined in
  * external/qemu/include/hw/misc/goldfish_pipe.h

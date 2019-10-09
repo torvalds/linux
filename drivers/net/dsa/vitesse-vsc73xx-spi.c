@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* DSA driver for:
  * Vitesse VSC7385 SparX-G5 5+1-port Integrated Gigabit Ethernet Switch
  * Vitesse VSC7388 SparX-G8 8-port Integrated Gigabit Ethernet Switch

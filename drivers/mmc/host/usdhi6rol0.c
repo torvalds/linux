@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013-2014 Renesas Electronics Europe Ltd.
  * Author: Guennadi Liakhovetski <g.liakhovetski@gmx.de>

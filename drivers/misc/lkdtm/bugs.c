@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This is for all the tests related to logic bugs (e.g. bad dereferences,
  * bad alignment, bad loops, bad locking, bad scheduling, deep stacks, and

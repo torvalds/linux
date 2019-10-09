@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Melfas MMS114/MMS152 touchscreen device driver
 //
 // Copyright (c) 2012 Samsung Electronics Co., Ltd.

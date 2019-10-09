@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pulsedlight-lidar-lite-v2.c - Support for PulsedLight LIDAR sensor
  *

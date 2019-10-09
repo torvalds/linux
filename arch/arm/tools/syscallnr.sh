@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 in="$1"
 out="$2"
 my_abis=`echo "($3)" | tr ',' '|'`

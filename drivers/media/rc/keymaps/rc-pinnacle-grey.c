@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // pinnacle-grey.h - Keytable for pinnacle_grey Remote Controller
 //
 // keymap imported from ir-keymaps.c

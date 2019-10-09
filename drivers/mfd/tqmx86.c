@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * TQ-Systems PLD MFD core driver, based on vendor driver by
  * Vadim V.Vlasov <vvlasov@dev.rtsoft.ru>

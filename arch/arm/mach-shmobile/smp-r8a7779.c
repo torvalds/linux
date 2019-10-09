@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SMP support for R-Mobile / SH-Mobile - r8a7779 portion
  *

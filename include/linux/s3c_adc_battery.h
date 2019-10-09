@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _S3C_ADC_BATTERY_H
 #define _S3C_ADC_BATTERY_H
 

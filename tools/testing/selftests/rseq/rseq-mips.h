@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1 OR MIT */
+/* SPDX-License-Identifier: LGPL-2.1-only OR MIT */
 /*
  * Author: Paul Burton <paul.burton@mips.com>
  * (C) Copyright 2018 MIPS Tech LLC

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /*
  * Driver for watchdog aspect of for Zodiac Inflight Innovations RAVE

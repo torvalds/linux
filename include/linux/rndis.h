@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Remote Network Driver Interface Specification (RNDIS)
  * definitions of the magic numbers used by this protocol

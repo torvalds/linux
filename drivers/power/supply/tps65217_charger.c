@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Battery charger driver for TI's tps65217
 //
 // Copyright (C) 2015 Collabora Ltd.

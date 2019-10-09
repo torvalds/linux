@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /dts-v1/;
 #include "bcm2835-rpi-cm1.dtsi"
 #include "bcm283x-rpi-usb-host.dtsi"

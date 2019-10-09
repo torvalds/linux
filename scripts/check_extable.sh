@@ -1,5 +1,5 @@
 #! /bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # (c) 2015, Quentin Casasnovas <quentin.casasnovas@oracle.com>
 
 obj=$1

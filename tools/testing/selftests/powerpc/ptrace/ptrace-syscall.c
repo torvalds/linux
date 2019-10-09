@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * A ptrace test for testing PTRACE_SYSEMU, PTRACE_SETREGS and
  * PTRACE_GETREG.  This test basically create a child process that executes

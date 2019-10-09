@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <api/fd/array.h>
 #include <poll.h>
 #include "util/debug.h"

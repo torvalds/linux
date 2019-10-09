@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Mediatek DSA Tag support
  * Copyright (C) 2017 Landen Chao <landen.chao@mediatek.com>

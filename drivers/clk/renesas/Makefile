@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # SoC
 obj-$(CONFIG_CLK_EMEV2)			+= clk-emev2.o
 obj-$(CONFIG_CLK_RZA1)			+= clk-rz.o

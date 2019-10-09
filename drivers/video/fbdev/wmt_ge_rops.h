@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifdef CONFIG_FB_WMT_GE_ROPS
 
 extern void wmt_ge_fillrect(struct fb_info *info,

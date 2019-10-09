@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-note */
 /*
  *  Main header file for the ALSA sequencer
  *  Copyright (c) 1998-1999 by Frank van de Pol <fvdpol@coil.demon.nl>

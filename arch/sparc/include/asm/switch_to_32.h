@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __SPARC_SWITCH_TO_H
 #define __SPARC_SWITCH_TO_H
 

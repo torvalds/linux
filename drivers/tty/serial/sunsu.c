@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * su.c: Small serial driver for keyboard/mouse interface on sparc32/PCI
  *

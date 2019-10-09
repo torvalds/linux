@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2008-2009 The GameCube Linux Team
 // Copyright (C) 2008,2009 Albert Herranz
 // Copyright (C) 2017-2018 Jonathan Neuschäfer

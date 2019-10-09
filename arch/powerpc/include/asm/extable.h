@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ARCH_POWERPC_EXTABLE_H
 #define _ARCH_POWERPC_EXTABLE_H
 

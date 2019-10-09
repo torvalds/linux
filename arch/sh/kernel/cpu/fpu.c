@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>

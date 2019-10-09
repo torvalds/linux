@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (C) 2014 Renesas Electronics Corporation
  * Copyright 2013 Ideas On Board SPRL

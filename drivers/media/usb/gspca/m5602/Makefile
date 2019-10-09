@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_USB_M5602) += gspca_m5602.o
 
 gspca_m5602-objs := m5602_core.o \

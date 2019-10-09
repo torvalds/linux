@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* ad7949.c - Analog Devices ADC driver 14/16 bits 4/8 channels
  *
  * Copyright (C) 2018 CMC NV

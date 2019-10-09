@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Linux kernel symbol namespace import generator
 #
 # This script requires a minimum spatch version.

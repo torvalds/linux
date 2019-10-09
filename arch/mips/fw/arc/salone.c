@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Routines to load into memory and execute stand-along program images using
  * ARCS PROM firmware.

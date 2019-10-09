@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STIH4xx CEC driver
  * Copyright (C) STMicroelectronics SA 2016

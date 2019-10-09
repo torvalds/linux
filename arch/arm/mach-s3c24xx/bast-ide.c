@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Copyright 2007 Simtec Electronics
 //	http://www.simtec.co.uk/products/EB2410ITX/

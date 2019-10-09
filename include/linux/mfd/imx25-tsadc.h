@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LINUX_INCLUDE_MFD_IMX25_TSADC_H_
 #define _LINUX_INCLUDE_MFD_IMX25_TSADC_H_
 

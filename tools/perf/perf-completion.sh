@@ -1,5 +1,5 @@
 # perf bash and zsh completion
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 # Taken from git.git's completion script.
 __my_reassemble_comp_words_by_ref()

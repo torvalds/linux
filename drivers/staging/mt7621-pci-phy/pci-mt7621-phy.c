@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Mediatek MT7621 PCI PHY Driver
  * Author: Sergio Paracuellos <sergio.paracuellos@gmail.com>

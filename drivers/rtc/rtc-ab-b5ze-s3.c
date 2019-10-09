@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * rtc-ab-b5ze-s3 - Driver for Abracon AB-RTCMC-32.768Khz-B5ZE-S3
  *                  I2C RTC / Alarm chip

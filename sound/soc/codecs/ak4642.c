@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // ak4642.c  --  AK4642/AK4643 ALSA Soc Audio driver
 //

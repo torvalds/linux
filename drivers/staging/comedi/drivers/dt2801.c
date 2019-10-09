@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * comedi/drivers/dt2801.c
  * Device Driver for DataTranslation DT2801

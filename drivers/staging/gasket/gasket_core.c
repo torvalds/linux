@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Gasket generic driver framework. This file contains the implementation
  * for the Gasket generic driver framework - the functionality that is common

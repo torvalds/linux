@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // ChromeOS Embedded Controller extcon
 //
 // Copyright (C) 2017 Google, Inc.

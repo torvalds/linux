@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright (c) 2018 Crane Merchandising Systems. All rights reserved.
 // Copyright (C) 2018 Oleh Kravchenko <oleg@kaa.org.ua>
 

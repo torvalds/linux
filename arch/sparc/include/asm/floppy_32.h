@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* asm/floppy.h: Sparc specific parts of the Floppy driver.
  *
  * Copyright (C) 1995 David S. Miller (davem@davemloft.net)

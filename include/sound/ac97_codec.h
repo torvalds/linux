@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0-or-later
  *
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Universal interface for Audio Codec '97

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * rcar-fcp.c  --  R-Car Frame Compression Processor Driver
  *

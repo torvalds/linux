@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ASM_SN_IRQ_ALLOC_H
 #define __ASM_SN_IRQ_ALLOC_H
 

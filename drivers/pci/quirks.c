@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file contains work-arounds for many known PCI hardware bugs.
  * Devices present only on certain architectures (host bridges et cetera)

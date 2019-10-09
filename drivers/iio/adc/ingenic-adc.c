@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ADC driver for the Ingenic JZ47xx SoCs
  * Copyright (c) 2019 Artur Rojek <contact@artur-rojek.eu>

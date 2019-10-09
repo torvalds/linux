@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 gigaset-y := common.o interface.o proc.o ev-layer.o asyncdata.o
 
 ifdef CONFIG_GIGASET_CAPI

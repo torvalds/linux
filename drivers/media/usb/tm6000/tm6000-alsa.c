@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Support for audio capture for tm5600/6000/6010
 // Copyright (c) 2007-2008 Mauro Carvalho Chehab <mchehab@kernel.org>
 //

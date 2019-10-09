@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 iscsi_target_mod-y +=		iscsi_target_parameters.o \
 				iscsi_target_seq_pdu_list.o \
 				iscsi_target_auth.o \

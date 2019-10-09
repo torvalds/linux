@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include "usb.h"

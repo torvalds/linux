@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 1995, 1996, 2001  Ralf Baechle
  *  Copyright (C) 2001, 2004  MIPS Technologies, Inc.

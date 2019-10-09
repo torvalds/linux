@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Samsung's S5PC110/S5PV210 flattened device tree enabled machine.
 //

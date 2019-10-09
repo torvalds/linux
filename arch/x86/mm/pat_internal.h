@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __PAT_INTERNAL_H_
 #define __PAT_INTERNAL_H_
 

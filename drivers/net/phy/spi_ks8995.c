@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SPI driver for Micrel/Kendin KS8995M and KSZ8864RMN ethernet switches
  *

@@ -1,3 +1,3 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 $(dirname $0)/../kselftest_module.sh "bitmap" test_bitmap

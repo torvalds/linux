@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *    Copyright IBM Corp. 2007
  *    Author(s): Frank Pavlic <fpavlic@de.ibm.com>,

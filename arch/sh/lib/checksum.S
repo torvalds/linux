@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0-or-later
  *
  * $Id: checksum.S,v 1.10 2001/07/06 13:11:32 gniibe Exp $
  *

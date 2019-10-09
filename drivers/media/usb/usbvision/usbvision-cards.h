@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #define XANBOO                                   0
 #define BELKIN_VIDEOBUS_II                       1
 #define BELKIN_VIDEOBUS                          2

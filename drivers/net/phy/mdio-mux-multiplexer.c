@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* MDIO bus multiplexer using kernel multiplexer subsystem
  *
  * Copyright 2019 NXP

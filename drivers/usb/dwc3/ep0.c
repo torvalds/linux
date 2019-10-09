@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ep0.c - DesignWare USB3 DRD Controller Endpoint 0 Handling
  *

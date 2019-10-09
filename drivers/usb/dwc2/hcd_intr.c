@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-3-Clause)
 /*
  * hcd_intr.c - DesignWare HS OTG Controller host-mode interrupt handling
  *

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ALPHA_HW_IRQ_H
 #define _ALPHA_HW_IRQ_H
 

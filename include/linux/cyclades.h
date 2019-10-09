@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* $Revision: 3.0 $$Date: 1998/11/02 14:20:59 $
  * linux/include/linux/cyclades.h
  *

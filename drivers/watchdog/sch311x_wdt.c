@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	sch311x_wdt.c - Driver for the SCH311x Super-I/O chips
  *			integrated watchdog.

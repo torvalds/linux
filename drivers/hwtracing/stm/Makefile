@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_STM)	+= stm_core.o
 
 stm_core-y		:= core.o policy.o

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * FDT Address translation based on u-boot fdt_support.c which in turn was
  * based on the kernel unflattened DT address translation code.

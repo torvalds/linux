@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 obj-$(CONFIG_CRYPTO_LIB_AES) += libaes.o
 libaes-y := aes.o

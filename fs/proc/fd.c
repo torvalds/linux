@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/dcache.h>

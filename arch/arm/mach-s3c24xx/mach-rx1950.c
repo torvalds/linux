@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Copyright (c) 2006-2009 Victor Chukhantsev, Denis Grigoriev,
 // Copyright (c) 2007-2010 Vasily Khoruzhick

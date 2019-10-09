@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (c) 2016-2017 Hisilicon Limited.
 
 #include "hnae3.h"

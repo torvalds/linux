@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 # vim: ts=2:sw=2:et:tw=80:nowrap
 
 # This is simply to aide in creating the entries in the order of the value of
@@ -122,7 +122,7 @@ class DeviceRoutes(CSVCollection):
   OUTPUT_DIR = 'c'
 
   output_file_top = """\
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* vim: set ts=8 sw=8 noet tw=80 nowrap: */
 /*
  *  comedi/drivers/ni_routing/{filename}
@@ -154,7 +154,7 @@ class DeviceRoutes(CSVCollection):
 """.format(filename=SET_C, extern_h=os.path.join(ITEMS_DIR, EXTERN_H))
 
   extern_header = """\
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* vim: set ts=8 sw=8 noet tw=80 nowrap: */
 /*
  *  comedi/drivers/ni_routing/{filename}
@@ -192,7 +192,7 @@ class DeviceRoutes(CSVCollection):
 """
 
   single_output_file_top = """\
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* vim: set ts=8 sw=8 noet tw=80 nowrap: */
 /*
  *  comedi/drivers/ni_routing/{filename}
@@ -298,7 +298,7 @@ class RouteValues(CSVCollection):
   OUTPUT_DIR = 'c'
 
   output_file_top = """\
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* vim: set ts=8 sw=8 noet tw=80 nowrap: */
 /*
  *  comedi/drivers/ni_routing/{filename}
@@ -336,7 +336,7 @@ class RouteValues(CSVCollection):
 """.format(filename=SET_C, extern_h=os.path.join(ITEMS_DIR, EXTERN_H))
 
   extern_header = """\
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* vim: set ts=8 sw=8 noet tw=80 nowrap: */
 /*
  *  comedi/drivers/ni_routing/{filename}
@@ -374,7 +374,7 @@ class RouteValues(CSVCollection):
 """
 
   single_output_file_top = """\
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* vim: set ts=8 sw=8 noet tw=80 nowrap: */
 /*
  *  comedi/drivers/ni_routing/{filename}

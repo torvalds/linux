@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1
+/* SPDX-License-Identifier: LGPL-2.1-only
  *
  * Based on Paul Hsieh's (LGPG 2.1) hash function
  * From: http://www.azillionmonkeys.com/qed/hash.html

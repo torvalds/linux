@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * omap_udc.c -- for OMAP full speed udc; most chips support OTG.
  *

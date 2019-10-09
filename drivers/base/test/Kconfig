@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config TEST_ASYNC_DRIVER_PROBE
 	tristate "Build kernel module to test asynchronous driver probing"
 	depends on m

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the on-board character LCD found on some ARM reference boards
  * This is basically an Hitachi HD44780 LCD with a custom IP block to drive it

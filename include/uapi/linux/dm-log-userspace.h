@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.0-or-later WITH Linux-syscall-note */
 /*
  * Copyright (C) 2006-2009 Red Hat, Inc.
  *

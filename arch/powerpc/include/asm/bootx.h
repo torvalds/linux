@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This file describes the structure passed from the BootX application
  * (for MacOS) when it is used to boot Linux.

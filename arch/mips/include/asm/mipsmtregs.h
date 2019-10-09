@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * MT regs definitions, follows on from mipsregs.h
  * Copyright (C) 2004 - 2005 MIPS Technologies, Inc.  All rights reserved.

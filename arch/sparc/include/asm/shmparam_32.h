@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ASMSPARC_SHMPARAM_H
 #define _ASMSPARC_SHMPARAM_H
 

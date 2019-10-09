@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include "iscsi_target_core.h" /* struct iscsi_cmd */
 
 struct sockaddr_storage;

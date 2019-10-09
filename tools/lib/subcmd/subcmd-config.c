@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include "subcmd-config.h"
 
 #define UNDEFINED "SUBCMD_HAS_NOT_BEEN_INITIALIZED"

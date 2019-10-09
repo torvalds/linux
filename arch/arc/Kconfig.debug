@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 config 16KSTACKS
 	bool "Use 16Kb for kernel stacks instead of 8Kb"

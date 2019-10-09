@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Phy provider for USB 3.0 controller on HiSilicon 3660 platform
  *

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* cavium_ptp.c - PTP 1588 clock on Cavium hardware
  * Copyright (c) 2003-2015, 2017 Cavium, Inc.
  */

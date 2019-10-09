@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Test a "one-armed router" [1] scenario. Packets forwarded between H1 and H2
 # should be forwarded by the ASIC, but also trapped so that ICMP redirect

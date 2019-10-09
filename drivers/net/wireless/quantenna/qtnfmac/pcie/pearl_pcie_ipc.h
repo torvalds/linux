@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Copyright (c) 2015-2016 Quantenna Communications */
 
 #ifndef _QTN_FMAC_PCIE_IPC_H_

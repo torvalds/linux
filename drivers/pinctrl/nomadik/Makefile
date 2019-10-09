@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Nomadik family pin control drivers
 obj-$(CONFIG_PINCTRL_ABX500)	+= pinctrl-abx500.o
 obj-$(CONFIG_PINCTRL_AB8500)	+= pinctrl-ab8500.o

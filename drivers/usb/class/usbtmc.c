@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * drivers/usb/class/usbtmc.c - USB Test & Measurement class driver
  *

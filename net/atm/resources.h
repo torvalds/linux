@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* net/atm/resources.h - ATM-related resources */
 
 /* Written 1995-1998 by Werner Almesberger, EPFL LRC/ICA */

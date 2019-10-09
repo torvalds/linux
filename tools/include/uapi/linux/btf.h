@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /* Copyright (c) 2018 Facebook */
 #ifndef _UAPI__LINUX_BTF_H__
 #define _UAPI__LINUX_BTF_H__

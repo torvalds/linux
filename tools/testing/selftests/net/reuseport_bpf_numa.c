@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Test functionality of BPF filters with SO_REUSEPORT. Same test as
  * in reuseport_bpf_cpu, only as one socket per NUMA node.

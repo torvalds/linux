@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 rcar-vin-objs = rcar-core.o rcar-dma.o rcar-v4l2.o
 
 obj-$(CONFIG_VIDEO_RCAR_CSI2) += rcar-csi2.o

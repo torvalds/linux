@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Fusion-io  All rights reserved.
  * Copyright (C) 2012 Intel Corp. All rights reserved.

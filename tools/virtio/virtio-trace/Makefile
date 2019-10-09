@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 CC = gcc
 CFLAGS = -O2 -Wall -pthread
 

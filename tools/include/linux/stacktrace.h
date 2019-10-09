@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LIBLOCKDEP_LINUX_STACKTRACE_H_
 #define _LIBLOCKDEP_LINUX_STACKTRACE_H_
 

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config PPC64
 	bool "64-bit kernel"
 	select ZLIB_DEFLATE

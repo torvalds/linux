@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * cb_pcidas.c
  * Developed by Ivan Martinez and Frank Mori Hess, with valuable help from

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef ISCSI_TARGET_NEGO_H
 #define ISCSI_TARGET_NEGO_H
 

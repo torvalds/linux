@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Sonics Silicon Backplane
  * Broadcom USB-core driver  (SSB bus glue)

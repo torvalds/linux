@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pcmmio.c
  * Driver for Winsystems PC-104 based multifunction IO board.

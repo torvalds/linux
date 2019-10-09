@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/swap_cgroup.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __CPUPOWER_HELPERS_SYSFS_H__
 #define __CPUPOWER_HELPERS_SYSFS_H__
 

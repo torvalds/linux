@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Elliptic Curve (Russian) Digital Signature Algorithm for Cryptographic API
  *

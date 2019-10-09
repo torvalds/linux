@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* EFI signature/key/certificate list parser
  *
  * Copyright (C) 2012, 2016 Red Hat, Inc. All Rights Reserved.

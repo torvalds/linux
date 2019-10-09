@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2010,2015 Broadcom
  *  Copyright (C) 2013-2014 Lubomir Rintel

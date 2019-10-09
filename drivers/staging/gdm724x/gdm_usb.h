@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved. */
 
 #ifndef _GDM_USB_H_

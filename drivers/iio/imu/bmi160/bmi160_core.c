@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * BMI160 - Bosch IMU (accel, gyro plus external magnetometer)
  *

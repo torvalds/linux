@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-1.0+
+// SPDX-License-Identifier: GPL-1.0-or-later
 /*
  * Device driver for Microgate SyncLink GT serial adapters.
  *

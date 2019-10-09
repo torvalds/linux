@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * NVMe Over Fabrics Target File I/O commands implementation.
  * Copyright (c) 2017-2018 Western Digital Corporation or its

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // winfast-usbii-deluxe.h - Keytable for winfast_usbii_deluxe Remote Controller
 //
 // keymap imported from ir-keymaps.c

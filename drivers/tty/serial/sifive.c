@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SiFive UART driver
  * Copyright (C) 2018 Paul Walmsley <paul@pwsan.com>

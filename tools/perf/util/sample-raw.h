@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __SAMPLE_RAW_H
 #define __SAMPLE_RAW_H 1
 

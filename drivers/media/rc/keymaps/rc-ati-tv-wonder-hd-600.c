@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // ati-tv-wonder-hd-600.h - Keytable for ati_tv_wonder_hd_600 Remote Controller
 //
 // keymap imported from ir-keymaps.c

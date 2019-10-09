@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * DMA support use of SYS DMAC with SDHI SD/SDIO controller
  *

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef GENL_MAGIC_STRUCT_H
 #define GENL_MAGIC_STRUCT_H
 

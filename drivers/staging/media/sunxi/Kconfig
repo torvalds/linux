@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_SUNXI
 	bool "Allwinner sunXi family Video Devices"
 	depends on ARCH_SUNXI || COMPILE_TEST

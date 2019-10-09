@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Kernel object name space definitions
  *
  * Copyright (c) 2002-2003 Patrick Mochel

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * c8sectpfe-core.c - C8SECTPFE STi DVB driver
  *

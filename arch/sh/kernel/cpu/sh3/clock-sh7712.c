@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/sh/kernel/cpu/sh3/clock-sh7712.c
  *

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 sti-drm-y := \
 	sti_mixer.o \
 	sti_gdp.o \

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * linux/drivers/usb/gadget/pxa27x_udc.h
  * Intel PXA27x on-chip full speed USB device controller

@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # A script to dump mixed source code & assembly
 # with correct relocations from System.map
 # Requires the following lines in makefile:

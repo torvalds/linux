@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _IP_SET_GETPORT_H
 #define _IP_SET_GETPORT_H
 

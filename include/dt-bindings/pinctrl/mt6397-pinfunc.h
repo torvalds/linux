@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __DTS_MT6397_PINFUNC_H
 #define __DTS_MT6397_PINFUNC_H
 

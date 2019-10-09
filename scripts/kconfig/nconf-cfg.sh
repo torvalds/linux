@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 PKG="ncursesw menuw panelw"
 PKG2="ncurses menu panel"

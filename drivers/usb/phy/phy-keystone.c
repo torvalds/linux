@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * phy-keystone - USB PHY, talking to dwc3 controller in Keystone.
  *

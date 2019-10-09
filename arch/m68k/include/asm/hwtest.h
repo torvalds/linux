@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Routines to test for presence/absence of hardware registers:
  * see arch/m68k/mm/hwtest.c.
  *  -- PMM <pmaydell@chiark.greenend.org.uk> 05/1998

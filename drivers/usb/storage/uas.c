@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * USB Attached SCSI
  * Note that this is not the same as the USB Mass Storage driver

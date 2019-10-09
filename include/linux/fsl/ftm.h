@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #ifndef __FSL_FTM_H__
 #define __FSL_FTM_H__
 

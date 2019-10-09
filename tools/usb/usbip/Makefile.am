@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 SUBDIRS := libsrc src
 includedir = @includedir@/usbip
 include_HEADERS := $(addprefix libsrc/, \

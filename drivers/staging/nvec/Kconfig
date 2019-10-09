@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config MFD_NVEC
 	tristate "NV Tegra Embedded Controller SMBus Interface"
 	depends on I2C && GPIOLIB && ARCH_TEGRA

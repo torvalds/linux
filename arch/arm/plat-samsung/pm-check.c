@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // originally in linux/arch/arm/plat-s3c24xx/pm.c
 //

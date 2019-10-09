@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __DRM_MCDE_DSI_REGS
 #define __DRM_MCDE_DSI_REGS
 

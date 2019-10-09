@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // avermedia-dvbt.h - Keytable for avermedia_dvbt Remote Controller
 //
 // keymap imported from ir-keymaps.c

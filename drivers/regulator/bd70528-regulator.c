@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright (C) 2018 ROHM Semiconductors
 // bd70528-regulator.c ROHM BD70528MWV regulator driver
 

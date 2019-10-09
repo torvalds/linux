@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Analog Devices AD7466/7/8 AD7476/5/7/8 (A) SPI ADC driver
  * TI ADC081S/ADC101S/ADC121S 8/10/12-bit SPI ADC driver

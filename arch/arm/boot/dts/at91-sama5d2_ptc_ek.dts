@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR X11)
+// SPDX-License-Identifier: (GPL-2.0-or-later OR X11)
 /*
  * at91-sama5d2_ptc_ek.dts - Device Tree file for SAMA5D2 PTC EK board
  *

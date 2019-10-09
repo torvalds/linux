@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // pctv-sedna.h - Keytable for pctv_sedna Remote Controller
 //
 // keymap imported from ir-keymaps.c

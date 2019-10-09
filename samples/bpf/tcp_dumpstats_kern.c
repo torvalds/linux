@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Refer to samples/bpf/tcp_bpf.readme for the instructions on
  * how to run this sample program.
  */

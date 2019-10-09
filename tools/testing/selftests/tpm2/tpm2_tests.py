@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 
 from argparse import ArgumentParser
 from argparse import FileType

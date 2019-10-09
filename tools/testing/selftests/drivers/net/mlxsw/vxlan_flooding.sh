@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Test VxLAN flooding. The device stores flood records in a singly linked list
 # where each record stores up to three IPv4 addresses of remote VTEPs. The test

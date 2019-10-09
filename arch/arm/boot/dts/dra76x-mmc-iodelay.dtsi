@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright (c) 2018 Texas Instruments
 // MMC IOdelay values for TI's DRA76x and AM576x SoCs.
 // Author: Sekhar Nori <nsekhar@ti.com>

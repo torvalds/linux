@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Merged with mainline rtllib.h in Aug 2004.  Original ieee802_11
  * remains copyright by the original authors

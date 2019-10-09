@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* cfg80211 Interface for prism2_usb module */
 #include "hfa384x.h"
 #include "prism2mgmt.h"

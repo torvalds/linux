@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * phy-uniphier-pcie.c - PHY driver for UniPhier PCIe controller
  * Copyright 2018, Socionext Inc.

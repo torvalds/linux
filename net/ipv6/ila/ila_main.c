@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <net/genetlink.h>
 #include <net/ila.h>
 #include <net/netns/generic.h>

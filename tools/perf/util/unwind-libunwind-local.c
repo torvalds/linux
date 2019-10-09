@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Post mortem Dwarf CFI based unwinding on top of regs and stack dumps.
  *

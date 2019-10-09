@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
 
 /dts-v1/;
 #include "rk3288-evb.dtsi"

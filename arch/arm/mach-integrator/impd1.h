@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #define IMPD1_LEDS	0x0c
 #define IMPD1_INT	0x10
 #define IMPD1_SW	0x14

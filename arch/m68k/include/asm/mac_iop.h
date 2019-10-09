@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * I/O Processor (IOP) defines and structures, mostly snagged from A/UX
  * header files.

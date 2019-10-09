@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *    Copyright IBM Corp. 2013
  *    Author(s): Ralf Hoppe (rhoppe@de.ibm.com)

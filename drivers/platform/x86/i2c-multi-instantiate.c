@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * I2C multi-instantiate driver, pseudo driver to instantiate multiple
  * i2c-clients from a single fwnode.

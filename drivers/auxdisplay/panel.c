@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Front panel driver for Linux
  * Copyright (C) 2000-2008, Willy Tarreau <w@1wt.eu>

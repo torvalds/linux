@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Performance monitoring"
 
 config PERF_EVENTS_INTEL_UNCORE

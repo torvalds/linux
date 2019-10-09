@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0+ or MIT
+# SPDX-License-Identifier: GPL-2.0-or-later or MIT
 
 NR_CPUS=`grep '^processor' /proc/cpuinfo | wc -l`
 

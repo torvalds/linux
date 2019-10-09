@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Tag allocation using scalable bitmaps. Uses active queue tracking to support
  * fairer distribution of tags between multiple submitters when a shared tag map

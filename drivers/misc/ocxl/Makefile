@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 ccflags-$(CONFIG_PPC_WERROR)	+= -Werror
 
 ocxl-y				+= main.o pci.o config.o file.o pasid.o mmio.o

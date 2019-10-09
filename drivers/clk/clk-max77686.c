@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // clk-max77686.c - Clock driver for Maxim 77686/MAX77802
 //

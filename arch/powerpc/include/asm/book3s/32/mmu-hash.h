@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ASM_POWERPC_BOOK3S_32_MMU_HASH_H_
 #define _ASM_POWERPC_BOOK3S_32_MMU_HASH_H_
 

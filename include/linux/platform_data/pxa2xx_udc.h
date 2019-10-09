@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This supports machine-specific differences in how the PXA2xx
  * USB Device Controller (UDC) is wired.

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef DECOMPRESS_BUNZIP2_H
 #define DECOMPRESS_BUNZIP2_H
 

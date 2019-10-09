@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
+// SPDX-License-Identifier: (GPL-2.0-only OR MPL-1.1)
 /* from src/prism2/download/prism2dl.c
  *
  * utility for downloading prism2 images moved into kernelspace

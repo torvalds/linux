@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /dts-v1/;
 #include "zynq-7000.dtsi"
 #include <dt-bindings/gpio/gpio.h>

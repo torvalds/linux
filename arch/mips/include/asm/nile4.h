@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  asm-mips/nile4.h -- NEC Vrc-5074 Nile 4 definitions
  *

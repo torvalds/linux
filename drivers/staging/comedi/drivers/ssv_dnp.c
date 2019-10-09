@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ssv_dnp.c
  * generic comedi driver for SSV Embedded Systems' DIL/Net-PCs

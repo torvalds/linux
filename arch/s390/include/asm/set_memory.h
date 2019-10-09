@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ASMS390_SET_MEMORY_H
 #define _ASMS390_SET_MEMORY_H
 

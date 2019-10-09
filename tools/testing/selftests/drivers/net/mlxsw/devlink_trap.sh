@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Test generic devlink-trap functionality over mlxsw. These tests are not
 # specific to a single trap, but do not check the devlink-trap common

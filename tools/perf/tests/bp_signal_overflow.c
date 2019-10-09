@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Originally done by Vince Weaver <vincent.weaver@maine.edu> for
  * perf_event_tests (git://github.com/deater/perf_event_tests)

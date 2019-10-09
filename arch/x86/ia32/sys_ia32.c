@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sys_ia32.c: Conversion between 32bit and 64bit native syscalls. Based on
  *             sys_sparc32

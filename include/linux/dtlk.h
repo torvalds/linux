@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #define DTLK_MINOR	0
 #define DTLK_IO_EXTENT	0x02
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __TOOLS_LINUX_ATOMIC_H
 #define __TOOLS_LINUX_ATOMIC_H
 

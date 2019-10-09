@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef AK4396_H_INCLUDED
 #define AK4396_H_INCLUDED
 

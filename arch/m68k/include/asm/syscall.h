@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ASM_M68K_SYSCALL_H
 #define _ASM_M68K_SYSCALL_H
 

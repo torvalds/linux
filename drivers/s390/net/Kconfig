@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 menu "S/390 network device drivers"
 	depends on NETDEVICES && S390
 

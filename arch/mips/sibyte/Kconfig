@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config SIBYTE_SB1250
 	bool
 	select CEVT_SB1250

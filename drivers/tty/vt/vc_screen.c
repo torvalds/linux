@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Provide access to virtual console memory.
  * /dev/vcs: the screen as it is being viewed right now (possibly scrolled)

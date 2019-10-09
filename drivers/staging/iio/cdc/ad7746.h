@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AD7746 capacitive sensor driver supporting AD7745, AD7746 and AD7747
  *

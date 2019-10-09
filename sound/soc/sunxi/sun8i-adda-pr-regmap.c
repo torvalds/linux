@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This driver provides regmap to access to analog part of audio codec
  * found on Allwinner A23, A31s, A33, H3 and A64 Socs

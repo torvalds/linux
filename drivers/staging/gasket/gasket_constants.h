@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (C) 2018 Google, Inc. */
 #ifndef __GASKET_CONSTANTS_H__
 #define __GASKET_CONSTANTS_H__

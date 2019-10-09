@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 mantis_core-objs :=	mantis_ioc.o	\
 			mantis_uart.o	\
 			mantis_dma.o	\

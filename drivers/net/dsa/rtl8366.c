@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Realtek SMI library helpers for the RTL8366x variants
  * RTL8366RB and RTL8366S
  *

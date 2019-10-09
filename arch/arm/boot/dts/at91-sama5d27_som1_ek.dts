@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
 /*
  * at91-sama5d27_som1_ek.dts - Device Tree file for SAMA5D27-SOM1-EK board
  *

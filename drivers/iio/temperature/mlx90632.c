@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mlx90632.c - Melexis MLX90632 contactless IR temperature sensor
  *

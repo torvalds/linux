@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* arch/sparc64/mm/tlb.c
  *
  * Copyright (C) 2004 David S. Miller <davem@redhat.com>

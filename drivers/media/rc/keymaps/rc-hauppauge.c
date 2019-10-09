@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // rc-hauppauge.c - Keytable for Hauppauge Remote Controllers
 //
 // keymap imported from ir-keymaps.c

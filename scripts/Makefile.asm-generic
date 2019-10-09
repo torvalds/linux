@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # include/asm-generic contains a lot of files that are used
 # verbatim by several architectures.
 #

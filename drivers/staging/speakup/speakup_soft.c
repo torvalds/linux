@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* speakup_soft.c - speakup driver to register and make available
  * a user space device for software synthesizers.  written by: Kirk
  * Reiser <kirk@braille.uwo.ca>

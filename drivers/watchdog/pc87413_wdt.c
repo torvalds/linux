@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *      NS pc87413-wdt Watchdog Timer driver for Linux 2.6.x.x
  *

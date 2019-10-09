@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LINUX_RESET_CONTROLLER_H_
 #define _LINUX_RESET_CONTROLLER_H_
 

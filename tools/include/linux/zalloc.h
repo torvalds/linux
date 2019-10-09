@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LGPL-2.1
+// SPDX-License-Identifier: LGPL-2.1-only
 #ifndef __TOOLS_LINUX_ZALLOC_H
 #define __TOOLS_LINUX_ZALLOC_H
 

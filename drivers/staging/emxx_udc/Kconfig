@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config USB_EMXX
 	tristate "EMXX USB Function Device Controller"
 	depends on USB_GADGET && (ARCH_RENESAS || (ARM && COMPILE_TEST))

@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # description: Uprobe event parser error log check
 
 [ -f uprobe_events ] || exit_unsupported # this is configurable

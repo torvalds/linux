@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Makefile for Linux samples code
 
 obj-$(CONFIG_SAMPLE_ANDROID_BINDERFS)	+= binderfs/

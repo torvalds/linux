@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // gadmei-rm008z.h - Keytable for gadmei_rm008z Remote Controller
 //
 // keymap imported from ir-keymaps.c

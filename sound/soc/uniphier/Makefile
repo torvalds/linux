@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 snd-soc-uniphier-aio-cpu-objs := aio-core.o aio-dma.o aio-cpu.o aio-compress.o
 snd-soc-uniphier-aio-ld11-objs := aio-ld11.o
 snd-soc-uniphier-aio-pxs2-objs := aio-pxs2.o

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * strlen.S (c) 1995 David Mosberger (davidm@cs.arizona.edu)
  *

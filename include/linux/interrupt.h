@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* interrupt.h */
 #ifndef _LINUX_INTERRUPT_H
 #define _LINUX_INTERRUPT_H

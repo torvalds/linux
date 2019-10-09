@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _GEN_PV_LOCK_SLOWPATH
 #error "do not include this file"
 #endif

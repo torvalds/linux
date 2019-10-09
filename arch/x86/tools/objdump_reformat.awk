@@ -1,5 +1,5 @@
 #!/bin/awk -f
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Usage: objdump -d a.out | awk -f objdump_reformat.awk | ./insn_decoder_test
 # Reformats the disassembly as follows:
 # - Removes all lines except the disassembled instructions.

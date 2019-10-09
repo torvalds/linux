@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # scripts/dtc makefile
 
 hostprogs-$(CONFIG_DTC) := dtc

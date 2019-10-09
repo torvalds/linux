@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/kasan.h>
 #include <linux/sched/task.h>
 #include <linux/memblock.h>

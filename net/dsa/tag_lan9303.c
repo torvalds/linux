@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Pengutronix, Juergen Borleis <jbe@pengutronix.de>
  */

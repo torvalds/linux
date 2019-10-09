@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Clock driver for DA8xx/AM17xx/AM18xx/OMAP-L13x CFGCHIP
  *

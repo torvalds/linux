@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 CFLAGS += -O2 -g -std=gnu89 -pthread -Wall -Wextra
 CFLAGS += -I../../../../usr/include/
 LDFLAGS += -pthread

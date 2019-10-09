@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // mt8183-afe-clk.c  --  Mediatek 8183 afe clock ctrl
 //

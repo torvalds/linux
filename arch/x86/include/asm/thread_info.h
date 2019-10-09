@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* thread_info.h: low-level thread information
  *
  * Copyright (C) 2002  David Howells (dhowells@redhat.com)

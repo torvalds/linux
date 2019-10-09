@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #if !defined(_DRM_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _DRM_TRACE_H_
 

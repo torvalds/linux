@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __SYSDEP_X86_PTRACE_H
 #define __SYSDEP_X86_PTRACE_H
 

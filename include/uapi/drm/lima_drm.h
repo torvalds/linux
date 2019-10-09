@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT */
+/* SPDX-License-Identifier: (GPL-2.0-only WITH Linux-syscall-note) OR MIT */
 /* Copyright 2017-2018 Qiang Yu <yuq825@gmail.com> */
 
 #ifndef __LIMA_DRM_H__

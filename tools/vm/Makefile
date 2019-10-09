@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Makefile for vm tools
 #
 TARGETS=page-types slabinfo page_owner_sort

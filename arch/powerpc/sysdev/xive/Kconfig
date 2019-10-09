@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config PPC_XIVE
 	bool
 	select PPC_SMP_MUXED_IPI

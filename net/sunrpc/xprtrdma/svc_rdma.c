@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
 /*
  * Copyright (c) 2015-2018 Oracle.  All rights reserved.
  * Copyright (c) 2005-2006 Network Appliance, Inc. All rights reserved.

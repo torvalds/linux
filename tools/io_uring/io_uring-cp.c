@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Simple test program that demonstrates a file copy through io_uring. This
  * uses the API exposed by liburing.

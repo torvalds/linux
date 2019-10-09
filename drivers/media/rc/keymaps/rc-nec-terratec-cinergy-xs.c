@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // nec-terratec-cinergy-xs.h - Keytable for nec_terratec_cinergy_xs Remote Controller
 //
 // keymap imported from ir-keymaps.c

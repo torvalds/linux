@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SH7091/SH7750/SH7750S/SH7750R/SH7751/SH7751R Setup
  *

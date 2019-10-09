@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef ASM_ARM_CRYPTO_SHA1_H
 #define ASM_ARM_CRYPTO_SHA1_H
 

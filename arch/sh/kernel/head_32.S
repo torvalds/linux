@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0-only
  * $Id: head.S,v 1.7 2003/09/01 17:58:19 lethal Exp $
  *
  *  arch/sh/kernel/head.S

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 CC =		m68k-cbm-amigados-gcc
 CFLAGS =	-Wall -O2

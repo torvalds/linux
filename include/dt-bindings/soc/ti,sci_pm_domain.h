@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __DT_BINDINGS_TI_SCI_PM_DOMAIN_H
 #define __DT_BINDINGS_TI_SCI_PM_DOMAIN_H

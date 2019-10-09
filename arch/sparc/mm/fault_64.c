@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/sparc64/mm/fault.c: Page fault handlers for the 64-bit Sparc.
  *

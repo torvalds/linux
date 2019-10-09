@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // TI LM3692x LED chip family driver
 // Copyright (C) 2017-18 Texas Instruments Incorporated - http://www.ti.com/
 

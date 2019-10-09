@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // soc-ac97.c  --  ALSA SoC Audio Layer AC97 support
 //

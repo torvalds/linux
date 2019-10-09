@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (C) 2000 Philipp Rumpf <prumpf@tux.org>
  * Copyright (C) 2006 Kyle McMartin <kyle@parisc-linux.org>
  */

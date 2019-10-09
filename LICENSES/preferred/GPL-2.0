@@ -8,11 +8,11 @@ Usage-Guide:
   tag/value pairs into a comment according to the placement
   guidelines in the licensing rules documentation.
   For 'GNU General Public License (GPL) version 2 only' use:
-    SPDX-License-Identifier: GPL-2.0
+    SPDX-License-Identifier: GPL-2.0-only
   or
     SPDX-License-Identifier: GPL-2.0-only
   For 'GNU General Public License (GPL) version 2 or any later version' use:
-    SPDX-License-Identifier: GPL-2.0+
+    SPDX-License-Identifier: GPL-2.0-or-later
   or
     SPDX-License-Identifier: GPL-2.0-or-later
 License-Text:

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0-only
 /*******************************************************************************
  *
  * Module Name: utstrsuppt - Support functions for string-to-integer conversion

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * JZ4770 SoC CGU driver
  * Copyright 2018, Paul Cercueil <paul@crapouillou.net>

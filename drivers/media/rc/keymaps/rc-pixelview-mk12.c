@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // rc-pixelview-mk12.h - Keytable for pixelview Remote Controller
 //
 // keymap imported from ir-keymaps.c

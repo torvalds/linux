@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _PINCTRL_SINGLE_H
 #define _PINCTRL_SINGLE_H

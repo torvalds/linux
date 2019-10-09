@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (C) 2018 - Arm Ltd */
 
 #ifndef __ARM_KVM_RAS_H__

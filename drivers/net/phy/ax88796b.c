@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Driver for Asix PHYs
  *
  * Author: Michael Schmitz <schmitzmic@gmail.com>

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Copyright (c) 2008 Ramax Lo <ramaxlo@gmail.com>
 //      Based on mach-anubis.c by Ben Dooks <ben@simtec.co.uk>

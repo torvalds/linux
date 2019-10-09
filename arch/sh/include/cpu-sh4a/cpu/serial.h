@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __CPU_SH4A_SERIAL_H
 #define __CPU_SH4A_SERIAL_H
 

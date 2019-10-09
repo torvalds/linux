@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *    Copyright IBM Corp 2000, 2011
  *    Author(s): Holger Smolinski <Holger.Smolinski@de.ibm.com>,

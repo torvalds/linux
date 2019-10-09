@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mt2701-afe-clock-ctrl.c  --  Mediatek 2701 afe clock ctrl
  *

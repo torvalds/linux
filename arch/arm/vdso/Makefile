@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 hostprogs-y := vdsomunge
 
 obj-vdso := vgettimeofday.o datapage.o

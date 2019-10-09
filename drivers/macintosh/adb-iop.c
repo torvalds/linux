@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I/O Processor (IOP) ADB Driver
  * Written and (C) 1999 by Joshua M. Thompson (funaho@jurai.org)

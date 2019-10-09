@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*	
  * unsigned long __xdiv64_32(unsigned long long n, unsigned long d); 
  */

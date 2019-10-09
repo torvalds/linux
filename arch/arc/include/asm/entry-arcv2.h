@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __ASM_ARC_ENTRY_ARCV2_H
 #define __ASM_ARC_ENTRY_ARCV2_H

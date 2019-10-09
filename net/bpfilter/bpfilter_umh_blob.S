@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 	.section .rodata, "a"
 	.global bpfilter_umh_start
 bpfilter_umh_start:

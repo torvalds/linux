@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _NETNS_NFTABLES_H_
 #define _NETNS_NFTABLES_H_
 

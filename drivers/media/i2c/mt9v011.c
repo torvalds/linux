@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // mt9v011 -Micron 1/4-Inch VGA Digital Image Sensor
 //

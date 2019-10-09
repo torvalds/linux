@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Assembler variants of srmmu access functions.
  * Implemented in assembler to allow run-time patching.
  * LEON uses a different ASI for MMUREGS than SUN.

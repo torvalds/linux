@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 tegra-mc-y := mc.o
 
 tegra-mc-$(CONFIG_ARCH_TEGRA_2x_SOC)  += tegra20.o

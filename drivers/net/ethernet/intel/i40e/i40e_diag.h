@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #ifndef _I40E_DIAG_H_

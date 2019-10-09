@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /*
  * Quirks for I2C-HID devices that do not supply proper descriptors

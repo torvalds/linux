@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * i2c-algo-bit.h: i2c driver algorithms for bit-shift adapters
  *

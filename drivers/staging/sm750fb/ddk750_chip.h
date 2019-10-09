@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef DDK750_CHIP_H__
 #define DDK750_CHIP_H__
 #define DEFAULT_INPUT_CLOCK 14318181 /* Default reference clock */

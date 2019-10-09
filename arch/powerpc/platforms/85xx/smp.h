@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef POWERPC_85XX_SMP_H_
 #define POWERPC_85XX_SMP_H_ 1
 

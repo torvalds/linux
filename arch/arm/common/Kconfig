@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config SA1111
 	bool
 	select DMABOUNCE if !ARCH_PXA

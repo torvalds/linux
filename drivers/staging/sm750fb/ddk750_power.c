@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include "ddk750_chip.h"
 #include "ddk750_reg.h"
 #include "ddk750_power.h"

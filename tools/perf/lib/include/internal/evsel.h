@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __LIBPERF_INTERNAL_EVSEL_H
 #define __LIBPERF_INTERNAL_EVSEL_H
 

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 dtb-$(CONFIG_DT_XLP_EVP)	+= xlp_evp.dtb
 dtb-$(CONFIG_DT_XLP_SVP)	+= xlp_svp.dtb
 dtb-$(CONFIG_DT_XLP_FVP)	+= xlp_fvp.dtb

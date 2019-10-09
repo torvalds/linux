@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __QCOM_SMEM_STATE__
 #define __QCOM_SMEM_STATE__
 

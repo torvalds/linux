@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // pv88090-regulator.c - Regulator device driver for PV88090
 // Copyright (C) 2015  Powerventure Semiconductor Ltd.

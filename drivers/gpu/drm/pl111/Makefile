@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 pl111_drm-y +=	pl111_display.o \
 		pl111_versatile.o \
 		pl111_drv.o

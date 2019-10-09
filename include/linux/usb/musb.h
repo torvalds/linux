@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This is used to for host and peripheral modes of the driver for
  * Inventra (Multidrop) Highspeed Dual-Role Controllers:  (M)HDRC.

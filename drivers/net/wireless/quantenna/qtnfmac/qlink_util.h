@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Copyright (c) 2015-2016 Quantenna Communications. All rights reserved. */
 
 #ifndef _QTN_FMAC_QLINK_UTIL_H_

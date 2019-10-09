@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* nettest - used for functional tests of networking APIs
  *
  * Copyright (c) 2013-2019 David Ahern <dsahern@gmail.com>. All rights reserved.

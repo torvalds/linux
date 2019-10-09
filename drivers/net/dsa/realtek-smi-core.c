@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Realtek Simple Management Interface (SMI) driver
  * It can be discussed how "simple" this interface is.
  *

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 vfio-platform-base-y := vfio_platform_common.o vfio_platform_irq.o
 vfio-platform-y := vfio_platform.o
 

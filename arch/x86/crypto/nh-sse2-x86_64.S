@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * NH - ε-almost-universal hash function, x86_64 SSE2 accelerated
  *

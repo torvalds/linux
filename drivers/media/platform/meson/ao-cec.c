@@ -5,7 +5,7 @@
  * Copyright (C) 2017 BayLibre, SAS
  * Author: Neil Armstrong <narmstrong@baylibre.com>
  *
- * SPDX-License-Identifier: GPL-2.0+
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include <linux/bitfield.h>

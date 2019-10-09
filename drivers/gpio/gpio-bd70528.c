@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright (C) 2018 ROHM Semiconductors
 // gpio-bd70528.c ROHM BD70528MWV gpio driver
 

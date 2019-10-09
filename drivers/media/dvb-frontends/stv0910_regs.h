@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * @DVB-S/DVB-S2 STMicroelectronics STV0900 register definitions
  * Author Manfred Voelkel, August 2013

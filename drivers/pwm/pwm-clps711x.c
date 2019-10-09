@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cirrus Logic CLPS711X PWM driver
  * Author: Alexander Shiyan <shc_work@mail.ru>

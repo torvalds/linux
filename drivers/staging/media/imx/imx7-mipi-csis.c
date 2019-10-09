@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Freescale i.MX7 SoC series MIPI-CSI V3.3 receiver driver
  *

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 export srctree := $(abspath ../../../..)
 export CC      := gcc
 export LD      := ld

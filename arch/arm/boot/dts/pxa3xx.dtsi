@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* The pxa3xx skeleton simply augments the 2xx version */
 #include "pxa2xx.dtsi"
 

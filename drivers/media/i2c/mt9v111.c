@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * V4L2 sensor driver for Aptina MT9V111 image sensor
  * Copyright (C) 2018 Jacopo Mondi <jacopo@jmondi.org>

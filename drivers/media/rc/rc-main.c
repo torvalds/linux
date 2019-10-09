@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // rc-main.c - Remote Controller core module
 //
 // Copyright (C) 2009-2010 by Mauro Carvalho Chehab

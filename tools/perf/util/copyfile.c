@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include "util/copyfile.h"
 #include "util/namespaces.h"
 #include <internal/lib.h>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include "drxk_map.h"
 
 #define DRXK_VERSION_MAJOR 0

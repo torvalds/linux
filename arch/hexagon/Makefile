@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #  Makefile for the Hexagon arch
 
 KBUILD_DEFCONFIG = comet_defconfig

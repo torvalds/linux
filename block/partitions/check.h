@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
 #include <linux/genhd.h>

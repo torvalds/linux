@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // gotview7135.h - Keytable for gotview7135 Remote Controller
 //
 // keymap imported from ir-keymaps.c

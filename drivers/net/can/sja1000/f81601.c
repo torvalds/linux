@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Fintek F81601 PCIE to 2 CAN controller driver
  *
  * Copyright (C) 2019 Peter Hong <peter_hong@fintek.com.tw>

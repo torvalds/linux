@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Marvell International Ltd. All rights reserved.
  * Copyright (C) 2018 Lubomir Rintel <lkundrak@v3.sk>

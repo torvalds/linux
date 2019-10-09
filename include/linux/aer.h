@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2006 Intel Corp.
  *     Tom Long Nguyen (tom.l.nguyen@intel.com)

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2002  David McCullough <davidm@snapgear.com>
  * Copyright (C) 2003  Paul Mundt <lethal@linux-sh.org>

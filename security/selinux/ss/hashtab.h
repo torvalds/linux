@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * A hash table (hashtab) maintains associations between
  * key values and datum values.  The type of the key values

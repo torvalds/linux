@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MIPI-DSI Samsung s6d16d0 panel driver. This is a 864x480
  * AMOLED panel with a command-only DSI interface.

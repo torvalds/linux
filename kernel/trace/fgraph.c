@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Infrastructure to took into function calls and returns.
  * Copyright (c) 2008-2009 Frederic Weisbecker <fweisbec@gmail.com>

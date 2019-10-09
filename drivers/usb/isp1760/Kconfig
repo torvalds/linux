@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 config USB_ISP1760
 	tristate "NXP ISP 1760/1761 support"

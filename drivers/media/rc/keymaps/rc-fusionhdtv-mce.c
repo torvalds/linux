@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // fusionhdtv-mce.h - Keytable for fusionhdtv_mce Remote Controller
 //
 // keymap imported from ir-keymaps.c

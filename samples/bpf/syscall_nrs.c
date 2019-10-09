@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <uapi/linux/unistd.h>
 #include <linux/kbuild.h>
 

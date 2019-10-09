@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* PTP 1588 clock using the Renesas Ethernet AVB
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation

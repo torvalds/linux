@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef BTRFS_INODE_MAP_H
 #define BTRFS_INODE_MAP_H

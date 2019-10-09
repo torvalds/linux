@@ -1,5 +1,5 @@
 """
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 tdc_config.py - tdc user-specified values
 
 Copyright (C) 2017 Lucas Bates <lucasb@mojatatu.com>

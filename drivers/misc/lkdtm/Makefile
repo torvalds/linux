@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_LKDTM)		+= lkdtm.o
 
 lkdtm-$(CONFIG_LKDTM)		+= core.o

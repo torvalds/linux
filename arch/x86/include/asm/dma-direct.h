@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef ASM_X86_DMA_DIRECT_H
 #define ASM_X86_DMA_DIRECT_H 1
 

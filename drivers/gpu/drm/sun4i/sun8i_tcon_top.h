@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Copyright (c) 2018 Jernej Skrabec <jernej.skrabec@siol.net> */
 
 #ifndef _SUN8I_TCON_TOP_H_

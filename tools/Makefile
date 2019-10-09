@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Some of the tools (perf) use same make variables
 # as in kernel build.
 export srctree=

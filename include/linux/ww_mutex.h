@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Wound/Wait Mutexes: blocking mutual exclusion locks with deadlock avoidance
  *

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Parts of this driver are based on the following:
  *  - Kvaser linux mhydra driver (version 5.24)
  *  - CAN driver for esd CAN-USB/2

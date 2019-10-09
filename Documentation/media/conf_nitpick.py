@@ -1,6 +1,6 @@
 # -*- coding: utf-8; mode: python -*-
 
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 project = 'Linux Media Subsystem Documentation'
 

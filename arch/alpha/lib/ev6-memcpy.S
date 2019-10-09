@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/alpha/lib/ev6-memcpy.S
  * 21264 version by Rick Gorton <rick.gorton@alpha-processor.com>

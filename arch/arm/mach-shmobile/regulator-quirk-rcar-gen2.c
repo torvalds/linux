@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * R-Car Generation 2 da9063(L)/da9210 regulator quirk
  *

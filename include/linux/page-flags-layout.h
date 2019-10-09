@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef PAGE_FLAGS_LAYOUT_H
 #define PAGE_FLAGS_LAYOUT_H
 

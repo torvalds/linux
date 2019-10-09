@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __BRCMSTB_SOC_H
 #define __BRCMSTB_SOC_H
 

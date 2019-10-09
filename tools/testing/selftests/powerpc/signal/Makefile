@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 TEST_GEN_PROGS := signal signal_tm sigfuz
 
 CFLAGS += -maltivec

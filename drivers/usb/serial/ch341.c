@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2007, Frank A Kingswood <frank@kingswood-consulting.co.uk>
  * Copyright 2007, Werner Cornelius <werner@cornelius-consult.de>

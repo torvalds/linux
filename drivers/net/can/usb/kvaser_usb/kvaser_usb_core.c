@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Parts of this driver are based on the following:
  *  - Kvaser linux leaf driver (version 4.78)
  *  - CAN driver for esd CAN-USB/2

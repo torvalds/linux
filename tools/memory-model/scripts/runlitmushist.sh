@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Runs the C-language litmus tests specified on standard input, using up
 # to the specified number of CPUs (defaulting to all of them) and placing

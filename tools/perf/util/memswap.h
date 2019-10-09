@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef PERF_MEMSWAP_H_
 #define PERF_MEMSWAP_H_
 

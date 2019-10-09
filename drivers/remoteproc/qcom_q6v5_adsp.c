@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Qualcomm Technology Inc. ADSP Peripheral Image Loader for SDM845.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.

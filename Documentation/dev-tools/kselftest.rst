@@ -243,7 +243,7 @@ A bare bones test module might look like this:
 
 .. code-block:: c
 
-   // SPDX-License-Identifier: GPL-2.0+
+   // SPDX-License-Identifier: GPL-2.0-or-later
 
    #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -275,7 +275,7 @@ Example test script
 .. code-block:: sh
 
     #!/bin/bash
-    # SPDX-License-Identifier: GPL-2.0+
+    # SPDX-License-Identifier: GPL-2.0-or-later
     $(dirname $0)/../kselftest_module.sh "foo" test_foo
 
 

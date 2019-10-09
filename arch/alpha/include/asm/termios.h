@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ALPHA_TERMIOS_H
 #define _ALPHA_TERMIOS_H
 

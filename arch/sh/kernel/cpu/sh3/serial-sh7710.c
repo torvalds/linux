@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/serial_sci.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>

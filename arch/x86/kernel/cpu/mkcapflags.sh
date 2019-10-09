@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Generate the x86_cap/bug_flags[] arrays from include/asm/cpufeatures.h
 #

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Augment the filename syscalls with the contents of the filename pointer argument
  * filtering only those that do not start with /etc/.

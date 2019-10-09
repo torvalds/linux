@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* auxio.c: Probing for the Sparc AUXIO register at boot time.
  *
  * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)

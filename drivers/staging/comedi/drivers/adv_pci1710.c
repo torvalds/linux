@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * adv_pci1710.c
  * Comedi driver for Advantech PCI-1710 series boards

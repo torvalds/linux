@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * thread_info.h: sparc low-level thread information
  * adapted from the ppc version by Pete Zaitcev, which was

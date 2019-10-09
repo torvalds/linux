@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Multiqueue: Using pktgen threads for sending on multiple CPUs
 #  * adding devices to kernel threads

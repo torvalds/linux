@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __FS_CEPH_BUFFER_H
 #define __FS_CEPH_BUFFER_H
 

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 TEST_GEN_FILES := validate_cap
 TEST_GEN_PROGS := test_execve
 

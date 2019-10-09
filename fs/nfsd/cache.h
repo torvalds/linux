@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Request reply cache. This was heavily inspired by the
  * implementation in 4.3BSD/4.4BSD.

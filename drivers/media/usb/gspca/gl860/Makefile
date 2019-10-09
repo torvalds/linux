@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_USB_GL860) += gspca_gl860.o
 
 gspca_gl860-objs := gl860.o \

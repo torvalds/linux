@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Silicon Laboratories CP210x USB to RS232 serial adaptor driver
  *

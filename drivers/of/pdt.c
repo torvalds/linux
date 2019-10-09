@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* pdt.c: OF PROM device tree support code.
  *
  * Paul Mackerras	August 1996.

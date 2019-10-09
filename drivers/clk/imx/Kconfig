@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # common clock support for NXP i.MX SoC family.
 config MXC_CLK
 	bool

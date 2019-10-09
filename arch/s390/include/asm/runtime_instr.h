@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _RUNTIME_INSTR_H
 #define _RUNTIME_INSTR_H
 

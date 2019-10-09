@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* linux/arch/sparc/lib/memset.S: Sparc optimized memset, bzero and clear_user code
  * Copyright (C) 1991,1996 Free Software Foundation
  * Copyright (C) 1996,1997 Jakub Jelinek (jj@sunsite.mff.cuni.cz)

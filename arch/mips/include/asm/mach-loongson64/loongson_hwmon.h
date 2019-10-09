@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __LOONGSON_HWMON_H_
 #define __LOONGSON_HWMON_H_
 

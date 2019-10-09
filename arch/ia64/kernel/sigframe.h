@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 struct sigscratch {
 	unsigned long scratch_unat;	/* ar.unat for the general registers saved in pt */
 	unsigned long ar_pfs;		/* for syscalls, the user-level function-state  */

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Atomic operations usable in machine independent code */
 #ifndef _LINUX_ATOMIC_H
 #define _LINUX_ATOMIC_H

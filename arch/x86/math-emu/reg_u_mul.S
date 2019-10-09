@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 	.file	"reg_u_mul.S"
 /*---------------------------------------------------------------------------+
  |  reg_u_mul.S                                                              |

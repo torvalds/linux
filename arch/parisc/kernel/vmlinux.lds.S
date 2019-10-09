@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*    Kernel link layout for various "sections"
  *
  *    Copyright (C) 1999-2003 Matthew Wilcox <willy at parisc-linux.org>

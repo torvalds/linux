@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  REINER SCT cyberJack pinpad/e-com USB Chipcard Reader Driver
  *

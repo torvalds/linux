@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #define FDOMAIN_REGION_SIZE	0x10
 #define FDOMAIN_BIOS_SIZE	0x2000

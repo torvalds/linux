@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // rc-dvb0700-big.c - Keytable for devices in dvb0700
 //
 // Copyright (c) 2010 by Mauro Carvalho Chehab

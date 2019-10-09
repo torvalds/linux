@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Device driver for monitoring ambient light intensity (lux)
  * and proximity (prox) within the TAOS TSL2772 family of devices.

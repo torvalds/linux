@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-3-Clause)
 /*
  * hcd_ddma.c - DesignWare HS OTG Controller descriptor DMA routines
  *

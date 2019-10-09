@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // kworld-315u.h - Keytable for kworld_315u Remote Controller
 //
 // keymap imported from ir-keymaps.c

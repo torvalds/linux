@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * From setup-res.c, by:
  *	Dave Rusling (david.rusling@reo.mts.dec.com)

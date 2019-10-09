@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright 2013 Ideas On Board SPRL
  * Copyright 2013, 2014 Horms Solutions Ltd.

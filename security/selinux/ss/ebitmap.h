@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * An extensible bitmap is a bitmap that supports an
  * arbitrary number of bits.  Extensible bitmaps are

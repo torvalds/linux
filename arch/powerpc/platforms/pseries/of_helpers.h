@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _PSERIES_OF_HELPERS_H
 #define _PSERIES_OF_HELPERS_H
 

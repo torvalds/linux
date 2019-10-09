@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Copyright (C) 2015-2018 Broadcom */
 
 #if !defined(_V3D_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)

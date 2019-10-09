@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR CDDL-1.0) */
+/* SPDX-License-Identifier: (GPL-2.0-only OR CDDL-1.0) */
 /*
  * VBox Guest additions version info, this is used by the host to determine
  * supported guest-addition features in some cases. So this will need to be

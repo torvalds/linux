@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // nau8822.c  --  NAU8822 ALSA Soc Audio driver
 //

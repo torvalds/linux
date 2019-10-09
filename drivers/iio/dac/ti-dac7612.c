@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * DAC7612 Dual, 12-Bit Serial input Digital-to-Analog Converter
  *

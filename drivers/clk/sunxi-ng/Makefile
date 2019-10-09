@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Common objects
 obj-y				+= ccu_common.o
 obj-y				+= ccu_mmc_timing.o

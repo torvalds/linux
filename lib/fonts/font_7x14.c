@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /**************************************/
 /* this file adapted from font_8x16.c */
 /* by Jurriaan Kalkman 05-2005        */

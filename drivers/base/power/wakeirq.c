@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Device wakeirq helper functions */
 #include <linux/device.h>
 #include <linux/interrupt.h>

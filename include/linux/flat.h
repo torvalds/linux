@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2002-2003  David McCullough <davidm@snapgear.com>
  * Copyright (C) 1998       Kenneth Albanowski <kjahds@kjahds.com>

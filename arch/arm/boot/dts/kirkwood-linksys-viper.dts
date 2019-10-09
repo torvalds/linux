@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * kirkwood-viper.dts - Device Tree file for Linksys viper (E4200v2 / EA4500)
  *

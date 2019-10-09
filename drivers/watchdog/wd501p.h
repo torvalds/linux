@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ */
+/* SPDX-License-Identifier: GPL-1.0-or-later */
 /*
  *	Industrial Computer Source WDT500/501 driver
  *

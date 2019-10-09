@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef BTRFS_EXTENT_IO_H
 #define BTRFS_EXTENT_IO_H

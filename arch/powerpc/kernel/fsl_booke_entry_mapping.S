@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* 1. Find the index of the entry we're executing in */
 	bl	invstr				/* Find our address */

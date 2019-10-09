@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LGPL-2.1
+// SPDX-License-Identifier: LGPL-2.1-only
 #ifndef PERF_FLAG_FD_NO_GROUP
 # define PERF_FLAG_FD_NO_GROUP		(1UL << 0)
 #endif

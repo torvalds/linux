@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1-or-later WITH Linux-syscall-note */
 /*
  * audio.h - DEPRECATED MPEG-TS audio decoder API
  *

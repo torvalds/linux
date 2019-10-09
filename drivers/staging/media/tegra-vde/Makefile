@@ -1,3 +1,3 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 tegra-vde-y := vde.o iommu.o dmabuf-cache.o
 obj-$(CONFIG_TEGRA_VDE)	+= tegra-vde.o

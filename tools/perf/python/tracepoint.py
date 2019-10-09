@@ -1,5 +1,5 @@
 #! /usr/bin/python
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # -*- python -*-
 # -*- coding: utf-8 -*-
 

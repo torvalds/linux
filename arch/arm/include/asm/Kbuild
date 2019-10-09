@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 generic-y += compat.h
 generic-y += current.h
 generic-y += early_ioremap.h

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _FS_NFSD_PNFS_H
 #define _FS_NFSD_PNFS_H 1
 

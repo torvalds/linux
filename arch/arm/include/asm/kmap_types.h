@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ARM_KMAP_TYPES_H
 #define __ARM_KMAP_TYPES_H
 

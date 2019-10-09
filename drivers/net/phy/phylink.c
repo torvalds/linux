@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * phylink models the MAC to optional PHY connection, supporting
  * technologies such as SFP cages where the PHY is hot-pluggable.

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-y				+= irq.o time.o
 obj-y				+= reset.o
 obj-$(CONFIG_SMP)		+= smp.o smpboot.o

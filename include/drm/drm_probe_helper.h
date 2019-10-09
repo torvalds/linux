@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR MIT
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
 
 #ifndef __DRM_PROBE_HELPER_H__
 #define __DRM_PROBE_HELPER_H__

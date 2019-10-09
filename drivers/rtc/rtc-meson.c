@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RTC driver for the interal RTC block in the Amlogic Meson6, Meson8,
  * Meson8b and Meson8m2 SoCs.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Lock down the kernel
  *
  * Copyright (C) 2016 Red Hat, Inc. All Rights Reserved.

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __LINUX_RESET_SOCFPGA_H__
 #define __LINUX_RESET_SOCFPGA_H__
 

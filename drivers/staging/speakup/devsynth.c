@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/errno.h>
 #include <linux/miscdevice.h>	/* for misc_register, and SYNTH_MINOR */
 #include <linux/types.h>

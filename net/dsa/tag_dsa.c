@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/dsa/tag_dsa.c - (Non-ethertype) DSA tagging
  * Copyright (c) 2008-2009 Marvell Semiconductor

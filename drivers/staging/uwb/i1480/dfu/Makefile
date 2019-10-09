@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_UWB_I1480U)	+= i1480-dfu-usb.o
 
 i1480-dfu-usb-objs := \

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright IBM Corporation, 2018
  * Authors Suraj Jitindar Singh <sjitindarsingh@gmail.com>

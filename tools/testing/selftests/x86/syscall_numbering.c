@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * syscall_arg_fault.c - tests faults 32-bit fast syscall stack args
  * Copyright (c) 2018 Andrew Lutomirski

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // ff-protocol-former.c - a part of driver for RME Fireface series
 //
 // Copyright (c) 2019 Takashi Sakamoto

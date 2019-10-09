@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * iomap.c - Implement iomap interface for PA-RISC
  * Copyright (c) 2004 Matthew Wilcox

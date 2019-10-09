@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR CDDL-1.0) */
+/* SPDX-License-Identifier: (GPL-2.0-only OR CDDL-1.0) */
 /*
  * vboxguest vmm-req and hgcm-call code, VBoxGuestR0LibHGCMInternal.cpp,
  * VBoxGuestR0LibGenericRequest.cpp and RTErrConvertToErrno.cpp in vbox svn.

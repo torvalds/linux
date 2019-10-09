@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_USB_CHIPIDEA)		+= ci_hdrc.o
 
 ci_hdrc-y				:= core.o otg.o debug.o ulpi.o

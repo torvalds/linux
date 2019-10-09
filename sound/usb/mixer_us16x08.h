@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __USB_MIXER_US16X08_H
 #define __USB_MIXER_US16X08_H
 

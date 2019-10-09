@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __WIRELESS_SYSFS_H
 #define __WIRELESS_SYSFS_H
 

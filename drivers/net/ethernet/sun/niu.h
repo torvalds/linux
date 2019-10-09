@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* niu.h: Definitions for Neptune ethernet driver.
  *
  * Copyright (C) 2007 David S. Miller (davem@davemloft.net)

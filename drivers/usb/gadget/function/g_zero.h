@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This header declares the utility functions used by "Gadget Zero", plus
  * interfaces to its two single-configuration function drivers.

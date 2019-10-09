@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 shmob-drm-y := shmob_drm_backlight.o \
 	       shmob_drm_crtc.o \
 	       shmob_drm_drv.o \

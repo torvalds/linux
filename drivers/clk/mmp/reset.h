@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __MACH_MMP_CLK_RESET_H
 #define __MACH_MMP_CLK_RESET_H
 

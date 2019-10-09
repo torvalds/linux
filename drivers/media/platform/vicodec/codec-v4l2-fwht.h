@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1 */
+/* SPDX-License-Identifier: LGPL-2.1-only */
 /*
  * Copyright 2018 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */

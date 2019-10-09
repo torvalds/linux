@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (C) 2010-2019  B.A.T.M.A.N. contributors:
  *
  * Sven Eckelmann

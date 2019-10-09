@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * usr/include/linux/lp.h c.1991-1992 James Wiegand
  * many modifications copyright (C) 1992 Michael K. Johnson

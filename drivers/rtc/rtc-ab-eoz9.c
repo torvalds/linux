@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Real Time Clock driver for AB-RTCMC-32.768kHz-EOZ9 chip.
  * Copyright (C) 2019 Orolia

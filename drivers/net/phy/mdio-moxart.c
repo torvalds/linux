@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* MOXA ART Ethernet (RTL8201CP) MDIO interface driver
  *
  * Copyright (C) 2013 Jonas Jensen <jonas.jensen@gmail.com>

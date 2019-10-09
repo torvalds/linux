@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mt2701-wm8960.c  --  MT2701 WM8960 ALSA SoC machine driver
  *

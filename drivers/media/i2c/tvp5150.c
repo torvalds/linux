@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // tvp5150 - Texas Instruments TVP5150A/AM1 and TVP5151 video decoder driver
 //

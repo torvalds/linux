@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* systbls.S: System call entry point tables for OS compatibility.
  *            The native Linux system call table lives here also.
  *

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 generic-y += atomic.h
 generic-y += barrier.h
 generic-y += bugs.h

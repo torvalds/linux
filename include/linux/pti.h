@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #ifndef _INCLUDE_PTI_H
 #define _INCLUDE_PTI_H
 

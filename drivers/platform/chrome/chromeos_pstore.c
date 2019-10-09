@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Driver to instantiate Chromebook ramoops device.
 //
 // Copyright (C) 2013 Google, Inc.

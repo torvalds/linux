@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __MB826XXFB_ACCEL_H__
 #define __MB826XXFB_ACCEL_H__
 

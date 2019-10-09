@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Dynamic byte queue limits.  See include/linux/dynamic_queue_limits.h
  *

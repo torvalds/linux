@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/export.h>
 #include <linux/icmpv6.h>
 #include <linux/mutex.h>

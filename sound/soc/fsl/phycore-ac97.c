@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // phycore-ac97.c  --  SoC audio for imx_phycore in AC97 mode
 //

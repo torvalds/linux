@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file implements the error recovery as a core part of PCIe error
  * reporting. When a PCIe error is delivered, an error message will be

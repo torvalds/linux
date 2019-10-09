@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* XDP sockets
  *
  * AF_XDP sockets allows a channel between XDP programs and userspace

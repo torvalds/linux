@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2002-2005 Roman Zippel <zippel@linux-m68k.org>
  * Copyright (C) 2002-2005 Sam Ravnborg <sam@ravnborg.org>

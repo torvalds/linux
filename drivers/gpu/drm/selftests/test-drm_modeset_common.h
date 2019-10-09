@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __TEST_DRM_MODESET_COMMON_H__
 #define __TEST_DRM_MODESET_COMMON_H__

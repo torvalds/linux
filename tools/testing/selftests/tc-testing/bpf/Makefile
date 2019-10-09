@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 APIDIR := ../../../../include/uapi
 TEST_GEN_FILES = action.o

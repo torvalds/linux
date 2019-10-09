@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * c67x00-sched.c: Cypress C67X00 USB Host Controller Driver - TD scheduling
  *

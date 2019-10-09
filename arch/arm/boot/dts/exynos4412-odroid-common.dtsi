@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Common definition for Hardkernel's Exynos4412 based ODROID-X/X2/U2/U3 boards
  * device tree source

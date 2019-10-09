@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Builtin evlist command: Show the list of event selectors present
  * in a perf.data file.

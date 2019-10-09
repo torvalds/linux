@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # au1000-style gpio and interrupt controllers
 config ALCHEMY_GPIOINT_AU1000
 	bool

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Exceptions for specific devices. Usually work-arounds for fatal design flaws.
  * Derived from fixup.c of i386 tree.

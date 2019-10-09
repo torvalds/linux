@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 PKG="gtk+-2.0 gmodule-2.0 libglade-2.0"
 

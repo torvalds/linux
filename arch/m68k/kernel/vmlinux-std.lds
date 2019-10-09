@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* ld script to make m68k Linux kernel */
 
 #include <asm-generic/vmlinux.lds.h>

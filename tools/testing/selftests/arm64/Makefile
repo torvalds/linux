@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 # ARCH can be overridden by the user for cross compiling
 ARCH ?= $(shell uname -m 2>/dev/null || echo not)

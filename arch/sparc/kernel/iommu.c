@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* iommu.c: Generic sparc64 IOMMU support.
  *
  * Copyright (C) 1999, 2007, 2008 David S. Miller (davem@davemloft.net)

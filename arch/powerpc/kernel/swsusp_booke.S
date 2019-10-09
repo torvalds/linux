@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Based on swsusp_32.S, modified for FSL BookE by
  * Anton Vorontsov <avorontsov@ru.mvista.com>

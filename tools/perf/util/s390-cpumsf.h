@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright IBM Corp. 2018
  * Auxtrace support for s390 CPU-Measurement Sampling Facility

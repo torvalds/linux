@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* $Id: memchr.S,v 1.1 2000/04/14 16:49:01 mjd Exp $
  *
  * "memchr" implementation of SuperH

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * NHPoly1305 - ε-almost-∆-universal hash function for Adiantum
  * (ARM64 NEON accelerated version)

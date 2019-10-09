@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * da9211-regulator.h - Regulator definitions for DA9211/DA9212
  * /DA9213/DA9223/DA9214/DA9224/DA9215/DA9225

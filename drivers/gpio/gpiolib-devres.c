@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * devres.c - managed gpio resources
  * This file is based on kernel/irq/devres.c

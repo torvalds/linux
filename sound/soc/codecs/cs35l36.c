@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // cs35l36.c -- CS35L36 ALSA SoC audio driver
 //

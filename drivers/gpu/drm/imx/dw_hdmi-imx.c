@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
  *
  * derived from imx-hdmi.c(renamed to bridge/dw_hdmi.c now)

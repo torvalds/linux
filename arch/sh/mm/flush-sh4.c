@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/mm.h>
 #include <asm/mmu_context.h>
 #include <asm/cache_insns.h>

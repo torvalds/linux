@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 
 /* net/sched/sch_etf.c  Earliest TxTime First queueing discipline.
  *

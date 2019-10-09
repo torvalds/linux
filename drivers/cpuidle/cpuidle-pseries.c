@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  cpuidle-pseries - idle state cpuidle driver.
  *  Adapted from drivers/idle/intel_idle.c and

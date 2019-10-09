@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
 /*
  * at91-sama5d4ek.dts - Device Tree file for SAMA5D4 Evaluation Kit
  *

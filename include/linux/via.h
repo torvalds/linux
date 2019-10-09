@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Miscellaneous definitions for VIA chipsets
    Currently used only by drivers/parport/parport_pc.c */
 

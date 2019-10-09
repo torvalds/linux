@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <test_progs.h>
 
 static __u64 read_perf_max_sample_freq(void)

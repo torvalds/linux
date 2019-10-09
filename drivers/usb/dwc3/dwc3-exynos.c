@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * dwc3-exynos.c - Samsung EXYNOS DWC3 Specific Glue layer
  *

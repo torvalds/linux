@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <internal/xyarray.h>
 #include <linux/zalloc.h>
 #include <stdlib.h>

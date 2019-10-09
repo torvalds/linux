@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LGPL-2.1
+// SPDX-License-Identifier: LGPL-2.1-only
 // Definitions taken from glibc for use with older systems, same licensing.
 #ifndef _CPU_SET_SCHED_PERF_H
 #define _CPU_SET_SCHED_PERF_H

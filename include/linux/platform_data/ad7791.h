@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __LINUX_PLATFORM_DATA_AD7791__
 #define __LINUX_PLATFORM_DATA_AD7791__
 

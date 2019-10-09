@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef _VKMS_DRV_H_
 #define _VKMS_DRV_H_

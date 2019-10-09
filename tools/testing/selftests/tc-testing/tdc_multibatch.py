@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 """
 tdc_multibatch.py - a thin wrapper over tdc_batch.py to generate multiple batch
 files

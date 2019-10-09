@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2017 Spreadtrum Communications Inc.
  *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
  */
 
 #include <linux/clk.h>

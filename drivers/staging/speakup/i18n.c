@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Internationalization implementation.  Includes definitions of English
  * string arrays, and the i18n pointer.
  */

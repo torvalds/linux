@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Greybus core
 greybus-y :=	core.o		\
 		debugfs.o	\

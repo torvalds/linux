@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #define MPPE_PAD                4      /* MPPE growth per frame */
 #define MPPE_MAX_KEY_LEN       16      /* largest key length (128-bit) */
 

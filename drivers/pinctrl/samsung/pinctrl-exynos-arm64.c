@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // Exynos ARMv8 specific support for Samsung pinctrl/gpiolib driver
 // with eint support.

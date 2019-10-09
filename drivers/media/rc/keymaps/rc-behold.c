@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // behold.h - Keytable for behold Remote Controller
 //
 // keymap imported from ir-keymaps.c

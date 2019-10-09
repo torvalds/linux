@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2018 MIPS Tech, LLC
  * Author: Matt Redfearn <matt.redfearn@mips.com>

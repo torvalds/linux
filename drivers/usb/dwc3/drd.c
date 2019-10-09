@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * drd.c - DesignWare USB3 DRD Controller Dual-role support
  *

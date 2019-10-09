@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/stat.h>
 #include <linux/sysctl.h>
 #include "../fs/xfs/xfs_sysctl.h"

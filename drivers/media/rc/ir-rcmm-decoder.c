@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // ir-rcmm-decoder.c - A decoder for the RCMM IR protocol
 //
 // Copyright (C) 2018 by Patrick Lerda <patrick9876@free.fr>

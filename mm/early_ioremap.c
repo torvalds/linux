@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Provide common bits of early_ioremap() support for architectures needing
  * temporary mappings during boot before ioremap() is available.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * comedi/drivers/dyna_pci10xx.c
  * Copyright (C) 2011 Prashant Shah, pshah.mumbai@gmail.com

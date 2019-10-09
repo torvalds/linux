@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <sys/param.h>
 #include <sys/utsname.h>
 #include <inttypes.h>

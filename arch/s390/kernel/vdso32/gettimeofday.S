@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Userland implementation of gettimeofday() for 32 bits processes in a
  * s390 kernel for use in the vDSO

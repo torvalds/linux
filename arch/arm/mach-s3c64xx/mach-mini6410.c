@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Copyright 2010 Darius Augulis <augulis.darius@gmail.com>
 // Copyright 2008 Openmoko, Inc.

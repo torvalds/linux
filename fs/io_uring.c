@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Shared application/kernel submission and completion ring pairs, for
  * supporting fast/efficient IO.

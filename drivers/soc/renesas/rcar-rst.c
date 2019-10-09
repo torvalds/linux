@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * R-Car Gen1 RESET/WDT, R-Car Gen2, Gen3, and RZ/G RST Driver
  *

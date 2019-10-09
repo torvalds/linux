@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Test that enough headroom is reserved for the first packet passing through an
 # IPv6 GRE-like netdevice.

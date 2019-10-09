@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Generic cache management functions. Everything is arch-specific,  
  *  but this header exists to make sure the defines/functions can be

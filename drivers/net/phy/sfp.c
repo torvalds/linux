@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/acpi.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>

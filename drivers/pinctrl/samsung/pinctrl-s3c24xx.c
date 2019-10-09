@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // S3C24XX specific support for Samsung pinctrl/gpiolib driver.
 //

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Driver for the IMX keypad port.
 // Copyright (C) 2009 Alberto Panizzo <maramaopercheseimorto@gmail.com>

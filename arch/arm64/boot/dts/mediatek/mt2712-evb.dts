@@ -2,7 +2,7 @@
  * Copyright (c) 2017 MediaTek Inc.
  * Author: YT Shen <yt.shen@mediatek.com>
  *
- * SPDX-License-Identifier: (GPL-2.0 OR MIT)
+ * SPDX-License-Identifier: (GPL-2.0-only OR MIT)
  */
 
 /dts-v1/;

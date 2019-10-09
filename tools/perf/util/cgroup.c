@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <subcmd/parse-options.h>
 #include "evsel.h"
 #include "cgroup.h"

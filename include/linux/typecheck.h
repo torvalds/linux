@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef TYPECHECK_H_INCLUDED
 #define TYPECHECK_H_INCLUDED
 

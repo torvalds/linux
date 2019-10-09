@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _TEST_RADIX_TREE_H
 #define _TEST_RADIX_TREE_H
 

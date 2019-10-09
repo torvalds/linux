@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * bdc_ep.c - BRCM BDC USB3.0 device controller endpoint related functions
  *

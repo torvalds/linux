@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*  Driver for the PPA3 parallel port SCSI HBA embedded in 
  * the Iomega ZIP drive
  * 

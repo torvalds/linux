@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _NF_TABLES_IPV4_H_
 #define _NF_TABLES_IPV4_H_
 

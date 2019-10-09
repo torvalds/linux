@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifdef CONFIG_DEBUG_UNCOMPRESS
 extern void putc(int c);
 #else

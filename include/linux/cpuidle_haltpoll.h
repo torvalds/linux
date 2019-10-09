@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _CPUIDLE_HALTPOLL_H
 #define _CPUIDLE_HALTPOLL_H
 

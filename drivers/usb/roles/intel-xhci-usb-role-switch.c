@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Intel XHCI (Cherry Trail, Broxton and others) USB OTG role switch driver
  *

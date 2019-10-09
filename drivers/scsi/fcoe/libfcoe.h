@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _FCOE_LIBFCOE_H_
 #define _FCOE_LIBFCOE_H_
 

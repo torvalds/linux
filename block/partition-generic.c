@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Code extracted from drivers/block/genhd.c
  *  Copyright (C) 1991-1998  Linus Torvalds

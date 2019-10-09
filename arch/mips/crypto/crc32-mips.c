@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * crc32-mips.c - CRC32 and CRC32C using optional MIPSr6 instructions
  *

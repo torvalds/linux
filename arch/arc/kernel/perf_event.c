@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // Linux performance counter support for ARC CPUs.
 // This code is inspired by the perf support of various other architectures.

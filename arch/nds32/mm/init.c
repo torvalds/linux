@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright (C) 1995-2005 Russell King
 // Copyright (C) 2012 ARM Ltd.
 // Copyright (C) 2013-2017 Andes Technology Corporation

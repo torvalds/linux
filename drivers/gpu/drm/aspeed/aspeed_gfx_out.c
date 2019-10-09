@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright 2018 IBM Corporation
 
 #include <drm/drm_atomic_helper.h>

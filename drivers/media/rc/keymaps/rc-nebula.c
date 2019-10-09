@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // nebula.h - Keytable for nebula Remote Controller
 //
 // keymap imported from ir-keymaps.c

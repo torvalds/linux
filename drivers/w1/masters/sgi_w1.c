@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sgi_w1.c - w1 master driver for one wire support in SGI ASICs
  */

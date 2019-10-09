@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // TSE-850 audio - ASoC driver for the Axentia TSE-850 with a PCM5142 codec
 //

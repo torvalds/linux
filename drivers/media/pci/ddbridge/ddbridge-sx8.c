@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ddbridge-sx8.c: Digital Devices MAX SX8 driver
  *

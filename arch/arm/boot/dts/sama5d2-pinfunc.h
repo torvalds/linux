@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #define PINMUX_PIN(no, func, ioset) \
 (((no) & 0xffff) | (((func) & 0xf) << 16) | (((ioset) & 0xff) << 20))
 

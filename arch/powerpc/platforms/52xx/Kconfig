@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config PPC_MPC52xx
 	bool "52xx-based boards"
 	depends on PPC_BOOK3S_32

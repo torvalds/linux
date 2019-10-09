@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * aio_aio12_8.c
  * Driver for Access I/O Products PC-104 AIO12-8 Analog I/O Board

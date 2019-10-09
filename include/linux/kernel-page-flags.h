@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef LINUX_KERNEL_PAGE_FLAGS_H
 #define LINUX_KERNEL_PAGE_FLAGS_H
 

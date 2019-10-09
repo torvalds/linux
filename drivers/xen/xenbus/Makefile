@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-y	+= xenbus.o
 obj-y	+= xenbus_dev_frontend.o
 

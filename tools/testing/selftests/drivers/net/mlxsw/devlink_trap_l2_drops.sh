@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Test devlink-trap L2 drops functionality over mlxsw. Each registered L2 drop
 # packet trap is tested to make sure it is triggered under the right

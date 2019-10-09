@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config RAS_CEC
 	bool "Correctable Errors Collector"
 	depends on X86_MCE && MEMORY_FAILURE && DEBUG_FS

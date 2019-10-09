@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef ASM_IA64_CYCLONE_H
 #define ASM_IA64_CYCLONE_H
 

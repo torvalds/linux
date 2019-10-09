@@ -1,5 +1,5 @@
 /*
- * SPDX-License-Identifier: GPL-2.0
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Handlers for board audio hooks, split from bttv-cards
  *

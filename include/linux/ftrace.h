@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Ftrace header.  For implementation details beyond the random comments
  * scattered below, see: Documentation/trace/ftrace-design.rst

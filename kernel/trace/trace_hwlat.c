@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * trace_hwlatdetect.c - A simple Hardware Latency detector.
  *

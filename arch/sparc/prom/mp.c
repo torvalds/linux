@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mp.c:  OpenBoot Prom Multiprocessor support routines.  Don't call
  *        these on a UP or else you will halt and catch fire. ;)

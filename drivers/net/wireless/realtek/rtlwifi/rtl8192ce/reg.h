@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #ifndef __RTL92C_REG_H__

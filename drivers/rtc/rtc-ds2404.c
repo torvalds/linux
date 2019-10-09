@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright (C) 2012 Sven Schnelle <svens@stackframe.org>
 
 #include <linux/platform_device.h>

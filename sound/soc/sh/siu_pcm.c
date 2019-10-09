@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // siu_pcm.c - ALSA driver for Renesas SH7343, SH7722 SIU peripheral.
 //

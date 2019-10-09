@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Makefile for vm selftests
 
 CFLAGS = -Wall -I ../../../../usr/include $(EXTRA_CFLAGS)

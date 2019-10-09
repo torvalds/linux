@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * etrap.S: Sparc trap window preparation for entry into the
  *          Linux kernel.

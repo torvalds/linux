@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Regulator controller driver for UniPhier SoC
 // Copyright 2018 Socionext Inc.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Implement the AER root port service driver. The driver registers an IRQ
  * handler. When a root port triggers an AER interrupt, the IRQ handler

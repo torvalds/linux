@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Industrial I/O driver for Microchip digital potentiometers
  * Copyright (c) 2018  Axentia Technologies AB

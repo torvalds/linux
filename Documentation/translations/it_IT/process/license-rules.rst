@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0
+.. SPDX-License-Identifier: GPL-2.0-only
 
 .. include:: ../disclaimer-ita.rst
 
@@ -114,19 +114,19 @@ Sintassi degli identificatori di licenza
    dell'opzione 'o successive' si formano aggiungendo alla fine il simbolo "+"
    per indicare l'opzione 'o successive'.::
 
-      // SPDX-License-Identifier: GPL-2.0+
-      // SPDX-License-Identifier: LGPL-2.1+
+      // SPDX-License-Identifier: GPL-2.0-or-later
+      // SPDX-License-Identifier: LGPL-2.1-or-later
 
    WITH dovrebbe essere usato quando sono necessarie delle modifiche alla
    licenza.  Per esempio, la UAPI del kernel linux usa l'espressione::
 
-      // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
-      // SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note
+      // SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note
+      // SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-note
 
    Altri esempi di usi di WITH all'interno del kernel sono::
 
-      // SPDX-License-Identifier: GPL-2.0 WITH mif-exception
-      // SPDX-License-Identifier: GPL-2.0+ WITH GCC-exception-2.0
+      // SPDX-License-Identifier: GPL-2.0-only WITH mif-exception
+      // SPDX-License-Identifier: GPL-2.0-or-later WITH GCC-exception-2.0
 
    Le eccezioni si possono usare solo in combinazione con identificatori di
    licenza. Gli identificatori di licenza riconosciuti sono elencati nei
@@ -137,29 +137,29 @@ Sintassi degli identificatori di licenza
    licenza e solo una dev'essere scelta.  Per esempio, alcuni file dtsi sono
    disponibili con doppia licenza::
 
-      // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+      // SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
 
    Esempi dal kernel di espressioni per file licenziati con doppia licenza
    sono::
 
-      // SPDX-License-Identifier: GPL-2.0 OR MIT
-      // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-      // SPDX-License-Identifier: GPL-2.0 OR Apache-2.0
-      // SPDX-License-Identifier: GPL-2.0 OR MPL-1.1
-      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT
-      // SPDX-License-Identifier: GPL-1.0+ OR BSD-3-Clause OR OpenSSL
+      // SPDX-License-Identifier: GPL-2.0-only OR MIT
+      // SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+      // SPDX-License-Identifier: GPL-2.0-only OR Apache-2.0
+      // SPDX-License-Identifier: GPL-2.0-only OR MPL-1.1
+      // SPDX-License-Identifier: (GPL-2.0-only WITH Linux-syscall-note) OR MIT
+      // SPDX-License-Identifier: GPL-1.0-or-later OR BSD-3-Clause OR OpenSSL
 
    La parola chiave AND dovrebbe essere usata quando i termini di più licenze
    si applicano ad un file. Per esempio, quando il codice viene preso da
    un altro progetto il quale da i permessi per aggiungerlo nel kernel ma
    richiede che i termini originali della licenza rimangano intatti::
 
-      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) AND MIT
+      // SPDX-License-Identifier: (GPL-2.0-only WITH Linux-syscall-note) AND MIT
 
    Di seguito, un altro esempio dove entrambe i termini di licenza devono
    essere rispettati::
 
-      // SPDX-License-Identifier: GPL-1.0+ AND LGPL-2.1+
+      // SPDX-License-Identifier: GPL-1.0+ AND LGPL-2.1-or-later
 
 Identificatori di licenza
 -------------------------
@@ -229,9 +229,9 @@ essere categorizzate in:
 	tag/value pairs into a comment according to the placement
 	guidelines in the licensing rules documentation.
 	For 'GNU General Public License (GPL) version 2 only' use:
-	  SPDX-License-Identifier: GPL-2.0
+	  SPDX-License-Identifier: GPL-2.0-only
 	For 'GNU General Public License (GPL) version 2 or any later version' use:
-	  SPDX-License-Identifier: GPL-2.0+
+	  SPDX-License-Identifier: GPL-2.0-or-later
       License-Text:
         Full license text
 
@@ -360,7 +360,7 @@ essere categorizzate in:
    Contiene la descrizione dell'eccezione per le chiamate di sistema Linux
    così come documentato nel file COPYING del kernel Linux; questo viene usato
    per i file d'intestazione per la UAPI.  Per esempio
-   /\* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note \*/::
+   /\* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note \*/::
 
       LICENSES/exceptions/GCC-exception-2.0
 

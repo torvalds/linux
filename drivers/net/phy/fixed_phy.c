@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Fixed MDIO bus (MDIO bus emulation with fixed PHYs)
  *

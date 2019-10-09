@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  R-Car Gen3 THS thermal sensor driver
  *  Based on rcar_thermal.c and work from Hien Dang and Khiem Nguyen.

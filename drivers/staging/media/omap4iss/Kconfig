@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 config VIDEO_OMAP4
 	tristate "OMAP 4 Camera support"

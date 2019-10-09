@@ -1,5 +1,5 @@
 #define __ARM_ARCH__ __LINUX_ARM_ARCH__
-@ SPDX-License-Identifier: GPL-2.0
+@ SPDX-License-Identifier: GPL-2.0-only
 
 @ This code is taken from the OpenSSL project but the author (Andy Polyakov)
 @ has relicensed it under the GPLv2. Therefore this program is free software;

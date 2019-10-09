@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Inspired by breakpoint overflow test done by
  * Vince Weaver <vincent.weaver@maine.edu> for perf_event_tests

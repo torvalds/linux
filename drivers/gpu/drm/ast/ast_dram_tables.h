@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef AST_DRAM_TABLES_H
 #define AST_DRAM_TABLES_H
 

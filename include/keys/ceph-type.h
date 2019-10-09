@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _KEYS_CEPH_TYPE_H
 #define _KEYS_CEPH_TYPE_H
 

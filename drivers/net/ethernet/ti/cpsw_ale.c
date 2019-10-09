@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Texas Instruments N-Port Ethernet Switch Address Lookup Engine
  *

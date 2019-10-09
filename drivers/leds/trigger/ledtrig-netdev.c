@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright 2017 Ben Whitten <ben.whitten@gmail.com>
 // Copyright 2007 Oliver Jowett <oliver@opencloud.com>
 //

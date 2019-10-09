@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Makefile for the kernel SAA7146 FULL TS DVB device driver
 # and the AV7110 DVB device driver

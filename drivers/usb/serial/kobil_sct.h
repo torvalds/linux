@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #define SUSBCRequest_SetBaudRateParityAndStopBits       1
 #define SUSBCR_SBR_MASK				0xFF00
 #define SUSBCR_SBR_1200				0x0100

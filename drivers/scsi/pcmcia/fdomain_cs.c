@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
+// SPDX-License-Identifier: (GPL-2.0-only OR MPL-1.1)
 /*
  * Driver for Future Domain-compatible PCMCIA SCSI cards
  * Copyright 2019 Ondrej Zary

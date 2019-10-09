@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include "util/map_symbol.h"
 #include "util/mem-events.h"
 #include "util/symbol.h"

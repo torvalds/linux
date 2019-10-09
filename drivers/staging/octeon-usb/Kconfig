@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config OCTEON_USB
 	tristate "Cavium Networks Octeon USB support"
 	depends on CAVIUM_OCTEON_SOC && USB

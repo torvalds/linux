@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * leon_pci_grpci1.c: GRPCI1 Host PCI driver
  *

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_VBOXVIDEO
 	tristate "Virtual Box Graphics Card"
 	depends on DRM && X86 && PCI

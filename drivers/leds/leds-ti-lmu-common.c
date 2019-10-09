@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright 2015 Texas Instruments
 // Copyright 2018 Sebastian Reichel
 // Copyright 2018 Pavel Machek <pavel@ucw.cz>

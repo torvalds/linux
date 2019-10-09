@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>

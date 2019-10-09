@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/dsa/mv88e6060.c - Driver for Marvell 88e6060 switch chips
  * Copyright (c) 2008-2009 Marvell Semiconductor

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __SUBCMD_EXEC_CMD_H
 #define __SUBCMD_EXEC_CMD_H
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LINUX_KERNEL_FTRACE_INTERNAL_H
 #define  _LINUX_KERNEL_FTRACE_INTERNAL_H
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _UDP6_IMPL_H
 #define _UDP6_IMPL_H
 #include <net/udp.h>

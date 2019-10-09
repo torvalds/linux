@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * GPIO interface for Winbond Super I/O chips
  * Currently, only W83627UHG (Nuvoton NCT6627UD) is supported.

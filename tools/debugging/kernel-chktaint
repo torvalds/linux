@@ -1,5 +1,5 @@
 #! /bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Randy Dunlap <rdunlap@infradead.org>, 2018
 # Thorsten Leemhuis <linux@leemhuis.info>, 2018

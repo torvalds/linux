@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef BCM2835_MFD_PM_H
 #define BCM2835_MFD_PM_H

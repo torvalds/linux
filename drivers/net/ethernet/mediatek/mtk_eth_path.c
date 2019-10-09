@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright (c) 2018-2019 MediaTek Inc.
 
 /* A library for configuring path from GMAC/GDM to target PHY

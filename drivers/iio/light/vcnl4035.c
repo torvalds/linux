@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * VCNL4035 Ambient Light and Proximity Sensor - 7-bit I2C slave address 0x60
  *

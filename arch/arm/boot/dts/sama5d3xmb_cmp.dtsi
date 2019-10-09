@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
 /*
  * sama5d3xmb_cmp.dts - Device Tree file for SAMA5D3x CMP mother board
  *

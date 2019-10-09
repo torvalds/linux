@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Framework for finding and configuring PHYs.
  * Also contains generic PHY driver
  *

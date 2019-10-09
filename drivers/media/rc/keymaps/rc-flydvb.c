@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // flydvb.h - Keytable for flydvb Remote Controller
 //
 // keymap imported from ir-keymaps.c

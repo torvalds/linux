@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Device driver for the Cuda and Egret system controllers found on PowerMacs
  * and 68k Macs.

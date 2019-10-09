@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ams-iaq-core.c - Support for AMS iAQ-Core VOC sensors
  *

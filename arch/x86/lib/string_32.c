@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Most of the string-functions are rather heavily hand-optimized,
  * see especially strsep,strstr,str[c]spn. They should work, but are not

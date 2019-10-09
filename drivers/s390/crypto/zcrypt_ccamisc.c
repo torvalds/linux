@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright IBM Corp. 2019
  *  Author(s): Harald Freudenberger <freude@linux.ibm.com>

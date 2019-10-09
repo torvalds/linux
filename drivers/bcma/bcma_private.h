@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef LINUX_BCMA_PRIVATE_H_
 #define LINUX_BCMA_PRIVATE_H_
 

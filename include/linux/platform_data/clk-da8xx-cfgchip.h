@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * clk-da8xx-cfgchip - TI DaVinci DA8xx CFGCHIP clock driver
  *

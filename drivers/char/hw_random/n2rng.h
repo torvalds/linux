@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* n2rng.h: Niagara2 RNG defines.
  *
  * Copyright (C) 2008 David S. Miller <davem@davemloft.net>

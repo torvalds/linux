@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <linux/node.h>
 #include <linux/mmzone.h>
 #include <linux/compaction.h>

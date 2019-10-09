@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Derived from include/asm-x86/mach-summit/mach_mpparse.h
  *          and include/asm-x86/mach-default/bios_ebda.h

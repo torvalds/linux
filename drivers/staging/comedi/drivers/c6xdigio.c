@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * c6xdigio.c
  * Hardware driver for Mechatronic Systems Inc. C6x_DIGIO DSP daughter card.

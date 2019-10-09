@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef LINUX_B43_PHY_G_H_
 #define LINUX_B43_PHY_G_H_
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
  * All rights reserved.

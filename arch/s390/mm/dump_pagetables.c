@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/sched.h>

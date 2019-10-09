@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * test_xarray.c: Test the XArray API
  * Copyright (c) 2017-2018 Microsoft Corporation

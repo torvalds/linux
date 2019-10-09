@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/ipc/shm.c
  * Copyright (C) 1992, 1993 Krishna Balasubramanian

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_HANTRO
 	tristate "Hantro VPU driver"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST

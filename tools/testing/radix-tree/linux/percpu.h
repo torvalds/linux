@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #define DECLARE_PER_CPU(type, val) extern type val
 #define DEFINE_PER_CPU(type, val) type val
 

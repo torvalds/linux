@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/slab.h> /* for kmalloc */
 #include <linux/consolemap.h>
 #include <linux/interrupt.h>

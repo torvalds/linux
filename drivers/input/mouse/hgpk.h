@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OLPC HGPK (XO-1) touchpad PS/2 mouse driver
  */

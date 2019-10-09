@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * mt6797-afe-common.h  --  Mediatek 6797 audio driver definitions
  *

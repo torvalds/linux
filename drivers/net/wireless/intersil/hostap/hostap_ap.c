@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intersil Prism2 driver with Host AP (software access point) support
  * Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen

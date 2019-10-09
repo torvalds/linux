@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 source ../tc_flower_scale.sh
 
 tc_flower_get_target()

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for SMSC USB4604 USB HSIC 4-port 2.0 hub controller driver
  * Based on usb3503 driver

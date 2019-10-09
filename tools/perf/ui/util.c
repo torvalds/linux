@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include "util.h"
 #include "../util/debug.h"
 #include <stdio.h>

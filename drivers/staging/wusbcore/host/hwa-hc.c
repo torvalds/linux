@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Host Wire Adapter:
  * Driver glue, HWA-specific functions, bridges to WAHC and WUSBHC

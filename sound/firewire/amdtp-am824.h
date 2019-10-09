@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef SOUND_FIREWIRE_AMDTP_AM824_H_INCLUDED
 #define SOUND_FIREWIRE_AMDTP_AM824_H_INCLUDED
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2000, 2003 Silicon Graphics, Inc.  All rights reserved.
  * Copyright (c) 2001 Intel Corp.

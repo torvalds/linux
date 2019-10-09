@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2018 NXP.
  * Copyright (C) 2017 Pengutronix, Lucas Stach <kernel@pengutronix.de>

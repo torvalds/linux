@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * RPA Virtual I/O device functions
  * Copyright (C) 2004 Linda Xie <lxie@us.ibm.com>

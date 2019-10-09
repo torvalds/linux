@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Copyright (c) 2018 Jesper Dangaard Brouer, Red Hat Inc.
 #
 # Bash-shell example on using iproute2 tools 'tc' and 'ip' to load

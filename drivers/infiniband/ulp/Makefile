@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_INFINIBAND_IPOIB)		+= ipoib/
 obj-$(CONFIG_INFINIBAND_SRP)		+= srp/
 obj-$(CONFIG_INFINIBAND_SRPT)		+= srpt/

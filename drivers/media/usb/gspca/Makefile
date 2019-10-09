@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_USB_GSPCA)          += gspca_main.o
 obj-$(CONFIG_USB_GSPCA_BENQ)     += gspca_benq.o
 obj-$(CONFIG_USB_GSPCA_CONEX)    += gspca_conex.o

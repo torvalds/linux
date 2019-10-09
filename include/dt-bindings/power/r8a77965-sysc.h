@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2018 Jacopo Mondi <jacopo+renesas@jmondi.org>
  * Copyright (C) 2016 Glider bvba

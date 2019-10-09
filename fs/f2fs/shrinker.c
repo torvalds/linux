@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * f2fs shrinker support
  *   the basic infra was copied from fs/ubifs/shrinker.c

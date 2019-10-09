@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Makefile for making ELF bootable images for booting on CHRP
 # using Open Firmware.
 #

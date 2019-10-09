@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __CLK_EXYNOS5_SUBCMU_H
 #define __CLK_EXYNOS5_SUBCMU_H

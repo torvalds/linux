@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _MCSAFE_TEST_H_
 #define _MCSAFE_TEST_H_
 

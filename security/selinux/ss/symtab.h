@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * A symbol table (symtab) maintains associations between symbol
  * strings and datum values.  The type of the datum values

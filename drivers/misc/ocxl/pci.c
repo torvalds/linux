@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright 2019 IBM Corp.
 #include <linux/module.h>
 #include "ocxl_internal.h"

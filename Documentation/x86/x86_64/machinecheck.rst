@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0
+.. SPDX-License-Identifier: GPL-2.0-only
 
 ===============================================================
 Configurable sysfs parameters for the x86-64 machine check code

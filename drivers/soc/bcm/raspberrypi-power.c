@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* (C) 2015 Pengutronix, Alexander Aring <aar@pengutronix.de>
  *
  * Authors:

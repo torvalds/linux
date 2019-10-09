@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* ldmvsw.c: Sun4v LDOM Virtual Switch Driver.
  *
  * Copyright (C) 2016-2017 Oracle. All rights reserved.

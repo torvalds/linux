@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 wilco_ec-objs				:= core.o mailbox.o properties.o sysfs.o
 obj-$(CONFIG_WILCO_EC)			+= wilco_ec.o

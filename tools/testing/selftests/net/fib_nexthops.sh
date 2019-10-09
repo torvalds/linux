@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # ns: me               | ns: peer              | ns: remote
 #   2001:db8:91::1     |       2001:db8:91::2  |

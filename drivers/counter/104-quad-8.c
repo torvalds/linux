@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Counter driver for the ACCES 104-QUAD-8
  * Copyright (C) 2016 William Breathitt Gray

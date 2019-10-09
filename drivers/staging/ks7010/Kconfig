@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 config KS7010
 	tristate "KeyStream KS7010 SDIO support"
 	depends on MMC && WIRELESS

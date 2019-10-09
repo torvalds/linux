@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 8250_mid.c - Driver for UART on Intel Penwell and various other Intel SOCs
  *

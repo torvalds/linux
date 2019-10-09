@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (c) 2018 Christian Hewitt
 
 #include <media/rc-map.h>

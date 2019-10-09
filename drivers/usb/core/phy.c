@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * A wrapper for multiple PHYs which passes all phy_* function calls to
  * multiple (actual) PHY devices. This is comes handy when initializing

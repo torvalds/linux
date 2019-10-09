@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Generate C file mapping errno codes to errno names.
 #
@@ -81,7 +81,7 @@ create_arch_errno_table_func()
 }
 
 cat <<EoHEADER
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <string.h>
 

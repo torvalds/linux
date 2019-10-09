@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __LINUX_SOC_RENESAS_RCAR_SYSC_H__
 #define __LINUX_SOC_RENESAS_RCAR_SYSC_H__
 

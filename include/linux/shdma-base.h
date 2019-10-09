@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0-only
  *
  * Dmaengine driver base library for DMA controllers, found on SH-based SoCs
  *

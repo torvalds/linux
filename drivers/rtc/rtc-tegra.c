@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * An RTC driver for the NVIDIA Tegra 200 series internal RTC.
  *

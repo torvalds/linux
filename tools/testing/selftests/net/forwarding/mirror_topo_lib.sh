@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 # This is the standard topology for testing mirroring. The tests that use it
 # tweak it in one way or another--typically add more devices to the topology.

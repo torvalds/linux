@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * dmm32at.c
  * Diamond Systems Diamond-MM-32-AT Comedi driver

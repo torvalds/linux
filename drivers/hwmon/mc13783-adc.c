@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the ADC on Freescale Semiconductor MC13783 and MC13892 PMICs.
  *

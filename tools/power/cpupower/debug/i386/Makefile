@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 OUTPUT=./
 ifeq ("$(origin O)", "command line")
 	OUTPUT := $(O)/

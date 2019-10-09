@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __LINUX_NETFILTER_CORE_H_
 #define __LINUX_NETFILTER_CORE_H_
 

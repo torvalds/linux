@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *	fs/bfs/bfs.h
  *	Copyright (C) 1999-2018 Tigran Aivazian <aivazian.tigran@gmail.com>

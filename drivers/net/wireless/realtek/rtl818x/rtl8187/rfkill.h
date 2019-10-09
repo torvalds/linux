@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef RTL8187_RFKILL_H
 #define RTL8187_RFKILL_H
 

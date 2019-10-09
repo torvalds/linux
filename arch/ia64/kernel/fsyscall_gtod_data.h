@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * (c) Copyright 2007 Hewlett-Packard Development Company, L.P.
  *        Contributed by Peter Keilty <peter.keilty@hp.com>

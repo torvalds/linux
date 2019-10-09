@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-1.0+
+// SPDX-License-Identifier: GPL-1.0-or-later
 /* generic HDLC line discipline for Linux
  *
  * Written by Paul Fulghum paulkf@microgate.com

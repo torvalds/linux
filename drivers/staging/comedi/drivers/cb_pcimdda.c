@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * comedi/drivers/cb_pcimdda.c
  * Computer Boards PCIM-DDA06-16 Comedi driver

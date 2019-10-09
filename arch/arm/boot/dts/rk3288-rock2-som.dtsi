@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
 
 #include <dt-bindings/pwm/pwm.h>
 #include "rk3288.dtsi"

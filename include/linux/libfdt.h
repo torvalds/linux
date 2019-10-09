@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _INCLUDE_LIBFDT_H_
 #define _INCLUDE_LIBFDT_H_
 

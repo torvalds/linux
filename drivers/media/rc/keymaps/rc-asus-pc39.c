@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // asus-pc39.h - Keytable for asus_pc39 Remote Controller
 //
 // keymap imported from ir-keymaps.c

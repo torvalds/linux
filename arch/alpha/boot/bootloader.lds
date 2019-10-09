@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 OUTPUT_FORMAT("elf64-alpha")
 ENTRY(__start)
 printk = srm_printk;

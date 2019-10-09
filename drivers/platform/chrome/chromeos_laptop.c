@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Driver to instantiate Chromebook i2c/smbus devices.
 //
 // Copyright (C) 2012 Google, Inc.

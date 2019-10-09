@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Trace files that want to automate creation of all tracepoints defined
  * in their file should include this file. The following are macros that the

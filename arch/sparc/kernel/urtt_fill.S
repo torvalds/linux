@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <asm/thread_info.h>
 #include <asm/trap_block.h>
 #include <asm/spitfire.h>

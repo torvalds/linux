@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Implementation of HKDF ("HMAC-based Extract-and-Expand Key Derivation
  * Function"), aka RFC 5869.  See also the original paper (Krawczyk 2010):

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
 /*
  * at91sam9xe.dtsi - Device Tree Include file for AT91SAM9XE family SoC
  *

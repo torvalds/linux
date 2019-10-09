@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2001 David J. Mckay (david.mckay@st.com)
  * Copyright (C) 2003, 2004 Paul Mundt

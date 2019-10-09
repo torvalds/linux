@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __SUNRPC_NETNS_H__
 #define __SUNRPC_NETNS_H__
 

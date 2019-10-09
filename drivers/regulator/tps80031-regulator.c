@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // tps80031-regulator.c -- TI TPS80031 regulator driver.
 //

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
+// SPDX-License-Identifier: (LGPL-2.1-only OR BSD-2-Clause)
 #ifndef __PERF_BPF_MAP_H
 #define __PERF_BPF_MAP_H 1
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <dt-bindings/input/input.h>
 
 #include "qcom-msm8960.dtsi"

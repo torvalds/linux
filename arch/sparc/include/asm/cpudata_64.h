@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* cpudata.h: Per-cpu parameters.
  *
  * Copyright (C) 2003, 2005, 2006 David S. Miller (davem@davemloft.net)

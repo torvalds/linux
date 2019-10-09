@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-1.0+
+// SPDX-License-Identifier: GPL-1.0-or-later
 /*
  * n_tty.c --- implements the N_TTY line discipline.
  *

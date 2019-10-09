@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2017 Andreas Färber
  *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
  */
 #ifndef DT_BINDINGS_POWER_OWL_S500_POWERGATE_H
 #define DT_BINDINGS_POWER_OWL_S500_POWERGATE_H

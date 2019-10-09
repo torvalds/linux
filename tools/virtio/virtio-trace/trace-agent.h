@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __TRACE_AGENT_H__
 #define __TRACE_AGENT_H__
 #include <pthread.h>

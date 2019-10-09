@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Makes a tree bootable image for IBM Evaluation boards.
  * Basically, just take a zImage, skip the ELF header, and stuff

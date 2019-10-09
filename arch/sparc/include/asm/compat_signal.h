@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _COMPAT_SIGNAL_H
 #define _COMPAT_SIGNAL_H
 

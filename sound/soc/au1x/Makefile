@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # Au1200/Au1550 PSC audio
 snd-soc-au1xpsc-dbdma-objs := dbdma2.o
 snd-soc-au1xpsc-i2s-objs := psc-i2s.o

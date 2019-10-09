@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __MOCK_GEM_DEVICE_H__
 #define __MOCK_GEM_DEVICE_H__
 

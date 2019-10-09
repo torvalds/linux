@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /// Use devm_platform_ioremap_resource helper which wraps
 /// platform_get_resource() and devm_ioremap_resource() together.
 ///

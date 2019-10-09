@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # description: Meta-selftest: Checkbashisms
 
 if [ ! -f $FTRACETEST_ROOT/ftracetest ]; then

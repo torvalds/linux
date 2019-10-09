@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/of/property.c - Procedures for accessing and interpreting
  *			   Devicetree properties and graphs.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #ifndef PERF_COPYFILE_H_
 #define PERF_COPYFILE_H_
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright(c) 2007 - 2018 Intel Corporation. */
 
 #ifndef _E1000_DEFINES_H_

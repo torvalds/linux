@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * WUSB Wire Adapter: Control/Data Streaming Interface (WUSB[8])
  * MMC (Microscheduled Management Command) handling

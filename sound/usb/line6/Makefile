@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 snd-usb-line6-y := 		\
 		capture.o	\
 		driver.o	\

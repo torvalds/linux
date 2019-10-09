@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Augment the raw_syscalls tracepoints with the contents of the pointer arguments.
  *

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright 2010-2017 ARM Limited. All rights reserved.
  * Copyright 2017-2019 Qiang Yu <yuq825@gmail.com>
  */

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This code tests that the current task stack is properly erased (filled
  * with STACKLEAK_POISON).

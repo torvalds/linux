@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Host AP crypt: host-based WEP encryption implementation for Host AP driver
  *

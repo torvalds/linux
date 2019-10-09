@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *	Routines to manage notifier chains for passing status changes to any
  *	interested routines. We need this instead of hard coded call lists so

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * PAL Firmware support
  * IA-64 Processor Programmers Reference Vol 2

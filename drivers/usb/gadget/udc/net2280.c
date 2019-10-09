@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the PLX NET2280 USB device controller.
  * Specs and errata are available from <http://www.plxtech.com>.

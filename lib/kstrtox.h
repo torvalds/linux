@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LIB_KSTRTOX_H
 #define _LIB_KSTRTOX_H
 

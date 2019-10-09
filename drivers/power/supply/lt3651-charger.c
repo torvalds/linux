@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Analog Devices (Linear Technology) LT3651 charger IC.
  *  Copyright (C) 2017, Topic Embedded Products

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef S390_MEM_ENCRYPT_H__
 #define S390_MEM_ENCRYPT_H__
 

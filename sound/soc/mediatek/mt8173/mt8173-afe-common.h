@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * mt8173_afe_common.h  --  Mediatek 8173 audio driver common definitions
  *

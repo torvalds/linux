@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/percpu.h>
 #include <linux/jump_label.h>
 #include <asm/opal-api.h>

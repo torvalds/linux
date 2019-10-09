@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * memfd GUP test-case
  * This tests memfd interactions with get_user_pages(). We require the

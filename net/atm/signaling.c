@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* net/atm/signaling.c - ATM signaling */
 
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */

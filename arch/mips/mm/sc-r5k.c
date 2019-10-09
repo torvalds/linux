@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 1997, 2001 Ralf Baechle (ralf@gnu.org),
  * derived from r4xx0.c by David S. Miller (davem@davemloft.net).

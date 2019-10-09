@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * c67x00-ll-hpi.c: Cypress C67X00 USB Low level interface using HPI
  *

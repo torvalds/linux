@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TX4939 internal RTC driver
  * Based on RBTX49xx patch from CELF patch archive.

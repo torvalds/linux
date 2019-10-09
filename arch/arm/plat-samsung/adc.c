@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-1.0+
+// SPDX-License-Identifier: GPL-1.0-or-later
 //
 // Copyright (c) 2008 Simtec Electronics
 //	http://armlinux.simtec.co.uk/

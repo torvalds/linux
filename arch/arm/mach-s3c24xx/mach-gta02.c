@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // S3C2442 Machine Support for Openmoko GTA02 / FreeRunner.
 //

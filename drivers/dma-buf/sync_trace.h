@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #undef TRACE_SYSTEM
 #define TRACE_INCLUDE_PATH ../../drivers/dma-buf
 #define TRACE_SYSTEM sync_trace

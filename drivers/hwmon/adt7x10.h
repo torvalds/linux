@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __HWMON_ADT7X10_H__
 #define __HWMON_ADT7X10_H__
 

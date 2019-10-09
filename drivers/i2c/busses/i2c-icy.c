@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2C driver for stand-alone PCF8584 style adapters on Zorro cards
  *

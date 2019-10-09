@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2008 Thomas Gleixner <tglx@linutronix.de>
  * Copyright (C) 2008-2009 Red Hat, Inc., Ingo Molnar

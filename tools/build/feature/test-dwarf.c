@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <dwarf.h>
 #include <elfutils/libdw.h>
 #include <elfutils/version.h>

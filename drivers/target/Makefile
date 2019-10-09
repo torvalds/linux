@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 target_core_mod-y		:= target_core_configfs.o \
 				   target_core_device.o \

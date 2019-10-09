@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Expose the ChromeOS EC through sysfs
 //
 // Copyright (C) 2014 Google, Inc.

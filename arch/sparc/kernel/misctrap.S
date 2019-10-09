@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifdef CONFIG_KGDB
 	.globl		arch_kgdb_breakpoint
 	.type		arch_kgdb_breakpoint,#function

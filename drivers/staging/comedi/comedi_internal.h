@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _COMEDI_INTERNAL_H
 #define _COMEDI_INTERNAL_H
 

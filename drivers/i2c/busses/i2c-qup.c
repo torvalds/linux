@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2009-2013, 2016-2018, The Linux Foundation. All rights reserved.
  * Copyright (c) 2014, Sony Mobile Communications AB.

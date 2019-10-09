@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Reruns the C-language litmus tests previously run that match the
 # specified criteria, and compares the result to that of the previous

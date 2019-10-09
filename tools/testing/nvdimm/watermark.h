@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright(c) 2018 Intel Corporation. All rights reserved.
 #ifndef _TEST_NVDIMM_WATERMARK_H_
 #define _TEST_NVDIMM_WATERMARK_H_

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (C) 2018 Cadence Design Systems Inc. */
 
 #ifndef _ASM_XTENSA_JUMP_LABEL_H

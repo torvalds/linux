@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LINUX_CEPH_CLS_LOCK_CLIENT_H
 #define _LINUX_CEPH_CLS_LOCK_CLIENT_H
 

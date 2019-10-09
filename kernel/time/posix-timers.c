@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * 2002-10-15  Posix Clocks & timers
  *                           by George Anzinger george@mvista.com

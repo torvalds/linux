@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Real-mode blob header; this should match realmode.h and be
  * readonly; for mutable data instead add pointers into the .data

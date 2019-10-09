@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Silicon Labs Si5341/Si5340 Clock generator
  * Copyright (C) 2019 Topic Embedded Products

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH GCC-exception-2.0
+/* SPDX-License-Identifier: GPL-2.0-or-later WITH GCC-exception-2.0
 
    Copyright (C) 1994, 1995, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
    2004, 2005

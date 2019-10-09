@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _Q6_PCM_ROUTING_H
 #define _Q6_PCM_ROUTING_H
 

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 # SPEAR Platform Support
 snd-soc-spear-pcm-objs := spear_pcm.o
 snd-soc-spear-spdif-in-objs := spdif_in.o

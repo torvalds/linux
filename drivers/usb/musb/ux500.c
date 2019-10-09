@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2010 ST-Ericsson AB
  * Mian Yousaf Kaukab <mian.yousaf.kaukab@stericsson.com>

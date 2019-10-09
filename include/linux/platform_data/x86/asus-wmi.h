@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __PLATFORM_DATA_X86_ASUS_WMI_H
 #define __PLATFORM_DATA_X86_ASUS_WMI_H
 

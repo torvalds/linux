@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __DRM_I2C_TDA998X_H__
 #define __DRM_I2C_TDA998X_H__
 

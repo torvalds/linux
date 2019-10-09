@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _FS_CEPH_MON_CLIENT_H
 #define _FS_CEPH_MON_CLIENT_H
 

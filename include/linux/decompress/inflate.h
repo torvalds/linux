@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef LINUX_DECOMPRESS_INFLATE_H
 #define LINUX_DECOMPRESS_INFLATE_H
 

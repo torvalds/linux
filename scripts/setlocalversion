@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # This scripts adds local version information from the version
 # control systems git, mercurial (hg) and subversion (svn).

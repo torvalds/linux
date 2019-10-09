@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/init.h>
 #include <linux/suspend.h>
 #include <asm/io.h>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __REGULATOR_PLATFORM_CONSUMER_H_
 #define __REGULATOR_PLATFORM_CONSUMER_H_
 

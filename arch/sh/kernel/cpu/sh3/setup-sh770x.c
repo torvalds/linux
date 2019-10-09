@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SH3 Setup code for SH7706, SH7707, SH7708, SH7709
  *

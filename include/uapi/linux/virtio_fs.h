@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0-only WITH Linux-syscall-note) OR BSD-3-Clause) */
 
 #ifndef _UAPI_LINUX_VIRTIO_FS_H
 #define _UAPI_LINUX_VIRTIO_FS_H

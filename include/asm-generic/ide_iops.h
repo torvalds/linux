@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Generic I/O and MEMIO string operations.  */
 
 #define __ide_insw	insw

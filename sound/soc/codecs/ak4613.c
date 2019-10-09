@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // ak4613.c  --  Asahi Kasei ALSA Soc Audio driver
 //

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-y := devices.o
 
 obj-$(CONFIG_IMX_HAVE_PLATFORM_FEC) += platform-fec.o

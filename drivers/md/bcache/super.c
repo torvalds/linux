@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * bcache setup/teardown code, and some metadata io - read a superblock and
  * figure out what to do with it.

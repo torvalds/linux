@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * fsl_ssi.h - ALSA SSI interface for the Freescale MPC8610 and i.MX SoC
  *

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /* Acorn-like font definition, with PC graphics characters */
 
 #include <linux/font.h>

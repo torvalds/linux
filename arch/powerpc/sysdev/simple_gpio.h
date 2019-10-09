@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __SYSDEV_SIMPLE_GPIO_H
 #define __SYSDEV_SIMPLE_GPIO_H
 

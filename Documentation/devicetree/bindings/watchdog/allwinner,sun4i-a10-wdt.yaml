@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/watchdog/allwinner,sun4i-a10-wdt.yaml#

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #ifdef CONFIG_RANDOMIZE_BASE
 
 #include "../cpuflags.c"

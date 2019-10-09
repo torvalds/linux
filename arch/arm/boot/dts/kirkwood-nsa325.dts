@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Device tree file for the Zyxel NSA 325 NAS box.
  *
  * Copyright (c) 2015, Hans Ulli Kroll <ulli.kroll@googlemail.com>

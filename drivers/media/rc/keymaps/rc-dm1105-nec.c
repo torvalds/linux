@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 // dm1105-nec.h - Keytable for dm1105_nec Remote Controller
 //
 // keymap imported from ir-keymaps.c

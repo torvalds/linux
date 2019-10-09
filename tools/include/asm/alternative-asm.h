@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _TOOLS_ASM_ALTERNATIVE_ASM_H
 #define _TOOLS_ASM_ALTERNATIVE_ASM_H
 

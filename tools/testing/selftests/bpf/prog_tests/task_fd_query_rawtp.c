@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include <test_progs.h>
 
 void test_task_fd_query_rawtp(void)

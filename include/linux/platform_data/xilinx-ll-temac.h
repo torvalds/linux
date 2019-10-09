@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __LINUX_XILINX_LL_TEMAC_H
 #define __LINUX_XILINX_LL_TEMAC_H
 

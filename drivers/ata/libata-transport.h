@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LIBATA_TRANSPORT_H
 #define _LIBATA_TRANSPORT_H
 

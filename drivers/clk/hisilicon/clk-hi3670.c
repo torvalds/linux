@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2001-2021, Huawei Tech. Co., Ltd.
  * Author: chenjun <chenjun14@huawei.com>

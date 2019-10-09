@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 # This script generates an archive consisting of kernel headers
 # for CONFIG_IKHEADERS.

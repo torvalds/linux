@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* I2C support for Dialog DA9063
  *
  * Copyright 2012 Dialog Semiconductor Ltd.

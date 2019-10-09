@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Author: Mikhail Ulyanov
  * Copyright (C) 2014-2015 Cogent Embedded, Inc.  <source@cogentembedded.com>

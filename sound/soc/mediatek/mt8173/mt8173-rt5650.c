@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mt8173-rt5650.c  --  MT8173 machine driver with RT5650 codecs
  *

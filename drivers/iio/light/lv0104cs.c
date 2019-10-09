@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * lv0104cs.c: LV0104CS Ambient Light Sensor Driver
  *

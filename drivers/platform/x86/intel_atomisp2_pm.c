@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Dummy driver for Intel's Image Signal Processor found on Bay and Cherry
  * Trail devices. The sole purpose of this driver is to allow the ISP to

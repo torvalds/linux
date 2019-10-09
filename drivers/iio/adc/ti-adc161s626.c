@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ti-adc161s626.c - Texas Instruments ADC161S626 1-channel differential ADC
  *

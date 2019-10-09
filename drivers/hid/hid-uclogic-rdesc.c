@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  HID driver for UC-Logic devices not fully compliant with HID standard
  *  - original and fixed report descriptors

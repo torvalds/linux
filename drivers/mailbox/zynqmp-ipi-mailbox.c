@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Xilinx Inter Processor Interrupt(IPI) Mailbox Driver
  *

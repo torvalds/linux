@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * mtk-afe-fe-dais.h  --  Mediatek afe fe dai operator definition
  *

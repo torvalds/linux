@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * EHCI-compliant USB host controller driver for NVIDIA Tegra SoCs
  *

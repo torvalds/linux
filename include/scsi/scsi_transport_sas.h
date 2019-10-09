@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef SCSI_TRANSPORT_SAS_H
 #define SCSI_TRANSPORT_SAS_H
 

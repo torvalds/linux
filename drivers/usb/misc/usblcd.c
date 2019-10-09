@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*****************************************************************************
  *                          USBLCD Kernel Driver                             *
  *                            Version 1.05                                   *

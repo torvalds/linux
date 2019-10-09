@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
  *  usbatm.h - Generic USB xDSL driver core
  *

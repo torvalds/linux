@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * memfd test file-system
  * This file uses FUSE to create a dummy file-system with only one file /memfd.

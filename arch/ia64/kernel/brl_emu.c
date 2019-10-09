@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Emulation of the "brl" instruction for IA64 processors that
  *  don't support it in hardware.

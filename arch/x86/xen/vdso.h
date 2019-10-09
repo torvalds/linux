@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Bit used for the pseudo-hwcap for non-negative segments.  We use
    bit 1 to avoid bugs in some versions of glibc when bit 0 is

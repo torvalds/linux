@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wakeup.c - support wakeup devices
  * Copyright (C) 2004 Li Shaohua <shaohua.li@intel.com>

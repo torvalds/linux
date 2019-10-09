@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 #include "../util/string2.h"
 #include "../util/config.h"
 #include "libslang.h"

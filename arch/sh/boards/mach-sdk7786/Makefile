@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 obj-y	:= fpga.o irq.o nmi.o setup.o
 
 obj-$(CONFIG_GPIOLIB)		+= gpio.o

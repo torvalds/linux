@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * VISsave.S: Code for saving FPU register state for
  *            VIS routines. One should not call this directly,

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 or MIT */
+/* SPDX-License-Identifier: GPL-2.0-only or MIT */
 #ifndef _ASM_X86_VMWARE_H
 #define _ASM_X86_VMWARE_H
 

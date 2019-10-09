@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* cache.h:  Cache specific code for the Sparc.  These include flushing
  *           and direct tag/data line access.
  *
