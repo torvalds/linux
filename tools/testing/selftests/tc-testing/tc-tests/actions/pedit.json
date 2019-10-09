@@ -424,6 +424,56 @@
         ]
     },
     {
+        "id": "7588",
+        "name": "Add pedit action with LAYERED_OP ip set src",
+        "category": [
+            "actions",
+            "pedit",
+            "layered_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit munge ip src set 1.1.1.1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:  pedit action pass keys 1.*key #0  at 12: val 01010101 mask 00000000",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "0fa7",
+        "name": "Add pedit action with LAYERED_OP ip set dst",
+        "category": [
+            "actions",
+            "pedit",
+            "layered_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit munge ip dst set 2.2.2.2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:  pedit action pass keys 1.*key #0  at 16: val 02020202 mask 00000000",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
         "id": "5810",
         "name": "Add pedit action with LAYERED_OP ip set src & dst",
         "category": [
@@ -669,6 +719,56 @@
         "verifyCmd": "/bin/true",
         "matchPattern": " ",
         "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "815c",
+        "name": "Add pedit action with LAYERED_OP ip6 set src",
+        "category": [
+            "actions",
+            "pedit",
+            "layered_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit ex munge ip6 src set 2001:0db8:0:f101::1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:  pedit action pass keys 4.*key #0  at ipv6\\+8: val 20010db8 mask 00000000.*key #1  at ipv6\\+12: val 0000f101 mask 00000000.*key #2  at ipv6\\+16: val 00000000 mask 00000000.*key #3  at ipv6\\+20: val 00000001 mask 00000000",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "4dae",
+        "name": "Add pedit action with LAYERED_OP ip6 set dst",
+        "category": [
+            "actions",
+            "pedit",
+            "layered_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit ex munge ip6 dst set 2001:0db8:0:f101::1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:  pedit action pass keys 4.*key #0  at ipv6\\+24: val 20010db8 mask 00000000.*key #1  at ipv6\\+28: val 0000f101 mask 00000000.*key #2  at ipv6\\+32: val 00000000 mask 00000000.*key #3  at ipv6\\+36: val 00000001 mask 00000000",
+        "matchCount": "1",
         "teardown": [
             "$TC actions flush action pedit"
         ]
@@ -950,5 +1050,4 @@
             "$TC actions flush action pedit"
         ]
     }
-
 ]
