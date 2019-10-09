@@ -420,6 +420,9 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	};
 	int ret;
 
+	if (mvm->trans->cfg->tx_with_siso_diversity)
+		init_cfg.init_flags |= cpu_to_le32(BIT(IWL_INIT_PHY));
+
 	lockdep_assert_held(&mvm->mutex);
 
 	mvm->rfkill_safe_init_done = false;
@@ -694,12 +697,13 @@ static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
 
 	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
 					 ACPI_WRDS_WIFI_DATA_SIZE, &tbl_rev);
-	if (IS_ERR(wifi_pkg) || tbl_rev != 0) {
+	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
 		goto out_free;
 	}
 
-	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) {
+	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER ||
+	    tbl_rev != 0) {
 		ret = -EINVAL;
 		goto out_free;
 	}
@@ -731,13 +735,14 @@ static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
 
 	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
 					 ACPI_EWRD_WIFI_DATA_SIZE, &tbl_rev);
-	if (IS_ERR(wifi_pkg) || tbl_rev != 0) {
+	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
 		goto out_free;
 	}
 
 	if ((wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) ||
-	    (wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER)) {
+	    (wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER) ||
+	    tbl_rev != 0) {
 		ret = -EINVAL;
 		goto out_free;
 	}
@@ -791,8 +796,13 @@ static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm)
 
 	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
 					 ACPI_WGDS_WIFI_DATA_SIZE, &tbl_rev);
-	if (IS_ERR(wifi_pkg) || tbl_rev > 1) {
+	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	if (tbl_rev != 0) {
+		ret = -EINVAL;
 		goto out_free;
 	}
 
@@ -889,15 +899,17 @@ static bool iwl_mvm_sar_geo_support(struct iwl_mvm *mvm)
 	 * firmware versions.  Unfortunately, we don't have a TLV API
 	 * flag to rely on, so rely on the major version which is in
 	 * the first byte of ucode_ver.  This was implemented
-	 * initially on version 38 and then backported to29 and 17.
-	 * The intention was to have it in 36 as well, but not all
-	 * 8000 family got this feature enabled.  The 8000 family is
-	 * the only one using version 36, so skip this version
-	 * entirely.
+	 * initially on version 38 and then backported to 17.  It was
+	 * also backported to 29, but only for 7265D devices.  The
+	 * intention was to have it in 36 as well, but not all 8000
+	 * family got this feature enabled.  The 8000 family is the
+	 * only one using version 36, so skip this version entirely.
 	 */
 	return IWL_UCODE_SERIAL(mvm->fw->ucode_ver) >= 38 ||
-	       IWL_UCODE_SERIAL(mvm->fw->ucode_ver) == 29 ||
-	       IWL_UCODE_SERIAL(mvm->fw->ucode_ver) == 17;
+	       IWL_UCODE_SERIAL(mvm->fw->ucode_ver) == 17 ||
+	       (IWL_UCODE_SERIAL(mvm->fw->ucode_ver) == 29 &&
+		((mvm->trans->hw_rev & CSR_HW_REV_TYPE_MSK) ==
+		 CSR_HW_REV_TYPE_7265D));
 }
 
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
@@ -1020,8 +1032,13 @@ static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
 	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
 					 ACPI_PPAG_WIFI_DATA_SIZE, &tbl_rev);
 
-	if (IS_ERR(wifi_pkg) || tbl_rev != 0) {
+	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	if (tbl_rev != 0) {
+		ret = -EINVAL;
 		goto out_free;
 	}
 
