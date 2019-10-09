@@ -14,6 +14,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
@@ -27,6 +28,8 @@ int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip)
 	struct device *dev = rockchip->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct device_node *node = dev->of_node;
+	struct device_node *mem;
+	struct resource reg;
 	struct resource *regs;
 	int err;
 
@@ -119,9 +122,9 @@ int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip)
 	}
 
 	if (rockchip->is_rc) {
-		rockchip->ep_gpio = devm_gpiod_get(dev, "ep", GPIOD_OUT_HIGH);
+		rockchip->ep_gpio = devm_gpiod_get_optional(dev, "ep", GPIOD_OUT_HIGH);
 		if (IS_ERR(rockchip->ep_gpio)) {
-			dev_err(dev, "missing ep-gpios property in node\n");
+			dev_err(dev, "invalid ep-gpios property in node\n");
 			return PTR_ERR(rockchip->ep_gpio);
 		}
 	}
@@ -148,6 +151,38 @@ int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip)
 	if (IS_ERR(rockchip->clk_pcie_pm)) {
 		dev_err(dev, "pm clock not found\n");
 		return PTR_ERR(rockchip->clk_pcie_pm);
+	}
+
+	if (rockchip->is_rc) {
+		mem = of_parse_phandle(node, "memory-region", 0);
+		if (!mem) {
+			dev_warn(dev, "missing \"memory-region\" property\n");
+			return 0;
+		}
+
+		err = of_address_to_resource(mem, 0, &reg);
+		if (err < 0) {
+			dev_warn(dev, "missing \"reg\" property\n");
+			return 0;
+		}
+
+		rockchip->mem_reserve_start = reg.start;
+		rockchip->mem_reserve_size = resource_size(&reg);
+
+		err = of_property_read_u32(node, "rockchip,dma_trx_enabled",
+					   &rockchip->dma_trx_enabled);
+		if (err < 0) {
+			dev_warn(dev,
+				"missing \"rockchip,dma_trx_enabled\" property\n");
+			return 0;
+		}
+
+		err = of_property_read_u32(node, "rockchip,deferred",
+					&rockchip->deferred);
+		if (err < 0) {
+			dev_warn(dev, "missing \"rockchip,deferred\" property\n");
+			return 0;
+		}
 	}
 
 	return 0;

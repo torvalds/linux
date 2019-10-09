@@ -118,9 +118,9 @@
 #define PCIE_DMA_WR_BUF_SIZE	(PCIE_DMA_BUF_SIZE * PCIE_DMA_BUF_CNT)
 #define PCIE_DMA_ACK_BASE	(PCIE_DMA_RD_BUF_SIZE + PCIE_DMA_WR_BUF_SIZE)
 
-#define PCIE_DMA_SET_DATA_CHECK_POS	0x0
-#define PCIE_DMA_SET_LOCAL_IDX_POS	0x4
-#define PCIE_DMA_SET_BUF_SIZE_POS	0x8
+#define PCIE_DMA_SET_DATA_CHECK_POS	(SZ_1M - 0x4)
+#define PCIE_DMA_SET_LOCAL_IDX_POS	(SZ_1M - 0x8)
+#define PCIE_DMA_SET_BUF_SIZE_POS	(SZ_1M - 0xc)
 
 #define PCIE_DMA_DATA_CHECK		0x12345678
 #define PCIE_DMA_DATA_ACK_CHECK		0xdeadbeef
@@ -171,6 +171,7 @@ static void rk_pcie_prepare_dma(struct dma_trx_obj *obj,
 		writel(local_idx, virt + PCIE_DMA_SET_LOCAL_IDX_POS);
 		writel(buf_size, virt + PCIE_DMA_SET_BUF_SIZE_POS);
 
+		buf_size = SZ_1M;
 		break;
 	case PCIE_DMA_DATA_RCV_ACK:
 		table = obj->table[PCIE_DMA_DATA_RCV_ACK_TABLE_OFFSET + idx];
@@ -306,7 +307,7 @@ static enum hrtimer_restart rk_pcie_scan_timer(struct hrtimer *timer)
 		if (sdv == PCIE_DMA_DATA_CHECK) {
 			if (!need_ack)
 				need_ack = true;
-			writel(0x0, scan_data_addr);
+			writel(0x0, scan_data_addr + PCIE_DMA_SET_DATA_CHECK_POS);
 			set_bit(i, &obj->local_read_available);
 			rk_pcie_prepare_dma(obj, idx, 0, 0, 0x4,
 					PCIE_DMA_DATA_RCV_ACK);
@@ -360,6 +361,12 @@ static int rk_pcie_misc_open(struct inode *inode, struct file *filp)
 						 struct pcie_misc_dev, dev);
 
 	filp->private_data = pcie_misc_dev->obj;
+
+	pcie_misc_dev->obj->loop_count = 0;
+	pcie_misc_dev->obj->local_read_available = 0x0;
+	pcie_misc_dev->obj->local_write_available = 0xff;
+	pcie_misc_dev->obj->remote_write_available = 0xff;
+	pcie_misc_dev->obj->dma_free = true;
 
 	pr_info("Open pcie misc device success\n");
 
@@ -687,10 +694,6 @@ struct dma_trx_obj *rk_pcie_dma_obj_probe(struct device *dev)
 	if (ret)
 		return ERR_PTR(-ENOMEM);
 
-	obj->local_read_available = 0x0;
-	obj->remote_write_available = 0xff;
-	obj->local_write_available = 0xff;
-
 	obj->dma_trx_wq = create_singlethread_workqueue("dma_trx_wq");
 	INIT_WORK(&obj->dma_trx_work, rk_pcie_dma_trx_work);
 
@@ -710,9 +713,7 @@ struct dma_trx_obj *rk_pcie_dma_obj_probe(struct device *dev)
 		goto free_dma_table;
 	}
 
-	obj->dma_free = true;
 	obj->irq_num = 0;
-	obj->loop_count = 0;
 	obj->loop_count_threshold = 0;
 	init_completion(&obj->done);
 
