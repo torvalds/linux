@@ -99,6 +99,7 @@ extern void detect_memory_region(phys_addr_t start, phys_addr_t sz_min,  phys_ad
 
 extern void prom_init(void);
 extern void prom_free_prom_memory(void);
+extern void prom_cleanup(void);
 
 extern void free_init_pages(const char *what,
 			    unsigned long begin, unsigned long end);
