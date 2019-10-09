@@ -1030,9 +1030,10 @@ bch2_journal_super_entries_add_common(struct bch_fs *c,
 		struct jset_entry_data_usage *u =
 			container_of(entry, struct jset_entry_data_usage, entry);
 
-		memset(u, 0, sizeof(*u));
-		u->entry.u64s	= DIV_ROUND_UP(sizeof(*u) + e->nr_devs,
-					       sizeof(u64)) - 1;
+		int u64s = DIV_ROUND_UP(sizeof(*u) + e->nr_devs,
+					sizeof(u64)) - 1;
+		memset(u, 0, u64s * sizeof(u64));
+		u->entry.u64s	= u64s;
 		u->entry.type	= BCH_JSET_ENTRY_data_usage;
 		u->v		= cpu_to_le64(c->usage_base->replicas[i]);
 		unsafe_memcpy(&u->r, e, replicas_entry_bytes(e),
