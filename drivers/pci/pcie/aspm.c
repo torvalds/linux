@@ -1172,20 +1172,20 @@ module_param_call(policy, pcie_aspm_set_policy, pcie_aspm_get_policy,
 /**
  * pcie_aspm_enabled - Check if PCIe ASPM has been enabled for a device.
  * @pdev: Target device.
+ *
+ * Relies on the upstream bridge's link_state being valid.  The link_state
+ * is deallocated only when the last child of the bridge (i.e., @pdev or a
+ * sibling) is removed, and the caller should be holding a reference to
+ * @pdev, so this should be safe.
  */
 bool pcie_aspm_enabled(struct pci_dev *pdev)
 {
 	struct pci_dev *bridge = pci_upstream_bridge(pdev);
-	bool ret;
 
 	if (!bridge)
 		return false;
 
-	mutex_lock(&aspm_lock);
-	ret = bridge->link_state ? !!bridge->link_state->aspm_enabled : false;
-	mutex_unlock(&aspm_lock);
-
-	return ret;
+	return bridge->link_state ? !!bridge->link_state->aspm_enabled : false;
 }
 EXPORT_SYMBOL_GPL(pcie_aspm_enabled);
 
