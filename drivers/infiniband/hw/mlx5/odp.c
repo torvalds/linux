@@ -479,78 +479,93 @@ out_mr:
 	return ERR_PTR(err);
 }
 
-static struct ib_umem_odp *implicit_mr_get_data(struct mlx5_ib_mr *mr,
-						u64 io_virt, size_t bcnt)
+static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
+						unsigned long idx)
 {
-	struct mlx5_ib_dev *dev = to_mdev(mr->ibmr.pd->device);
-	struct ib_umem_odp *odp, *result = NULL;
-	struct ib_umem_odp *odp_mr = to_ib_umem_odp(mr->umem);
-	u64 addr = io_virt & MLX5_IMR_MTT_MASK;
-	int nentries = 0, start_idx = 0, ret;
+	struct ib_umem_odp *odp;
 	struct mlx5_ib_mr *mtt;
 
-	mutex_lock(&odp_mr->umem_mutex);
-	odp = odp_lookup(addr, 1, mr);
+	odp = ib_umem_odp_alloc_child(to_ib_umem_odp(imr->umem),
+				      idx * MLX5_IMR_MTT_SIZE,
+				      MLX5_IMR_MTT_SIZE);
+	if (IS_ERR(odp))
+		return ERR_CAST(odp);
 
-	mlx5_ib_dbg(dev, "io_virt:%llx bcnt:%zx addr:%llx odp:%p\n",
-		    io_virt, bcnt, addr, odp);
-
-next_mr:
-	if (likely(odp)) {
-		if (nentries)
-			nentries++;
-	} else {
-		odp = ib_umem_odp_alloc_child(odp_mr, addr, MLX5_IMR_MTT_SIZE);
-		if (IS_ERR(odp)) {
-			mutex_unlock(&odp_mr->umem_mutex);
-			return ERR_CAST(odp);
-		}
-
-		mtt = implicit_mr_alloc(mr->ibmr.pd, odp, 0,
-					mr->access_flags);
-		if (IS_ERR(mtt)) {
-			mutex_unlock(&odp_mr->umem_mutex);
-			ib_umem_odp_release(odp);
-			return ERR_CAST(mtt);
-		}
-
-		odp->private = mtt;
-		mtt->umem = &odp->umem;
-		mtt->mmkey.iova = addr;
-		mtt->parent = mr;
-		INIT_WORK(&odp->work, mr_leaf_free_action);
-
-		xa_store(&dev->odp_mkeys, mlx5_base_mkey(mtt->mmkey.key),
-			 &mtt->mmkey, GFP_ATOMIC);
-
-		if (!nentries)
-			start_idx = addr >> MLX5_IMR_MTT_SHIFT;
-		nentries++;
+	mtt = implicit_mr_alloc(imr->ibmr.pd, odp, 0, imr->access_flags);
+	if (IS_ERR(mtt)) {
+		ib_umem_odp_release(odp);
+		return mtt;
 	}
 
-	/* Return first odp if region not covered by single one */
-	if (likely(!result))
-		result = odp;
+	odp->private = mtt;
+	mtt->umem = &odp->umem;
+	mtt->mmkey.iova = idx * MLX5_IMR_MTT_SIZE;
+	mtt->parent = imr;
+	INIT_WORK(&odp->work, mr_leaf_free_action);
 
-	addr += MLX5_IMR_MTT_SIZE;
-	if (unlikely(addr < io_virt + bcnt)) {
+	xa_store(&mtt->dev->odp_mkeys, mlx5_base_mkey(mtt->mmkey.key),
+		 &mtt->mmkey, GFP_ATOMIC);
+	return mtt;
+}
+
+static struct ib_umem_odp *implicit_mr_get_data(struct mlx5_ib_mr *imr,
+						u64 io_virt, size_t bcnt)
+{
+	struct ib_umem_odp *odp_imr = to_ib_umem_odp(imr->umem);
+	unsigned long end_idx = (io_virt + bcnt - 1) >> MLX5_IMR_MTT_SHIFT;
+	unsigned long idx = io_virt >> MLX5_IMR_MTT_SHIFT;
+	unsigned long inv_start_idx = end_idx + 1;
+	unsigned long inv_len = 0;
+	struct ib_umem_odp *result = NULL;
+	struct ib_umem_odp *odp;
+	int ret;
+
+	mutex_lock(&odp_imr->umem_mutex);
+	odp = odp_lookup(idx * MLX5_IMR_MTT_SIZE, 1, imr);
+	for (idx = idx; idx <= end_idx; idx++) {
+		if (unlikely(!odp)) {
+			struct mlx5_ib_mr *mtt;
+
+			mtt = implicit_get_child_mr(imr, idx);
+			if (IS_ERR(mtt)) {
+				result = ERR_CAST(mtt);
+				goto out;
+			}
+			odp = to_ib_umem_odp(mtt->umem);
+			inv_start_idx = min(inv_start_idx, idx);
+			inv_len = idx - inv_start_idx + 1;
+		}
+
+		/* Return first odp if region not covered by single one */
+		if (likely(!result))
+			result = odp;
+
 		odp = odp_next(odp);
-		if (odp && ib_umem_start(odp) != addr)
+		if (odp && ib_umem_start(odp) != idx * MLX5_IMR_MTT_SIZE)
 			odp = NULL;
-		goto next_mr;
 	}
 
-	if (unlikely(nentries)) {
-		ret = mlx5_ib_update_xlt(mr, start_idx, nentries, 0,
-					 MLX5_IB_UPD_XLT_INDIRECT |
+	/*
+	 * Any time the children in the interval tree are changed we must
+	 * perform an update of the xlt before exiting to ensure the HW and
+	 * the tree remains synchronized.
+	 */
+out:
+	if (likely(!inv_len))
+		goto out_unlock;
+
+	ret = mlx5_ib_update_xlt(imr, inv_start_idx, inv_len, 0,
+				 MLX5_IB_UPD_XLT_INDIRECT |
 					 MLX5_IB_UPD_XLT_ATOMIC);
-		if (ret) {
-			mlx5_ib_err(dev, "Failed to update PAS\n");
-			result = ERR_PTR(ret);
-		}
+	if (ret) {
+		mlx5_ib_err(to_mdev(imr->ibmr.pd->device),
+			    "Failed to update PAS\n");
+		result = ERR_PTR(ret);
+		goto out_unlock;
 	}
 
-	mutex_unlock(&odp_mr->umem_mutex);
+out_unlock:
+	mutex_unlock(&odp_imr->umem_mutex);
 	return result;
 }
 
