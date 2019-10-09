@@ -286,6 +286,7 @@ struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
 	smc_pnetid_by_dev_port(parent, 0, smcd->pnetid);
 
 	spin_lock_init(&smcd->lock);
+	spin_lock_init(&smcd->lgr_lock);
 	INIT_LIST_HEAD(&smcd->vlan);
 	INIT_LIST_HEAD(&smcd->lgr_list);
 	smcd->event_wq = alloc_ordered_workqueue("ism_evt_wq-%s)",
