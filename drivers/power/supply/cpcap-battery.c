@@ -33,8 +33,6 @@
 #include <linux/iio/types.h>
 #include <linux/mfd/motorola-cpcap.h>
 
-#include <asm/div64.h>
-
 /*
  * Register bit defines for CPCAP_REG_BPEOL. Some of these seem to
  * map to MC13783UG.pdf "Table 5-19. Register 13, Power Control 0"
@@ -219,28 +217,17 @@ static int cpcap_battery_cc_raw_div(struct cpcap_battery_ddata *ddata,
 				    s16 offset, u32 divider)
 {
 	s64 acc;
-	u64 tmp;
-	int avg_current;
 
 	if (!divider)
 		return 0;
 
 	acc = accumulator;
-	acc = acc - ((s64)sample * offset);
+	acc -= (s64)sample * offset;
+	acc *= ddata->cc_lsb;
+	acc *= -1;
+	acc = div_s64(acc, divider);
 
-	if (acc >=  0)
-		tmp = acc;
-	else
-		tmp = acc * -1;
-
-	tmp = tmp * ddata->cc_lsb;
-	do_div(tmp, divider);
-	avg_current = tmp;
-
-	if (acc >= 0)
-		return -avg_current;
-	else
-		return avg_current;
+	return acc;
 }
 
 /* 3600000μAms = 1μAh */
