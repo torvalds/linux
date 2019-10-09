@@ -115,10 +115,30 @@ static const struct omap_prm_data am3_prm_data[] = {
 	{ },
 };
 
+static const struct omap_rst_map am4_per_rst_map[] = {
+	{ .rst = 1, .st = 0 },
+	{ .rst = -1 },
+};
+
+static const struct omap_rst_map am4_device_rst_map[] = {
+	{ .rst = 0, .st = 1 },
+	{ .rst = 1, .st = 0 },
+	{ .rst = -1 },
+};
+
+static const struct omap_prm_data am4_prm_data[] = {
+	{ .name = "gfx", .base = 0x44df0400, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_0, .clkdm_name = "gfx_l3" },
+	{ .name = "per", .base = 0x44df0800, .rstctrl = 0x10, .rstst = 0x14, .rstmap = am4_per_rst_map, .clkdm_name = "pruss_ocp" },
+	{ .name = "wkup", .base = 0x44df2000, .rstctrl = 0x10, .rstst = 0x14, .rstmap = am3_wkup_rst_map, .flags = OMAP_PRM_HAS_NO_CLKDM },
+	{ .name = "device", .base = 0x44df4000, .rstctrl = 0x0, .rstst = 0x4, .rstmap = am4_device_rst_map, .flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM },
+	{ },
+};
+
 static const struct of_device_id omap_prm_id_table[] = {
 	{ .compatible = "ti,omap4-prm-inst", .data = omap4_prm_data },
 	{ .compatible = "ti,dra7-prm-inst", .data = dra7_prm_data },
 	{ .compatible = "ti,am3-prm-inst", .data = am3_prm_data },
+	{ .compatible = "ti,am4-prm-inst", .data = am4_prm_data },
 	{ },
 };
 
