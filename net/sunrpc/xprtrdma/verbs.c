@@ -78,7 +78,7 @@ static void rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc);
 static void rpcrdma_reqs_reset(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_reps_destroy(struct rpcrdma_buffer *buf);
 static void rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt);
-static void rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf);
+static void rpcrdma_mrs_destroy(struct rpcrdma_xprt *r_xprt);
 static struct rpcrdma_regbuf *
 rpcrdma_regbuf_alloc(size_t size, enum dma_data_direction direction,
 		     gfp_t flags);
@@ -407,8 +407,6 @@ rpcrdma_ia_remove(struct rpcrdma_ia *ia)
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_req *req;
 
-	cancel_work_sync(&buf->rb_refresh_worker);
-
 	/* This is similar to rpcrdma_ep_destroy, but:
 	 * - Don't cancel the connect worker.
 	 * - Don't call rpcrdma_ep_disconnect, which waits
@@ -435,7 +433,7 @@ rpcrdma_ia_remove(struct rpcrdma_ia *ia)
 		rpcrdma_regbuf_dma_unmap(req->rl_sendbuf);
 		rpcrdma_regbuf_dma_unmap(req->rl_recvbuf);
 	}
-	rpcrdma_mrs_destroy(buf);
+	rpcrdma_mrs_destroy(r_xprt);
 	ib_dealloc_pd(ia->ri_pd);
 	ia->ri_pd = NULL;
 
@@ -628,8 +626,6 @@ static int rpcrdma_ep_recreate_xprt(struct rpcrdma_xprt *r_xprt,
 		pr_err("rpcrdma: rdma_create_qp returned %d\n", err);
 		goto out3;
 	}
-
-	rpcrdma_mrs_create(r_xprt);
 	return 0;
 
 out3:
@@ -703,7 +699,6 @@ retry:
 	memcpy(&qp_init_attr, &ep->rep_attr, sizeof(qp_init_attr));
 	switch (ep->rep_connected) {
 	case 0:
-		dprintk("RPC:       %s: connecting...\n", __func__);
 		rc = rdma_create_qp(ia->ri_id, ia->ri_pd, &qp_init_attr);
 		if (rc) {
 			rc = -ENETUNREACH;
@@ -741,7 +736,7 @@ retry:
 		goto out;
 	}
 
-	dprintk("RPC:       %s: connected\n", __func__);
+	rpcrdma_mrs_create(r_xprt);
 
 out:
 	if (rc)
@@ -756,11 +751,8 @@ out_noupdate:
  * @ep: endpoint to disconnect
  * @ia: associated interface adapter
  *
- * This is separate from destroy to facilitate the ability
- * to reconnect without recreating the endpoint.
- *
- * This call is not reentrant, and must not be made in parallel
- * on the same endpoint.
+ * Caller serializes. Either the transport send lock is held,
+ * or we're being called to destroy the transport.
  */
 void
 rpcrdma_ep_disconnect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
@@ -780,6 +772,7 @@ rpcrdma_ep_disconnect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 
 	rpcrdma_xprt_drain(r_xprt);
 	rpcrdma_reqs_reset(r_xprt);
+	rpcrdma_mrs_destroy(r_xprt);
 }
 
 /* Fixed-size circular FIFO queue. This implementation is wait-free and
@@ -987,6 +980,28 @@ rpcrdma_mr_refresh_worker(struct work_struct *work)
 }
 
 /**
+ * rpcrdma_mrs_refresh - Wake the MR refresh worker
+ * @r_xprt: controlling transport instance
+ *
+ */
+void rpcrdma_mrs_refresh(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
+
+	/* If there is no underlying device, it's no use to
+	 * wake the refresh worker.
+	 */
+	if (ep->rep_connected != -ENODEV) {
+		/* The work is scheduled on a WQ_MEM_RECLAIM
+		 * workqueue in order to prevent MR allocation
+		 * from recursing into NFS during direct reclaim.
+		 */
+		queue_work(xprtiod_workqueue, &buf->rb_refresh_worker);
+	}
+}
+
+/**
  * rpcrdma_req_create - Allocate an rpcrdma_req object
  * @r_xprt: controlling r_xprt
  * @size: initial size, in bytes, of send and receive buffers
@@ -1145,8 +1160,6 @@ int rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 	INIT_LIST_HEAD(&buf->rb_all_mrs);
 	INIT_WORK(&buf->rb_refresh_worker, rpcrdma_mr_refresh_worker);
 
-	rpcrdma_mrs_create(r_xprt);
-
 	INIT_LIST_HEAD(&buf->rb_send_bufs);
 	INIT_LIST_HEAD(&buf->rb_allreqs);
 
@@ -1177,8 +1190,8 @@ out:
  * rpcrdma_req_destroy - Destroy an rpcrdma_req object
  * @req: unused object to be destroyed
  *
- * This function assumes that the caller prevents concurrent device
- * unload and transport tear-down.
+ * Relies on caller holding the transport send lock to protect
+ * removing req->rl_all from buf->rb_all_reqs safely.
  */
 void rpcrdma_req_destroy(struct rpcrdma_req *req)
 {
@@ -1204,16 +1217,17 @@ void rpcrdma_req_destroy(struct rpcrdma_req *req)
 
 /**
  * rpcrdma_mrs_destroy - Release all of a transport's MRs
- * @buf: controlling buffer instance
+ * @r_xprt: controlling transport instance
  *
  * Relies on caller holding the transport send lock to protect
  * removing mr->mr_list from req->rl_free_mrs safely.
  */
-static void rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf)
+static void rpcrdma_mrs_destroy(struct rpcrdma_xprt *r_xprt)
 {
-	struct rpcrdma_xprt *r_xprt = container_of(buf, struct rpcrdma_xprt,
-						   rx_buf);
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_mr *mr;
+
+	cancel_work_sync(&buf->rb_refresh_worker);
 
 	spin_lock(&buf->rb_lock);
 	while ((mr = list_first_entry_or_null(&buf->rb_all_mrs,
@@ -1224,10 +1238,10 @@ static void rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf)
 		spin_unlock(&buf->rb_lock);
 
 		frwr_release_mr(mr);
+
 		spin_lock(&buf->rb_lock);
 	}
 	spin_unlock(&buf->rb_lock);
-	r_xprt->rx_stats.mrs_allocated = 0;
 }
 
 /**
@@ -1241,8 +1255,6 @@ static void rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf)
 void
 rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 {
-	cancel_work_sync(&buf->rb_refresh_worker);
-
 	rpcrdma_sendctxs_destroy(buf);
 	rpcrdma_reps_destroy(buf);
 
@@ -1254,8 +1266,6 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 		list_del(&req->rl_list);
 		rpcrdma_req_destroy(req);
 	}
-
-	rpcrdma_mrs_destroy(buf);
 }
 
 /**

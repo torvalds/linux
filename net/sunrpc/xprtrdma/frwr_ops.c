@@ -36,8 +36,8 @@
  * connect worker from running concurrently.
  *
  * When the underlying transport disconnects, MRs that are in flight
- * are flushed and are likely unusable. Thus all flushed MRs are
- * destroyed. New MRs are created on demand.
+ * are flushed and are likely unusable. Thus all MRs are destroyed.
+ * New MRs are created on demand.
  */
 
 #include <linux/sunrpc/rpc_rdma.h>
@@ -119,20 +119,6 @@ frwr_mr_recycle_worker(struct work_struct *work)
 	frwr_mr_recycle(mr->mr_xprt, mr);
 }
 
-/* frwr_recycle - Discard MRs
- * @req: request to reset
- *
- * Used after a reconnect. These MRs could be in flight, we can't
- * tell. Safe thing to do is release them.
- */
-void frwr_recycle(struct rpcrdma_req *req)
-{
-	struct rpcrdma_mr *mr;
-
-	while ((mr = rpcrdma_mr_pop(&req->rl_registered)))
-		frwr_mr_recycle(mr->mr_xprt, mr);
-}
-
 /* frwr_reset - Place MRs back on the free list
  * @req: request to reset
  *
@@ -166,9 +152,6 @@ int frwr_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
 	struct ib_mr *frmr;
 	int rc;
 
-	/* NB: ib_alloc_mr and device drivers typically allocate
-	 *     memory with GFP_KERNEL.
-	 */
 	frmr = ib_alloc_mr(ia->ri_pd, ia->ri_mrtype, depth);
 	if (IS_ERR(frmr))
 		goto out_mr_err;
@@ -440,9 +423,6 @@ int frwr_send(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
 		post_wr = &frwr->fr_regwr.wr;
 	}
 
-	/* If ib_post_send fails, the next ->send_request for
-	 * @req will queue these MRs for recovery.
-	 */
 	return ib_post_send(ia->ri_id->qp, post_wr, NULL);
 }
 

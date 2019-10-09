@@ -363,8 +363,7 @@ static struct rpcrdma_mr_seg *rpcrdma_mr_prepare(struct rpcrdma_xprt *r_xprt,
 out_getmr_err:
 	trace_xprtrdma_nomrs(req);
 	xprt_wait_for_buffer_space(&r_xprt->rx_xprt);
-	if (r_xprt->rx_ep.rep_connected != -ENODEV)
-		schedule_work(&r_xprt->rx_buf.rb_refresh_worker);
+	rpcrdma_mrs_refresh(r_xprt);
 	return ERR_PTR(-EAGAIN);
 }
 
@@ -862,12 +861,6 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 		*p++ = rdma_nomsg;
 		rtype = rpcrdma_areadch;
 	}
-
-	/* If this is a retransmit, discard previously registered
-	 * chunks. Very likely the connection has been replaced,
-	 * so these registrations are invalid and unusable.
-	 */
-	frwr_recycle(req);
 
 	/* This implementation supports the following combinations
 	 * of chunk lists in one RPC-over-RDMA Call message:
