@@ -328,11 +328,7 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 	memset(feature_mask, 0, sizeof(uint32_t) * num);
 
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT)
-				| FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT)
-				| FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT)
 				| FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT)
-				| FEATURE_MASK(FEATURE_DPM_LINK_BIT)
-				| FEATURE_MASK(FEATURE_GFX_ULV_BIT)
 				| FEATURE_MASK(FEATURE_RSMU_SMN_CG_BIT)
 				| FEATURE_MASK(FEATURE_DS_SOCCLK_BIT)
 				| FEATURE_MASK(FEATURE_PPT_BIT)
@@ -343,8 +339,6 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 				| FEATURE_MASK(FEATURE_FAN_CONTROL_BIT)
 				| FEATURE_MASK(FEATURE_THERMAL_BIT)
 				| FEATURE_MASK(FEATURE_LED_DISPLAY_BIT)
-				| FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT)
-				| FEATURE_MASK(FEATURE_DS_GFXCLK_BIT)
 				| FEATURE_MASK(FEATURE_DS_LCLK_BIT)
 				| FEATURE_MASK(FEATURE_DS_DCEFCLK_BIT)
 				| FEATURE_MASK(FEATURE_FW_DSTATE_BIT)
@@ -355,10 +349,28 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 				| FEATURE_MASK(FEATURE_FW_CTF_BIT)
 				| FEATURE_MASK(FEATURE_OUT_OF_BAND_MONITOR_BIT);
 
+	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
+
+	if (adev->pm.pp_feature & PP_SCLK_DPM_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT);
+
+	if (adev->pm.pp_feature & PP_PCIE_DPM_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_LINK_BIT);
+
+	if (adev->pm.pp_feature & PP_DCEFCLK_DPM_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT);
+
 	if (adev->pm.pp_feature & PP_MCLK_DPM_MASK)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
 				| FEATURE_MASK(FEATURE_MEM_VDDCI_SCALING_BIT)
 				| FEATURE_MASK(FEATURE_MEM_MVDD_SCALING_BIT);
+
+	if (adev->pm.pp_feature & PP_ULV_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_ULV_BIT);
+
+	if (adev->pm.pp_feature & PP_SCLK_DEEP_SLEEP_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_GFXCLK_BIT);
 
 	if (adev->pm.pp_feature & PP_GFXOFF_MASK) {
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFXOFF_BIT);
