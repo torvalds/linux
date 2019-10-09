@@ -58,21 +58,6 @@ do {									\
 } while (0)
 
 /**
- * struct vimc_platform_data - platform data to components
- *
- * @entity_name:	The name of the entity to be created
- *
- * Board setup code will often provide additional information using the device's
- * platform_data field to hold additional information.
- * When injecting a new platform_device in the component system the core needs
- * to provide to the corresponding submodules the name of the entity that should
- * be used when registering the subdevice in the Media Controller system.
- */
-struct vimc_platform_data {
-	char entity_name[32];
-};
-
-/**
  * struct vimc_pix_map - maps media bus code with v4l2 pixel format
  *
  * @code:		media bus format code defined by MEDIA_BUS_FMT_* macros
