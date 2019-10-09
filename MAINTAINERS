@@ -2963,6 +2963,7 @@ W:	http://ez.analog.com/community/linux-device-drivers
 L:	linux-hwmon@vger.kernel.org
 S:	Supported
 F:	drivers/hwmon/axi-fan-control.c
+F:	Documentation/devicetree/bindings/hwmon/adi,axi-fan-control.yaml
 
 AXXIA I2C CONTROLLER
 M:	Krzysztof Adamski <krzysztof.adamski@nokia.com>
