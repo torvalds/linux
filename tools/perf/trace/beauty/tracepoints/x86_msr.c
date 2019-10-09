@@ -32,3 +32,8 @@ size_t syscall_arg__scnprintf_x86_MSR(char *bf, size_t size, struct syscall_arg 
 
 	return x86_MSR__scnprintf(flags, bf, size, arg->show_string_prefix);
 }
+
+bool syscall_arg__strtoul_x86_MSR(char *bf, size_t size, struct syscall_arg *arg __maybe_unused, u64 *ret)
+{
+	return strarrays__strtoul(&strarrays__x86_MSRs_tables, bf, size, ret);
+}
