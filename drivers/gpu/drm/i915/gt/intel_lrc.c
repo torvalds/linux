@@ -669,64 +669,6 @@ static const u8 gen12_xcs_offsets[] = {
 	REG16(0x274),
 	REG16(0x270),
 
-	NOP(13),
-	LRI(2, POSTED),
-	REG16(0x200),
-	REG16(0x204),
-
-	NOP(11),
-	LRI(50, POSTED),
-	REG16(0x588),
-	REG16(0x588),
-	REG16(0x588),
-	REG16(0x588),
-	REG16(0x588),
-	REG16(0x588),
-	REG(0x028),
-	REG(0x09c),
-	REG(0x0c0),
-	REG(0x178),
-	REG(0x17c),
-	REG16(0x358),
-	REG(0x170),
-	REG(0x150),
-	REG(0x154),
-	REG(0x158),
-	REG16(0x41c),
-	REG16(0x600),
-	REG16(0x604),
-	REG16(0x608),
-	REG16(0x60c),
-	REG16(0x610),
-	REG16(0x614),
-	REG16(0x618),
-	REG16(0x61c),
-	REG16(0x620),
-	REG16(0x624),
-	REG16(0x628),
-	REG16(0x62c),
-	REG16(0x630),
-	REG16(0x634),
-	REG16(0x638),
-	REG16(0x63c),
-	REG16(0x640),
-	REG16(0x644),
-	REG16(0x648),
-	REG16(0x64c),
-	REG16(0x650),
-	REG16(0x654),
-	REG16(0x658),
-	REG16(0x65c),
-	REG16(0x660),
-	REG16(0x664),
-	REG16(0x668),
-	REG16(0x66c),
-	REG16(0x670),
-	REG16(0x674),
-	REG16(0x678),
-	REG16(0x67c),
-	REG(0x068),
-
 	END(),
 };
 
@@ -857,6 +799,15 @@ static const u8 gen12_rcs_offsets[] = {
 
 static const u8 *reg_offsets(const struct intel_engine_cs *engine)
 {
+	/*
+	 * The gen12+ lists only have the registers we program in the basic
+	 * default state. We rely on the context image using relative
+	 * addressing to automatic fixup the register state between the
+	 * physical engines for virtual engine.
+	 */
+	GEM_BUG_ON(INTEL_GEN(engine->i915) >= 12 &&
+		   !intel_engine_has_relative_mmio(engine));
+
 	if (engine->class == RENDER_CLASS) {
 		if (INTEL_GEN(engine->i915) >= 12)
 			return gen12_rcs_offsets;
