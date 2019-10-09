@@ -199,7 +199,7 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 	 * locking around the children list.
 	 */
 	lockdep_assert_held(&to_ib_umem_odp(mr->umem)->umem_mutex);
-	lockdep_assert_held(&mr->dev->mr_srcu);
+	lockdep_assert_held(&mr->dev->odp_srcu);
 
 	odp = odp_lookup(offset * MLX5_IMR_MTT_SIZE,
 			 nentries * MLX5_IMR_MTT_SIZE, mr);
@@ -229,16 +229,16 @@ static void mr_leaf_free_action(struct work_struct *work)
 	int srcu_key;
 
 	mr->parent = NULL;
-	synchronize_srcu(&mr->dev->mr_srcu);
+	synchronize_srcu(&mr->dev->odp_srcu);
 
-	if (smp_load_acquire(&imr->live)) {
-		srcu_key = srcu_read_lock(&mr->dev->mr_srcu);
+	if (xa_load(&mr->dev->odp_mkeys, mlx5_base_mkey(imr->mmkey.key))) {
+		srcu_key = srcu_read_lock(&mr->dev->odp_srcu);
 		mutex_lock(&odp_imr->umem_mutex);
 		mlx5_ib_update_xlt(imr, idx, 1, 0,
 				   MLX5_IB_UPD_XLT_INDIRECT |
 				   MLX5_IB_UPD_XLT_ATOMIC);
 		mutex_unlock(&odp_imr->umem_mutex);
-		srcu_read_unlock(&mr->dev->mr_srcu, srcu_key);
+		srcu_read_unlock(&mr->dev->odp_srcu, srcu_key);
 	}
 	ib_umem_odp_release(odp);
 	mlx5_mr_cache_free(mr->dev, mr);
@@ -318,7 +318,7 @@ void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
 
 	if (unlikely(!umem_odp->npages && mr->parent &&
 		     !umem_odp->dying)) {
-		WRITE_ONCE(mr->live, 0);
+		xa_erase(&mr->dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key));
 		umem_odp->dying = 1;
 		atomic_inc(&mr->parent->num_leaf_free);
 		schedule_work(&umem_odp->work);
@@ -430,6 +430,11 @@ static struct mlx5_ib_mr *implicit_mr_alloc(struct ib_pd *pd,
 	if (IS_ERR(mr))
 		return mr;
 
+	err = xa_reserve(&dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key),
+			 GFP_KERNEL);
+	if (err)
+		goto out_mr;
+
 	mr->ibmr.pd = pd;
 
 	mr->dev = dev;
@@ -455,7 +460,7 @@ static struct mlx5_ib_mr *implicit_mr_alloc(struct ib_pd *pd,
 	}
 
 	if (err)
-		goto fail;
+		goto out_release;
 
 	mr->ibmr.lkey = mr->mmkey.key;
 	mr->ibmr.rkey = mr->mmkey.key;
@@ -465,7 +470,9 @@ static struct mlx5_ib_mr *implicit_mr_alloc(struct ib_pd *pd,
 
 	return mr;
 
-fail:
+out_release:
+	xa_release(&dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key));
+out_mr:
 	mlx5_ib_err(dev, "Failed to register MKEY %d\n", err);
 	mlx5_mr_cache_free(dev, mr);
 
@@ -513,7 +520,8 @@ next_mr:
 		mtt->parent = mr;
 		INIT_WORK(&odp->work, mr_leaf_free_action);
 
-		smp_store_release(&mtt->live, 1);
+		xa_store(&dev->odp_mkeys, mlx5_base_mkey(mtt->mmkey.key),
+			 &mtt->mmkey, GFP_ATOMIC);
 
 		if (!nentries)
 			start_idx = addr >> MLX5_IMR_MTT_SHIFT;
@@ -567,7 +575,8 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	init_waitqueue_head(&imr->q_leaf_free);
 	atomic_set(&imr->num_leaf_free, 0);
 	atomic_set(&imr->num_pending_prefetch, 0);
-	smp_store_release(&imr->live, 1);
+	xa_store(&imr->dev->odp_mkeys, mlx5_base_mkey(imr->mmkey.key),
+		 &imr->mmkey, GFP_ATOMIC);
 
 	return imr;
 }
@@ -778,13 +787,28 @@ static int pagefault_single_data_segment(struct mlx5_ib_dev *dev,
 	size_t offset;
 	int ndescs;
 
-	srcu_key = srcu_read_lock(&dev->mr_srcu);
+	srcu_key = srcu_read_lock(&dev->odp_srcu);
 
 	io_virt += *bytes_committed;
 	bcnt -= *bytes_committed;
 
 next_mr:
-	mmkey = xa_load(&dev->mdev->priv.mkey_table, mlx5_base_mkey(key));
+	mmkey = xa_load(&dev->odp_mkeys, mlx5_base_mkey(key));
+	if (!mmkey) {
+		mlx5_ib_dbg(
+			dev,
+			"skipping non ODP MR (lkey=0x%06x) in page fault handler.\n",
+			key);
+		if (bytes_mapped)
+			*bytes_mapped += bcnt;
+		/*
+		 * The user could specify a SGL with multiple lkeys and only
+		 * some of them are ODP. Treat the non-ODP ones as fully
+		 * faulted.
+		 */
+		ret = 0;
+		goto srcu_unlock;
+	}
 	if (!mkey_is_eq(mmkey, key)) {
 		mlx5_ib_dbg(dev, "failed to find mkey %x\n", key);
 		ret = -EFAULT;
@@ -794,20 +818,6 @@ next_mr:
 	switch (mmkey->type) {
 	case MLX5_MKEY_MR:
 		mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
-		if (!smp_load_acquire(&mr->live) || !mr->ibmr.pd) {
-			mlx5_ib_dbg(dev, "got dead MR\n");
-			ret = -EFAULT;
-			goto srcu_unlock;
-		}
-
-		if (!is_odp_mr(mr)) {
-			mlx5_ib_dbg(dev, "skipping non ODP MR (lkey=0x%06x) in page fault handler.\n",
-				    key);
-			if (bytes_mapped)
-				*bytes_mapped += bcnt;
-			ret = 0;
-			goto srcu_unlock;
-		}
 
 		ret = pagefault_mr(mr, io_virt, bcnt, bytes_mapped, 0);
 		if (ret < 0)
@@ -902,7 +912,7 @@ srcu_unlock:
 	}
 	kfree(out);
 
-	srcu_read_unlock(&dev->mr_srcu, srcu_key);
+	srcu_read_unlock(&dev->odp_srcu, srcu_key);
 	*bytes_committed = 0;
 	return ret ? ret : npages;
 }
@@ -1623,18 +1633,15 @@ get_prefetchable_mr(struct ib_pd *pd, enum ib_uverbs_advise_mr_advice advice,
 	struct ib_umem_odp *odp;
 	struct mlx5_ib_mr *mr;
 
-	lockdep_assert_held(&dev->mr_srcu);
+	lockdep_assert_held(&dev->odp_srcu);
 
-	mmkey = xa_load(&dev->mdev->priv.mkey_table, mlx5_base_mkey(lkey));
+	mmkey = xa_load(&dev->odp_mkeys, mlx5_base_mkey(lkey));
 	if (!mmkey || mmkey->key != lkey || mmkey->type != MLX5_MKEY_MR)
 		return NULL;
 
 	mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
 
-	if (!smp_load_acquire(&mr->live))
-		return NULL;
-
-	if (mr->ibmr.pd != pd || !is_odp_mr(mr))
+	if (mr->ibmr.pd != pd)
 		return NULL;
 
 	/*
@@ -1709,7 +1716,7 @@ static int mlx5_ib_prefetch_sg_list(struct ib_pd *pd,
 	int ret = 0;
 	u32 i;
 
-	srcu_key = srcu_read_lock(&dev->mr_srcu);
+	srcu_key = srcu_read_lock(&dev->odp_srcu);
 	for (i = 0; i < num_sge; ++i) {
 		struct mlx5_ib_mr *mr;
 
@@ -1726,7 +1733,7 @@ static int mlx5_ib_prefetch_sg_list(struct ib_pd *pd,
 	ret = 0;
 
 out:
-	srcu_read_unlock(&dev->mr_srcu, srcu_key);
+	srcu_read_unlock(&dev->odp_srcu, srcu_key);
 	return ret;
 }
 
@@ -1750,12 +1757,12 @@ int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 	if (!work)
 		return -ENOMEM;
 
-	srcu_key = srcu_read_lock(&dev->mr_srcu);
+	srcu_key = srcu_read_lock(&dev->odp_srcu);
 	if (!init_prefetch_work(pd, advice, pf_flags, work, sg_list, num_sge)) {
-		srcu_read_unlock(&dev->mr_srcu, srcu_key);
+		srcu_read_unlock(&dev->odp_srcu, srcu_key);
 		return -EINVAL;
 	}
 	queue_work(system_unbound_wq, &work->work);
-	srcu_read_unlock(&dev->mr_srcu, srcu_key);
+	srcu_read_unlock(&dev->odp_srcu, srcu_key);
 	return 0;
 }

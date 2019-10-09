@@ -606,7 +606,6 @@ struct mlx5_ib_mr {
 	struct mlx5_ib_dev     *dev;
 	u32 out[MLX5_ST_SZ_DW(create_mkey_out)];
 	struct mlx5_core_sig_ctx    *sig;
-	unsigned int		live;
 	void			*descs_alloc;
 	int			access_flags; /* Needed for rereg MR */
 
@@ -975,7 +974,9 @@ struct mlx5_ib_dev {
 	 * Sleepable RCU that prevents destruction of MRs while they are still
 	 * being used by a page fault handler.
 	 */
-	struct srcu_struct      mr_srcu;
+	struct srcu_struct      odp_srcu;
+	struct xarray		odp_mkeys;
+
 	u32			null_mkey;
 	struct mlx5_ib_flow_db	*flow_db;
 	/* protect resources needed as part of reset flow */
