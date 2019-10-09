@@ -596,6 +596,17 @@ config VIDEO_APTINA_PLL
 config VIDEO_SMIAPP_PLL
 	tristate
 
+config VIDEO_IMX219
+	tristate "Sony IMX219 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX219 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx219.
+
 config VIDEO_IMX258
 	tristate "Sony IMX258 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
@@ -607,6 +618,14 @@ config VIDEO_IMX258
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx258.
 
+config VIDEO_IMX258_EEPROM
+	tristate "Sony imx258 sensor otp from eeprom support"
+	depends on VIDEO_V4L2 && I2C
+	depends on VIDEO_IMX258
+	select V4L2_FWNODE
+	help
+	  This driver supports IMX258 OTP load from eeprom.
+
 config VIDEO_IMX274
 	tristate "Sony IMX274 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
@@ -615,6 +634,39 @@ config VIDEO_IMX274
 	---help---
 	  This is a V4L2 sensor driver for the Sony IMX274
 	  CMOS image sensor.
+
+config VIDEO_IMX317
+        tristate "Sony IMX317 sensor support"
+        depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+        depends on MEDIA_CAMERA_SUPPORT
+        help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX317 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx317.
+
+config VIDEO_IMX323
+	tristate "Sony IMX323 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX323 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx323.
+
+config VIDEO_IMX327
+	tristate "Sony IMX327 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX327 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx327.
 
 config VIDEO_OV2640
 	tristate "OmniVision OV2640 sensor support"
@@ -663,6 +715,42 @@ config VIDEO_OV2685
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov2685.
 
+config VIDEO_OV2718
+	tristate "OmniVision OV2718 sensor support"
+	depends on VIDEO_V4L2 && I2C && MEDIA_CONTROLLER
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV2718 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov2718.
+
+config VIDEO_OV2735
+	tristate "OmniVision OV2735 sensor support"
+	depends on VIDEO_V4L2 && I2C && MEDIA_CONTROLLER
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV2735 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov2735.
+
+config VIDEO_OV4689
+	tristate "OmniVision OV4689 sensor support"
+	depends on VIDEO_V4L2 && I2C && MEDIA_CONTROLLER
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV4689 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov4689.
+
 config VIDEO_OV5640
 	tristate "OmniVision OV5640 sensor support"
 	depends on OF
@@ -698,24 +786,24 @@ config VIDEO_OV5647
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov5647.
 
-config VIDEO_OV6650
-	tristate "OmniVision OV6650 sensor support"
-	depends on I2C && VIDEO_V4L2
+config VIDEO_OV5648
+	tristate "OmniVision OV5648 sensor support"
+	depends on VIDEO_V4L2 && I2C && MEDIA_CONTROLLER
 	depends on MEDIA_CAMERA_SUPPORT
-	---help---
+	select V4L2_FWNODE
+	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
-	  OV6650 camera.
+	  OV5648 camera.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ov6650.
+	  module will be called ov5648.
 
 config VIDEO_OV5670
 	tristate "OmniVision OV5670 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2 && I2C && MEDIA_CONTROLLER
 	depends on MEDIA_CAMERA_SUPPORT
-	depends on MEDIA_CONTROLLER
 	select V4L2_FWNODE
-	---help---
+	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV5670 camera.
 
@@ -724,14 +812,26 @@ config VIDEO_OV5670
 
 config VIDEO_OV5695
 	tristate "OmniVision OV5695 sensor support"
-	depends on I2C && VIDEO_V4L2
+	depends on VIDEO_V4L2 && I2C && MEDIA_CONTROLLER
 	depends on MEDIA_CAMERA_SUPPORT
-	---help---
+	select V4L2_FWNODE
+	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV5695 camera.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov5695.
+
+config VIDEO_OV6650
+	tristate "OmniVision OV6650 sensor support"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV6650 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov6650.
 
 config VIDEO_OV7251
 	tristate "OmniVision OV7251 sensor support"
@@ -785,12 +885,62 @@ config VIDEO_OV7740
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV7740 VGA camera sensor.
 
-config VIDEO_OV9650
-	tristate "OmniVision OV9650/OV9652 sensor support"
+config VIDEO_OV7750
+	tristate "OmniVision OV7750 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	---help---
-	  This is a V4L2 sensor driver for the Omnivision
-	  OV9650 and OV9652 camera sensors.
+	depends on MEDIA_CAMERA_SUPPORT
+	depends on MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV7750 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov7750.
+
+config VIDEO_OV8858
+	tristate "OmniVision OV8858 sensor support"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV8858 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov8858.
+
+config VIDEO_OV9281
+	tristate "OmniVision OV9281 sensor support"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV9281 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov9281.
+
+config VIDEO_OV9650
+	tristate "OmniVision OV9650 sensor support"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV9650 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov9650.
+
+config VIDEO_OV9750
+	tristate "OmniVision OV9750 sensor support"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV9750 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov9750.
 
 config VIDEO_OV13850
 	tristate "OmniVision OV13850 sensor support"
@@ -895,6 +1045,17 @@ config VIDEO_MT9V111
 	  To compile this driver as a module, choose M here: the
 	  module will be called mt9v111.
 
+config VIDEO_AR0230
+	tristate "Aptina AR0230 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the Aptina AR0230 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ar0230.
+
 config VIDEO_SR030PC30
 	tristate "Siliconfile SR030PC30 sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -976,6 +1137,39 @@ config VIDEO_GC0312
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc0312.
 
+config VIDEO_GC0329
+	tristate "GalaxyCore GC0329 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC0329 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc0329.
+
+config VIDEO_GC0403
+	tristate "GalaxyCore GC0403 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC0403 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc0403.
+
+config VIDEO_GC2035
+	tristate "GalaxyCore GC2035 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC2035 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc2035.
+
 config VIDEO_GC2145
 	tristate "GalaxyCore GC2145 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
@@ -986,6 +1180,116 @@ config VIDEO_GC2145
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc2145.
+
+config VIDEO_GC2155
+	tristate "GalaxyCore GC2155 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC2155 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc2155.
+
+config VIDEO_GC2355
+	tristate "GalaxyCore GC2355 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC2355 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc2355.
+
+config VIDEO_GC2385
+	tristate "GalaxyCore GC2385 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC2385 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc2385.
+
+config VIDEO_GC5025
+	tristate "GalaxyCore GC5025 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC5025 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc5025.
+
+config VIDEO_GC5035
+	tristate "GalaxyCore GC5035 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC5035 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc5035.
+
+config VIDEO_GC8034
+	tristate "GalaxyCore GC8034 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC8034 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc8034.
+
+config VIDEO_BF3925
+	tristate "BYD BF3925 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the BYD BF3925 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bf3925.
+
+config VIDEO_JX_H65
+	tristate "SOI JX_H65 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the SOI JX_H65 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called jx_h65.
+
+config VIDEO_SC031GS
+	tristate "SmartSens SC031GS sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the SmartSens SC031GS sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sc031gs.
+
+config VIDEO_SC132GS
+	tristate "SmartSens SC132GS sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the SmartSens SC132GS sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sc132gs.
 
 comment "Flash devices"
 

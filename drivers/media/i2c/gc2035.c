@@ -22,7 +22,8 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/videodev2.h>
-
+#include <linux/version.h>
+#include <linux/rk-camera-module.h>
 #include <media/media-entity.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
@@ -33,6 +34,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0)
 #define DRIVER_NAME "gc2035"
 #define GC2035_PIXEL_RATE		(70 * 1000 * 1000)
 
@@ -98,6 +100,10 @@ struct gc2035 {
 	struct v4l2_ctrl *link_frequency;
 	const struct gc2035_framesize *frame_size;
 	int streaming;
+	u32 module_index;
+	const char *module_facing;
+	const char *module_name;
+	const char *len_name;
 };
 
 static const struct sensor_register gc2035_init_regs[] = {
@@ -1190,10 +1196,84 @@ unlock:
 	return ret;
 }
 
+static void gc2035_get_module_inf(struct gc2035 *gc2035,
+				  struct rkmodule_inf *inf)
+{
+	memset(inf, 0, sizeof(*inf));
+	strlcpy(inf->base.sensor, DRIVER_NAME, sizeof(inf->base.sensor));
+	strlcpy(inf->base.module, gc2035->module_name,
+		sizeof(inf->base.module));
+	strlcpy(inf->base.lens, gc2035->len_name, sizeof(inf->base.lens));
+}
+
+static long gc2035_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct gc2035 *gc2035 = to_gc2035(sd);
+	long ret = 0;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		gc2035_get_module_inf(gc2035, (struct rkmodule_inf *)arg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long gc2035_compat_ioctl32(struct v4l2_subdev *sd,
+				  unsigned int cmd, unsigned long arg)
+{
+	void __user *up = compat_ptr(arg);
+	struct rkmodule_inf *inf;
+	struct rkmodule_awb_cfg *cfg;
+	long ret;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		inf = kzalloc(sizeof(*inf), GFP_KERNEL);
+		if (!inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = gc2035_ioctl(sd, cmd, inf);
+		if (!ret)
+			ret = copy_to_user(up, inf, sizeof(*inf));
+		kfree(inf);
+		break;
+	case RKMODULE_AWB_CFG:
+		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+		if (!cfg) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(cfg, up, sizeof(*cfg));
+		if (!ret)
+			ret = gc2035_ioctl(sd, cmd, cfg);
+		kfree(cfg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+#endif
+
 static const struct v4l2_subdev_core_ops gc2035_subdev_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+	.ioctl = gc2035_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = gc2035_compat_ioctl32,
+#endif
 };
 
 static const struct v4l2_subdev_video_ops gc2035_subdev_video_ops = {
@@ -1334,13 +1414,34 @@ static int gc2035_parse_of(struct gc2035 *gc2035)
 static int gc2035_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
+	struct device_node *node = dev->of_node;
 	struct v4l2_subdev *sd;
 	struct gc2035 *gc2035;
+	char facing[2];
 	int ret;
+
+	dev_info(dev, "driver version: %02x.%02x.%02x",
+		DRIVER_VERSION >> 16,
+		(DRIVER_VERSION & 0xff00) >> 8,
+		DRIVER_VERSION & 0x00ff);
 
 	gc2035 = devm_kzalloc(&client->dev, sizeof(*gc2035), GFP_KERNEL);
 	if (!gc2035)
 		return -ENOMEM;
+
+	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
+				   &gc2035->module_index);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
+				       &gc2035->module_facing);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_NAME,
+				       &gc2035->module_name);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
+				       &gc2035->len_name);
+	if (ret) {
+		dev_err(dev, "could not get module information!\n");
+		return -EINVAL;
+	}
 
 	gc2035->client = client;
 	gc2035->xvclk = devm_clk_get(&client->dev, "xvclk");
@@ -1387,8 +1488,8 @@ static int gc2035_probe(struct i2c_client *client,
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	gc2035->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &gc2035->pad, 0);
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sd->entity, 1, &gc2035->pad);
 	if (ret < 0) {
 		v4l2_ctrl_handler_free(&gc2035->ctrls);
 		return ret;
@@ -1407,7 +1508,16 @@ static int gc2035_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto error;
 
-	ret = v4l2_async_register_subdev(&gc2035->sd);
+	memset(facing, 0, sizeof(facing));
+	if (strcmp(gc2035->module_facing, "back") == 0)
+		facing[0] = 'b';
+	else
+		facing[0] = 'f';
+
+	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
+		 gc2035->module_index, facing,
+		 DRIVER_NAME, dev_name(sd->dev));
+	ret = v4l2_async_register_subdev_sensor_common(sd);
 	if (ret)
 		goto error;
 

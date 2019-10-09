@@ -3,6 +3,9 @@
  * ov2735 driver
  *
  * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
+ *
+ * V0.0X01.0X01 add poweron function.
+ * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  */
 
 #include <linux/clk.h>
@@ -14,10 +17,15 @@
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sysfs.h>
+#include <linux/slab.h>
+#include <linux/version.h>
+#include <linux/rk-camera-module.h>
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
+
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -85,6 +93,8 @@
 #define	ANALOG_GAIN_STEP		1
 #define	ANALOG_GAIN_DEFAULT		0x10
 
+#define OV2735_NAME			"ov2735"
+
 static const char * const ov2735_supply_names[] = {
 	"avdd",		/* Analog power */
 	"dovdd",	/* Digital I/O power */
@@ -126,7 +136,12 @@ struct ov2735 {
 	struct v4l2_ctrl	*test_pattern;
 	struct mutex		mutex;
 	bool			streaming;
+	bool			power_on;
 	const struct ov2735_mode *cur_mode;
+	u32			module_index;
+	const char		*module_facing;
+	const char		*module_name;
+	const char		*len_name;
 };
 
 #define to_ov2735(sd) container_of(sd, struct ov2735, subdev)
@@ -504,14 +519,80 @@ static int ov2735_enable_test_pattern(struct ov2735 *ov2735, u32 pattern)
 				 val);
 }
 
+static void ov2735_get_module_inf(struct ov2735 *ov2735,
+				  struct rkmodule_inf *inf)
+{
+	memset(inf, 0, sizeof(*inf));
+	strlcpy(inf->base.sensor, OV2735_NAME, sizeof(inf->base.sensor));
+	strlcpy(inf->base.module, ov2735->module_name,
+		sizeof(inf->base.module));
+	strlcpy(inf->base.lens, ov2735->len_name, sizeof(inf->base.lens));
+}
+
+static long ov2735_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct ov2735 *ov2735 = to_ov2735(sd);
+	long ret = 0;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		ov2735_get_module_inf(ov2735, (struct rkmodule_inf *)arg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long ov2735_compat_ioctl32(struct v4l2_subdev *sd,
+				  unsigned int cmd, unsigned long arg)
+{
+	void __user *up = compat_ptr(arg);
+	struct rkmodule_inf *inf;
+	struct rkmodule_awb_cfg *cfg;
+	long ret;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		inf = kzalloc(sizeof(*inf), GFP_KERNEL);
+		if (!inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = ov2735_ioctl(sd, cmd, inf);
+		if (!ret)
+			ret = copy_to_user(up, inf, sizeof(*inf));
+		kfree(inf);
+		break;
+	case RKMODULE_AWB_CFG:
+		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+		if (!cfg) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(cfg, up, sizeof(*cfg));
+		if (!ret)
+			ret = ov2735_ioctl(sd, cmd, cfg);
+		kfree(cfg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+#endif
+
 static int __ov2735_start_stream(struct ov2735 *ov2735)
 {
 	int ret;
 
-	ret = ov2735_write_array(ov2735->client, ov2735_global_regs);
-	if (ret)
-		return ret;
-	mdelay(3);
 	ret = ov2735_write_array(ov2735->client, ov2735->cur_mode->reg_list);
 	if (ret)
 		return ret;
@@ -577,6 +658,44 @@ unlock_and_return:
 	return ret;
 }
 
+static int ov2735_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct ov2735 *ov2735 = to_ov2735(sd);
+	struct i2c_client *client = ov2735->client;
+	int ret = 0;
+
+	mutex_lock(&ov2735->mutex);
+
+	/* If the power state is not modified - no work to do. */
+	if (ov2735->power_on == !!on)
+		goto unlock_and_return;
+
+	if (on) {
+		ret = pm_runtime_get_sync(&client->dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(&client->dev);
+			goto unlock_and_return;
+		}
+
+		ret = ov2735_write_array(ov2735->client, ov2735_global_regs);
+		if (ret) {
+			v4l2_err(sd, "could not set init registers\n");
+			pm_runtime_put_noidle(&client->dev);
+			goto unlock_and_return;
+		}
+
+		ov2735->power_on = true;
+	} else {
+		pm_runtime_put(&client->dev);
+		ov2735->power_on = false;
+	}
+
+unlock_and_return:
+	mutex_unlock(&ov2735->mutex);
+
+	return ret;
+}
+
 /* Calculate the delay in us by clock rate and clock cycles */
 static inline u32 ov2735_cal_delay(u32 cycles)
 {
@@ -610,11 +729,14 @@ static int __ov2735_power_on(struct ov2735 *ov2735)
 		gpiod_set_value_cansleep(ov2735->reset_gpio, 1);
 		usleep_range(2000, 5000);
 	}
-	if (!IS_ERR(ov2735->xvclk)) {
-		ret = clk_prepare_enable(ov2735->xvclk);
-		if (ret < 0)
-			dev_info(dev, "Failed to enable xvclk\n");
-	}
+	ret = clk_set_rate(ov2735->xvclk, OV2735_XVCLK_FREQ);
+	if (ret < 0)
+		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
+	if (clk_get_rate(ov2735->xvclk) != OV2735_XVCLK_FREQ)
+		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
+	ret = clk_prepare_enable(ov2735->xvclk);
+	if (ret < 0)
+		dev_info(dev, "Failed to enable xvclk\n");
 
 	/* 8192 cycles prior to first SCCB transaction */
 	delay_us = ov2735_cal_delay(8192);
@@ -691,6 +813,14 @@ static const struct v4l2_subdev_internal_ops ov2735_internal_ops = {
 };
 #endif
 
+static const struct v4l2_subdev_core_ops ov2735_core_ops = {
+	.s_power = ov2735_s_power,
+	.ioctl = ov2735_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = ov2735_compat_ioctl32,
+#endif
+};
+
 static const struct v4l2_subdev_video_ops ov2735_video_ops = {
 	.s_stream = ov2735_s_stream,
 };
@@ -703,6 +833,7 @@ static const struct v4l2_subdev_pad_ops ov2735_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops ov2735_subdev_ops = {
+	.core	= &ov2735_core_ops,
 	.video	= &ov2735_video_ops,
 	.pad	= &ov2735_pad_ops,
 };
@@ -852,7 +983,7 @@ static int ov2735_check_sensor_id(struct ov2735 *ov2735,
 	ret = ov2735_write_reg(ov2735->client, PAGE_SELECT_REG, PAGE_ZERO);
 	ret |= ov2735_read_reg(ov2735->client, OV2735_PIDH_ADDR, &pidh);
 	ret |= ov2735_read_reg(ov2735->client, OV2735_PIDL_ADDR, &pidl);
-	if (IS_ERR_VALUE(ret)) {
+	if (ret) {
 		dev_err(dev,
 			"register read failed, camera module powered off?\n");
 		goto err;
@@ -891,13 +1022,33 @@ static int ov2735_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
+	struct device_node *node = dev->of_node;
 	struct ov2735 *ov2735;
 	struct v4l2_subdev *sd;
+	char facing[2];
 	int ret;
+
+	dev_info(dev, "driver version: %02x.%02x.%02x",
+		DRIVER_VERSION >> 16,
+		(DRIVER_VERSION & 0xff00) >> 8,
+		DRIVER_VERSION & 0x00ff);
 
 	ov2735 = devm_kzalloc(dev, sizeof(*ov2735), GFP_KERNEL);
 	if (!ov2735)
 		return -ENOMEM;
+
+	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
+				   &ov2735->module_index);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
+				       &ov2735->module_facing);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_NAME,
+				       &ov2735->module_name);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
+				       &ov2735->len_name);
+	if (ret) {
+		dev_err(dev, "could not get module information!\n");
+		return -EINVAL;
+	}
 
 	ov2735->client = client;
 	ov2735->cur_mode = &supported_modes[0];
@@ -907,13 +1058,6 @@ static int ov2735_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
-	ret = clk_set_rate(ov2735->xvclk, OV2735_XVCLK_FREQ);
-	if (ret < 0) {
-		dev_err(dev, "Failed to set xvclk rate (24MHz)\n");
-		return ret;
-	}
-	if (clk_get_rate(ov2735->xvclk) != OV2735_XVCLK_FREQ)
-		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 
 	ov2735->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ov2735->reset_gpio))
@@ -947,17 +1091,27 @@ static int ov2735_probe(struct i2c_client *client,
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &ov2735_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+		     V4L2_SUBDEV_FL_HAS_EVENTS;
 #endif
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	ov2735->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &ov2735->pad, 0);
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sd->entity, 1, &ov2735->pad);
 	if (ret < 0)
 		goto err_power_off;
 #endif
 
-	ret = v4l2_async_register_subdev(sd);
+	memset(facing, 0, sizeof(facing));
+	if (strcmp(ov2735->module_facing, "back") == 0)
+		facing[0] = 'b';
+	else
+		facing[0] = 'f';
+
+	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
+		 ov2735->module_index, facing,
+		 OV2735_NAME, dev_name(sd->dev));
+	ret = v4l2_async_register_subdev_sensor_common(sd);
 	if (ret) {
 		dev_err(dev, "v4l2 async register subdev failed\n");
 		goto err_clean_entity;
@@ -1018,7 +1172,7 @@ static const struct i2c_device_id ov2735_match_id[] = {
 
 static struct i2c_driver ov2735_i2c_driver = {
 	.driver = {
-		.name = "ov2735",
+		.name = OV2735_NAME,
 		.pm = &ov2735_pm_ops,
 		.of_match_table = of_match_ptr(ov2735_of_match),
 	},
@@ -1042,3 +1196,4 @@ module_exit(sensor_mod_exit);
 
 MODULE_DESCRIPTION("OmniVision ov2735 sensor driver");
 MODULE_LICENSE("GPL v2");
+

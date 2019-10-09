@@ -3,6 +3,9 @@
  * sc031gs driver
  *
  * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
+ *
+ * V0.0X01.0X01 add poweron function.
+ * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  */
 
 #include <linux/clk.h>
@@ -14,10 +17,15 @@
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sysfs.h>
+#include <linux/rk-camera-module.h>
+#include <linux/slab.h>
+#include <linux/version.h>
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
+
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -66,6 +74,8 @@
 #define SC031GS_BITS_PER_SAMPLE		10
 #endif
 
+#define SC031GS_NAME			"sc031gs"
+
 static const char * const sc031gs_supply_names[] = {
 	"avdd",		/* Analog power */
 	"dovdd",	/* Digital I/O power */
@@ -106,7 +116,12 @@ struct sc031gs {
 	struct v4l2_ctrl	*test_pattern;
 	struct mutex		mutex;
 	bool			streaming;
+	bool			power_on;
 	const struct sc031gs_mode *cur_mode;
+	u32			module_index;
+	const char		*module_facing;
+	const char		*module_name;
+	const char		*len_name;
 };
 
 #define to_sc031gs(sd) container_of(sd, struct sc031gs, subdev)
@@ -128,6 +143,7 @@ static const struct regval sc031gs_global_regs[] = {
 	{0x3018, 0x1f},
 	{0x3019, 0xff},
 	{0x301c, 0xb4},
+	{0x3028, 0x82},
 	{0x320c, 0x03},
 	{0x320d, 0x6e},
 //	{0x320e, 0x02},	//120fps
@@ -197,9 +213,10 @@ static const struct regval sc031gs_global_regs[] = {
 	{0x4500, 0x59},
 	{0x4501, 0xc4},
 	{0x5011, 0x00},
-//	{0x0100, 0x01},
+	{0x0100, 0x01},
 	{0x4418, 0x08},
-	{0x4419, 0x8a},
+	{0x4419, 0x8e},
+	{0x0100, 0x00},
 //	test pattern
 //	{0x4501, 0xac},
 //	{0x5011, 0x01},
@@ -282,8 +299,10 @@ static const struct regval sc031gs_global_regs[] = {
 	{0x4501, 0xc4},
 	{0x4603, 0x00},
 	{0x5011, 0x00},
+	{0x0100, 0x01},
 	{0x4418, 0x08},
-	{0x4419, 0x8a},
+	{0x4419, 0x8e},
+	{0x0100, 0x00},
 	{REG_NULL, 0x00},
 #endif
 };
@@ -353,6 +372,8 @@ static int sc031gs_write_array(struct i2c_client *client,
 	for (i = 0; ret == 0 && regs[i].addr != REG_NULL; i++) {
 		ret = sc031gs_write_reg(client, regs[i].addr,
 				       SC031GS_REG_VALUE_08BIT, regs[i].val);
+		if (regs[i].addr == 0x0100 && regs[i].val == 0x01)
+			msleep(10);
 	}
 
 	return ret;
@@ -526,6 +547,76 @@ static int sc031gs_enable_test_pattern(struct sc031gs *sc031gs, u32 pattern)
 				SC031GS_REG_VALUE_08BIT, val);
 }
 
+static void sc031gs_get_module_inf(struct sc031gs *sc031gs,
+				  struct rkmodule_inf *inf)
+{
+	memset(inf, 0, sizeof(*inf));
+	strlcpy(inf->base.sensor, SC031GS_NAME, sizeof(inf->base.sensor));
+	strlcpy(inf->base.module, sc031gs->module_name,
+		sizeof(inf->base.module));
+	strlcpy(inf->base.lens, sc031gs->len_name, sizeof(inf->base.lens));
+}
+
+static long sc031gs_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct sc031gs *sc031gs = to_sc031gs(sd);
+	long ret = 0;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		sc031gs_get_module_inf(sc031gs, (struct rkmodule_inf *)arg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long sc031gs_compat_ioctl32(struct v4l2_subdev *sd,
+				  unsigned int cmd, unsigned long arg)
+{
+	void __user *up = compat_ptr(arg);
+	struct rkmodule_inf *inf;
+	struct rkmodule_awb_cfg *cfg;
+	long ret;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		inf = kzalloc(sizeof(*inf), GFP_KERNEL);
+		if (!inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = sc031gs_ioctl(sd, cmd, inf);
+		if (!ret)
+			ret = copy_to_user(up, inf, sizeof(*inf));
+		kfree(inf);
+		break;
+	case RKMODULE_AWB_CFG:
+		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+		if (!cfg) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(cfg, up, sizeof(*cfg));
+		if (!ret)
+			ret = sc031gs_ioctl(sd, cmd, cfg);
+		kfree(cfg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+#endif
+
 static int sc031gs_set_ctrl_gain(struct sc031gs *sc031gs, u32 a_gain)
 {
 	int ret = 0;
@@ -559,12 +650,12 @@ static int sc031gs_set_ctrl_gain(struct sc031gs *sc031gs, u32 a_gain)
 
 		if (a_gain < 0x20) {
 			ret |= sc031gs_write_reg(sc031gs->client, 0x3314,
-				SC031GS_REG_VALUE_08BIT, 0x3a);
+				SC031GS_REG_VALUE_08BIT, 0x42);
 			ret |= sc031gs_write_reg(sc031gs->client, 0x3317,
 				SC031GS_REG_VALUE_08BIT, 0x20);
 		} else {
 			ret |= sc031gs_write_reg(sc031gs->client, 0x3314,
-				SC031GS_REG_VALUE_08BIT, 0x44);
+				SC031GS_REG_VALUE_08BIT, 0x4f);
 			ret |= sc031gs_write_reg(sc031gs->client, 0x3317,
 				SC031GS_REG_VALUE_08BIT, 0x0f);
 		}
@@ -659,6 +750,37 @@ static int sc031gs_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int sc031gs_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct sc031gs *sc031gs = to_sc031gs(sd);
+	struct i2c_client *client = sc031gs->client;
+	int ret = 0;
+
+	mutex_lock(&sc031gs->mutex);
+
+	/* If the power state is not modified - no work to do. */
+	if (sc031gs->power_on == !!on)
+		goto unlock_and_return;
+
+	if (on) {
+		ret = pm_runtime_get_sync(&client->dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(&client->dev);
+			goto unlock_and_return;
+		}
+
+		sc031gs->power_on = true;
+	} else {
+		pm_runtime_put(&client->dev);
+		sc031gs->power_on = false;
+	}
+
+unlock_and_return:
+	mutex_unlock(&sc031gs->mutex);
+
+	return ret;
+}
+
 /* Calculate the delay in us by clock rate and clock cycles */
 static inline u32 sc031gs_cal_delay(u32 cycles)
 {
@@ -671,6 +793,11 @@ static int __sc031gs_power_on(struct sc031gs *sc031gs)
 	u32 delay_us;
 	struct device *dev = &sc031gs->client->dev;
 
+	ret = clk_set_rate(sc031gs->xvclk, SC031GS_XVCLK_FREQ);
+	if (ret < 0)
+		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
+	if (clk_get_rate(sc031gs->xvclk) != SC031GS_XVCLK_FREQ)
+		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 	ret = clk_prepare_enable(sc031gs->xvclk);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable xvclk\n");
@@ -772,6 +899,14 @@ static const struct v4l2_subdev_internal_ops sc031gs_internal_ops = {
 };
 #endif
 
+static const struct v4l2_subdev_core_ops sc031gs_core_ops = {
+	.s_power = sc031gs_s_power,
+	.ioctl = sc031gs_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = sc031gs_compat_ioctl32,
+#endif
+};
+
 static const struct v4l2_subdev_video_ops sc031gs_video_ops = {
 	.s_stream = sc031gs_s_stream,
 	.g_frame_interval = sc031gs_g_frame_interval,
@@ -788,6 +923,7 @@ static const struct v4l2_subdev_pad_ops sc031gs_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops sc031gs_subdev_ops = {
+	.core	= &sc031gs_core_ops,
 	.video	= &sc031gs_video_ops,
 	.pad	= &sc031gs_pad_ops,
 };
@@ -927,7 +1063,7 @@ static int sc031gs_check_sensor_id(struct sc031gs *sc031gs,
 			      SC031GS_REG_VALUE_16BIT, &id);
 	if (id != CHIP_ID) {
 		dev_err(dev, "Unexpected sensor id(%04x), ret(%d)\n", id, ret);
-		return ret;
+		return -ENODEV;
 	}
 
 	dev_info(dev, "Detected SC031GS CHIP ID = 0x%04x sensor\n", CHIP_ID);
@@ -951,13 +1087,33 @@ static int sc031gs_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
+	struct device_node *node = dev->of_node;
 	struct sc031gs *sc031gs;
 	struct v4l2_subdev *sd;
+	char facing[2];
 	int ret;
+
+	dev_info(dev, "driver version: %02x.%02x.%02x",
+		DRIVER_VERSION >> 16,
+		(DRIVER_VERSION & 0xff00) >> 8,
+		DRIVER_VERSION & 0x00ff);
 
 	sc031gs = devm_kzalloc(dev, sizeof(*sc031gs), GFP_KERNEL);
 	if (!sc031gs)
 		return -ENOMEM;
+
+	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
+				   &sc031gs->module_index);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
+				       &sc031gs->module_facing);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_NAME,
+				       &sc031gs->module_name);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
+				       &sc031gs->len_name);
+	if (ret) {
+		dev_err(dev, "could not get module information!\n");
+		return -EINVAL;
+	}
 
 	sc031gs->client = client;
 	sc031gs->cur_mode = &supported_modes[0];
@@ -967,13 +1123,6 @@ static int sc031gs_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
-	ret = clk_set_rate(sc031gs->xvclk, SC031GS_XVCLK_FREQ);
-	if (ret < 0) {
-		dev_err(dev, "Failed to set xvclk rate (24MHz)\n");
-		return ret;
-	}
-	if (clk_get_rate(sc031gs->xvclk) != SC031GS_XVCLK_FREQ)
-		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 
 	sc031gs->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(sc031gs->reset_gpio))
@@ -1006,17 +1155,27 @@ static int sc031gs_probe(struct i2c_client *client,
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &sc031gs_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+		     V4L2_SUBDEV_FL_HAS_EVENTS;
 #endif
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	sc031gs->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &sc031gs->pad, 0);
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sd->entity, 1, &sc031gs->pad);
 	if (ret < 0)
 		goto err_power_off;
 #endif
 
-	ret = v4l2_async_register_subdev(sd);
+	memset(facing, 0, sizeof(facing));
+	if (strcmp(sc031gs->module_facing, "back") == 0)
+		facing[0] = 'b';
+	else
+		facing[0] = 'f';
+
+	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
+		 sc031gs->module_index, facing,
+		 SC031GS_NAME, dev_name(sd->dev));
+	ret = v4l2_async_register_subdev_sensor_common(sd);
 	if (ret) {
 		dev_err(dev, "v4l2 async register subdev failed\n");
 		goto err_clean_entity;
@@ -1077,7 +1236,7 @@ static const struct i2c_device_id sc031gs_match_id[] = {
 
 static struct i2c_driver sc031gs_i2c_driver = {
 	.driver = {
-		.name = "sc031gs",
+		.name = SC031GS_NAME,
 		.pm = &sc031gs_pm_ops,
 		.of_match_table = of_match_ptr(sc031gs_of_match),
 	},

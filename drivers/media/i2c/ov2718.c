@@ -3,6 +3,9 @@
  * ov2718 driver
  *
  * Copyright (C) 2018 Fuzhou Rockchip Electronics Co., Ltd.
+ *
+ * V0.0X01.0X01 add poweron function.
+ * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  */
 
 #include <linux/clk.h>
@@ -14,6 +17,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sysfs.h>
+#include <linux/slab.h>
+#include <linux/version.h>
+#include <linux/rk-camera-module.h>
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
@@ -27,6 +33,8 @@
 #include <linux/of_gpio.h>
 #include <linux/mfd/syscon.h>
 #include <linux/rk-preisp.h>
+
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -89,6 +97,8 @@
 #define OF_CAMERA_MODULE_REGULATORS		"rockchip,regulator-names"
 #define OF_CAMERA_MODULE_REGULATOR_VOLTAGES	"rockchip,regulator-voltages"
 
+#define OV2718_NAME			"ov2718"
+
 struct ov2718_gpio {
 	int pltfrm_gpio;
 	const char *label;
@@ -144,11 +154,16 @@ struct ov2718 {
 	struct v4l2_ctrl	*test_pattern;
 	struct mutex		mutex;
 	bool			streaming;
+	bool			power_on;
 	bool			has_devnode;
 	const struct ov2718_mode *cur_mode;
 	const struct ov2718_mode *support_modes;
 	u32 support_modes_num;
 	struct ov2718_regulators regulators;
+	u32			module_index;
+	const char		*module_facing;
+	const char		*module_name;
+	const char		*len_name;
 };
 
 #define to_ov2718(sd) container_of(sd, struct ov2718, subdev)
@@ -4275,6 +4290,16 @@ static void ov2718_get_hcg_reg(u32 gain, u32 *again_reg, u32 *dgain_reg)
 	}
 }
 
+static void ov2718_get_module_inf(struct ov2718 *ov2718,
+				  struct rkmodule_inf *inf)
+{
+	memset(inf, 0, sizeof(*inf));
+	strlcpy(inf->base.sensor, OV2718_NAME, sizeof(inf->base.sensor));
+	strlcpy(inf->base.module, ov2718->module_name,
+		sizeof(inf->base.module));
+	strlcpy(inf->base.lens, ov2718->len_name, sizeof(inf->base.lens));
+}
+
 static long ov2718_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct ov2718 *ov2718 = to_ov2718(sd);
@@ -4373,9 +4398,86 @@ static long ov2718_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			l_dgain,
 			s_dgain);
 		break;
+	case RKMODULE_GET_MODULE_INFO:
+		ov2718_get_module_inf(ov2718, (struct rkmodule_inf *)arg);
+		break;
 	default:
-		return -ENOTTY;
+		return -ENOIOCTLCMD;
 	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long ov2718_compat_ioctl32(struct v4l2_subdev *sd,
+				  unsigned int cmd, unsigned long arg)
+{
+	void __user *up = compat_ptr(arg);
+	struct rkmodule_inf *inf;
+	struct rkmodule_awb_cfg *cfg;
+	long ret;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		inf = kzalloc(sizeof(*inf), GFP_KERNEL);
+		if (!inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = ov2718_ioctl(sd, cmd, inf);
+		if (!ret)
+			ret = copy_to_user(up, inf, sizeof(*inf));
+		kfree(inf);
+		break;
+	case RKMODULE_AWB_CFG:
+		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+		if (!cfg) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(cfg, up, sizeof(*cfg));
+		if (!ret)
+			ret = ov2718_ioctl(sd, cmd, cfg);
+		kfree(cfg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+#endif
+
+static int ov2718_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct ov2718 *ov2718 = to_ov2718(sd);
+	struct i2c_client *client = ov2718->client;
+	int ret = 0;
+
+	mutex_lock(&ov2718->mutex);
+
+	/* If the power state is not modified - no work to do. */
+	if (ov2718->power_on == !!on)
+		goto unlock_and_return;
+
+	if (on) {
+		ret = pm_runtime_get_sync(&client->dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(&client->dev);
+			goto unlock_and_return;
+		}
+
+		ov2718->power_on = true;
+	} else {
+		pm_runtime_put(&client->dev);
+		ov2718->power_on = false;
+	}
+
+unlock_and_return:
+	mutex_unlock(&ov2718->mutex);
 
 	return ret;
 }
@@ -4400,13 +4502,16 @@ static int __ov2718_power_on(struct ov2718 *ov2718)
 		if (ret < 0)
 			dev_err(dev, "could not set pins\n");
 	}
-
+	ret = clk_set_rate(ov2718->xvclk, OV2718_XVCLK_FREQ);
+	if (ret < 0)
+		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
+	if (clk_get_rate(ov2718->xvclk) != OV2718_XVCLK_FREQ)
+		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 	ret = clk_prepare_enable(ov2718->xvclk);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable xvclk\n");
 		return ret;
 	}
-
 	if (ov2718->regulators.regulator) {
 		for (i = 0; i < ov2718->regulators.cnt; i++) {
 			regulator = ov2718->regulators.regulator + i;
@@ -4554,7 +4659,11 @@ static const struct v4l2_subdev_pad_ops ov2718_pad_ops = {
 };
 
 static const struct v4l2_subdev_core_ops ov2718_core_ops = {
+	.s_power = ov2718_s_power,
 	.ioctl = ov2718_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = ov2718_compat_ioctl32,
+#endif
 };
 
 static const struct v4l2_subdev_ops ov2718_subdev_ops = {
@@ -4785,6 +4894,10 @@ static int ov2718_check_sensor_id(struct ov2718 *ov2718,
 		usleep_range(1000, 2000);
 		continue;
 	}
+
+	if (id != CHIP_ID)
+		return -ENODEV;
+
 	dev_info(dev, "Detected OV%06x sensor\n", CHIP_ID);
 
 	return 0;
@@ -4792,7 +4905,6 @@ static int ov2718_check_sensor_id(struct ov2718 *ov2718,
 
 static int ov2718_analyze_dts(struct ov2718 *ov2718)
 {
-	int ret;
 	int elem_size, elem_index;
 	const char *str = "";
 	struct property *prop;
@@ -4805,13 +4917,6 @@ static int ov2718_analyze_dts(struct ov2718 *ov2718)
 		dev_err(dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
-	ret = clk_set_rate(ov2718->xvclk, OV2718_XVCLK_FREQ);
-	if (ret < 0) {
-		dev_err(dev, "Failed to set xvclk rate (24MHz)\n");
-		return ret;
-	}
-	if (clk_get_rate(ov2718->xvclk) != OV2718_XVCLK_FREQ)
-		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 
 	ov2718->pinctrl = devm_pinctrl_get(dev);
 	if (!IS_ERR(ov2718->pinctrl)) {
@@ -4918,13 +5023,33 @@ static int ov2718_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
+	struct device_node *node = dev->of_node;
 	struct ov2718 *ov2718;
 	struct v4l2_subdev *sd;
+	char facing[2];
 	int ret;
+
+	dev_info(dev, "driver version: %02x.%02x.%02x",
+		DRIVER_VERSION >> 16,
+		(DRIVER_VERSION & 0xff00) >> 8,
+		DRIVER_VERSION & 0x00ff);
 
 	ov2718 = devm_kzalloc(dev, sizeof(*ov2718), GFP_KERNEL);
 	if (!ov2718)
 		return -ENOMEM;
+
+	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
+				   &ov2718->module_index);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
+				       &ov2718->module_facing);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_NAME,
+				       &ov2718->module_name);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
+				       &ov2718->len_name);
+	if (ret) {
+		dev_err(dev, "could not get module information!\n");
+		return -EINVAL;
+	}
 
 	ov2718->client = client;
 
@@ -4963,18 +5088,28 @@ static int ov2718_probe(struct i2c_client *client,
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &ov2718_internal_ops;
 	if (ov2718->has_devnode)
-		sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+		sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+		     V4L2_SUBDEV_FL_HAS_EVENTS;
 #endif
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	ov2718->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &ov2718->pad, 0);
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sd->entity, 1, &ov2718->pad);
 	if (ret < 0)
 		goto err_power_off;
 #endif
 
 	if (ov2718->has_devnode) {
-		ret = v4l2_async_register_subdev(sd);
+		memset(facing, 0, sizeof(facing));
+		if (strcmp(ov2718->module_facing, "back") == 0)
+			facing[0] = 'b';
+		else
+			facing[0] = 'f';
+
+		snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
+			 ov2718->module_index, facing,
+			 OV2718_NAME, dev_name(sd->dev));
+		ret = v4l2_async_register_subdev_sensor_common(sd);
 		if (ret) {
 			dev_err(dev, "v4l2 async register subdev failed\n");
 			goto err_clean_entity;
@@ -5037,7 +5172,7 @@ static const struct i2c_device_id ov2718_match_id[] = {
 
 static struct i2c_driver ov2718_i2c_driver = {
 	.driver = {
-		.name = "ov2718",
+		.name = OV2718_NAME,
 		.pm = &ov2718_pm_ops,
 		.of_match_table = of_match_ptr(ov2718_of_match),
 	},

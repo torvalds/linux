@@ -3,6 +3,7 @@
  * gc2355 driver
  *
  * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
+ * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  */
 #define DEBUG 1
 #include <linux/clk.h>
@@ -14,11 +15,16 @@
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sysfs.h>
+#include <linux/slab.h>
+#include <linux/version.h>
+#include <linux/rk-camera-module.h>
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
+
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x2)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -73,6 +79,8 @@
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
+#define GC2355_NAME			"gc2355"
+
 static const char * const gc2355_supply_names[] = {
 	"avdd",		/* Analog power */
 	"dovdd",	/* Digital I/O power */
@@ -119,6 +127,10 @@ struct gc2355 {
 	struct mutex		mutex;
 	bool			streaming;
 	const struct gc2355_mode *cur_mode;
+	u32			module_index;
+	const char		*module_facing;
+	const char		*module_name;
+	const char		*len_name;
 };
 
 #define to_gc2355(sd) container_of(sd, struct gc2355, subdev)
@@ -509,6 +521,76 @@ static int gc2355_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static void gc2355_get_module_inf(struct gc2355 *gc2355,
+				  struct rkmodule_inf *inf)
+{
+	memset(inf, 0, sizeof(*inf));
+	strlcpy(inf->base.sensor, GC2355_NAME, sizeof(inf->base.sensor));
+	strlcpy(inf->base.module, gc2355->module_name,
+		sizeof(inf->base.module));
+	strlcpy(inf->base.lens, gc2355->len_name, sizeof(inf->base.lens));
+}
+
+static long gc2355_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct gc2355 *gc2355 = to_gc2355(sd);
+	long ret = 0;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		gc2355_get_module_inf(gc2355, (struct rkmodule_inf *)arg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long gc2355_compat_ioctl32(struct v4l2_subdev *sd,
+				  unsigned int cmd, unsigned long arg)
+{
+	void __user *up = compat_ptr(arg);
+	struct rkmodule_inf *inf;
+	struct rkmodule_awb_cfg *cfg;
+	long ret;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		inf = kzalloc(sizeof(*inf), GFP_KERNEL);
+		if (!inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = gc2355_ioctl(sd, cmd, inf);
+		if (!ret)
+			ret = copy_to_user(up, inf, sizeof(*inf));
+		kfree(inf);
+		break;
+	case RKMODULE_AWB_CFG:
+		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+		if (!cfg) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(cfg, up, sizeof(*cfg));
+		if (!ret)
+			ret = gc2355_ioctl(sd, cmd, cfg);
+		kfree(cfg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+#endif
+
 static int __gc2355_start_stream(struct gc2355 *gc2355)
 {
 	int ret;
@@ -601,13 +683,16 @@ static int __gc2355_power_on(struct gc2355 *gc2355)
 		if (ret < 0)
 			dev_err(dev, "could not set pins\n");
 	}
-
+	ret = clk_set_rate(gc2355->xvclk, GC2355_XVCLK_FREQ);
+	if (ret < 0)
+		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
+	if (clk_get_rate(gc2355->xvclk) != GC2355_XVCLK_FREQ)
+		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 	ret = clk_prepare_enable(gc2355->xvclk);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable xvclk\n");
 		return ret;
 	}
-
 	if (!IS_ERR(gc2355->reset_gpio))
 		gpiod_set_value_cansleep(gc2355->reset_gpio, 0);
 
@@ -708,6 +793,13 @@ static const struct v4l2_subdev_internal_ops gc2355_internal_ops = {
 };
 #endif
 
+static const struct v4l2_subdev_core_ops gc2355_core_ops = {
+	.ioctl = gc2355_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = gc2355_compat_ioctl32,
+#endif
+};
+
 static const struct v4l2_subdev_video_ops gc2355_video_ops = {
 	.s_stream = gc2355_s_stream,
 	.g_frame_interval = gc2355_g_frame_interval,
@@ -721,6 +813,7 @@ static const struct v4l2_subdev_pad_ops gc2355_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops gc2355_subdev_ops = {
+	.core	= &gc2355_core_ops,
 	.video	= &gc2355_video_ops,
 	.pad	= &gc2355_pad_ops,
 };
@@ -956,13 +1049,33 @@ static int gc2355_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
+	struct device_node *node = dev->of_node;
 	struct gc2355 *gc2355;
 	struct v4l2_subdev *sd;
+	char facing[2];
 	int ret;
+
+	dev_info(dev, "driver version: %02x.%02x.%02x",
+		DRIVER_VERSION >> 16,
+		(DRIVER_VERSION & 0xff00) >> 8,
+		DRIVER_VERSION & 0x00ff);
 
 	gc2355 = devm_kzalloc(dev, sizeof(*gc2355), GFP_KERNEL);
 	if (!gc2355)
 		return -ENOMEM;
+
+	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
+				   &gc2355->module_index);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
+				       &gc2355->module_facing);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_NAME,
+				       &gc2355->module_name);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
+				       &gc2355->len_name);
+	if (ret) {
+		dev_err(dev, "could not get module information!\n");
+		return -EINVAL;
+	}
 
 	gc2355->client = client;
 	gc2355->cur_mode = &supported_modes[0];
@@ -972,13 +1085,6 @@ static int gc2355_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
-	ret = clk_set_rate(gc2355->xvclk, GC2355_XVCLK_FREQ);
-	if (ret < 0) {
-		dev_err(dev, "Failed to set xvclk rate (24MHz)\n");
-		return ret;
-	}
-	if (clk_get_rate(gc2355->xvclk) != GC2355_XVCLK_FREQ)
-		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 
 	gc2355->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(gc2355->reset_gpio))
@@ -1029,17 +1135,27 @@ static int gc2355_probe(struct i2c_client *client,
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &gc2355_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+		     V4L2_SUBDEV_FL_HAS_EVENTS;
 #endif
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	gc2355->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &gc2355->pad, 0);
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sd->entity, 1, &gc2355->pad);
 	if (ret < 0)
 		goto err_power_off;
 #endif
 
-	ret = v4l2_async_register_subdev(sd);
+	memset(facing, 0, sizeof(facing));
+	if (strcmp(gc2355->module_facing, "back") == 0)
+		facing[0] = 'b';
+	else
+		facing[0] = 'f';
+
+	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
+		 gc2355->module_index, facing,
+		 GC2355_NAME, dev_name(sd->dev));
+	ret = v4l2_async_register_subdev_sensor_common(sd);
 	if (ret) {
 		dev_err(dev, "v4l2 async register subdev failed\n");
 		goto err_clean_entity;
@@ -1100,7 +1216,7 @@ static const struct i2c_device_id gc2355_match_id[] = {
 
 static struct i2c_driver gc2355_i2c_driver = {
 	.driver = {
-		.name = "gc2355",
+		.name = GC2355_NAME,
 		.pm = &gc2355_pm_ops,
 		.of_match_table = of_match_ptr(gc2355_of_match),
 	},

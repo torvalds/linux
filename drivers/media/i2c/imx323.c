@@ -3,6 +3,8 @@
  * imx323 driver
  *
  * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
+ *
+ * V0.0X01.0X01 add poweron function.
  */
 
 #include <linux/clk.h>
@@ -13,11 +15,16 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 #include <linux/sysfs.h>
+#include <linux/version.h>
+#include <linux/rk-camera-module.h>
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
+
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -59,6 +66,8 @@
 
 /* h_offs 35 v_offs 14 */
 #define PIX_FORMAT MEDIA_BUS_FMT_SBGGR10_1X10
+
+#define IMX323_NAME			"imx323"
 
 struct cam_regulator {
 	char name[32];
@@ -106,7 +115,12 @@ struct imx323 {
 	struct v4l2_ctrl	*test_pattern;
 	struct mutex		mutex;
 	bool			streaming;
+	bool			power_on;
 	const struct imx323_mode *cur_mode;
+	u32			module_index;
+	const char		*module_facing;
+	const char		*module_name;
+	const char		*len_name;
 };
 
 #define to_imx323(sd) container_of(sd, struct imx323, subdev)
@@ -370,6 +384,76 @@ static int imx323_enable_test_pattern(struct imx323 *imx323, u32 pattern)
 	return 0;
 }
 
+static void imx323_get_module_inf(struct imx323 *imx323,
+				  struct rkmodule_inf *inf)
+{
+	memset(inf, 0, sizeof(*inf));
+	strlcpy(inf->base.sensor, IMX323_NAME, sizeof(inf->base.sensor));
+	strlcpy(inf->base.module, imx323->module_name,
+		sizeof(inf->base.module));
+	strlcpy(inf->base.lens, imx323->len_name, sizeof(inf->base.lens));
+}
+
+static long imx323_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct imx323 *imx323 = to_imx323(sd);
+	long ret = 0;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		imx323_get_module_inf(imx323, (struct rkmodule_inf *)arg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long imx323_compat_ioctl32(struct v4l2_subdev *sd,
+				  unsigned int cmd, unsigned long arg)
+{
+	void __user *up = compat_ptr(arg);
+	struct rkmodule_inf *inf;
+	struct rkmodule_awb_cfg *cfg;
+	long ret;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		inf = kzalloc(sizeof(*inf), GFP_KERNEL);
+		if (!inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = imx323_ioctl(sd, cmd, inf);
+		if (!ret)
+			ret = copy_to_user(up, inf, sizeof(*inf));
+		kfree(inf);
+		break;
+	case RKMODULE_AWB_CFG:
+		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+		if (!cfg) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(cfg, up, sizeof(*cfg));
+		if (!ret)
+			ret = imx323_ioctl(sd, cmd, cfg);
+		kfree(cfg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+#endif
+
 static int __imx323_start_stream(struct imx323 *imx323)
 {
 	int ret;
@@ -443,6 +527,37 @@ static int imx323_g_frame_interval(struct v4l2_subdev *sd,
 	mutex_unlock(&imx323->mutex);
 
 	return 0;
+}
+
+static int imx323_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct imx323 *imx323 = to_imx323(sd);
+	struct i2c_client *client = imx323->client;
+	int ret = 0;
+
+	mutex_lock(&imx323->mutex);
+
+	/* If the power state is not modified - no work to do. */
+	if (imx323->power_on == !!on)
+		goto unlock_and_return;
+
+	if (on) {
+		ret = pm_runtime_get_sync(&client->dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(&client->dev);
+			goto unlock_and_return;
+		}
+
+		imx323->power_on = true;
+	} else {
+		pm_runtime_put(&client->dev);
+		imx323->power_on = false;
+	}
+
+unlock_and_return:
+	mutex_unlock(&imx323->mutex);
+
+	return ret;
 }
 
 /* Calculate the delay in us by clock rate and clock cycles */
@@ -576,6 +691,14 @@ static const struct v4l2_subdev_internal_ops imx323_internal_ops = {
 };
 #endif
 
+static const struct v4l2_subdev_core_ops imx323_core_ops = {
+	.s_power = imx323_s_power,
+	.ioctl = imx323_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = imx323_compat_ioctl32,
+#endif
+};
+
 static const struct v4l2_subdev_video_ops imx323_video_ops = {
 	.s_stream = imx323_s_stream,
 	.g_mbus_config = imx323_g_mbus_config,
@@ -590,6 +713,7 @@ static const struct v4l2_subdev_pad_ops imx323_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops imx323_subdev_ops = {
+	.core	= &imx323_core_ops,
 	.video	= &imx323_video_ops,
 	.pad	= &imx323_pad_ops,
 };
@@ -710,7 +834,7 @@ static int imx323_check_sensor_id(struct imx323 *imx323,
 			      IMX323_REG_VALUE_08BIT, &id);
 	if (id != CHIP_ID) {
 		dev_err(dev, "Unexpected sensor id(%x), ret(%d)\n", id, ret);
-		return ret;
+		return -ENODEV;
 	}
 
 	dev_info(dev, "Detected IMX323 sensor\n");
@@ -735,13 +859,33 @@ static int imx323_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
+	struct device_node *node = dev->of_node;
 	struct imx323 *imx323;
 	struct v4l2_subdev *sd;
+	char facing[2];
 	int ret;
+
+	dev_info(dev, "driver version: %02x.%02x.%02x",
+		DRIVER_VERSION >> 16,
+		(DRIVER_VERSION & 0xff00) >> 8,
+		DRIVER_VERSION & 0x00ff);
 
 	imx323 = devm_kzalloc(dev, sizeof(*imx323), GFP_KERNEL);
 	if (!imx323)
 		return -ENOMEM;
+
+	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
+				   &imx323->module_index);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
+				       &imx323->module_facing);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_NAME,
+				       &imx323->module_name);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
+				       &imx323->len_name);
+	if (ret) {
+		dev_err(dev, "could not get module information!\n");
+		return -EINVAL;
+	}
 
 	imx323->client = client;
 	imx323->cur_mode = &supported_modes[0];
@@ -784,17 +928,27 @@ static int imx323_probe(struct i2c_client *client,
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &imx323_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+		     V4L2_SUBDEV_FL_HAS_EVENTS;
 #endif
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	imx323->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &imx323->pad, 0);
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sd->entity, 1, &imx323->pad);
 	if (ret < 0)
 		goto err_power_off;
 #endif
 
-	ret = v4l2_async_register_subdev(sd);
+	memset(facing, 0, sizeof(facing));
+	if (strcmp(imx323->module_facing, "back") == 0)
+		facing[0] = 'b';
+	else
+		facing[0] = 'f';
+
+	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
+		 imx323->module_index, facing,
+		 IMX323_NAME, dev_name(sd->dev));
+	ret = v4l2_async_register_subdev_sensor_common(sd);
 	if (ret) {
 		dev_err(dev, "v4l2 async register subdev failed\n");
 		goto err_clean_entity;
@@ -855,7 +1009,7 @@ static const struct i2c_device_id imx323_match_id[] = {
 
 static struct i2c_driver imx323_i2c_driver = {
 	.driver = {
-		.name = "imx323",
+		.name = IMX323_NAME,
 		.pm = &imx323_pm_ops,
 		.of_match_table = of_match_ptr(imx323_of_match),
 	},

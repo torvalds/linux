@@ -3,6 +3,9 @@
  * ov7750 driver
  *
  * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
+ *
+ * V0.0X01.0X01 add poweron function.
+ * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  */
 
 #include <linux/clk.h>
@@ -14,11 +17,16 @@
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sysfs.h>
+#include <linux/slab.h>
+#include <linux/version.h>
+#include <linux/rk-camera-module.h>
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
+
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -72,6 +80,8 @@
 #define OF_CAMERA_PINCTRL_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_SLEEP	"rockchip,camera_sleep"
 
+#define OV7750_NAME			"ov7750"
+
 static const struct regval *ov7750_global_regs;
 
 static const char * const ov7750_supply_names[] = {
@@ -119,7 +129,12 @@ struct ov7750 {
 	struct v4l2_ctrl	*test_pattern;
 	struct mutex		mutex;
 	bool			streaming;
+	bool			power_on;
 	const struct ov7750_mode *cur_mode;
+	u32			module_index;
+	const char		*module_facing;
+	const char		*module_name;
+	const char		*len_name;
 };
 
 #define to_ov7750(sd) container_of(sd, struct ov7750, subdev)
@@ -597,13 +612,79 @@ static int ov7750_enable_test_pattern(struct ov7750 *ov7750, u32 pattern)
 				 val);
 }
 
+static void ov7750_get_module_inf(struct ov7750 *ov7750,
+				  struct rkmodule_inf *inf)
+{
+	memset(inf, 0, sizeof(*inf));
+	strlcpy(inf->base.sensor, OV7750_NAME, sizeof(inf->base.sensor));
+	strlcpy(inf->base.module, ov7750->module_name,
+		sizeof(inf->base.module));
+	strlcpy(inf->base.lens, ov7750->len_name, sizeof(inf->base.lens));
+}
+
+static long ov7750_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct ov7750 *ov7750 = to_ov7750(sd);
+	long ret = 0;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		ov7750_get_module_inf(ov7750, (struct rkmodule_inf *)arg);
+		break;
+	default:
+		ret = -ENOTTY;
+		break;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long ov7750_compat_ioctl32(struct v4l2_subdev *sd,
+				  unsigned int cmd, unsigned long arg)
+{
+	void __user *up = compat_ptr(arg);
+	struct rkmodule_inf *inf;
+	struct rkmodule_awb_cfg *cfg;
+	long ret;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		inf = kzalloc(sizeof(*inf), GFP_KERNEL);
+		if (!inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = ov7750_ioctl(sd, cmd, inf);
+		if (!ret)
+			ret = copy_to_user(up, inf, sizeof(*inf));
+		kfree(inf);
+		break;
+	case RKMODULE_AWB_CFG:
+		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+		if (!cfg) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(cfg, up, sizeof(*cfg));
+		if (!ret)
+			ret = ov7750_ioctl(sd, cmd, cfg);
+		kfree(cfg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+#endif
+
 static int __ov7750_start_stream(struct ov7750 *ov7750)
 {
 	int ret;
-
-	ret = ov7750_write_array(ov7750->client, ov7750_global_regs);
-	if (ret)
-		return ret;
 
 	ret = ov7750_write_array(ov7750->client, ov7750->cur_mode->reg_list);
 	if (ret)
@@ -667,6 +748,44 @@ unlock_and_return:
 	return ret;
 }
 
+static int ov7750_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct ov7750 *ov7750 = to_ov7750(sd);
+	struct i2c_client *client = ov7750->client;
+	int ret = 0;
+
+	mutex_lock(&ov7750->mutex);
+
+	/* If the power state is not modified - no work to do. */
+	if (ov7750->power_on == !!on)
+		goto unlock_and_return;
+
+	if (on) {
+		ret = pm_runtime_get_sync(&client->dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(&client->dev);
+			goto unlock_and_return;
+		}
+
+		ret = ov7750_write_array(ov7750->client, ov7750_global_regs);
+		if (ret) {
+			v4l2_err(sd, "could not set init registers\n");
+			pm_runtime_put_noidle(&client->dev);
+			goto unlock_and_return;
+		}
+
+		ov7750->power_on = true;
+	} else {
+		pm_runtime_put(&client->dev);
+		ov7750->power_on = false;
+	}
+
+unlock_and_return:
+	mutex_unlock(&ov7750->mutex);
+
+	return ret;
+}
+
 /* Calculate the delay in us by clock rate and clock cycles */
 static inline u32 ov7750_cal_delay(u32 cycles)
 {
@@ -686,6 +805,11 @@ static int __ov7750_power_on(struct ov7750 *ov7750)
 			dev_err(dev, "could not set pins\n");
 	}
 
+	ret = clk_set_rate(ov7750->xvclk, OV7750_XVCLK_FREQ);
+	if (ret < 0)
+		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
+	if (clk_get_rate(ov7750->xvclk) != OV7750_XVCLK_FREQ)
+		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 	ret = clk_prepare_enable(ov7750->xvclk);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable xvclk\n");
@@ -792,6 +916,14 @@ static const struct v4l2_subdev_internal_ops ov7750_internal_ops = {
 };
 #endif
 
+static const struct v4l2_subdev_core_ops ov7750_core_ops = {
+	.s_power = ov7750_s_power,
+	.ioctl = ov7750_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = ov7750_compat_ioctl32,
+#endif
+};
+
 static const struct v4l2_subdev_video_ops ov7750_video_ops = {
 	.s_stream = ov7750_s_stream,
 };
@@ -804,6 +936,7 @@ static const struct v4l2_subdev_pad_ops ov7750_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops ov7750_subdev_ops = {
+	.core	= &ov7750_core_ops,
 	.video	= &ov7750_video_ops,
 	.pad	= &ov7750_pad_ops,
 };
@@ -955,7 +1088,7 @@ static int ov7750_check_sensor_id(struct ov7750 *ov7750,
 				   OV7750_REG_VALUE_16BIT, &id);
 	if (id != CHIP_ID) {
 		dev_err(dev, "Unexpected sensor id(%04x), ret(%d)\n", id, ret);
-		return ret;
+		return -ENODEV;
 	}
 
 	ret = ov7750_read_reg(client, OV7750_CHIP_REVISION_REG,
@@ -990,13 +1123,33 @@ static int ov7750_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
+	struct device_node *node = dev->of_node;
 	struct ov7750 *ov7750;
 	struct v4l2_subdev *sd;
+	char facing[2];
 	int ret;
+
+	dev_info(dev, "driver version: %02x.%02x.%02x",
+		DRIVER_VERSION >> 16,
+		(DRIVER_VERSION & 0xff00) >> 8,
+		DRIVER_VERSION & 0x00ff);
 
 	ov7750 = devm_kzalloc(dev, sizeof(*ov7750), GFP_KERNEL);
 	if (!ov7750)
 		return -ENOMEM;
+
+	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
+				   &ov7750->module_index);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
+				       &ov7750->module_facing);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_NAME,
+				       &ov7750->module_name);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
+				       &ov7750->len_name);
+	if (ret) {
+		dev_err(dev, "could not get module information!\n");
+		return -EINVAL;
+	}
 
 	ov7750->client = client;
 	ov7750->cur_mode = &supported_modes[0];
@@ -1006,13 +1159,6 @@ static int ov7750_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
-	ret = clk_set_rate(ov7750->xvclk, OV7750_XVCLK_FREQ);
-	if (ret < 0) {
-		dev_err(dev, "Failed to set xvclk rate (24MHz)\n");
-		return ret;
-	}
-	if (clk_get_rate(ov7750->xvclk) != OV7750_XVCLK_FREQ)
-		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 
 	ov7750->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ov7750->reset_gpio))
@@ -1061,17 +1207,27 @@ static int ov7750_probe(struct i2c_client *client,
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &ov7750_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+		     V4L2_SUBDEV_FL_HAS_EVENTS;
 #endif
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	ov7750->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &ov7750->pad, 0);
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sd->entity, 1, &ov7750->pad);
 	if (ret < 0)
 		goto err_power_off;
 #endif
 
-	ret = v4l2_async_register_subdev(sd);
+	memset(facing, 0, sizeof(facing));
+	if (strcmp(ov7750->module_facing, "back") == 0)
+		facing[0] = 'b';
+	else
+		facing[0] = 'f';
+
+	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
+		 ov7750->module_index, facing,
+		 OV7750_NAME, dev_name(sd->dev));
+	ret = v4l2_async_register_subdev_sensor_common(sd);
 	if (ret) {
 		dev_err(dev, "v4l2 async register subdev failed\n");
 		goto err_clean_entity;
@@ -1132,7 +1288,7 @@ static const struct i2c_device_id ov7750_match_id[] = {
 
 static struct i2c_driver ov7750_i2c_driver = {
 	.driver = {
-		.name = "ov7750",
+		.name = OV7750_NAME,
 		.pm = &ov7750_pm_ops,
 		.of_match_table = of_match_ptr(ov7750_of_match),
 	},
@@ -1156,3 +1312,4 @@ module_exit(sensor_mod_exit);
 
 MODULE_DESCRIPTION("OmniVision ov7750 sensor driver");
 MODULE_LICENSE("GPL v2");
+
