@@ -1289,7 +1289,7 @@ static void a5xx_gpu_state_destroy(struct kref *kref)
 	kfree(a5xx_state);
 }
 
-int a5xx_gpu_state_put(struct msm_gpu_state *state)
+static int a5xx_gpu_state_put(struct msm_gpu_state *state)
 {
 	if (IS_ERR_OR_NULL(state))
 		return 1;
@@ -1299,8 +1299,8 @@ int a5xx_gpu_state_put(struct msm_gpu_state *state)
 
 
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
-void a5xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
-		struct drm_printer *p)
+static void a5xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
+		      struct drm_printer *p)
 {
 	int i, j;
 	u32 pos = 0;
