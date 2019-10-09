@@ -1392,6 +1392,7 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 		credits = buf->rb_max_requests;
 	if (buf->rb_credits != credits)
 		rpcrdma_update_cwnd(r_xprt, credits);
+	rpcrdma_post_recvs(r_xprt, false);
 
 	req = rpcr_to_rdmar(rqst);
 	if (req->rl_reply) {
