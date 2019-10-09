@@ -937,7 +937,7 @@ static void do_sync_core(void *info)
 }
 
 struct text_poke_loc {
-	void *addr;
+	s32 rel_addr; /* addr := _stext + rel_addr */
 	s32 rel32;
 	u8 opcode;
 	const u8 text[POKE_MAX_OPCODE_SIZE];
@@ -948,13 +948,18 @@ static struct bp_patching_desc {
 	int nr_entries;
 } bp_patching;
 
+static inline void *text_poke_addr(struct text_poke_loc *tp)
+{
+	return _stext + tp->rel_addr;
+}
+
 static int notrace patch_cmp(const void *key, const void *elt)
 {
 	struct text_poke_loc *tp = (struct text_poke_loc *) elt;
 
-	if (key < tp->addr)
+	if (key < text_poke_addr(tp))
 		return -1;
-	if (key > tp->addr)
+	if (key > text_poke_addr(tp))
 		return 1;
 	return 0;
 }
@@ -1000,7 +1005,7 @@ int notrace poke_int3_handler(struct pt_regs *regs)
 			return 0;
 	} else {
 		tp = bp_patching.vec;
-		if (tp->addr != ip)
+		if (text_poke_addr(tp) != ip)
 			return 0;
 	}
 
@@ -1078,7 +1083,7 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 	 * First step: add a int3 trap to the address that will be patched.
 	 */
 	for (i = 0; i < nr_entries; i++)
-		text_poke(tp[i].addr, &int3, sizeof(int3));
+		text_poke(text_poke_addr(&tp[i]), &int3, sizeof(int3));
 
 	on_each_cpu(do_sync_core, NULL, 1);
 
@@ -1089,7 +1094,7 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 		int len = text_opcode_size(tp[i].opcode);
 
 		if (len - sizeof(int3) > 0) {
-			text_poke((char *)tp[i].addr + sizeof(int3),
+			text_poke(text_poke_addr(&tp[i]) + sizeof(int3),
 				  (const char *)tp[i].text + sizeof(int3),
 				  len - sizeof(int3));
 			do_sync++;
@@ -1113,7 +1118,7 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 		if (tp[i].text[0] == INT3_INSN_OPCODE)
 			continue;
 
-		text_poke(tp[i].addr, tp[i].text, sizeof(int3));
+		text_poke(text_poke_addr(&tp[i]), tp[i].text, sizeof(int3));
 		do_sync++;
 	}
 
@@ -1143,7 +1148,7 @@ void text_poke_loc_init(struct text_poke_loc *tp, void *addr,
 	BUG_ON(!insn_complete(&insn));
 	BUG_ON(len != insn.length);
 
-	tp->addr = addr;
+	tp->rel_addr = addr - (void *)_stext;
 	tp->opcode = insn.opcode.bytes[0];
 
 	switch (tp->opcode) {
@@ -1192,7 +1197,7 @@ static bool tp_order_fail(void *addr)
 		return true;
 
 	tp = &tp_vec[tp_vec_nr - 1];
-	if ((unsigned long)tp->addr > (unsigned long)addr)
+	if ((unsigned long)text_poke_addr(tp) > (unsigned long)addr)
 		return true;
 
 	return false;
