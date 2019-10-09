@@ -680,6 +680,9 @@ extern struct nfsd4_copy *
 find_async_copy(struct nfs4_client *clp, stateid_t *staetid);
 extern void nfs4_put_cpntf_state(struct nfsd_net *nn,
 				 struct nfs4_cpntf_state *cps);
+extern __be32 manage_cpntf_state(struct nfsd_net *nn, stateid_t *st,
+				 struct nfs4_client *clp,
+				 struct nfs4_cpntf_state **cps);
 static inline void get_nfs4_file(struct nfs4_file *fi)
 {
 	refcount_inc(&fi->fi_ref);

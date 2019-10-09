@@ -5681,8 +5681,9 @@ _free_cpntf_state_locked(struct nfsd_net *nn, struct nfs4_cpntf_state *cps)
  * copy stateid. Look up the copy notify stateid from the
  * idr structure and take a reference on it.
  */
-static __be32 _find_cpntf_state(struct nfsd_net *nn, stateid_t *st,
-		     struct nfs4_cpntf_state **cps)
+__be32 manage_cpntf_state(struct nfsd_net *nn, stateid_t *st,
+			  struct nfs4_client *clp,
+			  struct nfs4_cpntf_state **cps)
 {
 	copy_stateid_t *cps_t;
 	struct nfs4_cpntf_state *state = NULL;
@@ -5696,12 +5697,16 @@ static __be32 _find_cpntf_state(struct nfsd_net *nn, stateid_t *st,
 				     cp_stateid);
 		if (state->cp_stateid.sc_type != NFS4_COPYNOTIFY_STID)
 			return nfserr_bad_stateid;
-		refcount_inc(&state->cp_stateid.sc_count);
+		if (!clp)
+			refcount_inc(&state->cp_stateid.sc_count);
+		else
+			_free_cpntf_state_locked(nn, state);
 	}
 	spin_unlock(&nn->s2s_cp_lock);
 	if (!state)
 		return nfserr_bad_stateid;
-	*cps = state;
+	if (!clp && state)
+		*cps = state;
 	return 0;
 }
 
@@ -5712,7 +5717,7 @@ static __be32 find_cpntf_state(struct nfsd_net *nn, stateid_t *st,
 	struct nfs4_cpntf_state *cps = NULL;
 	struct nfsd4_compound_state cstate;
 
-	status = _find_cpntf_state(nn, st, &cps);
+	status = manage_cpntf_state(nn, st, NULL, &cps);
 	if (status)
 		return status;
 
