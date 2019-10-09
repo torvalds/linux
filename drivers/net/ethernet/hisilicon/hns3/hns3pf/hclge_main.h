@@ -258,6 +258,7 @@ struct hclge_mac {
 	u8 support_autoneg;
 	u8 speed_type;	/* 0: sfp speed, 1: active speed */
 	u32 speed;
+	u32 max_speed;
 	u32 speed_ability; /* speed ability supported by current media */
 	u32 module_type; /* sub media type, e.g. kr/cr/sr/lr */
 	u32 fec_mode; /* active fec mode */
@@ -885,6 +886,15 @@ struct hclge_port_base_vlan_config {
 	struct hclge_vlan_info vlan_info;
 };
 
+struct hclge_vf_info {
+	int link_state;
+	u8 mac[ETH_ALEN];
+	u32 spoofchk;
+	u32 max_tx_rate;
+	u32 trusted;
+	u16 promisc_enable;
+};
+
 struct hclge_vport {
 	u16 alloc_tqps;	/* Allocated Tx/Rx queues */
 
@@ -916,15 +926,15 @@ struct hclge_vport {
 	unsigned long state;
 	unsigned long last_active_jiffies;
 	u32 mps; /* Max packet size */
+	struct hclge_vf_info vf_info;
 
 	struct list_head uc_mac_list;   /* Store VF unicast table */
 	struct list_head mc_mac_list;   /* Store VF multicast table */
 	struct list_head vlan_list;     /* Store VF vlan table */
 };
 
-void hclge_promisc_param_init(struct hclge_promisc_param *param, bool en_uc,
-			      bool en_mc, bool en_bc, int vport_id);
-
+int hclge_set_vport_promisc_mode(struct hclge_vport *vport, bool en_uc_pmc,
+				 bool en_mc_pmc, bool en_bc_pmc);
 int hclge_add_uc_addr_common(struct hclge_vport *vport,
 			     const unsigned char *addr);
 int hclge_rm_uc_addr_common(struct hclge_vport *vport,
@@ -993,4 +1003,5 @@ int hclge_query_bd_num_cmd_send(struct hclge_dev *hdev,
 				struct hclge_desc *desc);
 void hclge_report_hw_error(struct hclge_dev *hdev,
 			   enum hnae3_hw_error_type type);
+void hclge_inform_vf_promisc_info(struct hclge_vport *vport);
 #endif
