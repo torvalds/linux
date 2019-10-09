@@ -984,12 +984,13 @@ static int fastrpc_internal_invoke(struct fastrpc_user *fl,  u32 kernel,
 	}
 
 bail:
-	/* We are done with this compute context, remove it from pending list */
-	spin_lock(&fl->lock);
-	list_del(&ctx->node);
-	spin_unlock(&fl->lock);
-	fastrpc_context_put(ctx);
-
+	if (err != -ERESTARTSYS && err != -ETIMEDOUT) {
+		/* We are done with this compute context */
+		spin_lock(&fl->lock);
+		list_del(&ctx->node);
+		spin_unlock(&fl->lock);
+		fastrpc_context_put(ctx);
+	}
 	if (err)
 		dev_dbg(fl->sctx->dev, "Error: Invoke Failed %d\n", err);
 
