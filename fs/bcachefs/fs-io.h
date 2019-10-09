@@ -11,13 +11,13 @@
 
 struct quota_res;
 
-int bch2_extent_update(struct btree_trans *,
-		       struct bch_inode_info *,
-		       struct disk_reservation *,
-		       struct quota_res *,
-		       struct btree_iter *,
-		       struct bkey_i *,
-		       u64, bool, bool, s64 *);
+int bchfs_extent_update(struct btree_trans *,
+			struct bch_inode_info *,
+			struct disk_reservation *,
+			struct quota_res *,
+			struct btree_iter *,
+			struct bkey_i *,
+			u64, bool, bool, s64 *);
 int bch2_fpunch_at(struct btree_trans *, struct btree_iter *,
 		   struct bpos, struct bch_inode_info *);
 

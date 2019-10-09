@@ -259,9 +259,9 @@ s64 bch2_remap_range(struct bch_fs *c,
 				min(src_k.k->p.offset - src_iter->pos.offset,
 				    dst_end.offset - dst_iter->pos.offset));
 
-		ret = bch2_extent_update(&trans, dst_inode, NULL, NULL,
-					 dst_iter, &new_dst.k,
-					 new_i_size, false, true, NULL);
+		ret = bchfs_extent_update(&trans, dst_inode, NULL, NULL,
+					  dst_iter, &new_dst.k,
+					  new_i_size, false, true, NULL);
 		if (ret)
 			goto btree_err;
 

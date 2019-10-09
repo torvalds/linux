@@ -19,6 +19,7 @@
 #include "ec.h"
 #include "error.h"
 #include "extents.h"
+#include "inode.h"
 #include "io.h"
 #include "journal.h"
 #include "keylist.h"
@@ -176,6 +177,146 @@ void bch2_bio_alloc_pages_pool(struct bch_fs *c, struct bio *bio,
 
 	if (using_mempool)
 		mutex_unlock(&c->bio_bounce_pages_lock);
+}
+
+/* Extent update path: */
+
+static int sum_sector_overwrites(struct btree_trans *trans,
+				 struct btree_iter *extent_iter,
+				 struct bkey_i *new,
+				 bool may_allocate,
+				 bool *maybe_extending,
+				 s64 *delta)
+{
+	struct btree_iter *iter;
+	struct bkey_s_c old;
+	int ret = 0;
+
+	*maybe_extending = true;
+	*delta = 0;
+
+	iter = bch2_trans_copy_iter(trans, extent_iter);
+	if (IS_ERR(iter))
+		return PTR_ERR(iter);
+
+	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, old, ret) {
+		if (!may_allocate &&
+		    bch2_bkey_nr_ptrs_allocated(old) <
+		    bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(new))) {
+			ret = -ENOSPC;
+			break;
+		}
+
+		*delta += (min(new->k.p.offset,
+			      old.k->p.offset) -
+			  max(bkey_start_offset(&new->k),
+			      bkey_start_offset(old.k))) *
+			(bkey_extent_is_allocation(&new->k) -
+			 bkey_extent_is_allocation(old.k));
+
+		if (bkey_cmp(old.k->p, new->k.p) >= 0) {
+			/*
+			 * Check if there's already data above where we're
+			 * going to be writing to - this means we're definitely
+			 * not extending the file:
+			 *
+			 * Note that it's not sufficient to check if there's
+			 * data up to the sector offset we're going to be
+			 * writing to, because i_size could be up to one block
+			 * less:
+			 */
+			if (!bkey_cmp(old.k->p, new->k.p))
+				old = bch2_btree_iter_next(iter);
+
+			if (old.k && !bkey_err(old) &&
+			    old.k->p.inode == extent_iter->pos.inode &&
+			    bkey_extent_is_data(old.k))
+				*maybe_extending = false;
+
+			break;
+		}
+	}
+
+	bch2_trans_iter_put(trans, iter);
+	return ret;
+}
+
+int bch2_extent_update(struct btree_trans *trans,
+		       struct btree_iter *iter,
+		       struct bkey_i *k,
+		       struct disk_reservation *disk_res,
+		       u64 *journal_seq,
+		       u64 new_i_size,
+		       s64 *i_sectors_delta)
+{
+	/* this must live until after bch2_trans_commit(): */
+	struct bkey_inode_buf inode_p;
+	bool extending = false;
+	s64 delta = 0;
+	int ret;
+
+	ret = bch2_extent_trim_atomic(k, iter);
+	if (ret)
+		return ret;
+
+	ret = sum_sector_overwrites(trans, iter, k,
+			disk_res && disk_res->sectors != 0,
+			&extending, &delta);
+	if (ret)
+		return ret;
+
+	new_i_size = extending
+		? min(k->k.p.offset << 9, new_i_size)
+		: 0;
+
+	if (delta || new_i_size) {
+		struct btree_iter *inode_iter;
+		struct bch_inode_unpacked inode_u;
+
+		inode_iter = bch2_inode_peek(trans, &inode_u,
+				k->k.p.inode, BTREE_ITER_INTENT);
+		if (IS_ERR(inode_iter))
+			return PTR_ERR(inode_iter);
+
+		/*
+		 * XXX:
+		 * writeback can race a bit with truncate, because truncate
+		 * first updates the inode then truncates the pagecache. This is
+		 * ugly, but lets us preserve the invariant that the in memory
+		 * i_size is always >= the on disk i_size.
+		 *
+		BUG_ON(new_i_size > inode_u.bi_size &&
+		       (inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY));
+		 */
+		BUG_ON(new_i_size > inode_u.bi_size && !extending);
+
+		if (!(inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
+		    new_i_size > inode_u.bi_size)
+			inode_u.bi_size = new_i_size;
+		else
+			new_i_size = 0;
+
+		inode_u.bi_sectors += delta;
+
+		if (delta || new_i_size) {
+			bch2_inode_pack(&inode_p, &inode_u);
+			bch2_trans_update(trans, inode_iter,
+					  &inode_p.inode.k_i);
+		}
+
+		bch2_trans_iter_put(trans, inode_iter);
+	}
+
+	bch2_trans_update(trans, iter, k);
+
+	ret = bch2_trans_commit(trans, disk_res, journal_seq,
+				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_ATOMIC|
+				BTREE_INSERT_USE_RESERVE);
+	if (!ret && i_sectors_delta)
+		*i_sectors_delta += delta;
+
+	return ret;
 }
 
 /* Writes */

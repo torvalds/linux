@@ -237,151 +237,31 @@ static void i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
 	mutex_unlock(&inode->ei_quota_lock);
 }
 
-/* normal i_size/i_sectors update machinery: */
-
-static int sum_sector_overwrites(struct btree_trans *trans,
-				 struct btree_iter *extent_iter,
-				 struct bkey_i *new,
-				 bool may_allocate,
-				 bool *maybe_extending,
-				 s64 *delta)
+int bchfs_extent_update(struct btree_trans *trans,
+			struct bch_inode_info *inode,
+			struct disk_reservation *disk_res,
+			struct quota_res *quota_res,
+			struct btree_iter *extent_iter,
+			struct bkey_i *k,
+			u64 new_i_size,
+			bool may_allocate,
+			bool direct,
+			s64 *total_delta)
 {
-	struct btree_iter *iter;
-	struct bkey_s_c old;
-	int ret = 0;
-
-	*maybe_extending = true;
-	*delta = 0;
-
-	iter = bch2_trans_copy_iter(trans, extent_iter);
-	if (IS_ERR(iter))
-		return PTR_ERR(iter);
-
-	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, old, ret) {
-		if (!may_allocate &&
-		    bch2_bkey_nr_ptrs_allocated(old) <
-		    bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(new))) {
-			ret = -ENOSPC;
-			break;
-		}
-
-		*delta += (min(new->k.p.offset,
-			      old.k->p.offset) -
-			  max(bkey_start_offset(&new->k),
-			      bkey_start_offset(old.k))) *
-			(bkey_extent_is_allocation(&new->k) -
-			 bkey_extent_is_allocation(old.k));
-
-		if (bkey_cmp(old.k->p, new->k.p) >= 0) {
-			/*
-			 * Check if there's already data above where we're
-			 * going to be writing to - this means we're definitely
-			 * not extending the file:
-			 *
-			 * Note that it's not sufficient to check if there's
-			 * data up to the sector offset we're going to be
-			 * writing to, because i_size could be up to one block
-			 * less:
-			 */
-			if (!bkey_cmp(old.k->p, new->k.p))
-				old = bch2_btree_iter_next(iter);
-
-			if (old.k && !bkey_err(old) &&
-			    old.k->p.inode == extent_iter->pos.inode &&
-			    bkey_extent_is_data(old.k))
-				*maybe_extending = false;
-
-			break;
-		}
-	}
-
-	bch2_trans_iter_put(trans, iter);
-	return ret;
-}
-
-int bch2_extent_update(struct btree_trans *trans,
-		       struct bch_inode_info *inode,
-		       struct disk_reservation *disk_res,
-		       struct quota_res *quota_res,
-		       struct btree_iter *extent_iter,
-		       struct bkey_i *k,
-		       u64 new_i_size,
-		       bool may_allocate,
-		       bool direct,
-		       s64 *total_delta)
-{
-	struct bch_fs *c = trans->c;
-	struct btree_iter *inode_iter = NULL;
-	struct bch_inode_unpacked inode_u;
-	struct bkey_inode_buf inode_p;
-	bool extending = false;
-	s64 i_sectors_delta;
+	s64 i_sectors_delta = 0;
 	int ret;
 
-	ret = bch2_extent_trim_atomic(k, extent_iter);
+	ret = bch2_extent_update(trans, extent_iter, k,
+			disk_res, &inode->ei_journal_seq,
+			new_i_size, &i_sectors_delta);
 	if (ret)
 		return ret;
 
-	ret = sum_sector_overwrites(trans, extent_iter, k, may_allocate,
-				    &extending, &i_sectors_delta);
-	if (ret)
-		return ret;
-
-	bch2_trans_update(trans, extent_iter, k);
-
-	new_i_size = min(k->k.p.offset << 9, new_i_size);
-
-	if (i_sectors_delta || extending) {
-		inode_iter = bch2_inode_peek(trans, &inode_u,
-				k->k.p.inode, BTREE_ITER_INTENT);
-		if (IS_ERR(inode_iter))
-			return PTR_ERR(inode_iter);
-
-		/*
-		 * XXX:
-		 * writeback can race a bit with truncate, because truncate
-		 * first updates the inode then truncates the pagecache. This is
-		 * ugly, but lets us preserve the invariant that the in memory
-		 * i_size is always >= the on disk i_size.
-		 *
-		BUG_ON(new_i_size > inode_u.bi_size &&
-		       (inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY));
-		 */
-		BUG_ON(new_i_size > inode_u.bi_size && !extending &&
-		       !(inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY));
-
-		if (!(inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
-		    new_i_size > inode_u.bi_size)
-			inode_u.bi_size = new_i_size;
-		else
-			extending = false;
-
-		inode_u.bi_sectors += i_sectors_delta;
-
-		if (i_sectors_delta || extending) {
-			bch2_inode_pack(&inode_p, &inode_u);
-			bch2_trans_update(trans, inode_iter,
-					  &inode_p.inode.k_i);
-		}
-	}
-
-	ret = bch2_trans_commit(trans, disk_res,
-				&inode->ei_journal_seq,
-				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_ATOMIC|
-				BTREE_INSERT_NOUNLOCK|
-				BTREE_INSERT_USE_RESERVE);
-	if (ret)
-		goto err;
-
-	if (i_sectors_delta || extending) {
-		inode->ei_inode.bi_sectors	= inode_u.bi_sectors;
-		inode->ei_inode.bi_size		= inode_u.bi_size;
-	}
+	new_i_size = min(new_i_size, extent_iter->pos.offset << 9);
 
 	if (direct)
-		i_sectors_acct(c, inode, quota_res, i_sectors_delta);
-	if (direct && extending) {
+		i_sectors_acct(trans->c, inode, quota_res, i_sectors_delta);
+	if (direct && new_i_size) {
 		spin_lock(&inode->v.i_lock);
 		if (new_i_size > inode->v.i_size)
 			i_size_write(&inode->v, new_i_size);
@@ -390,10 +270,7 @@ int bch2_extent_update(struct btree_trans *trans,
 
 	if (total_delta)
 		*total_delta += i_sectors_delta;
-err:
-	if (!IS_ERR_OR_NULL(inode_iter))
-		bch2_trans_iter_put(trans, inode_iter);
-	return ret;
+	return 0;
 }
 
 static int bchfs_write_index_update(struct bch_write_op *wop)
@@ -426,7 +303,7 @@ static int bchfs_write_index_update(struct bch_write_op *wop)
 
 		bch2_trans_begin_updates(&trans);
 
-		ret = bch2_extent_update(&trans, inode,
+		ret = bchfs_extent_update(&trans, inode,
 				&wop->res, quota_res,
 				iter, &tmp.k,
 				op->new_i_size,
@@ -2295,7 +2172,7 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 
 		bch2_trans_begin_updates(trans);
 
-		ret = bch2_extent_update(trans, inode,
+		ret = bchfs_extent_update(trans, inode,
 				&disk_res, NULL, iter, &delete,
 				0, false, true, NULL);
 		bch2_disk_reservation_put(c, &disk_res);
@@ -2463,6 +2340,8 @@ static int bch2_extend(struct bch_inode_info *inode,
 
 	/*
 	 * sync appends:
+	 *
+	 * this has to be done _before_ extending i_size:
 	 */
 	ret = filemap_write_and_wait_range(mapping, inode_u->bi_size, S64_MAX);
 	if (ret)
@@ -2939,7 +2818,7 @@ static long bch2_fallocate(struct bch_inode_info *inode, int mode,
 
 		bch2_trans_begin_updates(&trans);
 
-		ret = bch2_extent_update(&trans, inode,
+		ret = bchfs_extent_update(&trans, inode,
 				&disk_res, &quota_res,
 				iter, &reservation.k_i,
 				0, true, true, NULL);

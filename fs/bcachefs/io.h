@@ -58,6 +58,9 @@ static inline struct workqueue_struct *index_update_wq(struct bch_write_op *op)
 		: op->c->wq;
 }
 
+int bch2_extent_update(struct btree_trans *, struct btree_iter *,
+		       struct bkey_i *, struct disk_reservation *,
+		       u64 *, u64, s64 *);
 int bch2_write_index_default(struct bch_write_op *);
 
 static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
