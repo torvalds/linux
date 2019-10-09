@@ -215,7 +215,9 @@ void wfx_tx_queue_put(struct wfx_dev *wdev, struct wfx_queue *queue, struct sk_b
 	spin_unlock_bh(&queue->queue.lock);
 }
 
-struct sk_buff *wfx_tx_queue_get(struct wfx_dev *wdev, struct wfx_queue *queue, u32 link_id_map)
+static struct sk_buff *wfx_tx_queue_get(struct wfx_dev *wdev,
+					struct wfx_queue *queue,
+					u32 link_id_map)
 {
 	struct sk_buff *skb = NULL;
 	struct sk_buff *item;
