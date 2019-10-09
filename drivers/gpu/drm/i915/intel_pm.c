@@ -3638,6 +3638,26 @@ intel_has_sagv(struct drm_i915_private *dev_priv)
 		dev_priv->sagv_status != I915_SAGV_NOT_CONTROLLED;
 }
 
+static void
+skl_setup_sagv_block_time(struct drm_i915_private *dev_priv)
+{
+	if (IS_GEN(dev_priv, 11)) {
+		dev_priv->sagv_block_time_us = 10;
+		return;
+	} else if (IS_GEN(dev_priv, 10)) {
+		dev_priv->sagv_block_time_us = 20;
+		return;
+	} else if (IS_GEN(dev_priv, 9)) {
+		dev_priv->sagv_block_time_us = 30;
+		return;
+	} else {
+		MISSING_CASE(INTEL_GEN(dev_priv));
+	}
+
+	/* Default to an unusable block time */
+	dev_priv->sagv_block_time_us = -1;
+}
+
 /*
  * SAGV dynamically adjusts the system agent voltage and clock frequencies
  * depending on power and performance requirements. The display engine access
@@ -3726,17 +3746,9 @@ bool intel_can_enable_sagv(struct intel_atomic_state *state)
 	struct intel_crtc_state *crtc_state;
 	enum pipe pipe;
 	int level, latency;
-	int sagv_block_time_us;
 
 	if (!intel_has_sagv(dev_priv))
 		return false;
-
-	if (IS_GEN(dev_priv, 9))
-		sagv_block_time_us = 30;
-	else if (IS_GEN(dev_priv, 10))
-		sagv_block_time_us = 20;
-	else
-		sagv_block_time_us = 10;
 
 	/*
 	 * If there are no active CRTCs, no additional checks need be performed
@@ -3784,7 +3796,7 @@ bool intel_can_enable_sagv(struct intel_atomic_state *state)
 		 * incur memory latencies higher than sagv_block_time_us we
 		 * can't enable SAGV.
 		 */
-		if (latency < sagv_block_time_us)
+		if (latency < dev_priv->sagv_block_time_us)
 			return false;
 	}
 
@@ -8984,6 +8996,9 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 		i915_pineview_get_mem_freq(dev_priv);
 	else if (IS_GEN(dev_priv, 5))
 		i915_ironlake_get_mem_freq(dev_priv);
+
+	if (intel_has_sagv(dev_priv))
+		skl_setup_sagv_block_time(dev_priv);
 
 	/* For FIFO watermark updates */
 	if (INTEL_GEN(dev_priv) >= 9) {

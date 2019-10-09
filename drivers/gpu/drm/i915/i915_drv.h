@@ -1267,6 +1267,8 @@ struct drm_i915_private {
 		I915_SAGV_NOT_CONTROLLED
 	} sagv_status;
 
+	u32 sagv_block_time_us;
+
 	struct {
 		/*
 		 * Raw watermark latency values:
