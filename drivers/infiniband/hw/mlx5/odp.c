@@ -146,9 +146,9 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
 
 /*
  * This must be called after the mr has been removed from implicit_children
- * and odp_mkeys and the SRCU synchronized.  NOTE: The MR does not necessarily
- * have to be empty here, parallel page faults could have raced with the free
- * process and added pages to it.
+ * and the SRCU synchronized.  NOTE: The MR does not necessarily have to be
+ * empty here, parallel page faults could have raced with the free process and
+ * added pages to it.
  */
 static void free_implicit_child_mr(struct mlx5_ib_mr *mr, bool need_imr_xlt)
 {
@@ -210,7 +210,6 @@ static void destroy_unused_implicit_child_mr(struct mlx5_ib_mr *mr)
 	    mr)
 		goto out_unlock;
 
-	__xa_erase(&mr->dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key));
 	atomic_inc(&imr->num_deferred_work);
 	call_srcu(&mr->dev->odp_srcu, &mr->odp_destroy.rcu,
 		  free_implicit_child_mr_rcu);
@@ -401,13 +400,6 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	if (IS_ERR(mr))
 		goto out_umem;
 
-	err = xa_reserve(&imr->dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key),
-			 GFP_KERNEL);
-	if (err) {
-		ret = ERR_PTR(err);
-		goto out_mr;
-	}
-
 	mr->ibmr.pd = imr->ibmr.pd;
 	mr->access_flags = imr->access_flags;
 	mr->umem = &odp->umem;
@@ -424,7 +416,7 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 				 MLX5_IB_UPD_XLT_ENABLE);
 	if (err) {
 		ret = ERR_PTR(err);
-		goto out_release;
+		goto out_mr;
 	}
 
 	/*
@@ -433,26 +425,21 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	 */
 	ret = xa_cmpxchg(&imr->implicit_children, idx, NULL, mr,
 			 GFP_KERNEL);
-	if (likely(!ret))
-		xa_store(&imr->dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key),
-			 &mr->mmkey, GFP_ATOMIC);
 	if (unlikely(ret)) {
 		if (xa_is_err(ret)) {
 			ret = ERR_PTR(xa_err(ret));
-			goto out_release;
+			goto out_mr;
 		}
 		/*
 		 * Another thread beat us to creating the child mr, use
 		 * theirs.
 		 */
-		goto out_release;
+		goto out_mr;
 	}
 
 	mlx5_ib_dbg(imr->dev, "key %x mr %p\n", mr->mmkey.key, mr);
 	return mr;
 
-out_release:
-	xa_release(&imr->dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key));
 out_mr:
 	mlx5_mr_cache_free(imr->dev, mr);
 out_umem:
@@ -535,13 +522,9 @@ void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 	xa_lock(&imr->implicit_children);
 	xa_for_each (&imr->implicit_children, idx, mtt) {
 		__xa_erase(&imr->implicit_children, idx);
-		__xa_erase(&dev->odp_mkeys, mlx5_base_mkey(mtt->mmkey.key));
 		list_add(&mtt->odp_destroy.elm, &destroy_list);
 	}
 	xa_unlock(&imr->implicit_children);
-
-	/* Fence access to the child pointers via the pagefault thread */
-	synchronize_srcu(&dev->odp_srcu);
 
 	/*
 	 * num_deferred_work can only be incremented inside the odp_srcu, or
@@ -1653,13 +1636,6 @@ get_prefetchable_mr(struct ib_pd *pd, enum ib_uverbs_advise_mr_advice advice,
 	mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
 
 	if (mr->ibmr.pd != pd)
-		return NULL;
-
-	/*
-	 * Implicit child MRs are internal and userspace should not refer to
-	 * them.
-	 */
-	if (mr->parent)
 		return NULL;
 
 	odp = to_ib_umem_odp(mr->umem);
