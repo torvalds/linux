@@ -161,7 +161,16 @@ EXPORT_SYMBOL_GPL(pci_ats_page_aligned);
 #ifdef CONFIG_PCI_PRI
 void pci_pri_init(struct pci_dev *pdev)
 {
+	u16 status;
+
 	pdev->pri_cap = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
+
+	if (!pdev->pri_cap)
+		return;
+
+	pci_read_config_word(pdev, pdev->pri_cap + PCI_PRI_STATUS, &status);
+	if (status & PCI_PRI_STATUS_PASID)
+		pdev->pasid_required = 1;
 }
 
 /**
@@ -301,22 +310,10 @@ EXPORT_SYMBOL_GPL(pci_reset_pri);
  */
 int pci_prg_resp_pasid_required(struct pci_dev *pdev)
 {
-	u16 status;
-	int pri;
-
 	if (pdev->is_virtfn)
 		pdev = pci_physfn(pdev);
 
-	pri = pdev->pri_cap;
-	if (!pri)
-		return 0;
-
-	pci_read_config_word(pdev, pri + PCI_PRI_STATUS, &status);
-
-	if (status & PCI_PRI_STATUS_PASID)
-		return 1;
-
-	return 0;
+	return pdev->pasid_required;
 }
 EXPORT_SYMBOL_GPL(pci_prg_resp_pasid_required);
 #endif /* CONFIG_PCI_PRI */
