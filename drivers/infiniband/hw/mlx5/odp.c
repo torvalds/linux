@@ -144,6 +144,27 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
 	}
 }
 
+static void dma_fence_odp_mr(struct mlx5_ib_mr *mr)
+{
+	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
+
+	/* Ensure mlx5_ib_invalidate_range() will not touch the MR any more */
+	mutex_lock(&odp->umem_mutex);
+	if (odp->npages) {
+		mlx5_mr_cache_invalidate(mr);
+		ib_umem_odp_unmap_dma_pages(odp, ib_umem_start(odp),
+					    ib_umem_end(odp));
+		WARN_ON(odp->npages);
+	}
+	odp->private = NULL;
+	mutex_unlock(&odp->umem_mutex);
+
+	if (!mr->allocated_from_cache) {
+		mlx5_core_destroy_mkey(mr->dev->mdev, &mr->mmkey);
+		WARN_ON(mr->descs);
+	}
+}
+
 /*
  * This must be called after the mr has been removed from implicit_children
  * and the SRCU synchronized.  NOTE: The MR does not necessarily have to be
@@ -170,6 +191,8 @@ static void free_implicit_child_mr(struct mlx5_ib_mr *mr, bool need_imr_xlt)
 		mutex_unlock(&odp_imr->umem_mutex);
 		srcu_read_unlock(&mr->dev->odp_srcu, srcu_key);
 	}
+
+	dma_fence_odp_mr(mr);
 
 	mr->parent = NULL;
 	mlx5_mr_cache_free(mr->dev, mr);
@@ -228,15 +251,14 @@ void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
 	int in_block = 0;
 	u64 addr;
 
-	if (!umem_odp) {
-		pr_err("invalidation called on NULL umem or non-ODP umem\n");
-		return;
-	}
-
+	mutex_lock(&umem_odp->umem_mutex);
+	/*
+	 * If npages is zero then umem_odp->private may not be setup yet. This
+	 * does not complete until after the first page is mapped for DMA.
+	 */
+	if (!umem_odp->npages)
+		goto out;
 	mr = umem_odp->private;
-
-	if (!mr || !mr->ibmr.pd)
-		return;
 
 	start = max_t(u64, ib_umem_start(umem_odp), start);
 	end = min_t(u64, ib_umem_end(umem_odp), end);
@@ -247,7 +269,6 @@ void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
 	 * overwrite the same MTTs.  Concurent invalidations might race us,
 	 * but they will write 0s as well, so no difference in the end result.
 	 */
-	mutex_lock(&umem_odp->umem_mutex);
 	for (addr = start; addr < end; addr += BIT(umem_odp->page_shift)) {
 		idx = (addr - ib_umem_start(umem_odp)) >> umem_odp->page_shift;
 		/*
@@ -289,6 +310,7 @@ void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
 
 	if (unlikely(!umem_odp->npages && mr->parent))
 		destroy_unused_implicit_child_mr(mr);
+out:
 	mutex_unlock(&umem_odp->umem_mutex);
 }
 
@@ -536,11 +558,41 @@ void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 		WARN_ON(atomic_read(&imr->num_deferred_work));
 	}
 
+	/*
+	 * Fence the imr before we destroy the children. This allows us to
+	 * skip updating the XLT of the imr during destroy of the child mkey
+	 * the imr points to.
+	 */
+	mlx5_mr_cache_invalidate(imr);
+
 	list_for_each_entry_safe (mtt, tmp, &destroy_list, odp_destroy.elm)
 		free_implicit_child_mr(mtt, false);
 
 	mlx5_mr_cache_free(dev, imr);
 	ib_umem_odp_release(odp_imr);
+}
+
+/**
+ * mlx5_ib_fence_odp_mr - Stop all access to the ODP MR
+ * @mr: to fence
+ *
+ * On return no parallel threads will be touching this MR and no DMA will be
+ * active.
+ */
+void mlx5_ib_fence_odp_mr(struct mlx5_ib_mr *mr)
+{
+	/* Prevent new page faults and prefetch requests from succeeding */
+	xa_erase(&mr->dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key));
+
+	/* Wait for all running page-fault handlers to finish. */
+	synchronize_srcu(&mr->dev->odp_srcu);
+
+	if (atomic_read(&mr->num_deferred_work)) {
+		flush_workqueue(system_unbound_wq);
+		WARN_ON(atomic_read(&mr->num_deferred_work));
+	}
+
+	dma_fence_odp_mr(mr);
 }
 
 #define MLX5_PF_FLAGS_DOWNGRADE BIT(1)

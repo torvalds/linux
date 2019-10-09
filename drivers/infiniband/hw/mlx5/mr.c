@@ -50,7 +50,6 @@ enum {
 static void clean_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
 static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
 static int mr_cache_max_order(struct mlx5_ib_dev *dev);
-static int unreg_umr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
 
 static bool umr_can_use_indirect_mkey(struct mlx5_ib_dev *dev)
 {
@@ -495,7 +494,7 @@ void mlx5_mr_cache_free(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 	c = order2idx(dev, mr->order);
 	WARN_ON(c < 0 || c >= MAX_MR_CACHE_ENTRIES);
 
-	if (unreg_umr(dev, mr)) {
+	if (mlx5_mr_cache_invalidate(mr)) {
 		mr->allocated_from_cache = false;
 		destroy_mkey(dev, mr);
 		ent = &cache->ent[c];
@@ -1333,22 +1332,29 @@ error:
 	return ERR_PTR(err);
 }
 
-static int unreg_umr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
+/**
+ * mlx5_mr_cache_invalidate - Fence all DMA on the MR
+ * @mr: The MR to fence
+ *
+ * Upon return the NIC will not be doing any DMA to the pages under the MR,
+ * and any DMA inprogress will be completed. Failure of this function
+ * indicates the HW has failed catastrophically.
+ */
+int mlx5_mr_cache_invalidate(struct mlx5_ib_mr *mr)
 {
-	struct mlx5_core_dev *mdev = dev->mdev;
 	struct mlx5_umr_wr umrwr = {};
 
-	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
+	if (mr->dev->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
 		return 0;
 
 	umrwr.wr.send_flags = MLX5_IB_SEND_UMR_DISABLE_MR |
 			      MLX5_IB_SEND_UMR_UPDATE_PD_ACCESS;
 	umrwr.wr.opcode = MLX5_IB_WR_UMR;
-	umrwr.pd = dev->umrc.pd;
+	umrwr.pd = mr->dev->umrc.pd;
 	umrwr.mkey = mr->mmkey.key;
 	umrwr.ignore_free_state = 1;
 
-	return mlx5_ib_post_send_wait(dev, &umrwr);
+	return mlx5_ib_post_send_wait(mr->dev, &umrwr);
 }
 
 static int rereg_umr(struct ib_pd *pd, struct mlx5_ib_mr *mr,
@@ -1432,7 +1438,7 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 		 * UMR can't be used - MKey needs to be replaced.
 		 */
 		if (mr->allocated_from_cache)
-			err = unreg_umr(dev, mr);
+			err = mlx5_mr_cache_invalidate(mr);
 		else
 			err = destroy_mkey(dev, mr);
 		if (err)
@@ -1561,52 +1567,20 @@ static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 	int npages = mr->npages;
 	struct ib_umem *umem = mr->umem;
 
-	if (is_odp_mr(mr)) {
-		struct ib_umem_odp *umem_odp = to_ib_umem_odp(umem);
+	/* Stop all DMA */
+	if (is_odp_mr(mr))
+		mlx5_ib_fence_odp_mr(mr);
+	else
+		clean_mr(dev, mr);
 
-		/* Prevent new page faults and
-		 * prefetch requests from succeeding
-		 */
-		xa_erase(&dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key));
-
-		/* Wait for all running page-fault handlers to finish. */
-		synchronize_srcu(&dev->odp_srcu);
-
-		/* dequeue pending prefetch requests for the mr */
-		if (atomic_read(&mr->num_deferred_work)) {
-			flush_workqueue(system_unbound_wq);
-			WARN_ON(atomic_read(&mr->num_deferred_work));
-		}
-
-		/* Destroy all page mappings */
-		mlx5_ib_invalidate_range(umem_odp, ib_umem_start(umem_odp),
-					 ib_umem_end(umem_odp));
-
-		/*
-		 * We kill the umem before the MR for ODP,
-		 * so that there will not be any invalidations in
-		 * flight, looking at the *mr struct.
-		 */
-		ib_umem_odp_release(umem_odp);
-		atomic_sub(npages, &dev->mdev->priv.reg_pages);
-
-		/* Avoid double-freeing the umem. */
-		umem = NULL;
-	}
-
-	clean_mr(dev, mr);
-
-	/*
-	 * We should unregister the DMA address from the HCA before
-	 * remove the DMA mapping.
-	 */
-	mlx5_mr_cache_free(dev, mr);
-	ib_umem_release(umem);
-	if (umem)
-		atomic_sub(npages, &dev->mdev->priv.reg_pages);
-
-	if (!mr->allocated_from_cache)
+	if (mr->allocated_from_cache)
+		mlx5_mr_cache_free(dev, mr);
+	else
 		kfree(mr);
+
+	ib_umem_release(umem);
+	atomic_sub(npages, &dev->mdev->priv.reg_pages);
+
 }
 
 int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
