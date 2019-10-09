@@ -243,12 +243,14 @@ static int sum_sector_overwrites(struct btree_trans *trans,
 				 struct btree_iter *extent_iter,
 				 struct bkey_i *new,
 				 bool may_allocate,
+				 bool *maybe_extending,
 				 s64 *delta)
 {
 	struct btree_iter *iter;
 	struct bkey_s_c old;
 	int ret = 0;
 
+	*maybe_extending = true;
 	*delta = 0;
 
 	iter = bch2_trans_copy_iter(trans, extent_iter);
@@ -270,8 +272,27 @@ static int sum_sector_overwrites(struct btree_trans *trans,
 			(bkey_extent_is_allocation(&new->k) -
 			 bkey_extent_is_allocation(old.k));
 
-		if (bkey_cmp(old.k->p, new->k.p) >= 0)
+		if (bkey_cmp(old.k->p, new->k.p) >= 0) {
+			/*
+			 * Check if there's already data above where we're
+			 * going to be writing to - this means we're definitely
+			 * not extending the file:
+			 *
+			 * Note that it's not sufficient to check if there's
+			 * data up to the sector offset we're going to be
+			 * writing to, because i_size could be up to one block
+			 * less:
+			 */
+			if (!bkey_cmp(old.k->p, new->k.p))
+				old = bch2_btree_iter_next(iter);
+
+			if (old.k && !bkey_err(old) &&
+			    old.k->p.inode == extent_iter->pos.inode &&
+			    bkey_extent_is_data(old.k))
+				*maybe_extending = false;
+
 			break;
+		}
 	}
 
 	bch2_trans_iter_put(trans, iter);
@@ -293,7 +314,7 @@ int bch2_extent_update(struct btree_trans *trans,
 	struct btree_iter *inode_iter = NULL;
 	struct bch_inode_unpacked inode_u;
 	struct bkey_inode_buf inode_p;
-	bool extended = false;
+	bool extending = false;
 	s64 i_sectors_delta;
 	int ret;
 
@@ -301,8 +322,8 @@ int bch2_extent_update(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	ret = sum_sector_overwrites(trans, extent_iter, k,
-				    may_allocate, &i_sectors_delta);
+	ret = sum_sector_overwrites(trans, extent_iter, k, may_allocate,
+				    &extending, &i_sectors_delta);
 	if (ret)
 		return ret;
 
@@ -310,27 +331,34 @@ int bch2_extent_update(struct btree_trans *trans,
 
 	new_i_size = min(k->k.p.offset << 9, new_i_size);
 
-	/* XXX: inode->i_size locking */
-	if (i_sectors_delta ||
-	    new_i_size > inode->ei_inode.bi_size) {
+	if (i_sectors_delta || extending) {
 		inode_iter = bch2_inode_peek(trans, &inode_u,
 				k->k.p.inode, BTREE_ITER_INTENT);
 		if (IS_ERR(inode_iter))
 			return PTR_ERR(inode_iter);
 
+		/*
+		 * XXX:
+		 * writeback can race a bit with truncate, because truncate
+		 * first updates the inode then truncates the pagecache. This is
+		 * ugly, but lets us preserve the invariant that the in memory
+		 * i_size is always >= the on disk i_size.
+		 *
+		BUG_ON(new_i_size > inode_u.bi_size &&
+		       (inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY));
+		 */
+		BUG_ON(new_i_size > inode_u.bi_size && !extending &&
+		       !(inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY));
+
+		if (!(inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
+		    new_i_size > inode_u.bi_size)
+			inode_u.bi_size = new_i_size;
+		else
+			extending = false;
+
 		inode_u.bi_sectors += i_sectors_delta;
 
-		/*
-		 * XXX: can BCH_INODE_I_SIZE_DIRTY be true here? i.e. can we
-		 * race with truncate?
-		 */
-		if (!(inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
-		    new_i_size > inode_u.bi_size) {
-			inode_u.bi_size = new_i_size;
-			extended = true;
-		}
-
-		if (i_sectors_delta || extended) {
+		if (i_sectors_delta || extending) {
 			bch2_inode_pack(&inode_p, &inode_u);
 			bch2_trans_update(trans, inode_iter,
 					  &inode_p.inode.k_i);
@@ -346,14 +374,14 @@ int bch2_extent_update(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	if (i_sectors_delta || extended) {
+	if (i_sectors_delta || extending) {
 		inode->ei_inode.bi_sectors	= inode_u.bi_sectors;
 		inode->ei_inode.bi_size		= inode_u.bi_size;
 	}
 
 	if (direct)
 		i_sectors_acct(c, inode, quota_res, i_sectors_delta);
-	if (direct && extended) {
+	if (direct && extending) {
 		spin_lock(&inode->v.i_lock);
 		if (new_i_size > inode->v.i_size)
 			i_size_write(&inode->v, new_i_size);
@@ -2241,8 +2269,7 @@ out:
 /* truncate: */
 
 int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
-		   struct bpos end, struct bch_inode_info *inode,
-		   u64 new_i_size)
+		   struct bpos end, struct bch_inode_info *inode)
 {
 	struct bch_fs *c	= trans->c;
 	unsigned max_sectors	= KEY_SIZE_MAX & (~0 << c->block_bits);
@@ -2270,7 +2297,7 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 
 		ret = bch2_extent_update(trans, inode,
 				&disk_res, NULL, iter, &delete,
-				new_i_size, false, true, NULL);
+				0, false, true, NULL);
 		bch2_disk_reservation_put(c, &disk_res);
 btree_err:
 		if (ret == -EINTR) {
@@ -2303,8 +2330,7 @@ static int __bch2_fpunch(struct bch_fs *c, struct bch_inode_info *inode,
 				   BTREE_ITER_INTENT);
 
 	ret = bch2_fpunch_at(&trans, iter,
-			     POS(inode->v.i_ino, end_offset),
-			     inode, 0);
+			POS(inode->v.i_ino, end_offset), inode);
 
 	bch2_trans_exit(&trans);
 

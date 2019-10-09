@@ -213,7 +213,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 
 		if (bkey_cmp(dst_iter->pos, dst_want) < 0) {
 			ret = bch2_fpunch_at(&trans, dst_iter, dst_want,
-					     dst_inode, new_i_size);
+					     dst_inode);
 			if (ret)
 				goto btree_err;
 			continue;

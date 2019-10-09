@@ -19,7 +19,7 @@ int bch2_extent_update(struct btree_trans *,
 		       struct bkey_i *,
 		       u64, bool, bool, s64 *);
 int bch2_fpunch_at(struct btree_trans *, struct btree_iter *,
-		   struct bpos, struct bch_inode_info *, u64);
+		   struct bpos, struct bch_inode_info *);
 
 int __must_check bch2_write_inode_size(struct bch_fs *,
 				       struct bch_inode_info *,
