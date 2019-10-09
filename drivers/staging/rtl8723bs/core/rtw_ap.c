@@ -216,9 +216,9 @@ void expire_timeout_chk(struct adapter *padapter)
 	/* check auth_queue */
 	#ifdef DBG_EXPIRATION_CHK
 	if (phead != plist) {
-		DBG_871X(FUNC_NDEV_FMT" auth_list, cnt:%u\n"
-			, FUNC_NDEV_ARG(padapter->pnetdev)
-			, pstapriv->auth_list_cnt);
+		DBG_871X(FUNC_NDEV_FMT" auth_list, cnt:%u\n",
+			 FUNC_NDEV_ARG(padapter->pnetdev),
+			 pstapriv->auth_list_cnt);
 	}
 	#endif
 	while (phead != plist) {
