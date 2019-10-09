@@ -84,6 +84,7 @@ struct cpcap_coulomb_counter_data {
 	s32 sample;		/* 24 or 32 bits */
 	s32 accumulator;
 	s16 offset;		/* 9 bits */
+	s16 integrator;		/* 13 or 16 bits */
 };
 
 enum cpcap_battery_state {
@@ -269,12 +270,13 @@ static int
 cpcap_battery_read_accumulated(struct cpcap_battery_ddata *ddata,
 			       struct cpcap_coulomb_counter_data *ccd)
 {
-	u16 buf[7];	/* CPCAP_REG_CC1 to CCI */
+	u16 buf[7];	/* CPCAP_REG_CCS1 to CCI */
 	int error;
 
 	ccd->sample = 0;
 	ccd->accumulator = 0;
 	ccd->offset = 0;
+	ccd->integrator = 0;
 
 	/* Read coulomb counter register range */
 	error = regmap_bulk_read(ddata->reg, CPCAP_REG_CCS1,
@@ -298,6 +300,12 @@ cpcap_battery_read_accumulated(struct cpcap_battery_ddata *ddata,
 	 */
 	ccd->offset = buf[4];
 	ccd->offset = sign_extend32(ccd->offset, 9);
+
+	/* Integrator register CPCAP_REG_CCI */
+	if (ddata->vendor == CPCAP_VENDOR_TI)
+		ccd->integrator = sign_extend32(buf[6], 13);
+	else
+		ccd->integrator = (s16)buf[6];
 
 	return cpcap_battery_cc_to_uah(ddata,
 				       ccd->sample,
