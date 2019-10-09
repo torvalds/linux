@@ -71,7 +71,7 @@ struct huawei_wmi {
 	struct mutex wmi_lock;
 };
 
-struct huawei_wmi *huawei_wmi;
+static struct huawei_wmi *huawei_wmi;
 
 static const struct key_entry huawei_wmi_keymap[] = {
 	{ KE_KEY,    0x281, { KEY_BRIGHTNESSDOWN } },
