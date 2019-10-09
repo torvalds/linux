@@ -58,7 +58,6 @@ MODULE_LICENSE("GPL");
 static DEFINE_MUTEX(iowarrior_mutex);
 
 static struct usb_driver iowarrior_driver;
-static DEFINE_MUTEX(iowarrior_open_disc_lock);
 
 /*--------------*/
 /*     data     */
@@ -601,16 +600,13 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 
-	mutex_lock(&iowarrior_open_disc_lock);
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
-		mutex_unlock(&iowarrior_open_disc_lock);
 		mutex_unlock(&iowarrior_mutex);
 		return -ENODEV;
 	}
 
 	mutex_lock(&dev->mutex);
-	mutex_unlock(&iowarrior_open_disc_lock);
 
 	/* Only one process can open each device, no sharing. */
 	if (dev->opened) {
@@ -842,7 +838,6 @@ static int iowarrior_probe(struct usb_interface *interface,
 	if (retval) {
 		/* something prevented us from registering this driver */
 		dev_err(&interface->dev, "Not able to get a minor for this device.\n");
-		usb_set_intfdata(interface, NULL);
 		goto error;
 	}
 
@@ -866,16 +861,8 @@ error:
  */
 static void iowarrior_disconnect(struct usb_interface *interface)
 {
-	struct iowarrior *dev;
-	int minor;
-
-	dev = usb_get_intfdata(interface);
-	mutex_lock(&iowarrior_open_disc_lock);
-	usb_set_intfdata(interface, NULL);
-
-	minor = dev->minor;
-	mutex_unlock(&iowarrior_open_disc_lock);
-	/* give back our minor - this will call close() locks need to be dropped at this point*/
+	struct iowarrior *dev = usb_get_intfdata(interface);
+	int minor = dev->minor;
 
 	usb_deregister_dev(interface, &iowarrior_class);
 
