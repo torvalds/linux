@@ -77,15 +77,13 @@ static int sgi_w1_probe(struct platform_device *pdev)
 {
 	struct sgi_w1_device *sdev;
 	struct sgi_w1_platform_data *pdata;
-	struct resource *res;
 
 	sdev = devm_kzalloc(&pdev->dev, sizeof(struct sgi_w1_device),
 			    GFP_KERNEL);
 	if (!sdev)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sdev->mcr = devm_ioremap_resource(&pdev->dev, res);
+	sdev->mcr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sdev->mcr))
 		return PTR_ERR(sdev->mcr);
 
