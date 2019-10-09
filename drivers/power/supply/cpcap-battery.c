@@ -111,6 +111,7 @@ struct cpcap_battery_ddata {
 	struct power_supply *psy;
 	struct cpcap_battery_config config;
 	struct cpcap_battery_state_data state[CPCAP_BATTERY_STATE_NR];
+	u32 cc_lsb;		/* μAms per LSB */
 	atomic_t active;
 	int status;
 	u16 vendor;
@@ -220,32 +221,19 @@ static int cpcap_battery_cc_raw_div(struct cpcap_battery_ddata *ddata,
 	s64 acc;
 	u64 tmp;
 	int avg_current;
-	u32 cc_lsb;
 
 	if (!divider)
 		return 0;
 
-	switch (ddata->vendor) {
-	case CPCAP_VENDOR_ST:
-		cc_lsb = 95374;		/* μAms per LSB */
-		break;
-	case CPCAP_VENDOR_TI:
-		cc_lsb = 91501;		/* μAms per LSB */
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	acc = accumulator;
 	acc = acc - ((s64)sample * offset);
-	cc_lsb = (cc_lsb * ddata->config.cd_factor) / 1000;
 
 	if (acc >=  0)
 		tmp = acc;
 	else
 		tmp = acc * -1;
 
-	tmp = tmp * cc_lsb;
+	tmp = tmp * ddata->cc_lsb;
 	do_div(tmp, divider);
 	avg_current = tmp;
 
@@ -811,6 +799,18 @@ static int cpcap_battery_probe(struct platform_device *pdev)
 	error = cpcap_get_vendor(ddata->dev, ddata->reg, &ddata->vendor);
 	if (error)
 		return error;
+
+	switch (ddata->vendor) {
+	case CPCAP_VENDOR_ST:
+		ddata->cc_lsb = 95374;	/* μAms per LSB */
+		break;
+	case CPCAP_VENDOR_TI:
+		ddata->cc_lsb = 91501;	/* μAms per LSB */
+		break;
+	default:
+		return -EINVAL;
+	}
+	ddata->cc_lsb = (ddata->cc_lsb * ddata->config.cd_factor) / 1000;
 
 	platform_set_drvdata(pdev, ddata);
 
