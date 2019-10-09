@@ -135,8 +135,6 @@ void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,
 		pr_buf(out, " %u:%llu:%u", s->ptrs[i].dev,
 		       (u64) s->ptrs[i].offset,
 		       stripe_blockcount_get(s, i));
-
-	bch2_bkey_ptrs_to_text(out, c, k);
 }
 
 static int ptr_matches_stripe(struct bch_fs *c,
@@ -1277,7 +1275,7 @@ int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 	struct btree_trans trans;
 	struct btree_iter *btree_iter;
 	struct journal_iter journal_iter;
-	struct bkey_s_c btree_k, journal_k, k;
+	struct bkey_s_c btree_k, journal_k;
 	int ret;
 
 	ret = bch2_fs_ec_start(c);
@@ -1293,33 +1291,31 @@ int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 	journal_k	= bch2_journal_iter_peek(&journal_iter);
 
 	while (1) {
+		bool btree;
+
 		if (btree_k.k && journal_k.k) {
 			int cmp = bkey_cmp(btree_k.k->p, journal_k.k->p);
 
-			if (cmp < 0) {
-				k = btree_k;
+			if (!cmp)
 				btree_k = bch2_btree_iter_next(btree_iter);
-			} else if (cmp == 0) {
-				btree_k = bch2_btree_iter_next(btree_iter);
-				k = journal_k;
-				journal_k = bch2_journal_iter_next(&journal_iter);
-			} else {
-				k = journal_k;
-				journal_k = bch2_journal_iter_next(&journal_iter);
-			}
+			btree = cmp < 0;
 		} else if (btree_k.k) {
-			k = btree_k;
-			btree_k = bch2_btree_iter_next(btree_iter);
+			btree = true;
 		} else if (journal_k.k) {
-			k = journal_k;
-			journal_k = bch2_journal_iter_next(&journal_iter);
+			btree = false;
 		} else {
 			break;
 		}
 
-		bch2_mark_key(c, k, 0, 0, NULL, 0,
+		bch2_mark_key(c, btree ? btree_k : journal_k,
+			      0, 0, NULL, 0,
 			      BCH_BUCKET_MARK_ALLOC_READ|
 			      BCH_BUCKET_MARK_NOATOMIC);
+
+		if (btree)
+			btree_k = bch2_btree_iter_next(btree_iter);
+		else
+			journal_k = bch2_journal_iter_next(&journal_iter);
 	}
 
 	ret = bch2_trans_exit(&trans) ?: ret;

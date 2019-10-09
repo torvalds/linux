@@ -1510,14 +1510,14 @@ LE32_BITMASK(JSET_BIG_ENDIAN,	struct jset, flags, 4, 5);
 
 /* Btree: */
 
-#define BCH_BTREE_IDS()				\
+#define BCH_BTREE_IDS()					\
 	x(EXTENTS,	0, "extents")			\
 	x(INODES,	1, "inodes")			\
 	x(DIRENTS,	2, "dirents")			\
 	x(XATTRS,	3, "xattrs")			\
 	x(ALLOC,	4, "alloc")			\
 	x(QUOTAS,	5, "quotas")			\
-	x(EC,		6, "erasure_coding")		\
+	x(EC,		6, "stripes")			\
 	x(REFLINK,	7, "reflink")
 
 enum btree_id {
