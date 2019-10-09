@@ -4186,7 +4186,6 @@ struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_a
 {
 	struct drm_device *dev = mgr->dev;
 
-	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 	return to_dp_mst_topology_state(drm_atomic_get_private_obj_state(state, &mgr->base));
 }
 EXPORT_SYMBOL(drm_atomic_get_mst_topology_state);
