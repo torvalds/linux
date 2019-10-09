@@ -21,6 +21,7 @@ config GKI_HIDDEN_REGMAP_CONFIGS
 config GKI_HIDDEN_SND_SOC_CONFIGS
 	bool "Hidden SND_SOC configs needed for GKI"
 	select SND_SOC_GENERIC_DMAENGINE_PCM if (SND_SOC && SND)
+	select SND_PCM_IEC958
 	help
 	  Dummy config option used to enable hidden SND_SOC configs.
 	  These are normally selected implicitely when a module
