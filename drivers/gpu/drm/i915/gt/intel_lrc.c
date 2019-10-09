@@ -903,7 +903,7 @@ static void virtual_xfer_breadcrumbs(struct virtual_engine *ve,
 static struct i915_request *
 last_active(const struct intel_engine_execlists *execlists)
 {
-	struct i915_request * const *last = execlists->active;
+	struct i915_request * const *last = READ_ONCE(execlists->active);
 
 	while (*last && i915_request_completed(*last))
 		last++;
@@ -1608,8 +1608,11 @@ static void process_csb(struct intel_engine_cs *engine)
 static void __execlists_submission_tasklet(struct intel_engine_cs *const engine)
 {
 	lockdep_assert_held(&engine->active.lock);
-	if (!engine->execlists.pending[0])
+	if (!engine->execlists.pending[0]) {
+		rcu_read_lock(); /* protect peeking at execlists->active */
 		execlists_dequeue(engine);
+		rcu_read_unlock();
+	}
 }
 
 /*
