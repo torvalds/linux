@@ -218,7 +218,7 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 		: expensive_debug_checks(c)		? 0
 		: !btree_node_type_needs_gc(btree_id)	? 1
 		: 0;
-	u8 max_stale;
+	u8 max_stale = 0;
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
