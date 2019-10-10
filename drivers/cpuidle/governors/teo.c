@@ -277,18 +277,35 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 			hits = cpu_data->states[i].hits;
 			misses = cpu_data->states[i].misses;
 
+			if (early_hits >= cpu_data->states[i].early_hits ||
+			    idx < 0)
+				continue;
+
 			/*
-			 * If the "early hits" metric of a disabled state is
-			 * greater than the current maximum, it should be taken
-			 * into account, because it would be a mistake to select
-			 * a deeper state with lower "early hits" metric.  The
-			 * index cannot be changed to point to it, however, so
-			 * just increase the "early hits" count alone and let
-			 * the index still point to a shallower idle state.
+			 * If the current candidate state has been the one with
+			 * the maximum "early hits" metric so far, the "early
+			 * hits" metric of the disabled state replaces the
+			 * current "early hits" count to avoid selecting a
+			 * deeper state with lower "early hits" metric.
 			 */
-			if (max_early_idx >= 0 &&
-			    early_hits < cpu_data->states[i].early_hits)
+			if (max_early_idx == idx) {
 				early_hits = cpu_data->states[i].early_hits;
+				continue;
+			}
+
+			/*
+			 * The current candidate state is closer to the disabled
+			 * one than the current maximum "early hits" state, so
+			 * replace the latter with it, but in case the maximum
+			 * "early hits" state index has not been set so far,
+			 * check if the current candidate state is not too
+			 * shallow for that role.
+			 */
+			if (!(tick_nohz_tick_stopped() &&
+			      drv->states[idx].target_residency < TICK_USEC)) {
+				early_hits = cpu_data->states[i].early_hits;
+				max_early_idx = idx;
+			}
 
 			continue;
 		}
