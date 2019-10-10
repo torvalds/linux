@@ -10,11 +10,8 @@
 	compatible = "rockchip,rk3308b-evb-amic-v10-aarch32", "rockchip,rk3308";
 };
 
-&ramoops_mem {
-	reg = <0x0 0x30000 0x0 0x20000>;
-};
-
 &ramoops {
-	record-size = <0x0 0x00000>;
-	console-size = <0x0 0x20000>;
+	reg = <0x0 0x30000 0x0 0x20000>;
+	record-size = <0x00000>;
+	console-size = <0x20000>;
 };
