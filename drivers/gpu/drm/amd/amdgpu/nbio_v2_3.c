@@ -38,6 +38,9 @@
 #define mmBIF_SDMA3_DOORBELL_RANGE		0x01d7
 #define mmBIF_SDMA3_DOORBELL_RANGE_BASE_IDX	2
 
+#define mmBIF_MMSCH1_DOORBELL_RANGE		0x01d8
+#define mmBIF_MMSCH1_DOORBELL_RANGE_BASE_IDX	2
+
 static void nbio_v2_3_remap_hdp_registers(struct amdgpu_device *adev)
 {
 	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_MEM_FLUSH_CNTL,
@@ -109,7 +112,8 @@ static void nbio_v2_3_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 static void nbio_v2_3_vcn_doorbell_range(struct amdgpu_device *adev, bool use_doorbell,
 					 int doorbell_index, int instance)
 {
-	u32 reg = SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH0_DOORBELL_RANGE);
+	u32 reg = instance ? SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH1_DOORBELL_RANGE) :
+		SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH0_DOORBELL_RANGE);
 
 	u32 doorbell_range = RREG32(reg);
 
