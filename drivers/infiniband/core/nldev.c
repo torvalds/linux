@@ -415,20 +415,34 @@ err:
 static int fill_res_name_pid(struct sk_buff *msg,
 			     struct rdma_restrack_entry *res)
 {
+	int err = 0;
+
 	/*
 	 * For user resources, user is should read /proc/PID/comm to get the
 	 * name of the task file.
 	 */
 	if (rdma_is_kernel_res(res)) {
-		if (nla_put_string(msg, RDMA_NLDEV_ATTR_RES_KERN_NAME,
-		    res->kern_name))
-			return -EMSGSIZE;
+		err = nla_put_string(msg, RDMA_NLDEV_ATTR_RES_KERN_NAME,
+				     res->kern_name);
 	} else {
-		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_PID,
-		    task_pid_vnr(res->task)))
-			return -EMSGSIZE;
+		pid_t pid;
+
+		pid = task_pid_vnr(res->task);
+		/*
+		 * Task is dead and in zombie state.
+		 * There is no need to print PID anymore.
+		 */
+		if (pid)
+			/*
+			 * This part is racy, task can be killed and PID will
+			 * be zero right here but it is ok, next query won't
+			 * return PID. We don't promise real-time reflection
+			 * of SW objects.
+			 */
+			err = nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_PID, pid);
 	}
-	return 0;
+
+	return err ? -EMSGSIZE : 0;
 }
 
 static bool fill_res_entry(struct ib_device *dev, struct sk_buff *msg,
