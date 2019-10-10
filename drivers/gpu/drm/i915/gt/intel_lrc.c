@@ -2728,8 +2728,10 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	if (!rq)
 		goto unwind;
 
+	/* We still have requests in-flight; the engine should be active */
+	GEM_BUG_ON(!intel_engine_pm_is_awake(engine));
+
 	ce = rq->hw_context;
-	GEM_BUG_ON(i915_active_is_idle(&ce->active));
 	GEM_BUG_ON(!i915_vma_is_pinned(ce->state));
 
 	/* Proclaim we have exclusive access to the context image! */
@@ -2737,10 +2739,13 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 
 	rq = active_request(rq);
 	if (!rq) {
+		/* Idle context; tidy up the ring so we can restart afresh */
 		ce->ring->head = ce->ring->tail;
 		goto out_replay;
 	}
 
+	/* Context has requests still in-flight; it should not be idle! */
+	GEM_BUG_ON(i915_active_is_idle(&ce->active));
 	ce->ring->head = intel_ring_wrap(ce->ring, rq->head);
 
 	/*
