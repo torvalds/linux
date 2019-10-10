@@ -1155,7 +1155,6 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		 * Tiled buffers are always shmem paged backed. When they are
 		 * scanned out, they are remapped into DMM/TILER.
 		 */
-		flags &= ~OMAP_BO_SCANOUT;
 		flags |= OMAP_BO_MEM_SHMEM;
 
 		/*
@@ -1166,9 +1165,8 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		flags |= tiler_get_cpu_cache_flags();
 	} else if ((flags & OMAP_BO_SCANOUT) && !priv->has_dmm) {
 		/*
-		 * OMAP_BO_SCANOUT hints that the buffer doesn't need to be
-		 * tiled. However, to lower the pressure on memory allocation,
-		 * use contiguous memory only if no TILER is available.
+		 * If we don't have DMM, we must allocate scanout buffers
+		 * from contiguous DMA memory.
 		 */
 		flags |= OMAP_BO_MEM_DMA_API;
 	} else if (!(flags & OMAP_BO_MEM_DMABUF)) {
