@@ -136,7 +136,7 @@ static int amdgpu_discovery_read_binary(struct amdgpu_device *adev, uint8_t *bin
 {
 	uint32_t *p = (uint32_t *)binary;
 	uint64_t vram_size = (uint64_t)RREG32(mmRCC_CONFIG_MEMSIZE) << 20;
-	uint64_t pos = vram_size - BINARY_MAX_SIZE;
+	uint64_t pos = vram_size - DISCOVERY_TMR_SIZE;
 	unsigned long flags;
 
 	while (pos < vram_size) {
@@ -179,7 +179,7 @@ int amdgpu_discovery_init(struct amdgpu_device *adev)
 	uint16_t checksum;
 	int r;
 
-	adev->discovery = kzalloc(BINARY_MAX_SIZE, GFP_KERNEL);
+	adev->discovery = kzalloc(DISCOVERY_TMR_SIZE, GFP_KERNEL);
 	if (!adev->discovery)
 		return -ENOMEM;
 
