@@ -143,6 +143,7 @@ static struct smu_11_0_cmn2aisc_mapping vega20_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(PrepareMp1ForShutdown),
 	MSG_MAP(SetMGpuFanBoostLimitRpm),
 	MSG_MAP(GetAVFSVoltageByDpm),
+	MSG_MAP(DFCstateControl),
 };
 
 static struct smu_11_0_cmn2aisc_mapping vega20_clk_map[SMU_CLK_COUNT] = {
@@ -3135,6 +3136,27 @@ static int vega20_get_thermal_temperature_range(struct smu_context *smu,
 	return 0;
 }
 
+static int vega20_set_df_cstate(struct smu_context *smu,
+				enum pp_df_cstate state)
+{
+	uint32_t smu_version;
+	int ret;
+
+	ret = smu_get_smc_version(smu, NULL, &smu_version);
+	if (ret) {
+		pr_err("Failed to get smu version!\n");
+		return ret;
+	}
+
+	/* PPSMC_MSG_DFCstateControl is supported with 40.50 and later fws */
+	if (smu_version < 0x283200) {
+		pr_err("Df cstate control is supported with 40.50 and later SMC fw!\n");
+		return -EINVAL;
+	}
+
+	return smu_send_smc_msg_with_param(smu, SMU_MSG_DFCstateControl, state);
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.tables_init = vega20_tables_init,
 	.alloc_dpm_context = vega20_allocate_dpm_context,
@@ -3177,7 +3199,8 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_fan_speed_percent = vega20_get_fan_speed_percent,
 	.get_fan_speed_rpm = vega20_get_fan_speed_rpm,
 	.set_watermarks_table = vega20_set_watermarks_table,
-	.get_thermal_temperature_range = vega20_get_thermal_temperature_range
+	.get_thermal_temperature_range = vega20_get_thermal_temperature_range,
+	.set_df_cstate = vega20_set_df_cstate,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)

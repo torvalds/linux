@@ -468,6 +468,7 @@ struct pptable_funcs {
 	int (*get_power_limit)(struct smu_context *smu, uint32_t *limit, bool asic_default);
 	int (*get_dpm_clk_limited)(struct smu_context *smu, enum smu_clk_type clk_type,
 				   uint32_t dpm_level, uint32_t *freq);
+	int (*set_df_cstate)(struct smu_context *smu, enum pp_df_cstate state);
 };
 
 struct smu_funcs
@@ -852,5 +853,7 @@ int smu_force_clk_levels(struct smu_context *smu,
 			 uint32_t mask);
 int smu_set_mp1_state(struct smu_context *smu,
 		      enum pp_mp1_state mp1_state);
+int smu_set_df_cstate(struct smu_context *smu,
+		      enum pp_df_cstate state);
 
 #endif

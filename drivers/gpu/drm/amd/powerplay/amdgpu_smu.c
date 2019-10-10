@@ -1834,6 +1834,29 @@ int smu_set_mp1_state(struct smu_context *smu,
 	return ret;
 }
 
+int smu_set_df_cstate(struct smu_context *smu,
+		      enum pp_df_cstate state)
+{
+	int ret = 0;
+
+	/*
+	 * The SMC is not fully ready. That may be
+	 * expected as the IP may be masked.
+	 * So, just return without error.
+	 */
+	if (!smu->pm_enabled)
+		return 0;
+
+	if (!smu->ppt_funcs || !smu->ppt_funcs->set_df_cstate)
+		return 0;
+
+	ret = smu->ppt_funcs->set_df_cstate(smu, state);
+	if (ret)
+		pr_err("[SetDfCstate] failed!\n");
+
+	return ret;
+}
+
 const struct amd_ip_funcs smu_ip_funcs = {
 	.name = "smu",
 	.early_init = smu_early_init,
