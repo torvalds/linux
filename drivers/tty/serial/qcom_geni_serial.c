@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/qcom-geni-se.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
@@ -116,6 +117,7 @@ struct qcom_geni_serial_port {
 	bool brk;
 
 	unsigned int tx_remaining;
+	int wakeup_irq;
 };
 
 static const struct uart_ops qcom_geni_console_pops;
@@ -755,6 +757,15 @@ out_write_wakeup:
 		uart_write_wakeup(uport);
 }
 
+static irqreturn_t qcom_geni_serial_wakeup_isr(int isr, void *dev)
+{
+	struct uart_port *uport = dev;
+
+	pm_wakeup_event(uport->dev, 2000);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t qcom_geni_serial_isr(int isr, void *dev)
 {
 	u32 m_irq_en;
@@ -1306,6 +1317,29 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	if (!console) {
+		port->wakeup_irq = platform_get_irq(pdev, 1);
+		if (port->wakeup_irq < 0) {
+			dev_err(&pdev->dev, "Failed to get wakeup IRQ %d\n",
+					port->wakeup_irq);
+		} else {
+			irq_set_status_flags(port->wakeup_irq, IRQ_NOAUTOEN);
+			ret = devm_request_irq(uport->dev, port->wakeup_irq,
+				qcom_geni_serial_wakeup_isr,
+				IRQF_TRIGGER_FALLING, "uart_wakeup", uport);
+			if (ret) {
+				dev_err(uport->dev, "Failed to register wakeup IRQ ret %d\n",
+						ret);
+				return ret;
+			}
+
+			device_init_wakeup(&pdev->dev, true);
+			ret = dev_pm_set_wake_irq(&pdev->dev, port->wakeup_irq);
+			if (unlikely(ret))
+				dev_err(uport->dev, "%s:Failed to set IRQ wake:%d\n",
+						__func__, ret);
+		}
+	}
 	uport->private_data = drv;
 	platform_set_drvdata(pdev, port);
 	port->handle_rx = console ? handle_rx_console : handle_rx_uart;
@@ -1328,13 +1362,21 @@ static int __maybe_unused qcom_geni_serial_sys_suspend(struct device *dev)
 	struct qcom_geni_serial_port *port = dev_get_drvdata(dev);
 	struct uart_port *uport = &port->uport;
 
-	return uart_suspend_port(uport->private_data, uport);
+	uart_suspend_port(uport->private_data, uport);
+
+	if (port->wakeup_irq > 0)
+		enable_irq(port->wakeup_irq);
+
+	return 0;
 }
 
 static int __maybe_unused qcom_geni_serial_sys_resume(struct device *dev)
 {
 	struct qcom_geni_serial_port *port = dev_get_drvdata(dev);
 	struct uart_port *uport = &port->uport;
+
+	if (port->wakeup_irq > 0)
+		disable_irq(port->wakeup_irq);
 
 	return uart_resume_port(uport->private_data, uport);
 }
