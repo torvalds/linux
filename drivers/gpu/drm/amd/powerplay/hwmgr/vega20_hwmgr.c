@@ -4155,6 +4155,24 @@ static int vega20_smu_i2c_bus_access(struct pp_hwmgr *hwmgr, bool acquire)
 	return res;
 }
 
+static int vega20_set_df_cstate(struct pp_hwmgr *hwmgr,
+				enum pp_df_cstate state)
+{
+	int ret;
+
+	/* PPSMC_MSG_DFCstateControl is supported with 40.50 and later fws */
+	if (hwmgr->smu_version < 0x283200) {
+		pr_err("Df cstate control is supported with 40.50 and later SMC fw!\n");
+		return -EINVAL;
+	}
+
+	ret = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DFCstateControl, state);
+	if (ret)
+		pr_err("SetDfCstate failed!\n");
+
+	return ret;
+}
+
 static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 	/* init/fini related */
 	.backend_init = vega20_hwmgr_backend_init,
@@ -4223,6 +4241,7 @@ static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 	.set_asic_baco_state = vega20_baco_set_state,
 	.set_mp1_state = vega20_set_mp1_state,
 	.smu_i2c_bus_access = vega20_smu_i2c_bus_access,
+	.set_df_cstate = vega20_set_df_cstate,
 };
 
 int vega20_hwmgr_init(struct pp_hwmgr *hwmgr)
