@@ -65,7 +65,7 @@ struct huawei_wmi {
 	struct huawei_wmi_debug debug;
 	struct input_dev *idev[2];
 	struct led_classdev cdev;
-	struct platform_device *pdev;
+	struct device *dev;
 
 	struct mutex battery_lock;
 	struct mutex wmi_lock;
@@ -152,7 +152,7 @@ static int huawei_wmi_call(struct acpi_buffer *in, struct acpi_buffer *out)
 	status = wmi_evaluate_method(HWMI_METHOD_GUID, 0, 1, in, out);
 	mutex_unlock(&huawei_wmi->wmi_lock);
 	if (ACPI_FAILURE(status)) {
-		dev_err(&huawei_wmi->pdev->dev, "Failed to evaluate wmi method\n");
+		dev_err(huawei_wmi->dev, "Failed to evaluate wmi method\n");
 		return -ENODEV;
 	}
 
@@ -202,7 +202,7 @@ static int huawei_wmi_cmd(u64 arg, u8 *buf, size_t buflen)
 				obj->buffer.pointer += 4;
 				len = 0x100;
 			} else {
-				dev_err(&huawei_wmi->pdev->dev, "Bad buffer length, got %d\n", obj->buffer.length);
+				dev_err(huawei_wmi->dev, "Bad buffer length, got %d\n", obj->buffer.length);
 				err = -EIO;
 				goto fail_cmd;
 			}
@@ -213,14 +213,14 @@ static int huawei_wmi_cmd(u64 arg, u8 *buf, size_t buflen)
 		 */
 		case ACPI_TYPE_PACKAGE:
 			if (obj->package.count != 2) {
-				dev_err(&huawei_wmi->pdev->dev, "Bad package count, got %d\n", obj->package.count);
+				dev_err(huawei_wmi->dev, "Bad package count, got %d\n", obj->package.count);
 				err = -EIO;
 				goto fail_cmd;
 			}
 
 			obj = &obj->package.elements[1];
 			if (obj->type != ACPI_TYPE_BUFFER) {
-				dev_err(&huawei_wmi->pdev->dev, "Bad package element type, got %d\n", obj->type);
+				dev_err(huawei_wmi->dev, "Bad package element type, got %d\n", obj->type);
 				err = -EIO;
 				goto fail_cmd;
 			}
@@ -229,7 +229,7 @@ static int huawei_wmi_cmd(u64 arg, u8 *buf, size_t buflen)
 			break;
 		/* Shouldn't get here! */
 		default:
-			dev_err(&huawei_wmi->pdev->dev, "Unexpected obj type, got: %d\n", obj->type);
+			dev_err(huawei_wmi->dev, "Unexpected obj type, got: %d\n", obj->type);
 			err = -EIO;
 			goto fail_cmd;
 		}
@@ -633,7 +633,7 @@ static void huawei_wmi_debugfs_call_dump(struct seq_file *m, void *data,
 		seq_puts(m, "]");
 		break;
 	default:
-		dev_err(&huawei->pdev->dev, "Unexpected obj type, got %d\n", obj->type);
+		dev_err(huawei->dev, "Unexpected obj type, got %d\n", obj->type);
 		return;
 	}
 }
@@ -788,7 +788,7 @@ static int huawei_wmi_probe(struct platform_device *pdev)
 	int err;
 
 	platform_set_drvdata(pdev, huawei_wmi);
-	huawei_wmi->pdev = pdev;
+	huawei_wmi->dev = &pdev->dev;
 
 	while (*guid->guid_string) {
 		struct input_dev *idev = *huawei_wmi->idev;
@@ -883,7 +883,9 @@ pdrv_err:
 
 static __exit void huawei_wmi_exit(void)
 {
-	platform_device_unregister(huawei_wmi->pdev);
+	struct platform_device *pdev = to_platform_device(huawei_wmi->dev);
+
+	platform_device_unregister(pdev);
 	platform_driver_unregister(&huawei_wmi_driver);
 
 	kfree(huawei_wmi);
