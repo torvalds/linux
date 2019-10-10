@@ -1,0 +1,49 @@
+#
+# (C) COPYRIGHT 2019 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU licence.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
+#
+# SPDX-License-Identifier: GPL-2.0
+#
+#
+
+* Arm memory group manager for Mali GPU device drivers
+
+Required properties:
+
+- compatible: Must be "arm,physical-memory-group-manager"
+
+An example node:
+
+        gpu_physical_memory_group_manager: physical-memory-group-manager {
+                compatible = "arm,physical-memory-group-manager";
+        };
+
+It must be referenced by the GPU as well, see physical-memory-group-manager:
+
+	gpu: gpu@0x6e000000 {
+		compatible = "arm,mali-midgard";
+		reg = <0x0 0x6e000000 0x0 0x200000>;
+		interrupts = <0 168 4>, <0 168 4>, <0 168 4>;
+		interrupt-names = "JOB", "MMU", "GPU";
+		clocks = <&scpi_dvfs 2>;
+		clock-names = "clk_mali";
+		system-coherency = <31>;
+		physical-memory-group-manager = <&gpu_physical_memory_group_manager>;
+		operating-points = <
+			/* KHz uV */
+			50000 820000
+		>;
+	};
