@@ -1386,7 +1386,9 @@ static int nvme_tcp_alloc_queue(struct nvme_ctrl *nctrl,
 	queue->sock->sk->sk_data_ready = nvme_tcp_data_ready;
 	queue->sock->sk->sk_state_change = nvme_tcp_state_change;
 	queue->sock->sk->sk_write_space = nvme_tcp_write_space;
+#ifdef CONFIG_NET_RX_BUSY_POLL
 	queue->sock->sk->sk_ll_usec = 1;
+#endif
 	write_unlock_bh(&queue->sock->sk->sk_callback_lock);
 
 	return 0;
