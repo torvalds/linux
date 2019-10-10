@@ -147,61 +147,6 @@ static int lima_gem_sync_bo(struct lima_sched_task *task, struct lima_bo *bo,
 	return drm_gem_fence_array_add_implicit(&task->deps, &bo->base.base, write);
 }
 
-static int lima_gem_lock_bos(struct lima_bo **bos, u32 nr_bos,
-			     struct ww_acquire_ctx *ctx)
-{
-	int i, ret = 0, contended, slow_locked = -1;
-
-	ww_acquire_init(ctx, &reservation_ww_class);
-
-retry:
-	for (i = 0; i < nr_bos; i++) {
-		if (i == slow_locked) {
-			slow_locked = -1;
-			continue;
-		}
-
-		ret = ww_mutex_lock_interruptible(&lima_bo_resv(bos[i])->lock, ctx);
-		if (ret < 0) {
-			contended = i;
-			goto err;
-		}
-	}
-
-	ww_acquire_done(ctx);
-	return 0;
-
-err:
-	for (i--; i >= 0; i--)
-		ww_mutex_unlock(&lima_bo_resv(bos[i])->lock);
-
-	if (slow_locked >= 0)
-		ww_mutex_unlock(&lima_bo_resv(bos[slow_locked])->lock);
-
-	if (ret == -EDEADLK) {
-		/* we lost out in a seqno race, lock and retry.. */
-		ret = ww_mutex_lock_slow_interruptible(
-			&lima_bo_resv(bos[contended])->lock, ctx);
-		if (!ret) {
-			slow_locked = contended;
-			goto retry;
-		}
-	}
-	ww_acquire_fini(ctx);
-
-	return ret;
-}
-
-static void lima_gem_unlock_bos(struct lima_bo **bos, u32 nr_bos,
-				struct ww_acquire_ctx *ctx)
-{
-	int i;
-
-	for (i = 0; i < nr_bos; i++)
-		ww_mutex_unlock(&lima_bo_resv(bos[i])->lock);
-	ww_acquire_fini(ctx);
-}
-
 static int lima_gem_add_deps(struct drm_file *file, struct lima_submit *submit)
 {
 	int i, err;
@@ -267,7 +212,8 @@ int lima_gem_submit(struct drm_file *file, struct lima_submit *submit)
 		bos[i] = bo;
 	}
 
-	err = lima_gem_lock_bos(bos, submit->nr_bos, &ctx);
+	err = drm_gem_lock_reservations((struct drm_gem_object **)bos,
+					submit->nr_bos, &ctx);
 	if (err)
 		goto err_out0;
 
@@ -300,7 +246,8 @@ int lima_gem_submit(struct drm_file *file, struct lima_submit *submit)
 			dma_resv_add_shared_fence(lima_bo_resv(bos[i]), fence);
 	}
 
-	lima_gem_unlock_bos(bos, submit->nr_bos, &ctx);
+	drm_gem_unlock_reservations((struct drm_gem_object **)bos,
+				    submit->nr_bos, &ctx);
 
 	for (i = 0; i < submit->nr_bos; i++)
 		drm_gem_object_put_unlocked(&bos[i]->base.base);
@@ -317,7 +264,8 @@ int lima_gem_submit(struct drm_file *file, struct lima_submit *submit)
 err_out2:
 	lima_sched_task_fini(submit->task);
 err_out1:
-	lima_gem_unlock_bos(bos, submit->nr_bos, &ctx);
+	drm_gem_unlock_reservations((struct drm_gem_object **)bos,
+				    submit->nr_bos, &ctx);
 err_out0:
 	for (i = 0; i < submit->nr_bos; i++) {
 		if (!bos[i])
