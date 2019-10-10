@@ -228,15 +228,16 @@ enum iser_desc_type {
  * @iser_header:   iser header
  * @iscsi_header:  iscsi header
  * @type:          command/control/dataout
- * @dam_addr:      header buffer dma_address
+ * @dma_addr:      header buffer dma_address
  * @tx_sg:         sg[0] points to iser/iscsi headers
  *                 sg[1] optionally points to either of immediate data
  *                 unsolicited data-out or control
  * @num_sge:       number sges used on this TX task
+ * @cqe:           completion handler
  * @mapped:        Is the task header mapped
- * reg_wr:         registration WR
- * send_wr:        send WR
- * inv_wr:         invalidate WR
+ * @reg_wr:        registration WR
+ * @send_wr:       send WR
+ * @inv_wr:        invalidate WR
  */
 struct iser_tx_desc {
 	struct iser_ctrl             iser_header;
@@ -263,6 +264,7 @@ struct iser_tx_desc {
  * @data:          received data segment
  * @dma_addr:      receive buffer dma address
  * @rx_sg:         ib_sge of receive buffer
+ * @cqe:           completion handler
  * @pad:           for sense data TODO: Modify to maximum sense length supported
  */
 struct iser_rx_desc {
@@ -279,9 +281,9 @@ struct iser_rx_desc {
  * struct iser_login_desc - iSER login descriptor
  *
  * @req:           pointer to login request buffer
- * @resp:          pointer to login response buffer
+ * @rsp:           pointer to login response buffer
  * @req_dma:       DMA address of login request buffer
- * @rsp_dma:      DMA address of login response buffer
+ * @rsp_dma:       DMA address of login response buffer
  * @sge:           IB sge for login post recv
  * @cqe:           completion handler
  */
@@ -316,7 +318,7 @@ struct iser_comp {
  *
  * @alloc_reg_res:     Allocate registration resources
  * @free_reg_res:      Free registration resources
- * @fast_reg_mem:      Register memory buffers
+ * @reg_mem:           Register memory buffers
  * @unreg_mem:         Un-register memory buffers
  * @reg_desc_get:      Get a registration descriptor for pool
  * @reg_desc_put:      Get a registration descriptor to pool
@@ -423,6 +425,7 @@ struct iser_fr_pool {
  * @comp:                iser completion context
  * @fr_pool:             connection fast registration poool
  * @pi_support:          Indicate device T10-PI support
+ * @reg_cqe:             completion handler
  */
 struct ib_conn {
 	struct rdma_cm_id           *cma_id;
@@ -463,6 +466,7 @@ struct ib_conn {
  * @num_rx_descs:     number of rx descriptors
  * @scsi_sg_tablesize: scsi host sg_tablesize
  * @pages_per_mr:     maximum pages available for registration
+ * @snd_w_inv:        connection uses remote invalidation
  */
 struct iser_conn {
 	struct ib_conn		     ib_conn;
