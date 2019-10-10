@@ -885,6 +885,8 @@ static __exit void huawei_wmi_exit(void)
 {
 	platform_device_unregister(huawei_wmi->pdev);
 	platform_driver_unregister(&huawei_wmi_driver);
+
+	kfree(huawei_wmi);
 }
 
 module_init(huawei_wmi_init);
