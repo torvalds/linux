@@ -197,6 +197,7 @@
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_pm.h"
+#include "gt/intel_engine_user.h"
 #include "gt/intel_lrc_reg.h"
 
 #include "i915_drv.h"
@@ -347,6 +348,7 @@ static const struct i915_oa_format gen8_plus_oa_formats[I915_OA_FORMAT_MAX] = {
  * @oa_format: An OA unit HW report format
  * @oa_periodic: Whether to enable periodic OA unit sampling
  * @oa_period_exponent: The OA unit sampling period is derived from this
+ * @engine: The engine (typically rcs0) being monitored by the OA unit
  *
  * As read_properties_unlocked() enumerates and validates the properties given
  * to open a stream of metrics the configuration is built up in the structure
@@ -363,6 +365,8 @@ struct perf_open_properties {
 	int oa_format;
 	bool oa_periodic;
 	int oa_period_exponent;
+
+	struct intel_engine_cs *engine;
 };
 
 static enum hrtimer_restart oa_poll_check_timer_cb(struct hrtimer *hrtimer);
@@ -1205,7 +1209,7 @@ static struct intel_context *oa_pin_context(struct i915_perf_stream *stream)
 	int err;
 
 	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
-		if (ce->engine->class != RENDER_CLASS)
+		if (ce->engine != stream->engine) /* first match! */
 			continue;
 
 		/*
@@ -2127,7 +2131,13 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	int format_size;
 	int ret;
 
-	/* If the sysfs metrics/ directory wasn't registered for some
+	if (!props->engine) {
+		DRM_DEBUG("OA engine not specified\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * If the sysfs metrics/ directory wasn't registered for some
 	 * reason then don't let userspace try their luck with config
 	 * IDs
 	 */
@@ -2146,7 +2156,8 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 		return -ENODEV;
 	}
 
-	/* To avoid the complexity of having to accurately filter
+	/*
+	 * To avoid the complexity of having to accurately filter
 	 * counter reports and marshal to the appropriate client
 	 * we currently only allow exclusive access
 	 */
@@ -2159,6 +2170,9 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 		DRM_DEBUG("OA report format not specified\n");
 		return -EINVAL;
 	}
+
+	stream->engine = props->engine;
+	stream->gt = stream->engine->gt;
 
 	stream->sample_size = sizeof(struct drm_i915_perf_record_header);
 
@@ -2711,7 +2725,6 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 	}
 
 	stream->perf = perf;
-	stream->gt = &perf->i915->gt;
 	stream->ctx = specific_ctx;
 
 	ret = i915_oa_stream_init(stream, param, props);
@@ -2793,6 +2806,15 @@ static int read_properties_unlocked(struct i915_perf *perf,
 
 	if (!n_props) {
 		DRM_DEBUG("No i915 perf properties given\n");
+		return -EINVAL;
+	}
+
+	/* At the moment we only support using i915-perf on the RCS. */
+	props->engine = intel_engine_lookup_user(perf->i915,
+						 I915_ENGINE_CLASS_RENDER,
+						 0);
+	if (!props->engine) {
+		DRM_DEBUG("No RENDER-capable engines\n");
 		return -EINVAL;
 	}
 

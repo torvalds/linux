@@ -141,6 +141,11 @@ struct i915_perf_stream {
 	intel_wakeref_t wakeref;
 
 	/**
+	 * @engine: Engine associated with this performance stream.
+	 */
+	struct intel_engine_cs *engine;
+
+	/**
 	 * @sample_flags: Flags representing the `DRM_I915_PERF_PROP_SAMPLE_*`
 	 * properties given when opening a stream, representing the contents
 	 * of a single sample as read() by userspace.
