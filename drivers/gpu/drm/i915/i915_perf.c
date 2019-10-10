@@ -419,14 +419,14 @@ static int get_oa_config(struct i915_perf *perf,
 
 static u32 gen8_oa_hw_tail_read(struct i915_perf_stream *stream)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 
 	return intel_uncore_read(uncore, GEN8_OATAILPTR) & GEN8_OATAILPTR_MASK;
 }
 
 static u32 gen7_oa_hw_tail_read(struct i915_perf_stream *stream)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 	u32 oastatus1 = intel_uncore_read(uncore, GEN7_OASTATUS1);
 
 	return oastatus1 & GEN7_OASTATUS1_TAIL_MASK;
@@ -656,7 +656,7 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 				  size_t count,
 				  size_t *offset)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 	int report_size = stream->oa_buffer.format_size;
 	u8 *oa_buf_base = stream->oa_buffer.vaddr;
 	u32 gtt_offset = i915_ggtt_offset(stream->oa_buffer.vma);
@@ -866,7 +866,7 @@ static int gen8_oa_read(struct i915_perf_stream *stream,
 			size_t count,
 			size_t *offset)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 	u32 oastatus;
 	int ret;
 
@@ -945,7 +945,7 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 				  size_t count,
 				  size_t *offset)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 	int report_size = stream->oa_buffer.format_size;
 	u8 *oa_buf_base = stream->oa_buffer.vaddr;
 	u32 gtt_offset = i915_ggtt_offset(stream->oa_buffer.vma);
@@ -1077,7 +1077,7 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 			size_t count,
 			size_t *offset)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 	u32 oastatus1;
 	int ret;
 
@@ -1352,8 +1352,8 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 
 	free_oa_buffer(stream);
 
-	intel_uncore_forcewake_put(stream->gt->uncore, FORCEWAKE_ALL);
-	intel_runtime_pm_put(stream->gt->uncore->rpm, stream->wakeref);
+	intel_uncore_forcewake_put(stream->uncore, FORCEWAKE_ALL);
+	intel_runtime_pm_put(stream->uncore->rpm, stream->wakeref);
 
 	if (stream->ctx)
 		oa_put_render_ctx_id(stream);
@@ -1368,7 +1368,7 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 
 static void gen7_init_oa_buffer(struct i915_perf_stream *stream)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 	u32 gtt_offset = i915_ggtt_offset(stream->oa_buffer.vma);
 	unsigned long flags;
 
@@ -1416,7 +1416,7 @@ static void gen7_init_oa_buffer(struct i915_perf_stream *stream)
 
 static void gen8_init_oa_buffer(struct i915_perf_stream *stream)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 	u32 gtt_offset = i915_ggtt_offset(stream->oa_buffer.vma);
 	unsigned long flags;
 
@@ -1565,7 +1565,7 @@ static void delay_after_mux(void)
 
 static int hsw_enable_metric_set(struct i915_perf_stream *stream)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 	const struct i915_oa_config *oa_config = stream->oa_config;
 
 	/*
@@ -1594,7 +1594,7 @@ static int hsw_enable_metric_set(struct i915_perf_stream *stream)
 
 static void hsw_disable_metric_set(struct i915_perf_stream *stream)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 
 	intel_uncore_rmw(uncore, GEN6_UCGCTL1,
 			 GEN6_CSUNIT_CLOCK_GATE_DISABLE, 0);
@@ -1911,7 +1911,7 @@ static int gen8_configure_all_contexts(struct i915_perf_stream *stream,
 
 static int gen8_enable_metric_set(struct i915_perf_stream *stream)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 	const struct i915_oa_config *oa_config = stream->oa_config;
 	int ret;
 
@@ -1964,7 +1964,7 @@ static int gen8_enable_metric_set(struct i915_perf_stream *stream)
 
 static void gen8_disable_metric_set(struct i915_perf_stream *stream)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 
 	/* Reset all contexts' slices/subslices configurations. */
 	gen8_configure_all_contexts(stream, NULL);
@@ -1974,7 +1974,7 @@ static void gen8_disable_metric_set(struct i915_perf_stream *stream)
 
 static void gen10_disable_metric_set(struct i915_perf_stream *stream)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 
 	/* Reset all contexts' slices/subslices configurations. */
 	gen8_configure_all_contexts(stream, NULL);
@@ -1985,7 +1985,7 @@ static void gen10_disable_metric_set(struct i915_perf_stream *stream)
 
 static void gen7_oa_enable(struct i915_perf_stream *stream)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 	struct i915_gem_context *ctx = stream->ctx;
 	u32 ctx_id = stream->specific_ctx_id;
 	bool periodic = stream->periodic;
@@ -2015,7 +2015,7 @@ static void gen7_oa_enable(struct i915_perf_stream *stream)
 
 static void gen8_oa_enable(struct i915_perf_stream *stream)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 	u32 report_format = stream->oa_buffer.format;
 
 	/*
@@ -2060,7 +2060,7 @@ static void i915_oa_stream_enable(struct i915_perf_stream *stream)
 
 static void gen7_oa_disable(struct i915_perf_stream *stream)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 
 	intel_uncore_write(uncore, GEN7_OACONTROL, 0);
 	if (intel_wait_for_register(uncore,
@@ -2071,7 +2071,7 @@ static void gen7_oa_disable(struct i915_perf_stream *stream)
 
 static void gen8_oa_disable(struct i915_perf_stream *stream)
 {
-	struct intel_uncore *uncore = stream->gt->uncore;
+	struct intel_uncore *uncore = stream->uncore;
 
 	intel_uncore_write(uncore, GEN8_OACONTROL, 0);
 	if (intel_wait_for_register(uncore,
@@ -2172,7 +2172,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	}
 
 	stream->engine = props->engine;
-	stream->gt = stream->engine->gt;
+	stream->uncore = stream->engine->gt->uncore;
 
 	stream->sample_size = sizeof(struct drm_i915_perf_record_header);
 
@@ -2218,8 +2218,8 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	 *   In our case we are expecting that taking pm + FORCEWAKE
 	 *   references will effectively disable RC6.
 	 */
-	stream->wakeref = intel_runtime_pm_get(stream->gt->uncore->rpm);
-	intel_uncore_forcewake_get(stream->gt->uncore, FORCEWAKE_ALL);
+	stream->wakeref = intel_runtime_pm_get(stream->uncore->rpm);
+	intel_uncore_forcewake_get(stream->uncore, FORCEWAKE_ALL);
 
 	ret = alloc_oa_buffer(stream);
 	if (ret)
@@ -2251,8 +2251,8 @@ err_enable:
 err_oa_buf_alloc:
 	put_oa_config(stream->oa_config);
 
-	intel_uncore_forcewake_put(stream->gt->uncore, FORCEWAKE_ALL);
-	intel_runtime_pm_put(stream->gt->uncore->rpm, stream->wakeref);
+	intel_uncore_forcewake_put(stream->uncore, FORCEWAKE_ALL);
+	intel_runtime_pm_put(stream->uncore->rpm, stream->wakeref);
 
 err_config:
 	if (stream->ctx)

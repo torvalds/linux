@@ -130,9 +130,9 @@ struct i915_perf_stream {
 	struct i915_perf *perf;
 
 	/**
-	 * @gt: intel_gt container
+	 * @uncore: mmio access path
 	 */
-	struct intel_gt *gt;
+	struct intel_uncore *uncore;
 
 	/**
 	 * @wakeref: As we keep the device awake while the perf stream is
