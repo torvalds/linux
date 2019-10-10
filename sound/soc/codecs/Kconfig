@@ -34,6 +34,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ADAU1977_I2C if I2C
 	select SND_SOC_ADAU1701 if I2C
 	select SND_SOC_ADAU7002
+	select SND_SOC_ADAU7118_I2C if I2C
+	select SND_SOC_ADAU7118_HW
 	select SND_SOC_ADS117X
 	select SND_SOC_AK4104 if SPI_MASTER
 	select SND_SOC_AK4118 if I2C
@@ -395,6 +397,32 @@ config SND_SOC_ADAU1977_I2C
 
 config SND_SOC_ADAU7002
 	tristate "Analog Devices ADAU7002 Stereo PDM-to-I2S/TDM Converter"
+
+config SND_SOC_ADAU7118
+	tristate
+
+config SND_SOC_ADAU7118_HW
+	tristate "Analog Devices ADAU7118 8 Channel PDM-to-I2S/TDM Converter - HW Mode"
+	select SND_SOC_ADAU7118
+	help
+	  Enable support for the Analog Devices ADAU7118 8 Channel PDM-to-I2S/TDM
+	  Converter. In this mode, the device works in standalone mode which
+	  means that there is no bus to comunicate with it. Stereo mode is not
+	  supported in this mode.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-soc-adau7118-hw.
+
+config SND_SOC_ADAU7118_I2C
+	tristate "Analog Devices ADAU7118 8 Channel PDM-to-I2S/TDM Converter - I2C"
+	select SND_SOC_ADAU7118
+	select REGMAP_I2C
+	help
+	  Enable support for the Analog Devices ADAU7118 8 Channel PDM-to-I2S/TDM
+	  Converter over I2C. This gives full support over the device.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-soc-adau7118-i2c.
 
 config SND_SOC_ADAV80X
 	tristate
