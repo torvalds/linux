@@ -1133,6 +1133,38 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 	kfree(omap_obj);
 }
 
+static bool omap_gem_validate_flags(struct drm_device *dev, u32 flags)
+{
+	struct omap_drm_private *priv = dev->dev_private;
+
+	switch (flags & OMAP_BO_CACHE_MASK) {
+	case OMAP_BO_CACHED:
+	case OMAP_BO_WC:
+	case OMAP_BO_CACHE_MASK:
+		break;
+
+	default:
+		return false;
+	}
+
+	if (flags & OMAP_BO_TILED_MASK) {
+		if (!priv->usergart)
+			return false;
+
+		switch (flags & OMAP_BO_TILED_MASK) {
+		case OMAP_BO_TILED_8:
+		case OMAP_BO_TILED_16:
+		case OMAP_BO_TILED_32:
+			break;
+
+		default:
+			return false;
+		}
+	}
+
+	return true;
+}
+
 /* GEM buffer object constructor */
 struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		union omap_gem_size gsize, u32 flags)
@@ -1144,13 +1176,11 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	size_t size;
 	int ret;
 
+	if (!omap_gem_validate_flags(dev, flags))
+		return NULL;
+
 	/* Validate the flags and compute the memory and cache flags. */
 	if (flags & OMAP_BO_TILED_MASK) {
-		if (!priv->usergart) {
-			dev_err(dev->dev, "Tiled buffers require DMM\n");
-			return NULL;
-		}
-
 		/*
 		 * Tiled buffers are always shmem paged backed. When they are
 		 * scanned out, they are remapped into DMM/TILER.
