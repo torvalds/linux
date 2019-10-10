@@ -199,7 +199,6 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	IWL_DEVICE_22000_COMMON,					\
 	.trans.device_family = IWL_DEVICE_FAMILY_22000,			\
 	.trans.base_params = &iwl_22000_base_params,			\
-	.trans.csr = &iwl_csr_v1,					\
 	.gp2_reg_addr = 0xa02c68,					\
 	.mon_dram_regs = {						\
 		.write_ptr = {						\
@@ -217,7 +216,6 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.trans.umac_prph_offset = 0x300000,				\
 	.trans.device_family = IWL_DEVICE_FAMILY_AX210,			\
 	.trans.base_params = &iwl_ax210_base_params,			\
-	.trans.csr = &iwl_csr_v1,					\
 	.min_txq_size = 128,						\
 	.gp2_reg_addr = 0xd02c68,					\
 	.min_256_ba_txq_size = 512,					\

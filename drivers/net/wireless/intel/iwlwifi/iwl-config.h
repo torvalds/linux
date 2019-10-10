@@ -285,52 +285,6 @@ struct iwl_pwr_tx_backoff {
 };
 
 /**
- * struct iwl_csr_params
- *
- * @flag_sw_reset: reset the device
- * @flag_mac_clock_ready:
- *	Indicates MAC (ucode processor, etc.) is powered up and can run.
- *	Internal resources are accessible.
- *	NOTE:  This does not indicate that the processor is actually running.
- *	NOTE:  This does not indicate that device has completed
- *	       init or post-power-down restore of internal SRAM memory.
- *	       Use CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP as indication that
- *	       SRAM is restored and uCode is in normal operation mode.
- *	       This note is relevant only for pre 5xxx devices.
- *	NOTE:  After device reset, this bit remains "0" until host sets
- *	       INIT_DONE
- * @flag_init_done: Host sets this to put device into fully operational
- *	D0 power mode. Host resets this after SW_RESET to put device into
- *	low power mode.
- * @flag_mac_access_req: Host sets this to request and maintain MAC wakeup,
- *	to allow host access to device-internal resources. Host must wait for
- *	mac_clock_ready (and !GOING_TO_SLEEP) before accessing non-CSR device
- *	registers.
- * @flag_val_mac_access_en: mac access is enabled
- * @flag_master_dis: disable master
- * @flag_stop_master: stop master
- * @addr_sw_reset: address for resetting the device
- * @mac_addr0_otp: first part of MAC address from OTP
- * @mac_addr1_otp: second part of MAC address from OTP
- * @mac_addr0_strap: first part of MAC address from strap
- * @mac_addr1_strap: second part of MAC address from strap
- */
-struct iwl_csr_params {
-	u8 flag_sw_reset;
-	u8 flag_mac_clock_ready;
-	u8 flag_init_done;
-	u8 flag_mac_access_req;
-	u8 flag_val_mac_access_en;
-	u8 flag_master_dis;
-	u8 flag_stop_master;
-	u8 addr_sw_reset;
-	u32 mac_addr0_otp;
-	u32 mac_addr1_otp;
-	u32 mac_addr0_strap;
-	u32 mac_addr1_strap;
-};
-
-/**
  * struct iwl_cfg_trans - information needed to start the trans
  *
  * These values cannot be changed when multiple configs are used for a
@@ -348,7 +302,6 @@ struct iwl_csr_params {
  */
 struct iwl_cfg_trans_params {
 	const struct iwl_base_params *base_params;
-	const struct iwl_csr_params *csr;
 	enum iwl_device_family device_family;
 	u32 umac_prph_offset;
 	u32 rf_id:1,
@@ -498,9 +451,6 @@ struct iwl_cfg {
 	const struct iwl_fw_mon_regs mon_dram_regs;
 	const struct iwl_fw_mon_regs mon_smem_regs;
 };
-
-extern const struct iwl_csr_params iwl_csr_v1;
-extern const struct iwl_csr_params iwl_csr_v2;
 
 /*
  * This list declares the config structures for all devices.

@@ -1007,12 +1007,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* the trans_cfg should never change, so set it now */
 	iwl_trans->trans_cfg = &cfg->trans;
 
-	if (WARN_ONCE(!iwl_trans->trans_cfg->csr,
-		      "CSR addresses aren't configured\n")) {
-		ret = -EINVAL;
-		goto out_free_trans;
-	}
-
 #if IS_ENABLED(CONFIG_IWLMVM)
 	/*
 	 * special-case 7265D, it has the same PCI IDs.
