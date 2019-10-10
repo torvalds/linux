@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -30,13 +30,21 @@
 
 /*
  * The output flags should be a combination of the following values:
- * KBASE_REG_CPU_CACHED: CPU cache should be enabled.
+ * KBASE_REG_CPU_CACHED: CPU cache should be enabled
+ * KBASE_REG_GPU_CACHED: GPU cache should be enabled
+ *
+ * NOTE: Some components within the GPU might only be able to access memory
+ * that is KBASE_REG_GPU_CACHED. Refer to the specific GPU implementation for
+ * more details.
  */
 u32 kbase_cache_enabled(u32 flags, u32 nr_pages)
 {
 	u32 cache_flags = 0;
 
 	CSTD_UNUSED(nr_pages);
+
+	if (!(flags & BASE_MEM_UNCACHED_GPU))
+		cache_flags |= KBASE_REG_GPU_CACHED;
 
 	if (flags & BASE_MEM_CACHED_CPU)
 		cache_flags |= KBASE_REG_CPU_CACHED;

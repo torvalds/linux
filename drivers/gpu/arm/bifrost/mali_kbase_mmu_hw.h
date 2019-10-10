@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015, 2018-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -35,8 +35,8 @@
  * be provided.
  */
 
-#ifndef _MALI_KBASE_MMU_HW_H_
-#define _MALI_KBASE_MMU_HW_H_
+#ifndef _KBASE_MMU_HW_H_
+#define _KBASE_MMU_HW_H_
 
 /* Forward declarations */
 struct kbase_device;
@@ -70,10 +70,9 @@ enum kbase_mmu_fault_type {
  *
  * @param[in]  kbdev          kbase device to configure.
  * @param[in]  as             address space to configure.
- * @param[in]  kctx           kbase context to configure.
  */
 void kbase_mmu_hw_configure(struct kbase_device *kbdev,
-		struct kbase_as *as, struct kbase_context *kctx);
+		struct kbase_as *as);
 
 /** @brief Issue an operation to the MMU.
  *
@@ -82,7 +81,6 @@ void kbase_mmu_hw_configure(struct kbase_device *kbdev,
  *
  * @param[in]  kbdev         kbase device to issue the MMU operation on.
  * @param[in]  as            address space to issue the MMU operation on.
- * @param[in]  kctx          kbase context to issue the MMU operation on.
  * @param[in]  vpfn          MMU Virtual Page Frame Number to start the
  *                           operation on.
  * @param[in]  nr            Number of pages to work on.
@@ -93,7 +91,7 @@ void kbase_mmu_hw_configure(struct kbase_device *kbdev,
  * @return Zero if the operation was successful, non-zero otherwise.
  */
 int kbase_mmu_hw_do_operation(struct kbase_device *kbdev, struct kbase_as *as,
-		struct kbase_context *kctx, u64 vpfn, u32 nr, u32 type,
+		u64 vpfn, u32 nr, u32 type,
 		unsigned int handling_irq);
 
 /** @brief Clear a fault that has been previously reported by the MMU.
@@ -102,11 +100,10 @@ int kbase_mmu_hw_do_operation(struct kbase_device *kbdev, struct kbase_as *as,
  *
  * @param[in]  kbdev         kbase device to  clear the fault from.
  * @param[in]  as            address space to  clear the fault from.
- * @param[in]  kctx          kbase context to clear the fault from or NULL.
  * @param[in]  type          The type of fault that needs to be cleared.
  */
 void kbase_mmu_hw_clear_fault(struct kbase_device *kbdev, struct kbase_as *as,
-		struct kbase_context *kctx, enum kbase_mmu_fault_type type);
+		enum kbase_mmu_fault_type type);
 
 /** @brief Enable fault that has been previously reported by the MMU.
  *
@@ -116,13 +113,12 @@ void kbase_mmu_hw_clear_fault(struct kbase_device *kbdev, struct kbase_as *as,
  *
  * @param[in]  kbdev         kbase device to again enable the fault from.
  * @param[in]  as            address space to again enable the fault from.
- * @param[in]  kctx          kbase context to again enable the fault from.
  * @param[in]  type          The type of fault that needs to be enabled again.
  */
 void kbase_mmu_hw_enable_fault(struct kbase_device *kbdev, struct kbase_as *as,
-		struct kbase_context *kctx, enum kbase_mmu_fault_type type);
+		enum kbase_mmu_fault_type type);
 
 /** @} *//* end group mali_kbase_mmu_hw */
 /** @} *//* end group base_kbase_api */
 
-#endif	/* _MALI_KBASE_MMU_HW_H_ */
+#endif	/* _KBASE_MMU_HW_H_ */

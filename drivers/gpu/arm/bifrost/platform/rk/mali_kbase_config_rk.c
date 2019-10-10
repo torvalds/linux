@@ -89,7 +89,6 @@ static void rk_pm_power_off_delay_work(struct work_struct *work)
 	rk_pm_disable_regulator(kbdev);
 
 	platform->is_powered = false;
-	KBASE_TIMELINE_GPU_POWER(kbdev, 0);
 	wake_unlock(&platform->wake_lock);
 }
 
@@ -220,7 +219,6 @@ static int rk_pm_callback_power_on(struct kbase_device *kbdev)
 	}
 
 	platform->is_powered = true;
-	KBASE_TIMELINE_GPU_POWER(kbdev, 1);
 	wake_lock(&platform->wake_lock);
 
 	return ret;
@@ -280,17 +278,21 @@ void kbase_platform_rk_shutdown(struct kbase_device *kbdev)
 static int rk_pm_enable_regulator(struct kbase_device *kbdev)
 {
 	int ret = 0;
+	unsigned int i;
 
-	if (!kbdev->regulator) {
-		W("no mali regulator control, no need to enable.");
-		goto EXIT;
-	}
+	for (i = 0; i < kbdev->nr_regulators; i++) {
+		struct regulator *regulator = kbdev->regulators[i];
+		if (!regulator) {
+			W("no mali regulator control, no need to enable.");
+			goto EXIT;
+		}
 
-	D("to enable regulator.");
-	ret = regulator_enable(kbdev->regulator);
-	if (ret) {
-		E("fail to enable regulator, ret : %d.", ret);
-		goto EXIT;
+		D("to enable regulator.");
+		ret = regulator_enable(regulator);
+		if (ret) {
+			E("fail to enable regulator, ret : %d.", ret);
+			goto EXIT;
+		}
 	}
 
 EXIT:
@@ -299,27 +301,38 @@ EXIT:
 
 static void rk_pm_disable_regulator(struct kbase_device *kbdev)
 {
-	if (!(kbdev->regulator)) {
-		W("no mali regulator control, no need to disable.");
-		return;
-	}
+	unsigned int i;
 
-	D("to disable regulator.");
-	regulator_disable(kbdev->regulator);
+	for (i = 0; i < kbdev->nr_regulators; i++) {
+		struct regulator *regulator = kbdev->regulators[i];
+
+		if (!regulator) {
+			W("no mali regulator control, no need to disable.");
+			return;
+		}
+
+		D("to disable regulator.");
+		regulator_disable(regulator);
+	}
 }
 #endif
 
 static int rk_pm_enable_clk(struct kbase_device *kbdev)
 {
 	int err = 0;
+	unsigned int i;
 
-	if (!(kbdev->clock)) {
-		W("no mali clock control, no need to enable.");
-	} else {
-		D("to enable clk.");
-		err = clk_enable(kbdev->clock);
-		if (err)
-			E("failed to enable clk: %d.", err);
+	for (i = 0; i < kbdev->nr_clocks; i++) {
+		struct clk *clock = kbdev->clocks[i];
+
+		if (!clock) {
+			W("no mali clock control, no need to enable.");
+		} else {
+			D("to enable clk.");
+			err = clk_enable(clock);
+			if (err)
+				E("failed to enable clk: %d.", err);
+		}
 	}
 
 	return err;
@@ -327,11 +340,17 @@ static int rk_pm_enable_clk(struct kbase_device *kbdev)
 
 static void rk_pm_disable_clk(struct kbase_device *kbdev)
 {
-	if (!(kbdev->clock)) {
-		W("no mali clock control, no need to disable.");
-	} else {
-		D("to disable clk.");
-		clk_disable(kbdev->clock);
+	unsigned int i;
+
+	for (i = 0; i < kbdev->nr_clocks; i++) {
+		struct clk *clock = kbdev->clocks[i];
+
+		if (!clock) {
+			W("no mali clock control, no need to disable.");
+		} else {
+			D("to disable clk.");
+			clk_disable(clock);
+		}
 	}
 }
 

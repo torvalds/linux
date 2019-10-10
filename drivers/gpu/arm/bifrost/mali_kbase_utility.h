@@ -29,17 +29,6 @@
 #error "Don't include this file directly, use mali_kbase.h instead"
 #endif
 
-/** Test whether the given list entry is a member of the given list.
- *
- * @param base      The head of the list to be tested
- * @param entry     The list entry to be tested
- *
- * @return          true if entry is a member of base
- *                  false otherwise
- */
-bool kbasep_list_member_of(const struct list_head *base, struct list_head *entry);
-
-
 static inline void kbase_timer_setup(struct timer_list *timer,
 				     void (*callback)(struct timer_list *timer))
 {

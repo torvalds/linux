@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2016, 2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2017, 2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -27,34 +27,36 @@
 
 /**
  * kbase_create_context() - Create a kernel base context.
- * @kbdev: Kbase device
- * @is_compat: Force creation of a 32-bit context
  *
- * Allocate and init a kernel base context.
+ * @kbdev:       Object representing an instance of GPU platform device,
+ *               allocated from the probe method of the Mali driver.
+ * @is_compat:   Force creation of a 32-bit context
+ * @flags:       Flags to set, which shall be any combination of
+ *               BASEP_CONTEXT_CREATE_KERNEL_FLAGS.
+ * @api_version: Application program interface version, as encoded in
+ *               a single integer by the KBASE_API_VERSION macro.
+ * @filp:        Pointer to the struct file corresponding to device file
+ *               /dev/malixx instance, passed to the file's open method.
  *
- * Return: new kbase context
+ * Up to one context can be created for each client that opens the device file
+ * /dev/malixx. Context creation is deferred until a special ioctl() system call
+ * is made on the device file. Each context has its own GPU address space.
+ *
+ * Return: new kbase context or NULL on failure
  */
 struct kbase_context *
-kbase_create_context(struct kbase_device *kbdev, bool is_compat);
+kbase_create_context(struct kbase_device *kbdev, bool is_compat,
+	base_context_create_flags const flags,
+	unsigned long api_version,
+	struct file *filp);
 
 /**
  * kbase_destroy_context - Destroy a kernel base context.
  * @kctx: Context to destroy
  *
- * Calls kbase_destroy_os_context() to free OS specific structures.
  * Will release all outstanding regions.
  */
 void kbase_destroy_context(struct kbase_context *kctx);
-
-/**
- * kbase_context_set_create_flags - Set creation flags on a context
- * @kctx: Kbase context
- * @flags: Flags to set, which shall be one of the flags of
- *         BASE_CONTEXT_CREATE_KERNEL_FLAGS.
- *
- * Return: 0 on success, -EINVAL otherwise when an invalid flag is specified.
- */
-int kbase_context_set_create_flags(struct kbase_context *kctx, u32 flags);
 
 /**
  * kbase_ctx_flag - Check if @flag is set on @kctx
@@ -107,7 +109,7 @@ static inline void kbase_ctx_flag_clear(struct kbase_context *kctx,
 /**
  * kbase_ctx_flag_set - Set @flag on @kctx
  * @kctx: Pointer to kbase context
- * @flag: Flag to clear
+ * @flag: Flag to set
  *
  * Set the @flag on @kctx. This is done atomically, so other flags being
  * cleared or set at the same time will be safe.

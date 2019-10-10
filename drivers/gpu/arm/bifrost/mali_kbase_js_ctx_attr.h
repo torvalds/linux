@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2015, 2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -44,14 +44,6 @@
  * @addtogroup kbase_js
  * @{
  */
-
-/**
- * Set the initial attributes of a context (when context create flags are set)
- *
- * Requires:
- * - Hold the jsctx_mutex
- */
-void kbasep_js_ctx_attr_set_initial_attrs(struct kbase_device *kbdev, struct kbase_context *kctx);
 
 /**
  * Retain all attributes of a context

@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2010 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2010, 2013, 2018 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -19,5 +19,5 @@
 #
 #
 
-EXTRA_CFLAGS += -I$(ROOT) -I$(KBASE_PATH) -I$(OSK_PATH)/src/linux/include -I$(KBASE_PATH)/platform_$(PLATFORM)
+EXTRA_CFLAGS += -I$(ROOT) -I$(KBASE_PATH) -I$(KBASE_PATH)/platform_$(PLATFORM)
 

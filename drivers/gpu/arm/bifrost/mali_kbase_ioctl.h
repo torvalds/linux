@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2017-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -36,7 +36,7 @@ extern "C" {
  * 11.1:
  * - Add BASE_MEM_TILER_ALIGN_TOP under base_mem_alloc_flags
  * 11.2:
- * - KBASE_MEM_QUERY_FLAGS can return KBASE_REG_PF_GROW and KBASE_REG_SECURE,
+ * - KBASE_MEM_QUERY_FLAGS can return KBASE_REG_PF_GROW and KBASE_REG_PROTECTED,
  *   which some user-side clients prior to 11.2 might fault if they received
  *   them
  * 11.3:
@@ -51,9 +51,42 @@ extern "C" {
  *   specify pseudo chunked tiler alignment for JIT allocations.
  * 11.7:
  * - Removed UMP support
+ * 11.8:
+ * - Added BASE_MEM_UNCACHED_GPU under base_mem_alloc_flags
+ * 11.9:
+ * - Added BASE_MEM_PERMANENT_KERNEL_MAPPING and BASE_MEM_FLAGS_KERNEL_ONLY
+ *   under base_mem_alloc_flags
+ * 11.10:
+ * - Enabled the use of nr_extres field of base_jd_atom_v2 structure for
+ *   JIT_ALLOC and JIT_FREE type softjobs to enable multiple JIT allocations
+ *   with one softjob.
+ * 11.11:
+ * - Added BASE_MEM_GPU_VA_SAME_4GB_PAGE under base_mem_alloc_flags
+ * 11.12:
+ * - Removed ioctl: KBASE_IOCTL_GET_PROFILING_CONTROLS
+ * 11.13:
+ * - New ioctl: KBASE_IOCTL_MEM_EXEC_INIT
+ * 11.14:
+ * - Add BASE_MEM_GROUP_ID_MASK, base_mem_group_id_get, base_mem_group_id_set
+ *   under base_mem_alloc_flags
+ * 11.15:
+ * - Added BASEP_CONTEXT_MMU_GROUP_ID_MASK under base_context_create_flags.
+ * - Require KBASE_IOCTL_SET_FLAGS before BASE_MEM_MAP_TRACKING_HANDLE can be
+ *   passed to mmap().
+ * 11.16:
+ * - Extended ioctl KBASE_IOCTL_MEM_SYNC to accept imported dma-buf.
+ * - Modified (backwards compatible) ioctl KBASE_IOCTL_MEM_IMPORT behavior for
+ *   dma-buf. Now, buffers are mapped on GPU when first imported, no longer
+ *   requiring external resource or sticky resource tracking. UNLESS,
+ *   CONFIG_MALI_DMA_BUF_MAP_ON_DEMAND is enabled.
+ * 11.17:
+ * - Added BASE_JD_REQ_JOB_SLOT.
+ * - Reused padding field in base_jd_atom_v2 to pass job slot number.
+ * 11.18:
+ * - New ioctl: KBASE_IOCTL_GET_CPU_GPU_TIMEINFO
  */
 #define BASE_UK_VERSION_MAJOR 11
-#define BASE_UK_VERSION_MINOR 7
+#define BASE_UK_VERSION_MINOR 17
 
 /**
  * struct kbase_ioctl_version_check - Check version compatibility with kernel
@@ -321,6 +354,7 @@ struct kbase_ioctl_mem_jit_init_old {
  * @va_pages: Number of VA pages to reserve for JIT
  * @max_allocations: Maximum number of concurrent allocations
  * @trim_level: Level of JIT allocation trimming to perform on free (0 - 100%)
+ * @group_id: Group ID to be used for physical allocations
  * @padding: Currently unused, must be zero
  *
  * Note that depending on the VA size of the application and GPU, the value
@@ -330,7 +364,8 @@ struct kbase_ioctl_mem_jit_init {
 	__u64 va_pages;
 	__u8 max_allocations;
 	__u8 trim_level;
-	__u8 padding[6];
+	__u8 group_id;
+	__u8 padding[5];
 };
 
 #define KBASE_IOCTL_MEM_JIT_INIT \
@@ -532,21 +567,6 @@ struct kbase_ioctl_fence_validate {
 	_IOW(KBASE_IOCTL_TYPE, 25, struct kbase_ioctl_fence_validate)
 
 /**
- * struct kbase_ioctl_get_profiling_controls - Get the profiling controls
- * @count: The size of @buffer in u32 words
- * @buffer: The buffer to receive the profiling controls
- * @padding: Padding
- */
-struct kbase_ioctl_get_profiling_controls {
-	__u64 buffer;
-	__u32 count;
-	__u32 padding;
-};
-
-#define KBASE_IOCTL_GET_PROFILING_CONTROLS \
-	_IOW(KBASE_IOCTL_TYPE, 26, struct kbase_ioctl_get_profiling_controls)
-
-/**
  * struct kbase_ioctl_mem_profile_add - Provide profiling information to kernel
  * @buffer: Pointer to the information
  * @len: Length
@@ -652,6 +672,7 @@ union kbase_ioctl_mem_find_gpu_start_and_offset {
  *
  * @in: Input parameters
  * @out: Output parameters
+ *
  * This structure is used when performing a call to dump GPU write fault
  * addresses.
  */
@@ -673,9 +694,52 @@ union kbase_ioctl_cinstr_gwt_dump {
 #define KBASE_IOCTL_CINSTR_GWT_DUMP \
 	_IOWR(KBASE_IOCTL_TYPE, 35, union kbase_ioctl_cinstr_gwt_dump)
 
-/* IOCTLs 36-41 are reserved */
 
-/* IOCTL 42 is free for use */
+/**
+ * struct kbase_ioctl_mem_exec_init - Initialise the EXEC_VA memory zone
+ *
+ * @va_pages: Number of VA pages to reserve for EXEC_VA
+ */
+struct kbase_ioctl_mem_exec_init {
+	__u64 va_pages;
+};
+
+#define KBASE_IOCTL_MEM_EXEC_INIT \
+	_IOW(KBASE_IOCTL_TYPE, 38, struct kbase_ioctl_mem_exec_init)
+
+
+/**
+ * union kbase_ioctl_get_cpu_gpu_timeinfo - Request zero or more types of
+ *                                          cpu/gpu time (counter values)
+ *
+ * @request_flags: Bit-flags indicating the requested types.
+ * @paddings:      Unused, size alignment matching the out.
+ * @sec:           Integer field of the monotonic time, unit in seconds.
+ * @nsec:          Fractional sec of the monotonic time, in nano-seconds.
+ * @padding:       Unused, for u64 alignment
+ * @timestamp:     System wide timestamp (counter) value.
+ * @cycle_counter: GPU cycle counter value.
+ *
+ * @in: Input parameters
+ * @out: Output parameters
+ *
+ */
+union kbase_ioctl_get_cpu_gpu_timeinfo {
+	struct {
+		__u32 request_flags;
+		__u32 paddings[7];
+	} in;
+	struct {
+		__u64 sec;
+		__u32 nsec;
+		__u32 padding;
+		__u64 timestamp;
+		__u64 cycle_counter;
+	} out;
+};
+
+#define KBASE_IOCTL_GET_CPU_GPU_TIMEINFO \
+	_IOWR(KBASE_IOCTL_TYPE, 50, union kbase_ioctl_get_cpu_gpu_timeinfo)
 
 /***************
  * test ioctls *
@@ -718,7 +782,53 @@ struct kbase_ioctl_tlstream_stats {
 #define KBASE_IOCTL_TLSTREAM_STATS \
 	_IOR(KBASE_IOCTL_TEST_TYPE, 2, struct kbase_ioctl_tlstream_stats)
 
+/**
+ * struct kbase_ioctl_cs_event_memory_write - Write an event memory address
+ * @cpu_addr: Memory address to write
+ * @value: Value to write
+ * @padding: Currently unused, must be zero
+ */
+struct kbase_ioctl_cs_event_memory_write {
+	__u64 cpu_addr;
+	__u8 value;
+	__u8 padding[7];
+};
+
+/**
+ * union kbase_ioctl_cs_event_memory_read - Read an event memory address
+ * @cpu_addr: Memory address to read
+ * @value: Value read
+ * @padding: Currently unused, must be zero
+ *
+ * @in: Input parameters
+ * @out: Output parameters
+ */
+union kbase_ioctl_cs_event_memory_read {
+	struct {
+		__u64 cpu_addr;
+	} in;
+	struct {
+		__u8 value;
+		__u8 padding[7];
+	} out;
+};
+
 #endif
+
+/* Customer extension range */
+#define KBASE_IOCTL_EXTRA_TYPE (KBASE_IOCTL_TYPE + 2)
+
+/* If the integration needs extra ioctl add them there
+ * like this:
+ *
+ * struct my_ioctl_args {
+ *  ....
+ * }
+ *
+ * #define KBASE_IOCTL_MY_IOCTL \
+ *         _IOWR(KBASE_IOCTL_EXTRA_TYPE, 0, struct my_ioctl_args)
+ */
+
 
 /**********************************
  * Definitions for GPU properties *

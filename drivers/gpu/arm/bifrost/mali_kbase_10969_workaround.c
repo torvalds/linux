@@ -65,7 +65,7 @@ int kbasep_10969_workaround_clamp_coordinates(struct kbase_jd_atom *katom)
 	kbase_gpu_vm_lock(katom->kctx);
 	region = kbase_region_tracker_find_region_enclosing_address(katom->kctx,
 			katom->jc);
-	if (!region || (region->flags & KBASE_REG_FREE))
+	if (kbase_is_region_invalid_or_free(region))
 		goto out_unlock;
 
 	page_array = kbase_get_cpu_phy_pages(region);
@@ -74,7 +74,7 @@ int kbasep_10969_workaround_clamp_coordinates(struct kbase_jd_atom *katom)
 
 	page_index = (katom->jc >> PAGE_SHIFT) - region->start_pfn;
 
-	p = phys_to_page(as_phys_addr_t(page_array[page_index]));
+	p = as_page(page_array[page_index]);
 
 	/* we need the first 10 words of the fragment shader job descriptor.
 	 * We need to check that the offset + 10 words is less that the page
@@ -98,7 +98,7 @@ int kbasep_10969_workaround_clamp_coordinates(struct kbase_jd_atom *katom)
 	/* The data needed overflows page the dimension,
 	 * need to map the subsequent page */
 	if (copy_size < JOB_HEADER_SIZE) {
-		p = phys_to_page(as_phys_addr_t(page_array[page_index + 1]));
+		p = as_page(page_array[page_index + 1]);
 		page_2 = kmap_atomic(p);
 
 		kbase_sync_single_for_cpu(katom->kctx->kbdev,
@@ -181,7 +181,7 @@ int kbasep_10969_workaround_clamp_coordinates(struct kbase_jd_atom *katom)
 
 		/* Flush CPU cache to update memory for future GPU reads*/
 		memcpy(page_1, dst, copy_size);
-		p = phys_to_page(as_phys_addr_t(page_array[page_index]));
+		p = as_page(page_array[page_index]);
 
 		kbase_sync_single_for_device(katom->kctx->kbdev,
 				kbase_dma_addr(p) + offset,
@@ -190,8 +190,7 @@ int kbasep_10969_workaround_clamp_coordinates(struct kbase_jd_atom *katom)
 		if (copy_size < JOB_HEADER_SIZE) {
 			memcpy(page_2, dst + copy_size,
 					JOB_HEADER_SIZE - copy_size);
-			p = phys_to_page(as_phys_addr_t(page_array[page_index +
-								   1]));
+			p = as_page(page_array[page_index + 1]);
 
 			kbase_sync_single_for_device(katom->kctx->kbdev,
 					kbase_dma_addr(p),

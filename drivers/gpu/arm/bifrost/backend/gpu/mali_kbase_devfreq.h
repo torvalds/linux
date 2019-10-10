@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -24,7 +24,24 @@
 #define _BASE_DEVFREQ_H_
 
 int kbase_devfreq_init(struct kbase_device *kbdev);
+
 void kbase_devfreq_term(struct kbase_device *kbdev);
 int kbase_platform_rk_init_opp_table(struct kbase_device *kbdev);
+
+/**
+ * kbase_devfreq_force_freq - Set GPU frequency on L2 power on/off.
+ * @kbdev:      Device pointer
+ * @freq:       GPU frequency in HZ to be set when
+ *              MALI_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE is enabled
+ */
+void kbase_devfreq_force_freq(struct kbase_device *kbdev, unsigned long freq);
+
+/**
+ * kbase_devfreq_enqueue_work - Enqueue a work item for suspend/resume devfreq.
+ * @kbdev:      Device pointer
+ * @work_type:  The type of the devfreq work item, i.e. suspend or resume
+ */
+void kbase_devfreq_enqueue_work(struct kbase_device *kbdev,
+				enum kbase_devfreq_work_type work_type);
 
 #endif /* _BASE_DEVFREQ_H_ */

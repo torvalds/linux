@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015,2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2015,2017,2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -53,6 +53,14 @@ void kbase_gpuprops_set(struct kbase_device *kbdev);
  * kbase_hw_set_features_mask().
  */
 void kbase_gpuprops_set_features(struct kbase_device *kbdev);
+
+/**
+ * kbase_gpuprops_update_l2_features - Update GPU property of L2_FEATURES
+ * @kbdev:   Device pointer
+ *
+ * This function updates l2_features and the log2 cache size.
+ */
+void kbase_gpuprops_update_l2_features(struct kbase_device *kbdev);
 
 /**
  * kbase_gpuprops_populate_user_buffer - Populate the GPU properties buffer

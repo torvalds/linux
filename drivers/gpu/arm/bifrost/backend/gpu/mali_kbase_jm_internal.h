@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -159,11 +159,11 @@ void kbase_job_slot_halt(struct kbase_device *kbdev);
 void kbase_job_slot_term(struct kbase_device *kbdev);
 
 /**
- * kbase_gpu_cacheclean - Cause a GPU cache clean & flush
+ * kbase_gpu_cache_clean - Cause a GPU cache clean & flush
  * @kbdev: Device pointer
  *
  * Caller must not be in IRQ context
  */
-void kbase_gpu_cacheclean(struct kbase_device *kbdev);
+void kbase_gpu_cache_clean(struct kbase_device *kbdev);
 
 #endif /* _KBASE_JM_HWACCESS_H_ */

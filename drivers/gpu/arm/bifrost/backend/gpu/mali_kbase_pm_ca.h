@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -75,23 +75,15 @@ void kbase_pm_ca_update_core_status(struct kbase_device *kbdev, u64 cores_ready,
 						u64 cores_transitioning);
 
 /**
- * kbase_pm_ca_instr_enable - Enable override for instrumentation
+ * kbase_pm_ca_get_instr_core_mask - Get the PM state sync-ed shaders core mask
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
- * This overrides the output of the core availability policy, ensuring that all
- * cores are available
- */
-void kbase_pm_ca_instr_enable(struct kbase_device *kbdev);
-
-/**
- * kbase_pm_ca_instr_disable - Disable override for instrumentation
+ * Returns a mask of the PM state synchronised shader cores for arranging
+ * HW performance counter dumps
  *
- * @kbdev: The kbase device structure for the device (must be a valid pointer)
- *
- * This disables any previously enabled override, and resumes normal policy
- * functionality
+ * Return: The bit mask of PM state synchronised cores
  */
-void kbase_pm_ca_instr_disable(struct kbase_device *kbdev);
+u64 kbase_pm_ca_get_instr_core_mask(struct kbase_device *kbdev);
 
 #endif /* _KBASE_PM_CA_H_ */

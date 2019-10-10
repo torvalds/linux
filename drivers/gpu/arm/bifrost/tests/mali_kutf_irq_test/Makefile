@@ -31,6 +31,7 @@ endif
 TEST_CCFLAGS := \
 	-DMALI_UNIT_TEST=$(MALI_UNIT_TEST) \
 	-DMALI_CUSTOMER_RELEASE=$(MALI_CUSTOMER_RELEASE) \
+	-DMALI_USE_CSF=$(MALI_USE_CSF) \
 	$(SCONS_CFLAGS) \
 	-I$(CURDIR)/../include \
 	-I$(CURDIR)/../../../../../../include \

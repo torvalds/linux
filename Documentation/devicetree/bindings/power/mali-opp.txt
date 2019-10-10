@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2017 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2017, 2019 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -39,8 +39,9 @@ Required properties:
   frequency and core mask into account.
 
 Optional properties:
-- opp-hz-real: Real frequency in Hz, expressed as a 64-bit big-endian integer.
-  If this is not present then the nominal frequency will be used instead.
+- opp-hz-real: List of one or two real frequencies in Hz, expressed as 64-bit
+  big-endian integers. They shall correspond to the clocks declared under
+  the Mali device node, and follow the same order.
 
 - opp-core-mask: Shader core mask. If neither this or opp-core-count are present
   then all shader cores will be used for this OPP.
@@ -54,7 +55,9 @@ Optional properties:
 
   If both this and opp-core-mask are present then opp-core-mask is ignored.
 
-- opp-microvolt: voltage in micro Volts.
+- opp-microvolt: List of one or two voltages in micro Volts. They shall correspond
+  to the regulators declared under the Mali device node, and follow the order:
+  "toplevel", "shadercores".
 
   A single regulator's voltage is specified with an array of size one or three.
   Single entry is for target voltage and three entries are for <target min max>
@@ -97,6 +100,11 @@ Optional properties:
 - opp-suspend: Marks the OPP to be used during device suspend. Only one OPP in
   the table should have this.
 
+- opp-mali-errata-1485982: Marks the OPP to be selected for suspend clock.
+  This will be effective only if MALI_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE is
+  enabled. It needs to be placed in any OPP that has proper suspend clock for
+  the HW workaround.
+
 - opp-supported-hw: This enables us to select only a subset of OPPs from the
   larger OPP table, based on what version of the hardware we are running on. We
   still can't have multiple nodes with the same opp-hz value in OPP table.
@@ -119,7 +127,7 @@ Optional properties:
 
 - status: Marks the node enabled/disabled.
 
-Example for a Juno with Mali T624:
+Example for a Juno with 1 clock and 1 regulator:
 
 gpu_opp_table: opp_table0 {
 	compatible = "operating-points-v2", "operating-points-v2-mali";
@@ -130,6 +138,7 @@ gpu_opp_table: opp_table0 {
 		opp-microvolt = <820000>;
 		opp-core-mask = /bits/ 64 <0x1>;
 		opp-suspend;
+		opp-mali-errata-1485982;
 	};
 	opp@225000000 {
 		opp-hz = /bits/ 64 <225000000>;
@@ -161,3 +170,27 @@ gpu_opp_table: opp_table0 {
 	};
 };
 
+Example for a Juno with 2 clocks and 2 regulators:
+
+gpu_opp_table: opp_table0 {
+	compatible = "operating-points-v2", "operating-points-v2-mali";
+
+	opp@0 {
+		opp-hz = /bits/ 64 <50000000>;
+		opp-hz-real = /bits/ 64 <50000000>, /bits/ 64 <45000000>;
+		opp-microvolt = <820000>, <800000>;
+		opp-core-mask = /bits/ 64 <0xf>;
+	};
+	opp@1 {
+		opp-hz = /bits/ 64 <40000000>;
+		opp-hz-real = /bits/ 64 <40000000>, /bits/ 64 <35000000>;
+		opp-microvolt = <720000>, <700000>;
+		opp-core-mask = /bits/ 64 <0x7>;
+	};
+	opp@2 {
+		opp-hz = /bits/ 64 <30000000>;
+		opp-hz-real = /bits/ 64 <30000000>, /bits/ 64 <25000000>;
+		opp-microvolt = <620000>, <700000>;
+		opp-core-mask = /bits/ 64 <0x3>;
+	};
+};

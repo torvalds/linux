@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2013-2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2015, 2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,6 +25,16 @@
 
 #include <mali_kbase.h>
 
-void kbase_debug_mem_view_init(struct file *kctx_file);
+/**
+ * kbase_debug_mem_view_init - Initialize the mem_view sysfs file
+ * @kctx: Pointer to kernel base context
+ *
+ * This function creates a "mem_view" file which can be used to get a view of
+ * the context's memory as the GPU sees it (i.e. using the GPU's page tables).
+ *
+ * The file is cleaned up by a call to debugfs_remove_recursive() deleting the
+ * parent directory.
+ */
+void kbase_debug_mem_view_init(struct kbase_context *kctx);
 
 #endif

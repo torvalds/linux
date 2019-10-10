@@ -1,7 +1,6 @@
-
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2015,2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -37,13 +36,13 @@
  *
  * - When KBase indicates that the GPU will be powered up, but we don't yet
  *   know which Job Chains are to be run:
- *    All Shader Cores are powered up, regardless of whether or not they will
- *    be needed later.
+ *    Shader Cores are powered up, regardless of whether or not they will be
+ *    needed later.
  *
- * - When KBase indicates that a set of Shader Cores are needed to submit the
- *   currently queued Job Chains:
- *    All Shader Cores are kept powered, regardless of whether or not they will
- *    be needed
+ * - When KBase indicates that Shader Cores are needed to submit the currently
+ *   queued Job Chains:
+ *    Shader Cores are kept powered, regardless of whether or not they will be
+ *    needed
  *
  * - When KBase indicates that the GPU need not be powered:
  *    The Shader Cores are kept powered, regardless of whether or not they will

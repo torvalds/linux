@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -32,6 +32,9 @@
 #include <mali_kbase_hwaccess_gpuprops.h>
 #include "mali_kbase_ioctl.h"
 #include <linux/clk.h>
+#include <mali_kbase_pm_internal.h>
+#include <linux/of_platform.h>
+#include <linux/moduleparam.h>
 
 /**
  * KBASE_UBFX32 - Extracts bits from a 32-bit bitfield.
@@ -191,11 +194,19 @@ void kbase_gpuprops_update_core_props_gpu_id(base_gpu_props * const gpu_props)
 static void kbase_gpuprops_calculate_props(base_gpu_props * const gpu_props, struct kbase_device *kbdev)
 {
 	int i;
+	u32 gpu_id;
+	u32 product_id;
 
 	/* Populate the base_gpu_props structure */
 	kbase_gpuprops_update_core_props_gpu_id(gpu_props);
 	gpu_props->core_props.log2_program_counter_size = KBASE_GPU_PC_SIZE_LOG2;
+#if KERNEL_VERSION(5, 0, 0) > LINUX_VERSION_CODE
 	gpu_props->core_props.gpu_available_memory_size = totalram_pages << PAGE_SHIFT;
+#else
+	gpu_props->core_props.gpu_available_memory_size =
+		totalram_pages() << PAGE_SHIFT;
+#endif
+
 	gpu_props->core_props.num_exec_engines =
 		KBASE_UBFX32(gpu_props->raw_props.core_features, 0, 4);
 
@@ -236,10 +247,38 @@ static void kbase_gpuprops_calculate_props(base_gpu_props * const gpu_props, str
 		gpu_props->thread_props.tls_alloc =
 				gpu_props->raw_props.thread_tls_alloc;
 
-	gpu_props->thread_props.max_registers = KBASE_UBFX32(gpu_props->raw_props.thread_features, 0U, 16);
-	gpu_props->thread_props.max_task_queue = KBASE_UBFX32(gpu_props->raw_props.thread_features, 16U, 8);
-	gpu_props->thread_props.max_thread_group_split = KBASE_UBFX32(gpu_props->raw_props.thread_features, 24U, 6);
-	gpu_props->thread_props.impl_tech = KBASE_UBFX32(gpu_props->raw_props.thread_features, 30U, 2);
+	/* Workaround for GPU2019HW-509. MIDHARC-2364 was wrongfully applied
+	 * to tDUx GPUs.
+	 */
+	gpu_id = kbdev->gpu_props.props.raw_props.gpu_id;
+	product_id = gpu_id & GPU_ID_VERSION_PRODUCT_ID;
+	product_id >>= GPU_ID_VERSION_PRODUCT_ID_SHIFT;
+
+	if ((gpu_id & GPU_ID2_PRODUCT_MODEL) == GPU_ID2_PRODUCT_TDUX) {
+		gpu_props->thread_props.max_registers =
+			KBASE_UBFX32(gpu_props->raw_props.thread_features,
+				     0U, 22);
+		gpu_props->thread_props.impl_tech =
+			KBASE_UBFX32(gpu_props->raw_props.thread_features,
+				     22U, 2);
+		gpu_props->thread_props.max_task_queue =
+			KBASE_UBFX32(gpu_props->raw_props.thread_features,
+				     24U, 8);
+		gpu_props->thread_props.max_thread_group_split = 0;
+	} else {
+		gpu_props->thread_props.max_registers =
+			KBASE_UBFX32(gpu_props->raw_props.thread_features,
+				     0U, 16);
+		gpu_props->thread_props.max_task_queue =
+			KBASE_UBFX32(gpu_props->raw_props.thread_features,
+				     16U, 8);
+		gpu_props->thread_props.max_thread_group_split =
+			KBASE_UBFX32(gpu_props->raw_props.thread_features,
+				     24U, 6);
+		gpu_props->thread_props.impl_tech =
+			KBASE_UBFX32(gpu_props->raw_props.thread_features,
+				     30U, 2);
+	}
 
 	/* If values are not specified, then use defaults */
 	if (gpu_props->thread_props.max_registers == 0) {
@@ -301,6 +340,87 @@ void kbase_gpuprops_set_features(struct kbase_device *kbdev)
 
 	if (!kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_THREAD_GROUP_SPLIT))
 		gpu_props->thread_props.max_thread_group_split = 0;
+}
+
+/*
+ * Module parameters to allow the L2 size and hash configuration to be
+ * overridden.
+ *
+ * These parameters must be set on insmod to take effect, and are not visible
+ * in sysfs.
+ */
+static u8 override_l2_size;
+module_param(override_l2_size, byte, 0);
+MODULE_PARM_DESC(override_l2_size, "Override L2 size config for testing");
+
+static u8 override_l2_hash;
+module_param(override_l2_hash, byte, 0);
+MODULE_PARM_DESC(override_l2_hash, "Override L2 hash config for testing");
+
+/**
+ * kbase_read_l2_config_from_dt - Read L2 configuration
+ * @kbdev: The kbase device for which to get the L2 configuration.
+ *
+ * Check for L2 configuration overrides in module parameters and device tree.
+ * Override values in module parameters take priority over override values in
+ * device tree.
+ *
+ * Return: true if either size or hash was overridden, false if no overrides
+ * were found.
+ */
+static bool kbase_read_l2_config_from_dt(struct kbase_device * const kbdev)
+{
+	struct device_node *np = kbdev->dev->of_node;
+
+	if (!np)
+		return false;
+
+	if (override_l2_size)
+		kbdev->l2_size_override = override_l2_size;
+	else if (of_property_read_u8(np, "l2-size", &kbdev->l2_size_override))
+		kbdev->l2_size_override = 0;
+
+	if (override_l2_hash)
+		kbdev->l2_hash_override = override_l2_hash;
+	else if (of_property_read_u8(np, "l2-hash", &kbdev->l2_hash_override))
+		kbdev->l2_hash_override = 0;
+
+	if (kbdev->l2_size_override || kbdev->l2_hash_override)
+		return true;
+
+	return false;
+}
+
+void kbase_gpuprops_update_l2_features(struct kbase_device *kbdev)
+{
+	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_L2_CONFIG)) {
+		struct kbase_gpuprops_regdump regdump;
+		base_gpu_props *gpu_props = &kbdev->gpu_props.props;
+
+		/* Check for L2 cache size & hash overrides */
+		if (!kbase_read_l2_config_from_dt(kbdev))
+			return;
+
+		/* Need L2 to get powered to reflect to L2_FEATURES */
+		kbase_pm_context_active(kbdev);
+
+		/* Wait for the completion of L2 power transition */
+		kbase_pm_wait_for_l2_powered(kbdev);
+
+		/* Dump L2_FEATURES register */
+		kbase_backend_gpuprops_get_l2_features(kbdev, &regdump);
+
+		dev_info(kbdev->dev, "Reflected L2_FEATURES is 0x%x\n",
+				regdump.l2_features);
+
+		/* Update gpuprops with reflected L2_FEATURES */
+		gpu_props->raw_props.l2_features = regdump.l2_features;
+		gpu_props->l2_props.log2_cache_size =
+			KBASE_UBFX32(gpu_props->raw_props.l2_features, 16U, 8);
+
+		/* Let GPU idle */
+		kbase_pm_context_idle(kbdev);
+	}
 }
 
 static struct {

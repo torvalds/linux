@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2017, 2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -58,6 +58,7 @@ static int kbasep_mem_profile_debugfs_open(struct inode *in, struct file *file)
 }
 
 static const struct file_operations kbasep_mem_profile_debugfs_fops = {
+	.owner = THIS_MODULE,
 	.open = kbasep_mem_profile_debugfs_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -75,7 +76,9 @@ int kbasep_mem_profile_debugfs_insert(struct kbase_context *kctx, char *data,
 		kbase_ctx_flag(kctx, KCTX_MEM_PROFILE_INITIALIZED));
 
 	if (!kbase_ctx_flag(kctx, KCTX_MEM_PROFILE_INITIALIZED)) {
-		if (!debugfs_create_file("mem_profile", S_IRUGO,
+		if (IS_ERR_OR_NULL(kctx->kctx_dentry)) {
+			err  = -ENOMEM;
+		} else if (!debugfs_create_file("mem_profile", 0444,
 					kctx->kctx_dentry, kctx,
 					&kbasep_mem_profile_debugfs_fops)) {
 			err = -EAGAIN;

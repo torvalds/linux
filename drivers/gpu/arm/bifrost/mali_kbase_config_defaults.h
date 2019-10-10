@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2013-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -109,48 +109,6 @@ enum {
 };
 
 /**
- * Default setting for read Address ID limiting on AXI bus.
- *
- * Attached value: u32 register value
- *    KBASE_AID_32 - use the full 32 IDs (5 ID bits)
- *    KBASE_AID_16 - use 16 IDs (4 ID bits)
- *    KBASE_AID_8  - use 8 IDs (3 ID bits)
- *    KBASE_AID_4  - use 4 IDs (2 ID bits)
- * Default value: KBASE_AID_32 (no limit). Note hardware implementation
- * may limit to a lower value.
- */
-#define DEFAULT_ARID_LIMIT KBASE_AID_32
-
-/**
- * Default setting for write Address ID limiting on AXI.
- *
- * Attached value: u32 register value
- *    KBASE_AID_32 - use the full 32 IDs (5 ID bits)
- *    KBASE_AID_16 - use 16 IDs (4 ID bits)
- *    KBASE_AID_8  - use 8 IDs (3 ID bits)
- *    KBASE_AID_4  - use 4 IDs (2 ID bits)
- * Default value: KBASE_AID_32 (no limit). Note hardware implementation
- * may limit to a lower value.
- */
-#define DEFAULT_AWID_LIMIT KBASE_AID_32
-
-/**
- * Default setting for read Address ID limiting on AXI bus.
- *
- * Default value: KBASE_3BIT_AID_32 (no limit). Note hardware implementation
- * may limit to a lower value.
- */
-#define DEFAULT_3BIT_ARID_LIMIT KBASE_3BIT_AID_32
-
-/**
- * Default setting for write Address ID limiting on AXI.
- *
- * Default value: KBASE_3BIT_AID_32 (no limit). Note hardware implementation
- * may limit to a lower value.
- */
-#define DEFAULT_3BIT_AWID_LIMIT KBASE_3BIT_AID_32
-
-/**
  * Default period for DVFS sampling
  */
 #define DEFAULT_PM_DVFS_PERIOD 100 /* 100ms */
@@ -169,11 +127,6 @@ enum {
  * Power Manager number of ticks before shader cores are powered off
  */
 #define DEFAULT_PM_POWEROFF_TICK_SHADER (2) /* 400-800us */
-
-/**
- * Power Manager number of ticks before GPU is powered off
- */
-#define DEFAULT_PM_POWEROFF_TICK_GPU (2) /* 400-800us */
 
 /**
  * Default scheduling tick granuality
@@ -251,20 +204,6 @@ enum {
  * often used by the OS.
  */
 #define DEFAULT_JS_CTX_TIMESLICE_NS (50000000) /* 50ms */
-
-/**
- * Perform GPU power down using only platform specific code, skipping DDK power
- * management.
- *
- * If this is non-zero then kbase will avoid powering down shader cores, the
- * tiler, and the L2 cache, instead just powering down the entire GPU through
- * platform specific code. This may be required for certain platform
- * integrations.
- *
- * Note that as this prevents kbase from powering down shader cores, this limits
- * the available power policies to coarse_demand and always_on.
- */
-#define PLATFORM_POWER_DOWN_ONLY (0)
 
 /**
  * Maximum frequency (in kHz) that the GPU can be clocked. For some platforms

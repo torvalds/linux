@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010, 2012-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010, 2012-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -129,15 +129,15 @@ int kbase_mem_flags_change(struct kbase_context *kctx, u64 gpu_addr, unsigned in
 int kbase_mem_commit(struct kbase_context *kctx, u64 gpu_addr, u64 new_pages);
 
 /**
- * kbase_mmap - Mmap method, gets invoked when mmap system call is issued on
- *              device file /dev/malixx.
- * @file: Pointer to the device file /dev/malixx instance.
+ * kbase_context_mmap - Memory map method, gets invoked when mmap system call is
+ *                      issued on device file /dev/malixx.
+ * @kctx: The kernel context
  * @vma:  Pointer to the struct containing the info where the GPU allocation
  *        will be mapped in virtual address space of CPU.
  *
  * Return: 0 on success or error code
  */
-int kbase_mmap(struct file *file, struct vm_area_struct *vma);
+int kbase_context_mmap(struct kbase_context *kctx, struct vm_area_struct *vma);
 
 /**
  * kbase_mem_evictable_init - Initialize the Ephemeral memory eviction
@@ -206,7 +206,7 @@ int kbase_mem_evictable_make(struct kbase_mem_phy_alloc *gpu_alloc);
 bool kbase_mem_evictable_unmake(struct kbase_mem_phy_alloc *alloc);
 
 struct kbase_vmap_struct {
-	u64 gpu_addr;
+	off_t offset_in_page;
 	struct kbase_mem_phy_alloc *cpu_alloc;
 	struct kbase_mem_phy_alloc *gpu_alloc;
 	struct tagged_addr *cpu_pages;
@@ -303,23 +303,21 @@ void *kbase_vmap(struct kbase_context *kctx, u64 gpu_addr, size_t size,
  */
 void kbase_vunmap(struct kbase_context *kctx, struct kbase_vmap_struct *map);
 
-/** @brief Allocate memory from kernel space and map it onto the GPU
- *
- * @param kctx   The context used for the allocation/mapping
- * @param size   The size of the allocation in bytes
- * @param handle An opaque structure used to contain the state needed to free the memory
- * @return the VA for kernel space and GPU MMU
- */
-void *kbase_va_alloc(struct kbase_context *kctx, u32 size, struct kbase_hwc_dma_mapping *handle);
-
-/** @brief Free/unmap memory allocated by kbase_va_alloc
- *
- * @param kctx   The context used for the allocation/mapping
- * @param handle An opaque structure returned by the kbase_va_alloc function.
- */
-void kbase_va_free(struct kbase_context *kctx, struct kbase_hwc_dma_mapping *handle);
-
 extern const struct vm_operations_struct kbase_vm_ops;
+
+/**
+ * kbase_sync_mem_regions - Perform the cache maintenance for the kernel mode
+ *                          CPU mapping.
+ * @kctx: Context the CPU mapping belongs to.
+ * @map:  Structure describing the CPU mapping, setup previously by the
+ *        kbase_vmap() call.
+ * @dest: Indicates the type of maintenance required (i.e. flush or invalidate)
+ *
+ * Note: The caller shall ensure that CPU mapping is not revoked & remains
+ * active whilst the maintenance is in progress.
+ */
+void kbase_sync_mem_regions(struct kbase_context *kctx,
+		struct kbase_vmap_struct *map, enum kbase_sync_type dest);
 
 /**
  * kbase_mem_shrink_cpu_mapping - Shrink the CPU mapping(s) of an allocation
@@ -351,5 +349,121 @@ void kbase_mem_shrink_cpu_mapping(struct kbase_context *kctx,
 int kbase_mem_shrink_gpu_mapping(struct kbase_context *kctx,
 		struct kbase_va_region *reg,
 		u64 new_pages, u64 old_pages);
+
+/**
+ * kbase_phy_alloc_mapping_term - Terminate the kernel side mapping of a
+ *                                physical allocation
+ * @kctx:  The kernel base context associated with the mapping
+ * @alloc: Pointer to the allocation to terminate
+ *
+ * This function will unmap the kernel mapping, and free any structures used to
+ * track it.
+ */
+void kbase_phy_alloc_mapping_term(struct kbase_context *kctx,
+		struct kbase_mem_phy_alloc *alloc);
+
+/**
+ * kbase_phy_alloc_mapping_get - Get a kernel-side CPU pointer to the permanent
+ *                               mapping of a physical allocation
+ * @kctx:             The kernel base context @gpu_addr will be looked up in
+ * @gpu_addr:         The gpu address to lookup for the kernel-side CPU mapping
+ * @out_kern_mapping: Pointer to storage for a struct kbase_vmap_struct pointer
+ *                    which will be used for a call to
+ *                    kbase_phy_alloc_mapping_put()
+ *
+ * Return: Pointer to a kernel-side accessible location that directly
+ *         corresponds to @gpu_addr, or NULL on failure
+ *
+ * Looks up @gpu_addr to retrieve the CPU pointer that can be used to access
+ * that location kernel-side. Only certain kinds of memory have a permanent
+ * kernel mapping, refer to the internal functions
+ * kbase_reg_needs_kernel_mapping() and kbase_phy_alloc_mapping_init() for more
+ * information.
+ *
+ * If this function succeeds, a CPU access to the returned pointer will access
+ * the actual location represented by @gpu_addr. That is, the return value does
+ * not require any offset added to it to access the location specified in
+ * @gpu_addr
+ *
+ * The client must take care to either apply any necessary sync operations when
+ * accessing the data, or ensure that the enclosing region was coherent with
+ * the GPU, or uncached in the CPU.
+ *
+ * The refcount on the physical allocations backing the region are taken, so
+ * that they do not disappear whilst the client is accessing it. Once the
+ * client has finished accessing the memory, it must be released with a call to
+ * kbase_phy_alloc_mapping_put()
+ *
+ * Whilst this is expected to execute quickly (the mapping was already setup
+ * when the physical allocation was created), the call is not IRQ-safe due to
+ * the region lookup involved.
+ *
+ * An error code may indicate that:
+ * - a userside process has freed the allocation, and so @gpu_addr is no longer
+ *   valid
+ * - the region containing @gpu_addr does not support a permanent kernel mapping
+ */
+void *kbase_phy_alloc_mapping_get(struct kbase_context *kctx, u64 gpu_addr,
+		struct kbase_vmap_struct **out_kern_mapping);
+
+/**
+ * kbase_phy_alloc_mapping_put - Put a reference to the kernel-side mapping of a
+ *                               physical allocation
+ * @kctx:         The kernel base context associated with the mapping
+ * @kern_mapping: Pointer to a struct kbase_phy_alloc_mapping pointer obtained
+ *                from a call to kbase_phy_alloc_mapping_get()
+ *
+ * Releases the reference to the allocations backing @kern_mapping that was
+ * obtained through a call to kbase_phy_alloc_mapping_get(). This must be used
+ * when the client no longer needs to access the kernel-side CPU pointer.
+ *
+ * If this was the last reference on the underlying physical allocations, they
+ * will go through the normal allocation free steps, which also includes an
+ * unmap of the permanent kernel mapping for those allocations.
+ *
+ * Due to these operations, the function is not IRQ-safe. However it is
+ * expected to execute quickly in the normal case, i.e. when the region holding
+ * the physical allocation is still present.
+ */
+void kbase_phy_alloc_mapping_put(struct kbase_context *kctx,
+		struct kbase_vmap_struct *kern_mapping);
+
+/**
+ * kbase_get_cache_line_alignment - Return cache line alignment
+ *
+ * Helper function to return the maximum cache line alignment considering
+ * both CPU and GPU cache sizes.
+ *
+ * Return: CPU and GPU cache line alignment, in bytes.
+ *
+ * @kbdev: Device pointer.
+ */
+u32 kbase_get_cache_line_alignment(struct kbase_device *kbdev);
+
+#if (KERNEL_VERSION(4, 20, 0) > LINUX_VERSION_CODE)
+static inline vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma,
+			unsigned long addr, unsigned long pfn, pgprot_t pgprot)
+{
+	int err;
+
+#if ((KERNEL_VERSION(4, 4, 147) >= LINUX_VERSION_CODE) || \
+		((KERNEL_VERSION(4, 6, 0) > LINUX_VERSION_CODE) && \
+		 (KERNEL_VERSION(4, 5, 0) <= LINUX_VERSION_CODE)))
+	if (pgprot_val(pgprot) != pgprot_val(vma->vm_page_prot))
+		return VM_FAULT_SIGBUS;
+
+	err = vm_insert_pfn(vma, addr, pfn);
+#else
+	err = vm_insert_pfn_prot(vma, addr, pfn, pgprot);
+#endif
+
+	if (unlikely(err == -ENOMEM))
+		return VM_FAULT_OOM;
+	if (unlikely(err < 0 && err != -EBUSY))
+		return VM_FAULT_SIGBUS;
+
+	return VM_FAULT_NOPAGE;
+}
+#endif
 
 #endif				/* _KBASE_MEM_LINUX_H_ */

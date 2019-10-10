@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -36,7 +36,6 @@ typedef struct base_mem_handle {
 } base_mem_handle;
 
 #include "mali_base_mem_priv.h"
-#include "mali_kbase_profiling_gator_api.h"
 #include "mali_midg_coherency.h"
 #include "mali_kbase_gpu_id.h"
 
@@ -87,6 +86,14 @@ typedef struct base_mem_handle {
  * @{
  */
 
+/* Physical memory group ID for normal usage.
+ */
+#define BASE_MEM_GROUP_DEFAULT (0)
+
+/* Number of physical memory groups.
+ */
+#define BASE_MEM_GROUP_COUNT (16)
+
 /**
  * typedef base_mem_alloc_flags - Memory allocation, access/hint flags.
  *
@@ -127,19 +134,24 @@ typedef u32 base_mem_alloc_flags;
  */
 #define BASE_MEM_PROT_GPU_EX ((base_mem_alloc_flags)1 << 4)
 
-	/* BASE_MEM_HINT flags have been removed, but their values are reserved
-	 * for backwards compatibility with older user-space drivers. The values
-	 * can be re-used once support for r5p0 user-space drivers is removed,
-	 * presumably in r7p0.
-	 *
-	 * RESERVED: (1U << 5)
-	 * RESERVED: (1U << 6)
-	 * RESERVED: (1U << 7)
-	 * RESERVED: (1U << 8)
-	 */
-#define BASE_MEM_RESERVED_BIT_5 ((base_mem_alloc_flags)1 << 5)
-#define BASE_MEM_RESERVED_BIT_6 ((base_mem_alloc_flags)1 << 6)
-#define BASE_MEM_RESERVED_BIT_7 ((base_mem_alloc_flags)1 << 7)
+/* Will be permanently mapped in kernel space.
+ * Flag is only allowed on allocations originating from kbase.
+ */
+#define BASEP_MEM_PERMANENT_KERNEL_MAPPING ((base_mem_alloc_flags)1 << 5)
+
+/* The allocation will completely reside within the same 4GB chunk in the GPU
+ * virtual space.
+ * Since this flag is primarily required only for the TLS memory which will
+ * not be used to contain executable code and also not used for Tiler heap,
+ * it can't be used along with BASE_MEM_PROT_GPU_EX and TILER_ALIGN_TOP flags.
+ */
+#define BASE_MEM_GPU_VA_SAME_4GB_PAGE ((base_mem_alloc_flags)1 << 6)
+
+/* Userspace is not allowed to free this memory.
+ * Flag is only allowed on allocations originating from kbase.
+ */
+#define BASEP_MEM_NO_USER_FREE ((base_mem_alloc_flags)1 << 7)
+
 #define BASE_MEM_RESERVED_BIT_8 ((base_mem_alloc_flags)1 << 8)
 
 /* Grow backing store on GPU Page Fault
@@ -173,9 +185,9 @@ typedef u32 base_mem_alloc_flags;
  */
 #define BASE_MEM_COHERENT_SYSTEM_REQUIRED ((base_mem_alloc_flags)1 << 15)
 
-/* Secure memory
+/* Protected memory
  */
-#define BASE_MEM_SECURE ((base_mem_alloc_flags)1 << 16)
+#define BASE_MEM_PROTECTED ((base_mem_alloc_flags)1 << 16)
 
 /* Not needed physical memory
  */
@@ -192,6 +204,7 @@ typedef u32 base_mem_alloc_flags;
  * Do not remove, use the next unreserved bit for new flags
  */
 #define BASE_MEM_RESERVED_BIT_19 ((base_mem_alloc_flags)1 << 19)
+#define BASE_MEM_MAYBE_RESERVED_BIT_19 BASE_MEM_RESERVED_BIT_19
 
 /**
  * Memory starting from the end of the initial commit is aligned to 'extent'
@@ -200,11 +213,33 @@ typedef u32 base_mem_alloc_flags;
  */
 #define BASE_MEM_TILER_ALIGN_TOP ((base_mem_alloc_flags)1 << 20)
 
-/* Number of bits used as flags for base memory management
+/* Should be uncached on the GPU, will work only for GPUs using AARCH64 mmu mode.
+ * Some components within the GPU might only be able to access memory that is
+ * GPU cacheable. Refer to the specific GPU implementation for more details.
+ * The 3 shareability flags will be ignored for GPU uncached memory.
+ * If used while importing USER_BUFFER type memory, then the import will fail
+ * if the memory is not aligned to GPU and CPU cache line width.
+ */
+#define BASE_MEM_UNCACHED_GPU ((base_mem_alloc_flags)1 << 21)
+
+/*
+ * Bits [22:25] for group_id (0~15).
+ *
+ * base_mem_group_id_set() should be used to pack a memory group ID into a
+ * base_mem_alloc_flags value instead of accessing the bits directly.
+ * base_mem_group_id_get() should be used to extract the memory group ID from
+ * a base_mem_alloc_flags value.
+ */
+#define BASEP_MEM_GROUP_ID_SHIFT 22
+#define BASE_MEM_GROUP_ID_MASK \
+	((base_mem_alloc_flags)0xF << BASEP_MEM_GROUP_ID_SHIFT)
+
+/**
+ * Number of bits used as flags for base memory management
  *
  * Must be kept in sync with the base_mem_alloc_flags flags
  */
-#define BASE_MEM_FLAGS_NR_BITS 21
+#define BASE_MEM_FLAGS_NR_BITS 26
 
 /* A mask for all output bits, excluding IN/OUT bits.
  */
@@ -214,6 +249,43 @@ typedef u32 base_mem_alloc_flags;
  */
 #define BASE_MEM_FLAGS_INPUT_MASK \
 	(((1 << BASE_MEM_FLAGS_NR_BITS) - 1) & ~BASE_MEM_FLAGS_OUTPUT_MASK)
+
+/**
+ * base_mem_group_id_get() - Get group ID from flags
+ * @flags: Flags to pass to base_mem_alloc
+ *
+ * This inline function extracts the encoded group ID from flags
+ * and converts it into numeric value (0~15).
+ *
+ * Return: group ID(0~15) extracted from the parameter
+ */
+static inline int base_mem_group_id_get(base_mem_alloc_flags flags)
+{
+	LOCAL_ASSERT((flags & ~BASE_MEM_FLAGS_INPUT_MASK) == 0);
+	return (int)((flags & BASE_MEM_GROUP_ID_MASK) >>
+			BASEP_MEM_GROUP_ID_SHIFT);
+}
+
+/**
+ * base_mem_group_id_set() - Set group ID into base_mem_alloc_flags
+ * @id: group ID(0~15) you want to encode
+ *
+ * This inline function encodes specific group ID into base_mem_alloc_flags.
+ * Parameter 'id' should lie in-between 0 to 15.
+ *
+ * Return: base_mem_alloc_flags with the group ID (id) encoded
+ *
+ * The return value can be combined with other flags against base_mem_alloc
+ * to identify a specific memory group.
+ */
+static inline base_mem_alloc_flags base_mem_group_id_set(int id)
+{
+	LOCAL_ASSERT(id >= 0);
+	LOCAL_ASSERT(id < BASE_MEM_GROUP_COUNT);
+
+	return ((base_mem_alloc_flags)id << BASEP_MEM_GROUP_ID_SHIFT) &
+		BASE_MEM_GROUP_ID_MASK;
+}
 
 /* A mask for all the flags which are modifiable via the base_mem_set_flags
  * interface.
@@ -226,9 +298,13 @@ typedef u32 base_mem_alloc_flags;
 /* A mask of all currently reserved flags
  */
 #define BASE_MEM_FLAGS_RESERVED \
-	(BASE_MEM_RESERVED_BIT_5 | BASE_MEM_RESERVED_BIT_6 | \
-		BASE_MEM_RESERVED_BIT_7 | BASE_MEM_RESERVED_BIT_8 | \
-		BASE_MEM_RESERVED_BIT_19)
+	(BASE_MEM_RESERVED_BIT_8 | BASE_MEM_MAYBE_RESERVED_BIT_19)
+
+/* A mask of all the flags which are only valid for allocations within kbase,
+ * and may not be passed from user space.
+ */
+#define BASEP_MEM_FLAGS_KERNEL_ONLY \
+	(BASEP_MEM_PERMANENT_KERNEL_MAPPING | BASEP_MEM_NO_USER_FREE)
 
 /* A mask of all the flags that can be returned via the base_mem_get_flags()
  * interface.
@@ -236,7 +312,8 @@ typedef u32 base_mem_alloc_flags;
 #define BASE_MEM_FLAGS_QUERYABLE \
 	(BASE_MEM_FLAGS_INPUT_MASK & ~(BASE_MEM_SAME_VA | \
 		BASE_MEM_COHERENT_SYSTEM_REQUIRED | BASE_MEM_DONT_NEED | \
-		BASE_MEM_IMPORT_SHARED | BASE_MEM_FLAGS_RESERVED))
+		BASE_MEM_IMPORT_SHARED | BASE_MEM_FLAGS_RESERVED | \
+		BASEP_MEM_FLAGS_KERNEL_ONLY))
 
 /**
  * enum base_mem_import_type - Memory types supported by @a base_mem_import
@@ -304,13 +381,15 @@ struct base_mem_import_user_buffer {
 #define BASE_MEM_TRACE_BUFFER_HANDLE           (2ull  << 12)
 #define BASE_MEM_MAP_TRACKING_HANDLE           (3ull  << 12)
 #define BASEP_MEM_WRITE_ALLOC_PAGES_HANDLE     (4ull  << 12)
-/* reserved handles ..-64<<PAGE_SHIFT> for future special handles */
+/* reserved handles ..-47<<PAGE_SHIFT> for future special handles */
 #define BASE_MEM_COOKIE_BASE                   (64ul  << 12)
 #define BASE_MEM_FIRST_FREE_ADDRESS            ((BITS_PER_LONG << 12) + \
 						BASE_MEM_COOKIE_BASE)
 
 /* Mask to detect 4GB boundary alignment */
 #define BASE_MEM_MASK_4GB  0xfffff000UL
+/* Mask to detect 4GB boundary (in page units) alignment */
+#define BASE_MEM_PFN_MASK_4GB  (BASE_MEM_MASK_4GB >> LOCAL_PAGE_SHIFT)
 
 /**
  * Limit on the 'extent' parameter for an allocation with the
@@ -326,15 +405,9 @@ struct base_mem_import_user_buffer {
 /* Bit mask of cookies used for for memory allocation setup */
 #define KBASE_COOKIE_MASK  ~1UL /* bit 0 is reserved */
 
+/* Maximum size allowed in a single KBASE_IOCTL_MEM_ALLOC call */
+#define KBASE_MEM_ALLOC_MAX_SIZE ((8ull << 30) >> PAGE_SHIFT) /* 8 GB */
 
-/**
- * @brief Result codes of changing the size of the backing store allocated to a tmem region
- */
-typedef enum base_backing_threshold_status {
-	BASE_BACKING_THRESHOLD_OK = 0,			    /**< Resize successful */
-	BASE_BACKING_THRESHOLD_ERROR_OOM = -2,		    /**< Increase failed due to an out-of-memory condition */
-	BASE_BACKING_THRESHOLD_ERROR_INVALID_ARGUMENTS = -4 /**< Invalid arguments (not tmem, illegal size request, etc.) */
-} base_backing_threshold_status;
 
 /**
  * @addtogroup base_user_api_memory_defered User-side Base Defered Memory Coherency APIs
@@ -588,43 +661,8 @@ typedef u32 base_jd_core_req;
 #define BASE_JD_REQ_SOFT_FENCE_TRIGGER          (BASE_JD_REQ_SOFT_JOB | 0x2)
 #define BASE_JD_REQ_SOFT_FENCE_WAIT             (BASE_JD_REQ_SOFT_JOB | 0x3)
 
-/**
- * SW Only requirement : Replay job.
- *
- * If the preceding job fails, the replay job will cause the jobs specified in
- * the list of base_jd_replay_payload pointed to by the jc pointer to be
- * replayed.
- *
- * A replay job will only cause jobs to be replayed up to BASEP_JD_REPLAY_LIMIT
- * times. If a job fails more than BASEP_JD_REPLAY_LIMIT times then the replay
- * job is failed, as well as any following dependencies.
- *
- * The replayed jobs will require a number of atom IDs. If there are not enough
- * free atom IDs then the replay job will fail.
- *
- * If the preceding job does not fail, then the replay job is returned as
- * completed.
- *
- * The replayed jobs will never be returned to userspace. The preceding failed
- * job will be returned to userspace as failed; the status of this job should
- * be ignored. Completion should be determined by the status of the replay soft
- * job.
- *
- * In order for the jobs to be replayed, the job headers will have to be
- * modified. The Status field will be reset to NOT_STARTED. If the Job Type
- * field indicates a Vertex Shader Job then it will be changed to Null Job.
- *
- * The replayed jobs have the following assumptions :
- *
- * - No external resources. Any required external resources will be held by the
- *   replay atom.
- * - Pre-dependencies are created based on job order.
- * - Atom numbers are automatically assigned.
- * - device_nr is set to 0. This is not relevant as
- *   BASE_JD_REQ_SPECIFIC_COHERENT_GROUP should not be set.
- * - Priority is inherited from the replay job.
- */
-#define BASE_JD_REQ_SOFT_REPLAY                 (BASE_JD_REQ_SOFT_JOB | 0x4)
+/* 0x4 RESERVED for now */
+
 /**
  * SW only requirement: event wait/trigger job.
  *
@@ -643,9 +681,10 @@ typedef u32 base_jd_core_req;
 /**
  * SW only requirement: Just In Time allocation
  *
- * This job requests a JIT allocation based on the request in the
- * @base_jit_alloc_info structure which is passed via the jc element of
- * the atom.
+ * This job requests a single or multiple JIT allocations through a list
+ * of @base_jit_alloc_info structure which is passed via the jc element of
+ * the atom. The number of @base_jit_alloc_info structures present in the
+ * list is passed via the nr_extres element of the atom
  *
  * It should be noted that the id entry in @base_jit_alloc_info must not
  * be reused until it has been released via @BASE_JD_REQ_SOFT_JIT_FREE.
@@ -659,9 +698,9 @@ typedef u32 base_jd_core_req;
 /**
  * SW only requirement: Just In Time free
  *
- * This job requests a JIT allocation created by @BASE_JD_REQ_SOFT_JIT_ALLOC
- * to be freed. The ID of the JIT allocation is passed via the jc element of
- * the atom.
+ * This job requests a single or multiple JIT allocations created by
+ * @BASE_JD_REQ_SOFT_JIT_ALLOC to be freed. The ID list of the JIT
+ * allocations is passed via the jc element of the atom.
  *
  * The job will complete immediately.
  */
@@ -744,6 +783,14 @@ typedef u32 base_jd_core_req;
 #define BASE_JD_REQ_SKIP_CACHE_END ((base_jd_core_req)1 << 16)
 
 /**
+ * Request the atom be executed on a specific job slot.
+ *
+ * When this flag is specified, it takes precedence over any existing job slot
+ * selection logic.
+ */
+#define BASE_JD_REQ_JOB_SLOT ((base_jd_core_req)1 << 17)
+
+/**
  * These requirement bits are currently unused in base_jd_core_req
  */
 #define BASEP_JD_REQ_RESERVED \
@@ -752,7 +799,8 @@ typedef u32 base_jd_core_req;
 	BASE_JD_REQ_EVENT_COALESCE | \
 	BASE_JD_REQ_COHERENT_GROUP | BASE_JD_REQ_SPECIFIC_COHERENT_GROUP | \
 	BASE_JD_REQ_FS_AFBC | BASE_JD_REQ_PERMON | \
-	BASE_JD_REQ_SKIP_CACHE_START | BASE_JD_REQ_SKIP_CACHE_END))
+	BASE_JD_REQ_SKIP_CACHE_START | BASE_JD_REQ_SKIP_CACHE_END | \
+	BASE_JD_REQ_JOB_SLOT))
 
 /**
  * Mask of all bits in base_jd_core_req that control the type of the atom.
@@ -776,45 +824,6 @@ typedef u32 base_jd_core_req;
 	((core_req & BASE_JD_REQ_SOFT_JOB) || \
 	(core_req & BASE_JD_REQ_ATOM_TYPE) == BASE_JD_REQ_DEP)
 
-/**
- * @brief States to model state machine processed by kbasep_js_job_check_ref_cores(), which
- * handles retaining cores for power management and affinity management.
- *
- * The state @ref KBASE_ATOM_COREREF_STATE_RECHECK_AFFINITY prevents an attack
- * where lots of atoms could be submitted before powerup, and each has an
- * affinity chosen that causes other atoms to have an affinity
- * violation. Whilst the affinity was not causing violations at the time it
- * was chosen, it could cause violations thereafter. For example, 1000 jobs
- * could have had their affinity chosen during the powerup time, so any of
- * those 1000 jobs could cause an affinity violation later on.
- *
- * The attack would otherwise occur because other atoms/contexts have to wait for:
- * -# the currently running atoms (which are causing the violation) to
- * finish
- * -# and, the atoms that had their affinity chosen during powerup to
- * finish. These are run preferentially because they don't cause a
- * violation, but instead continue to cause the violation in others.
- * -# or, the attacker is scheduled out (which might not happen for just 2
- * contexts)
- *
- * By re-choosing the affinity (which is designed to avoid violations at the
- * time it's chosen), we break condition (2) of the wait, which minimizes the
- * problem to just waiting for current jobs to finish (which can be bounded if
- * the Job Scheduling Policy has a timer).
- */
-enum kbase_atom_coreref_state {
-	/** Starting state: No affinity chosen, and cores must be requested. kbase_jd_atom::affinity==0 */
-	KBASE_ATOM_COREREF_STATE_NO_CORES_REQUESTED,
-	/** Cores requested, but waiting for them to be powered. Requested cores given by kbase_jd_atom::affinity */
-	KBASE_ATOM_COREREF_STATE_WAITING_FOR_REQUESTED_CORES,
-	/** Cores given by kbase_jd_atom::affinity are powered, but affinity might be out-of-date, so must recheck */
-	KBASE_ATOM_COREREF_STATE_RECHECK_AFFINITY,
-	/** Cores given by kbase_jd_atom::affinity are powered, and affinity is up-to-date, but must check for violations */
-	KBASE_ATOM_COREREF_STATE_CHECK_AFFINITY_VIOLATIONS,
-	/** Cores are powered, kbase_jd_atom::affinity up-to-date, no affinity violations: atom can be submitted to HW */
-	KBASE_ATOM_COREREF_STATE_READY
-};
-
 /*
  * Base Atom priority
  *
@@ -822,15 +831,16 @@ enum kbase_atom_coreref_state {
  * BASE_JD_PRIO_<...> definitions below. It is undefined to use a priority
  * level that is not one of those defined below.
  *
- * Priority levels only affect scheduling between atoms of the same type within
- * a base context, and only after the atoms have had dependencies resolved.
- * Fragment atoms does not affect non-frament atoms with lower priorities, and
- * the other way around. For example, a low priority atom that has had its
- * dependencies resolved might run before a higher priority atom that has not
- * had its dependencies resolved.
+ * Priority levels only affect scheduling after the atoms have had dependencies
+ * resolved. For example, a low priority atom that has had its dependencies
+ * resolved might run before a higher priority atom that has not had its
+ * dependencies resolved.
  *
- * The scheduling between base contexts/processes and between atoms from
- * different base contexts/processes is unaffected by atom priority.
+ * In general, fragment atoms do not affect non-fragment atoms with
+ * lower priorities, and vice versa. One exception is that there is only one
+ * priority value for each context. So a high-priority (e.g.) fragment atom
+ * could increase its context priority, causing its non-fragment atoms to also
+ * be scheduled sooner.
  *
  * The atoms are scheduled as follows with respect to their priorities:
  * - Let atoms 'X' and 'Y' be for the same job slot who have dependencies
@@ -842,6 +852,14 @@ enum kbase_atom_coreref_state {
  * - Any two atoms that have the same priority could run in any order with
  *   respect to each other. That is, there is no ordering constraint between
  *   atoms of the same priority.
+ *
+ * The sysfs file 'js_ctx_scheduling_mode' is used to control how atoms are
+ * scheduled between contexts. The default value, 0, will cause higher-priority
+ * atoms to be scheduled first, regardless of their context. The value 1 will
+ * use a round-robin algorithm when deciding which context's atoms to schedule
+ * next, so higher-priority atoms can only preempt lower priority atoms within
+ * the same context. See KBASE_JS_SYSTEM_PRIORITY_MODE and
+ * KBASE_JS_PROCESS_LOCAL_PRIORITY_MODE for more details.
  */
 typedef u8 base_jd_prio;
 
@@ -889,14 +907,14 @@ typedef struct base_jd_atom_v2 {
 	u64 jc;			    /**< job-chain GPU address */
 	struct base_jd_udata udata;		    /**< user data */
 	u64 extres_list;	    /**< list of external resources */
-	u16 nr_extres;			    /**< nr of external resources */
+	u16 nr_extres;			    /**< nr of external resources or JIT allocations */
 	u16 compat_core_req;	            /**< core requirements which correspond to the legacy support for UK 10.2 */
 	struct base_dependency pre_dep[2];  /**< pre-dependencies, one need to use SETTER function to assign this field,
 	this is done in order to reduce possibility of improper assigment of a dependency field */
 	base_atom_id atom_number;	    /**< unique number to identify the atom */
 	base_jd_prio prio;                  /**< Atom priority. Refer to @ref base_jd_prio for more details */
 	u8 device_nr;			    /**< coregroup when BASE_JD_REQ_SPECIFIC_COHERENT_GROUP specified */
-	u8 padding[1];
+	u8 jobslot;			    /**< Job slot to use when BASE_JD_REQ_JOB_SLOT is specified */
 	base_jd_core_req core_req;          /**< core requirements */
 } base_jd_atom_v2;
 
@@ -1180,7 +1198,6 @@ typedef enum base_jd_event_code {
 	BASE_JD_EVENT_JOB_CANCELLED	= BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x002,
 	BASE_JD_EVENT_JOB_INVALID	= BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x003,
 	BASE_JD_EVENT_PM_EVENT		= BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x004,
-	BASE_JD_EVENT_FORCE_REPLAY	= BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x005,
 
 	BASE_JD_EVENT_BAG_INVALID	= BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_BAG | 0x003,
 
@@ -1642,20 +1659,28 @@ typedef u32 base_context_create_flags;
 #define BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED \
 	((base_context_create_flags)1 << 1)
 
-/**
- * Bitpattern describing the ::base_context_create_flags that can be
- * passed to base_context_init()
- */
-#define BASE_CONTEXT_CREATE_ALLOWED_FLAGS \
-	(((u32)BASE_CONTEXT_CCTX_EMBEDDED) | \
-	  ((u32)BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED))
 
-/**
- * Bitpattern describing the ::base_context_create_flags that can be
+/* Bit-shift used to encode a memory group ID in base_context_create_flags
+ */
+#define BASEP_CONTEXT_MMU_GROUP_ID_SHIFT (3)
+
+/* Bitmask used to encode a memory group ID in base_context_create_flags
+ */
+#define BASEP_CONTEXT_MMU_GROUP_ID_MASK \
+	((base_context_create_flags)0xF << BASEP_CONTEXT_MMU_GROUP_ID_SHIFT)
+
+/* Bitpattern describing the base_context_create_flags that can be
  * passed to the kernel
  */
-#define BASE_CONTEXT_CREATE_KERNEL_FLAGS \
-	((u32)BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED)
+#define BASEP_CONTEXT_CREATE_KERNEL_FLAGS \
+	(BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED | \
+	 BASEP_CONTEXT_MMU_GROUP_ID_MASK)
+
+/* Bitpattern describing the ::base_context_create_flags that can be
+ * passed to base_context_init()
+ */
+#define BASEP_CONTEXT_CREATE_ALLOWED_FLAGS \
+	(BASE_CONTEXT_CCTX_EMBEDDED | BASEP_CONTEXT_CREATE_KERNEL_FLAGS)
 
 /*
  * Private flags used on the base context
@@ -1666,7 +1691,46 @@ typedef u32 base_context_create_flags;
  * not collide with them.
  */
 /** Private flag tracking whether job descriptor dumping is disabled */
-#define BASEP_CONTEXT_FLAG_JOB_DUMP_DISABLED ((u32)(1 << 31))
+#define BASEP_CONTEXT_FLAG_JOB_DUMP_DISABLED \
+	((base_context_create_flags)(1 << 31))
+
+/**
+ * base_context_mmu_group_id_set - Encode a memory group ID in
+ *                                 base_context_create_flags
+ *
+ * Memory allocated for GPU page tables will come from the specified group.
+ *
+ * @group_id: Physical memory group ID. Range is 0..(BASE_MEM_GROUP_COUNT-1).
+ *
+ * Return: Bitmask of flags to pass to base_context_init.
+ */
+static inline base_context_create_flags base_context_mmu_group_id_set(
+	int const group_id)
+{
+	LOCAL_ASSERT(group_id >= 0);
+	LOCAL_ASSERT(group_id < BASE_MEM_GROUP_COUNT);
+	return BASEP_CONTEXT_MMU_GROUP_ID_MASK &
+		((base_context_create_flags)group_id <<
+		BASEP_CONTEXT_MMU_GROUP_ID_SHIFT);
+}
+
+/**
+ * base_context_mmu_group_id_get - Decode a memory group ID from
+ *                                 base_context_create_flags
+ *
+ * Memory allocated for GPU page tables will come from the returned group.
+ *
+ * @flags: Bitmask of flags to pass to base_context_init.
+ *
+ * Return: Physical memory group ID. Valid range is 0..(BASE_MEM_GROUP_COUNT-1).
+ */
+static inline int base_context_mmu_group_id_get(
+	base_context_create_flags const flags)
+{
+	LOCAL_ASSERT(flags == (flags & BASEP_CONTEXT_CREATE_ALLOWED_FLAGS));
+	return (int)((flags & BASEP_CONTEXT_MMU_GROUP_ID_MASK) >>
+			BASEP_CONTEXT_MMU_GROUP_ID_SHIFT);
+}
 
 /** @} end group base_user_api_core */
 
@@ -1693,81 +1757,7 @@ typedef u32 base_context_create_flags;
  * @{
  */
 
-/**
- * @brief The payload for a replay job. This must be in GPU memory.
- */
-typedef struct base_jd_replay_payload {
-	/**
-	 * Pointer to the first entry in the base_jd_replay_jc list.  These
-	 * will be replayed in @b reverse order (so that extra ones can be added
-	 * to the head in future soft jobs without affecting this soft job)
-	 */
-	u64 tiler_jc_list;
-
-	/**
-	 * Pointer to the fragment job chain.
-	 */
-	u64 fragment_jc;
-
-	/**
-	 * Pointer to the tiler heap free FBD field to be modified.
-	 */
-	u64 tiler_heap_free;
-
-	/**
-	 * Hierarchy mask for the replayed fragment jobs. May be zero.
-	 */
-	u16 fragment_hierarchy_mask;
-
-	/**
-	 * Hierarchy mask for the replayed tiler jobs. May be zero.
-	 */
-	u16 tiler_hierarchy_mask;
-
-	/**
-	 * Default weight to be used for hierarchy levels not in the original
-	 * mask.
-	 */
-	u32 hierarchy_default_weight;
-
-	/**
-	 * Core requirements for the tiler job chain
-	 */
-	base_jd_core_req tiler_core_req;
-
-	/**
-	 * Core requirements for the fragment job chain
-	 */
-	base_jd_core_req fragment_core_req;
-} base_jd_replay_payload;
-
-/**
- * @brief An entry in the linked list of job chains to be replayed. This must
- *        be in GPU memory.
- */
-typedef struct base_jd_replay_jc {
-	/**
-	 * Pointer to next entry in the list. A setting of NULL indicates the
-	 * end of the list.
-	 */
-	u64 next;
-
-	/**
-	 * Pointer to the job chain.
-	 */
-	u64 jc;
-
-} base_jd_replay_jc;
-
-/* Maximum number of jobs allowed in a fragment chain in the payload of a
- * replay job */
-#define BASE_JD_REPLAY_F_CHAIN_JOB_LIMIT 256
-
 /** @} end group base_api */
-
-typedef struct base_profiling_controls {
-	u32 profiling_controls[FBDUMP_CONTROL_MAX];
-} base_profiling_controls;
 
 /* Enable additional tracepoints for latency measurements (TL_ATOM_READY,
  * TL_ATOM_DONE, TL_ATOM_PRIO_CHANGE, TL_ATOM_EVENT_POST) */
@@ -1779,5 +1769,24 @@ typedef struct base_profiling_controls {
 
 #define BASE_TLSTREAM_FLAGS_MASK (BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS | \
 		BASE_TLSTREAM_JOB_DUMPING_ENABLED)
+
+/**
+ * A number of bit flags are defined for requesting cpu_gpu_timeinfo. These
+ * flags are also used, where applicable, for specifying which fields
+ * are valid following the request operation.
+ */
+
+/* For monotonic (counter) timefield */
+#define BASE_TIMEINFO_MONOTONIC_FLAG (1UL << 0)
+/* For system wide timestamp */
+#define BASE_TIMEINFO_TIMESTAMP_FLAG (1UL << 1)
+/* For GPU cycle counter */
+#define BASE_TIMEINFO_CYCLE_COUNTER_FLAG (1UL << 2)
+
+#define BASE_TIMEREQUEST_ALLOWED_FLAGS (\
+		BASE_TIMEINFO_MONOTONIC_FLAG | \
+		BASE_TIMEINFO_TIMESTAMP_FLAG | \
+		BASE_TIMEINFO_CYCLE_COUNTER_FLAG)
+
 
 #endif				/* _BASE_KERNEL_H_ */

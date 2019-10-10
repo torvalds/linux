@@ -75,6 +75,17 @@ static inline phys_addr_t as_phys_addr_t(struct tagged_addr t)
 }
 
 /**
+ * as_page - Retrieve the struct page from a tagged address
+ * @t: tagged address to be translated.
+ *
+ * Return: pointer to struct page corresponding to tagged address.
+ */
+static inline struct page *as_page(struct tagged_addr t)
+{
+	return phys_to_page(as_phys_addr_t(t));
+}
+
+/**
  * as_tagged - Convert the physical address to tagged address type though
  *             there is no tag info present, the lower order 12 bits will be 0
  * @phys: physical address to be converted to tagged type

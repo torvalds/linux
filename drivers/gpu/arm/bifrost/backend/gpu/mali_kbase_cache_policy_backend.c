@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2016,2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,6 +29,6 @@ void kbase_cache_set_coherency_mode(struct kbase_device *kbdev,
 	kbdev->current_gpu_coherency_mode = mode;
 
 	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_COHERENCY_REG))
-		kbase_reg_write(kbdev, COHERENCY_ENABLE, mode, NULL);
+		kbase_reg_write(kbdev, COHERENCY_ENABLE, mode);
 }
 

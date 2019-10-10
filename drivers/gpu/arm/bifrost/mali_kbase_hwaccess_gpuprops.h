@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015, 2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015, 2018, 2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -40,7 +40,8 @@ void kbase_backend_gpuprops_get(struct kbase_device *kbdev,
 					struct kbase_gpuprops_regdump *regdump);
 
 /**
- * kbase_backend_gpuprops_get - Fill @regdump with GPU properties read from GPU
+ * kbase_backend_gpuprops_get_features - Fill @regdump with GPU properties read
+ *                                       from GPU
  * @kbdev:   Device pointer
  * @regdump: Pointer to struct kbase_gpuprops_regdump structure
  *
@@ -48,6 +49,18 @@ void kbase_backend_gpuprops_get(struct kbase_device *kbdev,
  * features bitmask. It will power-on the GPU if required.
  */
 void kbase_backend_gpuprops_get_features(struct kbase_device *kbdev,
+					struct kbase_gpuprops_regdump *regdump);
+
+/**
+ * kbase_backend_gpuprops_get_l2_features - Fill @regdump with L2_FEATURES read
+ *                                          from GPU
+ * @kbdev:   Device pointer
+ * @regdump: Pointer to struct kbase_gpuprops_regdump structure
+ *
+ * This function reads L2_FEATURES register that is dependent on the hardware
+ * features bitmask. It will power-on the GPU if required.
+ */
+void kbase_backend_gpuprops_get_l2_features(struct kbase_device *kbdev,
 					struct kbase_gpuprops_regdump *regdump);
 
 

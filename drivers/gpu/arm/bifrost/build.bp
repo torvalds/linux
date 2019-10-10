@@ -3,7 +3,7 @@
  * ----------------------------------------------------------------------------
  * This confidential and proprietary software may be used only as authorized
  * by a licensing agreement from ARM Limited.
- *      (C) COPYRIGHT 2017-2018 ARM Limited, ALL RIGHTS RESERVED
+ *      (C) COPYRIGHT 2017-2019 ARM Limited, ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorized copies and
  * copies may only be made to the extent permitted by a licensing agreement
  * from ARM Limited.
@@ -19,8 +19,8 @@ bob_defaults {
     no_mali: {
         kbuild_options: ["CONFIG_MALI_BIFROST_NO_MALI=y"],
     },
-    mali_corestack: {
-        kbuild_options: ["CONFIG_MALI_CORESTACK=y"],
+    mali_real_hw: {
+        kbuild_options: ["CONFIG_MALI_REAL_HW=y"],
     },
     mali_devfreq: {
         kbuild_options: ["CONFIG_MALI_BIFROST_DEVFREQ=y"],
@@ -28,17 +28,20 @@ bob_defaults {
     mali_midgard_dvfs: {
         kbuild_options: ["CONFIG_MALI_BIFROST_DVFS=y"],
     },
-    mali_trace_timeline: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_TRACE_TIMELINE=y"],
-    },
     mali_debug: {
         kbuild_options: ["CONFIG_MALI_BIFROST_DEBUG=y"],
     },
-    mali_fpga_bus_logger: {
-        kbuild_options: ["CONFIG_MALI_FPGA_BUS_LOGGER=y"],
+    buslog: {
+        kbuild_options: ["CONFIG_MALI_BUSLOG=y"],
     },
     cinstr_job_dump: {
         kbuild_options: ["CONFIG_MALI_JOB_DUMP=y"],
+    },
+    cinstr_vector_dump: {
+        kbuild_options: ["CONFIG_MALI_VECTOR_DUMP=y"],
+    },
+    cinstr_gwt: {
+        kbuild_options: ["CONFIG_MALI_CINSTR_GWT=y"],
     },
     mali_gator_support: {
         kbuild_options: ["CONFIG_MALI_BIFROST_GATOR_SUPPORT=y"],
@@ -46,9 +49,22 @@ bob_defaults {
     mali_system_trace: {
         kbuild_options: ["CONFIG_MALI_BIFROST_SYSTEM_TRACE=y"],
     },
+    mali_pwrsoft_765: {
+        kbuild_options: ["CONFIG_MALI_PWRSOFT_765=y"],
+    },
+    mali_memory_fully_backed: {
+        kbuild_options: ["CONFIG_MALI_MEMORY_FULLY_BACKED=y"],
+    },
+    mali_dma_buf_map_on_demand: {
+        kbuild_options: ["CONFIG_MALI_DMA_BUF_MAP_ON_DEMAND=y"],
+    },
+    mali_dma_buf_legacy_compat: {
+        kbuild_options: ["CONFIG_MALI_DMA_BUF_LEGACY_COMPAT=y"],
+    },
     kbuild_options: [
         "MALI_UNIT_TEST={{.unit_test_code}}",
         "MALI_CUSTOMER_RELEASE={{.release}}",
+        "MALI_USE_CSF={{.gpu_has_csf}}",
         "MALI_KERNEL_TEST_API={{.debug}}",
     ],
     defaults: ["kernel_defaults"],
@@ -77,25 +93,42 @@ bob_kernel_module {
         "CONFIG_MALI_MIDGARD=m",
         "CONFIG_MALI_NO_MALI_DEFAULT_GPU={{.gpu}}",
         "CONFIG_MALI_PLATFORM_NAME={{.mali_platform_name}}",
-        "MALI_KERNEL_TEST_API={{.unit_test_code}}",
-        "MALI_MOCK_TEST={{.mali_mock_test}}",
     ],
+    buslog: {
+        extra_symbols: [
+            "bus_logger",
+        ],
+    },
+    mali_corestack: {
+        kbuild_options: ["CONFIG_MALI_CORESTACK=y"],
+    },
+    mali_platform_power_down_only: {
+        kbuild_options: ["CONFIG_MALI_PLATFORM_POWER_DOWN_ONLY=y"],
+    },
     mali_error_inject: {
         kbuild_options: ["CONFIG_MALI_BIFROST_ERROR_INJECT=y"],
     },
     mali_error_inject_random: {
         kbuild_options: ["CONFIG_MALI_ERROR_INJECT_RANDOM=y"],
     },
-    mali_prfcnt_set_secondary: {
+    cinstr_secondary_hwc: {
         kbuild_options: ["CONFIG_MALI_BIFROST_PRFCNT_SET_SECONDARY=y"],
     },
     mali_2mb_alloc: {
         kbuild_options: ["CONFIG_MALI_2MB_ALLOC=y"],
     },
-    mali_mock_test: {
-        srcs: ["tests/internal/src/mock/mali_kbase_pm_driver_mock.c"],
+    mali_hw_errata_1485982_not_affected: {
+        kbuild_options: ["CONFIG_MALI_HW_ERRATA_1485982_NOT_AFFECTED=y"],
+    },
+    mali_hw_errata_1485982_use_clock_alternative: {
+        kbuild_options: ["CONFIG_MALI_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE=y"],
+    },
+    gpu_has_csf: {
+        srcs: [
+            "csf/*.c",
+            "csf/*.h",
+            "csf/Kbuild",
+        ],
     },
     defaults: ["mali_kbase_shared_config_defaults"],
 }
-
-optional_subdirs = ["tests"]

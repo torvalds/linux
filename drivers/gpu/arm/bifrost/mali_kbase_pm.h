@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2015,2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -135,6 +135,10 @@ int kbase_pm_context_active_handle_suspend(struct kbase_device *kbdev, enum kbas
  * @param kbdev     The kbase device structure for the device (must be a valid pointer)
  */
 void kbase_pm_context_idle(struct kbase_device *kbdev);
+
+/* NOTE: kbase_pm_is_active() is in mali_kbase.h, because it is an inline
+ * function
+ */
 
 /**
  * Suspend the GPU and prevent any further register accesses to it from Kernel

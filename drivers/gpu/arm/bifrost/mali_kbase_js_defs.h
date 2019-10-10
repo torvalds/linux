@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -151,18 +151,19 @@ typedef u32 kbasep_js_atom_done_code;
  */
 enum {
 	/*
-	 * In this mode, the context containing higher priority atoms will be
-	 * scheduled first and also the new runnable higher priority atoms can
-	 * preempt lower priority atoms currently running on the GPU, even if
-	 * they belong to a different context.
+	 * In this mode, higher priority atoms will be scheduled first,
+	 * regardless of the context they belong to. Newly-runnable higher
+	 * priority atoms can preempt lower priority atoms currently running on
+	 * the GPU, even if they belong to a different context.
 	 */
 	KBASE_JS_SYSTEM_PRIORITY_MODE = 0,
 
 	/*
-	 * In this mode, the contexts are scheduled in round-robin fashion and
-	 * the new runnable higher priority atoms can preempt the lower priority
-	 * atoms currently running on the GPU, only if they belong to the same
-	 * context.
+	 * In this mode, the highest-priority atom will be chosen from each
+	 * context in turn using a round-robin algorithm, so priority only has
+	 * an effect within the context an atom belongs to. Newly-runnable
+	 * higher priority atoms can preempt the lower priority atoms currently
+	 * running on the GPU, but only if they belong to the same context.
 	 */
 	KBASE_JS_PROCESS_LOCAL_PRIORITY_MODE,
 

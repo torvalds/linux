@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -31,15 +31,27 @@
 #include <mali_kbase_mem_linux.h>
 #include <mali_kbase_dma_fence.h>
 #include <mali_kbase_ctx_sched.h>
+#include <mali_kbase_mem_pool_group.h>
+#include <mali_kbase_tracepoints.h>
 
 struct kbase_context *
-kbase_create_context(struct kbase_device *kbdev, bool is_compat)
+kbase_create_context(struct kbase_device *kbdev, bool is_compat,
+	base_context_create_flags const flags,
+	unsigned long const api_version,
+	struct file *const filp)
 {
 	struct kbase_context *kctx;
 	int err;
 	struct page *p;
+	struct kbasep_js_kctx_info *js_kctx_info = NULL;
+	unsigned long irq_flags = 0;
 
-	KBASE_DEBUG_ASSERT(kbdev != NULL);
+	if (WARN_ON(!kbdev))
+		goto out;
+
+	/* Validate flags */
+	if (WARN_ON(flags != (flags & BASEP_CONTEXT_CREATE_KERNEL_FLAGS)))
+		goto out;
 
 	/* zero-inited as lot of code assume it's zero'ed out on create */
 	kctx = vzalloc(sizeof(*kctx));
@@ -60,33 +72,18 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 		kbase_ctx_flag_set(kctx, KCTX_FORCE_SAME_VA);
 #endif /* !defined(CONFIG_64BIT) */
 
-#ifdef CONFIG_MALI_BIFROST_TRACE_TIMELINE
-	kctx->timeline.owner_tgid = task_tgid_nr(current);
-#endif
-	atomic_set(&kctx->setup_complete, 0);
-	atomic_set(&kctx->setup_in_progress, 0);
 	spin_lock_init(&kctx->mm_update_lock);
 	kctx->process_mm = NULL;
 	atomic_set(&kctx->nonmapped_pages, 0);
+	atomic_set(&kctx->permanent_mapped_pages, 0);
 	kctx->slots_pullable = 0;
 	kctx->tgid = current->tgid;
 	kctx->pid = current->pid;
 
-	err = kbase_mem_pool_init(&kctx->mem_pool,
-				  kbdev->mem_pool_max_size_default,
-				  KBASE_MEM_POOL_4KB_PAGE_TABLE_ORDER,
-				  kctx->kbdev,
-				  &kbdev->mem_pool);
+	err = kbase_mem_pool_group_init(&kctx->mem_pools, kbdev,
+		&kbdev->mem_pool_defaults, &kbdev->mem_pools);
 	if (err)
 		goto free_kctx;
-
-	err = kbase_mem_pool_init(&kctx->lp_mem_pool,
-				  (kbdev->mem_pool_max_size_default >> 9),
-				  KBASE_MEM_POOL_2MB_PAGE_TABLE_ORDER,
-				  kctx->kbdev,
-				  &kbdev->lp_mem_pool);
-	if (err)
-		goto free_mem_pool;
 
 	err = kbase_mem_evictable_init(kctx);
 	if (err)
@@ -110,7 +107,7 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 
 	mutex_init(&kctx->reg_lock);
 
-	mutex_init(&kctx->mem_partials_lock);
+	spin_lock_init(&kctx->mem_partials_lock);
 	INIT_LIST_HEAD(&kctx->mem_partials);
 
 	INIT_LIST_HEAD(&kctx->waiting_soft_jobs);
@@ -119,22 +116,13 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	if (err)
 		goto free_event;
 
-	err = kbase_mmu_init(kctx);
+	err = kbase_mmu_init(kbdev, &kctx->mmu, kctx,
+		base_context_mmu_group_id_get(flags));
 	if (err)
 		goto term_dma_fence;
 
-	do {
-		err = kbase_mem_pool_grow(&kctx->mem_pool,
-				MIDGARD_MMU_BOTTOMLEVEL);
-		if (err)
-			goto pgd_no_mem;
-
-		mutex_lock(&kctx->mmu_lock);
-		kctx->pgd = kbase_mmu_alloc_pgd(kctx);
-		mutex_unlock(&kctx->mmu_lock);
-	} while (!kctx->pgd);
-
-	p = kbase_mem_alloc_page(&kctx->mem_pool);
+	p = kbase_mem_alloc_page(
+		&kctx->mem_pools.small[KBASE_MEM_GROUP_SINK]);
 	if (!p)
 		goto no_sink_page;
 	kctx->aliasing_sink_page = as_tagged(page_to_phys(p));
@@ -155,19 +143,38 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	err = kbase_jit_init(kctx);
 	if (err)
 		goto no_jit;
+
+
 #ifdef CONFIG_GPU_TRACEPOINTS
 	atomic_set(&kctx->jctx.work_id, 0);
-#endif
-#ifdef CONFIG_MALI_BIFROST_TRACE_TIMELINE
-	atomic_set(&kctx->timeline.jd_atoms_in_flight, 0);
 #endif
 
 	kctx->id = atomic_add_return(1, &(kbdev->ctx_num)) - 1;
 
-	mutex_init(&kctx->vinstr_cli_lock);
+	mutex_init(&kctx->legacy_hwcnt_lock);
 
 	kbase_timer_setup(&kctx->soft_job_timeout,
 			  kbasep_soft_job_timeout_worker);
+
+	mutex_lock(&kbdev->kctx_list_lock);
+	list_add(&kctx->kctx_list_link, &kbdev->kctx_list);
+	KBASE_TLSTREAM_TL_NEW_CTX(kbdev, kctx, kctx->id, (u32)(kctx->tgid));
+	mutex_unlock(&kbdev->kctx_list_lock);
+
+	kctx->api_version = api_version;
+	kctx->filp = filp;
+
+	js_kctx_info = &kctx->jctx.sched_info;
+
+	mutex_lock(&js_kctx_info->ctx.jsctx_mutex);
+	spin_lock_irqsave(&kctx->kbdev->hwaccess_lock, irq_flags);
+
+	/* Translate the flags */
+	if ((flags & BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED) == 0)
+		kbase_ctx_flag_clear(kctx, KCTX_SUBMIT_DISABLED);
+
+	spin_unlock_irqrestore(&kctx->kbdev->hwaccess_lock, irq_flags);
+	mutex_unlock(&js_kctx_info->ctx.jsctx_mutex);
 
 	return kctx;
 
@@ -178,14 +185,10 @@ no_jit:
 no_sticky:
 	kbase_region_tracker_term(kctx);
 no_region_tracker:
-	kbase_mem_pool_free(&kctx->mem_pool, p, false);
+	kbase_mem_pool_free(
+		&kctx->mem_pools.small[KBASE_MEM_GROUP_SINK], p, false);
 no_sink_page:
-	/* VM lock needed for the call to kbase_mmu_free_pgd */
-	kbase_gpu_vm_lock(kctx);
-	kbase_mmu_free_pgd(kctx);
-	kbase_gpu_vm_unlock(kctx);
-pgd_no_mem:
-	kbase_mmu_term(kctx);
+	kbase_mmu_term(kbdev, &kctx->mmu);
 term_dma_fence:
 	kbase_dma_fence_term(kctx);
 free_event:
@@ -197,9 +200,7 @@ free_jd:
 deinit_evictable:
 	kbase_mem_evictable_deinit(kctx);
 free_both_pools:
-	kbase_mem_pool_term(&kctx->lp_mem_pool);
-free_mem_pool:
-	kbase_mem_pool_term(&kctx->mem_pool);
+	kbase_mem_pool_group_term(&kctx->mem_pools);
 free_kctx:
 	vfree(kctx);
 out:
@@ -207,9 +208,10 @@ out:
 }
 KBASE_EXPORT_SYMBOL(kbase_create_context);
 
-static void kbase_reg_pending_dtor(struct kbase_va_region *reg)
+static void kbase_reg_pending_dtor(struct kbase_device *kbdev,
+		struct kbase_va_region *reg)
 {
-	dev_dbg(reg->kctx->kbdev->dev, "Freeing pending unmapped region\n");
+	dev_dbg(kbdev->dev, "Freeing pending unmapped region\n");
 	kbase_mem_phy_alloc_put(reg->cpu_alloc);
 	kbase_mem_phy_alloc_put(reg->gpu_alloc);
 	kfree(reg);
@@ -223,10 +225,17 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	unsigned long flags;
 	struct page *p;
 
-	KBASE_DEBUG_ASSERT(NULL != kctx);
+	if (WARN_ON(!kctx))
+		return;
 
 	kbdev = kctx->kbdev;
-	KBASE_DEBUG_ASSERT(NULL != kbdev);
+	if (WARN_ON(!kbdev))
+		return;
+
+	mutex_lock(&kbdev->kctx_list_lock);
+	KBASE_TLSTREAM_TL_DEL_CTX(kbdev, kctx);
+	list_del(&kctx->kctx_list_link);
+	mutex_unlock(&kbdev->kctx_list_lock);
 
 	KBASE_TRACE_ADD(kbdev, CORE_CTX_DESTROY, kctx, NULL, 0u, 0u);
 
@@ -235,18 +244,30 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	 * thread. */
 	kbase_pm_context_active(kbdev);
 
-	kbase_mem_pool_mark_dying(&kctx->mem_pool);
+	kbase_mem_pool_group_mark_dying(&kctx->mem_pools);
 
 	kbase_jd_zap_context(kctx);
+
+	/* We have already waited for the jobs to complete (and hereafter there
+	 * can be no more submissions for the context). However the wait could
+	 * have timedout and there could still be work items in flight that
+	 * would do the completion processing of jobs.
+	 * kbase_jd_exit() will destroy the 'job_done_wq'. And destroying the wq
+	 * will cause it do drain and implicitly wait for those work items to
+	 * complete.
+	 */
+	kbase_jd_exit(kctx);
 
 #ifdef CONFIG_DEBUG_FS
 	/* Removing the rest of the debugfs entries here as we want to keep the
 	 * atom debugfs interface alive until all atoms have completed. This
 	 * is useful for debugging hung contexts. */
 	debugfs_remove_recursive(kctx->kctx_dentry);
+	kbase_debug_job_fault_context_term(kctx);
 #endif
 
 	kbase_event_cleanup(kctx);
+
 
 	/*
 	 * JIT must be terminated before the code below as it must be called
@@ -260,12 +281,10 @@ void kbase_destroy_context(struct kbase_context *kctx)
 
 	kbase_sticky_resource_term(kctx);
 
-	/* MMU is disabled as part of scheduling out the context */
-	kbase_mmu_free_pgd(kctx);
-
 	/* drop the aliasing sink page now that it can't be mapped anymore */
-	p = phys_to_page(as_phys_addr_t(kctx->aliasing_sink_page));
-	kbase_mem_pool_free(&kctx->mem_pool, p, false);
+	p = as_page(kctx->aliasing_sink_page);
+	kbase_mem_pool_free(&kctx->mem_pools.small[KBASE_MEM_GROUP_SINK],
+		p, false);
 
 	/* free pending region setups */
 	pending_regions_to_clean = (~kctx->cookies) & KBASE_COOKIE_MASK;
@@ -274,7 +293,7 @@ void kbase_destroy_context(struct kbase_context *kctx)
 
 		BUG_ON(!kctx->pending_regions[cookie]);
 
-		kbase_reg_pending_dtor(kctx->pending_regions[cookie]);
+		kbase_reg_pending_dtor(kbdev, kctx->pending_regions[cookie]);
 
 		kctx->pending_regions[cookie] = NULL;
 		pending_regions_to_clean &= ~(1UL << cookie);
@@ -286,8 +305,6 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	/* Safe to call this one even when didn't initialize (assuming kctx was sufficiently zeroed) */
 	kbasep_js_kctx_term(kctx);
 
-	kbase_jd_exit(kctx);
-
 	kbase_dma_fence_term(kctx);
 
 	mutex_lock(&kbdev->mmu_hw_mutex);
@@ -296,15 +313,16 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	spin_unlock_irqrestore(&kctx->kbdev->hwaccess_lock, flags);
 	mutex_unlock(&kbdev->mmu_hw_mutex);
 
-	kbase_mmu_term(kctx);
+	kbase_mmu_term(kbdev, &kctx->mmu);
 
 	pages = atomic_read(&kctx->used_pages);
 	if (pages != 0)
 		dev_warn(kbdev->dev, "%s: %d pages in use!\n", __func__, pages);
 
 	kbase_mem_evictable_deinit(kctx);
-	kbase_mem_pool_term(&kctx->mem_pool);
-	kbase_mem_pool_term(&kctx->lp_mem_pool);
+
+	kbase_mem_pool_group_term(&kctx->mem_pools);
+
 	WARN_ON(atomic_read(&kctx->nonmapped_pages) != 0);
 
 	vfree(kctx);
@@ -312,36 +330,3 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	kbase_pm_context_idle(kbdev);
 }
 KBASE_EXPORT_SYMBOL(kbase_destroy_context);
-
-int kbase_context_set_create_flags(struct kbase_context *kctx, u32 flags)
-{
-	int err = 0;
-	struct kbasep_js_kctx_info *js_kctx_info;
-	unsigned long irq_flags;
-
-	KBASE_DEBUG_ASSERT(NULL != kctx);
-
-	js_kctx_info = &kctx->jctx.sched_info;
-
-	/* Validate flags */
-	if (flags != (flags & BASE_CONTEXT_CREATE_KERNEL_FLAGS)) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	mutex_lock(&js_kctx_info->ctx.jsctx_mutex);
-	spin_lock_irqsave(&kctx->kbdev->hwaccess_lock, irq_flags);
-
-	/* Translate the flags */
-	if ((flags & BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED) == 0)
-		kbase_ctx_flag_clear(kctx, KCTX_SUBMIT_DISABLED);
-
-	/* Latch the initial attributes into the Job Scheduler */
-	kbasep_js_ctx_attr_set_initial_attrs(kctx->kbdev, kctx);
-
-	spin_unlock_irqrestore(&kctx->kbdev->hwaccess_lock, irq_flags);
-	mutex_unlock(&js_kctx_info->ctx.jsctx_mutex);
- out:
-	return err;
-}
-KBASE_EXPORT_SYMBOL(kbase_context_set_create_flags);

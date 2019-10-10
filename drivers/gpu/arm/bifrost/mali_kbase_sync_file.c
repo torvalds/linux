@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -73,15 +73,21 @@ int kbase_sync_fence_out_create(struct kbase_jd_atom *katom, int stream_fd)
 	if (!fence)
 		return -ENOMEM;
 
-	/* Take an extra reference to the fence on behalf of the katom.
-	 * This is needed because sync_file_create() will take ownership of
-	 * one of these refs */
+#if (KERNEL_VERSION(4, 9, 67) >= LINUX_VERSION_CODE)
+	/* Take an extra reference to the fence on behalf of the sync_file.
+	 * This is only needed on older kernels where sync_file_create()
+	 * does not take its own reference. This was changed in v4.9.68,
+	 * where sync_file_create() now takes its own reference.
+	 */
 	dma_fence_get(fence);
+#endif
 
 	/* create a sync_file fd representing the fence */
 	sync_file = sync_file_create(fence);
 	if (!sync_file) {
+#if (KERNEL_VERSION(4, 9, 67) >= LINUX_VERSION_CODE)
 		dma_fence_put(fence);
+#endif
 		kbase_fence_out_remove(katom);
 		return -ENOMEM;
 	}
@@ -268,12 +274,12 @@ void kbase_sync_fence_in_remove(struct kbase_jd_atom *katom)
 	kbase_fence_in_remove(katom);
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
-static void kbase_sync_fence_info_get(struct fence *fence,
-				      struct kbase_sync_fence_info *info)
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
+void kbase_sync_fence_info_get(struct fence *fence,
+			       struct kbase_sync_fence_info *info)
 #else
-static void kbase_sync_fence_info_get(struct dma_fence *fence,
-				      struct kbase_sync_fence_info *info)
+void kbase_sync_fence_info_get(struct dma_fence *fence,
+			       struct kbase_sync_fence_info *info)
 #endif
 {
 	info->fence = fence;
@@ -299,11 +305,14 @@ static void kbase_sync_fence_info_get(struct dma_fence *fence,
 		info->status = 0; /* still active (unsignaled) */
 	}
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0))
+#if (KERNEL_VERSION(4, 8, 0) > LINUX_VERSION_CODE)
 	scnprintf(info->name, sizeof(info->name), "%u#%u",
 		  fence->context, fence->seqno);
-#else
+#elif (KERNEL_VERSION(5, 1, 0) > LINUX_VERSION_CODE)
 	scnprintf(info->name, sizeof(info->name), "%llu#%u",
+		  fence->context, fence->seqno);
+#else
+	scnprintf(info->name, sizeof(info->name), "%llu#%llu",
 		  fence->context, fence->seqno);
 #endif
 }

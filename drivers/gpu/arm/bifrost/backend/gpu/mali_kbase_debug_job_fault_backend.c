@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2015,2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -152,7 +152,7 @@ bool kbase_job_fault_get_reg_snapshot(struct kbase_context *kctx)
 	while (kctx->reg_dump[offset] != REGISTER_DUMP_TERMINATION_FLAG) {
 		kctx->reg_dump[offset+1] =
 				kbase_reg_read(kctx->kbdev,
-						kctx->reg_dump[offset], NULL);
+						kctx->reg_dump[offset]);
 		offset += 2;
 	}
 	return true;

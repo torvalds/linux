@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2013-2018 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2013-2019 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -33,22 +33,38 @@ provided in the interrupts property. Must contain: "JOB, "MMU", "GPU".
 
 Optional:
 
-- clocks : Phandle to clock for the Mali T-6xx device.
-- clock-names : Shall be "clk_mali".
-- mali-supply : Phandle to regulator for the Mali device. Refer to
+- clocks : One or more pairs of phandle to clock and clock specifier
+           for the Mali device. The order is important: the first clock
+           shall correspond to the "clk_mali" source, while the second clock
+           (that is optional) shall correspond to the "shadercores" source.
+- clock-names : Shall be set to: "clk_mali", "shadercores".
+- mali-supply : Phandle to the top level regulator for the Mali device.
+                Refer to
 Documentation/devicetree/bindings/regulator/regulator.txt for details.
-- operating-points-v2 : Refer to Documentation/devicetree/bindings/power/opp.txt
+- shadercores-supply : Phandle to shader cores regulator for the Mali device.
+                       This is optional.
+- operating-points-v2 : Refer to Documentation/devicetree/bindings/power/mali-opp.txt
 for details.
-- jm_config : For T860/T880. Sets job manager configuration. An array containing:
-	- 1 to override the TIMESTAMP value, 0 otherwise.
-	- 1 to override clock gate, forcing them to be always on, 0 otherwise.
-	- 1 to enable job throttle, limiting the number of cores that can be started
-	  simultaneously, 0 otherwise.
-	- Value between 0 and 63 (including). If job throttle is enabled, this is one
-	  less than the number of cores that can be started simultaneously.
-- power_model : Sets the power model parameters. Three power models are currently
-  defined which include "mali-simple-power-model", "mali-g71-power-model" and
-	  "mali-g72-power-model".
+- quirks_jm : Used to write to the JM_CONFIG register or equivalent.
+	  Should be used with care. Options passed here are used to override
+	  certain default behavior. Note: This will override 'idvs-group-size'
+	  field in devicetree and module param 'corestack_driver_control',
+	  therefore if 'quirks_jm' is used then 'idvs-group-size' and
+	  'corestack_driver_control' value should be incorporated into 'quirks_jm'.
+- quirks_sc : Used to write to the SHADER_CONFIG register.
+	  Should be used with care. Options passed here are used to override
+	  certain default behavior.
+- quirks_tiler : Used to write to the TILER_CONFIG register.
+	  Should be used with care. Options passed here are used to
+	  disable or override certain default behavior.
+- quirks_mmu : Used to write to the L2_CONFIG register.
+	  Should be used with care. Options passed here are used to
+	  disable or override certain default behavior.
+- power_model : Sets the power model parameters. Defined power models include:
+	  "mali-simple-power-model", "mali-g51-power-model", "mali-g52-power-model",
+	  "mali-g52_r1-power-model", "mali-g71-power-model", "mali-g72-power-model",
+	  "mali-g76-power-model", "mali-g77-power-model", "mali-tnax-power-model"
+	  and "mali-tbex-power-model".
 	- mali-simple-power-model: this model derives the GPU power usage based
 	  on the GPU voltage scaled by the system temperature. Note: it was
 	  designed for the Juno platform, and may not be suitable for others.
@@ -66,14 +82,17 @@ for details.
 		  the GPU
 		- temp-poll-interval-ms: the interval at which the system
 		  temperature is polled
-	- mali-g71-power-model / mali-g72-power-model: these models derive
+	- mali-g*-power-model(s): unless being stated otherwise, these models derive
 	  the GPU power usage based on performance counters, so they are more
 	  accurate.
-		- compatible: Should be "arm,mali-g71-power-model" /
-		  "arm,mali-g72-power-model"
+		- compatible: Should be, as examples, "arm,mali-g51-power-model" /
+		  "arm,mali-g72-power-model".
 		- scale: the dynamic power calculated by the power model is
-		  scaled by a factor of "scale"/1000. This value should be
+		  multiplied by a factor of 'scale'. This value should be
 		  chosen to match a particular implementation.
+		- min_sample_cycles: Fall back to the simple power model if the
+		  number of GPU cycles for a given counter dump is less than
+		  'min_sample_cycles'. The default value of this should suffice.
 	* Note: when IPA is used, two separate power models (simple and counter-based)
 	  are used at different points so care should be taken to configure
 	  both power models in the device tree (specifically dynamic-coefficient,
@@ -90,8 +109,13 @@ for details.
 	- mali-simple-power-model: Default model used on mali
 - protected-mode-switcher : Phandle to device implemented protected mode switching functionality.
 Refer to Documentation/devicetree/bindings/arm/smc-protected-mode-switcher.txt for one implementation.
+-  idvs-group-size : Override the IDVS group size value. Tasks are sent to
+		     cores in groups of N + 1, so i.e. 0xF means 16 tasks.
+		     Valid values are between 0 to 0x3F (including).
+-  l2-size : Override L2 cache size on GPU that supports it
+-  l2-hash : Override L2 hash function on GPU that supports it
 
-Example for a Mali GPU:
+Example for a Mali GPU with 1 clock and no regulators:
 
 gpu@0xfc010000 {
 	compatible = "arm,malit602", "arm,malit60x", "arm,malit6xx", "arm,mali-midgard";
@@ -114,6 +138,10 @@ gpu@0xfc010000 {
 		compatible = "arm,mali-g71-power-model";
 		scale = <5>;
 	};
+
+	idvs-group-size = <0x7>;
+	l2-size = /bits/ 8 <0x10>;
+	l2-hash = /bits/ 8 <0x04>;
 };
 
 gpu_opp_table: opp_table0 {
@@ -146,5 +174,43 @@ gpu_opp_table: opp_table0 {
 	opp@100000000 {
 		opp-hz = /bits/ 64 <100000000>;
 		opp-microvolt = <912500>;
+	};
+};
+
+Example for a Mali GPU with 2 clocks and 2 regulators:
+
+gpu: gpu@6e000000 {
+	compatible = "arm,mali-midgard";
+	reg = <0x0 0x6e000000 0x0 0x200000>;
+	interrupts = <0 168 4>, <0 168 4>, <0 168 4>;
+	interrupt-names = "JOB", "MMU", "GPU";
+	clocks = <&clk_mali 0>, <&clk_mali 1>;
+	clock-names = "clk_mali", "shadercores";
+	mali-supply = <&supply0_3v3>;
+	shadercores-supply = <&supply1_3v3>;
+	system-coherency = <31>;
+	operating-points-v2 = <&gpu_opp_table>;
+};
+
+gpu_opp_table: opp_table0 {
+	compatible = "operating-points-v2", "operating-points-v2-mali";
+
+	opp@0 {
+		opp-hz = /bits/ 64 <50000000>;
+		opp-hz-real = /bits/ 64 <50000000>, /bits/ 64 <45000000>;
+		opp-microvolt = <820000>, <800000>;
+		opp-core-mask = /bits/ 64 <0xf>;
+	};
+	opp@1 {
+		opp-hz = /bits/ 64 <40000000>;
+		opp-hz-real = /bits/ 64 <40000000>, /bits/ 64 <35000000>;
+		opp-microvolt = <720000>, <700000>;
+		opp-core-mask = /bits/ 64 <0x7>;
+	};
+	opp@2 {
+		opp-hz = /bits/ 64 <30000000>;
+		opp-hz-real = /bits/ 64 <30000000>, /bits/ 64 <25000000>;
+		opp-microvolt = <620000>, <700000>;
+		opp-core-mask = /bits/ 64 <0x3>;
 	};
 };

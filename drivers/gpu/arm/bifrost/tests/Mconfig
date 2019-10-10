@@ -20,3 +20,13 @@ config BUILD_IPA_TESTS
 	bool
 	default y if UNIT_TEST_KERNEL_MODULES && MALI_BIFROST_DEVFREQ
 	default n
+
+config BUILD_IPA_UNIT_TESTS
+	bool
+	default y if NO_MALI && BUILD_IPA_TESTS
+	default n
+
+config BUILD_CSF_TESTS
+	bool
+	default y if UNIT_TEST_KERNEL_MODULES && GPU_HAS_CSF
+	default n

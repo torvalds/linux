@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2012-2017 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2019 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -23,15 +23,12 @@ menuconfig MALI_BIFROST
 	  this will generate a single module, called mali_kbase.
 
 config MALI_BIFROST_GATOR_SUPPORT
-	bool "Streamline support via Gator"
-	depends on MALI_BIFROST
-	default y if INSTRUMENTATION_STREAMLINE_OLD
-	default n
+	bool "Enable Streamline tracing support"
+	depends on MALI_BIFROST && !BACKEND_USER
+	default y
 	help
-	  Adds diagnostic support for use with the ARM Streamline Performance Analyzer.
-	  You will need the Gator device driver already loaded before loading this driver when enabling
-	  Streamline debug support.
-	  This is a legacy interface required by older versions of Streamline.
+	  Enables kbase tracing used by the Arm Streamline Performance Analyzer.
+	  The tracepoints are used to derive GPU activity charts in Streamline.
 
 config MALI_BIFROST_DVFS
 	bool "Enable legacy DVFS"
@@ -73,21 +70,16 @@ config MALI_BIFROST_DMA_FENCE
 config MALI_PLATFORM_NAME
 	depends on MALI_BIFROST
 	string "Platform name"
-	default "arndale" if PLATFORM_ARNDALE
-	default "arndale_octa" if PLATFORM_ARNDALE_OCTA
-	default "rk" if PLATFORM_FIREFLY
 	default "hisilicon" if PLATFORM_HIKEY960
-	default "vexpress" if PLATFORM_VEXPRESS
+	default "hisilicon" if PLATFORM_HIKEY970
 	default "devicetree"
 	help
 	  Enter the name of the desired platform configuration directory to
 	  include in the build. 'platform/$(MALI_PLATFORM_NAME)/Kbuild' must
 	  exist.
 
-config MALI_MOCK_TEST
-	bool
-	depends on MALI_BIFROST && !RELEASE
-	default y
+	  When PLATFORM_CUSTOM is set, this needs to be set manually to
+	  pick up the desired platform files.
 
 # MALI_BIFROST_EXPERT configuration options
 
@@ -112,16 +104,17 @@ config MALI_CORESTACK
 
 	  If unsure, say N.
 
-config MALI_BIFROST_PRFCNT_SET_SECONDARY
-	bool "Use secondary set of performance counters"
+config MALI_PLATFORM_POWER_DOWN_ONLY
+	bool "Support disabling the power down of individual cores"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
 	default n
 	help
-	  Select this option to use secondary set of performance counters. Kernel
-	  features that depend on an access to the primary set of counters may
-	  become unavailable. Enabling this option will prevent power management
-	  from working optimally and may cause instrumentation tools to return
-	  bogus results.
+	  Enabling this feature will let the driver avoid power down of the
+	  shader cores, the tiler, and the L2 cache.
+	  The entire GPU would be powered down at once through the platform
+	  specific code.
+	  This may be required for certain platform configurations only.
+	  This also limits the available power policies.
 
 	  If unsure, say N.
 
@@ -150,26 +143,40 @@ config MALI_BIFROST_FENCE_DEBUG
 	  The timeout can be changed at runtime through the js_soft_timeout
 	  device attribute, where the timeout is specified in milliseconds.
 
-config MALI_BIFROST_ERROR_INJECT
-	bool "Error injection"
-	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && NO_MALI
-	default n
+choice
+	prompt "Error injection level"
+	default MALI_ERROR_INJECT_NONE
 	help
 	  Enables insertion of errors to test module failure and recovery mechanisms.
 
+config MALI_ERROR_INJECT_NONE
+	bool "disabled"
+	help
+	  Error injection is disabled.
+
+config MALI_ERROR_INJECT_TRACK_LIST
+	bool "error track list"
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && NO_MALI
+	help
+	  Errors to inject are pre-configured by the user.
+
 config MALI_ERROR_INJECT_RANDOM
-	bool "Random error injection"
-	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && NO_MALI && MALI_BIFROST_ERROR_INJECT
-	default n
+	bool "random error injection"
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && NO_MALI
 	help
 	  Injected errors are random, rather than user-driven.
 
-config MALI_BIFROST_TRACE_TIMELINE
-	bool "Timeline tracing"
-	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
-	default n
-	help
-	  Enables timeline tracing through the kernel tracepoint system.
+endchoice
+
+config MALI_ERROR_INJECT_ON
+	string
+	default "0" if MALI_ERROR_INJECT_NONE
+	default "1" if MALI_ERROR_INJECT_TRACK_LIST
+	default "2" if MALI_ERROR_INJECT_RANDOM
+
+config MALI_BIFROST_ERROR_INJECT
+	bool
+	default y if !MALI_ERROR_INJECT_NONE
 
 config MALI_BIFROST_SYSTEM_TRACE
 	bool "Enable system event tracing support"
@@ -192,11 +199,6 @@ config MALI_2MB_ALLOC
 
 	  If in doubt, say N
 
-config MALI_FPGA_BUS_LOGGER
-	bool "Enable bus log integration"
-	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
-	default n
-
 config MALI_PWRSOFT_765
 	bool "PWRSOFT-765 ticket"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
@@ -205,5 +207,65 @@ config MALI_PWRSOFT_765
 	  PWRSOFT-765 fixes devfreq cooling devices issues. However, they are
 	  not merged in mainline kernel yet. So this define helps to guard those
 	  parts of the code.
+
+config MALI_MEMORY_FULLY_BACKED
+	bool "Memory fully physically-backed"
+	default n
+	help
+	  This option enables full backing of all virtual memory allocations
+	  for the kernel. This only affects grow-on-GPU-page-fault memory.
+
+config MALI_DMA_BUF_MAP_ON_DEMAND
+	bool "Map imported dma-bufs on demand"
+	depends on MALI_BIFROST
+	default n
+	default y if !DMA_BUF_SYNC_IOCTL_SUPPORTED
+	help
+	  This option caused kbase to set up the GPU mapping of imported
+	  dma-buf when needed to run atoms.  This is the legacy behaviour.
+
+config MALI_DMA_BUF_LEGACY_COMPAT
+	bool "Enable legacy compatibility cache flush on dma-buf map"
+	depends on MALI_BIFROST && !MALI_DMA_BUF_MAP_ON_DEMAND
+	default y
+	help
+	  This option enables compatibility with legacy dma-buf mapping
+	  behavior, then the dma-buf is mapped on import, by adding cache
+	  maintenance where MALI_DMA_BUF_MAP_ON_DEMAND would do the mapping,
+	  including a cache flush.
+
+config MALI_REAL_HW
+	bool
+	default y
+	default n if NO_MALI
+
+config MALI_HW_ERRATA_1485982_NOT_AFFECTED
+	bool "Disable workaround for BASE_HW_ISSUE_GPU2017_1336"
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
+	default n
+	default y if PLATFORM_JUNO
+	help
+	  This option disables the default workaround for GPU2017-1336. The
+	  workaround keeps the L2 cache powered up except for powerdown and reset.
+
+	  The workaround introduces a limitation that will prevent the running of
+	  protected mode content on fully coherent platforms, as the switch to IO
+	  coherency mode requires the L2 to be turned off.
+
+config MALI_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE
+	bool "Use alternative workaround for BASE_HW_ISSUE_GPU2017_1336"
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && !MALI_HW_ERRATA_1485982_NOT_AFFECTED
+	default n
+	help
+	  This option uses an alternative workaround for GPU2017-1336. Lowering
+	  the GPU clock to a, platform specific, known good frequeuncy before
+	  powering down the L2 cache. The clock can be specified in the device
+	  tree using the property, opp-mali-errata-1485982. Otherwise the
+	  slowest clock will be selected.
+
+# Instrumentation options.
+
+# config MALI_JOB_DUMP exists in the Kernel Kconfig but is configured using CINSTR_JOB_DUMP in Mconfig.
+# config MALI_BIFROST_PRFCNT_SET_SECONDARY exists in the Kernel Kconfig but is configured using CINSTR_SECONDARY_HWC in Mconfig.
 
 source "kernel/drivers/gpu/arm/midgard/tests/Mconfig"

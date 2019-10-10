@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015, 2018-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -44,22 +44,18 @@ struct kbase_device;
  *
  * Must be called before any other power management function
  *
- * @param kbdev The kbase device structure for the device (must be a valid
- *              pointer)
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
- * @return 0 if the power management framework was successfully
- *         initialized.
+ * Return: 0 if the power management framework was successfully initialized.
  */
 int kbase_hwaccess_pm_init(struct kbase_device *kbdev);
 
 /**
  * Terminate the power management framework.
  *
- * No power management functions may be called after this (except
- * @ref kbase_pm_init)
+ * No power management functions may be called after this
  *
- * @param kbdev The kbase device structure for the device (must be a valid
- *              pointer)
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
  */
 void kbase_hwaccess_pm_term(struct kbase_device *kbdev);
 
@@ -201,14 +197,15 @@ void kbase_pm_set_policy(struct kbase_device *kbdev,
 					const struct kbase_pm_policy *policy);
 
 /**
- * Retrieve a static list of the available policies.
+ * kbase_pm_list_policies - Retrieve a static list of the available policies.
  *
- * @param[out] policies An array pointer to take the list of policies. This may
- *                      be NULL. The contents of this array must not be
- *                      modified.
+ * @kbdev:   The kbase device structure for the device.
+ * @list:    An array pointer to take the list of policies. This may be NULL.
+ *           The contents of this array must not be modified.
  *
- * @return The number of policies
+ * Return: The number of policies
  */
-int kbase_pm_list_policies(const struct kbase_pm_policy * const **policies);
+int kbase_pm_list_policies(struct kbase_device *kbdev,
+	const struct kbase_pm_policy * const **list);
 
 #endif /* _KBASE_HWACCESS_PM_H_ */

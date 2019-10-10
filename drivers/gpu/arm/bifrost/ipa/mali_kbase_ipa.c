@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2016-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -38,15 +38,18 @@
 #endif
 
 #define KBASE_IPA_FALLBACK_MODEL_NAME "mali-simple-power-model"
-#define KBASE_IPA_G71_MODEL_NAME      "mali-g71-power-model"
-#define KBASE_IPA_G72_MODEL_NAME      "mali-g72-power-model"
-#define KBASE_IPA_TNOX_MODEL_NAME     "mali-tnox-power-model"
 
-static struct kbase_ipa_model_ops *kbase_ipa_all_model_ops[] = {
+static const struct kbase_ipa_model_ops *kbase_ipa_all_model_ops[] = {
 	&kbase_simple_ipa_model_ops,
 	&kbase_g71_ipa_model_ops,
 	&kbase_g72_ipa_model_ops,
-	&kbase_tnox_ipa_model_ops
+	&kbase_g76_ipa_model_ops,
+	&kbase_g52_ipa_model_ops,
+	&kbase_g52_r1_ipa_model_ops,
+	&kbase_g51_ipa_model_ops,
+	&kbase_g77_ipa_model_ops,
+	&kbase_tnax_ipa_model_ops,
+	&kbase_tbex_ipa_model_ops
 };
 
 int kbase_ipa_model_recalculate(struct kbase_ipa_model *model)
@@ -67,13 +70,13 @@ int kbase_ipa_model_recalculate(struct kbase_ipa_model *model)
 	return err;
 }
 
-static struct kbase_ipa_model_ops *kbase_ipa_model_ops_find(struct kbase_device *kbdev,
+const struct kbase_ipa_model_ops *kbase_ipa_model_ops_find(struct kbase_device *kbdev,
 							    const char *name)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(kbase_ipa_all_model_ops); ++i) {
-		struct kbase_ipa_model_ops *ops = kbase_ipa_all_model_ops[i];
+		const struct kbase_ipa_model_ops *ops = kbase_ipa_all_model_ops[i];
 
 		if (!strcmp(ops->name, name))
 			return ops;
@@ -83,42 +86,40 @@ static struct kbase_ipa_model_ops *kbase_ipa_model_ops_find(struct kbase_device 
 
 	return NULL;
 }
-
-void kbase_ipa_model_use_fallback_locked(struct kbase_device *kbdev)
-{
-	atomic_set(&kbdev->ipa_use_configured_model, false);
-}
-
-void kbase_ipa_model_use_configured_locked(struct kbase_device *kbdev)
-{
-	atomic_set(&kbdev->ipa_use_configured_model, true);
-}
+KBASE_EXPORT_TEST_API(kbase_ipa_model_ops_find);
 
 const char *kbase_ipa_model_name_from_id(u32 gpu_id)
 {
 	const u32 prod_id = (gpu_id & GPU_ID_VERSION_PRODUCT_ID) >>
 			GPU_ID_VERSION_PRODUCT_ID_SHIFT;
 
-	if (GPU_ID_IS_NEW_FORMAT(prod_id)) {
-		switch (GPU_ID2_MODEL_MATCH_VALUE(prod_id)) {
-		case GPU_ID2_PRODUCT_TMIX:
-			return KBASE_IPA_G71_MODEL_NAME;
-		case GPU_ID2_PRODUCT_THEX:
-			return KBASE_IPA_G72_MODEL_NAME;
-		case GPU_ID2_PRODUCT_TNOX:
-			return KBASE_IPA_TNOX_MODEL_NAME;
-		case GPU_ID2_PRODUCT_TGOX:
-			if ((gpu_id & GPU_ID2_VERSION_MAJOR) ==
-					(0 << GPU_ID2_VERSION_MAJOR_SHIFT))
-				/* TGOX r0 shares a power model with TNOX */
-				return KBASE_IPA_TNOX_MODEL_NAME;
-		default:
-			return KBASE_IPA_FALLBACK_MODEL_NAME;
-		}
+	switch (GPU_ID2_MODEL_MATCH_VALUE(prod_id)) {
+	case GPU_ID2_PRODUCT_TMIX:
+		return "mali-g71-power-model";
+	case GPU_ID2_PRODUCT_THEX:
+		return "mali-g72-power-model";
+	case GPU_ID2_PRODUCT_TNOX:
+		return "mali-g76-power-model";
+	case GPU_ID2_PRODUCT_TSIX:
+		return "mali-g51-power-model";
+	case GPU_ID2_PRODUCT_TGOX:
+		if ((gpu_id & GPU_ID2_VERSION_MAJOR) ==
+				(0 << GPU_ID2_VERSION_MAJOR_SHIFT))
+			/* g52 aliased to g76 power-model's ops */
+			return "mali-g52-power-model";
+		else
+			return "mali-g52_r1-power-model";
+	case GPU_ID2_PRODUCT_TNAX:
+		return "mali-tnax-power-model";
+	case GPU_ID2_PRODUCT_TTRX:
+		return "mali-g77-power-model";
+	case GPU_ID2_PRODUCT_TBEX:
+		return "mali-tbex-power-model";
+	default:
+		return KBASE_IPA_FALLBACK_MODEL_NAME;
 	}
-
-	return KBASE_IPA_FALLBACK_MODEL_NAME;
 }
+KBASE_EXPORT_TEST_API(kbase_ipa_model_name_from_id);
 
 static struct device_node *get_model_dt_node(struct kbase_ipa_model *model)
 {
@@ -251,7 +252,7 @@ void kbase_ipa_term_model(struct kbase_ipa_model *model)
 KBASE_EXPORT_TEST_API(kbase_ipa_term_model);
 
 struct kbase_ipa_model *kbase_ipa_init_model(struct kbase_device *kbdev,
-					     struct kbase_ipa_model_ops *ops)
+					     const struct kbase_ipa_model_ops *ops)
 {
 	struct kbase_ipa_model *model;
 	int err;
@@ -305,7 +306,7 @@ int kbase_ipa_init(struct kbase_device *kbdev)
 {
 
 	const char *model_name;
-	struct kbase_ipa_model_ops *ops;
+	const struct kbase_ipa_model_ops *ops;
 	struct kbase_ipa_model *default_model = NULL;
 	int err;
 
@@ -359,8 +360,6 @@ int kbase_ipa_init(struct kbase_device *kbdev)
 		kbdev->ipa.configured_model = default_model;
 	}
 
-	kbase_ipa_model_use_configured_locked(kbdev);
-
 end:
 	if (err)
 		kbase_ipa_term_locked(kbdev);
@@ -380,6 +379,8 @@ void kbase_ipa_term(struct kbase_device *kbdev)
 	mutex_lock(&kbdev->ipa.lock);
 	kbase_ipa_term_locked(kbdev);
 	mutex_unlock(&kbdev->ipa.lock);
+
+	mutex_destroy(&kbdev->ipa.lock);
 }
 KBASE_EXPORT_TEST_API(kbase_ipa_term);
 
@@ -449,14 +450,41 @@ u32 kbase_scale_static_power(const u32 c, const u32 voltage)
 	return div_u64(v3c_big, 1000000);
 }
 
+void kbase_ipa_protection_mode_switch_event(struct kbase_device *kbdev)
+{
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+
+	/* Record the event of GPU entering protected mode. */
+	kbdev->ipa_protection_mode_switched = true;
+}
+
 static struct kbase_ipa_model *get_current_model(struct kbase_device *kbdev)
 {
+	struct kbase_ipa_model *model;
+	unsigned long flags;
+
 	lockdep_assert_held(&kbdev->ipa.lock);
 
-	if (atomic_read(&kbdev->ipa_use_configured_model))
-		return kbdev->ipa.configured_model;
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+
+	if (kbdev->ipa_protection_mode_switched ||
+			kbdev->ipa.force_fallback_model)
+		model = kbdev->ipa.fallback_model;
 	else
-		return kbdev->ipa.fallback_model;
+		model = kbdev->ipa.configured_model;
+
+	/*
+	 * Having taken cognizance of the fact that whether GPU earlier
+	 * protected mode or not, the event can be now reset (if GPU is not
+	 * currently in protected mode) so that configured model is used
+	 * for the next sample.
+	 */
+	if (!kbdev->protected_mode)
+		kbdev->ipa_protection_mode_switched = false;
+
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+
+	return model;
 }
 
 static u32 get_static_power_locked(struct kbase_device *kbdev,
@@ -499,6 +527,9 @@ static unsigned long kbase_get_static_power(unsigned long voltage)
 	struct kbase_device *kbdev = kbase_find_device(-1);
 #endif
 
+	if (!kbdev)
+		return 0ul;
+
 	mutex_lock(&kbdev->ipa.lock);
 
 	model = get_current_model(kbdev);
@@ -533,6 +564,9 @@ static unsigned long kbase_get_dynamic_power(unsigned long freq,
 #else
 	struct kbase_device *kbdev = kbase_find_device(-1);
 #endif
+
+	if (!kbdev)
+		return 0ul;
 
 	mutex_lock(&kbdev->ipa.lock);
 
@@ -608,6 +642,9 @@ int kbase_get_real_power(struct devfreq *df, u32 *power,
 {
 	int ret;
 	struct kbase_device *kbdev = dev_get_drvdata(&df->dev);
+
+	if (!kbdev)
+		return -ENODEV;
 
 	mutex_lock(&kbdev->ipa.lock);
 	ret = kbase_get_real_power_locked(kbdev, power, freq, voltage);

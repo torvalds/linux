@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2016, 2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -90,15 +90,14 @@ static irqreturn_t kbase_gpu_irq_custom_handler(int irq, void *data)
 	struct kbase_device *kbdev = kbase_untag(data);
 	u32 val;
 
-	val = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_STATUS), NULL);
+	val = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_STATUS));
 	if (val & TEST_IRQ) {
 		struct timespec tval;
 
 		getnstimeofday(&tval);
 		irq_time = SEC_TO_NANO(tval.tv_sec) + (tval.tv_nsec);
 
-		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_CLEAR), val,
-				NULL);
+		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_CLEAR), val);
 
 		triggered = true;
 		wake_up(&wait);
@@ -194,7 +193,7 @@ static void mali_kutf_irq_latency(struct kutf_context *context)
 
 		/* Trigger fake IRQ */
 		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_RAWSTAT),
-				TEST_IRQ, NULL);
+				TEST_IRQ);
 
 		ret = wait_event_timeout(wait, triggered != false, IRQ_TIMEOUT);
 

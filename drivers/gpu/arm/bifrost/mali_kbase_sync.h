@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -161,7 +161,11 @@ void kbase_sync_fence_out_remove(struct kbase_jd_atom *katom);
  */
 static inline void kbase_sync_fence_close_fd(int fd)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
 	ksys_close(fd);
+#else
+	sys_close(fd);
+#endif
 }
 
 /**
@@ -183,6 +187,16 @@ int kbase_sync_fence_in_info_get(struct kbase_jd_atom *katom,
  */
 int kbase_sync_fence_out_info_get(struct kbase_jd_atom *katom,
 				  struct kbase_sync_fence_info *info);
+
+#if defined(CONFIG_SYNC_FILE)
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
+void kbase_sync_fence_info_get(struct fence *fence,
+			       struct kbase_sync_fence_info *info);
+#else
+void kbase_sync_fence_info_get(struct dma_fence *fence,
+			       struct kbase_sync_fence_info *info);
+#endif
+#endif
 
 /**
  * kbase_sync_status_string() - Get string matching @status

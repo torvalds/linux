@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2016-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -40,7 +40,7 @@ struct devfreq;
 struct kbase_ipa_model {
 	struct kbase_device *kbdev;
 	void *model_data;
-	struct kbase_ipa_model_ops *ops;
+	const struct kbase_ipa_model_ops *ops;
 	struct list_head params;
 	bool missing_dt_node_warning;
 };
@@ -154,8 +154,27 @@ void kbase_ipa_term(struct kbase_device *kbdev);
 int kbase_ipa_model_recalculate(struct kbase_ipa_model *model);
 
 /**
+ * kbase_ipa_model_ops_find - Lookup an IPA model using its name
+ * @kbdev:      pointer to kbase device
+ * @name:       name of model to lookup
+ *
+ * Return: Pointer to model's 'ops' structure, or NULL if the lookup failed.
+ */
+const struct kbase_ipa_model_ops *kbase_ipa_model_ops_find(struct kbase_device *kbdev,
+							   const char *name);
+
+/**
+ * kbase_ipa_model_name_from_id - Find the best model for a given GPU ID
+ * @gpu_id:     GPU ID of GPU the model will be used for
+ *
+ * Return: The name of the appropriate counter-based model, or the name of the
+ *         fallback model if no counter model exists.
+ */
+const char *kbase_ipa_model_name_from_id(u32 gpu_id);
+
+/**
  * kbase_ipa_init_model - Initilaize the particular IPA model
- * @kbdev:      pointer to the IPA model object, already initialized
+ * @kbdev:      pointer to kbase device
  * @ops:        pointer to object containing model specific methods.
  *
  * Initialize the model corresponding to the @ops pointer passed.
@@ -164,7 +183,7 @@ int kbase_ipa_model_recalculate(struct kbase_ipa_model *model);
  * Return: pointer to kbase_ipa_model on success, NULL on error
  */
 struct kbase_ipa_model *kbase_ipa_init_model(struct kbase_device *kbdev,
-					     struct kbase_ipa_model_ops *ops);
+					     const struct kbase_ipa_model_ops *ops);
 /**
  * kbase_ipa_term_model - Terminate the particular IPA model
  * @model:      pointer to the IPA model object, already initialized
@@ -174,17 +193,25 @@ struct kbase_ipa_model *kbase_ipa_init_model(struct kbase_device *kbdev,
  */
 void kbase_ipa_term_model(struct kbase_ipa_model *model);
 
-/* Switch to the fallback model */
-void kbase_ipa_model_use_fallback_locked(struct kbase_device *kbdev);
+/**
+ * kbase_ipa_protection_mode_switch_event - Inform IPA of the GPU's entry into
+ *                                          protected mode
+ * @kbdev:      pointer to kbase device
+ *
+ * Makes IPA aware of the GPU switching to protected mode.
+ */
+void kbase_ipa_protection_mode_switch_event(struct kbase_device *kbdev);
 
-/* Switch to the model retrieved from device tree */
-void kbase_ipa_model_use_configured_locked(struct kbase_device *kbdev);
+extern const struct kbase_ipa_model_ops kbase_g71_ipa_model_ops;
+extern const struct kbase_ipa_model_ops kbase_g72_ipa_model_ops;
+extern const struct kbase_ipa_model_ops kbase_g76_ipa_model_ops;
+extern const struct kbase_ipa_model_ops kbase_g52_ipa_model_ops;
+extern const struct kbase_ipa_model_ops kbase_g52_r1_ipa_model_ops;
+extern const struct kbase_ipa_model_ops kbase_g51_ipa_model_ops;
+extern const struct kbase_ipa_model_ops kbase_g77_ipa_model_ops;
+extern const struct kbase_ipa_model_ops kbase_tnax_ipa_model_ops;
+extern const struct kbase_ipa_model_ops kbase_tbex_ipa_model_ops;
 
-extern struct kbase_ipa_model_ops kbase_g71_ipa_model_ops;
-extern struct kbase_ipa_model_ops kbase_g72_ipa_model_ops;
-extern struct kbase_ipa_model_ops kbase_tnox_ipa_model_ops;
-
-#if MALI_UNIT_TEST
 /**
  * kbase_get_real_power() - get the real power consumption of the GPU
  * @df: dynamic voltage and frequency scaling information for the GPU.
@@ -192,8 +219,7 @@ extern struct kbase_ipa_model_ops kbase_tnox_ipa_model_ops;
  * @freq: a frequency, in HZ.
  * @voltage: a voltage, in mV.
  *
- * This function is only exposed for use by unit tests. The returned value
- * incorporates both static and dynamic power consumption.
+ * The returned value incorporates both static and dynamic power consumption.
  *
  * Return: 0 on success, or an error code.
  */
@@ -201,8 +227,10 @@ int kbase_get_real_power(struct devfreq *df, u32 *power,
 				unsigned long freq,
 				unsigned long voltage);
 
+#if MALI_UNIT_TEST
 /* Called by kbase_get_real_power() to invoke the power models.
  * Must be called with kbdev->ipa.lock held.
+ * This function is only exposed for use by unit tests.
  */
 int kbase_get_real_power_locked(struct kbase_device *kbdev, u32 *power,
 				unsigned long freq,
@@ -217,10 +245,7 @@ extern struct devfreq_cooling_power kbase_ipa_power_model_ops;
 
 #else /* !(defined(CONFIG_MALI_BIFROST_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)) */
 
-static inline void kbase_ipa_model_use_fallback_locked(struct kbase_device *kbdev)
-{ }
-
-static inline void kbase_ipa_model_use_configured_locked(struct kbase_device *kbdev)
+static inline void kbase_ipa_protection_mode_switch_event(struct kbase_device *kbdev)
 { }
 
 #endif /* (defined(CONFIG_MALI_BIFROST_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)) */

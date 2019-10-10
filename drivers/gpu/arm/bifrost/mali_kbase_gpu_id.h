@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -31,22 +31,6 @@
 #define GPU_ID_VERSION_MINOR              (0xFFu << GPU_ID_VERSION_MINOR_SHIFT)
 #define GPU_ID_VERSION_MAJOR              (0xFu  << GPU_ID_VERSION_MAJOR_SHIFT)
 #define GPU_ID_VERSION_PRODUCT_ID  (0xFFFFu << GPU_ID_VERSION_PRODUCT_ID_SHIFT)
-
-/* Values for GPU_ID_VERSION_PRODUCT_ID bitfield */
-#define GPU_ID_PI_T60X                    0x6956u
-#define GPU_ID_PI_T62X                    0x0620u
-#define GPU_ID_PI_T76X                    0x0750u
-#define GPU_ID_PI_T72X                    0x0720u
-#define GPU_ID_PI_TFRX                    0x0880u
-#define GPU_ID_PI_T86X                    0x0860u
-#define GPU_ID_PI_T82X                    0x0820u
-#define GPU_ID_PI_T83X                    0x0830u
-
-/* New GPU ID format when PRODUCT_ID is >= 0x1000 (and not 0x6956) */
-#define GPU_ID_PI_NEW_FORMAT_START        0x1000
-#define GPU_ID_IS_NEW_FORMAT(product_id)  ((product_id) != GPU_ID_PI_T60X && \
-						(product_id) >= \
-						GPU_ID_PI_NEW_FORMAT_START)
 
 #define GPU_ID2_VERSION_STATUS_SHIFT      0
 #define GPU_ID2_VERSION_MINOR_SHIFT       4
@@ -109,13 +93,16 @@
 #define GPU_ID2_PRODUCT_TDVX              GPU_ID2_MODEL_MAKE(7, 3)
 #define GPU_ID2_PRODUCT_TNOX              GPU_ID2_MODEL_MAKE(7, 1)
 #define GPU_ID2_PRODUCT_TGOX              GPU_ID2_MODEL_MAKE(7, 2)
-#define GPU_ID2_PRODUCT_TKAX              GPU_ID2_MODEL_MAKE(8, 0)
 #define GPU_ID2_PRODUCT_TTRX              GPU_ID2_MODEL_MAKE(9, 0)
-#define GPU_ID2_PRODUCT_TBOX              GPU_ID2_MODEL_MAKE(8, 2)
-
-/* Values for GPU_ID_VERSION_STATUS field for PRODUCT_ID GPU_ID_PI_T60X */
-#define GPU_ID_S_15DEV0                   0x1
-#define GPU_ID_S_EAC                      0x2
+#define GPU_ID2_PRODUCT_TNAX              GPU_ID2_MODEL_MAKE(9, 1)
+#define GPU_ID2_PRODUCT_TBEX              GPU_ID2_MODEL_MAKE(9, 2)
+#define GPU_ID2_PRODUCT_LBEX              GPU_ID2_MODEL_MAKE(9, 4)
+#define GPU_ID2_PRODUCT_TULX              GPU_ID2_MODEL_MAKE(10, 0)
+#define GPU_ID2_PRODUCT_TDUX              GPU_ID2_MODEL_MAKE(10, 1)
+#define GPU_ID2_PRODUCT_TODX              GPU_ID2_MODEL_MAKE(10, 2)
+#define GPU_ID2_PRODUCT_TIDX              GPU_ID2_MODEL_MAKE(10, 3)
+#define GPU_ID2_PRODUCT_TVAX              GPU_ID2_MODEL_MAKE(10, 4)
+#define GPU_ID2_PRODUCT_LODX              GPU_ID2_MODEL_MAKE(10, 5)
 
 /* Helper macro to create a GPU_ID assuming valid values for id, major,
    minor, status */

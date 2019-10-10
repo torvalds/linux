@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2015,2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,9 +29,9 @@
 #include <mali_kbase.h>
 #include <mali_kbase_pm.h>
 
-static u64 always_on_get_core_mask(struct kbase_device *kbdev)
+static bool always_on_shaders_needed(struct kbase_device *kbdev)
 {
-	return kbdev->gpu_props.props.raw_props.shader_present;
+	return true;
 }
 
 static bool always_on_get_core_active(struct kbase_device *kbdev)
@@ -59,7 +59,7 @@ const struct kbase_pm_policy kbase_pm_always_on_policy_ops = {
 	"always_on",			/* name */
 	always_on_init,			/* init */
 	always_on_term,			/* term */
-	always_on_get_core_mask,	/* get_core_mask */
+	always_on_shaders_needed,	/* shaders_needed */
 	always_on_get_core_active,	/* get_core_active */
 	0u,				/* flags */
 	KBASE_PM_POLICY_ID_ALWAYS_ON,	/* id */

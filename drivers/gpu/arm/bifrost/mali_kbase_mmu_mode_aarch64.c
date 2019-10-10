@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2014, 2016-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2014, 2016-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -68,7 +68,7 @@ static inline void page_table_entry_set(u64 *pte, u64 phy)
 #endif
 }
 
-static void mmu_get_as_setup(struct kbase_context *kctx,
+static void mmu_get_as_setup(struct kbase_mmu_table *mmut,
 		struct kbase_mmu_setup * const setup)
 {
 	/* Set up the required caching policies at the correct indices
@@ -84,22 +84,30 @@ static void mmu_get_as_setup(struct kbase_context *kctx,
 		(AS_MEMATTR_AARCH64_OUTER_IMPL_DEF   <<
 			(AS_MEMATTR_INDEX_OUTER_IMPL_DEF * 8)) |
 		(AS_MEMATTR_AARCH64_OUTER_WA         <<
-			(AS_MEMATTR_INDEX_OUTER_WA * 8));
+			(AS_MEMATTR_INDEX_OUTER_WA * 8)) |
+		(AS_MEMATTR_AARCH64_NON_CACHEABLE    <<
+			(AS_MEMATTR_INDEX_NON_CACHEABLE * 8));
 
-	setup->transtab = (u64)kctx->pgd & AS_TRANSTAB_BASE_MASK;
+	setup->transtab = (u64)mmut->pgd & AS_TRANSTAB_BASE_MASK;
 	setup->transcfg = AS_TRANSCFG_ADRMODE_AARCH64_4K;
 }
 
-static void mmu_update(struct kbase_context *kctx)
+static void mmu_update(struct kbase_device *kbdev, struct kbase_mmu_table *mmut,
+		int as_nr)
 {
-	struct kbase_device * const kbdev = kctx->kbdev;
-	struct kbase_as * const as = &kbdev->as[kctx->as_nr];
-	struct kbase_mmu_setup * const current_setup = &as->current_setup;
+	struct kbase_as *as;
+	struct kbase_mmu_setup *current_setup;
 
-	mmu_get_as_setup(kctx, current_setup);
+	if (WARN_ON(as_nr == KBASEP_AS_NR_INVALID))
+		return;
+
+	as = &kbdev->as[as_nr];
+	current_setup = &as->current_setup;
+
+	mmu_get_as_setup(mmut, current_setup);
 
 	/* Apply the address space setting */
-	kbase_mmu_hw_configure(kbdev, as, kctx);
+	kbase_mmu_hw_configure(kbdev, as);
 }
 
 static void mmu_disable_as(struct kbase_device *kbdev, int as_nr)
@@ -111,7 +119,7 @@ static void mmu_disable_as(struct kbase_device *kbdev, int as_nr)
 	current_setup->transcfg = AS_TRANSCFG_ADRMODE_UNMAPPED;
 
 	/* Apply the address space setting */
-	kbase_mmu_hw_configure(kbdev, as, NULL);
+	kbase_mmu_hw_configure(kbdev, as);
 }
 
 static phys_addr_t pte_to_phy_addr(u64 entry)
@@ -122,7 +130,7 @@ static phys_addr_t pte_to_phy_addr(u64 entry)
 	return entry & ~0xFFF;
 }
 
-static int ate_is_valid(u64 ate, unsigned int level)
+static int ate_is_valid(u64 ate, int const level)
 {
 	if (level == MIDGARD_MMU_BOTTOMLEVEL)
 		return ((ate & ENTRY_TYPE_MASK) == ENTRY_IS_ATE_L3);
@@ -130,7 +138,7 @@ static int ate_is_valid(u64 ate, unsigned int level)
 		return ((ate & ENTRY_TYPE_MASK) == ENTRY_IS_ATE_L02);
 }
 
-static int pte_is_valid(u64 pte, unsigned int level)
+static int pte_is_valid(u64 pte, int const level)
 {
 	/* PTEs cannot exist at the bottom level */
 	if (level == MIDGARD_MMU_BOTTOMLEVEL)
@@ -173,7 +181,7 @@ static u64 get_mmu_flags(unsigned long flags)
 static void entry_set_ate(u64 *entry,
 		struct tagged_addr phy,
 		unsigned long flags,
-		unsigned int level)
+		int const level)
 {
 	if (level == MIDGARD_MMU_BOTTOMLEVEL)
 		page_table_entry_set(entry, as_phys_addr_t(phy) |
@@ -205,7 +213,8 @@ static struct kbase_mmu_mode const aarch64_mode = {
 	.pte_is_valid = pte_is_valid,
 	.entry_set_ate = entry_set_ate,
 	.entry_set_pte = entry_set_pte,
-	.entry_invalidate = entry_invalidate
+	.entry_invalidate = entry_invalidate,
+	.flags = KBASE_MMU_MODE_HAS_NON_CACHEABLE
 };
 
 struct kbase_mmu_mode const *kbase_mmu_mode_get_aarch64(void)

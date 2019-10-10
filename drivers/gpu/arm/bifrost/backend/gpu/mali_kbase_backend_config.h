@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -26,9 +26,6 @@
 
 #ifndef _KBASE_BACKEND_CONFIG_H_
 #define _KBASE_BACKEND_CONFIG_H_
-
-/* Enable GPU reset API */
-#define KBASE_GPU_RESET_EN 1
 
 #endif /* _KBASE_BACKEND_CONFIG_H_ */
 

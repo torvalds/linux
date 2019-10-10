@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015, 2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -55,5 +55,19 @@ void kbase_backend_early_term(struct kbase_device *kbdev);
  * @kbdev:	Device pointer
  */
 void kbase_backend_late_term(struct kbase_device *kbdev);
+
+/**
+ * kbase_backend_devfreq_init - Perform backend devfreq related initialization.
+ * @kbdev:      Device pointer
+ *
+ * Return: 0 on success, or an error code on failure.
+ */
+int kbase_backend_devfreq_init(struct kbase_device *kbdev);
+
+/**
+ * kbase_backend_devfreq_term - Perform backend-devfreq termination.
+ * @kbdev:	Device pointer
+ */
+void kbase_backend_devfreq_term(struct kbase_device *kbdev);
 
 #endif /* _KBASE_HWACCESS_BACKEND_H_ */

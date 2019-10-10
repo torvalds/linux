@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -662,7 +662,8 @@ static inline void kbasep_js_set_submit_allowed(struct kbasep_js_device_data *js
 
 	set_bit = (u16) (1u << kctx->as_nr);
 
-	dev_dbg(kctx->kbdev->dev, "JS: Setting Submit Allowed on %p (as=%d)", kctx, kctx->as_nr);
+	dev_dbg(kctx->kbdev->dev, "JS: Setting Submit Allowed on %p (as=%d)",
+			kctx, kctx->as_nr);
 
 	js_devdata->runpool_irq.submit_allowed |= set_bit;
 }
@@ -687,7 +688,8 @@ static inline void kbasep_js_clear_submit_allowed(struct kbasep_js_device_data *
 	clear_bit = (u16) (1u << kctx->as_nr);
 	clear_mask = ~clear_bit;
 
-	dev_dbg(kctx->kbdev->dev, "JS: Clearing Submit Allowed on %p (as=%d)", kctx, kctx->as_nr);
+	dev_dbg(kctx->kbdev->dev, "JS: Clearing Submit Allowed on %p (as=%d)",
+			kctx, kctx->as_nr);
 
 	js_devdata->runpool_irq.submit_allowed &= clear_mask;
 }

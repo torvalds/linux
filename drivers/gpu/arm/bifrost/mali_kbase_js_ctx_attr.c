@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2016, 2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -197,29 +197,6 @@ static bool kbasep_js_ctx_attr_ctx_release_attr(struct kbase_device *kbdev, stru
 /*
  * More commonly used public functions
  */
-
-void kbasep_js_ctx_attr_set_initial_attrs(struct kbase_device *kbdev, struct kbase_context *kctx)
-{
-	bool runpool_state_changed = false;
-
-	KBASE_DEBUG_ASSERT(kbdev != NULL);
-	KBASE_DEBUG_ASSERT(kctx != NULL);
-
-	if (kbase_ctx_flag(kctx, KCTX_SUBMIT_DISABLED)) {
-		/* This context never submits, so don't track any scheduling attributes */
-		return;
-	}
-
-	/* Transfer attributes held in the context flags for contexts that have submit enabled */
-
-	/* ... More attributes can be added here ... */
-
-	/* The context should not have been scheduled yet, so ASSERT if this caused
-	 * runpool state changes (note that other threads *can't* affect the value
-	 * of runpool_state_changed, due to how it's calculated) */
-	KBASE_DEBUG_ASSERT(runpool_state_changed == false);
-	CSTD_UNUSED(runpool_state_changed);
-}
 
 void kbasep_js_ctx_attr_runpool_retain_ctx(struct kbase_device *kbdev, struct kbase_context *kctx)
 {

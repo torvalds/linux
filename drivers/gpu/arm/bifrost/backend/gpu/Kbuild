@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2014,2017 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2014-2018 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -30,31 +30,26 @@ BACKEND += \
 	backend/gpu/mali_kbase_jm_as.c \
 	backend/gpu/mali_kbase_jm_hw.c \
 	backend/gpu/mali_kbase_jm_rb.c \
-	backend/gpu/mali_kbase_js_affinity.c \
 	backend/gpu/mali_kbase_js_backend.c \
 	backend/gpu/mali_kbase_mmu_hw_direct.c \
 	backend/gpu/mali_kbase_pm_backend.c \
 	backend/gpu/mali_kbase_pm_driver.c \
 	backend/gpu/mali_kbase_pm_metrics.c \
 	backend/gpu/mali_kbase_pm_ca.c \
-	backend/gpu/mali_kbase_pm_ca_fixed.c \
 	backend/gpu/mali_kbase_pm_always_on.c \
 	backend/gpu/mali_kbase_pm_coarse_demand.c \
-	backend/gpu/mali_kbase_pm_demand.c \
 	backend/gpu/mali_kbase_pm_policy.c \
-	backend/gpu/mali_kbase_time.c
+	backend/gpu/mali_kbase_time.c \
+	backend/gpu/mali_kbase_l2_mmu_config.c
 
 ifeq ($(MALI_CUSTOMER_RELEASE),0)
 BACKEND += \
-	backend/gpu/mali_kbase_pm_ca_random.c \
-	backend/gpu/mali_kbase_pm_demand_always_powered.c \
-	backend/gpu/mali_kbase_pm_fast_start.c
+	backend/gpu/mali_kbase_pm_always_on_demand.c
 endif
 
 ifeq ($(CONFIG_MALI_BIFROST_DEVFREQ),y)
 BACKEND += \
-	backend/gpu/mali_kbase_devfreq.c \
-	backend/gpu/mali_kbase_pm_ca_devfreq.c
+	backend/gpu/mali_kbase_devfreq.c
 endif
 
 ifeq ($(CONFIG_MALI_BIFROST_NO_MALI),y)

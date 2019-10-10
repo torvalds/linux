@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016,2018-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -49,30 +49,32 @@ static irqreturn_t kbase_job_irq_handler(int irq, void *data)
 	struct kbase_device *kbdev = kbase_untag(data);
 	u32 val;
 
-	spin_lock_irqsave(&kbdev->pm.backend.gpu_powered_lock, flags);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
 	if (!kbdev->pm.backend.gpu_powered) {
 		/* GPU is turned off - IRQ is not for us */
-		spin_unlock_irqrestore(&kbdev->pm.backend.gpu_powered_lock,
-									flags);
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 		return IRQ_NONE;
 	}
 
-	val = kbase_reg_read(kbdev, JOB_CONTROL_REG(JOB_IRQ_STATUS), NULL);
+	val = kbase_reg_read(kbdev, JOB_CONTROL_REG(JOB_IRQ_STATUS));
 
 #ifdef CONFIG_MALI_BIFROST_DEBUG
 	if (!kbdev->pm.backend.driver_ready_for_irqs)
 		dev_warn(kbdev->dev, "%s: irq %d irqstatus 0x%x before driver is ready\n",
 				__func__, irq, val);
 #endif /* CONFIG_MALI_BIFROST_DEBUG */
-	spin_unlock_irqrestore(&kbdev->pm.backend.gpu_powered_lock, flags);
 
-	if (!val)
+	if (!val) {
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 		return IRQ_NONE;
+	}
 
 	dev_dbg(kbdev->dev, "%s: irq %d irqstatus 0x%x\n", __func__, irq, val);
 
 	kbase_job_done(kbdev, val);
+
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -85,25 +87,24 @@ static irqreturn_t kbase_mmu_irq_handler(int irq, void *data)
 	struct kbase_device *kbdev = kbase_untag(data);
 	u32 val;
 
-	spin_lock_irqsave(&kbdev->pm.backend.gpu_powered_lock, flags);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
 	if (!kbdev->pm.backend.gpu_powered) {
 		/* GPU is turned off - IRQ is not for us */
-		spin_unlock_irqrestore(&kbdev->pm.backend.gpu_powered_lock,
-									flags);
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 		return IRQ_NONE;
 	}
 
 	atomic_inc(&kbdev->faults_pending);
 
-	val = kbase_reg_read(kbdev, MMU_REG(MMU_IRQ_STATUS), NULL);
+	val = kbase_reg_read(kbdev, MMU_REG(MMU_IRQ_STATUS));
 
 #ifdef CONFIG_MALI_BIFROST_DEBUG
 	if (!kbdev->pm.backend.driver_ready_for_irqs)
 		dev_warn(kbdev->dev, "%s: irq %d irqstatus 0x%x before driver is ready\n",
 				__func__, irq, val);
 #endif /* CONFIG_MALI_BIFROST_DEBUG */
-	spin_unlock_irqrestore(&kbdev->pm.backend.gpu_powered_lock, flags);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 	if (!val) {
 		atomic_dec(&kbdev->faults_pending);
@@ -125,23 +126,22 @@ static irqreturn_t kbase_gpu_irq_handler(int irq, void *data)
 	struct kbase_device *kbdev = kbase_untag(data);
 	u32 val;
 
-	spin_lock_irqsave(&kbdev->pm.backend.gpu_powered_lock, flags);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
 	if (!kbdev->pm.backend.gpu_powered) {
 		/* GPU is turned off - IRQ is not for us */
-		spin_unlock_irqrestore(&kbdev->pm.backend.gpu_powered_lock,
-									flags);
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 		return IRQ_NONE;
 	}
 
-	val = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_STATUS), NULL);
+	val = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_STATUS));
 
 #ifdef CONFIG_MALI_BIFROST_DEBUG
 	if (!kbdev->pm.backend.driver_ready_for_irqs)
 		dev_dbg(kbdev->dev, "%s: irq %d irqstatus 0x%x before driver is ready\n",
 				__func__, irq, val);
 #endif /* CONFIG_MALI_BIFROST_DEBUG */
-	spin_unlock_irqrestore(&kbdev->pm.backend.gpu_powered_lock, flags);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 	if (!val)
 		return IRQ_NONE;
@@ -230,18 +230,17 @@ static irqreturn_t kbase_job_irq_test_handler(int irq, void *data)
 	struct kbase_device *kbdev = kbase_untag(data);
 	u32 val;
 
-	spin_lock_irqsave(&kbdev->pm.backend.gpu_powered_lock, flags);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
 	if (!kbdev->pm.backend.gpu_powered) {
 		/* GPU is turned off - IRQ is not for us */
-		spin_unlock_irqrestore(&kbdev->pm.backend.gpu_powered_lock,
-									flags);
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 		return IRQ_NONE;
 	}
 
-	val = kbase_reg_read(kbdev, JOB_CONTROL_REG(JOB_IRQ_STATUS), NULL);
+	val = kbase_reg_read(kbdev, JOB_CONTROL_REG(JOB_IRQ_STATUS));
 
-	spin_unlock_irqrestore(&kbdev->pm.backend.gpu_powered_lock, flags);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 	if (!val)
 		return IRQ_NONE;
@@ -251,7 +250,7 @@ static irqreturn_t kbase_job_irq_test_handler(int irq, void *data)
 	kbasep_irq_test_data.triggered = 1;
 	wake_up(&kbasep_irq_test_data.wait);
 
-	kbase_reg_write(kbdev, JOB_CONTROL_REG(JOB_IRQ_CLEAR), val, NULL);
+	kbase_reg_write(kbdev, JOB_CONTROL_REG(JOB_IRQ_CLEAR), val);
 
 	return IRQ_HANDLED;
 }
@@ -262,18 +261,17 @@ static irqreturn_t kbase_mmu_irq_test_handler(int irq, void *data)
 	struct kbase_device *kbdev = kbase_untag(data);
 	u32 val;
 
-	spin_lock_irqsave(&kbdev->pm.backend.gpu_powered_lock, flags);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
 	if (!kbdev->pm.backend.gpu_powered) {
 		/* GPU is turned off - IRQ is not for us */
-		spin_unlock_irqrestore(&kbdev->pm.backend.gpu_powered_lock,
-									flags);
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 		return IRQ_NONE;
 	}
 
-	val = kbase_reg_read(kbdev, MMU_REG(MMU_IRQ_STATUS), NULL);
+	val = kbase_reg_read(kbdev, MMU_REG(MMU_IRQ_STATUS));
 
-	spin_unlock_irqrestore(&kbdev->pm.backend.gpu_powered_lock, flags);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 	if (!val)
 		return IRQ_NONE;
@@ -283,7 +281,7 @@ static irqreturn_t kbase_mmu_irq_test_handler(int irq, void *data)
 	kbasep_irq_test_data.triggered = 1;
 	wake_up(&kbasep_irq_test_data.wait);
 
-	kbase_reg_write(kbdev, MMU_REG(MMU_IRQ_CLEAR), val, NULL);
+	kbase_reg_write(kbdev, MMU_REG(MMU_IRQ_CLEAR), val);
 
 	return IRQ_HANDLED;
 }
@@ -327,9 +325,9 @@ static int kbasep_common_test_interrupt(
 	}
 
 	/* store old mask */
-	old_mask_val = kbase_reg_read(kbdev, mask_offset, NULL);
+	old_mask_val = kbase_reg_read(kbdev, mask_offset);
 	/* mask interrupts */
-	kbase_reg_write(kbdev, mask_offset, 0x0, NULL);
+	kbase_reg_write(kbdev, mask_offset, 0x0);
 
 	if (kbdev->irqs[tag].irq) {
 		/* release original handler and install test handler */
@@ -343,8 +341,8 @@ static int kbasep_common_test_interrupt(
 						kbasep_test_interrupt_timeout;
 
 			/* trigger interrupt */
-			kbase_reg_write(kbdev, mask_offset, 0x1, NULL);
-			kbase_reg_write(kbdev, rawstat_offset, 0x1, NULL);
+			kbase_reg_write(kbdev, mask_offset, 0x1);
+			kbase_reg_write(kbdev, rawstat_offset, 0x1);
 
 			hrtimer_start(&kbasep_irq_test_data.timer,
 					HR_TIMER_DELAY_MSEC(IRQ_TEST_TIMEOUT),
@@ -366,7 +364,7 @@ static int kbasep_common_test_interrupt(
 			kbasep_irq_test_data.triggered = 0;
 
 			/* mask interrupts */
-			kbase_reg_write(kbdev, mask_offset, 0x0, NULL);
+			kbase_reg_write(kbdev, mask_offset, 0x0);
 
 			/* release test handler */
 			free_irq(kbdev->irqs[tag].irq, kbase_tag(kbdev, tag));
@@ -382,7 +380,7 @@ static int kbasep_common_test_interrupt(
 		}
 	}
 	/* restore old mask */
-	kbase_reg_write(kbdev, mask_offset, old_mask_val, NULL);
+	kbase_reg_write(kbdev, mask_offset, old_mask_val);
 
 	return err;
 }
@@ -470,5 +468,7 @@ void kbase_synchronize_irqs(struct kbase_device *kbdev)
 			synchronize_irq(kbdev->irqs[i].irq);
 	}
 }
+
+KBASE_EXPORT_TEST_API(kbase_synchronize_irqs);
 
 #endif /* !defined(CONFIG_MALI_BIFROST_NO_MALI) */

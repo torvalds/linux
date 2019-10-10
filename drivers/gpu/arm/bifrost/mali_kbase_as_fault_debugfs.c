@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2016-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -48,7 +48,7 @@ static int kbase_as_fault_read(struct seq_file *sfile, void *data)
 
 			/* output the last page fault addr */
 			seq_printf(sfile, "%llu\n",
-				   (u64) kbdev->as[as_no].fault_addr);
+				   (u64) kbdev->as[as_no].pf_data.addr);
 		}
 
 	}
@@ -64,6 +64,7 @@ static int kbase_as_fault_debugfs_open(struct inode *in, struct file *file)
 }
 
 static const struct file_operations as_fault_fops = {
+	.owner = THIS_MODULE,
 	.open = kbase_as_fault_debugfs_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -87,7 +88,7 @@ void kbase_as_fault_debugfs_init(struct kbase_device *kbdev)
 	kbdev->debugfs_as_read_bitmap = 0ULL;
 
 	KBASE_DEBUG_ASSERT(kbdev->nr_hw_address_spaces);
-	KBASE_DEBUG_ASSERT(sizeof(kbdev->as[0].fault_addr) == sizeof(u64));
+	KBASE_DEBUG_ASSERT(sizeof(kbdev->as[0].pf_data.addr) == sizeof(u64));
 
 	debugfs_directory = debugfs_create_dir("address_spaces",
 					       kbdev->mali_debugfs_directory);

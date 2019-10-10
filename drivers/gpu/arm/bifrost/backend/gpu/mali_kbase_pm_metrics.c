@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -80,6 +80,7 @@ int kbasep_pm_metrics_init(struct kbase_device *kbdev)
 	kbdev->pm.backend.metrics.active_cl_ctx[1] = 0;
 	kbdev->pm.backend.metrics.active_gl_ctx[0] = 0;
 	kbdev->pm.backend.metrics.active_gl_ctx[1] = 0;
+	kbdev->pm.backend.metrics.active_gl_ctx[2] = 0;
 
 	kbdev->pm.backend.metrics.values.time_busy = 0;
 	kbdev->pm.backend.metrics.values.time_idle = 0;
@@ -90,19 +91,15 @@ int kbasep_pm_metrics_init(struct kbase_device *kbdev)
 	spin_lock_init(&kbdev->pm.backend.metrics.lock);
 
 #ifdef CONFIG_MALI_BIFROST_DVFS
-	kbdev->pm.backend.metrics.timer_active = true;
 	hrtimer_init(&kbdev->pm.backend.metrics.timer, CLOCK_MONOTONIC,
 							HRTIMER_MODE_REL);
 	kbdev->pm.backend.metrics.timer.function = dvfs_callback;
 
-	hrtimer_start(&kbdev->pm.backend.metrics.timer,
-			HR_TIMER_DELAY_MSEC(kbdev->pm.dvfs_period),
-			HRTIMER_MODE_REL);
+	kbase_pm_metrics_start(kbdev);
 #endif /* CONFIG_MALI_BIFROST_DVFS */
 
 	return 0;
 }
-
 KBASE_EXPORT_TEST_API(kbasep_pm_metrics_init);
 
 void kbasep_pm_metrics_term(struct kbase_device *kbdev)
@@ -147,6 +144,8 @@ static void kbase_pm_get_dvfs_utilisation_calc(struct kbase_device *kbdev,
 		if (kbdev->pm.backend.metrics.active_gl_ctx[0])
 			kbdev->pm.backend.metrics.values.busy_gl += ns_time;
 		if (kbdev->pm.backend.metrics.active_gl_ctx[1])
+			kbdev->pm.backend.metrics.values.busy_gl += ns_time;
+		if (kbdev->pm.backend.metrics.active_gl_ctx[2])
 			kbdev->pm.backend.metrics.values.busy_gl += ns_time;
 	} else {
 		kbdev->pm.backend.metrics.values.time_idle += (u32) (ktime_to_ns(diff)
@@ -221,6 +220,29 @@ bool kbase_pm_metrics_is_active(struct kbase_device *kbdev)
 }
 KBASE_EXPORT_TEST_API(kbase_pm_metrics_is_active);
 
+void kbase_pm_metrics_start(struct kbase_device *kbdev)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&kbdev->pm.backend.metrics.lock, flags);
+	kbdev->pm.backend.metrics.timer_active = true;
+	spin_unlock_irqrestore(&kbdev->pm.backend.metrics.lock, flags);
+	hrtimer_start(&kbdev->pm.backend.metrics.timer,
+			HR_TIMER_DELAY_MSEC(kbdev->pm.dvfs_period),
+			HRTIMER_MODE_REL);
+}
+
+void kbase_pm_metrics_stop(struct kbase_device *kbdev)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&kbdev->pm.backend.metrics.lock, flags);
+	kbdev->pm.backend.metrics.timer_active = false;
+	spin_unlock_irqrestore(&kbdev->pm.backend.metrics.lock, flags);
+	hrtimer_cancel(&kbdev->pm.backend.metrics.timer);
+}
+
+
 #endif /* CONFIG_MALI_BIFROST_DVFS */
 
 /**
@@ -238,6 +260,7 @@ static void kbase_pm_metrics_active_calc(struct kbase_device *kbdev)
 
 	kbdev->pm.backend.metrics.active_gl_ctx[0] = 0;
 	kbdev->pm.backend.metrics.active_gl_ctx[1] = 0;
+	kbdev->pm.backend.metrics.active_gl_ctx[2] = 0;
 	kbdev->pm.backend.metrics.active_cl_ctx[0] = 0;
 	kbdev->pm.backend.metrics.active_cl_ctx[1] = 0;
 	kbdev->pm.backend.metrics.gpu_active = false;
@@ -260,11 +283,7 @@ static void kbase_pm_metrics_active_calc(struct kbase_device *kbdev)
 					kbdev->pm.backend.metrics.
 						active_cl_ctx[device_nr] = 1;
 			} else {
-				/* Slot 2 should not be running non-compute
-				 * atoms */
-				if (!WARN_ON(js >= 2))
-					kbdev->pm.backend.metrics.
-						active_gl_ctx[js] = 1;
+				kbdev->pm.backend.metrics.active_gl_ctx[js] = 1;
 			}
 			kbdev->pm.backend.metrics.gpu_active = true;
 		}
