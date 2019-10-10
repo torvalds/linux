@@ -43,7 +43,7 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	chosen {
+	chosen: chosen {
 		bootargs = "earlycon=uart8250,mmio32,0x11030000";
 	};
 
