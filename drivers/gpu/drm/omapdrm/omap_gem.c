@@ -196,7 +196,7 @@ static void omap_gem_evict(struct drm_gem_object *obj)
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	struct omap_drm_private *priv = obj->dev->dev_private;
 
-	if (omap_obj->flags & OMAP_BO_TILED) {
+	if (omap_obj->flags & OMAP_BO_TILED_MASK) {
 		enum tiler_fmt fmt = gem2fmt(omap_obj->flags);
 		int i;
 
@@ -324,7 +324,7 @@ size_t omap_gem_mmap_size(struct drm_gem_object *obj)
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	size_t size = obj->size;
 
-	if (omap_obj->flags & OMAP_BO_TILED) {
+	if (omap_obj->flags & OMAP_BO_TILED_MASK) {
 		/* for tiled buffers, the virtual size has stride rounded up
 		 * to 4kb.. (to hide the fact that row n+1 might start 16kb or
 		 * 32kb later!).  But we don't back the entire buffer with
@@ -513,7 +513,7 @@ vm_fault_t omap_gem_fault(struct vm_fault *vmf)
 	 * probably trigger put_pages()?
 	 */
 
-	if (omap_obj->flags & OMAP_BO_TILED)
+	if (omap_obj->flags & OMAP_BO_TILED_MASK)
 		ret = omap_gem_fault_2d(obj, vma, vmf);
 	else
 		ret = omap_gem_fault_1d(obj, vma, vmf);
@@ -786,7 +786,7 @@ int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr)
 			if (ret)
 				goto fail;
 
-			if (omap_obj->flags & OMAP_BO_TILED) {
+			if (omap_obj->flags & OMAP_BO_TILED_MASK) {
 				block = tiler_reserve_2d(fmt,
 						omap_obj->width,
 						omap_obj->height, 0);
@@ -892,7 +892,7 @@ int omap_gem_rotated_dma_addr(struct drm_gem_object *obj, u32 orient,
 	mutex_lock(&omap_obj->lock);
 
 	if ((refcount_read(&omap_obj->dma_addr_cnt) > 0) && omap_obj->block &&
-			(omap_obj->flags & OMAP_BO_TILED)) {
+			(omap_obj->flags & OMAP_BO_TILED_MASK)) {
 		*dma_addr = tiler_tsptr(omap_obj->block, orient, x, y);
 		ret = 0;
 	}
@@ -907,7 +907,7 @@ int omap_gem_tiled_stride(struct drm_gem_object *obj, u32 orient)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret = -EINVAL;
-	if (omap_obj->flags & OMAP_BO_TILED)
+	if (omap_obj->flags & OMAP_BO_TILED_MASK)
 		ret = tiler_stride(gem2fmt(omap_obj->flags), orient);
 	return ret;
 }
@@ -1046,7 +1046,7 @@ void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 			refcount_read(&omap_obj->dma_addr_cnt),
 			omap_obj->vaddr, omap_obj->roll);
 
-	if (omap_obj->flags & OMAP_BO_TILED) {
+	if (omap_obj->flags & OMAP_BO_TILED_MASK) {
 		seq_printf(m, " %dx%d", omap_obj->width, omap_obj->height);
 		if (omap_obj->block) {
 			struct tcm_area *area = &omap_obj->block->area;
@@ -1145,7 +1145,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	int ret;
 
 	/* Validate the flags and compute the memory and cache flags. */
-	if (flags & OMAP_BO_TILED) {
+	if (flags & OMAP_BO_TILED_MASK) {
 		if (!priv->usergart) {
 			dev_err(dev->dev, "Tiled buffers require DMM\n");
 			return NULL;
@@ -1187,7 +1187,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	omap_obj->flags = flags;
 	mutex_init(&omap_obj->lock);
 
-	if (flags & OMAP_BO_TILED) {
+	if (flags & OMAP_BO_TILED_MASK) {
 		/*
 		 * For tiled buffers align dimensions to slot boundaries and
 		 * calculate size based on aligned dimensions.
