@@ -390,7 +390,8 @@ static void print_health_info(struct mlx5_core_dev *dev)
 
 static int
 mlx5_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
-			  struct devlink_fmsg *fmsg)
+			  struct devlink_fmsg *fmsg,
+			  struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_health_reporter_priv(reporter);
 	struct mlx5_core_health *health = &dev->priv.health;
@@ -491,7 +492,8 @@ mlx5_fw_reporter_heath_buffer_data_put(struct mlx5_core_dev *dev,
 
 static int
 mlx5_fw_reporter_dump(struct devlink_health_reporter *reporter,
-		      struct devlink_fmsg *fmsg, void *priv_ctx)
+		      struct devlink_fmsg *fmsg, void *priv_ctx,
+		      struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_health_reporter_priv(reporter);
 	int err;
@@ -545,7 +547,8 @@ static const struct devlink_health_reporter_ops mlx5_fw_reporter_ops = {
 
 static int
 mlx5_fw_fatal_reporter_recover(struct devlink_health_reporter *reporter,
-			       void *priv_ctx)
+			       void *priv_ctx,
+			       struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_health_reporter_priv(reporter);
 
@@ -555,7 +558,8 @@ mlx5_fw_fatal_reporter_recover(struct devlink_health_reporter *reporter,
 #define MLX5_CR_DUMP_CHUNK_SIZE 256
 static int
 mlx5_fw_fatal_reporter_dump(struct devlink_health_reporter *reporter,
-			    struct devlink_fmsg *fmsg, void *priv_ctx)
+			    struct devlink_fmsg *fmsg, void *priv_ctx,
+			    struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_health_reporter_priv(reporter);
 	u32 crdump_size = dev->priv.health.crdump_size;

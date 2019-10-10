@@ -507,11 +507,13 @@ enum devlink_health_reporter_state {
 struct devlink_health_reporter_ops {
 	char *name;
 	int (*recover)(struct devlink_health_reporter *reporter,
-		       void *priv_ctx);
+		       void *priv_ctx, struct netlink_ext_ack *extack);
 	int (*dump)(struct devlink_health_reporter *reporter,
-		    struct devlink_fmsg *fmsg, void *priv_ctx);
+		    struct devlink_fmsg *fmsg, void *priv_ctx,
+		    struct netlink_ext_ack *extack);
 	int (*diagnose)(struct devlink_health_reporter *reporter,
-			struct devlink_fmsg *fmsg);
+			struct devlink_fmsg *fmsg,
+			struct netlink_ext_ack *extack);
 };
 
 /**
