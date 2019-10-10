@@ -61,7 +61,6 @@ static u8 get_deviceid(u32 addr)
 	u8 devide_id;
 	u16 pseudo_id;
 
-
 	pseudo_id = (u16)(addr >> 16);
 	switch (pseudo_id) {
 	case 0x1025:
@@ -71,7 +70,6 @@ static u8 get_deviceid(u32 addr)
 	case 0x1026:
 		devide_id = WLAN_IOREG_DEVICE_ID;
 		break;
-
 
 	case 0x1031:
 		devide_id = WLAN_TX_HIQ_DEVICE_ID;
@@ -106,7 +104,6 @@ static u32 _cvrt2ftaddr(const u32 addr, u8 *pdevice_id, u16 *poffset)
 	u8 device_id;
 	u16 offset;
 	u32 ftaddr;
-
 
 	device_id = get_deviceid(addr);
 	offset = 0;
@@ -425,7 +422,6 @@ static u32 sdio_read_port(
 	struct hal_com_data *hal;
 	s32 err;
 
-
 	adapter = intfhdl->padapter;
 	psdio = &adapter_to_dvobj(adapter)->intf_data;
 	hal = GET_HAL_DATA(adapter);
@@ -529,7 +525,6 @@ static s32 _sdio_local_read(
 	s32 err;
 	u8 *tmpbuf;
 	u32 n;
-
 
 	intfhdl = &adapter->iopriv.intf;
 
@@ -703,7 +698,6 @@ static s32 ReadInterrupt8723BSdio(struct adapter *adapter, u32 *phisr)
 	u32 hisr, himr;
 	u8 val8, hisr_len;
 
-
 	if (!phisr)
 		return false;
 
@@ -741,7 +735,6 @@ void InitInterrupt8723BSdio(struct adapter *adapter)
 {
 	struct hal_com_data *haldata;
 
-
 	haldata = GET_HAL_DATA(adapter);
 	haldata->sdio_himr = (u32)(		\
 								SDIO_HIMR_RX_REQUEST_MSK			|
@@ -758,7 +751,6 @@ void InitInterrupt8723BSdio(struct adapter *adapter)
 void InitSysInterrupt8723BSdio(struct adapter *adapter)
 {
 	struct hal_com_data *haldata;
-
 
 	haldata = GET_HAL_DATA(adapter);
 
@@ -867,7 +859,6 @@ static struct recv_buf *sd_recv_rxfifo(struct adapter *adapter, u32 size)
 	struct recv_priv *recv_priv;
 	struct recv_buf	*recvbuf;
 
-
 	/*  Patch for some SDIO Host 4 bytes issue */
 	/*  ex. RK3188 */
 	readsize = RND4(size);
@@ -909,7 +900,6 @@ static struct recv_buf *sd_recv_rxfifo(struct adapter *adapter, u32 size)
 		return NULL;
 	}
 
-
 	/* 3 4. init recvbuf */
 	recvbuf->len = size;
 	recvbuf->phead = recvbuf->pskb->head;
@@ -942,7 +932,6 @@ void sd_int_dpc(struct adapter *adapter)
 	struct dvobj_priv *dvobj;
 	struct intf_hdl *intfhdl = &adapter->iopriv.intf;
 	struct pwrctrl_priv *pwrctl;
-
 
 	hal = GET_HAL_DATA(adapter);
 	dvobj = adapter_to_dvobj(adapter);
@@ -1019,7 +1008,6 @@ void sd_int_dpc(struct adapter *adapter)
 	if (hal->sdio_hisr & SDIO_HISR_RXERR)
 		DBG_8192C("%s: Rx Error\n", __func__);
 
-
 	if (hal->sdio_hisr & SDIO_HISR_RX_REQUEST) {
 		struct recv_buf *recvbuf;
 		int alloc_fail_time = 0;
@@ -1058,7 +1046,6 @@ void sd_int_dpc(struct adapter *adapter)
 void sd_int_hdl(struct adapter *adapter)
 {
 	struct hal_com_data *hal;
-
 
 	if (
 		(adapter->bDriverStopped) || (adapter->bSurpriseRemoved)
@@ -1102,7 +1089,6 @@ u8 HalQueryTxBufferStatus8723BSdio(struct adapter *adapter)
 {
 	struct hal_com_data *hal;
 	u32 numof_free_page;
-
 
 	hal = GET_HAL_DATA(adapter);
 
