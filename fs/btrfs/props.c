@@ -437,8 +437,6 @@ void __init btrfs_props_init(void)
 {
 	int i;
 
-	hash_init(prop_handlers_ht);
-
 	for (i = 0; i < ARRAY_SIZE(prop_handlers); i++) {
 		struct prop_handler *p = &prop_handlers[i];
 		u64 h = btrfs_name_hash(p->xattr_name, strlen(p->xattr_name));
