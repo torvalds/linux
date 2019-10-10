@@ -3882,8 +3882,12 @@ generic_ip_connect(struct TCP_Server_Info *server)
 
 	rc = socket->ops->connect(socket, saddr, slen,
 				  server->noblockcnt ? O_NONBLOCK : 0);
-
-	if (rc == -EINPROGRESS)
+	/*
+	 * When mounting SMB root file systems, we do not want to block in
+	 * connect. Otherwise bail out and then let cifs_reconnect() perform
+	 * reconnect failover - if possible.
+	 */
+	if (server->noblockcnt && rc == -EINPROGRESS)
 		rc = 0;
 	if (rc < 0) {
 		cifs_dbg(FYI, "Error %d connecting to server\n", rc);
