@@ -23,6 +23,7 @@ static int debug_flag;
 static FILE *outf;
 
 static int cpu_model;
+static int cpu_stepping;
 
 #define MAX_CPUS_IN_ONE_REQ 64
 static short max_target_cpus;
@@ -72,7 +73,16 @@ void debug_printf(const char *format, ...)
 	va_end(args);
 }
 
-static void update_cpu_model(void)
+
+int is_clx_n_platform(void)
+{
+	if (cpu_model == 0x55)
+		if (cpu_stepping == 0x6 || cpu_stepping == 0x7)
+			return 1;
+	return 0;
+}
+
+static int update_cpu_model(void)
 {
 	unsigned int ebx, ecx, edx;
 	unsigned int fms, family;
@@ -82,6 +92,33 @@ static void update_cpu_model(void)
 	cpu_model = (fms >> 4) & 0xf;
 	if (family == 6 || family == 0xf)
 		cpu_model += ((fms >> 16) & 0xf) << 4;
+
+	cpu_stepping = fms & 0xf;
+	/* only three CascadeLake-N models are supported */
+	if (is_clx_n_platform()) {
+		FILE *fp;
+		size_t n = 0;
+		char *line = NULL;
+		int ret = 1;
+
+		fp = fopen("/proc/cpuinfo", "r");
+		if (!fp)
+			err(-1, "cannot open /proc/cpuinfo\n");
+
+		while (getline(&line, &n, fp) > 0) {
+			if (strstr(line, "model name")) {
+				if (strstr(line, "6252N") ||
+				    strstr(line, "6230N") ||
+				    strstr(line, "5218N"))
+					ret = 0;
+				break;
+			}
+		}
+		free(line);
+		fclose(fp);
+		return ret;
+	}
+	return 0;
 }
 
 /* Open a file, and exit on failure */
@@ -1956,7 +1993,9 @@ static void cmdline(int argc, char **argv)
 		fprintf(stderr, "Feature name and|or command not specified\n");
 		exit(0);
 	}
-	update_cpu_model();
+	ret = update_cpu_model();
+	if (ret)
+		err(-1, "Invalid CPU model (%d)\n", cpu_model);
 	printf("Intel(R) Speed Select Technology\n");
 	printf("Executing on CPU model:%d[0x%x]\n", cpu_model, cpu_model);
 	set_max_cpu_num();
