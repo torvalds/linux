@@ -644,7 +644,7 @@ mt76_airtime_flush_ampdu(struct mt76_dev *dev)
 		return;
 
 	wcid_idx = dev->rx_ampdu_status.wcid_idx;
-	if (dev->rx_ampdu_status.wcid_idx != 0xff)
+	if (wcid_idx < ARRAY_SIZE(dev->wcid))
 		wcid = rcu_dereference(dev->wcid[wcid_idx]);
 	else
 		wcid = NULL;
