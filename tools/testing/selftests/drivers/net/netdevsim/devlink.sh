@@ -4,7 +4,8 @@
 lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="fw_flash_test params_test regions_test reload_test \
-	   netns_reload_test resource_test dev_info_test"
+	   netns_reload_test resource_test dev_info_test \
+	   empty_reporter_test dummy_reporter_test"
 NUM_NETIFS=0
 source $lib_dir/lib.sh
 
@@ -301,6 +302,130 @@ dev_info_test()
 	check_err $? "Unexpected driver name $driver"
 
 	log_test "dev_info test"
+}
+
+empty_reporter_test()
+{
+	RET=0
+
+	devlink health show $DL_HANDLE reporter empty >/dev/null
+	check_err $? "Failed show empty reporter"
+
+	devlink health dump show $DL_HANDLE reporter empty >/dev/null
+	check_err $? "Failed show dump of empty reporter"
+
+	devlink health diagnose $DL_HANDLE reporter empty >/dev/null
+	check_err $? "Failed diagnose empty reporter"
+
+	devlink health recover $DL_HANDLE reporter empty
+	check_err $? "Failed recover empty reporter"
+
+	log_test "empty reporter test"
+}
+
+check_reporter_info()
+{
+	local name=$1
+	local expected_state=$2
+	local expected_error=$3
+	local expected_recover=$4
+	local expected_grace_period=$5
+	local expected_auto_recover=$6
+
+	local show=$(devlink health show $DL_HANDLE reporter $name -j | jq -e -r ".[][][]")
+	check_err $? "Failed show $name reporter"
+
+	local state=$(echo $show | jq -r ".state")
+	[ "$state" == "$expected_state" ]
+	check_err $? "Unexpected \"state\" value (got $state, expected $expected_state)"
+
+	local error=$(echo $show | jq -r ".error")
+	[ "$error" == "$expected_error" ]
+	check_err $? "Unexpected \"error\" value (got $error, expected $expected_error)"
+
+	local recover=`echo $show | jq -r ".recover"`
+	[ "$recover" == "$expected_recover" ]
+	check_err $? "Unexpected \"recover\" value (got $recover, expected $expected_recover)"
+
+	local grace_period=$(echo $show | jq -r ".grace_period")
+	check_err $? "Failed get $name reporter grace_period"
+	[ "$grace_period" == "$expected_grace_period" ]
+	check_err $? "Unexpected \"grace_period\" value (got $grace_period, expected $expected_grace_period)"
+
+	local auto_recover=$(echo $show | jq -r ".auto_recover")
+	[ "$auto_recover" == "$expected_auto_recover" ]
+	check_err $? "Unexpected \"auto_recover\" value (got $auto_recover, expected $expected_auto_recover)"
+}
+
+dummy_reporter_test()
+{
+	RET=0
+
+	check_reporter_info dummy healthy 0 0 0 false
+
+	local BREAK_MSG="foo bar"
+	echo "$BREAK_MSG"> $DEBUGFS_DIR/health/break_health
+	check_err $? "Failed to break dummy reporter"
+
+	check_reporter_info dummy error 1 0 0 false
+
+	local dump=$(devlink health dump show $DL_HANDLE reporter dummy -j)
+	check_err $? "Failed show dump of dummy reporter"
+
+	local dump_break_msg=$(echo $dump | jq -r ".break_message")
+	[ "$dump_break_msg" == "$BREAK_MSG" ]
+	check_err $? "Unexpected dump break message value (got $dump_break_msg, expected $BREAK_MSG)"
+
+	devlink health dump clear $DL_HANDLE reporter dummy
+	check_err $? "Failed clear dump of dummy reporter"
+
+	devlink health recover $DL_HANDLE reporter dummy
+	check_err $? "Failed recover dummy reporter"
+
+	check_reporter_info dummy healthy 1 1 0 false
+
+	devlink health set $DL_HANDLE reporter dummy auto_recover true
+	check_err $? "Failed to dummy reporter auto_recover option"
+
+	check_reporter_info dummy healthy 1 1 0 true
+
+	echo "$BREAK_MSG"> $DEBUGFS_DIR/health/break_health
+	check_err $? "Failed to break dummy reporter"
+
+	check_reporter_info dummy healthy 2 2 0 true
+
+	local diagnose=$(devlink health diagnose $DL_HANDLE reporter dummy -j -p)
+	check_err $? "Failed show diagnose of dummy reporter"
+
+	local rcvrd_break_msg=$(echo $diagnose | jq -r ".recovered_break_message")
+	[ "$rcvrd_break_msg" == "$BREAK_MSG" ]
+	check_err $? "Unexpected recovered break message value (got $rcvrd_break_msg, expected $BREAK_MSG)"
+
+	devlink health set $DL_HANDLE reporter dummy grace_period 10
+	check_err $? "Failed to dummy reporter grace_period option"
+
+	check_reporter_info dummy healthy 2 2 10 true
+
+	echo "Y"> $DEBUGFS_DIR/health/fail_recover
+	check_err $? "Failed set dummy reporter recovery to fail"
+
+	echo "$BREAK_MSG"> $DEBUGFS_DIR/health/break_health
+	check_fail $? "Unexpected success of dummy reporter break"
+
+	check_reporter_info dummy error 3 2 10 true
+
+	devlink health recover $DL_HANDLE reporter dummy
+	check_fail $? "Unexpected success of dummy reporter recover"
+
+	echo "N"> $DEBUGFS_DIR/health/fail_recover
+	check_err $? "Failed set dummy reporter recovery to be successful"
+
+	devlink health recover $DL_HANDLE reporter dummy
+	check_err $? "Failed recover dummy reporter"
+
+	check_reporter_info dummy healthy 3 3 10 true
+
+	log_test "dummy reporter test"
 }
 
 setup_prepare()
