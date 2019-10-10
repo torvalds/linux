@@ -109,7 +109,7 @@ void btrfs_set_lock_blocking_write(struct extent_buffer *eb)
 	if (eb->blocking_writers == 0) {
 		btrfs_assert_spinning_writers_put(eb);
 		btrfs_assert_tree_locked(eb);
-		eb->blocking_writers = 1;
+		WRITE_ONCE(eb->blocking_writers, 1);
 		write_unlock(&eb->lock);
 	}
 }
@@ -145,7 +145,7 @@ again:
 		}
 		read_unlock(&eb->lock);
 		wait_event(eb->write_lock_wq,
-			   eb->blocking_writers == 0);
+			   READ_ONCE(eb->blocking_writers) == 0);
 		goto again;
 	}
 	btrfs_assert_tree_read_locks_get(eb);
@@ -160,11 +160,12 @@ again:
  */
 int btrfs_tree_read_lock_atomic(struct extent_buffer *eb)
 {
-	if (eb->blocking_writers)
+	if (READ_ONCE(eb->blocking_writers))
 		return 0;
 
 	read_lock(&eb->lock);
-	if (eb->blocking_writers) {
+	/* Refetch value after lock */
+	if (READ_ONCE(eb->blocking_writers)) {
 		read_unlock(&eb->lock);
 		return 0;
 	}
@@ -180,13 +181,14 @@ int btrfs_tree_read_lock_atomic(struct extent_buffer *eb)
  */
 int btrfs_try_tree_read_lock(struct extent_buffer *eb)
 {
-	if (eb->blocking_writers)
+	if (READ_ONCE(eb->blocking_writers))
 		return 0;
 
 	if (!read_trylock(&eb->lock))
 		return 0;
 
-	if (eb->blocking_writers) {
+	/* Refetch value after lock */
+	if (READ_ONCE(eb->blocking_writers)) {
 		read_unlock(&eb->lock);
 		return 0;
 	}
@@ -202,11 +204,12 @@ int btrfs_try_tree_read_lock(struct extent_buffer *eb)
  */
 int btrfs_try_tree_write_lock(struct extent_buffer *eb)
 {
-	if (eb->blocking_writers || atomic_read(&eb->blocking_readers))
+	if (READ_ONCE(eb->blocking_writers) || atomic_read(&eb->blocking_readers))
 		return 0;
 
 	write_lock(&eb->lock);
-	if (eb->blocking_writers || atomic_read(&eb->blocking_readers)) {
+	/* Refetch value after lock */
+	if (READ_ONCE(eb->blocking_writers) || atomic_read(&eb->blocking_readers)) {
 		write_unlock(&eb->lock);
 		return 0;
 	}
@@ -277,9 +280,11 @@ void btrfs_tree_lock(struct extent_buffer *eb)
 	WARN_ON(eb->lock_owner == current->pid);
 again:
 	wait_event(eb->read_lock_wq, atomic_read(&eb->blocking_readers) == 0);
-	wait_event(eb->write_lock_wq, eb->blocking_writers == 0);
+	wait_event(eb->write_lock_wq, READ_ONCE(eb->blocking_writers) == 0);
 	write_lock(&eb->lock);
-	if (atomic_read(&eb->blocking_readers) || eb->blocking_writers) {
+	/* Refetch value after lock */
+	if (atomic_read(&eb->blocking_readers) ||
+	    READ_ONCE(eb->blocking_writers)) {
 		write_unlock(&eb->lock);
 		goto again;
 	}
@@ -294,6 +299,10 @@ again:
  */
 void btrfs_tree_unlock(struct extent_buffer *eb)
 {
+	/*
+	 * This is read both locked and unlocked but always by the same thread
+	 * that already owns the lock so we don't need to use READ_ONCE
+	 */
 	int blockers = eb->blocking_writers;
 
 	BUG_ON(blockers > 1);
@@ -305,7 +314,8 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
 
 	if (blockers) {
 		btrfs_assert_no_spinning_writers(eb);
-		eb->blocking_writers = 0;
+		/* Unlocked write */
+		WRITE_ONCE(eb->blocking_writers, 0);
 		/*
 		 * We need to order modifying blocking_writers above with
 		 * actually waking up the sleepers to ensure they see the
