@@ -834,19 +834,15 @@ fail:
 }
 
 /**
- * omap_gem_unpin() - Unpin a GEM object from memory
+ * omap_gem_unpin_locked() - Unpin a GEM object from memory
  * @obj: the GEM object
  *
- * Unpin the given GEM object previously pinned with omap_gem_pin(). Pins are
- * reference-counted, the actualy unpin will only be performed when the number
- * of calls to this function matches the number of calls to omap_gem_pin().
+ * omap_gem_unpin() without locking.
  */
-void omap_gem_unpin(struct drm_gem_object *obj)
+static void omap_gem_unpin_locked(struct drm_gem_object *obj)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret;
-
-	mutex_lock(&omap_obj->lock);
 
 	if (refcount_dec_and_test(&omap_obj->dma_addr_cnt)) {
 		ret = tiler_unpin(omap_obj->block);
@@ -862,7 +858,22 @@ void omap_gem_unpin(struct drm_gem_object *obj)
 		omap_obj->dma_addr = 0;
 		omap_obj->block = NULL;
 	}
+}
 
+/**
+ * omap_gem_unpin() - Unpin a GEM object from memory
+ * @obj: the GEM object
+ *
+ * Unpin the given GEM object previously pinned with omap_gem_pin(). Pins are
+ * reference-counted, the actual unpin will only be performed when the number
+ * of calls to this function matches the number of calls to omap_gem_pin().
+ */
+void omap_gem_unpin(struct drm_gem_object *obj)
+{
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+
+	mutex_lock(&omap_obj->lock);
+	omap_gem_unpin_locked(obj);
 	mutex_unlock(&omap_obj->lock);
 }
 
