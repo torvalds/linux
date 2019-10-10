@@ -859,6 +859,8 @@ struct iwl_trans {
 
 	enum iwl_plat_pm_mode system_pm_mode;
 
+	const char *name;
+
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
 	char trans_specific[0] __aligned(sizeof(void *));

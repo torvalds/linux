@@ -190,8 +190,10 @@ const struct iwl_cfg iwl9260_2ac_cfg = {
 	IWL_DEVICE_9000,
 };
 
+const char iwl9260_160_name[] = "Intel(R) Wireless-AC 9260 160MHz";
+const char iwl9560_160_name[] = "Intel(R) Wireless-AC 9560 160MHz";
+
 const struct iwl_cfg iwl9260_2ac_160_cfg = {
-	.name = "Intel(R) Wireless-AC 9260 160MHz",
 	.fw_name_pre = IWL9260_FW_PRE,
 	IWL_DEVICE_9000,
 };

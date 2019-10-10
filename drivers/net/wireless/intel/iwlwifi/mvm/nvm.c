@@ -178,7 +178,7 @@ static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
 		} else {
 			IWL_DEBUG_EEPROM(mvm->trans->dev,
 					 "NVM access command failed with status %d (device: %s)\n",
-					 ret, mvm->cfg->name);
+					 ret, mvm->trans->name);
 			ret = -ENODATA;
 		}
 		goto exit;

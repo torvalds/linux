@@ -458,12 +458,15 @@ struct iwl_dev_info {
 	u16 device;
 	u16 subdevice;
 	const struct iwl_cfg *cfg;
+	const char *name;
 };
 
 /*
  * This list declares the config structures for all devices.
  */
 extern const struct iwl_cfg_trans_params iwl9000_trans_cfg;
+extern const char iwl9260_160_name[];
+extern const char iwl9560_160_name[];
 
 #if IS_ENABLED(CONFIG_IWLDVM)
 extern const struct iwl_cfg iwl5300_agn_cfg;
