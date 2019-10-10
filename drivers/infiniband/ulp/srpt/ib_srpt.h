@@ -387,12 +387,9 @@ struct srpt_port_id {
  * @sm_lid:    cached value of the port's sm_lid.
  * @lid:       cached value of the port's lid.
  * @gid:       cached value of the port's gid.
- * @port_acl_lock spinlock for port_acl_list:
  * @work:      work structure for refreshing the aforementioned cached values.
- * @port_guid_tpg: TPG associated with target port GUID.
- * @port_guid_wwn: WWN associated with target port GUID.
- * @port_gid_tpg:  TPG associated with target port GID.
- * @port_gid_wwn:  WWN associated with target port GID.
+ * @port_guid_id: target port GUID
+ * @port_gid_id: target port GID
  * @port_attrib:   Port attributes that can be accessed through configfs.
  * @refcount:	   Number of objects associated with this port.
  * @freed_channels: Completion that will be signaled once @refcount becomes 0.
