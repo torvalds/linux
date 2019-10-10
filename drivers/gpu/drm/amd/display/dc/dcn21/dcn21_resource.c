@@ -636,6 +636,8 @@ static const struct dcn10_stream_encoder_mask se_mask = {
 		SE_COMMON_MASK_SH_LIST_DCN20(_MASK)
 };
 
+static void dcn21_pp_smu_destroy(struct pp_smu_funcs **pp_smu);
+
 static struct input_pixel_processor *dcn21_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
@@ -939,7 +941,7 @@ static void destruct(struct dcn21_resource_pool *pool)
 		dcn_dccg_destroy(&pool->base.dccg);
 
 	if (pool->base.pp_smu != NULL)
-		dcn20_pp_smu_destroy(&pool->base.pp_smu);
+		dcn21_pp_smu_destroy(&pool->base.pp_smu);
 }
 
 

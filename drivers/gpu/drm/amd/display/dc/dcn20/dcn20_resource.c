@@ -1156,6 +1156,8 @@ static const struct resource_create_funcs res_create_maximus_funcs = {
 	.create_hwseq = dcn20_hwseq_create,
 };
 
+static void dcn20_pp_smu_destroy(struct pp_smu_funcs **pp_smu);
+
 void dcn20_clock_source_destroy(struct clock_source **clk_src)
 {
 	kfree(TO_DCE110_CLK_SRC(*clk_src));
@@ -2928,7 +2930,7 @@ bool dcn20_mmhubbub_create(struct dc_context *ctx, struct resource_pool *pool)
 	return true;
 }
 
-struct pp_smu_funcs *dcn20_pp_smu_create(struct dc_context *ctx)
+static struct pp_smu_funcs *dcn20_pp_smu_create(struct dc_context *ctx)
 {
 	struct pp_smu_funcs *pp_smu = kzalloc(sizeof(*pp_smu), GFP_KERNEL);
 
@@ -2943,7 +2945,7 @@ struct pp_smu_funcs *dcn20_pp_smu_create(struct dc_context *ctx)
 	return pp_smu;
 }
 
-void dcn20_pp_smu_destroy(struct pp_smu_funcs **pp_smu)
+static void dcn20_pp_smu_destroy(struct pp_smu_funcs **pp_smu)
 {
 	if (pp_smu && *pp_smu) {
 		kfree(*pp_smu);

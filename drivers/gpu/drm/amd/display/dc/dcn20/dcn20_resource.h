@@ -95,9 +95,6 @@ struct display_stream_compressor *dcn20_dsc_create(
 	struct dc_context *ctx, uint32_t inst);
 void dcn20_dsc_destroy(struct display_stream_compressor **dsc);
 
-struct pp_smu_funcs *dcn20_pp_smu_create(struct dc_context *ctx);
-void dcn20_pp_smu_destroy(struct pp_smu_funcs **pp_smu);
-
 struct hubp *dcn20_hubp_create(
 	struct dc_context *ctx,
 	uint32_t inst);
