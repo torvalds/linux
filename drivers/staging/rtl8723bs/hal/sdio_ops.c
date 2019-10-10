@@ -736,10 +736,9 @@ void InitInterrupt8723BSdio(struct adapter *adapter)
 	struct hal_com_data *haldata;
 
 	haldata = GET_HAL_DATA(adapter);
-	haldata->sdio_himr = (u32)(		\
-								SDIO_HIMR_RX_REQUEST_MSK			|
-								SDIO_HIMR_AVAL_MSK					|
-								0);
+	haldata->sdio_himr = (u32)(SDIO_HIMR_RX_REQUEST_MSK	|
+				   SDIO_HIMR_AVAL_MSK		|
+				   0);
 }
 
 /*  */
@@ -754,8 +753,7 @@ void InitSysInterrupt8723BSdio(struct adapter *adapter)
 
 	haldata = GET_HAL_DATA(adapter);
 
-	haldata->SysIntrMask = (		\
-							0);
+	haldata->SysIntrMask = (0);
 }
 
 /*  */
