@@ -330,8 +330,11 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		pdata.flags |= CI_HDRC_IMX_IS_HSIC;
 		data->usbmisc_data->hsic = 1;
 		data->pinctrl = devm_pinctrl_get(dev);
-		if (IS_ERR(data->pinctrl)) {
-			dev_err(dev, "pinctrl get failed, err=%ld\n",
+		if (PTR_ERR(data->pinctrl) == -ENODEV)
+			data->pinctrl = NULL;
+		else if (IS_ERR(data->pinctrl)) {
+			if (PTR_ERR(data->pinctrl) != -EPROBE_DEFER)
+				dev_err(dev, "pinctrl get failed, err=%ld\n",
 					PTR_ERR(data->pinctrl));
 			return PTR_ERR(data->pinctrl);
 		}
@@ -361,13 +364,13 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 
 		data->hsic_pad_regulator =
 				devm_regulator_get_optional(dev, "hsic");
-		if (PTR_ERR(data->hsic_pad_regulator) == -EPROBE_DEFER) {
-			return -EPROBE_DEFER;
-		} else if (PTR_ERR(data->hsic_pad_regulator) == -ENODEV) {
+		if (PTR_ERR(data->hsic_pad_regulator) == -ENODEV) {
 			/* no pad regualator is needed */
 			data->hsic_pad_regulator = NULL;
 		} else if (IS_ERR(data->hsic_pad_regulator)) {
-			dev_err(dev, "Get HSIC pad regulator error: %ld\n",
+			if (PTR_ERR(data->hsic_pad_regulator) != -EPROBE_DEFER)
+				dev_err(dev,
+					"Get HSIC pad regulator error: %ld\n",
 					PTR_ERR(data->hsic_pad_regulator));
 			return PTR_ERR(data->hsic_pad_regulator);
 		}
