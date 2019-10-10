@@ -1097,6 +1097,9 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 	list_del(&omap_obj->mm_list);
 	mutex_unlock(&priv->list_lock);
 
+	if (omap_obj->flags & OMAP_BO_MEM_PIN)
+		omap_gem_unpin_locked(obj);
+
 	/*
 	 * We own the sole reference to the object at this point, but to keep
 	 * lockdep happy, we must still take the omap_obj_lock to call
@@ -1147,8 +1150,17 @@ static bool omap_gem_validate_flags(struct drm_device *dev, u32 flags)
 		return false;
 	}
 
+	if ((flags & OMAP_BO_MEM_CONTIG) && (flags & OMAP_BO_MEM_DMM))
+		return false;
+
+	if ((flags & OMAP_BO_MEM_DMM) && !priv->usergart)
+		return false;
+
 	if (flags & OMAP_BO_TILED_MASK) {
 		if (!priv->usergart)
+			return false;
+
+		if (flags & OMAP_BO_MEM_CONTIG)
 			return false;
 
 		switch (flags & OMAP_BO_TILED_MASK) {
@@ -1165,7 +1177,34 @@ static bool omap_gem_validate_flags(struct drm_device *dev, u32 flags)
 	return true;
 }
 
-/* GEM buffer object constructor */
+/**
+ * omap_gem_new() - Create a new GEM buffer
+ * @dev: The DRM device
+ * @gsize: The requested size for the GEM buffer. If the buffer is tiled
+ *         (2D buffer), the size is a pair of values: height and width
+ *         expressed in pixels. If the buffers is not tiled, it is expressed
+ *         in bytes.
+ * @flags: Flags give additionnal information about the allocation:
+ *         OMAP_BO_TILED_x: use the TILER (2D buffers). The TILER container
+ *              unit can be 8, 16 or 32 bits. Cache is always disabled for
+ *              tiled buffers.
+ *         OMAP_BO_SCANOUT: Scannout buffer, consummable by the DSS
+ *         OMAP_BO_CACHED: Buffer CPU caching mode: cached
+ *         OMAP_BO_WC: Buffer CPU caching mode: write-combined
+ *         OMAP_BO_UNCACHED: Buffer CPU caching mode: uncached
+ *         OMAP_BO_MEM_CONTIG: The driver will use dma_alloc to get the memory.
+ *              This can be used to avoid DMM if the userspace knows it needs
+ *              more than 128M of memory at the same time.
+ *         OMAP_BO_MEM_DMM: The driver will use DMM to get the memory. There's
+ *              not much use for this flag at the moment, as on platforms with
+ *              DMM it is used by default, but it's here for completeness.
+ *         OMAP_BO_MEM_PIN: The driver will pin the memory at alloc time, and
+ *              keep it pinned. This can be used to 1) get an error at alloc
+ *              time if DMM space is full, and 2) get rid of the constant
+ *              pin/unpin operations which may have some effect on performance.
+ *
+ * Return: The GEM buffer or NULL if the allocation failed
+ */
 struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		union omap_gem_size gsize, u32 flags)
 {
@@ -1193,7 +1232,8 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		 */
 		flags &= ~(OMAP_BO_CACHED|OMAP_BO_WC|OMAP_BO_UNCACHED);
 		flags |= tiler_get_cpu_cache_flags();
-	} else if ((flags & OMAP_BO_SCANOUT) && !priv->has_dmm) {
+	} else if ((flags & OMAP_BO_MEM_CONTIG) ||
+		((flags & OMAP_BO_SCANOUT) && !priv->has_dmm)) {
 		/*
 		 * If we don't have DMM, we must allocate scanout buffers
 		 * from contiguous DMA memory.
@@ -1253,12 +1293,22 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 			goto err_release;
 	}
 
+	if (flags & OMAP_BO_MEM_PIN) {
+		ret = omap_gem_pin(obj, NULL);
+		if (ret)
+			goto err_free_dma;
+	}
+
 	mutex_lock(&priv->list_lock);
 	list_add(&omap_obj->mm_list, &priv->obj_list);
 	mutex_unlock(&priv->list_lock);
 
 	return obj;
 
+err_free_dma:
+	if (flags & OMAP_BO_MEM_DMA_API)
+		dma_free_wc(dev->dev, size, omap_obj->vaddr,
+			    omap_obj->dma_addr);
 err_release:
 	drm_gem_object_release(obj);
 err_free:

@@ -47,6 +47,15 @@ struct drm_omap_param {
 #define OMAP_BO_UNCACHED	0x00000004
 #define OMAP_BO_CACHE_MASK	0x00000006
 
+/* Force allocation from contiguous DMA memory */
+#define OMAP_BO_MEM_CONTIG	0x00000008
+
+/* Force allocation via DMM */
+#define OMAP_BO_MEM_DMM		0x00000010
+
+/* Pin the buffer when allocating and keep pinned */
+#define OMAP_BO_MEM_PIN		0x00000020
+
 /* Use TILER for the buffer. The TILER container unit can be 8, 16 or 32 bits. */
 #define OMAP_BO_TILED_8		0x00000100
 #define OMAP_BO_TILED_16	0x00000200
