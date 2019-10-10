@@ -1538,17 +1538,14 @@ bool intel_hdmi_hdcp_check_link(struct intel_digital_port *intel_dig_port)
 struct hdcp2_hdmi_msg_timeout {
 	u8 msg_id;
 	u32 timeout;
-	u32 timeout2;
 };
 
 static const struct hdcp2_hdmi_msg_timeout hdcp2_msg_timeout[] = {
-	{ HDCP_2_2_AKE_SEND_CERT, HDCP_2_2_CERT_TIMEOUT_MS, 0 },
-	{ HDCP_2_2_AKE_SEND_HPRIME, HDCP_2_2_HPRIME_PAIRED_TIMEOUT_MS,
-	  HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS },
-	{ HDCP_2_2_AKE_SEND_PAIRING_INFO, HDCP_2_2_PAIRING_TIMEOUT_MS, 0 },
-	{ HDCP_2_2_LC_SEND_LPRIME, HDCP_2_2_HDMI_LPRIME_TIMEOUT_MS, 0 },
-	{ HDCP_2_2_REP_SEND_RECVID_LIST, HDCP_2_2_RECVID_LIST_TIMEOUT_MS, 0 },
-	{ HDCP_2_2_REP_STREAM_READY, HDCP_2_2_STREAM_READY_TIMEOUT_MS, 0 },
+	{ HDCP_2_2_AKE_SEND_CERT, HDCP_2_2_CERT_TIMEOUT_MS, },
+	{ HDCP_2_2_AKE_SEND_PAIRING_INFO, HDCP_2_2_PAIRING_TIMEOUT_MS, },
+	{ HDCP_2_2_LC_SEND_LPRIME, HDCP_2_2_HDMI_LPRIME_TIMEOUT_MS, },
+	{ HDCP_2_2_REP_SEND_RECVID_LIST, HDCP_2_2_RECVID_LIST_TIMEOUT_MS, },
+	{ HDCP_2_2_REP_STREAM_READY, HDCP_2_2_STREAM_READY_TIMEOUT_MS, },
 };
 
 static
@@ -1565,12 +1562,17 @@ static int get_hdcp2_msg_timeout(u8 msg_id, bool is_paired)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(hdcp2_msg_timeout); i++)
-		if (hdcp2_msg_timeout[i].msg_id == msg_id &&
-		    (msg_id != HDCP_2_2_AKE_SEND_HPRIME || is_paired))
+	if (msg_id == HDCP_2_2_AKE_SEND_HPRIME) {
+		if (is_paired)
+			return HDCP_2_2_HPRIME_PAIRED_TIMEOUT_MS;
+		else
+			return HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(hdcp2_msg_timeout); i++) {
+		if (hdcp2_msg_timeout[i].msg_id == msg_id)
 			return hdcp2_msg_timeout[i].timeout;
-		else if (hdcp2_msg_timeout[i].msg_id == msg_id)
-			return hdcp2_msg_timeout[i].timeout2;
+	}
 
 	return -EINVAL;
 }
