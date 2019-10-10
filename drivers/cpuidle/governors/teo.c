@@ -258,6 +258,13 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 
 		if (s->disabled || su->disable) {
 			/*
+			 * Ignore disabled states with target residencies beyond
+			 * the anticipated idle duration.
+			 */
+			if (s->target_residency > duration_us)
+				continue;
+
+			/*
 			 * If the "early hits" metric of a disabled state is
 			 * greater than the current maximum, it should be taken
 			 * into account, because it would be a mistake to select
