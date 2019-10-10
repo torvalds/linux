@@ -274,11 +274,14 @@ static int ci_hdrc_imx_notify_event(struct ci_hdrc *ci, unsigned int event)
 
 	switch (event) {
 	case CI_HDRC_IMX_HSIC_ACTIVE_EVENT:
-		ret = pinctrl_select_state(data->pinctrl,
-				data->pinctrl_hsic_active);
-		if (ret)
-			dev_err(dev, "hsic_active select failed, err=%d\n",
-				ret);
+		if (data->pinctrl) {
+			ret = pinctrl_select_state(data->pinctrl,
+					data->pinctrl_hsic_active);
+			if (ret)
+				dev_err(dev,
+					"hsic_active select failed, err=%d\n",
+					ret);
+		}
 		break;
 	case CI_HDRC_IMX_HSIC_SUSPEND_EVENT:
 		ret = imx_usbmisc_hsic_set_connect(data->usbmisc_data);
@@ -306,7 +309,6 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	const struct ci_hdrc_imx_platform_flag *imx_platform_flag;
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
-	struct pinctrl_state *pinctrl_hsic_idle;
 
 	of_id = of_match_device(ci_hdrc_imx_dt_ids, dev);
 	if (!of_id)
@@ -339,6 +341,33 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 			return PTR_ERR(data->pinctrl);
 		}
 
+		data->hsic_pad_regulator =
+				devm_regulator_get_optional(dev, "hsic");
+		if (PTR_ERR(data->hsic_pad_regulator) == -ENODEV) {
+			/* no pad regualator is needed */
+			data->hsic_pad_regulator = NULL;
+		} else if (IS_ERR(data->hsic_pad_regulator)) {
+			if (PTR_ERR(data->hsic_pad_regulator) != -EPROBE_DEFER)
+				dev_err(dev,
+					"Get HSIC pad regulator error: %ld\n",
+					PTR_ERR(data->hsic_pad_regulator));
+			return PTR_ERR(data->hsic_pad_regulator);
+		}
+
+		if (data->hsic_pad_regulator) {
+			ret = regulator_enable(data->hsic_pad_regulator);
+			if (ret) {
+				dev_err(dev,
+					"Failed to enable HSIC pad regulator\n");
+				return ret;
+			}
+		}
+	}
+
+	/* HSIC pinctrl handling */
+	if (data->pinctrl) {
+		struct pinctrl_state *pinctrl_hsic_idle;
+
 		pinctrl_hsic_idle = pinctrl_lookup_state(data->pinctrl, "idle");
 		if (IS_ERR(pinctrl_hsic_idle)) {
 			dev_err(dev,
@@ -360,28 +389,6 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 				"pinctrl_hsic_active lookup failed, err=%ld\n",
 					PTR_ERR(data->pinctrl_hsic_active));
 			return PTR_ERR(data->pinctrl_hsic_active);
-		}
-
-		data->hsic_pad_regulator =
-				devm_regulator_get_optional(dev, "hsic");
-		if (PTR_ERR(data->hsic_pad_regulator) == -ENODEV) {
-			/* no pad regualator is needed */
-			data->hsic_pad_regulator = NULL;
-		} else if (IS_ERR(data->hsic_pad_regulator)) {
-			if (PTR_ERR(data->hsic_pad_regulator) != -EPROBE_DEFER)
-				dev_err(dev,
-					"Get HSIC pad regulator error: %ld\n",
-					PTR_ERR(data->hsic_pad_regulator));
-			return PTR_ERR(data->hsic_pad_regulator);
-		}
-
-		if (data->hsic_pad_regulator) {
-			ret = regulator_enable(data->hsic_pad_regulator);
-			if (ret) {
-				dev_err(dev,
-					"Failed to enable HSIC pad regulator\n");
-				return ret;
-			}
 		}
 	}
 
