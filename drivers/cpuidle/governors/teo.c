@@ -233,7 +233,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 {
 	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, dev->cpu);
 	int latency_req = cpuidle_governor_latency_req(dev->cpu);
-	unsigned int duration_us, count;
+	unsigned int duration_us, early_hits;
 	int max_early_idx, constraint_idx, idx, i;
 	ktime_t delta_tick;
 
@@ -247,7 +247,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	cpu_data->sleep_length_ns = tick_nohz_get_sleep_length(&delta_tick);
 	duration_us = ktime_to_us(cpu_data->sleep_length_ns);
 
-	count = 0;
+	early_hits = 0;
 	max_early_idx = -1;
 	constraint_idx = drv->state_count;
 	idx = -1;
@@ -270,12 +270,12 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 			 * into account, because it would be a mistake to select
 			 * a deeper state with lower "early hits" metric.  The
 			 * index cannot be changed to point to it, however, so
-			 * just increase the max count alone and let the index
-			 * still point to a shallower idle state.
+			 * just increase the "early hits" count alone and let
+			 * the index still point to a shallower idle state.
 			 */
 			if (max_early_idx >= 0 &&
-			    count < cpu_data->states[i].early_hits)
-				count = cpu_data->states[i].early_hits;
+			    early_hits < cpu_data->states[i].early_hits)
+				early_hits = cpu_data->states[i].early_hits;
 
 			continue;
 		}
@@ -291,10 +291,10 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 
 		idx = i;
 
-		if (count < cpu_data->states[i].early_hits &&
+		if (early_hits < cpu_data->states[i].early_hits &&
 		    !(tick_nohz_tick_stopped() &&
 		      drv->states[i].target_residency < TICK_USEC)) {
-			count = cpu_data->states[i].early_hits;
+			early_hits = cpu_data->states[i].early_hits;
 			max_early_idx = i;
 		}
 	}
@@ -323,9 +323,8 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	if (idx < 0) {
 		idx = 0; /* No states enabled. Must use 0. */
 	} else if (idx > 0) {
+		unsigned int count = 0;
 		u64 sum = 0;
-
-		count = 0;
 
 		/*
 		 * Count and sum the most recent idle duration values less than
