@@ -69,6 +69,8 @@
 #define PM_CLOS_OFFSET				0x08
 #define PQR_ASSOC_OFFSET			0x20
 
+#define DISP_FREQ_MULTIPLIER 100
+
 struct isst_clos_config {
 	int pkg_id;
 	int die_id;
@@ -237,4 +239,5 @@ extern void isst_display_result(int cpu, FILE *outf, char *feature, char *cmd,
 extern int isst_clos_get_clos_information(int cpu, int *enable, int *type);
 extern void isst_clos_display_clos_information(int cpu, FILE *outf,
 					       int clos_enable, int type);
+extern int is_clx_n_platform(void);
 #endif

@@ -750,6 +750,152 @@ _get_tdp_level("get-config-current_level", levels, current_level,
 	       "Current TDP Level");
 _get_tdp_level("get-lock-status", levels, locked, "TDP lock status");
 
+struct isst_pkg_ctdp clx_n_pkg_dev;
+
+static int clx_n_get_base_ratio(void)
+{
+	FILE *fp;
+	char *begin, *end, *line = NULL;
+	char number[5];
+	float value = 0;
+	size_t n = 0;
+
+	fp = fopen("/proc/cpuinfo", "r");
+	if (!fp)
+		err(-1, "cannot open /proc/cpuinfo\n");
+
+	while (getline(&line, &n, fp) > 0) {
+		if (strstr(line, "model name")) {
+			/* this is true for CascadeLake-N */
+			begin = strstr(line, "@ ") + 2;
+			end = strstr(line, "GHz");
+			strncpy(number, begin, end - begin);
+			value = atof(number) * 10;
+			break;
+		}
+	}
+	free(line);
+	fclose(fp);
+
+	return (int)(value);
+}
+
+static int clx_n_config(int cpu)
+{
+	int i, ret, pkg_id, die_id;
+	unsigned long cpu_bf;
+	struct isst_pkg_ctdp_level_info *ctdp_level;
+	struct isst_pbf_info *pbf_info;
+
+	ctdp_level = &clx_n_pkg_dev.ctdp_level[0];
+	pbf_info = &ctdp_level->pbf_info;
+	ctdp_level->core_cpumask_size =
+			alloc_cpu_set(&ctdp_level->core_cpumask);
+
+	/* find the frequency base ratio */
+	ctdp_level->tdp_ratio = clx_n_get_base_ratio();
+	if (ctdp_level->tdp_ratio == 0) {
+		debug_printf("CLX: cn base ratio is zero\n");
+		ret = -1;
+		goto error_ret;
+	}
+
+	/* find the high and low priority frequencies */
+	pbf_info->p1_high = 0;
+	pbf_info->p1_low = ~0;
+
+	pkg_id = get_physical_package_id(cpu);
+	die_id = get_physical_die_id(cpu);
+
+	for (i = 0; i < topo_max_cpus; i++) {
+		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
+			continue;
+
+		if (pkg_id != get_physical_package_id(i) ||
+		    die_id != get_physical_die_id(i))
+			continue;
+
+		CPU_SET_S(i, ctdp_level->core_cpumask_size,
+			  ctdp_level->core_cpumask);
+
+		cpu_bf = parse_int_file(1,
+			"/sys/devices/system/cpu/cpu%d/cpufreq/base_frequency",
+					i);
+		if (cpu_bf > pbf_info->p1_high)
+			pbf_info->p1_high = cpu_bf;
+		if (cpu_bf < pbf_info->p1_low)
+			pbf_info->p1_low = cpu_bf;
+	}
+
+	if (pbf_info->p1_high == ~0UL) {
+		debug_printf("CLX: maximum base frequency not set\n");
+		ret = -1;
+		goto error_ret;
+	}
+
+	if (pbf_info->p1_low == 0) {
+		debug_printf("CLX: minimum base frequency not set\n");
+		ret = -1;
+		goto error_ret;
+	}
+
+	/* convert frequencies back to ratios */
+	pbf_info->p1_high = pbf_info->p1_high / DISP_FREQ_MULTIPLIER;
+	pbf_info->p1_low = pbf_info->p1_low / DISP_FREQ_MULTIPLIER;
+
+	/* create high priority cpu mask */
+	pbf_info->core_cpumask_size = alloc_cpu_set(&pbf_info->core_cpumask);
+	for (i = 0; i < topo_max_cpus; i++) {
+		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
+			continue;
+
+		if (pkg_id != get_physical_package_id(i) ||
+		    die_id != get_physical_die_id(i))
+			continue;
+
+		cpu_bf = parse_int_file(1,
+			"/sys/devices/system/cpu/cpu%d/cpufreq/base_frequency",
+					i);
+		cpu_bf = cpu_bf / DISP_FREQ_MULTIPLIER;
+		if (cpu_bf == pbf_info->p1_high)
+			CPU_SET_S(i, pbf_info->core_cpumask_size,
+				  pbf_info->core_cpumask);
+	}
+
+	/* extra ctdp & pbf struct parameters */
+	ctdp_level->processed = 1;
+	ctdp_level->pbf_support = 1; /* PBF is always supported and enabled */
+	ctdp_level->pbf_enabled = 1;
+	ctdp_level->fact_support = 0; /* FACT is never supported */
+	ctdp_level->fact_enabled = 0;
+
+	return 0;
+
+error_ret:
+	free_cpu_set(ctdp_level->core_cpumask);
+	return ret;
+}
+
+static void dump_clx_n_config_for_cpu(int cpu, void *arg1, void *arg2,
+				   void *arg3, void *arg4)
+{
+	int ret;
+
+	ret = clx_n_config(cpu);
+	if (ret) {
+		perror("isst_get_process_ctdp");
+	} else {
+		struct isst_pkg_ctdp_level_info *ctdp_level;
+		struct isst_pbf_info *pbf_info;
+
+		ctdp_level = &clx_n_pkg_dev.ctdp_level[0];
+		pbf_info = &ctdp_level->pbf_info;
+		isst_ctdp_display_information(cpu, outf, tdp_level, &clx_n_pkg_dev);
+		free_cpu_set(ctdp_level->core_cpumask);
+		free_cpu_set(pbf_info->core_cpumask);
+	}
+}
+
 static void dump_isst_config_for_cpu(int cpu, void *arg1, void *arg2,
 				     void *arg3, void *arg4)
 {
@@ -768,6 +914,8 @@ static void dump_isst_config_for_cpu(int cpu, void *arg1, void *arg2,
 
 static void dump_isst_config(int arg)
 {
+	void *fn;
+
 	if (cmd_help) {
 		fprintf(stderr,
 			"Print Intel(R) Speed Select Technology Performance profile configuration\n");
@@ -779,14 +927,17 @@ static void dump_isst_config(int arg)
 		exit(0);
 	}
 
+	if (!is_clx_n_platform())
+		fn = dump_isst_config_for_cpu;
+	else
+		fn = dump_clx_n_config_for_cpu;
+
 	isst_ctdp_display_information_start(outf);
 
 	if (max_target_cpus)
-		for_each_online_target_cpu_in_set(dump_isst_config_for_cpu,
-						  NULL, NULL, NULL, NULL);
+		for_each_online_target_cpu_in_set(fn, NULL, NULL, NULL, NULL);
 	else
-		for_each_online_package_in_set(dump_isst_config_for_cpu, NULL,
-					       NULL, NULL, NULL);
+		for_each_online_package_in_set(fn, NULL, NULL, NULL, NULL);
 
 	isst_ctdp_display_information_end(outf);
 }
@@ -1611,6 +1762,7 @@ static void get_clos_assoc(int arg)
 }
 
 static struct process_cmd_struct clx_n_cmds[] = {
+	{ "perf-profile", "info", dump_isst_config, 0 },
 	{ NULL, NULL, NULL, 0 }
 };
 
@@ -1888,7 +2040,8 @@ void process_command(int argc, char **argv,
 		}
 	}
 
-	create_cpu_map();
+	if (!is_clx_n_platform())
+		create_cpu_map();
 
 	i = 0;
 	while (cmds[i].feature) {
