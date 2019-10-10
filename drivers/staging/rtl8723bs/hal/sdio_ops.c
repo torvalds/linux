@@ -72,9 +72,6 @@ static u8 get_deviceid(u32 addr)
 		devide_id = WLAN_IOREG_DEVICE_ID;
 		break;
 
-/* 		case 0x1027: */
-/* 			devide_id = SDIO_FIRMWARE_FIFO; */
-/* 			break; */
 
 	case 0x1031:
 		devide_id = WLAN_TX_HIQ_DEVICE_ID;
@@ -93,7 +90,6 @@ static u8 get_deviceid(u32 addr)
 		break;
 
 	default:
-/* 			devide_id = (u8)((addr >> 13) & 0xF); */
 		devide_id = WLAN_IOREG_DEVICE_ID;
 		break;
 	}
@@ -438,7 +434,6 @@ static u32 sdio_read_port(
 
 	if (cnt > psdio->block_transfer_len)
 		cnt = _RND(cnt, psdio->block_transfer_len);
-/* 	cnt = sdio_align_size(cnt); */
 
 	err = _sd_read(intfhdl, addr, cnt, mem);
 
@@ -488,7 +483,6 @@ static u32 sdio_write_port(
 
 	if (cnt > psdio->block_transfer_len)
 		cnt = _RND(cnt, psdio->block_transfer_len);
-/* 	cnt = sdio_align_size(cnt); */
 
 	err = sd_write(intfhdl, addr, cnt, xmitbuf->pdata);
 
@@ -752,22 +746,6 @@ void InitInterrupt8723BSdio(struct adapter *adapter)
 	haldata->sdio_himr = (u32)(		\
 								SDIO_HIMR_RX_REQUEST_MSK			|
 								SDIO_HIMR_AVAL_MSK					|
-/* 								SDIO_HIMR_TXERR_MSK				| */
-/* 								SDIO_HIMR_RXERR_MSK				| */
-/* 								SDIO_HIMR_TXFOVW_MSK				| */
-/* 								SDIO_HIMR_RXFOVW_MSK				| */
-/* 								SDIO_HIMR_TXBCNOK_MSK				| */
-/* 								SDIO_HIMR_TXBCNERR_MSK			| */
-/* 								SDIO_HIMR_BCNERLY_INT_MSK			| */
-/* 								SDIO_HIMR_C2HCMD_MSK				| */
-/* 								SDIO_HIMR_HSISR_IND_MSK			| */
-/* 								SDIO_HIMR_GTINT3_IND_MSK			| */
-/* 								SDIO_HIMR_GTINT4_IND_MSK			| */
-/* 								SDIO_HIMR_PSTIMEOUT_MSK			| */
-/* 								SDIO_HIMR_OCPINT_MSK				| */
-/* 								SDIO_HIMR_ATIMEND_MSK				| */
-/* 								SDIO_HIMR_ATIMEND_E_MSK			| */
-/* 								SDIO_HIMR_CTWEND_MSK				| */
 								0);
 }
 
@@ -785,11 +763,6 @@ void InitSysInterrupt8723BSdio(struct adapter *adapter)
 	haldata = GET_HAL_DATA(adapter);
 
 	haldata->SysIntrMask = (		\
-/* 							HSIMR_GPIO12_0_INT_EN			| */
-/* 							HSIMR_SPS_OCP_INT_EN			| */
-/* 							HSIMR_RON_INT_EN				| */
-/* 							HSIMR_PDNINT_EN				| */
-/* 							HSIMR_GPIO9_INT_EN				| */
 							0);
 }
 
@@ -990,7 +963,6 @@ void sd_int_dpc(struct adapter *adapter)
 
 		report.state = SdioLocalCmd52Read1Byte(adapter, SDIO_REG_HCPWM1_8723B);
 
-		/* cpwm_int_hdl(adapter, &report); */
 		_set_workitem(&(pwrctl->cpwm_event));
 	}
 
@@ -1053,7 +1025,6 @@ void sd_int_dpc(struct adapter *adapter)
 		int alloc_fail_time = 0;
 		u32 hisr;
 
-/* 		DBG_8192C("%s: RX Request, size =%d\n", __func__, hal->SdioRxFIFOSize); */
 		hal->sdio_hisr ^= SDIO_HISR_RX_REQUEST;
 		do {
 			hal->SdioRxFIFOSize = SdioLocalCmd52Read2Byte(adapter, SDIO_REG_RX0_REQ_LEN);
@@ -1131,14 +1102,12 @@ u8 HalQueryTxBufferStatus8723BSdio(struct adapter *adapter)
 {
 	struct hal_com_data *hal;
 	u32 numof_free_page;
-	/* _irql irql; */
 
 
 	hal = GET_HAL_DATA(adapter);
 
 	numof_free_page = SdioLocalCmd53Read4Byte(adapter, SDIO_REG_FREE_TXPG);
 
-	/* spin_lock_bh(&phal->SdioTxFIFOFreePageLock); */
 	memcpy(hal->SdioTxFIFOFreePage, &numof_free_page, 4);
 	RT_TRACE(_module_hci_ops_c_, _drv_notice_,
 			("%s: Free page for HIQ(%#x), MIDQ(%#x), LOWQ(%#x), PUBQ(%#x)\n",
@@ -1147,7 +1116,6 @@ u8 HalQueryTxBufferStatus8723BSdio(struct adapter *adapter)
 			hal->SdioTxFIFOFreePage[MID_QUEUE_IDX],
 			hal->SdioTxFIFOFreePage[LOW_QUEUE_IDX],
 			hal->SdioTxFIFOFreePage[PUBLIC_QUEUE_IDX]));
-	/* spin_unlock_bh(&hal->SdioTxFIFOFreePageLock); */
 
 	return true;
 }
@@ -1188,7 +1156,6 @@ u8 RecvOnePkt(struct adapter *adapter, u32 size)
 		recvbuf = sd_recv_rxfifo(adapter, size);
 
 		if (recvbuf) {
-			/* printk("Completed Recv One Pkt.\n"); */
 			sd_rxhandler(adapter, recvbuf);
 			res = true;
 		} else {
