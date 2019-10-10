@@ -51,7 +51,7 @@
 	model = "Rockchip PX5 EVB V11";
 	compatible = "rockchip,px5-evb", "rockchip,px5", "rockchip,rk3368";
 
-	chosen {
+	chosen: chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff1c0000 swiotlb=1 firmware_class.path=/system/vendor/firmware";
 	};
 
