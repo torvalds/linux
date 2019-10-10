@@ -154,12 +154,33 @@ test_dr() {
 	test_service
 }
 
+test_nat() {
+	ip netns exec ns0 ip route add ${vip_v4} via ${gip_v4} dev br0
+
+	ip netns exec ns1 sysctl -qw net.ipv4.ip_forward=1
+	ip netns exec ns1 ipvsadm -A -t ${vip_v4}:${port} -s rr
+	ip netns exec ns1 ipvsadm -a -m -t ${vip_v4}:${port} -r ${rip_v4}:${port}
+	ip netns exec ns1 ip addr add ${vip_v4}/32 dev lo:1
+
+	ip netns exec ns2 ip link del veth20
+	ip netns exec ns2 ip route add default via ${dip_v4} dev veth21
+
+	test_service
+}
+
 run_tests() {
 	local errors=
 
 	echo "Testing DR mode..."
+	cleanup
 	setup
 	test_dr
+	errors=$(( $errors + $? ))
+
+	echo "Testing NAT mode..."
+	cleanup
+	setup
+	test_nat
 	errors=$(( $errors + $? ))
 
 	return $errors
@@ -167,7 +188,6 @@ run_tests() {
 
 trap cleanup EXIT
 
-cleanup
 run_tests
 
 if [ $? -ne 0 ]; then
