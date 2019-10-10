@@ -184,8 +184,26 @@ struct drm_plane_state {
 	 */
 	struct drm_property_blob *fb_damage_clips;
 
-	/** @src: clipped source coordinates of the plane (in 16.16) */
-	/** @dst: clipped destination coordinates of the plane */
+	/**
+	 * @src:
+	 *
+	 * source coordinates of the plane (in 16.16).
+	 *
+	 * When using drm_atomic_helper_check_plane_state(),
+	 * the coordinates are clipped, but the driver may choose
+	 * to use unclipped coordinates instead when the hardware
+	 * performs the clipping automatically.
+	 */
+	/**
+	 * @dst:
+	 *
+	 * clipped destination coordinates of the plane.
+	 *
+	 * When using drm_atomic_helper_check_plane_state(),
+	 * the coordinates are clipped, but the driver may choose
+	 * to use unclipped coordinates instead when the hardware
+	 * performs the clipping automatically.
+	 */
 	struct drm_rect src, dst;
 
 	/**
