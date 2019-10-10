@@ -1198,9 +1198,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		DRM_DEV_ERROR(vop->dev, "Failed to enable vop (%d)\n", ret);
 		return;
 	}
-
-	pin_pol = BIT(DCLK_INVERT);
-	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC) ?
+	pin_pol = (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC) ?
 		   BIT(HSYNC_POSITIVE) : 0;
 	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC) ?
 		   BIT(VSYNC_POSITIVE) : 0;
@@ -1209,25 +1207,29 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	switch (s->output_type) {
 	case DRM_MODE_CONNECTOR_LVDS:
-		VOP_REG_SET(vop, output, rgb_en, 1);
+		VOP_REG_SET(vop, output, rgb_dclk_pol, 1);
 		VOP_REG_SET(vop, output, rgb_pin_pol, pin_pol);
+		VOP_REG_SET(vop, output, rgb_en, 1);
 		break;
 	case DRM_MODE_CONNECTOR_eDP:
+		VOP_REG_SET(vop, output, edp_dclk_pol, 1);
 		VOP_REG_SET(vop, output, edp_pin_pol, pin_pol);
 		VOP_REG_SET(vop, output, edp_en, 1);
 		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
+		VOP_REG_SET(vop, output, hdmi_dclk_pol, 1);
 		VOP_REG_SET(vop, output, hdmi_pin_pol, pin_pol);
 		VOP_REG_SET(vop, output, hdmi_en, 1);
 		break;
 	case DRM_MODE_CONNECTOR_DSI:
+		VOP_REG_SET(vop, output, mipi_dclk_pol, 1);
 		VOP_REG_SET(vop, output, mipi_pin_pol, pin_pol);
 		VOP_REG_SET(vop, output, mipi_en, 1);
 		VOP_REG_SET(vop, output, mipi_dual_channel_en,
 			    !!(s->output_flags & ROCKCHIP_OUTPUT_DSI_DUAL));
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
-		pin_pol &= ~BIT(DCLK_INVERT);
+		VOP_REG_SET(vop, output, dp_dclk_pol, 0);
 		VOP_REG_SET(vop, output, dp_pin_pol, pin_pol);
 		VOP_REG_SET(vop, output, dp_en, 1);
 		break;
