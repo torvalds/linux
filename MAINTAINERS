@@ -1272,6 +1272,8 @@ F:	Documentation/gpu/afbc.rst
 ARM MALI PANFROST DRM DRIVER
 M:	Rob Herring <robh@kernel.org>
 M:	Tomeu Vizoso <tomeu.vizoso@collabora.com>
+R:	Steven Price <steven.price@arm.com>
+R:	Alyssa Rosenzweig <alyssa.rosenzweig@collabora.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 T:	git git://anongit.freedesktop.org/drm/drm-misc
@@ -5376,10 +5378,20 @@ F:	include/linux/vga*
 
 DRM DRIVERS FOR ALLWINNER A10
 M:	Maxime Ripard <mripard@kernel.org>
+M:	Chen-Yu Tsai <wens@csie.org>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/sun4i/
 F:	Documentation/devicetree/bindings/display/sunxi/sun4i-drm.txt
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+
+DRM DRIVER FOR ALLWINNER DE2 AND DE3 ENGINE
+M:	Maxime Ripard <mripard@kernel.org>
+M:	Chen-Yu Tsai <wens@csie.org>
+R:	Jernej Skrabec <jernej.skrabec@siol.net>
+L:	dri-devel@lists.freedesktop.org
+S:	Supported
+F:	drivers/gpu/drm/sun4i/sun8i*
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVERS FOR AMLOGIC SOCS

@@ -1218,7 +1218,17 @@ int komeda_release_unclaimed_resources(struct komeda_pipeline *pipe,
 	return 0;
 }
 
-void komeda_pipeline_disable(struct komeda_pipeline *pipe,
+/* Since standalong disabled components must be disabled separately and in the
+ * last, So a complete disable operation may needs to call pipeline_disable
+ * twice (two phase disabling).
+ * Phase 1: disable the common components, flush it.
+ * Phase 2: disable the standalone disabled components, flush it.
+ *
+ * RETURNS:
+ * true: disable is not complete, needs a phase 2 disable.
+ * false: disable is complete.
+ */
+bool komeda_pipeline_disable(struct komeda_pipeline *pipe,
 			     struct drm_atomic_state *old_state)
 {
 	struct komeda_pipeline_state *old;
@@ -1228,9 +1238,14 @@ void komeda_pipeline_disable(struct komeda_pipeline *pipe,
 
 	old = komeda_pipeline_get_old_state(pipe, old_state);
 
-	disabling_comps = old->active_comps;
-	DRM_DEBUG_ATOMIC("PIPE%d: disabling_comps: 0x%x.\n",
-			 pipe->id, disabling_comps);
+	disabling_comps = old->active_comps &
+			  (~pipe->standalone_disabled_comps);
+	if (!disabling_comps)
+		disabling_comps = old->active_comps &
+				  pipe->standalone_disabled_comps;
+
+	DRM_DEBUG_ATOMIC("PIPE%d: active_comps: 0x%x, disabling_comps: 0x%x.\n",
+			 pipe->id, old->active_comps, disabling_comps);
 
 	dp_for_each_set_bit(id, disabling_comps) {
 		c = komeda_pipeline_get_component(pipe, id);
@@ -1248,6 +1263,13 @@ void komeda_pipeline_disable(struct komeda_pipeline *pipe,
 
 		c->funcs->disable(c);
 	}
+
+	/* Update the pipeline state, if there are components that are still
+	 * active, return true for calling the phase 2 disable.
+	 */
+	old->active_comps &= ~disabling_comps;
+
+	return old->active_comps ? true : false;
 }
 
 void komeda_pipeline_update(struct komeda_pipeline *pipe,

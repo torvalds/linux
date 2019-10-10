@@ -908,7 +908,7 @@ static void reloc_cache_init(struct reloc_cache *cache,
 	cache->use_64bit_reloc = HAS_64BIT_RELOC(i915);
 	cache->has_fence = cache->gen < 4;
 	cache->needs_unfenced = INTEL_INFO(i915)->unfenced_needs_alignment;
-	cache->node.allocated = false;
+	cache->node.flags = 0;
 	cache->ce = NULL;
 	cache->rq = NULL;
 	cache->rq_size = 0;

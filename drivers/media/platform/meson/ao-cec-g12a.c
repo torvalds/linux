@@ -736,7 +736,7 @@ out_probe_core_clk:
 	clk_disable_unprepare(ao_cec->core);
 
 out_probe_notify:
-	cec_notifier_cec_adap_unregister(ao_cec->notify);
+	cec_notifier_cec_adap_unregister(ao_cec->notify, ao_cec->adap);
 
 out_probe_adapter:
 	cec_delete_adapter(ao_cec->adap);
@@ -752,7 +752,7 @@ static int meson_ao_cec_g12a_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(ao_cec->core);
 
-	cec_notifier_cec_adap_unregister(ao_cec->notify);
+	cec_notifier_cec_adap_unregister(ao_cec->notify, ao_cec->adap);
 
 	cec_unregister_adapter(ao_cec->adap);
 

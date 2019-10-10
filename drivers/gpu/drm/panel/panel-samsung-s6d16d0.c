@@ -215,9 +215,8 @@ static int s6d16d0_probe(struct mipi_dsi_device *dsi)
 		return ret;
 	}
 
-	drm_panel_init(&s6->panel);
-	s6->panel.dev = dev;
-	s6->panel.funcs = &s6d16d0_drm_funcs;
+	drm_panel_init(&s6->panel, dev, &s6d16d0_drm_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
 	ret = drm_panel_add(&s6->panel);
 	if (ret < 0)

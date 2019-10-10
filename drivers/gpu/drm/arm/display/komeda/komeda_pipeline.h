@@ -389,6 +389,18 @@ struct komeda_pipeline {
 	int id;
 	/** @avail_comps: available components mask of pipeline */
 	u32 avail_comps;
+	/**
+	 * @standalone_disabled_comps:
+	 *
+	 * When disable the pipeline, some components can not be disabled
+	 * together with others, but need a sparated and standalone disable.
+	 * The standalone_disabled_comps are the components which need to be
+	 * disabled standalone, and this concept also introduce concept of
+	 * two phase.
+	 * phase 1: for disabling the common components.
+	 * phase 2: for disabling the standalong_disabled_comps.
+	 */
+	u32 standalone_disabled_comps;
 	/** @n_layers: the number of layer on @layers */
 	int n_layers;
 	/** @layers: the pipeline layers */
@@ -535,7 +547,7 @@ int komeda_release_unclaimed_resources(struct komeda_pipeline *pipe,
 struct komeda_pipeline_state *
 komeda_pipeline_get_old_state(struct komeda_pipeline *pipe,
 			      struct drm_atomic_state *state);
-void komeda_pipeline_disable(struct komeda_pipeline *pipe,
+bool komeda_pipeline_disable(struct komeda_pipeline *pipe,
 			     struct drm_atomic_state *old_state);
 void komeda_pipeline_update(struct komeda_pipeline *pipe,
 			    struct drm_atomic_state *old_state);

@@ -2392,7 +2392,7 @@ nv50_display_create(struct drm_device *dev)
 
 	/* cull any connectors we created that don't have an encoder */
 	list_for_each_entry_safe(connector, tmp, &dev->mode_config.connector_list, head) {
-		if (connector->encoder_ids[0])
+		if (connector->possible_encoders)
 			continue;
 
 		NV_WARN(drm, "%s has no encoders, removing\n",

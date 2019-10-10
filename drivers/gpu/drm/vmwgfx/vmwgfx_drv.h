@@ -438,6 +438,7 @@ struct vmw_private {
 	struct vmw_fifo_state fifo;
 
 	struct drm_device *dev;
+	struct drm_vma_offset_manager vma_manager;
 	unsigned long vmw_chipset;
 	unsigned int io_start;
 	uint32_t vram_start;

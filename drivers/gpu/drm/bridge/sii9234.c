@@ -13,6 +13,7 @@
  *    Dharam Kumar <dharam.kr@samsung.com>
  */
 #include <drm/bridge/mhl.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 

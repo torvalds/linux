@@ -31,6 +31,7 @@
 #include <linux/pm_runtime.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
@@ -1575,8 +1576,8 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	if (panel) {
-		dsi->bridge = devm_drm_panel_bridge_add(dev, panel,
-							DRM_MODE_CONNECTOR_DSI);
+		dsi->bridge = devm_drm_panel_bridge_add_typed(dev, panel,
+							      DRM_MODE_CONNECTOR_DSI);
 		if (IS_ERR(dsi->bridge))
 			return PTR_ERR(dsi->bridge);
 	}

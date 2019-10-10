@@ -16,6 +16,7 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_of.h>

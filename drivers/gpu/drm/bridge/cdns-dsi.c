@@ -956,7 +956,8 @@ static int cdns_dsi_attach(struct mipi_dsi_host *host,
 
 	panel = of_drm_find_panel(np);
 	if (!IS_ERR(panel)) {
-		bridge = drm_panel_bridge_add(panel, DRM_MODE_CONNECTOR_DSI);
+		bridge = drm_panel_bridge_add_typed(panel,
+						    DRM_MODE_CONNECTOR_DSI);
 	} else {
 		bridge = of_drm_find_bridge(dev->dev.of_node);
 		if (!bridge)

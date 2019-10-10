@@ -4,7 +4,8 @@ config DRM_HISI_HIBMC
 	depends on DRM && PCI && MMU && ARM64
 	select DRM_KMS_HELPER
 	select DRM_VRAM_HELPER
-
+	select DRM_TTM
+	select DRM_TTM_HELPER
 	help
 	  Choose this option if you have a Hisilicon Hibmc soc chipset.
 	  If M is selected the module will be called hibmc-drm.

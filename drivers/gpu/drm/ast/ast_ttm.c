@@ -30,7 +30,6 @@
 
 #include <drm/drm_print.h>
 #include <drm/drm_gem_vram_helper.h>
-#include <drm/drm_vram_mm_helper.h>
 
 #include "ast_drv.h"
 
@@ -42,7 +41,7 @@ int ast_mm_init(struct ast_private *ast)
 
 	vmm = drm_vram_helper_alloc_mm(
 		dev, pci_resource_start(dev->pdev, 0),
-		ast->vram_size, &drm_gem_vram_mm_funcs);
+		ast->vram_size);
 	if (IS_ERR(vmm)) {
 		ret = PTR_ERR(vmm);
 		DRM_ERROR("Error initializing VRAM MM; %d\n", ret);

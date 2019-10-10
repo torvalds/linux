@@ -1218,6 +1218,90 @@ int d71_probe_block(struct d71_dev *d71,
 	return err;
 }
 
+static void d71_gcu_dump(struct d71_dev *d71, struct seq_file *sf)
+{
+	u32 v[5];
+
+	seq_puts(sf, "\n------ GCU ------\n");
+
+	get_values_from_reg(d71->gcu_addr, 0, 3, v);
+	seq_printf(sf, "GLB_ARCH_ID:\t\t0x%X\n", v[0]);
+	seq_printf(sf, "GLB_CORE_ID:\t\t0x%X\n", v[1]);
+	seq_printf(sf, "GLB_CORE_INFO:\t\t0x%X\n", v[2]);
+
+	get_values_from_reg(d71->gcu_addr, 0x10, 1, v);
+	seq_printf(sf, "GLB_IRQ_STATUS:\t\t0x%X\n", v[0]);
+
+	get_values_from_reg(d71->gcu_addr, 0xA0, 5, v);
+	seq_printf(sf, "GCU_IRQ_RAW_STATUS:\t0x%X\n", v[0]);
+	seq_printf(sf, "GCU_IRQ_CLEAR:\t\t0x%X\n", v[1]);
+	seq_printf(sf, "GCU_IRQ_MASK:\t\t0x%X\n", v[2]);
+	seq_printf(sf, "GCU_IRQ_STATUS:\t\t0x%X\n", v[3]);
+	seq_printf(sf, "GCU_STATUS:\t\t0x%X\n", v[4]);
+
+	get_values_from_reg(d71->gcu_addr, 0xD0, 3, v);
+	seq_printf(sf, "GCU_CONTROL:\t\t0x%X\n", v[0]);
+	seq_printf(sf, "GCU_CONFIG_VALID0:\t0x%X\n", v[1]);
+	seq_printf(sf, "GCU_CONFIG_VALID1:\t0x%X\n", v[2]);
+}
+
+static void d71_lpu_dump(struct d71_pipeline *pipe, struct seq_file *sf)
+{
+	u32 v[6];
+
+	seq_printf(sf, "\n------ LPU%d ------\n", pipe->base.id);
+
+	dump_block_header(sf, pipe->lpu_addr);
+
+	get_values_from_reg(pipe->lpu_addr, 0xA0, 6, v);
+	seq_printf(sf, "LPU_IRQ_RAW_STATUS:\t0x%X\n", v[0]);
+	seq_printf(sf, "LPU_IRQ_CLEAR:\t\t0x%X\n", v[1]);
+	seq_printf(sf, "LPU_IRQ_MASK:\t\t0x%X\n", v[2]);
+	seq_printf(sf, "LPU_IRQ_STATUS:\t\t0x%X\n", v[3]);
+	seq_printf(sf, "LPU_STATUS:\t\t0x%X\n", v[4]);
+	seq_printf(sf, "LPU_TBU_STATUS:\t\t0x%X\n", v[5]);
+
+	get_values_from_reg(pipe->lpu_addr, 0xC0, 1, v);
+	seq_printf(sf, "LPU_INFO:\t\t0x%X\n", v[0]);
+
+	get_values_from_reg(pipe->lpu_addr, 0xD0, 3, v);
+	seq_printf(sf, "LPU_RAXI_CONTROL:\t0x%X\n", v[0]);
+	seq_printf(sf, "LPU_WAXI_CONTROL:\t0x%X\n", v[1]);
+	seq_printf(sf, "LPU_TBU_CONTROL:\t0x%X\n", v[2]);
+}
+
+static void d71_dou_dump(struct d71_pipeline *pipe, struct seq_file *sf)
+{
+	u32 v[5];
+
+	seq_printf(sf, "\n------ DOU%d ------\n", pipe->base.id);
+
+	dump_block_header(sf, pipe->dou_addr);
+
+	get_values_from_reg(pipe->dou_addr, 0xA0, 5, v);
+	seq_printf(sf, "DOU_IRQ_RAW_STATUS:\t0x%X\n", v[0]);
+	seq_printf(sf, "DOU_IRQ_CLEAR:\t\t0x%X\n", v[1]);
+	seq_printf(sf, "DOU_IRQ_MASK:\t\t0x%X\n", v[2]);
+	seq_printf(sf, "DOU_IRQ_STATUS:\t\t0x%X\n", v[3]);
+	seq_printf(sf, "DOU_STATUS:\t\t0x%X\n", v[4]);
+}
+
+static void d71_pipeline_dump(struct komeda_pipeline *pipe, struct seq_file *sf)
+{
+	struct d71_pipeline *d71_pipe = to_d71_pipeline(pipe);
+
+	d71_lpu_dump(d71_pipe, sf);
+	d71_dou_dump(d71_pipe, sf);
+}
+
 const struct komeda_pipeline_funcs d71_pipeline_funcs = {
-	.downscaling_clk_check = d71_downscaling_clk_check,
+	.downscaling_clk_check	= d71_downscaling_clk_check,
+	.dump_register		= d71_pipeline_dump,
 };
+
+void d71_dump(struct komeda_dev *mdev, struct seq_file *sf)
+{
+	struct d71_dev *d71 = mdev->chip_data;
+
+	d71_gcu_dump(d71, sf);
+}

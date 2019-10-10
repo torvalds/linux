@@ -287,7 +287,7 @@ struct drm_dp_remote_dpcd_write {
 struct drm_dp_remote_i2c_read {
 	u8 num_transactions;
 	u8 port_number;
-	struct {
+	struct drm_dp_remote_i2c_read_tx {
 		u8 i2c_dev_id;
 		u8 num_bytes;
 		u8 *bytes;
@@ -334,7 +334,7 @@ struct drm_dp_resource_status_notify {
 
 struct drm_dp_query_payload_ack_reply {
 	u8 port_number;
-	u8 allocated_pbn;
+	u16 allocated_pbn;
 };
 
 struct drm_dp_sideband_msg_req_body {
@@ -481,15 +481,11 @@ struct drm_dp_mst_topology_mgr {
 	int conn_base_id;
 
 	/**
-	 * @down_rep_recv: Message receiver state for down replies. This and
-	 * @up_req_recv are only ever access from the work item, which is
-	 * serialised.
+	 * @down_rep_recv: Message receiver state for down replies.
 	 */
 	struct drm_dp_sideband_msg_rx down_rep_recv;
 	/**
-	 * @up_req_recv: Message receiver state for up requests. This and
-	 * @down_rep_recv are only ever access from the work item, which is
-	 * serialised.
+	 * @up_req_recv: Message receiver state for up requests.
 	 */
 	struct drm_dp_sideband_msg_rx up_req_recv;
 
