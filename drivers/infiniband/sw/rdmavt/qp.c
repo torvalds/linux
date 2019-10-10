@@ -2563,10 +2563,9 @@ void rvt_add_retry_timer_ext(struct rvt_qp *qp, u8 shift)
 EXPORT_SYMBOL(rvt_add_retry_timer_ext);
 
 /**
- * rvt_add_rnr_timer - add/start an rnr timer
- * @qp - the QP
- * @aeth - aeth of RNR timeout, simulated aeth for loopback
- * add an rnr timer on the QP
+ * rvt_add_rnr_timer - add/start an rnr timer on the QP
+ * @qp: the QP
+ * @aeth: aeth of RNR timeout, simulated aeth for loopback
  */
 void rvt_add_rnr_timer(struct rvt_qp *qp, u32 aeth)
 {
@@ -2583,7 +2582,7 @@ EXPORT_SYMBOL(rvt_add_rnr_timer);
 
 /**
  * rvt_stop_rc_timers - stop all timers
- * @qp - the QP
+ * @qp: the QP
  * stop any pending timers
  */
 void rvt_stop_rc_timers(struct rvt_qp *qp)
@@ -2617,7 +2616,7 @@ static void rvt_stop_rnr_timer(struct rvt_qp *qp)
 
 /**
  * rvt_del_timers_sync - wait for any timeout routines to exit
- * @qp - the QP
+ * @qp: the QP
  */
 void rvt_del_timers_sync(struct rvt_qp *qp)
 {
@@ -2626,7 +2625,7 @@ void rvt_del_timers_sync(struct rvt_qp *qp)
 }
 EXPORT_SYMBOL(rvt_del_timers_sync);
 
-/**
+/*
  * This is called from s_timer for missing responses.
  */
 static void rvt_rc_timeout(struct timer_list *t)
@@ -2676,12 +2675,13 @@ EXPORT_SYMBOL(rvt_rc_rnr_retry);
  * rvt_qp_iter_init - initial for QP iteration
  * @rdi: rvt devinfo
  * @v: u64 value
+ * @cb: user-defined callback
  *
  * This returns an iterator suitable for iterating QPs
  * in the system.
  *
- * The @cb is a user defined callback and @v is a 64
- * bit value passed to and relevant for processing in the
+ * The @cb is a user-defined callback and @v is a 64-bit
+ * value passed to and relevant for processing in the
  * @cb.  An example use case would be to alter QP processing
  * based on criteria not part of the rvt_qp.
  *
@@ -2712,7 +2712,7 @@ EXPORT_SYMBOL(rvt_qp_iter_init);
 
 /**
  * rvt_qp_iter_next - return the next QP in iter
- * @iter - the iterator
+ * @iter: the iterator
  *
  * Fine grained QP iterator suitable for use
  * with debugfs seq_file mechanisms.
@@ -2775,14 +2775,14 @@ EXPORT_SYMBOL(rvt_qp_iter_next);
 
 /**
  * rvt_qp_iter - iterate all QPs
- * @rdi - rvt devinfo
- * @v - a 64 bit value
- * @cb - a callback
+ * @rdi: rvt devinfo
+ * @v: a 64-bit value
+ * @cb: a callback
  *
  * This provides a way for iterating all QPs.
  *
- * The @cb is a user defined callback and @v is a 64
- * bit value passed to and relevant for processing in the
+ * The @cb is a user-defined callback and @v is a 64-bit
+ * value passed to and relevant for processing in the
  * cb.  An example use case would be to alter QP processing
  * based on criteria not part of the rvt_qp.
  *
