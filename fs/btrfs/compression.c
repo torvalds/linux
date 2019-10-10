@@ -39,6 +39,8 @@ const char* btrfs_compress_type2str(enum btrfs_compression_type type)
 	case BTRFS_COMPRESS_ZSTD:
 	case BTRFS_COMPRESS_NONE:
 		return btrfs_compress_types[type];
+	default:
+		break;
 	}
 
 	return NULL;

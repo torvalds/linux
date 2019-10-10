@@ -1409,7 +1409,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		return -EINVAL;
 
 	if (do_compress) {
-		if (range->compress_type > BTRFS_COMPRESS_TYPES)
+		if (range->compress_type >= BTRFS_NR_COMPRESS_TYPES)
 			return -EINVAL;
 		if (range->compress_type)
 			compress_type = range->compress_type;

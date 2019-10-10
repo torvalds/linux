@@ -105,7 +105,7 @@ enum btrfs_compression_type {
 	BTRFS_COMPRESS_ZLIB  = 1,
 	BTRFS_COMPRESS_LZO   = 2,
 	BTRFS_COMPRESS_ZSTD  = 3,
-	BTRFS_COMPRESS_TYPES = 3,
+	BTRFS_NR_COMPRESS_TYPES = 4,
 };
 
 struct workspace_manager {
@@ -163,7 +163,7 @@ struct btrfs_compress_op {
 };
 
 /* The heuristic workspaces are managed via the 0th workspace manager */
-#define BTRFS_NR_WORKSPACE_MANAGERS	(BTRFS_COMPRESS_TYPES + 1)
+#define BTRFS_NR_WORKSPACE_MANAGERS	BTRFS_NR_COMPRESS_TYPES
 
 extern const struct btrfs_compress_op btrfs_heuristic_compress;
 extern const struct btrfs_compress_op btrfs_zlib_compress;
