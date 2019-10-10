@@ -170,6 +170,8 @@ struct dma_trx_obj {
 	int				busno;
 	void				*priv;
 	struct completion		done;
+	int				ref_count;
+	struct mutex			count_mutex;
 	unsigned long			irq_num;
 	struct dentry			*pcie_root;
 };

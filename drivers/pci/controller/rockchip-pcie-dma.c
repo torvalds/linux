@@ -362,6 +362,10 @@ static int rk_pcie_misc_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = pcie_misc_dev->obj;
 
+	mutex_lock(&pcie_misc_dev->obj->count_mutex);
+	if (pcie_misc_dev->obj->ref_count++)
+		goto already_opened;
+
 	pcie_misc_dev->obj->loop_count = 0;
 	pcie_misc_dev->obj->local_read_available = 0x0;
 	pcie_misc_dev->obj->local_write_available = 0xff;
@@ -370,13 +374,23 @@ static int rk_pcie_misc_open(struct inode *inode, struct file *filp)
 
 	pr_info("Open pcie misc device success\n");
 
+already_opened:
+	mutex_unlock(&pcie_misc_dev->obj->count_mutex);
 	return 0;
 }
 
 static int rk_pcie_misc_release(struct inode *inode, struct file *filp)
 {
+	struct dma_trx_obj *obj = filp->private_data;
+
+	mutex_lock(&obj->count_mutex);
+	if (--obj->ref_count)
+		goto still_opened;
+
 	pr_info("Close pcie misc device\n");
 
+still_opened:
+	mutex_unlock(&obj->count_mutex);
 	return 0;
 }
 
@@ -715,8 +729,10 @@ struct dma_trx_obj *rk_pcie_dma_obj_probe(struct device *dev)
 
 	obj->irq_num = 0;
 	obj->loop_count_threshold = 0;
+	obj->ref_count = 0;
 	init_completion(&obj->done);
 
+	mutex_init(&obj->count_mutex);
 	rk_pcie_add_misc(obj);
 
 #ifdef CONFIG_DEBUG_FS
