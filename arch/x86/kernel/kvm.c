@@ -33,6 +33,7 @@
 #include <asm/apicdef.h>
 #include <asm/hypervisor.h>
 #include <asm/tlb.h>
+#include <asm/cpuidle_haltpoll.h>
 
 static int kvmapf = 1;
 
