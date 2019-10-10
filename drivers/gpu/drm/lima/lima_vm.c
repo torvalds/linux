@@ -56,7 +56,7 @@ static int lima_vm_map_page(struct lima_vm *vm, dma_addr_t pa, u32 va)
 
 		vm->bts[pbe].cpu = dma_alloc_wc(
 			vm->dev->dev, LIMA_PAGE_SIZE << LIMA_VM_NUM_PT_PER_BT_SHIFT,
-			&vm->bts[pbe].dma, GFP_KERNEL | __GFP_ZERO);
+			&vm->bts[pbe].dma, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
 		if (!vm->bts[pbe].cpu)
 			return -ENOMEM;
 
@@ -208,7 +208,7 @@ struct lima_vm *lima_vm_create(struct lima_device *dev)
 	kref_init(&vm->refcount);
 
 	vm->pd.cpu = dma_alloc_wc(dev->dev, LIMA_PAGE_SIZE, &vm->pd.dma,
-				  GFP_KERNEL | __GFP_ZERO);
+				  GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
 	if (!vm->pd.cpu)
 		goto err_out0;
 
