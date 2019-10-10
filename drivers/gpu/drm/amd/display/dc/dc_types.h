@@ -420,20 +420,9 @@ enum link_training_offset {
 	LTTPR_PHY_REPEATER8 = 8
 };
 
-enum lttpr_mode {
-	phy_repeater_mode_transparent		= 0x55,
-	phy_repeater_mode_non_transparent	= 0xAA
-};
-
-enum lttpr_rev {
-	lttpr_rev_unknown	= 0x0,
-	lttpr_rev_14		= 0x14,
-	lttpr_rev_max		= 0x20
-};
-
 struct dc_lttpr_caps {
-	enum lttpr_rev revision;
-	enum lttpr_mode mode;
+	union dpcd_rev revision;
+	uint8_t mode;
 	uint8_t max_lane_count;
 	uint8_t max_link_rate;
 	uint8_t phy_repeater_cnt;

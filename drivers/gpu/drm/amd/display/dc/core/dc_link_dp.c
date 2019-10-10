@@ -1172,7 +1172,7 @@ static void configure_lttpr_mode(struct dc_link *link)
 	uint8_t repeater_cnt;
 	uint32_t aux_interval_address;
 	uint8_t repeater_id;
-	enum lttpr_mode repeater_mode = phy_repeater_mode_transparent;
+	uint8_t repeater_mode = DP_PHY_REPEATER_MODE_TRANSPARENT;
 
 	core_link_write_dpcd(link,
 			DP_PHY_REPEATER_MODE,
@@ -1180,7 +1180,7 @@ static void configure_lttpr_mode(struct dc_link *link)
 			sizeof(repeater_mode));
 
 	if (!link->is_lttpr_mode_transparent) {
-		repeater_mode = phy_repeater_mode_non_transparent;
+		repeater_mode = DP_PHY_REPEATER_MODE_NON_TRANSPARENT;
 		core_link_write_dpcd(link,
 				DP_PHY_REPEATER_MODE,
 				(uint8_t *)&repeater_mode,
@@ -2964,7 +2964,11 @@ static void dp_wa_power_up_0010FA(struct dc_link *link, uint8_t *dpcd_data,
 
 static bool retrieve_link_cap(struct dc_link *link)
 {
-	uint8_t dpcd_data[DP_ADAPTER_CAP - DP_DPCD_REV + 1];
+	/* DP_ADAPTER_CAP - DP_DPCD_REV + 1 == 16 and also DP_DSC_BITS_PER_PIXEL_INC - DP_DSC_SUPPORT + 1 == 16,
+	 * which means size 16 will be good for both of those DPCD register block reads
+	 */
+	uint8_t dpcd_data[16];
+	uint8_t lttpr_dpcd_data[6];
 
 	/*Only need to read 1 byte starting from DP_DPRX_FEATURE_ENUMERATION_LIST.
 	 */
@@ -2977,7 +2981,6 @@ static bool retrieve_link_cap(struct dc_link *link)
 	union dp_downstream_port_present ds_port = { 0 };
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	uint32_t read_dpcd_retry_cnt = 3;
-	uint32_t prev_timeout_val;
 	int i;
 	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
 
@@ -2988,12 +2991,12 @@ static bool retrieve_link_cap(struct dc_link *link)
 	link->is_lttpr_mode_transparent = true;
 
 	if (ext_timeout_support) {
-		prev_timeout_val =
-				dc_link_aux_configure_timeout(link->ddc,
-						LINK_AUX_DEFAULT_EXTENDED_TIMEOUT_PERIOD);
+		dc_link_aux_configure_timeout(link->ddc,
+					LINK_AUX_DEFAULT_EXTENDED_TIMEOUT_PERIOD);
 	}
 
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
+	memset(lttpr_dpcd_data, '\0', sizeof(lttpr_dpcd_data));
 	memset(&down_strm_port_count,
 		'\0', sizeof(union down_stream_port_count));
 	memset(&edp_config_cap, '\0',
@@ -3026,47 +3029,46 @@ static bool retrieve_link_cap(struct dc_link *link)
 	}
 
 	if (ext_timeout_support) {
+
 		status = core_link_read_dpcd(
 				link,
-				DP_PHY_REPEATER_CNT,
-				&link->dpcd_caps.lttpr_caps.phy_repeater_cnt,
-				sizeof(link->dpcd_caps.lttpr_caps.phy_repeater_cnt));
+				DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV,
+				lttpr_dpcd_data,
+				sizeof(lttpr_dpcd_data));
 
-		if (link->dpcd_caps.lttpr_caps.phy_repeater_cnt > 0) {
+		link->dpcd_caps.lttpr_caps.revision.raw =
+				lttpr_dpcd_data[DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
 
+		link->dpcd_caps.lttpr_caps.max_link_rate =
+				lttpr_dpcd_data[DP_MAX_LINK_RATE_PHY_REPEATER -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.phy_repeater_cnt =
+				lttpr_dpcd_data[DP_PHY_REPEATER_CNT -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.max_lane_count =
+				lttpr_dpcd_data[DP_MAX_LANE_COUNT_PHY_REPEATER -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.mode =
+				lttpr_dpcd_data[DP_PHY_REPEATER_MODE -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.max_ext_timeout =
+				lttpr_dpcd_data[DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		if (link->dpcd_caps.lttpr_caps.phy_repeater_cnt > 0 &&
+				link->dpcd_caps.lttpr_caps.max_lane_count > 0 &&
+				link->dpcd_caps.lttpr_caps.max_lane_count <= 4 &&
+				link->dpcd_caps.lttpr_caps.revision.raw >= 0x14) {
 			link->is_lttpr_mode_transparent = false;
-
-			status = core_link_read_dpcd(
-					link,
-					DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV,
-					(uint8_t *)&link->dpcd_caps.lttpr_caps.revision,
-					sizeof(link->dpcd_caps.lttpr_caps.revision));
-
-			status = core_link_read_dpcd(
-					link,
-					DP_MAX_LINK_RATE_PHY_REPEATER,
-					&link->dpcd_caps.lttpr_caps.max_link_rate,
-					sizeof(link->dpcd_caps.lttpr_caps.max_link_rate));
-
-			status = core_link_read_dpcd(
-					link,
-					DP_PHY_REPEATER_MODE,
-					(uint8_t *)&link->dpcd_caps.lttpr_caps.mode,
-					sizeof(link->dpcd_caps.lttpr_caps.mode));
-
-			status = core_link_read_dpcd(
-					link,
-					DP_MAX_LANE_COUNT_PHY_REPEATER,
-					&link->dpcd_caps.lttpr_caps.max_lane_count,
-					sizeof(link->dpcd_caps.lttpr_caps.max_lane_count));
-
-			status = core_link_read_dpcd(
-					link,
-					DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT,
-					&link->dpcd_caps.lttpr_caps.max_ext_timeout,
-					sizeof(link->dpcd_caps.lttpr_caps.max_ext_timeout));
 		} else {
-			dc_link_aux_configure_timeout(link->ddc, prev_timeout_val);
+			/*No lttpr reset timeout to its default value*/
+			link->is_lttpr_mode_transparent = true;
+			dc_link_aux_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
 		}
 	}
 
