@@ -244,6 +244,8 @@ EXPORT_SYMBOL(rdma_port_get_link_layer);
 /**
  * ib_alloc_pd - Allocates an unused protection domain.
  * @device: The device on which to allocate the protection domain.
+ * @flags: protection domain flags
+ * @caller: caller's build-time module name
  *
  * A protection domain object provides an association between QPs, shared
  * receive queues, address handles, memory regions, and memory windows.
