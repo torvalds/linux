@@ -244,7 +244,7 @@ static struct ion_heap_ops system_heap_ops = {
 	.shrink = ion_system_heap_shrink,
 };
 
-struct ion_system_heap system_heap = {
+static struct ion_system_heap system_heap = {
 	.heap = {
 		.ops = &system_heap_ops,
 		.type = ION_HEAP_TYPE_SYSTEM,
