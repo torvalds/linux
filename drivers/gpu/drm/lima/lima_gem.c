@@ -3,7 +3,7 @@
 
 #include <linux/mm.h>
 #include <linux/sync_file.h>
-#include <linux/pfn_t.h>
+#include <linux/pagemap.h>
 
 #include <drm/drm_file.h>
 #include <drm/drm_syncobj.h>
@@ -13,40 +13,55 @@
 
 #include "lima_drv.h"
 #include "lima_gem.h"
-#include "lima_gem_prime.h"
 #include "lima_vm.h"
-#include "lima_object.h"
 
 int lima_gem_create_handle(struct drm_device *dev, struct drm_file *file,
 			   u32 size, u32 flags, u32 *handle)
 {
 	int err;
-	struct lima_bo *bo;
-	struct lima_device *ldev = to_lima_dev(dev);
+	gfp_t mask;
+	struct drm_gem_shmem_object *shmem;
+	struct drm_gem_object *obj;
+	struct sg_table *sgt;
 
-	bo = lima_bo_create(ldev, size, flags, NULL);
-	if (IS_ERR(bo))
-		return PTR_ERR(bo);
+	shmem = drm_gem_shmem_create(dev, size);
+	if (IS_ERR(shmem))
+		return PTR_ERR(shmem);
 
-	err = drm_gem_handle_create(file, &bo->gem, handle);
+	obj = &shmem->base;
 
+	/* Mali Utgard GPU can only support 32bit address space */
+	mask = mapping_gfp_mask(obj->filp->f_mapping);
+	mask &= ~__GFP_HIGHMEM;
+	mask |= __GFP_DMA32;
+	mapping_set_gfp_mask(obj->filp->f_mapping, mask);
+
+	sgt = drm_gem_shmem_get_pages_sgt(obj);
+	if (IS_ERR(sgt)) {
+		err = PTR_ERR(sgt);
+		goto out;
+	}
+
+	err = drm_gem_handle_create(file, obj, handle);
+
+out:
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_put_unlocked(&bo->gem);
+	drm_gem_object_put_unlocked(obj);
 
 	return err;
 }
 
-void lima_gem_free_object(struct drm_gem_object *obj)
+static void lima_gem_free_object(struct drm_gem_object *obj)
 {
 	struct lima_bo *bo = to_lima_bo(obj);
 
 	if (!list_empty(&bo->va))
 		dev_err(obj->dev->dev, "lima gem free bo still has va\n");
 
-	lima_bo_destroy(bo);
+	drm_gem_shmem_free_object(obj);
 }
 
-int lima_gem_object_open(struct drm_gem_object *obj, struct drm_file *file)
+static int lima_gem_object_open(struct drm_gem_object *obj, struct drm_file *file)
 {
 	struct lima_bo *bo = to_lima_bo(obj);
 	struct lima_drm_priv *priv = to_lima_drm_priv(file);
@@ -55,7 +70,7 @@ int lima_gem_object_open(struct drm_gem_object *obj, struct drm_file *file)
 	return lima_vm_bo_add(vm, bo, true);
 }
 
-void lima_gem_object_close(struct drm_gem_object *obj, struct drm_file *file)
+static void lima_gem_object_close(struct drm_gem_object *obj, struct drm_file *file)
 {
 	struct lima_bo *bo = to_lima_bo(obj);
 	struct lima_drm_priv *priv = to_lima_drm_priv(file);
@@ -64,13 +79,41 @@ void lima_gem_object_close(struct drm_gem_object *obj, struct drm_file *file)
 	lima_vm_bo_del(vm, bo);
 }
 
+static const struct drm_gem_object_funcs lima_gem_funcs = {
+	.free = lima_gem_free_object,
+	.open = lima_gem_object_open,
+	.close = lima_gem_object_close,
+	.print_info = drm_gem_shmem_print_info,
+	.pin = drm_gem_shmem_pin,
+	.unpin = drm_gem_shmem_unpin,
+	.get_sg_table = drm_gem_shmem_get_sg_table,
+	.vmap = drm_gem_shmem_vmap,
+	.vunmap = drm_gem_shmem_vunmap,
+	.mmap = drm_gem_shmem_mmap,
+};
+
+struct drm_gem_object *lima_gem_create_object(struct drm_device *dev, size_t size)
+{
+	struct lima_bo *bo;
+
+	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	if (!bo)
+		return NULL;
+
+	mutex_init(&bo->lock);
+	INIT_LIST_HEAD(&bo->va);
+
+	bo->base.base.funcs = &lima_gem_funcs;
+
+	return &bo->base.base;
+}
+
 int lima_gem_get_info(struct drm_file *file, u32 handle, u32 *va, u64 *offset)
 {
 	struct drm_gem_object *obj;
 	struct lima_bo *bo;
 	struct lima_drm_priv *priv = to_lima_drm_priv(file);
 	struct lima_vm *vm = priv->vm;
-	int err;
 
 	obj = drm_gem_object_lookup(file, handle);
 	if (!obj)
@@ -80,53 +123,9 @@ int lima_gem_get_info(struct drm_file *file, u32 handle, u32 *va, u64 *offset)
 
 	*va = lima_vm_get_va(vm, bo);
 
-	err = drm_gem_create_mmap_offset(obj);
-	if (!err)
-		*offset = drm_vma_node_offset_addr(&obj->vma_node);
+	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 
 	drm_gem_object_put_unlocked(obj);
-	return err;
-}
-
-static vm_fault_t lima_gem_fault(struct vm_fault *vmf)
-{
-	struct vm_area_struct *vma = vmf->vma;
-	struct drm_gem_object *obj = vma->vm_private_data;
-	struct lima_bo *bo = to_lima_bo(obj);
-	pfn_t pfn;
-	pgoff_t pgoff;
-
-	/* We don't use vmf->pgoff since that has the fake offset: */
-	pgoff = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
-	pfn = __pfn_to_pfn_t(page_to_pfn(bo->pages[pgoff]), PFN_DEV);
-
-	return vmf_insert_mixed(vma, vmf->address, pfn);
-}
-
-const struct vm_operations_struct lima_gem_vm_ops = {
-	.fault = lima_gem_fault,
-	.open = drm_gem_vm_open,
-	.close = drm_gem_vm_close,
-};
-
-void lima_set_vma_flags(struct vm_area_struct *vma)
-{
-	pgprot_t prot = vm_get_page_prot(vma->vm_flags);
-
-	vma->vm_flags |= VM_MIXEDMAP;
-	vma->vm_flags &= ~VM_PFNMAP;
-	vma->vm_page_prot = pgprot_writecombine(prot);
-}
-
-int lima_gem_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	int ret;
-
-	ret = drm_gem_mmap(filp, vma);
-	if (ret)
-		return ret;
-
-	lima_set_vma_flags(vma);
 	return 0;
 }
 
@@ -136,7 +135,7 @@ static int lima_gem_sync_bo(struct lima_sched_task *task, struct lima_bo *bo,
 	int err = 0;
 
 	if (!write) {
-		err = dma_resv_reserve_shared(bo->gem.resv, 1);
+		err = dma_resv_reserve_shared(lima_bo_resv(bo), 1);
 		if (err)
 			return err;
 	}
@@ -145,7 +144,7 @@ static int lima_gem_sync_bo(struct lima_sched_task *task, struct lima_bo *bo,
 	if (explicit)
 		return 0;
 
-	return drm_gem_fence_array_add_implicit(&task->deps, &bo->gem, write);
+	return drm_gem_fence_array_add_implicit(&task->deps, &bo->base.base, write);
 }
 
 static int lima_gem_lock_bos(struct lima_bo **bos, u32 nr_bos,
@@ -162,7 +161,7 @@ retry:
 			continue;
 		}
 
-		ret = ww_mutex_lock_interruptible(&bos[i]->gem.resv->lock, ctx);
+		ret = ww_mutex_lock_interruptible(&lima_bo_resv(bos[i])->lock, ctx);
 		if (ret < 0) {
 			contended = i;
 			goto err;
@@ -174,15 +173,15 @@ retry:
 
 err:
 	for (i--; i >= 0; i--)
-		ww_mutex_unlock(&bos[i]->gem.resv->lock);
+		ww_mutex_unlock(&lima_bo_resv(bos[i])->lock);
 
 	if (slow_locked >= 0)
-		ww_mutex_unlock(&bos[slow_locked]->gem.resv->lock);
+		ww_mutex_unlock(&lima_bo_resv(bos[slow_locked])->lock);
 
 	if (ret == -EDEADLK) {
 		/* we lost out in a seqno race, lock and retry.. */
 		ret = ww_mutex_lock_slow_interruptible(
-			&bos[contended]->gem.resv->lock, ctx);
+			&lima_bo_resv(bos[contended])->lock, ctx);
 		if (!ret) {
 			slow_locked = contended;
 			goto retry;
@@ -199,7 +198,7 @@ static void lima_gem_unlock_bos(struct lima_bo **bos, u32 nr_bos,
 	int i;
 
 	for (i = 0; i < nr_bos; i++)
-		ww_mutex_unlock(&bos[i]->gem.resv->lock);
+		ww_mutex_unlock(&lima_bo_resv(bos[i])->lock);
 	ww_acquire_fini(ctx);
 }
 
@@ -296,15 +295,15 @@ int lima_gem_submit(struct drm_file *file, struct lima_submit *submit)
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		if (submit->bos[i].flags & LIMA_SUBMIT_BO_WRITE)
-			dma_resv_add_excl_fence(bos[i]->gem.resv, fence);
+			dma_resv_add_excl_fence(lima_bo_resv(bos[i]), fence);
 		else
-			dma_resv_add_shared_fence(bos[i]->gem.resv, fence);
+			dma_resv_add_shared_fence(lima_bo_resv(bos[i]), fence);
 	}
 
 	lima_gem_unlock_bos(bos, submit->nr_bos, &ctx);
 
 	for (i = 0; i < submit->nr_bos; i++)
-		drm_gem_object_put_unlocked(&bos[i]->gem);
+		drm_gem_object_put_unlocked(&bos[i]->base.base);
 
 	if (out_sync) {
 		drm_syncobj_replace_fence(out_sync, fence);
@@ -324,7 +323,7 @@ err_out0:
 		if (!bos[i])
 			break;
 		lima_vm_bo_del(vm, bos[i]);
-		drm_gem_object_put_unlocked(&bos[i]->gem);
+		drm_gem_object_put_unlocked(&bos[i]->base.base);
 	}
 	if (out_sync)
 		drm_syncobj_put(out_sync);
