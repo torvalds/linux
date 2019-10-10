@@ -271,6 +271,15 @@ enum dpu_intf_mode dpu_crtc_get_intf_mode(struct drm_crtc *crtc)
 		return INTF_MODE_NONE;
 	}
 
+	/*
+	 * TODO: This function is called from dpu debugfs and as part of atomic
+	 * check. When called from debugfs, the crtc->mutex must be held to
+	 * read crtc->state. However reading crtc->state from atomic check isn't
+	 * allowed (unless you have a good reason, a big comment, and a deep
+	 * understanding of how the atomic/modeset locks work (<- and this is
+	 * probably not possible)). So we'll keep the WARN_ON here for now, but
+	 * really we need to figure out a better way to track our operating mode
+	 */
 	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 
 	/* TODO: Returns the first INTF_MODE, could there be multiple values? */
