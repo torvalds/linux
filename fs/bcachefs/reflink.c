@@ -2,8 +2,8 @@
 #include "bcachefs.h"
 #include "btree_update.h"
 #include "extents.h"
-#include "fs.h"
-#include "fs-io.h"
+#include "inode.h"
+#include "io.h"
 #include "reflink.h"
 
 #include <linux/sched/signal.h>
@@ -69,12 +69,6 @@ void bch2_reflink_v_to_text(struct printbuf *out, struct bch_fs *c,
 
 	bch2_bkey_ptrs_to_text(out, c, k);
 }
-
-/*
- * bch2_remap_range() depends on bch2_extent_update(), which depends on various
- * things tied to the linux vfs for inode updates, for now:
- */
-#ifndef NO_BCACHEFS_FS
 
 static int bch2_make_extent_indirect(struct btree_trans *trans,
 				     struct btree_iter *extent_iter,
@@ -159,9 +153,9 @@ static struct bkey_s_c get_next_src(struct btree_iter *iter, struct bpos end)
 }
 
 s64 bch2_remap_range(struct bch_fs *c,
-		     struct bch_inode_info *dst_inode,
 		     struct bpos dst_start, struct bpos src_start,
-		     u64 remap_sectors, u64 new_i_size)
+		     u64 remap_sectors, u64 *journal_seq,
+		     u64 new_i_size, s64 *i_sectors_delta)
 {
 	struct btree_trans trans;
 	struct btree_iter *dst_iter, *src_iter;
@@ -170,7 +164,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 	struct bpos dst_end = dst_start, src_end = src_start;
 	struct bpos dst_want, src_want;
 	u64 src_done, dst_done;
-	int ret = 0;
+	int ret = 0, ret2 = 0;
 
 	if (!(c->sb.features & (1ULL << BCH_FEATURE_REFLINK))) {
 		mutex_lock(&c->sb_lock);
@@ -213,7 +207,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 
 		if (bkey_cmp(dst_iter->pos, dst_want) < 0) {
 			ret = bch2_fpunch_at(&trans, dst_iter, dst_want,
-					     dst_inode);
+					     journal_seq, i_sectors_delta);
 			if (ret)
 				goto btree_err;
 			continue;
@@ -259,9 +253,9 @@ s64 bch2_remap_range(struct bch_fs *c,
 				min(src_k.k->p.offset - src_iter->pos.offset,
 				    dst_end.offset - dst_iter->pos.offset));
 
-		ret = bchfs_extent_update(&trans, dst_inode, NULL, NULL,
-					  dst_iter, &new_dst.k,
-					  new_i_size, false, true, NULL);
+		ret = bch2_extent_update(&trans, dst_iter, &new_dst.k,
+					 NULL, journal_seq,
+					 new_i_size, i_sectors_delta);
 		if (ret)
 			goto btree_err;
 
@@ -282,17 +276,24 @@ err:
 	dst_done = dst_iter->pos.offset - dst_start.offset;
 	new_i_size = min(dst_iter->pos.offset << 9, new_i_size);
 
+	bch2_trans_begin(&trans);
+
+	do {
+		struct bch_inode_unpacked inode_u;
+		struct btree_iter *inode_iter;
+
+		inode_iter = bch2_inode_peek(&trans, &inode_u,
+				dst_start.inode, BTREE_ITER_INTENT);
+		ret2 = PTR_ERR_OR_ZERO(inode_iter);
+
+		if (!ret2 &&
+		    inode_u.bi_size < new_i_size)
+			ret2  = bch2_inode_write(&trans, inode_iter, &inode_u) ?:
+				bch2_trans_commit(&trans, NULL, journal_seq,
+						  BTREE_INSERT_ATOMIC);
+	} while (ret2 == -EINTR);
+
 	ret = bch2_trans_exit(&trans) ?: ret;
 
-	mutex_lock(&dst_inode->ei_update_lock);
-	if (dst_inode->v.i_size < new_i_size) {
-		i_size_write(&dst_inode->v, new_i_size);
-		ret = bch2_write_inode_size(c, dst_inode, new_i_size,
-					    ATTR_MTIME|ATTR_CTIME);
-	}
-	mutex_unlock(&dst_inode->ei_update_lock);
-
-	return dst_done ?: ret;
+	return dst_done ?: ret ?: ret2;
 }
-
-#endif /* NO_BCACHEFS_FS */

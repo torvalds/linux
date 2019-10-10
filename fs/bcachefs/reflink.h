@@ -24,9 +24,7 @@ void bch2_reflink_v_to_text(struct printbuf *, struct bch_fs *,
 	.val_to_text	= bch2_reflink_v_to_text,		\
 }
 
-#ifndef NO_BCACHEFS_FS
-s64 bch2_remap_range(struct bch_fs *, struct bch_inode_info *,
-		     struct bpos, struct bpos, u64, u64);
-#endif /* NO_BCACHEFS_FS */
+s64 bch2_remap_range(struct bch_fs *, struct bpos, struct bpos,
+		     u64, u64 *, u64, s64 *);
 
 #endif /* _BCACHEFS_REFLINK_H */

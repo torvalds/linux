@@ -319,6 +319,77 @@ int bch2_extent_update(struct btree_trans *trans,
 	return ret;
 }
 
+int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
+		   struct bpos end, u64 *journal_seq,
+		   s64 *i_sectors_delta)
+{
+	struct bch_fs *c	= trans->c;
+	unsigned max_sectors	= KEY_SIZE_MAX & (~0 << c->block_bits);
+	struct bkey_s_c k;
+	int ret = 0, ret2 = 0;
+
+	while ((k = bch2_btree_iter_peek(iter)).k &&
+	       bkey_cmp(iter->pos, end) < 0) {
+		struct disk_reservation disk_res =
+			bch2_disk_reservation_init(c, 0);
+		struct bkey_i delete;
+
+		ret = bkey_err(k);
+		if (ret)
+			goto btree_err;
+
+		bkey_init(&delete.k);
+		delete.k.p = iter->pos;
+
+		/* create the biggest key we can */
+		bch2_key_resize(&delete.k, max_sectors);
+		bch2_cut_back(end, &delete.k);
+
+		bch2_trans_begin_updates(trans);
+
+		ret = bch2_extent_update(trans, iter, &delete,
+				&disk_res, journal_seq,
+				0, i_sectors_delta);
+		bch2_disk_reservation_put(c, &disk_res);
+btree_err:
+		if (ret == -EINTR) {
+			ret2 = ret;
+			ret = 0;
+		}
+		if (ret)
+			break;
+	}
+
+	if (bkey_cmp(iter->pos, end) > 0) {
+		bch2_btree_iter_set_pos(iter, end);
+		ret = bch2_btree_iter_traverse(iter);
+	}
+
+	return ret ?: ret2;
+}
+
+int bch2_fpunch(struct bch_fs *c, u64 inum, u64 start, u64 end,
+		u64 *journal_seq, s64 *i_sectors_delta)
+{
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	int ret = 0;
+
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+				   POS(inum, start),
+				   BTREE_ITER_INTENT);
+
+	ret = bch2_fpunch_at(&trans, iter, POS(inum, end),
+			     journal_seq, i_sectors_delta);
+	bch2_trans_exit(&trans);
+
+	if (ret == -EINTR)
+		ret = 0;
+
+	return ret;
+}
+
 /* Writes */
 
 void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,

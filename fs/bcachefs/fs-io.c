@@ -2145,78 +2145,6 @@ out:
 
 /* truncate: */
 
-int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
-		   struct bpos end, struct bch_inode_info *inode)
-{
-	struct bch_fs *c	= trans->c;
-	unsigned max_sectors	= KEY_SIZE_MAX & (~0 << c->block_bits);
-	struct bkey_s_c k;
-	int ret = 0, ret2 = 0;
-
-	while ((k = bch2_btree_iter_peek(iter)).k &&
-	       bkey_cmp(iter->pos, end) < 0) {
-		struct disk_reservation disk_res =
-			bch2_disk_reservation_init(c, 0);
-		struct bkey_i delete;
-
-		ret = bkey_err(k);
-		if (ret)
-			goto btree_err;
-
-		bkey_init(&delete.k);
-		delete.k.p = iter->pos;
-
-		/* create the biggest key we can */
-		bch2_key_resize(&delete.k, max_sectors);
-		bch2_cut_back(end, &delete.k);
-
-		bch2_trans_begin_updates(trans);
-
-		ret = bchfs_extent_update(trans, inode,
-				&disk_res, NULL, iter, &delete,
-				0, false, true, NULL);
-		bch2_disk_reservation_put(c, &disk_res);
-btree_err:
-		if (ret == -EINTR) {
-			ret2 = ret;
-			ret = 0;
-		}
-		if (ret)
-			break;
-	}
-
-	if (bkey_cmp(iter->pos, end) > 0) {
-		bch2_btree_iter_set_pos(iter, end);
-		ret = bch2_btree_iter_traverse(iter);
-	}
-
-	return ret ?: ret2;
-}
-
-static int __bch2_fpunch(struct bch_fs *c, struct bch_inode_info *inode,
-			 u64 start_offset, u64 end_offset)
-{
-	struct btree_trans trans;
-	struct btree_iter *iter;
-	int ret = 0;
-
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
-
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
-				   POS(inode->v.i_ino, start_offset),
-				   BTREE_ITER_INTENT);
-
-	ret = bch2_fpunch_at(&trans, iter,
-			POS(inode->v.i_ino, end_offset), inode);
-
-	bch2_trans_exit(&trans);
-
-	if (ret == -EINTR)
-		ret = 0;
-
-	return ret;
-}
-
 static inline int range_has_data(struct bch_fs *c,
 				  struct bpos start,
 				  struct bpos end)
@@ -2388,6 +2316,7 @@ int bch2_truncate(struct bch_inode_info *inode, struct iattr *iattr)
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	u64 new_i_size = iattr->ia_size;
+	s64 i_sectors_delta = 0;
 	int ret = 0;
 
 	inode_dio_wait(&inode->v);
@@ -2447,9 +2376,11 @@ int bch2_truncate(struct bch_inode_info *inode, struct iattr *iattr)
 
 	truncate_setsize(&inode->v, iattr->ia_size);
 
-	ret = __bch2_fpunch(c, inode,
+	ret = bch2_fpunch(c, inode->v.i_ino,
 			round_up(iattr->ia_size, block_bytes(c)) >> 9,
-			U64_MAX);
+			U64_MAX, &inode->ei_journal_seq, &i_sectors_delta);
+	i_sectors_acct(c, inode, NULL, i_sectors_delta);
+
 	if (unlikely(ret))
 		goto err;
 
@@ -2467,7 +2398,7 @@ err:
 
 /* fallocate: */
 
-static long bch2_fpunch(struct bch_inode_info *inode, loff_t offset, loff_t len)
+static long bchfs_fpunch(struct bch_inode_info *inode, loff_t offset, loff_t len)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	u64 discard_start = round_up(offset, block_bytes(c)) >> 9;
@@ -2495,8 +2426,15 @@ static long bch2_fpunch(struct bch_inode_info *inode, loff_t offset, loff_t len)
 
 	truncate_pagecache_range(&inode->v, offset, offset + len - 1);
 
-	if (discard_start < discard_end)
-		ret = __bch2_fpunch(c, inode, discard_start, discard_end);
+	if (discard_start < discard_end) {
+		s64 i_sectors_delta = 0;
+
+		ret = bch2_fpunch(c, inode->v.i_ino,
+				  discard_start, discard_end,
+				  &inode->ei_journal_seq,
+				  &i_sectors_delta);
+		i_sectors_acct(c, inode, NULL, i_sectors_delta);
+	}
 err:
 	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
 	inode_unlock(&inode->v);
@@ -2504,7 +2442,7 @@ err:
 	return ret;
 }
 
-static long bch2_fcollapse_finsert(struct bch_inode_info *inode,
+static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 				   loff_t offset, loff_t len,
 				   bool insert)
 {
@@ -2564,8 +2502,14 @@ static long bch2_fcollapse_finsert(struct bch_inode_info *inode,
 					    ATTR_MTIME|ATTR_CTIME);
 		mutex_unlock(&inode->ei_update_lock);
 	} else {
-		ret = __bch2_fpunch(c, inode, offset >> 9,
-				    (offset + len) >> 9);
+		s64 i_sectors_delta = 0;
+
+		ret = bch2_fpunch(c, inode->v.i_ino,
+				  offset >> 9, (offset + len) >> 9,
+				  &inode->ei_journal_seq,
+				  &i_sectors_delta);
+		i_sectors_acct(c, inode, NULL, i_sectors_delta);
+
 		if (ret)
 			goto err;
 	}
@@ -2715,8 +2659,8 @@ err:
 	return ret;
 }
 
-static long bch2_fallocate(struct bch_inode_info *inode, int mode,
-			   loff_t offset, loff_t len)
+static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
+			    loff_t offset, loff_t len)
 {
 	struct address_space *mapping = inode->v.i_mapping;
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
@@ -2765,6 +2709,7 @@ static long bch2_fallocate(struct bch_inode_info *inode, int mode,
 	end_pos = POS(inode->v.i_ino, block_end >> 9);
 
 	while (bkey_cmp(iter->pos, end_pos) < 0) {
+		s64 i_sectors_delta = 0;
 		struct disk_reservation disk_res = { 0 };
 		struct quota_res quota_res = { 0 };
 		struct bkey_i_reservation reservation;
@@ -2818,10 +2763,10 @@ static long bch2_fallocate(struct bch_inode_info *inode, int mode,
 
 		bch2_trans_begin_updates(&trans);
 
-		ret = bchfs_extent_update(&trans, inode,
-				&disk_res, &quota_res,
-				iter, &reservation.k_i,
-				0, true, true, NULL);
+		ret = bch2_extent_update(&trans, iter, &reservation.k_i,
+				&disk_res, &inode->ei_journal_seq,
+				0, &i_sectors_delta);
+		i_sectors_acct(c, inode, &quota_res, i_sectors_delta);
 bkey_err:
 		bch2_quota_reservation_put(c, inode, &quota_res);
 		bch2_disk_reservation_put(c, &disk_res);
@@ -2887,16 +2832,16 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 	struct bch_inode_info *inode = file_bch_inode(file);
 
 	if (!(mode & ~(FALLOC_FL_KEEP_SIZE|FALLOC_FL_ZERO_RANGE)))
-		return bch2_fallocate(inode, mode, offset, len);
+		return bchfs_fallocate(inode, mode, offset, len);
 
 	if (mode == (FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE))
-		return bch2_fpunch(inode, offset, len);
+		return bchfs_fpunch(inode, offset, len);
 
 	if (mode == FALLOC_FL_INSERT_RANGE)
-		return bch2_fcollapse_finsert(inode, offset, len, true);
+		return bchfs_fcollapse_finsert(inode, offset, len, true);
 
 	if (mode == FALLOC_FL_COLLAPSE_RANGE)
-		return bch2_fcollapse_finsert(inode, offset, len, false);
+		return bchfs_fcollapse_finsert(inode, offset, len, false);
 
 	return -EOPNOTSUPP;
 }
@@ -2941,6 +2886,7 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	struct bch_inode_info *src = file_bch_inode(file_src);
 	struct bch_inode_info *dst = file_bch_inode(file_dst);
 	struct bch_fs *c = src->v.i_sb->s_fs_info;
+	s64 i_sectors_delta = 0;
 	loff_t ret = 0;
 	loff_t aligned_len;
 
@@ -2960,6 +2906,8 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 
 	bch2_lock_inodes(INODE_LOCK|INODE_PAGECACHE_BLOCK, src, dst);
 
+	file_update_time(file_dst);
+
 	inode_dio_wait(&src->v);
 	inode_dio_wait(&dst->v);
 
@@ -2967,26 +2915,40 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 					    file_dst, pos_dst,
 					    &len, remap_flags);
 	if (ret < 0 || len == 0)
-		goto out_unlock;
+		goto err;
 
 	aligned_len = round_up(len, block_bytes(c));
 
 	ret = write_invalidate_inode_pages_range(dst->v.i_mapping,
 				pos_dst, pos_dst + aligned_len);
 	if (ret)
-		goto out_unlock;
+		goto err;
 
 	mark_range_unallocated(src, pos_src, pos_src + aligned_len);
 
-	ret = bch2_remap_range(c, dst,
+	ret = bch2_remap_range(c,
 			       POS(dst->v.i_ino, pos_dst >> 9),
 			       POS(src->v.i_ino, pos_src >> 9),
 			       aligned_len >> 9,
-			       pos_dst + len);
-	if (ret > 0)
-		ret = min(ret << 9, len);
+			       &dst->ei_journal_seq,
+			       pos_dst + len, &i_sectors_delta);
+	if (ret < 0)
+		goto err;
 
-out_unlock:
+	ret <<= 9;
+	/*
+	 * due to alignment, we might have remapped slightly more than requsted
+	 */
+	ret = min(ret, len);
+
+	/* XXX get a quota reservation */
+	i_sectors_acct(c, dst, NULL, i_sectors_delta);
+
+	spin_lock(&dst->v.i_lock);
+	if (pos_dst + len > dst->v.i_size)
+		i_size_write(&dst->v, pos_dst + len);
+	spin_unlock(&dst->v.i_lock);
+err:
 	bch2_unlock_inodes(INODE_LOCK|INODE_PAGECACHE_BLOCK, src, dst);
 
 	return ret;
