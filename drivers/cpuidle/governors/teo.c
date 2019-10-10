@@ -233,7 +233,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 {
 	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, dev->cpu);
 	int latency_req = cpuidle_governor_latency_req(dev->cpu);
-	unsigned int duration_us, early_hits;
+	unsigned int duration_us, hits, misses, early_hits;
 	int max_early_idx, constraint_idx, idx, i;
 	ktime_t delta_tick;
 
@@ -247,6 +247,8 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	cpu_data->sleep_length_ns = tick_nohz_get_sleep_length(&delta_tick);
 	duration_us = ktime_to_us(cpu_data->sleep_length_ns);
 
+	hits = 0;
+	misses = 0;
 	early_hits = 0;
 	max_early_idx = -1;
 	constraint_idx = drv->state_count;
@@ -265,6 +267,17 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 				continue;
 
 			/*
+			 * This state is disabled, so the range of idle duration
+			 * values corresponding to it is covered by the current
+			 * candidate state, but still the "hits" and "misses"
+			 * metrics of the disabled state need to be used to
+			 * decide whether or not the state covering the range in
+			 * question is good enough.
+			 */
+			hits = cpu_data->states[i].hits;
+			misses = cpu_data->states[i].misses;
+
+			/*
 			 * If the "early hits" metric of a disabled state is
 			 * greater than the current maximum, it should be taken
 			 * into account, because it would be a mistake to select
@@ -280,8 +293,11 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 			continue;
 		}
 
-		if (idx < 0)
+		if (idx < 0) {
 			idx = i; /* first enabled state */
+			hits = cpu_data->states[i].hits;
+			misses = cpu_data->states[i].misses;
+		}
 
 		if (s->target_residency > duration_us)
 			break;
@@ -290,6 +306,8 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 			constraint_idx = i;
 
 		idx = i;
+		hits = cpu_data->states[i].hits;
+		misses = cpu_data->states[i].misses;
 
 		if (early_hits < cpu_data->states[i].early_hits &&
 		    !(tick_nohz_tick_stopped() &&
@@ -307,8 +325,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	 * "early hits" metric, but if that cannot be determined, just use the
 	 * state selected so far.
 	 */
-	if (cpu_data->states[idx].hits <= cpu_data->states[idx].misses &&
-	    max_early_idx >= 0) {
+	if (hits <= misses && max_early_idx >= 0) {
 		idx = max_early_idx;
 		duration_us = drv->states[idx].target_residency;
 	}
