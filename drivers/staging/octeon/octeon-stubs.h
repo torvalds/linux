@@ -123,7 +123,7 @@ union cvmx_pip_wqe_word0 {
 	struct {
 		uint64_t next_ptr:40;
 		uint8_t unused;
-		uint16_t hw_chksum;
+		__wsum hw_chksum;
 	} cn38xx;
 	struct {
 		uint64_t pknd:6;        /* 0..5 */
