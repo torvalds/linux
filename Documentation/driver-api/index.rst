@@ -26,6 +26,7 @@ available subsections can be seen below.
    device_link
    component
    message-based
+   infiniband
    sound
    frame-buffer
    regulator
