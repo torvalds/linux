@@ -1537,7 +1537,7 @@ bool intel_hdmi_hdcp_check_link(struct intel_digital_port *intel_dig_port)
 
 struct hdcp2_hdmi_msg_timeout {
 	u8 msg_id;
-	u32 timeout;
+	u16 timeout;
 };
 
 static const struct hdcp2_hdmi_msg_timeout hdcp2_msg_timeout[] = {
